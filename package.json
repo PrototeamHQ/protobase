@@ -14,6 +14,7 @@
     "test:integration": "vitest run --project 'integration*'",
     "test:presets": "vitest run --project presets",
     "presets:write": "tsx packages/presets/src/build.ts",
+    "images:context": "node scripts/image-contexts.mjs",
     "test:unit": "vitest run --project unit",
     "test:watch": "vitest --project unit --project pglite",
     "test:db": "tsx scripts/test-db/build.ts",

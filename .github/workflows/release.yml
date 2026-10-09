@@ -2,16 +2,16 @@ name: release
 
 # Every push to main is released when it holds a fix, feature or breaking change: the checks pass, the pushed commits
 # follow Conventional Commits, then scripts/release.mjs bumps every package.json, writes CHANGELOG.md, commits
-# `chore(release): x.y.z` and tags vx.y.z, which are pushed with a GitHub release, and the packages are published to npm.
-# Run by hand, it publishes the packages at an existing tag, skipping versions npm already has, to repeat a missed
-# publish. See website/src/content/docs/reference/versioning.md.
+# `chore(release): x.y.z` and tags vx.y.z, which are pushed with a GitHub release, the packages are published to npm
+# and the images to GitHub's registry. Run by hand, it publishes the packages at an existing tag, skipping versions npm
+# already has, and the images, to repeat a missed publish. See website/src/content/docs/reference/versioning.md.
 on:
   push:
     branches: [main]
   workflow_dispatch:
     inputs:
       tag:
-        description: The release tag to publish to npm, e.g. v0.1.0
+        description: The release tag to publish to npm and GitHub's registry, e.g. v0.1.0
         required: true
 
 # One release at a time; a run waiting behind another is replaced by the run of a newer push.
@@ -118,3 +118,86 @@ jobs:
         env:
           NPM_CONFIG_PROVENANCE: 'true'
         run: node scripts/publish.mjs
+
+  # The images, on GitHub's registry at the release's version: ghcr.io/prototeamhq/protobase (the serve runtime) and
+  # ghcr.io/prototeamhq/protobase-dev (Node, Bun and the presets). Each architecture builds on a runner of its own and
+  # pushes by digest; images-manifest tags the two as one image. After publish, since the presets' bun.lock files
+  # resolve the @protobase packages from npm.
+  images:
+    needs: [release, publish]
+    if: ${{ !cancelled() && needs.publish.result == 'success' }}
+    strategy:
+      matrix:
+        include:
+          - platform: linux/amd64
+            runner: ubuntu-latest
+          - platform: linux/arm64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: refs/tags/${{ inputs.tag || needs.release.outputs.tag }}
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      # pnpm presets:write writes each preset's bun.lock with bun.
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.2
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm images:context
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+      - name: Build and push both images by digest
+        env:
+          PLATFORM: ${{ matrix.platform }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/digests"
+          for image in protobase protobase-dev; do
+            docker buildx build --platform "$PLATFORM" --file "docker/$image/Dockerfile" \
+              --output "type=image,name=ghcr.io/prototeamhq/$image,push-by-digest=true,name-canonical=true,push=true" \
+              --metadata-file "$RUNNER_TEMP/$image.json" "dist/images/$image"
+            node -p "require('$RUNNER_TEMP/$image.json')['containerimage.digest']" > "$RUNNER_TEMP/digests/$image"
+          done
+      - uses: actions/upload-artifact@v4
+        with:
+          name: digests-${{ matrix.runner }}
+          path: ${{ runner.temp }}/digests/*
+          retention-days: 1
+
+  images-manifest:
+    needs: [release, images]
+    if: ${{ !cancelled() && needs.images.result == 'success' }}
+    runs-on: ubuntu-latest
+    permissions:
+      packages: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: digests-*
+          path: ${{ runner.temp }}/digests
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+      - name: Tag each image's digests as one image at the version
+        env:
+          TAG: ${{ inputs.tag || needs.release.outputs.tag }}
+        run: |
+          version="${TAG#v}"
+          for image in protobase protobase-dev; do
+            mapfile -t sources < <(sed "s|^|ghcr.io/prototeamhq/$image@|" "$RUNNER_TEMP"/digests/*/"$image")
+            docker buildx imagetools create --tag "ghcr.io/prototeamhq/$image:$version" "${sources[@]}"
+          done

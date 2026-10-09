@@ -47,6 +47,7 @@ pnpm --filter real-estate dev                  # http://localhost:5173
 | `pnpm test:watch` | `pnpm test` in watch mode |
 | `pnpm test:integration` | the database, subprocess and build tests (projects `integration*`), against the Postgres container |
 | `pnpm presets:write <version> <dir>` | writes each preset to `<dir>/<name>`: a standalone copy of its example with the `@protobase` packages pinned to `<version>`, which must be on npm, and its own `bun.lock`; needs Bun |
+| `pnpm images:context` | the build contexts of the `protobase` and `protobase-dev` images in `dist/images`, at the version in `package.json` (see [Deploy](/guides/deploy/#images)) |
 | `pnpm test:presets` | writes each preset as `pnpm presets:write` does it and installs it with Bun from npm (so at a published version), then migrates, seeds, checks, tests and builds it on a database of its own, as a role without superuser rights; needs Bun and the Postgres container |
 | `pnpm test:db` | builds the template databases the database tests clone for each run (`protobase_test_template`, `real_estate_test_template`), when missing or older than the examples' migrations and seed; without them those tests skip. Tests never use the `protobase` or `real_estate` databases |
 | `pnpm typecheck` | `tsc --noEmit` |
