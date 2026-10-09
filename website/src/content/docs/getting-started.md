@@ -46,7 +46,8 @@ pnpm --filter real-estate dev                  # http://localhost:5173
 | `pnpm test:unit` | only the unit tests, next to the code (Vitest project `unit`), fully parallel; starting PGlite or a Postgres client there throws |
 | `pnpm test:watch` | `pnpm test` in watch mode |
 | `pnpm test:integration` | the database, subprocess and build tests (projects `integration*`), against the Postgres container |
-| `pnpm test:presets` | writes each preset as `@protobase/presets` ships it and installs it with Bun from npm (so at a published version), then migrates, seeds, checks, tests and builds it on a database of its own, as a role without superuser rights; needs Bun and the Postgres container |
+| `pnpm presets:write <version> <dir>` | writes each preset to `<dir>/<name>`: a standalone copy of its example with the `@protobase` packages pinned to `<version>`, which must be on npm, and its own `bun.lock`; needs Bun |
+| `pnpm test:presets` | writes each preset as `pnpm presets:write` does it and installs it with Bun from npm (so at a published version), then migrates, seeds, checks, tests and builds it on a database of its own, as a role without superuser rights; needs Bun and the Postgres container |
 | `pnpm test:db` | builds the template databases the database tests clone for each run (`protobase_test_template`, `real_estate_test_template`), when missing or older than the examples' migrations and seed; without them those tests skip. Tests never use the `protobase` or `real_estate` databases |
 | `pnpm typecheck` | `tsc --noEmit` |
 | `pnpm check:boundaries` | dependency-cruiser package rules |
@@ -59,4 +60,4 @@ pnpm --filter real-estate dev                  # http://localhost:5173
 | `pnpm release --dry-run` | the next version and its changelog, from the commits since the last release (see [Versioning](/reference/versioning/)) |
 | `pnpm docs:check` | opens every page of the built site in Chromium and fails on console errors and failed requests; `BASE=https://docs.protobase.net` checks the live site |
 
-Each public import is a package in `packages/` (`@protobase/schema`, `layout`, `query`, `client`, `ui`, `server`, and `cli` for the `protobase` command); `@protobase/presets` holds the projects a new app starts from. See [Architecture](/reference/architecture/) for the layout and import rules.
+Each public import is a package in `packages/` (`@protobase/schema`, `layout`, `query`, `client`, `ui`, `server`, and `cli` for the `protobase` command); `packages/presets` writes the projects a new app starts from and is not published. See [Architecture](/reference/architecture/) for the layout and import rules.

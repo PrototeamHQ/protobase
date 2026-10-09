@@ -16,11 +16,6 @@ describe('presets', () => {
     }
   })
 
-  // Each preset pins the @protobase packages to this package's version, so it must be the release's.
-  it('are versioned with the rest of the release', () => {
-    expect(manifest('packages/presets').version).toBe(manifest('.').version)
-  })
-
   it('carry the scripts every job relies on', () => {
     for (const preset of presets) {
       expect(Object.keys(manifest(preset.source).scripts)).toEqual(expect.arrayContaining(['db:migrate', 'auth:migrate', 'typecheck', 'test']))

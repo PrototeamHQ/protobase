@@ -44,7 +44,7 @@ Every commit message follows [Conventional Commits](https://www.conventionalcomm
 1. The checks of `ci.yml` (`pnpm check`, the docs build, the Storybook play tests and the docs check) and commitlint over the pushed commits.
 2. `pnpm release` (`scripts/release.mjs`, with [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version)) computes the next version from the commits since the last `v*` tag, writes it to every `package.json` listed in `.versionrc.json` and to `CHANGELOG.md`, commits them as `chore(release): <version>` and tags `v<version>`. Without a fix, feature or breaking change it changes nothing.
 3. The commit and tag are pushed to `main`, and the GitHub release gets the version's `CHANGELOG.md` section.
-4. `scripts/publish.mjs` packs every package at the tag (each builds to `dist` in `prepack`; `@protobase/presets`, packed last, writes each preset's `bun.lock` from the packages just published) and publishes it to npm with [trusted publishing](https://docs.npmjs.com/trusted-publishers) and provenance; there is no npm token. A run that cut no release publishes nothing.
+4. `scripts/publish.mjs` packs every package at the tag (each builds to `dist` in `prepack`; the private `@protobase/presets` is not published) and publishes it to npm with [trusted publishing](https://docs.npmjs.com/trusted-publishers) and provenance; there is no npm token. A run that cut no release publishes nothing.
 
 The release commit does not start the workflow again. When `main` moved on while the checks ran, the run of the newer push releases both. `pnpm release --dry-run` prints the next version and its changelog without changing anything.
 

@@ -1,6 +1,6 @@
 import { spawnSync } from 'node:child_process'
 import { randomBytes } from 'node:crypto'
-import { existsSync, mkdtempSync, readFileSync, renameSync, rmSync } from 'node:fs'
+import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import postgres from 'postgres'
@@ -9,10 +9,10 @@ import { connectServer, serverReachable, serverUrl } from '../../../scripts/test
 import { presets } from '../src/presets'
 import { writePreset } from '../src/write-preset'
 
-// Each preset as an app gets it: written out at this package's version (so bun installs the @protobase packages from
+// Each preset as an app gets it: written out at this repository's version (so bun installs the @protobase packages from
 // npm, which must have that version), in a folder outside this repository, on a database of its own whose role is
 // what the platform provisions: no superuser, CREATE on its own database only.
-const { version } = JSON.parse(readFileSync(path.join(import.meta.dirname, '..', 'package.json'), 'utf8'))
+const { version } = JSON.parse(readFileSync(path.join(import.meta.dirname, '..', '..', '..', 'package.json'), 'utf8'))
 
 // The provisioner's statements (protobase-cloud src/databases/provisioner.ts), for one database and its role.
 const provision = async (name: string, password: string) => {
@@ -51,7 +51,6 @@ describe.skipIf(!(await serverReachable())).each(presets)('the $name preset', (p
 
   beforeAll(async () => {
     writePreset(preset, version, dir)
-    renameSync(path.join(dir, '_gitignore'), path.join(dir, '.gitignore'))
     const url = await provision(database, randomBytes(16).toString('hex'))
     // Only what a job passes: nothing of this repository's environment.
     env = { PATH: process.env.PATH, HOME: process.env.HOME, TMPDIR: process.env.TMPDIR, DATABASE_URL: url, BETTER_AUTH_SECRET: randomBytes(32).toString('base64') }

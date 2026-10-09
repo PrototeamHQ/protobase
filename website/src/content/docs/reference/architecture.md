@@ -16,10 +16,10 @@ A pnpm workspace of npm packages under the `@protobase` scope, in `packages/<nam
 | `@protobase/ui` | `packages/ui` | `@protobase/ui`; the admin app in `src/app` | browser | `schema`, `layout`, `client` |
 | `@protobase/server` | `packages/server` | `@protobase/server` | server | `schema`, `layout`, `query` |
 | `@protobase/cli` | `packages/cli` | the `protobase` command (`bin/protobase.mjs`) | Node; `src/serve` also Bun | `schema`, `layout`, `query`, `server`, `ui` |
-| `@protobase/presets` | `packages/presets` | none: files only, a project per preset in `dist/<name>` | | none; each preset depends on the `@protobase` packages of its release |
+| `@protobase/presets` | `packages/presets` | none: private, `pnpm presets:write` writes a project per preset | Node | none; each preset depends on the `@protobase` packages of the version it is written at |
 | `examples/*` | | none | any | `@protobase/*` entry points only |
 
-The presets are written from `examples/erp`, `examples/real-estate` and `examples/scratch` (from scratch) when the package is packed: each a standalone copy at the release's version, with its own `bun.lock` and its `.gitignore` as `_gitignore`, since npm leaves `.gitignore` files out of a package. The three declare the same dependencies, so one `node_modules` fits them all, and their `db:migrate`, `auth:migrate`, `typecheck` and `test` scripts take their settings from the environment, or a `.env` beside them, and reach nothing outside the project.
+The presets are written from `examples/erp`, `examples/real-estate` and `examples/scratch` (from scratch) by `pnpm presets:write <version> <dir>`, run from a clone of this repository; they are not on npm. Each is a standalone copy with the `@protobase` packages pinned to `<version>` and its own `bun.lock`. The three declare the same dependencies, so one `node_modules` fits them all, and their `db:migrate`, `auth:migrate`, `typecheck` and `test` scripts take their settings from the environment, or a `.env` beside them, and reach nothing outside the project.
 
 The JSX runtime belongs to `@protobase/layout` because a layout file names one package in `@jsxImportSource @protobase/layout`, and TypeScript and Vite look up `jsx-runtime` and `jsx-dev-runtime` under it. Each field type is split along the same lines: its Zod builder is `packages/schema/src/fields/<type>.ts` and its SQL parameter conversion `packages/query/src/fields/<type>.ts`.
 

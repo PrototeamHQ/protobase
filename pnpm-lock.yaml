@@ -372,11 +372,7 @@ importers:
         specifier: ^1.0.0
         version: 1.0.0
 
-  packages/presets:
-    devDependencies:
-      tsx:
-        specifier: ^4.23.15
-        version: 4.23.15
+  packages/presets: {}
 
   packages/query:
     dependencies:

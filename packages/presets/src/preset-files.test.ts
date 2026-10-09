@@ -6,10 +6,7 @@ describe('presetPath', () => {
     expect(presetPath('config/orders/data.ts')).toBe('config/orders/data.ts')
     expect(presetPath('AGENTS.md')).toBe('AGENTS.md')
     expect(presetPath('.env.example')).toBe('.env.example')
-  })
-
-  it('ships .gitignore as _gitignore, since npm leaves .gitignore files out of a package', () => {
-    expect(presetPath('.gitignore')).toBe('_gitignore')
+    expect(presetPath('.gitignore')).toBe('.gitignore')
   })
 
   it('leaves out the README, which documents the example in this repository', () => {

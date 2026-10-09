@@ -8,9 +8,8 @@ import { mkdtempSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 
-// Dependencies before their dependents, so a package is never on npm before the @protobase packages it needs. The
-// presets come last: packing them writes each one's bun.lock, which bun resolves from npm at this version.
-const packages = ['schema', 'layout', 'query', 'client', 'server', 'ui', 'cli', 'presets']
+// Dependencies before their dependents, so a package is never on npm before the @protobase packages it needs.
+const packages = ['schema', 'layout', 'query', 'client', 'server', 'ui', 'cli']
 const dryRun = process.argv.slice(2).includes('--dry-run')
 const outDir = mkdtempSync(path.join(tmpdir(), 'protobase-publish-'))
 
@@ -22,25 +21,13 @@ const run = (command, args, cwd = '.') => {
 // The version npm has of name@version, empty when it has none.
 const publishedVersion = (name, version) => spawnSync('npm', ['view', `${name}@${version}`, 'version'], { encoding: 'utf8' }).stdout.trim()
 
-// npm can take a while to serve a version it has just accepted, and bun resolves the presets' dependencies from it.
-const waitUntilServed = (name, version) => {
-  for (let attempt = 0; attempt < 30; attempt++) {
-    if (publishedVersion(name, version) === version) return
-    spawnSync('sleep', ['10'])
-  }
-  throw new Error(`npm does not serve ${name}@${version} after 5 minutes`)
-}
-
-const manifest = (dir) => JSON.parse(readFileSync(path.join('packages', dir, 'package.json'), 'utf8'))
-
 for (const dir of packages) {
   const packageDir = path.join('packages', dir)
-  const { name, version } = manifest(dir)
+  const { name, version } = JSON.parse(readFileSync(path.join(packageDir, 'package.json'), 'utf8'))
   if (publishedVersion(name, version) === version) {
     console.log(`${name}@${version} is already on npm`)
     continue
   }
-  if (dir === 'presets' && !dryRun) for (const other of packages.slice(0, -1)) waitUntilServed(manifest(other).name, version)
   run('pnpm', ['pack', '--pack-destination', outDir], packageDir)
   const tarball = path.join(outDir, `${name.replace('@', '').replace('/', '-')}-${version}.tgz`)
   run('npm', ['publish', tarball, '--access', 'public', ...(dryRun ? ['--dry-run'] : [])])
