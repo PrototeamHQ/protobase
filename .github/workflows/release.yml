@@ -2,10 +2,17 @@ name: release
 
 # Every push to main is released when it holds a fix, feature or breaking change: the checks pass, the pushed commits
 # follow Conventional Commits, then scripts/release.mjs bumps every package.json, writes CHANGELOG.md, commits
-# `chore(release): x.y.z` and tags vx.y.z, which are pushed with a GitHub release. See website/src/content/docs/reference/versioning.md.
+# `chore(release): x.y.z` and tags vx.y.z, which are pushed with a GitHub release, and the packages are published to npm.
+# Run by hand, it publishes the packages at an existing tag, skipping versions npm already has, to repeat a missed
+# publish. See website/src/content/docs/reference/versioning.md.
 on:
   push:
     branches: [main]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: The release tag to publish to npm, e.g. v0.1.0
+        required: true
 
 # One release at a time; a run waiting behind another is replaced by the run of a newer push.
 concurrency:
@@ -14,11 +21,11 @@ concurrency:
 
 jobs:
   check:
-    if: ${{ !startsWith(github.event.head_commit.message, 'chore(release):') }}
+    if: ${{ github.event_name == 'push' && !startsWith(github.event.head_commit.message, 'chore(release):') }}
     uses: ./.github/workflows/ci.yml
 
   commits:
-    if: ${{ !startsWith(github.event.head_commit.message, 'chore(release):') }}
+    if: ${{ github.event_name == 'push' && !startsWith(github.event.head_commit.message, 'chore(release):') }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -45,6 +52,8 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+    outputs:
+      tag: ${{ steps.push.outputs.tag }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -68,6 +77,7 @@ jobs:
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           pnpm release
       - name: Push it and publish the GitHub release
+        id: push
         if: steps.head.outputs.current == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
@@ -80,3 +90,31 @@ jobs:
           git push --atomic origin HEAD:refs/heads/main "refs/tags/v$version"
           node scripts/release-notes.mjs "$version" > "$RUNNER_TEMP/notes.md"
           gh release create "v$version" --verify-tag --title "v$version" --notes-file "$RUNNER_TEMP/notes.md"
+          echo "tag=v$version" >> "$GITHUB_OUTPUT"
+
+  # Trusted publishing: npm trusts this workflow file of this repository for every @protobase package, so there is no
+  # npm token; npm 11.5.1 or newer exchanges the job's OIDC token and adds provenance. A run that cut no release has no
+  # tag and publishes nothing.
+  publish:
+    needs: release
+    if: ${{ !cancelled() && (github.event_name == 'workflow_dispatch' || needs.release.outputs.tag != '') }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: refs/tags/${{ inputs.tag || needs.release.outputs.tag }}
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+          cache: pnpm
+      - run: npm install -g npm@^11.5.1
+      - run: pnpm install --frozen-lockfile
+      - name: Publish the packages
+        env:
+          NPM_CONFIG_PROVENANCE: 'true'
+        run: node scripts/publish.mjs

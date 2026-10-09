@@ -83,6 +83,8 @@ module.exports = {
   ],
   options: {
     doNotFollow: { path: 'node_modules' },
+    // The packages' build output and build configs, which are not package code.
+    exclude: { path: ['^packages/[^/]+/dist/', '^packages/[^/]+/tsdown\\.config\\.ts$'] },
     tsConfig: { fileName: 'tsconfig.json' },
     tsPreCompilationDeps: true,
     enhancedResolveOptions: {

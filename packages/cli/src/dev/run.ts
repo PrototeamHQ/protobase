@@ -1,11 +1,11 @@
 import { existsSync } from 'node:fs'
 import path from 'node:path'
-import { fileURLToPath } from 'node:url'
 import tailwindcss from '@tailwindcss/vite'
 import devServer from '@hono/vite-dev-server'
 import react from '@vitejs/plugin-react'
 import { createServer, searchForWorkspaceRoot, type Plugin } from 'vite'
-import { adminAppDir, uiPackageDir } from '../project/admin-app'
+import { adminAppDir, adminAppMain, uiPackageDir } from '../project/admin-app'
+import { moduleFile } from '../module-file'
 import { projectUiPlugin } from '../project/project-ui'
 import { layoutCheck } from '../build/layout-check'
 import { checkDatabase } from './check-database'
@@ -22,10 +22,10 @@ export type DevOptions = {
   allowedHosts: string[]
 }
 
-const here = path.dirname(fileURLToPath(import.meta.url))
+const entry = moduleFile('./entry', import.meta.url)
 
 const requireAppFiles = (appDir: string) => {
-  const missing = ['index.html', 'main.tsx'].filter((file) => !existsSync(path.join(appDir, file)))
+  const missing = ['index.html', adminAppMain].filter((file) => !existsSync(path.join(appDir, file)))
   if (missing.length > 0) {
     throw new Error(`The admin app is missing ${missing.join(', ')} in ${appDir}; \`protobase dev\` serves the app from there`)
   }
@@ -88,7 +88,7 @@ export const runDev = async (options: DevOptions, out: (text: string) => void) =
       react(),
       tailwindcss(),
       devServer({
-        entry: path.join(here, 'entry.ts'),
+        entry,
         // Vite serves everything that is not under /api.
         exclude: [/^(?!\/api(\/|\?|$)).*/],
         injectClientScript: false,
@@ -97,7 +97,7 @@ export const runDev = async (options: DevOptions, out: (text: string) => void) =
   })
   await server.listen()
   // Load the API once now so a missing authenticator or a broken config stops startup instead of failing requests.
-  await server.ssrLoadModule(path.join(here, 'entry.ts')).catch(async (error: Error) => {
+  await server.ssrLoadModule(entry).catch(async (error: Error) => {
     await server.close()
     throw error
   })

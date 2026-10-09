@@ -5,7 +5,7 @@ import path from 'node:path'
 import postgres from 'postgres'
 
 export const root = path.resolve(__dirname, '../../../..')
-export const bin = path.join(root, 'packages/cli/bin/protobase.mjs')
+export const bin = path.join(root, 'packages/cli/bin/protobase-source.mjs')
 
 export const run = (args: string[], cwd: string, env: Record<string, string>, stdin?: string) =>
   new Promise<{ status: number | null; stdout: string; stderr: string }>((resolve) => {

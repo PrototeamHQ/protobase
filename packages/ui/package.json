@@ -10,6 +10,10 @@
   },
   "homepage": "https://docs.protobase.net",
   "type": "module",
+  "sideEffects": [
+    "*.css",
+    "./dist/app/main.js"
+  ],
   "engines": {
     "node": ">=22.12.0"
   },
@@ -18,13 +22,18 @@
   },
   "types": "./src/index.ts",
   "files": [
-    "src",
-    "!src/**/*.test.ts",
-    "!src/**/*.stories.tsx",
-    "!src/app/testing"
+    "dist"
   ],
+  "scripts": {
+    "build": "tsdown",
+    "prepack": "tsdown"
+  },
   "publishConfig": {
-    "access": "public"
+    "access": "public",
+    "exports": {
+      ".": "./dist/index.js"
+    },
+    "types": "./dist/index.d.ts"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

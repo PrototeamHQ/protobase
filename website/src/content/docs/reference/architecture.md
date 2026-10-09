@@ -28,7 +28,7 @@ Every package lists the packages it imports in its `package.json` (`workspace:*`
 - Examples, their tests and `test-support/` import the packages by name, never by path.
 - No circular dependencies.
 
-Entry points export TypeScript source directly; the packages have no build step, and the CLI runs its source through [tsx](https://tsx.is). The builds are for deployment: the serve runtime, `packages/cli/src/serve/main.ts` bundled with its dependencies into `dist/protobase-serve.js` by `protobase build-serve`, and a project's bundle, its config module plus a production build of the admin app (`packages/ui/src/app`) with the project's `protobase.ui.tsx`, by `protobase build` (see [CLI](/reference/cli/#build)).
+In this repository, entry points export TypeScript source directly and the CLI runs its source through [tsx](https://tsx.is), so nothing needs a build. The published packages are built to JavaScript in `dist` by `pnpm build` and `pnpm pack` (see [CLI](/reference/cli/#how-it-runs)). The other builds are for deployment: the serve runtime, `packages/cli/src/serve/main.ts` bundled with its dependencies into `dist/protobase-serve.js` by `protobase build-serve`, and a project's bundle, its config module plus a production build of the admin app (`packages/ui/src/app`) with the project's `protobase.ui.tsx`, by `protobase build` (see [CLI](/reference/cli/#build)).
 
 ## Tests and stories
 

@@ -13,9 +13,11 @@ pnpm --filter erp protobase <command> # in this repository, for an example
 
 ## How it runs
 
-`@protobase/cli`'s `bin/protobase.mjs` registers [tsx](https://tsx.is) and imports `src/index.ts`, so the CLI runs straight from source with no build step, and so do the `@protobase` packages it imports. Node 22.16 does not strip types by default (`process.features.typescript` is `false`; it arrives in 22.18) and the sources use extensionless imports, which native type stripping rejects. `tsx` is a dependency of `@protobase/cli`, and the `bin` field in its `package.json` points at the same file.
+The published `@protobase` packages are JavaScript: each is built with [tsdown](https://tsdown.dev) to ES modules and type declarations in `dist`, one file per source module, and `pnpm pack` points their `exports`, `types` and `bin` at it (`publishConfig`). The installed `protobase` command (`bin/protobase.mjs`) runs `dist` in plain Node. The project's own TypeScript, which `users` and `doctor` import, is loaded with [tsx](https://tsx.is); `dev` and `build` load it with Vite.
 
-The serve runtime is the exception: `protobase build-serve` bundles it into one JavaScript file for Bun, so production needs neither tsx nor `node_modules` (see [serve](#serve)).
+In this repository nothing needs a build: the packages' `exports` point at `src`, and the workspace's `protobase` is `bin/protobase-source.mjs`, which registers tsx and imports `src/index.ts`. `pnpm build` builds every package to `dist`.
+
+The serve runtime is bundled by `protobase build-serve` into one JavaScript file for Bun, so production needs neither `node_modules` nor the CLI (see [serve](#serve)).
 
 The CLI reads the database with `default_transaction_read_only = on`, so it can never write.
 
@@ -86,7 +88,7 @@ Exit code is 1 when there are errors.
 protobase dev [--port 5173] [--env DATABASE_URL] [--cache-dir <dir>] [--allowed-hosts <hosts>]   # run inside a project, e.g. pnpm --filter erp dev
 ```
 
-One process, one port: Vite serves the admin app from `@protobase/ui`'s `src/app/` (`index.html`, `main.tsx`; the command fails with a clear message when they are missing) and `@hono/vite-dev-server` mounts the Hono app from `createAdmin` under `/api`. Open `http://localhost:<port>`; the API reference is at `/api/docs`.
+One process, one port: Vite serves the admin app from `@protobase/ui`'s `src/app/` (`dist/app/` when installed; `index.html` and `main.tsx`, or `main.js`; the command fails with a clear message when they are missing) and `@hono/vite-dev-server` mounts the Hono app from `createAdmin` under `/api`. Open `http://localhost:<port>`; the API reference is at `/api/docs`.
 
 - **Database:** the URL comes from the variable named by `--env`, read from the environment or the nearest `.env` at or above the project. The connection is checked before anything starts; if it fails, the command names host, port and reason (and `pnpm --filter <project> db:up` when the project has a `db:up` script). The project needs `pg` installed, because the API connects with Kysely over the project's own `pg`.
 - **Cache:** Vite's dependency cache is `node_modules/.vite`; two dev servers sharing it can disturb each other's optimisation, so pass `--cache-dir` for a second one (the integration test does).
@@ -229,7 +231,7 @@ Bundles the serve runtime (`@protobase/cli`'s `src/serve/main.ts`) and all its d
 
 ```sh
 bun --no-install protobase-serve.js <bundle>/protobase.config.js   # production, under Bun: the API
-protobase serve <bundle>/protobase.config.js                       # the same, from source under Node
+protobase serve <bundle>/protobase.config.js                       # the same, under Node
 protobase serve <bundle>                                           # the whole bundle as a host serves it, e.g. pnpm --filter erp serve
 ```
 

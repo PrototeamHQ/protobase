@@ -3,7 +3,7 @@ title: Versioning
 description: How Protobase is versioned and released, the commit convention behind it, and which bundles a serve runtime runs.
 ---
 
-Protobase follows [semantic versioning](https://semver.org). Every push to `main` that holds a fix, a feature or a breaking change is released: the version that the root and every `@protobase` package's `package.json` share goes up, `CHANGELOG.md` gets the release's changes, and the release is tagged `v<version>` with a [GitHub release](https://github.com/PrototeamHQ/protobase/releases). The release workflow publishes nothing to npm.
+Protobase follows [semantic versioning](https://semver.org). Every push to `main` that holds a fix, a feature or a breaking change is released: the version that the root and every `@protobase` package's `package.json` share goes up, `CHANGELOG.md` gets the release's changes, and the release is tagged `v<version>` with a [GitHub release](https://github.com/PrototeamHQ/protobase/releases). Every `@protobase` package is then published to npm at that version.
 
 ## Versions below 1.0
 
@@ -44,12 +44,15 @@ Every commit message follows [Conventional Commits](https://www.conventionalcomm
 1. The checks of `ci.yml` (`pnpm check`, the docs build, the Storybook play tests and the docs check) and commitlint over the pushed commits.
 2. `pnpm release` (`scripts/release.mjs`, with [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version)) computes the next version from the commits since the last `v*` tag, writes it to every `package.json` listed in `.versionrc.json` and to `CHANGELOG.md`, commits them as `chore(release): <version>` and tags `v<version>`. Without a fix, feature or breaking change it changes nothing.
 3. The commit and tag are pushed to `main`, and the GitHub release gets the version's `CHANGELOG.md` section.
+4. `scripts/publish.mjs` packs every package at the tag (each builds to `dist` in `prepack`) and publishes it to npm with [trusted publishing](https://docs.npmjs.com/trusted-publishers) and provenance; there is no npm token. A run that cut no release publishes nothing.
 
 The release commit does not start the workflow again. When `main` moved on while the checks ran, the run of the newer push releases both. `pnpm release --dry-run` prints the next version and its changelog without changing anything.
 
+Running the workflow by hand with a tag (`gh workflow run release.yml -f tag=v0.1.0`) only publishes: the packages at that tag, skipping every version npm already has, which repeats a missed or half-done publish. `node scripts/publish.mjs --dry-run` packs the packages and shows what `npm publish` would send. Each package on npm trusts `release.yml` of `PrototeamHQ/protobase` as its publisher; a new package has to be published once by hand before that can be set up.
+
 ## Bundles and runtimes
 
-`protobase build` writes the Protobase version that built the bundle into [the manifest](/reference/cli/#the-manifest) as `protobase`. The serve runtime knows its own version, inlined into `protobase-serve.js` by `protobase build-serve` and read from `@protobase/cli`'s `package.json` when `protobase serve` runs from source. Before it loads a bundle, it compares the two:
+`protobase build` writes the Protobase version that built the bundle into [the manifest](/reference/cli/#the-manifest) as `protobase`. The serve runtime knows its own version, inlined into `protobase-serve.js` by `protobase build-serve` and inlined into the CLI's `dist` when the package is built, and read from `@protobase/cli`'s `package.json` when `protobase serve` runs from source in this repository. Before it loads a bundle, it compares the two:
 
 - **From 1.0:** the major versions are the same and the runtime's minor is the bundle's or newer. A 1.4.x runtime serves bundles built by 1.0.0 up to 1.4.x.
 - **Below 1.0:** the minor versions are the same. A 0.2.x runtime serves only bundles built by 0.2.x, not those of 0.1.x or 0.3.x.

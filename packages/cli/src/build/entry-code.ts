@@ -1,8 +1,8 @@
 import { existsSync, readdirSync } from 'node:fs'
 import path from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { moduleFile } from '../module-file'
 
-const conventionModule = fileURLToPath(new URL('../project/convention.ts', import.meta.url))
+const conventionModule = moduleFile('../project/convention', import.meta.url)
 
 const uiDirs = (configDir: string) =>
   readdirSync(configDir, { withFileTypes: true })
