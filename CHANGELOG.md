@@ -2,6 +2,12 @@
 
 Every release of Protobase, cut by the release workflow from the commits since the last one (see the [versioning page](https://docs.protobase.net/reference/versioning/)).
 
+## [0.1.2](https://github.com/PrototeamHQ/protobase/compare/v0.1.1...v0.1.2) (2026-10-09)
+
+### Features
+
+* **presets:** make the examples standalone presets and publish them as @protobase/presets ([b65e0b6](https://github.com/PrototeamHQ/protobase/commit/b65e0b6d953192ab89c45014bb1177e91e2f608f))
+
 ## [0.1.1](https://github.com/PrototeamHQ/protobase/compare/v0.1.0...v0.1.1) (2026-10-09)
 
 ### Features
