@@ -36,7 +36,16 @@ export type CreateAuthOptions = {
    * Default none.
    */
   socialProviders?: BetterAuthOptions['socialProviders']
+  /** Encrypt the OAuth access, refresh and ID tokens Better Auth stores for social sign-ins, with `secret`. Default off. */
+  encryptOAuthTokens?: boolean
+  /** Runs after a user is created, by any route: `createUser`, an admin, or a social sign-up. Default none. */
+  onUserCreated?: UserCreatedHook
 }
+
+type UserCreateHooks = NonNullable<NonNullable<NonNullable<BetterAuthOptions['databaseHooks']>['user']>['create']>
+
+/** Better Auth's `databaseHooks.user.create.after`: the created user (with its `role`) and the request context, `null` outside a request. */
+export type UserCreatedHook = NonNullable<UserCreateHooks['after']>
 
 const platformMailer = () => {
   const settings = readMailSettings(globalThis.process?.env ?? {})
@@ -72,6 +81,7 @@ export const betterAuthOptions = (options: CreateAuthOptions, { roles, defaultRo
     trustedOrigins: [options.baseURL, 'https://*.trycloudflare.com', ...(options.trustedOrigins ?? [])],
     emailAndPassword: { enabled: true, disableSignUp: true, minPasswordLength: 12, ...(mailer && passwordResetOptions(mailer)) },
     ...(options.socialProviders && { socialProviders: options.socialProviders }),
+    ...(options.encryptOAuthTokens && { account: { encryptOAuthTokens: true } }),
     plugins: [
       // Without a default role the plugin's own default is a name outside the list, which the hook below refuses.
       admin({ defaultRole: defaultRole ?? 'unassigned', roles: Object.fromEntries(roles.map((role) => [role, role === 'admin' ? adminAc : userAc])) }),
@@ -95,6 +105,7 @@ export const betterAuthOptions = (options: CreateAuthOptions, { roles, defaultRo
             }
             return { data: user }
           },
+          ...(options.onUserCreated && { after: options.onUserCreated }),
         },
       },
     },

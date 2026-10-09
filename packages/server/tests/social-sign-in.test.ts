@@ -108,6 +108,17 @@ describe('sign-in with GitHub', () => {
     expect((await served.store.query(`select 1 from account where "providerId" = 'github'`)).rows).toHaveLength(1)
   })
 
+  it('runs the after-create hook for a GitHub sign-up and stores its tokens encrypted', async () => {
+    mockGitHub()
+    const created: { email: string; role: unknown }[] = []
+    const served = await serve({ socialProviders: github, encryptOAuthTokens: true, onUserCreated: async (user) => void created.push({ email: user.email, role: user.role }) })
+    await signInWithGitHub(served)
+    expect(created).toEqual([{ email: 'root@example.com', role: 'admin' }, { email: 'octo@example.com', role: 'user' }])
+    const accounts = await served.store.query<{ accessToken: string }>(`select "accessToken" from account where "providerId" = 'github'`)
+    expect(accounts.rows).toHaveLength(1)
+    expect(accounts.rows[0]!.accessToken).not.toContain('gho_user')
+  })
+
   it('refuses the sign-up when the project has no default role', async () => {
     mockGitHub()
     const served = await serve({ socialProviders: github, roles: ['admin', 'sales', 'accountant'] })

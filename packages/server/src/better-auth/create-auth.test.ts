@@ -20,4 +20,23 @@ describe('betterAuthOptions', () => {
     expect(socialProviders).toBe(github)
     expect(data(rest)).toEqual(data(betterAuthOptions(base, resolved)))
   })
+
+  it('leaves OAuth tokens unencrypted and adds no after-create hook by default', () => {
+    const options = betterAuthOptions(base, resolved)
+    expect(options).not.toHaveProperty('account')
+    expect(options.databaseHooks.user.create).not.toHaveProperty('after')
+  })
+
+  it('turns on OAuth token encryption', () => {
+    const { account, ...rest } = betterAuthOptions({ ...base, encryptOAuthTokens: true }, resolved)
+    expect(account).toEqual({ encryptOAuthTokens: true })
+    expect(data(rest)).toEqual(data(betterAuthOptions(base, resolved)))
+  })
+
+  it('passes the after-create hook through and keeps the role check before it', () => {
+    const onUserCreated = async () => {}
+    const options = betterAuthOptions({ ...base, onUserCreated }, resolved)
+    expect(options.databaseHooks.user.create.after).toBe(onUserCreated)
+    expect(options.databaseHooks.user.create.before).toBeTypeOf('function')
+  })
 })

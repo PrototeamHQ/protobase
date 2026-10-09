@@ -92,6 +92,8 @@ createAuth({ ..., socialProviders: { github: { clientId: process.env.GITHUB_CLIE
 - The callback URL to register with GitHub is `<BETTER_AUTH_URL>/api/auth/callback/github`. A GitHub App needs the Email addresses (read-only) account permission, or sign-in fails with `email_not_found`.
 - A provider is also a public sign-up: someone without an account gets one with the [default role](#roles). Without a default role the sign-up is refused.
 - `GET /api/auth/status` lists the provider ids as `socialProviders`.
+- `encryptOAuthTokens: true` stores the provider's access, refresh and ID tokens encrypted with the secret.
+- `onUserCreated: async (user, ctx) => { ... }` runs after any user is created, a social sign-up included (Better Auth's `databaseHooks.user.create.after`; the type is `UserCreatedHook`).
 
 ## Roles
 
