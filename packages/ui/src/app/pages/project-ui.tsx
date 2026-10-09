@@ -16,11 +16,13 @@ export type ActionHandler = (context: ActionContext) => void | Promise<void>
 
 /**
  * The project's own React code for composed pages: custom components by the name their layout declares
- * (`component('UsageChart')`), and handlers for named actions that have no built-in behaviour.
+ * (`component('UsageChart')`), handlers for named actions that have no built-in behaviour, and the shell's slots.
  */
 export type ProjectUi = {
   components?: Record<string, ComponentType<any>>
   actions?: Record<string, ActionHandler>
+  /** Rendered in the shell on every page: `actions` at the end of the top bar, `rightPanel` beside the page. */
+  shell?: { actions?: ComponentType; rightPanel?: ComponentType }
 }
 
 /** Typed identity, for `export default defineUi({ components, actions })` in `protobase.ui.tsx`. */

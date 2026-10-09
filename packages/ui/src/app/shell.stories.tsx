@@ -2,6 +2,8 @@ import type { Meta, StoryObj } from '@storybook/react-vite'
 import { expect, userEvent, within } from 'storybook/test'
 import { createStaticSession } from '@protobase/client'
 import { navOpenStorageKey } from '../app-shell/nav-open-storage'
+import { AssistantDock } from '../assistant-dock'
+import { Button } from '../primitives/button'
 import { App } from './app'
 import { fakeClient } from './testing/fake-client'
 
@@ -46,5 +48,27 @@ export const RecentAndUserMenu: StoryObj = {
     await userEvent.click(canvas.getByRole('button', { name: 'Profile menu' }))
     const menu = await canvas.findByRole('menu')
     expect(within(menu).getAllByRole('menuitem').map((item) => item.textContent)).toEqual(['Support', 'Sign out'])
+  },
+}
+
+/** The project's `shell` slots from `protobase.ui.tsx`: a top-bar action, and the assistant dock as the right panel. */
+export const ProjectShellSlots: StoryObj = {
+  tags: ['play'],
+  render: () => (
+    <div className="h-screen">
+      <App
+        client={fakeClient({ permissions: allowed })}
+        auth={session}
+        initialUrl="/orders"
+        ui={{ shell: { actions: () => <Button size="sm">Assistant</Button>, rightPanel: () => <AssistantDock items={[]} balance={12} /> } }}
+      />
+    </div>
+  ),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    await canvas.findByRole('button', { name: 'Assistant' })
+    const dock = canvas.getByRole('complementary', { name: 'Assistant' })
+    within(dock).getByText('12 credits')
+    expect(within(dock).getByRole('textbox', { name: 'Message' })).toBeEnabled()
   },
 }

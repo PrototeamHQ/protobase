@@ -13,7 +13,7 @@ import { ListPage } from './list-page'
 import { MetaGate, Notice, useAdminMeta } from './meta-gate'
 import { navFromMeta } from './nav-from-meta'
 import { ComposedPage } from './pages/composed-page'
-import { ProjectUiProvider, type ProjectUi } from './pages/project-ui'
+import { ProjectUiProvider, useProjectUi, type ProjectUi } from './pages/project-ui'
 import { RecordPage } from './record-page'
 import { useGlobalSearch } from './search/use-global-search'
 import { Router, matchRoute, useRouter } from './router'
@@ -62,6 +62,9 @@ const Routes = ({ workspace, sidebarMode }: Pick<AppProps, 'workspace' | 'sideba
   const model = route.resource ? meta.resources[route.resource] : undefined
   const record = useRecord(route.resource ?? '', route.key ?? '', Boolean(model && route.key && route.key !== 'new'))
   const title = model && record.data ? recordTitle(model, view, record.data.record, route.key ?? '') : route.key
+  const { shell } = useProjectUi()
+  const Actions = shell?.actions
+  const RightPanel = shell?.rightPanel
   const breadcrumb = breadcrumbFor({ basePath, route, group: group?.label, page, resourceLabel: view?.names?.plural ?? (route.resource && humanize(route.resource)), recordTitle: title })
 
   return (
@@ -76,6 +79,8 @@ const Routes = ({ workspace, sidebarMode }: Pick<AppProps, 'workspace' | 'sideba
       userMenu={userMenuFromMeta(meta, basePath, route.resource)}
       onNavigate={open}
       search={search.available ? { placeholder: search.placeholder, text: search.text, onTextChange: search.setText, query: search.query, loading: search.loading, groups: search.groups, onSelect: open } : undefined}
+      actions={Actions && <Actions />}
+      rightPanel={RightPanel && <RightPanel />}
     >
       {!route.resource ? <Notice title="Choose a resource">Pick one from the sidebar.</Notice> : page ? <ComposedPage key={page.name} name={page.name} /> : route.key === 'new' ? <CreatePage key={`${route.resource}/new`} resource={route.resource} /> : route.key ? <RecordPage key={`${route.resource}/${route.key}`} resource={route.resource} recordKey={route.key} /> : <ListPage key={route.resource} resource={route.resource} />}
     </AppShell>

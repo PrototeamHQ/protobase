@@ -47,6 +47,14 @@ A named action declared with `a.action(name, ...)` in a view has no built-in beh
 
 When the handler resolves, everything shown of the resource reloads and a toast says it is done; when it throws, the toast shows the error. Without a handler the button is disabled. Actions with built-in behaviour (`a.update`, `a.remove`, `a.link`) do not need one.
 
+## Shell slots
+
+`shell` adds components to the shell around every page: `actions` at the end of the top bar, and `rightPanel` beside the page, such as `AssistantDock` from `@protobase/ui`. They take no props and use the same hooks as custom components:
+
+```tsx
+export default defineUi({ shell: { actions: AssistantButton, rightPanel: Assistant } })
+```
+
 ## Without protobase dev
 
 `<App ui={...} />` from `@protobase/ui` takes the same object, for an app that mounts the admin itself, and so do stories.
