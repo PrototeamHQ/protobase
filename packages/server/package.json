@@ -1,6 +1,6 @@
 {
   "name": "@protobase/server",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "The Protobase REST API as a Hono app, with Better Auth sign-in.",
   "license": "Apache-2.0",
   "repository": {
