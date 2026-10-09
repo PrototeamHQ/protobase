@@ -7,13 +7,13 @@ A real Postgres 18 database for a rental and property management firm: the owner
 The database sits beside the ERP's in the same Postgres container, as `real_estate`, so both examples work at once.
 
 ```sh
-pnpm --filter real-estate db:up                       # docker compose up, creates the real_estate database and .env from .env.example
+pnpm db:up                                            # repository root: docker compose up, creates the real_estate database and .env from .env.example
 pnpm --filter real-estate db:migrate
 pnpm --filter real-estate db:seed --scale small       # small | medium | large
-pnpm --filter real-estate test                        # skipped when the database is unreachable or not seeded
+pnpm --filter real-estate test                        # the unit tests next to the config and the seed
 ```
 
-Other scripts: `db:reset` (drop, migrate, seed small), `db:down` (stops the container the ERP shares).
+Other scripts: `db:seed:base` (the amenities and organization 1, named with `--name`: what an app made from the real estate preset starts with), `db:reset` (drop, migrate, seed small), `typecheck`. `pnpm db:down` in the repository root stops the container the ERP shares. The database tests are the repository's `pnpm test:integration`.
 
 Connection string:
 
@@ -21,7 +21,7 @@ Connection string:
 postgres://protobase:protobase@localhost:55432/real_estate
 ```
 
-Scripts read `DATABASE_URL` and fall back to the string above. This example keeps its own git-ignored `.env` (a copy of `.env.example`) next to `package.json`: the nearest `.env` wins, so `protobase dev` and `serve` here use the real estate database while the repository's `.env` keeps pointing the ERP at its own.
+Scripts read `DATABASE_URL` and fall back to the string above. This example keeps its own git-ignored `.env` (a copy of `.env.example`) next to `package.json`: the nearest `.env` wins, so `protobase dev` and `serve` here use the real estate database while the ERP's `.env` points it at its own.
 
 ## Tables
 
@@ -49,16 +49,17 @@ Seed consistency: no overlapping leases, payments never exceed their charge, eve
 
 | Scale | Properties | Units | Leases | Rent charges | Payments | Tickets | Seed time (Apple silicon, local Docker) |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| small | 60 | 648 | 1,050 | 20,000 | 20,000 | 778 | under 1 s |
-| medium | 2,000 | 21,800 | 35,600 | 724,000 | 728,000 | 26,000 | about 12 s (360 MB) |
-| large | 10,000 | 107,000 | 175,000 | 3,570,000 | 3,590,000 | 129,000 | about 56 s (1.7 GB) |
+| small | 60 | 648 | 1,050 | 20,000 | 20,000 | 778 | about 1 s |
+| medium | 2,000 | 21,800 | 35,600 | 724,000 | 728,000 | 26,000 | about 23 s (360 MB) |
+| large | 10,000 | 107,000 | 175,000 | 3,570,000 | 3,590,000 | 129,000 | not timed since foreign keys are checked (1.7 GB) |
 
-`db:seed` truncates everything first, so it can be re-run or used to switch scale. Like the ERP's, the loader streams `COPY`, drops secondary indexes during the load and rebuilds them afterwards, skips triggers (`session_replication_role = replica`, so it writes `paid_amount` itself), then resets identity sequences and runs `ANALYZE`. The scale last seeded is recorded in `public.seed_info`.
+`db:seed` truncates everything first, so it can be re-run or used to switch scale. Like the ERP's, the loader streams `COPY`, drops secondary indexes during the load and rebuilds them afterwards, switches the tables' own triggers off (so it writes `paid_amount` itself), then resets identity sequences and runs `ANALYZE`. Foreign keys are checked throughout: the role an app gets may not skip them. The scale last seeded is recorded in `public.seed_info`.
 
 ## Layout
 
-- `db/migrations/NNN_name.sql`: plain SQL, applied in order and recorded in `public.schema_migrations` by `db/migrate.ts`. `db/create.ts` creates the database.
-- `seed/`: `world.ts` allocates ids per organization, `builders/` rebuild a property, unit, lease, rent ledger or ticket from its ordinal alone, `steps/` stream one module each.
+- `db/migrations/NNN_name.sql`: plain SQL, applied in order and recorded in `public.schema_migrations` by `db/migrate.ts`. The database itself comes from its host: `pnpm db:up` here.
+- `seed/`: `world.ts` allocates ids per organization, `builders/` rebuild a property, unit, lease, rent ledger or ticket from its ordinal alone, `steps/` stream one module each. `base.ts` is the base seed.
+- `AGENTS.md`: the rules for the assistant that changes an app made from this example, which is also the real estate preset (`packages/presets`; the preset leaves this README out).
 - `config/`: one folder per table (`data.ts`, `ui.ts`), the roles, and the overview page (occupancy, arrears, open tickets).
 - `tests/examples/real-estate/` (in the repository root): `smoke.test.ts` checks counts and the consistency rules, `rules.integration.test.ts` that Postgres refuses an overlapping lease, an overpayment and a backward ticket step, `access.integration.test.ts` what each role and organization sees, who may reveal an IBAN and the record pages' related records, `server.integration.test.ts` builds and serves the example and loads its pages.
 

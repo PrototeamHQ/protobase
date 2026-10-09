@@ -15,6 +15,7 @@ npm packages under the `@protobase` scope, all at one version, built from `packa
 - `@protobase/client`: a typed fetch client for the API
 - `@protobase/ui`: the admin app, and the hooks and components for `protobase.ui.tsx`
 - `@protobase/cli`: the `protobase` command (scaffold, doctor, dev, build, serve)
+- `@protobase/presets`: the projects a new app starts from (ERP, real estate, from scratch), files only
 
 ```sh
 pnpm add @protobase/cli @protobase/schema @protobase/layout @protobase/server @protobase/ui

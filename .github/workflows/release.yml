@@ -113,6 +113,10 @@ jobs:
           registry-url: https://registry.npmjs.org
           cache: pnpm
       - run: npm install -g npm@^11.5.1
+      # Packing @protobase/presets writes each preset's bun.lock with bun.
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.2
       - run: pnpm install --frozen-lockfile
       - name: Publish the packages
         env:

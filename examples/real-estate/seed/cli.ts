@@ -5,7 +5,7 @@ import { seedLeasing } from './steps/leasing'
 import { seedMaintenance } from './steps/maintenance'
 import { seedPortfolio } from './steps/portfolio'
 import { seedReference } from './steps/reference'
-import { analyzeAll, createIndexes, dropIndexes, resetSequences, truncateAll } from './maintenance'
+import { analyzeAll, createIndexes, dropIndexes, resetSequences, setTriggers, truncateAll } from './maintenance'
 import { buildWorld } from './world'
 
 const flag = process.argv.indexOf('--scale')
@@ -21,18 +21,23 @@ const step = async (name: string, run: () => Promise<unknown>) => {
 
 const world = buildWorld(scale)
 
-// One connection: replica role skips foreign key and other triggers during the load. Check and exclusion constraints
-// still apply, so Postgres itself refuses an overlapping lease or an overpaid charge; tests/examples/real-estate/smoke.test.ts checks the rest.
+// One connection for the load, with foreign keys, check and exclusion constraints on: an app's own role may not skip
+// them (session_replication_role), only switch its triggers off, so the seed writes `paid_amount` itself. Postgres
+// still refuses an overlapping lease or an overpaid charge; tests/examples/real-estate/smoke.test.ts checks the rest.
 const loader = connect({ max: 1 })
-await loader`set session_replication_role = replica`
 
 await step('truncate', () => truncateAll(loader))
 const indexes = await dropIndexes(loader)
-await step('reference', () => seedReference(loader, world))
-await step('portfolio', () => seedPortfolio(loader, world))
-await step('leasing', () => seedLeasing(loader, world))
-await step('billing', () => seedBilling(loader, world))
-await step('maintenance', () => seedMaintenance(loader, world))
+await setTriggers(loader, false)
+try {
+  await step('reference', () => seedReference(loader, world))
+  await step('portfolio', () => seedPortfolio(loader, world))
+  await step('leasing', () => seedLeasing(loader, world))
+  await step('billing', () => seedBilling(loader, world))
+  await step('maintenance', () => seedMaintenance(loader, world))
+} finally {
+  await setTriggers(loader, true)
+}
 await loader.end()
 
 const sql = connect({ max: 4 })

@@ -36,7 +36,7 @@ const build = async (template: Template) => {
 
 for (const template of Object.values(templates)) {
   const state = await templateState(template)
-  if (state === 'unreachable') throw new Error('No Postgres server: start it with `pnpm --filter erp db:up`, or set TEST_POSTGRES_URL')
+  if (state === 'unreachable') throw new Error('No Postgres server: start it with `pnpm db:up`, or set TEST_POSTGRES_URL')
   if (state === 'ready' && !force) {
     console.log(`${template.database} is up to date`)
     continue

@@ -7,7 +7,7 @@ import { seedLedger } from './steps/ledger'
 import { seedReference } from './steps/reference'
 import { seedSales } from './steps/sales'
 import { seedWarehouses } from './steps/warehouses'
-import { analyzeAll, createIndexes, dropIndexes, resetSequences, truncateAll } from './maintenance'
+import { analyzeAll, createIndexes, dropIndexes, resetSequences, setTriggers, truncateAll } from './maintenance'
 import { buildWorld } from './world'
 
 const flag = process.argv.indexOf('--scale')
@@ -23,20 +23,25 @@ const step = async (name: string, run: () => Promise<unknown>) => {
 
 const world = buildWorld(scale)
 
-// One connection: replica role skips FK triggers during the load. The generators
-// are consistent by construction and tests/examples/erp/smoke.test.ts checks the result.
+// One connection for the load, with the foreign keys checked: an app's own role may not skip them
+// (session_replication_role), only switch its triggers off. The generators are consistent by construction and
+// tests/examples/erp/smoke.test.ts checks the result.
 const loader = connect({ max: 1 })
-await loader`set session_replication_role = replica`
 
 await step('truncate', () => truncateAll(loader))
 const indexes = await dropIndexes(loader)
-await step('reference', () => seedReference(loader, world))
-await step('crm', () => seedCrm(loader, world))
-await step('catalog', () => seedCatalog(loader, world))
-await step('hr', () => seedHr(loader, world))
-await step('warehouses', () => seedWarehouses(loader, world))
-await step('sales', () => seedSales(loader, world))
-await step('stock moves', () => seedLedger(loader, world))
+await setTriggers(loader, false)
+try {
+  await step('reference', () => seedReference(loader, world))
+  await step('crm', () => seedCrm(loader, world))
+  await step('catalog', () => seedCatalog(loader, world))
+  await step('hr', () => seedHr(loader, world))
+  await step('warehouses', () => seedWarehouses(loader, world))
+  await step('sales', () => seedSales(loader, world))
+  await step('stock moves', () => seedLedger(loader, world))
+} finally {
+  await setTriggers(loader, true)
+}
 await loader.end()
 
 const sql = connect({ max: 4 })

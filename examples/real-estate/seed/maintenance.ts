@@ -32,6 +32,20 @@ export const createIndexes = async (sql: Db, definitions: string[]) => {
   await Promise.all(definitions.map((definition) => sql.unsafe(definition)))
 }
 
+// The triggers that keep stored totals in step with their rows. The seed writes those totals itself, and recomputing
+// them during the load, with the secondary indexes gone, takes minutes at small scale and hours above it. A table's
+// owner may switch its own triggers off, unlike the foreign key checks, which stay on.
+export const setTriggers = async (sql: Db, enabled: boolean) => {
+  const tables = await sql`
+    select distinct format('%I.%I', n.nspname, c.relname) as name
+    from pg_trigger t
+    join pg_class c on c.oid = t.tgrelid
+    join pg_namespace n on n.oid = c.relnamespace
+    where not t.tgisinternal and n.nspname in ${sql(schemas)}
+  `
+  for (const table of tables) await sql.unsafe(`alter table ${table.name} ${enabled ? 'enable' : 'disable'} trigger user`)
+}
+
 // COPY with explicit ids leaves identity sequences at 1.
 export const resetSequences = async (sql: Db) => {
   const columns = await sql`

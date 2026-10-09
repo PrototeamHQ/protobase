@@ -5,13 +5,13 @@ A real Postgres 18 database for the sample ERP: five module schemas plus one leg
 ## Start
 
 ```sh
-pnpm --filter erp db:up                       # docker compose up, waits until healthy; creates .env from .env.example
+pnpm db:up                                    # repository root: docker compose up, waits until healthy; creates .env from .env.example
 pnpm --filter erp db:migrate
 pnpm --filter erp db:seed --scale small       # small | medium | large
-pnpm --filter erp test                        # smoke test, skipped when the database is unreachable
+pnpm --filter erp test                        # the unit tests next to the config and the seed
 ```
 
-Other scripts: `db:reset` (drop, migrate, seed small), `db:down` (stop; the `pgdata` volume stays, remove it with `docker compose down -v`).
+Other scripts: `db:seed:base` (the countries, the currencies and organization 1, named with `--name`: what an app made from the ERP preset starts with), `db:reset` (drop, migrate, seed small), `typecheck`. `pnpm db:down` in the repository root stops the container; the `pgdata` volume stays, remove it with `docker compose down -v`. The database tests are the repository's `pnpm test:integration`.
 
 Connection string (port 55432 avoids a local Postgres on 5432):
 
@@ -19,7 +19,7 @@ Connection string (port 55432 avoids a local Postgres on 5432):
 postgres://protobase:protobase@localhost:55432/protobase
 ```
 
-Scripts read `DATABASE_URL` and fall back to the string above. Credentials live in `.env.example`; the git-ignored `.env` at the repo root is a copy.
+Scripts read `DATABASE_URL` from the environment or from the git-ignored `.env` next to `package.json` (a copy of `.env.example`), and fall back to the string above.
 
 ## Tables
 
@@ -40,16 +40,17 @@ Seed consistency: an invoice's subtotal equals the sum of its lines and an order
 
 | Scale | Companies | Orders | Stock moves | Products | Seed time (Apple silicon, local Docker) |
 | --- | --- | --- | --- | --- | --- |
-| small | 200 | 2,000 | 20,000 | 200 | under 1 s |
-| medium | 20,000 | 200,000 | 1,000,000 | 2,000 | about 15 s (660 MB) |
-| large | 20,000 | 200,000 | 10,000,000 | 2,000 | about 47 s (2.8 GB) |
+| small | 200 | 2,000 | 20,000 | 200 | about 1 s |
+| medium | 20,000 | 200,000 | 1,000,000 | 2,000 | about 50 s (660 MB) |
+| large | 20,000 | 200,000 | 10,000,000 | 2,000 | not timed since foreign keys are checked (2.8 GB) |
 
-`db:seed` truncates everything first, so it can be re-run or used to switch scale. The loader streams `COPY`, drops secondary indexes during the load and rebuilds them afterwards, skips foreign key triggers (`session_replication_role = replica`), then resets identity sequences and runs `ANALYZE` so `pg_stats` is populated. The scale last seeded is recorded in `public.seed_info`.
+`db:seed` truncates everything first, so it can be re-run or used to switch scale. The loader streams `COPY`, drops secondary indexes during the load and rebuilds them afterwards, switches the tables' own triggers off while it writes the totals they compute, then resets identity sequences and runs `ANALYZE` so `pg_stats` is populated. Foreign keys are checked throughout: the role an app gets may not skip them. The scale last seeded is recorded in `public.seed_info`.
 
 ## Layout
 
 - `db/migrations/NNN_name.sql`: plain SQL, applied in order and recorded in `public.schema_migrations` by `db/migrate.ts`.
-- `seed/`: `world.ts` allocates ids per organization, `builders/` rebuild a company, product or order from its ordinal alone, `steps/` stream one module each.
+- `seed/`: `world.ts` allocates ids per organization, `builders/` rebuild a company, product or order from its ordinal alone, `steps/` stream one module each. `base.ts` is the base seed.
+- `AGENTS.md`: the rules for the assistant that changes an app made from this example, which is also the ERP preset (`packages/presets`; the preset leaves this README out).
 - `tests/examples/erp/smoke.test.ts` (in the repository root): checks counts, invoice totals, stock levels, composite keys and `pg_stats`.
 
 ## Login

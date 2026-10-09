@@ -51,6 +51,20 @@ export const sourceHash = async (template: Template) => {
 
 const unreachable = ['ECONNREFUSED', 'ENOTFOUND', 'CONNECT_TIMEOUT', 'ETIMEDOUT']
 
+/** Whether the Postgres server answers at all. */
+export const serverReachable = async () => {
+  const sql = connectServer()
+  try {
+    await sql`select 1`
+    return true
+  } catch (error) {
+    if (unreachable.includes((error as { code?: string }).code ?? '')) return false
+    throw error
+  } finally {
+    await sql.end()
+  }
+}
+
 /** Whether the template exists and matches the current migrations and seed; `unreachable` without a server. */
 export const templateState = async (template: Template) => {
   const sql = connectServer()

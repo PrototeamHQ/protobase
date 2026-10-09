@@ -4,17 +4,17 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "db:up": "test -f ../../.env || cp ../../.env.example ../../.env; docker compose -f ../../docker-compose.yml up -d --wait",
-    "db:down": "docker compose -f ../../docker-compose.yml down",
-    "db:migrate": "tsx --env-file-if-exists=../../.env db/migrate.ts",
-    "db:seed": "tsx --env-file-if-exists=../../.env seed/cli.ts",
-    "db:reset": "tsx --env-file-if-exists=../../.env db/drop.ts && pnpm db:migrate && pnpm db:seed --scale small",
-    "test": "vitest run --root ../.. examples/erp",
+    "db:migrate": "tsx --env-file-if-exists=.env db/migrate.ts",
+    "db:seed:base": "tsx --env-file-if-exists=.env seed/base.ts",
+    "db:seed": "tsx --env-file-if-exists=.env seed/cli.ts",
+    "db:reset": "tsx --env-file-if-exists=.env db/drop.ts && tsx --env-file-if-exists=.env db/migrate.ts && tsx --env-file-if-exists=.env seed/cli.ts --scale small",
+    "auth:migrate": "tsx --env-file-if-exists=.env db/auth-migrate.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
     "protobase": "protobase",
     "build": "protobase build",
     "serve": "protobase build && protobase serve dist",
-    "dev": "protobase dev",
-    "auth:migrate": "tsx --env-file-if-exists=../../.env db/auth-migrate.ts"
+    "dev": "protobase dev"
   },
   "dependencies": {
     "@protobase/cli": "workspace:*",
@@ -31,7 +31,10 @@
   },
   "devDependencies": {
     "@types/node": "^22.20.5",
+    "@types/pg": "^8.23.1",
+    "@types/react": "^19.3.0",
     "tsx": "^4.23.15",
-    "@types/pg": "^8.23.1"
+    "typescript": "^6.0.3",
+    "vitest": "^5.0.3"
   }
 }

@@ -1,0 +1,25 @@
+{
+  "name": "@protobase/presets",
+  "version": "0.1.1",
+  "description": "The projects a new Protobase app starts from: ERP, real estate and from scratch, each with its own bun.lock.",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/PrototeamHQ/protobase.git",
+    "directory": "packages/presets"
+  },
+  "homepage": "https://docs.protobase.net",
+  "type": "module",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "prepack": "tsx src/build.ts"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "devDependencies": {
+    "tsx": "^4.23.15"
+  }
+}

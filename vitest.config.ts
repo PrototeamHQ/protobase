@@ -8,9 +8,11 @@ const runId = randomBytes(4).toString('hex')
 const testDatabase = 'scripts/test-db/global-setup.ts'
 // Unit tests sit next to the code; tests that start a database, a subprocess or the network live in each package's
 // tests/, and the examples' in tests/examples.
-const unit = ['packages/*/src/**/*.test.ts', 'docs-examples/**/*.test.ts', 'examples/*/config/**/*.test.ts']
+const unit = ['packages/*/src/**/*.test.ts', 'docs-examples/**/*.test.ts', 'examples/*/{config,seed}/**/*.test.ts']
 // Database, subprocess and build tests: `pnpm test:integration`.
 const integration = ['packages/cli/tests/**/*.integration.test.ts', 'packages/cli/tests/build/deploy-bundle.test.ts']
+// The presets written out and installed with bun from npm, migrated on a tenant-style role: `pnpm test:presets`.
+const presets = ['packages/presets/tests/**/*.test.ts']
 // Subprocesses and Postgres connections, so fewer files at once than the default. With other projects in the same run
 // (an example's `pnpm test`), they go after them: Vitest runs projects of different maxWorkers in separate groups.
 const integrationWorkers = 4
@@ -36,7 +38,7 @@ export default defineConfig({
         test: {
           name: 'pglite',
           include: ['packages/*/tests/**/*.test.ts'],
-          exclude: [...configDefaults.exclude, ...integration],
+          exclude: [...configDefaults.exclude, ...integration, ...presets],
           globalSetup: ['test-support/pglite-snapshots.global-setup.ts'],
         },
       },
@@ -60,6 +62,15 @@ export default defineConfig({
           env: runEnvironment('realEstate', runId),
           maxWorkers: integrationWorkers,
           sequence: integrationGroup,
+        },
+      },
+      {
+        extends: true,
+        test: {
+          name: 'presets',
+          include: presets,
+          testTimeout: 300_000,
+          hookTimeout: 300_000,
         },
       },
     ],

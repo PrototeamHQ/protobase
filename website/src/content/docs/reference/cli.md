@@ -286,7 +286,7 @@ curl -H "Authorization: Bearer $(protobase token me@x)" http://localhost:5173/ap
 ## ERP example
 
 ```sh
-pnpm --filter erp db:up && pnpm --filter erp db:migrate && pnpm --filter erp db:seed --scale small
+pnpm db:up && pnpm --filter erp db:migrate && pnpm --filter erp db:seed --scale small
 pnpm --filter erp protobase scaffold postgres://protobase:protobase@localhost:55432/protobase \
   --yes --ui --exclude auth --exclude public.schema_migrations --exclude public.seed_info
 pnpm --filter erp protobase doctor postgres://protobase:protobase@localhost:55432/protobase

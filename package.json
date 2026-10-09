@@ -8,8 +8,11 @@
   },
   "scripts": {
     "prepare": "node scripts/install-git-hooks.mjs",
+    "db:up": "test -f .env || cp .env.example .env; docker compose up -d --wait && node scripts/local-databases.mjs",
+    "db:down": "docker compose down",
     "test": "vitest run --project unit --project pglite",
     "test:integration": "vitest run --project 'integration*'",
+    "test:presets": "vitest run --project presets",
     "test:unit": "vitest run --project unit",
     "test:watch": "vitest --project unit --project pglite",
     "test:db": "tsx scripts/test-db/build.ts",

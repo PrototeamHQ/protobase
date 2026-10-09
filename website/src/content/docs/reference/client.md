@@ -32,4 +32,4 @@ Each result is a link: a click or Enter opens the record and closes the list, an
 
 ## Live stories
 
-`pnpm --filter erp db:up && pnpm --filter erp serve`, then `pnpm storybook`. Storybook proxies `/api` to `PROTOBASE_API` (default `http://localhost:8787`); pick another API in the toolbar. Without a server the stories say so. `pnpm screenshots:live` writes `screenshots/live/`.
+`pnpm db:up && pnpm --filter erp serve`, then `pnpm storybook`. Storybook proxies `/api` to `PROTOBASE_API` (default `http://localhost:8787`); pick another API in the toolbar. Without a server the stories say so. `pnpm screenshots:live` writes `screenshots/live/`.
