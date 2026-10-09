@@ -1,0 +1,52 @@
+---
+title: Custom components
+description: React components and action handlers of your own in protobase.ui.tsx, used by name from layouts.
+---
+
+import { Code } from '@astrojs/starlight/components'
+import erpUi from '../../../../../examples/erp/protobase.ui.tsx?raw'
+
+Layouts are data; a project's React code lives in one module the admin bundles with itself: `protobase.ui.tsx` at the project root, beside `protobase.config.ts`. It default-exports `defineUi({ components, actions })` from `@protobase/ui`, so the project depends on `@protobase/ui`, and on `react` for its JSX. This is the ERP example's:
+
+<Code code={erpUi} lang="tsx" title="examples/erp/protobase.ui.tsx" />
+
+`protobase dev` serves it with hot reload, and `protobase build` builds it into the bundle's `public/` with the rest of the admin. It is the only project code in the browser, so keep secrets out of it. A project without the file gets an empty one.
+
+## Components
+
+Declare a component in the layout with `component(name)` from `@protobase/layout`, typing its props:
+
+```tsx
+/** @jsxImportSource @protobase/layout */
+import { Card, component, page, Page } from '@protobase/layout'
+
+export const OrdersPerDay = component<{ days: 7 | 30 | 90 }>('OrdersPerDay')
+
+export const overview = page('overview', <Page title="Overview"><Card title="Orders per day"><OrdersPerDay days={30} /></Card></Page>)
+```
+
+The element stays data, `{ type: 'OrdersPerDay', props: { days: 30 }, children: [], custom: true }`, so its props follow the same [rules](/reference/layouts/#what-a-layout-may-hold) as any block's. The name must be PascalCase and not a built-in block's.
+
+In `protobase.ui.tsx`, `components` maps the name to a React component. It gets the props, and the rendered children when the element has any. Inside it:
+
+- the hooks of `@protobase/ui` (`useList`, `useRecord`, `useSeries`, `useFacets`, `useHistogram`, `useClient`, ...) read the API with the user's token, under the same access rules as everything else;
+- `useLayoutRecord()` gives the record around it in a `RecordCard` or `CardRow` (`{ model, record, key, etag, permissions }`), and `undefined` elsewhere.
+
+A name with no registered component renders a warning in its place, so a missing registration shows on the page instead of failing silently.
+
+## Action handlers
+
+A named action declared with `a.action(name, ...)` in a view has no built-in behaviour: its button runs `actions[name]` from `protobase.ui.tsx`. The handler gets:
+
+| | |
+| --- | --- |
+| `resource` | The action's resource. |
+| `record`, `recordKey`, `etag` | The record around the button, when there is one. |
+| `client` | The API client (`@protobase/client`), with the user's token. |
+| `navigate(to)` | Moves the app to a path such as `/orders/42`. |
+
+When the handler resolves, everything shown of the resource reloads and a toast says it is done; when it throws, the toast shows the error. Without a handler the button is disabled. Actions with built-in behaviour (`a.update`, `a.remove`, `a.link`) do not need one.
+
+## Without protobase dev
+
+`<App ui={...} />` from `@protobase/ui` takes the same object, for an app that mounts the admin itself, and so do stories.

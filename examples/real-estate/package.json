@@ -1,0 +1,37 @@
+{
+  "name": "real-estate",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "db:up": "test -f ../../.env || cp ../../.env.example ../../.env; test -f .env || cp .env.example .env; docker compose -f ../../docker-compose.yml up -d --wait && tsx --env-file-if-exists=.env db/create.ts",
+    "db:down": "docker compose -f ../../docker-compose.yml down",
+    "db:migrate": "tsx --env-file-if-exists=.env db/migrate.ts",
+    "db:seed": "tsx --env-file-if-exists=.env seed/cli.ts",
+    "db:reset": "tsx --env-file-if-exists=.env db/drop.ts && pnpm db:migrate && pnpm db:seed --scale small",
+    "test": "vitest run --root ../.. examples/real-estate",
+    "protobase": "protobase",
+    "build": "protobase build",
+    "serve": "protobase build && protobase serve dist",
+    "dev": "protobase dev",
+    "auth:migrate": "tsx --env-file-if-exists=.env db/auth-migrate.ts"
+  },
+  "dependencies": {
+    "@protobase/cli": "workspace:*",
+    "@protobase/layout": "workspace:*",
+    "@protobase/schema": "workspace:*",
+    "@protobase/server": "workspace:*",
+    "@protobase/ui": "workspace:*",
+    "better-auth": "^1.7.7",
+    "jose": "^6.2.12",
+    "kysely": "^0.29.6",
+    "pg": "^8.23.1",
+    "postgres": "^3.4.9",
+    "react": "^19.3.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.5",
+    "tsx": "^4.23.15",
+    "@types/pg": "^8.23.1"
+  }
+}

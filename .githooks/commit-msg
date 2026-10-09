@@ -1,0 +1,8 @@
+#!/bin/sh
+# Checks the commit message against the conventional commit rules of commitlint.config.mjs (see CONTRIBUTING.md).
+commitlint=node_modules/.bin/commitlint
+if [ ! -x "$commitlint" ]; then
+  echo "commit-msg: $commitlint is missing; run pnpm install" >&2
+  exit 1
+fi
+exec "$commitlint" --edit "$1"

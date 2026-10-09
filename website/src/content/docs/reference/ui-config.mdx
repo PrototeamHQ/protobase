@@ -1,0 +1,111 @@
+---
+title: UI config
+description: Views in ui.ts, with names, list columns, filters, charts, record layouts, related records, field hints, actions and views per role.
+---
+
+import { Code } from '@astrojs/starlight/components'
+import step2 from '../../../../../docs-examples/bike-shop/step-2.ts?raw'
+import step3 from '../../../../../docs-examples/bike-shop/step-3.ts?raw'
+import step4 from '../../../../../docs-examples/bike-shop/step-4.ts?raw'
+import step5 from '../../../../../docs-examples/bike-shop/step-5.ts?raw'
+import ordersView from '../../../../../examples/erp/config/orders/ui.ts?raw'
+import unitsView from '../../../../../examples/real-estate/config/units/ui.ts?raw'
+
+A **view** says how the admin shows one resource: what its records are called, which columns the list has, which filters sit above it, how the record page is laid out, and which buttons it offers. It lives in `config/<resource>/ui.ts`; by convention every export of a `ui.ts` is picked up, and `config/index.ts` may export views too. A view only presents: what a user may see and do is decided by the [data config's access rules](/reference/data-config/#access), and `/api/meta` removes from each user's view every field they cannot read.
+
+```ts
+import { view } from '@protobase/schema'
+import type { repairs } from './data'
+
+export const repairsView = view<typeof repairs>('repairs')
+```
+
+`view<typeof resource>(name)` takes the resource's type, so every field reference below (`r.status`) is checked by TypeScript. A view is immutable: each method returns a new view, so one view can build on another. The examples are the files of the [bike shop guide](/guides/table-to-admin/), where each step builds on the last.
+
+## Names and columns
+
+<Code code={step2} lang="ts" title="docs-examples/bike-shop/step-2.ts" />
+
+| Method | |
+| --- | --- |
+| `.names({ singular, plural })` | "New repair", "Repairs" in the sidebar and breadcrumbs. Default: the resource name in words. |
+| `.title((r) => r.number)` | The field that names a record: in breadcrumbs, the record page's heading, relation links and search results. |
+| `.searchResult((r) => ({ title?, subtitle? }))` | A record in the [global search](/reference/client/#global-search): `title` is one field or several joined by spaces (`[r.firstName, r.lastName]`, default: `.title`), `subtitle` the line under it (default: the first search field not in the title), replaced by the search field the text matched when neither line shows it. |
+| `.list((r) => ({ columns, sort?, search? }))` | The list's columns in order; its starting `sort` as `[[field, 'asc' \| 'desc'], ...]`; the fields the search box suggests (the resource's `.search` decides what search matches on the server). |
+| `.fields((r) => ({ name: r.name.label(...) }))` | Hints per field, below. Calls add up. |
+| `.help(text)` | A line under the list's title. |
+| `.nav({ group, order, hidden, recent })` | Where the resource sits in the sidebar, and its [recent-record group](/reference/sidebar/#recent-records). |
+| `.icon(name)` | Carried in `/meta` for apps that render their own shell; the admin picks sidebar icons by resource name. |
+
+Field hints:
+
+| Hint | |
+| --- | --- |
+| `.label(text)` | Instead of the name in words (`customerId` would be "Customer" anyway). |
+| `.help(text)` | A line under the field on the record page and in forms. |
+| `.format(format)` | `badge` shows statuses as coloured badges, `code` sets identifiers in monospace, `percent` adds a % sign. `relative`, `absolute` and `compact` are accepted and carried in `/meta` for apps that render their own lists; the admin does not use them yet. |
+| `.prefix(text)`, `.decimals(n)` | Money and measures: `€` and `2` show `€1,234.50`. |
+| `.valueLabels({ value: text })` | How an enum's values read: `r.method.valueLabels({ ideal: 'iDEAL' })`. Only the enum's values are accepted. A value without a label shows as stored (`direct_debit`), so label every value that should read as words. |
+
+An enum's value labels show everywhere the admin shows its values: badges, select options, list and related-table cells, filter options and chips, record titles, the sidebar and search results. They are part of the view in `/api/meta`, so an app with its own screens can show them too, and `enumLabel(value, labels)` from `@protobase/schema` reads a value the same way. A label for a value the enum does not have stops the server at startup, so renaming a value cannot leave a stale label behind.
+
+## Filters and the chart
+
+<Code code={step3} lang="ts" title="docs-examples/bike-shop/step-3.ts" />
+
+`.filters((r, w) => [...])` puts widgets above the list, in order. Each needs a field that is `.filterable()`; together they write the list's `?filter=`, so a filtered list can be bookmarked and shared.
+
+| Widget | |
+| --- | --- |
+| `w.facets(r.status, { search? })` | A menu of the field's values with counts; `search` adds a search box for long lists. |
+| `w.dateRange(r.bookedOn, { presets? })` | Buttons for `today`, `yesterday`, `7d`, `30d`, `90d`, `month`, `quarter`, `year`. |
+| `w.range(r.estimate, { histogram? })` | A minimum and maximum, with a histogram of the values. |
+| `w.toggle(r.paid)` | A switch for a boolean field. |
+
+`.chart((r) => ({ field, range, granularity }))` draws records per day or week over a date or timestamp field above the list, following its filters: `range` is `7d`, `30d`, `90d`, `1y` or `all`, `granularity` `hour`, `day`, `week` or `month`.
+
+## The record page
+
+<Code code={step4} lang="ts" title="docs-examples/bike-shop/step-4.ts" />
+
+`.layout((r) => [...])` with `l` from `@protobase/schema`:
+
+| Item | |
+| --- | --- |
+| `l.section(title, fields, { help? })` | A titled group of fields in the main column, editable where the user may write. |
+| `l.sidebar(fields)` | A summary card beside it, read-only. |
+| `l.related(title, { ... })` | A table of the records of another resource that point at this one, in the main column. See [Related records](#related-records). |
+
+Without a layout the record page shows one section with every field the user may change, or every field, read-only, to a user who may change none. A section or sidebar card with no field the user may see is left out. `.saveFeedback('button')` shows saving on the Save button instead of a toast (`'toast'`, the default). A [sensitive field](/reference/data-config/#sensitive-fields) in a section is masked, with an eye button that reveals it.
+
+### Related records
+
+`l.related(title, options)` lists the records of `resource` that point at the record on the page, a page at a time. They point at it directly, through a relation field, or through a join resource (`through`), such as the leases a tenant signed through `lease_tenants`:
+
+| Option | |
+| --- | --- |
+| `resource` | The records listed. Required. |
+| `field` | Without `through`: the relation on `resource` that holds this record's key. With it: the field of `resource` matched against the keys the join records hold. Filterable. Required. |
+| `through` | `{ resource, field, key?, filter? }`: the join records whose `field` (a filterable relation) holds this record's key; their `key` values (default their primary key) pick the listed records. At most 500 join records are read. |
+| `filter`, `sort` | AIP-160 and AIP-132 on `resource`, as in the list API. `filter` narrows the listed records, `through.filter` the join records. |
+| `columns` | Fields of `resource`, through relations too (`unitId.propertyId`); default the view's list columns without `field`. The first opens the record. |
+| `pageSize` | Rows per page, 1 to 100; default 10. |
+| `help`, `empty` | A line under the title, and the text when nothing matches (default "Nothing here yet."). |
+
+The real estate example lists who a unit is let to (the primary tenant and co-signers of the lease that runs today) and that lease:
+
+<Code code={unitsView} lang="ts" title="examples/real-estate/config/units/ui.ts" />
+
+Every name is checked when the config loads. In `/meta` a caller who cannot read a resource the section names, or a field its filter or sort uses, does not get the section, and columns they cannot read are left out; the rows come from the list API with the caller's token, so row filters apply as everywhere else.
+
+## Actions and views per role
+
+<Code code={step5} lang="ts" title="docs-examples/bike-shop/step-5.ts" />
+
+`.actions((a) => [...])` names the moves a record page offers in its action rail, and composed pages can put the same actions on buttons. `a.update`, `a.remove` and `a.link` work without code; `a.action` runs a handler the app registers. They are described with [named actions](/reference/layouts/#named-actions).
+
+`.forRoles([...])` makes a view for users with one of those roles: each user gets the first such view that matches their roles, and the view without roles otherwise. A per-role view is a whole view, so build it from another (`laidOut.forRoles(...)` above) and change what differs.
+
+The ERP's orders view uses most of this page at once, with a recent-record group in the sidebar:
+
+<Code code={ordersView} lang="ts" title="examples/erp/config/orders/ui.ts" />

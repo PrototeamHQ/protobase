@@ -1,0 +1,32 @@
+{
+  "name": "@protobase/schema",
+  "version": "0.1.0",
+  "description": "Resource, field, view and access definitions for Protobase configs.",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/PrototeamHQ/protobase.git",
+    "directory": "packages/schema"
+  },
+  "homepage": "https://docs.protobase.net",
+  "type": "module",
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "types": "./src/index.ts",
+  "files": [
+    "src",
+    "!src/**/*.test.ts",
+    "!src/**/*.stories.tsx"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "dependencies": {
+    "aip-parsers": "^1.0.0",
+    "zod": "^4.6.5"
+  }
+}

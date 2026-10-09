@@ -1,0 +1,109 @@
+---
+title: Data config
+description: Resources in data.ts, every field type and option, keys and relations, soft delete, tenants, search, validation and access.
+---
+
+import { Code } from '@astrojs/starlight/components'
+import bikeShop from '../../../../../docs-examples/bike-shop/data.ts?raw'
+import keys from '../../../../../docs-examples/reference/keys.ts?raw'
+import access from '../../../../../docs-examples/reference/access.ts?raw'
+import products from '../../../../../examples/erp/config/products/data.ts?raw'
+import orders from '../../../../../examples/erp/config/orders/data.ts?raw'
+
+A **resource** describes one table of a database you already have: its columns as fields, its key, and the rules around it. It is plain TypeScript in `config/<resource>/data.ts`, exported from `config/index.ts`; [`protobase scaffold`](/reference/cli/#scaffold) writes a first version from the database. Every example on this page is a file in the repository that CI typechecks and tests.
+
+<Code code={bikeShop} lang="ts" title="docs-examples/bike-shop/data.ts" />
+
+## resource()
+
+| | |
+| --- | --- |
+| `resource(name)` | The name is the resource's address (`/api/v1/<name>`, `/<name>` in the admin) and how other config refers to it. It may not contain `/`, `:`, `?` or `#`, and must be unique. |
+| `.table('schema.table')` | The table, with or without its schema. Required. |
+| `.fields({ ... })` | The columns, by field name. `name: null` ignores a column on purpose (scaffold writes it, so it does not offer the column again). Required. |
+| `.primaryKey((r) => r.id)` | The key, one field or a list (`(r) => [r.orderId, r.lineNo]`). Required; records are addressed by it. |
+| `.softDelete((r) => r.deletedAt)` | A nullable timestamp or date: deleting sets it, lists leave such rows out, `:undelete` clears it. See [REST API](/reference/api/#routes). |
+| `.tenant((r) => r.organizationId)` | The column that separates tenants: every query is limited to the caller's tenant, creates set it, and a request body may not. |
+| `.owner((r) => r.ownerId)` | The field holding the owning user's id, which `.own` capabilities filter on (see [Access](#access)). |
+| `.search((r) => [r.number, r.name])` | The fields that `search("...")` and bare words in a filter match, and what the admin's [global search](/reference/client/#global-search) looks in. Every word of the text must appear in one of them, ignoring case, and part of a word is enough: `port` finds "Portfolio". `r.phone.digitsEnd()` matches only the end of a field's digits instead, ignoring spaces, `+` and dashes, and only words written like phone numbers: `9623`, `47069623` and `+31 6 47069623` find "+31 6 47069623", `4706` and `+316` do not. A pg_trgm index on `regexp_replace(phone, '[^0-9]', '', 'g')` serves it. |
+| `.validate((record) => issues)` | A rule over the whole record, run after the field checks on every create and update. It returns `[{ field, message }]` or `undefined`; issues answer `400` with the field named. |
+| `.access({ ... })` | Rules per operation. See [Access](#access). |
+
+Field names are camelCase; the column is the snake_case of the name unless `.column()` says otherwise.
+
+## Field types
+
+| Builder | Column types | API value | Options |
+| --- | --- | --- | --- |
+| `f.text()` | `text`, `varchar`, `bpchar` | string | `.min(n)`, `.max(n)` (length), `.regex(re, message)` |
+| `f.integer()` | `int2`, `int4` | number | `.min(n)`, `.max(n)` |
+| `f.bigint()` | `int8` | string (all 64 bits) | |
+| `f.decimal({ precision, scale })` | `numeric` | string (exact) | |
+| `f.boolean()` | `bool` | boolean | |
+| `f.date()` | `date` | `2026-10-08` | |
+| `f.timestamp()` | `timestamp`, `timestamptz` | ISO 8601 with offset | |
+| `f.uuid()` | `uuid` | string | |
+| `f.enum(['a', 'b'])` | Postgres enum, or text with a `CHECK (... IN ...)` | one of the values | |
+| `f.json()` | `json`, `jsonb` | any JSON | |
+| `f.relation('resource')` | the key column(s) of another resource | its key | `.columns([...])` |
+| `f.currency()` | `text` | ISO 4217 code (`EUR`) | |
+| `f.country()` | `text` | ISO 3166-1 alpha-2 code (`NL`) | |
+
+A constraint a type does not support (`f.boolean().min(1)`) throws when the config loads.
+
+## Field options
+
+Every option returns a new field, so they chain in any order.
+
+| Option | Effect |
+| --- | --- |
+| `.optional()` | The column is nullable; the value may be `null`. |
+| `.readOnly()` | Never written through the API: ids, computed columns, audit timestamps. |
+| `.default(value)` | The value a create uses when none is given; the admin's create form shows it. |
+| `.dbDefault()` | The database supplies a value when none is given (identity, `now()`, a sequence). |
+| `.filterable()` | May appear in `filter`, in filter widgets and in `Stat`/`Table` filters. Give it an index. |
+| `.sortable()` | May appear in `order_by` and in sorts. |
+| `.alias(...names)` | Other names filters may use for the field. |
+| `.column('name')` | The column, when it is not the snake_case of the field name (`'EMP_NAME'`). |
+| `.access({ read, create, update })` | Role rules for this column. See [Access](#access). |
+| `.sensitive()` | Hidden like a password: no response carries it, and a caller who may read it reveals one record's value at a time. See [Sensitive fields](#sensitive-fields). |
+
+The ERP's products show most of them, together with soft delete and a tenant:
+
+<Code code={products} lang="ts" title="examples/erp/config/products/data.ts" />
+
+## Sensitive fields
+
+A sensitive field, such as a bank account number, is written like any other field but never read with the record: lists, gets, `:search`, `:seek`, create and update responses and batch results leave it out, and it cannot be filtered, sorted, searched, counted or picked with `fields`. The record page shows it masked, with an eye button. Showing it asks the server for that one value with `POST /{resource}/{key}:reveal` (see [REST API](/reference/api/#sensitive-fields-and-audit)), which needs the same access as reading the record and the field, inside the caller's tenant, and publishes an audit event before it answers.
+
+```ts
+iban: f.text().sensitive().access({ read: roles.can('screening.read') }),
+```
+
+A sensitive field cannot be `.filterable()`, `.sortable()`, aliased, searched, or the key, tenant, owner or soft delete field, and a view may only put it in a record page section: in a list, filter, chart, sidebar, title, recent-record group or action it would always be empty, so the config fails to load.
+
+## Keys and relations
+
+A key of several columns is a list, and a record's address joins its parts with a comma (`/stock/CHAIN-11,L`). A relation to such a resource names its columns, in the order of that key:
+
+<Code code={keys} lang="ts" title="docs-examples/reference/keys.ts" />
+
+A relation's value in the API is the other record's key. The admin shows the other record's name instead (its view's `title`, else a field such as `name` or `number`) and links to it, and a create form picks it from a list.
+
+## Access
+
+Without rules everyone who can sign in may do everything. Rules come in three kinds, and the [Access](/reference/access/) reference explains the defaults:
+
+- **Per operation** (`list`, `read`, `create`, `update`, `delete`): `.access({ update: rule })`. A rule returns `true`, `false`, or an AIP-160 filter that limits the rows, like row-level security. A rule that reads the record (`record.status`) is checked against the stored row.
+- **Per row**: a filter from a rule, or a `.own` capability with `.owner(...)`.
+- **Per field**: `.access({ read, create, update })` on the field. Field rules see only the user, never a record, so the fields a user can read are the same for every row.
+
+`defineRoles` turns roles into capabilities (`workOrders.update.own`, `money.read`, `*`), and `roles.can(...)` and `roles.is(...)` make rules of them; `.and()` and `.or()` combine rules.
+
+<Code code={access} lang="ts" title="docs-examples/reference/access.ts" />
+
+Pass the roles to the server (`options: { roles }` in `protobase.config.ts`) and every operation without a rule needs its capability (`<resource>.<action>`). The ERP's orders use `.owner` and `.search` with the ERP's roles:
+
+<Code code={orders} lang="ts" title="examples/erp/config/orders/data.ts" />
+
+The UI side of a resource, its names, columns, filters and record page, is in [UI config](/reference/ui-config/).

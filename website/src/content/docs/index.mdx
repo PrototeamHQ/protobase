@@ -1,0 +1,26 @@
+---
+title: Documentation
+description: Config-driven admin panel framework for existing Postgres databases.
+template: splash
+hero:
+  title: Protobase
+  tagline: An admin panel for the Postgres database you already have, configured in TypeScript and served by one runtime.
+  actions:
+    - text: Get started
+      link: /getting-started/
+      icon: right-arrow
+    - text: Reference
+      link: /reference/architecture/
+      variant: minimal
+---
+
+import { CardGrid, LinkCard } from '@astrojs/starlight/components'
+
+<CardGrid>
+  <LinkCard title="Data config" href="/reference/data-config/" description="Resources in data.ts describe tables you already have: fields, keys, soft delete, tenants and access rules." />
+  <LinkCard title="UI config" href="/reference/ui-config/" description="Views in ui.ts decide names, list columns, filters, record layouts and actions, per role." />
+  <LinkCard title="Composed pages" href="/guides/first-composed-page/" description="Dashboards and account pages from JSX layouts: counts, tables, cards, forms and buttons on one page." />
+  <LinkCard title="REST API" href="/reference/api/" description="A Hono app following Google's API design conventions, with AIP-160 filters, ETags and batch writes." />
+  <LinkCard title="From a table to an admin" href="/guides/table-to-admin/" description="A five-step journey through a bike shop's repairs table, with a live story for every step." />
+  <LinkCard title="One bundle" href="/guides/deploy/" description="protobase build writes a folder with the config module, the admin UI and a routing manifest for the host." />
+</CardGrid>

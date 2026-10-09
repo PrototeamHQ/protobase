@@ -1,0 +1,89 @@
+---
+title: From a table to an admin
+description: Pip's bike shop goes from a repairs table to an admin the front desk and the workshop both like, in five steps.
+tableOfContents: false
+# Room for the stories: the admin needs about 900px for its desktop layout.
+head:
+  - tag: style
+    content: ':root { --sl-content-width: 60rem; }'
+---
+
+import { Code } from '@astrojs/starlight/components'
+import StoryFrame from '../../../components/StoryFrame.astro'
+import data from '../../../../../docs-examples/bike-shop/data.ts?raw'
+import step1 from '../../../../../docs-examples/bike-shop/step-1.ts?raw'
+import step2 from '../../../../../docs-examples/bike-shop/step-2.ts?raw'
+import step3 from '../../../../../docs-examples/bike-shop/step-3.ts?raw'
+import step4 from '../../../../../docs-examples/bike-shop/step-4.ts?raw'
+import step5 from '../../../../../docs-examples/bike-shop/step-5.ts?raw'
+
+Pip runs a bike repair shop. The repairs live in a Postgres table that a booking site writes to and a spreadsheet export reads from, and the front desk keeps a paper card per bike because nothing else shows what they need. Pip wants an admin on top of that table, without moving the data or writing an app.
+
+This guide follows that admin from nothing to something the front desk and the workshop both like. Each step is a small change to two config files, and each has a live story you can click through: the same admin, on fourteen repairs of a made-up week.
+
+## 1. The table, as it is
+
+Everything starts with the data config: what the tables are, as they are. `protobase scaffold` writes it from the database, and Pip tidies it up:
+
+<Code code={data} lang="ts" title="config/data.ts" />
+
+The fields follow the columns, with what the database does not say added: which fields can be filtered and sorted, which ones the database fills in (`dbDefault`), which are read-only. `notes` lives in a column called `internal_notes`, and `legacyRef: null` keeps an old column out for good. The `validate` rule holds the shop's one firm rule: a bike does not leave unpaid.
+
+For the admin to list repairs, a view is enough, even an empty one:
+
+<Code code={step1} lang="ts" title="config/ui.ts" />
+
+That is already a working admin: every column, sorting, paging, a record page and a "New" button.
+
+<StoryFrame id="guides-bike-shop--step-1" title="Step 1: the table, as it is" height={560} />
+
+## 2. Names and columns
+
+The list shows everything, including the problem descriptions nobody reads in a list. The front desk wants the repair number, whose bike, what state it is in, and who is on it, newest first.
+
+<Code code={step2} lang="ts" title="config/ui.ts" />
+
+`title` makes "R-303" the name of a repair everywhere: breadcrumbs, links, the record page. `fields` adjusts how values look: statuses become badges, the estimate gets a euro sign and two decimals, and `customerId` shows as "Customer" (with the customer's name, since it is a relation). `list` picks the columns, the starting order, and what the search box looks in.
+
+<StoryFrame id="guides-bike-shop--step-2" title="Step 2: names and columns" height={560} />
+
+## 3. Filters
+
+On Saturdays the desk asks the same questions over and over: what is ready, what is Sem working on, what came in this week, what is not paid. Filters answer them in one click.
+
+<Code code={step3} lang="ts" title="config/ui.ts" />
+
+From here on each step starts from the view of the step before (`named` is step 2's), so the file shows only what changes; in a project it is one view in one `ui.ts`. Each widget writes into the list's `?filter=`, so "ready and unpaid" is a link someone can send. The chart above the list counts repairs per day, following the same filters. In the story, switch on "Paid" and watch the list drop to six.
+
+<StoryFrame id="guides-bike-shop--step-3" title="Step 3: filters" height={660} />
+
+## 4. The repair card
+
+The record page still lists every field in one long column. The paper card the desk uses has three parts: the bike and its problem, the workshop's side, and the money. The layout copies it.
+
+<Code code={step4} lang="ts" title="config/ui.ts" />
+
+Sections group fields under a title, with help where the shop has a habit to explain. The sidebar repeats what matters at a glance and stays read-only. `saveFeedback('button')` makes Save say when it is done, since the desk prefers that to a toast.
+
+<StoryFrame id="guides-bike-shop--step-4" title="Step 4: the repair card" height={760} />
+
+## 5. Daily moves, and the workshop's own view
+
+Two things happen to every repair: it becomes ready, and it gets collected (and paid). Typing a status into a dropdown is how mistakes happen, so they become buttons. And the mechanics would rather not see prices at all.
+
+<Code code={step5} lang="ts" title="config/ui.ts" />
+
+`a.update` sets fields when its button is pressed, through the same API as Save, so the access rules and the `validate` rule apply. "Collected and paid" asks first. `a.link` opens the list of this customer's repairs, with the customer filled in from the record. Try the three buttons in the story, on R-303:
+
+<StoryFrame id="guides-bike-shop--step-5" title="Step 5: daily moves" height={760} />
+
+`forRoles(['mechanic'])` gives users with the `mechanic` role their own view: oldest first, no money columns, no money filter, a card without the money section, and only the "Ready for pickup" button. It is built from the step 4 view, so everything else stays the same. A view only decides what is shown; to make the prices truly unreadable for mechanics, give the field an access rule as well (see [Data config](/reference/data-config/#access)).
+
+<StoryFrame id="guides-bike-shop--step-5-workshop" title="Step 5: the workshop's view" height={560} />
+
+## Where Pip is now
+
+Two short files describe a table and how the shop wants to see it, and the admin follows: lists, filters, a record page, buttons and a view per role. Next steps:
+
+- [Data config](/reference/data-config/) and [UI config](/reference/ui-config/) list every option used here, and the ones that were not.
+- [Your first composed page](/guides/first-composed-page/) puts what needs attention on one page.

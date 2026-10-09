@@ -1,0 +1,87 @@
+---
+title: Your first composed page
+description: Build the sales team's start page in four steps, from four numbers to a row of leads you can add to.
+tableOfContents: false
+# Room for the stories: the admin needs about 900px for its desktop layout.
+head:
+  - tag: style
+    content: ':root { --sl-content-width: 60rem; }'
+---
+
+import { Code } from '@astrojs/starlight/components'
+import StoryFrame from '../../../components/StoryFrame.astro'
+import step1 from '../../../../../packages/ui/src/app/pages/guide/sales-steps/step-1.tsx?raw'
+import step2 from '../../../../../packages/ui/src/app/pages/guide/sales-steps/step-2.tsx?raw'
+import step3 from '../../../../../packages/ui/src/app/pages/guide/sales-steps/step-3.tsx?raw'
+import step4 from '../../../../../packages/ui/src/app/pages/guide/sales-steps/step-4.tsx?raw'
+import ordersView from '../../../../../examples/erp/config/orders/ui.ts?raw'
+
+It is Monday morning at Veldhuis Supply. Sam, who runs sales, opens the admin and starts the usual round: Orders filtered to drafts, Orders again for deliveries nobody paid, Invoices filtered to overdue, Companies filtered to leads. Four lists, four filters, every week.
+
+What Sam wants is one page that says what needs attention. In Protobase that is a **composed page**: a layout in the config, made of blocks that read the same API as the lists, under the same access rules. No endpoints to write and no React to maintain. By the end of this guide the page looks like the last step below, and every step is a live story you can click through.
+
+The page lives in one file next to the rest of the config, `config/overview/page.tsx`, exported from `config/index.ts` like a resource or a view:
+
+```ts
+// config/index.ts
+export { salesOverview } from './overview/page'
+```
+
+## 1. Four numbers
+
+Start with what Sam counts every Monday.
+
+<Code code={step1} lang="tsx" title="config/overview/page.tsx" />
+
+That first comment matters. `@jsxImportSource @protobase/layout` makes the JSX build plain data instead of React elements: `<Stat label="Draft orders" ... />` becomes `{ type: 'Stat', props: { label: 'Draft orders', ... }, children: [] }`. The server sends that to the browser in `/api/meta`, and the admin renders it. So a layout holds no functions and no state, and the build refuses one that tries (see [Layouts](/reference/layouts/#what-a-layout-may-hold)).
+
+Each `Stat` counts the records of `resource` that match `filter`, written in the same AIP-160 syntax as the list's `?filter=`. The count is a link to exactly that filtered list. `page('overview', ...)` puts it at `/overview`, and `nav` puts it first in the Sales group of the sidebar.
+
+<StoryFrame id="guides-sales-overview--step-1" title="Step 1: four numbers" height={420} />
+
+## 2. The lists behind the numbers
+
+A number says *how many*; Sam also wants to see *which*. Two tables under the numbers:
+
+<Code code={step2} lang="tsx" title="config/overview/page.tsx" />
+
+A `Table` takes the same `resource`, `filter` and `sort` (AIP-132, like `?order_by=`), plus the `columns` to show and a `pageSize`. Relations such as `companyId` show the company's name, the first column opens the record, and the arrows page through the rest. Try them on the overdue invoices: there are three, two to a page.
+
+<StoryFrame id="guides-sales-overview--step-2" title="Step 2: the lists behind the numbers" height={640} />
+
+## 3. One order to chase
+
+Hollis & Rowe took a large delivery and has not paid. Sam wants that order on top, with a button that records the payment when it comes in.
+
+<Code code={step3} lang="tsx" title="config/overview/page.tsx" />
+
+A `RecordCard` shows one record: the first that matches its `filter` in `sort` order, here the biggest unpaid delivery. Inside it, `Field` shows a field of that record. A dotted name follows a relation: `companyId.city` is the city of the order's company, fetched the way the record page fetches it.
+
+The button is `<Action name="markPaid" />`, a named action of the orders view. The layout only names it; what it does is declared once, in the view:
+
+<Code code={ordersView} lang="ts" title="config/orders/ui.ts" />
+
+`a.update('markPaid', { set: { paid: true } })` patches the record with its ETag, after the `confirm` question. Because it is an ordinary update, the access rules decide whether this user may do it, and a user who may not sees the button disabled.
+
+`Show` keeps its children only while `when` holds. The condition reads fields of the record around it, through relations too: the warning appears because Hollis & Rowe is `dormant`. Mark the order as paid in the story: the card moves on to the next unpaid delivery, the warning disappears, and the number above drops to one.
+
+<StoryFrame id="guides-sales-overview--step-3" title="Step 3: one order to chase" height={720} />
+
+## 4. Leads, and a way to add them
+
+Last on Sam's list: new leads, with a quick way to add the one met at a trade fair.
+
+<Code code={step4} lang="tsx" title="config/overview/page.tsx" />
+
+A `CardRow` shows a few records side by side, and its children are the template of each card. Inside a card, `Field`, `Action` and `ModalForm` work on that card's record. The header's `ModalForm mode="create"` opens a form for a new company, and `values` adds `status: 'lead'` to what is filled in. The `ModalForm mode="edit"` in each card edits that lead. Add a lead in the story, then edit another one to `active`: it leaves the row, and the count of open leads follows.
+
+<StoryFrame id="guides-sales-overview--step-4" title="Step 4: leads, and a way to add them" height={1000} />
+
+## What the page did without
+
+There is no endpoint for "biggest unpaid delivery" and no component for "lead card". Every block reads the regular API with Sam's token, so the access rules apply exactly as on the lists. A sales rep with `orders.read.own` sees only their own orders in every count, table and card, and a field they may not read is not on their page at all (see [Access](/reference/layouts/#access)).
+
+The ERP example carries this page, with a few more blocks, in `examples/erp/config/overview/page.tsx`. Next:
+
+- [A billing page](/guides/billing-page/) adds forms, delete and link actions, and a React component of your own.
+- [Blocks](/reference/blocks/) lists every block and its props.

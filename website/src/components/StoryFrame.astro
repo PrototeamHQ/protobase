@@ -1,0 +1,34 @@
+---
+// A Storybook story, live, from the Storybook published at /storybook beside the docs.
+interface Props {
+  /** The story id, such as guides-sales-overview--step-1. */
+  id: string
+  title: string
+  height?: number
+}
+const { id, title, height = 620 } = Astro.props
+const src = `/storybook/iframe.html?id=${id}&viewMode=story`
+---
+
+<figure class="story-frame">
+  <iframe src={src} title={title} loading="lazy" style={`height: ${height}px`}></iframe>
+  <figcaption>
+    {title} · <a href={`/storybook/?path=/story/${id}`}>open in Storybook</a>
+  </figcaption>
+</figure>
+
+<style>
+  .story-frame {
+    margin: 1.5rem 0;
+  }
+  .story-frame iframe {
+    width: 100%;
+    border: 1px solid var(--sl-color-gray-5);
+    border-radius: 0.5rem;
+    background: white;
+  }
+  .story-frame figcaption {
+    font-size: var(--sl-text-sm);
+    color: var(--sl-color-gray-3);
+  }
+</style>

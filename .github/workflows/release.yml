@@ -1,0 +1,82 @@
+name: release
+
+# Every push to main is released when it holds a fix, feature or breaking change: the checks pass, the pushed commits
+# follow Conventional Commits, then scripts/release.mjs bumps every package.json, writes CHANGELOG.md, commits
+# `chore(release): x.y.z` and tags vx.y.z, which are pushed with a GitHub release. See website/src/content/docs/reference/versioning.md.
+on:
+  push:
+    branches: [main]
+
+# One release at a time; a run waiting behind another is replaced by the run of a newer push.
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  check:
+    if: ${{ !startsWith(github.event.head_commit.message, 'chore(release):') }}
+    uses: ./.github/workflows/ci.yml
+
+  commits:
+    if: ${{ !startsWith(github.event.head_commit.message, 'chore(release):') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Lint the pushed commits
+        env:
+          BEFORE: ${{ github.event.before }}
+        run: |
+          if [ "$BEFORE" = 0000000000000000000000000000000000000000 ]; then
+            pnpm exec commitlint --last --verbose
+          else
+            pnpm exec commitlint --from "$BEFORE" --to "$GITHUB_SHA" --verbose
+          fi
+
+  release:
+    needs: [check, commits]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # Only checked commits are released: when main moved on, the run of the newer push releases it all.
+      - name: Check that main is still the checked commit
+        id: head
+        run: |
+          git fetch origin main
+          if [ "$(git rev-parse origin/main)" = "$GITHUB_SHA" ]; then echo "current=true" >> "$GITHUB_OUTPUT"; fi
+      - name: Cut the release
+        if: steps.head.outputs.current == 'true'
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          pnpm release
+      - name: Push it and publish the GitHub release
+        if: steps.head.outputs.current == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version=$(node -p "require('./package.json').version")
+          if [ -z "$(git tag --points-at HEAD "v$version")" ]; then
+            echo "Nothing to release: no fix, feature or breaking change since the last release"
+            exit 0
+          fi
+          git push --atomic origin HEAD:refs/heads/main "refs/tags/v$version"
+          node scripts/release-notes.mjs "$version" > "$RUNNER_TEMP/notes.md"
+          gh release create "v$version" --verify-tag --title "v$version" --notes-file "$RUNNER_TEMP/notes.md"

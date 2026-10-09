@@ -1,0 +1,29 @@
+name: protobase
+
+services:
+  postgres:
+    image: postgres:18
+    ports:
+      - '${POSTGRES_PORT}:5432'
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    # Bulk-load friendly settings for the seed script; not for production.
+    command: >
+      postgres
+      -c shared_buffers=512MB
+      -c maintenance_work_mem=512MB
+      -c max_wal_size=8GB
+      -c checkpoint_timeout=15min
+    shm_size: 1gb
+    volumes:
+      - pgdata:/var/lib/postgresql
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}']
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+volumes:
+  pgdata:

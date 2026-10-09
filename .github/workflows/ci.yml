@@ -1,0 +1,47 @@
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [production]
+  # The release workflow runs these checks before it releases.
+  workflow_call:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    # The integration tests' Postgres, as docker-compose.yml runs it locally: same image, user and port.
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: protobase
+          POSTGRES_PASSWORD: protobase
+          POSTGRES_DB: protobase
+        ports:
+          - 55432:5432
+        options: >-
+          --shm-size 1g
+          --health-cmd "pg_isready -U protobase -d protobase"
+          --health-interval 2s
+          --health-timeout 3s
+          --health-retries 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # serve.integration runs the built bundle under Bun.
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.2
+      # The template databases each integration run clones; with CI set, a missing one fails the run instead of skipping.
+      - run: pnpm test:db
+      - run: pnpm check
+      - run: pnpm docs:build
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: node scripts/play-tests.mjs
+      - run: pnpm docs:check

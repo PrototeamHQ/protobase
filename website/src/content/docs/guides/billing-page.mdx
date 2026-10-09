@@ -1,0 +1,78 @@
+---
+title: A billing page
+description: Give your customers one page for their plan, billing details, cards and invoices, with forms, actions and a component of your own.
+tableOfContents: false
+# Room for the stories: the admin needs about 900px for its desktop layout.
+head:
+  - tag: style
+    content: ':root { --sl-content-width: 60rem; }'
+---
+
+import { Code } from '@astrojs/starlight/components'
+import StoryFrame from '../../../components/StoryFrame.astro'
+import step1 from '../../../../../packages/ui/src/app/pages/guide/billing-steps/step-1.tsx?raw'
+import step2 from '../../../../../packages/ui/src/app/pages/guide/billing-steps/step-2.tsx?raw'
+import step3 from '../../../../../packages/ui/src/app/pages/guide/billing-steps/step-3.tsx?raw'
+import step4 from '../../../../../packages/ui/src/app/pages/guide/billing-steps/step-4.tsx?raw'
+import erpUi from '../../../../../examples/erp/protobase.ui.tsx?raw'
+import billingViews from '../../../../../packages/ui/src/app/pages/guide/billing-views.ts?raw'
+
+Northwind Labs hosts its apps on your platform. Ada, who looks after their money, signs in once a month with four questions: what are we on, who do you bill, which card do you charge, and what did we pay. Today those answers sit in four lists. This guide gives Ada one page with all four, plus the buttons to act on them.
+
+It builds on [Your first composed page](/guides/first-composed-page/), so `page`, `Stat`, `Table` and `RecordCard` are familiar. New here: forms in a dialog, actions that delete records or open links, conditions on a record's own fields, and a component written in React. The data is a small billing schema: `plans`, `subscriptions` (with a `plan` relation), `billingProfiles`, `paymentMethods` and `invoices`.
+
+## 1. Your plan
+
+<Code code={step1} lang="tsx" title="config/billing/page.tsx" />
+
+The card shows the active subscription. `plan.name` and `plan.price` reach through the `plan` relation, and `Progress` draws `seatsUsed` out of `plan.seats`: a string names a field of the record, a number is used as is. The bar turns amber from 90%.
+
+The two header buttons are named actions of the subscriptions view, each with its own kind of behaviour. The views of the billing schema declare every action this page uses:
+
+<Code code={billingViews} lang="ts" title="config/billing/views.ts" />
+
+`a.update('cancel', ...)` sets `status` after its `confirm` question. `a.link` opens its `href`, with `{plan}` filled in from the record: a path in the app (`/plans`) stays in the app, anything else (`https:`, `mailto:`) leaves it. Cancel the plan in the story and the card says there is no active plan, because its `filter` no longer matches.
+
+<StoryFrame id="guides-billing-page--step-1" title="Step 1: your plan" height={400} />
+
+## 2. Who we bill
+
+Ada's company moved offices. The details card gets an edit button:
+
+<Code code={step2} lang="tsx" title="config/billing/page.tsx" />
+
+`ModalForm mode="edit"` in a RecordCard's `actions` edits that card's record: a dialog with the `fields` listed, the same editors as the record page, the changed fields sent as one update with the record's ETag. Errors from the server land on their fields. Change the company name in the story and save.
+
+<StoryFrame id="guides-billing-page--step-2" title="Step 2: who we bill" height={460} />
+
+## 3. How they pay
+
+<Code code={step3} lang="tsx" title="config/billing/page.tsx" />
+
+The cards sit side by side in a `CardRow`, the default card first (`sort="isDefault desc, id"`). Two `Show` blocks split the card on its own `isDefault` field: the default card says so, the others get "Make default" and "Remove". Those are again view actions, `a.update('makeDefault', ...)` and `a.remove('remove', ...)` in the views above.
+
+Making a card the default unsets the others in the database (a trigger or a write hook); the row reloads after every action, so the order follows. "Add card" is a `ModalForm mode="create"` in the row's header. In the story, make the Mastercard the default, remove the Visa and add a card.
+
+<StoryFrame id="guides-billing-page--step-3" title="Step 3: how they pay" height={760} />
+
+## 4. What they paid, and a component of your own
+
+<Code code={step4} lang="tsx" title="config/billing/page.tsx" />
+
+Two things here are not built-in blocks.
+
+`SeatHistory` is a **custom component**. `component('SeatHistory')` declares it for the layout, with its props typed, and the element stays data: `{ type: 'SeatHistory', props: { months: 6 }, custom: true }`. The React code lives in the app, registered under the same name in `protobase.ui.tsx` at the project root, which the admin bundles with itself. Inside a RecordCard, `useLayoutRecord()` gives it the record.
+
+"Download PDF" is a named action without built-in behaviour (`a.action('download', ...)`), so it runs the handler registered under its name, with the record, the API client and the router. The ERP example registers one of each:
+
+<Code code={erpUi} lang="tsx" title="protobase.ui.tsx" />
+
+The rest is familiar: a paged `Table` of invoices spanning two of the three columns, a count of open invoices, and a `Link` inside the text of a card.
+
+<StoryFrame id="guides-billing-page--step-4" title="Step 4: what they paid" height={1100} />
+
+If the app has no component registered under a name, the page says so where the component would be, and an action without a handler is disabled:
+
+<StoryFrame id="guides-billing-page--missing-component" title="A custom component the app did not register" height={500} />
+
+Next: [Custom components](/reference/custom-components/) for the details of `protobase.ui.tsx`, and [Layouts](/reference/layouts/) for named actions, conditions and access.

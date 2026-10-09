@@ -1,0 +1,199 @@
+---
+title: Blocks
+description: Every built-in layout block, its props and what it does, with examples from the ERP's sales overview.
+---
+
+import { Code } from '@astrojs/starlight/components'
+import erpPage from '../../../../../examples/erp/config/overview/page.tsx?raw'
+
+Blocks are imported from `@protobase/layout`. "Record" below means the record of the `RecordCard` or `CardRow` card around a block (see [Data](/reference/layouts/#data)); `filter` is AIP-160 and `sort` AIP-132, as in the list API. Every block below appears in the ERP example's sales overview:
+
+<Code code={erpPage} lang="tsx" title="examples/erp/config/overview/page.tsx" />
+
+## Layout
+
+### Page
+
+The root of every page, and only the root.
+
+| Prop | |
+| --- | --- |
+| `title` | Heading, and the page's name in the sidebar and breadcrumbs. Required. |
+| `description` | A line under the title. |
+| `actions` | Elements beside the title, such as a `ModalForm`. |
+
+### Grid
+
+Columns that collapse to one on a phone. A child's `span` (1 to 4) makes it wider.
+
+| Prop | |
+| --- | --- |
+| `columns` | 1 to 4; default 2. |
+| `span` | Its own width when it sits in another grid. |
+
+```tsx
+<Grid columns={4}>
+  <Stat label="Draft orders" resource="orders" filter="status = 'draft'" />
+  ...
+</Grid>
+```
+
+### Card
+
+A box with a heading. Text and `Link`s inside it run together as paragraphs.
+
+| Prop | |
+| --- | --- |
+| `title`, `description` | The heading. |
+| `actions` | Elements in the heading. |
+| `span` | Width in a grid. |
+
+```tsx
+<Card title="No orders yet">Create the first order from Orders; this page fills up as the team sells.</Card>
+```
+
+### Link
+
+A link in text. A path starting with `/` stays in the app; other links open as usual (`https:` in a new tab, `mailto:` in the mail app). Its text is its children, else the `href`.
+
+| Prop | |
+| --- | --- |
+| `href` | Required. |
+
+## Data
+
+### Stat
+
+One number or value with a label. Exactly one of `value`, `resource` and `field`.
+
+| Prop | |
+| --- | --- |
+| `label` | Required. |
+| `value` | A fixed value. |
+| `resource`, `filter` | Counts the matching records the user can see; the number links to that filtered list. |
+| `field` | A field of the record, through relations (`plan.name`). |
+| `format` | Instead of the view's [format](/reference/ui-config/#names-and-columns), such as `badge`. |
+| `description` | A line under the value. |
+| `span` | Width in a grid. |
+
+```tsx
+<Stat label="Delivered, not paid" resource="orders" filter="status = 'delivered' AND paid = false" />
+```
+
+### Table
+
+A page of records at a time, with arrows to page through the rest. The first column opens the record; relations show the related record's name.
+
+| Prop | |
+| --- | --- |
+| `resource`, `filter`, `sort` | Which records, in which order. `resource` is required. |
+| `columns` | Field names; default the view's list columns. |
+| `pageSize` | Rows per page; default 10. |
+| `title`, `description`, `actions` | The heading. |
+| `empty` | Text when nothing matches; default "Nothing here yet.". |
+| `span` | Width in a grid. |
+
+```tsx
+<Table title="Overdue invoices" resource="invoices" filter="status = 'overdue'" sort="issuedAt" columns={['number', 'companyId', 'dueAt', 'total']} pageSize={5} empty="Nothing is overdue." />
+```
+
+### RecordCard
+
+One record and what is inside it: the one `recordKey` names (the key as the record's URL has it), else the first that matches `filter` in `sort` order. Its children and its heading `actions` work on that record.
+
+| Prop | |
+| --- | --- |
+| `resource`, `filter`, `sort` | Which record. `resource` is required. |
+| `recordKey` | A fixed record instead. |
+| `title`, `description`, `actions` | The heading. |
+| `empty` | Text when no record matches. |
+| `span` | Width in a grid. |
+
+```tsx
+<RecordCard title="Biggest unpaid delivery" resource="orders" filter="status = 'delivered' AND paid = false" sort="total desc" actions={<Action name="markPaid" variant="primary" />}>
+  <Field name="number" />
+  <Field name="companyId.city" label="City" />
+</RecordCard>
+```
+
+### CardRow
+
+Up to `limit` records side by side, each a small card made from the children, which work on that card's record. The heading's `actions` do not have a record: use them for a `ModalForm mode="create"`.
+
+| Prop | |
+| --- | --- |
+| `resource`, `filter`, `sort` | Which records, in which order. `resource` is required. |
+| `limit` | How many; default 12. |
+| `title`, `description`, `actions` | The heading. |
+| `empty` | Text when nothing matches. |
+| `span` | Width in a grid. |
+
+### Field
+
+A label over a value of the record, formatted as on the record page: statuses as badges with the view's value labels, relations as the related record's name (linked), the view's prefix and decimals.
+
+| Prop | |
+| --- | --- |
+| `name` | A field, through relations (`companyId.city`). Required. |
+| `label` | Default: the view's label, else the name in words. `false` shows the value alone. |
+| `format` | Instead of the view's [format](/reference/ui-config/#names-and-columns). |
+
+### Progress
+
+A bar for `value` out of `max`, with both numbers. It turns amber from 90%.
+
+| Prop | |
+| --- | --- |
+| `value` | A number, or the name of a field of the record. Required. |
+| `max` | A number or a field; default 100. |
+| `label`, `span` | |
+
+```tsx
+<Progress label="Seats" value="seatsUsed" max="plan.seats" />
+```
+
+## Behaviour
+
+### Action
+
+A button for a [named action](/reference/layouts/#named-actions) of the view, on the record around it.
+
+| Prop | |
+| --- | --- |
+| `name` | The action's name in the view. Required. |
+| `resource` | Outside a record: the resource whose view declares it. |
+| `label` | Default: the action's label. |
+| `variant` | `primary`, `secondary` (default), `danger` or `ghost`. |
+
+### ModalForm
+
+A button that opens a form in a dialog. `create` makes a record of `resource`; `edit` changes the record around it (or `resource` with `recordKey`), sending only the changed fields with the record's ETag. The editors are the record page's, and errors from the server show on their fields. It is not shown to a user who may not create or update, and it keeps only the fields they may write.
+
+| Prop | |
+| --- | --- |
+| `mode` | `create` or `edit`. Required. |
+| `label` | The button. Required. |
+| `fields` | The fields of the form, writable ones only. Required. |
+| `resource` | Default: the record's resource. |
+| `recordKey` | Edit this record. |
+| `title` | The dialog's title; default the label. |
+| `values` | Sent with every create, such as `{ status: 'lead' }` or a parent's key. |
+| `variant` | As for `Action`. |
+
+```tsx
+<ModalForm mode="create" label="Add lead" resource="companies" fields={['name', 'city', 'countryCode', 'email']} values={{ status: 'lead' }} />
+```
+
+### Show
+
+Its children while [`when`](/reference/layouts/#conditions) holds.
+
+| Prop | |
+| --- | --- |
+| `when` | A condition. Required. |
+
+```tsx
+<Show when="orders.count = 0">
+  <Card title="No orders yet">...</Card>
+</Show>
+```
