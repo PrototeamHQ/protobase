@@ -2,6 +2,12 @@
 
 Every release of Protobase, cut by the release workflow from the commits since the last one (see the [versioning page](https://docs.protobase.net/reference/versioning/)).
 
+## [0.1.6](https://github.com/PrototeamHQ/protobase/compare/v0.1.5...v0.1.6) (2026-10-09)
+
+### Bug Fixes
+
+* **release:** wait for npm to serve the [@protobase](https://github.com/protobase) packages before writing the image contexts ([e0fa7cc](https://github.com/PrototeamHQ/protobase/commit/e0fa7cc7011a11b67787b8f6db004e352da4f10a))
+
 ## [0.1.5](https://github.com/PrototeamHQ/protobase/compare/v0.1.4...v0.1.5) (2026-10-09)
 
 ### Features
