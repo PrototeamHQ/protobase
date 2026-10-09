@@ -2,6 +2,16 @@
 
 Every release of Protobase, cut by the release workflow from the commits since the last one (see the [versioning page](https://docs.protobase.net/reference/versioning/)).
 
+## [0.1.5](https://github.com/PrototeamHQ/protobase/compare/v0.1.4...v0.1.5) (2026-10-09)
+
+### Features
+
+* **images:** publish ghcr.io/prototeamhq/protobase and protobase-dev at every release ([2d1e1d1](https://github.com/PrototeamHQ/protobase/commit/2d1e1d120cc07062f67a0c288f3885fcf200ef7f))
+
+### Bug Fixes
+
+* **presets:** stop publishing @protobase/presets and write them from a clone with pnpm presets:write ([bbf9b58](https://github.com/PrototeamHQ/protobase/commit/bbf9b58e71d0f9d99cdcebf9b941769c2e1e4d2f))
+
 ## [0.1.4](https://github.com/PrototeamHQ/protobase/compare/v0.1.3...v0.1.4) (2026-10-09)
 
 ### Features
