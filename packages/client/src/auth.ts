@@ -36,8 +36,8 @@ export const tokenExpiry = (token: string) => {
   return json.exp * 1000
 }
 
-/** `needsAdmin` while no user exists yet; `passwordReset` when the server can email reset links. */
-export type SetupStatus = { needsAdmin: boolean; passwordReset: boolean }
+/** `needsAdmin` while no user exists yet; `passwordReset` when the server can email reset links; `socialProviders` the ids of the sign-in providers, for example `github`. */
+export type SetupStatus = { needsAdmin: boolean; passwordReset: boolean; socialProviders: string[] }
 
 /**
  * The browser side of Better Auth: sign in with email and password, and a short-lived JWT held in memory only
@@ -88,8 +88,8 @@ export const createAuthSession = (options: AuthSessionOptions = {}) => {
       const response = await doFetch(`${origin}${basePath}/status`)
       if (response.status === 404) throw new AuthError('This server has no sign-in. Is the API URL right?', 404)
       if (!response.ok) throw new AuthError('Could not read the sign-in status', response.status)
-      const body = (await response.json()) as { needsAdmin?: boolean; passwordReset?: boolean }
-      return { needsAdmin: Boolean(body.needsAdmin), passwordReset: Boolean(body.passwordReset) }
+      const body = (await response.json()) as { needsAdmin?: boolean; passwordReset?: boolean; socialProviders?: string[] }
+      return { needsAdmin: Boolean(body.needsAdmin), passwordReset: Boolean(body.passwordReset), socialProviders: body.socialProviders ?? [] }
     },
 
     /** The signed-in user from the session cookie, or `undefined`. */
@@ -103,6 +103,16 @@ export const createAuthSession = (options: AuthSessionOptions = {}) => {
       if (error || !data) throw new AuthError(error?.message || 'Sign-in failed', error?.status ?? 500, error?.code)
       await token({ refresh: true })
       return data.user as AuthUser
+    },
+
+    /**
+     * Starts sign-in with a provider such as `github`: resolves with the provider's authorization URL, for the page to go to.
+     * The provider sends the browser back to `callbackURL` signed in, or with `?error=<code>`.
+     */
+    signInSocial: async (provider: string, callbackURL: string) => {
+      const { data, error } = await client.signIn.social({ provider, callbackURL, errorCallbackURL: callbackURL, disableRedirect: true })
+      if (error || !data?.url) throw new AuthError(error?.message || 'Sign-in failed', error?.status ?? 500, error?.code)
+      return data.url
     },
 
     signOut: async () => {
@@ -135,9 +145,12 @@ export type AuthSession = ReturnType<typeof createAuthSession>
  */
 export const createStaticSession = (token: string, user: AuthUser = { id: 'token', email: 'token', name: 'API token', role: null }): AuthSession => ({
   token: async () => token,
-  status: async () => ({ needsAdmin: false, passwordReset: false }),
+  status: async () => ({ needsAdmin: false, passwordReset: false, socialProviders: [] }),
   session: async () => user,
   signIn: async () => user,
+  signInSocial: async () => {
+    throw new AuthError('A static session cannot sign in with a provider', 400)
+  },
   signOut: async () => undefined,
   requestPasswordReset: async () => undefined,
   resetPassword: async () => undefined,

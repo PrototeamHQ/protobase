@@ -13,9 +13,11 @@ export type SignInFormProps = {
   notice?: string
   /** Opens the page that emails a reset link; without it there is no "Forgot password?" link. */
   onForgotPassword?: () => void
+  /** Starts sign-in with GitHub; without it there is no "Continue with GitHub" button. */
+  onContinueWithGitHub?: () => void
 }
 
-export const SignInForm = ({ onSubmit, busy, error, workspace, notice, onForgotPassword }: SignInFormProps) => {
+export const SignInForm = ({ onSubmit, busy, error, workspace, notice, onForgotPassword, onContinueWithGitHub }: SignInFormProps) => {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   return (
@@ -24,6 +26,18 @@ export const SignInForm = ({ onSubmit, busy, error, workspace, notice, onForgotP
         <p role="status" className="mb-4 rounded-md bg-success-soft px-3 py-2 text-xs font-medium text-success-text">
           {notice}
         </p>
+      )}
+      {onContinueWithGitHub && (
+        <>
+          <Button onClick={onContinueWithGitHub} disabled={busy} className="min-h-10 w-full">
+            Continue with GitHub
+          </Button>
+          <div className="my-4 flex items-center gap-3 text-xs text-muted-foreground">
+            <span className="h-px flex-1 bg-border" />
+            or
+            <span className="h-px flex-1 bg-border" />
+          </div>
+        </>
       )}
       <form
         className="flex flex-col gap-4"

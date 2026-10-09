@@ -72,14 +72,33 @@ describe('auth session sign-in', () => {
 
   it('reads the setup status', async () => {
     const open = createAuthSession({ origin: 'http://localhost', fetch: (async () => json({ needsAdmin: true })) as typeof fetch })
-    expect(await open.status()).toEqual({ needsAdmin: true, passwordReset: false })
-    const resettable = createAuthSession({ origin: 'http://localhost', fetch: (async () => json({ needsAdmin: false, passwordReset: true })) as typeof fetch })
-    expect(await resettable.status()).toEqual({ needsAdmin: false, passwordReset: true })
+    expect(await open.status()).toEqual({ needsAdmin: true, passwordReset: false, socialProviders: [] })
+    const resettable = createAuthSession({ origin: 'http://localhost', fetch: (async () => json({ needsAdmin: false, passwordReset: true, socialProviders: ['github'] })) as typeof fetch })
+    expect(await resettable.status()).toEqual({ needsAdmin: false, passwordReset: true, socialProviders: ['github'] })
   })
 
   it('says so when the URL is not a Protobase server', async () => {
     const elsewhere = createAuthSession({ origin: 'http://localhost', fetch: (async () => new Response('Not found', { status: 404 })) as typeof fetch })
     await expect(elsewhere.status()).rejects.toMatchObject({ name: 'AuthError', status: 404 })
+  })
+})
+
+describe('auth session sign-in with a provider', () => {
+  it('asks for the authorization URL, coming back to the page either way, without navigating itself', async () => {
+    const requests: Array<{ path: string; body: unknown }> = []
+    const fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+      const request = new Request(input, init)
+      requests.push({ path: new URL(request.url).pathname, body: await request.json() })
+      return json({ url: 'https://github.com/login/oauth/authorize?client_id=Iv1.client', redirect: false })
+    }) as typeof globalThis.fetch
+    const session = createAuthSession({ origin: 'http://localhost', fetch })
+    expect(await session.signInSocial('github', 'http://localhost/orders')).toBe('https://github.com/login/oauth/authorize?client_id=Iv1.client')
+    expect(requests).toEqual([{ path: '/api/auth/sign-in/social', body: { provider: 'github', callbackURL: 'http://localhost/orders', errorCallbackURL: 'http://localhost/orders', disableRedirect: true } }])
+  })
+
+  it('reports a provider the server does not have as AuthError', async () => {
+    const session = createAuthSession({ origin: 'http://localhost', fetch: (async () => json({ message: 'Provider not found', code: 'PROVIDER_NOT_FOUND' }, { status: 404 })) as typeof fetch })
+    await expect(session.signInSocial('github', 'http://localhost/')).rejects.toMatchObject({ name: 'AuthError', status: 404, code: 'PROVIDER_NOT_FOUND' })
   })
 })
 

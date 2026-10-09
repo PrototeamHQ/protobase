@@ -55,12 +55,12 @@ describe('the first admin', () => {
   })
 
   it('is reported by the status endpoint until a user exists', async () => {
-    expect(await (await app.request(`${origin}/api/auth/status`)).json()).toEqual({ needsAdmin: true, passwordReset: false })
+    expect(await (await app.request(`${origin}/api/auth/status`)).json()).toEqual({ needsAdmin: true, passwordReset: false, socialProviders: [] })
     expect(await hasUsers(auth)).toBe(false)
     const root = await createUser(auth, { email: 'root@example.com', password, name: 'Root', role: 'user' })
     expect(root.role).toBe('admin')
     expect(await hasUsers(auth)).toBe(true)
-    expect(await (await app.request(`${origin}/api/auth/status`)).json()).toEqual({ needsAdmin: false, passwordReset: false })
+    expect(await (await app.request(`${origin}/api/auth/status`)).json()).toEqual({ needsAdmin: false, passwordReset: false, socialProviders: [] })
   })
 
   it('lists users without secrets, and later users get the requested role', async () => {

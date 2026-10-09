@@ -30,6 +30,12 @@ export type CreateAuthOptions = {
    * turns reset off whatever the environment says.
    */
   mailer?: Mailer | false
+  /**
+   * Sign-in providers for Better Auth, for example `{ github: { clientId, clientSecret } }`; the callback is
+   * `{baseURL}/api/auth/callback/<provider>`. A provider also signs up people without an account, with the default role.
+   * Default none.
+   */
+  socialProviders?: BetterAuthOptions['socialProviders']
 }
 
 const platformMailer = () => {
@@ -55,22 +61,17 @@ export const normalizeRoles = (roles: string[] = ['admin', 'user']) => {
   return ['admin', ...new Set(roles.filter((role) => role !== 'admin'))]
 }
 
-export const createAuth = (options: CreateAuthOptions) => {
+/** The options `createAuth` gives Better Auth, with the roles, default role and mailer already resolved. */
+export const betterAuthOptions = (options: CreateAuthOptions, { roles, defaultRole, mailer }: { roles: string[]; defaultRole?: string; mailer?: Mailer }) => {
   const secure = options.baseURL.startsWith('https://')
-  const roles = normalizeRoles(options.roles)
-  if (options.defaultRole !== undefined && !roles.includes(options.defaultRole)) {
-    throw new Error(`defaultRole "${options.defaultRole}" is not one of the roles: ${roles.join(', ')}`)
-  }
-  const others = roles.filter((role) => role !== 'admin')
-  const defaultRole = options.defaultRole ?? (others.length === 1 ? others[0] : undefined)
-  const mailer = options.mailer === undefined ? platformMailer() : options.mailer || undefined
-  const auth = betterAuth({
+  return {
     database: options.database,
     baseURL: options.baseURL,
     basePath: authBasePath,
     secret: options.secret,
     trustedOrigins: [options.baseURL, 'https://*.trycloudflare.com', ...(options.trustedOrigins ?? [])],
     emailAndPassword: { enabled: true, disableSignUp: true, minPasswordLength: 12, ...(mailer && passwordResetOptions(mailer)) },
+    ...(options.socialProviders && { socialProviders: options.socialProviders }),
     plugins: [
       // Without a default role the plugin's own default is a name outside the list, which the hook below refuses.
       admin({ defaultRole: defaultRole ?? 'unassigned', roles: Object.fromEntries(roles.map((role) => [role, role === 'admin' ? adminAc : userAc])) }),
@@ -110,8 +111,20 @@ export const createAuth = (options: CreateAuthOptions) => {
       // Better Auth logs a failed send.
       backgroundTasks: { handler: () => {} },
     },
-  })
-  return Object.assign(auth, { roles, defaultRole, passwordReset: Boolean(mailer) })
+  } satisfies BetterAuthOptions
+}
+
+export const createAuth = (options: CreateAuthOptions) => {
+  const roles = normalizeRoles(options.roles)
+  if (options.defaultRole !== undefined && !roles.includes(options.defaultRole)) {
+    throw new Error(`defaultRole "${options.defaultRole}" is not one of the roles: ${roles.join(', ')}`)
+  }
+  const others = roles.filter((role) => role !== 'admin')
+  const defaultRole = options.defaultRole ?? (others.length === 1 ? others[0] : undefined)
+  const mailer = options.mailer === undefined ? platformMailer() : options.mailer || undefined
+  const auth = betterAuth(betterAuthOptions(options, { roles, defaultRole, mailer }))
+  const socialProviders = Object.keys(options.socialProviders ?? {})
+  return Object.assign(auth, { roles, defaultRole, passwordReset: Boolean(mailer), socialProviders })
 }
 
 export type AdminAuth = ReturnType<typeof createAuth>

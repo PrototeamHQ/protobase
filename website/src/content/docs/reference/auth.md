@@ -58,7 +58,7 @@ await deleteUser(auth, email)                                // with sessions an
 
 The last active admin cannot be deleted, demoted or banned: those functions throw instead, so every caller is protected.
 
-Until a user exists sign-in fails, and `GET /api/auth/status` (public) answers `{ "needsAdmin": true, "passwordReset": false }` so a login page can say what to do (`passwordReset` is whether [reset mail](#password-reset) can be sent). Further users are created by an admin with Better Auth's `POST /api/auth/admin/create-user`, or with `createUser` on the host. The auth store holds a connection pool; scripts that call these functions end the process themselves.
+Until a user exists sign-in fails, and `GET /api/auth/status` (public) answers `{ "needsAdmin": true, "passwordReset": false, "socialProviders": [] }` so a login page can say what to do (`passwordReset` is whether [reset mail](#password-reset) can be sent). Further users are created by an admin with Better Auth's `POST /api/auth/admin/create-user`, or with `createUser` on the host. The auth store holds a connection pool; scripts that call these functions end the process themselves.
 
 ## Password reset
 
@@ -80,6 +80,18 @@ createAuth({ ..., mailer: false })
 - A request answers the same whether or not the address has an account, and the mail goes out after the answer, so neither the response nor its timing tells. A send that fails is logged by Better Auth.
 - Requests are limited to 3 per minute and client. Setting a new password ends all of the user's sessions; the new password needs 12 characters like any other.
 - `redirectTo` must be on a trusted origin (`BETTER_AUTH_URL` or `TRUSTED_ORIGINS`); the admin app sends its own page with a `password-reset` marker, so the link opens the set-password page there.
+
+## Sign-in with GitHub
+
+Projects keep email and password only by default. `socialProviders` adds Better Auth's [social providers](https://www.better-auth.com/docs/authentication/github), and the sign-in page shows "Continue with GitHub" when `github` is one:
+
+```ts
+createAuth({ ..., socialProviders: { github: { clientId: process.env.GITHUB_CLIENT_ID!, clientSecret: process.env.GITHUB_CLIENT_SECRET! } } })
+```
+
+- The callback URL to register with GitHub is `<BETTER_AUTH_URL>/api/auth/callback/github`. A GitHub App needs the Email addresses (read-only) account permission, or sign-in fails with `email_not_found`.
+- A provider is also a public sign-up: someone without an account gets one with the [default role](#roles). Without a default role the sign-up is refused.
+- `GET /api/auth/status` lists the provider ids as `socialProviders`.
 
 ## Roles
 

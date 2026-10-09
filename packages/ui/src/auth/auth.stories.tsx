@@ -21,6 +21,17 @@ export const SignIn: StoryObj<SignInFormProps> = {
   },
 }
 
+export const SignInWithGitHub: StoryObj<SignInFormProps> = {
+  tags: ['play'],
+  args: { onSubmit: fn(), onContinueWithGitHub: fn(), workspace: 'Protobase Cloud' },
+  render: (args) => <SignInForm {...args} />,
+  play: async ({ canvasElement, args }) => {
+    await userEvent.click(within(canvasElement).getByRole('button', { name: 'Continue with GitHub' }))
+    expect(args.onContinueWithGitHub).toHaveBeenCalledOnce()
+    expect(args.onSubmit).not.toHaveBeenCalled()
+  },
+}
+
 export const SignInFailed: StoryObj<SignInFormProps> = {
   args: { onSubmit: fn(), error: 'The email or password is not right.' },
   render: (args) => <SignInForm {...args} />,

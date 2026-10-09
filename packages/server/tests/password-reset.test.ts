@@ -57,7 +57,7 @@ describe('password reset is on only with mail', () => {
     vi.stubEnv('PROTOBASE_MAIL_FROM', '')
     const { auth, status, requestReset } = await serve()
     expect(auth.passwordReset).toBe(false)
-    expect(await status()).toEqual({ needsAdmin: false, passwordReset: false })
+    expect(await status()).toEqual({ needsAdmin: false, passwordReset: false, socialProviders: [] })
     const response = await requestReset('root@example.com')
     expect(response.status).toBe(400)
     expect(await response.json()).toMatchObject({ code: 'RESET_PASSWORD_DISABLED' })
@@ -81,7 +81,7 @@ describe('password reset is on only with mail', () => {
     const { mailer } = recordingMailer()
     const { auth, status } = await serve({ mailer })
     expect(auth.passwordReset).toBe(true)
-    expect(await status()).toEqual({ needsAdmin: false, passwordReset: true })
+    expect(await status()).toEqual({ needsAdmin: false, passwordReset: true, socialProviders: [] })
   })
 })
 
