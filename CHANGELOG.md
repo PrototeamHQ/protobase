@@ -2,6 +2,12 @@
 
 Every release of Protobase, cut by the release workflow from the commits since the last one (see the [versioning page](https://docs.protobase.net/reference/versioning/)).
 
+## [0.1.3](https://github.com/PrototeamHQ/protobase/compare/v0.1.2...v0.1.3) (2026-10-09)
+
+### Bug Fixes
+
+* **cli:** doctor checks resources declared on views and materialized views ([6f0df75](https://github.com/PrototeamHQ/protobase/commit/6f0df75aa36692f14b0c94c0bc407efd833cca58))
+
 ## [0.1.2](https://github.com/PrototeamHQ/protobase/compare/v0.1.1...v0.1.2) (2026-10-09)
 
 ### Features

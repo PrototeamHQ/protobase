@@ -1,6 +1,6 @@
 {
   "name": "@protobase/presets",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "The projects a new Protobase app starts from: ERP, real estate and from scratch, each with its own bun.lock.",
   "license": "Apache-2.0",
   "repository": {
