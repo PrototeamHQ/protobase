@@ -2,6 +2,12 @@
 
 Every release of Protobase, cut by the release workflow from the commits since the last one (see the [versioning page](https://docs.protobase.net/reference/versioning/)).
 
+## [0.1.4](https://github.com/PrototeamHQ/protobase/compare/v0.1.3...v0.1.4) (2026-10-09)
+
+### Features
+
+* **server:** createAuth takes encryptOAuthTokens and an onUserCreated hook ([b84dec5](https://github.com/PrototeamHQ/protobase/commit/b84dec55bc17cef029d90128ca78686720ff020c))
+
 ## [0.1.3](https://github.com/PrototeamHQ/protobase/compare/v0.1.2...v0.1.3) (2026-10-09)
 
 ### Bug Fixes
