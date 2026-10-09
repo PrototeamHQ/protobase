@@ -1,6 +1,6 @@
 import type { Sql } from './connect'
 import { tableKey, type DbTable } from './model'
-import { selectChecks, selectColumns, selectForeignKeys, selectIndexes } from './queries'
+import { selectChecks, selectColumns, selectForeignKeys, selectIndexes, type Relations } from './queries'
 
 const byTable = <T extends { schema: string; table: string }>(rows: readonly T[]) => {
   const groups = new Map<string, T[]>()
@@ -11,12 +11,14 @@ const byTable = <T extends { schema: string; table: string }>(rows: readonly T[]
   return groups
 }
 
-export const introspect = async (sql: Sql): Promise<DbTable[]> => {
+const kinds: Record<string, DbTable['kind']> = { r: 'table', p: 'table', v: 'view', m: 'materialized view' }
+
+export const introspect = async (sql: Sql, relations: Relations = {}): Promise<DbTable[]> => {
   const [columns, foreignKeys, checks, indexes] = await Promise.all([
-    selectColumns(sql),
-    selectForeignKeys(sql),
-    selectChecks(sql),
-    selectIndexes(sql),
+    selectColumns(sql, relations),
+    selectForeignKeys(sql, relations),
+    selectChecks(sql, relations),
+    selectIndexes(sql, relations),
   ])
   const fks = byTable(foreignKeys)
   const chks = byTable(checks)
@@ -25,7 +27,8 @@ export const introspect = async (sql: Sql): Promise<DbTable[]> => {
   return [...byTable(columns)].map(([key, rows]) => ({
     schema: rows[0]!.schema,
     name: rows[0]!.table,
-    columns: rows.map(({ schema, table, enumValues, defaultExpr, ...column }) => ({
+    kind: kinds[rows[0]!.relkind]!,
+    columns: rows.map(({ schema, table, relkind, enumValues, defaultExpr, ...column }) => ({
       ...column,
       enumValues: enumValues ?? [],
       ...(defaultExpr !== null && { defaultExpr }),

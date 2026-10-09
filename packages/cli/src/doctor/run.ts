@@ -15,7 +15,7 @@ export const runDoctor = async (options: DoctorOptions, out: (text: string) => v
   const models = await loadResourceModels(options.configDir)
   if (models.length === 0) throw new Error(`No resources exported from ${options.configDir}/index.ts`)
   const sql = connect(options.url)
-  const tables = await introspect(sql).finally(() => sql.end())
+  const tables = await introspect(sql, { views: true }).finally(() => sql.end())
   const issues = models.flatMap((model) => checkResource(model, tables))
   for (const issue of issues) out(format(issue))
   const errors = issues.filter((i) => i.severity === 'error').length

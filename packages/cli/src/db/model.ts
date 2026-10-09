@@ -40,6 +40,7 @@ export type DbCheck = {
 export type DbTable = {
   schema: string
   name: string
+  kind: 'table' | 'view' | 'materialized view'
   columns: DbColumn[]
   foreignKeys: DbForeignKey[]
   indexes: DbIndex[]

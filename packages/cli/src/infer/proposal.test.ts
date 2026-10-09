@@ -20,6 +20,7 @@ const column = (name: string, typeName: string, extra: Partial<DbColumn> = {}): 
 const table = (columns: DbColumn[]): DbTable => ({
   schema: 'shop',
   name: 'orders',
+  kind: 'table',
   columns,
   foreignKeys: [],
   checks: [],

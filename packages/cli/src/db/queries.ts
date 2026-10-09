@@ -1,15 +1,19 @@
 import type { Sql } from './connect'
 
-const userTables = `
-  c.relkind in ('r', 'p')
+// Tables, plus views and materialized views when asked: doctor checks resources declared on them, scaffold does not.
+export type Relations = { views?: boolean }
+
+const userRelations = ({ views = false }: Relations) => `
+  c.relkind in ('r', 'p'${views ? ", 'v', 'm'" : ''})
   and n.nspname not in ('pg_catalog', 'information_schema', 'pg_toast')
   and n.nspname not like 'pg_temp%'
 `
 
-export const selectColumns = (sql: Sql) => sql<
+export const selectColumns = (sql: Sql, relations: Relations) => sql<
   {
     schema: string
     table: string
+    relkind: string
     name: string
     position: number
     typeName: string
@@ -23,7 +27,7 @@ export const selectColumns = (sql: Sql) => sql<
     defaultExpr: string | null
   }[]
 >`
-  select n.nspname as schema, c.relname as table, a.attname as name, a.attnum::int as position,
+  select n.nspname as schema, c.relname as table, c.relkind as relkind, a.attname as name, a.attnum::int as position,
     bt.typname as "typeName", format_type(a.atttypid, a.atttypmod) as formatted,
     (bt.typtype = 'e') as "isEnum",
     (select array_agg(e.enumlabel::text order by e.enumsortorder) from pg_enum e where e.enumtypid = bt.oid) as "enumValues",
@@ -35,11 +39,11 @@ export const selectColumns = (sql: Sql) => sql<
   join pg_type t on t.oid = a.atttypid
   join pg_type bt on bt.oid = case when t.typtype = 'd' then t.typbasetype else t.oid end
   left join pg_attrdef d on d.adrelid = a.attrelid and d.adnum = a.attnum
-  where ${sql.unsafe(userTables)} and a.attnum > 0 and not a.attisdropped
+  where ${sql.unsafe(userRelations(relations))} and a.attnum > 0 and not a.attisdropped
   order by n.nspname, c.relname, a.attnum
 `
 
-export const selectForeignKeys = (sql: Sql) => sql<
+export const selectForeignKeys = (sql: Sql, relations: Relations) => sql<
   { schema: string; table: string; columns: string[]; refSchema: string; refTable: string; refColumns: string[] }[]
 >`
   select n.nspname as schema, c.relname as table,
@@ -53,10 +57,10 @@ export const selectForeignKeys = (sql: Sql) => sql<
   join pg_namespace n on n.oid = c.relnamespace
   join pg_class rc on rc.oid = con.confrelid
   join pg_namespace rn on rn.oid = rc.relnamespace
-  where con.contype = 'f' and ${sql.unsafe(userTables)}
+  where con.contype = 'f' and ${sql.unsafe(userRelations(relations))}
 `
 
-export const selectChecks = (sql: Sql) => sql<
+export const selectChecks = (sql: Sql, relations: Relations) => sql<
   { schema: string; table: string; columns: string[]; definition: string }[]
 >`
   select n.nspname as schema, c.relname as table,
@@ -66,10 +70,10 @@ export const selectChecks = (sql: Sql) => sql<
   from pg_constraint con
   join pg_class c on c.oid = con.conrelid
   join pg_namespace n on n.oid = c.relnamespace
-  where con.contype = 'c' and con.conkey is not null and ${sql.unsafe(userTables)}
+  where con.contype = 'c' and con.conkey is not null and ${sql.unsafe(userRelations(relations))}
 `
 
-export const selectIndexes = (sql: Sql) => sql<
+export const selectIndexes = (sql: Sql, relations: Relations) => sql<
   {
     schema: string
     table: string
@@ -92,5 +96,5 @@ export const selectIndexes = (sql: Sql) => sql<
   join pg_namespace n on n.oid = c.relnamespace
   join pg_class ic on ic.oid = i.indexrelid
   join pg_am am on am.oid = ic.relam
-  where i.indisvalid and ${sql.unsafe(userTables)}
+  where i.indisvalid and ${sql.unsafe(userRelations(relations))}
 `

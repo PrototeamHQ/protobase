@@ -6,6 +6,7 @@ import { checkResource } from './check'
 const table: DbTable = {
   schema: 'shop',
   name: 'items',
+  kind: 'table',
   columns: [
     { name: 'id', position: 1, typeName: 'int4', formatted: 'integer', isEnum: false, enumValues: [], notNull: true, identity: false, identityAlways: false, generated: false },
     { name: 'title', position: 2, typeName: 'text', formatted: 'text', isEnum: false, enumValues: [], notNull: true, identity: false, identityAlways: false, generated: false },
@@ -61,6 +62,25 @@ describe('checkResource', () => {
     const keyless = { ...table, indexes: [] }
     const issues = checkResource(model({ id: f.integer() }), [keyless])
     expect(issues[0]).toMatchObject({ severity: 'error', message: 'shop.items has no primary key or unique NOT NULL index' })
+  })
+
+  it('checks the columns of a view, but not its key or indexes', () => {
+    const view: DbTable = { ...table, kind: 'view', columns: table.columns.map((c) => ({ ...c, notNull: false })), indexes: [] }
+    expect(checkResource(model({ id: f.integer(), title: f.text().filterable() }), [view])).toEqual([])
+    const [issue] = checkResource(model({ id: f.text() }), [view])
+    expect(issue).toMatchObject({ severity: 'error', message: 'id: declared text, but id is integer' })
+  })
+
+  it('checks a materialized view against its own indexes', () => {
+    const unique = { name: 'items_id', columns: ['id'], unique: true, primary: false, partial: false, method: 'btree' }
+    const columns = table.columns.map((c) => ({ ...c, notNull: false }))
+    const matview: DbTable = { ...table, kind: 'materialized view', columns, indexes: [unique] }
+    expect(checkResource(model({ id: f.integer(), title: f.text() }), [matview])).toEqual([])
+    const issues = checkResource(model({ id: f.integer(), title: f.text().filterable() }, 'title'), [matview])
+    expect(issues.map((i) => i.message)).toEqual([
+      'title: filterable but title has no index',
+      'primary key (title) is not backed by a unique index',
+    ])
   })
 
   it('reports a configured key that is not unique', () => {

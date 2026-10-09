@@ -61,7 +61,8 @@ const checkField = (model: ResourceModel, table: DbTable, name: string): Issue[]
       message: `${name}: declared .dbDefault() but ${column.name} has no default the database computes`,
     })
   }
-  if (field.filterable && !leadingIndex(table, column.name, model.tenant && model.fields[model.tenant]?.column)) {
+  // A plain view has no indexes of its own; the indexes on the tables it reads are what the planner uses.
+  if (field.filterable && table.kind !== 'view' && !leadingIndex(table, column.name, model.tenant && model.fields[model.tenant]?.column)) {
     issues.push({
       severity: 'warning',
       resource: model.name,
@@ -72,8 +73,11 @@ const checkField = (model: ResourceModel, table: DbTable, name: string): Issue[]
   return issues
 }
 
+// A view cannot declare a key, so the resource's key is taken on trust. A materialized view can carry unique indexes,
+// but its columns are never NOT NULL, so only the declared key itself is checked.
 const checkKey = (model: ResourceModel, table: DbTable): Issue[] => {
-  if (!keyColumns(table)) {
+  if (table.kind === 'view') return []
+  if (table.kind === 'table' && !keyColumns(table)) {
     return [
       {
         severity: 'error',

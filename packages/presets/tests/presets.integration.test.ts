@@ -94,13 +94,12 @@ describe.skipIf(!(await serverReachable())).each(presets)('the $name preset', (p
     run('bun', 'run', 'test')
   })
 
-  // From scratch has no resources yet, which doctor refuses. Doctor reads tables only (packages/cli/src/db/queries.ts),
-  // so it cannot find real estate's arrears, a view, yet.
+  // From scratch has no resources yet, which doctor refuses.
   it.skipIf(preset.name === 'scratch')('matches its database according to protobase doctor', () => {
     const result = spawnSync('bun', ['run', 'protobase', 'doctor', '--env', 'DATABASE_URL'], { cwd: dir, env, encoding: 'utf8' })
     expect(result.stdout, result.stderr).toContain('Checked ')
     const errors = result.stdout.split('\n').filter((line) => line.startsWith('  error')).map((line) => line.replace(/^ +error +/, ''))
-    expect(errors).toEqual(preset.name === 'real-estate' ? ['arrears: table billing.arrears does not exist'] : [])
+    expect(errors).toEqual([])
   })
 
   it('builds its deploy bundle', () => {
