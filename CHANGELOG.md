@@ -2,6 +2,16 @@
 
 Every release of Protobase, cut by the release workflow from the commits since the last one (see the [versioning page](https://docs.protobase.net/reference/versioning/)).
 
+## [0.7.0](https://github.com/PrototeamHQ/protobase/compare/v0.6.0...v0.7.0) (2026-10-10)
+
+### ⚠ BREAKING CHANGES
+
+* **server:** snake_case auth tables and columns; protobase auth migration renames those of 0.6
+
+### Features
+
+* **server:** snake_case auth tables and columns; protobase auth migration renames those of 0.6 ([d48575e](https://github.com/PrototeamHQ/protobase/commit/d48575e0d097789e0c0924bbca6c13a100865423))
+
 ## [0.6.0](https://github.com/PrototeamHQ/protobase/compare/v0.5.0...v0.6.0) (2026-10-10)
 
 ### ⚠ BREAKING CHANGES

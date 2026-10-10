@@ -1,6 +1,6 @@
 {
   "name": "@protobase/schema",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "description": "Resource, field, view and access definitions for Protobase configs.",
   "license": "Apache-2.0",
   "repository": {
