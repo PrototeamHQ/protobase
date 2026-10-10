@@ -33,6 +33,7 @@
     "types": "./dist/index.d.ts"
   },
   "dependencies": {
+    "@better-auth/passkey": "^1.7.7",
     "@protobase/layout": "workspace:*",
     "@protobase/schema": "workspace:*",
     "better-auth": "^1.7.7"
