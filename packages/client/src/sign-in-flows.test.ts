@@ -101,12 +101,45 @@ describe('the account and the sign-in policy', () => {
   })
 
   it('reads and saves the sign-in policy, and reports why one is refused', async () => {
-    const policy = { password: 'forbidden', emailCode: 'forbidden', passkey: 'required', twoFactor: 'allowed' } as const
+    const policy = { password: 'forbidden', emailCode: 'forbidden', passkey: 'required', twoFactor: 'allowed', staffAccess: 'notify' } as const
     const { requests, session } = serve({
       '/policy/sign-in': () => json({ message: 'Keep password or emailed-code sign-in on: people without a passkey need one of them to sign in.', code: 'SIGN_IN_POLICY_REFUSED' }, { status: 400 }),
     })
     const refused = await session.signInPolicy.save(policy).catch((error: unknown) => error)
     expect(refused).toMatchObject({ name: 'AuthError', status: 400, code: 'SIGN_IN_POLICY_REFUSED', message: expect.stringContaining('Keep password or emailed-code sign-in on') })
     expect(requests).toEqual([{ path: '/policy/sign-in', body: policy }])
+  })
+})
+
+describe('staff signing in as someone', () => {
+  const signIn = { id: 's1', user: 'sanne@example.com', staff: 'alex@operator.example', reason: 'Ticket 4211: totals', startedAt: '2026-10-10T12:00:00.000Z', expiresAt: '2026-10-10T12:30:00.000Z' }
+
+  it('starts at the operator provider with the person, the reason and the page to come back to', async () => {
+    const { requests, session } = serve({ '/staff/sign-in': () => json({ url: 'https://id.operator.example/authorize?state=x' }) })
+    expect(await session.staff.start({ email: 'sanne@example.com', reason: 'Ticket 4211: totals', callbackURL: 'http://localhost/' })).toBe('https://id.operator.example/authorize?state=x')
+    expect(requests).toEqual([{ path: '/staff/sign-in', body: { email: 'sanne@example.com', reason: 'Ticket 4211: totals', callbackURL: 'http://localhost/' } }])
+  })
+
+  it('reads the staff sign-in behind the session, and none for the person themselves', async () => {
+    expect(await serve({ '/staff/session': () => json({ staff: signIn }) }).session.staff.current()).toEqual(signIn)
+    expect(await serve({ '/staff/session': () => json({ staff: null }) }).session.staff.current()).toBeUndefined()
+  })
+
+  it('forgets the token when the staff session ends', async () => {
+    let tokens = 0
+    const { requests, session } = serve({ '/token': () => json({ token: `${btoa('{}')}.${btoa(JSON.stringify({ exp: Date.now() / 1000 + 900, n: ++tokens }))}.s` }), '/staff/stop': () => json({ stopped: true }) })
+    const first = await session.token()
+    expect(await session.token()).toBe(first)
+    await session.staff.stop()
+    expect(await session.token()).not.toBe(first)
+    expect(paths(requests)).toEqual(['/token', '/staff/stop', '/token'])
+  })
+
+  it('reads the log, and says why it cannot', async () => {
+    expect(await serve({ '/staff/sign-ins': () => json({ signIns: [signIn] }) }).session.staff.log()).toEqual([signIn])
+    await expect(serve({ '/staff/sign-ins': () => json({ code: 'ADMIN_ONLY', message: 'Only an admin can read the log of staff sign-ins.' }, { status: 403 }) }).session.staff.log()).rejects.toMatchObject({
+      status: 403,
+      code: 'ADMIN_ONLY',
+    })
   })
 })

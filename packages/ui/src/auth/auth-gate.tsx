@@ -9,19 +9,32 @@ import { readResetLink, withoutResetLink } from './reset-link'
 import { ResetPasswordPage } from './reset-password-page'
 import { SetupRequiredPage } from './setup-required-page'
 import { SignInPage } from './sign-in-page'
+import { readStaffLink, withoutStaffLink, type StaffLink } from './staff-link'
+import { StaffSignInPage } from './staff-sign-in-page'
 import { TwoFactorPage } from './two-factor-page'
 
-type AuthPage = { kind: 'sign-in'; notice?: string } | { kind: 'email-code'; email: string } | { kind: 'forgot-password' } | { kind: 'reset-password'; token: string | undefined }
+type AuthPage =
+  | { kind: 'sign-in'; notice?: string }
+  | { kind: 'email-code'; email: string }
+  | { kind: 'forgot-password' }
+  | { kind: 'reset-password'; token: string | undefined }
+  | { kind: 'staff-sign-in'; link: StaffLink }
 
-// An emailed reset link opens the set-password page, whoever is signed in.
+// An emailed reset link opens the set-password page, and a staff link the staff sign-in page, whoever is signed in.
 const firstPage = (): AuthPage => {
   const link = readResetLink(window.location.href)
-  return link ? { kind: 'reset-password', token: link.token } : { kind: 'sign-in' }
+  if (link) return { kind: 'reset-password', token: link.token }
+  const staff = readStaffLink(window.location.href)
+  return staff ? { kind: 'staff-sign-in', link: staff } : { kind: 'sign-in' }
 }
 
 const forgetResetLink = () => window.history.replaceState(window.history.state, '', withoutResetLink(window.location.href))
+const forgetStaffLink = () => window.history.replaceState(window.history.state, '', withoutStaffLink(window.location.href))
 
-/** Shows the app when the user is signed in (or the server has no login), and the right page otherwise. */
+/**
+ * Shows the app when the user is signed in (or the server has no login), and the right page otherwise: the sign-in
+ * steps, or the page an emailed reset link or a staff link opened.
+ */
 export const AuthGate = ({ workspace, children }: { workspace?: string; children: ReactNode }) => {
   const { state, recheck, passwordReset, signOut } = useAuth()
   const [page, setPage] = useState(firstPage)
@@ -70,6 +83,17 @@ export const AuthGate = ({ workspace, children }: { workspace?: string; children
         onDone={() => void passwordChanged()}
         onRequestNewLink={passwordReset ? () => leaveResetPage({ kind: 'forgot-password' }) : undefined}
         onBack={() => leaveResetPage({ kind: 'sign-in' })}
+      />
+    )
+  }
+  if (page.kind === 'staff-sign-in') {
+    return (
+      <StaffSignInPage
+        link={page.link}
+        onBack={() => {
+          forgetStaffLink()
+          setPage({ kind: 'sign-in' })
+        }}
       />
     )
   }

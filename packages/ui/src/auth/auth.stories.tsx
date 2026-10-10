@@ -6,6 +6,7 @@ import { ForgotPasswordForm, type ForgotPasswordFormProps } from './forgot-passw
 import { ResetPasswordForm, type ResetPasswordFormProps } from './reset-password-form'
 import { SetupRequiredForm, type SetupRequiredFormProps } from './setup-required-form'
 import { SignInForm, type SignInFormProps } from './sign-in-form'
+import { StaffSignInForm, type StaffSignInFormProps } from './staff-sign-in-form'
 import { TwoFactorForm, type TwoFactorFormProps } from './two-factor-form'
 
 const meta = { title: 'Auth', parameters: { layout: 'fullscreen' }, decorators: [(Story) => <div className="h-screen"><Story /></div>] } satisfies Meta
@@ -266,4 +267,35 @@ export const SignInOnPhone: StoryObj<SignInFormProps> = {
   parameters: { viewport: { options: { phone360: { name: 'Phone 360', styles: { width: '360px', height: '740px' }, type: 'mobile' } } } },
   args: { onSubmit: fn() },
   render: (args) => <SignInForm {...args} />,
+}
+
+/** For staff of the operator, from a support tool's link that fills in the person and the reason. */
+export const StaffSignIn: StoryObj<StaffSignInFormProps> = {
+  tags: ['play'],
+  args: { operator: 'Protobase Cloud', email: 'sanne@veldhuis-supply.example', onSubmit: fn(), onBack: fn() },
+  render: (args) => <StaffSignInForm {...args} />,
+  play: async ({ canvasElement, args }) => {
+    const canvas = within(canvasElement)
+    expect(canvas.getByLabelText('Their email')).toHaveValue('sanne@veldhuis-supply.example')
+    await userEvent.type(canvas.getByLabelText('Reason'), 'Ticket 4211: the invoice totals look wrong')
+    await userEvent.click(canvas.getByRole('button', { name: 'Continue with Protobase Cloud' }))
+    expect(args.onSubmit).toHaveBeenCalledWith('sanne@veldhuis-supply.example', 'Ticket 4211: the invoice totals look wrong')
+  },
+}
+
+export const StaffSignInRefused: StoryObj<StaffSignInFormProps> = {
+  args: {
+    operator: 'Protobase Cloud',
+    email: 'sanne@veldhuis-supply.example',
+    reason: 'Ticket 4211: the invoice totals look wrong',
+    error: 'Sign in to your staff account with a passkey or a second step, then try again.',
+    onSubmit: fn(),
+    onBack: fn(),
+  },
+  render: (args) => <StaffSignInForm {...args} />,
+}
+
+export const StaffSignInUnavailable: StoryObj<StaffSignInFormProps> = {
+  args: { onSubmit: fn(), onBack: fn() },
+  render: (args) => <StaffSignInForm {...args} />,
 }

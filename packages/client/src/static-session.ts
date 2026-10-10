@@ -9,7 +9,7 @@ const unsupported = (what: string) => async (): Promise<never> => {
 /**
  * A session that is already signed in with a token you hold, for stories and scripts (`protobase token <email>`).
  * It never refreshes, so use a token that outlives the run. Its account has nothing to set up, and it cannot change
- * passkeys, two-factor authentication or the sign-in policy.
+ * passkeys, two-factor authentication or the sign-in policy, and is never a staff session.
  */
 export const createStaticSession = (token: string, user: AuthUser = { id: 'token', email: 'token', name: 'API token', role: null }): AuthSession => ({
   token: async () => token,
@@ -27,7 +27,7 @@ export const createStaticSession = (token: string, user: AuthUser = { id: 'token
   resetPassword: async () => undefined,
   account: {
     signInMethods: async () => ({
-      policy: { password: 'allowed', emailCode: 'allowed', passkey: 'allowed', twoFactor: 'allowed' },
+      policy: { password: 'allowed', emailCode: 'allowed', passkey: 'allowed', twoFactor: 'allowed', staffAccess: 'allowed' },
       mail: false,
       account: { password: false, passkeys: 0, twoFactor: false, authenticatorApp: false },
       missing: [],
@@ -43,4 +43,5 @@ export const createStaticSession = (token: string, user: AuthUser = { id: 'token
     newBackupCodes: unsupported('make backup codes'),
   },
   signInPolicy: { read: unsupported('read the sign-in policy'), save: unsupported('save the sign-in policy') },
+  staff: { start: unsupported('start a staff sign-in'), current: async () => undefined, stop: unsupported('end a staff session'), log: unsupported('read the staff sign-ins') },
 })

@@ -1,9 +1,9 @@
 import { useState } from 'react'
-import type { SignInPolicy, SignInPolicyState, SignInRule } from '@protobase/client'
+import type { SignInPolicy, SignInPolicyState } from '@protobase/client'
 import { formatDateTime } from '../format'
 import { cn } from '../lib/cn'
 import { Button } from '../primitives/button'
-import { policyRows, ruleLabel, type PolicyRow } from './sign-in-policy-labels'
+import { policyRows, ruleLabel, type PolicyRow, type PolicyRule } from './sign-in-policy-labels'
 
 export type SignInPolicyFormProps = {
   /** The saved policy, how it applies, and whether mail is on. */
@@ -16,7 +16,7 @@ export type SignInPolicyFormProps = {
   notice?: string
 }
 
-const RuleChoice = ({ row, value, onChange }: { row: PolicyRow; value: SignInRule; onChange: (rule: SignInRule) => void }) => (
+const RuleChoice = ({ row, value, onChange }: { row: PolicyRow; value: PolicyRule; onChange: (rule: PolicyRule) => void }) => (
   <span role="radiogroup" aria-label={row.label} className="inline-flex h-8 shrink-0 rounded-md bg-muted p-0.5">
     {row.rules.map((option) => (
       <button
@@ -37,14 +37,19 @@ const RuleChoice = ({ row, value, onChange }: { row: PolicyRow; value: SignInRul
 const rowNote = ({ method }: PolicyRow, draft: SignInPolicy, { mail, effective, policy }: SignInPolicyState) => {
   if (method === 'emailCode' && !mail) return 'Needs mail settings (PROTOBASE_SMTP_URL and PROTOBASE_MAIL_FROM): off until they are set.'
   if (method === 'password' && !mail && draft.password === 'forbidden') return 'Without mail settings, password sign-in stays on so nobody is locked out.'
+  if (method === 'staffAccess' && !mail && draft.staffAccess === 'notify') return 'Needs mail settings (PROTOBASE_SMTP_URL and PROTOBASE_MAIL_FROM): staff cannot sign in until they are set.'
   if (draft[method] === policy[method] && effective[method] !== policy[method]) return `Applies as ${ruleLabel(method, effective[method])} for now.`
   return undefined
 }
 
-/** The admin's sign-in policy: for each way to sign in, whether people may use it, must set it up, or cannot use it. */
+/**
+ * The admin's sign-in policy: for each way to sign in, whether people may use it, must set it up, or cannot use it;
+ * and, when the app has an operator provider, whether its staff may sign in as people.
+ */
 export const SignInPolicyForm = ({ state, onSave, busy, error, notice }: SignInPolicyFormProps) => {
   const [draft, setDraft] = useState(state.policy)
-  const changed = policyRows.some(({ method }) => draft[method] !== state.policy[method])
+  const rows = policyRows.filter(({ method }) => method !== 'staffAccess' || state.operator)
+  const changed = rows.some(({ method }) => draft[method] !== state.policy[method])
 
   return (
     <form
@@ -55,7 +60,7 @@ export const SignInPolicyForm = ({ state, onSave, busy, error, notice }: SignInP
       }}
     >
       <ul className="divide-y rounded-lg border bg-background">
-        {policyRows.map((row) => {
+        {rows.map((row) => {
           const note = rowNote(row, draft, state)
           return (
             <li key={row.method} className="flex flex-col gap-3 p-4 sm:flex-row sm:items-start sm:justify-between">

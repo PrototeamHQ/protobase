@@ -25,6 +25,7 @@ export { createAuthSession, AuthError, tokenExpiry, type AuthSession, type AuthS
 export { createStaticSession } from './static-session'
 export type { AuthUser, SetupStatus, SignInMethod, SignInResult, TwoFactorMethod } from './auth-types'
 export type { AccountSecurity, AccountSignIn, AuthenticatorSetup, Passkey, RequiredSetup } from './account-security'
-export type { SignInPolicy, SignInPolicyClient, SignInPolicyState, SignInRule } from './sign-in-policy'
+export type { SignInPolicy, SignInPolicyClient, SignInPolicyState, SignInRule, StaffAccessRule } from './sign-in-policy'
+export type { StaffSignIn, StaffSignInClient } from './staff-sign-in'
 export { createAssistantClient, type AssistantClient, type AssistantClientOptions, type AssistantConnection } from './assistant'
 export { createRuntimeClient, type RuntimeClient, type RuntimeClientOptions, type RuntimePolicy, type RuntimeStatus } from './runtime'

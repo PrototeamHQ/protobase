@@ -4,6 +4,7 @@ import type { AuthUser, SetupStatus, SignInMethod } from './auth-types'
 import { betterAuthClient } from './better-auth-client'
 import { signInFlows } from './sign-in-flows'
 import { signInPolicyClient } from './sign-in-policy'
+import { staffSignInClient } from './staff-sign-in'
 
 export { AuthError }
 
@@ -31,8 +32,8 @@ export const tokenExpiry = (token: string) => {
 /**
  * The browser side of Better Auth: sign in with a password, an emailed code or a passkey (with a second step for an
  * account with two-factor authentication), the account's passkeys and two-factor authentication (`account`), the
- * sign-in policy for admins (`signInPolicy`), and a short-lived JWT held in memory only (never in storage), fetched
- * with the session cookie and refreshed before it expires.
+ * sign-in policy for admins (`signInPolicy`), staff of the operator signing in as people (`staff`), and a short-lived
+ * JWT held in memory only (never in storage), fetched with the session cookie and refreshed before it expires.
  */
 export const createAuthSession = (options: AuthSessionOptions = {}) => {
   const origin = options.origin ?? globalThis.location?.origin ?? 'http://localhost'
@@ -40,6 +41,7 @@ export const createAuthSession = (options: AuthSessionOptions = {}) => {
   const margin = options.refreshMarginMs ?? 60_000
   const doFetch = options.fetch ?? ((input, init) => fetch(input, init))
   const client = betterAuthClient(origin, basePath, doFetch as typeof fetch)
+  const staff = staffSignInClient(client)
 
   let cached: { token: string; expiresAt: number } | undefined
   let pending: Promise<string | undefined> | undefined
@@ -82,8 +84,14 @@ export const createAuthSession = (options: AuthSessionOptions = {}) => {
       const response = await doFetch(`${origin}${basePath}/status`)
       if (response.status === 404) throw new AuthError('This server has no sign-in. Is the API URL right?', 404)
       if (!response.ok) throw new AuthError('Could not read the sign-in status', response.status)
-      const body = (await response.json()) as { needsAdmin?: boolean; signInMethods?: SignInMethod[]; passwordReset?: boolean; socialProviders?: string[] }
-      return { needsAdmin: Boolean(body.needsAdmin), signInMethods: body.signInMethods ?? ['password'], passwordReset: Boolean(body.passwordReset), socialProviders: body.socialProviders ?? [] }
+      const body = (await response.json()) as { needsAdmin?: boolean; signInMethods?: SignInMethod[]; passwordReset?: boolean; socialProviders?: string[]; staffSignIn?: string }
+      return {
+        needsAdmin: Boolean(body.needsAdmin),
+        signInMethods: body.signInMethods ?? ['password'],
+        passwordReset: Boolean(body.passwordReset),
+        socialProviders: body.socialProviders ?? [],
+        ...(body.staffSignIn && { staffSignIn: body.staffSignIn }),
+      }
     },
 
     /** The signed-in user from the session cookie, or `undefined`. */
@@ -126,6 +134,14 @@ export const createAuthSession = (options: AuthSessionOptions = {}) => {
 
     account: accountSecurity(client),
     signInPolicy: signInPolicyClient(client),
+    staff: {
+      ...staff,
+      // The token was the person's; the browser is signed out.
+      stop: async () => {
+        forget()
+        await staff.stop()
+      },
+    },
   }
 }
 

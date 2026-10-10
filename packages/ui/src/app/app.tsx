@@ -22,6 +22,7 @@ import { RecordPage } from './record-page'
 import { useGlobalSearch } from './search/use-global-search'
 import { Router, matchRoute, useRouter } from './router'
 import { RuntimeUpdateButton } from './runtime/runtime-update'
+import { StaffBanner } from './staff-banner'
 import { useNavRecent } from './use-nav-recent'
 import { userMenuFromMeta } from './user-menu-from-meta'
 
@@ -48,9 +49,9 @@ export type AppProps = {
 
 const Routes = ({ workspace, sidebarMode, assistant, runtime }: Pick<AppProps, 'workspace' | 'sidebarMode' | 'assistant' | 'runtime'>) => {
   const meta = useAdminMeta()
-  const { state, signOut } = useAuth()
+  const { state, signOut, stopStaffSession } = useAuth()
   if (state.kind !== 'signed-in') throw new Error('The shell is only rendered for a signed-in user')
-  const { user } = state
+  const { user, staff } = state
   const { path, params, basePath, navigate } = useRouter()
   const route = matchRoute(path)
   const search = useGlobalSearch()
@@ -103,7 +104,7 @@ const Routes = ({ workspace, sidebarMode, assistant, runtime }: Pick<AppProps, '
       <ListPage key={route.resource} resource={route.resource} />
     )
 
-  return (
+  const appShell = (
     <AppShell
       sidebarMode={sidebarMode ?? 'text-small'}
       activeItem={route.resource ?? ''}
@@ -120,6 +121,14 @@ const Routes = ({ workspace, sidebarMode, assistant, runtime }: Pick<AppProps, '
     >
       {content}
     </AppShell>
+  )
+  if (!staff) return appShell
+  // Staff signed in as the user: the banner stays above the whole shell until they stop or the session ends.
+  return (
+    <div className="flex h-full min-h-0 flex-col">
+      <StaffBanner signIn={staff} onStop={stopStaffSession} />
+      <div className="min-h-0 flex-1">{appShell}</div>
+    </div>
   )
 }
 

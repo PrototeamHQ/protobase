@@ -11,6 +11,7 @@ export type SignInResult = { kind: 'signed-in'; user: AuthUser } | { kind: 'two-
 
 /**
  * `needsAdmin` while no user exists yet; `signInMethods` the ways to sign in the server's policy leaves on;
- * `passwordReset` when the server can email reset links; `socialProviders` the ids of the sign-in providers, for example `github`.
+ * `passwordReset` when the server can email reset links; `socialProviders` the ids of the sign-in providers, for example
+ * `github`; `staffSignIn` the operator provider's name when its staff can sign in as people.
  */
-export type SetupStatus = { needsAdmin: boolean; signInMethods: SignInMethod[]; passwordReset: boolean; socialProviders: string[] }
+export type SetupStatus = { needsAdmin: boolean; signInMethods: SignInMethod[]; passwordReset: boolean; socialProviders: string[]; staffSignIn?: string }

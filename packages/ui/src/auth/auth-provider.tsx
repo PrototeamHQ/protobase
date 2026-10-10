@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import { createAuthSession, type AuthSession, type AuthUser, type RequiredSetup, type SignInMethod, type SignInResult, type TwoFactorMethod } from '@protobase/client'
+import { createAuthSession, type AuthSession, type AuthUser, type RequiredSetup, type SignInMethod, type SignInResult, type StaffSignIn, type TwoFactorMethod } from '@protobase/client'
 
 export type AuthState =
   | { kind: 'loading' }
@@ -9,7 +9,8 @@ export type AuthState =
   | { kind: 'two-factor'; methods: TwoFactorMethod[] }
   /** Signed in, but the sign-in policy requires something the account has not set up; no API token until it has. */
   | { kind: 'setup-required'; user: AuthUser; missing: RequiredSetup[] }
-  | { kind: 'signed-in'; user: AuthUser }
+  /** `staff`: staff of the operator signed in as `user`, for support; the app shows a banner to stop it. */
+  | { kind: 'signed-in'; user: AuthUser; staff?: StaffSignIn }
   | { kind: 'error'; message: string }
 
 export type AuthApi = {
@@ -30,6 +31,10 @@ export type AuthApi = {
   socialProviders: string[]
   /** Leaves for the provider's sign-in, which comes back to this page; rejects with `AuthError`. */
   signInSocial: (provider: string) => Promise<void>
+  /** The operator provider's name when its staff can sign in as people here. */
+  staffSignIn?: string
+  /** Ends a staff session: the browser is signed out, and the log notes the end. */
+  stopStaffSession: () => Promise<void>
   signOut: () => Promise<void>
   /** The API said 401 twice: back to the sign-in page. Signing in again shows what the account has to set up, if anything. */
   markSignedOut: () => void
@@ -51,16 +56,17 @@ export const AuthProvider = ({ session: given, children }: { session?: AuthSessi
   const [signInMethods, setSignInMethods] = useState<SignInMethod[]>(['password'])
   const [passwordReset, setPasswordReset] = useState(false)
   const [socialProviders, setSocialProviders] = useState<string[]>([])
+  const [staffSignIn, setStaffSignIn] = useState<string>()
   const markSignedOut = useCallback(() => setState((current) => (current.kind === 'signed-in' ? { kind: 'signed-out' } : current)), [])
   const signedOut = useRef(markSignedOut)
   signedOut.current = markSignedOut
   const session = useMemo(() => given ?? createAuthSession({ onSignedOut: () => signedOut.current() }), [given])
 
-  // Signed in: the app opens unless the policy requires something the account lacks.
+  // Signed in: the app opens unless the policy requires something the account lacks, which it never does for staff.
   const enter = useCallback(
     async (user: AuthUser) => {
-      const { missing } = await session.account.signInMethods()
-      setState(missing.length > 0 ? { kind: 'setup-required', user, missing } : { kind: 'signed-in', user })
+      const [{ missing }, staff] = await Promise.all([session.account.signInMethods(), session.staff.current()])
+      setState(missing.length > 0 ? { kind: 'setup-required', user, missing } : { kind: 'signed-in', user, ...(staff && { staff }) })
     },
     [session],
   )
@@ -73,6 +79,7 @@ export const AuthProvider = ({ session: given, children }: { session?: AuthSessi
       setSignInMethods(status.signInMethods)
       setPasswordReset(status.passwordReset)
       setSocialProviders(status.socialProviders)
+      setStaffSignIn(status.staffSignIn)
       if (status.needsAdmin) return setState({ kind: 'needs-admin' })
       const user = await session.session()
       return user ? enter(user) : setState({ kind: 'signed-out' })
@@ -88,6 +95,7 @@ export const AuthProvider = ({ session: given, children }: { session?: AuthSessi
       signInMethods,
       passwordReset,
       socialProviders,
+      staffSignIn,
       markSignedOut,
       recheck,
       signIn: async (email, password) => finish(await session.signIn(email, password)),
@@ -98,12 +106,16 @@ export const AuthProvider = ({ session: given, children }: { session?: AuthSessi
       signInSocial: async (provider) => {
         window.location.assign(await session.signInSocial(provider, window.location.href))
       },
+      stopStaffSession: async () => {
+        await session.staff.stop()
+        setState({ kind: 'signed-out' })
+      },
       signOut: async () => {
         await session.signOut()
         setState({ kind: 'signed-out' })
       },
     }),
-    [state, session, signInMethods, passwordReset, socialProviders, markSignedOut, recheck, finish, enter],
+    [state, session, signInMethods, passwordReset, socialProviders, staffSignIn, markSignedOut, recheck, finish, enter],
   )
   return <AuthContext.Provider value={api}>{children}</AuthContext.Provider>
 }

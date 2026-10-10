@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { AuthError } from '@protobase/client'
-import { authMessage, signInMessage } from './auth-messages'
+import { authMessage, signInMessage, staffSignInMessage } from './auth-messages'
 
 describe('auth messages', () => {
   it('words the codes of the sign-in steps, and keeps the server message for anything else', () => {
@@ -13,5 +13,13 @@ describe('auth messages', () => {
   it('reads any other 401 of the password form as a wrong email or password', () => {
     expect(signInMessage(new AuthError('Unauthorized', 401))).toBe('The email or password is not right.')
     expect(signInMessage(new AuthError('Signing in with a password is turned off.', 403, 'SIGN_IN_METHOD_FORBIDDEN'))).toBe('Signing in with a password is turned off.')
+  })
+
+  it('words why a staff sign-in did not go through, from the code it came back with or the error of its start', () => {
+    expect(staffSignInMessage('STAFF_SIGN_IN_NOT_STRONG')).toBe('Sign in to your staff account with a passkey or a second step, then try again.')
+    expect(staffSignInMessage('SIGN_IN_METHOD_FORBIDDEN')).toBe('Staff sign-in is turned off for this app.')
+    expect(staffSignInMessage('SOMETHING_NEW')).toBe('The staff sign-in did not go through. Try again.')
+    expect(staffSignInMessage(new AuthError('Staff sign-in is turned off for this app.', 403, 'SIGN_IN_METHOD_FORBIDDEN'))).toBe('Staff sign-in is turned off for this app.')
+    expect(staffSignInMessage(new AuthError('Too many requests', 429))).toBe('Too many attempts. Wait a minute and try again.')
   })
 })

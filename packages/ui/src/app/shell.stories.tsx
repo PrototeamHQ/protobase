@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { useState } from 'react'
 import { expect, userEvent, within } from 'storybook/test'
-import { createStaticSession, type Client } from '@protobase/client'
+import { createStaticSession, type AuthSession, type Client } from '@protobase/client'
 import { navOpenStorageKey } from '../app-shell/nav-open-storage'
 import { useRecord } from '../data/use-record'
 import { Button } from '../primitives/button'
@@ -150,4 +150,51 @@ export const RuntimeUpdate: StoryObj = {
       <App client={fakeClient({ permissions: allowed, assistant: { url: '/api/assistant' }, runtime: { url: '/runtime' } })} auth={session} initialUrl="/orders" assistant={fakeAssistant({ delayMs: 50 })} runtime={fakeRuntime()} />
     </div>
   ),
+}
+
+// Signed in as Sanne by staff of the operator, for support; stopping ends the session.
+const staffSession = (): AuthSession => {
+  const sanne = createStaticSession('story-token', { id: 'sanne', email: 'sanne@veldhuis-supply.example', name: 'Sanne', role: 'user' })
+  const signIn = {
+    id: 's1',
+    user: 'sanne@veldhuis-supply.example',
+    staff: 'alex@protobase.example',
+    staffName: 'Alex de Vries',
+    reason: 'Ticket 4211: the invoice totals on SO-2 look wrong',
+    startedAt: new Date(Date.now() - 5 * 60_000).toISOString(),
+    expiresAt: new Date(Date.now() + 25 * 60_000).toISOString(),
+  }
+  let stopped = false
+  return {
+    ...sanne,
+    session: async () => (stopped ? undefined : sanne.session()),
+    staff: { ...sanne.staff, current: async () => (stopped ? undefined : signIn), stop: async () => void (stopped = true) },
+  }
+}
+
+/** Staff of the operator signed in as someone: a banner above the whole app says who, as whom and why. */
+export const StaffSession: StoryObj = {
+  tags: ['play'],
+  render: () => (
+    <div className="h-screen">
+      <App client={fakeClient({ permissions: allowed })} auth={staffSession()} initialUrl="/orders" />
+    </div>
+  ),
+  play: async ({ canvasElement }) => {
+    const banner = await within(canvasElement).findByRole('region', { name: 'Staff session' })
+    expect(banner).toHaveTextContent('Alex de Vries is signed in as sanne@veldhuis-supply.example')
+    expect(banner).toHaveTextContent('Reason: Ticket 4211')
+  },
+}
+
+/** The banner's button ends the staff session: back to the sign-in page, without the banner. */
+export const StopStaffSession: StoryObj = {
+  ...StaffSession,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    const banner = await canvas.findByRole('region', { name: 'Staff session' })
+    await userEvent.click(within(banner).getByRole('button', { name: 'Stop staff session' }))
+    await canvas.findByRole('button', { name: 'Sign in' })
+    expect(canvas.queryByRole('region', { name: 'Staff session' })).toBeNull()
+  },
 }

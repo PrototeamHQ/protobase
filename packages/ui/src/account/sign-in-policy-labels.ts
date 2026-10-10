@@ -1,8 +1,11 @@
-import type { SignInPolicy, SignInRule } from '@protobase/client'
+import type { SignInPolicy, SignInRule, StaffAccessRule } from '@protobase/client'
 
 export type PolicyMethod = keyof SignInPolicy
 
-export type PolicyRow = { method: PolicyMethod; label: string; description: string; rules: Array<{ value: SignInRule; label: string }> }
+/** A rule any row takes; each row offers only its own. */
+export type PolicyRule = SignInRule | StaffAccessRule
+
+export type PolicyRow = { method: PolicyMethod; label: string; description: string; rules: Array<{ value: PolicyRule; label: string }> }
 
 const onOff = [
   { value: 'allowed', label: 'On' },
@@ -31,10 +34,20 @@ export const policyRows: PolicyRow[] = [
     description: 'A code from an authenticator app, or an emailed one, after a password or an emailed sign-in code. Required: everyone turns it on after signing in.',
     rules: optionalRequiredOff,
   },
+  {
+    method: 'staffAccess',
+    label: 'Staff sign-in as a person',
+    description: 'The team that runs this app signs in as someone to help them, with a reason, for a short session. Each time is in the log below; with "Email the person" they are told too.',
+    rules: [
+      { value: 'allowed', label: 'On' },
+      { value: 'notify', label: 'Email the person' },
+      { value: 'forbidden', label: 'Off' },
+    ],
+  },
 ]
 
 /** The word for `rule` in `method`'s row, for example "Optional" for an allowed passkey. Every rule the server stores has one. */
-export const ruleLabel = (method: PolicyMethod, rule: SignInRule) => {
+export const ruleLabel = (method: PolicyMethod, rule: PolicyRule) => {
   const label = policyRows.find((row) => row.method === method)?.rules.find((option) => option.value === rule)?.label
   if (label === undefined) throw new Error(`No label for the ${rule} rule of ${method}`)
   return label

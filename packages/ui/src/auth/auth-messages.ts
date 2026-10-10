@@ -32,3 +32,24 @@ export const authMessage = (error: AuthError) => known(error) ?? (error.status =
 
 /** As `authMessage`, for the password form: any other 401 is a wrong email or password. */
 export const signInMessage = (error: AuthError) => known(error) ?? (error.status === 429 ? tooManyRequests : error.status === 401 ? messages.INVALID_EMAIL_OR_PASSWORD! : error.message)
+
+// Why a staff sign-in did not go through, by the code the server's staff callback or start answers with.
+const staffMessages: Record<string, string> = {
+  STAFF_PERMISSION_MISSING: 'Your staff account has no permission to sign in as people here.',
+  STAFF_SIGN_IN_NOT_STRONG: 'Sign in to your staff account with a passkey or a second step, then try again.',
+  STAFF_SIGN_IN_STALE: 'Your staff sign-in is too old. Sign in to your staff account again.',
+  STAFF_SIGN_IN_EXPIRED: 'This staff sign-in took too long or was used already. Start again.',
+  STAFF_SIGN_IN_FAILED: 'The staff sign-in did not go through at the provider. Try again.',
+  STAFF_USER_UNAVAILABLE: 'There is no account with this address, or it is disabled.',
+  STAFF_REASON_REQUIRED: 'Say why you sign in as this person, in at least 10 characters.',
+  SIGN_IN_METHOD_FORBIDDEN: 'Staff sign-in is turned off for this app.',
+  INVALID_CALLBACK_URL: 'This page is not on an address the server trusts.',
+}
+
+/** Why a staff sign-in did not go through, from the code it came back with or an `AuthError` of its start. */
+export const staffSignInMessage = (failure: string | AuthError) => {
+  const code = typeof failure === 'string' ? failure : failure.code
+  if (code && staffMessages[code]) return staffMessages[code]
+  if (typeof failure === 'string') return 'The staff sign-in did not go through. Try again.'
+  return failure.status === 429 ? tooManyRequests : failure.message
+}
