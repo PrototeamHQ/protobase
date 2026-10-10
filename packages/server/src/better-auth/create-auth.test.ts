@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { betterAuthOptions, type CreateAuthOptions } from './create-auth'
+import { resolvePlatformSignIn } from './platform-sign-in'
 
 const base: CreateAuthOptions = { database: undefined, baseURL: 'https://admin.example.com', secret: 'test-secret-test-secret-test-secret-1234' }
 const resolved = { roles: ['admin', 'user'], defaultRole: 'user' }
@@ -23,14 +24,15 @@ describe('betterAuthOptions', () => {
 
   it('leaves OAuth tokens unencrypted and adds no after-create hook by default', () => {
     const options = betterAuthOptions(base, resolved)
-    expect(options).not.toHaveProperty('account')
+    expect(options.account).toEqual({ accountLinking: { allowDifferentEmails: true } })
     expect(options.databaseHooks.user.create).not.toHaveProperty('after')
   })
 
   it('turns on OAuth token encryption', () => {
     const { account, ...rest } = betterAuthOptions({ ...base, encryptOAuthTokens: true }, resolved)
-    expect(account).toEqual({ encryptOAuthTokens: true })
-    expect(data(rest)).toEqual(data(betterAuthOptions(base, resolved)))
+    expect(account).toEqual({ accountLinking: { allowDifferentEmails: true }, encryptOAuthTokens: true })
+    const { account: _, ...plain } = betterAuthOptions(base, resolved)
+    expect(data(rest)).toEqual(data(plain))
   })
 
   it('passes the after-create hook through and keeps the role check before it', () => {
@@ -38,5 +40,13 @@ describe('betterAuthOptions', () => {
     const options = betterAuthOptions({ ...base, onUserCreated }, resolved)
     expect(options.databaseHooks.user.create.after).toBe(onUserCreated)
     expect(options.databaseHooks.user.create.before).toBeTypeOf('function')
+  })
+
+  it('adds the platform sign-in provider, unless the app has its own provider with the same id', () => {
+    const platformSignIn = resolvePlatformSignIn({ issuer: 'https://auth.example.com', clientId: 'app', clientSecret: 'secret', provider: 'github' })
+    const plugins = (options: CreateAuthOptions) => betterAuthOptions(options, { ...resolved, platformSignIn }).plugins.map((plugin) => plugin.id)
+    expect(plugins(base)).toContain('generic-oauth')
+    expect(plugins({ ...base, socialProviders: github })).not.toContain('generic-oauth')
+    expect(betterAuthOptions(base, resolved).plugins.map((plugin) => plugin.id)).not.toContain('generic-oauth')
   })
 })

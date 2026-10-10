@@ -8,7 +8,8 @@ export type StaffAccessRule = 'allowed' | 'notify' | 'forbidden'
  * The app's sign-in policy. `password`, `emailCode` and `passkey` are ways to sign in; `twoFactor` is the second step
  * after a password or an emailed code. Only a passkey and two-factor authentication can be required: they are set up
  * once per person, so "required" sends everyone without one to set it up. `staffAccess` is whether the operator's
- * staff may sign in as people, for support.
+ * staff may sign in as people, for support. `platformSignIn` is whether people may sign in through the provider the
+ * platform adds (see `PlatformSignIn`), which the app's developer did not choose.
  */
 export type SignInPolicy = {
   password: 'allowed' | 'forbidden'
@@ -16,6 +17,7 @@ export type SignInPolicy = {
   passkey: SignInRule
   twoFactor: SignInRule
   staffAccess: StaffAccessRule
+  platformSignIn: 'allowed' | 'forbidden'
 }
 
 export type SignInPolicyMethod = keyof SignInPolicy
@@ -27,10 +29,11 @@ export const signInPolicyMethods = {
   passkey: { label: 'Passkeys', rules: ['allowed', 'required', 'forbidden'], forbidden: 'Passkeys are turned off.' },
   twoFactor: { label: 'Two-factor authentication', rules: ['allowed', 'required', 'forbidden'], forbidden: 'Two-factor authentication is turned off.' },
   staffAccess: { label: 'Staff sign-in as a person', rules: ['allowed', 'notify', 'forbidden'], forbidden: 'Staff sign-in is turned off for this app.' },
+  platformSignIn: { label: 'Sign-in through the platform', rules: ['allowed', 'forbidden'], forbidden: 'Signing in through the platform is turned off for this app.' },
 } as const satisfies Record<SignInPolicyMethod, { label: string; rules: readonly (SignInRule | StaffAccessRule)[]; forbidden: string }>
 
 /** Everything allowed and nothing required: the policy of an app whose admins never saved one. */
-export const defaultSignInPolicy: SignInPolicy = { password: 'allowed', emailCode: 'allowed', passkey: 'allowed', twoFactor: 'allowed', staffAccess: 'allowed' }
+export const defaultSignInPolicy: SignInPolicy = { password: 'allowed', emailCode: 'allowed', passkey: 'allowed', twoFactor: 'allowed', staffAccess: 'allowed', platformSignIn: 'allowed' }
 
 const methodNames = Object.keys(signInPolicyMethods) as SignInPolicyMethod[]
 
@@ -45,10 +48,19 @@ export const parseSignInPolicy = (input: unknown): SignInPolicy | undefined => {
 /**
  * The policy as it applies. Emailed codes need mail; without mail, password sign-in is on whatever the policy says, so
  * an app whose mail settings went missing does not lock out everyone who had only emailed codes left. Staff sign-in
- * that emails the person is off without mail, since nobody would be told.
+ * that emails the person is off without mail, since nobody would be told. Sign-in through the platform is off while
+ * passkeys or two-factor authentication are required: it skips the app's second step, and the provider's own cannot
+ * be checked.
  */
-export const effectiveSignInPolicy = (policy: SignInPolicy, { mail }: { mail: boolean }): SignInPolicy =>
-  mail ? policy : { ...policy, password: 'allowed', emailCode: 'forbidden', ...(policy.staffAccess === 'notify' && { staffAccess: 'forbidden' }) }
+export const effectiveSignInPolicy = (policy: SignInPolicy, { mail }: { mail: boolean }): SignInPolicy => {
+  const strict = policy.passkey === 'required' || policy.twoFactor === 'required'
+  return {
+    ...policy,
+    ...(!mail && { password: 'allowed', emailCode: 'forbidden' }),
+    ...(!mail && policy.staffAccess === 'notify' && { staffAccess: 'forbidden' }),
+    ...(strict && { platformSignIn: 'forbidden' }),
+  }
+}
 
 /**
  * What an account can sign in with and has set up. `authenticatorApp`: its two-factor authentication has an app (and

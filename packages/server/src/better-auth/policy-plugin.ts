@@ -3,7 +3,7 @@ import { APIError, createAuthEndpoint, createAuthMiddleware, getSessionFromCtx, 
 import * as z from 'zod'
 import { readSignInPolicy, saveSignInPolicy, signInPolicySchema } from './policy-store'
 import { isPoliced, lastPasskeyRequired, policyRefusal, setupRequired } from './sign-in-enforcement'
-import { effectiveSignInPolicy, missingRequiredMethods, parseSignInPolicy, signInPolicyProblem, type AccountMethods } from './sign-in-policy'
+import { effectiveSignInPolicy, missingRequiredMethods, parseSignInPolicy, signInPolicyProblem, type AccountMethods, type SignInPolicy } from './sign-in-policy'
 import { adminOnly } from './admin-only'
 import { isStaffSession } from './staff-checks'
 
@@ -17,6 +17,8 @@ export type SignInPolicyPluginOptions = {
   socialProviders: string[]
   /** The name of the operator provider staff sign in with, when one is configured. */
   operator?: string
+  /** The id and name of the sign-in provider the platform adds, when one is configured. */
+  platformSignIn?: { provider: string; name: string }
 }
 
 const accountMethods = async (context: Context, user: SessionUser, socialProviders: string[]): Promise<AccountMethods> => {
@@ -40,8 +42,10 @@ const refuse = (status: 'FORBIDDEN' | 'BAD_REQUEST', refusal: { code: string; me
  * applies it to Better Auth's own endpoints. A method the policy turns off answers `403 SIGN_IN_METHOD_FORBIDDEN`;
  * someone without what it requires gets a session, so they can set it up, but no API token (`403 SIGN_IN_SETUP_REQUIRED`).
  */
-export const signInPolicyPlugin = ({ mail, socialProviders, operator }: SignInPolicyPluginOptions) => {
+export const signInPolicyPlugin = ({ mail, socialProviders, operator, platformSignIn }: SignInPolicyPluginOptions) => {
   const currentPolicy = async (context: Context) => effectiveSignInPolicy((await readSignInPolicy(context.adapter)).policy, { mail })
+  // The providers someone can sign in with under `policy`: the app's own, and the platform's while the policy lets it.
+  const providersUnder = (policy: SignInPolicy) => [...socialProviders, ...(platformSignIn && policy.platformSignIn === 'allowed' ? [platformSignIn.provider] : [])]
 
   const policyAdmin = adminOnly('Only an admin can change how people sign in.')
 
@@ -53,6 +57,7 @@ export const signInPolicyPlugin = ({ mail, socialProviders, operator }: SignInPo
       effective: effectiveSignInPolicy(stored.policy, { mail }),
       mail,
       ...(operator && { operator }),
+      ...(platformSignIn && { platformSignIn: platformSignIn.name }),
       ...(stored.savedAt && { savedAt: stored.savedAt }),
       ...(savedBy && { savedBy }),
     }
@@ -70,7 +75,8 @@ export const signInPolicyPlugin = ({ mail, socialProviders, operator }: SignInPo
         const policy = parseSignInPolicy(ctx.body)
         if (!policy) throw refuse('BAD_REQUEST', { code: 'INVALID_SIGN_IN_POLICY', message: 'Choose one of the offered rules for every sign-in method.' })
         const user = ctx.context.session.user as SessionUser
-        const problem = signInPolicyProblem(policy, { mail, admin: await accountMethods(ctx.context, user, socialProviders) })
+        const admin = await accountMethods(ctx.context, user, providersUnder(effectiveSignInPolicy(policy, { mail })))
+        const problem = signInPolicyProblem(policy, { mail, admin })
         if (problem) throw refuse('BAD_REQUEST', { code: 'SIGN_IN_POLICY_REFUSED', message: problem })
         await saveSignInPolicy(ctx.context.adapter, policy, user.id)
         return ctx.json(await policyAnswer(ctx.context))
@@ -82,7 +88,7 @@ export const signInPolicyPlugin = ({ mail, socialProviders, operator }: SignInPo
        */
       getSignInMethods: createAuthEndpoint('/account/sign-in-methods', { method: 'GET', use: [sessionMiddleware] }, async (ctx) => {
         const policy = await currentPolicy(ctx.context)
-        const { socialSignIn: _, ...account } = await accountMethods(ctx.context, ctx.context.session.user as SessionUser, socialProviders)
+        const { socialSignIn: _, ...account } = await accountMethods(ctx.context, ctx.context.session.user as SessionUser, providersUnder(policy))
         return ctx.json({ policy, mail, account, missing: isStaffSession(ctx.context.session.session) ? [] : missingRequiredMethods(policy, account) })
       }),
     },
@@ -97,7 +103,7 @@ export const signInPolicyPlugin = ({ mail, socialProviders, operator }: SignInPo
               throw refuse('BAD_REQUEST', { code: 'SIGN_IN_CODES_ONLY', message: 'Only sign-in codes can be emailed.' })
             }
             const policy = await currentPolicy(ctx.context)
-            const refusal = policyRefusal(policy, { path, body: ctx.body })
+            const refusal = policyRefusal(policy, { path, body: ctx.body, params: ctx.params, ...(platformSignIn && { platformProvider: platformSignIn.provider }) })
             if (refusal) throw refuse('FORBIDDEN', refusal)
             if (path === '/sign-in/email-otp') return vouchForCreatedAccount(ctx.context, (ctx.body as { email?: unknown }).email)
             const accountChecked = (path === '/token' && (policy.twoFactor === 'required' || policy.passkey === 'required')) || (path === '/passkey/delete-passkey' && policy.passkey === 'required')
@@ -105,7 +111,7 @@ export const signInPolicyPlugin = ({ mail, socialProviders, operator }: SignInPo
             const session = await getSessionFromCtx(ctx)
             // Without a session the endpoint's own check answers; staff sessions cannot change the account anyway.
             if (!session || isStaffSession(session.session)) return
-            const account = await accountMethods(ctx.context, session.user as SessionUser, socialProviders)
+            const account = await accountMethods(ctx.context, session.user as SessionUser, providersUnder(policy))
             if (path === '/token' && missingRequiredMethods(policy, account).length > 0) throw refuse('FORBIDDEN', setupRequired)
             if (path === '/passkey/delete-passkey' && account.passkeys <= 1) throw refuse('FORBIDDEN', lastPasskeyRequired)
           }),

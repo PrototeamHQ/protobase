@@ -7,21 +7,32 @@ const passwordPaths = ['/sign-in/email', '/request-password-reset', '/reset-pass
 const emailCodePaths = ['/sign-in/email-otp']
 const passkeyPaths = ['/passkey/generate-authenticate-options', '/passkey/verify-authentication', '/passkey/generate-register-options', '/passkey/verify-registration']
 export const staffSignInPath = '/staff/sign-in'
+// Starting a sign-in or a link with a provider names it in the body, and its callback in the path.
+const providerPaths = ['/sign-in/social', '/link-social']
+const callbackPath = '/callback/:id'
 
 // Endpoints the plugin checks against the account, besides those of a method.
 const accountPaths = ['/email-otp/send-verification-otp', '/passkey/delete-passkey', '/two-factor/enable', '/two-factor/disable', '/token']
 
 /** Whether the policy can refuse a request to `path`; every other request goes through without reading the policy. */
 export const isPoliced = (path: string | undefined) =>
-  path !== undefined && ([...passwordPaths, ...emailCodePaths, ...passkeyPaths, ...accountPaths, staffSignInPath].includes(path) || path.startsWith('/reset-password/'))
+  path !== undefined && ([...passwordPaths, ...emailCodePaths, ...passkeyPaths, ...accountPaths, ...providerPaths, callbackPath, staffSignInPath].includes(path) || path.startsWith('/reset-password/'))
 
-const methodOf = (path: string, body: unknown): SignInPolicyMethod | undefined => {
+/** A request to Better Auth as the policy sees it; `platformProvider` is the id of the platform's sign-in provider, if any. */
+export type PolicedRequest = { path: string; body?: unknown; params?: Record<string, string | undefined>; platformProvider?: string }
+
+const providerOf = ({ path, body, params }: PolicedRequest) =>
+  providerPaths.includes(path) ? (body as { provider?: unknown } | undefined)?.provider : path === callbackPath ? params?.id : undefined
+
+const methodOf = (request: PolicedRequest): SignInPolicyMethod | undefined => {
+  const { path, body } = request
   if (passwordPaths.includes(path) || path.startsWith('/reset-password/')) return 'password'
   if (emailCodePaths.includes(path)) return 'emailCode'
   if (path === '/email-otp/send-verification-otp' && (body as { type?: unknown } | undefined)?.type === 'sign-in') return 'emailCode'
   if (passkeyPaths.includes(path)) return 'passkey'
   if (path === '/two-factor/enable') return 'twoFactor'
   if (path === staffSignInPath) return 'staffAccess'
+  if (request.platformProvider !== undefined && providerOf(request) === request.platformProvider) return 'platformSignIn'
   return undefined
 }
 
@@ -30,8 +41,9 @@ const methodOf = (path: string, body: unknown): SignInPolicyMethod | undefined =
  * policy turns off, or turning off two-factor authentication while the policy requires it. Removing the last passkey
  * while passkeys are required depends on the account, so the plugin checks that itself.
  */
-export const policyRefusal = (policy: SignInPolicy, { path, body }: { path: string; body?: unknown }): SignInRefusal | undefined => {
-  const method = methodOf(path, body)
+export const policyRefusal = (policy: SignInPolicy, request: PolicedRequest): SignInRefusal | undefined => {
+  const { path } = request
+  const method = methodOf(request)
   if (method && policy[method] === 'forbidden') return { code: 'SIGN_IN_METHOD_FORBIDDEN', message: signInPolicyMethods[method].forbidden }
   if (path === '/two-factor/disable' && policy.twoFactor === 'required') {
     return { code: 'TWO_FACTOR_REQUIRED', message: 'Two-factor authentication is required for every account, so it cannot be turned off.' }

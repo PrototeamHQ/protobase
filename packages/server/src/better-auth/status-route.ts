@@ -8,16 +8,29 @@ import { hasUsers } from './users'
  * `GET {authBase}/status`: `needsAdmin` while the admin store has no user, so a login page can say how to create one;
  * `signInMethods`, the ways to sign in the sign-in policy leaves on (`password`, `emailCode`, `passkey`), so it offers
  * only those; `passwordReset` when reset mail can be sent and passwords are on, so it offers "Forgot password?" only
- * then; the ids of the configured `socialProviders`, so it offers "Continue with GitHub" when `github` is one; and
- * `staffSignIn`, the operator provider's name, when staff can sign in as people.
+ * then; the ids of the `socialProviders` people can sign in with, so it offers "Continue with GitHub" when `github` is
+ * one; `platformSignIn`, the id and name of the platform's provider when it is one of them; and `staffSignIn`, the
+ * operator provider's name, when staff can sign in as people.
  */
 export const statusRoute = (auth: AdminAuth) => {
   const app = new Hono()
   app.get('/status', async (c) => {
-    const policy = effectiveSignInPolicy((await readSignInPolicy((await auth.$context).adapter)).policy, { mail: auth.mail })
+    const context = await auth.$context
+    const policy = effectiveSignInPolicy((await readSignInPolicy(context.adapter)).policy, { mail: auth.mail })
     const signInMethods = [...(policy.password === 'allowed' ? ['password'] : []), ...(policy.emailCode === 'allowed' ? ['emailCode'] : []), ...(policy.passkey !== 'forbidden' ? ['passkey'] : [])]
     const staffSignIn = auth.operator && policy.staffAccess !== 'forbidden' ? auth.operator : undefined
-    return c.json({ needsAdmin: !(await hasUsers(auth)), signInMethods, passwordReset: auth.passwordReset && policy.password === 'allowed', socialProviders: auth.socialProviders, ...(staffSignIn && { staffSignIn }) })
+    // A platform provider whose settings could not be read at startup is not registered, and so not offered.
+    const platform = auth.platformSignIn
+    const platformSignIn = platform && policy.platformSignIn === 'allowed' && context.socialProviders.some((provider) => provider.id === platform.provider) ? platform : undefined
+    const socialProviders = [...auth.socialProviders, ...(platformSignIn ? [platformSignIn.provider] : [])]
+    return c.json({
+      needsAdmin: !(await hasUsers(auth)),
+      signInMethods,
+      passwordReset: auth.passwordReset && policy.password === 'allowed',
+      socialProviders,
+      ...(platformSignIn && { platformSignIn }),
+      ...(staffSignIn && { staffSignIn }),
+    })
   })
   return app
 }

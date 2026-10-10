@@ -50,11 +50,24 @@ describe('policyRefusal', () => {
     expect(code(policyRefusal(policy({ twoFactor: 'required' }), { path: '/two-factor/disable' }))).toBe('TWO_FACTOR_REQUIRED')
     expect(policyRefusal(policy({ twoFactor: 'required' }), { path: '/two-factor/enable' })).toBeUndefined()
   })
+
+  it("refuses starting, finishing and linking the platform's provider while sign-in through the platform is off, and no other provider", () => {
+    const off = policy({ platformSignIn: 'forbidden' })
+    const platformProvider = 'github'
+    const forbidden = { code: 'SIGN_IN_METHOD_FORBIDDEN', message: 'Signing in through the platform is turned off for this app.' }
+    expect(policyRefusal(off, { path: '/sign-in/social', body: { provider: 'github' }, platformProvider })).toEqual(forbidden)
+    expect(policyRefusal(off, { path: '/link-social', body: { provider: 'github' }, platformProvider })).toEqual(forbidden)
+    expect(policyRefusal(off, { path: '/callback/:id', params: { id: 'github' }, platformProvider })).toEqual(forbidden)
+    expect(policyRefusal(off, { path: '/sign-in/social', body: { provider: 'google' }, platformProvider })).toBeUndefined()
+    expect(policyRefusal(off, { path: '/callback/:id', params: { id: 'google' }, platformProvider })).toBeUndefined()
+    expect(policyRefusal(off, { path: '/sign-in/social', body: { provider: 'github' } })).toBeUndefined()
+    expect(policyRefusal(defaultSignInPolicy, { path: '/sign-in/social', body: { provider: 'github' }, platformProvider })).toBeUndefined()
+  })
 })
 
 describe('isPoliced', () => {
   it('names the endpoints the policy can refuse, and leaves the rest alone', () => {
-    for (const path of ['/sign-in/email', '/reset-password/:token', '/sign-in/email-otp', '/email-otp/send-verification-otp', '/passkey/verify-authentication', '/passkey/delete-passkey', '/two-factor/disable', '/token']) {
+    for (const path of ['/sign-in/email', '/reset-password/:token', '/sign-in/email-otp', '/email-otp/send-verification-otp', '/passkey/verify-authentication', '/passkey/delete-passkey', '/two-factor/disable', '/token', '/sign-in/social', '/link-social', '/callback/:id']) {
       expect(isPoliced(path)).toBe(true)
     }
     for (const path of ['/get-session', '/sign-out', '/two-factor/verify-totp', '/passkey/list-user-passkeys', '/jwks', undefined]) expect(isPoliced(path)).toBe(false)

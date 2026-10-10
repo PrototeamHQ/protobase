@@ -6,12 +6,13 @@ const policy = (changes: Partial<SignInPolicy>): SignInPolicy => ({ ...defaultSi
 
 describe('parseSignInPolicy', () => {
   it('takes every method with a rule it offers, and drops anything else', () => {
-    expect(parseSignInPolicy({ password: 'forbidden', emailCode: 'allowed', passkey: 'required', twoFactor: 'required', staffAccess: 'notify', extra: true })).toEqual({
+    expect(parseSignInPolicy({ password: 'forbidden', emailCode: 'allowed', passkey: 'required', twoFactor: 'required', staffAccess: 'notify', platformSignIn: 'forbidden', extra: true })).toEqual({
       password: 'forbidden',
       emailCode: 'allowed',
       passkey: 'required',
       twoFactor: 'required',
       staffAccess: 'notify',
+      platformSignIn: 'forbidden',
     })
   })
 
@@ -22,19 +23,26 @@ describe('parseSignInPolicy', () => {
     expect(parseSignInPolicy({ ...defaultSignInPolicy, emailCode: 'required' })).toBeUndefined()
     expect(parseSignInPolicy({ ...defaultSignInPolicy, staffAccess: 'required' })).toBeUndefined()
     expect(parseSignInPolicy({ ...defaultSignInPolicy, passkey: 'notify' })).toBeUndefined()
+    expect(parseSignInPolicy({ ...defaultSignInPolicy, platformSignIn: 'required' })).toBeUndefined()
     expect(parseSignInPolicy(null)).toBeUndefined()
     expect(parseSignInPolicy('allowed')).toBeUndefined()
   })
 })
 
 describe('effectiveSignInPolicy', () => {
-  it('is the policy itself with mail on', () => {
-    const strict = policy({ password: 'forbidden', passkey: 'required' })
-    expect(effectiveSignInPolicy(strict, { mail: true })).toBe(strict)
+  it('is the policy itself with mail on and nothing required', () => {
+    const strict = policy({ password: 'forbidden', staffAccess: 'notify' })
+    expect(effectiveSignInPolicy(strict, { mail: true })).toEqual(strict)
+  })
+
+  it('turns sign-in through the platform off while passkeys or two-factor authentication are required', () => {
+    expect(effectiveSignInPolicy(policy({ passkey: 'required' }), { mail: true })).toEqual(policy({ passkey: 'required', platformSignIn: 'forbidden' }))
+    expect(effectiveSignInPolicy(policy({ twoFactor: 'required' }), { mail: true }).platformSignIn).toBe('forbidden')
+    expect(effectiveSignInPolicy(policy({ twoFactor: 'forbidden', passkey: 'allowed' }), { mail: true }).platformSignIn).toBe('allowed')
   })
 
   it('turns emailed codes off without mail, and passwords back on so nobody is locked out', () => {
-    expect(effectiveSignInPolicy(policy({ password: 'forbidden', twoFactor: 'required' }), { mail: false })).toEqual(policy({ emailCode: 'forbidden', twoFactor: 'required' }))
+    expect(effectiveSignInPolicy(policy({ password: 'forbidden', twoFactor: 'allowed' }), { mail: false })).toEqual(policy({ emailCode: 'forbidden' }))
     expect(effectiveSignInPolicy(defaultSignInPolicy, { mail: false })).toEqual(policy({ emailCode: 'forbidden' }))
   })
 

@@ -9,7 +9,7 @@ import { createUser } from '../src/better-auth/users'
 import { createAdmin } from '../src/create-admin'
 import type { MailMessage } from '../src/mail/smtp-mailer'
 import { createAuthStore } from '../../../test-support/auth'
-import { operatorClient, operatorIssuer, permittedStaff, startFakeOperator } from './support/fake-operator'
+import { operatorClient, operatorIssuer, permittedStaff, startFakeOperator } from './support/fake-oidc-provider'
 
 const origin = 'http://localhost:5173'
 const secret = 'test-secret-test-secret-test-secret-1234'

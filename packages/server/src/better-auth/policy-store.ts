@@ -13,6 +13,8 @@ export const signInPolicySchema = {
       twoFactor: { type: 'string', required: true },
       // Rows saved before staff sign-in existed get the default when `auth:migrate` adds the column.
       staffAccess: { type: 'string', required: true, defaultValue: 'allowed' },
+      // Likewise for rows saved before sign-in through the platform existed.
+      platformSignIn: { type: 'string', required: true, defaultValue: 'allowed' },
       createdAt: { type: 'date', required: true },
       createdBy: { type: 'string', required: false },
     },

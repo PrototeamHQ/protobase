@@ -1,12 +1,13 @@
 import { passkey } from '@better-auth/passkey'
 import { APIError } from 'better-auth/api'
 import { betterAuth, type BetterAuthOptions } from 'better-auth'
-import { admin, emailOTP, jwt } from 'better-auth/plugins'
+import { admin, emailOTP, genericOAuth, jwt } from 'better-auth/plugins'
 import { adminAc, userAc } from 'better-auth/plugins/admin/access'
 import { readMailSettings } from '../mail/mail-settings'
 import { smtpMailer, type Mailer } from '../mail/smtp-mailer'
 import { readOperatorSettings, resolveOperator, type OperatorProvider, type ResolvedOperator } from './operator-provider'
 import { passwordResetOptions } from './password-reset'
+import { platformSignInFor, platformSignInProvider, readPlatformSignIn, resolvePlatformSignIn, type PlatformSignIn, type ResolvedPlatformSignIn } from './platform-sign-in'
 import { signInPolicyPlugin } from './policy-plugin'
 import { emailCodeOptions, twoFactorCodeOptions, unusedEmailCodePaths } from './sign-in-mail'
 import { staffSignInPlugin } from './staff-plugin'
@@ -41,7 +42,7 @@ export type CreateAuthOptions = {
   /**
    * Sign-in providers for Better Auth, for example `{ github: { clientId, clientSecret } }`; the callback is
    * `{baseURL}/api/auth/callback/<provider>`. A provider also signs up people without an account, with the default role.
-   * Default none.
+   * One with the id of `signInProvider` takes its place. Default none.
    */
   socialProviders?: BetterAuthOptions['socialProviders']
   /** Encrypt the OAuth access, refresh and ID tokens Better Auth stores for social sign-ins, with `secret`. Default off. */
@@ -55,6 +56,13 @@ export type CreateAuthOptions = {
    * whatever the environment says.
    */
   operator?: OperatorProvider | false
+  /**
+   * A sign-in provider the platform adds for people who already have an account: an OpenID Connect provider that never
+   * signs anyone up. Defaults to the one the platform passes in `PROTOBASE_SIGN_IN_ISSUER`, `PROTOBASE_SIGN_IN_CLIENT_ID`
+   * and `PROTOBASE_SIGN_IN_CLIENT_SECRET` (see `readPlatformSignIn`), when set; `false` turns it off whatever the
+   * environment says. Left out when `socialProviders` has a provider with the same id.
+   */
+  signInProvider?: PlatformSignIn | false
 }
 
 type UserCreateHooks = NonNullable<NonNullable<NonNullable<BetterAuthOptions['databaseHooks']>['user']>['create']>
@@ -63,6 +71,8 @@ type UserCreateHooks = NonNullable<NonNullable<NonNullable<BetterAuthOptions['da
 export type UserCreatedHook = NonNullable<UserCreateHooks['after']>
 
 const platformOperator = () => readOperatorSettings(globalThis.process?.env ?? {})
+
+const platformSignInSettings = () => readPlatformSignIn(globalThis.process?.env ?? {})
 
 const platformMailer = () => {
   const settings = readMailSettings(globalThis.process?.env ?? {})
@@ -91,11 +101,15 @@ export const normalizeRoles = (roles: string[] = ['admin', 'user']) => {
 // Admins of the app do not sign in as its people; the operator's staff do, through the staff sign-in, with its guardrails.
 const adminImpersonationPaths = ['/admin/impersonate-user', '/admin/stop-impersonating']
 
-type Resolved = { roles: string[]; defaultRole?: string; mailer?: Mailer; operator?: ResolvedOperator }
+type Resolved = { roles: string[]; defaultRole?: string; mailer?: Mailer; operator?: ResolvedOperator; platformSignIn?: ResolvedPlatformSignIn }
 
-/** The options `createAuth` gives Better Auth, with the roles, default role, mailer and operator provider already resolved. */
-export const betterAuthOptions = (options: CreateAuthOptions, { roles, defaultRole, mailer, operator }: Resolved) => {
+/**
+ * The options `createAuth` gives Better Auth, with the roles, default role, mailer, operator provider and platform
+ * sign-in provider already resolved.
+ */
+export const betterAuthOptions = (options: CreateAuthOptions, { roles, defaultRole, mailer, operator, platformSignIn }: Resolved) => {
   const secure = options.baseURL.startsWith('https://')
+  const signIn = platformSignInFor(platformSignIn, Object.keys(options.socialProviders ?? {}))
   return {
     appName: options.appName ?? 'Protobase',
     database: options.database,
@@ -105,7 +119,11 @@ export const betterAuthOptions = (options: CreateAuthOptions, { roles, defaultRo
     trustedOrigins: [options.baseURL, 'https://*.trycloudflare.com', ...(options.trustedOrigins ?? [])],
     emailAndPassword: { enabled: true, disableSignUp: true, minPasswordLength: 12, ...(mailer && passwordResetOptions(mailer)) },
     ...(options.socialProviders && { socialProviders: options.socialProviders }),
-    ...(options.encryptOAuthTokens && { account: { encryptOAuthTokens: true } }),
+    account: {
+      // Someone signed in links a provider account with another address on purpose, from their account page.
+      accountLinking: { allowDifferentEmails: true },
+      ...(options.encryptOAuthTokens && { encryptOAuthTokens: true }),
+    },
     plugins: [
       // Without a default role the plugin's own default is a name outside the list, which the hook below refuses.
       admin({ defaultRole: defaultRole ?? 'unassigned', roles: Object.fromEntries(roles.map((role) => [role, role === 'admin' ? adminAc : userAc])) }),
@@ -123,7 +141,13 @@ export const betterAuthOptions = (options: CreateAuthOptions, { roles, defaultRo
       twoFactorAfterPasswordOrCode({ allowPasswordless: true, ...(mailer && { otpOptions: twoFactorCodeOptions(mailer) }) }),
       passkey(),
       ...(mailer ? [emailOTP(emailCodeOptions(mailer))] : []),
-      signInPolicyPlugin({ mail: Boolean(mailer), socialProviders: Object.keys(options.socialProviders ?? {}), ...(operator && { operator: operator.name }) }),
+      ...(signIn ? [genericOAuth({ config: [platformSignInProvider(signIn)] })] : []),
+      signInPolicyPlugin({
+        mail: Boolean(mailer),
+        socialProviders: Object.keys(options.socialProviders ?? {}),
+        ...(operator && { operator: operator.name }),
+        ...(signIn && { platformSignIn: { provider: signIn.provider, name: signIn.name } }),
+      }),
       staffSignInPlugin({ ...(operator && { operator }), ...(mailer && { mailer }) }),
     ],
     disabledPaths: [...unusedEmailCodePaths, ...adminImpersonationPaths],
@@ -169,9 +193,19 @@ export const createAuth = (options: CreateAuthOptions) => {
   const mailer = options.mailer === undefined ? platformMailer() : options.mailer || undefined
   const provider = options.operator === undefined ? platformOperator() : options.operator || undefined
   const operator = provider && resolveOperator(provider)
-  const auth = betterAuth(betterAuthOptions(options, { roles, defaultRole, mailer, operator }))
+  const signInSettings = options.signInProvider === undefined ? platformSignInSettings() : options.signInProvider || undefined
   const socialProviders = Object.keys(options.socialProviders ?? {})
-  return Object.assign(auth, { roles, defaultRole, mail: Boolean(mailer), passwordReset: Boolean(mailer), socialProviders, operator: operator?.name })
+  const platformSignIn = platformSignInFor(signInSettings && resolvePlatformSignIn(signInSettings), socialProviders)
+  const auth = betterAuth(betterAuthOptions(options, { roles, defaultRole, mailer, operator, platformSignIn }))
+  return Object.assign(auth, {
+    roles,
+    defaultRole,
+    mail: Boolean(mailer),
+    passwordReset: Boolean(mailer),
+    socialProviders,
+    operator: operator?.name,
+    platformSignIn: platformSignIn && { provider: platformSignIn.provider, name: platformSignIn.name },
+  })
 }
 
 export type AdminAuth = ReturnType<typeof createAuth>
