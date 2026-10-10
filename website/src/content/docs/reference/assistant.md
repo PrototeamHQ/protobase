@@ -81,6 +81,30 @@ show(widget('TaskProposal', { taskId: record.id }, { fallback: { title: `Task pr
 
 `widget(name, props, { id?, fallback? })` builds the part `{ type: 'widget', id, name, props, fallback? }`. The name must be PascalCase, and the props a JSON object of at most 2 KB, or it throws: pass ids and settings, not the state the widget shows. Without an `id` the part gets a new one; showing a part with the same id again replaces it. `fallback` is drawn as a plain card where the app has no component by that name. The part never reaches the model, which reads only the tool's result.
 
+### How the dock draws them
+
+The dock draws a widget part with the component of that name in the app's `components`, the same registry [composed pages](/reference/custom-components/#components) use, giving it the part's props. The component reads what it shows when it is drawn, as the signed-in user: the dock is mounted only while it is open, so each opening, and each page load, reads it again. Its buttons call the app's API or the backend directly; they need no turn of the chat, so they work after a restart, from any tab and for any user who may make the call.
+
+- **No component by that name**, such as in an app built before the component was added: the dock draws the fallback as a plain card noting "This version of the app cannot show it live", or, without a fallback, a muted line naming the component.
+- **A component that throws** is caught on its own: the dock draws the fallback noting "It could not be drawn", without the error, and the rest of the chat stays.
+
+Docks from before widget parts skip them; rebuild the app on a release that has them.
+
+### Reading the backend from a widget
+
+A widget about the app's own data uses the usual hooks (`useRecord`, `useList`, `useUpdateRecord`, `useClient`). A widget about the backend's own data, such as a hosted backend's tasks, uses `useBackendData` from `@protobase/ui`:
+
+```tsx
+const Task = ({ taskId }: { taskId: string }) => {
+  const path = `/api/assistant/tasks/${encodeURIComponent(taskId)}`
+  const task = useBackendData<{ title: string; status: string }>(path, { refreshMs: (data) => (data?.status === 'running' ? 5000 : false) })
+  if (!task.data) return <ActionCard title="Task" note={task.error ? 'Could not load the task' : 'Loading'} />
+  return <ActionCard title={task.data.title} badge={task.data.status} note={task.error?.message} actions={[{ id: 'decline', label: 'Decline' }]} onAction={(action) => void task.post(`${path}/actions`, { action })} />
+}
+```
+
+It returns `{ data, error, reload, post(path, body) }`. It reads `path` when the widget mounts, and again every `refreshMs` while that is a number; `post` sends JSON and its answer replaces `data`. A failed read or post sets `error`, an `ApiError` carrying the backend's problem detail, and keeps the last `data`. The path resolves against the backend's URL from `/meta` and goes through the dock's client (`AssistantClient.fetch`), with the same bearer token as the chat; a path on any other origin is refused before a request is made, so props a model wrote cannot send the user's token elsewhere. It works only in a widget the dock draws.
+
 Breaking change: `AssistantPart` now includes `AssistantWidgetPart`, so code that switches over part types must handle `widget`, for instance by drawing its `fallback`.
 
 ## In the UI

@@ -1,10 +1,12 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { useState } from 'react'
 import { expect, fn, userEvent, waitFor, within } from 'storybook/test'
+import { ProjectUiProvider } from '../app/pages/project-ui'
 import { fakeAssistant } from '../app/testing/fake-assistant'
 import { AssistantDock } from './assistant-dock'
 import { conversation } from './fixtures'
 import { useAssistant } from './use-assistant'
+import { taskBackend, widgetComponents, widgetConversation } from './widget-fixtures'
 
 const meta = {
   title: 'Components/AssistantDock',
@@ -80,5 +82,43 @@ export const AgainstFakeBackend: Story = {
     await userEvent.click(within(card).getByRole('button', { name: 'Approve' }))
     await within(card).findByText('Approved. The change is applied.')
     expect(within(card).queryByRole('button', { name: 'Approve' })).toBeNull()
+  },
+}
+
+const WithWidgets = () => {
+  const [backend] = useState(taskBackend)
+  return (
+    <ProjectUiProvider ui={{ components: widgetComponents }}>
+      <AssistantDock state={widgetConversation} client={backend} />
+    </ProjectUiProvider>
+  )
+}
+
+/**
+ * Widget parts drawn by the app's components, which read the backend themselves: a task waiting for a decision, one
+ * someone else declined since, a component the app does not have (with and without a fallback) and one that throws.
+ */
+export const Widgets: Story = {
+  tags: ['play'],
+  render: () => <WithWidgets />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    const waiting = await canvas.findByRole('region', { name: 'Add a discount to invoices' })
+    within(waiting).getByText('waiting')
+    await userEvent.click(within(waiting).getByRole('button', { name: 'Decline' }))
+    await within(waiting).findByText('Declined by Ada Lovelace')
+    expect(within(waiting).queryByRole('button', { name: 'Approve' })).toBeNull()
+
+    const declined = await canvas.findByRole('region', { name: 'Archive old customers' })
+    within(declined).getByText('Declined by Grace Hopper')
+
+    const unknown = canvas.getByRole('region', { name: 'CPU usage this week' })
+    within(unknown).getByText('Peaked at 82% on Tuesday.')
+    within(unknown).getByText('This version of the app cannot show it live.')
+    canvas.getByText('InvoicePreview: This version of the app cannot show it live.')
+
+    const broken = canvas.getByRole('region', { name: 'A broken widget' })
+    within(broken).getByText('It could not be drawn.')
+    expect(canvas.queryByText('Broken widget')).toBeNull()
   },
 }

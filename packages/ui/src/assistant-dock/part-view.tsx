@@ -3,8 +3,9 @@ import { ActionCard, FieldList } from '../action-card'
 import { CompactTable } from '../compact-table'
 import { DiffView } from '../diff-view'
 import { StepList } from '../step-list'
+import { WidgetView } from './widget-view'
 
-/** One part of a message, drawn with the primitive it names. */
+/** One part of a message, drawn with the primitive it names, or a widget with the app's component it names. */
 export const PartView = ({ part, onAction }: { part: AssistantPart; onAction?: (partId: string, actionId: string) => void }) => {
   switch (part.type) {
     case 'text':
@@ -21,5 +22,7 @@ export const PartView = ({ part, onAction }: { part: AssistantPart; onAction?: (
           {part.diffs?.map((diff, index) => <DiffView key={`${index}-${diff.path}`} source={diff.source} start={diff.start} path={diff.path} className="rounded-md border border-border" />)}
         </ActionCard>
       )
+    case 'widget':
+      return <WidgetView part={part} />
   }
 }

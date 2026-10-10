@@ -15,7 +15,7 @@ type DockProps = { page: string; onClose: () => void }
 
 const ConnectedDock = ({ client, page, onClose }: DockProps & { client: AssistantClient | undefined }) => {
   const { state, offline, error, send, act } = useAssistant(client)
-  return <AssistantDock state={state} offline={offline} error={error} onSend={(text) => send(text, page)} onAction={act} onClose={onClose} />
+  return <AssistantDock state={state} offline={offline} error={error} onSend={(text) => send(text, page)} onAction={act} onClose={onClose} client={client} />
 }
 
 const OwnDock = ({ url, ...props }: DockProps & { url: string }) => <ConnectedDock client={useAssistantClient(url)} {...props} />

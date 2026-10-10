@@ -21,6 +21,12 @@ export type AssistantClient = {
   send: (text: string, page?: string) => Promise<void>
   /** Sends a click on a card's button; the backend answers with events. Rejects with `ApiError`. */
   act: (partId: string, actionId: string) => Promise<void>
+  /**
+   * Calls the backend beyond the protocol, such as a widget reading what it shows: `path` resolves against the
+   * backend's URL and is refused, before any request, when it lands on another origin, so the user's token goes only
+   * to the backend. Sends the token like every request; rejects with `ApiError` on an answer that is not 2xx.
+   */
+  fetch: (path: string, init?: RequestInit) => Promise<Response>
 }
 
 const backoff = (attempt: number) => Math.min(30_000, 1000 * 2 ** attempt)
@@ -33,6 +39,17 @@ const pause = (ms: number, signal: AbortSignal) =>
       resolve()
     }, { once: true })
   })
+
+// Stands in for the app's own origin when the backend's URL is a path on it.
+const sameOrigin = 'http://same-origin.invalid'
+
+/** The URL `path` names on the backend at `base`, or an error when it is on another origin. */
+const backendUrl = (base: string, path: string) => {
+  const backend = new URL(base, sameOrigin)
+  const url = new URL(path, `${backend.href}/`)
+  if (url.origin !== backend.origin) throw new Error(`${path} is not on the assistant backend's origin`)
+  return backend.origin === sameOrigin ? `${url.pathname}${url.search}` : url.href
+}
 
 /** A client of an assistant backend: the protocol's event stream and its two requests, with the user's token. */
 export const createAssistantClient = (options: AssistantClientOptions): AssistantClient => {
@@ -87,6 +104,15 @@ export const createAssistantClient = (options: AssistantClientOptions): Assistan
     },
     act: async (partId, actionId) => {
       await request('/actions', { method: 'POST', body: { partId, actionId } satisfies AssistantActionRequest })
+    },
+    fetch: async (path, init = {}) => {
+      const url = backendUrl(base, path)
+      const token = await options.token()
+      const headers = new Headers(init.headers)
+      if (token) headers.set('authorization', `Bearer ${token}`)
+      const response = await doFetch(url, { ...init, headers })
+      if (!response.ok) throw await readProblem(response)
+      return response
     },
   }
 }

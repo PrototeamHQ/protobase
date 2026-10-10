@@ -74,4 +74,41 @@ describe('createAssistantClient', () => {
     expect(connections[1]).toEqual({ state: 'retrying', error: expect.any(ApiError) })
     expect(backend.requests[0]?.headers.has('authorization')).toBe(false)
   })
+
+  it('resolves fetch paths against the backend, with the bearer token and the caller’s request', async () => {
+    const ok = () => Response.json({ status: 'waiting' })
+    const backend = fakeBackend([ok, ok, ok, ok])
+    const client = createAssistantClient({ url: 'https://cloud.example.com/api/assistant/app/', token: () => 'jwt-1', fetch: backend.fetch })
+    expect(await (await client.fetch('/api/assistant/tasks/7')).json()).toEqual({ status: 'waiting' })
+    await client.fetch('tasks/7?full=1')
+    await client.fetch('https://cloud.example.com/api/assistant/tasks/7/actions', { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{"action":"decline"}' })
+    await createAssistantClient({ url: '/api/assistant', token: () => 'jwt-2', fetch: backend.fetch }).fetch('tasks/7')
+    expect(backend.requests.map((request) => [request.method, request.url, request.headers.get('authorization')])).toEqual([
+      ['GET', 'https://cloud.example.com/api/assistant/tasks/7', 'Bearer jwt-1'],
+      ['GET', 'https://cloud.example.com/api/assistant/app/tasks/7?full=1', 'Bearer jwt-1'],
+      ['POST', 'https://cloud.example.com/api/assistant/tasks/7/actions', 'Bearer jwt-1'],
+      ['GET', 'http://app.test/api/assistant/tasks/7', 'Bearer jwt-2'],
+    ])
+    expect(backend.requests[2]?.headers.get('content-type')).toBe('application/json')
+    expect(await backend.requests[2]?.json()).toEqual({ action: 'decline' })
+  })
+
+  it('refuses a fetch on another origin without sending a request', async () => {
+    const backend = fakeBackend([])
+    const cloud = createAssistantClient({ url: 'https://cloud.example.com/api/assistant/app', token: () => 'jwt', fetch: backend.fetch })
+    const own = createAssistantClient({ url: '/api/assistant', token: () => 'jwt', fetch: backend.fetch })
+    for (const path of ['https://evil.example.com/steal', '//evil.example.com/steal', 'http://cloud.example.com/api/assistant/tasks/7']) {
+      await expect(cloud.fetch(path)).rejects.toThrow(`${path} is not on the assistant backend's origin`)
+    }
+    await expect(own.fetch('https://evil.example.com/steal')).rejects.toThrow("is not on the assistant backend's origin")
+    expect(backend.requests).toEqual([])
+  })
+
+  it('rejects a fetch with the backend’s problem, keeping its detail', async () => {
+    const problem = { type: 'urn:protobase:problem:conflict', title: 'Conflict', status: 409, detail: 'Alice declined the task already' }
+    const backend = fakeBackend([() => Response.json(problem, { status: 409, headers: { 'content-type': 'application/problem+json' } })])
+    const answer = createAssistantClient({ url: '/api/assistant', token: () => 'jwt', fetch: backend.fetch }).fetch('tasks/7/actions', { method: 'POST' })
+    await expect(answer).rejects.toBeInstanceOf(ApiError)
+    await expect(answer).rejects.toMatchObject({ status: 409, message: 'Alice declined the task already' })
+  })
 })

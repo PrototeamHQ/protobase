@@ -1,5 +1,5 @@
 import { applyAssistantEvent, emptyAssistantState, type AssistantCardPart, type AssistantEvent, type AssistantState } from '@protobase/schema'
-import type { AssistantClient } from '@protobase/client'
+import { ApiError, type AssistantClient, type ProblemDetails } from '@protobase/client'
 
 /** A proposal-like card made only of generic parts: a summary, steps, a diff and two buttons. */
 export const proposalCard: AssistantCardPart = {
@@ -22,13 +22,18 @@ export const proposalCard: AssistantCardPart = {
 
 const done = (card: AssistantCardPart): AssistantCardPart => ({ ...card, note: 'Approved. The change is applied.', steps: card.steps?.map((step) => ({ ...step, state: 'done' })), actions: [] })
 
-export type FakeAssistantOptions = { state?: AssistantState; delayMs?: number }
+export type FakeAssistantOptions = {
+  state?: AssistantState
+  delayMs?: number
+  /** Answers `fetch` beyond the protocol, such as what widgets read; without it, `fetch` rejects. */
+  serve?: (path: string, init: RequestInit) => Response | Promise<Response>
+}
 
 /**
  * An assistant backend in memory, for stories and tests: every message is answered with `proposalCard`; Approve
  * applies it, Ask for changes asks what should change.
  */
-export const fakeAssistant = ({ state: initial = emptyAssistantState, delayMs = 400 }: FakeAssistantOptions = {}): AssistantClient => {
+export const fakeAssistant = ({ state: initial = emptyAssistantState, delayMs = 400, serve }: FakeAssistantOptions = {}): AssistantClient => {
   let state = initial
   let count = 0
   const listeners = new Set<(event: AssistantEvent) => void>()
@@ -61,6 +66,12 @@ export const fakeAssistant = ({ state: initial = emptyAssistantState, delayMs = 
       if (actionId === 'revise') return emit({ type: 'patch', placeholder: 'What should change in the proposal?' })
       emit({ type: 'part', messageId: message.id, part: { ...card, actions: [], steps: card.steps?.map((step, index) => ({ ...step, state: index === 0 ? 'running' : 'pending' })) } })
       later(() => emit({ type: 'part', messageId: message.id, part: done(card) }))
+    },
+    fetch: async (path, init = {}) => {
+      if (!serve) throw new Error(`The fake assistant serves nothing at ${path}`)
+      const response = await serve(path, init)
+      if (!response.ok) throw new ApiError((await response.json()) as ProblemDetails)
+      return response
     },
   }
 }

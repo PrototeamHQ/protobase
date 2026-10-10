@@ -34,6 +34,10 @@ In `protobase.ui.tsx`, `components` maps the name to a React component. It gets 
 
 A name with no registered component renders a warning in its place, so a missing registration shows on the page instead of failing silently.
 
+## Components in the chat
+
+The same `components` draw the assistant's [widget parts](/reference/assistant/#widget-parts): a part names a component, and the dock draws it with the part's props, so one component can sit on a page and in the chat. In the chat there is no record around it, so a component that needs `useLayoutRecord()` works only on pages; take ids as props instead. Besides the API hooks, a widget can read the assistant backend with [`useBackendData`](/reference/assistant/#reading-the-backend-from-a-widget).
+
 ## Action handlers
 
 A named action declared with `a.action(name, ...)` in a view has no built-in behaviour: its button runs `actions[name]` from `protobase.ui.tsx`. The handler gets:
