@@ -97,6 +97,10 @@ type AuditEvent = {
 }
 ```
 
+With [organizations](/reference/auth/#organizations), someone with a global role switching into an organization they are not a member of publishes `{ type: 'organization.entered', at, actor, organization, origin }` first, where `actor.roles` are their global roles; a failed publish refuses the switch. `AuditEvent` is the union of the two.
+
+### Audit events
+
 `options.audit` is an `AuditQueue`, `{ publish(event): Promise<void> }`, set in `protobase.config.ts` (`options: { roles, audit }`). The default, `consoleAuditQueue()`, prints each event to the console as one `[audit] {...}` JSON line and keeps nothing; a queue that stores or forwards events replaces it there.
 
 ## Filters

@@ -3,7 +3,7 @@ title: Access
 description: Roles, capabilities, field rules and row filters, and what they default to.
 ---
 
-Roles are defined in code (`defineRoles`) and assigned through the auth user's `roles`. Rules decide per operation (`list`, `read`, `create`, `update`, `delete`), per field (role-based, never per record) and per row (filters, like RLS).
+Roles are defined in code (`defineRoles`) and assigned through the auth user's `roles`; with [organizations](/reference/auth/#organizations), also per membership, and `ctx.user.roles` holds both, while `ctx.organization.id` is the organization the request works in. Rules decide per operation (`list`, `read`, `create`, `update`, `delete`), per field (role-based, never per record) and per row (filters, like RLS).
 
 ## Defaults
 

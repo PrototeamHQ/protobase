@@ -1,6 +1,6 @@
 ---
 title: CLI
-description: Every protobase command, from scaffold, doctor, dev, build, build-serve and serve to users and token.
+description: Every protobase command, from scaffold, doctor, dev, build, build-serve and serve to users, organizations and token.
 ---
 
 The `protobase` command comes with `@protobase/cli`. Install it in a project next to the packages its config imports:
@@ -310,6 +310,7 @@ Better Auth and other settings are the project's own variables (`BETTER_AUTH_SEC
 
 ```sh
 protobase users create <email> [--name <name>] [--role <role>] [--password-stdin | --generate-password] [--github-id <id>]
+                       [--organization <slug> [--org-role <role>] [--app-roles <a,b>]]
 protobase users list
 protobase users roles
 protobase users set-role <email> <role>
@@ -322,6 +323,21 @@ Run inside a project whose `protobase.config.ts` exports `auth` (Better Auth). T
 The password is typed at a hidden prompt with confirmation, read from stdin with `--password-stdin` (for scripts, e.g. `pass show erp | protobase users create me@example.com --password-stdin`), or generated with `--generate-password` and printed once. A password is never accepted as an argument, since it would end up in shell history. `users list` prints email, role and creation date (and `disabled` for banned users), never credentials.
 
 `delete` asks you to type the email back (or pass `--yes`), and needs a terminal otherwise. `delete`, `set-role` and `disable` refuse to touch the last admin, so the project cannot lock itself out. `disable` bans the user and revokes their sessions; tokens already issued stop working within their lifetime (15 minutes by default), and `protobase token` refuses disabled users. `enable` lifts the ban. `protobase dev` prints "No users yet. Create the first admin with: protobase users create you@example.com" at startup while the user table is empty.
+
+With [organizations](/reference/auth/#organizations), `--role` is the user's global role (none by default) and `--organization` adds the new user to an organization, with `--org-role` (`owner`, `admin`, or `member`, the default) and `--app-roles` there.
+
+## `organizations`
+
+```sh
+protobase organizations list
+protobase organizations create <name> --owner <email> [--slug <slug>] [--id <id>] [--members all]
+protobase organizations add-member <organization> <email> [--org-role <role>] [--app-roles <a,b>]
+protobase organizations set-roles <organization> <email> [--org-role <role>] [--app-roles <a,b>]
+protobase organizations remove-member <organization> <email>
+protobase organizations add-app-role <role> --to owners
+```
+
+For a project with [organizations](/reference/auth/#organizations); `<organization>` is a slug or an id. The host acts as a superuser, so it may give any role. `create` makes `--owner` the owner with every app role; `--id` keeps an existing tenant value, and `--members all` adds every other user, superusers as owners and everyone else as a member with their global roles moved onto the membership, for an app that ran as one organization. `remove-member` and `set-roles` refuse to leave an organization without an owner. `add-app-role` gives a role the project added later to every owner.
 
 ## `auth migration`
 

@@ -3,7 +3,7 @@ title: Login with Better Auth
 description: Sign-in with Better Auth, with the admin store, sign-in methods and policy, sign-in providers, staff sign-in, roles, tokens and the public endpoints.
 ---
 
-`@protobase/server` ships a [Better Auth](https://www.better-auth.com) setup (version 1.7): sign-in with a password, an [emailed code](#emailed-sign-in-codes) or a [passkey](#passkeys), [two-factor authentication](#two-factor-authentication), a [sign-in policy](#sign-in-policy) admins set in the app, [staff sign-in](#staff-sign-in) for the team that runs the app, roles, and short-lived JWTs that the API verifies against Better Auth's own JWKS. All of it is Better Auth's own plugins (`emailOTP`, `twoFactor`, `@better-auth/passkey`), wired by `createAuth`.
+`@protobase/server` ships a [Better Auth](https://www.better-auth.com) setup (version 1.7): sign-in with a password, an [emailed code](#emailed-sign-in-codes) or a [passkey](#passkeys), [two-factor authentication](#two-factor-authentication), a [sign-in policy](#sign-in-policy) admins set in the app, [staff sign-in](#staff-sign-in) for the team that runs the app, roles, and short-lived JWTs that the API verifies against Better Auth's own JWKS, and, when turned on, [organizations](#organizations) people work in one at a time. All of it is Better Auth's own plugins (`emailOTP`, `twoFactor`, `@better-auth/passkey`), wired by `createAuth`.
 
 ```ts
 import { betterAuthAuthenticator, createAdmin, createAuth } from '@protobase/server'
@@ -291,11 +291,47 @@ The roles are a project setting: `createAuth({ ..., roles: ['admin', 'auditor', 
 
 `createUser`, `setUserRole` and Better Auth's own admin endpoints refuse a role outside the list. `roleChoices(auth)` returns the list, for the CLI's `users set-role` and for UIs. Only `admin` gains Better Auth admin-plugin permissions (managing users); every other role is for your access rules, which see them as `ctx.user.roles`. Besides `admin`, the role `ai` opens the [assistant](/reference/assistant/#who-sees-it) when the project lists it.
 
+## Organizations
+
+Off by default: without `organizations`, an app is one organization, as above. Turned on, people work in one organization at a time, `.tenant` resources show only its rows, and the organization comes from the signed-in person instead of `tenant`:
+
+```ts
+const auth = createAuth({
+  ...,
+  roles: {
+    admin: 'Superuser',
+    manager: { label: 'Manager', grants: ['sales', 'accountant'] },
+    sales: 'Sales',
+    accountant: 'Accountant',
+  },
+  organizations: { create: 'everyone' },
+})
+const authenticate = betterAuthAuthenticator({ auth })
+```
+
+It is Better Auth's organization plugin, with its tables named in snake_case (`organization`, `member`, `invitation`, `session.active_organization_id`); `protobase auth migration` writes them, and `user.last_organization_id`, as the project's next migration.
+
+**Two kinds of role.** Every membership has an organization role, Better Auth's `owner`, `admin` or `member`, which decides who manages the organization: owners and admins invite, remove and change members and edit its details; only owners hand it over, delete it or make owners. App roles, the project's `roles`, decide what the app shows and allows. A user holds them **globally** (the admin plugin's `role` column, as without organizations), which applies in every organization, or **per membership** (`member.app_roles`), which applies there only. A request's roles, `ctx.user.roles`, are both together; access rules never see the organization role. `admin` is the superuser: global only, it holds every role. With organizations every role needs a label; `owner` and `member` cannot be app role names, and `user` stands for an account without a global role.
+
+**Who gives which role.** Someone may give or take away a member's app role only if they hold it, in that organization or globally, or hold a role whose `grants` list it (`manager` above gives `accountant` without holding it); grants do not chain, and a superuser may give any. Only a superuser changes global roles. The creator of an organization becomes its owner with every app role (`creatorAppRoles`, default `'all'`), so they can give them on; for a role added later, list it in a role owners hold, or run `protobase organizations add-app-role <role> --to owners`.
+
+**The organization in the token.** A new session starts in the organization the person last worked in, else their oldest membership. `/api/auth/token` adds `org` (the organization), `org_role` and `app_roles` (the membership's), read when the token is issued, so a removed member or a changed role shows within its 15 minutes. `betterAuthAuthenticator` makes `org` the tenant and `ctx.organization.id`, and adds `app_roles` to the global roles. `POST /api/auth/organization/switch` with `{ organizationId }` moves the session; the next token names the new organization, without signing in again. Someone with a global role may switch into any organization, without being a member, and sees there what those roles allow; each such entry is an `organization.entered` [audit event](/reference/api/#audit-events). `GET /api/auth/organization/search?query=` finds organizations for them. A list across organizations stays a resource without `.tenant`, readable by the global role.
+
+**Invitations.** Better Auth's `POST /api/auth/organization/invite-member` with `{ organizationId, email, role, appRoles }`; inviting again replaces the earlier invitation, and it works for `invitationDays` (default 7). The email links to `{baseURL}/-/invitation?token=…` (`invitationUrl`), with a token signed with `secret`, since members can read invitation ids; without a mailer, the answer carries the `link` to pass on. The link page shows `GET /api/auth/invitation?token=`, accepts with `POST /api/auth/invitation/accept` for someone signed in as the invited address, and makes an account with `POST /api/auth/invitation/sign-up` (`{ token, name, password? }`) for an address without one. Open sign-up stays off: an invitation is the address someone vouched for.
+
+**Members.** Better Auth's `list-members`, `update-member-role`, `remove-member` and `leave`; `POST /api/auth/organization/set-app-roles` (`{ memberId, appRoles }`); `POST /api/auth/organization/transfer-ownership` (`{ memberId, keepAs? }`) makes a member owner and the caller an admin in one step. `GET /api/auth/organization/current` answers the organization a session works in with the caller's roles there.
+
+**Deleting** an organization (Better Auth's `delete`, owners only) is refused with `409 ORGANIZATION_HAS_RECORDS` while a `.tenant` resource has rows in it; `deleteRecords: 'cascade'` leaves it to the project's foreign keys. `beforeDelete` may refuse too.
+
+**Ids.** `generateId` makes a new organization's id, by default a UUID; `.tenant` columns hold it, so `text` or `uuid`. An app whose tenant columns are integers takes the next value of its own organizations sequence instead, and adds its own row in `onCreated`, as the ERP example does (`examples/erp/auth/auth.ts`). An app that ran as one organization keeps its tenant value: `protobase organizations create "Acme" --owner you@example.com --id 1 --members all` makes that organization, with every user in it: superusers as owners, everyone else as a member, their global roles moved onto the membership.
+
+The app's own pages are under the profile menu: the switcher, "Organizations" (theirs, a new one, and for global roles any one), "Organization" (details, leaving, handing over, deleting), and for owners and admins "Members" and "Invitations". The client has them as `session.organizations` (`list`, `current`, `switchTo`, `members`, `invite`, ...).
+
 ## Tokens and roles
 
 Sign in at `POST /api/auth/sign-in/email` (or with a code or passkey), then `GET /api/auth/token` (with the session cookie) returns `{ token }`, an EdDSA JWT valid for 15 minutes, unless the [sign-in policy](#sign-in-policy) requires something the account has not set up; the keys are at `/api/auth/jwks`. Send it as `Authorization: Bearer <token>`. `/token` is the only way to a token in the browser: the `set-auth-jwt` header of Better Auth's JWT plugin is off.
 
-`betterAuthAuthenticator` maps the claims to a session: `sub` is the user id, `roles` come from the `role` claim, which is the admin plugin's `role` column on the user (a comma separated string; the first user is always `admin`). Access rules see them as `ctx.user.roles`. The tenant is the configured `tenant` option, never a claim, until organizations are supported. The key set is cached in memory: read once, again every 10 minutes (so removed keys stop being accepted), and again when a token names an unknown `kid` (a rotated key), at most once per 30 seconds however many such tokens arrive (`cache: { refreshMs, minReloadMs }`). Pass `jwksUrl` and `issuer` instead of `auth` when the API runs apart from the auth server.
+`betterAuthAuthenticator` maps the claims to a session: `sub` is the user id, `roles` come from the `role` claim, which is the admin plugin's `role` column on the user (a comma separated string; the first user is always `admin`). Access rules see them as `ctx.user.roles`. Without organizations, the tenant is the configured `tenant` option, never a claim; with them, it is the organization the session works in (`org`, see [organizations](#organizations)). The key set is cached in memory: read once, again every 10 minutes (so removed keys stop being accepted), and again when a token names an unknown `kid` (a rotated key), at most once per 30 seconds however many such tokens arrive (`cache: { refreshMs, minReloadMs }`). Pass `jwksUrl` and `issuer` instead of `auth` when the API runs apart from the auth server.
 
 `jwtAuthenticator` accepts asymmetric signature algorithms only unless you pass `algorithms` explicitly (the tests do, for HS256), so a token cannot be forged with a public key used as an HMAC secret; Better Auth signs with its own key pair and publishes the public keys at `/api/auth/jwks`. An expired, tampered, wrongly signed or missing token is a `401` problem with `WWW-Authenticate: Bearer`.
 
