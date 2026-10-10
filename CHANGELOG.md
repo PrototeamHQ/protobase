@@ -2,6 +2,23 @@
 
 Every release of Protobase, cut by the release workflow from the commits since the last one (see the [versioning page](https://docs.protobase.net/reference/versioning/)).
 
+## [0.3.5](https://github.com/PrototeamHQ/protobase/compare/v0.3.4...v0.3.5) (2026-10-10)
+
+### Features
+
+* **cli:** build plain ESM bundles for Node and Bun, with Bun's bundler only under --bun ([36e5179](https://github.com/PrototeamHQ/protobase/commit/36e51794c99a3febfc1c6d0767626fdbdfeee04f))
+* **client:** a client of the runtime updates endpoint ([a7e68a7](https://github.com/PrototeamHQ/protobase/commit/a7e68a7623b985445ccafcb766b3cbd5ecc0dc3c))
+* **cli:** load project files with Vite's module runner so the CLI runs on Node and Bun ([94de5a1](https://github.com/PrototeamHQ/protobase/commit/94de5a1ed2f19dfddc923eb10844647e9e720a03))
+* **images:** base protobase-dev on Bun alone, without Node ([eedb7f3](https://github.com/PrototeamHQ/protobase/commit/eedb7f34b1c34fc6429d293b870710f0a2b5289d))
+* **server:** name a runtime updates endpoint to admins in /meta ([0d23412](https://github.com/PrototeamHQ/protobase/commit/0d234129c8ce81b135812270587b78d80277d867))
+* **ui:** a runtime update button in the top bar ([379ff4f](https://github.com/PrototeamHQ/protobase/commit/379ff4f0437c65493e70b31477bf7e84470e0231))
+
+### Bug Fixes
+
+* **cli:** keep the scratch folder's random name out of bundles that Bun's bundler writes ([4b7faec](https://github.com/PrototeamHQ/protobase/commit/4b7faecd25e28c3dbaa987eb7805138e4957f675))
+* **cli:** point to the project's db:up script without assuming pnpm ([9d4352f](https://github.com/PrototeamHQ/protobase/commit/9d4352f294658c2a680147d7e61162c243fbe4ed))
+* **ui:** open side panels full screen on phones ([9561119](https://github.com/PrototeamHQ/protobase/commit/95611190be91996304e18e2a0773546df8bc8987))
+
 ## [0.3.4](https://github.com/PrototeamHQ/protobase/compare/v0.3.3...v0.3.4) (2026-10-10)
 
 ### Bug Fixes
