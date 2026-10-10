@@ -65,3 +65,7 @@ export {
   type PublicFunctionOptions,
 } from './functions/define-function'
 export type { FunctionRecords, ListParams, RecordPage } from './functions/records'
+export { functionApp, type FunctionEnv, type PublicFunctionEnv } from './functions/function-app'
+export { readJson, type StandardSchema } from './functions/read-json'
+export { verifySignature, verifyStandardWebhook, type SignatureOptions, type StandardWebhookOptions } from './functions/verify-signature'
+export { requireEnv } from './functions/require-env'
