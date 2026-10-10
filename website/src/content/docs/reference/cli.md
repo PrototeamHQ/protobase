@@ -247,7 +247,7 @@ Serves the API of a bundle from `protobase build` and owns the process around it
 | `DATABASE_URL` | the API's pool (Kysely over `pg`, 10 connections); not needed when the config exports `db` |
 | `PORT` | default 8787 |
 | `REQUEST_LOG` | any non-empty value logs every request |
-| `PROTOBASE_SMTP_URL` | the SMTP server for password-reset mail, credential included: `smtp://user:password@host:587` (STARTTLS when offered) or `smtps://...:465`; without it reset is off ([Password reset](/reference/auth/#password-reset)) |
+| `PROTOBASE_SMTP_URL` | the SMTP server for password-reset mail and emailed sign-in and two-factor codes, credential included: `smtp://user:password@host:587` (STARTTLS when offered) or `smtps://...:465`; without it they are off ([Password reset](/reference/auth/#password-reset), [Emailed sign-in codes](/reference/auth/#emailed-sign-in-codes)) |
 | `PROTOBASE_MAIL_FROM` | the sender of that mail, a plain address such as `noreply@admin.example.com`; set with `PROTOBASE_SMTP_URL` or not at all |
 | `PROTOBASE_ASSISTANT_URL`, `PROTOBASE_ASSISTANT_API_KEY`, `PROTOBASE_ASSISTANT_MODEL`, `PROTOBASE_ASSISTANT_BASE_URL` | the [assistant](/reference/assistant/#which-backend): a backend elsewhere, or the built-in one on OpenRouter or another OpenAI-compatible endpoint; without them there is none |
 | `PROTOBASE_RUNTIME_URL` | the endpoint behind the top bar's [runtime update button](/reference/versioning/#runtime-updates), such as a hosting platform's; without it there is no button |

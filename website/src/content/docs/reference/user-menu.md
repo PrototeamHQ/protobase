@@ -25,7 +25,7 @@ export const accountMenu = userMenu((m) => [
 | `m.page(name, { label?, icon? })` | Opens a [composed page](/reference/layouts/). The page leaves the sidebar. The label defaults to its title. |
 | `m.link(label, href, { icon? })` | Opens `href` in a new tab. Only `https://`, `http://` and `mailto:` are accepted. |
 
-Items keep their order; "Sign out" always comes last. `icon` is one of `book-open`, `building`, `credit-card`, `external-link`, `file-text`, `key`, `layout-dashboard`, `life-buoy`, `mail`, `receipt`, `settings`, `shield`, `users`. A resource item without one uses the resource's sidebar icon, and a link item uses `external-link`.
+Items keep their order. After them come the app's own account pages: "Sign-in & security" for everyone (their [passkeys](/reference/auth/#passkeys) and [two-factor authentication](/reference/auth/#two-factor-authentication)) and "Sign-in policy" for admins (the [sign-in policy](/reference/auth/#sign-in-policy)); "Sign out" always comes last. `icon` is one of `book-open`, `building`, `credit-card`, `external-link`, `file-text`, `key`, `layout-dashboard`, `life-buoy`, `mail`, `receipt`, `settings`, `shield`, `users`. A resource item without one uses the resource's sidebar icon, and a link item uses `external-link`.
 
 Every caller gets the menu through `/meta`, without the resources and pages they cannot see, so a user who cannot read `organizations` has no "Organization" item. Links are shown to everyone. `createAdmin` refuses to start when an item names a resource or page that does not exist, and `configExports` refuses a config module that exports two menus.
 
