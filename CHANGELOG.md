@@ -2,6 +2,12 @@
 
 Every release of Protobase, cut by the release workflow from the commits since the last one (see the [versioning page](https://docs.protobase.net/reference/versioning/)).
 
+## [0.3.1](https://github.com/PrototeamHQ/protobase/compare/v0.3.0...v0.3.1) (2026-10-10)
+
+### Bug Fixes
+
+* **ui:** refresh a sidebar group when a record read anew differs from its row ([310cbc9](https://github.com/PrototeamHQ/protobase/commit/310cbc91addbe203a8bca065f05e12d81d09ab62))
+
 ## [0.3.0](https://github.com/PrototeamHQ/protobase/compare/v0.2.0...v0.3.0) (2026-10-10)
 
 ### ⚠ BREAKING CHANGES
