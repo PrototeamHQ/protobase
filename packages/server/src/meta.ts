@@ -1,5 +1,6 @@
 import { prunePage, type PageModel } from '@protobase/layout'
 import { pickView, type ResourceModel, type UserMenuItemModel, type UserMenuModel, type ViewModel } from '@protobase/schema'
+import { seesAssistant } from './assistant/assistant-settings'
 import type { Deps } from './deps'
 import { sha256Hex, stableJson } from './hash'
 import { requestAccess } from './request-access'
@@ -23,6 +24,8 @@ export type CallerMeta = {
   permissions: Record<string, ResourcePermissions>
   /** The user menu with the resources the caller cannot see left out. */
   userMenu?: UserMenuModel
+  /** The assistant backend, for a caller with the `admin` or `ai` role when there is one: an absolute URL, or the built-in one's path. */
+  assistant?: { url: string }
 }
 
 const modelsHash = (deps: Deps) => sha256Hex(stableJson(deps.registry.entries.map((entry) => entry.model))).then((hash) => hash.slice(0, 32))
@@ -65,6 +68,7 @@ export const createMeta = (deps: Deps) => {
         conditional: (['create', 'update', 'delete'] as const).filter((op) => resolved.operations[op] && (resolved.recordChecks.includes(op) || resolved.rowFilter[op] !== undefined)),
       } satisfies ResourcePermissions])),
       ...(deps.userMenu && { userMenu: { items: deps.userMenu.items.filter(shown) } }),
+      ...(deps.assistant && seesAssistant(session.user.roles) && { assistant: { url: deps.assistant } }),
     }
     return { body, etag: `"${(await sha256Hex(stableJson(body))).slice(0, 32)}"` }
   }

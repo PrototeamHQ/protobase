@@ -2,6 +2,8 @@ import { Hono } from 'hono'
 import { checkPages } from '@protobase/layout'
 import type { Db } from '@protobase/query'
 import type { UserMenuSource } from '@protobase/schema'
+import { assistantSettings } from './assistant/assistant-settings'
+import { assistantRoutes } from './assistant/routes'
 import { consoleAuditQueue } from './audit/console-queue'
 import { authBasePath, type AdminAuth } from './better-auth/create-auth'
 import { statusRoute } from './better-auth/status-route'
@@ -46,6 +48,8 @@ export const createAdmin = ({ resources, views = [], pages = [], userMenu, db, a
     models: Object.fromEntries(registry.entries.map((entry) => [entry.name, entry.model])),
     actions: (resource) => new Set(viewModels.filter((view) => view.resource === resource).flatMap((view) => view.actions.map((action) => action.name))),
   })
+  const systemPath = basePath.slice(0, basePath.lastIndexOf('/'))
+  const assistant = assistantSettings(options.assistant, globalThis.process?.env ?? {})
   const deps = {
     db,
     registry,
@@ -53,13 +57,14 @@ export const createAdmin = ({ resources, views = [], pages = [], userMenu, db, a
     pages: pageModels,
     ...(userMenuModel && { userMenu: userMenuModel }),
     basePath,
-    systemPath: basePath.slice(0, basePath.lastIndexOf('/')),
+    systemPath,
     statementTimeoutMs: options.statementTimeoutMs ?? 15_000,
     guard: createScanGuard(db, options.scanGuard),
     hooks: options.writeHooks ?? [],
     audit: options.audit ?? consoleAuditQueue(),
     accessOptions: { ...(options.roles && { roles: options.roles }), ...(options.defaultAccess && { defaultAccess: options.defaultAccess }) },
     rowPermissions: (resource: string) => (typeof options.rowPermissions === 'object' ? !options.rowPermissions.except.includes(resource) : options.rowPermissions !== false),
+    ...(assistant && { assistant: assistant.kind === 'external' ? assistant.url : `${systemPath}/assistant` }),
   }
 
   const meta = createMeta(deps)
@@ -87,6 +92,7 @@ export const createAdmin = ({ resources, views = [], pages = [], userMenu, db, a
   const system = guarded((app) => {
     app.route('/', docsRoutes(deps))
     app.route('/', metaRoutes(meta))
+    if (assistant?.kind === 'built-in') app.route('/', assistantRoutes(assistant.model, meta, options.onUnhandledError))
   })
 
   const app = new Hono<AdminEnv>()

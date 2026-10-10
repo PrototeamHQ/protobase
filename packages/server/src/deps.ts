@@ -23,4 +23,6 @@ export type Deps = {
   audit: AuditQueue
   /** Whether list items of a resource carry their permissions. */
   rowPermissions: (resource: string) => boolean
+  /** The URL of the assistant backend that `/meta` names to callers who may use it: another origin's, or the built-in one's path. */
+  assistant?: string
 }

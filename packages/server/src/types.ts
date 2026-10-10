@@ -2,6 +2,7 @@ import type { Hono } from 'hono'
 import type { PageModel } from '@protobase/layout'
 import type { Db } from '@protobase/query'
 import type { ResolveOptions, ResourceModel, ViewModel } from '@protobase/schema'
+import type { AssistantOptions } from './assistant/assistant-settings'
 
 export type TenantValue = string | number
 
@@ -75,6 +76,8 @@ export type AdminOptions = {
   audit?: AuditQueue
   /** Called with every error the API turns into a 500, so the host can report it. */
   onUnhandledError?: (error: unknown) => void
+  /** The assistant in the admin app's dock: a backend elsewhere or the built-in one (see `AssistantOptions`); `false` turns it off. */
+  assistant?: AssistantOptions | false
 }
 
 export type ViewSource = { toModel(): ViewModel }
