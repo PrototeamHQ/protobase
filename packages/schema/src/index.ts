@@ -94,3 +94,21 @@ export type {
   FieldAccess,
   FieldRule,
 } from './access'
+export type {
+  AssistantTone,
+  AssistantAction,
+  AssistantStepState,
+  AssistantStep,
+  AssistantDiff,
+  AssistantTextPart,
+  AssistantTablePart,
+  AssistantCardPart,
+  AssistantPart,
+  AssistantMessage,
+  AssistantState,
+  AssistantEvent,
+  AssistantMessageRequest,
+  AssistantActionRequest,
+} from './assistant/protocol'
+export { applyAssistantEvent, emptyAssistantState } from './assistant/apply-event'
+export { readEventStream } from './assistant/event-stream'
