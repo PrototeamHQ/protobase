@@ -27,7 +27,7 @@ export const useAssistant = (client: AssistantClient | undefined) => {
     state,
     offline,
     error,
-    send: (text: string) => client && deliver(client.send(text)),
+    send: (text: string, page?: string) => client && deliver(client.send(text, page)),
     act: (partId: string, actionId: string) => client && deliver(client.act(partId, actionId)),
   }
 }

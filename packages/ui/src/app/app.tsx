@@ -45,7 +45,7 @@ const Routes = ({ workspace, sidebarMode, assistant }: Pick<AppProps, 'workspace
   const { state, signOut } = useAuth()
   if (state.kind !== 'signed-in') throw new Error('The shell is only rendered for a signed-in user')
   const { user } = state
-  const { path, basePath, navigate } = useRouter()
+  const { path, params, basePath, navigate } = useRouter()
   const route = matchRoute(path)
   const search = useGlobalSearch()
   const recent = useNavRecent(meta, basePath, route)
@@ -72,7 +72,7 @@ const Routes = ({ workspace, sidebarMode, assistant }: Pick<AppProps, 'workspace
   const [assistantOpen, setAssistantOpen] = useState(false)
   const assistantUrl = meta.assistant?.url
   const assistantButton = assistantUrl && <AssistantButton open={assistantOpen} onToggle={() => setAssistantOpen(!assistantOpen)} />
-  const assistantPanel = assistantUrl && assistantOpen && <AssistantPanel url={assistantUrl} client={assistant} onClose={() => setAssistantOpen(false)} />
+  const assistantPanel = assistantUrl && assistantOpen && <AssistantPanel url={assistantUrl} client={assistant} page={params.size > 0 ? `${path}?${params}` : path} onClose={() => setAssistantOpen(false)} />
   const breadcrumb = breadcrumbFor({ basePath, route, group: group?.label, page, resourceLabel: view?.names?.plural ?? (route.resource && humanize(route.resource)), recordTitle: title })
 
   return (

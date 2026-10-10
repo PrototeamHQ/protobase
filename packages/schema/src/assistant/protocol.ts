@@ -70,8 +70,8 @@ export type AssistantEvent =
   | { type: 'part'; messageId: string; part: AssistantPart }
   | { type: 'patch'; replying?: boolean; status?: string | null; placeholder?: string | null }
 
-/** `POST <url>/messages` */
-export type AssistantMessageRequest = { text: string }
+/** `POST <url>/messages`; `page` is where the user is in the app, below its base path, such as `/orders/42?status=open`. */
+export type AssistantMessageRequest = { text: string; page?: string }
 
 /** `POST <url>/actions` */
 export type AssistantActionRequest = { partId: string; actionId: string }

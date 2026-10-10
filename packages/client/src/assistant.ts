@@ -17,8 +17,8 @@ export type AssistantConnection = { state: 'connecting' } | { state: 'open' } | 
 export type AssistantClient = {
   /** Follows the event stream, reconnecting until the returned function is called; every connection starts with a `state` event. */
   connect: (onEvent: (event: AssistantEvent) => void, onConnection?: (connection: AssistantConnection) => void) => () => void
-  /** Sends a message; the reply arrives as events. Rejects with `ApiError`. */
-  send: (text: string) => Promise<void>
+  /** Sends a message, with the page the user is on when given; the reply arrives as events. Rejects with `ApiError`. */
+  send: (text: string, page?: string) => Promise<void>
   /** Sends a click on a card's button; the backend answers with events. Rejects with `ApiError`. */
   act: (partId: string, actionId: string) => Promise<void>
 }
@@ -82,8 +82,8 @@ export const createAssistantClient = (options: AssistantClientOptions): Assistan
       })()
       return () => controller.abort()
     },
-    send: async (text) => {
-      await request('/messages', { method: 'POST', body: { text } satisfies AssistantMessageRequest })
+    send: async (text, page) => {
+      await request('/messages', { method: 'POST', body: { text, ...(page && { page }) } satisfies AssistantMessageRequest })
     },
     act: async (partId, actionId) => {
       await request('/actions', { method: 'POST', body: { partId, actionId } satisfies AssistantActionRequest })

@@ -21,17 +21,20 @@ const events = (...list: AssistantEvent[]) => () => new Response(list.map((event
 const empty: AssistantEvent = { type: 'state', state: { messages: [], replying: false } }
 
 describe('createAssistantClient', () => {
-  it('posts messages and button clicks as JSON with the bearer token', async () => {
-    const backend = fakeBackend([() => new Response(null, { status: 202 }), () => new Response(null, { status: 202 })])
+  it('posts messages, with the page when given, and button clicks as JSON with the bearer token', async () => {
+    const backend = fakeBackend([() => new Response(null, { status: 202 }), () => new Response(null, { status: 202 }), () => new Response(null, { status: 202 })])
     const client = createAssistantClient({ url: 'https://assistant.example.com/apps/7/', token: async () => 'jwt-1', fetch: backend.fetch })
     await client.send('How many orders?')
     await client.act('card-1', 'approve')
+    await client.send('And these?', '/orders?status=open')
     expect(backend.requests.map((request) => [request.method, request.url, request.headers.get('authorization')])).toEqual([
       ['POST', 'https://assistant.example.com/apps/7/messages', 'Bearer jwt-1'],
       ['POST', 'https://assistant.example.com/apps/7/actions', 'Bearer jwt-1'],
+      ['POST', 'https://assistant.example.com/apps/7/messages', 'Bearer jwt-1'],
     ])
     expect(await backend.requests[0]?.json()).toEqual({ text: 'How many orders?' })
     expect(await backend.requests[1]?.json()).toEqual({ partId: 'card-1', actionId: 'approve' })
+    expect(await backend.requests[2]?.json()).toEqual({ text: 'And these?', page: '/orders?status=open' })
   })
 
   it('rejects with the backend’s problem', async () => {

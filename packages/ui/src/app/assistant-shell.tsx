@@ -10,13 +10,18 @@ export const AssistantButton = ({ open, onToggle }: { open: boolean; onToggle: (
   </Button>
 )
 
-const ConnectedDock = ({ client, onClose }: { client: AssistantClient | undefined; onClose: () => void }) => {
+type DockProps = { page: string; onClose: () => void }
+
+const ConnectedDock = ({ client, page, onClose }: DockProps & { client: AssistantClient | undefined }) => {
   const { state, offline, error, send, act } = useAssistant(client)
-  return <AssistantDock state={state} offline={offline} error={error} onSend={send} onAction={act} onClose={onClose} />
+  return <AssistantDock state={state} offline={offline} error={error} onSend={(text) => send(text, page)} onAction={act} onClose={onClose} />
 }
 
-const OwnDock = ({ url, onClose }: { url: string; onClose: () => void }) => <ConnectedDock client={useAssistantClient(url)} onClose={onClose} />
+const OwnDock = ({ url, ...props }: DockProps & { url: string }) => <ConnectedDock client={useAssistantClient(url)} {...props} />
 
-/** The dock for the backend `/meta` names, signed in as the user; `client` replaces it in stories and tests. */
-export const AssistantPanel = ({ url, client, onClose }: { url: string; client?: AssistantClient; onClose: () => void }) =>
-  client ? <ConnectedDock client={client} onClose={onClose} /> : <OwnDock url={url} onClose={onClose} />
+/**
+ * The dock for the backend `/meta` names, signed in as the user, sending each message with the `page` the user is on;
+ * `client` replaces it in stories and tests.
+ */
+export const AssistantPanel = ({ url, client, ...props }: DockProps & { url: string; client?: AssistantClient }) =>
+  client ? <ConnectedDock client={client} {...props} /> : <OwnDock url={url} {...props} />
