@@ -45,7 +45,22 @@ export type AssistantCardPart = {
   actions?: AssistantAction[]
 }
 
-export type AssistantPart = AssistantTextPart | AssistantTablePart | AssistantCardPart
+/**
+ * A part drawn by one of the app's components, which fetches what it shows itself: the chat keeps only the
+ * component's name and props such as `{ taskId }`, so the part shows the record as it is now.
+ */
+export type AssistantWidgetPart = {
+  type: 'widget'
+  id: string
+  /** A component in the app's `components` (its protobase.ui.tsx and the UI configs it extends), PascalCase. */
+  name: string
+  /** JSON the component gets as props: ids and settings, not the state it shows. At most 2 KB. */
+  props: Record<string, unknown>
+  /** Drawn, as a plain card, when the app has no component by that name: what the part was about when it was made. */
+  fallback?: { title: string; body?: string }
+}
+
+export type AssistantPart = AssistantTextPart | AssistantTablePart | AssistantCardPart | AssistantWidgetPart
 
 export type AssistantMessage = { id: string; from: 'user' | 'assistant'; parts: AssistantPart[] }
 

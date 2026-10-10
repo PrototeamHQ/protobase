@@ -24,6 +24,13 @@ describe('applyAssistantEvent', () => {
     expect(applyAssistantEvent(state, { type: 'part', messageId: 'm9', part: card }).messages[1]).toEqual({ id: 'm9', from: 'assistant', parts: [card] })
   })
 
+  it('replaces a widget part by its id, as any other part', () => {
+    const proposed = { type: 'widget' as const, id: 'w1', name: 'TaskProposal', props: { taskId: 12 }, fallback: { title: 'Task proposal' } }
+    const shown = applyAssistantEvent(state, { type: 'part', messageId: 'm2', part: proposed })
+    const moved = { ...proposed, props: { taskId: 13 } }
+    expect(applyAssistantEvent(shown, { type: 'part', messageId: 'm2', part: moved }).messages[1]?.parts).toEqual([moved])
+  })
+
   it('patches the top-level fields, null clearing one and absent keeping it', () => {
     expect(applyAssistantEvent(state, { type: 'patch', replying: false, placeholder: 'What should change?' })).toEqual({ messages: [question], replying: false, status: '12 left', placeholder: 'What should change?' })
     expect(applyAssistantEvent(state, { type: 'patch', status: null })).toEqual({ messages: [question], replying: true })

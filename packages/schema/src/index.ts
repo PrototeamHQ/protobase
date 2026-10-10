@@ -103,6 +103,7 @@ export type {
   AssistantTextPart,
   AssistantTablePart,
   AssistantCardPart,
+  AssistantWidgetPart,
   AssistantPart,
   AssistantMessage,
   AssistantState,

@@ -69,6 +69,20 @@ There is one conversation per user, shared by their tabs. The server keeps it as
 
 A backend elsewhere replaces the built-in one through `PROTOBASE_ASSISTANT_URL`. It receives the user's API token as `Authorization: Bearer <token>`, verifies it against the app's key set (`/api/auth/jwks`), and allows the app's origin with CORS. It can be built from the building blocks `@protobase/server` exports (the protocol's routes, the turn loop with tool calling, tools, approvals, the query tools and a conversation store interface to keep chats elsewhere, such as in a database) with its own prompt and tools; the built-in backend's source, `packages/server/src/assistant/built-in-assistant.ts`, is the reference.
 
+## Widget parts
+
+Besides text, tables and cards, a backend can show a **widget**: a part that one of the app's own React components draws. The chat keeps only the component's name and a small JSON of props, such as `{ "taskId": 12 }`, and the component fetches what it shows when it is drawn, so a chat from last month shows the record as it is today, including a decision someone else made since.
+
+```ts
+import { widget } from '@protobase/server'
+
+show(widget('TaskProposal', { taskId: record.id }, { fallback: { title: `Task proposal: ${record.title}` } }))
+```
+
+`widget(name, props, { id?, fallback? })` builds the part `{ type: 'widget', id, name, props, fallback? }`. The name must be PascalCase, and the props a JSON object of at most 2 KB, or it throws: pass ids and settings, not the state the widget shows. Without an `id` the part gets a new one; showing a part with the same id again replaces it. `fallback` is drawn as a plain card where the app has no component by that name. The part never reaches the model, which reads only the tool's result.
+
+Breaking change: `AssistantPart` now includes `AssistantWidgetPart`, so code that switches over part types must handle `widget`, for instance by drawing its `fallback`.
+
 ## In the UI
 
 The dock is `AssistantDock` from `@protobase/ui`, built from primitives that custom components and [shell slots](/reference/custom-components/#shell-slots) can use too: `SidePanel`, `ChatThread`, `ChatMessage`, `Composer`, `ActionCard`, `FieldList`, `StepList`, `DiffView` and `CompactTable`. `useApiToken()` returns the signed-in user's API token, renewed before it expires, for calling another service as them.
