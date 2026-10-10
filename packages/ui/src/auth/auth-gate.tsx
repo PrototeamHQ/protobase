@@ -2,13 +2,16 @@ import { useEffect, useState, type ReactNode } from 'react'
 import { Button } from '../primitives/button'
 import { Spinner } from '../primitives/spinner'
 import { useAuth } from './auth-provider'
+import { EmailCodePage } from './email-code-page'
 import { FirstRunPage } from './first-run-page'
 import { ForgotPasswordPage } from './forgot-password-page'
 import { readResetLink, withoutResetLink } from './reset-link'
 import { ResetPasswordPage } from './reset-password-page'
+import { SetupRequiredPage } from './setup-required-page'
 import { SignInPage } from './sign-in-page'
+import { TwoFactorPage } from './two-factor-page'
 
-type AuthPage = { kind: 'sign-in'; notice?: string } | { kind: 'forgot-password' } | { kind: 'reset-password'; token: string | undefined }
+type AuthPage = { kind: 'sign-in'; notice?: string } | { kind: 'email-code'; email: string } | { kind: 'forgot-password' } | { kind: 'reset-password'; token: string | undefined }
 
 // An emailed reset link opens the set-password page, whoever is signed in.
 const firstPage = (): AuthPage => {
@@ -22,9 +25,11 @@ const forgetResetLink = () => window.history.replaceState(window.history.state, 
 export const AuthGate = ({ workspace, children }: { workspace?: string; children: ReactNode }) => {
   const { state, recheck, passwordReset, signOut } = useAuth()
   const [page, setPage] = useState(firstPage)
-  // A notice is for the next sign-in only.
+  // A notice and a sent code are for the next sign-in only: once its first step went through, signing out starts over.
   useEffect(() => {
-    if (state.kind === 'signed-in') setPage((current) => (current.kind === 'sign-in' && current.notice ? { kind: 'sign-in' } : current))
+    if (state.kind === 'signed-in' || state.kind === 'two-factor' || state.kind === 'setup-required') {
+      setPage((current) => (current.kind === 'email-code' || (current.kind === 'sign-in' && current.notice) ? { kind: 'sign-in' } : current))
+    }
   }, [state.kind])
 
   const leaveResetPage = (next: AuthPage) => {
@@ -35,6 +40,10 @@ export const AuthGate = ({ workspace, children }: { workspace?: string; children
   const passwordChanged = async () => {
     if (state.kind === 'signed-in') await signOut()
     leaveResetPage({ kind: 'sign-in', notice: 'Your password is changed. Sign in with the new one.' })
+  }
+  const backToSignIn = () => {
+    setPage({ kind: 'sign-in' })
+    void signOut()
   }
 
   switch (state.kind) {
@@ -65,6 +74,9 @@ export const AuthGate = ({ workspace, children }: { workspace?: string; children
     )
   }
   if (state.kind === 'signed-in') return children
+  if (state.kind === 'two-factor') return <TwoFactorPage methods={state.methods} onBack={backToSignIn} />
+  if (state.kind === 'setup-required') return <SetupRequiredPage key={state.missing.join()} missing={state.missing} />
   if (page.kind === 'forgot-password') return <ForgotPasswordPage onBack={() => setPage({ kind: 'sign-in' })} />
-  return <SignInPage workspace={workspace} notice={page.notice} onForgotPassword={passwordReset ? () => setPage({ kind: 'forgot-password' }) : undefined} />
+  if (page.kind === 'email-code') return <EmailCodePage email={page.email} onBack={() => setPage({ kind: 'sign-in' })} />
+  return <SignInPage workspace={workspace} notice={page.notice} onForgotPassword={passwordReset ? () => setPage({ kind: 'forgot-password' }) : undefined} onCodeSent={(email) => setPage({ kind: 'email-code', email })} />
 }

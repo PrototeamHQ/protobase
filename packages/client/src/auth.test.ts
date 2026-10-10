@@ -70,11 +70,11 @@ describe('auth session sign-in', () => {
     expect(error.code).toBe('INVALID_EMAIL_OR_PASSWORD')
   })
 
-  it('reads the setup status', async () => {
+  it('reads the setup status, with passwords only from a server that does not list sign-in methods', async () => {
     const open = createAuthSession({ origin: 'http://localhost', fetch: (async () => json({ needsAdmin: true })) as typeof fetch })
-    expect(await open.status()).toEqual({ needsAdmin: true, passwordReset: false, socialProviders: [] })
-    const resettable = createAuthSession({ origin: 'http://localhost', fetch: (async () => json({ needsAdmin: false, passwordReset: true, socialProviders: ['github'] })) as typeof fetch })
-    expect(await resettable.status()).toEqual({ needsAdmin: false, passwordReset: true, socialProviders: ['github'] })
+    expect(await open.status()).toEqual({ needsAdmin: true, signInMethods: ['password'], passwordReset: false, socialProviders: [] })
+    const resettable = createAuthSession({ origin: 'http://localhost', fetch: (async () => json({ needsAdmin: false, signInMethods: ['emailCode', 'passkey'], passwordReset: true, socialProviders: ['github'] })) as typeof fetch })
+    expect(await resettable.status()).toEqual({ needsAdmin: false, signInMethods: ['emailCode', 'passkey'], passwordReset: true, socialProviders: ['github'] })
   })
 
   it('says so when the URL is not a Protobase server', async () => {

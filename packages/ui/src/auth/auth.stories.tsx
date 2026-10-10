@@ -1,9 +1,12 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { expect, fn, userEvent, within } from 'storybook/test'
+import { EmailCodeForm, type EmailCodeFormProps } from './email-code-form'
 import { FirstRunPage } from './first-run-page'
 import { ForgotPasswordForm, type ForgotPasswordFormProps } from './forgot-password-form'
 import { ResetPasswordForm, type ResetPasswordFormProps } from './reset-password-form'
+import { SetupRequiredForm, type SetupRequiredFormProps } from './setup-required-form'
 import { SignInForm, type SignInFormProps } from './sign-in-form'
+import { TwoFactorForm, type TwoFactorFormProps } from './two-factor-form'
 
 const meta = { title: 'Auth', parameters: { layout: 'fullscreen' }, decorators: [(Story) => <div className="h-screen"><Story /></div>] } satisfies Meta
 export default meta
@@ -55,6 +58,130 @@ export const SignInWithPasswordReset: StoryObj<SignInFormProps> = {
 export const SignInAfterPasswordReset: StoryObj<SignInFormProps> = {
   args: { onSubmit: fn(), onForgotPassword: fn(), notice: 'Your password is changed. Sign in with the new one.' },
   render: (args) => <SignInForm {...args} />,
+}
+
+export const SignInWithEveryMethod: StoryObj<SignInFormProps> = {
+  tags: ['play'],
+  args: { onSubmit: fn(), onSendCode: fn(), onPasskey: fn(), onForgotPassword: fn(), methods: ['password', 'emailCode', 'passkey'], workspace: 'Veldhuis Supply' },
+  render: (args) => <SignInForm {...args} />,
+  play: async ({ canvasElement, args }) => {
+    const canvas = within(canvasElement)
+    await userEvent.click(canvas.getByRole('button', { name: 'Sign in with a passkey' }))
+    expect(args.onPasskey).toHaveBeenCalledOnce()
+    // The code needs only the address, not the password.
+    await userEvent.click(canvas.getByRole('button', { name: 'Email me a sign-in code' }))
+    expect(args.onSendCode).not.toHaveBeenCalled()
+    await userEvent.type(canvas.getByLabelText('Email'), 'sanne@veldhuis-supply.example')
+    await userEvent.click(canvas.getByRole('button', { name: 'Email me a sign-in code' }))
+    expect(args.onSendCode).toHaveBeenCalledWith('sanne@veldhuis-supply.example')
+    expect(args.onSubmit).not.toHaveBeenCalled()
+  },
+}
+
+export const SignInWithoutPasswords: StoryObj<SignInFormProps> = {
+  tags: ['play'],
+  args: { onSubmit: fn(), onSendCode: fn(), onPasskey: fn(), onForgotPassword: fn(), methods: ['emailCode', 'passkey'], workspace: 'Veldhuis Supply' },
+  render: (args) => <SignInForm {...args} />,
+  play: async ({ canvasElement, args }) => {
+    const canvas = within(canvasElement)
+    expect(canvas.queryByLabelText('Password')).toBeNull()
+    expect(canvas.queryByRole('button', { name: 'Forgot password?' })).toBeNull()
+    await userEvent.type(canvas.getByLabelText('Email'), 'sanne@veldhuis-supply.example{enter}')
+    expect(args.onSendCode).toHaveBeenCalledWith('sanne@veldhuis-supply.example')
+  },
+}
+
+export const EmailCode: StoryObj<EmailCodeFormProps> = {
+  tags: ['play'],
+  args: { email: 'sanne@veldhuis-supply.example', onSubmit: fn(), onResend: fn(), onBack: fn() },
+  render: (args) => <EmailCodeForm {...args} />,
+  play: async ({ canvasElement, args }) => {
+    const canvas = within(canvasElement)
+    expect(canvas.getByText('sanne@veldhuis-supply.example')).toBeVisible()
+    await userEvent.type(canvas.getByLabelText('Code'), '482913')
+    await userEvent.click(canvas.getByRole('button', { name: 'Sign in' }))
+    expect(args.onSubmit).toHaveBeenCalledWith('482913')
+    await userEvent.click(canvas.getByRole('button', { name: 'Send a new code' }))
+    expect(args.onResend).toHaveBeenCalledOnce()
+  },
+}
+
+export const EmailCodeWrong: StoryObj<EmailCodeFormProps> = {
+  args: { email: 'sanne@veldhuis-supply.example', onSubmit: fn(), onResend: fn(), onBack: fn(), error: 'The code is not right.' },
+  render: (args) => <EmailCodeForm {...args} />,
+}
+
+export const TwoFactorWithApp: StoryObj<TwoFactorFormProps> = {
+  tags: ['play'],
+  args: { methods: ['totp', 'otp'], onVerify: fn(), onSendCode: fn(), onBack: fn() },
+  render: (args) => <TwoFactorForm {...args} />,
+  play: async ({ canvasElement, args }) => {
+    const canvas = within(canvasElement)
+    expect(canvas.getByText('Enter the 6-digit code from your authenticator app.')).toBeVisible()
+    await userEvent.type(canvas.getByLabelText('Code'), '123456')
+    await userEvent.click(canvas.getByRole('checkbox', { name: 'Trust this browser' }))
+    await userEvent.click(canvas.getByRole('button', { name: 'Verify' }))
+    expect(args.onVerify).toHaveBeenCalledWith({ method: 'totp', code: '123456', trustDevice: true })
+    await userEvent.click(canvas.getByRole('button', { name: 'Use a backup code' }))
+    await userEvent.type(canvas.getByLabelText('Backup code'), 'Xk3pQ-9vTzA')
+    await userEvent.click(canvas.getByRole('button', { name: 'Verify' }))
+    expect(args.onVerify).toHaveBeenLastCalledWith({ method: 'backup', code: 'Xk3pQ-9vTzA', trustDevice: true })
+    await userEvent.click(canvas.getByRole('button', { name: 'Email me a code instead' }))
+    expect(args.onSendCode).toHaveBeenCalledOnce()
+  },
+}
+
+export const TwoFactorByEmail: StoryObj<TwoFactorFormProps> = {
+  tags: ['play'],
+  args: { methods: ['otp'], onVerify: fn(), onSendCode: fn(), onBack: fn() },
+  render: (args) => <TwoFactorForm {...args} />,
+  play: async ({ canvasElement, args }) => {
+    const canvas = within(canvasElement)
+    expect(canvas.queryByRole('button', { name: 'Use a backup code' })).toBeNull()
+    await userEvent.click(canvas.getByRole('button', { name: 'Email me a code' }))
+    expect(args.onSendCode).toHaveBeenCalledOnce()
+  },
+}
+
+export const TwoFactorEmailSent: StoryObj<TwoFactorFormProps> = {
+  args: { methods: ['totp', 'otp'], initialStep: 'otp', codeSent: true, onVerify: fn(), onSendCode: fn(), onBack: fn(), error: 'The code is not right.' },
+  render: (args) => <TwoFactorForm {...args} />,
+}
+
+const twoFactorSetup = { offerEmailedCodes: true, needsPassword: true, onStartApp: fn(async () => ({ totpURI: 'otpauth://totp/Protobase:sanne%40veldhuis-supply.example?secret=JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP&issuer=Protobase', backupCodes: [] })), onConfirmApp: fn(async () => undefined), onEmailedCodes: fn(async () => undefined), onDone: fn() }
+
+export const SetupTwoFactorRequired: StoryObj<SetupRequiredFormProps> = {
+  tags: ['play'],
+  args: { step: 'twoFactor', twoFactor: twoFactorSetup, onAddPasskey: fn(), onSignOut: fn() },
+  render: (args) => <SetupRequiredForm {...args} />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    expect(canvas.getByText('Turn on two-factor authentication')).toBeVisible()
+    expect(canvas.getByRole('radio', { name: /Authenticator app/ })).toHaveAttribute('aria-checked', 'true')
+    await userEvent.type(canvas.getByLabelText('Your password'), 'correct horse battery')
+    await userEvent.click(canvas.getByRole('button', { name: 'Continue' }))
+    expect(twoFactorSetup.onStartApp).toHaveBeenCalledWith('correct horse battery')
+    expect(await canvas.findByRole('img', { name: 'QR code for your authenticator app' })).toBeVisible()
+    expect(canvas.getByText('JBSW Y3DP EHPK 3PXP JBSW Y3DP EHPK 3PXP')).toBeVisible()
+  },
+}
+
+export const SetupPasskeyRequired: StoryObj<SetupRequiredFormProps> = {
+  tags: ['play'],
+  args: { step: 'passkey', twoFactor: twoFactorSetup, onAddPasskey: fn(), onSignOut: fn() },
+  render: (args) => <SetupRequiredForm {...args} />,
+  play: async ({ canvasElement, args }) => {
+    const canvas = within(canvasElement)
+    await userEvent.click(canvas.getByRole('button', { name: 'Add a passkey' }))
+    expect(args.onAddPasskey).toHaveBeenCalledOnce()
+    await userEvent.click(canvas.getByRole('button', { name: 'Sign out' }))
+    expect(args.onSignOut).toHaveBeenCalledOnce()
+  },
+}
+
+export const SetupPasskeyCancelled: StoryObj<SetupRequiredFormProps> = {
+  args: { step: 'passkey', twoFactor: twoFactorSetup, onAddPasskey: fn(), onSignOut: fn(), error: 'The passkey prompt closed before it finished. Try again.' },
+  render: (args) => <SetupRequiredForm {...args} />,
 }
 
 export const ForgotPassword: StoryObj<ForgotPasswordFormProps> = {

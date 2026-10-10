@@ -1,19 +1,11 @@
-import { createAuthClient } from 'better-auth/client'
-import { jwtClient } from 'better-auth/client/plugins'
+import { accountSecurity } from './account-security'
+import { AuthError, authError } from './auth-error'
+import type { AuthUser, SetupStatus, SignInMethod } from './auth-types'
+import { betterAuthClient } from './better-auth-client'
+import { signInFlows } from './sign-in-flows'
+import { signInPolicyClient } from './sign-in-policy'
 
-export type AuthUser = { id: string; email: string; name: string; role?: string | null }
-
-/** A failed sign-in or sign-out, with Better Auth's status and code (for example `INVALID_EMAIL_OR_PASSWORD`). */
-export class AuthError extends Error {
-  constructor(
-    message: string,
-    readonly status: number,
-    readonly code?: string,
-  ) {
-    super(message)
-    this.name = 'AuthError'
-  }
-}
+export { AuthError }
 
 export type AuthSessionOptions = {
   /** Origin of the server; defaults to the page's own. */
@@ -36,19 +28,18 @@ export const tokenExpiry = (token: string) => {
   return json.exp * 1000
 }
 
-/** `needsAdmin` while no user exists yet; `passwordReset` when the server can email reset links; `socialProviders` the ids of the sign-in providers, for example `github`. */
-export type SetupStatus = { needsAdmin: boolean; passwordReset: boolean; socialProviders: string[] }
-
 /**
- * The browser side of Better Auth: sign in with email and password, and a short-lived JWT held in memory only
- * (never in storage), fetched with the session cookie and refreshed before it expires.
+ * The browser side of Better Auth: sign in with a password, an emailed code or a passkey (with a second step for an
+ * account with two-factor authentication), the account's passkeys and two-factor authentication (`account`), the
+ * sign-in policy for admins (`signInPolicy`), and a short-lived JWT held in memory only (never in storage), fetched
+ * with the session cookie and refreshed before it expires.
  */
 export const createAuthSession = (options: AuthSessionOptions = {}) => {
   const origin = options.origin ?? globalThis.location?.origin ?? 'http://localhost'
   const basePath = options.basePath ?? '/api/auth'
   const margin = options.refreshMarginMs ?? 60_000
   const doFetch = options.fetch ?? ((input, init) => fetch(input, init))
-  const client = createAuthClient({ baseURL: origin, basePath, plugins: [jwtClient()], fetchOptions: { customFetchImpl: doFetch as typeof fetch } })
+  const client = betterAuthClient(origin, basePath, doFetch as typeof fetch)
 
   let cached: { token: string; expiresAt: number } | undefined
   let pending: Promise<string | undefined> | undefined
@@ -83,13 +74,16 @@ export const createAuthSession = (options: AuthSessionOptions = {}) => {
   return {
     token,
 
-    /** Whether the first admin is still missing. Every server has a login, so a 404 means the URL is not a Protobase server. */
+    /**
+     * Whether the first admin is still missing, and how people can sign in. Every server has a login, so a 404 means the
+     * URL is not a Protobase server. A server from before sign-in methods were listed offers passwords only.
+     */
     status: async (): Promise<SetupStatus> => {
       const response = await doFetch(`${origin}${basePath}/status`)
       if (response.status === 404) throw new AuthError('This server has no sign-in. Is the API URL right?', 404)
       if (!response.ok) throw new AuthError('Could not read the sign-in status', response.status)
-      const body = (await response.json()) as { needsAdmin?: boolean; passwordReset?: boolean; socialProviders?: string[] }
-      return { needsAdmin: Boolean(body.needsAdmin), passwordReset: Boolean(body.passwordReset), socialProviders: body.socialProviders ?? [] }
+      const body = (await response.json()) as { needsAdmin?: boolean; signInMethods?: SignInMethod[]; passwordReset?: boolean; socialProviders?: string[] }
+      return { needsAdmin: Boolean(body.needsAdmin), signInMethods: body.signInMethods ?? ['password'], passwordReset: Boolean(body.passwordReset), socialProviders: body.socialProviders ?? [] }
     },
 
     /** The signed-in user from the session cookie, or `undefined`. */
@@ -98,12 +92,7 @@ export const createAuthSession = (options: AuthSessionOptions = {}) => {
       return data?.user as AuthUser | undefined
     },
 
-    signIn: async (email: string, password: string): Promise<AuthUser> => {
-      const { data, error } = await client.signIn.email({ email, password })
-      if (error || !data) throw new AuthError(error?.message || 'Sign-in failed', error?.status ?? 500, error?.code)
-      await token({ refresh: true })
-      return data.user as AuthUser
-    },
+    ...signInFlows(client, () => token({ refresh: true })),
 
     /**
      * Starts sign-in with a provider such as `github`: resolves with the provider's authorization URL, for the page to go to.
@@ -111,7 +100,7 @@ export const createAuthSession = (options: AuthSessionOptions = {}) => {
      */
     signInSocial: async (provider: string, callbackURL: string) => {
       const { data, error } = await client.signIn.social({ provider, callbackURL, errorCallbackURL: callbackURL, disableRedirect: true })
-      if (error || !data?.url) throw new AuthError(error?.message || 'Sign-in failed', error?.status ?? 500, error?.code)
+      if (error || !data?.url) throw authError(error, 'Sign-in failed')
       return data.url
     },
 
@@ -126,32 +115,18 @@ export const createAuthSession = (options: AuthSessionOptions = {}) => {
      */
     requestPasswordReset: async (email: string, redirectTo: string) => {
       const { error } = await client.requestPasswordReset({ email, redirectTo })
-      if (error) throw new AuthError(error.message || 'Could not send the reset link', error.status, error.code)
+      if (error) throw authError(error, 'Could not send the reset link')
     },
 
     /** Sets a new password with the token from a reset link; the link works once. */
     resetPassword: async (token: string, newPassword: string) => {
       const { error } = await client.resetPassword({ token, newPassword })
-      if (error) throw new AuthError(error.message || 'Could not set the password', error.status, error.code)
+      if (error) throw authError(error, 'Could not set the password')
     },
+
+    account: accountSecurity(client),
+    signInPolicy: signInPolicyClient(client),
   }
 }
 
 export type AuthSession = ReturnType<typeof createAuthSession>
-
-/**
- * A session that is already signed in with a token you hold, for stories and scripts (`protobase token <email>`).
- * It never refreshes, so use a token that outlives the run.
- */
-export const createStaticSession = (token: string, user: AuthUser = { id: 'token', email: 'token', name: 'API token', role: null }): AuthSession => ({
-  token: async () => token,
-  status: async () => ({ needsAdmin: false, passwordReset: false, socialProviders: [] }),
-  session: async () => user,
-  signIn: async () => user,
-  signInSocial: async () => {
-    throw new AuthError('A static session cannot sign in with a provider', 400)
-  },
-  signOut: async () => undefined,
-  requestPasswordReset: async () => undefined,
-  resetPassword: async () => undefined,
-})

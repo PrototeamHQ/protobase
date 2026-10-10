@@ -1,8 +1,11 @@
 import { useEffect, useState } from 'react'
 import type { AssistantClient, AuthSession, Client, RuntimeClient } from '@protobase/client'
+import { accountMenuItems, accountSecurityPath, signInPolicyPath } from '../account/account-pages'
+import { AccountSecurityPage } from '../account/account-security-page'
+import { SignInPolicyPage } from '../account/sign-in-policy-page'
 import { AppShell, type SidebarMode } from '../app-shell'
 import { ApiProvider } from '../data/api-provider'
-import { AuthGate, AuthProvider, userToShell, useAuth } from '../auth'
+import { AuthGate, AuthProvider, isAdmin, userToShell, useAuth } from '../auth'
 import { useRecord } from '../data/use-record'
 import { recordTitle } from '../live/model-helpers'
 import { humanize } from '../live/naming'
@@ -79,7 +82,26 @@ const Routes = ({ workspace, sidebarMode, assistant, runtime }: Pick<AppProps, '
   // The update button is there when `/meta` names a runtime endpoint, which it does only for the admin role.
   const runtimeUrl = meta.runtime?.url
   const runtimeButton = runtimeUrl && <RuntimeUpdateButton url={runtimeUrl} client={runtime} />
-  const breadcrumb = breadcrumbFor({ basePath, route, group: group?.label, page, resourceLabel: view?.names?.plural ?? (route.resource && humanize(route.resource)), recordTitle: title })
+  const admin = isAdmin(user)
+  // The account pages are the app's own, under `/-/`; everything else is a page or a resource.
+  const accountPage = path === accountSecurityPath ? 'Sign-in & security' : path === signInPolicyPath ? 'Sign-in policy' : undefined
+  const breadcrumb = accountPage ? [accountPage] : breadcrumbFor({ basePath, route, group: group?.label, page, resourceLabel: view?.names?.plural ?? (route.resource && humanize(route.resource)), recordTitle: title })
+  const content =
+    path === accountSecurityPath ? (
+      <AccountSecurityPage email={user.email} />
+    ) : path === signInPolicyPath ? (
+      admin ? <SignInPolicyPage /> : <Notice title="Admins only">Only an admin can change how people sign in.</Notice>
+    ) : !route.resource ? (
+      <Notice title="Choose a resource">Pick one from the sidebar.</Notice>
+    ) : page ? (
+      <ComposedPage key={page.name} name={page.name} />
+    ) : route.key === 'new' ? (
+      <CreatePage key={`${route.resource}/new`} resource={route.resource} />
+    ) : route.key ? (
+      <RecordPage key={`${route.resource}/${route.key}`} resource={route.resource} recordKey={route.key} />
+    ) : (
+      <ListPage key={route.resource} resource={route.resource} />
+    )
 
   return (
     <AppShell
@@ -90,13 +112,13 @@ const Routes = ({ workspace, sidebarMode, assistant, runtime }: Pick<AppProps, '
       onSignOut={() => void signOut()}
       workspace={workspace}
       navGroups={groups}
-      userMenu={userMenuFromMeta(meta, basePath, route.resource)}
+      userMenu={[...userMenuFromMeta(meta, basePath, route.resource), ...accountMenuItems(basePath, path, admin)]}
       onNavigate={open}
       search={search.available ? { placeholder: search.placeholder, text: search.text, onTextChange: search.setText, query: search.query, loading: search.loading, groups: search.groups, onSelect: open } : undefined}
       actions={(Actions || runtimeButton || assistantButton) && <>{Actions && <Actions />}{runtimeButton}{assistantButton}</>}
       rightPanel={(RightPanel || assistantPanel) && <>{RightPanel && <RightPanel />}{assistantPanel}</>}
     >
-      {!route.resource ? <Notice title="Choose a resource">Pick one from the sidebar.</Notice> : page ? <ComposedPage key={page.name} name={page.name} /> : route.key === 'new' ? <CreatePage key={`${route.resource}/new`} resource={route.resource} /> : route.key ? <RecordPage key={`${route.resource}/${route.key}`} resource={route.resource} recordKey={route.key} /> : <ListPage key={route.resource} resource={route.resource} />}
+      {content}
     </AppShell>
   )
 }

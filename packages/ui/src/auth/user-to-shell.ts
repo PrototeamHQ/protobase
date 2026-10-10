@@ -11,9 +11,14 @@ const initialsOf = (name: string) =>
     .map((part) => part[0]!.toUpperCase())
     .join('')
 
+const rolesOf = (user: AuthUser) => (user.role ?? 'user').split(',').map((role) => role.trim())
+
+/** The user holds the `admin` role, among others perhaps. */
+export const isAdmin = (user: AuthUser) => rolesOf(user).includes('admin')
+
 /** What the sidebar's profile menu shows for a signed-in user. */
 export const userToShell = (user: AuthUser): ShellUser => {
-  const roles = (user.role ?? 'user').split(',').map((role) => role.trim())
+  const roles = rolesOf(user)
   const admin = roles.includes('admin')
   return {
     name: user.name || user.email,

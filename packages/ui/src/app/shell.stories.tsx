@@ -51,7 +51,7 @@ export const RecentAndUserMenu: StoryObj = {
 
     await userEvent.click(canvas.getByRole('button', { name: 'Profile menu' }))
     const menu = await canvas.findByRole('menu')
-    expect(within(menu).getAllByRole('menuitem').map((item) => item.textContent)).toEqual(['Support', 'Sign out'])
+    expect(within(menu).getAllByRole('menuitem').map((item) => item.textContent)).toEqual(['Support', 'Sign-in & security', 'Sign out'])
   },
 }
 

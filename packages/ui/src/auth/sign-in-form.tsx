@@ -1,4 +1,6 @@
-import { useState } from 'react'
+import { KeyRound, Mail } from 'lucide-react'
+import { useRef, useState } from 'react'
+import type { SignInMethod } from '@protobase/client'
 import { Button } from '../primitives/button'
 import { Input } from '../primitives/input'
 import { AuthLayout } from './auth-layout'
@@ -11,15 +13,40 @@ export type SignInFormProps = {
   workspace?: string
   /** Shown above the form, for example after a password reset. */
   notice?: string
+  /** The ways to sign in the server offers; default a password only. */
+  methods?: SignInMethod[]
+  /** Emails a sign-in code to the address; offered when `methods` has `emailCode`. */
+  onSendCode?: (email: string) => void
+  /** Signs in with a passkey; offered when `methods` has `passkey`. */
+  onPasskey?: () => void
   /** Opens the page that emails a reset link; without it there is no "Forgot password?" link. */
   onForgotPassword?: () => void
   /** Starts sign-in with GitHub; without it there is no "Continue with GitHub" button. */
   onContinueWithGitHub?: () => void
 }
 
-export const SignInForm = ({ onSubmit, busy, error, workspace, notice, onForgotPassword, onContinueWithGitHub }: SignInFormProps) => {
+const Divider = () => (
+  <div className="my-4 flex items-center gap-3 text-xs text-muted-foreground">
+    <span className="h-px flex-1 bg-border" />
+    or
+    <span className="h-px flex-1 bg-border" />
+  </div>
+)
+
+export const SignInForm = ({ onSubmit, busy, error, workspace, notice, methods = ['password'], onSendCode, onPasskey, onForgotPassword, onContinueWithGitHub }: SignInFormProps) => {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const emailInput = useRef<HTMLInputElement>(null)
+  const withPassword = methods.includes('password')
+  const withCode = methods.includes('emailCode') && onSendCode !== undefined
+  const withPasskey = methods.includes('passkey') && onPasskey !== undefined
+
+  // The code button sits in the password form, which also wants a password; it asks only for the address.
+  const sendCode = () => {
+    if (!emailInput.current?.reportValidity()) return
+    onSendCode?.(email.trim())
+  }
+
   return (
     <AuthLayout title="Sign in to Protobase" description={workspace}>
       {notice && (
@@ -27,47 +54,74 @@ export const SignInForm = ({ onSubmit, busy, error, workspace, notice, onForgotP
           {notice}
         </p>
       )}
-      {onContinueWithGitHub && (
+      {(onContinueWithGitHub || withPasskey) && (
         <>
-          <Button onClick={onContinueWithGitHub} disabled={busy} className="min-h-10 w-full">
-            Continue with GitHub
-          </Button>
-          <div className="my-4 flex items-center gap-3 text-xs text-muted-foreground">
-            <span className="h-px flex-1 bg-border" />
-            or
-            <span className="h-px flex-1 bg-border" />
+          <div className="flex flex-col gap-2">
+            {onContinueWithGitHub && (
+              <Button onClick={onContinueWithGitHub} disabled={busy} className="min-h-10 w-full">
+                Continue with GitHub
+              </Button>
+            )}
+            {withPasskey && (
+              <Button onClick={onPasskey} disabled={busy} className="min-h-10 w-full">
+                <KeyRound className="size-4" />
+                Sign in with a passkey
+              </Button>
+            )}
           </div>
+          {withPassword || withCode ? (
+            <Divider />
+          ) : (
+            error && (
+              <p role="alert" className="mt-4 text-xs font-medium text-danger-text">
+                {error}
+              </p>
+            )
+          )}
         </>
       )}
-      <form
-        className="flex flex-col gap-4"
-        onSubmit={(event) => {
-          event.preventDefault()
-          onSubmit(email.trim(), password)
-        }}
-      >
-        <label className="flex flex-col gap-1.5 text-[13px] font-medium">
-          Email
-          <Input type="email" name="email" autoComplete="username" required autoFocus value={email} invalid={Boolean(error)} onChange={(event) => setEmail(event.target.value)} className="min-h-6" />
-        </label>
-        <label className="flex flex-col gap-1.5 text-[13px] font-medium">
-          Password
-          <Input type="password" name="password" autoComplete="current-password" required value={password} invalid={Boolean(error)} onChange={(event) => setPassword(event.target.value)} className="min-h-6" />
-        </label>
-        {error && (
-          <p role="alert" className="text-xs font-medium text-danger-text">
-            {error}
-          </p>
-        )}
-        <Button variant="primary" type="submit" loading={busy} className="min-h-10">
-          Sign in
-        </Button>
-        {onForgotPassword && (
-          <button type="button" onClick={onForgotPassword} className="self-center text-[13px] font-medium text-primary-text hover:underline">
-            Forgot password?
-          </button>
-        )}
-      </form>
+      {(withPassword || withCode) && (
+        <form
+          className="flex flex-col gap-4"
+          onSubmit={(event) => {
+            event.preventDefault()
+            if (withPassword) onSubmit(email.trim(), password)
+            else sendCode()
+          }}
+        >
+          <label className="flex flex-col gap-1.5 text-[13px] font-medium">
+            Email
+            <Input ref={emailInput} type="email" name="email" autoComplete="username webauthn" required autoFocus value={email} invalid={Boolean(error)} onChange={(event) => setEmail(event.target.value)} className="min-h-6" />
+          </label>
+          {withPassword && (
+            <label className="flex flex-col gap-1.5 text-[13px] font-medium">
+              Password
+              <Input type="password" name="password" autoComplete="current-password" required value={password} invalid={Boolean(error)} onChange={(event) => setPassword(event.target.value)} className="min-h-6" />
+            </label>
+          )}
+          {error && (
+            <p role="alert" className="text-xs font-medium text-danger-text">
+              {error}
+            </p>
+          )}
+          {withPassword && (
+            <Button variant="primary" type="submit" loading={busy} className="min-h-10">
+              Sign in
+            </Button>
+          )}
+          {withCode && (
+            <Button variant={withPassword ? 'secondary' : 'primary'} type={withPassword ? 'button' : 'submit'} onClick={withPassword ? sendCode : undefined} loading={busy && !withPassword} disabled={busy} className="min-h-10">
+              <Mail className="size-4" />
+              Email me a sign-in code
+            </Button>
+          )}
+          {withPassword && onForgotPassword && (
+            <button type="button" onClick={onForgotPassword} className="self-center text-[13px] font-medium text-primary-text hover:underline">
+              Forgot password?
+            </button>
+          )}
+        </form>
+      )}
     </AuthLayout>
   )
 }
