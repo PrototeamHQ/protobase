@@ -32,4 +32,4 @@ Each result is a link: a click or Enter opens the record and closes the list, an
 
 ## Live stories
 
-`pnpm db:up && pnpm --filter erp serve`, then `pnpm storybook`. Storybook proxies `/api` to `PROTOBASE_API` (default `http://localhost:8787`); pick another API in the toolbar. Without a server the stories say so. `pnpm screenshots:live` writes `screenshots/live/`.
+`bun run db:up && bun run --cwd examples/erp serve`, then `bun run storybook`. Storybook proxies `/api` to `PROTOBASE_API` (default `http://localhost:8787`); pick another API in the toolbar. Without a server the stories say so. `bun run screenshots:live` writes `screenshots/live/`.

@@ -6,8 +6,8 @@ description: Ship a project as one bundle folder and run it with the serve runti
 A project ships as one bundle folder; the host runs protobase around it.
 
 ```sh
-pnpm --filter erp protobase build    # the bundle to ship: examples/erp/dist/
-pnpm build:serve                     # the runtime the host carries: dist/protobase-serve.js
+bun run --cwd examples/erp protobase build    # the bundle to ship: examples/erp/dist/
+bun run build:serve                     # the runtime the host carries: dist/protobase-serve.js
 bun --no-install /opt/protobase/protobase-serve.js /app/protobase.config.js   # on the host: the API
 ```
 
@@ -43,7 +43,7 @@ In `protobase-dev`, copy a preset into `/workspace` and `bun install --frozen-lo
 The Dockerfiles are `docker/protobase/Dockerfile` and `docker/protobase-dev/Dockerfile`. To build them from a clone, at the version in `package.json` (whose `@protobase` packages must be on npm, since the presets' `bun.lock` files resolve them there):
 
 ```sh
-pnpm images:context    # dist/images/protobase and dist/images/protobase-dev
+bun run images:context    # dist/images/protobase and dist/images/protobase-dev
 docker build -f docker/protobase/Dockerfile -t protobase dist/images/protobase
 docker build -f docker/protobase-dev/Dockerfile -t protobase-dev dist/images/protobase-dev
 ```

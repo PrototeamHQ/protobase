@@ -17,7 +17,7 @@ npm packages under the `@protobase` scope, all at one version, built from `packa
 - `@protobase/cli`: the `protobase` command (scaffold, doctor, dev, build, serve)
 
 ```sh
-pnpm add @protobase/cli @protobase/schema @protobase/layout @protobase/server @protobase/ui
+bun add @protobase/cli @protobase/schema @protobase/layout @protobase/server @protobase/ui
 ```
 
 The projects a new app starts from (ERP, real estate, from scratch) are not on npm: `bun run presets:write <version> <dir>`

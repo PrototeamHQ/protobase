@@ -7,13 +7,13 @@ A real Postgres 18 database for a rental and property management firm: the owner
 The database sits beside the ERP's in the same Postgres container, as `real_estate`, so both examples work at once.
 
 ```sh
-pnpm db:up                                            # repository root: docker compose up, creates the real_estate database and .env from .env.example
-pnpm --filter real-estate db:migrate
-pnpm --filter real-estate db:seed --scale small       # small | medium | large
-pnpm --filter real-estate test                        # the unit tests next to the config and the seed
+bun run db:up                                            # repository root: docker compose up, creates the real_estate database and .env from .env.example
+bun run --cwd examples/real-estate db:migrate
+bun run --cwd examples/real-estate db:seed --scale small       # small | medium | large
+bun run --cwd examples/real-estate test                        # the unit tests next to the config and the seed
 ```
 
-Other scripts: `db:seed:base` (the amenities and organization 1, named with `--name`: what an app made from the real estate preset starts with), `db:reset` (drop, migrate, seed small), `typecheck`. `pnpm db:down` in the repository root stops the container the ERP shares. The database tests are the repository's `pnpm test:integration`.
+Other scripts: `db:seed:base` (the amenities and organization 1, named with `--name`: what an app made from the real estate preset starts with), `db:reset` (drop, migrate, seed small), `typecheck`. `bun run db:down` in the repository root stops the container the ERP shares. The database tests are the repository's `bun run test:integration`.
 
 Connection string:
 
@@ -57,7 +57,7 @@ Seed consistency: no overlapping leases, payments never exceed their charge, eve
 
 ## Layout
 
-- `db/migrations/NNN_name.sql`: plain SQL, applied in order and recorded in `public.schema_migrations` by `db/migrate.ts`. The database itself comes from its host: `pnpm db:up` here.
+- `db/migrations/NNN_name.sql`: plain SQL, applied in order and recorded in `public.schema_migrations` by `db/migrate.ts`. The database itself comes from its host: `bun run db:up` here.
 - `seed/`: `world.ts` allocates ids per organization, `builders/` rebuild a property, unit, lease, rent ledger or ticket from its ordinal alone, `steps/` stream one module each. `base.ts` is the base seed.
 - `AGENTS.md`: the rules for the assistant that changes an app made from this example, which is also the real estate preset (`packages/presets`; the preset leaves this README out).
 - `config/`: one folder per table (`data.ts`, `ui.ts`), the roles, and the overview page (occupancy, arrears, open tickets).
@@ -76,12 +76,12 @@ A tenant's IBAN is a [sensitive field](https://docs.protobase.net/reference/data
 
 ## Login
 
-`pnpm --filter real-estate auth:migrate` creates Better Auth's tables in the `auth` schema of the real estate database; `pnpm --filter real-estate dev` (http://localhost:5173) or `serve` then needs `BETTER_AUTH_SECRET` in `.env`. Create the first admin with `pnpm --filter real-estate protobase users create you@example.com --role admin --generate-password`. See [Login with Better Auth](https://docs.protobase.net/reference/auth/).
+`bun run --cwd examples/real-estate auth:migrate` creates Better Auth's tables in the `auth` schema of the real estate database; `bun run --cwd examples/real-estate dev` (http://localhost:5173) or `serve` then needs `BETTER_AUTH_SECRET` in `.env`. Create the first admin with `bun run --cwd examples/real-estate protobase users create you@example.com --role admin --generate-password`. See [Login with Better Auth](https://docs.protobase.net/reference/auth/).
 
 ## Serve and deploy
 
 ```sh
-pnpm --filter real-estate serve    # protobase build, then protobase serve dist on port 8787 (PORT)
+bun run --cwd examples/real-estate serve    # protobase build, then protobase serve dist on port 8787 (PORT)
 ```
 
 The ERP's `serve` uses the same port, so run one at a time or set `PORT` in this example's `.env`. Deploying works as for the ERP; see [its README](../erp/README.md#serve-and-deploy) and the [CLI reference](https://docs.protobase.net/reference/cli/#build).

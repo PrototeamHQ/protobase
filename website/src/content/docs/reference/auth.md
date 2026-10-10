@@ -23,7 +23,7 @@ createAuth({ database: { dialect: new PostgresDialect({ pool }), type: 'postgres
 ```
 
 ```sh
-pnpm --filter erp auth:migrate    # creates the auth schema and Better Auth's tables; needs only a role that owns the database; safe to repeat
+bun run --cwd examples/erp auth:migrate    # creates the auth schema and Better Auth's tables; needs only a role that owns the database; safe to repeat
 ```
 
 `ADMIN_DATABASE_URL` puts the `auth` schema in another database instead of `DATABASE_URL`'s. `createAuth` takes a `pg` Pool or `{ dialect, type: 'postgres', schemaName? }` as `database`; without `schemaName` the tables go to the connection's `search_path` (usually `public`).

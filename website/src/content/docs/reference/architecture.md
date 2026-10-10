@@ -3,7 +3,7 @@ title: Architecture
 description: How the packages are laid out, which package may import which, and where tests and stories live.
 ---
 
-A pnpm workspace of npm packages under the `@protobase` scope, in `packages/<name>`, all released together at one version. `examples/*` are workspace members that consume the packages; `website` is this documentation site (Astro with Starlight), also a workspace member. The workspace root is private and is not published.
+A Bun workspace of npm packages under the `@protobase` scope, in `packages/<name>`, all released together at one version. `examples/*` are workspace members that consume the packages; `website` is this documentation site (Astro with Starlight), also a workspace member. The workspace root is private and is not published.
 
 ## Packages
 
@@ -16,14 +16,14 @@ A pnpm workspace of npm packages under the `@protobase` scope, in `packages/<nam
 | `@protobase/ui` | `packages/ui` | `@protobase/ui`; the admin app in `src/app` | browser | `schema`, `layout`, `client` |
 | `@protobase/server` | `packages/server` | `@protobase/server` | server | `schema`, `layout`, `query` |
 | `@protobase/cli` | `packages/cli` | the `protobase` command (`bin/protobase.mjs`) | Node and Bun | `schema`, `layout`, `query`, `server`, `ui` |
-| `@protobase/presets` | `packages/presets` | none: private, `pnpm presets:write` writes a project per preset | Node | none; each preset depends on the `@protobase` packages of the version it is written at |
+| `@protobase/presets` | `packages/presets` | none: private, `bun run presets:write` writes a project per preset | Bun | none; each preset depends on the `@protobase` packages of the version it is written at |
 | `examples/*` | | none | any | `@protobase/*` entry points only |
 
-The presets are written from `examples/erp`, `examples/real-estate` and `examples/scratch` (from scratch) by `pnpm presets:write <version> <dir>`, run from a clone of this repository; they are not on npm. Each is a standalone copy with the `@protobase` packages pinned to `<version>` and its own `bun.lock`. The three declare the same dependencies, so one `node_modules` fits them all, and their `db:migrate`, `auth:migrate`, `typecheck` and `test` scripts take their settings from the environment, or a `.env` beside them, and reach nothing outside the project.
+The presets are written from `examples/erp`, `examples/real-estate` and `examples/scratch` (from scratch) by `bun run presets:write <version> <dir>`, run from a clone of this repository; they are not on npm. Each is a standalone copy with the `@protobase` packages pinned to `<version>` and its own `bun.lock`. The three declare the same dependencies, so one `node_modules` fits them all, and their `db:migrate`, `auth:migrate`, `typecheck` and `test` scripts take their settings from the environment, or a `.env` beside them, and reach nothing outside the project.
 
 The JSX runtime belongs to `@protobase/layout` because a layout file names one package in `@jsxImportSource @protobase/layout`, and TypeScript and Vite look up `jsx-runtime` and `jsx-dev-runtime` under it. Each field type is split along the same lines: its Zod builder is `packages/schema/src/fields/<type>.ts` and its SQL parameter conversion `packages/query/src/fields/<type>.ts`.
 
-Every package lists the packages it imports in its `package.json` (`workspace:*` for its `@protobase` dependencies), so it installs and works on its own. Rules, enforced by `pnpm check:boundaries` (`.dependency-cruiser.cjs`):
+Every package lists the packages it imports in its `package.json` (`workspace:*` for its `@protobase` dependencies), so it installs and works on its own. Rules, enforced by `bun run check:boundaries` (`.dependency-cruiser.cjs`):
 
 - A package imports only the `@protobase` packages in the table above, so `@protobase/ui` never reaches `query`, `server` or `cli`, and `@protobase/layout` only `schema`: layouts are built in the config, checked on the server and rendered in the browser.
 - A package imports another by its name and entry point, never by a path into its source.
@@ -31,14 +31,14 @@ Every package lists the packages it imports in its `package.json` (`workspace:*`
 - Examples, their tests and `test-support/` import the packages by name, never by path.
 - No circular dependencies.
 
-In this repository, entry points export TypeScript source directly and the CLI runs its source on Bun, or on Node through [tsx](https://tsx.is), so nothing needs a build. The published packages are built to JavaScript in `dist` by `pnpm build` and `pnpm pack` (see [CLI](/reference/cli/#how-it-runs)). The other builds are for deployment: the serve runtime, `packages/cli/src/serve/main.ts` bundled with its dependencies into `dist/protobase-serve.js` by `protobase build-serve`, and a project's bundle, its config module plus a production build of the admin app (`packages/ui/src/app`) with the project's `protobase.ui.tsx`, by `protobase build` (see [CLI](/reference/cli/#build)).
+In this repository, entry points export TypeScript source directly and the CLI runs its source on Bun, or on Node through [tsx](https://tsx.is), so nothing needs a build. The published packages are built to JavaScript in `dist` by `bun run build` and `bun pm pack` (`scripts/publish.mjs`) (see [CLI](/reference/cli/#how-it-runs)). The other builds are for deployment: the serve runtime, `packages/cli/src/serve/main.ts` bundled with its dependencies into `dist/protobase-serve.js` by `protobase build-serve`, and a project's bundle, its config module plus a production build of the admin app (`packages/ui/src/app`) with the project's `protobase.ui.tsx`, by `protobase build` (see [CLI](/reference/cli/#build)).
 
 ## Tests and stories
 
 - Unit tests: `*.test.ts` next to the code, run by Vitest in a node environment.
 - Tests that start a database (PGlite or Postgres), a subprocess or the network: `packages/<name>/tests/`, mirroring the source path, and the examples' in `tests/examples/`. The PGlite fixtures and setup they share are in `test-support/` at the root.
 - Stories: `*.stories.tsx` next to the component in `packages/ui/src`; Storybook config lives in `.storybook/`.
-- `pnpm pack` leaves tests, stories and their fixtures out of a package (`files` in its `package.json`).
+- Packing leaves tests, stories and their fixtures out of a package (`files` in its `package.json`).
 
 ## Contract
 
@@ -57,6 +57,6 @@ Filters are Google AIP-160 text. Parsing, printing, `order_by` and the generic c
 
 ## Documentation
 
-`website/` is this site. `pnpm docs:dev` serves it on port 4321; `pnpm docs:build` writes `website/dist/` and fails on a broken internal link or anchor, so CI runs it on every pull request, followed by `pnpm docs:check`, which opens every page in Chromium and fails on a console error or a failed request. Pages are Markdown or MDX in `website/src/content/docs/`, and the sidebar is listed in `website/astro.config.mjs`.
+`website/` is this site. `bun run docs:dev` serves it on port 4321; `bun run docs:build` writes `website/dist/` and fails on a broken internal link or anchor, so CI runs it on every pull request, followed by `bun run docs:check`, which opens every page in Chromium and fails on a console error or a failed request. Pages are Markdown or MDX in `website/src/content/docs/`, and the sidebar is listed in `website/astro.config.mjs`.
 
 Every push to `main` builds the site and deploys it, and so does running the workflow by hand (`gh workflow run docs.yml`); either way it deploys to the Cloudflare Pages project `protobase-docs`, served at `docs.protobase.net` (`.github/workflows/docs.yml`). The workflow reads the Cloudflare account id from the repository variable `CLOUDFLARE_ACCOUNT_ID` and a token with Cloudflare Pages edit permission from the repository secret `CLOUDFLARE_API_TOKEN`.

@@ -47,4 +47,4 @@ The records come from the list API with the caller's token, so they follow the s
 
 `/meta` drops the group, and keeps the rest of `nav`, for a caller who cannot read a field it uses (its status, or a field in its filter or order), so it never names a hidden field.
 
-`EMAIL=... PASSWORD=... node scripts/e2e-shell.mjs` checks the groups and the user menu in a browser against a running `pnpm --filter erp dev` (`BASE` for another address), comparing them with what the API gives that user.
+`EMAIL=... PASSWORD=... bun scripts/e2e-shell.mjs` checks the groups and the user menu in a browser against a running `bun run --cwd examples/erp dev` (`BASE` for another address), comparing them with what the API gives that user.

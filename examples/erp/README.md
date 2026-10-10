@@ -5,13 +5,13 @@ A real Postgres 18 database for the sample ERP: five module schemas plus one leg
 ## Start
 
 ```sh
-pnpm db:up                                    # repository root: docker compose up, waits until healthy; creates .env from .env.example
-pnpm --filter erp db:migrate
-pnpm --filter erp db:seed --scale small       # small | medium | large
-pnpm --filter erp test                        # the unit tests next to the config and the seed
+bun run db:up                                    # repository root: docker compose up, waits until healthy; creates .env from .env.example
+bun run --cwd examples/erp db:migrate
+bun run --cwd examples/erp db:seed --scale small       # small | medium | large
+bun run --cwd examples/erp test                        # the unit tests next to the config and the seed
 ```
 
-Other scripts: `db:seed:base` (the countries, the currencies and organization 1, named with `--name`: what an app made from the ERP preset starts with), `db:reset` (drop, migrate, seed small), `typecheck`. `pnpm db:down` in the repository root stops the container; the `pgdata` volume stays, remove it with `docker compose down -v`. The database tests are the repository's `pnpm test:integration`.
+Other scripts: `db:seed:base` (the countries, the currencies and organization 1, named with `--name`: what an app made from the ERP preset starts with), `db:reset` (drop, migrate, seed small), `typecheck`. `bun run db:down` in the repository root stops the container; the `pgdata` volume stays, remove it with `docker compose down -v`. The database tests are the repository's `bun run test:integration`.
 
 Connection string (port 55432 avoids a local Postgres on 5432):
 
@@ -55,21 +55,21 @@ Seed consistency: an invoice's subtotal equals the sum of its lines and an order
 
 ## Login
 
-`pnpm --filter erp auth:migrate` creates Better Auth's tables in the `auth` schema of the ERP database; `pnpm --filter erp serve` (or `protobase dev`) then needs `BETTER_AUTH_SECRET` in `.env` and serves real sign-in. See [Login with Better Auth](https://docs.protobase.net/reference/auth/). There is no passwordless mode: create the first admin with `protobase users create <email>`, and mint a bearer token for curl with `protobase token <email>`.
+`bun run --cwd examples/erp auth:migrate` creates Better Auth's tables in the `auth` schema of the ERP database; `bun run --cwd examples/erp serve` (or `protobase dev`) then needs `BETTER_AUTH_SECRET` in `.env` and serves real sign-in. See [Login with Better Auth](https://docs.protobase.net/reference/auth/). There is no passwordless mode: create the first admin with `protobase users create <email>`, and mint a bearer token for curl with `protobase token <email>`.
 
 ## Serve and deploy
 
 The ERP has no server code of its own: `protobase.config.ts` exports the config, `auth` and `authenticate`, and protobase serves it.
 
 ```sh
-pnpm --filter erp serve    # protobase build, then protobase serve dist on port 8787 (PORT): the UI and the API, from source
+bun run --cwd examples/erp serve    # protobase build, then protobase serve dist on port 8787 (PORT): the UI and the API, from source
 ```
 
 For a deployment, ship the bundle folder: the host serves its `public/` and runs its config module with the serve runtime under Bun:
 
 ```sh
-pnpm --filter erp build    # examples/erp/dist/: the config module, the UI in public/ and protobase.bundle.json
-pnpm build:serve           # dist/protobase-serve.js at the repository root, the runtime
+bun run --cwd examples/erp build    # examples/erp/dist/: the config module, the UI in public/ and protobase.bundle.json
+bun run build:serve           # dist/protobase-serve.js at the repository root, the runtime
 bun --no-install /opt/protobase/protobase-serve.js /app/protobase.config.js
 ```
 

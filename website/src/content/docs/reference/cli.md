@@ -6,16 +6,18 @@ description: Every protobase command, from scaffold, doctor, dev, build, build-s
 The `protobase` command comes with `@protobase/cli`. Install it in a project next to the packages its config imports:
 
 ```sh
-pnpm add @protobase/cli @protobase/schema @protobase/layout @protobase/server @protobase/ui
-pnpm protobase <command>              # from the project, config folder defaults to ./config
-pnpm --filter erp protobase <command> # in this repository, for an example
+bun add @protobase/cli @protobase/schema @protobase/layout @protobase/server @protobase/ui
+bun run protobase <command>                     # from the project, config folder defaults to ./config
+bun run --cwd examples/erp protobase <command>  # in this repository, for an example
 ```
+
+Any package manager installs the packages, and the command runs on Node or on Bun: `npm install` and `npx protobase <command>` work the same. The bin starts with `#!/usr/bin/env node`, so where Node is installed `bun run protobase` starts it on Node, unless the project's `bunfig.toml` sets `[run] bun = true`, as the presets' does.
 
 ## How it runs
 
-The published `@protobase` packages are JavaScript: each is built with [tsdown](https://tsdown.dev) to ES modules and type declarations in `dist`, one file per source module, and `pnpm pack` points their `exports`, `types` and `bin` at it (`publishConfig`). The installed `protobase` command (`bin/protobase.mjs`) runs `dist` on Node 22.12 or later, or on Bun. The project's own TypeScript is loaded with Vite on both: `users` and `doctor` import it through Vite's module runner, `dev` serves it and `build` bundles it.
+The published `@protobase` packages are JavaScript: each is built with [tsdown](https://tsdown.dev) to ES modules and type declarations in `dist`, one file per source module, and packing them points their `exports`, `types` and `bin` at it (`publishConfig`). The installed `protobase` command (`bin/protobase.mjs`) runs `dist` on Node 22.12 or later, or on Bun. The project's own TypeScript is loaded with Vite on both: `users` and `doctor` import it through Vite's module runner, `dev` serves it and `build` bundles it.
 
-In this repository nothing needs a build: the packages' `exports` point at `src`, and the workspace's `protobase` is `bin/protobase-source.mjs`, which imports `src/index.ts`: Bun loads it itself, Node through [tsx](https://tsx.is). `pnpm build` builds every package to `dist`.
+In this repository nothing needs a build: the packages' `exports` point at `src`, and the workspace's `protobase` is `bin/protobase-source.mjs`, which imports `src/index.ts`: Bun loads it itself, Node through [tsx](https://tsx.is). `bun run build` builds every package to `dist`.
 
 The serve runtime is bundled by `protobase build-serve` into one JavaScript file for Bun, so production needs neither `node_modules` nor the CLI (see [serve](#serve)).
 
@@ -85,7 +87,7 @@ Exit code is 1 when there are errors.
 ## `dev`
 
 ```sh
-protobase dev [--port 5173] [--env DATABASE_URL] [--cache-dir <dir>] [--allowed-hosts <hosts>]   # run inside a project, e.g. pnpm --filter erp dev
+protobase dev [--port 5173] [--env DATABASE_URL] [--cache-dir <dir>] [--allowed-hosts <hosts>]   # run inside a project, e.g. bun run --cwd examples/erp dev
 ```
 
 One process, one port: Vite serves the admin app from `@protobase/ui`'s `src/app/` (`dist/app/` when installed; `index.html` and `main.tsx`, or `main.js`; the command fails with a clear message when they are missing) and `@hono/vite-dev-server` mounts the Hono app from `createAdmin` under `/api`. Open `http://localhost:<port>`; the API reference is at `/api/docs`.
@@ -112,7 +114,7 @@ One process, one port: Vite serves the admin app from `@protobase/ui`'s `src/app
 ## `build`
 
 ```sh
-protobase build [--out dist] [--bun]   # run inside a project, e.g. pnpm --filter erp protobase build
+protobase build [--out dist] [--bun]   # run inside a project, e.g. bun run --cwd examples/erp protobase build
 ```
 
 Writes the project's deploy bundle, the folder a deployment ships:
@@ -225,7 +227,7 @@ docker run --rm -p 8787:8787 -e DATABASE_URL -e BETTER_AUTH_SECRET \
 ## `build-serve`
 
 ```sh
-protobase build-serve [--out dist/protobase-serve.js] [--bun]   # or, in this repository: pnpm build:serve
+protobase build-serve [--out dist/protobase-serve.js] [--bun]   # or, in this repository: bun run build:serve
 ```
 
 Bundles the serve runtime (`@protobase/cli`'s `src/serve/main.ts`) and all its dependencies into one file, about 3 MB. A host needs Bun and this file, nothing else. `--bun` has Bun's bundler write the file, as for [`build`](#build), and needs `bun` on `PATH`; the `protobase` image is built from such a file. The file carries the Protobase version it was built from, which decides [the bundles it serves](/reference/versioning/#bundles-and-runtimes).
@@ -234,8 +236,8 @@ Bundles the serve runtime (`@protobase/cli`'s `src/serve/main.ts`) and all its d
 
 ```sh
 bun --no-install protobase-serve.js <bundle>/protobase.config.js   # production, under Bun: the API
-protobase serve <bundle>/protobase.config.js                       # the same, under Node
-protobase serve <bundle>                                           # the whole bundle as a host serves it, e.g. pnpm --filter erp serve
+protobase serve <bundle>/protobase.config.js                       # the same, with the CLI on Node or Bun
+protobase serve <bundle>                                           # the whole bundle as a host serves it, e.g. bun run --cwd examples/erp serve
 ```
 
 Serves the API of a bundle from `protobase build` and owns the process around it. Given the bundle folder, `protobase serve` also serves its UI by [the manifest's rules](#the-manifest), so a bundle can be checked locally exactly as the host will serve it.
@@ -255,7 +257,7 @@ Better Auth and other settings are the project's own variables (`BETTER_AUTH_SEC
 - **Version:** before loading the config module, the runtime reads `protobase.bundle.json` beside it and refuses a bundle built by a Protobase version it does not serve, or one without a version, with an error naming both versions (see [Versioning](/reference/versioning/#bundles-and-runtimes)). A config module needs its manifest beside it.
 - **Startup:** a bundle without a default export, `config` or `authenticate`, or with an `options.basePath` other than `/api/v1`, stops startup with a one-line error and exit code 1, as does a missing `DATABASE_URL` or a taken port. `protobase serve listening on port <port>` means it is ready.
 - **Shutdown:** the first SIGTERM or SIGINT stops accepting connections, waits for open requests, drains the pool `serve` created (a `db` the config exports is the project's to close) and exits with 0.
-- **Host modules:** under Bun, the runtime registers [the modules it supplies](#the-config-module) as virtual modules, so the bundle needs no `node_modules` for them. Under Node, `protobase serve` resolves them from the `node_modules` next to the bundle, so keep the bundle inside the project. Native packages load from the bundle's own `node_modules/` under both.
+- **Host modules:** under Bun, the runtime registers [the modules it supplies](#the-config-module) as virtual modules, so the bundle needs no `node_modules` for them. `protobase serve`, on Node or Bun, resolves them from the `node_modules` next to the bundle, so keep the bundle inside the project. Native packages load from the bundle's own `node_modules/` under both.
 - **Read-only hosts:** nothing is written: no install (`--no-install`), and for a bundle built with `--bun` no transpiling and so no transpiler cache. A bundle with `node_modules/` needs its folder mounted without `noexec`, since its add-ons are mapped as executable code.
 
 ## `users`
@@ -290,10 +292,10 @@ curl -H "Authorization: Bearer $(protobase token me@x)" http://localhost:5173/ap
 ## ERP example
 
 ```sh
-pnpm db:up && pnpm --filter erp db:migrate && pnpm --filter erp db:seed --scale small
-pnpm --filter erp protobase scaffold postgres://protobase:protobase@localhost:55432/protobase \
+bun run db:up && bun run --cwd examples/erp db:migrate && bun run --cwd examples/erp db:seed --scale small
+bun run --cwd examples/erp protobase scaffold postgres://protobase:protobase@localhost:55432/protobase \
   --yes --ui --exclude auth --exclude public.schema_migrations --exclude public.seed_info
-pnpm --filter erp protobase doctor postgres://protobase:protobase@localhost:55432/protobase
+bun run --cwd examples/erp protobase doctor postgres://protobase:protobase@localhost:55432/protobase
 ```
 
 Always pass `--exclude auth`: the ERP keeps Better Auth's users, sessions and signing keys in the `auth` schema of the same database, and scaffolding them would expose credentials through the admin API.
