@@ -189,7 +189,8 @@ export const StaffSession: StoryObj = {
 
 /** The banner's button ends the staff session: back to the sign-in page, without the banner. */
 export const StopStaffSession: StoryObj = {
-  ...StaffSession,
+  tags: ['play'],
+  render: StaffSession.render,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
     const banner = await canvas.findByRole('region', { name: 'Staff session' })
