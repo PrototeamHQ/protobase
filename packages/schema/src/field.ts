@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import type { FieldAccess } from './access/types'
 import type { FieldType } from './model'
+import type { FileOptions } from './files/file-options'
 
 export type Constraint = 'min' | 'max' | 'regex'
 
@@ -24,6 +25,7 @@ export type FieldMeta = {
   min?: number
   max?: number
   regex?: { re: RegExp; message: string }
+  file?: FileOptions
 }
 
 export type FieldTypeDef = {
@@ -44,7 +46,8 @@ export class Field<V> {
     let schema = def.build(meta)
     if (meta.nullable) schema = schema.nullable()
     if (meta.hasDefault) schema = schema.default(meta.defaultValue as never)
-    this.schema = schema.register(fieldRegistry, meta) as z.ZodType<V>
+    // Zod maps the meta type member by member, which a file field's processor functions do not survive
+    this.schema = schema.register(fieldRegistry, meta as never) as z.ZodType<V>
   }
 
   column(name: string) {

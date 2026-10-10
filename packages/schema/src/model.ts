@@ -17,7 +17,11 @@ export type FieldModel = {
   sensitive?: true
   /** A value the form prefills, or `db` when the database supplies it (identity, now(), ...). */
   default?: { value: unknown } | { db: true }
+  /** A file field's allowed types (empty: any), largest upload in bytes, provider, and the fields `.derive()` writes. */
+  file?: FileFieldModel
 }
+
+export type FileFieldModel = { accept: string[]; maxSize: number; provider: string; derive?: string[] }
 
 /** `digitsEnd`: only the end of the value's digits, spaces, `+` and dashes ignored (phone numbers). */
 export type SearchMatch = 'digitsEnd'

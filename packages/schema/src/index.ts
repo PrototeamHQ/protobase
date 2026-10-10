@@ -1,6 +1,7 @@
 export type {
   FieldType,
   FieldModel,
+  FileFieldModel,
   ResourceModel,
   SearchMatch,
   SortSpec,
@@ -53,6 +54,8 @@ export { encodeKey, decodeKey, keyTypes } from './keys'
 export type { KeyType } from './keys'
 export type { InferRecord, RecordKey } from './resource-types'
 export type { Field } from './field'
+export type { FileField } from './file-field'
+export { checkedAccept, checkedProvider, parseSize, type FileProcessor, type FileProcessorInput } from './files/file-options'
 export {
   parseFilter,
   checkFilter,

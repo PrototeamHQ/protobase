@@ -41,6 +41,14 @@ const fieldModel = (name: string, field: AnyField): FieldModel => {
     ...(meta.relation && {
       relation: { resource: meta.relation.resource, columns: meta.relation.columns ?? [column] },
     }),
+    ...(meta.file && {
+      file: {
+        accept: [...meta.file.accept],
+        maxSize: meta.file.maxSize,
+        provider: meta.file.provider,
+        ...(meta.file.derive && Object.keys(meta.file.derive).length > 0 && { derive: Object.keys(meta.file.derive) }),
+      },
+    }),
   }
 }
 
@@ -78,9 +86,29 @@ const sensitiveProblems = (model: ResourceModel) =>
       ...([...model.primaryKey, model.tenant, model.owner, model.softDelete].includes(field.name) ? ['a key, tenant, owner or soft delete field'] : []),
     ].map((problem) => `sensitive field "${field.name}" cannot be ${problem}`))
 
+// A file value is opaque text the server writes: never a key, a filter, a sort or a search, and its derived fields are
+// read-only fields of the same resource that are no files themselves.
+const fileProblems = (model: ResourceModel) =>
+  Object.values(model.fields)
+    .filter((field) => field.file)
+    .flatMap((field) => [
+      ...(field.filterable ? ['cannot be filterable'] : []),
+      ...(field.sortable ? ['cannot be sortable'] : []),
+      ...(field.aliases.length > 0 ? ['cannot be aliased'] : []),
+      ...(field.sensitive ? ['cannot be sensitive (not implemented)'] : []),
+      ...(model.search?.includes(field.name) ? ['cannot be searched'] : []),
+      ...([...model.primaryKey, model.tenant, model.owner, model.softDelete].includes(field.name) ? ['cannot be a key, tenant, owner or soft delete field'] : []),
+      ...(field.file!.derive ?? []).flatMap((target) => {
+        const derived = Object.hasOwn(model.fields, target) ? model.fields[target]! : undefined
+        if (!derived) return [`derives "${target}", which is not a field`]
+        if (target === field.name || derived.file) return [`derives "${target}", which is a file field`]
+        return derived.readOnly ? [] : [`derives "${target}", which must be readOnly()`]
+      }),
+    ].map((problem) => `file field "${field.name}" ${problem}`))
+
 export const buildResourceModel = (state: ResourceState): ResourceModel => {
   const model = assembleModel(state)
-  const problems = sensitiveProblems(model)
+  const problems = [...sensitiveProblems(model), ...fileProblems(model)]
   if (problems.length > 0) throw new Error(`Resource "${model.name}": ${problems.join('; ')}`)
   return model
 }
