@@ -22,3 +22,4 @@ export type {
   BatchResult,
 } from './types'
 export { createAuthSession, createStaticSession, AuthError, tokenExpiry, type AuthSession, type AuthSessionOptions, type AuthUser, type SetupStatus } from './auth'
+export { createAssistantClient, type AssistantClient, type AssistantClientOptions, type AssistantConnection } from './assistant'
