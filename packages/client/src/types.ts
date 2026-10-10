@@ -44,7 +44,8 @@ export type Histogram = { min: number | null; max: number | null; buckets: Histo
 /** What the signed-in user may do with a resource; `conditional` operations are decided per record by the server. */
 export type ResourcePermissions = { read?: boolean; create: boolean; update: boolean; delete: boolean; conditional: Array<'create' | 'update' | 'delete'> }
 
-export type Meta = { resources: ResourceModel[]; views: ViewModel[]; pages?: PageModel[]; permissions?: Record<string, ResourcePermissions>; userMenu?: UserMenuModel }
+/** `assistant`: the assistant backend, for a caller with the `admin` or `ai` role when the app has one. */
+export type Meta = { resources: ResourceModel[]; views: ViewModel[]; pages?: PageModel[]; permissions?: Record<string, ResourcePermissions>; userMenu?: UserMenuModel; assistant?: { url: string } }
 
 export type MetaResult = { status: 'modified'; meta: Meta; etag: string } | { status: 'unchanged' }
 

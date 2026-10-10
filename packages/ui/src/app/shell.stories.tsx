@@ -2,9 +2,10 @@ import type { Meta, StoryObj } from '@storybook/react-vite'
 import { expect, userEvent, within } from 'storybook/test'
 import { createStaticSession } from '@protobase/client'
 import { navOpenStorageKey } from '../app-shell/nav-open-storage'
-import { AssistantDock } from '../assistant-dock'
 import { Button } from '../primitives/button'
+import { SidePanel } from '../side-panel'
 import { App } from './app'
+import { fakeAssistant } from './testing/fake-assistant'
 import { fakeClient } from './testing/fake-client'
 
 const meta = { title: 'Shell', parameters: { layout: 'fullscreen' } } satisfies Meta
@@ -51,7 +52,7 @@ export const RecentAndUserMenu: StoryObj = {
   },
 }
 
-/** The project's `shell` slots from `protobase.ui.tsx`: a top-bar action, and the assistant dock as the right panel. */
+/** The project's `shell` slots from `protobase.ui.tsx`: a top-bar action, and a side panel as the right panel. */
 export const ProjectShellSlots: StoryObj = {
   tags: ['play'],
   render: () => (
@@ -60,15 +61,35 @@ export const ProjectShellSlots: StoryObj = {
         client={fakeClient({ permissions: allowed })}
         auth={session}
         initialUrl="/orders"
-        ui={{ shell: { actions: () => <Button size="sm">Assistant</Button>, rightPanel: () => <AssistantDock items={[]} balance={12} /> } }}
+        ui={{ shell: { actions: () => <Button size="sm">Notes</Button>, rightPanel: () => <SidePanel title="Notes"><p className="p-4 text-[13px]">Pinned notes for this team.</p></SidePanel> } }}
       />
     </div>
   ),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
-    await canvas.findByRole('button', { name: 'Assistant' })
+    await canvas.findByRole('button', { name: 'Notes' })
+    within(canvas.getByRole('complementary', { name: 'Notes' })).getByText('Pinned notes for this team.')
+    expect(canvas.queryByRole('button', { name: 'Assistant' })).toBeNull()
+  },
+}
+
+/** `/meta` names an assistant (for an admin or ai user): the top bar gets an Assistant button that opens the dock. */
+export const Assistant: StoryObj = {
+  tags: ['play'],
+  render: () => (
+    <div className="h-screen">
+      <App client={fakeClient({ permissions: allowed, assistant: { url: '/api/assistant' } })} auth={session} initialUrl="/orders" assistant={fakeAssistant({ delayMs: 50 })} />
+    </div>
+  ),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    const button = await canvas.findByRole('button', { name: 'Assistant' })
+    expect(canvas.queryByRole('complementary', { name: 'Assistant' })).toBeNull()
+    await userEvent.click(button)
     const dock = canvas.getByRole('complementary', { name: 'Assistant' })
-    within(dock).getByText('12 credits')
-    expect(within(dock).getByRole('textbox', { name: 'Message' })).toBeEnabled()
+    await userEvent.type(within(dock).getByRole('textbox', { name: 'Message' }), 'Add a discount to invoices{Enter}')
+    await within(dock).findByRole('button', { name: 'Approve' })
+    await userEvent.click(within(dock).getByRole('button', { name: 'Close' }))
+    expect(canvas.queryByRole('complementary', { name: 'Assistant' })).toBeNull()
   },
 }

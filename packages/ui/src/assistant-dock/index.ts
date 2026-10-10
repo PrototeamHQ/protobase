@@ -1,2 +1,4 @@
 export { AssistantDock, type AssistantDockProps } from './assistant-dock'
-export type { DockItem, JobResult, Plan, PlanSize, QueryResult } from './model'
+export { PartView } from './part-view'
+export { useAssistant } from './use-assistant'
+export { useAssistantClient } from './use-assistant-client'

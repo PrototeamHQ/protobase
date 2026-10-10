@@ -10,6 +10,8 @@ export type MetaData = {
   pages: Record<string, PageModel>
   permissions: Record<string, ResourcePermissions>
   userMenu?: UserMenuModel
+  /** The assistant backend, when the app has one and the user has the admin or ai role. */
+  assistant?: { url: string }
 }
 
 export const allowEverything: ResourcePermissions = { create: true, update: true, delete: true, conditional: [] }

@@ -1,5 +1,5 @@
-import { useEffect } from 'react'
-import type { AuthSession, Client } from '@protobase/client'
+import { useEffect, useState } from 'react'
+import type { AssistantClient, AuthSession, Client } from '@protobase/client'
 import { AppShell, type SidebarMode } from '../app-shell'
 import { ApiProvider } from '../data/api-provider'
 import { AuthGate, AuthProvider, userToShell, useAuth } from '../auth'
@@ -7,6 +7,7 @@ import { useRecord } from '../data/use-record'
 import { recordTitle } from '../live/model-helpers'
 import { humanize } from '../live/naming'
 import { ToastProvider } from '../toasts'
+import { AssistantButton, AssistantPanel } from './assistant-shell'
 import { breadcrumbFor } from './breadcrumb-for'
 import { CreatePage } from './create/create-page'
 import { ListPage } from './list-page'
@@ -35,9 +36,11 @@ export type AppProps = {
   sidebarMode?: SidebarMode
   /** The project's React code for composed pages: custom components and action handlers (`protobase.ui.tsx`). */
   ui?: ProjectUi
+  /** A ready-made client of the assistant backend, for stories and tests; used only when `/meta` names an assistant. */
+  assistant?: AssistantClient
 }
 
-const Routes = ({ workspace, sidebarMode }: Pick<AppProps, 'workspace' | 'sidebarMode'>) => {
+const Routes = ({ workspace, sidebarMode, assistant }: Pick<AppProps, 'workspace' | 'sidebarMode' | 'assistant'>) => {
   const meta = useAdminMeta()
   const { state, signOut } = useAuth()
   if (state.kind !== 'signed-in') throw new Error('The shell is only rendered for a signed-in user')
@@ -65,6 +68,11 @@ const Routes = ({ workspace, sidebarMode }: Pick<AppProps, 'workspace' | 'sideba
   const { shell } = useProjectUi()
   const Actions = shell?.actions
   const RightPanel = shell?.rightPanel
+  // The assistant is there when `/meta` names one, which it does only for the admin and ai roles.
+  const [assistantOpen, setAssistantOpen] = useState(false)
+  const assistantUrl = meta.assistant?.url
+  const assistantButton = assistantUrl && <AssistantButton open={assistantOpen} onToggle={() => setAssistantOpen(!assistantOpen)} />
+  const assistantPanel = assistantUrl && assistantOpen && <AssistantPanel url={assistantUrl} client={assistant} onClose={() => setAssistantOpen(false)} />
   const breadcrumb = breadcrumbFor({ basePath, route, group: group?.label, page, resourceLabel: view?.names?.plural ?? (route.resource && humanize(route.resource)), recordTitle: title })
 
   return (
@@ -79,15 +87,15 @@ const Routes = ({ workspace, sidebarMode }: Pick<AppProps, 'workspace' | 'sideba
       userMenu={userMenuFromMeta(meta, basePath, route.resource)}
       onNavigate={open}
       search={search.available ? { placeholder: search.placeholder, text: search.text, onTextChange: search.setText, query: search.query, loading: search.loading, groups: search.groups, onSelect: open } : undefined}
-      actions={Actions && <Actions />}
-      rightPanel={RightPanel && <RightPanel />}
+      actions={(Actions || assistantButton) && <>{Actions && <Actions />}{assistantButton}</>}
+      rightPanel={(RightPanel || assistantPanel) && <>{RightPanel && <RightPanel />}{assistantPanel}</>}
     >
       {!route.resource ? <Notice title="Choose a resource">Pick one from the sidebar.</Notice> : page ? <ComposedPage key={page.name} name={page.name} /> : route.key === 'new' ? <CreatePage key={`${route.resource}/new`} resource={route.resource} /> : route.key ? <RecordPage key={`${route.resource}/${route.key}`} resource={route.resource} recordKey={route.key} /> : <ListPage key={route.resource} resource={route.resource} />}
     </AppShell>
   )
 }
 
-const Authenticated = ({ baseUrl, client, basePath, initialUrl, workspace, sidebarMode, ui }: Omit<AppProps, 'auth'>) => {
+const Authenticated = ({ baseUrl, client, basePath, initialUrl, workspace, sidebarMode, ui, assistant }: Omit<AppProps, 'auth'>) => {
   const { session, markSignedOut } = useAuth()
   return (
     <ApiProvider baseUrl={baseUrl} client={client} token={session.token} onUnauthenticated={markSignedOut}>
@@ -95,7 +103,7 @@ const Authenticated = ({ baseUrl, client, basePath, initialUrl, workspace, sideb
         <MetaGate>
           <ToastProvider>
             <ProjectUiProvider ui={ui}>
-              <Routes workspace={workspace} sidebarMode={sidebarMode} />
+              <Routes workspace={workspace} sidebarMode={sidebarMode} assistant={assistant} />
             </ProjectUiProvider>
           </ToastProvider>
         </MetaGate>

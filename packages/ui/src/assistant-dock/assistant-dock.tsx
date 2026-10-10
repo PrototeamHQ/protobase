@@ -1,60 +1,50 @@
-import { Sparkles, X } from 'lucide-react'
-import { useEffect, useRef, useState } from 'react'
-import { Button } from '../primitives/button'
-import { Composer } from './composer'
-import { DockItemView, type DockItemHandlers } from './dock-item'
-import { formatCredits, type DockItem } from './model'
+import { Sparkles } from 'lucide-react'
+import { useEffect, useRef } from 'react'
+import type { AssistantState } from '@protobase/schema'
+import { ChatMessage, ChatThread, Composer } from '../chat'
+import { SidePanel } from '../side-panel'
+import { PartView } from './part-view'
 
-export type AssistantDockProps = DockItemHandlers & {
-  /** The chat in order: messages and the cards of its tasks and queries. */
-  items: DockItem[]
-  /** The organization's credits; Approve needs the plan's quote. */
-  balance: number
-  replying?: boolean
+export type AssistantDockProps = {
+  state: AssistantState
+  /** The connection to the backend is down and being retried. */
+  offline?: boolean
+  /** Why the last message or click was not delivered. */
+  error?: string
   onSend?: (text: string) => void
+  onAction?: (partId: string, actionId: string) => void
   onClose?: () => void
 }
 
-/** The assistant beside the app: chat, plans to approve, the queue, progress, results and query tables. */
-export const AssistantDock = ({ items, balance, replying, onSend, onClose, onRequestChanges, ...handlers }: AssistantDockProps) => {
-  const list = useRef<HTMLDivElement>(null)
+const defaultPlaceholder = 'Ask a question...'
+
+/** The assistant beside the app: renders a backend's chat, its cards and status line, and sends messages and clicks back. */
+export const AssistantDock = ({ state, offline, error, onSend, onAction, onClose }: AssistantDockProps) => {
   const input = useRef<HTMLInputElement>(null)
-  const [revising, setRevising] = useState(false)
-
   useEffect(() => {
-    const element = list.current
-    if (element) element.scrollTop = element.scrollHeight
-  }, [items.length])
-
-  const requestChanges = (taskId: string) => {
-    setRevising(true)
-    input.current?.focus()
-    onRequestChanges?.(taskId)
-  }
-  const send = (text: string) => {
-    setRevising(false)
-    onSend?.(text)
-  }
+    if (state.placeholder) input.current?.focus()
+  }, [state.placeholder])
 
   return (
-    <aside aria-label="Assistant" className="flex h-full w-[380px] max-w-full shrink-0 flex-col border-l border-border bg-surface">
-      <header className="flex h-12 shrink-0 items-center gap-2 border-b border-border bg-background px-4">
-        <Sparkles className="size-4 text-primary" />
-        <h2 className="flex-1 text-[13px] font-semibold">Assistant</h2>
-        <span className="text-xs font-medium text-muted-foreground">{formatCredits(balance)}</span>
-        {onClose && (
-          <Button variant="ghost" size="sm" className="w-7 px-0" aria-label="Close" onClick={onClose}>
-            <X className="size-4" />
-          </Button>
-        )}
-      </header>
-      <div ref={list} className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-4">
-        {items.length === 0 && <p className="m-auto max-w-60 text-center text-[13px] text-muted-foreground">Ask for a change to this app, or a question about its data.</p>}
-        {items.map((item) => <DockItemView key={item.id} item={item} balance={balance} handlers={{ ...handlers, onRequestChanges: requestChanges }} />)}
-      </div>
-      <footer className="shrink-0 border-t border-border bg-background p-3">
-        <Composer inputRef={input} onSend={send} replying={replying} placeholder={revising ? 'What should change in the plan?' : 'Ask for a change or about your data...'} />
-      </footer>
-    </aside>
+    <SidePanel
+      title="Assistant"
+      icon={<Sparkles className="size-4 text-primary" />}
+      status={offline ? 'Reconnecting...' : state.status}
+      onClose={onClose}
+      footer={
+        <>
+          {error && <p role="alert" className="text-xs text-danger-text">{error}</p>}
+          <Composer inputRef={input} onSend={onSend} busy={state.replying} placeholder={state.placeholder ?? defaultPlaceholder} />
+        </>
+      }
+    >
+      <ChatThread length={state.messages.reduce((sum, message) => sum + message.parts.length, 0)} empty="Ask a question about this app or its data.">
+        {state.messages.map((message) => (
+          <ChatMessage key={message.id} from={message.from}>
+            {message.parts.map((part) => <PartView key={part.id} part={part} onAction={onAction} />)}
+          </ChatMessage>
+        ))}
+      </ChatThread>
+    </SidePanel>
   )
 }

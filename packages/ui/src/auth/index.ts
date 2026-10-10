@@ -8,3 +8,4 @@ export { ResetPasswordForm, type ResetPasswordFormProps } from './reset-password
 export { ResetPasswordPage, resetPasswordMessage, type ResetPasswordPageProps } from './reset-password-page'
 export { FirstRunPage, createAdminCommand, type FirstRunPageProps } from './first-run-page'
 export { userToShell } from './user-to-shell'
+export { useApiToken } from './use-api-token'

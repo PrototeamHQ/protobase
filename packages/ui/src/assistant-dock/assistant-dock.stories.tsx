@@ -1,54 +1,39 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
-import { expect, fn, userEvent, within } from 'storybook/test'
+import { useState } from 'react'
+import { expect, fn, userEvent, waitFor, within } from 'storybook/test'
+import { fakeAssistant } from '../app/testing/fake-assistant'
 import { AssistantDock } from './assistant-dock'
-import { conversation, live, plan, request } from './fixtures'
+import { conversation } from './fixtures'
+import { useAssistant } from './use-assistant'
 
 const meta = {
-  title: 'Assistant/Dock',
+  title: 'Components/AssistantDock',
   component: AssistantDock,
   parameters: { layout: 'fullscreen' },
-  args: { items: conversation, balance: 12, onSend: fn(), onClose: fn(), onApprove: fn(), onRequestChanges: fn(), onCancel: fn(), onUpdatePlan: fn() },
+  args: { state: conversation, onSend: fn(), onAction: fn(), onClose: fn() },
   decorators: [(Story) => <div className="flex h-[760px] justify-end bg-background"><Story /></div>],
 } satisfies Meta<typeof AssistantDock>
 
 export default meta
 type Story = StoryObj<typeof meta>
 
-export const Empty: Story = { args: { items: [] } }
-
-/** A query, a plan that holds up the queue, and the task waiting behind it. */
+/** A query result as a table, and a proposal-like card with two buttons, all generic parts from the backend. */
 export const Conversation: Story = {
   tags: ['play'],
   play: async ({ canvasElement, args }) => {
     const canvas = within(canvasElement)
-    const message = canvas.getByRole('textbox', { name: 'Message' })
-    expect(canvas.getByRole('button', { name: 'Send' })).toBeDisabled()
-
-    await userEvent.click(canvas.getByRole('button', { name: 'Ask for changes' }))
-    expect(args.onRequestChanges).toHaveBeenCalledWith('t7')
-    expect(message).toHaveFocus()
-    expect(message).toHaveAttribute('placeholder', 'What should change in the plan?')
-
-    await userEvent.type(message, 'Cap the discount at 20%{Enter}')
-    expect(args.onSend).toHaveBeenCalledWith('Cap the discount at 20%')
-    expect(message).toHaveValue('')
-    expect(message).toHaveAttribute('placeholder', 'Ask for a change or about your data...')
+    canvas.getByText('Example backend')
+    await userEvent.click(canvas.getByRole('button', { name: 'Approve' }))
+    expect(args.onAction).toHaveBeenCalledWith('proposal-1', 'approve')
   },
 }
 
-/** The balance is below the plan's quote. */
-export const LowBalance: Story = {
-  tags: ['play'],
-  args: { balance: 2 },
-  play: async ({ canvasElement }) => {
-    expect(within(canvasElement).getByRole('button', { name: 'Approve · 3 credits' })).toBeDisabled()
-  },
-}
+export const Empty: Story = { args: { state: { messages: [], replying: false } } }
 
-/** The model is replying: a message can be written but not sent. */
+/** The backend is answering: a message can be written but not sent. */
 export const Replying: Story = {
   tags: ['play'],
-  args: { replying: true, items: [{ kind: 'user', id: 'm1', text: request }] },
+  args: { state: { ...conversation, replying: true } },
   play: async ({ canvasElement, args }) => {
     const canvas = within(canvasElement)
     await userEvent.type(canvas.getByRole('textbox', { name: 'Message' }), 'And the record view{Enter}')
@@ -57,24 +42,43 @@ export const Replying: Story = {
   },
 }
 
-export const Running: Story = {
+export const Offline: Story = { args: { offline: true } }
+
+export const NotDelivered: Story = { args: { error: 'The assistant is still answering' } }
+
+/** A failure the backend reports as a danger card. */
+export const Failed: Story = {
   args: {
-    items: [
-      { kind: 'user', id: 'm1', text: request },
-      { kind: 'plan', id: 'p1', plan: { ...plan, status: 'approved' } },
-      { kind: 'progress', id: 'r1', taskId: 't7', phase: 'running', steps: [{ label: 'Added a discount column (migration)', state: 'done' }, { label: 'Adding discount to the invoice list', state: 'running' }] },
-    ],
+    state: {
+      replying: false,
+      messages: [
+        { id: 'm1', from: 'user', parts: [{ type: 'text', id: 'm1-text', text: 'How many orders shipped today?' }] },
+        { id: 'm2', from: 'assistant', parts: [{ type: 'card', id: 'm2-error', tone: 'danger', title: 'The assistant could not answer', body: 'The model endpoint answered 401: No auth credentials found (check the API key)' }] },
+      ],
+    },
   },
 }
 
-export const Done: Story = {
-  args: {
-    balance: 9,
-    items: [
-      { kind: 'user', id: 'm1', text: request },
-      { kind: 'plan', id: 'p1', plan: { ...plan, status: 'approved' } },
-      { kind: 'result', id: 'j1', result: live },
-      { kind: 'assistant', id: 'm2', text: 'The discount is live. Open an invoice to set it.' },
-    ],
+const Live = () => {
+  const [backend] = useState(() => fakeAssistant({ delayMs: 50 }))
+  const { state, offline, error, send, act } = useAssistant(backend)
+  return <AssistantDock state={state} offline={offline} error={error} onSend={send} onAction={act} />
+}
+
+/** Against the in-memory fake backend: a message gets a proposal card; Ask for changes sets the composer, Approve applies it. */
+export const AgainstFakeBackend: Story = {
+  tags: ['play'],
+  render: () => <Live />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    const box = canvas.getByRole('textbox', { name: 'Message' })
+    await userEvent.type(box, 'Add a discount to invoices{Enter}')
+    const card = await canvas.findByRole('region', { name: 'Add a discount to invoices' })
+    await userEvent.click(within(card).getByRole('button', { name: 'Ask for changes' }))
+    await waitFor(() => expect(box).toHaveAttribute('placeholder', 'What should change in the proposal?'))
+    expect(box).toHaveFocus()
+    await userEvent.click(within(card).getByRole('button', { name: 'Approve' }))
+    await within(card).findByText('Approved. The change is applied.')
+    expect(within(card).queryByRole('button', { name: 'Approve' })).toBeNull()
   },
 }

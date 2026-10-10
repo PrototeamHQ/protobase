@@ -22,12 +22,14 @@ export type FakeClientOptions = {
   /** The orders view's sidebar placement, for example a `recent` group. */
   nav?: NavModel
   userMenu?: UserMenuModel
+  /** What `/meta` says of the assistant. */
+  assistant?: { url: string }
 }
 
 /** A server with one resource, for stories and tests that need permissions or failures the real ERP cannot give. */
-export const fakeClient = ({ permissions, remove, nav, userMenu }: FakeClientOptions) =>
+export const fakeClient = ({ permissions, remove, nav, userMenu, assistant }: FakeClientOptions) =>
   ({
-    meta: async () => ({ status: 'modified' as const, etag: '"meta"', meta: { resources: [orders], views: [{ ...ordersView, ...(nav && { nav }) }], permissions: { orders: permissions }, ...(userMenu && { userMenu }) } }),
+    meta: async () => ({ status: 'modified' as const, etag: '"meta"', meta: { resources: [orders], views: [{ ...ordersView, ...(nav && { nav }) }], permissions: { orders: permissions }, ...(userMenu && { userMenu }), ...(assistant && { assistant }) } }),
     list: async () => ({ items: rows, nextPageToken: '', totalSizeEstimate: rows.length }),
     get: async (_resource: string, key: string) => ({ record: rows.find((row) => row.id === key) ?? rows[0]!, etag: rows.find((row) => row.id === key)?.etag ?? '"v1"' }),
     remove: async (_resource: string, key: string, options?: { etag?: string }) => remove?.(key, options?.etag),
