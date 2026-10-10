@@ -32,7 +32,7 @@ Every release pushes two public images to GitHub's registry, for `linux/amd64` a
 | Image | What it holds |
 | --- | --- |
 | `ghcr.io/prototeamhq/protobase:<version>` | the serve runtime, compiled with Bun into `/opt/protobase/protobase-serve`, which serves the API of the bundle mounted at `/app`; Bun for its healthcheck on `/health`, and the C++ runtime native add-ons link. It runs as `nonroot` (65532) and writes nothing, so it runs with a read-only root filesystem |
-| `ghcr.io/prototeamhq/protobase-dev:<version>` | Node 22, Bun and the presets at `/opt/protobase/presets/<name>` (`erp`, `real-estate`, `scratch`), with the dependencies they share installed in `/workspace` and Bun's cache in `/opt/bun-cache`. It runs as `node` (1000) |
+| `ghcr.io/prototeamhq/protobase-dev:<version>` | Bun and the presets at `/opt/protobase/presets/<name>` (`erp`, `real-estate`, `scratch`), with the dependencies they share installed in `/workspace` and Bun's cache in `/opt/bun-cache`. It has no Node: the presets' scripts and the `protobase` command run on Bun. It runs as `bun` (1000) |
 
 ```sh
 docker run -v "$PWD/dist:/app:ro" -p 8787:8787 -e DATABASE_URL -e BETTER_AUTH_SECRET ghcr.io/prototeamhq/protobase:0.2.0

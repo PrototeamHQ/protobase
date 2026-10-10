@@ -25,7 +25,7 @@ writes them from a clone of this repository, each with the `@protobase` packages
 `bun.lock`.
 
 Every release also pushes two images to GitHub's registry: `ghcr.io/prototeamhq/protobase:<version>`, the serve
-runtime, and `ghcr.io/prototeamhq/protobase-dev:<version>`, Node, Bun and the presets with their dependencies
+runtime, and `ghcr.io/prototeamhq/protobase-dev:<version>`, Bun and the presets with their dependencies
 installed. See [Deploy](https://docs.protobase.net/guides/deploy/#images).
 
 Licensed under the [Apache License 2.0](LICENSE).

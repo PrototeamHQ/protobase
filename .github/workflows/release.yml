@@ -117,7 +117,7 @@ jobs:
         run: node scripts/publish.mjs
 
   # The images, on GitHub's registry at the release's version: ghcr.io/prototeamhq/protobase (the serve runtime) and
-  # ghcr.io/prototeamhq/protobase-dev (Node, Bun and the presets). Each architecture builds on a runner of its own and
+  # ghcr.io/prototeamhq/protobase-dev (Bun and the presets). Each architecture builds on a runner of its own and
   # pushes by digest; images-manifest tags the two as one image. After publish, since the presets' bun.lock files
   # resolve the @protobase packages from npm.
   images:

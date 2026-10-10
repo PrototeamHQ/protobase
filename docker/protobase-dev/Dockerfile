@@ -1,16 +1,13 @@
-# protobase-dev: Node, Bun and the presets at /opt/protobase/presets/<name>, with one node_modules that fits every
-# preset installed in /workspace. Copy a preset there and `bun install --frozen-lockfile` has nothing to do; installed
-# anywhere else, a preset comes from Bun's cache in /opt/bun-cache, without the network.
+# protobase-dev: Bun and the presets at /opt/protobase/presets/<name>, with one node_modules that fits every preset
+# installed in /workspace. Copy a preset there and `bun install --frozen-lockfile` has nothing to do; installed
+# anywhere else, a preset comes from Bun's cache in /opt/bun-cache, without the network. There is no Node: the presets'
+# scripts and the protobase CLI run on Bun.
 # Context: dist/images/protobase-dev (bun run images:context).
 ARG BUN_VERSION=1.4.2
-FROM oven/bun:${BUN_VERSION} AS bun
-
-FROM node:22-bookworm-slim
+FROM oven/bun:${BUN_VERSION}
 LABEL org.opencontainers.image.source=https://github.com/PrototeamHQ/protobase
-LABEL org.opencontainers.image.description="Node, Bun and the Protobase presets, with their dependencies installed"
+LABEL org.opencontainers.image.description="Bun and the Protobase presets, with their dependencies installed"
 LABEL org.opencontainers.image.licenses=Apache-2.0
-COPY --from=bun /usr/local/bin/bun /usr/local/bin/bun
-RUN ln -s bun /usr/local/bin/bunx
 COPY presets /opt/protobase/presets
 RUN chmod -R a+rX /opt/protobase
 
@@ -22,5 +19,5 @@ WORKDIR /workspace
 RUN cp /opt/protobase/presets/erp/package.json /opt/protobase/presets/erp/bun.lock . \
   && bun install --frozen-lockfile --ignore-scripts --silent \
   && rm -rf /opt/bun-cache/.tmp \
-  && chown -R node:node /opt/bun-cache /workspace
-USER node
+  && chown -R bun:bun /opt/bun-cache /workspace
+USER bun
