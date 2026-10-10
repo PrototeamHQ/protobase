@@ -60,7 +60,7 @@ export const organizationPlugin = ({ resolved, secret, mailer, context }: Organi
   const { definitions } = resolved
 
   const own: Hooks = {
-    beforeCreateOrganization: async () => ({ data: { id: resolved.generateId() } }),
+    beforeCreateOrganization: async () => ({ data: { id: await resolved.generateId() } }),
     beforeAddMember: async ({ member }) => (member.role === 'owner' && member.appRoles === undefined ? { data: { appRoles: resolved.creatorAppRoles } } : undefined),
     afterCreateOrganization: async ({ organization, member }) => {
       await resolved.options.onCreated?.({ organization: organization as StoredOrganization, member: { ...(member as StoredMember), appRoles: parseAppRoles((member as { appRoles?: unknown }).appRoles) } })

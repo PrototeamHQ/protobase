@@ -125,6 +125,16 @@ describe('organizations on the host', () => {
   })
 })
 
+describe('the first user', () => {
+  it('owns, with every app role, the organizations made before anyone, such as by a seed', async () => {
+    const { auth, store } = await serve()
+    await store.exec(`insert into organization (id, name, slug, created_at) values ('1', 'Seeded', 'seeded', now())`)
+    await createUser(auth, { email: 'root@example.com', password })
+    await createUser(auth, { email: 'bo@example.com', password })
+    expect(await listOrganizations(auth)).toEqual([{ id: '1', name: 'Seeded', slug: 'seeded', members: [{ email: 'root@example.com', role: 'owner', appRoles: ['support', 'manager', 'sales', 'accountant'] }] }])
+  })
+})
+
 describe('the token of a signed-in person', () => {
   it('carries the organization they start in, their organization role and app roles; the API sees only its rows', async () => {
     const { auth, request, signIn, tokenOf } = await serve()

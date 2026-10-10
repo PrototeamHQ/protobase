@@ -13,8 +13,11 @@ export type OrganizationsOptions = {
   invitationDays?: number
   /** The most members an organization can have. Default 1000. */
   membershipLimit?: number
-  /** The id of a new organization. Default `crypto.randomUUID()`; `.tenant` columns hold it, so `text` or `uuid`. */
-  generateId?: () => string
+  /**
+   * The id of a new organization. Default `crypto.randomUUID()`. `.tenant` columns hold it: `text` or `uuid` for the
+   * default, or an integer column when this takes the next value of the app's own organizations sequence.
+   */
+  generateId?: () => string | Promise<string>
   /**
    * What deleting an organization does with its records: `'refuse'` (default) deletes only an organization without
    * rows in any `.tenant` resource; `'cascade'` leaves it to the project's foreign keys.
@@ -36,7 +39,7 @@ export type ResolvedOrganizations = {
   create: 'admins' | 'everyone'
   invitationExpiresIn: number
   membershipLimit: number
-  generateId: () => string
+  generateId: () => string | Promise<string>
   deleteRecords: 'refuse' | 'cascade'
   invitationUrl: string
   options: OrganizationsOptions

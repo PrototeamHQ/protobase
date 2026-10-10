@@ -1,4 +1,5 @@
 import type { AdminAuth } from './create-auth'
+import { ownOrganizationsWithoutMembers } from './organizations/host'
 import { parseRoles } from './parse-roles'
 
 export { parseRoles }
@@ -40,7 +41,8 @@ const checkAccounts = async (auth: AdminAuth, accounts: LinkedAccount[]) => {
  * Creates a user directly in the admin store. Host side only (no HTTP route creates accounts while the store is empty):
  * the first user is always an `admin`, later ones get `role` (default `user`). The address counts as verified, so the
  * user can also sign in with an emailed code. `accounts` link the user to sign-in providers up front, so a provider
- * signs them in by its own id whatever address it reports; one that signs in another user already is refused.
+ * signs them in by its own id whatever address it reports; one that signs in another user already is refused. With
+ * organizations, the first user also owns every organization without members, such as those an app's seed made.
  */
 export const createUser = async (auth: AdminAuth, input: NewUser) => {
   const first = !(await hasUsers(auth))
@@ -54,6 +56,7 @@ export const createUser = async (auth: AdminAuth, input: NewUser) => {
   })
   const { internalAdapter } = await auth.$context
   for (const account of accounts) await internalAdapter.linkAccount({ userId: user.id, ...account })
+  if (first && auth.organizations) await ownOrganizationsWithoutMembers(auth, user.id)
   return { id: user.id, email: user.email, role: String(user.role) }
 }
 

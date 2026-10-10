@@ -59,10 +59,11 @@ export const createOrganization = async (auth: AdminAuth, input: NewOrganization
   const { adapter } = await contextOf(auth)
   if (await adapter.findOne({ model: 'organization', where: [{ field: 'slug', value: input.slug }] })) throw new Error(`An organization with slug "${input.slug}" exists already`)
   const now = new Date()
+  const id = input.id ?? (await settings.generateId())
   const { organization, member } = await adapter.transaction(async (trx) => {
     const organization = await trx.create<StoredOrganization & Record<string, unknown>, StoredOrganization>({
       model: 'organization',
-      data: { id: input.id ?? settings.generateId(), name: input.name.trim(), slug: input.slug, createdAt: now },
+      data: { id, name: input.name.trim(), slug: input.slug, createdAt: now },
       forceAllowId: true,
     })
     const member = await trx.create<Record<string, unknown>, StoredMember>({
@@ -143,6 +144,23 @@ export const listOrganizations = async (auth: AdminAuth) => {
       ),
     })),
   )
+}
+
+/**
+ * Makes `userId` the owner, with the creator's app roles, of every organization without members: for the first user of
+ * an app whose organizations were made before anyone could own them, such as by its seed. Returns how many.
+ */
+export const ownOrganizationsWithoutMembers = async (auth: AdminAuth, userId: string) => {
+  const settings = settingsOf(auth)
+  const { adapter } = await contextOf(auth)
+  const organizations = await adapter.findMany<StoredOrganization>({ model: 'organization', limit: everyRow })
+  let owned = 0
+  for (const organization of organizations) {
+    if ((await membersOf(adapter, organization.id)).length > 0) continue
+    await adapter.create({ model: 'member', data: { organizationId: organization.id, userId, role: 'owner', appRoles: settings.creatorAppRoles, createdAt: new Date() } })
+    owned++
+  }
+  return owned
 }
 
 /** Gives an app role to every owner of every organization, for a role the project adds once organizations exist. */
