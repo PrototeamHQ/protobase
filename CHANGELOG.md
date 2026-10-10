@@ -9,6 +9,8 @@ Every release of Protobase, cut by the release workflow from the commits since t
 * **server:** a platform sign-in provider from PROTOBASE_SIGN_IN_*; run auth:migrate to upgrade
 * **cli,server:** auth schema changes as project migrations for db:migrate, checked at startup
 
+Moving an app back to an earlier release is not supported: below 1.0 a minor version may break. An older release refuses the new `signInPolicy.platformSignIn` column (`text not null`, no default) and sign-in answers 500. To move back anyway, first run `alter table "auth"."signInPolicy" drop column "platformSignIn"`. Before upgrading again, add it back with `alter table "auth"."signInPolicy" add column "platformSignIn" text default 'allowed' not null`.
+
 ### Features
 
 * **cli,server:** auth schema changes as project migrations for db:migrate, checked at startup ([5ef236e](https://github.com/PrototeamHQ/protobase/commit/5ef236e1afdd59fbc14024f46b77f77164caf83d))
