@@ -6,6 +6,7 @@ import react from '@vitejs/plugin-react'
 import { createServer, searchForWorkspaceRoot, type Plugin } from 'vite'
 import { adminAppDir, adminAppMain, uiPackageDir } from '../project/admin-app'
 import { moduleFile } from '../module-file'
+import { extensionImports, extensionStyles, type Extension } from '../project/extensions'
 import { projectUiPlugin } from '../project/project-ui'
 import { layoutCheck } from '../build/layout-check'
 import { checkDatabase } from './check-database'
@@ -20,6 +21,8 @@ export type DevOptions = {
   // Vite's dependency cache; defaults to node_modules/.vite, which concurrent dev servers share.
   cacheDir?: string
   allowedHosts: string[]
+  // Merged before the project's configs, as `protobase build --extend` merges them.
+  extensions?: Extension[]
 }
 
 const entry = moduleFile('./entry', import.meta.url)
@@ -32,12 +35,12 @@ const requireAppFiles = (appDir: string) => {
 }
 
 // The project's files are loaded with a dynamic import, which Vite does not track as an edge of the entry
-// module. Any change inside the project therefore drops the server-side module graph, so the next request
+// module. Any change inside the project or an extension therefore drops the server-side module graph, so the next request
 // rebuilds the API and `/meta` reports a new X-Meta-Version.
-const reloadOnProjectChange = (projectDir: string): Plugin => ({
+const reloadOnProjectChange = (dirs: string[]): Plugin => ({
   name: 'protobase-project-reload',
   handleHotUpdate: ({ file, server }) => {
-    if (file.startsWith(`${projectDir}${path.sep}`) && !file.includes(`${path.sep}node_modules${path.sep}`)) {
+    if (dirs.some((dir) => file.startsWith(`${dir}${path.sep}`)) && !file.includes(`${path.sep}node_modules${path.sep}`)) {
       server.environments.ssr.moduleGraph.invalidateAll()
     }
     return undefined
@@ -68,7 +71,9 @@ export const runDev = async (options: DevOptions, out: (text: string) => void) =
   requireAppFiles(appDir)
   await checkDatabase(url, options.projectDir)
 
+  const extensions = options.extensions ?? []
   process.env.PROTOBASE_PROJECT = options.projectDir
+  process.env.PROTOBASE_EXTENSIONS = JSON.stringify(extensions)
   process.env.PROTOBASE_DATABASE_URL = url
   const server = await createServer({
     root: appDir,
@@ -79,11 +84,13 @@ export const runDev = async (options: DevOptions, out: (text: string) => void) =
       port: options.port,
       strictPort: true,
       ...(options.allowedHosts.length > 0 && { allowedHosts: options.allowedHosts }),
-      fs: { allow: [searchForWorkspaceRoot(options.projectDir), uiPackageDir, options.projectDir] },
+      fs: { allow: [searchForWorkspaceRoot(options.projectDir), uiPackageDir, options.projectDir, ...extensions.map((extension) => extension.dir)] },
     },
     plugins: [
-      reloadOnProjectChange(options.projectDir),
-      projectUiPlugin(options.projectDir),
+      reloadOnProjectChange([options.projectDir, ...extensions.map((extension) => extension.dir)]),
+      projectUiPlugin(options.projectDir, extensions),
+      extensionImports(options.projectDir, extensions),
+      extensionStyles(extensions),
       layoutCheck(),
       react(),
       tailwindcss(),

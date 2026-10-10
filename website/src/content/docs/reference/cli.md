@@ -87,7 +87,7 @@ Exit code is 1 when there are errors.
 ## `dev`
 
 ```sh
-protobase dev [--port 5173] [--env DATABASE_URL] [--cache-dir <dir>] [--allowed-hosts <hosts>]   # run inside a project, e.g. bun run --cwd examples/erp dev
+protobase dev [--port 5173] [--env DATABASE_URL] [--cache-dir <dir>] [--allowed-hosts <hosts>] [--extend <dir>]   # run inside a project, e.g. bun run --cwd examples/erp dev
 ```
 
 One process, one port: Vite serves the admin app from `@protobase/ui`'s `src/app/` (`dist/app/` when installed; `index.html` and `main.tsx`, or `main.js`; the command fails with a clear message when they are missing) and `@hono/vite-dev-server` mounts the Hono app from `createAdmin` under `/api`. Open `http://localhost:<port>`; the API reference is at `/api/docs`.
@@ -111,6 +111,7 @@ One process, one port: Vite serves the admin app from `@protobase/ui`'s `src/app
 
   `defineConfig` from `@protobase/server` types it, and its `extends` merges other configs in (see [Extending a config](#extending-a-config)).
 - **Project UI:** the app imports `protobase.ui.tsx` from the project root, with hot reload, when it exists (see [Custom components](/reference/custom-components/)). Layout files are checked as they load, as `protobase build` checks them.
+- **Extensions:** `--extend <dir>` merges an extension in as [`build --extend`](#extensions) does, to try one out; its files reload like the project's.
 - **Hot reload:** server code, data configs, `ui.ts` views, layouts and `protobase.config.ts` are loaded through Vite's SSR module graph. A change inside the project (or, in this repository, in `packages/server`, `packages/query`, `packages/schema`) rebuilds the API on the next request without a restart; `/meta` and `X-Meta-Version` change, so open tabs refetch. The database pool survives reloads. Newly added `ui.ts` files appear after the next change inside the project.
 
 ### Extending a config
@@ -148,7 +149,7 @@ A config's `name` names it in these errors; an extension should set one. Nothing
 ## `build`
 
 ```sh
-protobase build [--out dist] [--bun]   # run inside a project, e.g. bun run --cwd examples/erp protobase build
+protobase build [--out dist] [--bun] [--extend <dir>]   # run inside a project, e.g. bun run --cwd examples/erp protobase build
 ```
 
 Writes the project's deploy bundle, the folder a deployment ships:
@@ -161,9 +162,17 @@ dist/
   protobase.bundle.json   the manifest
 ```
 
-The output folder is not emptied; `public/` and `node_modules/` are replaced on every build. `node_modules/` is deleted only when the previous build's manifest names it, so a build into a folder with a project's own `node_modules` fails instead. Nothing of the project runs at build time, so the build needs no secrets and no database.
+The output folder is not emptied; `public/` and `node_modules/` are replaced on every build. `node_modules/` is deleted only when the previous build's manifest names it, so a build into a folder with a project's own `node_modules` fails instead. Nothing of the project runs at build time (except the UI configs' check with [extensions](#extensions)), so the build needs no secrets and no database.
 
 By default the bundle runs on Node and on Bun. `--bun` makes it a bundle for Bun only, as the Protobase images and the cloud serve it: Bun's bundler writes the config module (see [the config module](#the-config-module)), so the build needs `bun` on `PATH` and fails without it.
+
+### Extensions
+
+`--extend <dir>` (repeatable) builds an extension into the bundle without touching the project's files: a folder with a `protobase.config.ts`, a `protobase.ui.tsx` or both, merged before the project's own as if the project [extended](#extending-a-config) them, in the order given. A host adds its own assistant tools and widgets to every app it builds this way.
+
+- The extension's imports of `@protobase/*`, `react` and `react-dom` resolve from the project, so it runs on the app's own versions; everything else it imports resolves from its own folder and is bundled. Tailwind scans its folder too, so its classes are in the app's stylesheet.
+- A component or action handler that the extension and the project both define fails the build, naming both. To find them, the build loads the merged UI configs once in Node: only browser code, which needs no secrets. The server config still does not run at build time, so a tool both define fails when the bundle is served, naming both.
+- An error names a config by its `name`, otherwise by its file.
 
 ### The manifest
 
@@ -191,7 +200,7 @@ By default the bundle runs on Node and on Bun. `--bun` makes it a bundle for Bun
 
 ### The UI
 
-`public/` is a production build of the admin app (`@protobase/ui`'s `src/app`): `index.html`, which loads `/assets/index-<hash>.js` and `.css`, and nothing for development (no Vite client, no React development build). It calls the API on its own origin under `/api`, so the same bundle works under any hostname. The only project code built in is `protobase.ui.tsx` from the project root, when there is one: the project's [custom components and action handlers](/reference/custom-components/). Nothing host-specific is: the resources, views, pages and roles come from `/api/meta` and sign-in from `/api/auth` at runtime.
+`public/` is a production build of the admin app (`@protobase/ui`'s `src/app`): `index.html`, which loads `/assets/index-<hash>.js` and `.css`, and nothing for development (no Vite client, no React development build). It calls the API on its own origin under `/api`, so the same bundle works under any hostname. The only project code built in is `protobase.ui.tsx` from the project root, when there is one: the project's [custom components and action handlers](/reference/custom-components/), and the `protobase.ui.tsx` of each [extension](#extensions). Nothing host-specific is: the resources, views, pages and roles come from `/api/meta` and sign-in from `/api/auth` at runtime.
 
 ### The config module
 

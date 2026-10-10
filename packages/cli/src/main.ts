@@ -9,6 +9,7 @@ import { parseHosts } from './dev/hosts'
 import { loadNearestEnvFile } from './dev/env'
 import { runDev } from './dev/run'
 import { runDoctor } from './doctor/run'
+import { resolveExtensions } from './project/extensions'
 import { runScaffold } from './scaffold/run'
 import { serveBundle } from './serve/serve-bundle'
 import { serveBundleDir } from './serve/serve-dir'
@@ -79,9 +80,11 @@ program
   .option('--env <variable>', 'environment variable holding the database URL', 'DATABASE_URL')
   .option('--allowed-hosts <hosts>', 'extra Host headers to accept, comma separated; a leading dot matches subdomains (.trycloudflare.com)')
   .option('--cache-dir <dir>', "Vite's dependency cache, so parallel dev servers do not share one")
+  .option('--extend <dir>', 'merge the protobase.config.ts and protobase.ui.tsx in this folder before the project\'s, repeatable', collect, [])
   .action(async (opts) => {
     const server = await runDev(
       {
+        extensions: resolveExtensions(opts.extend),
         port: Number(opts.port),
         envVar: opts.env,
         projectDir: process.cwd(),
@@ -99,8 +102,10 @@ program
   .description('Build the deploy bundle of the project in the current directory: its config module, admin UI and manifest')
   .option('--out <dir>', 'output folder', 'dist')
   .option('--bun', "have Bun's bundler write the config module, for a bundle only Bun serves (needs bun on PATH)", false)
+  .option('--extend <dir>', 'merge the protobase.config.ts and protobase.ui.tsx in this folder before the project\'s, repeatable', collect, [])
   .action(async (opts) => {
-    const manifest = await buildDeployBundle({ projectDir: process.cwd(), outDir: path.resolve(opts.out), bun: opts.bun })
+    const extensions = resolveExtensions(opts.extend)
+    const manifest = await buildDeployBundle({ projectDir: process.cwd(), outDir: path.resolve(opts.out), bun: opts.bun, extensions })
     const packages = manifest.nodeModules ? `, ${manifest.nodeModules}/` : ''
     out(`built ${opts.out}: ${manifest.server}${packages}, ${manifest.public}/ and ${manifestFile} (api ${manifest.api.join(', ')})\n`)
   })

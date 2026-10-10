@@ -23,7 +23,7 @@ describe('bundleEntryCode', () => {
     expect(code).toContain(`import * as index from ${JSON.stringify(path.join(dir, 'config/index.ts'))}`)
     expect(code).toContain('conventionConfig(index, [["customers", ui0], ["orders", ui1]])')
     expect(code).not.toContain('lines')
-    expect(code).toContain('export default mergeConfig({ ...project, config: project.config ?? convention })')
+    expect(code).toContain(`export default mergeConfig(named({ ...project, config: project.config ?? convention }, "config/index.ts"))`)
   })
 
   it('starts from protobase.config.ts and keeps the convention as the fallback for config', async () => {
@@ -39,6 +39,16 @@ describe('bundleEntryCode', () => {
     const code = bundleEntryCode(dir)
     expect(code).toContain('const convention = undefined')
     expect(code).not.toContain('conventionConfig')
+  })
+
+  it('merges the extensions’ configs first, each named by its file unless it has a name', async () => {
+    await Promise.all(['protobase.config.ts', 'ext-a/protobase.config.ts', 'ext-b/protobase.ui.tsx'].map(touch))
+    const extensions = [{ dir: path.join(dir, 'ext-a'), config: path.join(dir, 'ext-a/protobase.config.ts') }, { dir: path.join(dir, 'ext-b'), ui: path.join(dir, 'ext-b/protobase.ui.tsx') }]
+    const code = bundleEntryCode(dir, extensions)
+    const a = JSON.stringify(path.join(dir, 'ext-a/protobase.config.ts'))
+    expect(code).toContain(`import * as extension0 from ${a}`)
+    expect(code).not.toContain('ext-b')
+    expect(code).toContain(`export default mergeConfig(named(extension0.default ?? {}, ${a}), named({ ...project, config: project.config ?? convention }, "protobase.config.ts"))`)
   })
 
   it('refuses a folder that is not a project', () => {

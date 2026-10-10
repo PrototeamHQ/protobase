@@ -3,6 +3,7 @@ import { existsSync } from 'node:fs'
 import path from 'node:path'
 import { mergeConfig, type ProjectConfig } from '@protobase/server'
 import { conventionConfig } from '../project/convention'
+import type { Extension } from '../project/extensions'
 import { sharedDb } from './create-db'
 
 export type Project = ProjectConfig & { exports: Record<string, unknown> }
@@ -24,11 +25,18 @@ const conventionExports = async (projectDir: string) => {
   return conventionConfig(indexExports, uiModules)
 }
 
-// protobase.config.ts, with the convention's config when it has none, merged with the configs it extends.
-export const loadProject = async (projectDir: string): Promise<Project> => {
+// Each config is named in merge errors by its own name, otherwise by its file.
+const named = (config: ProjectConfig, file: string) => ({ ...config, name: config.name ?? file })
+
+// protobase.config.ts, with the convention's config when it has none, merged after the extensions' configs and with the
+// configs it extends, as `protobase build` merges them.
+export const loadProject = async (projectDir: string, extensions: Extension[] = []): Promise<Project> => {
   const file = path.join(projectDir, 'protobase.config.ts')
   const custom: ProjectConfig = existsSync(file) ? ((await load(file)).default ?? {}) : {}
-  const project = mergeConfig({ ...custom, config: custom.config ?? (await conventionExports(projectDir)) })
+  const extended: ProjectConfig[] = []
+  for (const extension of extensions) if (extension.config) extended.push(named((await load(extension.config)).default ?? {}, extension.config))
+  const own = named({ ...custom, config: custom.config ?? (await conventionExports(projectDir)) }, existsSync(file) ? 'protobase.config.ts' : 'config/index.ts')
+  const project = mergeConfig(...extended, own)
   return { ...project, exports: project.config ?? {} }
 }
 

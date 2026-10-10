@@ -1,7 +1,7 @@
 import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
-import { build, type Plugin } from 'vite'
+import { build, type LogLevel, type Plugin } from 'vite'
 import { bunBuild } from './bun-build'
 
 export type BundleInput = {
@@ -13,14 +13,16 @@ export type BundleInput = {
   plugins: Plugin[]
   // Bun's bundler writes the final file, for a bundle only Bun runs (see bunBuild).
   bun?: boolean
+  // Default `warn`.
+  logLevel?: LogLevel
 }
 
-const viteBuild = async ({ root, entry, outFile, plugins }: Omit<BundleInput, 'bun'>) => {
+const viteBuild = async ({ root, entry, outFile, plugins, logLevel = 'warn' }: Omit<BundleInput, 'bun'>) => {
   await build({
     configFile: false,
     root,
     publicDir: false,
-    logLevel: 'warn',
+    logLevel,
     plugins,
     // Production JSX whatever NODE_ENV says (vitest sets `test`): layout files import @protobase/layout/jsx-runtime, which the
     // serve runtime supplies, never the development runtime.

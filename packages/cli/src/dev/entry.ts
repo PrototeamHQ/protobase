@@ -5,7 +5,7 @@ import { loadProject, projectDb } from './project'
 // Loaded by Vite's SSR module graph (see run.ts). Editing any file it imports re-evaluates this module
 // on the next request, which rebuilds the API; `/meta` then reports a new X-Meta-Version.
 const projectDir = process.env.PROTOBASE_PROJECT!
-const project = await loadProject(projectDir)
+const project = await loadProject(projectDir, JSON.parse(process.env.PROTOBASE_EXTENSIONS ?? '[]'))
 const db = projectDb(project, projectDir)
 const { resources, views, pages, userMenu } = configExports(project.exports)
 
