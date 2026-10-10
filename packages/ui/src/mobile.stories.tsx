@@ -1,13 +1,16 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
-import { useState } from 'react'
+import { StickyNote } from 'lucide-react'
+import { useState, type ReactNode } from 'react'
 import { expect, userEvent, waitFor, within } from 'storybook/test'
 import { AppShell } from './app-shell'
+import { AssistantButton } from './app/assistant-shell'
 import { adminUser } from './website/users'
 import { ConflictDialog } from './app/delete/dialogs'
 import { CreateRecordForm } from './app/create/create-record-form'
 import { createRowSource, invoiceCount, invoiceRowAt, invoicesColumns, invoicesNaturalSort, ordersColumns, ordersNaturalSort } from './data-grid'
 import { ordersFilters } from './filter-panel'
 import { orderAt, orderCount } from './mocks'
+import { Button } from './primitives/button'
 import { Input } from './primitives/input'
 import { InvoiceRecordView } from './record-view'
 import { ListScreen } from './website/list-screen'
@@ -74,7 +77,7 @@ export const NavigationDrawer: Story = {
   },
 }
 
-const SearchableShell = () => {
+const SearchableShell = ({ actions }: { actions?: ReactNode }) => {
   const [text, setText] = useState('')
   return (
     <div className="h-screen">
@@ -84,6 +87,7 @@ const SearchableShell = () => {
         breadcrumb={['Sales', 'Orders']}
         user={adminUser}
         search={{ placeholder: 'Search orders and invoices', text, onTextChange: setText, query: '', loading: false, groups: [], onSelect: () => undefined }}
+        actions={actions}
       >
         <div className="p-4 text-muted-foreground">On phones the search box sits behind a button in the top bar.</div>
       </AppShell>
@@ -102,6 +106,47 @@ export const SearchOnPhone: Story = {
     expect(field).toHaveFocus()
     await userEvent.click(canvas.getByRole('button', { name: 'Close search' }))
     await waitFor(() => expect(canvas.queryByRole('combobox', { name: 'Global search' })).toBeNull())
+  },
+}
+
+const topBarActions = (
+  <>
+    <Button size="sm">Export</Button>
+    <Button size="sm">
+      <StickyNote className="size-3.5" />
+      Notes
+    </Button>
+    <AssistantButton open={false} onToggle={() => undefined} />
+  </>
+)
+
+// Below `md` the Assistant button shows only its icon, still named "Assistant"; the project's actions keep their text.
+const expectIconOnlyAssistant = (canvas: ReturnType<typeof within>, iconOnly: boolean) => {
+  expect(canvas.getByRole('button', { name: 'Assistant' }).getBoundingClientRect().width === 36).toBe(iconOnly)
+  for (const name of ['Export', 'Notes']) expect(canvas.getByRole('button', { name }).getBoundingClientRect().width).toBeGreaterThan(36)
+}
+
+export const TopBarActionsPhone: Story = {
+  globals: { viewport: { value: 'phone390' } },
+  tags: ['play', 'phone'],
+  render: () => <SearchableShell actions={topBarActions} />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    expect(canvas.getByRole('button', { name: 'Search' })).toBeVisible()
+    expectIconOnlyAssistant(canvas, true)
+  },
+}
+
+export const TopBarActionsTablet: Story = { globals: { viewport: { value: 'tablet768' } }, render: () => <SearchableShell actions={topBarActions} /> }
+
+/** The desktop top bar is unchanged: the search box and the Assistant button's text. */
+export const TopBarActionsDesktop: Story = {
+  tags: ['play'],
+  render: () => <SearchableShell actions={topBarActions} />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    expect(canvas.getByRole('combobox', { name: 'Global search' })).toBeVisible()
+    expectIconOnlyAssistant(canvas, false)
   },
 }
 

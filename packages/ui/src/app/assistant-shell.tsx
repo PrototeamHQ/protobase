@@ -3,10 +3,11 @@ import type { AssistantClient } from '@protobase/client'
 import { AssistantDock, useAssistant, useAssistantClient } from '../assistant-dock'
 import { Button } from '../primitives/button'
 
+/** Below `md`, where search is a button too, only the icon shows; the hidden text still names it. */
 export const AssistantButton = ({ open, onToggle }: { open: boolean; onToggle: () => void }) => (
-  <Button size="sm" variant={open ? 'primary' : 'secondary'} aria-pressed={open} onClick={onToggle}>
+  <Button size="sm" variant={open ? 'primary' : 'secondary'} aria-pressed={open} onClick={onToggle} className="max-md:size-9 max-md:p-0">
     <Sparkles className="size-3.5" />
-    Assistant
+    <span className="max-md:sr-only">Assistant</span>
   </Button>
 )
 
