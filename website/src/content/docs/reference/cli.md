@@ -79,7 +79,7 @@ protobase doctor <connection string | --env VAR> [--config <dir>]
 
 Imports `config/index.ts` and checks every exported resource:
 
-- error: missing table or column, field type that does not fit the column, table without a usable key, configured key not backed by a unique index
+- error: missing table or column, field type that does not fit the column (a file field needs a text column), table without a usable key, configured key not backed by a unique index
 - warning: enum values differ, filterable field without an index (with the `CREATE INDEX` statement)
 
 Exit code is 1 when there are errors.
@@ -298,6 +298,8 @@ Serves the API of a bundle from `protobase build` and owns the process around it
 | `PROTOBASE_OPERATOR_ISSUER`, `PROTOBASE_OPERATOR_CLIENT_ID`, `PROTOBASE_OPERATOR_CLIENT_SECRET` | the OpenID Connect provider of the operator's staff, for [staff sign-in](/reference/auth/#staff-sign-in) as people of the app; all three or none. `PROTOBASE_OPERATOR_NAME` and `PROTOBASE_OPERATOR_GROUP` are optional ([Operator provider](/reference/auth/#operator-provider)) |
 | `PROTOBASE_ASSISTANT_URL`, `PROTOBASE_ASSISTANT_API_KEY`, `PROTOBASE_ASSISTANT_MODEL`, `PROTOBASE_ASSISTANT_BASE_URL` | the [assistant](/reference/assistant/#which-backend): a backend elsewhere, or the built-in one on OpenRouter or another OpenAI-compatible endpoint; without them there is none |
 | `PROTOBASE_RUNTIME_URL` | the endpoint behind the top bar's [runtime update button](/reference/versioning/#runtime-updates), such as a hosting platform's; without it there is no button |
+| `PROTOBASE_FILES_<NAME>`, `PROTOBASE_FILES_RETENTION`, `PROTOBASE_FILES_SECRET` | [file providers](/reference/files/#providers) and their settings, over `files` in the config |
+| `PROTOBASE_FILES_CLEANUP_MINUTES` | minutes between runs of the [scheduled file deletes](/reference/files/#deleting-files), default 60; 0 leaves them to `protobase files cleanup` or the platform |
 
 Better Auth and other settings are the project's own variables (`BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, ...), read by its config. `protobase serve` also loads the nearest `.env`, like `dev`; the runtime takes the environment as it is.
 
@@ -307,6 +309,15 @@ Better Auth and other settings are the project's own variables (`BETTER_AUTH_SEC
 - **Shutdown:** the first SIGTERM or SIGINT stops accepting connections, waits for open requests, drains the pool `serve` created (a `db` the config exports is the project's to close) and exits with 0.
 - **Host modules:** under Bun, the runtime registers [the modules it supplies](#the-config-module) as virtual modules, so the bundle needs no `node_modules` for them. `protobase serve`, on Node or Bun, resolves them from the `node_modules` next to the bundle, so keep the bundle inside the project. Native packages load from the bundle's own `node_modules/` under both.
 - **Read-only hosts:** nothing is written: no install (`--no-install`), and for a bundle built with `--bun` no transpiling and so no transpiler cache. A bundle with `node_modules/` needs its folder mounted without `noexec`, since its add-ons are mapped as executable code.
+
+## `files cleanup`
+
+```sh
+protobase files cleanup            # the project in the current directory
+protobase files cleanup <bundle>   # a bundle from `protobase build`: its folder or its protobase.config.js
+```
+
+Runs the [scheduled file deletes](/reference/files/#deleting-files) that are due: replaced and cleared files past their retention, and uploads nobody saved. A file a row references again is kept. It prints each file it deleted or kept. It reads the `.env` nearest the current directory and needs `DATABASE_URL` unless the config exports `db`. `protobase serve` runs the same every hour; this is for cron, or a host that turns that off.
 
 ## `users`
 

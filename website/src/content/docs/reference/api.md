@@ -26,7 +26,7 @@ Run the ERP example with `bun run --cwd examples/erp serve` (port 8787, Better A
 
 ## Routes
 
-`/api/v1/*` is resources only, so a table may be called `meta` or `docs`. The system endpoints (`/api/meta`, `/api/openapi.json`, `/api/docs`), the app's own [API functions](/guides/api-functions/) (`/api/functions/<name>`) and login (`/api/auth/*`) live beside it; the parent of `options.basePath` is where the system endpoints go.
+`/api/v1/*` is resources only, so a table may be called `meta` or `docs`. The system endpoints (`/api/meta`, `/api/openapi.json`, `/api/docs`), the app's own [API functions](/guides/api-functions/) (`/api/functions/<name>`), [file downloads](/reference/files/#downloads) (`/api/files/<provider>/<path>`) and login (`/api/auth/*`) live beside it; the parent of `options.basePath` is where the system endpoints go.
 
 Under `/api/v1`:
 
@@ -38,6 +38,7 @@ Under `/api/v1`:
 | `POST /{resource}` | create, `201` with `Location` and `ETag` |
 | `PATCH /{resource}/{key}` | partial update, `If-Match` required |
 | `DELETE /{resource}/{key}` | soft delete when the resource has one ([AIP-135](https://google.aip.dev/135)); `If-Match` optional |
+| `POST /{resource}:upload?field=&name=` | one file for a [file field](/reference/files/#uploading), as the raw body or one multipart file part; `201 { value, file, derived, corrected? }`, where `value` is the ticket a write sends as the field's value; `413` over the field's `maxSize`, `415` for a type it does not take |
 | `POST /{resource}/{key}:reveal` | `{ "field": "iban" }` gives `{ field, value }` of one [sensitive field](#sensitive-fields-and-audit), with `Cache-Control: no-store`, and publishes an audit event |
 | `POST /{resource}/{key}:undelete` | restores a soft-deleted record ([AIP-164](https://google.aip.dev/164)); `If-Match` optional; `409` when not deleted, `400` on hard-delete resources |
 | `POST /api/v1:batchWrite` | many writes in one transaction, see [Batch writes](#batch-writes) |
@@ -46,6 +47,7 @@ Under `/api/v1`:
 | `GET /{resource}:histogram?field=&buckets=&filter=` | equal-width buckets of a numeric field |
 | `GET /{resource}:seek?position=&order_by=&filter=&page_size=&fields=` | the page at a row position (scrollbar jumps), with `next_page_token` and `prev_page_token`; same items as a list |
 | `GET /api/meta` | resource, view and page models (fields carry `default`: `{ value }` or `{ db: true }`) and the caller's `permissions`; the `ETag` hashes both, so it differs per user; `If-None-Match` gives `304` |
+| `POST /api/files:cleanup` | runs the [scheduled file deletes](/reference/files/#deleting-files) that are due, for an admin; `{ deleted, kept }` |
 | `GET /api/openapi.json`, `GET /api/docs` | OpenAPI 3.1 for the caller (only the resources, fields and operations their roles allow), and the Scalar reference |
 
 Every response carries `X-Meta-Version`, the hash of the models and of the caller's roles; a client that sees it change (a model edit, a role change) refetches `/meta`.

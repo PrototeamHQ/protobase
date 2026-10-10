@@ -23,6 +23,7 @@ export default defineConfig({
             'reference/ui-config',
             'reference/architecture',
             'reference/api',
+            'reference/files',
             'reference/access',
             'reference/auth',
             'reference/client',

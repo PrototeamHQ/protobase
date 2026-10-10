@@ -1,0 +1,117 @@
+---
+title: Files
+description: File fields, uploads with types detected from the content, downloads, derived fields, and how stored files are deleted.
+---
+
+import { Code } from '@astrojs/starlight/components'
+import bikes from '../../../../../docs-examples/files/bikes.ts?raw'
+import config from '../../../../../docs-examples/files/protobase.config.ts?raw'
+
+A file field is a `text` column that holds the file's URI. The bytes live with a **provider**, a named place for files such as a folder on disk. Protobase adds no table, trigger or foreign key to your database: a file field needs a text column and nothing else.
+
+<Code code={bikes} lang="ts" title="docs-examples/files/bikes.ts" />
+
+| Option | |
+| --- | --- |
+| `.accept(['image/*', 'application/pdf'])` | Allowed types: exact types and `type/*` wildcards (`*/*` must be written out). They are checked against the type detected from the content (see [How the type is decided](#how-the-type-is-decided)). Without it any type is taken. |
+| `.maxSize('10 MB')` | The largest upload, as bytes or text (`512 KiB`, `1.5 GB`); default 50 MB. |
+| `.public()` | Stored with the `public` provider, whose files anyone with the link may open. |
+| `.storage('archive')` | Stored with another provider; default `private`. |
+| `.derive({ field: processor })` | Values computed from each upload and written to other fields of the row, see [Derived fields](#derived-fields). |
+
+A file field cannot be filterable, sortable, aliased, searched, sensitive, or the key, tenant, owner or soft delete field. [`protobase doctor`](/reference/cli/#doctor) checks that its column is a text type.
+
+## What the column holds
+
+```text
+private:1/2992db9c-776e-4d4e-9e0f-59d485fefaf9.jpg?name=bike+red.png&size=48211
+```
+
+- The **scheme is the provider's name**, so a provider can move from local disk to a bucket without touching any row. Name the role (`archive`), not the vendor: the name is part of every stored value.
+- The **path** of an upload is `<tenant>/<random id>.<extension>`, with `_` for a resource without a tenant. Nothing in it comes from the row or from what the user typed, so renames and key changes need nothing.
+- The **query** holds the uploader's file name and the size in bytes. A plain `{provider}:{path}`, such as `public:images/test.jpg` written by an import, is valid too; its name is its last path segment.
+- The **type is not stored**. It is the path's extension, looked up in one fixed table, which is also what downloads are served as.
+
+Responses carry each file field as an object, and the stored value stays the URI:
+
+```json
+{ "uri": "private:1/2992db9c-….jpg?name=bike+red.png&size=48211", "name": "bike red.png", "type": "image/jpeg", "size": 48211,
+  "url": "/api/files/private/1/2992db9c-….jpg?r=bikes&k=42&f=photo&exp=1791673200&sig=…" }
+```
+
+A value that does not parse, or names a provider the config lacks, comes back as `{ uri, missing: true }`. The URL is made for each response and never changes the record's ETag.
+
+## Providers
+
+<Code code={config} lang="ts" title="protobase.config.ts" />
+
+- `localFiles({ dir, public?, publicUrl?, retention? })` keeps files in a folder on local disk. Writes go to a temporary file first and are renamed into place, so nobody reads half a file. A full disk or quota answers `507`.
+- Without config, `private` and `public` are the folders `data/files/private` and `data/files/public`, created when needed. Any other provider a field names must be configured.
+- `PROTOBASE_FILES_<NAME>` configures a provider from the environment and wins over the config for that name: `PROTOBASE_FILES_PRIVATE=file:///data/files/private`, or `file:///data/files/public?public=1&public_url=https://cdn.example.com/app&retention=0`. `PROTOBASE_FILES_RETENTION` overrides `files.retention`.
+- Uploads and download links are signed with `files.secret`, else `PROTOBASE_FILES_SECRET`, else `BETTER_AUTH_SECRET`. The server does not start with file fields and none of them set.
+
+Only local disk is built so far. The store behind a provider (`FileStore`: `put`, `head`, `read`, `delete`, `list`) is ready for S3-compatible buckets.
+
+## Uploading
+
+Uploads go through Protobase's own route, so the type is checked and processors run on the bytes:
+
+1. `POST /api/v1/{resource}:upload?field=photo&name=bike.png` with the file as the body. A `multipart/form-data` body with exactly one file part works too, using that part's name and type; it is read whole, so the raw body is better for large files. The caller needs `create` or `update` on the resource and write access to the field.
+2. The server reads the first bytes, decides the type and refuses a type the field does not allow with `415`, before anything is stored. A `Content-Length` over `maxSize` gets `413` before a byte is read, and a body that turns out larger stops there with `413`.
+3. The rest streams to the provider while it is counted. The answer is `201 { value, file: { name, type, size }, derived, corrected? }`.
+4. Send `value` as the field's value in a create, update or [batch write](/reference/api/#batch-writes) within 24 hours. It is a ticket, signed for that user, tenant, resource and field: the write stores the clean URI and the derived values in the same transaction.
+
+A write takes only a ticket, `null` to clear the field, or the stored `uri` unchanged. Anything else is refused with `400`, so a row can only point at a file its writer uploaded for that field. From the client, `client.upload(resource, field, file, { onProgress })` does step 1; see [Client](/reference/client/).
+
+### How the type is decided
+
+An upload carries three hints: what the **content** is (C, from its magic bytes), what the **name's extension** says (E), and what the **client declared** (H, the request's or the file part's `Content-Type`; `application/octet-stream` counts as none).
+
+| Content | Type used | When the hints disagree |
+| --- | --- | --- |
+| Recognized: images, PDF, archives, Office files, audio, video, executables, ... | C | C wins and the answer reports `corrected: { from, to }`: a JPEG sent as `photo.png` is `image/jpeg`, and an executable named `invoice.pdf` is refused by `accept: ['application/pdf']`. |
+| Not recognized, and text (UTF-8 without NUL bytes) | E when it is a text type (`csv`, `tsv`, `txt`, `md`, `json`); H when there is no extension; else `text/plain` | E wins over H: HTML named `.csv` is stored as `text/csv`. HTML and SVG are never taken as images. |
+| Not recognized, and binary | E, only when `accept` lists that type exactly and H does not disagree; else `application/octet-stream` | Any disagreement gives `application/octet-stream`, which passes only an `accept` that names it. |
+
+The decided type picks the stored extension, and downloads are served by that extension, so nothing posing as a PDF is ever served as something else, and nothing is served as HTML.
+
+## Downloads
+
+`GET /api/files/<provider>/<path>` on the app's own host:
+
+- **Private files** need the signed `url` from a response, made only for a caller who may read that row and field. It needs no token, so it works in an `<img src>`, and it is valid one to two hours (the same URL within the hour, so browsers cache it). Each download checks that the row still holds the file and that the file sits under that row's tenant: a replaced or cleared file stops downloading at once, and a URI copied into another tenant's row by SQL is never served.
+- **Public files** are served to anyone at a permanent address, `/api/files/public/<path>`, cached for a year. `publicUrl` links them from elsewhere instead, such as a CDN in front of that route.
+- Every download is `nosniff` with `Content-Security-Policy: sandbox; default-src 'none'`. Raster images, PDF, audio and video are `inline`; everything else, SVG included, is an attachment. A private file is named as its uploader named it, with the extension matched to the type (`photo.png` holding a JPEG downloads as `photo.jpg`); a public file by its stored path. `Range` requests work.
+
+## Derived fields
+
+`.derive({ field: processor })` computes values from each upload into other fields of the same resource. Those fields must be `readOnly()`, so only the upload sets them.
+
+| Processor | Gives |
+| --- | --- |
+| `imageSize('width')`, `imageSize('height')` | an image's size in pixels as shown (EXIF rotation applied), for an integer field |
+| `aspectRatio({ decimals? })` | width divided by height as decimal text, 4 places by default, for a decimal field |
+| `fileSize()` | the size in bytes, for an integer field to sort or filter on |
+| `fileType()` | the detected type, for a text field |
+| `processor({ accepts?, run })` | your own: `run(file)` gets `{ name, type, size, head, read() }`, where `head` is the first 256 KB and `read()` streams the whole file |
+
+Processors run once, on the upload route, after the file is stored. A processor whose `accepts` does not match the type leaves its field `null`, so a field that takes images and PDFs gets a width only for images. The values travel signed inside the ticket and are written with the file in the same transaction; replacing the file recomputes them and clearing it sets them to `null`. A value the field's own schema refuses is an error in the processor. Files stored before a processor was added keep their fields as they are.
+
+## Deleting files
+
+Files are deleted by schedule, never in the write itself, so a restore of the database to an earlier moment still finds its files:
+
+- A write that **replaces or clears** a file, or **deletes a row** (not a soft delete), schedules the delete of each file it took out of its row. It is due after the provider's retention: `files.retention`, 1 day by default, or 0 for a public provider.
+- Every **upload** schedules one too, due an hour after its ticket expires, so a file nobody saved, or whose write rolled back, goes as well.
+- Each scheduled delete is a small JSON object in the provider's own storage, in a `.cleanup/` folder, named after its due time and saying what to delete: `.cleanup/2026-10-12T03-00-00Z-<uuid>.json` holding `{ "provider": "private", "path": "1/2992db9c-….jpg", "due": "…" }`.
+- A **cleanup run** handles the entries that are due. Right before deleting, it checks every file column of every resource for the file: one that a row holds again (a rolled-back write, a restore, a copied value) is kept, and its entry dropped. Two runs at once do no harm.
+
+A run happens:
+
+- in [`protobase serve`](/reference/cli/#serve), every 60 minutes (`PROTOBASE_FILES_CLEANUP_MINUTES`, 0 turns it off);
+- with [`protobase files cleanup`](/reference/cli/#files-cleanup), from cron or a timer;
+- with `POST /api/files:cleanup` and an admin's token, for a hosting platform. It answers `{ deleted, kept }`.
+
+The scheduled deletes sit behind a small interface (`CleanupSchedule`: `add`, `due`, `done`), so a table in a schema of its own, added by a migration at update time, can replace the folder later.
+
+What this does not cover: a write made with SQL outside the API schedules nothing, so a file whose row SQL changed or deleted stays in storage. The check before deleting looks only at the file fields the config declares; a column holding file URIs that no resource declares is not protected.

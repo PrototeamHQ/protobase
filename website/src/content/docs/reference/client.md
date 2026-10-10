@@ -16,7 +16,7 @@ const { record, etag } = await api.get(orders, id)
 await api.update(orders, id, { status: 'shipped' }, etag) // 412 rejects with PreconditionFailedError
 ```
 
-Pass a resource builder to get its record type (`InferRecord`), or a name for loose records. Filters are AIP-160 text or `where` results (printed with `printFilter`). Errors are `ApiError` (`status`, `slug`, `errors`, `filterErrors` with spans). Also: `search`, `create`, `remove`, `facets`, `series`, `histogram`, `seek`, `reveal(resource, key, field)` (a [sensitive field](/reference/data-config/#sensitive-fields)'s value), `meta(etag?)`, `invoke(name, { body?, method?, path?, query? })` (one of the app's [API functions](/guides/api-functions/#calling-a-function)).
+Pass a resource builder to get its record type (`InferRecord`), or a name for loose records. Filters are AIP-160 text or `where` results (printed with `printFilter`). Errors are `ApiError` (`status`, `slug`, `errors`, `filterErrors` with spans). Also: `search`, `create`, `remove`, `facets`, `series`, `histogram`, `seek`, `reveal(resource, key, field)` (a [sensitive field](/reference/data-config/#sensitive-fields)'s value), `meta(etag?)`, `invoke(name, { body?, method?, path?, query? })` (one of the app's [API functions](/guides/api-functions/#calling-a-function)), `upload(resource, field, file, { onProgress?, signal? })` (a file for a [file field](/reference/files/#uploading); its `value` goes in the next write, and `onProgress` uses XMLHttpRequest, since fetch reports no upload progress).
 
 ## The admin app
 

@@ -48,6 +48,7 @@ Field names are camelCase; the column is the snake_case of the name unless `.col
 | `f.relation('resource')` | the key column(s) of another resource | its key | `.columns([...])` |
 | `f.currency()` | `text` | ISO 4217 code (`EUR`) | |
 | `f.country()` | `text` | ISO 3166-1 alpha-2 code (`NL`) | |
+| `f.file()` | `text` | `{ uri, name, type, size, url }`; written with a ticket from `:upload` | `.accept([...])`, `.maxSize(size)`, `.public()`, `.storage(name)`, `.derive({...})`; see [Files](/reference/files/) |
 
 A constraint a type does not support (`f.boolean().min(1)`) throws when the config loads.
 
