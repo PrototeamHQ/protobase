@@ -1,4 +1,7 @@
 import type { AdminAuth } from './create-auth'
+import { parseRoles } from './parse-roles'
+
+export { parseRoles }
 
 // Storage goes through Better Auth's own adapters (`adapter` and `internalAdapter` of `auth.$context`), which also map
 // model and column names, never through its tables. The admin plugin's HTTP-style endpoints (banUser, setRole,
@@ -23,7 +26,8 @@ export const hasUsers = async (auth: AdminAuth) => (await auth.$context).adapter
 
 /**
  * Creates a user directly in the admin store. Host side only (no HTTP route creates accounts while the store is empty):
- * the first user is always an `admin`, later ones get `role` (default `user`).
+ * the first user is always an `admin`, later ones get `role` (default `user`). The address counts as verified, so the
+ * user can also sign in with an emailed code.
  */
 export const createUser = async (auth: AdminAuth, input: NewUser) => {
   const first = !(await hasUsers(auth))
@@ -36,16 +40,6 @@ export const createUser = async (auth: AdminAuth, input: NewUser) => {
   return { id: user.id, email: user.email, role: String(user.role) }
 }
 
-/**
- * The admin plugin stores roles as a comma separated string. A value written as a JS array through a Postgres driver
- * comes back as an array literal (`{admin,sales}`); that is read too, and rewritten as a plain string on the next change.
- */
-export const parseRoles = (role: string | string[] | null | undefined) => {
-  if (Array.isArray(role)) return role
-  const text = (role ?? 'user').trim()
-  const inner = text.startsWith('{') && text.endsWith('}') ? text.slice(1, -1) : text
-  return inner.split(',').map((name) => name.trim().replace(/^"|"$/g, '')).filter(Boolean)
-}
 
 type Row = { id: string; email: string; role?: string | string[] | null; banned?: boolean | null; createdAt: Date | string }
 

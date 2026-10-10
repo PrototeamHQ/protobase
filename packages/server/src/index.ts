@@ -22,6 +22,7 @@ export { createAuth, normalizeRoles, type AdminAuth, type CreateAuthOptions, typ
 export { betterAuthAuthenticator, type BetterAuthAuthenticatorOptions } from './better-auth/authenticator'
 export { roleChoices, parseRoles, hasUsers, createUser, listUsers, deleteUser, setUserRole, setUserBanned, type NewUser, type StoredUser } from './better-auth/users'
 export { issueToken, maxTokenTtlSeconds, type IssueTokenOptions } from './better-auth/tokens'
+export { defaultSignInPolicy, signInPolicyMethods, type SignInPolicy, type SignInRule } from './better-auth/sign-in-policy'
 export type { AssistantOptions } from './assistant/assistant-settings'
 export { assistantSettings, assistantRoles, assistantVariables, seesAssistant, type AssistantSettings, type ModelSettings } from './assistant/assistant-settings'
 export { assistantProtocolRoutes, type AssistantBackend } from './assistant/protocol-routes'

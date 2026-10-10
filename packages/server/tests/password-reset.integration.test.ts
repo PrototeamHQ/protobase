@@ -1,62 +1,18 @@
-import type { AddressInfo } from 'node:net'
 import { PGlite } from '@electric-sql/pglite'
 import { Kysely } from 'kysely'
 import { PGliteDialect } from 'kysely-pglite-dialect'
-import { SMTPServer } from 'smtp-server'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { betterAuthAuthenticator } from '../src/better-auth/authenticator'
 import { createAuth } from '../src/better-auth/create-auth'
 import { createUser } from '../src/better-auth/users'
 import { createAdmin } from '../src/create-admin'
 import { createAuthStore } from '../../../test-support/auth'
+import { bodyOf, relayCredential as credential, startFakeRelay } from './support/fake-relay'
 
 const origin = 'http://localhost:5173'
 const oldPassword = 'correct horse battery'
 const newPassword = 'a much longer new password'
-const credential = { username: 'tenant-acme', password: 'relay-s3cret' }
 const sender = 'noreply@acme.example.com'
-
-type Received = { from: string; to: string[]; user: string | undefined; raw: string }
-
-// An SMTP server in this process, as the platform's relay: it asks for the tenant's credential and keeps every message.
-const startFakeRelay = async () => {
-  const received: Received[] = []
-  const waiting: Array<(message: Received) => void> = []
-  const server = new SMTPServer({
-    disabledCommands: ['STARTTLS'],
-    allowInsecureAuth: true,
-    onAuth: (auth, _session, callback) =>
-      auth.username === credential.username && auth.password === credential.password ? callback(null, { user: auth.username }) : callback(new Error('Invalid credentials')),
-    onData: (stream, session, callback) => {
-      const chunks: Buffer[] = []
-      stream.on('data', (chunk: Buffer) => chunks.push(chunk))
-      stream.on('end', () => {
-        const message = {
-          from: session.envelope.mailFrom ? session.envelope.mailFrom.address : '',
-          to: session.envelope.rcptTo.map((rcpt) => rcpt.address),
-          user: session.user,
-          raw: Buffer.concat(chunks).toString(),
-        }
-        const waiter = waiting.shift()
-        if (waiter) waiter(message)
-        else received.push(message)
-        callback()
-      })
-    },
-  })
-  await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))
-  const port = (server.server.address() as AddressInfo).port
-  const next = () => {
-    const ready = received.shift()
-    return ready ? Promise.resolve(ready) : new Promise<Received>((resolve) => waiting.push(resolve))
-  }
-  return { port, next, received, close: () => new Promise<void>((resolve) => server.close(() => resolve())) }
-}
-
-// Long lines of a plain-text body are sent quoted-printable: undo the soft line breaks and `=XX` escapes.
-const decodeQuotedPrintable = (text: string) => text.replace(/=\r?\n/g, '').replace(/=([0-9A-F]{2})/g, (_, hex: string) => String.fromCharCode(parseInt(hex, 16)))
-
-const bodyOf = (raw: string) => decodeQuotedPrintable(raw.slice(raw.indexOf('\r\n\r\n') + 4))
 
 let relay: Awaited<ReturnType<typeof startFakeRelay>>
 let store: PGlite
@@ -65,7 +21,7 @@ let app: ReturnType<typeof createAdmin>
 beforeAll(async () => {
   relay = await startFakeRelay()
   // As the platform passes them to a tenant's container.
-  vi.stubEnv('PROTOBASE_SMTP_URL', `smtp://${credential.username}:${credential.password}@127.0.0.1:${relay.port}`)
+  vi.stubEnv('PROTOBASE_SMTP_URL', relay.smtpUrl)
   vi.stubEnv('PROTOBASE_MAIL_FROM', sender)
   store = await createAuthStore()
   const auth = createAuth({ database: { dialect: new PGliteDialect(store), type: 'postgres' }, baseURL: origin, secret: 'test-secret-test-secret-test-secret-1234', signInPerMinute: 100 })
@@ -96,7 +52,7 @@ describe('password reset over SMTP', () => {
     expect(before.status).toBe(200)
     const oldSession = cookieOf(before)
 
-    expect(await (await app.request(`${origin}/api/auth/status`)).json()).toEqual({ needsAdmin: false, passwordReset: true, socialProviders: [] })
+    expect(await (await app.request(`${origin}/api/auth/status`)).json()).toEqual({ needsAdmin: false, signInMethods: ['password', 'emailCode', 'passkey'], passwordReset: true, socialProviders: [] })
     const requested = await post('/request-password-reset', { email: 'sanne@acme.example.com', redirectTo: `${origin}/orders?password-reset` })
     expect(requested.status).toBe(200)
 

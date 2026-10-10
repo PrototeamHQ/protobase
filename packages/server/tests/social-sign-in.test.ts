@@ -74,7 +74,7 @@ const signInWithGitHub = async ({ app, address }: { app: ReturnType<typeof creat
 describe('sign-in with GitHub', () => {
   it('is not offered without providers', async () => {
     const { app } = await serve()
-    expect(await (await app.request(`${origin}/api/auth/status`)).json()).toEqual({ needsAdmin: false, passwordReset: false, socialProviders: [] })
+    expect(await (await app.request(`${origin}/api/auth/status`)).json()).toEqual({ needsAdmin: false, signInMethods: ['password', 'passkey'], passwordReset: false, socialProviders: [] })
     const start = await app.request(`${origin}/api/auth/sign-in/social`, { method: 'POST', headers: { 'content-type': 'application/json', origin }, body: JSON.stringify({ provider: 'github', callbackURL: `${origin}/` }) })
     expect(start.status).toBeGreaterThanOrEqual(400)
   })
