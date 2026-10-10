@@ -4,6 +4,8 @@ import { useState, type ReactNode } from 'react'
 import { expect, userEvent, waitFor, within } from 'storybook/test'
 import { AppShell } from './app-shell'
 import { AssistantButton } from './app/assistant-shell'
+import { AssistantDock } from './assistant-dock'
+import { conversation } from './assistant-dock/fixtures'
 import { adminUser } from './website/users'
 import { ConflictDialog } from './app/delete/dialogs'
 import { CreateRecordForm } from './app/create/create-record-form'
@@ -147,6 +149,64 @@ export const TopBarActionsDesktop: Story = {
     const canvas = within(canvasElement)
     expect(canvas.getByRole('combobox', { name: 'Global search' })).toBeVisible()
     expectIconOnlyAssistant(canvas, false)
+  },
+}
+
+const AssistantShell = () => {
+  const [open, setOpen] = useState(true)
+  return (
+    <div className="h-screen">
+      <AppShell
+        sidebarMode="icon"
+        activeItem="orders"
+        breadcrumb={['Sales', 'Orders']}
+        user={adminUser}
+        actions={<AssistantButton open={open} onToggle={() => setOpen(!open)} />}
+        rightPanel={open && <AssistantDock state={conversation} onClose={() => setOpen(false)} />}
+      >
+        <div className="p-4 text-muted-foreground">The page under the assistant.</div>
+      </AppShell>
+    </div>
+  )
+}
+
+/** On phones the open assistant covers the whole screen, its close button and composer in view. */
+export const AssistantPhone: Story = {
+  globals: { viewport: { value: 'phone390' } },
+  tags: ['play', 'phone'],
+  render: () => <AssistantShell />,
+  play: async ({ canvasElement }) => {
+    const panel = within(canvasElement).getByRole('complementary', { name: 'Assistant' })
+    const box = panel.getBoundingClientRect()
+    expect([box.left, box.top, box.width, box.height]).toEqual([0, 0, window.innerWidth, window.innerHeight])
+    expect(within(panel).getByRole('button', { name: 'Close' })).toBeVisible()
+    expect(within(panel).getByRole('textbox', { name: 'Message' }).getBoundingClientRect().bottom).toBeLessThanOrEqual(window.innerHeight)
+  },
+}
+
+/** Closing the assistant on a phone shows the page again. */
+export const AssistantPhoneClose: Story = {
+  globals: { viewport: { value: 'phone390' } },
+  tags: ['play', 'phone'],
+  render: () => <AssistantShell />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    await userEvent.click(within(canvas.getByRole('complementary', { name: 'Assistant' })).getByRole('button', { name: 'Close' }))
+    expect(canvas.queryByRole('complementary', { name: 'Assistant' })).toBeNull()
+    expect(canvas.getByText('The page under the assistant.')).toBeVisible()
+  },
+}
+
+export const AssistantTablet: Story = { globals: { viewport: { value: 'tablet768' } }, render: () => <AssistantShell /> }
+
+/** From `md` up the assistant stays a panel beside the page. */
+export const AssistantDesktop: Story = {
+  tags: ['play'],
+  render: () => <AssistantShell />,
+  play: async ({ canvasElement }) => {
+    const box = within(canvasElement).getByRole('complementary', { name: 'Assistant' }).getBoundingClientRect()
+    expect(box.width).toBe(380)
+    expect(box.right).toBe(window.innerWidth)
   },
 }
 
