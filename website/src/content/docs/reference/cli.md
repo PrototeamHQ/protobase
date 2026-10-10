@@ -215,6 +215,7 @@ By default the bundle runs on Node and on Bun. `--bun` makes it a bundle for Bun
   | `@protobase/schema`, `@protobase/layout`, `@protobase/layout/jsx-runtime`, `@protobase/query`, `@protobase/server` | the server entry points of the `@protobase` packages, and what [layout files](/reference/layouts/) compile to |
   | `kysely`, `kysely/helpers/postgres`, `pg`, `postgres` | the database |
   | `better-auth`, `hono`, `jose`, `zod`, `aip-parsers`, `@hono/node-server`, `@scalar/hono-api-reference` | the main entry of each other dependency the `@protobase` packages run on the server |
+  | `hono/cors`, `hono/http-exception`, `hono/validator` | Hono middleware for [API functions](/guides/api-functions/) |
 
   Importing any other `@protobase` package or dependency of one (`@protobase/ui`, `react`, `better-auth/plugins`, `zod/v4`, ...) fails the build with this list, also from inside an inlined package. So does a copy the project installs in another version than the `@protobase` packages use (another major, or another minor below 1.0), which the runtime's would replace. The list is `packages/cli/src/serve/host-module-ids.ts`; the set of packages comes from the `package.json` of `@protobase/cli` and of every `@protobase` package it depends on.
 - Packages with a native add-on stay imports too, and the bundle carries them in `node_modules/` (see [Native packages](#native-packages)). Node's built-in modules stay imports.

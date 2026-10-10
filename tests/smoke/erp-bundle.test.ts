@@ -45,12 +45,16 @@ describe.skipIf(!reachable)(`the ERP built and served by the CLI on ${runtime}`,
     return readFile(path.join(outDir, name, 'protobase.config.js'), 'utf8')
   }
 
-  // Serves the bundle, reads /api/meta as an admin and stops it again.
+  // Serves the bundle, calls the ERP's API function, reads /api/meta as an admin and stops it again.
   const serveMeta = async (name: string) => {
     child = spawn(process.execPath, [bin, 'serve', path.join(outDir, name)], { cwd: erpDir, env: { ...process.env, ...store.env, PORT: String(port) } })
     try {
       await untilListening(child, timeout - 10_000)
       const token = await signIn(base, email, password)
+      const unpaid = await fetch(`${base}/api/functions/unpaid-orders`, { headers: { authorization: `Bearer ${token}` } })
+      expect(unpaid.status).toBe(200)
+      expect(await unpaid.json()).toEqual({ orders: expect.any(Array) })
+      expect((await fetch(`${base}/api/functions/unpaid-orders`)).status).toBe(401)
       const meta = await fetch(`${base}/api/meta`, { headers: { authorization: `Bearer ${token}` } })
       expect(meta.status).toBe(200)
       return JSON.stringify(await meta.json())

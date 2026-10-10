@@ -3,6 +3,9 @@ import * as apiReference from '@scalar/hono-api-reference'
 import * as aipParsers from 'aip-parsers'
 import * as betterAuth from 'better-auth'
 import * as hono from 'hono'
+import * as honoCors from 'hono/cors'
+import * as honoHttpException from 'hono/http-exception'
+import * as honoValidator from 'hono/validator'
 import * as jose from 'jose'
 import * as kysely from 'kysely'
 import * as kyselyPostgres from 'kysely/helpers/postgres'
@@ -27,6 +30,9 @@ const hostModules: Record<HostModuleId, Record<string, unknown>> = {
   postgres,
   'better-auth': betterAuth,
   hono,
+  'hono/cors': honoCors,
+  'hono/http-exception': honoHttpException,
+  'hono/validator': honoValidator,
   jose,
   zod,
   'aip-parsers': aipParsers,

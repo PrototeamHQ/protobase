@@ -3,6 +3,7 @@ import { existsSync } from 'node:fs'
 import path from 'node:path'
 import { mergeConfig, type ProjectConfig } from '@protobase/server'
 import { conventionConfig } from '../project/convention'
+import { functionFiles } from '../project/functions-folder'
 import type { Extension } from '../project/extensions'
 import { sharedDb } from './create-db'
 
@@ -25,17 +26,24 @@ const conventionExports = async (projectDir: string) => {
   return conventionConfig(indexExports, uiModules)
 }
 
+// One function per file in ./functions, each its file's default export; none when there is no such folder.
+const conventionFunctions = async (projectDir: string) => {
+  const files = functionFiles(projectDir)
+  if (files.length === 0) return undefined
+  return Object.fromEntries(await Promise.all(files.map(async ({ name, file }) => [name, (await load(file)).default])))
+}
+
 // Each config is named in merge errors by its own name, otherwise by its file.
 const named = (config: ProjectConfig, file: string) => ({ ...config, name: config.name ?? file })
 
-// protobase.config.ts, with the convention's config when it has none, merged after the extensions' configs and with the
+// protobase.config.ts, with the convention's config and functions when it has none, merged after the extensions' configs and with the
 // configs it extends, as `protobase build` merges them.
 export const loadProject = async (projectDir: string, extensions: Extension[] = []): Promise<Project> => {
   const file = path.join(projectDir, 'protobase.config.ts')
   const custom: ProjectConfig = existsSync(file) ? ((await load(file)).default ?? {}) : {}
   const extended: ProjectConfig[] = []
   for (const extension of extensions) if (extension.config) extended.push(named((await load(extension.config)).default ?? {}, extension.config))
-  const own = named({ ...custom, config: custom.config ?? (await conventionExports(projectDir)) }, existsSync(file) ? 'protobase.config.ts' : 'config/index.ts')
+  const own = named({ ...custom, config: custom.config ?? (await conventionExports(projectDir)), functions: custom.functions ?? (await conventionFunctions(projectDir)) }, existsSync(file) ? 'protobase.config.ts' : 'config/index.ts')
   const project = mergeConfig(...extended, own)
   return { ...project, exports: project.config ?? {} }
 }

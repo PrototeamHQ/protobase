@@ -1,6 +1,6 @@
 import { spawn, type ChildProcess } from 'node:child_process'
 import { existsSync } from 'node:fs'
-import { mkdtemp, rm } from 'node:fs/promises'
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { createServer } from 'node:net'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
@@ -56,6 +56,8 @@ describe.skipIf(!reachable || !hasApp)('protobase dev in a project with real aut
     cacheDir = await mkdtemp(path.join(tmpdir(), 'protobase-dev-cache-'))
     project = await createAuthProject(url)
     const { projectDir, env } = project
+    await mkdir(path.join(projectDir, 'functions'))
+    await writeFile(path.join(projectDir, 'functions/whoami.ts'), `import { defineFunction } from '@protobase/server'\nexport default defineFunction((request, { session }) => Response.json({ path: new URL(request.url).pathname, roles: session.user.roles }))\n`)
     const created = await run([bin, 'users', 'create', 'dev@example.com', '--password-stdin'], projectDir, env, 'a-long-test-password\n')
     if (created.status !== 0) throw new Error(`users create failed:\n${created.stderr}`)
     token = (await run([bin, 'token', 'dev@example.com'], projectDir, env)).stdout.trim()
@@ -80,5 +82,12 @@ describe.skipIf(!reachable || !hasApp)('protobase dev in a project with real aut
     expect(signedIn.status).toBe(200)
     expect(signedIn.headers.get('x-meta-version')).toBeTruthy()
     expect((await fetch(meta)).status).toBe(401)
+  })
+
+  it('serves the functions in ./functions to a bearer token and refuses everyone else', async () => {
+    const whoami = `http://localhost:${port}/api/functions/whoami/me`
+    const signedIn = await fetch(whoami, { headers: { authorization: `Bearer ${token}` } })
+    expect(await signedIn.json()).toEqual({ path: '/me', roles: expect.any(Array) })
+    expect((await fetch(whoami)).status).toBe(401)
   })
 })

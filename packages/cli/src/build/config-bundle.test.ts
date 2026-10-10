@@ -157,6 +157,16 @@ export const thingsView = view('things').names({ singular: 'Thing 😀', plural:
     expect(project.options.found).toEqual(['function', 'function', 'function', 'function'])
   })
 
+  it('leaves the Hono middleware an API function may use to the serve runtime', async () => {
+    projectDir = await createProject({
+      'protobase.config.ts': `import { cors } from 'hono/cors'\nimport { HTTPException } from 'hono/http-exception'\nimport { validator } from 'hono/validator'\nexport default { config: {}, options: { found: [cors, HTTPException, validator] } }\n`,
+    })
+    const outFile = path.join(projectDir, 'dist/protobase.config.js')
+    await buildConfigBundle({ projectDir, outFile })
+    const code = await readFile(outFile, 'utf8')
+    for (const id of ['hono/cors', 'hono/http-exception', 'hono/validator']) expect(code).toContain(`from "${id}"`)
+  })
+
   it('refuses dependencies of the @protobase packages that the runtime does not supply', async () => {
     for (const [id, name] of [
       ['better-auth/plugins', 'admin'],
