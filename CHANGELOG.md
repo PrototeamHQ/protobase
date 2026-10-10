@@ -2,6 +2,20 @@
 
 Every release of Protobase, cut by the release workflow from the commits since the last one (see the [versioning page](https://docs.protobase.net/reference/versioning/)).
 
+## [0.2.0](https://github.com/PrototeamHQ/protobase/compare/v0.1.6...v0.2.0) (2026-10-10)
+
+### ⚠ BREAKING CHANGES
+
+* **ui:** render assistant backends with generic chat primitives in the shell's dock
+
+### Features
+
+* **client:** a client for assistant backends ([bf5d48c](https://github.com/PrototeamHQ/protobase/commit/bf5d48cf41f8e08c1fcd580595d7233592b1f91c))
+* **schema:** the assistant protocol's types, event reducer and event-stream reader ([5da7cd4](https://github.com/PrototeamHQ/protobase/commit/5da7cd4d6d3e5d968e54b2322032d28cddde3f99))
+* **server:** name the assistant backend in /api/meta and answer questions with a built-in assistant ([2df1c9a](https://github.com/PrototeamHQ/protobase/commit/2df1c9ae491654cb575f886da71dbaac1de945ca))
+* **server:** tool-calling turns, approvals and guarded query tools for the assistant ([aba90a7](https://github.com/PrototeamHQ/protobase/commit/aba90a756ae44c52c9a2e26c552262ad5ae1454c))
+* **ui:** render assistant backends with generic chat primitives in the shell's dock ([77b6cac](https://github.com/PrototeamHQ/protobase/commit/77b6cacae2d1a35c339b18af97f83afa274ffe51))
+
 ## [0.1.6](https://github.com/PrototeamHQ/protobase/compare/v0.1.5...v0.1.6) (2026-10-09)
 
 ### Bug Fixes
