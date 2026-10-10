@@ -9,8 +9,8 @@ exported from `config/index.ts`, over a Postgres database. Reference: https://do
   Never edit or remove a migration that exists: it has already run on the live database.
 - Expand only, where possible: add tables, columns and indexes, and keep what the running app still reads. Rename or
   drop only when asked to, once nothing uses it.
-- A new table gets `organization_id integer not null references core.organizations (id)`, like the others; everyone
-  works in organization 1 (`auth/auth.ts`).
+- A new table gets `organization_id integer not null references core.organizations (id)` and `.tenant(...)`, like the
+  others: people work in one organization at a time, and see only its rows (`auth/auth.ts`).
 
 ## Never touch
 
@@ -20,5 +20,5 @@ exported from `config/index.ts`, over a Postgres database. Reference: https://do
 ## Scripts
 
 The platform runs `db:migrate` (the auth schema's migrations included), `typecheck` and `test`, with their settings in
-the environment: keep them working. Run `typecheck` and `test` before you finish. `db:seed:base` loads the reference data and organization 1,
+the environment: keep them working. Run `typecheck` and `test` before you finish. `db:seed:base` loads the reference data and organization 1 (in the auth schema too),
 and `db:seed` the sample data, replacing everything in the app's tables.

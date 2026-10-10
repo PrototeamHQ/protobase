@@ -57,6 +57,16 @@ Seed consistency: an invoice's subtotal equals the sum of its lines and an order
 
 `bun run --cwd examples/erp db:migrate` also creates Better Auth's tables in the `auth` schema of the ERP database (`db/migrations/009_auth.sql`; later ones come from `protobase auth migration`); `bun run --cwd examples/erp serve` (or `protobase dev`) then needs `BETTER_AUTH_SECRET` in `.env` and serves real sign-in. See [Login with Better Auth](https://docs.protobase.net/reference/auth/). There is no passwordless mode: create the first admin with `protobase users create <email>`, and mint a bearer token for curl with `protobase token <email>`.
 
+The ERP has [organizations](https://docs.protobase.net/reference/auth/#organizations) on (`auth/auth.ts`): the seed writes its organizations to the auth schema too, under the ids its records use, and the first user owns them. Everyone else joins one with an organization role and app roles, by invitation in the app or on the host:
+
+```sh
+protobase users create sanne@example.com --organization rijnland --org-role admin --app-roles manager
+protobase organizations add-member nordlicht sanne@example.com --app-roles sales
+protobase organizations list
+```
+
+A new organization takes the next id of `core.organizations` and gets its row there (`onCreated`).
+
 ## Serve and deploy
 
 The ERP has no server code of its own: `protobase.config.ts` exports the config, `auth` and `authenticate`, and protobase serves it.

@@ -52,6 +52,9 @@ export const createErpDatabase = async ({ url, erpDir, base, email, password }: 
   }
   const migrated = await run(typescriptArgs('db/migrate.ts'), erpDir, env)
   if (migrated.status !== 0) throw new Error(`migrations failed:\n${migrated.stderr}`)
+  // As a new app starts: its organization 1, which the first user then owns.
+  const seeded = await run(typescriptArgs('seed/base.ts'), erpDir, env)
+  if (seeded.status !== 0) throw new Error(`the base seed failed:\n${seeded.stderr}`)
   const created = await run([bin, 'users', 'create', email, '--role', 'admin', '--password-stdin'], erpDir, env, `${password}\n`)
   if (created.status !== 0) throw new Error(`users create failed:\n${created.stderr}`)
 

@@ -4,6 +4,7 @@ import { copyRows } from '../copy'
 import { countries, currencies } from '../data/reference'
 import { iso, row } from '../format'
 import type { World } from '../world'
+import { seedAuthOrganizations } from '../auth-organizations'
 
 export const seedReference = async (sql: Db, world: World) => {
   const createdAt = iso(windowStart - 5 * 365 * DAY)
@@ -14,6 +15,7 @@ export const seedReference = async (sql: Db, world: World) => {
     'core.organizations (id, name, slug, country_code, currency_code, created_at, updated_at)',
     world.orgs.map((org) => row(org.id, org.name, org.slug, org.country, 'EUR', createdAt, createdAt)),
   )
+  await seedAuthOrganizations(sql, world.orgs)
   await copyRows(
     sql,
     'core.users (id, organization_id, email, name, role, active, created_at, updated_at)',
