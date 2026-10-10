@@ -1,4 +1,4 @@
-// Points git at .githooks, whose commit-msg hook runs commitlint. Run by `pnpm install` (prepare); does nothing
+// Points git at .githooks, whose commit-msg hook runs commitlint. Run by `bun install` (prepare); does nothing
 // outside a git checkout of this repository.
 import { spawnSync } from 'node:child_process'
 import { realpathSync } from 'node:fs'

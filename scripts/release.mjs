@@ -11,5 +11,5 @@ const dryRun = process.argv.slice(2).includes('--dry-run')
 const lastTag = spawnSync('git', ['describe', '--tags', '--match', 'v*', '--abbrev=0'], { encoding: 'utf8' })
 const releaseAs = lastTag.status === 0 ? [] : ['--release-as', firstRelease]
 
-const released = spawnSync('pnpm', ['exec', 'commit-and-tag-version', ...releaseAs, ...(dryRun ? ['--dry-run'] : [])], { stdio: 'inherit' })
+const released = spawnSync('bun', ['x', '--bun', 'commit-and-tag-version', ...releaseAs, ...(dryRun ? ['--dry-run'] : [])], { stdio: 'inherit' })
 process.exit(released.status ?? 1)

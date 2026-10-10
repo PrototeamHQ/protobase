@@ -1,7 +1,7 @@
 type Dependencies = Record<string, string>
 type PackageJson = { dependencies?: Dependencies; devDependencies?: Dependencies; [key: string]: unknown }
 
-// workspace:* is the only range the examples use; pnpm publishes it as the exact version, and so does a preset.
+// workspace:* is the only range the examples use; publishing pins it to the exact version, and so does a preset.
 const pin = (dependencies: Dependencies, version: string) =>
   Object.fromEntries(
     Object.entries(dependencies).map(([name, range]) => {

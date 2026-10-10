@@ -2,7 +2,7 @@ import { chromium } from 'playwright'
 
 /**
  * The sign-in flow against a running `protobase dev` (default http://localhost:5173).
- * Needs an existing user: EMAIL=you@example.com PASSWORD=... node scripts/e2e-login.mjs
+ * Needs an existing user: EMAIL=you@example.com PASSWORD=... bun scripts/e2e-login.mjs
  */
 const base = process.env.BASE ?? 'http://localhost:5173'
 const { EMAIL, PASSWORD } = process.env

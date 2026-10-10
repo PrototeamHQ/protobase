@@ -9,7 +9,7 @@ const root = path.join(import.meta.dirname, '..', '..')
 export const serverUrl = process.env.TEST_POSTGRES_URL ?? 'postgres://protobase:protobase@localhost:55432/postgres'
 
 /**
- * One template database per example, migrated and seeded by `pnpm test:db`. Every test run clones its own database
+ * One template database per example, migrated and seeded by `bun run test:db`. Every test run clones its own database
  * from these and drops it afterwards, so tests never touch the developer databases (`protobase`, `real_estate`).
  * The ERP is seeded at medium scale, which the planner and seek cases need; `file_copy` clones it in a third of the time.
  */

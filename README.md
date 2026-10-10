@@ -20,7 +20,7 @@ npm packages under the `@protobase` scope, all at one version, built from `packa
 pnpm add @protobase/cli @protobase/schema @protobase/layout @protobase/server @protobase/ui
 ```
 
-The projects a new app starts from (ERP, real estate, from scratch) are not on npm: `pnpm presets:write <version> <dir>`
+The projects a new app starts from (ERP, real estate, from scratch) are not on npm: `bun run presets:write <version> <dir>`
 writes them from a clone of this repository, each with the `@protobase` packages pinned to `<version>` and its own
 `bun.lock`.
 
@@ -32,12 +32,12 @@ Licensed under the [Apache License 2.0](LICENSE).
 
 ## Setup
 
-Requires Node >= 22.12 (`.nvmrc`) and pnpm 10.12.1.
+Requires Bun 1.4.2.
 
 ```sh
-pnpm install
-pnpm check        # typecheck + test + test:integration + check:boundaries
-pnpm docs:dev     # the documentation site on port 4321
+bun install
+bun run check        # typecheck + test + test:integration + check:boundaries
+bun run docs:dev     # the documentation site on port 4321
 ```
 
 The other commands are listed in [Getting started](https://docs.protobase.net/getting-started/#commands).

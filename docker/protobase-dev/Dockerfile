@@ -1,7 +1,7 @@
 # protobase-dev: Node, Bun and the presets at /opt/protobase/presets/<name>, with one node_modules that fits every
 # preset installed in /workspace. Copy a preset there and `bun install --frozen-lockfile` has nothing to do; installed
 # anywhere else, a preset comes from Bun's cache in /opt/bun-cache, without the network.
-# Context: dist/images/protobase-dev (pnpm images:context).
+# Context: dist/images/protobase-dev (bun run images:context).
 ARG BUN_VERSION=1.4.2
 FROM oven/bun:${BUN_VERSION} AS bun
 

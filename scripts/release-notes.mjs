@@ -1,9 +1,9 @@
 // Prints the CHANGELOG.md section of one version, without its heading, as the notes of its GitHub release:
-// `node scripts/release-notes.mjs 0.1.0`.
+// `bun scripts/release-notes.mjs 0.1.0`.
 import { readFileSync } from 'node:fs'
 
 const version = process.argv[2]
-if (!version) throw new Error('usage: node scripts/release-notes.mjs <version>')
+if (!version) throw new Error('usage: bun scripts/release-notes.mjs <version>')
 
 const sections = readFileSync('CHANGELOG.md', 'utf8').split(/^(?=## )/m)
 const section = sections.find((text) => text.startsWith(`## ${version} `) || text.startsWith(`## [${version}]`))

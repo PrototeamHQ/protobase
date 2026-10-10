@@ -1,6 +1,6 @@
 # protobase: the serve runtime, compiled with its bytecode into one executable, which serves the API of the
 # bundle mounted at /app (`protobase build`'s dist/); Bun itself for the healthcheck; and the C++ runtime that native
-# add-ons in a bundle's node_modules link (libstdc++, libgcc_s). Context: dist/images/protobase (pnpm images:context).
+# add-ons in a bundle's node_modules link (libstdc++, libgcc_s). Context: dist/images/protobase (bun run images:context).
 ARG BUN_VERSION=1.4.2
 
 # Built by the Bun the image runs, so its bytecode always matches. It never reads .env or bunfig.toml from its working

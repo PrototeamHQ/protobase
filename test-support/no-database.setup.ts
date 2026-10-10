@@ -1,9 +1,9 @@
 import { vi } from 'vitest'
 
-// Setup for `pnpm test:unit`: a test that starts PGlite or opens a Postgres connection belongs in tests/, so doing it
+// Setup for `bun run test:unit`: a test that starts PGlite or opens a Postgres connection belongs in tests/, so doing it
 // here throws. Importing a driver stays allowed: shared test support and bundled configs import one without using it.
 const refuse = (what: string) => {
-  throw new Error(`${what} started in a unit test; tests that start a database belong in tests/ (pnpm test)`)
+  throw new Error(`${what} started in a unit test; tests that start a database belong in tests/ (bun run test)`)
 }
 
 vi.mock('@electric-sql/pglite', async (importOriginal) => {

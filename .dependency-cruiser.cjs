@@ -64,7 +64,8 @@ module.exports = {
       name: 'declared-dependencies',
       comment: 'A package imports only what its package.json lists in dependencies, so it installs and works on its own. The rules above keep its @protobase imports to the ones it lists.',
       severity: 'error',
-      from: { path: '^packages/', pathNot: testCode },
+      // The source bin runs only in this repository, which installs its devDependencies.
+      from: { path: '^packages/', pathNot: [...testCode, '^packages/cli/bin/protobase-source\\.mjs$'] },
       to: { dependencyTypes: ['npm-no-pkg', 'npm-unknown', 'npm-dev'] },
     },
     {
@@ -72,7 +73,7 @@ module.exports = {
       comment: 'Examples, the ERP and the documentation\'s, their tests and the shared test support import @protobase packages by name, never by path.',
       severity: 'error',
       from: { path: '^(examples|docs-examples|tests/examples|test-support)/' },
-      to: { path: '^packages/', dependencyTypes: ['local'] },
+      to: { path: '^packages/', dependencyTypes: ['local'], dependencyTypesNot: ['aliased-workspace'] },
     },
     {
       name: 'no-circular',

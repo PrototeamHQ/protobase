@@ -2,14 +2,14 @@ import { spawnSync } from 'node:child_process'
 import path from 'node:path'
 import { connectServer, databaseUrl, sourceHash, templates, templateState, type Template } from './templates'
 
-// `pnpm test:db [--force]`: builds the test templates that are missing or older than their migrations and seed
+// `bun run test:db [--force]`: builds the test templates that are missing or older than their migrations and seed
 // (every one with --force). Test runs clone these; they never write to the developer databases.
 
 const root = path.join(import.meta.dirname, '..', '..')
 const force = process.argv.includes('--force')
 
 const run = (template: Template, script: string, ...args: string[]) => {
-  const result = spawnSync(process.execPath, ['--import', 'tsx', script, ...args], {
+  const result = spawnSync('bun', [script, ...args], {
     cwd: path.join(root, template.dir),
     env: { ...process.env, DATABASE_URL: databaseUrl(template.database) },
     stdio: 'inherit',
@@ -36,7 +36,7 @@ const build = async (template: Template) => {
 
 for (const template of Object.values(templates)) {
   const state = await templateState(template)
-  if (state === 'unreachable') throw new Error('No Postgres server: start it with `pnpm db:up`, or set TEST_POSTGRES_URL')
+  if (state === 'unreachable') throw new Error('No Postgres server: start it with `bun run db:up`, or set TEST_POSTGRES_URL')
   if (state === 'ready' && !force) {
     console.log(`${template.database} is up to date`)
     continue

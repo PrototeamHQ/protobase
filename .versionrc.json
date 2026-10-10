@@ -10,5 +10,9 @@
     "packages/schema/package.json",
     "packages/server/package.json",
     "packages/ui/package.json"
-  ]
+  ],
+  "scripts": {
+    "postbump": "bun install --lockfile-only && git add bun.lock"
+  },
+  "commitAll": true
 }

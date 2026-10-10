@@ -1,4 +1,4 @@
-// `pnpm db:up`, once the Postgres container is up: gives each example a .env from its .env.example, and creates the
+// `bun run db:up`, once the Postgres container is up: gives each example a .env from its .env.example, and creates the
 // database that DATABASE_URL names there when the server does not have it yet. The examples' scripts read only their
 // own environment and never create their database: that is up to the host, this script here and the platform for an app.
 import { copyFileSync, existsSync, readFileSync } from 'node:fs'

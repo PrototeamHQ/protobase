@@ -1,6 +1,6 @@
 // Writes the build context of the protobase and protobase-dev images (docker/<image>/Dockerfile) to
-// dist/images/<image>, at the version in package.json: protobase-serve.js from `pnpm build:serve --bun`, and presets/<name>
-// from `pnpm presets:write`, whose bun.lock files bun resolves from npm, so the @protobase packages must be published
+// dist/images/<image>, at the version in package.json: protobase-serve.js from `bun run build:serve --bun`, and presets/<name>
+// from `bun run presets:write`, whose bun.lock files bun resolves from npm, so the @protobase packages must be published
 // at that version. The release workflow runs it at the release tag.
 import { spawnSync } from 'node:child_process'
 import { readFileSync, rmSync } from 'node:fs'
@@ -13,6 +13,6 @@ const run = (command, args) => {
 }
 
 rmSync('dist/images', { recursive: true, force: true })
-run('pnpm', ['build:serve', '--bun', '--out', 'dist/images/protobase/protobase-serve.js'])
-run('pnpm', ['presets:write', version, 'dist/images/protobase-dev/presets'])
+run('bun', ['run', 'build:serve', '--bun', '--out', 'dist/images/protobase/protobase-serve.js'])
+run('bun', ['run', 'presets:write', version, 'dist/images/protobase-dev/presets'])
 console.log(`wrote the image contexts for ${version} to dist/images`)

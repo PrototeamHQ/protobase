@@ -28,20 +28,14 @@ jobs:
           --health-retries 30
     steps:
       - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
-      # serve.integration runs the built bundle under Bun.
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: 1.4.2
+      - run: bun install --frozen-lockfile
       # The template databases each integration run clones; with CI set, a missing one fails the run instead of skipping.
-      - run: pnpm test:db
-      - run: pnpm check
-      - run: pnpm docs:build
-      - run: pnpm exec playwright install --with-deps chromium
-      - run: node scripts/play-tests.mjs
-      - run: pnpm docs:check
+      - run: bun run test:db
+      - run: bun run check
+      - run: bun run docs:build
+      - run: bun x --bun playwright install --with-deps chromium
+      - run: bun scripts/play-tests.mjs
+      - run: bun run docs:check

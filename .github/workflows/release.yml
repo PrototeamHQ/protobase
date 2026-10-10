@@ -31,20 +31,18 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: oven-sh/setup-bun@v2
         with:
-          node-version: 22
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
+          bun-version: 1.4.2
+      - run: bun install --frozen-lockfile
       - name: Lint the pushed commits
         env:
           BEFORE: ${{ github.event.before }}
         run: |
           if [ "$BEFORE" = 0000000000000000000000000000000000000000 ]; then
-            pnpm exec commitlint --last --verbose
+            bun x --bun commitlint --last --verbose
           else
-            pnpm exec commitlint --from "$BEFORE" --to "$GITHUB_SHA" --verbose
+            bun x --bun commitlint --from "$BEFORE" --to "$GITHUB_SHA" --verbose
           fi
 
   release:
@@ -58,12 +56,10 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: oven-sh/setup-bun@v2
         with:
-          node-version: 22
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
+          bun-version: 1.4.2
+      - run: bun install --frozen-lockfile
       # Only checked commits are released: when main moved on, the run of the newer push releases it all.
       - name: Check that main is still the checked commit
         id: head
@@ -75,26 +71,26 @@ jobs:
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          pnpm release
+          bun run release
       - name: Push it and publish the GitHub release
         id: push
         if: steps.head.outputs.current == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          version=$(node -p "require('./package.json').version")
+          version=$(bun -p "require('./package.json').version")
           if [ -z "$(git tag --points-at HEAD "v$version")" ]; then
             echo "Nothing to release: no fix, feature or breaking change since the last release"
             exit 0
           fi
           git push --atomic origin HEAD:refs/heads/main "refs/tags/v$version"
-          node scripts/release-notes.mjs "$version" > "$RUNNER_TEMP/notes.md"
+          bun scripts/release-notes.mjs "$version" > "$RUNNER_TEMP/notes.md"
           gh release create "v$version" --verify-tag --title "v$version" --notes-file "$RUNNER_TEMP/notes.md"
           echo "tag=v$version" >> "$GITHUB_OUTPUT"
 
   # Trusted publishing: npm trusts this workflow file of this repository for every @protobase package, so there is no
-  # npm token; npm 11.5.1 or newer exchanges the job's OIDC token and adds provenance. A run that cut no release has no
-  # tag and publishes nothing.
+  # npm token; npm 11.5.1 or newer exchanges the job's OIDC token and adds provenance, which Bun's publish cannot yet, so
+  # npm publishes under Node and Bun only builds and packs. A run that cut no release has no tag and publishes nothing.
   publish:
     needs: release
     if: ${{ !cancelled() && (github.event_name == 'workflow_dispatch' || needs.release.outputs.tag != '') }}
@@ -106,14 +102,15 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: refs/tags/${{ inputs.tag || needs.release.outputs.tag }}
-      - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 24
           registry-url: https://registry.npmjs.org
-          cache: pnpm
       - run: npm install -g npm@^11.5.1
-      - run: pnpm install --frozen-lockfile
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.2
+      - run: bun install --frozen-lockfile
       - name: Publish the packages
         env:
           NPM_CONFIG_PROVENANCE: 'true'
@@ -141,29 +138,23 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: refs/tags/${{ inputs.tag || needs.release.outputs.tag }}
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: pnpm
-      # pnpm presets:write writes each preset's bun.lock with bun.
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: 1.4.2
-      - run: pnpm install --frozen-lockfile
+      - run: bun install --frozen-lockfile
       # npm can take minutes to serve a version it just published, and the presets' bun.lock files need it.
       - name: Wait for npm to serve the presets' @protobase packages
         run: |
-          version=$(node -p "require('./package.json').version")
+          version=$(bun -p "require('./package.json').version")
           for package in cli server ui; do
             for _ in $(seq 60); do
-              [ -n "$(npm view "@protobase/$package@$version" version 2>/dev/null)" ] && continue 2
+              [ -n "$(bun info "@protobase/$package@$version" version 2>/dev/null)" ] && continue 2
               sleep 10
             done
             echo "npm does not serve @protobase/$package@$version after 10 minutes" >&2
             exit 1
           done
-      - run: pnpm images:context
+      - run: bun run images:context
       - uses: docker/setup-buildx-action@v3
       - uses: docker/login-action@v3
         with:
@@ -179,7 +170,7 @@ jobs:
             docker buildx build --platform "$PLATFORM" --file "docker/$image/Dockerfile" \
               --output "type=image,name=ghcr.io/prototeamhq/$image,push-by-digest=true,name-canonical=true,push=true" \
               --metadata-file "$RUNNER_TEMP/$image.json" "dist/images/$image"
-            node -p "require('$RUNNER_TEMP/$image.json')['containerimage.digest']" > "$RUNNER_TEMP/digests/$image"
+            bun -p "require('$RUNNER_TEMP/$image.json')['containerimage.digest']" > "$RUNNER_TEMP/digests/$image"
           done
       - uses: actions/upload-artifact@v4
         with:

@@ -1,0 +1,4 @@
+# `bun run` runs scripts and package bins on Bun even when Node is on PATH, whose `#!/usr/bin/env node` would otherwise
+# start Node. It applies only where bun starts, so each example has its own.
+[run]
+bun = true

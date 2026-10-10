@@ -2,37 +2,36 @@
   "version": "0.3.4",
   "private": true,
   "type": "module",
-  "packageManager": "pnpm@10.12.1",
   "engines": {
     "node": ">=22.12.0"
   },
   "scripts": {
-    "prepare": "node scripts/install-git-hooks.mjs",
-    "db:up": "test -f .env || cp .env.example .env; docker compose up -d --wait && node scripts/local-databases.mjs",
+    "prepare": "bun scripts/install-git-hooks.mjs",
+    "db:up": "test -f .env || cp .env.example .env; docker compose up -d --wait && bun scripts/local-databases.mjs",
     "db:down": "docker compose down",
     "test": "vitest run --project unit --project pglite",
     "test:integration": "vitest run --project 'integration*'",
     "test:presets": "vitest run --project presets",
-    "presets:write": "tsx packages/presets/src/build.ts",
-    "images:context": "node scripts/image-contexts.mjs",
+    "presets:write": "bun packages/presets/src/build.ts",
+    "images:context": "bun scripts/image-contexts.mjs",
     "test:unit": "vitest run --project unit",
     "test:watch": "vitest --project unit --project pglite",
-    "test:db": "tsx scripts/test-db/build.ts",
+    "test:db": "bun scripts/test-db/build.ts",
     "typecheck": "tsc --noEmit",
-    "build": "pnpm --filter './packages/*' build",
+    "build": "bun run --filter './packages/*' build",
     "storybook": "storybook dev -p 6006",
     "build-storybook": "storybook build",
     "check:boundaries": "depcruise packages test-support tests examples docs-examples .storybook --config .dependency-cruiser.cjs",
-    "check": "pnpm typecheck && pnpm test && pnpm test:integration && pnpm check:boundaries",
-    "screenshots": "storybook build && node scripts/screenshots.mjs",
+    "check": "bun run typecheck && bun run test && bun run test:integration && bun run check:boundaries",
+    "screenshots": "storybook build && bun scripts/screenshots.mjs",
     "protobase": "protobase",
     "build:serve": "protobase build-serve",
-    "screenshots:live": "storybook build && node scripts/screenshots.mjs --live",
-    "test:stories": "storybook build && node scripts/play-tests.mjs",
-    "docs:dev": "pnpm --filter website dev",
-    "docs:build": "pnpm build-storybook && pnpm --filter website build && cp -R storybook-static website/dist/storybook",
-    "docs:check": "node scripts/check-docs.mjs",
-    "release": "node scripts/release.mjs"
+    "screenshots:live": "storybook build && bun scripts/screenshots.mjs --live",
+    "test:stories": "storybook build && bun scripts/play-tests.mjs",
+    "docs:dev": "bun run --cwd website dev",
+    "docs:build": "bun run build-storybook && bun run --cwd website build && cp -R storybook-static website/dist/storybook",
+    "docs:check": "bun scripts/check-docs.mjs",
+    "release": "bun scripts/release.mjs"
   },
   "devDependencies": {
     "@commitlint/cli": "^21.2.3",
@@ -70,5 +69,10 @@
     "vite": "^8.3.3",
     "vitest": "^5.0.3",
     "zod": "^4.6.5"
-  }
+  },
+  "workspaces": [
+    "packages/*",
+    "examples/*",
+    "website"
+  ]
 }

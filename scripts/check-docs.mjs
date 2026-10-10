@@ -6,7 +6,7 @@ import { serveStatic } from './static-server.mjs'
 /**
  * Opens every page of the documentation site, and every Storybook story a page embeds, and fails on a console error,
  * an uncaught exception, a failed request or a story that does not render. Without BASE it serves the local build
- * (`pnpm docs:build` first); BASE=https://docs.protobase.net checks the live site.
+ * (`bun run docs:build` first); BASE=https://docs.protobase.net checks the live site.
  */
 const dist = fileURLToPath(new URL('../website/dist', import.meta.url))
 const local = process.env.BASE ? undefined : await serveStatic(dist)
