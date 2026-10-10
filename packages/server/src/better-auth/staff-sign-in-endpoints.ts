@@ -72,49 +72,48 @@ export const staffSignInEndpoints = ({ operator, mailer }: { operator: ResolvedO
   }
 
   return {
-      /**
-       * `POST /staff/sign-in` with `{ email, reason, callbackURL }`: answers `{ url }` at the operator provider, where
-       * the staff member signs in. Only this browser can finish it, within ten minutes, once.
-       */
-      startStaffSignIn: createAuthEndpoint(staffSignInPath, { method: 'POST', body: z.object({ email: z.email(), reason: z.string(), callbackURL: z.string() }) }, async (ctx) => {
-        const problem = reasonProblem(ctx.body.reason)
-        if (problem) throw new APIError('BAD_REQUEST', { code: 'STAFF_REASON_REQUIRED', message: problem })
-        // Checked here as well as by Better Auth's origin check, which a configuration can turn off.
-        if (!ctx.context.isTrustedOrigin(ctx.body.callbackURL, { allowRelativePaths: true })) {
-          throw new APIError('FORBIDDEN', { code: 'INVALID_CALLBACK_URL', message: 'The page to come back to is not on a trusted origin.' })
-        }
-        const [state, nonce, verifier] = [randomValue(), randomValue(), randomValue()]
-        const started: StartedSignIn = { email: ctx.body.email, reason: ctx.body.reason.trim(), callbackURL: ctx.body.callbackURL, nonce, verifier }
-        await ctx.context.internalAdapter.createVerificationValue({ identifier: stateIdentifier(state), value: JSON.stringify(started), expiresAt: new Date(Date.now() + startLifetimeMs) })
-        const cookie = ctx.context.createAuthCookie(stateCookie, { maxAge: startLifetimeMs / 1000 })
-        await ctx.setSignedCookie(cookie.name, state, ctx.context.secret, cookie.attributes)
-        return ctx.json({ url: await clientOf(ctx.context).authorizationURL({ state, nonce, verifier }) })
-      }),
+    /**
+     * `POST /staff/sign-in` with `{ email, reason, callbackURL }`: answers `{ url }` at the operator provider, where
+     * the staff member signs in. Only this browser can finish it, within ten minutes, once.
+     */
+    startStaffSignIn: createAuthEndpoint(staffSignInPath, { method: 'POST', body: z.object({ email: z.email(), reason: z.string(), callbackURL: z.string() }) }, async (ctx) => {
+      const problem = reasonProblem(ctx.body.reason)
+      if (problem) throw new APIError('BAD_REQUEST', { code: 'STAFF_REASON_REQUIRED', message: problem })
+      // Checked here as well as by Better Auth's origin check, which a configuration can turn off.
+      if (!ctx.context.isTrustedOrigin(ctx.body.callbackURL, { allowRelativePaths: true })) {
+        throw new APIError('FORBIDDEN', { code: 'INVALID_CALLBACK_URL', message: 'The page to come back to is not on a trusted origin.' })
+      }
+      const [state, nonce, verifier] = [randomValue(), randomValue(), randomValue()]
+      const started: StartedSignIn = { email: ctx.body.email, reason: ctx.body.reason.trim(), callbackURL: ctx.body.callbackURL, nonce, verifier }
+      await ctx.context.internalAdapter.createVerificationValue({ identifier: stateIdentifier(state), value: JSON.stringify(started), expiresAt: new Date(Date.now() + startLifetimeMs) })
+      const cookie = ctx.context.createAuthCookie(stateCookie, { maxAge: startLifetimeMs / 1000 })
+      await ctx.setSignedCookie(cookie.name, state, ctx.context.secret, cookie.attributes)
+      return ctx.json({ url: await clientOf(ctx.context).authorizationURL({ state, nonce, verifier }) })
+    }),
 
-      /**
-       * `GET /staff/callback`, where the operator provider sends the staff member back: signed in as the person, to the
-       * `callbackURL` they started from, or there with `?staff-error=<code>`.
-       */
-      staffCallback: createAuthEndpoint('/staff/callback', { method: 'GET', query: z.object({ state: z.string().optional(), code: z.string().optional(), error: z.string().optional() }) }, async (ctx) => {
-        const cookie = ctx.context.createAuthCookie(stateCookie)
-        const browserState = await ctx.getSignedCookie(cookie.name, ctx.context.secret)
-        expireCookie(ctx, cookie)
-        const { state, code } = ctx.query
-        if (!state || state !== browserState) throw new APIError('BAD_REQUEST', expired)
-        const stored = await ctx.context.internalAdapter.consumeVerificationValue(stateIdentifier(state))
-        if (!stored) throw new APIError('BAD_REQUEST', expired)
-        const started = JSON.parse(stored.value) as StartedSignIn
-        if (!code) throw ctx.redirect(withError(started.callbackURL, providerFailed.code))
-        const claims = await clientOf(ctx.context)
-          .signedInStaff({ code, nonce: started.nonce, verifier: started.verifier })
-          .catch((error: unknown) => {
-            // Whatever the provider or its token got wrong, the staff member is sent back without a session.
-            ctx.context.logger.error('Staff sign-in at the operator provider failed', error)
-            return undefined
-          })
-        const refusal = claims ? await startSession(ctx, started, claims) : providerFailed
-        throw ctx.redirect(refusal ? withError(started.callbackURL, refusal.code) : started.callbackURL)
-      }),
-
+    /**
+     * `GET /staff/callback`, where the operator provider sends the staff member back: signed in as the person, to the
+     * `callbackURL` they started from, or there with `?staff-error=<code>`.
+     */
+    staffCallback: createAuthEndpoint('/staff/callback', { method: 'GET', query: z.object({ state: z.string().optional(), code: z.string().optional() }) }, async (ctx) => {
+      const cookie = ctx.context.createAuthCookie(stateCookie)
+      const browserState = await ctx.getSignedCookie(cookie.name, ctx.context.secret)
+      expireCookie(ctx, cookie)
+      const { state, code } = ctx.query
+      if (!state || state !== browserState) throw new APIError('BAD_REQUEST', expired)
+      const stored = await ctx.context.internalAdapter.consumeVerificationValue(stateIdentifier(state))
+      if (!stored) throw new APIError('BAD_REQUEST', expired)
+      const started = JSON.parse(stored.value) as StartedSignIn
+      if (!code) throw ctx.redirect(withError(started.callbackURL, providerFailed.code))
+      const claims = await clientOf(ctx.context)
+        .signedInStaff({ code, nonce: started.nonce, verifier: started.verifier })
+        .catch((error: unknown) => {
+          // Whatever the provider or its token got wrong, the staff member is sent back without a session.
+          ctx.context.logger.error('Staff sign-in at the operator provider failed', error)
+          return undefined
+        })
+      const refusal = claims ? await startSession(ctx, started, claims) : providerFailed
+      throw ctx.redirect(refusal ? withError(started.callbackURL, refusal.code) : started.callbackURL)
+    }),
   }
 }
