@@ -1,9 +1,9 @@
 ---
 title: Login with Better Auth
-description: Sign-in with Better Auth, with the admin store, sign-in methods and policy, roles, tokens and the public endpoints.
+description: Sign-in with Better Auth, with the admin store, sign-in methods and policy, staff sign-in, roles, tokens and the public endpoints.
 ---
 
-`@protobase/server` ships a [Better Auth](https://www.better-auth.com) setup (version 1.7): sign-in with a password, an [emailed code](#emailed-sign-in-codes) or a [passkey](#passkeys), [two-factor authentication](#two-factor-authentication), a [sign-in policy](#sign-in-policy) admins set in the app, roles, and short-lived JWTs that the API verifies against Better Auth's own JWKS. All of it is Better Auth's own plugins (`emailOTP`, `twoFactor`, `@better-auth/passkey`), wired by `createAuth`.
+`@protobase/server` ships a [Better Auth](https://www.better-auth.com) setup (version 1.7): sign-in with a password, an [emailed code](#emailed-sign-in-codes) or a [passkey](#passkeys), [two-factor authentication](#two-factor-authentication), a [sign-in policy](#sign-in-policy) admins set in the app, [staff sign-in](#staff-sign-in) for the team that runs the app, roles, and short-lived JWTs that the API verifies against Better Auth's own JWKS. All of it is Better Auth's own plugins (`emailOTP`, `twoFactor`, `@better-auth/passkey`), wired by `createAuth`.
 
 ```ts
 import { betterAuthAuthenticator, createAdmin, createAuth } from '@protobase/server'
@@ -26,7 +26,7 @@ createAuth({ database: { dialect: new PostgresDialect({ pool }), type: 'postgres
 bun run --cwd examples/erp auth:migrate    # creates the auth schema and Better Auth's tables; needs only a role that owns the database; safe to repeat
 ```
 
-Run it again after upgrading Protobase, before the new version serves: a release can add tables and columns to the store, and Better Auth refuses every request while the store is behind (`500`, logging "Database schema mismatch"). The migration only adds. The sign-in methods below added the `twoFactor`, `passkey` and `signInPolicy` tables and a `twoFactorEnabled` column on `user`; existing users keep signing in with their password.
+Run it again after upgrading Protobase, before the new version serves: a release can add tables and columns to the store, and Better Auth refuses every request while the store is behind (`500`, logging "Database schema mismatch"). The migration only adds. The sign-in methods below added the `twoFactor`, `passkey` and `signInPolicy` tables and a `twoFactorEnabled` column on `user`; existing users keep signing in with their password. [Staff sign-in](#staff-sign-in) added the `staffSignIn` table and a `staffAccess` column on `signInPolicy`, which saved policies get as `allowed`.
 
 `ADMIN_DATABASE_URL` puts the `auth` schema in another database instead of `DATABASE_URL`'s. `createAuth` takes a `pg` Pool or `{ dialect, type: 'postgres', schemaName? }` as `database`; without `schemaName` the tables go to the connection's `search_path` (usually `public`).
 
@@ -38,6 +38,7 @@ Run it again after upgrading Protobase, before the new version serves: a release
 | `BETTER_AUTH_URL` | public URL of the API (default `http://localhost:5173`); issuer and audience of the tokens; when tunnelling, the https tunnel URL |
 | `TRUSTED_ORIGINS` | extra comma separated origins; `https://*.trycloudflare.com` is always trusted |
 | `PROTOBASE_SMTP_URL`, `PROTOBASE_MAIL_FROM` | the mail server and sender for [password reset](#password-reset), [emailed sign-in codes](#emailed-sign-in-codes) and emailed [two-factor](#two-factor-authentication) codes, passed by the platform; all three are off without them |
+| `PROTOBASE_OPERATOR_ISSUER`, `PROTOBASE_OPERATOR_CLIENT_ID`, `PROTOBASE_OPERATOR_CLIENT_SECRET` | the [operator provider](#operator-provider) its staff sign in with to sign in as people, passed by the platform; staff sign-in is off without them. `PROTOBASE_OPERATOR_NAME` and `PROTOBASE_OPERATOR_GROUP` are optional |
 
 - Cookies are `SameSite=Lax`, and `Secure` when `BETTER_AUTH_URL` is https.
 - Sign-in is rate limited (5 password attempts per minute and client by default, `signInPerMinute`; 3 per minute for emailed codes); the limiter keys on `x-forwarded-for`, so run behind a proxy that sets it.
@@ -61,7 +62,7 @@ await deleteUser(auth, email)                                // with sessions an
 
 The last active admin cannot be deleted, demoted or banned: those functions throw instead, so every caller is protected. An account created by `createUser` or an admin counts as having a verified address, since whoever created it vouches for it; that lets it sign in with an [emailed code](#emailed-sign-in-codes).
 
-Until a user exists sign-in fails, and `GET /api/auth/status` (public) answers `{ "needsAdmin": true, "signInMethods": ["password", "passkey"], "passwordReset": false, "socialProviders": [] }` so a login page can say what to do. `signInMethods` lists the ways to sign in the [sign-in policy](#sign-in-policy) leaves on (`password`, `emailCode`, `passkey`), and `passwordReset` is whether [reset mail](#password-reset) can be sent and passwords are on. Further users are created by an admin with Better Auth's `POST /api/auth/admin/create-user`, or with `createUser` on the host. The auth store holds a connection pool; scripts that call these functions end the process themselves.
+Until a user exists sign-in fails, and `GET /api/auth/status` (public) answers `{ "needsAdmin": true, "signInMethods": ["password", "passkey"], "passwordReset": false, "socialProviders": [] }` so a login page can say what to do. `signInMethods` lists the ways to sign in the [sign-in policy](#sign-in-policy) leaves on (`password`, `emailCode`, `passkey`), `passwordReset` is whether [reset mail](#password-reset) can be sent and passwords are on, and `staffSignIn`, when there, names the provider of [staff sign-in](#staff-sign-in). Further users are created by an admin with Better Auth's `POST /api/auth/admin/create-user`, or with `createUser` on the host. The auth store holds a connection pool; scripts that call these functions end the process themselves.
 
 ## Password reset
 
@@ -126,18 +127,68 @@ Admins set how people sign in on the app's **Sign-in policy** page (the profile 
 | Emailed sign-in code | On, Off | On |
 | Passkeys | Optional, Required, Off | Optional |
 | Two-factor authentication | Optional, Required, Off | Optional |
+| Staff sign-in as a person | On, Email the person, Off | On |
 
 The server stores the policy in the `signInPolicy` table, one row per save (the newest applies, the others are its history, with who saved each and when), and applies it to Better Auth's endpoints; the pages only show what it allows.
 
 - **Off:** the server refuses the method with `403` (`SIGN_IN_METHOD_FORBIDDEN`) and the sign-in page leaves it out. Passkeys off also stops adding them; two-factor off stops turning it on, while those who have it keep being asked until they turn it off.
 - **Required:** someone who signs in without it is sent to set it up first. The server holds back API tokens until then (`GET /api/auth/token` answers `403`, `SIGN_IN_SETUP_REQUIRED`), and refuses to turn two-factor authentication off or to remove the last passkey.
 - Signed-in people keep their session after a change; a newly required method is asked for at their next token refresh, within 15 minutes.
+- **Staff sign-in as a person** shows only with an [operator provider](#operator-provider). Off refuses [staff sign-in](#staff-sign-in) (`403`, `SIGN_IN_METHOD_FORBIDDEN`); Email the person mails the person each time, and needs mail: without it the server refuses to save it, and a saved one turns staff sign-in off until mail is back.
 
 The server refuses a policy (`400`, `SIGN_IN_POLICY_REFUSED`, with the reason) that would lock people out: passwords and emailed codes both off (someone without a passkey could not sign in), passwords off without mail, two-factor authentication required with passwords off (turning it on asks for the password), or a policy the saving admin could not sign in with. Emailed codes need mail: without `PROTOBASE_SMTP_URL` they are off whatever the policy says, and so that a policy saved with mail cannot lock everyone out once mail goes away, password sign-in is then on as well.
 
-The endpoints, for admins: `GET /api/auth/policy/sign-in` answers `{ policy, effective, mail, savedAt?, savedBy? }` (`effective` is the policy as it applies now), and `POST /api/auth/policy/sign-in` with `{ password, emailCode, passkey, twoFactor }` saves one. `GET /api/auth/account/sign-in-methods` tells the signed-in user the policy, what their account has (`password`, `passkeys`, `twoFactor`, `authenticatorApp`) and what it still has to set up (`missing`).
+The endpoints, for admins: `GET /api/auth/policy/sign-in` answers `{ policy, effective, mail, operator?, savedAt?, savedBy? }` (`effective` is the policy as it applies now, `operator` the operator provider's name), and `POST /api/auth/policy/sign-in` with `{ password, emailCode, passkey, twoFactor, staffAccess }` saves one. `GET /api/auth/account/sign-in-methods` tells the signed-in user the policy, what their account has (`password`, `passkeys`, `twoFactor`, `authenticatorApp`) and what it still has to set up (`missing`).
 
 Sign-in providers such as GitHub are configured in code and not covered by the policy; neither are roles: the policy is the same for everyone.
+
+## Staff sign-in
+
+The team that runs an app (the operator: Protobase Cloud, or whoever hosts it) can sign in as one of its people to help them, without their password and without the app's keys leaving the app. Staff sign in with the operator's own identity provider, and the app trusts that provider for this alone: it never creates an account for them.
+
+1. Staff open the app with `?staff-sign-in`, for example `https://admin.example.com/?staff-sign-in&email=sanne@example.com&reason=Ticket+4211`, from a support tool or by hand. The page asks for the person's address and a reason, at least 10 characters.
+2. "Continue with ..." sends them to the operator provider, where they sign in.
+3. The provider sends them back to the app, signed in as the person, with a banner across the top: who is signed in as whom, why, until when, and "Stop staff session". A refusal comes back to the same page with the reason.
+
+The guardrails:
+
+- **Permission:** the ID token's `groups` claim must hold the configured group (default `protobase-staff-access`).
+- **A strong, recent sign-in:** the provider must report a passkey or a second step (`amr` with `mfa`, `hwk` or `swk`, or an `acr` from `acrValues`), at most 15 minutes old (`auth_time`; the app asks with `max_age`). The person's own two-factor and passkey requirements do not apply to staff.
+- **A reason**, kept in the log with who signed in as whom.
+- **Short and stoppable:** the session lasts 30 minutes (`sessionMinutes`, at most 240), is never extended, ends with the browser, and "Stop staff session" (`POST /api/auth/staff/stop`) ends it and signs the browser out. An API token it got before keeps working until it expires, at most 15 minutes later, like any other.
+- **No takeover:** a staff session cannot change the person's password, email, passkeys, two-factor authentication or sessions, nor save the sign-in policy (`403`, `STAFF_CANNOT_CHANGE_SIGN_IN`).
+- **The app decides:** admins turn staff sign-in off, or have the person emailed each time, with the [sign-in policy](#sign-in-policy).
+- **One way in:** Better Auth's own `/admin/impersonate-user` and `/admin/stop-impersonating` are off (`404`), so app admins cannot sign in as their people.
+- The start is limited to 5 per minute and client; only the browser that started a sign-in can finish it, within 10 minutes and once; and the page it comes back to must be on a trusted origin.
+
+Admins find the log under the policy on the **Sign-in policy** page: each staff sign-in with the staff member, the person, the reason, and when it started and ended. It is the `staffSignIn` table, and `GET /api/auth/staff/sign-ins` (admins) answers `{ signIns }`, newest first. A staff session is a session of Better Auth's admin plugin with `impersonatedBy` set to the staff member's address; `GET /api/auth/staff/session` answers `{ staff }` for it (`null` otherwise), which the banner shows.
+
+### Operator provider
+
+Any OpenID Connect provider works. Register the app with it as a confidential client:
+
+- Redirect URI: `<BETTER_AUTH_URL>/api/auth/staff/callback`.
+- The client authenticates with its secret (`client_secret_basic`) and PKCE (`S256`); scopes `openid email profile`.
+- The ID token carries `groups`, `amr` (or `acr`) and `auth_time`, signed with a key the provider publishes in its JWKS.
+
+On a platform, pass it in the environment:
+
+```sh
+PROTOBASE_OPERATOR_ISSUER=https://id.operator.example     # its discovery is <issuer>/.well-known/openid-configuration
+PROTOBASE_OPERATOR_CLIENT_ID=admin-example-com
+PROTOBASE_OPERATOR_CLIENT_SECRET=...
+PROTOBASE_OPERATOR_NAME="Protobase Cloud"                  # shown as "Continue with Protobase Cloud"; default "the operator"
+PROTOBASE_OPERATOR_GROUP=protobase-staff-access            # the default
+```
+
+Set the first three together or none: some but not all of them stops `createAuth` with an error. In code, `operator` takes the same settings and a few more, and `false` turns staff sign-in off whatever the environment says:
+
+```ts
+createAuth({ ..., operator: { issuer, clientId, clientSecret, name: 'Support', group: 'support-leads', scopes: ['groups'], acrValues: ['gold'], sessionMinutes: 15 } })
+createAuth({ ..., operator: false })
+```
+
+`scopes` adds scopes for a provider that puts `groups` in the ID token only for a scope of its own (Okta's `groups`, for example), and `acrValues` names the levels that count as a strong sign-in for a provider that reports `acr` instead of `amr` (Keycloak's levels of assurance, for example); the app then asks for them with `acr_values`. `GET /api/auth/status` names the provider as `staffSignIn` while staff can sign in.
 
 ## Sign-in with GitHub
 
@@ -181,7 +232,7 @@ It is signed with the same keys and carries the same claims as a token from `/ap
 
 ## Public endpoints
 
-Only the Better Auth routes under `/api/auth/*` (sign-in, password reset and the like) and `GET /api/auth/status` are reachable without a token; the account and policy endpoints there need a session. The API (`/api/v1/*`) and the system endpoints (`/api/meta`, `/api/openapi.json`, `/api/docs`) all answer `401` without one.
+Only the Better Auth routes under `/api/auth/*` (sign-in, password reset, the start and callback of a [staff sign-in](#staff-sign-in) and the like) and `GET /api/auth/status` are reachable without a token; the account, policy and staff session endpoints there need a session. The API (`/api/v1/*`) and the system endpoints (`/api/meta`, `/api/openapi.json`, `/api/docs`) all answer `401` without one.
 
 ## Roles and access in the API
 
