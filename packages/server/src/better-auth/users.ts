@@ -18,25 +18,42 @@ const checkRoles = (auth: AdminAuth, role: string) => {
   return wanted
 }
 
-export type NewUser = { email: string; password: string; name?: string; role?: string }
+/** An account at a sign-in provider, as Better Auth keys it: `{ providerId: 'github', accountId: '<GitHub user id>' }`. */
+export type LinkedAccount = { providerId: string; accountId: string }
+
+export type NewUser = { email: string; password: string; name?: string; role?: string; accounts?: LinkedAccount[] }
 export type StoredUser = { id: string; email: string; role: string; banned: boolean; createdAt: string }
 
 /** Whether the admin store has any user yet. */
 export const hasUsers = async (auth: AdminAuth) => (await auth.$context).adapter.count({ model: 'user' }).then((count) => count > 0)
 
+// Accounts at a provider that sign in someone already; the user's password account is Better Auth's own.
+const checkAccounts = async (auth: AdminAuth, accounts: LinkedAccount[]) => {
+  const { internalAdapter } = await auth.$context
+  for (const account of accounts) {
+    if (!account.providerId || !account.accountId || account.providerId === 'credential') throw new Error(`Cannot link an account "${account.providerId}:${account.accountId}"`)
+    if (await internalAdapter.findAccountByKey(account)) throw new Error(`The ${account.providerId} account ${account.accountId} signs in another user already`)
+  }
+}
+
 /**
  * Creates a user directly in the admin store. Host side only (no HTTP route creates accounts while the store is empty):
  * the first user is always an `admin`, later ones get `role` (default `user`). The address counts as verified, so the
- * user can also sign in with an emailed code.
+ * user can also sign in with an emailed code. `accounts` link the user to sign-in providers up front, so a provider
+ * signs them in by its own id whatever address it reports; one that signs in another user already is refused.
  */
 export const createUser = async (auth: AdminAuth, input: NewUser) => {
   const first = !(await hasUsers(auth))
   const requested = input.role ?? auth.defaultRole
   if (!first && requested === undefined) throw new Error(`A role is required: choose one of ${auth.roles.join(', ')}`)
   const role = first ? 'admin' : checkRoles(auth, requested!).join(',')
+  const accounts = input.accounts ?? []
+  await checkAccounts(auth, accounts)
   const { user } = await auth.api.createUser({
     body: { email: input.email, password: input.password, name: input.name ?? input.email.split('@')[0]!, role: role as 'user' | 'admin' },
   })
+  const { internalAdapter } = await auth.$context
+  for (const account of accounts) await internalAdapter.linkAccount({ userId: user.id, ...account })
   return { id: user.id, email: user.email, role: String(user.role) }
 }
 

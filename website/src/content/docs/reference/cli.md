@@ -308,7 +308,7 @@ Better Auth and other settings are the project's own variables (`BETTER_AUTH_SEC
 ## `users`
 
 ```sh
-protobase users create <email> [--name <name>] [--role <role>] [--password-stdin | --generate-password]
+protobase users create <email> [--name <name>] [--role <role>] [--password-stdin | --generate-password] [--github-id <id>]
 protobase users list
 protobase users roles
 protobase users set-role <email> <role>
@@ -316,7 +316,7 @@ protobase users disable <email>   # and: enable <email>
 protobase users delete <email> [--yes]
 ```
 
-Run inside a project whose `protobase.config.ts` exports `auth` (Better Auth). There is no sign-up and no web setup page: the first admin is created here. The first user is always an admin, whatever `--role` says; later users get `--role`, or the project's default role (`createAuth({ roles, defaultRole })`). `protobase users roles` lists the roles of the project; anything else is refused with that list. `set-role` also takes comma separated roles (`sales,accountant`).
+Run inside a project whose `protobase.config.ts` exports `auth` (Better Auth). There is no sign-up and no web setup page: the first admin is created here. The first user is always an admin, whatever `--role` says; later users get `--role`, or the project's default role (`createAuth({ roles, defaultRole })`). `protobase users roles` lists the roles of the project; anything else is refused with that list. `set-role` also takes comma separated roles (`sales,accountant`). `--github-id` links the new user to a GitHub user id (the number, not the login), so signing in with GitHub, the app's own provider or the [platform's](/reference/auth/#platform-sign-in-provider), finds them whatever address GitHub reports; an id that signs in another user already is refused. `createUser(auth, { ..., accounts: [{ providerId, accountId }] })` does the same from code.
 
 The password is typed at a hidden prompt with confirmation, read from stdin with `--password-stdin` (for scripts, e.g. `pass show erp | protobase users create me@example.com --password-stdin`), or generated with `--generate-password` and printed once. A password is never accepted as an argument, since it would end up in shell history. `users list` prints email, role and creation date (and `disabled` for banned users), never credentials.
 

@@ -4,7 +4,7 @@ import { resolvePassword, type PasswordDeps } from './password'
 export type UsersApi = {
   hasUsers: () => Promise<boolean>
   roles: () => Promise<{ roles: string[]; defaultRole?: string }>
-  createUser: (input: { email: string; password: string; name?: string; role?: string }) => Promise<{ id: string; email: string; role: string }>
+  createUser: (input: { email: string; password: string; name?: string; role?: string; accounts?: { providerId: string; accountId: string }[] }) => Promise<{ id: string; email: string; role: string }>
   listUsers: () => Promise<{ id: string; email: string; role: string; createdAt: string; banned?: boolean }[]>
   deleteUser: (email: string) => Promise<void>
   setUserRole: (input: { email: string; role: string }) => Promise<{ email: string; role: string }>
@@ -17,7 +17,11 @@ export type CreateUserOptions = {
   role?: string
   passwordStdin: boolean
   generatePassword: boolean
+  /** The user's GitHub user id, so GitHub sign-in finds them by it. */
+  githubId?: string
 }
+
+const githubId = /^[1-9][0-9]*$/
 
 export const createUserCommand = async (
   api: UsersApi,
@@ -26,6 +30,7 @@ export const createUserCommand = async (
   out: (text: string) => void,
 ) => {
   if (!options.email.includes('@')) throw new Error(`"${options.email}" is not an email address`)
+  if (options.githubId !== undefined && !githubId.test(options.githubId)) throw new Error(`"${options.githubId}" is not a GitHub user id, a number such as 583231`)
   const { password, generated } = await resolvePassword(options, deps)
   // The first user is always an admin, whatever --role says.
   const first = !(await api.hasUsers())
@@ -35,8 +40,9 @@ export const createUserCommand = async (
     password,
     ...(role && { role }),
     ...(options.name && { name: options.name }),
+    ...(options.githubId && { accounts: [{ providerId: 'github', accountId: options.githubId }] }),
   })
-  out(`Created ${user.role} ${user.email}\n`)
+  out(`Created ${user.role} ${user.email}${options.githubId ? `, linked to GitHub user ${options.githubId}` : ''}\n`)
   if (generated) out(`Password (shown once): ${password}\n`)
 }
 

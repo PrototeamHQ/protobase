@@ -44,12 +44,13 @@ export const registerUsers = (program: Command) => {
     .option('--role <role>', 'role for users after the first (default: the project\'s default role; see `users roles`)')
     .option('--password-stdin', 'read the password from stdin', false)
     .option('--generate-password', 'generate a strong password and print it once', false)
+    .option('--github-id <id>', 'link the user to this GitHub user id, so signing in with GitHub finds them whatever their address')
     .addOption(new Option('--password <value>').hideHelp())
     .action(async (email: string, opts) => {
       rejectPasswordArgument(opts.password)
       await createUserCommand(
         await projectApi(),
-        { email, name: opts.name, role: opts.role, passwordStdin: opts.passwordStdin, generatePassword: opts.generatePassword },
+        { email, name: opts.name, role: opts.role, passwordStdin: opts.passwordStdin, generatePassword: opts.generatePassword, githubId: opts.githubId },
         { stdin: process.stdin, prompt: readHidden },
         out,
       )

@@ -50,6 +50,18 @@ describe('createUserCommand', () => {
     expect(out.join('')).toContain(`Password (shown once): ${password}`)
   })
 
+  it('links the user to a GitHub user id', async () => {
+    const users = api(true)
+    const out: string[] = []
+    await createUserCommand(users, { ...base, email: 'octo@example.com', role: 'user', githubId: '583231', passwordStdin: true }, deps('a-long-password'), (t) => out.push(t))
+    expect(users.createUser).toHaveBeenCalledWith({ email: 'octo@example.com', password: 'a-long-password', role: 'user', accounts: [{ providerId: 'github', accountId: '583231' }] })
+    expect(out.join('')).toBe('Created user octo@example.com, linked to GitHub user 583231\n')
+  })
+
+  it('rejects a GitHub id that is not a number before asking for anything', async () => {
+    await expect(createUserCommand(api(true), { ...base, email: 'octo@example.com', githubId: 'octocat' }, deps(), () => {})).rejects.toThrow('"octocat" is not a GitHub user id')
+  })
+
   it('rejects a bad email before asking for anything', async () => {
     await expect(createUserCommand(api(false), { ...base, email: 'nope' }, deps(), () => {})).rejects.toThrow('not an email')
   })

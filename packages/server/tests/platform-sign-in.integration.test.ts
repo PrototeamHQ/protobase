@@ -115,8 +115,7 @@ describe('sign-in through the platform provider', () => {
 
   it('signs in a user linked to the id beforehand, whatever their address', async () => {
     const { auth, platformSignIn } = await serve()
-    const { id } = await createUser(auth, { email: 'sanne@example.com', password, role: 'user' })
-    await (await auth.$context).internalAdapter.createAccount({ userId: id, providerId: 'github', accountId: '4242' })
+    await createUser(auth, { email: 'sanne@example.com', password, role: 'user', accounts: [{ providerId: 'github', accountId: '4242' }] })
     const { session } = await platformSignIn(octo())
     expect(session.user.email).toBe('sanne@example.com')
   })

@@ -66,3 +66,24 @@ describe('protobase users against a Better Auth store', () => {
     expect(listed).toContain('staff@example.com')
   })
 })
+
+describe('protobase users create --github-id', () => {
+  const createLinked = (email: string, githubId: string) =>
+    output((out) => createUserCommand(api, { email, githubId, passwordStdin: true, generatePassword: false }, { stdin: Readable.from(['a-long-test-password\n']), prompt: async () => '' }, out))
+  const githubAccounts = async () => {
+    const { adapter } = await auth.$context
+    const accounts = await adapter.findMany<{ userId: string; accountId: string }>({ model: 'account', where: [{ field: 'providerId', value: 'github' }] })
+    const users = await adapter.findMany<{ id: string; email: string }>({ model: 'user' })
+    return accounts.map((account) => ({ email: users.find((user) => user.id === account.userId)?.email, accountId: account.accountId }))
+  }
+
+  it('links the new user to the GitHub user, besides their password', async () => {
+    expect(await createLinked('octo@example.com', '583231')).toBe('Created user octo@example.com, linked to GitHub user 583231\n')
+    expect(await githubAccounts()).toEqual([{ email: 'octo@example.com', accountId: '583231' }])
+  })
+
+  it('refuses a GitHub user that signs in someone else already, and creates nobody', async () => {
+    await expect(createLinked('other@example.com', '583231')).rejects.toThrow('The github account 583231 signs in another user already')
+    expect(await output((out) => listUsersCommand(api, out))).not.toContain('other@example.com')
+  })
+})
