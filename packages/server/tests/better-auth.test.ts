@@ -69,7 +69,7 @@ describe('the first admin', () => {
     const users = await listUsers(auth)
     expect(users.map((user) => [user.email, user.role])).toEqual([['root@example.com', 'admin'], ['later@example.com', 'user']])
     expect(JSON.stringify(users)).not.toContain(password)
-    await store.exec(`delete from account where "userId" = '${second.id}'; delete from session where "userId" = '${second.id}'; delete from "user" where id = '${second.id}'`)
+    await store.exec(`delete from account where user_id = '${second.id}'; delete from session where user_id = '${second.id}'; delete from "user" where id = '${second.id}'`)
   })
 
   it('does not offer public sign-up once users exist either', async () => {
@@ -212,7 +212,7 @@ describe('managing users on the host', () => {
     await setUserBanned(auth, { email: 'temp@example.com', banned: true })
     expect((await emails())).toContain('temp@example.com:user:banned')
     expect((await post('/api/auth/sign-in/email', { email: 'temp@example.com', password })).status).toBeGreaterThanOrEqual(400)
-    expect((await store.query(`select 1 from session s join "user" u on u.id = s."userId" where u.email = 'temp@example.com'`)).rows).toHaveLength(0)
+    expect((await store.query(`select 1 from session s join "user" u on u.id = s.user_id where u.email = 'temp@example.com'`)).rows).toHaveLength(0)
     await setUserBanned(auth, { email: 'temp@example.com', banned: false })
     expect((await post('/api/auth/sign-in/email', { email: 'temp@example.com', password })).status).toBe(200)
 
@@ -225,7 +225,7 @@ describe('managing users on the host', () => {
 
     await deleteUser(auth, 'temp@example.com')
     expect(await emails()).not.toContain('temp@example.com:user')
-    expect((await store.query(`select 1 from account a left join "user" u on u.id = a."userId" where u.id is null`)).rows).toHaveLength(0)
+    expect((await store.query(`select 1 from account a left join "user" u on u.id = a.user_id where u.id is null`)).rows).toHaveLength(0)
     await expect(deleteUser(auth, 'temp@example.com')).rejects.toThrow('No user')
   })
 
@@ -249,7 +249,7 @@ describe('managing users on the host', () => {
 describe('the Better Auth storage that users.ts depends on', () => {
   it('still has the user columns and adapter calls used, so a Better Auth upgrade that moves them fails here', async () => {
     const columns = (await store.query<{ column_name: string }>("select column_name from information_schema.columns where table_name = 'user'")).rows.map((row) => row.column_name)
-    expect(columns).toEqual(expect.arrayContaining(['id', 'email', 'role', 'banned', 'banReason', 'banExpires', 'createdAt']))
+    expect(columns).toEqual(expect.arrayContaining(['id', 'email', 'role', 'banned', 'ban_reason', 'ban_expires', 'created_at']))
     const { adapter, internalAdapter } = await auth.$context
     for (const call of [adapter.count, adapter.findMany, adapter.findOne, internalAdapter.updateUser, internalAdapter.deleteUser, internalAdapter.deleteUserSessions]) {
       expect(typeof call).toBe('function')

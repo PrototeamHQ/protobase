@@ -34,9 +34,11 @@ bun run db:migrate                  # applies it
 
 The file only adds tables, columns and indexes, never drops one, and is plain SQL to review, edit or leave out where the project handles the auth schema itself. `--dir` and `--name` choose the folder and the name after the number.
 
+The store's tables and columns are snake_case, like the app's (`sign_in_policy.platform_sign_in`, `session.user_id`); the code and the API keep Better Auth's camelCase names. A store set up by Protobase 0.6 has Better Auth's camelCase names instead (`"signInPolicy"."platformSignIn"`): for it, `protobase auth migration` writes the migration that renames its tables, columns, indexes and constraints in place, keeping every row. The examples carry it as `db/migrations/*_auth_snake_case.sql`; on a store with the snake_case names it does nothing.
+
 The server never changes the schema. `protobase serve` and `protobase dev` read it at startup and refuse to start while it lacks a table or column Better Auth needs, naming them and `protobase auth migration`; without that check every sign-in would fail (`500`, "Database schema mismatch"). The examples' `db:migrate` applies all pending files in one transaction, so a migration that fails leaves the database as the running version expects it. The host must guarantee the rest: nothing but the migrations writes while they run, and the new version serves only after they succeeded.
 
-Upgrading from 0.5 or earlier, where `auth:migrate` created the tables: run `protobase auth migration` twice, once with `DATABASE_URL` on an empty database with only the project's own migrations applied (it writes the whole store), then on the project's database (it writes what this version adds). Every statement skips what exists already, so both files apply to new databases and to those `auth:migrate` set up. The `auth:migrate` script and `db/auth-migrate.ts` can then go.
+Upgrading from 0.5 or earlier, where `auth:migrate` created the tables, goes through 0.6. With Protobase 0.6, run `protobase auth migration` twice, once with `DATABASE_URL` on an empty database with only the project's own migrations applied (it writes the whole store), then on the project's database (it writes what this version adds). Every statement skips what exists already, so both files apply to new databases and to those `auth:migrate` set up. The `auth:migrate` script and `db/auth-migrate.ts` can then go, and the upgrade goes on as from 0.6.
 
 `createAuth` takes a `pg` Pool or `{ dialect, type: 'postgres', schemaName? }` as `database`; without `schemaName` the tables go to the connection's `search_path` (usually `public`). The examples keep the store in the `auth` schema of `DATABASE_URL`'s database, so their migrations cover both.
 
@@ -141,7 +143,7 @@ Admins set how people sign in on the app's **Sign-in policy** page (the profile 
 | Staff sign-in as a person | On, Email the person, Off | On |
 | Sign in with ... through the platform | On, Off | On |
 
-The server stores the policy in the `signInPolicy` table, one row per save (the newest applies, the others are its history, with who saved each and when), and applies it to Better Auth's endpoints; the pages only show what it allows.
+The server stores the policy in the `sign_in_policy` table, one row per save (the newest applies, the others are its history, with who saved each and when), and applies it to Better Auth's endpoints; the pages only show what it allows.
 
 - **Off:** the server refuses the method with `403` (`SIGN_IN_METHOD_FORBIDDEN`) and the sign-in page leaves it out. Passkeys off also stops adding them; two-factor off stops turning it on, while those who have it keep being asked until they turn it off.
 - **Required:** someone who signs in without it is sent to set it up first. The server holds back API tokens until then (`GET /api/auth/token` answers `403`, `SIGN_IN_SETUP_REQUIRED`), and refuses to turn two-factor authentication off or to remove the last passkey.
@@ -174,7 +176,7 @@ The guardrails:
 - **One way in:** Better Auth's own `/admin/impersonate-user` and `/admin/stop-impersonating` are off (`404`), so app admins cannot sign in as their people.
 - The start is limited to 5 per minute and client; only the browser that started a sign-in can finish it, within 10 minutes and once; and the page it comes back to must be on a trusted origin.
 
-Admins find the log under the policy on the **Sign-in policy** page: each staff sign-in with the staff member, the person, the reason, and when it started and ended. It is the `staffSignIn` table, and `GET /api/auth/staff/sign-ins` (admins) answers `{ signIns }`, newest first. A staff session is a session of Better Auth's admin plugin with `impersonatedBy` set to the staff member's address; `GET /api/auth/staff/session` answers `{ staff }` for it (`null` otherwise), which the banner shows.
+Admins find the log under the policy on the **Sign-in policy** page: each staff sign-in with the staff member, the person, the reason, and when it started and ended. It is the `staff_sign_in` table, and `GET /api/auth/staff/sign-ins` (admins) answers `{ signIns }`, newest first. A staff session is a session of Better Auth's admin plugin with `impersonatedBy` set to the staff member's address; `GET /api/auth/staff/session` answers `{ staff }` for it (`null` otherwise), which the banner shows.
 
 ### Operator provider
 

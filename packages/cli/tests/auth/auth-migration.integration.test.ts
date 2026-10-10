@@ -79,7 +79,7 @@ describe.skipIf(!reachable)('auth schema changes as migrations of the project', 
     expect(path.basename(file!)).toBe('001_auth.sql')
     const text = await readFile(file!, 'utf8')
     expect(text).toContain('create table if not exists "user"')
-    expect(text).toContain('"platformSignIn" text not null')
+    expect(text).toContain('"platform_sign_in" text not null')
 
     await applyAll(databaseUrl, folder)
     await expect(checkAuthSchema(auth)).resolves.toBeUndefined()
@@ -95,22 +95,22 @@ describe.skipIf(!reachable)('auth schema changes as migrations of the project', 
     await applyAll(databaseUrl, folder)
     // The schema of an earlier Protobase: no staff sign-in log, no policy for sign-in through the platform.
     const sql = postgres(databaseUrl, { max: 1, onnotice: () => {} })
-    await sql.unsafe(`drop table "staffSignIn"; alter table "signInPolicy" drop column "platformSignIn"; alter table "signInPolicy" drop column "staffAccess"`)
-    await sql`insert into "signInPolicy" (id, password, "emailCode", passkey, "twoFactor", "createdAt") values ('p1', 'allowed', 'allowed', 'allowed', 'required', now())`
+    await sql.unsafe(`drop table staff_sign_in; alter table sign_in_policy drop column platform_sign_in; alter table sign_in_policy drop column staff_access`)
+    await sql`insert into sign_in_policy (id, password, email_code, passkey, two_factor, created_at) values ('p1', 'allowed', 'allowed', 'allowed', 'required', now())`
     await sql.end()
-    await expect(checkAuthSchema(auth)).rejects.toThrow(/missing staffSignIn, signInPolicy\.staffAccess, signInPolicy\.platformSignIn\)/)
+    await expect(checkAuthSchema(auth)).rejects.toThrow(/missing staff_sign_in, sign_in_policy\.staff_access, sign_in_policy\.platform_sign_in\)/)
 
     const file = await writeAuthMigration({ auth, dir: folder, name: 'auth_staff' })
     expect(path.basename(file!)).toBe('002_auth_staff.sql')
     const text = await readFile(file!, 'utf8')
     expect(text).not.toContain('"user"')
-    expect(text).toContain('create table if not exists "staffSignIn"')
-    expect(text).toContain('alter table "signInPolicy" add column if not exists "platformSignIn"')
+    expect(text).toContain('create table if not exists "staff_sign_in"')
+    expect(text).toContain('alter table "sign_in_policy" add column if not exists "platform_sign_in"')
 
     // Applied on its own, as the migrate step does with the files not applied yet; the saved row gets the defaults.
     const next = postgres(databaseUrl, { max: 1, onnotice: () => {} })
     await next.begin((tx) => tx.unsafe(text))
-    expect(await next`select "staffAccess", "platformSignIn" from "signInPolicy"`).toEqual([{ staffAccess: 'allowed', platformSignIn: 'allowed' }])
+    expect(await next`select staff_access, platform_sign_in from sign_in_policy`).toEqual([{ staff_access: 'allowed', platform_sign_in: 'allowed' }])
     await next.end()
     await expect(checkAuthSchema(auth)).resolves.toBeUndefined()
   })
@@ -122,7 +122,7 @@ describe.skipIf(!reachable)('auth schema changes as migrations of the project', 
     const setUp = authOn(earlier)
     await (await getMigrations(setUp.options)).runMigrations()
     const sql = postgres(earlier, { max: 1, onnotice: () => {} })
-    await sql.unsafe(`alter table "signInPolicy" drop column "platformSignIn"; insert into "user" (id, name, email, "emailVerified") values ('u1', 'Root', 'root@example.com', true)`)
+    await sql.unsafe(`alter table sign_in_policy drop column platform_sign_in; insert into "user" (id, name, email, email_verified) values ('u1', 'Root', 'root@example.com', true)`)
     await sql.end()
 
     const folder = await migrationsDir()

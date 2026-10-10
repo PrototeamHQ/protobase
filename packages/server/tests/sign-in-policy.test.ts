@@ -126,8 +126,8 @@ describe('emailed codes', () => {
   it('sign in to an account created before accounts were verified, and leave its password alone', async () => {
     const { auth, store, request, sent } = await serve()
     // Accounts created by an admin or on the host are verified; one from an older release was not.
-    expect((await store.query<{ emailVerified: boolean }>(`select "emailVerified" from "user" where email = 'sanne@example.com'`)).rows).toEqual([{ emailVerified: true }])
-    await store.query(`update "user" set "emailVerified" = false where email = 'sanne@example.com'`)
+    expect((await store.query<{ emailVerified: boolean }>(`select email_verified as "emailVerified" from "user" where email = 'sanne@example.com'`)).rows).toEqual([{ emailVerified: true }])
+    await store.query(`update "user" set email_verified = false where email = 'sanne@example.com'`)
     expect((await request('/email-otp/send-verification-otp', { body: { email: 'sanne@example.com', type: 'sign-in' } })).status).toBe(200)
     await expect.poll(() => sent.length).toBe(1)
     const code = /^\d{6}$/m.exec(sent[0]!.text)?.[0]

@@ -91,7 +91,7 @@ describe('sign-in with GitHub', () => {
     expect(exchanged).toEqual(['the-code'])
     const users = await store.query<{ email: string; role: string; name: string }>(`select email, role, name from "user" where email = 'octo@example.com'`)
     expect(users.rows).toEqual([{ email: 'octo@example.com', role: 'user', name: 'Octo Cat' }])
-    const accounts = await store.query<{ providerId: string; accountId: string }>(`select "providerId", "accountId" from account a join "user" u on u.id = a."userId" where u.email = 'octo@example.com'`)
+    const accounts = await store.query<{ providerId: string; accountId: string }>(`select provider_id as "providerId", account_id as "accountId" from account a join "user" u on u.id = a.user_id where u.email = 'octo@example.com'`)
     expect(accounts.rows).toEqual([{ providerId: 'github', accountId: '4242' }])
 
     const token = await app.request(`${origin}/api/auth/token`, { headers: { cookie: cookies(callback), origin } })
@@ -105,7 +105,7 @@ describe('sign-in with GitHub', () => {
     await signInWithGitHub(served)
     expect((await signInWithGitHub(served)).headers.get('location')).toBe(`${origin}/`)
     expect((await served.store.query(`select 1 from "user" where email = 'octo@example.com'`)).rows).toHaveLength(1)
-    expect((await served.store.query(`select 1 from account where "providerId" = 'github'`)).rows).toHaveLength(1)
+    expect((await served.store.query(`select 1 from account where provider_id = 'github'`)).rows).toHaveLength(1)
   })
 
   it('runs the after-create hook for a GitHub sign-up and stores its tokens encrypted', async () => {
@@ -114,7 +114,7 @@ describe('sign-in with GitHub', () => {
     const served = await serve({ socialProviders: github, encryptOAuthTokens: true, onUserCreated: async (user) => void created.push({ email: user.email, role: user.role }) })
     await signInWithGitHub(served)
     expect(created).toEqual([{ email: 'root@example.com', role: 'admin' }, { email: 'octo@example.com', role: 'user' }])
-    const accounts = await served.store.query<{ accessToken: string }>(`select "accessToken" from account where "providerId" = 'github'`)
+    const accounts = await served.store.query<{ accessToken: string }>(`select access_token as "accessToken" from account where provider_id = 'github'`)
     expect(accounts.rows).toHaveLength(1)
     expect(accounts.rows[0]!.accessToken).not.toContain('gho_user')
   })

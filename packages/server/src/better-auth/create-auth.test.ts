@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { betterAuthOptions, type CreateAuthOptions } from './create-auth'
 import { resolvePlatformSignIn } from './platform-sign-in'
+import { coreNames } from './snake-case-names'
 
 const base: CreateAuthOptions = { database: undefined, baseURL: 'https://admin.example.com', secret: 'test-secret-test-secret-test-secret-1234' }
 const resolved = { roles: ['admin', 'user'], defaultRole: 'user' }
@@ -24,13 +25,13 @@ describe('betterAuthOptions', () => {
 
   it('leaves OAuth tokens unencrypted and adds no after-create hook by default', () => {
     const options = betterAuthOptions(base, resolved)
-    expect(options.account).toEqual({ accountLinking: { allowDifferentEmails: true } })
+    expect(options.account).toEqual({ ...coreNames.account, accountLinking: { allowDifferentEmails: true } })
     expect(options.databaseHooks.user.create).not.toHaveProperty('after')
   })
 
   it('turns on OAuth token encryption', () => {
     const { account, ...rest } = betterAuthOptions({ ...base, encryptOAuthTokens: true }, resolved)
-    expect(account).toEqual({ accountLinking: { allowDifferentEmails: true }, encryptOAuthTokens: true })
+    expect(account).toEqual({ ...coreNames.account, accountLinking: { allowDifferentEmails: true }, encryptOAuthTokens: true })
     const { account: _, ...plain } = betterAuthOptions(base, resolved)
     expect(data(rest)).toEqual(data(plain))
   })

@@ -6,17 +6,18 @@ export const signInPolicyModel = 'signInPolicy'
 
 export const signInPolicySchema = {
   [signInPolicyModel]: {
+    modelName: 'sign_in_policy',
     fields: {
       password: { type: 'string', required: true },
-      emailCode: { type: 'string', required: true },
+      emailCode: { type: 'string', required: true, fieldName: 'email_code' },
       passkey: { type: 'string', required: true },
-      twoFactor: { type: 'string', required: true },
+      twoFactor: { type: 'string', required: true, fieldName: 'two_factor' },
       // Rows saved before staff sign-in existed get the default when the migration adds the column.
-      staffAccess: { type: 'string', required: true, defaultValue: 'allowed' },
+      staffAccess: { type: 'string', required: true, defaultValue: 'allowed', fieldName: 'staff_access' },
       // Likewise for rows saved before sign-in through the platform existed.
-      platformSignIn: { type: 'string', required: true, defaultValue: 'allowed' },
-      createdAt: { type: 'date', required: true },
-      createdBy: { type: 'string', required: false },
+      platformSignIn: { type: 'string', required: true, defaultValue: 'allowed', fieldName: 'platform_sign_in' },
+      createdAt: { type: 'date', required: true, fieldName: 'created_at' },
+      createdBy: { type: 'string', required: false, fieldName: 'created_by' },
     },
   },
 } as const

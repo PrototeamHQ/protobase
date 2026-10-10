@@ -78,7 +78,7 @@ const serve = async ({ provider = 'github', discoveredIssuer, ...options }: Serv
   }
 
   const accounts = async () =>
-    (await store.query<{ email: string; providerId: string; accountId: string }>(`select u.email, a."providerId", a."accountId" from account a join "user" u on u.id = a."userId" where a."providerId" <> 'credential' order by u.email`)).rows
+    (await store.query<{ email: string; providerId: string; accountId: string }>(`select u.email, a.provider_id as "providerId", a.account_id as "accountId" from account a join "user" u on u.id = a.user_id where a.provider_id <> 'credential' order by u.email`)).rows
   return { auth, store, platform, request, signIn, savePolicy, platformSignIn, accounts }
 }
 

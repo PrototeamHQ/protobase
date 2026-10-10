@@ -10,6 +10,7 @@ import { passwordResetOptions } from './password-reset'
 import { platformSignInFor, platformSignInProvider, readPlatformSignIn, resolvePlatformSignIn, type PlatformSignIn, type ResolvedPlatformSignIn } from './platform-sign-in'
 import { signInPolicyPlugin } from './policy-plugin'
 import { emailCodeOptions, twoFactorCodeOptions, unusedEmailCodePaths } from './sign-in-mail'
+import { coreNames, pluginNames } from './snake-case-names'
 import { staffSignInPlugin } from './staff-plugin'
 import { twoFactorAfterPasswordOrCode } from './two-factor-challenge'
 
@@ -119,15 +120,20 @@ export const betterAuthOptions = (options: CreateAuthOptions, { roles, defaultRo
     trustedOrigins: [options.baseURL, 'https://*.trycloudflare.com', ...(options.trustedOrigins ?? [])],
     emailAndPassword: { enabled: true, disableSignUp: true, minPasswordLength: 12, ...(mailer && passwordResetOptions(mailer)) },
     ...(options.socialProviders && { socialProviders: options.socialProviders }),
+    user: coreNames.user,
+    session: coreNames.session,
+    verification: coreNames.verification,
     account: {
+      ...coreNames.account,
       // Someone signed in links a provider account with another address on purpose, from their account page.
       accountLinking: { allowDifferentEmails: true },
       ...(options.encryptOAuthTokens && { encryptOAuthTokens: true }),
     },
     plugins: [
       // Without a default role the plugin's own default is a name outside the list, which the hook below refuses.
-      admin({ defaultRole: defaultRole ?? 'unassigned', roles: Object.fromEntries(roles.map((role) => [role, role === 'admin' ? adminAc : userAc])) }),
+      admin({ schema: pluginNames.admin, defaultRole: defaultRole ?? 'unassigned', roles: Object.fromEntries(roles.map((role) => [role, role === 'admin' ? adminAc : userAc])) }),
       jwt({
+        schema: pluginNames.jwt,
         jwt: {
           expirationTime: tokenLifetime,
           issuer: options.baseURL,
@@ -138,8 +144,8 @@ export const betterAuthOptions = (options: CreateAuthOptions, { roles, defaultRo
         disableSettingJwtHeader: true,
       }),
       // Without a password, as for someone who signs in with a provider only, two-factor authentication is turned on without one.
-      twoFactorAfterPasswordOrCode({ allowPasswordless: true, ...(mailer && { otpOptions: twoFactorCodeOptions(mailer) }) }),
-      passkey(),
+      twoFactorAfterPasswordOrCode({ schema: pluginNames.twoFactor, allowPasswordless: true, ...(mailer && { otpOptions: twoFactorCodeOptions(mailer) }) }),
+      passkey({ schema: pluginNames.passkey }),
       ...(mailer ? [emailOTP(emailCodeOptions(mailer))] : []),
       ...(signIn ? [genericOAuth({ config: [platformSignInProvider(signIn)] })] : []),
       signInPolicyPlugin({

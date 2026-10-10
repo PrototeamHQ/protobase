@@ -329,7 +329,7 @@ The password is typed at a hidden prompt with confirmation, read from stdin with
 protobase auth migration [--dir db/migrations] [--name auth]
 ```
 
-Run inside a project whose `protobase.config.ts` exports `auth`, against its database with the project's migrations applied. It compares the database with the tables, columns and indexes Better Auth needs (with Protobase's plugins and the project's own) and writes what is missing as the next migration in `--dir`: `009_auth.sql` after `008_...`. Nothing is written when the schema is current. The file only adds, never drops; apply it with the project's other migrations. See [migrations](/reference/auth/#migrations).
+Run inside a project whose `protobase.config.ts` exports `auth`, against its database with the project's migrations applied. It compares the database with the tables, columns and indexes Better Auth needs (with Protobase's plugins and the project's own) and writes what is missing as the next migration in `--dir`: `009_auth.sql` after `008_...`. Nothing is written when the schema is current. The file only adds, never drops; apply it with the project's other migrations. For a store with the camelCase names of Protobase 0.6 it writes their rename to snake_case instead, and the startup check asks for that. See [migrations](/reference/auth/#migrations).
 
 ## `token`
 
