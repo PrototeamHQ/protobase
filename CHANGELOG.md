@@ -2,6 +2,12 @@
 
 Every release of Protobase, cut by the release workflow from the commits since the last one (see the [versioning page](https://docs.protobase.net/reference/versioning/)).
 
+## [0.3.4](https://github.com/PrototeamHQ/protobase/compare/v0.3.3...v0.3.4) (2026-10-10)
+
+### Bug Fixes
+
+* **ui:** show only the Assistant button's icon on phones ([6a416f7](https://github.com/PrototeamHQ/protobase/commit/6a416f73fedf4e2ec3fb0efe6c8ffd81761c082d))
+
 ## [0.3.3](https://github.com/PrototeamHQ/protobase/compare/v0.3.2...v0.3.3) (2026-10-10)
 
 ### Bug Fixes
