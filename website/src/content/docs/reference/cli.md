@@ -250,6 +250,7 @@ Serves the API of a bundle from `protobase build` and owns the process around it
 | `PROTOBASE_SMTP_URL` | the SMTP server for password-reset mail, credential included: `smtp://user:password@host:587` (STARTTLS when offered) or `smtps://...:465`; without it reset is off ([Password reset](/reference/auth/#password-reset)) |
 | `PROTOBASE_MAIL_FROM` | the sender of that mail, a plain address such as `noreply@admin.example.com`; set with `PROTOBASE_SMTP_URL` or not at all |
 | `PROTOBASE_ASSISTANT_URL`, `PROTOBASE_ASSISTANT_API_KEY`, `PROTOBASE_ASSISTANT_MODEL`, `PROTOBASE_ASSISTANT_BASE_URL` | the [assistant](/reference/assistant/#which-backend): a backend elsewhere, or the built-in one on OpenRouter or another OpenAI-compatible endpoint; without them there is none |
+| `PROTOBASE_RUNTIME_URL` | the endpoint behind the top bar's [runtime update button](/reference/versioning/#runtime-updates), such as a hosting platform's; without it there is no button |
 
 Better Auth and other settings are the project's own variables (`BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, ...), read by its config. `protobase serve` also loads the nearest `.env`, like `dev`; the runtime takes the environment as it is.
 

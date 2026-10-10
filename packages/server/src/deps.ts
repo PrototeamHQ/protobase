@@ -25,4 +25,6 @@ export type Deps = {
   rowPermissions: (resource: string) => boolean
   /** The URL of the assistant backend that `/meta` names to callers who may use it: another origin's, or the built-in one's path. */
   assistant?: string
+  /** The URL of the runtime updates endpoint that `/meta` names to admins. */
+  runtime?: string
 }

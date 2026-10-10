@@ -3,6 +3,7 @@ import type { PageModel } from '@protobase/layout'
 import type { Db } from '@protobase/query'
 import type { ResolveOptions, ResourceModel, ViewModel } from '@protobase/schema'
 import type { AssistantOptions } from './assistant/assistant-settings'
+import type { RuntimeOptions } from './runtime/runtime-settings'
 
 export type TenantValue = string | number
 
@@ -78,6 +79,8 @@ export type AdminOptions = {
   onUnhandledError?: (error: unknown) => void
   /** The assistant in the admin app's dock: a backend elsewhere or the built-in one (see `AssistantOptions`); `false` turns it off. */
   assistant?: AssistantOptions | false
+  /** The runtime updates endpoint behind the top bar's update button (see `RuntimeOptions`); `false` turns it off. */
+  runtime?: RuntimeOptions | false
 }
 
 export type ViewSource = { toModel(): ViewModel }

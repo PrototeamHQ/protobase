@@ -35,3 +35,4 @@ export { requestApproval, type ApprovalRequest, type ApprovalAnswer } from './as
 export { streamChatCompletion, ModelError, type ChatMessage, type ChatTextPart, type ToolCall, type ToolSpec, type Completion, type CompletionOptions, type ReasoningDetail, type ReasoningEffort } from './assistant/chat-completions'
 export { readOnlyQueryTool, readWriteQueryTool } from './assistant/query-tools'
 export { runReadOnlyQuery, runReadWriteQuery, type QueryOptions, type QueryResult } from './assistant/run-query'
+export { runtimeUrl, runtimeVariable, seesRuntime, type RuntimeOptions } from './runtime/runtime-settings'

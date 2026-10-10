@@ -66,3 +66,14 @@ error: dist/protobase.bundle.json: the bundle was built by Protobase 0.2.0 and t
 ```
 
 Rebuild the bundle with the runtime's version of Protobase, or upgrade the runtime to one that serves the bundle. The rule is `bundleVersionProblem` in `packages/cli/src/version/compatibility.ts`.
+
+## Runtime updates
+
+An app whose host can update its runtime, such as a hosting platform, can show admins an **Update** button in the top bar. `PROTOBASE_RUNTIME_URL` (or `createAdmin`'s `options.runtime.url`) names the host's endpoint, and `/api/meta` passes it on as `runtime: { url }` to callers with the `admin` role only. Without it, or for anyone else, the app shows nothing and asks nothing.
+
+The app sends the signed-in user's API token as `Authorization: Bearer <token>` (verified like an [assistant backend](/reference/assistant/#another-backend) does) and expects:
+
+- `GET {url}`: `200` with `{ version, latest, updateAvailable, indicator, policy, nextUpdateAt, updating }`. `version` is the runtime the app is pinned to, `policy` one of `immediate`, `weekly`, `scheduled` or `manual`, and `nextUpdateAt` when that policy applies `latest` (null when it never will or nothing is pending).
+- `POST {url}/update`: applies `latest` now, `202` with the same body; `409` when the app is on it already or an update is running.
+
+The app reads the status on load and every half hour, more often while an update runs. It shows the button only while `updateAvailable` and `indicator` are both true; the button opens the two versions, when the policy updates, and **Update now**. When and whether to update is the host's setting.

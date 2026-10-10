@@ -18,6 +18,7 @@ import { collectionRoutes } from './routes/collection'
 import { docsRoutes } from './routes/docs'
 import { metaRoutes } from './routes/meta'
 import { recordRoutes } from './routes/record'
+import { runtimeUrl } from './runtime/runtime-settings'
 import { createScanGuard } from './scan-guard'
 import type { AdminEnv, AdminOptions, Authenticator, PageSource, ViewSource } from './types'
 
@@ -50,6 +51,7 @@ export const createAdmin = ({ resources, views = [], pages = [], userMenu, db, a
   })
   const systemPath = basePath.slice(0, basePath.lastIndexOf('/'))
   const assistant = assistantSettings(options.assistant, globalThis.process?.env ?? {})
+  const runtime = runtimeUrl(options.runtime, globalThis.process?.env ?? {})
   const deps = {
     db,
     registry,
@@ -65,6 +67,7 @@ export const createAdmin = ({ resources, views = [], pages = [], userMenu, db, a
     accessOptions: { ...(options.roles && { roles: options.roles }), ...(options.defaultAccess && { defaultAccess: options.defaultAccess }) },
     rowPermissions: (resource: string) => (typeof options.rowPermissions === 'object' ? !options.rowPermissions.except.includes(resource) : options.rowPermissions !== false),
     ...(assistant && { assistant: assistant.kind === 'external' ? assistant.url : `${systemPath}/assistant` }),
+    ...(runtime && { runtime }),
   }
 
   const meta = createMeta(deps)

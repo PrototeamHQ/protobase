@@ -4,6 +4,7 @@ import { seesAssistant } from './assistant/assistant-settings'
 import type { Deps } from './deps'
 import { sha256Hex, stableJson } from './hash'
 import { requestAccess } from './request-access'
+import { seesRuntime } from './runtime/runtime-settings'
 import type { Session } from './types'
 import { pruneView } from './view-access'
 
@@ -26,6 +27,8 @@ export type CallerMeta = {
   userMenu?: UserMenuModel
   /** The assistant backend, for a caller with the `admin` or `ai` role when there is one: an absolute URL, or the built-in one's path. */
   assistant?: { url: string }
+  /** The runtime updates endpoint, for a caller with the `admin` role when the app has one. */
+  runtime?: { url: string }
 }
 
 const modelsHash = (deps: Deps) => sha256Hex(stableJson(deps.registry.entries.map((entry) => entry.model))).then((hash) => hash.slice(0, 32))
@@ -69,6 +72,7 @@ export const createMeta = (deps: Deps) => {
       } satisfies ResourcePermissions])),
       ...(deps.userMenu && { userMenu: { items: deps.userMenu.items.filter(shown) } }),
       ...(deps.assistant && seesAssistant(session.user.roles) && { assistant: { url: deps.assistant } }),
+      ...(deps.runtime && seesRuntime(session.user.roles) && { runtime: { url: deps.runtime } }),
     }
     return { body, etag: `"${(await sha256Hex(stableJson(body))).slice(0, 32)}"` }
   }
