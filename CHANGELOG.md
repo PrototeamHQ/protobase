@@ -2,6 +2,20 @@
 
 Every release of Protobase, cut by the release workflow from the commits since the last one (see the [versioning page](https://docs.protobase.net/reference/versioning/)).
 
+## [0.5.0](https://github.com/PrototeamHQ/protobase/compare/v0.4.1...v0.5.0) (2026-10-10)
+
+### ⚠ BREAKING CHANGES
+
+* **schema,server:** a widget part an app component draws, and the widget() helper
+
+### Features
+
+* **cli:** build and dev with --extend, merging an extension's configs before the project's ([86db663](https://github.com/PrototeamHQ/protobase/commit/86db663b842a7ccb58d52b0fbc665d33e182f4a9))
+* **client,ui:** draw widget parts in the dock with the app's components and useBackendData ([ca36f9d](https://github.com/PrototeamHQ/protobase/commit/ca36f9d53c4e6052d1e8d36b93e53a1ed69dfdd1))
+* **schema,server:** a widget part an app component draws, and the widget() helper ([d444215](https://github.com/PrototeamHQ/protobase/commit/d444215b1bbf1983694101ec730afc837f053a24))
+* **server,ui:** extend a config with others, merging with defineConfig, mergeConfig and mergeUi ([51faaed](https://github.com/PrototeamHQ/protobase/commit/51faaed29d74ff8ec990d5ce9e7c4410cbd79053))
+* **server:** app tools in the built-in assistant, with records as the user ([b090ee9](https://github.com/PrototeamHQ/protobase/commit/b090ee94981f2682252143c4f4ff9e15bfbc0c53))
+
 ## [0.4.1](https://github.com/PrototeamHQ/protobase/compare/v0.4.0...v0.4.1) (2026-10-10)
 
 ### Bug Fixes
