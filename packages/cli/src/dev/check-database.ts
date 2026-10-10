@@ -7,16 +7,16 @@ const describeTarget = (url: string) => {
   return `${hostname}:${port || 5432}${pathname}`
 }
 
-// "pnpm db:up" style hint when the project has a script for it.
+// A hint to run the project's db:up script when it has one, whichever package manager runs it.
 const startHint = async (projectDir: string) => {
   const manifest = await readFile(path.join(projectDir, 'package.json'), 'utf8').catch((error: NodeJS.ErrnoException) => {
     if (error.code === 'ENOENT') return undefined
     throw error
   })
   if (!manifest) return ''
-  const { name, scripts } = JSON.parse(manifest) as { name?: string; scripts?: Record<string, string> }
+  const { scripts } = JSON.parse(manifest) as { scripts?: Record<string, string> }
   if (!scripts?.['db:up']) return ''
-  return `\nStart it with: pnpm --filter ${name} db:up`
+  return "\nStart it with the project's db:up script."
 }
 
 const reasons: Record<string, string> = {

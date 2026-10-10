@@ -13,7 +13,7 @@ const project = (scripts: Record<string, string>) => {
 describe('checkDatabase', () => {
   it('names the problem and the way to start the project database', async () => {
     await expect(checkDatabase('postgres://u:p@127.0.0.1:1/db', project({ 'db:up': 'docker compose up -d' }))).rejects.toThrow(
-      /Cannot reach the database at 127\.0\.0\.1:1\/db: the connection was refused.*pnpm --filter shop db:up/s,
+      /Cannot reach the database at 127\.0\.0\.1:1\/db: the connection was refused.*Start it with the project's db:up script/s,
     )
   })
 
