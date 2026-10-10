@@ -76,3 +76,4 @@ export { storageCleanupSchedule, type CleanupEntry, type CleanupSchedule, type S
 export type { CleanupReport } from './files/cleanup-runner'
 export { createFileCleanup, type FileCleanupInput } from './files/file-cleanup'
 export type { FileObject } from './files/present'
+export { aspectRatio, fileSize, fileType, imageSize, processor } from './files/processors'

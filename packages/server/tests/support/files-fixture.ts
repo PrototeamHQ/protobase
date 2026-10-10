@@ -8,14 +8,16 @@ import { createAdmin, createFileCleanup, localFiles, type FilesOptions } from '@
 import { createEmptyPg } from '../../../../test-support/pglite-snapshot'
 import { testAuthenticator } from '../../../../test-support/server'
 
-export const products = (derive: Record<string, FileProcessor> = {}) =>
+export type ProductOptions = { derive?: Record<string, FileProcessor>; accept?: string[] }
+
+export const products = ({ derive = {}, accept = ['image/*'] }: ProductOptions = {}) =>
   resource('products')
     .table('products')
     .fields({
       id: f.integer().readOnly().dbDefault(),
       organizationId: f.relation('organizations'),
       name: f.text(),
-      image: f.file().accept(['image/*']).maxSize('64 KB').optional().derive(derive),
+      image: f.file().accept(accept).maxSize('64 KB').optional().derive(derive),
       imageWidth: f.integer().readOnly().optional(),
       imageRatio: f.decimal({ precision: 8, scale: 4 }).readOnly().optional(),
       datasheet: f.file().accept(['application/pdf']).optional(),
@@ -40,7 +42,7 @@ create table avatars (id integer generated always as identity primary key, name 
 `
 
 /** An admin with products and avatars over PGlite, keeping files in a fresh temp folder. */
-export const createFilesFixture = async (derive: Record<string, FileProcessor> = {}) => {
+export const createFilesFixture = async (options: ProductOptions = {}) => {
   const dir = await mkdtemp(path.join(tmpdir(), 'protobase-files-'))
   const pg = await createEmptyPg()
   await pg.exec(ddl)
@@ -49,7 +51,7 @@ export const createFilesFixture = async (derive: Record<string, FileProcessor> =
     providers: { private: localFiles({ dir: path.join(dir, 'private') }), public: localFiles({ dir: path.join(dir, 'public'), public: true }) },
     secret: 'files-test-secret',
   }
-  const resources = [products(derive), avatars]
+  const resources = [products(options), avatars]
   const app = createAdmin({ resources, db, authenticate: testAuthenticator, files })
   const cleanup = createFileCleanup({ resources, db, files })!
   // Every object a provider holds, scheduled deletes left out
