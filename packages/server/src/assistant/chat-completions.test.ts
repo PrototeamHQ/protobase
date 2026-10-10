@@ -34,9 +34,24 @@ describe('streamChatCompletion', () => {
   it('streams the answer piece by piece and resolves with all of it', async () => {
     const endpoint = fakeEndpoint(() => sse([{ choices: [{ delta: { role: 'assistant' } }] }, delta('There are '), delta('42 orders.'), '[DONE]']))
     const pieces: string[] = []
-    await expect(streamChatCompletion({ ...settings, baseUrl: 'http://localhost:11434/v1', fetch: endpoint.fetch }, messages, (text) => pieces.push(text))).resolves.toBe('There are 42 orders.')
+    await expect(streamChatCompletion({ ...settings, baseUrl: 'http://localhost:11434/v1', fetch: endpoint.fetch }, messages, (text) => pieces.push(text))).resolves.toEqual({ content: 'There are 42 orders.', toolCalls: [] })
     expect(pieces).toEqual(['There are ', '42 orders.'])
     expect(endpoint.requests[0]?.url).toBe('http://localhost:11434/v1/chat/completions')
+  })
+
+  it('offers tools and puts the streamed tool calls together', async () => {
+    const tool = { type: 'function' as const, function: { name: 'run_query', description: 'Runs a query', parameters: { type: 'object', properties: { sql: { type: 'string' } } } } }
+    const endpoint = fakeEndpoint(() =>
+      sse([
+        { choices: [{ delta: { tool_calls: [{ index: 0, id: 'call_1', type: 'function', function: { name: 'run_query', arguments: '' } }] } }] },
+        { choices: [{ delta: { tool_calls: [{ index: 0, function: { arguments: '{"sql":"select ' } }] } }] },
+        { choices: [{ delta: { tool_calls: [{ index: 0, function: { arguments: '1"}' } }] } }] },
+        '[DONE]',
+      ]),
+    )
+    const completion = await streamChatCompletion({ ...settings, fetch: endpoint.fetch }, messages, () => {}, { tools: [tool] })
+    expect(completion).toEqual({ content: '', toolCalls: [{ id: 'call_1', type: 'function', function: { name: 'run_query', arguments: '{"sql":"select 1"}' } }] })
+    expect((await endpoint.requests[0]?.json()).tools).toEqual([tool])
   })
 
   it('turns a refused key into a readable message', async () => {

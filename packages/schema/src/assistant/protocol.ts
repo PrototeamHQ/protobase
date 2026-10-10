@@ -35,6 +35,8 @@ export type AssistantCardPart = {
   /** Short text at the end of the title row. */
   badge?: string
   body?: string
+  /** Monospace text, such as a query. */
+  code?: string
   fields?: Array<{ label: string; value: string }>
   steps?: AssistantStep[]
   diffs?: AssistantDiff[]

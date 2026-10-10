@@ -1,4 +1,4 @@
-import { Kysely } from 'kysely'
+import { Kysely, sql } from 'kysely'
 import { PGliteDialect } from 'kysely-pglite-dialect'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { applyAssistantEvent, emptyAssistantState, f, readEventStream, resource, type AssistantEvent, type AssistantState } from '@protobase/schema'
@@ -46,69 +46,158 @@ describe('the assistant in /meta', () => {
   })
 })
 
-// A fake OpenAI-compatible endpoint that streams `answer`, recording each request body.
-const fakeModel = (answer: (body: any) => Response) => {
+// A fake OpenAI-compatible endpoint: answers each request with the next of `answers`, recording the request bodies.
+const fakeModel = (answers: Array<(body: any) => Response>) => {
   const bodies: any[] = []
   const fetch = (async (_input: RequestInfo | URL, init?: RequestInit) => {
     const body = JSON.parse(String(init?.body))
     bodies.push(body)
+    const answer = answers.shift()
+    if (!answer) throw new Error('The fake model got more requests than answers')
     return answer(body)
   }) as typeof globalThis.fetch
   return { bodies, fetch }
 }
 
-const streamed = (pieces: string[]) =>
-  new Response([...pieces.map((content) => `data: ${JSON.stringify({ choices: [{ delta: { content } }] })}\n\n`), 'data: [DONE]\n\n'].join(''), { headers: { 'content-type': 'text/event-stream' } })
+const sse = (chunks: unknown[]) => new Response([...chunks.map((chunk) => `data: ${JSON.stringify(chunk)}\n\n`), 'data: [DONE]\n\n'].join(''), { headers: { 'content-type': 'text/event-stream' } })
+const says = (...pieces: string[]) => () => sse(pieces.map((content) => ({ choices: [{ delta: { content } }] })))
+const calls = (name: string, args: unknown) => () => sse([{ choices: [{ delta: { tool_calls: [{ index: 0, id: `call-${name}`, type: 'function', function: { name, arguments: JSON.stringify(args) } }] } }] }])
 
-// Opens the event stream and folds its events into the state until `done` says so.
-const watch = async (app: ReturnType<typeof admin>, roles: string, done: (state: AssistantState) => boolean) => {
+// Follows the event stream, folding its events into the state, until `until` holds for it.
+const watch = async (app: ReturnType<typeof admin>, roles: string) => {
   const response = await app.request('/api/assistant/events', { headers: as(1, roles) })
   expect(response.headers.get('content-type')).toContain('text/event-stream')
   const controller = new AbortController()
   let state = emptyAssistantState
+  const waiting: Array<{ until: (state: AssistantState) => boolean; resolve: () => void }> = []
   const finished = readEventStream(response.body!, (data) => {
     state = applyAssistantEvent(state, JSON.parse(data) as AssistantEvent)
-    if (done(state)) controller.abort()
+    for (const entry of waiting.filter((item) => item.until(state))) {
+      waiting.splice(waiting.indexOf(entry), 1)
+      entry.resolve()
+    }
   }, controller.signal)
-  return { state: () => state, finished }
+  return {
+    state: () => state,
+    until: (until: (state: AssistantState) => boolean) => (until(state) ? Promise.resolve() : new Promise<void>((resolve) => waiting.push({ until, resolve }))),
+    stop: () => {
+      controller.abort()
+      return finished
+    },
+  }
 }
 
-const answered = (state: AssistantState) => state.messages.length === 2 && !state.replying
+const done = (state: AssistantState) => state.messages.length >= 2 && !state.replying
+const partsOf = (state: AssistantState) => state.messages.at(-1)?.parts ?? []
+const cardOf = (state: AssistantState) => partsOf(state).find((part) => part.type === 'card')
 
 describe('the built-in assistant', () => {
-  it('streams an answer to a question, with the app described in the system prompt', async () => {
-    const model = fakeModel(() => streamed(['There are ', 'two statuses: open and done.']))
+  it('streams an answer, with the app described in the system prompt and the query tools offered', async () => {
+    const model = fakeModel([says('There are ', 'two statuses: open and done.')])
     const app = admin({ apiKey: 'sk-or-test', model: 'test/model', fetch: model.fetch })
-    const stream = await watch(app, 'admin', answered)
+    const stream = await watch(app, 'admin')
     expect((await app.request('/api/assistant/messages', json({ text: 'Which statuses can a task have?' }, as(1, 'admin')))).status).toBe(202)
-    await stream.finished
+    await stream.until(done)
+    await stream.stop()
 
-    const [user, reply] = stream.state().messages
-    expect(user).toMatchObject({ from: 'user', parts: [{ type: 'text', text: 'Which statuses can a task have?' }] })
-    expect(reply).toMatchObject({ from: 'assistant', parts: [{ type: 'text', text: 'There are two statuses: open and done.' }] })
+    expect(stream.state().messages.map((message) => [message.from, message.parts])).toEqual([
+      ['user', [expect.objectContaining({ type: 'text', text: 'Which statuses can a task have?' })]],
+      ['assistant', [expect.objectContaining({ type: 'text', text: 'There are two statuses: open and done.' })]],
+    ])
     const [body] = model.bodies
     expect(body.model).toBe('test/model')
     expect(body.stream).toBe(true)
+    expect(body.tools.map((tool: any) => tool.function.name)).toEqual(['run_read_only_query', 'propose_write_query'])
     expect(body.messages[0].role).toBe('system')
-    expect(body.messages[0].content).toContain('- tasks\n  - id: integer, read-only\n  - title: text\n  - status: one of open, done')
+    expect(body.messages[0].content).toContain('- tasks (table tasks)\n  - id: integer, read-only\n  - title: text\n  - status: one of open, done')
     expect(body.messages.slice(1)).toEqual([{ role: 'user', content: 'Which statuses can a task have?' }])
   })
 
+  it('runs a read-only query the model asks for, shows its rows and hands them back to the model', async () => {
+    await sql`insert into tasks (title, status) values ('Write docs', 'open')`.execute(db)
+    const model = fakeModel([calls('run_read_only_query', { sql: 'select title, status from tasks' }), says('One task is open.')])
+    const app = admin({ apiKey: 'sk-or-test', fetch: model.fetch })
+    const stream = await watch(app, 'admin')
+    await app.request('/api/assistant/messages', json({ text: 'Which tasks are open?' }, as(1, 'admin')))
+    await stream.until(done)
+    await stream.stop()
+
+    expect(partsOf(stream.state())).toEqual([
+      expect.objectContaining({ type: 'table', columns: ['title', 'status'], rows: [['Write docs', 'open']], caption: 'select title, status from tasks' }),
+      expect.objectContaining({ type: 'text', text: 'One task is open.' }),
+    ])
+    expect(model.bodies[1].messages.slice(-2)).toEqual([
+      { role: 'assistant', content: null, tool_calls: [{ id: 'call-run_read_only_query', type: 'function', function: { name: 'run_read_only_query', arguments: '{"sql":"select title, status from tasks"}' } }] },
+      { role: 'tool', tool_call_id: 'call-run_read_only_query', content: '{"columns":["title","status"],"rows":[["Write docs","open"]],"truncated":false}' },
+    ])
+    await sql`truncate tasks`.execute(db)
+  })
+
+  it('tells the model when Postgres refuses a query, and refuses writes in it', async () => {
+    const model = fakeModel([calls('run_read_only_query', { sql: 'delete from tasks returning id' }), says('I cannot change data that way.')])
+    const app = admin({ apiKey: 'sk-or-test', fetch: model.fetch })
+    const stream = await watch(app, 'admin')
+    await app.request('/api/assistant/messages', json({ text: 'Delete every task' }, as(1, 'admin')))
+    await stream.until(done)
+    await stream.stop()
+    expect(model.bodies[1].messages.at(-1)).toEqual({ role: 'tool', tool_call_id: 'call-run_read_only_query', content: expect.stringMatching(/^Postgres refused the statement: cannot execute \w+ in a read-only transaction$/) })
+  })
+
+  it('runs a write only after the user approves it on the card', async () => {
+    const model = fakeModel([calls('propose_write_query', { sql: `insert into tasks (title, status) values ('Ship', 'open') returning title`, summary: 'Adds the task Ship.' }), says('Added.')])
+    const app = admin({ apiKey: 'sk-or-test', fetch: model.fetch })
+    const stream = await watch(app, 'admin')
+    await app.request('/api/assistant/messages', json({ text: 'Add a task Ship' }, as(1, 'admin')))
+    await stream.until((state) => cardOf(state)?.actions !== undefined)
+
+    const card = cardOf(stream.state())!
+    expect(card).toMatchObject({ title: 'Run this change?', body: 'Adds the task Ship.', code: `insert into tasks (title, status) values ('Ship', 'open') returning title`, actions: [{ id: 'approve', label: 'Approve', style: 'primary' }, { id: 'reject', label: 'Reject' }] })
+    expect(stream.state().replying).toBe(true)
+    expect((await sql`select * from tasks`.execute(db)).rows).toEqual([])
+
+    expect((await app.request('/api/assistant/actions', json({ partId: card.id, actionId: 'approve' }, as(1, 'admin')))).status).toBe(202)
+    await stream.until(done)
+    await stream.stop()
+    expect(cardOf(stream.state())).toMatchObject({ note: 'Approved.' })
+    expect(cardOf(stream.state())).not.toHaveProperty('actions')
+    expect((await sql<{ title: string }>`select title from tasks`.execute(db)).rows).toEqual([{ title: 'Ship' }])
+    expect(model.bodies[1].messages.at(-1)).toEqual({ role: 'tool', tool_call_id: 'call-propose_write_query', content: '{"columns":["title"],"rows":[["Ship"]],"truncated":false}' })
+    await sql`truncate tasks`.execute(db)
+  })
+
+  it('runs nothing when the user rejects the write', async () => {
+    const model = fakeModel([calls('propose_write_query', { sql: 'delete from tasks returning id', summary: 'Deletes every task.' }), says('Nothing was deleted.')])
+    const app = admin({ apiKey: 'sk-or-test', fetch: model.fetch })
+    await sql`insert into tasks (title, status) values ('Keep', 'open')`.execute(db)
+    const stream = await watch(app, 'ai')
+    await app.request('/api/assistant/messages', json({ text: 'Delete every task' }, as(1, 'ai')))
+    await stream.until((state) => cardOf(state)?.actions !== undefined)
+    await app.request('/api/assistant/actions', json({ partId: cardOf(stream.state())!.id, actionId: 'reject' }, as(1, 'ai')))
+    await stream.until(done)
+    await stream.stop()
+    expect(cardOf(stream.state())).toMatchObject({ note: 'Rejected. Nothing ran.' })
+    expect((await sql`select * from tasks`.execute(db)).rows).toHaveLength(1)
+    expect(model.bodies[1].messages.at(-1)).toEqual({ role: 'tool', tool_call_id: 'call-propose_write_query', content: 'The user did not approve the statement (rejected); nothing ran.' })
+    await sql`truncate tasks`.execute(db)
+  })
+
   it('shows a refused key as a danger card with the endpoint’s message', async () => {
-    const model = fakeModel(() => Response.json({ error: { message: 'No auth credentials found' } }, { status: 401 }))
+    const model = fakeModel([() => Response.json({ error: { message: 'No auth credentials found' } }, { status: 401 })])
     const app = admin({ apiKey: 'sk-wrong', fetch: model.fetch })
-    const stream = await watch(app, 'ai', answered)
+    const stream = await watch(app, 'ai')
     await app.request('/api/assistant/messages', json({ text: 'Hello?' }, as(1, 'ai')))
-    await stream.finished
-    expect(stream.state().messages[1]?.parts).toEqual([
+    await stream.until(done)
+    await stream.stop()
+    expect(partsOf(stream.state())).toEqual([
       expect.objectContaining({ type: 'card', tone: 'danger', title: 'The assistant could not answer', body: 'The model endpoint https://openrouter.ai/api/v1 answered 401: No auth credentials found (check the API key)' }),
     ])
   })
 
-  it('refuses callers without the admin or ai role, empty questions and actions', async () => {
-    const app = admin({ apiKey: 'sk-or-test', fetch: fakeModel(() => streamed(['ok'])).fetch })
+  it('refuses callers without the admin or ai role, empty messages and clicks no card waits for', async () => {
+    const app = admin({ apiKey: 'sk-or-test', fetch: fakeModel([]).fetch })
     expect((await app.request('/api/assistant/events', { headers: as(1, 'sales') })).status).toBe(403)
     expect((await app.request('/api/assistant/messages', json({ text: 'Hi' }, as(1, 'sales')))).status).toBe(403)
+    expect((await app.request('/api/assistant/messages', json({ text: 'Hi' }))).status).toBe(401)
     expect((await app.request('/api/assistant/messages', json({ text: '  ' }, as(1, 'admin')))).status).toBe(400)
     expect((await app.request('/api/assistant/actions', json({ partId: 'p', actionId: 'a' }, as(1, 'admin')))).status).toBe(404)
   })

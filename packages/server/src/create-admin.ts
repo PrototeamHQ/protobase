@@ -3,7 +3,7 @@ import { checkPages } from '@protobase/layout'
 import type { Db } from '@protobase/query'
 import type { UserMenuSource } from '@protobase/schema'
 import { assistantSettings } from './assistant/assistant-settings'
-import { assistantRoutes } from './assistant/routes'
+import { builtInAssistant } from './assistant/built-in-assistant'
 import { consoleAuditQueue } from './audit/console-queue'
 import { authBasePath, type AdminAuth } from './better-auth/create-auth'
 import { statusRoute } from './better-auth/status-route'
@@ -92,7 +92,6 @@ export const createAdmin = ({ resources, views = [], pages = [], userMenu, db, a
   const system = guarded((app) => {
     app.route('/', docsRoutes(deps))
     app.route('/', metaRoutes(meta))
-    if (assistant?.kind === 'built-in') app.route('/', assistantRoutes(assistant.model, meta, options.onUnhandledError))
   })
 
   const app = new Hono<AdminEnv>()
@@ -101,6 +100,7 @@ export const createAdmin = ({ resources, views = [], pages = [], userMenu, db, a
     app.route(authBasePath, statusRoute(auth))
     app.on(['GET', 'POST'], `${authBasePath}/*`, (c) => auth.handler(c.req.raw))
   }
+  if (assistant?.kind === 'built-in') app.route(`${systemPath}/assistant`, builtInAssistant({ model: assistant.model, db, meta, authenticate, report: options.onUnhandledError }))
   app.route('/', batchRoute(deps, authenticate, meta))
   app.route(basePath, api)
   app.route(deps.systemPath || '/', system)
