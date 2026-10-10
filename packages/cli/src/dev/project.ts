@@ -1,7 +1,7 @@
 import { readdir } from 'node:fs/promises'
 import { existsSync } from 'node:fs'
 import path from 'node:path'
-import type { ProjectConfig } from '../project/config'
+import { mergeConfig, type ProjectConfig } from '@protobase/server'
 import { conventionConfig } from '../project/convention'
 import { sharedDb } from './create-db'
 
@@ -24,10 +24,12 @@ const conventionExports = async (projectDir: string) => {
   return conventionConfig(indexExports, uiModules)
 }
 
+// protobase.config.ts, with the convention's config when it has none, merged with the configs it extends.
 export const loadProject = async (projectDir: string): Promise<Project> => {
   const file = path.join(projectDir, 'protobase.config.ts')
   const custom: ProjectConfig = existsSync(file) ? ((await load(file)).default ?? {}) : {}
-  return { ...custom, exports: custom.config ?? (await conventionExports(projectDir)) }
+  const project = mergeConfig({ ...custom, config: custom.config ?? (await conventionExports(projectDir)) })
+  return { ...project, exports: project.config ?? {} }
 }
 
 export const projectDb = (project: Project, projectDir: string) => {

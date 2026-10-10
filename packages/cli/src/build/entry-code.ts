@@ -11,7 +11,8 @@ const uiDirs = (configDir: string) =>
     .sort()
 
 // The bundle's entry module: protobase.config.ts's default export, with `config` from the convention
-// (config/index.ts and config/*/ui.ts) when it has none, as `protobase dev` loads a project.
+// (config/index.ts and config/*/ui.ts) when it has none, merged with the configs it extends, as `protobase dev` loads a
+// project.
 export const bundleEntryCode = (projectDir: string) => {
   const custom = path.join(projectDir, 'protobase.config.ts')
   const configDir = path.join(projectDir, 'config')
@@ -32,6 +33,6 @@ export const bundleEntryCode = (projectDir: string) => {
   } else {
     lines.push('const convention = undefined')
   }
-  lines.push('export default { ...project, config: project.config ?? convention }')
+  lines.push(`import { mergeConfig } from '@protobase/server'`, 'export default mergeConfig({ ...project, config: project.config ?? convention })')
   return `${lines.join('\n')}\n`
 }

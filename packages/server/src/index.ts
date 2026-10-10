@@ -1,5 +1,6 @@
 export { createAdmin, type CreateAdminInput } from './create-admin'
 export { configExports } from './resource-source'
+export { defineConfig, mergeConfig, type ProjectConfig } from './project-config'
 export type { ResourceSource } from './resource-source'
 export type { AuditEvent, AuditQueue } from './types'
 export type { AdminOptions } from './admin-options'

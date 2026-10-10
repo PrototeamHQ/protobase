@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { useState } from 'react'
 import { expect, fn, userEvent, waitFor, within } from 'storybook/test'
-import { ProjectUiProvider } from '../app/pages/project-ui'
+import { ProjectUiProvider } from '../app/pages/project-ui-provider'
 import { fakeAssistant } from '../app/testing/fake-assistant'
 import { AssistantDock } from './assistant-dock'
 import { conversation } from './fixtures'

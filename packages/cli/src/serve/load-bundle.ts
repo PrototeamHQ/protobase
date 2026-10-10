@@ -1,8 +1,7 @@
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
-import type { Authenticator } from '@protobase/server'
+import type { Authenticator, ProjectConfig } from '@protobase/server'
 import { bundleBasePath } from '../bundle/manifest'
-import type { ProjectConfig } from '../project/config'
 
 export type ServedProject = ProjectConfig & { config: Record<string, unknown>; authenticate: Authenticator }
 

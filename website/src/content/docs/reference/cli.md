@@ -108,8 +108,42 @@ One process, one port: Vite serves the admin app from `@protobase/ui`'s `src/app
     options,                     // AdminOptions (scan guard, write hooks, ...)
   }
   ```
+
+  `defineConfig` from `@protobase/server` types it, and its `extends` merges other configs in (see [Extending a config](#extending-a-config)).
 - **Project UI:** the app imports `protobase.ui.tsx` from the project root, with hot reload, when it exists (see [Custom components](/reference/custom-components/)). Layout files are checked as they load, as `protobase build` checks them.
 - **Hot reload:** server code, data configs, `ui.ts` views, layouts and `protobase.config.ts` are loaded through Vite's SSR module graph. A change inside the project (or, in this repository, in `packages/server`, `packages/query`, `packages/schema`) rebuilds the API on the next request without a restart; `/meta` and `X-Meta-Version` change, so open tabs refetch. The database pool survives reloads. Newly added `ui.ts` files appear after the next change inside the project.
+
+### Extending a config
+
+A config can extend others by importing them, like Vite's `defineConfig`. `extends` lists configs merged in order, each after the ones it extends itself, and the extending config last:
+
+```ts
+// protobase.config.ts
+import { defineConfig } from '@protobase/server'
+import tasks from 'some-extension/protobase.config'
+
+export default defineConfig({ extends: [tasks], config, auth, authenticate, options: { roles } })
+```
+
+```tsx
+// protobase.ui.tsx
+import { defineUi } from '@protobase/ui'
+import tasksUi from 'some-extension/protobase.ui'
+
+export default defineUi({ extends: [tasksUi], components: { UsageChart } })
+```
+
+| What | How it merges | The same name twice |
+| --- | --- | --- |
+| `config` exports: resources, views, pages | all kept | an error naming both configs |
+| user menu | at most one among all configs | an error |
+| `options.assistant.tools` | the extended configs' first, in order, then the app's | an error naming the tool and both configs |
+| `options.writeHooks` | all run, in the same order | |
+| every other value (`db`, `auth`, `authenticate`, `roles`, `assistant.url`, ...) | the app's own; otherwise the last config that sets it | |
+| UI `components`, `actions` | all kept | an error naming the name and both configs |
+| UI `shell.actions`, `shell.rightPanel` | all drawn, the extended configs' first | |
+
+A config's `name` names it in these errors; an extension should set one. Nothing is namespaced, so a collision is always an error, never a silent override. Names starting with `Protobase` (components) and `protobase_` (tools) belong to Protobase's own extensions, such as `ProtobaseCloudTask` and `protobase_cloud_create_proposal`; give yours other names. `mergeConfig(...configs)` from `@protobase/server` and `mergeUi(...configs)` from `@protobase/ui` merge the same way in code.
 
 ## `build`
 
@@ -177,7 +211,7 @@ By default the bundle runs on Node and on Bun. `--bun` makes it a bundle for Bun
 - Packages with a native add-on stay imports too, and the bundle carries them in `node_modules/` (see [Native packages](#native-packages)). Node's built-in modules stay imports.
 - Everything else (the project's files and its other packages) is inlined. Nothing is minified.
 - Layout files (`@jsxImportSource @protobase/layout`) compile to calls of `@protobase/layout/jsx-runtime`, for production whatever `NODE_ENV` says. The build refuses one with a function, class, `new` value or hook in its JSX, naming the file, line and column ([what a layout may hold](/reference/layouts/#what-a-layout-may-hold)).
-- The default export is the project config, with `config` always set:
+- The default export is the project config merged with the configs it [extends](#extending-a-config), with `config` always set:
 
   ```ts
   export default { config, authenticate, auth?, options?, db? }   // as protobase.config.ts exports it

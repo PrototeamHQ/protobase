@@ -23,7 +23,7 @@ describe('bundleEntryCode', () => {
     expect(code).toContain(`import * as index from ${JSON.stringify(path.join(dir, 'config/index.ts'))}`)
     expect(code).toContain('conventionConfig(index, [["customers", ui0], ["orders", ui1]])')
     expect(code).not.toContain('lines')
-    expect(code).toContain('export default { ...project, config: project.config ?? convention }')
+    expect(code).toContain('export default mergeConfig({ ...project, config: project.config ?? convention })')
   })
 
   it('starts from protobase.config.ts and keeps the convention as the fallback for config', async () => {
