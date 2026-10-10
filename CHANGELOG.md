@@ -2,6 +2,12 @@
 
 Every release of Protobase, cut by the release workflow from the commits since the last one (see the [versioning page](https://docs.protobase.net/reference/versioning/)).
 
+## [0.3.2](https://github.com/PrototeamHQ/protobase/compare/v0.3.1...v0.3.2) (2026-10-10)
+
+### Bug Fixes
+
+* **cli:** let Bun's bundler write the bundles so Bun reads their non-ASCII text correctly ([38fb2b3](https://github.com/PrototeamHQ/protobase/commit/38fb2b3316d6b7b85bb11a3dee35034cb52a5002))
+
 ## [0.3.1](https://github.com/PrototeamHQ/protobase/compare/v0.3.0...v0.3.1) (2026-10-10)
 
 ### Bug Fixes
