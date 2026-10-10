@@ -1,4 +1,4 @@
-import { ApiError, type Client, type ResourcePermissions } from '@protobase/client'
+import { ApiError, type Client, type ResourcePermissions, type StoredFile, type UploadOptions, type UploadResult } from '@protobase/client'
 import { evaluateCondition, parseCondition, type PageModel } from '@protobase/layout'
 import { checkFilter, encodeKey, evaluateFilter, matchesSearch, parseFilter, type ResourceModel, type ViewModel } from '@protobase/schema'
 
@@ -14,6 +14,8 @@ export type FakeApiInput = {
   afterWrite?: (resource: string, row: Row, rows: Record<string, Row[]>) => void
   /** Answers `reveal` instead of the stored value, to count reveals or refuse them. */
   reveal?: (resource: string, key: string, field: string, value: unknown) => Promise<unknown>
+  /** Answers `upload` instead of accepting every file as the type the browser gave it, to refuse or correct one. */
+  upload?: (resource: string, field: string, file: File, options: UploadOptions) => Promise<UploadResult>
 }
 
 const keyOf = (model: ResourceModel, row: Row) => encodeKey(model.primaryKey.map((name) => row[name] as string | number))
@@ -66,7 +68,7 @@ const matches = (filter: string | undefined, model: ResourceModel | undefined) =
  * An in-memory server for stories and docs: lists with filters (simple AIP-160), sorting, paging and exact counts, and
  * get, create, update and delete that change the rows and their ETags. Not a model of the real access rules.
  */
-export const fakeApi = ({ resources, views = [], pages = [], rows: initial, permissions = {}, afterWrite, reveal }: FakeApiInput) => {
+export const fakeApi = ({ resources, views = [], pages = [], rows: initial, permissions = {}, afterWrite, reveal, upload }: FakeApiInput) => {
   const rows: Record<string, Row[]> = structuredClone(initial)
   const models = Object.fromEntries(resources.map((model) => [model.name, model]))
   let version = 0
@@ -82,6 +84,9 @@ export const fakeApi = ({ resources, views = [], pages = [], rows: initial, perm
   // Like the server, nothing but `reveal` hands out a sensitive value
   const shown = (resource: string, row: Row) => Object.fromEntries(Object.entries(row).filter(([name]) => !models[resource]?.fields[name]?.sensitive))
   const stored = (resource: string, row: Row) => ({ record: shown(resource, row), etag: String(row.etag) })
+  // An upload's ticket becomes the file it stands for once a write sends it, as the server's attach step does
+  const uploads = new Map<string, StoredFile>()
+  const attached = (body: Row) => Object.fromEntries(Object.entries(body).map(([name, value]) => [name, typeof value === 'string' && uploads.has(value) ? uploads.get(value) : value]))
   const write = (resource: string, row: Row) => {
     afterWrite?.(resource, row, rows)
     for (const [name, list] of Object.entries(rows)) rows[name] = list.map((entry) => (entry === row || !entry.etag ? stamp(entry) : entry))
@@ -107,7 +112,17 @@ export const fakeApi = ({ resources, views = [], pages = [], rows: initial, perm
       const value = find(resource, key)[field] ?? null
       return reveal ? reveal(resource, key, field, value) : value
     },
-    create: async (resource: string, body: Row) => {
+    upload: async (resource: string, field: string, file: File, options: UploadOptions = {}) => {
+      const result = upload
+        ? await upload(resource, field, file, options)
+        : { value: `fake-upload:${uploads.size + 1}`, file: { name: file.name, type: file.type || 'application/octet-stream', size: file.size }, derived: {} }
+      const url = typeof URL.createObjectURL === 'function' ? URL.createObjectURL(file) : undefined
+      uploads.set(result.value, { uri: `private:1/${uploads.size + 1}?name=${encodeURIComponent(result.file.name)}`, ...result.file, ...(url && { url }) })
+      options.onProgress?.(file.size, file.size)
+      return result
+    },
+    create: async (resource: string, raw: Row) => {
+      const body = attached(raw)
       const model = models[resource]!
       const [keyField] = model.primaryKey
       const row = { ...body, [keyField!]: body[keyField!] ?? table(resource).length + 1 + version }
@@ -117,7 +132,7 @@ export const fakeApi = ({ resources, views = [], pages = [], rows: initial, perm
     },
     update: async (resource: string, key: string, patch: Row) => {
       const row = find(resource, key)
-      Object.assign(row, patch)
+      Object.assign(row, attached(patch))
       write(resource, row)
       return stored(resource, find(resource, key))
     },

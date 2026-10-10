@@ -37,6 +37,7 @@ const widths: Record<ColumnKind, number> = {
   signed: 110,
   percent: 110,
   user: 130,
+  file: 180,
 }
 
 /** Room for a header at 12px plus cell padding, the sort arrow and the column menu button. */
@@ -53,6 +54,8 @@ const kindOf = (field: FieldModel, view: ViewModel['fields'][string] | undefined
   switch (field.type) {
     case 'relation':
       return 'relation'
+    case 'file':
+      return 'file'
     case 'enum':
       return 'status'
     case 'boolean':

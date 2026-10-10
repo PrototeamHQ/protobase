@@ -5,6 +5,7 @@ import { Link } from './router'
 import { enumLabel, type FieldModel, type FieldViewModel, type ResourceModel, type ViewModel } from '@protobase/schema'
 import { RelationPicker } from './relation-picker'
 import { SensitiveField } from './sensitive-field'
+import { FileField } from './file-field'
 import { displayValue } from '../live/display-value'
 import { isEditable } from '../live/field-values'
 
@@ -27,12 +28,15 @@ export type FieldEditorProps = {
   placeholder?: string
   /** For a sensitive field of a stored record: fetches its value, which the record does not carry. */
   reveal?: () => Promise<unknown>
+  /** The resource the field belongs to: a file field uploads to it. */
+  resource?: string
   onChange: (value: unknown) => void
 }
 
 const numeric = new Set(['integer', 'bigint', 'decimal'])
 
-export const FieldEditor = ({ field, hints, value, stored, relationLabel, relationHref, relationPicker, invalid, locked, placeholder, reveal, onChange }: FieldEditorProps) => {
+export const FieldEditor = ({ field, hints, value, stored, relationLabel, relationHref, relationPicker, invalid, locked, placeholder, reveal, resource, onChange }: FieldEditorProps) => {
+  if (field.type === 'file') return <FileField field={field} hints={hints} resource={resource ?? ''} value={value} locked={locked || !resource} invalid={invalid} onChange={onChange} />
   if (field.sensitive) return <SensitiveField field={field} hints={hints} value={value} reveal={reveal} locked={locked || field.readOnly} invalid={invalid} placeholder={placeholder} onChange={onChange} />
   if (field.type === 'relation' && relationPicker && !field.readOnly) {
     return <RelationPicker target={relationPicker.target} view={relationPicker.view} value={String(value)} label={relationLabel} invalid={invalid} onChange={(next, label) => onChange({ key: next, label })} />

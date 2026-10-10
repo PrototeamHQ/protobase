@@ -6,6 +6,7 @@ import { useClient } from '../data/api-provider'
 import { keys } from '../data/query-keys'
 import type { LiveRecord } from '../data/use-record'
 import { isConflict, useUpdateRecord } from '../data/use-update-record'
+import { displayValue } from '../live/display-value'
 import { differs, toDraft, toPatchValue } from '../live/field-values'
 import { nameFailingOperation } from './batch-failure'
 import { readDraft, writeDraft } from './draft-storage'
@@ -59,7 +60,8 @@ export const useRecordEditor = ({ model, stored, recordKey, mode, subject, draft
     writeDraft(localStorage, draftKey, keep ? { etag: stored.etag, fields: kept, ...(lines?.order && { order: lines.order }) } : undefined)
   }, [draftKey, model, draft, lines?.dirty, lines?.order, stored.etag])
 
-  const value = (name: string) => (name in draft ? draft[name] : model.fields[name]!.type === 'boolean' ? stored.record[name] : toDraft(stored.record[name]))
+  // Booleans and files are edited as they are stored; everything else as text
+  const value = (name: string) => (name in draft ? draft[name] : ['boolean', 'file'].includes(model.fields[name]!.type) ? stored.record[name] : toDraft(stored.record[name]))
 
   const change = (name: string, next: unknown) => {
     setErrors((current) => without(current, name))
@@ -75,7 +77,7 @@ export const useRecordEditor = ({ model, stored, recordKey, mode, subject, draft
       const field = model.fields[name]!
       if (!differs(field, mine, latest.record[name])) continue
       keep[name] = mine
-      if (toDraft(latest.record[name]) !== toDraft(stored.record[name])) theirs[name] = toDraft(latest.record[name])
+      if (toDraft(latest.record[name]) !== toDraft(stored.record[name])) theirs[name] = field.type === 'file' ? displayValue(field, latest.record[name]) : toDraft(latest.record[name])
     }
     setDraft(keep)
     setConflicts(theirs)

@@ -1,5 +1,6 @@
 import { enumLabel, type FieldModel, type FieldViewModel } from '@protobase/schema'
 import { formatDate, formatDateTime } from '../format/date'
+import { fileShown } from './file-values'
 
 /** A read-only rendering of a stored value, following the view's prefix, decimals, format and value label hints. */
 export const displayValue = (field: FieldModel, value: unknown, hints: FieldViewModel = {}) => {
@@ -7,6 +8,8 @@ export const displayValue = (field: FieldModel, value: unknown, hints: FieldView
   switch (field.type) {
     case 'boolean':
       return value ? 'Yes' : 'No'
+    case 'file':
+      return fileShown(value)?.name ?? '—'
     case 'enum':
       return enumLabel(String(value), hints.valueLabels)
     case 'timestamp':

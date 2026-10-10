@@ -2,7 +2,7 @@ import type { BadgeTone } from '../primitives/badge'
 
 export type ColumnKind =
   | 'text' | 'id' | 'money' | 'date' | 'datetime' | 'status' | 'relation'
-  | 'boolean' | 'number' | 'signed' | 'percent' | 'user'
+  | 'boolean' | 'number' | 'signed' | 'percent' | 'user' | 'file'
 
 export type GridRow = { id: string } & Record<string, unknown>
 

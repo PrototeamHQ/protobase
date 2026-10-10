@@ -45,6 +45,7 @@ export const createBody = (model: ResourceModel, resources: Record<string, Resou
       if (!field) return []
       if (isChosen(value)) return [[name, keyValue(resources[field.relation?.resource ?? ''], value.key)]]
       if (field.type === 'boolean') return [[name, Boolean(value)]]
+      if (field.type === 'file') return value ? [[name, toPatchValue(field, value)]] : []
       if (String(value).trim() === '') return []
       return [[name, toPatchValue(field, value)]]
     }),

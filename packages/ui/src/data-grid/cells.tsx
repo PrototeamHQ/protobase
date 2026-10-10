@@ -1,4 +1,4 @@
-import { Check } from 'lucide-react'
+import { Check, Paperclip } from 'lucide-react'
 import { enumLabel } from '@protobase/schema'
 import { formatDate, formatDateTime } from '../format/date'
 import { formatInt, formatPercent, formatSigned } from '../format/number'
@@ -7,6 +7,7 @@ import { userById } from '../mocks'
 import { Avatar } from '../primitives/avatar'
 import { Badge } from '../primitives/badge'
 import { cn } from '../lib/cn'
+import { fileShown, isPreviewable } from '../live/file-values'
 import type { ColumnSpec } from './column-spec'
 
 const muted = (text: string) => <span className="text-faint-foreground">{text}</span>
@@ -42,6 +43,18 @@ export const renderCell = (spec: ColumnSpec, value: unknown) => {
       ) : (
         muted('No')
       )
+    case 'file': {
+      const file = fileShown(value)
+      if (!file) return muted('—')
+      if ('missing' in file) return <span className="truncate text-danger-text">{file.name}</span>
+      const url = 'url' in file ? file.url : undefined
+      return (
+        <span className="inline-flex min-w-0 items-center gap-2">
+          {url && isPreviewable(file.type) ? <img src={url} alt="" className="size-5 shrink-0 rounded-sm object-cover" /> : <Paperclip className="size-3.5 shrink-0 text-muted-foreground" />}
+          <span className="truncate">{file.name}</span>
+        </span>
+      )
+    }
     case 'user': {
       const user = userById(String(value))
       return (

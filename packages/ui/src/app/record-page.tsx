@@ -126,6 +126,7 @@ const LoadedRecord = ({ model, recordKey, stored }: { model: ResourceModel; reco
           locked={!canUpdate || access === 'read'}
           invalid={Boolean(editor.errors[name])}
           reveal={field.sensitive ? () => client.reveal(model.name, recordKey, name) : undefined}
+          resource={model.name}
           onChange={(next) => editor.change(name, next)}
         />
       </Field>

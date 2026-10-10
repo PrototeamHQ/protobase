@@ -25,6 +25,7 @@ const startingDraft = (model: ResourceModel, fields: string[], record: LayoutRec
   Object.fromEntries(
     fields.map((name) => {
       const field = model.fields[name]!
+      if (field.type === 'file') return [name, record?.record[name] ?? null]
       if (record) return [name, field.type === 'boolean' ? Boolean(record.record[name]) : toDraft(record.record[name])]
       const fallback = field.default && 'value' in field.default ? field.default.value : undefined
       return [name, field.type === 'boolean' ? Boolean(fallback) : toDraft(fallback)]
@@ -108,6 +109,7 @@ const ModalFormDialog = ({ model, record, mode, label, title, fields, values, on
                 relationLabel={isChosen(value) ? value.label : undefined}
                 relationPicker={target ? { target, view: views[target.name] } : undefined}
                 invalid={Boolean(errors[name])}
+                resource={model.name}
                 onChange={(next) => {
                   setErrors(({ [name]: _, ...rest }) => rest)
                   setDraft((current) => ({ ...current, [name]: next }))

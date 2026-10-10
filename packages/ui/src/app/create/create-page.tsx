@@ -79,6 +79,7 @@ const LoadedCreate = ({ resource }: { resource: string }) => {
             placeholder={hasDatabaseDefault(field) ? 'Set by the database' : undefined}
             relationPicker={target ? { target, view: meta.views[target.name] } : undefined}
             invalid={Boolean(errors[name])}
+            resource={model.name}
             onChange={(next) => change(name, next)}
           />
         ),
