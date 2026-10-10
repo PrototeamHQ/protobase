@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { NavRecentModel, ResourceModel, ViewModel } from '@protobase/schema'
-import { recentRecords, recentRequest } from './nav-recent'
+import { recentRecords, recentRequest, recentRowDiffers } from './nav-recent'
 
 const model = { name: 'services', table: { name: 'services' }, primaryKey: ['id'], fields: { id: { name: 'id', type: 'text' }, name: { name: 'name', type: 'text' }, state: { name: 'state', type: 'enum' } } } as unknown as ResourceModel
 const view = { resource: 'services', title: 'name', list: { columns: ['name'], sort: [['name', 'asc']] }, fields: {}, filters: [], layout: [], actions: [] } as unknown as ViewModel
@@ -34,5 +34,20 @@ describe('recentRecords', () => {
   it("shows the status by the view's value label", () => {
     const labelled = { ...view, fields: { state: { valueLabels: { deploying: 'Rolling out' } } } } as ViewModel
     expect(recentRecords(model, labelled, recent, rows, '/admin', undefined)[1]).toMatchObject({ status: 'Rolling out', tone: 'warning', pulse: true })
+  })
+})
+
+describe('recentRowDiffers', () => {
+  const rows = [{ id: 's1', name: 'api', state: 'deploying' }]
+  const fields = ['id', 'name', 'state']
+
+  it('is true when the record now shows another status or title than its row', () => {
+    expect(recentRowDiffers(model, fields, rows, 's1', { id: 's1', name: 'api', state: 'running', url: 'https://api.test' })).toBe(true)
+    expect(recentRowDiffers(model, fields, rows, 's1', { id: 's1', name: 'gateway', state: 'deploying' })).toBe(true)
+  })
+
+  it('is false when the shown fields are unchanged or the record is not in the group', () => {
+    expect(recentRowDiffers(model, fields, rows, 's1', { id: 's1', name: 'api', state: 'deploying', url: 'https://api.test' })).toBe(false)
+    expect(recentRowDiffers(model, fields, rows, 's9', { id: 's9', name: 'other', state: 'running' })).toBe(false)
   })
 })

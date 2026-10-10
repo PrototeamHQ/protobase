@@ -39,7 +39,7 @@ The entry then works like this:
 - "View all" ends the list and opens the full list, like the label.
 - Only text sidebars (`text-large`, `text-small`, and the phone drawer) show the records; icon sidebars keep a plain entry.
 
-The records come from the list API with the caller's token, so they follow the same access rules as the list page: row filters such as `.own` apply, and when the list is refused the group says it could not load. Any write to the resource made in the admin refreshes them, and so does returning to the window after 30 seconds (the app's cache time), so statuses changed elsewhere show up.
+The records come from the list API with the caller's token, so they follow the same access rules as the list page: row filters such as `.own` apply, and when the list is refused the group says it could not load. Any write to the resource made in the admin refreshes them, and so does returning to the window after 30 seconds (the app's cache time), so statuses changed elsewhere show up. A record read anew, by its record page or by project code refetching `useRecord`, refreshes its group too when it shows another status or title than the group's row.
 
 ### Checks
 

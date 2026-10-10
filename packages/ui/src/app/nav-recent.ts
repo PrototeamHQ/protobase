@@ -34,3 +34,9 @@ export const recentRecords = (
     }
   })
 }
+
+/** Whether a record read anew differs from its row in a sidebar group on the fields the group shows: the group is then out of date. */
+export const recentRowDiffers = (model: ResourceModel, fields: string[], rows: Record<string, unknown>[], key: string, record: Record<string, unknown>) => {
+  const row = rows.find((entry) => encodeKey(recordKey(model, entry)) === key)
+  return row !== undefined && fields.some((field) => !Object.is(row[field], record[field]))
+}
