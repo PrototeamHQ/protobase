@@ -54,12 +54,58 @@ The model needs tool calling for the queries. A refused key, an exhausted accoun
 
 ## The built-in backend
 
-It lives at `/api/assistant` on the app's own origin and answers with the user's token like the rest of the API. Its system prompt describes the resources, tables and fields the user can see in `/meta`. It has two tools:
+It lives at `/api/assistant` on the app's own origin and answers with the user's token like the rest of the API. Its system prompt describes the resources, tables and fields the user can see in `/meta`. It has two tools of its own, and [the app's](#the-apps-own-tools):
 
 - **`run_read_only_query`** runs one `SELECT` (or `VALUES`, or a `WITH` query) and shows its rows as a table in the chat. It runs in a `READ ONLY` transaction that is always rolled back, with a statement timeout of 5 seconds and at most 200 rows. The statement is sent with a parameter, so every Postgres driver uses the extended protocol, where Postgres refuses a text with more than one command: the statement cannot `COMMIT` its way out, and Postgres refuses every write inside (`SET TRANSACTION READ WRITE`, writable CTEs, `nextval`, `DO` blocks, functions that write). Settings it changes go with the rollback.
 - **`propose_write_query`** never runs on its own. It shows the statement and a summary on a card with **Approve** and **Reject**. Only Approve runs it, as one statement in a read-write transaction; Reject, or no answer within 10 minutes, runs nothing. The model gets the returned rows, or that nothing ran. Statements are `INSERT`, `UPDATE` or `DELETE` with a `RETURNING` clause.
 
 Both run as the app's database role, **outside Protobase's access rules and tenant scoping**: whoever has the `admin` or `ai` role can read, and with approval change, everything that role can. Give the app a database role without superuser rights, and those roles only to people who may see all of the data.
+
+### The app's own tools
+
+`options.assistant.tools` adds tools of the app's own, which the built-in backend offers after its two. A tool is `defineTool({ name, description, parameters, run })` from `@protobase/server`: `parameters` is the JSON Schema of its arguments, and `run(args, context)` returns the text the model reads. A name must be 1 to 64 letters, digits, `_` or `-`, and a name taken twice stops the server at startup. A backend elsewhere has its own tools, so the option does nothing there.
+
+`context` holds the user's `session`, `show(part)` to add a part to the answer, `approve(request)` for an approval card, and `records`: `get(resource, key)`, `create(resource, data)` and `update(resource, key, data, { etag? })` (without an ETag it updates any version) on the app's resources **as the user**, through their access rules, tenant scope, validation and write hooks, as in the REST API. Each answers `{ record, etag }`; a refusal or a missing record rejects with an `HttpProblem`, whose `detail` a tool can return to the model as text.
+
+A tool with a [widget](#widget-parts) creates or finds what it is about, shows a widget with its id, and returns the id and the state at that moment:
+
+```ts
+// config/assistant/propose-task.ts
+import { defineTool, widget } from '@protobase/server'
+
+export const proposeTask = defineTool({
+  name: 'propose_task',
+  description: 'Proposes a task; someone approves or declines it on its card, now or later. Read it again before relying on its status.',
+  parameters: { type: 'object', properties: { title: { type: 'string' } }, required: ['title'] },
+  run: async (args, { records, show }) => {
+    const { record } = await records.create('tasks', { title: args.title, status: 'proposed' })
+    show(widget('TaskProposal', { taskId: record.id }, { fallback: { title: `Task proposal: ${String(record.title)}` } }))
+    return JSON.stringify({ taskId: record.id, status: 'proposed' })
+  },
+})
+
+// protobase.config.ts: export default { ..., options: { assistant: { tools: [proposeTask] } } }
+```
+
+```tsx
+// protobase.ui.tsx
+const TaskProposal = ({ taskId }: { taskId: number }) => {
+  const task = useRecord('tasks', taskId)
+  const update = useUpdateRecord('tasks', taskId)
+  if (!task.data) return <ActionCard title="Task proposal" note={task.error ? 'Could not load the task' : 'Loading'} />
+  const { record, etag } = task.data
+  return (
+    <ActionCard title={String(record.title)} badge={String(record.status)}
+      note={record.status === 'proposed' ? undefined : `${String(record.status)} by ${String(record.decidedBy)}`}
+      actions={record.status === 'proposed' ? [{ id: 'approved', label: 'Approve', style: 'primary' }, { id: 'declined', label: 'Decline' }] : []}
+      onAction={(status) => update.mutate({ patch: { status }, etag })} />
+  )
+}
+
+export default defineUi({ components: { TaskProposal } })
+```
+
+The tool and its component live apart, joined by the name, since the server config cannot import `@protobase/ui` and the browser must not get server code; put shared prop types in a file both import with `import type`. Whoever may update the task decides on it, now or next month, from the chat or the task's own page, and a write hook can stamp who did from `event.user`; when two decide at once, the ETag makes the second write fail and the widget shows the first decision. The chat is not told: the model learns of the change by reading the record again, which the description asks it to do.
 
 Each message carries the page the user is on, such as `/orders/42`, which the model reads with it.
 

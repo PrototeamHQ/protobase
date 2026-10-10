@@ -1,10 +1,10 @@
 import type { AssistantPart } from '@protobase/schema'
 import type { Session } from '../types'
 import { requestApproval } from './approval'
-import type { ModelSettings } from './assistant-settings'
 import { withCacheBreakpoints } from './cache-breakpoints'
-import { ModelError, streamChatCompletion, type ChatMessage, type ReasoningEffort, type ToolCall } from './chat-completions'
+import { ModelError, streamChatCompletion, type ChatMessage, type ModelSettings, type ReasoningEffort, type ToolCall } from './chat-completions'
 import type { Conversation } from './conversations'
+import { noRecords, type ToolRecords } from './records'
 import type { AssistantTool, ToolContext } from './tools'
 
 export type TurnOptions = {
@@ -14,6 +14,8 @@ export type TurnOptions = {
   /** The system prompt. */
   system: string
   tools?: AssistantTool[]
+  /** What tools get as `records`; without it, their calls fail. */
+  records?: ToolRecords
   /** Model calls in one turn before it stops. Default 8. */
   maxSteps?: number
   /** Gets errors other than the model endpoint's refusals, which the user only sees as a failure. */
@@ -59,7 +61,7 @@ export const runTurn = async (options: TurnOptions, text: string) => {
   const { model, conversation, session, system, tools = [], maxSteps = 8, reasoning, cache = false } = options
   const messageId = crypto.randomUUID()
   const show = (part: AssistantPart) => conversation.apply({ type: 'part', messageId, part })
-  const context: ToolContext = { session, conversation, show, approve: (request) => requestApproval(conversation, messageId, request) }
+  const context: ToolContext = { session, conversation, show, approve: (request) => requestApproval(conversation, messageId, request), records: options.records ?? noRecords }
   const specs = tools.map((tool) => ({ type: 'function' as const, function: { name: tool.name, description: tool.description, parameters: tool.parameters } }))
 
   conversation.apply({ type: 'message', message: { id: crypto.randomUUID(), from: 'user', parts: [{ type: 'text', id: crypto.randomUUID(), text }] } })

@@ -6,8 +6,10 @@ import { PGliteDialect } from 'kysely-pglite-dialect'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { applyAssistantEvent, emptyAssistantState, f, readEventStream, resource, type AssistantEvent, type AssistantState } from '@protobase/schema'
 import { createAdmin } from '../src/create-admin'
-import type { AdminOptions } from '../src/types'
-import { as, json, testAuthenticator } from '../../../test-support/server'
+import { defineTool } from '../src/assistant/tools'
+import { widget } from '../src/assistant/widget'
+import type { AdminOptions } from '../src/admin-options'
+import { as, json, signTestToken, testAuthenticator } from '../../../test-support/server'
 import { createEmptyPg } from '../../../test-support/pglite-snapshot'
 
 const tasks = resource('tasks')
@@ -15,11 +17,18 @@ const tasks = resource('tasks')
   .fields({ id: f.integer().readOnly(), title: f.text(), status: f.enum(['open', 'done']) })
   .primaryKey((r) => r.id)
 
+// A task the assistant proposes and anyone with the sales role decides on later; a write hook stamps who decided.
+const proposals = resource('proposals')
+  .table('proposals')
+  .fields({ id: f.integer().readOnly(), title: f.text(), status: f.enum(['proposed', 'approved', 'declined']), decidedBy: f.text().optional().readOnly() })
+  .primaryKey((r) => r.id)
+
 let db: Kysely<any>
 let chats: string
 beforeAll(async () => {
   const pg = await createEmptyPg()
   await pg.exec('create table tasks (id integer generated always as identity primary key, title text not null, status text not null)')
+  await pg.exec('create table proposals (id integer generated always as identity primary key, title text not null, status text not null, decided_by text)')
   db = new Kysely({ dialect: new PGliteDialect(pg) })
   chats = await mkdtemp(path.join(tmpdir(), 'protobase-assistant-'))
 })
@@ -82,9 +91,11 @@ const watch = async (app: ReturnType<typeof admin>, roles: string) => {
   expect(response.headers.get('content-type')).toContain('text/event-stream')
   const controller = new AbortController()
   let state = emptyAssistantState
+  let events = 0
   const waiting: Array<{ until: (state: AssistantState) => boolean; resolve: () => void }> = []
   const finished = readEventStream(response.body!, (data) => {
     state = applyAssistantEvent(state, JSON.parse(data) as AssistantEvent)
+    events++
     for (const entry of waiting.filter((item) => item.until(state))) {
       waiting.splice(waiting.indexOf(entry), 1)
       entry.resolve()
@@ -92,6 +103,7 @@ const watch = async (app: ReturnType<typeof admin>, roles: string) => {
   }, controller.signal)
   return {
     state: () => state,
+    events: () => events,
     until: (until: (state: AssistantState) => boolean) => (until(state) ? Promise.resolve() : new Promise<void>((resolve) => waiting.push({ until, resolve }))),
     stop: () => {
       controller.abort()
@@ -266,5 +278,57 @@ describe('the built-in assistant', () => {
 
   it('is not mounted for an external backend', async () => {
     expect((await admin({ url: 'https://assistant.example.com' }).request('/api/assistant/events', { headers: as(1, 'admin') })).status).toBe(404)
+  })
+})
+
+// The app's own tool, as the docs show it: it creates a record as the user and shows a widget with only its id.
+const proposeTask = defineTool({
+  name: 'propose_task',
+  description: 'Proposes a task; someone approves or declines it on its card, now or later. Read it again before relying on its status.',
+  parameters: { type: 'object', properties: { title: { type: 'string' } }, required: ['title'] },
+  run: async (args, { records, show }) => {
+    const { record } = await records.create('proposals', { title: String(args.title), status: 'proposed' })
+    show(widget('TaskProposal', { taskId: record.id }, { fallback: { title: `Task proposal: ${String(record.title)}` } }))
+    return JSON.stringify({ taskId: record.id, status: 'proposed' })
+  },
+})
+
+const stampDecider: NonNullable<AdminOptions['writeHooks']>[number] = async (event, trx) => {
+  if (event.resource.name !== 'proposals' || event.operation !== 'update' || event.before?.status === event.after?.status) return
+  await sql`update proposals set decided_by = ${String(event.user.id)} where id = ${event.after!.id as number}`.execute(trx)
+}
+
+describe('app tools in the built-in assistant', () => {
+  const app = (fetch: typeof globalThis.fetch) =>
+    createAdmin({ resources: [tasks, proposals], db, authenticate: testAuthenticator, options: { writeHooks: [stampDecider], assistant: { ...plain, chats: path.join(chats, crypto.randomUUID()), fetch, tools: [proposeTask] } } })
+
+  it('offers them after the built-in tools, and refuses a name taken twice', () => {
+    expect(() => createAdmin({ resources: [tasks], db, authenticate: testAuthenticator, options: { assistant: { ...plain, tools: [{ ...proposeTask, name: 'run_read_only_query' }] } } })).toThrow('Two assistant tools are named "run_read_only_query"')
+    expect(() => createAdmin({ resources: [tasks], db, authenticate: testAuthenticator, options: { assistant: { ...plain, tools: [{ ...proposeTask, name: 'propose task' }] } } })).toThrow('Assistant tool name "propose task" must be 1 to 64 letters, digits, _ or -')
+  })
+
+  it('shows a widget with only the id, whose record another user declines later without the chat', async () => {
+    const model = fakeModel([calls('propose_task', { title: 'Ship the release' }), says('I proposed it.')])
+    const assistant = app(model.fetch)
+    const stream = await watch(assistant, 'admin')
+    await assistant.request('/api/assistant/messages', json({ text: 'Propose shipping the release' }, as(1, 'admin')))
+    await stream.until(done)
+
+    expect(model.bodies[0].tools.map((tool: any) => tool.function.name)).toEqual(['run_read_only_query', 'propose_write_query', 'propose_task'])
+    const [part] = partsOf(stream.state())
+    expect(part).toEqual({ type: 'widget', id: expect.any(String), name: 'TaskProposal', props: { taskId: 1 }, fallback: { title: 'Task proposal: Ship the release' } })
+    expect(model.bodies[1].messages.at(-1)).toEqual({ role: 'tool', tool_call_id: 'call-propose_task', content: '{"taskId":1,"status":"proposed"}' })
+
+    // Another user, who has no assistant, declines it through the API.
+    const bob = { authorization: `Bearer ${signTestToken({ sub: 'bob', roles: ['sales'] })}` }
+    const before = stream.events()
+    const etag = (await assistant.request('/api/v1/proposals/1', { headers: bob })).headers.get('etag')!
+    const declined = await assistant.request('/api/v1/proposals/1', { method: 'PATCH', headers: { ...bob, 'if-match': etag, 'content-type': 'application/json' }, body: JSON.stringify({ status: 'declined' }) })
+    expect(declined.status).toBe(200)
+
+    expect(await (await assistant.request('/api/v1/proposals/1', { headers: as(1, 'admin') })).json()).toMatchObject({ id: 1, status: 'declined', decidedBy: 'bob' })
+    await stream.stop()
+    expect(stream.events()).toBe(before)
+    expect(partsOf(stream.state())[0]).toEqual(part)
   })
 })

@@ -4,6 +4,7 @@ import type { Db } from '@protobase/query'
 import type { UserMenuSource } from '@protobase/schema'
 import { assistantSettings } from './assistant/assistant-settings'
 import { builtInAssistant } from './assistant/built-in-assistant'
+import { assistantRecords } from './assistant/records'
 import { consoleAuditQueue } from './audit/console-queue'
 import { authBasePath, type AdminAuth } from './better-auth/create-auth'
 import { statusRoute } from './better-auth/status-route'
@@ -20,7 +21,8 @@ import { metaRoutes } from './routes/meta'
 import { recordRoutes } from './routes/record'
 import { runtimeUrl } from './runtime/runtime-settings'
 import { createScanGuard } from './scan-guard'
-import type { AdminEnv, AdminOptions, Authenticator, PageSource, ViewSource } from './types'
+import type { AdminOptions } from './admin-options'
+import type { AdminEnv, Authenticator, PageSource, Session, ViewSource } from './types'
 
 export type CreateAdminInput = {
   resources: ResourceSource[]
@@ -103,7 +105,11 @@ export const createAdmin = ({ resources, views = [], pages = [], userMenu, db, a
     app.route(authBasePath, statusRoute(auth))
     app.on(['GET', 'POST'], `${authBasePath}/*`, (c) => auth.handler(c.req.raw))
   }
-  if (assistant?.kind === 'built-in') app.route(`${systemPath}/assistant`, builtInAssistant({ model: assistant.model, chats: assistant.chats, db, meta, authenticate, report: options.onUnhandledError }))
+  if (assistant?.kind === 'built-in') {
+    const tools = options.assistant ? options.assistant.tools : undefined
+    const records = (session: Session) => assistantRecords(deps, session)
+    app.route(`${systemPath}/assistant`, builtInAssistant({ model: assistant.model, chats: assistant.chats, db, meta, authenticate, tools, records, report: options.onUnhandledError }))
+  }
   app.route('/', batchRoute(deps, authenticate, meta))
   app.route(basePath, api)
   app.route(deps.systemPath || '/', system)

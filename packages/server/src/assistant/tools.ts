@@ -2,6 +2,7 @@ import type { AssistantPart } from '@protobase/schema'
 import type { Session } from '../types'
 import type { ApprovalAnswer, ApprovalRequest } from './approval'
 import type { Conversation } from './conversations'
+import type { ToolRecords } from './records'
 
 export type ToolContext = {
   session: Session
@@ -10,6 +11,8 @@ export type ToolContext = {
   show: (part: AssistantPart) => void
   /** Asks the user to approve with a card in that message (see `requestApproval`). */
   approve: (request: ApprovalRequest) => Promise<ApprovalAnswer>
+  /** The app's resources as the session's user, through their access rules and write hooks (built-in assistant only). */
+  records: ToolRecords
 }
 
 /**

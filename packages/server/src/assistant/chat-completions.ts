@@ -1,5 +1,7 @@
 import { readEventStream } from '@protobase/schema'
-import type { ModelSettings } from './assistant-settings'
+
+/** An OpenAI-compatible chat completions endpoint for the built-in assistant. */
+export type ModelSettings = { baseUrl: string; apiKey: string; model: string; fetch?: typeof fetch }
 
 export type ToolCall = { id: string; type: 'function'; function: { name: string; arguments: string } }
 

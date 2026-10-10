@@ -3,7 +3,7 @@ import { PGliteDialect } from 'kysely-pglite-dialect'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { f, resource } from '@protobase/schema'
 import { createAdmin } from '../src/create-admin'
-import type { AdminOptions } from '../src/types'
+import type { AdminOptions } from '../src/admin-options'
 import { as, testAuthenticator } from '../../../test-support/server'
 import { createEmptyPg } from '../../../test-support/pglite-snapshot'
 

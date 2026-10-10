@@ -1,13 +1,14 @@
-/** An OpenAI-compatible chat completions endpoint for the built-in assistant. */
-export type ModelSettings = { baseUrl: string; apiKey: string; model: string; fetch?: typeof fetch }
+import type { ModelSettings } from './chat-completions'
+import type { AssistantTool } from './tools'
 
 /**
  * `url`: an assistant backend elsewhere, which the dock talks to instead of the built-in one.
  * `apiKey`, `model`, `baseUrl`: the built-in assistant, which answers questions about the app with a chat model.
  * `chats`: the directory the built-in assistant keeps conversations in, one file each.
  * Each falls back to its environment variable; `fetch` replaces the model endpoint, for tests.
+ * `tools`: the app's own tools, which the built-in assistant offers after its own; a backend elsewhere has its own.
  */
-export type AssistantOptions = { url?: string; apiKey?: string; model?: string; baseUrl?: string; chats?: string; fetch?: typeof fetch }
+export type AssistantOptions = { url?: string; apiKey?: string; model?: string; baseUrl?: string; chats?: string; fetch?: typeof fetch; tools?: AssistantTool[] }
 
 export type AssistantSettings = { kind: 'external'; url: string } | { kind: 'built-in'; model: ModelSettings; chats: string }
 
