@@ -32,6 +32,8 @@ jobs:
         with:
           bun-version: 1.4.2
       - run: bun install --frozen-lockfile
+      # The packages as they are published, declarations included, so a package that cannot build fails before release.
+      - run: bun run build
       # The template databases each integration run clones; with CI set, a missing one fails the run instead of skipping.
       - run: bun run test:db
       - run: bun run check
