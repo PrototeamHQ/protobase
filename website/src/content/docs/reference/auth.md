@@ -1,6 +1,6 @@
 ---
 title: Login with Better Auth
-description: Sign-in with Better Auth, with the admin store, sign-in methods and policy, staff sign-in, roles, tokens and the public endpoints.
+description: Sign-in with Better Auth, with the admin store, sign-in methods and policy, sign-in providers, staff sign-in, roles, tokens and the public endpoints.
 ---
 
 `@protobase/server` ships a [Better Auth](https://www.better-auth.com) setup (version 1.7): sign-in with a password, an [emailed code](#emailed-sign-in-codes) or a [passkey](#passkeys), [two-factor authentication](#two-factor-authentication), a [sign-in policy](#sign-in-policy) admins set in the app, [staff sign-in](#staff-sign-in) for the team that runs the app, roles, and short-lived JWTs that the API verifies against Better Auth's own JWKS. All of it is Better Auth's own plugins (`emailOTP`, `twoFactor`, `@better-auth/passkey`), wired by `createAuth`.
@@ -48,6 +48,7 @@ Upgrading from 0.5 or earlier, where `auth:migrate` created the tables: run `pro
 | `BETTER_AUTH_URL` | public URL of the API (default `http://localhost:5173`); issuer and audience of the tokens; when tunnelling, the https tunnel URL |
 | `TRUSTED_ORIGINS` | extra comma separated origins; `https://*.trycloudflare.com` is always trusted |
 | `PROTOBASE_SMTP_URL`, `PROTOBASE_MAIL_FROM` | the mail server and sender for [password reset](#password-reset), [emailed sign-in codes](#emailed-sign-in-codes) and emailed [two-factor](#two-factor-authentication) codes, passed by the platform; all three are off without them |
+| `PROTOBASE_SIGN_IN_ISSUER`, `PROTOBASE_SIGN_IN_CLIENT_ID`, `PROTOBASE_SIGN_IN_CLIENT_SECRET` | the [platform sign-in provider](#platform-sign-in-provider) for people who have an account, passed by the platform; off without them. `PROTOBASE_SIGN_IN_PROVIDER` and `PROTOBASE_SIGN_IN_NAME` are optional |
 | `PROTOBASE_OPERATOR_ISSUER`, `PROTOBASE_OPERATOR_CLIENT_ID`, `PROTOBASE_OPERATOR_CLIENT_SECRET` | the [operator provider](#operator-provider) its staff sign in with to sign in as people, passed by the platform; staff sign-in is off without them. `PROTOBASE_OPERATOR_NAME` and `PROTOBASE_OPERATOR_GROUP` are optional |
 
 - Cookies are `SameSite=Lax`, and `Secure` when `BETTER_AUTH_URL` is https.
@@ -138,6 +139,7 @@ Admins set how people sign in on the app's **Sign-in policy** page (the profile 
 | Passkeys | Optional, Required, Off | Optional |
 | Two-factor authentication | Optional, Required, Off | Optional |
 | Staff sign-in as a person | On, Email the person, Off | On |
+| Sign in with ... through the platform | On, Off | On |
 
 The server stores the policy in the `signInPolicy` table, one row per save (the newest applies, the others are its history, with who saved each and when), and applies it to Better Auth's endpoints; the pages only show what it allows.
 
@@ -145,12 +147,13 @@ The server stores the policy in the `signInPolicy` table, one row per save (the 
 - **Required:** someone who signs in without it is sent to set it up first. The server holds back API tokens until then (`GET /api/auth/token` answers `403`, `SIGN_IN_SETUP_REQUIRED`), and refuses to turn two-factor authentication off or to remove the last passkey.
 - Signed-in people keep their session after a change; a newly required method is asked for at their next token refresh, within 15 minutes.
 - **Staff sign-in as a person** shows only with an [operator provider](#operator-provider). Off refuses [staff sign-in](#staff-sign-in) (`403`, `SIGN_IN_METHOD_FORBIDDEN`); Email the person mails the person each time, and needs mail: without it the server refuses to save it, and a saved one turns staff sign-in off until mail is back.
+- **Sign in with ... through the platform** shows only with a [platform sign-in provider](#platform-sign-in-provider). Off refuses starting, finishing and connecting it (`403`, `SIGN_IN_METHOD_FORBIDDEN`) and the sign-in page leaves it out. It applies as Off while passkeys or two-factor authentication are Required: a provider's sign-in skips the app's second step, and the provider's own cannot be checked.
 
 The server refuses a policy (`400`, `SIGN_IN_POLICY_REFUSED`, with the reason) that would lock people out: passwords and emailed codes both off (someone without a passkey could not sign in), passwords off without mail, two-factor authentication required with passwords off (turning it on asks for the password), or a policy the saving admin could not sign in with. Emailed codes need mail: without `PROTOBASE_SMTP_URL` they are off whatever the policy says, and so that a policy saved with mail cannot lock everyone out once mail goes away, password sign-in is then on as well.
 
-The endpoints, for admins: `GET /api/auth/policy/sign-in` answers `{ policy, effective, mail, operator?, savedAt?, savedBy? }` (`effective` is the policy as it applies now, `operator` the operator provider's name), and `POST /api/auth/policy/sign-in` with `{ password, emailCode, passkey, twoFactor, staffAccess }` saves one. `GET /api/auth/account/sign-in-methods` tells the signed-in user the policy, what their account has (`password`, `passkeys`, `twoFactor`, `authenticatorApp`) and what it still has to set up (`missing`).
+The endpoints, for admins: `GET /api/auth/policy/sign-in` answers `{ policy, effective, mail, operator?, platformSignIn?, savedAt?, savedBy? }` (`effective` is the policy as it applies now, `operator` the operator provider's name, `platformSignIn` the platform sign-in provider's), and `POST /api/auth/policy/sign-in` with `{ password, emailCode, passkey, twoFactor, staffAccess, platformSignIn }` saves one. `GET /api/auth/account/sign-in-methods` tells the signed-in user the policy, what their account has (`password`, `passkeys`, `twoFactor`, `authenticatorApp`) and what it still has to set up (`missing`).
 
-Sign-in providers such as GitHub are configured in code and not covered by the policy; neither are roles: the policy is the same for everyone.
+Sign-in providers the project configures in code, such as its own GitHub app, are not covered by the policy; the one the platform adds is. Neither are roles: the policy is the same for everyone.
 
 ## Staff sign-in
 
@@ -202,7 +205,7 @@ createAuth({ ..., operator: false })
 
 ## Sign-in with GitHub
 
-Projects have no sign-in provider by default. `socialProviders` adds Better Auth's [social providers](https://www.better-auth.com/docs/authentication/github), and the sign-in page shows "Continue with GitHub" when `github` is one:
+Projects have no sign-in provider of their own by default (a platform can add [one](#platform-sign-in-provider)). `socialProviders` adds Better Auth's [social providers](https://www.better-auth.com/docs/authentication/github), and the sign-in page shows "Continue with GitHub" when `github` is one:
 
 ```ts
 createAuth({ ..., socialProviders: { github: { clientId: process.env.GITHUB_CLIENT_ID!, clientSecret: process.env.GITHUB_CLIENT_SECRET! } } })
@@ -213,6 +216,72 @@ createAuth({ ..., socialProviders: { github: { clientId: process.env.GITHUB_CLIE
 - `GET /api/auth/status` lists the provider ids as `socialProviders`.
 - `encryptOAuthTokens: true` stores the provider's access, refresh and ID tokens encrypted with the secret.
 - `onUserCreated: async (user, ctx) => { ... }` runs after any user is created, a social sign-up included (Better Auth's `databaseHooks.user.create.after`; the type is `UserCreatedHook`).
+
+### Sign-in links and connected accounts
+
+These work for every provider, the project's own and the [platform's](#platform-sign-in-provider):
+
+- **Sign-in links:** `https://<app>/?sign-in=github` starts signing in with `github` at once, showing only "Signing in with GitHub" while the browser leaves, so someone the provider knows lands signed in without a sign-in page. A refusal comes back to the sign-in page with the reason (`?error=<code>`, for example `signup_disabled`), and does not start again. Someone signed in already just opens the app.
+- **Connected accounts:** the **Sign-in & security** page lists the providers and offers "Connect GitHub" for one the account is not linked to. Connecting signs in at the provider and links that account whatever its address (`accountLinking.allowDifferentEmails`, which applies only to this explicit link by someone signed in). A provider account linked to another person already is refused (`account_already_linked_to_different_user`); a [staff session](#staff-sign-in) cannot link.
+- **Linked up front:** `protobase users create <email> --github-id <id>`, or `createUser(auth, { ..., accounts: [{ providerId: 'github', accountId }] })`, links a new user to a GitHub user id, so GitHub finds them by it whatever address it reports.
+- Without a link, a provider finds someone by address only when it vouches for the address (`email_verified`) and the account's address is verified; accounts created by an admin or on the host are.
+
+## Platform sign-in provider
+
+A platform that hosts the app can add a sign-in provider for the people who have an account in it: any OpenID Connect provider, passed in the environment. Protobase Cloud passes its own, so people sign in with GitHub through the Protobase GitHub App; a self-hosted app passes [Dex, Keycloak](#self-hosting-with-dex-or-keycloak) or the like.
+
+```sh
+PROTOBASE_SIGN_IN_ISSUER=https://auth.example.com     # its discovery is <issuer>/.well-known/openid-configuration
+PROTOBASE_SIGN_IN_CLIENT_ID=erp-example-com
+PROTOBASE_SIGN_IN_CLIENT_SECRET=...
+PROTOBASE_SIGN_IN_PROVIDER=oidc                       # the default; the button, the callback and the namespace of the links
+PROTOBASE_SIGN_IN_NAME="Acme SSO"                      # shown as "Continue with Acme SSO"; default GitHub for github, SSO otherwise
+```
+
+Register the app with the provider as a confidential client with the redirect URI `<BETTER_AUTH_URL>/api/auth/callback/<provider>` (`/api/auth/callback/oidc` by default). The app authenticates with its secret (`client_secret_basic`) and PKCE (`S256`), asks for `openid email profile`, and takes the person from the ID token only, verified against the provider's JWKS, the issuer, the client and the nonce. The provider needs no userinfo endpoint.
+
+- **No sign-up:** someone without an account is refused (`signup_disabled`); admins add people as before. A provider the project did not choose never opens the app to new people.
+- **The project's own provider wins:** with `socialProviders.github` in code and `PROTOBASE_SIGN_IN_PROVIDER=github`, the project's GitHub app handles the sign-in and the platform's is left out.
+- **The provider id:** set `PROTOBASE_SIGN_IN_PROVIDER=github` only when the provider's `sub` is the GitHub user id, as Protobase Cloud's is. Its links are then those of Better Auth's own GitHub provider, so an app that later brings its own GitHub app keeps every person's link. Dex's and Keycloak's `sub` is their own id, so keep the default `oidc` for them.
+- **Startup:** the provider's settings are read when the app starts; when they cannot be, the provider is left out until the next start (the status and sign-in page do not offer it) and every other way to sign in works.
+- The [sign-in policy](#sign-in-policy) has a row for it, and `GET /api/auth/status` names it as `platformSignIn: { provider, name }` besides listing it in `socialProviders`.
+
+Set the first three together or none: some but not all of them stops `createAuth` with an error. In code, `signInProvider` takes the same settings and `scopes`, and `false` turns it off whatever the environment says:
+
+```ts
+createAuth({ ..., signInProvider: { issuer, clientId, clientSecret, provider: 'oidc', name: 'Acme SSO', scopes: ['groups'] } })
+createAuth({ ..., signInProvider: false })
+```
+
+### Self-hosting with Dex or Keycloak
+
+[Dex](https://dexidp.io) with its GitHub connector signs people in with GitHub through one GitHub OAuth app for every app, the way Protobase Cloud does:
+
+```yaml
+issuer: https://dex.example.com
+connectors:
+  - type: github
+    id: github
+    name: GitHub
+    config: { clientID: $GITHUB_CLIENT_ID, clientSecret: $GITHUB_CLIENT_SECRET, redirectURI: https://dex.example.com/callback }
+staticClients:
+  - id: erp-example-com
+    secret: $ERP_CLIENT_SECRET
+    name: ERP
+    redirectURIs: ['https://erp.example.com/api/auth/callback/oidc']
+```
+
+```sh
+PROTOBASE_SIGN_IN_ISSUER=https://dex.example.com PROTOBASE_SIGN_IN_CLIENT_ID=erp-example-com PROTOBASE_SIGN_IN_CLIENT_SECRET=$ERP_CLIENT_SECRET PROTOBASE_SIGN_IN_NAME=GitHub
+```
+
+[Keycloak](https://www.keycloak.org): in a realm, add GitHub (or any other provider) under **Identity providers**, with **Trust email** on so Keycloak vouches for the GitHub address. Create a client with **Client authentication** on, the **Standard flow** and the valid redirect URI `https://erp.example.com/api/auth/callback/oidc`, and take its secret from **Credentials**:
+
+```sh
+PROTOBASE_SIGN_IN_ISSUER=https://keycloak.example.com/realms/acme PROTOBASE_SIGN_IN_CLIENT_ID=erp PROTOBASE_SIGN_IN_CLIENT_SECRET=... PROTOBASE_SIGN_IN_NAME="Acme SSO"
+```
+
+People sign in with the address their account here has, or connect the provider on the Sign-in & security page once.
 
 ## Roles
 
