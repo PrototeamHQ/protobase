@@ -19,7 +19,7 @@ const project: ServedProject = {
   },
 }
 
-const env = { port: 0, databaseUrl: 'postgres://unused/app', requestLog: false }
+const env = { port: 0, databaseUrl: 'postgres://unused/app', requestLog: false, filesCleanupMinutes: 0 }
 
 describe('startServe', () => {
   it('serves /health without a token and the admin API behind the authenticator', async () => {

@@ -29,6 +29,7 @@ const admin = createAdmin({
   authenticate: project.authenticate,
   ...(project.auth && { auth: project.auth }),
   ...(project.functions && { functions: project.functions }),
+  ...(project.files && { files: project.files }),
   options: { onUnhandledError: (error) => console.error(error), ...project.options },
 })
 

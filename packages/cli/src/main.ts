@@ -15,6 +15,7 @@ import { runScaffold } from './scaffold/run'
 import { serveBundle } from './serve/serve-bundle'
 import { serveBundleDir } from './serve/serve-dir'
 import { registerOrganizations } from './organizations/register'
+import { registerFiles } from './files/register'
 import { registerToken, registerUsers } from './users/register'
 import type { UiSection } from './scaffold/ui-file'
 
@@ -136,6 +137,7 @@ registerUsers(program)
 registerOrganizations(program)
 registerToken(program)
 registerAuth(program)
+registerFiles(program)
 
 // Central error handler: commands throw, the user sees one line.
 export const run = (argv: string[]) =>
