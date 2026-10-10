@@ -6,13 +6,14 @@ export type SignInRefusal = { code: string; message: string }
 const passwordPaths = ['/sign-in/email', '/request-password-reset', '/reset-password']
 const emailCodePaths = ['/sign-in/email-otp']
 const passkeyPaths = ['/passkey/generate-authenticate-options', '/passkey/verify-authentication', '/passkey/generate-register-options', '/passkey/verify-registration']
+export const staffSignInPath = '/staff/sign-in'
 
 // Endpoints the plugin checks against the account, besides those of a method.
 const accountPaths = ['/email-otp/send-verification-otp', '/passkey/delete-passkey', '/two-factor/enable', '/two-factor/disable', '/token']
 
 /** Whether the policy can refuse a request to `path`; every other request goes through without reading the policy. */
 export const isPoliced = (path: string | undefined) =>
-  path !== undefined && ([...passwordPaths, ...emailCodePaths, ...passkeyPaths, ...accountPaths].includes(path) || path.startsWith('/reset-password/'))
+  path !== undefined && ([...passwordPaths, ...emailCodePaths, ...passkeyPaths, ...accountPaths, staffSignInPath].includes(path) || path.startsWith('/reset-password/'))
 
 const methodOf = (path: string, body: unknown): SignInPolicyMethod | undefined => {
   if (passwordPaths.includes(path) || path.startsWith('/reset-password/')) return 'password'
@@ -20,6 +21,7 @@ const methodOf = (path: string, body: unknown): SignInPolicyMethod | undefined =
   if (path === '/email-otp/send-verification-otp' && (body as { type?: unknown } | undefined)?.type === 'sign-in') return 'emailCode'
   if (passkeyPaths.includes(path)) return 'passkey'
   if (path === '/two-factor/enable') return 'twoFactor'
+  if (path === staffSignInPath) return 'staffAccess'
   return undefined
 }
 

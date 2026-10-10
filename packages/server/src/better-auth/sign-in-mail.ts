@@ -63,3 +63,18 @@ export const twoFactorCodeOptions = (mailer: Mailer) =>
     storeOTP: 'hashed',
     sendOTP: ({ user, otp }) => mailer.send(twoFactorCodeEmail({ to: user.email, code: otp })),
   }) satisfies TwoFactorOptions['otpOptions']
+
+/** The email to someone whose app lets staff sign in as people only when they are told: who, why, and until when. */
+export const staffSignInEmail = ({ to, staff, reason, expiresAt }: { to: string; staff: string; reason: string; expiresAt: Date }) => ({
+  to,
+  subject: 'Staff signed in as you',
+  text: [
+    `${staff}, of the team that runs this app, signed in as you to help. The reason they gave:`,
+    '',
+    reason,
+    '',
+    `Their session ends by ${expiresAt.toUTCString()}. The app's admins see it in the app's log of staff sign-ins.`,
+    'If you did not expect this, tell your admin.',
+    '',
+  ].join('\n'),
+})

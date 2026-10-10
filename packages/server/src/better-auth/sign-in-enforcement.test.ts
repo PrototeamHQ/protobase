@@ -12,6 +12,13 @@ describe('policyRefusal', () => {
     }
   })
 
+  it('refuses starting a staff sign-in while the policy turns staff sign-in off, and only then', () => {
+    expect(policyRefusal(policy({ staffAccess: 'forbidden' }), { path: '/staff/sign-in' })).toEqual({ code: 'SIGN_IN_METHOD_FORBIDDEN', message: 'Staff sign-in is turned off for this app.' })
+    expect(policyRefusal(policy({ staffAccess: 'notify' }), { path: '/staff/sign-in' })).toBeUndefined()
+    expect(policyRefusal(defaultSignInPolicy, { path: '/staff/sign-in' })).toBeUndefined()
+    expect(isPoliced('/staff/sign-in')).toBe(true)
+  })
+
   it('refuses password sign-in and password reset while passwords are off', () => {
     const off = policy({ password: 'forbidden' })
     for (const path of ['/sign-in/email', '/request-password-reset', '/reset-password', '/reset-password/:token']) {

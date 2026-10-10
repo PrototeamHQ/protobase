@@ -6,11 +6,12 @@ const policy = (changes: Partial<SignInPolicy>): SignInPolicy => ({ ...defaultSi
 
 describe('parseSignInPolicy', () => {
   it('takes every method with a rule it offers, and drops anything else', () => {
-    expect(parseSignInPolicy({ password: 'forbidden', emailCode: 'allowed', passkey: 'required', twoFactor: 'required', extra: true })).toEqual({
+    expect(parseSignInPolicy({ password: 'forbidden', emailCode: 'allowed', passkey: 'required', twoFactor: 'required', staffAccess: 'notify', extra: true })).toEqual({
       password: 'forbidden',
       emailCode: 'allowed',
       passkey: 'required',
       twoFactor: 'required',
+      staffAccess: 'notify',
     })
   })
 
@@ -19,6 +20,8 @@ describe('parseSignInPolicy', () => {
     expect(parseSignInPolicy({ ...defaultSignInPolicy, passkey: 'sometimes' })).toBeUndefined()
     expect(parseSignInPolicy({ ...defaultSignInPolicy, password: 'required' })).toBeUndefined()
     expect(parseSignInPolicy({ ...defaultSignInPolicy, emailCode: 'required' })).toBeUndefined()
+    expect(parseSignInPolicy({ ...defaultSignInPolicy, staffAccess: 'required' })).toBeUndefined()
+    expect(parseSignInPolicy({ ...defaultSignInPolicy, passkey: 'notify' })).toBeUndefined()
     expect(parseSignInPolicy(null)).toBeUndefined()
     expect(parseSignInPolicy('allowed')).toBeUndefined()
   })
@@ -33,6 +36,11 @@ describe('effectiveSignInPolicy', () => {
   it('turns emailed codes off without mail, and passwords back on so nobody is locked out', () => {
     expect(effectiveSignInPolicy(policy({ password: 'forbidden', twoFactor: 'required' }), { mail: false })).toEqual(policy({ emailCode: 'forbidden', twoFactor: 'required' }))
     expect(effectiveSignInPolicy(defaultSignInPolicy, { mail: false })).toEqual(policy({ emailCode: 'forbidden' }))
+  })
+
+  it('turns staff sign-in off without mail when the person is to be told, since nobody would be', () => {
+    expect(effectiveSignInPolicy(policy({ staffAccess: 'notify' }), { mail: false })).toEqual(policy({ emailCode: 'forbidden', staffAccess: 'forbidden' }))
+    expect(effectiveSignInPolicy(policy({ staffAccess: 'notify' }), { mail: true }).staffAccess).toBe('notify')
   })
 })
 
@@ -62,6 +70,12 @@ describe('signInPolicyProblem', () => {
 
   it('refuses passwords off without mail, since emailed codes cannot be sent', () => {
     expect(signInPolicyProblem(policy({ password: 'forbidden' }), { mail: false, admin })).toMatch(/Emailed codes need mail settings/)
+  })
+
+  it('refuses emailing people about staff sign-ins without mail', () => {
+    expect(signInPolicyProblem(policy({ staffAccess: 'notify' }), { mail: false, admin })).toMatch(/needs mail settings/)
+    expect(signInPolicyProblem(policy({ staffAccess: 'notify' }), { mail: true, admin })).toBeUndefined()
+    expect(signInPolicyProblem(policy({ staffAccess: 'forbidden' }), { mail: false, admin })).toBeUndefined()
   })
 
   it('refuses requiring two-factor authentication with passwords off, since turning it on asks for the password', () => {

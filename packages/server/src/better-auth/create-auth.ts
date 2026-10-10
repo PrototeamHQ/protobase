@@ -5,9 +5,11 @@ import { admin, emailOTP, jwt } from 'better-auth/plugins'
 import { adminAc, userAc } from 'better-auth/plugins/admin/access'
 import { readMailSettings } from '../mail/mail-settings'
 import { smtpMailer, type Mailer } from '../mail/smtp-mailer'
+import { readOperatorSettings, resolveOperator, type OperatorProvider, type ResolvedOperator } from './operator-provider'
 import { passwordResetOptions } from './password-reset'
 import { signInPolicyPlugin } from './policy-plugin'
 import { emailCodeOptions, twoFactorCodeOptions, unusedEmailCodePaths } from './sign-in-mail'
+import { staffSignInPlugin } from './staff-plugin'
 import { twoFactorAfterPasswordOrCode } from './two-factor-challenge'
 
 export type CreateAuthOptions = {
@@ -46,12 +48,21 @@ export type CreateAuthOptions = {
   encryptOAuthTokens?: boolean
   /** Runs after a user is created, by any route: `createUser`, an admin, or a social sign-up. Default none. */
   onUserCreated?: UserCreatedHook
+  /**
+   * The identity provider the operator's staff sign in with to sign in as people of this app, for support. Defaults
+   * to the one the platform passes in `PROTOBASE_OPERATOR_ISSUER`, `PROTOBASE_OPERATOR_CLIENT_ID` and
+   * `PROTOBASE_OPERATOR_CLIENT_SECRET` (see `readOperatorSettings`), when set; `false` turns staff sign-in off
+   * whatever the environment says.
+   */
+  operator?: OperatorProvider | false
 }
 
 type UserCreateHooks = NonNullable<NonNullable<NonNullable<BetterAuthOptions['databaseHooks']>['user']>['create']>
 
 /** Better Auth's `databaseHooks.user.create.after`: the created user (with its `role`) and the request context, `null` outside a request. */
 export type UserCreatedHook = NonNullable<UserCreateHooks['after']>
+
+const platformOperator = () => readOperatorSettings(globalThis.process?.env ?? {})
 
 const platformMailer = () => {
   const settings = readMailSettings(globalThis.process?.env ?? {})
@@ -77,8 +88,13 @@ export const normalizeRoles = (roles: string[] = ['admin', 'user']) => {
   return ['admin', ...new Set(roles.filter((role) => role !== 'admin'))]
 }
 
-/** The options `createAuth` gives Better Auth, with the roles, default role and mailer already resolved. */
-export const betterAuthOptions = (options: CreateAuthOptions, { roles, defaultRole, mailer }: { roles: string[]; defaultRole?: string; mailer?: Mailer }) => {
+// Admins of the app do not sign in as its people; the operator's staff do, through the staff sign-in, with its guardrails.
+const adminImpersonationPaths = ['/admin/impersonate-user', '/admin/stop-impersonating']
+
+type Resolved = { roles: string[]; defaultRole?: string; mailer?: Mailer; operator?: ResolvedOperator }
+
+/** The options `createAuth` gives Better Auth, with the roles, default role, mailer and operator provider already resolved. */
+export const betterAuthOptions = (options: CreateAuthOptions, { roles, defaultRole, mailer, operator }: Resolved) => {
   const secure = options.baseURL.startsWith('https://')
   return {
     appName: options.appName ?? 'Protobase',
@@ -107,9 +123,10 @@ export const betterAuthOptions = (options: CreateAuthOptions, { roles, defaultRo
       twoFactorAfterPasswordOrCode({ allowPasswordless: true, ...(mailer && { otpOptions: twoFactorCodeOptions(mailer) }) }),
       passkey(),
       ...(mailer ? [emailOTP(emailCodeOptions(mailer))] : []),
-      signInPolicyPlugin({ mail: Boolean(mailer), socialProviders: Object.keys(options.socialProviders ?? {}) }),
+      signInPolicyPlugin({ mail: Boolean(mailer), socialProviders: Object.keys(options.socialProviders ?? {}), ...(operator && { operator: operator.name }) }),
+      staffSignInPlugin({ ...(operator && { operator }), ...(mailer && { mailer }) }),
     ],
-    disabledPaths: unusedEmailCodePaths,
+    disabledPaths: [...unusedEmailCodePaths, ...adminImpersonationPaths],
     databaseHooks: {
       user: {
         create: {
@@ -130,7 +147,7 @@ export const betterAuthOptions = (options: CreateAuthOptions, { roles, defaultRo
       enabled: true,
       window: 60,
       max: 100,
-      customRules: { '/sign-in/email': { window: 60, max: options.signInPerMinute ?? 5 } },
+      customRules: { '/sign-in/email': { window: 60, max: options.signInPerMinute ?? 5 }, '/staff/sign-in': { window: 60, max: 5 } },
     },
     advanced: {
       useSecureCookies: secure,
@@ -150,9 +167,11 @@ export const createAuth = (options: CreateAuthOptions) => {
   const others = roles.filter((role) => role !== 'admin')
   const defaultRole = options.defaultRole ?? (others.length === 1 ? others[0] : undefined)
   const mailer = options.mailer === undefined ? platformMailer() : options.mailer || undefined
-  const auth = betterAuth(betterAuthOptions(options, { roles, defaultRole, mailer }))
+  const provider = options.operator === undefined ? platformOperator() : options.operator || undefined
+  const operator = provider && resolveOperator(provider)
+  const auth = betterAuth(betterAuthOptions(options, { roles, defaultRole, mailer, operator }))
   const socialProviders = Object.keys(options.socialProviders ?? {})
-  return Object.assign(auth, { roles, defaultRole, mail: Boolean(mailer), passwordReset: Boolean(mailer), socialProviders })
+  return Object.assign(auth, { roles, defaultRole, mail: Boolean(mailer), passwordReset: Boolean(mailer), socialProviders, operator: operator?.name })
 }
 
 export type AdminAuth = ReturnType<typeof createAuth>
