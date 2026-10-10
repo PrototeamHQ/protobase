@@ -81,6 +81,11 @@ const accountChanges = [
   '/passkey/verify-registration',
   '/passkey/update-passkey',
   '/passkey/delete-passkey',
+  // Joining, leaving, handing over or deleting an organization is the person's own decision.
+  '/invitation/accept',
+  '/organization/leave',
+  '/organization/transfer-ownership',
+  '/organization/delete',
 ]
 
 export const staffCannotChange: StaffRefusal = { code: 'STAFF_CANNOT_CHANGE_SIGN_IN', message: "Staff cannot change a person's sign-in or the sign-in policy." }

@@ -7,6 +7,7 @@ import { builtInAssistant } from './assistant/built-in-assistant'
 import { assistantRecords } from './assistant/records'
 import { consoleAuditQueue } from './audit/console-queue'
 import { authBasePath, type AdminAuth } from './better-auth/create-auth'
+import { organizationRoutes } from './better-auth/organizations/admin-routes'
 import { statusRoute } from './better-auth/status-route'
 import { checkShell } from './check-shell'
 import { checkViews } from './check-views'
@@ -103,6 +104,7 @@ export const createAdmin = ({ resources, views = [], pages = [], userMenu, db, a
   app.onError(onError)
   if (auth) {
     app.route(authBasePath, statusRoute(auth))
+    if (auth.organizations) app.route(authBasePath, organizationRoutes({ auth, audit: deps.audit, registry, db }))
     app.on(['GET', 'POST'], `${authBasePath}/*`, (c) => auth.handler(c.req.raw))
   }
   if (assistant?.kind === 'built-in') {

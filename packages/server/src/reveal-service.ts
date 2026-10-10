@@ -1,5 +1,5 @@
 import { encodeKey } from '@protobase/schema'
-import type { AuditEvent } from './types'
+import type { AuditOrigin } from './types'
 import type { Deps } from './deps'
 import { badRequest, notFound } from './problem'
 import { fetchReadable } from './read-service'
@@ -9,7 +9,7 @@ import { tenantScope } from './tenant'
 import { readTransaction } from './transactions'
 import type { Session } from './types'
 
-export type RevealRequest = { key: (string | number)[]; field: unknown; origin: AuditEvent['origin'] }
+export type RevealRequest = { key: (string | number)[]; field: unknown; origin: AuditOrigin }
 
 /**
  * The value of one sensitive field of one record, for a caller who may read the record and the field: the same tenant,

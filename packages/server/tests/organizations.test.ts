@@ -5,9 +5,10 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { authSchemaMigration, checkAuthSchema } from '../src/better-auth/auth-schema'
 import { betterAuthAuthenticator } from '../src/better-auth/authenticator'
 import { createAuth, type CreateAuthOptions } from '../src/better-auth/create-auth'
-import { addMember, createOrganization, listOrganizations } from '../src/better-auth/organizations/host'
+import { addMember, createOrganization, listOrganizations, setMemberRoles } from '../src/better-auth/organizations/host'
 import { createUser } from '../src/better-auth/users'
 import { createAdmin } from '../src/create-admin'
+import type { AuditEvent } from '../src/types'
 import { createAuthStore } from '../../../test-support/auth'
 import { allResources, createFixtureDb } from '../../../test-support/server'
 
@@ -53,7 +54,9 @@ const serve = async (options: Partial<CreateAuthOptions> = {}) => {
   const migration = await authSchemaMigration(make())
   await store.exec(migration!)
   const auth = make()
-  const app = createAdmin({ resources: allResources, db: fixture.db, authenticate: betterAuthAuthenticator({ auth }), auth })
+  const audited: AuditEvent[] = []
+  const audit = { publish: async (event: AuditEvent) => void audited.push(event) }
+  const app = createAdmin({ resources: allResources, db: fixture.db, authenticate: betterAuthAuthenticator({ auth }), auth, options: { audit } })
   const address = `198.51.100.${++client}`
   const request = (path: string, init: { body?: unknown; cookie?: string; token?: string } = {}) =>
     app.request(`${origin}${path}`, {
@@ -73,7 +76,7 @@ const serve = async (options: Partial<CreateAuthOptions> = {}) => {
     return response.headers.getSetCookie().map((line) => line.split(';')[0]).join('; ')
   }
   const tokenOf = async (cookie: string) => ((await (await request('/api/auth/token', { cookie })).json()) as { token: string }).token
-  return { auth, store, migration, request, signIn, tokenOf }
+  return { auth, store, migration, audited, request, signIn, tokenOf }
 }
 
 /** Root (superuser), Bo (owns Acme), Sanne (sales in Acme), Ana (global support, in no organization). */
@@ -149,5 +152,155 @@ describe('the token of a signed-in person', () => {
     const token = await tokenOf(await signIn('ana@example.com'))
     expect(decodeJwt(token)).not.toHaveProperty('org')
     expect((await request('/api/v1/companies', { token })).status).toBe(403)
+  })
+})
+
+const claimsOf = async (app: Awaited<ReturnType<typeof serve>>, cookie: string) => decodeJwt(await app.tokenOf(cookie))
+
+describe('inviting people', () => {
+  it('gives the inviter the link without a mailer, and makes an account for a new address from it', async () => {
+    const app = await serve()
+    await people(app.auth)
+    const bo = await app.signIn('bo@example.com')
+    const invited = await app.request('/api/auth/organization/invite-member', { cookie: bo, body: { email: 'jan@ledger.example', role: 'member', appRoles: ['accountant'] } })
+    expect(invited.status).toBe(200)
+    const { link } = (await invited.json()) as { link: string }
+    expect(link).toMatch(/^http:\/\/localhost:5173\/-\/invitation\?token=/)
+    const token = decodeURIComponent(new URL(link).searchParams.get('token')!)
+
+    const preview = await (await app.request(`/api/auth/invitation?token=${encodeURIComponent(token)}`)).json()
+    expect(preview).toMatchObject({ organization: { id: '1', name: 'Acme' }, inviter: { name: 'bo' }, email: 'jan@ledger.example', role: 'member', appRoles: ['accountant'], hasAccount: false })
+    expect((await app.request(`/api/auth/invitation?token=${encodeURIComponent(token.slice(0, -2))}`)).status).toBe(400)
+
+    const signedUp = await app.request('/api/auth/invitation/sign-up', { body: { token, name: 'Jan', password } })
+    expect(signedUp.status).toBe(200)
+    const jan = signedUp.headers.getSetCookie().map((line) => line.split(';')[0]).join('; ')
+    expect(await claimsOf(app, jan)).toMatchObject({ role: 'user', org: '1', org_role: 'member', app_roles: ['accountant'] })
+    // The link works once
+    expect((await app.request('/api/auth/invitation/sign-up', { body: { token, name: 'Jan', password } })).status).toBe(400)
+    expect(await app.signIn('jan@ledger.example')).toContain('session_token')
+  })
+
+  it('emails the link with a mailer, and leaves it out of the answer', async () => {
+    const sent: { to: string; subject: string; text: string }[] = []
+    const app = await serve({ mailer: { send: async (message) => void sent.push(message) } })
+    await people(app.auth)
+    const answer = await (await app.request('/api/auth/organization/invite-member', { cookie: await app.signIn('bo@example.com'), body: { email: 'jan@ledger.example', role: 'member', appRoles: ['accountant'] } })).json()
+    expect(answer).not.toHaveProperty('link')
+    // Mail goes out after the answer
+    await expect.poll(() => sent.length).toBe(1)
+    expect(sent[0]).toMatchObject({ to: 'jan@ledger.example', subject: 'Join Acme', text: expect.stringContaining('http://localhost:5173/-/invitation?token=') })
+    const token = decodeURIComponent(/token=(\S+)/.exec(sent[0]!.text)![1]!)
+    expect((await app.request(`/api/auth/invitation?token=${encodeURIComponent(token)}`)).status).toBe(200)
+  })
+
+  it('lets someone with an account accept signed in as the invited address only', async () => {
+    const app = await serve()
+    await people(app.auth)
+    const bo = await app.signIn('bo@example.com')
+    const { link } = (await (await app.request('/api/auth/organization/invite-member', { cookie: bo, body: { email: 'ana@example.com', role: 'member', appRoles: ['sales'] } })).json()) as { link: string }
+    const token = new URL(link).searchParams.get('token')!
+    expect((await app.request('/api/auth/invitation/sign-up', { body: { token, name: 'Ana', password } })).status).toBe(400)
+    expect(await (await app.request('/api/auth/invitation/accept', { cookie: await app.signIn('sanne@example.com'), body: { token } })).json()).toMatchObject({ code: 'NOT_THE_INVITED_ADDRESS' })
+    const ana = await app.signIn('ana@example.com')
+    expect((await app.request('/api/auth/invitation/accept', { cookie: ana, body: { token } })).status).toBe(200)
+    expect(await claimsOf(app, ana)).toMatchObject({ role: 'support', org: '1', org_role: 'member', app_roles: ['sales'] })
+    expect((await app.request('/api/auth/organization/accept-invitation', { cookie: ana, body: { invitationId: invitationIdFrom(token) } })).status).toBe(404)
+  })
+
+  it('refuses app roles the inviter neither holds nor is granted by a role they hold', async () => {
+    const app = await serve()
+    await people(app.auth)
+    await setMemberRoles(app.auth, { organization: 'acme', email: 'sanne@example.com', role: 'admin', appRoles: ['sales'] })
+    const sanne = await app.signIn('sanne@example.com')
+    const invite = (appRoles: string[], email = 'kim@example.com') => app.request('/api/auth/organization/invite-member', { cookie: sanne, body: { email, role: 'member', appRoles } })
+    expect(await (await invite(['accountant'])).json()).toMatchObject({ code: 'APP_ROLE_NOT_GRANTABLE' })
+    expect((await invite(['sales'])).status).toBe(200)
+    // manager grants accountant
+    await setMemberRoles(app.auth, { organization: 'acme', email: 'sanne@example.com', appRoles: ['manager'] })
+    expect((await invite(['accountant'], 'lou@example.com')).status).toBe(200)
+  })
+})
+
+const invitationIdFrom = (token: string) => token.slice(0, token.lastIndexOf('.'))
+
+describe('managing members', () => {
+  it('changes app roles only within what the caller may give, and only for owners, admins and superusers', async () => {
+    const app = await serve()
+    await people(app.auth)
+    const members = await (await app.request('/api/auth/organization/list-members?organizationId=1', { cookie: await app.signIn('bo@example.com') })).json()
+    const sanneId = members.members.find((member: { user: { email: string } }) => member.user.email === 'sanne@example.com').id
+    const bo = await app.signIn('bo@example.com')
+    expect(await (await app.request('/api/auth/organization/set-app-roles', { cookie: bo, body: { memberId: sanneId, appRoles: ['sales', 'accountant'] } })).json()).toMatchObject({ member: { appRoles: ['sales', 'accountant'] } })
+    const sanne = await app.signIn('sanne@example.com')
+    expect(await (await app.request('/api/auth/organization/set-app-roles', { cookie: sanne, body: { memberId: sanneId, appRoles: ['sales'] } })).json()).toMatchObject({ code: 'NOT_AN_ORGANIZATION_ADMIN' })
+    await setMemberRoles(app.auth, { organization: 'acme', email: 'sanne@example.com', role: 'admin', appRoles: ['sales', 'accountant'] })
+    const boId = members.members.find((member: { user: { email: string } }) => member.user.email === 'bo@example.com').id
+    // Sanne may not take manager away from Bo: she does not hold it, nor a role that grants it
+    expect(await (await app.request('/api/auth/organization/set-app-roles', { cookie: sanne, body: { memberId: boId, appRoles: ['support', 'sales', 'accountant'] } })).json()).toMatchObject({ code: 'APP_ROLE_NOT_GRANTABLE' })
+    const root = await app.signIn('root@example.com')
+    expect((await app.request('/api/auth/organization/set-app-roles', { cookie: root, body: { memberId: sanneId, appRoles: ['manager'] } })).status).toBe(200)
+  })
+
+  it('hands ownership over in one step', async () => {
+    const app = await serve()
+    await people(app.auth)
+    const bo = await app.signIn('bo@example.com')
+    const members = await (await app.request('/api/auth/organization/list-members?organizationId=1', { cookie: bo })).json()
+    const sanneId = members.members.find((member: { user: { email: string } }) => member.user.email === 'sanne@example.com').id
+    expect((await app.request('/api/auth/organization/transfer-ownership', { cookie: await app.signIn('sanne@example.com'), body: { memberId: sanneId } })).status).toBe(403)
+    expect((await app.request('/api/auth/organization/transfer-ownership', { cookie: bo, body: { memberId: sanneId } })).status).toBe(200)
+    const acme = (await listOrganizations(app.auth))[0]!
+    expect(acme.members).toEqual(expect.arrayContaining([expect.objectContaining({ email: 'sanne@example.com', role: 'owner' }), expect.objectContaining({ email: 'bo@example.com', role: 'admin' })]))
+  })
+
+  it('takes a removed member out of the organization on their other sessions', async () => {
+    const app = await serve()
+    await people(app.auth)
+    const sanne = await app.signIn('sanne@example.com')
+    expect(await claimsOf(app, sanne)).toMatchObject({ org: '1' })
+    expect((await app.request('/api/auth/organization/remove-member', { cookie: await app.signIn('bo@example.com'), body: { memberIdOrEmail: 'sanne@example.com', organizationId: '1' } })).status).toBe(200)
+    expect(await claimsOf(app, sanne)).not.toHaveProperty('org')
+  })
+})
+
+describe('working in another organization', () => {
+  it('lets someone with a global role enter any organization, audited, with only their global roles there', async () => {
+    const app = await serve()
+    await people(app.auth)
+    const ana = await app.signIn('ana@example.com')
+    const found = await (await app.request('/api/auth/organization/search?query=Glo', { cookie: ana })).json()
+    expect(found).toEqual({ organizations: [{ id: '2', name: 'Globex', slug: 'globex' }] })
+    expect((await app.request('/api/auth/organization/switch', { cookie: ana, body: { organizationId: '2' } })).status).toBe(200)
+    expect(app.audited).toEqual([{ type: 'organization.entered', at: expect.any(String), actor: { id: expect.any(String), roles: ['support'] }, organization: '2', origin: expect.any(Object) }])
+    const claims = await claimsOf(app, ana)
+    expect(claims).toMatchObject({ role: 'support', org: '2' })
+    expect(claims).not.toHaveProperty('org_role')
+    // The next sign-in starts there
+    expect(await claimsOf(app, await app.signIn('ana@example.com'))).toMatchObject({ org: '2' })
+  })
+
+  it('refuses someone without a global role an organization they are not in, and the search', async () => {
+    const app = await serve()
+    await people(app.auth)
+    const sanne = await app.signIn('sanne@example.com')
+    expect(await (await app.request('/api/auth/organization/switch', { cookie: sanne, body: { organizationId: '2' } })).json()).toMatchObject({ code: 'NOT_A_MEMBER' })
+    expect((await app.request('/api/auth/organization/search?query=Glo', { cookie: sanne })).status).toBe(403)
+    expect((await app.request('/api/auth/organization/set-active', { cookie: sanne, body: { organizationId: '1' } })).status).toBe(404)
+    expect(app.audited).toEqual([])
+  })
+})
+
+describe('deleting an organization', () => {
+  it('is refused while it has records, and done once it has none', async () => {
+    const app = await serve()
+    await people(app.auth)
+    const bo = await app.signIn('bo@example.com')
+    const refused = await app.request('/api/auth/organization/delete', { cookie: bo, body: { organizationId: '1' } })
+    expect(refused.status).toBe(409)
+    expect(await refused.json()).toMatchObject({ code: 'ORGANIZATION_HAS_RECORDS', message: expect.stringContaining('companies') })
+    await createOrganization(app.auth, { name: 'Empty', slug: 'empty', owner: 'bo@example.com' })
+    expect((await app.request('/api/auth/organization/delete', { cookie: bo, body: { organizationId: '3' } })).status).toBe(200)
+    expect((await listOrganizations(app.auth)).map((organization) => organization.slug)).toEqual(['acme', 'globex'])
   })
 })

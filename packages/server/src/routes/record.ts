@@ -11,8 +11,7 @@ import { runWrite } from '../write-pipeline'
 import { notFound } from '../problem'
 import { resolveTarget } from './target'
 import { returnPreference } from './preferences'
-
-const headerValue = (name: string, value: string | undefined) => (value === undefined ? {} : { [name]: value })
+import { auditOrigin } from '../audit/origin'
 
 export const recordRoutes = (deps: Deps) => {
   const app = new Hono<AdminEnv>()
@@ -32,7 +31,7 @@ export const recordRoutes = (deps: Deps) => {
     const revealed = await revealField(deps, entry, c.get('session'), {
       key: keyFromPath(c, entry, ':reveal'),
       field: typeof body === 'object' && body !== null ? (body as { field?: unknown }).field : undefined,
-      origin: { ...headerValue('userAgent', c.req.header('user-agent')), ...headerValue('forwardedFor', c.req.header('x-forwarded-for')) },
+      origin: auditOrigin(c.req.raw.headers),
     })
     return c.json(revealed, 200, { 'Cache-Control': 'no-store' })
   }

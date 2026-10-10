@@ -8,6 +8,7 @@ import { smtpMailer, type Mailer } from '../mail/smtp-mailer'
 import { readOperatorSettings, resolveOperator, type OperatorProvider, type ResolvedOperator } from './operator-provider'
 import { organizationClaims, lastOrganizationField, sessionOrganizationHooks } from './organizations/session-organization'
 import { organizationPlugin } from './organizations/organization-plugin'
+import { protobaseOrganizationPlugin } from './organizations/protobase-plugin'
 import { resolveOrganizations, type OrganizationsOptions, type ResolvedOrganizations } from './organizations/options'
 import { noGlobalRole, roleDefinitions, type RolesInput } from './organizations/role-definitions'
 import type { AuthContext } from './organizations/store'
@@ -182,7 +183,9 @@ export const betterAuthOptions = (options: CreateAuthOptions, { roles, defaultRo
         ...(signIn && { platformSignIn: { provider: signIn.provider, name: signIn.name } }),
       }),
       staffSignInPlugin({ ...(operator && { operator }), ...(mailer && { mailer }) }),
-      ...(organizations ? [organizationPlugin({ resolved: organizations, secret: options.secret, ...(mailer && { mailer }), context })] : []),
+      ...(organizations
+        ? [organizationPlugin({ resolved: organizations, secret: options.secret, ...(mailer && { mailer }), context }), protobaseOrganizationPlugin({ resolved: organizations, mail: Boolean(mailer) })]
+        : []),
     ],
     disabledPaths: [...unusedEmailCodePaths, ...adminImpersonationPaths, ...(organizations ? organizationPaths : [])],
     databaseHooks: {
@@ -206,7 +209,11 @@ export const betterAuthOptions = (options: CreateAuthOptions, { roles, defaultRo
       enabled: true,
       window: 60,
       max: 100,
-      customRules: { '/sign-in/email': { window: 60, max: options.signInPerMinute ?? 5 }, '/staff/sign-in': { window: 60, max: 5 } },
+      customRules: {
+        '/sign-in/email': { window: 60, max: options.signInPerMinute ?? 5 },
+        '/staff/sign-in': { window: 60, max: 5 },
+        '/invitation/sign-up': { window: 60, max: options.signInPerMinute ?? 5 },
+      },
     },
     advanced: {
       useSecureCookies: secure,
