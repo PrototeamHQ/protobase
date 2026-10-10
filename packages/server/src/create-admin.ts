@@ -12,6 +12,9 @@ import { statusRoute } from './better-auth/status-route'
 import { checkShell } from './check-shell'
 import { checkViews } from './check-views'
 import { createErrorHandler } from './error-handler'
+import { toApiFunction, type FunctionSource } from './functions/define-function'
+import { callerRecords } from './functions/records'
+import { functionRoutes } from './functions/routes'
 import { createMeta } from './meta'
 import { buildRegistry } from './registry'
 import type { ResourceSource } from './resource-source'
@@ -36,13 +39,16 @@ export type CreateAdminInput = {
   authenticate: Authenticator
   /** A Better Auth instance (see `createAuth`): its handler is mounted at `/api/auth`. */
   auth?: AdminAuth
+  /** API functions of the app's own, each served at `<systemPath>/functions/<name>` (see `defineFunction`). */
+  functions?: Record<string, FunctionSource>
   options?: AdminOptions
 }
 
 /** The admin REST API as a Hono app. It uses only Web APIs, so it runs on Node, Workers and anywhere else Hono does. */
-export const createAdmin = ({ resources, views = [], pages = [], userMenu, db, authenticate, auth, options = {} }: CreateAdminInput) => {
+export const createAdmin = ({ resources, views = [], pages = [], userMenu, db, authenticate, auth, functions = {}, options = {} }: CreateAdminInput) => {
   const basePath = options.basePath ?? '/api/v1'
   const registry = buildRegistry(resources)
+  const apiFunctions = Object.fromEntries(Object.entries(functions).map(([name, source]) => [name, toApiFunction(name, source)]))
   const viewModels = views.map((view) => view.toModel())
   const userMenuModel = userMenu?.toUserMenuModel()
   const pageModels = pages.map((entry) => entry.toModel())
@@ -112,6 +118,7 @@ export const createAdmin = ({ resources, views = [], pages = [], userMenu, db, a
     const records = (session: Session) => assistantRecords(deps, session)
     app.route(`${systemPath}/assistant`, builtInAssistant({ model: assistant.model, chats: assistant.chats, db, meta, authenticate, tools, records, report: options.onUnhandledError }))
   }
+  app.route('/', functionRoutes({ basePath: `${systemPath}/functions`, functions: apiFunctions, authenticate, db, records: (session) => callerRecords(deps, session), onError }))
   app.route('/', batchRoute(deps, authenticate, meta))
   app.route(basePath, api)
   app.route(deps.systemPath || '/', system)

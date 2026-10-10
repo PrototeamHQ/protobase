@@ -3,6 +3,7 @@ import type { Db } from '@protobase/query'
 import type { AdminOptions } from './admin-options'
 import type { AssistantOptions } from './assistant/assistant-settings'
 import type { AdminAuth } from './better-auth/create-auth'
+import type { FunctionSource } from './functions/define-function'
 import type { Authenticator } from './types'
 
 /** What `protobase.config.ts` may default-export. Everything is optional. */
@@ -17,6 +18,8 @@ export type ProjectConfig = {
   authenticate?: Authenticator
   /** A Better Auth instance; createAdmin mounts its routes under /api/auth. */
   auth?: AdminAuth
+  /** The API functions, each served at `/api/functions/<name>`; default: one per file in ./functions. */
+  functions?: Record<string, FunctionSource>
   options?: AdminOptions
 }
 
@@ -80,6 +83,14 @@ const mergedAssistant = (named: Named[]): AdminOptions['assistant'] => {
   return { ...lastSet(after.map(({ assistant }) => assistant)), ...(tools.length > 0 && { tools: tools.map(({ tool }) => tool) }) }
 }
 
+// Every config's functions, each name once.
+const mergedFunctions = (named: Named[]) => {
+  const all = named.flatMap(({ config, label }) => Object.entries(config.functions ?? {}).map(([name, value]) => ({ name, value, label })))
+  if (all.length === 0) return undefined
+  checkUnique('The function', all)
+  return Object.fromEntries(all.map(({ name, value }) => [name, value]))
+}
+
 const mergedOptions = (named: Named[]): AdminOptions | undefined => {
   const all = named.flatMap(({ config }) => (config.options ? [config.options] : []))
   if (all.length === 0) return undefined
@@ -94,13 +105,14 @@ const mergedOptions = (named: Named[]): AdminOptions | undefined => {
 
 /**
  * One config from several, each after the ones it `extends`, the last being the app's own. Named things are all kept:
- * resources, views and pages of the config modules, assistant tools; one name defined by two configs is an error naming
+ * resources, views and pages of the config modules, functions, assistant tools; one name defined by two configs is an error naming
  * both. Write hooks run in the same order. Every other value is the last config's that sets it, so the app's own wins.
  */
 export const mergeConfig = (...configs: ProjectConfig[]): ProjectConfig => {
   const named = configs.flatMap((config, index) => flatten(config, config.name ?? `config ${index + 1}`))
   const { db, authenticate, auth } = lastSet(named.map(({ config }) => ({ db: config.db, authenticate: config.authenticate, auth: config.auth })))
   const module = mergedModule(named)
+  const functions = mergedFunctions(named)
   const options = mergedOptions(named)
   const name = configs.at(-1)?.name
   return {
@@ -109,6 +121,7 @@ export const mergeConfig = (...configs: ProjectConfig[]): ProjectConfig => {
     ...(db && { db }),
     ...(authenticate && { authenticate }),
     ...(auth && { auth }),
+    ...(functions && { functions }),
     ...(options && { options }),
   }
 }

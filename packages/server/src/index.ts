@@ -49,3 +49,19 @@ export { streamChatCompletion, ModelError, type ChatMessage, type ChatTextPart, 
 export { readOnlyQueryTool, readWriteQueryTool } from './assistant/query-tools'
 export { runReadOnlyQuery, runReadWriteQuery, type QueryOptions, type QueryResult } from './assistant/run-query'
 export { runtimeUrl, runtimeVariable, seesRuntime, type RuntimeOptions } from './runtime/runtime-settings'
+export {
+  defineFunction,
+  type ApiFunction,
+  type CorsOptions,
+  type FunctionApp,
+  type FunctionCaller,
+  type FunctionContext,
+  type FunctionHandler,
+  type FunctionOptions,
+  type FunctionSource,
+  type ProtectedFunctionOptions,
+  type PublicFunctionContext,
+  type PublicFunctionHandler,
+  type PublicFunctionOptions,
+} from './functions/define-function'
+export type { FunctionRecords, ListParams, RecordPage } from './functions/records'

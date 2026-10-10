@@ -47,6 +47,12 @@ describe('mergeConfig', () => {
     )
   })
 
+  it('keeps the functions of every config, and refuses a function name two configs use, naming both', () => {
+    const [usage, hello] = [() => new Response('usage'), () => new Response('hello')]
+    expect(mergeConfig({ name: 'cloud', functions: { usage } }, { name: 'app', functions: { hello } }).functions).toEqual({ usage, hello })
+    expect(() => mergeConfig({ name: 'cloud', functions: { usage } }, { name: 'app', functions: { usage: hello } })).toThrow('The function "usage" is defined twice, by cloud and by app; rename one of them')
+  })
+
   it('runs the write hooks of every config, the extended ones first', () => {
     const hook = (name: string) => Object.assign((async () => undefined) as PipelineHook, { label: name })
     const [first, second, third] = [hook('first'), hook('second'), hook('third')]
