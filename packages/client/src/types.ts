@@ -57,6 +57,12 @@ export type RecordPermissions = { update: boolean; delete: boolean; fields?: Rec
 
 export type Stored<T> = { record: T; etag: string; permissions?: RecordPermissions }
 
+/**
+ * A file field as records carry it. `url` downloads it: signed and valid one to two hours for a private file, permanent
+ * for a public one. Send `uri` back unchanged to keep the file, or `null` to clear it.
+ */
+export type StoredFile = { uri: string; name: string; type: string; size?: number; url?: string } | { uri: string; missing: true }
+
 /** A reference to a record created earlier in the same batch (`ref` on its `create`). */
 export type BatchRef = { $ref: string; field?: string }
 

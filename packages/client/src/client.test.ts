@@ -298,3 +298,27 @@ describe('aggregates', () => {
     expect(new URL(calls[2]!.url, 'http://x').searchParams.get('position')).toBe('500')
   })
 })
+
+describe('upload', () => {
+  it('posts the raw file with its name and type, and answers with the ticket', async () => {
+    const result = { value: 'private:1/a.png?name=a.png&size=3&exp=1&sig=x', file: { name: 'a.png', type: 'image/png', size: 3 }, derived: {} }
+    const { calls, fetch } = fakeFetch(() => json(result, { status: 201 }))
+    const sent: number[] = []
+    const uploaded = await createClient({ fetch, token: async () => 'tok' }).upload(orders, 'image', new File(['abc'], 'a.png', { type: 'image/png' }), { onProgress: (bytes) => sent.push(bytes) })
+    expect(uploaded).toEqual(result)
+    expect(calls[0]!.url).toBe('/api/v1/orders:upload?field=image&name=a.png')
+    expect(calls[0]!.init.headers).toMatchObject({ 'content-type': 'image/png', authorization: 'Bearer tok' })
+    expect(await new Response(calls[0]!.init.body as Blob).text()).toBe('abc')
+    // Without XMLHttpRequest (Node) the progress comes once, at the end
+    expect(sent).toEqual([3])
+  })
+
+  it('sends a blob without a name as an octet stream, and rejects with the problem', async () => {
+    const { calls, fetch } = fakeFetch(() => problem({ type: 'urn:protobase:problem:unsupported-type', title: 'Unsupported Media Type', status: 415, detail: 'This field takes image/*; the file is application/pdf' }))
+    const error = await createClient({ fetch }).upload('orders', 'image', new Blob(['%PDF'])).catch((caught: unknown) => caught)
+    expect(calls[0]!.url).toBe('/api/v1/orders:upload?field=image')
+    expect(calls[0]!.init.headers).toMatchObject({ 'content-type': 'application/octet-stream' })
+    expect(error).toBeInstanceOf(ApiError)
+    expect((error as ApiError).slug).toBe('unsupported-type')
+  })
+})

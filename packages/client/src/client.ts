@@ -1,6 +1,7 @@
 import { encodeKey, type KeyValue } from '@protobase/schema'
 import { listWire, queryString, filterText, type FilterInput, type ListParams } from './query-string'
 import { createTransport, type ClientOptions } from './transport'
+import { fetchWithProgress, type UploadProgress } from './upload-request'
 import type { BatchOp, BatchResult, Facet, Histogram, ListPage, Meta, MetaResult, RecordOf, ResourceRef, Series, SeriesParams, Stored } from './types'
 
 type Json = Record<string, any>
@@ -27,6 +28,23 @@ export type InvokeOptions = {
   path?: string
   query?: Record<string, string>
   headers?: Record<string, string>
+}
+
+/** What `upload` answers: `value` is the ticket to send as the field's value in a create, update or batch write. */
+export type UploadResult = {
+  value: string
+  /** The type is the one detected from the content. */
+  file: { name: string; type: string; size: number }
+  /** Values the field's processors computed for other fields; the write stores them with the file. */
+  derived: Record<string, unknown>
+  /** Set when the content's type differs from what the name or browser said: `photo.png` that is a JPEG. */
+  corrected?: { from: string; to: string }
+}
+
+export type UploadOptions = {
+  /** Reports bytes sent; uses XMLHttpRequest where there is one, since fetch reports no upload progress. */
+  onProgress?: UploadProgress
+  signal?: AbortSignal
 }
 
 const etagOf = (response: Response) => response.headers.get('etag') ?? ''
@@ -172,7 +190,28 @@ export const createClient = (options: ClientOptions = {}) => {
     return (response.headers.get('content-type')?.includes('json') ? response.json() : response.text()) as Promise<T>
   }
 
-  return { list, search, get, create, update, remove, undelete, reveal, batchWrite, facets, series, histogram, seek, meta, invoke }
+  /**
+   * Uploads a file for a file field (`POST /{resource}:upload`). Send `value` of the result as the field's value in a
+   * create, update or batch write within 24 hours; the server detects the type and refuses one the field does not take.
+   */
+  const upload = async (resource: ResourceRef, field: string, file: Blob, { onProgress, signal }: UploadOptions = {}): Promise<UploadResult> => {
+    const name = 'name' in file && typeof file.name === 'string' ? file.name : undefined
+    const progress = onProgress && typeof XMLHttpRequest !== 'undefined' ? fetchWithProgress(onProgress) : undefined
+    const response = await send({
+      method: 'POST',
+      path: `/${nameOf(resource)}:upload`,
+      query: `?${new URLSearchParams({ field, ...(name !== undefined && { name }) })}`,
+      raw: file,
+      headers: { 'content-type': file.type || 'application/octet-stream' },
+      ...(progress && { via: progress }),
+      ...(signal && { signal }),
+    })
+    const result = (await response.json()) as UploadResult
+    onProgress?.(file.size, file.size)
+    return result
+  }
+
+  return { list, search, get, create, update, remove, undelete, reveal, batchWrite, facets, series, histogram, seek, meta, invoke, upload }
 }
 
 export type Client = ReturnType<typeof createClient>

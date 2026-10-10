@@ -26,6 +26,11 @@ export type Request = {
   accept?: number[]
   /** A system endpoint such as `/meta`: it lives beside the API (`/api/meta`), not inside it (`/api/v1`). */
   system?: boolean
+  /** Sent as it is instead of a JSON `body`, such as a file. */
+  raw?: Blob
+  /** Sends this request instead of the client's fetch, such as one that reports upload progress. */
+  via?: typeof fetch
+  signal?: AbortSignal
 }
 
 export const createTransport = (options: ClientOptions = {}) => {
@@ -33,10 +38,10 @@ export const createTransport = (options: ClientOptions = {}) => {
   const systemUrl = baseUrl.replace(/\/[^/]*$/, '')
   const doFetch = options.fetch ?? ((input, init) => fetch(input, init))
 
-  return async ({ method, path, query = '', body, headers, accept = [], system }: Request) => {
+  return async ({ method, path, query = '', body, headers, accept = [], system, raw, via, signal }: Request) => {
     const attempt = async (refresh: boolean) => {
       const token = await options.token?.({ refresh })
-      return doFetch(`${system ? systemUrl : baseUrl}${path}${query}`, {
+      return (via ?? doFetch)(`${system ? systemUrl : baseUrl}${path}${query}`, {
         method,
         headers: {
           ...(body !== undefined && { 'content-type': 'application/json' }),
@@ -44,7 +49,8 @@ export const createTransport = (options: ClientOptions = {}) => {
           ...options.headers?.(),
           ...headers,
         },
-        body: body === undefined ? undefined : JSON.stringify(body),
+        body: raw ?? (body === undefined ? undefined : JSON.stringify(body)),
+        ...(signal && { signal }),
       })
     }
     let response = await attempt(false)

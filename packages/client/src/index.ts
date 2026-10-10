@@ -1,4 +1,5 @@
-export { createClient, type Client, type InvokeOptions } from './client'
+export { createClient, type Client, type InvokeOptions, type UploadOptions, type UploadResult } from './client'
+export type { UploadProgress } from './upload-request'
 export { ApiError, PreconditionFailedError, isApiError, type ProblemDetails, type ProblemError } from './problem'
 export { listWire, filterText, type FilterInput, type ListParams } from './query-string'
 export type { ClientOptions } from './transport'
@@ -16,6 +17,7 @@ export type {
   ResourcePermissions,
   MetaResult,
   Stored,
+  StoredFile,
   RecordPermissions,
   BatchOp,
   BatchRef,
