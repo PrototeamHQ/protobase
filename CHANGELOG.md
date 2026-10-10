@@ -2,6 +2,22 @@
 
 Every release of Protobase, cut by the release workflow from the commits since the last one (see the [versioning page](https://docs.protobase.net/reference/versioning/)).
 
+## [0.4.0](https://github.com/PrototeamHQ/protobase/compare/v0.3.5...v0.4.0) (2026-10-10)
+
+### ⚠ BREAKING CHANGES
+
+* **client,ui:** a staff sign-in page, a banner for staff sessions and the log of staff sign-ins
+* **server:** emailed codes, passkeys, two-factor and a sign-in policy; run auth:migrate to upgrade
+* **client,ui:** emailed codes, passkeys, two-factor steps, account security and a policy page
+* **server:** staff sign-in as a person through an operator provider; run auth:migrate to upgrade
+
+### Features
+
+* **client,ui:** a staff sign-in page, a banner for staff sessions and the log of staff sign-ins ([aa2f603](https://github.com/PrototeamHQ/protobase/commit/aa2f603615e6bc43fadd4051e322f773d18e4685))
+* **client,ui:** emailed codes, passkeys, two-factor steps, account security and a policy page ([2c1ae90](https://github.com/PrototeamHQ/protobase/commit/2c1ae90264eaf4cba3931b223357bfb17a6251da))
+* **server:** emailed codes, passkeys, two-factor and a sign-in policy; run auth:migrate to upgrade ([3e71f4e](https://github.com/PrototeamHQ/protobase/commit/3e71f4e98760dc0f75e7e0d5a3770d370f0da143))
+* **server:** staff sign-in as a person through an operator provider; run auth:migrate to upgrade ([fa0313d](https://github.com/PrototeamHQ/protobase/commit/fa0313d57767a2ccb1989bb201e7e348ecd393b1))
+
 ## [0.3.5](https://github.com/PrototeamHQ/protobase/compare/v0.3.4...v0.3.5) (2026-10-10)
 
 ### Features
