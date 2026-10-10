@@ -18,5 +18,5 @@ first change adds its first tables and resources.
 
 ## Scripts
 
-The platform runs `db:migrate`, `auth:migrate`, `typecheck` and `test`, with their settings in the environment: keep
-them working. Run `typecheck` and `test` before you finish.
+The platform runs `db:migrate` (the auth schema's migrations included), `typecheck` and `test`, with their settings in
+the environment: keep them working. Run `typecheck` and `test` before you finish.

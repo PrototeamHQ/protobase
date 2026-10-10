@@ -55,7 +55,7 @@ Seed consistency: an invoice's subtotal equals the sum of its lines and an order
 
 ## Login
 
-`bun run --cwd examples/erp auth:migrate` creates Better Auth's tables in the `auth` schema of the ERP database; `bun run --cwd examples/erp serve` (or `protobase dev`) then needs `BETTER_AUTH_SECRET` in `.env` and serves real sign-in. See [Login with Better Auth](https://docs.protobase.net/reference/auth/). There is no passwordless mode: create the first admin with `protobase users create <email>`, and mint a bearer token for curl with `protobase token <email>`.
+`bun run --cwd examples/erp db:migrate` also creates Better Auth's tables in the `auth` schema of the ERP database (`db/migrations/009_auth.sql`; later ones come from `protobase auth migration`); `bun run --cwd examples/erp serve` (or `protobase dev`) then needs `BETTER_AUTH_SECRET` in `.env` and serves real sign-in. See [Login with Better Auth](https://docs.protobase.net/reference/auth/). There is no passwordless mode: create the first admin with `protobase users create <email>`, and mint a bearer token for curl with `protobase token <email>`.
 
 ## Serve and deploy
 
@@ -73,4 +73,4 @@ bun run build:serve           # dist/protobase-serve.js at the repository root, 
 bun --no-install /opt/protobase/protobase-serve.js /app/protobase.config.js
 ```
 
-The host passes `DATABASE_URL`, `PORT`, `REQUEST_LOG`, and for password reset `PROTOBASE_SMTP_URL` and `PROTOBASE_MAIL_FROM`; the ERP itself reads `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, `TRUSTED_ORIGINS` and `ADMIN_DATABASE_URL`. Run `auth:migrate` against the database before the first start. The bundle's shape and the runtime's lifecycle are in the [CLI reference](https://docs.protobase.net/reference/cli/#build).
+The host passes `DATABASE_URL`, `PORT`, `REQUEST_LOG`, and for password reset `PROTOBASE_SMTP_URL` and `PROTOBASE_MAIL_FROM`; the ERP itself reads `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, and `TRUSTED_ORIGINS`. Run `db:migrate` against the database before the first start. The bundle's shape and the runtime's lifecycle are in the [CLI reference](https://docs.protobase.net/reference/cli/#build).

@@ -5,7 +5,7 @@ import path from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { bin, root, run } from '../../packages/cli/tests/support/auth-project'
 import { databaseReachable, freePort, testDatabaseUrl } from '../../packages/cli/tests/support/database'
-import { createErpAuthStore, signIn, stopProcess, untilListening } from '../../packages/cli/tests/support/serve-process'
+import { createErpDatabase, signIn, stopProcess, untilListening } from '../../packages/cli/tests/support/serve-process'
 
 const url = testDatabaseUrl()
 const erpDir = path.join(root, 'examples/erp')
@@ -24,13 +24,13 @@ describe.skipIf(!reachable)(`the ERP built and served by the CLI on ${runtime}`,
   const password = 'a-long-test-password'
   let port: number
   let base: string
-  let store: Awaited<ReturnType<typeof createErpAuthStore>>
+  let store: Awaited<ReturnType<typeof createErpDatabase>>
   let child: ChildProcess | undefined
 
   beforeAll(async () => {
     port = await freePort()
     base = `http://localhost:${port}`
-    store = await createErpAuthStore({ url, erpDir, base, email, password })
+    store = await createErpDatabase({ url, erpDir, base, email, password })
   }, timeout)
 
   afterAll(async () => {

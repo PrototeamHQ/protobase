@@ -11,7 +11,7 @@ export const signInPolicySchema = {
       emailCode: { type: 'string', required: true },
       passkey: { type: 'string', required: true },
       twoFactor: { type: 'string', required: true },
-      // Rows saved before staff sign-in existed get the default when `auth:migrate` adds the column.
+      // Rows saved before staff sign-in existed get the default when the migration adds the column.
       staffAccess: { type: 'string', required: true, defaultValue: 'allowed' },
       // Likewise for rows saved before sign-in through the platform existed.
       platformSignIn: { type: 'string', required: true, defaultValue: 'allowed' },

@@ -18,7 +18,7 @@ describe('presets', () => {
 
   it('carry the scripts every job relies on', () => {
     for (const preset of presets) {
-      expect(Object.keys(manifest(preset.source).scripts)).toEqual(expect.arrayContaining(['db:migrate', 'auth:migrate', 'typecheck', 'test']))
+      expect(Object.keys(manifest(preset.source).scripts)).toEqual(expect.arrayContaining(['db:migrate', 'typecheck', 'test']))
     }
   })
 })

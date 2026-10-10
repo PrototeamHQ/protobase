@@ -7,7 +7,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { buildServeRuntime } from '../../src/build/serve-runtime'
 import { bin, root, run } from '../support/auth-project'
 import { databaseReachable, freePort, testDatabaseUrl } from '../support/database'
-import { createErpAuthStore, signIn, stopProcess, untilListening } from '../support/serve-process'
+import { createErpDatabase, signIn, stopProcess, untilListening } from '../support/serve-process'
 import { protobaseVersion } from '../../src/version/version'
 
 const url = testDatabaseUrl()
@@ -24,13 +24,13 @@ describe.skipIf(!reachable || !hasBun)('the ERP bundle served by protobase-serve
   let dir: string
   let child: ChildProcess
   let base: string
-  let store: Awaited<ReturnType<typeof createErpAuthStore>>
+  let store: Awaited<ReturnType<typeof createErpDatabase>>
   let output = ''
 
   beforeAll(async () => {
     const port = await freePort()
     base = `http://localhost:${port}`
-    store = await createErpAuthStore({ url, erpDir, base, email: 'serve@example.com', password: 'a-long-test-password' })
+    store = await createErpDatabase({ url, erpDir, base, email: 'serve@example.com', password: 'a-long-test-password' })
 
     dir = await mkdtemp(path.join(tmpdir(), 'protobase-serve-'))
     const built = await run([bin, 'build', '--out', path.join(dir, 'app')], erpDir, store.env)

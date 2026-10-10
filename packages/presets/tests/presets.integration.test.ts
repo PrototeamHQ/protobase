@@ -65,9 +65,12 @@ describe.skipIf(!(await serverReachable())).each(presets)('the $name preset', (p
     run('bun', 'install', '--frozen-lockfile')
   })
 
-  it('migrates its tables and the auth tables as the tenant role', () => {
+  it('migrates its tables and the auth tables as the tenant role, in one go', async () => {
     run('bun', 'run', 'db:migrate')
-    run('bun', 'run', 'auth:migrate')
+    const sql = postgres(env.DATABASE_URL!, { max: 1 })
+    const [auth] = await sql`select count(*)::int as tables from information_schema.tables where table_schema = 'auth'`
+    await sql.end()
+    expect(auth!.tables).toBeGreaterThan(0)
   })
 
   it.skipIf(preset.name === 'scratch')('seeds its base data, with organization 1 named after the app', async () => {

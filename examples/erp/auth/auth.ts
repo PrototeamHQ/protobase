@@ -8,7 +8,7 @@ if (!secret) throw new Error('BETTER_AUTH_SECRET is not set; generate one with `
 
 // One pool across hot reloads of this module
 const store = globalThis as { __erpAdminPool?: pg.Pool }
-store.__erpAdminPool ??= new pg.Pool({ connectionString: process.env.ADMIN_DATABASE_URL ?? databaseUrl, max: 5 })
+store.__erpAdminPool ??= new pg.Pool({ connectionString: databaseUrl, max: 5 })
 
 /** The admin store (Better Auth's users, sessions and signing keys) lives in this schema, next to the ERP's own schemas. */
 export const authSchema = 'auth'

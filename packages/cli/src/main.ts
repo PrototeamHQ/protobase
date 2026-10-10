@@ -1,6 +1,7 @@
 import { statSync } from 'node:fs'
 import path from 'node:path'
 import { Command, InvalidArgumentError } from 'commander'
+import { registerAuth } from './auth/register'
 import { buildDeployBundle } from './build/deploy-bundle'
 import { buildServeRuntime } from './build/serve-runtime'
 import { manifestFile } from './bundle/manifest'
@@ -132,6 +133,7 @@ program
 
 registerUsers(program)
 registerToken(program)
+registerAuth(program)
 
 // Central error handler: commands throw, the user sees one line.
 export const run = (argv: string[]) =>

@@ -18,8 +18,7 @@ bun install
 `examples/erp` is a sample ERP on a real Postgres database, seeded with three years of history. It needs Docker for the database: `bun run db:up` starts the Postgres container and gives each example its database and a `.env` from its `.env.example`.
 
 ```sh
-bun run db:up && bun run --cwd examples/erp db:migrate && bun run --cwd examples/erp db:seed --scale small
-bun run --cwd examples/erp auth:migrate                 # Better Auth's tables, in the auth schema
+bun run db:up && bun run --cwd examples/erp db:migrate && bun run --cwd examples/erp db:seed --scale small   # the ERP's tables and Better Auth's
 bun run --cwd examples/erp protobase users create you@example.com --generate-password
 bun run --cwd examples/erp dev                          # http://localhost:5173
 ```
@@ -32,7 +31,6 @@ bun run --cwd examples/erp dev                          # http://localhost:5173
 
 ```sh
 bun run db:up && bun run --cwd examples/real-estate db:migrate && bun run --cwd examples/real-estate db:seed --scale small
-bun run --cwd examples/real-estate auth:migrate
 bun run --cwd examples/real-estate protobase users create you@example.com --role admin --generate-password
 bun run --cwd examples/real-estate dev                  # http://localhost:5173
 ```

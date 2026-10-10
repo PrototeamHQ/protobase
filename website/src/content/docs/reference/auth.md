@@ -22,13 +22,23 @@ Users, sessions and signing keys stay apart from the application's tables. The E
 createAuth({ database: { dialect: new PostgresDialect({ pool }), type: 'postgres', schemaName: 'auth', transaction: true }, ... })
 ```
 
+### Migrations
+
+The store's tables are part of the project's migrations, committed in the repository like the application's own: the examples carry them as `db/migrations/*_auth.sql`, and their `db:migrate` applies both. When an upgrade of Protobase (or another Better Auth plugin) needs more tables or columns, write the change as the project's next migration:
+
 ```sh
-bun run --cwd examples/erp auth:migrate    # creates the auth schema and Better Auth's tables; needs only a role that owns the database; safe to repeat
+bun run db:migrate                  # the database at the project's current schema
+bun run protobase auth migration    # compares it with what Better Auth needs; writes db/migrations/NNN_auth.sql
+bun run db:migrate                  # applies it
 ```
 
-Run it again after upgrading Protobase, before the new version serves: a release can add tables and columns to the store, and Better Auth refuses every request while the store is behind (`500`, logging "Database schema mismatch"). The migration only adds. The sign-in methods below added the `twoFactor`, `passkey` and `signInPolicy` tables and a `twoFactorEnabled` column on `user`; existing users keep signing in with their password. [Staff sign-in](#staff-sign-in) added the `staffSignIn` table and a `staffAccess` column on `signInPolicy`, which saved policies get as `allowed`.
+The file only adds tables, columns and indexes, never drops one, and is plain SQL to review, edit or leave out where the project handles the auth schema itself. `--dir` and `--name` choose the folder and the name after the number.
 
-`ADMIN_DATABASE_URL` puts the `auth` schema in another database instead of `DATABASE_URL`'s. `createAuth` takes a `pg` Pool or `{ dialect, type: 'postgres', schemaName? }` as `database`; without `schemaName` the tables go to the connection's `search_path` (usually `public`).
+The server never changes the schema. `protobase serve` and `protobase dev` read it at startup and refuse to start while it lacks a table or column Better Auth needs, naming them and `protobase auth migration`; without that check every sign-in would fail (`500`, "Database schema mismatch"). The examples' `db:migrate` applies all pending files in one transaction, so a migration that fails leaves the database as the running version expects it. The host must guarantee the rest: nothing but the migrations writes while they run, and the new version serves only after they succeeded.
+
+Upgrading from 0.5 or earlier, where `auth:migrate` created the tables: run `protobase auth migration` twice, once with `DATABASE_URL` on an empty database with only the project's own migrations applied (it writes the whole store), then on the project's database (it writes what this version adds). Every statement skips what exists already, so both files apply to new databases and to those `auth:migrate` set up. The `auth:migrate` script and `db/auth-migrate.ts` can then go.
+
+`createAuth` takes a `pg` Pool or `{ dialect, type: 'postgres', schemaName? }` as `database`; without `schemaName` the tables go to the connection's `search_path` (usually `public`). The examples keep the store in the `auth` schema of `DATABASE_URL`'s database, so their migrations cover both.
 
 ## Configuration
 

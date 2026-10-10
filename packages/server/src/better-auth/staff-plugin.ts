@@ -19,7 +19,7 @@ export type StaffPluginOptions = {
  * Staff of the operator sign in as a person of this app, for support (see `staffSignInEndpoints`). A staff session
  * shows who started it and why, can be stopped, and cannot change the person's sign-in or the sign-in policy. Every
  * staff sign-in is logged for the app's admins. The plugin is there without an operator provider too, so its table
- * exists from the first `auth:migrate`.
+ * exists from the first auth migration.
  */
 export const staffSignInPlugin = ({ operator, mailer }: StaffPluginOptions) =>
   ({

@@ -26,6 +26,7 @@ export { issueToken, maxTokenTtlSeconds, type IssueTokenOptions } from './better
 export { defaultSignInPolicy, signInPolicyMethods, type SignInPolicy, type SignInRule, type StaffAccessRule } from './better-auth/sign-in-policy'
 export { readOperatorSettings, type OperatorProvider } from './better-auth/operator-provider'
 export { readPlatformSignIn, type PlatformSignIn } from './better-auth/platform-sign-in'
+export { authSchemaMigration, checkAuthSchema } from './better-auth/auth-schema'
 export type { StaffSignIn } from './better-auth/staff-log'
 export type { AssistantOptions } from './assistant/assistant-settings'
 export { assistantSettings, assistantRoles, assistantVariables, seesAssistant, type AssistantSettings } from './assistant/assistant-settings'

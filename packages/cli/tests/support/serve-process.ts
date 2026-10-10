@@ -36,23 +36,22 @@ export const stopProcess = async (child: ChildProcess | undefined) => {
 }
 
 /**
- * The ERP's environment against a fresh database for its admin store, migrated and with one admin user.
- * `dispose` drops the database.
+ * The ERP's environment against a fresh database of its own, with the ERP's migrations (its tables, empty, and the
+ * auth schema) and one admin user. `dispose` drops the database.
  */
-export const createErpAuthStore = async ({ url, erpDir, base, email, password }: { url: string; erpDir: string; base: string; email: string; password: string }) => {
+export const createErpDatabase = async ({ url, erpDir, base, email, password }: { url: string; erpDir: string; base: string; email: string; password: string }) => {
   const database = `protobase_serve_test_${randomBytes(4).toString('hex')}`
   const admin = postgres(withDatabase(url, 'postgres'), { max: 1, onnotice: () => {} })
   await admin.unsafe(`create database ${database}`)
   await admin.end()
 
   const env = {
-    DATABASE_URL: url,
-    ADMIN_DATABASE_URL: withDatabase(url, database),
+    DATABASE_URL: withDatabase(url, database),
     BETTER_AUTH_SECRET: randomBytes(32).toString('base64'),
     BETTER_AUTH_URL: base,
   }
-  const migrated = await run(typescriptArgs('db/auth-migrate.ts'), erpDir, env)
-  if (migrated.status !== 0) throw new Error(`auth migration failed:\n${migrated.stderr}`)
+  const migrated = await run(typescriptArgs('db/migrate.ts'), erpDir, env)
+  if (migrated.status !== 0) throw new Error(`migrations failed:\n${migrated.stderr}`)
   const created = await run([bin, 'users', 'create', email, '--role', 'admin', '--password-stdin'], erpDir, env, `${password}\n`)
   if (created.status !== 0) throw new Error(`users create failed:\n${created.stderr}`)
 

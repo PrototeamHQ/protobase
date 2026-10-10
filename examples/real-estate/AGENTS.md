@@ -19,6 +19,6 @@ exported from `config/index.ts`, over a Postgres database. Reference: https://do
 
 ## Scripts
 
-The platform runs `db:migrate`, `auth:migrate`, `typecheck` and `test`, with their settings in the environment: keep
-them working. Run `typecheck` and `test` before you finish. `db:seed:base` loads the amenities and organization 1,
+The platform runs `db:migrate` (the auth schema's migrations included), `typecheck` and `test`, with their settings in
+the environment: keep them working. Run `typecheck` and `test` before you finish. `db:seed:base` loads the amenities and organization 1,
 and `db:seed` the sample data, replacing everything in the app's tables.

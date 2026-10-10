@@ -94,7 +94,7 @@ One process, one port: Vite serves the admin app from `@protobase/ui`'s `src/app
 
 - **Database:** the URL comes from the variable named by `--env`, read from the environment or the nearest `.env` at or above the project. The connection is checked before anything starts; if it fails, the command names host, port and reason (and points to its `db:up` script when it has one). The project needs `pg` installed, because the API connects with Kysely over the project's own `pg`.
 - **Cache:** Vite's dependency cache is `node_modules/.vite`; two dev servers sharing it can disturb each other's optimisation, so pass `--cache-dir` for a second one (the integration test does).
-- **Login:** real sign-in only, with the `authenticate` and `auth` exported by `protobase.config.ts` (see [Login with Better Auth](/reference/auth/)). A project without an authenticator fails at startup with a message pointing there; there is no development login. Create the first admin with `protobase users create`.
+- **Login:** real sign-in only, with the `authenticate` and `auth` exported by `protobase.config.ts` (see [Login with Better Auth](/reference/auth/)). A project without an authenticator fails at startup with a message pointing there, and one whose auth schema is behind with the tables and columns it lacks (see [`auth migration`](#auth-migration)); there is no development login. Create the first admin with `protobase users create`.
 - **Tunnels and other hosts:** Vite only answers `localhost` by default. `--allowed-hosts .trycloudflare.com,app.example.com` adds Host headers (a leading dot matches all subdomains). Hot reload needs no extra setting: the Vite client takes protocol, host and port from the page, so behind an HTTPS tunnel it connects over `wss` on 443 as long as the tunnel forwards WebSockets.
 - **Project discovery**, by convention: `config/index.ts` exports the resources (and views), and every `config/*/ui.ts` export that is not already exported by the index is added as a view. A `protobase.config.ts` in the project root replaces the convention; its default export may contain any of:
 
@@ -300,7 +300,7 @@ Better Auth and other settings are the project's own variables (`BETTER_AUTH_SEC
 
 - **Routes:** `createAdmin` (`/api/v1`, `/api/meta`, `/api/auth/*`, ...) and `GET /health`, which answers `{"status":"ok"}` without a token and without touching the database. The runtime never serves the UI; `protobase serve <bundle>` serves `public/` for every path outside the manifest's `api`, after `/health`.
 - **Version:** before loading the config module, the runtime reads `protobase.bundle.json` beside it and refuses a bundle built by a Protobase version it does not serve, or one without a version, with an error naming both versions (see [Versioning](/reference/versioning/#bundles-and-runtimes)). A config module needs its manifest beside it.
-- **Startup:** a bundle without a default export, `config` or `authenticate`, or with an `options.basePath` other than `/api/v1`, stops startup with a one-line error and exit code 1, as does a missing `DATABASE_URL` or a taken port. `protobase serve listening on port <port>` means it is ready.
+- **Startup:** a bundle without a default export, `config` or `authenticate`, or with an `options.basePath` other than `/api/v1`, stops startup with a one-line error and exit code 1, as does a missing `DATABASE_URL`, an auth schema that lacks a table or column (see [`auth migration`](#auth-migration)) or a taken port. `protobase serve listening on port <port>` means it is ready.
 - **Shutdown:** the first SIGTERM or SIGINT stops accepting connections, waits for open requests, drains the pool `serve` created (a `db` the config exports is the project's to close) and exits with 0.
 - **Host modules:** under Bun, the runtime registers [the modules it supplies](#the-config-module) as virtual modules, so the bundle needs no `node_modules` for them. `protobase serve`, on Node or Bun, resolves them from the `node_modules` next to the bundle, so keep the bundle inside the project. Native packages load from the bundle's own `node_modules/` under both.
 - **Read-only hosts:** nothing is written: no install (`--no-install`), and for a bundle built with `--bun` no transpiling and so no transpiler cache. A bundle with `node_modules/` needs its folder mounted without `noexec`, since its add-ons are mapped as executable code.
@@ -321,6 +321,14 @@ Run inside a project whose `protobase.config.ts` exports `auth` (Better Auth). T
 The password is typed at a hidden prompt with confirmation, read from stdin with `--password-stdin` (for scripts, e.g. `pass show erp | protobase users create me@example.com --password-stdin`), or generated with `--generate-password` and printed once. A password is never accepted as an argument, since it would end up in shell history. `users list` prints email, role and creation date (and `disabled` for banned users), never credentials.
 
 `delete` asks you to type the email back (or pass `--yes`), and needs a terminal otherwise. `delete`, `set-role` and `disable` refuse to touch the last admin, so the project cannot lock itself out. `disable` bans the user and revokes their sessions; tokens already issued stop working within their lifetime (15 minutes by default), and `protobase token` refuses disabled users. `enable` lifts the ban. `protobase dev` prints "No users yet. Create the first admin with: protobase users create you@example.com" at startup while the user table is empty.
+
+## `auth migration`
+
+```sh
+protobase auth migration [--dir db/migrations] [--name auth]
+```
+
+Run inside a project whose `protobase.config.ts` exports `auth`, against its database with the project's migrations applied. It compares the database with the tables, columns and indexes Better Auth needs (with Protobase's plugins and the project's own) and writes what is missing as the next migration in `--dir`: `009_auth.sql` after `008_...`. Nothing is written when the schema is current. The file only adds, never drops; apply it with the project's other migrations. See [migrations](/reference/auth/#migrations).
 
 ## `token`
 

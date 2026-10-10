@@ -1,5 +1,5 @@
 import { Hono } from 'hono'
-import { configExports, createAdmin, hasUsers } from '@protobase/server'
+import { checkAuthSchema, configExports, createAdmin, hasUsers } from '@protobase/server'
 import { loadProject, projectDb } from './project'
 
 // Loaded by Vite's SSR module graph (see run.ts). Editing any file it imports re-evaluates this module
@@ -11,6 +11,13 @@ const { resources, views, pages, userMenu } = configExports(project.exports)
 
 if (!project.authenticate) {
   throw new Error('No authenticator: export `authenticate` (and `auth`) from protobase.config.ts; see https://docs.protobase.net/reference/auth/')
+}
+
+// Once per server start, so a behind auth schema stops startup with the command that writes its migration.
+const store = globalThis as { __protobaseNoUsersShown?: boolean; __protobaseAuthSchemaChecked?: boolean }
+if (project.auth && !store.__protobaseAuthSchemaChecked) {
+  await checkAuthSchema(project.auth)
+  store.__protobaseAuthSchemaChecked = true
 }
 
 const admin = createAdmin({
@@ -27,7 +34,6 @@ const admin = createAdmin({
 export default new Hono().route('/', admin)
 
 // Without users nobody can sign in; say how to fix that, once per server start.
-const store = globalThis as { __protobaseNoUsersShown?: boolean }
 if (project.auth && !store.__protobaseNoUsersShown) {
   store.__protobaseNoUsersShown = true
   hasUsers(project.auth).then(
