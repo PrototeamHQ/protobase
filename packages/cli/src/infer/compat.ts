@@ -6,7 +6,7 @@ const relationTargets: BaseType[] = ['integer', 'bigint', 'uuid', 'text']
 export const typesCompatible = (declared: string, base: BaseType) => {
   if (declared === base) return true
   if (declared === 'relation') return relationTargets.includes(base)
-  if (declared === 'currency' || declared === 'country') return base === 'text'
+  if (declared === 'currency' || declared === 'country' || declared === 'file') return base === 'text'
   if (declared === 'enum') return base === 'text'
   if (declared === 'text') return base === 'enum'
   return false

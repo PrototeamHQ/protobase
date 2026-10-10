@@ -41,6 +41,11 @@ describe('checkResource', () => {
     ])
   })
 
+  it('takes a text column for a file field, and nothing else', () => {
+    expect(checkResource(model({ id: f.integer(), title: f.file() }), [table])).toEqual([])
+    expect(checkResource(model({ id: f.file(), title: f.text() }, 'title'), [table]).map((i) => i.message)).toContain('id: declared file, but id is integer')
+  })
+
   it('suggests an index for filterable fields without one', () => {
     const [issue] = checkResource(model({ id: f.integer(), title: f.text().filterable() }), [table])
     expect(issue).toMatchObject({
