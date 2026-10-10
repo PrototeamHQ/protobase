@@ -4,18 +4,23 @@ export type ModelSettings = { baseUrl: string; apiKey: string; model: string; fe
 /**
  * `url`: an assistant backend elsewhere, which the dock talks to instead of the built-in one.
  * `apiKey`, `model`, `baseUrl`: the built-in assistant, which answers questions about the app with a chat model.
+ * `chats`: the directory the built-in assistant keeps conversations in, one file each.
  * Each falls back to its environment variable; `fetch` replaces the model endpoint, for tests.
  */
-export type AssistantOptions = { url?: string; apiKey?: string; model?: string; baseUrl?: string; fetch?: typeof fetch }
+export type AssistantOptions = { url?: string; apiKey?: string; model?: string; baseUrl?: string; chats?: string; fetch?: typeof fetch }
 
-export type AssistantSettings = { kind: 'external'; url: string } | { kind: 'built-in'; model: ModelSettings }
+export type AssistantSettings = { kind: 'external'; url: string } | { kind: 'built-in'; model: ModelSettings; chats: string }
 
 export const assistantVariables = {
   url: 'PROTOBASE_ASSISTANT_URL',
   apiKey: 'PROTOBASE_ASSISTANT_API_KEY',
   model: 'PROTOBASE_ASSISTANT_MODEL',
   baseUrl: 'PROTOBASE_ASSISTANT_BASE_URL',
+  chats: 'PROTOBASE_ASSISTANT_CHATS',
 } as const
+
+/** Where the built-in assistant keeps conversations without `chats`: relative to the working directory. */
+export const defaultChatsDirectory = '.protobase/chats'
 
 export const openRouterUrl = 'https://openrouter.ai/api/v1'
 export const openRouterModel = 'openrouter/auto'
@@ -52,5 +57,5 @@ export const assistantSettings = (option: AssistantOptions | false | undefined, 
   const baseUrl = checkedUrl(value('baseUrl') ?? openRouterUrl, source('baseUrl'))
   const model = value('model') ?? (baseUrl === openRouterUrl ? openRouterModel : undefined)
   if (!model) throw new Error(`${assistantVariables.model} (or options.assistant.model) is required with an endpoint other than OpenRouter's`)
-  return { kind: 'built-in', model: { baseUrl, apiKey, model, ...(option && option.fetch && { fetch: option.fetch }) } }
+  return { kind: 'built-in', model: { baseUrl, apiKey, model, ...(option && option.fetch && { fetch: option.fetch }) }, chats: value('chats') ?? defaultChatsDirectory }
 }

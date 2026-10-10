@@ -1,12 +1,12 @@
 import { describe, expect, it, vi } from 'vitest'
 import { requestApproval } from './approval'
-import { createConversations } from './conversations'
+import { createConversations, type Conversation } from './conversations'
 
-const cardOf = (conversation: ReturnType<ReturnType<typeof createConversations>>) => conversation.state().messages[0]?.parts[0]
+const cardOf = (conversation: Conversation) => conversation.state().messages[0]?.parts[0]
 
 describe('requestApproval', () => {
   it('shows a card with the labels given and resolves with the clicked answer', async () => {
-    const conversation = createConversations()('user')
+    const conversation = await createConversations()('user')
     const answer = requestApproval(conversation, 'm1', { title: 'Apply the plan?', badge: '3 credits', approveLabel: 'Approve · 3 credits', rejectLabel: 'Cancel', tone: 'info' })
     const card = cardOf(conversation)
     expect(card).toMatchObject({ type: 'card', title: 'Apply the plan?', badge: '3 credits', tone: 'info', actions: [{ id: 'approve', label: 'Approve · 3 credits', style: 'primary' }, { id: 'reject', label: 'Cancel' }] })
@@ -20,7 +20,7 @@ describe('requestApproval', () => {
 
   it('expires without an answer', async () => {
     vi.useFakeTimers()
-    const conversation = createConversations()('user')
+    const conversation = await createConversations()('user')
     const answer = requestApproval(conversation, 'm1', { title: 'Run this change?', timeoutMs: 1000 })
     vi.advanceTimersByTime(1000)
     vi.useRealTimers()

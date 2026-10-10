@@ -1,6 +1,9 @@
+import { mkdtemp, readdir, rm } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import path from 'node:path'
 import { Kysely, sql } from 'kysely'
 import { PGliteDialect } from 'kysely-pglite-dialect'
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { applyAssistantEvent, emptyAssistantState, f, readEventStream, resource, type AssistantEvent, type AssistantState } from '@protobase/schema'
 import { createAdmin } from '../src/create-admin'
 import type { AdminOptions } from '../src/types'
@@ -13,14 +16,24 @@ const tasks = resource('tasks')
   .primaryKey((r) => r.id)
 
 let db: Kysely<any>
+let chats: string
 beforeAll(async () => {
   const pg = await createEmptyPg()
   await pg.exec('create table tasks (id integer generated always as identity primary key, title text not null, status text not null)')
   db = new Kysely({ dialect: new PGliteDialect(pg) })
+  chats = await mkdtemp(path.join(tmpdir(), 'protobase-assistant-'))
 })
-afterAll(async () => { await db.destroy() })
+afterAll(async () => {
+  await db.destroy()
+  await rm(chats, { recursive: true, force: true })
+})
 
-const admin = (assistant: AdminOptions['assistant']) => createAdmin({ resources: [tasks], db, authenticate: testAuthenticator, options: { assistant } })
+// An OpenAI-compatible endpoint other than OpenRouter's, which gets plain messages.
+const plain = { apiKey: 'key', baseUrl: 'http://localhost:11434/v1', model: 'llama3.3' }
+
+// Each app keeps its conversations in a directory of its own, unless it is given one.
+const admin = (assistant: AdminOptions['assistant']) =>
+  createAdmin({ resources: [tasks], db, authenticate: testAuthenticator, options: { assistant: assistant && { chats: path.join(chats, crypto.randomUUID()), ...assistant } } })
 
 const metaFor = async (app: ReturnType<typeof admin>, roles: string) => (await app.request('/api/meta', { headers: as(1, roles) })).json()
 
@@ -109,14 +122,63 @@ describe('the built-in assistant', () => {
     expect(body.stream).toBe(true)
     expect(body.tools.map((tool: any) => tool.function.name)).toEqual(['run_read_only_query', 'propose_write_query'])
     expect(body.messages[0].role).toBe('system')
-    expect(body.messages[0].content).toContain('- tasks (table tasks)\n  - id: integer, read-only\n  - title: text\n  - status: one of open, done')
-    expect(body.messages.slice(1)).toEqual([{ role: 'user', content: 'Which statuses can a task have?' }])
+    expect(body.messages[0].content[0].text).toContain('- tasks (table tasks)\n  - id: integer, read-only\n  - title: text\n  - status: one of open, done')
+    expect(body.messages.slice(1)).toEqual([{ role: 'user', content: [{ type: 'text', text: 'Which statuses can a task have?', cache_control: { type: 'ephemeral' } }] }])
+  })
+
+  it('on OpenRouter, marks cache breakpoints and asks for low reasoning; elsewhere sends plain messages', async () => {
+    const openRouter = fakeModel([says('Hi.')])
+    const app = admin({ apiKey: 'sk-or-test', fetch: openRouter.fetch })
+    await app.request('/api/assistant/messages', json({ text: 'Hello' }, as(1, 'admin')))
+    await vi.waitFor(() => expect(openRouter.bodies).toHaveLength(1))
+    expect(openRouter.bodies[0].reasoning).toEqual({ effort: 'low' })
+    expect(openRouter.bodies[0].messages[0].content).toEqual([expect.objectContaining({ cache_control: { type: 'ephemeral' } })])
+
+    const local = fakeModel([says('Hi.')])
+    const localApp = admin({ ...plain, fetch: local.fetch })
+    await localApp.request('/api/assistant/messages', json({ text: 'Hello' }, as(1, 'admin')))
+    await vi.waitFor(() => expect(local.bodies).toHaveLength(1))
+    expect(local.bodies[0]).not.toHaveProperty('reasoning')
+    expect(local.bodies[0].messages[1]).toEqual({ role: 'user', content: 'Hello' })
+  })
+
+  it('tells the model the page the user is on, and refuses a page that is no string', async () => {
+    const model = fakeModel([says('That is task 7.')])
+    const app = admin({ ...plain, fetch: model.fetch })
+    expect((await app.request('/api/assistant/messages', json({ text: 'What is this?', page: 7 }, as(1, 'admin')))).status).toBe(400)
+    await app.request('/api/assistant/messages', json({ text: 'What is this?', page: '/tasks/7' }, as(1, 'admin')))
+    await vi.waitFor(() => expect(model.bodies).toHaveLength(1))
+    expect(model.bodies[0].messages[1].content).toBe('The user is on the page /tasks/7 of the app (/<resource> lists records, /<resource>/<key> shows one).\n\nWhat is this?')
+  })
+
+  it('keeps conversations in files, so a restarted server shows the chat and the model reads it again', async () => {
+    const directory = path.join(chats, 'restart')
+    const before = fakeModel([says('There are none.')])
+    const first = admin({ ...plain, chats: directory, fetch: before.fetch })
+    const stream = await watch(first, 'admin')
+    await first.request('/api/assistant/messages', json({ text: 'Any open tasks?' }, as(1, 'admin')))
+    await stream.until(done)
+    await stream.stop()
+    expect(await readdir(directory)).toHaveLength(1)
+
+    const after = fakeModel([says('Still none.')])
+    const restarted = admin({ ...plain, chats: directory, fetch: after.fetch })
+    const again = await watch(restarted, 'admin')
+    expect(again.state().messages.map((message) => message.parts.map((part) => part.type === 'text' && part.text))).toEqual([['Any open tasks?'], ['There are none.']])
+    await restarted.request('/api/assistant/messages', json({ text: 'And now?' }, as(1, 'admin')))
+    await again.until((state) => state.messages.length === 4 && !state.replying)
+    await again.stop()
+    expect(after.bodies[0].messages.slice(1)).toEqual([
+      { role: 'user', content: 'Any open tasks?' },
+      { role: 'assistant', content: 'There are none.' },
+      { role: 'user', content: 'And now?' },
+    ])
   })
 
   it('runs a read-only query the model asks for, shows its rows and hands them back to the model', async () => {
     await sql`insert into tasks (title, status) values ('Write docs', 'open')`.execute(db)
     const model = fakeModel([calls('run_read_only_query', { sql: 'select title, status from tasks' }), says('One task is open.')])
-    const app = admin({ apiKey: 'sk-or-test', fetch: model.fetch })
+    const app = admin({ ...plain, fetch: model.fetch })
     const stream = await watch(app, 'admin')
     await app.request('/api/assistant/messages', json({ text: 'Which tasks are open?' }, as(1, 'admin')))
     await stream.until(done)
@@ -135,7 +197,7 @@ describe('the built-in assistant', () => {
 
   it('tells the model when Postgres refuses a query, and refuses writes in it', async () => {
     const model = fakeModel([calls('run_read_only_query', { sql: 'delete from tasks returning id' }), says('I cannot change data that way.')])
-    const app = admin({ apiKey: 'sk-or-test', fetch: model.fetch })
+    const app = admin({ ...plain, fetch: model.fetch })
     const stream = await watch(app, 'admin')
     await app.request('/api/assistant/messages', json({ text: 'Delete every task' }, as(1, 'admin')))
     await stream.until(done)
@@ -145,7 +207,7 @@ describe('the built-in assistant', () => {
 
   it('runs a write only after the user approves it on the card', async () => {
     const model = fakeModel([calls('propose_write_query', { sql: `insert into tasks (title, status) values ('Ship', 'open') returning title`, summary: 'Adds the task Ship.' }), says('Added.')])
-    const app = admin({ apiKey: 'sk-or-test', fetch: model.fetch })
+    const app = admin({ ...plain, fetch: model.fetch })
     const stream = await watch(app, 'admin')
     await app.request('/api/assistant/messages', json({ text: 'Add a task Ship' }, as(1, 'admin')))
     await stream.until((state) => cardOf(state)?.actions !== undefined)
@@ -167,7 +229,7 @@ describe('the built-in assistant', () => {
 
   it('runs nothing when the user rejects the write', async () => {
     const model = fakeModel([calls('propose_write_query', { sql: 'delete from tasks returning id', summary: 'Deletes every task.' }), says('Nothing was deleted.')])
-    const app = admin({ apiKey: 'sk-or-test', fetch: model.fetch })
+    const app = admin({ ...plain, fetch: model.fetch })
     await sql`insert into tasks (title, status) values ('Keep', 'open')`.execute(db)
     const stream = await watch(app, 'ai')
     await app.request('/api/assistant/messages', json({ text: 'Delete every task' }, as(1, 'ai')))

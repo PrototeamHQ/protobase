@@ -100,7 +100,7 @@ export const createAdmin = ({ resources, views = [], pages = [], userMenu, db, a
     app.route(authBasePath, statusRoute(auth))
     app.on(['GET', 'POST'], `${authBasePath}/*`, (c) => auth.handler(c.req.raw))
   }
-  if (assistant?.kind === 'built-in') app.route(`${systemPath}/assistant`, builtInAssistant({ model: assistant.model, db, meta, authenticate, report: options.onUnhandledError }))
+  if (assistant?.kind === 'built-in') app.route(`${systemPath}/assistant`, builtInAssistant({ model: assistant.model, chats: assistant.chats, db, meta, authenticate, report: options.onUnhandledError }))
   app.route('/', batchRoute(deps, authenticate, meta))
   app.route(basePath, api)
   app.route(deps.systemPath || '/', system)
