@@ -9,6 +9,7 @@ import { SidePanel } from '../side-panel'
 import { App } from './app'
 import { fakeAssistant } from './testing/fake-assistant'
 import { fakeClient } from './testing/fake-client'
+import { fakeRuntime } from './testing/fake-runtime'
 
 const meta = { title: 'Shell', parameters: { layout: 'fullscreen' } } satisfies Meta
 export default meta
@@ -140,4 +141,13 @@ export const Assistant: StoryObj = {
     await userEvent.click(within(dock).getByRole('button', { name: 'Close' }))
     expect(canvas.queryByRole('complementary', { name: 'Assistant' })).toBeNull()
   },
+}
+
+/** `/meta` names a runtime endpoint (for an admin) that reports an update: the top bar gets a subtle Update button beside the Assistant. */
+export const RuntimeUpdate: StoryObj = {
+  render: () => (
+    <div className="h-screen">
+      <App client={fakeClient({ permissions: allowed, assistant: { url: '/api/assistant' }, runtime: { url: '/runtime' } })} auth={session} initialUrl="/orders" assistant={fakeAssistant({ delayMs: 50 })} runtime={fakeRuntime()} />
+    </div>
+  ),
 }

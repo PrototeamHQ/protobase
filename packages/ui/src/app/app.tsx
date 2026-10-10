@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import type { AssistantClient, AuthSession, Client } from '@protobase/client'
+import type { AssistantClient, AuthSession, Client, RuntimeClient } from '@protobase/client'
 import { AppShell, type SidebarMode } from '../app-shell'
 import { ApiProvider } from '../data/api-provider'
 import { AuthGate, AuthProvider, userToShell, useAuth } from '../auth'
@@ -18,6 +18,7 @@ import { ProjectUiProvider, useProjectUi, type ProjectUi } from './pages/project
 import { RecordPage } from './record-page'
 import { useGlobalSearch } from './search/use-global-search'
 import { Router, matchRoute, useRouter } from './router'
+import { RuntimeUpdateButton } from './runtime/runtime-update'
 import { useNavRecent } from './use-nav-recent'
 import { userMenuFromMeta } from './user-menu-from-meta'
 
@@ -38,9 +39,11 @@ export type AppProps = {
   ui?: ProjectUi
   /** A ready-made client of the assistant backend, for stories and tests; used only when `/meta` names an assistant. */
   assistant?: AssistantClient
+  /** A ready-made client of the runtime endpoint, for stories and tests; used only when `/meta` names one. */
+  runtime?: RuntimeClient
 }
 
-const Routes = ({ workspace, sidebarMode, assistant }: Pick<AppProps, 'workspace' | 'sidebarMode' | 'assistant'>) => {
+const Routes = ({ workspace, sidebarMode, assistant, runtime }: Pick<AppProps, 'workspace' | 'sidebarMode' | 'assistant' | 'runtime'>) => {
   const meta = useAdminMeta()
   const { state, signOut } = useAuth()
   if (state.kind !== 'signed-in') throw new Error('The shell is only rendered for a signed-in user')
@@ -73,6 +76,9 @@ const Routes = ({ workspace, sidebarMode, assistant }: Pick<AppProps, 'workspace
   const assistantUrl = meta.assistant?.url
   const assistantButton = assistantUrl && <AssistantButton open={assistantOpen} onToggle={() => setAssistantOpen(!assistantOpen)} />
   const assistantPanel = assistantUrl && assistantOpen && <AssistantPanel url={assistantUrl} client={assistant} page={params.size > 0 ? `${path}?${params}` : path} onClose={() => setAssistantOpen(false)} />
+  // The update button is there when `/meta` names a runtime endpoint, which it does only for the admin role.
+  const runtimeUrl = meta.runtime?.url
+  const runtimeButton = runtimeUrl && <RuntimeUpdateButton url={runtimeUrl} client={runtime} />
   const breadcrumb = breadcrumbFor({ basePath, route, group: group?.label, page, resourceLabel: view?.names?.plural ?? (route.resource && humanize(route.resource)), recordTitle: title })
 
   return (
@@ -87,7 +93,7 @@ const Routes = ({ workspace, sidebarMode, assistant }: Pick<AppProps, 'workspace
       userMenu={userMenuFromMeta(meta, basePath, route.resource)}
       onNavigate={open}
       search={search.available ? { placeholder: search.placeholder, text: search.text, onTextChange: search.setText, query: search.query, loading: search.loading, groups: search.groups, onSelect: open } : undefined}
-      actions={(Actions || assistantButton) && <>{Actions && <Actions />}{assistantButton}</>}
+      actions={(Actions || runtimeButton || assistantButton) && <>{Actions && <Actions />}{runtimeButton}{assistantButton}</>}
       rightPanel={(RightPanel || assistantPanel) && <>{RightPanel && <RightPanel />}{assistantPanel}</>}
     >
       {!route.resource ? <Notice title="Choose a resource">Pick one from the sidebar.</Notice> : page ? <ComposedPage key={page.name} name={page.name} /> : route.key === 'new' ? <CreatePage key={`${route.resource}/new`} resource={route.resource} /> : route.key ? <RecordPage key={`${route.resource}/${route.key}`} resource={route.resource} recordKey={route.key} /> : <ListPage key={route.resource} resource={route.resource} />}
@@ -95,7 +101,7 @@ const Routes = ({ workspace, sidebarMode, assistant }: Pick<AppProps, 'workspace
   )
 }
 
-const Authenticated = ({ baseUrl, client, basePath, initialUrl, workspace, sidebarMode, ui, assistant }: Omit<AppProps, 'auth'>) => {
+const Authenticated = ({ baseUrl, client, basePath, initialUrl, workspace, sidebarMode, ui, assistant, runtime }: Omit<AppProps, 'auth'>) => {
   const { session, markSignedOut } = useAuth()
   return (
     <ApiProvider baseUrl={baseUrl} client={client} token={session.token} onUnauthenticated={markSignedOut}>
@@ -103,7 +109,7 @@ const Authenticated = ({ baseUrl, client, basePath, initialUrl, workspace, sideb
         <MetaGate>
           <ToastProvider>
             <ProjectUiProvider ui={ui}>
-              <Routes workspace={workspace} sidebarMode={sidebarMode} assistant={assistant} />
+              <Routes workspace={workspace} sidebarMode={sidebarMode} assistant={assistant} runtime={runtime} />
             </ProjectUiProvider>
           </ToastProvider>
         </MetaGate>

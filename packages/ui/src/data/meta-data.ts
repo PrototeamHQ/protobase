@@ -12,6 +12,8 @@ export type MetaData = {
   userMenu?: UserMenuModel
   /** The assistant backend, when the app has one and the user has the admin or ai role. */
   assistant?: { url: string }
+  /** The runtime updates endpoint, when the app has one and the user has the admin role. */
+  runtime?: { url: string }
 }
 
 export const allowEverything: ResourcePermissions = { create: true, update: true, delete: true, conditional: [] }

@@ -24,12 +24,14 @@ export type FakeClientOptions = {
   userMenu?: UserMenuModel
   /** What `/meta` says of the assistant. */
   assistant?: { url: string }
+  /** What `/meta` says of the runtime endpoint. */
+  runtime?: { url: string }
 }
 
 /** A server with one resource, for stories and tests that need permissions or failures the real ERP cannot give. */
-export const fakeClient = ({ permissions, remove, nav, userMenu, assistant }: FakeClientOptions) =>
+export const fakeClient = ({ permissions, remove, nav, userMenu, assistant, runtime }: FakeClientOptions) =>
   ({
-    meta: async () => ({ status: 'modified' as const, etag: '"meta"', meta: { resources: [orders], views: [{ ...ordersView, ...(nav && { nav }) }], permissions: { orders: permissions }, ...(userMenu && { userMenu }), ...(assistant && { assistant }) } }),
+    meta: async () => ({ status: 'modified' as const, etag: '"meta"', meta: { resources: [orders], views: [{ ...ordersView, ...(nav && { nav }) }], permissions: { orders: permissions }, ...(userMenu && { userMenu }), ...(assistant && { assistant }), ...(runtime && { runtime }) } }),
     list: async () => ({ items: rows, nextPageToken: '', totalSizeEstimate: rows.length }),
     get: async (_resource: string, key: string) => ({ record: rows.find((row) => row.id === key) ?? rows[0]!, etag: rows.find((row) => row.id === key)?.etag ?? '"v1"' }),
     remove: async (_resource: string, key: string, options?: { etag?: string }) => remove?.(key, options?.etag),

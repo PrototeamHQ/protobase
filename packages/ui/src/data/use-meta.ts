@@ -29,6 +29,7 @@ export const useMeta = () => {
         permissions: result.meta.permissions ?? {},
         ...(result.meta.userMenu && { userMenu: result.meta.userMenu }),
         ...(result.meta.assistant && { assistant: result.meta.assistant }),
+        ...(result.meta.runtime && { runtime: result.meta.runtime }),
       }
     },
   })
