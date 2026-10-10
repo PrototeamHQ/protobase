@@ -1,6 +1,6 @@
 {
   "name": "@protobase/query",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Kysely list, filter, count and aggregate queries over Protobase resources.",
   "license": "Apache-2.0",
   "repository": {

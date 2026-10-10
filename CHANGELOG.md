@@ -2,6 +2,19 @@
 
 Every release of Protobase, cut by the release workflow from the commits since the last one (see the [versioning page](https://docs.protobase.net/reference/versioning/)).
 
+## [0.3.0](https://github.com/PrototeamHQ/protobase/compare/v0.2.0...v0.3.0) (2026-10-10)
+
+### ⚠ BREAKING CHANGES
+
+* **server:** keep assistant transcripts in a conversation store and cache their prefix per turn
+
+### Features
+
+* **server:** keep assistant transcripts in a conversation store and cache their prefix per turn ([3882771](https://github.com/PrototeamHQ/protobase/commit/3882771f06cda1f11333021a1fee67c0505d91c9))
+* **server:** reasoning effort, cache_control text parts and reasoning details in chat completions ([08e3f67](https://github.com/PrototeamHQ/protobase/commit/08e3f67acab161ce69bb568cee04360926724c88))
+* **server:** withCacheBreakpoints marks prompt-cache breakpoints on chat messages ([aeb9661](https://github.com/PrototeamHQ/protobase/commit/aeb9661732c39d3a39bf12b7c03f16c87f87e324))
+* **ui:** send the page the user is on with each assistant message ([7b03e48](https://github.com/PrototeamHQ/protobase/commit/7b03e48f755160386bcdc8f985912b350180fb34))
+
 ## [0.2.0](https://github.com/PrototeamHQ/protobase/compare/v0.1.6...v0.2.0) (2026-10-10)
 
 ### ⚠ BREAKING CHANGES
