@@ -193,6 +193,7 @@
         "@protobase/query": "workspace:*",
         "@protobase/schema": "workspace:*",
         "@scalar/hono-api-reference": "^0.12.10",
+        "@simplewebauthn/server": "^13.3.1",
         "better-auth": "^1.7.7",
         "hono": "^4.13.13",
         "jose": "^6.2.12",
