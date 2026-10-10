@@ -60,7 +60,7 @@ describe('startServe', () => {
   it('drains its pool when the port is taken', async () => {
     const first = await startServe({ project, env, createDb: pgliteDb })
     const db = pgliteDb()
-    await expect(startServe({ project, env: { ...env, port: first.port }, createDb: () => db })).rejects.toThrow('EADDRINUSE')
+    await expect(startServe({ project, env: { ...env, port: first.port }, createDb: () => db })).rejects.toMatchObject({ code: 'EADDRINUSE' })
     expect(db.destroy).toHaveBeenCalledTimes(1)
     await first.close()
   })

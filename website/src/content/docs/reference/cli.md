@@ -13,9 +13,9 @@ pnpm --filter erp protobase <command> # in this repository, for an example
 
 ## How it runs
 
-The published `@protobase` packages are JavaScript: each is built with [tsdown](https://tsdown.dev) to ES modules and type declarations in `dist`, one file per source module, and `pnpm pack` points their `exports`, `types` and `bin` at it (`publishConfig`). The installed `protobase` command (`bin/protobase.mjs`) runs `dist` in plain Node. The project's own TypeScript, which `users` and `doctor` import, is loaded with [tsx](https://tsx.is); `dev` and `build` load it with Vite.
+The published `@protobase` packages are JavaScript: each is built with [tsdown](https://tsdown.dev) to ES modules and type declarations in `dist`, one file per source module, and `pnpm pack` points their `exports`, `types` and `bin` at it (`publishConfig`). The installed `protobase` command (`bin/protobase.mjs`) runs `dist` on Node 22.12 or later, or on Bun. The project's own TypeScript is loaded with Vite on both: `users` and `doctor` import it through Vite's module runner, `dev` serves it and `build` bundles it.
 
-In this repository nothing needs a build: the packages' `exports` point at `src`, and the workspace's `protobase` is `bin/protobase-source.mjs`, which registers tsx and imports `src/index.ts`. `pnpm build` builds every package to `dist`.
+In this repository nothing needs a build: the packages' `exports` point at `src`, and the workspace's `protobase` is `bin/protobase-source.mjs`, which imports `src/index.ts`: Bun loads it itself, Node through [tsx](https://tsx.is). `pnpm build` builds every package to `dist`.
 
 The serve runtime is bundled by `protobase build-serve` into one JavaScript file for Bun, so production needs neither `node_modules` nor the CLI (see [serve](#serve)).
 

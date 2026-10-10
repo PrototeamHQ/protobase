@@ -6,11 +6,11 @@ const url = testDatabaseUrl()
 
 const reachable = await databaseReachable(url)
 
-// Booting the real CLI (tsx, ts-morph, the server, Better Auth) takes seconds, and several times that when the
+// Booting the real CLI (ts-morph, Vite, the server, Better Auth) takes seconds, and several times that when the
 // machine is busy with other test runs, so the default 5 s timeout is not enough for a subprocess.
 const subprocessTimeout = 120_000
 
-// The binary itself, once: bin → tsx → the project's protobase.config.ts → a pg Pool. What the commands do is
+// The binary itself, once: bin → Vite's module runner → the project's protobase.config.ts → a pg Pool. What the commands do is
 // covered in process by users.test.ts.
 describe.skipIf(!reachable)('protobase users create and token (real binary)', () => {
   let project: Awaited<ReturnType<typeof createAuthProject>>

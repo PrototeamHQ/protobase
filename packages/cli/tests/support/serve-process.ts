@@ -1,7 +1,7 @@
 import type { ChildProcess } from 'node:child_process'
 import { randomBytes } from 'node:crypto'
 import postgres from 'postgres'
-import { bin, run } from './auth-project'
+import { bin, run, typescriptArgs } from './auth-project'
 
 export const withDatabase = (target: string, database: string) => {
   const next = new URL(target)
@@ -51,7 +51,7 @@ export const createErpAuthStore = async ({ url, erpDir, base, email, password }:
     BETTER_AUTH_SECRET: randomBytes(32).toString('base64'),
     BETTER_AUTH_URL: base,
   }
-  const migrated = await run(['--import', 'tsx', 'db/auth-migrate.ts'], erpDir, env)
+  const migrated = await run(typescriptArgs('db/auth-migrate.ts'), erpDir, env)
   if (migrated.status !== 0) throw new Error(`auth migration failed:\n${migrated.stderr}`)
   const created = await run([bin, 'users', 'create', email, '--role', 'admin', '--password-stdin'], erpDir, env, `${password}\n`)
   if (created.status !== 0) throw new Error(`users create failed:\n${created.stderr}`)

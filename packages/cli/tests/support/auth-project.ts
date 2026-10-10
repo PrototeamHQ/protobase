@@ -6,10 +6,13 @@ import postgres from 'postgres'
 
 export const root = path.resolve(__dirname, '../../../..')
 export const bin = path.join(root, 'packages/cli/bin/protobase-source.mjs')
+// Arguments that run a TypeScript file of the repository on the test's own runtime: Bun loads it itself, Node
+// through tsx.
+export const typescriptArgs = (file: string) => (process.versions.bun ? [file] : ['--import', 'tsx', file])
 
 export const run = (args: string[], cwd: string, env: Record<string, string>, stdin?: string) =>
   new Promise<{ status: number | null; stdout: string; stderr: string }>((resolve) => {
-    const child = spawn('node', args, { cwd, env: { ...process.env, ...env } })
+    const child = spawn(process.execPath, args, { cwd, env: { ...process.env, ...env } })
     let stdout = ''
     let stderr = ''
     child.stdout.on('data', (chunk) => (stdout += chunk))
@@ -65,7 +68,7 @@ await (await getMigrations(auth.options)).runMigrations()
 process.exit(0)
 `,
   )
-  const migrated = await run(['--import', 'tsx', path.join(projectDir, 'migrate.ts')], projectDir, env)
+  const migrated = await run(typescriptArgs(path.join(projectDir, 'migrate.ts')), projectDir, env)
   if (migrated.status !== 0) throw new Error(`auth migration failed:\n${migrated.stderr}`)
 
   const dispose = async () => {

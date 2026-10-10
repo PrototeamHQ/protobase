@@ -102,7 +102,7 @@ describe('buildDeployBundle', () => {
   it('builds the ERP through the CLI without BETTER_AUTH_SECRET or a database', async () => {
     projectDir = path.join(root, 'examples/erp', `.deploy-test-${randomBytes(4).toString('hex')}`)
     const env = { PATH: process.env.PATH, HOME: process.env.HOME, DATABASE_URL: 'postgres://nobody@127.0.0.1:1/none' }
-    const built = spawnSync('node', [path.join(root, 'packages/cli/bin/protobase-source.mjs'), 'build', '--out', projectDir], { cwd: path.join(root, 'examples/erp'), env, encoding: 'utf8' })
+    const built = spawnSync(process.execPath, [path.join(root, 'packages/cli/bin/protobase-source.mjs'), 'build', '--out', projectDir], { cwd: path.join(root, 'examples/erp'), env, encoding: 'utf8' })
     expect(built.stderr).toBe('')
     expect(built.status).toBe(0)
     const manifest = JSON.parse(await readFile(path.join(projectDir, 'protobase.bundle.json'), 'utf8'))

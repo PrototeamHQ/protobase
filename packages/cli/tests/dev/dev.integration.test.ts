@@ -59,7 +59,7 @@ describe.skipIf(!reachable || !hasApp)('protobase dev in a project with real aut
     const created = await run([bin, 'users', 'create', 'dev@example.com', '--password-stdin'], projectDir, env, 'a-long-test-password\n')
     if (created.status !== 0) throw new Error(`users create failed:\n${created.stderr}`)
     token = (await run([bin, 'token', 'dev@example.com'], projectDir, env)).stdout.trim()
-    child = spawn('node', [bin, 'dev', '--port', String(port), '--cache-dir', cacheDir], {
+    child = spawn(process.execPath, [bin, 'dev', '--port', String(port), '--cache-dir', cacheDir], {
       cwd: projectDir,
       env: { ...process.env, ...env, DATABASE_URL: url },
     })

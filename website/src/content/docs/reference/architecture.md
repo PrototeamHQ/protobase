@@ -15,7 +15,7 @@ A pnpm workspace of npm packages under the `@protobase` scope, in `packages/<nam
 | `@protobase/client` | `packages/client` | `@protobase/client` | anywhere with `fetch` | `schema`, `layout` |
 | `@protobase/ui` | `packages/ui` | `@protobase/ui`; the admin app in `src/app` | browser | `schema`, `layout`, `client` |
 | `@protobase/server` | `packages/server` | `@protobase/server` | server | `schema`, `layout`, `query` |
-| `@protobase/cli` | `packages/cli` | the `protobase` command (`bin/protobase.mjs`) | Node; `src/serve` also Bun | `schema`, `layout`, `query`, `server`, `ui` |
+| `@protobase/cli` | `packages/cli` | the `protobase` command (`bin/protobase.mjs`) | Node and Bun | `schema`, `layout`, `query`, `server`, `ui` |
 | `@protobase/presets` | `packages/presets` | none: private, `pnpm presets:write` writes a project per preset | Node | none; each preset depends on the `@protobase` packages of the version it is written at |
 | `examples/*` | | none | any | `@protobase/*` entry points only |
 
@@ -31,7 +31,7 @@ Every package lists the packages it imports in its `package.json` (`workspace:*`
 - Examples, their tests and `test-support/` import the packages by name, never by path.
 - No circular dependencies.
 
-In this repository, entry points export TypeScript source directly and the CLI runs its source through [tsx](https://tsx.is), so nothing needs a build. The published packages are built to JavaScript in `dist` by `pnpm build` and `pnpm pack` (see [CLI](/reference/cli/#how-it-runs)). The other builds are for deployment: the serve runtime, `packages/cli/src/serve/main.ts` bundled with its dependencies into `dist/protobase-serve.js` by `protobase build-serve`, and a project's bundle, its config module plus a production build of the admin app (`packages/ui/src/app`) with the project's `protobase.ui.tsx`, by `protobase build` (see [CLI](/reference/cli/#build)).
+In this repository, entry points export TypeScript source directly and the CLI runs its source on Bun, or on Node through [tsx](https://tsx.is), so nothing needs a build. The published packages are built to JavaScript in `dist` by `pnpm build` and `pnpm pack` (see [CLI](/reference/cli/#how-it-runs)). The other builds are for deployment: the serve runtime, `packages/cli/src/serve/main.ts` bundled with its dependencies into `dist/protobase-serve.js` by `protobase build-serve`, and a project's bundle, its config module plus a production build of the admin app (`packages/ui/src/app`) with the project's `protobase.ui.tsx`, by `protobase build` (see [CLI](/reference/cli/#build)).
 
 ## Tests and stories
 
