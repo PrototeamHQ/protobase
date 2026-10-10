@@ -1,20 +1,30 @@
 import { randomBytes } from 'node:crypto'
 import pg from 'pg'
+import postgres from 'postgres'
 import { sql } from 'kysely'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { runReadOnlyQuery, runReadWriteQuery } from '@protobase/server'
 import { createPgDb } from '../../src/project/pg-db'
 import { databaseReachable, testDatabaseUrl } from '../support/database'
+import { withDatabase } from '../support/serve-process'
 
 // node-postgres sends a text without parameters with the simple protocol, which runs every statement in it; this
-// checks that the assistant's queries never go that way, against a real server.
+// checks that the assistant's queries never go that way, against a real server. The tables live in a database of
+// their own, so tests that read the whole shared ERP database (scaffold, doctor) never see them.
 const url = testDatabaseUrl()
 const reachable = await databaseReachable(url)
-const schema = `assistant_${randomBytes(4).toString('hex')}`
-const db = createPgDb(pg, url, 2)
+const database = `protobase_assistant_test_${randomBytes(4).toString('hex')}`
+const schema = 'assistant'
+let db: ReturnType<typeof createPgDb>
+
+const maintenance = () => postgres(withDatabase(url, 'postgres'), { max: 1, onnotice: () => {} })
 
 describe.skipIf(!reachable)('assistant queries on Postgres over node-postgres', () => {
   beforeAll(async () => {
+    const admin = maintenance()
+    await admin.unsafe(`create database ${database}`)
+    await admin.end()
+    db = createPgDb(pg, withDatabase(url, database), 2)
     await sql.raw(`
       create schema ${schema};
       create table ${schema}.notes (id integer generated always as identity primary key, body text not null);
@@ -23,8 +33,10 @@ describe.skipIf(!reachable)('assistant queries on Postgres over node-postgres', 
     `).execute(db)
   })
   afterAll(async () => {
-    await sql.raw(`drop schema if exists ${schema} cascade`).execute(db)
-    await db.destroy()
+    await db?.destroy()
+    const admin = maintenance()
+    await admin.unsafe(`drop database if exists ${database} with (force)`)
+    await admin.end()
   })
 
   const count = async () => Number((await sql.raw<{ n: number }>(`select count(*)::int as n from ${schema}.notes`).execute(db)).rows[0]!.n)
