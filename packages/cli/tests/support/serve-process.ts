@@ -29,7 +29,7 @@ export const untilListening = (child: ChildProcess, timeout: number) =>
   })
 
 export const stopProcess = async (child: ChildProcess | undefined) => {
-  if (!child || child.exitCode !== null) return
+  if (!child || child.exitCode !== null || child.signalCode !== null) return
   const exited = new Promise((resolve) => child.once('exit', resolve))
   child.kill('SIGKILL')
   await exited

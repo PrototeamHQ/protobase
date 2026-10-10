@@ -35,6 +35,11 @@ jobs:
       # The template databases each integration run clones; with CI set, a missing one fails the run instead of skipping.
       - run: bun run test:db
       - run: bun run check
+      # check ran the smoke test on Bun; the CLI is supported on Node as well, so it runs there too.
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+      - run: node --run test:smoke
       - run: bun run docs:build
       - run: bun x --bun playwright install --with-deps chromium
       - run: bun scripts/play-tests.mjs

@@ -11,6 +11,9 @@ const testDatabase = 'scripts/test-db/global-setup.ts'
 const unit = ['packages/*/src/**/*.test.ts', 'docs-examples/**/*.test.ts', 'examples/*/{config,seed}/**/*.test.ts']
 // Database, subprocess and build tests: `bun run test:integration`.
 const integration = ['packages/cli/tests/**/*.integration.test.ts', 'packages/cli/tests/build/deploy-bundle.test.ts']
+// The CLI building and serving the ERP on the runtime that runs Vitest, Bun or Node: `bun run test:smoke` and
+// `node --run test:smoke`.
+const smoke = ['tests/smoke/**/*.test.ts']
 // The presets written out and installed with bun from npm, migrated on a tenant-style role: `bun run test:presets`.
 const presets = ['packages/presets/tests/**/*.test.ts']
 // Subprocesses and Postgres connections, so fewer files at once than the default. With other projects in the same run
@@ -46,7 +49,7 @@ export default defineConfig({
         extends: true,
         test: {
           name: 'integration',
-          include: ['tests/examples/erp/**/*.test.ts', ...integration],
+          include: ['tests/examples/erp/**/*.test.ts', ...integration, ...smoke],
           globalSetup: [testDatabase],
           env: runEnvironment('erp', runId),
           maxWorkers: integrationWorkers,

@@ -32,7 +32,7 @@ Licensed under the [Apache License 2.0](LICENSE).
 
 ## Setup
 
-Requires Bun 1.4.2.
+Requires Bun 1.4.2, and Node 22.12 or later (`.nvmrc`) for the smoke test on Node (`node --run test:smoke`).
 
 ```sh
 bun install

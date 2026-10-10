@@ -7,7 +7,7 @@ Protobase is a config-driven admin panel framework for existing Postgres databas
 
 ## Setup
 
-Requires Bun 1.4.2, which installs the repository and runs its scripts and tests.
+Requires Bun 1.4.2, which installs the repository and runs its scripts and tests, and Node 22.12 or later (`.nvmrc`) for the smoke test on Node.
 
 ```sh
 bun install
@@ -46,6 +46,7 @@ bun run --cwd examples/real-estate dev                  # http://localhost:5173
 | `bun run test:unit` | only the unit tests, next to the code (Vitest project `unit`), fully parallel; starting PGlite or a Postgres client there throws |
 | `bun run test:watch` | `bun run test` in watch mode |
 | `bun run test:integration` | the database, subprocess and build tests (projects `integration*`), against the Postgres container |
+| `bun run test:smoke` / `node --run test:smoke` | the CLI on Bun or on Node builds the ERP and serves its bundle, whose `€` must come back intact; part of `test:integration` on Bun |
 | `bun run presets:write <version> <dir>` | writes each preset to `<dir>/<name>`: a standalone copy of its example with the `@protobase` packages pinned to `<version>`, which must be on npm, and its own `bun.lock` |
 | `bun run images:context` | the build contexts of the `protobase` and `protobase-dev` images in `dist/images`, at the version in `package.json` (see [Deploy](/guides/deploy/#images)) |
 | `bun run test:presets` | writes each preset as `bun run presets:write` does it and installs it with Bun from npm (so at a published version), then migrates, seeds, checks, tests and builds it on a database of its own, as a role without superuser rights; needs the Postgres container |

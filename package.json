@@ -11,6 +11,7 @@
     "db:down": "docker compose down",
     "test": "vitest run --project unit --project pglite",
     "test:integration": "vitest run --project 'integration*'",
+    "test:smoke": "vitest run --project integration tests/smoke",
     "test:presets": "vitest run --project presets",
     "presets:write": "bun packages/presets/src/build.ts",
     "images:context": "bun scripts/image-contexts.mjs",
