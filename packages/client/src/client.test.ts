@@ -229,6 +229,32 @@ describe('errors', () => {
   })
 })
 
+describe('invoke', () => {
+  it('calls a function beside the API with the token: GET without a body, POST with JSON', async () => {
+    const { calls, fetch } = fakeFetch(() => json({ ok: true }))
+    const client = createClient({ fetch, baseUrl: '/api/v1', token: async () => 'tok' })
+    expect(await client.invoke('hello')).toEqual({ ok: true })
+    await client.invoke('send-invoice', { body: { orderId: 7 }, path: '/now', query: { dry: 'true' } })
+    await client.invoke('orders', { method: 'DELETE', path: '/7' })
+
+    expect(calls.map(({ url, init }) => [init.method, url, init.body])).toEqual([
+      ['GET', '/api/functions/hello', undefined],
+      ['POST', '/api/functions/send-invoice/now?dry=true', '{"orderId":7}'],
+      ['DELETE', '/api/functions/orders/7', undefined],
+    ])
+    expect(calls[0]!.init.headers).toMatchObject({ authorization: 'Bearer tok' })
+  })
+
+  it('resolves to text or nothing when the function answers so, and rejects with its problem', async () => {
+    const answers = [new Response('pong', { headers: { 'content-type': 'text/plain' } }), new Response(null, { status: 204 }), problem({ status: 403, title: 'Forbidden', type: 'urn:protobase:problem:function-forbidden', detail: 'No' })]
+    const { fetch } = fakeFetch(() => answers.shift()!)
+    const client = createClient({ fetch })
+    expect(await client.invoke('ping')).toBe('pong')
+    expect(await client.invoke('noop', { method: 'POST' })).toBeUndefined()
+    await expect(client.invoke('report')).rejects.toBeInstanceOf(ApiError)
+  })
+})
+
 describe('meta', () => {
   it('sends If-None-Match and understands 304', async () => {
     const { calls, fetch } = fakeFetch(({ init }) => (init.headers && 'if-none-match' in init.headers ? new Response(null, { status: 304 }) : json({ resources: [], views: [] }, { headers: { etag: '"m1"' } })))

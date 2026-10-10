@@ -18,6 +18,17 @@ const toPage = <T>(body: Json, response: Response): ListPage<T> => ({
   ...(response.headers.get('x-protobase-warning') && { warning: response.headers.get('x-protobase-warning')! }),
 })
 
+/** How `invoke` calls a function: GET without a body, POST with one, unless `method` says otherwise. */
+export type InvokeOptions = {
+  method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
+  /** Sent as JSON. */
+  body?: unknown
+  /** Below the function, such as `/42` for `/api/functions/<name>/42`. */
+  path?: string
+  query?: Record<string, string>
+  headers?: Record<string, string>
+}
+
 const etagOf = (response: Response) => response.headers.get('etag') ?? ''
 
 /** A single-record response: the record without its `permissions` member, which travels beside it. */
@@ -144,7 +155,24 @@ export const createClient = (options: ClientOptions = {}) => {
     return { status: 'modified', meta: (await response.json()) as Meta, etag: etagOf(response) }
   }
 
-  return { list, search, get, create, update, remove, undelete, reveal, batchWrite, facets, series, histogram, seek, meta }
+  /**
+   * Calls one of the app's API functions, `/api/functions/<name>`, with the user's token. Resolves to its answer: parsed
+   * JSON, text, or `undefined` for a 204. A problem rejects as from any other call.
+   */
+  const invoke = async <T = unknown>(name: string, { method, body, path = '', query, headers }: InvokeOptions = {}): Promise<T> => {
+    const response = await send({
+      method: method ?? (body === undefined ? 'GET' : 'POST'),
+      path: `/functions/${encodeURIComponent(name)}${path}`,
+      query: query ? `?${new URLSearchParams(query)}` : '',
+      body,
+      headers,
+      system: true,
+    })
+    if (response.status === 204) return undefined as T
+    return (response.headers.get('content-type')?.includes('json') ? response.json() : response.text()) as Promise<T>
+  }
+
+  return { list, search, get, create, update, remove, undelete, reveal, batchWrite, facets, series, histogram, seek, meta, invoke }
 }
 
 export type Client = ReturnType<typeof createClient>

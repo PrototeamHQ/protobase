@@ -1,4 +1,4 @@
-export { createClient, type Client } from './client'
+export { createClient, type Client, type InvokeOptions } from './client'
 export { ApiError, PreconditionFailedError, isApiError, type ProblemDetails, type ProblemError } from './problem'
 export { listWire, filterText, type FilterInput, type ListParams } from './query-string'
 export type { ClientOptions } from './transport'

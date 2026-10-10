@@ -17,7 +17,7 @@ export type ClientOptions = {
 }
 
 export type Request = {
-  method: 'GET' | 'POST' | 'PATCH' | 'DELETE'
+  method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
   path: string
   query?: string
   body?: unknown
