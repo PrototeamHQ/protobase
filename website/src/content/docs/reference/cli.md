@@ -96,7 +96,7 @@ One process, one port: Vite serves the admin app from `@protobase/ui`'s `src/app
 - **Cache:** Vite's dependency cache is `node_modules/.vite`; two dev servers sharing it can disturb each other's optimisation, so pass `--cache-dir` for a second one (the integration test does).
 - **Login:** real sign-in only, with the `authenticate` and `auth` exported by `protobase.config.ts` (see [Login with Better Auth](/reference/auth/)). A project without an authenticator fails at startup with a message pointing there, and one whose auth schema is behind with the tables and columns it lacks (see [`auth migration`](#auth-migration)); there is no development login. Create the first admin with `protobase users create`.
 - **Tunnels and other hosts:** Vite only answers `localhost` by default. `--allowed-hosts .trycloudflare.com,app.example.com` adds Host headers (a leading dot matches all subdomains). Hot reload needs no extra setting: the Vite client takes protocol, host and port from the page, so behind an HTTPS tunnel it connects over `wss` on 443 as long as the tunnel forwards WebSockets.
-- **Project discovery**, by convention: `config/index.ts` exports the resources (and views), and every `config/*/ui.ts` export that is not already exported by the index is added as a view. A `protobase.config.ts` in the project root replaces the convention; its default export may contain any of:
+- **Project discovery**, by convention: `config/index.ts` exports the resources (and views), and every `config/*/ui.ts` export that is not already exported by the index is added as a view. Each `functions/<name>.ts` (or `functions/<name>/index.ts`) is an [API function](/guides/api-functions/) at `/api/functions/<name>`. A `protobase.config.ts` in the project root replaces the convention; its default export may contain any of:
 
   ```ts
   import * as config from './config'
@@ -105,6 +105,7 @@ One process, one port: Vite serves the admin app from `@protobase/ui`'s `src/app
     db,                          // Kysely instance, instead of DATABASE_URL
     authenticate,                // Authenticator, required
     auth,                        // Better Auth (AdminAuth); its routes are mounted under /api/auth
+    functions,                   // API functions by name, instead of ./functions
     options,                     // AdminOptions (scan guard, write hooks, ...)
   }
   ```
@@ -193,7 +194,7 @@ By default the bundle runs on Node and on Bun. `--bun` makes it a bundle for Bun
 - `protobase` is the Protobase version that built the bundle. The serve runtime serves only bundles of a compatible version: below 1.0 the same minor, from 1.0 the same major and the runtime's minor or an older one (see [Versioning](/reference/versioning/#bundles-and-runtimes)).
 - `server`, `public` and `nodeModules` are relative to the bundle folder, `spa` to `public`.
 - `nodeModules` is present only when the config module imports [native packages](#native-packages). It is always the `node_modules` folder beside `server`, where Bun and Node resolve the module's imports from, and holds plain packages: JavaScript, `package.json` files and native binaries for linux x64 and arm64 (glibc), which the runtime loads with `dlopen`. A host keeps it next to the server module and must not mount it `noexec` (an add-on there then fails with `failed to map segment from shared object`). Its binaries link nothing but glibc, `libstdc++.so.6`, `libgcc_s.so.1` and libraries in the bundle itself, so the run image must have those three. Without `nodeModules`, the server module is the only file the runtime reads.
-- `api` lists the path prefixes the server answers. A path is under a prefix when it equals it or continues it with `/` (`/api` covers `/api/meta` and `/api/v1:batchWrite`, not `/apiary`). It is always `["/api"]`: a bundle assumes the API lives under `/api`, with the resources at the default `basePath` `/api/v1`, `/api/meta`, the docs and the built-in assistant beside them and Better Auth at `/api/auth`. The serve runtime refuses a config that sets another `options.basePath`.
+- `api` lists the path prefixes the server answers. A path is under a prefix when it equals it or continues it with `/` (`/api` covers `/api/meta` and `/api/v1:batchWrite`, not `/apiary`). It is always `["/api"]`: a bundle assumes the API lives under `/api`, with the resources at the default `basePath` `/api/v1`, `/api/meta`, the docs, the API functions and the built-in assistant beside them and Better Auth at `/api/auth`. The serve runtime refuses a config that sets another `options.basePath`.
 - Every other path is the UI's. A `GET` or `HEAD` for a file in `public` gets that file; a folder gets its `index.html`. Otherwise a request whose `Accept` header contains `text/html` (a navigation) gets `spa` with status 200, so deep links such as `/orders/42` load the app; anything else gets 404. Other methods get 405.
 - Files under `public/assets/` are named by their content hash and never change: serve them with `Cache-Control: public, max-age=31536000, immutable`, and everything else with `no-cache`.
 - `version` is the format of the manifest, not a Protobase version. A host that does not know it must refuse the bundle. Version 2 replaced version 1 when the config module started to import [every module the runtime supplies](#the-config-module), not only `protobase/*` and `kysely`, and gained `nodeModules`. `protobase serve` refuses a version 1 bundle; rebuild it.
@@ -204,7 +205,7 @@ By default the bundle runs on Node and on Bun. `--bun` makes it a bundle for Bun
 
 ### The config module
 
-`protobase.config.js` is one ES module. The entry is found as `protobase dev` finds it: the default export of `protobase.config.ts`, with `config` taken from the convention (`config/index.ts` plus `config/*/ui.ts`) when it exports none.
+`protobase.config.js` is one ES module. The entry is found as `protobase dev` finds it: the default export of `protobase.config.ts`, with `config` taken from the convention (`config/index.ts` plus `config/*/ui.ts`) and `functions` from `functions/` when it exports none.
 
 - Vite bundles the config into plain ES modules in UTF-8, which Node and Bun both load as they are.
 - With `--bun`, Vite writes to a scratch folder and `bun build --target bun` writes the final module. Bun's output starts with `// @bun`, which tells Bun the file is already plain JavaScript: Bun neither transpiles it nor writes its transpiler cache. Bun reads such a file as Latin-1, so only Bun's own output can carry that line: its bundler writes non-ASCII text as escapes (`€` as `\u20AC`). Raw UTF-8 with that line would load as `â¬`.
@@ -224,7 +225,7 @@ By default the bundle runs on Node and on Bun. `--bun` makes it a bundle for Bun
 - The default export is the project config merged with the configs it [extends](#extending-a-config), with `config` always set:
 
   ```ts
-  export default { config, authenticate, auth?, options?, db? }   // as protobase.config.ts exports it
+  export default { config, authenticate, auth?, functions?, options?, db? }   // as protobase.config.ts exports it
   ```
 
 The serve runtime reads the environment when it imports the module, on the host.
@@ -300,7 +301,7 @@ Serves the API of a bundle from `protobase build` and owns the process around it
 
 Better Auth and other settings are the project's own variables (`BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, ...), read by its config. `protobase serve` also loads the nearest `.env`, like `dev`; the runtime takes the environment as it is.
 
-- **Routes:** `createAdmin` (`/api/v1`, `/api/meta`, `/api/auth/*`, ...) and `GET /health`, which answers `{"status":"ok"}` without a token and without touching the database. The runtime never serves the UI; `protobase serve <bundle>` serves `public/` for every path outside the manifest's `api`, after `/health`.
+- **Routes:** `createAdmin` (`/api/v1`, `/api/meta`, `/api/functions/*`, `/api/auth/*`, ...) and `GET /health`, which answers `{"status":"ok"}` without a token and without touching the database. The runtime never serves the UI; `protobase serve <bundle>` serves `public/` for every path outside the manifest's `api`, after `/health`.
 - **Version:** before loading the config module, the runtime reads `protobase.bundle.json` beside it and refuses a bundle built by a Protobase version it does not serve, or one without a version, with an error naming both versions (see [Versioning](/reference/versioning/#bundles-and-runtimes)). A config module needs its manifest beside it.
 - **Startup:** a bundle without a default export, `config` or `authenticate`, or with an `options.basePath` other than `/api/v1`, stops startup with a one-line error and exit code 1, as does a missing `DATABASE_URL`, an auth schema that lacks a table or column (see [`auth migration`](#auth-migration)) or a taken port. `protobase serve listening on port <port>` means it is ready.
 - **Shutdown:** the first SIGTERM or SIGINT stops accepting connections, waits for open requests, drains the pool `serve` created (a `db` the config exports is the project's to close) and exits with 0.

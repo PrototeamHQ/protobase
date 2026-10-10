@@ -1,0 +1,158 @@
+---
+title: Your own API functions
+description: Endpoints of your own beside the generated REST API, one file each in functions/, acting as the signed-in caller or open to a webhook.
+---
+
+import { Code } from '@astrojs/starlight/components'
+import hello from '../../../../../docs-examples/functions/hello.ts?raw'
+import readyForPickup from '../../../../../docs-examples/functions/ready-for-pickup.ts?raw'
+import paymentWebhook from '../../../../../docs-examples/functions/payment-webhook.ts?raw'
+import notifyCustomer from '../../../../../docs-examples/functions/notify-customer.ts?raw'
+import workshop from '../../../../../docs-examples/functions/workshop/index.ts?raw'
+
+The [REST API](/reference/api/) covers reading and writing records. For anything else you write a function: a webhook from a payment provider, a button that makes three writes and then texts the customer, an endpoint for another app. Each function is one file in the project's `functions/` folder, served at `/api/functions/<name>`.
+
+If you have used Supabase Edge Functions, this will feel familiar. A function is a Web-standard handler that takes a `Request` and returns a `Response`. Only signed-in callers get in unless the function says otherwise. It has a data client that acts as the caller, and the raw database for privileged work.
+
+The examples below come from Pip's bike shop (see [From a table to an admin](/guides/table-to-admin/)). The repository compiles and tests every one of them.
+
+## A first function
+
+<Code code={hello} lang="ts" title="functions/hello.ts" />
+
+`protobase dev` serves it at `http://localhost:5173/api/functions/hello`. A change reloads it on the next request, and a new file appears after the next change inside the project. `protobase build` bundles the functions into the deploy bundle, and `protobase serve` serves them the same way. Call it with a token:
+
+```sh
+curl -H "Authorization: Bearer $(protobase token pip@example.com)" http://localhost:5173/api/functions/hello
+# {"message":"Hello, 9f3c…","roles":["admin"]}
+curl -i http://localhost:5173/api/functions/hello
+# HTTP/1.1 401 Unauthorized, an application/problem+json body like every other refusal
+```
+
+The app's own `authenticate` checks the token, the same one that guards the REST API, so a function needs no auth code of its own. A call without a valid token is the usual `401` problem, and the handler never runs.
+
+## Files and names
+
+- **One function per file:** `functions/<name>.ts`, or `functions/<name>/index.ts` for a function of several files. The name is the URL segment, so it uses letters, digits, `-` and `_`.
+- **Not functions:** files and folders starting with `_` (shared code, such as `functions/_shared/`), dotfiles, `*.test.ts`, `*.spec.ts` and `*.d.ts`. A folder without an `index.ts` is an error that says so.
+- **The default export** is `defineFunction(...)` from `@protobase/server`, a bare `(request, context)` handler, or a Hono app. The last two need a signed-in caller.
+- **Any method** reaches the function, and so does any path below its name. The request's path is the part after `/api/functions/<name>`: `/` for the function itself, `/42/advance` for `/api/functions/workshop/42/advance`. The query string and the body are passed through unchanged.
+- **In `protobase.config.ts`,** `functions: { name: fn }` replaces the folder, the same way `config` replaces `config/index.ts`. The functions of [extended configs](/reference/cli/#extending-a-config) are kept, and a name used by two configs is an error that names both.
+
+## The context
+
+The second argument of a handler (`c.env` in a [Hono app](#hono-apps)):
+
+| | |
+| --- | --- |
+| `session` | The caller: `{ user: { id, roles }, tenant? }`, from the app's `authenticate`. |
+| `records` | The app's resources, acting as the caller: `list`, `get`, `create`, `update`, `delete`. |
+| `db` | The Kysely instance itself. It skips every access rule, row filter and tenant scope. |
+| `caller()` | Resolves to `{ session, records }`. Public functions use it to ask for a caller when they need one. |
+| `name` | The function's name. |
+
+A [public function](#public-functions-and-webhooks) has only `db`, `caller()` and `name`.
+
+## Reading and writing records as the caller
+
+<Code code={readyForPickup} lang="ts" title="functions/ready-for-pickup.ts" />
+
+`records` takes the same path as the REST API. The caller's access rules, row filters, field access and tenant scope apply. So do the resource's validation and the write hooks, and a record the caller may not see is not there:
+
+| | |
+| --- | --- |
+| `list(resource, params?)` | A page as `GET /api/v1/{resource}` gives it: `{ items, next_page_token, total_size_estimate }`. `params` are `filter`, `order_by`, `page_size`, `page_token`, `fields` (an array), `count: 'exact'` and `show_deleted`. |
+| `get(resource, key)` | `{ record, etag }`. A composite key is an array of its parts, or `a,b` as in a URL. |
+| `create(resource, data)` | `{ record, etag }` of the new record. |
+| `update(resource, key, data, { etag }?)` | With `etag`, it fails with `412` when the record changed after it was read. |
+| `delete(resource, key, { etag }?)` | `{ record, etag }` of the record as it was. It is a soft delete when the resource has one. |
+
+A refusal or a missing record rejects with the problem the REST API would answer, such as `403`, `404` or `412`. Left uncaught, that problem becomes the function's response. Each call is its own transaction. Use the [batch endpoint](/reference/api/#batch-writes) when several writes must succeed or fail together.
+
+### Checking input
+
+`readJson(request, schema)` reads the body and checks it against a schema. It takes any [Standard Schema](https://standardschema.dev), such as zod 4, Valibot or ArkType. The result is typed. A body that is not JSON is a `400 malformed-json` problem. A body the schema refuses is a `400 invalid-body` problem with an `errors` list of `{ field, message }`. Without a schema, `readJson(request)` only parses the JSON.
+
+### Roles
+
+`defineFunction({ roles: ['mechanic', 'desk'] }, handler)` lets in callers with at least one of those roles. Anyone else gets a `403 function-forbidden` problem before the handler runs. Finer rules belong in the resources' [access rules](/reference/access/), which `records` already applies.
+
+## Public functions and webhooks
+
+<Code code={paymentWebhook} lang="ts" title="functions/payment-webhook.ts" />
+
+`{ public: true }` lets anyone call the function. A sender that signs its requests is checked with one of these helpers. Each returns the body as text once the signature matches, and otherwise throws a `401 invalid-signature` problem:
+
+- `verifySignature(request, { secret, header, prefix?, encoding?, hash? })` checks an HMAC of the body (`hex` and `SHA-256` by default), as GitHub, Shopify and many payment providers sign. GitHub's is `{ header: 'x-hub-signature-256', prefix: 'sha256=' }`, and Shopify's is `{ header: 'x-shopify-hmac-sha256', encoding: 'base64' }`.
+- `verifyStandardWebhook(request, { secret })` checks [Standard Webhooks](https://www.standardwebhooks.com) signatures, as Supabase Auth hooks, Svix and Resend send them, including the timestamp (5 minutes of tolerance by default).
+- Stripe ships its own check: `stripe.webhooks.constructEventAsync(await request.text(), request.headers.get('stripe-signature'), secret)`.
+
+A public function has no caller, so it has no `records`. Its `db` skips the tenant scope too, so filter by tenant yourself where it matters. When a function should serve anyone but treat a signed-in caller differently, `await context.caller()` resolves the caller from the request, or rejects with the `401` problem.
+
+## Secrets and other APIs
+
+<Code code={notifyCustomer} lang="ts" title="functions/notify-customer.ts" />
+
+`requireEnv(name)` returns an environment variable, or throws when it is not set. The call then fails as a `500` that the app reports, and the request goes nowhere. `protobase dev` and `protobase serve` read the nearest `.env` file. In production the serve runtime takes the host's environment as it is, so set the secret where the host keeps its settings. Keep secrets in functions, never in `protobase.ui.tsx`, which runs in the browser.
+
+## Calling a function
+
+From the admin UI, an [action handler](/reference/custom-components/#action-handlers) gets a `client` that carries the user's token. `client.invoke` calls a function the way `supabase.functions.invoke` does:
+
+```tsx
+// protobase.ui.tsx
+import { defineUi } from '@protobase/ui'
+
+export default defineUi({
+  actions: {
+    readyForPickup: async ({ client, record }) => {
+      await client.invoke('ready-for-pickup', { body: { repairId: record?.id } })
+    },
+  },
+})
+```
+
+`invoke(name, { method?, body?, path?, query?, headers? })` sends a `GET`, or a `POST` with a JSON `body`. It resolves to the parsed JSON, to text, or to `undefined` for a `204`. A problem rejects with an `ApiError`, as any call of the client does. Outside the admin, `createClient` from `@protobase/client` gives the same `invoke`, or you can call the URL with `fetch` and an `Authorization: Bearer` header.
+
+## Hono apps
+
+A function of several routes can be a [Hono](https://hono.dev) app. The context is its `c.env`:
+
+<Code code={workshop} lang="ts" title="functions/workshop/index.ts" />
+
+`functionApp()` is `new Hono()` with one difference: errors and unknown paths reach the app's own error handling, so problems are rendered as problem+json and anything else is reported. Your own Hono instance works too, typed with `FunctionEnv` (or `PublicFunctionEnv`):
+
+```ts
+import { Hono } from 'hono'
+import type { FunctionEnv } from '@protobase/server'
+
+const app = new Hono<FunctionEnv>()
+// Without this, Hono answers errors itself: a plain-text 500 that the app never reports.
+app.onError((error) => {
+  throw error
+})
+export default app
+```
+
+A Hono app's routes start at `/`, because the request path no longer includes `/api/functions/<name>`. The deploy bundle supplies `hono`, `hono/cors`, `hono/http-exception` and `hono/validator` (see [the config module](/reference/cli/#the-config-module)). Other Hono middleware is bundled with the function, as are its other packages.
+
+### CORS
+
+A function called from a page on another origin needs CORS. Use the `cors` option, which takes the options of `hono/cors`:
+
+```ts
+defineFunction({ cors: { origin: 'https://workshop.pips-bikes.example' } }, app)
+```
+
+Preflight requests are answered before authentication, because a browser sends them without a token. Every response, including a `401` problem, carries the CORS headers. In a protected function, the `hono/cors` middleware inside a Hono app would never see the preflight, because authentication runs first.
+
+## Errors
+
+- **Problems:** throw an `HttpProblem` (or `badRequest`, `unauthorized`, `forbidden`, `notFound` from `@protobase/server`) to answer with an [RFC 9457 problem](/reference/api/#errors). Hono's `HTTPException` works too.
+- **Everything else:** any other error, or a handler that returns something other than a `Response`, becomes a `500 internal-error` problem without its message. The error goes to `options.onUnhandledError`, which `protobase dev` and `serve` print.
+
+## What functions are not
+
+- **Not under `/api/v1`,** which stays resources only. Functions live beside the system endpoints, like `/api/meta`.
+- **Not in the OpenAPI document** or the `/api/docs` reference.
+- **Not scheduled:** a function runs when it is called. A cron job on the host, or an external scheduler, can call one with a token, or call a public one that checks a signature.

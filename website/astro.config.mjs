@@ -15,7 +15,7 @@ export default defineConfig({
       plugins: [starlightLinksValidator()],
       sidebar: [
         { label: 'Start here', items: ['getting-started', 'guides/deploy'] },
-        { label: 'Guides', items: ['guides/table-to-admin', 'guides/first-composed-page', 'guides/billing-page'] },
+        { label: 'Guides', items: ['guides/table-to-admin', 'guides/first-composed-page', 'guides/billing-page', 'guides/api-functions'] },
         {
           label: 'Reference',
           items: [

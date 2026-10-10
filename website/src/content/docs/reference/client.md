@@ -16,7 +16,7 @@ const { record, etag } = await api.get(orders, id)
 await api.update(orders, id, { status: 'shipped' }, etag) // 412 rejects with PreconditionFailedError
 ```
 
-Pass a resource builder to get its record type (`InferRecord`), or a name for loose records. Filters are AIP-160 text or `where` results (printed with `printFilter`). Errors are `ApiError` (`status`, `slug`, `errors`, `filterErrors` with spans). Also: `search`, `create`, `remove`, `facets`, `series`, `histogram`, `seek`, `reveal(resource, key, field)` (a [sensitive field](/reference/data-config/#sensitive-fields)'s value), `meta(etag?)`.
+Pass a resource builder to get its record type (`InferRecord`), or a name for loose records. Filters are AIP-160 text or `where` results (printed with `printFilter`). Errors are `ApiError` (`status`, `slug`, `errors`, `filterErrors` with spans). Also: `search`, `create`, `remove`, `facets`, `series`, `histogram`, `seek`, `reveal(resource, key, field)` (a [sensitive field](/reference/data-config/#sensitive-fields)'s value), `meta(etag?)`, `invoke(name, { body?, method?, path?, query? })` (one of the app's [API functions](/guides/api-functions/#calling-a-function)).
 
 ## The admin app
 

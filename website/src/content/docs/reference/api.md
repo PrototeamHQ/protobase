@@ -17,6 +17,7 @@ const admin = createAdmin({
   db,                                               // Kysely<any> on Postgres
   authenticate,                                     // required: there is no anonymous or development mode
   auth,                                             // optional: mounts login at /api/auth/*
+  functions,                                        // optional: your own endpoints at /api/functions/<name>, see /guides/api-functions/
   options: { statementTimeoutMs: 15_000, scanGuard: { mode: 'reject' } },
 })
 ```
@@ -25,7 +26,7 @@ Run the ERP example with `bun run --cwd examples/erp serve` (port 8787, Better A
 
 ## Routes
 
-`/api/v1/*` is resources only, so a table may be called `meta` or `docs`. The system endpoints (`/api/meta`, `/api/openapi.json`, `/api/docs`) and login (`/api/auth/*`) live beside it; the parent of `options.basePath` is where the system endpoints go.
+`/api/v1/*` is resources only, so a table may be called `meta` or `docs`. The system endpoints (`/api/meta`, `/api/openapi.json`, `/api/docs`), the app's own [API functions](/guides/api-functions/) (`/api/functions/<name>`) and login (`/api/auth/*`) live beside it; the parent of `options.basePath` is where the system endpoints go.
 
 Under `/api/v1`:
 
