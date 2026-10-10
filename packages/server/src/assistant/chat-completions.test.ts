@@ -34,7 +34,7 @@ describe('streamChatCompletion', () => {
   it('streams the answer piece by piece and resolves with all of it', async () => {
     const endpoint = fakeEndpoint(() => sse([{ choices: [{ delta: { role: 'assistant' } }] }, delta('There are '), delta('42 orders.'), '[DONE]']))
     const pieces: string[] = []
-    await expect(streamChatCompletion({ ...settings, baseUrl: 'http://localhost:11434/v1', fetch: endpoint.fetch }, messages, (text) => pieces.push(text))).resolves.toEqual({ content: 'There are 42 orders.', toolCalls: [] })
+    await expect(streamChatCompletion({ ...settings, baseUrl: 'http://localhost:11434/v1', fetch: endpoint.fetch }, messages, (text) => pieces.push(text))).resolves.toEqual({ content: 'There are 42 orders.', toolCalls: [], reasoningDetails: [] })
     expect(pieces).toEqual(['There are ', '42 orders.'])
     expect(endpoint.requests[0]?.url).toBe('http://localhost:11434/v1/chat/completions')
   })
@@ -50,8 +50,27 @@ describe('streamChatCompletion', () => {
       ]),
     )
     const completion = await streamChatCompletion({ ...settings, fetch: endpoint.fetch }, messages, () => {}, { tools: [tool] })
-    expect(completion).toEqual({ content: '', toolCalls: [{ id: 'call_1', type: 'function', function: { name: 'run_query', arguments: '{"sql":"select 1"}' } }] })
+    expect(completion).toEqual({ content: '', toolCalls: [{ id: 'call_1', type: 'function', function: { name: 'run_query', arguments: '{"sql":"select 1"}' } }], reasoningDetails: [] })
     expect((await endpoint.requests[0]?.json()).tools).toEqual([tool])
+  })
+
+  it('asks for a reasoning effort and puts the streamed reasoning details together', async () => {
+    const reasoning = (details: unknown[]) => ({ choices: [{ delta: { reasoning_details: details } }] })
+    const endpoint = fakeEndpoint(() =>
+      sse([
+        reasoning([{ type: 'reasoning.text', text: 'Count ', index: 0, format: 'anthropic-claude-v1' }]),
+        reasoning([{ type: 'reasoning.text', text: 'the orders.', index: 0 }]),
+        reasoning([{ type: 'reasoning.text', signature: 'sig', index: 0 }, { type: 'reasoning.encrypted', data: 'abc', index: 1 }]),
+        delta('42'),
+        '[DONE]',
+      ]),
+    )
+    const completion = await streamChatCompletion({ ...settings, fetch: endpoint.fetch }, messages, () => {}, { reasoning: 'low' })
+    expect((await endpoint.requests[0]?.json()).reasoning).toEqual({ effort: 'low' })
+    expect(completion.reasoningDetails).toEqual([
+      { type: 'reasoning.text', text: 'Count the orders.', signature: 'sig', index: 0, format: 'anthropic-claude-v1' },
+      { type: 'reasoning.encrypted', data: 'abc', index: 1 },
+    ])
   })
 
   it('turns a refused key into a readable message', async () => {
