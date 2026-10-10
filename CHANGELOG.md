@@ -2,6 +2,12 @@
 
 Every release of Protobase, cut by the release workflow from the commits since the last one (see the [versioning page](https://docs.protobase.net/reference/versioning/)).
 
+## [0.4.1](https://github.com/PrototeamHQ/protobase/compare/v0.4.0...v0.4.1) (2026-10-10)
+
+### Bug Fixes
+
+* **server:** depend on @simplewebauthn/server so the passkey types in the declarations resolve ([27e238e](https://github.com/PrototeamHQ/protobase/commit/27e238e6befd92497ab62c62d733ad78f4eda1af))
+
 ## [0.4.0](https://github.com/PrototeamHQ/protobase/compare/v0.3.5...v0.4.0) (2026-10-10)
 
 ### ⚠ BREAKING CHANGES
