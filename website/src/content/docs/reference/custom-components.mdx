@@ -49,11 +49,13 @@ When the handler resolves, everything shown of the resource reloads and a toast 
 
 ## Shell slots
 
-`shell` adds components to the shell around every page: `actions` at the end of the top bar, and `rightPanel` beside the page, such as `AssistantDock` from `@protobase/ui`. They take no props and use the same hooks as custom components:
+`shell` adds components to the shell around every page: `actions` at the end of the top bar, and `rightPanel` beside the page, such as a `SidePanel` from `@protobase/ui` (see [the primitives](/reference/assistant/#in-the-ui)). They take no props and use the same hooks as custom components:
 
 ```tsx
-export default defineUi({ shell: { actions: AssistantButton, rightPanel: Assistant } })
+export default defineUi({ shell: { actions: NotesButton, rightPanel: Notes } })
 ```
+
+When the app has an [assistant](/reference/assistant/), its button follows the project's actions and its dock the project's panel.
 
 ## Without protobase dev
 
