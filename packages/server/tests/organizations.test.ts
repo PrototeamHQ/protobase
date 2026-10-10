@@ -260,12 +260,12 @@ describe('managing members', () => {
     expect((await (await app.request('/api/auth/status')).json()).organizations).toEqual({
       create: 'everyone',
       roles: [
-        { name: 'admin', label: 'Superuser', membership: false },
-        { name: 'support', label: 'Support', membership: true },
-        { name: 'manager', label: 'Manager', membership: true },
-        { name: 'sales', label: 'Sales', membership: true },
-        { name: 'accountant', label: 'Accountant', membership: true },
-        { name: 'user', label: 'No global role', membership: false },
+        { name: 'admin', label: 'Superuser', membership: false, grants: [] },
+        { name: 'support', label: 'Support', membership: true, grants: [] },
+        { name: 'manager', label: 'Manager', membership: true, grants: ['accountant'] },
+        { name: 'sales', label: 'Sales', membership: true, grants: [] },
+        { name: 'accountant', label: 'Accountant', membership: true, grants: [] },
+        { name: 'user', label: 'No global role', membership: false, grants: [] },
       ],
     })
   })

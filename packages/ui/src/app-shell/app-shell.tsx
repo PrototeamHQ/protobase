@@ -4,7 +4,7 @@ import { useIsDesktop } from '../lib/use-media-query'
 import { Drawer } from './drawer'
 import type { NavGroup } from './nav'
 import { Sidebar } from './sidebar'
-import type { ProfileMenuItem, ShellUser } from './profile-menu'
+import type { ProfileMenuItem, ProfileOrganizations, ShellUser } from './profile-menu'
 import type { SidebarMode } from './sidebar-mode'
 import type { GlobalSearchModel } from './global-search'
 import type { Crumb } from './breadcrumb'
@@ -28,6 +28,8 @@ export type AppShellProps = {
   onNavigate?: (href: string) => void
   /** Adds "Sign out" to the profile menu. */
   onSignOut?: () => void
+  /** The organizations to switch between, in the profile menu. */
+  organizations?: ProfileOrganizations
   /** The top bar's search; without it there is no search box. */
   search?: GlobalSearchModel
   className?: string
@@ -36,14 +38,14 @@ export type AppShellProps = {
 
 const drawerId = 'app-drawer'
 
-export const AppShell = ({ sidebarMode, activeItem, breadcrumb, user, workspace, actions, rightPanel, forceExpanded, profileMenuOpen, navGroups, userMenu, onNavigate, onSignOut, search, className, children }: AppShellProps) => {
+export const AppShell = ({ sidebarMode, activeItem, breadcrumb, user, workspace, actions, rightPanel, forceExpanded, profileMenuOpen, navGroups, userMenu, onNavigate, onSignOut, organizations, search, className, children }: AppShellProps) => {
   const desktop = useIsDesktop()
   const [drawerOpen, setDrawerOpen] = useState(false)
   useEffect(() => {
     if (desktop) setDrawerOpen(false)
   }, [desktop])
   const sidebar = (mode: SidebarMode) => (
-    <Sidebar mode={mode} activeItem={activeItem} user={user} workspace={workspace} forceExpanded={forceExpanded} profileMenuOpen={profileMenuOpen} groups={navGroups} userMenu={userMenu} onNavigate={onNavigate} onSignOut={onSignOut} />
+    <Sidebar mode={mode} activeItem={activeItem} user={user} workspace={workspace} forceExpanded={forceExpanded} profileMenuOpen={profileMenuOpen} groups={navGroups} userMenu={userMenu} onNavigate={onNavigate} onSignOut={onSignOut} organizations={organizations} />
   )
   return (
     <div className={cn('flex h-full min-h-0 w-full overflow-hidden bg-background', className)}>

@@ -29,4 +29,5 @@ export type SetupStatus = {
   organizations?: { create: 'admins' | 'everyone'; roles: RoleLabel[] }
 }
 
-export type RoleLabel = { name: string; label: string; membership: boolean }
+/** A role with its label; `membership` when a member can hold it, `grants` the other roles its holders may give. */
+export type RoleLabel = { name: string; label: string; membership: boolean; grants: string[] }

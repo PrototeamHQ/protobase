@@ -12,7 +12,7 @@ import { hasUsers } from './users'
  * then; the ids of the `socialProviders` people can sign in with, so it offers "Continue with GitHub" when `github` is
  * one; `platformSignIn`, the id and name of the platform's provider when it is one of them; `staffSignIn`, the
  * operator provider's name, when staff can sign in as people; and with organizations, who may create them and the roles
- * with their labels, `membership` for those a member can hold.
+ * with their labels, `membership` for those a member can hold, and the roles each one's holders may also give.
  */
 export const statusRoute = (auth: AdminAuth) => {
   const app = new Hono()
@@ -35,7 +35,7 @@ export const statusRoute = (auth: AdminAuth) => {
       ...(auth.organizations && {
         organizations: {
           create: auth.organizations.create,
-          roles: auth.roleDefinitions.names.map((name) => ({ name, label: auth.roleDefinitions.labels[name] ?? name, membership: membershipRoles(auth.roleDefinitions).includes(name) })),
+          roles: auth.roleDefinitions.names.map((name) => ({ name, label: auth.roleDefinitions.labels[name] ?? name, membership: membershipRoles(auth.roleDefinitions).includes(name), grants: auth.roleDefinitions.grants[name] ?? [] })),
         },
       }),
     })

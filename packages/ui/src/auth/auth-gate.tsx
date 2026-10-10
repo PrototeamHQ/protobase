@@ -15,6 +15,8 @@ import { SignInPage } from './sign-in-page'
 import { readStaffLink, withoutStaffLink, type StaffLink } from './staff-link'
 import { StaffSignInPage } from './staff-sign-in-page'
 import { TwoFactorPage } from './two-factor-page'
+import { readInvitationLink, withoutInvitationLink } from '../organizations/invitation-link'
+import { InvitationPage } from '../organizations/invitation-page'
 
 type AuthPage =
   /** `error`: why the last sign-in did not go through; `providerError`: the code a provider came back with. */
@@ -24,6 +26,8 @@ type AuthPage =
   | { kind: 'forgot-password' }
   | { kind: 'reset-password'; token: string | undefined }
   | { kind: 'staff-sign-in'; link: StaffLink }
+  /** `signingIn`: the invited person has an account, and signs in before they accept. */
+  | { kind: 'invitation'; token: string; signingIn: boolean }
 
 // An emailed reset link opens the set-password page, and a staff link the staff sign-in page, whoever is signed in. A
 // sign-in link starts the provider's sign-in for someone signed out, and a provider's refusal shows on the sign-in page.
@@ -33,6 +37,8 @@ const firstPage = (): AuthPage => {
   if (link) return { kind: 'reset-password', token: link.token }
   const staff = readStaffLink(href)
   if (staff) return { kind: 'staff-sign-in', link: staff }
+  const invitation = readInvitationLink(href)
+  if (invitation) return { kind: 'invitation', token: invitation.token, signingIn: false }
   const provider = readSignInLink(href)
   if (provider) return { kind: 'provider-sign-in', provider }
   const providerError = readProviderError(href)
@@ -42,10 +48,12 @@ const firstPage = (): AuthPage => {
 const forgetResetLink = () => window.history.replaceState(window.history.state, '', withoutResetLink(window.location.href))
 const forgetStaffLink = () => window.history.replaceState(window.history.state, '', withoutStaffLink(window.location.href))
 const forgetSignInLink = () => window.history.replaceState(window.history.state, '', withoutSignInLink(window.location.href))
+const forgetInvitationLink = () => window.history.replaceState(window.history.state, '', withoutInvitationLink(window.location.href))
 
 /**
  * Shows the app when the user is signed in (or the server has no login), and the right page otherwise: the sign-in
- * steps, or the page an emailed reset link or a staff link opened.
+ * steps, or the page an emailed reset link, an invitation link or a staff link opened. An invited person with an
+ * account signs in first and comes back to the invitation.
  */
 export const AuthGate = ({ workspace, children }: { workspace?: string; children: ReactNode }) => {
   const { state, recheck, passwordReset, signOut, signInProviders } = useAuth()
@@ -119,14 +127,28 @@ export const AuthGate = ({ workspace, children }: { workspace?: string; children
       />
     )
   }
+  if (page.kind === 'invitation' && (state.kind === 'signed-in' || (state.kind === 'signed-out' && !page.signingIn))) {
+    return (
+      <InvitationPage
+        token={page.token}
+        onDone={() => {
+          forgetInvitationLink()
+          setPage({ kind: 'sign-in' })
+        }}
+        onSignIn={() => setPage({ ...page, signingIn: true })}
+      />
+    )
+  }
   if (state.kind === 'signed-in') return children
   if (state.kind === 'two-factor') return <TwoFactorPage methods={state.methods} onBack={backToSignIn} />
   if (state.kind === 'setup-required') return <SetupRequiredPage key={state.missing.join()} missing={state.missing} />
   if (page.kind === 'provider-sign-in') return <ProviderSignInPage provider={page.provider} workspace={workspace} onFailed={signInFailed} />
   if (page.kind === 'forgot-password') return <ForgotPasswordPage onBack={() => setPage({ kind: 'sign-in' })} />
   if (page.kind === 'email-code') return <EmailCodePage email={page.email} onBack={() => setPage({ kind: 'sign-in' })} />
+  // An invited person signing in sees the plain sign-in page, and the invitation once they are in.
+  const signIn = page.kind === 'sign-in' ? page : { kind: 'sign-in' as const }
   // The provider's callback does not say which provider it was; with one, it is that one.
-  const providerError = page.providerError && providerMessage(page.providerError, signInProviders.length === 1 ? signInProviders[0]!.name : 'the provider')
-  const error = page.error ?? providerError
-  return <SignInPage key={error} workspace={workspace} notice={page.notice} error={error} onForgotPassword={passwordReset ? () => setPage({ kind: 'forgot-password' }) : undefined} onCodeSent={(email) => setPage({ kind: 'email-code', email })} />
+  const providerError = signIn.providerError && providerMessage(signIn.providerError, signInProviders.length === 1 ? signInProviders[0]!.name : 'the provider')
+  const error = signIn.error ?? providerError
+  return <SignInPage key={error} workspace={workspace} notice={signIn.notice} error={error} onForgotPassword={passwordReset ? () => setPage({ kind: 'forgot-password' }) : undefined} onCodeSent={(email) => setPage({ kind: 'email-code', email })} />
 }

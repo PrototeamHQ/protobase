@@ -1,7 +1,7 @@
 export { AppShell, type AppShellProps } from './app-shell'
 export type { Crumb } from './breadcrumb'
 export { sidebarModes, type SidebarMode } from './sidebar-mode'
-export type { ProfileMenuItem, ShellUser } from './profile-menu'
+export type { ProfileMenuItem, ProfileOrganizations, ShellUser } from './profile-menu'
 export { LogoMark } from './logo'
 export { PageHeader } from './page-header'
 export { Sidebar } from './sidebar'

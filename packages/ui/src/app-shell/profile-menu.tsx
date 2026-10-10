@@ -1,4 +1,4 @@
-import { ChevronsUpDown, LogOut, type LucideIcon } from 'lucide-react'
+import { Check, ChevronsUpDown, LogOut, type LucideIcon } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { cn } from '../lib/cn'
 import { Avatar } from '../primitives/avatar'
@@ -8,6 +8,9 @@ export type ShellUser = { name: string; email: string; initials: string; hue: nu
 
 /** One of the app's own pages in the menu: inside the admin it navigates, `external` opens a new tab. */
 export type ProfileMenuItem = { id: string; label: string; icon: LucideIcon; href: string; external?: boolean; active?: boolean }
+
+/** The organizations to switch between: the one worked in, and the person's others. */
+export type ProfileOrganizations = { current?: { id: string; name: string }; others: { id: string; name: string }[]; onSwitch: (id: string) => void }
 
 export type ProfileMenuProps = {
   user: ShellUser
@@ -20,12 +23,14 @@ export type ProfileMenuProps = {
   onNavigate?: (href: string) => void
   /** Adds "Sign out" to the menu. */
   onSignOut?: () => void
+  /** Lists the organizations below the person, to switch between them. */
+  organizations?: ProfileOrganizations
 }
 
 const menuRow = 'flex min-h-11 w-full items-center gap-2.5 px-3 py-1.5 text-left text-[13px] text-muted-foreground hover:bg-muted md:min-h-0'
 
 /** The person at the bottom of the sidebar; the menu is fixed to the viewport so a narrow sidebar cannot clip it. */
-export const ProfileMenu = ({ user, compact, open: controlled, items = [], onNavigate, onSignOut }: ProfileMenuProps) => {
+export const ProfileMenu = ({ user, compact, open: controlled, items = [], onNavigate, onSignOut, organizations }: ProfileMenuProps) => {
   const [local, setLocal] = useState(false)
   const open = controlled ?? local
   const root = useRef<HTMLDivElement>(null)
@@ -72,6 +77,31 @@ export const ProfileMenu = ({ user, compact, open: controlled, items = [], onNav
             <div className="text-[13px] font-medium">{user.name}</div>
             <div className="truncate text-xs text-muted-foreground">{user.email}</div>
           </div>
+          {organizations && (organizations.current || organizations.others.length > 0) && (
+            <div className="border-b py-1" role="group" aria-label="Organizations">
+              {organizations.current && (
+                <div className={cn(menuRow, 'text-foreground hover:bg-transparent')} aria-current="true">
+                  <Check className="size-4" />
+                  <span className="truncate">{organizations.current.name}</span>
+                </div>
+              )}
+              {organizations.others.map((organization) => (
+                <button
+                  key={organization.id}
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    setLocal(false)
+                    organizations.onSwitch(organization.id)
+                  }}
+                  className={menuRow}
+                >
+                  <span className="size-4" />
+                  <span className="truncate">{organization.name}</span>
+                </button>
+              ))}
+            </div>
+          )}
           {items.length > 0 && (
             <div className={cn(onSignOut && 'border-b')}>
               {items.map((item) => {

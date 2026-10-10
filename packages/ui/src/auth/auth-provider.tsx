@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import { createAuthSession, type AuthSession, type AuthUser, type PlatformSignIn, type RequiredSetup, type SignInMethod, type SignInResult, type StaffSignIn, type TwoFactorMethod } from '@protobase/client'
+import { createAuthSession, type AuthSession, type AuthUser, type PlatformSignIn, type RequiredSetup, type SetupStatus, type SignInMethod, type SignInResult, type StaffSignIn, type TwoFactorMethod } from '@protobase/client'
 import { providerName, withoutSignInLink } from './provider-link'
 
 export type AuthState =
@@ -38,6 +38,8 @@ export type AuthApi = {
   linkProvider: (provider: string) => Promise<void>
   /** The operator provider's name when its staff can sign in as people here. */
   staffSignIn?: string
+  /** When the app has organizations: who may create them, and the roles with their labels. */
+  organizations?: NonNullable<SetupStatus['organizations']>
   /** Ends a staff session: the browser is signed out, and the log notes the end. */
   stopStaffSession: () => Promise<void>
   signOut: () => Promise<void>
@@ -66,6 +68,7 @@ export const AuthProvider = ({ session: given, children }: { session?: AuthSessi
   const [socialProviders, setSocialProviders] = useState<string[]>([])
   const [platformSignIn, setPlatformSignIn] = useState<PlatformSignIn>()
   const [staffSignIn, setStaffSignIn] = useState<string>()
+  const [organizations, setOrganizations] = useState<SetupStatus['organizations']>()
   const markSignedOut = useCallback(() => setState((current) => (current.kind === 'signed-in' ? { kind: 'signed-out' } : current)), [])
   const signedOut = useRef(markSignedOut)
   signedOut.current = markSignedOut
@@ -90,6 +93,7 @@ export const AuthProvider = ({ session: given, children }: { session?: AuthSessi
       setSocialProviders(status.socialProviders)
       setPlatformSignIn(status.platformSignIn)
       setStaffSignIn(status.staffSignIn)
+      setOrganizations(status.organizations)
       if (status.needsAdmin) return setState({ kind: 'needs-admin' })
       const user = await session.session()
       return user ? enter(user) : setState({ kind: 'signed-out' })
@@ -107,6 +111,7 @@ export const AuthProvider = ({ session: given, children }: { session?: AuthSessi
       socialProviders,
       signInProviders: socialProviders.map((id) => ({ id, name: providerName(id, platformSignIn) })),
       staffSignIn,
+      ...(organizations && { organizations }),
       markSignedOut,
       recheck,
       signIn: async (email, password) => finish(await session.signIn(email, password)),
@@ -130,7 +135,7 @@ export const AuthProvider = ({ session: given, children }: { session?: AuthSessi
         setState({ kind: 'signed-out' })
       },
     }),
-    [state, session, signInMethods, passwordReset, socialProviders, platformSignIn, staffSignIn, markSignedOut, recheck, finish, enter],
+    [state, session, signInMethods, passwordReset, socialProviders, platformSignIn, staffSignIn, organizations, markSignedOut, recheck, finish, enter],
   )
   return <AuthContext.Provider value={api}>{children}</AuthContext.Provider>
 }

@@ -21,7 +21,8 @@ export type CurrentOrganization = {
 
 export type OrganizationMember = { id: string; userId: string; name: string; email: string; role: OrganizationRole; appRoles: string[]; createdAt: string }
 
-export type OrganizationInvitation = { id: string; email: string; role: OrganizationRole; appRoles: string[]; status: string; expiresAt: string }
+/** `organizationName` comes with the person's own invitations, which span organizations. */
+export type OrganizationInvitation = { id: string; email: string; role: OrganizationRole; appRoles: string[]; status: string; expiresAt: string; organizationName?: string }
 
 /** An invitation as its link shows it, before it is accepted. */
 export type InvitationPreview = {
@@ -38,7 +39,7 @@ export type InvitationPreview = {
 export type InvitationSent = { invitation: OrganizationInvitation; link?: string }
 
 type RawMember = { id: string; userId: string; role: string; appRoles?: unknown; createdAt: string; user: { name?: string; email: string } }
-type RawInvitation = { id: string; email: string; role: string; appRoles?: unknown; status: string; expiresAt: string; link?: string }
+type RawInvitation = { id: string; email: string; role: string; appRoles?: unknown; status: string; expiresAt: string; link?: string; organizationName?: string }
 
 const rolesOf = (value: unknown) => (Array.isArray(value) ? value.filter((name): name is string => typeof name === 'string') : typeof value === 'string' ? (JSON.parse(value) as string[]) : [])
 
@@ -64,6 +65,7 @@ const invitation = (raw: RawInvitation): OrganizationInvitation => ({
   appRoles: rolesOf(raw.appRoles),
   status: raw.status,
   expiresAt: new Date(raw.expiresAt).toISOString(),
+  ...(raw.organizationName && { organizationName: raw.organizationName }),
 })
 
 /**

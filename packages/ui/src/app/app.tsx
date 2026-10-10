@@ -15,6 +15,12 @@ import { breadcrumbFor } from './breadcrumb-for'
 import { CreatePage } from './create/create-page'
 import { ListPage } from './list-page'
 import { MetaGate, Notice, useAdminMeta } from './meta-gate'
+import { InvitationsPage } from '../organizations/invitations-page'
+import { MembersPage } from '../organizations/members-page'
+import { OrganizationPage } from '../organizations/organization-page'
+import { invitationsPath, managesOrganization, membersPath, organizationMenuItems, organizationPageTitles, organizationPath, organizationsPath } from '../organizations/organization-paths'
+import { OrganizationsPage } from '../organizations/organizations-page'
+import { reopenIn, useOrganizations } from '../organizations/use-organizations'
 import { navFromMeta } from './nav-from-meta'
 import { ComposedPage } from './pages/composed-page'
 import { useProjectUi, type ProjectUi } from './pages/project-ui'
@@ -50,7 +56,7 @@ export type AppProps = {
 
 const Routes = ({ workspace, sidebarMode, assistant, runtime }: Pick<AppProps, 'workspace' | 'sidebarMode' | 'assistant' | 'runtime'>) => {
   const meta = useAdminMeta()
-  const { state, signOut, stopStaffSession } = useAuth()
+  const { state, session, signOut, stopStaffSession, organizations: organizationSettings } = useAuth()
   if (state.kind !== 'signed-in') throw new Error('The shell is only rendered for a signed-in user')
   const { user, staff } = state
   const { path, params, basePath, navigate } = useRouter()
@@ -85,14 +91,25 @@ const Routes = ({ workspace, sidebarMode, assistant, runtime }: Pick<AppProps, '
   const runtimeUrl = meta.runtime?.url
   const runtimeButton = runtimeUrl && <RuntimeUpdateButton url={runtimeUrl} client={runtime} />
   const admin = isAdmin(user)
+  // With organizations, the app works in one at a time; someone in none chooses or makes one first.
+  const organizations = useOrganizations(Boolean(organizationSettings))
+  const current = organizations.current
+  const outsideOrganizations = Boolean(organizationSettings) && current !== undefined && !current.organization
+  const organizationPage = organizationSettings ? organizationPageTitles[path] : undefined
   // The account pages are the app's own, under `/-/`; everything else is a page or a resource.
-  const accountPage = path === accountSecurityPath ? 'Sign-in & security' : path === signInPolicyPath ? 'Sign-in policy' : undefined
+  const accountPage = path === accountSecurityPath ? 'Sign-in & security' : path === signInPolicyPath ? 'Sign-in policy' : organizationPage
   const breadcrumb = accountPage ? [accountPage] : breadcrumbFor({ basePath, route, group: group?.label, page, resourceLabel: view?.names?.plural ?? (route.resource && humanize(route.resource)), recordTitle: title })
   const content =
     path === accountSecurityPath ? (
       <AccountSecurityPage email={user.email} />
     ) : path === signInPolicyPath ? (
       admin ? <SignInPolicyPage /> : <Notice title="Admins only">Only an admin can change how people sign in.</Notice>
+    ) : organizationPage && path === organizationPath ? (
+      <OrganizationPage current={current} basePath={basePath} onChanged={organizations.reload} />
+    ) : organizationPage && (path === membersPath || path === invitationsPath) ? (
+      !managesOrganization(current) ? <Notice title="Owners and admins only">Only the organization's owners and admins manage its members.</Notice> : path === membersPath ? <MembersPage current={current} /> : <InvitationsPage current={current} />
+    ) : (organizationPage && path === organizationsPath) || outsideOrganizations ? (
+      <OrganizationsPage state={organizations} basePath={basePath} />
     ) : !route.resource ? (
       <Notice title="Choose a resource">Pick one from the sidebar.</Notice>
     ) : page ? (
@@ -112,9 +129,16 @@ const Routes = ({ workspace, sidebarMode, assistant, runtime }: Pick<AppProps, '
       breadcrumb={breadcrumb}
       user={userToShell(user)}
       onSignOut={() => void signOut()}
-      workspace={workspace}
+      workspace={current?.organization?.name ?? workspace}
       navGroups={groups}
-      userMenu={[...userMenuFromMeta(meta, basePath, route.resource), ...accountMenuItems(basePath, path, admin)]}
+      userMenu={[...userMenuFromMeta(meta, basePath, route.resource), ...(organizationSettings ? organizationMenuItems(basePath, path, current) : []), ...accountMenuItems(basePath, path, admin)]}
+      organizations={
+        organizationSettings && {
+          ...(current?.organization && { current: { id: current.organization.id, name: current.organization.name } }),
+          others: organizations.organizations.filter((organization) => organization.id !== current?.organization?.id),
+          onSwitch: (id) => void session.organizations.switchTo(id).then(() => reopenIn(basePath)),
+        }
+      }
       onNavigate={open}
       search={search.available ? { placeholder: search.placeholder, text: search.text, onTextChange: search.setText, query: search.query, loading: search.loading, groups: search.groups, onSelect: open } : undefined}
       actions={(Actions || runtimeButton || assistantButton) && <>{Actions && <Actions />}{runtimeButton}{assistantButton}</>}
