@@ -7,7 +7,7 @@ import { protobaseVersion } from '../version/version'
 import { copyPackages } from './packages/copy-packages'
 import { buildUiBundle } from './ui-bundle'
 
-export type DeployBundleInput = { projectDir: string; outDir: string }
+export type DeployBundleInput = { projectDir: string; outDir: string; bun?: boolean }
 
 // node_modules in the output folder is replaced only when the previous build's manifest names it as its own, so a
 // build into the project folder itself never deletes the project's packages.
@@ -22,9 +22,9 @@ const removeOwnNodeModules = async (outDir: string) => {
 
 // The folder a host deploys: the config module for the serve runtime with the packages it loads from disk, the admin
 // UI under public/ and the manifest saying which paths go to the server and which Protobase version built it. Nothing of the project runs at build time.
-export const buildDeployBundle = async ({ projectDir, outDir }: DeployBundleInput): Promise<BundleManifest> => {
+export const buildDeployBundle = async ({ projectDir, outDir, bun }: DeployBundleInput): Promise<BundleManifest> => {
   await removeOwnNodeModules(outDir)
-  const native = await buildConfigBundle({ projectDir, outFile: path.join(outDir, bundleLayout.server) })
+  const native = await buildConfigBundle({ projectDir, outFile: path.join(outDir, bundleLayout.server), bun })
   const packages = native.length > 0 ? await copyPackages(native, path.join(outDir, bundleNodeModules)) : []
   await buildUiBundle({ outDir: path.join(outDir, bundleLayout.public), projectDir })
   const manifest: BundleManifest = { version: 2, protobase: protobaseVersion, ...bundleLayout, api: [...bundleLayout.api], ...(packages.length > 0 ? { nodeModules: bundleNodeModules } : {}) }

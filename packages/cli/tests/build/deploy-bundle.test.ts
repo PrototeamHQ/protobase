@@ -39,7 +39,7 @@ describe('buildDeployBundle', () => {
     const expected = { version: 2, protobase: protobaseVersion, server: 'protobase.config.js', public: 'public', spa: 'index.html', api: ['/api'] }
     expect(manifest).toEqual(expected)
     expect(JSON.parse(await readFile(path.join(outDir, 'protobase.bundle.json'), 'utf8'))).toEqual(expected)
-    expect((await readFile(path.join(outDir, 'protobase.config.js'), 'utf8')).startsWith('// @bun\n')).toBe(true)
+    expect(await readFile(path.join(outDir, 'protobase.config.js'), 'utf8')).not.toContain('// @bun')
 
     const index = await readFile(path.join(outDir, 'public/index.html'), 'utf8')
     const assets = await readdir(path.join(outDir, 'public/assets'))
@@ -82,6 +82,13 @@ describe('buildDeployBundle', () => {
     )
     expect(existsSync(path.join(projectDir, 'node_modules/own-dependency/package.json'))).toBe(true)
   })
+
+  it("with bun, has Bun's bundler write the config module", async () => {
+    projectDir = await createProject({ 'config/index.ts': things })
+    const outDir = path.join(projectDir, 'dist')
+    await buildDeployBundle({ projectDir, outDir, bun: true })
+    expect((await readFile(path.join(outDir, 'protobase.config.js'), 'utf8')).startsWith('// @bun\n')).toBe(true)
+  }, buildTimeout)
 
   it('never runs the project: a config that throws on import still builds', async () => {
     projectDir = await createProject({

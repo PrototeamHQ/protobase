@@ -15,6 +15,6 @@ describe('bunBuild', () => {
   it('fails naming Bun as a requirement when there is no bun on PATH', async () => {
     dir = await mkdtemp(path.join(tmpdir(), 'protobase-no-bun-'))
     process.env.PATH = dir
-    await expect(bunBuild(path.join(dir, 'in.js'), path.join(dir, 'out.js'))).rejects.toThrow('protobase build needs Bun to write the bundle')
+    await expect(bunBuild(path.join(dir, 'in.js'), path.join(dir, 'out.js'))).rejects.toThrow('--bun needs Bun to write the bundle')
   })
 })

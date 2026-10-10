@@ -35,7 +35,7 @@ describe.skipIf(!reachable || !hasBun)('the ERP bundle served by protobase-serve
     dir = await mkdtemp(path.join(tmpdir(), 'protobase-serve-'))
     const built = await run([bin, 'build', '--out', path.join(dir, 'app')], erpDir, store.env)
     if (built.status !== 0) throw new Error(`protobase build failed:\n${built.stderr}`)
-    await buildServeRuntime({ outFile: path.join(dir, 'opt/protobase-serve.js') })
+    await buildServeRuntime({ outFile: path.join(dir, 'opt/protobase-serve.js'), bun: true })
 
     child = spawn('bun', ['--no-install', 'opt/protobase-serve.js', 'app/protobase.config.js'], {
       cwd: dir,
@@ -78,7 +78,7 @@ describe.skipIf(!reachable || !hasBun)('the ERP bundle served by protobase-serve
     expect(refused.stderr).toContain(`rebuild the bundle with Protobase ${major}.${minor}.x or serve it with a runtime of`)
   })
 
-  it("is written by Bun's bundler: its `// @bun` pragma, and non-ASCII text escaped", async () => {
+  it("with --bun, is written by Bun's bundler: its `// @bun` pragma, and non-ASCII text escaped", async () => {
     const bytes = await readFile(path.join(dir, 'opt/protobase-serve.js'))
     expect(bytes.toString('latin1').startsWith('// @bun\n')).toBe(true)
     expect(bytes.every((byte) => byte < 0x80)).toBe(true)

@@ -11,9 +11,11 @@ export type BundleInput = {
   entry: string
   outFile: string
   plugins: Plugin[]
+  // Bun's bundler writes the final file, for a bundle only Bun runs (see bunBuild).
+  bun?: boolean
 }
 
-const viteBuild = async ({ root, entry, outFile, plugins }: BundleInput) => {
+const viteBuild = async ({ root, entry, outFile, plugins }: Omit<BundleInput, 'bun'>) => {
   await build({
     configFile: false,
     root,
@@ -40,13 +42,15 @@ const viteBuild = async ({ root, entry, outFile, plugins }: BundleInput) => {
   })
 }
 
-// One ESM file for Bun, everything inlined except what the plugins mark external and Node's builtins. Vite writes it to a
-// scratch folder and Bun's bundler writes the final file (see bunBuild).
-export const viteBundle = async ({ root, entry, outFile, plugins }: BundleInput) => {
+// One ESM file, everything inlined except what the plugins mark external and Node's builtins. Vite's output is plain
+// ESM in UTF-8, which Node and Bun both load as it is. With `bun`, Vite writes it to a scratch folder and Bun's
+// bundler writes the final file.
+export const viteBundle = async ({ bun, ...input }: BundleInput) => {
+  if (!bun) return viteBuild(input)
   const scratch = await mkdtemp(path.join(tmpdir(), 'protobase-bundle-'))
   try {
-    await viteBuild({ root, entry, outFile: path.join(scratch, 'bundle.js'), plugins })
-    await bunBuild(path.join(scratch, 'bundle.js'), outFile)
+    await viteBuild({ ...input, outFile: path.join(scratch, 'bundle.js') })
+    await bunBuild(path.join(scratch, 'bundle.js'), input.outFile)
   } finally {
     await rm(scratch, { recursive: true, force: true })
   }

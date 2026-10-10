@@ -98,8 +98,9 @@ program
   .command('build')
   .description('Build the deploy bundle of the project in the current directory: its config module, admin UI and manifest')
   .option('--out <dir>', 'output folder', 'dist')
+  .option('--bun', "have Bun's bundler write the config module, for a bundle only Bun serves (needs bun on PATH)", false)
   .action(async (opts) => {
-    const manifest = await buildDeployBundle({ projectDir: process.cwd(), outDir: path.resolve(opts.out) })
+    const manifest = await buildDeployBundle({ projectDir: process.cwd(), outDir: path.resolve(opts.out), bun: opts.bun })
     const packages = manifest.nodeModules ? `, ${manifest.nodeModules}/` : ''
     out(`built ${opts.out}: ${manifest.server}${packages}, ${manifest.public}/ and ${manifestFile} (api ${manifest.api.join(', ')})\n`)
   })
@@ -108,8 +109,9 @@ program
   .command('build-serve')
   .description('Bundle the serve runtime into one file for Bun: bun --no-install protobase-serve.js <bundle.js>')
   .option('--out <file>', 'output file', 'dist/protobase-serve.js')
+  .option('--bun', "have Bun's bundler write the file (needs bun on PATH)", false)
   .action(async (opts) => {
-    await buildServeRuntime({ outFile: path.resolve(opts.out) })
+    await buildServeRuntime({ outFile: path.resolve(opts.out), bun: opts.bun })
     out(`built ${opts.out}\n`)
   })
 

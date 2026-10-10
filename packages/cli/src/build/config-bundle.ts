@@ -53,13 +53,13 @@ const servedImports = (native: Map<string, NativeImport>): Plugin => {
   }
 }
 
-export type ConfigBundleInput = { projectDir: string; outFile: string }
+export type ConfigBundleInput = { projectDir: string; outFile: string; bun?: boolean }
 
 // The project's config as one module whose default export is a ProjectConfig with `config` always set. Returns the
 // packages with native add-ons it imports, which the bundle has to carry (see copyPackages).
-export const buildConfigBundle = async ({ projectDir, outFile }: ConfigBundleInput): Promise<NativeImport[]> => {
+export const buildConfigBundle = async ({ projectDir, outFile, bun }: ConfigBundleInput): Promise<NativeImport[]> => {
   const file = path.join(projectDir, 'protobase-bundle-entry.js')
   const native = new Map<string, NativeImport>()
-  await viteBundle({ root: projectDir, entry: file, outFile, plugins: [layoutCheck(), servedImports(native), entry(file, bundleEntryCode(projectDir))] })
+  await viteBundle({ root: projectDir, entry: file, outFile, bun, plugins: [layoutCheck(), servedImports(native), entry(file, bundleEntryCode(projectDir))] })
   return [...native.values()]
 }

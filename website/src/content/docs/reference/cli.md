@@ -112,7 +112,7 @@ One process, one port: Vite serves the admin app from `@protobase/ui`'s `src/app
 ## `build`
 
 ```sh
-protobase build [--out dist]   # run inside a project, e.g. pnpm --filter erp protobase build
+protobase build [--out dist] [--bun]   # run inside a project, e.g. pnpm --filter erp protobase build
 ```
 
 Writes the project's deploy bundle, the folder a deployment ships:
@@ -126,6 +126,8 @@ dist/
 ```
 
 The output folder is not emptied; `public/` and `node_modules/` are replaced on every build. `node_modules/` is deleted only when the previous build's manifest names it, so a build into a folder with a project's own `node_modules` fails instead. Nothing of the project runs at build time, so the build needs no secrets and no database.
+
+By default the bundle runs on Node and on Bun. `--bun` makes it a bundle for Bun only, as the Protobase images and the cloud serve it: Bun's bundler writes the config module (see [the config module](#the-config-module)), so the build needs `bun` on `PATH` and fails without it.
 
 ### The manifest
 
@@ -159,7 +161,8 @@ The output folder is not emptied; `public/` and `node_modules/` are replaced on 
 
 `protobase.config.js` is one ES module. The entry is found as `protobase dev` finds it: the default export of `protobase.config.ts`, with `config` taken from the convention (`config/index.ts` plus `config/*/ui.ts`) when it exports none.
 
-- Bun writes the file: Vite bundles the config, then `bun build --target bun` writes the final module, so `protobase build` needs `bun` on `PATH` and fails without it. Bun's output starts with `// @bun`, which tells Bun the file is already plain JavaScript: Bun neither transpiles it nor writes its transpiler cache. Bun reads such a file as Latin-1, so only Bun's own output can carry that line: its bundler writes non-ASCII text as escapes (`€` as `\u20AC`). Raw UTF-8 would load as `â¬`.
+- Vite bundles the config into plain ES modules in UTF-8, which Node and Bun both load as they are.
+- With `--bun`, Vite writes to a scratch folder and `bun build --target bun` writes the final module. Bun's output starts with `// @bun`, which tells Bun the file is already plain JavaScript: Bun neither transpiles it nor writes its transpiler cache. Bun reads such a file as Latin-1, so only Bun's own output can carry that line: its bundler writes non-ASCII text as escapes (`€` as `\u20AC`). Raw UTF-8 with that line would load as `â¬`.
 - The `@protobase` packages and every package in their `dependencies` belong to the serve runtime: their imports stay `import` statements and the runtime supplies them, so the bundle carries no copy and shares the runtime's. It supplies these modules:
 
   | Modules | |
@@ -222,10 +225,10 @@ docker run --rm -p 8787:8787 -e DATABASE_URL -e BETTER_AUTH_SECRET \
 ## `build-serve`
 
 ```sh
-protobase build-serve [--out dist/protobase-serve.js]   # or, in this repository: pnpm build:serve
+protobase build-serve [--out dist/protobase-serve.js] [--bun]   # or, in this repository: pnpm build:serve
 ```
 
-Bundles the serve runtime (`@protobase/cli`'s `src/serve/main.ts`) and all its dependencies into one file, about 3 MB, also written by Bun's bundler, so it needs `bun` on `PATH` too. A host needs Bun and this file, nothing else. The file carries the Protobase version it was built from, which decides [the bundles it serves](/reference/versioning/#bundles-and-runtimes).
+Bundles the serve runtime (`@protobase/cli`'s `src/serve/main.ts`) and all its dependencies into one file, about 3 MB. A host needs Bun and this file, nothing else. `--bun` has Bun's bundler write the file, as for [`build`](#build), and needs `bun` on `PATH`; the `protobase` image is built from such a file. The file carries the Protobase version it was built from, which decides [the bundles it serves](/reference/versioning/#bundles-and-runtimes).
 
 ## `serve`
 
@@ -253,7 +256,7 @@ Better Auth and other settings are the project's own variables (`BETTER_AUTH_SEC
 - **Startup:** a bundle without a default export, `config` or `authenticate`, or with an `options.basePath` other than `/api/v1`, stops startup with a one-line error and exit code 1, as does a missing `DATABASE_URL` or a taken port. `protobase serve listening on port <port>` means it is ready.
 - **Shutdown:** the first SIGTERM or SIGINT stops accepting connections, waits for open requests, drains the pool `serve` created (a `db` the config exports is the project's to close) and exits with 0.
 - **Host modules:** under Bun, the runtime registers [the modules it supplies](#the-config-module) as virtual modules, so the bundle needs no `node_modules` for them. Under Node, `protobase serve` resolves them from the `node_modules` next to the bundle, so keep the bundle inside the project. Native packages load from the bundle's own `node_modules/` under both.
-- **Read-only hosts:** nothing is written: no install (`--no-install`), no transpiling and so no transpiler cache. A bundle with `node_modules/` needs its folder mounted without `noexec`, since its add-ons are mapped as executable code.
+- **Read-only hosts:** nothing is written: no install (`--no-install`), and for a bundle built with `--bun` no transpiling and so no transpiler cache. A bundle with `node_modules/` needs its folder mounted without `noexec`, since its add-ons are mapped as executable code.
 
 ## `users`
 

@@ -7,7 +7,7 @@ Protobase is a config-driven admin panel framework for existing Postgres databas
 
 ## Setup
 
-Requires Node >= 22.12 (`.nvmrc`) and pnpm 10.12.1, plus Bun 1.4.2 to build a bundle (`protobase build`, `pnpm build:serve`) and for the tests that do.
+Requires Node >= 22.12 (`.nvmrc`) and pnpm 10.12.1, plus Bun 1.4.2 for the tests that run it and for builds with `--bun`.
 
 ```sh
 pnpm install
