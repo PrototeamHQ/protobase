@@ -10,6 +10,8 @@ export type JwtOptions = {
   audience?: string
   /** Claim holding the roles, an array, or a string separated by spaces or commas. Default `roles`. */
   rolesClaim?: string
+  /** A second claim whose roles are added to those of `rolesClaim`, such as an organization membership's. */
+  extraRolesClaim?: string
   /** Claim holding the tenant. Default `tenant`. */
   tenantClaim?: string
   /** Accepted signature algorithms. Default: asymmetric ones only, so a token can never be "verified" with a public key used as an HMAC secret. */
@@ -38,9 +40,10 @@ export const jwtAuthenticator = (options: JwtOptions): Authenticator => {
       throw error
     })
     const { sub, [tenantClaim]: tenant, [rolesClaim]: roles } = verified.payload
+    const extraRoles = options.extraRolesClaim === undefined ? [] : rolesOf(verified.payload[options.extraRolesClaim])
     if (!sub) throw unauthorized('The bearer token has no subject')
     const claimed = typeof tenant === 'string' || typeof tenant === 'number' ? tenant : undefined
     const tenantValue = options.tenant === undefined ? claimed : typeof options.tenant === 'function' ? await options.tenant() : options.tenant
-    return { user: { id: sub, roles: rolesOf(roles) }, ...(tenantValue !== undefined && { tenant: tenantValue }) }
+    return { user: { id: sub, roles: [...new Set([...rolesOf(roles), ...extraRoles])] }, ...(tenantValue !== undefined && { tenant: tenantValue }) }
   }
 }

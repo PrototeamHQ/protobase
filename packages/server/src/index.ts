@@ -8,6 +8,7 @@ export { consoleAuditQueue } from './audit/console-queue'
 export { jwtAuthenticator, type JwtOptions } from './auth/jwt'
 export { HttpProblem, unauthorized, forbidden, notFound, badRequest } from './problem'
 export type {
+  SessionOrganization,
   Admin,
   Authenticator,
   PipelineHook,
@@ -27,6 +28,10 @@ export { defaultSignInPolicy, signInPolicyMethods, type SignInPolicy, type SignI
 export { readOperatorSettings, type OperatorProvider } from './better-auth/operator-provider'
 export { readPlatformSignIn, type PlatformSignIn } from './better-auth/platform-sign-in'
 export { authSchemaMigration, checkAuthSchema } from './better-auth/auth-schema'
+export type { OrganizationsOptions } from './better-auth/organizations/options'
+export type { RoleDefinition, RolesInput } from './better-auth/organizations/role-definitions'
+export type { OrganizationRole, StoredMember, StoredOrganization } from './better-auth/organizations/store'
+export { addAppRoleToOwners, addMember, createOrganization, listOrganizations, removeMember, setMemberRoles, type MemberInput, type NewOrganization } from './better-auth/organizations/host'
 export type { StaffSignIn } from './better-auth/staff-log'
 export type { AssistantOptions } from './assistant/assistant-settings'
 export { assistantSettings, assistantRoles, assistantVariables, seesAssistant, type AssistantSettings } from './assistant/assistant-settings'

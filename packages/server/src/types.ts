@@ -7,7 +7,10 @@ export type TenantValue = string | number
 
 export type User = { id: string | number; roles: string[] }
 
-export type Session = { user: User; tenant?: TenantValue }
+/** The organization a request works in, with organizations on: the same value as `tenant`. */
+export type SessionOrganization = { id: TenantValue }
+
+export type Session = { user: User; tenant?: TenantValue; organization?: SessionOrganization }
 
 /** Resolves the caller of a request, or throws a 401 problem (see `unauthorized`). */
 export type Authenticator = (request: Request) => Promise<Session> | Session

@@ -10,6 +10,8 @@ export type AccessContext = {
   user?: AccessUser
   operation?: AccessAction
   record?: unknown
+  /** With organizations, the one the request works in; `.tenant` resources are scoped to it already. */
+  organization?: { id: string | number }
   /** Set by the resolver; scoped capabilities (`.own`) need `model.owner`. */
   model?: ResourceModel
   [key: string]: unknown

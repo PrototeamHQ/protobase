@@ -24,13 +24,16 @@ export type RequestAccess = {
   deps: Deps
 }
 
+// Access rules see the organization a request works in, with organizations on.
+const organizationOf = (session: Session) => (session.organization ? { organization: session.organization } : {})
+
 const withoutSensitive = (model: ResourceModel): ResourceModel => ({
   ...model,
   fields: Object.fromEntries(Object.entries(model.fields).filter(([, field]) => !field.sensitive)),
 })
 
 export const requestAccess = async (deps: Deps, entry: Entry, session: Session): Promise<RequestAccess> => {
-  const resolved = await resolveAccess(entry.source, { user: { id: session.user.id, roles: session.user.roles } }, deps.accessOptions)
+  const resolved = await resolveAccess(entry.source, { user: { id: session.user.id, roles: session.user.roles }, ...organizationOf(session) }, deps.accessOptions)
   const readable = restrictModel(entry.model, resolved)
   return { entry, session, resolved, full: entry.model, readable, model: withoutSensitive(readable), deps }
 }
@@ -96,7 +99,7 @@ export const recordDecision = async (access: RequestAccess, operation: AccessAct
       ? deps.accessOptions.roles.can(`${entry.name}.${operation === 'list' ? 'read' : operation}`)
       : () => true
   const rule = explicit ?? fallback
-  const result = await rule({ user: { id: session.user.id, roles: session.user.roles }, model: full, operation, record }, record, input)
+  const result = await rule({ user: { id: session.user.id, roles: session.user.roles }, ...organizationOf(session), model: full, operation, record }, record, input)
   if (typeof result === 'boolean') return result
   return asFilter(access, result, operation)
 }
