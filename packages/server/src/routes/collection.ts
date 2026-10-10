@@ -4,6 +4,7 @@ import type { Deps } from '../deps'
 import { listRecords } from '../list-service'
 import { encodeKey } from '@protobase/schema'
 import type { AdminEnv } from '../types'
+import { uploadFile } from '../files/upload'
 import { runWrite } from '../write-pipeline'
 import { returnPreference } from './preferences'
 import { resolveTarget, unknownAction } from './target'
@@ -37,6 +38,8 @@ export const collectionRoutes = (deps: Deps) => {
   app.post('/:target', async (c) => {
     const { entry, action } = resolveTarget(deps, c.req.param('target'))
     const session = c.get('session')
+    // POST /{resource}:upload streams a file; every other method takes JSON
+    if (action === 'upload') return c.json(await uploadFile(deps, entry, session, c.req.raw), 201)
     const body = await c.req.json()
     if (action === 'search') {
       const { body: page, warning } = await listRecords(deps, entry, session, body, searchFilterLength)

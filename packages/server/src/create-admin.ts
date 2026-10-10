@@ -12,6 +12,9 @@ import { statusRoute } from './better-auth/status-route'
 import { checkShell } from './check-shell'
 import { checkViews } from './check-views'
 import { createErrorHandler } from './error-handler'
+import type { FilesOptions } from './files/options'
+import { fileRoutes } from './files/routes'
+import { createFilesRuntime } from './files/runtime'
 import { toApiFunction, type FunctionSource } from './functions/define-function'
 import { callerRecords } from './functions/records'
 import { functionRoutes } from './functions/routes'
@@ -41,11 +44,13 @@ export type CreateAdminInput = {
   auth?: AdminAuth
   /** API functions of the app's own, each served at `<systemPath>/functions/<name>` (see `defineFunction`). */
   functions?: Record<string, FunctionSource>
+  /** Where file fields keep their bytes (see `FilesOptions`). */
+  files?: FilesOptions
   options?: AdminOptions
 }
 
 /** The admin REST API as a Hono app. It uses only Web APIs, so it runs on Node, Workers and anywhere else Hono does. */
-export const createAdmin = ({ resources, views = [], pages = [], userMenu, db, authenticate, auth, functions = {}, options = {} }: CreateAdminInput) => {
+export const createAdmin = ({ resources, views = [], pages = [], userMenu, db, authenticate, auth, functions = {}, files: filesOptions, options = {} }: CreateAdminInput) => {
   const basePath = options.basePath ?? '/api/v1'
   const registry = buildRegistry(resources)
   const apiFunctions = Object.fromEntries(Object.entries(functions).map(([name, source]) => [name, toApiFunction(name, source)]))
@@ -61,6 +66,7 @@ export const createAdmin = ({ resources, views = [], pages = [], userMenu, db, a
   const systemPath = basePath.slice(0, basePath.lastIndexOf('/'))
   const assistant = assistantSettings(options.assistant, globalThis.process?.env ?? {})
   const runtime = runtimeUrl(options.runtime, globalThis.process?.env ?? {})
+  const files = createFilesRuntime({ ...(filesOptions && { options: filesOptions }), env: globalThis.process?.env ?? {}, models: registry.entries.map((entry) => entry.model), systemPath })
   const deps = {
     db,
     registry,
@@ -77,6 +83,7 @@ export const createAdmin = ({ resources, views = [], pages = [], userMenu, db, a
     rowPermissions: (resource: string) => (typeof options.rowPermissions === 'object' ? !options.rowPermissions.except.includes(resource) : options.rowPermissions !== false),
     ...(assistant && { assistant: assistant.kind === 'external' ? assistant.url : `${systemPath}/assistant` }),
     ...(runtime && { runtime }),
+    ...(files && { files }),
   }
 
   const meta = createMeta(deps)
@@ -120,6 +127,7 @@ export const createAdmin = ({ resources, views = [], pages = [], userMenu, db, a
   }
   app.route('/', functionRoutes({ basePath: `${systemPath}/functions`, functions: apiFunctions, authenticate, db, records: (session) => callerRecords(deps, session), onError }))
   app.route('/', batchRoute(deps, authenticate, meta))
+  app.route('/', fileRoutes(deps, authenticate))
   app.route(basePath, api)
   app.route(deps.systemPath || '/', system)
   return app

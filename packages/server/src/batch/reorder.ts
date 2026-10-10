@@ -79,7 +79,7 @@ export const reorderIn = async (trx: Db, deps: Deps, access: RequestAccess, inpu
   const results: WriteResult[] = []
   for (const [i, key] of input.keys.entries()) {
     const plan = plans.get(i)
-    results.push(shown(access, plan ? await applyUpdate(trx, deps, access, key, plan) : current[i]!))
+    results.push(await shown(access, plan ? await applyUpdate(trx, deps, access, key, plan) : current[i]!))
   }
   return results
 }

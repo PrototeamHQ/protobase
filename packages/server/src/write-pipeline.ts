@@ -1,5 +1,6 @@
 import type { Db } from '@protobase/query'
 import type { Deps } from './deps'
+import { attachFiles } from './files/attach'
 import { badRequest, HttpProblem } from './problem'
 import { deleteRecord, fetchRecord, insertRecord, restoreRecord } from './records'
 import { requestAccess, requireOperation, targetFilter, writableFields, type RequestAccess } from './request-access'
@@ -34,7 +35,7 @@ const create = async (trx: Db, deps: Deps, access: RequestAccess, body: unknown)
   const preset = typeof body === 'object' && body !== null && !Array.isArray(body) && writableFields(access, 'create').includes(full.owner ?? '')
     ? withOwner(access, body as Row)
     : body
-  const values = withOwner(access, validateBody(access, 'create', preset, tenantValues))
+  const values = await attachFiles(access, withOwner(access, validateBody(access, 'create', preset, tenantValues)))
   const row = { ...values, ...tenantValues }
   const filter = await decide(access, 'create', undefined, row)
   const created = await insertRecord(trx, entry, row, { etagFields: Object.keys(access.model.fields) })

@@ -6,6 +6,8 @@ import { forbidden, notFound, preconditionFailed, preconditionRequired } from '.
 import type { Entry } from './registry'
 import { fetchRecord, type StoredRecord } from './records'
 import { andFilters, recordDecision, type RequestAccess } from './request-access'
+import { scheduleRemovedFiles } from './files/attach'
+import { presentFiles } from './files/present'
 import { pickFields } from './rows'
 import { tenantScope } from './tenant'
 import type { Row, WriteEvent } from './types'
@@ -45,9 +47,9 @@ export const assertWritten = async (trx: Db, access: RequestAccess, written: Sto
   if (!visible) throw denied(access.entry, `leave in that state (${operation})`)
 }
 
-/** The caller sees the readable fields only; hooks get the whole record. */
-export const shown = (access: RequestAccess, written: StoredRecord): WriteResult => ({
-  record: pickFields(written.record, Object.keys(access.model.fields)),
+/** The caller sees the readable fields only, files as objects with their URL; hooks get the whole record. */
+export const shown = async (access: RequestAccess, written: StoredRecord): Promise<WriteResult> => ({
+  record: (await presentFiles(access, [pickFields(written.record, Object.keys(access.model.fields))]))[0]!,
   etag: written.etag,
 })
 
@@ -63,4 +65,5 @@ export const notifier = (deps: Deps, access: RequestAccess) => async (trx: Db, k
     ...(after && { after }),
   }
   for (const hook of deps.hooks) await hook(event, trx)
+  await scheduleRemovedFiles(access, kind, before, after)
 }

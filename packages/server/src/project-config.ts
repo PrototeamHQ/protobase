@@ -3,6 +3,7 @@ import type { Db } from '@protobase/query'
 import type { AdminOptions } from './admin-options'
 import type { AssistantOptions } from './assistant/assistant-settings'
 import type { AdminAuth } from './better-auth/create-auth'
+import type { FilesOptions } from './files/options'
 import type { FunctionSource } from './functions/define-function'
 import type { Authenticator } from './types'
 
@@ -20,6 +21,8 @@ export type ProjectConfig = {
   auth?: AdminAuth
   /** The API functions, each served at `/api/functions/<name>`; default: one per file in ./functions. */
   functions?: Record<string, FunctionSource>
+  /** Where file fields keep their bytes: providers by name, retention and the signing secret (see `FilesOptions`). */
+  files?: FilesOptions
   options?: AdminOptions
 }
 
@@ -91,6 +94,20 @@ const mergedFunctions = (named: Named[]) => {
   return Object.fromEntries(all.map(({ name, value }) => [name, value]))
 }
 
+// Providers are named things: each name once. Retention and secret are the last config's that sets them.
+const mergedFiles = (named: Named[]): FilesOptions | undefined => {
+  const all = named.flatMap(({ config, label }) => (config.files ? [{ files: config.files, label }] : []))
+  if (all.length === 0) return undefined
+  const providers = all.flatMap(({ files, label }) => Object.entries(files.providers ?? {}).map(([name, value]) => ({ name, value, label })))
+  checkUnique('The file provider', providers)
+  const { retention, secret } = lastSet(all.map(({ files }) => ({ retention: files.retention, secret: files.secret })))
+  return {
+    ...(providers.length > 0 && { providers: Object.fromEntries(providers.map(({ name, value }) => [name, value])) }),
+    ...(retention !== undefined && { retention }),
+    ...(secret !== undefined && { secret }),
+  }
+}
+
 const mergedOptions = (named: Named[]): AdminOptions | undefined => {
   const all = named.flatMap(({ config }) => (config.options ? [config.options] : []))
   if (all.length === 0) return undefined
@@ -105,7 +122,7 @@ const mergedOptions = (named: Named[]): AdminOptions | undefined => {
 
 /**
  * One config from several, each after the ones it `extends`, the last being the app's own. Named things are all kept:
- * resources, views and pages of the config modules, functions, assistant tools; one name defined by two configs is an error naming
+ * resources, views and pages of the config modules, functions, assistant tools, file providers; one name defined by two configs is an error naming
  * both. Write hooks run in the same order. Every other value is the last config's that sets it, so the app's own wins.
  */
 export const mergeConfig = (...configs: ProjectConfig[]): ProjectConfig => {
@@ -113,6 +130,7 @@ export const mergeConfig = (...configs: ProjectConfig[]): ProjectConfig => {
   const { db, authenticate, auth } = lastSet(named.map(({ config }) => ({ db: config.db, authenticate: config.authenticate, auth: config.auth })))
   const module = mergedModule(named)
   const functions = mergedFunctions(named)
+  const files = mergedFiles(named)
   const options = mergedOptions(named)
   const name = configs.at(-1)?.name
   return {
@@ -122,6 +140,7 @@ export const mergeConfig = (...configs: ProjectConfig[]): ProjectConfig => {
     ...(authenticate && { authenticate }),
     ...(auth && { auth }),
     ...(functions && { functions }),
+    ...(files && { files }),
     ...(options && { options }),
   }
 }

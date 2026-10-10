@@ -1,6 +1,7 @@
 import type { PageModel } from '@protobase/layout'
 import type { Db } from '@protobase/query'
 import type { ResolveOptions, UserMenuModel, ViewModel } from '@protobase/schema'
+import type { FilesRuntime } from './files/runtime'
 import type { Registry } from './registry'
 import type { ScanGuard } from './scan-guard'
 import type { AuditQueue, PipelineHook } from './types'
@@ -27,4 +28,6 @@ export type Deps = {
   assistant?: string
   /** The URL of the runtime updates endpoint that `/meta` names to admins. */
   runtime?: string
+  /** Providers, signing and scheduled deletes, when a resource has a file field. */
+  files?: FilesRuntime
 }

@@ -1,8 +1,8 @@
 import type { z } from 'zod'
 import { isPageDefinition, type PageDefinition } from '@protobase/layout'
-import type { AccessSource, UserMenuSource, ViewModel } from '@protobase/schema'
+import type { AccessSource, FileProcessor, UserMenuSource, ViewModel } from '@protobase/schema'
 
-type FieldSource = { schema: z.ZodType; meta: { readOnly: boolean; nullable: boolean } }
+type FieldSource = { schema: z.ZodType; meta: { readOnly: boolean; nullable: boolean; file?: { derive?: Record<string, FileProcessor> } } }
 
 /** What the server needs from a resource builder; every `resource(...)` chain satisfies it. */
 export type ResourceSource = AccessSource & {

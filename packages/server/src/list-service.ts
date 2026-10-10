@@ -5,6 +5,7 @@ import { deletedRows, listParams, pageSizeOf, parseParams, seekParams, selectedF
 import { requestAccess, requireOperation, readScope } from './request-access'
 import type { Entry } from './registry'
 import { etagOf } from './etag'
+import { presentFiles } from './files/present'
 import { rowPermissions } from './row-permissions'
 import { etagAlias } from './sql-parts'
 import { exposeRow, pickFields } from './rows'
@@ -32,8 +33,10 @@ export const listRecords = async (deps: Deps, entry: Entry, session: Session, in
   // A version ETag reads a column the caller may not see; the model handed to the query gets it, the column list does not.
   const etagField = entry.etag && !model.fields[entry.etag.field.name] ? full.fields[entry.etag.field.name] : undefined
   const queryModel = etagField ? { ...model, fields: { ...model.fields, [etagField.name]: etagField } } : model
-  // Without a version column the ETag is a hash of the readable fields, so every readable field is read
-  const read = entry.etag && columns ? columns : Object.keys(model.fields)
+  // Without a version column the ETag is a hash of the readable fields, so every readable field is read; a file's
+  // download URL names its row, so a selection with a file field reads the key too
+  const withKey = columns?.some((name) => model.fields[name]!.type === 'file') ? [...new Set([...columns, ...entry.model.primaryKey.filter((name) => model.fields[name])])] : columns
+  const read = entry.etag && withKey ? withKey : Object.keys(model.fields)
 
   const shape = { ...(filter && { filter }), ...(sort && { sort }), limit }
   const warning = await deps.guard(entry, shape, { model: queryModel, scope })
@@ -55,10 +58,11 @@ export const listRecords = async (deps: Deps, entry: Entry, session: Session, in
     }
   })
 
+  const shown = await presentFiles(access, result.rows)
   return {
     warning,
     body: {
-      items: result.rows.map((row, i) => ({
+      items: shown.map((row, i) => ({
         ...pickFields(row, columns),
         etag: result.etags[i],
         ...(result.permissions && { permissions: result.permissions[i] }),

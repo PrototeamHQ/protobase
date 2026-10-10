@@ -1,5 +1,5 @@
 import type { Entry } from '../registry'
-import type { RequestAccess } from '../request-access'
+import { writableFields, type RequestAccess } from '../request-access'
 import { pascal } from './naming'
 
 const param = (name: string) => ({ $ref: `#/components/parameters/${name}` })
@@ -203,5 +203,44 @@ export const resourcePaths = (access: RequestAccess) => {
       },
     },
   }
-  return withoutDenied(paths, access)
+  return { ...withoutDenied(paths, access), ...uploadPath(access) }
+}
+
+// For callers who may write a file field, on create or update.
+const uploadPath = (access: RequestAccess) => {
+  const { entry } = access
+  const writable = new Set([...writableFields(access, 'create'), ...writableFields(access, 'update')])
+  const fields = Object.values(access.readable.fields).filter((model) => model.file && writable.has(model.name)).map((model) => model.name)
+  if (fields.length === 0) return {}
+  const binary = { type: 'string', format: 'binary' }
+  return {
+    [`/${entry.name}:upload`]: {
+      post: {
+        operationId: `upload_${entry.name}`,
+        tags: [entry.name],
+        summary: `Upload a file for a ${entry.name} field`,
+        description: 'Streams one file: the raw body with `name`, or `multipart/form-data` with one file part. Its type is detected from the content, corrected when the name or header says otherwise, and checked against the field\'s allowed types. The answer\'s `value` is a ticket: send it as the field\'s value in a create, update or batch write within 24 hours.',
+        parameters: [{ ...field('The file field'), schema: { type: 'string', enum: fields } }, query('name', 'The file name, for a raw body')],
+        requestBody: { required: true, content: { 'application/octet-stream': { schema: binary }, 'multipart/form-data': { schema: { type: 'object', properties: { file: binary } } } } },
+        responses: {
+          201: {
+            description: 'Stored; use `value` in a write',
+            content: json({
+              type: 'object',
+              required: ['value', 'file', 'derived'],
+              properties: {
+                value: { type: 'string' },
+                file: { type: 'object', properties: { name: { type: 'string' }, type: { type: 'string' }, size: { type: 'integer' } } },
+                derived: { type: 'object', description: 'Values the field\'s processors computed for its derived fields' },
+                corrected: { type: 'object', properties: { from: { type: 'string' }, to: { type: 'string' } } },
+              },
+            }),
+          },
+          400: error('BadRequest'), ...auth, 403: error('Forbidden'),
+          413: { description: 'Larger than the field allows' },
+          415: { description: 'A type the field does not allow' },
+        },
+      },
+    },
+  }
 }

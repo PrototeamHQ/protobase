@@ -28,6 +28,21 @@ const hoist = (entry: Entry, schema: JsonSchema) => {
   return { schema: JSON.parse(text) as JsonSchema, hoisted }
 }
 
+/** How responses carry a file field. */
+export const fileSchema: JsonSchema = {
+  type: 'object',
+  required: ['uri'],
+  description: 'A stored file. `url` downloads it: a signed link valid one to two hours for private files, a permanent one for public files. A value that names no configured provider comes as `{ uri, missing: true }`.',
+  properties: {
+    uri: { type: 'string', description: 'The stored value, `{provider}:{path}?name=…&size=…`; send it back unchanged to keep the file' },
+    name: { type: 'string' },
+    type: { type: 'string', description: 'Detected from the content at upload' },
+    size: { type: 'integer' },
+    url: { type: 'string' },
+    missing: { type: 'boolean' },
+  },
+}
+
 const only = (schema: JsonSchema, names: string[]): JsonSchema => ({
   ...schema,
   properties: Object.fromEntries(names.filter((name) => schema.properties?.[name]).map((name) => [name, schema.properties[name]])),
@@ -46,6 +61,7 @@ export const resourceSchemas = (access: RequestAccess) => {
   const input = hoist(entry, convert(entry, 'input'))
   const record = only(output.schema, readable)
   for (const field of Object.values(model.fields)) {
+    if (field.file && record.properties?.[field.name]) record.properties[field.name] = field.nullable ? { anyOf: [{ $ref: '#/components/schemas/File' }, { type: 'null' }] } : { $ref: '#/components/schemas/File' }
     if (field.readOnly && record.properties?.[field.name]) record.properties[field.name].readOnly = true
   }
   record.properties.etag = { type: 'string', readOnly: true, description: 'The record version, as in the ETag header; send it in If-Match when updating or deleting' }
@@ -65,6 +81,7 @@ export const resourceSchemas = (access: RequestAccess) => {
     for (const field of names) {
       const fieldModel = writable.fields[field]
       if (fieldModel?.default && 'db' in fieldModel.default && properties[field]) properties[field].description = 'Defaults to a value the database generates'
+      if (fieldModel?.file && properties[field]) properties[field].description = `The \`value\` of \`POST /${entry.name}:upload?field=${field}\`, or the stored \`uri\` to keep the file`
     }
     const required = (input.schema.required as string[] | undefined)?.filter((field) => names.includes(field) && !optional.has(field)) ?? []
     return { type: 'object', properties, ...(required.length > 0 && { required }), additionalProperties: false } as JsonSchema
@@ -77,5 +94,6 @@ export const resourceSchemas = (access: RequestAccess) => {
     ...(resolved.operations.create && { [`${name}Create`]: create }),
     ...(resolved.operations.update && { [`${name}Update`]: update }),
     ...output.hoisted,
+    ...(Object.values(model.fields).some((field) => field.file) && { File: fileSchema }),
   } as Record<string, JsonSchema>
 }

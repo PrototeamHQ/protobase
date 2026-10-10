@@ -1,5 +1,6 @@
 import type { Db } from '@protobase/query'
 import type { Deps } from './deps'
+import { presentFiles } from './files/present'
 import { notFound } from './problem'
 import type { Entry } from './registry'
 import { fetchRecord, type Shape } from './records'
@@ -51,5 +52,5 @@ export const readRecord = async (deps: Deps, entry: Entry, session: Session, key
     return { record, etag: current.etag, permissions: { ...row!, fields: fieldModes(access, row!.update) } }
   })
   if (!found) throw notFound(`No ${entry.name} with this key`)
-  return found
+  return { ...found, record: (await presentFiles(access, [found.record]))[0]! }
 }
