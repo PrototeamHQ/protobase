@@ -2,6 +2,12 @@
 
 Every release of Protobase, cut by the release workflow from the commits since the last one (see the [versioning page](https://docs.protobase.net/reference/versioning/)).
 
+## [0.3.3](https://github.com/PrototeamHQ/protobase/compare/v0.3.2...v0.3.3) (2026-10-10)
+
+### Bug Fixes
+
+* **server:** greet the SMTP server with the sender's domain instead of [127.0.0.1] ([51e7437](https://github.com/PrototeamHQ/protobase/commit/51e74376b11f0374138fcdadb517f9a2efb504c0))
+
 ## [0.3.2](https://github.com/PrototeamHQ/protobase/compare/v0.3.1...v0.3.2) (2026-10-10)
 
 ### Bug Fixes
