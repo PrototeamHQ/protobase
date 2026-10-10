@@ -1,10 +1,13 @@
-import { useEffect, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import { Button } from '../primitives/button'
 import { Spinner } from '../primitives/spinner'
 import { useAuth } from './auth-provider'
 import { EmailCodePage } from './email-code-page'
+import { providerMessage } from './auth-messages'
 import { FirstRunPage } from './first-run-page'
 import { ForgotPasswordPage } from './forgot-password-page'
+import { readProviderError, readSignInLink, withoutSignInLink } from './provider-link'
+import { ProviderSignInPage } from './provider-sign-in-page'
 import { readResetLink, withoutResetLink } from './reset-link'
 import { ResetPasswordPage } from './reset-password-page'
 import { SetupRequiredPage } from './setup-required-page'
@@ -14,36 +17,55 @@ import { StaffSignInPage } from './staff-sign-in-page'
 import { TwoFactorPage } from './two-factor-page'
 
 type AuthPage =
-  | { kind: 'sign-in'; notice?: string }
+  /** `error`: why the last sign-in did not go through; `providerError`: the code a provider came back with. */
+  | { kind: 'sign-in'; notice?: string; error?: string; providerError?: string }
+  | { kind: 'provider-sign-in'; provider: string }
   | { kind: 'email-code'; email: string }
   | { kind: 'forgot-password' }
   | { kind: 'reset-password'; token: string | undefined }
   | { kind: 'staff-sign-in'; link: StaffLink }
 
-// An emailed reset link opens the set-password page, and a staff link the staff sign-in page, whoever is signed in.
+// An emailed reset link opens the set-password page, and a staff link the staff sign-in page, whoever is signed in. A
+// sign-in link starts the provider's sign-in for someone signed out, and a provider's refusal shows on the sign-in page.
 const firstPage = (): AuthPage => {
-  const link = readResetLink(window.location.href)
+  const href = window.location.href
+  const link = readResetLink(href)
   if (link) return { kind: 'reset-password', token: link.token }
-  const staff = readStaffLink(window.location.href)
-  return staff ? { kind: 'staff-sign-in', link: staff } : { kind: 'sign-in' }
+  const staff = readStaffLink(href)
+  if (staff) return { kind: 'staff-sign-in', link: staff }
+  const provider = readSignInLink(href)
+  if (provider) return { kind: 'provider-sign-in', provider }
+  const providerError = readProviderError(href)
+  return providerError ? { kind: 'sign-in', providerError } : { kind: 'sign-in' }
 }
 
 const forgetResetLink = () => window.history.replaceState(window.history.state, '', withoutResetLink(window.location.href))
 const forgetStaffLink = () => window.history.replaceState(window.history.state, '', withoutStaffLink(window.location.href))
+const forgetSignInLink = () => window.history.replaceState(window.history.state, '', withoutSignInLink(window.location.href))
 
 /**
  * Shows the app when the user is signed in (or the server has no login), and the right page otherwise: the sign-in
  * steps, or the page an emailed reset link or a staff link opened.
  */
 export const AuthGate = ({ workspace, children }: { workspace?: string; children: ReactNode }) => {
-  const { state, recheck, passwordReset, signOut } = useAuth()
+  const { state, recheck, passwordReset, signOut, signInProviders } = useAuth()
   const [page, setPage] = useState(firstPage)
-  // A notice and a sent code are for the next sign-in only: once its first step went through, signing out starts over.
+  // A notice, an error and a sent code are for the next sign-in only: once its first step went through, signing out
+  // starts over. A sign-in link opened by someone signed in already has nothing left to do.
   useEffect(() => {
     if (state.kind === 'signed-in' || state.kind === 'two-factor' || state.kind === 'setup-required') {
-      setPage((current) => (current.kind === 'email-code' || (current.kind === 'sign-in' && current.notice) ? { kind: 'sign-in' } : current))
+      setPage((current) => {
+        if (current.kind === 'provider-sign-in') forgetSignInLink()
+        const stale = current.kind === 'email-code' || current.kind === 'provider-sign-in' || (current.kind === 'sign-in' && (current.notice || current.error || current.providerError))
+        return stale ? { kind: 'sign-in' } : current
+      })
     }
   }, [state.kind])
+  // The provider's refusal shows once; the address keeps no trace of it.
+  useEffect(() => {
+    if (state.kind === 'signed-out' && page.kind === 'sign-in' && page.providerError) forgetSignInLink()
+  }, [state.kind, page])
+  const signInFailed = useCallback((error: string) => setPage({ kind: 'sign-in', error }), [])
 
   const leaveResetPage = (next: AuthPage) => {
     forgetResetLink()
@@ -100,7 +122,11 @@ export const AuthGate = ({ workspace, children }: { workspace?: string; children
   if (state.kind === 'signed-in') return children
   if (state.kind === 'two-factor') return <TwoFactorPage methods={state.methods} onBack={backToSignIn} />
   if (state.kind === 'setup-required') return <SetupRequiredPage key={state.missing.join()} missing={state.missing} />
+  if (page.kind === 'provider-sign-in') return <ProviderSignInPage provider={page.provider} workspace={workspace} onFailed={signInFailed} />
   if (page.kind === 'forgot-password') return <ForgotPasswordPage onBack={() => setPage({ kind: 'sign-in' })} />
   if (page.kind === 'email-code') return <EmailCodePage email={page.email} onBack={() => setPage({ kind: 'sign-in' })} />
-  return <SignInPage workspace={workspace} notice={page.notice} onForgotPassword={passwordReset ? () => setPage({ kind: 'forgot-password' }) : undefined} onCodeSent={(email) => setPage({ kind: 'email-code', email })} />
+  // The provider's callback does not say which provider it was; with one, it is that one.
+  const providerError = page.providerError && providerMessage(page.providerError, signInProviders.length === 1 ? signInProviders[0]!.name : 'the provider')
+  const error = page.error ?? providerError
+  return <SignInPage key={error} workspace={workspace} notice={page.notice} error={error} onForgotPassword={passwordReset ? () => setPage({ kind: 'forgot-password' }) : undefined} onCodeSent={(email) => setPage({ kind: 'email-code', email })} />
 }

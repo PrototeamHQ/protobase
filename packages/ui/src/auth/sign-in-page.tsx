@@ -9,12 +9,14 @@ export { signInMessage }
 export type SignInPageProps = Pick<SignInFormProps, 'workspace' | 'notice' | 'onForgotPassword'> & {
   /** A sign-in code was emailed to `email`: the page for entering it is next. */
   onCodeSent: (email: string) => void
+  /** Why the last sign-in did not go through, for example the provider's refusal. */
+  error?: string
 }
 
-export const SignInPage = ({ workspace, notice, onForgotPassword, onCodeSent }: SignInPageProps) => {
-  const { signIn, signInSocial, socialProviders, signInMethods, sendSignInCode, signInWithPasskey } = useAuth()
+export const SignInPage = ({ workspace, notice, onForgotPassword, onCodeSent, error: initialError }: SignInPageProps) => {
+  const { signIn, signInSocial, signInProviders, signInMethods, sendSignInCode, signInWithPasskey } = useAuth()
   const [busy, setBusy] = useState(false)
-  const [error, setError] = useState<string>()
+  const [error, setError] = useState(initialError)
 
   const attempt = async (start: () => Promise<void>, message: (error: AuthError) => string) => {
     setBusy(true)
@@ -36,7 +38,8 @@ export const SignInPage = ({ workspace, notice, onForgotPassword, onCodeSent }: 
       notice={notice}
       methods={signInMethods}
       onForgotPassword={onForgotPassword}
-      onContinueWithGitHub={socialProviders.includes('github') ? () => void attempt(() => signInSocial('github'), signInMessage) : undefined}
+      providers={signInProviders}
+      onContinueWith={(provider) => void attempt(() => signInSocial(provider), signInMessage)}
       onPasskey={() => void attempt(signInWithPasskey, authMessage)}
       onSendCode={(email) => void attempt(async () => {
         await sendSignInCode(email)

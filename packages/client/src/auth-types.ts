@@ -9,9 +9,20 @@ export type TwoFactorMethod = 'totp' | 'otp'
 /** A sign-in either finished, or waits for the second step with one of `methods`. */
 export type SignInResult = { kind: 'signed-in'; user: AuthUser } | { kind: 'two-factor'; methods: TwoFactorMethod[] }
 
+/** The sign-in provider the platform adds to the app: its id, as in `socialProviders`, and the name to show. */
+export type PlatformSignIn = { provider: string; name: string }
+
 /**
  * `needsAdmin` while no user exists yet; `signInMethods` the ways to sign in the server's policy leaves on;
  * `passwordReset` when the server can email reset links; `socialProviders` the ids of the sign-in providers, for example
- * `github`; `staffSignIn` the operator provider's name when its staff can sign in as people.
+ * `github`; `platformSignIn` the one of them the platform adds; `staffSignIn` the operator provider's name when its staff
+ * can sign in as people.
  */
-export type SetupStatus = { needsAdmin: boolean; signInMethods: SignInMethod[]; passwordReset: boolean; socialProviders: string[]; staffSignIn?: string }
+export type SetupStatus = {
+  needsAdmin: boolean
+  signInMethods: SignInMethod[]
+  passwordReset: boolean
+  socialProviders: string[]
+  platformSignIn?: PlatformSignIn
+  staffSignIn?: string
+}

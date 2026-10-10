@@ -1,24 +1,34 @@
 import { useCallback, useEffect, useState } from 'react'
 import { AuthError, type AccountSignIn, type Passkey } from '@protobase/client'
 import { PageHeader } from '../app-shell'
-import { authMessage } from '../auth/auth-messages'
+import { authMessage, providerMessage } from '../auth/auth-messages'
 import { useAuth } from '../auth/auth-provider'
+import { readProviderError, withoutSignInLink } from '../auth/provider-link'
 import { Spinner } from '../primitives/spinner'
 import { PasskeysSection } from './passkeys-section'
+import { SignInProvidersSection } from './sign-in-providers-section'
 import { TwoFactorSection } from './two-factor-section'
 
-type Loaded = { methods: AccountSignIn; passkeys: Passkey[] }
+type Loaded = { methods: AccountSignIn; passkeys: Passkey[]; linked: string[] }
 
-/** The signed-in person's passkeys and two-factor authentication, within what the sign-in policy allows. */
+// A link to a provider that did not go through comes back here with the provider's code, shown once.
+const takeLinkError = () => {
+  const code = readProviderError(window.location.href)
+  if (code) window.history.replaceState(window.history.state, '', withoutSignInLink(window.location.href))
+  return code
+}
+
+/** The signed-in person's passkeys, two-factor authentication and connected accounts, within what the sign-in policy allows. */
 export const AccountSecurityPage = ({ email }: { email: string }) => {
-  const { session } = useAuth()
+  const { session, signInProviders, linkProvider } = useAuth()
   const { account } = session
   const [loaded, setLoaded] = useState<Loaded>()
   const [error, setError] = useState<string>()
+  const [linkError] = useState(takeLinkError)
 
   const reload = useCallback(() => {
-    void Promise.all([account.signInMethods(), account.passkeys()]).then(
-      ([methods, passkeys]) => setLoaded({ methods, passkeys }),
+    void Promise.all([account.signInMethods(), account.passkeys(), account.linkedProviders()]).then(
+      ([methods, passkeys, linked]) => setLoaded({ methods, passkeys, linked }),
       (failure: unknown) => setError(failure instanceof AuthError ? authMessage(failure) : 'Could not read your sign-in methods'),
     )
   }, [account])
@@ -52,6 +62,14 @@ export const AccountSecurityPage = ({ email }: { email: string }) => {
             onNewBackupCodes={(password) => account.newBackupCodes(password)}
             onChanged={reload}
           />
+          {signInProviders.length > 0 && (
+            <SignInProvidersSection
+              providers={signInProviders}
+              linked={loaded.linked}
+              onConnect={linkProvider}
+              error={linkError && providerMessage(linkError, signInProviders.length === 1 ? signInProviders[0]!.name : 'the provider')}
+            />
+          )}
         </>
       ) : error ? (
         <p role="alert" className="text-[13px] text-danger-text">

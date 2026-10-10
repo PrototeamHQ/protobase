@@ -78,6 +78,24 @@ export const accountSecurity = (client: BetterAuthClient) => ({
     if (error) throw authError(error, 'Could not turn off two-factor authentication')
   },
 
+  /** The ids of the sign-in providers the account is linked to, for example `github`. */
+  linkedProviders: async (): Promise<string[]> => {
+    const { data, error } = await client.listAccounts()
+    if (error || !data) throw authError(error, 'Could not read your linked accounts')
+    return [...new Set(data.map((account) => account.providerId).filter((provider) => provider !== 'credential'))]
+  },
+
+  /**
+   * Starts linking the account to a provider such as `github`, whatever address the provider has: resolves with the
+   * provider's authorization URL, for the page to go to. The provider sends the browser back to `callbackURL`, with
+   * `?error=<code>` when the link did not go through, for example `account_already_linked_to_different_user`.
+   */
+  linkProvider: async (provider: string, callbackURL: string) => {
+    const { data, error } = await client.linkSocial({ provider, callbackURL, errorCallbackURL: callbackURL, disableRedirect: true })
+    if (error || !data?.url) throw authError(error, 'Could not start linking the account')
+    return data.url
+  },
+
   /** New backup codes for the authenticator app; the old ones stop working. */
   newBackupCodes: async (password?: string) => {
     const { data, error } = await client.twoFactor.generateBackupCodes(password ? { password } : {})

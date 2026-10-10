@@ -38,17 +38,29 @@ const rowNote = ({ method }: PolicyRow, draft: SignInPolicy, { mail, effective, 
   if (method === 'emailCode' && !mail) return 'Needs mail settings (PROTOBASE_SMTP_URL and PROTOBASE_MAIL_FROM): off until they are set.'
   if (method === 'password' && !mail && draft.password === 'forbidden') return 'Without mail settings, password sign-in stays on so nobody is locked out.'
   if (method === 'staffAccess' && !mail && draft.staffAccess === 'notify') return 'Needs mail settings (PROTOBASE_SMTP_URL and PROTOBASE_MAIL_FROM): staff cannot sign in until they are set.'
+  if (method === 'platformSignIn' && draft.platformSignIn === 'allowed' && (draft.passkey === 'required' || draft.twoFactor === 'required')) {
+    return 'Off while passkeys or two-factor authentication are required: it skips the second step.'
+  }
   if (draft[method] === policy[method] && effective[method] !== policy[method]) return `Applies as ${ruleLabel(method, effective[method])} for now.`
   return undefined
 }
 
+// The rows that apply to this app: staff access with an operator provider, sign-in through the platform with its provider.
+const rowsFor = ({ operator, platformSignIn }: SignInPolicyState) =>
+  policyRows.flatMap((row) => {
+    if (row.method === 'staffAccess' && !operator) return []
+    if (row.method === 'platformSignIn') return platformSignIn ? [{ ...row, label: `Sign in with ${platformSignIn} through the platform` }] : []
+    return [row]
+  })
+
 /**
  * The admin's sign-in policy: for each way to sign in, whether people may use it, must set it up, or cannot use it;
- * and, when the app has an operator provider, whether its staff may sign in as people.
+ * when the app has an operator provider, whether its staff may sign in as people; and when the platform adds a sign-in
+ * provider, whether people may use it.
  */
 export const SignInPolicyForm = ({ state, onSave, busy, error, notice }: SignInPolicyFormProps) => {
   const [draft, setDraft] = useState(state.policy)
-  const rows = policyRows.filter(({ method }) => method !== 'staffAccess' || state.operator)
+  const rows = rowsFor(state)
   const changed = rows.some(({ method }) => draft[method] !== state.policy[method])
 
   return (

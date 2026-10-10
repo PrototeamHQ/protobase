@@ -75,6 +75,8 @@ describe('auth session sign-in', () => {
     expect(await open.status()).toEqual({ needsAdmin: true, signInMethods: ['password'], passwordReset: false, socialProviders: [] })
     const resettable = createAuthSession({ origin: 'http://localhost', fetch: (async () => json({ needsAdmin: false, signInMethods: ['emailCode', 'passkey'], passwordReset: true, socialProviders: ['github'] })) as typeof fetch })
     expect(await resettable.status()).toEqual({ needsAdmin: false, signInMethods: ['emailCode', 'passkey'], passwordReset: true, socialProviders: ['github'] })
+    const platform = createAuthSession({ origin: 'http://localhost', fetch: (async () => json({ needsAdmin: false, signInMethods: ['password'], socialProviders: ['github'], platformSignIn: { provider: 'github', name: 'GitHub' } })) as typeof fetch })
+    expect(await platform.status()).toMatchObject({ socialProviders: ['github'], platformSignIn: { provider: 'github', name: 'GitHub' } })
   })
 
   it('says so when the URL is not a Protobase server', async () => {

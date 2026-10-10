@@ -21,8 +21,10 @@ export type SignInFormProps = {
   onPasskey?: () => void
   /** Opens the page that emails a reset link; without it there is no "Forgot password?" link. */
   onForgotPassword?: () => void
-  /** Starts sign-in with GitHub; without it there is no "Continue with GitHub" button. */
-  onContinueWithGitHub?: () => void
+  /** The sign-in providers, each offered as "Continue with {name}". */
+  providers?: Array<{ id: string; name: string }>
+  /** Starts sign-in with one of `providers`. */
+  onContinueWith?: (provider: string) => void
 }
 
 const Divider = () => (
@@ -33,13 +35,14 @@ const Divider = () => (
   </div>
 )
 
-export const SignInForm = ({ onSubmit, busy, error, workspace, notice, methods = ['password'], onSendCode, onPasskey, onForgotPassword, onContinueWithGitHub }: SignInFormProps) => {
+export const SignInForm = ({ onSubmit, busy, error, workspace, notice, methods = ['password'], onSendCode, onPasskey, onForgotPassword, providers = [], onContinueWith }: SignInFormProps) => {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const emailInput = useRef<HTMLInputElement>(null)
   const withPassword = methods.includes('password')
   const withCode = methods.includes('emailCode') && onSendCode !== undefined
   const withPasskey = methods.includes('passkey') && onPasskey !== undefined
+  const offered = onContinueWith ? providers : []
 
   // The code button sits in the password form, which also wants a password; it asks only for the address.
   const sendCode = () => {
@@ -54,14 +57,14 @@ export const SignInForm = ({ onSubmit, busy, error, workspace, notice, methods =
           {notice}
         </p>
       )}
-      {(onContinueWithGitHub || withPasskey) && (
+      {(offered.length > 0 || withPasskey) && (
         <>
           <div className="flex flex-col gap-2">
-            {onContinueWithGitHub && (
-              <Button onClick={onContinueWithGitHub} disabled={busy} className="min-h-10 w-full">
-                Continue with GitHub
+            {offered.map((provider) => (
+              <Button key={provider.id} onClick={() => onContinueWith?.(provider.id)} disabled={busy} className="min-h-10 w-full">
+                Continue with {provider.name}
               </Button>
-            )}
+            ))}
             {withPasskey && (
               <Button onClick={onPasskey} disabled={busy} className="min-h-10 w-full">
                 <KeyRound className="size-4" />

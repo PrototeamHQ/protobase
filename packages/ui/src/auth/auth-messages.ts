@@ -53,3 +53,15 @@ export const staffSignInMessage = (failure: string | AuthError) => {
   if (typeof failure === 'string') return 'The staff sign-in did not go through. Try again.'
   return failure.status === 429 ? tooManyRequests : failure.message
 }
+
+// Why a provider sent the browser back without signing in or linking, by the code Better Auth puts in `?error=`.
+const providerMessages: Record<string, (name: string) => string> = {
+  signup_disabled: (name) => `No account here belongs to this ${name} account. Ask an admin to add you, or sign in another way.`,
+  account_not_linked: (name) => `Your ${name} account is not linked to your account here. Sign in another way, then connect ${name} on the Sign-in & security page.`,
+  account_already_linked_to_different_user: (name) => `This ${name} account is linked to someone else here already.`,
+  unable_to_link_account: (name) => `Your ${name} account could not be linked. Try again.`,
+  access_denied: (name) => `${name} did not let you in, or you cancelled.`,
+}
+
+/** Why signing in or linking with the provider `name` did not go through, from the code it came back with. */
+export const providerMessage = (code: string, name: string) => providerMessages[code]?.(name) ?? `Signing in with ${name} did not go through. Try again.`

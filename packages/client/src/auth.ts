@@ -1,6 +1,6 @@
 import { accountSecurity } from './account-security'
 import { AuthError, authError } from './auth-error'
-import type { AuthUser, SetupStatus, SignInMethod } from './auth-types'
+import type { AuthUser, PlatformSignIn, SetupStatus, SignInMethod } from './auth-types'
 import { betterAuthClient } from './better-auth-client'
 import { signInFlows } from './sign-in-flows'
 import { signInPolicyClient } from './sign-in-policy'
@@ -84,12 +84,13 @@ export const createAuthSession = (options: AuthSessionOptions = {}) => {
       const response = await doFetch(`${origin}${basePath}/status`)
       if (response.status === 404) throw new AuthError('This server has no sign-in. Is the API URL right?', 404)
       if (!response.ok) throw new AuthError('Could not read the sign-in status', response.status)
-      const body = (await response.json()) as { needsAdmin?: boolean; signInMethods?: SignInMethod[]; passwordReset?: boolean; socialProviders?: string[]; staffSignIn?: string }
+      const body = (await response.json()) as Partial<SetupStatus> & { platformSignIn?: PlatformSignIn }
       return {
         needsAdmin: Boolean(body.needsAdmin),
         signInMethods: body.signInMethods ?? ['password'],
         passwordReset: Boolean(body.passwordReset),
         socialProviders: body.socialProviders ?? [],
+        ...(body.platformSignIn && { platformSignIn: body.platformSignIn }),
         ...(body.staffSignIn && { staffSignIn: body.staffSignIn }),
       }
     },
@@ -104,7 +105,8 @@ export const createAuthSession = (options: AuthSessionOptions = {}) => {
 
     /**
      * Starts sign-in with a provider such as `github`: resolves with the provider's authorization URL, for the page to go to.
-     * The provider sends the browser back to `callbackURL` signed in, or with `?error=<code>`.
+     * The provider sends the browser back to `callbackURL` signed in, or with `?error=<code>`, for example
+     * `signup_disabled` when no account here has that provider account or its address.
      */
     signInSocial: async (provider: string, callbackURL: string) => {
       const { data, error } = await client.signIn.social({ provider, callbackURL, errorCallbackURL: callbackURL, disableRedirect: true })

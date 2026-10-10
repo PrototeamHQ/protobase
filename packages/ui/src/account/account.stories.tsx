@@ -3,6 +3,7 @@ import { expect, fn, userEvent, within } from 'storybook/test'
 import type { SignInPolicyState, StaffSignIn } from '@protobase/client'
 import { BackupCodes } from './backup-codes'
 import { PasskeysSection, type PasskeysSectionProps } from './passkeys-section'
+import { SignInProvidersSection, type SignInProvidersSectionProps } from './sign-in-providers-section'
 import { SignInPolicyForm, type SignInPolicyFormProps } from './sign-in-policy-form'
 import { StaffSignInLog, type StaffSignInLogProps } from './staff-sign-in-log'
 import { TwoFactorSection, type TwoFactorSectionProps } from './two-factor-section'
@@ -117,8 +118,8 @@ export const NewBackupCodes: StoryObj = {
 }
 
 const policyState: SignInPolicyState = {
-  policy: { password: 'allowed', emailCode: 'allowed', passkey: 'allowed', twoFactor: 'allowed', staffAccess: 'allowed' },
-  effective: { password: 'allowed', emailCode: 'allowed', passkey: 'allowed', twoFactor: 'allowed', staffAccess: 'allowed' },
+  policy: { password: 'allowed', emailCode: 'allowed', passkey: 'allowed', twoFactor: 'allowed', staffAccess: 'allowed', platformSignIn: 'allowed' },
+  effective: { password: 'allowed', emailCode: 'allowed', passkey: 'allowed', twoFactor: 'allowed', staffAccess: 'allowed', platformSignIn: 'allowed' },
   mail: true,
 }
 
@@ -132,8 +133,25 @@ export const SignInPolicy: StoryObj<SignInPolicyFormProps> = {
     await userEvent.click(within(canvas.getByRole('radiogroup', { name: 'Two-factor authentication' })).getByRole('radio', { name: 'Required' }))
     await userEvent.click(within(canvas.getByRole('radiogroup', { name: 'Password' })).getByRole('radio', { name: 'Off' }))
     await userEvent.click(canvas.getByRole('button', { name: 'Save' }))
-    expect(args.onSave).toHaveBeenCalledWith({ password: 'forbidden', emailCode: 'allowed', passkey: 'allowed', twoFactor: 'required', staffAccess: 'allowed' })
+    expect(args.onSave).toHaveBeenCalledWith({ password: 'forbidden', emailCode: 'allowed', passkey: 'allowed', twoFactor: 'required', staffAccess: 'allowed', platformSignIn: 'allowed' })
     expect(canvas.queryByRole('radiogroup', { name: 'Staff sign-in as a person' })).toBeNull()
+    expect(canvas.queryByText(/through the platform/)).toBeNull()
+  },
+}
+
+/** When the platform adds a sign-in provider, admins can turn it off; it is off anyway while a second step is required. */
+export const SignInPolicyWithPlatformSignIn: StoryObj<SignInPolicyFormProps> = {
+  tags: ['play'],
+  args: { state: { ...policyState, platformSignIn: 'GitHub' }, onSave: fn() },
+  render: (args) => <SignInPolicyForm {...args} />,
+  play: async ({ canvasElement, args }) => {
+    const canvas = within(canvasElement)
+    const row = canvas.getByRole('radiogroup', { name: 'Sign in with GitHub through the platform' })
+    await userEvent.click(within(canvas.getByRole('radiogroup', { name: 'Two-factor authentication' })).getByRole('radio', { name: 'Required' }))
+    expect(canvas.getByText(/Off while passkeys or two-factor authentication are required/)).toBeVisible()
+    await userEvent.click(within(row).getByRole('radio', { name: 'Off' }))
+    await userEvent.click(canvas.getByRole('button', { name: 'Save' }))
+    expect(args.onSave).toHaveBeenCalledWith({ ...policyState.policy, twoFactor: 'required', platformSignIn: 'forbidden' })
   },
 }
 
@@ -204,4 +222,23 @@ export const SignInPolicyWithoutMail: StoryObj<SignInPolicyFormProps> = {
   play: async ({ canvasElement }) => {
     expect(within(canvasElement).getByText(/Needs mail settings/)).toBeVisible()
   },
+}
+
+/** Someone who signs in with a password connects GitHub, whatever address it has; the platform's provider is listed too. */
+export const ConnectedAccounts: StoryObj<SignInProvidersSectionProps> = {
+  tags: ['play'],
+  args: { providers: [{ id: 'github', name: 'GitHub' }, { id: 'oidc', name: 'Acme SSO' }], linked: ['oidc'], onConnect: fn(async () => undefined) },
+  render: (args) => <SignInProvidersSection {...args} />,
+  play: async ({ canvasElement, args }) => {
+    const canvas = within(canvasElement)
+    expect(canvas.getByText('Connected')).toBeVisible()
+    expect(canvas.queryByRole('button', { name: 'Connect Acme SSO' })).toBeNull()
+    await userEvent.click(canvas.getByRole('button', { name: 'Connect GitHub' }))
+    expect(args.onConnect).toHaveBeenCalledWith('github')
+  },
+}
+
+export const ConnectedAccountsLinkRefused: StoryObj<SignInProvidersSectionProps> = {
+  args: { providers: [{ id: 'github', name: 'GitHub' }], linked: [], onConnect: fn(async () => undefined), error: 'This GitHub account is linked to someone else here already.' },
+  render: (args) => <SignInProvidersSection {...args} />,
 }

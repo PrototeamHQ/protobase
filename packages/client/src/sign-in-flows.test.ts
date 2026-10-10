@@ -101,13 +101,26 @@ describe('the account and the sign-in policy', () => {
   })
 
   it('reads and saves the sign-in policy, and reports why one is refused', async () => {
-    const policy = { password: 'forbidden', emailCode: 'forbidden', passkey: 'required', twoFactor: 'allowed', staffAccess: 'notify' } as const
+    const policy = { password: 'forbidden', emailCode: 'forbidden', passkey: 'required', twoFactor: 'allowed', staffAccess: 'notify', platformSignIn: 'allowed' } as const
     const { requests, session } = serve({
       '/policy/sign-in': () => json({ message: 'Keep password or emailed-code sign-in on: people without a passkey need one of them to sign in.', code: 'SIGN_IN_POLICY_REFUSED' }, { status: 400 }),
     })
     const refused = await session.signInPolicy.save(policy).catch((error: unknown) => error)
     expect(refused).toMatchObject({ name: 'AuthError', status: 400, code: 'SIGN_IN_POLICY_REFUSED', message: expect.stringContaining('Keep password or emailed-code sign-in on') })
     expect(requests).toEqual([{ path: '/policy/sign-in', body: policy }])
+  })
+})
+
+describe('connected accounts', () => {
+  it('lists the providers the account is linked to, without its password', async () => {
+    const { session } = serve({ '/list-accounts': () => json([{ providerId: 'credential' }, { providerId: 'github' }, { providerId: 'github' }]) })
+    expect(await session.account.linkedProviders()).toEqual(['github'])
+  })
+
+  it("starts linking a provider and answers its authorization URL, coming back to the page either way", async () => {
+    const { requests, session } = serve({ '/link-social': () => json({ url: 'https://auth.example.com/authorize?state=s', redirect: false }) })
+    expect(await session.account.linkProvider('github', 'http://localhost/-/account')).toBe('https://auth.example.com/authorize?state=s')
+    expect(requests).toEqual([{ path: '/link-social', body: { provider: 'github', callbackURL: 'http://localhost/-/account', errorCallbackURL: 'http://localhost/-/account', disableRedirect: true } }])
   })
 })
 

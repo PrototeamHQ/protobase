@@ -27,7 +27,7 @@ export const createStaticSession = (token: string, user: AuthUser = { id: 'token
   resetPassword: async () => undefined,
   account: {
     signInMethods: async () => ({
-      policy: { password: 'allowed', emailCode: 'allowed', passkey: 'allowed', twoFactor: 'allowed', staffAccess: 'allowed' },
+      policy: { password: 'allowed', emailCode: 'allowed', passkey: 'allowed', twoFactor: 'allowed', staffAccess: 'allowed', platformSignIn: 'allowed' },
       mail: false,
       account: { password: false, passkeys: 0, twoFactor: false, authenticatorApp: false },
       missing: [],
@@ -41,6 +41,8 @@ export const createStaticSession = (token: string, user: AuthUser = { id: 'token
     turnOnEmailedCodes: unsupported('turn on two-factor authentication'),
     turnOffTwoFactor: unsupported('turn off two-factor authentication'),
     newBackupCodes: unsupported('make backup codes'),
+    linkedProviders: async () => [],
+    linkProvider: unsupported('link a sign-in provider'),
   },
   signInPolicy: { read: unsupported('read the sign-in policy'), save: unsupported('save the sign-in policy') },
   staff: { start: unsupported('start a staff sign-in'), current: async () => undefined, stop: unsupported('end a staff session'), log: unsupported('read the staff sign-ins') },

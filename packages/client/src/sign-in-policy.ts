@@ -8,8 +8,8 @@ export type StaffAccessRule = 'allowed' | 'notify' | 'forbidden'
 
 /**
  * How people may sign in, as the server stores it: passwords and emailed codes are allowed or forbidden, passkeys and
- * two-factor authentication can also be required (everyone without one is asked to set it up), and staff of the
- * operator may sign in as people, with or without telling them, or not.
+ * two-factor authentication can also be required (everyone without one is asked to set it up), staff of the operator
+ * may sign in as people, with or without telling them, or not, and the sign-in provider the platform adds is on or off.
  */
 export type SignInPolicy = {
   password: 'allowed' | 'forbidden'
@@ -17,14 +17,16 @@ export type SignInPolicy = {
   passkey: SignInRule
   twoFactor: SignInRule
   staffAccess: StaffAccessRule
+  platformSignIn: 'allowed' | 'forbidden'
 }
 
 /**
  * The saved policy, how it applies (`effective`: emailed codes need mail, and without mail passwords stay on and staff
- * who would have to tell the person cannot sign in), the name of the operator provider when staff can sign in at all,
- * and who saved it when.
+ * who would have to tell the person cannot sign in; the platform's provider is off while a second step is required), the
+ * name of the operator provider when staff can sign in at all, the name of the platform's sign-in provider when it adds
+ * one, and who saved it when.
  */
-export type SignInPolicyState = { policy: SignInPolicy; effective: SignInPolicy; mail: boolean; operator?: string; savedAt?: string; savedBy?: string }
+export type SignInPolicyState = { policy: SignInPolicy; effective: SignInPolicy; mail: boolean; operator?: string; platformSignIn?: string; savedAt?: string; savedBy?: string }
 
 /** Reading and saving the sign-in policy, for admins. Saving rejects with `AuthError` saying why a policy cannot be saved. */
 export const signInPolicyClient = (client: BetterAuthClient) => ({

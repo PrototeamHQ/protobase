@@ -23,7 +23,7 @@ export type {
 } from './types'
 export { createAuthSession, AuthError, tokenExpiry, type AuthSession, type AuthSessionOptions } from './auth'
 export { createStaticSession } from './static-session'
-export type { AuthUser, SetupStatus, SignInMethod, SignInResult, TwoFactorMethod } from './auth-types'
+export type { AuthUser, PlatformSignIn, SetupStatus, SignInMethod, SignInResult, TwoFactorMethod } from './auth-types'
 export type { AccountSecurity, AccountSignIn, AuthenticatorSetup, Passkey, RequiredSetup } from './account-security'
 export type { SignInPolicy, SignInPolicyClient, SignInPolicyState, SignInRule, StaffAccessRule } from './sign-in-policy'
 export type { StaffSignIn, StaffSignInClient } from './staff-sign-in'

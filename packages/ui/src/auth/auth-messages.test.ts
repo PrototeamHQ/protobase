@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { AuthError } from '@protobase/client'
-import { authMessage, signInMessage, staffSignInMessage } from './auth-messages'
+import { authMessage, providerMessage, signInMessage, staffSignInMessage } from './auth-messages'
 
 describe('auth messages', () => {
   it('words the codes of the sign-in steps, and keeps the server message for anything else', () => {
@@ -21,5 +21,11 @@ describe('auth messages', () => {
     expect(staffSignInMessage('SOMETHING_NEW')).toBe('The staff sign-in did not go through. Try again.')
     expect(staffSignInMessage(new AuthError('Staff sign-in is turned off for this app.', 403, 'SIGN_IN_METHOD_FORBIDDEN'))).toBe('Staff sign-in is turned off for this app.')
     expect(staffSignInMessage(new AuthError('Too many requests', 429))).toBe('Too many attempts. Wait a minute and try again.')
+  })
+
+  it("words why a provider sent the browser back, by its code, with the provider's name", () => {
+    expect(providerMessage('signup_disabled', 'GitHub')).toBe('No account here belongs to this GitHub account. Ask an admin to add you, or sign in another way.')
+    expect(providerMessage('account_already_linked_to_different_user', 'GitHub')).toBe('This GitHub account is linked to someone else here already.')
+    expect(providerMessage('invalid_code', 'Acme SSO')).toBe('Signing in with Acme SSO did not go through. Try again.')
   })
 })

@@ -1,8 +1,10 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { expect, fn, userEvent, within } from 'storybook/test'
+import { providerMessage } from './auth-messages'
 import { EmailCodeForm, type EmailCodeFormProps } from './email-code-form'
 import { FirstRunPage } from './first-run-page'
 import { ForgotPasswordForm, type ForgotPasswordFormProps } from './forgot-password-form'
+import { ProviderRedirect } from './provider-sign-in-page'
 import { ResetPasswordForm, type ResetPasswordFormProps } from './reset-password-form'
 import { SetupRequiredForm, type SetupRequiredFormProps } from './setup-required-form'
 import { SignInForm, type SignInFormProps } from './sign-in-form'
@@ -27,12 +29,53 @@ export const SignIn: StoryObj<SignInFormProps> = {
 
 export const SignInWithGitHub: StoryObj<SignInFormProps> = {
   tags: ['play'],
-  args: { onSubmit: fn(), onContinueWithGitHub: fn(), workspace: 'Protobase Cloud' },
+  args: { onSubmit: fn(), providers: [{ id: 'github', name: 'GitHub' }], onContinueWith: fn(), workspace: 'Protobase Cloud' },
   render: (args) => <SignInForm {...args} />,
   play: async ({ canvasElement, args }) => {
     await userEvent.click(within(canvasElement).getByRole('button', { name: 'Continue with GitHub' }))
-    expect(args.onContinueWithGitHub).toHaveBeenCalledOnce()
+    expect(args.onContinueWith).toHaveBeenCalledWith('github')
     expect(args.onSubmit).not.toHaveBeenCalled()
+  },
+}
+
+/** The platform's own sign-in provider sits beside the app's, under the name the platform gives it. */
+export const SignInWithPlatformProvider: StoryObj<SignInFormProps> = {
+  tags: ['play'],
+  args: { onSubmit: fn(), providers: [{ id: 'github', name: 'GitHub' }, { id: 'oidc', name: 'Acme SSO' }], onContinueWith: fn(), workspace: 'Veldhuis Supply' },
+  render: (args) => <SignInForm {...args} />,
+  play: async ({ canvasElement, args }) => {
+    await userEvent.click(within(canvasElement).getByRole('button', { name: 'Continue with Acme SSO' }))
+    expect(args.onContinueWith).toHaveBeenCalledWith('oidc')
+  },
+}
+
+/** A link such as `/?sign-in=github` leaves for the provider at once, so someone it knows lands signed in. */
+export const SigningInWithProvider: StoryObj<{ name: string; workspace?: string }> = {
+  tags: ['play'],
+  args: { name: 'GitHub', workspace: 'Veldhuis Supply' },
+  render: (args) => <ProviderRedirect {...args} />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    expect(canvas.getByRole('heading', { name: 'Signing in with GitHub' })).toBeVisible()
+    expect(canvas.getByRole('status')).toHaveTextContent('Taking you to GitHub…')
+  },
+}
+
+/** The provider knew the person, but no account here is theirs: the sign-in page says so, with the other ways in. */
+export const SignInProviderRefused: StoryObj<SignInFormProps> = {
+  tags: ['play'],
+  args: {
+    onSubmit: fn(),
+    providers: [{ id: 'github', name: 'GitHub' }],
+    onContinueWith: fn(),
+    workspace: 'Veldhuis Supply',
+    error: providerMessage('signup_disabled', 'GitHub'),
+  },
+  render: (args) => <SignInForm {...args} />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    expect(canvas.getByRole('alert')).toHaveTextContent('No account here belongs to this GitHub account.')
+    expect(canvas.getByRole('button', { name: 'Continue with GitHub' })).toBeEnabled()
   },
 }
 

@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import { createAuthSession, type AuthSession, type AuthUser, type RequiredSetup, type SignInMethod, type SignInResult, type StaffSignIn, type TwoFactorMethod } from '@protobase/client'
+import { createAuthSession, type AuthSession, type AuthUser, type PlatformSignIn, type RequiredSetup, type SignInMethod, type SignInResult, type StaffSignIn, type TwoFactorMethod } from '@protobase/client'
+import { providerName, withoutSignInLink } from './provider-link'
 
 export type AuthState =
   | { kind: 'loading' }
@@ -29,8 +30,12 @@ export type AuthApi = {
   verifyTwoFactor: (input: { method: TwoFactorMethod | 'backup'; code: string; trustDevice?: boolean }) => Promise<void>
   /** The ids of the server's sign-in providers, for example `github`. */
   socialProviders: string[]
+  /** The server's sign-in providers with the names to show, the platform's own included. */
+  signInProviders: SignInProvider[]
   /** Leaves for the provider's sign-in, which comes back to this page; rejects with `AuthError`. */
   signInSocial: (provider: string) => Promise<void>
+  /** Leaves for the provider to link the signed-in account to it, which comes back to this page; rejects with `AuthError`. */
+  linkProvider: (provider: string) => Promise<void>
   /** The operator provider's name when its staff can sign in as people here. */
   staffSignIn?: string
   /** Ends a staff session: the browser is signed out, and the log notes the end. */
@@ -41,6 +46,9 @@ export type AuthApi = {
   /** Reads the setup status and session again, for "Check again" and after setting up a required method. */
   recheck: () => void
 }
+
+/** A sign-in provider as the app offers it: its id and its name. */
+export type SignInProvider = { id: string; name: string }
 
 const AuthContext = createContext<AuthApi | null>(null)
 
@@ -56,6 +64,7 @@ export const AuthProvider = ({ session: given, children }: { session?: AuthSessi
   const [signInMethods, setSignInMethods] = useState<SignInMethod[]>(['password'])
   const [passwordReset, setPasswordReset] = useState(false)
   const [socialProviders, setSocialProviders] = useState<string[]>([])
+  const [platformSignIn, setPlatformSignIn] = useState<PlatformSignIn>()
   const [staffSignIn, setStaffSignIn] = useState<string>()
   const markSignedOut = useCallback(() => setState((current) => (current.kind === 'signed-in' ? { kind: 'signed-out' } : current)), [])
   const signedOut = useRef(markSignedOut)
@@ -79,6 +88,7 @@ export const AuthProvider = ({ session: given, children }: { session?: AuthSessi
       setSignInMethods(status.signInMethods)
       setPasswordReset(status.passwordReset)
       setSocialProviders(status.socialProviders)
+      setPlatformSignIn(status.platformSignIn)
       setStaffSignIn(status.staffSignIn)
       if (status.needsAdmin) return setState({ kind: 'needs-admin' })
       const user = await session.session()
@@ -95,6 +105,7 @@ export const AuthProvider = ({ session: given, children }: { session?: AuthSessi
       signInMethods,
       passwordReset,
       socialProviders,
+      signInProviders: socialProviders.map((id) => ({ id, name: providerName(id, platformSignIn) })),
       staffSignIn,
       markSignedOut,
       recheck,
@@ -103,8 +114,12 @@ export const AuthProvider = ({ session: given, children }: { session?: AuthSessi
       signInWithCode: async (email, code) => finish(await session.signInWithCode(email, code)),
       signInWithPasskey: async () => enter(await session.signInWithPasskey()),
       verifyTwoFactor: async (input) => enter(await session.verifyTwoFactor(input)),
+      // The provider comes back to this page without a link's marker, so it does not start again.
       signInSocial: async (provider) => {
-        window.location.assign(await session.signInSocial(provider, window.location.href))
+        window.location.assign(await session.signInSocial(provider, new URL(withoutSignInLink(window.location.href), window.location.href).href))
+      },
+      linkProvider: async (provider) => {
+        window.location.assign(await session.account.linkProvider(provider, new URL(withoutSignInLink(window.location.href), window.location.href).href))
       },
       stopStaffSession: async () => {
         await session.staff.stop()
@@ -115,7 +130,7 @@ export const AuthProvider = ({ session: given, children }: { session?: AuthSessi
         setState({ kind: 'signed-out' })
       },
     }),
-    [state, session, signInMethods, passwordReset, socialProviders, staffSignIn, markSignedOut, recheck, finish, enter],
+    [state, session, signInMethods, passwordReset, socialProviders, platformSignIn, staffSignIn, markSignedOut, recheck, finish, enter],
   )
   return <AuthContext.Provider value={api}>{children}</AuthContext.Provider>
 }

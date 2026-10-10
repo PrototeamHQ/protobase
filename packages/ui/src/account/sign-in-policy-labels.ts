@@ -44,6 +44,12 @@ export const policyRows: PolicyRow[] = [
       { value: 'forbidden', label: 'Off' },
     ],
   },
+  {
+    method: 'platformSignIn',
+    label: 'Sign-in through the platform',
+    description: 'The sign-in provider the platform that runs this app adds, for people who have an account here already. It never creates accounts.',
+    rules: onOff,
+  },
 ]
 
 /** The word for `rule` in `method`'s row, for example "Optional" for an allowed passkey. Every rule the server stores has one. */
