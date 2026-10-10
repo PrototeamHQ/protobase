@@ -1,6 +1,8 @@
 import { Command, Option } from 'commander'
 import { createInterface } from 'node:readline/promises'
 import { createUser, deleteUser, hasUsers, issueToken, listUsers, roleChoices, setUserBanned, setUserRole, type AdminAuth } from '@protobase/server'
+import { addMemberCommand } from '../organizations/commands'
+import { organizationsApi } from '../organizations/register'
 import { createUserCommand, listRolesCommand, listUsersCommand, type UsersApi } from './commands'
 import { deleteUserCommand, setDisabledCommand, setRoleCommand } from './manage'
 import { loadProjectAuth } from './load-auth'
@@ -45,15 +47,20 @@ export const registerUsers = (program: Command) => {
     .option('--password-stdin', 'read the password from stdin', false)
     .option('--generate-password', 'generate a strong password and print it once', false)
     .option('--github-id <id>', 'link the user to this GitHub user id, so signing in with GitHub finds them whatever their address')
+    .option('--organization <organization>', 'with organizations: add the user to this one (its slug or id)')
+    .option('--org-role <role>', 'with --organization: owner, admin or member (default member)')
+    .option('--app-roles <roles>', 'with --organization: app roles there, comma separated')
     .addOption(new Option('--password <value>').hideHelp())
     .action(async (email: string, opts) => {
       rejectPasswordArgument(opts.password)
+      const auth = await loadProjectAuth(process.cwd())
       await createUserCommand(
-        await projectApi(),
+        usersApi(auth),
         { email, name: opts.name, role: opts.role, passwordStdin: opts.passwordStdin, generatePassword: opts.generatePassword, githubId: opts.githubId },
         { stdin: process.stdin, prompt: readHidden },
         out,
       )
+      if (opts.organization) await addMemberCommand(organizationsApi(auth), { organization: opts.organization, email, orgRole: opts.orgRole, appRoles: opts.appRoles }, out)
       finish(0)
     })
 
