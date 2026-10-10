@@ -242,6 +242,34 @@ describe('managing members', () => {
     expect((await app.request('/api/auth/organization/set-app-roles', { cookie: root, body: { memberId: sanneId, appRoles: ['manager'] } })).status).toBe(200)
   })
 
+  it('lists members with their app roles, and answers the organization a session works in', async () => {
+    const app = await serve()
+    await people(app.auth)
+    const sanne = await app.signIn('sanne@example.com')
+    const { members } = await (await app.request('/api/auth/organization/list-members?organizationId=1', { cookie: sanne })).json()
+    expect(members).toEqual(expect.arrayContaining([expect.objectContaining({ role: 'member', appRoles: ['sales'], user: expect.objectContaining({ email: 'sanne@example.com' }) })]))
+    expect(await (await app.request('/api/auth/organization/current', { cookie: sanne })).json()).toEqual({
+      organization: { id: '1', name: 'Acme', slug: 'acme', logo: null },
+      role: 'member',
+      appRoles: ['sales'],
+      memberId: expect.any(String),
+      globalRoles: [],
+    })
+    const ana = await app.signIn('ana@example.com')
+    expect(await (await app.request('/api/auth/organization/current', { cookie: ana })).json()).toEqual({ organization: null, globalRoles: ['support'] })
+    expect((await (await app.request('/api/auth/status')).json()).organizations).toEqual({
+      create: 'everyone',
+      roles: [
+        { name: 'admin', label: 'Superuser', membership: false },
+        { name: 'support', label: 'Support', membership: true },
+        { name: 'manager', label: 'Manager', membership: true },
+        { name: 'sales', label: 'Sales', membership: true },
+        { name: 'accountant', label: 'Accountant', membership: true },
+        { name: 'user', label: 'No global role', membership: false },
+      ],
+    })
+  })
+
   it('hands ownership over in one step', async () => {
     const app = await serve()
     await people(app.auth)

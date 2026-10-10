@@ -3,7 +3,7 @@ import * as z from 'zod'
 import { checkAppRoleChange, effectiveRoles, globalRoles } from './app-roles'
 import type { ResolvedOrganizations } from './options'
 import { superuserRole } from './role-definitions'
-import { findMember, findMemberById, organizationRoleOf, setAppRoles, type StoredOrganization } from './store'
+import { findMember, findMemberById, findOrganization, organizationRoleOf, setAppRoles, type StoredOrganization } from './store'
 
 const memberNotFound = { code: 'MEMBER_NOT_FOUND', message: 'There is no such member.' }
 
@@ -59,6 +59,22 @@ export const memberEndpoints = ({ resolved }: { resolved: ResolvedOrganizations 
       return ctx.json({ owner: target.id })
     },
   ),
+
+  /**
+   * `GET /organization/current`: the organization the session works in, with the caller's organization role and app
+   * roles there (none for someone with a global role who is not a member) and their global roles; `null` for none.
+   */
+  currentOrganization: createAuthEndpoint('/organization/current', { method: 'GET', use: [sessionMiddleware] }, async (ctx) => {
+    const { user, session } = ctx.context.session
+    const global = globalRoles(user.role as string | null | undefined)
+    const organizationId = (session as { activeOrganizationId?: string | null }).activeOrganizationId
+    const organization = organizationId ? await findOrganization(ctx.context.adapter, organizationId) : null
+    if (!organization) return ctx.json({ organization: null, globalRoles: global })
+    const member = await findMember(ctx.context.adapter, { organizationId: organization.id, userId: user.id })
+    if (!member && global.length === 0) return ctx.json({ organization: null, globalRoles: global })
+    const { id, name, slug, logo } = organization
+    return ctx.json({ organization: { id, name, slug, logo: logo ?? null }, ...(member && { role: organizationRoleOf(member), appRoles: member.appRoles, memberId: member.id }), globalRoles: global })
+  }),
 
   /**
    * `GET /organization/search?query=`, for someone with a global role, who may work in any organization: the first

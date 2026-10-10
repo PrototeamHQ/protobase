@@ -1,5 +1,6 @@
 import { Hono } from 'hono'
 import type { AdminAuth } from './create-auth'
+import { membershipRoles } from './organizations/role-definitions'
 import { readSignInPolicy } from './policy-store'
 import { effectiveSignInPolicy } from './sign-in-policy'
 import { hasUsers } from './users'
@@ -9,8 +10,9 @@ import { hasUsers } from './users'
  * `signInMethods`, the ways to sign in the sign-in policy leaves on (`password`, `emailCode`, `passkey`), so it offers
  * only those; `passwordReset` when reset mail can be sent and passwords are on, so it offers "Forgot password?" only
  * then; the ids of the `socialProviders` people can sign in with, so it offers "Continue with GitHub" when `github` is
- * one; `platformSignIn`, the id and name of the platform's provider when it is one of them; and `staffSignIn`, the
- * operator provider's name, when staff can sign in as people.
+ * one; `platformSignIn`, the id and name of the platform's provider when it is one of them; `staffSignIn`, the
+ * operator provider's name, when staff can sign in as people; and with organizations, who may create them and the roles
+ * with their labels, `membership` for those a member can hold.
  */
 export const statusRoute = (auth: AdminAuth) => {
   const app = new Hono()
@@ -30,6 +32,12 @@ export const statusRoute = (auth: AdminAuth) => {
       socialProviders,
       ...(platformSignIn && { platformSignIn }),
       ...(staffSignIn && { staffSignIn }),
+      ...(auth.organizations && {
+        organizations: {
+          create: auth.organizations.create,
+          roles: auth.roleDefinitions.names.map((name) => ({ name, label: auth.roleDefinitions.labels[name] ?? name, membership: membershipRoles(auth.roleDefinitions).includes(name) })),
+        },
+      }),
     })
   })
   return app

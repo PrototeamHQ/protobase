@@ -9,7 +9,7 @@ const unsupported = (what: string) => async (): Promise<never> => {
 /**
  * A session that is already signed in with a token you hold, for stories and scripts (`protobase token <email>`).
  * It never refreshes, so use a token that outlives the run. Its account has nothing to set up, and it cannot change
- * passkeys, two-factor authentication or the sign-in policy, and is never a staff session.
+ * passkeys, two-factor authentication, the sign-in policy or organizations, and is never a staff session.
  */
 export const createStaticSession = (token: string, user: AuthUser = { id: 'token', email: 'token', name: 'API token', role: null }): AuthSession => ({
   token: async () => token,
@@ -46,4 +46,27 @@ export const createStaticSession = (token: string, user: AuthUser = { id: 'token
   },
   signInPolicy: { read: unsupported('read the sign-in policy'), save: unsupported('save the sign-in policy') },
   staff: { start: unsupported('start a staff sign-in'), current: async () => undefined, stop: unsupported('end a staff session'), log: unsupported('read the staff sign-ins') },
+  organizations: {
+    list: async () => [],
+    current: async () => ({ organization: null, globalRoles: [] }),
+    switchTo: unsupported('switch organizations'),
+    search: async () => [],
+    create: unsupported('create an organization'),
+    rename: unsupported('change an organization'),
+    remove: unsupported('delete an organization'),
+    leave: unsupported('leave an organization'),
+    members: async () => [],
+    setRole: unsupported('change a role'),
+    setAppRoles: unsupported('change app roles'),
+    removeMember: unsupported('remove a member'),
+    transferOwnership: unsupported('hand an organization over'),
+    invitations: async () => [],
+    invite: unsupported('invite people'),
+    resend: unsupported('invite people'),
+    revoke: unsupported('revoke an invitation'),
+    myInvitations: async () => [],
+    invitation: unsupported('read an invitation'),
+    accept: unsupported('accept an invitation'),
+    signUpFromInvitation: unsupported('accept an invitation'),
+  },
 })

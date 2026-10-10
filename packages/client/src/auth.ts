@@ -2,6 +2,7 @@ import { accountSecurity } from './account-security'
 import { AuthError, authError } from './auth-error'
 import type { AuthUser, PlatformSignIn, SetupStatus, SignInMethod } from './auth-types'
 import { betterAuthClient } from './better-auth-client'
+import { organizationsClient } from './organizations'
 import { signInFlows } from './sign-in-flows'
 import { signInPolicyClient } from './sign-in-policy'
 import { staffSignInClient } from './staff-sign-in'
@@ -32,7 +33,8 @@ export const tokenExpiry = (token: string) => {
 /**
  * The browser side of Better Auth: sign in with a password, an emailed code or a passkey (with a second step for an
  * account with two-factor authentication), the account's passkeys and two-factor authentication (`account`), the
- * sign-in policy for admins (`signInPolicy`), staff of the operator signing in as people (`staff`), and a short-lived
+ * sign-in policy for admins (`signInPolicy`), staff of the operator signing in as people (`staff`), organizations
+ * (`organizations`), and a short-lived
  * JWT held in memory only (never in storage), fetched with the session cookie and refreshed before it expires.
  */
 export const createAuthSession = (options: AuthSessionOptions = {}) => {
@@ -92,6 +94,7 @@ export const createAuthSession = (options: AuthSessionOptions = {}) => {
         socialProviders: body.socialProviders ?? [],
         ...(body.platformSignIn && { platformSignIn: body.platformSignIn }),
         ...(body.staffSignIn && { staffSignIn: body.staffSignIn }),
+        ...(body.organizations && { organizations: body.organizations }),
       }
     },
 
@@ -135,6 +138,7 @@ export const createAuthSession = (options: AuthSessionOptions = {}) => {
     },
 
     account: accountSecurity(client),
+    organizations: organizationsClient(client, () => token({ refresh: true })),
     signInPolicy: signInPolicyClient(client),
     staff: {
       ...staff,
