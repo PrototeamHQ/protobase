@@ -1,3 +1,4 @@
+import { spawnSync } from 'node:child_process'
 import { randomBytes } from 'node:crypto'
 import { mkdir, readFile, realpath, rm, writeFile } from 'node:fs/promises'
 import path from 'node:path'
@@ -45,6 +46,28 @@ describe('buildConfigBundle', () => {
     expect(code).not.toContain('function resource(')
     const { default: project } = await import(pathToFileURL(outFile).href)
     expect(Object.keys(project.config).sort()).toEqual(['things', 'things:archivedThings', 'thingsView'])
+  })
+
+  it("is written by Bun's bundler, so Bun reads its non-ASCII text back unchanged", async () => {
+    projectDir = await createProject({
+      'config/index.ts': `export { things } from './things/data'\nexport { thingsView } from './things/ui'\n`,
+      'config/things/data.ts': things,
+      'config/things/ui.ts': `import { view } from '@protobase/schema'
+export const thingsView = view('things').names({ singular: 'Thing 😀', plural: 'Things' }).fields((r) => ({ id: r.id.prefix('€') }))
+`,
+    })
+    const outFile = path.join(projectDir, 'dist/protobase.config.js')
+    await buildConfigBundle({ projectDir, outFile })
+
+    // Bun's pragma, and Bun's escapes: a `// @bun` file is read as Latin-1, so raw UTF-8 would not survive.
+    const bytes = await readFile(outFile)
+    expect(bytes.toString('latin1').startsWith('// @bun\n')).toBe(true)
+    expect(bytes.every((byte) => byte < 0x80)).toBe(true)
+    const script = `const { default: project } = await import(${JSON.stringify(pathToFileURL(outFile).href)}); console.log(JSON.stringify(project.config.thingsView))`
+    const loaded = spawnSync('bun', ['-e', script], { cwd: projectDir, encoding: 'utf8' })
+    expect(loaded.stderr).toBe('')
+    expect(loaded.stdout).toContain('"prefix":"€"')
+    expect(loaded.stdout).toContain('"singular":"Thing 😀"')
   })
 
   it('keeps what protobase.config.ts exports', async () => {

@@ -11,6 +11,8 @@ pnpm build:serve                     # the runtime the host carries: dist/protob
 bun --no-install /opt/protobase/protobase-serve.js /app/protobase.config.js   # on the host: the API
 ```
 
+Both builds need Bun on `PATH` as well as Node: Bun's bundler writes the final file, the form Bun loads without transpiling ([details](/reference/cli/#the-config-module)).
+
 The bundle holds three things, four when the config uses native add-ons:
 
 ```

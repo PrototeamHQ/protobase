@@ -159,7 +159,7 @@ The output folder is not emptied; `public/` and `node_modules/` are replaced on 
 
 `protobase.config.js` is one ES module. The entry is found as `protobase dev` finds it: the default export of `protobase.config.ts`, with `config` taken from the convention (`config/index.ts` plus `config/*/ui.ts`) when it exports none.
 
-- The first line is `// @bun`, which tells Bun the file is already plain JavaScript: Bun neither transpiles it nor writes its transpiler cache.
+- Bun writes the file: Vite bundles the config, then `bun build --target bun` writes the final module, so `protobase build` needs `bun` on `PATH` and fails without it. Bun's output starts with `// @bun`, which tells Bun the file is already plain JavaScript: Bun neither transpiles it nor writes its transpiler cache. Bun reads such a file as Latin-1, so only Bun's own output can carry that line: its bundler writes non-ASCII text as escapes (`€` as `\u20AC`). Raw UTF-8 would load as `â¬`.
 - The `@protobase` packages and every package in their `dependencies` belong to the serve runtime: their imports stay `import` statements and the runtime supplies them, so the bundle carries no copy and shares the runtime's. It supplies these modules:
 
   | Modules | |
@@ -225,7 +225,7 @@ docker run --rm -p 8787:8787 -e DATABASE_URL -e BETTER_AUTH_SECRET \
 protobase build-serve [--out dist/protobase-serve.js]   # or, in this repository: pnpm build:serve
 ```
 
-Bundles the serve runtime (`@protobase/cli`'s `src/serve/main.ts`) and all its dependencies into one file, about 3 MB, also starting with `// @bun`. A host needs Bun and this file, nothing else. The file carries the Protobase version it was built from, which decides [the bundles it serves](/reference/versioning/#bundles-and-runtimes).
+Bundles the serve runtime (`@protobase/cli`'s `src/serve/main.ts`) and all its dependencies into one file, about 3 MB, also written by Bun's bundler, so it needs `bun` on `PATH` too. A host needs Bun and this file, nothing else. The file carries the Protobase version it was built from, which decides [the bundles it serves](/reference/versioning/#bundles-and-runtimes).
 
 ## `serve`
 

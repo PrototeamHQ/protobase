@@ -78,6 +78,12 @@ describe.skipIf(!reachable || !hasBun)('the ERP bundle served by protobase-serve
     expect(refused.stderr).toContain(`rebuild the bundle with Protobase ${major}.${minor}.x or serve it with a runtime of`)
   })
 
+  it("is written by Bun's bundler: its `// @bun` pragma, and non-ASCII text escaped", async () => {
+    const bytes = await readFile(path.join(dir, 'opt/protobase-serve.js'))
+    expect(bytes.toString('latin1').startsWith('// @bun\n')).toBe(true)
+    expect(bytes.every((byte) => byte < 0x80)).toBe(true)
+  })
+
   it('answers the health probe without a token', async () => {
     const response = await fetch(`${base}/health`)
     expect(response.status).toBe(200)
@@ -95,6 +101,11 @@ describe.skipIf(!reachable || !hasBun)('the ERP bundle served by protobase-serve
     expect(meta.headers.get('x-meta-version')).toBeTruthy()
     expect((await meta.json()).resources).toBeDefined()
     expect((await fetch(`${base}/api/meta`)).status).toBe(401)
+  })
+
+  it("keeps the config's non-ASCII text intact under Bun", async () => {
+    const meta = await fetch(`${base}/api/meta`, { headers: { authorization: `Bearer ${token}` } })
+    expect(JSON.stringify(await meta.json())).toContain('"prefix":"€"')
   })
 
   it('reads a resource from the ERP database', async () => {
