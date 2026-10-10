@@ -2,6 +2,20 @@
 
 Every release of Protobase, cut by the release workflow from the commits since the last one (see the [versioning page](https://docs.protobase.net/reference/versioning/)).
 
+## [0.6.0](https://github.com/PrototeamHQ/protobase/compare/v0.5.0...v0.6.0) (2026-10-10)
+
+### ⚠ BREAKING CHANGES
+
+* **server:** a platform sign-in provider from PROTOBASE_SIGN_IN_*; run auth:migrate to upgrade
+* **cli,server:** auth schema changes as project migrations for db:migrate, checked at startup
+
+### Features
+
+* **cli,server:** auth schema changes as project migrations for db:migrate, checked at startup ([5ef236e](https://github.com/PrototeamHQ/protobase/commit/5ef236e1afdd59fbc14024f46b77f77164caf83d))
+* **client,ui:** sign in through a ?sign-in=<provider> link, connect providers on the account page ([e6ffccd](https://github.com/PrototeamHQ/protobase/commit/e6ffccd658d89529f3b7e076d2e1a876ed28d5bc))
+* **server,cli:** create a user with linked sign-in accounts, and protobase users create --github-id ([5a7933d](https://github.com/PrototeamHQ/protobase/commit/5a7933dbd978acc2a98c6ac122ef9a7f0e062118))
+* **server:** a platform sign-in provider from PROTOBASE_SIGN_IN_*; run auth:migrate to upgrade ([f62a86d](https://github.com/PrototeamHQ/protobase/commit/f62a86d74b0313928a72b24c3b91a3bd4ee8f725))
+
 ## [0.5.0](https://github.com/PrototeamHQ/protobase/compare/v0.4.1...v0.5.0) (2026-10-10)
 
 ### ⚠ BREAKING CHANGES
