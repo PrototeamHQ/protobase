@@ -27,6 +27,7 @@ Each variable can also be set in code, as `options.assistant` of `createAdmin` (
 | `PROTOBASE_ASSISTANT_API_KEY` | `apiKey` | the model endpoint's API key; turns on the built-in backend |
 | `PROTOBASE_ASSISTANT_MODEL` | `model` | the model; default `openrouter/auto` on OpenRouter, required elsewhere |
 | `PROTOBASE_ASSISTANT_BASE_URL` | `baseUrl` | an OpenAI-compatible endpoint; default `https://openrouter.ai/api/v1` |
+| `PROTOBASE_ASSISTANT_CHATS` | `chats` | the directory the built-in backend keeps conversations in; default `.protobase/chats` |
 
 ### With OpenRouter
 
@@ -36,6 +37,8 @@ Create a key at [openrouter.ai](https://openrouter.ai/keys) and set it, with a m
 PROTOBASE_ASSISTANT_API_KEY=sk-or-v1-...
 PROTOBASE_ASSISTANT_MODEL=anthropic/claude-sonnet-5.5   # optional; OpenRouter picks one without it
 ```
+
+On OpenRouter the built-in backend asks for low reasoning effort and marks the system prompt and the earlier chat for prompt caching, so models that cache, such as Anthropic's, bill the repeated part of each request as a cheaper cache read.
 
 ### With another OpenAI-compatible endpoint
 
@@ -58,11 +61,13 @@ It lives at `/api/assistant` on the app's own origin and answers with the user's
 
 Both run as the app's database role, **outside Protobase's access rules and tenant scoping**: whoever has the `admin` or `ai` role can read, and with approval change, everything that role can. Give the app a database role without superuser rights, and those roles only to people who may see all of the data.
 
-Conversations live in the server's memory, one per user, shared by their tabs: a restart forgets them, and a deployment of several instances gives each its own.
+Each message carries the page the user is on, such as `/orders/42`, which the model reads with it.
+
+There is one conversation per user, shared by their tabs. The server keeps it as a file, `<chats>/<user>/chat.jsonl` (see `PROTOBASE_ASSISTANT_CHATS`), with the chat and everything the model read, so a restart keeps it and the app only ever sends the new message. The directory is made on the first message and must be writable: in a container, point it at a volume. With several instances, send each user's requests to the same one.
 
 ## Another backend
 
-A backend elsewhere replaces the built-in one through `PROTOBASE_ASSISTANT_URL`. It receives the user's API token as `Authorization: Bearer <token>`, verifies it against the app's key set (`/api/auth/jwks`), and allows the app's origin with CORS. It can be built from the building blocks `@protobase/server` exports (the protocol's routes, the turn loop with tool calling, tools, approvals and the query tools) with its own prompt and tools; the built-in backend's source, `packages/server/src/assistant/built-in-assistant.ts`, is the reference.
+A backend elsewhere replaces the built-in one through `PROTOBASE_ASSISTANT_URL`. It receives the user's API token as `Authorization: Bearer <token>`, verifies it against the app's key set (`/api/auth/jwks`), and allows the app's origin with CORS. It can be built from the building blocks `@protobase/server` exports (the protocol's routes, the turn loop with tool calling, tools, approvals, the query tools and a conversation store interface to keep chats elsewhere, such as in a database) with its own prompt and tools; the built-in backend's source, `packages/server/src/assistant/built-in-assistant.ts`, is the reference.
 
 ## In the UI
 
