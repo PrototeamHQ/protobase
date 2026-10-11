@@ -86,7 +86,7 @@ It adds two pages, over a `webhooks` schema that [`protobase migration`](/refere
 
 Both are scoped to the tenant like any resource with `.tenant()`, and their access decides who may do what: `webhookSubscriptions.create`, `webhookDeliveries.update` and so on, as for the app's own resources.
 
-A subscription made here **delivers as its owner**, with the roles they hold now in its tenant: only records and fields they may read. Letting people make subscriptions therefore grants them nothing they could not read already. The roles are read from the project's Better Auth; a project that signs people in otherwise passes `webhooks({ ownerRoles: async ({ id, tenant }) => [...] })`.
+A subscription made here **delivers as its owner**, with the role they act with now in its tenant (the [active role](/reference/auth/#active-role) they last chose, else their first): only records and fields it may read. Letting people make subscriptions therefore grants them nothing they could not read already. The roles are read from the project's Better Auth; a project that signs people in otherwise passes `webhooks({ ownerRoles: async ({ id, tenant }) => [...] })`.
 
 | Action | |
 | --- | --- |
