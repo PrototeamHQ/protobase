@@ -3,6 +3,7 @@ import type { Db } from '@protobase/query'
 import type { AdminOptions } from './admin-options'
 import type { AssistantOptions } from './assistant/assistant-settings'
 import type { EventsOptions } from './changes/events-options'
+import type { WebhooksOptions } from './webhooks/table/options'
 import { isSubscription } from './webhooks/subscription'
 import type { AdminAuth } from './better-auth/create-auth'
 import type { FilesOptions } from './files/options'
@@ -28,6 +29,8 @@ export type ProjectConfig = {
   files?: FilesOptions
   /** Where the changes that resources' events are raised from are captured (see `EventsOptions`). */
   events?: EventsOptions
+  /** Webhook subscriptions made in the admin app; set by `extends: [webhooks()]` (see `WebhooksOptions`). */
+  webhooks?: WebhooksOptions
   /** The module of the app's jobs, e.g. `import * as jobs from './config/jobs'`: every `defineJob` it exports. */
   jobs?: Record<string, unknown>
   options?: AdminOptions
@@ -143,7 +146,7 @@ const mergedOptions = (named: Named[]): AdminOptions | undefined => {
  */
 export const mergeConfig = (...configs: ProjectConfig[]): ProjectConfig => {
   const named = configs.flatMap((config, index) => flatten(config, config.name ?? `config ${index + 1}`))
-  const { db, authenticate, auth, events } = lastSet(named.map(({ config }) => ({ db: config.db, authenticate: config.authenticate, auth: config.auth, events: config.events })))
+  const { db, authenticate, auth, events, webhooks } = lastSet(named.map(({ config }) => ({ db: config.db, authenticate: config.authenticate, auth: config.auth, events: config.events, webhooks: config.webhooks })))
   const module = mergedModule(named)
   const functions = mergedFunctions(named)
   const files = mergedFiles(named)
@@ -159,6 +162,7 @@ export const mergeConfig = (...configs: ProjectConfig[]): ProjectConfig => {
     ...(functions && { functions }),
     ...(files && { files }),
     ...(events && { events }),
+    ...(webhooks && { webhooks }),
     ...(jobs && { jobs }),
     ...(options && { options }),
   }

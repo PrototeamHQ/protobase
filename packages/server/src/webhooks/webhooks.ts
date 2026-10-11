@@ -14,6 +14,10 @@ import { maxTries, nextRetryDelay } from './retry-schedule'
 import { subscriptionProblems, subscriptionRouter } from './route-events'
 import { subscriberEvents } from './subscriber-view'
 import type { SubscriptionDefinition, SubscriptionEvent } from './subscription'
+import { tableSubscriptionName } from './table/options'
+import { sendTestJob } from './table/schema-sql'
+import type { TableSubscriptions } from './table/table-subscriptions'
+import { testEvent } from './test-event'
 
 export type WebhooksInput = {
   deps: Deps
@@ -23,6 +27,8 @@ export type WebhooksInput = {
   schema: string
   /** Where each delivery's outcome is written: the server log. */
   log: (line: string) => void
+  /** The subscriptions people made in the admin app (`webhooks()`), and the check of their URLs' addresses. */
+  table?: { subscriptions: TableSubscriptions; checkUrl?: (url: string) => Promise<string | undefined> }
 }
 
 /** A delivery waiting in the job queue: the event as its subscriber sees it, never a sensitive value. */
@@ -73,9 +79,11 @@ const deliveryGroup = ({ subscription, change }: Delivery) => `${subscription.na
  * - `webhooks.deliver-ordered`, the ordered deliveries of one dispatch for one subscription and record, retried with
  *   doubling waits up to a day, holding back the record's later deliveries to that subscription meanwhile.
  *
+ * With `table`, also `webhooks.send-test`, which Send test event queues, and with its log `webhooks.prune-log`, daily.
+ *
  * No jobs without a resource with events; the subscriptions must name declared events.
  */
-export const createWebhooks = ({ deps, subscriptions, functions, schema, log }: WebhooksInput) => {
+export const createWebhooks = ({ deps, subscriptions, functions, schema, log, table }: WebhooksInput) => {
   const entries = deps.registry.entries
   const models = entries.map((entry) => entry.model)
   const problems = subscriptionProblems(subscriptions, models, Object.keys(functions))
@@ -87,11 +95,26 @@ export const createWebhooks = ({ deps, subscriptions, functions, schema, log }: 
     const model = deps.registry.find(resource)?.model
     return model ? model.primaryKey.map((name) => model.fields[name]!.column) : []
   }
-  const route = subscriptionRouter(subscriptions, models)
   const byName = new Map(subscriptions.map((subscription) => [subscription.name, subscription]))
   const records = (session: Parameters<typeof callerRecords>[1]) => callerRecords(deps, session)
-  const attempt = (subscription: SubscriptionDefinition, event: SubscriptionEvent, db: Db, tried: number, signal: AbortSignal) =>
-    attemptDelivery(subscription, event, { db, functions, records, attempt: tried, signal })
+  const tableId = (subscription: SubscriptionDefinition) => (subscription.name.startsWith('ui:') ? subscription.name.slice('ui:'.length) : undefined)
+
+  // A try, kept on its row for a table subscription, whose URL's address is checked first.
+  const attempt = async (subscription: SubscriptionDefinition, event: SubscriptionEvent, db: Db, tried: number, signal: AbortSignal) => {
+    const id = tableId(subscription)
+    const started = performance.now()
+    const checkUrl = id === undefined ? undefined : table?.checkUrl
+    const result = await attemptDelivery(subscription, event, { db, functions, records, attempt: tried, signal, ...(checkUrl && { checkUrl }) })
+    if (id !== undefined) await table!.subscriptions.record(db, id, event, tried, result, performance.now() - started)
+    return result
+  }
+
+  // The config's subscriptions and the enabled table ones whose events and filter still check out against the resources.
+  const current = async (db: Db) => {
+    if (!table) return subscriptions
+    const rows = (await table.subscriptions.load(db)).filter((row) => subscriptionProblems([row], models, []).length === 0)
+    return [...subscriptions, ...rows]
+  }
 
   const report = (subscription: string, event: SubscriptionEvent, tried: number, result: AttemptResult) => {
     const what = `webhook ${subscription} ${event.type} ${event.id}`
@@ -99,9 +122,11 @@ export const createWebhooks = ({ deps, subscriptions, functions, schema, log }: 
     else log(`${what} failed on try ${tried}: ${result.error}`)
   }
 
-  const subscriptionOf = (name: string) => {
-    const found = byName.get(name)
+  const subscriptionOf = async (name: string, db: Db) => {
+    const id = name.startsWith('ui:') ? name.slice('ui:'.length) : undefined
+    const found = id === undefined ? byName.get(name) : await table?.subscriptions.find(db, id)
     if (!found) throw new FatalJobError(`The subscription "${name}" no longer exists`)
+    if (found.options.enabled === false) throw new FatalJobError(`The subscription "${name}" is disabled`)
     return found
   }
 
@@ -113,7 +138,7 @@ export const createWebhooks = ({ deps, subscriptions, functions, schema, log }: 
     timeout: '1 minute',
     concurrency: parallelAttempts,
     run: async (payload, { db, signal }) => {
-      const subscription = subscriptionOf(payload.subscription)
+      const subscription = await subscriptionOf(payload.subscription, db)
       const result = await attempt(subscription, payload.event, db, payload.attempt, signal)
       report(payload.subscription, payload.event, payload.attempt, result)
       if (result.ok) return
@@ -133,7 +158,7 @@ export const createWebhooks = ({ deps, subscriptions, functions, schema, log }: 
     timeout: '5 minutes',
     concurrency: parallelAttempts,
     run: async (payload, { db, signal, job }) => {
-      const subscription = subscriptionOf(payload.subscription)
+      const subscription = await subscriptionOf(payload.subscription, db)
       for (const event of payload.events) {
         const result = await attempt(subscription, event, db, job.attempt, signal)
         report(payload.subscription, event, job.attempt, result)
@@ -145,7 +170,8 @@ export const createWebhooks = ({ deps, subscriptions, functions, schema, log }: 
   })
 
   // The deliveries of a batch of outbox rows: each event of each change, to each subscription that takes it and may read it.
-  const deliveriesOf = async (changes: ResourceChange[]) => {
+  const deliveriesOf = async (changes: ResourceChange[], db: Db) => {
+    const route = subscriptionRouter(await current(db), models)
     const eventOf = subscriberEvents(deps)
     const deliveries: Delivery[] = []
     for (const change of changes) {
@@ -164,7 +190,7 @@ export const createWebhooks = ({ deps, subscriptions, functions, schema, log }: 
       const entry = deps.registry.find(change.resource)
       return entry ? [resourceChange(entry.model, change)] : []
     })
-    const deliveries = await deliveriesOf(changes)
+    const deliveries = await deliveriesOf(changes, db)
     const now = deliveries.filter(({ subscription }) => !subscription.options.ordered)
     const results = await mapLimit(now, parallelAttempts, ({ subscription, event }) => attempt(subscription, event, db, 1, signal))
     await db.transaction().execute(async (trx) => {
@@ -203,5 +229,23 @@ export const createWebhooks = ({ deps, subscriptions, functions, schema, log }: 
     },
   })
 
-  return { jobs: [dispatch, deliver, deliverOrdered] }
+  // A made-up event from a current record the subscription may read, of the first resource it covers, tried once.
+  const sendTest = defineJob<{ subscription: string }>({
+    name: sendTestJob,
+    maxAttempts: 1,
+    timeout: '1 minute',
+    run: async (payload, { db, signal }) => {
+      const subscription = await subscriptionOf(tableSubscriptionName(payload.subscription), db)
+      const event = await testEvent(deps, records, subscription)
+      report(subscription.name, event, 1, await attempt(subscription, event, db, 1, signal))
+    },
+  })
+
+  const pruneLog = defineJob({
+    name: 'webhooks.prune-log',
+    schedule: '17 3 * * *',
+    run: async (_payload, { db }) => table!.subscriptions.prune(db),
+  })
+
+  return { jobs: [dispatch, deliver, deliverOrdered, ...(table ? [sendTest] : []), ...(table?.subscriptions.deliveryLog ? [pruneLog] : [])] }
 }

@@ -18,6 +18,8 @@ export type AttemptContext = {
   /** 1 for the first try. */
   attempt: number
   signal: AbortSignal
+  /** What is wrong with a URL target's address, checked before each request (`checkWebhookUrl`). */
+  checkUrl?: (url: string) => Promise<string | undefined>
 }
 
 /** How long a receiver has to answer. */
@@ -67,6 +69,8 @@ export const attemptDelivery = async (subscription: SubscriptionDefinition, even
       return { ok: true }
     }
     if ('function' in options) return await resultOf(await callFunction(options.function, subscription, event, options, context, signal))
+    const blocked = await context.checkUrl?.(options.url!)
+    if (blocked) return { ok: false, error: blocked, final: true }
     return await resultOf(await fetch(await request(options.url!, event, options, signal)))
   } catch (error) {
     return failure(error)

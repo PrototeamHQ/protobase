@@ -22,4 +22,15 @@ describe('standardWebhookHeaders', () => {
     expect(await standardWebhookHeaders('evt_1_created', 1, body)).toEqual({ 'webhook-id': 'evt_1_created', 'webhook-timestamp': '1' })
     await expect(standardWebhookHeaders('evt', 1, body, 'not base64!')).rejects.toThrow('A webhook secret is `whsec_` and base64')
   })
+
+  it('signs with every secret during a rotation, and receivers with either one accept it', async () => {
+    const [next, previous] = [newWebhookSecret(), newWebhookSecret()]
+    const body = '{}'
+    const headers = await standardWebhookHeaders('evt_2_created', 1791666245, body, [next, previous])
+    expect(headers['webhook-signature']!.split(' ')).toHaveLength(2)
+    for (const secret of [next, previous]) {
+      const request = new Request('http://receiver.test', { method: 'POST', headers, body })
+      expect(await verifyStandardWebhook(request, { secret, now: () => 1791666245_000 })).toBe(body)
+    }
+  })
 })

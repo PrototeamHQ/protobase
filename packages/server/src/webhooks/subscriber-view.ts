@@ -5,10 +5,13 @@ import { requestAccess, type RequestAccess } from '../request-access'
 import type { Row, Session } from '../types'
 import type { SubscriptionDefinition, SubscriptionEvent } from './subscription'
 
-/** The session a subscription delivers as, or `undefined` for the system: every record, every field but sensitive ones. */
-export const subscriberSession = ({ name, options }: SubscriptionDefinition): Session | undefined => {
+/**
+ * The session a subscription delivers as, or `undefined` for the system: every record, every field but sensitive ones.
+ * Its tenant is the change's, typed as the app's, when the subscription has one.
+ */
+export const subscriberSession = ({ name, options }: SubscriptionDefinition, change?: ResourceChange): Session | undefined => {
   if (!options.as) return undefined
-  const tenant = options.tenant
+  const tenant = options.tenant === undefined ? undefined : (change?.tenant ?? options.tenant)
   return { user: { id: `subscription:${name}`, roles: options.as.roles }, ...(tenant !== undefined && { tenant, organization: { id: tenant } }) }
 }
 
@@ -52,7 +55,7 @@ export const subscriberEvents = (deps: Deps) => {
   const accesses = new Map<string, Promise<RequestAccess>>()
   return async (subscription: SubscriptionDefinition, change: ResourceChange, event: string) => {
     const thin = subscription.options.payload === 'thin'
-    const session = subscriberSession(subscription)
+    const session = subscriberSession(subscription, change)
     if (!session) return subscriptionEvent(change, event, { thin })
     const entry = deps.registry.find(change.resource)
     if (!entry) throw new Error(`Not implemented: a change of "${change.resource}", which is no resource of the app`)

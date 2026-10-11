@@ -27,6 +27,8 @@ export type SubscriptionEvent = {
   /** When the change's transaction started, ISO 8601. */
   timestamp: string
   data: EventData
+  /** Sent by Send test event: made up from a current record, not raised by a change. */
+  test?: true
 }
 
 /** What a `run` handler gets beside the event. */
@@ -60,8 +62,8 @@ export type SubscriptionCommon = {
 
 /** How a URL or function target is called: a POST of the event as JSON, signed with Standard Webhooks headers. */
 export type SentOptions = {
-  /** Signs the requests (`whsec_` and base64, as `verifyStandardWebhook` takes it); unsigned without one. */
-  secret?: string
+  /** Signs the requests (`whsec_` and base64, as `verifyStandardWebhook` takes it); unsigned without one. Several sign during a rotation. */
+  secret?: string | string[]
   headers?: Record<string, string>
   /** The body sent instead of the event, such as Slack's `{ text }`. */
   body?: (event: SubscriptionEvent) => unknown
