@@ -2,6 +2,15 @@
 
 Every release of Protobase, cut by the release workflow from the commits since the last one (see the [versioning page](https://docs.protobase.net/reference/versioning/)).
 
+## [0.8.1](https://github.com/PrototeamHQ/protobase/compare/v0.8.0...v0.8.1) (2026-10-11)
+
+### Features
+
+* **cli:** protobase migration writes what auth and events need; dev and serve check the capture ([43452c5](https://github.com/PrototeamHQ/protobase/commit/43452c596307b49143280ecd54785ec37a41114b))
+* **schema:** resource events with .events(), the e helpers and the event catalogue in the model ([d34c8b7](https://github.com/PrototeamHQ/protobase/commit/d34c8b793eb49445653ef8ad960f138dfc65da39))
+* **server:** capture changes by trigger into changes.outbox, as a migration checked at startup ([94f2d5a](https://github.com/PrototeamHQ/protobase/commit/94f2d5adac2dfb63d4b7cecf673a7e0417be35f7))
+* **server:** coalesce captured changes per record, tell soft deletes apart and match events ([2687ee7](https://github.com/PrototeamHQ/protobase/commit/2687ee7b9a0f4196e0d8e5eedcace07666ef113c))
+
 ## [0.8.0](https://github.com/PrototeamHQ/protobase/compare/v0.7.0...v0.8.0) (2026-10-11)
 
 ### ⚠ BREAKING CHANGES
