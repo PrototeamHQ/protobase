@@ -1,4 +1,3 @@
-import { passkey } from '@better-auth/passkey'
 import { APIError } from 'better-auth/api'
 import { betterAuth, type BetterAuthOptions } from 'better-auth'
 import { admin, emailOTP, genericOAuth, jwt } from 'better-auth/plugins'
@@ -13,6 +12,8 @@ import { resolveOrganizations, type OrganizationsOptions, type ResolvedOrganizat
 import { noGlobalRole, roleDefinitions, type RoleDefinitions, type RolesInput } from './organizations/role-definitions'
 import type { AuthContext } from './organizations/store'
 import { multiHostBaseURL, readOrigins, resolveOrigins } from './origins'
+import { passkeyHosts, readPasskeyDomain, resolvePasskeyDomain } from './passkey-domain'
+import { passkeyPlugin } from './passkey-plugin'
 import { passwordResetOptions } from './password-reset'
 import { narrowClaims } from './roles/active-role'
 import { rolesPlugin } from './roles/roles-plugin'
@@ -36,6 +37,12 @@ export type CreateAuthOptions = {
    * comma-separated list the platform passes in `PROTOBASE_ORIGINS`, when set; none otherwise.
    */
   origins?: string[]
+  /**
+   * The host new passkeys are made for (their RP ID): the host of `baseURL` or of one of `origins`. Each passkey keeps
+   * the one it was made for, and works on every origin, so changing it breaks none. Defaults to the one the platform
+   * passes in `PROTOBASE_PASSKEY_DOMAIN`, when set, and to the host of `baseURL` otherwise.
+   */
+  passkeyDomain?: string
   /** The name authenticator apps and passkey prompts show for this app. Default `Protobase`. */
   appName?: string
   /** Signs cookies and encrypts the JWT private keys. Generate with `openssl rand -base64 32`. */
@@ -103,6 +110,8 @@ const platformSignInSettings = () => readPlatformSignIn(globalThis.process?.env 
 
 const platformOrigins = () => readOrigins(globalThis.process?.env ?? {})
 
+const platformPasskeyDomain = () => readPasskeyDomain(globalThis.process?.env ?? {})
+
 const platformMailer = () => {
   const settings = readMailSettings(globalThis.process?.env ?? {})
   return settings && smtpMailer(settings)
@@ -127,6 +136,8 @@ const adminImpersonationPaths = ['/admin/impersonate-user', '/admin/stop-imperso
 type Resolved = {
   /** The origins besides `baseURL`, from `resolveOrigins`. */
   origins?: string[]
+  /** The RP ID of new passkeys, from `resolvePasskeyDomain`; default the host of `baseURL`. */
+  passkeyDomain?: string
   roles: string[]
   /** The roles with their labels, for the role switcher. */
   definitions: RoleDefinitions
@@ -149,9 +160,10 @@ const organizationPaths = ['/organization/set-active', '/organization/accept-inv
  * The options `createAuth` gives Better Auth, with the roles, default role, mailer, operator provider and platform
  * sign-in provider already resolved.
  */
-export const betterAuthOptions = (options: CreateAuthOptions, { origins = [], roles, definitions, defaultRole, mailer, operator, platformSignIn, organizations, context = noContext }: Resolved) => {
+export const betterAuthOptions = (options: CreateAuthOptions, { origins = [], passkeyDomain, roles, definitions, defaultRole, mailer, operator, platformSignIn, organizations, context = noContext }: Resolved) => {
   const secure = options.baseURL.startsWith('https://')
   const signIn = platformSignInFor(platformSignIn, Object.keys(options.socialProviders ?? {}))
+  const hosts = passkeyHosts([options.baseURL, ...origins])
   return {
     appName: options.appName ?? 'Protobase',
     database: options.database,
@@ -191,8 +203,7 @@ export const betterAuthOptions = (options: CreateAuthOptions, { origins = [], ro
       }),
       // Without a password, as for someone who signs in with a provider only, two-factor authentication is turned on without one.
       twoFactorAfterPasswordOrCode({ schema: pluginNames.twoFactor, allowPasswordless: true, ...(mailer && { otpOptions: twoFactorCodeOptions(mailer) }) }),
-      // On several origins Better Auth would take each request's host; passkeys keep the host of `baseURL`.
-      passkey({ schema: pluginNames.passkey, rpID: new URL(options.baseURL).hostname }),
+      passkeyPlugin({ domain: passkeyDomain ?? hosts[0]!, hosts, formerDomain: hosts[0]! }),
       ...(mailer ? [emailOTP(emailCodeOptions(mailer))] : []),
       ...(signIn ? [genericOAuth({ config: [platformSignInProvider(signIn)] })] : []),
       signInPolicyPlugin({
@@ -261,17 +272,20 @@ export const createAuth = (options: CreateAuthOptions) => {
   const socialProviders = Object.keys(options.socialProviders ?? {})
   const platformSignIn = platformSignInFor(signInSettings && resolvePlatformSignIn(signInSettings), socialProviders)
   const origins = resolveOrigins(options.baseURL, options.origins ?? platformOrigins())
+  const passkeyDomain = resolvePasskeyDomain(options.passkeyDomain ?? platformPasskeyDomain(), [options.baseURL, ...origins])
   const organizations = options.organizations && resolveOrganizations(options.organizations, definitions, options.baseURL)
   // The organization hooks read the store through the instance made below; they run only once it exists.
   let instance: { $context: Promise<AuthContext> } | undefined
   const context = () => instance?.$context ?? Promise.reject(new Error('The auth instance is not made yet'))
-  const auth = betterAuth(betterAuthOptions(options, { origins, roles, definitions, defaultRole, mailer, operator, platformSignIn, ...(organizations && { organizations, context }) }))
+  const auth = betterAuth(betterAuthOptions(options, { origins, passkeyDomain, roles, definitions, defaultRole, mailer, operator, platformSignIn, ...(organizations && { organizations, context }) }))
   instance = auth as unknown as { $context: Promise<AuthContext> }
   return Object.assign(auth, {
     /** Issuer and audience of the tokens: `baseURL`, on every origin. */
     issuer: options.baseURL,
     /** Every origin the app is served on, `baseURL`'s first. */
     origins: [new URL(options.baseURL).origin, ...origins],
+    /** The RP ID of new passkeys. */
+    passkeyDomain,
     roles,
     roleDefinitions: definitions,
     organizations,

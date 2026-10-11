@@ -57,9 +57,10 @@ describe.each([
     const migration = await authSchemaMigration(auth)
     expect(migration).toBe(snakeCaseMigration(schema))
     await pg.transaction((tx) => tx.exec(migration!))
-    // The next migration adds what came after the rename, such as the active role.
+    // The next migration adds what came after the rename, such as the active role and the RP ID each passkey keeps.
     const added = await authSchemaMigration(auth)
     expect(added).toContain('add column if not exists "active_role"')
+    expect(added).toContain('add column if not exists "rp_id"')
     await pg.transaction((tx) => tx.exec(added!))
     await expect(checkAuthSchema(auth)).resolves.toBeUndefined()
     expect(await authSchemaMigration(auth)).toBeUndefined()

@@ -54,6 +54,14 @@ describe('betterAuthOptions', () => {
     expect(passkey.options?.rpID).toBe('admin.example.com')
   })
 
+  it('makes new passkeys for the passkey domain and keeps the RP ID of each', () => {
+    const options = betterAuthOptions(base, { ...resolved, origins: ['https://admin.shop.com'], passkeyDomain: 'admin.shop.com' })
+    const passkey = options.plugins.find((plugin) => plugin.id === 'passkey')!
+    expect((passkey as { options?: { rpID?: string } }).options?.rpID).toBe('admin.shop.com')
+    expect(passkey.schema.passkey.fields.rpID).toMatchObject({ type: 'string', required: false, fieldName: 'rp_id' })
+    expect(passkey.schema.passkey.fields.rpID.defaultValue()).toBe('admin.shop.com')
+  })
+
   it('keeps baseURL a string on one origin', () => {
     expect(betterAuthOptions(base, resolved).baseURL).toBe('https://admin.example.com')
   })
