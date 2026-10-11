@@ -2,10 +2,11 @@ import { spawn, type ChildProcess } from 'node:child_process'
 import { randomBytes } from 'node:crypto'
 import { readFile, rm } from 'node:fs/promises'
 import path from 'node:path'
+import postgres from 'postgres'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { bin, root, run } from '../../packages/cli/tests/support/auth-project'
 import { databaseReachable, freePort, testDatabaseUrl } from '../../packages/cli/tests/support/database'
-import { createErpDatabase, sendPastDueInvoice, signIn, stopProcess, untilListening } from '../../packages/cli/tests/support/serve-process'
+import { createErpDatabase, sendPastDueInvoice, signIn, stopProcess, untilListening, untilPrinted } from '../../packages/cli/tests/support/serve-process'
 
 const url = testDatabaseUrl()
 const erpDir = path.join(root, 'examples/erp')
@@ -80,5 +81,25 @@ describe.skipIf(!reachable)(`the ERP built and served by the CLI on ${runtime}`,
     const code = await build('bun', '--bun')
     expect(code.startsWith('// @bun\n')).toBe(true)
     expect(await serveMeta('bun')).toContain('"prefix":"€"')
+  }, timeout)
+
+  // The jobs in a process of their own: `serve` with PROTOBASE_JOBS=off only enqueues them, `protobase worker` runs them.
+  it('runs the jobs in protobase worker beside a serve that only enqueues them', async () => {
+    await build('worker')
+    const worker = spawn(process.execPath, [bin, 'worker', path.join(outDir, 'worker')], { cwd: erpDir, env: { ...process.env, ...store.env } })
+    child = spawn(process.execPath, [bin, 'serve', path.join(outDir, 'worker')], { cwd: erpDir, env: { ...process.env, ...store.env, PORT: String(port), PROTOBASE_JOBS: 'off' } })
+    try {
+      await Promise.all([untilListening(child, timeout - 10_000), untilPrinted(worker, 'protobase worker running 2 jobs', timeout - 10_000)])
+      const token = await signIn(base, email, password)
+      expect(await sendPastDueInvoice(base, token, store.env.DATABASE_URL)).toBe('overdue')
+      // The nightly sweep waits as its next run, which the worker enqueued.
+      const sql = postgres(store.env.DATABASE_URL, { max: 1, onnotice: () => {} })
+      const runs = await sql`select start_after from jobs.job where name = 'mark-overdue-invoices' and state = 'created'`
+      await sql.end()
+      expect(runs).toHaveLength(1)
+      expect(new Date(runs[0]!.start_after).getTime()).toBeGreaterThan(Date.now())
+    } finally {
+      await Promise.all([stopProcess(child), stopProcess(worker)])
+    }
   }, timeout)
 })
