@@ -4,6 +4,7 @@ import { f, resource, userMenu, view } from '@protobase/schema'
 import { configExports } from './resource-source'
 import { defineConfig, mergeConfig } from './project-config'
 import { defineTool } from './assistant/tools'
+import { defineJob } from './jobs/define-job'
 import type { Authenticator, PipelineHook } from './types'
 
 const things = resource('things').table('things').fields({ id: f.integer().readOnly() }).primaryKey((r) => r.id)
@@ -51,6 +52,15 @@ describe('mergeConfig', () => {
     const [usage, hello] = [() => new Response('usage'), () => new Response('hello')]
     expect(mergeConfig({ name: 'cloud', functions: { usage } }, { name: 'app', functions: { hello } }).functions).toEqual({ usage, hello })
     expect(() => mergeConfig({ name: 'cloud', functions: { usage } }, { name: 'app', functions: { usage: hello } })).toThrow('The function "usage" is defined twice, by cloud and by app; rename one of them')
+  })
+
+  it('keeps the jobs of every config by name, and refuses a job name two configs use', () => {
+    const [prune, invoice] = [defineJob({ name: 'prune', run: () => {} }), defineJob({ name: 'send-invoice', run: () => {} })]
+    expect(mergeConfig({ name: 'webhooks', jobs: { prune } }, { name: 'app', jobs: { invoice, other: 1 } }).jobs).toEqual({ prune, 'send-invoice': invoice })
+    expect(() => mergeConfig({ name: 'webhooks', jobs: { prune } }, { name: 'app', jobs: { mine: defineJob({ name: 'prune', run: () => {} }) } })).toThrow(
+      'The job "prune" is defined twice, by webhooks and by app; rename one of them',
+    )
+    expect(mergeConfig({ name: 'app' }).jobs).toBeUndefined()
   })
 
   it('runs the write hooks of every config, the extended ones first', () => {

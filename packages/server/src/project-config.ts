@@ -6,6 +6,7 @@ import type { EventsOptions } from './changes/events-options'
 import type { AdminAuth } from './better-auth/create-auth'
 import type { FilesOptions } from './files/options'
 import type { FunctionSource } from './functions/define-function'
+import { jobDefinitions } from './jobs/define-job'
 import type { Authenticator } from './types'
 
 /** What `protobase.config.ts` may default-export. Everything is optional. */
@@ -26,6 +27,8 @@ export type ProjectConfig = {
   files?: FilesOptions
   /** Where the changes that resources' events are raised from are captured (see `EventsOptions`). */
   events?: EventsOptions
+  /** The module of the app's jobs, e.g. `import * as jobs from './config/jobs'`: every `defineJob` it exports. */
+  jobs?: Record<string, unknown>
   options?: AdminOptions
 }
 
@@ -111,6 +114,14 @@ const mergedFiles = (named: Named[]): FilesOptions | undefined => {
   }
 }
 
+// Every config's jobs, each name once.
+const mergedJobs = (named: Named[]) => {
+  const all = named.flatMap(({ config, label }) => jobDefinitions(config.jobs ?? {}).map((value) => ({ name: value.name, value, label })))
+  if (all.length === 0) return undefined
+  checkUnique('The job', all)
+  return Object.fromEntries(all.map(({ name, value }) => [name, value]))
+}
+
 const mergedOptions = (named: Named[]): AdminOptions | undefined => {
   const all = named.flatMap(({ config }) => (config.options ? [config.options] : []))
   if (all.length === 0) return undefined
@@ -125,7 +136,7 @@ const mergedOptions = (named: Named[]): AdminOptions | undefined => {
 
 /**
  * One config from several, each after the ones it `extends`, the last being the app's own. Named things are all kept:
- * resources, views and pages of the config modules, functions, assistant tools, file providers; one name defined by two configs is an error naming
+ * resources, views and pages of the config modules, functions, jobs, assistant tools, file providers; one name defined by two configs is an error naming
  * both. Write hooks run in the same order. Every other value is the last config's that sets it, so the app's own wins.
  */
 export const mergeConfig = (...configs: ProjectConfig[]): ProjectConfig => {
@@ -134,6 +145,7 @@ export const mergeConfig = (...configs: ProjectConfig[]): ProjectConfig => {
   const module = mergedModule(named)
   const functions = mergedFunctions(named)
   const files = mergedFiles(named)
+  const jobs = mergedJobs(named)
   const options = mergedOptions(named)
   const name = configs.at(-1)?.name
   return {
@@ -145,6 +157,7 @@ export const mergeConfig = (...configs: ProjectConfig[]): ProjectConfig => {
     ...(functions && { functions }),
     ...(files && { files }),
     ...(events && { events }),
+    ...(jobs && { jobs }),
     ...(options && { options }),
   }
 }

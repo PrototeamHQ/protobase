@@ -7,11 +7,13 @@ import { buildEmptyPg } from './pglite-snapshot'
 import { buildTestPg, testDbSnapshot } from './query'
 import { buildAuthPg } from './auth'
 import { buildFixturePg } from './server'
+import { buildJobsPg } from './jobs'
 
 const builds: Record<string, () => Promise<PGlite>> = {
   empty: buildEmptyPg,
   server: buildFixturePg,
   auth: buildAuthPg,
+  jobs: buildJobsPg,
   [testDbSnapshot()]: () => buildTestPg(),
   [testDbSnapshot({ trigram: true })]: () => buildTestPg({ trigram: true }),
 }
