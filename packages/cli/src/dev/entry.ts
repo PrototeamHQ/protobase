@@ -1,5 +1,6 @@
 import { Hono } from 'hono'
-import { checkAuthSchema, checkChanges, configExports, createAdmin, hasUsers } from '@protobase/server'
+import { checkAuthSchema, checkChanges, configExports, createAdmin, hasUsers, jobDefinitions } from '@protobase/server'
+import { devJobs } from './dev-jobs'
 import { loadProject, projectDb } from './project'
 
 // Loaded by Vite's SSR module graph (see run.ts). Editing any file it imports re-evaluates this module
@@ -22,6 +23,9 @@ if (project.auth && !store.__protobaseAuthSchemaChecked) {
 
 // On every load, since editing the config can give a resource events whose triggers the database lacks.
 await checkChanges(db, resources.map((resource) => resource.toModel()), project.events)
+
+// The project's jobs, run in this server; a behind jobs schema stops startup with the command that writes its migration.
+await devJobs(db, jobDefinitions(project.jobs ?? {}))
 
 const admin = createAdmin({
   resources,

@@ -10,6 +10,7 @@ import { extensionImports, extensionStyles, type Extension } from '../project/ex
 import { projectUiPlugin } from '../project/project-ui'
 import { layoutCheck } from '../build/layout-check'
 import { checkDatabase } from './check-database'
+import { stopDevJobs } from './dev-jobs'
 import { loadNearestEnvFile } from './env'
 
 export type DevOptions = {
@@ -46,6 +47,9 @@ const reloadOnProjectChange = (dirs: string[]): Plugin => ({
     return undefined
   },
 })
+
+// The jobs the entry module started run until the server closes, which lets running ones finish.
+const stopJobsOnClose: Plugin = { name: 'protobase-jobs', closeBundle: () => stopDevJobs() }
 
 // The app's browser dependencies, optimised up front: when Vite discovers them while serving the first page
 // it re-optimises and answers 504 "Outdated Optimize Dep", which shows up as a blank first load.
@@ -88,6 +92,7 @@ export const runDev = async (options: DevOptions, out: (text: string) => void) =
     },
     plugins: [
       reloadOnProjectChange([options.projectDir, ...extensions.map((extension) => extension.dir)]),
+      stopJobsOnClose,
       projectUiPlugin(options.projectDir, extensions),
       extensionImports(options.projectDir, extensions),
       extensionStyles(extensions),

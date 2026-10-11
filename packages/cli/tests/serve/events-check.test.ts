@@ -8,7 +8,7 @@ import { startServe } from '../../src/serve/lifecycle'
 
 const notes = resource('notes').table('notes').fields({ id: f.integer(), body: f.text() }).primaryKey((r) => r.id).events((e) => e.crud())
 const project = { config: { notes }, authenticate: () => ({ user: { id: 1, roles: ['admin'] } }) }
-const env = { port: 0, databaseUrl: 'postgres://unused/app', requestLog: false, filesCleanupMinutes: 0 }
+const env = { port: 0, databaseUrl: 'postgres://unused/app', requestLog: false, filesCleanupMinutes: 0, runJobs: true }
 
 describe('startServe with resource events', () => {
   it('does not start while a resource with events has no triggers, and drains its pool', async () => {

@@ -2,7 +2,9 @@ import { PGlite } from '@electric-sql/pglite'
 import { Kysely } from 'kysely'
 import { PGliteDialect } from 'kysely-pglite-dialect'
 import { describe, expect, it, vi } from 'vitest'
-import { unauthorized } from '@protobase/server'
+import { defineJob, unauthorized } from '@protobase/server'
+import { createJobsPg } from '../../../../test-support/jobs'
+import { createEmptyPg } from '../../../../test-support/pglite-snapshot'
 import { startServe } from '../../src/serve/lifecycle'
 import type { ServedProject } from '../../src/serve/load-bundle'
 
@@ -19,7 +21,7 @@ const project: ServedProject = {
   },
 }
 
-const env = { port: 0, databaseUrl: 'postgres://unused/app', requestLog: false, filesCleanupMinutes: 0 }
+const env = { port: 0, databaseUrl: 'postgres://unused/app', requestLog: false, filesCleanupMinutes: 0, runJobs: true }
 
 describe('startServe', () => {
   it('serves /health without a token and the admin API behind the authenticator', async () => {
@@ -64,4 +66,46 @@ describe('startServe', () => {
     expect(db.destroy).toHaveBeenCalledTimes(1)
     await first.close()
   })
+
+  it('refuses to start while the jobs schema is missing, and drains its pool', async () => {
+    const db = new Kysely<any>({ dialect: new PGliteDialect(await createEmptyPg()) })
+    const destroy = vi.spyOn(db, 'destroy')
+    const job = defineJob({ name: 'nightly', run: () => {} })
+    await expect(startServe({ project: { ...project, jobs: { job } }, env, createDb: () => db })).rejects.toThrow('The jobs schema is missing')
+    expect(destroy).toHaveBeenCalledTimes(1)
+  }, 30_000)
+
+  it("runs the project's jobs, and lets a running one finish when it closes", async () => {
+    const db = new Kysely<any>({ dialect: new PGliteDialect(await createJobsPg()) })
+    let finished = false
+    let started = false
+    const job = defineJob({ name: 'slow', run: async () => {
+      started = true
+      await new Promise((resolve) => setTimeout(resolve, 200))
+      finished = true
+    } })
+    const server = await startServe({ project: { ...project, db, jobs: { job } }, env: { ...env, databaseUrl: undefined } })
+    try {
+      await job.enqueue(db)
+      await vi.waitFor(() => expect(started).toBe(true), { timeout: 20_000, interval: 20 })
+    } finally {
+      await server.close()
+    }
+    expect(finished).toBe(true)
+    await expect(job.enqueue(db)).rejects.toThrow('Jobs are not running in this process')
+  }, 30_000)
+
+  it('enqueues but runs no job with PROTOBASE_JOBS=off', async () => {
+    const db = new Kysely<any>({ dialect: new PGliteDialect(await createJobsPg()) })
+    const run = vi.fn()
+    const job = defineJob({ name: 'elsewhere', run })
+    const server = await startServe({ project: { ...project, db, jobs: { job } }, env: { ...env, databaseUrl: undefined, runJobs: false } })
+    try {
+      await job.enqueue(db)
+      await new Promise((resolve) => setTimeout(resolve, 500))
+      expect(run).not.toHaveBeenCalled()
+    } finally {
+      await server.close()
+    }
+  }, 30_000)
 })
