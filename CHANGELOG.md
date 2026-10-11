@@ -2,6 +2,36 @@
 
 Every release of Protobase, cut by the release workflow from the commits since the last one (see the [versioning page](https://docs.protobase.net/reference/versioning/)).
 
+## [0.10.0](https://github.com/PrototeamHQ/protobase/compare/v0.9.0...v0.10.0) (2026-10-11)
+
+### ⚠ BREAKING CHANGES
+
+* **server:** a passkey domain for new passkeys, each passkey keeping its RP ID for sign-in
+* **server:** a session acts with one active role, its token's only one; write an auth migration
+* snake_case resource and field names in the examples, docs, starters and built-in resources
+
+### Features
+
+* **client,ui:** sign in with a passkey of each domain people's passkeys were made for ([ba71e38](https://github.com/PrototeamHQ/protobase/commit/ba71e38415b08aaa4d7e745f963338a68a2948f8))
+* **client:** session.roles reads the active role and switches it ([3caed04](https://github.com/PrototeamHQ/protobase/commit/3caed042950fdca3a1561fe5825257be417ca964))
+* **erp:** a bottom bar for the warehouse role ([5d2fde0](https://github.com/PrototeamHQ/protobase/commit/5d2fde06b12ca0417aa9aee56cf53552a2f914b4))
+* **schema:** bottomBar(), tabs on phones for some roles, with pure checks ([353ae42](https://github.com/PrototeamHQ/protobase/commit/353ae4297c160382b0b5a4cfc74020a618e8b0a5))
+* **server:** a passkey domain for new passkeys, each passkey keeping its RP ID for sign-in ([a25cb1e](https://github.com/PrototeamHQ/protobase/commit/a25cb1e8861216785d70b457046aa5a8d207fa40))
+* **server:** a session acts with one active role, its token's only one; write an auth migration ([1fc2b5f](https://github.com/PrototeamHQ/protobase/commit/1fc2b5f75e839d880b9fafc35358c31d1091d51f))
+* **server:** an app on several origins with createAuth({ origins }) and PROTOBASE_ORIGINS ([d27adb2](https://github.com/PrototeamHQ/protobase/commit/d27adb244b96580ab3b184d69eb4dd066558a328))
+* **server:** bottom bars in /meta, the one naming the active role, checked at startup ([6a6a86e](https://github.com/PrototeamHQ/protobase/commit/6a6a86ee6e863991254382446a0de4227076bc5c))
+* **server:** cross-origin calls to the API from the app's origins and PROTOBASE_CORS_ORIGINS ([0746882](https://github.com/PrototeamHQ/protobase/commit/0746882012ad8279c0b3c45d5692272dc32d6c60))
+* **server:** relative OpenAPI servers and Scalar document url, right on any host and prefix ([e2b789a](https://github.com/PrototeamHQ/protobase/commit/e2b789ab6b8163a404ecd09448b46a6794cf6f59))
+* snake_case resource and field names in the examples, docs, starters and built-in resources ([2c44acd](https://github.com/PrototeamHQ/protobase/commit/2c44acd00e924f43f3848f6270595ac2ae0190e1))
+* **ui:** a role switcher in the profile menu; the shell follows the active role ([1096b4e](https://github.com/PrototeamHQ/protobase/commit/1096b4ef9b29a07ec3a71d6e47766f03d9bfa3f4))
+* **ui:** an iOS-style bottom bar on phones, with More opening the navigation drawer ([df647b7](https://github.com/PrototeamHQ/protobase/commit/df647b7db469e41d3c5d168fab6d41432fd96855))
+
+### Bug Fixes
+
+* **ci:** install Playwright Chromium before the checks so the e2e tests can launch it ([347692d](https://github.com/PrototeamHQ/protobase/commit/347692d61c943de5d14a22a9996e7707e885ed0c))
+* **erp:** a jobs migration for the ordered enqueue of e389f9c ([f3e1015](https://github.com/PrototeamHQ/protobase/commit/f3e1015bfc42ca87d8a7dd53e985ef9cc75b8408))
+* **server:** ordered jobs enqueued in one transaction run in enqueue order ([e389f9c](https://github.com/PrototeamHQ/protobase/commit/e389f9ce6a8669aa6d7861b8866d7b6c774e9208))
+
 ## [0.9.0](https://github.com/PrototeamHQ/protobase/compare/v0.8.2...v0.9.0) (2026-10-11)
 
 ### ⚠ BREAKING CHANGES
