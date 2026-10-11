@@ -32,7 +32,7 @@ bun run protobase auth migration    # compares it with what Better Auth needs; w
 bun run db:migrate                  # applies it
 ```
 
-The file only adds tables, columns and indexes, never drops one, and is plain SQL to review, edit or leave out where the project handles the auth schema itself. `--dir` and `--name` choose the folder and the name after the number.
+The file only adds tables, columns and indexes, never drops one, and is plain SQL to review, edit or leave out where the project handles the auth schema itself. `--dir` and `--name` choose the folder and the name after the number. [`protobase migration`](/reference/cli/#migration) writes the same file, along with what the config's other features need.
 
 The store's tables and columns are snake_case, like the app's (`sign_in_policy.platform_sign_in`, `session.user_id`); the code and the API keep Better Auth's camelCase names. A store set up by Protobase 0.6 has Better Auth's camelCase names instead (`"signInPolicy"."platformSignIn"`): for it, `protobase auth migration` writes the migration that renames its tables, columns, indexes and constraints in place, keeping every row. The examples carry it as `db/migrations/*_auth_snake_case.sql`; on a store with the snake_case names it does nothing.
 

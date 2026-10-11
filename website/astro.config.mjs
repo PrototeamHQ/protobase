@@ -24,6 +24,7 @@ export default defineConfig({
             'reference/architecture',
             'reference/api',
             'reference/files',
+            'reference/events',
             'reference/access',
             'reference/auth',
             'reference/client',
