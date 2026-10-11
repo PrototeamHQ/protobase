@@ -1,3 +1,5 @@
+import { buildEventModels } from './events/event-models'
+import type { EventSpec } from './events/event-helpers'
 import type { AnyField } from './field'
 import type { FieldModel, ResourceModel, SearchMatch } from './model'
 import { snakeCase } from './naming'
@@ -13,6 +15,7 @@ export type ResourceState = {
   search?: string[]
   searchMatch?: Record<string, SearchMatch>
   owner?: string
+  events?: EventSpec[]
 }
 
 const parseTable = (table: string) => {
@@ -108,9 +111,10 @@ const fileProblems = (model: ResourceModel) =>
 
 export const buildResourceModel = (state: ResourceState): ResourceModel => {
   const model = assembleModel(state)
-  const problems = [...sensitiveProblems(model), ...fileProblems(model)]
+  const events = state.events && buildEventModels(model, state.events)
+  const problems = [...sensitiveProblems(model), ...fileProblems(model), ...(events?.problems ?? [])]
   if (problems.length > 0) throw new Error(`Resource "${model.name}": ${problems.join('; ')}`)
-  return model
+  return events && events.events.length > 0 ? { ...model, events: events.events } : model
 }
 
 export const ignoredColumns = (fields: FieldsInput = {}) =>

@@ -39,6 +39,28 @@ export type ResourceModel = {
   searchMatch?: Record<string, SearchMatch>
   /** The field holding the owning user's id; `.own` capability scopes filter on it. */
   owner?: string
+  /** The events its changes raise (`.events()`), the catalogue subscriptions pick from. */
+  events?: EventModel[]
+}
+
+/** What happened to a record: `delete` and `undelete` include setting and clearing a soft delete field. */
+export type EventOperation = 'create' | 'update' | 'delete' | 'undelete'
+
+/**
+ * An event a resource declares. It fires for a change whose operation is listed and that passes every condition:
+ * `when` on the record after the change, `from` on the record before it, `becomes` turning true (false or no record
+ * before, true after), one of the `changed` fields changing, and a code predicate when `match` is set.
+ */
+export type EventModel = {
+  /** `<resource>.<name>`, such as `orders.created`. */
+  name: string
+  operations: EventOperation[]
+  when?: string
+  from?: string
+  becomes?: string
+  changed?: string[]
+  /** A code predicate decides too; it stays in the config. */
+  match?: true
 }
 
 export type SortSpec = Array<[field: string, direction: 'asc' | 'desc']>

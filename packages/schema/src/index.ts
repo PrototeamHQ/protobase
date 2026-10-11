@@ -3,6 +3,8 @@ export type {
   FieldModel,
   FileFieldModel,
   ResourceModel,
+  EventModel,
+  EventOperation,
   SearchMatch,
   SortSpec,
   KeyValue,
@@ -44,6 +46,8 @@ export type {
 } from './model'
 export { f } from './fields'
 export { resource } from './resource'
+export type { EventActor, EventContext, EventMatch, EventSpec, EventHelpers } from './events/event-helpers'
+export { checkEventFilter } from './events/event-models'
 export { view } from './view'
 export { enumLabel } from './enum-label'
 export { matchesSearch, matchedSearchField, searchTerms, termMatches, type SearchTerm } from './search-match'

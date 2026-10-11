@@ -1,5 +1,7 @@
 import { z } from 'zod'
 import type { FieldAccess } from './access/types'
+import { eventHelpers, type EventHelpers, type EventSpec } from './events/event-helpers'
+import { eventMatches } from './events/event-models'
 import type { ResourceModel, SearchMatch } from './model'
 import { buildResourceModel, ignoredColumns, type ResourceState } from './resource-model'
 import type { Access, Issue, KeyRefs, RecordOf } from './resource-types'
@@ -62,6 +64,19 @@ export class ResourceBuilder<F extends FieldsInput = {}, K = never> {
   /** The field holding the owning user's id, which `.own` capability scopes filter on. */
   owner(pick: (r: FieldRefs<F>) => Ref) {
     return this.next({ owner: pick(this.refs()).name })
+  }
+
+  /**
+   * The events changes to its records raise, captured in the database for every write, from the API or elsewhere:
+   * `(e, r) => [...e.crud(), e.becomes('large', 'total > 1000')]`.
+   */
+  events(define: (e: EventHelpers<RecordOf<F>>, r: FieldRefs<F>) => EventSpec[]) {
+    return this.next({ events: define(eventHelpers<RecordOf<F>>(), this.refs()) })
+  }
+
+  /** The code predicates (`match`) of its events, by event name. */
+  eventMatches() {
+    return eventMatches(this.toModel(), this.state.events ?? [])
   }
 
   validate(validator: Validator<F>) {

@@ -4,7 +4,8 @@ import type { ResolvedAccess } from './resolve'
 /**
  * The resource as one user may see it: only readable fields remain, and a field is `readOnly`
  * unless it is writable on create or update. `search` (and `searchMatch`) shrinks to readable fields, and `tenant`,
- * `softDelete` and `owner` are dropped when their field is hidden. Key columns always stay,
+ * `softDelete` and `owner` are dropped when their field is hidden. The event catalogue, whose conditions may use any
+ * field, is dropped. Key columns always stay,
  * because records are addressed by them.
  *
  * Use the restricted model for everything user-facing (checking filters, sorts, queries,
@@ -21,7 +22,7 @@ export const restrictModel = (
   const keep = (name: string | undefined) => (name !== undefined && visible.has(name) ? name : undefined)
   const search = model.search?.filter((name) => visible.has(name))
   const searchMatch = model.searchMatch && Object.entries(model.searchMatch).filter(([name]) => visible.has(name))
-  const { search: _search, searchMatch: _searchMatch, tenant: _tenant, softDelete: _softDelete, owner: _owner, ...rest } = model
+  const { search: _search, searchMatch: _searchMatch, tenant: _tenant, softDelete: _softDelete, owner: _owner, events: _events, ...rest } = model
   const tenant = keep(model.tenant)
   const softDelete = keep(model.softDelete)
   const owner = keep(model.owner)
