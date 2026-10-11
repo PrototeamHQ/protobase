@@ -10,6 +10,8 @@ import { authBasePath, type AdminAuth } from './better-auth/create-auth'
 import { organizationRoutes } from './better-auth/organizations/admin-routes'
 import { statusRoute } from './better-auth/status-route'
 import { changesSchema, type EventsOptions } from './changes/events-options'
+import { createWebhooks } from './webhooks/webhooks'
+import type { SubscriptionDefinition } from './webhooks/subscription'
 import { checkShell } from './check-shell'
 import { checkViews } from './check-views'
 import { createErrorHandler } from './error-handler'
@@ -30,7 +32,7 @@ import { recordRoutes } from './routes/record'
 import { runtimeUrl } from './runtime/runtime-settings'
 import { createScanGuard } from './scan-guard'
 import type { AdminOptions } from './admin-options'
-import type { AdminEnv, Authenticator, PageSource, Session, ViewSource } from './types'
+import type { Admin, AdminEnv, Authenticator, PageSource, Session, ViewSource } from './types'
 import { failedJobs, failedJobsView } from './jobs/failed-jobs'
 import type { JobDefinition } from './jobs/job-types'
 
@@ -51,16 +53,20 @@ export type CreateAdminInput = {
   files?: FilesOptions
   /** Where the changes that resources' events are raised from are captured (see `EventsOptions`). */
   events?: EventsOptions
-  /** The app's jobs (see `defineJob`): with any, admins get the failed jobs page (`failedJobs`). */
+  /** The app's jobs (see `defineJob`): with any, or a resource with events, admins get the failed jobs page (`failedJobs`). */
   jobs?: JobDefinition[]
+  /** Where the resources' events are delivered (`subscription(...)` exports of the config module). */
+  subscriptions?: SubscriptionDefinition[]
   options?: AdminOptions
 }
 
 /** The admin REST API as a Hono app. It uses only Web APIs, so it runs on Node, Workers and anywhere else Hono does. */
-export const createAdmin = ({ resources: appResources, views: appViews = [], pages = [], userMenu, db, authenticate, auth, functions = {}, files: filesOptions, events, jobs = [], options = {} }: CreateAdminInput) => {
+export const createAdmin = ({ resources: appResources, views: appViews = [], pages = [], userMenu, db, authenticate, auth, functions = {}, files: filesOptions, events, jobs = [], subscriptions = [], options = {} }: CreateAdminInput): Admin => {
   const basePath = options.basePath ?? '/api/v1'
-  const resources = jobs.length > 0 ? [...appResources, failedJobs] : appResources
-  const views = jobs.length > 0 ? [...appViews, failedJobsView] : appViews
+  // Events are delivered by jobs, whose failures the page lists too.
+  const withJobs = jobs.length > 0 || appResources.some((resource) => resource.toModel().events)
+  const resources = withJobs ? [...appResources, failedJobs] : appResources
+  const views = withJobs ? [...appViews, failedJobsView] : appViews
   const registry = buildRegistry(resources)
   const apiFunctions = Object.fromEntries(Object.entries(functions).map(([name, source]) => [name, toApiFunction(name, source)]))
   const viewModels = views.map((view) => view.toModel())
@@ -140,5 +146,6 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], pag
   app.route('/', fileRoutes(deps, authenticate))
   app.route(basePath, api)
   app.route(deps.systemPath || '/', system)
-  return app
+  const webhooks = createWebhooks({ deps, subscriptions, functions: apiFunctions, schema: changesSchema(events), log: (line) => console.log(line) })
+  return Object.assign(app, { jobs: webhooks.jobs })
 }

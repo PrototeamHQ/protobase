@@ -1,3 +1,4 @@
+import type { JobDefinition } from './jobs/job-types'
 import type { Hono } from 'hono'
 import type { PageModel } from '@protobase/layout'
 import type { Db } from '@protobase/query'
@@ -78,4 +79,5 @@ export type ViewSource = { toModel(): ViewModel }
 
 export type PageSource = { toModel(): PageModel }
 
-export type Admin = Hono<AdminEnv>
+/** The admin API, and the jobs it needs a worker to run: the delivery of resource events. */
+export type Admin = Hono<AdminEnv> & { jobs: JobDefinition[] }

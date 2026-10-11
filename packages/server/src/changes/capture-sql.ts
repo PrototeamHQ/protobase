@@ -1,4 +1,5 @@
 import type { ResourceModel } from '@protobase/schema'
+import { jobsSchema } from '../jobs/schema'
 
 export const quoteIdent = (name: string) => `"${name.replaceAll('"', '""')}"`
 
@@ -40,10 +41,18 @@ export const outboxSql = (schema: string) => `create table if not exists ${quote
   "created_at" timestamptz not null default now()
 )`
 
+/** The job that turns captured changes into events and deliveries: one per writing transaction, run one at a time. */
+export const dispatchJobName = 'changes.dispatch'
+
+/** Every dispatch job's group in its ordered queue, so only one runs at a time, across processes too. */
+export const dispatchGroup = 'changes'
+
 /**
  * The body of `capture()`: its arguments are the resource, the columns to keep and the sensitive columns, whose names
  * it lists when they change but whose values it never keeps. It skips a transaction that set `<schema>.capture` to
- * `off`, and an update that changed none of those columns.
+ * `off`, and an update that changed none of those columns. The first row a transaction captures enqueues a dispatch
+ * job in the same transaction; `<schema>.dispatch` remembers that for the rest of it, and a rolled-back savepoint
+ * forgets it with the job.
  */
 export const captureBody = (schema: string) => `
 declare
@@ -80,6 +89,10 @@ begin
     changed,
     nullif(current_setting('${schema}.actor', true), '')::jsonb
   );
+  if current_setting('${schema}.dispatch', true) is distinct from 'queued' then
+    perform ${jobsSchema}.enqueue('${dispatchJobName}', null, null, null, '${dispatchGroup}');
+    perform set_config('${schema}.dispatch', 'queued', true);
+  end if;
   return null;
 end
 `

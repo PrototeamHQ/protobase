@@ -19,6 +19,8 @@ export type ResourceChange = {
   transaction: string
   /** Grows with every change of a record, so receivers can drop stale events. */
   sequence: string
+  /** When the change's transaction started, ISO 8601. */
+  at: string
 }
 
 // The API's form for the types that JSON from the database holds differently: 64-bit integers and decimals as text.
@@ -72,5 +74,6 @@ export const resourceChange = (model: ResourceModel, change: CoalescedChange): R
     ...(tenant != null && { tenant }),
     transaction: change.transaction,
     sequence: change.sequence,
+    at: change.at,
   }
 }

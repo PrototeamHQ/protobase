@@ -7,11 +7,12 @@ import {
   coalesce,
   createAdmin,
   eventMatcher,
+  jobsSchemaMigration,
+  readOutbox,
   resourceChange,
-  type CapturedRow,
 } from '@protobase/server'
 
-/** A fresh, empty database: Kysely over it, a way to run several statements as a migration does, and its end. */
+/** A fresh database with the jobs schema: Kysely over it, a way to run several statements as a migration does, and its end. */
 export type TestDatabase = { db: Kysely<any>; exec: (text: string) => Promise<void>; close: () => Promise<void> }
 
 const ddl = `
@@ -44,12 +45,13 @@ export const orders = resource('orders')
 const model = orders.toModel()
 const match = eventMatcher(model, orders.eventMatches())
 
-type OutboxRow = { id: string; transaction: string; resource: string; op: CapturedRow['op']; old: CapturedRow['old']; new: CapturedRow['new']; changed: string[] | null; actor: CapturedRow['actor'] }
+/** The outbox as the dispatcher reads it, and the events its changes raise. */
+export const outbox = (db: Kysely<any>) => readOutbox(db, 'changes', [model], 1000)
 
-/** The outbox as the dispatcher will read it, and the events its changes raise. */
-export const outbox = async (db: Kysely<any>) => {
-  const { rows } = await sql<OutboxRow>`select id::text, transaction::text, resource, op, old, new, changed, actor from changes.outbox order by id`.execute(db)
-  return rows
+/** The transactions that queued a dispatch job. */
+export const dispatchJobs = async (db: Kysely<any>) => {
+  const { rows } = await sql<{ count: string }>`select count(*)::text as count from jobs.job where name = 'changes.dispatch'`.execute(db)
+  return Number(rows[0]!.count)
 }
 
 export const raised = async (db: Kysely<any>) =>
@@ -69,6 +71,8 @@ export const captureScenarios = (connect: () => Promise<TestDatabase>) => {
   beforeAll(async () => {
     database = await connect()
     db = database.db
+    const jobs = await jobsSchemaMigration(db)
+    if (jobs) await database.exec(jobs)
     await database.exec(ddl)
   })
 
@@ -81,7 +85,10 @@ export const captureScenarios = (connect: () => Promise<TestDatabase>) => {
     await database.close()
   })
 
-  const clear = () => sql`truncate changes.outbox`.execute(db)
+  const clear = async () => {
+    await sql`truncate changes.outbox`.execute(db)
+    await sql`delete from jobs.job where name = 'changes.dispatch'`.execute(db)
+  }
 
   describe('the migration', () => {
     it('is refused at startup before it is applied, and has nothing more to do after', async () => {
@@ -115,17 +122,19 @@ export const captureScenarios = (connect: () => Promise<TestDatabase>) => {
       expect(JSON.stringify(rows)).not.toContain('NL00BANK')
       expect(JSON.stringify(rows)).not.toContain('password_hash')
       expect(await raised(db)).toEqual([
-        { events: ['orders.created', 'orders.large'], operation: 'create', changed: [], actor: { id: 'u_12', roles: ['admin'] }, after: expect.objectContaining({ total: '1200', outstanding: '1200' }) },
-        { events: ['orders.created'], operation: 'create', changed: [], actor: { id: 'u_12', roles: ['admin'] }, after: expect.objectContaining({ total: '50' }) },
+        { events: ['orders.created', 'orders.large'], operation: 'create', changed: [], actor: { id: 'u_12', roles: ['admin'] }, after: expect.objectContaining({ total: '1200.00', outstanding: '1200.00' }) },
+        { events: ['orders.created'], operation: 'create', changed: [], actor: { id: 'u_12', roles: ['admin'] }, after: expect.objectContaining({ total: '50.00' }) },
       ])
+      expect(await dispatchJobs(db)).toBe(1)
     })
 
     it('records writes from outside the API without an actor, generated columns and changed sensitive fields included', async () => {
       await clear()
       await sql`update sales.orders set status = 'paid', paid = total, iban = 'NL99' where total = 1200`.execute(db)
       expect(await raised(db)).toEqual([
-        { events: ['orders.updated', 'orders.ibanChanged'], operation: 'update', changed: ['status', 'paid', 'iban', 'outstanding'], actor: null, after: expect.objectContaining({ status: 'paid', outstanding: '0' }) },
+        { events: ['orders.updated', 'orders.ibanChanged'], operation: 'update', changed: ['status', 'paid', 'iban', 'outstanding'], actor: null, after: expect.objectContaining({ status: 'paid', outstanding: '0.00' }) },
       ])
+      expect(await dispatchJobs(db)).toBe(1)
     })
 
     it('records nothing for a no-op update, a rollback, capture turned off, a rolled-back savepoint, or a column outside the model', async () => {
@@ -148,7 +157,8 @@ export const captureScenarios = (connect: () => Promise<TestDatabase>) => {
         await sql`rollback to savepoint s`.execute(trx)
         await sql`insert into sales.orders (total) values (7)`.execute(trx)
       })
-      expect((await raised(db)).map((change) => [change.events, change.after?.total])).toEqual([[['orders.created'], '7']])
+      expect((await raised(db)).map((change) => [change.events, change.after?.total])).toEqual([[['orders.created'], '7.00']])
+      expect(await dispatchJobs(db)).toBe(1)
     })
 
     it('records a delete, and nothing for an insert deleted in the same transaction', async () => {
@@ -159,6 +169,7 @@ export const captureScenarios = (connect: () => Promise<TestDatabase>) => {
       })
       await sql`delete from sales.orders where total = 7`.execute(db)
       expect((await raised(db)).map((change) => change.events)).toEqual([['orders.deleted']])
+      expect(await dispatchJobs(db)).toBe(2)
     })
   })
 

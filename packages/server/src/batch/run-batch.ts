@@ -1,4 +1,4 @@
-import { actorSettings } from '../changes/actor'
+import { actorSettings, wakeDispatch } from '../changes/actor'
 import type { Deps } from '../deps'
 import { problemOf } from '../error-handler'
 import { HttpProblem, badRequest, notFound } from '../problem'
@@ -47,7 +47,7 @@ export const runBatch = async (deps: Deps, session: Session, operations: BatchOp
     return access
   }
 
-  return writeTransaction(deps.db, deps.statementTimeoutMs, async (trx) => {
+  const written = await writeTransaction(deps.db, deps.statementTimeoutMs, async (trx) => {
     const created = new Map<string, Created>()
     const results: BatchResult[] = []
     for (const [index, operation] of operations.entries()) {
@@ -75,5 +75,7 @@ export const runBatch = async (deps: Deps, session: Session, operations: BatchOp
     }
     return results
   }, actorSettings(deps, session))
+  wakeDispatch(deps)
+  return written
 }
 

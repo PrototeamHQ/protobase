@@ -14,6 +14,8 @@ export type CapturedRow = {
   /** The columns an update changed, sensitive ones included; `null` for inserts and deletes. */
   changed: string[] | null
   actor: EventActor | null
+  /** When the writing transaction started, ISO 8601. */
+  at: string
 }
 
 /**
@@ -29,6 +31,8 @@ export type CoalescedChange = {
   actor: EventActor | null
   /** The id of its last outbox row. */
   sequence: string
+  /** When its last change's transaction started. */
+  at: string
 }
 
 type Group = { first: CapturedRow; last: CapturedRow; actor: EventActor | null; listed: Set<string> }
@@ -46,7 +50,7 @@ const changedColumns = (before: Row, after: Row, listed: Set<string>) =>
   })
 
 const merged = ({ first, last, actor, listed }: Group): CoalescedChange[] => {
-  const base = { transaction: first.transaction, resource: first.resource, actor, sequence: last.id }
+  const base = { transaction: first.transaction, resource: first.resource, actor, sequence: last.id, at: last.at }
   const before = first.op === 'INSERT' ? null : first.old
   const after = last.op === 'DELETE' ? null : last.new
   if (!before && !after) return []

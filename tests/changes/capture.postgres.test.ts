@@ -4,7 +4,7 @@ import postgres from 'postgres'
 import { afterAll, describe, expect, it } from 'vitest'
 import { connectServer, databaseUrl, serverReachable } from '../../scripts/test-db/templates'
 import { PostgresJsDialect } from '../examples/erp/kysely-postgres-js'
-import { captureScenarios, raised, type TestDatabase } from './capture-scenarios'
+import { captureScenarios, dispatchJobs, raised, type TestDatabase } from './capture-scenarios'
 
 const reachable = await serverReachable()
 const id = randomBytes(4).toString('hex')
@@ -42,7 +42,8 @@ describe.skipIf(!reachable)('change capture on Postgres', () => {
       create role "${outsider}" login password 'outsider';
       grant usage on schema sales to "${outsider}";
       grant select, insert, update on sales.orders to "${outsider}";
-      truncate changes.outbox;`)
+      truncate changes.outbox;
+      delete from jobs.job where name = 'changes.dispatch';`)
     const url = new URL(databaseUrl(`changes_${id}`))
     url.username = outsider
     url.password = 'outsider'
@@ -50,7 +51,9 @@ describe.skipIf(!reachable)('change capture on Postgres', () => {
     await sql`insert into sales.orders (total) values (41)`.execute(writer.db)
     await expect(sql`select count(*) from changes.outbox`.execute(writer.db)).rejects.toThrow('permission denied for schema changes')
     await writer.close()
-    expect((await raised(owner.db)).map((change) => [change.events, change.actor, change.after?.total])).toEqual([[['orders.created'], null, '41']])
+    expect((await raised(owner.db)).map((change) => [change.events, change.actor, change.after?.total])).toEqual([[['orders.created'], null, '41.00']])
+    // Its dispatch job too, though it has no rights on the jobs schema either.
+    expect(await dispatchJobs(owner.db)).toBe(1)
     await owner.exec(`drop owned by "${outsider}"`)
     await owner.close()
   })

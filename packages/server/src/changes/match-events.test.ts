@@ -40,6 +40,7 @@ const change = (before: Record<string, unknown> | null, after: Record<string, un
   changed,
   actor: { id: 'u_12', roles: ['sales'] },
   sequence: '48211',
+  at: '2026-10-10T21:04:05.123Z',
 })
 
 const events = (coalesced: CoalescedChange) => match(resourceChange(model, coalesced))
@@ -58,6 +59,7 @@ describe('resourceChange', () => {
       tenant: 3,
       transaction: '753',
       sequence: '48211',
+      at: '2026-10-10T21:04:05.123Z',
     })
     expect(resourceChange(model, { ...change(null, {}), actor: null }).source).toBe('database')
   })

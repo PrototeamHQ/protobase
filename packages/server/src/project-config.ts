@@ -3,6 +3,7 @@ import type { Db } from '@protobase/query'
 import type { AdminOptions } from './admin-options'
 import type { AssistantOptions } from './assistant/assistant-settings'
 import type { EventsOptions } from './changes/events-options'
+import { isSubscription } from './webhooks/subscription'
 import type { AdminAuth } from './better-auth/create-auth'
 import type { FilesOptions } from './files/options'
 import type { FunctionSource } from './functions/define-function'
@@ -69,6 +70,7 @@ const mergedModule = (named: Named[]) => {
   const values = exports.map((entry) => ({ ...entry, value: entry.value as Exportable }))
   checkUnique('The resource', values.filter(({ value }) => typeof value?.recordSchema === 'function' && typeof value.toModel === 'function').map(({ value, label }) => ({ name: String(value.toModel!().name), value, label })))
   checkUnique('The page', exports.filter(({ value }) => isPageDefinition(value)).map(({ value, label }) => ({ name: (value as { name: string }).name, value, label })))
+  checkUnique('The subscription', exports.filter(({ value }) => isSubscription(value)).map(({ value, label }) => ({ name: (value as { name: string }).name, value, label })))
   const menus = values.filter(({ value }) => typeof value?.toUserMenuModel === 'function')
   if (new Set(menus.map(({ value }) => value)).size > 1) throw new Error(`Only one config may export a user menu; ${menus.map(({ label }) => label).join(' and ')} each do`)
 
