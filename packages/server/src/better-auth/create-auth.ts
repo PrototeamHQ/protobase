@@ -28,7 +28,7 @@ import { twoFactorAfterPasswordOrCode } from './two-factor-challenge'
 export type CreateAuthOptions = {
   /** A `pg` Pool, or `{ dialect, type: 'postgres', schemaName? }` for a Kysely dialect: the admin store, apart from the application's tables (its own schema or database). */
   database: BetterAuthOptions['database']
-  /** Public origin of the API, for example `https://admin.example.com`. Issuer and audience of the tokens; passkeys belong to its host. */
+  /** Public origin of the API, for example `https://admin.example.com`. Issuer and audience of the tokens; new passkeys are made for its host unless `passkeyDomain` names another. */
   baseURL: string
   /**
    * The other origins the app is served on, for example `['https://admin.shop.com']`. A request to one of them is
