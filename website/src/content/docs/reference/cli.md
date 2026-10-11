@@ -322,7 +322,7 @@ Better Auth and other settings are the project's own variables (`BETTER_AUTH_SEC
 protobase worker <bundle>   # a bundle from `protobase build`: its folder or its protobase.config.js
 ```
 
-Runs the bundle's [jobs](/reference/jobs/) and nothing else, until SIGTERM or SIGINT, which let running jobs finish for 30 seconds as `serve` does. It checks the bundle's version and the jobs schema at start like `serve`, reads the `.env` nearest the current directory and needs `DATABASE_URL` unless the config exports `db`. Run it beside a `serve` with `PROTOBASE_JOBS=off`, from the same bundle. `protobase worker running <n> jobs` means it is ready.
+Runs the bundle's [jobs](/reference/jobs/), and the delivery of its [events](/reference/webhooks/#delivery-and-retries), and nothing else, until SIGTERM or SIGINT, which let running jobs finish for 30 seconds as `serve` does. It checks the bundle's version and the jobs schema at start like `serve`, reads the `.env` nearest the current directory and needs `DATABASE_URL` unless the config exports `db`. Run it beside a `serve` with `PROTOBASE_JOBS=off`, from the same bundle. `protobase worker running <n> jobs` means it is ready.
 
 ## `files cleanup`
 
@@ -372,7 +372,7 @@ For a project with [organizations](/reference/auth/#organizations); `<organizati
 protobase migration [--dir db/migrations] [--extend <dir>]
 ```
 
-Writes what the database still needs for every feature the config enables, as the project's next migrations in `--dir`, one file per feature: the auth schema when `protobase.config.ts` exports `auth` (`NNN_auth.sql`, as [`auth migration`](#auth-migration) writes it), the [jobs schema](/reference/jobs/#the-jobs-schema) when the config has jobs (`NNN_jobs.sql`), and the [capture of events](/reference/events/#migrations-and-startup) (`NNN_changes.sql`). It compares the database, with the project's migrations applied, with the config, merged with the configs it extends and those of `--extend` as `dev` merges them, and writes nothing when the database is current. Apply the files with the project's other migrations. It reads the `.env` nearest the current directory and needs `DATABASE_URL` unless the config exports `db`.
+Writes what the database still needs for every feature the config enables, as the project's next migrations in `--dir`, one file per feature: the auth schema when `protobase.config.ts` exports `auth` (`NNN_auth.sql`, as [`auth migration`](#auth-migration) writes it), the [jobs schema](/reference/jobs/#the-jobs-schema) when the config has jobs or a resource has events (`NNN_jobs.sql`), and the [capture of events](/reference/events/#migrations-and-startup) (`NNN_changes.sql`). It compares the database, with the project's migrations applied, with the config, merged with the configs it extends and those of `--extend` as `dev` merges them, and writes nothing when the database is current. Apply the files with the project's other migrations. It reads the `.env` nearest the current directory and needs `DATABASE_URL` unless the config exports `db`.
 
 ```sh
 bun run db:migrate                # the database at the project's current schema

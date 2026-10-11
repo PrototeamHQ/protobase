@@ -8,7 +8,7 @@ import orders from '../../../../../docs-examples/events/orders.ts?raw'
 
 A resource can declare **events**: what a change of its records means, such as an order that was created or became large. The changes are captured in the database itself, by triggers, in the transaction that writes them. Writes through the API count, and so do writes from psql, other services, cron SQL and the database's own triggers and generated columns.
 
-This version declares events and captures the changes they are raised from. Delivering events to subscribers comes in the next one; until then the captured changes stay in [`changes.outbox`](#the-outbox), and nothing reads them.
+The app's [jobs](/reference/jobs/) then turn the captured changes into events and deliver them to [subscriptions](/reference/webhooks/): URLs, the app's API functions or code of its own.
 
 <Code code={orders} lang="ts" title="docs-examples/events/orders.ts" />
 
@@ -50,9 +50,11 @@ Filters use the language of [access rules](/reference/access/) and views, on any
 
 `protobase migration` adds a `changes` schema to the database, with:
 
-- **`changes.outbox`**, one row per changed row, written in the writer's transaction, so it commits or rolls back with the change.
+- **`changes.outbox`**, one row per changed row, written in the writer's transaction, so it commits or rolls back with the change. A dispatch job reads the committed rows and deletes them once their events are delivered or queued.
 - **`changes.capture()`**, the trigger function. It runs as its owner, with a fixed search path, so a role that writes the table needs no rights on `changes`: another service writing as its own role keeps working once a resource has events.
 - **Two triggers per resource with events**, on its table: `<table>_changes` for inserts and deletes, and `<table>_changes_update` for updates that change the row.
+
+The first row a transaction captures also enqueues a `changes.dispatch` job with `jobs.enqueue()`, in the same transaction, so a resource with events needs the [`jobs` schema](/reference/jobs/#the-jobs-schema) too. Dispatch jobs run one at a time, in the app's workers. After a write through the API commits, the server has its own worker look for that job at once, so its events usually go out within milliseconds; a write from elsewhere waits for the next poll, two seconds at most.
 
 A trigger keeps the columns of the resource's fields, minus sensitive ones, whose names it lists in `changed` when they change. Columns that are not fields, such as a password hash, are never captured. One table can have events for one resource.
 
@@ -69,9 +71,9 @@ export default defineConfig({ config, auth, authenticate, events: { schema: 'row
 
 ## Migrations and startup
 
-[`protobase migration`](/reference/cli/#migration) compares the database with the resources' events and writes what it lacks as the project's next migration: the schema, the function, and a trigger pair per resource with events. Apply it with the project's other migrations. A trigger changes when the resource's fields do, a field that became sensitive for instance, so run the command after changing the config. Once a resource has no events, the next migration drops its triggers; it never drops a table.
+[`protobase migration`](/reference/cli/#migration) compares the database with the resources' events and writes what it lacks as the project's next migrations: the jobs schema, then the `changes` schema, the function, and a trigger pair per resource with events. Apply it with the project's other migrations. A trigger changes when the resource's fields do, a field that became sensitive for instance, so run the command after changing the config. Once a resource has no events, the next migration drops its triggers; it never drops a table.
 
-`protobase dev` and `protobase serve` do not start while a resource with events lacks its triggers, or has out-of-date ones, and name the command to run. `dev` checks again whenever it reloads the config. Neither changes the schema itself.
+`protobase dev` and `protobase serve` do not start while a resource with events lacks its triggers, or has out-of-date ones, or the jobs schema is missing, and name the command to run. `dev` checks again whenever it reloads the config. Neither changes the schema itself.
 
 ## The outbox
 
@@ -81,7 +83,7 @@ export default defineConfig({ config, auth, authenticate, events: { schema: 'row
 | `transaction` | The writing transaction's id. |
 | `resource` | The resource whose table changed. |
 | `op` | `INSERT`, `UPDATE` or `DELETE`. |
-| `old`, `new` | The row before and after, by column name, without sensitive columns. |
+| `old`, `new` | The row before and after, by column name, without sensitive columns. 64-bit integers and decimals keep every digit when events are built from them. |
 | `changed` | The columns an update changed, sensitive ones included. |
 | `actor` | `{ "id": ..., "roles": [...] }` for a write through the API; `null` otherwise. |
-| `dispatch_after`, `created_at` | When the row may be delivered, and when it was written. |
+| `dispatch_after`, `created_at` | When the row may be dispatched, and when its transaction started: an event's `timestamp`. |
