@@ -8,6 +8,7 @@
         "@commitlint/config-conventional": "^21.2.3",
         "@electric-sql/pglite": "^0.5.8",
         "@protobase/cli": "workspace:*",
+        "@protobase/client": "workspace:*",
         "@protobase/layout": "workspace:*",
         "@protobase/query": "workspace:*",
         "@protobase/schema": "workspace:*",

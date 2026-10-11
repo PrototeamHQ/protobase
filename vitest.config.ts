@@ -20,6 +20,8 @@ const postgresGlue = 'tests/{changes,jobs}/**/*.postgres.test.ts'
 const smoke = ['tests/smoke/**/*.test.ts']
 // The presets written out and installed with bun from npm, migrated on a tenant-style role: `bun run test:presets`.
 const presets = ['packages/presets/tests/**/*.test.ts']
+// Chromium against an app served over TLS on more than one hostname, on PGlite: `bun run test:e2e`.
+const e2e = ['tests/e2e/**/*.test.ts']
 // Subprocesses and Postgres connections, so fewer files at once than the default. With other projects in the same run
 // (an example's `bun run test`), they go after them: Vitest runs projects of different maxWorkers in separate groups.
 const integrationWorkers = 4
@@ -69,6 +71,15 @@ export default defineConfig({
           env: runEnvironment('realEstate', runId),
           maxWorkers: integrationWorkers,
           sequence: integrationGroup,
+        },
+      },
+      {
+        extends: true,
+        test: {
+          name: 'e2e',
+          include: e2e,
+          testTimeout: 60_000,
+          hookTimeout: 120_000,
         },
       },
       {
