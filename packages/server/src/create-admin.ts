@@ -9,6 +9,7 @@ import { consoleAuditQueue } from './audit/console-queue'
 import { authBasePath, type AdminAuth } from './better-auth/create-auth'
 import { organizationRoutes } from './better-auth/organizations/admin-routes'
 import { statusRoute } from './better-auth/status-route'
+import { changesSchema, type EventsOptions } from './changes/events-options'
 import { checkShell } from './check-shell'
 import { checkViews } from './check-views'
 import { createErrorHandler } from './error-handler'
@@ -46,11 +47,13 @@ export type CreateAdminInput = {
   functions?: Record<string, FunctionSource>
   /** Where file fields keep their bytes (see `FilesOptions`). */
   files?: FilesOptions
+  /** Where the changes that resources' events are raised from are captured (see `EventsOptions`). */
+  events?: EventsOptions
   options?: AdminOptions
 }
 
 /** The admin REST API as a Hono app. It uses only Web APIs, so it runs on Node, Workers and anywhere else Hono does. */
-export const createAdmin = ({ resources, views = [], pages = [], userMenu, db, authenticate, auth, functions = {}, files: filesOptions, options = {} }: CreateAdminInput) => {
+export const createAdmin = ({ resources, views = [], pages = [], userMenu, db, authenticate, auth, functions = {}, files: filesOptions, events, options = {} }: CreateAdminInput) => {
   const basePath = options.basePath ?? '/api/v1'
   const registry = buildRegistry(resources)
   const apiFunctions = Object.fromEntries(Object.entries(functions).map(([name, source]) => [name, toApiFunction(name, source)]))
@@ -84,6 +87,7 @@ export const createAdmin = ({ resources, views = [], pages = [], userMenu, db, a
     ...(assistant && { assistant: assistant.kind === 'external' ? assistant.url : `${systemPath}/assistant` }),
     ...(runtime && { runtime }),
     ...(files && { files }),
+    ...(registry.entries.some((entry) => entry.model.events) && { actorSetting: `${changesSchema(events)}.actor` }),
   }
 
   const meta = createMeta(deps)

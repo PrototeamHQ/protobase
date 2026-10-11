@@ -1,3 +1,4 @@
+import { actorSettings } from '../changes/actor'
 import type { Deps } from '../deps'
 import { problemOf } from '../error-handler'
 import { HttpProblem, badRequest, notFound } from '../problem'
@@ -73,6 +74,6 @@ export const runBatch = async (deps: Deps, session: Session, operations: BatchOp
       }
     }
     return results
-  })
+  }, actorSettings(deps, session))
 }
 

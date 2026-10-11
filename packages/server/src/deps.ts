@@ -30,4 +30,6 @@ export type Deps = {
   runtime?: string
   /** Providers, signing and scheduled deletes, when a resource has a file field. */
   files?: FilesRuntime
+  /** The transaction setting that tells the change capture who writes, when a resource has events (`changes.actor`). */
+  actorSetting?: string
 }

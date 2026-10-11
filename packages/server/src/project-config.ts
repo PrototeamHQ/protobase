@@ -2,6 +2,7 @@ import { isPageDefinition } from '@protobase/layout'
 import type { Db } from '@protobase/query'
 import type { AdminOptions } from './admin-options'
 import type { AssistantOptions } from './assistant/assistant-settings'
+import type { EventsOptions } from './changes/events-options'
 import type { AdminAuth } from './better-auth/create-auth'
 import type { FilesOptions } from './files/options'
 import type { FunctionSource } from './functions/define-function'
@@ -23,6 +24,8 @@ export type ProjectConfig = {
   functions?: Record<string, FunctionSource>
   /** Where file fields keep their bytes: providers by name, retention and the signing secret (see `FilesOptions`). */
   files?: FilesOptions
+  /** Where the changes that resources' events are raised from are captured (see `EventsOptions`). */
+  events?: EventsOptions
   options?: AdminOptions
 }
 
@@ -127,7 +130,7 @@ const mergedOptions = (named: Named[]): AdminOptions | undefined => {
  */
 export const mergeConfig = (...configs: ProjectConfig[]): ProjectConfig => {
   const named = configs.flatMap((config, index) => flatten(config, config.name ?? `config ${index + 1}`))
-  const { db, authenticate, auth } = lastSet(named.map(({ config }) => ({ db: config.db, authenticate: config.authenticate, auth: config.auth })))
+  const { db, authenticate, auth, events } = lastSet(named.map(({ config }) => ({ db: config.db, authenticate: config.authenticate, auth: config.auth, events: config.events })))
   const module = mergedModule(named)
   const functions = mergedFunctions(named)
   const files = mergedFiles(named)
@@ -141,6 +144,7 @@ export const mergeConfig = (...configs: ProjectConfig[]): ProjectConfig => {
     ...(auth && { auth }),
     ...(functions && { functions }),
     ...(files && { files }),
+    ...(events && { events }),
     ...(options && { options }),
   }
 }

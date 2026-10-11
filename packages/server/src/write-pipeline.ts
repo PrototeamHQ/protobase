@@ -5,6 +5,7 @@ import { badRequest, HttpProblem } from './problem'
 import { deleteRecord, fetchRecord, insertRecord, restoreRecord } from './records'
 import { requestAccess, requireOperation, targetFilter, writableFields, type RequestAccess } from './request-access'
 import { tenantScope } from './tenant'
+import { actorSettings } from './changes/actor'
 import { writeTransaction } from './transactions'
 import type { Row, Session } from './types'
 import { validateBody } from './validate-body'
@@ -97,5 +98,5 @@ export const writeIn = async (trx: Db, deps: Deps, access: RequestAccess, reques
 export const runWrite = async (deps: Deps, entry: Entry, session: Session, request: WriteRequest): Promise<WriteResult> => {
   const access = await requestAccess(deps, entry, session)
   requireOperation(access, request.operation === 'undelete' ? 'update' : request.operation)
-  return writeTransaction(deps.db, deps.statementTimeoutMs, (trx) => writeIn(trx, deps, access, request))
+  return writeTransaction(deps.db, deps.statementTimeoutMs, (trx) => writeIn(trx, deps, access, request), actorSettings(deps, session))
 }
