@@ -29,7 +29,7 @@ Every tab needs its `label`: tabs are narrow, so the bar does not borrow a view'
 
 ## Which bar someone gets
 
-Each bar names its roles, and a role belongs to one bar. A caller gets the bar that names their active role, through `/meta` as `bottomBar`, without the resources and pages they cannot see; a bar with none left is not sent. Someone whose active role no bar names gets no bar. The active role is the person's first role.
+Each bar names its roles, and a role belongs to one bar. A caller gets the bar that names their active role, through `/meta` as `bottomBar`, without the resources and pages they cannot see; a bar with none left is not sent. Someone whose active role no bar names gets no bar. The active role is the one the session acts with, which the person [switches in the profile menu](/reference/auth/#active-role); with an authenticator other than Better Auth's, the caller's first role.
 
 ## Checks
 
