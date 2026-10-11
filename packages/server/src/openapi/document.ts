@@ -3,20 +3,26 @@ import { batchSchemas, errorResponses, parameters, problemSchema, searchBody } f
 import { resourcePaths } from './resource-paths'
 import { resourceSchemas } from './schemas'
 
+// The document is served at `{systemPath}/openapi.json`, so its servers are relative to that: `v1` for the resources
+// (`systemPath` is the parent of `basePath`) and `.` for the system endpoints. The same document is then right on every
+// host and prefix the API is reached at, such as an API-only domain that serves `/api/*` at the root.
+const resourcesServer = (basePath: string) => basePath.slice(basePath.lastIndexOf('/') + 1)
+const systemServer = '.'
+
 /** The OpenAPI 3.1 document for one caller, generated from the resource models they may see and their zod record schemas. */
-export const openApiDocument = (accesses: RequestAccess[], basePath: string, systemPath: string) => ({
+export const openApiDocument = (accesses: RequestAccess[], basePath: string) => ({
   openapi: '3.1.0',
   info: {
     title: 'Protobase API',
     version: '1.0.0',
     description: 'Admin API for an existing Postgres database. Follows Google\'s API design conventions ([AIP](https://google.aip.dev)) and reports errors as RFC 9457 `application/problem+json`.',
   },
-  servers: [{ url: basePath }],
+  servers: [{ url: resourcesServer(basePath) }],
   security: [{ bearer: [] }],
   tags: accesses.map(({ entry }) => ({ name: entry.name })),
   paths: {
     '/meta': {
-      servers: [{ url: systemPath || '/' }],
+      servers: [{ url: systemServer }],
       get: {
         operationId: 'get_meta',
         summary: 'Resource and view models',
@@ -24,8 +30,8 @@ export const openApiDocument = (accesses: RequestAccess[], basePath: string, sys
         responses: { 200: { description: 'The models' }, 304: { description: 'Not modified' }, 401: { $ref: '#/components/responses/Unauthorized' } },
       },
     },
-    [`/${basePath.slice(basePath.lastIndexOf('/') + 1)}:batchWrite`]: {
-      servers: [{ url: basePath.slice(0, basePath.lastIndexOf('/')) || '/' }],
+    [`/${resourcesServer(basePath)}:batchWrite`]: {
+      servers: [{ url: systemServer }],
       post: {
         operationId: 'batch_write',
         summary: 'Write many records in one transaction',

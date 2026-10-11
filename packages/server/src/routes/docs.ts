@@ -11,8 +11,9 @@ export const docsRoutes = (deps: Deps) => {
   app.get('/openapi.json', async (c) => {
     const accesses = await Promise.all(deps.registry.entries.map((entry) => requestAccess(deps, entry, c.get('session'))))
     const visible = accesses.filter((access) => Object.values(access.resolved.operations).some(Boolean))
-    return c.json(openApiDocument(visible, deps.basePath, deps.systemPath))
+    return c.json(openApiDocument(visible, deps.basePath))
   })
-  app.get('/docs', Scalar({ url: `${deps.systemPath}/openapi.json`, pageTitle: 'Protobase API' }))
+  // Relative to `/docs`, like the document's servers, so the reference works on every host and prefix.
+  app.get('/docs', Scalar({ url: 'openapi.json', pageTitle: 'Protobase API' }))
   return app
 }

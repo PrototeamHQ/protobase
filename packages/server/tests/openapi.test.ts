@@ -41,10 +41,20 @@ describe('GET /openapi.json', () => {
     expect(components.responses.NotFound.content['application/problem+json']).toBeDefined()
   })
 
-  it('serves the Scalar reference', async () => {
+  it('names its servers relative to where it is served, so it is right on any host and prefix', async () => {
+    const document = await (await app.request('/api/openapi.json', { headers: as(1) })).json()
+    const resolved = (server: { url: string }, path: string) => new URL(`${server.url.replace(/\/$/, '')}${path}`, 'https://api.example.com/api/openapi.json').pathname
+    expect(resolved(document.servers[0], '/companies')).toBe('/api/v1/companies')
+    expect(resolved(document.paths['/meta'].servers[0], '/meta')).toBe('/api/meta')
+    expect(resolved(document.paths['/v1:batchWrite'].servers[0], '/v1:batchWrite')).toBe('/api/v1:batchWrite')
+    // On a domain that serves `/api/*` at its root.
+    expect(new URL(`${document.servers[0].url}/companies`, 'https://api.example.com/openapi.json').pathname).toBe('/v1/companies')
+  })
+
+  it('serves the Scalar reference, which loads the document beside it', async () => {
     const response = await app.request('/api/docs', { headers: as(1) })
     expect(response.status).toBe(200)
-    expect(await response.text()).toContain('/api/openapi.json')
+    expect(await response.text()).toMatch(/"url":\s*"openapi.json"/)
   })
 
   it('needs no database access', async () => {
