@@ -11,6 +11,7 @@ import { recordTitle } from '../live/model-helpers'
 import { humanize } from '../live/naming'
 import { ToastProvider } from '../toasts'
 import { AssistantButton, AssistantPanel } from './assistant-shell'
+import { bottomBarFromMeta } from './bottom-bar-from-meta'
 import { breadcrumbFor } from './breadcrumb-for'
 import { CreatePage } from './create/create-page'
 import { ListPage } from './list-page'
@@ -131,6 +132,7 @@ const Routes = ({ workspace, sidebarMode, assistant, runtime }: Pick<AppProps, '
       onSignOut={() => void signOut()}
       workspace={current?.organization?.name ?? workspace}
       navGroups={groups}
+      bottomBar={bottomBarFromMeta(meta, basePath, route.resource)}
       userMenu={[...userMenuFromMeta(meta, basePath, route.resource), ...(organizationSettings ? organizationMenuItems(basePath, path, current) : []), ...accountMenuItems(basePath, path, admin)]}
       organizations={
         organizationSettings && {

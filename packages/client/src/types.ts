@@ -1,5 +1,5 @@
 import type { PageModel } from '@protobase/layout'
-import type { InferRecord, ResourceModel, UserMenuModel, ViewModel } from '@protobase/schema'
+import type { BottomBarModel, InferRecord, ResourceModel, UserMenuModel, ViewModel } from '@protobase/schema'
 
 /** A resource by name, or the builder from `resource(...)`, which carries its record type. */
 export type ResourceRef = string | { readonly $fields: unknown; toModel(): ResourceModel }
@@ -47,8 +47,9 @@ export type ResourcePermissions = { read?: boolean; create: boolean; update: boo
 /**
  * `assistant`: the assistant backend, for a caller with the `admin` or `ai` role when the app has one.
  * `runtime`: the runtime updates endpoint, for a caller with the `admin` role when the app has one.
+ * `bottomBar`: the tabs on phones, of the bottom bar that names the caller's active role.
  */
-export type Meta = { resources: ResourceModel[]; views: ViewModel[]; pages?: PageModel[]; permissions?: Record<string, ResourcePermissions>; userMenu?: UserMenuModel; assistant?: { url: string }; runtime?: { url: string } }
+export type Meta = { resources: ResourceModel[]; views: ViewModel[]; pages?: PageModel[]; permissions?: Record<string, ResourcePermissions>; userMenu?: UserMenuModel; bottomBar?: Omit<BottomBarModel, 'roles'>; assistant?: { url: string }; runtime?: { url: string } }
 
 export type MetaResult = { status: 'modified'; meta: Meta; etag: string } | { status: 'unchanged' }
 

@@ -1,5 +1,5 @@
 import { ApiError, type Client, type ResourcePermissions } from '@protobase/client'
-import type { NavModel, ResourceModel, UserMenuModel, ViewModel } from '@protobase/schema'
+import type { BottomBarModel, NavModel, ResourceModel, UserMenuModel, ViewModel } from '@protobase/schema'
 
 const field = (name: string, type: string, extra: Record<string, unknown> = {}) => ({ name, column: name, type, nullable: false, readOnly: false, filterable: false, sortable: false, aliases: [], ...extra })
 
@@ -22,6 +22,8 @@ export type FakeClientOptions = {
   /** The orders view's sidebar placement, for example a `recent` group. */
   nav?: NavModel
   userMenu?: UserMenuModel
+  /** The bottom bar `/meta` gives the caller. */
+  bottomBar?: Omit<BottomBarModel, 'roles'>
   /** What `/meta` says of the assistant. */
   assistant?: { url: string }
   /** What `/meta` says of the runtime endpoint. */
@@ -29,9 +31,9 @@ export type FakeClientOptions = {
 }
 
 /** A server with one resource, for stories and tests that need permissions or failures the real ERP cannot give. */
-export const fakeClient = ({ permissions, remove, nav, userMenu, assistant, runtime }: FakeClientOptions) =>
+export const fakeClient = ({ permissions, remove, nav, userMenu, bottomBar, assistant, runtime }: FakeClientOptions) =>
   ({
-    meta: async () => ({ status: 'modified' as const, etag: '"meta"', meta: { resources: [orders], views: [{ ...ordersView, ...(nav && { nav }) }], permissions: { orders: permissions }, ...(userMenu && { userMenu }), ...(assistant && { assistant }), ...(runtime && { runtime }) } }),
+    meta: async () => ({ status: 'modified' as const, etag: '"meta"', meta: { resources: [orders], views: [{ ...ordersView, ...(nav && { nav }) }], permissions: { orders: permissions }, ...(userMenu && { userMenu }), ...(bottomBar && { bottomBar }), ...(assistant && { assistant }), ...(runtime && { runtime }) } }),
     list: async () => ({ items: rows, nextPageToken: '', totalSizeEstimate: rows.length }),
     get: async (_resource: string, key: string) => ({ record: rows.find((row) => row.id === key) ?? rows[0]!, etag: rows.find((row) => row.id === key)?.etag ?? '"v1"' }),
     remove: async (_resource: string, key: string, options?: { etag?: string }) => remove?.(key, options?.etag),

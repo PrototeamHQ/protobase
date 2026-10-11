@@ -55,6 +55,30 @@ export const RecentAndUserMenu: StoryObj = {
   },
 }
 
+/** The caller's bottom bar from `/meta`, on a phone: its tabs under their own labels, then "More". */
+export const BottomBarFromMeta: StoryObj = {
+  tags: ['play', 'phone'],
+  parameters: { viewport: { options: { phone390: { name: 'Phone 390', styles: { width: '390px', height: '844px' }, type: 'mobile' } } } },
+  globals: { viewport: { value: 'phone390' } },
+  render: () => (
+    <div className="h-screen">
+      <App
+        client={fakeClient({ permissions: allowed, bottomBar: { label: 'Sales', items: [{ kind: 'resource', resource: 'orders', label: 'My orders' }, { kind: 'link', label: 'Help', href: 'https://docs.protobase.net', icon: 'life-buoy' }] } })}
+        auth={session}
+        initialUrl="/orders"
+      />
+    </div>
+  ),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    const bar = await canvas.findByRole('navigation', { name: 'Tabs' })
+    expect(within(bar).getAllByRole('link').map((link) => link.textContent)).toEqual(['My orders', 'Help'])
+    expect(within(bar).getByRole('link', { name: 'My orders' })).toHaveAttribute('aria-current', 'page')
+    await userEvent.click(within(bar).getByRole('button', { name: 'More' }))
+    await canvas.findByRole('dialog', { name: 'Navigation' })
+  },
+}
+
 /** A server whose first order ships between reads, and a top-bar button that reads it anew, as an app following a record does. */
 const shippingClient = () => {
   let shipped = false

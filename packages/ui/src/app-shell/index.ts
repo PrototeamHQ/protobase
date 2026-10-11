@@ -1,4 +1,5 @@
 export { AppShell, type AppShellProps } from './app-shell'
+export type { BottomBarTab } from './bottom-bar'
 export type { Crumb } from './breadcrumb'
 export { sidebarModes, type SidebarMode } from './sidebar-mode'
 export type { ProfileMenuItem, ProfileOrganizations, ShellUser } from './profile-menu'

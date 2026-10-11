@@ -2,11 +2,12 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <title>Protobase</title>
   </head>
   <body>
-    <div id="root" class="h-screen"></div>
+    <!-- The page reaches under the iPhone home indicator, which the bottom bar keeps clear of; the sides keep clear of the notch. -->
+    <div id="root" class="h-screen" style="padding-left: env(safe-area-inset-left); padding-right: env(safe-area-inset-right)"></div>
     <script type="module" src="./main"></script>
   </body>
 </html>

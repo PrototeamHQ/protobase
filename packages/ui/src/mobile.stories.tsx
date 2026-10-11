@@ -1,8 +1,8 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
-import { StickyNote } from 'lucide-react'
+import { ArrowLeftRight, Boxes, LifeBuoy, ShoppingCart, StickyNote } from 'lucide-react'
 import { useState, type ReactNode } from 'react'
 import { expect, userEvent, waitFor, within } from 'storybook/test'
-import { AppShell } from './app-shell'
+import { AppShell, type BottomBarTab } from './app-shell'
 import { AssistantButton } from './app/assistant-shell'
 import { AssistantDock } from './assistant-dock'
 import { conversation } from './assistant-dock/fixtures'
@@ -76,6 +76,62 @@ export const NavigationDrawer: Story = {
     await waitFor(() => expect(canvas.queryByRole('dialog', { name: 'Navigation' })).toBeNull())
     expect(document.body.style.overflow).toBe('')
     expect(menu).toHaveFocus()
+  },
+}
+
+const warehouseTabs = [
+  { id: 'stockLevels', label: 'Stock', icon: Boxes, href: '#stockLevels' },
+  { id: 'stockMoves', label: 'Moves', icon: ArrowLeftRight, href: '#stockMoves' },
+  { id: 'orders', label: 'Orders', icon: ShoppingCart, href: '#orders' },
+  { id: 'help', label: 'Help', icon: LifeBuoy, href: 'https://docs.protobase.net', external: true },
+] satisfies BottomBarTab[]
+
+const TabbedShell = () => {
+  const [active, setActive] = useState('stockLevels')
+  return (
+    <div className="h-screen">
+      <AppShell
+        sidebarMode="icon"
+        activeItem={active}
+        breadcrumb={[active]}
+        user={adminUser}
+        bottomBar={warehouseTabs.map((tab) => ({ ...tab, active: tab.id === active }))}
+        onNavigate={(href) => setActive(href.slice(1))}
+      >
+        <div className="p-4 text-muted-foreground">A warehouse role gets tabs along the bottom; "More" opens the rest of the navigation.</div>
+      </AppShell>
+    </div>
+  )
+}
+
+/** A bottom bar replaces the top bar's menu button on phones: four tabs and "More", which opens the drawer. */
+export const BottomBarTabs: Story = {
+  globals: { viewport: { value: 'phone390' } },
+  tags: ['play', 'phone'],
+  render: () => <TabbedShell />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    const bar = canvas.getByRole('navigation', { name: 'Tabs' })
+    expect(bar.getBoundingClientRect().bottom).toBe(window.innerHeight)
+    expect(canvas.queryByRole('button', { name: 'Open navigation' })).toBeNull()
+    const tabs = within(bar)
+    expect(tabs.getAllByRole('link').map((link) => link.textContent)).toEqual(['Stock', 'Moves', 'Orders', 'Help'])
+    expect(tabs.getByRole('link', { name: 'Stock' })).toHaveAttribute('aria-current', 'page')
+    expect(tabs.getByRole('link', { name: 'Help' })).toHaveAttribute('target', '_blank')
+
+    await userEvent.click(tabs.getByRole('link', { name: 'Moves' }))
+    expect(tabs.getByRole('link', { name: 'Moves' })).toHaveAttribute('aria-current', 'page')
+    expect(tabs.getByRole('link', { name: 'Stock' })).not.toHaveAttribute('aria-current')
+    const more = tabs.getByRole('button', { name: 'More' })
+    expect(more).not.toHaveAttribute('data-current')
+
+    await userEvent.click(more)
+    const drawer = await canvas.findByRole('dialog', { name: 'Navigation' })
+    expect(more).toHaveAttribute('aria-expanded', 'true')
+    await userEvent.click(within(drawer).getByRole('link', { name: 'Invoices' }))
+    await waitFor(() => expect(canvas.queryByRole('dialog', { name: 'Navigation' })).toBeNull())
+    expect(more).toHaveAttribute('data-current', 'true')
+    expect(tabs.queryByRole('link', { current: 'page' })).toBeNull()
   },
 }
 

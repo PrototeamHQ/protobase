@@ -28,6 +28,7 @@ export const useMeta = () => {
         pages: Object.fromEntries((result.meta.pages ?? []).map((model) => [model.name, model])),
         permissions: result.meta.permissions ?? {},
         ...(result.meta.userMenu && { userMenu: result.meta.userMenu }),
+        ...(result.meta.bottomBar && { bottomBar: result.meta.bottomBar }),
         ...(result.meta.assistant && { assistant: result.meta.assistant }),
         ...(result.meta.runtime && { runtime: result.meta.runtime }),
       }
