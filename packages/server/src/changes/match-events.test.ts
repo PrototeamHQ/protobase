@@ -1,0 +1,106 @@
+import { describe, expect, it } from 'vitest'
+import { f, resource } from '@protobase/schema'
+import type { CoalescedChange } from './coalesce'
+import { eventMatcher } from './match-events'
+import { resourceChange } from './resource-change'
+
+const orders = resource('orders')
+  .table('sales.orders')
+  .fields({
+    id: f.bigint().readOnly(),
+    status: f.enum(['open', 'paid', 'cancelled']),
+    total: f.decimal({ precision: 12, scale: 2 }),
+    notes: f.text().optional(),
+    organizationId: f.integer(),
+    deletedAt: f.timestamp().optional(),
+    iban: f.text().optional().sensitive(),
+  })
+  .primaryKey((r) => r.id)
+  .tenant((r) => r.organizationId)
+  .softDelete((r) => r.deletedAt)
+  .events((e, r) => [
+    ...e.crud(),
+    e.becomes('large', 'total > 1000'),
+    e.updated('statusChanged', { changed: [r.status] }),
+    e.updated('ibanChanged', { changed: [r.iban] }),
+    e.updated('reopened', { from: 'status = "cancelled"', when: 'status != "cancelled"' }),
+    e.created('rush', { match: ({ after }) => String(after?.notes ?? '').includes('RUSH') }),
+  ])
+
+const model = orders.toModel()
+const match = eventMatcher(model, orders.eventMatches())
+
+const columns = (values: Record<string, unknown>) => ({ id: 7, status: 'open', total: 10, notes: null, organization_id: 3, deleted_at: null, ...values })
+
+const change = (before: Record<string, unknown> | null, after: Record<string, unknown> | null, changed: string[] = []): CoalescedChange => ({
+  transaction: '753',
+  resource: 'orders',
+  before: before && columns(before),
+  after: after && columns(after),
+  changed,
+  actor: { id: 'u_12', roles: ['sales'] },
+  sequence: '48211',
+})
+
+const events = (coalesced: CoalescedChange) => match(resourceChange(model, coalesced))
+
+describe('resourceChange', () => {
+  it('maps columns to fields as the API shows them, with key, tenant and source', () => {
+    expect(resourceChange(model, change({ total: 10 }, { total: 1200.5 }, ['total']))).toEqual({
+      resource: 'orders',
+      key: '7',
+      operation: 'update',
+      before: { id: '7', status: 'open', total: '10', notes: null, organizationId: 3, deletedAt: null },
+      after: { id: '7', status: 'open', total: '1200.5', notes: null, organizationId: 3, deletedAt: null },
+      changed: ['total'],
+      actor: { id: 'u_12', roles: ['sales'] },
+      source: 'api',
+      tenant: 3,
+      transaction: '753',
+      sequence: '48211',
+    })
+    expect(resourceChange(model, { ...change(null, {}), actor: null }).source).toBe('database')
+  })
+
+  it('tells soft deletes and undeletes from updates', () => {
+    const at = '2026-10-10T21:04:05.123+00:00'
+    expect(resourceChange(model, change({}, { deleted_at: at }, ['deleted_at'])).operation).toBe('delete')
+    expect(resourceChange(model, change({ deleted_at: at }, {}, ['deleted_at'])).operation).toBe('undelete')
+    expect(resourceChange(model, change({}, null)).operation).toBe('delete')
+    expect(resourceChange(model, change(null, {})).operation).toBe('create')
+  })
+})
+
+describe('eventMatcher', () => {
+  it('raises the crud events by operation', () => {
+    expect(events(change(null, {}))).toEqual(['orders.created'])
+    expect(events(change({ notes: 'a' }, { notes: 'b' }, ['notes']))).toEqual(['orders.updated'])
+    expect(events(change({}, null))).toEqual(['orders.deleted'])
+    expect(events(change({ deleted_at: '2026-10-10' }, {}, ['deleted_at']))).toEqual(['orders.undeleted'])
+  })
+
+  it('fires becomes when the condition turns true, on a create or an update', () => {
+    expect(events(change(null, { total: 1500 }))).toEqual(['orders.created', 'orders.large'])
+    expect(events(change({ total: 900 }, { total: 1100 }, ['total']))).toEqual(['orders.updated', 'orders.large'])
+    expect(events(change({ total: 1100 }, { total: 1200 }, ['total']))).toEqual(['orders.updated'])
+  })
+
+  it('needs one of the changed fields to change, sensitive ones too', () => {
+    expect(events(change({ status: 'open' }, { status: 'paid' }, ['status']))).toEqual(['orders.updated', 'orders.statusChanged'])
+    expect(events(change({}, {}, ['iban']))).toEqual(['orders.updated', 'orders.ibanChanged'])
+  })
+
+  it('checks from on the record before and when on the record after', () => {
+    expect(events(change({ status: 'cancelled' }, { status: 'open' }, ['status']))).toEqual(['orders.updated', 'orders.statusChanged', 'orders.reopened'])
+    expect(events(change({ status: 'paid' }, { status: 'open' }, ['status']))).toEqual(['orders.updated', 'orders.statusChanged'])
+  })
+
+  it('asks the code predicate with the change as the event sees it', () => {
+    expect(events(change(null, { notes: 'RUSH please' }))).toEqual(['orders.created', 'orders.rush'])
+  })
+
+  it('raises nothing for a resource without events', () => {
+    const plain = resource('notes').table('notes').fields({ id: f.integer() }).primaryKey((r) => r.id).toModel()
+    expect(eventMatcher(plain)(resourceChange(plain, { ...change(null, {}), resource: 'notes' }))).toEqual([])
+  })
+})
