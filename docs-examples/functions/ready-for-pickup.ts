@@ -14,6 +14,6 @@ export default defineFunction({ roles: ['mechanic', 'desk'] }, async (request, {
   }
   // The ETag makes this fail with 412 when someone changed the repair since it was read.
   const ready = await records.update('repairs', repairId, { status: 'ready' }, { etag })
-  const waiting = await records.list('repairs', { filter: `customerId = ${repair.customerId} AND status = "ready"`, fields: ['number', 'bike'] })
+  const waiting = await records.list('repairs', { filter: `customer_id = ${repair.customer_id} AND status = "ready"`, fields: ['number', 'bike'] })
   return Response.json({ repair: ready.record, readyForCustomer: waiting.items.map(({ number, bike }) => ({ number, bike })) })
 })

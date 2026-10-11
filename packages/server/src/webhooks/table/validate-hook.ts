@@ -12,7 +12,7 @@ const isHeaders = (value: unknown) =>
  * it covers, headers of text, and a URL at a public address. A refusal is a 400 problem, and the write rolls back.
  */
 export const subscriptionWriteCheck = (models: readonly ResourceModel[], checkUrl?: (url: string) => Promise<string | undefined>): PipelineHook => async (event) => {
-  if (event.resource.name !== 'webhookSubscriptions' || !event.after) return
+  if (event.resource.name !== 'webhook_subscriptions' || !event.after) return
   const { events, url, filter, headers } = event.after as { events: string; url: string; filter?: string | null; headers?: unknown }
   const candidate = { kind: 'subscription', name: 'it', options: { events: parseEvents(events), url, ...(filter && { when: filter }) } } as const
   const problems = [

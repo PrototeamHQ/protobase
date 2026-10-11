@@ -18,7 +18,7 @@ export const ordersView = view<typeof orders>('orders')
       tones: { draft: 'neutral', confirmed: 'info', picking: 'warning', shipped: 'success' },
       pulse: ['picking'],
       filter: 'status != "delivered" AND status != "cancelled"',
-      orderBy: 'createdAt desc',
+      orderBy: 'created_at desc',
     },
   })
 ```
@@ -28,7 +28,7 @@ export const ordersView = view<typeof orders>('orders')
 | `status` | The field whose value picks each record's dot. Typed against the resource's fields. |
 | `tones` | Dot colour per status value: `neutral`, `info`, `success`, `warning` or `danger`. Values not listed are `neutral`. |
 | `pulse` | Status values whose dot pulses, for states in progress (a deploy running, an order being picked). |
-| `filter` | Which records qualify, as AIP-160 text, exactly as `?filter=` on the list API. Use it to leave out finished or inactive records, or to keep them while they are recent: `status != "stopped" OR updatedAt > now() - 7d`. |
+| `filter` | Which records qualify, as AIP-160 text, exactly as `?filter=` on the list API. Use it to leave out finished or inactive records, or to keep them while they are recent: `status != "stopped" OR updated_at > now() - 7d`. |
 | `orderBy` | AIP-132 order, as `?order_by=`; the list's `sort` when omitted. |
 | `limit` | How many records, 1 to 20; 3 when omitted. |
 

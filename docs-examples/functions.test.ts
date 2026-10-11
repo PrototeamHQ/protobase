@@ -22,7 +22,7 @@ const db = new Kysely<any>({
   log: (event) => void queries.push(event.query.sql),
 })
 
-const repair = { id: 7, number: 'R-0007', customerId: 3, bike: 'Gazelle Orange', status: 'working' }
+const repair = { id: 7, number: 'R-0007', customer_id: 3, bike: 'Gazelle Orange', status: 'working' }
 const customer = { id: 3, name: 'Sanne', phone: '+31 6 1234 5678' }
 
 const fakeRecords = (rows: Record<string, Record<string, unknown>>) => ({
@@ -60,7 +60,7 @@ describe('ready-for-pickup', () => {
     const response = await call(readyForPickup, '/', post({ repairId: 7 }), contextWith(records))
     expect(await response.json()).toEqual({ repair: { ...repair, status: 'ready' }, readyForCustomer: [{ number: 'R-0007', bike: 'Gazelle Orange' }] })
     expect(records.update).toHaveBeenCalledWith('repairs', 7, { status: 'ready' }, { etag: '"v1"' })
-    expect(records.list).toHaveBeenCalledWith('repairs', { filter: 'customerId = 3 AND status = "ready"', fields: ['number', 'bike'] })
+    expect(records.list).toHaveBeenCalledWith('repairs', { filter: 'customer_id = 3 AND status = "ready"', fields: ['number', 'bike'] })
     expect(readyForPickup.options).toEqual({ roles: ['mechanic', 'desk'] })
   })
 

@@ -31,24 +31,24 @@ export const salesResources: ResourceModel[] = [
     field('email', 'text', { nullable: true }),
     field('phone', 'text', { nullable: true }),
     field('status', 'enum', { enumValues: ['lead', 'active', 'dormant'], default: { value: 'active' } }),
-    field('createdAt', 'timestamp', { readOnly: true }),
+    field('created_at', 'timestamp', { readOnly: true }),
   ]),
   model('orders', 'sales', [
     field('id', 'integer', { readOnly: true }),
     field('number', 'text'),
-    field('companyId', 'relation', company),
+    field('company_id', 'relation', company),
     field('status', 'enum', { enumValues: ['draft', 'confirmed', 'shipped', 'delivered', 'cancelled'] }),
     field('total', 'decimal', { readOnly: true }),
     field('paid', 'boolean'),
-    field('createdAt', 'timestamp', { readOnly: true }),
+    field('created_at', 'timestamp', { readOnly: true }),
   ]),
   model('invoices', 'sales', [
     field('id', 'integer', { readOnly: true }),
     field('number', 'text'),
-    field('companyId', 'relation', company),
+    field('company_id', 'relation', company),
     field('status', 'enum', { enumValues: ['draft', 'sent', 'paid', 'overdue'] }),
-    field('issuedAt', 'date'),
-    field('dueAt', 'date'),
+    field('issued_at', 'date'),
+    field('due_at', 'date'),
     field('total', 'decimal', { readOnly: true }),
   ]),
 ]
@@ -62,15 +62,15 @@ export const salesViews: ViewModel[] = [
   view('orders', {
     names: { singular: 'Order', plural: 'Orders' },
     title: 'number',
-    fields: { total: euro, companyId: { label: 'Customer' }, status: { valueLabels: { draft: 'Draft', confirmed: 'Confirmed', shipped: 'Shipped', delivered: 'Delivered', cancelled: 'Cancelled' } } },
-    list: { columns: ['number', 'companyId', 'status', 'total'] },
+    fields: { total: euro, company_id: { label: 'Customer' }, status: { valueLabels: { draft: 'Draft', confirmed: 'Confirmed', shipped: 'Shipped', delivered: 'Delivered', cancelled: 'Cancelled' } } },
+    list: { columns: ['number', 'company_id', 'status', 'total'] },
     actions: [{ name: 'markPaid', label: 'Mark as paid', bulk: false, confirm: 'Record that the customer paid this order?', run: { kind: 'update', values: { paid: true } } }],
   }),
   view('invoices', {
     names: { singular: 'Invoice', plural: 'Invoices' },
     title: 'number',
-    fields: { total: euro, companyId: { label: 'Customer' }, dueAt: { label: 'Due date' }, status: { valueLabels: { draft: 'Draft', sent: 'Sent', paid: 'Paid', overdue: 'Overdue' } } },
-    list: { columns: ['number', 'companyId', 'status', 'total'] },
+    fields: { total: euro, company_id: { label: 'Customer' }, due_at: { label: 'Due date' }, status: { valueLabels: { draft: 'Draft', sent: 'Sent', paid: 'Paid', overdue: 'Overdue' } } },
+    list: { columns: ['number', 'company_id', 'status', 'total'] },
     actions: [
       { name: 'send', label: 'Send to customer', bulk: false },
       { name: 'recordPayment', label: 'Record payment', bulk: false, run: { kind: 'update', values: { status: 'paid' } } },
@@ -85,7 +85,7 @@ const companies = [
   ['De Groene Tafel', 'Gouda', 'lead'],
   ['Kessler Feinmechanik', 'Kassel', 'lead'],
   ['Northgate Studio', 'York', 'lead'],
-].map(([name, city, status], index) => ({ id: index + 1, name, city, status, email: `info@${name!.toLowerCase().replace(/[^a-z]+/g, '')}.example`, phone: null, createdAt: `2026-0${9 - (index % 3)}-1${index}T09:00:00Z` }))
+].map(([name, city, status], index) => ({ id: index + 1, name, city, status, email: `info@${name!.toLowerCase().replace(/[^a-z]+/g, '')}.example`, phone: null, created_at: `2026-0${9 - (index % 3)}-1${index}T09:00:00Z` }))
 
 const orders = [
   ['draft', 1, '1240.00', false],
@@ -97,7 +97,7 @@ const orders = [
   ['delivered', 2, '760.00', true],
   ['delivered', 1, '1890.00', true],
   ['cancelled', 3, '150.00', false],
-].map(([status, companyId, total, paid], index) => ({ id: index + 1, number: `SO-${2041 + index}`, companyId, status, total, paid, createdAt: `2026-10-0${(index % 7) + 1}T10:00:00Z` }))
+].map(([status, companyId, total, paid], index) => ({ id: index + 1, number: `SO-${2041 + index}`, company_id: companyId, status, total, paid, created_at: `2026-10-0${(index % 7) + 1}T10:00:00Z` }))
 
 const invoices = ([
   ['overdue', 3, '2026-07-02', '12650.00'],
@@ -107,6 +107,6 @@ const invoices = ([
   ['paid', 2, '2026-06-11', '4100.00'],
   ['paid', 1, '2026-05-03', '980.00'],
   ['draft', 2, '2026-10-05', '4520.00'],
-] as Array<[string, number, string, string]>).map(([status, companyId, issuedAt, total], index) => ({ id: index + 1, number: `INV-${1101 + index}`, companyId, status, issuedAt, dueAt: issuedAt.replace(/-(\d\d)-/, (_, month: string) => `-${String(Number(month) + 1).padStart(2, '0')}-`), total }))
+] as Array<[string, number, string, string]>).map(([status, companyId, issuedAt, total], index) => ({ id: index + 1, number: `INV-${1101 + index}`, company_id: companyId, status, issued_at: issuedAt, due_at: issuedAt.replace(/-(\d\d)-/, (_, month: string) => `-${String(Number(month) + 1).padStart(2, '0')}-`), total }))
 
 export const salesRows = { companies, orders, invoices }

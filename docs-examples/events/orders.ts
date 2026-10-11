@@ -12,10 +12,10 @@ export const orders = resource('orders')
     total: f.decimal({ precision: 12, scale: 2 }),
     notes: f.text().optional(),
     iban: f.text().optional().sensitive(),
-    deletedAt: f.timestamp().optional().readOnly(),
+    deleted_at: f.timestamp().optional().readOnly(),
   })
   .primaryKey((r) => r.id)
-  .softDelete((r) => r.deletedAt)
+  .softDelete((r) => r.deleted_at)
   .events((e, r) => [
     // orders.created, orders.updated, orders.deleted and, since it soft deletes, orders.undeleted
     ...e.crud(),

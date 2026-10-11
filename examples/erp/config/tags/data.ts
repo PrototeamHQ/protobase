@@ -6,12 +6,12 @@ export const tags = resource('tags')
   .table('crm.tags')
   .fields({
     id: f.integer().readOnly().filterable().sortable().dbDefault(),
-    organizationId: f.relation('organizations').filterable().sortable(),
+    organization_id: f.relation('organizations').filterable().sortable(),
     name: f.text().filterable().sortable(),
     color: f.text(),
-    createdAt: f.timestamp().readOnly().dbDefault(),
-    updatedAt: f.timestamp().readOnly().dbDefault(),
+    created_at: f.timestamp().readOnly().dbDefault(),
+    updated_at: f.timestamp().readOnly().dbDefault(),
   })
   .primaryKey((r) => r.id)
-  .tenant((r) => r.organizationId)
+  .tenant((r) => r.organization_id)
   .access(erpAccess('tags'))

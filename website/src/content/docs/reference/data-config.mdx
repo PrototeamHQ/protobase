@@ -21,16 +21,16 @@ A **resource** describes one table of a database you already have: its columns a
 | `resource(name)` | The name is the resource's address (`/api/v1/<name>`, `/<name>` in the admin) and how other config refers to it. It may not contain `/`, `:`, `?` or `#`, and must be unique. |
 | `.table('schema.table')` | The table, with or without its schema. Required. |
 | `.fields({ ... })` | The columns, by field name. `name: null` ignores a column on purpose (scaffold writes it, so it does not offer the column again). Required. |
-| `.primaryKey((r) => r.id)` | The key, one field or a list (`(r) => [r.orderId, r.lineNo]`). Required; records are addressed by it. |
-| `.softDelete((r) => r.deletedAt)` | A nullable timestamp or date: deleting sets it, lists leave such rows out, `:undelete` clears it. See [REST API](/reference/api/#routes). |
-| `.tenant((r) => r.organizationId)` | The column that separates tenants: every query is limited to the caller's tenant, creates set it, and a request body may not. |
-| `.owner((r) => r.ownerId)` | The field holding the owning user's id, which `.own` capabilities filter on (see [Access](#access)). |
+| `.primaryKey((r) => r.id)` | The key, one field or a list (`(r) => [r.order_id, r.line_no]`). Required; records are addressed by it. |
+| `.softDelete((r) => r.deleted_at)` | A nullable timestamp or date: deleting sets it, lists leave such rows out, `:undelete` clears it. See [REST API](/reference/api/#routes). |
+| `.tenant((r) => r.organization_id)` | The column that separates tenants: every query is limited to the caller's tenant, creates set it, and a request body may not. |
+| `.owner((r) => r.owner_id)` | The field holding the owning user's id, which `.own` capabilities filter on (see [Access](#access)). |
 | `.search((r) => [r.number, r.name])` | The fields that `search("...")` and bare words in a filter match, and what the admin's [global search](/reference/client/#global-search) looks in. Every word of the text must appear in one of them, ignoring case, and part of a word is enough: `port` finds "Portfolio". `r.phone.digitsEnd()` matches only the end of a field's digits instead, ignoring spaces, `+` and dashes, and only words written like phone numbers: `9623`, `47069623` and `+31 6 47069623` find "+31 6 47069623", `4706` and `+316` do not. A pg_trgm index on `regexp_replace(phone, '[^0-9]', '', 'g')` serves it. |
 | `.validate((record) => issues)` | A rule over the whole record, run after the field checks on every create and update. It returns `[{ field, message }]` or `undefined`; issues answer `400` with the field named. |
 | `.access({ ... })` | Rules per operation. See [Access](#access). |
 | `.events((e, r) => [...])` | What changes of its records mean, such as `orders.created`, captured in the database for every write. See [Events](/reference/events/). |
 
-Field names are camelCase; the column is the snake_case of the name unless `.column()` says otherwise.
+Field and resource names are snake_case by convention, like the columns: they are the names in URLs, the API, filters and sorts as written (`/stock_moves?order_by=moved_at desc`). The column is the snake_case of the name unless `.column()` says otherwise, so a camelCase name such as `movedAt` maps to `moved_at` too.
 
 ## Field types
 
@@ -100,7 +100,7 @@ Without rules everyone who can sign in may do everything. Rules come in three ki
 - **Per row**: a filter from a rule, or a `.own` capability with `.owner(...)`.
 - **Per field**: `.access({ read, create, update })` on the field. Field rules see only the user, never a record, so the fields a user can read are the same for every row.
 
-`defineRoles` turns roles into capabilities (`workOrders.update.own`, `money.read`, `*`), and `roles.can(...)` and `roles.is(...)` make rules of them; `.and()` and `.or()` combine rules.
+`defineRoles` turns roles into capabilities (`work_orders.update.own`, `money.read`, `*`), and `roles.can(...)` and `roles.is(...)` make rules of them; `.and()` and `.or()` combine rules.
 
 <Code code={access} lang="ts" title="docs-examples/reference/access.ts" />
 

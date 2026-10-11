@@ -6,14 +6,14 @@ export const users = resource('users')
   .table('core.users')
   .fields({
     id: f.integer().readOnly().filterable().sortable().dbDefault(),
-    organizationId: f.relation('organizations').filterable().sortable(),
+    organization_id: f.relation('organizations').filterable().sortable(),
     email: f.text().filterable().sortable(),
     name: f.text(),
     role: f.enum(['admin', 'sales', 'finance', 'warehouse']).filterable().sortable(),
     active: f.boolean().default(true),
-    createdAt: f.timestamp().readOnly().dbDefault(),
-    updatedAt: f.timestamp().readOnly().dbDefault(),
+    created_at: f.timestamp().readOnly().dbDefault(),
+    updated_at: f.timestamp().readOnly().dbDefault(),
   })
   .primaryKey((r) => r.id)
-  .tenant((r) => r.organizationId)
+  .tenant((r) => r.organization_id)
   .access(erpAccess('users'))

@@ -13,7 +13,7 @@ const models: Record<string, ResourceModel> = Object.fromEntries([customers, rep
 describe('the bike shop', () => {
   it('describes its tables, leaving out the ignored column', () => {
     expect(models.repairs!.fields.notes!.column).toBe('internal_notes')
-    expect(models.repairs!.fields).not.toHaveProperty('legacyRef')
+    expect(models.repairs!.fields).not.toHaveProperty('legacy_ref')
     expect(models.customers!.fields.country!.default).toEqual({ value: 'NL' })
   })
 
@@ -31,7 +31,7 @@ describe('the bike shop', () => {
 
   it('has rows the field schemas accept', () => {
     for (const row of customerRows) expect(customers.recordSchema().safeParse(row).success).toBe(true)
-    for (const row of repairRows) expect(repairs.recordSchema().safeParse({ ...row, legacyRef: undefined }).success).toBe(true)
+    for (const row of repairRows) expect(repairs.recordSchema().safeParse({ ...row, legacy_ref: undefined }).success).toBe(true)
   })
 })
 
@@ -53,8 +53,8 @@ describe('access', () => {
 
 describe('keys', () => {
   it('points a two-column relation at a two-column key', () => {
-    expect(keyTypes(models.partOrders!, (name) => models[name])).toEqual(['uuid'])
-    expect(models.partOrders!.fields.part!.relation).toEqual({ resource: 'stock', columns: ['part_no', 'part_size'] })
-    expect(models.partOrders!.fields.supplierReference!.aliases).toEqual(['ref'])
+    expect(keyTypes(models.part_orders!, (name) => models[name])).toEqual(['uuid'])
+    expect(models.part_orders!.fields.part!.relation).toEqual({ resource: 'stock', columns: ['part_no', 'part_size'] })
+    expect(models.part_orders!.fields.supplier_reference!.aliases).toEqual(['ref'])
   })
 })

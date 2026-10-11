@@ -4,7 +4,7 @@ export type FilterInput = string | FilterExpr
 
 export type ListParams = {
   filter?: FilterInput
-  /** AIP-132 text, for example `createdAt desc`. */
+  /** AIP-132 text, for example `created_at desc`. */
   orderBy?: string
   pageSize?: number
   pageToken?: string

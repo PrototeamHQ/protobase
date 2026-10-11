@@ -15,18 +15,18 @@ const session = createStaticSession('story-token', { id: 'lotte', email: 'lotte@
 const { webhookSubscriptions, webhookSubscriptionsView, webhookDeliveries, webhookDeliveriesView } = webhookResources('webhooks')
 
 const rows = {
-  webhookSubscriptions: [
-    { id: '7d1f0c2a-0000-4000-8000-000000000001', name: 'Orders to the warehouse', events: 'orders.created orders.updated', url: 'https://warehouse.example.com/hooks/protobase', filter: 'total > 100', headers: null, payload: 'full', enabled: true, tenantId: '1', ownerId: 'lotte', disabledReason: null, lastSuccessAt: '2026-10-11T09:12:00Z', failingSince: null, createdAt: '2026-10-01T08:00:00Z', updatedAt: '2026-10-01T08:00:00Z', rotateSecret: false, sendTest: false, resendFailed: false },
-    { id: '7d1f0c2a-0000-4000-8000-000000000002', name: 'Invoices to accounting', events: 'invoices.*', url: 'https://books.example.com/webhook', filter: null, headers: { 'x-api-key': 'k_123' }, payload: 'thin', enabled: false, tenantId: '1', ownerId: 'lotte', disabledReason: 'The receiver answered 410 Gone', lastSuccessAt: '2026-10-08T17:40:00Z', failingSince: '2026-10-09T06:00:00Z', createdAt: '2026-09-20T08:00:00Z', updatedAt: '2026-10-09T06:00:00Z', rotateSecret: false, sendTest: false, resendFailed: false },
+  webhook_subscriptions: [
+    { id: '7d1f0c2a-0000-4000-8000-000000000001', name: 'Orders to the warehouse', events: 'orders.created orders.updated', url: 'https://warehouse.example.com/hooks/protobase', filter: 'total > 100', headers: null, payload: 'full', enabled: true, tenant_id: '1', owner_id: 'lotte', disabled_reason: null, last_success_at: '2026-10-11T09:12:00Z', failing_since: null, created_at: '2026-10-01T08:00:00Z', updated_at: '2026-10-01T08:00:00Z', rotate_secret: false, send_test: false, resend_failed: false },
+    { id: '7d1f0c2a-0000-4000-8000-000000000002', name: 'Invoices to accounting', events: 'invoices.*', url: 'https://books.example.com/webhook', filter: null, headers: { 'x-api-key': 'k_123' }, payload: 'thin', enabled: false, tenant_id: '1', owner_id: 'lotte', disabled_reason: 'The receiver answered 410 Gone', last_success_at: '2026-10-08T17:40:00Z', failing_since: '2026-10-09T06:00:00Z', created_at: '2026-09-20T08:00:00Z', updated_at: '2026-10-09T06:00:00Z', rotate_secret: false, send_test: false, resend_failed: false },
   ],
-  webhookDeliveries: [
-    { id: 'a1', subscriptionId: '7d1f0c2a-0000-4000-8000-000000000001', tenantId: '1', eventType: 'orders.updated', eventId: 'evt_48211_updated', status: 'waiting', attempt: 3, nextAttempt: '2026-10-11T10:30:00Z', lastError: '503: down for maintenance', createdAt: '2026-10-11T09:20:00Z', resend: false },
+  webhook_deliveries: [
+    { id: 'a1', subscription_id: '7d1f0c2a-0000-4000-8000-000000000001', tenant_id: '1', event_type: 'orders.updated', event_id: 'evt_48211_updated', status: 'waiting', attempt: 3, next_attempt: '2026-10-11T10:30:00Z', last_error: '503: down for maintenance', created_at: '2026-10-11T09:20:00Z', resend: false },
   ],
 }
 
 const permissions: Record<string, ResourcePermissions> = {
-  webhookSubscriptions: { read: true, create: true, update: true, delete: true, conditional: [] },
-  webhookDeliveries: { read: true, create: false, update: true, delete: false, conditional: [] },
+  webhook_subscriptions: { read: true, create: true, update: true, delete: true, conditional: [] },
+  webhook_deliveries: { read: true, create: false, update: true, delete: false, conditional: [] },
 }
 
 /** The rows the fake server holds, so a play can check what a save stored. */
@@ -52,7 +52,7 @@ const Webhooks = ({ path }: { path: string }) => {
 
 export const List: StoryObj = {
   tags: ['play'],
-  render: () => <Webhooks path="/webhookSubscriptions" />,
+  render: () => <Webhooks path="/webhook_subscriptions" />,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
     expect(await canvas.findByText('Orders to the warehouse')).toBeTruthy()
@@ -63,14 +63,14 @@ export const List: StoryObj = {
 
 export const Subscription: StoryObj = {
   tags: ['play'],
-  render: () => <Webhooks path="/webhookSubscriptions/7d1f0c2a-0000-4000-8000-000000000001" />,
+  render: () => <Webhooks path="/webhook_subscriptions/7d1f0c2a-0000-4000-8000-000000000001" />,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
     expect(await canvas.findByRole('button', { name: /Send test event/ })).toBeTruthy()
     expect(canvas.getByRole('button', { name: /Rotate secret/ })).toBeTruthy()
     expect(await canvas.findByText('503: down for maintenance')).toBeTruthy()
     await userEvent.click(canvas.getByRole('button', { name: /Send test event/ }))
-    await waitFor(() => expect(stored.webhookSubscriptions![0]!.sendTest).toBe(true))
+    await waitFor(() => expect(stored.webhook_subscriptions![0]!.send_test).toBe(true))
   },
 }
 
@@ -82,13 +82,13 @@ const inputOf = async (canvas: ReturnType<typeof within>, label: string) => {
 
 export const Create: StoryObj = {
   tags: ['play'],
-  render: () => <Webhooks path="/webhookSubscriptions/new" />,
+  render: () => <Webhooks path="/webhook_subscriptions/new" />,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
     await userEvent.type(await inputOf(canvas, 'Name'), 'Large orders to Slack')
     await userEvent.type(await inputOf(canvas, 'Events'), 'orders.large')
     await userEvent.type(await inputOf(canvas, 'URL'), 'https://hooks.slack.com/services/T000/B000/XXXX')
     await userEvent.click(canvas.getByRole('button', { name: /^Create/ }))
-    await waitFor(() => expect(stored.webhookSubscriptions!.find((row) => row.name === 'Large orders to Slack')).toMatchObject({ events: 'orders.large', payload: 'full' }))
+    await waitFor(() => expect(stored.webhook_subscriptions!.find((row) => row.name === 'Large orders to Slack')).toMatchObject({ events: 'orders.large', payload: 'full' }))
   },
 }

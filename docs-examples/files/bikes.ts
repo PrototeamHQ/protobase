@@ -16,12 +16,12 @@ export const bikes = resource('bikes')
   .fields({
     id: f.integer().readOnly().dbDefault(),
     name: f.text(),
-    photo: f.file().accept(['image/*']).maxSize('10 MB').optional().derive({ photoWidth: imageSize('width'), photoRatio: aspectRatio() }),
-    photoWidth: f.integer().readOnly().optional(),
-    photoRatio: f.decimal({ precision: 8, scale: 4 }).readOnly().optional(),
-    manual: f.file().accept(['application/pdf']).optional().derive({ manualBytes: fileSize(), manualSha256: sha256 }),
-    manualBytes: f.integer().readOnly().optional(),
-    manualSha256: f.text().readOnly().optional(),
+    photo: f.file().accept(['image/*']).maxSize('10 MB').optional().derive({ photo_width: imageSize('width'), photo_ratio: aspectRatio() }),
+    photo_width: f.integer().readOnly().optional(),
+    photo_ratio: f.decimal({ precision: 8, scale: 4 }).readOnly().optional(),
+    manual: f.file().accept(['application/pdf']).optional().derive({ manual_bytes: fileSize(), manual_sha256: sha256 }),
+    manual_bytes: f.integer().readOnly().optional(),
+    manual_sha256: f.text().readOnly().optional(),
     listing: f.file().accept(['image/png', 'image/jpeg', 'image/webp']).maxSize('2 MB').public().optional(),
   })
   .primaryKey((r) => r.id)

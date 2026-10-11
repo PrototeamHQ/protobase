@@ -6,14 +6,14 @@ export const valuations = resource('valuations')
   .table('portfolio.valuations')
   .fields({
     id: f.bigint().readOnly().filterable().sortable().dbDefault(),
-    organizationId: f.relation('organizations').filterable().sortable(),
-    propertyId: f.relation('properties').filterable().sortable(),
-    valuedOn: f.date().filterable().sortable(),
+    organization_id: f.relation('organizations').filterable().sortable(),
+    property_id: f.relation('properties').filterable().sortable(),
+    valued_on: f.date().filterable().sortable(),
     value: f.decimal({ precision: 14, scale: 2 }),
     source: f.enum(['woz', 'appraisal']).filterable().sortable(),
-    createdAt: f.timestamp().readOnly().dbDefault(),
-    updatedAt: f.timestamp().readOnly().dbDefault(),
+    created_at: f.timestamp().readOnly().dbDefault(),
+    updated_at: f.timestamp().readOnly().dbDefault(),
   })
   .primaryKey((r) => r.id)
-  .tenant((r) => r.organizationId)
+  .tenant((r) => r.organization_id)
   .access(access('valuations'))

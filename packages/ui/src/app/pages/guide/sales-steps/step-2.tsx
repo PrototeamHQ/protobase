@@ -11,8 +11,8 @@ export const overview = page(
       <Stat label="Open leads" resource="companies" filter="status = 'lead'" />
     </Grid>
     <Grid columns={2}>
-      <Table title="Overdue invoices" resource="invoices" filter="status = 'overdue'" sort="issuedAt" columns={['number', 'companyId', 'dueAt', 'total']} pageSize={2} empty="Nothing is overdue." />
-      <Table title="Latest orders" resource="orders" sort="createdAt desc" columns={['number', 'companyId', 'status', 'total']} pageSize={5} />
+      <Table title="Overdue invoices" resource="invoices" filter="status = 'overdue'" sort="issued_at" columns={['number', 'company_id', 'due_at', 'total']} pageSize={2} empty="Nothing is overdue." />
+      <Table title="Latest orders" resource="orders" sort="created_at desc" columns={['number', 'company_id', 'status', 'total']} pageSize={5} />
     </Grid>
   </Page>,
   { nav: { group: 'Sales', order: 0 }, icon: 'layout-dashboard' },

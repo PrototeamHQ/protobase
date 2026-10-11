@@ -5,9 +5,9 @@ import { defineFunction } from '@protobase/server'
 export default defineFunction(async (_request, { records }) => {
   const page = await records.list('orders', {
     filter: 'status = "delivered" AND paid = false',
-    order_by: 'createdAt',
+    order_by: 'created_at',
     page_size: 20,
-    fields: ['id', 'number', 'companyId', 'total', 'createdAt'],
+    fields: ['id', 'number', 'company_id', 'total', 'created_at'],
   })
   return Response.json({ orders: page.items.map(({ etag, permissions, ...order }) => order) })
 })

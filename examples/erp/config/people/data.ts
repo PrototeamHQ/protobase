@@ -6,16 +6,16 @@ export const people = resource('people')
   .table('crm.people')
   .fields({
     id: f.bigint().readOnly().filterable().sortable().dbDefault(),
-    organizationId: f.relation('organizations').filterable().sortable(),
-    companyId: f.relation('companies').filterable().sortable(),
-    firstName: f.text(),
-    lastName: f.text(),
+    organization_id: f.relation('organizations').filterable().sortable(),
+    company_id: f.relation('companies').filterable().sortable(),
+    first_name: f.text(),
+    last_name: f.text(),
     email: f.text().optional(),
     phone: f.text().optional(),
-    jobTitle: f.text().optional(),
-    createdAt: f.timestamp().readOnly().filterable().sortable().dbDefault(),
-    updatedAt: f.timestamp().readOnly().dbDefault(),
+    job_title: f.text().optional(),
+    created_at: f.timestamp().readOnly().filterable().sortable().dbDefault(),
+    updated_at: f.timestamp().readOnly().dbDefault(),
   })
   .primaryKey((r) => r.id)
-  .tenant((r) => r.organizationId)
+  .tenant((r) => r.organization_id)
   .access(erpAccess('people'))

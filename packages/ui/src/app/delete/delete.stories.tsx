@@ -19,7 +19,7 @@ export const ChangedSinceOpened: StoryObj = {
         changes={[
           { field: 'status', label: 'Status', before: 'Draft', after: 'Confirmed' },
           { field: 'total', label: 'Total', before: '€26.70', after: '€31.20' },
-          { field: 'discountPercent', label: 'Discount', before: '0%', after: '5%' },
+          { field: 'discount_percent', label: 'Discount', before: '0%', after: '5%' },
         ]}
         onCancel={() => undefined}
         onReview={() => undefined}

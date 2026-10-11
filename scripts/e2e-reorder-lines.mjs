@@ -25,17 +25,17 @@ token = await tokenFromPage(page, base)
 const storageState = await desktop.storageState()
 
 // A throwaway invoice with four lines, removed at the end.
-const invoice = (await api('POST', '/invoices', { number: 'ZZ-REORDER-1', companyId: 1, issuedAt: '2026-10-01', dueAt: '2026-10-31' })).body
+const invoice = (await api('POST', '/invoices', { number: 'ZZ-REORDER-1', company_id: 1, issued_at: '2026-10-01', due_at: '2026-10-31' })).body
 const lines = []
 for (const [index, name] of ['A', 'B', 'C', 'D'].entries()) {
-  lines.push((await api('POST', '/invoiceLines', { invoiceId: invoice.id, position: index + 1, description: `Line ${name}`, quantity: 1, unitPrice: '10.00' })).body)
+  lines.push((await api('POST', '/invoice_lines', { invoice_id: invoice.id, position: index + 1, description: `Line ${name}`, quantity: 1, unit_price: '10.00' })).body)
 }
 const original = lines.map((line) => ({ id: line.id, position: line.position }))
 const letters = Object.fromEntries(original.map((line, index) => [line.id, 'ABCD'[index]]))
 const lineId = (letter) => original['ABCD'.indexOf(letter)].id
 
 const serverOrder = async () => {
-  const page = await api('GET', `/invoiceLines?filter=${encodeURIComponent(`invoiceId = "${invoice.id}"`)}&order_by=position%20asc&page_size=50`)
+  const page = await api('GET', `/invoice_lines?filter=${encodeURIComponent(`invoice_id = "${invoice.id}"`)}&order_by=position%20asc&page_size=50`)
   return page.body.items.map((line) => letters[line.id]).join('')
 }
 const screenOrder = (p) => p.locator('[data-line-id]').evaluateAll((rows, map) => rows.map((row) => map[row.getAttribute('data-line-id')]).join(''), letters)
@@ -158,7 +158,7 @@ try {
   }, 'ADBC', 'DBCA')
   await phone.close()
 } finally {
-  for (const line of lines) await api('DELETE', `/invoiceLines/${line.id}`, undefined, { 'if-match': '*' })
+  for (const line of lines) await api('DELETE', `/invoice_lines/${line.id}`, undefined, { 'if-match': '*' })
   await api('DELETE', `/invoices/${invoice.id}`, undefined, { 'if-match': '*' })
   await browser.close()
 }

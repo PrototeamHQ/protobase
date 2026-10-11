@@ -20,7 +20,7 @@ const browser = await chromium.launch()
 const page = await browser.newPage({ viewport: { width: 1440, height: 900 } })
 await signInPage(page, base)
 token = await tokenFromPage(page, base)
-const product = (await api('POST', '/products', { categoryId: 1, sku: 'ZZ-UNDO-1', name: 'Throwaway for undo', price: '1.00', currencyCode: 'EUR', attributes: {}, active: true })).body
+const product = (await api('POST', '/products', { category_id: 1, sku: 'ZZ-UNDO-1', name: 'Throwaway for undo', price: '1.00', currency_code: 'EUR', attributes: {}, active: true })).body
 await page.goto(`${base}/products?filter=${encodeURIComponent('sku = "ZZ-UNDO-1"')}`)
 await page.getByText('ZZ-UNDO-1').waitFor()
 await page.getByRole('button', { name: 'Row actions' }).first().click()

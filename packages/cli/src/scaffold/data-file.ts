@@ -1,4 +1,5 @@
 import { tableKey } from '../db/model'
+import { camelCase } from '../infer/names'
 import { renderField } from '../infer/render-field'
 import { parseSource } from './project'
 import { fieldsObject, resourceChain } from './existing-config'
@@ -24,7 +25,7 @@ export const renderDataFile = (plan: ResourcePlan) => {
   return [
     `import { f, resource } from '@protobase/schema'`,
     '',
-    `${docComment(plan)}export const ${plan.name} = resource('${plan.name}')`,
+    `${docComment(plan)}export const ${camelCase(plan.name)} = resource('${plan.name}')`,
     `  .table('${tableKey(plan.table)}')`,
     `  .fields({`,
     properties,

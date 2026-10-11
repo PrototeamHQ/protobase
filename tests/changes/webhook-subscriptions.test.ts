@@ -83,22 +83,22 @@ describe('webhook subscriptions made in the admin app', () => {
   const lotteGot = () => receiver.at('/lotte').map((request) => JSON.parse(request.body) as SubscriptionEvent)
   const row = async () => (await sql<{ secret: string; enabled: boolean; disabled_reason: string | null }>`select secret, enabled, disabled_reason from webhooks.subscriptions`.execute(db)).rows[0]!
   const update = async (values: Record<string, unknown>) => {
-    const response = await as('lotte', `/webhookSubscriptions/${subscription.id}`, { method: 'PATCH', headers: { 'if-match': '*' }, body: JSON.stringify(values) })
+    const response = await as('lotte', `/webhook_subscriptions/${subscription.id}`, { method: 'PATCH', headers: { 'if-match': '*' }, body: JSON.stringify(values) })
     expect(response.status).toBe(200)
   }
 
   it('is created by a tenant admin, owned by them in their tenant, with a secret only a reveal shows', async () => {
-    const refused = await as('lotte', '/webhookSubscriptions', { method: 'POST', body: JSON.stringify({ name: 'Orders', events: 'orders.created orders.shipped', url: receiver.url('/lotte') }) })
+    const refused = await as('lotte', '/webhook_subscriptions', { method: 'POST', body: JSON.stringify({ name: 'Orders', events: 'orders.created orders.shipped', url: receiver.url('/lotte') }) })
     expect(refused.status).toBe(400)
     expect((await refused.json()).detail).toBe('The webhook subscription cannot be saved: "orders.shipped" matches no declared event')
-    const response = await as('lotte', '/webhookSubscriptions', { method: 'POST', body: JSON.stringify({ name: 'Orders', events: 'orders.created, orders.deleted', url: receiver.url('/lotte') }) })
+    const response = await as('lotte', '/webhook_subscriptions', { method: 'POST', body: JSON.stringify({ name: 'Orders', events: 'orders.created, orders.deleted', url: receiver.url('/lotte') }) })
     expect(response.status).toBe(201)
     const created = await response.json()
-    expect(created).toMatchObject({ name: 'Orders', tenantId: '1', ownerId: 'lotte', enabled: true, payload: 'full' })
+    expect(created).toMatchObject({ name: 'Orders', tenant_id: '1', owner_id: 'lotte', enabled: true, payload: 'full' })
     expect(created).not.toHaveProperty('secret')
     expect((await row()).secret).toMatch(/^whsec_[A-Za-z0-9+/]{43}=$/)
     subscription = { id: created.id, etag: created.etag }
-    expect((await (await as('sem', '/webhookSubscriptions')).json()).items).toEqual([])
+    expect((await (await as('sem', '/webhook_subscriptions')).json()).items).toEqual([])
   })
 
   it("delivers only its tenant's records that its owner may read, with the fields they may read", async () => {
@@ -113,13 +113,13 @@ describe('webhook subscriptions made in the admin app', () => {
 
   it('sends a test event, and after a rotation signs with the new and the old secret', async () => {
     const old = (await row()).secret
-    await update({ sendTest: true })
+    await update({ send_test: true })
     await until(() => expect(lotteGot().filter((event) => event.test)).toHaveLength(1))
     expect(lotteGot().find((event) => event.test)).toMatchObject({ type: 'orders.created', data: { resource: 'orders', after: { organizationId: 1 } } })
-    await update({ rotateSecret: true })
+    await update({ rotate_secret: true })
     const rotated = (await row()).secret
     expect(rotated).not.toBe(old)
-    await update({ sendTest: true })
+    await update({ send_test: true })
     await until(() => expect(lotteGot().filter((event) => event.test)).toHaveLength(2))
     const last = receiver.at('/lotte').at(-1)!
     for (const secret of [old, rotated]) {
@@ -132,10 +132,10 @@ describe('webhook subscriptions made in the admin app', () => {
     receiver.failNext('/lotte', 503)
     await sql`delete from orders where total = 20`.execute(db)
     await until(async () => {
-      const { items } = await (await as('lotte', '/webhookDeliveries')).json()
-      expect(items.map((item: Record<string, unknown>) => [item.eventType, item.status, item.attempt, item.lastError])).toEqual([['orders.deleted', 'waiting', 2, '503: down for maintenance']])
+      const { items } = await (await as('lotte', '/webhook_deliveries')).json()
+      expect(items.map((item: Record<string, unknown>) => [item.event_type, item.status, item.attempt, item.last_error])).toEqual([['orders.deleted', 'waiting', 2, '503: down for maintenance']])
     })
-    expect((await (await as('sem', '/webhookDeliveries')).json()).items).toEqual([])
+    expect((await (await as('sem', '/webhook_deliveries')).json()).items).toEqual([])
     receiver.failNext('/lotte', 410)
     await sql`insert into orders (organization_id, total) values (1, 50)`.execute(db)
     await until(async () => expect(await row()).toMatchObject({ enabled: false, disabled_reason: 'The receiver answered 410 Gone' }))

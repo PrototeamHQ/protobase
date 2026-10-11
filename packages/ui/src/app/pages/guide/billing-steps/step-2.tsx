@@ -15,18 +15,18 @@ export const billing = page(
         <Grid columns={3}>
           <Field name="plan.name" label="Plan" />
           <Field name="plan.price" label="Per month" />
-          <Field name="renewsAt" />
+          <Field name="renews_at" />
         </Grid>
-        <Progress label="Seats" value="seatsUsed" max="plan.seats" />
+        <Progress label="Seats" value="seats_used" max="plan.seats" />
       </RecordCard>
       <RecordCard
         title="Billing details"
-        resource="billingProfiles"
-        actions={<ModalForm mode="edit" label="Edit" title="Edit billing details" fields={['company', 'vatNumber', 'address', 'email']} />}
+        resource="billing_profiles"
+        actions={<ModalForm mode="edit" label="Edit" title="Edit billing details" fields={['company', 'vat_number', 'address', 'email']} />}
       >
         <Grid columns={2}>
           <Field name="company" />
-          <Field name="vatNumber" />
+          <Field name="vat_number" />
           <Field name="address" />
           <Field name="email" />
         </Grid>

@@ -8,8 +8,8 @@ export const repairsView = named
   .filters((r, w) => [
     w.facets(r.status),
     w.facets(r.mechanic, { search: true }),
-    w.dateRange(r.bookedOn, { presets: ['7d', '30d', 'month'] }),
+    w.dateRange(r.booked_on, { presets: ['7d', '30d', 'month'] }),
     w.range(r.estimate, { histogram: true }),
     w.toggle(r.paid),
   ])
-  .chart((r) => ({ field: r.bookedOn, range: '30d', granularity: 'day' }))
+  .chart((r) => ({ field: r.booked_on, range: '30d', granularity: 'day' }))

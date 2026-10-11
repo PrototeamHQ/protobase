@@ -10,9 +10,9 @@ describe('webhooks()', () => {
       { schema: 'webhooks', name: 'subscriptions' },
       { schema: 'webhooks', name: 'deliveries' },
     ])
-    expect(plain.views.map((view) => view.toModel().resource)).toEqual(['webhookSubscriptions', 'webhookDeliveries'])
+    expect(plain.views.map((view) => view.toModel().resource)).toEqual(['webhook_subscriptions', 'webhook_deliveries'])
     const logged = configExports(webhooks({ schema: 'hooks', deliveryLog: true }).config!)
-    expect(logged.resources.map((source) => source.toModel().name)).toEqual(['webhookSubscriptions', 'webhookDeliveries', 'webhookDeliveryLog'])
+    expect(logged.resources.map((source) => source.toModel().name)).toEqual(['webhook_subscriptions', 'webhook_deliveries', 'webhook_delivery_log'])
     expect(logged.resources[0]!.toModel().table.schema).toBe('hooks')
   })
 
@@ -25,6 +25,6 @@ describe('webhooks()', () => {
 
   it('keeps the secret sensitive, and tenant and owner set by the server', () => {
     const model = configExports(webhooks().config!).resources[0]!.toModel()
-    expect([model.fields.secret!.sensitive, model.tenant, model.owner, model.fields.tenantId!.readOnly, model.fields.ownerId!.readOnly]).toEqual([true, 'tenantId', 'ownerId', true, true])
+    expect([model.fields.secret!.sensitive, model.tenant, model.owner, model.fields.tenant_id!.readOnly, model.fields.owner_id!.readOnly]).toEqual([true, 'tenant_id', 'owner_id', true, true])
   })
 })

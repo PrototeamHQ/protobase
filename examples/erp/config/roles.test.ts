@@ -22,35 +22,35 @@ describe('ERP roles on orders', () => {
     expect(access.operations).toEqual({ list: read, read, create, update, delete: remove })
     expect(access.rowFilter.read?.kind).toBe(readFilter)
     expect(access.rowFilter.update?.kind).toBe(updateFilter)
-    if (readFilter) expect(access.rowFilter.read).toMatchObject({ field: { name: 'ownerId' }, value: { value: 3 } })
+    if (readFilter) expect(access.rowFilter.read).toMatchObject({ field: { name: 'owner_id' }, value: { value: 3 } })
     expect(access.readableFields.length > 0).toBe(read)
   })
 })
 
 describe('hidden columns', () => {
-  // accountant holds costs.read but has no access to stockMoves at all
+  // accountant holds costs.read but has no access to stock_moves at all
   const unitCost = [
     ['admin', true], ['auditor', true], ['manager', true], ['accountant', false],
     ['sales', false], ['warehouse', false], ['editor', false], ['integration', false],
   ] as const
 
-  it.each(unitCost)('stockMoves.unitCost for %s: %s', async (role, visible) => {
+  it.each(unitCost)('stock_moves.unit_cost for %s: %s', async (role, visible) => {
     const access = await resolveAccess(stockMoves, as(role))
-    expect(access.readableFields.includes('unitCost')).toBe(visible)
+    expect(access.readableFields.includes('unit_cost')).toBe(visible)
     if (role === 'warehouse') expect(access.readableFields).toContain('quantity')
   })
 
   it.each(['admin', 'auditor', 'manager', 'accountant', 'sales', 'warehouse', 'editor', 'integration'])(
-    'empMaster.salAmt for %s is admin only',
+    'emp_master.sal_amt for %s is admin only',
     async (role) => {
       const access = await resolveAccess(empMaster, as(role))
-      expect(access.readableFields.includes('salAmt')).toBe(role === 'admin')
-      if (role === 'manager') expect(access.readableFields).toContain('empName')
+      expect(access.readableFields.includes('sal_amt')).toBe(role === 'admin')
+      if (role === 'manager') expect(access.readableFields).toContain('emp_name')
     },
   )
 
   it('a field with only a read rule follows its resource for writes', async () => {
     const access = await resolveAccess(stockMoves, as('warehouse'))
-    expect(access.writableFields.create).toContain('unitCost')
+    expect(access.writableFields.create).toContain('unit_cost')
   })
 })

@@ -13,6 +13,6 @@ export const vendorsView = view<typeof vendors>('vendors')
       locksmith: 'Locksmith',
       pest_control: 'Pest control',
       general: 'General',
-    }), hourlyRate: r.hourlyRate.prefix('€').decimals(2) }))
-  .list((r) => ({ columns: [r.name, r.trade, r.phone, r.hourlyRate, r.active] }))
+    }), hourly_rate: r.hourly_rate.prefix('€').decimals(2) }))
+  .list((r) => ({ columns: [r.name, r.trade, r.phone, r.hourly_rate, r.active] }))
   .filters((r, w) => [w.facets(r.trade)])

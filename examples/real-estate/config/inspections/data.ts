@@ -6,17 +6,17 @@ export const inspections = resource('inspections')
   .table('maintenance.inspections')
   .fields({
     id: f.bigint().readOnly().filterable().sortable().dbDefault(),
-    organizationId: f.relation('organizations').filterable().sortable(),
-    unitId: f.relation('units').filterable().sortable(),
-    leaseId: f.relation('leases').optional().filterable().sortable(),
-    inspectorId: f.relation('users').filterable().sortable(),
+    organization_id: f.relation('organizations').filterable().sortable(),
+    unit_id: f.relation('units').filterable().sortable(),
+    lease_id: f.relation('leases').optional().filterable().sortable(),
+    inspector_id: f.relation('users').filterable().sortable(),
     kind: f.enum(['move_in', 'move_out', 'periodic']).filterable().sortable(),
-    inspectedOn: f.date().filterable().sortable(),
+    inspected_on: f.date().filterable().sortable(),
     condition: f.enum(['good', 'fair', 'poor']).filterable().sortable(),
     notes: f.text().optional(),
-    createdAt: f.timestamp().readOnly().dbDefault(),
-    updatedAt: f.timestamp().readOnly().dbDefault(),
+    created_at: f.timestamp().readOnly().dbDefault(),
+    updated_at: f.timestamp().readOnly().dbDefault(),
   })
   .primaryKey((r) => r.id)
-  .tenant((r) => r.organizationId)
+  .tenant((r) => r.organization_id)
   .access(access('inspections'))

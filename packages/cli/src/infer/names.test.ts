@@ -1,5 +1,26 @@
 import { describe, expect, it } from 'vitest'
-import { camelCase, humanize, humanizeSingular, singular } from './names'
+import { camelCase, humanize, humanizeSingular, singular, snakeName } from './names'
+
+describe('snakeName', () => {
+  it.each([
+    ['order_id', 'order_id'],
+    ['id', 'id'],
+    ['EMP_ID', 'emp_id'],
+    ['ACTIVE_FLG', 'active_flg'],
+    ['firstName', 'first_name'],
+    ['FirstName', 'first_name'],
+    ['HTTPServer', 'http_server'],
+    ['line_1', 'line_1'],
+    ['2fa_secret', 'c2fa_secret'],
+    ['EMP_MASTER', 'emp_master'],
+  ])('%s -> %s', (column, field) => {
+    expect(snakeName(column)).toBe(field)
+  })
+
+  it('rejects names without letters or digits', () => {
+    expect(() => snakeName('___')).toThrow('Cannot derive a field name')
+  })
+})
 
 describe('camelCase', () => {
   it.each([

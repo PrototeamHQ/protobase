@@ -6,14 +6,14 @@ export const warehouses = resource('warehouses')
   .table('inventory.warehouses')
   .fields({
     id: f.integer().readOnly().filterable().sortable().dbDefault(),
-    organizationId: f.relation('organizations').filterable().sortable(),
+    organization_id: f.relation('organizations').filterable().sortable(),
     code: f.text().filterable().sortable(),
     name: f.text(),
     city: f.text(),
-    countryCode: f.relation('countries').filterable().sortable(),
-    createdAt: f.timestamp().readOnly().dbDefault(),
-    updatedAt: f.timestamp().readOnly().dbDefault(),
+    country_code: f.relation('countries').filterable().sortable(),
+    created_at: f.timestamp().readOnly().dbDefault(),
+    updated_at: f.timestamp().readOnly().dbDefault(),
   })
   .primaryKey((r) => r.id)
-  .tenant((r) => r.organizationId)
+  .tenant((r) => r.organization_id)
   .access(erpAccess('warehouses'))

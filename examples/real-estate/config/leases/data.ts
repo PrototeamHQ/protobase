@@ -6,24 +6,24 @@ export const leases = resource('leases')
   .table('leasing.leases')
   .fields({
     id: f.bigint().readOnly().filterable().sortable().dbDefault(),
-    organizationId: f.relation('organizations').filterable().sortable(),
+    organization_id: f.relation('organizations').filterable().sortable(),
     number: f.text().filterable().sortable(),
-    unitId: f.relation('units').filterable().sortable(),
+    unit_id: f.relation('units').filterable().sortable(),
     term: f.enum(['indefinite', 'fixed']).default('indefinite').filterable().sortable(),
-    startDate: f.date().filterable().sortable(),
-    endDate: f.date().optional().filterable().sortable(),
-    monthlyRent: f.decimal({ precision: 10, scale: 2 }),
-    serviceCosts: f.decimal({ precision: 10, scale: 2 }).default('0'),
-    noticeGivenOn: f.date().optional(),
-    createdAt: f.timestamp().readOnly().filterable().sortable().dbDefault(),
-    updatedAt: f.timestamp().readOnly().dbDefault(),
+    start_date: f.date().filterable().sortable(),
+    end_date: f.date().optional().filterable().sortable(),
+    monthly_rent: f.decimal({ precision: 10, scale: 2 }),
+    service_costs: f.decimal({ precision: 10, scale: 2 }).default('0'),
+    notice_given_on: f.date().optional(),
+    created_at: f.timestamp().readOnly().filterable().sortable().dbDefault(),
+    updated_at: f.timestamp().readOnly().dbDefault(),
   })
   .primaryKey((r) => r.id)
-  .tenant((r) => r.organizationId)
+  .tenant((r) => r.organization_id)
   .search((r) => [r.number])
   .validate((record) => {
-    if (record.term === 'fixed' && !record.endDate) return [{ field: 'endDate', message: 'A fixed-term lease needs an end date.' }]
-    if (record.endDate && record.startDate && record.endDate < record.startDate) return [{ field: 'endDate', message: 'The lease cannot end before it starts.' }]
+    if (record.term === 'fixed' && !record.end_date) return [{ field: 'end_date', message: 'A fixed-term lease needs an end date.' }]
+    if (record.end_date && record.start_date && record.end_date < record.start_date) return [{ field: 'end_date', message: 'The lease cannot end before it starts.' }]
     return undefined
   })
   .access(access('leases'))

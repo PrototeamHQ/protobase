@@ -16,7 +16,7 @@ const check = (name, passed) => {
   if (!passed) process.exitCode = 1
 }
 const exists = async (id) => (await api('GET', `/orders/${id}`)).status === 200
-const createOrder = async (number) => (await api('POST', '/orders', { number, companyId: 1, ownerId: 1, status: 'draft', currencyCode: 'EUR' })).body
+const createOrder = async (number) => (await api('POST', '/orders', { number, company_id: 1, owner_id: 1, status: 'draft', currency_code: 'EUR' })).body
 const changeFromSecondClient = async (id) => {
   const { etag } = await api('GET', `/orders/${id}`)
   await api('PATCH', `/orders/${id}`, { status: 'confirmed', notes: 'Call the customer first' }, { 'if-match': etag })

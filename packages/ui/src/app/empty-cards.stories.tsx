@@ -24,8 +24,8 @@ const owners = resource('owners')
     name: f.text(),
     kind: f.enum(['private', 'company']),
     iban: f.text(),
-    createdAt: f.timestamp().readOnly(),
-    updatedAt: f.timestamp().readOnly(),
+    created_at: f.timestamp().readOnly(),
+    updated_at: f.timestamp().readOnly(),
   })
   .primaryKey((r) => r.id)
 
@@ -39,7 +39,7 @@ const resources = [amenities.toModel(), owners.toModel()]
 const views = [view<typeof amenities>('amenities').names({ singular: 'Amenity', plural: 'Amenities' }).toModel(), ownersView.toModel()]
 const rows = {
   amenities: [{ code: 'balcony', name: 'Balcony', etag: '"a1"' }],
-  owners: [{ id: 1, name: 'Roos de Jong', kind: 'private', iban: 'NL91ABNA0417164300', createdAt: '2024-03-01T09:00:00Z', updatedAt: '2026-10-01T09:00:00Z', etag: '"o1"' }],
+  owners: [{ id: 1, name: 'Roos de Jong', kind: 'private', iban: 'NL91ABNA0417164300', created_at: '2024-03-01T09:00:00Z', updated_at: '2026-10-01T09:00:00Z', etag: '"o1"' }],
 }
 const permissions: Record<string, ResourcePermissions> = {
   amenities: { read: true, create: false, update: false, delete: false, conditional: [] },

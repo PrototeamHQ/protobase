@@ -21,21 +21,21 @@ export const overview = page(
       <Grid columns={4}>
         <Field name="number" />
         <Field name="total" />
-        <Field name="companyId" label="Customer" />
-        <Field name="companyId.city" label="City" />
+        <Field name="company_id" label="Customer" />
+        <Field name="company_id.city" label="City" />
       </Grid>
-      <Show when="companyId.status = 'dormant'">The customer has gone quiet: call before sending a reminder.</Show>
+      <Show when="company_id.status = 'dormant'">The customer has gone quiet: call before sending a reminder.</Show>
     </RecordCard>
     <Grid columns={2}>
-      <Table title="Overdue invoices" resource="invoices" filter="status = 'overdue'" sort="issuedAt" columns={['number', 'companyId', 'dueAt', 'total']} pageSize={2} empty="Nothing is overdue." />
-      <Table title="Latest orders" resource="orders" sort="createdAt desc" columns={['number', 'companyId', 'status', 'total']} pageSize={5} />
+      <Table title="Overdue invoices" resource="invoices" filter="status = 'overdue'" sort="issued_at" columns={['number', 'company_id', 'due_at', 'total']} pageSize={2} empty="Nothing is overdue." />
+      <Table title="Latest orders" resource="orders" sort="created_at desc" columns={['number', 'company_id', 'status', 'total']} pageSize={5} />
     </Grid>
     <CardRow
       title="New leads"
       description="Companies that have not ordered yet."
       resource="companies"
       filter="status = 'lead'"
-      sort="createdAt desc"
+      sort="created_at desc"
       actions={<ModalForm mode="create" label="Add lead" resource="companies" fields={['name', 'city', 'email']} values={{ status: 'lead' }} />}
     >
       <Field name="name" label={false} />

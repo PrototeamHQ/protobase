@@ -6,20 +6,20 @@ export const products = resource('products')
   .table('catalog.products')
   .fields({
     id: f.bigint().readOnly().filterable().sortable().dbDefault(),
-    organizationId: f.relation('organizations').filterable().sortable(),
-    categoryId: f.relation('categories').filterable().sortable(),
+    organization_id: f.relation('organizations').filterable().sortable(),
+    category_id: f.relation('categories').filterable().sortable(),
     sku: f.text().filterable().sortable(),
     name: f.text().filterable(),
     description: f.text().optional(),
     price: f.decimal({ precision: 12, scale: 2 }),
-    currencyCode: f.relation('currencies'),
+    currency_code: f.relation('currencies'),
     attributes: f.json().dbDefault(),
     active: f.boolean().default(true),
-    deletedAt: f.timestamp().optional(),
-    createdAt: f.timestamp().readOnly().filterable().sortable().dbDefault(),
-    updatedAt: f.timestamp().readOnly().dbDefault(),
+    deleted_at: f.timestamp().optional(),
+    created_at: f.timestamp().readOnly().filterable().sortable().dbDefault(),
+    updated_at: f.timestamp().readOnly().dbDefault(),
   })
   .primaryKey((r) => r.id)
-  .softDelete((r) => r.deletedAt)
-  .tenant((r) => r.organizationId)
+  .softDelete((r) => r.deleted_at)
+  .tenant((r) => r.organization_id)
   .access(erpAccess('products'))

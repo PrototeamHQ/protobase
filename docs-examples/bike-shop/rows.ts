@@ -7,7 +7,7 @@ export const customerRows = [
   ['Daan Bakker', null, 'daan@example.nl'],
   ['Emma Visser', '+31 6 3456 7890', 'emma@example.nl'],
   ['Finn Smit', '+31 6 4567 8901', null],
-].map(([name, phone, email], index) => ({ id: index + 1, name, phone, email, country: index === 2 ? 'FR' : 'NL', createdAt: `2026-0${index + 1}-15T10:00:00Z` }))
+].map(([name, phone, email], index) => ({ id: index + 1, name, phone, email, country: index === 2 ? 'FR' : 'NL', created_at: `2026-0${index + 1}-15T10:00:00Z` }))
 
 const repairs: Array<[customer: number, bike: string, problem: string, status: string, mechanic: string | null, estimate: string, paid: boolean, bookedOn: string]> = [
   [1, 'Gazelle Orange', 'Rear brake squeals', 'booked', null, '35.00', false, '2026-10-07'],
@@ -29,7 +29,7 @@ const repairs: Array<[customer: number, bike: string, problem: string, status: s
 export const repairRows = repairs.map(([customerId, bike, problem, status, mechanic, estimate, paid, bookedOn], index) => ({
   id: index + 1,
   number: `R-${String(301 + index)}`,
-  customerId,
+  customer_id: customerId,
   bike,
   problem,
   status,
@@ -37,7 +37,7 @@ export const repairRows = repairs.map(([customerId, bike, problem, status, mecha
   estimate,
   currency: 'EUR',
   paid,
-  bookedOn,
+  booked_on: bookedOn,
   notes: null,
-  updatedAt: `${bookedOn}T09:00:00Z`,
+  updated_at: `${bookedOn}T09:00:00Z`,
 }))

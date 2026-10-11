@@ -23,7 +23,7 @@ const session = createStaticSession('story-token', { id: 'story', email: 'ada@no
 /** The custom component behind `<SeatHistory>`: React code in the app, with the record around it. */
 const SeatHistory = ({ months }: { months: number }) => {
   const scope = useLayoutRecord()
-  const used = Number(scope?.record.seatsUsed ?? 0)
+  const used = Number(scope?.record.seats_used ?? 0)
   const history = Array.from({ length: months }, (_, index) => Math.max(1, used - (months - 1 - index)))
   return (
     <figure aria-label="Seat history">

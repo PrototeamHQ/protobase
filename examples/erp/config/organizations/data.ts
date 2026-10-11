@@ -8,10 +8,10 @@ export const organizations = resource('organizations')
     id: f.integer().readOnly().filterable().sortable().dbDefault(),
     name: f.text(),
     slug: f.text().filterable().sortable(),
-    countryCode: f.relation('countries').filterable().sortable(),
-    currencyCode: f.relation('currencies').filterable().sortable(),
-    createdAt: f.timestamp().readOnly().dbDefault(),
-    updatedAt: f.timestamp().readOnly().dbDefault(),
+    country_code: f.relation('countries').filterable().sortable(),
+    currency_code: f.relation('currencies').filterable().sortable(),
+    created_at: f.timestamp().readOnly().dbDefault(),
+    updated_at: f.timestamp().readOnly().dbDefault(),
   })
   .primaryKey((r) => r.id)
   .access(erpAccess('organizations'))

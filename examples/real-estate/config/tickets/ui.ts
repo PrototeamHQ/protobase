@@ -10,7 +10,7 @@ export const ticketsView = view<typeof tickets>('tickets')
       tones: { urgent: 'danger', high: 'warning', normal: 'info' },
       pulse: ['urgent'],
       filter: 'status = "reported" OR status = "scheduled"',
-      orderBy: 'reportedAt desc',
+      orderBy: 'reported_at desc',
     },
   })
   .fields((r) => ({
@@ -27,29 +27,29 @@ export const ticketsView = view<typeof tickets>('tickets')
       garden: 'Garden',
       pests: 'Pests',
     }),
-    propertyId: r.propertyId.label('Property'),
-    unitId: r.unitId.label('Unit').help('Empty when the whole building is affected.'),
-    reportedBy: r.reportedBy.label('Reported by'),
-    assignedTo: r.assignedTo.label('Assigned to').help('The maintenance coordinator who plans the work.'),
+    property_id: r.property_id.label('Property'),
+    unit_id: r.unit_id.label('Unit').help('Empty when the whole building is affected.'),
+    reported_by: r.reported_by.label('Reported by'),
+    assigned_to: r.assigned_to.label('Assigned to').help('The maintenance coordinator who plans the work.'),
     priority: r.priority.format('badge').valueLabels({ low: 'Low', normal: 'Normal', high: 'High', urgent: 'Urgent' }),
     status: r.status.help('Reported, then scheduled once a vendor visit is planned, then done or cancelled.').format('badge').valueLabels({ reported: 'Reported', scheduled: 'Scheduled', done: 'Done', cancelled: 'Cancelled' }),
-    reportedAt: r.reportedAt.label('Reported'),
-    closedAt: r.closedAt.label('Closed'),
+    reported_at: r.reported_at.label('Reported'),
+    closed_at: r.closed_at.label('Closed'),
   }))
-  .list((r) => ({ columns: [r.number, r.title, r.propertyId, r.category, r.priority, r.status, r.reportedAt], sort: [[r.reportedAt, 'desc']], search: [r.number, r.title] }))
+  .list((r) => ({ columns: [r.number, r.title, r.property_id, r.category, r.priority, r.status, r.reported_at], sort: [[r.reported_at, 'desc']], search: [r.number, r.title] }))
   .filters((r, w) => [
     w.facets(r.status),
     w.facets(r.priority),
     w.facets(r.category),
-    w.facets(r.assignedTo),
-    w.dateRange(r.reportedAt, { presets: ['7d', '30d', '90d', 'year'] }),
+    w.facets(r.assigned_to),
+    w.dateRange(r.reported_at, { presets: ['7d', '30d', '90d', 'year'] }),
   ])
-  .chart((r) => ({ field: r.reportedAt, range: '90d', granularity: 'week' }))
+  .chart((r) => ({ field: r.reported_at, range: '90d', granularity: 'week' }))
   .layout((r) => [
     l.section('Problem', [r.title, r.description, r.category, r.priority]),
-    l.section('Where', [r.propertyId, r.unitId, r.reportedBy]),
-    l.section('Handling', [r.status, r.assignedTo, r.reportedAt, r.closedAt]),
-    l.sidebar([r.status, r.priority, r.assignedTo]),
+    l.section('Where', [r.property_id, r.unit_id, r.reported_by]),
+    l.section('Handling', [r.status, r.assigned_to, r.reported_at, r.closed_at]),
+    l.sidebar([r.status, r.priority, r.assigned_to]),
   ])
   .actions((a) => [
     a.update('schedule', { label: 'Mark scheduled', icon: 'calendar', set: { status: 'scheduled' } }),

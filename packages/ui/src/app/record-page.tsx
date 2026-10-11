@@ -7,6 +7,7 @@ import { keys } from '../data/query-keys'
 import { useRecord } from '../data/use-record'
 import { displayValue } from '../live/display-value'
 import { toDraft } from '../live/field-values'
+import { auditField } from '../live/audit-fields'
 import { humanize } from '../live/naming'
 import { recordTitle } from '../live/model-helpers'
 import { toneFor } from '../live/columns-from-model'
@@ -94,7 +95,8 @@ const LoadedRecord = ({ model, recordKey, stored }: { model: ResourceModel; reco
   const layout = layoutFor(model, view)
   const sidebarFields = layout.flatMap((item) => (item.kind === 'sidebar' ? item.fields : []))
   const status = model.fields.status?.type === 'enum' ? String(stored.record.status) : undefined
-  const updated = stored.record.updatedAt ? Math.max(0, Math.round((Date.now() - Date.parse(String(stored.record.updatedAt))) / 1000)) : undefined
+  const updatedAt = auditField(model, 'updated')
+  const updated = updatedAt && stored.record[updatedAt] ? Math.max(0, Math.round((Date.now() - Date.parse(String(stored.record[updatedAt]))) / 1000)) : undefined
   const hint = (name: string) => view?.fields[name]
   const visible = (name: string) => fieldAccess(stored.permissions, name) !== 'hidden'
 
@@ -214,9 +216,9 @@ const LoadedRecord = ({ model, recordKey, stored }: { model: ResourceModel; reco
             />
             <MetadataCard
               title="Details"
-              rows={(['createdAt', 'updatedAt'] as const).flatMap((name) => {
-                const field = model.fields[name]
-                return field && visible(name) ? [{ label: hint(name)?.label ?? humanize(name), value: displayValue(field, stored.record[name], hint(name)) }] : []
+              rows={[auditField(model, 'created'), updatedAt].flatMap((name) => {
+                const field = name ? model.fields[name] : undefined
+                return name && field && visible(name) ? [{ label: hint(name)?.label ?? humanize(name), value: displayValue(field, stored.record[name], hint(name)) }] : []
               })}
             />
             {related.records.length > 0 && (

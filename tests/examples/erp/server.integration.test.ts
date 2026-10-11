@@ -10,16 +10,16 @@ const reachable = await databaseReachable()
 const db = createDb(4)
 afterAll(async () => { await db.destroy() })
 
-/** The same table as stockMoves with an unindexed text column exposed as filterable. */
-const stockMoveReferences = resource('stockMoveReferences')
+/** The same table as stock_moves with an unindexed text column exposed as filterable. */
+const stockMoveReferences = resource('stock_move_references')
   .table('inventory.stock_moves')
   .fields({
     id: f.bigint().readOnly().filterable().sortable(),
-    organizationId: f.relation('organizations').filterable().sortable(),
+    organization_id: f.relation('organizations').filterable().sortable(),
     reference: f.text().optional().filterable(),
   })
   .primaryKey((r) => r.id)
-  .tenant((r) => r.organizationId)
+  .tenant((r) => r.organization_id)
 
 const secret = new TextEncoder().encode('integration-test-secret-integration-test')
 
@@ -42,7 +42,7 @@ describe.skipIf(!reachable)('the scan guard against the seeded erp database', ()
   const get = (app: typeof org1, path: string) => app.request(path)
 
   it('rejects a filter on an unindexed column with the index to create', async () => {
-    const response = await get(org1, '/stockMoveReferences?filter=reference%20%3D%20%22PO-1%22')
+    const response = await get(org1, '/stock_move_references?filter=reference%20%3D%20%22PO-1%22')
     const problem = await response.json()
     expect(response.status).toBe(400)
     expect(problem.type).toBe('urn:protobase:problem:expensive-query')
@@ -50,7 +50,7 @@ describe.skipIf(!reachable)('the scan guard against the seeded erp database', ()
   })
 
   it('lets an indexed filter through on the large table', async () => {
-    const response = await get(org1, '/stockMoves?filter=movedAt%20%3E%3D%20%222026-09-01T00:00:00Z%22%20AND%20movedAt%20%3C%20%222026-09-02T00:00:00Z%22&page_size=5')
+    const response = await get(org1, '/stock_moves?filter=moved_at%20%3E%3D%20%222026-09-01T00:00:00Z%22%20AND%20moved_at%20%3C%20%222026-09-02T00:00:00Z%22&page_size=5')
     expect(response.status).toBe(200)
   })
 })

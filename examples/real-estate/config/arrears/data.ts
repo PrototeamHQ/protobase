@@ -8,12 +8,12 @@ import { roles } from '../roles'
 export const arrears = resource('arrears')
   .table('billing.arrears')
   .fields({
-    leaseId: f.relation('leases').readOnly().filterable().sortable(),
-    organizationId: f.relation('organizations').readOnly().filterable().sortable(),
-    openCharges: f.integer().readOnly().filterable().sortable(),
+    lease_id: f.relation('leases').readOnly().filterable().sortable(),
+    organization_id: f.relation('organizations').readOnly().filterable().sortable(),
+    open_charges: f.integer().readOnly().filterable().sortable(),
     balance: f.decimal({ precision: 12, scale: 2 }).readOnly().filterable().sortable(),
-    oldestDueOn: f.date().readOnly().filterable().sortable(),
+    oldest_due_on: f.date().readOnly().filterable().sortable(),
   })
-  .primaryKey((r) => r.leaseId)
-  .tenant((r) => r.organizationId)
+  .primaryKey((r) => r.lease_id)
+  .tenant((r) => r.organization_id)
   .access({ read: roles.can('arrears.read'), create: () => false, update: () => false, delete: () => false })

@@ -2,12 +2,12 @@ import { chromium } from 'playwright'
 import { signInPage, tokenFromPage } from './lib/session.mjs'
 
 /**
- * A field the signed-in user may not read (default: `stockMoves.unitCost`, hidden from the `warehouse` role) must appear
+ * A field the signed-in user may not read (default: `stock_moves.unit_cost`, hidden from the `warehouse` role) must appear
  * nowhere in the UI. Sign in as such a user (EMAIL, PASSWORD) against a running `protobase dev` (default http://localhost:5173).
  */
 const base = process.env.BASE ?? 'http://localhost:5173'
-const resource = process.env.RESOURCE ?? 'stockMoves'
-const field = process.env.FIELD ?? 'unitCost'
+const resource = process.env.RESOURCE ?? 'stock_moves'
+const field = process.env.FIELD ?? 'unit_cost'
 const label = process.env.LABEL ?? 'Unit cost'
 const check = (name, passed) => {
   console.log(`${passed ? 'PASS' : 'FAIL'} ${name}`)

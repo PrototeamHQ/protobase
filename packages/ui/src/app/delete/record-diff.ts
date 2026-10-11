@@ -4,7 +4,7 @@ import { humanize } from '../../live/naming'
 
 export type FieldChange = { field: string; label: string; before: string; after: string }
 
-const volatile = new Set(['updatedAt'])
+const volatile = new Set(['updated_at', 'updatedAt'])
 
 /** The fields whose stored value differs between two reads of a record, for the "changed since you opened it" dialog. */
 export const diffRecords = (model: ResourceModel, view: ViewModel | undefined, before: Record<string, unknown>, after: Record<string, unknown>): FieldChange[] =>

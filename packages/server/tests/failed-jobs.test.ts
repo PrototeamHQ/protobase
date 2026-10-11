@@ -41,20 +41,20 @@ const failed = async (n: number) => {
 describe('the failed jobs page', () => {
   it('lists failed jobs with their last error, newest first, to admins only', async () => {
     const [first, second] = [await failed(1), await failed(2)]
-    const list = await app().request('/api/v1/failedJobs?order_by=failedAt%20desc', { headers: as(undefined, 'admin') })
+    const list = await app().request('/api/v1/failed_jobs?order_by=failed_at%20desc', { headers: as(undefined, 'admin') })
     expect(list.status).toBe(200)
     const { items } = await list.json()
     expect(items.map((item: { id: string }) => item.id)).toEqual([second, first])
     expect(items[0]).toMatchObject({ name: 'flaky', error: 'SMTP down for 2', attempts: 1, payload: { n: 2 }, retry: false })
     // To anyone else the resource does not exist.
-    expect((await app().request('/api/v1/failedJobs', { headers: as(undefined, 'manager') })).status).toBe(404)
+    expect((await app().request('/api/v1/failed_jobs', { headers: as(undefined, 'manager') })).status).toBe(404)
     const meta = await (await app().request('/api/meta', { headers: as(undefined, 'admin') })).json()
     expect(JSON.stringify(meta)).toContain('Failed jobs')
   })
 
   it('retries a failed job with one more attempt, from now', async () => {
     const id = await failed(3)
-    const record = `/api/v1/failedJobs/${id}`
+    const record = `/api/v1/failed_jobs/${id}`
     const read = await app().request(record, { headers: as(undefined, 'admin') })
     healthy = true
     const retried = await app().request(record, {
@@ -69,7 +69,7 @@ describe('the failed jobs page', () => {
 
   it('deletes a failed job', async () => {
     const id = await failed(4)
-    const record = `/api/v1/failedJobs/${id}`
+    const record = `/api/v1/failed_jobs/${id}`
     const read = await app().request(record, { headers: as(undefined, 'admin') })
     const deleted = await app().request(record, { method: 'DELETE', headers: as(undefined, 'admin', { 'if-match': read.headers.get('etag')! }) })
     expect(deleted.status).toBeLessThan(300)
@@ -78,6 +78,6 @@ describe('the failed jobs page', () => {
 
   it('is not there for an app without jobs', async () => {
     const plain = createAdmin({ resources: [notes], db, authenticate: testAuthenticator })
-    expect((await plain.request('/api/v1/failedJobs', { headers: as(undefined, 'admin') })).status).toBe(404)
+    expect((await plain.request('/api/v1/failed_jobs', { headers: as(undefined, 'admin') })).status).toBe(404)
   })
 })

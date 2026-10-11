@@ -3,9 +3,9 @@ import { defineRoles } from '@protobase/schema'
 /** Resources plus the area that gates hidden columns. */
 export type ErpName =
   | 'categories' | 'products' | 'countries' | 'currencies' | 'organizations' | 'users'
-  | 'companies' | 'companyTags' | 'people' | 'tags' | 'empMaster' | 'locations'
-  | 'stockLevels' | 'stockMoves' | 'warehouses' | 'invoiceLines' | 'invoices'
-  | 'orderLines' | 'orders'
+  | 'companies' | 'company_tags' | 'people' | 'tags' | 'emp_master' | 'locations'
+  | 'stock_levels' | 'stock_moves' | 'warehouses' | 'invoice_lines' | 'invoices'
+  | 'order_lines' | 'orders'
   | 'costs'
 
 /**
@@ -18,30 +18,30 @@ export const roles = defineRoles<ErpName>({
   manager: ['*.read', '*.create', '*.update', 'costs.read'],
   sales: [
     'orders.read.own', 'orders.create', 'orders.update.own',
-    'orderLines.read', 'orderLines.create', 'orderLines.update', 'orderLines.delete',
+    'order_lines.read', 'order_lines.create', 'order_lines.update', 'order_lines.delete',
     'companies.read', 'companies.create', 'companies.update',
     'people.read', 'people.create', 'people.update',
-    'companyTags.read', 'companyTags.create', 'companyTags.delete', 'tags.read',
-    'products.read', 'categories.read', 'countries.read', 'currencies.read', 'stockLevels.read',
+    'company_tags.read', 'company_tags.create', 'company_tags.delete', 'tags.read',
+    'products.read', 'categories.read', 'countries.read', 'currencies.read', 'stock_levels.read',
   ],
   accountant: [
-    'invoices.*', 'invoiceLines.*',
-    'orders.read', 'orderLines.read', 'companies.read',
+    'invoices.*', 'invoice_lines.*',
+    'orders.read', 'order_lines.read', 'companies.read',
     'products.read', 'categories.read', 'countries.read', 'currencies.read',
     'costs.read',
   ],
   warehouse: [
-    'stockLevels.*', 'stockMoves.*', 'locations.*', 'warehouses.read',
-    'orders.read', 'orders.update', 'orderLines.read',
+    'stock_levels.*', 'stock_moves.*', 'locations.*', 'warehouses.read',
+    'orders.read', 'orders.update', 'order_lines.read',
     'products.read', 'categories.read',
   ],
   editor: [
-    'products.*', 'categories.*', 'tags.*', 'companyTags.*',
+    'products.*', 'categories.*', 'tags.*', 'company_tags.*',
     'countries.read', 'currencies.read',
   ],
   integration: [
-    'orders.read', 'orders.create', 'orderLines.read', 'orderLines.create',
-    'products.read', 'companies.read', 'stockLevels.read',
+    'orders.read', 'orders.create', 'order_lines.read', 'order_lines.create',
+    'products.read', 'companies.read', 'stock_levels.read',
   ],
 })
 

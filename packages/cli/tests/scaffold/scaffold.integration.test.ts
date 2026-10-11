@@ -30,7 +30,8 @@ describe.skipIf(!reachable)('scaffold against the ERP database', () => {
   afterAll(() => rm(configDir, { recursive: true, force: true }))
 
   it('declares the composite key of sales.order_lines', async () => {
-    expect(await read('orderLines', 'data.ts')).toContain('.primaryKey((r) => [r.orderId, r.lineNo])')
+    expect(await read('order_lines', 'data.ts')).toContain("export const orderLines = resource('order_lines')")
+    expect(await read('order_lines', 'data.ts')).toContain('.primaryKey((r) => [r.order_id, r.line_no])')
   })
 
   it('maps sales.invoices.status to the Postgres enum values', async () => {
@@ -38,13 +39,15 @@ describe.skipIf(!reachable)('scaffold against the ERP database', () => {
   })
 
   it('maps legacy uppercase columns with .column()', async () => {
-    expect(await read('empMaster', 'data.ts')).toContain("empName: f.text().column('EMP_NAME')")
+    expect(await read('emp_master', 'data.ts')).toContain("emp_name: f.text().column('EMP_NAME')")
   })
 
   it('registers every resource in config/index.ts', async () => {
     const index = await read('index.ts')
     expect(index).toContain("export { orders } from './orders/data'")
     expect(index).toContain("export { ordersView } from './orders/ui'")
+    expect(index).toContain("export { orderLines } from './order_lines/data'")
+    expect(index).toContain("export { orderLinesView } from './order_lines/ui'")
   })
 
   it('is a no-op when re-run', async () => {

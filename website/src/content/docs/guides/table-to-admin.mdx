@@ -27,7 +27,7 @@ Everything starts with the data config: what the tables are, as they are. `proto
 
 <Code code={data} lang="ts" title="config/data.ts" />
 
-The fields follow the columns, with what the database does not say added: which fields can be filtered and sorted, which ones the database fills in (`dbDefault`), which are read-only. `notes` lives in a column called `internal_notes`, and `legacyRef: null` keeps an old column out for good. The `validate` rule holds the shop's one firm rule: a bike does not leave unpaid.
+The fields follow the columns, with what the database does not say added: which fields can be filtered and sorted, which ones the database fills in (`dbDefault`), which are read-only. `notes` lives in a column called `internal_notes`, and `legacy_ref: null` keeps an old column out for good. The `validate` rule holds the shop's one firm rule: a bike does not leave unpaid.
 
 For the admin to list repairs, a view is enough, even an empty one:
 
@@ -43,7 +43,7 @@ The list shows everything, including the problem descriptions nobody reads in a 
 
 <Code code={step2} lang="ts" title="config/ui.ts" />
 
-`title` makes "R-303" the name of a repair everywhere: breadcrumbs, links, the record page. `fields` adjusts how values look: statuses become badges, the estimate gets a euro sign and two decimals, and `customerId` shows as "Customer" (with the customer's name, since it is a relation). `list` picks the columns, the starting order, and what the search box looks in.
+`title` makes "R-303" the name of a repair everywhere: breadcrumbs, links, the record page. `fields` adjusts how values look: statuses become badges, the estimate gets a euro sign and two decimals, and `customer_id` shows as "Customer" (with the customer's name, since it is a relation). `list` picks the columns, the starting order, and what the search box looks in.
 
 <StoryFrame id="guides-bike-shop--step-2" title="Step 2: names and columns" height={560} />
 

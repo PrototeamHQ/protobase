@@ -2,7 +2,7 @@ import { readdir, readFile } from 'node:fs/promises'
 import path from 'node:path'
 import { Node, SyntaxKind, type CallExpression, type ObjectLiteralExpression, type SourceFile } from 'ts-morph'
 import { defaultColumn } from '../infer/default-column'
-import { camelCase } from '../infer/names'
+import { camelCase, snakeName } from '../infer/names'
 import { parseSource } from './project'
 
 export type ExistingField = {
@@ -16,6 +16,8 @@ export type ExistingField = {
 
 export type ExistingResource = {
   name: string
+  // The variable the resource is exported as, e.g. "orderLines" for `export const orderLines = resource('order_lines')`.
+  identifier: string
   // "schema.table" as written in `.table()`.
   table: string
   dir: string
@@ -91,9 +93,11 @@ export const parseResource = (text: string, dir: string): ExistingResource | und
   const tableCall = methodCalls(chainTop, 'table')[0]
   const table = tableCall && stringArg(tableCall)
   const fields = fieldsObject(chainTop)
-  if (!name || !table || !fields) return undefined
+  const identifier = root.getFirstAncestorByKind(SyntaxKind.VariableDeclaration)?.getName()
+  if (!name || !table || !fields || !identifier) return undefined
   return {
     name,
+    identifier,
     table,
     dir,
     text,
@@ -108,7 +112,7 @@ export const parseResource = (text: string, dir: string): ExistingResource | und
 export const findField = (resource: ExistingResource, column: string) =>
   resource.fields.find((field) =>
     field.ignored
-      ? field.column.toLowerCase() === column.toLowerCase() || field.name === camelCase(column)
+      ? field.column.toLowerCase() === column.toLowerCase() || field.name === snakeName(column) || field.name === camelCase(column)
       : field.column === column,
   )
 

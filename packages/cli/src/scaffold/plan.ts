@@ -1,6 +1,7 @@
 import path from 'node:path'
 import { keyColumns } from '../db/keys'
 import { tableKey, type DbTable } from '../db/model'
+import { camelCase } from '../infer/names'
 import { proposeField, type ProposalContext } from '../infer/proposal'
 import { addFieldsToDataFile, renderDataFile } from './data-file'
 import { detectDrift, type Drift } from './drift'
@@ -64,13 +65,13 @@ export const planScaffold = async (input: ScaffoldInput): Promise<ScaffoldPlan> 
   const warnings: string[] = []
   const registrations: Registration[] = []
 
-  const writeUi = async (dir: string, resource: string, table: DbTable, current: ExistingResource | undefined, decisions: Decision[]) => {
+  const writeUi = async (dir: string, resource: string, identifier: string, table: DbTable, current: ExistingResource | undefined, decisions: Decision[]) => {
     if (ui.length === 0) return
     const file = path.join(configDir, dir, 'ui.ts')
     const before = await input.readText(file)
-    const target = { resource, tableName: table.name, fields: uiFields(table, current, decisions) }
+    const target = { resource, identifier, tableName: table.name, fields: uiFields(table, current, decisions) }
     changes.push(...change(file, before, before === undefined ? renderUiFile(target, ui) : addUiSections(before, target, ui)))
-    if (before === undefined) registrations.push({ from: `./${dir}/ui`, names: [viewName(resource)] })
+    if (before === undefined) registrations.push({ from: `./${dir}/ui`, names: [viewName(identifier)] })
   }
 
   for (const table of targets) {
@@ -86,7 +87,7 @@ export const planScaffold = async (input: ScaffoldInput): Promise<ScaffoldPlan> 
       const file = path.join(configDir, current.dir, 'data.ts')
       changes.push(...change(file, current.text, addFieldsToDataFile(current.text, decisions)))
       drift.push(...detectDrift(current, table, context(table)))
-      await writeUi(current.dir, current.name, table, current, decisions)
+      await writeUi(current.dir, current.name, current.identifier, table, current, decisions)
       continue
     }
 
@@ -102,8 +103,8 @@ export const planScaffold = async (input: ScaffoldInput): Promise<ScaffoldPlan> 
     const decisions = await decideAll(table, table.columns, context(table), input)
     const plan = planResource(name, table, decisions)!
     changes.push({ path: file, after: renderDataFile(plan) })
-    registrations.push({ from: `./${name}/data`, names: [name] })
-    await writeUi(name, name, table, undefined, decisions)
+    registrations.push({ from: `./${name}/data`, names: [camelCase(name)] })
+    await writeUi(name, name, camelCase(name), table, undefined, decisions)
   }
 
   const indexFile = path.join(configDir, 'index.ts')
@@ -122,10 +123,10 @@ const registerExisting = async (input: ScaffoldInput, planned: Registration[]) =
   const registrations: Registration[] = []
   for (const resource of input.existing) {
     const data = `./${resource.dir}/data`
-    if (!known.has(data)) registrations.push({ from: data, names: [resource.name] })
+    if (!known.has(data)) registrations.push({ from: data, names: [resource.identifier] })
     const ui = `./${resource.dir}/ui`
     const hasUi = (await input.readText(path.join(input.configDir, resource.dir, 'ui.ts'))) !== undefined
-    if (hasUi && !known.has(ui)) registrations.push({ from: ui, names: [viewName(resource.name)] })
+    if (hasUi && !known.has(ui)) registrations.push({ from: ui, names: [viewName(resource.identifier)] })
   }
   return registrations
 }

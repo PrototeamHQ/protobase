@@ -12,9 +12,9 @@ export const repairsView = filtered
     paid: r.paid.help('Set when the customer pays at the desk.'),
   }))
   .layout((r) => [
-    l.section('The bike', [r.customerId, r.bike, r.problem]),
+    l.section('The bike', [r.customer_id, r.bike, r.problem]),
     l.section('In the workshop', [r.status, r.mechanic, r.notes], { help: 'Pick up a repair by putting your name on it.' }),
     l.section('Money', [r.estimate, r.currency, r.paid]),
-    l.sidebar([r.status, r.estimate, r.bookedOn]),
+    l.sidebar([r.status, r.estimate, r.booked_on]),
   ])
   .saveFeedback('button')

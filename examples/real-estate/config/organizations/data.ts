@@ -9,9 +9,9 @@ export const organizations = resource('organizations')
     name: f.text(),
     slug: f.text().filterable().sortable(),
     city: f.text(),
-    kvkNumber: f.text(),
-    createdAt: f.timestamp().readOnly().dbDefault(),
-    updatedAt: f.timestamp().readOnly().dbDefault(),
+    kvk_number: f.text(),
+    created_at: f.timestamp().readOnly().dbDefault(),
+    updated_at: f.timestamp().readOnly().dbDefault(),
   })
   .primaryKey((r) => r.id)
   .access(access('organizations'))

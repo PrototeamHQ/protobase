@@ -10,30 +10,30 @@ export const ordersView = view<typeof orders>('orders')
       tones: { draft: 'neutral', confirmed: 'info', picking: 'warning', shipped: 'success' },
       pulse: ['picking'],
       filter: 'status != "delivered" AND status != "cancelled"',
-      orderBy: 'createdAt desc',
+      orderBy: 'created_at desc',
     },
   })
   .fields((r) => ({
     status: r.status.help('Where the order is in its life. Moving it forward can notify the customer.').format('badge')
       .valueLabels({ draft: 'Draft', confirmed: 'Confirmed', picking: 'Picking', shipped: 'Shipped', delivered: 'Delivered', cancelled: 'Cancelled' }),
     total: r.total.help('Order total including VAT.').prefix('€').decimals(2),
-    discountPercent: r.discountPercent.label('Discount').help('Percentage taken off the order total.').format('percent'),
+    discount_percent: r.discount_percent.label('Discount').help('Percentage taken off the order total.').format('percent'),
     paid: r.paid.help('Set when the payment has been received.'),
-    createdAt: r.createdAt.label('Created').format('absolute'),
+    created_at: r.created_at.label('Created').format('absolute'),
   }))
   .list((r) => ({
-    columns: [r.number, r.companyId, r.status, r.total, r.discountPercent, r.paid, r.ownerId, r.createdAt],
-    sort: [[r.createdAt, 'desc']],
+    columns: [r.number, r.company_id, r.status, r.total, r.discount_percent, r.paid, r.owner_id, r.created_at],
+    sort: [[r.created_at, 'desc']],
     search: [r.number],
   }))
   .filters((r, w) => [
     w.facets(r.status),
-    w.facets(r.ownerId),
-    w.dateRange(r.createdAt, { presets: ['7d', '30d', '90d', 'quarter', 'year'] }),
+    w.facets(r.owner_id),
+    w.dateRange(r.created_at, { presets: ['7d', '30d', '90d', 'quarter', 'year'] }),
     w.range(r.total, { histogram: true }),
     w.toggle(r.paid),
   ])
-  .chart((r) => ({ field: r.createdAt, range: '30d', granularity: 'day' }))
+  .chart((r) => ({ field: r.created_at, range: '30d', granularity: 'day' }))
   .saveFeedback('toast')
   .actions((a) => [
     a.update('markPaid', { label: 'Mark as paid', icon: 'wallet', set: { paid: true }, confirm: 'Record that the customer paid this order?' }),

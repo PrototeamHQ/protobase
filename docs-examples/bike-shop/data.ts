@@ -12,7 +12,7 @@ export const customers = resource('customers')
     phone: f.text().regex(/^\+?[0-9 ]{6,}$/, 'Use digits, spaces and an optional +').optional(),
     email: f.text().optional().filterable(),
     country: f.country().default('NL'),
-    createdAt: f.timestamp().readOnly().filterable().sortable().dbDefault(),
+    created_at: f.timestamp().readOnly().filterable().sortable().dbDefault(),
   })
   .primaryKey((r) => r.id)
   .search((r) => [r.name, r.email])
@@ -23,7 +23,7 @@ export const repairs = resource('repairs')
   .fields({
     id: f.integer().readOnly().filterable().sortable().dbDefault(),
     number: f.text().readOnly().filterable().sortable().dbDefault(),
-    customerId: f.relation('customers').filterable().sortable(),
+    customer_id: f.relation('customers').filterable().sortable(),
     bike: f.text(),
     problem: f.text(),
     status: f.enum(['booked', 'waiting', 'working', 'ready', 'collected']).default('booked').filterable().sortable(),
@@ -31,10 +31,10 @@ export const repairs = resource('repairs')
     estimate: f.decimal({ precision: 8, scale: 2 }).filterable().sortable(),
     currency: f.currency().default('EUR'),
     paid: f.boolean().default(false).filterable(),
-    bookedOn: f.date().filterable().sortable(),
+    booked_on: f.date().filterable().sortable(),
     notes: f.text().optional().column('internal_notes'),
-    legacyRef: null,
-    updatedAt: f.timestamp().readOnly().dbDefault(),
+    legacy_ref: null,
+    updated_at: f.timestamp().readOnly().dbDefault(),
   })
   .primaryKey((r) => r.id)
   .search((r) => [r.number, r.bike, r.problem])

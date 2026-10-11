@@ -21,29 +21,29 @@ describe('real estate pages', () => {
 
   it('lists a lease\'s rent charges on its page, newest period first, a year per page', () => {
     const { resources, views } = configExports(config)
-    const charges = resources.map((source) => source.toModel()).find((model) => model.name === 'rentCharges')!
+    const charges = resources.map((source) => source.toModel()).find((model) => model.name === 'rent_charges')!
     const lease = views.map((view) => view.toModel()).find((view) => view.resource === 'leases')!
     const section = lease.layout.find((item) => item.kind === 'related' && item.title === 'Rent charges')
-    expect(section).toMatchObject({ resource: 'rentCharges', field: 'leaseId', sort: 'period desc', pageSize: 12 })
+    expect(section).toMatchObject({ resource: 'rent_charges', field: 'lease_id', sort: 'period desc', pageSize: 12 })
     expect(section?.kind === 'related' && section.columns?.filter((column) => !Object.hasOwn(charges.fields, column))).toEqual([])
-    expect(section?.kind === 'related' && section.columns?.slice(-2)).toEqual(['paidAmount', 'outstanding'])
+    expect(section?.kind === 'related' && section.columns?.slice(-2)).toEqual(['paid_amount', 'outstanding'])
   })
 
   it('shows what is still owed on a rent charge: a read-only, filterable column formatted like the amount', () => {
     const { resources, views } = configExports(config)
-    const charges = resources.map((source) => source.toModel()).find((model) => model.name === 'rentCharges')!
-    const view = views.map((entry) => entry.toModel()).find((entry) => entry.resource === 'rentCharges')!
+    const charges = resources.map((source) => source.toModel()).find((model) => model.name === 'rent_charges')!
+    const view = views.map((entry) => entry.toModel()).find((entry) => entry.resource === 'rent_charges')!
     expect(charges.fields.outstanding).toMatchObject({ type: 'decimal', readOnly: true, filterable: true, sortable: true })
     expect(view.fields.outstanding).toMatchObject({ prefix: '€', decimals: 2 })
-    expect(view.list?.columns.slice(-2)).toEqual(['paidAmount', 'outstanding'])
+    expect(view.list?.columns.slice(-2)).toEqual(['paid_amount', 'outstanding'])
   })
 
   it('lists a rent charge\'s payments on its page, newest first', () => {
     const { resources, views } = configExports(config)
     const payments = resources.map((source) => source.toModel()).find((model) => model.name === 'payments')!
-    const charge = views.map((view) => view.toModel()).find((view) => view.resource === 'rentCharges')!
+    const charge = views.map((view) => view.toModel()).find((view) => view.resource === 'rent_charges')!
     const section = charge.layout.find((item) => item.kind === 'related' && item.title === 'Payments')
-    expect(section).toMatchObject({ resource: 'payments', field: 'chargeId', sort: 'paidOn desc', columns: ['paidOn', 'amount', 'method', 'reference'] })
+    expect(section).toMatchObject({ resource: 'payments', field: 'charge_id', sort: 'paid_on desc', columns: ['paid_on', 'amount', 'method', 'reference'] })
     expect(section?.kind === 'related' && section.columns?.filter((column) => !Object.hasOwn(payments.fields, column))).toEqual([])
   })
 })

@@ -6,7 +6,14 @@ const lowerFirst = (word: string) => word.charAt(0).toLowerCase() + word.slice(1
 
 const identifier = (name: string) => (/^[0-9]/.test(name) ? `c${name}` : name)
 
-// snake_case, SCREAMING_CASE and quoted camelCase identifiers all become a camelCase field name.
+// snake_case, SCREAMING_CASE and quoted camelCase identifiers all become a snake_case field or resource name.
+export const snakeName = (name: string) => {
+  const parts = words(name.replace(/([a-z0-9])([A-Z])/g, '$1_$2').replace(/([A-Z])([A-Z][a-z])/g, '$1_$2'))
+  if (parts.length === 0) throw new Error(`Cannot derive a field name from "${name}"`)
+  return identifier(parts.map((part) => part.toLowerCase()).join('_'))
+}
+
+// The same names as a camelCase identifier: the variable a resource is exported as, and how older configs name fields.
 export const camelCase = (name: string) => {
   const parts = words(name)
   if (parts.length === 0) throw new Error(`Cannot derive a field name from "${name}"`)

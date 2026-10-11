@@ -13,13 +13,13 @@ export const repairsView = view<typeof repairs>('repairs')
   .title((r) => r.number)
   .fields((r) => ({
     number: r.number.format('code'),
-    customerId: r.customerId.label('Customer'),
+    customer_id: r.customer_id.label('Customer'),
     status: r.status.format('badge'),
     estimate: r.estimate.prefix('€').decimals(2),
-    bookedOn: r.bookedOn.label('Booked on'),
+    booked_on: r.booked_on.label('Booked on'),
   }))
   .list((r) => ({
-    columns: [r.number, r.customerId, r.bike, r.status, r.mechanic, r.estimate, r.bookedOn],
-    sort: [[r.bookedOn, 'desc']],
+    columns: [r.number, r.customer_id, r.bike, r.status, r.mechanic, r.estimate, r.booked_on],
+    sort: [[r.booked_on, 'desc']],
     search: [r.number, r.bike],
   }))

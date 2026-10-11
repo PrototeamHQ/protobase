@@ -9,13 +9,13 @@ const parsed = (source: string): Condition => {
 
 describe('conditions', () => {
   it('lists the values a condition names, once each', () => {
-    expect(parsed("status = 'active' AND billingProfiles.count > 1 OR status = 'trial'").paths).toEqual(['status', 'billingProfiles.count'])
+    expect(parsed("status = 'active' AND billing_profiles.count > 1 OR status = 'trial'").paths).toEqual(['status', 'billing_profiles.count'])
   })
 
   it('evaluates comparisons, AND, OR and NOT against dotted values', () => {
-    const values = { status: 'active', 'billingProfiles.count': 2, 'plan.name': 'Pro', seats: '12' }
-    expect(evaluateCondition(parsed('billingProfiles.count > 1'), values)).toBe(true)
-    expect(evaluateCondition(parsed('billingProfiles.count > 2'), values)).toBe(false)
+    const values = { status: 'active', 'billing_profiles.count': 2, 'plan.name': 'Pro', seats: '12' }
+    expect(evaluateCondition(parsed('billing_profiles.count > 1'), values)).toBe(true)
+    expect(evaluateCondition(parsed('billing_profiles.count > 2'), values)).toBe(false)
     expect(evaluateCondition(parsed('plan.name = "Pro" AND NOT status = "canceled"'), values)).toBe(true)
     expect(evaluateCondition(parsed('seats >= 10 OR status = "trial"'), values)).toBe(true)
   })

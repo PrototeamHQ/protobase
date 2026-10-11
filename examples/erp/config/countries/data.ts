@@ -7,7 +7,7 @@ export const countries = resource('countries')
   .fields({
     code: f.text().filterable().sortable(),
     name: f.text(),
-    euMember: f.boolean().default(false),
+    eu_member: f.boolean().default(false),
   })
   .primaryKey((r) => r.code)
   .access(erpAccess('countries'))

@@ -60,8 +60,8 @@ Interactively, each new column shows its proposal: accept, edit (name, type) or 
 - Key: primary key (composite supported), else the first unique index with only `NOT NULL` columns, else the table is skipped with a warning.
 - `deleted_at`, `removed_at`, `archived_at` (nullable timestamp/date) become `.softDelete`; `organization_id` and `tenant_id` become `.tenant`.
 - Unique indexes are listed in the doc comment above the resource.
-- Field names are camelCase; `.column()` is written only when the schema builder's default mapping would not give the column back (always for `hr."EMP_MASTER"`).
-- Resource names are the camelCased table name, prefixed with the schema on collisions. Names already in `config/` win.
+- Field names are the column names in snake_case; `.column()` is written only when the schema builder's default mapping would not give the column back (always for `hr."EMP_MASTER"`).
+- Resource names are the table name in snake_case, prefixed with the schema on collisions, and exported under their camelCase name (`export const orderLines = resource('order_lines')`). Names already in `config/` win.
 
 ### Re-running
 

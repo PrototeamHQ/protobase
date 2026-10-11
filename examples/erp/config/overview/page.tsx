@@ -29,24 +29,24 @@ export const salesOverview = page(
         <Grid columns={2}>
           <Field name="number" />
           <Field name="total" />
-          <Field name="companyId" label="Customer" />
-          <Field name="companyId.city" label="City" />
+          <Field name="company_id" label="Customer" />
+          <Field name="company_id.city" label="City" />
         </Grid>
-        <Show when="companyId.status = 'dormant'">The customer has gone quiet: call before sending a reminder.</Show>
+        <Show when="company_id.status = 'dormant'">The customer has gone quiet: call before sending a reminder.</Show>
       </RecordCard>
       <RecordCard
         title="Oldest overdue invoice"
         resource="invoices"
         filter="status = 'overdue'"
-        sort="issuedAt"
+        sort="issued_at"
         empty="Nothing is overdue."
         actions={[<Action name="send" label="Send reminder" />, <Action name="recordPayment" variant="primary" />]}
       >
         <Grid columns={2}>
           <Field name="number" />
           <Field name="total" />
-          <Field name="companyId" label="Customer" />
-          <Field name="dueAt" label="Due" />
+          <Field name="company_id" label="Customer" />
+          <Field name="due_at" label="Due" />
         </Grid>
       </RecordCard>
       <Card title="Orders per day" description="The last 30 days.">
@@ -54,17 +54,17 @@ export const salesOverview = page(
       </Card>
     </Grid>
     <Grid columns={2}>
-      <Table title="Overdue invoices" resource="invoices" filter="status = 'overdue'" sort="issuedAt" columns={['number', 'companyId', 'dueAt', 'total']} pageSize={5} empty="Nothing is overdue." />
-      <Table title="Latest orders" resource="orders" sort="createdAt desc" columns={['number', 'companyId', 'status', 'total']} pageSize={5} />
+      <Table title="Overdue invoices" resource="invoices" filter="status = 'overdue'" sort="issued_at" columns={['number', 'company_id', 'due_at', 'total']} pageSize={5} empty="Nothing is overdue." />
+      <Table title="Latest orders" resource="orders" sort="created_at desc" columns={['number', 'company_id', 'status', 'total']} pageSize={5} />
     </Grid>
     <CardRow
       title="New leads"
       description="Companies that have not ordered yet."
       resource="companies"
       filter="status = 'lead'"
-      sort="createdAt desc"
+      sort="created_at desc"
       limit={8}
-      actions={<ModalForm mode="create" label="Add lead" resource="companies" fields={['name', 'city', 'countryCode', 'email']} values={{ status: 'lead' }} />}
+      actions={<ModalForm mode="create" label="Add lead" resource="companies" fields={['name', 'city', 'country_code', 'email']} values={{ status: 'lead' }} />}
     >
       <Field name="name" label={false} />
       <Field name="city" />

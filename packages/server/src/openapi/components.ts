@@ -44,7 +44,7 @@ export const parameters = {
   orderBy: {
     name: 'order_by',
     in: 'query',
-    description: 'Comma separated sortable fields, each with an optional `desc`, as in [AIP-132](https://google.aip.dev/132#ordering): `createdAt desc, number`. The primary key breaks ties.',
+    description: 'Comma separated sortable fields, each with an optional `desc`, as in [AIP-132](https://google.aip.dev/132#ordering): `created_at desc, number`. The primary key breaks ties.',
     schema: { type: 'string' },
   },
   pageSize: {

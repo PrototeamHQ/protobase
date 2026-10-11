@@ -13,19 +13,19 @@ export const subscriptions = resource('subscriptions')
     id: f.integer().readOnly().filterable().sortable(),
     plan: f.relation('plans'),
     status: f.enum(['active', 'canceled']).filterable(),
-    seatsUsed: f.integer(),
-    renewsAt: f.date(),
+    seats_used: f.integer(),
+    renews_at: f.date(),
   })
   .primaryKey((r) => r.id)
 
-export const billingProfiles = resource('billingProfiles')
+export const billingProfiles = resource('billing_profiles')
   .table('billing.billing_profiles')
-  .fields({ id: f.integer().readOnly().filterable().sortable(), company: f.text(), vatNumber: f.text().optional(), address: f.text(), email: f.text() })
+  .fields({ id: f.integer().readOnly().filterable().sortable(), company: f.text(), vat_number: f.text().optional(), address: f.text(), email: f.text() })
   .primaryKey((r) => r.id)
 
-export const paymentMethods = resource('paymentMethods')
+export const paymentMethods = resource('payment_methods')
   .table('billing.payment_methods')
-  .fields({ id: f.integer().readOnly().filterable().sortable(), brand: f.text(), last4: f.text(), expires: f.text(), isDefault: f.boolean().default(false).filterable().sortable() })
+  .fields({ id: f.integer().readOnly().filterable().sortable(), brand: f.text(), last4: f.text(), expires: f.text(), is_default: f.boolean().default(false).filterable().sortable() })
   .primaryKey((r) => r.id)
 
 export const invoices = resource('invoices')
@@ -33,7 +33,7 @@ export const invoices = resource('invoices')
   .fields({
     id: f.integer().readOnly().filterable().sortable(),
     number: f.text(),
-    issuedAt: f.date().filterable().sortable(),
+    issued_at: f.date().filterable().sortable(),
     total: f.decimal({ precision: 10, scale: 2 }).readOnly(),
     status: f.enum(['open', 'paid']).filterable(),
   })

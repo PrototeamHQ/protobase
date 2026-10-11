@@ -94,7 +94,7 @@ A page of records at a time, with arrows to page through the rest. The first col
 | `span` | Width in a grid. |
 
 ```tsx
-<Table title="Overdue invoices" resource="invoices" filter="status = 'overdue'" sort="issuedAt" columns={['number', 'companyId', 'dueAt', 'total']} pageSize={5} empty="Nothing is overdue." />
+<Table title="Overdue invoices" resource="invoices" filter="status = 'overdue'" sort="issued_at" columns={['number', 'company_id', 'due_at', 'total']} pageSize={5} empty="Nothing is overdue." />
 ```
 
 ### RecordCard
@@ -112,7 +112,7 @@ One record and what is inside it: the one `recordKey` names (the key as the reco
 ```tsx
 <RecordCard title="Biggest unpaid delivery" resource="orders" filter="status = 'delivered' AND paid = false" sort="total desc" actions={<Action name="markPaid" variant="primary" />}>
   <Field name="number" />
-  <Field name="companyId.city" label="City" />
+  <Field name="company_id.city" label="City" />
 </RecordCard>
 ```
 
@@ -134,7 +134,7 @@ A label over a value of the record, formatted as on the record page: statuses as
 
 | Prop | |
 | --- | --- |
-| `name` | A field, through relations (`companyId.city`). Required. |
+| `name` | A field, through relations (`company_id.city`). Required. |
 | `label` | Default: the view's label, else the name in words. `false` shows the value alone. |
 | `format` | Instead of the view's [format](/reference/ui-config/#names-and-columns). |
 
@@ -149,7 +149,7 @@ A bar for `value` out of `max`, with both numbers. It turns amber from 90%.
 | `label`, `span` | |
 
 ```tsx
-<Progress label="Seats" value="seatsUsed" max="plan.seats" />
+<Progress label="Seats" value="seats_used" max="plan.seats" />
 ```
 
 ## Behaviour
@@ -181,7 +181,7 @@ A button that opens a form in a dialog. `create` makes a record of `resource`; `
 | `variant` | As for `Action`. |
 
 ```tsx
-<ModalForm mode="create" label="Add lead" resource="companies" fields={['name', 'city', 'countryCode', 'email']} values={{ status: 'lead' }} />
+<ModalForm mode="create" label="Add lead" resource="companies" fields={['name', 'city', 'country_code', 'email']} values={{ status: 'lead' }} />
 ```
 
 ### Show

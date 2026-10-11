@@ -37,9 +37,9 @@ const signIn = async (email: string) => {
 }
 const tokenOf = async (cookie: string) => ((await (await request('/api/auth/token', { cookie })).json()) as { token: string }).token
 const organizationsOf = async (token: string, resource: string) => {
-  const list = (await (await request(`/api/v1/${resource}?page_size=200`, { token })).json()) as { items: { organizationId: number }[] }
+  const list = (await (await request(`/api/v1/${resource}?page_size=200`, { token })).json()) as { items: { organization_id: number }[] }
   expect(list.items.length).toBeGreaterThan(0)
-  return new Set(list.items.map((item) => item.organizationId))
+  return new Set(list.items.map((item) => item.organization_id))
 }
 
 // The seeded ERP has two organizations, 1 and 2, each with its own records, in its tables and the auth schema's.

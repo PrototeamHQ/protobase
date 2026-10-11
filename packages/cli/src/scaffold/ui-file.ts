@@ -12,13 +12,15 @@ export type UiField = {
 }
 
 export type UiTarget = {
-  // Resource name, e.g. "orderLines" for `sales.order_lines`.
+  // Resource name, e.g. "order_lines" for `sales.order_lines`.
   resource: string
+  // The variable data.ts exports the resource as, e.g. "orderLines".
+  identifier: string
   tableName: string
   fields: UiField[]
 }
 
-const auditField = /^(created|updated)(At|On)$/
+const auditField = /^(created|updated)(At|On|_at|_on)$/
 const longText = /^(notes?|description|body|comment|comments)$/
 const listSize = 5
 
@@ -31,7 +33,7 @@ export const listColumns = (fields: UiField[]) => {
   return (picked.length > 0 ? picked : fields.filter((f) => f.role === 'key')).map((f) => f.name)
 }
 
-export const viewName = (resource: string) => `${resource}View`
+export const viewName = (identifier: string) => `${identifier}View`
 
 const sectionText: Record<UiSection, (target: UiTarget) => string> = {
   names: (t) => `.names({ singular: '${humanizeSingular(t.tableName)}', plural: '${humanize(t.tableName)}' })`,
@@ -44,9 +46,9 @@ const lines = (sections: readonly UiSection[], target: UiTarget) =>
 export const renderUiFile = (target: UiTarget, sections: readonly UiSection[]) =>
   [
     `import { view } from '@protobase/schema'`,
-    `import type { ${target.resource} } from './data'`,
+    `import type { ${target.identifier} } from './data'`,
     '',
-    `export const ${viewName(target.resource)} = view<typeof ${target.resource}>('${target.resource}')`,
+    `export const ${viewName(target.identifier)} = view<typeof ${target.identifier}>('${target.resource}')`,
     ...lines(sections, target),
     '',
   ].join('\n')

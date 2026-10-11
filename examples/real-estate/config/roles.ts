@@ -2,9 +2,9 @@ import { defineRoles } from '@protobase/schema'
 
 /** Resources plus the area that gates tenants' income and bank details. */
 export type RealEstateName =
-  | 'organizations' | 'users' | 'amenities' | 'owners' | 'properties' | 'units' | 'unitAmenities' | 'valuations'
-  | 'tenants' | 'leases' | 'leaseTenants' | 'deposits' | 'rentCharges' | 'payments' | 'arrears'
-  | 'vendors' | 'tickets' | 'workOrders' | 'inspections'
+  | 'organizations' | 'users' | 'amenities' | 'owners' | 'properties' | 'units' | 'unit_amenities' | 'valuations'
+  | 'tenants' | 'leases' | 'lease_tenants' | 'deposits' | 'rent_charges' | 'payments' | 'arrears'
+  | 'vendors' | 'tickets' | 'work_orders' | 'inspections'
   | 'screening'
 
 /**
@@ -17,22 +17,22 @@ export const roles = defineRoles<RealEstateName>({
   manager: [
     'owners.read', 'owners.create', 'owners.update',
     'properties.read', 'properties.create', 'properties.update',
-    'units.read', 'units.create', 'units.update', 'unitAmenities.*', 'amenities.read', 'valuations.read',
+    'units.read', 'units.create', 'units.update', 'unit_amenities.*', 'amenities.read', 'valuations.read',
     'tenants.read', 'tenants.create', 'tenants.update', 'screening.read',
-    'leases.read', 'leases.create', 'leases.update', 'leaseTenants.*', 'deposits.read',
-    'rentCharges.read', 'payments.read', 'arrears.read',
-    'tickets.read', 'tickets.create', 'tickets.update', 'workOrders.read', 'vendors.read', 'inspections.*',
+    'leases.read', 'leases.create', 'leases.update', 'lease_tenants.*', 'deposits.read',
+    'rent_charges.read', 'payments.read', 'arrears.read',
+    'tickets.read', 'tickets.create', 'tickets.update', 'work_orders.read', 'vendors.read', 'inspections.*',
     'organizations.read', 'users.read',
   ],
   finance: [
-    'rentCharges.*', 'payments.*', 'arrears.read', 'deposits.*', 'valuations.*',
-    'leases.read', 'leaseTenants.read', 'tenants.read', 'screening.read',
-    'units.read', 'properties.read', 'owners.read', 'workOrders.read', 'vendors.read',
+    'rent_charges.*', 'payments.*', 'arrears.read', 'deposits.*', 'valuations.*',
+    'leases.read', 'lease_tenants.read', 'tenants.read', 'screening.read',
+    'units.read', 'properties.read', 'owners.read', 'work_orders.read', 'vendors.read',
     'organizations.read', 'users.read',
   ],
   maintenance: [
-    'tickets.read', 'tickets.create', 'tickets.update.own', 'workOrders.*', 'inspections.*', 'vendors.*',
-    'properties.read', 'units.read', 'amenities.read', 'unitAmenities.read', 'tenants.read', 'users.read',
+    'tickets.read', 'tickets.create', 'tickets.update.own', 'work_orders.*', 'inspections.*', 'vendors.*',
+    'properties.read', 'units.read', 'amenities.read', 'unit_amenities.read', 'tenants.read', 'users.read',
   ],
 })
 

@@ -6,22 +6,22 @@ export const orders = resource('orders')
   .table('sales.orders')
   .fields({
     id: f.uuid().readOnly().filterable().sortable().dbDefault(),
-    organizationId: f.relation('organizations').filterable().sortable(),
+    organization_id: f.relation('organizations').filterable().sortable(),
     number: f.text().filterable().sortable(),
-    companyId: f.relation('companies').filterable().sortable(),
-    personId: f.relation('people').optional().filterable().sortable(),
-    ownerId: f.relation('users').filterable().sortable(),
+    company_id: f.relation('companies').filterable().sortable(),
+    person_id: f.relation('people').optional().filterable().sortable(),
+    owner_id: f.relation('users').filterable().sortable(),
     status: f.enum(['draft', 'confirmed', 'picking', 'shipped', 'delivered', 'cancelled']).filterable().sortable(),
-    currencyCode: f.relation('currencies'),
-    discountPercent: f.decimal({ precision: 5, scale: 2 }).default('0'),
+    currency_code: f.relation('currencies'),
+    discount_percent: f.decimal({ precision: 5, scale: 2 }).default('0'),
     total: f.decimal({ precision: 14, scale: 2 }).readOnly().default('0').filterable().sortable(),
     paid: f.boolean().default(false).filterable().sortable(),
     notes: f.text().optional(),
-    createdAt: f.timestamp().readOnly().filterable().sortable().dbDefault(),
-    updatedAt: f.timestamp().readOnly().dbDefault(),
+    created_at: f.timestamp().readOnly().filterable().sortable().dbDefault(),
+    updated_at: f.timestamp().readOnly().dbDefault(),
   })
   .primaryKey((r) => r.id)
-  .tenant((r) => r.organizationId)
-  .owner((r) => r.ownerId)
+  .tenant((r) => r.organization_id)
+  .owner((r) => r.owner_id)
   .search((r) => [r.number])
   .access(erpAccess('orders'))

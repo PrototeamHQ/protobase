@@ -8,7 +8,7 @@ const Input = z.object({ repairId: z.number().int().positive() })
 export default defineFunction({ roles: ['desk'] }, async (request, { records }) => {
   const { repairId } = await readJson(request, Input)
   const { record: repair } = await records.get('repairs', repairId)
-  const { record: customer } = await records.get('customers', repair.customerId as number)
+  const { record: customer } = await records.get('customers', repair.customer_id as number)
   if (!customer.phone) return Response.json({ sent: false, reason: 'The customer has no phone number' })
 
   const sent = await fetch('https://api.sms.example/v1/messages', {

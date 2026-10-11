@@ -32,7 +32,7 @@ await signInPage(signedInPage, base)
 token = await tokenFromPage(signedInPage, base)
 const storageState = await signedIn.storageState()
 await signedIn.close()
-const throwaway = (await api('POST', '/orders', { number: 'ZZ-MOBILE-1', companyId: 1, ownerId: 1, status: 'draft', currencyCode: 'EUR' })).body
+const throwaway = (await api('POST', '/orders', { number: 'ZZ-MOBILE-1', company_id: 1, owner_id: 1, status: 'draft', currency_code: 'EUR' })).body
 try {
   for (const viewport of viewports) {
     const label = viewport.name

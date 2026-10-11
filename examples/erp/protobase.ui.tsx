@@ -2,7 +2,7 @@ import { defineUi, useSeries, type ActionContext } from '@protobase/ui'
 
 /** Bars for orders per day; the custom component behind `<OrdersPerDay>` in config/overview/page.tsx. */
 const OrdersPerDay = ({ days }: { days: 7 | 30 | 90 }) => {
-  const series = useSeries('orders', { field: 'createdAt', range: `${days}d`, granularity: 'day' })
+  const series = useSeries('orders', { field: 'created_at', range: `${days}d`, granularity: 'day' })
   if (series.isPending) return <p className="text-[13px] text-muted-foreground">Loading</p>
   if (series.error) return <p className="text-[13px] text-danger-text">Could not load the orders</p>
   const points = series.data.points
@@ -22,7 +22,7 @@ const OrdersPerDay = ({ days }: { days: 7 | 30 | 90 }) => {
 
 /** "Send reminder" on an invoice: opens a mail to the customer, and marks a draft invoice as sent. */
 const send = async ({ record, recordKey, etag, client }: ActionContext) => {
-  const company = await client.get('companies', String(record!.companyId))
+  const company = await client.get('companies', String(record!.company_id))
   const subject = encodeURIComponent(`Invoice ${String(record!.number)}`)
   window.location.assign(`mailto:${String(company.record.email ?? '')}?subject=${subject}`)
   if (record!.status === 'draft') await client.update('invoices', recordKey!, { status: 'sent' }, etag ?? '*')

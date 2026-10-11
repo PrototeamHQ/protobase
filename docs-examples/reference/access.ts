@@ -5,12 +5,12 @@ import { defineRoles, f, resource } from '@protobase/schema'
 /** Roles are bundles of capabilities: `<resource or area>.<action>[.own]`, `*` for everything. */
 export const roles = defineRoles({
   admin: ['*'],
-  desk: ['workOrders.read', 'workOrders.create', 'workOrders.update', 'money.read'],
-  mechanic: ['workOrders.read.own', 'workOrders.update.own'],
+  desk: ['work_orders.read', 'work_orders.create', 'work_orders.update', 'money.read'],
+  mechanic: ['work_orders.read.own', 'work_orders.update.own'],
 })
 
 /** shop.work_orders */
-export const workOrders = resource('workOrders')
+export const workOrders = resource('work_orders')
   .table('shop.work_orders')
   .fields({
     id: f.integer().readOnly().filterable().sortable().dbDefault(),
@@ -24,9 +24,9 @@ export const workOrders = resource('workOrders')
   // `.own` capabilities match the rows whose assignee is the signed-in user's id.
   .owner((r) => r.assignee)
   .access({
-    read: roles.can('workOrders.read'),
-    create: roles.can('workOrders.create'),
+    read: roles.can('work_orders.read'),
+    create: roles.can('work_orders.create'),
     // A finished work order is closed: this rule needs the record, so it is checked against the stored row.
-    update: roles.can('workOrders.update').and((_ctx, record) => (record as { status: string }).status !== 'done'),
+    update: roles.can('work_orders.update').and((_ctx, record) => (record as { status: string }).status !== 'done'),
     delete: roles.is('admin'),
   })

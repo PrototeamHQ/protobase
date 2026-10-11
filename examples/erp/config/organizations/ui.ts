@@ -3,4 +3,4 @@ import type { organizations } from './data'
 
 export const organizationsView = view<typeof organizations>('organizations')
   .names({ singular: 'Organization', plural: 'Organizations' })
-  .list((r) => ({ columns: [r.name, r.slug, r.countryCode, r.currencyCode] }))
+  .list((r) => ({ columns: [r.name, r.slug, r.country_code, r.currency_code] }))

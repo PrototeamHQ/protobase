@@ -6,22 +6,22 @@ import { f, resource } from '@protobase/schema'
 export const stock = resource('stock')
   .table('shop.stock')
   .fields({
-    partNo: f.text().filterable().sortable(),
+    part_no: f.text().filterable().sortable(),
     size: f.text().filterable().sortable(),
-    onHand: f.integer().min(0),
+    on_hand: f.integer().min(0),
   })
-  .primaryKey((r) => [r.partNo, r.size])
+  .primaryKey((r) => [r.part_no, r.size])
 
 /** shop.part_orders: parts ordered from suppliers. */
-export const partOrders = resource('partOrders')
+export const partOrders = resource('part_orders')
   .table('shop.part_orders')
   .fields({
     id: f.uuid().readOnly().filterable().dbDefault(),
     // Two columns hold the key of one stock row, in the order of its primary key.
     part: f.relation('stock').columns(['part_no', 'part_size']),
     quantity: f.integer().min(1).max(50),
-    // Filters may say `ref` as well as `supplierReference`.
-    supplierReference: f.text().alias('ref').filterable(),
-    orderedAt: f.timestamp().readOnly().filterable().sortable().dbDefault(),
+    // Filters may say `ref` as well as `supplier_reference`.
+    supplier_reference: f.text().alias('ref').filterable(),
+    ordered_at: f.timestamp().readOnly().filterable().sortable().dbDefault(),
   })
   .primaryKey((r) => r.id)

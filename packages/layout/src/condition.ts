@@ -1,7 +1,7 @@
 import { evaluateFilter, parseFilter, type Expr } from 'aip-parsers/filter'
 
 // `<Show when="...">` conditions: AIP-160 text over named values, such as `status = 'active'` (a field of the record
-// around it), `plan.name = "Pro"` (through a relation) or `billingProfiles.count > 1` (how many records a resource has).
+// around it), `plan.name = "Pro"` (through a relation) or `billing_profiles.count > 1` (how many records a resource has).
 
 export type Condition = { ast: Expr | undefined; paths: string[] }
 
@@ -38,7 +38,7 @@ export const parseCondition = (source: string): ConditionParse => {
 export const evaluateCondition = (condition: Condition, values: Record<string, unknown>) =>
   condition.ast !== undefined && evaluateFilter(folded(condition.ast) as Expr, values)
 
-/** The resource a path counts (`billingProfiles.count`), when it is not a field of the record around it. */
+/** The resource a path counts (`billing_profiles.count`), when it is not a field of the record around it. */
 export const countedResource = (path: string, isField: (name: string) => boolean): string | undefined => {
   const [first, second, ...rest] = path.split('.')
   return first && second === 'count' && rest.length === 0 && !isField(first) ? first : undefined

@@ -52,15 +52,15 @@ describe.skipIf(!reachable)('POST /api/v1:batchWrite against the real invoice ta
   it('updates an invoice and its lines and swaps two positions under the real unique constraint, then restores them', async () => {
     const original = await snapshot(invoice)
     const [first, second, third] = [...original.lines].sort((a, b) => a.position - b.position)
-    const lineEtags = async () => Object.fromEntries(await Promise.all(original.lines.map(async (line) => [line.id, await etagOf(`/invoiceLines/${line.id}`)])))
+    const lineEtags = async () => Object.fromEntries(await Promise.all(original.lines.map(async (line) => [line.id, await etagOf(`/invoice_lines/${line.id}`)])))
 
     const etags = await lineEtags()
     let restored = false
     try {
       const changed = await batch([
-        { op: 'update', resource: 'invoices', key: invoice, etag: await etagOf(`/invoices/${invoice}`), data: { vatRate: '9' } },
-        { op: 'update', resource: 'invoiceLines', key: third!.id, etag: etags[third!.id], data: { quantity: third!.quantity + 1 } },
-        { op: 'reorder', resource: 'invoiceLines', field: 'position', keys: [second!.id, first!.id, ...original.lines.filter((line) => line !== first && line !== second).map((line) => line.id)], etags },
+        { op: 'update', resource: 'invoices', key: invoice, etag: await etagOf(`/invoices/${invoice}`), data: { vat_rate: '9' } },
+        { op: 'update', resource: 'invoice_lines', key: third!.id, etag: etags[third!.id], data: { quantity: third!.quantity + 1 } },
+        { op: 'reorder', resource: 'invoice_lines', field: 'position', keys: [second!.id, first!.id, ...original.lines.filter((line) => line !== first && line !== second).map((line) => line.id)], etags },
       ])
       expect(changed.status, JSON.stringify(changed.json)).toBe(200)
       const after = await snapshot(invoice)
@@ -72,9 +72,9 @@ describe.skipIf(!reachable)('POST /api/v1:batchWrite against the real invoice ta
       // Restore through a second batch, with the ETags the first one returned
       const [vatEtag, thirdEtag, moved] = [changed.json.results[0].etag, changed.json.results[1].etag, changed.json.results[2].records]
       const restoring = await batch([
-        { op: 'update', resource: 'invoices', key: invoice, etag: vatEtag, data: { vatRate: original.header.vat_rate } },
-        { op: 'update', resource: 'invoiceLines', key: third!.id, etag: thirdEtag, data: { quantity: third!.quantity } },
-        { op: 'reorder', resource: 'invoiceLines', field: 'position', keys: original.lines.map((line) => line.id).sort((a, b) => original.lines.find((l) => l.id === a)!.position - original.lines.find((l) => l.id === b)!.position), etags: Object.fromEntries(moved.map((r: { record: { id: string }; etag: string }) => [r.record.id, r.etag])) },
+        { op: 'update', resource: 'invoices', key: invoice, etag: vatEtag, data: { vat_rate: original.header.vat_rate } },
+        { op: 'update', resource: 'invoice_lines', key: third!.id, etag: thirdEtag, data: { quantity: third!.quantity } },
+        { op: 'reorder', resource: 'invoice_lines', field: 'position', keys: original.lines.map((line) => line.id).sort((a, b) => original.lines.find((l) => l.id === a)!.position - original.lines.find((l) => l.id === b)!.position), etags: Object.fromEntries(moved.map((r: { record: { id: string }; etag: string }) => [r.record.id, r.etag])) },
       ])
       expect(restoring.status, JSON.stringify(restoring.json)).toBe(200)
       expect(await snapshot(invoice)).toEqual(original)
@@ -89,11 +89,11 @@ describe.skipIf(!reachable)('POST /api/v1:batchWrite against the real invoice ta
     const before = await snapshot(invoice)
     const line = before.lines[0]!
     const response = await batch([
-      { op: 'update', resource: 'invoices', key: invoice, etag: '*', data: { vatRate: '6' } },
-      { op: 'update', resource: 'invoiceLines', key: line.id, etag: '*', data: { quantity: 0 } },
+      { op: 'update', resource: 'invoices', key: invoice, etag: '*', data: { vat_rate: '6' } },
+      { op: 'update', resource: 'invoice_lines', key: line.id, etag: '*', data: { quantity: 0 } },
     ])
     expect(response.status).toBe(400)
-    expect(response.json).toMatchObject({ operation: 1, resource: 'invoiceLines', type: 'urn:protobase:problem:invalid-record' })
+    expect(response.json).toMatchObject({ operation: 1, resource: 'invoice_lines', type: 'urn:protobase:problem:invalid-record' })
     expect(await snapshot(invoice)).toEqual(before)
   })
 })

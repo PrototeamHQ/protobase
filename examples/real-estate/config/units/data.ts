@@ -6,19 +6,19 @@ export const units = resource('units')
   .table('portfolio.units')
   .fields({
     id: f.bigint().readOnly().filterable().sortable().dbDefault(),
-    organizationId: f.relation('organizations').filterable().sortable(),
-    propertyId: f.relation('properties').filterable().sortable(),
+    organization_id: f.relation('organizations').filterable().sortable(),
+    property_id: f.relation('properties').filterable().sortable(),
     label: f.text(),
     floor: f.integer().default(0),
     bedrooms: f.integer().min(0),
-    areaM2: f.integer().min(1).column('area_m2'),
-    energyLabel: f.enum(['A++++', 'A+++', 'A++', 'A+', 'A', 'B', 'C', 'D', 'E', 'F', 'G']).filterable().sortable(),
-    baseRent: f.decimal({ precision: 10, scale: 2 }).filterable().sortable(),
+    area_m2: f.integer().min(1).column('area_m2'),
+    energy_label: f.enum(['A++++', 'A+++', 'A++', 'A+', 'A', 'B', 'C', 'D', 'E', 'F', 'G']).filterable().sortable(),
+    base_rent: f.decimal({ precision: 10, scale: 2 }).filterable().sortable(),
     status: f.enum(['let', 'vacant', 'renovation']).default('vacant').filterable().sortable(),
-    createdAt: f.timestamp().readOnly().filterable().sortable().dbDefault(),
-    updatedAt: f.timestamp().readOnly().dbDefault(),
+    created_at: f.timestamp().readOnly().filterable().sortable().dbDefault(),
+    updated_at: f.timestamp().readOnly().dbDefault(),
   })
   .primaryKey((r) => r.id)
-  .tenant((r) => r.organizationId)
+  .tenant((r) => r.organization_id)
   .search((r) => [r.label])
   .access(access('units'))

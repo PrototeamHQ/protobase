@@ -68,7 +68,7 @@ describe('the webhooks schema', () => {
 })
 
 describe('subscriptionWriteCheck', () => {
-  const write = (after: Record<string, unknown>) => ({ operation: 'create', resource: { name: 'webhookSubscriptions' }, user: { id: 'u1', roles: [] }, after }) as unknown as WriteEvent
+  const write = (after: Record<string, unknown>) => ({ operation: 'create', resource: { name: 'webhook_subscriptions' }, user: { id: 'u1', roles: [] }, after }) as unknown as WriteEvent
   const check = subscriptionWriteCheck([orders], checkWebhookUrl)
 
   it('passes a subscription to declared events at a public address', async () => {

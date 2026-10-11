@@ -3,4 +3,4 @@ import type { countries } from './data'
 
 export const countriesView = view<typeof countries>('countries')
   .names({ singular: 'Country', plural: 'Countries' })
-  .list((r) => ({ columns: [r.name, r.euMember] }))
+  .list((r) => ({ columns: [r.name, r.eu_member] }))

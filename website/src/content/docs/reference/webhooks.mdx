@@ -81,10 +81,10 @@ export default defineConfig({ extends: [webhooks()], config, auth, authenticate 
 
 It adds two pages, over a `webhooks` schema that [`protobase migration`](/reference/cli/#migration) writes (`NNN_webhooks.sql`):
 
-- **Webhook subscriptions** (`webhookSubscriptions`, the table `webhooks.subscriptions`): a name, the events (`orders.created orders.large`, or `orders.*`), the URL, a filter, extra headers, full or thin payload, and whether it is enabled. The server sets the tenant and the owner, the person who made it, and makes the secret, which only a [reveal](/reference/api/#sensitive-fields-and-audit) shows. Saving checks the events and the filter against the resources, and refuses a URL whose host is a private, loopback or link-local address.
-- **Webhook deliveries** (`webhookDeliveries`, a view over the delivery jobs): the deliveries that wait for their next try or failed for good, with their last error. A delivery leaves the list once it succeeds.
+- **Webhook subscriptions** (`webhook_subscriptions`, the table `webhooks.subscriptions`): a name, the events (`orders.created orders.large`, or `orders.*`), the URL, a filter, extra headers, full or thin payload, and whether it is enabled. The server sets the tenant and the owner, the person who made it, and makes the secret, which only a [reveal](/reference/api/#sensitive-fields-and-audit) shows. Saving checks the events and the filter against the resources, and refuses a URL whose host is a private, loopback or link-local address.
+- **Webhook deliveries** (`webhook_deliveries`, a view over the delivery jobs): the deliveries that wait for their next try or failed for good, with their last error. A delivery leaves the list once it succeeds.
 
-Both are scoped to the tenant like any resource with `.tenant()`, and their access decides who may do what: `webhookSubscriptions.create`, `webhookDeliveries.update` and so on, as for the app's own resources.
+Both are scoped to the tenant like any resource with `.tenant()`, and their access decides who may do what: `webhook_subscriptions.create`, `webhook_deliveries.update` and so on, as for the app's own resources.
 
 A subscription made here **delivers as its owner**, with the role they act with now in its tenant (the [active role](/reference/auth/#active-role) they last chose, else their first): only records and fields it may read. Letting people make subscriptions therefore grants them nothing they could not read already. The roles are read from the project's Better Auth; a project that signs people in otherwise passes `webhooks({ ownerRoles: async ({ id, tenant }) => [...] })`.
 

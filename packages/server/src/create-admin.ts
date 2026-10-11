@@ -60,7 +60,7 @@ export type CreateAdminInput = {
   files?: FilesOptions
   /** Where the changes that resources' events are raised from are captured (see `EventsOptions`). */
   events?: EventsOptions
-  /** The app's jobs (see `defineJob`): with any, or a resource with events, admins get the failed jobs page (`failedJobs`). */
+  /** The app's jobs (see `defineJob`): with any, or a resource with events, admins get the failed jobs page (`failed_jobs`). */
   jobs?: JobDefinition[]
   /** Where the resources' events are delivered (`subscription(...)` exports of the config module). */
   subscriptions?: SubscriptionDefinition[]

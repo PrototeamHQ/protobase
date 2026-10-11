@@ -42,20 +42,20 @@ const enc = encodeURIComponent
 describe.skipIf(!seeded)('what is still owed on a rent charge', () => {
   it('drops by a payment made through the API, and comes back when it is removed', async () => {
     const charge = (await sql<{ id: string }>`select id::text as id from billing.rent_charges where organization_id = 1 and paid_amount = 0 order by id limit 1`.execute(db)).rows[0]!
-    const before = (await call('finance1', `/rentCharges/${charge.id}`)).json
+    const before = (await call('finance1', `/rent_charges/${charge.id}`)).json
     expect(before.outstanding).toBe(before.amount)
-    const paid = await call('finance1', '/payments', { method: 'POST', body: { chargeId: charge.id, paidOn: '2026-10-06', amount: '10.00', method: 'ideal' } })
+    const paid = await call('finance1', '/payments', { method: 'POST', body: { charge_id: charge.id, paid_on: '2026-10-06', amount: '10.00', method: 'ideal' } })
     try {
       expect(paid.status, paid.text).toBe(201)
-      const after = (await call('finance1', `/rentCharges/${charge.id}`)).json
-      expect(after.paidAmount).toBe('10.00')
+      const after = (await call('finance1', `/rent_charges/${charge.id}`)).json
+      expect(after.paid_amount).toBe('10.00')
       expect(after.outstanding).toBe((Number(before.amount) - 10).toFixed(2))
-      const owing = await call('finance1', `/rentCharges?filter=${enc(`id = ${charge.id} AND outstanding < ${before.amount}`)}`)
+      const owing = await call('finance1', `/rent_charges?filter=${enc(`id = ${charge.id} AND outstanding < ${before.amount}`)}`)
       expect(owing.json.items.map((item: { id: string }) => item.id)).toEqual([charge.id])
     } finally {
       await sql`delete from billing.payments where id = ${paid.json.id}`.execute(db)
     }
-    expect((await call('finance1', `/rentCharges/${charge.id}`)).json.outstanding).toBe(before.amount)
+    expect((await call('finance1', `/rent_charges/${charge.id}`)).json.outstanding).toBe(before.amount)
   })
 })
 

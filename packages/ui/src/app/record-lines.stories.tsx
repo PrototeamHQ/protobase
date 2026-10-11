@@ -49,7 +49,7 @@ export const ReorderThenSave: StoryObj = {
     expect(saved.batches).toHaveLength(0)
     await userEvent.click(canvas.getAllByRole('button', { name: 'Save' })[0]!)
     await waitFor(() => expect(saved.batches).toHaveLength(1))
-    expect(saved.batches[0]).toEqual([{ op: 'reorder', resource: 'invoiceLines', field: 'position', keys: ['l2', 'l1', 'l3'], etags: { l2: '"l2-v1"', l1: '"l1-v1"', l3: '"l3-v1"' } }])
+    expect(saved.batches[0]).toEqual([{ op: 'reorder', resource: 'invoice_lines', field: 'position', keys: ['l2', 'l1', 'l3'], etags: { l2: '"l2-v1"', l1: '"l1-v1"', l3: '"l3-v1"' } }])
   },
 }
 
@@ -125,7 +125,7 @@ export const FailureNamesTheOperation: StoryObj = {
     await moveFirstLineDown(canvas)
     await userEvent.click(canvas.getAllByRole('button', { name: 'Save' })[0]!)
     expect(await canvas.findByText('Could not save')).toBeInTheDocument()
-    expect(canvas.getByText('Operation 1 (reorder invoiceLines by position) failed: Position 2 is taken. Nothing was saved.')).toBeInTheDocument()
+    expect(canvas.getByText('Operation 1 (reorder invoice_lines by position) failed: Position 2 is taken. Nothing was saved.')).toBeInTheDocument()
     expect(canvas.getAllByRole('button', { name: /Drag to reorder/ })[0]).toHaveAccessibleName('Drag to reorder Line B')
   },
 }

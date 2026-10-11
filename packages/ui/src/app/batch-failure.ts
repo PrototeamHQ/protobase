@@ -5,7 +5,7 @@ const label = (op: BatchOp) => {
   return op.op === 'reorder' ? `reorder ${resource} by ${op.field}` : `${op.op} ${resource}`
 }
 
-/** "Operation 2 (reorder invoiceLines by position) failed: ..." so the person knows which part was refused. */
+/** "Operation 2 (reorder invoice_lines by position) failed: ..." so the person knows which part was refused. */
 export const describeBatchFailure = (error: ApiError, ops: BatchOp[]) => {
   const index = error.operation
   const op = index === undefined ? undefined : ops[index]

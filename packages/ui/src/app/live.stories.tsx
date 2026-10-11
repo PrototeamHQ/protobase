@@ -15,9 +15,9 @@ export default meta
 
 export const Orders = live({ path: '/orders' })
 
-export const OrdersFiltered = live({ path: `/orders?${new URLSearchParams({ filter: 'in(status, "confirmed", "picking") AND createdAt >= now() - 30d' })}` })
+export const OrdersFiltered = live({ path: `/orders?${new URLSearchParams({ filter: 'in(status, "confirmed", "picking") AND created_at >= now() - 30d' })}` })
 
-export const StockMoves = live({ path: '/stockMoves?layout=panel' }, 'icon')
+export const StockMoves = live({ path: '/stock_moves?layout=panel' }, 'icon')
 
 export const Invoices = live({ path: '/invoices' })
 

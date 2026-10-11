@@ -35,7 +35,7 @@ describe('real estate roles', () => {
     const access = await resolveAccess(tickets, as('maintenance'))
     expect(access.operations).toMatchObject({ read: true, create: true, update: true, delete: false })
     expect(access.rowFilter.read).toBeUndefined()
-    expect(access.rowFilter.update).toMatchObject({ kind: 'compare', field: { name: 'assignedTo' }, value: { value: 6 } })
+    expect(access.rowFilter.update).toMatchObject({ kind: 'compare', field: { name: 'assigned_to' }, value: { value: 6 } })
   })
 
   it.each([
@@ -43,7 +43,7 @@ describe('real estate roles', () => {
   ] as const)("shows a tenant's income and IBAN to %s: %s", async (role, visible) => {
     const access = await resolveAccess(tenants, as(role))
     expect(access.readableFields).toContain('phone')
-    expect(access.readableFields.includes('monthlyIncome')).toBe(visible)
+    expect(access.readableFields.includes('monthly_income')).toBe(visible)
     expect(access.readableFields.includes('iban')).toBe(visible)
   })
 })

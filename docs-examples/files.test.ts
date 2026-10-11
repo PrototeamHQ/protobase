@@ -18,16 +18,16 @@ const derived = (field: 'photo' | 'manual') => bikes.state.fields![field]!.meta.
 describe('files', () => {
   it('declare file fields with their allowed types, size, provider and derived fields', () => {
     const model = bikes.toModel()
-    expect(model.fields.photo!.file).toEqual({ accept: ['image/*'], maxSize: 10_000_000, provider: 'private', derive: ['photoWidth', 'photoRatio'] })
+    expect(model.fields.photo!.file).toEqual({ accept: ['image/*'], maxSize: 10_000_000, provider: 'private', derive: ['photo_width', 'photo_ratio'] })
     expect(model.fields.listing!.file).toMatchObject({ provider: 'public', maxSize: 2_000_000 })
     expect(model.fields.manual!.file).toMatchObject({ accept: ['application/pdf'], provider: 'private' })
   })
 
   it('derive the photo\'s size and shape, and the manual\'s size and hash', async () => {
-    expect(await derived('photo').photoWidth!.run(input('image/jpeg', photo))).toBe(1200)
-    expect(await derived('photo').photoRatio!.run(input('image/jpeg', photo))).toBe('1.5000')
-    expect(await derived('manual').manualBytes!.run(input('application/pdf', manual))).toBe(22)
-    expect(await derived('manual').manualSha256!.run(input('application/pdf', manual))).toMatch(/^[0-9a-f]{64}$/)
+    expect(await derived('photo').photo_width!.run(input('image/jpeg', photo))).toBe(1200)
+    expect(await derived('photo').photo_ratio!.run(input('image/jpeg', photo))).toBe('1.5000')
+    expect(await derived('manual').manual_bytes!.run(input('application/pdf', manual))).toBe(22)
+    expect(await derived('manual').manual_sha256!.run(input('application/pdf', manual))).toMatch(/^[0-9a-f]{64}$/)
   })
 
   it('configure three providers, one of them public and one keeping files longer', () => {

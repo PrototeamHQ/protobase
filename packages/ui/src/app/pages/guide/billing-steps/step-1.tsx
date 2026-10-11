@@ -14,9 +14,9 @@ export const billing = page(
       <Grid columns={3}>
         <Field name="plan.name" label="Plan" />
         <Field name="plan.price" label="Per month" />
-        <Field name="renewsAt" />
+        <Field name="renews_at" />
       </Grid>
-      <Progress label="Seats" value="seatsUsed" max="plan.seats" />
+      <Progress label="Seats" value="seats_used" max="plan.seats" />
     </RecordCard>
   </Page>,
   { icon: 'credit-card' },

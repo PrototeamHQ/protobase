@@ -11,7 +11,7 @@ import { where } from '@protobase/schema'
 
 const api = createClient({ baseUrl: '/api/v1', onMetaVersion: (version) => { /* refetch meta when it changes */ } })
 
-const page = await api.list(orders, { filter: where.eq('status', 'draft'), orderBy: 'createdAt desc', pageSize: 50, fields: ['id', 'number'] })
+const page = await api.list(orders, { filter: where.eq('status', 'draft'), orderBy: 'created_at desc', pageSize: 50, fields: ['id', 'number'] })
 const { record, etag } = await api.get(orders, id)
 await api.update(orders, id, { status: 'shipped' }, etag) // 412 rejects with PreconditionFailedError
 ```

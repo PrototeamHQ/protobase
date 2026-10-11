@@ -7,7 +7,7 @@ const app = functionApp()
 
 // GET /api/functions/workshop/queue
 app.get('/queue', async (c) => {
-  const page = await c.env.records.list('repairs', { filter: 'status = "waiting" OR status = "working"', order_by: 'bookedOn', fields: ['id', 'number', 'bike', 'status'] })
+  const page = await c.env.records.list('repairs', { filter: 'status = "waiting" OR status = "working"', order_by: 'booked_on', fields: ['id', 'number', 'bike', 'status'] })
   return c.json(page.items)
 })
 

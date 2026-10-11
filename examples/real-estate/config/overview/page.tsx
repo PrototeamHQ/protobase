@@ -23,35 +23,35 @@ export const portfolioOverview = page(
         actions={<Action name="remind" label="Send reminder" variant="primary" />}
       >
         <Grid columns={2}>
-          <Field name="leaseId" label="Lease" />
+          <Field name="lease_id" label="Lease" />
           <Field name="balance" label="Outstanding" />
-          <Field name="openCharges" label="Open months" />
-          <Field name="oldestDueOn" label="Oldest due" />
+          <Field name="open_charges" label="Open months" />
+          <Field name="oldest_due_on" label="Oldest due" />
         </Grid>
-        <Field name="leaseId.unitId" label="Unit" />
+        <Field name="lease_id.unit_id" label="Unit" />
       </RecordCard>
       <RecordCard
         title="Oldest urgent ticket"
         resource="tickets"
         filter="priority = 'urgent' AND (status = 'reported' OR status = 'scheduled')"
-        sort="reportedAt"
+        sort="reported_at"
         empty="No urgent tickets are open."
         actions={<Action name="complete" variant="primary" />}
       >
         <Grid columns={2}>
           <Field name="number" />
           <Field name="status" />
-          <Field name="propertyId" label="Property" />
-          <Field name="reportedAt" label="Reported" />
+          <Field name="property_id" label="Property" />
+          <Field name="reported_at" label="Reported" />
         </Grid>
         <Field name="title" />
       </RecordCard>
     </Grid>
     <Grid columns={2}>
-      <Table title="Arrears" resource="arrears" sort="balance desc" columns={['leaseId', 'balance', 'openCharges', 'oldestDueOn']} pageSize={5} empty="Every tenant is paid up." />
-      <Table title="Open tickets" resource="tickets" filter="status = 'reported' OR status = 'scheduled'" sort="reportedAt desc" columns={['number', 'title', 'priority', 'status']} pageSize={5} empty="Nothing is open." />
+      <Table title="Arrears" resource="arrears" sort="balance desc" columns={['lease_id', 'balance', 'open_charges', 'oldest_due_on']} pageSize={5} empty="Every tenant is paid up." />
+      <Table title="Open tickets" resource="tickets" filter="status = 'reported' OR status = 'scheduled'" sort="reported_at desc" columns={['number', 'title', 'priority', 'status']} pageSize={5} empty="Nothing is open." />
     </Grid>
-    <Table title="Vacant units" resource="units" filter="status = 'vacant'" columns={['label', 'propertyId', 'bedrooms', 'baseRent']} pageSize={5} empty="Every unit is let." />
+    <Table title="Vacant units" resource="units" filter="status = 'vacant'" columns={['label', 'property_id', 'bedrooms', 'base_rent']} pageSize={5} empty="Every unit is let." />
   </Page>,
   { nav: { group: 'Portfolio', order: 0 }, icon: 'layout-dashboard' },
 )

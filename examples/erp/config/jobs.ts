@@ -25,5 +25,5 @@ const day = 86_400_000
 export const overdueCheck = (event: WriteEvent) => {
   if (event.resource.name !== 'invoices' || event.operation === 'delete' || event.after?.status !== 'sent') return undefined
   const invoiceId = String(event.after.id)
-  return { invoiceId, runAt: new Date(Date.parse(String(event.after.dueAt)) + day), key: `invoice:${invoiceId}` }
+  return { invoiceId, runAt: new Date(Date.parse(String(event.after.due_at)) + day), key: `invoice:${invoiceId}` }
 }

@@ -4,7 +4,7 @@ import { isTenantColumn } from './tenant'
 import { checkEnumValues } from './check-values'
 import { defaultColumn } from './default-column'
 import { columnDefault, type DefaultValue } from './defaults'
-import { camelCase } from './names'
+import { snakeName } from './names'
 import { inferKind, type BaseType, type Kind } from './type-map'
 
 export type FieldType = BaseType | 'relation' | 'currency' | 'country'
@@ -66,7 +66,7 @@ const defaultsOf = (table: DbTable, column: DbColumn, kind: Kind) => {
 export const proposeField = (table: DbTable, column: DbColumn, context: ProposalContext): Proposal => {
   const kind = inferKind(column, checkEnumValues(table.checks, column.name))
   const relation = relationOf(table, column.name, context)
-  const name = camelCase(column.name)
+  const name = snakeName(column.name)
   const defaults = defaultsOf(table, column, kind)
   return {
     name,

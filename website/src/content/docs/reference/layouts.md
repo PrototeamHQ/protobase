@@ -57,7 +57,7 @@ Behaviour comes from [named actions](#named-actions); React code from [custom co
 
 `Stat`, `RecordCard`, `Table` and `CardRow` read records of a `resource`. `filter` is AIP-160 and `sort` AIP-132, exactly as the list API's `filter` and `order_by`, so a filter that works in the list's URL works here.
 
-A `RecordCard` (its first match) and each card of a `CardRow` hold a **record**. Inside one, `Field`, `Progress`, `Stat field`, `Show`, `Action` and `ModalForm mode="edit"` work on that record, and a `RecordCard`'s header `actions` do too. A field name may follow relations: `companyId.city` is the city of the record's company, fetched like the record page fetches it and cached.
+A `RecordCard` (its first match) and each card of a `CardRow` hold a **record**. Inside one, `Field`, `Progress`, `Stat field`, `Show`, `Action` and `ModalForm mode="edit"` work on that record, and a `RecordCard`'s header `actions` do too. A field name may follow relations: `company_id.city` is the city of the record's company, fetched like the record page fetches it and cached.
 
 ## Conditions
 
