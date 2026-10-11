@@ -31,6 +31,8 @@ import { runtimeUrl } from './runtime/runtime-settings'
 import { createScanGuard } from './scan-guard'
 import type { AdminOptions } from './admin-options'
 import type { AdminEnv, Authenticator, PageSource, Session, ViewSource } from './types'
+import { failedJobs, failedJobsView } from './jobs/failed-jobs'
+import type { JobDefinition } from './jobs/job-types'
 
 export type CreateAdminInput = {
   resources: ResourceSource[]
@@ -49,12 +51,16 @@ export type CreateAdminInput = {
   files?: FilesOptions
   /** Where the changes that resources' events are raised from are captured (see `EventsOptions`). */
   events?: EventsOptions
+  /** The app's jobs (see `defineJob`): with any, admins get the failed jobs page (`failedJobs`). */
+  jobs?: JobDefinition[]
   options?: AdminOptions
 }
 
 /** The admin REST API as a Hono app. It uses only Web APIs, so it runs on Node, Workers and anywhere else Hono does. */
-export const createAdmin = ({ resources, views = [], pages = [], userMenu, db, authenticate, auth, functions = {}, files: filesOptions, events, options = {} }: CreateAdminInput) => {
+export const createAdmin = ({ resources: appResources, views: appViews = [], pages = [], userMenu, db, authenticate, auth, functions = {}, files: filesOptions, events, jobs = [], options = {} }: CreateAdminInput) => {
   const basePath = options.basePath ?? '/api/v1'
+  const resources = jobs.length > 0 ? [...appResources, failedJobs] : appResources
+  const views = jobs.length > 0 ? [...appViews, failedJobsView] : appViews
   const registry = buildRegistry(resources)
   const apiFunctions = Object.fromEntries(Object.entries(functions).map(([name, source]) => [name, toApiFunction(name, source)]))
   const viewModels = views.map((view) => view.toModel())
