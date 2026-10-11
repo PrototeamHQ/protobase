@@ -1,5 +1,5 @@
 import { resolveFieldPath } from '@protobase/layout'
-import { addressErrors, hrefPlaceholders, navRecentErrors, type LayoutItemModel, type RelatedModel, type ResourceModel, type ViewModel } from '@protobase/schema'
+import { addressErrors, fieldRefsIn, hrefPlaceholders, navRecentErrors, type LayoutItemModel, type RelatedModel, type ResourceModel, type ViewModel } from '@protobase/schema'
 import { relatedErrors } from './view-related'
 
 // Columns narrow to what the caller can read; a section whose resources, fields, filter or sort they cannot use goes.
@@ -47,6 +47,7 @@ export const pruneView = (view: ViewModel, model: ResourceModel, models: Record<
     }),
     layout: view.layout.flatMap((item): LayoutItemModel[] => {
       if (item.kind === 'related') return pruneRelated(item, view.resource, models)
+      if (item.kind === 'custom') return fieldRefsIn(item.props).every(visible) ? [item] : []
       const fields = item.fields.filter(visible)
       return fields.length > 0 ? [{ ...item, fields }] : []
     }),

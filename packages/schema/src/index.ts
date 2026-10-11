@@ -20,6 +20,7 @@ export type {
   FilterWidgetModel,
   LayoutItemModel,
   RelatedModel,
+  CustomSectionModel,
   ChartRange,
   ChartGranularity,
   ChartModel,

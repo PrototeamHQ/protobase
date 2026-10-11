@@ -149,10 +149,17 @@ export type RelatedModel = {
   empty?: string
 }
 
+/**
+ * A project component drawn on the record page where it is listed, in the main column or with `sidebar` in the
+ * sidebar, under `title` when it has one. It gets `props` and reads the record with `useLayoutRecord()`.
+ */
+export type CustomSectionModel = { kind: 'custom'; component: string; title?: string; props?: Record<string, JsonValue>; sidebar?: true }
+
 export type LayoutItemModel =
   | { kind: 'section'; title: string; fields: string[]; help?: string }
   | { kind: 'sidebar'; fields: string[] }
   | RelatedModel
+  | CustomSectionModel
 
 export type ChartRange = '7d' | '30d' | '90d' | '1y' | 'all'
 export type ChartGranularity = 'hour' | 'day' | 'week' | 'month'

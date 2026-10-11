@@ -1,4 +1,4 @@
-import { addressErrors, addressPlaceholders, appHrefError, displayFields, hrefPlaceholders, type ActionRun, type ResourceModel, type ViewModel } from '@protobase/schema'
+import { addressErrors, addressPlaceholders, appHrefError, displayFields, fieldRefsIn, hrefPlaceholders, type ActionRun, type ResourceModel, type ViewModel } from '@protobase/schema'
 import type { Registry } from './registry'
 import { relatedErrors } from './view-related'
 
@@ -42,13 +42,18 @@ const linkErrors = (view: ViewModel, model: ResourceModel, models: Record<string
     return addressErrors(run.to, { models, pages, source: model }).map((error) => `action "${name}": ${error}`)
   })
 
-// A display shows fields of the resource; the builder's types say so, a view written as data is checked here.
-const displayErrors = (view: ViewModel, model: ResourceModel) =>
-  (view.list?.displays ?? []).flatMap((display) => displayFields(display).filter((name) => !Object.hasOwn(model.fields, name)).map((name) => `display "${display.name}" names field "${name}", which ${model.name} does not have`))
+// Displays and custom sections name fields of the resource; the builder's types say so, a view written as data is checked here.
+const unknownFieldErrors = (view: ViewModel, model: ResourceModel) => {
+  const unknown = (names: string[], what: string) => names.filter((name) => !Object.hasOwn(model.fields, name)).map((name) => `${what} names field "${name}", which ${model.name} does not have`)
+  return [
+    ...(view.list?.displays ?? []).flatMap((display) => unknown(displayFields(display), `display "${display.name}"`)),
+    ...view.layout.flatMap((item) => (item.kind === 'custom' ? unknown(fieldRefsIn(item.props), `custom section ${item.component}`) : [])),
+  ]
+}
 
 /**
- * Fails at startup when a view uses a sensitive field where it would show empty, a display names a field the resource
- * does not have, labels values its enum does not have,
+ * Fails at startup when a view uses a sensitive field where it would show empty, a display or custom section names a
+ * field the resource does not have, labels values its enum does not have,
  * has a related section that does not fit the resources, or a link to an address the app does not have.
  */
 export const checkViews = (registry: Registry, views: ViewModel[], pages: readonly string[] = []) => {
@@ -58,7 +63,7 @@ export const checkViews = (registry: Registry, views: ViewModel[], pages: readon
     const model = models[view.resource]
     if (!model) return []
     const related = view.layout.flatMap((item) => (item.kind === 'related' ? relatedErrors(item, view.resource, models).map((error) => `related "${item.title}": ${error}`) : []))
-    return [...sensitiveErrors(view, model), ...displayErrors(view, model), ...valueLabelErrors(view, model), ...related, ...linkErrors(view, model, models, pageNames)].map((problem) => `View "${view.resource}": ${problem}`)
+    return [...sensitiveErrors(view, model), ...unknownFieldErrors(view, model), ...valueLabelErrors(view, model), ...related, ...linkErrors(view, model, models, pageNames)].map((problem) => `View "${view.resource}": ${problem}`)
   })
   if (problems.length > 0) throw new Error(`The views do not match the resources:\n${problems.map((problem) => `  - ${problem}`).join('\n')}`)
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { f, resource, restrictModel, view, type ResourceModel } from '@protobase/schema'
+import { f, l, resource, restrictModel, view, type ResourceModel } from '@protobase/schema'
 import { pruneView } from './view-access'
 
 const customers = resource('customers').table('customers').fields({ id: f.integer(), name: f.text().filterable() }).primaryKey((r) => r.id)
@@ -35,5 +35,13 @@ describe('pruneView', () => {
     expect(names(without({ repairs: ['estimate'] }))).toEqual(['customer', 'sameCustomer'])
     expect(names(without({}, ['customers']))).toEqual(['sameCustomer', 'quote'])
     expect(names(without({ repairs: ['customerId'] }))).toEqual(['quote'])
+  })
+
+  it('leaves out a custom section whose props name a field the caller cannot read', () => {
+    const Quote = Object.assign((props: { amount: string; currency: string }) => props, { blockName: 'Quote', custom: true })
+    const repairsView = view<typeof repairs>('repairs').layout((r) => [l.custom(Quote, { props: { amount: r.estimate, currency: 'EUR' } }), l.section('Repair', [r.status, r.estimate])]).toModel()
+    expect(pruneView(repairsView, all.repairs, all).layout).toEqual(repairsView.layout)
+    const hidden = without({ repairs: ['estimate'] })
+    expect(pruneView(repairsView, hidden.repairs!, hidden).layout).toEqual([{ kind: 'section', title: 'Repair', fields: ['status'] }])
   })
 })

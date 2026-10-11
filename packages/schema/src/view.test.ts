@@ -148,6 +148,21 @@ describe('view builder', () => {
     expect(list((d) => ({ displays: [d.custom(Card, { name: 'c', label: 'C', fields: [] })] }))).toThrow('d.custom takes a component declared with component(...), not the built-in block Card')
   })
 
+  it('puts custom components in the record layout, in the main column or the sidebar', () => {
+    const Thread = Object.assign((props: { order: string; limit: number }) => props, { blockName: 'Thread', custom: true })
+    const Plan = Object.assign(() => null, { blockName: 'Plan', custom: true })
+    const model = view<typeof article>('article')
+      .layout((r) => [l.custom(Plan), l.section('Content', [r.title]), l.custom(Thread, { title: 'Comments', props: { order: r.createdAt, limit: 20 }, sidebar: true })])
+      .toModel()
+    expect(model.layout).toEqual([
+      { kind: 'custom', component: 'Plan' },
+      { kind: 'section', title: 'Content', fields: ['title'] },
+      { kind: 'custom', component: 'Thread', title: 'Comments', props: { order: { $field: 'createdAt' }, limit: 20 }, sidebar: true },
+    ])
+    const Card = Object.assign(() => null, { blockName: 'Card', custom: false })
+    expect(() => view<typeof article>('article').layout(() => [l.custom(Card)])).toThrow('l.custom takes a component declared with component(...), not the built-in block Card')
+  })
+
   it('refuses display fields the resource does not have', () => {
     const stale = view<typeof article>('article').list((r, d) => ({ columns: [r.title], displays: [d.cards({ badge: { name: 'state' } })] }))
     expect(() => stale.toModel(article.toModel())).toThrow('View "article": display "cards" names field "state", which the resource does not have')
