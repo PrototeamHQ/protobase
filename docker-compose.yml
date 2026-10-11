@@ -25,5 +25,23 @@ services:
       timeout: 3s
       retries: 30
 
+  # The cloud's pooler in front of the same server, with its settings (protobase-cloud pooler/pgbouncer.ini): transaction
+  # pooling, prepared statements tracked, three server connections per role. The jobs integration tests run through it.
+  pgbouncer:
+    image: edoburu/pgbouncer:v1.26.0-p0
+    ports:
+      - '${PGBOUNCER_PORT:-55442}:5432'
+    environment:
+      DB_HOST: postgres
+      DB_USER: ${POSTGRES_USER}
+      DB_PASSWORD: ${POSTGRES_PASSWORD}
+      AUTH_TYPE: scram-sha-256
+      POOL_MODE: transaction
+      MAX_PREPARED_STATEMENTS: 200
+      MAX_USER_CONNECTIONS: 3
+    depends_on:
+      postgres:
+        condition: service_healthy
+
 volumes:
   pgdata:

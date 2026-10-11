@@ -8,6 +8,9 @@ const root = path.join(import.meta.dirname, '..', '..')
 /** The Postgres server the tests use: the docker-compose container, unless TEST_POSTGRES_URL names another. */
 export const serverUrl = process.env.TEST_POSTGRES_URL ?? 'postgres://protobase:protobase@localhost:55432/postgres'
 
+/** PgBouncer in transaction mode in front of that server: the docker-compose service, unless TEST_PGBOUNCER_URL names another. */
+export const poolerUrl = process.env.TEST_PGBOUNCER_URL ?? 'postgres://protobase:protobase@localhost:55442/postgres'
+
 /**
  * One template database per example, migrated and seeded by `bun run test:db`. Every test run clones its own database
  * from these and drops it afterwards, so tests never touch the developer databases (`protobase`, `real_estate`).
@@ -21,8 +24,8 @@ export const templates = {
 export type TemplateKey = keyof typeof templates
 export type Template = (typeof templates)[TemplateKey]
 
-export const databaseUrl = (database: string) => {
-  const url = new URL(serverUrl)
+export const databaseUrl = (database: string, server = serverUrl) => {
+  const url = new URL(server)
   url.pathname = `/${database}`
   return url.toString()
 }

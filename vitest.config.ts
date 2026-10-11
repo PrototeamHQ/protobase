@@ -11,9 +11,10 @@ const testDatabase = 'scripts/test-db/global-setup.ts'
 const unit = ['packages/*/src/**/*.test.ts', 'docs-examples/**/*.test.ts', 'examples/*/{config,seed}/**/*.test.ts']
 // Database, subprocess and build tests: `bun run test:integration`.
 const integration = ['packages/cli/tests/**/*.integration.test.ts', 'packages/cli/tests/build/deploy-bundle.test.ts']
-// The glue between packages, on PGlite in `bun run test`, and on Postgres (`*.postgres.test.ts`) with the integration tests.
-const glue = 'tests/changes/**/*.test.ts'
-const postgresGlue = 'tests/changes/**/*.postgres.test.ts'
+// The glue between packages, on PGlite in `bun run test`, and on Postgres and PgBouncer (`*.postgres.test.ts`) with the
+// integration tests.
+const glue = 'tests/{changes,jobs}/**/*.test.ts'
+const postgresGlue = 'tests/{changes,jobs}/**/*.postgres.test.ts'
 // The CLI building and serving the ERP on the runtime that runs Vitest, Bun or Node: `bun run test:smoke` and
 // `node --run test:smoke`.
 const smoke = ['tests/smoke/**/*.test.ts']
