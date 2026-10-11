@@ -76,9 +76,15 @@ describe.skipIf(!reachable)('the ERP with two organizations', () => {
 
   it('gives a new organization the next id of the ERP and its own row there', async () => {
     const { organization } = await createOrganization(auth, { name: 'Zuidwind Trading', slug: 'zuidwind', owner: 'root@erp.example' })
-    expect(Number(organization.id)).toBeGreaterThan(2)
-    const row = (await db.selectFrom('core.organizations').select(['name', 'slug', 'country_code']).where('id', '=', Number(organization.id)).executeTakeFirst())!
-    expect(row).toEqual({ name: 'Zuidwind Trading', slug: 'zuidwind', country_code: 'NL' })
-    expect((await listOrganizations(auth)).map((entry) => entry.slug)).toEqual(['rijnland', 'nordlicht', 'zuidwind'])
+    try {
+      expect(Number(organization.id)).toBeGreaterThan(2)
+      const row = (await db.selectFrom('core.organizations').select(['name', 'slug', 'country_code']).where('id', '=', Number(organization.id)).executeTakeFirst())!
+      expect(row).toEqual({ name: 'Zuidwind Trading', slug: 'zuidwind', country_code: 'NL' })
+      expect((await listOrganizations(auth)).map((entry) => entry.slug)).toEqual(['rijnland', 'nordlicht', 'zuidwind'])
+    } finally {
+      // The run's database is shared with the other ERP tests, and the smoke test counts the seeded organizations.
+      await db.deleteFrom('auth.organization').where('id', '=', organization.id).execute()
+      await db.deleteFrom('core.organizations').where('id', '=', Number(organization.id)).execute()
+    }
   })
 })
