@@ -3,7 +3,7 @@ import { PGliteDialect } from 'kysely-pglite-dialect'
 import { describe, expect, it, vi } from 'vitest'
 import { f, resource } from '@protobase/schema'
 import { changesMigration } from '@protobase/server'
-import { createEmptyPg } from '../../../../test-support/pglite-snapshot'
+import { createJobsPg } from '../../../../test-support/jobs'
 import { startServe } from '../../src/serve/lifecycle'
 
 const notes = resource('notes').table('notes').fields({ id: f.integer(), body: f.text() }).primaryKey((r) => r.id).events((e) => e.crud())
@@ -12,7 +12,7 @@ const env = { port: 0, databaseUrl: 'postgres://unused/app', requestLog: false, 
 
 describe('startServe with resource events', () => {
   it('does not start while a resource with events has no triggers, and drains its pool', async () => {
-    const pg = await createEmptyPg()
+    const pg = await createJobsPg()
     await pg.exec('create table notes (id integer primary key, body text not null)')
     const db = Object.assign(new Kysely<any>({ dialect: new PGliteDialect(pg) }), { destroy: vi.fn(async () => {}) })
     await expect(startServe({ project, env, createDb: () => db })).rejects.toThrow('The changes of notes are not captured as their events need')

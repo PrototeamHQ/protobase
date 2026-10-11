@@ -14,6 +14,7 @@ export type MigrationPart = {
 /** Every feature the project's config enables, in the order their files are written. */
 export const migrationParts = (project: MigrationProject): MigrationPart[] => [
   ...(project.auth ? [{ name: 'auth', title: 'The auth schema changes this version of Protobase needs', sql: () => authSchemaMigration(project.auth!) }] : []),
-  ...(project.jobs.length > 0 ? [{ name: 'jobs', title: 'The jobs schema this version of Protobase needs', sql: () => jobsSchemaMigration(project.db) }] : []),
+  // Events are delivered by jobs, and captured into the outbox with a dispatch job.
+  ...(project.jobs.length > 0 || project.models.some((model) => model.events) ? [{ name: 'jobs', title: 'The jobs schema this version of Protobase needs', sql: () => jobsSchemaMigration(project.db) }] : []),
   { name: 'changes', title: "The change capture the resources' events need", sql: () => changesMigration(project.db, project.models, project.events) },
 ]

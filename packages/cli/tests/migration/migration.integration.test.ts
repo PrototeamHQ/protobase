@@ -23,12 +23,16 @@ export default { config: { notes } }
 
 const migration = () => run([bin, 'migration'], projectDir, { DATABASE_URL: databaseUrl })
 
+// Applies the files not applied yet, in one transaction, as a project's migrate step does.
+const applied = new Set<string>()
 const applyAll = async () => {
   const sql = postgres(databaseUrl, { max: 1, onnotice: () => {} })
   const dir = path.join(projectDir, 'db/migrations')
+  const pending = (await readdir(dir)).sort().filter((file) => !applied.has(file))
   await sql.begin(async (tx) => {
-    for (const file of (await readdir(dir)).sort()) await tx.unsafe(await readFile(path.join(dir, file), 'utf8'))
+    for (const file of pending) await tx.unsafe(await readFile(path.join(dir, file), 'utf8'))
   })
+  for (const file of pending) applied.add(file)
   await sql.end()
 }
 
@@ -50,10 +54,24 @@ describe.skipIf(!reachable)('protobase migration', () => {
     await sql.end()
   })
 
+  it('writes the jobs schema for a config with jobs, then nothing once applied', async () => {
+    await writeFile(path.join(projectDir, 'protobase.config.ts'), `import { f, resource } from '@protobase/schema'
+import { defineJob } from '@protobase/server'
+export const notes = resource('notes').table('notes').fields({ id: f.integer().readOnly(), body: f.text() }).primaryKey((r) => r.id)
+export const prune = defineJob({ name: 'prune-notes', run: () => {} })
+export default { config: { notes }, jobs: { prune } }
+`)
+    const first = await migration()
+    expect([first.status, first.stdout, first.stderr]).toEqual([0, "wrote db/migrations/001_jobs.sql\napply them with the project's migrations\n", ''])
+    expect(await readFile(path.join(projectDir, 'db/migrations/001_jobs.sql'), 'utf8')).toMatch(/^-- The jobs schema this version of Protobase needs, written by `protobase migration`\./)
+    await applyAll()
+    expect((await migration()).stdout).toBe('the database is up to date; nothing to write\n')
+  }, 60_000)
+
   it('writes the change capture of resources with events as the next migration, then nothing once applied', async () => {
     await writeFile(path.join(projectDir, 'protobase.config.ts'), config('.events((e) => e.crud())'))
     const first = await migration()
-    expect([first.status, first.stdout, first.stderr]).toEqual([0, "wrote db/migrations/001_changes.sql\napply them with the project's migrations\n", ''])
+    expect([first.status, first.stdout, first.stderr]).toEqual([0, "wrote db/migrations/002_changes.sql\napply them with the project's migrations\n", ''])
     await applyAll()
     const again = await migration()
     expect(again.stdout).toBe('the database is up to date; nothing to write\n')
@@ -67,22 +85,9 @@ describe.skipIf(!reachable)('protobase migration', () => {
   it('drops the triggers once the resource has no events', async () => {
     await writeFile(path.join(projectDir, 'protobase.config.ts'), config(''))
     const result = await migration()
-    expect(result.stdout).toBe("wrote db/migrations/002_changes.sql\napply them with the project's migrations\n")
-    expect(await readFile(path.join(projectDir, 'db/migrations/002_changes.sql'), 'utf8')).toContain('drop trigger if exists "notes_changes" on public.notes')
+    expect(result.stdout).toBe("wrote db/migrations/003_changes.sql\napply them with the project's migrations\n")
+    expect(await readFile(path.join(projectDir, 'db/migrations/003_changes.sql'), 'utf8')).toContain('drop trigger if exists "notes_changes" on public.notes')
     await applyAll()
   })
 
-  it('writes the jobs schema for a config with jobs, then nothing once applied', async () => {
-    await writeFile(path.join(projectDir, 'protobase.config.ts'), `import { f, resource } from '@protobase/schema'
-import { defineJob } from '@protobase/server'
-export const notes = resource('notes').table('notes').fields({ id: f.integer().readOnly(), body: f.text() }).primaryKey((r) => r.id)
-export const prune = defineJob({ name: 'prune-notes', run: () => {} })
-export default { config: { notes }, jobs: { prune } }
-`)
-    const first = await migration()
-    expect([first.status, first.stdout, first.stderr]).toEqual([0, "wrote db/migrations/003_jobs.sql\napply them with the project's migrations\n", ''])
-    expect(await readFile(path.join(projectDir, 'db/migrations/003_jobs.sql'), 'utf8')).toMatch(/^-- The jobs schema this version of Protobase needs, written by `protobase migration`\./)
-    await applyAll()
-    expect((await migration()).stdout).toBe('the database is up to date; nothing to write\n')
-  }, 60_000)
 })

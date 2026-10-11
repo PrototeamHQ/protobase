@@ -3,7 +3,8 @@ import type { AddressInfo } from 'node:net'
 import { createAdaptorServer } from '@hono/node-server'
 import pg from 'pg'
 import type { Db } from '@protobase/query'
-import { checkAuthSchema, checkChanges, checkJobsSchema, configExports, createFileCleanup, jobDefinitions, startJobs } from '@protobase/server'
+import { checkAuthSchema, checkChanges, checkJobsSchema, configExports, createFileCleanup, startJobs } from '@protobase/server'
+import { projectAdmin } from '../project/project-admin'
 import { createPgDb } from '../project/pg-db'
 import { createServeApp, type ServedSite } from './app'
 import { startCleanupTimer } from './cleanup-timer'
@@ -44,12 +45,12 @@ export const startServe = async ({ project, env, createDb = (url) => createPgDb(
   const ownDb = project.db ? undefined : createDb(env.databaseUrl!)
   const db = project.db ?? ownDb!
   const { resources } = configExports(project.config)
-  const definitions = jobDefinitions(project.jobs ?? {})
   const startJobsAndListen = async () => {
     await checkChanges(db, resources.map((resource) => resource.toModel()), project.events)
+    const { admin, jobs: definitions } = projectAdmin(project, project.config, db)
     if (definitions.length > 0) await checkJobsSchema(db)
     const jobs = definitions.length > 0 ? await startJobs({ db, jobs: definitions, work: env.runJobs, onError: (error) => console.error(error) }) : undefined
-    const app = createServeApp({ project, db, requestLog: env.requestLog, site, ...(jobs && { jobs }), ...(env.drainToken && { drainToken: env.drainToken }) })
+    const app = createServeApp({ admin, requestLog: env.requestLog, site, ...(jobs && { jobs }), ...(env.drainToken && { drainToken: env.drainToken }) })
     const server = createAdaptorServer({ fetch: app.fetch }) as Server
     await listen(server, env.port).catch(async (error: Error) => {
       await jobs?.stop()

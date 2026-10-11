@@ -1,5 +1,6 @@
 import { Hono } from 'hono'
-import { checkAuthSchema, checkChanges, configExports, createAdmin, hasUsers, jobDefinitions } from '@protobase/server'
+import { checkAuthSchema, checkChanges, configExports, hasUsers } from '@protobase/server'
+import { projectAdmin } from '../project/project-admin'
 import { devJobs } from './dev-jobs'
 import { loadProject, projectDb } from './project'
 
@@ -8,7 +9,7 @@ import { loadProject, projectDb } from './project'
 const projectDir = process.env.PROTOBASE_PROJECT!
 const project = await loadProject(projectDir, JSON.parse(process.env.PROTOBASE_EXTENSIONS ?? '[]'))
 const db = projectDb(project, projectDir)
-const { resources, views, pages, userMenu } = configExports(project.exports)
+const { resources } = configExports(project.exports)
 
 if (!project.authenticate) {
   throw new Error('No authenticator: export `authenticate` (and `auth`) from protobase.config.ts; see https://docs.protobase.net/reference/auth/')
@@ -24,23 +25,11 @@ if (project.auth && !store.__protobaseAuthSchemaChecked) {
 // On every load, since editing the config can give a resource events whose triggers the database lacks.
 await checkChanges(db, resources.map((resource) => resource.toModel()), project.events)
 
-// The project's jobs, run in this server; a behind jobs schema stops startup with the command that writes its migration.
-await devJobs(db, jobDefinitions(project.jobs ?? {}))
+const { admin, jobs } = projectAdmin({ ...project, authenticate: project.authenticate }, project.exports, db)
 
-const admin = createAdmin({
-  resources,
-  views,
-  pages,
-  ...(userMenu && { userMenu }),
-  db,
-  authenticate: project.authenticate,
-  ...(project.auth && { auth: project.auth }),
-  ...(project.functions && { functions: project.functions }),
-  ...(project.files && { files: project.files }),
-  ...(project.events && { events: project.events }),
-  jobs: jobDefinitions(project.jobs ?? {}),
-  options: { onUnhandledError: (error) => console.error(error), ...project.options },
-})
+// The project's jobs and the delivery of its events, run in this server; a behind jobs schema stops startup with the
+// command that writes its migration.
+await devJobs(db, jobs)
 
 export default new Hono().route('/', admin)
 

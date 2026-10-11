@@ -5,6 +5,7 @@ import pg from 'pg'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { unauthorized } from '@protobase/server'
 import { createPgDb } from '../../src/project/pg-db'
+import { projectAdmin } from '../../src/project/project-admin'
 import { createServeApp } from '../../src/serve/app'
 import type { ServedProject } from '../../src/serve/load-bundle'
 
@@ -28,7 +29,7 @@ describe('createServeApp with a site', () => {
     await mkdir(path.join(publicDir, 'assets'))
     await writeFile(path.join(publicDir, 'index.html'), '<title>admin</title>')
     await writeFile(path.join(publicDir, 'assets/app-1a2b.js'), 'export {}')
-    app = createServeApp({ project, db, requestLog: false, site: { publicDir, spa: 'index.html', api: ['/api'] } })
+    app = createServeApp({ admin: projectAdmin(project, project.config, db).admin, requestLog: false, site: { publicDir, spa: 'index.html', api: ['/api'] } })
   })
   afterAll(async () => {
     await db.destroy()

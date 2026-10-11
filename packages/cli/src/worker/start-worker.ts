@@ -2,7 +2,8 @@ import { statSync } from 'node:fs'
 import path from 'node:path'
 import pg from 'pg'
 import type { Db } from '@protobase/query'
-import { checkJobsSchema, jobDefinitions, startJobs } from '@protobase/server'
+import { checkJobsSchema, configExports, jobDefinitions, startJobs } from '@protobase/server'
+import { projectAdmin } from '../project/project-admin'
 import { readManifest } from '../bundle/manifest'
 import { createPgDb } from '../project/pg-db'
 import { checkBundleVersion } from '../serve/bundle-version'
@@ -26,16 +27,17 @@ export type WorkerOptions = {
  * their own. It reads the jobs schema at start and refuses one that is missing or behind, like `serve`.
  */
 export const startWorker = async ({ project, databaseUrl, createDb = (url) => createPgDb(pg, url) }: WorkerOptions) => {
-  const definitions = jobDefinitions(project.jobs ?? {})
-  if (definitions.length === 0) throw new Error('The bundle has no jobs: export them from protobase.config.ts as `jobs`')
+  const withEvents = configExports(project.config).resources.some((resource) => resource.toModel().events)
+  if (jobDefinitions(project.jobs ?? {}).length === 0 && !withEvents) throw new Error('The bundle has no jobs: export them from protobase.config.ts as `jobs`, or give a resource events')
   if (!project.db && !databaseUrl) throw new Error('No database: set DATABASE_URL or export `db` from protobase.config.ts')
   const ownDb = project.db ? undefined : createDb(databaseUrl!)
   const db = project.db ?? ownDb!
   const start = async () => {
+    const { jobs: definitions } = projectAdmin(project, project.config, db)
     await checkJobsSchema(db)
-    return startJobs({ db, jobs: definitions, onError: (error) => console.error(error) })
+    return { definitions, runtime: await startJobs({ db, jobs: definitions, onError: (error) => console.error(error) }) }
   }
-  const jobs = await start().catch(async (error: Error) => {
+  const { definitions, runtime: jobs } = await start().catch(async (error: Error) => {
     await ownDb?.destroy()
     throw error
   })
