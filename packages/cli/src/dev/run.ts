@@ -101,8 +101,8 @@ export const runDev = async (options: DevOptions, out: (text: string) => void) =
       tailwindcss(),
       devServer({
         entry,
-        // Vite serves everything that is not under /api.
-        exclude: [/^(?!\/api(\/|\?|$)).*/],
+        // Vite serves everything that is not under /api, or the passkey origins at /.well-known/webauthn.
+        exclude: [/^(?!\/api(\/|\?|$)|\/\.well-known\/webauthn(\?|$)).*/],
         injectClientScript: false,
       }),
     ],

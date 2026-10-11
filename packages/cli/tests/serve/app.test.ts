@@ -47,6 +47,8 @@ describe('createServeApp with a site', () => {
     expect((await app.request('/api/meta', html)).status).toBe(401)
     expect((await app.request('/api/meta', { headers: { authorization: 'Bearer ok' } })).status).toBe(200)
     expect(await (await app.request('/api/nothing-here', html)).text()).not.toContain('<title>admin</title>')
+    // Where browsers read the origins that may use the app's passkeys.
+    expect(await (await app.request('/.well-known/webauthn', html)).text()).not.toContain('<title>admin</title>')
   })
 
   it('keeps answering the health probe', async () => {

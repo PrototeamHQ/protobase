@@ -1,6 +1,6 @@
 import { Hono } from 'hono'
 import { logger } from 'hono/logger'
-import { jobsDrainApp, type Admin, type JobsRuntime } from '@protobase/server'
+import { jobsDrainApp, webauthnPath, type Admin, type JobsRuntime } from '@protobase/server'
 import { isApiPath } from '../bundle/manifest'
 import { serveStaticSite, type StaticSite } from './static-site'
 
@@ -24,7 +24,8 @@ export const createServeApp = ({ admin, requestLog, site, jobs, drainToken }: Se
   if (requestLog) app.use(logger())
   // Liveness only: it needs no token and does not touch the database.
   app.get('/health', (c) => c.json({ status: 'ok' }))
-  if (site) app.use('*', (c, next) => (isApiPath(site.api, c.req.path) ? next() : serveStaticSite(site, c.req.raw)))
+  // `/.well-known/webauthn` is the server's too, for passkeys on an app with several origins, whatever the bundle says.
+  if (site) app.use('*', (c, next) => (isApiPath(site.api, c.req.path) || c.req.path === webauthnPath ? next() : serveStaticSite(site, c.req.raw)))
   if (jobs && drainToken) app.route('/', jobsDrainApp({ runtime: jobs, token: drainToken }))
   app.route('/', admin)
   return app

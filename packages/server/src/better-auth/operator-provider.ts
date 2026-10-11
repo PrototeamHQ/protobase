@@ -3,7 +3,8 @@ import { staffSignInMaxAgeSeconds, type StaffClaims } from './staff-checks'
 
 /**
  * The identity provider the operator's staff sign in with to sign in as people of this app: any OpenID Connect
- * provider, with this app registered as a confidential client whose redirect URI is `{baseURL}/api/auth/staff/callback`.
+ * provider, with this app registered as a confidential client whose redirect URI is `{origin}/api/auth/staff/callback`,
+ * for `baseURL` and each of the app's other `origins`.
  */
 export type OperatorProvider = {
   /** The provider's issuer URL; its settings are read from `{issuer}/.well-known/openid-configuration`. */

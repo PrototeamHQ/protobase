@@ -9,7 +9,7 @@ export type BetterAuthAuthenticatorOptions = {
   auth?: AdminAuth
   /** Or its JWKS endpoint, for an API that runs apart from the auth server. Needs `issuer`. */
   jwksUrl?: string | URL
-  /** Defaults to the auth instance's `baseURL`; it is both issuer and audience of its tokens. */
+  /** Defaults to the auth instance's `issuer`, its `baseURL`; it is both issuer and audience of its tokens. */
   issuer?: string
   /** The one tenant everyone works in, for an app without organizations; never read from the token. */
   tenant?: TenantValue | (() => Promise<TenantValue | undefined>)
@@ -26,7 +26,7 @@ export type BetterAuthAuthenticatorOptions = {
  * role, is left out.
  */
 export const betterAuthAuthenticator = (options: BetterAuthAuthenticatorOptions): Authenticator => {
-  const issuer = options.issuer ?? options.auth?.options.baseURL
+  const issuer = options.issuer ?? options.auth?.issuer
   if (!issuer) throw new Error('betterAuthAuthenticator needs `issuer` (or an `auth` instance with a baseURL)')
   if (!options.auth && !options.jwksUrl) throw new Error('betterAuthAuthenticator needs `auth` or `jwksUrl`')
   const organizations = options.organizations ?? Boolean(options.auth?.organizations)

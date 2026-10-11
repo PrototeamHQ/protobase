@@ -7,6 +7,7 @@ import { builtInAssistant } from './assistant/built-in-assistant'
 import { assistantRecords } from './assistant/records'
 import { consoleAuditQueue } from './audit/console-queue'
 import { authBasePath, type AdminAuth } from './better-auth/create-auth'
+import { webauthnPath } from './better-auth/origins'
 import { organizationRoutes } from './better-auth/organizations/admin-routes'
 import { statusRoute } from './better-auth/status-route'
 import { changesSchema, type EventsOptions } from './changes/events-options'
@@ -152,6 +153,8 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], pag
     app.route(authBasePath, statusRoute(auth))
     if (auth.organizations) app.route(authBasePath, organizationRoutes({ auth, audit: deps.audit, registry, db }))
     app.on(['GET', 'POST'], `${authBasePath}/*`, (c) => auth.handler(c.req.raw))
+    // On several origins, each says which origins may use the app's passkeys: all of them (Related Origin Requests).
+    if (auth.origins.length > 1) app.get(webauthnPath, (c) => c.json({ origins: auth.origins }))
   }
   if (assistant?.kind === 'built-in') {
     const tools = options.assistant ? options.assistant.tools : undefined

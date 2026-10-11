@@ -59,10 +59,11 @@ const serve = async (options: Partial<CreateAuthOptions> = {}) => {
   await createUser(auth, { email: 'sanne@example.com', password, role: 'user' })
   const app = createAdmin({ resources: [], db: appDb, authenticate: betterAuthAuthenticator({ auth }), auth })
   const address = `203.0.113.${++client}`
-  const request = (path: string, init: { body?: unknown; cookie?: string } = {}) =>
-    app.request(`${origin}/api/auth${path}`, {
+  // `at` is the origin the browser is on, for an app with several.
+  const request = (path: string, init: { body?: unknown; cookie?: string; at?: string } = {}) =>
+    app.request(`${init.at ?? origin}/api/auth${path}`, {
       method: init.body === undefined ? 'GET' : 'POST',
-      headers: { 'content-type': 'application/json', origin, 'x-forwarded-for': address, ...(init.cookie && { cookie: init.cookie }) },
+      headers: { 'content-type': 'application/json', origin: init.at ?? origin, 'x-forwarded-for': address, ...(init.cookie && { cookie: init.cookie }) },
       ...(init.body !== undefined && { body: JSON.stringify(init.body) }),
     })
   const signIn = async (email: string) => cookiesOf(await request('/sign-in/email', { body: { email, password } })).join('; ')
@@ -72,13 +73,13 @@ const serve = async (options: Partial<CreateAuthOptions> = {}) => {
   }
 
   // The staff member's browser: the staff sign-in page, the operator provider, and back through the callback.
-  const staffSignIn = async ({ email = 'sanne@example.com', claims = permittedStaff() as Record<string, unknown>, jar = '' } = {}) => {
-    const start = await request('/staff/sign-in', { body: { email, reason, callbackURL: `${origin}/` }, cookie: jar })
+  const staffSignIn = async ({ email = 'sanne@example.com', claims = permittedStaff() as Record<string, unknown>, jar = '', at = origin } = {}) => {
+    const start = await request('/staff/sign-in', { body: { email, reason, callbackURL: `${at}/` }, cookie: jar, at })
     expect(start.status).toBe(200)
     const { url } = (await start.json()) as { url: string }
     const { code, state } = operator.approve(url, claims)
     const browser = merge(jar, start)
-    const callback = await request(`/staff/callback?code=${code}&state=${encodeURIComponent(state)}`, { cookie: browser })
+    const callback = await request(`/staff/callback?code=${code}&state=${encodeURIComponent(state)}`, { cookie: browser, at })
     return { url, callback, browser: merge(browser, callback), state, code }
   }
   const staffSignIns = async () => (await (await request('/staff/sign-ins', { cookie: await signIn('root@example.com') })).json()).signIns
@@ -86,6 +87,16 @@ const serve = async (options: Partial<CreateAuthOptions> = {}) => {
 }
 
 describe('a staff sign-in through the operator provider', () => {
+  it('sends staff back to the origin they started on, on an app with several', async () => {
+    const other = 'http://127.0.0.1:5173'
+    const { staffSignIn } = await serve({ origins: [other] })
+    for (const at of [origin, other, origin]) {
+      const { url, callback } = await staffSignIn({ at })
+      expect(new URL(url).searchParams.get('redirect_uri')).toBe(`${at}/api/auth/staff/callback`)
+      expect(callback.headers.get('location')).toBe(`${at}/`)
+    }
+  })
+
   it('signs staff in as the person, past the policy, with a banner record, until they stop', async () => {
     const { request, savePolicy, staffSignIn, staffSignIns, operator } = await serve()
     await savePolicy({ twoFactor: 'required', passkey: 'required' })

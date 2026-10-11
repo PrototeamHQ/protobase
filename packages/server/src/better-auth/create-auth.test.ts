@@ -44,6 +44,20 @@ describe('betterAuthOptions', () => {
     expect(options.databaseHooks.user.create.before).toBeTypeOf('function')
   })
 
+  it('answers each of several origins for its own host, with baseURL as issuer and passkeys on its host', () => {
+    const options = betterAuthOptions(base, { ...resolved, origins: ['https://admin.shop.com'] })
+    expect(options.baseURL).toEqual({ allowedHosts: ['admin.example.com', 'admin.shop.com'], fallback: 'https://admin.example.com', protocol: 'https' })
+    expect(options.trustedOrigins).toEqual(expect.arrayContaining(['https://admin.example.com', 'https://admin.shop.com']))
+    const jwt = options.plugins.find((plugin) => plugin.id === 'jwt') as { options?: { jwt?: { issuer?: string; audience?: string } } }
+    expect(jwt.options?.jwt).toMatchObject({ issuer: 'https://admin.example.com', audience: 'https://admin.example.com' })
+    const passkey = options.plugins.find((plugin) => plugin.id === 'passkey') as { options?: { rpID?: string } }
+    expect(passkey.options?.rpID).toBe('admin.example.com')
+  })
+
+  it('keeps baseURL a string on one origin', () => {
+    expect(betterAuthOptions(base, resolved).baseURL).toBe('https://admin.example.com')
+  })
+
   it('adds the platform sign-in provider, unless the app has its own provider with the same id', () => {
     const platformSignIn = resolvePlatformSignIn({ issuer: 'https://auth.example.com', clientId: 'app', clientSecret: 'secret', provider: 'github' })
     const plugins = (options: CreateAuthOptions) => betterAuthOptions(options, { ...resolved, platformSignIn }).plugins.map((plugin) => plugin.id)

@@ -36,8 +36,16 @@ const withError = (url: string, code: string) => {
  * them). The session is short and never extended, and the person's two-factor and passkey requirements do not stop it.
  */
 export const staffSignInEndpoints = ({ operator, mailer }: { operator: ResolvedOperator; mailer?: Mailer }) => {
-  let client: OperatorClient | undefined
-  const clientOf = (context: Context) => (client ??= operatorClient(operator, `${context.baseURL}/staff/callback`))
+  // One client per callback: an app on several origins sends each staff member back to the one they started on.
+  const clients = new Map<string, OperatorClient>()
+  const clientOf = (context: Context) => {
+    const callback = `${context.baseURL}/staff/callback`
+    const found = clients.get(callback)
+    if (found) return found
+    const client = operatorClient(operator, callback)
+    clients.set(callback, client)
+    return client
+  }
 
   // Signs the staff member in as the person, or names why not; `undefined` once the session is started.
   const startSession = async (ctx: Parameters<Parameters<typeof createAuthMiddleware>[0]>[0], started: StartedSignIn, claims: StaffClaims): Promise<StaffRefusal | undefined> => {
