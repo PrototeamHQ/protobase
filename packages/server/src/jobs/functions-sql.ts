@@ -1,11 +1,11 @@
-/** Bumped whenever the functions below change, so the next migration writes them again. */
-export const functionsVersion = 1
+/** Bumped whenever the objects below change, so the next migration writes them again. */
+export const functionsVersion = 2
 
 /** The comment each Protobase function in the jobs schema carries, which the startup check reads. */
 export const functionsComment = `Protobase jobs ${functionsVersion}`
 
-/** Protobase's own functions beside pg-boss's tables, by name. */
-export const functionNames = ['enqueue']
+/** Protobase's own functions beside pg-boss's tables, by name; each carries `functionsComment`. */
+export const functionNames = ['enqueue', 'next_due', 'failed_retry', 'failed_delete']
 
 /**
  * `jobs.enqueue(name, payload, run_at, key, group_key, priority)`: a job from SQL, such as a trigger, in the caller's
@@ -65,5 +65,59 @@ end
 $$;
 comment on function ${schema}.enqueue(text, jsonb, timestamptz, text, text, integer) is '${functionsComment}';`
 
-/** The statements that create or replace every Protobase function in `schema`. */
-export const functionsSql = (schema: string) => enqueue(schema)
+/**
+ * `jobs.next_due()`: when the next job is due, or `null` when none waits: what a host that sleeps reads to know when to
+ * wake the app, through any pooler. A waiting job counts from its start time, unless a failed job holds back its ordered
+ * group; a running one from when its try times out, since its worker may have died with the app. Recurring jobs wait
+ * as their next run, so they count too.
+ */
+const nextDue = (schema: string) => `create or replace function ${schema}.next_due() returns timestamptz
+language sql stable as $$
+  select min(due) from (
+    select j.start_after as due from ${schema}.job j
+    where j.state < 'active' and not j.blocked
+      and not (j.policy = 'key_strict_fifo' and exists (
+        select 1 from ${schema}.job h where h.name = j.name and h.singleton_key = j.singleton_key and h.state = 'failed'))
+    union all
+    select started_on + expire_seconds * interval '1s' from ${schema}.job where state = 'active'
+  ) jobs
+$$;
+comment on function ${schema}.next_due() is '${functionsComment}';`
+
+/**
+ * `jobs.failed`: the failed jobs, for the admin app's page, with their last error. Updating `retry` to true retries a
+ * job, as pg-boss's `retry()` does: one more attempt, from now; deleting a row deletes the job.
+ */
+const failed = (schema: string) => `create index if not exists job_failed_i on ${schema}.job (completed_on) where state = 'failed';
+drop view if exists ${schema}.failed;
+create view ${schema}.failed as
+select id, name, data as payload, retry_count + 1 as attempts,
+  coalesce(output ->> 'message', output -> 'value' ->> 'message', output ->> 'value') as error,
+  output, completed_on as failed_at, created_on as created_at, singleton_key as key, false as retry
+from ${schema}.job where state = 'failed';
+create or replace function ${schema}.failed_retry() returns trigger
+language plpgsql as $$
+begin
+  if new.retry then
+    update ${schema}.job
+    set state = 'retry', retry_limit = retry_limit + 1, completed_on = null,
+      start_after = greatest(start_after, ${schema}.job_now()), keep_until = greatest(keep_until, ${schema}.job_now() + interval '14 days')
+    where name = old.name and id = old.id and state = 'failed';
+  end if;
+  return new;
+end
+$$;
+comment on function ${schema}.failed_retry() is '${functionsComment}';
+create or replace function ${schema}.failed_delete() returns trigger
+language plpgsql as $$
+begin
+  delete from ${schema}.job where name = old.name and id = old.id and state = 'failed';
+  return old;
+end
+$$;
+comment on function ${schema}.failed_delete() is '${functionsComment}';
+create trigger failed_retry instead of update on ${schema}.failed for each row execute function ${schema}.failed_retry();
+create trigger failed_delete instead of delete on ${schema}.failed for each row execute function ${schema}.failed_delete();`
+
+/** The statements that create or replace every Protobase object in `schema`. */
+export const functionsSql = (schema: string) => [enqueue(schema), nextDue(schema), failed(schema)].join('\n\n')

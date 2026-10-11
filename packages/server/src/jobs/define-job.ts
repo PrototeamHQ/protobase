@@ -1,11 +1,22 @@
 import { currentJobs } from './current'
 import type { EnqueueOptions, JobDefinition, JobOptions } from './job-types'
+import { nextRun } from './schedule'
 
 const namePattern = /^[\w.\-/]+$/
+
+const checkSchedule = (name: string, schedule: string, timezone: string) => {
+  try {
+    nextRun(schedule, timezone, new Date())
+  } catch (error) {
+    if (!(error instanceof Error)) throw error
+    throw new Error(`Job "${name}" has the schedule "${schedule}" in ${timezone}, which is not a cron schedule there: ${error.message}`, { cause: error })
+  }
+}
 
 /** A job the app's workers run: export it from the module that `protobase.config.ts` passes as `jobs`. */
 export const defineJob = <Payload = undefined>(options: JobOptions<Payload>): JobDefinition<Payload> => {
   if (!namePattern.test(options.name)) throw new Error(`Job name "${options.name}" may only hold letters, digits, "_", "-", "." and "/"`)
+  if (options.schedule !== undefined) checkSchedule(options.name, options.schedule, options.timezone ?? 'UTC')
   const definition: JobDefinition<Payload> = {
     kind: 'job',
     name: options.name,

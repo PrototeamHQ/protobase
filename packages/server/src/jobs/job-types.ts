@@ -31,6 +31,13 @@ export type JobOptions<Payload> = {
    * retrying or failed holds back the rest of its group until it succeeds, or is retried or deleted in the admin app.
    */
   ordered?: boolean
+  /**
+   * Runs the job on this cron schedule, such as `0 7 * * *` (with an optional seconds field first), with no payload: one
+   * run per time, however many workers run. A run missed while no worker ran happens once, as soon as one does.
+   */
+  schedule?: string
+  /** The time zone `schedule` is read in, such as `Europe/Amsterdam`. Default `UTC`. */
+  timezone?: string
 }
 
 /** Where and how one enqueue lands; a job runs as soon as possible by default. */

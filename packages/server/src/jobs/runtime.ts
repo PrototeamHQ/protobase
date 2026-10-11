@@ -1,3 +1,4 @@
+import { sql } from 'kysely'
 import { PgBoss } from 'pg-boss'
 import type { Db } from '@protobase/query'
 import { clearCurrentJobs, setCurrentJobs, type JobsEnqueuer } from './current'
@@ -5,6 +6,8 @@ import { jobsDatabase } from './database'
 import type { EnqueueOptions, JobDefinition } from './job-types'
 import { queueOptions, queueSettingsDiffer, sendOptions } from './options'
 import { runJob, validatePayload } from './run-job'
+import { scheduleKey } from './schedule'
+import { createSchedules } from './schedules'
 import { jobsSchema } from './schema'
 
 export type StartJobsOptions = {
@@ -18,11 +21,25 @@ export type StartJobsOptions = {
   shutdownSeconds?: number
   /** Gets every error the workers and the queue maintenance meet outside a job's own `run`. */
   onError: (error: unknown) => void
+  /** The time recurring jobs are scheduled from; tests pass their own. */
+  now?: () => Date
 }
 
+/** What a drain left: whether no job is due or running any more, how many are, and when the next one is due. */
+export type DrainResult = { drained: boolean; remaining: number; nextDue: Date | null }
+
 export type JobsRuntime = JobsEnqueuer & {
+  /** Whether this process runs the jobs, or only enqueues them. */
+  readonly works: boolean
   /** Takes the project's jobs again, as `protobase dev` does when their files change. */
   update(jobs: JobDefinition[]): Promise<void>
+  /**
+   * Runs the jobs that are due until none is due or running, or `seconds` have passed: for a host that wakes a sleeping
+   * app to run its jobs. Needs this process to run jobs.
+   */
+  drain(seconds: number): Promise<DrainResult>
+  /** When the next job is due, or `null` when none waits (`jobs.next_due()`). */
+  nextDue(): Promise<Date | null>
   /** Stops taking jobs, lets running ones finish within `shutdownSeconds`, then fails and releases the rest. */
   stop(): Promise<void>
 }
@@ -49,10 +66,11 @@ const createBoss = (db: Db, work: boolean) =>
  * that retries jobs whose worker died. It reads the jobs schema, never changes it: check it first with
  * `checkJobsSchema`. Enqueueing through `defineJob(...).enqueue` reaches the runtime started here.
  */
-export const startJobs = async ({ db, jobs, work = true, pollSeconds = 2, shutdownSeconds = 30, onError }: StartJobsOptions): Promise<JobsRuntime> => {
+export const startJobs = async ({ db, jobs, work = true, pollSeconds = 2, shutdownSeconds = 30, onError, now = () => new Date() }: StartJobsOptions): Promise<JobsRuntime> => {
   const boss = createBoss(db, work)
   boss.on('error', onError)
   await boss.start()
+  const schedules = createSchedules(boss, db, now)
 
   const definitions = new Map<string, JobDefinition>()
   const workers = new Map<string, { id: string; concurrency: number }>()
@@ -81,7 +99,11 @@ export const startJobs = async ({ db, jobs, work = true, pollSeconds = 2, shutdo
       definition.name,
       { batchSize: 1, localConcurrency: concurrency, pollingIntervalSeconds: pollSeconds, includeMetadata: true, perJobResults: true },
       // The definition as it is now, so a dev server's reloaded `run` takes the next job.
-      async ([job]) => [await runJob(definitions.get(definition.name) ?? definition, job!, db)],
+      async ([job]) => {
+        const current = definitions.get(definition.name) ?? definition
+        if (current.options.schedule !== undefined && job!.singletonKey === scheduleKey) await schedules.following(current, job!.startAfter)
+        return [await runJob(current, job!, db)]
+      },
     )
     workers.set(definition.name, { id, concurrency })
   }
@@ -94,7 +116,9 @@ export const startJobs = async ({ db, jobs, work = true, pollSeconds = 2, shutdo
       if (workers.delete(name)) await boss.offWork(name)
     }
     for (const definition of next) definitions.set(definition.name, definition)
-    if (work) for (const definition of next) await startWorker(definition)
+    if (!work) return
+    for (const definition of next) await startWorker(definition)
+    await schedules.sync(next)
   }
 
   const enqueue = async (definition: JobDefinition, target: Db, payload: unknown, options: EnqueueOptions = {}) => {
@@ -123,9 +147,39 @@ export const startJobs = async ({ db, jobs, work = true, pollSeconds = 2, shutdo
     return id
   }
 
+  const nextDue = async () => (await sql<{ due: Date | null }>`select ${sql.id(jobsSchema, 'next_due')}() as due`.execute(db)).rows[0]!.due
+
+  // Jobs of this app that are due or running now: waiting past their start time, unless a failed job holds back their
+  // ordered group, or running within their timeout.
+  const pending = async () => {
+    const job = sql.id(jobsSchema, 'job')
+    const { rows } = await sql<{ count: number }>`
+      select count(*)::int as count from ${job} j where j.name = any(${[...definitions.keys()]}::text[]) and (
+        (j.state < 'active' and not j.blocked and j.start_after <= now()
+          and not (j.policy = 'key_strict_fifo' and exists (
+            select 1 from ${job} h where h.name = j.name and h.singleton_key = j.singleton_key and h.state = 'failed')))
+        or (j.state = 'active' and j.started_on + j.expire_seconds * interval '1s' > now()))`.execute(db)
+    return rows[0]!.count
+  }
+
+  const drain = async (seconds: number) => {
+    if (!work) throw new Error('This process runs no jobs, so it cannot drain them')
+    const deadline = Date.now() + seconds * 1000
+    for (;;) {
+      // A worker fetches when woken, rather than at its next poll.
+      for (const worker of workers.values()) boss.notifyWorker(worker.id)
+      const remaining = await pending()
+      if (remaining === 0 || Date.now() >= deadline) return { drained: remaining === 0, remaining, nextDue: await nextDue() }
+      await new Promise((resolve) => setTimeout(resolve, 100))
+    }
+  }
+
   const runtime: JobsRuntime = {
+    works: work,
     enqueue,
     update,
+    drain,
+    nextDue,
     stop: async () => {
       await boss.stop({ graceful: true, timeout: shutdownSeconds * 1000 })
       clearCurrentJobs(runtime)
