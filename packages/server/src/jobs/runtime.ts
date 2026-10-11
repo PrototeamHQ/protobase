@@ -140,10 +140,7 @@ export const startJobs = async ({ db, jobs, work = true, pollSeconds = 2, shutdo
     const id = options.key === undefined ? await boss.send(name, data as object, send) : await keyed(options.key)
     if (!id) throw new Error(`Job "${name}" was not enqueued`)
     // A job enqueued in a transaction is not visible before it commits; the worker's next poll finds it.
-    if (!target.isTransaction) {
-      const worker = workers.get(name)
-      if (worker) boss.notifyWorker(worker.id)
-    }
+    if (!target.isTransaction) wake(name)
     return id
   }
 
@@ -174,9 +171,15 @@ export const startJobs = async ({ db, jobs, work = true, pollSeconds = 2, shutdo
     }
   }
 
+  const wake = (name: string) => {
+    const worker = workers.get(name)
+    if (worker) boss.notifyWorker(worker.id)
+  }
+
   const runtime: JobsRuntime = {
     works: work,
     enqueue,
+    wake,
     update,
     drain,
     nextDue,
