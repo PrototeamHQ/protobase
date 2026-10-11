@@ -1,4 +1,4 @@
-import type { FieldFormat } from '@protobase/schema'
+import type { AppAddress, FieldFormat } from '@protobase/schema'
 import { defineBlock } from './create-node'
 import type { LayoutChildren, LayoutNode, LayoutValue } from './node'
 
@@ -59,7 +59,11 @@ export type ModalFormProps = {
 }
 export type ActionProps = { name: string; resource?: string; label?: string; variant?: ButtonVariant }
 export type ShowProps = { when: string; children?: LayoutChildren }
-export type LinkProps = { href: string; children?: LayoutChildren }
+/**
+ * A link: `to` an address in the app, `{field}` in it filled from the record around it, or an `href` that leaves the
+ * app (`https:`, `mailto:`). One of the two.
+ */
+export type LinkProps = ({ to: AppAddress; href?: never } | { href: string; to?: never }) & { children?: LayoutChildren }
 
 export const Page = defineBlock<PageProps>('Page', false)
 export const Grid = defineBlock<GridProps>('Grid', false)

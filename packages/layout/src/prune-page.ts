@@ -1,5 +1,5 @@
-import { checkFilter, checkOrderBy, parseFilter, parseOrderBy, type ResourceModel } from '@protobase/schema'
-import { elementResource } from './check-page'
+import { addressErrors, checkFilter, checkOrderBy, parseFilter, parseOrderBy, type AppAddress, type ResourceModel } from '@protobase/schema'
+import { elementResource, linkSource } from './check-page'
 import { countedResource, parseCondition } from './condition'
 import { resolveFieldPath } from './field-path'
 import type { LayoutNode } from './node'
@@ -64,6 +64,8 @@ const prune = (node: LayoutNode, scope: Scope, access: CallerAccess): LayoutNode
     }
     case 'Action':
       return resource !== undefined && model && access.actions(resource).has(String(node.props.name)) ? node : null
+    case 'Link':
+      return node.props.to === undefined || addressErrors(node.props.to as AppAddress, { models, source: linkSource(models, scope) }).length === 0 ? node : null
     case 'Show': {
       const parsed = parseCondition(String(node.props.when))
       if (!parsed.ok) return null

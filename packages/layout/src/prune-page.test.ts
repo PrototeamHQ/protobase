@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { Page, Show, Table } from './blocks'
+import { Link, Page, RecordCard, Show, Table } from './blocks'
 import type { LayoutNode } from './node'
 import type { PageModel } from './page'
 import { prunePage, type CallerAccess } from './prune-page'
@@ -81,6 +81,23 @@ describe('prunePage', () => {
     expect(types(prunePage(billing.toModel(), [], access({ models: restricted({}, {}, ['paymentMethods']) })))).not.toContain('Show')
     const page: PageModel = { name: 'p', title: 'p', tree: Page({ title: 'p', children: Show({ when: 'invoices.count > 0', children: 'x' }) }) }
     expect(types(prunePage(page, [], access()))).toEqual(['Page', 'Show'])
+  })
+
+  it('leaves out links to resources the caller cannot see, or naming fields they cannot read', () => {
+    const page: PageModel = {
+      name: 'p',
+      title: 'p',
+      tree: Page({
+        title: 'p',
+        children: [
+          Link({ to: { kind: 'list', resource: 'invoices', filter: 'status = "open"' }, children: 'Open invoices' }),
+          RecordCard({ resource: 'subscriptions', children: Link({ to: { kind: 'record', resource: 'plans', key: '{plan}' }, children: 'Plan' }) }),
+        ],
+      }),
+    }
+    expect(types(prunePage(page, [], access()))).toEqual(['Page', 'Link', 'RecordCard', 'Link'])
+    expect(types(prunePage(page, [], access({ models: restricted({ invoices: ['status'], subscriptions: ['plan'] }) })))).toEqual(['Page', 'RecordCard'])
+    expect(types(prunePage(page, [], access({ models: restricted({}, {}, ['plans']) })))).toEqual(['Page', 'Link', 'RecordCard'])
   })
 
   it('keeps custom components, which the app renders', () => {

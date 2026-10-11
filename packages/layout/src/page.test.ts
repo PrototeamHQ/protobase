@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { Action, Card, Field, Grid, ModalForm, Page, Progress, RecordCard, Show, Stat, Table } from './blocks'
+import { Action, Card, Field, Grid, Link, ModalForm, Page, Progress, RecordCard, Show, Stat, Table } from './blocks'
 import { component } from './component'
 import { isPageDefinition, page } from './page'
 import { billing } from './testing/billing'
@@ -93,6 +93,24 @@ describe('page', () => {
     const found = problems(tree)
     expect(found.slice(0, 2)).toEqual(['<Page> › <Stat resource="plans">: takes exactly one of "value", "resource" (a count) and "field"', '<Page> › <Stat>: "filter" needs "resource"'])
     expect(found[2]).toMatch(/^<Page> › <Show>: "when" is not a valid condition: /)
+  })
+
+  it('wants a link to go to an address, or to an href that leaves the app', () => {
+    const tree: LayoutNode = Page({
+      title: 'x',
+      children: [
+        Link({ to: { kind: 'list', resource: 'invoices' }, children: 'Invoices' }),
+        Link({ href: 'mailto:billing@example.com' }),
+        Link({ href: '/invoices?filter=x' }),
+        { type: 'Link', props: {}, children: [] },
+        { type: 'Link', props: { to: 'invoices' }, children: [] },
+      ],
+    })
+    expect(problems(tree)).toEqual([
+      expect.stringMatching(/^<Page> › <Link>: href "\/invoices\?filter=x" points inside the app; give the link `to` instead/),
+      '<Page> › <Link>: takes exactly one of "to" (an address in the app) and "href" (a link that leaves it)',
+      "<Page> › <Link>: \"to\" must be an address, such as { kind: 'list', resource: 'orders' }",
+    ])
   })
 
   it('leaves the props of custom components to the app', () => {

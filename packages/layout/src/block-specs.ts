@@ -4,7 +4,7 @@ import { isLayoutNode } from './node'
 // What each built-in block accepts at runtime, for trees written without TypeScript or built by hand. The types in
 // blocks.ts say the same for the compiler.
 
-type Kind = 'text' | 'texts' | 'integer' | 'elements' | 'values' | 'span' | 'columns' | 'format' | 'variant' | 'mode' | 'label' | 'amount' | 'scalar'
+type Kind = 'text' | 'texts' | 'integer' | 'elements' | 'values' | 'span' | 'columns' | 'format' | 'variant' | 'mode' | 'label' | 'amount' | 'scalar' | 'address'
 
 type PropSpec = { kind: Kind; required?: true }
 
@@ -35,7 +35,7 @@ export const blockSpecs: Record<string, BlockSpec> = {
   },
   Action: { children: false, props: { name: required('text'), resource: optional('text'), label: optional('text'), variant: optional('variant') } },
   Show: { children: true, props: { when: required('text') } },
-  Link: { children: true, props: { href: required('text') } },
+  Link: { children: true, props: { href: optional('text'), to: optional('address') } },
 }
 
 const formats = ['relative', 'absolute', 'compact', 'percent', 'badge', 'code']
@@ -57,6 +57,7 @@ const checks: Record<Kind, [test: (value: LayoutValue) => boolean, expected: str
   label: [(value) => typeof value === 'string' || value === false, 'text, or false for none'],
   amount: [(value) => typeof value === 'string' || (typeof value === 'number' && Number.isFinite(value)), 'a number or a field name'],
   scalar: [(value) => typeof value === 'string' || typeof value === 'number', 'text or a number'],
+  address: [(value) => isObject(value) && !isLayoutNode(value) && typeof value.kind === 'string', "an address, such as { kind: 'list', resource: 'orders' }"],
 }
 
 /** Problems with one element's props and children against its block's spec. */

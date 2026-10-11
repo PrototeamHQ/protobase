@@ -106,13 +106,21 @@ describe('view builder', () => {
         a.update('publish', { label: 'Publish', set: { status: 'published' }, confirm: 'Publish now?' }),
         a.remove('discard', { label: 'Discard', icon: 'trash' }),
         a.link('preview', { label: 'Preview', href: 'https://example.com/a/{id}' }),
+        a.link('drafts', { label: 'Drafts', to: { kind: 'list', resource: 'article', filter: 'status = "draft"' } }),
       ])
       .toModel()
     expect(model.actions).toEqual([
       { name: 'publish', label: 'Publish', bulk: false, confirm: 'Publish now?', run: { kind: 'update', values: { status: 'published' } } },
       { name: 'discard', label: 'Discard', bulk: false, icon: 'trash', run: { kind: 'delete' } },
       { name: 'preview', label: 'Preview', bulk: false, run: { kind: 'link', href: 'https://example.com/a/{id}' } },
+      { name: 'drafts', label: 'Drafts', bulk: false, run: { kind: 'link', to: { kind: 'list', resource: 'article', filter: 'status = "draft"' } } },
     ])
+  })
+
+  it('refuses a path in the app as a link href, pointing at to', () => {
+    expect(() => view<typeof article>('article').actions((a) => [a.link('mine', { label: 'Mine', href: '/article?filter=owner%20%3D%20me' })])).toThrow(
+      'Action "mine": href "/article?filter=owner%20%3D%20me" points inside the app; give the link `to` instead',
+    )
   })
 
   it('rejects unknown field names at compile time', () => {

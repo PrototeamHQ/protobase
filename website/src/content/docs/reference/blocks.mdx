@@ -54,11 +54,18 @@ A box with a heading. Text and `Link`s inside it run together as paragraphs.
 
 ### Link
 
-A link in text. A path starting with `/` stays in the app; other links open as usual (`https:` in a new tab, `mailto:` in the mail app). Its text is its children, else the `href`.
+A link in text: `to` an address in the app, or an `href` that leaves it (`https:` opens in a new tab, `mailto:` in the mail app). Its text is its children.
+
+```tsx
+<Link to={{ kind: 'list', resource: 'invoices', filter: "status = 'overdue'" }}>Overdue invoices</Link>
+```
 
 | Prop | |
 | --- | --- |
-| `href` | Required. |
+| `to` | An [address](/reference/layouts/#addresses). Inside a record, `{field}` in its key, filter or order is the record's value. |
+| `href` | A link that leaves the app. A path in the app is refused when the config loads: give it as `to`. |
+
+One of the two is required. A link to a resource or field the user cannot see is left out of their page.
 
 ## Data
 

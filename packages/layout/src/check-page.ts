@@ -1,4 +1,4 @@
-import { checkFilter, checkOrderBy, parseFilter, parseOrderBy, type ResourceModel } from '@protobase/schema'
+import { addressErrors, checkFilter, checkOrderBy, parseFilter, parseOrderBy, type AppAddress, type ResourceModel } from '@protobase/schema'
 import { countedResource, parseCondition } from './condition'
 import { resolveFieldPath } from './field-path'
 import type { LayoutNode } from './node'
@@ -9,6 +9,8 @@ export type PageCheckInput = {
   models: Record<string, ResourceModel>
   /** The named actions of a resource, from all of its views. */
   actions: (resource: string) => ReadonlySet<string>
+  /** The composed pages' names, which links may go to; `checkPages` fills them in. */
+  pages?: ReadonlySet<string>
 }
 
 const filterProblem = (model: ResourceModel, source: string) => {
@@ -31,7 +33,10 @@ const text = (value: unknown) => (typeof value === 'string' ? value : undefined)
 /** The resource an element reads or writes: its own `resource` prop, or the record around it. */
 export const elementResource = (node: LayoutNode, scope: Scope) => text(node.props.resource) ?? (scope.record ? scope.resource : undefined)
 
-const nodeProblems = (node: LayoutNode, scope: Scope, { models, actions }: PageCheckInput): string[] => {
+/** The record a link's `{field}` placeholders read: the one around it, when there is one. */
+export const linkSource = (models: Record<string, ResourceModel>, scope: Scope) => (scope.record && scope.resource !== undefined ? models[scope.resource] : undefined)
+
+const nodeProblems = (node: LayoutNode, scope: Scope, { models, actions, pages }: PageCheckInput): string[] => {
   const problems: string[] = []
   const resource = elementResource(node, scope)
   const own = text(node.props.resource)
@@ -81,6 +86,9 @@ const nodeProblems = (node: LayoutNode, scope: Scope, { models, actions }: PageC
         problems.push(`no action "${node.props.name}" on ${resource}; declare it with view('${resource}').actions(...)`)
       }
       break
+    case 'Link':
+      if (node.props.to !== undefined) problems.push(...addressErrors(node.props.to as AppAddress, { models, pages, source: linkSource(models, scope) }).map((error) => `to: ${error}`))
+      break
     case 'Show': {
       const parsed = parseCondition(String(node.props.when))
       if (!parsed.ok) break
@@ -115,11 +123,12 @@ export const pageProblems = (page: PageModel, input: PageCheckInput): string[] =
 export const checkPages = (pages: PageModel[], input: PageCheckInput) => {
   const problems: string[] = []
   const seen = new Set<string>()
+  const named = { ...input, pages: input.pages ?? new Set(pages.map((page) => page.name)) }
   for (const page of pages) {
     if (seen.has(page.name)) problems.push(`Page "${page.name}" is defined twice`)
     if (input.models[page.name]) problems.push(`Page "${page.name}" has the name of a resource; both would be at /${page.name}`)
     seen.add(page.name)
-    for (const problem of pageProblems(page, input)) problems.push(`Page "${page.name}": ${problem}`)
+    for (const problem of pageProblems(page, named)) problems.push(`Page "${page.name}": ${problem}`)
   }
   if (problems.length > 0) throw new Error(`The pages do not match the resources:\n${problems.map((problem) => `  - ${problem}`).join('\n')}`)
 }

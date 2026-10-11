@@ -1,6 +1,9 @@
-import type { ResourceModel, ViewModel } from '@protobase/schema'
+import { addressErrors, addressPlaceholders, appHrefError, hrefPlaceholders, type ActionRun, type ResourceModel, type ViewModel } from '@protobase/schema'
 import type { Registry } from './registry'
 import { relatedErrors } from './view-related'
+
+// The fields a link action takes from the record.
+const linkFields = (run: ActionRun | undefined) => (run?.kind !== 'link' ? [] : 'to' in run ? addressPlaceholders(run.to) : hrefPlaceholders(run.href))
 
 // A sensitive value never comes with a record, so only a record page section may name it, where it is revealed.
 const sensitiveErrors = (view: ViewModel, model: ResourceModel) => {
@@ -13,7 +16,7 @@ const sensitiveErrors = (view: ViewModel, model: ResourceModel) => {
     ['the chart', view.chart ? [view.chart.field] : []],
     ['the sidebar', view.layout.flatMap((item) => (item.kind === 'sidebar' ? item.fields : []))],
     ['the recent records', view.nav?.recent ? [view.nav.recent.status] : []],
-    ['an action', view.actions.flatMap((action) => (action.run?.kind === 'update' ? Object.keys(action.run.values) : action.run?.kind === 'link' ? [...action.run.href.matchAll(/\{(\w+)\}/g)].map((match) => match[1]!) : []))],
+    ['an action', view.actions.flatMap((action) => (action.run?.kind === 'update' ? Object.keys(action.run.values) : linkFields(action.run)))],
   ]
   return uses.flatMap(([place, names]) => [...new Set(names.filter(sensitive))].map((name) => `sensitive field "${name}" cannot be in ${place}`))
 }
@@ -27,17 +30,29 @@ const valueLabelErrors = (view: ViewModel, model: ResourceModel) =>
     return Object.keys(hints.valueLabels).filter((value) => !field.enumValues?.includes(value)).map((value) => `value label "${value}" is not a value of "${name}"`)
   })
 
+// A link goes to an address the app has, or leaves the app; a path in the app is written as an address.
+const linkErrors = (view: ViewModel, model: ResourceModel, models: Record<string, ResourceModel>, pages: ReadonlySet<string>) =>
+  view.actions.flatMap(({ name, run }) => {
+    if (run?.kind !== 'link') return []
+    if ('href' in run) {
+      const error = appHrefError(run.href)
+      return error ? [`action "${name}": ${error}`] : []
+    }
+    return addressErrors(run.to, { models, pages, source: model }).map((error) => `action "${name}": ${error}`)
+  })
+
 /**
  * Fails at startup when a view uses a sensitive field where it would show empty, labels values its enum does not have,
- * or has a related section that does not fit the resources.
+ * has a related section that does not fit the resources, or a link to an address the app does not have.
  */
-export const checkViews = (registry: Registry, views: ViewModel[]) => {
+export const checkViews = (registry: Registry, views: ViewModel[], pages: readonly string[] = []) => {
   const models = Object.fromEntries(registry.entries.map((entry) => [entry.name, entry.model]))
+  const pageNames = new Set(pages)
   const problems = views.flatMap((view) => {
     const model = models[view.resource]
     if (!model) return []
     const related = view.layout.flatMap((item) => (item.kind === 'related' ? relatedErrors(item, view.resource, models).map((error) => `related "${item.title}": ${error}`) : []))
-    return [...sensitiveErrors(view, model), ...valueLabelErrors(view, model), ...related].map((problem) => `View "${view.resource}": ${problem}`)
+    return [...sensitiveErrors(view, model), ...valueLabelErrors(view, model), ...related, ...linkErrors(view, model, models, pageNames)].map((problem) => `View "${view.resource}": ${problem}`)
   })
   if (problems.length > 0) throw new Error(`The views do not match the resources:\n${problems.map((problem) => `  - ${problem}`).join('\n')}`)
 }

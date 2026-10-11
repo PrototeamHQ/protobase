@@ -1,11 +1,11 @@
 import { useState } from 'react'
-import type { ActionModel } from '@protobase/schema'
+import { fillAddress, type ActionModel } from '@protobase/schema'
 import { useClient } from '../../data/api-provider'
 import { useToast } from '../../toasts'
 import { useAdminMeta, usePermissions } from '../meta-gate'
 import { can } from '../permissions'
-import { useRouter } from '../router'
-import { fillHref, isAppPath } from './action-href'
+import { useAppAddress } from '../use-app-address'
+import { fillHref } from './action-href'
 import { useProjectUi } from './project-ui'
 import type { LayoutRecord } from './record-scope'
 import { useRefreshResource } from './use-layout-data'
@@ -24,7 +24,7 @@ export const useActionRunner = (resource: string, scope: LayoutRecord | undefine
   const client = useClient()
   const toast = useToast()
   const refresh = useRefreshResource()
-  const { navigate } = useRouter()
+  const { go } = useAppAddress()
   const [running, setRunning] = useState<string>()
   const actions = views[resource]?.actions ?? []
 
@@ -40,14 +40,13 @@ export const useActionRunner = (resource: string, scope: LayoutRecord | undefine
   const perform = async (action: ActionModel) => {
     const { run } = action
     if (run?.kind === 'link') {
-      const href = fillHref(run.href, scope?.record)
-      if (isAppPath(href)) navigate(href)
-      else window.location.assign(href)
+      if ('to' in run) go(fillAddress(run.to, scope?.record))
+      else window.location.assign(fillHref(run.href, scope?.record))
       return
     }
     if (run?.kind === 'update') await client.update(resource, scope!.key, run.values as Record<string, unknown>, scope!.etag ?? '*')
     else if (run?.kind === 'delete') await client.remove(resource, scope!.key, { etag: scope!.etag })
-    else await handlers![action.name]!({ resource, record: scope?.record, recordKey: scope?.key, etag: scope?.etag, client, navigate })
+    else await handlers![action.name]!({ resource, record: scope?.record, recordKey: scope?.key, etag: scope?.etag, client, navigate: go })
     await refresh(resource)
     toast.show({ state: 'success', title: `${action.label}: done` })
     afterRun?.(action)

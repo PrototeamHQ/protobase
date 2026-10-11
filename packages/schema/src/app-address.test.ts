@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { appPath, readAppPath, type AppAddress } from './app-address'
+import { appPath, readAppPath } from './app-address'
+import type { AppAddress } from './model'
 
 const pages = new Set(['overview'])
 

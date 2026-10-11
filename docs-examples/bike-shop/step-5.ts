@@ -8,7 +8,7 @@ export { customersView }
 export const repairsView = laidOut.actions((a) => [
   a.update('ready', { label: 'Ready for pickup', icon: 'send', set: { status: 'ready' } }),
   a.update('collect', { label: 'Collected and paid', icon: 'wallet', set: { status: 'collected', paid: true }, confirm: 'Has the customer paid and taken the bike?' }),
-  a.link('customerRepairs', { label: 'Other repairs of this customer', icon: 'file-text', href: '/repairs?filter=customer_id%20%3D%20{customer_id}' }),
+  a.link('customerRepairs', { label: 'Other repairs of this customer', icon: 'file-text', to: { kind: 'list', resource: 'repairs', filter: 'customer_id = {customer_id}' } }),
 ])
 
 /** What mechanics get instead: no money, and their own move. */

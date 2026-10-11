@@ -90,7 +90,7 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], pag
   checkShell(registry, viewModels, userMenuModel, pageModels.map((entry) => entry.name))
   const bottomBarModels = bottomBars.map((bar) => bar.toBottomBarModel())
   checkBottomBars(registry, bottomBarModels, pageModels.map((entry) => entry.name), declaredRoles(auth, options.roles))
-  checkViews(registry, viewModels)
+  checkViews(registry, viewModels, pageModels.map((entry) => entry.name))
   checkPages(pageModels, {
     models: Object.fromEntries(registry.entries.map((entry) => [entry.name, entry.model])),
     actions: (resource) => new Set(viewModels.filter((view) => view.resource === resource).flatMap((view) => view.actions.map((action) => action.name))),

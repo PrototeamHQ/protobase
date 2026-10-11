@@ -1,4 +1,5 @@
-import type { ActionModel } from './model'
+import { appHrefError } from './address-template'
+import type { ActionModel, AppAddress } from './model'
 
 type ActionOptions = { label: string; icon?: string; confirm?: string }
 
@@ -17,6 +18,15 @@ export const actions = {
   update: (name: string, o: ActionOptions & { set: Record<string, unknown> }): ActionModel => ({ ...named(name, o), run: { kind: 'update', values: o.set } }),
   /** Deletes the record (soft delete when the resource has one). */
   remove: (name: string, o: ActionOptions): ActionModel => ({ ...named(name, o), run: { kind: 'delete' } }),
-  /** Opens `href`: a path in the app or a URL; `{field}` is replaced by the record's value, such as `/orders/{orderId}`. */
-  link: (name: string, o: Omit<ActionOptions, 'confirm'> & { href: string }): ActionModel => ({ ...named(name, o), run: { kind: 'link', href: o.href } }),
+  /**
+   * Goes `to` an address in the app, such as `{ kind: 'record', resource: 'orders', key: '{order_id}' }`, or opens an
+   * `href` that leaves it (`https:`, `mailto:`); `{field}` is replaced by the record's value. A path in the app is
+   * refused as an `href`, so every address in the app is written one way.
+   */
+  link: (name: string, o: Omit<ActionOptions, 'confirm'> & ({ to: AppAddress } | { href: string })): ActionModel => {
+    if ('to' in o) return { ...named(name, o), run: { kind: 'link', to: structuredClone(o.to) } }
+    const error = appHrefError(o.href)
+    if (error) throw new Error(`Action "${name}": ${error}`)
+    return { ...named(name, o), run: { kind: 'link', href: o.href } }
+  },
 }

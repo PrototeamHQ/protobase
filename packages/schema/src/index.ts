@@ -8,6 +8,8 @@ export type {
   SearchMatch,
   SortSpec,
   KeyValue,
+  AppAddress,
+  FilterLayout,
   ListQuery,
   FieldFormat,
   FieldViewModel,
@@ -60,7 +62,9 @@ export { bottomBar, bottomBarFor, maxBottomBarItems, type BottomBarSource } from
 export { bottomBarErrors, type BottomBarNames } from './bottom-bar-errors'
 export { layout as l } from './layout'
 export { encodeKey, decodeKey, keyTypes } from './keys'
-export { addressWords, appPath, readAppPath, type AppAddress, type FilterLayout } from './app-address'
+export { addressWords, appPath, readAppPath } from './app-address'
+export { addressPlaceholders, appHrefError, fillAddress, hrefPlaceholders, leavesApp } from './address-template'
+export { addressErrors, type AddressCheck } from './address-errors'
 export type { KeyType } from './keys'
 export type { InferRecord, RecordKey } from './resource-types'
 export type { Field } from './field'

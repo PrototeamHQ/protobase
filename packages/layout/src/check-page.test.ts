@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { Action, CardRow, Field, ModalForm, Page, RecordCard, Show, Stat, Table } from './blocks'
+import { Action, CardRow, Field, Link, ModalForm, Page, RecordCard, Show, Stat, Table } from './blocks'
 import { checkPages, pageProblems } from './check-page'
 import { resolveFieldPath } from './field-path'
 import type { LayoutNode } from './node'
@@ -79,6 +79,25 @@ describe('pageProblems', () => {
       '<Page> › <Show>: "when" counts "things", which is not a resource',
       '<Page> › <Show>: "when" names "status", but outside a record it can only count records, as "<resource>.count"',
       '<Page> › <RecordCard resource="subscriptions"> › <Show>: unknown field "plan.color" on plans',
+    ])
+  })
+})
+
+describe('links', () => {
+  it('names what a link address does not find: a resource, a page, a field of the record around it', () => {
+    const tree = Page({
+      title: 'x',
+      children: [
+        Link({ to: { kind: 'list', resource: 'invoice' } }),
+        Link({ to: { kind: 'page', page: 'billing' } }),
+        Link({ to: { kind: 'page', page: 'help' } }),
+        RecordCard({ resource: 'subscriptions', children: [Link({ to: { kind: 'record', resource: 'plans', key: '{plan}' } }), Link({ to: { kind: 'list', resource: 'invoices', filter: 'number = "{reference}"' } })] }),
+      ],
+    })
+    expect(pageProblems(model(tree), { ...input, pages: new Set(['billing']) })).toEqual([
+      '<Page> › <Link>: to: unknown resource "invoice"',
+      '<Page> › <Link>: to: unknown page "help"',
+      '<Page> › <RecordCard resource="subscriptions"> › <Link>: to: "{reference}" is not a field of subscriptions',
     ])
   })
 })

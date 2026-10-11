@@ -78,10 +78,24 @@ Comparisons, `AND`, `OR`, `NOT` and parentheses work; functions such as `now()` 
 | --- | --- |
 | `a.update(name, { label, set, confirm?, icon? })` | Updates the record with `set`, with its ETag. |
 | `a.remove(name, { label, confirm?, icon? })` | Deletes the record (soft delete when the resource has one). |
-| `a.link(name, { label, href, icon? })` | Opens `href`, with `{field}` replaced by the record's value (percent-encoded). A path starting with `/` stays in the app; other links (`https:`, `mailto:`) leave it. |
+| `a.link(name, { label, to, icon? })` | Goes `to` an [address](#addresses) in the app, with `{field}` in its key, filter or order replaced by the record's value. |
+| `a.link(name, { label, href, icon? })` | Opens an `href` that leaves the app (`https:`, `mailto:`), with `{field}` replaced by the record's value (percent-encoded). A path in the app is refused when the config loads: give it as `to`. |
 | `a.action(name, { label, confirm?, icon?, bulk? })` | Runs the handler the app registers under `name` in [`protobase.ui.tsx`](/reference/custom-components/#action-handlers). |
 
 With `confirm` the button asks first. The button is disabled, with the reason as its tooltip, when the user may not update or delete the record, when an `a.action` has no handler, or when an update or delete has no record. After an action, everything shown of that resource reloads. The record page's action rail runs the same actions the same way.
+
+## Addresses
+
+Every place in the app has an address, and the app writes and reads them in one way, so no link or component spells out a path:
+
+| Address | Is |
+| --- | --- |
+| `{ kind: 'list', resource, filter?, orderBy? }` | A resource's list, with the filter and order the list page would show. |
+| `{ kind: 'record', resource, key }` | One record; `key` is its value, or its parts for a composite key. |
+| `{ kind: 'create', resource }` | The form for a new record. |
+| `{ kind: 'page', page }` | A composed page. |
+
+The resources, pages and fields an address names are checked when the server starts, like every other name.
 
 ## Access
 

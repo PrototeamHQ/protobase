@@ -1,5 +1,5 @@
 import { encodeKey } from './keys'
-import type { KeyValue } from './model'
+import type { AppAddress, FilterLayout } from './model'
 
 /**
  * The words of the app's addresses. Only `appPath` and `readAppPath` write and read them, so the shape of an address
@@ -17,18 +17,6 @@ export const addressWords = {
   /** The second path segment that opens a resource's create form instead of a record. */
   create: 'new',
 } as const
-
-export type FilterLayout = 'bar' | 'panel'
-
-/**
- * A place in the app: a resource's list, one of its records, its create form, or a composed page. A record's `key` is
- * its one value or its parts, as the record API takes them; `readAppPath` gives it back as the API's text form.
- */
-export type AppAddress =
-  | { kind: 'list'; resource: string; filter?: string; orderBy?: string; display?: string; filterLayout?: FilterLayout }
-  | { kind: 'record'; resource: string; key: KeyValue | readonly KeyValue[] }
-  | { kind: 'create'; resource: string }
-  | { kind: 'page'; page: string }
 
 const listWords = ['display', 'filter', 'orderBy', 'filterLayout'] as const
 

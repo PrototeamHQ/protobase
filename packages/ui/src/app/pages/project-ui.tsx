@@ -1,7 +1,8 @@
 import { createContext, useContext, type ComponentType } from 'react'
 import type { Client } from '@protobase/client'
+import type { AppAddress } from '@protobase/schema'
 
-/** What a named action's handler gets: the record it runs on (inside a RecordCard or CardRow), the API and the router. */
+/** What a named action's handler gets: the record it runs on (inside a RecordCard or CardRow), the API, and a way to move. */
 export type ActionContext = {
   resource: string
   record?: Record<string, unknown>
@@ -9,7 +10,8 @@ export type ActionContext = {
   recordKey?: string
   etag?: string
   client: Client
-  navigate: (to: string) => void
+  /** Moves the app to an address, such as `{ kind: 'record', resource: 'orders', key: 42 }`. */
+  navigate: (to: AppAddress) => void
 }
 
 export type ActionHandler = (context: ActionContext) => void | Promise<void>

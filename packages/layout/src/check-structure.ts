@@ -1,3 +1,4 @@
+import { appHrefError } from '@protobase/schema'
 import { blockSpecs, propProblems } from './block-specs'
 import { parseCondition } from './condition'
 import type { LayoutNode } from './node'
@@ -30,6 +31,13 @@ const statProblems = ({ props }: LayoutNode): string[] => {
   return props.filter !== undefined && props.resource === undefined ? ['"filter" needs "resource"'] : []
 }
 
+// A link goes `to` an address in the app, or to an `href` that leaves it.
+const linkProblems = ({ props }: LayoutNode): string[] => {
+  if ((props.to === undefined) === (props.href === undefined)) return ['takes exactly one of "to" (an address in the app) and "href" (a link that leaves it)']
+  const error = typeof props.href === 'string' ? appHrefError(props.href) : undefined
+  return error ? [error] : []
+}
+
 /**
  * Checks a page's tree without the models: the root is one `Page`, every built-in element has known props of the right
  * kind, elements that show a record's fields sit inside one, and conditions parse. Returns the problems, each with
@@ -47,6 +55,7 @@ export const structureProblems = (tree: LayoutNode): string[] => {
     propProblems(spec, node.props, node.children.length).forEach(report)
     recordProblems(node, scope).forEach(report)
     if (node.type === 'Stat') statProblems(node).forEach(report)
+    if (node.type === 'Link') linkProblems(node).forEach(report)
     if (node.type === 'Show' && typeof node.props.when === 'string') {
       const parsed = parseCondition(node.props.when)
       if (!parsed.ok) report(`"when" is not a valid condition: ${parsed.message}`)

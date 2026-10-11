@@ -76,6 +76,18 @@ export type ListQuery = {
   limit: number
 }
 
+export type FilterLayout = 'bar' | 'panel'
+
+/**
+ * A place in the app: a resource's list, one of its records, its create form, or a composed page. A record's `key` is
+ * its one value or its parts, as the record API takes them; `readAppPath` gives it back as the API's text form.
+ */
+export type AppAddress =
+  | { kind: 'list'; resource: string; filter?: string; orderBy?: string; display?: string; filterLayout?: FilterLayout }
+  | { kind: 'record'; resource: string; key: KeyValue | readonly KeyValue[] }
+  | { kind: 'create'; resource: string }
+  | { kind: 'page'; page: string }
+
 export type FieldFormat = 'relative' | 'absolute' | 'compact' | 'percent' | 'badge' | 'code'
 
 export type FieldViewModel = {
@@ -139,12 +151,14 @@ export type ChartModel = {
 export type SaveFeedback = 'toast' | 'button'
 
 /**
- * What a named action does in the app: set fields of the record (`update`), delete it (`delete`) or open a link
- * (`link`, with `{field}` replaced by the record's values). Without it the app runs a handler it registered by name.
+ * What a named action does in the app: set fields of the record (`update`), delete it (`delete`), go to an address in
+ * the app (`link` with `to`) or open a link that leaves it (`link` with `href`), `{field}` replaced by the record's
+ * values. Without it the app runs a handler it registered by name.
  */
 export type ActionRun =
   | { kind: 'update'; values: Record<string, unknown> }
   | { kind: 'delete' }
+  | { kind: 'link'; to: AppAddress }
   | { kind: 'link'; href: string }
 
 export type ActionModel = {
