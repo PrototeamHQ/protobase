@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { Action, CardRow, Field, Link, ModalForm, Page, RecordCard, Show, Stat, Table } from './blocks'
+import { fieldRef, type FieldRefValue } from '@protobase/schema'
 import { checkPages, pageProblems } from './check-page'
+import { component } from './component'
 import { resolveFieldPath } from './field-path'
 import type { LayoutNode } from './node'
 import type { PageModel } from './page'
@@ -98,6 +100,26 @@ describe('links', () => {
       '<Page> › <Link>: to: unknown resource "invoice"',
       '<Page> › <Link>: to: unknown page "help"',
       '<Page> › <RecordCard resource="subscriptions"> › <Link>: to: "{reference}" is not a field of subscriptions',
+    ])
+  })
+})
+
+describe('custom components', () => {
+  it('names a resource or field reference the models do not have, and a reference outside a record', () => {
+    const Chart = component<{ resource?: string; value: FieldRefValue }>('Chart')
+    const tree = Page({
+      title: 'x',
+      children: [
+        RecordCard({ resource: 'subscriptions', children: [Chart({ value: fieldRef('plan.name') }), Chart({ value: fieldRef('plan.title') })] }),
+        Chart({ resource: 'invoices', value: fieldRef('total') }),
+        Chart({ resource: 'invoice', value: fieldRef('total') }),
+        Chart({ value: fieldRef('total') }),
+      ],
+    })
+    expect(pageProblems(model(tree), input)).toEqual([
+      '<Page> › <RecordCard resource="subscriptions"> › <Chart>: unknown field "plan.title" on plans',
+      '<Page> › <Chart resource="invoice">: unknown resource "invoice"',
+      '<Page> › <Chart>: field reference "total" needs a record around it, or a "resource" prop',
     ])
   })
 })

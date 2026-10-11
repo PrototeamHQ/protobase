@@ -5,7 +5,15 @@ import { pruneView } from './view-access'
 const customers = resource('customers').table('customers').fields({ id: f.integer(), name: f.text().filterable() }).primaryKey((r) => r.id)
 const repairs = resource('repairs')
   .table('repairs')
-  .fields({ id: f.integer(), customerId: f.relation('customers').filterable(), estimate: f.decimal({ precision: 8, scale: 2 }), status: f.enum(['booked', 'ready']) })
+  .fields({
+    id: f.integer(),
+    number: f.text().filterable().sortable(),
+    customerId: f.relation('customers').filterable(),
+    estimate: f.decimal({ precision: 8, scale: 2 }),
+    costPrice: f.decimal({ precision: 8, scale: 2 }).filterable().sortable(),
+    status: f.enum(['booked', 'ready']).filterable(),
+    bookedOn: f.timestamp().sortable(),
+  })
   .primaryKey((r) => r.id)
 
 const all = { customers: customers.toModel(), repairs: repairs.toModel() }
@@ -43,5 +51,57 @@ describe('pruneView', () => {
     expect(pruneView(repairsView, all.repairs, all).layout).toEqual(repairsView.layout)
     const hidden = without({ repairs: ['estimate'] })
     expect(pruneView(repairsView, hidden.repairs!, hidden).layout).toEqual([{ kind: 'section', title: 'Repair', fields: ['status'] }])
+  })
+
+  it('never sends a hidden field, wherever a view names it: lists, displays, sections and custom props', () => {
+    const Board = Object.assign((props: { by: string; size: number }) => props, { blockName: 'Board', custom: true })
+    const Margin = Object.assign((props: { cost: string }) => props, { blockName: 'Margin', custom: true })
+    const everywhere = view<typeof repairs>('repairs')
+      .title((r) => r.costPrice)
+      .searchResult((r) => ({ title: [r.number, r.costPrice], subtitle: r.costPrice }))
+      .nav({ recent: { status: 'costPrice', tones: {} } })
+      .fields((r) => ({ costPrice: r.costPrice.label('Cost price'), number: r.number.label('Number') }))
+      .list((r, d) => ({
+        columns: [r.number, r.costPrice],
+        sort: [[r.costPrice, 'desc'], [r.bookedOn, 'asc']],
+        search: [r.number, r.costPrice],
+        displays: [
+          d.cards({ title: r.number, subtitle: r.costPrice, badge: r.status, meta: [r.costPrice, r.bookedOn] }),
+          d.custom(Board, { name: 'board', label: 'Board', fields: [r.number, r.costPrice], props: { by: r.status, size: 3 } }),
+          d.custom(Board, { name: 'costs', label: 'Costs', fields: [r.number], props: { by: r.costPrice, size: 3 } }),
+        ],
+        default: 'costs',
+      }))
+      .filters((r, w) => [w.range(r.costPrice), w.facets(r.status)])
+      .chart((r) => ({ field: r.costPrice, range: '30d', granularity: 'day' }))
+      .layout((r) => [
+        l.section('Repair', [r.number, r.costPrice]),
+        l.section('Money', [r.costPrice]),
+        l.custom(Margin, { title: 'Margin', props: { cost: r.costPrice } }),
+        l.custom(Board, { props: { by: r.status, size: 1 } }),
+        l.sidebar([r.status, r.costPrice]),
+      ])
+      .actions((a) => [
+        a.update('zero', { label: 'Zero', set: { costPrice: 0 } }),
+        a.link('cheaper', { label: 'Cheaper', to: { kind: 'list', resource: 'repairs', filter: 'costPrice < {costPrice}' } }),
+        a.link('quote', { label: 'Quote', href: 'https://quotes.example/{costPrice}' }),
+        a.update('ready', { label: 'Ready', set: { status: 'ready' } }),
+      ])
+      .toModel()
+    const hidden = without({ repairs: ['costPrice'] })
+    const pruned = pruneView(everywhere, hidden.repairs!, hidden)
+    expect(JSON.stringify(pruned)).not.toContain('costPrice')
+    expect(pruned.list).toEqual({
+      columns: ['number'],
+      sort: [['bookedOn', 'asc']],
+      search: ['number'],
+      displays: [
+        { kind: 'cards', name: 'cards', title: 'number', badge: 'status', meta: ['bookedOn'] },
+        { kind: 'custom', name: 'board', label: 'Board', component: 'Board', fields: ['number'], props: { by: { $field: 'status' }, size: 3 } },
+      ],
+    })
+    expect(pruned.layout.map((item) => (item.kind === 'custom' ? item.component : item.kind))).toEqual(['section', 'Board', 'sidebar'])
+    expect(pruned.actions.map((action) => action.name)).toEqual(['ready'])
+    expect(pruneView(everywhere, all.repairs, all)).toEqual(everywhere)
   })
 })

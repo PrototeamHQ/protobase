@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
+import { fieldRef, type FieldRefValue } from '@protobase/schema'
 import { Link, Page, RecordCard, Show, Table } from './blocks'
+import { component } from './component'
 import type { LayoutNode } from './node'
 import type { PageModel } from './page'
 import { prunePage, type CallerAccess } from './prune-page'
@@ -102,5 +104,25 @@ describe('prunePage', () => {
 
   it('keeps custom components, which the app renders', () => {
     expect(types(prunePage(billing.toModel(), [], access({ models: restricted({ invoices: ['status'] }) })))).toContain('UsageChart')
+  })
+
+  it('never sends a hidden field or resource through a custom component', () => {
+    const Chart = component<{ resource?: string; value: FieldRefValue; label: string }>('Chart')
+    const page: PageModel = {
+      name: 'p',
+      title: 'p',
+      tree: Page({
+        title: 'p',
+        children: [
+          RecordCard({ resource: 'subscriptions', children: [Chart({ value: fieldRef('plan.seats'), label: 'Seats' }), Chart({ value: fieldRef('seatsUsed'), label: 'Used' })] }),
+          Chart({ resource: 'invoices', value: fieldRef('total'), label: 'Total' }),
+        ],
+      }),
+    }
+    expect(types(prunePage(page, [], access()))).toEqual(['Page', 'RecordCard', 'Chart', 'Chart', 'Chart'])
+    const pruned = prunePage(page, [], access({ models: restricted({ plans: ['seats'], invoices: ['total'] }) }))
+    expect(types(pruned)).toEqual(['Page', 'RecordCard', 'Chart'])
+    expect(JSON.stringify(pruned)).not.toMatch(/seats"|total/)
+    expect(types(prunePage(page, [], access({ models: restricted({}, {}, ['invoices']) })))).toEqual(['Page', 'RecordCard', 'Chart', 'Chart'])
   })
 })

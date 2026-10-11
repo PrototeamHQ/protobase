@@ -1,8 +1,8 @@
-import { addressErrors, checkFilter, checkOrderBy, parseFilter, parseOrderBy, type AppAddress, type ResourceModel } from '@protobase/schema'
+import { addressErrors, checkFilter, checkOrderBy, parseFilter, parseOrderBy, pruneByShape, shapes, type AppAddress, type ResourceModel } from '@protobase/schema'
 import { elementResource, linkSource } from './check-page'
 import { countedResource, parseCondition } from './condition'
 import { resolveFieldPath } from './field-path'
-import type { LayoutNode } from './node'
+import { dataProps, type LayoutNode } from './node'
 import type { PageModel } from './page'
 import { mapTree, type Scope } from './walk'
 
@@ -30,8 +30,18 @@ const sortFits = (model: ResourceModel, source: string | undefined) => {
 
 const writable = (model: ResourceModel, name: string) => Object.hasOwn(model.fields, name) && !model.fields[name]!.readOnly
 
+// A custom component's props are the project's; the resource it names and the field references in them are the
+// framework's, read through the same walker as a view's custom props.
+const pruneCustom = (node: LayoutNode, scope: Scope, { models }: CallerAccess): LayoutNode | null => {
+  const own = text(node.props.resource)
+  if (own !== undefined && !models[own]) return null
+  const resource = elementResource(node, scope)
+  const readable = (path: string) => resource !== undefined && resolveFieldPath(models, resource, path).ok
+  return pruneByShape(dataProps(node), shapes.refs, readable) === undefined ? null : node
+}
+
 const prune = (node: LayoutNode, scope: Scope, access: CallerAccess): LayoutNode | null => {
-  if (node.custom) return node
+  if (node.custom) return pruneCustom(node, scope, access)
   const { models } = access
   const own = text(node.props.resource)
   if (own !== undefined && !models[own]) return null
@@ -83,8 +93,9 @@ const prune = (node: LayoutNode, scope: Scope, access: CallerAccess): LayoutNode
 
 /**
  * The page as one caller may see it, or `undefined` when its roles leave the caller out. Every element that names a
- * resource, field, filter, sort or action the caller cannot use is left out, with what it contains; table columns
- * and form fields are narrowed to what the caller may read and write. Data still comes from the API, which applies
+ * resource, field, filter, sort or action the caller cannot use is left out, with what it contains, custom components
+ * by their `resource` and field references (`fieldRef`) too; table columns and form fields are narrowed to what the
+ * caller may read and write. Data still comes from the API, which applies
  * the same access rules (row filters included) to every request.
  */
 export const prunePage = (page: PageModel, roles: readonly string[], access: CallerAccess): PageModel | undefined => {

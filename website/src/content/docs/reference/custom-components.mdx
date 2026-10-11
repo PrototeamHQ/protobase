@@ -34,6 +34,18 @@ In `protobase.ui.tsx`, `components` maps the name to a React component. It gets 
 
 A name with no registered component renders a warning in its place, so a missing registration shows on the page instead of failing silently.
 
+### Fields and resources in props
+
+A prop that names a field is a field reference, `fieldRef('plan.name')` from `@protobase/layout`, read from the record around the element or the resource its `resource` prop names. The component gets the plain name (`'plan.name'`), and the names are checked when the server starts. A `resource` prop names a resource the way a block's does.
+
+```tsx
+<RecordCard resource="subscriptions">
+  <SeatsChart value={fieldRef('seatsUsed')} max={fieldRef('plan.seats')} />
+</RecordCard>
+```
+
+`/api/meta` leaves a component out for a user who cannot read a field it references or see the resource it names, as it leaves out a `Field`, so a hidden name never reaches their browser. A field written as plain text is not checked or hidden this way.
+
 ## Components in the chat
 
 The same `components` draw the assistant's [widget parts](/reference/assistant/#widget-parts): a part names a component, and the dock draws it with the part's props, so one component can sit on a page and in the chat. In the chat there is no record around it, so a component that needs `useLayoutRecord()` works only on pages; take ids as props instead. Besides the API hooks, a widget can read the assistant backend with [`useBackendData`](/reference/assistant/#reading-the-backend-from-a-widget).

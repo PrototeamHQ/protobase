@@ -21,3 +21,7 @@ export type Block<P> = ((props: P) => LayoutNode) & { readonly blockName: string
 
 export const isLayoutNode = (value: unknown): value is LayoutNode =>
   typeof value === 'object' && value !== null && !Array.isArray(value) && typeof (value as LayoutNode).type === 'string' && Array.isArray((value as LayoutNode).children)
+
+/** An element's props without the elements it holds (`actions={...}`), which are walked as elements of their own. */
+export const dataProps = (node: LayoutNode) =>
+  Object.fromEntries(Object.entries(node.props).filter(([, value]) => !isLayoutNode(value) && !(Array.isArray(value) && value.length > 0 && value.every(isLayoutNode))))

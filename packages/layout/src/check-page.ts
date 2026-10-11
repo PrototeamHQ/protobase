@@ -1,7 +1,7 @@
-import { addressErrors, checkFilter, checkOrderBy, parseFilter, parseOrderBy, type AppAddress, type ResourceModel } from '@protobase/schema'
+import { addressErrors, checkFilter, checkOrderBy, fieldRefsIn, parseFilter, parseOrderBy, type AppAddress, type ResourceModel } from '@protobase/schema'
 import { countedResource, parseCondition } from './condition'
 import { resolveFieldPath } from './field-path'
-import type { LayoutNode } from './node'
+import { dataProps, type LayoutNode } from './node'
 import type { PageModel } from './page'
 import { walkTree, type Scope } from './walk'
 
@@ -109,12 +109,24 @@ const nodeProblems = (node: LayoutNode, scope: Scope, { models, actions, pages }
   return problems
 }
 
+// A custom component's `resource` names a resource, and its field references fields of that or the record around it.
+const customProblems = (node: LayoutNode, scope: Scope, { models }: PageCheckInput): string[] => {
+  const own = text(node.props.resource)
+  if (own !== undefined && !models[own]) return [`unknown resource "${own}"`]
+  const resource = elementResource(node, scope)
+  return fieldRefsIn(dataProps(node)).flatMap((path) => {
+    if (resource === undefined) return [`field reference "${path}" needs a record around it, or a "resource" prop`]
+    const resolved = resolveFieldPath(models, resource, path)
+    return resolved.ok ? [] : [resolved.message]
+  })
+}
+
 /** Everything a page names that the models do not have: resources, fields, filters, sorts, actions and conditions. */
 export const pageProblems = (page: PageModel, input: PageCheckInput): string[] => {
   const problems: string[] = []
   walkTree(page.tree, (node, { path, scope }) => {
-    if (node.custom) return
-    for (const problem of nodeProblems(node, scope, input)) problems.push(`${path}: ${problem}`)
+    const found = node.custom ? customProblems(node, scope, input) : nodeProblems(node, scope, input)
+    for (const problem of found) problems.push(`${path}: ${problem}`)
   })
   return problems
 }

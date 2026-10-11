@@ -1,5 +1,6 @@
 export type { Block, LayoutChild, LayoutChildren, LayoutNode, LayoutValue } from './node'
 export { isLayoutNode } from './node'
+export { fieldRef, type FieldRefValue } from '@protobase/schema'
 export {
   Action,
   Card,

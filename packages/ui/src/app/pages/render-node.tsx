@@ -1,5 +1,6 @@
 import { Fragment, type ComponentType, type ReactNode } from 'react'
 import { isLayoutNode, type LayoutChild, type LayoutNode, type LayoutValue } from '@protobase/layout'
+import { unmarkFieldRefs } from '@protobase/schema'
 import { ActionBlock } from './blocks/action'
 import type { BlockProps } from './blocks/block-props'
 import { CardBlock } from './blocks/card'
@@ -71,7 +72,8 @@ export const RenderNode = ({ node }: { node: LayoutNode }) => {
   if (node.custom) {
     const Custom = components?.[node.type]
     if (!Custom) return <Problem>No component is registered as {node.type}. Add it to the components in protobase.ui.tsx.</Problem>
-    return <Custom {...node.props}>{node.children.length > 0 ? renderChildren(node.children) : undefined}</Custom>
+    // Field references reach the component as the names they reference
+    return <Custom {...unmarkFieldRefs(node.props)}>{node.children.length > 0 ? renderChildren(node.children) : undefined}</Custom>
   }
   const Block = blocks[node.type]
   if (!Block) return <Problem>{node.type} is not a block this version of the app knows.</Problem>
