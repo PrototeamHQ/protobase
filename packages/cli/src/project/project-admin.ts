@@ -6,13 +6,14 @@ import { configExports, createAdmin, jobDefinitions, type Authenticator, type Pr
  * pages and subscriptions, and the rest of its config. `jobs` are the project's own and the delivery of its events.
  */
 export const projectAdmin = (project: ProjectConfig & { authenticate: Authenticator }, config: Record<string, unknown>, db: Db) => {
-  const { resources, views, pages, userMenu, subscriptions } = configExports(config)
+  const { resources, views, pages, userMenu, bottomBars, subscriptions } = configExports(config)
   const own = jobDefinitions(project.jobs ?? {})
   const admin = createAdmin({
     resources,
     views,
     pages,
     ...(userMenu && { userMenu }),
+    bottomBars,
     db,
     authenticate: project.authenticate,
     ...(project.auth && { auth: project.auth }),

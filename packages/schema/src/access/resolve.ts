@@ -17,7 +17,7 @@ export type ResolveOptions = {
    * roles grant `<resource>.<action>` (so admin's `*` still passes). Fields without a rule
    * follow their resource.
    */
-  roles?: { can: (capability: any) => Rule }
+  roles?: { can: (capability: any) => Rule; definitions?: Record<string, unknown> }
   /**
    * Overrides what an operation without a rule does. Without `roles` the default is `allow`,
    * the single-admin case; with `roles` it is the capability check above. Choosing `allow`

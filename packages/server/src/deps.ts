@@ -1,6 +1,6 @@
 import type { PageModel } from '@protobase/layout'
 import type { Db } from '@protobase/query'
-import type { ResolveOptions, UserMenuModel, ViewModel } from '@protobase/schema'
+import type { BottomBarModel, ResolveOptions, UserMenuModel, ViewModel } from '@protobase/schema'
 import type { FilesRuntime } from './files/runtime'
 import type { Registry } from './registry'
 import type { ScanGuard } from './scan-guard'
@@ -12,6 +12,8 @@ export type Deps = {
   registry: Registry
   views: ViewModel[]
   userMenu?: UserMenuModel
+  /** The bottom bars, in config order. */
+  bottomBars: BottomBarModel[]
   pages: PageModel[]
   basePath: string
   /** Where the system endpoints live (`/meta`, `/openapi.json`, `/docs`): the parent of `basePath`, `/api` by default. */

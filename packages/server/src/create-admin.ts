@@ -1,7 +1,7 @@
 import { Hono } from 'hono'
 import { checkPages } from '@protobase/layout'
 import type { Db } from '@protobase/query'
-import type { UserMenuSource } from '@protobase/schema'
+import type { BottomBarSource, UserMenuSource } from '@protobase/schema'
 import { assistantSettings } from './assistant/assistant-settings'
 import { builtInAssistant } from './assistant/built-in-assistant'
 import { assistantRecords } from './assistant/records'
@@ -15,7 +15,7 @@ import { webhookTable } from './webhooks/table/webhook-table'
 import { subscriptionWriteCheck } from './webhooks/table/validate-hook'
 import type { WebhooksOptions } from './webhooks/table/options'
 import type { SubscriptionDefinition } from './webhooks/subscription'
-import { checkShell } from './check-shell'
+import { checkBottomBars, checkShell } from './check-shell'
 import { checkViews } from './check-views'
 import { createErrorHandler } from './error-handler'
 import type { FilesOptions } from './files/options'
@@ -44,6 +44,8 @@ export type CreateAdminInput = {
   views?: ViewSource[]
   /** The `userMenu(...)` export of the config module: pages under the signed-in user in the sidebar. */
   userMenu?: UserMenuSource
+  /** The `bottomBar(...)` exports of the config module, in order: tabs on phones for the roles each names. */
+  bottomBars?: BottomBarSource[]
   /** Composed pages (`page()` from @protobase/layout), served by /meta and checked against the resources here. */
   pages?: PageSource[]
   db: Db
@@ -65,8 +67,14 @@ export type CreateAdminInput = {
   options?: AdminOptions
 }
 
+// The roles a user can hold, from the auth instance and `defineRoles`; unknown when the app declares neither.
+const declaredRoles = (auth: AdminAuth | undefined, roles: AdminOptions['roles']) => {
+  const names = [...(auth?.roles ?? []), ...Object.keys(roles?.definitions ?? {})]
+  return names.length > 0 ? [...new Set(names)] : undefined
+}
+
 /** The admin REST API as a Hono app. It uses only Web APIs, so it runs on Node, Workers and anywhere else Hono does. */
-export const createAdmin = ({ resources: appResources, views: appViews = [], pages = [], userMenu, db, authenticate, auth, functions = {}, files: filesOptions, events, jobs = [], subscriptions = [], webhooks: webhooksOptions, options = {} }: CreateAdminInput): Admin => {
+export const createAdmin = ({ resources: appResources, views: appViews = [], pages = [], userMenu, bottomBars = [], db, authenticate, auth, functions = {}, files: filesOptions, events, jobs = [], subscriptions = [], webhooks: webhooksOptions, options = {} }: CreateAdminInput): Admin => {
   const basePath = options.basePath ?? '/api/v1'
   // Events are delivered by jobs, whose failures the page lists too.
   const withJobs = jobs.length > 0 || appResources.some((resource) => resource.toModel().events)
@@ -78,6 +86,8 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], pag
   const userMenuModel = userMenu?.toUserMenuModel()
   const pageModels = pages.map((entry) => entry.toModel())
   checkShell(registry, viewModels, userMenuModel, pageModels.map((entry) => entry.name))
+  const bottomBarModels = bottomBars.map((bar) => bar.toBottomBarModel())
+  checkBottomBars(registry, bottomBarModels, pageModels.map((entry) => entry.name), declaredRoles(auth, options.roles))
   checkViews(registry, viewModels)
   checkPages(pageModels, {
     models: Object.fromEntries(registry.entries.map((entry) => [entry.name, entry.model])),
@@ -94,6 +104,7 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], pag
     views: viewModels,
     pages: pageModels,
     ...(userMenuModel && { userMenu: userMenuModel }),
+    bottomBars: bottomBarModels,
     basePath,
     systemPath,
     statementTimeoutMs: options.statementTimeoutMs ?? 15_000,

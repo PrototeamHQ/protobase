@@ -1,7 +1,7 @@
 import { Kysely } from 'kysely'
 import { PGliteDialect } from 'kysely-pglite-dialect'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { f, resource, userMenu, view, type NavRecentModel } from '@protobase/schema'
+import { bottomBar, defineRoles, f, resource, userMenu, view, type NavRecentModel } from '@protobase/schema'
 import { createAdmin } from '../src/create-admin'
 import { configExports } from '../src/resource-source'
 import { as, testAuthenticator } from '../../../test-support/server'
@@ -70,6 +70,37 @@ describe('user menu in /meta', () => {
   })
 })
 
+describe('bottom bar in /meta', () => {
+  const floor = bottomBar({ label: 'Floor', roles: ['viewer', 'admin'] }, (m) => [m.resource('tasks', { label: 'Tasks' }), m.resource('billing', { label: 'Billing' })])
+  const office = bottomBar({ label: 'Office', roles: ['clerk'] }, (m) => [m.resource('billing', { label: 'Billing' })])
+  const withBars = createAdmin({ resources: [tasks, billing], bottomBars: [floor, office], db, authenticate: testAuthenticator })
+
+  it('gives a caller the bar naming their active role, their first', async () => {
+    expect((await metaFor(withBars, 'admin')).bottomBar).toEqual({
+      label: 'Floor',
+      items: [{ kind: 'resource', resource: 'tasks', label: 'Tasks' }, { kind: 'resource', resource: 'billing', label: 'Billing' }],
+    })
+    expect((await metaFor(withBars, 'viewer,clerk')).bottomBar.label).toBe('Floor')
+    expect(await metaFor(withBars, 'editor,admin')).not.toHaveProperty('bottomBar')
+  })
+
+  it('leaves out resources the caller cannot see, and the bar when none is left', async () => {
+    expect((await metaFor(withBars, 'viewer')).bottomBar.items).toEqual([{ kind: 'resource', resource: 'tasks', label: 'Tasks' }])
+    expect(await metaFor(withBars, 'clerk')).not.toHaveProperty('bottomBar')
+  })
+
+  it('is absent for a caller whose roles no bar names', async () => {
+    expect(await metaFor(withBars, 'editor')).not.toHaveProperty('bottomBar')
+  })
+
+  it('refuses unknown resources, unknown roles and shared roles at startup', () => {
+    const start = (bars: ReturnType<typeof bottomBar>[]) => () => createAdmin({ resources: [tasks], bottomBars: bars, db, authenticate: testAuthenticator, options: { roles: defineRoles({ admin: ['*'], viewer: ['*.read'] }) } })
+    expect(start([bottomBar({ label: 'Floor', roles: ['viewer'] }, (m) => [m.resource('nope', { label: 'Nope' })])])).toThrow('Bottom bar "Floor": resource "nope" does not exist')
+    expect(start([bottomBar({ label: 'Floor', roles: ['ghost'] }, (m) => [m.resource('tasks', { label: 'Tasks' })])])).toThrow('Bottom bar "Floor": role "ghost" is not one of the roles: admin, viewer')
+    expect(start([floor, bottomBar({ label: 'Desk', roles: ['viewer'] }, (m) => [m.resource('tasks', { label: 'Tasks' })])])).toThrow('Bottom bars "Floor" and "Desk" both name role "viewer"')
+  })
+})
+
 describe('nav.recent in /meta', () => {
   it('keeps the group when every field it uses is readable', async () => {
     const body = await metaFor(admin([view<typeof tasks>('tasks').nav({ group: 'Work', recent: { ...recent, orderBy: 'priority desc' } })]), 'admin')
@@ -95,6 +126,13 @@ describe('configExports', () => {
     expect(found.views).toEqual([tasksView])
     expect(found.userMenu).toBe(menu)
     expect(configExports({ tasks })).not.toHaveProperty('userMenu')
+  })
+
+  it('picks every bottom bar out of the config module, in order', () => {
+    const floor = bottomBar({ label: 'Floor', roles: ['viewer'] }, (m) => [m.resource('tasks', { label: 'Tasks' })])
+    const office = bottomBar({ label: 'Office', roles: ['admin'] }, (m) => [m.resource('tasks', { label: 'Tasks' })])
+    expect(configExports({ tasks, floor, office }).bottomBars).toEqual([floor, office])
+    expect(configExports({ tasks }).bottomBars).toEqual([])
   })
 
   it('refuses two user menus', () => {

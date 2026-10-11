@@ -1,5 +1,6 @@
 import { prunePage, type PageModel } from '@protobase/layout'
-import { pickView, type ResourceModel, type UserMenuItemModel, type UserMenuModel, type ViewModel } from '@protobase/schema'
+import { bottomBarFor, pickView, type BottomBarItemModel, type ResourceModel, type UserMenuItemModel, type UserMenuModel, type ViewModel } from '@protobase/schema'
+import { activeRole } from './active-role'
 import { seesAssistant } from './assistant/assistant-settings'
 import type { Deps } from './deps'
 import { sha256Hex, stableJson } from './hash'
@@ -25,6 +26,8 @@ export type CallerMeta = {
   permissions: Record<string, ResourcePermissions>
   /** The user menu with the resources the caller cannot see left out. */
   userMenu?: UserMenuModel
+  /** The bottom bar naming the caller's active role, without the resources and pages they cannot see. */
+  bottomBar?: { label: string; items: BottomBarItemModel[] }
   /** The assistant backend, for a caller with the `admin` or `ai` role when there is one: an absolute URL, or the built-in one's path. */
   assistant?: { url: string }
   /** The runtime updates endpoint, for a caller with the `admin` role when the app has one. */
@@ -36,7 +39,7 @@ const modelsHash = (deps: Deps) => sha256Hex(stableJson(deps.registry.entries.ma
 /**
  * `/meta` as one caller sees it: the resources they can do anything with, each as the restricted model (hidden fields
  * absent, `readOnly` unless writable), the view for their roles with hidden fields pruned, what they may do, and the
- * user menu without the resources they cannot see.
+ * user menu and their bottom bar without the resources they cannot see.
  * The ETag hashes all of it, so it differs per user and per roles.
  */
 export const createMeta = (deps: Deps) => {
@@ -57,8 +60,10 @@ export const createMeta = (deps: Deps) => {
       actions: (resource: string) => new Set(views.find((view) => view.resource === resource)?.actions.map((action) => action.name) ?? []),
     }
     const pages = deps.pages.flatMap((page) => prunePage(page, session.user.roles, callerAccess) ?? [])
-    const shown = (item: UserMenuItemModel) =>
+    const shown = (item: UserMenuItemModel | BottomBarItemModel) =>
       item.kind === 'link' || (item.kind === 'resource' ? visible.some((access) => access.entry.name === item.resource) : pages.some((page) => page.name === item.page))
+    const bar = bottomBarFor(deps.bottomBars, activeRole(session))
+    const barItems = bar?.items.filter(shown) ?? []
     const body: CallerMeta = {
       resources: visible.map((access) => access.readable),
       views,
@@ -71,6 +76,7 @@ export const createMeta = (deps: Deps) => {
         conditional: (['create', 'update', 'delete'] as const).filter((op) => resolved.operations[op] && (resolved.recordChecks.includes(op) || resolved.rowFilter[op] !== undefined)),
       } satisfies ResourcePermissions])),
       ...(deps.userMenu && { userMenu: { items: deps.userMenu.items.filter(shown) } }),
+      ...(bar && barItems.length > 0 && { bottomBar: { label: bar.label, items: barItems } }),
       ...(deps.assistant && seesAssistant(session.user.roles) && { assistant: { url: deps.assistant } }),
       ...(deps.runtime && seesRuntime(session.user.roles) && { runtime: { url: deps.runtime } }),
     }
