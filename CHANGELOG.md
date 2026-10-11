@@ -2,6 +2,21 @@
 
 Every release of Protobase, cut by the release workflow from the commits since the last one (see the [versioning page](https://docs.protobase.net/reference/versioning/)).
 
+## [0.9.0](https://github.com/PrototeamHQ/protobase/compare/v0.8.2...v0.9.0) (2026-10-11)
+
+### ⚠ BREAKING CHANGES
+
+* **server:** deliver resource events to subscriptions, signed, retried and shaped per receiver
+
+### Features
+
+* **cli:** dev, serve and worker deliver events; protobase migration writes jobs for events ([25bb1fc](https://github.com/PrototeamHQ/protobase/commit/25bb1fcb7f1a1483ecdb26986e4d5007f249f30b))
+* **cli:** protobase migration writes the webhooks schema; dev and serve check it ([368afea](https://github.com/PrototeamHQ/protobase/commit/368afea4f6485d5fd090635bab0d16c9511607e7))
+* **schema:** webhookResources, the pages of webhook subscriptions and their deliveries ([669a655](https://github.com/PrototeamHQ/protobase/commit/669a6551ff309b16ec7d48a7b400478ce07ddaf0))
+* **server:** deliver resource events to subscriptions, signed, retried and shaped per receiver ([8ceb61e](https://github.com/PrototeamHQ/protobase/commit/8ceb61e78681776536ac170573ead54f675911f9))
+* **server:** wake a job's worker in this process, rather than at its next poll ([ec6a94b](https://github.com/PrototeamHQ/protobase/commit/ec6a94b0637228dc4d0e353cddf6eb44b5d49c8a))
+* **server:** webhooks(), subscriptions made in the admin app that deliver as their owner ([bea11f2](https://github.com/PrototeamHQ/protobase/commit/bea11f2e3beff2799e09a6ba9a9ed74c621b41f1))
+
 ## [0.8.2](https://github.com/PrototeamHQ/protobase/compare/v0.8.1...v0.8.2) (2026-10-11)
 
 ### Features
