@@ -2,6 +2,19 @@
 
 Every release of Protobase, cut by the release workflow from the commits since the last one (see the [versioning page](https://docs.protobase.net/reference/versioning/)).
 
+## [0.8.2](https://github.com/PrototeamHQ/protobase/compare/v0.8.1...v0.8.2) (2026-10-11)
+
+### Features
+
+* **cli:** dev and serve run the app's jobs; PROTOBASE_JOBS=off leaves them to another process ([33de967](https://github.com/PrototeamHQ/protobase/commit/33de96731b5d23b276841f23b2daef9caf19aa6a))
+* **cli:** protobase migration writes the jobs schema for a config with jobs ([77d4c37](https://github.com/PrototeamHQ/protobase/commit/77d4c37a0ae7cac59d4177be831b189431ebb693))
+* **cli:** protobase worker, and POST /api/jobs/drain in serve with PROTOBASE_JOBS_DRAIN_TOKEN ([eb9ea49](https://github.com/PrototeamHQ/protobase/commit/eb9ea498a8de42d3d259ec4fd64a4d727106e5ab))
+* **presets:** the ERP marks a sent invoice overdue with a job the day after it is due ([967eb2d](https://github.com/PrototeamHQ/protobase/commit/967eb2d35a4dea5a76bcd205959c2c27c040d9a7))
+* **presets:** the ERP marks every sent invoice past its due date overdue each night ([625dc81](https://github.com/PrototeamHQ/protobase/commit/625dc81e0d2a3780712ad845e3fe18190d80c255))
+* **server:** a failed jobs page for admins, with retry and delete ([ee69e18](https://github.com/PrototeamHQ/protobase/commit/ee69e1885325908c16ba26c1b5a1706df7e27010))
+* **server:** jobs on pg-boss: defineJob, enqueue in the caller's transaction, workers, schema check ([5f7cfb6](https://github.com/PrototeamHQ/protobase/commit/5f7cfb62b76dddec6f6e252d3fc8da5d7d3f5fc8))
+* **server:** recurring jobs, jobs.next_due() and a drain endpoint for hosts that let apps sleep ([372ff4e](https://github.com/PrototeamHQ/protobase/commit/372ff4e2cca20878a39b2f2efe230af31548cc8e))
+
 ## [0.8.1](https://github.com/PrototeamHQ/protobase/compare/v0.8.0...v0.8.1) (2026-10-11)
 
 ### Features
