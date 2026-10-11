@@ -1,7 +1,7 @@
 import { existsSync } from 'node:fs'
 import path from 'node:path'
 import pg from 'pg'
-import { configExports, mergeConfig, type ProjectConfig } from '@protobase/server'
+import { configExports, jobDefinitions, mergeConfig, type ProjectConfig } from '@protobase/server'
 import { loadNearestEnvFile } from '../dev/env'
 import type { Extension } from '../project/extensions'
 import { importProjectFile } from '../project/import-project-file'
@@ -31,6 +31,7 @@ export const loadMigrationProject = async (dir: string, extensions: Extension[] 
     db: project.db ?? ownDb!,
     ...(project.auth && { auth: project.auth }),
     ...(project.events && { events: project.events }),
+    jobs: jobDefinitions(project.jobs ?? {}),
     close: async () => {
       await ownDb?.destroy()
     },

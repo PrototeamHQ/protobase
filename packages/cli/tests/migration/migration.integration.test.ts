@@ -71,4 +71,18 @@ describe.skipIf(!reachable)('protobase migration', () => {
     expect(await readFile(path.join(projectDir, 'db/migrations/002_changes.sql'), 'utf8')).toContain('drop trigger if exists "notes_changes" on public.notes')
     await applyAll()
   })
+
+  it('writes the jobs schema for a config with jobs, then nothing once applied', async () => {
+    await writeFile(path.join(projectDir, 'protobase.config.ts'), `import { f, resource } from '@protobase/schema'
+import { defineJob } from '@protobase/server'
+export const notes = resource('notes').table('notes').fields({ id: f.integer().readOnly(), body: f.text() }).primaryKey((r) => r.id)
+export const prune = defineJob({ name: 'prune-notes', run: () => {} })
+export default { config: { notes }, jobs: { prune } }
+`)
+    const first = await migration()
+    expect([first.status, first.stdout, first.stderr]).toEqual([0, "wrote db/migrations/003_jobs.sql\napply them with the project's migrations\n", ''])
+    expect(await readFile(path.join(projectDir, 'db/migrations/003_jobs.sql'), 'utf8')).toMatch(/^-- The jobs schema this version of Protobase needs, written by `protobase migration`\./)
+    await applyAll()
+    expect((await migration()).stdout).toBe('the database is up to date; nothing to write\n')
+  })
 })

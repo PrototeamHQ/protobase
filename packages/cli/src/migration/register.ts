@@ -12,7 +12,7 @@ const collect = (value: string, previous: string[]) => [...previous, value]
 export const registerMigration = (program: Command) => {
   program
     .command('migration')
-    .description("Write what the database still needs for every feature the config enables (auth, events) as the project's next SQL migrations")
+    .description("Write what the database still needs for every feature the config enables (auth, events, jobs) as the project's next SQL migrations")
     .option('--dir <dir>', 'migrations folder', 'db/migrations')
     .option('--extend <dir>', 'merge the protobase.config.ts in this folder before the project\'s, as dev and build do, repeatable', collect, [])
     .action(async (opts) => {
