@@ -74,6 +74,15 @@ describe('an app on several origins', () => {
     expect(links[1]).toMatch(new RegExp(`^${label}/api/auth/reset-password/`))
   })
 
+  it('lets browser code on one of its origins call the API on another, and leaves sign-in to Better Auth', async () => {
+    vi.stubEnv('PROTOBASE_CORS_ORIGINS', '')
+    const { app } = await serve({ origins: [custom] })
+    const preflight = (path: string, origin: string) => app.request(`${label}${path}`, { method: 'OPTIONS', headers: { origin, 'access-control-request-method': 'GET' } })
+    expect((await preflight('/api/meta', custom)).headers.get('access-control-allow-origin')).toBe(custom)
+    expect((await preflight('/api/meta', 'https://evil.example.com')).headers.get('access-control-allow-origin')).toBeNull()
+    expect((await app.request(`${label}/api/auth/status`, { headers: { origin: custom } })).headers.get('access-control-allow-origin')).toBeNull()
+  })
+
   it('signs in on another origin with a session for that host and a token the API takes, issued by baseURL', async () => {
     const { app, post } = await serve({ origins: [custom] })
     const signIn = await post(custom, '/sign-in/email', { email: 'root@example.com', password })

@@ -1,4 +1,5 @@
 import type { ResolveOptions } from '@protobase/schema'
+import type { CorsOrigins } from './api-cors'
 import type { AssistantOptions } from './assistant/assistant-settings'
 import type { RuntimeOptions } from './runtime/runtime-settings'
 import type { AuditQueue, PipelineHook, ScanGuardMode } from './types'
@@ -24,6 +25,13 @@ export type AdminOptions = {
   onUnhandledError?: (error: unknown) => void
   /** The assistant in the admin app's dock: a backend elsewhere or the built-in one (see `AssistantOptions`); `false` turns it off. */
   assistant?: AssistantOptions | false
+  /**
+   * The websites whose browser code may call the API (`/api/*` but `/api/auth/*`) besides the app's own origins (see
+   * `createAuth`'s `origins`): a list of origins, or `*` for any. Defaults to the one the platform passes in
+   * `PROTOBASE_CORS_ORIGINS` (`*` or comma separated), when set. With neither this nor other origins, the API sends no
+   * CORS headers.
+   */
+  cors?: CorsOrigins
   /** The runtime updates endpoint behind the top bar's update button (see `RuntimeOptions`); `false` turns it off. */
   runtime?: RuntimeOptions | false
 }

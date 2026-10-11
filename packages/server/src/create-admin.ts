@@ -6,6 +6,7 @@ import { assistantSettings } from './assistant/assistant-settings'
 import { builtInAssistant } from './assistant/built-in-assistant'
 import { assistantRecords } from './assistant/records'
 import { consoleAuditQueue } from './audit/console-queue'
+import { apiCors, readCorsOrigins } from './api-cors'
 import { authBasePath, type AdminAuth } from './better-auth/create-auth'
 import { webauthnPath } from './better-auth/origins'
 import { organizationRoutes } from './better-auth/organizations/admin-routes'
@@ -149,6 +150,14 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], pag
 
   const app = new Hono<AdminEnv>()
   app.onError(onError)
+  const corsOrigins = options.cors ?? readCorsOrigins(globalThis.process?.env ?? {})
+  const ownOrigins = auth?.origins ?? []
+  if (corsOrigins !== undefined || ownOrigins.length > 1) {
+    // Better Auth checks origins itself, and a function with its own `cors` answers for itself.
+    const answering = [authBasePath, ...Object.entries(apiFunctions).filter(([, fn]) => fn.options.cors).map(([name]) => `${systemPath}/functions/${name}`)]
+    const skip = (path: string) => answering.some((prefix) => path === prefix || path.startsWith(`${prefix}/`))
+    app.use(`${systemPath}/*`, apiCors({ own: ownOrigins, allowed: corsOrigins ?? [], skip }))
+  }
   if (auth) {
     app.route(authBasePath, statusRoute(auth))
     if (auth.organizations) app.route(authBasePath, organizationRoutes({ auth, audit: deps.audit, registry, db }))
