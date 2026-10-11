@@ -53,7 +53,7 @@ const LoadedCreate = ({ resource }: { resource: string }) => {
         throw error
       }
       for (const prefix of ['page', 'list', 'first-page', 'facets', 'series']) void queryClient.invalidateQueries({ queryKey: [prefix, resource] })
-      navigate(`/${resource}/${encodeKey(recordKey(model, created.record))}`, { replace: true })
+      navigate(`/${resource}/${encodeURIComponent(encodeKey(recordKey(model, created.record)))}`, { replace: true })
     })
 
   const formSections = sections.map((section) => ({

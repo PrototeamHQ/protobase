@@ -8,7 +8,7 @@ import { ActiveFilterChips, FilterPanel, activeChips, emptyFilterState, removeCh
 import { useIsDesktop } from '../lib/use-media-query'
 import { columnsFromModel } from '../live/columns-from-model'
 import { stateToText, textToState } from '../live/filter-string'
-import { recordTitleField } from '../live/model-helpers'
+import { recordKey, recordTitleField } from '../live/model-helpers'
 import { humanize } from '../live/naming'
 import { useFilterConfig } from '../live/use-filter-config'
 import { useLiveRows } from '../live/use-live-rows'
@@ -94,15 +94,18 @@ const LoadedList = ({ model }: { model: ResourceModel }) => {
     </div>
   )
 
+  // The key goes in the path as one segment, so a slash or comma in it cannot split it
+  const openRecord = (row: GridRow) => navigate(`/${resource}/${encodeURIComponent(encodeKey(recordKey(model, row)))}`)
+
   const grid = rows.source ? (
     <DataGrid
       columns={columns}
       source={rows.source}
       sort={parseSort(orderBy)}
       onSortChange={(sort) => setParams({ order_by: sortToOrderBy(sort) })}
-      onOpenRow={(row) => navigate(`/${resource}/${encodeKey(row.id.split(','))}`)}
+      onOpenRow={openRecord}
       rowActions={[
-        { label: `Open ${singular.toLowerCase()}`, onSelect: (row) => navigate(`/${resource}/${encodeKey(row.id.split(','))}`) },
+        { label: `Open ${singular.toLowerCase()}`, onSelect: openRecord },
         ...(can(permissions, 'delete') ? [{ label: 'Delete', destructive: true, available: (row: GridRow) => rowAllows(row, 'delete'), onSelect: (row: GridRow) => void remove.start(target(row)) }] : []),
       ]}
       bulkActions={can(permissions, 'delete') ? [{ label: (count: number) => `Delete ${count}`, destructive: true, onRun: (rows: GridRow[]) => remove.startBulk(rows.map(target)) }] : []}
