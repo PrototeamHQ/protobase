@@ -68,3 +68,38 @@ A function target is called as the subscription's `as`, so `context.caller()` an
 - **At least once:** a process that stops after delivering but before recording it delivers again when the dispatch job is retried, under the same `webhook-id`.
 
 Every outcome is a line in the server log, such as `webhook newOrdersToSlack orders.created evt_48211_created delivered (200)`.
+
+## Subscriptions in the admin app
+
+A subscription in the config suits a developer. For people who make their own at runtime, such as a tenant admin wiring their organization to a tool they use, extend the config with `webhooks()`:
+
+```ts
+import { defineConfig, webhooks } from '@protobase/server'
+
+export default defineConfig({ extends: [webhooks()], config, auth, authenticate })
+```
+
+It adds two pages, over a `webhooks` schema that [`protobase migration`](/reference/cli/#migration) writes (`NNN_webhooks.sql`):
+
+- **Webhook subscriptions** (`webhookSubscriptions`, the table `webhooks.subscriptions`): a name, the events (`orders.created orders.large`, or `orders.*`), the URL, a filter, extra headers, full or thin payload, and whether it is enabled. The server sets the tenant and the owner, the person who made it, and makes the secret, which only a [reveal](/reference/api/#sensitive-fields-and-audit) shows. Saving checks the events and the filter against the resources, and refuses a URL whose host is a private, loopback or link-local address.
+- **Webhook deliveries** (`webhookDeliveries`, a view over the delivery jobs): the deliveries that wait for their next try or failed for good, with their last error. A delivery leaves the list once it succeeds.
+
+Both are scoped to the tenant like any resource with `.tenant()`, and their access decides who may do what: `webhookSubscriptions.create`, `webhookDeliveries.update` and so on, as for the app's own resources.
+
+A subscription made here **delivers as its owner**, with the roles they hold now in its tenant: only records and fields they may read. Letting people make subscriptions therefore grants them nothing they could not read already. The roles are read from the project's Better Auth; a project that signs people in otherwise passes `webhooks({ ownerRoles: async ({ id, tenant }) => [...] })`.
+
+| Action | |
+| --- | --- |
+| Send test event | Sends the first event the subscription takes, made up from the newest record it may read, with `"test": true`. |
+| Resend failed | Tries each delivery that failed for good once more. Webhook deliveries has the same for one delivery. |
+| Rotate secret | Makes a new secret. For 24 hours requests carry a signature with each, so the receiver can switch over. |
+| Disable | Stops its deliveries; waiting ones fail when their turn comes. Enabling it again starts afresh. |
+
+A subscription is **disabled by itself** when its receiver answers `410 Gone`, or when no delivery succeeded for three days; the page says why.
+
+| `webhooks(options)` | |
+| --- | --- |
+| `schema` | The schema of its tables, for a database that has a `webhooks` schema already. Default `webhooks`. |
+| `deliveryLog` | Also keeps every try, successes too, for 30 days, listed as Webhook delivery log: status, try, status code, the first 2 KB of the answer and how long it took. Default false. |
+| `ownerRoles` | The roles an owner holds now in a tenant, for a project without Better Auth. |
+| `allowPrivateAddresses` | Lets URLs reach private addresses, for development and tests. Default false. |
