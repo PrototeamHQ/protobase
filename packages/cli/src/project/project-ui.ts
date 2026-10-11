@@ -22,13 +22,13 @@ export const mergedUiCode = (projectDir: string, extensions: Extension[]) => {
   const own = projectUiFile(projectDir)
   const hasOwn = existsSync(own)
   return [
-    `import { mergeUi } from '@protobase/ui'`,
+    `import { mergeUi, uiFromModule } from '@protobase/ui'`,
     ...files.map((file, i) => `import * as extension${i} from ${JSON.stringify(file)}`),
     ...(hasOwn ? [`import * as project from ${JSON.stringify(own)}`] : []),
     'const named = (ui, file) => ({ ...ui, name: ui.name ?? file })',
     `export default mergeUi(${[
-      ...files.map((file, i) => `named(extension${i}.default ?? {}, ${JSON.stringify(file)})`),
-      ...(hasOwn ? [`named(project.default ?? {}, "protobase.ui.tsx")`] : []),
+      ...files.map((file, i) => `named(uiFromModule(extension${i}), ${JSON.stringify(file)})`),
+      ...(hasOwn ? [`named(uiFromModule(project), "protobase.ui.tsx")`] : []),
     ].join(', ')})`,
     '',
   ].join('\n')

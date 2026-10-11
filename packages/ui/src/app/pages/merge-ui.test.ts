@@ -24,6 +24,13 @@ describe('mergeUi', () => {
     expect(() => mergeUi(defineUi({ extends: [defineUi({ components: { A: text('a') } })], components: { A: text('b') } }))).toThrow('The component "A" is defined twice, by UI config 1 extends[0] and by UI config 1')
   })
 
+  it('extends a whole protobase.ui.tsx module, its components exported by name included', () => {
+    const Board = text('board')
+    const merged = mergeUi(defineUi({ name: 'app', extends: [{ Board, default: cloud }] }))
+    expect(merged.components).toEqual({ ProtobaseCloudTask: TaskWidget, Board })
+    expect(Object.keys(merged.actions!)).toEqual(['cloud-sync'])
+  })
+
   it('draws every shell slot, the extended configs first', () => {
     const { shell } = mergeUi(defineUi({ extends: [cloud], shell: { actions: text('own action') } }))
     expect(renderToStaticMarkup(createElement(shell!.actions!))).toBe('<span>cloud action</span><span>own action</span>')

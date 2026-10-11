@@ -1,11 +1,15 @@
 import type { ComponentType } from 'react'
-import type { ProjectUi } from './project-ui'
+import type { ProjectUi, UiModule } from './project-ui'
+import { uiFromModule } from './ui-from-module'
 
 type Named = { ui: ProjectUi; label: string }
 
+// A module has a default export or components exported by name; a UI config has neither.
+const configOf = (parent: ProjectUi | UiModule): ProjectUi => (Object.keys(parent).some((key) => key === 'default' || /^[A-Z]/.test(key)) ? uiFromModule(parent) : (parent as ProjectUi))
+
 // Every UI config in merge order, each after the ones it extends, with the label errors name it by.
 const flatten = (ui: ProjectUi, label: string): Named[] => [
-  ...(ui.extends ?? []).flatMap((parent, index) => flatten(parent, parent.name ?? `${label} extends[${index}]`)),
+  ...(ui.extends ?? []).map(configOf).flatMap((parent, index) => flatten(parent, parent.name ?? `${label} extends[${index}]`)),
   { ui, label },
 ]
 

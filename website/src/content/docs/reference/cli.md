@@ -132,9 +132,10 @@ export default defineConfig({ extends: [tasks], config, auth, authenticate, opti
 ```tsx
 // protobase.ui.tsx
 import { defineUi } from '@protobase/ui'
-import tasksUi from 'some-extension/protobase.ui'
+import * as tasksUi from 'some-extension/protobase.ui'
 
-export default defineUi({ extends: [tasksUi], components: { UsageChart } })
+export { UsageChart } from './components/usage-chart'
+export default defineUi({ extends: [tasksUi] })
 ```
 
 | What | How it merges | The same name twice |
@@ -145,7 +146,7 @@ export default defineUi({ extends: [tasksUi], components: { UsageChart } })
 | `jobs` | all kept, by job name | an error naming the job and both configs |
 | `options.writeHooks` | all run, in the same order | |
 | every other value (`db`, `auth`, `authenticate`, `roles`, `assistant.url`, ...) | the app's own; otherwise the last config that sets it | |
-| UI `components`, `actions` | all kept | an error naming the name and both configs |
+| UI components (exported by name or in `components`), `actions` | all kept | an error naming the name and both configs |
 | UI `shell.actions`, `shell.rightPanel` | all drawn, the extended configs' first | |
 
 A config's `name` names it in these errors; an extension should set one. Nothing is namespaced, so a collision is always an error, never a silent override. Names starting with `Protobase` (components) and `protobase_` (tools) belong to Protobase's own extensions, such as `ProtobaseCloudTask` and `protobase_cloud_create_proposal`; give yours other names. `mergeConfig(...configs)` from `@protobase/server` and `mergeUi(...configs)` from `@protobase/ui` merge the same way in code.

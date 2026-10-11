@@ -88,8 +88,8 @@ export const proposeTask = defineTool({
 ```
 
 ```tsx
-// protobase.ui.tsx
-const TaskProposal = ({ taskId }: { taskId: number }) => {
+// components/task-proposal.tsx, exported from protobase.ui.tsx: export { TaskProposal } from './components/task-proposal'
+export const TaskProposal = ({ taskId }: { taskId: number }) => {
   const task = useRecord('tasks', taskId)
   const update = useUpdateRecord('tasks', taskId)
   if (!task.data) return <ActionCard title="Task proposal" note={task.error ? 'Could not load the task' : 'Loading'} />
@@ -101,8 +101,6 @@ const TaskProposal = ({ taskId }: { taskId: number }) => {
       onAction={(status) => update.mutate({ patch: { status }, etag })} />
   )
 }
-
-export default defineUi({ components: { TaskProposal } })
 ```
 
 The tool and its component live apart, joined by the name, since the server config cannot import `@protobase/ui` and the browser must not get server code; put shared prop types in a file both import with `import type`. Whoever may update the task decides on it, now or next month, from the chat or the task's own page, and a write hook can stamp who did from `event.user`; when two decide at once, the ETag makes the second write fail and the widget shows the first decision. The chat is not told: the model learns of the change by reading the record again, which the description asks it to do.
@@ -129,7 +127,7 @@ show(widget('TaskProposal', { taskId: record.id }, { fallback: { title: `Task pr
 
 ### How the dock draws them
 
-The dock draws a widget part with the component of that name in the app's `components`, the same registry [composed pages](/reference/custom-components/#components) use, giving it the part's props. The component reads what it shows when it is drawn, as the signed-in user: the dock is mounted only while it is open, so each opening, and each page load, reads it again. Its buttons call the app's API or the backend directly; they need no turn of the chat, so they work after a restart, from any tab and for any user who may make the call.
+The dock draws a widget part with the component the app's `protobase.ui.tsx` exports under that name, the same components [composed pages](/reference/custom-components/#components) use, giving it the part's props. The component reads what it shows when it is drawn, as the signed-in user: the dock is mounted only while it is open, so each opening, and each page load, reads it again. Its buttons call the app's API or the backend directly; they need no turn of the chat, so they work after a restart, from any tab and for any user who may make the call.
 
 - **No component by that name**, such as in an app built before the component was added: the dock draws the fallback as a plain card noting "This version of the app cannot show it live", or, without a fallback, a muted line naming the component.
 - **A component that throws** is caught on its own: the dock draws the fallback noting "It could not be drawn", without the error, and the rest of the chat stays.

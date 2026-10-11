@@ -5,10 +5,13 @@ description: React components and action handlers of your own in protobase.ui.ts
 
 import { Code } from '@astrojs/starlight/components'
 import erpUi from '../../../../../examples/erp/protobase.ui.tsx?raw'
+import ordersPerDay from '../../../../../examples/erp/components/orders-per-day.tsx?raw'
 
-Layouts are data; a project's React code lives in one module the admin bundles with itself: `protobase.ui.tsx` at the project root, beside `protobase.config.ts`. It default-exports `defineUi({ components, actions })` from `@protobase/ui`, so the project depends on `@protobase/ui`, and on `react` for its JSX. This is the ERP example's:
+Layouts are data; a project's React code lives in one module the admin bundles with itself: `protobase.ui.tsx` at the project root, beside `protobase.config.ts`. It exports each custom component under the name its layouts declare, each from a file of its own, and default-exports `defineUi({ actions })` from `@protobase/ui` for the rest, so the project depends on `@protobase/ui`, and on `react` for its JSX. This is the ERP example's:
 
 <Code code={erpUi} lang="tsx" title="examples/erp/protobase.ui.tsx" />
+
+<Code code={ordersPerDay} lang="tsx" title="examples/erp/components/orders-per-day.tsx" />
 
 `protobase dev` serves it with hot reload, and `protobase build` builds it into the bundle's `public/` with the rest of the admin. It is the only project code in the browser, so keep secrets out of it. A project without the file gets an empty one.
 
@@ -27,12 +30,12 @@ export const overview = page('overview', <Page title="Overview"><Card title="Ord
 
 The element stays data, `{ type: 'OrdersPerDay', props: { days: 30 }, children: [], custom: true }`, so its props follow the same [rules](/reference/layouts/#what-a-layout-may-hold) as any block's. The name must be PascalCase and not a built-in block's.
 
-In `protobase.ui.tsx`, `components` maps the name to a React component. It gets the props, and the rendered children when the element has any. Inside it:
+`protobase.ui.tsx` exports the React component under the same name. It gets the props, and the rendered children when the element has any. Inside it:
 
 - the hooks of `@protobase/ui` (`useList`, `useRecord`, `useSeries`, `useFacets`, `useHistogram`, `useClient`, ...) read the API with the user's token, under the same access rules as everything else;
 - `useLayoutRecord()` gives the record around it in a `RecordCard` or `CardRow` (`{ model, record, key, etag, permissions }`), and `undefined` elsewhere.
 
-A name with no registered component renders a warning in its place, so a missing registration shows on the page instead of failing silently.
+A name with no exported component renders a warning in its place, so a missing export shows on the page instead of failing silently. The object form, `defineUi({ components: { OrdersPerDay } })`, still works, and a name given both ways must be the same component.
 
 ### Fields and resources in props
 
@@ -48,7 +51,7 @@ A prop that names a field is a field reference, `fieldRef('plan.name')` from `@p
 
 ## Components in the chat
 
-The same `components` draw the assistant's [widget parts](/reference/assistant/#widget-parts): a part names a component, and the dock draws it with the part's props, so one component can sit on a page and in the chat. In the chat there is no record around it, so a component that needs `useLayoutRecord()` works only on pages; take ids as props instead. Besides the API hooks, a widget can read the assistant backend with [`useBackendData`](/reference/assistant/#reading-the-backend-from-a-widget).
+The same components draw the assistant's [widget parts](/reference/assistant/#widget-parts): a part names a component, and the dock draws it with the part's props, so one component can sit on a page and in the chat. In the chat there is no record around it, so a component that needs `useLayoutRecord()` works only on pages; take ids as props instead. Besides the API hooks, a widget can read the assistant backend with [`useBackendData`](/reference/assistant/#reading-the-backend-from-a-widget).
 
 ## Action handlers
 

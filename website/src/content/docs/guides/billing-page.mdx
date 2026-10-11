@@ -61,9 +61,9 @@ Making a card the default unsets the others in the database (a trigger or a writ
 
 Two things here are not built-in blocks.
 
-`SeatHistory` is a **custom component**. `component('SeatHistory')` declares it for the layout, with its props typed, and the element stays data: `{ type: 'SeatHistory', props: { months: 6 }, custom: true }`. The React code lives in the app, registered under the same name in `protobase.ui.tsx` at the project root, which the admin bundles with itself. Inside a RecordCard, `useLayoutRecord()` gives it the record.
+`SeatHistory` is a **custom component**. `component('SeatHistory')` declares it for the layout, with its props typed, and the element stays data: `{ type: 'SeatHistory', props: { months: 6 }, custom: true }`. The React code lives in the app, exported under the same name from `protobase.ui.tsx` at the project root, which the admin bundles with itself. Inside a RecordCard, `useLayoutRecord()` gives it the record.
 
-"Download PDF" is a named action without built-in behaviour (`a.action('download', ...)`), so it runs the handler registered under its name, with the record, the API client and the router. The ERP example registers one of each:
+"Download PDF" is a named action without built-in behaviour (`a.action('download', ...)`), so it runs the handler registered under its name, with the record, the API client and the router. The ERP example has one of each, its component in a file of its own:
 
 <Code code={erpUi} lang="tsx" title="protobase.ui.tsx" />
 
