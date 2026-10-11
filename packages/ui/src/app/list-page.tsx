@@ -1,6 +1,6 @@
 import { Plus, SlidersHorizontal } from 'lucide-react'
 import { useMemo, useState } from 'react'
-import { createWhere, encodeKey, type FilterExpr, type ResourceModel } from '@protobase/schema'
+import { createWhere, type FilterExpr, type ResourceModel } from '@protobase/schema'
 import { PageHeader } from '../app-shell'
 import { useAuth } from '../auth'
 import { DataGrid, pinnedStorageKey, type GridRow } from '../data-grid'
@@ -19,36 +19,35 @@ import { useDeleteFlow, type DeleteTarget } from './delete/use-delete-flow'
 import { useRestore } from './delete/use-restore'
 import { ErrorBanner } from './error-banner'
 import { ListChart } from './list-chart'
-import { defaultOrderBy, parseSort, sortToOrderBy } from './list-order'
+import { parseSort, sortToOrderBy } from './list-order'
 import { ListSearch } from './list-search'
 import { Notice, useAdminMeta, usePermissions } from './meta-gate'
 import { can, rowAllows } from './permissions'
-import { useRouter } from './router'
+import { useAppAddress, type ListAddress } from './use-app-address'
 
 const where = createWhere()
 const searchText = (extras: FilterExpr[]) => extras.find((clause) => clause.kind === 'search')
 
-export const ListPage = ({ resource }: { resource: string }) => {
+export const ListPage = ({ address }: { address: ListAddress }) => {
   const { resources } = useAdminMeta()
-  const model = resources[resource]
-  if (!model) return <Notice title="Not found">There is no resource called {resource}.</Notice>
-  return <LoadedList model={model} />
+  const model = resources[address.resource]
+  if (!model) return <Notice title="Not found">There is no resource called {address.resource}.</Notice>
+  return <LoadedList model={model} address={address} />
 }
 
-const LoadedList = ({ model }: { model: ResourceModel }) => {
+const LoadedList = ({ model, address }: { model: ResourceModel; address: ListAddress }) => {
   const meta = useAdminMeta()
-  const { params, setParams, navigate } = useRouter()
+  const { set, go } = useAppAddress()
   const resource = model.name
   const view = meta.views[resource]
   const fields = useMemo(() => widgetFields(view, model), [view, model])
   const columns = useMemo(() => columnsFromModel(model, view), [model, view])
 
-  const filterText = params.get('filter') ?? ''
+  const filterText = address.filter
   const parsed = useMemo(() => textToState(fields, filterText), [fields, filterText])
   const state: FilterState = parsed.ok ? parsed.state : emptyFilterState
   const extras = parsed.ok ? parsed.extras : []
-  const orderBy = params.get('order_by') ?? defaultOrderBy(model, view)
-  const layout = params.get('layout') === 'panel' ? 'panel' : 'bar'
+  const { orderBy, filterLayout: layout } = address
   const desktop = useIsDesktop()
   const [sheetOpen, setSheetOpen] = useState(false)
 
@@ -66,9 +65,9 @@ const LoadedList = ({ model }: { model: ResourceModel }) => {
   const permissions = usePermissions(resource)
   const { state: auth } = useAuth()
   const restore = useRestore(model)
-  const remove = useDeleteFlow({ model, view, restore, onReview: (deleted) => navigate(`/${resource}/${encodeURIComponent(deleted.key)}`) })
+  const remove = useDeleteFlow({ model, view, restore, onReview: (deleted) => go({ kind: 'record', resource, key: deleted.key }) })
 
-  const setFilter = (next: FilterState, nextExtras = extras) => setParams({ filter: stateToText(fields, next, nextExtras) || undefined })
+  const setFilter = (next: FilterState, nextExtras = extras) => set({ filter: stateToText(fields, next, nextExtras) })
   const search = searchText(extras)
   const commitSearch = (text: string) => {
     const others = extras.filter((clause) => clause.kind !== 'search')
@@ -94,15 +93,14 @@ const LoadedList = ({ model }: { model: ResourceModel }) => {
     </div>
   )
 
-  // The key goes in the path as one segment, so a slash or comma in it cannot split it
-  const openRecord = (row: GridRow) => navigate(`/${resource}/${encodeURIComponent(encodeKey(recordKey(model, row)))}`)
+  const openRecord = (row: GridRow) => go({ kind: 'record', resource, key: recordKey(model, row) })
 
   const grid = rows.source ? (
     <DataGrid
       columns={columns}
       source={rows.source}
       sort={parseSort(orderBy)}
-      onSortChange={(sort) => setParams({ order_by: sortToOrderBy(sort) })}
+      onSortChange={(sort) => set({ orderBy: sortToOrderBy(sort) })}
       onOpenRow={openRecord}
       rowActions={[
         { label: `Open ${singular.toLowerCase()}`, onSelect: openRecord },
@@ -127,7 +125,7 @@ const LoadedList = ({ model }: { model: ResourceModel }) => {
           <>
             {model.search?.length ? <ListSearch value={search?.kind === 'search' ? search.text : ''} onCommit={commitSearch} placeholder={`Search ${plural.toLowerCase()}`} /> : null}
             {can(permissions, 'create') && (
-              <Button variant="primary" onClick={() => navigate(`/${resource}/new`)}>
+              <Button variant="primary" onClick={() => go({ kind: 'create', resource })}>
                 <Plus className="size-3.5" />
                 New {singular.toLowerCase()}
               </Button>

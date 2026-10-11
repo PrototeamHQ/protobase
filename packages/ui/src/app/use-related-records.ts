@@ -1,5 +1,5 @@
 import { useQueries, useQueryClient } from '@tanstack/react-query'
-import type { ResourceModel, ViewModel } from '@protobase/schema'
+import { appPath, type AppAddress, type ResourceModel, type ViewModel } from '@protobase/schema'
 import { useClient } from '../data/api-provider'
 import { keys } from '../data/query-keys'
 import type { RelatedRecord } from '../record-view'
@@ -20,13 +20,14 @@ export const useRelatedRecords = (model: ResourceModel, view: ViewModel | undefi
       return { queryKey: keys.relatedLabel(target.name, id), queryFn: async () => (await fetchLabels(queryClient, client, target, [id], views[target.name])).get(id) ?? id }
     }),
   })
+  const addresses = relations.map((field): AppAddress => ({ kind: 'record', resource: field.relation!.resource, key: String(record[field.name]) }))
   return {
-    hrefs: Object.fromEntries(relations.map((field) => [field.name, `/${field.relation!.resource}/${encodeURIComponent(String(record[field.name]))}`])),
+    addresses: Object.fromEntries(relations.map((field, index) => [field.name, addresses[index]!])),
     labels: Object.fromEntries(relations.map((field, index) => [field.name, labels[index]?.data])),
     records: relations.map((field, index): RelatedRecord => ({
       kind: view?.fields[field.name]?.label ?? humanize(field.name),
       label: labels[index]?.data ?? String(record[field.name]),
-      href: `${basePath}/${field.relation!.resource}/${encodeURIComponent(String(record[field.name]))}`,
+      href: appPath(addresses[index]!, basePath),
     })),
   }
 }

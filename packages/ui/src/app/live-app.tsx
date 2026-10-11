@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { createAuthSession, createClient, createStaticSession } from '@protobase/client'
+import { appPath } from '@protobase/schema'
 import type { SidebarMode } from '../app-shell'
 import { App } from './app'
 
@@ -30,7 +31,7 @@ export const LiveApp = ({ baseUrl, start, sidebarMode }: { baseUrl: string; star
       const page = await createClient({ baseUrl, token: session.token }).list(start.firstOf, { pageSize: 1 })
       const first = page.items[0]
       if (!first) return done({ state: 'down', reason: `${start.firstOf} has no rows` })
-      done({ state: 'ready', path: `/${start.firstOf}/${first.id as string}${start.suffix ?? ''}` })
+      done({ state: 'ready', path: `${appPath({ kind: 'record', resource: start.firstOf, key: first.id as string })}${start.suffix ?? ''}` })
     }, down)
     return () => {
       current = false

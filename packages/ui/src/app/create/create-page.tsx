@@ -1,6 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
-import { encodeKey } from '@protobase/schema'
 import { isApiError } from '@protobase/client'
 import { useClient } from '../../data/api-provider'
 import { humanize } from '../../live/naming'
@@ -8,7 +7,7 @@ import { recordKey } from '../../live/model-helpers'
 import { FieldEditor } from '../field-editor'
 import { Notice, useAdminMeta, usePermissions } from '../meta-gate'
 import { can } from '../permissions'
-import { useRouter } from '../router'
+import { useAppAddress } from '../use-app-address'
 import { useLiveSave } from '../use-live-save'
 import { CreateRecordForm } from './create-record-form'
 import { createBody, createSections, hasDatabaseDefault, initialDraft, isChosen, isRequired, type Draft } from './create-values'
@@ -31,7 +30,7 @@ const LoadedCreate = ({ resource }: { resource: string }) => {
   const view = meta.views[resource]
   const client = useClient()
   const queryClient = useQueryClient()
-  const { navigate } = useRouter()
+  const { go } = useAppAddress()
   const noun = view?.names?.singular ?? humanize(resource)
   const feedback = useLiveSave(view?.saveFeedback ?? 'toast', `New ${noun.toLowerCase()}`)
   const sections = createSections(model, view)
@@ -53,7 +52,7 @@ const LoadedCreate = ({ resource }: { resource: string }) => {
         throw error
       }
       for (const prefix of ['page', 'list', 'first-page', 'facets', 'series']) void queryClient.invalidateQueries({ queryKey: [prefix, resource] })
-      navigate(`/${resource}/${encodeURIComponent(encodeKey(recordKey(model, created.record)))}`, { replace: true })
+      go({ kind: 'record', resource, key: recordKey(model, created.record) }, { replace: true })
     })
 
   const formSections = sections.map((section) => ({
@@ -95,7 +94,7 @@ const LoadedCreate = ({ resource }: { resource: string }) => {
       saving={feedback.phase === 'saving'}
       message={feedback.message}
       onSubmit={() => void submit()}
-      onCancel={() => navigate(`/${resource}`)}
+      onCancel={() => go({ kind: 'list', resource })}
     />
   )
 }

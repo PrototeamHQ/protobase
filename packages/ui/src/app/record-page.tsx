@@ -28,6 +28,7 @@ import { useLines } from './use-lines'
 import { useLinesDraft } from './use-lines-draft'
 import { useDeleteFlow } from './delete/use-delete-flow'
 import { useNavigationGuard, useRouter } from './router'
+import { useAppAddress } from './use-app-address'
 import { useRecordEditor } from './use-record-editor'
 import { useRelatedRecords } from './use-related-records'
 import { RelatedSection } from './related-section'
@@ -61,7 +62,8 @@ export const RecordPage = ({ resource, recordKey }: { resource: string; recordKe
 
 const LoadedRecord = ({ model, recordKey, stored }: { model: ResourceModel; recordKey: string; stored: NonNullable<ReturnType<typeof useRecord>['data']> }) => {
   const meta = useAdminMeta()
-  const { basePath, navigate } = useRouter()
+  const { basePath } = useRouter()
+  const { go, open } = useAppAddress()
   const view = meta.views[model.name]
   const singular = view?.names?.singular ?? humanize(model.name)
   const title = recordTitle(model, view, stored.record, recordKey)
@@ -88,7 +90,7 @@ const LoadedRecord = ({ model, recordKey, stored }: { model: ResourceModel; reco
     model,
     view,
     restore,
-    onDeleted: () => navigate(`/${model.name}`, { replace: true }),
+    onDeleted: () => go({ kind: 'list', resource: model.name }, { replace: true }),
     onReview: () => void queryClient.invalidateQueries({ queryKey: keys.record(model.name, recordKey) }),
   })
   const related = useRelatedRecords(model, view, meta.resources, meta.views, stored.record, basePath)
@@ -124,7 +126,7 @@ const LoadedRecord = ({ model, recordKey, stored }: { model: ResourceModel; reco
           value={editor.value(name)}
           stored={stored.record[name]}
           relationLabel={related.labels[name]}
-          relationHref={related.hrefs[name]}
+          relationTo={related.addresses[name]}
           locked={!canUpdate || access === 'read'}
           invalid={Boolean(editor.errors[name])}
           reveal={field.sensitive ? () => client.reveal(model.name, recordKey, name) : undefined}
@@ -223,7 +225,7 @@ const LoadedRecord = ({ model, recordKey, stored }: { model: ResourceModel; reco
             />
             {related.records.length > 0 && (
               <SidebarCard title="Related records">
-                <RelatedRecords records={related.records} onNavigate={(href) => navigate(href)} />
+                <RelatedRecords records={related.records} onNavigate={open} />
               </SidebarCard>
             )}
           </aside>

@@ -1,8 +1,8 @@
 import { Switch } from '../primitives/switch'
 import { Input } from '../primitives/input'
 import { cn } from '../lib/cn'
-import { Link } from './router'
-import { enumLabel, type FieldModel, type FieldViewModel, type ResourceModel, type ViewModel } from '@protobase/schema'
+import { AppLink } from './use-app-address'
+import { enumLabel, type AppAddress, type FieldModel, type FieldViewModel, type ResourceModel, type ViewModel } from '@protobase/schema'
 import { RelationPicker } from './relation-picker'
 import { SensitiveField } from './sensitive-field'
 import { FileField } from './file-field'
@@ -18,8 +18,8 @@ export type FieldEditorProps = {
   stored: unknown
   /** The name of the record a relation points at. */
   relationLabel?: string
-  /** Where a relation value leads, relative to the app's base path. */
-  relationHref?: string
+  /** The record a relation value leads to. */
+  relationTo?: AppAddress
   /** On the create form a relation is chosen; on the record page it is shown as a link. */
   relationPicker?: { target: ResourceModel; view: ViewModel | undefined }
   invalid?: boolean
@@ -35,7 +35,7 @@ export type FieldEditorProps = {
 
 const numeric = new Set(['integer', 'bigint', 'decimal'])
 
-export const FieldEditor = ({ field, hints, value, stored, relationLabel, relationHref, relationPicker, invalid, locked, placeholder, reveal, resource, onChange }: FieldEditorProps) => {
+export const FieldEditor = ({ field, hints, value, stored, relationLabel, relationTo, relationPicker, invalid, locked, placeholder, reveal, resource, onChange }: FieldEditorProps) => {
   if (field.type === 'file') return <FileField field={field} hints={hints} resource={resource ?? ''} value={value} locked={locked || !resource} invalid={invalid} onChange={onChange} />
   if (field.sensitive) return <SensitiveField field={field} hints={hints} value={value} reveal={reveal} locked={locked || field.readOnly} invalid={invalid} placeholder={placeholder} onChange={onChange} />
   if (field.type === 'relation' && relationPicker && !field.readOnly) {
@@ -45,7 +45,7 @@ export const FieldEditor = ({ field, hints, value, stored, relationLabel, relati
   if (field.type === 'boolean') return <Switch checked={Boolean(value)} onChange={onChange} label={field.name} />
   if (field.type === 'relation') {
     const label = relationLabel ?? String(stored ?? '—')
-    return <div className="py-1.5 text-[13px]">{relationHref ? <Link to={relationHref} className="font-medium text-primary-text hover:underline">{label}</Link> : label}</div>
+    return <div className="py-1.5 text-[13px]">{relationTo ? <AppLink to={relationTo} className="font-medium text-primary-text hover:underline">{label}</AppLink> : label}</div>
   }
   if (!isEditable(field) || locked) return <div className={cn('py-1.5 text-[13px] tabular-nums', field.type === 'decimal' || field.type === 'integer' ? 'font-medium' : 'text-muted-foreground')}>{displayValue(field, stored, hints)}</div>
   if (field.type === 'enum') {

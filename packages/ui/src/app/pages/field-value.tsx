@@ -9,7 +9,7 @@ import { fetchLabels } from '../../live/relation-labels'
 import { cn } from '../../lib/cn'
 import { Badge } from '../../primitives/badge'
 import { useAdminMeta } from '../meta-gate'
-import { Link } from '../router'
+import { AppLink } from '../use-app-address'
 
 const RelationValue = ({ field, value, known }: { field: FieldModel; value: unknown; known?: string }) => {
   const { resources, views } = useAdminMeta()
@@ -24,9 +24,9 @@ const RelationValue = ({ field, value, known }: { field: FieldModel; value: unkn
   })
   if (!target) return <span>{id}</span>
   return (
-    <Link to={`/${target.name}/${encodeURIComponent(id)}`} className="font-medium text-primary-text hover:underline">
+    <AppLink to={{ kind: 'record', resource: target.name, key: id }} className="font-medium text-primary-text hover:underline">
       {known ?? label.data ?? id}
-    </Link>
+    </AppLink>
   )
 }
 

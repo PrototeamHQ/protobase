@@ -2,7 +2,7 @@ import type { StatProps } from '@protobase/layout'
 import type { ResourceModel } from '@protobase/schema'
 import { Skeleton } from '../../../primitives/skeleton'
 import { useAdminMeta } from '../../meta-gate'
-import { Link } from '../../router'
+import { AppLink } from '../../use-app-address'
 import { FieldValue } from '../field-value'
 import { useLayoutRecord } from '../record-scope'
 import { useCount } from '../use-layout-data'
@@ -16,11 +16,10 @@ const Count = ({ model, filter }: { model: ResourceModel; filter?: string }) => 
   const count = useCount(model, filter)
   if (count.isPending) return <Skeleton className="h-8 w-16" />
   if (count.error) return <span className="text-[13px] text-danger-text">Could not count</span>
-  const href = `/${model.name}${filter ? `?filter=${encodeURIComponent(filter)}` : ''}`
   return (
-    <Link to={href} className={`${big} hover:text-primary-text`}>
+    <AppLink to={{ kind: 'list', resource: model.name, filter }} className={`${big} hover:text-primary-text`}>
       {count.data.toLocaleString('en-IE')}
-    </Link>
+    </AppLink>
   )
 }
 

@@ -30,10 +30,11 @@ import { useProjectUi, type ProjectUi } from './pages/project-ui'
 import { ProjectUiProvider } from './pages/project-ui-provider'
 import { RecordPage } from './record-page'
 import { useGlobalSearch } from './search/use-global-search'
-import { Router, matchRoute, useRouter } from './router'
+import { Router, useRouter } from './router'
 import { RuntimeUpdateButton } from './runtime/runtime-update'
 import { StaffBanner } from './staff-banner'
 import { useNavRecent } from './use-nav-recent'
+import { useAppAddress, type CurrentAddress } from './use-app-address'
 import { userMenuFromMeta } from './user-menu-from-meta'
 
 export type AppProps = {
@@ -57,31 +58,39 @@ export type AppProps = {
   runtime?: RuntimeClient
 }
 
+// The resource or page an address is about, which the sidebar marks; a record's key, which its recent records mark.
+const placeOf = (address: CurrentAddress | undefined) => (address?.kind === 'page' ? address.page : address?.resource)
+const recordOf = (address: CurrentAddress | undefined) => (address?.kind === 'record' ? address : undefined)
+
 const Routes = ({ workspace, sidebarMode, assistant, runtime }: Pick<AppProps, 'workspace' | 'sidebarMode' | 'assistant' | 'runtime'>) => {
   const meta = useAdminMeta()
   const { state, session, signOut, stopStaffSession, organizations: organizationSettings } = useAuth()
   if (state.kind !== 'signed-in') throw new Error('The shell is only rendered for a signed-in user')
   const { user, staff } = state
-  const { path, params, basePath, navigate } = useRouter()
-  const route = matchRoute(path)
+  const { path, params, basePath } = useRouter()
+  const { address, go, open } = useAppAddress()
+  const place = placeOf(address)
+  const shown = recordOf(address)
   const search = useGlobalSearch()
-  const recent = useNavRecent(meta, basePath, route)
+  const recent = useNavRecent(meta, basePath, { resource: place, key: shown?.key })
   const groups = navFromMeta(meta, basePath, recent)
-  const first = Object.keys(meta.pages)[0] ?? Object.keys(meta.resources)[0]
-  const page = route.resource && !route.key ? meta.pages[route.resource] : undefined
+  const firstPage = Object.keys(meta.pages)[0]
+  const firstResource = Object.keys(meta.resources)[0]
+  const page = address?.kind === 'page' ? meta.pages[address.page] : undefined
 
-  // Links in the shell carry the base path; the router takes paths below it
-  const open = (href: string) => navigate(href.startsWith(basePath) ? href.slice(basePath.length) : href)
-
+  // The root opens the first page, else the first resource's list
   useEffect(() => {
-    if (!route.resource && first) navigate(`/${first}`, { replace: true })
-  }, [route.resource, first, navigate])
+    if (path !== '/') return
+    if (firstPage) go({ kind: 'page', page: firstPage }, { replace: true })
+    else if (firstResource) go({ kind: 'list', resource: firstResource }, { replace: true })
+  }, [path, firstPage, firstResource, go])
 
-  const view = route.resource ? meta.views[route.resource] : undefined
-  const group = groups.find((entry) => entry.items.some((item) => item.id === route.resource))
-  const model = route.resource ? meta.resources[route.resource] : undefined
-  const record = useRecord(route.resource ?? '', route.key ?? '', Boolean(model && route.key && route.key !== 'new'))
-  const title = model && record.data ? recordTitle(model, view, record.data.record, route.key ?? '') : route.key
+  const resource = address?.kind === 'page' ? undefined : address?.resource
+  const view = resource ? meta.views[resource] : undefined
+  const group = groups.find((entry) => entry.items.some((item) => item.id === place))
+  const model = resource ? meta.resources[resource] : undefined
+  const record = useRecord(shown?.resource ?? '', shown?.key ?? '', Boolean(model && shown))
+  const title = model && shown && record.data ? recordTitle(model, view, record.data.record, shown.key) : shown?.key
   const { shell } = useProjectUi()
   const Actions = shell?.actions
   const RightPanel = shell?.rightPanel
@@ -104,7 +113,7 @@ const Routes = ({ workspace, sidebarMode, assistant, runtime }: Pick<AppProps, '
   const organizationPage = organizationSettings ? organizationPageTitles[path] : undefined
   // The account pages are the app's own, under `/-/`; everything else is a page or a resource.
   const accountPage = path === accountSecurityPath ? 'Sign-in & security' : path === signInPolicyPath ? 'Sign-in policy' : organizationPage
-  const breadcrumb = accountPage ? [accountPage] : breadcrumbFor({ basePath, route, group: group?.label, page, resourceLabel: view?.names?.plural ?? (route.resource && humanize(route.resource)), recordTitle: title })
+  const breadcrumb = accountPage ? [accountPage] : breadcrumbFor({ basePath, address, group: group?.label, page, resourceLabel: view?.names?.plural ?? (resource && humanize(resource)), recordTitle: title })
   const content =
     path === accountSecurityPath ? (
       <AccountSecurityPage email={user.email} />
@@ -116,29 +125,29 @@ const Routes = ({ workspace, sidebarMode, assistant, runtime }: Pick<AppProps, '
       !managesOrganization(current) ? <Notice title="Owners and admins only">Only the organization's owners and admins manage its members.</Notice> : path === membersPath ? <MembersPage current={current} /> : <InvitationsPage current={current} />
     ) : (organizationPage && path === organizationsPath) || outsideOrganizations ? (
       <OrganizationsPage state={organizations} basePath={basePath} />
-    ) : !route.resource ? (
-      <Notice title="Choose a resource">Pick one from the sidebar.</Notice>
-    ) : page ? (
-      <ComposedPage key={page.name} name={page.name} />
-    ) : route.key === 'new' ? (
-      <CreatePage key={`${route.resource}/new`} resource={route.resource} />
-    ) : route.key ? (
-      <RecordPage key={`${route.resource}/${route.key}`} resource={route.resource} recordKey={route.key} />
+    ) : !address ? (
+      path === '/' ? <Notice title="Choose a resource">Pick one from the sidebar.</Notice> : <Notice title="Not found">There is nothing at this address.</Notice>
+    ) : address.kind === 'page' ? (
+      page ? <ComposedPage key={page.name} name={page.name} /> : <Notice title="Not found">There is no page called {address.page}.</Notice>
+    ) : address.kind === 'create' ? (
+      <CreatePage key={`${address.resource}/new`} resource={address.resource} />
+    ) : address.kind === 'record' ? (
+      <RecordPage key={`${address.resource}/${address.key}`} resource={address.resource} recordKey={address.key} />
     ) : (
-      <ListPage key={route.resource} resource={route.resource} />
+      <ListPage key={address.resource} address={address} />
     )
 
   const appShell = (
     <AppShell
       sidebarMode={sidebarMode ?? 'text-small'}
-      activeItem={route.resource ?? ''}
+      activeItem={place ?? ''}
       breadcrumb={breadcrumb}
       user={userToShell(acting)}
       onSignOut={() => void signOut()}
       workspace={current?.organization?.name ?? workspace}
       navGroups={groups}
-      bottomBar={bottomBarFromMeta(meta, basePath, route.resource)}
-      userMenu={[...userMenuFromMeta(meta, basePath, route.resource), ...(organizationSettings ? organizationMenuItems(basePath, path, current) : []), ...accountMenuItems(basePath, path, admin)]}
+      bottomBar={bottomBarFromMeta(meta, basePath, place)}
+      userMenu={[...userMenuFromMeta(meta, basePath, place), ...(organizationSettings ? organizationMenuItems(basePath, path, current) : []), ...accountMenuItems(basePath, path, admin)]}
       organizations={
         organizationSettings && {
           ...(current?.organization && { current: { id: current.organization.id, name: current.organization.name } }),

@@ -44,7 +44,7 @@ export const Step1Checks: StoryObj = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
     await canvas.findByRole('heading', { name: 'Sales overview' })
-    expect(await (await statValue(canvas, 'Draft orders')).findByRole('link', { name: '2' })).toHaveAttribute('href', `/orders?filter=${encodeURIComponent("status = 'draft'")}`)
+    expect(await (await statValue(canvas, 'Draft orders')).findByRole('link', { name: '2' })).toHaveAttribute('href', `/orders?${new URLSearchParams({ filter: "status = 'draft'" })}`)
     expect(await (await statValue(canvas, 'Delivered, not paid')).findByRole('link', { name: '2' })).toBeVisible()
     expect(await (await statValue(canvas, 'Overdue invoices')).findByRole('link', { name: '3' })).toBeVisible()
     expect(await (await statValue(canvas, 'Open leads')).findByRole('link', { name: '3' })).toBeVisible()

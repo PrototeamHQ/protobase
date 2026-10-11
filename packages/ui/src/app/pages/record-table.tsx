@@ -4,7 +4,7 @@ import type { ResourceModel } from '@protobase/schema'
 import { humanize } from '../../live/naming'
 import { Button } from '../../primitives/button'
 import { useAdminMeta } from '../meta-gate'
-import { Link } from '../router'
+import { AppLink } from '../use-app-address'
 import { FieldValue } from './field-value'
 import { scopeOf } from './use-layout-data'
 import { usePathValue } from './use-path-value'
@@ -72,9 +72,9 @@ export const RecordTable = ({ model, columns, rows, label, pager }: { model: Res
                   {columns.map((column, index) => (
                     <td key={column} className="px-4 py-2">
                       {index === 0 && opensRecord ? (
-                        <Link to={`/${model.name}/${encodeURIComponent(scope.key)}`} className="font-medium text-primary-text hover:underline">
+                        <AppLink to={{ kind: 'record', resource: model.name, key: scope.key }} className="font-medium text-primary-text hover:underline">
                           {cell(row, column)}
-                        </Link>
+                        </AppLink>
                       ) : (
                         cell(row, column)
                       )}

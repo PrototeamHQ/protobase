@@ -1,4 +1,5 @@
 import { ExternalLink, LayoutDashboard } from 'lucide-react'
+import { appPath } from '@protobase/schema'
 import type { ProfileMenuItem } from '../app-shell'
 import type { MetaData } from '../data/meta-data'
 import { humanize } from '../live/naming'
@@ -15,13 +16,13 @@ export const userMenuFromMeta = (meta: MetaData, basePath: string, activeResourc
     if (item.kind === 'link') return { id: `link-${index}`, label: item.label, icon: menuIcon(item.icon, ExternalLink), href: item.href, external: true }
     if (item.kind === 'page') {
       const page = meta.pages[item.page]
-      return { id: item.page, label: item.label ?? page?.title ?? humanize(item.page), icon: menuIcon(item.icon ?? page?.icon, LayoutDashboard), href: `${basePath}/${item.page}`, active: item.page === activeResource }
+      return { id: item.page, label: item.label ?? page?.title ?? humanize(item.page), icon: menuIcon(item.icon ?? page?.icon, LayoutDashboard), href: appPath({ kind: 'page', page: item.page }, basePath), active: item.page === activeResource }
     }
     return {
       id: item.resource,
       label: item.label ?? meta.views[item.resource]?.names?.plural ?? humanize(item.resource),
       icon: menuIcon(item.icon, iconFor(item.resource)),
-      href: `${basePath}/${item.resource}`,
+      href: appPath({ kind: 'list', resource: item.resource }, basePath),
       active: item.resource === activeResource,
     }
   })

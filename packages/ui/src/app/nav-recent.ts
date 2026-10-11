@@ -1,5 +1,5 @@
 import type { NavRecord } from '../app-shell'
-import { defaultRecentLimit, encodeKey, enumLabel, type NavRecentModel, type ResourceModel, type ViewModel } from '@protobase/schema'
+import { appPath, defaultRecentLimit, encodeKey, enumLabel, type NavRecentModel, type ResourceModel, type ViewModel } from '@protobase/schema'
 import { recordKey, recordTitle, recordTitleField } from '../live/model-helpers'
 import { defaultOrderBy } from './list-order'
 
@@ -26,7 +26,7 @@ export const recentRecords = (
     return {
       id: key,
       label: recordTitle(model, view, row, key),
-      href: `${basePath}/${model.name}/${encodeURIComponent(key)}`,
+      href: appPath({ kind: 'record', resource: model.name, key }, basePath),
       status: model.fields[recent.status]?.type === 'enum' && status ? enumLabel(status, view.fields[recent.status]?.valueLabels) : status,
       tone: recent.tones[status] ?? 'neutral',
       pulse: recent.pulse?.includes(status) ?? false,

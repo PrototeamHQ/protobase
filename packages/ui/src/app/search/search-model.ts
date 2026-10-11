@@ -1,4 +1,4 @@
-import { createWhere, encodeKey, enumLabel, matchedSearchField, printFilter, type ResourceModel, type ViewModel } from '@protobase/schema'
+import { appPath, createWhere, encodeKey, enumLabel, matchedSearchField, printFilter, type ResourceModel, type ViewModel } from '@protobase/schema'
 import type { SearchResultGroup } from '../../app-shell'
 import type { MetaData } from '../../data/meta-data'
 import { recordKey, recordTitleField } from '../../live/model-helpers'
@@ -77,6 +77,6 @@ export const toHit = (target: SearchTarget, row: Record<string, unknown>, text: 
     id: key,
     title: title.map((name) => shown(target, row, name)).filter(Boolean).join(' ') || key,
     ...(subtitle && { subtitle }),
-    href: `${basePath}/${target.model.name}/${encodeURIComponent(key)}`,
+    href: appPath({ kind: 'record', resource: target.model.name, key }, basePath),
   }
 }

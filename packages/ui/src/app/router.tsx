@@ -7,9 +7,8 @@ type RouterValue = {
   path: string
   params: URLSearchParams
   basePath: string
+  /** Moves to a path below the base path, as `appPath` writes it. */
   navigate: (to: string, options?: { replace?: boolean }) => void
-  /** Merges query parameters into the current URL; `undefined` removes one. */
-  setParams: (patch: Record<string, string | undefined>) => void
   /** Asks to be told before the page changes; returns how to stop asking. Used by `useNavigationGuard`. */
   registerGuard: () => () => void
 }
@@ -89,7 +88,7 @@ export const Router = ({ basePath = '', initialUrl, children }: RouterProps) => 
 
   const navigate = useCallback(
     (to: string, { replace = false }: { replace?: boolean } = {}) => {
-      const full = to.startsWith(basePath) && basePath ? to : `${basePath}${to}`
+      const full = `${basePath}${to}`
       if (pathOf(full) !== pathOf(urlRef.current) && guards.current.size > 0) return setPending({ kind: 'link', full, replace })
       go(full, replace)
     },
@@ -119,15 +118,6 @@ export const Router = ({ basePath = '', initialUrl, children }: RouterProps) => 
       basePath,
       navigate,
       registerGuard,
-      setParams: (patch) => {
-        const next = new URLSearchParams(parsed.searchParams)
-        for (const [name, entry] of Object.entries(patch)) {
-          if (entry === undefined || entry === '') next.delete(name)
-          else next.set(name, entry)
-        }
-        const query = next.toString()
-        navigate(`${path}${query ? `?${query}` : ''}`, { replace: true })
-      },
     }
   }, [url, basePath, navigate, registerGuard])
 
@@ -167,14 +157,6 @@ export const Link = ({ to, onClick, ...rest }: AnchorHTMLAttributes<HTMLAnchorEl
       {...rest}
     />
   )
-}
-
-export type Route = { resource?: string; key?: string }
-
-/** `/orders` is a list, `/orders/<key>` a record; composite keys stay in their comma-joined form. */
-export const matchRoute = (path: string): Route => {
-  const [resource, key] = path.split('/').filter(Boolean)
-  return { resource: resource && decodeURIComponent(resource), key: key && decodeURIComponent(key) }
 }
 
 /** While `active`, leaving the page asks first (in-app links and closing the tab). */

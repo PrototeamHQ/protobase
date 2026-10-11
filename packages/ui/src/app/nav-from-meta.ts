@@ -1,3 +1,4 @@
+import { appPath } from '@protobase/schema'
 import type { NavGroup, NavRecent } from '../app-shell'
 import type { MetaData } from '../data/meta-data'
 import { humanize } from '../live/naming'
@@ -21,7 +22,7 @@ export const navFromMeta = (meta: MetaData, basePath = '', recent: Record<string
     if (page.nav?.hidden || inMenu.has(page.name)) continue
     const groupName = page.nav?.group ?? 'Pages'
     const group = groups.get(groupName) ?? { label: groupName, items: [] }
-    group.items.push({ id: page.name, label: page.title, icon: menuIcon(page.icon, LayoutDashboard), href: `${basePath}/${page.name}` })
+    group.items.push({ id: page.name, label: page.title, icon: menuIcon(page.icon, LayoutDashboard), href: appPath({ kind: 'page', page: page.name }, basePath) })
     groups.set(groupName, group)
     orders.set(page.name, page.nav?.order ?? Number.MAX_SAFE_INTEGER)
   }
@@ -35,7 +36,7 @@ export const navFromMeta = (meta: MetaData, basePath = '', recent: Record<string
       id: model.name,
       label: view.names?.plural ?? humanize(model.name),
       icon: iconFor(model.name),
-      href: `${basePath}/${model.name}`,
+      href: appPath({ kind: 'list', resource: model.name }, basePath),
       ...(recent[model.name] && { recent: recent[model.name] }),
     })
     groups.set(groupName, group)
