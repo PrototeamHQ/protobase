@@ -16,6 +16,7 @@ import { serveBundle } from './serve/serve-bundle'
 import { serveBundleDir } from './serve/serve-dir'
 import { registerOrganizations } from './organizations/register'
 import { registerFiles } from './files/register'
+import { registerMigration } from './migration/register'
 import { registerToken, registerUsers } from './users/register'
 import type { UiSection } from './scaffold/ui-file'
 
@@ -137,6 +138,7 @@ registerUsers(program)
 registerOrganizations(program)
 registerToken(program)
 registerAuth(program)
+registerMigration(program)
 registerFiles(program)
 
 // Central error handler: commands throw, the user sees one line.

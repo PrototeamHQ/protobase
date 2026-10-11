@@ -24,6 +24,7 @@ export const createServeApp = ({ project, db, requestLog, site }: ServeAppInput)
     ...(project.auth && { auth: project.auth }),
     ...(project.functions && { functions: project.functions }),
     ...(project.files && { files: project.files }),
+    ...(project.events && { events: project.events }),
     options: { onUnhandledError: (error) => console.error(error), ...project.options },
   })
   const app = new Hono()

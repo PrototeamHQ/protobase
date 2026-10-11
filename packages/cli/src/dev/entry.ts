@@ -1,5 +1,5 @@
 import { Hono } from 'hono'
-import { checkAuthSchema, configExports, createAdmin, hasUsers } from '@protobase/server'
+import { checkAuthSchema, checkChanges, configExports, createAdmin, hasUsers } from '@protobase/server'
 import { loadProject, projectDb } from './project'
 
 // Loaded by Vite's SSR module graph (see run.ts). Editing any file it imports re-evaluates this module
@@ -20,6 +20,9 @@ if (project.auth && !store.__protobaseAuthSchemaChecked) {
   store.__protobaseAuthSchemaChecked = true
 }
 
+// On every load, since editing the config can give a resource events whose triggers the database lacks.
+await checkChanges(db, resources.map((resource) => resource.toModel()), project.events)
+
 const admin = createAdmin({
   resources,
   views,
@@ -30,6 +33,7 @@ const admin = createAdmin({
   ...(project.auth && { auth: project.auth }),
   ...(project.functions && { functions: project.functions }),
   ...(project.files && { files: project.files }),
+  ...(project.events && { events: project.events }),
   options: { onUnhandledError: (error) => console.error(error), ...project.options },
 })
 
