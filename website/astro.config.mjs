@@ -35,6 +35,7 @@ export default defineConfig({
             'reference/custom-components',
             'reference/sidebar',
             'reference/user-menu',
+            'reference/bottom-bar',
             'reference/assistant',
             'reference/cli',
             'reference/versioning',
