@@ -6,7 +6,7 @@ import { buildConfigBundle } from './config-bundle'
 import { protobaseVersion } from '../version/version'
 import { copyPackages } from './packages/copy-packages'
 import { buildUiBundle } from './ui-bundle'
-import { checkUiMerge } from './ui-check'
+import { checkUi } from './ui-check'
 import type { Extension } from '../project/extensions'
 
 export type DeployBundleInput = { projectDir: string; outDir: string; bun?: boolean; extensions?: Extension[] }
@@ -24,12 +24,13 @@ const removeOwnNodeModules = async (outDir: string) => {
 
 // The folder a host deploys: the config module for the serve runtime with the packages it loads from disk, the admin
 // UI under public/ and the manifest saying which paths go to the server and which Protobase version built it. Nothing of
-// the project's server config runs at build time; with extensions that have UI configs, the merged UI configs are loaded
-// once to check their names.
+// the project's server config runs at build time; when it declares custom components, or extensions have UI configs,
+// the UI is loaded once to check its names against the config's and each other's.
 export const buildDeployBundle = async ({ projectDir, outDir, bun, extensions = [] }: DeployBundleInput): Promise<BundleManifest> => {
   await removeOwnNodeModules(outDir)
-  if (extensions.some((extension) => extension.ui)) await checkUiMerge(projectDir, extensions)
-  const native = await buildConfigBundle({ projectDir, outFile: path.join(outDir, bundleLayout.server), bun, extensions })
+  const components = new Set<string>()
+  const native = await buildConfigBundle({ projectDir, outFile: path.join(outDir, bundleLayout.server), bun, extensions, components })
+  await checkUi(projectDir, extensions, components)
   const packages = native.length > 0 ? await copyPackages(native, path.join(outDir, bundleNodeModules)) : []
   await buildUiBundle({ outDir: path.join(outDir, bundleLayout.public), projectDir, extensions })
   const manifest: BundleManifest = { version: 2, protobase: protobaseVersion, ...bundleLayout, api: [...bundleLayout.api], ...(packages.length > 0 ? { nodeModules: bundleNodeModules } : {}) }

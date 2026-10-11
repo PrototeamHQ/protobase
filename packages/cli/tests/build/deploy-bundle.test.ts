@@ -99,6 +99,24 @@ describe('buildDeployBundle', () => {
     expect(manifest.api).toEqual(['/api'])
   }, buildTimeout)
 
+  it('builds the components protobase.ui.tsx exports by name, each from its own file, and fails on a declared one it lacks', async () => {
+    const declared = `import { component } from '@protobase/layout'\n${things}export const RepairBoard = component<{ by: string }>('RepairBoard')\nexport const PlanCard = component('PlanCard')\n`
+    projectDir = await createProject({
+      'config/index.ts': declared,
+      'ui/repair-board.tsx': `export const RepairBoard = ({ by }: { by: string }) => <p>Board by {by} 7c1d</p>\n`,
+      'protobase.ui.tsx': `import { defineUi } from '@protobase/ui'\nexport { RepairBoard } from './ui/repair-board'\nexport default defineUi({ components: { PlanCard: () => <p>Plan</p> } })\n`,
+    })
+    const outDir = path.join(projectDir, 'dist')
+    await buildDeployBundle({ projectDir, outDir })
+    const assets = await readdir(path.join(outDir, 'public/assets'))
+    expect(await readFile(path.join(outDir, 'public/assets', assets.find((file) => /^index-[\w-]+\.js$/.test(file))!), 'utf8')).toContain('Board by')
+
+    await writeFile(path.join(projectDir, 'protobase.ui.tsx'), `export { RepairBoard } from './ui/repair-board'\n`)
+    await expect(buildDeployBundle({ projectDir, outDir })).rejects.toThrow(
+      "The config declares component('PlanCard'), but protobase.ui.tsx exports no component by that name. Export each from its own file and re-export it, such as: export { PlanCard } from './ui/PlanCard'",
+    )
+  }, buildTimeout)
+
   it('builds the ERP through the CLI without BETTER_AUTH_SECRET or a database', async () => {
     projectDir = path.join(root, 'examples/erp', `.deploy-test-${randomBytes(4).toString('hex')}`)
     const env = { PATH: process.env.PATH, HOME: process.env.HOME, DATABASE_URL: 'postgres://nobody@127.0.0.1:1/none' }
