@@ -49,7 +49,7 @@ export const startServe = async ({ project, env, createDb = (url) => createPgDb(
     await checkChanges(db, resources.map((resource) => resource.toModel()), project.events)
     if (definitions.length > 0) await checkJobsSchema(db)
     const jobs = definitions.length > 0 ? await startJobs({ db, jobs: definitions, work: env.runJobs, onError: (error) => console.error(error) }) : undefined
-    const app = createServeApp({ project, db, requestLog: env.requestLog, site })
+    const app = createServeApp({ project, db, requestLog: env.requestLog, site, ...(jobs && { jobs }), ...(env.drainToken && { drainToken: env.drainToken }) })
     const server = createAdaptorServer({ fetch: app.fetch }) as Server
     await listen(server, env.port).catch(async (error: Error) => {
       await jobs?.stop()

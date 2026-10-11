@@ -9,14 +9,14 @@ export const withDatabase = (target: string, database: string) => {
   return next.toString()
 }
 
-// Resolves once a serve process prints that it listens; rejects when it exits first or takes longer than `timeout`.
-export const untilListening = (child: ChildProcess, timeout: number) =>
+// Resolves once a process prints `text`; rejects when it exits first or takes longer than `timeout`.
+export const untilPrinted = (child: ChildProcess, text: string, timeout: number) =>
   new Promise<void>((resolve, reject) => {
     let output = ''
-    const timer = setTimeout(() => reject(new Error(`serve process not ready in time:\n${output}`)), timeout)
+    const timer = setTimeout(() => reject(new Error(`process did not print "${text}" in time:\n${output}`)), timeout)
     const collect = (chunk: Buffer) => {
       output += chunk
-      if (!output.includes('protobase serve listening')) return
+      if (!output.includes(text)) return
       clearTimeout(timer)
       resolve()
     }
@@ -24,9 +24,12 @@ export const untilListening = (child: ChildProcess, timeout: number) =>
     child.stderr?.on('data', collect)
     child.once('exit', (code) => {
       clearTimeout(timer)
-      reject(new Error(`serve process exited with ${code}:\n${output}`))
+      reject(new Error(`process exited with ${code}:\n${output}`))
     })
   })
+
+// Resolves once a serve process prints that it listens.
+export const untilListening = (child: ChildProcess, timeout: number) => untilPrinted(child, 'protobase serve listening', timeout)
 
 export const stopProcess = async (child: ChildProcess | undefined) => {
   if (!child || child.exitCode !== null || child.signalCode !== null) return

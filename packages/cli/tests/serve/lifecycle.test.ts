@@ -1,5 +1,5 @@
 import { PGlite } from '@electric-sql/pglite'
-import { Kysely } from 'kysely'
+import { Kysely, sql } from 'kysely'
 import { PGliteDialect } from 'kysely-pglite-dialect'
 import { describe, expect, it, vi } from 'vitest'
 import { defineJob, unauthorized } from '@protobase/server'
@@ -106,6 +106,46 @@ describe('startServe', () => {
       expect(run).not.toHaveBeenCalled()
     } finally {
       await server.close()
+    }
+  }, 30_000)
+
+  it('drains due jobs for the operator, with POST /api/jobs/drain and the drain token', async () => {
+    const db = new Kysely<any>({ dialect: new PGliteDialect(await createJobsPg()) })
+    const run = vi.fn()
+    const job = defineJob({ name: 'drained', run })
+    const server = await startServe({ project: { ...project, db, jobs: { job } }, env: { ...env, databaseUrl: undefined, drainToken: 'operator-token' } })
+    const drain = (token?: string, query = '') =>
+      fetch(`http://localhost:${server.port}/api/jobs/drain${query}`, { method: 'POST', headers: token ? { authorization: `Bearer ${token}` } : {} })
+    try {
+      await sql`select jobs.enqueue('drained')`.execute(db)
+      expect((await drain()).status).toBe(401)
+      expect((await drain('a user token')).status).toBe(401)
+      expect((await drain('operator-token', '?seconds=0')).status).toBe(400)
+      const drained = await drain('operator-token', '?seconds=20')
+      expect(drained.status).toBe(200)
+      expect(await drained.json()).toEqual({ drained: true, remaining: 0, nextDue: null })
+      expect(run).toHaveBeenCalledTimes(1)
+    } finally {
+      await server.close()
+    }
+  }, 30_000)
+
+  it('has no drain endpoint without a drain token, and refuses to drain with PROTOBASE_JOBS=off', async () => {
+    const db = new Kysely<any>({ dialect: new PGliteDialect(await createJobsPg()) })
+    const job = defineJob({ name: 'elsewhere', run: () => {} })
+    const without = await startServe({ project: { ...project, db, jobs: { job } }, env: { ...env, databaseUrl: undefined } })
+    try {
+      expect((await fetch(`http://localhost:${without.port}/api/jobs/drain`, { method: 'POST', headers: { authorization: 'Bearer ok' } })).status).toBe(404)
+    } finally {
+      await without.close()
+    }
+    const off = await startServe({ project: { ...project, db, jobs: { job } }, env: { ...env, databaseUrl: undefined, runJobs: false, drainToken: 't' } })
+    try {
+      const refused = await fetch(`http://localhost:${off.port}/api/jobs/drain`, { method: 'POST', headers: { authorization: 'Bearer t' } })
+      expect(refused.status).toBe(409)
+      expect((await refused.json()).detail).toBe('This process runs no jobs (PROTOBASE_JOBS=off); drain the one that does')
+    } finally {
+      await off.close()
     }
   }, 30_000)
 })

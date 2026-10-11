@@ -17,6 +17,7 @@ const reachable = await databaseReachable(url)
 
 // Building the bundle and the runtime, migrating the auth store and starting Bun are slow under load.
 const startupTimeout = 120_000
+const drainToken = 'the-operator-token'
 
 // The production path: the config module of the ERP bundle served by the runtime under `bun --no-install`, from a
 // folder without node_modules, with only the environment a platform would pass. The runtime serves the API alone.
@@ -39,7 +40,7 @@ describe.skipIf(!reachable || !hasBun)('the ERP bundle served by protobase-serve
 
     child = spawn('bun', ['--no-install', 'opt/protobase-serve.js', 'app/protobase.config.js'], {
       cwd: dir,
-      env: { PATH: process.env.PATH, ...store.env, PORT: String(port) },
+      env: { PATH: process.env.PATH, ...store.env, PORT: String(port), PROTOBASE_JOBS_DRAIN_TOKEN: drainToken },
     })
     child.stdout?.on('data', (chunk) => (output += chunk))
     child.stderr?.on('data', (chunk) => (output += chunk))
@@ -116,6 +117,15 @@ describe.skipIf(!reachable || !hasBun)('the ERP bundle served by protobase-serve
 
   it("runs the app's jobs: a sent invoice past its due date turns overdue", async () => {
     expect(await sendPastDueInvoice(base, token, store.env.DATABASE_URL)).toBe('overdue')
+  })
+
+  it('drains due jobs for the operator, and tells when the next one is due', async () => {
+    const drain = (token: string) => fetch(`${base}/api/jobs/drain?seconds=20`, { method: 'POST', headers: { authorization: `Bearer ${token}` } })
+    expect((await drain(token)).status).toBe(401)
+    const drained = await drain(drainToken)
+    expect(drained.status).toBe(200)
+    // The nightly sweep's next run is the job due next.
+    expect(await drained.json()).toEqual({ drained: true, remaining: 0, nextDue: expect.stringMatching(/T0[01]:00:00\.000Z$/) })
   })
 
   it('leaves the UI to the host: no index.html from the runtime', async () => {

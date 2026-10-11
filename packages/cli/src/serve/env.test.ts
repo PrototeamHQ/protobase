@@ -3,12 +3,13 @@ import { defaultPort, readServeEnv } from './env'
 
 describe('readServeEnv', () => {
   it('reads the variables the platform passes', () => {
-    expect(readServeEnv({ PORT: '3000', DATABASE_URL: 'postgres://db/app', REQUEST_LOG: '1', PROTOBASE_FILES_CLEANUP_MINUTES: '0', PROTOBASE_JOBS: 'off' })).toEqual({
+    expect(readServeEnv({ PORT: '3000', DATABASE_URL: 'postgres://db/app', REQUEST_LOG: '1', PROTOBASE_FILES_CLEANUP_MINUTES: '0', PROTOBASE_JOBS: 'off', PROTOBASE_JOBS_DRAIN_TOKEN: 's3cret' })).toEqual({
       port: 3000,
       databaseUrl: 'postgres://db/app',
       requestLog: true,
       filesCleanupMinutes: 0,
       runJobs: false,
+      drainToken: 's3cret',
     })
   })
 

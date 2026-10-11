@@ -14,6 +14,8 @@ import { resolveExtensions } from './project/extensions'
 import { runScaffold } from './scaffold/run'
 import { serveBundle } from './serve/serve-bundle'
 import { serveBundleDir } from './serve/serve-dir'
+import { closeOnSignals } from './serve/signals'
+import { loadWorkerBundle, startWorker } from './worker/start-worker'
 import { registerOrganizations } from './organizations/register'
 import { registerFiles } from './files/register'
 import { registerMigration } from './migration/register'
@@ -132,6 +134,17 @@ program
     loadNearestEnvFile(process.cwd())
     if (statSync(bundle).isDirectory()) await serveBundleDir(bundle, process.env, out)
     else await serveBundle(bundle, process.env, out)
+  })
+
+program
+  .command('worker')
+  .description("Run the jobs of a bundle from `protobase build` in a process of their own, until SIGTERM or SIGINT, as `serve` runs them beside the API")
+  .argument('<bundle>', 'the bundle folder, e.g. dist, or its dist/protobase.config.js')
+  .action(async (bundle: string) => {
+    loadNearestEnvFile(process.cwd())
+    const worker = await startWorker({ project: await loadWorkerBundle(bundle), databaseUrl: process.env.DATABASE_URL || undefined })
+    closeOnSignals(worker.stop)
+    out(`protobase worker running ${worker.jobs} job${worker.jobs === 1 ? '' : 's'}\n`)
   })
 
 registerUsers(program)

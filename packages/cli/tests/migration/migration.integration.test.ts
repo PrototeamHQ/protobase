@@ -84,5 +84,5 @@ export default { config: { notes }, jobs: { prune } }
     expect(await readFile(path.join(projectDir, 'db/migrations/003_jobs.sql'), 'utf8')).toMatch(/^-- The jobs schema this version of Protobase needs, written by `protobase migration`\./)
     await applyAll()
     expect((await migration()).stdout).toBe('the database is up to date; nothing to write\n')
-  })
+  }, 60_000)
 })

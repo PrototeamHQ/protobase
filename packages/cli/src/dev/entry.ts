@@ -38,6 +38,7 @@ const admin = createAdmin({
   ...(project.functions && { functions: project.functions }),
   ...(project.files && { files: project.files }),
   ...(project.events && { events: project.events }),
+  jobs: jobDefinitions(project.jobs ?? {}),
   options: { onUnhandledError: (error) => console.error(error), ...project.options },
 })
 
