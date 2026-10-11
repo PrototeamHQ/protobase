@@ -1,3 +1,4 @@
+import { isMenuHref } from './menu-href'
 import type { UserMenuItemModel, UserMenuModel } from './model'
 
 const items = {
@@ -7,7 +8,7 @@ const items = {
   page: (page: string, options: { label?: string; icon?: string } = {}): UserMenuItemModel => ({ kind: 'page', page, ...options }),
   /** An address outside the admin, opened in a new tab: `https:`, `http:` or `mailto:`. */
   link: (label: string, href: string, options: { icon?: string } = {}): UserMenuItemModel => {
-    if (!/^(https?:\/\/|mailto:)/i.test(href)) throw new Error(`User menu link "${label}": href must start with https://, http:// or mailto:`)
+    if (!isMenuHref(href)) throw new Error(`User menu link "${label}": href must start with https://, http:// or mailto:`)
     return { kind: 'link', label, href, ...options }
   },
 }

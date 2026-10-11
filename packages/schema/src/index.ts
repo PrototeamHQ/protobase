@@ -29,6 +29,8 @@ export type {
   StatusTone,
   UserMenuItemModel,
   UserMenuModel,
+  BottomBarItemModel,
+  BottomBarModel,
   Span,
   FieldPath,
   DurationUnit,
@@ -54,6 +56,8 @@ export { enumLabel } from './enum-label'
 export { matchesSearch, matchedSearchField, searchTerms, termMatches, type SearchTerm } from './search-match'
 export { navRecentErrors, statusTones, defaultRecentLimit } from './nav-recent'
 export { userMenu, type UserMenuSource } from './user-menu'
+export { bottomBar, bottomBarFor, maxBottomBarItems, type BottomBarSource } from './bottom-bar'
+export { bottomBarErrors, type BottomBarNames } from './bottom-bar-errors'
 export { layout as l } from './layout'
 export { encodeKey, decodeKey, keyTypes } from './keys'
 export type { KeyType } from './keys'

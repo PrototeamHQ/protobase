@@ -191,6 +191,15 @@ export type UserMenuItemModel =
 
 export type UserMenuModel = { items: UserMenuItemModel[] }
 
+/** A tab of a bottom bar on phones: icon above an explicit label. */
+export type BottomBarItemModel =
+  | { kind: 'resource'; resource: string; label: string; icon?: string }
+  | { kind: 'page'; page: string; label: string; icon?: string }
+  | { kind: 'link'; label: string; href: string; icon?: string }
+
+/** A bottom bar for the users holding one of `roles`; `label` names it in the role view switcher. */
+export type BottomBarModel = { label: string; roles: string[]; items: BottomBarItemModel[] }
+
 /**
  * The title replaces `title` in search results; `subtitle` is the second line unless the search matched another search
  * field, which then shows instead. Without a subtitle, the first search field not in the title is the default.
