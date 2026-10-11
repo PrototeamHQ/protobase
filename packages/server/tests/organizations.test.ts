@@ -146,12 +146,12 @@ describe('the token of a signed-in person', () => {
     expect(new Set(companies.items.map((company: { organizationId: number }) => company.organizationId))).toEqual(new Set([1]))
   })
 
-  it('adds the global roles to the membership roles, without the placeholder user', async () => {
+  it('carries one role, the first of the global roles and then the membership roles, never the placeholder user', async () => {
     const { auth, signIn, tokenOf } = await serve()
     await people(auth)
     const authenticate = betterAuthAuthenticator({ auth })
     const session = await authenticate(new Request(origin, { headers: { authorization: `Bearer ${await tokenOf(await signIn('root@example.com'))}` } }))
-    expect(session).toEqual({ user: { id: expect.any(String), roles: ['admin', 'support', 'manager', 'sales', 'accountant'] }, tenant: '2', organization: { id: '2' } })
+    expect(session).toEqual({ user: { id: expect.any(String), roles: ['admin'] }, tenant: '2', organization: { id: '2' } })
     const sanne = await authenticate(new Request(origin, { headers: { authorization: `Bearer ${await tokenOf(await signIn('sanne@example.com'))}` } }))
     expect(sanne.user.roles).toEqual(['sales'])
   })
@@ -214,7 +214,8 @@ describe('inviting people', () => {
     expect(await (await app.request('/api/auth/invitation/accept', { cookie: await app.signIn('sanne@example.com'), body: { token } })).json()).toMatchObject({ code: 'NOT_THE_INVITED_ADDRESS' })
     const ana = await app.signIn('ana@example.com')
     expect((await app.request('/api/auth/invitation/accept', { cookie: ana, body: { token } })).status).toBe(200)
-    expect(await claimsOf(app, ana)).toMatchObject({ role: 'support', org: '1', org_role: 'member', app_roles: ['sales'] })
+    // Her first role is the global support; the membership's sales is one to switch to.
+    expect(await claimsOf(app, ana)).toMatchObject({ role: 'support', org: '1', org_role: 'member', app_roles: [] })
     expect((await app.request('/api/auth/organization/accept-invitation', { cookie: ana, body: { invitationId: invitationIdFrom(token) } })).status).toBe(404)
   })
 

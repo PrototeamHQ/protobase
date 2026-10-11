@@ -14,6 +14,7 @@ describe('the auth store names', () => {
       { database: undefined, baseURL: 'https://admin.example.com', secret: 'test-secret-test-secret-test-secret-1234' },
       {
         roles: ['admin', 'user'],
+        definitions: roleDefinitions(),
         mailer: { send: async () => {} },
         operator: resolveOperator({ issuer: 'https://id.operator.example', clientId: 'app', clientSecret: 'secret' }),
         platformSignIn: resolvePlatformSignIn({ issuer: 'https://auth.example.com', clientId: 'app', clientSecret: 'secret' }),

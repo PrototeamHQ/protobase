@@ -85,7 +85,7 @@ describe('subscriptionWriteCheck', () => {
 })
 
 describe('betterAuthOwnerRoles', () => {
-  it('reads the roles someone holds now: global ones, and app roles in the organization they are a member of', async () => {
+  it('reads the role someone acts with now, of their global ones and app roles in the organization they are a member of', async () => {
     const store = (await (await createAuthStore()).clone()) as PGlite
     const make = () =>
       createAuth({

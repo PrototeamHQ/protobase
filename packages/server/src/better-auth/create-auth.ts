@@ -10,9 +10,12 @@ import { organizationClaims, lastOrganizationField, sessionOrganizationHooks } f
 import { organizationPlugin } from './organizations/organization-plugin'
 import { protobaseOrganizationPlugin } from './organizations/protobase-plugin'
 import { resolveOrganizations, type OrganizationsOptions, type ResolvedOrganizations } from './organizations/options'
-import { noGlobalRole, roleDefinitions, type RolesInput } from './organizations/role-definitions'
+import { noGlobalRole, roleDefinitions, type RoleDefinitions, type RolesInput } from './organizations/role-definitions'
 import type { AuthContext } from './organizations/store'
 import { passwordResetOptions } from './password-reset'
+import { narrowClaims } from './roles/active-role'
+import { rolesPlugin } from './roles/roles-plugin'
+import type { RoleSession, RoleUser } from './roles/session-role'
 import { platformSignInFor, platformSignInProvider, readPlatformSignIn, resolvePlatformSignIn, type PlatformSignIn, type ResolvedPlatformSignIn } from './platform-sign-in'
 import { signInPolicyPlugin } from './policy-plugin'
 import { emailCodeOptions, twoFactorCodeOptions, unusedEmailCodePaths } from './sign-in-mail'
@@ -113,6 +116,8 @@ const adminImpersonationPaths = ['/admin/impersonate-user', '/admin/stop-imperso
 
 type Resolved = {
   roles: string[]
+  /** The roles with their labels, for the role switcher. */
+  definitions: RoleDefinitions
   defaultRole?: string
   mailer?: Mailer
   operator?: ResolvedOperator
@@ -132,7 +137,7 @@ const organizationPaths = ['/organization/set-active', '/organization/accept-inv
  * The options `createAuth` gives Better Auth, with the roles, default role, mailer, operator provider and platform
  * sign-in provider already resolved.
  */
-export const betterAuthOptions = (options: CreateAuthOptions, { roles, defaultRole, mailer, operator, platformSignIn, organizations, context = noContext }: Resolved) => {
+export const betterAuthOptions = (options: CreateAuthOptions, { roles, definitions, defaultRole, mailer, operator, platformSignIn, organizations, context = noContext }: Resolved) => {
   const secure = options.baseURL.startsWith('https://')
   const signIn = platformSignInFor(platformSignIn, Object.keys(options.socialProviders ?? {}))
   return {
@@ -162,11 +167,12 @@ export const betterAuthOptions = (options: CreateAuthOptions, { roles, defaultRo
           expirationTime: tokenLifetime,
           issuer: options.baseURL,
           audience: options.baseURL,
-          definePayload: async ({ user, session }) => ({
-            email: user.email,
-            role: user.role,
-            ...(organizations && (await organizationClaims((await context()).adapter, user, (session as { activeOrganizationId?: string | null }).activeOrganizationId))),
-          }),
+          // The token carries the session's active role alone; see `narrowClaims`.
+          definePayload: async ({ user, session }) => {
+            const { activeRole, activeOrganizationId } = session as RoleSession
+            const claims = { role: user.role, ...(organizations && (await organizationClaims((await context()).adapter, user, activeOrganizationId))) }
+            return { email: user.email, ...narrowClaims(claims, [activeRole, (user as RoleUser).lastRole], Boolean(organizations)) }
+          },
         },
         // Tokens come from `/token` only, which the sign-in policy holds back until required methods are set up.
         disableSettingJwtHeader: true,
@@ -183,6 +189,7 @@ export const betterAuthOptions = (options: CreateAuthOptions, { roles, defaultRo
         ...(signIn && { platformSignIn: { provider: signIn.provider, name: signIn.name } }),
       }),
       staffSignInPlugin({ ...(operator && { operator }), ...(mailer && { mailer }) }),
+      rolesPlugin({ definitions }),
       ...(organizations
         ? [organizationPlugin({ resolved: organizations, secret: options.secret, ...(mailer && { mailer }), context }), protobaseOrganizationPlugin({ resolved: organizations, mail: Boolean(mailer) })]
         : []),
@@ -244,7 +251,7 @@ export const createAuth = (options: CreateAuthOptions) => {
   // The organization hooks read the store through the instance made below; they run only once it exists.
   let instance: { $context: Promise<AuthContext> } | undefined
   const context = () => instance?.$context ?? Promise.reject(new Error('The auth instance is not made yet'))
-  const auth = betterAuth(betterAuthOptions(options, { roles, defaultRole, mailer, operator, platformSignIn, ...(organizations && { organizations, context }) }))
+  const auth = betterAuth(betterAuthOptions(options, { roles, definitions, defaultRole, mailer, operator, platformSignIn, ...(organizations && { organizations, context }) }))
   instance = auth as unknown as { $context: Promise<AuthContext> }
   return Object.assign(auth, {
     roles,

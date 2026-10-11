@@ -1,0 +1,6 @@
+-- The auth schema changes this version of Protobase needs, written by `protobase auth migration`.
+-- Applied with the project's other migrations; edit or remove statements the project handles differently.
+
+alter table "auth"."user" add column if not exists "last_role" text;
+
+alter table "auth"."session" add column if not exists "active_role" text;

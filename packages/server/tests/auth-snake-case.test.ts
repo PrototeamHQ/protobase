@@ -57,6 +57,10 @@ describe.each([
     const migration = await authSchemaMigration(auth)
     expect(migration).toBe(snakeCaseMigration(schema))
     await pg.transaction((tx) => tx.exec(migration!))
+    // The next migration adds what came after the rename, such as the active role.
+    const added = await authSchemaMigration(auth)
+    expect(added).toContain('add column if not exists "active_role"')
+    await pg.transaction((tx) => tx.exec(added!))
     await expect(checkAuthSchema(auth)).resolves.toBeUndefined()
     expect(await authSchemaMigration(auth)).toBeUndefined()
 
@@ -74,6 +78,7 @@ describe.each([
   it('leaves the store as one set up with the snake_case names, and such a store as it is', async () => {
     const renamed = await store060()
     await renamed.exec(snakeCaseMigration(schema))
+    await renamed.exec((await authSchemaMigration(authOn(renamed, schema)))!)
     const fresh = await createEmptyPg()
     await fresh.exec((await authSchemaMigration(authOn(fresh, schema)))!)
     const before = await catalog(fresh, tables)

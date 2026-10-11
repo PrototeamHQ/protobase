@@ -307,8 +307,9 @@ describe('configurable roles', () => {
     expect(await setUserRole(roled, { email: 'clerk@example.com', role: 'accountant,warehouse' })).toEqual({ email: 'clerk@example.com', role: 'accountant,warehouse' })
     await expect(setUserRole(roled, { email: 'clerk@example.com', role: 'manager' })).rejects.toThrow('Unknown role "manager"')
 
+    // A token carries one role: the one last chosen, else the first.
     const { token } = await issueToken(roled, { email: 'clerk@example.com' })
-    expect(JSON.parse(Buffer.from(token.split('.')[1]!, 'base64url').toString()).role).toBe('accountant,warehouse')
+    expect(JSON.parse(Buffer.from(token.split('.')[1]!, 'base64url').toString()).role).toBe('accountant')
     const headers = { authorization: `Bearer ${token}` }
     expect((await roleApp.request(`${origin}/api/v1/companies?page_size=1`, { headers })).status).toBe(200)
     expect((await roleApp.request(`${origin}/api/v1/companies/22`, { method: 'DELETE', headers })).status).toBe(403)
