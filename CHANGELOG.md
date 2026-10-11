@@ -2,6 +2,37 @@
 
 Every release of Protobase, cut by the release workflow from the commits since the last one (see the [versioning page](https://docs.protobase.net/reference/versioning/)).
 
+## [0.8.0](https://github.com/PrototeamHQ/protobase/compare/v0.7.0...v0.8.0) (2026-10-11)
+
+### ⚠ BREAKING CHANGES
+
+* **presets:** the ERP works in organizations; run its base seed before the first user
+
+### Features
+
+* **cli:** doctor takes a text column for a file field ([3362475](https://github.com/PrototeamHQ/protobase/commit/3362475f5f03d62d63dcf51e31572a04849ac6d6))
+* **client:** invoke calls an api function with the user's token ([8269c08](https://github.com/PrototeamHQ/protobase/commit/8269c083757db49b822065e274488ec8c71c96fa))
+* **client:** organizations in the auth session: switching, members, roles and invitations ([6320977](https://github.com/PrototeamHQ/protobase/commit/63209772bee6c25db72bf39f80a8030ea0fc4356))
+* **client:** upload sends a file for a file field, with progress ([e245385](https://github.com/PrototeamHQ/protobase/commit/e245385b03749c284553dc4cef0fe993894769a4))
+* **cli:** file cleanup in serve every hour, and protobase files cleanup ([89dfed9](https://github.com/PrototeamHQ/protobase/commit/89dfed9e664af3ce384e2a2d1fd6d50ca00cd914))
+* **cli:** protobase organizations commands, and users create into an organization ([7448dd6](https://github.com/PrototeamHQ/protobase/commit/7448dd6dedad71986847fe7591222179264c438e))
+* **cli:** serve one api function per file in functions/ in dev, build and serve ([ef7ce97](https://github.com/PrototeamHQ/protobase/commit/ef7ce9718b8b4e0d6e54cd2e6974044544212a84))
+* **presets:** the ERP works in organizations; run its base seed before the first user ([1eb9bb0](https://github.com/PrototeamHQ/protobase/commit/1eb9bb0613c2d316b72bd4d193a24758989bd012))
+* **schema:** f.file() with allowed types, max size, provider and derived fields ([27a68a8](https://github.com/PrototeamHQ/protobase/commit/27a68a8e870c93526148aa4fa2cb7e16792d8a54))
+* **server:** api functions of the app's own at /api/functions/<name> ([384c946](https://github.com/PrototeamHQ/protobase/commit/384c9467d5d5f776efafd502756d1703f56a6cf5))
+* **server:** async organization ids, and the first user owns organizations without members ([6d8698a](https://github.com/PrototeamHQ/protobase/commit/6d8698a2c5a80d9adfdf9a72b99dd34676432f4f))
+* **server:** derived fields from uploads: imageSize, aspectRatio, fileSize, fileType, processor() ([d6a6947](https://github.com/PrototeamHQ/protobase/commit/d6a69474ae90567be7abbb04d63696b90b4ff1de))
+* **server:** file fields on local disk: uploads, tickets, downloads and scheduled deletes ([17fbf2f](https://github.com/PrototeamHQ/protobase/commit/17fbf2f7b211c233e9dc17fffe9ca687a88abd99))
+* **server:** helpers for api functions: readJson, signed webhooks, requireEnv, functionApp ([288d5cd](https://github.com/PrototeamHQ/protobase/commit/288d5cd7ef172ab34f8b60ec4c951e781093b28b))
+* **server:** organization invitations, app role grants, ownership transfer and switching ([128a2ff](https://github.com/PrototeamHQ/protobase/commit/128a2ff541811e4cebe5b9c570d3e1549fa5633d))
+* **server:** organizations in createAuth, with global and membership app roles in the token ([275c4df](https://github.com/PrototeamHQ/protobase/commit/275c4dff7b9e20e15c0aa8099b227a4877e509bd))
+* **ui:** organization switcher, members, invitations and invitation link pages ([fa9b0a0](https://github.com/PrototeamHQ/protobase/commit/fa9b0a0f024a74129cbc5614de270ae007719d4f))
+* **ui:** upload, replace and remove files in forms, and show them in lists ([7e37ac0](https://github.com/PrototeamHQ/protobase/commit/7e37ac05f3e48584ccabb02fd83e6af6e04329b9))
+
+### Bug Fixes
+
+* **presets:** remove the organization the ERP organizations test creates ([f4751f2](https://github.com/PrototeamHQ/protobase/commit/f4751f274fc31a828abd2e1200c1df1bae6799c7))
+
 ## [0.7.0](https://github.com/PrototeamHQ/protobase/compare/v0.6.0...v0.7.0) (2026-10-10)
 
 ### ⚠ BREAKING CHANGES
