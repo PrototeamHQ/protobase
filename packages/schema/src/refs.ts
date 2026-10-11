@@ -15,6 +15,13 @@ export type Refs<F> = {
 
 export type FieldRefs<F> = Refs<ActiveFields<F>>
 
+const refMark = Symbol('protobase.ref')
+
+/** A field reference as a view builder hands it out (`r.status`), recognisable wherever it is passed, props included. */
+export const ref = (name: string): Ref => Object.defineProperty({ name }, refMark, { value: true })
+
+export const isRef = (value: unknown): value is Ref => typeof value === 'object' && value !== null && (value as Record<symbol, unknown>)[refMark] === true
+
 // Records the accessed field name; with `known`, unknown names throw at runtime.
 export const createRefs = <R>(make: (name: string) => unknown, known?: readonly string[]) =>
   new Proxy(

@@ -1,4 +1,4 @@
-import { encodeKey, type AppAddress, type FilterLayout, type ResourceModel, type ViewModel } from '@protobase/schema'
+import { encodeKey, tableDisplay, type AppAddress, type FilterLayout, type ResourceModel, type ViewModel } from '@protobase/schema'
 import { defaultOrderBy } from './list-order'
 
 /** A list as the app shows it: every value there, the view's default where the address names none. */
@@ -11,9 +11,6 @@ export type CurrentAddress = ListAddress | { kind: 'record'; resource: string; k
 export type ListChange = Partial<Omit<ListAddress, 'kind' | 'resource'>>
 
 export type ListDefaults = Pick<ListAddress, 'display' | 'orderBy' | 'filterLayout'>
-
-/** The table is every list's display until a view names others. */
-export const tableDisplay = 'table'
 
 /** What a list shows when its address names nothing: the table, the list's sort, the filters in a bar. */
 export const listDefaults = (model: ResourceModel | undefined, view: ViewModel | undefined): ListDefaults => ({

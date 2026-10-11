@@ -8,12 +8,14 @@ import type {
   SortSpec,
   NavModel,
   NavRecentModel,
+  ListDisplayModel,
   ResourceModel,
   ViewModel,
 } from './model'
 import { navRecentErrors } from './nav-recent'
-import { createRefs, type FieldRefs, type Ref } from './refs'
+import { createRefs, ref, type FieldRefs, type Ref } from './refs'
 import { actions } from './view-actions'
+import { displayErrors, displayFields, displays } from './view-displays'
 import { FieldView } from './view-field'
 import { widgets } from './view-widgets'
 
@@ -74,21 +76,33 @@ export class ViewBuilder<R extends { readonly $fields: unknown }> {
     return this.next({ fields: { ...this.state.fields, ...fields } })
   }
 
+  /**
+   * The list: its table's `columns`, `sort` and `search`, and other `displays` to switch to (`d.cards`, `d.custom`), one
+   * of which may be the `default` the list opens in. Throws when display names collide or `default` names none.
+   */
   list(
-    build: (r: FieldRefs<FieldsOf<R>>) => {
+    build: (
+      r: FieldRefs<FieldsOf<R>>,
+      d: typeof displays,
+    ) => {
       columns: Ref[]
       sort?: Array<[Ref, 'asc' | 'desc']>
       search?: Ref[]
+      displays?: ListDisplayModel[]
+      default?: string
     },
   ) {
-    const { columns, sort, search } = build(this.refs())
-    return this.next({
-      list: {
-        columns: columns.map((ref) => ref.name),
-        ...(sort && { sort: sort.map(([ref, dir]) => [ref.name, dir]) as SortSpec }),
-        ...(search && { search: search.map((ref) => ref.name) }),
-      },
-    })
+    const { columns, sort, search, displays: shown = [], default: opens } = build(this.refs(), displays)
+    const list = {
+      columns: columns.map((ref) => ref.name),
+      ...(sort && { sort: sort.map(([ref, dir]) => [ref.name, dir]) as SortSpec }),
+      ...(search && { search: search.map((ref) => ref.name) }),
+      ...(shown.length > 0 && { displays: shown }),
+      ...(opens !== undefined && { default: opens }),
+    }
+    const errors = displayErrors(list)
+    if (errors.length > 0) throw new Error(`View "${this.state.resource}": ${errors.join('; ')}`)
+    return this.next({ list })
   }
 
   filters(build: (r: FieldRefs<FieldsOf<R>>, w: typeof widgets) => FilterWidgetModel[]) {
@@ -112,21 +126,25 @@ export class ViewBuilder<R extends { readonly $fields: unknown }> {
     return this.next({ actions: build(actions) })
   }
 
-  /** With the resource's model, also verifies the title and search result fields and the sidebar's `recent` group. */
+  /** With the resource's model, also verifies the title, search result and list display fields and the sidebar's `recent` group. */
   toModel(resource?: ResourceModel): ViewModel {
-    const { title, nav, searchResult } = this.state
+    const { title, nav, searchResult, list } = this.state
     if (resource && title !== undefined && !Object.hasOwn(resource.fields, title)) {
       throw new Error(`View "${this.state.resource}": title field "${title}" does not exist on the resource`)
     }
     const missing = resource ? [...(searchResult?.title ?? []), ...(searchResult?.subtitle ? [searchResult.subtitle] : [])].filter((name) => !Object.hasOwn(resource.fields, name)) : []
     if (missing.length > 0) throw new Error(`View "${this.state.resource}": search result field "${missing[0]}" does not exist on the resource`)
+    for (const display of resource ? (list?.displays ?? []) : []) {
+      const unknown = displayFields(display).find((name) => !Object.hasOwn(resource!.fields, name))
+      if (unknown !== undefined) throw new Error(`View "${this.state.resource}": display "${display.name}" names field "${unknown}", which the resource does not have`)
+    }
     const recentErrors = resource && nav?.recent ? navRecentErrors(nav.recent, resource) : []
     if (recentErrors.length > 0) throw new Error(`View "${this.state.resource}": nav.recent ${recentErrors.join('; ')}`)
     return structuredClone(this.state)
   }
 
   private refs() {
-    return createRefs<FieldRefs<FieldsOf<R>>>((name) => ({ name }))
+    return createRefs<FieldRefs<FieldsOf<R>>>(ref)
   }
 
   private next(patch: Partial<ViewModel>) {

@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import { f } from './fields'
 import { layout as l } from './layout'
-import type { ViewModel } from './model'
+import type { ListDisplayModel, ViewModel } from './model'
 import { resource } from './resource'
 import { view } from './view'
+import type { displays } from './view-displays'
 
 const article = resource('article')
   .table('articles')
@@ -115,6 +116,41 @@ describe('view builder', () => {
       { name: 'preview', label: 'Preview', bulk: false, run: { kind: 'link', href: 'https://example.com/a/{id}' } },
       { name: 'drafts', label: 'Drafts', bulk: false, run: { kind: 'link', to: { kind: 'list', resource: 'article', filter: 'status = "draft"' } } },
     ])
+  })
+
+  it('adds card and custom displays beside the table, field references in props marked', () => {
+    const Board = Object.assign((props: { by: string; columns: number }) => props, { blockName: 'Board', custom: true })
+    const model = view<typeof article>('article')
+      .list((r, d) => ({
+        columns: [r.title, r.price],
+        displays: [d.cards({ subtitle: r.price, badge: r.status, meta: [r.createdAt] }), d.custom(Board, { name: 'board', label: 'Board', icon: 'kanban', fields: [r.title, r.status], props: { by: r.status, columns: 3 } })],
+        default: 'board',
+      }))
+      .toModel(article.toModel())
+    expect(model.list).toEqual({
+      columns: ['title', 'price'],
+      displays: [
+        { kind: 'cards', name: 'cards', subtitle: 'price', badge: 'status', meta: ['createdAt'] },
+        { kind: 'custom', name: 'board', label: 'Board', icon: 'kanban', component: 'Board', fields: ['title', 'status'], props: { by: { $field: 'status' }, columns: 3 } },
+      ],
+      default: 'board',
+    })
+  })
+
+  it('refuses displays that collide, a default that is none of them, and built-in blocks as components', () => {
+    const list = (pick: (d: typeof displays) => { displays: ListDisplayModel[]; default?: string }) => () =>
+      view<typeof article>('article').list((r, d) => ({ columns: [r.title], ...pick(d) }))
+    expect(list((d) => ({ displays: [d.cards({}), d.cards({})] }))).toThrow('View "article": display "cards" is defined twice')
+    expect(list((d) => ({ displays: [d.cards({}, { name: 'table' })] }))).toThrow('"table" is the list\'s own display')
+    expect(list((d) => ({ displays: [d.cards({})], default: 'board' }))).toThrow('default "board" is not one of the displays (table, cards)')
+    expect(list((d) => ({ displays: [d.cards({}, { name: 'Big cards' })] }))).toThrow('display name "Big cards" must start with a lowercase letter')
+    const Card = Object.assign(() => null, { blockName: 'Card', custom: false })
+    expect(list((d) => ({ displays: [d.custom(Card, { name: 'c', label: 'C', fields: [] })] }))).toThrow('d.custom takes a component declared with component(...), not the built-in block Card')
+  })
+
+  it('refuses display fields the resource does not have', () => {
+    const stale = view<typeof article>('article').list((r, d) => ({ columns: [r.title], displays: [d.cards({ badge: { name: 'state' } })] }))
+    expect(() => stale.toModel(article.toModel())).toThrow('View "article": display "cards" names field "state", which the resource does not have')
   })
 
   it('refuses a path in the app as a link href, pointing at to', () => {

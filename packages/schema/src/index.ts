@@ -14,6 +14,8 @@ export type {
   FieldFormat,
   FieldViewModel,
   ListModel,
+  ListDisplayModel,
+  JsonValue,
   DatePreset,
   FilterWidgetModel,
   LayoutItemModel,
@@ -54,6 +56,8 @@ export type { EventActor, EventContext, EventMatch, EventSpec, EventHelpers } fr
 export { checkEventFilter } from './events/event-models'
 export { webhookResources } from './webhooks/webhook-resources'
 export { view } from './view'
+export { displayFields, tableDisplay, type ComponentRef, type ViewProps } from './view-displays'
+export { fieldRef, fieldRefsIn, isFieldRef, markFieldRefs, unmarkFieldRefs, type FieldRefValue } from './field-ref'
 export { enumLabel } from './enum-label'
 export { matchesSearch, matchedSearchField, searchTerms, termMatches, type SearchTerm } from './search-match'
 export { navRecentErrors, statusTones, defaultRecentLimit } from './nav-recent'

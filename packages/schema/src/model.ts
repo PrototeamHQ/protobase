@@ -65,6 +65,9 @@ export type EventModel = {
 
 export type SortSpec = Array<[field: string, direction: 'asc' | 'desc']>
 
+/** A value that survives `JSON.stringify` unchanged, as a custom component's props in a view must be. */
+export type JsonValue = string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue }
+
 export type KeyValue = string | number
 
 export type ListQuery = {
@@ -100,11 +103,23 @@ export type FieldViewModel = {
   valueLabels?: Record<string, string>
 }
 
+/**
+ * A way to show a list besides its table: a card per record, or a project component (`custom`) drawing the rows the
+ * list page loads. `name` is what the address names (`?display=cards`); `label` and `icon` are its switch's.
+ */
+export type ListDisplayModel =
+  | { kind: 'cards'; name: string; label?: string; icon?: string; title?: string; subtitle?: string; badge?: string; meta?: string[] }
+  | { kind: 'custom'; name: string; label: string; icon?: string; component: string; fields: string[]; props?: Record<string, JsonValue> }
+
 export type ListModel = {
   columns: string[]
   sort?: SortSpec
   /** Defaults for the UI's search box. `ResourceModel.search` is authoritative for what `search(...)` matches on the server. */
   search?: string[]
+  /** Other ways to show the list besides its table, in the order the switch shows them after it. */
+  displays?: ListDisplayModel[]
+  /** The display the list opens in when the address names none; the table when omitted. */
+  default?: string
 }
 
 export type DatePreset = 'today' | 'yesterday' | '7d' | '30d' | '90d' | 'month' | 'quarter' | 'year'

@@ -34,4 +34,13 @@ describe('checkViews', () => {
     written.actions = [{ name: 'old', label: 'Old', bulk: false, run: { kind: 'link', href: '/payments/{id}' } }]
     expect(() => checkViews(registry, [written])).toThrow('action "old": href "/payments/{id}" points inside the app; give the link `to` instead')
   })
+
+  it('wants list displays to show fields the resource has, none of them sensitive', () => {
+    const Board = Object.assign((props: { by: string }) => props, { blockName: 'Board', custom: true })
+    const shown = view<typeof payments>('payments').list((r, d) => ({ columns: [r.reference], displays: [d.cards({ badge: r.method }), d.custom(Board, { name: 'board', label: 'Board', fields: [r.reference], props: { by: r.iban } })] }))
+    expect(() => checkViews(registry, [shown.toModel()])).toThrow('View "payments": sensitive field "iban" cannot be in a list display')
+    const stale = view<typeof payments>('payments').toModel()
+    stale.list = { columns: ['reference'], displays: [{ kind: 'cards', name: 'cards', meta: ['paidOn'] }] }
+    expect(() => checkViews(registry, [stale])).toThrow('View "payments": display "cards" names field "paidOn", which payments does not have')
+  })
 })
