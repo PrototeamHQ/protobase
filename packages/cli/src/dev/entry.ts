@@ -1,5 +1,5 @@
 import { Hono } from 'hono'
-import { checkAuthSchema, checkChanges, configExports, hasUsers } from '@protobase/server'
+import { checkAuthSchema, checkChanges, checkWebhooksSchema, configExports, hasUsers } from '@protobase/server'
 import { projectAdmin } from '../project/project-admin'
 import { devJobs } from './dev-jobs'
 import { loadProject, projectDb } from './project'
@@ -24,6 +24,7 @@ if (project.auth && !store.__protobaseAuthSchemaChecked) {
 
 // On every load, since editing the config can give a resource events whose triggers the database lacks.
 await checkChanges(db, resources.map((resource) => resource.toModel()), project.events)
+if (project.webhooks) await checkWebhooksSchema(db, project.webhooks)
 
 const { admin, jobs } = projectAdmin({ ...project, authenticate: project.authenticate }, project.exports, db)
 

@@ -3,7 +3,7 @@ import type { AddressInfo } from 'node:net'
 import { createAdaptorServer } from '@hono/node-server'
 import pg from 'pg'
 import type { Db } from '@protobase/query'
-import { checkAuthSchema, checkChanges, checkJobsSchema, configExports, createFileCleanup, startJobs } from '@protobase/server'
+import { checkAuthSchema, checkChanges, checkJobsSchema, checkWebhooksSchema, configExports, createFileCleanup, startJobs } from '@protobase/server'
 import { projectAdmin } from '../project/project-admin'
 import { createPgDb } from '../project/pg-db'
 import { createServeApp, type ServedSite } from './app'
@@ -47,6 +47,7 @@ export const startServe = async ({ project, env, createDb = (url) => createPgDb(
   const { resources } = configExports(project.config)
   const startJobsAndListen = async () => {
     await checkChanges(db, resources.map((resource) => resource.toModel()), project.events)
+    if (project.webhooks) await checkWebhooksSchema(db, project.webhooks)
     const { admin, jobs: definitions } = projectAdmin(project, project.config, db)
     if (definitions.length > 0) await checkJobsSchema(db)
     const jobs = definitions.length > 0 ? await startJobs({ db, jobs: definitions, work: env.runJobs, onError: (error) => console.error(error) }) : undefined

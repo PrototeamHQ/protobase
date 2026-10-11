@@ -31,6 +31,7 @@ export const loadMigrationProject = async (dir: string, extensions: Extension[] 
     db: project.db ?? ownDb!,
     ...(project.auth && { auth: project.auth }),
     ...(project.events && { events: project.events }),
+    ...(project.webhooks && { webhooks: project.webhooks }),
     jobs: jobDefinitions(project.jobs ?? {}),
     close: async () => {
       await ownDb?.destroy()

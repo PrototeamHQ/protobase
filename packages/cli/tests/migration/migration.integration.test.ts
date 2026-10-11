@@ -90,4 +90,16 @@ export default { config: { notes }, jobs: { prune } }
     await applyAll()
   })
 
+
+  it('writes the webhooks schema for a config that extends webhooks(), after the change capture', async () => {
+    await writeFile(path.join(projectDir, 'protobase.config.ts'), `import { f, resource } from '@protobase/schema'
+import { webhooks } from '@protobase/server'
+export const notes = resource('notes').table('notes').fields({ id: f.integer().readOnly(), body: f.text() }).primaryKey((r) => r.id).events((e) => e.crud())
+export default { extends: [webhooks()], config: { notes } }
+`)
+    const result = await migration()
+    expect(result.stdout).toBe("wrote db/migrations/004_changes.sql\nwrote db/migrations/005_webhooks.sql\napply them with the project's migrations\n")
+    await applyAll()
+    expect((await migration()).stdout).toBe('the database is up to date; nothing to write\n')
+  }, 60_000)
 })

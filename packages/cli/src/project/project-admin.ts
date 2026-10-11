@@ -19,6 +19,7 @@ export const projectAdmin = (project: ProjectConfig & { authenticate: Authentica
     ...(project.functions && { functions: project.functions }),
     ...(project.files && { files: project.files }),
     ...(project.events && { events: project.events }),
+    ...(project.webhooks && { webhooks: project.webhooks }),
     jobs: own,
     subscriptions,
     options: { onUnhandledError: (error) => console.error(error), ...project.options },
