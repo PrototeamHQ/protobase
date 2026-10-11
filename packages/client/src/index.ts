@@ -27,6 +27,7 @@ export { createAuthSession, AuthError, tokenExpiry, type AuthSession, type AuthS
 export { createStaticSession } from './static-session'
 export type { AuthUser, PlatformSignIn, RoleLabel, SetupStatus, SignInMethod, SignInResult, TwoFactorMethod } from './auth-types'
 export type { CurrentOrganization, InvitationPreview, InvitationSent, Organization, OrganizationInvitation, OrganizationMember, OrganizationRole, OrganizationsClient } from './organizations'
+export type { ActiveRole, RoleOption, RolesClient } from './roles'
 export type { AccountSecurity, AccountSignIn, AuthenticatorSetup, Passkey, RequiredSetup } from './account-security'
 export type { SignInPolicy, SignInPolicyClient, SignInPolicyState, SignInRule, StaffAccessRule } from './sign-in-policy'
 export type { StaffSignIn, StaffSignInClient } from './staff-sign-in'
