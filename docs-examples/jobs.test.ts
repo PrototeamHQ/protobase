@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { jobDefinitions, type WriteEvent } from '@protobase/server'
-import { sendInvoice, syncCustomer } from './jobs/jobs'
+import { remindOverdue, sendInvoice, syncCustomer } from './jobs/jobs'
 import project from './jobs/protobase.config'
 
 // The documentation shows these files; this keeps what it says about them true.
@@ -9,7 +9,8 @@ const sent = { operation: 'update', resource: { name: 'invoices' }, user: { id: 
 
 describe('jobs', () => {
   it('are the jobs module protobase.config.ts passes', () => {
-    expect(jobDefinitions(project.jobs!)).toEqual([sendInvoice, syncCustomer])
+    expect(jobDefinitions(project.jobs!)).toEqual([sendInvoice, syncCustomer, remindOverdue])
+    expect(remindOverdue.options).toMatchObject({ schedule: '0 7 * * *', timezone: 'Europe/Amsterdam' })
     expect(syncCustomer.options.ordered).toBe(true)
   })
 

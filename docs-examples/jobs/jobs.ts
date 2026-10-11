@@ -23,3 +23,13 @@ export const syncCustomer = defineJob({
     // ... push the changed fields to the CRM
   },
 })
+
+// Every morning at 7 in Amsterdam: one run per time, however many workers run.
+export const remindOverdue = defineJob({
+  name: 'remind-overdue',
+  schedule: '0 7 * * *',
+  timezone: 'Europe/Amsterdam',
+  run: async (_, { db }) => {
+    // ... mail a reminder for every invoice past its due date
+  },
+})

@@ -23,6 +23,7 @@ A job is work the app does after a request, or that a request should not wait fo
 | `timeout` | How long one try may run before it counts as failed; default `15 minutes`. |
 | `concurrency` | Jobs of this name running at once in each worker process; default 1. |
 | `ordered` | Jobs run one at a time per group, in the order they were enqueued; see [Ordered groups](#ordered-groups). |
+| `schedule`, `timezone` | Runs the job on a cron schedule, in a time zone (default `UTC`); see [Recurring jobs](#recurring-jobs). |
 
 A job runs **at least once**: a worker that dies mid-job, or a try cut off by a shutdown, means it runs again. Write `run` so that running twice does no harm, for example by checking the state it is about to change.
 
@@ -69,15 +70,35 @@ With `ordered: true`, every enqueue names a `group`, and the jobs of one group r
 
 Turning `ordered` on or off for a job whose queue exists stops startup: let its jobs finish or delete them, then drop the queue with `select jobs.delete_queue('<name>')`.
 
+## Recurring jobs
+
+`schedule: '0 7 * * *'` runs a job on that cron schedule, with no payload; a seconds field may come first (`*/30 * * * * *`). `timezone` reads it in a zone such as `Europe/Amsterdam`, so 07:00 stays 07:00 across daylight saving time.
+
+Each run is a job of its own, enqueued ahead for its time by the workers: its id is made from the job's name and the time, so however many workers enqueue a run, it is one job and runs once. As a run starts, the next one is enqueued. A run that came due while no worker ran, as when the app slept or was deployed, runs once as soon as one does; the times missed after it are skipped. Changing the schedule drops the waiting run that is no longer one of its times, and a job that loses its schedule, or is removed, loses its waiting run.
+
+Because the next run waits in the database like any delayed job, [`jobs.next_due()`](#hosts-that-sleep) sees it, and a host that wakes the app for due jobs wakes it for its recurring jobs too. That is why Protobase does not use pg-boss's own scheduler, which keeps no next run in the database and works the time out in a running process.
+
+## Failed jobs page
+
+With jobs, the admin app has a **Failed jobs** page, for admins only: each job that used up its attempts or failed for good, with its payload and last error. **Retry** gives a job one more attempt, from now, and **Delete** removes it. It reads the `jobs.failed` view, which a project's SQL can query too.
+
 ## Where jobs run
 
 - **`protobase dev`** runs them in its process. An edited job runs its new code from the next job on.
 - **`protobase serve`** runs them in its process, beside the API, unless `PROTOBASE_JOBS=off`; it enqueues them either way. On SIGTERM it stops taking jobs and gives running ones 30 seconds to finish. A job still running then is failed, to be retried.
+- **[`protobase worker <bundle>`](/reference/cli/#worker)** runs the same jobs from the same bundle in a process of its own, with the same shutdown, for a `serve` with `PROTOBASE_JOBS=off`.
 - Each worker checks every job name for due jobs every 2 seconds: one indexed query per job name and interval. Once a minute, one of the workers also counts the queues and retries the jobs whose worker died (their `timeout` passed); once a day it deletes completed and failed jobs older than 7 days.
+
+### Hosts that sleep
+
+A host that stops an idle app needs to know when a job is due, and to have it run:
+
+- `select jobs.next_due()` answers when the next job is due, or `null` when none waits: a waiting job's start time, a recurring job's next run, or the timeout of a job that was running when the app stopped. It is one read-only statement, through any pooler.
+- `POST /api/jobs/drain?seconds=25` runs the due jobs until none is due or running, or the seconds have passed, and answers `{ "drained": true, "remaining": 0, "nextDue": "2026-10-12T05:00:00.000Z" }`. It takes the operator's token, `PROTOBASE_JOBS_DRAIN_TOKEN`, as a bearer token; without that variable there is no such endpoint. A process with `PROTOBASE_JOBS=off` answers `409`.
 
 ## The `jobs` schema
 
-The schema is pg-boss's tables at its pinned schema version, plus Protobase's `jobs.enqueue`. It is created and upgraded like the [auth schema](/reference/auth/#migrations), by the project's migrations:
+The schema is pg-boss's tables at its pinned schema version, plus Protobase's `jobs.enqueue`, `jobs.next_due` and `jobs.failed`. It is created and upgraded like the [auth schema](/reference/auth/#migrations), by the project's migrations:
 
 ```sh
 bun run protobase migration   # writes db/migrations/NNN_jobs.sql when the jobs schema is missing or behind

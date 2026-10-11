@@ -304,16 +304,25 @@ Serves the API of a bundle from `protobase build` and owns the process around it
 | `PROTOBASE_FILES_<NAME>`, `PROTOBASE_FILES_RETENTION`, `PROTOBASE_FILES_SECRET` | [file providers](/reference/files/#providers) and their settings, over `files` in the config |
 | `PROTOBASE_FILES_CLEANUP_MINUTES` | minutes between runs of the [scheduled file deletes](/reference/files/#deleting-files), default 60; 0 leaves them to `protobase files cleanup` or the platform |
 | `PROTOBASE_JOBS` | `off` runs none of the app's [jobs](/reference/jobs/) in this process, which still enqueues them; default `on` |
+| `PROTOBASE_JOBS_DRAIN_TOKEN` | the operator's bearer token for `POST /api/jobs/drain`, which [runs the due jobs](/reference/jobs/#hosts-that-sleep) of a host that lets the app sleep; without it there is no such endpoint |
 
 Better Auth and other settings are the project's own variables (`BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, ...), read by its config. `protobase serve` also loads the nearest `.env`, like `dev`; the runtime takes the environment as it is.
 
 - **Routes:** `createAdmin` (`/api/v1`, `/api/meta`, `/api/functions/*`, `/api/auth/*`, ...) and `GET /health`, which answers `{"status":"ok"}` without a token and without touching the database. The runtime never serves the UI; `protobase serve <bundle>` serves `public/` for every path outside the manifest's `api`, after `/health`.
 - **Version:** before loading the config module, the runtime reads `protobase.bundle.json` beside it and refuses a bundle built by a Protobase version it does not serve, or one without a version, with an error naming both versions (see [Versioning](/reference/versioning/#bundles-and-runtimes)). A config module needs its manifest beside it.
 - **Startup:** a bundle without a default export, `config` or `authenticate`, or with an `options.basePath` other than `/api/v1`, stops startup with a one-line error and exit code 1, as does a missing `DATABASE_URL`, an auth schema that lacks a table or column (see [`auth migration`](#auth-migration)), a resource whose [events](/reference/events/) lack their triggers or have out-of-date ones, a jobs schema that is missing or behind for a config with [jobs](/reference/jobs/#the-jobs-schema) (see [`migration`](#migration)) or a taken port. `protobase serve listening on port <port>` means it is ready.
-- **Jobs:** with [jobs](/reference/jobs/) in the config it runs them beside the API, unless `PROTOBASE_JOBS=off`.
+- **Jobs:** with [jobs](/reference/jobs/) in the config it runs them beside the API, unless `PROTOBASE_JOBS=off`, and with `PROTOBASE_JOBS_DRAIN_TOKEN` it answers `POST /api/jobs/drain` for the operator.
 - **Shutdown:** the first SIGTERM or SIGINT stops accepting connections, waits for open requests, gives running jobs 30 seconds to finish, drains the pool `serve` created (a `db` the config exports is the project's to close) and exits with 0.
 - **Host modules:** under Bun, the runtime registers [the modules it supplies](#the-config-module) as virtual modules, so the bundle needs no `node_modules` for them. `protobase serve`, on Node or Bun, resolves them from the `node_modules` next to the bundle, so keep the bundle inside the project. Native packages load from the bundle's own `node_modules/` under both.
 - **Read-only hosts:** nothing is written: no install (`--no-install`), and for a bundle built with `--bun` no transpiling and so no transpiler cache. A bundle with `node_modules/` needs its folder mounted without `noexec`, since its add-ons are mapped as executable code.
+
+## `worker`
+
+```sh
+protobase worker <bundle>   # a bundle from `protobase build`: its folder or its protobase.config.js
+```
+
+Runs the bundle's [jobs](/reference/jobs/) and nothing else, until SIGTERM or SIGINT, which let running jobs finish for 30 seconds as `serve` does. It checks the bundle's version and the jobs schema at start like `serve`, reads the `.env` nearest the current directory and needs `DATABASE_URL` unless the config exports `db`. Run it beside a `serve` with `PROTOBASE_JOBS=off`, from the same bundle. `protobase worker running <n> jobs` means it is ready.
 
 ## `files cleanup`
 
