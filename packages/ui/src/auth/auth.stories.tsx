@@ -122,6 +122,19 @@ export const SignInWithEveryMethod: StoryObj<SignInFormProps> = {
   },
 }
 
+export const SignInWithPasskeysOfTwoDomains: StoryObj<SignInFormProps> = {
+  tags: ['play'],
+  args: { onSubmit: fn(), onPasskey: fn(), methods: ['password', 'passkey'], passkeyDomains: ['admin.veldhuis-supply.example', 'erp-x1.protobase.net'], workspace: 'Veldhuis Supply' },
+  render: (args) => <SignInForm {...args} />,
+  play: async ({ canvasElement, args }) => {
+    const canvas = within(canvasElement)
+    await userEvent.click(canvas.getByRole('button', { name: 'Sign in with a passkey' }))
+    expect(args.onPasskey).toHaveBeenLastCalledWith()
+    await userEvent.click(canvas.getByRole('button', { name: 'Use a passkey made for erp-x1.protobase.net' }))
+    expect(args.onPasskey).toHaveBeenLastCalledWith('erp-x1.protobase.net')
+  },
+}
+
 export const SignInWithoutPasswords: StoryObj<SignInFormProps> = {
   tags: ['play'],
   args: { onSubmit: fn(), onSendCode: fn(), onPasskey: fn(), onForgotPassword: fn(), methods: ['emailCode', 'passkey'], workspace: 'Veldhuis Supply' },

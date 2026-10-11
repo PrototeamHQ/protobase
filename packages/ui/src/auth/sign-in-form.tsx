@@ -17,8 +17,13 @@ export type SignInFormProps = {
   methods?: SignInMethod[]
   /** Emails a sign-in code to the address; offered when `methods` has `emailCode`. */
   onSendCode?: (email: string) => void
-  /** Signs in with a passkey; offered when `methods` has `passkey`. */
-  onPasskey?: () => void
+  /** Signs in with a passkey, of the app's passkey domain or of `domain`; offered when `methods` has `passkey`. */
+  onPasskey?: (domain?: string) => void
+  /**
+   * The domains people's passkeys were made for, when more than one, the one new passkeys are made for first: each of
+   * the others is offered too, since the browser asks for the passkeys of one domain at a time.
+   */
+  passkeyDomains?: string[]
   /** Opens the page that emails a reset link; without it there is no "Forgot password?" link. */
   onForgotPassword?: () => void
   /** The sign-in providers, each offered as "Continue with {name}". */
@@ -35,7 +40,7 @@ const Divider = () => (
   </div>
 )
 
-export const SignInForm = ({ onSubmit, busy, error, workspace, notice, methods = ['password'], onSendCode, onPasskey, onForgotPassword, providers = [], onContinueWith }: SignInFormProps) => {
+export const SignInForm = ({ onSubmit, busy, error, workspace, notice, methods = ['password'], onSendCode, onPasskey, passkeyDomains = [], onForgotPassword, providers = [], onContinueWith }: SignInFormProps) => {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const emailInput = useRef<HTMLInputElement>(null)
@@ -66,11 +71,17 @@ export const SignInForm = ({ onSubmit, busy, error, workspace, notice, methods =
               </Button>
             ))}
             {withPasskey && (
-              <Button onClick={onPasskey} disabled={busy} className="min-h-10 w-full">
+              <Button onClick={() => onPasskey?.()} disabled={busy} className="min-h-10 w-full">
                 <KeyRound className="size-4" />
                 Sign in with a passkey
               </Button>
             )}
+            {withPasskey &&
+              passkeyDomains.slice(1).map((domain) => (
+                <Button key={domain} variant="ghost" size="sm" onClick={() => onPasskey?.(domain)} disabled={busy} className="w-full">
+                  Use a passkey made for {domain}
+                </Button>
+              ))}
           </div>
           {withPassword || withCode ? (
             <Divider />

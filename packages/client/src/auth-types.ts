@@ -25,6 +25,11 @@ export type SetupStatus = {
   socialProviders: string[]
   platformSignIn?: PlatformSignIn
   staffSignIn?: string
+  /**
+   * When people have passkeys made for more than one of the app's domains: those domains, the one new passkeys are made
+   * for first. A passkey sign-in asks for one at a time (see `signInWithPasskey`).
+   */
+  passkeyDomains?: string[]
   /** With organizations: who may create them, and every role with its label, `membership` for those a member can hold. */
   organizations?: { create: 'admins' | 'everyone'; roles: RoleLabel[] }
 }

@@ -95,6 +95,7 @@ export const createAuthSession = (options: AuthSessionOptions = {}) => {
         socialProviders: body.socialProviders ?? [],
         ...(body.platformSignIn && { platformSignIn: body.platformSignIn }),
         ...(body.staffSignIn && { staffSignIn: body.staffSignIn }),
+        ...(body.passkeyDomains && { passkeyDomains: body.passkeyDomains }),
         ...(body.organizations && { organizations: body.organizations }),
       }
     },

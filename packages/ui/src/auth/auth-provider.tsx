@@ -21,11 +21,14 @@ export type AuthApi = {
   signInMethods: SignInMethod[]
   /** The server can email reset links, so the sign-in page offers "Forgot password?". */
   passwordReset: boolean
+  /** The domains people's passkeys were made for, when more than one, the passkey domain first; otherwise empty. */
+  passkeyDomains: string[]
   /** Each sign-in step rejects with `AuthError`, for the form to show. */
   signIn: (email: string, password: string) => Promise<void>
   sendSignInCode: (email: string) => Promise<void>
   signInWithCode: (email: string, code: string) => Promise<void>
-  signInWithPasskey: () => Promise<void>
+  /** With a passkey of the app's passkey domain, or of `domain`, one of `passkeyDomains`. */
+  signInWithPasskey: (domain?: string) => Promise<void>
   /** The second step, while `state` is `two-factor`. */
   verifyTwoFactor: (input: { method: TwoFactorMethod | 'backup'; code: string; trustDevice?: boolean }) => Promise<void>
   /** The ids of the server's sign-in providers, for example `github`. */
@@ -65,6 +68,7 @@ export const AuthProvider = ({ session: given, children }: { session?: AuthSessi
   const [state, setState] = useState<AuthState>({ kind: 'loading' })
   const [signInMethods, setSignInMethods] = useState<SignInMethod[]>(['password'])
   const [passwordReset, setPasswordReset] = useState(false)
+  const [passkeyDomains, setPasskeyDomains] = useState<string[]>([])
   const [socialProviders, setSocialProviders] = useState<string[]>([])
   const [platformSignIn, setPlatformSignIn] = useState<PlatformSignIn>()
   const [staffSignIn, setStaffSignIn] = useState<string>()
@@ -90,6 +94,7 @@ export const AuthProvider = ({ session: given, children }: { session?: AuthSessi
     void session.status().then(async (status) => {
       setSignInMethods(status.signInMethods)
       setPasswordReset(status.passwordReset)
+      setPasskeyDomains(status.passkeyDomains ?? [])
       setSocialProviders(status.socialProviders)
       setPlatformSignIn(status.platformSignIn)
       setStaffSignIn(status.staffSignIn)
@@ -108,6 +113,7 @@ export const AuthProvider = ({ session: given, children }: { session?: AuthSessi
       session,
       signInMethods,
       passwordReset,
+      passkeyDomains,
       socialProviders,
       signInProviders: socialProviders.map((id) => ({ id, name: providerName(id, platformSignIn) })),
       staffSignIn,
@@ -117,7 +123,7 @@ export const AuthProvider = ({ session: given, children }: { session?: AuthSessi
       signIn: async (email, password) => finish(await session.signIn(email, password)),
       sendSignInCode: (email) => session.sendSignInCode(email),
       signInWithCode: async (email, code) => finish(await session.signInWithCode(email, code)),
-      signInWithPasskey: async () => enter(await session.signInWithPasskey()),
+      signInWithPasskey: async (domain) => enter(await session.signInWithPasskey(domain)),
       verifyTwoFactor: async (input) => enter(await session.verifyTwoFactor(input)),
       // The provider comes back to this page without a link's marker, so it does not start again.
       signInSocial: async (provider) => {
@@ -135,7 +141,7 @@ export const AuthProvider = ({ session: given, children }: { session?: AuthSessi
         setState({ kind: 'signed-out' })
       },
     }),
-    [state, session, signInMethods, passwordReset, socialProviders, platformSignIn, staffSignIn, organizations, markSignedOut, recheck, finish, enter],
+    [state, session, signInMethods, passwordReset, passkeyDomains, socialProviders, platformSignIn, staffSignIn, organizations, markSignedOut, recheck, finish, enter],
   )
   return <AuthContext.Provider value={api}>{children}</AuthContext.Provider>
 }

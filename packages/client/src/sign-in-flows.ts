@@ -1,4 +1,5 @@
-import { authError } from './auth-error'
+import { startAuthentication, WebAuthnError, type PublicKeyCredentialRequestOptionsJSON } from '@simplewebauthn/browser'
+import { AuthError, authError } from './auth-error'
 import type { AuthUser, SignInResult, TwoFactorMethod } from './auth-types'
 import type { BetterAuthClient } from './better-auth-client'
 
@@ -35,12 +36,22 @@ export const signInFlows = (client: BetterAuthClient, signedIn: () => Promise<un
       return finish(data as SignInAnswer)
     },
 
-    /** Asks the browser for one of the person's passkeys for this site. */
-    signInWithPasskey: async (): Promise<AuthUser> => {
-      const { data, error } = await client.signIn.passkey()
-      if (error || !data) throw authError(error, 'Sign-in failed')
+    /**
+     * Asks the browser for one of the person's passkeys made for `domain`, one of the status's `passkeyDomains`, or for
+     * the app's passkey domain when left out. A browser asks for the passkeys of one domain at a time.
+     */
+    signInWithPasskey: async (domain?: string): Promise<AuthUser> => {
+      const options = await client.$fetch<PublicKeyCredentialRequestOptionsJSON>('/passkey/generate-authenticate-options', { method: 'GET', ...(domain && { query: { rpId: domain } }) })
+      if (options.error || !options.data) throw authError(options.error, 'Sign-in failed')
+      const answer = await startAuthentication({ optionsJSON: options.data }).catch((error: unknown) => {
+        // Closed, timed out, or no passkey chosen: the browser does not tell these apart.
+        throw new AuthError('Auth cancelled', 400, error instanceof WebAuthnError ? error.code : 'AUTH_CANCELLED')
+      })
+      const { clientExtensionResults: _, ...response } = answer
+      const verified = await client.$fetch<{ user: unknown }>('/passkey/verify-authentication', { method: 'POST', body: { response } })
+      if (verified.error || !verified.data) throw authError(verified.error, 'Sign-in failed')
       await signedIn()
-      return data.user as AuthUser
+      return verified.data.user as AuthUser
     },
 
     /** Emails the code for the second step, to the address of the account signing in. */

@@ -1,17 +1,25 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { createAuthSession } from './auth'
+
+// The browser's passkey prompt, which answers for the RP ID it was asked for.
+const passkeyPrompt = vi.hoisted(() => ({ answer: (options: { rpId?: string }): Promise<unknown> => Promise.resolve({ id: 'c1', rawId: 'c1', type: 'public-key', response: { signedFor: options.rpId }, clientExtensionResults: {} }) }))
+vi.mock('@simplewebauthn/browser', async (original) => ({
+  ...(await original<typeof import('@simplewebauthn/browser')>()),
+  startAuthentication: ({ optionsJSON }: { optionsJSON: { rpId?: string } }) => passkeyPrompt.answer(optionsJSON),
+}))
 
 const json = (body: unknown, init: ResponseInit = {}) => new Response(JSON.stringify(body), { ...init, headers: { 'content-type': 'application/json', ...init.headers } })
 const user = { id: 'u1', email: 'sanne@example.com', name: 'Sanne' }
 
 // A session against a fake server that answers by path and records each request.
 const serve = (answers: Record<string, () => Response>) => {
-  const requests: Array<{ path: string; body?: unknown }> = []
+  const requests: Array<{ path: string; query?: string; body?: unknown }> = []
   const fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
     const request = new Request(input, init)
-    const path = new URL(request.url).pathname.replace('/api/auth', '')
+    const url = new URL(request.url)
+    const path = url.pathname.replace('/api/auth', '')
     const text = await request.text()
-    requests.push({ path, ...(text && { body: JSON.parse(text) }) })
+    requests.push({ path, ...(url.search && { query: url.search }), ...(text && { body: JSON.parse(text) }) })
     const answer = answers[path]
     return answer ? answer() : json({ message: 'Not found' }, { status: 404 })
   }) as typeof globalThis.fetch
@@ -41,6 +49,29 @@ describe('signing in', () => {
       { path: '/email-otp/send-verification-otp', body: { email: 'sanne@example.com', type: 'sign-in' } },
       { path: '/sign-in/email-otp', body: { email: 'sanne@example.com', otp: '123456' } },
     ])
+  })
+
+  it('signs in with a passkey of the app\'s passkey domain, or of another domain of the app', async () => {
+    const { requests, session } = serve({
+      '/passkey/generate-authenticate-options': () => json({ challenge: 'x', rpId: 'admin.shop.com' }),
+      '/passkey/verify-authentication': () => json({ session: {}, user }),
+      '/token': () => json({ token: undefined }),
+    })
+    expect(await session.signInWithPasskey()).toEqual(user)
+    await session.signInWithPasskey('erp-x1.protobase.net')
+    expect(requests.filter((request) => request.path !== '/token')).toEqual([
+      { path: '/passkey/generate-authenticate-options' },
+      { path: '/passkey/verify-authentication', body: { response: { id: 'c1', rawId: 'c1', type: 'public-key', response: { signedFor: 'admin.shop.com' } } } },
+      { path: '/passkey/generate-authenticate-options', query: '?rpId=erp-x1.protobase.net' },
+      { path: '/passkey/verify-authentication', body: expect.anything() },
+    ])
+  })
+
+  it('reports a passkey prompt closed without an answer', async () => {
+    const { requests, session } = serve({ '/passkey/generate-authenticate-options': () => json({ challenge: 'x', rpId: 'admin.shop.com' }) })
+    vi.spyOn(passkeyPrompt, 'answer').mockRejectedValueOnce(new DOMException('closed', 'NotAllowedError'))
+    await expect(session.signInWithPasskey()).rejects.toMatchObject({ name: 'AuthError', code: 'AUTH_CANCELLED', status: 400 })
+    expect(paths(requests)).toEqual(['/passkey/generate-authenticate-options'])
   })
 
   it('finishes the second step with an authenticator code, an emailed code or a backup code', async () => {
