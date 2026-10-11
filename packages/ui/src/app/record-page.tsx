@@ -1,6 +1,6 @@
 import { Check } from 'lucide-react'
 import { useQueryClient } from '@tanstack/react-query'
-import { useMemo } from 'react'
+import { Fragment, useMemo } from 'react'
 import { isApiError } from '@protobase/client'
 import { enumLabel, type LayoutItemModel, type ResourceModel, type ViewModel } from '@protobase/schema'
 import { keys } from '../data/query-keys'
@@ -16,7 +16,9 @@ import { Badge } from '../primitives/badge'
 import { Button } from '../primitives/button'
 import { Field, MetadataCard, RecordHeader, RelatedRecords, Section, SidebarCard } from '../record-view'
 import { ErrorBanner } from './error-banner'
+import { CustomSection } from './custom-section'
 import { RecordActions } from './pages/record-actions'
+import type { LayoutRecord } from './pages/record-scope'
 import { FieldEditor } from './field-editor'
 import { Notice, useAdminMeta, usePermissions } from './meta-gate'
 import { can, fieldAccess } from './permissions'
@@ -137,6 +139,21 @@ const LoadedRecord = ({ model, recordKey, stored }: { model: ResourceModel; reco
     )
   }
 
+  // The sidebar's fields are one Summary card, where the first sidebar stands among the sidebar's custom components
+  const firstSidebar = layout.findIndex((item) => item.kind === 'sidebar')
+  const summary = (
+    <MetadataCard
+      title="Summary"
+      rows={sidebarFields.flatMap((name) => {
+        const field = model.fields[name]
+        if (!field || !visible(name)) return []
+        const text = displayValue(field, stored.record[name], hint(name))
+        return [{ label: hint(name)?.label ?? humanize(name), value: field.type === 'enum' ? <Badge tone={toneFor(String(stored.record[name]))}>{text}</Badge> : <strong>{text}</strong> }]
+      })}
+    />
+  )
+  const scope: LayoutRecord = { model, record: stored.record, key: recordKey, etag: stored.etag, permissions: stored.permissions }
+
   const saveControls = (
     <>
       {editor.dirty && <span className="text-xs text-muted-foreground">Unsaved changes</span>}
@@ -191,8 +208,9 @@ const LoadedRecord = ({ model, recordKey, stored }: { model: ResourceModel; reco
         )}
         <div className="grid grid-cols-1 gap-8 md:grid-cols-[minmax(0,1fr)_300px] md:gap-12">
           <main className="divide-y divide-border">
-            {layout.flatMap((item) => {
+            {layout.flatMap((item, index) => {
               if (item.kind === 'related') return [<RelatedSection key={`related:${item.title}`} item={item} recordKey={recordKey} />]
+              if (item.kind === 'custom') return item.sidebar ? [] : [<CustomSection key={`custom:${index}`} item={item} scope={scope} />]
               if (item.kind !== 'section') return []
               // A section whose fields are all hidden from this user would be a lone heading
               const fields = item.fields.filter((name) => model.fields[name] && visible(name))
@@ -207,15 +225,8 @@ const LoadedRecord = ({ model, recordKey, stored }: { model: ResourceModel; reco
           </main>
           <aside className="space-y-4 md:pt-8">
             <RecordActions model={model} stored={stored} recordKey={recordKey} />
-            <MetadataCard
-              title="Summary"
-              rows={sidebarFields.flatMap((name) => {
-                const field = model.fields[name]
-                if (!field || !visible(name)) return []
-                const text = displayValue(field, stored.record[name], hint(name))
-                return [{ label: hint(name)?.label ?? humanize(name), value: field.type === 'enum' ? <Badge tone={toneFor(String(stored.record[name]))}>{text}</Badge> : <strong>{text}</strong> }]
-              })}
-            />
+            {firstSidebar === -1 && summary}
+            {layout.map((item, index) => (item.kind === 'custom' && item.sidebar ? <CustomSection key={`custom:${index}`} item={item} scope={scope} /> : index === firstSidebar ? <Fragment key="summary">{summary}</Fragment> : null))}
             <MetadataCard
               title="Details"
               rows={[auditField(model, 'created'), updatedAt].flatMap((name) => {

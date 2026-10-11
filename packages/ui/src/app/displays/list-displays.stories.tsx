@@ -7,7 +7,7 @@ import type { ViewModel } from '@protobase/schema'
 import { customers, repairs } from '../../../../../docs-examples/bike-shop/data'
 import { customerRows, repairRows } from '../../../../../docs-examples/bike-shop/rows'
 import { customersView } from '../../../../../docs-examples/bike-shop/step-5'
-import * as displays from '../../../../../docs-examples/reference/displays'
+import * as workshop from '../../../../../docs-examples/reference/workshop'
 import { App } from '../app'
 import { defineUi } from '../pages/project-ui'
 import { fakeApi } from '../testing/fake-api'
@@ -20,7 +20,7 @@ const session = createStaticSession('story-token', { id: 'pip', email: 'pip@bike
 
 const ui = defineUi({ components: { RepairBoard } })
 
-const Shop = ({ start, repairsView = displays.repairsView }: { start: string; repairsView?: { toModel(): ViewModel } }) => {
+const Shop = ({ start, repairsView = workshop.repairsView }: { start: string; repairsView?: { toModel(): ViewModel } }) => {
   const [api] = useState(() => fakeApi({ resources: [customers.toModel(), repairs.toModel()], views: [customersView.toModel(), repairsView.toModel()], rows: { customers: customerRows, repairs: repairRows } }))
   return (
     <div className="h-screen">
@@ -34,7 +34,7 @@ export const Board: StoryObj = { name: 'A custom board, the default', render: ()
 export const Cards: StoryObj = { name: 'Cards', render: () => <Shop start="/repairs?display=cards" /> }
 
 const Unregistered = component<{ by: string }>('WorkshopCalendar')
-const withCalendar = displays.repairsView.list((r, d) => ({ columns: [r.number], displays: [d.custom(Unregistered, { name: 'calendar', label: 'Calendar', icon: 'calendar', fields: [r.booked_on], props: { by: r.booked_on } })] }))
+const withCalendar = workshop.repairsView.list((r, d) => ({ columns: [r.number], displays: [d.custom(Unregistered, { name: 'calendar', label: 'Calendar', icon: 'calendar', fields: [r.booked_on], props: { by: r.booked_on } })] }))
 
 export const MissingComponent: StoryObj = { name: 'A display nobody registered', render: () => <Shop start="/repairs?display=calendar" repairsView={withCalendar} /> }
 
