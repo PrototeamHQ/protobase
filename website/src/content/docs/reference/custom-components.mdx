@@ -43,11 +43,75 @@ A prop that names a field is a field reference, `fieldRef('plan.name')` from `@p
 
 ```tsx
 <RecordCard resource="subscriptions">
-  <SeatsChart value={fieldRef('seatsUsed')} max={fieldRef('plan.seats')} />
+  <SeatsChart value={fieldRef('seats_used')} max={fieldRef('plan.seats')} />
 </RecordCard>
 ```
 
 `/api/meta` leaves a component out for a user who cannot read a field it references or see the resource it names, as it leaves out a `Field`, so a hidden name never reaches their browser. A field written as plain text is not checked or hidden this way.
+
+## List displays
+
+A list can show its rows with a component of the project's own, declared in the view with [`d.custom`](/reference/ui-config/#list-displays). The list page loads the rows, with the filter, search and order of the address, and the component draws them: `useListDisplay()` gives them, `RecordLink` opens one.
+
+```tsx
+// components/repair-board.tsx, exported from protobase.ui.tsx: export { RepairBoard } from './components/repair-board'
+import { RecordLink, useListDisplay } from '@protobase/ui'
+
+export const RepairBoard = ({ by }: { by: string }) => {
+  const list = useListDisplay()
+  const columns = [...new Set(list.rows.map((row) => String(row.record[by])))]
+  return (
+    <div className="grid grid-flow-col gap-3">
+      {columns.map((value) => (
+        <section key={value} aria-label={value}>
+          {list.rows.filter((row) => String(row.record[by]) === value).map((row) => (
+            <RecordLink key={row.key} row={row}>{String(row.record.number)}</RecordLink>
+          ))}
+        </section>
+      ))}
+    </div>
+  )
+}
+```
+
+| `useListDisplay()` | |
+| --- | --- |
+| `resource` | The list's resource. |
+| `rows` | `{ key, record, labels }` per record: its key, the record as the list API gives it, and the name of the record each relation the display shows points at (`labels.customer_id`). |
+| `total` | How many records match. |
+| `loading`, `error` | While the first rows load, and why they did not. |
+| `more`, `loadMore()` | Whether there are more rows, and loading the next page of them. |
+
+A display never fetches its list, changes the address or keeps its own history: that is what keeps it at `/<resource>` with every other display, its filters and its links.
+
+## Record sections
+
+A record page can hold a component of the project's own beside its sections, declared in the view with [`l.custom`](/reference/ui-config/#the-record-page). `useLayoutRecord()` gives it the record the page shows, as inside a `RecordCard`, so one component works in both. It reads more through the hooks (`useList`, `useRecord`), and acts through named actions or the API. Breadcrumbs, the heading, Save and Delete, the action rail and the related records stay the page's.
+
+```tsx
+// components/customer-repairs.tsx
+import { RecordLink, useLayoutRecord, useList } from '@protobase/ui'
+
+export const CustomerRepairs = ({ limit }: { limit: number }) => {
+  const { record } = useLayoutRecord()!
+  const earlier = useList('repairs', { filter: `customer_id = ${record.customer_id} AND id != ${record.id}`, orderBy: 'booked_on desc', pageSize: limit })
+  return <ul>{earlier.items.map((repair) => <li key={String(repair.id)}><RecordLink recordKey={repair.id as number}>{String(repair.number)}</RecordLink></li>)}</ul>
+}
+```
+
+## Addresses
+
+Every place in the app has an [address](/reference/layouts/#addresses), and a component never writes a path or reads the query string itself, so the address can change shape in one place. `useAppAddress()` from `@protobase/ui` gives the current one as values, with the list's defaults filled in, and moves the app:
+
+```tsx
+const { address, set, go, href } = useAppAddress()
+// address: { kind: 'list', resource: 'repairs', display: 'board', filter: 'status = "ready"', orderBy: 'booked_on desc', filterLayout: 'bar' }
+set({ display: 'cards' })                             // changes this list in place
+go({ kind: 'record', resource: 'repairs', key: 42 })  // moves to another address
+href({ kind: 'create', resource: 'repairs' })         // for an <a href>, with the base path
+```
+
+`RecordLink` (a record, from a display's `row` or a `recordKey`) and `AppLink` (`to` any address) are links written the same way. Code outside React builds and reads addresses with `appPath(address, basePath?)` and `readAppPath(path, pages)` from `@protobase/schema`, whose words (`filter`, `order_by`, `display`) are in `addressWords`.
 
 ## Components in the chat
 

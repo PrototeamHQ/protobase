@@ -90,7 +90,7 @@ Every place in the app has an address, and the app writes and reads them in one 
 
 | Address | Is |
 | --- | --- |
-| `{ kind: 'list', resource, filter?, orderBy? }` | A resource's list, with the filter and order the list page would show. |
+| `{ kind: 'list', resource, filter?, orderBy?, display? }` | A resource's list, with the filter, order and [display](/reference/ui-config/#list-displays) the list page would show. |
 | `{ kind: 'record', resource, key }` | One record; `key` is its value, or its parts for a composite key. |
 | `{ kind: 'create', resource }` | The form for a new record. |
 | `{ kind: 'page', page }` | A composed page. |

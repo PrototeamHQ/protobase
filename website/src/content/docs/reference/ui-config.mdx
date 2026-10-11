@@ -4,6 +4,8 @@ description: Views in ui.ts, with names, list columns, filters, charts, record l
 ---
 
 import { Code } from '@astrojs/starlight/components'
+import StoryFrame from '../../../components/StoryFrame.astro'
+import workshop from '../../../../../docs-examples/reference/workshop.ts?raw'
 import step2 from '../../../../../docs-examples/bike-shop/step-2.ts?raw'
 import step3 from '../../../../../docs-examples/bike-shop/step-3.ts?raw'
 import step4 from '../../../../../docs-examples/bike-shop/step-4.ts?raw'
@@ -31,7 +33,7 @@ export const repairsView = view<typeof repairs>('repairs')
 | `.names({ singular, plural })` | "New repair", "Repairs" in the sidebar and breadcrumbs. Default: the resource name in words. |
 | `.title((r) => r.number)` | The field that names a record: in breadcrumbs, the record page's heading, relation links and search results. |
 | `.searchResult((r) => ({ title?, subtitle? }))` | A record in the [global search](/reference/client/#global-search): `title` is one field or several joined by spaces (`[r.first_name, r.last_name]`, default: `.title`), `subtitle` the line under it (default: the first search field not in the title), replaced by the search field the text matched when neither line shows it. |
-| `.list((r) => ({ columns, sort?, search? }))` | The list's columns in order; its starting `sort` as `[[field, 'asc' \| 'desc'], ...]`; the fields the search box suggests (the resource's `.search` decides what search matches on the server). |
+| `.list((r, d) => ({ columns, sort?, search?, displays?, default? }))` | The list's columns in order; its starting `sort` as `[[field, 'asc' \| 'desc'], ...]`; the fields the search box suggests (the resource's `.search` decides what search matches on the server); other ways to show it, see [List displays](#list-displays). |
 | `.fields((r) => ({ name: r.name.label(...) }))` | Hints per field, below. Calls add up. |
 | `.help(text)` | A line under the list's title. |
 | `.nav({ group, order, hidden, recent })` | Where the resource sits in the sidebar, and its [recent-record group](/reference/sidebar/#recent-records). |
@@ -64,6 +66,23 @@ An enum's value labels show everywhere the admin shows its values: badges, selec
 
 `.chart((r) => ({ field, range, granularity }))` draws records per day or week over a date or timestamp field above the list, following its filters: `range` is `7d`, `30d`, `90d`, `1y` or `all`, `granularity` `hour`, `day`, `week` or `month`.
 
+## List displays
+
+Besides its table, a list can show as cards, or as a component of the project's own, such as a board. The list stays at `/<resource>`, read through the list API, with its search, filters, chart, order and New button; only the way the rows are drawn changes.
+
+<Code code={workshop} lang="ts" title="docs-examples/reference/workshop.ts" />
+
+| Display | |
+| --- | --- |
+| `d.cards({ title?, subtitle?, badge?, meta? }, { name?, label?, icon? })` | A card per record, opening it: `title` (default: the view's `.title`) over `subtitle`, `badge` drawn as a badge with its value labels, and a few small `meta` fields such as dates. A relation shows the name of the record it points at. Named `cards` unless `name` says otherwise. |
+| `d.custom(Component, { name, label, fields, props?, icon? })` | The rows drawn by a [custom component](/reference/custom-components/#list-displays). `fields` are the fields it shows, loaded with the names of the records relations point at; `props` are plain data, with `r.field` where it takes a field. |
+
+With displays, the list page has a switch beside its search box: the table first, then each display by its `label`, with its `icon` (`table`, `cards`, `kanban`, `board`, `list` or `calendar`). The choice is in the address, `/repairs?display=cards`, so a reload, a bookmark or a shared link opens the same display; `default` names the display `/repairs` opens in, the table when it is left out. A display without column headers has a sort menu over the sortable fields it shows. Selecting rows, deleting them in bulk and the row menu stay on the table, which every list keeps.
+
+Display names are checked when the config loads: unique, not `table`, and `default` names one. Their fields are checked when the server starts, and may not be [sensitive](/reference/data-config/#sensitive-fields). In `/api/meta`, a user's displays lose the fields they cannot read, and a custom display whose `props` name one is left out; the list then opens in the table when its default display went.
+
+<StoryFrame id="list-page-displays--board" title="Repairs on a board, beside cards and the table" height={640} />
+
 ## The record page
 
 <Code code={step4} lang="ts" title="docs-examples/bike-shop/step-4.ts" />
@@ -75,6 +94,11 @@ An enum's value labels show everywhere the admin shows its values: badges, selec
 | `l.section(title, fields, { help? })` | A titled group of fields in the main column, editable where the user may write. |
 | `l.sidebar(fields)` | A summary card beside it, read-only. |
 | `l.related(title, { ... })` | A table of the records of another resource that point at this one, in the main column. See [Related records](#related-records). |
+| `l.custom(Component, { title?, props?, sidebar? })` | A [custom component](/reference/custom-components/#record-sections) where it is listed: in the main column under `title`, or with `sidebar: true` as a sidebar card. |
+
+A custom component draws only its part: the page around it stays the record page, at `/<resource>/<key>`, with its breadcrumbs, title and badge, Save, Discard and Delete, the action rail and the related records, and a layout may hold only custom components. The repairs above list the customer's earlier repairs under the bike:
+
+<StoryFrame id="record-page-custom-sections--earlier-repairs" title="A repair with the customer's earlier repairs" height={760} />
 
 Without a layout the record page shows one section with every field the user may change, or every field, read-only, to a user who may change none. A section or sidebar card with no field the user may see is left out. `.saveFeedback('button')` shows saving on the Save button instead of a toast (`'toast'`, the default). A [sensitive field](/reference/data-config/#sensitive-fields) in a section is masked, with an eye button that reveals it.
 
