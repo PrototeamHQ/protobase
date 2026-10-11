@@ -49,6 +49,9 @@ Upgrading from 0.5 or earlier, where `auth:migrate` created the tables, goes thr
 | `BETTER_AUTH_SECRET` | signs cookies and encrypts the token keys; `openssl rand -base64 32`; never committed (`.env.example` has a placeholder) |
 | `BETTER_AUTH_URL` | public URL of the API (default `http://localhost:5173`); issuer and audience of the tokens; when tunnelling, the https tunnel URL |
 | `TRUSTED_ORIGINS` | extra comma separated origins; `https://*.trycloudflare.com` is always trusted |
+| `PROTOBASE_ORIGINS` | the other origins the app is served on, comma separated, passed by the platform; see [Several origins](#several-origins) |
+| `PROTOBASE_PASSKEY_DOMAIN` | the host new [passkeys](#passkeys) are made for, passed by the platform; default the host of `BETTER_AUTH_URL` |
+| `PROTOBASE_CORS_ORIGINS` | other websites whose browser code may call the API, `*` or comma separated origins, passed by the platform; see [CORS](/reference/api/#cors) |
 | `PROTOBASE_SMTP_URL`, `PROTOBASE_MAIL_FROM` | the mail server and sender for [password reset](#password-reset), [emailed sign-in codes](#emailed-sign-in-codes) and emailed [two-factor](#two-factor-authentication) codes, passed by the platform; all three are off without them |
 | `PROTOBASE_SIGN_IN_ISSUER`, `PROTOBASE_SIGN_IN_CLIENT_ID`, `PROTOBASE_SIGN_IN_CLIENT_SECRET` | the [platform sign-in provider](#platform-sign-in-provider) for people who have an account, passed by the platform; off without them. `PROTOBASE_SIGN_IN_PROVIDER` and `PROTOBASE_SIGN_IN_NAME` are optional |
 | `PROTOBASE_OPERATOR_ISSUER`, `PROTOBASE_OPERATOR_CLIENT_ID`, `PROTOBASE_OPERATOR_CLIENT_SECRET` | the [operator provider](#operator-provider) its staff sign in with to sign in as people, passed by the platform; staff sign-in is off without them. `PROTOBASE_OPERATOR_NAME` and `PROTOBASE_OPERATOR_GROUP` are optional |
@@ -97,7 +100,8 @@ createAuth({ ..., mailer: false })
 - The SMTP client greets the server with the sender's domain (`admin.example.com` above), not the container's `[127.0.0.1]`; a `?name=` on `PROTOBASE_SMTP_URL` overrides it.
 - A request answers the same whether or not the address has an account, and the mail goes out after the answer, so neither the response nor its timing tells. A send that fails is logged by Better Auth.
 - Requests are limited to 3 per minute and client. Setting a new password ends all of the user's sessions; the new password needs 12 characters like any other.
-- `redirectTo` must be on a trusted origin (`BETTER_AUTH_URL` or `TRUSTED_ORIGINS`); the admin app sends its own page with a `password-reset` marker, so the link opens the set-password page there.
+- `redirectTo` must be on a trusted origin (`BETTER_AUTH_URL`, one of the app's [other origins](#several-origins) or `TRUSTED_ORIGINS`); the admin app sends its own page with a `password-reset` marker, so the link opens the set-password page there.
+- The link is on the origin the reset was asked on, when that is one of the app's.
 - While the [sign-in policy](#sign-in-policy) turns passwords off, reset is off too (`403`).
 
 ## Emailed sign-in codes
@@ -114,7 +118,10 @@ With mail configured, the sign-in page offers "Email me a sign-in code": the per
 
 People add passkeys (Face ID, Touch ID, Windows Hello, a phone or a security key) on their account page, and sign in with "Sign in with a passkey". It is Better Auth's [passkey](https://www.better-auth.com/docs/plugins/passkey) plugin from `@better-auth/passkey`, under `/api/auth/passkey/*`.
 
-- A passkey belongs to the host of `BETTER_AUTH_URL`: one added on `admin.example.com` works there only. For local development, `http://localhost` works.
+- A passkey is made for the app's passkey domain, its RP ID: the host of `BETTER_AUTH_URL` (`admin.example.com`), or the host of one of its [other origins](#several-origins) set with `passkeyDomain` or `PROTOBASE_PASSKEY_DOMAIN`. For local development, `http://localhost` works.
+- Each passkey keeps the RP ID it was made for (`passkey.rp_id`), so changing the passkey domain breaks none. Passkeys made before Protobase kept it count for the host of `BETTER_AUTH_URL`, which they were made for; renaming that host breaks them. The column is new in 0.10: the server refuses to start until the [migration](#migrations) that adds it is applied.
+- On an app with several origins, every passkey works on each of them through [Related Origin Requests](https://passkeys.dev/docs/advanced/related-origins/) (Chrome and Edge 128, Safari 18, Firefox 152; at most 5 registrable domains).
+- A browser asks for the passkeys of one RP ID at a time. When people have passkeys for more than one of the app's hosts, `GET /api/auth/status` lists them as `passkeyDomains`, the passkey domain first, and the sign-in page adds "Use a passkey made for {host}" for each of the others. `GET /api/auth/passkey/generate-authenticate-options?rpId=<host>` asks for one of them.
 - A passkey sign-in asks for no second step: the passkey is something you have and something you are or know.
 - Adding a passkey needs a session started in the last day; after that, the page asks to sign in again first.
 - Passkeys can be renamed and removed on the account page; removing one here leaves it on the device.
@@ -182,7 +189,7 @@ Admins find the log under the policy on the **Sign-in policy** page: each staff 
 
 Any OpenID Connect provider works. Register the app with it as a confidential client:
 
-- Redirect URI: `<BETTER_AUTH_URL>/api/auth/staff/callback`.
+- Redirect URI: `<BETTER_AUTH_URL>/api/auth/staff/callback`, and `<origin>/api/auth/staff/callback` for each of the app's [other origins](#several-origins): staff come back to the one they started on.
 - The client authenticates with its secret (`client_secret_basic`) and PKCE (`S256`); scopes `openid email profile`.
 - The ID token carries `groups`, `amr` (or `acr`) and `auth_time`, signed with a key the provider publishes in its JWKS.
 
@@ -213,7 +220,7 @@ Projects have no sign-in provider of their own by default (a platform can add [o
 createAuth({ ..., socialProviders: { github: { clientId: process.env.GITHUB_CLIENT_ID!, clientSecret: process.env.GITHUB_CLIENT_SECRET! } } })
 ```
 
-- The callback URL to register with GitHub is `<BETTER_AUTH_URL>/api/auth/callback/github`. A GitHub App needs the Email addresses (read-only) account permission, or sign-in fails with `email_not_found`.
+- The callback URL to register with GitHub is `<BETTER_AUTH_URL>/api/auth/callback/github`, and the same path on each of the app's [other origins](#several-origins) it should sign in on. A GitHub OAuth App takes one callback URL, so it covers one origin; a GitHub App takes several. A GitHub App needs the Email addresses (read-only) account permission, or sign-in fails with `email_not_found`.
 - A provider is also a public sign-up: someone without an account gets one with the [default role](#roles). Without a default role the sign-up is refused.
 - `GET /api/auth/status` lists the provider ids as `socialProviders`.
 - `encryptOAuthTokens: true` stores the provider's access, refresh and ID tokens encrypted with the secret.
@@ -240,7 +247,7 @@ PROTOBASE_SIGN_IN_PROVIDER=oidc                       # the default; the button,
 PROTOBASE_SIGN_IN_NAME="Acme SSO"                      # shown as "Continue with Acme SSO"; default GitHub for github, SSO otherwise
 ```
 
-Register the app with the provider as a confidential client with the redirect URI `<BETTER_AUTH_URL>/api/auth/callback/<provider>` (`/api/auth/callback/oidc` by default). The app authenticates with its secret (`client_secret_basic`) and PKCE (`S256`), asks for `openid email profile`, and takes the person from the ID token only, verified against the provider's JWKS, the issuer, the client and the nonce. The provider needs no userinfo endpoint.
+Register the app with the provider as a confidential client with the redirect URI `<BETTER_AUTH_URL>/api/auth/callback/<provider>` (`/api/auth/callback/oidc` by default), and the same path on each of the app's [other origins](#several-origins). The app authenticates with its secret (`client_secret_basic`) and PKCE (`S256`), asks for `openid email profile`, and takes the person from the ID token only, verified against the provider's JWKS, the issuer, the client and the nonce. The provider needs no userinfo endpoint.
 
 - **No sign-up:** someone without an account is refused (`signup_disabled`); admins add people as before. A provider the project did not choose never opens the app to new people.
 - **The project's own provider wins:** with `socialProviders.github` in code and `PROTOBASE_SIGN_IN_PROVIDER=github`, the project's GitHub app handles the sign-in and the platform's is left out.
@@ -353,9 +360,24 @@ const { token, expiresAt } = await issueToken(auth, { email: 'you@example.com', 
 
 It is signed with the same keys and carries the same claims as a token from `/api/auth/token`, with the role the user last chose, else their first, so the API treats it as any other. Banned and unknown users get an error. There is no HTTP route for this.
 
+## Several origins
+
+An app can be served on more than one origin, such as its platform address and the customer's own domain. `origins` lists the others; it defaults to `PROTOBASE_ORIGINS`, which a platform sets:
+
+```ts
+createAuth({ ..., baseURL: 'https://erp-x1.protobase.net', origins: ['https://admin.shop.com'], passkeyDomain: 'admin.shop.com' })
+```
+
+- A request to one of them is answered for its own host: the sign-in callbacks, the [password reset](#password-reset) link and its `redirectTo`, and a [staff sign-in](#staff-sign-in) stay there. A request to any other host is answered for `baseURL`.
+- Tokens keep `baseURL` as issuer and audience, whichever origin issued them, so the API takes them on every origin. `auth.issuer` is that value and `auth.origins` every origin, `baseURL`'s first.
+- Sessions are cookies of each host: a person signs in once per origin.
+- `GET /.well-known/webauthn` answers `{ "origins": [...] }` with every origin of the app, on each of them, so its [passkeys](#passkeys) work on all. `protobase serve` and `protobase dev` send that path to the server, whatever the bundle's `api` says; a host in front must too.
+- Each origin is a URL with the scheme of `baseURL`; one that is not stops the server at startup. The host that serves the app must pass each origin's own `Host` header on.
+- The app's own origins may call each other's API from the browser ([CORS](/reference/api/#cors)).
+
 ## Public endpoints
 
-Only the Better Auth routes under `/api/auth/*` (sign-in, password reset, the start and callback of a [staff sign-in](#staff-sign-in) and the like) and `GET /api/auth/status` are reachable without a token; the account, policy and staff session endpoints there need a session. The API (`/api/v1/*`) and the system endpoints (`/api/meta`, `/api/openapi.json`, `/api/docs`) all answer `401` without one.
+Only the Better Auth routes under `/api/auth/*` (sign-in, password reset, the start and callback of a [staff sign-in](#staff-sign-in) and the like), `GET /api/auth/status` and, with [several origins](#several-origins), `GET /.well-known/webauthn` are reachable without a token; the account, policy and staff session endpoints there need a session. The API (`/api/v1/*`) and the system endpoints (`/api/meta`, `/api/openapi.json`, `/api/docs`) all answer `401` without one.
 
 ## Roles and access in the API
 
