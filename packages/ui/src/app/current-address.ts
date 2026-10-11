@@ -12,9 +12,9 @@ export type ListChange = Partial<Omit<ListAddress, 'kind' | 'resource'>>
 
 export type ListDefaults = Pick<ListAddress, 'display' | 'orderBy' | 'filterLayout'>
 
-/** What a list shows when its address names nothing: the table, the list's sort, the filters in a bar. */
+/** What a list shows when its address names nothing: the view's default display, the list's sort, the filters in a bar. */
 export const listDefaults = (model: ResourceModel | undefined, view: ViewModel | undefined): ListDefaults => ({
-  display: tableDisplay,
+  display: view?.list?.default ?? tableDisplay,
   orderBy: model ? defaultOrderBy(model, view) : '',
   filterLayout: 'bar',
 })

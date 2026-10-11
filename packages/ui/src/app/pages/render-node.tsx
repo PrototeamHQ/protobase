@@ -1,4 +1,4 @@
-import { Fragment, type ComponentType, type ReactNode } from 'react'
+import { Fragment, type ComponentType } from 'react'
 import { isLayoutNode, type LayoutChild, type LayoutNode, type LayoutValue } from '@protobase/layout'
 import { unmarkFieldRefs } from '@protobase/schema'
 import { ActionBlock } from './blocks/action'
@@ -15,6 +15,7 @@ import { RecordCardBlock } from './blocks/record-card'
 import { ShowBlock } from './blocks/show'
 import { StatBlock } from './blocks/stat'
 import { TableBlock } from './blocks/table'
+import { Problem } from './problem'
 import { useProjectUi } from './project-ui'
 
 const blocks: Record<string, ComponentType<BlockProps>> = {
@@ -32,12 +33,6 @@ const blocks: Record<string, ComponentType<BlockProps>> = {
   Show: ShowBlock,
   Link: LinkBlock,
 }
-
-const Problem = ({ children }: { children: ReactNode }) => (
-  <div role="alert" className="rounded-lg border border-dashed border-warning bg-warning-soft p-3 text-[13px] text-warning-text">
-    {children}
-  </div>
-)
 
 const isInline = (child: LayoutChild) => typeof child === 'string' || (!child.custom && child.type === 'Link')
 

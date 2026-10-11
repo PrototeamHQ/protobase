@@ -15,7 +15,10 @@ export type LiveRowsParams = {
   orderBy: string
 }
 
-/** A grid row source backed by the API; `total` is the server's estimate from the first page. */
+/**
+ * A grid row source backed by the API; `total` is the server's estimate from the first page. `page` loads one page of
+ * the same rows by number, and `key` names them in the query cache, for list displays that page through them.
+ */
 export const useLiveRows = ({ resources, views, model, columns, filter, orderBy }: LiveRowsParams) => {
   const client = useClient()
   const queryClient = useQueryClient()
@@ -29,5 +32,5 @@ export const useLiveRows = ({ resources, views, model, columns, filter, orderBy 
     () => (first.data ? { total: first.data.total, loadRows: loader.loadRows } : undefined),
     [first.data, loader],
   )
-  return { source, error: first.error, isLoading: first.isLoading }
+  return { source, error: first.error, isLoading: first.isLoading, page: loader.page, key: [...keys.first(model.name, filter, orderBy), columnKey] as const }
 }

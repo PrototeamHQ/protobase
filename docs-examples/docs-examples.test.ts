@@ -4,6 +4,7 @@ import { customers, repairs } from './bike-shop/data'
 import * as step5 from './bike-shop/step-5'
 import { customerRows, repairRows } from './bike-shop/rows'
 import { roles, workOrders } from './reference/access'
+import * as displays from './reference/displays'
 import { partOrders, stock } from './reference/keys'
 
 // The documentation shows these files; this keeps what it says about them true.
@@ -56,5 +57,14 @@ describe('keys', () => {
     expect(keyTypes(models.part_orders!, (name) => models[name])).toEqual(['uuid'])
     expect(models.part_orders!.fields.part!.relation).toEqual({ resource: 'stock', columns: ['part_no', 'part_size'] })
     expect(models.part_orders!.fields.supplier_reference!.aliases).toEqual(['ref'])
+  })
+})
+
+describe('displays', () => {
+  it('shows the repairs as a board by default, beside cards and the table', () => {
+    const list = displays.repairsView.toModel(models.repairs).list!
+    expect(list.displays!.map((display) => display.name)).toEqual(['cards', 'board'])
+    expect(list.default).toBe('board')
+    expect(list.displays![1]).toMatchObject({ kind: 'custom', component: 'RepairBoard', props: { by: { $field: 'status' } } })
   })
 })
