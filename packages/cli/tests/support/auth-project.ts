@@ -39,8 +39,8 @@ export const authenticate = betterAuthAuthenticator({ auth, tenant: 1 })
 
 /**
  * A throwaway project inside examples/erp (so it resolves the same packages) with its own Better Auth store,
- * a temporary Postgres database that `dispose` drops. `config` re-exports the ERP resources, as its own
- * protobase.config.ts does.
+ * a temporary Postgres database that `dispose` drops. `config` re-exports the ERP resources and `roles` its roles,
+ * which its bottom bar names, as its own protobase.config.ts does.
  */
 export const createAuthProject = async (databaseUrl: string) => {
   const suffix = randomBytes(4).toString('hex')
@@ -58,7 +58,7 @@ export const createAuthProject = async (databaseUrl: string) => {
   await writeFile(path.join(projectDir, 'auth.ts'), authFile)
   await writeFile(
     path.join(projectDir, 'protobase.config.ts'),
-    `import * as config from '../config'\nimport { auth, authenticate } from './auth'\nexport default { config, auth, authenticate }\n`,
+    `import * as config from '../config'\nimport { roles } from '../config/roles'\nimport { auth, authenticate } from './auth'\nexport default { config, auth, authenticate, options: { roles } }\n`,
   )
   await writeFile(
     path.join(projectDir, 'migrate.ts'),
