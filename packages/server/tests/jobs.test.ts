@@ -225,6 +225,21 @@ describe('order', () => {
     await job.enqueue(db, { index: 1 }, { group: 'g' })
     await until(() => expect(done).toEqual([0, 1]), 8_000)
   })
+
+  it('runs the jobs of one group enqueued in one transaction in that order, from the app and from SQL', async () => {
+    const db = await jobsDb()
+    const done: number[] = []
+    const job = defineJob({ name: 'ordered', ordered: true, payload: z.object({ index: z.number() }), run: ({ index }) => { done.push(index) } })
+    await start(db, [job])
+    const indexes = Array.from({ length: 12 }, (_, index) => index)
+    await db.transaction().execute(async (trx) => {
+      for (const index of indexes) {
+        if (index % 3 === 0) await sql`select jobs.enqueue('ordered', ${JSON.stringify({ index })}::jsonb, group_key => 'g')`.execute(trx)
+        else await job.enqueue(trx, { index }, { group: 'g' })
+      }
+    })
+    await until(() => expect(done).toEqual(indexes), 10_000)
+  })
 })
 
 describe('jobs from SQL', () => {

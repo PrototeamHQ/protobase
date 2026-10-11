@@ -132,6 +132,21 @@ describe.each(targets)('jobs on $name', ({ url, skip }) => {
     expect(second).toBe(first)
   })
 
+  it.skipIf(skip)('runs the jobs of one group enqueued in one transaction in that order, from the app and from SQL', async () => {
+    const done: number[] = []
+    const name = `ordered-${randomBytes(3).toString('hex')}`
+    const ordered = defineJob<{ index: number }>({ name, ordered: true, run: ({ index }) => { done.push(index) } })
+    await start([ordered], 0.5)
+    const indexes = Array.from({ length: 12 }, (_, index) => index)
+    await db.transaction().execute(async (trx) => {
+      for (const index of indexes) {
+        if (index % 3 === 0) await sql`select jobs.enqueue(${name}, ${JSON.stringify({ index })}::jsonb, group_key => 'g')`.execute(trx)
+        else await ordered.enqueue(trx, { index }, { group: 'g' })
+      }
+    })
+    await until(() => expect(done).toEqual(indexes), 15_000)
+  })
+
   it.skipIf(skip)('lets a running job finish when it stops', async () => {
     let finished = false
     let started = false

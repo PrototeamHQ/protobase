@@ -1,5 +1,5 @@
 /** Bumped whenever the objects below change, so the next migration writes them again. */
-export const functionsVersion = 2
+export const functionsVersion = 3
 
 /** The comment each Protobase function in the jobs schema carries, which the startup check reads. */
 export const functionsComment = `Protobase jobs ${functionsVersion}`
@@ -11,7 +11,9 @@ export const functionNames = ['enqueue', 'next_due', 'failed_retry', 'failed_del
  * `jobs.enqueue(name, payload, run_at, key, group_key, priority)`: a job from SQL, such as a trigger, in the caller's
  * transaction. It inserts what pg-boss's `send()` does, with the queue's retry settings; it creates a queue that no
  * worker has created yet. A `key` keeps one waiting job, as `mode: 'dedupe'` does, and an ordered job takes its group
- * as `group_key`. Tied to the pg-boss schema version, which the startup check pins.
+ * as `group_key`, and an id from `uuidv7()`, which rises within a database session: pg-boss runs a group's jobs by their
+ * transaction's start, then by id, so the jobs one transaction enqueues run in that order. Tied to the pg-boss schema
+ * version, which the startup check pins.
  */
 const enqueue = (schema: string) => `create or replace function ${schema}.enqueue(
   job_name text,
@@ -45,14 +47,15 @@ begin
   end if;
   execute format(
     'insert into ${schema}.%I (name, data, priority, start_after, singleton_key, retry_limit, retry_delay, retry_backoff,
-       retry_delay_max, expire_seconds, deletion_seconds, keep_until, policy, dead_letter, heartbeat_seconds, upsert_by_key)
-     values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $4 + $12 * interval ''1s'', $13, $14, $15, $16)
+       retry_delay_max, expire_seconds, deletion_seconds, keep_until, policy, dead_letter, heartbeat_seconds, upsert_by_key, id)
+     values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $4 + $12 * interval ''1s'', $13, $14, $15, $16, $17)
      on conflict do nothing
      returning id',
     queue.table_name)
   using job_name, payload, priority, start, coalesce(key, group_key), queue.retry_limit, queue.retry_delay,
     queue.retry_backoff, queue.retry_delay_max, queue.expire_seconds, queue.deletion_seconds, queue.retention_seconds,
-    queue.policy, queue.dead_letter, queue.heartbeat_seconds, key is not null
+    queue.policy, queue.dead_letter, queue.heartbeat_seconds, key is not null,
+    case when group_key is null then gen_random_uuid() else uuidv7() end
   into job_id;
   -- A concurrent enqueue of the same key inserted first: its job is the one waiting.
   if job_id is null and key is not null then

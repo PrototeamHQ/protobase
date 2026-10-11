@@ -127,7 +127,11 @@ export const startJobs = async ({ db, jobs, work = true, pollSeconds = 2, shutdo
     const checked = await validatePayload(definition, payload)
     if ('invalid' in checked) throw new Error(checked.invalid)
     const data = checked.value ?? null
-    const send = { ...sendOptions(definition.options, options), db: jobsDatabase(target) }
+    // pg-boss runs a group's jobs by their transaction's start, then by id: an ordered job takes its id from the
+    // database's uuidv7(), which rises within a session, so the jobs one transaction enqueues run in that order, those
+    // of jobs.enqueue() among them.
+    const orderedId = definition.options.ordered ? (await sql<{ id: string }>`select uuidv7() as id`.execute(target)).rows[0]!.id : undefined
+    const send = { ...sendOptions(definition.options, options), ...(orderedId !== undefined && { id: orderedId }), db: jobsDatabase(target) }
     // With a key: the waiting job, kept (dedupe) or given this payload (replace), or a new one. pg-boss's upsert
     // indexes waiting keys, so two enqueues racing for one key end with one job.
     const keyed = async (key: string) => {
