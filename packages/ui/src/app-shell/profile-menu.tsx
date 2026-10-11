@@ -1,8 +1,9 @@
-import { Check, ChevronsUpDown, LogOut, type LucideIcon } from 'lucide-react'
+import { ChevronsUpDown, LogOut, type LucideIcon } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { cn } from '../lib/cn'
 import { Avatar } from '../primitives/avatar'
 import { Badge, type BadgeTone } from '../primitives/badge'
+import { SwitchGroup } from './switch-group'
 
 export type ShellUser = { name: string; email: string; initials: string; hue: number; role: string; roleTone: BadgeTone }
 
@@ -11,6 +12,9 @@ export type ProfileMenuItem = { id: string; label: string; icon: LucideIcon; hre
 
 /** The organizations to switch between: the one worked in, and the person's others. */
 export type ProfileOrganizations = { current?: { id: string; name: string }; others: { id: string; name: string }[]; onSwitch: (id: string) => void }
+
+/** The roles to switch between: the one the person acts with, and every role they hold, each with its label. */
+export type ProfileRoles = { active: string; roles: { name: string; label: string }[]; onSwitch: (name: string) => void }
 
 export type ProfileMenuProps = {
   user: ShellUser
@@ -25,12 +29,15 @@ export type ProfileMenuProps = {
   onSignOut?: () => void
   /** Lists the organizations below the person, to switch between them. */
   organizations?: ProfileOrganizations
+  /** Lists the roles below the organizations, to switch between them; left out for someone with one role. */
+  roles?: ProfileRoles
 }
 
 const menuRow = 'flex min-h-11 w-full items-center gap-2.5 px-3 py-1.5 text-left text-[13px] text-muted-foreground hover:bg-muted md:min-h-0'
 
 /** The person at the bottom of the sidebar; the menu is fixed to the viewport so a narrow sidebar cannot clip it. */
-export const ProfileMenu = ({ user, compact, open: controlled, items = [], onNavigate, onSignOut, organizations }: ProfileMenuProps) => {
+export const ProfileMenu = ({ user, compact, open: controlled, items = [], onNavigate, onSignOut, organizations, roles }: ProfileMenuProps) => {
+  const activeRole = roles?.roles.find((role) => role.name === roles.active)
   const [local, setLocal] = useState(false)
   const open = controlled ?? local
   const root = useRef<HTMLDivElement>(null)
@@ -78,29 +85,28 @@ export const ProfileMenu = ({ user, compact, open: controlled, items = [], onNav
             <div className="truncate text-xs text-muted-foreground">{user.email}</div>
           </div>
           {organizations && (organizations.current || organizations.others.length > 0) && (
-            <div className="border-b py-1" role="group" aria-label="Organizations">
-              {organizations.current && (
-                <div className={cn(menuRow, 'text-foreground hover:bg-transparent')} aria-current="true">
-                  <Check className="size-4" />
-                  <span className="truncate">{organizations.current.name}</span>
-                </div>
-              )}
-              {organizations.others.map((organization) => (
-                <button
-                  key={organization.id}
-                  type="button"
-                  role="menuitem"
-                  onClick={() => {
-                    setLocal(false)
-                    organizations.onSwitch(organization.id)
-                  }}
-                  className={menuRow}
-                >
-                  <span className="size-4" />
-                  <span className="truncate">{organization.name}</span>
-                </button>
-              ))}
-            </div>
+            <SwitchGroup
+              label="Organizations"
+              {...(organizations.current && { current: { id: organizations.current.id, label: organizations.current.name } })}
+              others={organizations.others.map(({ id, name }) => ({ id, label: name }))}
+              rowClassName={menuRow}
+              onSwitch={(id) => {
+                setLocal(false)
+                organizations.onSwitch(id)
+              }}
+            />
+          )}
+          {roles && roles.roles.length > 1 && (
+            <SwitchGroup
+              label="Roles"
+              {...(activeRole && { current: { id: activeRole.name, label: activeRole.label } })}
+              others={roles.roles.filter((role) => role !== activeRole).map(({ name, label }) => ({ id: name, label }))}
+              rowClassName={menuRow}
+              onSwitch={(name) => {
+                setLocal(false)
+                roles.onSwitch(name)
+              }}
+            />
           )}
           {items.length > 0 && (
             <div className={cn(onSignOut && 'border-b')}>

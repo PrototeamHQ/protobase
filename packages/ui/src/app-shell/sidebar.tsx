@@ -1,7 +1,7 @@
 import { cn } from '../lib/cn'
 import { Logo } from './logo'
 import { navGroups as defaultGroups, type NavGroup } from './nav'
-import { ProfileMenu, type ProfileMenuItem, type ProfileOrganizations, type ShellUser } from './profile-menu'
+import { ProfileMenu, type ProfileMenuItem, type ProfileOrganizations, type ProfileRoles, type ShellUser } from './profile-menu'
 import { SidebarGroup } from './sidebar-group'
 import { SidebarItem } from './sidebar-item'
 import { isTextMode, sidebarWidth, type SidebarMode } from './sidebar-mode'
@@ -20,9 +20,10 @@ export type SidebarProps = {
   onNavigate?: (href: string) => void
   onSignOut?: () => void
   organizations?: ProfileOrganizations
+  roles?: ProfileRoles
 }
 
-export const Sidebar = ({ mode, activeItem, user, workspace, forceExpanded, profileMenuOpen, groups = defaultGroups, userMenu, onNavigate, onSignOut, organizations }: SidebarProps) => {
+export const Sidebar = ({ mode, activeItem, user, workspace, forceExpanded, profileMenuOpen, groups = defaultGroups, userMenu, onNavigate, onSignOut, organizations, roles }: SidebarProps) => {
   const expanding = mode === 'icon-expand'
   const expanded = expanding && forceExpanded
   const inline = isTextMode(mode) || expanding
@@ -65,7 +66,7 @@ export const Sidebar = ({ mode, activeItem, user, workspace, forceExpanded, prof
           ))}
         </div>
         <div className={cn('shrink-0 border-t p-2', mode !== 'text-large' && mode !== 'text-small' && !expanding && 'flex justify-center')}>
-          <ProfileMenu user={user} compact={!inline} open={profileMenuOpen} items={userMenu} onNavigate={onNavigate} onSignOut={onSignOut} organizations={organizations} />
+          <ProfileMenu user={user} compact={!inline} open={profileMenuOpen} items={userMenu} onNavigate={onNavigate} onSignOut={onSignOut} organizations={organizations} roles={roles} />
         </div>
       </div>
     </nav>

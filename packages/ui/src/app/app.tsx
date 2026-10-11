@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import type { AssistantClient, AuthSession, Client, RuntimeClient } from '@protobase/client'
 import { accountMenuItems, accountSecurityPath, signInPolicyPath } from '../account/account-pages'
 import { AccountSecurityPage } from '../account/account-security-page'
@@ -22,6 +22,8 @@ import { OrganizationPage } from '../organizations/organization-page'
 import { invitationsPath, managesOrganization, membersPath, organizationMenuItems, organizationPageTitles, organizationPath, organizationsPath } from '../organizations/organization-paths'
 import { OrganizationsPage } from '../organizations/organizations-page'
 import { reopenIn, useOrganizations } from '../organizations/use-organizations'
+import { actingUser } from '../roles/acting-user'
+import { useActiveRole } from '../roles/use-active-role'
 import { navFromMeta } from './nav-from-meta'
 import { ComposedPage } from './pages/composed-page'
 import { useProjectUi, type ProjectUi } from './pages/project-ui'
@@ -91,7 +93,10 @@ const Routes = ({ workspace, sidebarMode, assistant, runtime }: Pick<AppProps, '
   // The update button is there when `/meta` names a runtime endpoint, which it does only for the admin role.
   const runtimeUrl = meta.runtime?.url
   const runtimeButton = runtimeUrl && <RuntimeUpdateButton url={runtimeUrl} client={runtime} />
-  const admin = isAdmin(user)
+  // The session acts with one role at a time; what the shell shows by role follows it, as the API does.
+  const role = useActiveRole(useCallback(() => reopenIn(basePath), [basePath]))
+  const acting = actingUser(user, role.current)
+  const admin = isAdmin(acting)
   // With organizations, the app works in one at a time; someone in none chooses or makes one first.
   const organizations = useOrganizations(Boolean(organizationSettings))
   const current = organizations.current
@@ -128,7 +133,7 @@ const Routes = ({ workspace, sidebarMode, assistant, runtime }: Pick<AppProps, '
       sidebarMode={sidebarMode ?? 'text-small'}
       activeItem={route.resource ?? ''}
       breadcrumb={breadcrumb}
-      user={userToShell(user)}
+      user={userToShell(acting)}
       onSignOut={() => void signOut()}
       workspace={current?.organization?.name ?? workspace}
       navGroups={groups}
@@ -141,6 +146,7 @@ const Routes = ({ workspace, sidebarMode, assistant, runtime }: Pick<AppProps, '
           onSwitch: (id) => void session.organizations.switchTo(id).then(() => reopenIn(basePath)),
         }
       }
+      roles={role.current?.active ? { active: role.current.active, roles: role.current.roles, onSwitch: role.switchTo } : undefined}
       onNavigate={open}
       search={search.available ? { placeholder: search.placeholder, text: search.text, onTextChange: search.setText, query: search.query, loading: search.loading, groups: search.groups, onSelect: open } : undefined}
       actions={(Actions || runtimeButton || assistantButton) && <>{Actions && <Actions />}{runtimeButton}{assistantButton}</>}

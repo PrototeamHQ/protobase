@@ -5,7 +5,7 @@ import { BottomBar, type BottomBarTab } from './bottom-bar'
 import { Drawer } from './drawer'
 import type { NavGroup } from './nav'
 import { Sidebar } from './sidebar'
-import type { ProfileMenuItem, ProfileOrganizations, ShellUser } from './profile-menu'
+import type { ProfileMenuItem, ProfileOrganizations, ProfileRoles, ShellUser } from './profile-menu'
 import type { SidebarMode } from './sidebar-mode'
 import type { GlobalSearchModel } from './global-search'
 import type { Crumb } from './breadcrumb'
@@ -33,6 +33,8 @@ export type AppShellProps = {
   bottomBar?: BottomBarTab[]
   /** The organizations to switch between, in the profile menu. */
   organizations?: ProfileOrganizations
+  /** The roles to switch between, in the profile menu. */
+  roles?: ProfileRoles
   /** The top bar's search; without it there is no search box. */
   search?: GlobalSearchModel
   className?: string
@@ -41,7 +43,7 @@ export type AppShellProps = {
 
 const drawerId = 'app-drawer'
 
-export const AppShell = ({ sidebarMode, activeItem, breadcrumb, user, workspace, actions, rightPanel, forceExpanded, profileMenuOpen, navGroups, userMenu, bottomBar, onNavigate, onSignOut, organizations, search, className, children }: AppShellProps) => {
+export const AppShell = ({ sidebarMode, activeItem, breadcrumb, user, workspace, actions, rightPanel, forceExpanded, profileMenuOpen, navGroups, userMenu, bottomBar, onNavigate, onSignOut, organizations, roles, search, className, children }: AppShellProps) => {
   const desktop = useIsDesktop()
   const [drawerOpen, setDrawerOpen] = useState(false)
   useEffect(() => {
@@ -49,7 +51,7 @@ export const AppShell = ({ sidebarMode, activeItem, breadcrumb, user, workspace,
   }, [desktop])
   const tabs = !desktop && bottomBar && bottomBar.length > 0 ? bottomBar : undefined
   const sidebar = (mode: SidebarMode) => (
-    <Sidebar mode={mode} activeItem={activeItem} user={user} workspace={workspace} forceExpanded={forceExpanded} profileMenuOpen={profileMenuOpen} groups={navGroups} userMenu={userMenu} onNavigate={onNavigate} onSignOut={onSignOut} organizations={organizations} />
+    <Sidebar mode={mode} activeItem={activeItem} user={user} workspace={workspace} forceExpanded={forceExpanded} profileMenuOpen={profileMenuOpen} groups={navGroups} userMenu={userMenu} onNavigate={onNavigate} onSignOut={onSignOut} organizations={organizations} roles={roles} />
   )
   return (
     <div className={cn('flex h-full min-h-0 w-full overflow-hidden bg-background', className)}>
