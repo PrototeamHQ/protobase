@@ -25,6 +25,7 @@ export default defineConfig({
             'reference/api',
             'reference/files',
             'reference/events',
+            'reference/jobs',
             'reference/access',
             'reference/auth',
             'reference/client',

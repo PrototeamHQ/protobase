@@ -1,0 +1,89 @@
+---
+title: Jobs
+description: Background jobs in the app's own database, enqueued with its writes, retried with backoff, run in order per group, and checked at startup.
+---
+
+import { Code } from '@astrojs/starlight/components'
+import jobs from '../../../../../docs-examples/jobs/jobs.ts?raw'
+import config from '../../../../../docs-examples/jobs/protobase.config.ts?raw'
+
+A job is work the app does after a request, or that a request should not wait for: mail an invoice, push a change to another system, recompute a report. Jobs live in the app's own Postgres database, in a schema named `jobs`, so a job can commit in the same transaction as the write that asks for it. The queue underneath is [pg-boss](https://github.com/timgit/pg-boss), pinned to one version; Protobase's own API in front of it is what the app uses.
+
+<Code code={jobs} lang="ts" title="config/jobs.ts" />
+
+<Code code={config} lang="ts" title="protobase.config.ts" />
+
+| `defineJob` option | |
+| --- | --- |
+| `name` | Letters, digits, `_`, `-`, `.` and `/`. Two jobs may not share a name. |
+| `payload` | A [Standard Schema](https://standardschema.dev) such as a zod schema, checked when the job is enqueued and again before it runs. A payload it refuses at run time fails the job for good. |
+| `run(payload, { db, job, signal })` | The work. `db` is the app's pool: the enqueuer's transaction has committed by then. `job` holds its `id`, `name`, `attempt` and `maxAttempts`. `signal` aborts when the try times out or the worker shuts down. |
+| `maxAttempts` | Tries before the job is kept as failed; default 10. |
+| `retryDelay`, `maxRetryDelay` | The wait before the first retry, doubling with each one (with some jitter), and its ceiling; default `2s` and `1 hour`. Milliseconds or text such as `30 seconds`. |
+| `timeout` | How long one try may run before it counts as failed; default `15 minutes`. |
+| `concurrency` | Jobs of this name running at once in each worker process; default 1. |
+| `ordered` | Jobs run one at a time per group, in the order they were enqueued; see [Ordered groups](#ordered-groups). |
+
+A job runs **at least once**: a worker that dies mid-job, or a try cut off by a shutdown, means it runs again. Write `run` so that running twice does no harm, for example by checking the state it is about to change.
+
+## Enqueueing
+
+```ts
+await sendInvoice.enqueue(db, { invoiceId: 7 }, { delay: '5 minutes', key: 'invoice:7', priority: 10 })
+```
+
+`db` is the app's database, or the transaction of a write hook or an [API function](/guides/api-functions/): there, the job commits with the caller's writes, or not at all. It returns the job's id.
+
+| Option | |
+| --- | --- |
+| `runAt` or `delay` | When the job may run first: a `Date`, or milliseconds or text from now. Default now. |
+| `priority` | Higher runs first; default 0. |
+| `key` and `mode` | One waiting job per key: with `mode: 'dedupe'` (the default) an enqueue while one waits returns that one's id and leaves it as it is; with `mode: 'replace'` the waiting job takes this payload and these options. A job that is running does not count, so a change made while it runs gets a job of its own. |
+| `group` | The group of an [ordered](#ordered-groups) job: required there, refused elsewhere. |
+
+A job enqueued outside a transaction starts at once when this process runs its jobs. One enqueued in a transaction, or by another process, is picked up within the poll interval, 2 seconds.
+
+### From SQL
+
+A trigger or a migration can enqueue in its own transaction:
+
+```sql
+select jobs.enqueue('send-invoice', '{"invoiceId": 7}');
+select jobs.enqueue('send-invoice', '{"invoiceId": 7}', run_at => now() + interval '1 hour', key => 'invoice:7');
+select jobs.enqueue('sync-customer', '{"customerId": 3, "fields": ["email"]}', group_key => 'customer:3');
+```
+
+`jobs.enqueue(job_name, payload, run_at, key, group_key, priority)` returns the job's id. A `key` dedupes as `mode: 'dedupe'` does. The job takes its retry settings from its definition, as the workers last saw it; a job no worker has started yet gets pg-boss's defaults until one does.
+
+## Failures
+
+A try that throws is retried after its backoff, until `maxAttempts`. Then the job is kept as **failed** with its last error, for 7 days. `throw new FatalJobError('410 Gone')` fails it at once, without the attempts it has left.
+
+A job that has waited 14 days past its start time without running is deleted.
+
+While the database is read-only, as during a deploy's write freeze, a write in `run` fails with SQLSTATE `25006`: the try waits 5 seconds and runs `run` again, without using an attempt, until the database takes writes or the try times out.
+
+## Ordered groups
+
+With `ordered: true`, every enqueue names a `group`, and the jobs of one group run one at a time, in the order they were enqueued; different groups run side by side, up to `concurrency`. A job that is waiting for a retry, or has failed, holds back the rest of its group until it succeeds or is retried or deleted: that is what keeps the order. An ordered job takes no `key`: its group is how pg-boss finds its jobs.
+
+Turning `ordered` on or off for a job whose queue exists stops startup: let its jobs finish or delete them, then drop the queue with `select jobs.delete_queue('<name>')`.
+
+## Where jobs run
+
+- **`protobase dev`** runs them in its process. An edited job runs its new code from the next job on.
+- **`protobase serve`** runs them in its process, beside the API, unless `PROTOBASE_JOBS=off`; it enqueues them either way. On SIGTERM it stops taking jobs and gives running ones 30 seconds to finish. A job still running then is failed, to be retried.
+- Each worker checks every job name for due jobs every 2 seconds: one indexed query per job name and interval. Once a minute, one of the workers also counts the queues and retries the jobs whose worker died (their `timeout` passed); once a day it deletes completed and failed jobs older than 7 days.
+
+## The `jobs` schema
+
+The schema is pg-boss's tables at its pinned schema version, plus Protobase's `jobs.enqueue`. It is created and upgraded like the [auth schema](/reference/auth/#migrations), by the project's migrations:
+
+```sh
+bun run protobase migration   # writes db/migrations/NNN_jobs.sql when the jobs schema is missing or behind
+bun run db:migrate
+```
+
+[`protobase migration`](/reference/cli/#migration) writes what the database lacks, taken from pg-boss's own construction and migration plans for the pinned version, without their `BEGIN` and `COMMIT` and with any `CONCURRENTLY` index build made a plain one, so the file runs in the project's migration transaction. The server never creates or migrates it: `protobase dev` and `protobase serve` read its version at startup and refuse to start while it is missing or behind, naming the command. A database whose jobs schema is newer than the running Protobase is refused too.
+
+pg-boss runs here without what needs a session of its own: no `LISTEN`/`NOTIFY` (a job enqueued in the same process wakes its worker directly, the rest is polled), only transaction-scoped advisory locks, unnamed prepared statements, no index rebuilds and no instance registry. It works through PgBouncer in transaction mode and on PGlite, over the app's own connection pool.

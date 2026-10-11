@@ -95,6 +95,7 @@ One process, one port: Vite serves the admin app from `@protobase/ui`'s `src/app
 - **Database:** the URL comes from the variable named by `--env`, read from the environment or the nearest `.env` at or above the project. The connection is checked before anything starts; if it fails, the command names host, port and reason (and points to its `db:up` script when it has one). The project needs `pg` installed, because the API connects with Kysely over the project's own `pg`.
 - **Cache:** Vite's dependency cache is `node_modules/.vite`; two dev servers sharing it can disturb each other's optimisation, so pass `--cache-dir` for a second one (the integration test does).
 - **Login:** real sign-in only, with the `authenticate` and `auth` exported by `protobase.config.ts` (see [Login with Better Auth](/reference/auth/)). A project without an authenticator fails at startup with a message pointing there, one whose auth schema is behind with the tables and columns it lacks (see [`auth migration`](#auth-migration)), and one with a resource whose [events](/reference/events/) lack their triggers, which it checks again on every reload (see [`migration`](#migration)); there is no development login. Create the first admin with `protobase users create`.
+- **Jobs:** with [jobs](/reference/jobs/) in the config it runs them in its process, once the jobs schema checks out (see [`migration`](#migration)); an edited job runs its new code from the next job on.
 - **Tunnels and other hosts:** Vite only answers `localhost` by default. `--allowed-hosts .trycloudflare.com,app.example.com` adds Host headers (a leading dot matches all subdomains). Hot reload needs no extra setting: the Vite client takes protocol, host and port from the page, so behind an HTTPS tunnel it connects over `wss` on 443 as long as the tunnel forwards WebSockets.
 - **Project discovery**, by convention: `config/index.ts` exports the resources (and views), and every `config/*/ui.ts` export that is not already exported by the index is added as a view. Each `functions/<name>.ts` (or `functions/<name>/index.ts`) is an [API function](/guides/api-functions/) at `/api/functions/<name>`. A `protobase.config.ts` in the project root replaces the convention; its default export may contain any of:
 
@@ -106,6 +107,7 @@ One process, one port: Vite serves the admin app from `@protobase/ui`'s `src/app
     authenticate,                // Authenticator, required
     auth,                        // Better Auth (AdminAuth); its routes are mounted under /api/auth
     functions,                   // API functions by name, instead of ./functions
+    jobs,                        // module whose exports are jobs (defineJob), see Jobs
     options,                     // AdminOptions (scan guard, write hooks, ...)
   }
   ```
@@ -140,6 +142,7 @@ export default defineUi({ extends: [tasksUi], components: { UsageChart } })
 | `config` exports: resources, views, pages | all kept | an error naming both configs |
 | user menu | at most one among all configs | an error |
 | `options.assistant.tools` | the extended configs' first, in order, then the app's | an error naming the tool and both configs |
+| `jobs` | all kept, by job name | an error naming the job and both configs |
 | `options.writeHooks` | all run, in the same order | |
 | every other value (`db`, `auth`, `authenticate`, `roles`, `assistant.url`, ...) | the app's own; otherwise the last config that sets it | |
 | UI `components`, `actions` | all kept | an error naming the name and both configs |
@@ -300,13 +303,15 @@ Serves the API of a bundle from `protobase build` and owns the process around it
 | `PROTOBASE_RUNTIME_URL` | the endpoint behind the top bar's [runtime update button](/reference/versioning/#runtime-updates), such as a hosting platform's; without it there is no button |
 | `PROTOBASE_FILES_<NAME>`, `PROTOBASE_FILES_RETENTION`, `PROTOBASE_FILES_SECRET` | [file providers](/reference/files/#providers) and their settings, over `files` in the config |
 | `PROTOBASE_FILES_CLEANUP_MINUTES` | minutes between runs of the [scheduled file deletes](/reference/files/#deleting-files), default 60; 0 leaves them to `protobase files cleanup` or the platform |
+| `PROTOBASE_JOBS` | `off` runs none of the app's [jobs](/reference/jobs/) in this process, which still enqueues them; default `on` |
 
 Better Auth and other settings are the project's own variables (`BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, ...), read by its config. `protobase serve` also loads the nearest `.env`, like `dev`; the runtime takes the environment as it is.
 
 - **Routes:** `createAdmin` (`/api/v1`, `/api/meta`, `/api/functions/*`, `/api/auth/*`, ...) and `GET /health`, which answers `{"status":"ok"}` without a token and without touching the database. The runtime never serves the UI; `protobase serve <bundle>` serves `public/` for every path outside the manifest's `api`, after `/health`.
 - **Version:** before loading the config module, the runtime reads `protobase.bundle.json` beside it and refuses a bundle built by a Protobase version it does not serve, or one without a version, with an error naming both versions (see [Versioning](/reference/versioning/#bundles-and-runtimes)). A config module needs its manifest beside it.
-- **Startup:** a bundle without a default export, `config` or `authenticate`, or with an `options.basePath` other than `/api/v1`, stops startup with a one-line error and exit code 1, as does a missing `DATABASE_URL`, an auth schema that lacks a table or column (see [`auth migration`](#auth-migration)), a resource whose [events](/reference/events/) lack their triggers or have out-of-date ones (see [`migration`](#migration)) or a taken port. `protobase serve listening on port <port>` means it is ready.
-- **Shutdown:** the first SIGTERM or SIGINT stops accepting connections, waits for open requests, drains the pool `serve` created (a `db` the config exports is the project's to close) and exits with 0.
+- **Startup:** a bundle without a default export, `config` or `authenticate`, or with an `options.basePath` other than `/api/v1`, stops startup with a one-line error and exit code 1, as does a missing `DATABASE_URL`, an auth schema that lacks a table or column (see [`auth migration`](#auth-migration)), a resource whose [events](/reference/events/) lack their triggers or have out-of-date ones, a jobs schema that is missing or behind for a config with [jobs](/reference/jobs/#the-jobs-schema) (see [`migration`](#migration)) or a taken port. `protobase serve listening on port <port>` means it is ready.
+- **Jobs:** with [jobs](/reference/jobs/) in the config it runs them beside the API, unless `PROTOBASE_JOBS=off`.
+- **Shutdown:** the first SIGTERM or SIGINT stops accepting connections, waits for open requests, gives running jobs 30 seconds to finish, drains the pool `serve` created (a `db` the config exports is the project's to close) and exits with 0.
 - **Host modules:** under Bun, the runtime registers [the modules it supplies](#the-config-module) as virtual modules, so the bundle needs no `node_modules` for them. `protobase serve`, on Node or Bun, resolves them from the `node_modules` next to the bundle, so keep the bundle inside the project. Native packages load from the bundle's own `node_modules/` under both.
 - **Read-only hosts:** nothing is written: no install (`--no-install`), and for a bundle built with `--bun` no transpiling and so no transpiler cache. A bundle with `node_modules/` needs its folder mounted without `noexec`, since its add-ons are mapped as executable code.
 
@@ -358,11 +363,11 @@ For a project with [organizations](/reference/auth/#organizations); `<organizati
 protobase migration [--dir db/migrations] [--extend <dir>]
 ```
 
-Writes what the database still needs for every feature the config enables, as the project's next migrations in `--dir`, one file per feature: the auth schema when `protobase.config.ts` exports `auth` (`NNN_auth.sql`, as [`auth migration`](#auth-migration) writes it), and the [capture of events](/reference/events/#migrations-and-startup) (`NNN_changes.sql`). It compares the database, with the project's migrations applied, with the config, merged with the configs it extends and those of `--extend` as `dev` merges them, and writes nothing when the database is current. Apply the files with the project's other migrations. It reads the `.env` nearest the current directory and needs `DATABASE_URL` unless the config exports `db`.
+Writes what the database still needs for every feature the config enables, as the project's next migrations in `--dir`, one file per feature: the auth schema when `protobase.config.ts` exports `auth` (`NNN_auth.sql`, as [`auth migration`](#auth-migration) writes it), the [jobs schema](/reference/jobs/#the-jobs-schema) when the config has jobs (`NNN_jobs.sql`), and the [capture of events](/reference/events/#migrations-and-startup) (`NNN_changes.sql`). It compares the database, with the project's migrations applied, with the config, merged with the configs it extends and those of `--extend` as `dev` merges them, and writes nothing when the database is current. Apply the files with the project's other migrations. It reads the `.env` nearest the current directory and needs `DATABASE_URL` unless the config exports `db`.
 
 ```sh
 bun run db:migrate                # the database at the project's current schema
-bun run protobase migration       # writes db/migrations/NNN_auth.sql, NNN_changes.sql, ... for what the config enables
+bun run protobase migration       # writes db/migrations/NNN_auth.sql, NNN_jobs.sql, NNN_changes.sql, ... for what the config enables
 bun run db:migrate                # applies them
 ```
 
