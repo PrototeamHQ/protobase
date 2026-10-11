@@ -7,7 +7,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { buildServeRuntime } from '../../src/build/serve-runtime'
 import { bin, root, run } from '../support/auth-project'
 import { databaseReachable, freePort, testDatabaseUrl } from '../support/database'
-import { createErpDatabase, signIn, stopProcess, untilListening } from '../support/serve-process'
+import { createErpDatabase, sendPastDueInvoice, signIn, stopProcess, untilListening } from '../support/serve-process'
 import { protobaseVersion } from '../../src/version/version'
 
 const url = testDatabaseUrl()
@@ -112,6 +112,10 @@ describe.skipIf(!reachable || !hasBun)('the ERP bundle served by protobase-serve
     const response = await fetch(`${base}/api/v1/orders?page_size=1`, { headers: { authorization: `Bearer ${token}` } })
     expect(response.status).toBe(200)
     expect(Array.isArray((await response.json()).items)).toBe(true)
+  })
+
+  it("runs the app's jobs: a sent invoice past its due date turns overdue", async () => {
+    expect(await sendPastDueInvoice(base, token, store.env.DATABASE_URL)).toBe('overdue')
   })
 
   it('leaves the UI to the host: no index.html from the runtime', async () => {

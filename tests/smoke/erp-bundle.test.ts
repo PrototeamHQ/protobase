@@ -5,7 +5,7 @@ import path from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { bin, root, run } from '../../packages/cli/tests/support/auth-project'
 import { databaseReachable, freePort, testDatabaseUrl } from '../../packages/cli/tests/support/database'
-import { createErpDatabase, signIn, stopProcess, untilListening } from '../../packages/cli/tests/support/serve-process'
+import { createErpDatabase, sendPastDueInvoice, signIn, stopProcess, untilListening } from '../../packages/cli/tests/support/serve-process'
 
 const url = testDatabaseUrl()
 const erpDir = path.join(root, 'examples/erp')
@@ -45,7 +45,7 @@ describe.skipIf(!reachable)(`the ERP built and served by the CLI on ${runtime}`,
     return readFile(path.join(outDir, name, 'protobase.config.js'), 'utf8')
   }
 
-  // Serves the bundle, calls the ERP's API function, reads /api/meta as an admin and stops it again.
+  // Serves the bundle, calls the ERP's API function, has its worker run a job, reads /api/meta as an admin and stops it again.
   const serveMeta = async (name: string) => {
     child = spawn(process.execPath, [bin, 'serve', path.join(outDir, name)], { cwd: erpDir, env: { ...process.env, ...store.env, PORT: String(port) } })
     try {
@@ -55,6 +55,7 @@ describe.skipIf(!reachable)(`the ERP built and served by the CLI on ${runtime}`,
       expect(unpaid.status).toBe(200)
       expect(await unpaid.json()).toEqual({ orders: expect.any(Array) })
       expect((await fetch(`${base}/api/functions/unpaid-orders`)).status).toBe(401)
+      expect(await sendPastDueInvoice(base, token, store.env.DATABASE_URL)).toBe('overdue')
       const meta = await fetch(`${base}/api/meta`, { headers: { authorization: `Bearer ${token}` } })
       expect(meta.status).toBe(200)
       return JSON.stringify(await meta.json())

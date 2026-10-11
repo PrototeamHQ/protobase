@@ -79,3 +79,29 @@ export const signIn = async (base: string, email: string, password: string) => {
   if (token.status !== 200) throw new Error(`token answered ${token.status}`)
   return (await token.json()).token as string
 }
+
+/**
+ * The ERP's job at work in a served app: an invoice past its due date sent through the API, whose write hook enqueues
+ * the overdue check in the write's transaction, which the worker in the serve process runs. Resolves with the status
+ * the invoice ends with.
+ */
+export const sendPastDueInvoice = async (base: string, token: string, databaseUrl: string) => {
+  const sql = postgres(databaseUrl, { max: 1, onnotice: () => {} })
+  const [company] = await sql`insert into crm.companies (organization_id, name, country_code, city) values (1, 'Late Payer', 'NL', 'Utrecht') returning id`
+  const [invoice] = await sql`
+    insert into sales.invoices (organization_id, number, company_id, issued_at, due_at, subtotal, vat, total)
+    values (1, ${`INV-${randomBytes(3).toString('hex')}`}, ${company!.id}, '2020-01-01', '2020-01-31', 0, 0, 0) returning id`
+  await sql.end()
+  const headers = { authorization: `Bearer ${token}`, 'content-type': 'application/json' }
+  const record = `${base}/api/v1/invoices/${invoice!.id}`
+  const read = await fetch(record, { headers })
+  if (read.status !== 200) throw new Error(`reading the invoice answered ${read.status}`)
+  const sent = await fetch(record, { method: 'PATCH', headers: { ...headers, 'if-match': read.headers.get('etag')! }, body: JSON.stringify({ status: 'sent' }) })
+  if (sent.status !== 200) throw new Error(`sending the invoice answered ${sent.status}: ${await sent.text()}`)
+  for (let tries = 0; tries < 100; tries++) {
+    const { status } = await (await fetch(record, { headers })).json()
+    if (status !== 'sent') return status as string
+    await new Promise((resolve) => setTimeout(resolve, 100))
+  }
+  return 'sent'
+}
