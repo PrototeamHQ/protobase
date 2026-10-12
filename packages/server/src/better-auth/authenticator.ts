@@ -1,5 +1,6 @@
 import { jwtAuthenticator } from '../auth/jwt'
 import type { Authenticator, TenantValue } from '../types'
+import { withTrustedApps, type TrustedApp } from './app-tokens'
 import type { AdminAuth } from './create-auth'
 import { cachedKeys, type JwksCacheOptions } from './jwks-cache'
 import { noGlobalRole } from './organizations/role-definitions'
@@ -17,13 +18,15 @@ export type BetterAuthAuthenticatorOptions = {
   organizations?: boolean
   /** How long the key set is cached; see `cachedKeys`. */
   cache?: JwksCacheOptions
+  /** Other Protobase apps whose users this API admits with their own tokens, so their admin apps can draw its resources (see `TrustedApp`). */
+  apps?: TrustedApp[]
 }
 
 /**
  * Verifies the bearer JWT that Better Auth's jwt plugin issues. `sub` is the user id, the `role` claim (a comma
  * separated string from the admin plugin) becomes `roles`. With organizations, the `org` claim is the tenant and the
  * organization, and the membership's `app_roles` are added to the global roles; `user`, which stands for no global
- * role, is left out.
+ * role, is left out. With `apps`, the tokens of those apps are admitted too, with the roles each gives its users here.
  */
 export const betterAuthAuthenticator = (options: BetterAuthAuthenticatorOptions): Authenticator => {
   const issuer = options.issuer ?? options.auth?.issuer
@@ -38,10 +41,12 @@ export const betterAuthAuthenticator = (options: BetterAuthAuthenticatorOptions)
     ...(organizations && { tenantClaim: 'org', extraRolesClaim: 'app_roles' }),
     ...(options.tenant !== undefined && { tenant: options.tenant }),
   })
-  if (!organizations) return verify
-  return async (request) => {
-    const session = await verify(request)
-    const user = { ...session.user, roles: session.user.roles.filter((role) => role !== noGlobalRole) }
-    return { ...session, user, ...(session.tenant !== undefined && { organization: { id: session.tenant } }) }
-  }
+  const own: Authenticator = !organizations
+    ? verify
+    : async (request) => {
+        const session = await verify(request)
+        const user = { ...session.user, roles: session.user.roles.filter((role) => role !== noGlobalRole) }
+        return { ...session, user, ...(session.tenant !== undefined && { organization: { id: session.tenant } }) }
+      }
+  return withTrustedApps(own, issuer, options.apps ?? [])
 }
