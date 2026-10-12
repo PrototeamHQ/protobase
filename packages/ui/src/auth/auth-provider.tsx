@@ -6,6 +6,8 @@ export type AuthState =
   | { kind: 'loading' }
   | { kind: 'needs-admin' }
   | { kind: 'signed-out' }
+  /** Not signed in, browsing what the project's anonymous role reads; `showSignIn` opens the sign-in page. */
+  | { kind: 'visitor' }
   /** The password or emailed code was right; the account's second step is next. */
   | { kind: 'two-factor'; methods: TwoFactorMethod[] }
   /** Signed in, but the sign-in policy requires something the account has not set up; no API token until it has. */
@@ -48,6 +50,10 @@ export type AuthApi = {
   signOut: () => Promise<void>
   /** The API said 401 twice: back to the sign-in page. Signing in again shows what the account has to set up, if anything. */
   markSignedOut: () => void
+  /** A visitor asks to sign in: the sign-in page. */
+  showSignIn: () => void
+  /** Back to browsing from the sign-in page, when the server lets visitors browse without signing in. */
+  browse?: () => void
   /** Reads the setup status and session again, for "Check again" and after setting up a required method. */
   recheck: () => void
 }
@@ -73,6 +79,9 @@ export const AuthProvider = ({ session: given, children }: { session?: AuthSessi
   const [platformSignIn, setPlatformSignIn] = useState<PlatformSignIn>()
   const [staffSignIn, setStaffSignIn] = useState<string>()
   const [organizations, setOrganizations] = useState<SetupStatus['organizations']>()
+  // Whether visitors may browse without signing in; signing out then goes back to browsing.
+  const [anonymous, setAnonymous] = useState(false)
+  const signedOutState = useCallback((): AuthState => (anonymous ? { kind: 'visitor' } : { kind: 'signed-out' }), [anonymous])
   const markSignedOut = useCallback(() => setState((current) => (current.kind === 'signed-in' ? { kind: 'signed-out' } : current)), [])
   const signedOut = useRef(markSignedOut)
   signedOut.current = markSignedOut
@@ -99,9 +108,10 @@ export const AuthProvider = ({ session: given, children }: { session?: AuthSessi
       setPlatformSignIn(status.platformSignIn)
       setStaffSignIn(status.staffSignIn)
       setOrganizations(status.organizations)
+      setAnonymous(Boolean(status.anonymous))
       if (status.needsAdmin) return setState({ kind: 'needs-admin' })
       const user = await session.session()
-      return user ? enter(user) : setState({ kind: 'signed-out' })
+      return user ? enter(user) : setState({ kind: status.anonymous ? 'visitor' : 'signed-out' })
     }).catch((error: unknown) => setState({ kind: 'error', message: error instanceof Error ? error.message : 'The server did not answer' }))
   }, [session, enter])
 
@@ -120,6 +130,8 @@ export const AuthProvider = ({ session: given, children }: { session?: AuthSessi
       ...(organizations && { organizations }),
       markSignedOut,
       recheck,
+      showSignIn: () => setState((current) => (current.kind === 'visitor' ? { kind: 'signed-out' } : current)),
+      ...(anonymous && { browse: () => setState((current) => (current.kind === 'signed-out' ? { kind: 'visitor' } : current)) }),
       signIn: async (email, password) => finish(await session.signIn(email, password)),
       sendSignInCode: (email) => session.sendSignInCode(email),
       signInWithCode: async (email, code) => finish(await session.signInWithCode(email, code)),
@@ -134,14 +146,14 @@ export const AuthProvider = ({ session: given, children }: { session?: AuthSessi
       },
       stopStaffSession: async () => {
         await session.staff.stop()
-        setState({ kind: 'signed-out' })
+        setState(signedOutState())
       },
       signOut: async () => {
         await session.signOut()
-        setState({ kind: 'signed-out' })
+        setState(signedOutState())
       },
     }),
-    [state, session, signInMethods, passwordReset, passkeyDomains, socialProviders, platformSignIn, staffSignIn, organizations, markSignedOut, recheck, finish, enter],
+    [state, session, signInMethods, passwordReset, passkeyDomains, socialProviders, platformSignIn, staffSignIn, organizations, anonymous, signedOutState, markSignedOut, recheck, finish, enter],
   )
   return <AuthContext.Provider value={api}>{children}</AuthContext.Provider>
 }

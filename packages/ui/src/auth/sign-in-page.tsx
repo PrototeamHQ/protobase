@@ -6,14 +6,14 @@ import { SignInForm, type SignInFormProps } from './sign-in-form'
 
 export { signInMessage }
 
-export type SignInPageProps = Pick<SignInFormProps, 'workspace' | 'notice' | 'onForgotPassword'> & {
+export type SignInPageProps = Pick<SignInFormProps, 'workspace' | 'notice' | 'onForgotPassword' | 'onBrowse'> & {
   /** A sign-in code was emailed to `email`: the page for entering it is next. */
   onCodeSent: (email: string) => void
   /** Why the last sign-in did not go through, for example the provider's refusal. */
   error?: string
 }
 
-export const SignInPage = ({ workspace, notice, onForgotPassword, onCodeSent, error: initialError }: SignInPageProps) => {
+export const SignInPage = ({ workspace, notice, onForgotPassword, onBrowse, onCodeSent, error: initialError }: SignInPageProps) => {
   const { signIn, signInSocial, signInProviders, signInMethods, passkeyDomains, sendSignInCode, signInWithPasskey } = useAuth()
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(initialError)
@@ -38,6 +38,7 @@ export const SignInPage = ({ workspace, notice, onForgotPassword, onCodeSent, er
       notice={notice}
       methods={signInMethods}
       onForgotPassword={onForgotPassword}
+      onBrowse={onBrowse}
       providers={signInProviders}
       onContinueWith={(provider) => void attempt(() => signInSocial(provider), signInMessage)}
       passkeyDomains={passkeyDomains}

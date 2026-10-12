@@ -1,7 +1,7 @@
 import { Hono } from 'hono'
 import { checkPages } from '@protobase/layout'
 import type { Db } from '@protobase/query'
-import type { BottomBarSource, UserMenuSource } from '@protobase/schema'
+import { anonymousRole, type BottomBarSource, type UserMenuSource } from '@protobase/schema'
 import { assistantSettings } from './assistant/assistant-settings'
 import { builtInAssistant } from './assistant/built-in-assistant'
 import { assistantRecords } from './assistant/records'
@@ -149,7 +149,7 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], pag
   const meta = createMeta(deps)
   const onError = createErrorHandler(options.onUnhandledError)
   // Every response of the resources API and of the system endpoints names the models version; every request needs a
-  // token, but one to the resources API when the project has an anonymous role.
+  // token, but one to the resources API or `/meta` when the project has an anonymous role.
   const guarded = (routes: (app: Hono<AdminEnv>) => void, caller: Authenticator = authenticate) => {
     const app = new Hono<AdminEnv>()
     app.onError(onError)
@@ -171,8 +171,11 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], pag
   }, withAnonymous(authenticate, options.roles))
   const system = guarded((app) => {
     app.route('/', docsRoutes(deps))
-    app.route('/', metaRoutes(meta))
   })
+  // `/meta` tells anonymous visitors what they may read, for the admin app they browse without signing in.
+  const metaApp = guarded((app) => {
+    app.route('/', metaRoutes(meta))
+  }, withAnonymous(authenticate, options.roles))
 
   const app = new Hono<AdminEnv>()
   app.onError(onError)
@@ -185,7 +188,7 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], pag
     app.use(`${systemPath}/*`, apiCors({ own: ownOrigins, allowed: corsOrigins ?? [], skip }))
   }
   if (auth) {
-    app.route(authBasePath, statusRoute(auth))
+    app.route(authBasePath, statusRoute(auth, { anonymous: Object.hasOwn(options.roles?.definitions ?? {}, anonymousRole) }))
     if (auth.organizations) app.route(authBasePath, organizationRoutes({ auth, audit: deps.audit, registry, db }))
     app.on(['GET', 'POST'], `${authBasePath}/*`, (c) => auth.handler(c.req.raw))
     // On several origins, each says which origins may use the app's passkeys: all of them (Related Origin Requests).
@@ -200,6 +203,7 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], pag
   app.route('/', batchRoute(deps, authenticate, meta))
   app.route('/', fileRoutes(deps, authenticate))
   app.route(basePath, api)
+  app.route(`${deps.systemPath}/meta`, metaApp)
   app.route(deps.systemPath || '/', system)
   const webhooks = createWebhooks({ deps, subscriptions, functions: apiFunctions, schema: changesSchema(events), log: (line) => console.log(line), ...(table && { table }) })
   return Object.assign(app, { jobs: webhooks.jobs })

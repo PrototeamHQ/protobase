@@ -2,6 +2,7 @@ import { PGlite } from '@electric-sql/pglite'
 import { getMigrations } from 'better-auth/db/migration'
 import { PGliteDialect } from 'kysely-pglite-dialect'
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
+import { defineRoles } from '@protobase/schema'
 import { betterAuthAuthenticator } from '../src/better-auth/authenticator'
 import { createAuth } from '../src/better-auth/create-auth'
 import { issueToken } from '../src/better-auth/tokens'
@@ -61,6 +62,13 @@ describe('the first admin', () => {
     expect(root.role).toBe('admin')
     expect(await hasUsers(auth)).toBe(true)
     expect(await (await app.request(`${origin}/api/auth/status`)).json()).toEqual({ needsAdmin: false, signInMethods: ['password', 'passkey'], passwordReset: false, socialProviders: [] })
+  })
+
+  it('says when the project lets visitors browse without signing in', async () => {
+    const roles = defineRoles({ admin: ['*'], anonymous: [{ 'organizations.read': ['name'] }] })
+    const open = createAdmin({ resources: allResources, db: fixture.db, authenticate: betterAuthAuthenticator({ auth, tenant: 1 }), auth, options: { roles } })
+    expect(await (await open.request(`${origin}/api/auth/status`)).json()).toMatchObject({ anonymous: true })
+    expect(await (await app.request(`${origin}/api/auth/status`)).json()).not.toHaveProperty('anonymous')
   })
 
   it('lists users without secrets, and later users get the requested role', async () => {

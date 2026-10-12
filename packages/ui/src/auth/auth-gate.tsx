@@ -51,12 +51,12 @@ const forgetSignInLink = () => window.history.replaceState(window.history.state,
 const forgetInvitationLink = () => window.history.replaceState(window.history.state, '', withoutInvitationLink(window.location.href))
 
 /**
- * Shows the app when the user is signed in (or the server has no login), and the right page otherwise: the sign-in
- * steps, or the page an emailed reset link, an invitation link or a staff link opened. An invited person with an
- * account signs in first and comes back to the invitation.
+ * Shows the app when the user is signed in (or the server has no login), or to a visitor when the project lets them
+ * browse, and the right page otherwise: the sign-in steps, or the page an emailed reset link, an invitation link or a
+ * staff link opened. An invited person with an account signs in first and comes back to the invitation.
  */
 export const AuthGate = ({ workspace, children }: { workspace?: string; children: ReactNode }) => {
-  const { state, recheck, passwordReset, signOut, signInProviders } = useAuth()
+  const { state, recheck, passwordReset, signOut, signInProviders, showSignIn, browse } = useAuth()
   const [page, setPage] = useState(firstPage)
   // A notice, an error and a sent code are for the next sign-in only: once its first step went through, signing out
   // starts over. A sign-in link opened by someone signed in already has nothing left to do.
@@ -86,7 +86,7 @@ export const AuthGate = ({ workspace, children }: { workspace?: string; children
   }
   const backToSignIn = () => {
     setPage({ kind: 'sign-in' })
-    void signOut()
+    void signOut().then(showSignIn)
   }
 
   switch (state.kind) {
@@ -127,7 +127,8 @@ export const AuthGate = ({ workspace, children }: { workspace?: string; children
       />
     )
   }
-  if (page.kind === 'invitation' && (state.kind === 'signed-in' || (state.kind === 'signed-out' && !page.signingIn))) {
+  const signedOut = state.kind === 'signed-out' || state.kind === 'visitor'
+  if (page.kind === 'invitation' && (state.kind === 'signed-in' || (signedOut && !page.signingIn))) {
     return (
       <InvitationPage
         token={page.token}
@@ -135,11 +136,16 @@ export const AuthGate = ({ workspace, children }: { workspace?: string; children
           forgetInvitationLink()
           setPage({ kind: 'sign-in' })
         }}
-        onSignIn={() => setPage({ ...page, signingIn: true })}
+        onSignIn={() => {
+          setPage({ ...page, signingIn: true })
+          showSignIn()
+        }}
       />
     )
   }
   if (state.kind === 'signed-in') return children
+  // A visitor browses until they ask to sign in, or a link or a notice is for the sign-in steps.
+  if (state.kind === 'visitor' && page.kind === 'sign-in' && !page.notice && !page.error && !page.providerError) return children
   if (state.kind === 'two-factor') return <TwoFactorPage methods={state.methods} onBack={backToSignIn} />
   if (state.kind === 'setup-required') return <SetupRequiredPage key={state.missing.join()} missing={state.missing} />
   if (page.kind === 'provider-sign-in') return <ProviderSignInPage provider={page.provider} workspace={workspace} onFailed={signInFailed} />
@@ -150,5 +156,5 @@ export const AuthGate = ({ workspace, children }: { workspace?: string; children
   // The provider's callback does not say which provider it was; with one, it is that one.
   const providerError = signIn.providerError && providerMessage(signIn.providerError, signInProviders.length === 1 ? signInProviders[0]!.name : 'the provider')
   const error = signIn.error ?? providerError
-  return <SignInPage key={error} workspace={workspace} notice={signIn.notice} error={error} onForgotPassword={passwordReset ? () => setPage({ kind: 'forgot-password' }) : undefined} onCodeSent={(email) => setPage({ kind: 'email-code', email })} />
+  return <SignInPage key={error} workspace={workspace} notice={signIn.notice} error={error} onForgotPassword={passwordReset ? () => setPage({ kind: 'forgot-password' }) : undefined} onCodeSent={(email) => setPage({ kind: 'email-code', email })} onBrowse={browse} />
 }

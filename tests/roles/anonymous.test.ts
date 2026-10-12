@@ -76,8 +76,19 @@ describe('the anonymous role and field lists through the API', () => {
     expect(write.headers.get('www-authenticate')).toBe('Bearer')
     expect((await app.request('/api/v1/products', { method: 'POST', body: '{}', headers: { 'content-type': 'application/json' } })).status).toBe(401)
     expect((await get('/orders')).status).toBe(404)
-    for (const path of ['/api/meta', '/api/openapi.json']) expect((await app.request(path)).status, path).toBe(401)
+    for (const path of ['/api/openapi.json', '/api/docs']) expect((await app.request(path)).status, path).toBe(401)
     expect((await app.request('/api/v1:batchWrite', { method: 'POST', body: JSON.stringify({ ops: [] }), headers: { 'content-type': 'application/json' } })).status).toBe(401)
+  })
+
+  it('tells a request without a token what it may read, for the admin app visitors browse', async () => {
+    const response = await app.request('/api/meta')
+    expect(response.status).toBe(200)
+    const meta = (await response.json()) as { resources: Array<{ name: string; fields: Record<string, unknown> }>; permissions: Record<string, unknown> }
+    expect(meta.resources.map((model) => [model.name, Object.keys(model.fields).sort()])).toEqual([['products', ['id', 'name', 'price']]])
+    expect(meta.permissions).toEqual({ products: { read: true, create: false, update: false, delete: false, conditional: [] } })
+    expect((await app.request('/api/meta', { headers: { authorization: 'Bearer not-a-token' } })).status).toBe(401)
+    expect((await closed.request('/api/meta')).status).toBe(401)
+    expect((await app.request('/api/meta', { headers: as(undefined, 'admin') })).status).toBe(200)
   })
 
   it('answers 401 to an invalid token, and to no token without an anonymous role', async () => {

@@ -1,3 +1,4 @@
+import { LogIn } from 'lucide-react'
 import { cn } from '../lib/cn'
 import { Logo } from './logo'
 import { navGroups as defaultGroups, type NavGroup } from './nav'
@@ -9,7 +10,8 @@ import { isTextMode, sidebarWidth, type SidebarMode } from './sidebar-mode'
 export type SidebarProps = {
   mode: SidebarMode
   activeItem: string
-  user: ShellUser
+  /** The signed-in person; without one the footer offers `onSignIn`. */
+  user?: ShellUser
   workspace?: string
   forceExpanded?: boolean
   profileMenuOpen?: boolean
@@ -19,11 +21,12 @@ export type SidebarProps = {
   userMenu?: ProfileMenuItem[]
   onNavigate?: (href: string) => void
   onSignOut?: () => void
+  onSignIn?: () => void
   organizations?: ProfileOrganizations
   roles?: ProfileRoles
 }
 
-export const Sidebar = ({ mode, activeItem, user, workspace, forceExpanded, profileMenuOpen, groups = defaultGroups, userMenu, onNavigate, onSignOut, organizations, roles }: SidebarProps) => {
+export const Sidebar = ({ mode, activeItem, user, workspace, forceExpanded, profileMenuOpen, groups = defaultGroups, userMenu, onNavigate, onSignOut, onSignIn, organizations, roles }: SidebarProps) => {
   const expanding = mode === 'icon-expand'
   const expanded = expanding && forceExpanded
   const inline = isTextMode(mode) || expanding
@@ -66,7 +69,16 @@ export const Sidebar = ({ mode, activeItem, user, workspace, forceExpanded, prof
           ))}
         </div>
         <div className={cn('shrink-0 border-t p-2', mode !== 'text-large' && mode !== 'text-small' && !expanding && 'flex justify-center')}>
-          <ProfileMenu user={user} compact={!inline} open={profileMenuOpen} items={userMenu} onNavigate={onNavigate} onSignOut={onSignOut} organizations={organizations} roles={roles} />
+          {user ? (
+            <ProfileMenu user={user} compact={!inline} open={profileMenuOpen} items={userMenu} onNavigate={onNavigate} onSignOut={onSignOut} organizations={organizations} roles={roles} />
+          ) : (
+            onSignIn && (
+              <button type="button" onClick={onSignIn} aria-label="Sign in" className="flex min-h-11 w-full items-center gap-2.5 rounded-md p-1.5 text-left text-[13px] font-medium text-muted-foreground hover:bg-muted hover:text-foreground md:min-h-0">
+                <LogIn className="size-4 shrink-0" />
+                {inline && <span className="whitespace-nowrap">Sign in</span>}
+              </button>
+            )
+          )}
         </div>
       </div>
     </nav>

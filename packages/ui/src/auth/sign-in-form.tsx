@@ -30,6 +30,8 @@ export type SignInFormProps = {
   providers?: Array<{ id: string; name: string }>
   /** Starts sign-in with one of `providers`. */
   onContinueWith?: (provider: string) => void
+  /** Goes back to browsing without signing in; without it there is no such link. */
+  onBrowse?: () => void
 }
 
 const Divider = () => (
@@ -40,7 +42,7 @@ const Divider = () => (
   </div>
 )
 
-export const SignInForm = ({ onSubmit, busy, error, workspace, notice, methods = ['password'], onSendCode, onPasskey, passkeyDomains = [], onForgotPassword, providers = [], onContinueWith }: SignInFormProps) => {
+export const SignInForm = ({ onSubmit, busy, error, workspace, notice, methods = ['password'], onSendCode, onPasskey, passkeyDomains = [], onForgotPassword, providers = [], onContinueWith, onBrowse }: SignInFormProps) => {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const emailInput = useRef<HTMLInputElement>(null)
@@ -135,6 +137,11 @@ export const SignInForm = ({ onSubmit, busy, error, workspace, notice, methods =
             </button>
           )}
         </form>
+      )}
+      {onBrowse && (
+        <button type="button" onClick={onBrowse} className="mt-4 w-full text-center text-[13px] font-medium text-muted-foreground hover:text-foreground hover:underline">
+          Continue without signing in
+        </button>
       )}
     </AuthLayout>
   )

@@ -13,14 +13,15 @@ export type ActiveRoleState = {
 
 const failureMessage = (failure: unknown, fallback: string) => (failure instanceof AuthError ? authMessage(failure) : fallback)
 
-/** The role the session acts with; a failed read or switch shows as a toast. */
-export const useActiveRole = (reopen: () => void): ActiveRoleState => {
+/** The role the session acts with, read while `enabled` (someone is signed in); a failed read or switch shows as a toast. */
+export const useActiveRole = (reopen: () => void, enabled = true): ActiveRoleState => {
   const { session } = useAuth()
   const toast = useToast()
   const [current, setCurrent] = useState<ActiveRole>()
   useEffect(() => {
+    if (!enabled) return
     void session.roles.current().then(setCurrent, (failure: unknown) => toast.show({ state: 'error', title: failureMessage(failure, 'Could not read your roles') }))
-  }, [session, toast])
+  }, [session, toast, enabled])
   const switchTo = useCallback(
     (name: string) => void session.roles.switchTo(name).then(reopen, (failure: unknown) => toast.show({ state: 'error', title: failureMessage(failure, 'Could not switch the role') })),
     [session, toast, reopen],

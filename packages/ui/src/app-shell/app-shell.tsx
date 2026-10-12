@@ -17,7 +17,8 @@ export type AppShellProps = {
   activeItem: string
   /** Crumbs with an `href` are links, followed with `onNavigate`. */
   breadcrumb: Crumb[]
-  user: ShellUser
+  /** The signed-in person, with their profile menu; without one the sidebar offers `onSignIn` instead. */
+  user?: ShellUser
   workspace?: string
   actions?: ReactNode
   rightPanel?: ReactNode
@@ -29,6 +30,8 @@ export type AppShellProps = {
   onNavigate?: (href: string) => void
   /** Adds "Sign out" to the profile menu. */
   onSignOut?: () => void
+  /** A "Sign in" button in the sidebar for a visitor, who has no `user`. */
+  onSignIn?: () => void
   /** Tabs along the bottom on phones, before "More", which opens the drawer instead of the top bar's menu button. */
   bottomBar?: BottomBarTab[]
   /** The organizations to switch between, in the profile menu. */
@@ -43,7 +46,7 @@ export type AppShellProps = {
 
 const drawerId = 'app-drawer'
 
-export const AppShell = ({ sidebarMode, activeItem, breadcrumb, user, workspace, actions, rightPanel, forceExpanded, profileMenuOpen, navGroups, userMenu, bottomBar, onNavigate, onSignOut, organizations, roles, search, className, children }: AppShellProps) => {
+export const AppShell = ({ sidebarMode, activeItem, breadcrumb, user, workspace, actions, rightPanel, forceExpanded, profileMenuOpen, navGroups, userMenu, bottomBar, onNavigate, onSignOut, onSignIn, organizations, roles, search, className, children }: AppShellProps) => {
   const desktop = useIsDesktop()
   const [drawerOpen, setDrawerOpen] = useState(false)
   useEffect(() => {
@@ -51,7 +54,7 @@ export const AppShell = ({ sidebarMode, activeItem, breadcrumb, user, workspace,
   }, [desktop])
   const tabs = !desktop && bottomBar && bottomBar.length > 0 ? bottomBar : undefined
   const sidebar = (mode: SidebarMode) => (
-    <Sidebar mode={mode} activeItem={activeItem} user={user} workspace={workspace} forceExpanded={forceExpanded} profileMenuOpen={profileMenuOpen} groups={navGroups} userMenu={userMenu} onNavigate={onNavigate} onSignOut={onSignOut} organizations={organizations} roles={roles} />
+    <Sidebar mode={mode} activeItem={activeItem} user={user} workspace={workspace} forceExpanded={forceExpanded} profileMenuOpen={profileMenuOpen} groups={navGroups} userMenu={userMenu} onNavigate={onNavigate} onSignOut={onSignOut} onSignIn={onSignIn} organizations={organizations} roles={roles} />
   )
   return (
     <div className={cn('flex h-full min-h-0 w-full overflow-hidden bg-background', className)}>

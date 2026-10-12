@@ -74,9 +74,11 @@ const recordOf = (address: CurrentAddress | undefined) => (address?.kind === 're
 
 const Routes = ({ workspace, sidebarMode, assistant, runtime }: Pick<AppProps, 'workspace' | 'sidebarMode' | 'assistant' | 'runtime'>) => {
   const meta = useAdminMeta()
-  const { state, session, signOut, stopStaffSession, organizations: organizationSettings } = useAuth()
-  if (state.kind !== 'signed-in') throw new Error('The shell is only rendered for a signed-in user')
-  const { user, staff } = state
+  const { state, session, signOut, showSignIn, stopStaffSession, organizations: organizationSettings } = useAuth()
+  if (state.kind !== 'signed-in' && state.kind !== 'visitor') throw new Error('The shell is only rendered for a signed-in user or a visitor')
+  // A visitor browses what the anonymous role reads: no account, roles or organizations, and a "Sign in" button.
+  const user = state.kind === 'signed-in' ? state.user : undefined
+  const staff = state.kind === 'signed-in' ? state.staff : undefined
   const { path, params, basePath } = useRouter()
   const { address, go, open } = useAppAddress()
   const place = placeOf(address)
@@ -122,23 +124,23 @@ const Routes = ({ workspace, sidebarMode, assistant, runtime }: Pick<AppProps, '
   const runtimeUrl = meta.runtime?.url
   const runtimeButton = runtimeUrl && <RuntimeUpdateButton url={runtimeUrl} client={runtime} />
   // The session acts with one role at a time; what the shell shows by role follows it, as the API does.
-  const role = useActiveRole(useCallback(() => reopenIn(basePath), [basePath]))
-  const acting = actingUser(user, role.current)
-  const admin = isAdmin(acting)
+  const role = useActiveRole(useCallback(() => reopenIn(basePath), [basePath]), Boolean(user))
+  const acting = user && actingUser(user, role.current)
+  const admin = acting ? isAdmin(acting) : false
   // Admins hear about plugins the app should load but did not, and why
   const pluginsOff = usePluginsOff()
   // With organizations, the app works in one at a time; someone in none chooses or makes one first.
-  const organizations = useOrganizations(Boolean(organizationSettings))
+  const organizations = useOrganizations(Boolean(organizationSettings && user))
   const current = organizations.current
   const outsideOrganizations = Boolean(organizationSettings) && current !== undefined && !current.organization
-  const organizationPage = organizationSettings ? organizationPageTitles[path] : undefined
+  const organizationPage = organizationSettings && user ? organizationPageTitles[path] : undefined
   // The account pages are the app's own, under `/-/`; everything else is a page or a resource.
-  const accountPage = path === accountSecurityPath ? 'Sign-in & security' : path === signInPolicyPath ? 'Sign-in policy' : organizationPage
+  const accountPage = !user ? undefined : path === accountSecurityPath ? 'Sign-in & security' : path === signInPolicyPath ? 'Sign-in policy' : organizationPage
   const breadcrumb = accountPage ? [accountPage] : breadcrumbFor({ basePath, address, group: group?.label, page, resourceLabel: view?.names?.plural ?? (resource && humanize(resource)), recordTitle: title, recordLoading: titleLoading })
   const content =
-    path === accountSecurityPath ? (
+    user && path === accountSecurityPath ? (
       <AccountSecurityPage email={user.email} />
-    ) : path === signInPolicyPath ? (
+    ) : user && path === signInPolicyPath ? (
       admin ? <SignInPolicyPage /> : <Notice title="Admins only">Only an admin can change how people sign in.</Notice>
     ) : organizationPage && path === organizationPath ? (
       <OrganizationPage current={current} basePath={basePath} onChanged={organizations.reload} />
@@ -165,12 +167,13 @@ const Routes = ({ workspace, sidebarMode, assistant, runtime }: Pick<AppProps, '
       sidebarMode={sidebarMode ?? 'text-small'}
       activeItem={place ?? ''}
       breadcrumb={breadcrumb}
-      user={userToShell(acting)}
-      onSignOut={() => void signOut()}
+      user={acting && userToShell(acting)}
+      onSignOut={user && (() => void signOut())}
+      onSignIn={user ? undefined : showSignIn}
       workspace={current?.organization?.name ?? workspace}
       navGroups={groups}
       bottomBar={bottomBarFromMeta(meta, basePath, place)}
-      userMenu={[...userMenuFromMeta(meta, basePath, place), ...(organizationSettings ? organizationMenuItems(basePath, path, current) : []), ...accountMenuItems(basePath, path, admin)]}
+      userMenu={[...userMenuFromMeta(meta, basePath, place), ...(organizationSettings && user ? organizationMenuItems(basePath, path, current) : []), ...(user ? accountMenuItems(basePath, path, admin) : [])]}
       organizations={
         organizationSettings && {
           ...(current?.organization && { current: { id: current.organization.id, name: current.organization.name } }),
@@ -201,9 +204,10 @@ const Routes = ({ workspace, sidebarMode, assistant, runtime }: Pick<AppProps, '
 }
 
 const Authenticated = ({ baseUrl, client, sources, basePath, initialUrl, workspace, sidebarMode, ui, assistant, runtime, pluginLoader }: Omit<AppProps, 'auth'>) => {
-  const { session, markSignedOut } = useAuth()
+  const { state, session, markSignedOut } = useAuth()
+  // A visitor has no token to ask the session for: their requests go without one, as the anonymous role.
   return (
-    <ApiProvider baseUrl={baseUrl} client={client} sources={sources} token={session.token} onUnauthenticated={markSignedOut}>
+    <ApiProvider baseUrl={baseUrl} client={client} sources={sources} token={state.kind === 'visitor' ? undefined : session.token} onUnauthenticated={markSignedOut}>
       <Router basePath={basePath} initialUrl={initialUrl}>
         <MetaGate>
           <ToastProvider>
@@ -217,7 +221,10 @@ const Authenticated = ({ baseUrl, client, sources, basePath, initialUrl, workspa
   )
 }
 
-/** The admin: sign-in first, then a sidebar from `/meta`, `/:page` composed pages, `/:resource` lists and `/:resource/:key` records. Fills its parent. */
+/**
+ * The admin: sign-in first, or browsing as a visitor when the project has an anonymous role, then a sidebar from
+ * `/meta`, `/:page` composed pages, `/:resource` lists and `/:resource/:key` records. Fills its parent.
+ */
 export const App = ({ auth, workspace, ...rest }: AppProps) => (
   <AuthProvider session={auth}>
     <AuthGate workspace={workspace}>

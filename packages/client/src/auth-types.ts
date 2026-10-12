@@ -16,7 +16,8 @@ export type PlatformSignIn = { provider: string; name: string }
  * `needsAdmin` while no user exists yet; `signInMethods` the ways to sign in the server's policy leaves on;
  * `passwordReset` when the server can email reset links; `socialProviders` the ids of the sign-in providers, for example
  * `github`; `platformSignIn` the one of them the platform adds; `staffSignIn` the operator provider's name when its staff
- * can sign in as people; `organizations` when the app has them.
+ * can sign in as people; `organizations` when the app has them; `anonymous` when visitors may browse what the project's
+ * anonymous role reads without signing in.
  */
 export type SetupStatus = {
   needsAdmin: boolean
@@ -32,6 +33,7 @@ export type SetupStatus = {
   passkeyDomains?: string[]
   /** With organizations: who may create them, and every role with its label, `membership` for those a member can hold. */
   organizations?: { create: 'admins' | 'everyone'; roles: RoleLabel[] }
+  anonymous?: boolean
 }
 
 /** A role with its label; `membership` when a member can hold it, `grants` the other roles its holders may give. */

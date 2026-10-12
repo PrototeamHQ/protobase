@@ -13,10 +13,11 @@ import { hasUsers } from './users'
  * then; the ids of the `socialProviders` people can sign in with, so it offers "Continue with GitHub" when `github` is
  * one; `platformSignIn`, the id and name of the platform's provider when it is one of them; `staffSignIn`, the
  * operator provider's name, when staff can sign in as people; `passkeyDomains`, when people have passkeys for more than
- * one of the app's hosts, the RP IDs a passkey sign-in can ask for, the passkey domain first; and with organizations, who may create them and the roles
- * with their labels, `membership` for those a member can hold, and the roles each one's holders may also give.
+ * one of the app's hosts, the RP IDs a passkey sign-in can ask for, the passkey domain first; with organizations, who may create them and the roles
+ * with their labels, `membership` for those a member can hold, and the roles each one's holders may also give; and
+ * `anonymous` when the project has an anonymous role, so the admin app opens for visitors before anyone signs in.
  */
-export const statusRoute = (auth: AdminAuth) => {
+export const statusRoute = (auth: AdminAuth, { anonymous = false }: { anonymous?: boolean } = {}) => {
   const app = new Hono()
   app.get('/status', async (c) => {
     const context = await auth.$context
@@ -36,6 +37,7 @@ export const statusRoute = (auth: AdminAuth) => {
       ...(platformSignIn && { platformSignIn }),
       ...(staffSignIn && { staffSignIn }),
       ...(passkeyDomains.length > 1 && { passkeyDomains }),
+      ...(anonymous && { anonymous }),
       ...(auth.organizations && {
         organizations: {
           create: auth.organizations.create,

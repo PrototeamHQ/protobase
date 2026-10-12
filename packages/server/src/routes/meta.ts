@@ -5,7 +5,7 @@ import type { AdminEnv } from '../types'
 
 export const metaRoutes = (meta: Meta) => {
   const app = new Hono<AdminEnv>()
-  app.get('/meta', async (c) => {
+  app.get('/', async (c) => {
     const { body, etag } = await meta.forCaller(c.get('session'))
     const headers = { ETag: etag, 'Cache-Control': 'no-cache' }
     const given = c.req.header('if-none-match')
