@@ -2,6 +2,12 @@
 
 Every release of Protobase, cut by the release workflow from the commits since the last one (see the [versioning page](https://docs.protobase.net/reference/versioning/)).
 
+## [0.12.12](https://github.com/PrototeamHQ/protobase/compare/v0.12.11...v0.12.12) (2026-10-12)
+
+### Features
+
+* **ui:** number filters are sliders and reference filters a searchable multi-select ([f0af344](https://github.com/PrototeamHQ/protobase/commit/f0af344382e87afc872932138cbea709f0c6707c))
+
 ## [0.12.11](https://github.com/PrototeamHQ/protobase/compare/v0.12.10...v0.12.11) (2026-10-12)
 
 ### Features
