@@ -2,6 +2,12 @@
 
 Every release of Protobase, cut by the release workflow from the commits since the last one (see the [versioning page](https://docs.protobase.net/reference/versioning/)).
 
+## [0.12.6](https://github.com/PrototeamHQ/protobase/compare/v0.12.5...v0.12.6) (2026-10-12)
+
+### Bug Fixes
+
+* **cli:** a plugin's plain utilities sit under the app's, so they never undo its responsive layout ([4f017f5](https://github.com/PrototeamHQ/protobase/commit/4f017f5aa621671ce80bdcb4cb48e5829cddc628))
+
 ## [0.12.5](https://github.com/PrototeamHQ/protobase/compare/v0.12.4...v0.12.5) (2026-10-12)
 
 ### Features
