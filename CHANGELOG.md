@@ -2,6 +2,12 @@
 
 Every release of Protobase, cut by the release workflow from the commits since the last one (see the [versioning page](https://docs.protobase.net/reference/versioning/)).
 
+## [0.12.5](https://github.com/PrototeamHQ/protobase/compare/v0.12.4...v0.12.5) (2026-10-12)
+
+### Features
+
+* send the app's errors to a Sentry-compatible tracker set by a DSN ([0509e0f](https://github.com/PrototeamHQ/protobase/commit/0509e0f0cc5b8387e31505b480d23be5d035008f))
+
 ## [0.12.4](https://github.com/PrototeamHQ/protobase/compare/v0.12.3...v0.12.4) (2026-10-12)
 
 ### Bug Fixes
