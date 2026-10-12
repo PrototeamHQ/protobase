@@ -2,6 +2,27 @@
 
 Every release of Protobase, cut by the release workflow from the commits since the last one (see the [versioning page](https://docs.protobase.net/reference/versioning/)).
 
+## [0.11.0](https://github.com/PrototeamHQ/protobase/compare/v0.10.0...v0.11.0) (2026-10-12)
+
+### ⚠ BREAKING CHANGES
+
+* a link in the app goes to an address in to, and an href in the app is refused at startup
+
+### Features
+
+* a link in the app goes to an address in to, and an href in the app is refused at startup ([a86e641](https://github.com/PrototeamHQ/protobase/commit/a86e641fdb6ee317f0ee8ac7fb6137bd3d486e3e))
+* **cli:** the build fails on a declared component that protobase.ui.tsx does not export ([e577867](https://github.com/PrototeamHQ/protobase/commit/e5778677ec46d5d5dc9b9c5446d5f84c8c95a088))
+* **schema:** a record layout holds custom components with l.custom ([abeb78f](https://github.com/PrototeamHQ/protobase/commit/abeb78f43fa196d7ef706a8a8d055f3cdff84425))
+* **schema:** a view's list has card and custom component displays besides its table ([ae7f394](https://github.com/PrototeamHQ/protobase/commit/ae7f394134d73c21ae71e6b3b5a8d2db249d6cdd))
+* **ui:** protobase.ui.tsx exports each custom component by name, from a file of its own ([62bba4e](https://github.com/PrototeamHQ/protobase/commit/62bba4e634f47119d77ddcd81bf639b9eeec72e3))
+* **ui:** the list page switches between its table, cards and custom displays in the address ([bfb3c88](https://github.com/PrototeamHQ/protobase/commit/bfb3c8888542e9b55dd2fd1a9ed24ca71290a11c))
+* **ui:** the record page draws a layout's custom components with the record around them ([35bd300](https://github.com/PrototeamHQ/protobase/commit/35bd30059543545909c2fa21d4929f428be35125))
+
+### Bug Fixes
+
+* one walker over typed field references keeps hidden fields out of views and custom props ([0cf8540](https://github.com/PrototeamHQ/protobase/commit/0cf8540e9086ec7454ac3c0d29ebf8a3a66d805e))
+* **ui:** the list and create pages open a record whose key holds a slash ([ac21047](https://github.com/PrototeamHQ/protobase/commit/ac21047abf5a636f070f86d66ab9f9f599c2ff39))
+
 ## [0.10.0](https://github.com/PrototeamHQ/protobase/compare/v0.9.0...v0.10.0) (2026-10-11)
 
 ### ⚠ BREAKING CHANGES
