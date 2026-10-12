@@ -1,11 +1,12 @@
 import { Fragment, type ReactNode } from 'react'
-import type { FilterConfig, FilterState } from './filter-config'
+import type { FilterConfig, FilterState, RangeConfig } from './filter-config'
 import { ActiveFilterChips } from './active-filter-chips'
 import { DatePresets } from './date-presets'
+import { FacetCombobox } from './facet-combobox'
 import { FacetGroup } from './facet-group'
 import { FilterMenu } from './filter-menu'
 import { FilterSection } from './filter-section'
-import { activeChips, emptyFilterState, removeChip, toggleFacetValue, toggleFlag } from './filter-state'
+import { activeChips, emptyFilterState, removeChip, setRange, toggleFacetValue, toggleFlag } from './filter-state'
 import { RangeFilter } from './range-filter'
 import { ToggleRow } from './toggle-row'
 import { ToolbarRow, toolbarShows } from './toolbar-row'
@@ -36,10 +37,13 @@ export const FilterPanel = ({ config, layout, value, defaultValue, onChange, loc
     <ActiveFilterChips chips={chips} lockedLabels={lockedLabels} onRemove={(key) => setState(removeChip(state, key))} onClear={() => setState(emptyFilterState)} />
   )
 
-  const facetView = (group: FilterConfig['facets'][number]) => (
-    <FacetGroup config={group} selected={state.facets[group.id] ?? []} onToggle={(option) => setState(toggleFacetValue(state, group.id, option))} />
-  )
-  const rangeView = config.range && <RangeFilter config={config.range} value={state.range} onChange={(range) => setState({ ...state, range })} />
+  const facetView = (group: FilterConfig['facets'][number], inline = false) => {
+    const selected = state.facets[group.id] ?? []
+    const onToggle = (option: string) => setState(toggleFacetValue(state, group.id, option))
+    return group.combobox ? <FacetCombobox config={group} selected={selected} onToggle={onToggle} inline={inline} /> : <FacetGroup config={group} selected={selected} onToggle={onToggle} />
+  }
+  const ranges = config.ranges ?? []
+  const rangeView = (range: RangeConfig) => <RangeFilter config={range} value={state.ranges?.[range.id]} onChange={(span) => setState(setRange(state, range.id, span))} />
   const dateView = config.datePresets && <DatePresets value={state.date} presets={Array.isArray(config.datePresets) ? config.datePresets : undefined} onChange={(date) => setState({ ...state, date })} />
   const toggleViews = (config.toggles ?? []).map((toggle) => (
     <ToggleRow key={toggle.id} label={toggle.label} checked={state.toggles.includes(toggle.id)} onChange={() => setState(toggleFlag(state, toggle.id))} />
@@ -57,7 +61,11 @@ export const FilterPanel = ({ config, layout, value, defaultValue, onChange, loc
             {facetView(group)}
           </FilterSection>
         ))}
-        {config.range && <FilterSection title={config.range.label}>{rangeView}</FilterSection>}
+        {ranges.map((range) => (
+          <FilterSection key={range.id} title={range.label}>
+            {rangeView(range)}
+          </FilterSection>
+        ))}
         {dateView && <FilterSection title="Date">{dateView}</FilterSection>}
         {toggleViews.length > 0 && <FilterSection title="Show only">{toggleViews}</FilterSection>}
       </aside>
@@ -66,17 +74,15 @@ export const FilterPanel = ({ config, layout, value, defaultValue, onChange, loc
 
   const menus = [
     ...config.facets.map((group) => (
-      <FilterMenu key={group.id} label={group.label} activeCount={(state.facets[group.id] ?? []).length} defaultOpen={defaultOpenMenu === group.id}>
-        {facetView(group)}
+      <FilterMenu key={group.id} label={group.label} activeCount={(state.facets[group.id] ?? []).length} width={group.combobox ? 280 : undefined} defaultOpen={defaultOpenMenu === group.id}>
+        {facetView(group, true)}
       </FilterMenu>
     )),
-    ...(config.range
-      ? [
-          <FilterMenu key="range" label={config.range.label} activeCount={state.range ? 1 : 0} width={280} defaultOpen={defaultOpenMenu === config.range.id}>
-            {rangeView}
-          </FilterMenu>,
-        ]
-      : []),
+    ...ranges.map((range) => (
+      <FilterMenu key={`range:${range.id}`} label={range.label} activeCount={state.ranges?.[range.id] ? 1 : 0} width={280} defaultOpen={defaultOpenMenu === range.id}>
+        {rangeView(range)}
+      </FilterMenu>
+    )),
     ...(dateView ? [<Fragment key="date">{dateView}</Fragment>] : []),
   ]
   const toggles = (config.toggles ?? []).map((toggle) => (

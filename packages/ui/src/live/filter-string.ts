@@ -5,7 +5,7 @@ const w = createWhere()
 const span = { start: 0, end: 0 }
 
 /** The widgets a `FilterConfig` talks to, by field name. */
-type Fields = Pick<FilterConfig, 'facets' | 'range' | 'dateField' | 'dateKind' | 'toggles'>
+type Fields = Pick<FilterConfig, 'facets' | 'ranges' | 'dateField' | 'dateKind' | 'toggles'>
 
 const relative = { '7d': { amount: 7, unit: 'd' }, '30d': { amount: 30, unit: 'd' }, '90d': { amount: 90, unit: 'd' } } as const
 
@@ -39,10 +39,13 @@ export const stateToClauses = (config: Fields, state: FilterState, now = new Dat
     if (values.length === 0) return []
     return [values.length === 1 ? w.eq(group.id, values[0]!) : w.in(group.id, values)]
   })
-  const range = config.range && state.range ? [w.gte(config.range.id, state.range[0]), w.lte(config.range.id, state.range[1])] : []
+  const ranges = (config.ranges ?? []).flatMap((range) => {
+    const span = state.ranges?.[range.id]
+    return span ? [w.gte(range.id, span[0]), w.lte(range.id, span[1])] : []
+  })
   const date = config.dateField && state.date ? dateClauses(config.dateField, state.date, now, config.dateKind) : []
   const toggles = (config.toggles ?? []).filter((toggle) => state.toggles.includes(toggle.id)).map((toggle) => w.eq(toggle.id, true))
-  return [...facets, ...range, ...date, ...toggles]
+  return [...facets, ...ranges, ...date, ...toggles]
 }
 
 export const clausesToText = (clauses: FilterExpr[]) => (clauses.length === 0 ? '' : printFilter(w.and(...clauses)))
@@ -80,7 +83,8 @@ export const textToState = (config: Fields, text: string, now = new Date()): Par
   const extras: FilterExpr[] = []
   const facetIds = new Set(config.facets.map((group) => group.id))
   const toggleIds = new Set((config.toggles ?? []).map((toggle) => toggle.id))
-  const bounds: { low?: number; high?: number; clauses: FilterExpr[] } = { clauses: [] }
+  const rangeIds = new Set((config.ranges ?? []).map((range) => range.id))
+  const bounds = new Map<string, { low?: number; high?: number; clauses: FilterExpr[] }>()
   let dateClause: FilterExpr | undefined
   let todayEnd: FilterExpr | undefined
 
@@ -96,10 +100,12 @@ export const textToState = (config: Fields, text: string, now = new Date()): Par
       todayEnd = clause
     } else if (clause.kind === 'compare' && toggleIds.has(fieldName(clause)) && clause.op === '=' && clause.value.kind === 'boolean' && clause.value.value) {
       state.toggles.push(fieldName(clause))
-    } else if (clause.kind === 'compare' && config.range?.id === fieldName(clause) && (clause.op === '>=' || clause.op === '<=') && clause.value.kind === 'number') {
-      if (clause.op === '>=') bounds.low = clause.value.value
-      else bounds.high = clause.value.value
-      bounds.clauses.push(clause)
+    } else if (clause.kind === 'compare' && rangeIds.has(fieldName(clause)) && (clause.op === '>=' || clause.op === '<=') && clause.value.kind === 'number') {
+      const range = bounds.get(fieldName(clause)) ?? { clauses: [] }
+      if (clause.op === '>=') range.low = clause.value.value
+      else range.high = clause.value.value
+      range.clauses.push(clause)
+      bounds.set(fieldName(clause), range)
     } else {
       extras.push(clause)
     }
@@ -110,7 +116,10 @@ export const textToState = (config: Fields, text: string, now = new Date()): Par
     state.date = undefined
   }
   if (todayEnd && state.date !== 'yesterday') extras.push(todayEnd)
-  if (bounds.low !== undefined && bounds.high !== undefined) state.range = [bounds.low, bounds.high]
-  else extras.push(...bounds.clauses)
+  // A range takes a lower and an upper bound; one of them alone is a hand-written condition
+  for (const [id, range] of bounds) {
+    if (range.low !== undefined && range.high !== undefined) state.ranges = { ...state.ranges, [id]: [range.low, range.high] }
+    else extras.push(...range.clauses)
+  }
   return { ok: true, state, extras }
 }

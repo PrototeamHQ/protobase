@@ -1,12 +1,19 @@
 import { ChevronDown } from 'lucide-react'
-import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { cn } from '../lib/cn'
 
 export type FilterMenuProps = { label: string; activeCount: number; width?: number; defaultOpen?: boolean; children: ReactNode }
 
 export const FilterMenu = ({ label, activeCount, width = 240, defaultOpen = false, children }: FilterMenuProps) => {
   const [open, setOpen] = useState(defaultOpen)
+  const [alignEnd, setAlignEnd] = useState(false)
   const root = useRef<HTMLDivElement>(null)
+
+  // A menu that would run past the right edge of the window opens leftwards from the button's right edge instead
+  useLayoutEffect(() => {
+    if (!open || !root.current) return
+    setAlignEnd(root.current.getBoundingClientRect().left + width > document.documentElement.clientWidth)
+  }, [open, width])
 
   useEffect(() => {
     if (!open) return
@@ -33,7 +40,7 @@ export const FilterMenu = ({ label, activeCount, width = 240, defaultOpen = fals
         <ChevronDown className="size-3.5 text-muted-foreground" />
       </button>
       {open && (
-        <div className="absolute left-0 top-full z-30 mt-1.5 rounded-lg border bg-background p-3 shadow-pop" style={{ width }}>
+        <div className={cn('absolute top-full z-30 mt-1.5 rounded-lg border bg-background p-3 shadow-pop', alignEnd ? 'right-0' : 'left-0')} style={{ width }}>
           {children}
         </div>
       )}

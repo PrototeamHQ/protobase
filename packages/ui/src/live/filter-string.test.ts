@@ -7,7 +7,10 @@ const config = {
     { id: 'status', label: 'Status', options: [] },
     { id: 'ownerId', label: 'Owner', options: [] },
   ],
-  range: { id: 'total', label: 'Total', min: 0, max: 1000, step: 10, histogram: [], format: String },
+  ranges: [
+    { id: 'total', label: 'Total', min: 0, max: 1000, step: 10, histogram: [], format: String },
+    { id: 'bedrooms', label: 'Bedrooms', min: 0, max: 6, step: 1, histogram: [], format: String },
+  ],
   dateField: 'createdAt',
   toggles: [{ id: 'paid', label: 'Paid' }],
 }
@@ -32,8 +35,13 @@ describe('stateToText', () => {
   })
 
   it('prints presets, ranges and toggles', () => {
-    const text = stateToText(config, { facets: {}, range: [10, 200], date: '7d', toggles: ['paid'] }, [], now)
+    const text = stateToText(config, { facets: {}, ranges: { total: [10, 200] }, date: '7d', toggles: ['paid'] }, [], now)
     expect(text).toBe('total >= 10 AND total <= 200 AND createdAt >= now() - 7d AND paid = true')
+  })
+
+  it('prints each range in the order of the config', () => {
+    const text = stateToText(config, { facets: {}, ranges: { bedrooms: [2, 4], total: [10, 200] }, toggles: [] }, [], now)
+    expect(text).toBe('total >= 10 AND total <= 200 AND bedrooms >= 2 AND bedrooms <= 4')
   })
 
   it('prints this year as the first instant of the year', () => {
@@ -41,17 +49,17 @@ describe('stateToText', () => {
   })
 
   it('always produces text the parser accepts', () => {
-    const text = stateToText(config, { facets: { status: ['draft', 'shipped'], ownerId: ['5'] }, range: [1, 2], date: '30d', toggles: ['paid'] }, [], now)
+    const text = stateToText(config, { facets: { status: ['draft', 'shipped'], ownerId: ['5'] }, ranges: { total: [1, 2], bedrooms: [0, 3] }, date: '30d', toggles: ['paid'] }, [], now)
     expect(parseFilter(text).ok).toBe(true)
   })
 })
 
 describe('textToState', () => {
   it('reads widget clauses back into the panel state', () => {
-    const parsed = textToState(config, 'in(status, "draft", "shipped") AND ownerId = 5 AND createdAt >= now() - 30d AND total >= 10 AND total <= 200 AND paid = true', now)
+    const parsed = textToState(config, 'in(status, "draft", "shipped") AND ownerId = 5 AND createdAt >= now() - 30d AND total >= 10 AND total <= 200 AND bedrooms >= 2 AND bedrooms <= 3 AND paid = true', now)
     expect(parsed).toEqual({
       ok: true,
-      state: { facets: { status: ['draft', 'shipped'], ownerId: ['5'] }, date: '30d', range: [10, 200], toggles: ['paid'] },
+      state: { facets: { status: ['draft', 'shipped'], ownerId: ['5'] }, date: '30d', ranges: { total: [10, 200], bedrooms: [2, 3] }, toggles: ['paid'] },
       extras: [],
     })
   })
@@ -59,6 +67,12 @@ describe('textToState', () => {
   it('keeps clauses no widget owns as extras', () => {
     const parsed = textToState(config, 'status = "draft" AND notes = "rush"', now)
     expect(parsed.ok && parsed.state.facets).toEqual({ status: ['draft'] })
+    expect(parsed.ok && parsed.extras).toHaveLength(1)
+  })
+
+  it('keeps a range with one bound as an extra, and reads the other range', () => {
+    const parsed = textToState(config, 'bedrooms >= 2 AND total >= 10 AND total <= 200', now)
+    expect(parsed.ok && parsed.state.ranges).toEqual({ total: [10, 200] })
     expect(parsed.ok && parsed.extras).toHaveLength(1)
   })
 
@@ -119,6 +133,7 @@ describe('round trip', () => {
     'in(status, "draft", "shipped") AND ownerId = "5"',
     'createdAt >= now() - 7d AND paid = true',
     'total >= 10 AND total <= 200',
+    'bedrooms >= 1 AND bedrooms <= 3 AND total >= 10 AND total <= 200',
     'status = "draft" AND notes = "rush"',
   ])('keeps %s', (text) => {
     const first = roundTrip(text)

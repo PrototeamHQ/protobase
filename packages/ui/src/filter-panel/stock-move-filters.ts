@@ -36,15 +36,17 @@ export const stockMoveFilters: FilterConfig = {
       ],
     },
   ],
-  range: {
-    id: 'quantity',
-    label: 'Quantity',
-    min: -200,
-    max: 200,
-    step: 5,
-    histogram: [1, 2, 3, 5, 8, 14, 26, 61, 94, 71, 40, 22, 31, 38, 33, 24, 17, 11, 8, 6, 4, 3, 2, 1],
-    format: (value) => (value > 0 ? `+${value}` : String(value)),
-  },
+  ranges: [
+    {
+      id: 'quantity',
+      label: 'Quantity',
+      min: -200,
+      max: 200,
+      step: 5,
+      histogram: [1, 2, 3, 5, 8, 14, 26, 61, 94, 71, 40, 22, 31, 38, 33, 24, 17, 11, 8, 6, 4, 3, 2, 1],
+      format: (value) => (value > 0 ? `+${value}` : String(value)),
+    },
+  ],
   datePresets: true,
   toggles: [{ id: 'review', label: 'Needs review' }],
 }

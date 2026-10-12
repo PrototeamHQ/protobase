@@ -1,8 +1,20 @@
 import type { DatePreset } from '@protobase/schema'
 
-export type FacetOption = { value: string; label: string; count: number }
+/** `count` is left out when it is not known, such as for a record found by a search. */
+export type FacetOption = { value: string; label: string; count?: number }
 
-export type FacetGroupConfig = { id: string; label: string; options: FacetOption[]; searchable?: boolean }
+export type FacetGroupConfig = {
+  id: string
+  label: string
+  options: FacetOption[]
+  searchable?: boolean
+  /** A dropdown that searches as you type and holds several choices, instead of a list of checkboxes. */
+  combobox?: boolean
+  /** Names of chosen values that are not among `options`, such as those picked from an earlier search. */
+  labels?: Record<string, string>
+  /** Called as the search text changes, the options then being the matches; without it the options are filtered here. */
+  onSearch?: (text: string) => void
+}
 
 export type RangeConfig = {
   id: string
@@ -21,7 +33,7 @@ export type ToggleConfig = { id: string; label: string }
 
 export type FilterConfig = {
   facets: FacetGroupConfig[]
-  range?: RangeConfig
+  ranges?: RangeConfig[]
   /** `true` shows the default presets; a list shows exactly those. */
   datePresets?: boolean | DatePresetId[]
   /** The field the date presets filter on, for configs that talk to a server. */
@@ -33,7 +45,8 @@ export type FilterConfig = {
 
 export type FilterState = {
   facets: Record<string, string[]>
-  range?: [number, number]
+  /** The selected span of each range, by its id; a range without one is not filtered on. */
+  ranges?: Record<string, [number, number]>
   date?: DatePresetId
   toggles: string[]
 }

@@ -62,9 +62,9 @@ An enum's value labels show everywhere the admin shows its values: badges, selec
 
 | Widget | |
 | --- | --- |
-| `w.facets(r.status, { search? })` | A menu of the field's values with counts; `search` adds a search box for long lists. |
+| `w.facets(r.status, { search? })` | A menu of the field's values with counts; `search` adds a search box for long lists. On a relation it is a dropdown that searches the referenced records as you type and holds several of them; on a number field, a range slider. |
 | `w.dateRange(r.booked_on, { presets? })` | Buttons for `today`, `yesterday`, `7d`, `30d`, `90d`, `month`, `quarter`, `year`. |
-| `w.range(r.estimate, { histogram? })` | A minimum and maximum, with a histogram of the values. |
+| `w.range(r.estimate, { histogram? })` | A slider between the lowest and highest value; `histogram` draws the values' histogram behind it. |
 | `w.toggle(r.paid)` | A switch for a boolean field. |
 
 `.chart((r) => ({ field, range, granularity }))` draws records per day or week over a date or timestamp field above the list, following its filters: `range` is `7d`, `30d`, `90d`, `1y` or `all`, `granularity` `hour`, `day`, `week` or `month`.

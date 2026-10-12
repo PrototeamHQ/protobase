@@ -1,15 +1,38 @@
-import type { ResourceModel, ViewModel } from '@protobase/schema'
-import type { FilterConfig } from '../filter-panel'
+import type { FieldType, FilterWidgetModel, ResourceModel, ViewModel } from '@protobase/schema'
+import type { FilterConfig, RangeConfig } from '../filter-panel'
 
-/** The widgets of a view in the shape `filter-string` talks to; options and counts are filled in later. */
-export const widgetFields = (view: ViewModel | undefined, model?: ResourceModel): Pick<FilterConfig, 'facets' | 'range' | 'dateField' | 'dateKind' | 'datePresets' | 'toggles'> => {
+const numberTypes: FieldType[] = ['integer', 'bigint', 'decimal']
+
+const isNumber = (model: ResourceModel | undefined, field: string) => {
+  const type = model?.fields[field]?.type
+  return type !== undefined && numberTypes.includes(type)
+}
+
+/** A filter on a number field is a range slider, whichever widget the view asked for. */
+const rangeOf = (widget: FilterWidgetModel, model: ResourceModel | undefined) =>
+  widget.kind === 'range' || (widget.kind === 'facets' && isNumber(model, widget.field))
+
+const emptyRange = (field: string): RangeConfig => ({ id: field, label: field, min: 0, max: 0, step: 1, histogram: [], format: String })
+
+/**
+ * The widgets of a view in the shape `filter-string` talks to; options and counts are filled in later. Facets on a
+ * reference to another resource's records are a combobox, which searches those records.
+ */
+export const widgetFields = (view: ViewModel | undefined, model?: ResourceModel): Pick<FilterConfig, 'facets' | 'ranges' | 'dateField' | 'dateKind' | 'datePresets' | 'toggles'> => {
   const widgets = view?.filters ?? []
-  const range = widgets.find((widget) => widget.kind === 'range')
   const date = widgets.find((widget) => widget.kind === 'dateRange')
   return {
-    facets: widgets.flatMap((widget) => (widget.kind === 'facets' ? [{ id: widget.field, label: widget.field, options: [], searchable: widget.search }] : [])),
-    ...(range && { range: { id: range.field, label: range.field, min: 0, max: 0, step: 1, histogram: [], format: String } }),
+    facets: widgets.flatMap((widget) =>
+      widget.kind === 'facets' && !rangeOf(widget, model)
+        ? [{ id: widget.field, label: widget.field, options: [], searchable: widget.search, ...(model?.fields[widget.field]?.type === 'relation' && { combobox: true }) }]
+        : [],
+    ),
+    ranges: widgets.flatMap((widget) => (rangeOf(widget, model) ? [emptyRange(widget.field)] : [])),
     ...(date && { dateField: date.field, dateKind: model?.fields[date.field]?.type === 'date' ? ('date' as const) : ('timestamp' as const), ...(date.presets.length > 0 && { datePresets: date.presets }) }),
     toggles: widgets.flatMap((widget) => (widget.kind === 'toggle' ? [{ id: widget.field, label: widget.field }] : [])),
   }
 }
+
+/** Whether a range draws its histogram: only a `range` widget that asks for one. */
+export const rangeHistogram = (view: ViewModel | undefined, field: string) =>
+  (view?.filters ?? []).some((widget) => widget.kind === 'range' && widget.field === field && widget.histogram)

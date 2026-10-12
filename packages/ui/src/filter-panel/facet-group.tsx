@@ -26,7 +26,7 @@ export const FacetGroup = ({ config, selected, onToggle }: FacetGroupProps) => {
         <label key={option.value} className="flex cursor-pointer items-center gap-2 rounded px-1 py-1 hover:bg-muted">
           <Checkbox checked={selected.includes(option.value)} onChange={() => onToggle(option.value)} label={option.label} />
           <span className="flex-1 truncate">{option.label}</span>
-          <span className="text-xs tabular-nums text-faint-foreground">{formatInt(option.count)}</span>
+          {option.count !== undefined && <span className="text-xs tabular-nums text-faint-foreground">{formatInt(option.count)}</span>}
         </label>
       ))}
       {options.length === 0 && <span className="px-1 py-1 text-xs text-faint-foreground">No matches</span>}

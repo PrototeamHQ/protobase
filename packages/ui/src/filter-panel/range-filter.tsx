@@ -14,16 +14,18 @@ export const RangeFilter = ({ config, value, onChange }: RangeFilterProps) => {
   return (
     <div className="w-full">
       <div className="px-[7px]">
-        <div className="flex h-12 items-end gap-0.5">
-          {histogram.map((count, index) => (
-            <span
-              key={index}
-              className={cn('flex-1 rounded-t-sm', barInRange(index, histogram.length, min, max, selected) ? 'bg-primary/70' : 'bg-border')}
-              style={{ height: `${Math.max(6, (count / peak) * 100)}%` }}
-            />
-          ))}
-        </div>
-        <div className="relative mt-1 h-4">
+        {histogram.length > 0 && (
+          <div className="mb-1 flex h-12 items-end gap-0.5">
+            {histogram.map((count, index) => (
+              <span
+                key={index}
+                className={cn('flex-1 rounded-t-sm', barInRange(index, histogram.length, min, max, selected) ? 'bg-primary/70' : 'bg-border')}
+                style={{ height: `${Math.max(6, (count / peak) * 100)}%` }}
+              />
+            ))}
+          </div>
+        )}
+        <div className="relative h-4">
           <span className="absolute inset-x-0 top-1/2 h-1 -translate-y-1/2 rounded-full bg-border" />
           <span
             className="absolute top-1/2 h-1 -translate-y-1/2 rounded-full bg-primary"
