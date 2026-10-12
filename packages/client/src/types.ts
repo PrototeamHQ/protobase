@@ -49,11 +49,18 @@ export type ResourcePermissions = { read?: boolean; create: boolean; update: boo
  * `runtime`: the runtime updates endpoint, for a caller with the `admin` role when the app has one.
  * `bottomBar`: the tabs on phones, of the bottom bar that names the caller's active role.
  * `plugins`: the plugins the admin app loads for the caller, each by its plugin.json.
+ * `sources`: the other APIs whose resources the admin app draws for the caller.
  */
-export type Meta = { resources: ResourceModel[]; views: ViewModel[]; pages?: PageModel[]; permissions?: Record<string, ResourcePermissions>; userMenu?: UserMenuModel; bottomBar?: Omit<BottomBarModel, 'roles'>; assistant?: { url: string }; runtime?: { url: string }; plugins?: PluginRef[] }
+export type Meta = { resources: ResourceModel[]; views: ViewModel[]; pages?: PageModel[]; permissions?: Record<string, ResourcePermissions>; userMenu?: UserMenuModel; bottomBar?: Omit<BottomBarModel, 'roles'>; assistant?: { url: string }; runtime?: { url: string }; plugins?: PluginRef[]; sources?: SourceRef[] }
 
 /** A plugin as `/meta` names it: the URL of its plugin.json, and the settings it reads with `usePlugin()`. */
 export type PluginRef = { url: string; settings?: Record<string, unknown> }
+
+/**
+ * Another Protobase API as `/meta` names it: `url` is its resources API (`.../api/v1`), `label` its name as people read
+ * it, and `resources` the ones the app draws from it, with its own `/meta` and data, at their own addresses.
+ */
+export type SourceRef = { url: string; label: string; resources: string[] }
 
 export type MetaResult = { status: 'modified'; meta: Meta; etag: string } | { status: 'unchanged' }
 

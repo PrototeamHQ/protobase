@@ -3,6 +3,8 @@ export type { UploadProgress } from './upload-request'
 export { ApiError, PreconditionFailedError, isApiError, type ProblemDetails, type ProblemError } from './problem'
 export { listWire, filterText, type FilterInput, type ListParams } from './query-string'
 export type { ClientOptions } from './transport'
+export { routedClient } from './routed-client'
+export { sourceMeta, type SourceMeta } from './source-meta'
 export type {
   ResourceRef,
   RecordOf,
@@ -17,6 +19,7 @@ export type {
   ResourcePermissions,
   MetaResult,
   PluginRef,
+  SourceRef,
   Stored,
   StoredFile,
   RecordPermissions,
