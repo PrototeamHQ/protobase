@@ -18,6 +18,8 @@ export type MetaData = {
   runtime?: { url: string }
   /** The error tracker the app sends its errors to, when the app reports them (see `startErrorReporting`). */
   errorReporting?: { dsn: string; environment?: string }
+  /** The map style the record page's maps are drawn with, when the app has one (see `MapSection`). */
+  maps?: { style: string }
   /** The plugins the app loads for the user (see `PluginGate`). */
   plugins?: PluginRef[]
   /** The other APIs the app draws resources from for the user, and how far their `/meta` has loaded (see `withSources`). */

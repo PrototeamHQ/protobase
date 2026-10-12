@@ -216,6 +216,17 @@ describe('view builder', () => {
     expect(() => wrong.toModel(article.toModel())).toThrow('View "article": display "cards" shows "title" as a flag, which is not a boolean field')
   })
 
+  it('puts a map of the record position in the record layout, in the main column or the sidebar', () => {
+    const shop = resource('shop').table('shops').fields({ id: f.integer(), lat: f.decimal({ precision: 8, scale: 6 }), lng: f.decimal({ precision: 9, scale: 6 }) }).primaryKey((r) => r.id)
+    const model = view<typeof shop>('shop')
+      .layout((r) => [l.map('Location', { latitude: r.lat, longitude: r.lng }), l.map('Nearby', { latitude: r.lat, longitude: r.lng, zoom: 12, sidebar: true })])
+      .toModel()
+    expect(model.layout).toEqual([
+      { kind: 'map', title: 'Location', latitude: 'lat', longitude: 'lng' },
+      { kind: 'map', title: 'Nearby', latitude: 'lat', longitude: 'lng', zoom: 12, sidebar: true },
+    ])
+  })
+
   it('refuses display fields the resource does not have', () => {
     const stale = view<typeof article>('article').list((r, d) => ({ columns: [r.title], displays: [d.cards({ badge: { name: 'state' } })] }))
     expect(() => stale.toModel(article.toModel())).toThrow('View "article": display "cards" names field "state", which the resource does not have')

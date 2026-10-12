@@ -1,6 +1,7 @@
 import { addressErrors, addressPlaceholders, appHrefError, displayFields, fieldRefsIn, hrefPlaceholders, type ActionRun, type ResourceModel, type ViewModel } from '@protobase/schema'
 import type { Registry } from './registry'
 import { cardPhotosErrors } from './view-card-photos'
+import { mapErrors } from './view-map'
 import { relatedErrors } from './view-related'
 
 // The fields a link action takes from the record.
@@ -17,6 +18,7 @@ const sensitiveErrors = (view: ViewModel, model: ResourceModel) => {
     ['a filter', view.filters.flatMap((widget) => (widget.kind === 'flags' ? widget.fields : [widget.field]))],
     ['the chart', view.chart ? [view.chart.field] : []],
     ['the sidebar', view.layout.flatMap((item) => (item.kind === 'sidebar' ? item.fields : []))],
+    ['a map', view.layout.flatMap((item) => (item.kind === 'map' ? [item.latitude, item.longitude] : []))],
     ['the recent records', view.nav?.recent ? [view.nav.recent.status] : []],
     ['an action', view.actions.flatMap((action) => (action.run?.kind === 'update' ? Object.keys(action.run.values) : linkFields(action.run)))],
   ]
@@ -74,7 +76,8 @@ const widgetErrors = (view: ViewModel, model: ResourceModel, fieldTypes: Readonl
  * Fails at startup when a view uses a sensitive field where it would show empty, a display or custom section names a
  * field the resource does not have, labels or colours values its enum does not have, shows a field with a field type of
  * `fieldTypes` (each with the storage types it shows) that does not show it,
- * has a related section or a cards display's photos that do not fit the resources, or a link to an address the app does not have.
+ * has a related section or a cards display's photos that do not fit the resources, a map that cannot show the
+ * record's position, or a link to an address the app does not have.
  */
 export const checkViews = (registry: Registry, views: ViewModel[], pages: readonly string[] = [], fieldTypes: Readonly<Record<string, readonly string[]>> = {}) => {
   const models = Object.fromEntries(registry.entries.map((entry) => [entry.name, entry.model]))
@@ -86,7 +89,8 @@ export const checkViews = (registry: Registry, views: ViewModel[], pages: readon
     const photos = (view.list?.displays ?? []).flatMap((display) =>
       display.kind === 'cards' && display.photos ? cardPhotosErrors(display.photos, view.resource, models).map((error) => `display "${display.name}" photos: ${error}`) : [],
     )
-    return [...sensitiveErrors(view, model), ...unknownFieldErrors(view, model), ...valueLabelErrors(view, model), ...valueColorErrors(view, model), ...widgetErrors(view, model, fieldTypes), ...related, ...photos, ...linkErrors(view, model, models, pageNames)].map((problem) => `View "${view.resource}": ${problem}`)
+    const maps = view.layout.flatMap((item) => (item.kind === 'map' ? mapErrors(item, model).map((error) => `map "${item.title}": ${error}`) : []))
+    return [...sensitiveErrors(view, model), ...unknownFieldErrors(view, model), ...valueLabelErrors(view, model), ...valueColorErrors(view, model), ...widgetErrors(view, model, fieldTypes), ...related, ...photos, ...maps, ...linkErrors(view, model, models, pageNames)].map((problem) => `View "${view.resource}": ${problem}`)
   })
   if (problems.length > 0) throw new Error(`The views do not match the resources:\n${problems.map((problem) => `  - ${problem}`).join('\n')}`)
 }

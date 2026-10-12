@@ -24,6 +24,7 @@ export type {
   LayoutItemModel,
   RelatedModel,
   CustomSectionModel,
+  MapSectionModel,
   ChartRange,
   ChartGranularity,
   ChartModel,

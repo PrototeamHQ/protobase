@@ -2,6 +2,7 @@ import type { ResolveOptions, RoleLimit } from '@protobase/schema'
 import type { CorsOrigins } from './api-cors'
 import type { AssistantOptions } from './assistant/assistant-settings'
 import type { ErrorReportingOptions } from './error-reporting/error-reporting-settings'
+import type { MapOptions } from './maps/map-settings'
 import type { PluginOption } from './plugins/plugin-settings'
 import type { RuntimeOptions } from './runtime/runtime-settings'
 import type { SourceOption } from './sources/source-settings'
@@ -46,6 +47,11 @@ export type AdminOptions = {
   cors?: CorsOrigins
   /** The runtime updates endpoint behind the top bar's update button (see `RuntimeOptions`); `false` turns it off. */
   runtime?: RuntimeOptions | false
+  /**
+   * The map style the record page's maps (`l.map`) are drawn with (see `MapOptions`). Defaults to the one the platform
+   * passes in `PROTOBASE_MAP_STYLE_URL`; without either, or with `false`, the app draws no maps.
+   */
+  maps?: MapOptions | false
   /**
    * The plugins the admin app loads (see `PluginOption`), before the ones the platform lists in `PROTOBASE_PLUGINS`;
    * `false` turns both off.

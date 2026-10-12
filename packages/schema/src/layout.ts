@@ -17,6 +17,19 @@ export const layout = {
   /** A table of the records of another resource that point at this one, directly or through a join table. */
   related: (title: string, o: Omit<RelatedModel, 'kind' | 'title'>): LayoutItemModel => ({ kind: 'related', title, ...structuredClone(o) }),
   /**
+   * A map with a marker at the record's position, read from two fields in decimal degrees (WGS84), at `zoom` (default
+   * 15): in the main column, or in the sidebar with `sidebar: true`. The app draws it with the map style of the server's
+   * `maps` option or `PROTOBASE_MAP_STYLE_URL`, and leaves it out without one, or for a record without a position.
+   */
+  map: (title: string, o: { latitude: Ref; longitude: Ref; zoom?: number; sidebar?: boolean }): LayoutItemModel => ({
+    kind: 'map',
+    title,
+    latitude: o.latitude.name,
+    longitude: o.longitude.name,
+    ...(o.zoom !== undefined && { zoom: o.zoom }),
+    ...(o.sidebar && { sidebar: true as const }),
+  }),
+  /**
    * A component of the project, registered in `protobase.ui.tsx` under its name, drawn where it is listed: in the main
    * column, or in the sidebar with `sidebar: true`. The record page stays around it, with its title, breadcrumbs,
    * actions and save; the component reads the record with `useLayoutRecord()`.

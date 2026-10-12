@@ -68,6 +68,9 @@ const appDependencies = [
   '@tanstack/react-virtual',
   'recharts',
   '@sentry/browser',
+  'maplibre-gl',
+  'pmtiles',
+  'react-map-gl/maplibre',
 ]
 
 export const runDev = async (options: DevOptions, out: (text: string) => void) => {

@@ -182,11 +182,19 @@ export type RelatedModel = {
  */
 export type CustomSectionModel = { kind: 'custom'; component: string; title?: string; props?: Record<string, JsonValue>; sidebar?: true }
 
+/**
+ * A map of the record's position, its `latitude` and `longitude` fields in decimal degrees (WGS84), centred on a marker
+ * at `zoom`: in the main column under `title`, or with `sidebar` as a sidebar card. The app draws it with the map style
+ * its server names, and leaves it out without one.
+ */
+export type MapSectionModel = { kind: 'map'; title: string; latitude: string; longitude: string; zoom?: number; sidebar?: true }
+
 export type LayoutItemModel =
   | { kind: 'section'; title: string; fields: string[]; help?: string }
   | { kind: 'sidebar'; fields: string[] }
   | RelatedModel
   | CustomSectionModel
+  | MapSectionModel
 
 export type ChartRange = '7d' | '30d' | '90d' | '1y' | 'all'
 export type ChartGranularity = 'hour' | 'day' | 'week' | 'month'

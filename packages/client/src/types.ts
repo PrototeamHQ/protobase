@@ -51,7 +51,7 @@ export type ResourcePermissions = { read?: boolean; create: boolean; update: boo
  * `plugins`: the plugins the admin app loads for the caller, each by its plugin.json.
  * `sources`: the other APIs whose resources the admin app draws for the caller.
  */
-export type Meta = { resources: ResourceModel[]; views: ViewModel[]; pages?: PageModel[]; permissions?: Record<string, ResourcePermissions>; userMenu?: UserMenuModel; bottomBar?: Omit<BottomBarModel, 'roles'>; assistant?: { url: string }; runtime?: { url: string }; errorReporting?: { dsn: string; environment?: string }; plugins?: PluginRef[]; sources?: SourceRef[] }
+export type Meta = { resources: ResourceModel[]; views: ViewModel[]; pages?: PageModel[]; permissions?: Record<string, ResourcePermissions>; userMenu?: UserMenuModel; bottomBar?: Omit<BottomBarModel, 'roles'>; assistant?: { url: string }; runtime?: { url: string }; errorReporting?: { dsn: string; environment?: string }; maps?: { style: string }; plugins?: PluginRef[]; sources?: SourceRef[] }
 
 /** A plugin as `/meta` names it: the URL of its plugin.json, and the settings it reads with `usePlugin()`. */
 export type PluginRef = { url: string; settings?: Record<string, unknown> }

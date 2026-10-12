@@ -14,6 +14,8 @@ export type FakeApiInput = {
   plugins?: PluginRef[]
   /** The sources `/meta` names, whose resources another fake API serves (`App`'s `sources`). */
   sources?: SourceRef[]
+  /** The map style `/meta` names. */
+  maps?: { style: string }
   /** Runs after every write, for what a database trigger or write hook would do (one default card, say). */
   afterWrite?: (resource: string, row: Row, rows: Record<string, Row[]>) => void
   /** Answers `reveal` instead of the stored value, to count reveals or refuse them. */
@@ -72,7 +74,7 @@ const matches = (filter: string | undefined, model: ResourceModel | undefined) =
  * An in-memory server for stories and docs: lists with filters (simple AIP-160), sorting, paging and exact counts, and
  * get, create, update and delete that change the rows and their ETags. Not a model of the real access rules.
  */
-export const fakeApi = ({ resources, views = [], pages = [], rows: initial, permissions = {}, plugins, sources, afterWrite, reveal, upload }: FakeApiInput) => {
+export const fakeApi = ({ resources, views = [], pages = [], rows: initial, permissions = {}, plugins, sources, maps, afterWrite, reveal, upload }: FakeApiInput) => {
   const rows: Record<string, Row[]> = structuredClone(initial)
   const models = Object.fromEntries(resources.map((model) => [model.name, model]))
   let version = 0
@@ -107,7 +109,7 @@ export const fakeApi = ({ resources, views = [], pages = [], rows: initial, perm
   })
 
   const client = {
-    meta: async () => ({ status: 'modified' as const, etag: '"fake-meta"', meta: { resources, views, pages, permissions, ...(plugins && { plugins }), ...(sources && { sources }) } }),
+    meta: async () => ({ status: 'modified' as const, etag: '"fake-meta"', meta: { resources, views, pages, permissions, ...(plugins && { plugins }), ...(sources && { sources }), ...(maps && { maps }) } }),
     list: async (resource: string, params: ListParams = {}) => pageAt(resource, select(resource, params), Number(params.pageToken || 0), params.pageSize ?? 50),
     search: async (resource: string, params: ListParams = {}) => pageAt(resource, select(resource, params), Number(params.pageToken || 0), params.pageSize ?? 50),
     seek: async (resource: string, params: ListParams & { position: number }) => pageAt(resource, select(resource, params), params.position, params.pageSize ?? 50),

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { f, resource, view, type AppAddress } from '@protobase/schema'
+import { f, l, resource, view, type AppAddress } from '@protobase/schema'
 import { checkViews } from './check-views'
 import type { Registry } from './registry'
 
@@ -74,5 +74,16 @@ describe('checkViews', () => {
     const stale = view<typeof payments>('payments').toModel()
     stale.layout = [{ kind: 'custom', component: 'Receipt', props: { amount: { $field: 'amount' }, currency: 'EUR' } }]
     expect(() => checkViews(registry, [stale])).toThrow('View "payments": custom section Receipt names field "amount", which payments does not have')
+  })
+
+  it('wants a map to read a position from number fields, never sensitive ones', () => {
+    const shops = resource('shops').table('shops').fields({ id: f.integer(), lat: f.decimal({ precision: 8, scale: 6 }), lng: f.decimal({ precision: 9, scale: 6 }), name: f.text(), secret_lat: f.decimal({ precision: 8, scale: 6 }).sensitive() }).primaryKey((r) => r.id)
+    const shopsRegistry = { entries: [{ name: 'shops', model: shops.toModel() }] } as unknown as Registry
+    const mapped = (build: Parameters<ReturnType<typeof view<typeof shops>>['layout']>[0]) => view<typeof shops>('shops').layout(build).toModel()
+    expect(() => checkViews(shopsRegistry, [mapped((r) => [l.map('Location', { latitude: r.lat, longitude: r.lng })])])).not.toThrow()
+    expect(() => checkViews(shopsRegistry, [mapped((r) => [l.map('Location', { latitude: r.name, longitude: r.lng, zoom: 30 })])])).toThrow(
+      'View "shops": map "Location": "name" on shops is text, not a number of degrees\n  - View "shops": map "Location": zoom 30 is not between 0 and 22',
+    )
+    expect(() => checkViews(shopsRegistry, [mapped((r) => [l.map('Location', { latitude: r.secret_lat, longitude: r.lng })])])).toThrow('View "shops": sensitive field "secret_lat" cannot be in a map')
   })
 })

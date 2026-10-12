@@ -37,6 +37,8 @@ export type CallerMeta = {
   runtime?: { url: string }
   /** Where the admin app sends its errors, when the app reports them: the DSN is public, as in any browser app. */
   errorReporting?: ErrorReportingSettings
+  /** The map style the admin app draws the record page's maps with, when the app has one: public, as the tiles are. */
+  maps?: { style: string }
   /** The plugins the admin app loads for the caller: those for everyone, and those for one of their roles. */
   plugins?: PluginRef[]
   /** The other APIs whose resources the admin app draws for the caller: those for everyone, and those for one of their roles. */
@@ -91,6 +93,7 @@ export const createMeta = (deps: Deps) => {
       ...(deps.assistant && seesAssistant(session.user.roles) && { assistant: { url: deps.assistant } }),
       ...(deps.runtime && seesRuntime(session.user.roles) && { runtime: { url: deps.runtime } }),
       ...(deps.errorReporting && { errorReporting: deps.errorReporting }),
+      ...(deps.mapStyle && { maps: { style: deps.mapStyle } }),
       ...(plugins.length > 0 && { plugins }),
       ...(sources.length > 0 && { sources }),
     }

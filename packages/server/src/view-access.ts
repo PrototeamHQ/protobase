@@ -15,6 +15,7 @@ import {
   type LayoutItemModel,
   type ListDisplayModel,
   type ListModel,
+  type MapSectionModel,
   type NavModel,
   type NavRecentModel,
   type RelatedModel,
@@ -90,6 +91,7 @@ const layoutShape = (resource: string, models: Record<string, ResourceModel>) =>
     sidebar: s.object<Of<LayoutItemModel, 'sidebar'>>({ kind: s.data, fields: s.list(s.field, { nonEmpty: true }) }, { requires: ['fields'] }),
     related: s.map<RelatedModel>((item) => pruneRelated(item, resource, models)),
     custom: s.object<CustomSectionModel>({ kind: s.data, component: s.data, title: s.data, sidebar: s.data, props: s.refs }, { requires: ['props'] }),
+    map: s.object<MapSectionModel>({ kind: s.data, title: s.data, latitude: s.field, longitude: s.field, zoom: s.data, sidebar: s.data }, { requires: ['latitude', 'longitude'] }),
   })
 
 // A link goes when it reads a hidden field, or leads to a resource or field the caller cannot see.
@@ -139,7 +141,7 @@ const viewShape = (resource: string, model: ResourceModel, models: Record<string
 
 /**
  * The view with every reference to a field the caller cannot read removed: list columns, sort, search and displays,
- * field hints, filter widgets, record sections and custom components' props, the chart, title and search result, the
+ * field hints, filter widgets, record sections, maps and custom components' props, the chart, title and search result, the
  * actions that set or read one, and the sidebar's `recent` group. Nothing in it may name a hidden field. Related sections
  * and links are checked against `models`, the caller's view of every resource.
  */

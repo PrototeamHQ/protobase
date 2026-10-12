@@ -16,6 +16,7 @@ import { Button } from '../primitives/button'
 import { Field, MetadataCard, RecordHeader, RelatedRecords, Section, SidebarCard } from '../record-view'
 import { ErrorBanner } from './error-banner'
 import { CustomSection } from './custom-section'
+import { MapSection } from './map/map-section'
 import { RecordActions } from './pages/record-actions'
 import type { LayoutRecord } from './pages/record-scope'
 import { FieldEditor } from './field-editor'
@@ -144,7 +145,7 @@ const LoadedRecord = ({ model, recordKey, stored }: { model: ResourceModel; reco
     )
   }
 
-  // The sidebar's fields are one Summary card, where the first sidebar stands among the sidebar's custom components
+  // The sidebar's fields are one Summary card, where the first sidebar stands among the sidebar's custom components and maps
   const firstSidebar = layout.findIndex((item) => item.kind === 'sidebar')
   const summary = (
     <MetadataCard
@@ -219,6 +220,7 @@ const LoadedRecord = ({ model, recordKey, stored }: { model: ResourceModel; reco
               {layout.flatMap((item, index) => {
                 if (item.kind === 'related') return [<RelatedSection key={`related:${item.title}`} item={item} recordKey={recordKey} />]
                 if (item.kind === 'custom') return item.sidebar ? [] : [<CustomSection key={`custom:${index}`} item={item} scope={scope} />]
+                if (item.kind === 'map') return item.sidebar ? [] : [<MapSection key={`map:${index}`} item={item} record={stored.record} />]
                 if (item.kind !== 'section') return []
                 // A section whose fields are all hidden from this user would be a lone heading
                 const fields = item.fields.filter((name) => model.fields[name] && visible(name))
@@ -234,7 +236,11 @@ const LoadedRecord = ({ model, recordKey, stored }: { model: ResourceModel; reco
             <aside className="space-y-4 md:pt-8">
               <RecordActions model={model} stored={stored} recordKey={recordKey} />
               {firstSidebar === -1 && summary}
-              {layout.map((item, index) => (item.kind === 'custom' && item.sidebar ? <CustomSection key={`custom:${index}`} item={item} scope={scope} /> : index === firstSidebar ? <Fragment key="summary">{summary}</Fragment> : null))}
+              {layout.map((item, index) => {
+                if (item.kind === 'custom' && item.sidebar) return <CustomSection key={`custom:${index}`} item={item} scope={scope} />
+                if (item.kind === 'map' && item.sidebar) return <MapSection key={`map:${index}`} item={item} record={stored.record} />
+                return index === firstSidebar ? <Fragment key="summary">{summary}</Fragment> : null
+              })}
               <MetadataCard
                 title="Details"
                 rows={[auditField(model, 'created'), updatedAt].flatMap((name) => {

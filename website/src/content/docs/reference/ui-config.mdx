@@ -109,12 +109,28 @@ The server checks `photos` when it starts: `field` is a filterable relation to t
 | `l.sidebar(fields)` | A summary card beside it, read-only. |
 | `l.related(title, { ... })` | A table of the records of another resource that point at this one, in the main column. See [Related records](#related-records). |
 | `l.custom(Component, { title?, props?, sidebar? })` | A [custom component](/reference/custom-components/#record-sections) where it is listed: in the main column under `title`, or with `sidebar: true` as a sidebar card. |
+| `l.map(title, { latitude, longitude, zoom?, sidebar? })` | A map with a pin at the record's position, in the main column or with `sidebar: true` as a sidebar card. See [Maps](#maps). |
 
 A custom component draws only its part: the page around it stays the record page, at `/<resource>/<key>`, with its breadcrumbs, title and badge, Save, Discard and Delete, the action rail and the related records, and a layout may hold only custom components. The repairs above list the customer's earlier repairs under the bike:
 
 <StoryFrame id="record-page-custom-sections--earlier-repairs" title="A repair with the customer's earlier repairs" height={760} />
 
 Without a layout the record page shows one section with every field the user may change, or every field, read-only, to a user who may change none. A section or sidebar card with no field the user may see is left out. `.saveFeedback('button')` shows saving on the Save button instead of a toast (`'toast'`, the default). A [sensitive field](/reference/data-config/#sensitive-fields) in a section is masked, with an eye button that reveals it.
+
+### Maps
+
+`l.map(title, { latitude, longitude })` draws a map centred on a pin at the record's position, read from two number fields (`integer`, `bigint` or `decimal`) in decimal degrees, WGS84, at `zoom` (default 15, from 0 to 22). It pans and zooms with two fingers on a phone, and with Ctrl or Cmd and the wheel elsewhere, so the page scrolls past it.
+
+```ts
+.layout((r) => [
+  l.map('Location', { latitude: r.latitude, longitude: r.longitude }),
+  l.section('Coordinates', [r.latitude, r.longitude]),
+])
+```
+
+The map is drawn with [MapLibre](https://maplibre.org) from the style the server names: `createAdmin`'s `options.maps.style`, else `PROTOBASE_MAP_STYLE_URL`, an http(s) URL of a MapLibre style. The style's sources may be [PMTiles](https://docs.protomaps.com/pmtiles/) archives (`pmtiles://https://...`), so the tiles can be one file on a bucket of your own. The tiles, sprites and fonts are fetched by the browser, so their host must answer the app's origins with CORS, and an archive with range requests. Without a style there is no map, nor is there one for a record whose fields hold no position or for a user who may not read them. MapLibre loads with the first map drawn, so a page without one does not load it.
+
+A map does not edit the position: list the fields in a section as well when users should change them. The [property portal example](https://github.com/PrototeamHQ/protobase/tree/main/examples/property-portal) shows a listing on a map.
 
 ### Related records
 

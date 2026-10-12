@@ -136,4 +136,11 @@ describe('pruneView', () => {
     expect(cards(without({ repair_photos: ['repairId'] }))).toEqual([{ kind: 'cards', name: 'cards', title: 'number' }])
     expect(cards(without({}, ['repair_photos']))).toEqual([{ kind: 'cards', name: 'cards', title: 'number' }])
   })
+
+  it('leaves out a map whose position the caller cannot read', () => {
+    const mapped = view<typeof repairs>('repairs').layout((r) => [l.map('Where', { latitude: r.estimate, longitude: r.costPrice, zoom: 12, sidebar: true }), l.section('Repair', [r.status])]).toModel()
+    expect(pruneView(mapped, all.repairs, all).layout).toEqual(mapped.layout)
+    const hidden = without({ repairs: ['costPrice'] })
+    expect(pruneView(mapped, hidden.repairs!, hidden).layout).toEqual([{ kind: 'section', title: 'Repair', fields: ['status'] }])
+  })
 })
