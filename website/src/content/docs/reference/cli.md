@@ -350,7 +350,7 @@ Serves the API of a bundle from `protobase build` and owns the process around it
 | `PROTOBASE_RUNTIME_URL` | the endpoint behind the top bar's [runtime update button](/reference/versioning/#runtime-updates), such as a hosting platform's; without it there is no button |
 | `PROTOBASE_SENTRY_DSN` | the DSN of a Sentry-compatible error tracker the app's server and admin app send their errors to, after `options.errorReporting` ([Error reporting](/reference/api/#error-reporting)); without it nothing is sent |
 | `PROTOBASE_SOURCES` | other Protobase APIs whose resources the app draws as its own, a JSON list of `{ "url", "label", "resources", "roles"? }` after `options.sources` ([Remote resources](/reference/remote-resources/#declaring-a-source)) |
-| `PROTOBASE_FILES_<NAME>`, `PROTOBASE_FILES_RETENTION`, `PROTOBASE_FILES_SECRET` | [file providers](/reference/files/#providers) and their settings, over `files` in the config |
+| `PROTOBASE_FILES_<NAME>`, `PROTOBASE_FILES_RETENTION`, `PROTOBASE_FILES_SECRET` | [file providers](/reference/files/#providers) and their settings, over `files` in the config; a bucket's credentials in `PROTOBASE_FILES_<NAME>_ACCESS_KEY_ID` and `_SECRET_ACCESS_KEY` |
 | `PROTOBASE_FILES_CLEANUP_MINUTES` | minutes between runs of the [scheduled file deletes](/reference/files/#deleting-files), default 60; 0 leaves them to `protobase files cleanup` or the platform |
 | `PROTOBASE_JOBS` | `off` runs none of the app's [jobs](/reference/jobs/) in this process, which still enqueues them; default `on` |
 | `PROTOBASE_SHELL` | `protobase serve <bundle>` only: a shell folder, such as the `/opt/protobase/shell` of a protobase image or `@protobase/ui`'s `dist/shell`, to serve the bundle's app from (see [its own shell](#serve)) |

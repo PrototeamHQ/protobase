@@ -4,7 +4,7 @@ import path from 'node:path'
 import { Kysely } from 'kysely'
 import { PGliteDialect } from 'kysely-pglite-dialect'
 import { f, resource, type FileProcessor } from '@protobase/schema'
-import { createAdmin, createFileCleanup, localFiles, type FilesOptions } from '@protobase/server'
+import { createAdmin, createFileCleanup, localFiles, type FileProvider, type FilesOptions } from '@protobase/server'
 import { createEmptyPg } from '../../../../test-support/pglite-snapshot'
 import { testAuthenticator } from '../../../../test-support/server'
 
@@ -41,14 +41,14 @@ create table products (
 create table avatars (id integer generated always as identity primary key, name text not null, picture text);
 `
 
-/** An admin with products and avatars over PGlite, keeping files in a fresh temp folder. */
-export const createFilesFixture = async (options: ProductOptions = {}) => {
+/** An admin with products and avatars over PGlite, keeping files in a fresh temp folder unless `providers` says otherwise. */
+export const createFilesFixture = async (options: ProductOptions & { providers?: Record<string, FileProvider> } = {}) => {
   const dir = await mkdtemp(path.join(tmpdir(), 'protobase-files-'))
   const pg = await createEmptyPg()
   await pg.exec(ddl)
   const db = new Kysely<any>({ dialect: new PGliteDialect(pg) })
   const files: FilesOptions = {
-    providers: { private: localFiles({ dir: path.join(dir, 'private') }), public: localFiles({ dir: path.join(dir, 'public'), public: true }) },
+    providers: options.providers ?? { private: localFiles({ dir: path.join(dir, 'private') }), public: localFiles({ dir: path.join(dir, 'public'), public: true }) },
     secret: 'files-test-secret',
   }
   const resources = [products(options), avatars]

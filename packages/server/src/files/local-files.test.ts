@@ -1,7 +1,9 @@
 import { readdir } from 'node:fs/promises'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { HttpProblem } from '../problem'
 import { localFileStore } from './local-files'
+import { providerFromUrl } from './providers'
 import { tempDir } from './testing/temp-dir'
 
 const streamOf = (text: string) => new Blob([text]).stream()
@@ -27,6 +29,7 @@ describe('the local file store', () => {
     expect(await store.head('acme/a.txt')).toBeUndefined()
     expect(await store.read('acme/a.txt')).toBeUndefined()
     expect(await store.list('nothing/')).toEqual([])
+    expect((await store.list('')).map((object) => object.path)).toEqual(['acme/b.txt'])
   })
 
   it('leaves nothing behind when a write fails half way', async () => {
@@ -46,5 +49,17 @@ describe('the local file store', () => {
     const store = localFileStore(folder.dir)
     await expect(store.put('../escape.txt', streamOf('x'))).rejects.toThrow('outside the file store')
     await expect(store.read('/etc/passwd')).rejects.toThrow('outside the file store')
+  })
+
+  it('refuse a file past the limits its URL sets with 507, leaving nothing behind', async () => {
+    const { store } = providerFromUrl(`file://${folder.dir}?max_files=2&max_bytes=10`, 'X')
+    await store.put('acme/a.txt', streamOf('hello'))
+    const refused = await store.put('acme/b.txt', streamOf('world wide')).catch((error: unknown) => error)
+    expect(refused).toBeInstanceOf(HttpProblem)
+    expect((refused as HttpProblem).status).toBe(507)
+    expect(await store.head('acme/b.txt')).toBeUndefined()
+    expect(await readdir(path.join(folder.dir, '.tmp'))).toEqual([])
+    await store.put('acme/b.txt', streamOf('world'))
+    await expect(store.put('acme/c.txt', streamOf(''))).rejects.toThrow('The file storage is full')
   })
 })

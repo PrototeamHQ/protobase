@@ -81,6 +81,12 @@ export const isKnownType = (type: string) => byType.has(type)
 
 export const isInline = (type: string) => inlineTypes.has(type) || type.startsWith('audio/') || type.startsWith('video/')
 
+/** `inline` for types shown in the browser, else `attachment`, named `name` in ASCII and in UTF-8. */
+export const contentDisposition = (name: string, type: string) => {
+  const ascii = name.replace(/[^\x20-\x7e]|["\\]/g, '_')
+  return `${isInline(type) ? 'inline' : 'attachment'}; filename="${ascii}"; filename*=UTF-8''${encodeURIComponent(name)}`
+}
+
 /** Whether `type` passes a field's allowed list: exact types, `type/*` wildcards, `*\/*`; an empty list allows any. */
 export const accepts = (allowed: readonly string[], type: string) =>
   allowed.length === 0 || allowed.some((entry) => entry === '*/*' || entry === type || (entry.endsWith('/*') && type.startsWith(entry.slice(0, -1))))

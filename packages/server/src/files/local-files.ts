@@ -1,5 +1,6 @@
 import { HttpProblem } from '../problem'
 import { parseDuration } from './duration'
+import { limitedFileStore, type FileLimits } from './limits'
 import type { FileProvider, FileStore, StoredObject } from './store'
 
 // Loaded on first use, so the server still starts where there is no file system (Workers).
@@ -17,7 +18,7 @@ const codeOf = (error: unknown) => (error instanceof Error ? (error as { code?: 
 // A full disk, or a full quota: XFS project quotas answer ENOSPC, ext4 and user quotas EDQUOT.
 const storageFull = () => new HttpProblem(507, 'storage-full', 'Insufficient Storage', 'There is no room left to store this file')
 
-export type LocalFilesOptions = {
+export type LocalFilesOptions = FileLimits & {
   /** The folder the files live in, created when missing; relative to the working directory. */
   dir: string
   /** Files anyone with the link may open, served without a signature. */
@@ -82,7 +83,7 @@ export const localFileStore = (dir: string): FileStore => {
   const list = async (prefix: string) => {
     const { fs, path } = await node()
     const root = path.resolve(dir)
-    const folder = await resolve(prefix.replace(/\/$/, ''))
+    const folder = prefix === '' ? root : await resolve(prefix.replace(/\/$/, ''))
     let names: string[]
     try {
       names = await fs.readdir(folder, { recursive: true })
@@ -103,8 +104,8 @@ export const localFileStore = (dir: string): FileStore => {
 }
 
 /** A provider on local disk: `localFiles({ dir: './data/files/private' })`. */
-export const localFiles = ({ dir, public: isPublic = false, publicUrl, retention }: LocalFilesOptions): FileProvider => ({
-  store: localFileStore(dir),
+export const localFiles = ({ dir, public: isPublic = false, publicUrl, retention, maxBytes, maxFiles }: LocalFilesOptions): FileProvider => ({
+  store: limitedFileStore(localFileStore(dir), { maxBytes, maxFiles }),
   public: isPublic || publicUrl !== undefined,
   ...(publicUrl !== undefined && { publicUrl: publicUrl.replace(/\/$/, '') }),
   ...(retention !== undefined && { retention: parseDuration(retention, 'retention') }),

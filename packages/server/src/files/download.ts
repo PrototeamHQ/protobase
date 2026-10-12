@@ -3,8 +3,9 @@ import type { Deps } from '../deps'
 import { decodeKeyText } from '../key'
 import { fetchRecord } from '../records'
 import { readTransaction } from '../transactions'
-import { readDownloadUrl } from './download-url'
-import { downloadName, isInline, servedType } from './media-types'
+import { downloadExpiry, readDownloadUrl } from './download-url'
+import { contentDisposition, downloadName, servedType } from './media-types'
+import type { FileStore } from './store'
 import { baseOf, isFilePath, parseUri, tenantSegment } from './uri'
 
 const gone = () => notFound('There is no such file')
@@ -17,11 +18,6 @@ const rangeOf = (header: string | null, size: number) => {
   const start = match[1] === '' ? Math.max(size - Number(match[2]), 0) : Number(match[1])
   const end = match[1] === '' || match[2] === '' ? size - 1 : Math.min(Number(match[2]), size - 1)
   return start <= end && start < size ? { start, end } : false
-}
-
-const disposition = (name: string, type: string) => {
-  const ascii = name.replace(/[^\x20-\x7e]|["\\]/g, '_')
-  return `${isInline(type) ? 'inline' : 'attachment'}; filename="${ascii}"; filename*=UTF-8''${encodeURIComponent(name)}`
 }
 
 // The row behind a signed URL still holds this file, and the file sits under that row's tenant.
@@ -42,24 +38,34 @@ const grantedName = async (deps: Deps, provider: string, path: string, query: UR
   return { name: parseUri(value)?.name ?? path, expires: grant.expires }
 }
 
+// A store that links its own bytes, such as a bucket: the browser downloads from there for as long as the app's link
+// lasts, never through the app.
+const redirectToStore = async (store: FileStore, path: string, type: string, name: string, expires: number) => {
+  const location = await store.downloadUrl!(path, { expires, type, disposition: contentDisposition(name, type) })
+  const seconds = Math.max(expires - Math.floor(Date.now() / 1000), 0)
+  return new Response(null, { status: 302, headers: { location, 'cache-control': `private, max-age=${seconds}` } })
+}
+
 /**
  * `GET <systemPath>/files/<provider>/<path>`: a public provider's file for anyone; a private one's only through a signed
  * URL whose row still holds it. The Content-Type comes from the path's extension, never from what was uploaded, and
- * nothing renders: `nosniff`, a sandboxing CSP, and `inline` only for images, PDF, audio and video.
+ * nothing renders: `nosniff`, a sandboxing CSP, and `inline` only for images, PDF, audio and video. A store with its own
+ * download links gets a redirect to one instead, with the same type and disposition.
  */
 export const serveFile = async (deps: Deps, request: Request, provider: string, path: string) => {
   const configured = deps.files?.providers[provider]
   if (!configured || !isFilePath(path)) throw gone()
   const granted = configured.public ? undefined : await grantedName(deps, provider, path, new URL(request.url).searchParams)
-  const object = await configured.store.head(path)
-  if (!object) throw gone()
-
   const type = servedType(path)
   const name = downloadName(granted?.name ?? path.slice(path.lastIndexOf('/') + 1), type)
+  if (configured.store.downloadUrl) return redirectToStore(configured.store, path, type, name, granted?.expires ?? downloadExpiry())
+
+  const object = await configured.store.head(path)
+  if (!object) throw gone()
   const caching = granted ? `private, max-age=${Math.max(granted.expires - Math.floor(Date.now() / 1000), 0)}` : 'public, max-age=31536000, immutable'
   const headers: Record<string, string> = {
     'content-type': type,
-    'content-disposition': disposition(name, type),
+    'content-disposition': contentDisposition(name, type),
     'x-content-type-options': 'nosniff',
     'content-security-policy': "sandbox; default-src 'none'",
     'cache-control': caching,

@@ -7,7 +7,7 @@ import { Code } from '@astrojs/starlight/components'
 import bikes from '../../../../../docs-examples/files/bikes.ts?raw'
 import config from '../../../../../docs-examples/files/protobase.config.ts?raw'
 
-A file field is a `text` column that holds the file's URI. The bytes live with a **provider**, a named place for files such as a folder on disk. Protobase adds no table, trigger or foreign key to your database: a file field needs a text column and nothing else.
+A file field is a `text` column that holds the file's URI. The bytes live with a **provider**, a named place for files: a folder on disk or an S3-compatible bucket. Protobase adds no table, trigger or foreign key to your database: a file field needs a text column and nothing else.
 
 <Code code={bikes} lang="ts" title="docs-examples/files/bikes.ts" />
 
@@ -46,11 +46,43 @@ A value that does not parse, or names a provider the config lacks, comes back as
 <Code code={config} lang="ts" title="protobase.config.ts" />
 
 - `localFiles({ dir, public?, publicUrl?, retention? })` keeps files in a folder on local disk. Writes go to a temporary file first and are renamed into place, so nobody reads half a file. A full disk or quota answers `507`.
+- `s3Files({ bucket, prefix?, endpoint?, region?, public?, publicUrl?, retention? })` keeps them in an S3-compatible bucket, see [S3-compatible buckets](#s3-compatible-buckets).
 - Without config, `private` and `public` are the folders `data/files/private` and `data/files/public`, created when needed. Any other provider a field names must be configured.
-- `PROTOBASE_FILES_<NAME>` configures a provider from the environment and wins over the config for that name: `PROTOBASE_FILES_PRIVATE=file:///data/files/private`, or `file:///data/files/public?public=1&public_url=https://cdn.example.com/app&retention=0`. `PROTOBASE_FILES_RETENTION` overrides `files.retention`.
+- `PROTOBASE_FILES_<NAME>` configures a provider from the environment and wins over the config for that name: `PROTOBASE_FILES_PRIVATE=file:///data/files/private`, or `file:///data/files/public?public=1&public_url=https://cdn.example.com/app&retention=0`, or an `s3://` URL. `PROTOBASE_FILES_RETENTION` overrides `files.retention`.
 - Uploads and download links are signed with `files.secret`, else `PROTOBASE_FILES_SECRET`, else `BETTER_AUTH_SECRET`. The server does not start with file fields and none of them set.
 
-Only local disk is built so far. The store behind a provider (`FileStore`: `put`, `head`, `read`, `delete`, `list`) is ready for S3-compatible buckets.
+### Limits
+
+`maxBytes` (`'1 GB'`, as for `.maxSize()`) and `maxFiles` cap what one provider holds, for either kind; in a URL they are `max_bytes=1GB&max_files=20000`. An upload that would pass either is refused with `507`, and one that passes `maxBytes` while it streams stops there and leaves nothing. Scheduled deletes (`.cleanup/`) do not count, so a full provider can still be emptied.
+
+A bucket has no quota of its own, so the provider counts what it holds with `list` on the first upload, and again once that count is five minutes old; in between it adds its own uploads. Several instances, or files added by hand, can therefore pass a limit by what they wrote since the last count.
+
+### S3-compatible buckets
+
+`s3Files` stores files in any bucket with the S3 API, such as Cloudflare R2, Scaleway Object Storage or AWS S3, under `prefix` when given, so one bucket can hold several providers or apps:
+
+```ts
+// Cloudflare R2, in the EU jurisdiction
+private: s3Files({ bucket: 'acme-files', prefix: 'private', endpoint: 'https://<account id>.eu.r2.cloudflarestorage.com', region: 'auto' }),
+public: s3Files({ bucket: 'acme-files', prefix: 'public', endpoint: 'https://<account id>.eu.r2.cloudflarestorage.com', region: 'auto', publicUrl: 'https://files.acme.com' }),
+// Scaleway, in Paris
+archive: s3Files({ bucket: 'acme-archive', endpoint: 'https://s3.fr-par.scw.cloud', region: 'fr-par', retention: '30 days' }),
+```
+
+Or from the environment, the same providers:
+
+```sh
+PROTOBASE_FILES_PRIVATE=s3://acme-files/private?endpoint=https://<account id>.eu.r2.cloudflarestorage.com&region=auto
+PROTOBASE_FILES_PUBLIC=s3://acme-files/public?endpoint=https://<account id>.eu.r2.cloudflarestorage.com&region=auto&public_url=https://files.acme.com
+PROTOBASE_FILES_ARCHIVE=s3://acme-archive?endpoint=https://s3.fr-par.scw.cloud&region=fr-par&retention=30d
+```
+
+- **Credentials** never go in the URL. A provider set from the environment reads `PROTOBASE_FILES_<NAME>_ACCESS_KEY_ID` and `PROTOBASE_FILES_<NAME>_SECRET_ACCESS_KEY`, else `S3_ACCESS_KEY_ID` and `S3_SECRET_ACCESS_KEY`, else `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY`, and the server does not start without a pair. In the config, pass `accessKeyId` and `secretAccessKey`, or leave them out for the `S3_` or `AWS_` pair. The key needs to read, write, list and delete objects in the bucket.
+- **Uploads** still go through Protobase's upload route, so types are checked and processors run; the body streams on to the bucket in parts, and an upload that fails stores nothing. Each object is stored with the type and disposition its path is served as. A bucket keeps the parts of an upload that never finished until they are aborted: R2 aborts them after 7 days, on Scaleway and AWS add a lifecycle rule that aborts incomplete multipart uploads after a day.
+- **Private files** keep their signed `url`. A download checks the link and the row as above, then redirects with `302` to a presigned link to the bucket that lasts as long as the app's link, served with the same type and disposition. The bytes never pass through the app.
+- **Public files** are linked at `publicUrl` followed by the prefix and the path, such as `https://files.acme.com/public/_/2992db9c-….png`: the bucket's own public address, an R2 custom domain or a Scaleway public bucket. Without `publicUrl`, `/api/files/<provider>/<path>` redirects to a presigned link instead.
+- The bucket serves its files itself, so the `nosniff` and sandbox headers of the app's own downloads do not apply. The type always comes from the path's extension, never HTML, and the bucket is on another domain than the app. A page that `fetch`es file URLs, rather than showing them in `<img>` or linking them, needs CORS on the bucket.
+- It runs on Bun, whose built-in S3 client it uses: `protobase-serve.js`, the `protobase` image, or the CLI started with Bun. On Node the first file operation fails.
 
 ## Uploading
 
@@ -82,6 +114,7 @@ The decided type picks the stored extension, and downloads are served by that ex
 - **Private files** need the signed `url` from a response, made only for a caller who may read that row and field. It needs no token, so it works in an `<img src>`, and it is valid one to two hours (the same URL within the hour, so browsers cache it). Each download checks that the row still holds the file and that the file sits under that row's tenant: a replaced or cleared file stops downloading at once, and a URI copied into another tenant's row by SQL is never served.
 - **Public files** are served to anyone at a permanent address, `/api/files/public/<path>`, cached for a year. `publicUrl` links them from elsewhere instead, such as a CDN in front of that route.
 - Every download is `nosniff` with `Content-Security-Policy: sandbox; default-src 'none'`. Raster images, PDF, audio and video are `inline`; everything else, SVG included, is an attachment. A private file is named as its uploader named it, with the extension matched to the type (`photo.png` holding a JPEG downloads as `photo.jpg`); a public file by its stored path. `Range` requests work.
+- A provider in a bucket answers with a redirect to the bucket instead, after the same checks, see [S3-compatible buckets](#s3-compatible-buckets).
 
 ## Derived fields
 
