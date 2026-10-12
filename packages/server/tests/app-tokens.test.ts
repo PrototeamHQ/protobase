@@ -49,6 +49,8 @@ describe('an API that trusts another app', () => {
   it('refuses a user of the other app whose roles give them none here', async () => {
     const { token } = await issueToken(shop, { email: 'clerk@shop.example.com' })
     expect(await statusOf(authenticate, token)).toBe(403)
+    const named = await shop.api.signJWT({ body: { payload: { sub: 'odd', role: 'constructor,toString', exp: Math.floor(Date.now() / 1000) + 60 } } })
+    expect(await statusOf(authenticate, named.token)).toBe(403)
   })
 
   it("refuses a token that names the other app's issuer but is signed with other keys", async () => {

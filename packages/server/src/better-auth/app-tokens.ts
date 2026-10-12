@@ -33,7 +33,7 @@ const trustedAuthenticator = (app: TrustedApp, issuer: string): Authenticator =>
   const host = new URL(issuer).host
   return async (request) => {
     const { user } = await verify(request)
-    const roles = [...new Set(user.roles.flatMap((role) => app.roles[role] ?? []))]
+    const roles = [...new Set(user.roles.flatMap((role) => (Object.hasOwn(app.roles, role) ? app.roles[role]! : [])))]
     if (roles.length === 0) throw forbidden('no-role', `Your role in ${host} gives you no role here`)
     const session: Session = { user: { id: `${user.id}@${host}`, roles }, ...(app.tenant !== undefined && { tenant: app.tenant }) }
     return session
