@@ -1,6 +1,6 @@
 import { l, view } from '@protobase/schema'
 import type { listings } from './data'
-import { energyLabelLabels, offerTypeLabels, propertyTypeLabels } from './labels'
+import { energyLabelColors, energyLabelLabels, offerTypeLabels, propertyTypeLabels } from './labels'
 
 /** What everyone sees of a listing: the cards with their photos first, the table and the filters of a portal. */
 export const listingsView = view<typeof listings>('listings')
@@ -17,10 +17,10 @@ export const listingsView = view<typeof listings>('listings')
     status: r.status.format('badge').valueLabels({ available: 'Available', under_offer: 'Under offer', sold: 'Sold', let: 'Let' }),
     price: r.price.prefix('€').decimals(0).help('The asking price, or the rent per month.'),
     price_per_m2: r.price_per_m2.label('Price per m²').prefix('€').decimals(0),
-    living_area: r.living_area.label('Living area (m²)'),
-    plot_area: r.plot_area.label('Plot (m²)'),
+    living_area: r.living_area.label('Living area').suffix(' m²').icon('ruler'),
+    plot_area: r.plot_area.label('Plot').suffix(' m²'),
     built_year: r.built_year.label('Built'),
-    energy_label: r.energy_label.label('Energy label').format('badge').valueLabels(energyLabelLabels),
+    energy_label: r.energy_label.label('Energy label').format('badge').valueLabels(energyLabelLabels).valueColors(energyLabelColors).badgeShape('arrow'),
     latitude: r.latitude.help('Decimal degrees, WGS84.').decimals(6),
     longitude: r.longitude.help('Decimal degrees, WGS84.').decimals(6),
     photo: r.photo.label('Cover photo'),
@@ -32,7 +32,7 @@ export const listingsView = view<typeof listings>('listings')
     columns: [r.address, r.place_id, r.offer_type, r.property_type, r.price, r.living_area, r.rooms, r.energy_label, r.status, r.published_at],
     sort: [[r.published_at, 'desc']],
     search: [r.address, r.postal_code],
-    displays: [d.cards({ image: r.photo, title: r.address, subtitle: r.place_id, badge: r.status, meta: [r.price, r.living_area, r.bedrooms, r.energy_label] }, { label: 'Photos' })],
+    displays: [d.cards({ image: r.photo, title: r.address, subtitle: r.place_id, badge: r.status, meta: [r.price, r.living_area, r.bedrooms, r.energy_label], flags: [r.garden, r.balcony, r.parking] }, { label: 'Photos' })],
     default: 'cards',
   }))
   .filters((r, w) => [
