@@ -1,3 +1,4 @@
+import { checkedUrl } from '../checked-url'
 import type { ModelSettings } from './chat-completions'
 import type { AssistantTool } from './tools'
 
@@ -31,13 +32,6 @@ export const assistantRoles = ['admin', 'ai'] as const
 
 export const seesAssistant = (roles: readonly string[]) => assistantRoles.some((role) => roles.includes(role))
 
-/** `url` without a trailing slash; anything but an http(s) URL stops the server, naming `source`. */
-export const checkedUrl = (url: string, source: string) => {
-  if (!URL.canParse(url)) throw new Error(`${source} is not a URL; use https://...`)
-  const { protocol } = new URL(url)
-  if (protocol !== 'https:' && protocol !== 'http:') throw new Error(`${source} must start with https:// or http://, not ${protocol}//`)
-  return url.replace(/\/+$/, '')
-}
 
 /**
  * Which assistant the app has: the backend at `url` when one is set, otherwise the built-in one when an API key is

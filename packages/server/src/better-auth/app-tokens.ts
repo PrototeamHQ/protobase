@@ -1,5 +1,5 @@
 import { createRemoteJWKSet, decodeJwt, errors, type JWTVerifyGetKey } from 'jose'
-import { checkedUrl } from '../assistant/assistant-settings'
+import { checkedUrl } from '../checked-url'
 import { jwtAuthenticator } from '../auth/jwt'
 import { forbidden } from '../problem'
 import type { Authenticator, Session, TenantValue } from '../types'

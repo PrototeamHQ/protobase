@@ -1,4 +1,4 @@
-import { checkedUrl } from '../assistant/assistant-settings'
+import { checkedUrl } from '../checked-url'
 
 /**
  * Another Protobase API whose resources the admin app draws as its own: `url` is its resources API (`.../api/v1`),

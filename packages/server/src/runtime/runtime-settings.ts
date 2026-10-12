@@ -1,4 +1,4 @@
-import { checkedUrl } from '../assistant/assistant-settings'
+import { checkedUrl } from '../checked-url'
 
 /**
  * `url`: the endpoint that reports the app's runtime version and updates it, such as a hosting platform's. The top
