@@ -2,6 +2,12 @@
 
 Every release of Protobase, cut by the release workflow from the commits since the last one (see the [versioning page](https://docs.protobase.net/reference/versioning/)).
 
+## [0.12.16](https://github.com/PrototeamHQ/protobase/compare/v0.12.15...v0.12.16) (2026-10-12)
+
+### Features
+
+* **property-portal:** a mobile bottom bar for members and admins, and one for visitors ([9db8220](https://github.com/PrototeamHQ/protobase/commit/9db8220f2c8e10f334e987f18a596bb5106b8807))
+
 ## [0.12.15](https://github.com/PrototeamHQ/protobase/compare/v0.12.14...v0.12.15) (2026-10-12)
 
 ### Features
