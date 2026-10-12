@@ -149,6 +149,7 @@ export type FilterWidgetModel =
   | { kind: 'facets'; field: string; search: boolean }
   | { kind: 'dateRange'; field: string; presets: DatePreset[] }
   | { kind: 'toggle'; field: string }
+  | { kind: 'flags'; fields: string[]; label: string }
 
 /**
  * Records of another resource on the record page: those whose `field` holds this record's key or, with `through`,

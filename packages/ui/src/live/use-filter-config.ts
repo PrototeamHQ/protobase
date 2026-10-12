@@ -37,17 +37,20 @@ export const useFilterConfig = ({ model, resources, views, view, state, extras }
     return field?.type === 'relation' && field.relation ? resources[field.relation.resource] : undefined
   }
 
+  // A facet group counts its field's values; a flags group counts each of its fields, of which it shows the true ones.
+  const counted = skeleton.facets.flatMap((group) => (group.flags ? group.options.map((option) => option.value) : [group.id]).map((field) => ({ group: group.id, field })))
   const facetQueries = useQueries({
-    queries: skeleton.facets.map((group) => {
-      const filter = stateToText(skeleton, { ...state, facets: { ...state.facets, [group.id]: [] } }, extras)
-      return { queryKey: keys.facets(model.name, group.id, filter), queryFn: () => client.facets(model.name, group.id, { filter, limit: 50 }) }
+    queries: counted.map(({ group, field }) => {
+      const filter = stateToText(skeleton, { ...state, facets: { ...state.facets, [group]: [] } }, extras)
+      return { queryKey: keys.facets(model.name, field, filter), queryFn: () => client.facets(model.name, field, { filter, limit: 50 }) }
     }),
   })
+  const counts = (group: string, field: string) => facetQueries[counted.findIndex((entry) => entry.group === group && entry.field === field)]?.data
 
   const labelQueries = useQueries({
-    queries: skeleton.facets.map((group, index) => {
+    queries: skeleton.facets.map((group) => {
       const target = targetOf(group.id)
-      const ids = labelKeys((facetQueries[index]?.data ?? []).flatMap((facet) => (facet.value === null ? [] : [String(facet.value)])), state.facets[group.id] ?? [])
+      const ids = labelKeys((counts(group.id, group.id) ?? []).flatMap((facet) => (facet.value === null ? [] : [String(facet.value)])), state.facets[group.id] ?? [])
       return {
         queryKey: keys.labels(`facet:${model.name}.${group.id}`, ids.join(',')),
         enabled: Boolean(target) && ids.length > 0,
@@ -71,9 +74,13 @@ export const useFilterConfig = ({ model, resources, views, view, state, extras }
   })
 
   const facetGroup = (group: FilterConfig['facets'][number], index: number) => {
+    if (group.flags) {
+      const options = group.options.map(({ value }) => ({ value, label: label(value), count: counts(group.id, value)?.find((facet) => String(facet.value) === 'true')?.count ?? 0 }))
+      return { ...group, options }
+    }
     const field = model.fields[group.id]
     const names = new Map(labelQueries[index]?.data ?? [])
-    const counted = (facetQueries[index]?.data ?? []).flatMap((facet): FacetOption[] =>
+    const values = (counts(group.id, group.id) ?? []).flatMap((facet): FacetOption[] =>
       facet.value === null
         ? []
         : [{ value: String(facet.value), label: field?.type === 'enum' ? enumLabel(String(facet.value), view?.fields[group.id]?.valueLabels) : (names.get(String(facet.value)) ?? String(facet.value)), count: facet.count }],
@@ -82,7 +89,7 @@ export const useFilterConfig = ({ model, resources, views, view, state, extras }
     return {
       ...group,
       label: label(group.id),
-      options: search.matches ? matchOptions(search.matches, counted) : counted,
+      options: search.matches ? matchOptions(search.matches, values) : values,
       ...(names.size > 0 && { labels: Object.fromEntries(names) }),
       ...(search.onSearch && { onSearch: search.onSearch }),
     }

@@ -18,4 +18,13 @@ export const widgets = {
     presets: o.presets ?? [],
   }),
   toggle: (ref: Ref): FilterWidgetModel => ({ kind: 'toggle', field: ref.name }),
+  /**
+   * A menu of boolean fields under one `label`, such as "for sale" and "for rent": a record shows when any chosen field
+   * is true, so one that is both shows under each.
+   */
+  flags: (refs: Ref<string, boolean | null>[], o: { label: string }): FilterWidgetModel => ({
+    kind: 'flags',
+    fields: refs.map((ref) => ref.name),
+    label: o.label,
+  }),
 }

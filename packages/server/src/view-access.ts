@@ -64,6 +64,7 @@ const widgetShape = s.oneOf<FilterWidgetModel>({
   facets: s.object<Of<FilterWidgetModel, 'facets'>>({ kind: s.data, field: s.field, search: s.data }, { requires: ['field'] }),
   dateRange: s.object<Of<FilterWidgetModel, 'dateRange'>>({ kind: s.data, field: s.field, presets: s.data }, { requires: ['field'] }),
   toggle: s.object<Of<FilterWidgetModel, 'toggle'>>({ kind: s.data, field: s.field }, { requires: ['field'] }),
+  flags: s.object<Of<FilterWidgetModel, 'flags'>>({ kind: s.data, fields: s.list(s.field, { nonEmpty: true }), label: s.data }, { requires: ['fields'] }),
 })
 
 const layoutShape = (resource: string, models: Record<string, ResourceModel>) =>

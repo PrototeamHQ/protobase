@@ -59,6 +59,12 @@ describe('checkViews', () => {
     expect(() => checkViews(registry, [stale])).toThrow('View "payments": display "cards" names field "paidOn", which payments does not have')
   })
 
+  it('refuses a sensitive field among the fields of a flags filter', () => {
+    const written = view<typeof payments>('payments').toModel()
+    written.filters = [{ kind: 'flags', fields: ['reference', 'iban'], label: 'Known' }]
+    expect(() => checkViews(registry, [written])).toThrow('View "payments": sensitive field "iban" cannot be in a filter')
+  })
+
   it('wants a custom section to name fields the resource has', () => {
     const stale = view<typeof payments>('payments').toModel()
     stale.layout = [{ kind: 'custom', component: 'Receipt', props: { amount: { $field: 'amount' }, currency: 'EUR' } }]

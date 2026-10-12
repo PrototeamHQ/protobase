@@ -141,3 +141,36 @@ describe('round trip', () => {
     expect(textToState(config, first, now)).toEqual(textToState(config, text, now))
   })
 })
+
+describe('flags', () => {
+  const offers = {
+    facets: [
+      { id: 'for_sale|for_rent', label: 'Offer', options: [{ value: 'for_sale', label: 'For sale', count: 0 }, { value: 'for_rent', label: 'For rent', count: 0 }], flags: true },
+      { id: 'status', label: 'Status', options: [] },
+    ],
+    toggles: [{ id: 'garden', label: 'Garden' }],
+  }
+  const state = (chosen: string[]) => ({ facets: { 'for_sale|for_rent': chosen }, toggles: [] })
+
+  it('prints one chosen flag as true, and several ORed in the order of the widget', () => {
+    expect(stateToText(offers, state(['for_rent']), [], now)).toBe('for_rent = true')
+    expect(stateToText(offers, state(['for_rent', 'for_sale']), [], now)).toBe('for_sale = true OR for_rent = true')
+    expect(stateToText(offers, { ...state(['for_rent', 'for_sale']), facets: { 'for_sale|for_rent': ['for_rent', 'for_sale'], status: ['let'] } }, [], now)).toBe('(for_sale = true OR for_rent = true) AND status = "let"')
+  })
+
+  it('reads one flag or several ORed back into the group', () => {
+    for (const chosen of [['for_rent'], ['for_sale', 'for_rent']]) {
+      const parsed = textToState(offers, stateToText(offers, state(chosen), [], now), now)
+      expect(parsed).toEqual({ ok: true, state: state(chosen), extras: [] })
+    }
+  })
+
+  it('leaves conditions that are not the group alone', () => {
+    expect(textToState(offers, 'for_sale = false', now)).toMatchObject({ ok: true, state: { facets: {} }, extras: [{ kind: 'compare' }] })
+    expect(textToState(offers, 'for_sale = true OR garden = true', now)).toMatchObject({ ok: true, state: { facets: {}, toggles: [] }, extras: [{ kind: 'or' }] })
+    expect(textToState(offers, 'garden = true', now)).toMatchObject({ ok: true, state: { facets: {}, toggles: ['garden'] } })
+    const both = textToState(offers, 'for_sale = true AND for_rent = true', now)
+    expect(both).toMatchObject({ ok: true, state: state(['for_sale']), extras: [{ kind: 'compare' }] })
+    expect(both.ok && stateToText(offers, both.state, both.extras, now)).toBe('for_sale = true AND for_rent = true')
+  })
+})

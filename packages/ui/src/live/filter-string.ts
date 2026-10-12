@@ -37,6 +37,10 @@ export const stateToClauses = (config: Fields, state: FilterState, now = new Dat
   const facets = config.facets.flatMap((group) => {
     const values = state.facets[group.id] ?? []
     if (values.length === 0) return []
+    if (group.flags) {
+      const chosen = group.options.filter((option) => values.includes(option.value)).map((option) => w.eq(option.value, true))
+      return chosen.length === 0 ? [] : [chosen.length === 1 ? chosen[0]! : w.or(...chosen)]
+    }
     return [values.length === 1 ? w.eq(group.id, values[0]!) : w.in(group.id, values)]
   })
   const ranges = (config.ranges ?? []).flatMap((range) => {
@@ -56,6 +60,17 @@ export const stateToText = (config: Fields, state: FilterState, extras: FilterEx
 const flatten = (expr: FilterExpr): FilterExpr[] => (expr.kind === 'and' ? expr.args.flatMap(flatten) : [expr])
 
 const fieldName = (expr: { field: { path: string[] } }) => expr.field.path.join('.')
+
+const isTrue = (expr: FilterExpr): expr is FilterExpr & { kind: 'compare' } => expr.kind === 'compare' && expr.op === '=' && expr.value.kind === 'boolean' && expr.value.value
+
+// The flags group a clause chooses from, with the fields it chooses: `field = true`, or such clauses ORed in one group.
+const flagsChosen = (clause: FilterExpr, groupOf: Map<string, string>) => {
+  const parts = clause.kind === 'or' ? clause.args : [clause]
+  if (!parts.every(isTrue)) return undefined
+  const fields = parts.map(fieldName)
+  const group = groupOf.get(fields[0]!)
+  return group !== undefined && fields.every((field) => groupOf.get(field) === group) ? { group, fields } : undefined
+}
 
 const literalText = (value: { kind: string; value?: unknown; raw?: string }) => (value.kind === 'number' ? String(value.raw) : value.kind === 'string' ? String(value.value) : undefined)
 
@@ -81,7 +96,8 @@ export const textToState = (config: Fields, text: string, now = new Date()): Par
   if (!parsed.ok) return { ok: false, errors: parsed.errors }
   const state: FilterState = { facets: {}, toggles: [] }
   const extras: FilterExpr[] = []
-  const facetIds = new Set(config.facets.map((group) => group.id))
+  const facetIds = new Set(config.facets.filter((group) => !group.flags).map((group) => group.id))
+  const flagGroupOf = new Map(config.facets.filter((group) => group.flags).flatMap((group) => group.options.map((option) => [option.value, group.id] as const)))
   const toggleIds = new Set((config.toggles ?? []).map((toggle) => toggle.id))
   const rangeIds = new Set((config.ranges ?? []).map((range) => range.id))
   const bounds = new Map<string, { low?: number; high?: number; clauses: FilterExpr[] }>()
@@ -89,7 +105,10 @@ export const textToState = (config: Fields, text: string, now = new Date()): Par
   let todayEnd: FilterExpr | undefined
 
   for (const clause of parsed.ast ? flatten(parsed.ast) : []) {
-    if (clause.kind === 'compare' && facetIds.has(fieldName(clause)) && clause.op === '=' && literalText(clause.value) !== undefined) {
+    const flags = flagsChosen(clause, flagGroupOf)
+    if (flags && !state.facets[flags.group]) {
+      state.facets[flags.group] = flags.fields
+    } else if (clause.kind === 'compare' && facetIds.has(fieldName(clause)) && clause.op === '=' && literalText(clause.value) !== undefined) {
       state.facets[fieldName(clause)] = [...(state.facets[fieldName(clause)] ?? []), literalText(clause.value)!]
     } else if (clause.kind === 'in' && facetIds.has(fieldName(clause)) && clause.values.every((value) => literalText(value) !== undefined)) {
       state.facets[fieldName(clause)] = [...(state.facets[fieldName(clause)] ?? []), ...clause.values.map((value) => literalText(value)!)]

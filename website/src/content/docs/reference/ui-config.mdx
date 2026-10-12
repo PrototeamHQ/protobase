@@ -66,6 +66,7 @@ An enum's value labels show everywhere the admin shows its values: badges, selec
 | `w.dateRange(r.booked_on, { presets? })` | Buttons for `today`, `yesterday`, `7d`, `30d`, `90d`, `month`, `quarter`, `year`. |
 | `w.range(r.estimate, { histogram? })` | A slider between the lowest and highest value; `histogram` draws the values' histogram behind it. |
 | `w.toggle(r.paid)` | A switch for a boolean field. |
+| `w.flags([r.for_sale, r.for_rent], { label })` | A menu of boolean fields under one label, with how many records have each: a record shows when any chosen field is true, so one that is both shows under each. |
 
 `.chart((r) => ({ field, range, granularity }))` draws records per day or week over a date or timestamp field above the list, following its filters: `range` is `7d`, `30d`, `90d`, `1y` or `all`, `granularity` `hour`, `day`, `week` or `month`.
 

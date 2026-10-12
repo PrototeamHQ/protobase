@@ -12,6 +12,8 @@ const listings = resource('listings')
     living_area: f.integer(),
     bedrooms: f.integer(),
     garden: f.boolean(),
+    for_sale: f.boolean(),
+    for_rent: f.boolean(),
   })
   .primaryKey((r) => r.id)
 
@@ -55,5 +57,16 @@ describe('rangeHistogram', () => {
     expect(rangeHistogram(filtered, 'price')).toBe(true)
     expect(rangeHistogram(filtered, 'living_area')).toBe(false)
     expect(rangeHistogram(filtered, 'bedrooms')).toBe(false)
+  })
+})
+
+describe('flags', () => {
+  it('makes a flags widget a facet group of its fields, in their order', () => {
+    const offered = view<typeof listings>('listings').filters((r, w) => [w.flags([r.for_sale, r.for_rent], { label: 'Offer' }), w.toggle(r.garden)]).toModel(model)
+    const fields = widgetFields(offered, model)
+    expect(fields.facets).toEqual([
+      { id: 'for_sale|for_rent', label: 'Offer', flags: true, options: [{ value: 'for_sale', label: 'for_sale', count: 0 }, { value: 'for_rent', label: 'for_rent', count: 0 }] },
+    ])
+    expect(fields.toggles).toEqual([{ id: 'garden', label: 'garden' }])
   })
 })

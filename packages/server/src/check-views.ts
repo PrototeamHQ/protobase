@@ -13,7 +13,7 @@ const sensitiveErrors = (view: ViewModel, model: ResourceModel) => {
     ['the search result', [...(view.searchResult?.title ?? []), ...(view.searchResult?.subtitle ? [view.searchResult.subtitle] : [])]],
     ['a list column, sort or search', [...(view.list?.columns ?? []), ...(view.list?.sort ?? []).map(([name]) => name), ...(view.list?.search ?? [])]],
     ['a list display', (view.list?.displays ?? []).flatMap(displayFields)],
-    ['a filter', view.filters.map((widget) => widget.field)],
+    ['a filter', view.filters.flatMap((widget) => (widget.kind === 'flags' ? widget.fields : [widget.field]))],
     ['the chart', view.chart ? [view.chart.field] : []],
     ['the sidebar', view.layout.flatMap((item) => (item.kind === 'sidebar' ? item.fields : []))],
     ['the recent records', view.nav?.recent ? [view.nav.recent.status] : []],

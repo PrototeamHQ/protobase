@@ -1,5 +1,5 @@
 import type { FieldType, FilterWidgetModel, ResourceModel, ViewModel } from '@protobase/schema'
-import type { FilterConfig, RangeConfig } from '../filter-panel'
+import type { FacetGroupConfig, FilterConfig, RangeConfig } from '../filter-panel'
 
 const numberTypes: FieldType[] = ['integer', 'bigint', 'decimal']
 
@@ -22,12 +22,14 @@ export const widgetFields = (view: ViewModel | undefined, model?: ResourceModel)
   const widgets = view?.filters ?? []
   const date = widgets.find((widget) => widget.kind === 'dateRange')
   return {
-    facets: widgets.flatMap((widget) =>
-      widget.kind === 'facets' && !rangeOf(widget, model)
-        ? [{ id: widget.field, label: widget.field, options: [], searchable: widget.search, ...(model?.fields[widget.field]?.type === 'relation' && { combobox: true }) }]
-        : [],
-    ),
-    ranges: widgets.flatMap((widget) => (rangeOf(widget, model) ? [emptyRange(widget.field)] : [])),
+    facets: widgets.flatMap((widget): FacetGroupConfig[] => {
+      if (widget.kind === 'facets' && !rangeOf(widget, model)) {
+        return [{ id: widget.field, label: widget.field, options: [], searchable: widget.search, ...(model?.fields[widget.field]?.type === 'relation' && { combobox: true }) }]
+      }
+      if (widget.kind === 'flags') return [{ id: widget.fields.join('|'), label: widget.label, options: widget.fields.map((field) => ({ value: field, label: field, count: 0 })), flags: true }]
+      return []
+    }),
+    ranges: widgets.flatMap((widget) => (widget.kind !== 'flags' && rangeOf(widget, model) ? [emptyRange(widget.field)] : [])),
     ...(date && { dateField: date.field, dateKind: model?.fields[date.field]?.type === 'date' ? ('date' as const) : ('timestamp' as const), ...(date.presets.length > 0 && { datePresets: date.presets }) }),
     toggles: widgets.flatMap((widget) => (widget.kind === 'toggle' ? [{ id: widget.field, label: widget.field }] : [])),
   }

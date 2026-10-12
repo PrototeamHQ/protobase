@@ -14,6 +14,7 @@ const article = resource('article')
     price: f.decimal({ precision: 10, scale: 2 }),
     status: f.enum(['draft', 'live']),
     featured: f.boolean(),
+    pinned: f.boolean(),
     createdAt: f.timestamp(),
   })
   .primaryKey((r) => r.id)
@@ -37,6 +38,7 @@ const articleView = view<typeof article>('article')
     w.facets(r.status, { search: true }),
     w.dateRange(r.createdAt, { presets: ['7d', '30d'] }),
     w.toggle(r.featured),
+    w.flags([r.featured, r.pinned], { label: 'Highlighted' }),
   ])
   .layout((r) => [l.section('Content', [r.title, r.price], { help: 'Main fields' }), l.sidebar([r.status])])
   .chart((r) => ({ field: r.createdAt, range: '30d', granularity: 'day' }))
@@ -61,6 +63,7 @@ describe('view builder', () => {
         { kind: 'facets', field: 'status', search: true },
         { kind: 'dateRange', field: 'createdAt', presets: ['7d', '30d'] },
         { kind: 'toggle', field: 'featured' },
+        { kind: 'flags', fields: ['featured', 'pinned'], label: 'Highlighted' },
       ],
       layout: [
         { kind: 'section', title: 'Content', fields: ['title', 'price'], help: 'Main fields' },
@@ -94,6 +97,11 @@ describe('view builder', () => {
       .toModel()
     expect(model.fields.price).toEqual({ label: 'Price', widget: { name: 'stars', props: { max: 5 } } })
     expect(model.fields.title).toEqual({ widget: { name: 'slug' } })
+  })
+
+  it('takes only boolean fields as flags', () => {
+    // @ts-expect-error `status` is an enum, not a boolean
+    view<typeof article>('article').filters((r, w) => [w.flags([r.featured, r.status], { label: 'Highlighted' })])
   })
 
   it('defaults widget options', () => {

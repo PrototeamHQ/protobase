@@ -14,6 +14,8 @@ export type FacetGroupConfig = {
   labels?: Record<string, string>
   /** Called as the search text changes, the options then being the matches; without it the options are filtered here. */
   onSearch?: (text: string) => void
+  /** The options are boolean fields by name, and a record shows when any chosen one is true. */
+  flags?: boolean
 }
 
 export type RangeConfig = {

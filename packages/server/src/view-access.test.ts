@@ -13,8 +13,9 @@ const repairs = resource('repairs')
     costPrice: f.decimal({ precision: 8, scale: 2 }).filterable().sortable(),
     status: f.enum(['booked', 'ready']).filterable(),
     bookedOn: f.timestamp().sortable(),
-    urgent: f.boolean(),
+    urgent: f.boolean().filterable(),
     insured: f.boolean(),
+    paid: f.boolean().filterable(),
   })
   .primaryKey((r) => r.id)
 
@@ -32,6 +33,14 @@ const without = (hidden: Record<string, string[]>, gone: string[] = []): Record<
   )
 
 describe('pruneView', () => {
+  it('narrows a flags filter to the fields the caller can read, and leaves it out with none', () => {
+    const repairsView = view<typeof repairs>('repairs').filters((r, w) => [w.flags([r.paid, r.urgent], { label: 'Attention' })]).toModel()
+    const filters = (hidden: string[]) => pruneView(repairsView, without({ repairs: hidden }).repairs!, without({ repairs: hidden })).filters
+    expect(filters([])).toEqual([{ kind: 'flags', fields: ['paid', 'urgent'], label: 'Attention' }])
+    expect(filters(['paid'])).toEqual([{ kind: 'flags', fields: ['urgent'], label: 'Attention' }])
+    expect(filters(['paid', 'urgent'])).toEqual([])
+  })
+
   it('leaves out links that read a hidden field or lead where the caller cannot go', () => {
     const repairsView = view<typeof repairs>('repairs')
       .actions((a) => [
