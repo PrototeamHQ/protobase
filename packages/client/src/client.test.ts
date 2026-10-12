@@ -111,6 +111,25 @@ describe('records and ETags', () => {
   })
 })
 
+describe('files of another origin', () => {
+  const photo = { uri: 'local:photos/a.jpg', name: 'a.jpg', type: 'image/jpeg', url: '/api/files/local/photos/a.jpg?expires=1&signature=x' }
+  const elsewhere = { uri: 's3:photos/b.jpg', name: 'b.jpg', type: 'image/jpeg', url: 'https://cdn.example.com/photos/b.jpg' }
+
+  it('download from the API that served them when the base URL is absolute', async () => {
+    const { fetch } = fakeFetch((call) => (call.init.method === 'POST' ? json({ results: [{ op: 'update', resource: 'orders', record: { id: 1, photo }, etag: 'x' }] }) : json({ items: [{ id: 1, photo, other: elsewhere }], next_page_token: '', total_size_estimate: 1 })))
+    const client = createClient({ baseUrl: 'https://desk.example.com/api/v1', fetch })
+    const [item] = (await client.list('orders')).items
+    expect(item).toEqual({ id: 1, photo: { ...photo, url: `https://desk.example.com${photo.url}` }, other: elsewhere })
+    const [result] = (await client.batchWrite([{ op: 'update', resource: 'orders', key: 1, data: {} }])).results
+    expect(result).toMatchObject({ record: { photo: { url: `https://desk.example.com${photo.url}` } } })
+  })
+
+  it('keep the path the API answers when the base URL is a path', async () => {
+    const { fetch } = fakeFetch(() => json({ id: 1, photo }, { headers: { etag: '"1"' } }))
+    expect((await createClient({ fetch }).get('orders', 1)).record).toEqual({ id: 1, photo })
+  })
+})
+
 describe('remove with a version', () => {
   it('sends If-Match and works without one', async () => {
     const { calls, fetch } = fakeFetch(() => new Response(null, { status: 204 }))

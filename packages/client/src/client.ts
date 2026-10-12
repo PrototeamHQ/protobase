@@ -1,5 +1,6 @@
 import { encodeKey, type KeyValue } from '@protobase/schema'
 import { listWire, queryString, filterText, type FilterInput, type ListParams } from './query-string'
+import { originOf, withFileOrigin } from './file-urls'
 import { createTransport, type ClientOptions } from './transport'
 import { fetchWithProgress, type UploadProgress } from './upload-request'
 import type { BatchOp, BatchResult, Facet, Histogram, ListPage, Meta, MetaResult, RecordOf, ResourceRef, Series, SeriesParams, Stored } from './types'
@@ -10,8 +11,8 @@ const nameOf = (resource: ResourceRef) => (typeof resource === 'string' ? resour
 
 const keyPath = (resource: ResourceRef, key: KeyValue | readonly KeyValue[]) => `/${nameOf(resource)}/${encodeKey(key)}`
 
-const toPage = <T>(body: Json, response: Response): ListPage<T> => ({
-  items: body.items,
+const toPage = <T>(body: Json, response: Response, origin: string | undefined): ListPage<T> => ({
+  items: (body.items as T[]).map((item) => withFileOrigin(item, origin)),
   nextPageToken: body.next_page_token,
   totalSizeEstimate: body.total_size_estimate,
   ...(body.prev_page_token !== undefined && { prevPageToken: body.prev_page_token }),
@@ -50,17 +51,31 @@ export type UploadOptions = {
 const etagOf = (response: Response) => response.headers.get('etag') ?? ''
 
 /** A single-record response: the record without its `permissions` member, which travels beside it. */
-const storedOf = async <T>(response: Response): Promise<Stored<T>> => {
+const storedOf = async <T>(response: Response, origin: string | undefined): Promise<Stored<T>> => {
   const { permissions, ...record } = await response.json()
-  return { record: record as T, etag: etagOf(response), ...(permissions && { permissions }) }
+  return { record: withFileOrigin(record as T, origin), etag: etagOf(response), ...(permissions && { permissions }) }
 }
 
+// The records of a batch's results, each file downloading from the API's origin.
+const batchResultOf = (body: Partial<BatchResult>, origin: string | undefined): BatchResult => ({
+  results: (body.results ?? []).map((result) => {
+    if (result.op === 'create' || result.op === 'update') return { ...result, record: withFileOrigin(result.record, origin) }
+    if (result.op === 'reorder') return { ...result, records: result.records.map((entry) => ({ ...entry, record: withFileOrigin(entry.record, origin) })) }
+    return result
+  }),
+})
+
+/**
+ * The client of one API. With an absolute `baseUrl`, the URL of each file in a record it answers is absolute too, on
+ * that API's origin; with a path, it stays the path the API answers.
+ */
 export const createClient = (options: ClientOptions = {}) => {
   const send = createTransport(options)
+  const origin = originOf(options.baseUrl)
 
   const list = async <R extends ResourceRef>(resource: R, params?: ListParams) => {
     const response = await send({ method: 'GET', path: `/${nameOf(resource)}`, query: queryString(listWire(params)) })
-    return toPage<RecordOf<R>>(await response.json(), response)
+    return toPage<RecordOf<R>>(await response.json(), response, origin)
   }
 
   /** Same as `list`, with the parameters in a JSON body, for long filters. */
@@ -71,16 +86,16 @@ export const createClient = (options: ClientOptions = {}) => {
       path: `/${nameOf(resource)}:search`,
       body: { ...wire, fields: params?.fields },
     })
-    return toPage<RecordOf<R>>(await response.json(), response)
+    return toPage<RecordOf<R>>(await response.json(), response, origin)
   }
 
   const get = async <R extends ResourceRef>(resource: R, key: KeyValue | readonly KeyValue[]): Promise<Stored<RecordOf<R>>> => {
-    return storedOf(await send({ method: 'GET', path: keyPath(resource, key) }))
+    return storedOf(await send({ method: 'GET', path: keyPath(resource, key) }), origin)
   }
 
   const create = async <R extends ResourceRef>(resource: R, body: Partial<RecordOf<R>>): Promise<Stored<RecordOf<R>> & { location: string }> => {
     const response = await send({ method: 'POST', path: `/${nameOf(resource)}`, body })
-    return { record: await response.json(), etag: etagOf(response), location: response.headers.get('location') ?? '' }
+    return { record: withFileOrigin(await response.json(), origin), etag: etagOf(response), location: response.headers.get('location') ?? '' }
   }
 
   /** `etag` is what `get` returned; a stale one rejects with `PreconditionFailedError`. */
@@ -90,7 +105,7 @@ export const createClient = (options: ClientOptions = {}) => {
     patch: Partial<RecordOf<R>>,
     etag: string,
   ): Promise<Stored<RecordOf<R>>> => {
-    return storedOf(await send({ method: 'PATCH', path: keyPath(resource, key), body: patch, headers: { 'if-match': etag } }))
+    return storedOf(await send({ method: 'PATCH', path: keyPath(resource, key), body: patch, headers: { 'if-match': etag } }), origin)
   }
 
   /** `etag` is the version the user saw (`*` for any); a stale one rejects with `PreconditionFailedError`. */
@@ -101,7 +116,7 @@ export const createClient = (options: ClientOptions = {}) => {
   /** AIP-164: brings a soft-deleted record back. A record that is not deleted answers 409. */
   const undelete = async <R extends ResourceRef>(resource: R, key: KeyValue | readonly KeyValue[]): Promise<Stored<RecordOf<R>>> => {
     const response = await send({ method: 'POST', path: `${keyPath(resource, key)}:undelete` })
-    return { record: await response.json(), etag: etagOf(response) }
+    return { record: withFileOrigin(await response.json(), origin), etag: etagOf(response) }
   }
 
   /** The value of a sensitive field of one record, which the record itself never carries. The server audits every call. */
@@ -120,8 +135,7 @@ export const createClient = (options: ClientOptions = {}) => {
       ...(operation.op === 'reorder' && { keys: operation.keys.map(keyText) }),
     }))
     const response = await send({ method: 'POST', path: ':batchWrite', body: { ops: wireOps } })
-    const body = (await response.json()) as Partial<BatchResult>
-    return { results: body.results ?? [] }
+    return batchResultOf((await response.json()) as Partial<BatchResult>, origin)
   }
 
   const facets = async (resource: ResourceRef, field: string, o: { filter?: FilterInput; limit?: number } = {}) => {
@@ -163,7 +177,7 @@ export const createClient = (options: ClientOptions = {}) => {
   /** The page that starts at row `position` of a sort (scrollbar jumps), with the tokens of its own neighbours. Past the end it is empty. */
   const seek = async <R extends ResourceRef>(resource: R, params: ListParams & { position: number }) => {
     const response = await send({ method: 'GET', path: `/${nameOf(resource)}:seek`, query: queryString({ ...listWire(params), position: params.position }) })
-    return toPage<RecordOf<R>>(await response.json(), response)
+    return toPage<RecordOf<R>>(await response.json(), response, origin)
   }
 
   /** Pass the `etag` of the last result to get `{ status: 'unchanged' }` on a `304`. */
