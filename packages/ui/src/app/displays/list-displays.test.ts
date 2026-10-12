@@ -61,6 +61,12 @@ describe('loadedFields and sortFields', () => {
     expect(loadedFields(model, boardView, ['number', 'status'])).toEqual(['number', 'status', 'customerId', 'bookedOn'])
   })
 
+  it("loads a card's image with the rest of the card", () => {
+    const pictured = resource('repairs').table('repairs').fields({ id: f.integer(), number: f.text(), photo: f.file().accept(['image/*']) }).primaryKey((r) => r.id)
+    const cards = view<typeof pictured>('repairs').list((r, d) => ({ columns: [r.number], displays: [d.cards({ image: r.photo })] })).toModel(pictured.toModel())
+    expect(loadedFields(pictured.toModel(), cards, ['number'])).toEqual(['number', 'photo'])
+  })
+
   it('sorts a display by the sortable fields it shows', () => {
     expect(sortFields(model, boardView, shownDisplay(boardView, 'cards')!)).toEqual(['number', 'bookedOn'])
   })

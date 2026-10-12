@@ -116,7 +116,7 @@ export type FieldWidgetModel = { name: string; props?: Record<string, JsonValue>
  * or a project component (`custom`) drawing the rows the list page loads. `name` is what the address names (`?display=cards`); `label` and `icon` are its switch's.
  */
 export type ListDisplayModel =
-  | { kind: 'cards'; name: string; label?: string; icon?: string; title?: string; subtitle?: string; badge?: string; meta?: string[]; card?: string }
+  | { kind: 'cards'; name: string; label?: string; icon?: string; image?: string; title?: string; subtitle?: string; badge?: string; meta?: string[]; card?: string }
   | { kind: 'custom'; name: string; label: string; icon?: string; component: string; fields: string[]; props?: Record<string, JsonValue> }
 
 export type ListModel = {

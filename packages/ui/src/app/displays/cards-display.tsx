@@ -1,6 +1,7 @@
 import type { ListDisplayModel, ResourceModel, ViewModel } from '@protobase/schema'
 import { toneFor } from '../../live/columns-from-model'
 import { displayValue } from '../../live/display-value'
+import { fileShown, isPreviewable } from '../../live/file-values'
 import { humanize } from '../../live/naming'
 import { Badge } from '../../primitives/badge'
 import { Skeleton } from '../../primitives/skeleton'
@@ -17,12 +18,23 @@ type CardsProps = { model: ResourceModel; view: ViewModel | undefined; display: 
 
 const grid = 'grid grid-cols-[repeat(auto-fill,minmax(15rem,1fr))] gap-3'
 
+// A picture across the card's top, from the edge of the card in: a raster image only, an empty frame otherwise.
+const CardImage = ({ value }: { value: unknown }) => {
+  const file = fileShown(value)
+  const url = file && 'url' in file && typeof file.url === 'string' && isPreviewable(file.type) ? file.url : undefined
+  return (
+    <span className="-mx-3 -mt-3 mb-1.5 block aspect-[4/3] overflow-hidden rounded-t-lg border-b border-border bg-muted">
+      {url && <img src={url} alt="" loading="lazy" className="size-full object-cover" />}
+    </span>
+  )
+}
+
 /**
- * A card per record, opening its page: the title over the subtitle, the badge beside it and small meta fields below;
+ * A card per record, opening its page: its image across the top, the title over the subtitle, the badge beside it and small meta fields below;
  * or, with a `card` component, what it draws of the row, the built-in content again when it is missing or throws.
  */
 export const CardsDisplay = ({ model, view, display, list }: CardsProps) => {
-  const { title, subtitle, badge, meta } = cardFields(model, view, display)
+  const { image, title, subtitle, badge, meta } = cardFields(model, view, display)
   const label = (name: string) => view?.fields[name]?.label ?? humanize(name)
   const text = (row: ListDisplayRow, name: string) => {
     const field = model.fields[name]
@@ -46,6 +58,7 @@ export const CardsDisplay = ({ model, view, display, list }: CardsProps) => {
           const status = badge === undefined ? undefined : row.record[badge]
           const builtIn = (
             <>
+              {image !== undefined && <CardImage value={row.record[image]} />}
               <span className="flex items-start justify-between gap-2">
                 <span className="min-w-0 truncate font-medium">{shownValue(row, title)}</span>
                 {badge !== undefined && status !== null && status !== undefined && <Badge tone={toneFor(String(status))}>{text(row, badge)}</Badge>}

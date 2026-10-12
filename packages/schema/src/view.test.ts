@@ -186,6 +186,14 @@ describe('view builder', () => {
     expect(() => stale.toModel(article.toModel())).toThrow('View "article": display "cards" names field "state", which the resource does not have')
   })
 
+  it("shows a file field as a card's image, and refuses any other field there", () => {
+    const pictured = resource('article').table('articles').fields({ id: f.integer(), title: f.text(), cover: f.file().accept(['image/*']) }).primaryKey((r) => r.id)
+    const cards = view<typeof pictured>('article').list((r, d) => ({ columns: [r.title], displays: [d.cards({ image: r.cover })] })).toModel(pictured.toModel())
+    expect(cards.list?.displays).toEqual([{ kind: 'cards', name: 'cards', image: 'cover' }])
+    const titled = view<typeof pictured>('article').list((r, d) => ({ columns: [r.title], displays: [d.cards({ image: r.title })] }))
+    expect(() => titled.toModel(pictured.toModel())).toThrow('View "article": display "cards" shows "title" as its image, which is not a file field')
+  })
+
   it('refuses a path in the app as a link href, pointing at to', () => {
     expect(() => view<typeof article>('article').actions((a) => [a.link('mine', { label: 'Mine', href: '/article?filter=owner%20%3D%20me' })])).toThrow(
       'Action "mine": href "/article?filter=owner%20%3D%20me" points inside the app; give the link `to` instead',
