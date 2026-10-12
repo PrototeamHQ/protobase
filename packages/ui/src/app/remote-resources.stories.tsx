@@ -79,9 +79,18 @@ const Shop = ({ start, desk: deskClient = deskApi }: { start: string; desk?: () 
 }
 
 /** The desk's tickets in the shop's sidebar, under the group the desk's view names, with its recent tickets. */
-export const List: StoryObj = {
-  tags: ['play'],
-  render: () => <Shop start="/tickets" />,
+export const List: StoryObj = { render: () => <Shop start="/tickets" /> }
+
+/** A ticket's page in the shop: its fields, the section the shop's UI draws, its notes, and the trail back to the list. */
+export const Record: StoryObj = { render: () => <Shop start="/tickets/2" /> }
+
+/** A desk that does not answer: its tickets are marked in the sidebar and say why, and the shop's own orders work. */
+export const SourceDown: StoryObj = { render: () => <Shop start="/tickets" desk={downDesk} /> }
+
+export const ListChecks: StoryObj = {
+  ...List,
+  name: 'List (checks)',
+  tags: ['play', '!dev'],
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
     const page = within(await canvas.findByRole('main'))
@@ -96,10 +105,10 @@ export const List: StoryObj = {
   },
 }
 
-/** A ticket's page in the shop: its fields, the section the shop's UI draws, its notes, and the trail back to the list. */
-export const Record: StoryObj = {
-  tags: ['play'],
-  render: () => <Shop start="/tickets/2" />,
+export const RecordChecks: StoryObj = {
+  ...Record,
+  name: 'Record (checks)',
+  tags: ['play', '!dev'],
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
     await canvas.findByRole('heading', { name: 'Parcel never arrived' })
@@ -112,10 +121,10 @@ export const Record: StoryObj = {
   },
 }
 
-/** A desk that does not answer: its tickets are marked in the sidebar and say why, and the shop's own orders work. */
-export const SourceDown: StoryObj = {
-  tags: ['play'],
-  render: () => <Shop start="/tickets" desk={downDesk} />,
+export const SourceDownChecks: StoryObj = {
+  ...SourceDown,
+  name: 'Source down (checks)',
+  tags: ['play', '!dev'],
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
     await canvas.findByRole('heading', { name: 'Cannot reach Service desk' })
