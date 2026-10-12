@@ -3,6 +3,7 @@ import path from 'node:path'
 import { Command, InvalidArgumentError } from 'commander'
 import { registerAuth } from './auth/register'
 import { buildDeployBundle } from './build/deploy-bundle'
+import { buildPlugin, pluginManifestFile } from './build/plugin-build'
 import { buildServeRuntime } from './build/serve-runtime'
 import { manifestFile } from './bundle/manifest'
 import { resolveConnectionUrl } from './db/connect'
@@ -114,6 +115,20 @@ program
     const manifest = await buildDeployBundle({ projectDir: process.cwd(), outDir: path.resolve(opts.out), bun: opts.bun, extensions })
     const packages = manifest.nodeModules ? `, ${manifest.nodeModules}/` : ''
     out(`built ${opts.out}: ${manifest.server}${packages}, ${manifest.public}/ and ${manifestFile} (api ${manifest.api.join(', ')})\n`)
+  })
+
+program
+  .command('build-plugin')
+  .description('Build a plugin the admin app loads at runtime: its protobase.ui.tsx as one ES module, its stylesheet and plugin.json')
+  .argument('[dir]', 'the plugin folder, holding protobase.ui.tsx', '.')
+  .option('--out <dir>', 'output folder (default: dist in the plugin folder)')
+  .option('--name <name>', "the plugin's name (default: its package.json name)")
+  .action(async (dir: string, opts) => {
+    const pluginDir = path.resolve(dir)
+    const outDir = path.resolve(opts.out ?? path.join(dir, 'dist'))
+    const manifest = await buildPlugin({ pluginDir, outDir, ...(opts.name && { name: opts.name }) })
+    const shown = path.relative(process.cwd(), outDir)
+    out(`built ${shown.startsWith('..') ? outDir : shown || '.'}: ${pluginManifestFile}, ${manifest.entry} and ${manifest.css} (${manifest.name}, plugin API ${manifest.api}, Protobase ${manifest.protobase})\n`)
   })
 
 program
