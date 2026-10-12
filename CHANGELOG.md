@@ -2,6 +2,19 @@
 
 Every release of Protobase, cut by the release workflow from the commits since the last one (see the [versioning page](https://docs.protobase.net/reference/versioning/)).
 
+## [0.12.0](https://github.com/PrototeamHQ/protobase/compare/v0.11.1...v0.12.0) (2026-10-12)
+
+### ⚠ BREAKING CHANGES
+
+* **cli:** protobase build copies the prebuilt shell and builds the project's UI as plugins
+
+### Features
+
+* **cli:** protobase build copies the prebuilt shell and builds the project's UI as plugins ([873faa7](https://github.com/PrototeamHQ/protobase/commit/873faa75f4ab40d6fc1cac52063796208c28dda3))
+* d.cards takes a card component of the project or a plugin to draw each record ([492340b](https://github.com/PrototeamHQ/protobase/commit/492340b00ea8e9df0fff3573744914c00c14e486))
+* plugins register field types that a view picks with .widget(), checked at startup ([209ae1a](https://github.com/PrototeamHQ/protobase/commit/209ae1afada8034625ec515644814ce1f1bca4aa))
+* protobase.theme.css themes the app through its tokens, with radius and font as tokens ([47cc534](https://github.com/PrototeamHQ/protobase/commit/47cc5342e7335ddd7337bb6ca65dc31268a772bd))
+
 ## [0.11.1](https://github.com/PrototeamHQ/protobase/compare/v0.11.0...v0.11.1) (2026-10-12)
 
 ### Features
