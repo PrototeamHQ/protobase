@@ -1,10 +1,10 @@
-import type { IncomingMessage, ServerResponse } from 'node:http'
+import { createServer as createHttpServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import { createServer } from 'node:https'
 import type { AddressInfo } from 'node:net'
 
 type Handler = (request: Request) => Promise<Response> | Response
 
-const toRequest = async (incoming: IncomingMessage) => {
+const toRequest = async (incoming: IncomingMessage, scheme: 'http' | 'https') => {
   const chunks: Buffer[] = []
   for await (const chunk of incoming) chunks.push(chunk as Buffer)
   const headers = new Headers()
@@ -12,7 +12,7 @@ const toRequest = async (incoming: IncomingMessage) => {
     for (const item of Array.isArray(value) ? value : value === undefined ? [] : [value]) headers.append(name, item)
   }
   const body = incoming.method === 'GET' || incoming.method === 'HEAD' ? undefined : Buffer.concat(chunks)
-  return new Request(`https://${incoming.headers.host}${incoming.url}`, { method: incoming.method!, headers, ...(body && { body }) })
+  return new Request(`${scheme}://${incoming.headers.host}${incoming.url}`, { method: incoming.method!, headers, ...(body && { body }) })
 }
 
 const send = async (response: Response, outgoing: ServerResponse) => {
@@ -25,18 +25,19 @@ const send = async (response: Response, outgoing: ServerResponse) => {
 }
 
 /**
- * An HTTPS server on a free loopback port, so its port is known before the app it serves is made: `use` sets the
- * handler. Every request's path is kept, by host, in `requests`.
+ * A server on a free loopback port, HTTPS with `tls` and plain HTTP without, so its port is known before the app it
+ * serves is made: `use` sets the handler. Every request's method and path is kept, by host, in `requests`.
  */
-export const startHttpsServer = async (tls: { key: Buffer; cert: Buffer }) => {
+const startServer = async (tls?: { key: Buffer; cert: Buffer }) => {
   let handler: Handler = () => new Response('Not ready', { status: 503 })
   const requests: string[] = []
-  const server = createServer(tls, (incoming, outgoing) => {
-    requests.push(`${incoming.headers.host}${incoming.url}`)
-    void toRequest(incoming)
+  const listener = (incoming: IncomingMessage, outgoing: ServerResponse) => {
+    requests.push(`${incoming.method === 'GET' ? '' : `${incoming.method} `}${incoming.headers.host}${incoming.url}`)
+    void toRequest(incoming, tls ? 'https' : 'http')
       .then(handler)
       .then((response) => send(response, outgoing))
-  })
+  }
+  const server = tls ? createServer(tls, listener) : createHttpServer(listener)
   await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))
   return {
     port: (server.address() as AddressInfo).port,
@@ -47,3 +48,9 @@ export const startHttpsServer = async (tls: { key: Buffer; cert: Buffer }) => {
     close: () => new Promise<void>((resolve) => server.close(() => resolve())),
   }
 }
+
+/** An HTTPS server on a free loopback port (see `startServer`). */
+export const startHttpsServer = (tls: { key: Buffer; cert: Buffer }) => startServer(tls)
+
+/** A plain HTTP server on a free loopback port (see `startServer`). */
+export const startHttpServer = () => startServer()
