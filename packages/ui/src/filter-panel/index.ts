@@ -4,4 +4,5 @@ export type { FilterConfig, FilterState, FacetGroupConfig, FacetOption, RangeCon
 export { activeChips, removeChip, emptyFilterState, type FilterChip } from './filter-state'
 export { ordersFilters } from './orders-filters'
 export { stockMoveFilters } from './stock-move-filters'
+export { FilterSection } from './filter-section'
 export { ToolbarRow } from './toolbar-row'

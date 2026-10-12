@@ -24,12 +24,10 @@ div | block
         main .flex min-h-0 flex-1 flex-col | flex column nowrap normal normal
           div .flex min-h-0 flex-1 flex-col gap-3 px-5 py-4 | flex column nowrap normal normal
             div .flex flex-wrap items-end justify-between gap-x-4 gap-y-2 | flex row wrap flex-end space-between
-              div | block
-                h1 .text-xl font-semibold tracking-tight | block
+              div .flex min-w-0 flex-1 items-center justify-between gap-3 | flex row nowrap center space-between
+                div | block
+                  h1 .text-xl font-semibold tracking-tight | block
               div .flex w-full flex-wrap items-center gap-2 sm:w-auto | flex row wrap center normal
-                span .flex h-8 items-center gap-2 rounded-md border bg-background px-2.5 text-muted-foreground shadow-sm focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20 border-border-strong min-w-0 flex-1 sm:w-72 sm:flex-initial | flex row nowrap center normal
-                  svg .lucide lucide-search size-4 | block
-                  input .min-w-0 flex-1 bg-transparent text-[13px] text-foreground outline-none placeholder:text-faint-foreground | block
                 button .inline-flex shrink-0 items-center justify-center rounded-md font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:opacity-60 disabled:cursor-default bg-primary text-primary-foreground hover:bg-primary-hover shadow-sm h-8 px-3 text-[13px] gap-2 | flex row nowrap center center
                   svg .lucide lucide-plus size-3.5 | block
             section .rounded-lg border bg-background px-4 pb-2 pt-3 | block
@@ -52,7 +50,9 @@ div | block
               div .flex items-center gap-2 | flex row nowrap center normal
                 button .inline-flex shrink-0 items-center justify-center rounded-md font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:opacity-60 disabled:cursor-default bg-background text-foreground border border-border-strong hover:bg-muted shadow-sm h-8 px-3 text-[13px] gap-2 min-h-11 | flex row nowrap center center
                   svg .lucide lucide-sliders-horizontal size-3.5 | block
-                div .min-w-0 flex-1 | block
+                span .flex h-8 items-center gap-2 rounded-md border bg-background px-2.5 text-muted-foreground shadow-sm focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20 border-border-strong min-w-0 flex-1 sm:w-72 sm:flex-initial min-h-11 | flex row nowrap center normal
+                  svg .lucide lucide-search size-4 | block
+                  input .min-w-0 flex-1 bg-transparent text-[13px] text-foreground outline-none placeholder:text-faint-foreground | block
             div .flex min-h-0 flex-col overflow-hidden rounded-lg border bg-background flex-1 | flex column nowrap normal normal
               div role=grid .relative min-h-0 flex-1 overflow-y-auto overflow-x-hidden | block relative
                 div | block

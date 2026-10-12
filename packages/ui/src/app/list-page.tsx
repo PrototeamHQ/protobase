@@ -4,7 +4,7 @@ import { createWhere, tableDisplay, type FilterExpr, type ResourceModel } from '
 import { PageHeader } from '../app-shell'
 import { useAuth } from '../auth'
 import { DataGrid, pinnedStorageKey, type GridRow } from '../data-grid'
-import { ActiveFilterChips, FilterPanel, ToolbarRow, activeChips, emptyFilterState, removeChip, type FilterState } from '../filter-panel'
+import { ActiveFilterChips, FilterPanel, FilterSection, ToolbarRow, activeChips, emptyFilterState, removeChip, type FilterState } from '../filter-panel'
 import { useIsDesktop } from '../lib/use-media-query'
 import { columnsFromModel } from '../live/columns-from-model'
 import { stateToText, textToState } from '../live/filter-string'
@@ -87,11 +87,19 @@ const LoadedList = ({ model, address }: { model: ResourceModel; address: ListAdd
   }
   const plural = view?.names?.plural ?? humanize(resource)
   const sortMenu = display && <SortMenu model={model} view={view} display={display} orderBy={orderBy} onChange={(next) => set({ orderBy: next })} />
-  const searchBox = model.search?.length ? <ListSearch value={search?.kind === 'search' ? search.text : ''} onCommit={commitSearch} placeholder={`Search ${plural.toLowerCase()}`} /> : null
-  // On a desktop the sort, the filters and the search share one row below the title; a phone keeps them in the title's actions
-  const panel = <FilterPanel layout={layout} config={config} value={state} onChange={setFilter} leading={sortMenu} trailing={searchBox} />
+  const searchBox = model.search?.length ? <ListSearch value={search?.kind === 'search' ? search.text : ''} onCommit={commitSearch} placeholder={`Search ${plural.toLowerCase()}`} className={desktop ? undefined : 'min-h-11'} /> : null
+  // On a desktop the sort, the filters and the search share one row below the title; a phone has the filters button
+  // beside the search, and the sort in the filters sheet
+  // The side panel layout leaves the sort and the search in a row of their own
+  const panel = <FilterPanel layout={layout} config={config} value={state} onChange={setFilter} leading={layout === 'bar' ? sortMenu : undefined} trailing={searchBox} />
   const desktopToolbar = layout === 'bar' ? panel : <ToolbarRow groups={[sortMenu ? [sortMenu] : []]} trailing={searchBox} />
   const chips = activeChips(config, state)
+  const chipsRow = <ActiveFilterChips scroll chips={chips} onRemove={(key) => setFilter(removeChip(state, key))} onClear={() => setFilter(emptyFilterState)} />
+  const phoneSort = display && (
+    <FilterSection title="Sort">
+      <SortMenu model={model} view={view} display={display} orderBy={orderBy} onChange={(next) => set({ orderBy: next })} className="min-h-11 w-full" />
+    </FilterSection>
+  )
   const phoneFilters = (
     <div className="flex flex-col gap-2">
       <div className="flex items-center gap-2">
@@ -99,15 +107,21 @@ const LoadedList = ({ model, address }: { model: ResourceModel; address: ListAdd
           <SlidersHorizontal className="size-3.5" />
           Filters{chips.length > 0 && ` (${chips.length})`}
         </Button>
-        <div className="min-w-0 flex-1">
-          <ActiveFilterChips scroll chips={chips} onRemove={(key) => setFilter(removeChip(state, key))} onClear={() => setFilter(emptyFilterState)} />
-        </div>
+        {searchBox ?? <div className="min-w-0 flex-1">{chipsRow}</div>}
       </div>
+      {searchBox && chipsRow}
       <Sheet title="Filters" open={sheetOpen} onClose={() => setSheetOpen(false)}>
-        <FilterPanel layout="panel" fullWidth config={config} value={state} onChange={setFilter} />
+        <FilterPanel layout="panel" fullWidth config={config} value={state} onChange={setFilter} leading={phoneSort} />
       </Sheet>
     </div>
   )
+  const createButton = can(permissions, 'create') && (
+    <Button variant="primary" onClick={() => go({ kind: 'create', resource })}>
+      <Plus className="size-3.5" />
+      New {singular.toLowerCase()}
+    </Button>
+  )
+  const displaySwitch = (menu: boolean) => <DisplaySwitch view={view} value={display?.name ?? tableDisplay} onChange={(name) => set({ display: name })} menu={menu} />
 
   const openRecord = (row: GridRow) => go({ kind: 'record', resource, key: recordKey(model, row) })
 
@@ -138,18 +152,16 @@ const LoadedList = ({ model, address }: { model: ResourceModel; address: ListAdd
       <PageHeader
         title={plural}
         subtitle={view?.help}
+        aside={!desktop && displaySwitch(true)}
         actions={
-          <>
-            <DisplaySwitch view={view} value={display?.name ?? tableDisplay} onChange={(name) => set({ display: name })} />
-            {!desktop && sortMenu}
-            {!desktop && searchBox}
-            {can(permissions, 'create') && (
-              <Button variant="primary" onClick={() => go({ kind: 'create', resource })}>
-                <Plus className="size-3.5" />
-                New {singular.toLowerCase()}
-              </Button>
-            )}
-          </>
+          desktop ? (
+            <>
+              {displaySwitch(false)}
+              {createButton}
+            </>
+          ) : (
+            createButton
+          )
         }
       />
       {!parsed.ok && <ErrorBanner title="The filter in the address could not be read" error={new Error(parsed.errors.map((error) => error.message).join('; '))} />}

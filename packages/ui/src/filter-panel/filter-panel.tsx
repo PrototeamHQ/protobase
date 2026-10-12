@@ -22,7 +22,7 @@ export type FilterPanelProps = {
   lockedLabels?: string[]
   /** Bar layout only: id of a filter menu that starts open. */
   defaultOpenMenu?: string
-  /** Bar layout only: controls before the filters in their row, such as the sort. */
+  /** Controls before the filters, such as the sort: in their row in the bar layout, at the top of the panel layout. */
   leading?: ReactNode
   /** Bar layout only: a control at the end of the filters' row, such as the search. */
   trailing?: ReactNode
@@ -56,6 +56,7 @@ export const FilterPanel = ({ config, layout, value, defaultValue, onChange, loc
           <h2 className="text-[13px] font-semibold">Filters</h2>
         </div>
         {(chips.length > 0 || (lockedLabels?.length ?? 0) > 0) && <div className="border-b pb-3">{chipsView}</div>}
+        {leading}
         {config.facets.map((group) => (
           <FilterSection key={group.id} title={group.label}>
             {facetView(group)}
