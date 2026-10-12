@@ -45,9 +45,9 @@ export const problemOf = (error: unknown): HttpProblem | undefined =>
   : undefined
 
 /** The single place where errors become responses: RFC 9457 problems, never raw error messages for unexpected failures. */
-export const createErrorHandler = (onUnhandledError?: (error: unknown) => void) => (error: Error, c: Context) => {
+export const createErrorHandler = (onUnhandledError?: (error: unknown, request?: Request) => void) => (error: Error, c: Context) => {
   const known = problemOf(error)
   if (known) return problemResponse(known, c.req.path)
-  onUnhandledError?.(error)
+  onUnhandledError?.(error, c.req.raw)
   return problemResponse(new HttpProblem(500, 'internal-error', titles[500]!, 'The server failed to handle the request'), c.req.path)
 }

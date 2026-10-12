@@ -67,6 +67,7 @@ const appDependencies = [
   '@tanstack/react-table',
   '@tanstack/react-virtual',
   'recharts',
+  '@sentry/browser',
 ]
 
 export const runDev = async (options: DevOptions, out: (text: string) => void) => {

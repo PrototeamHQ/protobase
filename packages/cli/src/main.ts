@@ -13,9 +13,11 @@ import { loadNearestEnvFile } from './dev/env'
 import { runDev } from './dev/run'
 import { runDoctor } from './doctor/run'
 import { resolveExtensions } from './project/extensions'
+import { projectErrorReporter } from './project/error-reporter'
 import { runScaffold } from './scaffold/run'
 import { serveBundle } from './serve/serve-bundle'
 import { serveBundleDir } from './serve/serve-dir'
+import { reportCrashes } from './serve/crash-reports'
 import { closeOnSignals } from './serve/signals'
 import { loadWorkerBundle, startWorker } from './worker/start-worker'
 import { registerOrganizations } from './organizations/register'
@@ -169,7 +171,10 @@ program
   .argument('<bundle>', 'the bundle folder, e.g. dist, or its dist/protobase.config.js')
   .action(async (bundle: string) => {
     loadNearestEnvFile(process.cwd())
-    const worker = await startWorker({ project: await loadWorkerBundle(bundle), databaseUrl: process.env.DATABASE_URL || undefined })
+    const project = await loadWorkerBundle(bundle)
+    const reporter = await projectErrorReporter(project, process.env)
+    if (reporter) reportCrashes(reporter)
+    const worker = await startWorker({ project, databaseUrl: process.env.DATABASE_URL || undefined })
     closeOnSignals(worker.stop)
     out(`protobase worker running ${worker.jobs} job${worker.jobs === 1 ? '' : 's'}\n`)
   })

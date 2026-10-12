@@ -15,6 +15,7 @@ import { bottomBarFromMeta } from './bottom-bar-from-meta'
 import { breadcrumbFor } from './breadcrumb-for'
 import { CreatePage } from './create/create-page'
 import { ListPage } from './list-page'
+import { startErrorReporting } from './error-reporting'
 import { MetaGate, Notice, useAdminMeta } from './meta-gate'
 import { InvitationsPage } from '../organizations/invitations-page'
 import { MembersPage } from '../organizations/members-page'
@@ -110,6 +111,11 @@ const Routes = ({ workspace, sidebarMode, assistant, runtime }: Pick<AppProps, '
   const assistantUrl = meta.assistant?.url
   const assistantButton = assistantUrl && <AssistantButton open={assistantOpen} onToggle={() => setAssistantOpen(!assistantOpen)} />
   const assistantPanel = assistantUrl && assistantOpen && <AssistantPanel url={assistantUrl} client={assistant} page={params.size > 0 ? `${path}?${params}` : path} onClose={() => setAssistantOpen(false)} />
+  // The app's errors go to the error tracker `/meta` names, when the app reports them.
+  const errorReporting = meta.errorReporting
+  useEffect(() => {
+    if (errorReporting) void startErrorReporting(errorReporting)
+  }, [errorReporting])
   // The update button is there when `/meta` names a runtime endpoint, which it does only for the admin role.
   const runtimeUrl = meta.runtime?.url
   const runtimeButton = runtimeUrl && <RuntimeUpdateButton url={runtimeUrl} client={runtime} />

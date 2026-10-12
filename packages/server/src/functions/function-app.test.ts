@@ -36,6 +36,6 @@ describe('functionApp', () => {
     const missing = await routes.request('/api/functions/shop/nothing')
     expect([missing.status, (await missing.json()).detail]).toEqual([404, 'There is no route at /nothing'])
     expect((await routes.request('/api/functions/shop/broken')).status).toBe(500)
-    expect(onUnhandledError).toHaveBeenCalledWith(new Error('boom'))
+    expect(onUnhandledError).toHaveBeenCalledWith(new Error('boom'), expect.any(Request))
   })
 })

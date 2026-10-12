@@ -1,5 +1,6 @@
 import { Hono } from 'hono'
 import { checkAuthSchema, checkChanges, checkWebhooksSchema, configExports, hasUsers } from '@protobase/server'
+import { projectErrorReporter } from '../project/error-reporter'
 import { projectAdmin } from '../project/project-admin'
 import { devJobs } from './dev-jobs'
 import { loadProject, projectDb } from './project'
@@ -26,7 +27,9 @@ if (project.auth && !store.__protobaseAuthSchemaChecked) {
 await checkChanges(db, resources.map((resource) => resource.toModel()), project.events)
 if (project.webhooks) await checkWebhooksSchema(db, project.webhooks)
 
-const { admin, jobs } = projectAdmin({ ...project, authenticate: project.authenticate }, project.exports, db)
+// With a DSN set, the API's 500s go to the error tracker too; a crash is the terminal's to show.
+const reporter = await projectErrorReporter(project, process.env)
+const { admin, jobs } = projectAdmin({ ...project, authenticate: project.authenticate }, project.exports, db, undefined, reporter)
 
 // The project's jobs and the delivery of its events, run in this server; a behind jobs schema stops startup with the
 // command that writes its migration.

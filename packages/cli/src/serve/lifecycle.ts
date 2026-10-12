@@ -3,7 +3,7 @@ import type { AddressInfo } from 'node:net'
 import { createAdaptorServer } from '@hono/node-server'
 import pg from 'pg'
 import type { Db } from '@protobase/query'
-import { checkAuthSchema, checkChanges, checkJobsSchema, checkWebhooksSchema, configExports, createFileCleanup, startJobs } from '@protobase/server'
+import { checkAuthSchema, checkChanges, checkJobsSchema, checkWebhooksSchema, configExports, createFileCleanup, startJobs, type ErrorReporter } from '@protobase/server'
 import { projectAdmin } from '../project/project-admin'
 import { createPgDb } from '../project/pg-db'
 import { createServeApp, type ServedSite } from './app'
@@ -21,6 +21,8 @@ export type ServeOptions = {
   site?: ServedSite
   // The plugins the bundle carries, which `/meta` names.
   ui?: BundleUi
+  // Where the API's 500s go besides the console.
+  reporter?: ErrorReporter
 }
 
 export type RunningServer = { port: number; close: () => Promise<void> }
@@ -42,7 +44,7 @@ const closeServer = (server: Server) =>
 // start while the auth schema, the change capture of resources with events or the jobs schema is behind, which it only
 // reads: the project's migrations change them, before the new version serves. With jobs it runs them too, unless
 // `runJobs` is off; with file fields it runs their scheduled deletes every `filesCleanupMinutes`.
-export const startServe = async ({ project, env, createDb = (url) => createPgDb(pg, url), site, ui }: ServeOptions): Promise<RunningServer> => {
+export const startServe = async ({ project, env, createDb = (url) => createPgDb(pg, url), site, ui, reporter }: ServeOptions): Promise<RunningServer> => {
   if (!project.db && !env.databaseUrl) throw new Error('No database: set DATABASE_URL or export `db` from protobase.config.ts')
   if (project.auth) await checkAuthSchema(project.auth)
   const ownDb = project.db ? undefined : createDb(env.databaseUrl!)
@@ -51,7 +53,7 @@ export const startServe = async ({ project, env, createDb = (url) => createPgDb(
   const startJobsAndListen = async () => {
     await checkChanges(db, resources.map((resource) => resource.toModel()), project.events)
     if (project.webhooks) await checkWebhooksSchema(db, project.webhooks)
-    const { admin, jobs: definitions } = projectAdmin(project, project.config, db, ui)
+    const { admin, jobs: definitions } = projectAdmin(project, project.config, db, ui, reporter)
     if (definitions.length > 0) await checkJobsSchema(db)
     const jobs = definitions.length > 0 ? await startJobs({ db, jobs: definitions, work: env.runJobs, onError: (error) => console.error(error) }) : undefined
     const app = createServeApp({ admin, requestLog: env.requestLog, site, ...(jobs && { jobs }), ...(env.drainToken && { drainToken: env.drainToken }) })

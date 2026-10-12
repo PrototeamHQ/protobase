@@ -3,6 +3,7 @@ import { bottomBarFor, pickView, type BottomBarItemModel, type ResourceModel, ty
 import { activeRole } from './active-role'
 import { seesAssistant } from './assistant/assistant-settings'
 import type { Deps } from './deps'
+import type { ErrorReportingSettings } from './error-reporting/error-reporting-settings'
 import { sha256Hex, stableJson } from './hash'
 import { pluginsFor, type PluginRef } from './plugins/plugin-settings'
 import { requestAccess } from './request-access'
@@ -34,6 +35,8 @@ export type CallerMeta = {
   assistant?: { url: string }
   /** The runtime updates endpoint, for a caller with the `admin` role when the app has one. */
   runtime?: { url: string }
+  /** Where the admin app sends its errors, when the app reports them: the DSN is public, as in any browser app. */
+  errorReporting?: ErrorReportingSettings
   /** The plugins the admin app loads for the caller: those for everyone, and those for one of their roles. */
   plugins?: PluginRef[]
   /** The other APIs whose resources the admin app draws for the caller: those for everyone, and those for one of their roles. */
@@ -87,6 +90,7 @@ export const createMeta = (deps: Deps) => {
       ...(bar && barItems.length > 0 && { bottomBar: { label: bar.label, items: barItems } }),
       ...(deps.assistant && seesAssistant(session.user.roles) && { assistant: { url: deps.assistant } }),
       ...(deps.runtime && seesRuntime(session.user.roles) && { runtime: { url: deps.runtime } }),
+      ...(deps.errorReporting && { errorReporting: deps.errorReporting }),
       ...(plugins.length > 0 && { plugins }),
       ...(sources.length > 0 && { sources }),
     }

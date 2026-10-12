@@ -20,6 +20,7 @@ import type { SubscriptionDefinition } from './webhooks/subscription'
 import { checkBottomBars, checkShell } from './check-shell'
 import { checkViews } from './check-views'
 import { createErrorHandler } from './error-handler'
+import { errorReportingSettings } from './error-reporting/error-reporting-settings'
 import type { FilesOptions } from './files/options'
 import { fileRoutes } from './files/routes'
 import { createFilesRuntime } from './files/runtime'
@@ -112,6 +113,7 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], pag
   const systemPath = basePath.slice(0, basePath.lastIndexOf('/'))
   const assistant = assistantSettings(options.assistant, globalThis.process?.env ?? {})
   const runtime = runtimeUrl(options.runtime, globalThis.process?.env ?? {})
+  const errorReporting = errorReportingSettings(options.errorReporting, globalThis.process?.env ?? {})
   const plugins = pluginOptions(options.plugins, globalThis.process?.env ?? {}, bundlePlugins)
   const sources = sourceOptions(options.sources, globalThis.process?.env ?? {})
   checkSourceNames(sources, { resources: registry.entries.map((entry) => entry.name), pages: pageModels.map((entry) => entry.name) })
@@ -134,6 +136,7 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], pag
     rowPermissions: (resource: string) => (typeof options.rowPermissions === 'object' ? !options.rowPermissions.except.includes(resource) : options.rowPermissions !== false),
     ...(assistant && { assistant: assistant.kind === 'external' ? assistant.url : `${systemPath}/assistant` }),
     ...(runtime && { runtime }),
+    ...(errorReporting && { errorReporting }),
     plugins,
     sources,
     ...(files && { files }),

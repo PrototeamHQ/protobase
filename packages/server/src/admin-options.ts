@@ -1,6 +1,7 @@
 import type { ResolveOptions } from '@protobase/schema'
 import type { CorsOrigins } from './api-cors'
 import type { AssistantOptions } from './assistant/assistant-settings'
+import type { ErrorReportingOptions } from './error-reporting/error-reporting-settings'
 import type { PluginOption } from './plugins/plugin-settings'
 import type { RuntimeOptions } from './runtime/runtime-settings'
 import type { SourceOption } from './sources/source-settings'
@@ -23,8 +24,13 @@ export type AdminOptions = {
   rowPermissions?: boolean | { except: string[] }
   /** Receives an event for every reveal of a sensitive field. Default: printed to the console, nothing kept. */
   audit?: AuditQueue
-  /** Called with every error the API turns into a 500, so the host can report it. */
-  onUnhandledError?: (error: unknown) => void
+  /** Called with every error the API turns into a 500, and the request it failed, so the host can report it. */
+  onUnhandledError?: (error: unknown, request?: Request) => void
+  /**
+   * Where the app's errors go: the server's 500s and crashes, and the admin app's errors in the browser (see
+   * `ErrorReportingOptions`). Defaults to the DSN the platform passes in `PROTOBASE_SENTRY_DSN`; `false` turns it off.
+   */
+  errorReporting?: ErrorReportingOptions | false
   /** The assistant in the admin app's dock: a backend elsewhere or the built-in one (see `AssistantOptions`); `false` turns it off. */
   assistant?: AssistantOptions | false
   /**

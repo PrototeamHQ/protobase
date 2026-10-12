@@ -1,4 +1,5 @@
-import { Component, type ReactNode } from 'react'
+import { Component, type ErrorInfo, type ReactNode } from 'react'
+import { reportRenderError } from '../error-reporting'
 import { Problem } from './problem'
 
 type CustomBoundaryProps = {
@@ -15,6 +16,10 @@ export class CustomBoundary extends Component<CustomBoundaryProps, { failed: boo
 
   static getDerivedStateFromError() {
     return { failed: true }
+  }
+
+  override componentDidCatch(error: unknown, info: ErrorInfo) {
+    reportRenderError(error, info.componentStack)
   }
 
   override render() {

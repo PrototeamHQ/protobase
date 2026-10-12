@@ -1,6 +1,7 @@
 import type { PageModel } from '@protobase/layout'
 import type { Db } from '@protobase/query'
 import type { BottomBarModel, ResolveOptions, UserMenuModel, ViewModel } from '@protobase/schema'
+import type { ErrorReportingSettings } from './error-reporting/error-reporting-settings'
 import type { FilesRuntime } from './files/runtime'
 import type { PluginOption } from './plugins/plugin-settings'
 import type { Registry } from './registry'
@@ -32,6 +33,8 @@ export type Deps = {
   assistant?: string
   /** The URL of the runtime updates endpoint that `/meta` names to admins. */
   runtime?: string
+  /** Where the admin app sends its errors, which `/meta` names to everyone. */
+  errorReporting?: ErrorReportingSettings
   /** The plugins `/meta` names to the callers they are for. */
   plugins: PluginOption[]
   /** The other APIs whose resources `/meta` names to the callers they are for. */

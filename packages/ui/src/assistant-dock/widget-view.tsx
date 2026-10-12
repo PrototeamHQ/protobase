@@ -1,6 +1,7 @@
-import { Component, type ReactNode } from 'react'
+import { Component, type ErrorInfo, type ReactNode } from 'react'
 import type { AssistantWidgetPart } from '@protobase/schema'
 import { ActionCard } from '../action-card'
+import { reportRenderError } from '../app/error-reporting'
 import { useProjectUi } from '../app/pages/project-ui'
 
 /** The part's fallback as a plain card with `note`, or a muted line naming the component when it has none. */
@@ -19,6 +20,10 @@ class WidgetBoundary extends Component<{ part: AssistantWidgetPart; children: Re
 
   static getDerivedStateFromError() {
     return { failed: true }
+  }
+
+  override componentDidCatch(error: unknown, info: ErrorInfo) {
+    reportRenderError(error, info.componentStack)
   }
 
   override render() {
