@@ -37,7 +37,14 @@ export type UiModule = { readonly default?: ProjectUi; readonly [name: string]: 
 /** Typed identity, for `export default defineUi({ extends, components, actions })` in `protobase.ui.tsx`. */
 export const defineUi = (ui: ProjectUi) => ui
 
-/** The project's UI, merged with the UI configs it extends; `ProjectUiProvider` provides it. */
+/**
+ * Typed identity, for `export default definePlugin({ name, components, actions, shell })` in a plugin's
+ * `protobase.ui.tsx`: a plugin is a UI config the app loads at runtime instead of building it in, its components
+ * exported by name as in a project's.
+ */
+export const definePlugin = (plugin: ProjectUi) => plugin
+
+/** The project's UI, merged with the UI configs it extends and the plugins loaded; `PluginGate` or `ProjectUiProvider` provides it. */
 export const ProjectUiContext = createContext<ProjectUi>({})
 
 export const useProjectUi = () => useContext(ProjectUiContext)

@@ -11,6 +11,7 @@ export default defineConfig({
   deps: { neverBundle: [/\.css$/, 'virtual:protobase-project-ui'] },
   copy: [
     { from: 'src/styles.css', to: 'dist' },
+    { from: 'src/theme.css', to: 'dist' },
     { from: 'src/filter-panel/range-slider.css', to: 'dist/filter-panel' },
     { from: 'src/app/index.html', to: 'dist/app' },
   ],

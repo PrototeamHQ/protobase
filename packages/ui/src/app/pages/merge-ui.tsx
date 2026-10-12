@@ -4,6 +4,11 @@ import { uiFromModule } from './ui-from-module'
 
 type Named = { ui: ProjectUi; label: string }
 
+/** Two UI configs define one component or action handler differently. */
+export class UiConflictError extends Error {
+  override name = 'UiConflictError'
+}
+
 // A module has a default export or components exported by name; a UI config has neither.
 const configOf = (parent: ProjectUi | UiModule): ProjectUi => (Object.keys(parent).some((key) => key === 'default' || /^[A-Z]/.test(key)) ? uiFromModule(parent) : (parent as ProjectUi))
 
@@ -19,7 +24,7 @@ const union = <T,>(kind: string, named: Named[], pick: (ui: ProjectUi) => Record
   const owners = new Map<string, string>()
   for (const { ui, label } of named) {
     for (const [name, value] of Object.entries(pick(ui) ?? {})) {
-      if (Object.hasOwn(merged, name) && merged[name] !== value) throw new Error(`${kind} "${name}" is defined twice, by ${owners.get(name)} and by ${label}; rename one of them`)
+      if (Object.hasOwn(merged, name) && merged[name] !== value) throw new UiConflictError(`${kind} "${name}" is defined twice, by ${owners.get(name)} and by ${label}; rename one of them`)
       merged[name] = value
       owners.set(name, owners.get(name) ?? label)
     }

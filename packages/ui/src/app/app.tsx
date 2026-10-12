@@ -26,8 +26,11 @@ import { actingUser } from '../roles/acting-user'
 import { useActiveRole } from '../roles/use-active-role'
 import { navFromMeta } from './nav-from-meta'
 import { ComposedPage } from './pages/composed-page'
+import { CustomBoundary } from './pages/custom-boundary'
 import { useProjectUi, type ProjectUi } from './pages/project-ui'
-import { ProjectUiProvider } from './pages/project-ui-provider'
+import type { PluginLoader } from '../plugins/load-plugin'
+import { PluginGate, usePluginsOff } from '../plugins/plugin-gate'
+import { PluginNotice } from '../plugins/plugin-notice'
 import { RecordPage } from './record-page'
 import { useGlobalSearch } from './search/use-global-search'
 import { Router, useRouter } from './router'
@@ -56,6 +59,8 @@ export type AppProps = {
   assistant?: AssistantClient
   /** A ready-made client of the runtime endpoint, for stories and tests; used only when `/meta` names one. */
   runtime?: RuntimeClient
+  /** How the plugins `/meta` names are loaded, for stories and tests; the page's `fetch` and `import()` by default. */
+  pluginLoader?: PluginLoader
 }
 
 // The resource or page an address is about, which the sidebar marks; a record's key, which its recent records mark.
@@ -106,6 +111,8 @@ const Routes = ({ workspace, sidebarMode, assistant, runtime }: Pick<AppProps, '
   const role = useActiveRole(useCallback(() => reopenIn(basePath), [basePath]))
   const acting = actingUser(user, role.current)
   const admin = isAdmin(acting)
+  // Admins hear about plugins the app should load but did not, and why
+  const pluginsOff = usePluginsOff()
   // With organizations, the app works in one at a time; someone in none chooses or makes one first.
   const organizations = useOrganizations(Boolean(organizationSettings))
   const current = organizations.current
@@ -158,32 +165,35 @@ const Routes = ({ workspace, sidebarMode, assistant, runtime }: Pick<AppProps, '
       roles={role.current?.active ? { active: role.current.active, roles: role.current.roles, onSwitch: role.switchTo } : undefined}
       onNavigate={open}
       search={search.available ? { placeholder: search.placeholder, text: search.text, onTextChange: search.setText, query: search.query, loading: search.loading, groups: search.groups, onSelect: open } : undefined}
-      actions={(Actions || runtimeButton || assistantButton) && <>{Actions && <Actions />}{runtimeButton}{assistantButton}</>}
-      rightPanel={(RightPanel || assistantPanel) && <>{RightPanel && <RightPanel />}{assistantPanel}</>}
+      actions={(Actions || runtimeButton || assistantButton) && <>{Actions && <CustomBoundary name="shell.actions" fallback={null}><Actions /></CustomBoundary>}{runtimeButton}{assistantButton}</>}
+      rightPanel={(RightPanel || assistantPanel) && <>{RightPanel && <CustomBoundary name="shell.rightPanel" fallback={null}><RightPanel /></CustomBoundary>}{assistantPanel}</>}
     >
       {content}
     </AppShell>
   )
-  if (!staff) return appShell
-  // Staff signed in as the user: the banner stays above the whole shell until they stop or the session ends.
+  const pluginNotice = admin && pluginsOff.length > 0
+  if (!staff && !pluginNotice) return appShell
+  // Staff signed in as the user: the banner stays above the whole shell until they stop or the session ends. Below it,
+  // the plugins that are off, for an admin.
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <StaffBanner signIn={staff} onStop={stopStaffSession} />
+      {staff && <StaffBanner signIn={staff} onStop={stopStaffSession} />}
+      {pluginNotice && <PluginNotice off={pluginsOff} />}
       <div className="min-h-0 flex-1">{appShell}</div>
     </div>
   )
 }
 
-const Authenticated = ({ baseUrl, client, basePath, initialUrl, workspace, sidebarMode, ui, assistant, runtime }: Omit<AppProps, 'auth'>) => {
+const Authenticated = ({ baseUrl, client, basePath, initialUrl, workspace, sidebarMode, ui, assistant, runtime, pluginLoader }: Omit<AppProps, 'auth'>) => {
   const { session, markSignedOut } = useAuth()
   return (
     <ApiProvider baseUrl={baseUrl} client={client} token={session.token} onUnauthenticated={markSignedOut}>
       <Router basePath={basePath} initialUrl={initialUrl}>
         <MetaGate>
           <ToastProvider>
-            <ProjectUiProvider ui={ui}>
+            <PluginGate ui={ui} {...(pluginLoader && { loader: pluginLoader })}>
               <Routes workspace={workspace} sidebarMode={sidebarMode} assistant={assistant} runtime={runtime} />
-            </ProjectUiProvider>
+            </PluginGate>
           </ToastProvider>
         </MetaGate>
       </Router>

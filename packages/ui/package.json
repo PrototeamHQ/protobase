@@ -10,6 +10,9 @@
   },
   "homepage": "https://docs.protobase.net",
   "type": "module",
+  "protobase": {
+    "pluginApi": 1
+  },
   "sideEffects": [
     "*.css",
     "./dist/app/main.js"
@@ -18,7 +21,8 @@
     "node": ">=22.12.0"
   },
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./theme.css": "./src/theme.css"
   },
   "types": "./src/index.ts",
   "files": [
@@ -31,7 +35,8 @@
   "publishConfig": {
     "access": "public",
     "exports": {
-      ".": "./dist/index.js"
+      ".": "./dist/index.js",
+      "./theme.css": "./dist/theme.css"
     },
     "types": "./dist/index.d.ts"
   },

@@ -15,6 +15,7 @@ import { RecordCardBlock } from './blocks/record-card'
 import { ShowBlock } from './blocks/show'
 import { StatBlock } from './blocks/stat'
 import { TableBlock } from './blocks/table'
+import { CustomBoundary } from './custom-boundary'
 import { Problem } from './problem'
 import { useProjectUi } from './project-ui'
 
@@ -66,9 +67,13 @@ export const RenderNode = ({ node }: { node: LayoutNode }) => {
   const { components } = useProjectUi()
   if (node.custom) {
     const Custom = components?.[node.type]
-    if (!Custom) return <Problem>No component is registered as {node.type}. Add it to the components in protobase.ui.tsx.</Problem>
+    if (!Custom) return <Problem>No component is registered as {node.type}. Export it from protobase.ui.tsx, or load the plugin that provides it.</Problem>
     // Field references reach the component as the names they reference
-    return <Custom {...unmarkFieldRefs(node.props)}>{node.children.length > 0 ? renderChildren(node.children) : undefined}</Custom>
+    return (
+      <CustomBoundary name={node.type}>
+        <Custom {...unmarkFieldRefs(node.props)}>{node.children.length > 0 ? renderChildren(node.children) : undefined}</Custom>
+      </CustomBoundary>
+    )
   }
   const Block = blocks[node.type]
   if (!Block) return <Problem>{node.type} is not a block this version of the app knows.</Problem>

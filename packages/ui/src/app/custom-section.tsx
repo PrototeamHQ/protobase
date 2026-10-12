@@ -1,5 +1,6 @@
 import { unmarkFieldRefs, type CustomSectionModel } from '@protobase/schema'
 import { Section, SidebarCard } from '../record-view'
+import { CustomBoundary } from './pages/custom-boundary'
 import { Problem } from './pages/problem'
 import { useProjectUi } from './pages/project-ui'
 import { RecordScope, type LayoutRecord } from './pages/record-scope'
@@ -13,10 +14,12 @@ export const CustomSection = ({ item, scope }: { item: CustomSectionModel; scope
   const Component = components?.[item.component]
   const body = Component ? (
     <RecordScope value={scope}>
-      <Component {...unmarkFieldRefs(item.props ?? {})} />
+      <CustomBoundary name={item.component}>
+        <Component {...unmarkFieldRefs(item.props ?? {})} />
+      </CustomBoundary>
     </RecordScope>
   ) : (
-    <Problem>No component is registered as {item.component}. Export it from protobase.ui.tsx.</Problem>
+    <Problem>No component is registered as {item.component}. Export it from protobase.ui.tsx, or load the plugin that provides it.</Problem>
   )
   if (item.sidebar) return item.title ? <SidebarCard title={item.title}>{body}</SidebarCard> : body
   return item.title ? <Section title={item.title}>{body}</Section> : <section className="py-8">{body}</section>
