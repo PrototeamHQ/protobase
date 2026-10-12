@@ -2,6 +2,18 @@
 
 Every release of Protobase, cut by the release workflow from the commits since the last one (see the [versioning page](https://docs.protobase.net/reference/versioning/)).
 
+## [0.12.8](https://github.com/PrototeamHQ/protobase/compare/v0.12.7...v0.12.8) (2026-10-12)
+
+### Features
+
+* **schema:** a capability lists the fields and rows a role gets, and the anonymous role only reads ([d3acfda](https://github.com/PrototeamHQ/protobase/commit/d3acfda735c214778ce745d196d6093477e716fd))
+* **server:** requests without a token act as the anonymous role on the resources API ([07ac3bd](https://github.com/PrototeamHQ/protobase/commit/07ac3bd85830a70ed684277cd1e75b569808a899))
+* **server:** startup refuses role limits on fields, filters or resources that do not exist ([f41d636](https://github.com/PrototeamHQ/protobase/commit/f41d63645b040e3abec46b318c5ea73f12d6e224))
+
+### Bug Fixes
+
+* **ui:** the list's sort, filters and search share one row, and the view switch matches the buttons ([4b4f524](https://github.com/PrototeamHQ/protobase/commit/4b4f524a56134522a4f69334c5aa0217052c5550))
+
 ## [0.12.7](https://github.com/PrototeamHQ/protobase/compare/v0.12.6...v0.12.7) (2026-10-12)
 
 ### Bug Fixes
