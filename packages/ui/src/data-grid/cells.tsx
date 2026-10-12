@@ -23,7 +23,7 @@ export const renderCell = (spec: ColumnSpec, value: unknown) => {
     case 'id':
       return <span className="truncate font-mono text-xs text-muted-foreground">{String(value)}</span>
     case 'money':
-      return <span className="tabular-nums">{formatMoney(Number(value), spec.currency)}{spec.suffix}</span>
+      return <span className="tabular-nums">{formatMoney(Number(value), spec.currency, spec.decimals)}{spec.suffix}</span>
     case 'date':
       return <span className="tabular-nums text-muted-foreground">{formatDate(Number(value))}</span>
     case 'datetime':

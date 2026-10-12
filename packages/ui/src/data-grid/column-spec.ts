@@ -21,6 +21,8 @@ export type ColumnSpec = {
   /** Tints the column to mark it as new. */
   highlight?: boolean
   currency?: string
+  /** Decimals a `money` column shows instead of the currency's usual ones. */
+  decimals?: number
   /** Text after a number, such as a unit, for `number`, `signed` and `money` columns. */
   suffix?: string
   /** Badge tone per value, for `status` columns. */

@@ -53,6 +53,15 @@ describe('columnsFromModel', () => {
     expect(byId.status).not.toHaveProperty('shape')
   })
 
+  it("gives a money column the view's decimals, and room for its suffix", () => {
+    const rent = { ...model, fields: { ...model.fields, rent: field('rent', 'decimal') } } as ResourceModel
+    const hinted = { ...view, fields: { ...view.fields, rent: { prefix: '€', decimals: 0, suffix: ' /month' } }, list: { columns: ['rent', 'total'] } } as unknown as ViewModel
+    const [rentColumn, totalColumn] = columnsFromModel(rent, hinted)
+    expect(rentColumn).toMatchObject({ kind: 'money', decimals: 0, suffix: ' /month' })
+    expect(totalColumn).toMatchObject({ kind: 'money', decimals: 2 })
+    expect(rentColumn!.minWidth).toBeGreaterThan(totalColumn!.width)
+  })
+
   it('converts wire values for the cell renderers', () => {
     expect(byId.total?.value?.({ id: '1', total: '12.34' })).toBe(1234)
     expect(byId.discountPercent?.value?.({ id: '1', discountPercent: '5.00' })).toBe(5)

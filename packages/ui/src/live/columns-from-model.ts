@@ -85,19 +85,22 @@ export const columnsFromModel = (resource: ResourceModel, view: ViewModel | unde
     const viewField = view?.fields[name]
     const kind = kindOf(field, viewField, index)
     const labels = Object.fromEntries((field.enumValues ?? []).map((value) => [value, enumLabel(value, viewField?.valueLabels)]))
+    // Room for the suffix after the value, such as ` /month`, which a narrower column would cut off.
+    const suffixWidth = viewField?.suffix ? Math.ceil(viewField.suffix.length * 7.2) : 0
     const spec: ColumnSpec = {
       id: name,
       header: viewField?.label ?? humanize(name),
       kind,
-      width: name === 'name' ? 260 : widths[kind],
+      width: (name === 'name' ? 260 : widths[kind]) + suffixWidth,
       sortable: field.sortable,
-      minWidth: Math.max(kind === 'id' ? 150 : 0, headerWidth(viewField?.label ?? humanize(name), field.sortable), kind === 'status' ? badgeWidth(Object.values(labels)) : 0),
+      minWidth: Math.max(kind === 'id' ? 150 : 0, headerWidth(viewField?.label ?? humanize(name), field.sortable), kind === 'status' ? badgeWidth(Object.values(labels)) : 0, suffixWidth > 0 ? widths[kind] + suffixWidth : 0),
       ...(fixedKinds.has(kind) && { fixed: true }),
       ...(highlight.includes(name) && { highlight: true }),
       ...(field.type === 'enum' && { tones: Object.fromEntries((field.enumValues ?? []).map((value) => [value, toneFor(value)])), labels }),
       ...(field.type === 'enum' && viewField?.valueColors && { colors: viewField.valueColors }),
       ...(field.type === 'enum' && viewField?.badgeShape && { shape: viewField.badgeShape }),
       ...(viewField?.suffix !== undefined && { suffix: viewField.suffix }),
+      ...(kind === 'money' && viewField?.decimals !== undefined && { decimals: viewField.decimals }),
       ...(kind === 'money' && { currency: 'EUR', value: (row: { [key: string]: unknown }) => (row[name] == null ? null : currencyCents(row[name])) }),
       ...((kind === 'datetime' || kind === 'date') && { value: (row: { [key: string]: unknown }) => (row[name] == null ? null : Date.parse(String(row[name]))) }),
       ...((kind === 'percent' || (kind === 'number' && field.type === 'decimal')) && { value: (row: { [key: string]: unknown }) => (row[name] == null ? null : Number(row[name])) }),

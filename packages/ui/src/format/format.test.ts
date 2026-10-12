@@ -8,6 +8,11 @@ describe('formatMoney', () => {
   it('supports other currencies', () => {
     expect(formatMoney(5000, 'USD')).toContain('50.00')
   })
+  it('shows the decimals asked for', () => {
+    expect(formatMoney(145000, 'EUR', 0)).toBe('€1,450')
+    expect(formatMoney(145049, 'EUR', 0)).toBe('€1,450')
+    expect(formatMoney(145000)).toBe('€1,450.00')
+  })
 })
 
 describe('numbers', () => {
