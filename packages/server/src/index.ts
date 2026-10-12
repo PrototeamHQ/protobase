@@ -62,6 +62,7 @@ export { streamChatCompletion, ModelError, type ChatMessage, type ChatTextPart, 
 export { readOnlyQueryTool, readWriteQueryTool } from './assistant/query-tools'
 export { runReadOnlyQuery, runReadWriteQuery, type QueryOptions, type QueryResult } from './assistant/run-query'
 export { runtimeUrl, runtimeVariable, seesRuntime, type RuntimeOptions } from './runtime/runtime-settings'
+export { pluginOptions, pluginsFor, pluginsVariable, type PluginOption, type PluginRef } from './plugins/plugin-settings'
 export {
   defineFunction,
   type ApiFunction,

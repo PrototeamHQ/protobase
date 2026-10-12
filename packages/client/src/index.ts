@@ -16,6 +16,7 @@ export type {
   Meta,
   ResourcePermissions,
   MetaResult,
+  PluginRef,
   Stored,
   StoredFile,
   RecordPermissions,

@@ -2,6 +2,7 @@ import type { PageModel } from '@protobase/layout'
 import type { Db } from '@protobase/query'
 import type { BottomBarModel, ResolveOptions, UserMenuModel, ViewModel } from '@protobase/schema'
 import type { FilesRuntime } from './files/runtime'
+import type { PluginOption } from './plugins/plugin-settings'
 import type { Registry } from './registry'
 import type { ScanGuard } from './scan-guard'
 import type { AuditQueue, PipelineHook } from './types'
@@ -30,6 +31,8 @@ export type Deps = {
   assistant?: string
   /** The URL of the runtime updates endpoint that `/meta` names to admins. */
   runtime?: string
+  /** The plugins `/meta` names to the callers they are for. */
+  plugins: PluginOption[]
   /** Providers, signing and scheduled deletes, when a resource has a file field. */
   files?: FilesRuntime
   /** The transaction setting that tells the change capture who writes, when a resource has events (`changes.actor`). */

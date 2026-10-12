@@ -31,6 +31,7 @@ export const useMeta = () => {
         ...(result.meta.bottomBar && { bottomBar: result.meta.bottomBar }),
         ...(result.meta.assistant && { assistant: result.meta.assistant }),
         ...(result.meta.runtime && { runtime: result.meta.runtime }),
+        ...(result.meta.plugins && { plugins: result.meta.plugins }),
       }
     },
   })

@@ -48,8 +48,12 @@ export type ResourcePermissions = { read?: boolean; create: boolean; update: boo
  * `assistant`: the assistant backend, for a caller with the `admin` or `ai` role when the app has one.
  * `runtime`: the runtime updates endpoint, for a caller with the `admin` role when the app has one.
  * `bottomBar`: the tabs on phones, of the bottom bar that names the caller's active role.
+ * `plugins`: the plugins the admin app loads for the caller, each by its plugin.json.
  */
-export type Meta = { resources: ResourceModel[]; views: ViewModel[]; pages?: PageModel[]; permissions?: Record<string, ResourcePermissions>; userMenu?: UserMenuModel; bottomBar?: Omit<BottomBarModel, 'roles'>; assistant?: { url: string }; runtime?: { url: string } }
+export type Meta = { resources: ResourceModel[]; views: ViewModel[]; pages?: PageModel[]; permissions?: Record<string, ResourcePermissions>; userMenu?: UserMenuModel; bottomBar?: Omit<BottomBarModel, 'roles'>; assistant?: { url: string }; runtime?: { url: string }; plugins?: PluginRef[] }
+
+/** A plugin as `/meta` names it: the URL of its plugin.json, and the settings it reads with `usePlugin()`. */
+export type PluginRef = { url: string; settings?: Record<string, unknown> }
 
 export type MetaResult = { status: 'modified'; meta: Meta; etag: string } | { status: 'unchanged' }
 

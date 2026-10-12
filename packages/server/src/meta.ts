@@ -4,6 +4,7 @@ import { activeRole } from './active-role'
 import { seesAssistant } from './assistant/assistant-settings'
 import type { Deps } from './deps'
 import { sha256Hex, stableJson } from './hash'
+import { pluginsFor, type PluginRef } from './plugins/plugin-settings'
 import { requestAccess } from './request-access'
 import { seesRuntime } from './runtime/runtime-settings'
 import type { Session } from './types'
@@ -32,6 +33,8 @@ export type CallerMeta = {
   assistant?: { url: string }
   /** The runtime updates endpoint, for a caller with the `admin` role when the app has one. */
   runtime?: { url: string }
+  /** The plugins the admin app loads for the caller: those for everyone, and those for one of their roles. */
+  plugins?: PluginRef[]
 }
 
 const modelsHash = (deps: Deps) => sha256Hex(stableJson(deps.registry.entries.map((entry) => entry.model))).then((hash) => hash.slice(0, 32))
@@ -64,6 +67,7 @@ export const createMeta = (deps: Deps) => {
       item.kind === 'link' || (item.kind === 'resource' ? visible.some((access) => access.entry.name === item.resource) : pages.some((page) => page.name === item.page))
     const bar = bottomBarFor(deps.bottomBars, activeRole(session))
     const barItems = bar?.items.filter(shown) ?? []
+    const plugins = pluginsFor(deps.plugins, session.user.roles)
     const body: CallerMeta = {
       resources: visible.map((access) => access.readable),
       views,
@@ -79,6 +83,7 @@ export const createMeta = (deps: Deps) => {
       ...(bar && barItems.length > 0 && { bottomBar: { label: bar.label, items: barItems } }),
       ...(deps.assistant && seesAssistant(session.user.roles) && { assistant: { url: deps.assistant } }),
       ...(deps.runtime && seesRuntime(session.user.roles) && { runtime: { url: deps.runtime } }),
+      ...(plugins.length > 0 && { plugins }),
     }
     return { body, etag: `"${(await sha256Hex(stableJson(body))).slice(0, 32)}"` }
   }

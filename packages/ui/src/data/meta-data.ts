@@ -1,4 +1,4 @@
-import type { ResourcePermissions } from '@protobase/client'
+import type { PluginRef, ResourcePermissions } from '@protobase/client'
 import type { PageModel } from '@protobase/layout'
 import type { BottomBarModel, ResourceModel, UserMenuModel, ViewModel } from '@protobase/schema'
 
@@ -16,6 +16,8 @@ export type MetaData = {
   assistant?: { url: string }
   /** The runtime updates endpoint, when the app has one and the user has the admin role. */
   runtime?: { url: string }
+  /** The plugins the app loads for the user (see `PluginGate`). */
+  plugins?: PluginRef[]
 }
 
 export const allowEverything: ResourcePermissions = { create: true, update: true, delete: true, conditional: [] }

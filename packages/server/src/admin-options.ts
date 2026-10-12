@@ -1,6 +1,7 @@
 import type { ResolveOptions } from '@protobase/schema'
 import type { CorsOrigins } from './api-cors'
 import type { AssistantOptions } from './assistant/assistant-settings'
+import type { PluginOption } from './plugins/plugin-settings'
 import type { RuntimeOptions } from './runtime/runtime-settings'
 import type { AuditQueue, PipelineHook, ScanGuardMode } from './types'
 
@@ -34,4 +35,9 @@ export type AdminOptions = {
   cors?: CorsOrigins
   /** The runtime updates endpoint behind the top bar's update button (see `RuntimeOptions`); `false` turns it off. */
   runtime?: RuntimeOptions | false
+  /**
+   * The plugins the admin app loads (see `PluginOption`), before the ones the platform lists in `PROTOBASE_PLUGINS`;
+   * `false` turns both off.
+   */
+  plugins?: PluginOption[] | false
 }
