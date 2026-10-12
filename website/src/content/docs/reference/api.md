@@ -160,6 +160,7 @@ The API sends no CORS headers until it has something to allow: other websites in
 - It covers `/api/*` but Better Auth's `/api/auth/*`, which checks origins itself, and [API functions](/guides/api-functions/) with a `cors` of their own.
 - An allowed origin gets `Access-Control-Allow-Origin` with its name and `Vary: Origin`, or `*` with `'*'`. No credentials: browser code calls the API with a bearer token.
 - Preflights are answered before authentication, for `authorization`, `content-type`, `if-match` and `if-none-match`, and kept for 10 minutes. `Location`, `ETag`, `X-Meta-Version` and `X-Protobase-Warning` are exposed.
+- An API whose resources another app draws as [remote resources](/reference/remote-resources/#cors) lists that app's origin here.
 
 ## Safety
 

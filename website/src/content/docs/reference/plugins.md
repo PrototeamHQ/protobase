@@ -218,6 +218,8 @@ The plugins are merged in the order listed. Two of them cannot define one name: 
 
 `protobase dev` loads plugins the same way, its page sharing the same four modules. The project's own `protobase.ui.tsx` is built into the dev page with hot reload instead, merged after the plugins, and keeps its names over theirs.
 
+The components a [remote resource](/reference/remote-resources/#custom-components)'s view names are drawn from the same plugins, by name, so whoever runs a source lists the plugin that provides them with it. Inside one, `useList` and `useRecord` read the source for its resources, and `useResourceClient(resource)` gives the client of the API that serves a resource.
+
 ## The shell
 
 The shell is the admin app: `index.html` and its `assets/`, the same for every project on a release. Each release ships it prebuilt in `@protobase/ui`'s `dist/shell/` and in the [protobase image](/guides/deploy/#images) at `/opt/protobase/shell/`, with a `protobase.shell.json` naming its Protobase version and plugin API. A bundle carries a copy, so any static host can serve it, and its manifest names that copy's version and paths (`shell` in [the manifest](/reference/cli/#the-manifest)).
@@ -265,6 +267,7 @@ From `@protobase/ui`:
 | --- | --- |
 | `definePlugin(config)` | Typed identity for a plugin's default export: `name`, `actions`, `fields`, `shell`, `extends`, as `defineUi`. |
 | `usePlugin()` | The plugin the calling component belongs to (see [above](#writing-a-plugin)). |
+| `useResourceClient(resource)` | The client of the API that serves a resource: the app's own, or a source's for a [remote resource](/reference/remote-resources/). |
 | `FieldWidget`, `FieldWidgetProps`, `FieldWidgetEditorProps` | The types of a [field type](#field-types) and of its parts' props. |
 | `RecordCardProps` | The props of a [record card](/reference/custom-components/#record-cards), `{ row }`. |
 | `pluginApi` | The plugin API of the app's `@protobase/ui`. |
