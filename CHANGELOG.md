@@ -2,6 +2,12 @@
 
 Every release of Protobase, cut by the release workflow from the commits since the last one (see the [versioning page](https://docs.protobase.net/reference/versioning/)).
 
+## [0.12.7](https://github.com/PrototeamHQ/protobase/compare/v0.12.6...v0.12.7) (2026-10-12)
+
+### Bug Fixes
+
+* **ui:** the record's breadcrumb shows a skeleton while the record loads, not its raw key ([ae561e0](https://github.com/PrototeamHQ/protobase/commit/ae561e0c853aebb85952851a88a8256c4a747163))
+
 ## [0.12.6](https://github.com/PrototeamHQ/protobase/compare/v0.12.5...v0.12.6) (2026-10-12)
 
 ### Bug Fixes
