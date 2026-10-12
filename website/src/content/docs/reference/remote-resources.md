@@ -51,14 +51,14 @@ PROTOBASE_SOURCES='[{"url":"https://desk.example.com/api/v1","label":"Service de
 
 | Source | |
 | --- | --- |
-| `url` | The source's resources API, the `/api/v1` of another Protobase app. Its `/meta` is beside it, at `/api/meta`. |
+| `url` | The source's resources API, the `/api/v1` of another Protobase app: a path, with nothing after it. Its `/meta` is beside it, at `/api/meta`. |
 | `label` | The source's name as people read it, when it cannot be reached. |
 | `resources` | The resources the app draws from it, by their names there. Its other resources stay out of the app. |
 | `roles` | Optional: only callers holding one of these roles are told about the source. Without, everyone is. |
 
 The sources of `options.sources` come first, then those of `PROTOBASE_SOURCES`; `options.sources: false` turns both off.
 
-**Checks at startup.** The server refuses to start, naming the source, when a source cannot work: a `url` that is no http(s) URL, a missing `label` or `resources`, a key a source does not take (such as `resource` for `resources`), the same `url` listed twice, or one resource drawn from two sources. It refuses to start too when a source draws a resource under a name the app already has, for one of its own resources or a [composed page](/reference/layouts/): the address `/<name>` would mean two things. Rename one of them, or leave it out of the source's resources.
+**Checks at startup.** The server refuses to start, naming the source, when a source cannot work: a `url` that is no http(s) URL or names no path, a missing `label` or `resources`, a key a source does not take (such as `resource` for `resources`), the same `url` listed twice, or one resource drawn from two sources. It refuses to start too when a source draws a resource under a name the app already has, for one of its own resources or a [composed page](/reference/layouts/): the address `/<name>` would mean two things. Rename one of them, or leave it out of the source's resources.
 
 ## Who sees what
 
@@ -85,8 +85,8 @@ export const authenticate = betterAuthAuthenticator({
 
 | Trusted app | |
 | --- | --- |
-| `issuer` | The other app's Better Auth `baseURL`, its `BETTER_AUTH_URL`: the issuer and audience of its tokens. Its keys are read from `<issuer>/api/auth/jwks`. |
-| `roles` | Its roles as they are here: `{ admin: 'shop' }` makes its admins `shop` here. A role it does not list is dropped, and a user left with none is refused with `403`. |
+| `issuer` | The other app's Better Auth `baseURL`, its `BETTER_AUTH_URL`, with or without a trailing slash: the issuer and audience of its tokens. Its keys are read from `<issuer>/api/auth/jwks`. |
+| `roles` | Its global roles as they are here: `{ admin: 'shop' }` makes its admins `shop` here. A role it does not list is dropped, and a user left with none is refused with `403`. A role someone holds in one of its [organizations](/reference/auth/#organizations) is never mapped, since that organization's owners hand it out; with organizations there, only a global role counts. |
 | `tenant` | The tenant its users work in here, for resources with a [tenant](/reference/data-config/#resource). Nothing in its tokens names a tenant here. |
 | `keys` | Its key set, instead of reading it from its `/api/auth/jwks`: for tests, or keys at hand. |
 
@@ -152,7 +152,7 @@ PROTOBASE_PLUGINS='https://desk.example.com/plugins/desk/plugin.json'
 export const TicketTimeline = component('TicketTimeline', { plugin: 'desk' })
 ```
 
-Inside, the component reads its record with `useLayoutRecord()`, and its data with `useList` and `useRecord`, which go to the source for a remote resource like every other call. `useResourceClient(resource)` gives the client of the API that serves a resource, the source's for a remote one, whose `invoke` calls that API's [functions](/guides/api-functions/); `useClient()` sends resource calls where they belong, and `invoke` to the app's own functions. An action handler gets the client of the resource's API as `client`.
+Inside, the component reads its record with `useLayoutRecord()`, and its data with `useList` and `useRecord`, which go to the source for a remote resource like every other call. `useMeta()` gives the app's `/meta` with the sources' resources in it, and how far each source has loaded in `sources`. `useResourceClient(resource)` gives the client of the API that serves a resource, the source's for a remote one, whose `invoke` calls that API's [functions](/guides/api-functions/); `useClient()` sends resource calls where they belong, and `invoke` to the app's own functions. An action handler gets the client of the resource's API as `client`.
 
 ## When a source cannot be reached
 
@@ -192,5 +192,6 @@ Each source's `/meta` is read again when the window regains focus, with `If-None
 | --- | --- |
 | `useResourceClient(resource)` | The client of the API that serves `resource`. |
 | `useClient()` | Below the app's `MetaGate`, the client that sends each resource's calls to its API. |
+| `useMeta()` | Below the app's `MetaGate`, `data` holds the resources of its sources too, and `sources`: each source with how far it has loaded (`loading`, `ready`, `error`). |
 | `ActionContext.client` | The client of the action's resource's API. |
 | `App` `sources` | Ready-made clients of the sources by their `url`, for stories and tests. |

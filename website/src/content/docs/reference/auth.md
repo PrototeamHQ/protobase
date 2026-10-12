@@ -350,13 +350,13 @@ Sign in at `POST /api/auth/sign-in/email` (or with a code or passkey), then `GET
 
 ## Users of another app
 
-An API can admit the signed-in users of another Protobase app with the tokens that app issues, so that app's admin app can draw its resources as [remote resources](/reference/remote-resources/). `betterAuthAuthenticator`'s `apps` lists each such app by its `baseURL`, the issuer of its tokens, with the roles its users get here:
+An API can admit the signed-in users of another Protobase app with the tokens that app issues, so that app's admin app can draw its resources as [remote resources](/reference/remote-resources/). `betterAuthAuthenticator`'s `apps` lists each such app by its `baseURL`, the issuer of its tokens, with the roles its users' global roles become here:
 
 ```ts
 betterAuthAuthenticator({ auth, apps: [{ issuer: 'https://shop.example.com', roles: { admin: 'shop' }, tenant: 1 }] })
 ```
 
-Their tokens are verified against that app's keys at `<issuer>/api/auth/jwks`; a role it does not map is dropped and a user left with none gets `403`; their id here is `<sub>@<that app's host>`. See [Signing in at the source](/reference/remote-resources/#signing-in-at-the-source).
+Their tokens are verified against that app's keys at `<issuer>/api/auth/jwks`; a role it does not map is dropped, a role held in one of its organizations never counts, and a user left with none gets `403`; their id here is `<sub>@<that app's host>`. See [Signing in at the source](/reference/remote-resources/#signing-in-at-the-source).
 
 ## Tokens for scripts and curl
 
