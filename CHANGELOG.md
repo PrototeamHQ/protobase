@@ -2,6 +2,12 @@
 
 Every release of Protobase, cut by the release workflow from the commits since the last one (see the [versioning page](https://docs.protobase.net/reference/versioning/)).
 
+## [0.12.2](https://github.com/PrototeamHQ/protobase/compare/v0.12.1...v0.12.2) (2026-10-12)
+
+### Features
+
+* **ui:** a list with a cards display opens in it below the sm breakpoint ([6d70b08](https://github.com/PrototeamHQ/protobase/commit/6d70b088cc2beaa46c5c8e74674e29651e962e5e))
+
 ## [0.12.1](https://github.com/PrototeamHQ/protobase/compare/v0.12.0...v0.12.1) (2026-10-12)
 
 ### Bug Fixes
