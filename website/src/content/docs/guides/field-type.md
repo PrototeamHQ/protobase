@@ -1,0 +1,130 @@
+---
+title: Adding a field type
+description: Show and edit a field your own way everywhere the app shows it, with a field type a plugin registers and a view picks.
+---
+
+An order's status is one of six values, and each order moves through them in turn: draft, confirmed, picking, shipped, delivered. The app shows it as a badge and edits it with a select. Rijnland's warehouse wants to see at a glance how far along an order is, and to move it with one click. That is a field type: a component that shows the value, one that edits it, and the storage types it works for. This guide adds one, `steps`, to the ERP example (`examples/erp`). [Field types](/reference/plugins/#field-types) has the contract.
+
+## 1. Show the value
+
+A field type's display gets the field's model, its value as the API gives it, and the props the view passes:
+
+```tsx
+// components/order-steps.tsx
+import type { FieldWidgetProps } from '@protobase/ui'
+
+const label = (value: string) => value.charAt(0).toUpperCase() + value.slice(1)
+
+/** An enum's value as its place among the values: a dot per step, filled up to it, and its name. */
+export const StepsDisplay = ({ field, value, props }: FieldWidgetProps<string, { last?: string }>) => {
+  const steps = (field.enumValues ?? []).filter((step) => step !== 'cancelled' || value === 'cancelled')
+  const at = value === null ? -1 : steps.indexOf(value)
+  return (
+    <span className="inline-flex items-center gap-1.5">
+      {steps.map((step, index) => (
+        <span key={step} className={index <= at ? 'size-2 rounded-full bg-primary' : 'size-2 rounded-full bg-border-strong'} />
+      ))}
+      <span className="text-xs text-muted-foreground">
+        {value === null ? '—' : label(value)}
+        {props.last === value ? ' ✓' : ''}
+      </span>
+    </span>
+  )
+}
+```
+
+`field.enumValues` are the steps, in the order the data config lists them, so the same field type works for any enum. `value` is `null` for an empty field. `props.last` is whatever the view says it is; here, the step that ends an order.
+
+## 2. Edit it
+
+An editor gets the same props, and `onChange` to set a new value, and `invalid` when the value it holds is refused:
+
+```tsx
+// components/order-steps.tsx
+import type { FieldWidgetEditorProps } from '@protobase/ui'
+
+/** The steps as buttons: the current one marked, a click moves to another. */
+export const StepsEditor = ({ field, value, onChange }: FieldWidgetEditorProps<string>) => (
+  <div role="radiogroup" aria-label={field.name} className="flex flex-wrap gap-1">
+    {(field.enumValues ?? []).map((step) => (
+      <button
+        key={step}
+        type="button"
+        role="radio"
+        aria-checked={step === value}
+        onClick={() => onChange(step)}
+        className={step === value ? 'rounded-md border border-primary bg-primary-soft px-2 py-1 text-xs text-primary-text' : 'rounded-md border border-border px-2 py-1 text-xs hover:bg-muted'}
+      >
+        {label(step)}
+      </button>
+    ))}
+  </div>
+)
+```
+
+`onChange` changes the record on the page, as typing in an input does: the page shows "Unsaved changes", and Save sends it, with the page's checks and conflict handling. A field type has no save of its own.
+
+## 3. Register it
+
+`protobase.ui.tsx` registers the field type under a name, with the storage types it shows:
+
+```tsx
+// protobase.ui.tsx
+import { definePlugin } from '@protobase/ui'
+import { StepsDisplay, StepsEditor } from './components/order-steps'
+
+export { OrdersPerDay } from './components/orders-per-day'
+
+export default definePlugin({
+  actions: { send },
+  fields: { steps: { of: ['enum'], display: StepsDisplay, editor: StepsEditor } },
+})
+```
+
+`of: ['enum']` says it shows enum fields. A table cell draws `display` too, unless the field type gives a `cell` of its own, for instance a more compact one.
+
+## 4. Pick it in the view
+
+The view chooses the field type for a field, with props:
+
+```ts
+// config/orders/ui.ts
+.fields((r) => ({
+  status: r.status.help('Where the order is in its life.').widget('steps', { last: 'delivered' }),
+}))
+```
+
+Run `bun run protobase dev` and open the orders. The status column shows the dots, and so does every place that shows an order's status: its page when it may not be changed, the summary in its sidebar, cards and page elements. On an order you may change, the status is a row of buttons; click one and save.
+
+## 5. What the app checks
+
+A field type shows the storage types it names, and nothing else. Pick it for a text field by mistake, say the order's number:
+
+```ts
+number: r.number.widget('steps'),
+```
+
+`protobase build` reads which storage types each field type of the bundle shows, and the server refuses to start:
+
+```
+error: The views do not match the resources:
+  - View "orders": field "number" is text, and its field type "steps" shows only enum
+```
+
+In `protobase dev`, the app checks the same as it draws, and shows the number as it would without a field type.
+
+A field type that throws while drawing takes only its own field with it: the field shows as it would without the field type, and the rest of the page draws. So does every field of a field type whose plugin is off.
+
+## 6. One field type for many apps
+
+The `steps` field type above is the project's own, built with its bundle. To give it to other apps too, move `components/order-steps.tsx` into a [plugin](/guides/first-plugin/) of its own and register it there:
+
+```tsx
+// workshop-tools/protobase.ui.tsx
+import { definePlugin } from '@protobase/ui'
+import { StepsDisplay, StepsEditor } from './components/steps'
+
+export default definePlugin({ name: 'workshop-tools', fields: { steps: { of: ['enum'], display: StepsDisplay, editor: StepsEditor } } })
+```
+
+Each app lists the plugin and picks `.widget('steps')` in its views. The app checks the storage types when it draws; the server checks only the field types of the bundle's own plugins, since it never loads remote code.

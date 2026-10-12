@@ -7,13 +7,13 @@ import { Code } from '@astrojs/starlight/components'
 import erpUi from '../../../../../examples/erp/protobase.ui.tsx?raw'
 import ordersPerDay from '../../../../../examples/erp/components/orders-per-day.tsx?raw'
 
-Layouts are data; a project's React code lives in one module the admin bundles with itself: `protobase.ui.tsx` at the project root, beside `protobase.config.ts`. It exports each custom component under the name its layouts declare, each from a file of its own, and default-exports `defineUi({ actions })` from `@protobase/ui` for the rest, so the project depends on `@protobase/ui`, and on `react` for its JSX. This is the ERP example's:
+Layouts are data; a project's React code lives in one module: `protobase.ui.tsx` at the project root, beside `protobase.config.ts`. It exports each custom component under the name its layouts declare, each from a file of its own, and default-exports `defineUi({ actions })` from `@protobase/ui` for the rest, so the project depends on `@protobase/ui`, and on `react` for its JSX. This is the ERP example's:
 
 <Code code={erpUi} lang="tsx" title="examples/erp/protobase.ui.tsx" />
 
 <Code code={ordersPerDay} lang="tsx" title="examples/erp/components/orders-per-day.tsx" />
 
-`protobase dev` serves it with hot reload, and `protobase build` builds it into the bundle's `public/` with the rest of the admin. It is the only project code built into the browser bundle, so keep secrets out of it. A project without the file gets an empty one. The same exports can come from a [plugin](/reference/plugins/) instead, which the app loads at runtime and which keeps working when the app moves to a newer release.
+`protobase dev` serves it with hot reload, and `protobase build` builds it as the [plugin](/reference/plugins/) `app` in the bundle's `public/plugins/app/`, beside the prebuilt admin app, which loads it when someone signs in. It is the only project code that reaches the browser, so keep secrets out of it. `definePlugin` types its default export as well as `defineUi`, which stays as its alias. The same exports can come from other plugins too, which the app loads at runtime and which keep working when the app moves to a newer release.
 
 ## Components
 
@@ -99,6 +99,41 @@ export const CustomerRepairs = ({ limit }: { limit: number }) => {
 }
 ```
 
+## Record cards
+
+A cards display can draw each card's content with a component, declared in the view with `d.cards(fields, { card })`. The card stays a link to the record, with the display's frame; the component draws what is inside it from `row`, the record with the fields the display names, so name every field the card shows:
+
+```ts
+// config/repairs/ui.ts
+export const RepairCard = component('RepairCard')
+// in .list((r, d) => ...):
+d.cards({ title: r.bike, subtitle: r.customer_id, badge: r.status, meta: [r.number, r.estimate] }, { card: RepairCard })
+```
+
+```tsx
+// components/repair-card.tsx, exported from protobase.ui.tsx: export { RepairCard } from './components/repair-card'
+import type { RecordCardProps } from '@protobase/ui'
+
+export const RepairCard = ({ row }: RecordCardProps) => (
+  <span className="flex flex-col gap-1">
+    <span className="font-medium">{String(row.record.bike)}</span>
+    <span className="text-muted-foreground">{row.labels.customer_id}</span>
+  </span>
+)
+```
+
+`row` is `{ key, record, labels }`, as a [list display's](#list-displays) rows are. A card is inside a link, so it holds no buttons or links of its own. Without the component, from a plugin that is off for instance, and when it throws, each card is the built-in one: the title, subtitle, badge and meta fields. [A custom record card](/guides/record-card/) builds one step by step.
+
+## Field types
+
+A [field type](/reference/plugins/#field-types) shows and edits a field everywhere the app shows it: a view picks one with `r.status.widget('steps')`, and `protobase.ui.tsx` registers it under that name in `fields`:
+
+```tsx
+export default definePlugin({ fields: { steps: { of: ['enum'], display: StepsDisplay, editor: StepsEditor } } })
+```
+
+[Plugins](/reference/plugins/#field-types) describes the contract, and [Adding a field type](/guides/field-type/) builds one.
+
 ## Addresses
 
 Every place in the app has an [address](/reference/layouts/#addresses), and a component never writes a path or reads the query string itself, so the address can change shape in one place. `useAppAddress()` from `@protobase/ui` gives the current one as values, with the list's defaults filled in, and moves the app:
@@ -143,3 +178,5 @@ When the app has an [assistant](/reference/assistant/), its button follows the p
 ## Without protobase dev
 
 `<App ui={...} />` from `@protobase/ui` takes the same object, for an app that mounts the admin itself, and so do stories.
+
+Below 1.0, a project built before 0.12 had its `protobase.ui.tsx` built into the admin app; [Moving onto the plugin build](/guides/plugin-build/) says what changes.

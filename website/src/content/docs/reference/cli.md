@@ -113,8 +113,9 @@ One process, one port: Vite serves the admin app from `@protobase/ui`'s `src/app
   ```
 
   `defineConfig` from `@protobase/server` types it, and its `extends` merges other configs in (see [Extending a config](#extending-a-config)).
-- **Project UI:** the app imports `protobase.ui.tsx` from the project root, with hot reload, when it exists (see [Custom components](/reference/custom-components/)). Layout files are checked as they load, as `protobase build` checks them.
-- **Extensions:** `--extend <dir>` merges an extension in as [`build --extend`](#extensions) does, to try one out; its files reload like the project's.
+- **Project UI:** the app imports `protobase.ui.tsx` from the project root, with hot reload, when it exists (see [Custom components](/reference/custom-components/)): the same contract as the plugin `protobase build` makes of it, built into the dev page instead. Layout files are checked as they load, as `protobase build` checks them.
+- **Theme:** the page links `/protobase.theme.css`, which the dev server answers from the project's [theme](/reference/theme/), checked as the build checks it, on every request, so an edit shows on the next reload.
+- **Extensions:** `--extend <dir>` merges an extension in, its UI built into the dev page beside the project's, to try one out; its files reload like the project's.
 - **Hot reload:** server code, data configs, `ui.ts` views, layouts and `protobase.config.ts` are loaded through Vite's SSR module graph. A change inside the project (or, in this repository, in `packages/server`, `packages/query`, `packages/schema`) rebuilds the API on the next request without a restart; `/meta` and `X-Meta-Version` change, so open tabs refetch. The database pool survives reloads. Newly added `ui.ts` files appear after the next change inside the project.
 
 ### Extending a config
@@ -161,23 +162,29 @@ Writes the project's deploy bundle, the folder a deployment ships:
 
 ```
 dist/
-  protobase.config.js     the config module for serve
-  node_modules/           the packages it loads from disk, only when it imports native add-ons
-  public/                 the admin UI
-  protobase.bundle.json   the manifest
+  protobase.config.js       the config module for serve
+  node_modules/             the packages it loads from disk, only when it imports native add-ons
+  public/
+    index.html, assets/     the admin app: the shell, the same for every project
+    plugins/app/            the project's protobase.ui.tsx, built as a plugin
+    plugins/<extension>/    each --extend folder's protobase.ui.tsx, built as a plugin
+    protobase.theme.css     the project's theme, checked and minified; empty without one
+  protobase.bundle.json     the manifest
 ```
 
-The output folder is not emptied; `public/` and `node_modules/` are replaced on every build. `node_modules/` is deleted only when the previous build's manifest names it, so a build into a folder with a project's own `node_modules` fails instead. Nothing of the project runs at build time (except the UI configs' check with [extensions](#extensions)), so the build needs no secrets and no database.
+The output folder is not emptied; `public/` and `node_modules/` are replaced on every build. `node_modules/` is deleted only when the previous build's manifest names it, so a build into a folder with a project's own `node_modules` fails instead. Nothing of the project's server config runs at build time, so the build needs no secrets and no database. Its browser code is loaded once in Node: to check its component names (see [The UI](#the-ui)) and to read the field types each plugin registers.
+
+A token the [theme](/reference/theme/) sets that the app does not read prints a `warning:` line, a likely typo; the build still succeeds.
 
 By default the bundle runs on Node and on Bun. `--bun` makes it a bundle for Bun only, as the Protobase images and the cloud serve it: Bun's bundler writes the config module (see [the config module](#the-config-module)), so the build needs `bun` on `PATH` and fails without it.
 
 ### Extensions
 
-`--extend <dir>` (repeatable) builds an extension into the bundle without touching the project's files (to add React code to apps without building it into them, write a [plugin](/reference/plugins/) instead): a folder with a `protobase.config.ts`, a `protobase.ui.tsx` or both, merged before the project's own as if the project [extended](#extending-a-config) them, in the order given. A host adds its own assistant tools and widgets to every app it builds this way.
+`--extend <dir>` (repeatable) adds an extension to the bundle without touching the project's files: a folder with a `protobase.config.ts`, a `protobase.ui.tsx` or both. Its `protobase.config.ts` is merged into the config module before the project's own, as if the project [extended](#extending-a-config) it, in the order given. Its `protobase.ui.tsx` becomes one more [plugin](/reference/plugins/) of the bundle, in `public/plugins/<name>/`, named by its `package.json`'s `name`, else its folder's. A host adds its own assistant tools and widgets to every app it builds this way; to add React code to apps without building them, serve a plugin instead.
 
-- The extension's imports of `@protobase/*`, `react` and `react-dom` resolve from the project, so it runs on the app's own versions; everything else it imports resolves from its own folder and is bundled. Tailwind scans its folder too, so its classes are in the app's stylesheet.
-- A component or action handler that the extension and the project both define fails the build, naming both. To find them, the build loads the merged UI configs once in Node: only browser code, which needs no secrets. The server config still does not run at build time, so a tool both define fails when the bundle is served, naming both.
-- An error names a config by its `name`, otherwise by its file.
+- The extension's imports of `@protobase/*` resolve from the project, so it runs on the app's own versions; `react`, `react-dom` and `@protobase/ui` are the app's at runtime, as for every plugin. Everything else it imports resolves from its own folder and is built into its plugin, with a stylesheet of the classes its files use.
+- A component, action handler or field type that the extension and the project both define fails the build, naming both. To find them, the build loads the merged UI configs once in Node: only browser code, which needs no secrets. The server config still does not run at build time, so a tool both define fails when the bundle is served, naming both.
+- An error names a config by its `name`, otherwise by its file. Two extensions whose plugins would have one name fail the build.
 
 ### The manifest
 
@@ -185,29 +192,40 @@ By default the bundle runs on Node and on Bun. `--bun` makes it a bundle for Bun
 
 ```json
 {
-  "version": 2,
-  "protobase": "0.1.0",
+  "version": 3,
+  "protobase": "0.12.0",
   "server": "protobase.config.js",
   "public": "public",
   "spa": "index.html",
   "api": ["/api"],
+  "theme": "protobase.theme.css",
+  "plugins": [
+    { "name": "app", "path": "plugins/app/plugin.json", "api": 1, "protobase": ">=0.12.0", "fields": { "steps": ["enum"] } }
+  ],
+  "shell": { "protobase": "0.12.0", "pluginApi": 1, "paths": ["/index.html", "/assets"] },
   "nodeModules": "node_modules"
 }
 ```
 
 - `protobase` is the Protobase version that built the bundle. The serve runtime serves only bundles of a compatible version: below 1.0 the same minor, from 1.0 the same major and the runtime's minor or an older one (see [Versioning](/reference/versioning/#bundles-and-runtimes)).
-- `server`, `public` and `nodeModules` are relative to the bundle folder, `spa` to `public`.
+- `server`, `public` and `nodeModules` are relative to the bundle folder; `spa`, `theme` and each plugin's `path` to `public`.
+- `plugins` are the bundle's own plugins, in the order the app merges them: the extensions', then the project's (`app`). Each names its `plugin.json`, the plugin API and Protobase versions it is built for, and the [field types](/reference/plugins/#field-types) it registers with the storage types each shows, which the serve runtime checks the views against at startup. `/api/meta` names them to everyone, before any other plugin.
+- `shell` is the admin app `public/` holds a copy of: its Protobase version and plugin API, and its files as URL paths. A host with a shell of its own, of a release every plugin of the bundle loads in, may serve its own for those paths instead (see [The UI](#the-ui)), so the app gets that release's fixes without a rebuild.
+- `theme` is the project's [theme](/reference/theme/), which the app links at `/protobase.theme.css`. It is always there, empty when the project has none.
 - `nodeModules` is present only when the config module imports [native packages](#native-packages). It is always the `node_modules` folder beside `server`, where Bun and Node resolve the module's imports from, and holds plain packages: JavaScript, `package.json` files and native binaries for linux x64 and arm64 (glibc), which the runtime loads with `dlopen`. A host keeps it next to the server module and must not mount it `noexec` (an add-on there then fails with `failed to map segment from shared object`). Its binaries link nothing but glibc, `libstdc++.so.6`, `libgcc_s.so.1` and libraries in the bundle itself, so the run image must have those three. Without `nodeModules`, the server module is the only file the runtime reads.
 - `api` lists the path prefixes the server answers. A path is under a prefix when it equals it or continues it with `/` (`/api` covers `/api/meta` and `/api/v1:batchWrite`, not `/apiary`). It is always `["/api"]`: a bundle assumes the API lives under `/api`, with the resources at the default `basePath` `/api/v1`, `/api/meta`, the docs, the API functions and the built-in assistant beside them and Better Auth at `/api/auth`. The serve runtime refuses a config that sets another `options.basePath`.
 - Every other path is the UI's. A `GET` or `HEAD` for a file in `public` gets that file; a folder gets its `index.html`. Otherwise a request whose `Accept` header contains `text/html` (a navigation) gets `spa` with status 200, so deep links such as `/orders/42` load the app; anything else gets 404. Other methods get 405.
-- Files under `public/assets/` are named by their content hash and never change: serve them with `Cache-Control: public, max-age=31536000, immutable`, and everything else with `no-cache`.
-- `version` is the format of the manifest, not a Protobase version. A host that does not know it must refuse the bundle. Version 2 replaced version 1 when the config module started to import [every module the runtime supplies](#the-config-module), not only `protobase/*` and `kysely`, and gained `nodeModules`. `protobase serve` refuses a version 1 bundle; rebuild it.
+- Files under an `assets/` folder, `public/assets/` and each plugin's, are named by their content hash and never change: serve them with `Cache-Control: public, max-age=31536000, immutable`, and everything else, `index.html`, each `plugin.json` and the theme, with `no-cache`.
+- `version` is the format of the manifest, not a Protobase version. A host that does not know it must refuse the bundle. Version 3 replaced version 2 when the project's UI became a plugin beside a prebuilt app, and gained `plugins`, `theme` and `shell`; version 2 replaced version 1 when the config module started to import [every module the runtime supplies](#the-config-module), and gained `nodeModules`. `protobase serve` refuses an older bundle; rebuild it with `protobase build`.
 
 ### The UI
 
-`public/` is a production build of the admin app (`@protobase/ui`'s `src/app`): `index.html`, which loads `/assets/index-<hash>.js` and `.css`, and nothing for development (no Vite client, no React development build). It calls the API on its own origin under `/api`, so the same bundle works under any hostname. The only project code built in is `protobase.ui.tsx` from the project root, when there is one: the project's [custom components and action handlers](/reference/custom-components/), and the `protobase.ui.tsx` of each [extension](#extensions). Nothing host-specific is: the resources, views, pages and roles come from `/api/meta` and sign-in from `/api/auth` at runtime.
+`public/` holds two parts that are built apart.
 
-The modules the app shares with [plugins](/reference/plugins/), `react`, `react/jsx-runtime`, `react-dom` and `@protobase/ui`, are entries of their own, `/assets/shared-<name>-<hash>.js`, each exporting every name of its module. `index.html` maps the four names to them with an import map, ahead of every script, so a plugin's imports of them run on the app's copies. They load only when a plugin imports them.
+- **The shell**, `index.html` and `assets/`: the admin app, a production build of `@protobase/ui`'s `src/app` with no project code in it, the same for every project on a release. `@protobase/ui`'s package ships it prebuilt in `dist/shell/` and the [protobase image](/guides/deploy/#images) at `/opt/protobase/shell/`; the build copies it. It calls the API on its own origin under `/api`, so the same bundle works under any hostname, and reads everything else at runtime: the resources, views, pages and roles from `/api/meta`, sign-in from `/api/auth`, the project's UI from its plugins and its look from `/protobase.theme.css`, which it links after its own stylesheets.
+- **The plugins**, `plugins/<name>/`: the project's `protobase.ui.tsx` as the plugin `app`, and each [extension](#extensions)'s, each built as [`build-plugin`](#build-plugin) builds one, against the `@protobase/ui` installed in the project. `/api/meta` names them, and the shell loads them as it loads any [plugin](/reference/plugins/). A component or field type the config declares but no `protobase.ui.tsx` exports fails the build (see [Components](/reference/custom-components/#components)).
+
+The modules the app shares with plugins, `react`, `react/jsx-runtime`, `react-dom` and `@protobase/ui`, are entries of their own, `/assets/shared-<name>-<hash>.js`, each exporting every name of its module. `index.html` maps the four names to them with an import map, ahead of every script, so a plugin's imports of them run on the app's copies.
 
 ### The config module
 
@@ -293,9 +311,9 @@ dist/
 - The output folder is emptied first, so it must not be the plugin's folder or hold it.
 - The module is `protobase.ui.tsx` with everything it imports bundled, except the four modules the app shares (`react`, `react/jsx-runtime`, `react-dom`, `@protobase/ui`), which stay imports by those names. Any other module of those packages, such as `react-dom/client`, fails the build. React's production build and JSX runtime are used, whatever `NODE_ENV` says, and every export of `protobase.ui.tsx` is kept.
 - The stylesheet is Tailwind's utilities for the classes in the plugin's folder: no reset, no theme values. Each utility reads the theme of the app that loads it, with Tailwind's default as the fallback (`text-sm` is `font-size: var(--text-sm, 0.875rem)`).
-- `plugin.json` names the plugin (`--name`, else its `package.json`'s `name`, else its folder's), its own `version`, the plugin API (`api`) and the Protobase versions (`protobase`) it is built for, and the module (`entry`) and stylesheet (`css`), relative to it. Both versions come from the `@protobase/ui` installed for the plugin, which the build needs: `api` is its plugin API, and `protobase` is `>=` its version unless the plugin's `package.json` names a range in `engines.protobase` (see [Plugins](/reference/plugins/#versions)).
+- `plugin.json` names the plugin (`--name`, else its `package.json`'s `name`, else its folder's), its own `version`, the plugin API (`api`) and the Protobase versions (`protobase`) it is built for, the module (`entry`) and stylesheet (`css`), relative to it, and the [field types](/reference/plugins/#field-types) it registers (`fields`), each with the storage types it shows. Both versions come from the `@protobase/ui` installed for the plugin, which the build needs: `api` is its plugin API, and `protobase` is `>=` its version unless the plugin's `package.json` names a range in `engines.protobase` (see [Plugins](/reference/plugins/#versions)).
 
-Nothing of the plugin runs at build time. The app loads it from wherever `plugin.json` is served, listed in `PROTOBASE_PLUGINS` or `options.plugins` (see [loading](/reference/plugins/#loading)).
+To read its field types, the build loads the plugin's module once in Node, with everything bundled; nothing is rendered, but code at the top level of its modules runs, so keep browser-only work (`window`, `document`) inside components and handlers. The app loads it from wherever `plugin.json` is served, listed in `PROTOBASE_PLUGINS` or `options.plugins` (see [loading](/reference/plugins/#loading)).
 
 ## `build-serve`
 
@@ -315,6 +333,8 @@ protobase serve <bundle>                                           # the whole b
 
 Serves the API of a bundle from `protobase build` and owns the process around it. Given the bundle folder, `protobase serve` also serves its UI by [the manifest's rules](#the-manifest), so a bundle can be checked locally exactly as the host will serve it.
 
+**Its own shell.** Given the bundle folder, `protobase serve` serves the manifest's `shell.paths`, the root and navigations from a shell of its own when it has one: the folder `PROTOBASE_SHELL` names, else the prebuilt shell of the installed `@protobase/ui` (none when the CLI runs from this repository's sources). It does so only when every plugin of the bundle loads in that shell's release; otherwise it serves the bundle's copy. Its startup output says which (`app      the app of Protobase 0.12.3 from ...`). The plugins, the theme and the API always come from the bundle.
+
 | Variable | |
 | --- | --- |
 | `DATABASE_URL` | the API's pool (Kysely over `pg`, 10 connections); not needed when the config exports `db` |
@@ -331,11 +351,13 @@ Serves the API of a bundle from `protobase build` and owns the process around it
 | `PROTOBASE_FILES_<NAME>`, `PROTOBASE_FILES_RETENTION`, `PROTOBASE_FILES_SECRET` | [file providers](/reference/files/#providers) and their settings, over `files` in the config |
 | `PROTOBASE_FILES_CLEANUP_MINUTES` | minutes between runs of the [scheduled file deletes](/reference/files/#deleting-files), default 60; 0 leaves them to `protobase files cleanup` or the platform |
 | `PROTOBASE_JOBS` | `off` runs none of the app's [jobs](/reference/jobs/) in this process, which still enqueues them; default `on` |
+| `PROTOBASE_SHELL` | `protobase serve <bundle>` only: a shell folder, such as the `/opt/protobase/shell` of a protobase image or `@protobase/ui`'s `dist/shell`, to serve the bundle's app from (see [its own shell](#serve)) |
 | `PROTOBASE_JOBS_DRAIN_TOKEN` | the operator's bearer token for `POST /api/jobs/drain`, which [runs the due jobs](/reference/jobs/#hosts-that-sleep) of a host that lets the app sleep; without it there is no such endpoint |
 
 Better Auth and other settings are the project's own variables (`BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, ...), read by its config. `protobase serve` also loads the nearest `.env`, like `dev`; the runtime takes the environment as it is.
 
 - **Routes:** `createAdmin` (`/api/v1`, `/api/meta`, `/api/functions/*`, `/api/auth/*`, ...) and `GET /health`, which answers `{"status":"ok"}` without a token and without touching the database. The runtime never serves the UI; `protobase serve <bundle>` serves `public/` for every path outside the manifest's `api` and `/.well-known/webauthn`, after `/health`.
+- **Plugins:** the runtime reads the manifest's `plugins`: `/api/meta` names them, and a view that shows a field with one of their [field types](/reference/plugins/#field-types) that does not show the field's storage type stops startup, naming the view, the field and what the field type shows.
 - **Version:** before loading the config module, the runtime reads `protobase.bundle.json` beside it and refuses a bundle built by a Protobase version it does not serve, or one without a version, with an error naming both versions (see [Versioning](/reference/versioning/#bundles-and-runtimes)). A config module needs its manifest beside it.
 - **Startup:** a bundle without a default export, `config` or `authenticate`, or with an `options.basePath` other than `/api/v1`, stops startup with a one-line error and exit code 1, as does a missing `DATABASE_URL`, an auth schema that lacks a table or column (see [`auth migration`](#auth-migration)), a resource whose [events](/reference/events/) lack their triggers or have out-of-date ones, a jobs schema that is missing or behind for a config with [jobs](/reference/jobs/#the-jobs-schema) (see [`migration`](#migration)) or a taken port. `protobase serve listening on port <port>` means it is ready.
 - **Jobs:** with [jobs](/reference/jobs/) in the config it runs them beside the API, unless `PROTOBASE_JOBS=off`, and with `PROTOBASE_JOBS_DRAIN_TOKEN` it answers `POST /api/jobs/drain` for the operator.

@@ -71,6 +71,8 @@ Rebuild the bundle with the runtime's version of Protobase, or upgrade the runti
 
 [Plugins](/reference/plugins/) are versioned by a plugin API of their own, not by the bundle's rule above: `@protobase/ui`'s `pluginApi`, 1 so far. A plugin's `plugin.json` names the plugin API it is built for and a range of Protobase versions, from the `@protobase/ui` it is built with on. An app loads a plugin of its own plugin API whose range holds its version, and turns off any other, telling its admins why.
 
+A project's own `protobase.ui.tsx` is a plugin of its bundle, so the same rule holds for it. The admin app it runs in, the shell, is prebuilt once per release; a host that serves a newer release's shell for a bundle whose plugins all load in it gives the app that release's fixes without a rebuild (see [the shell](/reference/plugins/#the-shell)). The server config still follows the bundle's rule above.
+
 Releases keep the plugin API, below 1.0 too, where a minor version may change the config: they add exports to `@protobase/ui`, but remove or change one, add or remove a module the app shares with plugins, or move to a new major version of React only with a new plugin API. A test pins every export of `@protobase/ui` (`packages/ui/src/plugins/plugin-api.exports.json`) and fails when one goes away while `pluginApi` stays the same.
 
 ## Runtime updates

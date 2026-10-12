@@ -78,7 +78,7 @@ bun run --cwd examples/erp serve    # protobase build, then protobase serve dist
 For a deployment, ship the bundle folder: the host serves its `public/` and runs its config module with the serve runtime under Bun:
 
 ```sh
-bun run --cwd examples/erp build    # examples/erp/dist/: the config module, the UI in public/ and protobase.bundle.json
+bun run --cwd examples/erp build    # examples/erp/dist/: the config module, the app and protobase.ui.tsx as a plugin in public/, and protobase.bundle.json
 bun run build:serve           # dist/protobase-serve.js at the repository root, the runtime
 bun --no-install /opt/protobase/protobase-serve.js /app/protobase.config.js
 ```
