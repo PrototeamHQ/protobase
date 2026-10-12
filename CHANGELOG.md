@@ -2,6 +2,26 @@
 
 Every release of Protobase, cut by the release workflow from the commits since the last one (see the [versioning page](https://docs.protobase.net/reference/versioning/)).
 
+## [0.12.3](https://github.com/PrototeamHQ/protobase/compare/v0.12.2...v0.12.3) (2026-10-12)
+
+### Features
+
+* **client:** a client with an absolute base URL answers each file's URL on that API's origin ([3d2a137](https://github.com/PrototeamHQ/protobase/commit/3d2a137416f14e422d5315076217bbc00026605d))
+* **client:** meta takes a signal that gives up waiting ([a8faa32](https://github.com/PrototeamHQ/protobase/commit/a8faa320859c0b90839bfc7352e13b40ac40072a))
+* **client:** sourceMeta scopes a source's /meta to an app's resources, routedClient routes calls ([65af56b](https://github.com/PrototeamHQ/protobase/commit/65af56b8ea8a9ce764af6642cf6f635a87576f5d))
+* **server:** /meta names the sources of options.sources and PROTOBASE_SOURCES to their roles ([21e98d3](https://github.com/PrototeamHQ/protobase/commit/21e98d380c79d8d0e478954a171c7b413598024f))
+* **server:** betterAuthAuthenticator admits the users of trusted apps with the roles it gives them ([24056f8](https://github.com/PrototeamHQ/protobase/commit/24056f8cd88fa66bdc34f778f94807992fcc05e9))
+* **ui:** the app draws the resources of its sources as its own, at their own addresses ([1716a03](https://github.com/PrototeamHQ/protobase/commit/1716a0324ff96a7b447f2f38d278dc570714babc))
+
+### Bug Fixes
+
+* **server:** a source's url names its resources API's path, so its /meta is found beside it ([24019ad](https://github.com/PrototeamHQ/protobase/commit/24019ad835b96b73e30cc51e54ad0078d09dcfec))
+* **server:** a trusted app's roles map by their own names only, never by an object's built-in keys ([5102e67](https://github.com/PrototeamHQ/protobase/commit/5102e67d7b8d56e5cc359f4380e27d726b7909b5))
+* **server:** a trusted app's tokens are admitted when its base URL ends in a slash ([aa83f70](https://github.com/PrototeamHQ/protobase/commit/aa83f70efb2221d6175f69dd927896676203bb35))
+* **server:** a trusted app's users get roles here from its global roles only, not an organization's ([45ad79c](https://github.com/PrototeamHQ/protobase/commit/45ad79cbfff7cf19d7c68eef17a5d516fe4d2721))
+* **ui:** /meta that gains or loses sources keeps the app drawn, with the sources' layer always there ([eb8a79f](https://github.com/PrototeamHQ/protobase/commit/eb8a79f2c776d575e4cae88f0d4c292a5c89d47f))
+* **ui:** useMeta below the app's MetaGate holds the resources of its sources, as the pages do ([bfe9cd0](https://github.com/PrototeamHQ/protobase/commit/bfe9cd05bae0d47e9e06a8b9f618758204ecf838))
+
 ## [0.12.2](https://github.com/PrototeamHQ/protobase/compare/v0.12.1...v0.12.2) (2026-10-12)
 
 ### Features
