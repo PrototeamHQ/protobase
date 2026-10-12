@@ -2,6 +2,12 @@
 
 Every release of Protobase, cut by the release workflow from the commits since the last one (see the [versioning page](https://docs.protobase.net/reference/versioning/)).
 
+## [0.12.4](https://github.com/PrototeamHQ/protobase/compare/v0.12.3...v0.12.4) (2026-10-12)
+
+### Bug Fixes
+
+* **ui:** a record page's phone save controls sit above the bottom bar, never over it ([a9c16d3](https://github.com/PrototeamHQ/protobase/commit/a9c16d3a30f650203010798fca61ea224d72c9a9))
+
 ## [0.12.3](https://github.com/PrototeamHQ/protobase/compare/v0.12.2...v0.12.3) (2026-10-12)
 
 ### Features
