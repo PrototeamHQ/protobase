@@ -45,5 +45,8 @@ describe('listDefaults', () => {
     const shown = view<typeof repairs>('repairs').list((r, d) => ({ columns: [r.id], sort: [[r.bookedOn, 'desc']], displays: [d.cards({})], default: 'cards' })).toModel()
     expect(listDefaults(repairs.toModel(), shown)).toEqual({ display: 'cards', orderBy: 'bookedOn desc', filterLayout: 'bar' })
     expect(listDefaults(repairs.toModel(), undefined)).toEqual({ display: 'table', orderBy: 'id asc', filterLayout: 'bar' })
+    const tabled = view<typeof repairs>('repairs').list((r, d) => ({ columns: [r.id], displays: [d.cards({})] })).toModel()
+    expect(listDefaults(repairs.toModel(), tabled).display).toBe('table')
+    expect(listDefaults(repairs.toModel(), tabled, true).display).toBe('cards')
   })
 })

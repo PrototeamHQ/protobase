@@ -14,3 +14,6 @@ export const useMediaQuery = (query: string) =>
 
 /** The `md` breakpoint: where the sidebar stops being a drawer and tables stop squeezing. */
 export const useIsDesktop = () => useMediaQuery('(min-width: 768px)')
+
+/** Below the `sm` breakpoint: a phone, where a list opens in its cards display. */
+export const useIsXs = () => useMediaQuery('not all and (min-width: 640px)')

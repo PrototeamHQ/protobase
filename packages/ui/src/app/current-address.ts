@@ -1,4 +1,5 @@
-import { encodeKey, tableDisplay, type AppAddress, type FilterLayout, type ResourceModel, type ViewModel } from '@protobase/schema'
+import { encodeKey, type AppAddress, type FilterLayout, type ResourceModel, type ViewModel } from '@protobase/schema'
+import { defaultDisplay } from './displays/list-displays'
 import { defaultOrderBy } from './list-order'
 
 /** A list as the app shows it: every value there, the view's default where the address names none. */
@@ -12,9 +13,9 @@ export type ListChange = Partial<Omit<ListAddress, 'kind' | 'resource'>>
 
 export type ListDefaults = Pick<ListAddress, 'display' | 'orderBy' | 'filterLayout'>
 
-/** What a list shows when its address names nothing: the view's default display, the list's sort, the filters in a bar. */
-export const listDefaults = (model: ResourceModel | undefined, view: ViewModel | undefined): ListDefaults => ({
-  display: view?.list?.default ?? tableDisplay,
+/** What a list shows when its address names nothing: its default display for the screen, the list's sort, the filters in a bar. */
+export const listDefaults = (model: ResourceModel | undefined, view: ViewModel | undefined, xs = false): ListDefaults => ({
+  display: defaultDisplay(view, xs),
   orderBy: model ? defaultOrderBy(model, view) : '',
   filterLayout: 'bar',
 })

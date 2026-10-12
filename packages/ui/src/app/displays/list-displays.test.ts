@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { f, resource, view } from '@protobase/schema'
-import { displayChoices, displayRow, loadedFields, shownDisplay, sortFields } from './list-displays'
+import { defaultDisplay, displayChoices, displayRow, loadedFields, shownDisplay, sortFields } from './list-displays'
 
 const repairs = resource('repairs')
   .table('repairs')
@@ -23,6 +23,26 @@ describe('shownDisplay', () => {
     expect(shownDisplay(boardView, 'cards')).toMatchObject({ kind: 'cards' })
     expect(shownDisplay(boardView, 'calendar')).toMatchObject({ name: 'board' })
     expect(shownDisplay(view<typeof repairs>('repairs').toModel(), 'calendar')).toBeUndefined()
+  })
+})
+
+describe('defaultDisplay', () => {
+  it('opens the default, or the table, from the sm breakpoint up', () => {
+    expect(defaultDisplay(boardView, false)).toBe('board')
+    expect(defaultDisplay(undefined, false)).toBe('table')
+  })
+
+  it('opens a cards display below sm: the default when it is one, else the first, never a custom display', () => {
+    expect(defaultDisplay(boardView, true)).toBe('cards')
+    const twoCards = view<typeof repairs>('repairs')
+      .list((r, d) => ({ columns: [r.number], displays: [d.cards({}), d.cards({ meta: [r.bookedOn] }, { name: 'compact' })], default: 'compact' }))
+      .toModel()
+    expect(defaultDisplay(twoCards, true)).toBe('compact')
+    const customOnly = view<typeof repairs>('repairs')
+      .list((r, d) => ({ columns: [r.number], displays: [d.custom(Board, { name: 'board', label: 'Board', fields: [r.number], props: { by: r.status } })] }))
+      .toModel()
+    expect(defaultDisplay(customOnly, true)).toBe('table')
+    expect(defaultDisplay(undefined, true)).toBe('table')
   })
 })
 

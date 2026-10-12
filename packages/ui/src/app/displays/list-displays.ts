@@ -19,6 +19,17 @@ export type DisplayChoice = { name: string; label: string; icon?: string }
 
 export const displaysOf = (view: ViewModel | undefined): ListDisplayModel[] => view?.list?.displays ?? []
 
+/**
+ * The display a list opens in when its address names none. Below the `sm` breakpoint a list with a cards display opens
+ * in one: the view's default when that is a cards display, else the first. Otherwise the view's default, or the table.
+ */
+export const defaultDisplay = (view: ViewModel | undefined, xs: boolean): string => {
+  const fallback = view?.list?.default ?? tableDisplay
+  if (!xs) return fallback
+  const cards = displaysOf(view).filter((display) => display.kind === 'cards')
+  return cards.find((display) => display.name === fallback)?.name ?? cards[0]?.name ?? fallback
+}
+
 /** The display a list shows for the address's `name`: `undefined` for the table, and the view's default for a name it does not have. */
 export const shownDisplay = (view: ViewModel | undefined, name: string): ListDisplayModel | undefined => {
   if (name === tableDisplay) return undefined
