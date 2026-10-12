@@ -93,6 +93,7 @@ export {
 export type { EvaluateOptions, FilterLimits, FilterParse, CheckResult, OrderByParse, OrderByCheck } from './filter'
 export {
   defineRoles,
+  anonymousRole,
   rule,
   pickView,
   resolveAccess,
@@ -104,6 +105,9 @@ export {
 export type {
   Roles,
   RolesOptions,
+  RoleEntry,
+  RoleLimit,
+  CapabilityLimit,
   Rule,
   Capability,
   CapabilityAction,

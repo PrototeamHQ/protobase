@@ -1,6 +1,7 @@
 import type { FilterExpr } from '../model'
-import { orResults, where } from './combine'
+import { andResults, orResults, where } from './combine'
 import { grantsOf, parseCapability, type Capability, type Grant } from './capability'
+import { heldCapabilities, type HeldCapability, type RoleEntry } from './role-entry'
 import { rule, type Rule } from './rule'
 import type { AccessContext, AccessUser } from './types'
 
@@ -11,19 +12,27 @@ export type RolesOptions = {
   names?: readonly string[]
 }
 
+/** A capability of a role that is limited to fields or rows; the server checks them against the resources at startup. */
+export type RoleLimit = HeldCapability & { role: string }
+
 const rolesOf = (user: AccessUser) => user.roles ?? []
 
 /**
  * Defines roles as bundles of capability strings. Pass the resource and area names as the type
  * parameter to reject unknown names at compile time:
  * `defineRoles<'orders' | 'costs'>({ sales: ['orders.read.own'] })`.
+ *
+ * An entry may limit capabilities to fields (an allowlist) and rows (an AIP-160 filter):
+ * `{ 'products.read': ['sku', 'price'] }`, `{ 'products.read': { fields: ['name'], filter: 'published = true' } }`.
+ * The role `anonymous`, when defined, is what requests without a token act as; it may only read listed fields.
  */
 export const defineRoles = <Name extends string = string>(
-  definitions: Record<string, readonly Capability<Name>[]>,
+  definitions: Record<string, readonly RoleEntry<Name>[]>,
   options: RolesOptions = {},
 ) => {
-  for (const [role, capabilities] of Object.entries(definitions)) {
-    for (const capability of capabilities) {
+  const held = new Map(Object.entries(definitions).map(([role, entries]) => [role, heldCapabilities(role, entries)]))
+  for (const [role, capabilities] of held) {
+    for (const { capability } of capabilities) {
       const { name } = parseCapability(capability)
       if (options.names && name !== '*' && !options.names.includes(name)) {
         throw new Error(`Role "${role}" grants "${capability}" but "${name}" is not a known resource or area`)
@@ -31,11 +40,12 @@ export const defineRoles = <Name extends string = string>(
     }
   }
 
+  const heldBy = (user: AccessUser) => rolesOf(user).flatMap((role) => held.get(role) ?? [])
+
   /** Scopes granted by the user's roles for a capability, without applying them. */
   const grants = (user: AccessUser, capability: string): Set<Grant> => {
     const wanted = parseCapability(capability)
-    const held = rolesOf(user).flatMap((role) => definitions[role] ?? [])
-    return new Set(held.flatMap((capability) => grantsOf(capability, wanted)))
+    return new Set(heldBy(user).flatMap((held) => grantsOf(held.capability, wanted)))
   }
 
   const scoped = async (ctx: AccessContext, scope: 'own' | 'team', capability: string): Promise<FilterExpr | false> => {
@@ -53,19 +63,38 @@ export const defineRoles = <Name extends string = string>(
     definitions,
     grants,
 
+    /** The capabilities limited to fields or rows, by role. */
+    limits: [...held].flatMap(([role, capabilities]) => capabilities.filter((held) => held.fields || held.filter).map((held): RoleLimit => ({ role, ...held }))),
+
     /** Whether the user holds the capability at all, in any scope. For areas and field rules. */
     has: (user: AccessUser, capability: Capability<Name>) => grants(user, capability).size > 0,
 
     /**
+     * The fields the user's roles allow for a capability: the union of their lists, or `undefined` when a role grants
+     * it without a list (every field) or none grants it.
+     */
+    fields: (user: AccessUser, capability: string): readonly string[] | undefined => {
+      const wanted = parseCapability(capability)
+      const matching = heldBy(user).filter((held) => grantsOf(held.capability, wanted).length > 0)
+      if (matching.length === 0 || matching.some((held) => !held.fields)) return undefined
+      return [...new Set(matching.flatMap((held) => held.fields!))]
+    },
+
+    /**
      * A rule that allows when the user's roles grant the capability: `true` for an unscoped
-     * grant, a row filter for `.own` and `.team`, `false` otherwise.
+     * grant, a row filter for `.own`, `.team` and a limit's filter, `false` otherwise.
      */
     can: (capability: Capability<Name>): Rule => {
-      parseCapability(capability)
+      const wanted = parseCapability(capability)
       return rule(async (ctx) => {
-        const held = grants(ctx.user ?? {}, capability)
-        if (held.has('all')) return true
-        const filters = await Promise.all([...held].map((scope) => scoped(ctx, scope as 'own' | 'team', capability)))
+        const matching = heldBy(ctx.user ?? {}).flatMap((held) => grantsOf(held.capability, wanted).map((grant) => ({ grant, filter: held.filter })))
+        if (matching.some(({ grant, filter }) => grant === 'all' && !filter)) return true
+        // Each grant's rows within its entry's filter, ORed; a scope granted twice without a filter counts once.
+        const unfiltered = [...new Set(matching.filter(({ filter }) => !filter).map(({ grant }) => grant))].map((grant) => ({ grant, filter: undefined }))
+        const filters = await Promise.all([...unfiltered, ...matching.filter(({ filter }) => filter)].map(async ({ grant, filter }) => {
+          const rows = grant === 'all' ? true : await scoped(ctx, grant, capability)
+          return filter ? andResults(rows, filter) : rows
+        }))
         return filters.reduce<boolean | FilterExpr>((result, filter) => orResults(result, filter), false)
       })
     },

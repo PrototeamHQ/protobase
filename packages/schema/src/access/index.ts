@@ -1,4 +1,5 @@
-export { defineRoles, type Roles, type RolesOptions } from './roles'
+export { defineRoles, type RoleLimit, type Roles, type RolesOptions } from './roles'
+export { anonymousRole, type CapabilityLimit, type RoleEntry } from './role-entry'
 export { rule, type Rule } from './rule'
 export type { Capability, CapabilityAction, CapabilityScope } from './capability'
 export { pickView } from './pick-view'
