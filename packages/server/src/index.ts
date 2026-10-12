@@ -6,7 +6,7 @@ export type { AuditEvent, AuditQueue } from './types'
 export type { AdminOptions } from './admin-options'
 export { consoleAuditQueue } from './audit/console-queue'
 export { jwtAuthenticator, type JwtOptions } from './auth/jwt'
-export { HttpProblem, unauthorized, forbidden, notFound, badRequest } from './problem'
+export { HttpProblem, MissingCredentials, unauthorized, forbidden, notFound, badRequest } from './problem'
 export type {
   SessionOrganization,
   Admin,

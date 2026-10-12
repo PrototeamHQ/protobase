@@ -1,5 +1,5 @@
 import { createRemoteJWKSet, errors, jwtVerify, type JWTVerifyGetKey } from 'jose'
-import { unauthorized } from '../problem'
+import { MissingCredentials, unauthorized } from '../problem'
 import type { Authenticator, TenantValue } from '../types'
 
 export type JwtOptions = {
@@ -29,13 +29,15 @@ const rolesOf = (claim: unknown) => {
   return Array.isArray(claim) ? claim.filter((role): role is string => typeof role === 'string') : []
 }
 
-/** Verifies `Authorization: Bearer <jwt>` against a JWKS; `sub` is the user id. */
+/** Verifies `Authorization: Bearer <jwt>` against a JWKS; `sub` is the user id. Without the header, `MissingCredentials`. */
 export const jwtAuthenticator = (options: JwtOptions): Authenticator => {
   const { rolesClaim = 'roles', tenantClaim = 'tenant' } = options
   const keys = options.keys ?? (options.jwksUrl ? createRemoteJWKSet(new URL(options.jwksUrl)) : undefined)
   if (!keys) throw new Error('jwtAuthenticator needs jwksUrl or keys')
   return async (request) => {
-    const [scheme, token] = (request.headers.get('authorization') ?? '').split(' ')
+    const header = request.headers.get('authorization')
+    if (header === null) throw new MissingCredentials('Send a bearer token in the Authorization header')
+    const [scheme, token] = header.split(' ')
     if (scheme?.toLowerCase() !== 'bearer' || !token) throw unauthorized('Send a bearer token in the Authorization header')
     const verified = await jwtVerify(token, keys, { algorithms: options.algorithms ?? asymmetric, ...(options.issuer && { issuer: options.issuer }), ...(options.audience && { audience: options.audience }) }).catch((error: unknown) => {
       if (error instanceof errors.JOSEError) throw unauthorized('The bearer token is invalid or expired')

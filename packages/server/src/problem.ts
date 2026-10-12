@@ -39,6 +39,17 @@ export const badRequest = (slug: string, detail: string, extras?: ProblemExtras)
 export const unauthorized = (detail: string) =>
   new HttpProblem(401, 'unauthenticated', 'Unauthorized', detail, {}, { 'www-authenticate': 'Bearer' })
 
+/**
+ * The 401 of a request that carries no credential at all, as opposed to an invalid one: with an `anonymous` role, the
+ * resources API serves such a request as an anonymous caller instead. An authenticator of the app's own throws it to
+ * let that happen.
+ */
+export class MissingCredentials extends HttpProblem {
+  constructor(detail: string) {
+    super(401, 'unauthenticated', 'Unauthorized', detail, {}, { 'www-authenticate': 'Bearer' })
+  }
+}
+
 export const forbidden = (slug: string, detail: string) => new HttpProblem(403, slug, 'Forbidden', detail)
 
 export const notFound = (detail: string) => new HttpProblem(404, 'not-found', 'Not Found', detail)

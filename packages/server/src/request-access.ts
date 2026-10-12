@@ -2,7 +2,7 @@ import { checkFilter, restrictModel, resolveAccess, type AccessAction, type Chec
 import type { Deps } from './deps'
 import { checkedFilter } from './filter-input'
 import type { Scope } from '@protobase/query'
-import { forbidden, notFound } from './problem'
+import { forbidden, notFound, unauthorized } from './problem'
 import type { Entry } from './registry'
 import { tenantScope } from './tenant'
 import type { Row, Session } from './types'
@@ -40,10 +40,14 @@ export const requestAccess = async (deps: Deps, entry: Entry, session: Session):
 
 const hasNoAccess = (resolved: ResolvedAccess) => !Object.values(resolved.operations).some(Boolean)
 
-/** 403 when the operation is denied; a resource the user can do nothing with does not exist for them. */
+/**
+ * 403 when the operation is denied, 401 for a request without a token; a resource the user can do nothing with does not
+ * exist for them.
+ */
 export const requireOperation = (access: RequestAccess, operation: AccessAction) => {
   if (access.resolved.operations[operation]) return
   if (hasNoAccess(access.resolved)) throw notFound(`There is no resource "${access.entry.name}"`)
+  if (access.session.anonymous) throw unauthorized(`Send a bearer token to ${operation} ${access.entry.name}`)
   throw forbidden('access-denied', `You may not ${operation} ${access.entry.name}`)
 }
 

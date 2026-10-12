@@ -18,7 +18,8 @@ export type AdminOptions = {
   writeHooks?: PipelineHook[]
   /**
    * The project's roles (from `defineRoles`): an operation without an access rule needs the matching capability. Their
-   * limits are checked against the resources at startup.
+   * limits are checked against the resources at startup; an `anonymous` role opens the resources API to requests
+   * without a token.
    */
   roles?: ResolveOptions['roles'] & { limits?: readonly RoleLimit[] }
   /** What an operation without a rule does; overrides the capability check. Without `roles` the default is allow. */

@@ -17,6 +17,7 @@ import { webhookTable } from './webhooks/table/webhook-table'
 import { subscriptionWriteCheck } from './webhooks/table/validate-hook'
 import type { WebhooksOptions } from './webhooks/table/options'
 import type { SubscriptionDefinition } from './webhooks/subscription'
+import { withAnonymous } from './anonymous'
 import { checkBottomBars, checkShell } from './check-shell'
 import { checkRoleLimits } from './check-roles'
 import { checkViews } from './check-views'
@@ -147,8 +148,9 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], pag
 
   const meta = createMeta(deps)
   const onError = createErrorHandler(options.onUnhandledError)
-  // Every response of the resources API and of the system endpoints names the models version; every request needs a token.
-  const guarded = (routes: (app: Hono<AdminEnv>) => void) => {
+  // Every response of the resources API and of the system endpoints names the models version; every request needs a
+  // token, but one to the resources API when the project has an anonymous role.
+  const guarded = (routes: (app: Hono<AdminEnv>) => void, caller: Authenticator = authenticate) => {
     const app = new Hono<AdminEnv>()
     app.onError(onError)
     app.use('*', async (c, next) => {
@@ -156,7 +158,7 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], pag
       c.res.headers.set('X-Meta-Version', await meta.version(c.get('session')?.user.roles ?? []))
     })
     app.use('*', async (c, next) => {
-      c.set('session', await authenticate(c.req.raw))
+      c.set('session', await caller(c.req.raw))
       await next()
     })
     routes(app)
@@ -166,7 +168,7 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], pag
   const api = guarded((app) => {
     app.route('/', collectionRoutes(deps))
     app.route('/', recordRoutes(deps))
-  })
+  }, withAnonymous(authenticate, options.roles))
   const system = guarded((app) => {
     app.route('/', docsRoutes(deps))
     app.route('/', metaRoutes(meta))
