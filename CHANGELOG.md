@@ -2,6 +2,12 @@
 
 Every release of Protobase, cut by the release workflow from the commits since the last one (see the [versioning page](https://docs.protobase.net/reference/versioning/)).
 
+## [0.12.15](https://github.com/PrototeamHQ/protobase/compare/v0.12.14...v0.12.15) (2026-10-12)
+
+### Features
+
+* **ui:** a cards display steps through a record's photos with arrows, loaded on the first press ([9a7be30](https://github.com/PrototeamHQ/protobase/commit/9a7be300d712a218cd7a9120822fa33e966f245b))
+
 ## [0.12.14](https://github.com/PrototeamHQ/protobase/compare/v0.12.13...v0.12.14) (2026-10-12)
 
 ### Features
