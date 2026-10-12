@@ -36,6 +36,7 @@ import { metaRoutes } from './routes/meta'
 import { recordRoutes } from './routes/record'
 import { runtimeUrl } from './runtime/runtime-settings'
 import { pluginOptions } from './plugins/plugin-settings'
+import { checkSourceNames, sourceOptions } from './sources/source-settings'
 import { createScanGuard } from './scan-guard'
 import type { AdminOptions } from './admin-options'
 import type { Admin, AdminEnv, Authenticator, PageSource, Session, ViewSource } from './types'
@@ -112,6 +113,8 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], pag
   const assistant = assistantSettings(options.assistant, globalThis.process?.env ?? {})
   const runtime = runtimeUrl(options.runtime, globalThis.process?.env ?? {})
   const plugins = pluginOptions(options.plugins, globalThis.process?.env ?? {}, bundlePlugins)
+  const sources = sourceOptions(options.sources, globalThis.process?.env ?? {})
+  checkSourceNames(sources, { resources: registry.entries.map((entry) => entry.name), pages: pageModels.map((entry) => entry.name) })
   const files = createFilesRuntime({ ...(filesOptions && { options: filesOptions }), env: globalThis.process?.env ?? {}, models: registry.entries.map((entry) => entry.model), systemPath })
   const table = webhooksOptions && webhookTable(webhooksOptions, auth)
   const deps = {
@@ -132,6 +135,7 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], pag
     ...(assistant && { assistant: assistant.kind === 'external' ? assistant.url : `${systemPath}/assistant` }),
     ...(runtime && { runtime }),
     plugins,
+    sources,
     ...(files && { files }),
     ...(registry.entries.some((entry) => entry.model.events) && { actorSetting: `${changesSchema(events)}.actor` }),
   }

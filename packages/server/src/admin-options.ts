@@ -3,6 +3,7 @@ import type { CorsOrigins } from './api-cors'
 import type { AssistantOptions } from './assistant/assistant-settings'
 import type { PluginOption } from './plugins/plugin-settings'
 import type { RuntimeOptions } from './runtime/runtime-settings'
+import type { SourceOption } from './sources/source-settings'
 import type { AuditQueue, PipelineHook, ScanGuardMode } from './types'
 
 export type AdminOptions = {
@@ -40,4 +41,9 @@ export type AdminOptions = {
    * `false` turns both off.
    */
   plugins?: PluginOption[] | false
+  /**
+   * Other Protobase APIs whose resources the admin app draws as its own (see `SourceOption`), before the ones the
+   * platform lists in `PROTOBASE_SOURCES`; `false` turns both off.
+   */
+  sources?: SourceOption[] | false
 }

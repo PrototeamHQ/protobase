@@ -4,6 +4,7 @@ import type { BottomBarModel, ResolveOptions, UserMenuModel, ViewModel } from '@
 import type { FilesRuntime } from './files/runtime'
 import type { PluginOption } from './plugins/plugin-settings'
 import type { Registry } from './registry'
+import type { SourceOption } from './sources/source-settings'
 import type { ScanGuard } from './scan-guard'
 import type { AuditQueue, PipelineHook } from './types'
 
@@ -33,6 +34,8 @@ export type Deps = {
   runtime?: string
   /** The plugins `/meta` names to the callers they are for. */
   plugins: PluginOption[]
+  /** The other APIs whose resources `/meta` names to the callers they are for. */
+  sources: SourceOption[]
   /** Providers, signing and scheduled deletes, when a resource has a file field. */
   files?: FilesRuntime
   /** The transaction setting that tells the change capture who writes, when a resource has events (`changes.actor`). */

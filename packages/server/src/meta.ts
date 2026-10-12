@@ -7,6 +7,7 @@ import { sha256Hex, stableJson } from './hash'
 import { pluginsFor, type PluginRef } from './plugins/plugin-settings'
 import { requestAccess } from './request-access'
 import { seesRuntime } from './runtime/runtime-settings'
+import { sourcesFor, type SourceRef } from './sources/source-settings'
 import type { Session } from './types'
 import { pruneView } from './view-access'
 
@@ -35,6 +36,8 @@ export type CallerMeta = {
   runtime?: { url: string }
   /** The plugins the admin app loads for the caller: those for everyone, and those for one of their roles. */
   plugins?: PluginRef[]
+  /** The other APIs whose resources the admin app draws for the caller: those for everyone, and those for one of their roles. */
+  sources?: SourceRef[]
 }
 
 const modelsHash = (deps: Deps) => sha256Hex(stableJson(deps.registry.entries.map((entry) => entry.model))).then((hash) => hash.slice(0, 32))
@@ -68,6 +71,7 @@ export const createMeta = (deps: Deps) => {
     const bar = bottomBarFor(deps.bottomBars, activeRole(session))
     const barItems = bar?.items.filter(shown) ?? []
     const plugins = pluginsFor(deps.plugins, session.user.roles)
+    const sources = sourcesFor(deps.sources, session.user.roles)
     const body: CallerMeta = {
       resources: visible.map((access) => access.readable),
       views,
@@ -84,6 +88,7 @@ export const createMeta = (deps: Deps) => {
       ...(deps.assistant && seesAssistant(session.user.roles) && { assistant: { url: deps.assistant } }),
       ...(deps.runtime && seesRuntime(session.user.roles) && { runtime: { url: deps.runtime } }),
       ...(plugins.length > 0 && { plugins }),
+      ...(sources.length > 0 && { sources }),
     }
     return { body, etag: `"${(await sha256Hex(stableJson(body))).slice(0, 32)}"` }
   }
