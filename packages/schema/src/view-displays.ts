@@ -25,11 +25,12 @@ export const displays = {
   /**
    * A card per record: `image`, a file field shown as a picture across the card's top, then `title` (default: the
    * view's title) over `subtitle`, `badge` drawn as a badge with its value labels, and a few small `meta` fields such as
-   * dates. With `card`, a component of the project or a plugin draws each
-   * card's content instead, from the row of those fields (`{ row }`); without it, or when it throws, the card is the
-   * built-in one. Named `cards` unless `name` says otherwise.
+   * dates. `flags` are boolean fields shown as small badges of their labels when true, such as a garden or parking.
+   * With `card`, a component of the project or a plugin draws each card's content instead, from the row of those
+   * fields (`{ row }`); without it, or when it throws, the card is the built-in one. Named `cards` unless `name` says
+   * otherwise.
    */
-  cards: (fields: { image?: Ref; title?: Ref; subtitle?: Ref; badge?: Ref; meta?: Ref[] }, o: Naming & { card?: ComponentRef<never> } = {}): ListDisplayModel => ({
+  cards: (fields: { image?: Ref; title?: Ref; subtitle?: Ref; badge?: Ref; meta?: Ref[]; flags?: Ref[] }, o: Naming & { card?: ComponentRef<never> } = {}): ListDisplayModel => ({
     kind: 'cards',
     name: o.name ?? 'cards',
     ...naming(o),
@@ -38,6 +39,7 @@ export const displays = {
     ...(fields.subtitle && { subtitle: fields.subtitle.name }),
     ...(fields.badge && { badge: fields.badge.name }),
     ...(fields.meta && { meta: fields.meta.map((ref) => ref.name) }),
+    ...(fields.flags && { flags: fields.flags.map((ref) => ref.name) }),
     ...(o.card && { card: customComponent(o.card, 'd.cards card') }),
   }),
   /**
@@ -71,5 +73,5 @@ export const displayErrors = (list: { displays?: ListDisplayModel[]; default?: s
 /** Every field a display names: what it shows, and the field references in a custom display's props. */
 export const displayFields = (display: ListDisplayModel): string[] =>
   display.kind === 'cards'
-    ? [display.image, display.title, display.subtitle, display.badge, ...(display.meta ?? [])].filter((name): name is string => name !== undefined)
+    ? [display.image, display.title, display.subtitle, display.badge, ...(display.meta ?? []), ...(display.flags ?? [])].filter((name): name is string => name !== undefined)
     : [...display.fields, ...fieldRefsIn(display.props)]

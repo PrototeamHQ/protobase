@@ -51,7 +51,9 @@ export const useFilterConfig = ({ model, resources, views, view, state, extras }
 
   const rangeFilter = stateToText({ ...skeleton, range: undefined }, state, extras)
   const histogram = useHistogram(model.name, skeleton.range?.id ?? '', rangeFilter, 24, Boolean(skeleton.range))
-  const prefix = skeleton.range ? view?.fields[skeleton.range.id]?.prefix : undefined
+  const rangeHints = skeleton.range ? view?.fields[skeleton.range.id] : undefined
+  const prefix = rangeHints?.prefix
+  const suffix = rangeHints?.suffix ?? ''
 
   return {
     facets: skeleton.facets.map((group, index) => {
@@ -73,7 +75,7 @@ export const useFilterConfig = ({ model, resources, views, view, state, extras }
         max: Math.ceil(histogram.data.max),
         step: Math.max(1, Math.round((histogram.data.max - histogram.data.min) / 100)),
         histogram: histogram.data.buckets.map((bucket) => bucket.count),
-        format: (value: number) => (prefix === '€' ? formatMoney(value * 100).replace('.00', '') : String(value)),
+        format: (value: number) => `${prefix === '€' ? formatMoney(value * 100).replace('.00', '') : String(value)}${suffix}`,
       },
     }),
     ...(skeleton.dateField && { datePresets: skeleton.datePresets ?? true, dateField: skeleton.dateField, dateKind: skeleton.dateKind }),

@@ -181,6 +181,24 @@ describe('view builder', () => {
     expect(() => view<typeof article>('article').layout(() => [l.custom(Card)])).toThrow('l.custom takes a component declared with component(...), not the built-in block Card')
   })
 
+  it('carries a suffix, an icon, value colours and a badge shape as field hints', () => {
+    const hinted = view<typeof article>('article')
+      .fields((r) => ({ price: r.price.suffix(' per month').icon('ruler'), status: r.status.valueColors({ draft: '#999' }).valueColors({ live: '#00a651' }).badgeShape('arrow') }))
+      .toModel()
+    expect(hinted.fields).toEqual({ price: { suffix: ' per month', icon: 'ruler' }, status: { valueColors: { draft: '#999', live: '#00a651' }, badgeShape: 'arrow' } })
+  })
+
+  it('refuses a value colour that is not a hex colour', () => {
+    expect(() => view<typeof article>('article').fields((r) => ({ status: r.status.valueColors({ live: 'green' }) }))).toThrow('Field "status": value colour "green" of "live" is not a hex colour such as #00a651')
+  })
+
+  it("shows boolean fields as a card's flags, and refuses any other field there", () => {
+    const flagged = view<typeof article>('article').list((r, d) => ({ columns: [r.title], displays: [d.cards({ flags: [r.featured] })] })).toModel(article.toModel())
+    expect(flagged.list?.displays).toEqual([{ kind: 'cards', name: 'cards', flags: ['featured'] }])
+    const wrong = view<typeof article>('article').list((r, d) => ({ columns: [r.title], displays: [d.cards({ flags: [r.featured, r.title] })] }))
+    expect(() => wrong.toModel(article.toModel())).toThrow('View "article": display "cards" shows "title" as a flag, which is not a boolean field')
+  })
+
   it('refuses display fields the resource does not have', () => {
     const stale = view<typeof article>('article').list((r, d) => ({ columns: [r.title], displays: [d.cards({ badge: { name: 'state' } })] }))
     expect(() => stale.toModel(article.toModel())).toThrow('View "article": display "cards" names field "state", which the resource does not have')

@@ -1,5 +1,4 @@
-import { FileText, Send, Wallet, Zap, type LucideIcon } from 'lucide-react'
+import { Zap, type LucideIcon } from 'lucide-react'
+import { namedIcon } from './named-icon'
 
-const byName: Record<string, LucideIcon> = { wallet: Wallet, 'file-text': FileText, send: Send }
-
-export const actionIcon = (name: string | undefined): LucideIcon => (name ? (byName[name] ?? Zap) : Zap)
+export const actionIcon = (name: string | undefined): LucideIcon => namedIcon(name) ?? Zap

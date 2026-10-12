@@ -49,13 +49,14 @@ export const cardFields = (model: ResourceModel, view: ViewModel | undefined, di
   subtitle: display.subtitle,
   badge: display.badge,
   meta: display.meta ?? [],
+  flags: display.flags ?? [],
 })
 
 /** Every field a display shows, the fields its rows are loaded and labelled for. */
 export const shownFields = (model: ResourceModel, view: ViewModel | undefined, display: ListDisplayModel): string[] => {
   if (display.kind === 'custom') return display.fields
-  const { image, title, subtitle, badge, meta } = cardFields(model, view, display)
-  return [image, title, subtitle, badge, ...meta].filter((name): name is string => name !== undefined)
+  const { image, title, subtitle, badge, meta, flags } = cardFields(model, view, display)
+  return [image, title, subtitle, badge, ...meta, ...flags].filter((name): name is string => name !== undefined)
 }
 
 /** The fields to label the list's rows for: the table's columns and every display's, so one load serves them all. */

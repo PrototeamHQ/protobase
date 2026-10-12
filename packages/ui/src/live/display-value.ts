@@ -2,7 +2,10 @@ import { enumLabel, type FieldModel, type FieldViewModel } from '@protobase/sche
 import { formatDate, formatDateTime } from '../format/date'
 import { fileShown } from './file-values'
 
-/** A read-only rendering of a stored value, following the view's prefix, decimals, format and value label hints. */
+// A number with the view's prefix before it and suffix after it, such as `€1,200` or `120 m²`.
+const affixed = (text: string, hints: FieldViewModel) => `${hints.prefix ?? ''}${text}${hints.suffix ?? ''}`
+
+/** A read-only rendering of a stored value, following the view's prefix, suffix, decimals, format and value label hints. */
 export const displayValue = (field: FieldModel, value: unknown, hints: FieldViewModel = {}) => {
   if (value === null || value === undefined || value === '') return '—'
   switch (field.type) {
@@ -19,8 +22,11 @@ export const displayValue = (field: FieldModel, value: unknown, hints: FieldView
     case 'decimal': {
       const text = hints.decimals === undefined ? String(value) : Number(value).toFixed(hints.decimals)
       if (hints.format === 'percent') return `${Number(value)}%`
-      return `${hints.prefix ?? ''}${Number(text).toLocaleString('en-IE', { minimumFractionDigits: hints.decimals ?? 0, maximumFractionDigits: hints.decimals ?? 20 })}`
+      return affixed(Number(text).toLocaleString('en-IE', { minimumFractionDigits: hints.decimals ?? 0, maximumFractionDigits: hints.decimals ?? 20 }), hints)
     }
+    case 'integer':
+    case 'bigint':
+      return affixed(String(value), hints)
     default:
       return typeof value === 'object' ? JSON.stringify(value) : String(value)
   }

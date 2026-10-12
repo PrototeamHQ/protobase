@@ -21,8 +21,14 @@ export type ColumnSpec = {
   /** Tints the column to mark it as new. */
   highlight?: boolean
   currency?: string
+  /** Text after a number, such as a unit, for `number`, `signed` and `money` columns. */
+  suffix?: string
   /** Badge tone per value, for `status` columns. */
   tones?: Record<string, BadgeTone>
+  /** A hex colour per value that fills its badge instead of its tone, for `status` columns. */
+  colors?: Record<string, string>
+  /** The shape of a `status` column's badges. */
+  shape?: 'arrow'
   /** Badge text per value, for `status` columns; a value without one reads as itself in words. */
   labels?: Record<string, string>
   /** Reads the cell value; defaults to `row[id]`. */

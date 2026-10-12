@@ -140,6 +140,8 @@ export class ViewBuilder<R extends { readonly $fields: unknown }> {
       if (display.kind === 'cards' && display.image !== undefined && resource!.fields[display.image]!.type !== 'file') {
         throw new Error(`View "${this.state.resource}": display "${display.name}" shows "${display.image}" as its image, which is not a file field`)
       }
+      const flag = display.kind === 'cards' ? display.flags?.find((name) => resource!.fields[name]!.type !== 'boolean') : undefined
+      if (flag !== undefined) throw new Error(`View "${this.state.resource}": display "${display.name}" shows "${flag}" as a flag, which is not a boolean field`)
     }
     const recentErrors = resource && nav?.recent ? navRecentErrors(nav.recent, resource) : []
     if (recentErrors.length > 0) throw new Error(`View "${this.state.resource}": nav.recent ${recentErrors.join('; ')}`)

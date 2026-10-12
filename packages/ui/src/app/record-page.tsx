@@ -12,7 +12,6 @@ import { humanize } from '../live/naming'
 import { recordTitle } from '../live/model-helpers'
 import { toneFor } from '../live/columns-from-model'
 import { formatRelativeTime } from '../format'
-import { Badge } from '../primitives/badge'
 import { Button } from '../primitives/button'
 import { Field, MetadataCard, RecordHeader, RelatedRecords, Section, SidebarCard } from '../record-view'
 import { ErrorBanner } from './error-banner'
@@ -37,6 +36,7 @@ import { useAppAddress } from './use-app-address'
 import { useRecordEditor } from './use-record-editor'
 import { useRelatedRecords } from './use-related-records'
 import { RelatedSection } from './related-section'
+import { ValueBadge } from './value-badge'
 import { useClient } from '../data/api-provider'
 
 const hidden = (model: ResourceModel, name: string) => name === model.tenant || model.primaryKey.includes(name)
@@ -153,7 +153,7 @@ const LoadedRecord = ({ model, recordKey, stored }: { model: ResourceModel; reco
         const field = model.fields[name]
         if (!field || !visible(name)) return []
         const text = displayValue(field, stored.record[name], hint(name))
-        const builtIn = field.type === 'enum' ? <Badge tone={toneFor(String(stored.record[name]))}>{text}</Badge> : <strong>{text}</strong>
+        const builtIn = field.type === 'enum' ? <ValueBadge value={stored.record[name]} hints={hint(name)}>{text}</ValueBadge> : <strong>{text}</strong>
         const shown = shownWidget(fieldTypes, field, hint(name))
         return [{ label: hint(name)?.label ?? humanize(name), value: shown ? <WidgetPart shown={shown} part="display" field={field} value={stored.record[name]} fallback={builtIn} /> : builtIn }]
       })}

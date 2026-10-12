@@ -31,6 +31,15 @@ const valueLabelErrors = (view: ViewModel, model: ResourceModel) =>
     return Object.keys(hints.valueLabels).filter((value) => !field.enumValues?.includes(value)).map((value) => `value label "${value}" is not a value of "${name}"`)
   })
 
+// Value colours fill an enum's badges and name only its values, as value labels do.
+const valueColorErrors = (view: ViewModel, model: ResourceModel) =>
+  Object.entries(view.fields).flatMap(([name, hints]) => {
+    if (!hints.valueColors) return []
+    const field = model.fields[name]
+    if (field?.type !== 'enum') return [`value colours of "${name}" need an enum field`]
+    return Object.keys(hints.valueColors).filter((value) => !field.enumValues?.includes(value)).map((value) => `value colour "${value}" is not a value of "${name}"`)
+  })
+
 // A link goes to an address the app has, or leaves the app; a path in the app is written as an address.
 const linkErrors = (view: ViewModel, model: ResourceModel, models: Record<string, ResourceModel>, pages: ReadonlySet<string>) =>
   view.actions.flatMap(({ name, run }) => {
@@ -62,7 +71,7 @@ const widgetErrors = (view: ViewModel, model: ResourceModel, fieldTypes: Readonl
 
 /**
  * Fails at startup when a view uses a sensitive field where it would show empty, a display or custom section names a
- * field the resource does not have, labels values its enum does not have, shows a field with a field type of
+ * field the resource does not have, labels or colours values its enum does not have, shows a field with a field type of
  * `fieldTypes` (each with the storage types it shows) that does not show it,
  * has a related section that does not fit the resources, or a link to an address the app does not have.
  */
@@ -73,7 +82,7 @@ export const checkViews = (registry: Registry, views: ViewModel[], pages: readon
     const model = models[view.resource]
     if (!model) return []
     const related = view.layout.flatMap((item) => (item.kind === 'related' ? relatedErrors(item, view.resource, models).map((error) => `related "${item.title}": ${error}`) : []))
-    return [...sensitiveErrors(view, model), ...unknownFieldErrors(view, model), ...valueLabelErrors(view, model), ...widgetErrors(view, model, fieldTypes), ...related, ...linkErrors(view, model, models, pageNames)].map((problem) => `View "${view.resource}": ${problem}`)
+    return [...sensitiveErrors(view, model), ...unknownFieldErrors(view, model), ...valueLabelErrors(view, model), ...valueColorErrors(view, model), ...widgetErrors(view, model, fieldTypes), ...related, ...linkErrors(view, model, models, pageNames)].map((problem) => `View "${view.resource}": ${problem}`)
   })
   if (problems.length > 0) throw new Error(`The views do not match the resources:\n${problems.map((problem) => `  - ${problem}`).join('\n')}`)
 }

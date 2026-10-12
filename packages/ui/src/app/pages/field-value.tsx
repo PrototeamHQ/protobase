@@ -4,14 +4,13 @@ import { useClient } from '../../data/api-provider'
 import { keys } from '../../data/query-keys'
 import { displayValue } from '../../live/display-value'
 import { fileShown } from '../../live/file-values'
-import { toneFor } from '../../live/columns-from-model'
 import { fetchLabels } from '../../live/relation-labels'
 import { cn } from '../../lib/cn'
-import { Badge } from '../../primitives/badge'
 import { useAdminMeta } from '../meta-gate'
 import { AppLink } from '../use-app-address'
 import { useShownWidget } from '../field-types/shown-widget'
 import { WidgetPart } from '../field-types/widget-part'
+import { ValueBadge } from '../value-badge'
 
 const RelationValue = ({ field, value, known }: { field: FieldModel; value: unknown; known?: string }) => {
   const { resources, views } = useAdminMeta()
@@ -42,7 +41,7 @@ const BuiltInValue = ({ model, field, value, format, relationLabel }: FieldValue
   const file = field.type === 'file' ? fileShown(value) : undefined
   if (file && 'url' in file && file.url) return <a href={file.url} target="_blank" rel="noreferrer" className="font-medium text-primary-text hover:underline">{file.name}</a>
   const text = displayValue(field, value, hints)
-  if (field.type === 'enum' || hints.format === 'badge') return <Badge tone={toneFor(String(value))}>{text}</Badge>
+  if (field.type === 'enum' || hints.format === 'badge') return <ValueBadge value={value} hints={hints}>{text}</ValueBadge>
   return <span className={cn(hints.format === 'code' && 'font-mono text-xs', (field.type === 'decimal' || field.type === 'integer') && 'tabular-nums')}>{text}</span>
 }
 

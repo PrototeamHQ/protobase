@@ -1,5 +1,5 @@
+import type { ReactNode } from 'react'
 import type { ListDisplayModel, ResourceModel, ViewModel } from '@protobase/schema'
-import { toneFor } from '../../live/columns-from-model'
 import { displayValue } from '../../live/display-value'
 import { fileShown, isPreviewable } from '../../live/file-values'
 import { humanize } from '../../live/naming'
@@ -8,8 +8,10 @@ import { Skeleton } from '../../primitives/skeleton'
 import { AppLink } from '../use-app-address'
 import { shownWidget } from '../field-types/shown-widget'
 import { WidgetPart } from '../field-types/widget-part'
+import { namedIcon } from '../named-icon'
 import { CustomBoundary } from '../pages/custom-boundary'
 import { useProjectUi } from '../pages/project-ui'
+import { ValueBadge } from '../value-badge'
 import type { ListDisplay } from './display-context'
 import { DisplayFooter, DisplayState } from './display-frame'
 import { cardFields, type ListDisplayRow } from './list-displays'
@@ -29,12 +31,24 @@ const CardImage = ({ value }: { value: unknown }) => {
   )
 }
 
+// A meta field's value after the icon its view names.
+const MetaValue = ({ icon, children }: { icon: string | undefined; children: ReactNode }) => {
+  const Icon = namedIcon(icon)
+  return (
+    <dd className="flex items-center gap-1 tabular-nums">
+      {Icon && <Icon className="size-3.5 shrink-0" aria-hidden />}
+      {children}
+    </dd>
+  )
+}
+
 /**
- * A card per record, opening its page: its image across the top, the title over the subtitle, the badge beside it and small meta fields below;
- * or, with a `card` component, what it draws of the row, the built-in content again when it is missing or throws.
+ * A card per record, opening its page: its image across the top, the title over the subtitle, the badge beside it,
+ * small meta fields below and the labels of its flags that are true; or, with a `card` component, what it draws of the
+ * row, the built-in content again when it is missing or throws.
  */
 export const CardsDisplay = ({ model, view, display, list }: CardsProps) => {
-  const { image, title, subtitle, badge, meta } = cardFields(model, view, display)
+  const { image, title, subtitle, badge, meta, flags } = cardFields(model, view, display)
   const label = (name: string) => view?.fields[name]?.label ?? humanize(name)
   const text = (row: ListDisplayRow, name: string) => {
     const field = model.fields[name]
@@ -49,6 +63,18 @@ export const CardsDisplay = ({ model, view, display, list }: CardsProps) => {
     const shown = field && shownWidget(fieldTypes, field, view?.fields[name])
     return shown ? <WidgetPart shown={shown} part="display" field={field} value={row.record[name]} fallback={text(row, name)} /> : text(row, name)
   }
+  // A meta field the view formats as a badge shows as one, unless a field type draws it
+  const metaValue = (row: ListDisplayRow, name: string) => {
+    const field = model.fields[name]
+    const hints = view?.fields[name]
+    const value = row.record[name]
+    if (!field || hints?.format !== 'badge' || shownWidget(fieldTypes, field, hints) || value === null || value === undefined || value === '') return shownValue(row, name)
+    return (
+      <ValueBadge value={value} hints={hints}>
+        {text(row, name)}
+      </ValueBadge>
+    )
+  }
   const plural = (view?.names?.plural ?? humanize(model.name)).toLowerCase()
 
   return (
@@ -56,23 +82,37 @@ export const CardsDisplay = ({ model, view, display, list }: CardsProps) => {
       <ul className={grid} aria-label={view?.names?.plural ?? humanize(model.name)}>
         {list.rows.map((row) => {
           const status = badge === undefined ? undefined : row.record[badge]
+          const raised = flags.filter((name) => row.record[name] === true)
           const builtIn = (
             <>
               {image !== undefined && <CardImage value={row.record[image]} />}
               <span className="flex items-start justify-between gap-2">
                 <span className="min-w-0 truncate font-medium">{shownValue(row, title)}</span>
-                {badge !== undefined && status !== null && status !== undefined && <Badge tone={toneFor(String(status))}>{text(row, badge)}</Badge>}
+                {badge !== undefined && status !== null && status !== undefined && (
+                  <ValueBadge value={status} hints={view?.fields[badge]}>
+                    {text(row, badge)}
+                  </ValueBadge>
+                )}
               </span>
               {subtitle !== undefined && <span className="truncate text-muted-foreground">{shownValue(row, subtitle)}</span>}
               {meta.length > 0 && (
-                <dl className="mt-auto flex flex-wrap gap-x-3 gap-y-0.5 pt-1 text-xs text-muted-foreground">
+                <dl className="mt-auto flex flex-wrap items-center gap-x-3 gap-y-0.5 pt-1 text-xs text-muted-foreground">
                   {meta.map((name) => (
                     <div key={name} className="flex gap-1">
                       <dt className="sr-only">{label(name)}</dt>
-                      <dd className="tabular-nums">{shownValue(row, name)}</dd>
+                      <MetaValue icon={view?.fields[name]?.icon}>{metaValue(row, name)}</MetaValue>
                     </div>
                   ))}
                 </dl>
+              )}
+              {raised.length > 0 && (
+                <ul className="flex flex-wrap gap-1" aria-label="Features">
+                  {raised.map((name) => (
+                    <li key={name}>
+                      <Badge dot={false}>{label(name)}</Badge>
+                    </li>
+                  ))}
+                </ul>
               )}
             </>
           )

@@ -70,6 +70,7 @@ const BuiltInEditor = ({ field, hints, value, stored, relationLabel, relationTo,
     <Input
       invalid={invalid}
       leading={hints?.prefix ? <span className="text-[13px]">{hints.prefix}</span> : undefined}
+      trailing={hints?.suffix ? <span className="text-[13px]">{hints.suffix.trim()}</span> : undefined}
       placeholder={placeholder}
       className={cn(numeric.has(field.type) && 'text-right tabular-nums')}
       value={String(value)}

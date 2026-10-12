@@ -42,6 +42,17 @@ describe('columnsFromModel', () => {
     expect(byId.createdAt?.kind).toBe('datetime')
   })
 
+  it("carries a field's suffix, value colours and badge shape to its column", () => {
+    const area = { ...model, fields: { ...model.fields, area: field('area', 'integer') } } as ResourceModel
+    const hinted = { ...view, fields: { area: { suffix: ' m²' }, status: { valueColors: { draft: '#cccccc' }, badgeShape: 'arrow' } }, list: { columns: ['area', 'status', 'total'] } } as unknown as ViewModel
+    const [areaColumn, statusColumn, totalColumn] = columnsFromModel(area, hinted)
+    expect(areaColumn).toMatchObject({ kind: 'number', suffix: ' m²' })
+    expect(statusColumn).toMatchObject({ kind: 'status', colors: { draft: '#cccccc' }, shape: 'arrow' })
+    expect(totalColumn).not.toHaveProperty('suffix')
+    expect(byId.status).not.toHaveProperty('colors')
+    expect(byId.status).not.toHaveProperty('shape')
+  })
+
   it('converts wire values for the cell renderers', () => {
     expect(byId.total?.value?.({ id: '1', total: '12.34' })).toBe(1234)
     expect(byId.discountPercent?.value?.({ id: '1', discountPercent: '5.00' })).toBe(5)

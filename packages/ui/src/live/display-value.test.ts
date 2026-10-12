@@ -8,6 +8,12 @@ describe('displayValue', () => {
   it('formats money with prefix and decimals', () => {
     expect(displayValue(field('decimal'), '1234.5', { prefix: '€', decimals: 2 })).toBe('€1,234.50')
   })
+  it('puts the prefix before and the suffix after a whole or decimal number', () => {
+    expect(displayValue(field('integer'), 120, { suffix: ' m²' })).toBe('120 m²')
+    expect(displayValue(field('bigint'), '9007199254740993', { prefix: '#' })).toBe('#9007199254740993')
+    expect(displayValue(field('decimal'), '1250', { prefix: '€', suffix: ' a month', decimals: 0 })).toBe('€1,250 a month')
+    expect(displayValue(field('integer'), null, { suffix: ' m²' })).toBe('—')
+  })
   it('formats percentages, booleans and enums', () => {
     expect(displayValue(field('decimal'), '5.00', { format: 'percent' })).toBe('5%')
     expect(displayValue(field('boolean'), true)).toBe('Yes')

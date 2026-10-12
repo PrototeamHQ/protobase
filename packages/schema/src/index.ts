@@ -14,6 +14,7 @@ export type {
   FieldFormat,
   FieldViewModel,
   FieldWidgetModel,
+  BadgeShape,
   ListModel,
   ListDisplayModel,
   JsonValue,

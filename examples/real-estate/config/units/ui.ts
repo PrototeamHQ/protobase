@@ -10,7 +10,7 @@ export const unitsView = view<typeof units>('units')
   .nav({ recent: { status: 'status', tones: { vacant: 'warning', renovation: 'info' }, filter: 'status != "let"' } })
   .fields((r) => ({
     property_id: r.property_id.label('Property'),
-    area_m2: r.area_m2.label('Area').help('Living area in m².').prefix('m² '),
+    area_m2: r.area_m2.label('Area').help('Living area in m².').suffix(' m²'),
     energy_label: r.energy_label.format('badge'),
     base_rent: r.base_rent.label('Market rent').help('What a new lease would ask today, per month.').prefix('€').decimals(2),
     status: r.status.help('Let while a lease runs; vacant or under renovation between leases.').format('badge').valueLabels({ let: 'Let', vacant: 'Vacant', renovation: 'Renovation' }),

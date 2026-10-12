@@ -47,7 +47,7 @@ const listShape = s.object<ListModel>(
     search: s.list(s.field),
     displays: s.list(
       s.oneOf<ListDisplayModel>({
-        cards: s.object<Of<ListDisplayModel, 'cards'>>({ kind: s.data, name: s.data, label: s.data, icon: s.data, image: s.field, title: s.field, subtitle: s.field, badge: s.field, meta: s.list(s.field), card: s.data }),
+        cards: s.object<Of<ListDisplayModel, 'cards'>>({ kind: s.data, name: s.data, label: s.data, icon: s.data, image: s.field, title: s.field, subtitle: s.field, badge: s.field, meta: s.list(s.field), flags: s.list(s.field), card: s.data }),
         custom: s.object<Of<ListDisplayModel, 'custom'>>(
           { kind: s.data, name: s.data, label: s.data, icon: s.data, component: s.data, fields: s.list(s.field), props: s.refs },
           { requires: ['props'] },

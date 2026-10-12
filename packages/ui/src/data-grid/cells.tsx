@@ -8,6 +8,7 @@ import { Avatar } from '../primitives/avatar'
 import { Badge } from '../primitives/badge'
 import { cn } from '../lib/cn'
 import { fileShown, isPreviewable } from '../live/file-values'
+import { valueColor } from '../live/value-color'
 import type { ColumnSpec } from './column-spec'
 
 const muted = (text: string) => <span className="text-faint-foreground">{text}</span>
@@ -22,19 +23,23 @@ export const renderCell = (spec: ColumnSpec, value: unknown) => {
     case 'id':
       return <span className="truncate font-mono text-xs text-muted-foreground">{String(value)}</span>
     case 'money':
-      return <span className="tabular-nums">{formatMoney(Number(value), spec.currency)}</span>
+      return <span className="tabular-nums">{formatMoney(Number(value), spec.currency)}{spec.suffix}</span>
     case 'date':
       return <span className="tabular-nums text-muted-foreground">{formatDate(Number(value))}</span>
     case 'datetime':
       return <span className="tabular-nums text-muted-foreground">{formatDateTime(Number(value))}</span>
     case 'number':
-      return <span className="tabular-nums">{formatInt(Number(value))}</span>
+      return <span className="tabular-nums">{formatInt(Number(value))}{spec.suffix}</span>
     case 'signed':
-      return <span className={cn('tabular-nums', Number(value) < 0 ? 'text-danger-text' : 'text-success-text')}>{formatSigned(Number(value))}</span>
+      return <span className={cn('tabular-nums', Number(value) < 0 ? 'text-danger-text' : 'text-success-text')}>{formatSigned(Number(value))}{spec.suffix}</span>
     case 'percent':
       return Number(value) === 0 ? muted('—') : <span className="tabular-nums">{formatPercent(Number(value))}</span>
     case 'status':
-      return <Badge tone={spec.tones?.[String(value)] ?? 'neutral'}>{enumLabel(String(value), spec.labels)}</Badge>
+      return (
+        <Badge tone={spec.tones?.[String(value)] ?? 'neutral'} color={valueColor(spec.colors, value)} shape={spec.shape}>
+          {enumLabel(String(value), spec.labels)}
+        </Badge>
+      )
     case 'relation':
       return <span className="truncate font-medium text-primary-text hover:underline">{relationLabel(value)}</span>
     case 'boolean':

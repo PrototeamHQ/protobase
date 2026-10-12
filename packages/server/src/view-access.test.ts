@@ -13,6 +13,8 @@ const repairs = resource('repairs')
     costPrice: f.decimal({ precision: 8, scale: 2 }).filterable().sortable(),
     status: f.enum(['booked', 'ready']).filterable(),
     bookedOn: f.timestamp().sortable(),
+    urgent: f.boolean(),
+    insured: f.boolean(),
   })
   .primaryKey((r) => r.id)
 
@@ -51,6 +53,12 @@ describe('pruneView', () => {
     expect(pruneView(repairsView, all.repairs, all).layout).toEqual(repairsView.layout)
     const hidden = without({ repairs: ['estimate'] })
     expect(pruneView(repairsView, hidden.repairs!, hidden).layout).toEqual([{ kind: 'section', title: 'Repair', fields: ['status'] }])
+  })
+
+  it("leaves out a card's flags the caller cannot read", () => {
+    const flagged = view<typeof repairs>('repairs').list((r, d) => ({ columns: [r.number], displays: [d.cards({ flags: [r.urgent, r.insured] })] })).toModel(repairs.toModel())
+    const hidden = without({ repairs: ['insured'] })
+    expect(pruneView(flagged, hidden.repairs!, hidden).list?.displays).toEqual([{ kind: 'cards', name: 'cards', flags: ['urgent'] }])
   })
 
   it('never sends a hidden field, wherever a view names it: lists, displays, sections and custom props', () => {

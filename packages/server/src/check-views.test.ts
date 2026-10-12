@@ -23,6 +23,15 @@ describe('checkViews', () => {
     expect(() => checkViews(registry, [stale])).toThrow('value labels of "reference" need an enum field')
   })
 
+  it('takes colours for values of an enum, and refuses colours for values it does not have or on another field', () => {
+    const coloured = view<typeof payments>('payments').fields((r) => ({ method: r.method.valueColors({ ideal: '#cc0066' }).badgeShape('arrow') }))
+    expect(() => checkViews(registry, [coloured.toModel()])).not.toThrow()
+    const stale = view<typeof payments>('payments').toModel()
+    stale.fields = { method: { valueColors: { cash: '#00a651' } }, reference: { valueColors: { x: '#000' } } }
+    expect(() => checkViews(registry, [stale])).toThrow('value colour "cash" is not a value of "method"')
+    expect(() => checkViews(registry, [stale])).toThrow('value colours of "reference" need an enum field')
+  })
+
   it("refuses a field type of the app's plugins on a field of a storage type it does not show, and trusts unknown ones", () => {
     const shown = view<typeof payments>('payments').fields((r) => ({ reference: r.reference.widget('iban', { mask: true }), method: r.method.widget('chips') })).toModel()
     expect(() => checkViews(registry, [shown], [], { iban: ['text'] })).not.toThrow()

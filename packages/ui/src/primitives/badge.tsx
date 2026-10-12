@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import { cn } from '../lib/cn'
+import { readableOn } from '../lib/readable-text'
 
 export type BadgeTone = 'neutral' | 'blue' | 'green' | 'amber' | 'red' | 'violet'
 
@@ -21,9 +22,30 @@ const dots = {
   violet: 'bg-violet',
 }
 
-export const Badge = ({ tone = 'neutral', dot = true, children, className }: { tone?: BadgeTone; dot?: boolean; children: ReactNode; className?: string }) => (
-  <span className={cn('inline-flex h-5 items-center gap-1.5 rounded-full px-2 text-xs font-medium whitespace-nowrap', tones[tone], className)}>
-    {dot && <span className={cn('size-1.5 rounded-full', dots[tone])} />}
+// An arrow pointing right, its point as deep as half the badge is high.
+const arrow = 'polygon(0 0, calc(100% - 0.625rem) 0, 100% 50%, calc(100% - 0.625rem) 100%, 0 100%)'
+
+type BadgeProps = {
+  tone?: BadgeTone
+  dot?: boolean
+  /** A hex colour that fills the badge instead of its tone, its text white or near black, whichever reads. */
+  color?: string
+  /** `arrow` points the badge right, as on a rating scale. */
+  shape?: 'arrow'
+  children: ReactNode
+  className?: string
+}
+
+export const Badge = ({ tone = 'neutral', dot = true, color, shape, children, className }: BadgeProps) => (
+  <span
+    style={{ ...(color !== undefined && { backgroundColor: color, color: readableOn(color) }), ...(shape === 'arrow' && { clipPath: arrow }) }}
+    className={cn(
+      shape === 'arrow' ? 'inline-flex h-5 items-center gap-1.5 rounded-l-sm pr-4 pl-2 text-xs font-semibold whitespace-nowrap' : 'inline-flex h-5 items-center gap-1.5 rounded-full px-2 text-xs font-medium whitespace-nowrap',
+      color === undefined && tones[tone],
+      className,
+    )}
+  >
+    {dot && color === undefined && shape === undefined && <span className={cn('size-1.5 rounded-full', dots[tone])} />}
     {children}
   </span>
 )
