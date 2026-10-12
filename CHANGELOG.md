@@ -2,6 +2,16 @@
 
 Every release of Protobase, cut by the release workflow from the commits since the last one (see the [versioning page](https://docs.protobase.net/reference/versioning/)).
 
+## [0.11.1](https://github.com/PrototeamHQ/protobase/compare/v0.11.0...v0.11.1) (2026-10-12)
+
+### Features
+
+* **cli:** protobase build-plugin writes a plugin's module, its stylesheet and plugin.json ([3563307](https://github.com/PrototeamHQ/protobase/commit/356330724a4ec543ab183065c8803fdecba277c9))
+* **cli:** the admin app shares React and @protobase/ui with plugins through an import map ([ef36c0a](https://github.com/PrototeamHQ/protobase/commit/ef36c0af5be41037c80b8d7dfc650e5d1a2d6543))
+* **layout:** component(name, { plugin }) declares a plugin's component, which the build skips ([d1c14ed](https://github.com/PrototeamHQ/protobase/commit/d1c14ed361db8d3293dd1e66254c568e3614bdef))
+* **server:** /meta names the plugins of options.plugins and PROTOBASE_PLUGINS to their roles ([f23e8d7](https://github.com/PrototeamHQ/protobase/commit/f23e8d7cfa68cb2c367a34bc21fe8f7c40c95d24))
+* **ui:** the app loads the plugins /meta names, with definePlugin, usePlugin and a plugin API ([a25bc9f](https://github.com/PrototeamHQ/protobase/commit/a25bc9f15b037d9f2390c7b79212c61ef577fed4))
+
 ## [0.11.0](https://github.com/PrototeamHQ/protobase/compare/v0.10.0...v0.11.0) (2026-10-12)
 
 ### ⚠ BREAKING CHANGES
