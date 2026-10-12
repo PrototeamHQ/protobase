@@ -2,6 +2,13 @@
 
 Every release of Protobase, cut by the release workflow from the commits since the last one (see the [versioning page](https://docs.protobase.net/reference/versioning/)).
 
+## [0.12.11](https://github.com/PrototeamHQ/protobase/compare/v0.12.10...v0.12.11) (2026-10-12)
+
+### Features
+
+* property portal cards show the living area in m² with a ruler, EU energy labels and features ([38fb48a](https://github.com/PrototeamHQ/protobase/commit/38fb48a52418aad76e9191c3726a71aaef2212bf))
+* **ui:** field suffixes and card icons, coloured arrow badges per value, card flags for booleans ([7747e69](https://github.com/PrototeamHQ/protobase/commit/7747e69c0b4642c45a5d4f27b1db1a92deb46839))
+
 ## [0.12.10](https://github.com/PrototeamHQ/protobase/compare/v0.12.9...v0.12.10) (2026-10-12)
 
 ### Features
