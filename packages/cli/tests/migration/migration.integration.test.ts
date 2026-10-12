@@ -21,6 +21,8 @@ export const notes = resource('notes').table('notes').fields({ id: f.integer().r
 export default { config: { notes } }
 `
 
+// Each run is a fresh CLI process: about a second on Node through tsx, several on a busy CI runner, so every test
+// that runs it gets 60s.
 const migration = () => run([bin, 'migration'], projectDir, { DATABASE_URL: databaseUrl })
 
 // Applies the files not applied yet, in one transaction, as a project's migrate step does.
@@ -80,7 +82,7 @@ export default { config: { notes }, jobs: { prune } }
     await sql`insert into notes (body) values ('captured')`
     expect(await sql`select resource, op, new from changes.outbox`).toEqual([{ resource: 'notes', op: 'INSERT', new: { id: 1, body: 'captured' } }])
     await sql.end()
-  })
+  }, 60_000)
 
   it('drops the triggers once the resource has no events', async () => {
     await writeFile(path.join(projectDir, 'protobase.config.ts'), config(''))
@@ -88,7 +90,7 @@ export default { config: { notes }, jobs: { prune } }
     expect(result.stdout).toBe("wrote db/migrations/003_changes.sql\napply them with the project's migrations\n")
     expect(await readFile(path.join(projectDir, 'db/migrations/003_changes.sql'), 'utf8')).toContain('drop trigger if exists "notes_changes" on public.notes')
     await applyAll()
-  })
+  }, 60_000)
 
 
   it('writes the webhooks schema for a config that extends webhooks(), after the change capture', async () => {
