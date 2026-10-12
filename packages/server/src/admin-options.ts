@@ -1,4 +1,4 @@
-import type { ResolveOptions } from '@protobase/schema'
+import type { ResolveOptions, RoleLimit } from '@protobase/schema'
 import type { CorsOrigins } from './api-cors'
 import type { AssistantOptions } from './assistant/assistant-settings'
 import type { ErrorReportingOptions } from './error-reporting/error-reporting-settings'
@@ -16,8 +16,11 @@ export type AdminOptions = {
   scanGuard?: { mode?: ScanGuardMode; seqScanRows?: number }
   /** Runs inside the write transaction after each create, update and delete. */
   writeHooks?: PipelineHook[]
-  /** The project's roles (from `defineRoles`): an operation without an access rule needs the matching capability. */
-  roles?: ResolveOptions['roles']
+  /**
+   * The project's roles (from `defineRoles`): an operation without an access rule needs the matching capability. Their
+   * limits are checked against the resources at startup.
+   */
+  roles?: ResolveOptions['roles'] & { limits?: readonly RoleLimit[] }
   /** What an operation without a rule does; overrides the capability check. Without `roles` the default is allow. */
   defaultAccess?: ResolveOptions['defaultAccess']
   /** Whether list items carry their `permissions` (update, delete): true by default, or `{ except: [...] }` for resources that opt out. */
