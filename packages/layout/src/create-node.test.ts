@@ -55,6 +55,14 @@ describe('createNode', () => {
     })
   })
 
+  it('names the plugin that provides a component, keeping the element the same', () => {
+    const Greeting = component('Greeting', { plugin: 'hello' })
+    expect({ blockName: Greeting.blockName, custom: Greeting.custom, plugin: Greeting.plugin }).toEqual({ blockName: 'Greeting', custom: true, plugin: 'hello' })
+    expect(jsx(Greeting, {})).toEqual({ type: 'Greeting', props: {}, children: [], custom: true })
+    expect(component('Greeting')).not.toHaveProperty('plugin')
+    expect(() => component('Greeting', { plugin: ' ' })).toThrow("component('Greeting') names an empty plugin")
+  })
+
   it('reserves the built-in names and wants PascalCase component names', () => {
     expect(() => component('Table')).toThrow('"Table" is a built-in block')
     expect(() => component('Fragment')).toThrow('built-in block')

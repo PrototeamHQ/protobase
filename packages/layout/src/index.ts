@@ -35,7 +35,7 @@ export type {
   StatProps,
   TableProps,
 } from './blocks'
-export { component } from './component'
+export { component, type ComponentOptions } from './component'
 export { page, isPageDefinition, type PageDefinition, type PageModel, type PageOptions } from './page'
 export { checkPages } from './check-page'
 export { prunePage } from './prune-page'

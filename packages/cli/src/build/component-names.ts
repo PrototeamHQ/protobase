@@ -16,9 +16,15 @@ const componentImports = (source: ts.SourceFile) => {
   return { named, namespaces }
 }
 
+// `component('Name', { plugin: '...' })`: a plugin provides it at runtime, not the project's UI.
+const fromPlugin = (options: ts.Expression | undefined) =>
+  options !== undefined &&
+  ts.isObjectLiteralExpression(options) &&
+  options.properties.some((property) => (ts.isPropertyAssignment(property) || ts.isShorthandPropertyAssignment(property)) && property.name.getText() === 'plugin')
+
 /**
  * The names a module declares with `component('Name')` from @protobase/layout, read from its source: the config does
- * not run at build time. A name that is not a string literal is not seen.
+ * not run at build time. A name that is not a string literal is not seen, nor one a plugin provides.
  */
 export const declaredComponents = (code: string, file: string): string[] => {
   if (!code.includes(layoutModule)) return []
@@ -30,7 +36,7 @@ export const declaredComponents = (code: string, file: string): string[] => {
     (ts.isPropertyAccessExpression(callee) && callee.name.text === 'component' && ts.isIdentifier(callee.expression) && namespaces.has(callee.expression.text))
   const names: string[] = []
   const visit = (node: ts.Node) => {
-    if (ts.isCallExpression(node) && isComponent(node.expression) && node.arguments[0] && ts.isStringLiteralLike(node.arguments[0])) names.push(node.arguments[0].text)
+    if (ts.isCallExpression(node) && isComponent(node.expression) && node.arguments[0] && ts.isStringLiteralLike(node.arguments[0]) && !fromPlugin(node.arguments[1])) names.push(node.arguments[0].text)
     ts.forEachChild(node, visit)
   }
   visit(source)

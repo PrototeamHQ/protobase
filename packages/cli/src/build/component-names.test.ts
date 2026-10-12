@@ -22,6 +22,15 @@ export const overview = page('overview', <Page title="Overview"><OrdersPerDay da
     expect(declaredComponents(code, 'page.tsx')).toEqual(['OrdersPerDay'])
   })
 
+  it('leaves out the components a plugin provides', () => {
+    const code = `import { component } from '@protobase/layout'
+export const Greeting = component('Greeting', { plugin: 'hello' })
+export const Board = component('Board', { plugin })
+export const Chart = component('Chart', {})
+`
+    expect(declaredComponents(code, 'ui.ts')).toEqual(['Chart'])
+  })
+
   it('ignores other functions called component, and modules without @protobase/layout', () => {
     expect(declaredComponents(`import { component } from './mine'\ncomponent('Board')\n`, 'a.ts')).toEqual([])
     expect(declaredComponents(`import { page } from '@protobase/layout'\nconst component = (name: string) => name\ncomponent('Board')\n`, 'a.ts')).toEqual([])
