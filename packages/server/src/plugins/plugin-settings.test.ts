@@ -14,6 +14,13 @@ describe('pluginOptions', () => {
     expect(pluginOptions(false, { PROTOBASE_PLUGINS: 'https://cdn.example.com/hello/plugin.json' })).toEqual([])
   })
 
+  it("lists the bundle's plugins before all others, and keeps them when the option is false", () => {
+    const env = { PROTOBASE_PLUGINS: 'https://cdn.example.com/hello/plugin.json' }
+    const bundled = ['/plugins/crm/plugin.json', '/plugins/app/plugin.json']
+    expect(pluginOptions([{ url: '/plugins/app/plugin.json' }], env, bundled)).toEqual([{ url: '/plugins/crm/plugin.json' }, { url: '/plugins/app/plugin.json' }, { url: 'https://cdn.example.com/hello/plugin.json' }])
+    expect(pluginOptions(false, env, bundled)).toEqual([{ url: '/plugins/crm/plugin.json' }, { url: '/plugins/app/plugin.json' }])
+  })
+
   it('refuses a value that is no http(s) URL or path, naming where it came from', () => {
     expect(() => pluginOptions(undefined, { PROTOBASE_PLUGINS: 'cdn.example.com/plugin.json' })).toThrow('PROTOBASE_PLUGINS names "cdn.example.com/plugin.json", which is no URL')
     expect(() => pluginOptions([{ url: 'ftp://cdn.example.com/plugin.json' }], {})).toThrow('options.plugins names "ftp://cdn.example.com/plugin.json", which must start with https:// or http://, not ftp://')

@@ -67,6 +67,12 @@ export type CreateAdminInput = {
   subscriptions?: SubscriptionDefinition[]
   /** Webhook subscriptions made in the admin app, from `extends: [webhooks()]` (see `WebhooksOptions`). */
   webhooks?: WebhooksOptions
+  /**
+   * The plugins the app's bundle carries, as `protobase build` writes them: its protobase.ui.tsx and its extensions'
+   * UI configs, each a plugin.json path on the app's origin. `/meta` names them to everyone, before any other plugin,
+   * and `options.plugins: false` leaves them on: they are the app's own UI.
+   */
+  bundlePlugins?: string[]
   options?: AdminOptions
 }
 
@@ -77,7 +83,7 @@ const declaredRoles = (auth: AdminAuth | undefined, roles: AdminOptions['roles']
 }
 
 /** The admin REST API as a Hono app. It uses only Web APIs, so it runs on Node, Workers and anywhere else Hono does. */
-export const createAdmin = ({ resources: appResources, views: appViews = [], pages = [], userMenu, bottomBars = [], db, authenticate, auth, functions = {}, files: filesOptions, events, jobs = [], subscriptions = [], webhooks: webhooksOptions, options = {} }: CreateAdminInput): Admin => {
+export const createAdmin = ({ resources: appResources, views: appViews = [], pages = [], userMenu, bottomBars = [], db, authenticate, auth, functions = {}, files: filesOptions, events, jobs = [], subscriptions = [], webhooks: webhooksOptions, bundlePlugins = [], options = {} }: CreateAdminInput): Admin => {
   const basePath = options.basePath ?? '/api/v1'
   // Events are delivered by jobs, whose failures the page lists too.
   const withJobs = jobs.length > 0 || appResources.some((resource) => resource.toModel().events)
@@ -99,7 +105,7 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], pag
   const systemPath = basePath.slice(0, basePath.lastIndexOf('/'))
   const assistant = assistantSettings(options.assistant, globalThis.process?.env ?? {})
   const runtime = runtimeUrl(options.runtime, globalThis.process?.env ?? {})
-  const plugins = pluginOptions(options.plugins, globalThis.process?.env ?? {})
+  const plugins = pluginOptions(options.plugins, globalThis.process?.env ?? {}, bundlePlugins)
   const files = createFilesRuntime({ ...(filesOptions && { options: filesOptions }), env: globalThis.process?.env ?? {}, models: registry.entries.map((entry) => entry.model), systemPath })
   const table = webhooksOptions && webhookTable(webhooksOptions, auth)
   const deps = {

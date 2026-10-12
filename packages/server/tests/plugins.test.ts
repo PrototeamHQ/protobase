@@ -43,6 +43,12 @@ describe('the plugins in /meta', () => {
     expect(await metaFor(admin(false), 'admin')).not.toHaveProperty('plugins')
   })
 
+  it("names the bundle's own plugins first, to everyone, even when the option is false", async () => {
+    process.env.PROTOBASE_PLUGINS = 'https://cloud.example.com/plugins/tasks/plugin.json'
+    const app = createAdmin({ resources: [tasks], db, authenticate: testAuthenticator, bundlePlugins: ['/plugins/app/plugin.json'], options: { plugins: false } })
+    expect((await metaFor(app, 'sales')).plugins).toEqual([{ url: '/plugins/app/plugin.json' }])
+  })
+
   it('stops the server at startup on a plugin URL that is no URL', () => {
     process.env.PROTOBASE_PLUGINS = 'plugin.json'
     expect(() => admin(undefined)).toThrow('PROTOBASE_PLUGINS names "plugin.json", which is no URL')

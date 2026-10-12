@@ -5,6 +5,7 @@ import { registerAuth } from './auth/register'
 import { buildDeployBundle } from './build/deploy-bundle'
 import { buildPlugin, pluginManifestFile } from './build/plugin-build'
 import { buildServeRuntime } from './build/serve-runtime'
+import { buildShell } from './build/shell'
 import { manifestFile } from './bundle/manifest'
 import { resolveConnectionUrl } from './db/connect'
 import { parseHosts } from './dev/hosts'
@@ -106,7 +107,7 @@ program
 
 program
   .command('build')
-  .description('Build the deploy bundle of the project in the current directory: its config module, admin UI and manifest')
+  .description('Build the deploy bundle of the project in the current directory: its config module, the admin app with the project\'s UI as a plugin, and the manifest')
   .option('--out <dir>', 'output folder', 'dist')
   .option('--bun', "have Bun's bundler write the config module, for a bundle only Bun serves (needs bun on PATH)", false)
   .option('--extend <dir>', 'merge the protobase.config.ts and protobase.ui.tsx in this folder before the project\'s, repeatable', collect, [])
@@ -114,7 +115,8 @@ program
     const extensions = resolveExtensions(opts.extend)
     const manifest = await buildDeployBundle({ projectDir: process.cwd(), outDir: path.resolve(opts.out), bun: opts.bun, extensions })
     const packages = manifest.nodeModules ? `, ${manifest.nodeModules}/` : ''
-    out(`built ${opts.out}: ${manifest.server}${packages}, ${manifest.public}/ and ${manifestFile} (api ${manifest.api.join(', ')})\n`)
+    const plugins = manifest.plugins.length > 0 ? ` with plugins ${manifest.plugins.map((plugin) => plugin.name).join(', ')}` : ''
+    out(`built ${opts.out}: ${manifest.server}${packages}, ${manifest.public}/${plugins} and ${manifestFile} (api ${manifest.api.join(', ')})\n`)
   })
 
 program
@@ -129,6 +131,15 @@ program
     const manifest = await buildPlugin({ pluginDir, outDir, ...(opts.name && { name: opts.name }) })
     const shown = path.relative(process.cwd(), outDir)
     out(`built ${shown.startsWith('..') ? outDir : shown || '.'}: ${pluginManifestFile}, ${manifest.entry} and ${manifest.css} (${manifest.name}, plugin API ${manifest.api}, Protobase ${manifest.protobase})\n`)
+  })
+
+program
+  .command('build-shell', { hidden: true })
+  .description("Build the admin app every bundle shares, as @protobase/ui's package and the protobase image ship it")
+  .argument('<out>', 'output folder')
+  .action(async (outDir: string) => {
+    const shell = await buildShell(path.resolve(outDir))
+    out(`built ${outDir}: the shell of Protobase ${shell.protobase} (plugin API ${shell.pluginApi})\n`)
   })
 
 program

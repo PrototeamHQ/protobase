@@ -1,11 +1,12 @@
 import { existsSync } from 'node:fs'
-import { readFile, rm, writeFile } from 'node:fs/promises'
+import { cp, readFile, rm, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { bundleLayout, bundleNodeModules, manifestFile, type BundleManifest } from '../bundle/manifest'
+import { buildBundlePlugins } from './bundle-plugins'
 import { buildConfigBundle } from './config-bundle'
 import { protobaseVersion } from '../version/version'
 import { copyPackages } from './packages/copy-packages'
-import { buildUiBundle } from './ui-bundle'
+import { shellForBuild, shellManifestFile } from './shell'
 import { checkUi } from './ui-check'
 import type { Extension } from '../project/extensions'
 
@@ -22,18 +23,41 @@ const removeOwnNodeModules = async (outDir: string) => {
   await rm(dir, { recursive: true, force: true })
 }
 
-// The folder a host deploys: the config module for the serve runtime with the packages it loads from disk, the admin
-// UI under public/ and the manifest saying which paths go to the server and which Protobase version built it. Nothing of
-// the project's server config runs at build time; when it declares custom components, or extensions have UI configs,
-// the UI is loaded once to check its names against the config's and each other's.
+// The prebuilt shell's files, without the file naming its version, which the manifest carries instead.
+const copyShell = async (publicDir: string) => {
+  const { dir, shell, scratch } = await shellForBuild()
+  try {
+    await rm(publicDir, { recursive: true, force: true })
+    await cp(dir, publicDir, { recursive: true, filter: (file) => path.basename(file) !== shellManifestFile })
+  } finally {
+    if (scratch) await rm(dir, { recursive: true, force: true })
+  }
+  return shell
+}
+
+// The folder a host deploys: the config module for the serve runtime with the packages it loads from disk; under
+// public/ the prebuilt app (the shell) and the project's protobase.ui.tsx and extensions' UI configs as plugins; and the
+// manifest saying which paths go to the server, which Protobase version built it, and its plugins and shell. Nothing
+// of the project's server config runs at build time; when it declares custom components, or extensions have UI
+// configs, the UI is loaded once to check its names against the config's and each other's.
 export const buildDeployBundle = async ({ projectDir, outDir, bun, extensions = [] }: DeployBundleInput): Promise<BundleManifest> => {
   await removeOwnNodeModules(outDir)
   const components = new Set<string>()
   const native = await buildConfigBundle({ projectDir, outFile: path.join(outDir, bundleLayout.server), bun, extensions, components })
   await checkUi(projectDir, extensions, components)
   const packages = native.length > 0 ? await copyPackages(native, path.join(outDir, bundleNodeModules)) : []
-  await buildUiBundle({ outDir: path.join(outDir, bundleLayout.public), projectDir, extensions })
-  const manifest: BundleManifest = { version: 2, protobase: protobaseVersion, ...bundleLayout, api: [...bundleLayout.api], ...(packages.length > 0 ? { nodeModules: bundleNodeModules } : {}) }
+  const publicDir = path.join(outDir, bundleLayout.public)
+  const shell = await copyShell(publicDir)
+  const plugins = await buildBundlePlugins({ projectDir, publicDir, extensions, ignore: [outDir] })
+  const manifest: BundleManifest = {
+    version: 3,
+    protobase: protobaseVersion,
+    ...bundleLayout,
+    api: [...bundleLayout.api],
+    plugins,
+    shell,
+    ...(packages.length > 0 ? { nodeModules: bundleNodeModules } : {}),
+  }
   await writeFile(path.join(outDir, manifestFile), `${JSON.stringify(manifest, null, 2)}\n`)
   return manifest
 }

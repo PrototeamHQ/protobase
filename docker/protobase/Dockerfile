@@ -1,6 +1,8 @@
 # protobase: the serve runtime, compiled with its bytecode into one executable, which serves the API of the
-# bundle mounted at /app (`protobase build`'s dist/); Bun itself for the healthcheck; and the C++ runtime that native
-# add-ons in a bundle's node_modules link (libstdc++, libgcc_s). Context: dist/images/protobase (bun run images:context).
+# bundle mounted at /app (`protobase build`'s dist/); the shell of the same release at /opt/protobase/shell, the admin
+# app a host serves for the bundle's shell paths instead of its copy; Bun itself for the healthcheck; and the C++
+# runtime that native add-ons in a bundle's node_modules link (libstdc++, libgcc_s). Context: dist/images/protobase
+# (bun run images:context).
 ARG BUN_VERSION=1.4.2
 
 # Built by the Bun the image runs, so its bytecode always matches. It never reads .env or bunfig.toml from its working
@@ -22,6 +24,7 @@ LABEL org.opencontainers.image.description="Protobase's serve runtime: serves th
 LABEL org.opencontainers.image.licenses=Apache-2.0
 COPY --from=libs /out/ /
 COPY --from=build --chmod=0755 /build/protobase-serve /opt/protobase/protobase-serve
+COPY shell /opt/protobase/shell
 ENV NODE_ENV=production PORT=8787
 WORKDIR /app
 USER nonroot

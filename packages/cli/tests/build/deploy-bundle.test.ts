@@ -31,12 +31,13 @@ describe('buildDeployBundle', () => {
   let projectDir = ''
   afterEach(() => rm(projectDir, { recursive: true, force: true }))
 
-  it('writes the config module, the production UI and a manifest of the default API paths and the Protobase version', async () => {
+  it('writes the config module, the production app (the shell) and a manifest of the API paths, versions and shell', async () => {
     projectDir = await createProject({ 'config/index.ts': things })
     const outDir = path.join(projectDir, 'dist')
     const manifest = await buildDeployBundle({ projectDir, outDir })
 
-    const expected = { version: 2, protobase: protobaseVersion, server: 'protobase.config.js', public: 'public', spa: 'index.html', api: ['/api'] }
+    const shell = { protobase: protobaseVersion, pluginApi: 1, paths: ['/index.html', '/assets'] }
+    const expected = { version: 3, protobase: protobaseVersion, server: 'protobase.config.js', public: 'public', spa: 'index.html', api: ['/api'], plugins: [], shell }
     expect(manifest).toEqual(expected)
     expect(JSON.parse(await readFile(path.join(outDir, 'protobase.bundle.json'), 'utf8'))).toEqual(expected)
     expect(await readFile(path.join(outDir, 'protobase.config.js'), 'utf8')).not.toContain('// @bun')
@@ -120,7 +121,7 @@ describe('buildDeployBundle', () => {
     expect(manifest.api).toEqual(['/api'])
   }, buildTimeout)
 
-  it('builds the components protobase.ui.tsx exports by name, each from its own file, and fails on a declared one it lacks', async () => {
+  it('builds protobase.ui.tsx as the plugin app, its components exported by name, and fails on a declared one it lacks', async () => {
     const declared = `import { component } from '@protobase/layout'\n${things}export const RepairBoard = component<{ by: string }>('RepairBoard')\nexport const PlanCard = component('PlanCard')\n`
     projectDir = await createProject({
       'config/index.ts': declared,
@@ -128,9 +129,12 @@ describe('buildDeployBundle', () => {
       'protobase.ui.tsx': `import { defineUi } from '@protobase/ui'\nexport { RepairBoard } from './ui/repair-board'\nexport default defineUi({ components: { PlanCard: () => <p>Plan</p> } })\n`,
     })
     const outDir = path.join(projectDir, 'dist')
-    await buildDeployBundle({ projectDir, outDir })
-    const assets = await readdir(path.join(outDir, 'public/assets'))
-    expect(await readFile(path.join(outDir, 'public/assets', assets.find((file) => /^index-[\w-]+\.js$/.test(file))!), 'utf8')).toContain('Board by')
+    const manifest = await buildDeployBundle({ projectDir, outDir })
+    expect(manifest.plugins).toEqual([{ name: 'app', path: 'plugins/app/plugin.json', api: 1, protobase: `>=${protobaseVersion}` }])
+    const plugin = JSON.parse(await readFile(path.join(outDir, 'public/plugins/app/plugin.json'), 'utf8')) as { entry: string; css: string }
+    const code = await readFile(path.join(outDir, 'public/plugins/app', plugin.entry), 'utf8')
+    expect(code).toContain('Board by')
+    expect(code).toMatch(/export\s*\{[^}]*RepairBoard/)
 
     await writeFile(path.join(projectDir, 'protobase.ui.tsx'), `export { RepairBoard } from './ui/repair-board'\n`)
     await expect(buildDeployBundle({ projectDir, outDir })).rejects.toThrow(

@@ -96,11 +96,13 @@ describe.skipIf(!reachable || !hasBun)('the ERP bundle served by protobase-serve
     expect(token).toBeTruthy()
   })
 
-  it('serves /api/meta to the token and refuses everyone else', async () => {
+  it('serves /api/meta to the token, naming the plugin of the bundle\'s own UI, and refuses everyone else', async () => {
     const meta = await fetch(`${base}/api/meta`, { headers: { authorization: `Bearer ${token}` } })
     expect(meta.status).toBe(200)
     expect(meta.headers.get('x-meta-version')).toBeTruthy()
-    expect((await meta.json()).resources).toBeDefined()
+    const body = await meta.json()
+    expect(body.resources).toBeDefined()
+    expect(body.plugins).toEqual([{ url: '/plugins/app/plugin.json' }])
     expect((await fetch(`${base}/api/meta`)).status).toBe(401)
   })
 

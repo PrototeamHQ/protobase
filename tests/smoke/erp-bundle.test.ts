@@ -1,6 +1,6 @@
 import { spawn, type ChildProcess } from 'node:child_process'
 import { randomBytes } from 'node:crypto'
-import { readFile, rm } from 'node:fs/promises'
+import { readFile, rm, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import postgres from 'postgres'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -81,6 +81,32 @@ describe.skipIf(!reachable)(`the ERP built and served by the CLI on ${runtime}`,
     const code = await build('bun', '--bun')
     expect(code.startsWith('// @bun\n')).toBe(true)
     expect(await serveMeta('bun')).toContain('"prefix":"€"')
+  }, timeout)
+
+  // A server with a shell of its own serves that for the shell's paths, and the bundle's plugins and API beside it.
+  it("serves its own shell from PROTOBASE_SHELL, with the bundle's own UI as the plugin /meta names", async () => {
+    await build('shell')
+    const shellDir = path.join(outDir, 'own-shell')
+    const shell = await run([bin, 'build-shell', shellDir], erpDir, store.env)
+    if (shell.status !== 0) throw new Error(`protobase build-shell failed:\n${shell.stderr}`)
+    const index = path.join(shellDir, 'index.html')
+    await writeFile(index, (await readFile(index, 'utf8')).replace('<title>Protobase</title>', '<title>Own shell 5e2a</title>'))
+    let output = ''
+    child = spawn(process.execPath, [bin, 'serve', path.join(outDir, 'shell')], { cwd: erpDir, env: { ...process.env, ...store.env, PORT: String(port), PROTOBASE_SHELL: shellDir } })
+    child.stdout?.on('data', (chunk) => (output += chunk))
+    try {
+      await untilListening(child, timeout - 10_000)
+      for (const pathname of ['/', '/orders/42']) expect(await (await fetch(`${base}${pathname}`, { headers: { accept: 'text/html' } })).text()).toContain('Own shell 5e2a')
+      const plugin = await fetch(`${base}/plugins/app/plugin.json`)
+      expect(plugin.status).toBe(200)
+      expect(await plugin.json()).toMatchObject({ name: 'app', entry: expect.stringMatching(/^assets\/index-[\w-]+\.js$/) })
+      const token = await signIn(base, email, password)
+      const meta = await (await fetch(`${base}/api/meta`, { headers: { authorization: `Bearer ${token}` } })).json()
+      expect(meta.plugins).toEqual([{ url: '/plugins/app/plugin.json' }])
+      expect(output).toContain(`app      the app of Protobase`)
+    } finally {
+      await stopProcess(child)
+    }
   }, timeout)
 
   // The jobs in a process of their own: `serve` with PROTOBASE_JOBS=off only enqueues them, `protobase worker` runs them.

@@ -50,6 +50,31 @@ describe('serveStaticSite', () => {
     }
   })
 
+  it('serves each plugin\'s hashed assets as immutable and its plugin.json as revalidated', async () => {
+    await mkdir(path.join(site.publicDir, 'plugins/app/assets'), { recursive: true })
+    await writeFile(path.join(site.publicDir, 'plugins/app/plugin.json'), '{}')
+    await writeFile(path.join(site.publicDir, 'plugins/app/assets/index-d4e5.js'), 'export {}')
+    expect((await serveStaticSite(site, page('/plugins/app/assets/index-d4e5.js'))).headers.get('cache-control')).toBe('public, max-age=31536000, immutable')
+    expect((await serveStaticSite(site, page('/plugins/app/plugin.json'))).headers.get('cache-control')).toBe('no-cache')
+  })
+
+  it("with a shell of its own, answers the shell's paths, the root and navigations from it, and the rest from the bundle", async () => {
+    const dir = path.join(path.dirname(site.publicDir), 'shell')
+    await mkdir(path.join(dir, 'assets'), { recursive: true })
+    await writeFile(path.join(dir, 'index.html'), '<!doctype html><title>own app</title>')
+    await writeFile(path.join(dir, 'assets/index-fff999.js'), 'console.log(2)')
+    await mkdir(path.join(site.publicDir, 'plugins/app'), { recursive: true })
+    await writeFile(path.join(site.publicDir, 'plugins/app/plugin.json'), '{"name":"app"}')
+    const withShell = { ...site, shell: { dir, paths: ['/index.html', '/assets'] } }
+
+    for (const request of [page('/'), page('/index.html'), navigation('/orders/42')]) expect(await (await serveStaticSite(withShell, request)).text()).toContain('own app')
+    expect(await (await serveStaticSite(withShell, page('/assets/index-fff999.js'))).text()).toBe('console.log(2)')
+    expect((await serveStaticSite(withShell, page('/assets/index-fff999.js'))).headers.get('cache-control')).toContain('immutable')
+    // The bundle's copy is not served beside the shell's.
+    expect((await serveStaticSite(withShell, page('/assets/index-abc123.js'))).status).toBe(404)
+    expect(await (await serveStaticSite(withShell, page('/plugins/app/plugin.json'))).text()).toBe('{"name":"app"}')
+  })
+
   it('refuses methods other than GET and HEAD', async () => {
     const response = await serveStaticSite(site, page('/', { method: 'POST' }))
     expect(response.status).toBe(405)

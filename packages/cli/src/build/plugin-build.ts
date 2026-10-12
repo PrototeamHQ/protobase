@@ -7,6 +7,7 @@ import react from '@vitejs/plugin-react'
 import { inRange } from '@protobase/schema'
 import { build, type Plugin, type Rolldown } from 'vite'
 import { uiPackageDir } from '../project/admin-app'
+import { extensionImports } from '../project/extensions'
 import { sharedModules } from '../project/shared-modules'
 import { findPackageDirSync, readPackageJson, type PackageJson } from './packages/package-dir'
 
@@ -28,12 +29,12 @@ type UiPackageJson = PackageJson & { protobase?: { pluginApi?: number }; exports
 const tailwindDir = path.dirname(createRequire(path.join(uiPackageDir, 'package.json')).resolve('tailwindcss/package.json'))
 
 /**
- * What the plugin is built for, from the @protobase/ui installed for it: its plugin API, and Protobase from its version
- * on, unless the plugin's package.json names other versions in `engines.protobase`. Also that version's theme, which
- * the plugin's stylesheet draws with.
+ * What the plugin is built for, from the @protobase/ui installed for it (else for the project it extends): its plugin
+ * API, and Protobase from its version on, unless the plugin's package.json names other versions in `engines.protobase`.
+ * Also that version's theme, which the plugin's stylesheet draws with.
  */
-const pluginTarget = async (pluginDir: string, own: UiPackageJson) => {
-  const uiDir = findPackageDirSync('@protobase/ui', pluginDir)
+const pluginTarget = async (pluginDir: string, own: UiPackageJson, projectDir: string | undefined) => {
+  const uiDir = findPackageDirSync('@protobase/ui', pluginDir) ?? (projectDir === undefined ? undefined : findPackageDirSync('@protobase/ui', projectDir))
   if (!uiDir) throw new Error(`@protobase/ui is not installed for ${pluginDir}; add it to the plugin's dependencies, as the version it is built for`)
   const ui = (await readPackageJson(uiDir)) as UiPackageJson
   const api = ui.protobase?.pluginApi
@@ -59,15 +60,22 @@ const pluginImports = (): Plugin => ({
   },
 })
 
+const inside = (dir: string, parent: string) => {
+  const relative = path.relative(parent, dir)
+  return !relative.startsWith('..') && !path.isAbsolute(relative)
+}
+
 // The plugin's stylesheet: Tailwind's utilities for the classes in the plugin's files and nothing else, no reset and no
-// theme values, each token read from the app's theme with Tailwind's default as the fallback.
-const styleCode = (pluginDir: string, theme: string) =>
+// theme values, each token read from the app's theme with Tailwind's default as the fallback. Folders the build writes
+// to inside the plugin's are not its files.
+const styleCode = (pluginDir: string, theme: string, outDirs: string[]) =>
   [
     '@layer theme, base, components, utilities;',
     `@import ${JSON.stringify(path.join(tailwindDir, 'theme.css'))} layer(theme) theme(reference);`,
     `@reference ${JSON.stringify(theme)};`,
     `@import ${JSON.stringify(path.join(tailwindDir, 'utilities.css'))} layer(utilities) source(none);`,
     `@source ${JSON.stringify(pluginDir)};`,
+    ...outDirs.filter((dir) => inside(dir, pluginDir)).map((dir) => `@source not ${JSON.stringify(dir)};`),
     '',
   ].join('\n')
 
@@ -86,27 +94,37 @@ const outputOf = (result: Awaited<ReturnType<typeof build>>): Rolldown.RolldownO
 
 /** The output folder must not hold the plugin's own files, which emptying it would delete. */
 const checkOutDir = (pluginDir: string, outDir: string) => {
-  const relative = path.relative(outDir, pluginDir)
-  if (!relative.startsWith('..') && !path.isAbsolute(relative)) throw new Error(`--out ${outDir} holds the plugin's own files; build into a folder inside it or elsewhere, such as ${path.join(pluginDir, 'dist')}`)
+  if (inside(pluginDir, outDir)) throw new Error(`--out ${outDir} holds the plugin's own files; build into a folder inside it or elsewhere, such as ${path.join(pluginDir, 'dist')}`)
 }
 
-export type PluginBuildInput = { pluginDir: string; outDir: string; name?: string }
+export type PluginBuildInput = {
+  pluginDir: string
+  outDir: string
+  name?: string
+  /**
+   * The project a plugin of `protobase build` belongs to, its own UI or an `--extend` folder's: the plugin's imports of
+   * @protobase packages resolve from it, as they do in `protobase dev`, and so does @protobase/ui when the plugin has none.
+   */
+  projectDir?: string
+  /** Folders inside the plugin's that are no files of it, such as the bundle being written. */
+  ignore?: string[]
+}
 
 /**
  * Builds the plugin in `pluginDir` into `outDir`: its protobase.ui.tsx as an ES module (and its chunks) that imports the
  * shared modules by name, its stylesheet, and plugin.json naming both. The app loads it from the plugin.json's URL.
  */
-export const buildPlugin = async ({ pluginDir, outDir, name }: PluginBuildInput): Promise<PluginManifest> => {
+export const buildPlugin = async ({ pluginDir, outDir, name, projectDir, ignore = [] }: PluginBuildInput): Promise<PluginManifest> => {
   const entry = path.join(pluginDir, pluginEntryFile)
   if (!existsSync(entry)) throw new Error(`There is no ${pluginEntryFile} in ${pluginDir}; a plugin exports its components and action handlers from it`)
   checkOutDir(pluginDir, outDir)
   const own: UiPackageJson = existsSync(path.join(pluginDir, 'package.json')) ? await readPackageJson(pluginDir) : {}
   const pluginName = (name ?? own.name ?? path.basename(pluginDir)).trim()
   if (pluginName === '') throw new Error('The plugin needs a name: give its package.json a name, or pass --name')
-  const target = await pluginTarget(pluginDir, own)
+  const target = await pluginTarget(pluginDir, own, projectDir)
   const styles = path.join(pluginDir, 'protobase-plugin.css')
 
-  // React's production build and JSX runtime, whatever NODE_ENV says (see buildUiBundle).
+  // React's production build and JSX runtime, whatever NODE_ENV says (see buildShell).
   const nodeEnv = process.env.NODE_ENV
   process.env.NODE_ENV = 'production'
   const result = await build({
@@ -116,7 +134,13 @@ export const buildPlugin = async ({ pluginDir, outDir, name }: PluginBuildInput)
     mode: 'production',
     publicDir: false,
     logLevel: 'warn',
-    plugins: [pluginImports(), pluginStyles(styles, styleCode(pluginDir, target.theme)), react(), tailwindcss()],
+    plugins: [
+      pluginImports(),
+      ...(projectDir === undefined ? [] : [extensionImports(projectDir, [{ dir: pluginDir }])]),
+      pluginStyles(styles, styleCode(pluginDir, target.theme, [outDir, ...ignore])),
+      react(),
+      tailwindcss(),
+    ],
     build: {
       outDir,
       emptyOutDir: true,

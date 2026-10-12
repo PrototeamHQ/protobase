@@ -29,8 +29,8 @@
     "dist"
   ],
   "scripts": {
-    "build": "tsdown",
-    "prepack": "tsdown"
+    "build": "tsdown && protobase build-shell dist/shell",
+    "prepack": "tsdown && protobase build-shell dist/shell"
   },
   "publishConfig": {
     "access": "public",

@@ -58,22 +58,36 @@ describe('protobase build --extend', () => {
     await rm(extensionDir, { recursive: true, force: true })
   })
 
-  it("merges the extension's tool into the served config and its component into the UI", async () => {
+  it("merges the extension's tool into the served config and builds its UI as a plugin before the project's", async () => {
     projectDir = await createProject({ 'config/index.ts': things, 'protobase.ui.tsx': projectUi('OwnCard') })
     extensionDir = await createExtension(extensionFiles)
     const outDir = path.join(projectDir, 'dist')
-    await buildDeployBundle({ projectDir, outDir, extensions: resolveExtensions([extensionDir]) })
+    const manifest = await buildDeployBundle({ projectDir, outDir, extensions: resolveExtensions([extensionDir]) })
 
     const { default: served } = await import(pathToFileURL(path.join(outDir, 'protobase.config.js')).href)
     expect(Object.keys(served.config)).toEqual(['things'])
     expect(served.options.assistant.tools.map((entry: { name: string }) => entry.name)).toEqual(['protobase_test_show'])
 
+    // The extension, outside the project and without packages of its own, is named after its folder.
+    const extension = path.basename(extensionDir)
+    expect(manifest.plugins.map((plugin) => [plugin.name, plugin.path])).toEqual([
+      [extension, `plugins/${extension}/plugin.json`],
+      ['app', 'plugins/app/plugin.json'],
+    ])
+    const pluginFile = async (name: string, key: 'entry' | 'css') => {
+      const dir = path.join(outDir, 'public/plugins', name)
+      const plugin = JSON.parse(await readFile(path.join(dir, 'plugin.json'), 'utf8')) as Record<string, string>
+      return readFile(path.join(dir, plugin[key]!), 'utf8')
+    }
+    const code = await pluginFile(extension, 'entry')
+    for (const text of ['ProtobaseTestCard', 'Extension card c4f1e2', 'test-extension']) expect(code).toContain(text)
+    expect(code).toMatch(/from\s*"@protobase\/ui"/)
+    expect(await pluginFile('app', 'entry')).toContain('OwnCard')
+    // Tailwind writes the classes only the extension uses into its own stylesheet.
+    expect(await pluginFile(extension, 'css')).toContain('rotate-\\[17deg\\]')
+    // The app itself holds neither: it is the same for every project.
     const assets = await readdir(path.join(outDir, 'public/assets'))
-    const code = await readFile(path.join(outDir, 'public/assets', assets.find((file) => /^index-[\w-]+\.js$/.test(file))!), 'utf8')
-    for (const text of ['ProtobaseTestCard', 'Extension card c4f1e2', 'OwnCard', 'test-extension']) expect(code).toContain(text)
-    // Tailwind writes the classes only the extension uses too.
-    const style = await readFile(path.join(outDir, 'public/assets', assets.find((file) => /^index-[\w-]+\.css$/.test(file))!), 'utf8')
-    expect(style).toContain('rotate-\\[17deg\\]')
+    for (const file of assets.filter((name) => name.endsWith('.js'))) expect(await readFile(path.join(outDir, 'public/assets', file), 'utf8')).not.toContain('OwnCard')
   }, buildTimeout)
 
   it('fails the build when the project defines a component the extension defines, naming both', async () => {

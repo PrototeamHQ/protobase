@@ -23,18 +23,20 @@ const checkedPluginUrl = (url: string, source: string) => {
 }
 
 /**
- * The plugins the app loads: those `options.plugins` lists, then those `PROTOBASE_PLUGINS` adds, each URL once. `false`
- * turns both off. A value that is no URL stops the server at startup.
+ * The plugins the app loads: the `bundled` ones its bundle carries, then those `options.plugins` lists, then those
+ * `PROTOBASE_PLUGINS` adds, each URL once. `false` turns off the last two; the bundle's are the app's own UI. A value
+ * that is no URL stops the server at startup.
  */
-export const pluginOptions = (option: PluginOption[] | false | undefined, env: Record<string, string | undefined>): PluginOption[] => {
-  if (option === false) return []
+export const pluginOptions = (option: PluginOption[] | false | undefined, env: Record<string, string | undefined>, bundled: readonly string[] = []): PluginOption[] => {
+  const own = bundled.map((url) => ({ url: checkedPluginUrl(url, 'the bundle') }))
+  if (option === false) return own
   const given = (option ?? []).map((plugin) => ({ ...plugin, url: checkedPluginUrl(plugin.url.trim(), 'options.plugins') }))
   const listed = (env[pluginsVariable] ?? '')
     .split(',')
     .map((url) => url.trim())
     .filter((url) => url !== '')
     .map((url) => ({ url: checkedPluginUrl(url, pluginsVariable) }))
-  const all = [...given, ...listed]
+  const all = [...own, ...given, ...listed]
   return all.filter((plugin, index) => all.findIndex((other) => other.url === plugin.url) === index)
 }
 

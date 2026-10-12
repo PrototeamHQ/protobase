@@ -7,6 +7,9 @@ export type StaticSite = {
   publicDir: string
   // The page a navigation to a path that is no file gets, relative to publicDir.
   spa: string
+  // A shell of the server's own (absolute `dir`): it answers its `paths`, the root and navigations instead of the copy
+  // in publicDir.
+  shell?: { dir: string; paths: string[] }
 }
 
 const missing = ['ENOENT', 'ENOTDIR']
@@ -39,22 +42,29 @@ const fileFor = async (publicDir: string, pathname: string) => {
   return (await statOrUndefined(index))?.isFile() ? index : undefined
 }
 
-// Vite names everything under assets/ by its content hash, so it never changes; the rest is revalidated.
-const cacheControl = (publicDir: string, file: string) =>
-  file.startsWith(path.join(publicDir, 'assets', path.sep)) ? 'public, max-age=31536000, immutable' : 'no-cache'
+// Vite names everything under an assets/ folder by its content hash, the shell's and each plugin's, so it never
+// changes; the rest is revalidated.
+const cacheControl = (root: string, file: string) =>
+  path.relative(root, file).split(path.sep).slice(0, -1).includes('assets') ? 'public, max-age=31536000, immutable' : 'no-cache'
 
-const fileResponse = async (publicDir: string, file: string) =>
+const fileResponse = async (root: string, file: string) =>
   new Response(await readFile(file), {
-    headers: { 'content-type': getMimeType(file) ?? 'application/octet-stream', 'cache-control': cacheControl(publicDir, file) },
+    headers: { 'content-type': getMimeType(file) ?? 'application/octet-stream', 'cache-control': cacheControl(root, file) },
   })
 
 const isNavigation = (request: Request) => (request.headers.get('accept') ?? '').includes('text/html')
 
-// A built UI as a host serves it: the file a GET or HEAD names, else the SPA page for a navigation, else 404.
-export const serveStaticSite = async ({ publicDir, spa }: StaticSite, request: Request) => {
+const isUnder = (paths: readonly string[], pathname: string) => paths.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`))
+
+// A built UI as a host serves it: the file a GET or HEAD names, else the SPA page for a navigation, else 404. With a
+// shell of its own, the shell's paths and the SPA page come from it.
+export const serveStaticSite = async ({ publicDir, spa, shell }: StaticSite, request: Request) => {
   if (request.method !== 'GET' && request.method !== 'HEAD') return new Response('Method Not Allowed', { status: 405, headers: { allow: 'GET, HEAD' } })
-  const file = await fileFor(publicDir, new URL(request.url).pathname)
-  if (file) return fileResponse(publicDir, file)
-  if (isNavigation(request)) return fileResponse(publicDir, path.join(publicDir, spa))
+  const pathname = new URL(request.url).pathname
+  const appDir = shell?.dir ?? publicDir
+  const root = shell && (pathname === '/' || isUnder(shell.paths, pathname)) ? shell.dir : publicDir
+  const file = await fileFor(root, pathname)
+  if (file) return fileResponse(root, file)
+  if (isNavigation(request)) return fileResponse(appDir, path.join(appDir, spa))
   return new Response('Not Found', { status: 404 })
 }
