@@ -84,6 +84,22 @@ describe.skipIf(!reachable || !hasApp)('protobase dev in a project with real aut
     expect((await fetch(meta)).status).toBe(401)
   })
 
+  it('names the modules it shares with plugins in the page\'s import map, each a module exporting its names', async () => {
+    const page = await (await fetch(`http://localhost:${port}/`, { headers: { accept: 'text/html' } })).text()
+    const [, json] = /<script type="importmap">(.*?)<\/script>/.exec(page) ?? []
+    const { imports } = JSON.parse(json!) as { imports: Record<string, string> }
+    expect(imports).toEqual({
+      react: '/@id/__x00__protobase-shared:react',
+      'react/jsx-runtime': '/@id/__x00__protobase-shared:react/jsx-runtime',
+      'react-dom': '/@id/__x00__protobase-shared:react-dom',
+      '@protobase/ui': '/@id/__x00__protobase-shared:@protobase/ui',
+    })
+    expect(page.indexOf('type="importmap"')).toBeLessThan(page.indexOf('type="module"'))
+    const react = await fetch(`http://localhost:${port}${imports.react}`)
+    expect(react.headers.get('content-type')).toMatch(/javascript/)
+    expect(await react.text()).toMatch(/export const \{[^}]*\buseState\b/)
+  })
+
   it('serves the functions in ./functions to a bearer token and refuses everyone else', async () => {
     const whoami = `http://localhost:${port}/api/functions/whoami/me`
     const signedIn = await fetch(whoami, { headers: { authorization: `Bearer ${token}` } })

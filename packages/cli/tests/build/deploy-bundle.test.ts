@@ -54,6 +54,27 @@ describe('buildDeployBundle', () => {
     expect(code).not.toContain('jsxDEV')
   }, buildTimeout)
 
+  it('names the modules it shares with plugins in an import map, ahead of every module, each an entry exporting its names', async () => {
+    projectDir = await createProject({ 'config/index.ts': things })
+    const outDir = path.join(projectDir, 'dist')
+    await buildDeployBundle({ projectDir, outDir })
+
+    const index = await readFile(path.join(outDir, 'public/index.html'), 'utf8')
+    const [, json] = /<script type="importmap">(.*?)<\/script>/.exec(index) ?? []
+    const { imports } = JSON.parse(json!) as { imports: Record<string, string> }
+    expect(Object.keys(imports)).toEqual(['react', 'react/jsx-runtime', 'react-dom', '@protobase/ui'])
+    expect(index.indexOf('type="importmap"')).toBeLessThan(index.indexOf('type="module"'))
+    expect(index.indexOf('type="importmap"')).toBeLessThan(index.indexOf('modulepreload'))
+    const exported = async (url: string) => {
+      const code = await readFile(path.join(outDir, 'public', url), 'utf8')
+      return (/export\s*\{([^}]*)\}\s*;?\s*$/.exec(code)?.[1] ?? '').split(',').map((item) => item.trim().split(/\s+as\s+/).at(-1))
+    }
+    expect(await exported(imports.react!)).toEqual(expect.arrayContaining(['default', 'useState', 'createContext']))
+    expect(await exported(imports['react/jsx-runtime']!)).toEqual(expect.arrayContaining(['jsx', 'jsxs', 'Fragment']))
+    expect(await exported(imports['react-dom']!)).toEqual(expect.arrayContaining(['createPortal']))
+    expect(await exported(imports['@protobase/ui']!)).toEqual(expect.arrayContaining(['useClient', 'useList', 'defineUi']))
+  }, buildTimeout)
+
   it('carries a native package in node_modules and names it in the manifest, until a build without one', async () => {
     projectDir = await createProject({
       'protobase.config.ts': `import { hash } from 'native-hash'\nimport * as config from './resources'\nexport default { config, options: { hash } }\n`,

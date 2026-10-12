@@ -3,7 +3,7 @@ import path from 'node:path'
 
 // @protobase/ui as the CLI's dependency resolves it, symlinks resolved: its src/index.ts in this repository, dist/index.js
 // when installed.
-const uiEntry = createRequire(import.meta.url).resolve('@protobase/ui')
+export const uiEntry = createRequire(import.meta.url).resolve('@protobase/ui')
 
 // The folder of @protobase/ui, which `protobase dev` lets Vite serve files from.
 export const uiPackageDir = path.resolve(path.dirname(uiEntry), '..')
