@@ -4,14 +4,16 @@ import { jwtAuthenticator } from '../auth/jwt'
 import { forbidden } from '../problem'
 import type { Authenticator, Session, TenantValue } from '../types'
 import { authBasePath } from './create-auth'
+import { noGlobalRole } from './organizations/role-definitions'
 
 /**
  * Another Protobase app whose signed-in users this API admits with the tokens that app issues, so its admin app can
  * draw this API's resources (see `options.sources` there). `issuer` is that app's Better Auth `baseURL`, the issuer and
- * audience of its tokens; its keys are read from `<issuer>/api/auth/jwks`. `roles` gives its roles the ones they are
- * here, `{ admin: 'shop' }`: a role it does not list is dropped, and a user left with none is refused. Its users work
- * in `tenant` when the resources have one; nothing in its tokens names a tenant here. `keys` replaces reading its key
- * set, for tests or keys at hand.
+ * audience of its tokens; its keys are read from `<issuer>/api/auth/jwks`. `roles` gives its global roles the ones they
+ * are here, `{ admin: 'shop' }`: a role it does not list is dropped, and a user left with none is refused. A role held
+ * in one of its organizations is never mapped: its members could hand it out. Its users work in `tenant` when the
+ * resources have one; nothing in its tokens names a tenant here. `keys` replaces reading its key set, for tests or keys
+ * at hand.
  */
 export type TrustedApp = { issuer: string; roles: Record<string, string | string[]>; tenant?: TenantValue; keys?: JWTVerifyGetKey }
 
@@ -29,11 +31,14 @@ const claimedIssuer = (request: Request) => {
 }
 
 const trustedAuthenticator = (app: TrustedApp, issuer: string): Authenticator => {
-  const verify = jwtAuthenticator({ keys: app.keys ?? createRemoteJWKSet(new URL(`${authBasePath}/jwks`, issuer)), issuer, audience: issuer, rolesClaim: 'role', extraRolesClaim: 'app_roles' })
+  // `org` is read only to know whether the token comes from an app with organizations, where the global role `user`
+  // stands for none.
+  const verify = jwtAuthenticator({ keys: app.keys ?? createRemoteJWKSet(new URL(`${authBasePath}/jwks`, issuer)), issuer, audience: issuer, rolesClaim: 'role', tenantClaim: 'org' })
   const host = new URL(issuer).host
   return async (request) => {
-    const { user } = await verify(request)
-    const roles = [...new Set(user.roles.flatMap((role) => (Object.hasOwn(app.roles, role) ? app.roles[role]! : [])))]
+    const { user, tenant: organization } = await verify(request)
+    const global = organization === undefined ? user.roles : user.roles.filter((role) => role !== noGlobalRole)
+    const roles = [...new Set(global.flatMap((role) => (Object.hasOwn(app.roles, role) ? app.roles[role]! : [])))]
     if (roles.length === 0) throw forbidden('no-role', `Your role in ${host} gives you no role here`)
     const session: Session = { user: { id: `${user.id}@${host}`, roles }, ...(app.tenant !== undefined && { tenant: app.tenant }) }
     return session

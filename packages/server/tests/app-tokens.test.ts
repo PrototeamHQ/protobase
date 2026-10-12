@@ -53,6 +53,12 @@ describe('an API that trusts another app', () => {
     expect(await statusOf(authenticate, named.token)).toBe(403)
   })
 
+  it("maps only the other app's global roles, never a role held in one of its organizations", async () => {
+    const trusting = betterAuthAuthenticator({ auth: desk, apps: [{ issuer: shopUrl, roles: { manager: 'shop', user: 'shop' }, keys: createLocalJWKSet(await shop.api.getJwks()) }] })
+    const member = await shop.api.signJWT({ body: { payload: { sub: 'member', role: 'user', app_roles: ['manager'], org: 'o1', exp: Math.floor(Date.now() / 1000) + 60 } } })
+    expect(await statusOf(trusting, member.token)).toBe(403)
+  })
+
   it("refuses a token that names the other app's issuer but is signed with other keys", async () => {
     const { token } = await desk.api.signJWT({ body: { payload: { iss: shopUrl, aud: shopUrl, sub: 'forged', role: 'admin', exp: Math.floor(Date.now() / 1000) + 60 } } })
     expect(await statusOf(authenticate, token)).toBe(401)
