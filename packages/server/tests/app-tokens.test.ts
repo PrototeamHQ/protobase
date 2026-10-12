@@ -59,6 +59,15 @@ describe('an API that trusts another app', () => {
     expect(await statusOf(trusting, member.token)).toBe(403)
   })
 
+  it('admits the tokens of an app whose base URL ends in a slash', async () => {
+    const slashed = await authAt('https://slash.example.com/', ['admin'])
+    await createUser(slashed, { email: 'owner@slash.example.com', password })
+    const trusting = betterAuthAuthenticator({ auth: desk, apps: [{ issuer: 'https://slash.example.com', roles: { admin: 'shop' }, keys: createLocalJWKSet(await slashed.api.getJwks()) }] })
+    const { token } = await issueToken(slashed, { email: 'owner@slash.example.com' })
+    expect(await statusOf(authenticate, token)).toBe(401)
+    expect(await trusting(bearer(token))).toMatchObject({ user: { roles: ['shop'] } })
+  })
+
   it("refuses a token that names the other app's issuer but is signed with other keys", async () => {
     const { token } = await desk.api.signJWT({ body: { payload: { iss: shopUrl, aud: shopUrl, sub: 'forged', role: 'admin', exp: Math.floor(Date.now() / 1000) + 60 } } })
     expect(await statusOf(authenticate, token)).toBe(401)

@@ -17,13 +17,13 @@ import { noGlobalRole } from './organizations/role-definitions'
  */
 export type TrustedApp = { issuer: string; roles: Record<string, string | string[]>; tenant?: TenantValue; keys?: JWTVerifyGetKey }
 
-// The issuer a token claims, unverified: it only picks which keys verify it.
+// The issuer a token claims, unverified and without a trailing slash: it only picks which keys verify it.
 const claimedIssuer = (request: Request) => {
   const [scheme, token] = (request.headers.get('authorization') ?? '').split(' ')
   if (scheme?.toLowerCase() !== 'bearer' || !token) return undefined
   try {
     const { iss } = decodeJwt(token)
-    return typeof iss === 'string' ? iss : undefined
+    return typeof iss === 'string' ? iss.replace(/\/+$/, '') : undefined
   } catch (error) {
     if (error instanceof errors.JOSEError) return undefined
     throw error
@@ -31,9 +31,10 @@ const claimedIssuer = (request: Request) => {
 }
 
 const trustedAuthenticator = (app: TrustedApp, issuer: string): Authenticator => {
-  // `org` is read only to know whether the token comes from an app with organizations, where the global role `user`
-  // stands for none.
-  const verify = jwtAuthenticator({ keys: app.keys ?? createRemoteJWKSet(new URL(`${authBasePath}/jwks`, issuer)), issuer, audience: issuer, rolesClaim: 'role', tenantClaim: 'org' })
+  // Its `baseURL` is in its tokens as it was written, with or without a trailing slash. `org` is read only to know
+  // whether the token comes from an app with organizations, where the global role `user` stands for none.
+  const forms = [issuer, `${issuer}/`]
+  const verify = jwtAuthenticator({ keys: app.keys ?? createRemoteJWKSet(new URL(`${authBasePath}/jwks`, issuer)), issuer: forms, audience: forms, rolesClaim: 'role', tenantClaim: 'org' })
   const host = new URL(issuer).host
   return async (request) => {
     const { user, tenant: organization } = await verify(request)

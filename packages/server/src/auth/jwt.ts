@@ -6,8 +6,10 @@ export type JwtOptions = {
   /** JWKS endpoint of the identity provider; or pass `keys`, for example `createLocalJWKSet`. */
   jwksUrl?: string | URL
   keys?: JWTVerifyGetKey
-  issuer?: string
-  audience?: string
+  /** The accepted issuer, or several. */
+  issuer?: string | string[]
+  /** The accepted audience, or several. */
+  audience?: string | string[]
   /** Claim holding the roles, an array, or a string separated by spaces or commas. Default `roles`. */
   rolesClaim?: string
   /** A second claim whose roles are added to those of `rolesClaim`, such as an organization membership's. */
