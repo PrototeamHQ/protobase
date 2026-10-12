@@ -1,0 +1,451 @@
+div | block
+  div .h-screen | block
+    div .flex h-full min-h-0 w-full overflow-hidden bg-background | flex row nowrap normal normal
+      div .flex min-w-0 flex-1 flex-col | flex column nowrap normal normal
+        header .relative flex h-12 shrink-0 items-center gap-1 border-b bg-background px-2 md:gap-4 md:px-5 | flex row nowrap center normal relative
+          button .inline-flex size-11 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted md:hidden -ml-0.5 | flex row nowrap center center
+            svg .lucide lucide-menu size-5 | block
+          nav .flex min-w-0 items-center gap-1.5 text-[13px] | flex row nowrap center normal
+            span .min-w-0 items-center gap-1.5 hidden md:flex | none
+              span .truncate text-muted-foreground | inline
+            span .min-w-0 items-center gap-1.5 flex | flex row nowrap center normal
+              svg .lucide lucide-chevron-right hidden size-3.5 shrink-0 text-faint-foreground md:block | none
+              a .truncate font-semibold rounded-sm hover:text-foreground hover:underline | block
+          div .ml-auto flex items-center gap-1 md:gap-3 | flex row nowrap center normal
+            div .hidden md:block | none
+              div .relative w-96 | block relative
+                span .flex h-8 items-center gap-2 rounded-md border bg-background px-2.5 text-muted-foreground shadow-sm focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20 border-border-strong w-full bg-surface shadow-none | flex row nowrap center normal
+                  svg .lucide lucide-search size-4 | block
+                  input role=combobox .min-w-0 flex-1 bg-transparent text-[13px] text-foreground outline-none placeholder:text-faint-foreground | block
+                  span .hidden md:inline-flex | none
+                    kbd .inline-flex h-5 items-center rounded border border-border-strong bg-background px-1.5 font-sans text-[11px] font-medium text-muted-foreground | inline-flex row nowrap center normal
+            button .inline-flex size-11 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted md:hidden | flex row nowrap center center
+              svg .lucide lucide-search size-5 | block
+        main .flex min-h-0 flex-1 flex-col | flex column nowrap normal normal
+          div .flex min-h-0 flex-1 flex-col gap-3 px-5 py-4 | flex column nowrap normal normal
+            div .flex flex-wrap items-end justify-between gap-x-4 gap-y-2 | flex row wrap flex-end space-between
+              div | block
+                h1 .text-xl font-semibold tracking-tight | block
+              div .flex w-full flex-wrap items-center gap-2 sm:w-auto | flex row wrap center normal
+                span .flex h-8 items-center gap-2 rounded-md border bg-background px-2.5 text-muted-foreground shadow-sm focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20 border-border-strong min-w-0 flex-1 sm:w-72 sm:flex-none | flex row nowrap center normal
+                  svg .lucide lucide-search size-4 | block
+                  input .min-w-0 flex-1 bg-transparent text-[13px] text-foreground outline-none placeholder:text-faint-foreground | block
+                button .inline-flex shrink-0 items-center justify-center rounded-md font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:opacity-60 disabled:cursor-default bg-primary text-primary-foreground hover:bg-primary-hover shadow-sm h-8 px-3 text-[13px] gap-2 | flex row nowrap center center
+                  svg .lucide lucide-plus size-3.5 | block
+            section .rounded-lg border bg-background px-4 pb-2 pt-3 | block
+              header .flex flex-wrap items-center justify-between gap-2 | flex row wrap center space-between
+                div .flex items-baseline gap-2 | flex row nowrap baseline normal
+                  h2 .text-[13px] font-semibold | block
+                  span .text-[13px] font-semibold tabular-nums | block
+                  span .text-xs font-medium tabular-nums text-success-text | block
+                  span .hidden text-xs text-muted-foreground sm:inline | none
+                span role=group .inline-flex h-7 rounded-md bg-muted p-0.5 | flex row nowrap normal normal
+                  button .inline-flex items-center gap-1.5 rounded px-2.5 text-xs font-medium transition-colors bg-background text-foreground shadow-sm | flex row nowrap center normal
+                  button .inline-flex items-center gap-1.5 rounded px-2.5 text-xs font-medium transition-colors text-muted-foreground hover:text-foreground | flex row nowrap center normal
+              div .mt-2 h-24 | block
+                div .recharts-responsive-container | block
+                  div | block
+                    div .recharts-wrapper | block relative
+                      div .recharts-tooltip-wrapper | block absolute hidden
+                      svg role=application .recharts-surface | block
+            div .flex flex-col gap-2 | flex column nowrap normal normal
+              div .flex items-center gap-2 | flex row nowrap center normal
+                button .inline-flex shrink-0 items-center justify-center rounded-md font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:opacity-60 disabled:cursor-default bg-background text-foreground border border-border-strong hover:bg-muted shadow-sm h-8 px-3 text-[13px] gap-2 min-h-11 | flex row nowrap center center
+                  svg .lucide lucide-sliders-horizontal size-3.5 | block
+                div .min-w-0 flex-1 | block
+            div .flex min-h-0 flex-col overflow-hidden rounded-lg border bg-background flex-1 | flex column nowrap normal normal
+              div role=grid .relative min-h-0 flex-1 overflow-y-auto overflow-x-hidden | block relative
+                div | block
+                  div .sticky top-0 | block sticky
+                    div .h-full overflow-x-auto overflow-y-hidden overscroll-x-contain [-webkit-overflow-scrolling:touch] | block
+                      div .flex h-full flex-col | flex column nowrap normal normal
+                        div role=row .grid h-8 shrink-0 items-center border-b bg-surface text-xs font-medium text-muted-foreground | grid row nowrap center normal
+                          div .sticky left-0 z-10 flex h-full items-center gap-2 bg-inherit pl-3 | flex row nowrap center normal sticky
+                            button role=checkbox .relative inline-flex size-4 shrink-0 items-center justify-center rounded border transition-colors after:absolute after:-inset-1 after:content-[""] pointer-coarse:after:-inset-3.5 border-border-strong bg-background hover:border-faint-foreground opacity-60 | flex row nowrap center center relative
+                          div .group/cell flex h-full min-w-0 items-center | flex row nowrap center normal
+                            button .group/head flex h-full min-w-0 flex-1 items-center gap-1 pl-3 pr-1 text-left hover:text-foreground | flex row nowrap center normal
+                              span .truncate | block
+                              svg .lucide lucide-chevrons-up-down size-3 opacity-0 group-hover/head:opacity-100 | block
+                            div .pr-1.5 | block
+                              div .relative ml-auto shrink-0 | block relative
+                                button .relative inline-flex size-5 items-center justify-center rounded text-faint-foreground hover:bg-muted hover:text-foreground focus-visible:opacity-100 after:absolute after:-inset-2 after:content-[''] md:opacity-0 md:group-hover/cell:opacity-100 aria-expanded:opacity-100 | inline-flex row nowrap center center relative
+                                  svg .lucide lucide-ellipsis lucide-more-horizontal size-3.5 | block
+                          div .group/cell flex h-full min-w-0 items-center | flex row nowrap center normal
+                            button .group/head flex h-full min-w-0 flex-1 items-center gap-1 pl-3 pr-1 text-left hover:text-foreground | flex row nowrap center normal
+                              span .truncate | block
+                              svg .lucide lucide-chevrons-up-down size-3 opacity-0 group-hover/head:opacity-100 | block
+                            div .pr-1.5 | block
+                              div .relative ml-auto shrink-0 | block relative
+                                button .relative inline-flex size-5 items-center justify-center rounded text-faint-foreground hover:bg-muted hover:text-foreground focus-visible:opacity-100 after:absolute after:-inset-2 after:content-[''] md:opacity-0 md:group-hover/cell:opacity-100 aria-expanded:opacity-100 | inline-flex row nowrap center center relative
+                                  svg .lucide lucide-ellipsis lucide-more-horizontal size-3.5 | block
+                          div .group/cell flex h-full min-w-0 items-center | flex row nowrap center normal
+                            button .group/head flex h-full min-w-0 flex-1 items-center gap-1 pl-3 pr-1 text-left | flex row nowrap center normal
+                              span .truncate | block
+                            div .pr-1.5 | block
+                              div .relative ml-auto shrink-0 | block relative
+                                button .relative inline-flex size-5 items-center justify-center rounded text-faint-foreground hover:bg-muted hover:text-foreground focus-visible:opacity-100 after:absolute after:-inset-2 after:content-[''] md:opacity-0 md:group-hover/cell:opacity-100 aria-expanded:opacity-100 | inline-flex row nowrap center center relative
+                                  svg .lucide lucide-ellipsis lucide-more-horizontal size-3.5 | block
+                          div .group/cell flex h-full min-w-0 items-center | flex row nowrap center normal
+                            button .group/head flex h-full min-w-0 flex-1 items-center gap-1 pl-3 pr-1 text-left hover:text-foreground | flex row nowrap center normal
+                              span .truncate | block
+                              svg .lucide lucide-chevrons-up-down size-3 opacity-0 group-hover/head:opacity-100 | block
+                            div .pr-1.5 | block
+                              div .relative ml-auto shrink-0 | block relative
+                                button .relative inline-flex size-5 items-center justify-center rounded text-faint-foreground hover:bg-muted hover:text-foreground focus-visible:opacity-100 after:absolute after:-inset-2 after:content-[''] md:opacity-0 md:group-hover/cell:opacity-100 aria-expanded:opacity-100 | inline-flex row nowrap center center relative
+                                  svg .lucide lucide-ellipsis lucide-more-horizontal size-3.5 | block
+                          div .group/cell flex h-full min-w-0 items-center | flex row nowrap center normal
+                            button .group/head flex h-full min-w-0 flex-1 items-center gap-1 pl-3 pr-1 text-left hover:text-foreground | flex row nowrap center normal
+                              span .truncate | block
+                              svg .lucide lucide-chevrons-up-down size-3 opacity-0 group-hover/head:opacity-100 | block
+                            div .pr-1.5 | block
+                              div .relative ml-auto shrink-0 | block relative
+                                button .relative inline-flex size-5 items-center justify-center rounded text-faint-foreground hover:bg-muted hover:text-foreground focus-visible:opacity-100 after:absolute after:-inset-2 after:content-[''] md:opacity-0 md:group-hover/cell:opacity-100 aria-expanded:opacity-100 | inline-flex row nowrap center center relative
+                                  svg .lucide lucide-ellipsis lucide-more-horizontal size-3.5 | block
+                          div .group/cell flex h-full min-w-0 items-center | flex row nowrap center normal
+                            button .group/head flex h-full min-w-0 flex-1 items-center gap-1 pl-3 pr-1 text-left justify-end hover:text-foreground | flex row nowrap center flex-end
+                              span .truncate | block
+                              svg .lucide lucide-chevrons-up-down size-3 opacity-0 group-hover/head:opacity-100 | block
+                            div .pr-1.5 | block
+                              div .relative ml-auto shrink-0 | block relative
+                                button .relative inline-flex size-5 items-center justify-center rounded text-faint-foreground hover:bg-muted hover:text-foreground focus-visible:opacity-100 after:absolute after:-inset-2 after:content-[''] md:opacity-0 md:group-hover/cell:opacity-100 aria-expanded:opacity-100 | inline-flex row nowrap center center relative
+                                  svg .lucide lucide-ellipsis lucide-more-horizontal size-3.5 | block
+                          div .group/cell flex h-full min-w-0 items-center | flex row nowrap center normal
+                            button .group/head flex h-full min-w-0 flex-1 items-center gap-1 pl-3 pr-1 text-left hover:text-foreground text-foreground | flex row nowrap center normal
+                              span .truncate | block
+                              svg .lucide lucide-arrow-down size-3 text-foreground | block
+                            div .pr-1.5 | block
+                              div .relative ml-auto shrink-0 | block relative
+                                button .relative inline-flex size-5 items-center justify-center rounded text-faint-foreground hover:bg-muted hover:text-foreground focus-visible:opacity-100 after:absolute after:-inset-2 after:content-[''] md:opacity-0 md:group-hover/cell:opacity-100 aria-expanded:opacity-100 | inline-flex row nowrap center center relative
+                                  svg .lucide lucide-ellipsis lucide-more-horizontal size-3.5 | block
+                          div | block
+                        div .relative min-h-0 flex-1 overflow-clip | block relative
+                          div role=row .absolute inset-x-0 top-0 grid items-center border-b text-[13px] bg-background hover:bg-surface cursor-pointer | grid row nowrap center normal absolute
+                            div .sticky left-0 z-10 flex h-full items-center gap-2 bg-inherit pl-3 | flex row nowrap center normal sticky
+                              span | block
+                                button role=checkbox .relative inline-flex size-4 shrink-0 items-center justify-center rounded border transition-colors after:absolute after:-inset-1 after:content-[""] pointer-coarse:after:-inset-3.5 border-border-strong bg-background hover:border-faint-foreground | inline-flex row nowrap center center relative
+                            div role=cell .flex h-full min-w-0 items-center overflow-hidden whitespace-nowrap px-3 | flex row nowrap center normal
+                              span .truncate font-mono text-xs text-muted-foreground | block
+                            div role=cell .flex h-full min-w-0 items-center overflow-hidden whitespace-nowrap px-3 | flex row nowrap center normal
+                              span .truncate font-medium text-primary-text hover:underline | block
+                            div role=cell .flex h-full min-w-0 items-center overflow-hidden whitespace-nowrap px-3 | flex row nowrap center normal
+                              span .truncate | block
+                            div role=cell .flex h-full min-w-0 items-center overflow-hidden whitespace-nowrap px-3 | flex row nowrap center normal
+                              span .inline-flex h-5 items-center gap-1.5 rounded-full px-2 text-xs font-medium whitespace-nowrap bg-muted text-muted-foreground | flex row nowrap center normal
+                                span .size-1.5 rounded-full bg-faint-foreground | block
+                            div role=cell .flex h-full min-w-0 items-center overflow-hidden whitespace-nowrap px-3 | flex row nowrap center normal
+                              span .text-faint-foreground | block
+                            div role=cell .flex h-full min-w-0 items-center overflow-hidden whitespace-nowrap px-3 justify-end | flex row nowrap center flex-end
+                              span .tabular-nums | block
+                            div role=cell .flex h-full min-w-0 items-center overflow-hidden whitespace-nowrap px-3 | flex row nowrap center normal
+                              span .tabular-nums text-muted-foreground | block
+                            div .flex h-full items-center justify-center | flex row nowrap center center
+                              div .relative flex justify-center bg-inherit | flex row nowrap normal center relative
+                                button .inline-flex items-center justify-center rounded p-1 text-faint-foreground hover:bg-muted hover:text-foreground pointer-coarse:size-11 | flex row nowrap center center
+                                  svg .lucide lucide-ellipsis lucide-more-horizontal size-4 | block
+                          div role=row .absolute inset-x-0 top-0 grid items-center border-b text-[13px] bg-background hover:bg-surface cursor-pointer | grid row nowrap center normal absolute
+                            div .sticky left-0 z-10 flex h-full items-center gap-2 bg-inherit pl-3 | flex row nowrap center normal sticky
+                              span | block
+                                button role=checkbox .relative inline-flex size-4 shrink-0 items-center justify-center rounded border transition-colors after:absolute after:-inset-1 after:content-[""] pointer-coarse:after:-inset-3.5 border-border-strong bg-background hover:border-faint-foreground | inline-flex row nowrap center center relative
+                            div role=cell .flex h-full min-w-0 items-center overflow-hidden whitespace-nowrap px-3 | flex row nowrap center normal
+                              span .truncate font-mono text-xs text-muted-foreground | block
+                            div role=cell .flex h-full min-w-0 items-center overflow-hidden whitespace-nowrap px-3 | flex row nowrap center normal
+                              span .truncate font-medium text-primary-text hover:underline | block
+                            div role=cell .flex h-full min-w-0 items-center overflow-hidden whitespace-nowrap px-3 | flex row nowrap center normal
+                              span .truncate | block
+                            div role=cell .flex h-full min-w-0 items-center overflow-hidden whitespace-nowrap px-3 | flex row nowrap center normal
+                              span .inline-flex h-5 items-center gap-1.5 rounded-full px-2 text-xs font-medium whitespace-nowrap bg-muted text-muted-foreground | flex row nowrap center normal
+                                span .size-1.5 rounded-full bg-faint-foreground | block
+                            div role=cell .flex h-full min-w-0 items-center overflow-hidden whitespace-nowrap px-3 | flex row nowrap center normal
+                              span .text-faint-foreground | block
+                            div role=cell .flex h-full min-w-0 items-center overflow-hidden whitespace-nowrap px-3 justify-end | flex row nowrap center flex-end
+                              span .tabular-nums | block
+                            div role=cell .flex h-full min-w-0 items-center overflow-hidden whitespace-nowrap px-3 | flex row nowrap center normal
+                              span .tabular-nums text-muted-foreground | block
+                            div .flex h-full items-center justify-center | flex row nowrap center center
+                              div .relative flex justify-center bg-inherit | flex row nowrap normal center relative
+                                button .inline-flex items-center justify-center rounded p-1 text-faint-foreground hover:bg-muted hover:text-foreground pointer-coarse:size-11 | flex row nowrap center center
+                                  svg .lucide lucide-ellipsis lucide-more-horizontal size-4 | block
+                          div role=row .absolute inset-x-0 top-0 grid items-center border-b text-[13px] bg-background hover:bg-surface cursor-pointer | grid row nowrap center normal absolute
+                            div .sticky left-0 z-10 flex h-full items-center gap-2 bg-inherit pl-3 | flex row nowrap center normal sticky
+                              span | block
+                                button role=checkbox .relative inline-flex size-4 shrink-0 items-center justify-center rounded border transition-colors after:absolute after:-inset-1 after:content-[""] pointer-coarse:after:-inset-3.5 border-border-strong bg-background hover:border-faint-foreground | inline-flex row nowrap center center relative
+                            div role=cell .flex h-full min-w-0 items-center overflow-hidden whitespace-nowrap px-3 | flex row nowrap center normal
+                              span .truncate font-mono text-xs text-muted-foreground | block
+                            div role=cell .flex h-full min-w-0 items-center overflow-hidden whitespace-nowrap px-3 | flex row nowrap center normal
+                              span .truncate font-medium text-primary-text hover:underline | block
+                            div role=cell .flex h-full min-w-0 items-center overflow-hidden whitespace-nowrap px-3 | flex row nowrap center normal
+                              span .truncate | block
+                            div role=cell .flex h-full min-w-0 items-center overflow-hidden whitespace-nowrap px-3 | flex row nowrap center normal
+                              span .inline-flex h-5 items-center gap-1.5 rounded-full px-2 text-xs font-medium whitespace-nowrap bg-muted text-muted-foreground | flex row nowrap center normal
+                                span .size-1.5 rounded-full bg-faint-foreground | block
+                            div role=cell .flex h-full min-w-0 items-center overflow-hidden whitespace-nowrap px-3 | flex row nowrap center normal
+                              span .text-faint-foreground | block
+                            div role=cell .flex h-full min-w-0 items-center overflow-hidden whitespace-nowrap px-3 justify-end | flex row nowrap center flex-end
+                              span .tabular-nums | block
+                            div role=cell .flex h-full min-w-0 items-center overflow-hidden whitespace-nowrap px-3 | flex row nowrap center normal
+                              span .tabular-nums text-muted-foreground | block
+                            div .flex h-full items-center justify-center | flex row nowrap center center
+                              div .relative flex justify-center bg-inherit | flex row nowrap normal center relative
+                                button .inline-flex items-center justify-center rounded p-1 text-faint-foreground hover:bg-muted hover:text-foreground pointer-coarse:size-11 | flex row nowrap center center
+                                  svg .lucide lucide-ellipsis lucide-more-horizontal size-4 | block
+                          div role=row .absolute inset-x-0 top-0 grid items-center border-b text-[13px] bg-background hover:bg-surface cursor-pointer | grid row nowrap center normal absolute
+                            div .sticky left-0 z-10 flex h-full items-center gap-2 bg-inherit pl-3 | flex row nowrap center normal sticky
+                              span | block
+                                button role=checkbox .relative inline-flex size-4 shrink-0 items-center justify-center rounded border transition-colors after:absolute after:-inset-1 after:content-[""] pointer-coarse:after:-inset-3.5 border-border-strong bg-background hover:border-faint-foreground | inline-flex row nowrap center center relative
+                            div role=cell .flex h-full min-w-0 items-center overflow-hidden whitespace-nowrap px-3 | flex row nowrap center normal
+                              span .truncate font-mono text-xs text-muted-foreground | block
+                            div role=cell .flex h-full min-w-0 items-center overflow-hidden whitespace-nowrap px-3 | flex row nowrap center normal
+                              span .truncate font-medium text-primary-text hover:underline | block
+                            div role=cell .flex h-full min-w-0 items-center overflow-hidden whitespace-nowrap px-3 | flex row nowrap center normal
+                              span .truncate | block
+                            div role=cell .flex h-full min-w-0 items-center overflow-hidden whitespace-nowrap px-3 | flex row nowrap center normal
+                              span .inline-flex h-5 items-center gap-1.5 rounded-full px-2 text-xs font-medium whitespace-nowrap bg-muted text-muted-foreground | flex row nowrap center normal
+                                span .size-1.5 rounded-full bg-faint-foreground | block
+                            div role=cell .flex h-full min-w-0 items-center overflow-hidden whitespace-nowrap px-3 | flex row nowrap center normal
+                              span .truncate | block
+                            div role=cell .flex h-full min-w-0 items-center overflow-hidden whitespace-nowrap px-3 justify-end | flex row nowrap center flex-end
+                              span .tabular-nums | block
+                            div role=cell .flex h-full min-w-0 items-center overflow-hidden whitespace-nowrap px-3 | flex row nowrap center normal
+                              span .tabular-nums text-muted-foreground | block
+                            div .flex h-full items-center justify-center | flex row nowrap center center
+                              div .relative flex justify-center bg-inherit | flex row nowrap normal center relative
+                                button .inline-flex items-center justify-center rounded p-1 text-faint-foreground hover:bg-muted hover:text-foreground pointer-coarse:size-11 | flex row nowrap center center
+                                  svg .lucide lucide-ellipsis lucide-more-horizontal size-4 | block
+                          div role=row .absolute inset-x-0 top-0 grid items-center border-b text-[13px] bg-background hover:bg-surface cursor-pointer | grid row nowrap center normal absolute
+                            div .sticky left-0 z-10 flex h-full items-center gap-2 bg-inherit pl-3 | flex row nowrap center normal sticky
+                              span | block
+                                button role=checkbox .relative inline-flex size-4 shrink-0 items-center justify-center rounded border transition-colors after:absolute after:-inset-1 after:content-[""] pointer-coarse:after:-inset-3.5 border-border-strong bg-background hover:border-faint-foreground | inline-flex row nowrap center center relative
+                            div role=cell .flex h-full min-w-0 items-center overflow-hidden whitespace-nowrap px-3 | flex row nowrap center normal
+                              span .truncate font-mono text-xs text-muted-foreground | block
+                            div role=cell .flex h-full min-w-0 items-center overflow-hidden whitespace-nowrap px-3 | flex row nowrap center normal
+                              span .truncate font-medium text-primary-text hover:underline | block
+                            div role=cell .flex h-full min-w-0 items-center overflow-hidden whitespace-nowrap px-3 | flex row nowrap center normal
+                              span .truncate | block
+                            div role=cell .flex h-full min-w-0 items-center overflow-hidden whitespace-nowrap px-3 | flex row nowrap center normal
+                              span .inline-flex h-5 items-center gap-1.5 rounded-full px-2 text-xs font-medium whitespace-nowrap bg-muted text-muted-foreground | flex row nowrap center normal
+                                span .size-1.5 rounded-full bg-faint-foreground | block
+                            div role=cell .flex h-full min-w-0 items-center overflow-hidden whitespace-nowrap px-3 | flex row nowrap center normal
+                              span .truncate | block
+                            div role=cell .flex h-full min-w-0 items-center overflow-hidden whitespace-nowrap px-3 justify-end | flex row nowrap center flex-end
+                              span .tabular-nums | block
+                            div role=cell .flex h-full min-w-0 items-center overflow-hidden whitespace-nowrap px-3 | flex row nowrap center normal
+                              span .tabular-nums text-muted-foreground | block
+                            div .flex h-full items-center justify-center | flex row nowrap center center
+                              div .relative flex justify-center bg-inherit | flex row nowrap normal center relative
+                                button .inline-flex items-center justify-center rounded p-1 text-faint-foreground hover:bg-muted hover:text-foreground pointer-coarse:size-11 | flex row nowrap center center
+                                  svg .lucide lucide-ellipsis lucide-more-horizontal size-4 | block
+                          div role=row .absolute inset-x-0 top-0 grid items-center border-b text-[13px] bg-background hover:bg-surface cursor-pointer | grid row nowrap center normal absolute
+                            div .sticky left-0 z-10 flex h-full items-center gap-2 bg-inherit pl-3 | flex row nowrap center normal sticky
+                              span | block
+                                button role=checkbox .relative inline-flex size-4 shrink-0 items-center justify-center rounded border transition-colors after:absolute after:-inset-1 after:content-[""] pointer-coarse:after:-inset-3.5 border-border-strong bg-background hover:border-faint-foreground | inline-flex row nowrap center center relative
+                            div role=cell .flex h-full min-w-0 items-center overflow-hidden whitespace-nowrap px-3 | flex row nowrap center normal
+                              span .truncate font-mono text-xs text-muted-foreground | block
+                            div role=cell .flex h-full min-w-0 items-center overflow-hidden whitespace-nowrap px-3 | flex row nowrap center normal
+                              span .truncate font-medium text-primary-text hover:underline | block
+                            div role=cell .flex h-full min-w-0 items-center overflow-hidden whitespace-nowrap px-3 | flex row nowrap center normal
+                              span .truncate | block
+                            div role=cell .flex h-full min-w-0 items-center overflow-hidden whitespace-nowrap px-3 | flex row nowrap center normal
+                              span .inline-flex h-5 items-center gap-1.5 rounded-full px-2 text-xs font-medium whitespace-nowrap bg-muted text-muted-foreground | flex row nowrap center normal
+                                span .size-1.5 rounded-full bg-faint-foreground | block
+                            div role=cell .flex h-full min-w-0 items-center overflow-hidden whitespace-nowrap px-3 | flex row nowrap center normal
+                              span .truncate | block
+                            div role=cell .flex h-full min-w-0 items-center overflow-hidden whitespace-nowrap px-3 justify-end | flex row nowrap center flex-end
+                              span .tabular-nums | block
+                            div role=cell .flex h-full min-w-0 items-center overflow-hidden whitespace-nowrap px-3 | flex row nowrap center normal
+                              span .tabular-nums text-muted-foreground | block
+                            div .flex h-full items-center justify-center | flex row nowrap center center
+                              div .relative flex justify-center bg-inherit | flex row nowrap normal center relative
+                                button .inline-flex items-center justify-center rounded p-1 text-faint-foreground hover:bg-muted hover:text-foreground pointer-coarse:size-11 | flex row nowrap center center
+                                  svg .lucide lucide-ellipsis lucide-more-horizontal size-4 | block
+                          div role=row .absolute inset-x-0 top-0 grid items-center border-b text-[13px] bg-background hover:bg-surface cursor-pointer | grid row nowrap center normal absolute
+                            div .sticky left-0 z-10 flex h-full items-center gap-2 bg-inherit pl-3 | flex row nowrap center normal sticky
+                              span | block
+                                button role=checkbox .relative inline-flex size-4 shrink-0 items-center justify-center rounded border transition-colors after:absolute after:-inset-1 after:content-[""] pointer-coarse:after:-inset-3.5 border-border-strong bg-background hover:border-faint-foreground | inline-flex row nowrap center center relative
+                            div role=cell .flex h-full min-w-0 items-center overflow-hidden whitespace-nowrap px-3 | flex row nowrap center normal
+                              span .truncate font-mono text-xs text-muted-foreground | block
+                            div role=cell .flex h-full min-w-0 items-center overflow-hidden whitespace-nowrap px-3 | flex row nowrap center normal
+                              span .truncate font-medium text-primary-text hover:underline | block
+                            div role=cell .flex h-full min-w-0 items-center overflow-hidden whitespace-nowrap px-3 | flex row nowrap center normal
+                              span .truncate | block
+                            div role=cell .flex h-full min-w-0 items-center overflow-hidden whitespace-nowrap px-3 | flex row nowrap center normal
+                              span .inline-flex h-5 items-center gap-1.5 rounded-full px-2 text-xs font-medium whitespace-nowrap bg-muted text-muted-foreground | flex row nowrap center normal
+                                span .size-1.5 rounded-full bg-faint-foreground | block
+                            div role=cell .flex h-full min-w-0 items-center overflow-hidden whitespace-nowrap px-3 | flex row nowrap center normal
+                              span .truncate | block
+                            div role=cell .flex h-full min-w-0 items-center overflow-hidden whitespace-nowrap px-3 justify-end | flex row nowrap center flex-end
+                              span .tabular-nums | block
+                            div role=cell .flex h-full min-w-0 items-center overflow-hidden whitespace-nowrap px-3 | flex row nowrap center normal
+                              span .tabular-nums text-muted-foreground | block
+                            div .flex h-full items-center justify-center | flex row nowrap center center
+                              div .relative flex justify-center bg-inherit | flex row nowrap normal center relative
+                                button .inline-flex items-center justify-center rounded p-1 text-faint-foreground hover:bg-muted hover:text-foreground pointer-coarse:size-11 | flex row nowrap center center
+                                  svg .lucide lucide-ellipsis lucide-more-horizontal size-4 | block
+                          div role=row .absolute inset-x-0 top-0 grid items-center border-b text-[13px] bg-background hover:bg-surface cursor-pointer | grid row nowrap center normal absolute
+                            div .sticky left-0 z-10 flex h-full items-center gap-2 bg-inherit pl-3 | flex row nowrap center normal sticky
+                              span | block
+                                button role=checkbox .relative inline-flex size-4 shrink-0 items-center justify-center rounded border transition-colors after:absolute after:-inset-1 after:content-[""] pointer-coarse:after:-inset-3.5 border-border-strong bg-background hover:border-faint-foreground | inline-flex row nowrap center center relative
+                            div role=cell .flex h-full min-w-0 items-center overflow-hidden whitespace-nowrap px-3 | flex row nowrap center normal
+                              span .truncate font-mono text-xs text-muted-foreground | block
+                            div role=cell .flex h-full min-w-0 items-center overflow-hidden whitespace-nowrap px-3 | flex row nowrap center normal
+                              span .truncate font-medium text-primary-text hover:underline | block
+                            div role=cell .flex h-full min-w-0 items-center overflow-hidden whitespace-nowrap px-3 | flex row nowrap center normal
+                              span .truncate | block
+                            div role=cell .flex h-full min-w-0 items-center overflow-hidden whitespace-nowrap px-3 | flex row nowrap center normal
+                              span .inline-flex h-5 items-center gap-1.5 rounded-full px-2 text-xs font-medium whitespace-nowrap bg-muted text-muted-foreground | flex row nowrap center normal
+                                span .size-1.5 rounded-full bg-faint-foreground | block
+                            div role=cell .flex h-full min-w-0 items-center overflow-hidden whitespace-nowrap px-3 | flex row nowrap center normal
+                              span .truncate | block
+                            div role=cell .flex h-full min-w-0 items-center overflow-hidden whitespace-nowrap px-3 justify-end | flex row nowrap center flex-end
+                              span .tabular-nums | block
+                            div role=cell .flex h-full min-w-0 items-center overflow-hidden whitespace-nowrap px-3 | flex row nowrap center normal
+                              span .tabular-nums text-muted-foreground | block
+                            div .flex h-full items-center justify-center | flex row nowrap center center
+                              div .relative flex justify-center bg-inherit | flex row nowrap normal center relative
+                                button .inline-flex items-center justify-center rounded p-1 text-faint-foreground hover:bg-muted hover:text-foreground pointer-coarse:size-11 | flex row nowrap center center
+                                  svg .lucide lucide-ellipsis lucide-more-horizontal size-4 | block
+                          div role=row .absolute inset-x-0 top-0 grid items-center border-b text-[13px] bg-background hover:bg-surface cursor-pointer | grid row nowrap center normal absolute
+                            div .sticky left-0 z-10 flex h-full items-center gap-2 bg-inherit pl-3 | flex row nowrap center normal sticky
+                              span | block
+                                button role=checkbox .relative inline-flex size-4 shrink-0 items-center justify-center rounded border transition-colors after:absolute after:-inset-1 after:content-[""] pointer-coarse:after:-inset-3.5 border-border-strong bg-background hover:border-faint-foreground | inline-flex row nowrap center center relative
+                            div role=cell .flex h-full min-w-0 items-center overflow-hidden whitespace-nowrap px-3 | flex row nowrap center normal
+                              span .truncate font-mono text-xs text-muted-foreground | block
+                            div role=cell .flex h-full min-w-0 items-center overflow-hidden whitespace-nowrap px-3 | flex row nowrap center normal
+                              span .truncate font-medium text-primary-text hover:underline | block
+                            div role=cell .flex h-full min-w-0 items-center overflow-hidden whitespace-nowrap px-3 | flex row nowrap center normal
+                              span .truncate | block
+                            div role=cell .flex h-full min-w-0 items-center overflow-hidden whitespace-nowrap px-3 | flex row nowrap center normal
+                              span .inline-flex h-5 items-center gap-1.5 rounded-full px-2 text-xs font-medium whitespace-nowrap bg-muted text-muted-foreground | flex row nowrap center normal
+                                span .size-1.5 rounded-full bg-faint-foreground | block
+                            div role=cell .flex h-full min-w-0 items-center overflow-hidden whitespace-nowrap px-3 | flex row nowrap center normal
+                              span .truncate | block
+                            div role=cell .flex h-full min-w-0 items-center overflow-hidden whitespace-nowrap px-3 justify-end | flex row nowrap center flex-end
+                              span .tabular-nums | block
+                            div role=cell .flex h-full min-w-0 items-center overflow-hidden whitespace-nowrap px-3 | flex row nowrap center normal
+                              span .tabular-nums text-muted-foreground | block
+                            div .flex h-full items-center justify-center | flex row nowrap center center
+                              div .relative flex justify-center bg-inherit | flex row nowrap normal center relative
+                                button .inline-flex items-center justify-center rounded p-1 text-faint-foreground hover:bg-muted hover:text-foreground pointer-coarse:size-11 | flex row nowrap center center
+                                  svg .lucide lucide-ellipsis lucide-more-horizontal size-4 | block
+                          div role=row .absolute inset-x-0 top-0 grid items-center border-b text-[13px] bg-background hover:bg-surface cursor-pointer | grid row nowrap center normal absolute
+                            div .sticky left-0 z-10 flex h-full items-center gap-2 bg-inherit pl-3 | flex row nowrap center normal sticky
+                              span | block
+                                button role=checkbox .relative inline-flex size-4 shrink-0 items-center justify-center rounded border transition-colors after:absolute after:-inset-1 after:content-[""] pointer-coarse:after:-inset-3.5 border-border-strong bg-background hover:border-faint-foreground | inline-flex row nowrap center center relative
+                            div role=cell .flex h-full min-w-0 items-center overflow-hidden whitespace-nowrap px-3 | flex row nowrap center normal
+                              span .truncate font-mono text-xs text-muted-foreground | block
+                            div role=cell .flex h-full min-w-0 items-center overflow-hidden whitespace-nowrap px-3 | flex row nowrap center normal
+                              span .truncate font-medium text-primary-text hover:underline | block
+                            div role=cell .flex h-full min-w-0 items-center overflow-hidden whitespace-nowrap px-3 | flex row nowrap center normal
+                              span .truncate | block
+                            div role=cell .flex h-full min-w-0 items-center overflow-hidden whitespace-nowrap px-3 | flex row nowrap center normal
+                              span .inline-flex h-5 items-center gap-1.5 rounded-full px-2 text-xs font-medium whitespace-nowrap bg-muted text-muted-foreground | flex row nowrap center normal
+                                span .size-1.5 rounded-full bg-faint-foreground | block
+                            div role=cell .flex h-full min-w-0 items-center overflow-hidden whitespace-nowrap px-3 | flex row nowrap center normal
+                              span .truncate | block
+                            div role=cell .flex h-full min-w-0 items-center overflow-hidden whitespace-nowrap px-3 justify-end | flex row nowrap center flex-end
+                              span .tabular-nums | block
+                            div role=cell .flex h-full min-w-0 items-center overflow-hidden whitespace-nowrap px-3 | flex row nowrap center normal
+                              span .tabular-nums text-muted-foreground | block
+                            div .flex h-full items-center justify-center | flex row nowrap center center
+                              div .relative flex justify-center bg-inherit | flex row nowrap normal center relative
+                                button .inline-flex items-center justify-center rounded p-1 text-faint-foreground hover:bg-muted hover:text-foreground pointer-coarse:size-11 | flex row nowrap center center
+                                  svg .lucide lucide-ellipsis lucide-more-horizontal size-4 | block
+                          div role=row .absolute inset-x-0 top-0 grid items-center border-b text-[13px] bg-background hover:bg-surface cursor-pointer | grid row nowrap center normal absolute
+                            div .sticky left-0 z-10 flex h-full items-center gap-2 bg-inherit pl-3 | flex row nowrap center normal sticky
+                              span | block
+                                button role=checkbox .relative inline-flex size-4 shrink-0 items-center justify-center rounded border transition-colors after:absolute after:-inset-1 after:content-[""] pointer-coarse:after:-inset-3.5 border-border-strong bg-background hover:border-faint-foreground | inline-flex row nowrap center center relative
+                            div role=cell .flex h-full min-w-0 items-center overflow-hidden whitespace-nowrap px-3 | flex row nowrap center normal
+                              span .truncate font-mono text-xs text-muted-foreground | block
+                            div role=cell .flex h-full min-w-0 items-center overflow-hidden whitespace-nowrap px-3 | flex row nowrap center normal
+                              span .truncate font-medium text-primary-text hover:underline | block
+                            div role=cell .flex h-full min-w-0 items-center overflow-hidden whitespace-nowrap px-3 | flex row nowrap center normal
+                              span .truncate | block
+                            div role=cell .flex h-full min-w-0 items-center overflow-hidden whitespace-nowrap px-3 | flex row nowrap center normal
+                              span .inline-flex h-5 items-center gap-1.5 rounded-full px-2 text-xs font-medium whitespace-nowrap bg-muted text-muted-foreground | flex row nowrap center normal
+                                span .size-1.5 rounded-full bg-faint-foreground | block
+                            div role=cell .flex h-full min-w-0 items-center overflow-hidden whitespace-nowrap px-3 | flex row nowrap center normal
+                              span .truncate | block
+                            div role=cell .flex h-full min-w-0 items-center overflow-hidden whitespace-nowrap px-3 justify-end | flex row nowrap center flex-end
+                              span .tabular-nums | block
+                            div role=cell .flex h-full min-w-0 items-center overflow-hidden whitespace-nowrap px-3 | flex row nowrap center normal
+                              span .tabular-nums text-muted-foreground | block
+                            div .flex h-full items-center justify-center | flex row nowrap center center
+                              div .relative flex justify-center bg-inherit | flex row nowrap normal center relative
+                                button .inline-flex items-center justify-center rounded p-1 text-faint-foreground hover:bg-muted hover:text-foreground pointer-coarse:size-11 | flex row nowrap center center
+                                  svg .lucide lucide-ellipsis lucide-more-horizontal size-4 | block
+                          div role=row .absolute inset-x-0 top-0 grid items-center border-b text-[13px] bg-background hover:bg-surface cursor-pointer | grid row nowrap center normal absolute
+                            div .sticky left-0 z-10 flex h-full items-center gap-2 bg-inherit pl-3 | flex row nowrap center normal sticky
+                              span | block
+                                button role=checkbox .relative inline-flex size-4 shrink-0 items-center justify-center rounded border transition-colors after:absolute after:-inset-1 after:content-[""] pointer-coarse:after:-inset-3.5 border-border-strong bg-background hover:border-faint-foreground | inline-flex row nowrap center center relative
+                            div role=cell .flex h-full min-w-0 items-center overflow-hidden whitespace-nowrap px-3 | flex row nowrap center normal
+                              span .truncate font-mono text-xs text-muted-foreground | block
+                            div role=cell .flex h-full min-w-0 items-center overflow-hidden whitespace-nowrap px-3 | flex row nowrap center normal
+                              span .truncate font-medium text-primary-text hover:underline | block
+                            div role=cell .flex h-full min-w-0 items-center overflow-hidden whitespace-nowrap px-3 | flex row nowrap center normal
+                              span .truncate | block
+                            div role=cell .flex h-full min-w-0 items-center overflow-hidden whitespace-nowrap px-3 | flex row nowrap center normal
+                              span .inline-flex h-5 items-center gap-1.5 rounded-full px-2 text-xs font-medium whitespace-nowrap bg-muted text-muted-foreground | flex row nowrap center normal
+                                span .size-1.5 rounded-full bg-faint-foreground | block
+                            div role=cell .flex h-full min-w-0 items-center overflow-hidden whitespace-nowrap px-3 | flex row nowrap center normal
+                              span .truncate | block
+                            div role=cell .flex h-full min-w-0 items-center overflow-hidden whitespace-nowrap px-3 justify-end | flex row nowrap center flex-end
+                              span .tabular-nums | block
+                            div role=cell .flex h-full min-w-0 items-center overflow-hidden whitespace-nowrap px-3 | flex row nowrap center normal
+                              span .tabular-nums text-muted-foreground | block
+                            div .flex h-full items-center justify-center | flex row nowrap center center
+                              div .relative flex justify-center bg-inherit | flex row nowrap normal center relative
+                                button .inline-flex items-center justify-center rounded p-1 text-faint-foreground hover:bg-muted hover:text-foreground pointer-coarse:size-11 | flex row nowrap center center
+                                  svg .lucide lucide-ellipsis lucide-more-horizontal size-4 | block
+                          div role=row .absolute inset-x-0 top-0 grid items-center border-b text-[13px] bg-background hover:bg-surface cursor-pointer | grid row nowrap center normal absolute
+                            div .sticky left-0 z-10 flex h-full items-center gap-2 bg-inherit pl-3 | flex row nowrap center normal sticky
+                              span | block
+                                button role=checkbox .relative inline-flex size-4 shrink-0 items-center justify-center rounded border transition-colors after:absolute after:-inset-1 after:content-[""] pointer-coarse:after:-inset-3.5 border-border-strong bg-background hover:border-faint-foreground | inline-flex row nowrap center center relative
+                            div role=cell .flex h-full min-w-0 items-center overflow-hidden whitespace-nowrap px-3 | flex row nowrap center normal
+                              span .truncate font-mono text-xs text-muted-foreground | block
+                            div role=cell .flex h-full min-w-0 items-center overflow-hidden whitespace-nowrap px-3 | flex row nowrap center normal
+                              span .truncate font-medium text-primary-text hover:underline | block
+                            div role=cell .flex h-full min-w-0 items-center overflow-hidden whitespace-nowrap px-3 | flex row nowrap center normal
+                              span .truncate | block
+                            div role=cell .flex h-full min-w-0 items-center overflow-hidden whitespace-nowrap px-3 | flex row nowrap center normal
+                              span .inline-flex h-5 items-center gap-1.5 rounded-full px-2 text-xs font-medium whitespace-nowrap bg-muted text-muted-foreground | flex row nowrap center normal
+                                span .size-1.5 rounded-full bg-faint-foreground | block
+                            div role=cell .flex h-full min-w-0 items-center overflow-hidden whitespace-nowrap px-3 | flex row nowrap center normal
+                              span .truncate | block
+                            div role=cell .flex h-full min-w-0 items-center overflow-hidden whitespace-nowrap px-3 justify-end | flex row nowrap center flex-end
+                              span .tabular-nums | block
+                            div role=cell .flex h-full min-w-0 items-center overflow-hidden whitespace-nowrap px-3 | flex row nowrap center normal
+                              span .tabular-nums text-muted-foreground | block
+                            div .flex h-full items-center justify-center | flex row nowrap center center
+                              div .relative flex justify-center bg-inherit | flex row nowrap normal center relative
+                                button .inline-flex items-center justify-center rounded p-1 text-faint-foreground hover:bg-muted hover:text-foreground pointer-coarse:size-11 | flex row nowrap center center
+                                  svg .lucide lucide-ellipsis lucide-more-horizontal size-4 | block
+                          div role=row .absolute inset-x-0 top-0 grid items-center border-b text-[13px] bg-background hover:bg-surface cursor-pointer | grid row nowrap center normal absolute
+                            div .sticky left-0 z-10 flex h-full items-center gap-2 bg-inherit pl-3 | flex row nowrap center normal sticky
+                              span | block
+                                button role=checkbox .relative inline-flex size-4 shrink-0 items-center justify-center rounded border transition-colors after:absolute after:-inset-1 after:content-[""] pointer-coarse:after:-inset-3.5 border-border-strong bg-background hover:border-faint-foreground | inline-flex row nowrap center center relative
+                            div role=cell .flex h-full min-w-0 items-center overflow-hidden whitespace-nowrap px-3 | flex row nowrap center normal
+                              span .truncate font-mono text-xs text-muted-foreground | block
+                            div role=cell .flex h-full min-w-0 items-center overflow-hidden whitespace-nowrap px-3 | flex row nowrap center normal
+                              span .truncate font-medium text-primary-text hover:underline | block
+                            div role=cell .flex h-full min-w-0 items-center overflow-hidden whitespace-nowrap px-3 | flex row nowrap center normal
+                              span .truncate | block
+                            div role=cell .flex h-full min-w-0 items-center overflow-hidden whitespace-nowrap px-3 | flex row nowrap center normal
+                              span .inline-flex h-5 items-center gap-1.5 rounded-full px-2 text-xs font-medium whitespace-nowrap bg-muted text-muted-foreground | flex row nowrap center normal
+                                span .size-1.5 rounded-full bg-faint-foreground | block
+                            div role=cell .flex h-full min-w-0 items-center overflow-hidden whitespace-nowrap px-3 | flex row nowrap center normal
+                              span .truncate | block
+                            div role=cell .flex h-full min-w-0 items-center overflow-hidden whitespace-nowrap px-3 justify-end | flex row nowrap center flex-end
+                              span .tabular-nums | block
+                            div role=cell .flex h-full min-w-0 items-center overflow-hidden whitespace-nowrap px-3 | flex row nowrap center normal
+                              span .tabular-nums text-muted-foreground | block
+                            div .flex h-full items-center justify-center | flex row nowrap center center
+                              div .relative flex justify-center bg-inherit | flex row nowrap normal center relative
+                                button .inline-flex items-center justify-center rounded p-1 text-faint-foreground hover:bg-muted hover:text-foreground pointer-coarse:size-11 | flex row nowrap center center
+                                  svg .lucide lucide-ellipsis lucide-more-horizontal size-4 | block
+                    div .pointer-events-none absolute inset-y-0 right-0 w-8 bg-gradient-to-l from-foreground/15 to-transparent | block absolute
+              div .flex h-9 shrink-0 items-center justify-between border-t bg-surface px-3 text-xs text-muted-foreground | flex row nowrap center space-between
+                span .flex items-center tabular-nums | flex row nowrap center normal
+                span .tabular-nums | block
+    div .pointer-events-none fixed inset-x-4 bottom-24 z-[100] flex flex-col items-end gap-2 md:inset-x-auto md:bottom-4 md:right-4 | flex column nowrap flex-end normal fixed
+div | block
+  div | none absolute
+span | block absolute

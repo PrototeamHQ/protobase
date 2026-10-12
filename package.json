@@ -30,6 +30,8 @@
     "build:serve": "protobase build-serve",
     "screenshots:live": "storybook build && bun scripts/screenshots.mjs --live",
     "test:stories": "storybook build && bun scripts/play-tests.mjs",
+    "test:dom": "storybook build && bun scripts/dom-snapshots.mjs",
+    "test:dom:update": "storybook build && bun scripts/dom-snapshots.mjs --update",
     "docs:dev": "bun run --cwd website dev",
     "docs:build": "bun run build-storybook && bun run --cwd website build && cp -R storybook-static website/dist/storybook",
     "docs:check": "bun scripts/check-docs.mjs",

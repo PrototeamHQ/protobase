@@ -1,0 +1,275 @@
+div | block
+  div .h-screen | block
+    div .flex h-full min-h-0 w-full overflow-hidden bg-background | flex row nowrap normal normal
+      div .flex min-w-0 flex-1 flex-col | flex column nowrap normal normal
+        header .relative flex h-12 shrink-0 items-center gap-1 border-b bg-background px-2 md:gap-4 md:px-5 | flex row nowrap center normal relative
+          button .inline-flex size-11 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted md:hidden -ml-0.5 | flex row nowrap center center
+            svg .lucide lucide-menu size-5 | block
+          nav .flex min-w-0 items-center gap-1.5 text-[13px] | flex row nowrap center normal
+            span .min-w-0 items-center gap-1.5 hidden md:flex | none
+              span .truncate text-muted-foreground | inline
+            span .min-w-0 items-center gap-1.5 flex | flex row nowrap center normal
+              svg .lucide lucide-chevron-right hidden size-3.5 shrink-0 text-faint-foreground md:block | none
+              a .truncate font-semibold rounded-sm hover:text-foreground hover:underline | block
+          div .ml-auto flex items-center gap-1 md:gap-3 | flex row nowrap center normal
+            div .hidden md:block | none
+              div .relative w-96 | block relative
+                span .flex h-8 items-center gap-2 rounded-md border bg-background px-2.5 text-muted-foreground shadow-sm focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20 border-border-strong w-full bg-surface shadow-none | flex row nowrap center normal
+                  svg .lucide lucide-search size-4 | block
+                  input role=combobox .min-w-0 flex-1 bg-transparent text-[13px] text-foreground outline-none placeholder:text-faint-foreground | block
+                  span .hidden md:inline-flex | none
+                    kbd .inline-flex h-5 items-center rounded border border-border-strong bg-background px-1.5 font-sans text-[11px] font-medium text-muted-foreground | inline-flex row nowrap center normal
+            button .inline-flex size-11 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted md:hidden | flex row nowrap center center
+              svg .lucide lucide-search size-5 | block
+        main .flex min-h-0 flex-1 flex-col | flex column nowrap normal normal
+          div .flex min-h-0 flex-1 flex-col gap-3 px-5 py-4 | flex column nowrap normal normal
+            div .flex flex-wrap items-end justify-between gap-x-4 gap-y-2 | flex row wrap flex-end space-between
+              div | block
+                h1 .text-xl font-semibold tracking-tight | block
+              div .flex w-full flex-wrap items-center gap-2 sm:w-auto | flex row wrap center normal
+                span role=group .inline-flex h-7 rounded-md bg-muted p-0.5 | flex row nowrap normal normal
+                  button .inline-flex items-center gap-1.5 rounded px-2.5 text-xs font-medium transition-colors text-muted-foreground hover:text-foreground | flex row nowrap center normal
+                    svg .lucide lucide-table-2 size-3.5 | block
+                  button .inline-flex items-center gap-1.5 rounded px-2.5 text-xs font-medium transition-colors bg-background text-foreground shadow-sm | flex row nowrap center normal
+                    svg .lucide lucide-layout-grid size-3.5 | block
+                  button .inline-flex items-center gap-1.5 rounded px-2.5 text-xs font-medium transition-colors text-muted-foreground hover:text-foreground | flex row nowrap center normal
+                    svg .lucide lucide-square-kanban lucide-kanban-square size-3.5 | block
+                select .h-7 rounded-md border border-border-strong bg-background px-2 text-xs shadow-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 | block
+                  option | block
+                  option | block
+                  option | block
+                  option | block
+                  option | block
+                  option | block
+                  option | block
+                  option | block
+                span .flex h-8 items-center gap-2 rounded-md border bg-background px-2.5 text-muted-foreground shadow-sm focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20 border-border-strong min-w-0 flex-1 sm:w-72 sm:flex-none | flex row nowrap center normal
+                  svg .lucide lucide-search size-4 | block
+                  input .min-w-0 flex-1 bg-transparent text-[13px] text-foreground outline-none placeholder:text-faint-foreground | block
+                button .inline-flex shrink-0 items-center justify-center rounded-md font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:opacity-60 disabled:cursor-default bg-primary text-primary-foreground hover:bg-primary-hover shadow-sm h-8 px-3 text-[13px] gap-2 | flex row nowrap center center
+                  svg .lucide lucide-plus size-3.5 | block
+            section .rounded-lg border bg-background px-4 pb-2 pt-3 | block
+              header .flex flex-wrap items-center justify-between gap-2 | flex row wrap center space-between
+                div .flex items-baseline gap-2 | flex row nowrap baseline normal
+                  h2 .text-[13px] font-semibold | block
+                  span .text-[13px] font-semibold tabular-nums | block
+                  span .text-xs font-medium tabular-nums text-success-text | block
+                  span .hidden text-xs text-muted-foreground sm:inline | none
+                span role=group .inline-flex h-7 rounded-md bg-muted p-0.5 | flex row nowrap normal normal
+                  button .inline-flex items-center gap-1.5 rounded px-2.5 text-xs font-medium transition-colors bg-background text-foreground shadow-sm | flex row nowrap center normal
+                  button .inline-flex items-center gap-1.5 rounded px-2.5 text-xs font-medium transition-colors text-muted-foreground hover:text-foreground | flex row nowrap center normal
+              div .mt-2 h-24 | block
+                div .recharts-responsive-container | block
+                  div | block
+                    div .recharts-wrapper | block relative
+                      div .recharts-tooltip-wrapper | block absolute hidden
+                      svg role=application .recharts-surface | block
+            div .flex flex-col gap-2 | flex column nowrap normal normal
+              div .flex items-center gap-2 | flex row nowrap center normal
+                button .inline-flex shrink-0 items-center justify-center rounded-md font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:opacity-60 disabled:cursor-default bg-background text-foreground border border-border-strong hover:bg-muted shadow-sm h-8 px-3 text-[13px] gap-2 min-h-11 | flex row nowrap center center
+                  svg .lucide lucide-sliders-horizontal size-3.5 | block
+                div .min-w-0 flex-1 | block
+            div .min-h-0 flex-1 overflow-y-auto | block
+              ul .grid grid-cols-[repeat(auto-fill,minmax(15rem,1fr))] gap-3 | grid row nowrap normal normal
+                li | list-item
+                  a .flex h-full flex-col gap-1.5 rounded-lg border border-border bg-background p-3 text-[13px] hover:border-border-strong hover:bg-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 | flex column nowrap normal normal
+                    span .flex items-start justify-between gap-2 | flex row nowrap flex-start space-between
+                      span .min-w-0 truncate font-medium | block
+                      span .inline-flex h-5 items-center gap-1.5 rounded-full px-2 text-xs font-medium whitespace-nowrap bg-muted text-muted-foreground | flex row nowrap center normal
+                        span .size-1.5 rounded-full bg-faint-foreground | block
+                    span .truncate text-muted-foreground | block
+                    dl .mt-auto flex flex-wrap gap-x-3 gap-y-0.5 pt-1 text-xs text-muted-foreground | flex row wrap normal normal
+                      div .flex gap-1 | flex row nowrap normal normal
+                        dt .sr-only | block absolute
+                        dd .tabular-nums | block
+                      div .flex gap-1 | flex row nowrap normal normal
+                        dt .sr-only | block absolute
+                        dd .tabular-nums | block
+                li | list-item
+                  a .flex h-full flex-col gap-1.5 rounded-lg border border-border bg-background p-3 text-[13px] hover:border-border-strong hover:bg-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 | flex column nowrap normal normal
+                    span .flex items-start justify-between gap-2 | flex row nowrap flex-start space-between
+                      span .min-w-0 truncate font-medium | block
+                      span .inline-flex h-5 items-center gap-1.5 rounded-full px-2 text-xs font-medium whitespace-nowrap bg-muted text-muted-foreground | flex row nowrap center normal
+                        span .size-1.5 rounded-full bg-faint-foreground | block
+                    span .truncate text-muted-foreground | block
+                    dl .mt-auto flex flex-wrap gap-x-3 gap-y-0.5 pt-1 text-xs text-muted-foreground | flex row wrap normal normal
+                      div .flex gap-1 | flex row nowrap normal normal
+                        dt .sr-only | block absolute
+                        dd .tabular-nums | block
+                      div .flex gap-1 | flex row nowrap normal normal
+                        dt .sr-only | block absolute
+                        dd .tabular-nums | block
+                li | list-item
+                  a .flex h-full flex-col gap-1.5 rounded-lg border border-border bg-background p-3 text-[13px] hover:border-border-strong hover:bg-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 | flex column nowrap normal normal
+                    span .flex items-start justify-between gap-2 | flex row nowrap flex-start space-between
+                      span .min-w-0 truncate font-medium | block
+                      span .inline-flex h-5 items-center gap-1.5 rounded-full px-2 text-xs font-medium whitespace-nowrap bg-muted text-muted-foreground | flex row nowrap center normal
+                        span .size-1.5 rounded-full bg-faint-foreground | block
+                    span .truncate text-muted-foreground | block
+                    dl .mt-auto flex flex-wrap gap-x-3 gap-y-0.5 pt-1 text-xs text-muted-foreground | flex row wrap normal normal
+                      div .flex gap-1 | flex row nowrap normal normal
+                        dt .sr-only | block absolute
+                        dd .tabular-nums | block
+                      div .flex gap-1 | flex row nowrap normal normal
+                        dt .sr-only | block absolute
+                        dd .tabular-nums | block
+                li | list-item
+                  a .flex h-full flex-col gap-1.5 rounded-lg border border-border bg-background p-3 text-[13px] hover:border-border-strong hover:bg-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 | flex column nowrap normal normal
+                    span .flex items-start justify-between gap-2 | flex row nowrap flex-start space-between
+                      span .min-w-0 truncate font-medium | block
+                      span .inline-flex h-5 items-center gap-1.5 rounded-full px-2 text-xs font-medium whitespace-nowrap bg-muted text-muted-foreground | flex row nowrap center normal
+                        span .size-1.5 rounded-full bg-faint-foreground | block
+                    span .truncate text-muted-foreground | block
+                    dl .mt-auto flex flex-wrap gap-x-3 gap-y-0.5 pt-1 text-xs text-muted-foreground | flex row wrap normal normal
+                      div .flex gap-1 | flex row nowrap normal normal
+                        dt .sr-only | block absolute
+                        dd .tabular-nums | block
+                      div .flex gap-1 | flex row nowrap normal normal
+                        dt .sr-only | block absolute
+                        dd .tabular-nums | block
+                li | list-item
+                  a .flex h-full flex-col gap-1.5 rounded-lg border border-border bg-background p-3 text-[13px] hover:border-border-strong hover:bg-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 | flex column nowrap normal normal
+                    span .flex items-start justify-between gap-2 | flex row nowrap flex-start space-between
+                      span .min-w-0 truncate font-medium | block
+                      span .inline-flex h-5 items-center gap-1.5 rounded-full px-2 text-xs font-medium whitespace-nowrap bg-muted text-muted-foreground | flex row nowrap center normal
+                        span .size-1.5 rounded-full bg-faint-foreground | block
+                    span .truncate text-muted-foreground | block
+                    dl .mt-auto flex flex-wrap gap-x-3 gap-y-0.5 pt-1 text-xs text-muted-foreground | flex row wrap normal normal
+                      div .flex gap-1 | flex row nowrap normal normal
+                        dt .sr-only | block absolute
+                        dd .tabular-nums | block
+                      div .flex gap-1 | flex row nowrap normal normal
+                        dt .sr-only | block absolute
+                        dd .tabular-nums | block
+                li | list-item
+                  a .flex h-full flex-col gap-1.5 rounded-lg border border-border bg-background p-3 text-[13px] hover:border-border-strong hover:bg-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 | flex column nowrap normal normal
+                    span .flex items-start justify-between gap-2 | flex row nowrap flex-start space-between
+                      span .min-w-0 truncate font-medium | block
+                      span .inline-flex h-5 items-center gap-1.5 rounded-full px-2 text-xs font-medium whitespace-nowrap bg-muted text-muted-foreground | flex row nowrap center normal
+                        span .size-1.5 rounded-full bg-faint-foreground | block
+                    span .truncate text-muted-foreground | block
+                    dl .mt-auto flex flex-wrap gap-x-3 gap-y-0.5 pt-1 text-xs text-muted-foreground | flex row wrap normal normal
+                      div .flex gap-1 | flex row nowrap normal normal
+                        dt .sr-only | block absolute
+                        dd .tabular-nums | block
+                      div .flex gap-1 | flex row nowrap normal normal
+                        dt .sr-only | block absolute
+                        dd .tabular-nums | block
+                li | list-item
+                  a .flex h-full flex-col gap-1.5 rounded-lg border border-border bg-background p-3 text-[13px] hover:border-border-strong hover:bg-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 | flex column nowrap normal normal
+                    span .flex items-start justify-between gap-2 | flex row nowrap flex-start space-between
+                      span .min-w-0 truncate font-medium | block
+                      span .inline-flex h-5 items-center gap-1.5 rounded-full px-2 text-xs font-medium whitespace-nowrap bg-muted text-muted-foreground | flex row nowrap center normal
+                        span .size-1.5 rounded-full bg-faint-foreground | block
+                    span .truncate text-muted-foreground | block
+                    dl .mt-auto flex flex-wrap gap-x-3 gap-y-0.5 pt-1 text-xs text-muted-foreground | flex row wrap normal normal
+                      div .flex gap-1 | flex row nowrap normal normal
+                        dt .sr-only | block absolute
+                        dd .tabular-nums | block
+                      div .flex gap-1 | flex row nowrap normal normal
+                        dt .sr-only | block absolute
+                        dd .tabular-nums | block
+                li | list-item
+                  a .flex h-full flex-col gap-1.5 rounded-lg border border-border bg-background p-3 text-[13px] hover:border-border-strong hover:bg-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 | flex column nowrap normal normal
+                    span .flex items-start justify-between gap-2 | flex row nowrap flex-start space-between
+                      span .min-w-0 truncate font-medium | block
+                      span .inline-flex h-5 items-center gap-1.5 rounded-full px-2 text-xs font-medium whitespace-nowrap bg-muted text-muted-foreground | flex row nowrap center normal
+                        span .size-1.5 rounded-full bg-faint-foreground | block
+                    span .truncate text-muted-foreground | block
+                    dl .mt-auto flex flex-wrap gap-x-3 gap-y-0.5 pt-1 text-xs text-muted-foreground | flex row wrap normal normal
+                      div .flex gap-1 | flex row nowrap normal normal
+                        dt .sr-only | block absolute
+                        dd .tabular-nums | block
+                      div .flex gap-1 | flex row nowrap normal normal
+                        dt .sr-only | block absolute
+                        dd .tabular-nums | block
+                li | list-item
+                  a .flex h-full flex-col gap-1.5 rounded-lg border border-border bg-background p-3 text-[13px] hover:border-border-strong hover:bg-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 | flex column nowrap normal normal
+                    span .flex items-start justify-between gap-2 | flex row nowrap flex-start space-between
+                      span .min-w-0 truncate font-medium | block
+                      span .inline-flex h-5 items-center gap-1.5 rounded-full px-2 text-xs font-medium whitespace-nowrap bg-muted text-muted-foreground | flex row nowrap center normal
+                        span .size-1.5 rounded-full bg-faint-foreground | block
+                    span .truncate text-muted-foreground | block
+                    dl .mt-auto flex flex-wrap gap-x-3 gap-y-0.5 pt-1 text-xs text-muted-foreground | flex row wrap normal normal
+                      div .flex gap-1 | flex row nowrap normal normal
+                        dt .sr-only | block absolute
+                        dd .tabular-nums | block
+                      div .flex gap-1 | flex row nowrap normal normal
+                        dt .sr-only | block absolute
+                        dd .tabular-nums | block
+                li | list-item
+                  a .flex h-full flex-col gap-1.5 rounded-lg border border-border bg-background p-3 text-[13px] hover:border-border-strong hover:bg-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 | flex column nowrap normal normal
+                    span .flex items-start justify-between gap-2 | flex row nowrap flex-start space-between
+                      span .min-w-0 truncate font-medium | block
+                      span .inline-flex h-5 items-center gap-1.5 rounded-full px-2 text-xs font-medium whitespace-nowrap bg-muted text-muted-foreground | flex row nowrap center normal
+                        span .size-1.5 rounded-full bg-faint-foreground | block
+                    span .truncate text-muted-foreground | block
+                    dl .mt-auto flex flex-wrap gap-x-3 gap-y-0.5 pt-1 text-xs text-muted-foreground | flex row wrap normal normal
+                      div .flex gap-1 | flex row nowrap normal normal
+                        dt .sr-only | block absolute
+                        dd .tabular-nums | block
+                      div .flex gap-1 | flex row nowrap normal normal
+                        dt .sr-only | block absolute
+                        dd .tabular-nums | block
+                li | list-item
+                  a .flex h-full flex-col gap-1.5 rounded-lg border border-border bg-background p-3 text-[13px] hover:border-border-strong hover:bg-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 | flex column nowrap normal normal
+                    span .flex items-start justify-between gap-2 | flex row nowrap flex-start space-between
+                      span .min-w-0 truncate font-medium | block
+                      span .inline-flex h-5 items-center gap-1.5 rounded-full px-2 text-xs font-medium whitespace-nowrap bg-muted text-muted-foreground | flex row nowrap center normal
+                        span .size-1.5 rounded-full bg-faint-foreground | block
+                    span .truncate text-muted-foreground | block
+                    dl .mt-auto flex flex-wrap gap-x-3 gap-y-0.5 pt-1 text-xs text-muted-foreground | flex row wrap normal normal
+                      div .flex gap-1 | flex row nowrap normal normal
+                        dt .sr-only | block absolute
+                        dd .tabular-nums | block
+                      div .flex gap-1 | flex row nowrap normal normal
+                        dt .sr-only | block absolute
+                        dd .tabular-nums | block
+                li | list-item
+                  a .flex h-full flex-col gap-1.5 rounded-lg border border-border bg-background p-3 text-[13px] hover:border-border-strong hover:bg-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 | flex column nowrap normal normal
+                    span .flex items-start justify-between gap-2 | flex row nowrap flex-start space-between
+                      span .min-w-0 truncate font-medium | block
+                      span .inline-flex h-5 items-center gap-1.5 rounded-full px-2 text-xs font-medium whitespace-nowrap bg-muted text-muted-foreground | flex row nowrap center normal
+                        span .size-1.5 rounded-full bg-faint-foreground | block
+                    span .truncate text-muted-foreground | block
+                    dl .mt-auto flex flex-wrap gap-x-3 gap-y-0.5 pt-1 text-xs text-muted-foreground | flex row wrap normal normal
+                      div .flex gap-1 | flex row nowrap normal normal
+                        dt .sr-only | block absolute
+                        dd .tabular-nums | block
+                      div .flex gap-1 | flex row nowrap normal normal
+                        dt .sr-only | block absolute
+                        dd .tabular-nums | block
+                li | list-item
+                  a .flex h-full flex-col gap-1.5 rounded-lg border border-border bg-background p-3 text-[13px] hover:border-border-strong hover:bg-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 | flex column nowrap normal normal
+                    span .flex items-start justify-between gap-2 | flex row nowrap flex-start space-between
+                      span .min-w-0 truncate font-medium | block
+                      span .inline-flex h-5 items-center gap-1.5 rounded-full px-2 text-xs font-medium whitespace-nowrap bg-muted text-muted-foreground | flex row nowrap center normal
+                        span .size-1.5 rounded-full bg-faint-foreground | block
+                    span .truncate text-muted-foreground | block
+                    dl .mt-auto flex flex-wrap gap-x-3 gap-y-0.5 pt-1 text-xs text-muted-foreground | flex row wrap normal normal
+                      div .flex gap-1 | flex row nowrap normal normal
+                        dt .sr-only | block absolute
+                        dd .tabular-nums | block
+                      div .flex gap-1 | flex row nowrap normal normal
+                        dt .sr-only | block absolute
+                        dd .tabular-nums | block
+                li | list-item
+                  a .flex h-full flex-col gap-1.5 rounded-lg border border-border bg-background p-3 text-[13px] hover:border-border-strong hover:bg-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 | flex column nowrap normal normal
+                    span .flex items-start justify-between gap-2 | flex row nowrap flex-start space-between
+                      span .min-w-0 truncate font-medium | block
+                      span .inline-flex h-5 items-center gap-1.5 rounded-full px-2 text-xs font-medium whitespace-nowrap bg-muted text-muted-foreground | flex row nowrap center normal
+                        span .size-1.5 rounded-full bg-faint-foreground | block
+                    span .truncate text-muted-foreground | block
+                    dl .mt-auto flex flex-wrap gap-x-3 gap-y-0.5 pt-1 text-xs text-muted-foreground | flex row wrap normal normal
+                      div .flex gap-1 | flex row nowrap normal normal
+                        dt .sr-only | block absolute
+                        dd .tabular-nums | block
+                      div .flex gap-1 | flex row nowrap normal normal
+                        dt .sr-only | block absolute
+                        dd .tabular-nums | block
+              div .flex items-center justify-between gap-3 py-3 text-xs text-muted-foreground | flex row nowrap center space-between
+                span | block
+    div .pointer-events-none fixed inset-x-4 bottom-24 z-[100] flex flex-col items-end gap-2 md:inset-x-auto md:bottom-4 md:right-4 | flex column nowrap flex-end normal fixed
+div | block
+  div | none absolute
+span | block absolute

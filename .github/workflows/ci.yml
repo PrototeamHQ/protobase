@@ -45,4 +45,5 @@ jobs:
       - run: node --run test:smoke
       - run: bun run docs:build
       - run: bun scripts/play-tests.mjs
+      - run: bun scripts/dom-snapshots.mjs --no-screenshots
       - run: bun run docs:check
