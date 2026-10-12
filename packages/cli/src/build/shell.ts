@@ -9,6 +9,7 @@ import type { BundleShell } from '../bundle/manifest'
 import { adminAppDir, uiEntry, uiPackageDir } from '../project/admin-app'
 import { projectUiPlugin } from '../project/project-ui'
 import { sharedModulesPlugin } from '../project/shared-modules'
+import { themeLink } from '../project/theme-link'
 import { readPackageJson, type PackageJson } from './packages/package-dir'
 
 /** What a shell folder holds beside its files: the `BundleShell` a bundle's manifest copies. */
@@ -33,7 +34,8 @@ const shellIdentity = async (): Promise<BundleShell> => {
  * The admin app as a production build, the same for every project: index.html and content-hashed files under assets/,
  * with protobase.shell.json saying which version it is. Asset URLs are absolute, so index.html works as the answer to
  * any deep link. It calls /api on its own origin and loads the project's UI, like every plugin, from what `/meta`
- * names. The modules plugins share with it have entries of their own, which index.html's import map names.
+ * names, and links the project's theme at /protobase.theme.css. The modules plugins share with it have entries of
+ * their own, which index.html's import map names.
  */
 export const buildShell = async (outDir: string) => {
   // Vite builds for a NODE_ENV that is already set (vitest sets `test`, a .env may set `development`), and React then
@@ -47,7 +49,7 @@ export const buildShell = async (outDir: string) => {
     mode: 'production',
     publicDir: false,
     logLevel: 'warn',
-    plugins: [sharedModulesPlugin(), projectUiPlugin(undefined), react(), tailwindcss()],
+    plugins: [sharedModulesPlugin(), projectUiPlugin(undefined), themeLink(), react(), tailwindcss()],
     build: { outDir, emptyOutDir: true, chunkSizeWarningLimit: 4096 },
   }).finally(() => {
     if (nodeEnv === undefined) delete process.env.NODE_ENV

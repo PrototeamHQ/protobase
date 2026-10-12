@@ -1,7 +1,8 @@
 /*
  * The theme as Tailwind sees it: each token reads the app's CSS variable of its name (`--color-primary` is
- * `var(--primary)`). The admin app's stylesheet imports it, and a plugin's stylesheet references it, so a plugin's
- * utilities draw with the app's colors whatever version of the app loads them.
+ * `var(--primary)`, the radii follow `--radius`, the fonts `--font` and `--font-code`). The admin app's stylesheet
+ * imports it, and a plugin's stylesheet references it, so a plugin's utilities draw with the app's theme whatever
+ * version of the app loads them, and with these defaults where the app sets none.
  */
 @theme inline {
   --color-background: var(--background);
@@ -32,8 +33,10 @@
   --color-violet-text: var(--violet-text);
   --color-sidebar: var(--sidebar);
   --shadow-pop: var(--shadow-pop);
-  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
-  --radius-md: 6px;
-  --radius-lg: 8px;
+  --font-sans: var(--font, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif);
+  --font-mono: var(--font-code, ui-monospace, "SF Mono", Menlo, Consolas, monospace);
+  --radius-sm: max(0px, calc(var(--radius, 6px) - 2px));
+  --radius-md: var(--radius, 6px);
+  --radius-lg: calc(var(--radius, 6px) + 2px);
+  --radius-xl: calc(var(--radius, 6px) + 6px);
 }

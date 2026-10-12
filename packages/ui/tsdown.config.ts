@@ -12,6 +12,7 @@ export default defineConfig({
   copy: [
     { from: 'src/styles.css', to: 'dist' },
     { from: 'src/theme.css', to: 'dist' },
+    { from: 'src/tokens.css', to: 'dist' },
     { from: 'src/filter-panel/range-slider.css', to: 'dist/filter-panel' },
     { from: 'src/app/index.html', to: 'dist/app' },
   ],

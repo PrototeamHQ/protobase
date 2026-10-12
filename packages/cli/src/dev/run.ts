@@ -9,6 +9,7 @@ import { moduleFile } from '../module-file'
 import { extensionImports, extensionStyles, type Extension } from '../project/extensions'
 import { projectUiPlugin } from '../project/project-ui'
 import { sharedModulesPlugin } from '../project/shared-modules'
+import { themeLink } from '../project/theme-link'
 import { layoutCheck } from '../build/layout-check'
 import { checkDatabase } from './check-database'
 import { stopDevJobs } from './dev-jobs'
@@ -95,6 +96,7 @@ export const runDev = async (options: DevOptions, out: (text: string) => void) =
       reloadOnProjectChange([options.projectDir, ...extensions.map((extension) => extension.dir)]),
       stopJobsOnClose,
       sharedModulesPlugin(),
+      themeLink(options.projectDir),
       projectUiPlugin(options.projectDir, extensions),
       extensionImports(options.projectDir, extensions),
       extensionStyles(extensions),

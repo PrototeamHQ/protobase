@@ -12,6 +12,7 @@ const bundle = (plugins: BundleLayout['plugins']): BundleLayout => ({
   public: 'public',
   spa: 'index.html',
   api: ['/api'],
+  theme: 'protobase.theme.css',
   plugins,
   shell: { protobase: '0.12.2', pluginApi: 1, paths: ['/index.html', '/assets'] },
 })

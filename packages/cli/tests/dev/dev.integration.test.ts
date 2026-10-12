@@ -57,6 +57,7 @@ describe.skipIf(!reachable || !hasApp)('protobase dev in a project with real aut
     project = await createAuthProject(url)
     const { projectDir, env } = project
     await mkdir(path.join(projectDir, 'functions'))
+    await writeFile(path.join(projectDir, 'protobase.theme.css'), ':root {\n  --primary: #0d9488;\n}\n')
     await writeFile(path.join(projectDir, 'functions/whoami.ts'), `import { defineFunction } from '@protobase/server'\nexport default defineFunction((request, { session }) => Response.json({ path: new URL(request.url).pathname, roles: session.user.roles }))\n`)
     const created = await run([bin, 'users', 'create', 'dev@example.com', '--password-stdin'], projectDir, env, 'a-long-test-password\n')
     if (created.status !== 0) throw new Error(`users create failed:\n${created.stderr}`)
@@ -98,6 +99,14 @@ describe.skipIf(!reachable || !hasApp)('protobase dev in a project with real aut
     const react = await fetch(`http://localhost:${port}${imports.react}`)
     expect(react.headers.get('content-type')).toMatch(/javascript/)
     expect(await react.text()).toMatch(/export const \{[^}]*\buseState\b/)
+  })
+
+  it("links the project's theme after the app's stylesheets, checked and minified as the build writes it", async () => {
+    const page = await (await fetch(`http://localhost:${port}/`, { headers: { accept: 'text/html' } })).text()
+    expect(page).toContain('<link rel="stylesheet" href="/protobase.theme.css">')
+    const theme = await fetch(`http://localhost:${port}/protobase.theme.css`)
+    expect(theme.headers.get('content-type')).toContain('text/css')
+    expect(await theme.text()).toBe(':root{--primary:#0d9488}')
   })
 
   it('serves the functions in ./functions to a bearer token and refuses everyone else', async () => {

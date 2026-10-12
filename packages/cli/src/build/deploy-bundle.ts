@@ -7,10 +7,18 @@ import { buildConfigBundle } from './config-bundle'
 import { protobaseVersion } from '../version/version'
 import { copyPackages } from './packages/copy-packages'
 import { shellForBuild, shellManifestFile } from './shell'
+import { buildTheme } from './theme'
 import { checkUi } from './ui-check'
 import type { Extension } from '../project/extensions'
 
-export type DeployBundleInput = { projectDir: string; outDir: string; bun?: boolean; extensions?: Extension[] }
+export type DeployBundleInput = {
+  projectDir: string
+  outDir: string
+  bun?: boolean
+  extensions?: Extension[]
+  /** Hears what the build does not fail on but the developer should know, such as a token the theme misspells. */
+  onWarning?: (message: string) => void
+}
 
 // node_modules in the output folder is replaced only when the previous build's manifest names it as its own, so a
 // build into the project folder itself never deletes the project's packages.
@@ -36,11 +44,12 @@ const copyShell = async (publicDir: string) => {
 }
 
 // The folder a host deploys: the config module for the serve runtime with the packages it loads from disk; under
-// public/ the prebuilt app (the shell) and the project's protobase.ui.tsx and extensions' UI configs as plugins; and the
-// manifest saying which paths go to the server, which Protobase version built it, and its plugins and shell. Nothing
-// of the project's server config runs at build time; when it declares custom components, or extensions have UI
-// configs, the UI is loaded once to check its names against the config's and each other's.
-export const buildDeployBundle = async ({ projectDir, outDir, bun, extensions = [] }: DeployBundleInput): Promise<BundleManifest> => {
+// public/ the prebuilt app (the shell), the project's protobase.ui.tsx and extensions' UI configs as plugins and its
+// theme, checked and minified; and the manifest saying which paths go to the server, which Protobase version built
+// it, and its plugins, theme and shell. Nothing of the project's server config runs at build time; when it declares
+// custom components, or extensions have UI configs, the UI is loaded once to check its names against the config's and
+// each other's.
+export const buildDeployBundle = async ({ projectDir, outDir, bun, extensions = [], onWarning }: DeployBundleInput): Promise<BundleManifest> => {
   await removeOwnNodeModules(outDir)
   const components = new Set<string>()
   const native = await buildConfigBundle({ projectDir, outFile: path.join(outDir, bundleLayout.server), bun, extensions, components })
@@ -49,6 +58,7 @@ export const buildDeployBundle = async ({ projectDir, outDir, bun, extensions = 
   const publicDir = path.join(outDir, bundleLayout.public)
   const shell = await copyShell(publicDir)
   const plugins = await buildBundlePlugins({ projectDir, publicDir, extensions, ignore: [outDir] })
+  for (const warning of await buildTheme({ projectDir, outFile: path.join(publicDir, bundleLayout.theme) })) onWarning?.(warning)
   const manifest: BundleManifest = {
     version: 3,
     protobase: protobaseVersion,

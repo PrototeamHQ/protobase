@@ -37,7 +37,7 @@ describe('buildDeployBundle', () => {
     const manifest = await buildDeployBundle({ projectDir, outDir })
 
     const shell = { protobase: protobaseVersion, pluginApi: 1, paths: ['/index.html', '/assets'] }
-    const expected = { version: 3, protobase: protobaseVersion, server: 'protobase.config.js', public: 'public', spa: 'index.html', api: ['/api'], plugins: [], shell }
+    const expected = { version: 3, protobase: protobaseVersion, server: 'protobase.config.js', public: 'public', spa: 'index.html', api: ['/api'], plugins: [], theme: 'protobase.theme.css', shell }
     expect(manifest).toEqual(expected)
     expect(JSON.parse(await readFile(path.join(outDir, 'protobase.bundle.json'), 'utf8'))).toEqual(expected)
     expect(await readFile(path.join(outDir, 'protobase.config.js'), 'utf8')).not.toContain('// @bun')
@@ -74,6 +74,26 @@ describe('buildDeployBundle', () => {
     expect(await exported(imports['react/jsx-runtime']!)).toEqual(expect.arrayContaining(['jsx', 'jsxs', 'Fragment']))
     expect(await exported(imports['react-dom']!)).toEqual(expect.arrayContaining(['createPortal']))
     expect(await exported(imports['@protobase/ui']!)).toEqual(expect.arrayContaining(['useClient', 'useList', 'defineUi']))
+  }, buildTimeout)
+
+  it("writes the project's theme checked and minified, which the app links after its own stylesheets, and an empty one without", async () => {
+    projectDir = await createProject({ 'config/index.ts': things })
+    const outDir = path.join(projectDir, 'dist')
+    await buildDeployBundle({ projectDir, outDir })
+    expect(await readFile(path.join(outDir, 'public/protobase.theme.css'), 'utf8')).toBe('')
+    const index = await readFile(path.join(outDir, 'public/index.html'), 'utf8')
+    expect(index).toContain('<link rel="stylesheet" href="/protobase.theme.css">')
+    expect(index.indexOf('href="/protobase.theme.css"')).toBeGreaterThan(index.lastIndexOf('/assets/index-'))
+
+    await writeFile(path.join(projectDir, 'protobase.theme.css'), ':root {\n  --primary: #0d9488;\n  --radius: 10px;\n  --primry: red;\n}\n[data-theme="dark"] { --primary: #2dd4bf; }\n')
+    const warnings: string[] = []
+    const manifest = await buildDeployBundle({ projectDir, outDir, onWarning: (message) => warnings.push(message) })
+    expect(manifest.theme).toBe('protobase.theme.css')
+    expect(await readFile(path.join(outDir, 'public/protobase.theme.css'), 'utf8')).toBe(':root{--primary:#0d9488;--radius:10px;--primry:red}[data-theme=dark]{--primary:#2dd4bf}')
+    expect(warnings).toEqual(['protobase.theme.css:1: --primry is not a token the app reads; check its name'])
+
+    await writeFile(path.join(projectDir, 'protobase.theme.css'), '.sidebar { background: red; }\n')
+    await expect(buildDeployBundle({ projectDir, outDir })).rejects.toThrow('protobase.theme.css is not a theme:')
   }, buildTimeout)
 
   it('carries a native package in node_modules and names it in the manifest, until a build without one', async () => {

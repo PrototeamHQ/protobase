@@ -10,6 +10,7 @@ describe('bundleUi', () => {
       public: 'public',
       spa: 'index.html',
       api: ['/api'],
+      theme: 'protobase.theme.css',
       plugins: [
         { name: 'crm', path: 'plugins/crm/plugin.json', api: 1, protobase: '>=0.12.0', fields: { phone: ['text'] } },
         { name: 'app', path: 'plugins/app/plugin.json', api: 1, protobase: '>=0.12.0', fields: { rating: ['integer', 'decimal'] } },

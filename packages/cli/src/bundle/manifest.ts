@@ -34,6 +34,8 @@ export type BundleManifest = {
   spa: string
   // The plugins the app loads first, in this order.
   plugins: BundlePlugin[]
+  // The project's theme inside `public`, which the app links after its own stylesheets; empty without one.
+  theme: string
   shell: BundleShell
   // The packages the config module loads from disk, native add-ons and what they need: a node_modules folder beside
   // `server`, relative to the bundle. Only in a bundle that has some.
@@ -48,7 +50,7 @@ export const isApiPath = (api: readonly string[], pathname: string) =>
 export const bundleBasePath = '/api/v1'
 
 // Where `protobase build` puts each part, and the paths that go to the server.
-export const bundleLayout = { server: 'protobase.config.js', public: 'public', spa: 'index.html', api: ['/api'] } as const
+export const bundleLayout = { server: 'protobase.config.js', public: 'public', spa: 'index.html', api: ['/api'], theme: 'protobase.theme.css' } as const
 
 // Where `protobase build` puts the packages the config module loads from disk, when there are any.
 export const bundleNodeModules = 'node_modules'
@@ -76,14 +78,14 @@ export type BundleLayout = Omit<BundleManifest, 'protobase'>
 export const parseManifest = (value: unknown, file: string): BundleLayout => {
   const manifest = value as Partial<BundleManifest> | null
   if (manifest?.version !== 3) throw new Error(`${file} is not a version 3 bundle manifest; rebuild it with \`protobase build\``)
-  const { server, public: publicDir, api, spa, plugins, shell, nodeModules } = manifest
-  if (typeof server !== 'string' || typeof publicDir !== 'string' || typeof spa !== 'string' || !isStringList(api)) {
-    throw new Error(`${file} needs server, public and spa paths and an api list`)
+  const { server, public: publicDir, api, spa, plugins, theme, shell, nodeModules } = manifest
+  if (typeof server !== 'string' || typeof publicDir !== 'string' || typeof spa !== 'string' || typeof theme !== 'string' || !isStringList(api)) {
+    throw new Error(`${file} needs server, public, spa and theme paths and an api list`)
   }
   if (!Array.isArray(plugins) || !plugins.every(isPlugin)) throw new Error(`${file} needs a plugins list, each with a name, path, api and protobase`)
   if (!isShell(shell)) throw new Error(`${file} needs a shell with its protobase version, pluginApi and paths`)
   if (nodeModules !== undefined && typeof nodeModules !== 'string') throw new Error(`${file} has a nodeModules that is no path`)
-  return { version: 3, server, public: publicDir, api, spa, plugins, shell, ...(nodeModules === undefined ? {} : { nodeModules }) }
+  return { version: 3, server, public: publicDir, api, spa, plugins, theme, shell, ...(nodeModules === undefined ? {} : { nodeModules }) }
 }
 
 export const readManifest = async (bundleDir: string) => {
