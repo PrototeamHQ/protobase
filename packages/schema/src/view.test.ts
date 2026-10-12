@@ -145,6 +145,16 @@ describe('view builder', () => {
     })
   })
 
+  it("draws each card's content with a component of the project or a plugin, given by its name", () => {
+    const ArticleCard = Object.assign(() => null, { blockName: 'ArticleCard', custom: true })
+    const model = view<typeof article>('article')
+      .list((r, d) => ({ columns: [r.title], displays: [d.cards({ title: r.title, meta: [r.price] }, { card: ArticleCard })] }))
+      .toModel(article.toModel())
+    expect(model.list?.displays).toEqual([{ kind: 'cards', name: 'cards', title: 'title', meta: ['price'], card: 'ArticleCard' }])
+    const Built = Object.assign(() => null, { blockName: 'Card', custom: false })
+    expect(() => view<typeof article>('article').list((r, d) => ({ columns: [r.title], displays: [d.cards({}, { card: Built })] }))).toThrow('d.cards card takes a component declared with component(...), not the built-in block Card')
+  })
+
   it('refuses displays that collide, a default that is none of them, and built-in blocks as components', () => {
     const list = (pick: (d: typeof displays) => { displays: ListDisplayModel[]; default?: string }) => () =>
       view<typeof article>('article').list((r, d) => ({ columns: [r.title], ...pick(d) }))

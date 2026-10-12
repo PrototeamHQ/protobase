@@ -24,9 +24,11 @@ export const customComponent = (component: ComponentRef<never>, where: string) =
 export const displays = {
   /**
    * A card per record: `title` (default: the view's title) over `subtitle`, `badge` drawn as a badge with its value
-   * labels, and a few small `meta` fields such as dates. Named `cards` unless `name` says otherwise.
+   * labels, and a few small `meta` fields such as dates. With `card`, a component of the project or a plugin draws each
+   * card's content instead, from the row of those fields (`{ row }`); without it, or when it throws, the card is the
+   * built-in one. Named `cards` unless `name` says otherwise.
    */
-  cards: (fields: { title?: Ref; subtitle?: Ref; badge?: Ref; meta?: Ref[] }, o: Naming = {}): ListDisplayModel => ({
+  cards: (fields: { title?: Ref; subtitle?: Ref; badge?: Ref; meta?: Ref[] }, o: Naming & { card?: ComponentRef<never> } = {}): ListDisplayModel => ({
     kind: 'cards',
     name: o.name ?? 'cards',
     ...naming(o),
@@ -34,6 +36,7 @@ export const displays = {
     ...(fields.subtitle && { subtitle: fields.subtitle.name }),
     ...(fields.badge && { badge: fields.badge.name }),
     ...(fields.meta && { meta: fields.meta.map((ref) => ref.name) }),
+    ...(o.card && { card: customComponent(o.card, 'd.cards card') }),
   }),
   /**
    * The list drawn by a component of the project, registered in `protobase.ui.tsx` under its name. It gets `props` and

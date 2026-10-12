@@ -11,6 +11,9 @@ export type ListDisplayRow = {
   labels: Record<string, string>
 }
 
+/** What a card component of a cards display (`d.cards(..., { card })`) gets: the record it draws, of the display's fields. */
+export type RecordCardProps = { row: ListDisplayRow }
+
 /** One choice of the list's display switch: the table first, then the view's displays. */
 export type DisplayChoice = { name: string; label: string; icon?: string }
 

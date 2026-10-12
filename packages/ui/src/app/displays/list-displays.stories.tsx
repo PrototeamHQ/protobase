@@ -12,13 +12,14 @@ import { App } from '../app'
 import { defineUi } from '../pages/project-ui'
 import { fakeApi } from '../testing/fake-api'
 import { RepairBoard } from '../testing/repair-board'
+import { BrokenCard, RepairCard } from '../testing/repair-card'
 
 const meta = { title: 'List page/Displays', parameters: { layout: 'fullscreen' } } satisfies Meta
 export default meta
 
 const session = createStaticSession('story-token', { id: 'pip', email: 'pip@bikeshop.example', name: 'Pip', role: 'admin' })
 
-const ui = defineUi({ components: { RepairBoard } })
+const ui = defineUi({ components: { RepairBoard, RepairCard, BrokenCard } })
 
 const Shop = ({ start, repairsView = workshop.repairsView }: { start: string; repairsView?: { toModel(): ViewModel } }) => {
   const [api] = useState(() => fakeApi({ resources: [customers.toModel(), repairs.toModel()], views: [customersView.toModel(), repairsView.toModel()], rows: { customers: customerRows, repairs: repairRows } }))
@@ -35,6 +36,55 @@ export const Cards: StoryObj = { name: 'Cards', render: () => <Shop start="/repa
 
 const Unregistered = component<{ by: string }>('WorkshopCalendar')
 const withCalendar = workshop.repairsView.list((r, d) => ({ columns: [r.number], displays: [d.custom(Unregistered, { name: 'calendar', label: 'Calendar', icon: 'calendar', fields: [r.booked_on], props: { by: r.booked_on } })] }))
+
+// The cards drawn by a component: the project's, one that throws, and one nobody registered.
+const withCard = (name: string) =>
+  workshop.repairsView.list((r, d) => ({
+    columns: [r.number],
+    displays: [d.cards({ title: r.bike, subtitle: r.customer_id, badge: r.status, meta: [r.number, r.estimate] }, { card: component(name) })],
+    default: 'cards',
+  }))
+
+export const CardComponent: StoryObj = { name: 'Cards drawn by a component', render: () => <Shop start="/repairs" repairsView={withCard('RepairCard')} /> }
+
+export const CardComponentChecks: StoryObj = {
+  ...CardComponent,
+  name: 'Cards drawn by a component (checks)',
+  tags: ['play', '!dev'],
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    const card = await canvas.findByLabelText('Repair R-305')
+    expect(card).toHaveTextContent('Brompton C Line')
+    expect(card).toHaveTextContent('Emma Visser')
+    expect(card).toHaveTextContent('€42.00')
+    // Still a link to the repair, as every card is
+    expect(card.closest('a')).toHaveAttribute('href', '/repairs/5')
+  },
+}
+
+export const CardFallbackChecks: StoryObj = {
+  name: 'Cards whose component throws (checks)',
+  tags: ['play', '!dev'],
+  render: () => <Shop start="/repairs" repairsView={withCard('BrokenCard')} />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    // The built-in card instead: title, subtitle and badge
+    await waitFor(async () => expect(await cardTitles(canvas)).toHaveLength(14))
+    expect(canvas.queryByLabelText('Repair R-305')).toBeNull()
+    expect((await cardTitles(canvas))[0]).toBe('Gazelle Orange')
+  },
+}
+
+export const CardMissingChecks: StoryObj = {
+  name: 'Cards whose component nobody registered (checks)',
+  tags: ['play', '!dev'],
+  render: () => <Shop start="/repairs" repairsView={withCard('WorkshopCard')} />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    await waitFor(async () => expect(await cardTitles(canvas)).toHaveLength(14))
+    expect(canvas.queryByRole('alert')).toBeNull()
+  },
+}
 
 export const MissingComponent: StoryObj = { name: 'A display nobody registered', render: () => <Shop start="/repairs?display=calendar" repairsView={withCalendar} /> }
 
