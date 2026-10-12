@@ -1,13 +1,12 @@
-import { createContext, useContext, useMemo, type ReactNode } from 'react'
+import { useContext, useMemo, type ReactNode } from 'react'
 import { isApiError, routedClient } from '@protobase/client'
 import { ClientProvider, useClient, useSourceClients } from '../data/api-provider'
+import { MetaContext } from '../data/meta-context'
 import { allowEverything, type MetaData } from '../data/meta-data'
 import { useMeta } from '../data/use-meta'
 import { useSourceMetas } from '../data/use-source-metas'
 import { withSources } from '../data/with-sources'
 import { Spinner } from '../primitives/spinner'
-
-const MetaContext = createContext<MetaData | null>(null)
 
 export const useAdminMeta = () => {
   const meta = useContext(MetaContext)

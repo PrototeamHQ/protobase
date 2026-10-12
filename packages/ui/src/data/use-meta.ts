@@ -1,16 +1,20 @@
-import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useQuery, useQueryClient, type UseQueryResult } from '@tanstack/react-query'
+import { useContext, useMemo } from 'react'
 import { useClient } from './api-provider'
+import { MetaContext } from './meta-context'
 import type { MetaData } from './meta-data'
 import { keys } from './query-keys'
 
 /**
  * The resource and view models. Refetches on window focus with `If-None-Match`, so an unchanged
- * `/meta` costs a 304, and the cached object keeps its identity.
+ * `/meta` costs a 304, and the cached object keeps its identity. Below the app's `MetaGate`, `data` holds the resources
+ * of its sources too, as every page of the app reads them.
  */
-export const useMeta = () => {
+export const useMeta = (): UseQueryResult<MetaData> => {
   const client = useClient()
   const queryClient = useQueryClient()
-  return useQuery({
+  const merged = useContext(MetaContext)
+  const query = useQuery({
     queryKey: keys.meta,
     staleTime: 0,
     refetchOnWindowFocus: 'always',
@@ -37,4 +41,5 @@ export const useMeta = () => {
       }
     },
   })
+  return useMemo(() => (merged && query.data ? ({ ...query, data: merged } as UseQueryResult<MetaData>) : query), [merged, query])
 }

@@ -4,6 +4,7 @@ import { expect, userEvent, waitFor, within } from 'storybook/test'
 import { ApiError, createStaticSession, type Client } from '@protobase/client'
 import { component } from '@protobase/layout'
 import { f, l, resource, view } from '@protobase/schema'
+import { useMeta } from '../data/use-meta'
 import { App } from './app'
 import { useLayoutRecord } from './pages/record-scope'
 import { defineUi } from './pages/project-ui'
@@ -27,10 +28,14 @@ const notes = resource('ticket_notes')
   .fields({ id: f.integer().readOnly().filterable().sortable(), ticket_id: f.relation('tickets').filterable(), body: f.text() })
   .primaryKey((r) => r.id)
 
-/** A section the shop's UI draws on the desk's ticket page: the desk's view names it, the app resolves it by name. */
+/**
+ * A section the shop's UI draws on the desk's ticket page: the desk's view names it, the app resolves it by name. It
+ * reads where the ticket comes from with `useMeta()`, as a plugin would.
+ */
 const TicketSummary = () => {
   const scope = useLayoutRecord()
-  return <p className="text-[13px]">{`Ticket ${String(scope?.record.id)} is ${String(scope?.record.status)}`}</p>
+  const source = useMeta().data?.sources?.find((status) => status.state === 'ready' && status.source.resources.includes('tickets'))?.source
+  return <p className="text-[13px]">{`Ticket ${String(scope?.record.id)} is ${String(scope?.record.status)}, from the ${source?.label ?? 'app'}`}</p>
 }
 
 const ticketsView = view<typeof tickets>('tickets')
@@ -112,7 +117,7 @@ export const RecordChecks: StoryObj = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
     await canvas.findByRole('heading', { name: 'Parcel never arrived' })
-    expect(await canvas.findByText('Ticket 2 is open')).toBeVisible()
+    expect(await canvas.findByText('Ticket 2 is open, from the Service desk')).toBeVisible()
     expect(await canvas.findByText('Asked the carrier for a trace.')).toBeVisible()
     const trail = within(canvas.getByRole('navigation', { name: 'Breadcrumb' }))
     expect(trail.getByRole('link', { name: 'Parcel never arrived' })).toHaveAttribute('aria-current', 'page')
