@@ -18,6 +18,8 @@ export type ActionCardProps = {
   actions?: CardAction[]
   onAction?: (id: string) => void
   children?: ReactNode
+  /** Without the bordered card and the title row, for a page that is already framed; the title still labels the section. */
+  frameless?: boolean
 }
 
 const frames = {
@@ -29,18 +31,20 @@ const frames = {
 }
 
 /** A card with a toned title row, any content, a note and buttons: the building block of rich chat messages. */
-export const ActionCard = ({ title, tone = 'neutral', badge, note, actions = [], onAction, children }: ActionCardProps) => {
+export const ActionCard = ({ title, tone = 'neutral', badge, note, actions = [], onAction, children, frameless = false }: ActionCardProps) => {
   const [confirming, setConfirming] = useState<CardAction>()
   const hints = actions.flatMap((action) => (action.hint ? [action.hint] : []))
   const click = (action: CardAction) => (action.confirm ? setConfirming(action) : onAction?.(action.id))
   return (
-    <section aria-label={title} className={cn('shrink-0 overflow-hidden rounded-lg border bg-background whitespace-normal text-foreground shadow-sm', frames[tone].border)}>
-      <header className={cn('flex items-center gap-2 px-3 py-2', frames[tone].header)}>
-        <h3 className="min-w-0 flex-1 text-[13px] font-semibold">{title}</h3>
-        {badge && <span className="shrink-0 text-xs font-medium">{badge}</span>}
-      </header>
+    <section aria-label={title} className={frameless ? 'whitespace-normal text-foreground' : cn('shrink-0 overflow-hidden rounded-lg border bg-background whitespace-normal text-foreground shadow-sm', frames[tone].border)}>
+      {!frameless && (
+        <header className={cn('flex items-center gap-2 px-3 py-2', frames[tone].header)}>
+          <h3 className="min-w-0 flex-1 text-[13px] font-semibold">{title}</h3>
+          {badge && <span className="shrink-0 text-xs font-medium">{badge}</span>}
+        </header>
+      )}
       {(children || note || actions.length > 0) && (
-        <div className="space-y-2.5 px-3 py-2.5">
+        <div className={cn('space-y-2.5', !frameless && 'px-3 py-2.5')}>
           {children}
           {note && <p className="text-xs text-muted-foreground">{note}</p>}
           {actions.length > 0 && (

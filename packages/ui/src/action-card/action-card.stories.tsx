@@ -51,6 +51,25 @@ export const DisabledWithHint: Story = {
   },
 }
 
+/** Without the card and title row, for a page that already frames it; the confirm dialog still asks first. */
+export const Frameless: Story = {
+  tags: ['play'],
+  args: {
+    frameless: true,
+    note: 'Nothing runs until you start it.',
+    actions: [{ id: 'start', label: 'Start', style: 'primary', confirm: 'The task runs now.' }],
+    children: <FieldList fields={[{ label: 'Name', value: 'Nightly import' }]} />,
+  },
+  play: async ({ canvasElement, args }) => {
+    const canvas = within(canvasElement)
+    expect(canvas.queryByRole('heading')).toBeNull()
+    await userEvent.click(canvas.getByRole('button', { name: 'Start' }))
+    const dialog = within(canvasElement.ownerDocument.body).getByRole('dialog', { name: 'Start?' })
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Start' }))
+    expect(args.onAction).toHaveBeenCalledWith('start')
+  },
+}
+
 export const Progress: Story = {
   args: {
     title: 'Importing customers',

@@ -153,4 +153,4 @@ Breaking change: `AssistantPart` now includes `AssistantWidgetPart`, so code tha
 
 ## In the UI
 
-The dock is `AssistantDock` from `@protobase/ui`, built from primitives that custom components and [shell slots](/reference/custom-components/#shell-slots) can use too: `SidePanel`, `ChatThread`, `ChatMessage`, `Composer`, `ActionCard`, `FieldList`, `StepList`, `DiffView` and `CompactTable`. `useApiToken()` returns the signed-in user's API token, renewed before it expires, for calling another service as them.
+The dock is `AssistantDock` from `@protobase/ui`, built from primitives that custom components and [shell slots](/reference/custom-components/#shell-slots) can use too: `SidePanel`, `ChatThread`, `ChatMessage`, `Composer`, `ActionCard`, `FieldList`, `StepList`, `DiffView` and `CompactTable`. `ActionCard` takes `frameless` to draw its content, note, buttons, hints and confirm dialog without the bordered card and title row, for a page that is already framed; the title still labels the section for screen readers. `useApiToken()` returns the signed-in user's API token, renewed before it expires, for calling another service as them.
