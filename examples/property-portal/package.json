@@ -7,6 +7,7 @@
     "db:migrate": "bun db/migrate.ts",
     "db:seed": "bun seed/cli.ts",
     "db:reset": "bun db/drop.ts && bun db/migrate.ts && bun seed/cli.ts --scale small",
+    "map:tiles": "bun map/tiles.ts",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "protobase": "protobase",

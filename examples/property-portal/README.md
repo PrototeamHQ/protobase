@@ -12,6 +12,7 @@ The database sits beside the other examples' in the same Postgres container, as 
 bun run db:up                                                # repository root: docker compose up, creates the property_portal database and .env from .env.example
 bun run --cwd examples/property-portal db:migrate
 bun run --cwd examples/property-portal db:seed --scale small  # small | medium | large
+bun run --cwd examples/property-portal map:tiles              # the listing map's tiles, in a terminal of its own
 bun run --cwd examples/property-portal dev                    # http://localhost:5173
 bun run --cwd examples/property-portal test                   # the unit tests next to the config, the jobs and the seed
 ```
@@ -49,7 +50,7 @@ Visitors get the admin app too: it opens on the home page and the listings, read
 ## Screens
 
 - **Find a home** (`config/home/page.tsx`): what is on offer and the newest listings; for a member also their new alerts and favorites.
-- **Listings**: cards with the cover photo and arrows through the listing's other photos, address, place, status, the purchase price and the rent per month (whichever apply), area, bedrooms and energy label, or a table; filters for sale or rent (a home offered both ways shows under each), place, type, purchase price, rent, area, bedrooms, energy label, status, garden, balcony and parking. A listing's page lists its photos and, for a member, their notes on it, with **Save to favorites**, **Remove from favorites** (`protobase.ui.tsx`) and **Add a note**, which opens the note form with the listing chosen.
+- **Listings**: cards with the cover photo and arrows through the listing's other photos, address, place, status, the purchase price and the rent per month (whichever apply), area, bedrooms and energy label, or a table; filters for sale or rent (a home offered both ways shows under each), place, type, purchase price, rent, area, bedrooms, energy label, status, garden, balcony and parking. A listing's page shows it on a map (`l.map`), lists its photos and, for a member, their notes on it, with **Save to favorites**, **Remove from favorites** (`protobase.ui.tsx`) and **Add a note**, which opens the note form with the listing chosen.
 - **Favorites**, **Alerts**, **Notes** and **Search profiles**: the member's own lists. An alert links to its listing and can be marked seen; a profile lists its alerts.
 
 ## Alerts
@@ -74,6 +75,10 @@ Postgres keeps these rules itself:
 - A listing is `sold` only with a purchase price and `let` only with a rent, and has fewer bedrooms than rooms. Energy labels are an enum ordered best first, from A++++ to G.
 - `published_at` is empty for a draft; only admins read drafts.
 
+## Map
+
+The listing page draws the listing's `latitude` and `longitude` on a map with the style `PROTOBASE_MAP_STYLE_URL` names ([Maps](https://docs.protobase.net/reference/ui-config/#maps)); without it the page has no map. In development that is `http://localhost:8790/style.json`, from `bun run map:tiles` (`map/tiles.ts`): a proxy to a bucket of OpenMapTiles in one PMTiles archive, with its sprites and fonts. The bucket answers only its own sites' origins, so the proxy adds CORS headers for any origin and points the bucket's style at itself; it only reads the bucket, and needs the network. The archive covers the Benelux and the British Isles in detail, so a Spanish listing shows its pin on an empty map. A deployed portal points `PROTOBASE_MAP_STYLE_URL` at a style and archive of its own, served with CORS for its origins.
+
 ## Photos
 
 Listings and their photos point at PNG files in the public file provider, such as `public:listings/house-3.png`. The seed draws them (`seed/photos/`, a few dozen houses, flats and rooms) into `data/files/public`, where `protobase dev` and `serve` look by default, or into `PROTOBASE_FILES_PUBLIC` when that is a `file://` URL. They need no network. An admin can upload real photos on a listing's page.
@@ -93,5 +98,6 @@ Listings and their photos point at PNG files in the public file provider, such a
 - `db/migrations/NNN_name.sql`: plain SQL, applied in order by `db/migrate.ts` and recorded in `public.schema_migrations`. The server never migrates.
 - `config/`: one folder per table (`data.ts`, `ui.ts`), the roles and the home page. `config/roles.test.ts` checks who sees and writes what, `config/config.test.ts` runs the server's startup checks.
 - `jobs/`: the alert jobs, with the matching rule and the mail text tested next to them.
+- `map/`: the development map tiles proxy, tested next to it.
 - `seed/`: `world.ts` builds everything from the scale, `builders/` one place, agency, listing or member from its ordinal, `steps/` write them, `photos/` draws the pictures.
 - `tests/examples/property-portal/` (in the repository root): `smoke.test.ts` checks counts and rules of the seed, `access.integration.test.ts` what two members and a visitor see and may do through the API, `alerts.integration.test.ts` a publish through to the alert and its mail.
