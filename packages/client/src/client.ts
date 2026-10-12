@@ -180,9 +180,9 @@ export const createClient = (options: ClientOptions = {}) => {
     return toPage<RecordOf<R>>(await response.json(), response, origin)
   }
 
-  /** Pass the `etag` of the last result to get `{ status: 'unchanged' }` on a `304`. */
-  const meta = async (etag?: string): Promise<MetaResult> => {
-    const response = await send({ method: 'GET', path: '/meta', system: true, headers: etag ? { 'if-none-match': etag } : undefined, accept: [304] })
+  /** Pass the `etag` of the last result to get `{ status: 'unchanged' }` on a `304`; `signal` gives up waiting. */
+  const meta = async (etag?: string, { signal }: { signal?: AbortSignal } = {}): Promise<MetaResult> => {
+    const response = await send({ method: 'GET', path: '/meta', system: true, headers: etag ? { 'if-none-match': etag } : undefined, accept: [304], ...(signal && { signal }) })
     if (response.status === 304) return { status: 'unchanged' }
     return { status: 'modified', meta: (await response.json()) as Meta, etag: etagOf(response) }
   }

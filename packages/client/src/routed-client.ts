@@ -29,7 +29,7 @@ export const routedClient = (own: Client, sourceOf: (resource: string) => Client
     series: (resource, params) => to(resource).series(resource, params),
     histogram: (resource, field, options) => to(resource).histogram(resource, field, options),
     seek: (resource, params) => to(resource).seek(resource, params),
-    meta: (etag) => own.meta(etag),
+    meta: (etag, options) => own.meta(etag, options),
     invoke: (name, options) => own.invoke(name, options),
     upload: (resource, field, file, options) => to(resource).upload(resource, field, file, options),
   }
