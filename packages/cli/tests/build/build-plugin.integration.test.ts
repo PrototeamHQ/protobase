@@ -61,6 +61,8 @@ describe('buildPlugin', () => {
     expect(css).toContain('.bg-primary{background-color:var(--primary)}')
     expect(css).toContain('.text-danger{color:var(--danger)}')
     expect(css).toMatch(/\.text-sm\{font-size:var\(--text-sm,\s*\.875rem\)/)
+    // Under the app's utilities, which the app's own elements keep (see layerPluginUtilities)
+    expect(css).toMatch(/@layer utilities\{\s*@layer plugin\{/)
     // Utilities only: neither the reset nor any theme value, which are the app's
     expect(css).not.toContain('box-sizing:border-box')
     expect(css).not.toMatch(/:root|--color-primary:/)

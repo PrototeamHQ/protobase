@@ -11,6 +11,7 @@ import { extensionImports } from '../project/extensions'
 import { sharedModules } from '../project/shared-modules'
 import { findPackageDirSync, readPackageJson, type PackageJson } from './packages/package-dir'
 import { pluginFieldTypes } from './plugin-fields'
+import { layerPluginUtilities } from './plugin-styles'
 
 /** The module a plugin's components and action handlers are exported from, as a project's are. */
 export const pluginEntryFile = 'protobase.ui.tsx'
@@ -87,6 +88,17 @@ const pluginStyles = (file: string, code: string): Plugin => ({
   load: (id) => (id === file ? code : undefined),
 })
 
+// The written stylesheet with the plugin's utilities layered under the app's (see layerPluginUtilities).
+const layeredStyles = (): Plugin => ({
+  name: 'protobase-plugin-layered-styles',
+  enforce: 'post',
+  generateBundle(_, bundle) {
+    for (const file of Object.values(bundle)) {
+      if (file.type === 'asset' && file.fileName.endsWith('.css')) file.source = layerPluginUtilities(String(file.source))
+    }
+  },
+})
+
 const outputOf = (result: Awaited<ReturnType<typeof build>>): Rolldown.RolldownOutput => {
   if (Array.isArray(result)) return result[0]!
   if ('output' in result) return result
@@ -142,6 +154,7 @@ export const buildPlugin = async ({ pluginDir, outDir, name, projectDir, ignore 
       pluginStyles(styles, styleCode(pluginDir, target.theme, [outDir, ...ignore])),
       react(),
       tailwindcss(),
+      layeredStyles(),
     ],
     build: {
       outDir,
