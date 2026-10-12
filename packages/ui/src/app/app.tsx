@@ -155,7 +155,7 @@ const Routes = ({ workspace, sidebarMode, assistant, runtime }: Pick<AppProps, '
     ) : drawnFrom && drawnFrom.state !== 'ready' ? (
       <SourceNotice status={drawnFrom} />
     ) : address.kind === 'create' ? (
-      <CreatePage key={`${address.resource}/new`} resource={address.resource} />
+      <CreatePage key={`${address.resource}/new?${new URLSearchParams(address.values).toString()}`} resource={address.resource} values={address.values} />
     ) : address.kind === 'record' ? (
       <RecordPage key={`${address.resource}/${address.key}`} resource={address.resource} recordKey={address.key} />
     ) : (

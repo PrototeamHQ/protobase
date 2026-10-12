@@ -35,7 +35,8 @@ const orderErrors = (model: ResourceModel, orderBy: string) => {
 
 /**
  * What is wrong with a link's address against these models: an unknown resource or page, a `{field}` the record it sits
- * on does not have, or a filter or order naming fields the resource does not have. Empty when it can be followed.
+ * on does not have, a filter or order naming fields the resource does not have, or create values for fields it does not
+ * have. Empty when it can be followed.
  */
 export const addressErrors = (to: AppAddress, { models, pages, source }: AddressCheck): string[] => {
   const placeholders = addressPlaceholders(to).flatMap((name) => {
@@ -50,6 +51,7 @@ export const addressErrors = (to: AppAddress, { models, pages, source }: Address
     case 'create': {
       const target = Object.hasOwn(models, to.resource) ? models[to.resource] : undefined
       if (!target) return [`unknown resource "${to.resource}"`]
+      if (to.kind === 'create') return [...placeholders, ...Object.keys(to.values ?? {}).filter((name) => !Object.hasOwn(target.fields, name)).map((name) => `values: unknown field "${name}" on ${to.resource}`)]
       if (to.kind !== 'list') return placeholders
       return [...placeholders, ...(to.filter ? filterErrors(target, to.filter) : []), ...(to.orderBy ? orderErrors(target, to.orderBy) : [])]
     }

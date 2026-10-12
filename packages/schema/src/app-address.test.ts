@@ -19,6 +19,10 @@ describe('appPath', () => {
     expect(appPath({ kind: 'list', resource: 'repairs', filter: '', display: undefined })).toBe('/repairs')
   })
 
+  it("writes a create form's values as its query, leaving out empty ones", () => {
+    expect(appPath({ kind: 'create', resource: 'notes', values: { listing_id: '42', body: 'Big garden', title: '' } })).toBe('/notes/new?listing_id=42&body=Big+garden')
+  })
+
   it('keeps a key with a slash or comma in one segment, and joins composite keys', () => {
     expect(appPath({ kind: 'record', resource: 'files', key: 'a/b' })).toBe('/files/a%2Fb')
     expect(appPath({ kind: 'record', resource: 'leaseTenants', key: [3, 7] })).toBe('/leaseTenants/3%2C7')
@@ -34,6 +38,7 @@ describe('readAppPath', () => {
       { kind: 'record', resource: 'files', key: 'a/b' },
       { kind: 'record', resource: 'leaseTenants', key: '3,7' },
       { kind: 'create', resource: 'repairs' },
+      { kind: 'create', resource: 'notes', values: { listing_id: '42', body: 'Big garden & a shed' } },
       { kind: 'page', page: 'overview' },
     ]
     for (const address of addresses) expect(readAppPath(appPath(address), pages)).toEqual(address)

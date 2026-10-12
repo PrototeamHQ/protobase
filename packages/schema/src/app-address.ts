@@ -36,7 +36,7 @@ export const appPath = (address: AppAddress, basePath = ''): string => {
     case 'page':
       return `${basePath}/${encodeURIComponent(address.page)}`
     case 'create':
-      return `${basePath}/${encodeURIComponent(address.resource)}/${addressWords.create}`
+      return `${basePath}/${encodeURIComponent(address.resource)}/${addressWords.create}${valuesQuery(address.values)}`
     case 'record':
       return `${basePath}/${encodeURIComponent(address.resource)}/${encodeURIComponent(encodeKey(address.key))}`
     case 'list':
@@ -53,6 +53,12 @@ const decodeSegments = (pathname: string) => {
   }
 }
 
+// A create form's values, by field name, as the query.
+const valuesQuery = (values: Readonly<Record<string, string>> = {}) => {
+  const text = new URLSearchParams(Object.entries(values).filter(([, value]) => value !== '')).toString()
+  return text ? `?${text}` : ''
+}
+
 const filterLayout = (value: string | null): FilterLayout | undefined => (value === 'bar' || value === 'panel' ? value : undefined)
 
 /**
@@ -66,7 +72,10 @@ export const readAppPath = (pathAndQuery: string, pages: ReadonlySet<string>): A
   const [first, second] = segments as [string, string | undefined]
   if (first === '-') return undefined
   if (pages.has(first)) return second === undefined ? { kind: 'page', page: first } : undefined
-  if (second === addressWords.create) return { kind: 'create', resource: first }
+  if (second === addressWords.create) {
+    const values = Object.fromEntries([...url.searchParams].filter(([, value]) => value !== ''))
+    return { kind: 'create', resource: first, ...(Object.keys(values).length > 0 && { values }) }
+  }
   if (second !== undefined) return { kind: 'record', resource: first, key: second }
   const params = url.searchParams
   const display = params.get(addressWords.display) || undefined

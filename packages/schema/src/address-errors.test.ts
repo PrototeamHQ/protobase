@@ -29,6 +29,14 @@ describe('addressErrors', () => {
     expect(addressErrors({ kind: 'record', resource: 'customers', key: '{customerId}' }, { models })).toEqual(['"{customerId}" takes a value from the record, but the link sits on none'])
   })
 
+  it('accepts create values for fields of the resource, from the record, and names the others', () => {
+    expect(addressErrors({ kind: 'create', resource: 'repairs', values: { customerId: '{id}', status: 'booked' } }, { models, source: customers })).toEqual([])
+    expect(addressErrors({ kind: 'create', resource: 'repairs', values: { colour: 'red', customerId: '{ownerId}' } }, { models, source: customers })).toEqual([
+      '"{ownerId}" is not a field of customers',
+      'values: unknown field "colour" on repairs',
+    ])
+  })
+
   it('names fields the filter or order does not find, whatever the placeholders hold', () => {
     expect(addressErrors({ kind: 'list', resource: 'repairs', filter: 'owner = {id}' }, { models, source: customers })).toEqual([expect.stringContaining('filter:')])
     expect(addressErrors({ kind: 'list', resource: 'repairs', orderBy: 'colour asc' }, { models })).toEqual([expect.stringContaining('orderBy:')])

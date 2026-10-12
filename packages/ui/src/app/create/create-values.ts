@@ -54,12 +54,25 @@ export const createBody = (model: ResourceModel, resources: Record<string, Resou
 /** A field is required when it can be neither empty nor filled in by a default. */
 export const isRequired = (field: FieldModel) => !field.nullable && !field.default && field.type !== 'boolean'
 
-/** The form's starting values: literal defaults from `/meta`. Database defaults stay empty so the database fills them. */
-export const initialDraft = (model: ResourceModel, sections: CreateSection[]): Draft =>
+// A value the address gives as text, as the form holds it: a relation as a chosen record named by its key until its
+// name has loaded, a boolean as one.
+const givenValue = (field: FieldModel, value: string): unknown => {
+  if (field.type === 'relation') return { key: value, label: value } satisfies Chosen
+  if (field.type === 'boolean') return value === 'true'
+  return value
+}
+
+/**
+ * The form's starting values: the values the address gives (`/notes/new?listing_id=42`), for the fields the form has,
+ * else literal defaults from `/meta`. Database defaults stay empty so the database fills them.
+ */
+export const initialDraft = (model: ResourceModel, sections: CreateSection[], given: Readonly<Record<string, string>> = {}): Draft =>
   Object.fromEntries(
     sections.flatMap((section) =>
       section.fields.flatMap((name) => {
-        const fallback = model.fields[name]?.default
+        const field = model.fields[name]!
+        if (Object.hasOwn(given, name)) return [[name, givenValue(field, given[name]!)]]
+        const fallback = field.default
         if (!fallback || !('value' in fallback) || fallback.value === null || fallback.value === undefined) return []
         return [[name, typeof fallback.value === 'boolean' ? fallback.value : String(fallback.value)]]
       }),

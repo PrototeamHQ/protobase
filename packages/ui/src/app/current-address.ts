@@ -6,7 +6,11 @@ import { defaultOrderBy } from './list-order'
 export type ListAddress = { kind: 'list'; resource: string; display: string; filter: string; orderBy: string; filterLayout: FilterLayout }
 
 /** The address the app shows, as logical values. A record's key is in the text form the record API takes. */
-export type CurrentAddress = ListAddress | { kind: 'record'; resource: string; key: string } | { kind: 'create'; resource: string } | { kind: 'page'; page: string }
+export type CurrentAddress =
+  | ListAddress
+  | { kind: 'record'; resource: string; key: string }
+  | { kind: 'create'; resource: string; values?: Readonly<Record<string, string>> }
+  | { kind: 'page'; page: string }
 
 /** What can change about the list the app shows; `undefined` returns a value to its default. */
 export type ListChange = Partial<Omit<ListAddress, 'kind' | 'resource'>>

@@ -68,6 +68,11 @@ describe('defaults', () => {
     expect(initialDraft(withDefaults, createSections(withDefaults, undefined))).toEqual({ status: 'draft', total: '0', paid: false })
   })
 
+  it('starts from the values the address gives, a relation as a record named by its key, over the defaults', () => {
+    const given = { ownerId: '7', status: 'shipped', paid: 'true', createdAt: '2026-01-01', organizationId: '2' }
+    expect(initialDraft(withDefaults, createSections(withDefaults, undefined), given)).toEqual({ ownerId: { key: '7', label: '7' }, status: 'shipped', total: '0', paid: true })
+  })
+
   it('does not require fields that have a default, or that can be empty', () => {
     expect(isRequired(withDefaults.fields.number!)).toBe(false)
     expect(isRequired(withDefaults.fields.status!)).toBe(false)

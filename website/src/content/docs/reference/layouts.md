@@ -78,7 +78,7 @@ Comparisons, `AND`, `OR`, `NOT` and parentheses work; functions such as `now()` 
 | --- | --- |
 | `a.update(name, { label, set, confirm?, icon? })` | Updates the record with `set`, with its ETag. |
 | `a.remove(name, { label, confirm?, icon? })` | Deletes the record (soft delete when the resource has one). |
-| `a.link(name, { label, to, icon? })` | Goes `to` an [address](#addresses) in the app, with `{field}` in its key, filter or order replaced by the record's value. |
+| `a.link(name, { label, to, icon? })` | Goes `to` an [address](#addresses) in the app, with `{field}` in its key, filter, order or create values replaced by the record's value. |
 | `a.link(name, { label, href, icon? })` | Opens an `href` that leaves the app (`https:`, `mailto:`), with `{field}` replaced by the record's value (percent-encoded). A path in the app is refused when the config loads: give it as `to`. |
 | `a.action(name, { label, confirm?, icon?, bulk? })` | Runs the handler the app registers under `name` in [`protobase.ui.tsx`](/reference/custom-components/#action-handlers). |
 
@@ -92,7 +92,7 @@ Every place in the app has an address, and the app writes and reads them in one 
 | --- | --- |
 | `{ kind: 'list', resource, filter?, orderBy?, display? }` | A resource's list, with the filter, order and [display](/reference/ui-config/#list-displays) the list page would show. |
 | `{ kind: 'record', resource, key }` | One record; `key` is its value, or its parts for a composite key. |
-| `{ kind: 'create', resource }` | The form for a new record. |
+| `{ kind: 'create', resource, values? }` | The form for a new record, with `values` filled in by field name, as text: `{ kind: 'create', resource: 'notes', values: { listing_id: '{id}' } }` on a listing's page starts a note about that listing. A relation shows the name of the record it points at. The values are a start the person can change, not a rule: what they may write is still up to the access rules. |
 | `{ kind: 'page', page }` | A composed page. |
 
 The resources, pages and fields an address names are checked when the server starts, like every other name.

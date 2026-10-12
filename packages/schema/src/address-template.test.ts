@@ -13,6 +13,15 @@ describe('fillAddress', () => {
     })
   })
 
+  it("fills a create form's values from the record", () => {
+    expect(fillAddress({ kind: 'create', resource: 'notes', values: { listing_id: '{id}', body: 'About {title}' } }, { id: 42, title: 'Keizersgracht 12' })).toEqual({
+      kind: 'create',
+      resource: 'notes',
+      values: { listing_id: '42', body: 'About Keizersgracht 12' },
+    })
+    expect(addressPlaceholders({ kind: 'create', resource: 'notes', values: { listing_id: '{id}' } })).toEqual(['id'])
+  })
+
   it('leaves a missing value empty and other addresses alone', () => {
     expect(fillAddress({ kind: 'record', resource: 'orders', key: '{orderId}' }, { orderId: null })).toEqual({ kind: 'record', resource: 'orders', key: '' })
     expect(fillAddress({ kind: 'page', page: 'overview' }, {})).toEqual({ kind: 'page', page: 'overview' })

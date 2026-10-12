@@ -83,12 +83,13 @@ export type FilterLayout = 'bar' | 'panel'
 
 /**
  * A place in the app: a resource's list, one of its records, its create form, or a composed page. A record's `key` is
- * its one value or its parts, as the record API takes them; `readAppPath` gives it back as the API's text form.
+ * its one value or its parts, as the record API takes them; `readAppPath` gives it back as the API's text form. A create
+ * form's `values` fill in fields of the new record by name, as text (`{ listing_id: '42' }`).
  */
 export type AppAddress =
   | { kind: 'list'; resource: string; filter?: string; orderBy?: string; display?: string; filterLayout?: FilterLayout }
   | { kind: 'record'; resource: string; key: KeyValue | readonly KeyValue[] }
-  | { kind: 'create'; resource: string }
+  | { kind: 'create'; resource: string; values?: Readonly<Record<string, string>> }
   | { kind: 'page'; page: string }
 
 export type FieldFormat = 'relative' | 'absolute' | 'compact' | 'percent' | 'badge' | 'code'
