@@ -9,7 +9,9 @@ on:
 
 jobs:
   check:
-    runs-on: ubuntu-latest
+    # Pushes to main run on the runner the CHECK_RUNNER variable names, when it is set; pull requests, which forks can
+    # open, always run on GitHub's runners. See CONTRIBUTING.md.
+    runs-on: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.CHECK_RUNNER || 'ubuntu-latest' }}
     # The integration tests' Postgres, as docker-compose.yml runs it locally: same image, user and port.
     services:
       postgres:
@@ -36,7 +38,8 @@ jobs:
       - run: bun run build
       # The template databases each integration run clones; with CI set, a missing one fails the run instead of skipping.
       - run: bun run test:db
-      - run: bun x --bun playwright install --with-deps chromium
+      # A self-hosted runner has no root to install Chromium's system packages, so its server provides them.
+      - run: bun x --bun playwright install ${{ runner.environment == 'github-hosted' && '--with-deps' || '' }} chromium
       - run: bun run check
       # check ran the smoke test on Bun; the CLI is supported on Node as well, so it runs there too.
       - uses: actions/setup-node@v4

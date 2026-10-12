@@ -28,3 +28,11 @@ When a layout changes, the check prints the changed lines and writes before and 
 ## Releases
 
 Every push to `main` with a fix, feature or breaking change is released by `.github/workflows/release.yml`: version, `CHANGELOG.md`, tag and GitHub release. Below 1.0 a breaking change bumps the minor and a feature or fix the patch. `bun run release --dry-run` shows the next release. The rules, and which bundles a serve runtime runs, are on the [Versioning](https://docs.protobase.net/reference/versioning/) page.
+
+## The check job's runner
+
+Pull requests run the checks on GitHub's runners. Pushes to `main`, which the release workflow checks, run them on the runner that the repository variable `CHECK_RUNNER` names, or on GitHub's when it is unset. The self-hosted runner `hetzner` runs on the Hetzner server as the `gh-runner` user, with the Postgres service in rootless Podman, and its job-started hook (`/home/gh-runner/hooks/job-started.sh`) refuses any job that is not a push to `main`.
+
+- Use it: `gh variable set CHECK_RUNNER --body hetzner`
+- Go back to GitHub's runners: `gh variable delete CHECK_RUNNER`; no commit is needed either way.
+- Stop it, on the server: `systemctl disable --now actions.runner.PrototeamHQ-protobase.hetzner`. Delete the variable first, since pushes to `main` wait for a runner that is offline.
