@@ -20,6 +20,9 @@ import { CustomSection } from './custom-section'
 import { RecordActions } from './pages/record-actions'
 import type { LayoutRecord } from './pages/record-scope'
 import { FieldEditor } from './field-editor'
+import { shownWidget } from './field-types/shown-widget'
+import { WidgetPart } from './field-types/widget-part'
+import { useProjectUi } from './pages/project-ui'
 import { Notice, useAdminMeta, usePermissions } from './meta-gate'
 import { can, fieldAccess } from './permissions'
 import { useRestore } from './delete/use-restore'
@@ -96,6 +99,7 @@ const LoadedRecord = ({ model, recordKey, stored }: { model: ResourceModel; reco
     onReview: () => void queryClient.invalidateQueries({ queryKey: keys.record(model.name, recordKey) }),
   })
   const related = useRelatedRecords(model, view, meta.resources, meta.views, stored.record, basePath)
+  const { fields: fieldTypes } = useProjectUi()
   const layout = layoutFor(model, view)
   const sidebarFields = layout.flatMap((item) => (item.kind === 'sidebar' ? item.fields : []))
   const status = model.fields.status?.type === 'enum' ? String(stored.record.status) : undefined
@@ -148,7 +152,9 @@ const LoadedRecord = ({ model, recordKey, stored }: { model: ResourceModel; reco
         const field = model.fields[name]
         if (!field || !visible(name)) return []
         const text = displayValue(field, stored.record[name], hint(name))
-        return [{ label: hint(name)?.label ?? humanize(name), value: field.type === 'enum' ? <Badge tone={toneFor(String(stored.record[name]))}>{text}</Badge> : <strong>{text}</strong> }]
+        const builtIn = field.type === 'enum' ? <Badge tone={toneFor(String(stored.record[name]))}>{text}</Badge> : <strong>{text}</strong>
+        const shown = shownWidget(fieldTypes, field, hint(name))
+        return [{ label: hint(name)?.label ?? humanize(name), value: shown ? <WidgetPart shown={shown} part="display" field={field} value={stored.record[name]} fallback={builtIn} /> : builtIn }]
       })}
     />
   )

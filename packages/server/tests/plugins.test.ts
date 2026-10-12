@@ -1,7 +1,7 @@
 import { Kysely } from 'kysely'
 import { PGliteDialect } from 'kysely-pglite-dialect'
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
-import { f, resource } from '@protobase/schema'
+import { f, resource, view } from '@protobase/schema'
 import { createAdmin } from '../src/create-admin'
 import type { AdminOptions } from '../src/admin-options'
 import { as, testAuthenticator } from '../../../test-support/server'
@@ -52,5 +52,19 @@ describe('the plugins in /meta', () => {
   it('stops the server at startup on a plugin URL that is no URL', () => {
     process.env.PROTOBASE_PLUGINS = 'plugin.json'
     expect(() => admin(undefined)).toThrow('PROTOBASE_PLUGINS names "plugin.json", which is no URL')
+  })
+})
+
+describe('the field types of the bundle\'s plugins', () => {
+  const tasksView = view<typeof tasks>('tasks').fields((r) => ({ title: r.title.widget('rating') }))
+  const start = (fieldTypes: Record<string, string[]>) => createAdmin({ resources: [tasks], views: [tasksView], db, authenticate: testAuthenticator, fieldTypes })
+
+  it('stop the server at startup when a view shows a field with one that does not show its storage type', () => {
+    expect(() => start({ rating: ['integer'] })).toThrow('View "tasks": field "title" is text, and its field type "rating" shows only integer')
+    expect(() => start({ rating: ['text', 'integer'] })).not.toThrow()
+  })
+
+  it('leave a field type no plugin of the bundle registers to the app', () => {
+    expect(() => start({})).not.toThrow()
   })
 })

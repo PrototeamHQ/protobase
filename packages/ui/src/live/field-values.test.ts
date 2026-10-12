@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { FieldModel } from '@protobase/schema'
-import { differs, isEditable, toDraft, toPatchValue } from './field-values'
+import { differs, fromDraft, isEditable, toDraft, toFieldDraft, toPatchValue } from './field-values'
 
 const field = (type: FieldModel['type'], extra: Partial<FieldModel> = {}) =>
   ({ name: 'x', column: 'x', type, nullable: false, readOnly: false, filterable: false, sortable: false, aliases: [], ...extra }) as FieldModel
@@ -21,6 +21,17 @@ describe('field values', () => {
   it('sends null for an emptied optional field', () => {
     expect(toPatchValue(field('text', { nullable: true }), '')).toBeNull()
     expect(toPatchValue(field('text'), '')).toBe('')
+  })
+
+  it("gives a field type's editor the value a draft stands for, and takes a value back as a draft", () => {
+    expect(fromDraft(field('integer'), '4')).toBe(4)
+    expect(fromDraft(field('integer'), ' ')).toBeNull()
+    expect(fromDraft(field('text'), '')).toBeNull()
+    expect(fromDraft(field('boolean'), '')).toBe(false)
+    expect(fromDraft(field('enum'), 'paid')).toBe('paid')
+    expect(toFieldDraft(field('integer'), 4)).toBe('4')
+    expect(toFieldDraft(field('integer'), null)).toBe('')
+    expect(toFieldDraft(field('boolean'), 1)).toBe(true)
   })
 
   it('compares decimals by value', () => {

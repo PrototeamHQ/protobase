@@ -88,6 +88,14 @@ describe('view builder', () => {
     view<typeof article>('article').fields((r) => ({ status: r.status.valueLabels({ archived: 'Archived' }) }))
   })
 
+  it('shows a field with the field type a plugin registers, with its props', () => {
+    const model = view<typeof article>('article')
+      .fields((r) => ({ price: r.price.label('Price').widget('stars', { max: 5 }), title: r.title.widget('slug') }))
+      .toModel()
+    expect(model.fields.price).toEqual({ label: 'Price', widget: { name: 'stars', props: { max: 5 } } })
+    expect(model.fields.title).toEqual({ widget: { name: 'slug' } })
+  })
+
   it('defaults widget options', () => {
     const model = view<typeof article>('article')
       .filters((r, w) => [w.range(r.price), w.facets(r.status), w.dateRange(r.createdAt)])

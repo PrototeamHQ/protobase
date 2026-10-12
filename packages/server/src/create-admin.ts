@@ -73,6 +73,12 @@ export type CreateAdminInput = {
    * and `options.plugins: false` leaves them on: they are the app's own UI.
    */
   bundlePlugins?: string[]
+  /**
+   * The field types the app's plugins register, by name, with the storage types each shows, as `protobase build` reads
+   * them from the bundle's plugins: a view showing a field with one of them that does not show its storage type stops
+   * startup. A field type not listed here, such as a remote plugin's, is not checked.
+   */
+  fieldTypes?: Record<string, string[]>
   options?: AdminOptions
 }
 
@@ -83,7 +89,7 @@ const declaredRoles = (auth: AdminAuth | undefined, roles: AdminOptions['roles']
 }
 
 /** The admin REST API as a Hono app. It uses only Web APIs, so it runs on Node, Workers and anywhere else Hono does. */
-export const createAdmin = ({ resources: appResources, views: appViews = [], pages = [], userMenu, bottomBars = [], db, authenticate, auth, functions = {}, files: filesOptions, events, jobs = [], subscriptions = [], webhooks: webhooksOptions, bundlePlugins = [], options = {} }: CreateAdminInput): Admin => {
+export const createAdmin = ({ resources: appResources, views: appViews = [], pages = [], userMenu, bottomBars = [], db, authenticate, auth, functions = {}, files: filesOptions, events, jobs = [], subscriptions = [], webhooks: webhooksOptions, bundlePlugins = [], fieldTypes = {}, options = {} }: CreateAdminInput): Admin => {
   const basePath = options.basePath ?? '/api/v1'
   // Events are delivered by jobs, whose failures the page lists too.
   const withJobs = jobs.length > 0 || appResources.some((resource) => resource.toModel().events)
@@ -97,7 +103,7 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], pag
   checkShell(registry, viewModels, userMenuModel, pageModels.map((entry) => entry.name))
   const bottomBarModels = bottomBars.map((bar) => bar.toBottomBarModel())
   checkBottomBars(registry, bottomBarModels, pageModels.map((entry) => entry.name), declaredRoles(auth, options.roles))
-  checkViews(registry, viewModels, pageModels.map((entry) => entry.name))
+  checkViews(registry, viewModels, pageModels.map((entry) => entry.name), fieldTypes)
   checkPages(pageModels, {
     models: Object.fromEntries(registry.entries.map((entry) => [entry.name, entry.model])),
     actions: (resource) => new Set(viewModels.filter((view) => view.resource === resource).flatMap((view) => view.actions.map((action) => action.name))),

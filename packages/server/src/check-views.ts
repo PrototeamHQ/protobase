@@ -51,19 +51,29 @@ const unknownFieldErrors = (view: ViewModel, model: ResourceModel) => {
   ]
 }
 
+// A field type shows the storage types it names; one the app's plugins do not register is not known here.
+const widgetErrors = (view: ViewModel, model: ResourceModel, fieldTypes: Readonly<Record<string, readonly string[]>>) =>
+  Object.entries(view.fields).flatMap(([name, hints]) => {
+    const of = hints.widget && fieldTypes[hints.widget.name]
+    const field = model.fields[name]
+    if (!of || !field || of.includes(field.type)) return []
+    return [`field "${name}" is ${field.type}, and its field type "${hints.widget!.name}" shows only ${of.join(', ')}`]
+  })
+
 /**
  * Fails at startup when a view uses a sensitive field where it would show empty, a display or custom section names a
- * field the resource does not have, labels values its enum does not have,
+ * field the resource does not have, labels values its enum does not have, shows a field with a field type of
+ * `fieldTypes` (each with the storage types it shows) that does not show it,
  * has a related section that does not fit the resources, or a link to an address the app does not have.
  */
-export const checkViews = (registry: Registry, views: ViewModel[], pages: readonly string[] = []) => {
+export const checkViews = (registry: Registry, views: ViewModel[], pages: readonly string[] = [], fieldTypes: Readonly<Record<string, readonly string[]>> = {}) => {
   const models = Object.fromEntries(registry.entries.map((entry) => [entry.name, entry.model]))
   const pageNames = new Set(pages)
   const problems = views.flatMap((view) => {
     const model = models[view.resource]
     if (!model) return []
     const related = view.layout.flatMap((item) => (item.kind === 'related' ? relatedErrors(item, view.resource, models).map((error) => `related "${item.title}": ${error}`) : []))
-    return [...sensitiveErrors(view, model), ...unknownFieldErrors(view, model), ...valueLabelErrors(view, model), ...related, ...linkErrors(view, model, models, pageNames)].map((problem) => `View "${view.resource}": ${problem}`)
+    return [...sensitiveErrors(view, model), ...unknownFieldErrors(view, model), ...valueLabelErrors(view, model), ...widgetErrors(view, model, fieldTypes), ...related, ...linkErrors(view, model, models, pageNames)].map((problem) => `View "${view.resource}": ${problem}`)
   })
   if (problems.length > 0) throw new Error(`The views do not match the resources:\n${problems.map((problem) => `  - ${problem}`).join('\n')}`)
 }

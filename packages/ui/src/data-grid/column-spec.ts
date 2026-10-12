@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import type { BadgeTone } from '../primitives/badge'
 
 export type ColumnKind =
@@ -26,6 +27,8 @@ export type ColumnSpec = {
   labels?: Record<string, string>
   /** Reads the cell value; defaults to `row[id]`. */
   value?: (row: GridRow) => unknown
+  /** Draws the cell instead of its kind, such as a field type's cell. */
+  render?: (row: GridRow) => ReactNode
 }
 
 export const isRightAligned = (kind: ColumnKind) => kind === 'money' || kind === 'number' || kind === 'signed' || kind === 'percent'

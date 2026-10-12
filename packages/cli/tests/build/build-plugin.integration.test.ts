@@ -66,6 +66,18 @@ describe('buildPlugin', () => {
     expect(css).not.toMatch(/:root|--color-primary:/)
   }, buildTimeout)
 
+  it('names the field types it registers in plugin.json, each with the storage types it shows', async () => {
+    const fields = `import { definePlugin, type FieldWidgetProps } from '@protobase/ui'
+import { stars } from './stars'
+const Stars = ({ value }: FieldWidgetProps<number>) => <span>{stars(value ?? 0)}</span>
+export default definePlugin({ fields: { rating: { of: ['integer', 'decimal'], display: Stars }, slug: { of: ['text'], display: Stars } } })
+`
+    pluginDir = await createPlugin({ 'protobase.ui.tsx': fields, 'stars.ts': `export const stars = (count: number) => '★'.repeat(count)\n` })
+    const manifest = await buildPlugin({ pluginDir, outDir: path.join(pluginDir, 'dist') })
+    expect(manifest.fields).toEqual({ rating: ['integer', 'decimal'], slug: ['text'] })
+    expect(JSON.parse(await readFile(path.join(pluginDir, 'dist/plugin.json'), 'utf8')).fields).toEqual(manifest.fields)
+  }, buildTimeout)
+
   it('is named after its folder without a package.json, or by the name given', async () => {
     pluginDir = await createPlugin({ 'protobase.ui.tsx': `export const Board = () => null\n` })
     expect((await buildPlugin({ pluginDir, outDir: path.join(pluginDir, 'dist') })).name).toBe(path.basename(pluginDir))

@@ -10,6 +10,7 @@ import { uiPackageDir } from '../project/admin-app'
 import { extensionImports } from '../project/extensions'
 import { sharedModules } from '../project/shared-modules'
 import { findPackageDirSync, readPackageJson, type PackageJson } from './packages/package-dir'
+import { pluginFieldTypes } from './plugin-fields'
 
 /** The module a plugin's components and action handlers are exported from, as a project's are. */
 export const pluginEntryFile = 'protobase.ui.tsx'
@@ -18,10 +19,10 @@ export const pluginEntryFile = 'protobase.ui.tsx'
 export const pluginManifestFile = 'plugin.json'
 
 /**
- * A plugin.json: the plugin's name and own version, the plugin API and Protobase versions it is built for, and its
- * module and stylesheet relative to it.
+ * A plugin.json: the plugin's name and own version, the plugin API and Protobase versions it is built for, its module
+ * and stylesheet relative to it, and the field types it registers with the storage types each shows.
  */
-export type PluginManifest = { name: string; version?: string; api: number; protobase: string; entry: string; css: string }
+export type PluginManifest = { name: string; version?: string; api: number; protobase: string; entry: string; css: string; fields?: Record<string, string[]> }
 
 type UiPackageJson = PackageJson & { protobase?: { pluginApi?: number }; exports?: Record<string, unknown>; engines?: Record<string, string> }
 
@@ -31,7 +32,7 @@ const tailwindDir = path.dirname(createRequire(path.join(uiPackageDir, 'package.
 /**
  * What the plugin is built for, from the @protobase/ui installed for it (else for the project it extends): its plugin
  * API, and Protobase from its version on, unless the plugin's package.json names other versions in `engines.protobase`.
- * Also that version's theme, which the plugin's stylesheet draws with.
+ * Also that version's theme, which the plugin's stylesheet draws with, and its folder.
  */
 const pluginTarget = async (pluginDir: string, own: UiPackageJson, projectDir: string | undefined) => {
   const uiDir = findPackageDirSync('@protobase/ui', pluginDir) ?? (projectDir === undefined ? undefined : findPackageDirSync('@protobase/ui', projectDir))
@@ -44,7 +45,7 @@ const pluginTarget = async (pluginDir: string, own: UiPackageJson, projectDir: s
   const fits = inRange(ui.version ?? '', protobase)
   if (fits === undefined) throw new Error(`engines.protobase "${protobase}" is not a range the app reads; write comparators such as >=0.12.0 <1.0.0`)
   if (!fits) throw new Error(`engines.protobase "${protobase}" leaves out @protobase/ui ${ui.version}, which the plugin is built with`)
-  return { api, protobase, theme: path.join(uiDir, theme) }
+  return { api, protobase, theme: path.join(uiDir, theme), uiDir }
 }
 
 // A plugin imports the shared modules by name and the app supplies them; anything else of theirs would be a second copy.
@@ -112,7 +113,8 @@ export type PluginBuildInput = {
 
 /**
  * Builds the plugin in `pluginDir` into `outDir`: its protobase.ui.tsx as an ES module (and its chunks) that imports the
- * shared modules by name, its stylesheet, and plugin.json naming both. The app loads it from the plugin.json's URL.
+ * shared modules by name, its stylesheet, and plugin.json naming both and the field types it registers. The app loads
+ * it from the plugin.json's URL.
  */
 export const buildPlugin = async ({ pluginDir, outDir, name, projectDir, ignore = [] }: PluginBuildInput): Promise<PluginManifest> => {
   const entry = path.join(pluginDir, pluginEntryFile)
@@ -161,7 +163,16 @@ export const buildPlugin = async ({ pluginDir, outDir, name, projectDir, ignore 
   const module = output.find((file) => file.type === 'chunk' && file.isEntry && file.facadeModuleId === entry)
   const css = output.find((file) => file.type === 'asset' && file.fileName.endsWith('.css'))
   if (!module || !css) throw new Error('The plugin build wrote no module or no stylesheet')
-  const manifest: PluginManifest = { name: pluginName, ...(own.version && { version: own.version }), api: target.api, protobase: target.protobase, entry: module.fileName, css: css.fileName }
+  const fields = await pluginFieldTypes({ pluginDir, entry, uiDir: target.uiDir, projectDir })
+  const manifest: PluginManifest = {
+    name: pluginName,
+    ...(own.version && { version: own.version }),
+    api: target.api,
+    protobase: target.protobase,
+    entry: module.fileName,
+    css: css.fileName,
+    ...(Object.keys(fields).length > 0 && { fields }),
+  }
   await writeFile(path.join(outDir, pluginManifestFile), `${JSON.stringify(manifest, null, 2)}\n`)
   return manifest
 }

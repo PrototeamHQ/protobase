@@ -40,14 +40,15 @@ const slot = (slots: ComponentType[]): ComponentType | undefined => {
 }
 
 /**
- * One UI config from several, each after the ones it `extends`, the last being the app's own: components and action
- * handlers are all kept, and one name defined by two configs is an error naming both; every shell slot is drawn,
- * the extended configs' first.
+ * One UI config from several, each after the ones it `extends`, the last being the app's own: components, action
+ * handlers and field types are all kept, and one name defined by two configs is an error naming both; every shell slot
+ * is drawn, the extended configs' first.
  */
 export const mergeUi = (...uis: ProjectUi[]): ProjectUi => {
   const named = uis.flatMap((ui, index) => flatten(ui, ui.name ?? `UI config ${index + 1}`))
   const components = union('The component', named, (ui) => ui.components)
   const actions = union('The action handler', named, (ui) => ui.actions)
+  const fields = union('The field type', named, (ui) => ui.fields)
   const actionSlot = slot(named.flatMap(({ ui }) => (ui.shell?.actions ? [ui.shell.actions] : [])))
   const rightPanel = slot(named.flatMap(({ ui }) => (ui.shell?.rightPanel ? [ui.shell.rightPanel] : [])))
   const name = uis.at(-1)?.name
@@ -55,6 +56,7 @@ export const mergeUi = (...uis: ProjectUi[]): ProjectUi => {
     ...(name && { name }),
     components,
     actions,
+    ...(Object.keys(fields).length > 0 && { fields }),
     ...((actionSlot || rightPanel) && { shell: { ...(actionSlot && { actions: actionSlot }), ...(rightPanel && { rightPanel }) } }),
   }
 }

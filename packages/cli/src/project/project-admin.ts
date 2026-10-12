@@ -4,8 +4,8 @@ import type { BundleUi } from '../serve/bundle-ui'
 
 /**
  * The admin API of a project over `db`, as `dev`, `serve` and `worker` build it: its config module's resources, views,
- * pages and subscriptions, and the rest of its config; served from a bundle, the plugins it carries. `jobs` are the
- * project's own and the delivery of its events.
+ * pages and subscriptions, and the rest of its config; served from a bundle, the plugins it carries and their field
+ * types. `jobs` are the project's own and the delivery of its events.
  */
 export const projectAdmin = (project: ProjectConfig & { authenticate: Authenticator }, config: Record<string, unknown>, db: Db, ui?: BundleUi) => {
   const { resources, views, pages, userMenu, bottomBars, subscriptions } = configExports(config)
@@ -25,7 +25,7 @@ export const projectAdmin = (project: ProjectConfig & { authenticate: Authentica
     ...(project.webhooks && { webhooks: project.webhooks }),
     jobs: own,
     subscriptions,
-    ...(ui && { bundlePlugins: ui.plugins }),
+    ...(ui && { bundlePlugins: ui.plugins, fieldTypes: ui.fieldTypes }),
     options: { onUnhandledError: (error) => console.error(error), ...project.options },
   })
   return { admin, jobs: [...own, ...admin.jobs] }

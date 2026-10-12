@@ -23,6 +23,12 @@ describe('checkViews', () => {
     expect(() => checkViews(registry, [stale])).toThrow('value labels of "reference" need an enum field')
   })
 
+  it("refuses a field type of the app's plugins on a field of a storage type it does not show, and trusts unknown ones", () => {
+    const shown = view<typeof payments>('payments').fields((r) => ({ reference: r.reference.widget('iban', { mask: true }), method: r.method.widget('chips') })).toModel()
+    expect(() => checkViews(registry, [shown], [], { iban: ['text'] })).not.toThrow()
+    expect(() => checkViews(registry, [shown], [], { iban: ['text'], chips: ['text', 'integer'] })).toThrow('View "payments": field "method" is enum, and its field type "chips" shows only text, integer')
+  })
+
   it('wants links to go to addresses the app has, or out of it', () => {
     const linked = (to: AppAddress) => view<typeof payments>('payments').actions((a) => [a.link('go', { label: 'Go', to })]).toModel()
     expect(() => checkViews(registry, [linked({ kind: 'list', resource: 'payments', filter: 'method = "{method}"' })])).not.toThrow()

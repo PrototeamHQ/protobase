@@ -13,7 +13,7 @@ export const buildColumns = (specs: ColumnSpec[]) =>
         id: spec.id,
         header: spec.header,
         enableSorting: spec.sortable ?? false,
-        cell: (context) => renderCell(spec, context.getValue()),
+        cell: (context) => (spec.render ? spec.render(context.row.original) : renderCell(spec, context.getValue())),
       }),
     ),
   )

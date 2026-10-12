@@ -13,6 +13,7 @@ export type {
   ListQuery,
   FieldFormat,
   FieldViewModel,
+  FieldWidgetModel,
   ListModel,
   ListDisplayModel,
   JsonValue,

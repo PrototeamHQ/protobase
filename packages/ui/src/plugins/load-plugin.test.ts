@@ -1,6 +1,7 @@
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
+import type { FieldModel } from '@protobase/schema'
 import { definePlugin } from '../app/pages/project-ui'
 import { loadPlugin, type PluginLoader } from './load-plugin'
 import { usePlugin } from './plugin-context'
@@ -44,6 +45,20 @@ describe('loadPlugin', () => {
     expect(load.plugin).toEqual({ name: 'hello', version: '1.2.0', url: 'https://cdn.example.com/hello/plugin.json', settings: { greeting: 'hi' } })
     expect(Object.keys(load.ui.actions!)).toEqual(['wave'])
     expect(renderToStaticMarkup(createElement(load.ui.components!.Greeting!))).toBe('<p>hello 1.2.0 hi https://cdn.example.com/hello/plugin.json</p>')
+  })
+
+  it('draws the parts of its field types inside it too, keeping the storage types each shows', async () => {
+    const Stars = ({ value }: { value: number | null }) => createElement('p', null, `${usePlugin().name}: ${value} stars`)
+    const { loader } = memoryLoader(
+      { 'https://cdn.example.com/hello/plugin.json': manifest },
+      { 'https://cdn.example.com/hello/assets/index-abc.js': { default: definePlugin({ fields: { rating: { of: ['integer'], display: Stars } } }) } },
+    )
+    const load = await loadPlugin({ url: 'https://cdn.example.com/hello/plugin.json' }, loader, base, host)
+    if (load.kind !== 'loaded') throw new Error(load.reason)
+    const rating = load.ui.fields!.rating!
+    expect(rating.of).toEqual(['integer'])
+    expect(rating).not.toHaveProperty('editor')
+    expect(renderToStaticMarkup(createElement(rating.display, { value: 4, props: {}, field: { name: 'score', type: 'integer' } as FieldModel }))).toBe('<p>hello: 4 stars</p>')
   })
 
   it('finds a plugin.json named by a path on the app\'s own origin', async () => {

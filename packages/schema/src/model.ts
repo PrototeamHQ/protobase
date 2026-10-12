@@ -101,7 +101,15 @@ export type FieldViewModel = {
   decimals?: number
   /** What an enum value reads as wherever it is shown; a value without one reads as itself in words (`enumLabel`). */
   valueLabels?: Record<string, string>
+  /**
+   * The field type a plugin registers (`definePlugin({ fields })`) that shows and edits this field, with its props;
+   * without that plugin, or for a storage type it does not show, the field shows as it would without it.
+   */
+  widget?: FieldWidgetModel
 }
+
+/** A field type by the name a plugin registers it under, and the plain data it is given. */
+export type FieldWidgetModel = { name: string; props?: Record<string, JsonValue> }
 
 /**
  * A way to show a list besides its table: a card per record, or a project component (`custom`) drawing the rows the

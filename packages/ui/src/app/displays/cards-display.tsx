@@ -5,6 +5,9 @@ import { humanize } from '../../live/naming'
 import { Badge } from '../../primitives/badge'
 import { Skeleton } from '../../primitives/skeleton'
 import { AppLink } from '../use-app-address'
+import { shownWidget } from '../field-types/shown-widget'
+import { WidgetPart } from '../field-types/widget-part'
+import { useProjectUi } from '../pages/project-ui'
 import type { ListDisplay } from './display-context'
 import { DisplayFooter, DisplayState } from './display-frame'
 import { cardFields, type ListDisplayRow } from './list-displays'
@@ -22,6 +25,13 @@ export const CardsDisplay = ({ model, view, display, list }: CardsProps) => {
     if (!field) return ''
     return row.labels[name] ?? displayValue(field, row.record[name], view?.fields[name])
   }
+  // A field the view shows with a field type draws its display
+  const { fields: fieldTypes } = useProjectUi()
+  const shownValue = (row: ListDisplayRow, name: string) => {
+    const field = model.fields[name]
+    const shown = field && shownWidget(fieldTypes, field, view?.fields[name])
+    return shown ? <WidgetPart shown={shown} part="display" field={field} value={row.record[name]} fallback={text(row, name)} /> : text(row, name)
+  }
   const plural = (view?.names?.plural ?? humanize(model.name)).toLowerCase()
 
   return (
@@ -36,16 +46,16 @@ export const CardsDisplay = ({ model, view, display, list }: CardsProps) => {
                 className="flex h-full flex-col gap-1.5 rounded-lg border border-border bg-background p-3 text-[13px] hover:border-border-strong hover:bg-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
               >
                 <span className="flex items-start justify-between gap-2">
-                  <span className="min-w-0 truncate font-medium">{text(row, title)}</span>
+                  <span className="min-w-0 truncate font-medium">{shownValue(row, title)}</span>
                   {badge !== undefined && status !== null && status !== undefined && <Badge tone={toneFor(String(status))}>{text(row, badge)}</Badge>}
                 </span>
-                {subtitle !== undefined && <span className="truncate text-muted-foreground">{text(row, subtitle)}</span>}
+                {subtitle !== undefined && <span className="truncate text-muted-foreground">{shownValue(row, subtitle)}</span>}
                 {meta.length > 0 && (
                   <dl className="mt-auto flex flex-wrap gap-x-3 gap-y-0.5 pt-1 text-xs text-muted-foreground">
                     {meta.map((name) => (
                       <div key={name} className="flex gap-1">
                         <dt className="sr-only">{label(name)}</dt>
-                        <dd className="tabular-nums">{text(row, name)}</dd>
+                        <dd className="tabular-nums">{shownValue(row, name)}</dd>
                       </div>
                     ))}
                   </dl>

@@ -29,6 +29,8 @@ import { ListSearch } from './list-search'
 import { Notice, useAdminMeta, usePermissions } from './meta-gate'
 import { can, rowAllows } from './permissions'
 import { useAppAddress, type ListAddress } from './use-app-address'
+import { withFieldTypeCells } from './field-types/field-type-cells'
+import { useProjectUi } from './pages/project-ui'
 
 const where = createWhere()
 const searchText = (extras: FilterExpr[]) => extras.find((clause) => clause.kind === 'search')
@@ -46,7 +48,8 @@ const LoadedList = ({ model, address }: { model: ResourceModel; address: ListAdd
   const resource = model.name
   const view = meta.views[resource]
   const fields = useMemo(() => widgetFields(view, model), [view, model])
-  const columns = useMemo(() => columnsFromModel(model, view), [model, view])
+  const { fields: fieldTypes } = useProjectUi()
+  const columns = useMemo(() => withFieldTypeCells(columnsFromModel(model, view), model, view, fieldTypes), [model, view, fieldTypes])
 
   const filterText = address.filter
   const parsed = useMemo(() => textToState(fields, filterText), [fields, filterText])

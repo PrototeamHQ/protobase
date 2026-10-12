@@ -7,7 +7,9 @@ import { RelationPicker } from './relation-picker'
 import { SensitiveField } from './sensitive-field'
 import { FileField } from './file-field'
 import { displayValue } from '../live/display-value'
-import { isEditable } from '../live/field-values'
+import { fromDraft, isEditable, toFieldDraft } from '../live/field-values'
+import { useShownWidget } from './field-types/shown-widget'
+import { WidgetPart } from './field-types/widget-part'
 
 export type FieldEditorProps = {
   field: FieldModel
@@ -35,7 +37,7 @@ export type FieldEditorProps = {
 
 const numeric = new Set(['integer', 'bigint', 'decimal'])
 
-export const FieldEditor = ({ field, hints, value, stored, relationLabel, relationTo, relationPicker, invalid, locked, placeholder, reveal, resource, onChange }: FieldEditorProps) => {
+const BuiltInEditor = ({ field, hints, value, stored, relationLabel, relationTo, relationPicker, invalid, locked, placeholder, reveal, resource, onChange }: FieldEditorProps) => {
   if (field.type === 'file') return <FileField field={field} hints={hints} resource={resource ?? ''} value={value} locked={locked || !resource} invalid={invalid} onChange={onChange} />
   if (field.sensitive) return <SensitiveField field={field} hints={hints} value={value} reveal={reveal} locked={locked || field.readOnly} invalid={invalid} placeholder={placeholder} onChange={onChange} />
   if (field.type === 'relation' && relationPicker && !field.readOnly) {
@@ -74,4 +76,19 @@ export const FieldEditor = ({ field, hints, value, stored, relationLabel, relati
       onChange={(event) => onChange(event.target.value)}
     />
   )
+}
+
+/**
+ * A field on a form: its field type's editor when the view chooses one that has an editor and the field may change,
+ * its display when it may not, and the built-in input or value otherwise, and when the field type throws.
+ */
+export const FieldEditor = (props: FieldEditorProps) => {
+  const { field, hints, value, stored, invalid, locked, onChange } = props
+  const shown = useShownWidget(field, hints)
+  const builtIn = <BuiltInEditor {...props} />
+  if (!shown) return builtIn
+  if (locked || !isEditable(field)) return <WidgetPart shown={shown} part="display" field={field} value={stored} fallback={builtIn} />
+  // A file is uploaded and a relation chosen as the app does it; their field types only show them.
+  if (field.type === 'file' || field.type === 'relation') return builtIn
+  return <WidgetPart shown={shown} part="editor" field={field} value={fromDraft(field, value)} invalid={Boolean(invalid)} onChange={(next) => onChange(toFieldDraft(field, next))} fallback={builtIn} />
 }

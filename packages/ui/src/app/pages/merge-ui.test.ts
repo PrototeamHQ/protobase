@@ -24,6 +24,14 @@ describe('mergeUi', () => {
     expect(() => mergeUi(defineUi({ extends: [defineUi({ components: { A: text('a') } })], components: { A: text('b') } }))).toThrow('The component "A" is defined twice, by UI config 1 extends[0] and by UI config 1')
   })
 
+  it('keeps the field types of every config, and refuses one two configs define', () => {
+    const rating = { of: ['integer' as const], display: text('stars') }
+    const slug = { of: ['text' as const], display: text('slug') }
+    expect(mergeUi(defineUi({ extends: [defineUi({ fields: { rating } })], fields: { slug } })).fields).toEqual({ rating, slug })
+    expect(mergeUi(defineUi({ components: {} }))).not.toHaveProperty('fields')
+    expect(() => mergeUi(defineUi({ name: 'a', fields: { rating } }), defineUi({ name: 'b', fields: { rating: slug } }))).toThrow('The field type "rating" is defined twice, by a and by b; rename one of them')
+  })
+
   it('extends a whole protobase.ui.tsx module, its components exported by name included', () => {
     const Board = text('board')
     const merged = mergeUi(defineUi({ name: 'app', extends: [{ Board, default: cloud }] }))

@@ -1,6 +1,7 @@
 import { createContext, useContext, type ComponentType } from 'react'
 import type { Client } from '@protobase/client'
 import type { AppAddress } from '@protobase/schema'
+import type { FieldWidget } from '../field-types/field-widget'
 
 /** What a named action's handler gets: the record it runs on (inside a RecordCard or CardRow), the API, and a way to move. */
 export type ActionContext = {
@@ -18,15 +19,18 @@ export type ActionHandler = (context: ActionContext) => void | Promise<void>
 
 /**
  * The project's own React code for composed pages: custom components by the name their layout declares
- * (`component('UsageChart')`) or a widget part names, handlers for named actions that have no built-in behaviour, and
- * the shell's slots. `extends` lists UI configs merged in before it (see `mergeUi`), or whole `protobase.ui.tsx` modules
- * (`import * as tasksUi from '...'`), their exported components included; `name` names it in their errors.
+ * (`component('UsageChart')`) or a widget part names, handlers for named actions that have no built-in behaviour,
+ * field types by the name a view's `.widget(name)` chooses, and the shell's slots. `extends` lists UI configs merged in
+ * before it (see `mergeUi`), or whole `protobase.ui.tsx` modules (`import * as tasksUi from '...'`), their exported
+ * components included; `name` names it in their errors.
  */
 export type ProjectUi = {
   name?: string
   extends?: Array<ProjectUi | UiModule>
   components?: Record<string, ComponentType<any>>
   actions?: Record<string, ActionHandler>
+  /** Field types by name, each with the storage types it shows and its components (see `FieldWidget`). */
+  fields?: Record<string, FieldWidget>
   /** Rendered in the shell on every page: `actions` at the end of the top bar, `rightPanel` beside the page. */
   shell?: { actions?: ComponentType; rightPanel?: ComponentType }
 }
@@ -38,9 +42,9 @@ export type UiModule = { readonly default?: ProjectUi; readonly [name: string]: 
 export const defineUi = (ui: ProjectUi) => ui
 
 /**
- * Typed identity, for `export default definePlugin({ name, components, actions, shell })` in a plugin's
- * `protobase.ui.tsx`: a plugin is a UI config the app loads at runtime instead of building it in, its components
- * exported by name as in a project's.
+ * Typed identity, for `export default definePlugin({ name, components, actions, fields, shell })` in a plugin's
+ * `protobase.ui.tsx`: a plugin is a UI config the app loads at runtime, its components exported by name as in a
+ * project's. A project's own protobase.ui.tsx is one too, which `protobase build` builds as the plugin `app`.
  */
 export const definePlugin = (plugin: ProjectUi) => plugin
 
