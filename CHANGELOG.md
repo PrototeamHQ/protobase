@@ -2,6 +2,12 @@
 
 Every release of Protobase, cut by the release workflow from the commits since the last one (see the [versioning page](https://docs.protobase.net/reference/versioning/)).
 
+## [0.12.1](https://github.com/PrototeamHQ/protobase/compare/v0.12.0...v0.12.1) (2026-10-12)
+
+### Bug Fixes
+
+* **cli:** a plugin's field types resolve React with Node's resolution, so installed projects build ([dc1225d](https://github.com/PrototeamHQ/protobase/commit/dc1225d00989cc2762a3d115467cde0d90ff397d))
+
 ## [0.12.0](https://github.com/PrototeamHQ/protobase/compare/v0.11.1...v0.12.0) (2026-10-12)
 
 ### ⚠ BREAKING CHANGES
