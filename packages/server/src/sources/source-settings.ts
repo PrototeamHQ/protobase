@@ -33,7 +33,11 @@ const checkedSource = (value: unknown, where: string): SourceOption => {
     if (problem) throw new Error(`${where} lists the resource "${name}", which ${problem}`)
   }
   if (roles !== undefined && !isStringList(roles)) throw new Error(`${where} has roles that are not a list of role names`)
-  return { url: checkedUrl(url.trim(), `${where}'s url`), label: label.trim(), resources, ...(roles && { roles }) }
+  const checked = checkedUrl(url.trim(), `${where}'s url`)
+  // The app finds the source's /meta beside its resources API, one level up, so the URL names that API's path.
+  const { pathname, search, hash } = new URL(checked)
+  if (pathname === '/' || search || hash) throw new Error(`${where}'s url is "${checked}"; it is the other API's resources API, a path and nothing after it, such as https://other.example.com/api/v1`)
+  return { url: checked, label: label.trim(), resources, ...(roles && { roles }) }
 }
 
 const listedSources = (env: Record<string, string | undefined>) => {

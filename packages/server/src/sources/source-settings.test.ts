@@ -28,6 +28,8 @@ describe('sourceOptions', () => {
     expect(() => sourceOptions(undefined, { PROTOBASE_SOURCES: '["desk"]' })).toThrow('PROTOBASE_SOURCES[0] is not an object')
     expect(() => sourceOptions([{ ...desk, url: 'desk.example.com' }], {})).toThrow("options.sources[0]'s url is not a URL")
     expect(() => sourceOptions([{ ...desk, url: 'ftp://desk.example.com' }], {})).toThrow('must start with https:// or http://')
+    expect(() => sourceOptions([{ ...desk, url: 'https://desk.example.com/' }], {})).toThrow(`options.sources[0]'s url is "https://desk.example.com"; it is the other API's resources API`)
+    expect(() => sourceOptions([{ ...desk, url: 'https://desk.example.com/api/v1?x=1' }], {})).toThrow('a path and nothing after it')
     expect(() => sourceOptions([{ ...desk, label: ' ' }], {})).toThrow('options.sources[0] needs a label')
     expect(() => sourceOptions([{ ...desk, resources: [] }], {})).toThrow('options.sources[0] needs resources')
     expect(() => sourceOptions([{ ...desk, resources: ['tickets/notes'] }], {})).toThrow('lists the resource "tickets/notes", which holds a slash')
