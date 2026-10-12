@@ -1,6 +1,6 @@
 ---
 title: CLI
-description: Every protobase command, from scaffold, doctor, dev, build, build-serve and serve to users, organizations and token.
+description: Every protobase command, from scaffold, doctor, dev, build, build-plugin, build-serve and serve to users, organizations and token.
 ---
 
 The `protobase` command comes with `@protobase/cli`. Install it in a project next to the packages its config imports:
@@ -173,7 +173,7 @@ By default the bundle runs on Node and on Bun. `--bun` makes it a bundle for Bun
 
 ### Extensions
 
-`--extend <dir>` (repeatable) builds an extension into the bundle without touching the project's files: a folder with a `protobase.config.ts`, a `protobase.ui.tsx` or both, merged before the project's own as if the project [extended](#extending-a-config) them, in the order given. A host adds its own assistant tools and widgets to every app it builds this way.
+`--extend <dir>` (repeatable) builds an extension into the bundle without touching the project's files (to add React code to apps without building it into them, write a [plugin](/reference/plugins/) instead): a folder with a `protobase.config.ts`, a `protobase.ui.tsx` or both, merged before the project's own as if the project [extended](#extending-a-config) them, in the order given. A host adds its own assistant tools and widgets to every app it builds this way.
 
 - The extension's imports of `@protobase/*`, `react` and `react-dom` resolve from the project, so it runs on the app's own versions; everything else it imports resolves from its own folder and is bundled. Tailwind scans its folder too, so its classes are in the app's stylesheet.
 - A component or action handler that the extension and the project both define fails the build, naming both. To find them, the build loads the merged UI configs once in Node: only browser code, which needs no secrets. The server config still does not run at build time, so a tool both define fails when the bundle is served, naming both.
@@ -206,6 +206,8 @@ By default the bundle runs on Node and on Bun. `--bun` makes it a bundle for Bun
 ### The UI
 
 `public/` is a production build of the admin app (`@protobase/ui`'s `src/app`): `index.html`, which loads `/assets/index-<hash>.js` and `.css`, and nothing for development (no Vite client, no React development build). It calls the API on its own origin under `/api`, so the same bundle works under any hostname. The only project code built in is `protobase.ui.tsx` from the project root, when there is one: the project's [custom components and action handlers](/reference/custom-components/), and the `protobase.ui.tsx` of each [extension](#extensions). Nothing host-specific is: the resources, views, pages and roles come from `/api/meta` and sign-in from `/api/auth` at runtime.
+
+The modules the app shares with [plugins](/reference/plugins/), `react`, `react/jsx-runtime`, `react-dom` and `@protobase/ui`, are entries of their own, `/assets/shared-<name>-<hash>.js`, each exporting every name of its module. `index.html` maps the four names to them with an import map, ahead of every script, so a plugin's imports of them run on the app's copies. They load only when a plugin imports them.
 
 ### The config module
 
@@ -272,6 +274,28 @@ docker run --rm -p 8787:8787 -e DATABASE_URL -e BETTER_AUTH_SECRET \
   -v "$PWD/dist:/app:ro" -v "$PWD/protobase-serve.js:/opt/protobase/protobase-serve.js:ro" \
   protobase-run --no-install /opt/protobase/protobase-serve.js /app/protobase.config.js
 ```
+
+## `build-plugin`
+
+```sh
+protobase build-plugin [dir] [--out <dir>] [--name <name>]
+```
+
+Builds the [plugin](/reference/plugins/) in `dir` (default: the current folder), whose entry is its `protobase.ui.tsx`, into `--out` (default: `dir/dist`):
+
+```
+dist/
+  plugin.json                 what the app reads first
+  assets/index-<hash>.js      the plugin's module, and its chunks beside it
+  assets/styles-<hash>.css    the utilities its files use
+```
+
+- The output folder is emptied first, so it must not be the plugin's folder or hold it.
+- The module is `protobase.ui.tsx` with everything it imports bundled, except the four modules the app shares (`react`, `react/jsx-runtime`, `react-dom`, `@protobase/ui`), which stay imports by those names. Any other module of those packages, such as `react-dom/client`, fails the build. React's production build and JSX runtime are used, whatever `NODE_ENV` says, and every export of `protobase.ui.tsx` is kept.
+- The stylesheet is Tailwind's utilities for the classes in the plugin's folder: no reset, no theme values. Each utility reads the theme of the app that loads it, with Tailwind's default as the fallback (`text-sm` is `font-size: var(--text-sm, 0.875rem)`).
+- `plugin.json` names the plugin (`--name`, else its `package.json`'s `name`, else its folder's), its own `version`, the plugin API (`api`) and the Protobase versions (`protobase`) it is built for, and the module (`entry`) and stylesheet (`css`), relative to it. Both versions come from the `@protobase/ui` installed for the plugin, which the build needs: `api` is its plugin API, and `protobase` is `>=` its version unless the plugin's `package.json` names a range in `engines.protobase` (see [Plugins](/reference/plugins/#versions)).
+
+Nothing of the plugin runs at build time. The app loads it from wherever `plugin.json` is served, listed in `PROTOBASE_PLUGINS` or `options.plugins` (see [loading](/reference/plugins/#loading)).
 
 ## `build-serve`
 

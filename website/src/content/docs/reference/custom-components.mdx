@@ -13,7 +13,7 @@ Layouts are data; a project's React code lives in one module the admin bundles w
 
 <Code code={ordersPerDay} lang="tsx" title="examples/erp/components/orders-per-day.tsx" />
 
-`protobase dev` serves it with hot reload, and `protobase build` builds it into the bundle's `public/` with the rest of the admin. It is the only project code in the browser, so keep secrets out of it. A project without the file gets an empty one.
+`protobase dev` serves it with hot reload, and `protobase build` builds it into the bundle's `public/` with the rest of the admin. It is the only project code built into the browser bundle, so keep secrets out of it. A project without the file gets an empty one. The same exports can come from a [plugin](/reference/plugins/) instead, which the app loads at runtime and which keeps working when the app moves to a newer release.
 
 ## Components
 
@@ -35,7 +35,7 @@ The element stays data, `{ type: 'OrdersPerDay', props: { days: 30 }, children: 
 - the hooks of `@protobase/ui` (`useList`, `useRecord`, `useSeries`, `useFacets`, `useHistogram`, `useClient`, ...) read the API with the user's token, under the same access rules as everything else;
 - `useLayoutRecord()` gives the record around it in a `RecordCard` or `CardRow` (`{ model, record, key, etag, permissions }`), and `undefined` elsewhere.
 
-`protobase build` fails when the config declares a component that `protobase.ui.tsx` does not export, naming it; while you work, `protobase dev` draws a warning in its place. The object form, `defineUi({ components: { OrdersPerDay } })`, still works, and a name given both ways must be the same component.
+`protobase build` fails when the config declares a component that `protobase.ui.tsx` does not export, naming it; while you work, `protobase dev` draws a warning in its place. A component a plugin provides is declared with the plugin's name, `component('DraftOrders', { plugin: 'sales-tools' })`, and the build does not look for it in `protobase.ui.tsx`. A component that throws while drawing shows a warning in its own place, not a blank app. The object form, `defineUi({ components: { OrdersPerDay } })`, still works, and a name given both ways must be the same component.
 
 ### Fields and resources in props
 

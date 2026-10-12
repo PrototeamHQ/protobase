@@ -67,6 +67,12 @@ error: dist/protobase.bundle.json: the bundle was built by Protobase 0.2.0 and t
 
 Rebuild the bundle with the runtime's version of Protobase, or upgrade the runtime to one that serves the bundle. The rule is `bundleVersionProblem` in `packages/cli/src/version/compatibility.ts`.
 
+## Plugins
+
+[Plugins](/reference/plugins/) are versioned by a plugin API of their own, not by the bundle's rule above: `@protobase/ui`'s `pluginApi`, 1 so far. A plugin's `plugin.json` names the plugin API it is built for and a range of Protobase versions, from the `@protobase/ui` it is built with on. An app loads a plugin of its own plugin API whose range holds its version, and turns off any other, telling its admins why.
+
+Releases keep the plugin API, below 1.0 too, where a minor version may change the config: they add exports to `@protobase/ui`, but remove or change one, add or remove a module the app shares with plugins, or move to a new major version of React only with a new plugin API. A test pins every export of `@protobase/ui` (`packages/ui/src/plugins/plugin-api.exports.json`) and fails when one goes away while `pluginApi` stays the same.
+
 ## Runtime updates
 
 An app whose host can update its runtime, such as a hosting platform, can show admins an **Update** button in the top bar. `PROTOBASE_RUNTIME_URL` (or `createAdmin`'s `options.runtime.url`) names the host's endpoint, and `/api/meta` passes it on as `runtime: { url }` to callers with the `admin` role only. Without it, or for anyone else, the app shows nothing and asks nothing.
