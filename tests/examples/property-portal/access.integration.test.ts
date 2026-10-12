@@ -93,16 +93,28 @@ describe.skipIf(!seeded)('a visitor', () => {
   })
 
   it('filters and sorts what it reads, as on the cards', async () => {
-    const { status, json } = await call('visitor', `/listings?filter=${encodeURIComponent('offer_type = "rent" AND bedrooms >= 2')}&order_by=price&page_size=5`)
+    const { status, json } = await call('visitor', `/listings?filter=${encodeURIComponent('for_rent = true AND bedrooms >= 2')}&order_by=rent_price&page_size=5`)
     expect(status).toBe(200)
-    expect(json.items.every((item: { offer_type: string; bedrooms: number }) => item.offer_type === 'rent' && item.bedrooms >= 2)).toBe(true)
-    expect(json.items.map((item: { price: string }) => Number(item.price))).toEqual(json.items.map((item: { price: string }) => Number(item.price)).sort((a: number, b: number) => a - b))
+    expect(json.items.every((item: { for_rent: boolean; rent_price: string | null; bedrooms: number }) => item.for_rent && item.rent_price !== null && item.bedrooms >= 2)).toBe(true)
+    const rents = json.items.map((item: { rent_price: string }) => Number(item.rent_price))
+    expect(rents).toEqual([...rents].sort((a: number, b: number) => a - b))
+  })
+
+  it('finds a home offered both ways under sale and under rent alike', async () => {
+    const offered = async (filter: string) => (await call('visitor', `/listings?filter=${encodeURIComponent(filter)}&page_size=500`)).json.items.map((item: { id: string }) => String(item.id))
+    const both = await offered('for_sale = true AND for_rent = true')
+    expect(both.length).toBeGreaterThan(0)
+    const forSale = await offered('for_sale = true')
+    const forRent = await offered('for_rent = true')
+    const either = await offered('for_sale = true OR for_rent = true')
+    expect(both.every((id: string) => forSale.includes(id) && forRent.includes(id))).toBe(true)
+    expect(either).toHaveLength(forSale.length + forRent.length - both.length)
   })
 
   it('finds nothing of the members, and is asked to sign in to change a listing', async () => {
     for (const [resource] of ownTables) expect((await call('visitor', `/${resource}`)).status).toBe(404)
     expect((await call('visitor', '/favorites', { method: 'POST', body: { listing_id: '1' } })).status).toBe(404)
-    expect((await call('visitor', '/listings/1', { method: 'PATCH', body: { price: '1.00' } })).status).toBe(401)
+    expect((await call('visitor', '/listings/1', { method: 'PATCH', body: { rent_price: '1.00' } })).status).toBe(401)
   })
 
   it('gets the admin app\'s meta of what it reads: the catalogue, read-only, and the home page without the member parts', async () => {

@@ -32,11 +32,15 @@ describe.skipIf(!seeded)('the seeded property portal', () => {
     }
   })
 
-  it('keeps the rules: computed prices, alerts on published listings only, demo accounts that can sign in', async () => {
+  it('keeps the rules: computed prices and offers, alerts on published listings only, demo accounts that can sign in', async () => {
     const sql = connect({ max: 1 })
     try {
-      const [wrongPrice] = await sql`select count(*)::int as n from market.listings where price_per_m2 <> round(price / living_area, 2)`
+      const [wrongPrice] = await sql`select count(*)::int as n from market.listings where price_per_m2 is distinct from round(purchase_price / living_area, 2)`
       expect(wrongPrice!.n).toBe(0)
+      const offers = await sql`select for_sale, for_rent, count(*)::int as n from market.listings group by 1, 2 order by 1, 2`
+      expect(offers.map((row) => [row.for_sale, row.for_rent])).toEqual([[false, true], [true, false], [true, true]])
+      const [wrongOffer] = await sql`select count(*)::int as n from market.listings where for_sale <> (purchase_price is not null) or for_rent <> (rent_price is not null)`
+      expect(wrongOffer!.n).toBe(0)
       const world = await scaleOf(sql)
       const [onDrafts] = await sql`select count(*)::int as n from members.alerts a join market.listings l on l.id = a.listing_id where a.id <= ${world.alerts.length} and (l.published_at is null or a.matched_at < l.published_at)`
       expect(onDrafts!.n).toBe(0)

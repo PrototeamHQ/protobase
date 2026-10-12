@@ -15,27 +15,33 @@ export const matchListing = defineJob({
   run: async ({ listingId }, { db }) => {
     const row = await db
       .selectFrom('market.listings')
-      .select(['id', 'offer_type', 'property_type', 'status', 'place_id', 'latitude', 'longitude', 'price', 'living_area', 'rooms', 'energy_label'])
+      .select(['id', 'property_type', 'status', 'place_id', 'latitude', 'longitude', 'purchase_price', 'rent_price', 'living_area', 'rooms', 'energy_label'])
       .where('id', '=', listingId)
       .where('published_at', 'is not', null)
       .executeTakeFirst()
     // Gone or back to a draft since it was published: nothing to tell anyone.
     if (!row) return
-    const listing: ListingFacts = { ...row, latitude: Number(row.latitude), longitude: Number(row.longitude), price: Number(row.price) }
+    const listing: ListingFacts = { ...row, latitude: Number(row.latitude), longitude: Number(row.longitude), purchase_price: number(row.purchase_price), rent_price: number(row.rent_price) }
 
     const profiles = await db
       .selectFrom('members.search_profiles as p')
       .leftJoin('market.places as pl', 'pl.id', 'p.place_id')
-      .select(['p.id', 'p.user_id', 'p.alert_frequency', 'p.offer_type', 'p.place_id', 'p.radius_km', 'p.property_type', 'p.min_price', 'p.max_price', 'p.min_living_area', 'p.min_rooms', 'p.min_energy_label', 'pl.latitude', 'pl.longitude'])
+      .select([
+        'p.id', 'p.user_id', 'p.alert_frequency', 'p.for_sale', 'p.for_rent', 'p.place_id', 'p.radius_km', 'p.property_type', 'p.min_purchase_price', 'p.max_purchase_price',
+        'p.min_rent_price', 'p.max_rent_price', 'p.min_living_area', 'p.min_rooms', 'p.min_energy_label', 'pl.latitude', 'pl.longitude',
+      ])
       .where('p.active', '=', true)
-      .where('p.offer_type', '=', listing.offer_type)
+      // Those looking the way it is offered; a listing has a purchase price, a rent or both.
+      .where((eb) => eb.or([...(listing.purchase_price === null ? [] : [eb('p.for_sale', '=', true)]), ...(listing.rent_price === null ? [] : [eb('p.for_rent', '=', true)])]))
       .execute()
     const fitting = profiles.filter((profile) => {
       const criteria: ProfileCriteria = {
         ...profile,
         centre: profile.latitude === null ? null : { latitude: Number(profile.latitude), longitude: Number(profile.longitude) },
-        min_price: number(profile.min_price),
-        max_price: number(profile.max_price),
+        min_purchase_price: number(profile.min_purchase_price),
+        max_purchase_price: number(profile.max_purchase_price),
+        min_rent_price: number(profile.min_rent_price),
+        max_rent_price: number(profile.max_rent_price),
       }
       return matchesProfile(criteria, listing)
     })

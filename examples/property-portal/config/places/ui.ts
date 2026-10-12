@@ -16,6 +16,6 @@ export const placesView = view<typeof places>('places')
   .layout((r) => [
     l.section('Place', [r.name, r.region, r.country]),
     l.section('Centre', [r.latitude, r.longitude]),
-    l.related('Listings', { resource: 'listings', field: 'place_id', sort: 'published_at desc', columns: ['address', 'offer_type', 'property_type', 'price', 'status'] }),
+    l.related('Listings', { resource: 'listings', field: 'place_id', sort: 'published_at desc', columns: ['address', 'property_type', 'purchase_price', 'rent_price', 'status'] }),
     l.related('Agencies', { resource: 'agencies', field: 'place_id', columns: ['name', 'phone', 'website'] }),
   ])

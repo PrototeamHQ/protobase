@@ -18,7 +18,8 @@ const accountRows = async (world: World) => {
 function* profileRows(world: World) {
   for (const p of world.profiles) {
     yield row(
-      p.id, p.userId, p.name, p.offerType, p.placeId, p.radiusKm, p.propertyType, p.minPrice?.toFixed(2), p.maxPrice?.toFixed(2), p.minLivingArea, p.minRooms, p.minEnergyLabel,
+      p.id, p.userId, p.name, p.forSale, p.forRent, p.placeId, p.radiusKm, p.propertyType, p.minPurchasePrice?.toFixed(2), p.maxPurchasePrice?.toFixed(2),
+      p.minRentPrice?.toFixed(2), p.maxRentPrice?.toFixed(2), p.minLivingArea, p.minRooms, p.minEnergyLabel,
       p.alertFrequency, p.active, iso(p.createdAt), iso(p.createdAt),
     )
   }
@@ -41,7 +42,7 @@ export const seedMembers = async (sql: Db, world: World) => {
   await copyRows(sql, 'auth.account (id, account_id, provider_id, user_id, password, created_at, updated_at)', await accountRows(world))
   await copyRows(
     sql,
-    'members.search_profiles (id, user_id, name, offer_type, place_id, radius_km, property_type, min_price, max_price, min_living_area, min_rooms, min_energy_label, alert_frequency, active, created_at, updated_at)',
+    'members.search_profiles (id, user_id, name, for_sale, for_rent, place_id, radius_km, property_type, min_purchase_price, max_purchase_price, min_rent_price, max_rent_price, min_living_area, min_rooms, min_energy_label, alert_frequency, active, created_at, updated_at)',
     profileRows(world),
   )
   await copyRows(sql, 'members.alerts (user_id, search_profile_id, listing_id, matched_at, emailed_at, seen)', alertRows(world))

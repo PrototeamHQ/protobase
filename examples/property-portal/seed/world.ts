@@ -18,13 +18,16 @@ const scatterKm = 4
 const criteriaOf = (profile: SeededProfile): ProfileCriteria => {
   const place = profile.placeId === null ? undefined : places[profile.placeId - 1]!
   return {
-    offer_type: profile.offerType,
+    for_sale: profile.forSale,
+    for_rent: profile.forRent,
     place_id: profile.placeId,
     centre: place ? { latitude: place.latitude, longitude: place.longitude } : null,
     radius_km: profile.radiusKm,
     property_type: profile.propertyType,
-    min_price: profile.minPrice,
-    max_price: profile.maxPrice,
+    min_purchase_price: profile.minPurchasePrice,
+    max_purchase_price: profile.maxPurchasePrice,
+    min_rent_price: profile.minRentPrice,
+    max_rent_price: profile.maxRentPrice,
     min_living_area: profile.minLivingArea,
     min_rooms: profile.minRooms,
     min_energy_label: profile.minEnergyLabel,
@@ -58,8 +61,8 @@ const alertsFor = (profiles: SeededProfile[], listings: SeededListing[]) => {
     for (const listing of near(profile)) {
       if (listing.publishedAt! < profile.createdAt) continue
       const facts = {
-        offer_type: listing.offerType, property_type: listing.propertyType, status: 'available', place_id: listing.placeId, latitude: listing.latitude, longitude: listing.longitude,
-        price: listing.price, living_area: listing.livingArea, rooms: listing.rooms, energy_label: listing.energyLabel,
+        property_type: listing.propertyType, status: 'available', place_id: listing.placeId, latitude: listing.latitude, longitude: listing.longitude,
+        purchase_price: listing.purchasePrice, rent_price: listing.rentPrice, living_area: listing.livingArea, rooms: listing.rooms, energy_label: listing.energyLabel,
       }
       if (!matchesProfile(criteria, facts)) continue
       const matchedAt = listing.publishedAt! + int(rand, 1, 5) * 60_000
@@ -85,7 +88,7 @@ export const buildWorld = (scale: ScaleName) => {
   const profiles = demoProfiles(places)
   for (const [ordinal, user] of generated.entries()) profiles.push(...profilesOf(places, user, ordinal, profiles.length + 1))
 
-  // Favorites among the published listings of the offer a member's first profile looks for, in or near its place.
+  // Favorites among the published listings offered the way a member's first profile looks, in or near its place.
   const published = listings.filter((listing) => listing.publishedAt !== null)
   const publishedIn = new Map<number, SeededListing[]>()
   for (const listing of published) publishedIn.set(listing.placeId, [...(publishedIn.get(listing.placeId) ?? []), listing])
@@ -93,7 +96,7 @@ export const buildWorld = (scale: ScaleName) => {
     if (!profile) return []
     const centre = profile.placeId === null ? undefined : places[profile.placeId - 1]!
     const pool = centre ? places.flatMap((place, index) => (distanceKm(centre, place) <= Math.max(profile.radiusKm, 10) ? (publishedIn.get(index + 1) ?? []) : [])) : published
-    return pool.filter((listing) => listing.offerType === profile.offerType)
+    return pool.filter((listing) => (profile.forSale && listing.purchasePrice !== null) || (profile.forRent && listing.rentPrice !== null))
   }
   const saved = users.filter((user) => user.role === 'member').map((user, ordinal) => {
     const candidates = shown(profiles.find((profile) => profile.userId === user.id))

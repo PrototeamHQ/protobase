@@ -1,6 +1,6 @@
 # Property portal example
 
-A public portal of homes for sale and for rent in the Netherlands and Spain, in the style of Funda and Idealista. Visitors browse and filter the listings without signing in; members keep search profiles that alert them to new listings, save favorites and write notes, which nobody else sees. A real Postgres 18 database, seeded deterministically with Dutch and Spanish places, agencies and listings, published over the year up to 2026-10-12.
+A public portal of homes for sale and for rent in the Netherlands and Spain, in the style of Funda and Idealista. A Dutch home for sale is often let in the meantime (leegstandswet), so a listing can be offered both ways. Visitors browse and filter the listings without signing in; members keep search profiles that alert them to new listings, save favorites and write notes, which nobody else sees. A real Postgres 18 database, seeded deterministically with Dutch and Spanish places, agencies and listings, published over the year up to 2026-10-12.
 
 This is not the [real estate example](../real-estate/README.md), which is the back office of one letting agency.
 
@@ -20,7 +20,7 @@ Sign in with one of the seeded accounts, all with the password `property-portal-
 
 | Account | |
 | --- | --- |
-| `anna@portal.example` | a member buying around Amsterdam and Haarlem, with instant alerts |
+| `anna@portal.example` | a member buying around Amsterdam, and buying or renting near Haarlem, with instant alerts |
 | `bram@portal.example` | a member renting in Madrid, with a daily digest |
 | `admin@portal.example` | runs the catalogue: places, agencies and listings, drafts included |
 
@@ -49,13 +49,13 @@ Visitors get the admin app too: it opens on the home page and the listings, read
 ## Screens
 
 - **Find a home** (`config/home/page.tsx`): what is on offer and the newest listings; for a member also their new alerts and favorites.
-- **Listings**: cards with the cover photo, address, place, status, price, area, bedrooms and energy label, or a table; filters for sale or rent, place, type, price, area, bedrooms, energy label, status, garden, balcony and parking. A listing's page lists its photos and, for a member, their notes on it, with **Save to favorites**, **Remove from favorites** (`protobase.ui.tsx`) and **Add a note**, which opens the note form with the listing chosen.
+- **Listings**: cards with the cover photo, address, place, status, the purchase price and the rent per month (whichever apply), area, bedrooms and energy label, or a table; filters for sale or rent (a home offered both ways shows under each), place, type, purchase price, rent, area, bedrooms, energy label, status, garden, balcony and parking. A listing's page lists its photos and, for a member, their notes on it, with **Save to favorites**, **Remove from favorites** (`protobase.ui.tsx`) and **Add a note**, which opens the note form with the listing chosen.
 - **Favorites**, **Alerts**, **Notes** and **Search profiles**: the member's own lists. An alert links to its listing and can be marked seen; a profile lists its alerts.
 
 ## Alerts
 
 1. Publishing a listing, inserting it with a `published_at` or giving a draft one, enqueues the `match-listing` job in the same transaction (`db/migrations/005_listing_published.sql`).
-2. The job (`jobs/match-listing.ts`) reads the active search profiles for the same offer, keeps those the listing fits (`jobs/match.ts`: price range, minimum living area and rooms, type, energy label or better, and the place or the circle of `radius_km` around its centre) and records an alert for each, once.
+2. The job (`jobs/match-listing.ts`) reads the active search profiles looking to buy or rent the way the listing is offered, keeps those it fits (`jobs/match.ts`: the purchase price within the profile's purchase range or the rent within its rent range, minimum living area and rooms, type, energy label or better, and the place or the circle of `radius_km` around its centre) and records an alert for each, once.
 3. For an instant profile it enqueues `email-alerts`, which mails the member the alerts that have not gone out and marks them mailed. `daily-alerts` runs at 07:00 in Amsterdam and does the same for daily profiles, in one digest per member.
 
 Mail goes through the app's SMTP server, `PROTOBASE_SMTP_URL` and `PROTOBASE_MAIL_FROM` in `.env` ([Jobs: Mail](https://docs.protobase.net/reference/jobs/#mail)). Without them alerts are still recorded and shown in the app, and stay unmailed. Jobs run inside `protobase dev` and `protobase serve`.
@@ -65,13 +65,13 @@ Mail goes through the app's SMTP server, `PROTOBASE_SMTP_URL` and `PROTOBASE_MAI
 | Schema | Tables |
 | --- | --- |
 | `market` | `places` (centre as `latitude`, `longitude`), `agencies`, `listings`, `listing_photos` |
-| `members` | `search_profiles`, `alerts` (unique per profile and listing), `favorites` (unique per member and listing), `notes` |
+| `members` | `search_profiles` (to buy, to rent or both, with a purchase and a rent range), `alerts` (unique per profile and listing), `favorites` (unique per member and listing), `notes` |
 | `auth`, `jobs` | Better Auth's accounts and the job queue, written by `protobase migration` |
 
 Postgres keeps these rules itself:
 
-- `listings.price_per_m2` is generated from the price and living area, so it filters and sorts like any column.
-- A listing is `sold` only for sale and `let` only for rent, and has fewer bedrooms than rooms. Energy labels are an enum ordered best first, from A++++ to G.
+- A listing has a `purchase_price`, a `rent_price` (per month) or both. `for_sale` and `for_rent` are generated from them, and `price_per_m2` from the purchase price and living area, so they filter and sort like any column.
+- A listing is `sold` only with a purchase price and `let` only with a rent, and has fewer bedrooms than rooms. Energy labels are an enum ordered best first, from A++++ to G.
 - `published_at` is empty for a draft; only admins read drafts.
 
 ## Photos
@@ -82,9 +82,9 @@ Listings and their photos point at PNG files in the public file provider, such a
 
 | Scale | Listings | Photos | Members | Profiles | Alerts | Seed time (Apple silicon, local Docker) |
 | --- | --- | --- | --- | --- | --- | --- |
-| small | 400 | 1,750 | 24 | 54 | 96 | under 1 s |
-| medium | 20,000 | 87,000 | 2,000 | 4,000 | 124,000 | about 3 s (65 MB) |
-| large | 100,000 | 433,000 | 10,000 | 20,000 | 2,780,000 | about 42 s (720 MB) |
+| small | 400 | 1,750 | 24 | 54 | 128 | under 1 s |
+| medium | 20,000 | 87,000 | 2,000 | 4,000 | 140,000 | about 3 s (65 MB) |
+| large | 100,000 | 433,000 | 10,000 | 20,000 | 3,130,000 | about 42 s (720 MB) |
 
 `db:seed` truncates the `market` and `members` tables and removes the accounts an earlier seed made (ids starting with `seed-`); accounts made with `protobase users create` stay. Like the other examples', the loader streams `COPY`, drops secondary indexes during the load and rebuilds them afterwards, and records the scale in `public.seed_info`. The publish trigger is off during the load: the seed writes the alerts of the last 30 days itself, with the same matching rule as the job.
 

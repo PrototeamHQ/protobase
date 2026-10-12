@@ -14,5 +14,5 @@ export const agenciesView = view<typeof agencies>('agencies')
   .layout((r) => [
     l.section('Agency', [r.name, r.place_id]),
     l.section('Contact', [r.phone, r.email, r.website]),
-    l.related('Listings', { resource: 'listings', field: 'agency_id', sort: 'published_at desc', columns: ['address', 'place_id', 'offer_type', 'price', 'status'] }),
+    l.related('Listings', { resource: 'listings', field: 'agency_id', sort: 'published_at desc', columns: ['address', 'place_id', 'purchase_price', 'rent_price', 'status'] }),
   ])

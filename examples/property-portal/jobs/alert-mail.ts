@@ -1,17 +1,25 @@
-import { appPath, enumLabel } from '@protobase/schema'
+import { appPath } from '@protobase/schema'
 import type { MailMessage } from '@protobase/server'
-import { offerTypeLabels } from '../config/listings/labels'
 
-/** One alert as the mail lists it. */
-export type MailedAlert = { listing_id: string; address: string; place: string; offer_type: 'sale' | 'rent'; price: string; living_area: number; profile: string }
+/** One alert as the mail lists it: a price empty when the listing is not offered that way. */
+export type MailedAlert = { listing_id: string; address: string; place: string; purchase_price: string | null; rent_price: string | null; living_area: number; profile: string }
 
 const euros = (amount: string) => `€${Math.round(Number(amount)).toLocaleString('en-GB')}`
+
+// What it costs each way it is offered: "For sale: €650,000 or for rent: €2,100 a month".
+const prices = (alert: MailedAlert) => {
+  const offers = [
+    ...(alert.purchase_price === null ? [] : [`for sale: ${euros(alert.purchase_price)}`]),
+    ...(alert.rent_price === null ? [] : [`for rent: ${euros(alert.rent_price)} a month`]),
+  ].join(' or ')
+  return offers.charAt(0).toUpperCase() + offers.slice(1)
+}
 
 // A line per listing: where it is, what it costs, its size, the profile it fits and the link to its page.
 const line = (alert: MailedAlert, baseUrl: string) =>
   [
     `${alert.address}, ${alert.place}`,
-    `  ${enumLabel(alert.offer_type, offerTypeLabels)}: ${euros(alert.price)}${alert.offer_type === 'rent' ? ' a month' : ''}, ${alert.living_area} m²`,
+    `  ${prices(alert)}, ${alert.living_area} m²`,
     `  Fits "${alert.profile}"`,
     `  ${baseUrl}${appPath({ kind: 'record', resource: 'listings', key: alert.listing_id })}`,
   ].join('\n')

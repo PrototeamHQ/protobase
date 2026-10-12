@@ -4,6 +4,8 @@ import { alertMail, type MailedAlert } from './alert-mail'
 
 const frequency = z.enum(['instant', 'daily'])
 
+const amount = (value: unknown) => (value === null || value === undefined ? null : String(value))
+
 /** The app's public address, for the links in the mail. */
 const baseUrl = () => process.env.BETTER_AUTH_URL ?? 'http://localhost:5173'
 
@@ -23,7 +25,7 @@ export const emailAlerts = defineJob({
       .innerJoin('members.search_profiles as p', 'p.id', 'a.search_profile_id')
       .innerJoin('market.listings as l', 'l.id', 'a.listing_id')
       .innerJoin('market.places as pl', 'pl.id', 'l.place_id')
-      .select(['a.id', 'l.id as listing_id', 'l.address', 'pl.name as place', 'l.offer_type', 'l.price', 'l.living_area', 'p.name as profile'])
+      .select(['a.id', 'l.id as listing_id', 'l.address', 'pl.name as place', 'l.purchase_price', 'l.rent_price', 'l.living_area', 'p.name as profile'])
       .where('a.user_id', '=', userId)
       .where('a.emailed_at', 'is', null)
       .where('p.alert_frequency', '=', frequency)
@@ -33,7 +35,7 @@ export const emailAlerts = defineJob({
     if (rows.length === 0) return
     const user = await db.selectFrom('auth.user').select('email').where('id', '=', userId).executeTakeFirst()
     if (!user) return
-    const alerts = rows.map((row): MailedAlert => ({ ...row, listing_id: String(row.listing_id), price: String(row.price) }))
+    const alerts = rows.map((row): MailedAlert => ({ ...row, listing_id: String(row.listing_id), purchase_price: amount(row.purchase_price), rent_price: amount(row.rent_price) }))
     await mail.send(alertMail(user.email, frequency, alerts, baseUrl()))
     await db.updateTable('members.alerts').set({ emailed_at: new Date() }).where('id', 'in', rows.map((row) => row.id)).execute()
   },

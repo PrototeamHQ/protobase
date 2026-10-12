@@ -15,14 +15,16 @@ export type SeededListing = {
   agencyId: number
   placeId: number
   country: 'NL' | 'ES'
-  offerType: 'sale' | 'rent'
   propertyType: PropertyType
   status: 'available' | 'under_offer' | 'sold' | 'let'
   address: string
   postalCode: string
   latitude: number
   longitude: number
-  price: number
+  /** The asking price, empty when the home is not for sale. */
+  purchasePrice: number | null
+  /** The rent per month, empty when the home is not for rent. */
+  rentPrice: number | null
   livingArea: number
   plotArea: number | null
   rooms: number
@@ -48,6 +50,9 @@ const pricePerM2: Record<string, number> = {
   Madrid: 5000, Barcelona: 4800, Marbella: 5200, 'San Sebastián': 6000, Palma: 4600, 'Pozuelo de Alarcón': 4700, Sitges: 4900, Málaga: 3600,
 }
 const defaultPerM2 = { NL: 3900, ES: 2300 }
+
+// The share of the homes for sale that are let in the meantime, common in the Netherlands (leegstandswet).
+const letWhileForSale = { NL: 0.12, ES: 0.04 }
 
 const typeWeights = {
   NL: [['apartment', 40], ['house', 22], ['townhouse', 22], ['villa', 4], ['studio', 6], ['penthouse', 6]],
@@ -108,7 +113,10 @@ export const listingAt = (places: PlaceSeed[], agenciesByPlace: Map<number, Seed
   const builtYear = propertyType === 'townhouse' && rand() < 0.6 ? int(rand, 1650, 1930) : int(rand, 1930, 2025)
   const energyLabel = builtYear >= 2015 ? weighted(rand, newBuildLabels) : (weighted(rand, labels[country]) as EnergyLabel | null)
   const perM2 = (pricePerM2[place.name] ?? defaultPerM2[country]) * (0.8 + rand() * 0.45) * (propertyType === 'villa' || propertyType === 'penthouse' ? 1.2 : 1)
-  const price = offerType === 'sale' ? Math.round((perM2 * livingArea) / 5000) * 5000 : Math.round((perM2 * livingArea) / 230 / 25) * 25
+  // A draw of its own, so the rest of the listing is the same whether it is let in the meantime or not.
+  const alsoLet = offerType === 'sale' && rngAt(405, ordinal)() < letWhileForSale[country]
+  const purchasePrice = offerType === 'sale' ? Math.round((perM2 * livingArea) / 5000) * 5000 : null
+  const rentPrice = offerType === 'rent' || alsoLet ? Math.round((perM2 * livingArea) / 230 / 25) * 25 : null
   const garden = plot !== undefined && rand() < 0.85
   const balcony = !garden && rand() < 0.65
   const parking = rand() < (country === 'ES' ? 0.45 : 0.25)
@@ -134,14 +142,14 @@ export const listingAt = (places: PlaceSeed[], agenciesByPlace: Map<number, Seed
     agencyId: agency.id,
     placeId: placeIndex + 1,
     country,
-    offerType,
     propertyType,
     status,
     address: addressOf(country, propertyType, rand),
     postalCode: postalOf(place, rand),
     latitude: Number((place.latitude + (rand() - 0.5) * 0.06).toFixed(6)),
     longitude: Number((place.longitude + (rand() - 0.5) * 0.09).toFixed(6)),
-    price,
+    purchasePrice,
+    rentPrice,
     livingArea,
     plotArea: plot ? int(rand, plot[0], plot[1]) : null,
     rooms,

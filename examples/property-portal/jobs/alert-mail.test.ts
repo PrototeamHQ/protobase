@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { alertMail, type MailedAlert } from './alert-mail'
 
-const flat: MailedAlert = { listing_id: '42', address: 'Keizersgracht 123-2', place: 'Amsterdam', offer_type: 'sale', price: '650000.00', living_area: 92, profile: 'Canal flat' }
-const piso: MailedAlert = { listing_id: '7', address: 'Calle de Serrano, 45', place: 'Madrid', offer_type: 'rent', price: '2100.00', living_area: 80, profile: 'Madrid centro' }
+const flat: MailedAlert = { listing_id: '42', address: 'Keizersgracht 123-2', place: 'Amsterdam', purchase_price: '650000.00', rent_price: null, living_area: 92, profile: 'Canal flat' }
+const piso: MailedAlert = { listing_id: '7', address: 'Calle de Serrano, 45', place: 'Madrid', purchase_price: null, rent_price: '2100.00', living_area: 80, profile: 'Madrid centro' }
 
 describe('alertMail', () => {
   it('names the one listing of an instant alert, with its price, size, profile and link', () => {
@@ -18,5 +18,10 @@ describe('alertMail', () => {
     expect(mail.subject).toBe('2 new homes fit your searches')
     expect(mail.text).toContain('For rent: €2,100 a month, 80 m²')
     expect(alertMail('bram@example.com', 'daily', [piso], '').subject).toBe('1 new home fits your searches')
+  })
+
+  it('gives both prices of a home offered both ways', () => {
+    const mail = alertMail('anna@example.com', 'instant', [{ ...flat, rent_price: '2450.00' }], '')
+    expect(mail.text).toContain('For sale: €650,000 or for rent: €2,450 a month, 92 m²')
   })
 })

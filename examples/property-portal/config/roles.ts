@@ -5,8 +5,8 @@ export type PortalName = 'places' | 'agencies' | 'listings' | 'listing_photos' |
 
 /** What a listing shows to someone who is not signed in: everything but the agent to call, and only once published. */
 export const publicListingFields = [
-  'agency_id', 'place_id', 'offer_type', 'property_type', 'status', 'address', 'postal_code', 'latitude', 'longitude',
-  'price', 'living_area', 'price_per_m2', 'plot_area', 'rooms', 'bedrooms', 'bathrooms', 'built_year', 'energy_label',
+  'agency_id', 'place_id', 'property_type', 'status', 'address', 'postal_code', 'latitude', 'longitude',
+  'purchase_price', 'rent_price', 'for_sale', 'for_rent', 'living_area', 'price_per_m2', 'plot_area', 'rooms', 'bedrooms', 'bathrooms', 'built_year', 'energy_label',
   'garden', 'balcony', 'parking', 'description', 'photo', 'published_at',
 ]
 
