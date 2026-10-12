@@ -2,6 +2,18 @@
 
 Every release of Protobase, cut by the release workflow from the commits since the last one (see the [versioning page](https://docs.protobase.net/reference/versioning/)).
 
+## [0.12.14](https://github.com/PrototeamHQ/protobase/compare/v0.12.13...v0.12.14) (2026-10-12)
+
+### Features
+
+* a flags filter shows the records where any chosen boolean field is true ([312acf1](https://github.com/PrototeamHQ/protobase/commit/312acf1cbcf12f163c558cd174b88b9ac5cbd4bb))
+* **property-portal:** a listing has a purchase price, a rent or both, and shows under each offer ([a59474d](https://github.com/PrototeamHQ/protobase/commit/a59474dc1349b0f1ac57cb13a5d1f477cab79ee7))
+* **ui:** a card leaves out the meta fields that have no value ([a7014b5](https://github.com/PrototeamHQ/protobase/commit/a7014b57495cd7e5a6ac47aff65966d9197aabe0))
+
+### Bug Fixes
+
+* **ui:** a money column shows the view's decimals and has room for its suffix ([3bda15a](https://github.com/PrototeamHQ/protobase/commit/3bda15a5d6df09e4dbfca206bdbfa8a80325f5f9))
+
 ## [0.12.13](https://github.com/PrototeamHQ/protobase/compare/v0.12.12...v0.12.13) (2026-10-12)
 
 ### Features
