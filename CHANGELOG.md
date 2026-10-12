@@ -2,6 +2,12 @@
 
 Every release of Protobase, cut by the release workflow from the commits since the last one (see the [versioning page](https://docs.protobase.net/reference/versioning/)).
 
+## [0.12.13](https://github.com/PrototeamHQ/protobase/compare/v0.12.12...v0.12.13) (2026-10-12)
+
+### Features
+
+* **ui:** on a phone the display switch is a menu beside the title, the sort is in the filters sheet ([62a8038](https://github.com/PrototeamHQ/protobase/commit/62a803840f669f472176c986aa2fefd65ac7513c))
+
 ## [0.12.12](https://github.com/PrototeamHQ/protobase/compare/v0.12.11...v0.12.12) (2026-10-12)
 
 ### Features
