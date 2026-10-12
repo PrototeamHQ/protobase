@@ -4,6 +4,7 @@ import { customers, repairs } from './bike-shop/data'
 import * as step5 from './bike-shop/step-5'
 import { customerRows, repairRows } from './bike-shop/rows'
 import { roles, workOrders } from './reference/access'
+import * as catalog from './reference/catalog'
 import * as workshop from './reference/workshop'
 import { partOrders, stock } from './reference/keys'
 
@@ -49,6 +50,31 @@ describe('access', () => {
     expect(access.recordChecks).toContain('update')
     expect(await checkRecord(workOrders, { user: { id: 'pip', roles: ['desk'] } }, 'update', { status: 'done' })).toBe(false)
     expect(roles.has({ roles: ['desk'] }, 'money.read')).toBe(true)
+  })
+})
+
+describe('catalog access', () => {
+  const as = async (role: string) => {
+    const access = await resolveAccess(catalog.products, { user: { id: 'u1', roles: [role] } }, { roles: catalog.roles })
+    return { ...access, fields: Object.keys(restrictModel(catalog.products.toModel(), access).fields) }
+  }
+
+  it('shows anonymous visitors the store fields of published products, and lets them only read', async () => {
+    const visitor = await as('anonymous')
+    expect(visitor.fields).toEqual(['id', 'name', 'slug', 'price', 'image'])
+    expect(visitor.rowFilter.read).toMatchObject({ field: { name: 'published' } })
+    expect(visitor.operations).toMatchObject({ read: true, create: false, update: false, delete: false })
+  })
+
+  it('gives the warehouse system three columns and the stock to write', async () => {
+    const sync = await as('erp_sync')
+    expect(sync.fields).toEqual(['id', 'sku', 'price', 'stock'])
+    expect(sync.writableFields).toEqual({ create: [], update: ['stock'] })
+  })
+
+  it('keeps the cost price for buyers, whatever else a role reads', async () => {
+    expect((await as('editor')).fields).not.toContain('cost_price')
+    expect((await as('buyer')).fields).toContain('cost_price')
   })
 })
 

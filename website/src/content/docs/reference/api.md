@@ -15,14 +15,14 @@ const admin = createAdmin({
   resources,
   views,                                            // optional, served by /meta
   db,                                               // Kysely<any> on Postgres
-  authenticate,                                     // required: there is no anonymous or development mode
+  authenticate,                                     // required: no development mode; anonymous only with that role
   auth,                                             // optional: mounts login at /api/auth/*
   functions,                                        // optional: your own endpoints at /api/functions/<name>, see /guides/api-functions/
   options: { statementTimeoutMs: 15_000, scanGuard: { mode: 'reject' } },
 })
 ```
 
-Run the ERP example with `bun run --cwd examples/erp serve` (port 8787, Better Auth login, organization 1 as tenant; `REQUEST_LOG=1` logs requests). Interactive reference: `/api/docs`; like `/api/openapi.json` it needs a bearer token, because the document lists what the caller may see and do. Every route answers `401` without a valid token; get one with `protobase token you@example.com`.
+Run the ERP example with `bun run --cwd examples/erp serve` (port 8787, Better Auth login, organization 1 as tenant; `REQUEST_LOG=1` logs requests). Interactive reference: `/api/docs`; like `/api/openapi.json` it needs a bearer token, because the document lists what the caller may see and do. Every route answers `401` without a valid token; get one with `protobase token you@example.com`. A project whose roles define [`anonymous`](/reference/access/#anonymous-access) serves the resources API to requests without a token as that role.
 
 ## Routes
 
@@ -71,7 +71,7 @@ Access is resolved once per request and resource (`resolveAccess`, see [Login wi
 - **ETags**: with a read-only `version` or `updated_at` column the ETag is a hash of that column's exact text, so it never shows a hidden value yet moves on every change. Without one it is a hash of the fields the caller may read, sensitive ones excluded: a change to a field they cannot read, or to a sensitive field, does not change their ETag.
 - **Errors** never contain values of fields the caller cannot read; database errors leave out constraint and column names.
 
-`options.roles` (from `defineRoles`) makes an operation without an explicit rule need the matching capability (`orders.update`); `options.defaultAccess: 'allow' | 'deny'` overrides that. Without either, operations without a rule are allowed (single-admin projects).
+`options.roles` (from `defineRoles`) makes an operation without an explicit rule need the matching capability (`orders.update`), and limits each role to the [fields and rows](/reference/access/#capabilities) its capabilities list; `options.defaultAccess: 'allow' | 'deny'` overrides the capability check. Without either, operations without a rule are allowed (single-admin projects).
 
 ### Record permissions
 
@@ -151,7 +151,7 @@ The rules behind these steps are described under [Access](#access).
 
 Real login is [Better Auth](/reference/auth/). Lower level:
 
-`authenticate(request)` returns `{ user: { id, roles }, tenant? }` or throws `unauthorized(...)` (a `401` problem). Shipped: `jwtAuthenticator({ jwksUrl | keys, issuer?, audience?, rolesClaim?, tenantClaim?, tenant? })`, which verifies a bearer token with `jose` (`sub` is the user id; `tenant` fixes the tenant instead of reading a claim), and `betterAuthAuthenticator` on top of it ([Login with Better Auth](/reference/auth/)). No code path treats a request as a user without verifying a credential.
+`authenticate(request)` returns `{ user: { id, roles }, tenant? }` or throws `unauthorized(...)` (a `401` problem), or `new MissingCredentials(...)` (also a `401`) when the request carries no credential at all. Shipped: `jwtAuthenticator({ jwksUrl | keys, issuer?, audience?, rolesClaim?, tenantClaim?, tenant? })`, which verifies a bearer token with `jose` (`sub` is the user id; `tenant` fixes the tenant instead of reading a claim), and `betterAuthAuthenticator` on top of it ([Login with Better Auth](/reference/auth/)). No code path treats a request as a user without verifying a credential; the one exception is the [anonymous role](/reference/access/#anonymous-access), which the resources API gives a request that has none, when the project defines it.
 
 ## CORS
 

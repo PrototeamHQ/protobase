@@ -1,0 +1,81 @@
+---
+title: Access
+description: Roles, capabilities with field lists and row filters, field rules, anonymous access, and what they default to.
+---
+
+import { Code } from '@astrojs/starlight/components'
+import catalog from '../../../../../docs-examples/reference/catalog.ts?raw'
+
+Roles are defined in code (`defineRoles`) and assigned through the auth user's `roles`; with [organizations](/reference/auth/#organizations), also per membership, and `ctx.user.roles` holds both, while `ctx.organization.id` is the organization the request works in. Rules decide per operation (`list`, `read`, `create`, `update`, `delete`), per field (role-based, never per record) and per row (filters, like RLS).
+
+## Defaults
+
+- A project that passes `roles` to `resolveAccess` is **default deny**: an operation without a rule needs the capability `<resource>.<action>` (`list` uses `read`), so admin's `*` still passes. A field without a rule follows its resource.
+- A project without roles (the single-admin case) is **default allow**.
+- `defaultAccess: 'allow'` together with `roles` is an explicit opt-in. Print `accessWarnings(options)` at startup.
+- Every request needs a token, unless the roles define [`anonymous`](#anonymous-access).
+
+## Capabilities
+
+A role is a list of capabilities, `<resource|area>.<action>[.<scope>]`: `orders.read`, `orders.update.own`, `costs.read` (an area, for field rules), `*.read` or `*`. An entry may also be an object that limits capabilities to fields, rows or both:
+
+```ts
+defineRoles<'orders' | 'products'>({
+  sales: ['orders.read.own', 'orders.create', 'products.read'],
+  erp_sync: [{ 'products.read': ['sku', 'price', 'stock'] }, { 'products.update': ['stock'] }],
+  reseller: [{ 'products.read': { fields: ['sku', 'name', 'price'], filter: 'published = true' } }],
+})
+```
+
+- **Fields** (`['sku', 'price']`, or `fields` in an object) are an allowlist: for `<resource>.read`, `.create` or `.update`, the role reads or writes only the fields listed, so a column added later stays hidden from it until someone lists it. Key columns are always there, because records are addressed by them. A plain capability (`'products.read'`) still means every field.
+- **Filter** is AIP-160 text, like a filter an access rule returns. It narrows the rows of the capability, together with `.own` or `.team` when the capability has one.
+- A limit names one resource, never `*`, and fields go with `read`, `create` or `update` only; `defineRoles` refuses anything else. At startup the server refuses a field the resource does not have, a filter that does not fit it, and a limit on a name that is not a resource.
+
+A field is readable when the role's list allows it and the field's own [rule](#field-rules-or-field-lists) passes. Field lists take effect through the roles the server gets (`options: { roles }` in `protobase.config.ts`, `resolveAccess(source, ctx, { roles })`), for every resource whatever its rules. A filter is the capability's row filter, so like `.own` it applies where the capability decides: an operation without a rule, or a rule built with `roles.can(...)`.
+
+**Several roles add up.** A user gets every field one of their roles lists (all of them when a role holds the plain capability) and the rows any of their roles allows. Fields and rows add up separately: someone holding both `erp_sync` and `reseller` above reads `name` on unpublished products too. With Better Auth a session acts with one [active role](/reference/auth/#active-role) at a time, so this only comes up with an authenticator that hands out several.
+
+## Anonymous access
+
+The role `anonymous` is what a request without a token acts as. A project without it answers such requests `401`, as always.
+
+```ts
+anonymous: [{ 'products.read': { fields: ['name', 'slug', 'price', 'image'], filter: 'published = true' } }],
+```
+
+- **It only reads listed fields.** Each entry names one resource, `read` without a scope, and the fields it shows; `defineRoles` refuses write capabilities, wildcards, `.own` and `.team`, and a capability without a field list, so nothing becomes public by accident, a new column included.
+- **No token, not a bad one.** A request without an `Authorization` header is served as a caller holding only this role, in no organization. A header with anything but a valid, unexpired token is still a `401`. `jwtAuthenticator` and `betterAuthAuthenticator` tell the two apart; an authenticator of your own throws `MissingCredentials` (from `@protobase/server`) for a request without a credential to do the same.
+- **Only its capabilities open anything.** The capability is ANDed into a resource's access rule, so a rule that allows everyone (`read: () => true`) or `defaultAccess: 'allow'` never lets an anonymous caller in on its own.
+- **The resources API only.** Lists, records, `:search`, `:seek` and the aggregates of what the role reads, with filters, sorts and `fields` checked as for everyone: an unlisted field is refused like an unknown one. A resource it cannot read is a `404`; a write, or another operation it may not do on a resource it reads, is a `401` that asks for a token. `/api/meta`, `/api/openapi.json`, `/api/docs`, batch writes, [API functions](/guides/api-functions/), the assistant and the file cleanup still need a token. A [file field](/reference/files/#downloads) it reads comes with its link, as for anyone.
+- A tenant-scoped resource (`.tenant`) cannot be in it, since an anonymous caller works in no organization; the server refuses to start.
+- There is no rate limit of its own: put a proxy or CDN in front of a public API to limit and cache requests.
+
+## Use cases
+
+One shop's catalog, read by its staff, by the warehouse system and by web store visitors. CI typechecks and tests the file:
+
+<Code code={catalog} lang="ts" title="docs-examples/reference/catalog.ts" />
+
+### A public storefront catalog
+
+The web store lists products without signing in:
+
+```sh
+curl 'https://shop.example.com/api/v1/products?order_by=name&page_size=20'
+```
+
+Each item has `id`, `name`, `slug`, `price` and `image`, of published products only: a draft's URL is a `404`. `filter=cost_price < 10` or `order_by=stock` is a `400`, worded as an unknown field, and a `PATCH` without a token is a `401`. The staff sign in as before and see what their roles allow. A column added to `shop.products` later, such as a supplier, stays off the store until it is added to the list.
+
+### An integration limited to some columns
+
+`erp_sync` is a role for a system: a user with that role, and a token for it ([`issueToken`](/reference/auth/#tokens-for-scripts-and-curl)). It reads `sku`, `price` and `stock` of every product and writes only `stock`; a `PATCH` with `price` is a `400`, as for a field it cannot see, and `cost_price` is not in its responses. A role that only uses the API needs no view: views shape the admin app, while what a caller may see and do is decided here.
+
+### Field rules or field lists
+
+A field rule goes from the field to the roles: `cost_price` above is hidden from every role that reads products but those holding `costs.read`. Use it for the few sensitive columns of a resource that many roles read, such as a screening result (`f.text().access({ read: roles.can('screening.read') })`). A field list goes from the role to the fields: use it for a role that should see only some columns, such as an integration or anonymous visitors, so a new column stays hidden from it. When both apply, a field needs both.
+
+## Restricted model and row filters
+
+`resolveAccess` returns everything a request may do. Use `restrictModel(model, access)` for everything user-facing (checking filters and sorts, queries, OpenAPI, `/meta`): hidden fields are gone, so they cannot be referenced, searched, sorted or leaked. Key columns always stay, because records are addressed by them.
+
+Row filters (`access.rowFilter`) are a separate thing. They come from the access rules (`.own`, `.team`, filters of capabilities, returned filters), are checked against the **full** model because they may use hidden or non-filterable columns, and are ANDed into queries by the server.
