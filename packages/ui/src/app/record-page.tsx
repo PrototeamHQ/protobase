@@ -91,6 +91,7 @@ const LoadedRecord = ({ model, recordKey, stored }: { model: ResourceModel; reco
   const permissions = usePermissions(model.name)
   const restore = useRestore(model)
   const canUpdate = can(permissions, 'update') && stored.permissions?.update !== false
+  const canDelete = can(permissions, 'delete') && stored.permissions?.delete !== false
   const remove = useDeleteFlow({
     model,
     view,
@@ -168,7 +169,7 @@ const LoadedRecord = ({ model, recordKey, stored }: { model: ResourceModel; reco
           Discard
         </Button>
       )}
-      {can(permissions, 'delete') && stored.permissions?.delete !== false && (
+      {canDelete && (
         <Button variant="danger" className="max-md:min-h-11" onClick={() => void remove.start({ key: recordKey, title, etag: stored.etag, snapshot: stored.record })}>
           Delete
         </Button>
@@ -183,72 +184,75 @@ const LoadedRecord = ({ model, recordKey, stored }: { model: ResourceModel; reco
   )
 
   return (
-    <div className="min-h-0 flex-1 overflow-y-auto">
+    <div className="flex min-h-0 flex-1 flex-col">
       {remove.dialogs}
-      <div className="mx-auto max-w-[1100px] px-4 pb-28 pt-6 md:px-10 md:py-8">
-        <RecordHeader
-          collection={view?.names?.plural ?? humanize(model.name)}
-          title={title}
-          status={{ label: status ? enumLabel(status, hint('status')?.valueLabels) : singular, tone: status ? toneFor(status) : 'neutral' }}
-          lastEditedBy={{ ago: updated === undefined ? 'recently' : formatRelativeTime(updated) }}
-          actions={
-            <div className="hidden items-center gap-4 md:flex">
-              {saveControls}
+      <div className="min-h-0 flex-1 overflow-y-auto">
+        <div className="mx-auto max-w-[1100px] px-4 pb-8 pt-6 md:px-10 md:py-8">
+          <RecordHeader
+            collection={view?.names?.plural ?? humanize(model.name)}
+            title={title}
+            status={{ label: status ? enumLabel(status, hint('status')?.valueLabels) : singular, tone: status ? toneFor(status) : 'neutral' }}
+            lastEditedBy={{ ago: updated === undefined ? 'recently' : formatRelativeTime(updated) }}
+            actions={
+              <div className="hidden items-center gap-4 md:flex">
+                {saveControls}
+              </div>
+            }
+          />
+          {editor.message && <div className="mt-4"><ErrorBanner title="Not saved" error={new Error(editor.message)} /></div>}
+          {editor.linesConflict && (
+            <div className="mt-4">
+              <ErrorBanner title="The lines were changed by someone else" error={new Error('The lines were reloaded. Your new order is kept: Save again to apply it, or Discard to drop it.')} />
             </div>
-          }
-        />
-        {editor.message && <div className="mt-4"><ErrorBanner title="Not saved" error={new Error(editor.message)} /></div>}
-        {editor.linesConflict && (
-          <div className="mt-4">
-            <ErrorBanner title="The lines were changed by someone else" error={new Error('The lines were reloaded. Your new order is kept: Save again to apply it, or Discard to drop it.')} />
-          </div>
-        )}
-        {editor.restored && (
-          <div className="mt-4 flex items-center justify-between gap-3 rounded-lg border bg-surface px-3 py-2 text-[13px]" role="status">
-            <span>Your unsaved changes were restored.</span>
-            <span className="flex gap-2">
-              <Button size="sm" onClick={editor.dismissRestored}>Keep</Button>
-              <Button size="sm" onClick={editor.discard}>Discard</Button>
-            </span>
-          </div>
-        )}
-        <div className="grid grid-cols-1 gap-8 md:grid-cols-[minmax(0,1fr)_300px] md:gap-12">
-          <main className="divide-y divide-border">
-            {layout.flatMap((item, index) => {
-              if (item.kind === 'related') return [<RelatedSection key={`related:${item.title}`} item={item} recordKey={recordKey} />]
-              if (item.kind === 'custom') return item.sidebar ? [] : [<CustomSection key={`custom:${index}`} item={item} scope={scope} />]
-              if (item.kind !== 'section') return []
-              // A section whose fields are all hidden from this user would be a lone heading
-              const fields = item.fields.filter((name) => model.fields[name] && visible(name))
-              if (fields.length === 0) return []
-              return [
-                <Section key={item.title} title={item.title} help={item.help}>
-                  <div className="grid grid-cols-1 gap-x-6 gap-y-5 sm:grid-cols-2">{fields.map(fieldView)}</div>
-                </Section>,
-              ]
-            })}
-            {linesModel && <RecordLines lines={linesModel} draft={linesDraft} vatRate={Number(stored.record.vatRate ?? 21) / 100} saving={editor.saving} />}
-          </main>
-          <aside className="space-y-4 md:pt-8">
-            <RecordActions model={model} stored={stored} recordKey={recordKey} />
-            {firstSidebar === -1 && summary}
-            {layout.map((item, index) => (item.kind === 'custom' && item.sidebar ? <CustomSection key={`custom:${index}`} item={item} scope={scope} /> : index === firstSidebar ? <Fragment key="summary">{summary}</Fragment> : null))}
-            <MetadataCard
-              title="Details"
-              rows={[auditField(model, 'created'), updatedAt].flatMap((name) => {
-                const field = name ? model.fields[name] : undefined
-                return name && field && visible(name) ? [{ label: hint(name)?.label ?? humanize(name), value: displayValue(field, stored.record[name], hint(name)) }] : []
+          )}
+          {editor.restored && (
+            <div className="mt-4 flex items-center justify-between gap-3 rounded-lg border bg-surface px-3 py-2 text-[13px]" role="status">
+              <span>Your unsaved changes were restored.</span>
+              <span className="flex gap-2">
+                <Button size="sm" onClick={editor.dismissRestored}>Keep</Button>
+                <Button size="sm" onClick={editor.discard}>Discard</Button>
+              </span>
+            </div>
+          )}
+          <div className="grid grid-cols-1 gap-8 md:grid-cols-[minmax(0,1fr)_300px] md:gap-12">
+            <main className="divide-y divide-border">
+              {layout.flatMap((item, index) => {
+                if (item.kind === 'related') return [<RelatedSection key={`related:${item.title}`} item={item} recordKey={recordKey} />]
+                if (item.kind === 'custom') return item.sidebar ? [] : [<CustomSection key={`custom:${index}`} item={item} scope={scope} />]
+                if (item.kind !== 'section') return []
+                // A section whose fields are all hidden from this user would be a lone heading
+                const fields = item.fields.filter((name) => model.fields[name] && visible(name))
+                if (fields.length === 0) return []
+                return [
+                  <Section key={item.title} title={item.title} help={item.help}>
+                    <div className="grid grid-cols-1 gap-x-6 gap-y-5 sm:grid-cols-2">{fields.map(fieldView)}</div>
+                  </Section>,
+                ]
               })}
-            />
-            {related.records.length > 0 && (
-              <SidebarCard title="Related records">
-                <RelatedRecords records={related.records} onNavigate={open} />
-              </SidebarCard>
-            )}
-          </aside>
+              {linesModel && <RecordLines lines={linesModel} draft={linesDraft} vatRate={Number(stored.record.vatRate ?? 21) / 100} saving={editor.saving} />}
+            </main>
+            <aside className="space-y-4 md:pt-8">
+              <RecordActions model={model} stored={stored} recordKey={recordKey} />
+              {firstSidebar === -1 && summary}
+              {layout.map((item, index) => (item.kind === 'custom' && item.sidebar ? <CustomSection key={`custom:${index}`} item={item} scope={scope} /> : index === firstSidebar ? <Fragment key="summary">{summary}</Fragment> : null))}
+              <MetadataCard
+                title="Details"
+                rows={[auditField(model, 'created'), updatedAt].flatMap((name) => {
+                  const field = name ? model.fields[name] : undefined
+                  return name && field && visible(name) ? [{ label: hint(name)?.label ?? humanize(name), value: displayValue(field, stored.record[name], hint(name)) }] : []
+                })}
+              />
+              {related.records.length > 0 && (
+                <SidebarCard title="Related records">
+                  <RelatedRecords records={related.records} onNavigate={open} />
+                </SidebarCard>
+              )}
+            </aside>
+          </div>
         </div>
       </div>
-      <div className="fixed inset-x-0 bottom-0 z-30 flex items-center gap-2 border-t bg-background p-3 md:hidden">{saveControls}</div>
+      {/* On phones the controls sit below the record, above the shell's bottom bar; a record without any has no bar */}
+      {(editor.dirty || canDelete || canUpdate) && <div className="flex shrink-0 items-center gap-2 border-t bg-background p-3 md:hidden">{saveControls}</div>}
     </div>
   )
 }

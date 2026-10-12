@@ -79,6 +79,43 @@ export const BottomBarFromMeta: StoryObj = {
   },
 }
 
+const recordOnPhone = (permissions: typeof allowed) => () => (
+  <div className="h-screen">
+    <App client={fakeClient({ permissions, bottomBar: { label: 'Sales', items: [{ kind: 'resource', resource: 'orders', label: 'My orders' }] } })} auth={session} initialUrl="/orders/o1" />
+  </div>
+)
+
+/** The bottom bar is at the foot of the screen, with nothing drawn over its top or bottom edge. */
+const expectWholeBar = async (canvasElement: HTMLElement) => {
+  const canvas = within(canvasElement)
+  await canvas.findByRole('heading', { name: 'SO-1' })
+  const bar = canvas.getByRole('navigation', { name: 'Tabs' })
+  const edges = bar.getBoundingClientRect()
+  expect(edges.bottom).toBe(window.innerHeight)
+  for (const y of [edges.top + 1, edges.bottom - 1]) expect(document.elementFromPoint(edges.left + edges.width / 2, y)?.closest('nav')).toBe(bar)
+  return edges
+}
+
+/** A record page on a phone: Save and Delete sit above the bottom bar, which stays whole. */
+export const BottomBarOnRecordPage: StoryObj = {
+  ...BottomBarFromMeta,
+  render: recordOnPhone(allowed),
+  play: async ({ canvasElement }) => {
+    const bar = await expectWholeBar(canvasElement)
+    expect(within(canvasElement).getByRole('button', { name: 'Save' }).getBoundingClientRect().bottom).toBeLessThanOrEqual(bar.top)
+  },
+}
+
+/** A record the user can neither change nor delete: no controls, and no empty strip over the bottom bar. */
+export const BottomBarOnReadOnlyRecord: StoryObj = {
+  ...BottomBarFromMeta,
+  render: recordOnPhone({ create: false, update: false, delete: false, conditional: [] }),
+  play: async ({ canvasElement }) => {
+    await expectWholeBar(canvasElement)
+    expect(within(canvasElement).queryByRole('button', { name: 'Save' })).toBeNull()
+  },
+}
+
 /** A server whose first order ships between reads, and a top-bar button that reads it anew, as an app following a record does. */
 const shippingClient = () => {
   let shipped = false
