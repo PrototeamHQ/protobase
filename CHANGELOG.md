@@ -2,6 +2,12 @@
 
 Every release of Protobase, cut by the release workflow from the commits since the last one (see the [versioning page](https://docs.protobase.net/reference/versioning/)).
 
+## [0.12.17](https://github.com/PrototeamHQ/protobase/compare/v0.12.16...v0.12.17) (2026-10-12)
+
+### Bug Fixes
+
+* **release:** wait for npm to serve every [@protobase](https://github.com/protobase) package as bun install asks for it ([2e6b995](https://github.com/PrototeamHQ/protobase/commit/2e6b99521344d7981759c8bd75c77bebbb4ae49a))
+
 ## [0.12.16](https://github.com/PrototeamHQ/protobase/compare/v0.12.15...v0.12.16) (2026-10-12)
 
 ### Features
