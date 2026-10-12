@@ -3,7 +3,11 @@ import type { Client } from '@protobase/client'
 import type { AppAddress } from '@protobase/schema'
 import type { FieldWidget } from '../field-types/field-widget'
 
-/** What a named action's handler gets: the record it runs on (inside a RecordCard or CardRow), the API, and a way to move. */
+/**
+ * What a named action's handler gets: the record it runs on (inside a RecordCard or CardRow), the API, and a way to move.
+ * `client` is the client of the API that serves the resource: the app's own, or the source's for a resource drawn from
+ * another API, whose functions `invoke` then calls.
+ */
 export type ActionContext = {
   resource: string
   record?: Record<string, unknown>

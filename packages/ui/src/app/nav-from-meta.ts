@@ -12,7 +12,8 @@ const groupLabels: Record<string, string> = { sales: 'Sales', crm: 'CRM', catalo
 /**
  * One sidebar group per `nav.group` (default: the database schema, and "Pages" for pages); `nav.hidden` and a place in
  * the user menu leave an entry out, `nav.order` sorts within a group, and `recent` (from `useNavRecent`) makes an entry
- * collapsible. Groups with pages come first, so a dashboard leads the sidebar.
+ * collapsible. Groups with pages come first, so a dashboard leads the sidebar. The resources of a source that cannot be
+ * read are listed under its label, each with the problem.
  */
 export const navFromMeta = (meta: MetaData, basePath = '', recent: Record<string, NavRecent> = {}): NavGroup[] => {
   const groups = new Map<string, NavGroup>()
@@ -41,6 +42,16 @@ export const navFromMeta = (meta: MetaData, basePath = '', recent: Record<string
     })
     groups.set(groupName, group)
     orders.set(model.name, view.nav?.order ?? Number.MAX_SAFE_INTEGER)
+  }
+  // A source that cannot be read keeps its resources in the sidebar, under its label and marked, so the person sees
+  // what is missing and why; its own views place them once it answers.
+  for (const status of meta.sources ?? []) {
+    if (status.state !== 'error') continue
+    const group = groups.get(status.source.label) ?? { label: status.source.label, items: [] }
+    for (const resource of status.source.resources) {
+      group.items.push({ id: resource, label: humanize(resource), icon: iconFor(resource), href: appPath({ kind: 'list', resource }, basePath), problem: `Cannot reach ${status.source.label}` })
+    }
+    groups.set(status.source.label, group)
   }
   return [...groups.values()].map((group) => ({ ...group, items: [...group.items].sort((a, b) => (orders.get(a.id) ?? 0) - (orders.get(b.id) ?? 0)) }))
 }

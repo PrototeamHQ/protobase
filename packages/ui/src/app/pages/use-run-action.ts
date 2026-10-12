@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { fillAddress, type ActionModel } from '@protobase/schema'
-import { useClient } from '../../data/api-provider'
+import { useClient, useResourceClient } from '../../data/api-provider'
 import { useToast } from '../../toasts'
 import { useAdminMeta, usePermissions } from '../meta-gate'
 import { can } from '../permissions'
@@ -22,6 +22,8 @@ export const useActionRunner = (resource: string, scope: LayoutRecord | undefine
   const { actions: handlers } = useProjectUi()
   const permissions = usePermissions(resource)
   const client = useClient()
+  // A handler works on the API that serves the resource, functions included: a source's for one drawn from it.
+  const handlerClient = useResourceClient(resource)
   const toast = useToast()
   const refresh = useRefreshResource()
   const { go } = useAppAddress()
@@ -46,7 +48,7 @@ export const useActionRunner = (resource: string, scope: LayoutRecord | undefine
     }
     if (run?.kind === 'update') await client.update(resource, scope!.key, run.values as Record<string, unknown>, scope!.etag ?? '*')
     else if (run?.kind === 'delete') await client.remove(resource, scope!.key, { etag: scope!.etag })
-    else await handlers![action.name]!({ resource, record: scope?.record, recordKey: scope?.key, etag: scope?.etag, client, navigate: go })
+    else await handlers![action.name]!({ resource, record: scope?.record, recordKey: scope?.key, etag: scope?.etag, client: handlerClient, navigate: go })
     await refresh(resource)
     toast.show({ state: 'success', title: `${action.label}: done` })
     afterRun?.(action)

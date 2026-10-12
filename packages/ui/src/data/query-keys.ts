@@ -1,5 +1,9 @@
 export const keys = {
   meta: ['meta'] as const,
+  /** A source's `/meta`, as far as the app draws it: its URL, and the resources the app lists for it. */
+  sourceMeta: (url: string, resources: readonly string[]) => ['source-meta', url, resources.join(',')] as const,
+  /** Every `/meta` query of the source at `url`. */
+  sourceMetas: (url: string) => ['source-meta', url] as const,
   list: (resource: string, filter: string, orderBy: string, pageSize: number, startToken: string) =>
     ['list', resource, filter, orderBy, pageSize, startToken] as const,
   page: (resource: string, filter: string, orderBy: string, pageSize: number, page: number) =>

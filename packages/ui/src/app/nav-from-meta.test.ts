@@ -17,6 +17,26 @@ describe('navFromMeta', () => {
     expect(navFromMeta(meta).flatMap((group) => group.items.map((item) => item.id))).toEqual(['orders'])
   })
 
+  it("lists the resources of a source that cannot be read under its label, each with the problem, and none while it loads", () => {
+    const view = (resource: string) => ({ resource, fields: {}, filters: [], layout: [], actions: [] }) as unknown as ViewModel
+    const desk = { url: 'https://desk.example.com/api/v1', label: 'Service desk', resources: ['tickets', 'ticket_notes'] }
+    const cloud = { url: 'https://cloud.example.com/api/v1', label: 'Cloud', resources: ['tasks'] }
+    const meta = {
+      etag: '"x"',
+      permissions: {},
+      pages: {},
+      resources: { orders: model('orders', 'sales') },
+      views: { orders: view('orders') },
+      sources: [{ source: desk, state: 'error' as const, error: new Error('down') }, { source: cloud, state: 'loading' as const }],
+    }
+    const groups = navFromMeta(meta, '/admin')
+    expect(groups.map((group) => group.label)).toEqual(['Sales', 'Service desk'])
+    expect(groups[1]!.items.map((item) => [item.label, item.href, item.problem])).toEqual([
+      ['Tickets', '/admin/tickets', 'Cannot reach Service desk'],
+      ['Ticket notes', '/admin/ticket_notes', 'Cannot reach Service desk'],
+    ])
+  })
+
   it('honours nav group and order', () => {
     const view = (resource: string, nav: object) => ({ resource, fields: {}, filters: [], layout: [], actions: [], nav }) as unknown as ViewModel
     const meta = {

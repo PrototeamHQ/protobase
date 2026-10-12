@@ -1,5 +1,5 @@
 export { App, type AppProps } from './app'
-export { ApiProvider, useClient, type ApiProviderProps } from './data/api-provider'
+export { ApiProvider, useClient, useResourceClient, type ApiProviderProps } from './data/api-provider'
 export { useMeta } from './data/use-meta'
 export type { MetaData } from './data/meta-data'
 export { useList } from './data/use-list'

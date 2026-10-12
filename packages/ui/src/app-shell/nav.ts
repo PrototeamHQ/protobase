@@ -54,5 +54,7 @@ export type NavItem = {
   href?: string
   /** Makes the entry collapsible, listing these records and "View all" under it (text sidebars only). */
   recent?: NavRecent
+  /** Why the entry cannot open what it names right now, such as another API that does not answer; marked beside it. */
+  problem?: string
 }
 export type NavGroup = { label: string; items: NavItem[] }

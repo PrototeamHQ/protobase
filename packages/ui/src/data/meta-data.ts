@@ -1,4 +1,4 @@
-import type { PluginRef, ResourcePermissions } from '@protobase/client'
+import type { PluginRef, ResourcePermissions, SourceRef } from '@protobase/client'
 import type { PageModel } from '@protobase/layout'
 import type { BottomBarModel, ResourceModel, UserMenuModel, ViewModel } from '@protobase/schema'
 
@@ -18,6 +18,14 @@ export type MetaData = {
   runtime?: { url: string }
   /** The plugins the app loads for the user (see `PluginGate`). */
   plugins?: PluginRef[]
+  /** The other APIs the app draws resources from for the user, and how far their `/meta` has loaded (see `withSources`). */
+  sources?: SourceStatus[]
 }
+
+/**
+ * A source of resources and its `/meta`: `ready` once its resources are among the app's, `error` when it could not be
+ * read, the reason in `error`.
+ */
+export type SourceStatus = { source: SourceRef; state: 'loading' | 'ready' } | { source: SourceRef; state: 'error'; error: Error }
 
 export const allowEverything: ResourcePermissions = { create: true, update: true, delete: true, conditional: [] }

@@ -32,6 +32,8 @@ export const useMeta = () => {
         ...(result.meta.assistant && { assistant: result.meta.assistant }),
         ...(result.meta.runtime && { runtime: result.meta.runtime }),
         ...(result.meta.plugins && { plugins: result.meta.plugins }),
+        // The sources' own `/meta` is read below `MetaGate` (see `withSources`).
+        ...(result.meta.sources && { sources: result.meta.sources.map((source) => ({ source, state: 'loading' as const })) }),
       }
     },
   })

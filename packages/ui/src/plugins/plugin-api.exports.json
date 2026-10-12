@@ -39,6 +39,7 @@
     "useMeta",
     "usePlugin",
     "useRecord",
+    "useResourceClient",
     "useSeries",
     "useUpdateRecord"
   ]

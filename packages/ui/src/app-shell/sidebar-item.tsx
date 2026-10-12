@@ -1,3 +1,4 @@
+import { TriangleAlert } from 'lucide-react'
 import { cn } from '../lib/cn'
 import { Tooltip } from '../primitives/tooltip'
 import type { NavItem } from './nav'
@@ -20,8 +21,9 @@ export const SidebarItem = ({ item, mode, active, onNavigate, className }: Sideb
     <a
       onClick={onNavigate && ((event) => { event.preventDefault(); onNavigate(item.href ?? `#${item.id}`) })}
       href={item.href ?? `#${item.id}`}
-      aria-label={item.label}
+      aria-label={item.problem ? `${item.label}: ${item.problem}` : item.label}
       aria-current={active ? 'page' : undefined}
+      title={item.problem}
       className={cn(
         'flex shrink-0 items-center rounded-md font-medium transition-colors',
         layout[mode],
@@ -34,6 +36,7 @@ export const SidebarItem = ({ item, mode, active, onNavigate, className }: Sideb
       {isTextMode(mode) && item.count && (
         <span className="ml-auto rounded bg-muted px-1.5 text-[11px] tabular-nums text-muted-foreground">{item.count}</span>
       )}
+      {isTextMode(mode) && item.problem && <TriangleAlert aria-hidden className="ml-auto size-3.5 shrink-0 text-warning-text" />}
     </a>
   )
   return mode === 'icon-tooltip' ? <Tooltip label={item.label}>{button}</Tooltip> : button

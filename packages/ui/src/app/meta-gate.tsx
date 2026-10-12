@@ -1,7 +1,10 @@
-import { createContext, useContext, type ReactNode } from 'react'
-import { isApiError } from '@protobase/client'
+import { createContext, useContext, useMemo, type ReactNode } from 'react'
+import { isApiError, routedClient } from '@protobase/client'
+import { ClientProvider, useClient, useSourceClients } from '../data/api-provider'
 import { allowEverything, type MetaData } from '../data/meta-data'
 import { useMeta } from '../data/use-meta'
+import { useSourceMetas } from '../data/use-source-metas'
+import { withSources } from '../data/with-sources'
 import { Spinner } from '../primitives/spinner'
 
 const MetaContext = createContext<MetaData | null>(null)
@@ -21,7 +24,33 @@ const Notice = ({ title, children }: { title: string; children: ReactNode }) => 
   </div>
 )
 
-/** Renders its children once `/meta` has loaded. */
+/**
+ * Draws the resources of the app's sources as its own: reads each source's `/meta`, merges what is ready into the app's,
+ * and gives what is below a client that sends each resource's calls to the API that serves it. The app does not wait
+ * for a source; its resources join when it has loaded.
+ */
+const WithSources = ({ meta, children }: { meta: MetaData; children: ReactNode }) => {
+  const own = useClient()
+  const clientOf = useSourceClients()
+  const declared = useMemo(() => (meta.sources ?? []).map((status) => status.source), [meta.sources])
+  const results = useSourceMetas(declared, clientOf)
+  const merged = useMemo(() => withSources(meta, results), [meta, results])
+  const routing = useMemo(() => {
+    const byResource = new Map(declared.flatMap((source) => source.resources.map((resource) => [resource, source] as const)))
+    const resourceClient = (resource: string) => {
+      const source = byResource.get(resource)
+      return source && clientOf(source)
+    }
+    return { client: routedClient(own, resourceClient), resourceClient }
+  }, [declared, own, clientOf])
+  return (
+    <ClientProvider client={routing.client} resourceClient={routing.resourceClient}>
+      <MetaContext.Provider value={merged}>{children}</MetaContext.Provider>
+    </ClientProvider>
+  )
+}
+
+/** Renders its children once `/meta` has loaded, with the resources of the app's sources as they load. */
 export const MetaGate = ({ children }: { children: ReactNode }) => {
   const meta = useMeta()
   if (meta.isPending) {
@@ -34,7 +63,8 @@ export const MetaGate = ({ children }: { children: ReactNode }) => {
   if (meta.error) {
     return <Notice title="Cannot reach the API">{isApiError(meta.error) ? meta.error.message : 'The server did not answer. Is it running?'}</Notice>
   }
-  return <MetaContext.Provider value={meta.data}>{children}</MetaContext.Provider>
+  if (!meta.data.sources) return <MetaContext.Provider value={meta.data}>{children}</MetaContext.Provider>
+  return <WithSources meta={meta.data}>{children}</WithSources>
 }
 
 export { Notice }

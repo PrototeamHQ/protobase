@@ -32,6 +32,8 @@ import type { PluginLoader } from '../plugins/load-plugin'
 import { PluginGate, usePluginsOff } from '../plugins/plugin-gate'
 import { PluginNotice } from '../plugins/plugin-notice'
 import { RecordPage } from './record-page'
+import { SourceNotice } from './source-notice'
+import { sourceStatusOf } from '../data/with-sources'
 import { useGlobalSearch } from './search/use-global-search'
 import { Router, useRouter } from './router'
 import { RuntimeUpdateButton } from './runtime/runtime-update'
@@ -45,6 +47,8 @@ export type AppProps = {
   baseUrl?: string
   /** A ready-made client, for tests. */
   client?: Client
+  /** Ready-made clients of the sources `/meta` names, by their URL, for stories and tests. */
+  sources?: Record<string, Client>
   /** Sign-in state for the app; made from the page's origin when omitted. */
   auth?: AuthSession
   /** Path prefix the app is mounted under, for example `/admin`. */
@@ -91,6 +95,8 @@ const Routes = ({ workspace, sidebarMode, assistant, runtime }: Pick<AppProps, '
   }, [path, firstPage, firstResource, go])
 
   const resource = address?.kind === 'page' ? undefined : address?.resource
+  // A resource drawn from another API waits for that API's `/meta`, and says so when it cannot be read.
+  const drawnFrom = resource ? sourceStatusOf(meta, resource) : undefined
   const view = resource ? meta.views[resource] : undefined
   const group = groups.find((entry) => entry.items.some((item) => item.id === place))
   const model = resource ? meta.resources[resource] : undefined
@@ -136,6 +142,8 @@ const Routes = ({ workspace, sidebarMode, assistant, runtime }: Pick<AppProps, '
       path === '/' ? <Notice title="Choose a resource">Pick one from the sidebar.</Notice> : <Notice title="Not found">There is nothing at this address.</Notice>
     ) : address.kind === 'page' ? (
       page ? <ComposedPage key={page.name} name={page.name} /> : <Notice title="Not found">There is no page called {address.page}.</Notice>
+    ) : drawnFrom && drawnFrom.state !== 'ready' ? (
+      <SourceNotice status={drawnFrom} />
     ) : address.kind === 'create' ? (
       <CreatePage key={`${address.resource}/new`} resource={address.resource} />
     ) : address.kind === 'record' ? (
@@ -184,10 +192,10 @@ const Routes = ({ workspace, sidebarMode, assistant, runtime }: Pick<AppProps, '
   )
 }
 
-const Authenticated = ({ baseUrl, client, basePath, initialUrl, workspace, sidebarMode, ui, assistant, runtime, pluginLoader }: Omit<AppProps, 'auth'>) => {
+const Authenticated = ({ baseUrl, client, sources, basePath, initialUrl, workspace, sidebarMode, ui, assistant, runtime, pluginLoader }: Omit<AppProps, 'auth'>) => {
   const { session, markSignedOut } = useAuth()
   return (
-    <ApiProvider baseUrl={baseUrl} client={client} token={session.token} onUnauthenticated={markSignedOut}>
+    <ApiProvider baseUrl={baseUrl} client={client} sources={sources} token={session.token} onUnauthenticated={markSignedOut}>
       <Router basePath={basePath} initialUrl={initialUrl}>
         <MetaGate>
           <ToastProvider>
