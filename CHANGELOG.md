@@ -2,6 +2,12 @@
 
 Every release of Protobase, cut by the release workflow from the commits since the last one (see the [versioning page](https://docs.protobase.net/reference/versioning/)).
 
+## [0.12.9](https://github.com/PrototeamHQ/protobase/compare/v0.12.8...v0.12.9) (2026-10-12)
+
+### Features
+
+* **ui:** a frameless ActionCard keeps its content, buttons and confirm dialog without the card ([5df8803](https://github.com/PrototeamHQ/protobase/commit/5df8803ac26f9856ee0e2fec46ab910857e88090))
+
 ## [0.12.8](https://github.com/PrototeamHQ/protobase/compare/v0.12.7...v0.12.8) (2026-10-12)
 
 ### Features
