@@ -14,7 +14,7 @@ import { useProjectUi } from '../pages/project-ui'
 import { ValueBadge } from '../value-badge'
 import type { ListDisplay } from './display-context'
 import { DisplayFooter, DisplayState } from './display-frame'
-import { cardFields, type ListDisplayRow } from './list-displays'
+import { cardFields, filledMeta, type ListDisplayRow } from './list-displays'
 
 type CardsProps = { model: ResourceModel; view: ViewModel | undefined; display: Extract<ListDisplayModel, { kind: 'cards' }>; list: ListDisplay }
 
@@ -44,8 +44,8 @@ const MetaValue = ({ icon, children }: { icon: string | undefined; children: Rea
 
 /**
  * A card per record, opening its page: its image across the top, the title over the subtitle, the badge beside it,
- * small meta fields below and the labels of its flags that are true; or, with a `card` component, what it draws of the
- * row, the built-in content again when it is missing or throws.
+ * small meta fields below, those with a value, and the labels of its flags that are true; or, with a `card` component,
+ * what it draws of the row, the built-in content again when it is missing or throws.
  */
 export const CardsDisplay = ({ model, view, display, list }: CardsProps) => {
   const { image, title, subtitle, badge, meta, flags } = cardFields(model, view, display)
@@ -97,7 +97,7 @@ export const CardsDisplay = ({ model, view, display, list }: CardsProps) => {
               {subtitle !== undefined && <span className="truncate text-muted-foreground">{shownValue(row, subtitle)}</span>}
               {meta.length > 0 && (
                 <dl className="mt-auto flex flex-wrap items-center gap-x-3 gap-y-0.5 pt-1 text-xs text-muted-foreground">
-                  {meta.map((name) => (
+                  {filledMeta(row, meta).map((name) => (
                     <div key={name} className="flex gap-1">
                       <dt className="sr-only">{label(name)}</dt>
                       <MetaValue icon={view?.fields[name]?.icon}>{metaValue(row, name)}</MetaValue>

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { f, resource, view } from '@protobase/schema'
-import { defaultDisplay, displayChoices, displayRow, loadedFields, shownDisplay, sortFields } from './list-displays'
+import { defaultDisplay, displayChoices, displayRow, filledMeta, loadedFields, shownDisplay, sortFields } from './list-displays'
 
 const repairs = resource('repairs')
   .table('repairs')
@@ -79,5 +79,12 @@ describe('displayRow', () => {
       record: { id: 7, number: 'R-7', customerId: 3, status: 'ready' },
       labels: { customerId: 'Ada' },
     })
+  })
+})
+
+describe('filledMeta', () => {
+  it('keeps the meta fields with a value, false and zero included, in order', () => {
+    const row = { key: '1', record: { purchase_price: null, rent_price: '1450.00', bedrooms: 0, garden: false, note: '' }, labels: {} }
+    expect(filledMeta(row, ['purchase_price', 'rent_price', 'bedrooms', 'garden', 'note', 'missing'])).toEqual(['rent_price', 'bedrooms', 'garden'])
   })
 })

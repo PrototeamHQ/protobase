@@ -52,6 +52,9 @@ export const cardFields = (model: ResourceModel, view: ViewModel | undefined, di
   flags: display.flags ?? [],
 })
 
+/** The meta fields a card shows for a row: those with a value, so a listing for rent only shows no purchase price. */
+export const filledMeta = (row: ListDisplayRow, meta: string[]) => meta.filter((name) => row.record[name] !== null && row.record[name] !== undefined && row.record[name] !== '')
+
 /** Every field a display shows, the fields its rows are loaded and labelled for. */
 export const shownFields = (model: ResourceModel, view: ViewModel | undefined, display: ListDisplayModel): string[] => {
   if (display.kind === 'custom') return display.fields
