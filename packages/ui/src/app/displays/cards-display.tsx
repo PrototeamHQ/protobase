@@ -12,6 +12,7 @@ import { namedIcon } from '../named-icon'
 import { CustomBoundary } from '../pages/custom-boundary'
 import { useProjectUi } from '../pages/project-ui'
 import { ValueBadge } from '../value-badge'
+import { CardCarousel } from './card-carousel'
 import type { ListDisplay } from './display-context'
 import { DisplayFooter, DisplayState } from './display-frame'
 import { cardFields, filledMeta, type ListDisplayRow } from './list-displays'
@@ -43,9 +44,10 @@ const MetaValue = ({ icon, children }: { icon: string | undefined; children: Rea
 }
 
 /**
- * A card per record, opening its page: its image across the top, the title over the subtitle, the badge beside it,
- * small meta fields below, those with a value, and the labels of its flags that are true; or, with a `card` component,
- * what it draws of the row, the built-in content again when it is missing or throws.
+ * A card per record, opening its page: its image across the top, with arrows through its photos when the display names
+ * them, the title over the subtitle, the badge beside it, small meta fields below, those with a value, and the labels of
+ * its flags that are true; or, with a `card` component, what it draws of the row, the built-in content again when it is
+ * missing or throws.
  */
 export const CardsDisplay = ({ model, view, display, list }: CardsProps) => {
   const { image, title, subtitle, badge, meta, flags } = cardFields(model, view, display)
@@ -76,6 +78,8 @@ export const CardsDisplay = ({ model, view, display, list }: CardsProps) => {
     )
   }
   const plural = (view?.names?.plural ?? humanize(model.name)).toLowerCase()
+  // A card component draws its own content, so only the built-in card steps through photos
+  const photos = Card ? undefined : display.photos
 
   return (
     <DisplayState list={list} empty={`No ${plural} match.`} loading={<div className={grid}>{Array.from({ length: 6 }, (_, index) => <Skeleton key={index} className="h-24" />)}</div>}>
@@ -83,9 +87,10 @@ export const CardsDisplay = ({ model, view, display, list }: CardsProps) => {
         {list.rows.map((row) => {
           const status = badge === undefined ? undefined : row.record[badge]
           const raised = flags.filter((name) => row.record[name] === true)
-          const builtIn = (
+          const cover = image === undefined ? undefined : row.record[image]
+          const builtIn = (photo: unknown) => (
             <>
-              {image !== undefined && <CardImage value={row.record[image]} />}
+              {(image !== undefined || photos !== undefined) && <CardImage value={photo} />}
               <span className="flex items-start justify-between gap-2">
                 <span className="min-w-0 truncate font-medium">{shownValue(row, title)}</span>
                 {badge !== undefined && status !== null && status !== undefined && (
@@ -116,20 +121,29 @@ export const CardsDisplay = ({ model, view, display, list }: CardsProps) => {
               )}
             </>
           )
+          const card = (photo: unknown) => (
+            <AppLink
+              to={{ kind: 'record', resource: model.name, key: row.key }}
+              className="flex h-full flex-col gap-1.5 rounded-lg border border-border bg-background p-3 text-[13px] hover:border-border-strong hover:bg-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+            >
+              {Card ? (
+                <CustomBoundary name={display.card!} fallback={builtIn(photo)}>
+                  <Card row={row} />
+                </CustomBoundary>
+              ) : (
+                builtIn(photo)
+              )}
+            </AppLink>
+          )
           return (
-            <li key={row.key}>
-              <AppLink
-                to={{ kind: 'record', resource: model.name, key: row.key }}
-                className="flex h-full flex-col gap-1.5 rounded-lg border border-border bg-background p-3 text-[13px] hover:border-border-strong hover:bg-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
-              >
-                {Card ? (
-                  <CustomBoundary name={display.card!} fallback={builtIn}>
-                    <Card row={row} />
-                  </CustomBoundary>
-                ) : (
-                  builtIn
-                )}
-              </AppLink>
+            <li key={row.key} className={photos ? 'group/card relative' : undefined}>
+              {photos ? (
+                <CardCarousel photos={photos} recordKey={row.key} cover={cover}>
+                  {card}
+                </CardCarousel>
+              ) : (
+                card(cover)
+              )}
             </li>
           )
         })}

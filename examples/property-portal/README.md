@@ -49,7 +49,7 @@ Visitors get the admin app too: it opens on the home page and the listings, read
 ## Screens
 
 - **Find a home** (`config/home/page.tsx`): what is on offer and the newest listings; for a member also their new alerts and favorites.
-- **Listings**: cards with the cover photo, address, place, status, the purchase price and the rent per month (whichever apply), area, bedrooms and energy label, or a table; filters for sale or rent (a home offered both ways shows under each), place, type, purchase price, rent, area, bedrooms, energy label, status, garden, balcony and parking. A listing's page lists its photos and, for a member, their notes on it, with **Save to favorites**, **Remove from favorites** (`protobase.ui.tsx`) and **Add a note**, which opens the note form with the listing chosen.
+- **Listings**: cards with the cover photo and arrows through the listing's other photos, address, place, status, the purchase price and the rent per month (whichever apply), area, bedrooms and energy label, or a table; filters for sale or rent (a home offered both ways shows under each), place, type, purchase price, rent, area, bedrooms, energy label, status, garden, balcony and parking. A listing's page lists its photos and, for a member, their notes on it, with **Save to favorites**, **Remove from favorites** (`protobase.ui.tsx`) and **Add a note**, which opens the note form with the listing chosen.
 - **Favorites**, **Alerts**, **Notes** and **Search profiles**: the member's own lists. An alert links to its listing and can be marked seen; a profile lists its alerts.
 
 ## Alerts

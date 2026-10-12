@@ -128,8 +128,14 @@ export type FieldWidgetModel = { name: string; props?: Record<string, JsonValue>
  * small badges of their labels when true. `name` is what the address names (`?display=cards`); `label` and `icon` are its switch's.
  */
 export type ListDisplayModel =
-  | { kind: 'cards'; name: string; label?: string; icon?: string; image?: string; title?: string; subtitle?: string; badge?: string; meta?: string[]; flags?: string[]; card?: string }
+  | { kind: 'cards'; name: string; label?: string; icon?: string; image?: string; title?: string; subtitle?: string; badge?: string; meta?: string[]; flags?: string[]; card?: string; photos?: CardPhotosModel }
   | { kind: 'custom'; name: string; label: string; icon?: string; component: string; fields: string[]; props?: Record<string, JsonValue> }
+
+/**
+ * Where a card's further photos come from: the records of `resource` whose relation `field` points at the card's record,
+ * in `sort` order, each shown by its file field `image`. The card loads them when its arrows are first used.
+ */
+export type CardPhotosModel = { resource: string; field: string; image: string; sort?: string }
 
 export type ListModel = {
   columns: string[]

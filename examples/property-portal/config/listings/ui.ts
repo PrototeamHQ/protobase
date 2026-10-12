@@ -2,7 +2,7 @@ import { l, view } from '@protobase/schema'
 import type { listings } from './data'
 import { energyLabelColors, energyLabelLabels, propertyTypeLabels } from './labels'
 
-/** What everyone sees of a listing: the cards with their photos first, the table and the filters of a portal. */
+/** What everyone sees of a listing: the cards with their photos first, arrows through the rest, the table and the filters of a portal. */
 export const listingsView = view<typeof listings>('listings')
   .title((r) => r.address)
   .names({ singular: 'Listing', plural: 'Listings' })
@@ -34,7 +34,12 @@ export const listingsView = view<typeof listings>('listings')
     columns: [r.address, r.place_id, r.property_type, r.purchase_price, r.rent_price, r.living_area, r.rooms, r.energy_label, r.status, r.published_at],
     sort: [[r.published_at, 'desc']],
     search: [r.address, r.postal_code],
-    displays: [d.cards({ image: r.photo, title: r.address, subtitle: r.place_id, badge: r.status, meta: [r.purchase_price, r.rent_price, r.living_area, r.bedrooms, r.energy_label], flags: [r.garden, r.balcony, r.parking] }, { label: 'Photos' })],
+    displays: [
+      d.cards(
+        { image: r.photo, title: r.address, subtitle: r.place_id, badge: r.status, meta: [r.purchase_price, r.rent_price, r.living_area, r.bedrooms, r.energy_label], flags: [r.garden, r.balcony, r.parking] },
+        { label: 'Photos', photos: { resource: 'listing_photos', field: 'listing_id', image: 'photo', sort: 'position' } },
+      ),
+    ],
     default: 'cards',
   }))
   .filters((r, w) => [

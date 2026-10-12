@@ -19,7 +19,12 @@ const repairs = resource('repairs')
   })
   .primaryKey((r) => r.id)
 
-const all = { customers: customers.toModel(), repairs: repairs.toModel() }
+const repairPhotos = resource('repair_photos')
+  .table('repair_photos')
+  .fields({ id: f.integer(), repairId: f.relation('repairs').filterable(), position: f.integer().sortable(), photo: f.file() })
+  .primaryKey((r) => r.id)
+
+const all = { customers: customers.toModel(), repairs: repairs.toModel(), repair_photos: repairPhotos.toModel() }
 
 // The models as a caller who cannot read `hidden` and cannot see the `gone` resources gets them, as `/meta` does.
 const without = (hidden: Record<string, string[]>, gone: string[] = []): Record<string, ResourceModel> =>
@@ -120,5 +125,15 @@ describe('pruneView', () => {
     expect(pruned.layout.map((item) => (item.kind === 'custom' ? item.component : item.kind))).toEqual(['section', 'Board', 'sidebar'])
     expect(pruned.actions.map((action) => action.name)).toEqual(['ready'])
     expect(pruneView(everywhere, all.repairs, all)).toEqual(everywhere)
+  })
+
+  it("keeps a cards display's photos only for a caller who can list them", () => {
+    const photos = { resource: 'repair_photos', field: 'repairId', image: 'photo', sort: 'position' }
+    const withPhotos = view<typeof repairs>('repairs').list((r, d) => ({ columns: [r.number], displays: [d.cards({ title: r.number }, { photos })] })).toModel()
+    const cards = (models: Record<string, ResourceModel>) => pruneView(withPhotos, models.repairs!, models).list?.displays
+    expect(cards(all)).toEqual([{ kind: 'cards', name: 'cards', title: 'number', photos }])
+    expect(cards(without({ repair_photos: ['photo'] }))).toEqual([{ kind: 'cards', name: 'cards', title: 'number' }])
+    expect(cards(without({ repair_photos: ['repairId'] }))).toEqual([{ kind: 'cards', name: 'cards', title: 'number' }])
+    expect(cards(without({}, ['repair_photos']))).toEqual([{ kind: 'cards', name: 'cards', title: 'number' }])
   })
 })

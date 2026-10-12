@@ -8,6 +8,7 @@ import {
   tableDisplay,
   type ActionModel,
   type ActionRun,
+  type CardPhotosModel,
   type ChartModel,
   type CustomSectionModel,
   type FilterWidgetModel,
@@ -21,6 +22,7 @@ import {
   type SearchResultModel,
   type ViewModel,
 } from '@protobase/schema'
+import { cardPhotosErrors } from './view-card-photos'
 import { relatedErrors } from './view-related'
 
 type Of<U, K extends string> = Extract<U, { kind: K }>
@@ -40,24 +42,39 @@ const keepDefault = ({ default: opens, displays, ...list }: ListModel): ListMode
   return { ...list, ...(shown && { displays: shown }), ...(opens !== undefined && kept && { default: opens }) }
 }
 
-const listShape = s.object<ListModel>(
-  {
-    columns: s.list(s.field),
-    sort: s.list(s.tuple(s.field, s.data)),
-    search: s.list(s.field),
-    displays: s.list(
-      s.oneOf<ListDisplayModel>({
-        cards: s.object<Of<ListDisplayModel, 'cards'>>({ kind: s.data, name: s.data, label: s.data, icon: s.data, image: s.field, title: s.field, subtitle: s.field, badge: s.field, meta: s.list(s.field), flags: s.list(s.field), card: s.data }),
-        custom: s.object<Of<ListDisplayModel, 'custom'>>(
-          { kind: s.data, name: s.data, label: s.data, icon: s.data, component: s.data, fields: s.list(s.field), props: s.refs },
-          { requires: ['props'] },
-        ),
-      }),
-    ),
-    default: s.data,
-  },
-  { after: keepDefault },
-)
+// A card keeps its photos only when the caller can load them; without them it shows its own image alone.
+const listShape = (resource: string, models: Record<string, ResourceModel>) =>
+  s.object<ListModel>(
+    {
+      columns: s.list(s.field),
+      sort: s.list(s.tuple(s.field, s.data)),
+      search: s.list(s.field),
+      displays: s.list(
+        s.oneOf<ListDisplayModel>({
+          cards: s.object<Of<ListDisplayModel, 'cards'>>({
+            kind: s.data,
+            name: s.data,
+            label: s.data,
+            icon: s.data,
+            image: s.field,
+            title: s.field,
+            subtitle: s.field,
+            badge: s.field,
+            meta: s.list(s.field),
+            flags: s.list(s.field),
+            card: s.data,
+            photos: s.map<CardPhotosModel>((photos) => (cardPhotosErrors(photos, resource, models).length === 0 ? photos : undefined)),
+          }),
+          custom: s.object<Of<ListDisplayModel, 'custom'>>(
+            { kind: s.data, name: s.data, label: s.data, icon: s.data, component: s.data, fields: s.list(s.field), props: s.refs },
+            { requires: ['props'] },
+          ),
+        }),
+      ),
+      default: s.data,
+    },
+    { after: keepDefault },
+  )
 
 const widgetShape = s.oneOf<FilterWidgetModel>({
   range: s.object<Of<FilterWidgetModel, 'range'>>({ kind: s.data, field: s.field, histogram: s.data }, { requires: ['field'] }),
@@ -112,7 +129,7 @@ const viewShape = (resource: string, model: ResourceModel, models: Record<string
     icon: s.data,
     help: s.data,
     fields: s.keys(),
-    list: listShape,
+    list: listShape(resource, models),
     filters: s.list(widgetShape),
     layout: s.list(layoutShape(resource, models)),
     chart: s.object<ChartModel>({ field: s.field, range: s.data, granularity: s.data }, { requires: ['field'] }),

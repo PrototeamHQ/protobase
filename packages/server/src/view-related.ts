@@ -9,7 +9,7 @@ const filterErrors = (model: ResourceModel, source: string | undefined) => {
   return checked && !checked.ok ? checked.errors.map((error) => error.message) : []
 }
 
-const sortErrors = (model: ResourceModel, source: string | undefined) => {
+export const sortErrors = (model: ResourceModel, source: string | undefined) => {
   if (source === undefined) return []
   const parsed = parseOrderBy(source)
   if (!parsed.ok) return parsed.errors.map((error) => error.message)
@@ -18,7 +18,7 @@ const sortErrors = (model: ResourceModel, source: string | undefined) => {
 }
 
 // The app filters on the field, so it must be filterable; `to` names the resource it must point at.
-const matchErrors = (model: ResourceModel, name: string, to?: string) => {
+export const matchErrors = (model: ResourceModel, name: string, to?: string) => {
   const field = Object.hasOwn(model.fields, name) ? model.fields[name]! : undefined
   if (!field) return [`unknown field "${name}" on ${model.name}`]
   if (!field.filterable) return [`"${name}" on ${model.name} is not filterable`]

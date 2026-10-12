@@ -17,6 +17,7 @@ export type {
   BadgeShape,
   ListModel,
   ListDisplayModel,
+  CardPhotosModel,
   JsonValue,
   DatePreset,
   FilterWidgetModel,

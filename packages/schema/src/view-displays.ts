@@ -1,5 +1,5 @@
 import { fieldRefsIn, markFieldRefs } from './field-ref'
-import type { JsonValue, ListDisplayModel } from './model'
+import type { CardPhotosModel, JsonValue, ListDisplayModel } from './model'
 import type { Ref } from './refs'
 
 /** A custom component as `component(name)` from `@protobase/layout` declares it. */
@@ -27,10 +27,14 @@ export const displays = {
    * view's title) over `subtitle`, `badge` drawn as a badge with its value labels, and a few small `meta` fields such as
    * dates. `flags` are boolean fields shown as small badges of their labels when true, such as a garden or parking.
    * With `card`, a component of the project or a plugin draws each card's content instead, from the row of those
-   * fields (`{ row }`); without it, or when it throws, the card is the built-in one. Named `cards` unless `name` says
-   * otherwise.
+   * fields (`{ row }`); without it, or when it throws, the card is the built-in one. With `photos`, the built-in card's
+   * picture gets arrows through the `image` of the records of another resource that point at the card's record, after
+   * its own `image`; they load when an arrow is first pressed. Named `cards` unless `name` says otherwise.
    */
-  cards: (fields: { image?: Ref; title?: Ref; subtitle?: Ref; badge?: Ref; meta?: Ref[]; flags?: Ref[] }, o: Naming & { card?: ComponentRef<never> } = {}): ListDisplayModel => ({
+  cards: (
+    fields: { image?: Ref; title?: Ref; subtitle?: Ref; badge?: Ref; meta?: Ref[]; flags?: Ref[] },
+    o: Naming & { card?: ComponentRef<never>; photos?: CardPhotosModel } = {},
+  ): ListDisplayModel => ({
     kind: 'cards',
     name: o.name ?? 'cards',
     ...naming(o),
@@ -41,6 +45,7 @@ export const displays = {
     ...(fields.meta && { meta: fields.meta.map((ref) => ref.name) }),
     ...(fields.flags && { flags: fields.flags.map((ref) => ref.name) }),
     ...(o.card && { card: customComponent(o.card, 'd.cards card') }),
+    ...(o.photos && { photos: { ...o.photos } }),
   }),
   /**
    * The list drawn by a component of the project, registered in `protobase.ui.tsx` under its name. It gets `props` and
