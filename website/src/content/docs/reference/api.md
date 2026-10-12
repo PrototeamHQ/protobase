@@ -169,7 +169,7 @@ The API sends no CORS headers until it has something to allow: other websites in
 
 ## Errors
 
-Every error is `application/problem+json` (RFC 9457) with `type` (`urn:protobase:problem:<slug>`), `title`, `status`, `detail`, `instance`. Filter and `order_by` errors add `parameter` and `errors: [{ code, message, hint, span: { start, end } }]`; invalid parameters add `errors: [{ parameter, message }]`. Database constraint failures map to `409` or `400` without the raw message; anything unexpected is a `500` with a fixed detail, reported to `options.onUnhandledError`.
+Every error is `application/problem+json` (RFC 9457) with `type` (`urn:protobase:problem:<slug>`), `title`, `status`, `detail`, `instance`. Filter and `order_by` errors add `parameter` and `errors: [{ code, message, hint, span: { start, end } }]`; invalid parameters add `errors: [{ parameter, message }]`. Database constraint failures map to `409` or `400` without the raw message; anything unexpected is a `500` with a fixed detail, reported to `options.onUnhandledError` and, when it is set, the [error tracker](#error-reporting).
 
 | Status | Slugs |
 | --- | --- |
@@ -180,3 +180,18 @@ Every error is `application/problem+json` (RFC 9457) with `type` (`urn:protobase
 | 409 | `conflict` |
 | 412 / 428 | `precondition-failed` / `precondition-required` |
 | 504 | `statement-timeout` |
+
+### Error reporting
+
+An app can send its errors to an error tracker of its own: [Sentry](https://sentry.io) or one that speaks its protocol, such as [Bugsink](https://www.bugsink.com) or [GlitchTip](https://glitchtip.com). It is off until a DSN, the address the tracker gives a project, is set in `options.errorReporting` or `PROTOBASE_SENTRY_DSN`; without one nothing is loaded or sent.
+
+```ts
+export default defineConfig({
+  options: { errorReporting: { dsn: 'https://<key>@errors.example.com/42', environment: 'staging' } },
+})
+```
+
+- **Server:** every `500` with the request it failed, under `dev`, `serve` and the runtime, besides `options.onUnhandledError` or the console. Under `serve`, the runtime and `worker`, an uncaught exception or unhandled rejection too, which then still ends the process with exit code 1.
+- **Admin app:** uncaught errors and the errors of components that fail to draw. `/api/meta` names the DSN to every signed-in caller, as a browser app always shows its own.
+- Errors only, with no performance tracing. Before an event leaves, the values of authorization headers, cookies, passwords, tokens and other credentials, in fields and in URLs, are replaced by `[Filtered]`.
+- `environment` names the deployment in the tracker; without it the tracker's default, `production`. `errorReporting: false` turns reporting off whatever the environment says. A DSN that is no `http(s)` URL with a key and a project id stops startup.

@@ -348,6 +348,7 @@ Serves the API of a bundle from `protobase build` and owns the process around it
 | `PROTOBASE_CORS_ORIGINS` | other websites whose browser code may call the API, `*` or comma separated origins ([CORS](/reference/api/#cors)) |
 | `PROTOBASE_ASSISTANT_URL`, `PROTOBASE_ASSISTANT_API_KEY`, `PROTOBASE_ASSISTANT_MODEL`, `PROTOBASE_ASSISTANT_BASE_URL` | the [assistant](/reference/assistant/#which-backend): a backend elsewhere, or the built-in one on OpenRouter or another OpenAI-compatible endpoint; without them there is none |
 | `PROTOBASE_RUNTIME_URL` | the endpoint behind the top bar's [runtime update button](/reference/versioning/#runtime-updates), such as a hosting platform's; without it there is no button |
+| `PROTOBASE_SENTRY_DSN` | the DSN of a Sentry-compatible error tracker the app's server and admin app send their errors to, after `options.errorReporting` ([Error reporting](/reference/api/#error-reporting)); without it nothing is sent |
 | `PROTOBASE_SOURCES` | other Protobase APIs whose resources the app draws as its own, a JSON list of `{ "url", "label", "resources", "roles"? }` after `options.sources` ([Remote resources](/reference/remote-resources/#declaring-a-source)) |
 | `PROTOBASE_FILES_<NAME>`, `PROTOBASE_FILES_RETENTION`, `PROTOBASE_FILES_SECRET` | [file providers](/reference/files/#providers) and their settings, over `files` in the config |
 | `PROTOBASE_FILES_CLEANUP_MINUTES` | minutes between runs of the [scheduled file deletes](/reference/files/#deleting-files), default 60; 0 leaves them to `protobase files cleanup` or the platform |
