@@ -50,7 +50,10 @@ const WithSources = ({ meta, children }: { meta: MetaData; children: ReactNode }
   )
 }
 
-/** Renders its children once `/meta` has loaded, with the resources of the app's sources as they load. */
+/**
+ * Renders its children once `/meta` has loaded, with the resources of the app's sources as they load. The sources'
+ * layer is always there, also without sources, so `/meta` gaining or losing them never draws the app anew.
+ */
 export const MetaGate = ({ children }: { children: ReactNode }) => {
   const meta = useMeta()
   if (meta.isPending) {
@@ -63,7 +66,6 @@ export const MetaGate = ({ children }: { children: ReactNode }) => {
   if (meta.error) {
     return <Notice title="Cannot reach the API">{isApiError(meta.error) ? meta.error.message : 'The server did not answer. Is it running?'}</Notice>
   }
-  if (!meta.data.sources) return <MetaContext.Provider value={meta.data}>{children}</MetaContext.Provider>
   return <WithSources meta={meta.data}>{children}</WithSources>
 }
 
