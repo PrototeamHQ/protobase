@@ -1,4 +1,5 @@
 import { mkdtemp, rm } from 'node:fs/promises'
+import { createRequire } from 'node:module'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
@@ -25,15 +26,16 @@ const fieldsEntry = (file: string, code: string): Plugin => ({
 })
 
 // React's packages as the app has them: the plugin imports them without depending on them, so they resolve from the
-// @protobase/ui it is built with.
-const sharedFromUi = (uiDir: string): Plugin => ({
-  name: 'protobase-plugin-fields-shared',
-  enforce: 'pre',
-  resolveId(id, _importer, options) {
-    if (id === '@protobase/ui' || !(sharedModules as readonly string[]).includes(id)) return undefined
-    return this.resolve(id, path.join(uiDir, 'package.json'), { ...options, skipSelf: true })
-  },
-})
+// @protobase/ui it is built with. Node's resolution finds them, not the other resolvers: the project's (extensionImports)
+// takes a @protobase/ui installed inside the project for one of its files and would hand them back here without end.
+const sharedFromUi = (uiDir: string): Plugin => {
+  const require = createRequire(path.join(uiDir, 'package.json'))
+  return {
+    name: 'protobase-plugin-fields-shared',
+    enforce: 'pre',
+    resolveId: (id) => (id === '@protobase/ui' || !(sharedModules as readonly string[]).includes(id) ? undefined : require.resolve(id)),
+  }
+}
 
 const isStorageTypes = (value: unknown): value is string[] => Array.isArray(value) && value.every((item) => typeof item === 'string')
 

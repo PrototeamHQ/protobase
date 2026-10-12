@@ -1,5 +1,5 @@
 import { randomBytes } from 'node:crypto'
-import { mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises'
+import { mkdir, readFile, readdir, rm, symlink, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import { buildPlugin } from '../../src/build/plugin-build'
@@ -76,6 +76,26 @@ export default definePlugin({ fields: { rating: { of: ['integer', 'decimal'], di
     const manifest = await buildPlugin({ pluginDir, outDir: path.join(pluginDir, 'dist') })
     expect(manifest.fields).toEqual({ rating: ['integer', 'decimal'], slug: ['text'] })
     expect(JSON.parse(await readFile(path.join(pluginDir, 'dist/plugin.json'), 'utf8')).fields).toEqual(manifest.fields)
+  }, buildTimeout)
+
+  it("builds a project's own UI with @protobase/ui installed inside the project, as npm installs it", async () => {
+    // The project's @protobase/ui sits in its node_modules, a folder of its own that re-exports the workspace's, with
+    // React beside it.
+    const ui = path.join(root, 'packages/ui/src')
+    const fields = `import { useState } from 'react'
+import { definePlugin, type FieldWidgetProps } from '@protobase/ui'
+const Stars = ({ value }: FieldWidgetProps<number>) => <span>{useState('★'.repeat(value ?? 0))[0]}</span>
+export default definePlugin({ fields: { rating: { of: ['integer'], display: Stars } } })
+`
+    pluginDir = await createPlugin({
+      'protobase.ui.tsx': fields,
+      'node_modules/@protobase/ui/package.json': JSON.stringify({ name: '@protobase/ui', version: uiVersion, type: 'module', protobase: { pluginApi: 1 }, exports: { '.': './index.js', './theme.css': './theme.css' } }),
+      'node_modules/@protobase/ui/index.js': `export * from ${JSON.stringify(path.join(ui, 'index.ts'))}\n`,
+      'node_modules/@protobase/ui/theme.css': await readFile(path.join(ui, 'theme.css'), 'utf8'),
+    })
+    for (const name of ['react', 'react-dom']) await symlink(path.join(root, 'packages/ui/node_modules', name), path.join(pluginDir, 'node_modules', name))
+    const manifest = await buildPlugin({ pluginDir, outDir: path.join(pluginDir, 'dist'), name: 'app', projectDir: pluginDir })
+    expect(manifest.fields).toEqual({ rating: ['integer'] })
   }, buildTimeout)
 
   it('is named after its folder without a package.json, or by the name given', async () => {
