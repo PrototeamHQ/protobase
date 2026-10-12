@@ -2,6 +2,16 @@
 
 Every release of Protobase, cut by the release workflow from the commits since the last one (see the [versioning page](https://docs.protobase.net/reference/versioning/)).
 
+## [0.12.10](https://github.com/PrototeamHQ/protobase/compare/v0.12.9...v0.12.10) (2026-10-12)
+
+### Features
+
+* a property portal example with public listings, search alerts, favorites and private notes ([228a228](https://github.com/PrototeamHQ/protobase/commit/228a228fab60b6f1bb3e14ae61f556a0ea630252))
+* **server:** jobs send mail through the app's SMTP server with context.mail ([4d20b08](https://github.com/PrototeamHQ/protobase/commit/4d20b0811d5b32318d768690cb965492d34ad0b4))
+* **ui:** a cards display shows a file field as each card's image ([f49fee8](https://github.com/PrototeamHQ/protobase/commit/f49fee8c69b95a9ceade35e94a6f7b704f5ab3ba))
+* **ui:** a create address fills in fields of the new record, from a link on a record too ([52049cd](https://github.com/PrototeamHQ/protobase/commit/52049cdd62833c1347c18c9332b71ae89bcc7744))
+* **ui:** visitors browse what the anonymous role reads without signing in ([bf51f75](https://github.com/PrototeamHQ/protobase/commit/bf51f7550b3cefeb24f58db5378905ff8237adab))
+
 ## [0.12.9](https://github.com/PrototeamHQ/protobase/compare/v0.12.8...v0.12.9) (2026-10-12)
 
 ### Features
