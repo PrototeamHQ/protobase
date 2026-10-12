@@ -1,6 +1,6 @@
 ---
 title: Getting started
-description: Install the repository, run the ERP and real estate examples and learn the development commands.
+description: Install the repository, run the ERP, real estate and property portal examples and learn the development commands.
 ---
 
 Protobase is a config-driven admin panel framework for existing Postgres databases. Data config lives in `data.ts`, UI config in `ui.ts`; a Hono server serves the API and a React app renders the admin.
@@ -35,6 +35,15 @@ bun run --cwd examples/real-estate protobase users create you@example.com --role
 bun run --cwd examples/real-estate dev                  # http://localhost:5173
 ```
 
+## Run the property portal example
+
+`examples/property-portal` is a public portal of homes for sale and for rent in the Netherlands and Spain, in the style of Funda and Idealista. Visitors browse and filter the listings without signing in, through the [anonymous role](/reference/access/#anonymous-access); members keep search profiles with alerts, favorites and notes that only they see. The seed makes two members, `anna@portal.example` and `bram@portal.example`, and an admin, `admin@portal.example`, all with the password `property-portal-demo`.
+
+```sh
+bun run db:up && bun run --cwd examples/property-portal db:migrate && bun run --cwd examples/property-portal db:seed --scale small
+bun run --cwd examples/property-portal dev              # http://localhost:5173
+```
+
 ## Commands
 
 | Command | Purpose |
@@ -48,7 +57,7 @@ bun run --cwd examples/real-estate dev                  # http://localhost:5173
 | `bun run presets:write <version> <dir>` | writes each preset to `<dir>/<name>`: a standalone copy of its example with the `@protobase` packages pinned to `<version>`, which must be on npm, and its own `bun.lock` |
 | `bun run images:context` | the build contexts of the `protobase` and `protobase-dev` images in `dist/images`, at the version in `package.json` (see [Deploy](/guides/deploy/#images)) |
 | `bun run test:presets` | writes each preset as `bun run presets:write` does it and installs it with Bun from npm (so at a published version), then migrates, seeds, checks, tests and builds it on a database of its own, as a role without superuser rights; needs the Postgres container |
-| `bun run test:db` | builds the template databases the database tests clone for each run (`protobase_test_template`, `real_estate_test_template`), when missing or older than the examples' migrations and seed; without them those tests skip. Tests never use the `protobase` or `real_estate` databases |
+| `bun run test:db` | builds the template databases the database tests clone for each run (`protobase_test_template`, `real_estate_test_template`, `property_portal_test_template`), when missing or older than the examples' migrations and seed; without them those tests skip. Tests never use the `protobase`, `real_estate` or `property_portal` databases |
 | `bun run typecheck` | `tsc --noEmit` |
 | `bun run check:boundaries` | dependency-cruiser package rules |
 | `bun run check` | typecheck + test + test:integration + check:boundaries |

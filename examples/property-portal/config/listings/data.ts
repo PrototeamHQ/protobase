@@ -1,0 +1,50 @@
+import { f, resource } from '@protobase/schema'
+
+export const energyLabels = ['a_plus_4', 'a_plus_3', 'a_plus_2', 'a_plus', 'a', 'b', 'c', 'd', 'e', 'f', 'g'] as const
+export const propertyTypes = ['apartment', 'house', 'townhouse', 'villa', 'studio', 'penthouse'] as const
+
+/**
+ * market.listings: a home for sale or for rent. `price` is the asking price, or the rent per month; `price_per_m2` is
+ * computed by Postgres. A listing is public from `published_at`, a draft while that is empty; publishing one asks the
+ * match-listing job for the search profiles it fits (db/migrations/005_listing_published.sql).
+ */
+export const listings = resource('listings')
+  .table('market.listings')
+  .fields({
+    id: f.bigint().readOnly().filterable().sortable().dbDefault(),
+    agency_id: f.relation('agencies').filterable().sortable(),
+    place_id: f.relation('places').filterable().sortable(),
+    offer_type: f.enum(['sale', 'rent']).filterable().sortable(),
+    property_type: f.enum(propertyTypes).filterable().sortable(),
+    status: f.enum(['available', 'under_offer', 'sold', 'let']).default('available').filterable().sortable(),
+    address: f.text().filterable().sortable(),
+    postal_code: f.text().filterable(),
+    latitude: f.decimal({ precision: 8, scale: 6 }),
+    longitude: f.decimal({ precision: 9, scale: 6 }),
+    price: f.decimal({ precision: 12, scale: 2 }).filterable().sortable(),
+    living_area: f.integer().min(1).filterable().sortable(),
+    price_per_m2: f.decimal({ precision: 10, scale: 2 }).readOnly().filterable().sortable(),
+    plot_area: f.integer().min(1).optional().filterable().sortable(),
+    rooms: f.integer().min(1).filterable().sortable(),
+    bedrooms: f.integer().min(0).filterable().sortable(),
+    bathrooms: f.integer().min(0).default(1),
+    built_year: f.integer().min(1500).max(2100).optional().filterable().sortable(),
+    energy_label: f.enum(energyLabels).optional().filterable().sortable(),
+    garden: f.boolean().default(false).filterable(),
+    balcony: f.boolean().default(false).filterable(),
+    parking: f.boolean().default(false).filterable(),
+    description: f.text(),
+    photo: f.file().accept(['image/*']).public().optional(),
+    agent_name: f.text(),
+    agent_phone: f.text(),
+    published_at: f.timestamp().optional().filterable().sortable(),
+    created_at: f.timestamp().readOnly().filterable().sortable().dbDefault(),
+    updated_at: f.timestamp().readOnly().dbDefault(),
+  })
+  .primaryKey((r) => r.id)
+  .search((r) => [r.address, r.postal_code])
+  .validate((record) =>
+    record.bedrooms !== undefined && record.rooms !== undefined && Number(record.bedrooms) >= Number(record.rooms)
+      ? [{ field: 'bedrooms', message: 'Fewer bedrooms than rooms: the living room is a room too' }]
+      : undefined,
+  )

@@ -5,7 +5,7 @@ import { copyFileSync, existsSync, readFileSync } from 'node:fs'
 import path from 'node:path'
 import postgres from 'postgres'
 
-const examples = ['erp', 'real-estate']
+const examples = ['erp', 'real-estate', 'property-portal']
 
 for (const example of examples) {
   const dir = path.join('examples', example)

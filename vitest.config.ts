@@ -8,7 +8,7 @@ const runId = randomBytes(4).toString('hex')
 const testDatabase = 'scripts/test-db/global-setup.ts'
 // Unit tests sit next to the code; tests that start a database, a subprocess or the network live in each package's
 // tests/, and the examples' in tests/examples.
-const unit = ['packages/*/src/**/*.test.ts', 'docs-examples/**/*.test.ts', 'examples/*/{config,seed}/**/*.test.ts']
+const unit = ['packages/*/src/**/*.test.ts', 'docs-examples/**/*.test.ts', 'examples/*/{config,jobs,seed}/**/*.test.ts']
 // Database, subprocess and build tests: `bun run test:integration`.
 const integration = ['packages/cli/tests/**/*.integration.test.ts', 'packages/cli/tests/build/deploy-bundle.test.ts']
 // The glue between packages, on PGlite in `bun run test`, and on Postgres and PgBouncer (`*.postgres.test.ts`) with the
@@ -69,6 +69,17 @@ export default defineConfig({
           include: ['tests/examples/real-estate/**/*.test.ts'],
           globalSetup: [testDatabase],
           env: runEnvironment('realEstate', runId),
+          maxWorkers: integrationWorkers,
+          sequence: integrationGroup,
+        },
+      },
+      {
+        extends: true,
+        test: {
+          name: 'integration-property-portal',
+          include: ['tests/examples/property-portal/**/*.test.ts'],
+          globalSetup: [testDatabase],
+          env: runEnvironment('propertyPortal', runId),
           maxWorkers: integrationWorkers,
           sequence: integrationGroup,
         },

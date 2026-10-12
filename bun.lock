@@ -67,6 +67,30 @@
         "vitest": "^5.0.3",
       },
     },
+    "examples/property-portal": {
+      "name": "property-portal",
+      "version": "0.0.0",
+      "dependencies": {
+        "@protobase/cli": "workspace:*",
+        "@protobase/layout": "workspace:*",
+        "@protobase/schema": "workspace:*",
+        "@protobase/server": "workspace:*",
+        "@protobase/ui": "workspace:*",
+        "better-auth": "^1.7.7",
+        "kysely": "^0.29.6",
+        "pg": "^8.23.1",
+        "postgres": "^3.4.9",
+        "react": "^19.3.0",
+        "zod": "^4.6.5",
+      },
+      "devDependencies": {
+        "@types/node": "^22.20.5",
+        "@types/pg": "^8.23.1",
+        "@types/react": "^19.3.0",
+        "typescript": "^6.0.3",
+        "vitest": "^5.0.3",
+      },
+    },
     "examples/real-estate": {
       "name": "real-estate",
       "version": "0.0.0",
@@ -1773,6 +1797,8 @@
     "prompts": ["prompts@2.4.2", "", { "dependencies": { "kleur": "3.0.3", "sisteransi": "1.0.5" } }, "sha512-NxNv/kLguCA7p3jE8oL2aEBsrJWgAakBpgmgK6lpPWV+WuOmY6r2/zbAVnP+T8bQlA0nzHXSJSJW0Hq7ylaD2Q=="],
 
     "property-information": ["property-information@7.2.0", "", {}, "sha512-IAtzIB6sUiWaJYrX9smp3V46pBGbBeLFRGdh25kg1334VcBlD8HzhPeNIWQH9zhGmo2itIe25EHt9dQP7G5hmg=="],
+
+    "property-portal": ["property-portal@workspace:examples/property-portal"],
 
     "punycode.js": ["punycode.js@2.3.1", "", {}, "sha512-uxFIHU0YlHYhDQtV4R9J6a52SLx28BCjT+4ieh7IGbgwVJWO+km431c4yRlREUAsAmt/uMjQUyQHNEPf0M39CA=="],
 

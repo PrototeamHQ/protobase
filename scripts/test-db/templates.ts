@@ -13,12 +13,13 @@ export const poolerUrl = process.env.TEST_PGBOUNCER_URL ?? 'postgres://protobase
 
 /**
  * One template database per example, migrated and seeded by `bun run test:db`. Every test run clones its own database
- * from these and drops it afterwards, so tests never touch the developer databases (`protobase`, `real_estate`).
+ * from these and drops it afterwards, so tests never touch the developer databases (`protobase`, `real_estate`, `property_portal`).
  * The ERP is seeded at medium scale, which the planner and seek cases need; `file_copy` clones it in a third of the time.
  */
 export const templates = {
   erp: { database: 'protobase_test_template', dir: 'examples/erp', scale: 'medium', strategy: 'file_copy' },
   realEstate: { database: 'real_estate_test_template', dir: 'examples/real-estate', scale: 'small', strategy: 'wal_log' },
+  propertyPortal: { database: 'property_portal_test_template', dir: 'examples/property-portal', scale: 'small', strategy: 'wal_log' },
 } as const
 
 export type TemplateKey = keyof typeof templates
