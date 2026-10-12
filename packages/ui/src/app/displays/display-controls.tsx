@@ -12,7 +12,7 @@ const icons: Record<string, LucideIcon> = { table: Table2, cards: LayoutGrid, ka
 export const DisplaySwitch = ({ view, value, onChange }: { view: ViewModel | undefined; value: string; onChange: (display: string) => void }) => {
   const choices = displayChoices(view)
   if (choices.length < 2) return null
-  return <Segmented label="Display" value={value} onChange={onChange} options={choices.map((choice) => ({ value: choice.name, label: choice.label, icon: choice.icon === undefined ? undefined : icons[choice.icon] }))} />
+  return <Segmented label="Display" size="md" value={value} onChange={onChange} options={choices.map((choice) => ({ value: choice.name, label: choice.label, icon: choice.icon === undefined ? undefined : icons[choice.icon] }))} />
 }
 
 const directions = [
@@ -31,7 +31,7 @@ export const SortMenu = ({ model, view, display, orderBy, onChange }: { model: R
       aria-label="Sort"
       value={`${current.columnId} ${current.direction}`}
       onChange={(event) => onChange(event.target.value)}
-      className="h-7 rounded-md border border-border-strong bg-background px-2 text-xs shadow-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+      className="h-8 rounded-md border border-border-strong bg-background px-2.5 text-[13px] shadow-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
     >
       {names.flatMap((name) =>
         directions.map(([direction, word]) => (

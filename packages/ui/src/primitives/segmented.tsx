@@ -3,10 +3,13 @@ import { cn } from '../lib/cn'
 
 export type SegmentedOption<T extends string> = { value: T; label: string; icon?: ComponentType<{ className?: string }> }
 
-export type SegmentedProps<T extends string> = { value: T; options: Array<SegmentedOption<T>>; onChange: (value: T) => void; label?: string }
+/** `md` matches a medium Button, for a switch that sits among buttons. */
+export type SegmentedProps<T extends string> = { value: T; options: Array<SegmentedOption<T>>; onChange: (value: T) => void; label?: string; size?: 'sm' | 'md' }
 
-export const Segmented = <T extends string>({ value, options, onChange, label }: SegmentedProps<T>) => (
-  <span role="group" aria-label={label} className="inline-flex h-7 rounded-md bg-muted p-0.5">
+const sizes = { sm: { group: 'h-7', option: 'px-2.5 text-xs' }, md: { group: 'h-8', option: 'px-3 text-[13px]' } }
+
+export const Segmented = <T extends string>({ value, options, onChange, label, size = 'sm' }: SegmentedProps<T>) => (
+  <span role="group" aria-label={label} className={cn('inline-flex', sizes[size].group, 'rounded-md bg-muted p-0.5')}>
     {options.map((option) => (
       <button
         key={option.value}
@@ -14,7 +17,9 @@ export const Segmented = <T extends string>({ value, options, onChange, label }:
         aria-pressed={option.value === value}
         onClick={() => onChange(option.value)}
         className={cn(
-          'inline-flex items-center gap-1.5 rounded px-2.5 text-xs font-medium transition-colors',
+          'inline-flex items-center gap-1.5 rounded',
+          sizes[size].option,
+          'font-medium transition-colors',
           option.value === value ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground',
         )}
       >

@@ -13,7 +13,7 @@ export const ListSearch = ({ value, onCommit, placeholder }: { value: string; on
   }, [text, value, onCommit])
   return (
     <Input
-      wrapperClassName="min-w-0 flex-1 sm:w-72 sm:flex-none"
+      wrapperClassName="min-w-0 flex-1 sm:w-72 sm:flex-initial"
       leading={<Search className="size-4" />}
       placeholder={placeholder}
       aria-label="Search"

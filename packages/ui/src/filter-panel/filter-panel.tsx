@@ -1,3 +1,4 @@
+import { Fragment, type ReactNode } from 'react'
 import type { FilterConfig, FilterState } from './filter-config'
 import { ActiveFilterChips } from './active-filter-chips'
 import { DatePresets } from './date-presets'
@@ -7,6 +8,7 @@ import { FilterSection } from './filter-section'
 import { activeChips, emptyFilterState, removeChip, toggleFacetValue, toggleFlag } from './filter-state'
 import { RangeFilter } from './range-filter'
 import { ToggleRow } from './toggle-row'
+import { ToolbarRow, toolbarShows } from './toolbar-row'
 import { useFilterState } from './use-filter-state'
 
 export type FilterPanelProps = {
@@ -19,11 +21,15 @@ export type FilterPanelProps = {
   lockedLabels?: string[]
   /** Bar layout only: id of a filter menu that starts open. */
   defaultOpenMenu?: string
+  /** Bar layout only: controls before the filters in their row, such as the sort. */
+  leading?: ReactNode
+  /** Bar layout only: a control at the end of the filters' row, such as the search. */
+  trailing?: ReactNode
   /** Panel layout only: fill the available width instead of the fixed sidebar width, for the phone sheet. */
   fullWidth?: boolean
 }
 
-export const FilterPanel = ({ config, layout, value, defaultValue, onChange, lockedLabels, defaultOpenMenu, fullWidth }: FilterPanelProps) => {
+export const FilterPanel = ({ config, layout, value, defaultValue, onChange, lockedLabels, defaultOpenMenu, fullWidth, leading, trailing }: FilterPanelProps) => {
   const [state, setState] = useFilterState(value, defaultValue, onChange)
   const chips = activeChips(config, state)
   const chipsView = (
@@ -58,27 +64,32 @@ export const FilterPanel = ({ config, layout, value, defaultValue, onChange, loc
     )
   }
 
+  const menus = [
+    ...config.facets.map((group) => (
+      <FilterMenu key={group.id} label={group.label} activeCount={(state.facets[group.id] ?? []).length} defaultOpen={defaultOpenMenu === group.id}>
+        {facetView(group)}
+      </FilterMenu>
+    )),
+    ...(config.range
+      ? [
+          <FilterMenu key="range" label={config.range.label} activeCount={state.range ? 1 : 0} width={280} defaultOpen={defaultOpenMenu === config.range.id}>
+            {rangeView}
+          </FilterMenu>,
+        ]
+      : []),
+    ...(dateView ? [<Fragment key="date">{dateView}</Fragment>] : []),
+  ]
+  const toggles = (config.toggles ?? []).map((toggle) => (
+    <div key={toggle.id} className="flex items-center gap-2 text-[13px] text-muted-foreground">
+      <ToggleRow label={toggle.label} checked={state.toggles.includes(toggle.id)} onChange={() => setState(toggleFlag(state, toggle.id))} />
+    </div>
+  ))
+  const groups = [leading ? [<Fragment key="leading">{leading}</Fragment>] : [], menus, toggles]
+  if (!toolbarShows(groups, trailing) && chips.length === 0 && !lockedLabels?.length) return null
+
   return (
     <div className="flex flex-col gap-2">
-      <div className="flex flex-wrap items-center gap-2">
-        {config.facets.map((group) => (
-          <FilterMenu key={group.id} label={group.label} activeCount={(state.facets[group.id] ?? []).length} defaultOpen={defaultOpenMenu === group.id}>
-            {facetView(group)}
-          </FilterMenu>
-        ))}
-        {config.range && (
-          <FilterMenu label={config.range.label} activeCount={state.range ? 1 : 0} width={280} defaultOpen={defaultOpenMenu === config.range.id}>
-            {rangeView}
-          </FilterMenu>
-        )}
-        {dateView}
-        {config.toggles && <span className="mx-1 h-5 w-px bg-border" />}
-        {config.toggles?.map((toggle) => (
-          <div key={toggle.id} className="flex items-center gap-2 text-[13px] text-muted-foreground">
-            <ToggleRow label={toggle.label} checked={state.toggles.includes(toggle.id)} onChange={() => setState(toggleFlag(state, toggle.id))} />
-          </div>
-        ))}
-      </div>
+      <ToolbarRow groups={groups} trailing={trailing} />
       {chipsView}
     </div>
   )

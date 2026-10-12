@@ -27,14 +27,14 @@ div | block
               div | block
                 h1 .text-xl font-semibold tracking-tight | block
               div .flex w-full flex-wrap items-center gap-2 sm:w-auto | flex row wrap center normal
-                span role=group .inline-flex h-7 rounded-md bg-muted p-0.5 | flex row nowrap normal normal
-                  button .inline-flex items-center gap-1.5 rounded px-2.5 text-xs font-medium transition-colors text-muted-foreground hover:text-foreground | flex row nowrap center normal
+                span role=group .inline-flex h-8 rounded-md bg-muted p-0.5 | flex row nowrap normal normal
+                  button .inline-flex items-center gap-1.5 rounded px-3 text-[13px] font-medium transition-colors text-muted-foreground hover:text-foreground | flex row nowrap center normal
                     svg .lucide lucide-table-2 size-3.5 | block
-                  button .inline-flex items-center gap-1.5 rounded px-2.5 text-xs font-medium transition-colors bg-background text-foreground shadow-sm | flex row nowrap center normal
+                  button .inline-flex items-center gap-1.5 rounded px-3 text-[13px] font-medium transition-colors bg-background text-foreground shadow-sm | flex row nowrap center normal
                     svg .lucide lucide-layout-grid size-3.5 | block
-                  button .inline-flex items-center gap-1.5 rounded px-2.5 text-xs font-medium transition-colors text-muted-foreground hover:text-foreground | flex row nowrap center normal
+                  button .inline-flex items-center gap-1.5 rounded px-3 text-[13px] font-medium transition-colors text-muted-foreground hover:text-foreground | flex row nowrap center normal
                     svg .lucide lucide-square-kanban lucide-kanban-square size-3.5 | block
-                select .h-7 rounded-md border border-border-strong bg-background px-2 text-xs shadow-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 | block
+                select .h-8 rounded-md border border-border-strong bg-background px-2.5 text-[13px] shadow-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 | block
                   option | block
                   option | block
                   option | block
@@ -43,7 +43,7 @@ div | block
                   option | block
                   option | block
                   option | block
-                span .flex h-8 items-center gap-2 rounded-md border bg-background px-2.5 text-muted-foreground shadow-sm focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20 border-border-strong min-w-0 flex-1 sm:w-72 sm:flex-none | flex row nowrap center normal
+                span .flex h-8 items-center gap-2 rounded-md border bg-background px-2.5 text-muted-foreground shadow-sm focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20 border-border-strong min-w-0 flex-1 sm:w-72 sm:flex-initial | flex row nowrap center normal
                   svg .lucide lucide-search size-4 | block
                   input .min-w-0 flex-1 bg-transparent text-[13px] text-foreground outline-none placeholder:text-faint-foreground | block
                 button .inline-flex shrink-0 items-center justify-center rounded-md font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:opacity-60 disabled:cursor-default bg-primary text-primary-foreground hover:bg-primary-hover shadow-sm h-8 px-3 text-[13px] gap-2 | flex row nowrap center center

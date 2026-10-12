@@ -4,7 +4,7 @@ import { createWhere, tableDisplay, type FilterExpr, type ResourceModel } from '
 import { PageHeader } from '../app-shell'
 import { useAuth } from '../auth'
 import { DataGrid, pinnedStorageKey, type GridRow } from '../data-grid'
-import { ActiveFilterChips, FilterPanel, activeChips, emptyFilterState, removeChip, type FilterState } from '../filter-panel'
+import { ActiveFilterChips, FilterPanel, ToolbarRow, activeChips, emptyFilterState, removeChip, type FilterState } from '../filter-panel'
 import { useIsDesktop } from '../lib/use-media-query'
 import { columnsFromModel } from '../live/columns-from-model'
 import { stateToText, textToState } from '../live/filter-string'
@@ -86,7 +86,11 @@ const LoadedList = ({ model, address }: { model: ResourceModel; address: ListAdd
     setFilter(state, text ? [...others, where.search(text)] : others)
   }
   const plural = view?.names?.plural ?? humanize(resource)
-  const panel = <FilterPanel layout={layout} config={config} value={state} onChange={setFilter} />
+  const sortMenu = display && <SortMenu model={model} view={view} display={display} orderBy={orderBy} onChange={(next) => set({ orderBy: next })} />
+  const searchBox = model.search?.length ? <ListSearch value={search?.kind === 'search' ? search.text : ''} onCommit={commitSearch} placeholder={`Search ${plural.toLowerCase()}`} /> : null
+  // On a desktop the sort, the filters and the search share one row below the title; a phone keeps them in the title's actions
+  const panel = <FilterPanel layout={layout} config={config} value={state} onChange={setFilter} leading={sortMenu} trailing={searchBox} />
+  const desktopToolbar = layout === 'bar' ? panel : <ToolbarRow groups={[sortMenu ? [sortMenu] : []]} trailing={searchBox} />
   const chips = activeChips(config, state)
   const phoneFilters = (
     <div className="flex flex-col gap-2">
@@ -137,8 +141,8 @@ const LoadedList = ({ model, address }: { model: ResourceModel; address: ListAdd
         actions={
           <>
             <DisplaySwitch view={view} value={display?.name ?? tableDisplay} onChange={(name) => set({ display: name })} />
-            {display && <SortMenu model={model} view={view} display={display} orderBy={orderBy} onChange={(next) => set({ orderBy: next })} />}
-            {model.search?.length ? <ListSearch value={search?.kind === 'search' ? search.text : ''} onCommit={commitSearch} placeholder={`Search ${plural.toLowerCase()}`} /> : null}
+            {!desktop && sortMenu}
+            {!desktop && searchBox}
             {can(permissions, 'create') && (
               <Button variant="primary" onClick={() => go({ kind: 'create', resource })}>
                 <Plus className="size-3.5" />
@@ -151,7 +155,7 @@ const LoadedList = ({ model, address }: { model: ResourceModel; address: ListAdd
       {!parsed.ok && <ErrorBanner title="The filter in the address could not be read" error={new Error(parsed.errors.map((error) => error.message).join('; '))} />}
       {rows.error && !display && <ErrorBanner title="Could not load rows" error={rows.error} />}
       {view?.chart && <ListChart resource={resource} chart={view.chart} title={`${plural} created`} noun={plural.toLowerCase()} filter={parsed.ok ? filterText : ''} />}
-      {!desktop ? phoneFilters : layout === 'bar' && panel}
+      {desktop ? desktopToolbar : phoneFilters}
       {desktop && layout === 'panel' ? (
         <div className="flex min-h-0 flex-1 gap-4">
           {panel}
