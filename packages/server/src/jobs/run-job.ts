@@ -1,5 +1,6 @@
 import type { JobResult, JobWithMetadata } from 'pg-boss'
 import type { Db } from '@protobase/query'
+import type { Mailer } from '../mail/smtp-mailer'
 import type { JobDefinition } from './job-types'
 
 /** Thrown from a job's `run`, it fails the job now: the attempts it has left are not used. */
@@ -60,13 +61,14 @@ const errorOutput = (error: unknown) =>
  * One try of one job: completed when `run` returns, failed (to be retried while attempts are left) when it throws, and
  * failed for good on a `FatalJobError` or an invalid payload.
  */
-export const runJob = async (definition: JobDefinition, job: JobWithMetadata<unknown>, db: Db): Promise<JobResult> => {
+export const runJob = async (definition: JobDefinition, job: JobWithMetadata<unknown>, db: Db, mail?: Mailer): Promise<JobResult> => {
   try {
     const payload = await checkPayload(definition, job.data ?? undefined)
     const context = {
       db,
       job: { id: job.id, name: job.name, attempt: job.retryCount + 1, maxAttempts: job.retryLimit + 1 },
       signal: job.signal,
+      ...(mail && { mail }),
     }
     await throughWriteFreeze(() => definition.options.run(payload, context), job.signal)
     return { id: job.id, status: 'completed' }

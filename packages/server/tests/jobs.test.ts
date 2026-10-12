@@ -92,6 +92,15 @@ describe('enqueue and run', () => {
     expect(await row(db, rolledBack!)).toBeUndefined()
   })
 
+  it("sends a job's mail with the mailer the jobs started with", async () => {
+    const db = await jobsDb()
+    const sent: unknown[] = []
+    const job = defineJob({ name: 'welcome', run: async (_, { mail }) => { await mail?.send({ to: 'anna@example.com', subject: 'Welcome', text: 'Hello' }) } })
+    await start(db, [job], { mailer: { send: async (message) => { sent.push(message) } } })
+    await job.enqueue(db)
+    await until(() => expect(sent).toEqual([{ to: 'anna@example.com', subject: 'Welcome', text: 'Hello' }]))
+  })
+
   it('refuses a job that is not among the jobs started', async () => {
     const db = await jobsDb()
     await start(db, [defineJob({ name: 'a', run: () => {} })])

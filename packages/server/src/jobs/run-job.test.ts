@@ -32,6 +32,15 @@ describe('runJob', () => {
     })
   })
 
+  it("gives the job the app's mailer, and none when the app has no mail", async () => {
+    const run = vi.fn()
+    const mail = { send: vi.fn() }
+    await runJob(defineJob({ name: 'send-invoice', run }), fetched(null), db, mail)
+    expect(run.mock.calls[0]![1].mail).toBe(mail)
+    await runJob(defineJob({ name: 'send-invoice', run }), fetched(null), db)
+    expect(run.mock.calls[1]![1]).not.toHaveProperty('mail')
+  })
+
   it('passes no payload to a job enqueued without one', async () => {
     const run = vi.fn()
     await runJob(defineJob({ name: 'nightly', run }), fetched(null), db)

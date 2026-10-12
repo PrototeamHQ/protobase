@@ -1,5 +1,6 @@
 import type { Db } from '@protobase/query'
 import type { StandardSchema } from '../functions/read-json'
+import type { Mailer } from '../mail/smtp-mailer'
 
 /** What `run` gets beside the payload. */
 export type JobContext = {
@@ -8,6 +9,8 @@ export type JobContext = {
   job: { id: string; name: string; attempt: number; maxAttempts: number }
   /** Aborted when the job's timeout passes, or when the worker shuts down and its grace period ends. */
   signal: AbortSignal
+  /** Sends plain-text mail through the app's SMTP server (`PROTOBASE_SMTP_URL`, `PROTOBASE_MAIL_FROM`); `undefined` when the app has no mail. */
+  mail?: Mailer
 }
 
 export type JobOptions<Payload> = {

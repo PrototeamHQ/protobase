@@ -17,7 +17,7 @@ A job is work the app does after a request, or that a request should not wait fo
 | --- | --- |
 | `name` | Letters, digits, `_`, `-`, `.` and `/`. Two jobs may not share a name. |
 | `payload` | A [Standard Schema](https://standardschema.dev) such as a zod schema, checked when the job is enqueued and again before it runs. A payload it refuses at run time fails the job for good. |
-| `run(payload, { db, job, signal })` | The work. `db` is the app's pool: the enqueuer's transaction has committed by then. `job` holds its `id`, `name`, `attempt` and `maxAttempts`. `signal` aborts when the try times out or the worker shuts down. |
+| `run(payload, { db, job, signal, mail })` | The work. `db` is the app's pool: the enqueuer's transaction has committed by then. `job` holds its `id`, `name`, `attempt` and `maxAttempts`. `signal` aborts when the try times out or the worker shuts down. `mail` sends plain-text mail, see [Mail](#mail). |
 | `maxAttempts` | Tries before the job is kept as failed; default 10. |
 | `retryDelay`, `maxRetryDelay` | The wait before the first retry, doubling with each one (with some jitter), and its ceiling; default `2s` and `1 hour`. Milliseconds or text such as `30 seconds`. |
 | `timeout` | How long one try may run before it counts as failed; default `15 minutes`. |
@@ -55,6 +55,19 @@ select jobs.enqueue('sync-customer', '{"customerId": 3, "fields": ["email"]}', g
 ```
 
 `jobs.enqueue(job_name, payload, run_at, key, group_key, priority)` returns the job's id. A `key` dedupes as `mode: 'dedupe'` does. The job takes its retry settings from its definition, as the workers last saw it; a job no worker has started yet gets pg-boss's defaults until one does.
+
+## Mail
+
+`mail.send({ to, subject, text })` sends one plain-text message through the app's SMTP server, the one that also sends password resets and sign-in codes: `PROTOBASE_SMTP_URL` and `PROTOBASE_MAIL_FROM` (see [Password reset](/reference/auth/#password-reset)). It rejects when the server refuses the message, so the try fails and is retried. Without those variables `mail` is `undefined`: a job that must send fails for good with `FatalJobError`, and one that may skip mail leaves it out.
+
+```ts
+run: async ({ invoiceId }, { db, mail }) => {
+  if (!mail) throw new FatalJobError('Mail is off: set PROTOBASE_SMTP_URL and PROTOBASE_MAIL_FROM')
+  await mail.send({ to: 'customer@example.com', subject: `Invoice ${invoiceId}`, text: 'Your invoice is attached in the portal.' })
+}
+```
+
+A message is sent once per try, so a try that sends and then fails sends again: record what was sent in the same run, and check it first.
 
 ## Failures
 

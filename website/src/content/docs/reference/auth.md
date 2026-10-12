@@ -96,6 +96,8 @@ createAuth({ ..., mailer: { send: async ({ to, subject, text }) => { /* deliver 
 createAuth({ ..., mailer: false })
 ```
 
+[Jobs](/reference/jobs/#mail) send their own mail through the same server, with `mail` in their context.
+
 - The email is plain text: the link, that it works for 1 hour and once, and that it can be ignored.
 - The SMTP client greets the server with the sender's domain (`admin.example.com` above), not the container's `[127.0.0.1]`; a `?name=` on `PROTOBASE_SMTP_URL` overrides it.
 - A request answers the same whether or not the address has an account, and the mail goes out after the answer, so neither the response nor its timing tells. A send that fails is logged by Better Auth.

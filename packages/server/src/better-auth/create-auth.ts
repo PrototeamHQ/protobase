@@ -2,8 +2,8 @@ import { APIError } from 'better-auth/api'
 import { betterAuth, type BetterAuthOptions } from 'better-auth'
 import { admin, emailOTP, genericOAuth, jwt } from 'better-auth/plugins'
 import { adminAc, userAc } from 'better-auth/plugins/admin/access'
-import { readMailSettings } from '../mail/mail-settings'
-import { smtpMailer, type Mailer } from '../mail/smtp-mailer'
+import { platformMailer } from '../mail/platform-mailer'
+import type { Mailer } from '../mail/smtp-mailer'
 import { readOperatorSettings, resolveOperator, type OperatorProvider, type ResolvedOperator } from './operator-provider'
 import { organizationClaims, lastOrganizationField, sessionOrganizationHooks } from './organizations/session-organization'
 import { organizationPlugin } from './organizations/organization-plugin'
@@ -111,11 +111,6 @@ const platformSignInSettings = () => readPlatformSignIn(globalThis.process?.env 
 const platformOrigins = () => readOrigins(globalThis.process?.env ?? {})
 
 const platformPasskeyDomain = () => readPasskeyDomain(globalThis.process?.env ?? {})
-
-const platformMailer = () => {
-  const settings = readMailSettings(globalThis.process?.env ?? {})
-  return settings && smtpMailer(settings)
-}
 
 const tokenLifetime = '15m'
 

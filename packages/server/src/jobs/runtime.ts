@@ -1,6 +1,8 @@
 import { sql } from 'kysely'
 import { PgBoss } from 'pg-boss'
 import type { Db } from '@protobase/query'
+import { platformMailer } from '../mail/platform-mailer'
+import type { Mailer } from '../mail/smtp-mailer'
 import { clearCurrentJobs, setCurrentJobs, type JobsEnqueuer } from './current'
 import { jobsDatabase } from './database'
 import type { EnqueueOptions, JobDefinition } from './job-types'
@@ -23,6 +25,11 @@ export type StartJobsOptions = {
   onError: (error: unknown) => void
   /** The time recurring jobs are scheduled from; tests pass their own. */
   now?: () => Date
+  /**
+   * What jobs send mail with (`context.mail`): by default the platform's SMTP server from `PROTOBASE_SMTP_URL` and
+   * `PROTOBASE_MAIL_FROM`, when set; `false` turns mail off whatever the environment says.
+   */
+  mailer?: Mailer | false
 }
 
 /** What a drain left: whether no job is due or running any more, how many are, and when the next one is due. */
@@ -66,7 +73,8 @@ const createBoss = (db: Db, work: boolean) =>
  * that retries jobs whose worker died. It reads the jobs schema, never changes it: check it first with
  * `checkJobsSchema`. Enqueueing through `defineJob(...).enqueue` reaches the runtime started here.
  */
-export const startJobs = async ({ db, jobs, work = true, pollSeconds = 2, shutdownSeconds = 30, onError, now = () => new Date() }: StartJobsOptions): Promise<JobsRuntime> => {
+export const startJobs = async ({ db, jobs, work = true, pollSeconds = 2, shutdownSeconds = 30, onError, now = () => new Date(), mailer }: StartJobsOptions): Promise<JobsRuntime> => {
+  const mail = mailer === undefined ? platformMailer() : mailer || undefined
   const boss = createBoss(db, work)
   boss.on('error', onError)
   await boss.start()
@@ -102,7 +110,7 @@ export const startJobs = async ({ db, jobs, work = true, pollSeconds = 2, shutdo
       async ([job]) => {
         const current = definitions.get(definition.name) ?? definition
         if (current.options.schedule !== undefined && job!.singletonKey === scheduleKey) await schedules.following(current, job!.startAfter)
-        return [await runJob(current, job!, db)]
+        return [await runJob(current, job!, db, mail)]
       },
     )
     workers.set(definition.name, { id, concurrency })
