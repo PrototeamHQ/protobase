@@ -25,6 +25,14 @@ describe('breadcrumbFor', () => {
     expect(breadcrumbFor({ basePath: '', address: { kind: 'record', resource: 'leaseTenants', key: '3,7' }, resourceLabel: 'Lease tenants' }).at(-1)).toEqual({ label: '3,7', href: '/leaseTenants/3%2C7' })
   })
 
+  it('shows a loading crumb, still linked, while the record has no title yet', () => {
+    expect(breadcrumbFor({ basePath: '', address: { kind: 'record', resource: 'tenants', key: '7' }, resourceLabel: 'Tenants', recordLoading: true }).at(-1)).toEqual({ label: 'Loading record', href: '/tenants/7', loading: true })
+  })
+
+  it('shows the title once the record has loaded', () => {
+    expect(breadcrumbFor({ basePath: '', address: { kind: 'record', resource: 'tenants', key: '7' }, resourceLabel: 'Tenants', recordTitle: 'Ada Visser', recordLoading: false }).at(-1)).toEqual({ label: 'Ada Visser', href: '/tenants/7' })
+  })
+
   it('links a composed page', () => {
     expect(breadcrumbFor({ basePath: '/admin', address: { kind: 'page', page: 'overview' }, group: 'Pages', page: { name: 'overview', title: 'Overview' } })).toEqual(['Pages', { label: 'Overview', href: '/admin/overview' }])
   })

@@ -102,7 +102,9 @@ const Routes = ({ workspace, sidebarMode, assistant, runtime }: Pick<AppProps, '
   const group = groups.find((entry) => entry.items.some((item) => item.id === place))
   const model = resource ? meta.resources[resource] : undefined
   const record = useRecord(shown?.resource ?? '', shown?.key ?? '', Boolean(model && shown))
-  const title = model && shown && record.data ? recordTitle(model, view, record.data.record, shown.key) : shown?.key
+  const title = model && shown && record.data ? recordTitle(model, view, record.data.record, shown.key) : undefined
+  // Until the record (or the source it is drawn from) has loaded, its crumb is a skeleton; a failed load falls back to the key.
+  const titleLoading = Boolean(shown) && (record.isLoading || drawnFrom?.state === 'loading')
   const { shell } = useProjectUi()
   const Actions = shell?.actions
   const RightPanel = shell?.rightPanel
@@ -132,7 +134,7 @@ const Routes = ({ workspace, sidebarMode, assistant, runtime }: Pick<AppProps, '
   const organizationPage = organizationSettings ? organizationPageTitles[path] : undefined
   // The account pages are the app's own, under `/-/`; everything else is a page or a resource.
   const accountPage = path === accountSecurityPath ? 'Sign-in & security' : path === signInPolicyPath ? 'Sign-in policy' : organizationPage
-  const breadcrumb = accountPage ? [accountPage] : breadcrumbFor({ basePath, address, group: group?.label, page, resourceLabel: view?.names?.plural ?? (resource && humanize(resource)), recordTitle: title })
+  const breadcrumb = accountPage ? [accountPage] : breadcrumbFor({ basePath, address, group: group?.label, page, resourceLabel: view?.names?.plural ?? (resource && humanize(resource)), recordTitle: title, recordLoading: titleLoading })
   const content =
     path === accountSecurityPath ? (
       <AccountSecurityPage email={user.email} />
