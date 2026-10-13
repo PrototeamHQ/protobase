@@ -44,7 +44,7 @@ export const useDeleteFlow = ({ model, view, onDeleted, onReview, restore }: Del
   const plural = view?.names?.plural ?? humanize(model.name)
 
   const refresh = () => {
-    for (const prefix of ['page', 'list', 'first-page']) void queryClient.invalidateQueries({ queryKey: [prefix, model.name] })
+    for (const prefix of ['page', 'list', 'first-page', 'map']) void queryClient.invalidateQueries({ queryKey: [prefix, model.name] })
     for (const prefix of ['facets', 'series', 'histogram']) void queryClient.invalidateQueries({ queryKey: [prefix, model.name] })
   }
 

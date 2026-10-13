@@ -37,6 +37,14 @@ describe('changedList', () => {
     expect(changedList(read, { filter: '', orderBy: 'bookedOn desc', filterLayout: 'bar' }, defaults)).toEqual({ kind: 'list', resource: 'repairs' })
     expect(changedList(read, { filter: undefined, orderBy: undefined, filterLayout: undefined }, defaults)).toEqual({ kind: 'list', resource: 'repairs' })
   })
+
+  it("keeps where the map looks until a change moves it or leaves it out, whatever else changes", () => {
+    const map = { latitude: 52.37, longitude: 4.89, zoom: 12 }
+    const read = { kind: 'list', resource: 'listings', display: 'map', map } as const
+    expect(changedList(read, { filter: 'rooms >= 3' }, defaults)).toEqual({ ...read, filter: 'rooms >= 3' })
+    expect(changedList(read, { map: { ...map, zoom: 14 } }, defaults)).toEqual({ ...read, map: { ...map, zoom: 14 } })
+    expect(changedList(read, { map: undefined }, defaults)).toEqual({ kind: 'list', resource: 'listings', display: 'map' })
+  })
 })
 
 describe('listDefaults', () => {

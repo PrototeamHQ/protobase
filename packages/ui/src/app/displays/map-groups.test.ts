@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { groupPoints, keptSelection, mapPoints, pointBounds, stepSelection } from './map-groups'
+import { groupPoints, keptSelection, mapPoints, stepSelection } from './map-groups'
 
 const row = (key: string, record: Record<string, unknown>) => ({ key, record, labels: {} })
 
@@ -10,21 +10,6 @@ describe('mapPoints', () => {
       { key: '1', latitude: 52.370216, longitude: 4.885168 },
       { key: '3', latitude: 40.4, longitude: -3.7 },
     ])
-  })
-})
-
-describe('pointBounds', () => {
-  it('spans the points, and is none without any', () => {
-    expect(
-      pointBounds([
-        { latitude: 52.37, longitude: 4.88 },
-        { latitude: 40.4, longitude: -3.7 },
-      ]),
-    ).toEqual([
-      [-3.7, 40.4],
-      [4.88, 52.37],
-    ])
-    expect(pointBounds([])).toBeUndefined()
   })
 })
 

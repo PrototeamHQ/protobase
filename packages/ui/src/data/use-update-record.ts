@@ -21,6 +21,7 @@ export const useUpdateRecord = (resource: string, key: KeyValue | readonly KeyVa
       queryClient.setQueryData(keys.record(resource, encoded), stored)
       void queryClient.invalidateQueries({ queryKey: ['page', resource] })
       void queryClient.invalidateQueries({ queryKey: ['list', resource] })
+      void queryClient.invalidateQueries({ queryKey: ['map', resource] })
     },
   })
 }

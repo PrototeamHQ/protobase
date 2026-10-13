@@ -1,9 +1,9 @@
-import { encodeKey, type AppAddress, type FilterLayout, type ResourceModel, type ViewModel } from '@protobase/schema'
+import { encodeKey, type AppAddress, type FilterLayout, type MapView, type ResourceModel, type ViewModel } from '@protobase/schema'
 import { defaultDisplay } from './displays/list-displays'
 import { defaultOrderBy } from './list-order'
 
-/** A list as the app shows it: every value there, the view's default where the address names none. */
-export type ListAddress = { kind: 'list'; resource: string; display: string; filter: string; orderBy: string; filterLayout: FilterLayout }
+/** A list as the app shows it: every value there, the view's default where the address names none; `map` has none. */
+export type ListAddress = { kind: 'list'; resource: string; display: string; filter: string; orderBy: string; filterLayout: FilterLayout; map?: MapView }
 
 /** The address the app shows, as logical values. A record's key is in the text form the record API takes. */
 export type CurrentAddress =
@@ -42,5 +42,6 @@ export const changedList = (read: Extract<AppAddress, { kind: 'list' }>, change:
     ...(differs('display') && { display: next.display }),
     ...(differs('orderBy') && { orderBy: next.orderBy }),
     ...(differs('filterLayout') && { filterLayout: next.filterLayout }),
+    ...(next.map && { map: next.map }),
   }
 }

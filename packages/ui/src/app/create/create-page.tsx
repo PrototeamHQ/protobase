@@ -66,7 +66,7 @@ const LoadedCreate = ({ resource, values }: CreatePageProps) => {
         if (isApiError(error)) setErrors(Object.fromEntries(error.errors.flatMap((entry) => (entry.field ? [[entry.field, entry.message]] : []))))
         throw error
       }
-      for (const prefix of ['page', 'list', 'first-page', 'facets', 'series']) void queryClient.invalidateQueries({ queryKey: [prefix, resource] })
+      for (const prefix of ['page', 'list', 'first-page', 'map', 'facets', 'series']) void queryClient.invalidateQueries({ queryKey: [prefix, resource] })
       go({ kind: 'record', resource, key: recordKey(model, created.record) }, { replace: true })
     })
 

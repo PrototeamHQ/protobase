@@ -95,7 +95,7 @@ export const EmbeddedList = ({ model, view, filter, sort, columns, limit, displa
       ) : shown.kind === 'cards' ? (
         <CardsDisplay model={model} view={view} display={shown} list={list} row={xs} footer={false} />
       ) : shown.kind === 'map' ? (
-        <MapDisplay model={model} view={view} display={shown} list={list} footer={false} />
+        <MapDisplay model={model} view={view} display={shown} filter={filter} orderBy={orderBy} fields={fields} footer={false} />
       ) : (
         <CustomDisplay display={shown} list={list} />
       )}

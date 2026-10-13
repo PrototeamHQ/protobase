@@ -17,17 +17,6 @@ export const mapPoints = (rows: ListDisplayRow[], fields: { latitude: string; lo
     return position ? [{ key: row.key, ...position }] : []
   })
 
-/** The south-west and north-east corners around the points, as `[longitude, latitude]`, or none without points. */
-export const pointBounds = (points: Position[]): [[number, number], [number, number]] | undefined => {
-  if (points.length === 0) return undefined
-  const longitudes = points.map((point) => point.longitude)
-  const latitudes = points.map((point) => point.latitude)
-  return [
-    [Math.min(...longitudes), Math.min(...latitudes)],
-    [Math.max(...longitudes), Math.max(...latitudes)],
-  ]
-}
-
 /**
  * The markers for the points as the map draws them: in order, each point joins the first marker within `radius` pixels
  * of it, else starts its own. A marker is at its first point, so markers do not move as others join them.

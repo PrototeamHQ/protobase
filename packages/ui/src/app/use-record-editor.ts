@@ -109,7 +109,7 @@ export const useRecordEditor = ({ model, stored, recordKey, mode, subject, draft
       } else if (isApiError(error)) setErrors(fieldErrors(error))
       throw isApiError(error) ? nameFailingOperation(error, ops) : error
     }
-    await Promise.all([queryClient.invalidateQueries({ queryKey: keys.record(model.name, recordKey) }), queryClient.invalidateQueries({ queryKey: ['list'] }), queryClient.invalidateQueries({ queryKey: ['page'] })])
+    await Promise.all([queryClient.invalidateQueries({ queryKey: keys.record(model.name, recordKey) }), queryClient.invalidateQueries({ queryKey: ['list'] }), queryClient.invalidateQueries({ queryKey: ['page'] }), queryClient.invalidateQueries({ queryKey: ['map'] })])
     lines?.reset()
   }
 

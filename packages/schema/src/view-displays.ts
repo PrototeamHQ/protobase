@@ -51,9 +51,10 @@ export const displays = {
     ...(o.photos && { photos: { ...o.photos } }),
   }),
   /**
-   * A map of the records at their `latitude` and `longitude`, in decimal degrees, drawn with the app's map style. A
-   * marker stands for the records that lie close together at the zoom; choosing it shows their card at the map's bottom,
-   * with arrows through them. The card is the one of the cards display named `cards`, the list's first cards display
+   * A map of the records at their `latitude` and `longitude`, filterable fields in decimal degrees, drawn with the app's
+   * map style. It asks for the records in its view as it pans and zooms: from far out a count for each part of the map,
+   * which zooms in when chosen, closer in the records. A marker stands for the records that lie close together at the
+   * zoom; choosing it shows their card at the map's bottom, with arrows through them. The card is the one of the cards display named `cards`, the list's first cards display
    * when it names none, or the record's title alone without one. Named `map` unless `name` says otherwise.
    */
   map: (fields: { latitude: Ref; longitude: Ref }, o: Naming & { cards?: string } = {}): ListDisplayModel => ({

@@ -66,8 +66,9 @@ const LoadedList = ({ model, address }: { model: ResourceModel; address: ListAdd
   const loaded = useMemo(() => loadedFields(model, view, columns.map((column) => column.id)), [model, view, columns])
   const rows = useLiveRows({ resources: meta.resources, views: meta.views, model, columns: loaded, filter: parsed.ok ? filterText : '', orderBy })
   const display = shownDisplay(view, address.display)
-  // The map and custom displays page through the rows with `loadMore`; the table and cards scroll through them
-  const displayRows = useDisplayRows(model, rows.page, rows.key, display !== undefined && display.kind !== 'cards')
+  // A custom display pages through the rows with `loadMore`; the table and cards scroll through them, and the map asks
+  // for the records in its view
+  const displayRows = useDisplayRows(model, rows.page, rows.key, display?.kind === 'custom')
   const scroll = useListScroll()
 
   const titleField = recordTitleField(model, view)
@@ -155,7 +156,9 @@ const LoadedList = ({ model, address }: { model: ResourceModel; address: ListAdd
     if (!display) return table
     // A change of filter or sort starts the cards again at the top
     if (display.kind === 'cards') return <ListCards key={rows.key.join(' ')} model={model} view={view} display={display} list={cardsList} />
-    if (display.kind === 'map') return <MapDisplay model={model} view={view} display={display} list={displayRows} />
+    if (display.kind === 'map') {
+      return <MapDisplay model={model} view={view} display={display} filter={parsed.ok ? filterText : ''} orderBy={orderBy} fields={loaded} at={address.map} onMove={(map) => set({ map })} />
+    }
     return <CustomDisplay display={display} list={displayRows} />
   }
   const shown = drawDisplay()
