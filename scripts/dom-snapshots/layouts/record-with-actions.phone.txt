@@ -5,6 +5,8 @@ div | block
         header .relative flex h-12 shrink-0 items-center gap-1 border-b bg-background px-2 md:gap-4 md:px-5 | flex row nowrap center normal relative
           button .inline-flex size-11 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted md:hidden -ml-0.5 | flex row nowrap center center
             svg .lucide lucide-menu size-5 | block
+          a .inline-flex size-11 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted md:hidden | flex row nowrap center center
+            svg .lucide lucide-chevron-left size-5 | block
           nav .flex min-w-0 items-center gap-1.5 text-[13px] | flex row nowrap center normal
             span .min-w-0 items-center gap-1.5 hidden md:flex | none
               span .truncate text-muted-foreground | inline

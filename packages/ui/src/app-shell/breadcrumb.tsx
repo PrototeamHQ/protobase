@@ -12,7 +12,8 @@ export type BreadcrumbProps = {
   onNavigate?: (href: string) => void
 }
 
-const inApp = (event: MouseEvent) => event.button === 0 && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey
+/** A plain left click, which the app follows itself; others open a new tab. */
+export const inApp = (event: MouseEvent) => event.button === 0 && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey
 
 /** The trail of where you are; the last crumb, the current page, shows on phones too. */
 export const Breadcrumb = ({ parts, onNavigate }: BreadcrumbProps) => (

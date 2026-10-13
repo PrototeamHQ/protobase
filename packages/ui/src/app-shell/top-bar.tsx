@@ -1,7 +1,8 @@
-import { Menu, Search, X } from 'lucide-react'
+import { ChevronLeft, Menu, Search, X } from 'lucide-react'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { cn } from '../lib/cn'
-import { Breadcrumb, type Crumb } from './breadcrumb'
+import { backTarget } from './back-target'
+import { Breadcrumb, inApp, type Crumb } from './breadcrumb'
 import { GlobalSearch, type GlobalSearchModel } from './global-search'
 
 export type TopBarProps = {
@@ -21,6 +22,7 @@ const iconButton = 'inline-flex size-11 shrink-0 items-center justify-center rou
 
 export const TopBar = ({ breadcrumb, onNavigate, actions, onMenu, menuOpen, menuControls, search }: TopBarProps) => {
   const [searchOpen, setSearchOpen] = useState(false)
+  const back = backTarget(breadcrumb)
   const desktopSearch = useRef<HTMLInputElement>(null)
 
   // ⌘K (Ctrl+K elsewhere) focuses the search box, or opens it on a phone, where it sits behind a button.
@@ -42,6 +44,20 @@ export const TopBar = ({ breadcrumb, onNavigate, actions, onMenu, menuOpen, menu
         <button type="button" aria-label="Open navigation" aria-expanded={Boolean(menuOpen)} aria-controls={menuControls} onClick={onMenu} className={cn(iconButton, '-ml-0.5')}>
           <Menu className="size-5" />
         </button>
+      )}
+      {back && (
+        <a
+          href={back.href}
+          aria-label={`Back to ${back.label}`}
+          onClick={(event) => {
+            if (!onNavigate || !inApp(event)) return
+            event.preventDefault()
+            onNavigate(back.href)
+          }}
+          className={cn(iconButton, !onMenu && '-ml-0.5')}
+        >
+          <ChevronLeft className="size-5" />
+        </a>
       )}
       <Breadcrumb parts={breadcrumb} onNavigate={onNavigate} />
       <div className="ml-auto flex items-center gap-1 md:gap-3">
