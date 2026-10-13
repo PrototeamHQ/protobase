@@ -35,6 +35,10 @@ jobs:
         with:
           bun-version: 1.4.2
       - run: bun install --frozen-lockfile
+      - name: Stamp the tag's version into the packages
+        env:
+          TAG: ${{ inputs.tag }}
+        run: bun scripts/stamp-version.mjs "$TAG"
       # Each image's context comes from the release's @protobase packages on npm, which can take minutes to serve a
       # version it just published.
       - name: Wait for npm to serve the @protobase packages

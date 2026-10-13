@@ -3,7 +3,7 @@ title: Versioning
 description: How Protobase is versioned and released, the commit convention behind it, and which bundles a serve runtime runs.
 ---
 
-Protobase follows [semantic versioning](https://semver.org). Every push to `main` that holds a fix, a feature or a breaking change is released: the version that the root and every `@protobase` package's `package.json` share goes up, `CHANGELOG.md` gets the release's changes, and the release is tagged `v<version>` with a [GitHub release](https://github.com/PrototeamHQ/protobase/releases). Every `@protobase` package is then published to npm at that version.
+Protobase follows [semantic versioning](https://semver.org). Every push to `main` that holds a fix, a feature or a breaking change is released: the pushed commit is tagged `v<version>`, and a [GitHub release](https://github.com/PrototeamHQ/protobase/releases) of that tag holds the release's changes. Every `@protobase` package is then published to npm at that version. A release adds no commit to `main`: a release's version is its tag, not a `package.json` field, so the version in the repository's `package.json` files is not bumped. `CHANGELOG.md` lists only the releases from before releases stopped committing.
 
 ## Versions below 1.0
 
@@ -17,6 +17,8 @@ Until 1.0, a minor version may break, so it plays the part a major plays from 1.
 | anything else (`docs:`, `test:`, `chore:`, ...) | no release | no release |
 
 The first release is 0.1.0.
+
+The version goes up from the newest `v<version>` tag reachable from the released commit, never from a newer tag elsewhere in the repository. When the repository already has a tag above that one, the commit is on a maintenance branch whose next minor and major versions are taken, so its release is always a patch, whatever the commits hold, a breaking change included: with `v0.3.0` released from `main`, a branch from `v0.2.4` releases 0.2.5, then 0.2.6.
 
 ## Commit messages
 
@@ -42,14 +44,14 @@ Every commit message follows [Conventional Commits](https://www.conventionalcomm
 `.github/workflows/release.yml` runs on every push to `main`:
 
 1. The checks of `ci.yml` (`bun run check`, the smoke test on Node, the docs build, the Storybook play tests and the docs check) and commitlint over the pushed commits.
-2. `bun run release` (`scripts/release.mjs`, with [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version)) computes the next version from the commits since the last `v*` tag, writes it to every `package.json` listed in `.versionrc.json`, to `bun.lock` and to `CHANGELOG.md`, commits them as `chore(release): <version>` and tags `v<version>`. Without a fix, feature or breaking change it changes nothing.
-3. The commit and tag are pushed to `main`, and the GitHub release gets the version's `CHANGELOG.md` section.
-4. `scripts/publish.mjs` builds every package at the tag to `dist` and packs it with Bun (the private `@protobase/presets` is not published), and npm, under Node, publishes it with [trusted publishing](https://docs.npmjs.com/trusted-publishers) and provenance; there is no npm token. A run that cut no release publishes nothing.
-5. Once npm serves the packages, `bun run images:context <image>` writes each image's build context at the tag from them, and the images are built natively for `linux/amd64` and `linux/arm64` and pushed to GitHub's registry as `ghcr.io/prototeamhq/protobase:<version>` and `ghcr.io/prototeamhq/protobase-dev:<version>` (see [Deploy](/guides/deploy/#images)). A release whose publish failed has no images.
+2. `bun run release` (`scripts/release.mjs`, with [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version)) computes the next version and its notes from the commits since the last `v<version>` tag, as above, and tags the pushed commit `v<version>`. It commits nothing and changes no file. Without a fix, feature or breaking change it tags nothing.
+3. The tag is pushed, and the GitHub release of the tag gets the notes.
+4. `scripts/stamp-version.mjs` writes the tag's version into every `package.json` and `bun.lock` in the runner, never committed. `scripts/publish.mjs` then builds every package at the tag to `dist` and packs it with Bun (the private `@protobase/presets` is not published), and npm, under Node, publishes it with [trusted publishing](https://docs.npmjs.com/trusted-publishers) and provenance; there is no npm token. A run that cut no release publishes nothing.
+5. Once npm serves the packages, the tag's version is written into the `package.json` files the same way, and `bun run images:context <image>` writes each image's build context at the tag from them, and the images are built natively for `linux/amd64` and `linux/arm64` and pushed to GitHub's registry as `ghcr.io/prototeamhq/protobase:<version>` and `ghcr.io/prototeamhq/protobase-dev:<version>` (see [Deploy](/guides/deploy/#images)). A release whose publish failed has no images.
 
-The release commit does not start the workflow again. When `main` moved on while the checks ran, the run of the newer push releases both. `bun run release --dry-run` prints the next version and its changelog without changing anything.
+When `main` moved on while the checks ran, the run of the newer push releases both. `bun run release --dry-run` prints the next version and its notes without tagging anything.
 
-Running the workflow by hand with a tag (`gh workflow run release.yml -f tag=v0.1.0`) only publishes: the packages at that tag, skipping every version npm already has, and the images, which repeats a missed or half-done publish. `node scripts/publish.mjs --dry-run` packs the packages and shows what `npm publish` would send, and `node scripts/publish.mjs --pack`, which CI runs, packs every package without asking npm or publishing. Each package on npm trusts `release.yml` of `PrototeamHQ/protobase` as its publisher; a new package has to be published once by hand before that can be set up. The workflow pushes the images with its own token; a new image on GitHub's registry starts out private and is made public once in its package settings.
+Running the workflow by hand with a tag (`gh workflow run release.yml -f tag=v0.1.0`) only publishes: the packages at that tag and its version, skipping every version npm already has, and the images, which repeats a missed or half-done publish. `node scripts/publish.mjs --dry-run` packs the packages and shows what `npm publish` would send, and `node scripts/publish.mjs --pack`, which CI runs, packs every package without asking npm or publishing. Each package on npm trusts `release.yml` of `PrototeamHQ/protobase` as its publisher; a new package has to be published once by hand before that can be set up. The workflow pushes the images with its own token; a new image on GitHub's registry starts out private and is made public once in its package settings.
 
 ## Bundles and runtimes
 

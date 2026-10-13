@@ -33,7 +33,7 @@ When a layout changes, the check prints the changed lines and writes before and 
 
 ## Releases
 
-Every push to `main` with a fix, feature or breaking change is released by `.github/workflows/release.yml`: version, `CHANGELOG.md`, tag and GitHub release. Below 1.0 a breaking change bumps the minor and a feature or fix the patch. `bun run release --dry-run` shows the next release. The rules, and which bundles a serve runtime runs, are on the [Versioning](https://docs.protobase.net/reference/versioning/) page.
+Every push to `main` with a fix, feature or breaking change is released by `.github/workflows/release.yml`: a `v<version>` tag and a GitHub release with the notes, without a commit to `main`. Below 1.0 a breaking change bumps the minor and a feature or fix the patch. `bun run release --dry-run` shows the next release. The rules, and which bundles a serve runtime runs, are on the [Versioning](https://docs.protobase.net/reference/versioning/) page.
 
 ## The check job's runner
 

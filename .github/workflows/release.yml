@@ -1,10 +1,11 @@
 name: release
 
 # Every push to main is released when it holds a fix, feature or breaking change: the checks pass, the pushed commits
-# follow Conventional Commits, then scripts/release.mjs bumps every package.json, writes CHANGELOG.md, commits
-# `chore(release): x.y.z` and tags vx.y.z, which are pushed with a GitHub release, the packages are published to npm
-# and the images to GitHub's registry. Run by hand, it publishes the packages at an existing tag, skipping versions npm
-# already has, and the images, to repeat a missed publish. See website/src/content/docs/reference/versioning.md.
+# follow Conventional Commits, then scripts/release.mjs tags the pushed commit vx.y.z, without a commit to main, the
+# tag is pushed with a GitHub release, and the packages are published to npm and the images to GitHub's registry at the
+# tag's version, which scripts/stamp-version.mjs writes into the package.json files in the runner. Run by hand, it
+# publishes the packages at an existing tag, skipping versions npm already has, and the images, to repeat a missed
+# publish. See website/src/content/docs/reference/versioning.md.
 on:
   push:
     branches: [main]
@@ -21,11 +22,11 @@ concurrency:
 
 jobs:
   check:
-    if: ${{ github.event_name == 'push' && !startsWith(github.event.head_commit.message, 'chore(release):') }}
+    if: ${{ github.event_name == 'push' }}
     uses: ./.github/workflows/ci.yml
 
   commits:
-    if: ${{ github.event_name == 'push' && !startsWith(github.event.head_commit.message, 'chore(release):') }}
+    if: ${{ github.event_name == 'push' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -66,27 +67,25 @@ jobs:
         run: |
           git fetch origin main
           if [ "$(git rev-parse origin/main)" = "$GITHUB_SHA" ]; then echo "current=true" >> "$GITHUB_OUTPUT"; fi
-      - name: Cut the release
+      # The tag is annotated, so it has a tagger. It prints nothing when there is nothing to release.
+      - name: Tag the release
+        id: cut
         if: steps.head.outputs.current == 'true'
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          bun run release
-      - name: Push it and publish the GitHub release
+          tag=$(bun run release --notes "$RUNNER_TEMP/notes.md")
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+      - name: Push the tag and publish the GitHub release
         id: push
-        if: steps.head.outputs.current == 'true'
+        if: steps.cut.outputs.tag != ''
         env:
           GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.cut.outputs.tag }}
         run: |
-          version=$(bun -p "require('./package.json').version")
-          if [ -z "$(git tag --points-at HEAD "v$version")" ]; then
-            echo "Nothing to release: no fix, feature or breaking change since the last release"
-            exit 0
-          fi
-          git push --atomic origin HEAD:refs/heads/main "refs/tags/v$version"
-          bun scripts/release-notes.mjs "$version" > "$RUNNER_TEMP/notes.md"
-          gh release create "v$version" --verify-tag --title "v$version" --notes-file "$RUNNER_TEMP/notes.md"
-          echo "tag=v$version" >> "$GITHUB_OUTPUT"
+          git push origin "refs/tags/$TAG"
+          gh release create "$TAG" --verify-tag --title "$TAG" --notes-file "$RUNNER_TEMP/notes.md"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
 
   # Trusted publishing: npm trusts this workflow file of this repository for every @protobase package, so there is no
   # npm token; npm 11.5.1 or newer exchanges the job's OIDC token and adds provenance, which Bun's publish cannot yet, so
@@ -111,6 +110,10 @@ jobs:
         with:
           bun-version: 1.4.2
       - run: bun install --frozen-lockfile
+      - name: Stamp the tag's version into the packages
+        env:
+          TAG: ${{ inputs.tag || needs.release.outputs.tag }}
+        run: bun scripts/stamp-version.mjs "$TAG"
       - name: Publish the packages
         env:
           NPM_CONFIG_PROVENANCE: 'true'

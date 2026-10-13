@@ -1,6 +1,6 @@
 # Changelog
 
-Every release of Protobase, cut by the release workflow from the commits since the last one (see the [versioning page](https://docs.protobase.net/reference/versioning/)).
+The releases of Protobase that the release workflow cut with a release commit. Later releases are not listed here: each one's notes are in its [GitHub release](https://github.com/PrototeamHQ/protobase/releases) (see the [versioning page](https://docs.protobase.net/reference/versioning/)).
 
 ## [0.14.2](https://github.com/PrototeamHQ/protobase/compare/v0.14.1...v0.14.2) (2026-10-13)
 
