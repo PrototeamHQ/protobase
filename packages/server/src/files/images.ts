@@ -1,9 +1,19 @@
 import type { ImageFormat, ImageVariant } from '@protobase/schema'
-import type sharp from 'sharp'
 import { rgbaToThumbHash } from 'thumbhash'
 
+// The calls made on an image, as sharp's types declare them, so the server needs no types of its own from sharp.
+type SharpImage = {
+  resize(width: number, height: number, options: { fit: 'inside' }): SharpImage
+  resize(options: { width?: number; height?: number; fit: 'inside' | 'cover'; withoutEnlargement: boolean }): SharpImage
+  ensureAlpha(): SharpImage
+  raw(): SharpImage
+  toFormat(format: ImageFormat, options: { quality?: number }): SharpImage
+  toBuffer(): Promise<Uint8Array>
+  toBuffer(options: { resolveWithObject: true }): Promise<{ data: Uint8Array; info: { width: number; height: number } }>
+}
+
 /** sharp's default export, as `import sharp from 'sharp'` gives it: what `files.sharp` takes. */
-export type Sharp = typeof sharp
+export type Sharp = (input: Uint8Array, options: { autoOrient: boolean }) => SharpImage
 
 /** The types sharp reads, as uploads are decided: an image of another type, such as HEIC or SVG, is kept as it is. */
 export const processableImages = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/avif', 'image/gif', 'image/tiff'])
@@ -21,7 +31,7 @@ export const thumbHash = async (sharp: Sharp, input: Uint8Array) => {
     .ensureAlpha()
     .raw()
     .toBuffer({ resolveWithObject: true })
-  return Buffer.from(rgbaToThumbHash(info.width, info.height, data)).toString('base64')
+  return btoa(String.fromCharCode(...rgbaToThumbHash(info.width, info.height, data)))
 }
 
 /** An image resized and encoded as `variant` says, turned upright first; it is never enlarged and keeps no metadata. */

@@ -59,8 +59,5 @@
     "sharp": {
       "optional": true
     }
-  },
-  "devDependencies": {
-    "sharp": "^0.35.5"
   }
 }
