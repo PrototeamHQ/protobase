@@ -2,6 +2,12 @@
 
 Every release of Protobase, cut by the release workflow from the commits since the last one (see the [versioning page](https://docs.protobase.net/reference/versioning/)).
 
+## [0.12.21](https://github.com/PrototeamHQ/protobase/compare/v0.12.20...v0.12.21) (2026-10-13)
+
+### Features
+
+* **ui:** the mobile top bar has a back button to the previous breadcrumb ([c7ff702](https://github.com/PrototeamHQ/protobase/commit/c7ff702b417fabf793e8f48ae97a29a9c6be2091))
+
 ## [0.12.20](https://github.com/PrototeamHQ/protobase/compare/v0.12.19...v0.12.20) (2026-10-13)
 
 ### Bug Fixes
