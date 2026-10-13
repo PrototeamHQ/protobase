@@ -2,7 +2,7 @@ import { l, view } from '@protobase/schema'
 import type { listings } from './data'
 import { energyLabelColors, energyLabelLabels, propertyTypeLabels } from './labels'
 
-/** What everyone sees of a listing: the cards with their photos first, arrows through the rest, the table and the filters of a portal. */
+/** What everyone sees of a listing: the cards with their photos first, arrows through the rest and a heart to save it, the table and the filters of a portal. */
 export const listingsView = view<typeof listings>('listings')
   .title((r) => r.address)
   .names({ singular: 'Listing', plural: 'Listings' })
@@ -38,7 +38,7 @@ export const listingsView = view<typeof listings>('listings')
     displays: [
       d.cards(
         { image: r.photo, title: r.address, amount: [r.purchase_price, r.rent_price], badge: r.status, meta: [r.living_area, r.bedrooms, r.energy_label], footer: [r.place_id, r.agent_name], flags: [r.garden, r.balcony, r.parking] },
-        { label: 'Photos', photos: { resource: 'listing_photos', field: 'listing_id', image: 'photo', sort: 'position' } },
+        { label: 'Photos', photos: { resource: 'listing_photos', field: 'listing_id', image: 'photo', sort: 'position' }, favorite: { resource: 'favorites', field: 'listing_id', label: 'Save to favorites' } },
       ),
       d.map({ latitude: r.latitude, longitude: r.longitude }, { label: 'Map' }),
     ],

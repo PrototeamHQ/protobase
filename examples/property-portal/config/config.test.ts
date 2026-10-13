@@ -1,5 +1,5 @@
 import sharp from 'sharp'
-import { configExports, createAdmin } from '@protobase/server'
+import { configExports, createAdmin, MissingCredentials } from '@protobase/server'
 import { describe, expect, it } from 'vitest'
 import * as config from './index'
 import { roles } from './roles'
@@ -29,5 +29,15 @@ describe('the portal config', () => {
     })
     expect(everyone!.actions).toEqual([])
     expect(members!.actions.find((action) => action.name === 'add_note')?.run).toEqual({ kind: 'link', to: { kind: 'create', resource: 'notes', values: { listing_id: '{id}' } } })
+  })
+
+  it('saves a listing from its card to favorites, whose page lists the saved listings, and asks a visitor to sign in for both', async () => {
+    const [everyone] = views.map((view) => view.toModel()).filter((view) => view.resource === 'listings')
+    expect(everyone!.list?.displays?.[0]).toMatchObject({ favorite: { resource: 'favorites', field: 'listing_id' } })
+    const visitor = createAdmin({ resources, views, pages, bottomBars: configExports(config).bottomBars, db: {} as never, files: { secret: 'config-test-secret', sharp }, authenticate: () => { throw new MissingCredentials('No token in this test') }, options: { roles } })
+    const meta = (await (await visitor.request('/api/meta')).json()) as { signIn: Array<{ resource: string; signIn: { title: string } }>; views: Array<{ resource: string; list?: { displays?: unknown[] } }> }
+    expect(meta.signIn.map((entry) => [entry.resource, entry.signIn.title])).toEqual([['favorites', 'Keep the homes you like']])
+    expect(meta.views.find((view) => view.resource === 'listings')?.list?.displays?.[0]).toMatchObject({ favorite: { resource: 'favorites' } })
+    expect(views.map((view) => view.toModel()).find((view) => view.resource === 'favorites')?.listOf).toBe('listing_id')
   })
 })

@@ -4,12 +4,13 @@ import { bottomBar } from '@protobase/schema'
 export const memberBar = bottomBar({ label: 'Portal', roles: ['member', 'admin'] }, (m) => [
   m.page('home', { label: 'Home' }),
   m.resource('listings', { label: 'Listings' }),
-  m.resource('favorites', { label: 'Favorites' }),
+  m.resource('favorites', { label: 'Favorites', icon: 'heart' }),
   m.resource('alerts', { label: 'Alerts' }),
 ])
 
-/** The mobile bottom bar of a visitor who is not signed in: the home page and the listings, all they can open. */
+/** The mobile bottom bar of a visitor who is not signed in: the home page, the listings, and favorites, which tells them to sign in. */
 export const visitorBar = bottomBar({ label: 'Browse', roles: ['anonymous'] }, (m) => [
   m.page('home', { label: 'Home' }),
   m.resource('listings', { label: 'Listings' }),
+  m.resource('favorites', { label: 'Favorites', icon: 'heart' }),
 ])
