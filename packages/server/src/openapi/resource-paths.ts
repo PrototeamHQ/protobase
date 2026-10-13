@@ -10,7 +10,7 @@ const json = (schema: object) => ({ 'application/json': { schema } })
 const ref = (name: string) => ({ $ref: `#/components/schemas/${name}` })
 
 const listParameters = (entry: Entry) =>
-  ['filter', 'orderBy', 'pageSize', 'pageToken', 'fields', 'count', ...(entry.model.softDelete ? ['showDeleted'] : [])].map(param)
+  ['filter', 'orderBy', 'pageSize', 'pageToken', 'fields', 'labels', 'count', ...(entry.model.softDelete ? ['showDeleted'] : [])].map(param)
 
 const field = (description: string) => ({ name: 'field', in: 'query', required: true, description, schema: { type: 'string' } })
 
@@ -22,6 +22,12 @@ const record = (name: string, entry: Entry) => ({
   content: json(ref(name)),
 })
 
+const labels = {
+  type: 'object',
+  description: 'Only with `labels`: per relation, the names of the records it points at, by key',
+  additionalProperties: { type: 'object', additionalProperties: { type: 'string' } },
+}
+
 const page = (name: string, seek = false) => json({
   type: 'object',
   required: ['items', 'next_page_token', 'total_size_estimate'],
@@ -31,6 +37,7 @@ const page = (name: string, seek = false) => json({
     ...(seek && { prev_page_token: { type: 'string', description: 'Empty on the first page' } }),
     total_size_estimate: { type: 'integer', description: 'The planner\'s estimate' },
     total_size: { type: 'integer', description: 'Only with count=exact' },
+    labels,
   },
 })
 
@@ -43,6 +50,7 @@ const mapResult = (name: string) => json({
     items: { type: 'array', items: ref(name) },
     buckets: { type: 'array', items: { type: 'object', properties: { count: { type: 'integer' }, latitude: { type: 'number' }, longitude: { type: 'number' }, bounds } } },
     total_size: { type: 'integer', description: 'How many records match' },
+    labels,
   },
 })
 
@@ -210,7 +218,7 @@ export const resourcePaths = (access: RequestAccess) => {
           query('latitude', 'A filterable number field holding the latitude in decimal degrees', { type: 'string' }, true),
           query('longitude', 'A filterable number field holding the longitude in decimal degrees', { type: 'string' }, true),
           query('zoom', 'The map\'s zoom, as MapLibre counts it', { type: 'integer', minimum: 0, maximum: maxMapZoom }, true),
-          param('filter'), param('orderBy'), param('fields'),
+          param('filter'), param('orderBy'), param('fields'), param('labels'),
         ],
         responses: {
           200: { description: 'The records or the buckets, and how many records match', content: mapResult(name) },
@@ -226,7 +234,7 @@ export const resourcePaths = (access: RequestAccess) => {
         description: 'For scrollbar jumps: resolves a 0-based row position, within the rows the caller can see and in the given order, to a page of rows, with no OFFSET. The estimate behind it is scaled to the caller\'s own rows; no column statistics or boundary values are returned, only the page and its tokens.',
         parameters: [
           query('position', '0-based row position to jump to', { type: 'integer', minimum: 0 }, true),
-          param('orderBy'), param('filter'), param('pageSize'), param('fields'), param('count'),
+          param('orderBy'), param('filter'), param('pageSize'), param('fields'), param('labels'), param('count'),
         ],
         responses: {
           200: { description: 'The page at that position; continue from either token', content: page(name, true) },

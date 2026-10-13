@@ -8,6 +8,7 @@ import { etagOf } from './etag'
 import { presentFiles } from './files/present'
 import { rowPermissions } from './row-permissions'
 import { etagAlias } from './sql-parts'
+import { labelRequests, relatedLabels } from './related-labels'
 import { exposeRow, pickFields } from './rows'
 import { readTransaction } from './transactions'
 import type { Session } from './types'
@@ -16,6 +17,7 @@ import type { Session } from './types'
  * AIP-132 list, the `:search` variant and (with `jump`) `:seek`: both take the same parameters, from the query string or a JSON body.
  * Everything the caller names (filter, order_by, fields, search) is checked against the model as this caller sees it,
  * so a hidden field is refused exactly like an unknown one; the access row filter is applied by the query layer.
+ * `labels` names the records the returned relations point at, each read under the related resource's own access.
  */
 export const listRecords = async (deps: Deps, entry: Entry, session: Session, input: unknown, maxFilterLength?: number, jump = false) => {
   const params = jump ? parseParams(seekParams, input) : parseParams(listParams, input)
@@ -27,6 +29,7 @@ export const listRecords = async (deps: Deps, entry: Entry, session: Session, in
   const filter = checkedFilter(model, params.filter, maxFilterLength)
   const sort = checkedSort(model, params.order_by)
   const columns = selectedFields(model, params.fields)
+  const labels = await labelRequests(deps, session, model, columns, params.labels)
   const limit = pageSizeOf(params.page_size)
   const scope = readScope(access, full)
 
@@ -55,6 +58,7 @@ export const listRecords = async (deps: Deps, entry: Entry, session: Session, in
       permissions: deps.rowPermissions(entry.name) ? await rowPermissions(trx, access, rows) : undefined,
       estimate: await estimateCount(trx, queryModel, filter, scope),
       ...(params.count === 'exact' && { total: await exactCount(trx, queryModel, filter, scope) }),
+      ...(params.labels !== undefined && { labels: await relatedLabels(trx, labels, rows) }),
     }
   })
 
@@ -71,6 +75,7 @@ export const listRecords = async (deps: Deps, entry: Entry, session: Session, in
       ...(position !== undefined && { prev_page_token: result.page.prevCursor ?? '' }),
       total_size_estimate: result.estimate,
       ...(result.total !== undefined && { total_size: result.total }),
+      ...(result.labels && { labels: result.labels }),
     },
   }
 }

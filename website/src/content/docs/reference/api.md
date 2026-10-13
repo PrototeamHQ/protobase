@@ -32,8 +32,8 @@ Under `/api/v1`:
 
 | Route | |
 | --- | --- |
-| `GET /{resource}` | list: `filter`, `order_by`, `page_size` (50, max 500), `page_token`, `fields`, `count=exact` |
-| `POST /{resource}:search` | same parameters as a JSON body (`fields` an array), for long filters |
+| `GET /{resource}` | list: `filter`, `order_by`, `page_size` (50, max 500), `page_token`, `fields`, `labels`, `count=exact` |
+| `POST /{resource}:search` | same parameters as a JSON body (`fields` and `labels` arrays), for long filters |
 | `GET /{resource}/{key}` | one record, with `ETag`; composite keys are `part,part`, each part percent-encoded |
 | `POST /{resource}` | create, `201` with `Location` and `ETag` |
 | `PATCH /{resource}/{key}` | partial update, `If-Match` required |
@@ -45,8 +45,8 @@ Under `/api/v1`:
 | `GET /{resource}:facets?field=&filter=&limit=` | `{ field, facets: [{ value, count }] }` |
 | `GET /{resource}:series?field=&range=&granularity=&time_zone=&filter=` | `range` is `7d`, `30d`, `90d`, `1y`, `all`, or `from` and `to` (ISO) |
 | `GET /{resource}:histogram?field=&buckets=&filter=` | equal-width buckets of a numeric field |
-| `GET /{resource}:map?latitude=&longitude=&zoom=&filter=&order_by=&fields=` | the records in a map's view, the bounding box being in `filter` (`lat >= 51.9 AND lat <= 52.1 AND lng >= 4.2 AND lng <= 4.5`), as `{ items, buckets, total_size }`; see [Maps](#maps) |
-| `GET /{resource}:seek?position=&order_by=&filter=&page_size=&fields=` | the page at a row position (scrollbar jumps), with `next_page_token` and `prev_page_token`; same items as a list |
+| `GET /{resource}:map?latitude=&longitude=&zoom=&filter=&order_by=&fields=&labels=` | the records in a map's view, the bounding box being in `filter` (`lat >= 51.9 AND lat <= 52.1 AND lng >= 4.2 AND lng <= 4.5`), as `{ items, buckets, total_size }`; see [Maps](#maps) |
+| `GET /{resource}:seek?position=&order_by=&filter=&page_size=&fields=&labels=` | the page at a row position (scrollbar jumps), with `next_page_token` and `prev_page_token`; same items as a list |
 | `GET /api/meta` | resource, view and page models (fields carry `default`: `{ value }` or `{ db: true }`) and the caller's `permissions`; the `ETag` hashes both, so it differs per user; `If-None-Match` gives `304` |
 | `POST /api/files:cleanup` | runs the [scheduled file deletes](/reference/files/#deleting-files) that are due, for an admin; `{ deleted, kept }` |
 | `GET /api/openapi.json`, `GET /api/docs` | OpenAPI 3.1 for the caller (only the resources, fields and operations their roles allow), and the Scalar reference |
@@ -56,6 +56,10 @@ Every response carries `X-Meta-Version`, the hash of the models and of the calle
 `show_deleted=true` on list, `:search` (body) and get also returns soft-deleted records (soft-delete resources only, `400` otherwise).
 
 A list returns `{ items, next_page_token, total_size_estimate }` (`total_size` with `count=exact`). `next_page_token` is `""` on the last page, and a token only continues the `filter` and `order_by` it came from: with others the request fails with `400 invalid-cursor`. Items use field names, dates as ISO 8601 text, 64-bit integers and decimals as strings.
+
+### Related names
+
+A list holds a relation as the key of the record it points at. `labels` names those records in the same answer: `labels=place_id.name,agency_id.name` on a list, `:search`, `:seek` or `:map` adds `labels: { "place_id": { "12": "Amsterdam" }, "agency_id": { ... } }`, the `name` of each place and agency the page's items point at, by key as text. Each entry is a relation among the returned fields, to a resource with a single-field key, and the field of that resource that names its records, neither a file nor JSON; anything else is a `400`. The related records are read as the caller lists that resource, in one query per relation: its tenant, row filter, soft delete and readable fields apply. A record they cannot list, or whose field they cannot read, is not in `labels`, and neither is an empty name, so it goes by its key; a field they cannot read or that does not exist answers the same, so `labels` never tells it exists.
 
 ### Maps
 

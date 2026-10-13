@@ -112,6 +112,15 @@ describe.skipIf(!seeded)('a visitor', () => {
     expect(either).toHaveLength(forSale.length + forRent.length - both.length)
   })
 
+  it('gets the names of the places and agencies of the listings it browses, in the same answer', async () => {
+    const { status, json } = await call('visitor', `/listings?order_by=id&page_size=20&labels=${encodeURIComponent('place_id.name,agency_id.name')}`)
+    expect(status).toBe(200)
+    const placeIds = [...new Set(json.items.map((item: { place_id: string }) => String(item.place_id)))] as string[]
+    const names = await sql<{ id: string; name: string }>`select id::text as id, name from market.places where id::text = any(${placeIds})`.execute(db)
+    expect(json.labels.place_id).toEqual(Object.fromEntries(names.rows.map((row) => [row.id, row.name])))
+    expect(Object.keys(json.labels.agency_id).length).toBeGreaterThan(0)
+  })
+
   it('finds nothing of the members, and is asked to sign in to change a listing', async () => {
     for (const [resource] of ownTables) expect((await call('visitor', `/${resource}`)).status).toBe(404)
     expect((await call('visitor', '/favorites', { method: 'POST', body: { listing_id: '1' } })).status).toBe(404)

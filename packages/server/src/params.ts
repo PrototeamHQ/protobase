@@ -20,6 +20,7 @@ export const listParams = z.object({
   page_token: z.string().optional(),
   fields: z.union([z.string(), z.array(z.string())]).optional(),
   count: z.literal('exact').optional(),
+  labels: z.union([z.string(), z.array(z.string())]).optional(),
   show_deleted: z.union([z.boolean(), z.enum(['true', 'false']).transform((value) => value === 'true')]).optional(),
 })
 
