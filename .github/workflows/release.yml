@@ -116,82 +116,29 @@ jobs:
           NPM_CONFIG_PROVENANCE: 'true'
         run: node scripts/publish.mjs
 
-  # The images, on GitHub's registry at the release's version: ghcr.io/prototeamhq/protobase (the serve runtime) and
-  # ghcr.io/prototeamhq/protobase-dev (Bun and the presets). Each architecture builds on a runner of its own and
-  # pushes by digest; images-manifest tags the two as one image. After publish, since the presets' bun.lock files
-  # resolve the @protobase packages from npm.
-  images:
-    needs: [release, publish]
-    if: ${{ !cancelled() && needs.publish.result == 'success' }}
-    strategy:
-      matrix:
-        include:
-          - platform: linux/amd64
-            runner: ubuntu-latest
-          - platform: linux/arm64
-            runner: ubuntu-24.04-arm
-    runs-on: ${{ matrix.runner }}
+  # The images, on GitHub's registry at the release's version (see image.yml). ghcr.io/prototeamhq/protobase, the serve
+  # runtime, builds from the repository alone, so it starts with publish. ghcr.io/prototeamhq/protobase-dev, Bun and
+  # the presets, waits for publish and for npm to serve the packages, since the presets' bun.lock files resolve the
+  # @protobase packages from npm.
+  image:
+    needs: release
+    if: ${{ !cancelled() && (github.event_name == 'workflow_dispatch' || needs.release.outputs.tag != '') }}
     permissions:
       contents: read
       packages: write
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: refs/tags/${{ inputs.tag || needs.release.outputs.tag }}
-      - uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: 1.4.2
-      - run: bun install --frozen-lockfile
-      # npm can take minutes to serve a version it just published, and the presets' bun.lock files need it.
-      - name: Wait for npm to serve the @protobase packages
-        run: bun scripts/wait-for-npm.mjs
-      - run: bun run images:context
-      - uses: docker/setup-buildx-action@v3
-      - uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ github.token }}
-      - name: Build and push both images by digest
-        env:
-          PLATFORM: ${{ matrix.platform }}
-        run: |
-          mkdir -p "$RUNNER_TEMP/digests"
-          for image in protobase protobase-dev; do
-            docker buildx build --platform "$PLATFORM" --file "docker/$image/Dockerfile" \
-              --output "type=image,name=ghcr.io/prototeamhq/$image,push-by-digest=true,name-canonical=true,push=true" \
-              --metadata-file "$RUNNER_TEMP/$image.json" "dist/images/$image"
-            bun -p "require('$RUNNER_TEMP/$image.json')['containerimage.digest']" > "$RUNNER_TEMP/digests/$image"
-          done
-      - uses: actions/upload-artifact@v4
-        with:
-          name: digests-${{ matrix.runner }}
-          path: ${{ runner.temp }}/digests/*
-          retention-days: 1
+    uses: ./.github/workflows/image.yml
+    with:
+      image: protobase
+      tag: ${{ inputs.tag || needs.release.outputs.tag }}
 
-  images-manifest:
-    needs: [release, images]
-    if: ${{ !cancelled() && needs.images.result == 'success' }}
-    runs-on: ubuntu-latest
+  image-dev:
+    needs: [release, publish]
+    if: ${{ !cancelled() && needs.publish.result == 'success' }}
     permissions:
+      contents: read
       packages: write
-    steps:
-      - uses: actions/download-artifact@v4
-        with:
-          pattern: digests-*
-          path: ${{ runner.temp }}/digests
-      - uses: docker/setup-buildx-action@v3
-      - uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ github.token }}
-      - name: Tag each image's digests as one image at the version
-        env:
-          TAG: ${{ inputs.tag || needs.release.outputs.tag }}
-        run: |
-          version="${TAG#v}"
-          for image in protobase protobase-dev; do
-            mapfile -t sources < <(sed "s|^|ghcr.io/prototeamhq/$image@|" "$RUNNER_TEMP"/digests/*/"$image")
-            docker buildx imagetools create --tag "ghcr.io/prototeamhq/$image:$version" "${sources[@]}"
-          done
+    uses: ./.github/workflows/image.yml
+    with:
+      image: protobase-dev
+      tag: ${{ inputs.tag || needs.release.outputs.tag }}
+      wait-for-npm: true

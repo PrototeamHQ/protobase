@@ -1,0 +1,91 @@
+name: image
+
+# One image of a release on GitHub's registry at its version, ghcr.io/prototeamhq/<image>:<version>, called by
+# release.yml. Each architecture builds on a runner of its own and pushes by digest; manifest tags the two as one image.
+on:
+  workflow_call:
+    inputs:
+      image:
+        description: The image, a directory of docker/
+        required: true
+        type: string
+      tag:
+        description: The release tag to build at, e.g. v0.1.0
+        required: true
+        type: string
+      wait-for-npm:
+        description: Whether the image's context needs the release's @protobase packages from npm
+        type: boolean
+        default: false
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - platform: linux/amd64
+            runner: ubuntu-latest
+          - platform: linux/arm64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: refs/tags/${{ inputs.tag }}
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.2
+      - run: bun install --frozen-lockfile
+      # npm can take minutes to serve a version it just published.
+      - name: Wait for npm to serve the @protobase packages
+        if: inputs.wait-for-npm
+        run: bun scripts/wait-for-npm.mjs
+      - run: bun run images:context ${{ inputs.image }}
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+      - name: Build and push the image by digest
+        env:
+          IMAGE: ${{ inputs.image }}
+          PLATFORM: ${{ matrix.platform }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/digests"
+          docker buildx build --platform "$PLATFORM" --file "docker/$IMAGE/Dockerfile" \
+            --output "type=image,name=ghcr.io/prototeamhq/$IMAGE,push-by-digest=true,name-canonical=true,push=true" \
+            --metadata-file "$RUNNER_TEMP/metadata.json" "dist/images/$IMAGE"
+          bun -p "require('$RUNNER_TEMP/metadata.json')['containerimage.digest']" > "$RUNNER_TEMP/digests/$IMAGE"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: digests-${{ inputs.image }}-${{ matrix.runner }}
+          path: ${{ runner.temp }}/digests/*
+          retention-days: 1
+
+  manifest:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      packages: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: digests-${{ inputs.image }}-*
+          path: ${{ runner.temp }}/digests
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+      - name: Tag the digests as one image at the version
+        env:
+          IMAGE: ${{ inputs.image }}
+          TAG: ${{ inputs.tag }}
+        run: |
+          mapfile -t sources < <(sed "s|^|ghcr.io/prototeamhq/$IMAGE@|" "$RUNNER_TEMP"/digests/*/"$IMAGE")
+          docker buildx imagetools create --tag "ghcr.io/prototeamhq/$IMAGE:${TAG#v}" "${sources[@]}"
