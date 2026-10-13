@@ -1,6 +1,6 @@
 import type { KeyValue } from '@protobase/schema'
 import { encodeKey } from '@protobase/schema/internal'
-import { listWire, queryString, filterText, type FilterInput, type ListParams, type MapParams } from './query-string'
+import { labelEntries, listWire, queryString, filterText, type FilterInput, type ListParams, type MapParams } from './query-string'
 import { originOf, withFileOrigin } from './file-urls'
 import { createTransport, type ClientOptions } from './transport'
 import { fetchWithProgress, type UploadProgress } from './upload-request'
@@ -18,6 +18,7 @@ const toPage = <T>(body: Json, response: Response, origin: string | undefined): 
   totalSizeEstimate: body.total_size_estimate,
   ...(body.prev_page_token !== undefined && { prevPageToken: body.prev_page_token }),
   ...(body.total_size !== undefined && { totalSize: body.total_size }),
+  ...(body.labels !== undefined && { labels: body.labels }),
   ...(response.headers.get('x-protobase-warning') && { warning: response.headers.get('x-protobase-warning')! }),
 })
 
@@ -85,7 +86,7 @@ export const createClient = (options: ClientOptions = {}) => {
     const response = await send({
       method: 'POST',
       path: `/${nameOf(resource)}:search`,
-      body: { ...wire, fields: params?.fields },
+      body: { ...wire, fields: params?.fields, labels: labelEntries(params?.labels) },
     })
     return toPage<RecordOf<R>>(await response.json(), response, origin)
   }
@@ -190,10 +191,16 @@ export const createClient = (options: ClientOptions = {}) => {
         filter: filterText(params.filter) || undefined,
         order_by: params.orderBy,
         fields: params.fields?.join(','),
+        labels: labelEntries(params.labels)?.join(','),
       }),
     })
     const body = await response.json()
-    return { items: (body.items as RecordOf<R>[]).map((item) => withFileOrigin(item, origin)), buckets: body.buckets, totalSize: body.total_size }
+    return {
+      items: (body.items as RecordOf<R>[]).map((item) => withFileOrigin(item, origin)),
+      buckets: body.buckets,
+      totalSize: body.total_size,
+      ...(body.labels !== undefined && { labels: body.labels }),
+    }
   }
 
   /** The page that starts at row `position` of a sort (scrollbar jumps), with the tokens of its own neighbours. Past the end it is empty. */

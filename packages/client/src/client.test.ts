@@ -69,6 +69,19 @@ describe('list', () => {
     expect(JSON.parse(String(calls[0]!.init.body))).toEqual({ filter: 'a = 1', fields: ['id'] })
   })
 
+  it('asks for the names of related records and reads them with the page', async () => {
+    const labels = { place_id: { '12': 'Amsterdam' }, agency_id: {} }
+    const { calls, fetch } = fakeFetch(() => json({ items: [{ id: 'a', place_id: '12' }], next_page_token: '', total_size_estimate: 1, labels }))
+    const client = createClient({ fetch })
+    const page = await client.list('listings', { labels: { place_id: 'name', agency_id: 'name' } })
+    expect(new URL(calls[0]!.url, 'http://x').searchParams.get('labels')).toBe('place_id.name,agency_id.name')
+    expect(page.labels).toEqual(labels)
+    await client.search('listings', { labels: { place_id: 'name' } })
+    expect(JSON.parse(String(calls[1]!.init.body))).toEqual({ labels: ['place_id.name'] })
+    await client.seek('listings', { position: 50, labels: { place_id: 'name' } })
+    expect(new URL(calls[2]!.url, 'http://x').searchParams.get('labels')).toBe('place_id.name')
+  })
+
   it('uses a custom base URL and headers', async () => {
     const { calls, fetch } = fakeFetch(() => json({ items: [], next_page_token: '', total_size_estimate: 0 }))
     await createClient({ fetch, baseUrl: 'http://api.test/api/v1', headers: () => ({ authorization: 'Bearer t' }) }).list('orders')
@@ -344,6 +357,13 @@ describe('map', () => {
     const url = new URL(calls[0]!.url, 'http://x')
     expect(url.pathname).toBe('/api/v1/listings:map')
     expect(Object.fromEntries(url.searchParams)).toEqual({ latitude: 'lat', longitude: 'lng', zoom: '9', filter: 'lat >= 52 AND lat <= 53', order_by: 'id', fields: 'id,lat,lng' })
+  })
+
+  it('asks for the names of related records and reads them with the records', async () => {
+    const { calls, fetch } = fakeFetch(() => json({ items: [{ id: 1, place_id: '12' }], buckets: [], total_size: 1, labels: { place_id: { '12': 'Amsterdam' } } }))
+    const result = await createClient({ fetch }).map('listings', { latitude: 'lat', longitude: 'lng', zoom: 16, labels: { place_id: 'name' } })
+    expect(new URL(calls[0]!.url, 'http://x').searchParams.get('labels')).toBe('place_id.name')
+    expect(result.labels).toEqual({ place_id: { '12': 'Amsterdam' } })
   })
 })
 

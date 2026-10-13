@@ -10,6 +10,7 @@ export type {
   ResourceRef,
   RecordOf,
   ListPage,
+  RelatedLabels,
   Facet,
   Series,
   SeriesPoint,

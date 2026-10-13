@@ -9,6 +9,9 @@ export type RecordOf<R extends ResourceRef> = R extends { readonly $fields: unkn
   ? InferRecord<R>
   : Record<string, unknown>
 
+/** Per relation, the names of the records it points at, by key as text; a record without one is absent. */
+export type RelatedLabels = Record<string, Record<string, string>>
+
 export type ListPage<T> = {
   items: T[]
   /** `""` on the last page. */
@@ -18,6 +21,8 @@ export type ListPage<T> = {
   totalSizeEstimate: number
   /** Only with `count: 'exact'`. */
   totalSize?: number
+  /** Only with `labels`: per relation, the names of the records it points at, by key as text. */
+  labels?: RelatedLabels
   /** `X-Protobase-Warning`, for example a scan-guard notice. */
   warning?: string
 }
@@ -48,7 +53,7 @@ export type MapBounds = { south: number; west: number; north: number; east: numb
 export type MapBucket = { count: number; latitude: number; longitude: number; bounds: MapBounds }
 
 /** The records `map` answers, or buckets of them when many match, never both; `totalSize` counts the matches. */
-export type MapResult<T> = { items: T[]; buckets: MapBucket[]; totalSize: number }
+export type MapResult<T> = { items: T[]; buckets: MapBucket[]; totalSize: number; labels?: RelatedLabels }
 
 /** What the signed-in user may do with a resource; `conditional` operations are decided per record by the server. */
 export type ResourcePermissions = { read?: boolean; create: boolean; update: boolean; delete: boolean; conditional: Array<'create' | 'update' | 'delete'> }

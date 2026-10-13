@@ -9,6 +9,11 @@ export type ListParams = {
   pageSize?: number
   pageToken?: string
   fields?: string[]
+  /**
+   * Names the records relations point at, in the same answer: `{ place_id: 'name' }` gives each place's `name` in the
+   * page's `labels`. A record the caller cannot list, or whose field they cannot read, has no name there.
+   */
+  labels?: Record<string, string>
   count?: 'exact'
 }
 
@@ -20,11 +25,19 @@ export type MapParams = {
   filter?: FilterInput
   orderBy?: string
   fields?: string[]
+  /** As a list's `labels`. */
+  labels?: Record<string, string>
 }
 
 export const filterText = (filter: FilterInput | undefined) => (typeof filter === 'string' ? filter : filter && printFilter(filter))
 
 type Wire = Record<string, string | number | undefined>
+
+/** `labels` as the API takes it: `relation.field` entries. */
+export const labelEntries = (labels: Record<string, string> | undefined) => {
+  const entries = Object.entries(labels ?? {}).map(([relation, field]) => `${relation}.${field}`)
+  return entries.length > 0 ? entries : undefined
+}
 
 /** The snake_case parameters of `GET /{resource}` and the body of `POST /{resource}:search`. */
 export const listWire = (params: ListParams = {}) => ({
@@ -33,6 +46,7 @@ export const listWire = (params: ListParams = {}) => ({
   page_size: params.pageSize,
   page_token: params.pageToken || undefined,
   fields: params.fields?.join(','),
+  labels: labelEntries(params.labels)?.join(','),
   count: params.count,
 })
 
