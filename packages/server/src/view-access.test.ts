@@ -75,6 +75,12 @@ describe('pruneView', () => {
     expect(pruneView(flagged, hidden.repairs!, hidden).list?.displays).toEqual([{ kind: 'cards', name: 'cards', flags: ['urgent'] }])
   })
 
+  it("leaves out a card's amount and footer fields the caller cannot read", () => {
+    const footed = view<typeof repairs>('repairs').list((r, d) => ({ columns: [r.number], displays: [d.cards({ amount: [r.costPrice, r.number], footer: [r.status, r.insured] })] })).toModel(repairs.toModel())
+    const hidden = without({ repairs: ['costPrice', 'insured'] })
+    expect(pruneView(footed, hidden.repairs!, hidden).list?.displays).toEqual([{ kind: 'cards', name: 'cards', amount: ['number'], footer: ['status'] }])
+  })
+
   it('never sends a hidden field, wherever a view names it: lists, displays, sections and custom props', () => {
     const Board = Object.assign((props: { by: string; size: number }) => props, { blockName: 'Board', custom: true })
     const Margin = Object.assign((props: { cost: string }) => props, { blockName: 'Margin', custom: true })

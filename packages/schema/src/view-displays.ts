@@ -24,15 +24,16 @@ export const customComponent = (component: ComponentRef<never>, where: string) =
 export const displays = {
   /**
    * A card per record: `image`, a file field shown as a picture across the card's top, then `title` (default: the
-   * view's title) over `subtitle`, `badge` drawn as a badge with its value labels, and a few small `meta` fields such as
-   * dates. `flags` are boolean fields shown as small badges of their labels when true, such as a garden or parking.
+   * view's title) over `subtitle`, `badge` drawn as a badge with its value labels, `amount` the first of its fields with a
+   * value in bold, such as a purchase price or a rent, and a few small `meta` fields such as dates. `footer` is a line at
+   * the card's bottom of its fields with a value, joined by bullets. `flags` are boolean fields shown as small badges of their labels when true, such as a garden or parking.
    * With `card`, a component of the project or a plugin draws each card's content instead, from the row of those
    * fields (`{ row }`); without it, or when it throws, the card is the built-in one. With `photos`, the built-in card's
    * picture gets arrows through the `image` of the records of another resource that point at the card's record, after
    * its own `image`; they load when an arrow is first pressed. Named `cards` unless `name` says otherwise.
    */
   cards: (
-    fields: { image?: Ref; title?: Ref; subtitle?: Ref; badge?: Ref; meta?: Ref[]; flags?: Ref[] },
+    fields: { image?: Ref; title?: Ref; subtitle?: Ref; amount?: Ref[]; badge?: Ref; meta?: Ref[]; footer?: Ref[]; flags?: Ref[] },
     o: Naming & { card?: ComponentRef<never>; photos?: CardPhotosModel } = {},
   ): ListDisplayModel => ({
     kind: 'cards',
@@ -41,8 +42,10 @@ export const displays = {
     ...(fields.image && { image: fields.image.name }),
     ...(fields.title && { title: fields.title.name }),
     ...(fields.subtitle && { subtitle: fields.subtitle.name }),
+    ...(fields.amount && { amount: fields.amount.map((ref) => ref.name) }),
     ...(fields.badge && { badge: fields.badge.name }),
     ...(fields.meta && { meta: fields.meta.map((ref) => ref.name) }),
+    ...(fields.footer && { footer: fields.footer.map((ref) => ref.name) }),
     ...(fields.flags && { flags: fields.flags.map((ref) => ref.name) }),
     ...(o.card && { card: customComponent(o.card, 'd.cards card') }),
     ...(o.photos && { photos: { ...o.photos } }),
@@ -78,5 +81,5 @@ export const displayErrors = (list: { displays?: ListDisplayModel[]; default?: s
 /** Every field a display names: what it shows, and the field references in a custom display's props. */
 export const displayFields = (display: ListDisplayModel): string[] =>
   display.kind === 'cards'
-    ? [display.image, display.title, display.subtitle, display.badge, ...(display.meta ?? []), ...(display.flags ?? [])].filter((name): name is string => name !== undefined)
+    ? [display.image, display.title, display.subtitle, ...(display.amount ?? []), display.badge, ...(display.meta ?? []), ...(display.footer ?? []), ...(display.flags ?? [])].filter((name): name is string => name !== undefined)
     : [...display.fields, ...fieldRefsIn(display.props)]

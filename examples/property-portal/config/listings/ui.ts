@@ -21,6 +21,7 @@ export const listingsView = view<typeof listings>('listings')
     price_per_m2: r.price_per_m2.label('Price per m²').prefix('€').decimals(0).help('From the purchase price.'),
     living_area: r.living_area.label('Living area').suffix(' m²').icon('ruler'),
     plot_area: r.plot_area.label('Plot').suffix(' m²'),
+    bedrooms: r.bedrooms.icon('bed'),
     built_year: r.built_year.label('Built'),
     energy_label: r.energy_label.label('Energy label').format('badge').valueLabels(energyLabelLabels).valueColors(energyLabelColors).badgeShape('arrow'),
     latitude: r.latitude.help('Decimal degrees, WGS84.').decimals(6),
@@ -36,7 +37,7 @@ export const listingsView = view<typeof listings>('listings')
     search: [r.address, r.postal_code],
     displays: [
       d.cards(
-        { image: r.photo, title: r.address, subtitle: r.place_id, badge: r.status, meta: [r.purchase_price, r.rent_price, r.living_area, r.bedrooms, r.energy_label], flags: [r.garden, r.balcony, r.parking] },
+        { image: r.photo, title: r.address, amount: [r.purchase_price, r.rent_price], badge: r.status, meta: [r.living_area, r.bedrooms, r.energy_label], footer: [r.place_id, r.agent_name], flags: [r.garden, r.balcony, r.parking] },
         { label: 'Photos', photos: { resource: 'listing_photos', field: 'listing_id', image: 'photo', sort: 'position' } },
       ),
     ],

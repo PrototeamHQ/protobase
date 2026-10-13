@@ -15,7 +15,7 @@ import { ValueBadge } from '../value-badge'
 import { CardCarousel } from './card-carousel'
 import type { ListDisplay } from './display-context'
 import { DisplayFooter, DisplayState } from './display-frame'
-import { cardFields, filledMeta, type ListDisplayRow } from './list-displays'
+import { amountParts, cardFields, filledAmount, filledMeta, type ListDisplayRow } from './list-displays'
 
 type CardsProps = { model: ResourceModel; view: ViewModel | undefined; display: Extract<ListDisplayModel, { kind: 'cards' }>; list: ListDisplay }
 
@@ -45,12 +45,12 @@ const MetaValue = ({ icon, children }: { icon: string | undefined; children: Rea
 
 /**
  * A card per record, opening its page: its image across the top, with arrows through its photos when the display names
- * them, the title over the subtitle, the badge beside it, small meta fields below, those with a value, and the labels of
- * its flags that are true; or, with a `card` component, what it draws of the row, the built-in content again when it is
- * missing or throws.
+ * them, the title over the subtitle, the badge beside it, the first amount with a value in bold, small meta fields below,
+ * those with a value, the labels of its flags that are true and the footer's fields with a value, joined by bullets; or,
+ * with a `card` component, what it draws of the row, the built-in content again when it is missing or throws.
  */
 export const CardsDisplay = ({ model, view, display, list }: CardsProps) => {
-  const { image, title, subtitle, badge, meta, flags } = cardFields(model, view, display)
+  const { image, title, subtitle, amount, badge, meta, footer, flags } = cardFields(model, view, display)
   const label = (name: string) => view?.fields[name]?.label ?? humanize(name)
   const text = (row: ListDisplayRow, name: string) => {
     const field = model.fields[name]
@@ -77,6 +77,19 @@ export const CardsDisplay = ({ model, view, display, list }: CardsProps) => {
       </ValueBadge>
     )
   }
+  // The amount in bold, its suffix such as ` /month` not; a relation's name or a field type's display in bold whole
+  const amountValue = (row: ListDisplayRow, name: string) => {
+    const field = model.fields[name]
+    if (!field) return undefined
+    if (row.labels[name] !== undefined || shownWidget(fieldTypes, field, view?.fields[name])) return <strong className="font-semibold text-foreground">{shownValue(row, name)}</strong>
+    const parts = amountParts(field, row.record[name], view?.fields[name])
+    return (
+      <>
+        <strong className="font-semibold text-foreground">{parts.amount}</strong>
+        {parts.suffix}
+      </>
+    )
+  }
   const plural = (view?.names?.plural ?? humanize(model.name)).toLowerCase()
   // A card component draws its own content, so only the built-in card steps through photos
   const photos = Card ? undefined : display.photos
@@ -88,6 +101,8 @@ export const CardsDisplay = ({ model, view, display, list }: CardsProps) => {
           const status = badge === undefined ? undefined : row.record[badge]
           const raised = flags.filter((name) => row.record[name] === true)
           const cover = image === undefined ? undefined : row.record[image]
+          const shownAmount = filledAmount(row, amount)
+          const footing = filledMeta(row, footer)
           const builtIn = (photo: unknown) => (
             <>
               {(image !== undefined || photos !== undefined) && <CardImage value={photo} />}
@@ -100,6 +115,7 @@ export const CardsDisplay = ({ model, view, display, list }: CardsProps) => {
                 )}
               </span>
               {subtitle !== undefined && <span className="truncate text-muted-foreground">{shownValue(row, subtitle)}</span>}
+              {shownAmount !== undefined && <span className="truncate tabular-nums text-muted-foreground">{amountValue(row, shownAmount)}</span>}
               {meta.length > 0 && (
                 <dl className="mt-auto flex flex-wrap items-center gap-x-3 gap-y-0.5 pt-1 text-xs text-muted-foreground">
                   {filledMeta(row, meta).map((name) => (
@@ -118,6 +134,16 @@ export const CardsDisplay = ({ model, view, display, list }: CardsProps) => {
                     </li>
                   ))}
                 </ul>
+              )}
+              {footing.length > 0 && (
+                <span className={`truncate text-xs text-muted-foreground ${meta.length > 0 ? '' : 'mt-auto'}`}>
+                  {footing.map((name, index) => (
+                    <span key={name}>
+                      {index > 0 && <span aria-hidden> • </span>}
+                      {shownValue(row, name)}
+                    </span>
+                  ))}
+                </span>
               )}
             </>
           )

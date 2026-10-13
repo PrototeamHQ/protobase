@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { f, resource, view } from '@protobase/schema'
-import { defaultDisplay, displayChoices, displayRow, filledMeta, loadedFields, shownDisplay, sortFields } from './list-displays'
+import { f, resource, view, type FieldModel } from '@protobase/schema'
+import { amountParts, defaultDisplay, displayChoices, displayRow, filledAmount, filledMeta, loadedFields, shownDisplay, sortFields } from './list-displays'
 
 const repairs = resource('repairs')
   .table('repairs')
@@ -86,5 +86,24 @@ describe('filledMeta', () => {
   it('keeps the meta fields with a value, false and zero included, in order', () => {
     const row = { key: '1', record: { purchase_price: null, rent_price: '1450.00', bedrooms: 0, garden: false, note: '' }, labels: {} }
     expect(filledMeta(row, ['purchase_price', 'rent_price', 'bedrooms', 'garden', 'note', 'missing'])).toEqual(['rent_price', 'bedrooms', 'garden'])
+  })
+})
+
+describe('filledAmount', () => {
+  it('takes the first amount field with a value', () => {
+    expect(filledAmount({ key: '1', record: { purchase_price: null, rent_price: '1450.00' }, labels: {} }, ['purchase_price', 'rent_price'])).toBe('rent_price')
+    expect(filledAmount({ key: '1', record: { purchase_price: '425000.00', rent_price: '1450.00' }, labels: {} }, ['purchase_price', 'rent_price'])).toBe('purchase_price')
+    expect(filledAmount({ key: '1', record: { purchase_price: null }, labels: {} }, ['purchase_price'])).toBeUndefined()
+  })
+})
+
+const field = (type: FieldModel['type']) => ({ name: 'x', column: 'x', type, nullable: false, readOnly: false, filterable: false, sortable: false, aliases: [] }) as FieldModel
+
+describe('amountParts', () => {
+  it('splits a number with its prefix from its suffix, and leaves anything else whole', () => {
+    expect(amountParts(field('decimal'), '1450.00', { prefix: '€', suffix: ' /month', decimals: 0 })).toEqual({ amount: '€1,450', suffix: ' /month' })
+    expect(amountParts(field('decimal'), '425000.00', { prefix: '€', decimals: 0 })).toEqual({ amount: '€425,000' })
+    expect(amountParts(field('integer'), 120, { suffix: ' m²' })).toEqual({ amount: '120', suffix: ' m²' })
+    expect(amountParts(field('text'), 'soon', { suffix: ' /month' })).toEqual({ amount: 'soon' })
   })
 })

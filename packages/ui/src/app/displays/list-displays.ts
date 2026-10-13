@@ -1,4 +1,5 @@
-import { encodeKey, tableDisplay, type ListDisplayModel, type ResourceModel, type ViewModel } from '@protobase/schema'
+import { encodeKey, tableDisplay, type FieldModel, type FieldViewModel, type ListDisplayModel, type ResourceModel, type ViewModel } from '@protobase/schema'
+import { displayValue } from '../../live/display-value'
 import { recordKey, recordTitleField } from '../../live/model-helpers'
 import { humanize } from '../../live/naming'
 
@@ -47,19 +48,32 @@ export const cardFields = (model: ResourceModel, view: ViewModel | undefined, di
   image: display.image,
   title: display.title ?? recordTitleField(model, view),
   subtitle: display.subtitle,
+  amount: display.amount ?? [],
   badge: display.badge,
   meta: display.meta ?? [],
+  footer: display.footer ?? [],
   flags: display.flags ?? [],
 })
 
 /** The meta fields a card shows for a row: those with a value, so a listing for rent only shows no purchase price. */
 export const filledMeta = (row: ListDisplayRow, meta: string[]) => meta.filter((name) => row.record[name] !== null && row.record[name] !== undefined && row.record[name] !== '')
 
+/** The amount field a card shows for a row: the first with a value, so a listing for rent only shows its rent. */
+export const filledAmount = (row: ListDisplayRow, amount: string[]): string | undefined => filledMeta(row, amount)[0]
+
+/** A card's amount split for drawing: the number with its prefix, such as `€1,450`, apart from its suffix, such as ` /month`. */
+export const amountParts = (field: FieldModel, value: unknown, hints: FieldViewModel = {}): { amount: string; suffix?: string } => {
+  const { suffix, ...unsuffixed } = hints
+  const numeric = field.type === 'decimal' || field.type === 'integer' || field.type === 'bigint'
+  if (!numeric || suffix === undefined || hints.format === 'percent') return { amount: displayValue(field, value, hints) }
+  return { amount: displayValue(field, value, unsuffixed), suffix }
+}
+
 /** Every field a display shows, the fields its rows are loaded and labelled for. */
 export const shownFields = (model: ResourceModel, view: ViewModel | undefined, display: ListDisplayModel): string[] => {
   if (display.kind === 'custom') return display.fields
-  const { image, title, subtitle, badge, meta, flags } = cardFields(model, view, display)
-  return [image, title, subtitle, badge, ...meta, ...flags].filter((name): name is string => name !== undefined)
+  const { image, title, subtitle, amount, badge, meta, footer, flags } = cardFields(model, view, display)
+  return [image, title, subtitle, ...amount, badge, ...meta, ...footer, ...flags].filter((name): name is string => name !== undefined)
 }
 
 /** The fields to label the list's rows for: the table's columns and every display's, so one load serves them all. */

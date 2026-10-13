@@ -4,7 +4,7 @@ import { layout as l } from './layout'
 import type { ListDisplayModel, ViewModel } from './model'
 import { resource } from './resource'
 import { view } from './view'
-import type { displays } from './view-displays'
+import { displayFields, type displays } from './view-displays'
 
 const article = resource('article')
   .table('articles')
@@ -151,6 +151,14 @@ describe('view builder', () => {
       ],
       default: 'board',
     })
+  })
+
+  it("puts a card's amount fields and footer fields in the model, and checks them like its other fields", () => {
+    const model = view<typeof article>('article')
+      .list((r, d) => ({ columns: [r.title], displays: [d.cards({ amount: [r.price], footer: [r.status, r.createdAt] })] }))
+      .toModel(article.toModel())
+    expect(model.list?.displays).toEqual([{ kind: 'cards', name: 'cards', amount: ['price'], footer: ['status', 'createdAt'] }])
+    expect(displayFields(model.list!.displays![0]!)).toEqual(['price', 'status', 'createdAt'])
   })
 
   it("draws each card's content with a component of the project or a plugin, given by its name", () => {
