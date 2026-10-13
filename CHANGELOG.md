@@ -2,6 +2,19 @@
 
 Every release of Protobase, cut by the release workflow from the commits since the last one (see the [versioning page](https://docs.protobase.net/reference/versioning/)).
 
+## [0.14.0](https://github.com/PrototeamHQ/protobase/compare/v0.13.4...v0.14.0) (2026-10-13)
+
+### ⚠ BREAKING CHANGES
+
+* **schema:** helpers only the protobase packages use move to @protobase/schema/internal
+
+* **schema:** helpers only the protobase packages use move to @protobase/schema/internal ([fe137ad](https://github.com/PrototeamHQ/protobase/commit/fe137adbdedc2898d6f3b575a91c9c17b118b157))
+
+### Features
+
+* **presets:** pin the [@protobase](https://github.com/protobase) packages to the release's major range, locked at the release ([e95c51a](https://github.com/PrototeamHQ/protobase/commit/e95c51aba1d7c07250db02fdf6887c52f14f67fc))
+* **schema:** a doc comment on every public item, and the types its builders hand out exported ([8ed0633](https://github.com/PrototeamHQ/protobase/commit/8ed063387c9624e50fbb36826e000e63d54cb98d))
+
 ## [0.13.4](https://github.com/PrototeamHQ/protobase/compare/v0.13.3...v0.13.4) (2026-10-13)
 
 ### Features
