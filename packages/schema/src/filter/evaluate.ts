@@ -3,6 +3,7 @@ import type { CheckedFilter } from '../model'
 import { lift } from './lift'
 import { functions } from './profile'
 
+/** How `evaluateFilter` evaluates. */
 export type EvaluateOptions = {
   /** Clock for `now()`; defaults to the current time. */
   now?: () => Date

@@ -21,22 +21,43 @@ import { widgets } from './view-widgets'
 
 type FieldsOf<R extends { readonly $fields: unknown }> = R['$fields']
 
-/** `nav(...)` with `recent.status` limited to the resource's fields. */
+/**
+ * `nav(...)` with `recent.status` limited to the resource's fields.
+ *
+ * @inline
+ */
 type NavInput<R extends { readonly $fields: unknown }> = Omit<NavModel, 'recent'> & {
   recent?: Omit<NavRecentModel, 'status'> & { status: keyof FieldsOf<R> & string }
 }
 
-type FieldViews<R extends { readonly $fields: unknown }> = {
+/** The `r` of `.fields((r) => ...)`: a field view per field of the resource, to give hints such as `.label()`. */
+export type FieldViews<R extends {
+  /** The resource's fields, as `resource(...)` declares them. */
+  readonly $fields: unknown
+}> = {
   readonly [K in keyof FieldRefs<FieldsOf<R>> & string]: FieldView<K, NonNullable<FieldRefs<FieldsOf<R>>[K]['$value']>>
 }
 
-export class ViewBuilder<R extends { readonly $fields: unknown }> {
-  constructor(readonly state: ViewModel) {}
+/**
+ * A view of a resource, as `view(...)` starts it: how the admin shows it. Each method returns a new view, so one view
+ * can build on another. See [UI config](website/src/content/docs/reference/ui-config.mdx).
+ */
+export class ViewBuilder<R extends {
+  /** The resource's fields, as `resource(...)` declares them. */
+  readonly $fields: unknown
+}> {
+  /** @internal */
+  constructor(
+    /** @internal */
+    readonly state: ViewModel,
+  ) {}
 
+  /** What a record and the records are called, such as "New repair" and "Repairs"; the resource name in words by default. */
   names(names: { singular: string; plural: string }) {
     return this.next({ names })
   }
 
+  /** An icon name carried in `/meta`, for apps that draw their own shell; the admin picks sidebar icons by resource name. */
   icon(icon: string) {
     return this.next({ icon })
   }
@@ -61,15 +82,17 @@ export class ViewBuilder<R extends { readonly $fields: unknown }> {
     return this.next({ searchResult: { ...(titles.length > 0 && { title: titles.map((ref) => ref.name) }), ...(subtitle && { subtitle: subtitle.name }) } })
   }
 
-  /** Where the resource sits in the sidebar; `recent` lists a few of its records under the entry (see https://docs.protobase.net/reference/sidebar/). */
+  /** Where the resource sits in the sidebar; `recent` lists a few of its records under the entry (see [Sidebar](website/src/content/docs/reference/sidebar.md#recent-records)). */
   nav(nav: NavInput<R>) {
     return this.next({ nav })
   }
 
+  /** A line under the list's title. */
   help(help: string) {
     return this.next({ help })
   }
 
+  /** Hints per field, such as `{ total: r.total.prefix('€').decimals(2) }`; calls add up. */
   fields(build: (r: FieldViews<R>) => Record<string, FieldView>) {
     const built = build(createRefs((name) => new FieldView(name)))
     const fields = Object.fromEntries(Object.values(built).map((v) => [v.name, v.props]))
@@ -105,23 +128,37 @@ export class ViewBuilder<R extends { readonly $fields: unknown }> {
     return this.next({ list })
   }
 
+  /**
+   * The filter widgets above the list, in order, each on a `.filterable()` field: `w.facets`, `w.dateRange`, `w.range`,
+   * `w.toggle` and `w.flags`. Together they write the list's `?filter=`.
+   */
   filters(build: (r: FieldRefs<FieldsOf<R>>, w: typeof widgets) => FilterWidgetModel[]) {
     return this.next({ filters: build(this.refs(), widgets) })
   }
 
+  /**
+   * The record page, as items of `l` in order: sections, sidebar cards, related records, maps and custom components.
+   * Without it the page shows one section with every field.
+   */
   layout(build: (r: FieldRefs<FieldsOf<R>>) => LayoutItemModel[]) {
     return this.next({ layout: build(this.refs()) })
   }
 
+  /** A chart of records per `granularity` over a date or timestamp `field` above the list, following its filters. */
   chart(build: (r: FieldRefs<FieldsOf<R>>) => { field: Ref; range: ChartRange; granularity: ChartGranularity }) {
     const { field, range, granularity } = build(this.refs())
     return this.next({ chart: { field: field.name, range, granularity } })
   }
 
+  /** Where the record page shows that it saved: a toast (the default) or the Save button. */
   saveFeedback(saveFeedback: SaveFeedback) {
     return this.next({ saveFeedback })
   }
 
+  /**
+   * The named actions of the record page's action rail, which composed pages can put on buttons too: `a.update`,
+   * `a.remove` and `a.link` need no code, `a.action` runs a handler the app registers.
+   */
   actions(build: (a: typeof actions) => ActionModel[]) {
     return this.next({ actions: build(actions) })
   }
@@ -157,5 +194,22 @@ export class ViewBuilder<R extends { readonly $fields: unknown }> {
   }
 }
 
-export const view = <R extends { readonly $fields: unknown }>(resource: string) =>
+/**
+ * Starts the view of a resource: how the admin shows it. Pass the resource's type, so every field reference (`r.status`)
+ * is checked against it. See [UI config](website/src/content/docs/reference/ui-config.mdx).
+ *
+ * @example
+ * ```ts
+ * import { view } from '@protobase/schema'
+ * import type { repairs } from './data'
+ *
+ * export const repairsView = view<typeof repairs>('repairs')
+ *   .names({ singular: 'Repair', plural: 'Repairs' })
+ *   .list((r) => ({ columns: [r.number, r.status, r.booked_on], sort: [[r.booked_on, 'desc']] }))
+ * ```
+ */
+export const view = <R extends {
+  /** The resource's fields, as `resource(...)` declares them. */
+  readonly $fields: unknown
+}>(resource: string) =>
   new ViewBuilder<R>({ resource, fields: {}, filters: [], layout: [], actions: [] })

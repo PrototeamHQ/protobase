@@ -14,9 +14,15 @@ const items = {
 }
 
 /** What the server needs from a `userMenu(...)` export of the config module. */
-export type UserMenuSource = { toUserMenuModel(): UserMenuModel }
+export type UserMenuSource = {
+  /** The menu's model, a copy each time. */
+  toUserMenuModel(): UserMenuModel
+}
 
-/** The pages under the signed-in user, at the bottom of the sidebar, above the built-in "Sign out". */
+/**
+ * The pages under the signed-in user, at the bottom of the sidebar, above the built-in "Sign out": `m.resource`,
+ * `m.page` and `m.link`. Export it from the config module. See [User menu](website/src/content/docs/reference/user-menu.md).
+ */
 export const userMenu = (build: (m: typeof items) => UserMenuItemModel[]): UserMenuSource => {
   const model: UserMenuModel = { items: build(items) }
   return { toUserMenuModel: () => structuredClone(model) }

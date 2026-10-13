@@ -2,7 +2,14 @@ import { maxBottomBarItems } from './bottom-bar'
 import type { BottomBarItemModel, BottomBarModel } from './model'
 
 /** What the bottom bars may name. Without `roles` (an app whose roles are not declared) any role is accepted. */
-export type BottomBarNames = { resources: readonly string[]; pages: readonly string[]; roles?: readonly string[] }
+export type BottomBarNames = {
+  /** The app's resources. */
+  resources: readonly string[]
+  /** The app's composed pages. */
+  pages: readonly string[]
+  /** The app's roles, when it declares them. */
+  roles?: readonly string[]
+}
 
 const itemErrors = (item: BottomBarItemModel, names: BottomBarNames) => {
   if (item.kind === 'resource' && !names.resources.includes(item.resource)) return [`resource "${item.resource}" does not exist`]

@@ -2,7 +2,7 @@ import type { FieldAccess } from './access/types'
 import { Field, type FieldMeta } from './field'
 import { checkedAccept, checkedProvider, checkedVariant, checkedVariants, parseSize, type FileOptions, type FileProcessor, type ImageVariant, type ImageVariantOptions } from './files/file-options'
 
-/** `f.file()`: a text column holding a file's URI, uploaded through `:upload`. */
+/** `f.file()`: a text column holding a file's URI, uploaded through `:upload`. See [Files](website/src/content/docs/reference/files.mdx). */
 export class FileField<V> extends Field<V> {
   /** Allowed types, checked against the type detected from the content: `['image/*', 'application/pdf']`. */
   accept(types: readonly string[]) {
@@ -51,22 +51,27 @@ export class FileField<V> extends Field<V> {
     })
   }
 
+  /** The column is nullable: the field may hold no file. */
   override optional() {
     return this.with({ nullable: true }) as unknown as FileField<V | null>
   }
 
+  /** Never written through the API. */
   override readOnly() {
     return this.with({ readOnly: true })
   }
 
+  /** The column, when it is not the snake_case of the field's name. */
   override column(name: string) {
     return this.with({ column: name })
   }
 
+  /** Role-based rules for reading and writing the file; uploading needs write access to the field. */
   override access(rules: FieldAccess) {
     return this.with({ access: { ...this.meta.access, ...rules } })
   }
 
+  /** A copy of the field with `patch` applied, which every option returns. */
   protected override with(patch: Partial<FieldMeta>): FileField<V> {
     return new FileField<V>(this.def, { ...this.meta, ...patch })
   }

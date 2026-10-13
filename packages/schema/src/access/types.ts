@@ -1,17 +1,30 @@
 import type { FilterExpr, ResourceModel } from '../model'
 
+/** An operation on a resource that access rules decide; `list` falls back to the `read` rule. */
 export type AccessAction = 'list' | 'read' | 'create' | 'update' | 'delete'
 
 /** The signed-in user as access rules see it; roles come from the auth user record. */
-export type AccessUser = { id?: string | number; roles?: readonly string[]; [key: string]: unknown }
+export type AccessUser = {
+  /** The user's id, which `.own` compares with the resource's `.owner(...)` field. */
+  id?: string | number
+  /** The user's roles, with organizations those of the membership too. */
+  roles?: readonly string[]
+  [key: string]: unknown
+}
 
+/** What an access rule is given: who asks, for which operation, and where. */
 export type AccessContext = {
   /** Always set by the server; optional in the type so rules stay callable with a bare context. */
   user?: AccessUser
+  /** The operation being decided. */
   operation?: AccessAction
+  /** The record the operation is on, when there is one. */
   record?: unknown
   /** With organizations, the one the request works in; `.tenant` resources are scoped to it already. */
-  organization?: { id: string | number }
+  organization?: {
+    /** The organization's id. */
+    id: string | number
+  }
   /** Set by the resolver; scoped capabilities (`.own`) need `model.owner`. */
   model?: ResourceModel
   [key: string]: unknown
@@ -37,4 +50,12 @@ export type AccessFn<R = any> = (
 /** A field rule is role-based: it never sees a record, so readable columns are fixed per request. */
 export type FieldRule = (ctx: AccessContext) => AccessResult | Promise<AccessResult>
 
-export type FieldAccess = { read?: FieldRule; create?: FieldRule; update?: FieldRule }
+/** A field's own rules, `.access({ read, create, update })` on the field; an operation without one follows the resource. */
+export type FieldAccess = {
+  /** Whether the caller may see the field. */
+  read?: FieldRule
+  /** Whether the caller may set the field when creating a record. */
+  create?: FieldRule
+  /** Whether the caller may change the field when updating a record. */
+  update?: FieldRule
+}

@@ -1,7 +1,10 @@
 /** What a processor gets: the stored upload's decided type, size and name, its first bytes, and the whole of it on demand. */
 export type FileProcessorInput = {
+  /** The file's name, its extension matched to the decided type. */
   name: string
+  /** The type decided from the content, such as `image/jpeg`. */
   type: string
+  /** The size in bytes. */
   size: number
   /** The first bytes of the content (up to 256 KB), enough for image headers. */
   head: Uint8Array
@@ -16,12 +19,14 @@ export type FileProcessorInput = {
 export type FileProcessor = {
   /** Exact types and `type/*` wildcards; every type when omitted. */
   accepts?: readonly string[]
+  /** The value for the column, which must pass that field's schema. */
   run: (file: FileProcessorInput) => unknown
 }
 
 /** The formats an image variant is written in. */
 export const imageFormats = ['webp', 'avif', 'jpeg', 'png'] as const
 
+/** A format an image variant is written in: `webp`, `avif`, `jpeg` or `png`. */
 export type ImageFormat = (typeof imageFormats)[number]
 
 /**
@@ -29,20 +34,40 @@ export type ImageFormat = (typeof imageFormats)[number]
  * the whole image within that box, `cover` fills the box and crops what is outside it. `quality` is 1 to 100, the
  * format's default when omitted.
  */
-export type ImageVariant = { width?: number; height?: number; fit?: 'inside' | 'cover'; format: ImageFormat; quality?: number }
+export type ImageVariant = {
+  /** The largest width in pixels; any width when omitted. */
+  width?: number
+  /** The largest height in pixels; any height when omitted. */
+  height?: number
+  /** `inside` keeps the whole image within the box; `cover` fills the box and crops the rest, and needs both sides. */
+  fit?: 'inside' | 'cover'
+  /** The format it is written in. */
+  format: ImageFormat
+  /** 1 to 100; the format's default when omitted. */
+  quality?: number
+}
 
 /** `.variants()`' second argument: `original` replaces the upload by that image, so the upload itself is not kept. */
-export type ImageVariantOptions = { original?: ImageVariant }
+export type ImageVariantOptions = {
+  /** The image stored instead of the upload, such as `{ width: 2560, format: 'webp' }`. */
+  original?: ImageVariant
+}
 
 /** A file field's settings, as the builder collects them. */
 export type FileOptions = {
+  /** The allowed types and `type/*` wildcards (`.accept()`); any type when empty. */
   accept: string[]
+  /** The largest upload in bytes (`.maxSize()`). */
   maxSize: number
+  /** The provider of `files.providers` the files are stored with (`.storage()`, `.public()`). */
   provider: string
+  /** The processors computing other fields from each upload, by field name (`.derive()`). */
   derive?: Record<string, FileProcessor>
   /** The read-only text field each image's ThumbHash goes to (`.placeholder()`). */
   placeholder?: string
+  /** The resized copies stored beside each image, by name (`.variants()`). */
   variants?: Record<string, ImageVariant>
+  /** The image stored instead of the upload (`.variants()`' `original`). */
   original?: ImageVariant
 }
 

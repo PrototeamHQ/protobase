@@ -1,4 +1,7 @@
+/** The operation a capability grants; `read` covers listing too. */
 export type CapabilityAction = 'read' | 'create' | 'update' | 'delete'
+
+/** The rows a scoped capability narrows to: the user's own (`.own`) or their team's (`.team`), by the resource's owner field. */
 export type CapabilityScope = 'own' | 'team'
 
 /**
@@ -10,6 +13,7 @@ export type Capability<Name extends string = string> =
   | `${Name | '*'}.${CapabilityAction | '*'}`
   | `${Name | '*'}.${CapabilityAction | '*'}.${CapabilityScope | '*'}`
 
+/** The rows a held capability grants: all of them, or those of a scope. */
 export type Grant = 'all' | CapabilityScope
 
 const pattern = /^(\*|[A-Za-z][A-Za-z0-9_]*)\.(\*|read|create|update|delete)(?:\.(\*|own|team))?$/

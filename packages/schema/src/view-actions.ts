@@ -1,6 +1,7 @@
 import { appHrefError } from './address-template'
 import type { ActionModel, AppAddress } from './model'
 
+/** @inline */
 type ActionOptions = { label: string; icon?: string; confirm?: string }
 
 const named = (name: string, o: ActionOptions & { bulk?: boolean }): ActionModel => ({

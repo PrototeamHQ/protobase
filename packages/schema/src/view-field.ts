@@ -2,24 +2,32 @@ import type { BadgeShape, FieldFormat, FieldViewModel, JsonValue } from './model
 
 const hexColor = /^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i
 
+/** How a view shows one field, as `.fields((r) => ...)` hands it out: each hint returns a new field view. */
 export class FieldView<N extends string = string, V = unknown> {
+  /** @internal */
   constructor(
+    /** The field's name. */
     readonly name: N,
+    /** The hints given so far. */
     readonly props: FieldViewModel = {},
   ) {}
 
+  /** What the field is called, instead of its name in words. */
   label(label: string) {
     return this.with({ label })
   }
 
+  /** A line under the field on the record page and in forms. */
   help(help: string) {
     return this.with({ help })
   }
 
+  /** How the value shows: `badge` for statuses, `code` in monospace, `percent` with a % sign. */
   format(format: FieldFormat) {
     return this.with({ format })
   }
 
+  /** Text before a number wherever it is shown, such as a currency: `.prefix('€')`. */
   prefix(prefix: string) {
     return this.with({ prefix })
   }
@@ -29,6 +37,7 @@ export class FieldView<N extends string = string, V = unknown> {
     return this.with({ suffix })
   }
 
+  /** How many decimals a number shows wherever it is shown. */
   decimals(decimals: number) {
     return this.with({ decimals })
   }

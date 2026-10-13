@@ -1,5 +1,6 @@
 import type { FieldType, KeyValue, ResourceModel } from './model'
 
+/** The field types a primary key part may have: `integer`, `bigint`, `uuid` or `text`. */
 export type KeyType = Extract<FieldType, 'integer' | 'bigint' | 'uuid' | 'text'>
 
 const integerPattern = /^-?\d+$/

@@ -3,11 +3,17 @@ import type { CardPhotosModel, JsonValue, ListDisplayModel } from './model'
 import type { Ref } from './refs'
 
 /** A custom component as `component(name)` from `@protobase/layout` declares it. */
-export type ComponentRef<P> = ((props: P) => unknown) & { readonly blockName: string; readonly custom: boolean }
+export type ComponentRef<P> = ((props: P) => unknown) & {
+  /** The name it is registered under. */
+  readonly blockName: string
+  /** Whether it is the project's or a plugin's, rather than a built-in block. */
+  readonly custom: boolean
+}
 
 /** A custom component's props as a view gives them: plain data, or `r.field` where it takes a field's name. */
 export type ViewProps<P> = { [K in keyof Omit<P, 'children'>]: P[K] extends string ? P[K] | Ref : P[K] }
 
+/** @inline */
 type Naming = { name?: string; label?: string; icon?: string }
 
 const naming = ({ label, icon }: Naming) => ({ ...(label !== undefined && { label }), ...(icon !== undefined && { icon }) })

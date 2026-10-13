@@ -1,3 +1,12 @@
+/**
+ * Resources, fields, views and access rules: what a Protobase config declares, and the models the server, the client and
+ * the admin app read from it. A config builds them with {@link resource} and {@link f} ([Data config](website/src/content/docs/reference/data-config.mdx)),
+ * {@link view} and {@link l} ([UI config](website/src/content/docs/reference/ui-config.mdx)), and {@link defineRoles} and {@link rule}
+ * ([Access](website/src/content/docs/reference/access.mdx)). It runs anywhere, the browser included, and imports no other
+ * `@protobase` package.
+ *
+ * @packageDocumentation
+ */
 export type {
   FieldType,
   FieldModel,
@@ -57,9 +66,10 @@ export type {
   OrderByItem,
 } from './model'
 export { f } from './fields'
-export { resource } from './resource'
-export type { EventActor, EventContext, EventMatch, EventSpec, EventHelpers } from './events/event-helpers'
-export { view } from './view'
+export { resource, type ResourceBuilder, type SearchRef, type SearchRefs, type Validator } from './resource'
+export type { EventActor, EventContext, EventMatch, EventSpec, EventHelpers, CreatedOptions, UpdatedOptions, DeletedOptions, UndeletedOptions } from './events/event-helpers'
+export { view, type ViewBuilder, type FieldViews } from './view'
+export type { FieldView } from './view-field'
 export type { ComponentRef, ViewProps } from './view-displays'
 export { fieldRef, type FieldRefValue } from './field-ref'
 export { enumLabel } from './enum-label'
@@ -70,10 +80,12 @@ export { layout as l } from './layout'
 export { keyTypes } from './keys'
 export { addressWords, appPath, readAppPath } from './app-address'
 export type { KeyType } from './keys'
-export type { InferRecord, RecordKey } from './resource-types'
-export type { Field } from './field'
+export type { InferRecord, RecordKey, RecordOf, KeyOf, KeyRefs, Access, Issue } from './resource-types'
+export type { Ref, Refs, FieldRefs, FieldsInput } from './refs'
+export type { Field, AnyField, FieldMeta, FieldTypeDef, Constraint } from './field'
+export type { RelationField } from './relation-field'
 export type { FileField } from './file-field'
-export { imageFormats, type FileProcessor, type FileProcessorInput, type ImageFormat, type ImageVariant, type ImageVariantOptions } from './files/file-options'
+export { imageFormats, type FileProcessor, type FileProcessorInput, type ImageFormat, type ImageVariant, type ImageVariantOptions, type FileOptions } from './files/file-options'
 export {
   parseFilter,
   checkFilter,
@@ -102,11 +114,13 @@ export type {
   RolesOptions,
   RoleEntry,
   RoleLimit,
+  HeldCapability,
   CapabilityLimit,
   Rule,
   Capability,
   CapabilityAction,
   CapabilityScope,
+  Grant,
   AccessSource,
   ResolveOptions,
   ResolvedAccess,

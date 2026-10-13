@@ -3,13 +3,28 @@ import type { JsonValue, LayoutItemModel, RelatedModel } from './model'
 import type { Ref } from './refs'
 import { customComponent, type ComponentRef, type ViewProps } from './view-displays'
 
+/**
+ * The items of a record page, for a view's `.layout((r) => [...])`, exported as `l`. See
+ * [The record page](website/src/content/docs/reference/ui-config.mdx#the-record-page).
+ *
+ * @example
+ * ```ts
+ * view<typeof repairs>('repairs').layout((r) => [
+ *   l.section('Repair', [r.bike, r.problem, r.status]),
+ *   l.sidebar([r.booked_on, r.estimate]),
+ *   l.related('Parts used', { resource: 'repair_parts', field: 'repair_id' }),
+ * ])
+ * ```
+ */
 export const layout = {
+  /** A titled group of fields in the main column, editable where the user may write; `help` is a line under the title. */
   section: (title: string, fields: Ref[], o: { help?: string } = {}): LayoutItemModel => ({
     kind: 'section',
     title,
     fields: fields.map((ref) => ref.name),
     ...(o.help !== undefined && { help: o.help }),
   }),
+  /** A read-only summary card of fields beside the main column. */
   sidebar: (fields: Ref[]): LayoutItemModel => ({
     kind: 'sidebar',
     fields: fields.map((ref) => ref.name),

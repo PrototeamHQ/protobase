@@ -5,6 +5,7 @@ import { heldCapabilities, type HeldCapability, type RoleEntry } from './role-en
 import { rule, type Rule } from './rule'
 import type { AccessContext, AccessUser } from './types'
 
+/** The second argument of `defineRoles`. */
 export type RolesOptions = {
   /** Ids of the users in `user`'s team; `.team` scopes become `owner IN teamOf(user)`. */
   teamOf?: (user: AccessUser) => readonly (string | number)[] | Promise<readonly (string | number)[]>
@@ -13,7 +14,10 @@ export type RolesOptions = {
 }
 
 /** A capability of a role that is limited to fields or rows; the server checks them against the resources at startup. */
-export type RoleLimit = HeldCapability & { role: string }
+export type RoleLimit = HeldCapability & {
+  /** The role holding it. */
+  role: string
+}
 
 const rolesOf = (user: AccessUser) => user.roles ?? []
 
@@ -25,6 +29,16 @@ const rolesOf = (user: AccessUser) => user.roles ?? []
  * An entry may limit capabilities to fields (an allowlist) and rows (an AIP-160 filter):
  * `{ 'products.read': ['sku', 'price'] }`, `{ 'products.read': { fields: ['name'], filter: 'published = true' } }`.
  * The role `anonymous`, when defined, is what requests without a token act as; it may only read listed fields.
+ * See [Access](website/src/content/docs/reference/access.mdx#capabilities).
+ *
+ * @example
+ * ```ts
+ * const roles = defineRoles<'orders' | 'products'>({
+ *   admin: ['*'],
+ *   sales: ['orders.read.own', 'orders.create', 'products.read'],
+ *   reseller: [{ 'products.read': { fields: ['sku', 'name', 'price'], filter: 'published = true' } }],
+ * })
+ * ```
  */
 export const defineRoles = <Name extends string = string>(
   definitions: Record<string, readonly RoleEntry<Name>[]>,
@@ -60,6 +74,7 @@ export const defineRoles = <Name extends string = string>(
   }
 
   return {
+    /** The roles as defined, by name. */
     definitions,
     grants,
 
@@ -109,4 +124,5 @@ export const defineRoles = <Name extends string = string>(
   }
 }
 
+/** The roles `defineRoles` returns, as the server's `options.roles` takes them. */
 export type Roles = ReturnType<typeof defineRoles>

@@ -3,13 +3,39 @@ import type { FilterError, OrderByItem, ResourceModel, SortSpec } from '../model
 import { filterError } from './errors'
 import { schemaOf } from './profile'
 
+/** What `parseOrderBy` gives: the order's items, or the errors. */
 export type OrderByParse =
-  | { ok: true; items: OrderByItem[]; errors: [] }
-  | { ok: false; items: OrderByItem[]; errors: FilterError[] }
+  | {
+      /** The text parsed. */
+      ok: true
+      /** The fields to sort on, in order. */
+      items: OrderByItem[]
+      /** None. */
+      errors: []
+    }
+  | {
+      /** The text did not parse. */
+      ok: false
+      /** The items that parsed. */
+      items: OrderByItem[]
+      /** Each problem, with where it is in the text. */
+      errors: FilterError[]
+    }
 
+/** What `checkOrderBy` gives: the sort, or the errors. */
 export type OrderByCheck =
-  | { ok: true; sort: SortSpec }
-  | { ok: false; errors: FilterError[] }
+  | {
+      /** The order is valid for the resource. */
+      ok: true
+      /** The fields to sort on and their directions, in order. */
+      sort: SortSpec
+    }
+  | {
+      /** The order is not valid for the resource. */
+      ok: false
+      /** Each problem, with where it is in the text. */
+      errors: FilterError[]
+    }
 
 const generic = (items: OrderByItem[]) => items.map((item) => ({ path: item.path.path, direction: item.direction, span: item.span }))
 
@@ -18,6 +44,7 @@ const generic = (items: OrderByItem[]) => items.map((item) => ({ path: item.path
 const lowercaseDirections = (source: string) =>
   source.replace(/([^\s,])(\s+)(asc|desc)(?=\s|,|$)/gi, (_, before: string, space: string, word: string) => `${before}${space}${word.toLowerCase()}`)
 
+/** Parses order text, AIP-132 as the API's `order_by` takes it, such as `created_at desc, name`; `asc` and `desc` in any case. */
 export const parseOrderBy = (source: string): OrderByParse => {
   const parsed = parse(lowercaseDirections(source))
   const items: OrderByItem[] = parsed.items.map((item) => ({
@@ -28,6 +55,7 @@ export const parseOrderBy = (source: string): OrderByParse => {
   return parsed.ok ? { ok: true, items, errors: [] } : { ok: false, items, errors: parsed.errors }
 }
 
+/** The order as text, as `parseOrderBy` reads it. */
 export const printOrderBy = (items: OrderByItem[]) => print(generic(items))
 
 /** Validates against sortable fields; traversal is not supported yet. */

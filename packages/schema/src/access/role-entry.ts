@@ -6,13 +6,27 @@ import { parseCapability, type Capability } from './capability'
  * What a capability is limited to: the fields it allows, an allowlist (`['sku', 'price']`), a row filter in AIP-160
  * text that is ANDed into its rows (`{ filter: 'published = true' }`), or both (`{ fields: [...], filter: '...' }`).
  */
-export type CapabilityLimit = readonly string[] | { readonly fields?: readonly string[]; readonly filter?: string }
+export type CapabilityLimit =
+  | readonly string[]
+  | {
+      /** The only fields the capability reads or writes. */
+      readonly fields?: readonly string[]
+      /** AIP-160 text the capability's rows must match. */
+      readonly filter?: string
+    }
 
 /** One entry of a role: a capability, or capabilities each with its limit, `{ 'products.read': ['sku', 'price'] }`. */
 export type RoleEntry<Name extends string = string> = Capability<Name> | { readonly [C in Capability<Name>]?: CapabilityLimit }
 
 /** A capability a role holds, with the fields and rows it is limited to when it has a limit. */
-export type HeldCapability = { capability: string; fields?: readonly string[]; filter?: FilterExpr }
+export type HeldCapability = {
+  /** The capability, such as `products.read`. */
+  capability: string
+  /** The only fields it reads or writes; every field when omitted. */
+  fields?: readonly string[]
+  /** The filter its rows must match, parsed. */
+  filter?: FilterExpr
+}
 
 /** Requests without a token act as this role, when the project defines it. */
 export const anonymousRole = 'anonymous'

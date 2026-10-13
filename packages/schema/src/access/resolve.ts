@@ -7,11 +7,15 @@ import type { AccessAction, AccessContext, AccessFn, AccessUser, FieldAccess } f
 
 /** What the resolver needs from a resource; `ResourceBuilder` satisfies it. */
 export type AccessSource = {
+  /** The resource's model. */
   toModel: () => ResourceModel
+  /** The resource's rules, by operation (`.access(...)`). */
   accessRules: Partial<Record<AccessAction, AccessFn>>
+  /** The fields' own rules, by field name. */
   fieldAccess: () => Record<string, FieldAccess>
 }
 
+/** How `resolveAccess` decides what the resource's rules leave open. */
 export type ResolveOptions = {
   /**
    * The project's roles. When given, an operation without a rule is denied unless the user's
@@ -20,8 +24,11 @@ export type ResolveOptions = {
    * holding only that role needs its capability even where a rule or `defaultAccess` would allow.
    */
   roles?: {
+    /** The rule allowing a capability, as `defineRoles` makes it. */
     can: (capability: any) => Rule
+    /** The fields the user's roles list for a capability, or `undefined` for every field. */
     fields?: (user: AccessUser, capability: string) => readonly string[] | undefined
+    /** The roles by name, to tell whether the project has an `anonymous` role. */
     definitions?: Record<string, unknown>
   }
   /**
@@ -38,15 +45,24 @@ export const accessWarnings = (options: ResolveOptions) =>
     ? ['Roles are configured but defaultAccess is "allow": operations without an access rule are open to every user.']
     : []
 
+/** An operation a row filter applies to. */
 export type RowFilterOperation = 'read' | 'create' | 'update' | 'delete'
 
+/** What one request may do with one resource, as `resolveAccess` works it out. */
 export type ResolvedAccess = {
+  /** Whether each operation is allowed at all; one in `recordChecks` or `rowFilter` only for some records. */
   operations: Record<AccessAction, boolean>
   /** Operations whose rule needs the record (or input); check them with `checkRecord`. */
   recordChecks: AccessAction[]
   /** Columns the caller may see; everything else must be left out of results, filters, sorts and search. */
   readableFields: string[]
-  writableFields: { create: string[]; update: string[] }
+  /** Columns the caller may write. */
+  writableFields: {
+    /** Those a create may set. */
+    create: string[]
+    /** Those an update may change. */
+    update: string[]
+  }
   /** ANDed into queries (`read` covers list and read) or checked against records (`create`). */
   rowFilter: Partial<Record<RowFilterOperation, CheckedFilter>>
 }

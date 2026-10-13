@@ -5,7 +5,10 @@ import { isRef } from './refs'
  * A field named inside free-form data, such as a custom component's props: `{ $field: 'status' }`, or a path through
  * relations (`plan.name`) on a page. Marked, so that the walker leaving out hidden fields finds it wherever it is.
  */
-export type FieldRefValue = { readonly $field: string }
+export type FieldRefValue = {
+  /** The field's name, or a path through relations. */
+  readonly $field: string
+}
 
 /** A field reference for a layout's custom component props, such as `<UsageChart field={fieldRef('total')} />`. */
 export const fieldRef = (path: string): FieldRefValue => ({ $field: path })

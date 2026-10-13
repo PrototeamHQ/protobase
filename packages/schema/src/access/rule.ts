@@ -13,6 +13,16 @@ const combine =
   <R>(join: (a: AccessResult, b: AccessResult) => AccessResult, left: AccessFn<R>, right: AccessFn<R>): AccessFn<R> =>
   async (ctx, record, input) => join(await left(ctx, record, input), await right(ctx, record, input))
 
+/**
+ * Wraps an access function so it combines with others through `.and()` and `.or()`; `roles.can()` and `roles.is()`
+ * return such rules already.
+ *
+ * @example
+ * ```ts
+ * const notShipped = rule((ctx, order) => order?.status !== 'shipped')
+ * resource('orders').access({ update: notShipped.and(roles.can('orders.update')) })
+ * ```
+ */
 export const rule = <R = any>(fn: AccessFn<R>): Rule<R> =>
   Object.assign((ctx: Parameters<AccessFn<R>>[0], record?: R, input?: Partial<R>) => fn(ctx, record, input), {
     and: (other: AccessFn<R>) => rule(combine(andResults, fn, other)),

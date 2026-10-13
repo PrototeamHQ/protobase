@@ -17,11 +17,15 @@ const items = {
 }
 
 /** What the server needs from a `bottomBar(...)` export of the config module. */
-export type BottomBarSource = { toBottomBarModel(): BottomBarModel }
+export type BottomBarSource = {
+  /** The bar's model, a copy each time. */
+  toBottomBarModel(): BottomBarModel
+}
 
 /**
  * Tabs at the bottom of the screen on phones, for the users holding one of `roles`. Export one per group of roles; a
- * role belongs to one bottom bar. `label` names the bar where someone with several switches between them.
+ * role belongs to one bottom bar. `label` names the bar where someone with several switches between them. Its tabs
+ * are `m.resource`, `m.page` and `m.link`, at most four. See [Bottom bar](website/src/content/docs/reference/bottom-bar.md).
  */
 export const bottomBar = (options: { label: string; roles: string[] }, build: (m: typeof items) => BottomBarItemModel[]): BottomBarSource => {
   const model: BottomBarModel = { label: options.label, roles: [...options.roles], items: build(items) }

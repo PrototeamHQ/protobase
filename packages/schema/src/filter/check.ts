@@ -4,9 +4,20 @@ import { checkAgainstModel } from './check-model'
 import { lift } from './lift'
 import { schemaOf } from './profile'
 
+/** What `checkFilter` gives: the filter with each field resolved to its model, or the errors. */
 export type CheckResult =
-  | { ok: true; filter: CheckedFilter }
-  | { ok: false; errors: FilterError[] }
+  | {
+      /** The filter is valid for the resource. */
+      ok: true
+      /** The filter, each field resolved to the resource's field model. */
+      filter: CheckedFilter
+    }
+  | {
+      /** The filter is not valid for the resource. */
+      ok: false
+      /** Each problem, with where it is in the text. */
+      errors: FilterError[]
+    }
 
 /**
  * Validates against the resource: the library checks fields, aliases, filterability, enum
