@@ -11,7 +11,7 @@ export const Sheet = ({ title, open, onClose, children }: SheetProps) => {
   if (!open) return null
   return (
     <div className="fixed inset-0 z-[80]">
-      <div className="absolute inset-0 bg-foreground/40" onClick={onClose} aria-hidden />
+      <div className="absolute inset-0 bg-backdrop/40" onClick={onClose} aria-hidden />
       <div ref={panel} role="dialog" aria-modal="true" aria-label={title} tabIndex={-1} className="absolute inset-x-0 bottom-0 flex max-h-[85vh] flex-col rounded-t-xl border-t bg-background shadow-pop outline-none">
         <header className="flex shrink-0 items-center justify-between border-b px-4">
           <h2 className="text-[15px] font-semibold">{title}</h2>

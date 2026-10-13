@@ -81,6 +81,7 @@ Every token, with the app's light and dark values. Colors take any CSS color.
 | `--violet-text` | `#6d28d9` | `#c4b5fd` |
 | `--sidebar` | `#f8f8f9` | `#121215` |
 | `--shadow-pop` | `0 8px 24px -4px rgb(0 0 0 / 0.12), 0 2px 6px rgb(0 0 0 / 0.06)` | `0 8px 24px -4px rgb(0 0 0 / 0.6), 0 2px 6px rgb(0 0 0 / 0.4)` |
+| `--backdrop` | `#18181b` | `#000000` |
 | `--radius` | `6px` | the light value |
 | `--font` | `ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif` | the light value |
 | `--font-code` | `ui-monospace, "SF Mono", Menlo, Consolas, monospace` | the light value |
@@ -95,6 +96,7 @@ What they color:
 | `--primary` and its group | The main buttons and links (`--primary`, `--primary-hover`, `--primary-foreground` on it), selected and highlighted areas (`--primary-soft`, `--primary-border`) and text in the primary color (`--primary-text`). |
 | `--success`, `--warning`, `--danger`, `--violet` and their groups | Statuses and messages: the color itself, a soft background and readable text on it. |
 | `--shadow-pop` | The shadow of menus, popovers and the command palette. |
+| `--backdrop` | The dim behind dialogs, sheets and the phone drawer, and the shade at a table's edge while it scrolls sideways; drawn see-through, so give it a solid color. |
 | `--radius` | The corners: `rounded-md` is `--radius`, `rounded-lg` two pixels more, `rounded-sm` two less and `rounded-xl` six more. |
 | `--font`, `--font-code` | The app's text, and identifiers and code. |
 

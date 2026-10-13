@@ -440,7 +440,7 @@ div | block
                         div .relative flex justify-center bg-inherit | flex row nowrap normal center relative
                           button .inline-flex items-center justify-center rounded p-1 text-faint-foreground hover:bg-muted hover:text-foreground pointer-coarse:size-11 | flex row nowrap center center
                             svg .lucide lucide-ellipsis lucide-more-horizontal size-4 | block
-                div .pointer-events-none absolute inset-y-0 right-0 z-20 w-8 bg-gradient-to-l from-foreground/15 to-transparent | block absolute
+                div .pointer-events-none absolute inset-y-0 right-0 z-20 w-8 bg-gradient-to-l from-backdrop/15 to-transparent | block absolute
               div .flex h-9 shrink-0 items-center border-t bg-surface px-3 text-xs text-muted-foreground sticky bottom-[var(--pb-sticky-bottom,0px)] z-20 | flex row nowrap center normal sticky
                 span .flex items-center tabular-nums | flex row nowrap center normal
     div .pointer-events-none fixed inset-x-4 bottom-24 z-[100] flex flex-col items-end gap-2 md:inset-x-auto md:bottom-4 md:right-4 | flex column nowrap flex-end normal fixed

@@ -9,7 +9,7 @@ const pinned = [
   '--primary', '--primary-hover', '--primary-foreground', '--primary-soft', '--primary-border', '--primary-text',
   '--success', '--success-soft', '--success-text', '--warning', '--warning-soft', '--warning-text',
   '--danger', '--danger-soft', '--danger-text', '--violet', '--violet-soft', '--violet-text',
-  '--sidebar', '--shadow-pop', '--radius', '--font', '--font-code',
+  '--sidebar', '--shadow-pop', '--radius', '--font', '--font-code', '--backdrop',
 ]
 
 const declared = (selector: string) => {

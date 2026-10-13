@@ -191,7 +191,7 @@ export const DataGrid = ({ columns: given, source, naturalSort, initialScrollInd
             {body}
           </>
         )}
-        {horizontal.more && <div aria-hidden className="pointer-events-none absolute inset-y-0 right-0 z-20 w-8 bg-gradient-to-l from-foreground/15 to-transparent" />}
+        {horizontal.more && <div aria-hidden className="pointer-events-none absolute inset-y-0 right-0 z-20 w-8 bg-gradient-to-l from-backdrop/15 to-transparent" />}
       </div>
       {!fit && (
         <GridFooter

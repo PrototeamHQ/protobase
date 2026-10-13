@@ -33,6 +33,7 @@
   --color-violet-text: var(--violet-text);
   --color-sidebar: var(--sidebar);
   --shadow-pop: var(--shadow-pop);
+  --color-backdrop: var(--backdrop);
   --font-sans: var(--font, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif);
   --font-mono: var(--font-code, ui-monospace, "SF Mono", Menlo, Consolas, monospace);
   --radius-sm: max(0px, calc(var(--radius, 6px) - 2px));

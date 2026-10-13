@@ -10,7 +10,7 @@ export const Drawer = ({ id, open, onClose, children }: DrawerProps) => {
   if (!open) return null
   return (
     <div className="fixed inset-0 z-50 md:hidden">
-      <div className="absolute inset-0 bg-foreground/40" onClick={onClose} aria-hidden />
+      <div className="absolute inset-0 bg-backdrop/40" onClick={onClose} aria-hidden />
       <div
         ref={panel}
         id={id}
