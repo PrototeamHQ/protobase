@@ -46,6 +46,9 @@ jobs:
         with:
           node-version-file: .nvmrc
       - run: node --run test:smoke
+      # Every package built and packed as the release workflow publishes it, so a package that cannot be packed fails
+      # before a release is cut.
+      - run: node scripts/publish.mjs --pack
       - run: bun run docs:build
       - run: bun scripts/play-tests.mjs
       - run: bun scripts/dom-snapshots.mjs --no-screenshots
