@@ -78,11 +78,17 @@ export type RecordPermissions = { update: boolean; delete: boolean; fields?: Rec
 
 export type Stored<T> = { record: T; etag: string; permissions?: RecordPermissions }
 
+/** A resized copy of an image, by the field's `.variants()`: its link and type, and the box it is resized into. */
+export type StoredFileVariant = { url: string; type: string; width?: number; height?: number }
+
 /**
  * A file field as records carry it. `url` downloads it: signed and valid one to two hours for a private file, permanent
- * for a public one. Send `uri` back unchanged to keep the file, or `null` to clear it.
+ * for a public one. An image may have `variants` by name and a `placeholder`, its ThumbHash in base64. Send `uri` back
+ * unchanged to keep the file, or `null` to clear it.
  */
-export type StoredFile = { uri: string; name: string; type: string; size?: number; url?: string } | { uri: string; missing: true }
+export type StoredFile =
+  | { uri: string; name: string; type: string; size?: number; url?: string; placeholder?: string; variants?: Record<string, StoredFileVariant> }
+  | { uri: string; missing: true }
 
 /** A reference to a record created earlier in the same batch (`ref` on its `create`). */
 export type BatchRef = { $ref: string; field?: string }

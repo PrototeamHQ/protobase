@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { f, resource, where } from '@protobase/schema'
 import { createClient } from './client'
+import { fileUrl } from './file-urls'
 import { ApiError, PreconditionFailedError } from './problem'
 
 type Call = { url: string; init: RequestInit }
@@ -122,6 +123,22 @@ describe('files of another origin', () => {
     expect(item).toEqual({ id: 1, photo: { ...photo, url: `https://desk.example.com${photo.url}` }, other: elsewhere })
     const [result] = (await client.batchWrite([{ op: 'update', resource: 'orders', key: 1, data: {} }])).results
     expect(result).toMatchObject({ record: { photo: { url: `https://desk.example.com${photo.url}` } } })
+  })
+
+  it('download their variants from there too', async () => {
+    const card = { url: '/api/files/local/photos/a.jpg.card.webp?expires=1&signature=y', type: 'image/webp', width: 640 }
+    const cdn = { url: 'https://cdn.example.com/photos/a.jpg.thumb.webp', type: 'image/webp' }
+    const { fetch } = fakeFetch(() => json({ id: 1, photo: { ...photo, variants: { card, thumb: cdn } } }, { headers: { etag: '"1"' } }))
+    const { record } = await createClient({ baseUrl: 'https://desk.example.com/api/v1', fetch }).get('orders', 1)
+    expect(record).toEqual({ id: 1, photo: { ...photo, url: `https://desk.example.com${photo.url}`, variants: { card: { ...card, url: `https://desk.example.com${card.url}` }, thumb: cdn } } })
+  })
+
+  it('link a variant by name, or the file itself without one', () => {
+    const file = { ...photo, variants: { card: { url: '/card.webp', type: 'image/webp' } } }
+    expect(fileUrl(file, 'card')).toBe('/card.webp')
+    expect(fileUrl(file, 'thumb')).toBe(photo.url)
+    expect(fileUrl(file)).toBe(photo.url)
+    expect(fileUrl({ uri: 'x:a.png', missing: true }, 'card')).toBeUndefined()
   })
 
   it('keep the path the API answers when the base URL is a path', async () => {

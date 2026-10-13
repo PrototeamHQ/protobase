@@ -3,6 +3,7 @@ export type { UploadProgress } from './upload-request'
 export { ApiError, PreconditionFailedError, isApiError, type ProblemDetails, type ProblemError } from './problem'
 export { listWire, filterText, type FilterInput, type ListParams, type MapParams } from './query-string'
 export type { ClientOptions } from './transport'
+export { fileUrl } from './file-urls'
 export { routedClient } from './routed-client'
 export { sourceMeta, type SourceMeta } from './source-meta'
 export type {
@@ -25,6 +26,7 @@ export type {
   SourceRef,
   Stored,
   StoredFile,
+  StoredFileVariant,
   RecordPermissions,
   BatchOp,
   BatchRef,
