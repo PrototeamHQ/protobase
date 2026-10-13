@@ -59,7 +59,7 @@ const photo = (name: string, hue: number) => ({ uri: `public:bikes/${name}.png`,
 
 const brompton = photo('brompton', 200)
 
-// The resources the cards asked the list API for, in order, to see that the photos load only when asked for.
+// The resources the cards asked the list API for, in order, to see that each card loads its photos once.
 const listed: string[] = []
 
 const Shop = ({ url = '/bikes' }: { url?: string }) => {
@@ -106,16 +106,19 @@ export const CardPhotosChecks: StoryObj = {
     const track = () => card.querySelector<HTMLElement>('[data-card-photos]')!
     const slide = (position: number) => track().children[position]?.querySelector('img')?.getAttribute('src')
     expect(slide(0)).toBe(brompton.url)
-    expect(listed).not.toContain('bike_photos')
     expect(getComputedStyle(within(card).getByRole('button', { name: 'Next photo' })).opacity).toBe('0')
 
-    // The first press loads the photos, the cover once, in their order, scrolls to the next and stays on the list
+    // The photos load with the card, so the dots mark the cover before anything is touched
+    await waitFor(() => expect(within(card).getByText('Photo 1 of 3')).toBeTruthy())
+    expect(track().scrollLeft).toBe(0)
+
+    // A press scrolls to the next photo, the cover once, in their order, and stays on the list
     await userEvent.click(within(card).getByRole('button', { name: 'Next photo' }))
     await waitFor(() => expect(within(card).getByText('Photo 2 of 3')).toBeTruthy())
     expect(slide(1)).toMatch(/^data:image\/png/)
     expect(slide(1)).not.toBe(brompton.url)
     expect(track().scrollLeft).toBeGreaterThan(0)
-    expect(listed.filter((name) => name === 'bike_photos')).toHaveLength(1)
+    expect(listed.filter((name) => name === 'bike_photos')).toHaveLength(2)
     expect(canvas.getByRole('list', { name: 'Bikes' })).toBeTruthy()
 
     // Back past the first wraps to the last, however quickly pressed
@@ -130,7 +133,6 @@ export const CardPhotosChecks: StoryObj = {
 
     // A bike without further photos keeps its cover and loses its arrows once they are known
     const cortina = (await canvas.findByText('Cortina U4')).closest('li')!
-    await userEvent.hover(cortina.querySelector('[data-card-photos]')!)
     await waitFor(() => expect(within(cortina).queryByRole('button', { name: 'Next photo' })).toBeNull())
     expect(cortina.querySelector('img')).not.toBeNull()
   },
