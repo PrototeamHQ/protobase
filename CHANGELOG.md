@@ -2,6 +2,13 @@
 
 Every release of Protobase, cut by the release workflow from the commits since the last one (see the [versioning page](https://docs.protobase.net/reference/versioning/)).
 
+## [0.12.22](https://github.com/PrototeamHQ/protobase/compare/v0.12.21...v0.12.22) (2026-10-13)
+
+### Features
+
+* **ui:** cards show a bold amount and a footer line; the portal's listing cards use them ([7ec1e29](https://github.com/PrototeamHQ/protobase/commit/7ec1e297ab88d41ccc5d8874fe13a7fa0ed0e320))
+* **ui:** d.map shows a list's records on a map with their card; the portal's listings use it ([9431cfb](https://github.com/PrototeamHQ/protobase/commit/9431cfbf5a9301cf3b2723ce854c32ea25c89ac4))
+
 ## [0.12.21](https://github.com/PrototeamHQ/protobase/compare/v0.12.20...v0.12.21) (2026-10-13)
 
 ### Features
