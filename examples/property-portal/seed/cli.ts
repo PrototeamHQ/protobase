@@ -21,11 +21,9 @@ let world: ReturnType<typeof buildWorld> | undefined
 await step('build', async () => {
   world = buildWorld(scale)
 })
-let photos: Awaited<ReturnType<typeof writePhotoLibrary>>['photos'] | undefined
+let photos: Awaited<ReturnType<typeof writePhotoLibrary>> | undefined
 await step('photos', async () => {
-  const library = await writePhotoLibrary()
-  photos = library.photos
-  console.log(`  in ${library.directory}`)
+  photos = await writePhotoLibrary(process.env)
 })
 
 // One connection for the load, with foreign keys and checks on; only the publish trigger is off, since the seed
