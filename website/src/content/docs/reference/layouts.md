@@ -82,7 +82,7 @@ Comparisons, `AND`, `OR`, `NOT` and parentheses work; functions such as `now()` 
 | `a.link(name, { label, href, icon? })` | Opens an `href` that leaves the app (`https:`, `mailto:`), with `{field}` replaced by the record's value (percent-encoded). A path in the app is refused when the config loads: give it as `to`. |
 | `a.action(name, { label, confirm?, icon?, bulk? })` | Runs the handler the app registers under `name` in [`protobase.ui.tsx`](/reference/custom-components/#action-handlers). |
 
-`icon` is one of `bed`, `bell`, `file-text`, `heart`, `ruler`, `send` or `wallet`; another name shows a lightning bolt. With `confirm` the button asks first. The button is disabled, with the reason as its tooltip, when the user may not update or delete the record, when an `a.action` has no handler, or when an update or delete has no record. After an action, everything shown of that resource reloads. The record page's action rail runs the same actions the same way.
+`icon` is one of `bed`, `bell`, `bookmark`, `file-text`, `heart`, `ruler`, `send` or `wallet`; another name shows a lightning bolt. With `confirm` the button asks first. The button is disabled, with the reason as its tooltip, when the user may not update or delete the record, when an `a.action` has no handler, or when an update or delete has no record. After an action, everything shown of that resource reloads. The record page's action rail runs the same actions the same way.
 
 ## Addresses
 

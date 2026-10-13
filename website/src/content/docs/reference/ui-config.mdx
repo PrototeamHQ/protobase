@@ -49,7 +49,7 @@ Field hints:
 | `.help(text)` | A line under the field on the record page and in forms. |
 | `.format(format)` | `badge` shows statuses as coloured badges, `code` sets identifiers in monospace, `percent` adds a % sign. `relative`, `absolute` and `compact` are accepted and carried in `/meta` for apps that render their own lists; the admin does not use them yet. |
 | `.prefix(text)`, `.suffix(text)`, `.decimals(n)` | Money and measures: `€` and `2` show `€1,234.50`, `.suffix(' m²')` shows `120 m²`. They show wherever the number does: records, cards, table cells, forms and the range filter. |
-| `.icon(name)` | An icon before the value on a card's meta row: `bed`, `bell`, `file-text`, `heart`, `ruler`, `send` or `wallet`, as for [actions](/reference/layouts/#named-actions). Nowhere else shows it. |
+| `.icon(name)` | An icon before the value on a card's meta row: `bed`, `bell`, `bookmark`, `file-text`, `heart`, `ruler`, `send` or `wallet`, as for [actions](/reference/layouts/#named-actions). Nowhere else shows it. |
 | `.valueLabels({ value: text })` | How an enum's values read: `r.method.valueLabels({ ideal: 'iDEAL' })`. Only the enum's values are accepted. A value without a label shows as stored (`direct_debit`), so label every value that should read as words. |
 | `.valueColors({ value: '#hex' })`, `.badgeShape('arrow')` | An enum's badges filled with a colour per value (the text turns white or black, whichever reads), and drawn as arrows pointing right, as on a rating scale. The property portal's energy label: `r.energy_label.format('badge').valueColors({ a: '#00a651', g: '#ed1c24' }).badgeShape('arrow')`. Only the enum's values are accepted. |
 | `.widget(name, props?)` | Shows and edits the field with a [field type](/reference/plugins/#field-types) of the project or a plugin, such as `r.status.widget('steps')` or `r.score.widget('rating', { max: 5 })`; `props` are plain data. Without it, or on a storage type it does not show, the field shows as it would without the hint. |
@@ -120,9 +120,35 @@ view<typeof favorites>('favorites').names({ singular: 'Favorite', plural: 'Favor
 
 The server checks `favorite` when it starts: `resource` has an [owner](/reference/data-config/#access) (`.owner(...)`), so the API lists and creates each user's own, and `field` is a filterable, writable relation to the list's resource, which has a single-column key; `.listOf` needs a relation to a resource with a single-column key. In `/api/meta`, a signed-in user who cannot list, create and delete those records, or write `field`, gets the cards without the heart.
 
+### Saved searches
+
+`.saveSearch({ resource, label? })` on a view puts a **Save search** button beside the list's title while its filters or search narrow it. A press saves the list's filter, as the address holds it, as a record of `resource`, the signed-in user's own, named after the filter's chips ("Offer: For sale, Place: Amsterdam"); the button is a toggle named `label` ("Save search" by default) with `aria-pressed`, pressed while that filter is saved, and the next press takes the search off again. A visitor gets the button too when the view of `resource` has a [sign-in prompt](#sign-in-prompts), which a press opens.
+
+The view of `resource` says what a saved search is with `.searchesOf(...)`, and its list page then shows the user's searches instead of rows, in its list's order. Each has its name, which links to its record page, the filter's chips unless the name says the same, its `controls`, enum fields as a menu and booleans as a switch, each saved as soon as it changes, a delete button, and the first `limit` records the search finds (12 by default), newest first, as the searched resource's first cards display draws them, in one row that scrolls sideways; a resource without a cards display shows its table. **View all results** opens the searched list with the search's filter.
+
+With `unseen: { seenAt, field }` the row holds only the records new to the user: those whose `field`, a timestamp of the searched resource, is after the search's `seenAt`, and **View all results** sets `seenAt` to now. A search saved today shows what is published from today.
+
+```ts
+// listings/ui.ts
+view<typeof listings>('listings').saveSearch({ resource: 'saved_searches' })
+
+// saved_searches/ui.ts
+view<typeof savedSearches>('saved_searches').searchesOf((r) => ({
+  resource: 'listings',
+  filter: r.filter,
+  name: r.name,
+  controls: [r.alert_frequency],
+  unseen: { seenAt: r.seen_at, field: 'published_at' },
+}))
+```
+
+The view checks its own fields when the config loads: `filter` and `name` are text fields, `seenAt` a timestamp and each control an enum or boolean. The server checks the rest when it starts: `resource` has an [owner](/reference/data-config/#access), the fields a save or a control writes are writable, `unseen.field` is a filterable timestamp or date of the searched resource, and a view of the resource a list saves to has `searchesOf` for that list. In `/api/meta`, a user who cannot list the searched resource or read `filter` gets the view without `searchesOf`, and its controls and `unseen` narrow to what they can write. A search's filter is checked like any list's when its records load; checking it on a write, against the searched resource, is the data config's: a `.validate` rule with `parseFilter` and `checkFilter`.
+
+To tell users of new records, a job matches each new record against the saved filters with `evaluateFilter`, given the searched resource as `search` so that a search text in the filter looks in its search fields too, and sends an [email](/reference/email/). The [property portal example](https://github.com/PrototeamHQ/protobase/tree/main/examples/property-portal#alerts) mails at once or in a daily digest.
+
 ## Sign-in prompts
 
-`.signIn({ title, description, benefits?, icon?, signUp? })` on a view tells a visitor who is not signed in what they could do with the resource once signed in. Where a signed-in user sees the list, the visitor sees the prompt: an icon (`icon`, as for field hints, a sign-in icon by default), `title`, `description` and a line per `benefits`, with **Sign in**, which opens the sign-in page and comes back to the same address. A card's [favorite button](#favorites) that saves to the resource opens the same prompt as a dialog, with **Not now** to close it. The app has no sign-up of its own; `signUp: { label, href }` adds a button that opens a page where a visitor makes an account, `https://`, `http://` or `mailto:`.
+`.signIn({ title, description, benefits?, icon?, signUp? })` on a view tells a visitor who is not signed in what they could do with the resource once signed in. Where a signed-in user sees the list, the visitor sees the prompt: an icon (`icon`, as for field hints, a sign-in icon by default), `title`, `description` and a line per `benefits`, with **Sign in**, which opens the sign-in page and comes back to the same address. A card's [favorite button](#favorites) that saves to the resource, and a list's [Save search](#saved-searches) button that saves to it, open the same prompt as a dialog, with **Not now** to close it. The app has no sign-up of its own; `signUp: { label, href }` adds a button that opens a page where a visitor makes an account, `https://`, `http://` or `mailto:`.
 
 ```ts
 view<typeof favorites>('favorites').signIn({
