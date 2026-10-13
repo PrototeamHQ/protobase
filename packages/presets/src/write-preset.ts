@@ -2,7 +2,7 @@ import { execFileSync } from 'node:child_process'
 import { copyFileSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { presetPath } from './preset-files'
-import { presetPackage } from './preset-package'
+import { majorRange, presetPackage } from './preset-package'
 import type { Preset } from './presets'
 
 const root = path.join(import.meta.dirname, '..', '..', '..')
@@ -14,8 +14,9 @@ const exampleFiles = (sourceDir: string) =>
     .filter(Boolean)
 
 /**
- * Writes one preset to `outDir`: a standalone copy of its example with the @protobase packages at `version` and its
- * own bun.lock, which bun resolves from the registry, so those packages must be published at that version.
+ * Writes one preset to `outDir`: a standalone copy of its example with the @protobase packages in `version`'s major
+ * range (see majorRange), so the app takes updates within that major, and its own bun.lock, which bun resolves from the
+ * registry at exactly `version`, so those packages must be published at that version.
  */
 export const writePreset = (preset: Preset, version: string, outDir: string) => {
   const sourceDir = path.join(root, preset.source)
@@ -27,6 +28,9 @@ export const writePreset = (preset: Preset, version: string, outDir: string) => 
     copyFileSync(path.join(sourceDir, file), path.join(outDir, target))
   }
   const source = JSON.parse(readFileSync(path.join(sourceDir, 'package.json'), 'utf8'))
-  writeFileSync(path.join(outDir, 'package.json'), `${JSON.stringify(presetPackage(source, version), null, 2)}\n`)
-  execFileSync('bun', ['install', '--lockfile-only'], { cwd: outDir, stdio: 'inherit' })
+  // Locked at exactly `version` first; bun keeps that locked version when the range then widens around it.
+  for (const range of [version, majorRange(version)]) {
+    writeFileSync(path.join(outDir, 'package.json'), `${JSON.stringify(presetPackage(source, range), null, 2)}\n`)
+    execFileSync('bun', ['install', '--lockfile-only'], { cwd: outDir, stdio: 'inherit' })
+  }
 }
