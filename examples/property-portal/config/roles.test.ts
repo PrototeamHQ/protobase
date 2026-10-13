@@ -77,7 +77,10 @@ describe('listings', () => {
     expect(catalogue.operations).toMatchObject({ create: true, update: true, delete: true })
   })
 
-  it('shows a visitor the photos', async () => {
-    expect((await access(listingPhotos, visitor)).operations.read).toBe(true)
+  it('shows a visitor the photos with their placeholders', async () => {
+    const photos = await access(listingPhotos, visitor)
+    expect(photos.operations.read).toBe(true)
+    expect(photos.readableFields).toEqual(expect.arrayContaining(['photo', 'photo_placeholder']))
+    expect((await access(listings, visitor)).readableFields).toEqual(expect.arrayContaining(['photo', 'photo_placeholder']))
   })
 })

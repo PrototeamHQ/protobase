@@ -1,3 +1,4 @@
+import sharp from 'sharp'
 import { configExports, createAdmin } from '@protobase/server'
 import { describe, expect, it } from 'vitest'
 import * as config from './index'
@@ -7,7 +8,7 @@ describe('the portal config', () => {
   const { resources, views, pages } = configExports(config)
 
   it('passes the checks the server makes at startup: views, pages, role limits and the anonymous role', () => {
-    expect(() => createAdmin({ resources, views, db: {} as never, files: { secret: 'config-test-secret' }, authenticate: () => { throw new Error('No requests in this test') }, options: { roles } })).not.toThrow()
+    expect(() => createAdmin({ resources, views, db: {} as never, files: { secret: 'config-test-secret', sharp }, authenticate: () => { throw new Error('No requests in this test') }, options: { roles } })).not.toThrow()
   })
 
   it('has a view for every table, and one more for members on listings', () => {

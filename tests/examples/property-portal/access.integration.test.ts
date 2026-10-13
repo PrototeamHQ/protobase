@@ -1,3 +1,4 @@
+import sharp from 'sharp'
 import { sql } from 'kysely'
 import { SignJWT } from 'jose'
 import { afterAll, describe, expect, it } from 'vitest'
@@ -13,7 +14,7 @@ afterAll(async () => { await db.destroy() })
 
 const secret = new TextEncoder().encode('property-portal-access-test-secret-1234')
 const { resources, views, pages } = configExports(config)
-const app = createAdmin({ resources, views, pages, db, files: { secret: 'property-portal-files-test' }, authenticate: jwtAuthenticator({ keys: async () => secret, algorithms: ['HS256'] }), options: { roles } })
+const app = createAdmin({ resources, views, pages, db, files: { secret: 'property-portal-files-test', sharp }, authenticate: jwtAuthenticator({ keys: async () => secret, algorithms: ['HS256'] }), options: { roles } })
 
 // The seeded demo members (seed/builders/member.ts), and a visitor, who sends no token.
 const members = { anna: 'seed-anna', bram: 'seed-bram' } as const

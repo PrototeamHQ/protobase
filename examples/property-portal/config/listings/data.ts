@@ -1,4 +1,5 @@
 import { f, resource } from '@protobase/schema'
+import { photoVariants } from '../photo-variants'
 import { listingIssues } from './rules'
 
 export const energyLabels = ['a_plus_4', 'a_plus_3', 'a_plus_2', 'a_plus', 'a', 'b', 'c', 'd', 'e', 'f', 'g'] as const
@@ -39,7 +40,8 @@ export const listings = resource('listings')
     balcony: f.boolean().default(false).filterable(),
     parking: f.boolean().default(false).filterable(),
     description: f.text(),
-    photo: f.file().accept(['image/*']).public().optional(),
+    photo: f.file().accept(['image/*']).public().optional().placeholder('photo_placeholder').variants(photoVariants),
+    photo_placeholder: f.text().readOnly().optional(),
     agent_name: f.text(),
     agent_phone: f.text(),
     published_at: f.timestamp().optional().filterable().sortable(),

@@ -85,6 +85,8 @@ The listing page draws the listing's `latitude` and `longitude` on a map, and th
 
 Listings and their photos point at PNG files in the public file provider, such as `public:listings/house-3.png`. The seed draws them (`seed/photos/`, a few dozen houses, flats and rooms) into `data/files/public`, where `protobase dev` and `serve` look by default, or into `PROTOBASE_FILES_PUBLIC` when that is a `file://` URL. They need no network. An admin can upload real photos on a listing's page.
 
+Both photo fields store a `card` (800×600) and a `thumb` (96×96) WebP beside each image (`config/photo-variants.ts`) and its ThumbHash in `photo_placeholder` ([Image variants and placeholders](https://docs.protobase.net/reference/files/#image-variants-and-placeholders)): the cards show the `card` copy, tables the `thumb`, and each the blurred placeholder until the photo has loaded. The seed makes them for its own photos as an upload would. sharp makes them, passed in `protobase.config.ts`; `serve` builds a bundle that carries it for linux, so run `bun install --os='*' --cpu='*'` first to install its linux binaries, and serve the bundle on linux ([Native packages](https://docs.protobase.net/reference/cli/#native-packages)).
+
 ## Scales
 
 | Scale | Listings | Photos | Members | Profiles | Alerts | Seed time (Apple silicon, local Docker) |

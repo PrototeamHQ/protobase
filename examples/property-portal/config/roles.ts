@@ -7,7 +7,7 @@ export type PortalName = 'places' | 'agencies' | 'listings' | 'listing_photos' |
 export const publicListingFields = [
   'agency_id', 'place_id', 'property_type', 'status', 'address', 'postal_code', 'latitude', 'longitude',
   'purchase_price', 'rent_price', 'for_sale', 'for_rent', 'living_area', 'price_per_m2', 'plot_area', 'rooms', 'bedrooms', 'bathrooms', 'built_year', 'energy_label',
-  'garden', 'balcony', 'parking', 'description', 'photo', 'published_at',
+  'garden', 'balcony', 'parking', 'description', 'photo', 'photo_placeholder', 'published_at',
 ]
 
 const published = 'published_at:*'
@@ -35,6 +35,6 @@ export const roles = defineRoles<PortalName>({
     { 'places.read': ['name', 'region', 'country', 'latitude', 'longitude'] },
     { 'agencies.read': ['name', 'place_id', 'phone', 'email', 'website'] },
     { 'listings.read': { fields: publicListingFields, filter: published } },
-    { 'listing_photos.read': ['listing_id', 'position', 'photo', 'caption'] },
+    { 'listing_photos.read': ['listing_id', 'position', 'photo', 'photo_placeholder', 'caption'] },
   ],
 })

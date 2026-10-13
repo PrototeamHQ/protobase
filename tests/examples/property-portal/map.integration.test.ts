@@ -1,3 +1,4 @@
+import sharp from 'sharp'
 import { afterAll, describe, expect, it } from 'vitest'
 import { configExports, createAdmin, jwtAuthenticator } from '@protobase/server'
 import * as config from '../../../examples/property-portal/config'
@@ -11,7 +12,7 @@ afterAll(async () => { await db.destroy() })
 
 const secret = new TextEncoder().encode('property-portal-map-test-secret-12345')
 const { resources, views, pages } = configExports(config)
-const app = createAdmin({ resources, views, pages, db, files: { secret: 'property-portal-files-test' }, authenticate: jwtAuthenticator({ keys: async () => secret, algorithms: ['HS256'] }), options: { roles } })
+const app = createAdmin({ resources, views, pages, db, files: { secret: 'property-portal-files-test', sharp }, authenticate: jwtAuthenticator({ keys: async () => secret, algorithms: ['HS256'] }), options: { roles } })
 
 // A visitor, who sends no token, sees the published listings only.
 const get = async (path: string) => {
