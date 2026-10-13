@@ -1,6 +1,6 @@
 import type { energyLabels, propertyTypes } from './data'
 
-/** How the listing's values read, shared by the views that show them: listings and search profiles. */
+/** How the listing's values read. */
 export const propertyTypeLabels: Record<(typeof propertyTypes)[number], string> = {
   apartment: 'Apartment',
   house: 'House',

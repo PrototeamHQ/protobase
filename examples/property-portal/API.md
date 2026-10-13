@@ -52,7 +52,7 @@ ID=$(echo "$CREATED" | jq -r .id)
 ETAG=$(echo "$CREATED" | jq -r .etag)
 ```
 
-Publishing is setting `published_at`. An update needs the record's `etag` in `If-Match`, so it never overwrites a change it has not seen. Publishing also matches the listing against the members' search profiles ([Alerts](README.md#alerts)).
+Publishing is setting `published_at`. An update needs the record's `etag` in `If-Match`, so it never overwrites a change it has not seen. Publishing also matches the listing against the members' saved searches ([Alerts](README.md#alerts)).
 
 ```sh
 curl -s -X PATCH "$BASE/api/v1/listings/$ID" -H "authorization: Bearer $TOKEN" -H 'content-type: application/json' \

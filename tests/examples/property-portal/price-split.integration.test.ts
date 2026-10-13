@@ -37,7 +37,8 @@ beforeAll(async () => {
     insert into members.search_profiles (id, user_id, name, offer_type, min_price, max_price) values (${id}, 'anna', ${`Search ${id}`}, ${offer}, ${min}, ${max})`
   await profile(101, 'sale', 300_000, 500_000)
   await profile(102, 'rent', null, 2_000)
-  await migrate(files.filter((file) => file >= '006'))
+  // Up to the saved searches, which replace the search profiles (008_saved_searches.sql).
+  await migrate(files.filter((file) => file >= '006' && file < '008'))
 })
 
 afterAll(async () => {

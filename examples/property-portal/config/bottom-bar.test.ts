@@ -7,18 +7,19 @@ import { roles } from './roles'
 describe('the portal mobile bottom bars', () => {
   const { resources, views, pages, bottomBars } = configExports(config)
 
-  it('gives members and admins home, listings, favorites and alerts, and visitors home, listings and favorites', () => {
+  it('gives members, admins and visitors home, listings, favorites and searches', () => {
     expect(bottomBars.map((bar) => bar.toBottomBarModel())).toEqual([
       expect.objectContaining({ label: 'Portal', roles: ['member', 'admin'], items: [
         { kind: 'page', page: 'home', label: 'Home' },
         { kind: 'resource', resource: 'listings', label: 'Listings' },
         { kind: 'resource', resource: 'favorites', label: 'Favorites', icon: 'heart' },
-        { kind: 'resource', resource: 'alerts', label: 'Alerts' },
+        { kind: 'resource', resource: 'saved_searches', label: 'Searches', icon: 'bookmark' },
       ] }),
       expect.objectContaining({ label: 'Browse', roles: ['anonymous'], items: [
         { kind: 'page', page: 'home', label: 'Home' },
         { kind: 'resource', resource: 'listings', label: 'Listings' },
         { kind: 'resource', resource: 'favorites', label: 'Favorites', icon: 'heart' },
+        { kind: 'resource', resource: 'saved_searches', label: 'Searches', icon: 'bookmark' },
       ] }),
     ])
   })

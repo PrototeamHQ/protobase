@@ -23,7 +23,7 @@ describe.skipIf(!seeded)('the seeded property portal', () => {
       expect(await count('market.places', world.places.length)).toBe(world.places.length)
       expect(await count('market.agencies', world.agencies.length)).toBe(world.agencies.length)
       expect(await count('market.listings', world.listings.length)).toBe(world.listings.length)
-      expect(await count('members.search_profiles', world.profiles.length)).toBe(world.profiles.length)
+      expect(await count('members.saved_searches', world.searches.length)).toBe(world.searches.length)
       expect(await count('members.alerts', world.alerts.length)).toBe(world.alerts.length)
       const [accounts] = await sql`select count(*)::int as n from auth."user" where id like 'seed-%'`
       expect(accounts!.n).toBe(world.users.length)
@@ -44,7 +44,7 @@ describe.skipIf(!seeded)('the seeded property portal', () => {
       const world = await scaleOf(sql)
       const [onDrafts] = await sql`select count(*)::int as n from members.alerts a join market.listings l on l.id = a.listing_id where a.id <= ${world.alerts.length} and (l.published_at is null or a.matched_at < l.published_at)`
       expect(onDrafts!.n).toBe(0)
-      const [notOwners] = await sql`select count(*)::int as n from members.alerts a join members.search_profiles p on p.id = a.search_profile_id where a.user_id <> p.user_id`
+      const [notOwners] = await sql`select count(*)::int as n from members.alerts a join members.saved_searches s on s.id = a.saved_search_id where a.user_id <> s.user_id`
       expect(notOwners!.n).toBe(0)
       const accounts = await sql`select u.email from auth.account a join auth."user" u on u.id = a.user_id where a.provider_id = 'credential' and u.id like 'seed-%' order by u.email`
       expect(accounts.map((row) => row.email)).toEqual(['admin@portal.example', 'anna@portal.example', 'bram@portal.example'])

@@ -1,6 +1,6 @@
 # Property portal example
 
-A public portal of homes for sale and for rent in the Netherlands and Spain, in the style of Funda and Idealista. A Dutch home for sale is often let in the meantime (leegstandswet), so a listing can be offered both ways. Visitors browse and filter the listings without signing in; members keep search profiles that alert them to new listings, save favorites and write notes, which nobody else sees. A real Postgres 18 database, seeded deterministically with Dutch and Spanish places, agencies and listings, published over the year up to 2026-10-12.
+A public portal of homes for sale and for rent in the Netherlands and Spain, in the style of Funda and Idealista. A Dutch home for sale is often let in the meantime (leegstandswet), so a listing can be offered both ways. Visitors browse and filter the listings without signing in; members save the searches they filter, which mail them new listings, save favorites and write notes, which nobody else sees. A real Postgres 18 database, seeded deterministically with Dutch and Spanish places, agencies and listings, published over the year up to 2026-10-12.
 
 This is not the [real estate example](../real-estate/README.md), which is the back office of one letting agency.
 
@@ -21,8 +21,8 @@ Sign in with one of the seeded accounts, all with the password `property-portal-
 
 | Account | |
 | --- | --- |
-| `anna@portal.example` | a member buying around Amsterdam, and buying or renting near Haarlem, with instant alerts |
-| `bram@portal.example` | a member renting in Madrid, with a daily digest |
+| `anna@portal.example` | a member buying around Amsterdam, mailed at once, and buying or renting a house near Haarlem, in the daily digest |
+| `bram@portal.example` | a member renting in Madrid, in the daily digest, and near Barcelona, without email |
 | `admin@portal.example` | runs the catalogue: places, agencies and listings, drafts included |
 
 Other scripts: `db:reset` (drop, migrate, seed small), `typecheck`, `serve` (`protobase build`, then `protobase serve dist` on port 8787). More accounts: `bun run --cwd examples/property-portal protobase users create you@example.com --generate-password` makes a member; `--role admin` an admin. The database tests are the repository's `bun run test:integration`.
@@ -42,33 +42,37 @@ Everything is decided by the roles in `config/roles.ts`, passed to the server; n
 | Role | Reads | Writes |
 | --- | --- | --- |
 | `anonymous` (no token) | published listings without the agent's name and phone, their photos, agencies, places: each through a [field list](https://docs.protobase.net/reference/access/#capabilities) | nothing |
-| `member` | published listings with the agent, photos, agencies, places; their own search profiles, alerts, favorites and notes | their own profiles, favorites and notes; whether their alerts are seen |
+| `member` | published listings with the agent, photos, agencies, places; their own saved searches, alerts, favorites and notes | their own searches, favorites and notes; removing their alerts |
 | `admin` | the catalogue, drafts too; their own member data like anyone else | the catalogue |
 
-A member's rows are theirs through `.owner((r) => r.user_id)` and `.own` capabilities: every list, read, change and delete is limited to rows whose `user_id` is the signed-in user, and a new note, favorite or profile is created as theirs whatever the request says. Admins hold the same `.own` capabilities, so they do not read members' notes either. Alerts carry the profile's owner, and a foreign key on `(search_profile_id, user_id)` keeps the two the same.
+A member's rows are theirs through `.owner((r) => r.user_id)` and `.own` capabilities: every list, read, change and delete is limited to rows whose `user_id` is the signed-in user, and a new note, favorite or search is created as theirs whatever the request says. Admins hold the same `.own` capabilities, so they do not read members' notes either. Alerts carry the search's owner, and a foreign key on `(saved_search_id, user_id)` keeps the two the same.
 
-Visitors get the admin app too: it opens on the home page and the listings, read-only, with a **Sign in** button in the sidebar ([Browsing the admin app](https://docs.protobase.net/reference/access/#browsing-the-admin-app)). Signing in adds the member's own pages: favorites, alerts, notes and search profiles.
+Visitors get the admin app too: it opens on the home page and the listings, read-only, with a **Sign in** button in the sidebar ([Browsing the admin app](https://docs.protobase.net/reference/access/#browsing-the-admin-app)). Signing in adds the member's own pages: favorites, searches, alerts and notes. Favorites and Searches show a visitor what signing in gives, in the sidebar and the phone's bottom bar.
 
 ## Screens
 
-- **Find a home** (`config/home/page.tsx`): what is on offer and the newest listings; for a member also their new alerts and favorites.
+- **Find a home** (`config/home/page.tsx`): what is on offer and the newest listings; for a member also what their searches found and their favorites.
 - **Listings**: cards with the cover photo and arrows through the listing's other photos, address, status, the purchase price or else the rent per month in bold, area, bedrooms and energy label, and the place and agent at the bottom, a map of them (`d.map`) that counts them per part of the map from far out and shows the listings in view closer in, a listing's card when its marker is chosen, or a table; filters for sale or rent (a home offered both ways shows under each), place, type, purchase price, rent, area, bedrooms, energy label, status, garden, balcony and parking. A listing's page shows it on a map (`l.map`), lists its photos and, for a member, their notes on it, with **Save to favorites**, **Remove from favorites** (`protobase.ui.tsx`) and **Add a note**, which opens the note form with the listing chosen.
-- **Favorites**, **Alerts**, **Notes** and **Search profiles**: the member's own lists. An alert links to its listing and can be marked seen; a profile lists its alerts.
+- **Save search** on the listings (`config/listings/ui.ts`, `.saveSearch`): with filters or a search set, saves them as one of the member's searches, named after the filters; pressed again, it takes the search off. A visitor is asked to sign in.
+- **Searches** (`config/saved_searches/ui.ts`, `.searchesOf`): each saved search with its filters, a choice of **At once**, **Daily digest** or **No email**, delete, and a row of the listings' cards published since the member last looked, with **View all results**, which opens the listings with the search's filters. The listings published after a search's `seen_at` are new to the member; opening its results moves `seen_at` to now, and a new search starts at the moment it is saved.
+- **Favorites**, **Alerts** and **Notes**: the member's own lists. An alert is a listing a search found, with when it was mailed, and links to its listing.
 
 ## Alerts
 
 1. Publishing a listing, inserting it with a `published_at` or giving a draft one, enqueues the `match-listing` job in the same transaction (`db/migrations/005_listing_published.sql`).
-2. The job (`jobs/match-listing.ts`) reads the active search profiles looking to buy or rent the way the listing is offered, keeps those it fits (`jobs/match.ts`: the purchase price within the profile's purchase range or the rent within its rent range, minimum living area and rooms, type, energy label or better, and the place or the circle of `radius_km` around its centre) and records an alert for each, once.
-3. For an instant profile it enqueues `email-alerts`, which mails the member the alerts that have not gone out and marks them mailed. `daily-alerts` runs at 07:00 in Amsterdam and does the same for daily profiles, in one digest per member.
+2. The job (`jobs/match-listing.ts`) reads the listing and every saved search, keeps those whose filter holds for it (`jobs/match.ts`: the filter as the listings page reads it, with `evaluateFilter`, the search text in the address and postal code too) and records an alert for each, once, whatever the search's email.
+3. For a search mailed at once it enqueues `email-alerts`, which mails the member the alerts that have not gone out and marks them mailed. `daily-alerts` runs at 07:00 in Amsterdam and does the same for searches in the daily digest, in one digest per member. A search without email is never mailed.
 
-Mail goes through the app's SMTP server, `PROTOBASE_SMTP_URL` and `PROTOBASE_MAIL_FROM` in `.env` ([Jobs: Mail](https://docs.protobase.net/reference/jobs/#mail)). Without them alerts are still recorded and shown in the app, and stay unmailed. Jobs run inside `protobase dev` and `protobase serve`.
+The mails are React Email templates (`emails/`): `instant-alert.tsx` and `daily-digest.tsx`, each listing the homes with their price, size, the search they fit and a link, and a link to Searches. They go through the app's SMTP server, `PROTOBASE_SMTP_URL` and `PROTOBASE_MAIL_FROM` in `.env` ([Email](https://docs.protobase.net/reference/email/)); a mail catcher such as Mailpit shows them in development. Without them alerts are still recorded and shown in the app, and stay unmailed. Jobs run inside `protobase dev` and `protobase serve`.
+
+A saved search's filter is checked against the listings when it is written (`config/saved_searches/rules.ts`). `db/migrations/008_saved_searches.sql` replaced the earlier search profiles, and their alerts, with saved searches: the alerts start again from the next listing published.
 
 ## Tables
 
 | Schema | Tables |
 | --- | --- |
 | `market` | `places` (centre as `latitude`, `longitude`), `agencies`, `listings`, `listing_photos` |
-| `members` | `search_profiles` (to buy, to rent or both, with a purchase and a rent range), `alerts` (unique per profile and listing), `favorites` (unique per member and listing), `notes` |
+| `members` | `saved_searches` (the listings' filter, unique per member, how often it mails and when it was last looked at), `alerts` (unique per search and listing), `favorites` (unique per member and listing), `notes` |
 | `auth`, `jobs` | Better Auth's accounts and the job queue, written by `protobase migration` |
 
 Postgres keeps these rules itself:
@@ -89,19 +93,20 @@ Both photo fields store a `card` (800×600) and a `thumb` (96×96) WebP beside e
 
 ## Scales
 
-| Scale | Listings | Photos | Members | Profiles | Alerts | Seed time (Apple silicon, local Docker) |
+| Scale | Listings | Photos | Members | Searches | Alerts | Seed time (Apple silicon, local Docker) |
 | --- | --- | --- | --- | --- | --- | --- |
-| small | 400 | 1,750 | 24 | 54 | 128 | under 1 s |
-| medium | 20,000 | 87,000 | 2,000 | 4,000 | 140,000 | about 3 s (65 MB) |
-| large | 100,000 | 433,000 | 10,000 | 20,000 | 3,130,000 | about 42 s (720 MB) |
+| small | 400 | 1,750 | 24 | 54 | 43 | about 2 s |
+| medium | 20,000 | 87,000 | 2,000 | 4,014 | 199,356 | about 7 s (90 MB) |
+| large | 100,000 | 433,000 | 10,000 | 19,908 | 4,871,878 | about 96 s (1.2 GB) |
 
-`db:seed` truncates the `market` and `members` tables and removes the accounts an earlier seed made (ids starting with `seed-`); accounts made with `protobase users create` stay. Like the other examples', the loader streams `COPY`, drops secondary indexes during the load and rebuilds them afterwards, and records the scale in `public.seed_info`. The publish trigger is off during the load: the seed writes the alerts of the last 30 days itself, with the same matching rule as the job.
+`db:seed` truncates the `market` and `members` tables and removes the accounts an earlier seed made (ids starting with `seed-`); accounts made with `protobase users create` stay. Like the other examples', the loader streams `COPY`, drops secondary indexes during the load and rebuilds them afterwards, and records the scale in `public.seed_info`. The publish trigger is off during the load: the seed writes the alerts of the last 30 days itself, with the same matching rule as the job. Each member's searches are printed as the listings page prints its filters (`seed/builders/search-filter.ts`), and the demo searches were last looked at two to four weeks before 2026-10-12, so their rows on Searches hold listings.
 
 ## Layout
 
 - `db/migrations/NNN_name.sql`: plain SQL, applied in order by `db/migrate.ts` and recorded in `public.schema_migrations`. The server never migrates.
-- `config/`: one folder per table (`data.ts`, `ui.ts`), the roles and the home page. `config/roles.test.ts` checks who sees and writes what, `config/config.test.ts` runs the server's startup checks.
-- `jobs/`: the alert jobs, with the matching rule and the mail text tested next to them.
+- `config/`: one folder per table (`data.ts`, `ui.ts`), the roles and the home page; `config/saved_searches/filter.ts` reads a search's filter against the listings. `config/roles.test.ts` checks who sees and writes what, `config/config.test.ts` runs the server's startup checks.
+- `jobs/`: the alert jobs, with the matching rule tested next to them.
+- `emails/`: the alert mails as React Email templates, tested next to them.
 - `map/`: the development map tiles proxy, tested next to it.
 - `seed/`: `world.ts` builds everything from the scale, `builders/` one place, agency, listing or member from its ordinal, `steps/` write them, `photos/` draws the pictures.
 - `tests/examples/property-portal/` (in the repository root): `smoke.test.ts` checks counts and rules of the seed, `access.integration.test.ts` what two members and a visitor see and may do through the API, `alerts.integration.test.ts` a publish through to the alert and its mail.

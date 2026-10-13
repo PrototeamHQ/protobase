@@ -36,8 +36,19 @@ describe('the portal config', () => {
     expect(everyone!.list?.displays?.[0]).toMatchObject({ favorite: { resource: 'favorites', field: 'listing_id' } })
     const visitor = createAdmin({ resources, views, pages, bottomBars: configExports(config).bottomBars, db: {} as never, files: { secret: 'config-test-secret', sharp }, authenticate: () => { throw new MissingCredentials('No token in this test') }, options: { roles } })
     const meta = (await (await visitor.request('/api/meta')).json()) as { signIn: Array<{ resource: string; signIn: { title: string } }>; views: Array<{ resource: string; list?: { displays?: unknown[] } }> }
-    expect(meta.signIn.map((entry) => [entry.resource, entry.signIn.title])).toEqual([['favorites', 'Keep the homes you like']])
+    expect(meta.signIn.map((entry) => [entry.resource, entry.signIn.title])).toEqual([['saved_searches', 'Hear of new homes first'], ['favorites', 'Keep the homes you like']])
     expect(meta.views.find((view) => view.resource === 'listings')?.list?.displays?.[0]).toMatchObject({ favorite: { resource: 'favorites' } })
     expect(views.map((view) => view.toModel()).find((view) => view.resource === 'favorites')?.listOf).toBe('listing_id')
+  })
+
+  it('saves the filtered listings as a search, whose page shows the listings new since it was last opened, and asks a visitor to sign in', async () => {
+    const models = views.map((view) => view.toModel())
+    expect(models.find((view) => view.resource === 'listings')?.saveSearch).toEqual({ resource: 'saved_searches' })
+    expect(models.find((view) => view.resource === 'saved_searches')?.searchesOf).toEqual({
+      resource: 'listings', filter: 'filter', name: 'name', controls: ['alert_frequency'], unseen: { seenAt: 'seen_at', field: 'published_at' },
+    })
+    const visitor = createAdmin({ resources, views, pages, db: {} as never, files: { secret: 'config-test-secret', sharp }, authenticate: () => { throw new MissingCredentials('No token in this test') }, options: { roles } })
+    const meta = (await (await visitor.request('/api/meta')).json()) as { views: Array<{ resource: string; saveSearch?: unknown }> }
+    expect(meta.views.find((view) => view.resource === 'listings')?.saveSearch).toEqual({ resource: 'saved_searches' })
   })
 })

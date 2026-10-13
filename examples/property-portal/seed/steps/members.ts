@@ -15,18 +15,12 @@ const accountRows = async (world: World) => {
   return world.users.filter((user) => user.demo).map((user) => row(`${user.id}-credential`, user.id, 'credential', user.id, password, iso(user.createdAt), iso(user.createdAt)))
 }
 
-function* profileRows(world: World) {
-  for (const p of world.profiles) {
-    yield row(
-      p.id, p.userId, p.name, p.forSale, p.forRent, p.placeId, p.radiusKm, p.propertyType, p.minPurchasePrice?.toFixed(2), p.maxPurchasePrice?.toFixed(2),
-      p.minRentPrice?.toFixed(2), p.maxRentPrice?.toFixed(2), p.minLivingArea, p.minRooms, p.minEnergyLabel,
-      p.alertFrequency, p.active, iso(p.createdAt), iso(p.createdAt),
-    )
-  }
+function* searchRows(world: World) {
+  for (const s of world.searches) yield row(s.id, s.userId, s.name, s.filter, s.alertFrequency, iso(s.seenAt), iso(s.createdAt))
 }
 
 function* alertRows(world: World) {
-  for (const alert of world.alerts) yield row(alert.profile.userId, alert.profile.id, alert.listing.id, iso(alert.matchedAt), alert.emailedAt === null ? null : iso(alert.emailedAt), alert.seen)
+  for (const alert of world.alerts) yield row(alert.search.userId, alert.search.id, alert.listing.id, iso(alert.matchedAt), alert.emailedAt === null ? null : iso(alert.emailedAt))
 }
 
 function* favoriteRows(world: World) {
@@ -40,12 +34,8 @@ function* noteRows(world: World) {
 export const seedMembers = async (sql: Db, world: World) => {
   await copyRows(sql, 'auth."user" (id, name, email, email_verified, created_at, updated_at, role, banned, two_factor_enabled)', userRows(world))
   await copyRows(sql, 'auth.account (id, account_id, provider_id, user_id, password, created_at, updated_at)', await accountRows(world))
-  await copyRows(
-    sql,
-    'members.search_profiles (id, user_id, name, for_sale, for_rent, place_id, radius_km, property_type, min_purchase_price, max_purchase_price, min_rent_price, max_rent_price, min_living_area, min_rooms, min_energy_label, alert_frequency, active, created_at, updated_at)',
-    profileRows(world),
-  )
-  await copyRows(sql, 'members.alerts (user_id, search_profile_id, listing_id, matched_at, emailed_at, seen)', alertRows(world))
+  await copyRows(sql, 'members.saved_searches (id, user_id, name, filter, alert_frequency, seen_at, created_at)', searchRows(world))
+  await copyRows(sql, 'members.alerts (user_id, saved_search_id, listing_id, matched_at, emailed_at)', alertRows(world))
   await copyRows(sql, 'members.favorites (user_id, listing_id, created_at)', favoriteRows(world))
   await copyRows(sql, 'members.notes (user_id, listing_id, body, created_at, updated_at)', noteRows(world))
 }

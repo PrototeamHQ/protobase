@@ -39,7 +39,7 @@ bun run --cwd examples/real-estate dev                  # http://localhost:5173
 
 ## Run the property portal example
 
-`examples/property-portal` is a public portal of homes for sale and for rent in the Netherlands and Spain, in the style of Funda and Idealista. Visitors browse and filter the listings without signing in, through the [anonymous role](/reference/access/#anonymous-access); members keep search profiles with alerts, favorites and notes that only they see. The seed makes two members, `anna@portal.example` and `bram@portal.example`, and an admin, `admin@portal.example`, all with the password `property-portal-demo`.
+`examples/property-portal` is a public portal of homes for sale and for rent in the Netherlands and Spain, in the style of Funda and Idealista. Visitors browse and filter the listings without signing in, through the [anonymous role](/reference/access/#anonymous-access); members save searches of the listings that mail them new homes, and keep favorites and notes that only they see. The seed makes two members, `anna@portal.example` and `bram@portal.example`, and an admin, `admin@portal.example`, all with the password `property-portal-demo`.
 
 ```sh
 bun run db:up && bun run --cwd examples/property-portal db:migrate && bun run --cwd examples/property-portal db:seed --scale small

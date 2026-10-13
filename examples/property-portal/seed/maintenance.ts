@@ -35,7 +35,7 @@ export const createIndexes = async (sql: Db, definitions: string[]) => {
   await Promise.all(definitions.map((definition) => sql.unsafe(definition)))
 }
 
-// The trigger that has a published listing matched against the search profiles: the seed writes the alerts itself, as
+// The trigger that has a published listing matched against the saved searches: the seed writes the alerts itself, as
 // the job would have recorded them. A table's owner may switch its own triggers off, unlike the foreign key checks.
 export const setTriggers = async (sql: Db, enabled: boolean) => {
   const tables = await sql`

@@ -36,7 +36,7 @@ const call = async (who: Caller, path: string, init: { method?: string; body?: u
 const firstId = async (table: string, userId: string) =>
   (await sql<{ id: string }>`select id::text as id from ${sql.table(table)} where user_id = ${userId} order by id limit 1`.execute(db)).rows[0]!.id
 
-const ownTables = [['notes', 'members.notes'], ['favorites', 'members.favorites'], ['search_profiles', 'members.search_profiles'], ['alerts', 'members.alerts']] as const
+const ownTables = [['notes', 'members.notes'], ['favorites', 'members.favorites'], ['saved_searches', 'members.saved_searches'], ['alerts', 'members.alerts']] as const
 
 describe.skipIf(!seeded)('a member\'s own data through the API', () => {
   it.each(ownTables)('lists only the asking member\'s %s, all of them', async (resource, table) => {
@@ -53,7 +53,7 @@ describe.skipIf(!seeded)('a member\'s own data through the API', () => {
     const brams = await firstId(table, members.bram)
     expect((await call('anna', `/${resource}/${brams}`)).status).toBe(404)
     expect((await call('anna', `/${resource}/${brams}`, { method: 'DELETE', body: {} })).status).toBe(404)
-    if (resource !== 'favorites') expect((await call('anna', `/${resource}/${brams}`, { method: 'PATCH', body: resource === 'alerts' ? { seen: true } : resource === 'notes' ? { body: 'Mine now' } : { name: 'Mine now' } })).status).toBe(404)
+    if (resource === 'notes' || resource === 'saved_searches') expect((await call('anna', `/${resource}/${brams}`, { method: 'PATCH', body: resource === 'notes' ? { body: 'Mine now' } : { name: 'Mine now' } })).status).toBe(404)
     expect((await call('bram', `/${resource}/${brams}`)).status).toBe(200)
   })
 
@@ -73,11 +73,31 @@ describe.skipIf(!seeded)('a member\'s own data through the API', () => {
     }
   })
 
-  it('lets a member mark their alert seen, and change nothing else of it', async () => {
+  it('lets a member read and remove their alerts, which only the matching job makes or changes', async () => {
     const id = await firstId('members.alerts', members.anna)
-    expect((await call('anna', `/alerts/${id}`, { method: 'PATCH', body: { seen: true } })).status).toBe(200)
-    expect((await call('anna', `/alerts/${id}`, { method: 'PATCH', body: { listing_id: '1' } })).status).toBe(400)
-    expect((await call('anna', '/alerts', { method: 'POST', body: { search_profile_id: '1', listing_id: '1' } })).status).toBe(403)
+    expect((await call('anna', `/alerts/${id}`)).status).toBe(200)
+    expect((await call('anna', `/alerts/${id}`, { method: 'PATCH', body: { emailed_at: null } })).status).toBe(403)
+    expect((await call('anna', '/alerts', { method: 'POST', body: { saved_search_id: '1', listing_id: '1' } })).status).toBe(403)
+  })
+
+  it("saves a search of the listings as the member's own, once per filter, and refuses a filter the listings do not have", async () => {
+    const filter = 'for_rent = true AND garden = true AND search("gracht")'
+    const created = await call('anna', '/saved_searches', { method: 'POST', body: { name: 'Canal garden', filter, user_id: members.bram } })
+    expect(created.status).toBe(400)
+    const saved = await call('anna', '/saved_searches', { method: 'POST', body: { name: 'Canal garden', filter } })
+    try {
+      expect(saved.status, saved.text).toBe(201)
+      expect(saved.json).toMatchObject({ user_id: members.anna, filter, alert_frequency: 'daily' })
+      expect((await call('anna', '/saved_searches', { method: 'POST', body: { name: 'Again', filter } })).status).toBe(409)
+      const changed = await call('anna', `/saved_searches/${saved.json.id}`, { method: 'PATCH', body: { alert_frequency: 'none', seen_at: '2026-10-12T09:00:00Z' } })
+      expect(changed.json).toMatchObject({ alert_frequency: 'none', seen_at: '2026-10-12T09:00:00.000Z' })
+      expect((await call('bram', `/saved_searches/${saved.json.id}`)).status).toBe(404)
+    } finally {
+      await sql`delete from members.saved_searches where id = ${saved.json?.id ?? 0}`.execute(db)
+    }
+    const wrong = await call('anna', '/saved_searches', { method: 'POST', body: { name: 'Pool', filter: 'swimming_pool = true' } })
+    expect(wrong.status).toBe(400)
+    expect(wrong.text).toContain('Not a filter of the listings')
   })
 })
 
@@ -102,7 +122,10 @@ describe.skipIf(!seeded)('a visitor', () => {
   })
 
   it('finds a home offered both ways under sale and under rent alike', async () => {
-    const offered = async (filter: string) => (await call('visitor', `/listings?filter=${encodeURIComponent(filter)}&page_size=500`)).json.items.map((item: { id: string }) => String(item.id))
+    // The listings published before it starts: the alert tests publish more meanwhile.
+    const before = new Date().toISOString()
+    const offered = async (filter: string) =>
+      (await call('visitor', `/listings?filter=${encodeURIComponent(`(${filter}) AND published_at < ${before}`)}&page_size=500`)).json.items.map((item: { id: string }) => String(item.id))
     const both = await offered('for_sale = true AND for_rent = true')
     expect(both.length).toBeGreaterThan(0)
     const forSale = await offered('for_sale = true')

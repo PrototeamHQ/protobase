@@ -1,6 +1,6 @@
 import { printFilter, resolveAccess } from '@protobase/schema'
 import { describe, expect, it } from 'vitest'
-import { alerts, favorites, listingPhotos, listings, notes, searchProfiles } from './index'
+import { alerts, favorites, listingPhotos, listings, notes, savedSearches } from './index'
 import { publicListingFields, roles } from './roles'
 
 // Two members, an admin and a visitor, as the server's sessions carry them.
@@ -12,7 +12,7 @@ const visitor = { user: { id: '', roles: ['anonymous'] } }
 const access = (source: Parameters<typeof resolveAccess>[0], ctx: Parameters<typeof resolveAccess>[1]) => resolveAccess(source, ctx, { roles })
 const rows = (filter: unknown) => (filter && typeof filter === 'object' ? printFilter(filter as never) : filter)
 
-const ownData = [['search_profiles', searchProfiles], ['alerts', alerts], ['favorites', favorites], ['notes', notes]] as const
+const ownData = [['saved_searches', savedSearches], ['alerts', alerts], ['favorites', favorites], ['notes', notes]] as const
 
 describe('a member\'s own data', () => {
   it.each(ownData)('limits every operation on %s to the rows of the member asking', async (_, source) => {
@@ -35,16 +35,19 @@ describe('a member\'s own data', () => {
     expect(resolved.operations).toEqual({ list: false, read: false, create: false, update: false, delete: false })
   })
 
-  it('lets a member write notes, profiles and favorites as their own, and only change whether an alert is seen', async () => {
-    for (const source of [notes, searchProfiles, favorites]) {
+  it('lets a member write notes, searches and favorites as their own, and only read or remove their alerts', async () => {
+    for (const source of [notes, savedSearches, favorites]) {
       const resolved = await access(source, anna)
       expect(resolved.operations.create).toBe(true)
       expect(rows(resolved.rowFilter.create)).toBe('user_id = "user-anna"')
     }
-    const resolved = await access(alerts, anna)
-    expect(resolved.operations).toMatchObject({ create: false, update: true, delete: true })
-    expect(resolved.writableFields.update).toEqual(['seen'])
+    expect((await access(alerts, anna)).operations).toMatchObject({ create: false, update: false, delete: true })
     expect((await access(favorites, anna)).operations.update).toBe(false)
+  })
+
+  it('lets a member change how a search mails them and when they last looked, not whose it is', async () => {
+    const resolved = await access(savedSearches, anna)
+    expect(resolved.writableFields.update).toEqual(expect.arrayContaining(['name', 'filter', 'alert_frequency', 'seen_at']))
   })
 
   it('never lets anyone write the owner', async () => {

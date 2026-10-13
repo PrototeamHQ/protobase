@@ -1,28 +1,22 @@
 import { DAY, seedNow } from '../calendar'
 import type { PlaceSeed } from '../data/places'
 import { int, pick, rngAt, weighted } from '../rng'
+import { distanceKm } from './distance'
 import type { SeededListing } from './listing'
+import { searchFilter, type SearchCriteria } from './search-filter'
 
 export type SeededUser = { id: string; name: string; email: string; role: 'admin' | 'member'; createdAt: number; demo: boolean }
 
-export type SeededProfile = {
+/** A saved search: its filter as the listings page would have saved it, and the criteria it was printed from. */
+export type SeededSearch = {
   id: number
   userId: string
   name: string
-  forSale: boolean
-  forRent: boolean
-  placeId: number | null
-  radiusKm: number
-  propertyType: string | null
-  minPurchasePrice: number | null
-  maxPurchasePrice: number | null
-  minRentPrice: number | null
-  maxRentPrice: number | null
-  minLivingArea: number | null
-  minRooms: number | null
-  minEnergyLabel: 'a' | 'b' | 'c' | null
-  alertFrequency: 'instant' | 'daily'
-  active: boolean
+  criteria: SearchCriteria
+  filter: string
+  alertFrequency: 'instant' | 'daily' | 'none'
+  /** When the member last opened its results: the listings published since are new to them. */
+  seenAt: number
   createdAt: number
 }
 
@@ -37,18 +31,27 @@ export const demoPassword = 'property-portal-demo'
 
 const placeId = (places: PlaceSeed[], name: string) => places.findIndex((place) => place.name === name) + 1
 
-const profile = (fields: Partial<SeededProfile> & Pick<SeededProfile, 'id' | 'userId' | 'name'>): SeededProfile => ({
-  forSale: false, forRent: false, placeId: null, radiusKm: 0, propertyType: null, minPurchasePrice: null, maxPurchasePrice: null, minRentPrice: null, maxRentPrice: null,
-  minLivingArea: null, minRooms: null, minEnergyLabel: null,
-  alertFrequency: 'daily', active: true, createdAt: seedNow - 80 * DAY, ...fields,
-})
+// The places a search of `name` takes in: it and those within `radiusKm` of its centre, as a member ticks them.
+const around = (places: PlaceSeed[], name: string, radiusKm: number) => {
+  const centre = places[placeId(places, name) - 1]!
+  return places.flatMap((place, index) => (place === centre || distanceKm(centre, place) <= radiusKm ? [index + 1] : []))
+}
 
-/** Anna looks to buy around Amsterdam, or to buy or rent near Haarlem; Bram to rent in Madrid or Barcelona. */
-export const demoProfiles = (places: PlaceSeed[]): SeededProfile[] => [
-  profile({ id: 1, userId: 'seed-anna', name: 'Around Amsterdam', forSale: true, placeId: placeId(places, 'Amsterdam'), radiusKm: 20, maxPurchasePrice: 950_000, minLivingArea: 55, alertFrequency: 'instant' }),
-  profile({ id: 2, userId: 'seed-anna', name: 'Family house near Haarlem', forSale: true, forRent: true, placeId: placeId(places, 'Haarlem'), radiusKm: 15, propertyType: 'house', minRooms: 4, maxPurchasePrice: 1_200_000, maxRentPrice: 3_500 }),
-  profile({ id: 3, userId: 'seed-bram', name: 'Piso en Madrid', forRent: true, placeId: placeId(places, 'Madrid'), radiusKm: 15, maxRentPrice: 3_000, minRooms: 2 }),
-  profile({ id: 4, userId: 'seed-bram', name: 'Barcelona by the sea', forRent: true, placeId: placeId(places, 'Barcelona'), radiusKm: 25, maxRentPrice: 3_500, alertFrequency: 'instant', active: false }),
+const anything: SearchCriteria = { forSale: false, forRent: false, placeIds: [], propertyType: null, energyLabels: [], purchasePrice: null, rentPrice: null, livingArea: null, bedrooms: null, garden: false }
+
+type SearchFields = Pick<SeededSearch, 'id' | 'userId' | 'name'> & Partial<Pick<SeededSearch, 'alertFrequency' | 'seenAt' | 'createdAt'>> & { criteria: Partial<SearchCriteria> }
+
+const search = ({ criteria, ...fields }: SearchFields): SeededSearch => {
+  const full = { ...anything, ...criteria }
+  return { alertFrequency: 'daily', createdAt: seedNow - 80 * DAY, seenAt: seedNow - 3 * DAY, ...fields, criteria: full, filter: searchFilter(full) }
+}
+
+/** Anna looks to buy around Amsterdam, or to buy or rent a house near Haarlem; Bram to rent in Madrid or Barcelona. */
+export const demoSearches = (places: PlaceSeed[]): SeededSearch[] => [
+  search({ id: 1, userId: 'seed-anna', name: 'Around Amsterdam', alertFrequency: 'instant', seenAt: seedNow - 21 * DAY, criteria: { forSale: true, placeIds: around(places, 'Amsterdam', 20), purchasePrice: [250_000, 950_000], livingArea: [55, 250] } }),
+  search({ id: 2, userId: 'seed-anna', name: 'Family house near Haarlem', seenAt: seedNow - 30 * DAY, criteria: { forSale: true, forRent: true, placeIds: around(places, 'Haarlem', 15), propertyType: 'house', bedrooms: [3, 6] } }),
+  search({ id: 3, userId: 'seed-bram', name: 'Piso en Madrid', seenAt: seedNow - 14 * DAY, criteria: { forRent: true, placeIds: around(places, 'Madrid', 15), rentPrice: [800, 3_000], bedrooms: [1, 4] } }),
+  search({ id: 4, userId: 'seed-bram', name: 'Barcelona by the sea', alertFrequency: 'none', seenAt: seedNow - 30 * DAY, criteria: { forRent: true, placeIds: around(places, 'Barcelona', 25), rentPrice: [900, 3_500] } }),
 ]
 
 const typicalPrice = { sale: { NL: 450_000, ES: 300_000 }, rent: { NL: 1_800, ES: 1_300 } }
@@ -66,8 +69,8 @@ export const memberAt = (ordinal: number): SeededUser => {
   return { id: `seed-member-${number}`, name: `${pick(rand, firstNames)} ${pick(rand, lastNames)}`, email: `member-${number}@portal.example`, role: 'member', createdAt: seedNow - int(rand, 1, 700) * DAY, demo: false }
 }
 
-/** One to three search profiles of a generated member, around places they would look, at the prices there. */
-export const profilesOf = (places: PlaceSeed[], user: SeededUser, ordinal: number, firstId: number): SeededProfile[] => {
+/** One to three saved searches of a generated member, in places they would look, at the prices there. */
+export const searchesOf = (places: PlaceSeed[], user: SeededUser, ordinal: number, firstId: number): SeededSearch[] => {
   const rand = rngAt(502, ordinal)
   const country = rand() < 0.55 ? 'NL' : 'ES'
   const local = places.flatMap((place, index) => (place.country === country ? [[index + 1, place.weight] as const] : []))
@@ -76,32 +79,32 @@ export const profilesOf = (places: PlaceSeed[], user: SeededUser, ordinal: numbe
     const both = rngAt(505, firstId + index)() < lookingBothWays
     const typical = typicalPrice[offerType][country]
     const placeId = rand() < 0.9 ? weighted(rand, local) : null
-    const radiusKm = pick(rand, [0, 0, 0, 5, 10])
     const propertyType = rand() < 0.7 ? pick(rand, ['apartment', 'house', 'townhouse', 'villa']) : null
-    const minPrice = rand() < 0.2 ? Math.round(typical * 0.5) : null
     const share = 0.7 + rand() * 0.8
-    const maxPrice = Math.round(typical * share)
-    // The range of the other way, at the same share of what is typical there.
-    const otherMax = Math.round(typicalPrice[offerType === 'sale' ? 'rent' : 'sale'][country] * share)
-    return profile({
+    const price: [number, number] = [rand() < 0.2 ? Math.round(typical * 0.5) : 0, Math.round(typical * share)]
+    const minArea = rand() < 0.5 ? pick(rand, [40, 60, 80, 100]) : null
+    const minBedrooms = rand() < 0.3 ? int(rand, 1, 3) : null
+    const createdAt = Math.max(user.createdAt, seedNow - int(rand, 5, 300) * DAY)
+    const place = placeId === null ? undefined : places[placeId - 1]!
+    return search({
       id: firstId + index,
       userId: user.id,
-      name: `Search ${index + 1}`,
-      forSale: offerType === 'sale' || both,
-      forRent: offerType === 'rent' || both,
-      placeId,
-      radiusKm,
-      propertyType,
-      minPurchasePrice: offerType === 'sale' ? minPrice : null,
-      maxPurchasePrice: offerType === 'sale' ? maxPrice : both ? otherMax : null,
-      minRentPrice: offerType === 'rent' ? minPrice : null,
-      maxRentPrice: offerType === 'rent' ? maxPrice : both ? otherMax : null,
-      minLivingArea: rand() < 0.5 ? pick(rand, [40, 60, 80, 100]) : null,
-      minRooms: rand() < 0.3 ? int(rand, 2, 4) : null,
-      minEnergyLabel: rand() < 0.15 ? pick(rand, ['a', 'b', 'c'] as const) : null,
-      alertFrequency: rand() < 0.4 ? 'instant' : 'daily',
-      active: rand() < 0.9,
-      createdAt: Math.max(user.createdAt, seedNow - int(rand, 5, 300) * DAY),
+      name: `${place?.name ?? 'Anywhere'}, ${offerType === 'sale' ? 'to buy' : 'to rent'}`,
+      alertFrequency: rand() < 0.4 ? 'instant' : rand() < 0.9 ? 'daily' : 'none',
+      createdAt,
+      seenAt: Math.max(createdAt, seedNow - int(rand, 0, 20) * DAY),
+      criteria: {
+        // Both ways, a home fits by the flags alone: a price range keeps out the homes not offered that way.
+        forSale: offerType === 'sale' || both,
+        forRent: offerType === 'rent' || both,
+        placeIds: placeId === null ? [] : [placeId],
+        propertyType,
+        purchasePrice: offerType === 'sale' && !both ? price : null,
+        rentPrice: offerType === 'rent' && !both ? price : null,
+        livingArea: minArea === null ? null : [minArea, 400],
+        bedrooms: minBedrooms === null ? null : [minBedrooms, 8],
+        energyLabels: rand() < 0.15 ? ['a_plus_2', 'a_plus', 'a', 'b'].slice(0, int(rand, 2, 4)) : [],
+      },
     })
   })
 }

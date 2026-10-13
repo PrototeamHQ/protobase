@@ -2,7 +2,10 @@ import { l, view } from '@protobase/schema'
 import type { listings } from './data'
 import { energyLabelColors, energyLabelLabels, propertyTypeLabels } from './labels'
 
-/** What everyone sees of a listing: the cards with their photos first, arrows through the rest and a heart to save it, the table and the filters of a portal. */
+/**
+ * What everyone sees of a listing: the cards with their photos first, arrows through the rest and a heart to save it,
+ * the table and the filters of a portal, and "Save search" to keep the filters set as one of the member's searches.
+ */
 export const listingsView = view<typeof listings>('listings')
   .title((r) => r.address)
   .names({ singular: 'Listing', plural: 'Listings' })
@@ -58,6 +61,7 @@ export const listingsView = view<typeof listings>('listings')
     w.toggle(r.balcony),
     w.toggle(r.parking),
   ])
+  .saveSearch({ resource: 'saved_searches' })
   .layout((r) => [
     l.section('Listing', [r.address, r.postal_code, r.place_id, r.property_type, r.status]),
     l.section('Price', [r.purchase_price, r.rent_price, r.price_per_m2], { help: 'A purchase price, a rent or both: a home for sale can be let in the meantime.' }),

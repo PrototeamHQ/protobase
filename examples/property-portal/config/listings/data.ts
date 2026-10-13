@@ -10,7 +10,7 @@ export const propertyTypes = ['apartment', 'house', 'townhouse', 'villa', 'studi
  * (leegstandswet). `purchase_price` is the asking price and `rent_price` the rent per month; at least one is set, and
  * Postgres computes from them whether it is `for_sale` and `for_rent`, and `price_per_m2` from the purchase price. A
  * listing is public from `published_at`, a draft while that is empty; publishing one asks the match-listing job for the
- * search profiles it fits (db/migrations/005_listing_published.sql).
+ * saved searches it fits (db/migrations/005_listing_published.sql).
  */
 export const listings = resource('listings')
   .table('market.listings')
