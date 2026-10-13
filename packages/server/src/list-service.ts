@@ -9,6 +9,7 @@ import { presentFiles } from './files/present'
 import { rowPermissions } from './row-permissions'
 import { etagAlias } from './sql-parts'
 import { labelRequests, relatedLabels } from './related-labels'
+import { photosRequest, recordPhotos } from './list-photos'
 import { exposeRow, pickFields } from './rows'
 import { readTransaction } from './transactions'
 import type { Session } from './types'
@@ -17,7 +18,8 @@ import type { Session } from './types'
  * AIP-132 list, the `:search` variant and (with `jump`) `:seek`: both take the same parameters, from the query string or a JSON body.
  * Everything the caller names (filter, order_by, fields, search) is checked against the model as this caller sees it,
  * so a hidden field is refused exactly like an unknown one; the access row filter is applied by the query layer.
- * `labels` names the records the returned relations point at, each read under the related resource's own access.
+ * `labels` names the records the returned relations point at, each read under the related resource's own access, and
+ * `photos` brings each record's first photos, read under the photos' resource's own access.
  */
 export const listRecords = async (deps: Deps, entry: Entry, session: Session, input: unknown, maxFilterLength?: number, jump = false) => {
   const params = jump ? parseParams(seekParams, input) : parseParams(listParams, input)
@@ -30,6 +32,7 @@ export const listRecords = async (deps: Deps, entry: Entry, session: Session, in
   const sort = checkedSort(model, params.order_by)
   const columns = selectedFields(model, params.fields)
   const labels = await labelRequests(deps, session, model, columns, params.labels)
+  const photos = await photosRequest(deps, session, model, params.photos, params.photos_order_by)
   const limit = pageSizeOf(params.page_size)
   const scope = readScope(access, full)
 
@@ -37,8 +40,9 @@ export const listRecords = async (deps: Deps, entry: Entry, session: Session, in
   const etagField = entry.etag && !model.fields[entry.etag.field.name] ? full.fields[entry.etag.field.name] : undefined
   const queryModel = etagField ? { ...model, fields: { ...model.fields, [etagField.name]: etagField } } : model
   // Without a version column the ETag is a hash of the readable fields, so every readable field is read; a file's
-  // download URL names its row, so a selection with a file field reads the key too
-  const withKey = columns?.some((name) => model.fields[name]!.type === 'file') ? [...new Set([...columns, ...entry.model.primaryKey.filter((name) => model.fields[name])])] : columns
+  // download URL names its row, and photos are matched to it, so a selection with a file field or photos reads the key too
+  const keyed = photos !== undefined || columns?.some((name) => model.fields[name]!.type === 'file')
+  const withKey = keyed && columns ? [...new Set([...columns, ...entry.model.primaryKey.filter((name) => model.fields[name])])] : columns
   const read = entry.etag && withKey ? withKey : Object.keys(model.fields)
 
   const shape = { ...(filter && { filter }), ...(sort && { sort }), limit }
@@ -63,8 +67,9 @@ export const listRecords = async (deps: Deps, entry: Entry, session: Session, in
   })
 
   const shown = await presentFiles(access, result.rows)
+  const included = photos && (await recordPhotos(deps, photos, model, result.rows))
   return {
-    warning,
+    warning: warning ?? included?.warning,
     body: {
       items: shown.map((row, i) => ({
         ...pickFields(row, columns),
@@ -76,6 +81,7 @@ export const listRecords = async (deps: Deps, entry: Entry, session: Session, in
       total_size_estimate: result.estimate,
       ...(result.total !== undefined && { total_size: result.total }),
       ...(result.labels && { labels: result.labels }),
+      ...(included && { photos: included.photos }),
     },
   }
 }

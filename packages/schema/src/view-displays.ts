@@ -18,6 +18,9 @@ type Naming = { name?: string; label?: string; icon?: string }
 
 const naming = ({ label, icon }: Naming) => ({ ...(label !== undefined && { label }), ...(icon !== undefined && { icon }) })
 
+/** The most photos a card steps through, its own image among them, each marked by a dot: a list includes this many of each record's photos. */
+export const cardPhotoLimit = 10
+
 /** The name of the list's own display, which every list has. */
 export const tableDisplay = 'table'
 

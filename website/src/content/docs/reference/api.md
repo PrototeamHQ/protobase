@@ -32,7 +32,7 @@ Under `/api/v1`:
 
 | Route | |
 | --- | --- |
-| `GET /{resource}` | list: `filter`, `order_by`, `page_size` (50, max 500), `page_token`, `fields`, `labels`, `count=exact` |
+| `GET /{resource}` | list: `filter`, `order_by`, `page_size` (50, max 500), `page_token`, `fields`, `labels`, `photos`, `photos_order_by`, `count=exact` |
 | `POST /{resource}:search` | same parameters as a JSON body (`fields` and `labels` arrays), for long filters |
 | `GET /{resource}/{key}` | one record, with `ETag`; composite keys are `part,part`, each part percent-encoded |
 | `POST /{resource}` | create, `201` with `Location` and `ETag` |
@@ -45,8 +45,8 @@ Under `/api/v1`:
 | `GET /{resource}:facets?field=&filter=&limit=&label=` | `{ field, facets: [{ value, count }] }`; with `label`, a relation's facets carry the related record's name as `label`, as in [Related names](#related-names) |
 | `GET /{resource}:series?field=&range=&granularity=&time_zone=&filter=` | `range` is `7d`, `30d`, `90d`, `1y`, `all`, or `from` and `to` (ISO) |
 | `GET /{resource}:histogram?field=&buckets=&filter=` | equal-width buckets of a numeric field |
-| `GET /{resource}:map?latitude=&longitude=&zoom=&filter=&order_by=&fields=&labels=` | the records in a map's view, the bounding box being in `filter` (`lat >= 51.9 AND lat <= 52.1 AND lng >= 4.2 AND lng <= 4.5`), as `{ items, buckets, total_size }`; see [Maps](#maps) |
-| `GET /{resource}:seek?position=&order_by=&filter=&page_size=&fields=&labels=` | the page at a row position (scrollbar jumps), with `next_page_token` and `prev_page_token`; same items as a list |
+| `GET /{resource}:map?latitude=&longitude=&zoom=&filter=&order_by=&fields=&labels=&photos=&photos_order_by=` | the records in a map's view, the bounding box being in `filter` (`lat >= 51.9 AND lat <= 52.1 AND lng >= 4.2 AND lng <= 4.5`), as `{ items, buckets, total_size }`; see [Maps](#maps) |
+| `GET /{resource}:seek?position=&order_by=&filter=&page_size=&fields=&labels=&photos=&photos_order_by=` | the page at a row position (scrollbar jumps), with `next_page_token` and `prev_page_token`; same items as a list |
 | `GET /api/meta` | resource, view and page models (fields carry `default`: `{ value }` or `{ db: true }`) and the caller's `permissions`; the `ETag` hashes both, so it differs per user; `If-None-Match` gives `304` |
 | `POST /api/files:cleanup` | runs the [scheduled file deletes](/reference/files/#deleting-files) that are due, for an admin; `{ deleted, kept }` |
 | `GET /api/openapi.json`, `GET /api/docs` | OpenAPI 3.1 for the caller (only the resources, fields and operations their roles allow), and the Scalar reference |
@@ -60,6 +60,12 @@ A list returns `{ items, next_page_token, total_size_estimate }` (`total_size` w
 ### Related names
 
 A list holds a relation as the key of the record it points at. `labels` names those records in the same answer: `labels=place_id.name,agency_id.name` on a list, `:search`, `:seek` or `:map` adds `labels: { "place_id": { "12": "Amsterdam" }, "agency_id": { ... } }`, the `name` of each place and agency the page's items point at, by key as text. Each entry is a relation among the returned fields, to a resource with a single-field key, and the field of that resource that names its records, neither a file nor JSON; anything else is a `400`. The related records are read as the caller lists that resource, in one query per relation: its tenant, row filter, soft delete and readable fields apply. A record they cannot list, or whose field they cannot read, is not in `labels`, and neither is an empty name, so it goes by its key; a field they cannot read or that does not exist answers the same, so `labels` never tells it exists.
+
+### Card photos
+
+A list can bring each record's first photos in the same answer, as a cards display's [`photos`](/reference/ui-config/#card-photos) shows them: `photos=listing_photos.listing_id.photo&photos_order_by=position` on a list, `:search`, `:seek` or `:map` adds `photos: { "12": [{ "uri": "public:…", "url": "…", "placeholder": "…" }, …] }`, the `photo` files of the first ten records of `listing_photos` whose relation `listing_id` points at each item, by its key as text, in `photos_order_by` order (their primary key breaking ties). An item without photos is not in `photos`. The entry names a resource, its relation to the listed one and its file field; a malformed entry, or `photos_order_by` without it, is a `400`.
+
+The photos are read as the caller lists that resource, in one query for the whole page: its tenant, row filter, soft delete and readable fields apply, each file comes as that resource's list returns it, with its placeholder when the caller may read that field, and the [scan guard](#safety) checks the lookup like a list. A caller who cannot list the resource, or read and use the relation, the file field or the sorted fields, gets `photos: {}`, as they would for a resource or field that does not exist, so `photos` never tells it exists; so does a list of a resource with a composite key.
 
 ### Maps
 

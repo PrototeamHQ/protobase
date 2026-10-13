@@ -2,6 +2,7 @@ import { z } from 'zod'
 import { checkMapPosition, countUpTo, mapBuckets, maxMapZoom } from '@protobase/query'
 import type { Deps } from './deps'
 import { checkedFilter } from './filter-input'
+import { photosRequest } from './list-photos'
 import { listRecords } from './list-service'
 import { parseParams, selectedFields } from './params'
 import { labelRequests } from './related-labels'
@@ -23,6 +24,8 @@ const mapParams = z.object({
   order_by: z.string().optional(),
   fields: z.union([z.string(), z.array(z.string())]).optional(),
   labels: z.string().optional(),
+  photos: z.string().optional(),
+  photos_order_by: z.string().optional(),
 })
 
 /**
@@ -41,12 +44,14 @@ export const mapRecords = async (deps: Deps, entry: Entry, session: Session, inp
   const found = await readTransaction(deps.db, deps.statementTimeoutMs, (trx) => countUpTo(trx, access.model, mapRecordsLimit + 1, filter, scope))
 
   if (found <= mapRecordsLimit || params.zoom >= mapRecordsZoom) {
-    const list = { filter: params.filter, order_by: params.order_by, fields: params.fields, labels: params.labels, page_size: mapRecordsLimit, ...(found > mapRecordsLimit && { count: 'exact' }) }
+    const { latitude: _latitude, longitude: _longitude, zoom: _zoom, ...asked } = params
+    const list = { ...asked, page_size: mapRecordsLimit, ...(found > mapRecordsLimit && { count: 'exact' }) }
     const { body, warning } = await listRecords(deps, entry, session, list)
-    return { warning, body: { items: body.items, buckets: [], total_size: body.total_size ?? found, ...(body.labels && { labels: body.labels }) } }
+    return { warning, body: { items: body.items, buckets: [], total_size: body.total_size ?? found, ...(body.labels && { labels: body.labels }), ...(body.photos && { photos: body.photos }) } }
   }
-  // Buckets name no records, but `labels` is checked all the same, so a wrong one fails at every zoom
+  // Buckets name no records, but `labels` and `photos` are checked all the same, so a wrong one fails at every zoom
   if (params.labels !== undefined) await labelRequests(deps, session, access.model, selectedFields(access.model, params.fields), params.labels)
+  await photosRequest(deps, session, access.model, params.photos, params.photos_order_by)
   const result = await readTransaction(deps.db, deps.statementTimeoutMs, (trx) => mapBuckets(trx, access.model, position, params.zoom, filter, scope))
-  return { warning: undefined, body: { items: [], buckets: result.buckets, total_size: result.total, ...(params.labels !== undefined && { labels: {} }) } }
+  return { warning: undefined, body: { items: [], buckets: result.buckets, total_size: result.total, ...(params.labels !== undefined && { labels: {} }), ...(params.photos !== undefined && { photos: {} }) } }
 }

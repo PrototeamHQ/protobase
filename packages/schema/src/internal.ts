@@ -2,7 +2,7 @@
 // models the server sends, and are not part of the documented API.
 export { checkEventFilter } from './events/event-models'
 export { webhookResources } from './webhooks/webhook-resources'
-export { displayFields, tableDisplay } from './view-displays'
+export { cardPhotoLimit, displayFields, tableDisplay } from './view-displays'
 export { fieldRefsIn, isFieldRef, markFieldRefs, unmarkFieldRefs } from './field-ref'
 export { pruneByShape, shapes, type PropShapes, type RefShape } from './ref-shape'
 export { matchesSearch, matchedSearchField, searchTerms, termMatches, type SearchTerm } from './search-match'

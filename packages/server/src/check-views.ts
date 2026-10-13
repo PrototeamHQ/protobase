@@ -1,4 +1,4 @@
-import type { ActionRun, ResourceModel, ViewModel } from '@protobase/schema'
+import type { ActionRun, CardPhotosModel, ResourceModel, ViewModel } from '@protobase/schema'
 import { addressErrors, addressPlaceholders, appHrefError, displayFields, fieldRefsIn, hrefPlaceholders } from '@protobase/schema/internal'
 import type { Registry } from './registry'
 import { cardFavoriteErrors, favoriteOwnerErrors } from './view-card-favorite'
@@ -74,6 +74,13 @@ const widgetErrors = (view: ViewModel, model: ResourceModel, fieldTypes: Readonl
     return [`field "${name}" is ${field.type}, and its field type "${hints.widget!.name}" shows only ${of.join(', ')}`]
   })
 
+// A list's records load with one set of photos, so its cards displays that show photos all name the same ones.
+const sharedPhotosErrors = (view: ViewModel) => {
+  const shown = (view.list?.displays ?? []).flatMap((display) => (display.kind === 'cards' && display.photos ? [{ name: display.name, photos: display.photos }] : []))
+  const same = (a: CardPhotosModel, b: CardPhotosModel) => a.resource === b.resource && a.field === b.field && a.image === b.image && a.sort === b.sort
+  return shown.filter(({ photos }) => !same(photos, shown[0]!.photos)).map(({ name }) => `display "${name}" photos: the list's records load with one set of photos, so name those of display "${shown[0]!.name}"`)
+}
+
 // The list of the records a relation points at asks for them by their key, so it must be a single column.
 const listOfErrors = (model: ResourceModel, name: string, models: Record<string, ResourceModel>) => {
   const target = models[model.fields[name]?.relation?.resource ?? '']
@@ -85,7 +92,8 @@ const listOfErrors = (model: ResourceModel, name: string, models: Record<string,
  * Fails at startup when a view uses a sensitive field where it would show empty, a display or custom section names a
  * field the resource does not have, labels or colours values its enum does not have, shows a field with a field type of
  * `fieldTypes` (each with the storage types it shows) that does not show it,
- * has a related section, a cards display's photos or favorite button or a `listOf` that do not fit the resources, a map that cannot show the
+ * has a related section, a cards display's photos or favorite button or a `listOf` that do not fit the resources, cards
+ * displays of one list that name different photos, a map that cannot show the
  * record's position or a map display that cannot find the records in its view, or a link to an address the app does not have.
  */
 export const checkViews = (registry: Registry, views: ViewModel[], pages: readonly string[] = [], fieldTypes: Readonly<Record<string, readonly string[]>> = {}) => {
@@ -95,9 +103,12 @@ export const checkViews = (registry: Registry, views: ViewModel[], pages: readon
     const model = models[view.resource]
     if (!model) return []
     const related = view.layout.flatMap((item) => (item.kind === 'related' ? relatedErrors(item, view.resource, models).map((error) => `related "${item.title}": ${error}`) : []))
-    const photos = (view.list?.displays ?? []).flatMap((display) =>
-      display.kind === 'cards' && display.photos ? cardPhotosErrors(display.photos, view.resource, models).map((error) => `display "${display.name}" photos: ${error}`) : [],
-    )
+    const photos = [
+      ...(view.list?.displays ?? []).flatMap((display) =>
+        display.kind === 'cards' && display.photos ? cardPhotosErrors(display.photos, view.resource, models).map((error) => `display "${display.name}" photos: ${error}`) : [],
+      ),
+      ...sharedPhotosErrors(view),
+    ]
     const favorites = (view.list?.displays ?? []).flatMap((display) =>
       display.kind === 'cards' && display.favorite
         ? [...cardFavoriteErrors(display.favorite, view.resource, models), ...favoriteOwnerErrors(display.favorite, models)].map((error) => `display "${display.name}" favorite: ${error}`)

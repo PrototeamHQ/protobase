@@ -1,3 +1,5 @@
+import { cardPhotoLimit } from '@protobase/schema/internal'
+
 const problemContent = { 'application/problem+json': { schema: { $ref: '#/components/schemas/Problem' } } }
 
 const problem = (description: string) => ({ description, content: problemContent })
@@ -57,6 +59,13 @@ export const parameters = {
   fields: { name: 'fields', in: 'query', description: 'Comma separated field names to return', schema: { type: 'string' } },
   count: { name: 'count', in: 'query', description: '`exact` adds `total_size`, a real count(*)', schema: { type: 'string', enum: ['exact'] } },
   labels: { name: 'labels', in: 'query', description: 'Comma separated `relation.field` entries, such as `place_id.name`: the answer\'s `labels` maps each relation to the names of the records it points at, by key, each the `field` of that record. Only for returned relations to single-key resources. A related record the caller cannot list, or whose `field` they cannot read, is left out, so it goes by its key.', schema: { type: 'string' } },
+  photos: {
+    name: 'photos',
+    in: 'query',
+    description: `A \`resource.field.image\` entry, such as \`listing_photos.listing_id.photo\`: the answer's \`photos\` maps each returned record's key to the \`image\` files of the first ${cardPhotoLimit} records of \`resource\` whose relation \`field\` points at it, read in one query as the caller lists \`resource\`. A record without any is left out, and so is every record when the caller cannot list \`resource\` or read and use \`field\`, \`image\` and the sorted fields. Only for resources with a single-field key.`,
+    schema: { type: 'string' },
+  },
+  photosOrderBy: { name: 'photos_order_by', in: 'query', description: 'The order of each record\'s `photos`, as `order_by` on their resource: `position`. Their primary key breaks ties.', schema: { type: 'string' } },
   key: {
     name: 'key',
     in: 'path',
@@ -81,6 +90,8 @@ export const searchBody = {
     fields: { type: 'array', items: { type: 'string' } },
     count: { type: 'string', enum: ['exact'] },
     labels: { type: 'array', items: { type: 'string' }, description: parameters.labels.description },
+    photos: { type: 'string', description: parameters.photos.description },
+    photos_order_by: { type: 'string', description: parameters.photosOrderBy.description },
     show_deleted: { type: 'boolean', description: 'Soft-delete resources only' },
   },
 }

@@ -70,6 +70,22 @@ describe('checkViews', () => {
     expect(() => checkViews(registry, [shown('receipts').toModel()])).toThrow('View "payments": display "cards" photos: unknown resource "receipts"')
   })
 
+  it("wants a list's cards displays to name the same photos, which its records load with", () => {
+    const scans = resource('scans').table('scans').fields({ id: f.integer(), payment_id: f.relation('payments').filterable(), scan: f.file(), page: f.integer().sortable() }).primaryKey((r) => r.id)
+    const withScans = { entries: [...registry.entries, { name: 'scans', model: scans.toModel() }] } as unknown as Registry
+    const shown = (sort: string) =>
+      view<typeof payments>('payments').list((r, d) => ({
+        columns: [r.reference],
+        displays: [
+          d.cards({ title: r.reference }, { photos: { resource: 'scans', field: 'payment_id', image: 'scan', sort: 'page' } }),
+          d.cards({ title: r.reference }, { name: 'plain' }),
+          d.cards({ title: r.reference }, { name: 'gallery', photos: { resource: 'scans', field: 'payment_id', image: 'scan', sort } }),
+        ],
+      }))
+    expect(() => checkViews(withScans, [shown('page').toModel()])).not.toThrow()
+    expect(() => checkViews(withScans, [shown('page desc').toModel()])).toThrow('View "payments": display "gallery" photos: the list\'s records load with one set of photos, so name those of display "cards"')
+  })
+
   it("wants a cards display's favorite button to save to records each user owns", () => {
     const saved = (owned: boolean) => {
       const base = resource('saved').table('saved').fields({ id: f.integer(), user_id: f.text().readOnly(), payment_id: f.relation('payments').filterable() }).primaryKey((r) => r.id)
