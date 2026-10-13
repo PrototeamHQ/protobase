@@ -2,6 +2,16 @@
 
 Every release of Protobase, cut by the release workflow from the commits since the last one (see the [versioning page](https://docs.protobase.net/reference/versioning/)).
 
+## [0.13.4](https://github.com/PrototeamHQ/protobase/compare/v0.13.3...v0.13.4) (2026-10-13)
+
+### Features
+
+* **server:** storeFile writes a file into the app's provider outside a request, folder or bucket ([a9bd5eb](https://github.com/PrototeamHQ/protobase/commit/a9bd5ebe7df9c8a7ba81267783265f62d030bcec))
+
+### Bug Fixes
+
+* **examples:** the portal seed stores its photos with storeFile, so they reach the app's bucket ([47458a3](https://github.com/PrototeamHQ/protobase/commit/47458a3522a8e3b5a331366b65d56d1798bd9908))
+
 ## [0.13.3](https://github.com/PrototeamHQ/protobase/compare/v0.13.2...v0.13.3) (2026-10-13)
 
 ### Bug Fixes
