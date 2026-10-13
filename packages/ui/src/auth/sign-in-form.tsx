@@ -4,6 +4,7 @@ import type { SignInMethod } from '@protobase/client'
 import { Button } from '../primitives/button'
 import { Input } from '../primitives/input'
 import { AuthLayout } from './auth-layout'
+import { ProviderIcon } from './provider-icon'
 
 export type SignInFormProps = {
   /** Called with the email and password; the page shows `error` when it fails. */
@@ -69,6 +70,7 @@ export const SignInForm = ({ onSubmit, busy, error, workspace, notice, methods =
           <div className="flex flex-col gap-2">
             {offered.map((provider) => (
               <Button key={provider.id} onClick={() => onContinueWith?.(provider.id)} disabled={busy} className="min-h-10 w-full">
+                <ProviderIcon id={provider.id} />
                 Continue with {provider.name}
               </Button>
             ))}

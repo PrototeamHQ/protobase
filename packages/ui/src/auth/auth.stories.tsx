@@ -32,7 +32,9 @@ export const SignInWithGitHub: StoryObj<SignInFormProps> = {
   args: { onSubmit: fn(), providers: [{ id: 'github', name: 'GitHub' }], onContinueWith: fn(), workspace: 'Protobase Cloud' },
   render: (args) => <SignInForm {...args} />,
   play: async ({ canvasElement, args }) => {
-    await userEvent.click(within(canvasElement).getByRole('button', { name: 'Continue with GitHub' }))
+    const button = within(canvasElement).getByRole('button', { name: 'Continue with GitHub' })
+    expect(button.querySelector('svg')).toBeVisible()
+    await userEvent.click(button)
     expect(args.onContinueWith).toHaveBeenCalledWith('github')
     expect(args.onSubmit).not.toHaveBeenCalled()
   },
@@ -44,7 +46,11 @@ export const SignInWithPlatformProvider: StoryObj<SignInFormProps> = {
   args: { onSubmit: fn(), providers: [{ id: 'github', name: 'GitHub' }, { id: 'oidc', name: 'Acme SSO' }], onContinueWith: fn(), workspace: 'Veldhuis Supply' },
   render: (args) => <SignInForm {...args} />,
   play: async ({ canvasElement, args }) => {
-    await userEvent.click(within(canvasElement).getByRole('button', { name: 'Continue with Acme SSO' }))
+    const canvas = within(canvasElement)
+    // The GitHub mark is GitHub's alone, chosen by the provider's id, not its name.
+    expect(canvas.getByRole('button', { name: 'Continue with GitHub' }).querySelector('svg')).toBeVisible()
+    expect(canvas.getByRole('button', { name: 'Continue with Acme SSO' }).querySelector('svg')).toBeNull()
+    await userEvent.click(canvas.getByRole('button', { name: 'Continue with Acme SSO' }))
     expect(args.onContinueWith).toHaveBeenCalledWith('oidc')
   },
 }
