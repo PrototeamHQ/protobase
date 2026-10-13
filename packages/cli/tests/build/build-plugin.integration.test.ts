@@ -31,7 +31,7 @@ export const Greeting = () => {
 export default definePlugin({ actions: { wave: () => undefined } })
 `
 
-const hand = `export const Hand = () => <span className="text-danger">hi</span>\n`
+const hand = `export const Hand = () => <span className="text-danger dark:text-warning">hi</span>\n`
 
 // The bare specifiers a module imports, statically or dynamically.
 const importsOf = (code: string) => [...code.matchAll(/(?:from|import)\s*\(?\s*"([^"./][^"]*)"/g)].map(([, name]) => name)
@@ -60,6 +60,9 @@ describe('buildPlugin', () => {
     const css = await readFile(path.join(outDir, manifest.css), 'utf8')
     expect(css).toContain('.bg-primary{background-color:var(--primary)}')
     expect(css).toContain('.text-danger{color:var(--danger)}')
+    // dark: follows the theme picked in the app, which sets data-theme, rather than only the system's
+    expect(css).toMatch(/\.dark\\:text-warning:where\(\[data-theme=dark\],\s*\[data-theme=dark\] \*\)/)
+    expect(css).not.toContain('prefers-color-scheme')
     expect(css).toMatch(/\.text-sm\{font-size:var\(--text-sm,\s*\.875rem\)/)
     // Under the app's utilities, which the app's own elements keep (see layerPluginUtilities)
     expect(css).toMatch(/@layer utilities\{\s*@layer plugin\{/)

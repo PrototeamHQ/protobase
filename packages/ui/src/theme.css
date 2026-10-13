@@ -4,6 +4,9 @@
  * imports it, and a plugin's stylesheet references it, so a plugin's utilities draw with the app's theme whatever
  * version of the app loads them, and with these defaults where the app sets none.
  */
+
+/* `dark:` follows the theme the user picked in the app, not only the system's, for the app and plugins alike. */
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
 @theme inline {
   --color-background: var(--background);
   --color-surface: var(--surface);

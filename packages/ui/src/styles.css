@@ -3,8 +3,6 @@
 @import "./tokens.css";
 @source "./";
 
-@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
-
 @layer base {
   html {
     font-size: 16px;

@@ -104,4 +104,4 @@ The list is `packages/ui/src/tokens.css`, and a test fails when one of its token
 
 ## In a plugin
 
-A plugin's utilities read the same tokens, with Tailwind's default as the fallback where an app sets none: `bg-primary` is `var(--primary)`, `rounded-md` is `var(--radius, 6px)` and `font-sans` is `var(--font, ...)`. So a plugin follows the theme of every app that loads it, without knowing it. Write classes such as `bg-primary`, `text-muted-foreground` and `border-border` rather than fixed colors, and the plugin looks at home in light and dark alike.
+A plugin's utilities read the same tokens, with Tailwind's default as the fallback where an app sets none: `bg-primary` is `var(--primary)`, `rounded-md` is `var(--radius, 6px)` and `font-sans` is `var(--font, ...)`. So a plugin follows the theme of every app that loads it, without knowing it. Write classes such as `bg-primary`, `text-muted-foreground` and `border-border` rather than fixed colors, and the plugin looks at home in light and dark alike. Where a plugin needs a value of its own for dark, a `dark:` class such as `dark:bg-muted` follows the theme the user picked, not only their system's.
