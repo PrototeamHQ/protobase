@@ -2,6 +2,12 @@
 
 Every release of Protobase, cut by the release workflow from the commits since the last one (see the [versioning page](https://docs.protobase.net/reference/versioning/)).
 
+## [0.13.3](https://github.com/PrototeamHQ/protobase/compare/v0.13.2...v0.13.3) (2026-10-13)
+
+### Bug Fixes
+
+* **release:** pack the packages one at a time, so no pack reads another's package.json half-written ([4abb750](https://github.com/PrototeamHQ/protobase/commit/4abb75089b307ccd8c0107b49dda2d502b8442a0))
+
 ## [0.13.2](https://github.com/PrototeamHQ/protobase/compare/v0.13.1...v0.13.2) (2026-10-13)
 
 ### Features
