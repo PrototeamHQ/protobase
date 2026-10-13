@@ -1,9 +1,9 @@
 import { encodeKey, type KeyValue } from '@protobase/schema'
-import { listWire, queryString, filterText, type FilterInput, type ListParams } from './query-string'
+import { listWire, queryString, filterText, type FilterInput, type ListParams, type MapParams } from './query-string'
 import { originOf, withFileOrigin } from './file-urls'
 import { createTransport, type ClientOptions } from './transport'
 import { fetchWithProgress, type UploadProgress } from './upload-request'
-import type { BatchOp, BatchResult, Facet, Histogram, ListPage, Meta, MetaResult, RecordOf, ResourceRef, Series, SeriesParams, Stored } from './types'
+import type { BatchOp, BatchResult, Facet, Histogram, ListPage, MapResult, Meta, MetaResult, RecordOf, ResourceRef, Series, SeriesParams, Stored } from './types'
 
 type Json = Record<string, any>
 
@@ -174,6 +174,27 @@ export const createClient = (options: ClientOptions = {}) => {
     return response.json()
   }
 
+  /**
+   * The records in a map's view, its bounding box being part of `filter`: the records themselves when few match or the
+   * map is close, else buckets of them on a grid sized for `zoom`.
+   */
+  const map = async <R extends ResourceRef>(resource: R, params: MapParams): Promise<MapResult<RecordOf<R>>> => {
+    const response = await send({
+      method: 'GET',
+      path: `/${nameOf(resource)}:map`,
+      query: queryString({
+        latitude: params.latitude,
+        longitude: params.longitude,
+        zoom: params.zoom,
+        filter: filterText(params.filter) || undefined,
+        order_by: params.orderBy,
+        fields: params.fields?.join(','),
+      }),
+    })
+    const body = await response.json()
+    return { items: (body.items as RecordOf<R>[]).map((item) => withFileOrigin(item, origin)), buckets: body.buckets, totalSize: body.total_size }
+  }
+
   /** The page that starts at row `position` of a sort (scrollbar jumps), with the tokens of its own neighbours. Past the end it is empty. */
   const seek = async <R extends ResourceRef>(resource: R, params: ListParams & { position: number }) => {
     const response = await send({ method: 'GET', path: `/${nameOf(resource)}:seek`, query: queryString({ ...listWire(params), position: params.position }) })
@@ -225,7 +246,7 @@ export const createClient = (options: ClientOptions = {}) => {
     return result
   }
 
-  return { list, search, get, create, update, remove, undelete, reveal, batchWrite, facets, series, histogram, seek, meta, invoke, upload }
+  return { list, search, get, create, update, remove, undelete, reveal, batchWrite, facets, series, histogram, map, seek, meta, invoke, upload }
 }
 
 export type Client = ReturnType<typeof createClient>

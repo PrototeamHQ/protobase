@@ -12,6 +12,16 @@ export type ListParams = {
   count?: 'exact'
 }
 
+/** What `map` asks for: the fields of the position, the map's zoom, and the bounding box in `filter`. */
+export type MapParams = {
+  latitude: string
+  longitude: string
+  zoom: number
+  filter?: FilterInput
+  orderBy?: string
+  fields?: string[]
+}
+
 export const filterText = (filter: FilterInput | undefined) => (typeof filter === 'string' ? filter : filter && printFilter(filter))
 
 type Wire = Record<string, string | number | undefined>

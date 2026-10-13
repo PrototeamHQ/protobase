@@ -28,6 +28,7 @@ export const routedClient = (own: Client, sourceOf: (resource: string) => Client
     facets: (resource, field, options) => to(resource).facets(resource, field, options),
     series: (resource, params) => to(resource).series(resource, params),
     histogram: (resource, field, options) => to(resource).histogram(resource, field, options),
+    map: (resource, params) => to(resource).map(resource, params),
     seek: (resource, params) => to(resource).seek(resource, params),
     meta: (etag, options) => own.meta(etag, options),
     invoke: (name, options) => own.invoke(name, options),

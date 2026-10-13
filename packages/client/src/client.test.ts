@@ -318,6 +318,18 @@ describe('aggregates', () => {
   })
 })
 
+describe('map', () => {
+  it('asks for the records in a bounding box at a zoom, and reads records or buckets', async () => {
+    const bucket = { count: 240, latitude: 52.37, longitude: 4.89, bounds: { south: 52.3, west: 4.8, north: 52.4, east: 4.95 } }
+    const { calls, fetch } = fakeFetch(() => json({ items: [], buckets: [bucket], total_size: 240 }))
+    const result = await createClient({ fetch }).map('listings', { latitude: 'lat', longitude: 'lng', zoom: 9, filter: 'lat >= 52 AND lat <= 53', orderBy: 'id', fields: ['id', 'lat', 'lng'] })
+    expect(result).toEqual({ items: [], buckets: [bucket], totalSize: 240 })
+    const url = new URL(calls[0]!.url, 'http://x')
+    expect(url.pathname).toBe('/api/v1/listings:map')
+    expect(Object.fromEntries(url.searchParams)).toEqual({ latitude: 'lat', longitude: 'lng', zoom: '9', filter: 'lat >= 52 AND lat <= 53', order_by: 'id', fields: 'id,lat,lng' })
+  })
+})
+
 describe('upload', () => {
   it('posts the raw file with its name and type, and answers with the ticket', async () => {
     const result = { value: 'private:1/a.png?name=a.png&size=3&exp=1&sig=x', file: { name: 'a.png', type: 'image/png', size: 3 }, derived: {} }

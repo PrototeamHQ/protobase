@@ -41,6 +41,15 @@ export type HistogramBucket = { from: number; to: number; count: number }
 
 export type Histogram = { min: number | null; max: number | null; buckets: HistogramBucket[] }
 
+/** The corners around some records, in decimal degrees. */
+export type MapBounds = { south: number; west: number; north: number; east: number }
+
+/** The records in one cell of a map's grid: how many, their mean position, and the bounds around them. */
+export type MapBucket = { count: number; latitude: number; longitude: number; bounds: MapBounds }
+
+/** The records `map` answers, or buckets of them when many match, never both; `totalSize` counts the matches. */
+export type MapResult<T> = { items: T[]; buckets: MapBucket[]; totalSize: number }
+
 /** What the signed-in user may do with a resource; `conditional` operations are decided per record by the server. */
 export type ResourcePermissions = { read?: boolean; create: boolean; update: boolean; delete: boolean; conditional: Array<'create' | 'update' | 'delete'> }
 
