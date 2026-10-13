@@ -1,9 +1,6 @@
 /** Browsers cap element height (about 17M px in the strictest); stay well below it. */
 export const maxContentHeight = 10_000_000
 
-const chunk = 2000
-const windowSize = 5000
-
 export type Geometry = ReturnType<typeof gridGeometry>
 
 export const gridGeometry = (total: number, rowHeight: number, viewportHeight: number) => {
@@ -28,9 +25,9 @@ export const scrollFromTop = (geometry: Geometry, top: number) =>
 
 export const clampTop = (geometry: Geometry, top: number) => Math.min(Math.max(0, top), geometry.maxTop)
 
-/** The slice of rows handed to the virtualizer; it moves in whole chunks so row measurements stay small. */
-export const windowFor = (total: number, top: number, rowHeight: number) => {
-  const topRow = Math.floor(top / rowHeight)
-  const base = Math.min(Math.max(0, Math.floor(topRow / chunk) * chunk - chunk), Math.max(0, total - windowSize))
-  return { base, count: Math.min(windowSize, total - base) }
+/** The rows drawn for a scroll offset: those in a viewport of `height`, and `overscan` more on each side. */
+export const rowsInView = (total: number, top: number, rowHeight: number, height: number, overscan: number) => {
+  const first = Math.max(0, Math.floor(top / rowHeight) - overscan)
+  const last = Math.min(total - 1, Math.floor((top + height) / rowHeight) + overscan)
+  return { first, last: Math.max(first - 1, last) }
 }

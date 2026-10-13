@@ -1,4 +1,3 @@
-import { useVirtualizer } from '@tanstack/react-virtual'
 import { useTable, type SortingState } from '@tanstack/react-table'
 import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { cn } from '../lib/cn'
@@ -13,9 +12,8 @@ import { useIsDesktop } from '../lib/use-media-query'
 import { GridHeader } from './grid-header'
 import { DataRow, SkeletonRow } from './grid-row'
 import type { RowSource } from './row-source'
-import { useGridScroll } from './use-grid-scroll'
 import { usePagedRows } from './use-paged-rows'
-import { windowFor } from './geometry'
+import { useVirtualRows } from './use-virtual-rows'
 
 export type DataGridProps = {
   columns: ColumnSpec[]
@@ -73,39 +71,14 @@ export const DataGrid = ({ columns: given, source, naturalSort, initialScrollInd
   const sourceRowAt = source.rowAt
   const rowAt = useCallback((index: number) => sourceRowAt!(reverse ? total - 1 - index : index), [sourceRowAt, reverse, total])
 
-  const { ref, onScroll, viewport, top, geometry } = useGridScroll(total, rowHeight, initialScrollIndex)
+  const { ref, onScroll, viewport, top, geometry, rows: virtualRows, first: firstIndex, last: lastIndex } = useVirtualRows({ total, rowHeight, initialIndex: initialScrollIndex, inset: headerHeight })
   const narrow = !useIsDesktop()
   const gutter = narrow || !rowNumbers ? compactGutter : gutterWidthFor(total)
   const bodyHeight = Math.max(0, viewport - headerHeight)
-  const bodyRef = useRef<HTMLDivElement>(null)
-  const offsetListener = useRef<((offset: number, scrolling: boolean) => void) | null>(null)
-  const { base, count } = windowFor(total, top, rowHeight)
-  const localOffset = top - base * rowHeight
-
-  const virtualizer = useVirtualizer({
-    count,
-    getScrollElement: () => bodyRef.current,
-    estimateSize: () => rowHeight,
-    overscan: 6,
-    initialRect: { width: 0, height: bodyHeight },
-    observeElementOffset: (_, callback) => {
-      offsetListener.current = callback
-      callback(localOffset, false)
-      return () => {
-        offsetListener.current = null
-      }
-    },
-  })
-  useLayoutEffect(() => offsetListener.current?.(localOffset, false), [localOffset, base])
-
-  const items = virtualizer.getVirtualItems()
-  const firstIndex = base + (items[0]?.index ?? 0)
-  const lastIndex = base + (items[items.length - 1]?.index ?? 0)
   const getRow = usePagedRows({ total, rowAt: sourceRowAt ? rowAt : undefined, loadRows: source.loadRows, latencyMs }, firstIndex, lastIndex)
 
-  const loaded = items.map((item) => ({ item, index: base + item.index, row: getRow(base + item.index) }))
-  // The count matters too: a single row is index 0 to 0 both before the viewport is measured, with no items, and after
-  const data = useMemo(() => loaded.flatMap(({ row }) => (row ? [row] : [])), [getRow, firstIndex, lastIndex, items.length])
+  const loaded = virtualRows.map(({ index, offset }) => ({ index, offset, row: getRow(index) }))
+  const data = useMemo(() => loaded.flatMap(({ row }) => (row ? [row] : [])), [getRow, firstIndex, lastIndex])
   const table = useTable({
     features,
     columns: tableColumns,
@@ -162,9 +135,9 @@ export const DataGrid = ({ columns: given, source, naturalSort, initialScrollInd
                 <div ref={horizontal.attach} onScroll={horizontal.onScroll} className="h-full overflow-x-auto overflow-y-hidden overscroll-x-contain [-webkit-overflow-scrolling:touch]">
                   <div className="flex h-full flex-col" style={{ minWidth: gridMinWidth(columns, gutter, trailing, minScale) }}>
                     <GridHeader cells={headerCells} specs={columns} gutter={gutter} trailing={trailing} minScale={minScale} pins={pins} lastPinned={lastPinned} scrolled={horizontal.scrolled} onTogglePin={togglePin} selectable={selectable} selectedCount={selectedCount} onClearSelection={() => setRowSelection({})} />
-                    <div ref={bodyRef} className="relative min-h-0 flex-1 overflow-clip">
-                      {loaded.map(({ item, index, row }) => {
-                        const frame = { specs: columns, gutter, index, offset: item.start - localOffset, height: rowHeight, selectable, trailing, minScale, scrolled: horizontal.scrolled, pins, lastPinned }
+                    <div className="relative min-h-0 flex-1 overflow-clip">
+                      {loaded.map(({ index, offset, row }) => {
+                        const frame = { specs: columns, gutter, index, offset, height: rowHeight, selectable, trailing, minScale, scrolled: horizontal.scrolled, pins, lastPinned }
                         const tableRow = row ? tableRows.get(row.id) : undefined
                         if (!tableRow) return <SkeletonRow key={`skeleton-${index}`} {...frame} />
                         const actions = trailing && row ? availableActions(rowActions!, row) : []

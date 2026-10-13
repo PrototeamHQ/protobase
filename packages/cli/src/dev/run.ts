@@ -65,7 +65,6 @@ const appDependencies = [
   'zod',
   '@tanstack/react-query',
   '@tanstack/react-table',
-  '@tanstack/react-virtual',
   'recharts',
   '@sentry/browser',
   'maplibre-gl',
