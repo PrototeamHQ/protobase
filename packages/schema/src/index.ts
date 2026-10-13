@@ -10,6 +10,7 @@ export type {
   KeyValue,
   AppAddress,
   FilterLayout,
+  MapView,
   ListQuery,
   FieldFormat,
   FieldViewModel,

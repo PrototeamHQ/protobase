@@ -19,6 +19,10 @@ describe('appPath', () => {
     expect(appPath({ kind: 'list', resource: 'repairs', filter: '', display: undefined })).toBe('/repairs')
   })
 
+  it("writes where a list's map looks as its centre and zoom, to about a metre", () => {
+    expect(appPath({ kind: 'list', resource: 'listings', display: 'map', map: { latitude: 52.370216, longitude: 4.895168, zoom: 12.456 } })).toBe('/listings?display=map&map=52.37022%2C4.89517%2C12.46')
+  })
+
   it("writes a create form's values as its query, leaving out empty ones", () => {
     expect(appPath({ kind: 'create', resource: 'notes', values: { listing_id: '42', body: 'Big garden', title: '' } })).toBe('/notes/new?listing_id=42&body=Big+garden')
   })
@@ -35,6 +39,7 @@ describe('readAppPath', () => {
     const addresses: AppAddress[] = [
       { kind: 'list', resource: 'repairs' },
       { kind: 'list', resource: 'repairs', display: 'board', filter: 'status = "ready" AND bike : "e"', orderBy: 'bookedOn desc', filterLayout: 'panel' },
+      { kind: 'list', resource: 'listings', display: 'map', map: { latitude: -33.87, longitude: 151.21, zoom: 9.5 } },
       { kind: 'record', resource: 'files', key: 'a/b' },
       { kind: 'record', resource: 'leaseTenants', key: '3,7' },
       { kind: 'create', resource: 'repairs' },
@@ -50,6 +55,12 @@ describe('readAppPath', () => {
 
   it('ignores parameters it does not know and a filter layout it cannot use', () => {
     expect(readAppPath('/repairs?layout=grid&page=2', pages)).toEqual({ kind: 'list', resource: 'repairs' })
+  })
+
+  it('ignores a map view it cannot read or that lies off the map', () => {
+    for (const map of ['52,4', '52,4,9,1', 'a,4,9', '52,,9', '91,4,9', '52,181,9', '52,4,23', '52,4,-1']) {
+      expect(readAppPath(`/listings?map=${map}`, pages)).toEqual({ kind: 'list', resource: 'listings' })
+    }
   })
 
   it('reads nothing at the root, under /-/, below a page, deeper than a record, or from broken encoding', () => {

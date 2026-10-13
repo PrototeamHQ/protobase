@@ -1,5 +1,5 @@
 import { encodeKey } from './keys'
-import type { AppAddress, FilterLayout } from './model'
+import type { AppAddress, FilterLayout, MapView } from './model'
 
 /**
  * The words of the app's addresses. Only `appPath` and `readAppPath` write and read them, so the shape of an address
@@ -14,11 +14,26 @@ export const addressWords = {
   display: 'display',
   /** Where a list's filters sit: `bar` (the default) or `panel`. */
   filterLayout: 'layout',
+  /** Where a list's map display looks: `latitude,longitude,zoom`. */
+  map: 'map',
   /** The second path segment that opens a resource's create form instead of a record. */
   create: 'new',
 } as const
 
 const listWords = ['display', 'filter', 'orderBy', 'filterLayout'] as const
+
+// Five decimals of a degree are about a metre; two of a zoom are less than a pixel's difference.
+const mapText = (view: MapView) => `${view.latitude.toFixed(5)},${view.longitude.toFixed(5)},${view.zoom.toFixed(2)}`
+
+const inRange = (value: number, limit: number, low = -limit) => Number.isFinite(value) && value >= low && value <= limit
+
+// A map view as `mapText` writes it, or none for anything else
+const readMap = (text: string | null): MapView | undefined => {
+  const parts = text?.split(',')
+  if (parts?.length !== 3 || parts.some((part) => part.trim() === '')) return undefined
+  const [latitude, longitude, zoom] = parts.map(Number) as [number, number, number]
+  return inRange(latitude, 90) && inRange(longitude, 180) && inRange(zoom, 22, 0) ? { latitude, longitude, zoom } : undefined
+}
 
 const listQuery = (address: Extract<AppAddress, { kind: 'list' }>) => {
   const query = new URLSearchParams()
@@ -26,6 +41,7 @@ const listQuery = (address: Extract<AppAddress, { kind: 'list' }>) => {
     const value = address[name]
     if (value !== undefined && value !== '') query.set(addressWords[name], value)
   }
+  if (address.map) query.set(addressWords.map, mapText(address.map))
   const text = query.toString()
   return text ? `?${text}` : ''
 }
@@ -82,5 +98,6 @@ export const readAppPath = (pathAndQuery: string, pages: ReadonlySet<string>): A
   const filter = params.get(addressWords.filter) || undefined
   const orderBy = params.get(addressWords.orderBy) || undefined
   const layout = filterLayout(params.get(addressWords.filterLayout))
-  return { kind: 'list', resource: first, ...(display && { display }), ...(filter && { filter }), ...(orderBy && { orderBy }), ...(layout && { filterLayout: layout }) }
+  const map = readMap(params.get(addressWords.map))
+  return { kind: 'list', resource: first, ...(display && { display }), ...(filter && { filter }), ...(orderBy && { orderBy }), ...(layout && { filterLayout: layout }), ...(map && { map }) }
 }

@@ -81,13 +81,17 @@ export type ListQuery = {
 
 export type FilterLayout = 'bar' | 'panel'
 
+/** Where a list's map display looks: the centre in decimal degrees, and MapLibre's zoom, from 0 to 22. */
+export type MapView = { latitude: number; longitude: number; zoom: number }
+
 /**
  * A place in the app: a resource's list, one of its records, its create form, or a composed page. A record's `key` is
  * its one value or its parts, as the record API takes them; `readAppPath` gives it back as the API's text form. A create
- * form's `values` fill in fields of the new record by name, as text (`{ listing_id: '42' }`).
+ * form's `values` fill in fields of the new record by name, as text (`{ listing_id: '42' }`). A list's `map` is where its
+ * map display looks.
  */
 export type AppAddress =
-  | { kind: 'list'; resource: string; filter?: string; orderBy?: string; display?: string; filterLayout?: FilterLayout }
+  | { kind: 'list'; resource: string; filter?: string; orderBy?: string; display?: string; filterLayout?: FilterLayout; map?: MapView }
   | { kind: 'record'; resource: string; key: KeyValue | readonly KeyValue[] }
   | { kind: 'create'; resource: string; values?: Readonly<Record<string, string>> }
   | { kind: 'page'; page: string }
