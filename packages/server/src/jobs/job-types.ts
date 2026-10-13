@@ -9,7 +9,7 @@ export type JobContext = {
   job: { id: string; name: string; attempt: number; maxAttempts: number }
   /** Aborted when the job's timeout passes, or when the worker shuts down and its grace period ends. */
   signal: AbortSignal
-  /** Sends plain-text mail through the app's SMTP server (`PROTOBASE_SMTP_URL`, `PROTOBASE_MAIL_FROM`); `undefined` when the app has no mail. */
+  /** Sends mail through the app's SMTP server (`PROTOBASE_SMTP_URL`, `PROTOBASE_MAIL_FROM`); `undefined` when the app has no mail. */
   mail?: Mailer
 }
 

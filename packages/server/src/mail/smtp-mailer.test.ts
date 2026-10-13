@@ -16,4 +16,10 @@ describe('smtpMailer', () => {
     expect(createTransport).toHaveBeenCalledWith({ url: smtpUrl, name: 'erp.acme.example.com' })
     expect(sendMail).toHaveBeenCalledWith({ from: 'noreply@erp.acme.example.com', to: 'ada@example.com', subject: 'Reset', text: 'Hello' })
   })
+
+  it('sends an HTML part beside the plain text', async () => {
+    const mailer = smtpMailer({ smtpUrl: 'smtp://relay.example.net:587', from: 'noreply@acme.example.com' })
+    await mailer.send({ to: 'ada@example.com', subject: 'Welcome', text: 'Hello', html: '<p>Hello</p>' })
+    expect(sendMail).toHaveBeenLastCalledWith({ from: 'noreply@acme.example.com', to: 'ada@example.com', subject: 'Welcome', text: 'Hello', html: '<p>Hello</p>' })
+  })
 })

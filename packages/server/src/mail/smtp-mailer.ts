@@ -1,12 +1,19 @@
 import type { MailSettings } from './mail-settings'
 
-export type MailMessage = { to: string; subject: string; text: string }
+export type MailMessage = {
+  to: string
+  subject: string
+  /** The plain-text body, which clients that show no HTML show instead. */
+  text: string
+  /** The HTML body, sent beside `text` as the alternative clients show when they can. */
+  html?: string
+}
 
 /** Sends one message; rejects when the server refuses it. */
 export type Mailer = { send: (message: MailMessage) => Promise<void> }
 
 /**
- * Plain-text mail over SMTP with Nodemailer: the most used Node SMTP client, maintained, with no dependencies of its
+ * Mail over SMTP with Nodemailer: the most used Node SMTP client, maintained, with no dependencies of its
  * own. It is loaded on the first message, so `@protobase/server` itself stays free of Node's network modules.
  *
  * The client greets the server (EHLO) with the sender's domain, the app's own mail name, instead of what the container
