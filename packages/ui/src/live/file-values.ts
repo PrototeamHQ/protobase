@@ -34,6 +34,35 @@ export const formatSize = (bytes: number) => {
 /** Raster images the browser shows; SVG is never shown, since it can carry scripts. */
 export const isPreviewable = (type: string) => type.startsWith('image/') && type !== 'image/svg+xml'
 
+/** Where a picture is drawn, in CSS pixels. */
+export type ImageBox = { width: number; height: number }
+
+// An image for a box needs this many pixels per CSS pixel to stay sharp on a high-density screen.
+const density = 2
+// A side a variant leaves unbounded counts as larger than any image.
+const unbounded = 100_000
+
+type Variant = { url: string; width?: number; height?: number }
+
+const covers = (variant: Variant, box: ImageBox) =>
+  (variant.width !== undefined || variant.height !== undefined) &&
+  (variant.width ?? unbounded) >= box.width * density &&
+  (variant.height ?? unbounded) >= box.height * density
+
+const area = (variant: Variant) => (variant.width ?? unbounded) * (variant.height ?? unbounded)
+
+/**
+ * The picture of a file for `box`: the link of its smallest variant large enough for it, else the file's own, with its
+ * placeholder; `undefined` for a file that is no raster image with a link.
+ */
+export const shownImage = (value: unknown, box: ImageBox) => {
+  const file = fileShown(value)
+  if (!file || 'missing' in file || !file.url || !isPreviewable(file.type)) return undefined
+  const variants: Variant[] = 'variants' in file && file.variants ? Object.values(file.variants) : []
+  const best = variants.filter((variant) => covers(variant, box)).sort((a, b) => area(a) - area(b))[0]
+  return { url: best?.url ?? file.url, ...('placeholder' in file && file.placeholder !== undefined && { placeholder: file.placeholder }) }
+}
+
 /** The file input's `accept`: the field's allowed types, or nothing when it takes any. */
 export const acceptOf = (field: FieldModel) => {
   const accept = field.file?.accept ?? []

@@ -4,7 +4,8 @@ import { useRef, useState, type DragEvent } from 'react'
 import type { FieldModel, FieldViewModel } from '@protobase/schema'
 import { useClient } from '../data/api-provider'
 import { cn } from '../lib/cn'
-import { acceptOf, fileShown, formatSize, isPreviewable, type FileDraft } from '../live/file-values'
+import { FileImage } from '../live/file-image'
+import { acceptOf, fileShown, formatSize, isPreviewable, shownImage, type FileDraft } from '../live/file-values'
 import { humanize } from '../live/naming'
 import { Button } from '../primitives/button'
 import { ErrorBanner } from './error-banner'
@@ -21,14 +22,16 @@ export type FileFieldProps = {
   onChange: (value: unknown) => void
 }
 
-const Thumbnail = ({ url, type }: { url?: string; type: string }) =>
-  url && isPreviewable(type) ? (
-    <img src={url} alt="" className="size-10 shrink-0 rounded border border-border object-cover" />
+const Thumbnail = ({ value }: { value: unknown }) => {
+  const image = shownImage(value, { width: 40, height: 40 })
+  return image ? (
+    <FileImage image={image} className="size-10 shrink-0 rounded border border-border object-cover" />
   ) : (
     <span className="flex size-10 shrink-0 items-center justify-center rounded border border-border bg-muted text-muted-foreground">
       <FileText className="size-4" />
     </span>
   )
+}
 
 /** The file as it is: thumbnail or icon, name (a link while it has a URL), type and size, and what the server corrected. */
 const FileSummary = ({ value }: { value: unknown }) => {
@@ -39,7 +42,7 @@ const FileSummary = ({ value }: { value: unknown }) => {
   const corrected = 'corrected' in shown ? shown.corrected : undefined
   return (
     <div className="flex min-w-0 items-center gap-3 py-1">
-      <Thumbnail url={url} type={shown.type} />
+      <Thumbnail value={value} />
       <div className="min-w-0 text-[13px]">
         {url && !url.startsWith('blob:') ? (
           <a href={url} target="_blank" rel="noreferrer" className="block truncate font-medium text-primary-text hover:underline">{shown.name}</a>

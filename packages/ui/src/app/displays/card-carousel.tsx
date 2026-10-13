@@ -5,6 +5,7 @@ import type { CardPhotosModel } from '@protobase/schema'
 import { useClient } from '../../data/api-provider'
 import { keys } from '../../data/query-keys'
 import { cn } from '../../lib/cn'
+import { useAdminMeta } from '../meta-gate'
 import { cardPhotoList, cardPhotosRequest, maxCardDots, shownPhoto } from './card-photos'
 
 type CardCarouselProps = {
@@ -29,7 +30,10 @@ export const CardCarousel = ({ photos, recordKey, cover, children }: CardCarouse
   const client = useClient()
   const [opened, setOpened] = useState(false)
   const [step, setStep] = useState(0)
-  const request = cardPhotosRequest(photos, recordKey)
+  // The photos' placeholders come with them, when the caller may read their field
+  const target = useAdminMeta().resources[photos.resource]
+  const placeholder = target?.fields[photos.image]?.file?.placeholder
+  const request = cardPhotosRequest(photos, recordKey, placeholder !== undefined && target?.fields[placeholder] ? placeholder : undefined)
   const loaded = useQuery({
     queryKey: keys.list(photos.resource, request.filter, request.orderBy ?? '', request.pageSize, `card-photos:${photos.image}`),
     enabled: opened,

@@ -6,8 +6,9 @@ const file = (name: string) => ({ uri: `public:listing_photos/${name}.jpg`, name
 describe('cardPhotosRequest', () => {
   const photos = { resource: 'listing_photos', field: 'listing_id', image: 'photo', sort: 'position' }
 
-  it("asks for the photos of the card's record, in the display's order, with only the image", () => {
+  it("asks for the photos of the card's record, in the display's order, with only the image and its placeholder", () => {
     expect(cardPhotosRequest(photos, '42')).toEqual({ filter: 'listing_id = "42"', orderBy: 'position', fields: ['photo'], pageSize: maxCardPhotos })
+    expect(cardPhotosRequest(photos, '42', 'photo_placeholder').fields).toEqual(['photo', 'photo_placeholder'])
   })
 
   it('leaves the order to the list API when the display names none', () => {

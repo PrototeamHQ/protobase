@@ -7,7 +7,8 @@ import { userById } from '../mocks'
 import { Avatar } from '../primitives/avatar'
 import { Badge } from '../primitives/badge'
 import { cn } from '../lib/cn'
-import { fileShown, isPreviewable } from '../live/file-values'
+import { FileImage } from '../live/file-image'
+import { fileShown, shownImage } from '../live/file-values'
 import { valueColor } from '../live/value-color'
 import type { ColumnSpec } from './column-spec'
 
@@ -52,10 +53,10 @@ export const renderCell = (spec: ColumnSpec, value: unknown) => {
       const file = fileShown(value)
       if (!file) return muted('—')
       if ('missing' in file) return <span className="truncate text-danger-text">{file.name}</span>
-      const url = 'url' in file ? file.url : undefined
+      const image = shownImage(value, { width: 20, height: 20 })
       return (
         <span className="inline-flex min-w-0 items-center gap-2">
-          {url && isPreviewable(file.type) ? <img src={url} alt="" className="size-5 shrink-0 rounded-sm object-cover" /> : <Paperclip className="size-3.5 shrink-0 text-muted-foreground" />}
+          {image ? <FileImage image={image} className="size-5 shrink-0 rounded-sm object-cover" /> : <Paperclip className="size-3.5 shrink-0 text-muted-foreground" />}
           <span className="truncate">{file.name}</span>
         </span>
       )

@@ -3,7 +3,8 @@ import type { FieldFormat, FieldModel, ResourceModel } from '@protobase/schema'
 import { useClient } from '../../data/api-provider'
 import { keys } from '../../data/query-keys'
 import { displayValue } from '../../live/display-value'
-import { fileShown } from '../../live/file-values'
+import { FileImage } from '../../live/file-image'
+import { fileShown, shownImage } from '../../live/file-values'
 import { fetchLabels } from '../../live/relation-labels'
 import { cn } from '../../lib/cn'
 import { useAdminMeta } from '../meta-gate'
@@ -39,7 +40,15 @@ const BuiltInValue = ({ model, field, value, format, relationLabel }: FieldValue
   if (value === null || value === undefined || value === '') return <span className="text-muted-foreground">—</span>
   if (field.type === 'relation') return <RelationValue field={field} value={value} known={relationLabel} />
   const file = field.type === 'file' ? fileShown(value) : undefined
-  if (file && 'url' in file && file.url) return <a href={file.url} target="_blank" rel="noreferrer" className="font-medium text-primary-text hover:underline">{file.name}</a>
+  if (file && 'url' in file && file.url) {
+    const image = shownImage(value, { width: 40, height: 40 })
+    return (
+      <span className="inline-flex min-w-0 items-center gap-2">
+        {image && <FileImage image={image} className="size-10 shrink-0 rounded border border-border object-cover" />}
+        <a href={file.url} target="_blank" rel="noreferrer" className="truncate font-medium text-primary-text hover:underline">{file.name}</a>
+      </span>
+    )
+  }
   const text = displayValue(field, value, hints)
   if (field.type === 'enum' || hints.format === 'badge') return <ValueBadge value={value} hints={hints}>{text}</ValueBadge>
   return <span className={cn(hints.format === 'code' && 'font-mono text-xs', (field.type === 'decimal' || field.type === 'integer') && 'tabular-nums')}>{text}</span>

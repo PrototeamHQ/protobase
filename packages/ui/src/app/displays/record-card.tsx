@@ -1,7 +1,8 @@
 import type { ReactNode } from 'react'
 import type { ListDisplayModel, ResourceModel, ViewModel } from '@protobase/schema'
 import { displayValue } from '../../live/display-value'
-import { fileShown, isPreviewable } from '../../live/file-values'
+import { FileImage } from '../../live/file-image'
+import { shownImage } from '../../live/file-values'
 import { humanize } from '../../live/naming'
 import { Badge } from '../../primitives/badge'
 import { AppLink } from '../use-app-address'
@@ -18,11 +19,10 @@ type RecordCardProps = { model: ResourceModel; view: ViewModel | undefined; disp
 
 // A picture across the card's top, from the edge of the card in: a raster image only, an empty frame otherwise.
 const CardImage = ({ value }: { value: unknown }) => {
-  const file = fileShown(value)
-  const url = file && 'url' in file && typeof file.url === 'string' && isPreviewable(file.type) ? file.url : undefined
+  const image = shownImage(value, { width: 320, height: 240 })
   return (
     <span className="-mx-3 -mt-3 mb-1.5 block aspect-[4/3] overflow-hidden rounded-t-lg border-b border-border bg-muted">
-      {url && <img src={url} alt="" loading="lazy" className="size-full object-cover" />}
+      {image && <FileImage image={image} loading="lazy" className="size-full object-cover" />}
     </span>
   )
 }
