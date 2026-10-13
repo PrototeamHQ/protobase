@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { baseOf, cleanName, formatUri, isFilePath, parseUri, tenantSegment } from './uri'
+import { baseOf, cleanName, formatUri, isFilePath, parseUri, tenantSegment, variantPath, variantPaths } from './uri'
 
 describe('file URIs', () => {
   it('round trip {provider}:{path} with the name and size in the query', () => {
@@ -7,6 +7,18 @@ describe('file URIs', () => {
     expect(uri).toBe('private:acme/2992db9c-776e-4d4e-9e0f-59d485fefaf9.jpg?name=bike+red.png&size=48211')
     expect(parseUri(uri)).toEqual({ provider: 'private', path: 'acme/2992db9c-776e-4d4e-9e0f-59d485fefaf9.jpg', name: 'bike red.png', size: 48211 })
     expect(baseOf(uri)).toBe('private:acme/2992db9c-776e-4d4e-9e0f-59d485fefaf9.jpg')
+  })
+
+  it('name the variants stored beside a file, each at the path variantPath builds', () => {
+    const ref = { provider: 'public', path: '_/2992db9c.jpg', name: 'bike.jpg', size: 48211, variants: { card: 'webp', thumb: 'avif' } }
+    const uri = formatUri(ref)
+    expect(uri).toBe('public:_/2992db9c.jpg?name=bike.jpg&size=48211&variants=card.webp%2Cthumb.avif')
+    expect(parseUri(uri)).toEqual(ref)
+    expect(baseOf(uri)).toBe('public:_/2992db9c.jpg')
+    expect(variantPath('_/2992db9c.jpg', 'card', 'webp')).toBe('_/2992db9c.jpg.card.webp')
+    expect(variantPaths(ref)).toEqual({ card: '_/2992db9c.jpg.card.webp', thumb: '_/2992db9c.jpg.thumb.avif' })
+    expect(isFilePath(variantPath('_/2992db9c.jpg', 'card', 'webp'))).toBe(true)
+    for (const variants of ['Card.webp', 'card', 'card.webp,', '../x.webp']) expect(parseUri(`public:a.png?variants=${encodeURIComponent(variants)}`), variants).toBeUndefined()
   })
 
   it('parse a plain {provider}:{path}, named after its last segment', () => {

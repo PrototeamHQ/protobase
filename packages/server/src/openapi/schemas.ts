@@ -39,6 +39,12 @@ export const fileSchema: JsonSchema = {
     type: { type: 'string', description: 'Detected from the content at upload' },
     size: { type: 'integer' },
     url: { type: 'string' },
+    placeholder: { type: 'string', description: "The image's ThumbHash, base64, to draw while it loads" },
+    variants: {
+      type: 'object',
+      description: 'Resized copies of the image by name, each with the box the field resizes it into',
+      additionalProperties: { type: 'object', required: ['url', 'type'], properties: { url: { type: 'string' }, type: { type: 'string' }, width: { type: 'integer' }, height: { type: 'integer' } } },
+    },
     missing: { type: 'boolean' },
   },
 }

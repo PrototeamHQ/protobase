@@ -105,17 +105,18 @@ const mergedFunctions = (named: Named[]) => {
   return Object.fromEntries(all.map(({ name, value }) => [name, value]))
 }
 
-// Providers are named things: each name once. Retention and secret are the last config's that sets them.
+// Providers are named things: each name once. Retention, secret and sharp are the last config's that sets them.
 const mergedFiles = (named: Named[]): FilesOptions | undefined => {
   const all = named.flatMap(({ config, label }) => (config.files ? [{ files: config.files, label }] : []))
   if (all.length === 0) return undefined
   const providers = all.flatMap(({ files, label }) => Object.entries(files.providers ?? {}).map(([name, value]) => ({ name, value, label })))
   checkUnique('The file provider', providers)
-  const { retention, secret } = lastSet(all.map(({ files }) => ({ retention: files.retention, secret: files.secret })))
+  const { retention, secret, sharp } = lastSet(all.map(({ files }) => ({ retention: files.retention, secret: files.secret, sharp: files.sharp })))
   return {
     ...(providers.length > 0 && { providers: Object.fromEntries(providers.map(({ name, value }) => [name, value])) }),
     ...(retention !== undefined && { retention }),
     ...(secret !== undefined && { secret }),
+    ...(sharp !== undefined && { sharp }),
   }
 }
 

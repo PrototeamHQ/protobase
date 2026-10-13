@@ -6,7 +6,7 @@ import { readTransaction } from '../transactions'
 import { downloadExpiry, readDownloadUrl } from './download-url'
 import { contentDisposition, downloadName, servedType } from './media-types'
 import type { FileStore } from './store'
-import { baseOf, isFilePath, parseUri, tenantSegment } from './uri'
+import { isFilePath, parseUri, tenantSegment, variantPaths } from './uri'
 
 const gone = () => notFound('There is no such file')
 
@@ -20,7 +20,14 @@ const rangeOf = (header: string | null, size: number) => {
   return start <= end && start < size ? { start, end } : false
 }
 
-// The row behind a signed URL still holds this file, and the file sits under that row's tenant.
+// The file a stored value names, when it is the file at `path` of `provider` or one of its variants is.
+const heldFile = (value: unknown, provider: string, path: string) => {
+  const ref = typeof value === 'string' ? parseUri(value) : undefined
+  if (!ref || ref.provider !== provider) return undefined
+  return ref.path === path || Object.values(variantPaths(ref)).includes(path) ? ref : undefined
+}
+
+// The row behind a signed URL still holds this file, or the file it is a variant of, and it sits under that row's tenant.
 const grantedName = async (deps: Deps, provider: string, path: string, query: URLSearchParams) => {
   const read = await readDownloadUrl(deps.files!.signer, provider, path, query)
   if (read.status === 'invalid') throw forbidden('invalid-signature', 'This file link is not valid')
@@ -33,9 +40,10 @@ const grantedName = async (deps: Deps, provider: string, path: string, query: UR
   const fields = tenantField ? [field, tenantField] : [field]
   const row = await readTransaction(deps.db, deps.statementTimeoutMs, (trx) => fetchRecord(trx, entry, decodeKeyText(entry, grant.key), undefined, { deleted: 'show', fields }))
   const value = row?.record[field.name]
-  if (typeof value !== 'string' || baseOf(value) !== `${provider}:${path}`) throw gone()
+  const held = heldFile(value, provider, path)
+  if (!held) throw gone()
   if (tenantField && path.split('/')[0] !== (await tenantSegment(row!.record[tenantField.name] as string | number))) throw gone()
-  return { name: parseUri(value)?.name ?? path, expires: grant.expires }
+  return { name: held.name, expires: grant.expires }
 }
 
 // A store that links its own bytes, such as a bucket: the browser downloads from there for as long as the app's link

@@ -40,7 +40,8 @@ export type CleanupReport = { deleted: string[]; kept: string[] }
 /**
  * Handles every scheduled delete that is due: right before deleting, it checks that no declared file column holds the
  * file; one that is referenced again (a rolled-back write, a restore, a shared value) is kept and its entry dropped.
- * Uploads never attached are deleted here too, after their ticket expired. Running it twice at once is harmless.
+ * A file's variants go with it and stay with it. Uploads never attached are deleted here too, after their ticket
+ * expired. Running it twice at once is harmless.
  */
 export const runCleanup = async ({ db, columns, providers, schedule, now = new Date() }: CleanupInput): Promise<CleanupReport> => {
   const deleted = new Set<string>()
@@ -52,7 +53,9 @@ export const runCleanup = async ({ db, columns, providers, schedule, now = new D
       const uri = `${entry.provider}:${entry.path}`
       if (inUse.has(uri)) kept.add(uri)
       else if (!deleted.has(uri)) {
-        await providers[entry.provider]!.store.delete(entry.path)
+        const { store } = providers[entry.provider]!
+        for (const variant of entry.variants ?? []) await store.delete(variant)
+        await store.delete(entry.path)
         deleted.add(uri)
       }
       await schedule.done(entry)

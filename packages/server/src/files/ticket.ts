@@ -48,9 +48,11 @@ export const readTicket = async (signer: Signer, value: string, scope: TicketSco
     if (!parsed) return { ok: false, reason: 'invalid' }
     derived[name.slice(2)] = parsed.value
   }
-  const known = new Set(['name', 'size', 'exp', 'sig'])
+  const known = new Set(['name', 'size', 'variants', 'exp', 'sig'])
   if ([...query.keys()].some((name) => !known.has(name) && !name.startsWith('d.'))) return { ok: false, reason: 'invalid' }
-  const parsed = parseUri(value.slice(0, value.indexOf('?')) + `?${new URLSearchParams({ name: query.get('name') ?? '', size: query.get('size') ?? '' })}`)
+  const variants = query.get('variants')
+  const fileQuery = new URLSearchParams({ name: query.get('name') ?? '', size: query.get('size') ?? '', ...(variants !== null && { variants }) })
+  const parsed = parseUri(`${value.slice(0, value.indexOf('?'))}?${fileQuery}`)
   const expires = Number(query.get('exp'))
   if (!parsed || parsed.size === undefined || !Number.isSafeInteger(expires)) return { ok: false, reason: 'invalid' }
   const uri = formatUri(parsed)

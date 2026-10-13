@@ -4,7 +4,7 @@ import { tenantScope } from '../tenant'
 import type { Row, WriteOperation } from '../types'
 import type { FieldError } from '../validate-body'
 import { readTicket, type TicketScope } from './ticket'
-import { baseOf, parseUri } from './uri'
+import { baseOf, parseUri, variantPaths } from './uri'
 
 /** The ticket scope of a caller's upload for one field. */
 export const ticketScope = (access: RequestAccess, field: string): TicketScope => ({
@@ -54,8 +54,8 @@ export const attachFiles = async (access: RequestAccess, values: Row, current?: 
 }
 
 /**
- * Schedules the delete of every file a write took out of its row: a replaced or cleared value, or all of a hard-deleted
- * row's files, each due after its provider's retention. It runs inside the write transaction, before the commit: if
+ * Schedules the delete of every file a write took out of its row, with its variants: a replaced or cleared value, or all
+ * of a hard-deleted row's files, each due after its provider's retention. It runs inside the write transaction, before the commit: if
  * the write rolls back, the file is still referenced when the entry is due, and stays.
  */
 export const scheduleRemovedFiles = async (access: RequestAccess, operation: WriteOperation, before?: Row, after?: Row) => {
@@ -70,7 +70,8 @@ export const scheduleRemovedFiles = async (access: RequestAccess, operation: Wri
     if (typeof next === 'string' && baseOf(next) === baseOf(old)) return []
     const ref = parseUri(old)
     if (!ref || !files.providers[ref.provider]) return []
-    return [{ provider: ref.provider, path: ref.path, due: new Date(now + files.retention(ref.provider)) }]
+    const variants = Object.values(variantPaths(ref))
+    return [{ provider: ref.provider, path: ref.path, due: new Date(now + files.retention(ref.provider)), ...(variants.length > 0 && { variants }) }]
   })
   if (removed.length > 0) await files.schedule.add(removed)
 }

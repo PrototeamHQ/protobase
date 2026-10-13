@@ -3,21 +3,36 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { Kysely } from 'kysely'
 import { PGliteDialect } from 'kysely-pglite-dialect'
-import { f, resource, type FileProcessor } from '@protobase/schema'
+import sharp from 'sharp'
+import { f, resource, type FileProcessor, type ImageVariant } from '@protobase/schema'
 import { createAdmin, createFileCleanup, localFiles, type FileProvider, type FilesOptions } from '@protobase/server'
 import { createEmptyPg } from '../../../../test-support/pglite-snapshot'
 import { testAuthenticator } from '../../../../test-support/server'
 
-export type ProductOptions = { derive?: Record<string, FileProcessor>; accept?: string[] }
+export type ProductOptions = {
+  derive?: Record<string, FileProcessor>
+  accept?: string[]
+  /** The image's ThumbHash goes to `imagePlaceholder`. */
+  placeholder?: boolean
+  variants?: Record<string, ImageVariant>
+  original?: ImageVariant
+}
 
-export const products = ({ derive = {}, accept = ['image/*'] }: ProductOptions = {}) =>
+const productImage = ({ derive = {}, accept = ['image/*'], placeholder, variants, original }: ProductOptions) => {
+  const image = f.file().accept(accept).maxSize('64 KB').optional().derive(derive)
+  const placed = placeholder ? image.placeholder('imagePlaceholder') : image
+  return variants ? placed.variants(variants, original && { original }) : placed
+}
+
+export const products = (options: ProductOptions = {}) =>
   resource('products')
     .table('products')
     .fields({
       id: f.integer().readOnly().dbDefault(),
       organizationId: f.relation('organizations'),
       name: f.text(),
-      image: f.file().accept(accept).maxSize('64 KB').optional().derive(derive),
+      image: productImage(options),
+      imagePlaceholder: f.text().readOnly().optional(),
       imageWidth: f.integer().readOnly().optional(),
       imageRatio: f.decimal({ precision: 8, scale: 4 }).readOnly().optional(),
       datasheet: f.file().accept(['application/pdf']).optional(),
@@ -36,7 +51,7 @@ export const avatars = resource('avatars')
 const ddl = `
 create table products (
   id integer generated always as identity primary key, organization_id integer not null, name text not null,
-  image text, image_width integer, image_ratio numeric(8,4), datasheet text, deleted_at timestamptz
+  image text, image_placeholder text, image_width integer, image_ratio numeric(8,4), datasheet text, deleted_at timestamptz
 );
 create table avatars (id integer generated always as identity primary key, name text not null, picture text);
 `
@@ -50,6 +65,7 @@ export const createFilesFixture = async (options: ProductOptions & { providers?:
   const files: FilesOptions = {
     providers: options.providers ?? { private: localFiles({ dir: path.join(dir, 'private') }), public: localFiles({ dir: path.join(dir, 'public'), public: true }) },
     secret: 'files-test-secret',
+    sharp,
   }
   const resources = [products(options), avatars]
   const app = createAdmin({ resources, db, authenticate: testAuthenticator, files })

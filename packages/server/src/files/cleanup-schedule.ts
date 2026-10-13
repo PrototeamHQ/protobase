@@ -1,7 +1,7 @@
 import type { FileProvider } from './store'
 
-/** A file to delete once `due`, unless a row references it again by then. */
-export type ScheduledDelete = { provider: string; path: string; due: Date }
+/** A file to delete once `due`, unless a row references it again by then, with the paths of its image variants. */
+export type ScheduledDelete = { provider: string; path: string; due: Date; variants?: string[] }
 
 export type CleanupEntry = ScheduledDelete & { id: string }
 
@@ -24,15 +24,20 @@ const stamp = (date: Date) => date.toISOString().slice(0, 19).replaceAll(':', '-
 
 const entryPattern = /^\.cleanup\/(\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}Z)-[0-9a-f-]{36}\.json$/
 
-const isScheduledDelete = (value: unknown): value is { provider: string; path: string; due: string } =>
+const isPathList = (value: unknown) => value === undefined || (Array.isArray(value) && value.every((path) => typeof path === 'string'))
+
+const isScheduledDelete = (value: unknown): value is { provider: string; path: string; due: string; variants?: string[] } =>
   typeof value === 'object' && value !== null &&
   typeof (value as { provider?: unknown }).provider === 'string' &&
   typeof (value as { path?: unknown }).path === 'string' &&
-  typeof (value as { due?: unknown }).due === 'string'
+  typeof (value as { due?: unknown }).due === 'string' &&
+  isPathList((value as { variants?: unknown }).variants)
+
 
 /**
  * Scheduled deletes as a to-do folder in each provider's storage: one JSON object per delete in `.cleanup/`, named after
- * its due time (`.cleanup/2026-10-12T03-00-00Z-<uuid>.json`) and saying which provider and path to delete.
+ * its due time (`.cleanup/2026-10-12T03-00-00Z-<uuid>.json`) and saying which provider and path to delete, and the
+ * paths of the file's variants when it has them.
  */
 export const storageCleanupSchedule = (providers: Record<string, FileProvider>): CleanupSchedule => {
   const storeOf = (provider: string) => {
@@ -43,8 +48,8 @@ export const storageCleanupSchedule = (providers: Record<string, FileProvider>):
 
   return {
     add: async (deletes) => {
-      for (const { provider, path, due } of deletes) {
-        const body = new Blob([JSON.stringify({ provider, path, due: due.toISOString() })]).stream()
+      for (const { provider, path, due, variants } of deletes) {
+        const body = new Blob([JSON.stringify({ provider, path, due: due.toISOString(), ...(variants?.length && { variants }) })]).stream()
         await storeOf(provider).put(`${cleanupFolder}${stamp(due)}-${crypto.randomUUID()}.json`, body)
       }
     },
@@ -57,7 +62,7 @@ export const storageCleanupSchedule = (providers: Record<string, FileProvider>):
           if (match[1]! > stamp(now)) continue
           const content: unknown = JSON.parse(await new Response(await store.read(object.path)).text())
           if (!isScheduledDelete(content) || content.provider !== provider) throw new Error(`"${object.path}" in file provider "${provider}" is not a scheduled delete of it; remove it`)
-          entries.push({ id: object.path, provider, path: content.path, due: new Date(content.due) })
+          entries.push({ id: object.path, provider, path: content.path, due: new Date(content.due), ...(content.variants?.length && { variants: content.variants }) })
         }
       }
       return entries

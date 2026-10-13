@@ -16,7 +16,7 @@ describe('the cleanup to-do folder', () => {
     await schedule.add([
       { provider: 'private', path: 'acme/a.png', due: new Date('2026-10-12T03:00:00Z') },
       { provider: 'public', path: 'acme/b.png', due: new Date('2026-10-11T00:00:00Z') },
-      { provider: 'private', path: 'acme/c.png', due: new Date('2026-10-20T00:00:00Z') },
+      { provider: 'private', path: 'acme/c.png', due: new Date('2026-10-20T00:00:00Z'), variants: ['acme/c.png.card.webp'] },
     ])
     const [entry] = await providers.private.store.list('.cleanup/')
     expect(entry!.path).toMatch(/^\.cleanup\/2026-10-12T03-00-00Z-[0-9a-f-]{36}\.json$/)
@@ -26,7 +26,7 @@ describe('the cleanup to-do folder', () => {
     expect(due.map(({ provider, path }) => `${provider}:${path}`).sort()).toEqual(['private:acme/a.png', 'public:acme/b.png'])
     for (const found of due) await schedule.done(found)
     expect(await schedule.due(new Date('2026-10-19T00:00:00Z'))).toEqual([])
-    expect(await schedule.due(new Date('2026-10-20T00:00:00Z'))).toMatchObject([{ provider: 'private', path: 'acme/c.png' }])
+    expect(await schedule.due(new Date('2026-10-20T00:00:00Z'))).toMatchObject([{ provider: 'private', path: 'acme/c.png', variants: ['acme/c.png.card.webp'] }])
   })
 
   it('stops at a file in the folder it did not write', async () => {

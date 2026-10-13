@@ -7,12 +7,13 @@ import { tenantScope } from '../tenant'
 import type { Session } from '../types'
 import { ticketScope } from './attach'
 import { decideType } from './detect'
-import { accepts } from './media-types'
+import { accepts, servedType } from './media-types'
 import { ticketSeconds } from './runtime'
 import type { FileStore } from './store'
 import { issueTicket } from './ticket'
 import { FileTooLarge, incomingFile, limitedStream, readHead, tooLarge } from './upload-body'
-import { cleanName, tenantSegment } from './uri'
+import { plannedVariants, processImage, processesImage, storedPath } from './upload-images'
+import { cleanName, tenantSegment, variantPath } from './uri'
 
 /** How many first bytes processors get as `head`: enough for image headers, EXIF included. */
 export const headBytes = 256 * 1024
@@ -60,8 +61,9 @@ const deriveValues = async (entry: Entry, field: FieldModel, input: { name: stri
 /**
  * `POST /{resource}:upload?field=<field>`: streams one file to the field's provider and answers with a ticket for a
  * write. The type is decided from the first bytes before anything is stored, a refused type gets 415 and a file over
- * `maxSize` 413. The field's processors then compute its derived values, which the ticket carries signed. An upload no
- * write ever uses is deleted after the ticket expires.
+ * `maxSize` 413. An image field then makes its variants and placeholder, and replaces the upload when it declares an
+ * original; the field's processors compute its derived values, which the ticket carries signed with the variants. An
+ * upload no write ever uses is deleted after the ticket expires, variants included.
  */
 export const uploadFile = async (deps: Deps, entry: Entry, session: Session, request: Request) => {
   const files = deps.files
@@ -87,19 +89,42 @@ export const uploadFile = async (deps: Deps, entry: Entry, session: Session, req
 
   const expires = Math.floor(Date.now() / 1000) + ticketSeconds
   const tenant = await tenantSegment(tenantScope(entry, session)?.tenantValue)
-  const path = `${tenant}/${crypto.randomUUID()}.${decision.extension}`
-  // Scheduled first, so even an upload that fails half way is cleaned up; an hour past the ticket, after any write using it.
-  await files.schedule.add([{ provider: providerName, path, due: new Date((expires + 3_600) * 1000) }])
+  const base = `${tenant}/${crypto.randomUUID()}`
+  const uploaded = `${base}.${decision.extension}`
+  const path = storedPath(field.file!, base, decision)
+  const variants = plannedVariants(field.file!, decision.type)
+  const variantList = Object.entries(variants).map(([variant, extension]) => variantPath(path, variant, extension))
+  // Scheduled first, so even an upload that fails half way is cleaned up, variants included; an hour past the ticket,
+  // after any write using it.
+  const due = new Date((expires + 3_600) * 1000)
+  await files.schedule.add([
+    { provider: providerName, path, due, ...(variantList.length > 0 && { variants: variantList }) },
+    ...(uploaded === path ? [] : [{ provider: providerName, path: uploaded, due }]),
+  ])
   let size: number
   try {
-    size = (await provider.store.put(path, limitedStream(head, reader, maxSize))).size
+    size = (await provider.store.put(uploaded, limitedStream(head, reader, maxSize))).size
   } catch (error) {
     if (error instanceof FileTooLarge) throw tooLarge(maxSize)
     throw error
   }
 
-  const derived = await deriveValues(entry, field, { name, type: decision.type, size, head, store: provider.store, path })
-  const ref = { provider: providerName, path, name, size }
+  // An image the field resizes is stored as that from here on: its type, size and first bytes are the new image's.
+  let stored: { type: string; size: number; head: Uint8Array } = { type: decision.type, size, head }
+  let placeholder: string | undefined
+  if (processesImage(field.file!, decision.type)) {
+    if (!files.sharp) throw new Error(`${entry.name}.${field.name} makes image variants or placeholders, but no sharp is configured`)
+    const image = await processImage({ sharp: files.sharp, store: provider.store, file: field.file!, uploaded, path })
+    if (image.replaced) stored = { type: servedType(path), size: image.replaced.size, head: image.replaced.data.subarray(0, headBytes) }
+    placeholder = image.placeholder
+  }
+
+  const target = field.file!.placeholder
+  const derived = {
+    ...(await deriveValues(entry, field, { name, ...stored, store: provider.store, path })),
+    ...(target !== undefined && { [target]: placeholder ?? null }),
+  }
+  const ref = { provider: providerName, path, name, size: stored.size, ...(variantList.length > 0 && { variants }) }
   const value = await issueTicket(files.signer, ref, derived, ticketScope(access, field.name), expires)
-  return { value, file: { name, type: decision.type, size }, derived, ...(decision.corrected && { corrected: decision.corrected }) }
+  return { value, file: { name, type: stored.type, size: stored.size }, derived, ...(decision.corrected && { corrected: decision.corrected }) }
 }

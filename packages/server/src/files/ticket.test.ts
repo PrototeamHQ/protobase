@@ -14,6 +14,13 @@ describe('upload tickets', () => {
     expect(await readTicket(signer, ticket, scope, 1000)).toEqual({ ok: true, uri: clean, ref, derived: { image_width: 6000, image_ratio: '1.5000' } })
   })
 
+  it('carry the variants stored with the file, signed with the rest', async () => {
+    const withVariants = { ...ref, variants: { card: 'webp' } }
+    const ticket = await issueTicket(signer, withVariants, { image_placeholder: 'YJqGPQw7sFlslqhFafSE+Q6oJ1h2iHB2Rw' }, scope, 2000)
+    expect(await readTicket(signer, ticket, scope, 1000)).toEqual({ ok: true, uri: `${clean}&variants=card.webp`, ref: withVariants, derived: { image_placeholder: 'YJqGPQw7sFlslqhFafSE+Q6oJ1h2iHB2Rw' } })
+    expect(await readTicket(signer, ticket.replace('card.webp', 'card.avif'), scope, 1000)).toEqual({ ok: false, reason: 'invalid' })
+  })
+
   it('refuse another tenant, user, resource or field, an edit, and a key from another secret', async () => {
     const ticket = await issueTicket(signer, ref, { image_width: 6000 }, scope, 2000)
     for (const other of [{ tenant: '2' }, { user: 'u2' }, { resource: 'orders' }, { field: 'datasheet' }]) {

@@ -1,3 +1,4 @@
+import type { Sharp } from './images'
 import type { FileProvider } from './store'
 
 /** `files` in `protobase.config.ts`. Environment variables override it (see `resolveProviders`). */
@@ -11,4 +12,9 @@ export type FilesOptions = {
   retention?: number | string
   /** Signs upload tickets and download URLs; default `PROTOBASE_FILES_SECRET`, then `BETTER_AUTH_SECRET`. */
   secret?: string
+  /**
+   * The image library that makes the variants and placeholders of image fields: `import sharp from 'sharp'` in the
+   * config, so a built bundle carries it with its native add-on.
+   */
+  sharp?: Sharp
 }

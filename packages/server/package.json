@@ -49,6 +49,18 @@
     "kysely": "^0.29.6",
     "nodemailer": "^10.0.16",
     "pg-boss": "12.37.1",
+    "thumbhash": "^0.1.1",
     "zod": "^4.6.5"
+  },
+  "peerDependencies": {
+    "sharp": "^0.35.5"
+  },
+  "peerDependenciesMeta": {
+    "sharp": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "sharp": "^0.35.5"
   }
 }
