@@ -11,6 +11,7 @@ export type {
   RecordOf,
   ListPage,
   RelatedLabels,
+  RecordPhotos,
   Facet,
   Series,
   SeriesPoint,

@@ -12,6 +12,9 @@ export type RecordOf<R extends ResourceRef> = R extends { readonly $fields: unkn
 /** Per relation, the names of the records it points at, by key as text; a record without one is absent. */
 export type RelatedLabels = Record<string, Record<string, string>>
 
+/** Per record, by key as text, the files of its first photos in their order; a record without any is absent. */
+export type RecordPhotos = Record<string, StoredFile[]>
+
 export type ListPage<T> = {
   items: T[]
   /** `""` on the last page. */
@@ -23,6 +26,8 @@ export type ListPage<T> = {
   totalSize?: number
   /** Only with `labels`: per relation, the names of the records it points at, by key as text. */
   labels?: RelatedLabels
+  /** Only with `photos`: each record's first photos, by key as text. */
+  photos?: RecordPhotos
   /** `X-Protobase-Warning`, for example a scan-guard notice. */
   warning?: string
 }
@@ -54,7 +59,7 @@ export type MapBounds = { south: number; west: number; north: number; east: numb
 export type MapBucket = { count: number; latitude: number; longitude: number; bounds: MapBounds }
 
 /** The records `map` answers, or buckets of them when many match, never both; `totalSize` counts the matches. */
-export type MapResult<T> = { items: T[]; buckets: MapBucket[]; totalSize: number; labels?: RelatedLabels }
+export type MapResult<T> = { items: T[]; buckets: MapBucket[]; totalSize: number; labels?: RelatedLabels; photos?: RecordPhotos }
 
 /** What the signed-in user may do with a resource; `conditional` operations are decided per record by the server. */
 export type ResourcePermissions = { read?: boolean; create: boolean; update: boolean; delete: boolean; conditional: Array<'create' | 'update' | 'delete'> }

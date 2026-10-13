@@ -82,6 +82,19 @@ describe('list', () => {
     expect(new URL(calls[2]!.url, 'http://x').searchParams.get('labels')).toBe('place_id.name')
   })
 
+  it('asks for each record\'s photos and reads them with the page, downloading from the API\'s origin', async () => {
+    const photo = { uri: 'private:1/a.jpg', name: 'a.jpg', type: 'image/jpeg', url: '/api/files/private/1/a.jpg?sig=x' }
+    const { calls, fetch } = fakeFetch(() => json({ items: [{ id: 1 }], next_page_token: '', total_size_estimate: 1, photos: { 1: [photo] } }))
+    const client = createClient({ fetch, baseUrl: 'https://api.test/api/v1' })
+    const photos = { resource: 'listing_photos', field: 'listing_id', image: 'photo', sort: 'position' }
+    const page = await client.list('listings', { photos })
+    const sent = new URL(calls[0]!.url).searchParams
+    expect([sent.get('photos'), sent.get('photos_order_by')]).toEqual(['listing_photos.listing_id.photo', 'position'])
+    expect(page.photos).toEqual({ 1: [{ ...photo, url: 'https://api.test/api/files/private/1/a.jpg?sig=x' }] })
+    await client.search('listings', { photos: { ...photos, sort: undefined } })
+    expect(JSON.parse(String(calls[1]!.init.body))).toEqual({ photos: 'listing_photos.listing_id.photo' })
+  })
+
   it('uses a custom base URL and headers', async () => {
     const { calls, fetch } = fakeFetch(() => json({ items: [], next_page_token: '', total_size_estimate: 0 }))
     await createClient({ fetch, baseUrl: 'http://api.test/api/v1', headers: () => ({ authorization: 'Bearer t' }) }).list('orders')
@@ -370,6 +383,13 @@ describe('map', () => {
     const result = await createClient({ fetch }).map('listings', { latitude: 'lat', longitude: 'lng', zoom: 16, labels: { place_id: 'name' } })
     expect(new URL(calls[0]!.url, 'http://x').searchParams.get('labels')).toBe('place_id.name')
     expect(result.labels).toEqual({ place_id: { '12': 'Amsterdam' } })
+  })
+
+  it('asks for the records\' photos and reads them with the records', async () => {
+    const { calls, fetch } = fakeFetch(() => json({ items: [{ id: 1 }], buckets: [], total_size: 1, photos: {} }))
+    const result = await createClient({ fetch }).map('listings', { latitude: 'lat', longitude: 'lng', zoom: 16, photos: { resource: 'listing_photos', field: 'listing_id', image: 'photo' } })
+    expect(new URL(calls[0]!.url, 'http://x').searchParams.get('photos')).toBe('listing_photos.listing_id.photo')
+    expect(result.photos).toEqual({})
   })
 })
 

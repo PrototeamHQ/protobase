@@ -1,4 +1,4 @@
-import { printFilter, type FilterExpr } from '@protobase/schema'
+import { printFilter, type CardPhotosModel, type FilterExpr } from '@protobase/schema'
 
 export type FilterInput = string | FilterExpr
 
@@ -14,6 +14,12 @@ export type ListParams = {
    * page's `labels`. A record the caller cannot list, or whose field they cannot read, has no name there.
    */
   labels?: Record<string, string>
+  /**
+   * Brings each record's first photos in the same answer, as a cards display's `photos` names them: the `image` of the
+   * records of `resource` whose relation `field` points at it, in `sort` order, at most ten. The caller gets those they
+   * could list themselves.
+   */
+  photos?: CardPhotosModel
   count?: 'exact'
 }
 
@@ -27,6 +33,8 @@ export type MapParams = {
   fields?: string[]
   /** As a list's `labels`. */
   labels?: Record<string, string>
+  /** As a list's `photos`. */
+  photos?: CardPhotosModel
 }
 
 export const filterText = (filter: FilterInput | undefined) => (typeof filter === 'string' ? filter : filter && printFilter(filter))
@@ -39,6 +47,12 @@ export const labelEntries = (labels: Record<string, string> | undefined) => {
   return entries.length > 0 ? entries : undefined
 }
 
+/** `photos` as the API takes it: a `resource.field.image` entry and the order of the photos. */
+export const photosWire = (photos: CardPhotosModel | undefined) => ({
+  photos: photos && `${photos.resource}.${photos.field}.${photos.image}`,
+  photos_order_by: photos?.sort,
+})
+
 /** The snake_case parameters of `GET /{resource}` and the body of `POST /{resource}:search`. */
 export const listWire = (params: ListParams = {}) => ({
   filter: filterText(params.filter) || undefined,
@@ -47,6 +61,7 @@ export const listWire = (params: ListParams = {}) => ({
   page_token: params.pageToken || undefined,
   fields: params.fields?.join(','),
   labels: labelEntries(params.labels)?.join(','),
+  ...photosWire(params.photos),
   count: params.count,
 })
 

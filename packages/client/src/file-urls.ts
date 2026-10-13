@@ -1,4 +1,4 @@
-import type { StoredFile } from './types'
+import type { RecordPhotos, StoredFile } from './types'
 
 const isPath = (url: string) => url.startsWith('/') && !url.startsWith('//')
 
@@ -31,6 +31,10 @@ export const withFileOrigin = <T>(record: T, origin: string | undefined): T => {
   if (origin === undefined || typeof record !== 'object' || record === null) return record
   return Object.fromEntries(Object.entries(record).map(([name, value]) => [name, isFileAtPath(value) ? fromOrigin(value, origin) : value])) as T
 }
+
+/** Each record's photos, by key, every file downloading from `origin`, as `withFileOrigin` makes a record's. */
+export const photosWithOrigin = (photos: RecordPhotos, origin: string | undefined): RecordPhotos =>
+  origin === undefined ? photos : Object.fromEntries(Object.entries(photos).map(([key, files]) => [key, files.map((file) => (isFileAtPath(file) ? fromOrigin(file, origin) : file) as StoredFile)]))
 
 /**
  * The link of a stored file, or of its variant by that name when it has one (`fileUrl(listing.photo, 'card')`); the

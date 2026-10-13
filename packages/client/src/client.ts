@@ -1,7 +1,7 @@
 import type { KeyValue } from '@protobase/schema'
 import { encodeKey } from '@protobase/schema/internal'
-import { labelEntries, listWire, queryString, filterText, type FilterInput, type ListParams, type MapParams } from './query-string'
-import { originOf, withFileOrigin } from './file-urls'
+import { labelEntries, listWire, photosWire, queryString, filterText, type FilterInput, type ListParams, type MapParams } from './query-string'
+import { originOf, photosWithOrigin, withFileOrigin } from './file-urls'
 import { createTransport, type ClientOptions } from './transport'
 import { fetchWithProgress, type UploadProgress } from './upload-request'
 import type { BatchOp, BatchResult, Facet, Histogram, ListPage, MapResult, Meta, MetaResult, RecordOf, ResourceRef, Series, SeriesParams, Stored } from './types'
@@ -19,6 +19,7 @@ const toPage = <T>(body: Json, response: Response, origin: string | undefined): 
   ...(body.prev_page_token !== undefined && { prevPageToken: body.prev_page_token }),
   ...(body.total_size !== undefined && { totalSize: body.total_size }),
   ...(body.labels !== undefined && { labels: body.labels }),
+  ...(body.photos !== undefined && { photos: photosWithOrigin(body.photos, origin) }),
   ...(response.headers.get('x-protobase-warning') && { warning: response.headers.get('x-protobase-warning')! }),
 })
 
@@ -193,6 +194,7 @@ export const createClient = (options: ClientOptions = {}) => {
         order_by: params.orderBy,
         fields: params.fields?.join(','),
         labels: labelEntries(params.labels)?.join(','),
+        ...photosWire(params.photos),
       }),
     })
     const body = await response.json()
@@ -201,6 +203,7 @@ export const createClient = (options: ClientOptions = {}) => {
       buckets: body.buckets,
       totalSize: body.total_size,
       ...(body.labels !== undefined && { labels: body.labels }),
+      ...(body.photos !== undefined && { photos: photosWithOrigin(body.photos, origin) }),
     }
   }
 
