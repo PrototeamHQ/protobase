@@ -1,6 +1,7 @@
 import type { ActionRun, ResourceModel, ViewModel } from '@protobase/schema'
 import { addressErrors, addressPlaceholders, appHrefError, displayFields, fieldRefsIn, hrefPlaceholders } from '@protobase/schema/internal'
 import type { Registry } from './registry'
+import { cardFavoriteErrors, favoriteOwnerErrors } from './view-card-favorite'
 import { cardPhotosErrors } from './view-card-photos'
 import { mapDisplayErrors, mapErrors } from './view-map'
 import { relatedErrors } from './view-related'
@@ -73,11 +74,18 @@ const widgetErrors = (view: ViewModel, model: ResourceModel, fieldTypes: Readonl
     return [`field "${name}" is ${field.type}, and its field type "${hints.widget!.name}" shows only ${of.join(', ')}`]
   })
 
+// The list of the records a relation points at asks for them by their key, so it must be a single column.
+const listOfErrors = (model: ResourceModel, name: string, models: Record<string, ResourceModel>) => {
+  const target = models[model.fields[name]?.relation?.resource ?? '']
+  if (!target) return [`"${name}" points at no resource of the app`]
+  return target.primaryKey.length === 1 ? [] : [`${target.name} has a composite key, so its records cannot be listed by key`]
+}
+
 /**
  * Fails at startup when a view uses a sensitive field where it would show empty, a display or custom section names a
  * field the resource does not have, labels or colours values its enum does not have, shows a field with a field type of
  * `fieldTypes` (each with the storage types it shows) that does not show it,
- * has a related section or a cards display's photos that do not fit the resources, a map that cannot show the
+ * has a related section, a cards display's photos or favorite button or a `listOf` that do not fit the resources, a map that cannot show the
  * record's position or a map display that cannot find the records in its view, or a link to an address the app does not have.
  */
 export const checkViews = (registry: Registry, views: ViewModel[], pages: readonly string[] = [], fieldTypes: Readonly<Record<string, readonly string[]>> = {}) => {
@@ -90,11 +98,17 @@ export const checkViews = (registry: Registry, views: ViewModel[], pages: readon
     const photos = (view.list?.displays ?? []).flatMap((display) =>
       display.kind === 'cards' && display.photos ? cardPhotosErrors(display.photos, view.resource, models).map((error) => `display "${display.name}" photos: ${error}`) : [],
     )
+    const favorites = (view.list?.displays ?? []).flatMap((display) =>
+      display.kind === 'cards' && display.favorite
+        ? [...cardFavoriteErrors(display.favorite, view.resource, models), ...favoriteOwnerErrors(display.favorite, models)].map((error) => `display "${display.name}" favorite: ${error}`)
+        : [],
+    )
+    const listOf = view.listOf === undefined ? [] : listOfErrors(model, view.listOf, models).map((error) => `listOf: ${error}`)
     const maps = [
       ...view.layout.flatMap((item) => (item.kind === 'map' ? mapErrors(item, model).map((error) => `map "${item.title}": ${error}`) : [])),
       ...(view.list?.displays ?? []).flatMap((display) => (display.kind === 'map' ? mapDisplayErrors(display, model).map((error) => `display "${display.name}": ${error}`) : [])),
     ]
-    return [...sensitiveErrors(view, model), ...unknownFieldErrors(view, model), ...valueLabelErrors(view, model), ...valueColorErrors(view, model), ...widgetErrors(view, model, fieldTypes), ...related, ...photos, ...maps, ...linkErrors(view, model, models, pageNames)].map((problem) => `View "${view.resource}": ${problem}`)
+    return [...sensitiveErrors(view, model), ...unknownFieldErrors(view, model), ...valueLabelErrors(view, model), ...valueColorErrors(view, model), ...widgetErrors(view, model, fieldTypes), ...related, ...photos, ...favorites, ...listOf, ...maps, ...linkErrors(view, model, models, pageNames)].map((problem) => `View "${view.resource}": ${problem}`)
   })
   if (problems.length > 0) throw new Error(`The views do not match the resources:\n${problems.map((problem) => `  - ${problem}`).join('\n')}`)
 }

@@ -70,6 +70,26 @@ describe('checkViews', () => {
     expect(() => checkViews(registry, [shown('receipts').toModel()])).toThrow('View "payments": display "cards" photos: unknown resource "receipts"')
   })
 
+  it("wants a cards display's favorite button to save to records each user owns", () => {
+    const saved = (owned: boolean) => {
+      const base = resource('saved').table('saved').fields({ id: f.integer(), user_id: f.text().readOnly(), payment_id: f.relation('payments').filterable() }).primaryKey((r) => r.id)
+      return owned ? base.owner((r) => r.user_id) : base
+    }
+    const shown = view<typeof payments>('payments').list((r, d) => ({ columns: [r.reference], displays: [d.cards({ title: r.reference }, { favorite: { resource: 'saved', field: 'payment_id' } })] }))
+    const withSaved = (owned: boolean) => ({ entries: [...registry.entries, { name: 'saved', model: saved(owned).toModel() }] }) as unknown as Registry
+    expect(() => checkViews(withSaved(true), [shown.toModel()])).not.toThrow()
+    expect(() => checkViews(withSaved(false), [shown.toModel()])).toThrow(`View "payments": display "cards" favorite: saved has no owner, so its records are not each user's own`)
+    expect(() => checkViews(registry, [shown.toModel()])).toThrow('View "payments": display "cards" favorite: unknown resource "saved"')
+  })
+
+  it('wants listOf to point at records with a single-column key', () => {
+    const visits = resource('visits').table('visits').fields({ payment_id: f.integer(), day: f.date() }).primaryKey((r) => [r.payment_id, r.day])
+    const saved = resource('saved').table('saved').fields({ id: f.integer(), payment_id: f.relation('payments'), visit_id: f.relation('visits') }).primaryKey((r) => r.id)
+    const all = { entries: [...registry.entries, { name: 'visits', model: visits.toModel() }, { name: 'saved', model: saved.toModel() }] } as unknown as Registry
+    expect(() => checkViews(all, [view<typeof saved>('saved').listOf((r) => r.payment_id).toModel()])).not.toThrow()
+    expect(() => checkViews(all, [view<typeof saved>('saved').listOf((r) => r.visit_id).toModel()])).toThrow('View "saved": listOf: visits has a composite key, so its records cannot be listed by key')
+  })
+
   it('wants a custom section to name fields the resource has', () => {
     const stale = view<typeof payments>('payments').toModel()
     stale.layout = [{ kind: 'custom', component: 'Receipt', props: { amount: { $field: 'amount' }, currency: 'EUR' } }]

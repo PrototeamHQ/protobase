@@ -1,5 +1,5 @@
 import { prunePage, type PageModel } from '@protobase/layout'
-import { pickView, type BottomBarItemModel, type ResourceModel, type UserMenuItemModel, type UserMenuModel, type ViewModel } from '@protobase/schema'
+import { pickView, type BottomBarItemModel, type ResourceModel, type SignInViewModel, type UserMenuItemModel, type UserMenuModel, type ViewModel } from '@protobase/schema'
 import { bottomBarFor } from '@protobase/schema/internal'
 import { activeRole } from './active-role'
 import { seesAssistant } from './assistant/assistant-settings'
@@ -30,6 +30,8 @@ export type CallerMeta = {
   permissions: Record<string, ResourcePermissions>
   /** The user menu with the resources the caller cannot see left out. */
   userMenu?: UserMenuModel
+  /** For a visitor who is not signed in, the resources they cannot see whose view tells them what signing in gives. */
+  signIn?: SignInViewModel[]
   /** The bottom bar naming the caller's active role, without the resources and pages they cannot see. */
   bottomBar?: { label: string; items: BottomBarItemModel[] }
   /** The assistant backend, for a caller with the `admin` or `ai` role when there is one: an absolute URL, or the built-in one's path. */
@@ -46,12 +48,21 @@ export type CallerMeta = {
   sources?: SourceRef[]
 }
 
+// What a visitor is told about a resource: what its view calls it, where it sits in the sidebar without its recent
+// records, and its prompt.
+const signInView = (view: ViewModel | undefined): SignInViewModel[] => {
+  if (!view?.signIn) return []
+  const { recent: _recent, ...nav } = view.nav ?? {}
+  return [{ resource: view.resource, ...(view.names && { names: view.names }), ...(view.nav && { nav }), signIn: view.signIn }]
+}
+
 const modelsHash = (deps: Deps) => sha256Hex(stableJson(deps.registry.entries.map((entry) => entry.model))).then((hash) => hash.slice(0, 32))
 
 /**
  * `/meta` as one caller sees it: the resources they can do anything with, each as the restricted model (hidden fields
  * absent, `readOnly` unless writable), the view for their roles with hidden fields pruned, what they may do, and the
- * user menu and their bottom bar without the resources they cannot see.
+ * user menu and their bottom bar without the resources they cannot see. A visitor also gets the prompts of the resources
+ * they could use once signed in, which keep their place in the bottom bar and the user menu.
  * The ETag hashes all of it, so it differs per user and per roles.
  */
 export const createMeta = (deps: Deps) => {
@@ -62,9 +73,12 @@ export const createMeta = (deps: Deps) => {
     const visible = accesses.filter((access) => Object.values(access.resolved.operations).some(Boolean))
     // Sensitive fields are in the models and views, so the record page can offer to reveal them, but nowhere data is listed
     const listed = Object.fromEntries(visible.map((access) => [access.entry.name, access.model]))
+    // A visitor is told what signing in gives about the resources they cannot see whose view says (`.signIn(...)`)
+    const signIn = session.anonymous ? accesses.filter((access) => !visible.includes(access)).flatMap((access) => signInView(pickView(deps.views, session.user.roles, access.entry.name))) : []
+    const prompted = new Set(signIn.map((entry) => entry.resource))
     const views = visible.flatMap((access) => {
       const view = pickView(deps.views, session.user.roles, access.entry.name)
-      return view ? [pruneView(view, access.readable, listed)] : []
+      return view ? [pruneView(view, access.readable, listed, prompted)] : []
     })
     const callerAccess = {
       models: listed,
@@ -73,7 +87,7 @@ export const createMeta = (deps: Deps) => {
     }
     const pages = deps.pages.flatMap((page) => prunePage(page, session.user.roles, callerAccess) ?? [])
     const shown = (item: UserMenuItemModel | BottomBarItemModel) =>
-      item.kind === 'link' || (item.kind === 'resource' ? visible.some((access) => access.entry.name === item.resource) : pages.some((page) => page.name === item.page))
+      item.kind === 'link' || (item.kind === 'resource' ? visible.some((access) => access.entry.name === item.resource) || prompted.has(item.resource) : pages.some((page) => page.name === item.page))
     const bar = bottomBarFor(deps.bottomBars, activeRole(session))
     const barItems = bar?.items.filter(shown) ?? []
     const plugins = pluginsFor(deps.plugins, session.user.roles)
@@ -89,6 +103,7 @@ export const createMeta = (deps: Deps) => {
         delete: resolved.operations.delete,
         conditional: (['create', 'update', 'delete'] as const).filter((op) => resolved.operations[op] && (resolved.recordChecks.includes(op) || resolved.rowFilter[op] !== undefined)),
       } satisfies ResourcePermissions])),
+      ...(signIn.length > 0 && { signIn }),
       ...(deps.userMenu && { userMenu: { items: deps.userMenu.items.filter(shown) } }),
       ...(bar && barItems.length > 0 && { bottomBar: { label: bar.label, items: barItems } }),
       ...(deps.assistant && seesAssistant(session.user.roles) && { assistant: { url: deps.assistant } }),

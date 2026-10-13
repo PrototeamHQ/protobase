@@ -1,5 +1,5 @@
 import { fieldRefsIn, markFieldRefs } from './field-ref'
-import type { CardPhotosModel, JsonValue, ListDisplayModel } from './model'
+import type { CardFavoriteModel, CardPhotosModel, JsonValue, ListDisplayModel } from './model'
 import type { Ref } from './refs'
 
 /** A custom component as `component(name)` from `@protobase/layout` declares it. */
@@ -36,11 +36,13 @@ export const displays = {
    * With `card`, a component of the project or a plugin draws each card's content instead, from the row of those
    * fields (`{ row }`); without it, or when it throws, the card is the built-in one. With `photos`, the built-in card's
    * picture gets arrows through the `image` of the records of another resource that point at the card's record, after
-   * its own `image`; they load when an arrow is first pressed. Named `cards` unless `name` says otherwise.
+   * its own `image`; they load when an arrow is first pressed. With `favorite`, a heart in the card's top right corner
+   * saves the record to the signed-in user's own records of another resource, such as favorites, and takes it off again;
+   * a visitor who is not signed in is told why to sign in. Named `cards` unless `name` says otherwise.
    */
   cards: (
     fields: { image?: Ref; title?: Ref; subtitle?: Ref; amount?: Ref[]; badge?: Ref; meta?: Ref[]; footer?: Ref[]; flags?: Ref[] },
-    o: Naming & { card?: ComponentRef<never>; photos?: CardPhotosModel } = {},
+    o: Naming & { card?: ComponentRef<never>; photos?: CardPhotosModel; favorite?: CardFavoriteModel } = {},
   ): ListDisplayModel => ({
     kind: 'cards',
     name: o.name ?? 'cards',
@@ -55,6 +57,7 @@ export const displays = {
     ...(fields.flags && { flags: fields.flags.map((ref) => ref.name) }),
     ...(o.card && { card: customComponent(o.card, 'd.cards card') }),
     ...(o.photos && { photos: { ...o.photos } }),
+    ...(o.favorite && { favorite: { ...o.favorite } }),
   }),
   /**
    * A map of the records at their `latitude` and `longitude`, filterable fields in decimal degrees, drawn with the app's

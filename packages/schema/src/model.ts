@@ -298,6 +298,8 @@ export type ListDisplayModel =
       card?: string
       /** Where the card's further photos come from. */
       photos?: CardPhotosModel
+      /** The button in the card's top right corner that saves the record to the user's own list, such as favorites. */
+      favorite?: CardFavoriteModel
     }
   | {
       /** A map of the records at their position. */
@@ -346,6 +348,50 @@ export type CardPhotosModel = {
   image: string
   /** An AIP-132 order of the photos. */
   sort?: string
+}
+
+/**
+ * The button in a card's top right corner that saves its record for the signed-in user: a record of `resource` whose
+ * relation `field` points at the card's record, created on a press and deleted on the next. The resource has an owner,
+ * so each user lists and saves their own. A visitor who is not signed in gets the resource's sign-in prompt instead
+ * (`.signIn(...)` on its view). See [Favorites](website/src/content/docs/reference/ui-config.mdx#favorites).
+ */
+export type CardFavoriteModel = {
+  /** The resource holding the saved records, such as favorites. */
+  resource: string
+  /** Its filterable relation that points at the card's record. */
+  field: string
+  /** The button's accessible name, pressed while the record is saved; "Favorite" when omitted. */
+  label?: string
+}
+
+/**
+ * What a visitor who is not signed in is told about a resource they could use once signed in (`.signIn(...)`): on its
+ * list page, in place of the list, and in the dialog of a card's favorite button that saves to it. See
+ * [Sign-in prompts](website/src/content/docs/reference/ui-config.mdx#sign-in-prompts).
+ */
+export type SignInPromptModel = {
+  /** The heading, such as "Keep the homes you like". */
+  title: string
+  /** A line under it, saying what signing in gives. */
+  description: string
+  /** What the visitor can do once signed in, one short line each. */
+  benefits?: string[]
+  /** The prompt's icon, a name `icon` hints take; a sign-in icon when omitted. */
+  icon?: string
+  /** A page where a visitor makes an account, `https:`, `http:` or `mailto:`, offered beside "Sign in"; none when omitted. */
+  signUp?: {
+    /** The button's text, such as "Create an account". */
+    label: string
+    /** The page's address. */
+    href: string
+  }
+}
+
+/** A resource a visitor cannot open until they sign in, as `/meta` names it: what its view calls it and its prompt. */
+export type SignInViewModel = Pick<ViewModel, 'resource' | 'names' | 'nav'> & {
+  /** What the visitor is told. */
+  signIn: SignInPromptModel
 }
 
 /** A view's list page (`.list(...)`). */
@@ -739,6 +785,10 @@ export type ViewModel = {
   saveFeedback?: SaveFeedback
   /** The named actions of its records. */
   actions: ActionModel[]
+  /** The relation field whose records the list page shows instead of this resource's rows, in their own view's list. */
+  listOf?: string
+  /** What a visitor who is not signed in is told in place of the list, and by a card's favorite button that saves here. */
+  signIn?: SignInPromptModel
 }
 
 /** Where a part of a filter or order stands in its text, as character offsets. */

@@ -180,6 +180,33 @@ describe('view builder', () => {
     expect(model.list?.displays).toEqual([{ kind: 'cards', name: 'cards', title: 'title', photos: { resource: 'article_photos', field: 'article_id', image: 'photo', sort: 'position' } }])
   })
 
+  it("names where a card's favorite button saves its record, as data the caller cannot change", () => {
+    const favorite = { resource: 'saved_articles', field: 'article_id', label: 'Save' }
+    const model = view<typeof article>('article')
+      .list((r, d) => ({ columns: [r.title], displays: [d.cards({ title: r.title }, { favorite })] }))
+      .toModel(article.toModel())
+    favorite.label = 'Keep'
+    expect(model.list?.displays).toEqual([{ kind: 'cards', name: 'cards', title: 'title', favorite: { resource: 'saved_articles', field: 'article_id', label: 'Save' } }])
+  })
+
+  it('lists the records a relation points at, and refuses a field that is no relation', () => {
+    const saved = resource('saved_articles')
+      .table('saved_articles')
+      .fields({ id: f.integer(), user_id: f.text(), article_id: f.relation('article').filterable() })
+      .primaryKey((r) => r.id)
+      .owner((r) => r.user_id)
+    expect(view<typeof saved>('saved_articles').listOf((r) => r.article_id).toModel(saved.toModel()).listOf).toBe('article_id')
+    expect(() => view<typeof saved>('saved_articles').listOf((r) => r.user_id).toModel(saved.toModel())).toThrow('listOf names "user_id", which is not a relation field')
+  })
+
+  it('tells visitors what signing in gives, with a sign-up page only at an address outside the app', () => {
+    const prompt = { title: 'Keep articles', description: 'Sign in to save them.', benefits: ['Read them later'], signUp: { label: 'Create an account', href: 'https://example.com/join' } }
+    const model = view<typeof article>('article').signIn(prompt).toModel()
+    prompt.benefits.push('Share them')
+    expect(model.signIn).toEqual({ title: 'Keep articles', description: 'Sign in to save them.', benefits: ['Read them later'], signUp: { label: 'Create an account', href: 'https://example.com/join' } })
+    expect(() => view<typeof article>('article').signIn({ ...prompt, signUp: { label: 'Join', href: '/join' } })).toThrow('signUp.href must start with')
+  })
+
   it('adds a map of the records at their position, with the card of a cards display it names', () => {
     const shops = resource('shops').table('shops').fields({ id: f.integer(), name: f.text(), lat: f.decimal({ precision: 8, scale: 6 }), lng: f.decimal({ precision: 9, scale: 6 }) }).primaryKey((r) => r.id)
     const model = view<typeof shops>('shops')

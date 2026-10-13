@@ -1,6 +1,7 @@
 import { resolveFieldPath } from '@protobase/layout'
-import type { ActionModel, ActionRun, CardPhotosModel, ChartModel, CustomSectionModel, FilterWidgetModel, LayoutItemModel, ListDisplayModel, ListModel, MapSectionModel, NavModel, NavRecentModel, RelatedModel, ResourceModel, SearchResultModel, ViewModel } from '@protobase/schema'
+import type { ActionModel, ActionRun, CardFavoriteModel, CardPhotosModel, ChartModel, CustomSectionModel, FilterWidgetModel, LayoutItemModel, ListDisplayModel, ListModel, MapSectionModel, NavModel, NavRecentModel, RelatedModel, ResourceModel, SearchResultModel, ViewModel } from '@protobase/schema'
 import { addressErrors, hrefPlaceholders, navRecentErrors, pruneByShape, shapes as s, tableDisplay } from '@protobase/schema/internal'
+import { cardFavoriteErrors } from './view-card-favorite'
 import { cardPhotosErrors } from './view-card-photos'
 import { relatedErrors } from './view-related'
 
@@ -21,8 +22,9 @@ const keepDefault = ({ default: opens, displays, ...list }: ListModel): ListMode
   return { ...list, ...(shown && { displays: shown }), ...(opens !== undefined && kept && { default: opens }) }
 }
 
-// A card keeps its photos only when the caller can load them; without them it shows its own image alone.
-const listShape = (resource: string, models: Record<string, ResourceModel>) =>
+// A card keeps its photos only when the caller can load them; without them it shows its own image alone. It keeps its
+// favorite button when the caller can save with it, or is a visitor the button's resource asks to sign in.
+const listShape = (resource: string, models: Record<string, ResourceModel>, prompted: ReadonlySet<string>) =>
   s.object<ListModel>(
     {
       columns: s.list(s.field),
@@ -45,6 +47,7 @@ const listShape = (resource: string, models: Record<string, ResourceModel>) =>
             flags: s.list(s.field),
             card: s.data,
             photos: s.map<CardPhotosModel>((photos) => (cardPhotosErrors(photos, resource, models).length === 0 ? photos : undefined)),
+            favorite: s.map<CardFavoriteModel>((favorite) => (prompted.has(favorite.resource) || cardFavoriteErrors(favorite, resource, models).length === 0 ? favorite : undefined)),
           }),
           map: s.object<Of<ListDisplayModel, 'map'>>(
             { kind: s.data, name: s.data, label: s.data, icon: s.data, latitude: s.field, longitude: s.field, cards: s.data },
@@ -104,7 +107,7 @@ const actionShape = (model: ResourceModel, models: Record<string, ResourceModel>
 
 // Every part of a view, and what a field the caller cannot read does to it. The compiler wants a shape for each part,
 // so a part added to ViewModel is named here before it reaches anyone.
-const viewShape = (resource: string, model: ResourceModel, models: Record<string, ResourceModel>) =>
+const viewShape = (resource: string, model: ResourceModel, models: Record<string, ResourceModel>, prompted: ReadonlySet<string>) =>
   s.object<ViewModel>({
     resource: s.data,
     roles: s.data,
@@ -115,22 +118,25 @@ const viewShape = (resource: string, model: ResourceModel, models: Record<string
     icon: s.data,
     help: s.data,
     fields: s.keys(),
-    list: listShape(resource, models),
+    list: listShape(resource, models, prompted),
     filters: s.list(widgetShape),
     layout: s.list(layoutShape(resource, models)),
     chart: s.object<ChartModel>({ field: s.field, range: s.data, granularity: s.data }, { requires: ['field'] }),
     saveFeedback: s.data,
     actions: s.list(actionShape(model, models)),
+    listOf: s.field,
+    signIn: s.data,
   })
 
 /**
  * The view with every reference to a field the caller cannot read removed: list columns, sort, search and displays,
  * field hints, filter widgets, record sections, maps and custom components' props, the chart, title and search result, the
  * actions that set or read one, and the sidebar's `recent` group. Nothing in it may name a hidden field. Related sections
- * and links are checked against `models`, the caller's view of every resource.
+ * and links are checked against `models`, the caller's view of every resource, and so are cards' favorite buttons,
+ * which stay for a visitor when their resource is one of `prompted`, those that ask the visitor to sign in.
  */
-export const pruneView = (view: ViewModel, model: ResourceModel, models: Record<string, ResourceModel>): ViewModel => {
-  const pruned = pruneByShape(view, viewShape(view.resource, model, models), (name) => Object.hasOwn(model.fields, name))
+export const pruneView = (view: ViewModel, model: ResourceModel, models: Record<string, ResourceModel>, prompted: ReadonlySet<string> = new Set()): ViewModel => {
+  const pruned = pruneByShape(view, viewShape(view.resource, model, models, prompted), (name) => Object.hasOwn(model.fields, name))
   if (!pruned) throw new Error(`The view of ${view.resource} is not an object`)
   return pruned
 }

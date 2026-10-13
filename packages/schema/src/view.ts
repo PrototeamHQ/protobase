@@ -10,8 +10,10 @@ import type {
   NavRecentModel,
   ListDisplayModel,
   ResourceModel,
+  SignInPromptModel,
   ViewModel,
 } from './model'
+import { isMenuHref } from './menu-href'
 import { navRecentErrors } from './nav-recent'
 import { createRefs, ref, type FieldRefs, type Ref } from './refs'
 import { actions } from './view-actions'
@@ -163,9 +165,30 @@ export class ViewBuilder<R extends {
     return this.next({ actions: build(actions) })
   }
 
-  /** With the resource's model, also verifies the title, search result and list display fields and the sidebar's `recent` group. */
+  /**
+   * The list page shows the records this relation field points at instead of this resource's rows, in their own view's
+   * list with its displays, filters and search: the listings among a member's favorites, say. The record pages stay this
+   * resource's. Throws in `toModel` when the field is not a relation.
+   */
+  listOf(pick: (r: FieldRefs<FieldsOf<R>>) => Ref) {
+    return this.next({ listOf: pick(this.refs()).name })
+  }
+
+  /**
+   * What a visitor who is not signed in is told about this resource, which they could use once signed in: on its list
+   * page, in place of the list, and in the dialog of a card's favorite button that saves here. The page offers "Sign
+   * in", and a page to make an account when `signUp` names one. With it, the resource keeps its place in the bottom
+   * bar and the sidebar of visitors. Throws when `signUp.href` is not `https:`, `http:` or `mailto:`. See
+   * [Sign-in prompts](website/src/content/docs/reference/ui-config.mdx#sign-in-prompts).
+   */
+  signIn(prompt: SignInPromptModel) {
+    if (prompt.signUp && !isMenuHref(prompt.signUp.href)) throw new Error(`View "${this.state.resource}": signIn signUp.href must start with https://, http:// or mailto:`)
+    return this.next({ signIn: structuredClone(prompt) })
+  }
+
+  /** With the resource's model, also verifies the title, search result and list display fields, `listOf` and the sidebar's `recent` group. */
   toModel(resource?: ResourceModel): ViewModel {
-    const { title, nav, searchResult, list } = this.state
+    const { title, nav, searchResult, list, listOf } = this.state
     if (resource && title !== undefined && !Object.hasOwn(resource.fields, title)) {
       throw new Error(`View "${this.state.resource}": title field "${title}" does not exist on the resource`)
     }
@@ -179,6 +202,9 @@ export class ViewBuilder<R extends {
       }
       const flag = display.kind === 'cards' ? display.flags?.find((name) => resource!.fields[name]!.type !== 'boolean') : undefined
       if (flag !== undefined) throw new Error(`View "${this.state.resource}": display "${display.name}" shows "${flag}" as a flag, which is not a boolean field`)
+    }
+    if (resource && listOf !== undefined && (!Object.hasOwn(resource.fields, listOf) || resource.fields[listOf]!.type !== 'relation')) {
+      throw new Error(`View "${this.state.resource}": listOf names "${listOf}", which is not a relation field of the resource`)
     }
     const recentErrors = resource && nav?.recent ? navRecentErrors(nav.recent, resource) : []
     if (recentErrors.length > 0) throw new Error(`View "${this.state.resource}": nav.recent ${recentErrors.join('; ')}`)

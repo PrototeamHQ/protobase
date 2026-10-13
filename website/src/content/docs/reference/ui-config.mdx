@@ -38,6 +38,8 @@ export const repairsView = view<typeof repairs>('repairs')
 | `.help(text)` | A line under the list's title. |
 | `.nav({ group, order, hidden, recent })` | Where the resource sits in the sidebar, and its [recent-record group](/reference/sidebar/#recent-records). |
 | `.icon(name)` | Carried in `/meta` for apps that render their own shell; the admin picks sidebar icons by resource name. |
+| `.listOf((r) => r.listing_id)` | The list page shows the records this relation points at instead of the resource's own rows, such as the listings among a member's favorites. See [Favorites](#favorites). |
+| `.signIn({ title, description, benefits?, icon?, signUp? })` | What a visitor who is not signed in is told about the resource, in place of its list and by a card's favorite button. See [Sign-in prompts](#sign-in-prompts). |
 
 Field hints:
 
@@ -47,7 +49,7 @@ Field hints:
 | `.help(text)` | A line under the field on the record page and in forms. |
 | `.format(format)` | `badge` shows statuses as coloured badges, `code` sets identifiers in monospace, `percent` adds a % sign. `relative`, `absolute` and `compact` are accepted and carried in `/meta` for apps that render their own lists; the admin does not use them yet. |
 | `.prefix(text)`, `.suffix(text)`, `.decimals(n)` | Money and measures: `€` and `2` show `€1,234.50`, `.suffix(' m²')` shows `120 m²`. They show wherever the number does: records, cards, table cells, forms and the range filter. |
-| `.icon(name)` | An icon before the value on a card's meta row: `bed`, `file-text`, `ruler`, `send` or `wallet`, as for [actions](/reference/layouts/#named-actions). Nowhere else shows it. |
+| `.icon(name)` | An icon before the value on a card's meta row: `bed`, `bell`, `file-text`, `heart`, `ruler`, `send` or `wallet`, as for [actions](/reference/layouts/#named-actions). Nowhere else shows it. |
 | `.valueLabels({ value: text })` | How an enum's values read: `r.method.valueLabels({ ideal: 'iDEAL' })`. Only the enum's values are accepted. A value without a label shows as stored (`direct_debit`), so label every value that should read as words. |
 | `.valueColors({ value: '#hex' })`, `.badgeShape('arrow')` | An enum's badges filled with a colour per value (the text turns white or black, whichever reads), and drawn as arrows pointing right, as on a rating scale. The property portal's energy label: `r.energy_label.format('badge').valueColors({ a: '#00a651', g: '#ed1c24' }).badgeShape('arrow')`. Only the enum's values are accepted. |
 | `.widget(name, props?)` | Shows and edits the field with a [field type](/reference/plugins/#field-types) of the project or a plugin, such as `r.status.widget('steps')` or `r.score.widget('rating', { max: 5 })`; `props` are plain data. Without it, or on a storage type it does not show, the field shows as it would without the hint. |
@@ -78,7 +80,7 @@ Besides its table, a list can show as cards, or as a component of the project's 
 
 | Display | |
 | --- | --- |
-| `d.cards({ image?, title?, subtitle?, amount?, badge?, meta?, footer?, flags? }, { name?, label?, icon?, card?, photos? })` | A card per record, opening it: `image`, a [file field](/reference/files/), as a picture across the card's top (a raster image; anything else leaves the frame empty), then `title` (default: the view's `.title`) over `subtitle`, `badge` drawn as a badge with its value labels, `amount` the first of its fields with a value in bold (its suffix, such as ` /month`, not), such as a purchase price or else a rent, and a few small `meta` fields such as dates, each only when it has a value, after its field's `.icon` and as a badge when its field's format is `badge`. `footer` is a line at the card's bottom of its fields with a value, joined by bullets, such as a place and an agent. `flags` are boolean fields shown as small badges of their labels when true, such as a garden or parking. A relation shows the name of the record it points at. With `card`, a component declared with `component('RepairCard')` draws each card's content from the row of those fields instead (see [Record cards](/reference/custom-components/#record-cards)). With `photos`, the picture steps through more photos, by swipe or arrows (see [Card photos](#card-photos)). Named `cards` unless `name` says otherwise. |
+| `d.cards({ image?, title?, subtitle?, amount?, badge?, meta?, footer?, flags? }, { name?, label?, icon?, card?, photos?, favorite? })` | A card per record, opening it: `image`, a [file field](/reference/files/), as a picture across the card's top (a raster image; anything else leaves the frame empty), then `title` (default: the view's `.title`) over `subtitle`, `badge` drawn as a badge with its value labels, `amount` the first of its fields with a value in bold (its suffix, such as ` /month`, not), such as a purchase price or else a rent, and a few small `meta` fields such as dates, each only when it has a value, after its field's `.icon` and as a badge when its field's format is `badge`. `footer` is a line at the card's bottom of its fields with a value, joined by bullets, such as a place and an agent. `flags` are boolean fields shown as small badges of their labels when true, such as a garden or parking. A relation shows the name of the record it points at. With `card`, a component declared with `component('RepairCard')` draws each card's content from the row of those fields instead (see [Record cards](/reference/custom-components/#record-cards)). With `photos`, the picture steps through more photos, by swipe or arrows (see [Card photos](#card-photos)). With `favorite`, a heart in the card's top right corner saves the record (see [Favorites](#favorites)). Named `cards` unless `name` says otherwise. |
 | `d.map({ latitude, longitude }, { name?, label?, icon?, cards? })` | The matching records in the map's view, with how many there are below it; it asks again as it pans and zooms, through the list API's [`:map`](/reference/api/#maps). From far out it shows a count for each part of the map, which zooms in when chosen; close in, or with few records in view, the records themselves. Nearby records share a marker with their count; choosing one shows the record's card at the map's bottom, with arrows through the marker's records, and choosing the map elsewhere or closing the card clears it. The card is the one of the cards display `cards` names, else the list's first cards display, else the record's title. Named `map` unless `name` says otherwise. See [Maps](#maps). |
 | `d.custom(Component, { name, label, fields, props?, icon? })` | The rows drawn by a [custom component](/reference/custom-components/#list-displays). `fields` are the fields it shows, loaded with the names of the records relations point at; `props` are plain data, with `r.field` where it takes a field. |
 
@@ -99,6 +101,41 @@ d.cards({ image: r.photo, title: r.address }, { photos: { resource: 'listing_pho
 ```
 
 The server checks `photos` when it starts: `field` is a filterable relation to the list's resource, `image` a file field and `sort` a valid order on `resource`. In `/api/meta`, a user who cannot list those photos, or read `field`, `image` or the sorted fields, gets the cards without them.
+
+### Favorites
+
+`favorite: { resource, field, label? }` puts a heart in each card's top right corner that saves the card's record for the signed-in user: a record of `resource` whose relation `field` points at the card's record is created on a press and deleted on the next. The heart fills while the record is saved, at once on screen; a refused write puts it back and says why in a toast. It is a toggle button named `label` ("Favorite" by default) with `aria-pressed`, and like the photo arrows it sits over the card's link, so pressing it does not open the record. All of the user's saved records load once, page by page, for every card of the list.
+
+A visitor who is not signed in gets the heart too, when the view of `resource` has a [sign-in prompt](#sign-in-prompts): pressing it tells them what signing in gives, in a modal on a desktop and a sheet from the bottom on a phone.
+
+The view of the saved records' resource can list what they point at with `.listOf`: its list page then shows those records in their own resource's list, with its displays, filters, sort and search, under its own title and help. Unsaving a record there takes its card away. Its record pages and `/api/meta` model stay its own.
+
+```ts
+// listings/ui.ts
+d.cards({ image: r.photo, title: r.address }, { favorite: { resource: 'favorites', field: 'listing_id', label: 'Save to favorites' } })
+
+// favorites/ui.ts
+view<typeof favorites>('favorites').names({ singular: 'Favorite', plural: 'Favorites' }).listOf((r) => r.listing_id)
+```
+
+The server checks `favorite` when it starts: `resource` has an [owner](/reference/data-config/#access) (`.owner(...)`), so the API lists and creates each user's own, and `field` is a filterable, writable relation to the list's resource, which has a single-column key; `.listOf` needs a relation to a resource with a single-column key. In `/api/meta`, a signed-in user who cannot list, create and delete those records, or write `field`, gets the cards without the heart.
+
+## Sign-in prompts
+
+`.signIn({ title, description, benefits?, icon?, signUp? })` on a view tells a visitor who is not signed in what they could do with the resource once signed in. Where a signed-in user sees the list, the visitor sees the prompt: an icon (`icon`, as for field hints, a sign-in icon by default), `title`, `description` and a line per `benefits`, with **Sign in**, which opens the sign-in page and comes back to the same address. A card's [favorite button](#favorites) that saves to the resource opens the same prompt as a dialog, with **Not now** to close it. The app has no sign-up of its own; `signUp: { label, href }` adds a button that opens a page where a visitor makes an account, `https://`, `http://` or `mailto:`.
+
+```ts
+view<typeof favorites>('favorites').signIn({
+  title: 'Keep the homes you like',
+  description: 'Sign in to save listings to your favorites and find them again on any device.',
+  benefits: ['Save a listing with the heart on its card', 'See all your saved homes on one page'],
+  icon: 'heart',
+})
+```
+
+Only a caller without a token gets the prompts, in `/api/meta` as `signIn`, for the resources they cannot see whose view for the `anonymous` role has one: its names, its sidebar place and the prompt. Those resources keep their place in the sidebar, the [bottom bar](/reference/bottom-bar/) and the [user menu](/reference/user-menu/). Pages of the project can show a prompt too: `SignInPrompt` from `@protobase/ui` takes it `as="page"` or `as="dialog"`, and `ResponsiveDialog` is the modal that becomes a sheet on a phone.
+
+<StoryFrame id="list-page-favorites--visitor-cards" title="A visitor's heart asks them to sign in" height={560} />
 
 ## The record page
 
