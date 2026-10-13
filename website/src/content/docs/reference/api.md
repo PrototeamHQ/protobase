@@ -54,7 +54,7 @@ Every response carries `X-Meta-Version`, the hash of the models and of the calle
 
 `show_deleted=true` on list, `:search` (body) and get also returns soft-deleted records (soft-delete resources only, `400` otherwise).
 
-A list returns `{ items, next_page_token, total_size_estimate }` (`total_size` with `count=exact`). `next_page_token` is `""` on the last page. Items use field names, dates as ISO 8601 text, 64-bit integers and decimals as strings.
+A list returns `{ items, next_page_token, total_size_estimate }` (`total_size` with `count=exact`). `next_page_token` is `""` on the last page, and a token only continues the `filter` and `order_by` it came from: with others the request fails with `400 invalid-cursor`. Items use field names, dates as ISO 8601 text, 64-bit integers and decimals as strings.
 
 ## Access
 

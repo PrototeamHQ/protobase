@@ -71,7 +71,7 @@ export const buildListQuery = async (db: Db, model: ResourceModel, query: ListQu
   const limit = clampLimit(query.limit)
   await assertFilterRequirements(db, query.filter, scope)
   const keys = effectiveSort(model, query.sort)
-  const cursorValues = query.cursor === undefined ? undefined : decodeCursor(query.cursor, keys)
+  const cursorValues = query.cursor === undefined ? undefined : decodeCursor(query.cursor, keys, query.filter)
   return {
     query: selectPage(db, model, query, scope, keys, cursorValues, options),
     limit,
@@ -88,7 +88,7 @@ export const listQuery = async (db: Db, model: ResourceModel, query: ListQuery, 
   const page = more ? fetched.slice(0, limit) : fetched
   if (reverse) page.reverse()
 
-  const cursorOf = (row: Record<string, unknown>) => encodeCursor(keys, keys.map((_, i) => (row[keyAlias(i)] === null ? null : String(row[keyAlias(i)]))))
+  const cursorOf = (row: Record<string, unknown>) => encodeCursor(keys, keys.map((_, i) => (row[keyAlias(i)] === null ? null : String(row[keyAlias(i)]))), query.filter)
   const first = page[0]
   const last = page.at(-1)
 

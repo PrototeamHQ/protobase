@@ -83,7 +83,7 @@ export const scrollAnchors = async (db: Db, model: ResourceModel, sortField: str
     seekToPosition: async position => {
       if (position <= 0) return undefined
       const anchor = anchors.findLast(candidate => candidate.position <= position)
-      return anchor && anchor.position > 0 ? encodeCursor(keys, [anchor.value]) : undefined
+      return anchor && anchor.position > 0 ? encodeCursor(keys, [anchor.value], filter) : undefined
     },
   }
 }

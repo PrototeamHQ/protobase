@@ -36,5 +36,5 @@ export const exactSeek = async (db: Db, model: ResourceModel, keys: SortKey[], s
     .where(sql<SqlBool>`r.rn = ${position}`)
     .executeTakeFirst()
   if (!row) return undefined
-  return encodeCursor(keys, keys.map((_, i) => (row[`k${i}`] === null ? null : String(row[`k${i}`]))))
+  return encodeCursor(keys, keys.map((_, i) => (row[`k${i}`] === null ? null : String(row[`k${i}`]))), filter)
 }

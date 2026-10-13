@@ -31,8 +31,20 @@ describe('cursor', () => {
     expect(() => decodeCursor(encodeCursor(keys, ['1', '2']), other)).toThrowError(expect.objectContaining({ code: 'invalid_cursor' }))
   })
 
+  it('continues only the filter it was issued for', () => {
+    const qty = field('qty', 'integer')
+    const draft = (start: number): CheckedFilter => ({ kind: 'isNull', field: qty, span: { start, end: start + 9 } })
+    const other: CheckedFilter = { kind: 'not', arg: draft(0), span: { start: 0, end: 13 } }
+    const cursor = encodeCursor(keys, ['1', '2'], draft(0))
+    expect(decodeCursor(cursor, keys, draft(4))).toEqual(['1', '2'])
+    for (const filter of [other, undefined]) {
+      expect(() => decodeCursor(cursor, keys, filter)).toThrowError(expect.objectContaining({ code: 'invalid_cursor' }))
+    }
+    expect(() => decodeCursor(encodeCursor(keys, ['1', '2']), keys, draft(0))).toThrowError(expect.objectContaining({ code: 'invalid_cursor' }))
+  })
+
   it('rejects garbage without leaking parser errors', () => {
-    for (const bad of ['', '%%%', btoa('nope'), btoa('[]'), btoa('{"s":"x","v":[]}')]) {
+    for (const bad of ['', '%%%', btoa('nope'), btoa('[]'), btoa('{"s":"x","v":[]}'), btoa('{"s":[],"v":[],"f":1}')]) {
       expect(() => decodeCursor(bad, keys)).toThrowError(expect.objectContaining({ code: 'invalid_cursor' }))
     }
   })
