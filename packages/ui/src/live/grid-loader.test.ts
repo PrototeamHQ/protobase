@@ -19,8 +19,10 @@ const setup = () => {
     totalSizeEstimate: 100_000,
   }))
   const client = { list, seek } as unknown as Client
-  const loader = createGridLoader({ queryClient: new QueryClient(), client, resources: { orders: model }, views: {}, model, columns: ['status'], filter: 'status = "draft"', orderBy: 'id asc' })
-  return { list, seek, loader }
+  const queryClient = new QueryClient()
+  const createLoader = () =>
+    createGridLoader({ queryClient, client, resources: { orders: model }, views: {}, model, columns: ['status'], filter: 'status = "draft"', orderBy: 'id asc' })
+  return { list, seek, loader: createLoader(), createLoader }
 }
 
 describe('createGridLoader', () => {
@@ -37,6 +39,24 @@ describe('createGridLoader', () => {
     await loader.page(1)
     expect(list.mock.calls[1]![1]).toMatchObject({ pageToken: 't1' })
     expect(seek).not.toHaveBeenCalled()
+  })
+
+  it('keeps following the cursor in a new loader over the same cached pages', async () => {
+    const { seek, list, loader, createLoader } = setup()
+    await loader.page(0)
+    await loader.page(1)
+    await createLoader().page(2)
+    expect(list.mock.calls[2]![1]).toMatchObject({ pageToken: 't2' })
+    expect(seek).not.toHaveBeenCalled()
+  })
+
+  it('stops after the last page instead of starting over', async () => {
+    const list = vi.fn(async () => ({ items: [{ id: 1 }], nextPageToken: '', totalSizeEstimate: 1 }))
+    const client = { list } as unknown as Client
+    const loader = createGridLoader({ queryClient: new QueryClient(), client, resources: {}, views: {}, model, columns: [], filter: '', orderBy: 'id asc' })
+    await loader.page(0)
+    expect((await loader.page(1)).rows).toEqual([])
+    expect(list).toHaveBeenCalledTimes(1)
   })
 
   it('seeks to the row position when jumping, and continues from its token', async () => {

@@ -20,14 +20,15 @@ export type GridLoaderOptions = {
 
 const exactBelow = 5000
 
-export type LoadedPage = { rows: GridRow[]; total: number }
+/** One cached page; `nextPageToken` continues to the page after it, so a later loader on the same cache keeps the cursor. */
+export type LoadedPage = { rows: GridRow[]; total: number; nextPageToken: string }
 
 /**
- * Loads fixed-size pages by number. Sequential scrolling follows `next_page_token`; a jump asks `:seek` for the
- * page at that row position. Every page is cached by TanStack Query.
+ * Loads fixed-size pages by number. The page after a cached one follows that page's `next_page_token`; a jump to a page
+ * whose predecessor is not cached asks `:seek` for the page at that row position. Every page is cached by TanStack Query.
  */
 export const createGridLoader = ({ queryClient, client, resources, views, model, columns, filter, orderBy }: GridLoaderOptions) => {
-  const tokens = new Map<number, string>()
+  const pageKey = (number: number) => keys.page(model.name, filter, orderBy, gridPageSize, number)
 
   /** The server's total is a planner estimate, off by a lot for small results; settle those exactly. */
   const firstPageTotal = async (result: { items: unknown[]; nextPageToken: string; totalSizeEstimate: number }) => {
@@ -37,21 +38,22 @@ export const createGridLoader = ({ queryClient, client, resources, views, model,
   }
 
   const fetchPage = async (page: number): Promise<LoadedPage> => {
-    const token = tokens.get(page)
+    const token = page === 0 ? '' : queryClient.getQueryData<LoadedPage>(pageKey(page - 1))?.nextPageToken
+    if (page > 0 && token === '') return { rows: [], total: 0, nextPageToken: '' }
     const params = { filter, orderBy, pageSize: gridPageSize }
     const result =
-      page === 0 || token !== undefined
-        ? await client.list(model.name, { ...params, pageToken: token ?? '' })
+      token !== undefined
+        ? await client.list(model.name, { ...params, pageToken: token })
         : await client.seek(model.name, { ...params, position: page * gridPageSize })
-    if (result.items.length === 0 && page > 0) return { rows: [], total: 0 }
-    tokens.set(page + 1, result.nextPageToken)
+    if (result.items.length === 0 && page > 0) return { rows: [], total: 0, nextPageToken: '' }
     const ids = result.items.map((record) => recordId(model, record))
     const labelled = await withLabels(queryClient, client, resources, views, model, columns, result.items)
-    return { rows: labelled.map((record, index) => ({ ...record, id: ids[index]! })), total: page === 0 ? await firstPageTotal(result) : result.totalSizeEstimate }
+    const rows = labelled.map((record, index) => ({ ...record, id: ids[index]! }))
+    return { rows, total: page === 0 ? await firstPageTotal(result) : result.totalSizeEstimate, nextPageToken: result.nextPageToken }
   }
 
   const page = (number: number) =>
-    queryClient.fetchQuery({ queryKey: keys.page(model.name, filter, orderBy, gridPageSize, number), staleTime: 60_000, queryFn: () => fetchPage(number) })
+    queryClient.fetchQuery({ queryKey: pageKey(number), staleTime: 60_000, queryFn: () => fetchPage(number) })
 
   const loadRows = async (start: number) => (await page(Math.floor(start / gridPageSize))).rows
 
