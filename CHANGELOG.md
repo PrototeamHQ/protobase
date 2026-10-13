@@ -2,6 +2,16 @@
 
 Every release of Protobase, cut by the release workflow from the commits since the last one (see the [versioning page](https://docs.protobase.net/reference/versioning/)).
 
+## [0.13.1](https://github.com/PrototeamHQ/protobase/compare/v0.13.0...v0.13.1) (2026-10-13)
+
+### Features
+
+* **client:** map() asks for the records in a map's view, or buckets of them ([4945fb1](https://github.com/PrototeamHQ/protobase/commit/4945fb1c2e4a0000491813944e0499b87e5c925c))
+* **query:** mapBuckets counts matching records per map grid cell sized for the zoom ([eb877c9](https://github.com/PrototeamHQ/protobase/commit/eb877c9c6212325aaf373d5f3b97f98cba37adef))
+* **schema:** a list address keeps where its map looks ([3396cbc](https://github.com/PrototeamHQ/protobase/commit/3396cbc820769b9628d81882c50c3cb048bc9c26))
+* **server:** a :map action answers the records in a bounding box, or buckets of them by zoom ([6d4f91f](https://github.com/PrototeamHQ/protobase/commit/6d4f91fd4bd1c2483bfe19fa8a1e552b68400cf2))
+* **ui:** the map asks for the records in its view as it moves, bucketed by zoom, without Show more ([495f823](https://github.com/PrototeamHQ/protobase/commit/495f8233ac6cfaa0dbc0c7b3d236829704f7d076))
+
 ## [0.13.0](https://github.com/PrototeamHQ/protobase/compare/v0.12.22...v0.13.0) (2026-10-13)
 
 ### ⚠ BREAKING CHANGES
