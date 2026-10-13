@@ -2,7 +2,7 @@
 # bundle mounted at /app (`protobase build`'s dist/); the shell of the same release at /opt/protobase/shell, the admin
 # app a host serves for the bundle's shell paths instead of its copy; Bun itself for the healthcheck; and the C++
 # runtime that native add-ons in a bundle's node_modules link (libstdc++, libgcc_s). Context: dist/images/protobase
-# (bun run images:context).
+# (bun run images:context), from the release's @protobase packages on npm.
 ARG BUN_VERSION=1.4.2
 
 # Built by the Bun the image runs, so its bytecode always matches. It never reads .env or bunfig.toml from its working

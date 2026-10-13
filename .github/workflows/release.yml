@@ -116,13 +116,13 @@ jobs:
           NPM_CONFIG_PROVENANCE: 'true'
         run: node scripts/publish.mjs
 
-  # The images, on GitHub's registry at the release's version (see image.yml). ghcr.io/prototeamhq/protobase, the serve
-  # runtime, builds from the repository alone, so it starts with publish. ghcr.io/prototeamhq/protobase-dev, Bun and
-  # the presets, waits for publish and for npm to serve the packages, since the presets' bun.lock files resolve the
-  # @protobase packages from npm.
+  # The images, on GitHub's registry at the release's version (see image.yml), built from the release's @protobase
+  # packages as npm serves them: ghcr.io/prototeamhq/protobase, the serve runtime and the shell of @protobase/cli and
+  # @protobase/ui, and ghcr.io/prototeamhq/protobase-dev, Bun and the presets, whose bun.lock files resolve the packages
+  # from npm. Both wait for publish, so a release without its packages on npm has no images.
   image:
-    needs: release
-    if: ${{ !cancelled() && (github.event_name == 'workflow_dispatch' || needs.release.outputs.tag != '') }}
+    needs: [release, publish]
+    if: ${{ !cancelled() && needs.publish.result == 'success' }}
     permissions:
       contents: read
       packages: write
@@ -141,4 +141,3 @@ jobs:
     with:
       image: protobase-dev
       tag: ${{ inputs.tag || needs.release.outputs.tag }}
-      wait-for-npm: true

@@ -42,7 +42,7 @@ docker run -v "$PWD/dist:/app:ro" -p 8787:8787 -e DATABASE_URL -e BETTER_AUTH_SE
 
 In `protobase-dev`, copy a preset into `/workspace` and `bun install --frozen-lockfile` has nothing to do; installed anywhere else, it comes from the cache, without the network.
 
-The Dockerfiles are `docker/protobase/Dockerfile` and `docker/protobase-dev/Dockerfile`. To build them from a clone, at the version in `package.json` (whose `@protobase` packages must be on npm, since the presets' `bun.lock` files resolve them there):
+The Dockerfiles are `docker/protobase/Dockerfile` and `docker/protobase-dev/Dockerfile`. To build them from a clone, at the version in `package.json` (whose `@protobase` packages must be on npm: the serve runtime and the shell come from `@protobase/cli` and `@protobase/ui` installed from npm, and the presets' `bun.lock` files resolve the packages there):
 
 ```sh
 bun run images:context    # dist/images/protobase and dist/images/protobase-dev

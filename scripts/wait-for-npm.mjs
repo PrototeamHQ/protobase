@@ -1,8 +1,8 @@
 // Waits until npm serves every published @protobase package (packages/*, but the private ones) at the version in
 // package.json, as `bun install` asks for it, then exits; after 10 minutes it fails, naming the packages still missing.
 // npm's CDN caches each package's metadata for up to 5 minutes per Accept header, so a version can be on npm for one
-// package and one request and not yet for another: the presets' bun.lock files, which bun resolves from npm, need
-// them all as `bun install` sees them. The release workflow runs it after publishing, before `bun run images:context`.
+// package and one request and not yet for another: the image contexts, which bun installs from npm, need them all
+// as `bun install` sees them. The release workflow runs it after publishing, before `bun run images:context`.
 import { readdirSync, readFileSync } from 'node:fs'
 import path from 'node:path'
 

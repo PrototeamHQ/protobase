@@ -13,10 +13,6 @@ on:
         description: The release tag to build at, e.g. v0.1.0
         required: true
         type: string
-      wait-for-npm:
-        description: Whether the image's context needs the release's @protobase packages from npm
-        type: boolean
-        default: false
 
 jobs:
   build:
@@ -39,9 +35,9 @@ jobs:
         with:
           bun-version: 1.4.2
       - run: bun install --frozen-lockfile
-      # npm can take minutes to serve a version it just published.
+      # Each image's context comes from the release's @protobase packages on npm, which can take minutes to serve a
+      # version it just published.
       - name: Wait for npm to serve the @protobase packages
-        if: inputs.wait-for-npm
         run: bun scripts/wait-for-npm.mjs
       - run: bun run images:context ${{ inputs.image }}
       - uses: docker/setup-buildx-action@v3
