@@ -68,6 +68,10 @@ const listShape = (resource: string, models: Record<string, ResourceModel>) =>
             card: s.data,
             photos: s.map<CardPhotosModel>((photos) => (cardPhotosErrors(photos, resource, models).length === 0 ? photos : undefined)),
           }),
+          map: s.object<Of<ListDisplayModel, 'map'>>(
+            { kind: s.data, name: s.data, label: s.data, icon: s.data, latitude: s.field, longitude: s.field, cards: s.data },
+            { requires: ['latitude', 'longitude'] },
+          ),
           custom: s.object<Of<ListDisplayModel, 'custom'>>(
             { kind: s.data, name: s.data, label: s.data, icon: s.data, component: s.data, fields: s.list(s.field), props: s.refs },
             { requires: ['props'] },

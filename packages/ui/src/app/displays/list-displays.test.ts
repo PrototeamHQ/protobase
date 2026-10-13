@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { f, resource, view, type FieldModel } from '@protobase/schema'
-import { amountParts, defaultDisplay, displayChoices, displayRow, filledAmount, filledMeta, loadedFields, shownDisplay, sortFields } from './list-displays'
+import { f, resource, view, type FieldModel, type ListDisplayModel } from '@protobase/schema'
+import { amountParts, defaultDisplay, displayChoices, displayRow, filledAmount, filledMeta, loadedFields, mapCards, shownDisplay, shownFields, sortFields } from './list-displays'
 
 const repairs = resource('repairs')
   .table('repairs')
@@ -105,5 +105,30 @@ describe('amountParts', () => {
     expect(amountParts(field('decimal'), '425000.00', { prefix: '€', decimals: 0 })).toEqual({ amount: '€425,000' })
     expect(amountParts(field('integer'), 120, { suffix: ' m²' })).toEqual({ amount: '120', suffix: ' m²' })
     expect(amountParts(field('text'), 'soon', { suffix: ' /month' })).toEqual({ amount: 'soon' })
+  })
+})
+
+describe('mapCards', () => {
+  const places = resource('places').table('places').fields({ id: f.integer(), name: f.text(), area: f.text(), lat: f.decimal({ precision: 8, scale: 6 }), lng: f.decimal({ precision: 9, scale: 6 }) }).primaryKey((r) => r.id)
+  const placesModel = places.toModel()
+  const mapped = (cards?: string) =>
+    view<typeof places>('places')
+      .title((r) => r.name)
+      .list((r, d) => ({ columns: [r.name], displays: [d.cards({ subtitle: r.area }), d.cards({ meta: [r.area] }, { name: 'small' }), d.map({ latitude: r.lat, longitude: r.lng }, { ...(cards && { cards }) })] }))
+      .toModel(placesModel)
+
+  it("shows the card of the cards display it names, else the list's first, and loads the position with the card's fields", () => {
+    const first = mapped()
+    const map = shownDisplay(first, 'map') as Extract<ListDisplayModel, { kind: 'map' }>
+    expect(mapCards(first, map)).toMatchObject({ name: 'cards', subtitle: 'area' })
+    expect(shownFields(placesModel, first, map)).toEqual(['lat', 'lng', 'name', 'area'])
+    const small = mapped('small')
+    expect(mapCards(small, shownDisplay(small, 'map') as Extract<ListDisplayModel, { kind: 'map' }>)).toMatchObject({ name: 'small', meta: ['area'] })
+    expect(displayChoices(first).at(-1)).toEqual({ name: 'map', label: 'Map', icon: 'map' })
+  })
+
+  it('shows the title alone without a cards display', () => {
+    const alone = view<typeof places>('places').list((r, d) => ({ columns: [r.name], displays: [d.map({ latitude: r.lat, longitude: r.lng })] })).toModel(placesModel)
+    expect(mapCards(alone, alone.list!.displays![0] as Extract<ListDisplayModel, { kind: 'map' }>)).toEqual({ kind: 'cards', name: 'map' })
   })
 })

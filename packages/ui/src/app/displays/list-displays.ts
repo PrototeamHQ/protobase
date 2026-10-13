@@ -18,6 +18,8 @@ export type RecordCardProps = { row: ListDisplayRow }
 /** One choice of the list's display switch: the table first, then the view's displays. */
 export type DisplayChoice = { name: string; label: string; icon?: string }
 
+type CardsDisplayModel = Extract<ListDisplayModel, { kind: 'cards' }>
+
 export const displaysOf = (view: ViewModel | undefined): ListDisplayModel[] => view?.list?.displays ?? []
 
 /**
@@ -38,13 +40,15 @@ export const shownDisplay = (view: ViewModel | undefined, name: string): ListDis
   return named(name) ?? named(view?.list?.default)
 }
 
+const defaultIcons: Partial<Record<ListDisplayModel['kind'], string>> = { cards: 'cards', map: 'map' }
+
 export const displayChoices = (view: ViewModel | undefined): DisplayChoice[] => [
   { name: tableDisplay, label: 'Table', icon: 'table' },
-  ...displaysOf(view).map((display) => ({ name: display.name, label: display.label ?? humanize(display.name), icon: display.icon ?? (display.kind === 'cards' ? 'cards' : undefined) })),
+  ...displaysOf(view).map((display) => ({ name: display.name, label: display.label ?? humanize(display.name), icon: display.icon ?? defaultIcons[display.kind] })),
 ]
 
 /** The fields a cards display shows, its title the view's title field when it names none. */
-export const cardFields = (model: ResourceModel, view: ViewModel | undefined, display: Extract<ListDisplayModel, { kind: 'cards' }>) => ({
+export const cardFields = (model: ResourceModel, view: ViewModel | undefined, display: CardsDisplayModel) => ({
   image: display.image,
   title: display.title ?? recordTitleField(model, view),
   subtitle: display.subtitle,
@@ -69,9 +73,17 @@ export const amountParts = (field: FieldModel, value: unknown, hints: FieldViewM
   return { amount: displayValue(field, value, unsuffixed), suffix }
 }
 
+/** The cards display whose card a map shows for a record: the one it names, else the list's first, else the title alone. */
+export const mapCards = (view: ViewModel | undefined, display: Extract<ListDisplayModel, { kind: 'map' }>): CardsDisplayModel => {
+  const cards = displaysOf(view).filter((other): other is CardsDisplayModel => other.kind === 'cards')
+  const named = display.cards === undefined ? cards[0] : cards.find((other) => other.name === display.cards)
+  return named ?? { kind: 'cards', name: display.name }
+}
+
 /** Every field a display shows, the fields its rows are loaded and labelled for. */
 export const shownFields = (model: ResourceModel, view: ViewModel | undefined, display: ListDisplayModel): string[] => {
   if (display.kind === 'custom') return display.fields
+  if (display.kind === 'map') return [display.latitude, display.longitude, ...shownFields(model, view, mapCards(view, display))]
   const { image, title, subtitle, amount, badge, meta, footer, flags } = cardFields(model, view, display)
   return [image, title, subtitle, ...amount, badge, ...meta, ...footer, ...flags].filter((name): name is string => name !== undefined)
 }

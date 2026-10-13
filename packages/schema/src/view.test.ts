@@ -180,6 +180,17 @@ describe('view builder', () => {
     expect(model.list?.displays).toEqual([{ kind: 'cards', name: 'cards', title: 'title', photos: { resource: 'article_photos', field: 'article_id', image: 'photo', sort: 'position' } }])
   })
 
+  it('adds a map of the records at their position, with the card of a cards display it names', () => {
+    const shops = resource('shops').table('shops').fields({ id: f.integer(), name: f.text(), lat: f.decimal({ precision: 8, scale: 6 }), lng: f.decimal({ precision: 9, scale: 6 }) }).primaryKey((r) => r.id)
+    const model = view<typeof shops>('shops')
+      .list((r, d) => ({ columns: [r.name], displays: [d.cards({ title: r.name }, { name: 'tiles' }), d.map({ latitude: r.lat, longitude: r.lng }, { label: 'On the map', cards: 'tiles' })] }))
+      .toModel(shops.toModel())
+    expect(model.list?.displays?.[1]).toEqual({ kind: 'map', name: 'map', label: 'On the map', latitude: 'lat', longitude: 'lng', cards: 'tiles' })
+    expect(displayFields(model.list!.displays![1]!)).toEqual(['lat', 'lng'])
+    const unknown = () => view<typeof shops>('shops').list((r, d) => ({ columns: [r.name], displays: [d.map({ latitude: r.lat, longitude: r.lng }, { cards: 'tiles' })] }))
+    expect(unknown).toThrow('display "map" names cards "tiles", which is not a cards display of the list')
+  })
+
   it('refuses displays that collide, a default that is none of them, and built-in blocks as components', () => {
     const list = (pick: (d: typeof displays) => { displays: ListDisplayModel[]; default?: string }) => () =>
       view<typeof article>('article').list((r, d) => ({ columns: [r.title], ...pick(d) }))

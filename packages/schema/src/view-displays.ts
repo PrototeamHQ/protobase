@@ -51,6 +51,20 @@ export const displays = {
     ...(o.photos && { photos: { ...o.photos } }),
   }),
   /**
+   * A map of the records at their `latitude` and `longitude`, in decimal degrees, drawn with the app's map style. A
+   * marker stands for the records that lie close together at the zoom; choosing it shows their card at the map's bottom,
+   * with arrows through them. The card is the one of the cards display named `cards`, the list's first cards display
+   * when it names none, or the record's title alone without one. Named `map` unless `name` says otherwise.
+   */
+  map: (fields: { latitude: Ref; longitude: Ref }, o: Naming & { cards?: string } = {}): ListDisplayModel => ({
+    kind: 'map',
+    name: o.name ?? 'map',
+    ...naming(o),
+    latitude: fields.latitude.name,
+    longitude: fields.longitude.name,
+    ...(o.cards !== undefined && { cards: o.cards }),
+  }),
+  /**
    * The list drawn by a component of the project, registered in `protobase.ui.tsx` under its name. It gets `props` and
    * reads the rows with `useListDisplay()`; `fields` are the fields it shows, fetched with relation names.
    */
@@ -74,12 +88,18 @@ export const displayErrors = (list: { displays?: ListDisplayModel[]; default?: s
     ...names.filter((name) => !displayName.test(name)).map((name) => `display name "${name}" must start with a lowercase letter and hold only letters, digits and dashes`),
     ...names.filter((name) => name === tableDisplay).map(() => `"${tableDisplay}" is the list's own display; give the display another name`),
     ...names.filter((name, index) => names.indexOf(name) !== index).map((name) => `display "${name}" is defined twice`),
+    ...(list.displays ?? []).flatMap((display) =>
+      display.kind === 'map' && display.cards !== undefined && !list.displays!.some((other) => other.kind === 'cards' && other.name === display.cards)
+        ? [`display "${display.name}" names cards "${display.cards}", which is not a cards display of the list`]
+        : [],
+    ),
     ...(list.default === undefined || list.default === tableDisplay || names.includes(list.default) ? [] : [`default "${list.default}" is not one of the displays (${[tableDisplay, ...names].join(', ')})`]),
   ]
 }
 
-/** Every field a display names: what it shows, and the field references in a custom display's props. */
-export const displayFields = (display: ListDisplayModel): string[] =>
-  display.kind === 'cards'
-    ? [display.image, display.title, display.subtitle, ...(display.amount ?? []), display.badge, ...(display.meta ?? []), ...(display.footer ?? []), ...(display.flags ?? [])].filter((name): name is string => name !== undefined)
-    : [...display.fields, ...fieldRefsIn(display.props)]
+/** Every field a display names: what it shows, a map's position, and the field references in a custom display's props. */
+export const displayFields = (display: ListDisplayModel): string[] => {
+  if (display.kind === 'map') return [display.latitude, display.longitude]
+  if (display.kind === 'custom') return [...display.fields, ...fieldRefsIn(display.props)]
+  return [display.image, display.title, display.subtitle, ...(display.amount ?? []), display.badge, ...(display.meta ?? []), ...(display.footer ?? []), ...(display.flags ?? [])].filter((name): name is string => name !== undefined)
+}

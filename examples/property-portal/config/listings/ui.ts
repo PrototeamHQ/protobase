@@ -40,6 +40,7 @@ export const listingsView = view<typeof listings>('listings')
         { image: r.photo, title: r.address, amount: [r.purchase_price, r.rent_price], badge: r.status, meta: [r.living_area, r.bedrooms, r.energy_label], footer: [r.place_id, r.agent_name], flags: [r.garden, r.balcony, r.parking] },
         { label: 'Photos', photos: { resource: 'listing_photos', field: 'listing_id', image: 'photo', sort: 'position' } },
       ),
+      d.map({ latitude: r.latitude, longitude: r.longitude }, { label: 'Map' }),
     ],
     default: 'cards',
   }))

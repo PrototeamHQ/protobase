@@ -1,4 +1,4 @@
-import { Calendar, Columns3, LayoutGrid, List, SquareKanban, Table2, type LucideIcon } from 'lucide-react'
+import { Calendar, Columns3, LayoutGrid, List, Map as MapIcon, SquareKanban, Table2, type LucideIcon } from 'lucide-react'
 import type { ListDisplayModel, ResourceModel, ViewModel } from '@protobase/schema'
 import { cn } from '../../lib/cn'
 import { humanize } from '../../live/naming'
@@ -8,7 +8,7 @@ import { parseSort } from '../list-order'
 import { displayChoices, sortFields } from './list-displays'
 
 /** The icons a display's `icon` may name; another name shows the label alone. */
-const icons: Record<string, LucideIcon> = { table: Table2, cards: LayoutGrid, kanban: SquareKanban, board: Columns3, list: List, calendar: Calendar }
+const icons: Record<string, LucideIcon> = { table: Table2, cards: LayoutGrid, kanban: SquareKanban, board: Columns3, list: List, calendar: Calendar, map: MapIcon }
 
 /**
  * The list page's switch between the table and the view's displays, as buttons or, on a phone, as a menu; nothing for a

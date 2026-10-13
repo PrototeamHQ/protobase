@@ -19,6 +19,7 @@ import { useDeleteFlow, type DeleteTarget } from './delete/use-delete-flow'
 import { useRestore } from './delete/use-restore'
 import { ErrorBanner } from './error-banner'
 import { CardsDisplay } from './displays/cards-display'
+import { MapDisplay } from './displays/map-display'
 import { CustomDisplay } from './displays/custom-display'
 import { DisplaySwitch, SortMenu } from './displays/display-controls'
 import { loadedFields, shownDisplay } from './displays/list-displays'
@@ -144,7 +145,13 @@ const LoadedList = ({ model, address }: { model: ResourceModel; address: ListAdd
   ) : (
     <div className="flex-1 rounded-lg border bg-surface" />
   )
-  const shown = !display ? table : display.kind === 'cards' ? <CardsDisplay model={model} view={view} display={display} list={displayRows} /> : <CustomDisplay display={display} list={displayRows} />
+  const drawDisplay = () => {
+    if (!display) return table
+    if (display.kind === 'cards') return <CardsDisplay model={model} view={view} display={display} list={displayRows} />
+    if (display.kind === 'map') return <MapDisplay model={model} view={view} display={display} list={displayRows} />
+    return <CustomDisplay display={display} list={displayRows} />
+  }
+  const shown = drawDisplay()
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-3 px-5 py-4">

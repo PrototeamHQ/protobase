@@ -17,11 +17,14 @@ describe('the portal config', () => {
     expect(pages.map((entry) => entry.name)).toEqual(['home'])
   })
 
-  it('opens listings as cards with their cover photo and arrows through the rest, and starts a note from a listing with the listing chosen', () => {
+  it('opens listings as cards with their cover photo and arrows through the rest, offers them on a map, and starts a note from a listing with the listing chosen', () => {
     const [everyone, members] = views.map((view) => view.toModel()).filter((view) => view.resource === 'listings')
     expect(everyone!.list).toMatchObject({
       default: 'cards',
-      displays: [{ kind: 'cards', image: 'photo', title: 'address', photos: { resource: 'listing_photos', field: 'listing_id', image: 'photo', sort: 'position' } }],
+      displays: [
+        { kind: 'cards', image: 'photo', title: 'address', amount: ['purchase_price', 'rent_price'], footer: ['place_id', 'agent_name'], photos: { resource: 'listing_photos', field: 'listing_id', image: 'photo', sort: 'position' } },
+        { kind: 'map', name: 'map', label: 'Map', latitude: 'latitude', longitude: 'longitude' },
+      ],
     })
     expect(everyone!.actions).toEqual([])
     expect(members!.actions.find((action) => action.name === 'add_note')?.run).toEqual({ kind: 'link', to: { kind: 'create', resource: 'notes', values: { listing_id: '{id}' } } })

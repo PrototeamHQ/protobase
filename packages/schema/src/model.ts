@@ -124,12 +124,14 @@ export type FieldWidgetModel = { name: string; props?: Record<string, JsonValue>
 
 /**
  * A way to show a list besides its table: a card per record, its content the built-in one or a component's (`card`),
- * or a project component (`custom`) drawing the rows the list page loads. A card's `amount` is the first of its fields with
+ * a map of the records at their `latitude` and `longitude`, each opening the card of the cards display named `cards`
+ * (`map`), or a project component (`custom`) drawing the rows the list page loads. A card's `amount` is the first of its fields with
  * a value, `footer` its fields with a value joined by bullets, and `flags` boolean fields shown as small badges of their
  * labels when true. `name` is what the address names (`?display=cards`); `label` and `icon` are its switch's.
  */
 export type ListDisplayModel =
   | { kind: 'cards'; name: string; label?: string; icon?: string; image?: string; title?: string; subtitle?: string; amount?: string[]; badge?: string; meta?: string[]; footer?: string[]; flags?: string[]; card?: string; photos?: CardPhotosModel }
+  | { kind: 'map'; name: string; label?: string; icon?: string; latitude: string; longitude: string; cards?: string }
   | { kind: 'custom'; name: string; label: string; icon?: string; component: string; fields: string[]; props?: Record<string, JsonValue> }
 
 /**
