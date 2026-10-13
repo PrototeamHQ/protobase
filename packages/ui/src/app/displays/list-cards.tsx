@@ -25,8 +25,8 @@ const pictureHeight = (width: number) => width * 0.75
 const plainHeight = 44
 
 /**
- * The list page's cards display: a card per record (see `RecordCard`), scrolled like the table, with which of the
- * matching records are in view below. An embedded list, which shows a few cards whole, draws them with `CardsDisplay`.
+ * The list page's cards display: a card per record (see `RecordCard`), scrolled like the table. An embedded list,
+ * which shows a few cards whole, draws them with `CardsDisplay`.
  */
 export const ListCards = ({ model, view, display, list }: ListCardsProps) => {
   const plural = view?.names?.plural ?? humanize(model.name)

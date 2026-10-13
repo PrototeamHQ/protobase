@@ -1,5 +1,5 @@
 import { Ellipsis, type LucideIcon } from 'lucide-react'
-import type { MouseEvent } from 'react'
+import type { MouseEvent, Ref } from 'react'
 import { cn } from '../lib/cn'
 
 /** A tab: inside the admin it navigates, `external` opens a new tab. */
@@ -13,6 +13,9 @@ export type BottomBarProps = {
   onMore: () => void
   moreOpen: boolean
   moreControls: string
+  /** Stays at the bottom of the page while it scrolls, for a shell whose page scrolls. */
+  sticky?: boolean
+  ref?: Ref<HTMLElement>
 }
 
 const inApp = (event: MouseEvent) => event.button === 0 && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey
@@ -24,10 +27,10 @@ const tab = 'flex min-h-[49px] min-w-0 flex-1 flex-col items-center justify-cent
  * last, which opens the navigation drawer and is the current tab on screens the others do not hold. The padding below
  * keeps the tabs clear of the iPhone home indicator.
  */
-export const BottomBar = ({ tabs, onNavigate, onMore, moreOpen, moreControls }: BottomBarProps) => {
+export const BottomBar = ({ tabs, onNavigate, onMore, moreOpen, moreControls, sticky, ref }: BottomBarProps) => {
   const moreCurrent = !tabs.some((item) => item.active)
   return (
-    <nav aria-label="Tabs" className="flex shrink-0 border-t bg-background pb-[env(safe-area-inset-bottom)] md:hidden">
+    <nav ref={ref} aria-label="Tabs" className={cn('flex shrink-0 border-t bg-background pb-[env(safe-area-inset-bottom)] md:hidden', sticky && 'sticky bottom-0 z-30')}>
       {tabs.map((item) => {
         const Icon = item.icon
         return (

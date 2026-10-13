@@ -5,14 +5,14 @@ export type BulkAction = { label: (count: number) => string; destructive?: boole
 
 export type GridFooterProps = {
   total: number
-  first: number
-  last: number
   selectedCount: number
   bulkActions?: Array<{ label: string; destructive?: boolean; onRun: () => void }>
+  className?: string
 }
 
-export const GridFooter = ({ total, first, last, selectedCount, bulkActions = [] }: GridFooterProps) => (
-  <div className="flex h-9 shrink-0 items-center justify-between border-t bg-surface px-3 text-xs text-muted-foreground">
+/** How many rows match and, with rows selected, how many and what can be done with them. */
+export const GridFooter = ({ total, selectedCount, bulkActions = [], className }: GridFooterProps) => (
+  <div className={cn('flex h-9 shrink-0 items-center border-t bg-surface px-3 text-xs text-muted-foreground', className)}>
     <span className="flex items-center tabular-nums">
       {formatApproxRows(total)}
       {selectedCount > 0 && <span className="ml-3 font-medium text-primary-text">{formatInt(selectedCount)} selected</span>}
@@ -27,9 +27,6 @@ export const GridFooter = ({ total, first, last, selectedCount, bulkActions = []
             {action.label}
           </button>
         ))}
-    </span>
-    <span className="tabular-nums">
-      Rows {formatInt(first)} &ndash; {formatInt(last)}
     </span>
   </div>
 )

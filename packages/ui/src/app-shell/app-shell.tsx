@@ -1,8 +1,9 @@
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { cn } from '../lib/cn'
 import { useIsDesktop } from '../lib/use-media-query'
 import { BottomBar, type BottomBarTab } from './bottom-bar'
 import { Drawer } from './drawer'
+import { PageScrollContext, usePageInsets } from './page-scroll'
 import type { NavGroup } from './nav'
 import { Sidebar } from './sidebar'
 import type { ProfileMenuItem, ProfileOrganizations, ProfileRoles, ShellUser } from './profile-menu'
@@ -53,22 +54,30 @@ export const AppShell = ({ sidebarMode, activeItem, breadcrumb, user, workspace,
     if (desktop) setDrawerOpen(false)
   }, [desktop])
   const tabs = !desktop && bottomBar && bottomBar.length > 0 ? bottomBar : undefined
-  const sidebar = (mode: SidebarMode) => (
-    <Sidebar mode={mode} activeItem={activeItem} user={user} workspace={workspace} forceExpanded={forceExpanded} profileMenuOpen={profileMenuOpen} groups={navGroups} userMenu={userMenu} onNavigate={onNavigate} onSignOut={onSignOut} onSignIn={onSignIn} organizations={organizations} roles={roles} />
+  // A page that scrolls the document turns it on with `usePageScroll`
+  const [pageScroll, setPageScroll] = useState(false)
+  const topBarRef = useRef<HTMLElement>(null)
+  const bottomBarRef = useRef<HTMLElement>(null)
+  usePageInsets(pageScroll, topBarRef, bottomBarRef, Boolean(tabs))
+  const sidebar = (mode: SidebarMode, sticky = false) => (
+    <Sidebar mode={mode} sticky={sticky} activeItem={activeItem} user={user} workspace={workspace} forceExpanded={forceExpanded} profileMenuOpen={profileMenuOpen} groups={navGroups} userMenu={userMenu} onNavigate={onNavigate} onSignOut={onSignOut} onSignIn={onSignIn} organizations={organizations} roles={roles} />
   )
   return (
-    <div className={cn('flex h-full min-h-0 w-full overflow-hidden bg-background', className)}>
-      {desktop ? sidebar(sidebarMode) : (
-        <Drawer id={drawerId} open={drawerOpen} onClose={() => setDrawerOpen(false)}>
-          {sidebar('text-large')}
-        </Drawer>
-      )}
-      <div className="flex min-w-0 flex-1 flex-col">
-        <TopBar breadcrumb={breadcrumb} onNavigate={onNavigate} actions={actions} onMenu={desktop || tabs ? undefined : () => setDrawerOpen(true)} menuOpen={drawerOpen} menuControls={drawerId} search={search} />
-        <main className="flex min-h-0 flex-1 flex-col">{children}</main>
-        {tabs && <BottomBar tabs={tabs} onNavigate={onNavigate} onMore={() => setDrawerOpen(true)} moreOpen={drawerOpen} moreControls={drawerId} />}
+    <PageScrollContext.Provider value={setPageScroll}>
+      <div className={cn(pageScroll ? 'flex min-h-full w-full overflow-x-clip bg-background' : 'flex h-full min-h-0 w-full overflow-hidden bg-background', className)}>
+        {desktop ? sidebar(sidebarMode, pageScroll) : (
+          <Drawer id={drawerId} open={drawerOpen} onClose={() => setDrawerOpen(false)}>
+            {sidebar('text-large')}
+          </Drawer>
+        )}
+        <div className="flex min-w-0 flex-1 flex-col">
+          <TopBar ref={topBarRef} sticky={pageScroll} breadcrumb={breadcrumb} onNavigate={onNavigate} actions={actions} onMenu={desktop || tabs ? undefined : () => setDrawerOpen(true)} menuOpen={drawerOpen} menuControls={drawerId} search={search} />
+          <main className={pageScroll ? 'flex flex-1 flex-col' : 'flex min-h-0 flex-1 flex-col'}>{children}</main>
+          {tabs && <BottomBar ref={bottomBarRef} sticky={pageScroll} tabs={tabs} onNavigate={onNavigate} onMore={() => setDrawerOpen(true)} moreOpen={drawerOpen} moreControls={drawerId} />}
+        </div>
+        {/* The same element either way, so that switching keeps the panel's state; it stays in view while the page scrolls */}
+        {rightPanel && <div className={pageScroll ? 'sticky top-0 flex h-dvh shrink-0 self-start' : 'flex shrink-0'}>{rightPanel}</div>}
       </div>
-      {rightPanel}
-    </div>
+    </PageScrollContext.Provider>
   )
 }

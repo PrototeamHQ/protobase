@@ -43,12 +43,17 @@ export type DataGridProps = {
   selectable?: boolean
   /** Sized to show every row of `source` without scrolling and without the footer, for a few rows shown whole. */
   fit?: boolean
+  /**
+   * What scrolls the rows: `own`, a scroller of the grid's own in the height it is given, or `parent`, the nearest
+   * scrolling ancestor or else the page, the grid as tall as all its rows with its header and footer sticky in it.
+   */
+  scroll?: 'own' | 'parent'
   className?: string
 }
 
 const headerHeight = 32
 
-export const DataGrid = ({ columns: given, source, naturalSort, initialScrollIndex = 0, onScrollIndex, latencyMs = 150, sort: controlledSort, onSortChange, onOpenRow, rowActions, bulkActions, pinKey, defaultPinned, rowNumbers = true, compact = false, selectable = true, fit = false, className }: DataGridProps) => {
+export const DataGrid = ({ columns: given, source, naturalSort, initialScrollIndex = 0, onScrollIndex, latencyMs = 150, sort: controlledSort, onSortChange, onOpenRow, rowActions, bulkActions, pinKey, defaultPinned, rowNumbers = true, compact = false, selectable = true, fit = false, scroll = 'own', className }: DataGridProps) => {
   const rowHeight = compact ? 28 : 36
   const [pinned, setPinned] = usePinnedColumns(pinKey, defaultPinned)
   const columns = useMemo(() => {
@@ -73,11 +78,11 @@ export const DataGrid = ({ columns: given, source, naturalSort, initialScrollInd
   const sourceRowAt = source.rowAt
   const rowAt = useCallback((index: number) => sourceRowAt!(reverse ? total - 1 - index : index), [sourceRowAt, reverse, total])
 
-  const { ref, onScroll, viewport, top, geometry, rows: virtualRows, first: firstIndex, last: lastIndex } = useVirtualRows({ total, rowHeight, initialIndex: initialScrollIndex, inset: headerHeight })
+  const [startIndex] = useState(initialScrollIndex)
+  const { ref, top, geometry, rows: virtualRows, first: firstIndex, last: lastIndex } = useVirtualRows<HTMLDivElement>({ total, rowHeight, initialIndex: startIndex, inset: headerHeight })
   const narrow = !useIsDesktop()
   const gutter = narrow || !rowNumbers ? compactGutter : gutterWidthFor(total)
-  const bodyHeight = Math.max(0, viewport - headerHeight)
-  const topIndex = Math.floor(top / rowHeight)
+  const topIndex = Math.floor(Math.max(0, top) / rowHeight)
   useEffect(() => onScrollIndex?.(topIndex), [topIndex, onScrollIndex])
   const getRow = usePagedRows({ total, rowAt: sourceRowAt ? rowAt : undefined, loadRows: source.loadRows, latencyMs }, firstIndex, lastIndex)
 
@@ -102,9 +107,15 @@ export const DataGrid = ({ columns: given, source, naturalSort, initialScrollInd
   const trailing = rowActions && rowActions.length > 0 ? rowMenuWidth : 0
   const minScale = narrow ? 1 : desktopMinScale
   const horizontal = useHorizontalScroll()
+  // The header scrolls sideways with the rows, outside them so that it can stick to the top of a page
+  const headerRef = useRef<HTMLDivElement>(null)
+  const onBodyScroll = () => {
+    horizontal.onScroll()
+    if (headerRef.current && horizontal.ref.current) headerRef.current.scrollLeft = horizontal.ref.current.scrollLeft
+  }
   const [pins, setPins] = useState<Record<string, number>>({})
   useLayoutEffect(() => {
-    const header = horizontal.ref.current?.querySelector('[role=row]')
+    const header = headerRef.current?.querySelector('[role=row]')
     if (!header) return
     let left = gutter
     const next: Record<string, number> = {}
@@ -125,55 +136,67 @@ export const DataGrid = ({ columns: given, source, naturalSort, initialScrollInd
     })),
   )
 
-  const visibleRows = Math.max(1, Math.floor(bodyHeight / rowHeight))
-  const first = Math.min(total, Math.floor(top / rowHeight) + 1)
-  const last = Math.min(total, first + visibleRows - 1)
+  const minWidth = gridMinWidth(columns, gutter, trailing, minScale)
+  const own = scroll === 'own'
+  const header = (
+    <div ref={headerRef} className={cn('sticky z-20 shrink-0 overflow-hidden', own ? 'top-0' : 'top-[var(--pb-sticky-top,0px)]')}>
+      <div style={{ minWidth }}>
+        <GridHeader cells={headerCells} specs={columns} gutter={gutter} trailing={trailing} minScale={minScale} pins={pins} lastPinned={lastPinned} scrolled={horizontal.scrolled} onTogglePin={togglePin} selectable={selectable} selectedCount={selectedCount} onClearSelection={() => setRowSelection({})} />
+      </div>
+    </div>
+  )
+  const body = (
+    <div ref={horizontal.attach} onScroll={onBodyScroll} className="overflow-x-auto overflow-y-hidden overscroll-x-contain [-webkit-overflow-scrolling:touch]">
+      <div ref={ref} className="relative" style={{ minWidth, height: geometry.contentHeight }}>
+        {loaded.map(({ index, offset, row }) => {
+          const frame = { specs: columns, gutter, index, offset, height: rowHeight, selectable, trailing, minScale, scrolled: horizontal.scrolled, pins, lastPinned }
+          const tableRow = row ? tableRows.get(row.id) : undefined
+          if (!tableRow) return <SkeletonRow key={`skeleton-${index}`} {...frame} />
+          const actions = trailing && row ? availableActions(rowActions!, row) : []
+          return (
+            <DataRow
+              key={row?.id}
+              {...frame}
+              selected={tableRow.getIsSelected()}
+              onToggle={() => tableRow.toggleSelected()}
+              onOpen={onOpenRow && row ? () => onOpenRow(row) : undefined}
+              menu={row && actions.length > 0 ? <RowMenu row={row} actions={actions} /> : undefined}
+              cells={tableRow.getAllCells().map((cell) => ({
+                spec: columns.find((spec) => spec.id === cell.column.id)!,
+                content: <table.FlexRender cell={cell} />,
+              }))}
+            />
+          )
+        })}
+      </div>
+    </div>
+  )
 
   return (
-    <div className={cn('flex min-h-0 flex-col overflow-hidden rounded-lg border bg-background', className)} style={fit ? { height: headerHeight + total * rowHeight + 2 } : undefined}>
-      <div ref={ref} onScroll={onScroll} className="relative min-h-0 flex-1 overflow-y-auto overflow-x-hidden" role="grid" aria-rowcount={total}>
-        <div style={{ height: geometry.contentHeight || undefined }}>
-          <div className="sticky top-0" style={{ height: viewport }}>
-            {viewport > 0 && (
-              <>
-                <div ref={horizontal.attach} onScroll={horizontal.onScroll} className="h-full overflow-x-auto overflow-y-hidden overscroll-x-contain [-webkit-overflow-scrolling:touch]">
-                  <div className="flex h-full flex-col" style={{ minWidth: gridMinWidth(columns, gutter, trailing, minScale) }}>
-                    <GridHeader cells={headerCells} specs={columns} gutter={gutter} trailing={trailing} minScale={minScale} pins={pins} lastPinned={lastPinned} scrolled={horizontal.scrolled} onTogglePin={togglePin} selectable={selectable} selectedCount={selectedCount} onClearSelection={() => setRowSelection({})} />
-                    <div className="relative min-h-0 flex-1 overflow-clip">
-                      {loaded.map(({ index, offset, row }) => {
-                        const frame = { specs: columns, gutter, index, offset, height: rowHeight, selectable, trailing, minScale, scrolled: horizontal.scrolled, pins, lastPinned }
-                        const tableRow = row ? tableRows.get(row.id) : undefined
-                        if (!tableRow) return <SkeletonRow key={`skeleton-${index}`} {...frame} />
-                        const actions = trailing && row ? availableActions(rowActions!, row) : []
-                        return (
-                          <DataRow
-                            key={row?.id}
-                            {...frame}
-                            selected={tableRow.getIsSelected()}
-                            onToggle={() => tableRow.toggleSelected()}
-                            onOpen={onOpenRow && row ? () => onOpenRow(row) : undefined}
-                            menu={row && actions.length > 0 ? <RowMenu row={row} actions={actions} /> : undefined}
-                            cells={tableRow.getAllCells().map((cell) => ({
-                              spec: columns.find((spec) => spec.id === cell.column.id)!,
-                              content: <table.FlexRender cell={cell} />,
-                            }))}
-                          />
-                        )
-                      })}
-                    </div>
-                  </div>
-                </div>
-                {horizontal.more && <div aria-hidden className="pointer-events-none absolute inset-y-0 right-0 w-8 bg-gradient-to-l from-foreground/15 to-transparent" />}
-              </>
-            )}
+    <div
+      role="grid"
+      aria-rowcount={total}
+      className={cn('flex flex-col rounded-lg border bg-background', own ? 'min-h-0 overflow-hidden' : 'overflow-clip', className)}
+      style={fit && own ? { height: headerHeight + total * rowHeight + 2 } : undefined}
+    >
+      <div className={cn('relative', own && 'flex min-h-0 flex-1 flex-col')}>
+        {own ? (
+          <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden">
+            {header}
+            {body}
           </div>
-        </div>
+        ) : (
+          <>
+            {header}
+            {body}
+          </>
+        )}
+        {horizontal.more && <div aria-hidden className="pointer-events-none absolute inset-y-0 right-0 z-20 w-8 bg-gradient-to-l from-foreground/15 to-transparent" />}
       </div>
       {!fit && (
         <GridFooter
           total={total}
-          first={first}
-          last={last}
+          className={own ? undefined : 'sticky bottom-[var(--pb-sticky-bottom,0px)] z-20'}
           selectedCount={selectedCount}
           bulkActions={bulkActions?.map((action) => ({
             label: action.label(selectedCount),

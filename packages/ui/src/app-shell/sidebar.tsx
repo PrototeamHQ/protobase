@@ -24,14 +24,16 @@ export type SidebarProps = {
   onSignIn?: () => void
   organizations?: ProfileOrganizations
   roles?: ProfileRoles
+  /** Stays in view, as tall as the screen, while the page scrolls, for a shell whose page scrolls. */
+  sticky?: boolean
 }
 
-export const Sidebar = ({ mode, activeItem, user, workspace, forceExpanded, profileMenuOpen, groups = defaultGroups, userMenu, onNavigate, onSignOut, onSignIn, organizations, roles }: SidebarProps) => {
+export const Sidebar = ({ mode, activeItem, user, workspace, forceExpanded, profileMenuOpen, groups = defaultGroups, userMenu, onNavigate, onSignOut, onSignIn, organizations, roles, sticky }: SidebarProps) => {
   const expanding = mode === 'icon-expand'
   const expanded = expanding && forceExpanded
   const inline = isTextMode(mode) || expanding
   return (
-    <nav aria-label="Resources" className={cn('relative z-30 shrink-0', sidebarWidth[mode])}>
+    <nav aria-label="Resources" className={cn(sticky ? 'sticky top-0 h-dvh self-start' : 'relative', 'z-30 shrink-0', sidebarWidth[mode])}>
       <div
         className={cn(
           'group/side absolute inset-y-0 left-0 flex flex-col overflow-hidden border-r bg-sidebar',

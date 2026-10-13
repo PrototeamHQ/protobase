@@ -2,7 +2,7 @@ import { Plus, SlidersHorizontal } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { createWhere, type FilterExpr, type ResourceModel } from '@protobase/schema'
 import { tableDisplay } from '@protobase/schema/internal'
-import { PageHeader } from '../app-shell'
+import { PageHeader, usePageScroll } from '../app-shell'
 import { useAuth } from '../auth'
 import { DataGrid, pinnedStorageKey, type GridRow } from '../data-grid'
 import { ActiveFilterChips, FilterPanel, FilterSection, ToolbarRow, activeChips, emptyFilterState, removeChip, type FilterState } from '../filter-panel'
@@ -67,6 +67,10 @@ const LoadedList = ({ model, address }: { model: ResourceModel; address: ListAdd
   const loaded = useMemo(() => loadedFields(model, view, columns.map((column) => column.id)), [model, view, columns])
   const rows = useLiveRows({ resources: meta.resources, views: meta.views, model, columns: loaded, filter: parsed.ok ? filterText : '', orderBy })
   const display = shownDisplay(view, address.display)
+  // The table and the cards are as tall as all their rows and scroll with the page; the map and a custom display fill
+  // the screen
+  const pageScroll = !display || display.kind === 'cards'
+  usePageScroll(pageScroll)
   // A custom display pages through the rows with `loadMore`; the table and cards scroll through them, and the map asks
   // for the records in its view
   const displayRows = useDisplayRows(model, rows.page, rows.key, display?.kind === 'custom')
@@ -147,7 +151,8 @@ const LoadedList = ({ model, address }: { model: ResourceModel; address: ListAdd
       bulkActions={can(permissions, 'delete') ? [{ label: (count: number) => `Delete ${count}`, destructive: true, onRun: (rows: GridRow[]) => remove.startBulk(rows.map(target)) }] : []}
       rowNumbers={false}
       pinKey={auth.kind === 'signed-in' ? pinnedStorageKey(auth.user.id, resource) : undefined}
-      className="min-h-0 flex-1"
+      scroll="parent"
+      className="flex-1"
     />
   ) : (
     <div className="flex-1 rounded-lg border bg-surface" />
@@ -188,7 +193,8 @@ const LoadedList = ({ model, address }: { model: ResourceModel; address: ListAdd
       {desktop ? desktopToolbar : phoneFilters}
       {desktop && layout === 'panel' ? (
         <div className="flex min-h-0 flex-1 gap-4">
-          {panel}
+          {/* The same element either way, so that switching displays keeps the panel's state; it stays in view while the page scrolls */}
+          <div className={pageScroll ? 'sticky top-[calc(var(--pb-sticky-top,0px)+1rem)] flex max-h-[calc(100dvh-var(--pb-sticky-top,0px)-var(--pb-sticky-bottom,0px)-2rem)] shrink-0 self-start' : 'flex shrink-0'}>{panel}</div>
           {shown}
         </div>
       ) : (

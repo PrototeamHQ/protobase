@@ -1,5 +1,5 @@
 import { ChevronLeft, Menu, Search, X } from 'lucide-react'
-import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode, type Ref } from 'react'
 import { cn } from '../lib/cn'
 import { backTarget } from './back-target'
 import { Breadcrumb, inApp, type Crumb } from './breadcrumb'
@@ -16,11 +16,14 @@ export type TopBarProps = {
   menuControls?: string
   /** The search box; without it the top bar has none. */
   search?: GlobalSearchModel
+  /** Stays at the top of the page while it scrolls, for a shell whose page scrolls. */
+  sticky?: boolean
+  ref?: Ref<HTMLElement>
 }
 
 const iconButton = 'inline-flex size-11 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted md:hidden'
 
-export const TopBar = ({ breadcrumb, onNavigate, actions, onMenu, menuOpen, menuControls, search }: TopBarProps) => {
+export const TopBar = ({ breadcrumb, onNavigate, actions, onMenu, menuOpen, menuControls, search, sticky, ref }: TopBarProps) => {
   const [searchOpen, setSearchOpen] = useState(false)
   const back = backTarget(breadcrumb)
   const desktopSearch = useRef<HTMLInputElement>(null)
@@ -39,7 +42,7 @@ export const TopBar = ({ breadcrumb, onNavigate, actions, onMenu, menuOpen, menu
     return () => window.removeEventListener('keydown', onKey)
   }, [search])
   return (
-    <header className="relative flex h-12 shrink-0 items-center gap-1 border-b bg-background px-2 md:gap-4 md:px-5">
+    <header ref={ref} className={cn(sticky ? 'sticky top-0 z-30' : 'relative', 'flex h-12 shrink-0 items-center gap-1 border-b bg-background px-2 md:gap-4 md:px-5')}>
       {onMenu && (
         <button type="button" aria-label="Open navigation" aria-expanded={Boolean(menuOpen)} aria-controls={menuControls} onClick={onMenu} className={cn(iconButton, '-ml-0.5')}>
           <Menu className="size-5" />

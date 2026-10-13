@@ -18,12 +18,15 @@ type VirtualCardsProps = {
 }
 
 /**
- * Cards in rows as wide as the list, scrolled like the table: only the rows in view are drawn, over a scroller that
- * holds any number of records, and the records are loaded in the table's pages, so a change of width keeps the loaded
- * pages and the first record in view. Every card in a width is as tall as the tallest drawn so far.
+ * Cards in rows as wide as the list, scrolled like the table by the page or the nearest scrolling ancestor: the list is
+ * as tall as all its rows, only the rows in view are drawn, and the records are loaded in the table's pages, so a
+ * change of width keeps the loaded pages and the first record in view. Every card in a width is as tall as the tallest
+ * drawn so far.
  */
 export const VirtualCards = ({ source, label, initialIndex, onScrollIndex, minHeight, children }: VirtualCardsProps) => {
   const { total } = source
+  // The record to start at is the one at mount; later ones are where the list has been since
+  const [startIndex] = useState(initialIndex)
   const [width, setWidth] = useState(0)
   const columns = cardColumns(width)
   const itemWidth = cardWidth(width, columns)
@@ -31,23 +34,25 @@ export const VirtualCards = ({ source, label, initialIndex, onScrollIndex, minHe
   const itemHeight = Math.ceil(Math.max(minHeight(itemWidth), measured.width === itemWidth ? measured.height : 0))
   const rowHeight = itemHeight + cardGap
 
-  // Keep the same records in view across a change of columns or card height, and remember the first of them
+  // Keep the same records in view across a change of columns or card height, once the list has reached the top of the
+  // view, and remember the first of them
   const layout: CardLayout = { columns, rowHeight }
   const anchor = useRef({ layout, top: 0 })
-  const changed = anchor.current.layout.columns !== columns || anchor.current.layout.rowHeight !== rowHeight
+  const changed = anchor.current.top > 0 && (anchor.current.layout.columns !== columns || anchor.current.layout.rowHeight !== rowHeight)
   const settle = (top: number) => (changed ? anchoredTop(anchor.current.top, anchor.current.layout, layout) : top)
-  const scroll = useVirtualRows({ total: Math.ceil(total / columns), rowHeight, initialIndex: Math.floor(initialIndex / columns), settle })
+  // Until a card of this width is measured, its height is a guess, and the list waits for it to start at `initialIndex`
+  const ready = itemWidth > 0 && measured.width === itemWidth
+  const scroll = useVirtualRows<HTMLUListElement>({ total: Math.ceil(total / columns), rowHeight, initialIndex: Math.floor(startIndex / columns), settle, ready })
   useLayoutEffect(() => {
     if (changed) scroll.scrollTo(scroll.top)
     anchor.current = { layout, top: scroll.top }
-    if (!changed) onScrollIndex(Math.floor(scroll.top / rowHeight) * columns)
+    if (!changed) onScrollIndex(Math.floor(Math.max(0, scroll.top) / rowHeight) * columns)
   })
   const range = recordRange(scroll.first, scroll.last, columns, total)
   const getRow = usePagedRows({ total, rowAt: source.rowAt, loadRows: source.loadRows, latencyMs: 0 }, range.start, range.end)
 
-  const bodyRef = useRef<HTMLDivElement>(null)
   useLayoutEffect(() => {
-    const body = bodyRef.current
+    const body = scroll.ref.current
     if (!body) return
     const observer = new ResizeObserver(() => setWidth(body.clientWidth))
     observer.observe(body)
@@ -75,43 +80,29 @@ export const VirtualCards = ({ source, label, initialIndex, onScrollIndex, minHe
     [observer],
   )
 
-  const firstShown = Math.min(total, Math.floor(scroll.top / rowHeight) * columns + 1)
-  const lastShown = Math.min(total, (Math.floor((scroll.top + Math.max(0, scroll.viewport - 1)) / rowHeight) + 1) * columns)
-
   return (
-    <div className="flex min-h-0 flex-1 flex-col">
-      <div ref={scroll.ref} onScroll={scroll.onScroll} className="relative min-h-0 flex-1 overflow-y-auto overflow-x-hidden">
-        <div style={{ height: scroll.geometry.contentHeight || undefined }}>
-          <div ref={bodyRef} className="sticky top-0 overflow-clip" style={{ height: scroll.viewport }}>
-            <ul className="relative" aria-label={label}>
-              {scroll.rows.flatMap(({ index: rowIndex, offset }) =>
-                Array.from({ length: columns }, (_, column) => {
-                  const index = rowIndex * columns + column
-                  if (index >= total) return []
-                  const row = getRow(index)
-                  // A grid item stretches to the cell's least height, so a card's `h-full` fills it
-                  const place = { top: offset, left: column * (itemWidth + cardGap), width: itemWidth, minHeight: itemHeight }
-                  if (!row) {
-                    return (
-                      <li key={`skeleton-${index}`} aria-hidden className="absolute grid grid-cols-[minmax(0,1fr)]" style={place}>
-                        <Skeleton className="h-full rounded-lg" />
-                      </li>
-                    )
-                  }
-                  return (
-                    <li key={row.id} ref={observe} aria-posinset={index + 1} aria-setsize={total} className="absolute grid grid-cols-[minmax(0,1fr)]" style={place}>
-                      {children(row)}
-                    </li>
-                  )
-                }),
-              )}
-            </ul>
-          </div>
-        </div>
-      </div>
-      <div className="py-3 text-xs tabular-nums text-muted-foreground">
-        {firstShown.toLocaleString('en-IE')}&ndash;{lastShown.toLocaleString('en-IE')} of {total.toLocaleString('en-IE')}
-      </div>
-    </div>
+    <ul ref={scroll.ref} className="relative min-w-0 flex-auto" aria-label={label} style={{ height: scroll.geometry.contentHeight }}>
+      {scroll.rows.flatMap(({ index: rowIndex, offset }) =>
+        Array.from({ length: columns }, (_, column) => {
+          const index = rowIndex * columns + column
+          if (index >= total) return []
+          const row = getRow(index)
+          // A grid item stretches to the cell's least height, so a card's `h-full` fills it
+          const place = { top: offset, left: column * (itemWidth + cardGap), width: itemWidth, minHeight: itemHeight }
+          if (!row) {
+            return (
+              <li key={`skeleton-${index}`} aria-hidden className="absolute grid grid-cols-[minmax(0,1fr)]" style={place}>
+                <Skeleton className="h-full rounded-lg" />
+              </li>
+            )
+          }
+          return (
+            <li key={row.id} ref={observe} aria-posinset={index + 1} aria-setsize={total} className="absolute grid grid-cols-[minmax(0,1fr)]" style={place}>
+              {children(row)}
+            </li>
+          )
+        }),
+      )}
+    </ul>
   )
 }
