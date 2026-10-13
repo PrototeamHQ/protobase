@@ -1,8 +1,9 @@
 // Publishes every public packages/* package to npm at the version in its package.json, skipping a version npm already
-// has, so a missed or half-done publish can be run again. The packages are built and packed with Bun (which pins the
-// workspace:* dependencies) concurrently, then the tarballs are published with npm in dependency layers, each layer's
-// packages concurrently, so a package is never on npm before the @protobase packages it needs. npm authenticates with
-// trusted publishing (OIDC) and adds provenance in the release workflow. `--dry-run` runs `npm publish --dry-run`.
+// has, so a missed or half-done publish can be run again. The packages are built concurrently and packed with Bun
+// (which pins the workspace:* dependencies) one at a time, then the tarballs are published with npm in dependency
+// layers, each layer's packages concurrently, so a package is never on npm before the @protobase packages it needs. npm
+// authenticates with trusted publishing (OIDC) and adds provenance in the release workflow. `--dry-run` runs
+// `npm publish --dry-run`.
 import { spawn } from 'node:child_process'
 import { mkdtempSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -90,8 +91,11 @@ const pending = packages.filter((_, i) => !published[i])
 // Every package is built before any package.json is rewritten for packing, since a build resolves its dependencies'
 // sources through their workspace exports, and before any is published, so a failing build publishes nothing.
 await Promise.all(pending.map(({ dir }) => run('bun', ['run', 'build'], dir)))
-const tarballs = await Promise.all(pending.map(pack))
-const tarballOf = new Map(pending.map((p, i) => [p.name, tarballs[i]]))
+// One pack at a time: `bun pm pack` reads every workspace's package.json to pin the workspace:* dependencies, and one
+// rewritten or restored for another pack meanwhile can be read half-written, failing the pack with `Failed to resolve
+// workspace version`.
+const tarballOf = new Map()
+for (const p of pending) tarballOf.set(p.name, await pack(p))
 
 for (const layer of toLayers(pending)) {
   await Promise.all(
