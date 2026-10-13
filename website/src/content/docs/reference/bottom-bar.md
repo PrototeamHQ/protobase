@@ -5,7 +5,7 @@ description: Tabs along the bottom of a phone, as on iOS, for the roles that wor
 
 On phones the sidebar is a drawer behind the top bar's menu button. For people who work from a phone, such as on a warehouse floor, a bottom bar puts their few screens one tap away: up to four tabs, each an icon above its label, the current one highlighted, and "More" last, which opens the drawer with the rest. The bar keeps clear of the iPhone home indicator. From the `md` breakpoint (768px) up there is no bar; the sidebar shows instead.
 
-Export a `bottomBar(...)` from the config module for each group of roles that gets one:
+Export a [`bottomBar(...)`](/api/schema/functions/bottombar/) from the config module for each group of roles that gets one:
 
 ```ts
 // examples/erp/config/bottom-bar.ts, re-exported from config/index.ts
@@ -33,7 +33,7 @@ Each bar names its roles, and a role belongs to one bar. A caller gets the bar t
 
 ## Checks
 
-`createAdmin` refuses to start when a bar names a resource or page that does not exist, has no roles, no items or more than four, names a role the app does not have (the roles of [`createAuth`](/reference/auth/) and [`defineRoles`](/reference/access/); without either, any role is accepted), shares a role with another bar, or has the label of another bar. The checks are `bottomBarErrors` from `@protobase/schema`, a pure function of the bars and the app's names.
+`createAdmin` refuses to start when a bar names a resource or page that does not exist, has no roles, no items or more than four, names a role the app does not have (the roles of [`createAuth`](/reference/auth/) and [`defineRoles`](/reference/access/); without either, any role is accepted), shares a role with another bar, or has the label of another bar. The checks are [`bottomBarErrors`](/api/schema/functions/bottombarerrors/) from `@protobase/schema`, a pure function of the bars and the app's names.
 
 `protobase dev`, `protobase build` and `protobase serve` pick the bars up from the config module. With `createAdmin` directly, pass them as `bottomBars`:
 

@@ -22,7 +22,7 @@ import type { repairs } from './data'
 export const repairsView = view<typeof repairs>('repairs')
 ```
 
-`view<typeof resource>(name)` takes the resource's type, so every field reference below (`r.status`) is checked by TypeScript. A view is immutable: each method returns a new view, so one view can build on another. The examples are the files of the [bike shop guide](/guides/table-to-admin/), where each step builds on the last.
+[`view<typeof resource>(name)`](/api/schema/functions/view/) takes the resource's type, so every field reference below (`r.status`) is checked by TypeScript. A view is immutable: each [method](/api/schema/interfaces/viewbuilder/) returns a new view, so one view can build on another. The examples are the files of the [bike shop guide](/guides/table-to-admin/), where each step builds on the last.
 
 ## Names and columns
 
@@ -52,7 +52,7 @@ Field hints:
 | `.valueColors({ value: '#hex' })`, `.badgeShape('arrow')` | An enum's badges filled with a colour per value (the text turns white or black, whichever reads), and drawn as arrows pointing right, as on a rating scale. The property portal's energy label: `r.energy_label.format('badge').valueColors({ a: '#00a651', g: '#ed1c24' }).badgeShape('arrow')`. Only the enum's values are accepted. |
 | `.widget(name, props?)` | Shows and edits the field with a [field type](/reference/plugins/#field-types) of the project or a plugin, such as `r.status.widget('steps')` or `r.score.widget('rating', { max: 5 })`; `props` are plain data. Without it, or on a storage type it does not show, the field shows as it would without the hint. |
 
-An enum's value labels show everywhere the admin shows its values: badges, select options, list and related-table cells, filter options and chips, record titles, the sidebar and search results. They are part of the view in `/api/meta`, so an app with its own screens can show them too, and `enumLabel(value, labels)` from `@protobase/schema` reads a value the same way. A label for a value the enum does not have stops the server at startup, so renaming a value cannot leave a stale label behind.
+An enum's value labels show everywhere the admin shows its values: badges, select options, list and related-table cells, filter options and chips, record titles, the sidebar and search results. They are part of the view in `/api/meta`, so an app with its own screens can show them too, and [`enumLabel(value, labels)`](/api/schema/functions/enumlabel/) from `@protobase/schema` reads a value the same way. A label for a value the enum does not have stops the server at startup, so renaming a value cannot leave a stale label behind.
 
 ## Filters and the chart
 
@@ -104,7 +104,7 @@ The server checks `photos` when it starts: `field` is a filterable relation to t
 
 <Code code={step4} lang="ts" title="docs-examples/bike-shop/step-4.ts" />
 
-`.layout((r) => [...])` with `l` from `@protobase/schema`:
+`.layout((r) => [...])` with [`l`](/api/schema/variables/l/) from `@protobase/schema`:
 
 | Item | |
 | --- | --- |

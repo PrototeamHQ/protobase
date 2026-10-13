@@ -146,7 +146,7 @@ go({ kind: 'record', resource: 'repairs', key: 42 })  // moves to another addres
 href({ kind: 'create', resource: 'repairs' })         // for an <a href>, with the base path
 ```
 
-`RecordLink` (a record, from a display's `row` or a `recordKey`) and `AppLink` (`to` any address) are links written the same way. Code outside React builds and reads addresses with `appPath(address, basePath?)` and `readAppPath(path, pages)` from `@protobase/schema`, whose words (`filter`, `order_by`, `display`) are in `addressWords`.
+`RecordLink` (a record, from a display's `row` or a `recordKey`) and `AppLink` (`to` any address) are links written the same way. Code outside React builds and reads addresses with [`appPath(address, basePath?)`](/api/schema/functions/apppath/) and [`readAppPath(path, pages)`](/api/schema/functions/readapppath/) from `@protobase/schema`, whose words (`filter`, `order_by`, `display`) are in [`addressWords`](/api/schema/variables/addresswords/).
 
 ## Components in the chat
 

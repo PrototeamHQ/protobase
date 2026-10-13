@@ -6,7 +6,7 @@ description: Roles, capabilities with field lists and row filters, field rules, 
 import { Code } from '@astrojs/starlight/components'
 import catalog from '../../../../../docs-examples/reference/catalog.ts?raw'
 
-Roles are defined in code (`defineRoles`) and assigned through the auth user's `roles`; with [organizations](/reference/auth/#organizations), also per membership, and `ctx.user.roles` holds both, while `ctx.organization.id` is the organization the request works in. Rules decide per operation (`list`, `read`, `create`, `update`, `delete`), per field (role-based, never per record) and per row (filters, like RLS).
+Roles are defined in code ([`defineRoles`](/api/schema/functions/defineroles/)) and assigned through the auth user's `roles`; with [organizations](/reference/auth/#organizations), also per membership, and `ctx.user.roles` holds both, while `ctx.organization.id` is the organization the request works in. Rules decide per operation (`list`, `read`, `create`, `update`, `delete`), per field (role-based, never per record) and per row (filters, like RLS).
 
 ## Defaults
 
@@ -80,6 +80,6 @@ A field rule goes from the field to the roles: `cost_price` above is hidden from
 
 ## Restricted model and row filters
 
-`resolveAccess` returns everything a request may do. Use `restrictModel(model, access)` for everything user-facing (checking filters and sorts, queries, OpenAPI, `/meta`): hidden fields are gone, so they cannot be referenced, searched, sorted or leaked. Key columns always stay, because records are addressed by them.
+[`resolveAccess`](/api/schema/functions/resolveaccess/) returns everything a request may do. Use [`restrictModel(model, access)`](/api/schema/functions/restrictmodel/) for everything user-facing (checking filters and sorts, queries, OpenAPI, `/meta`): hidden fields are gone, so they cannot be referenced, searched, sorted or leaked. Key columns always stay, because records are addressed by them.
 
 Row filters (`access.rowFilter`) are a separate thing. They come from the access rules (`.own`, `.team`, filters of capabilities, returned filters), are checked against the **full** model because they may use hidden or non-filterable columns, and are ANDed into queries by the server.

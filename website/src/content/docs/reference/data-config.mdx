@@ -18,7 +18,7 @@ A **resource** describes one table of a database you already have: its columns a
 
 | | |
 | --- | --- |
-| `resource(name)` | The name is the resource's address (`/api/v1/<name>`, `/<name>` in the admin) and how other config refers to it. It may not contain `/`, `:`, `?` or `#`, and must be unique. |
+| [`resource(name)`](/api/schema/functions/resource/) | The name is the resource's address (`/api/v1/<name>`, `/<name>` in the admin) and how other config refers to it. It may not contain `/`, `:`, `?` or `#`, and must be unique. |
 | `.table('schema.table')` | The table, with or without its schema. Required. |
 | `.fields({ ... })` | The columns, by field name. `name: null` ignores a column on purpose (scaffold writes it, so it does not offer the column again). Required. |
 | `.primaryKey((r) => r.id)` | The key, one field or a list (`(r) => [r.order_id, r.line_no]`). Required; records are addressed by it. |
@@ -51,11 +51,11 @@ Field and resource names are snake_case by convention, like the columns: they ar
 | `f.country()` | `text` | ISO 3166-1 alpha-2 code (`NL`) | |
 | `f.file()` | `text` | `{ uri, name, type, size, url }`; written with a ticket from `:upload` | `.accept([...])`, `.maxSize(size)`, `.public()`, `.storage(name)`, `.derive({...})`; see [Files](/reference/files/) |
 
-A constraint a type does not support (`f.boolean().min(1)`) throws when the config loads.
+A constraint a type does not support (`f.boolean().min(1)`) throws when the config loads. The builders are the members of [`f`](/api/schema/variables/f/).
 
 ## Field options
 
-Every option returns a new field, so they chain in any order.
+Every option returns a new [field](/api/schema/interfaces/field/), so they chain in any order.
 
 | Option | Effect |
 | --- | --- |
@@ -100,7 +100,7 @@ Without rules everyone who can sign in may do everything. Rules come in three ki
 - **Per row**: a filter from a rule, or a `.own` capability with `.owner(...)`.
 - **Per field**: `.access({ read, create, update })` on the field. Field rules see only the user, never a record, so the fields a user can read are the same for every row.
 
-`defineRoles` turns roles into capabilities (`work_orders.update.own`, `money.read`, `*`), and `roles.can(...)` and `roles.is(...)` make rules of them; `.and()` and `.or()` combine rules.
+[`defineRoles`](/api/schema/functions/defineroles/) turns roles into capabilities (`work_orders.update.own`, `money.read`, `*`), and `roles.can(...)` and `roles.is(...)` make rules of them; `.and()` and `.or()` combine rules.
 
 <Code code={access} lang="ts" title="docs-examples/reference/access.ts" />
 

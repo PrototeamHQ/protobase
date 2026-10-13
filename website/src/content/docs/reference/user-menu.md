@@ -5,7 +5,7 @@ description: The user menu at the bottom of the sidebar, with the app's own acco
 
 The signed-in user sits at the bottom of the sidebar. Clicking them opens a menu with their name and email, the app's own pages, and "Sign out". Account pages (organization, billing, users) and help links belong here rather than among the working resources.
 
-Export one `userMenu(...)` from the config module:
+Export one [`userMenu(...)`](/api/schema/functions/usermenu/) from the config module:
 
 ```ts
 // examples/erp/config/user-menu.ts, re-exported from config/index.ts

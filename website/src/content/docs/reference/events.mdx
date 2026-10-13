@@ -14,7 +14,7 @@ The app's [jobs](/reference/jobs/) then turn the captured changes into events an
 
 ## Declaring events
 
-`.events((e, r) => [...])` returns the resource's events. Each is named `<resource>.<name>`, such as `orders.statusChanged`; names are camelCase and unique per resource.
+[`.events((e, r) => [...])`](/api/schema/interfaces/resourcebuilder/#events) returns the resource's events, built with the [helpers of `e`](/api/schema/type-aliases/eventhelpers/). Each is named `<resource>.<name>`, such as `orders.statusChanged`; names are camelCase and unique per resource.
 
 | | |
 | --- | --- |
