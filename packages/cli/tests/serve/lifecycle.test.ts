@@ -21,6 +21,9 @@ const project: ServedProject = {
   },
 }
 
+// Taken before any test serves, since a replaced global stays replaced for the rest of the file.
+const { Request, Response } = globalThis
+
 const env = { port: 0, databaseUrl: 'postgres://unused/app', requestLog: false, filesCleanupMinutes: 0, runJobs: true }
 
 describe('startServe', () => {
@@ -33,6 +36,15 @@ describe('startServe', () => {
     expect((await fetch(`${base}/api/meta`)).status).toBe(401)
     expect((await fetch(`${base}/api/meta`, { headers: { authorization: 'Bearer ok' } })).status).toBe(200)
     await server.close()
+  })
+
+  // Bun's S3 and file writes take the native Response; given another class they store its text, `[object Response]`.
+  it("keeps the runtime's own Request and Response after serving a request", async () => {
+    const server = await startServe({ project, env, createDb: pgliteDb })
+    expect((await fetch(`http://localhost:${server.port}/health`)).status).toBe(200)
+    await server.close()
+    expect(globalThis.Response).toBe(Response)
+    expect(globalThis.Request).toBe(Request)
   })
 
   it('creates a pool from DATABASE_URL and drains it after the server stops', async () => {

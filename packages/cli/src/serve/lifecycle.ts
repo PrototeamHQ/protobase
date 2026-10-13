@@ -57,7 +57,7 @@ export const startServe = async ({ project, env, createDb = (url) => createPgDb(
     if (definitions.length > 0) await checkJobsSchema(db)
     const jobs = definitions.length > 0 ? await startJobs({ db, jobs: definitions, work: env.runJobs, onError: (error) => console.error(error) }) : undefined
     const app = createServeApp({ admin, requestLog: env.requestLog, site, ...(jobs && { jobs }), ...(env.drainToken && { drainToken: env.drainToken }) })
-    const server = createAdaptorServer({ fetch: app.fetch }) as Server
+    const server = createAdaptorServer({ fetch: app.fetch, overrideGlobalObjects: false }) as Server
     await listen(server, env.port).catch(async (error: Error) => {
       await jobs?.stop()
       throw error
