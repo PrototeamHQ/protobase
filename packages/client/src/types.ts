@@ -27,7 +27,8 @@ export type ListPage<T> = {
   warning?: string
 }
 
-export type Facet = { value: string | number | boolean | null; count: number }
+/** `label`: with the `label` option, the name of the record a relation's value points at, when the caller may read it. */
+export type Facet = { value: string | number | boolean | null; count: number; label?: string }
 
 export type SeriesPoint = { bucket: string; count: number }
 

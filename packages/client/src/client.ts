@@ -140,11 +140,12 @@ export const createClient = (options: ClientOptions = {}) => {
     return batchResultOf((await response.json()) as Partial<BatchResult>, origin)
   }
 
-  const facets = async (resource: ResourceRef, field: string, o: { filter?: FilterInput; limit?: number } = {}) => {
+  /** `label` names a relation's values by that field of the records they point at, as a list's `labels` does. */
+  const facets = async (resource: ResourceRef, field: string, o: { filter?: FilterInput; limit?: number; label?: string } = {}) => {
     const response = await send({
       method: 'GET',
       path: `/${nameOf(resource)}:facets`,
-      query: queryString({ field, filter: filterText(o.filter) || undefined, limit: o.limit }),
+      query: queryString({ field, filter: filterText(o.filter) || undefined, limit: o.limit, label: o.label }),
     })
     return ((await response.json()) as { facets: Facet[] }).facets
   }

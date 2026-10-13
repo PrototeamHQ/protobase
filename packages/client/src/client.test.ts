@@ -346,6 +346,12 @@ describe('aggregates', () => {
     expect(new URL(calls[1]!.url, 'http://x').searchParams.get('time_zone')).toBe('UTC')
     expect(new URL(calls[2]!.url, 'http://x').searchParams.get('position')).toBe('500')
   })
+
+  it('asks for the names of the records a relation\'s facets point at', async () => {
+    const { calls, fetch } = fakeFetch(() => json({ field: 'place_id', facets: [{ value: 12, count: 3, label: 'Amsterdam' }, { value: 13, count: 1 }] }))
+    expect(await createClient({ fetch }).facets('listings', 'place_id', { label: 'name' })).toEqual([{ value: 12, count: 3, label: 'Amsterdam' }, { value: 13, count: 1 }])
+    expect(new URL(calls[0]!.url, 'http://x').searchParams.get('label')).toBe('name')
+  })
 })
 
 describe('map', () => {
