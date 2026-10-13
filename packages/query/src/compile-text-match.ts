@@ -1,5 +1,6 @@
 import { sql, type Expression, type SqlBool } from 'kysely'
-import { searchTerms, type CheckedFilter, type ResourceModel, type SearchTerm } from '@protobase/schema'
+import type { CheckedFilter, ResourceModel } from '@protobase/schema'
+import { searchTerms, type SearchTerm } from '@protobase/schema/internal'
 import { containsPattern } from './fields/text'
 import { columnRef, findField } from './columns'
 import { QueryError } from './errors'

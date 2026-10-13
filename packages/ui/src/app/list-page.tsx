@@ -1,6 +1,7 @@
 import { Plus, SlidersHorizontal } from 'lucide-react'
 import { useMemo, useState } from 'react'
-import { createWhere, tableDisplay, type FilterExpr, type ResourceModel } from '@protobase/schema'
+import { createWhere, type FilterExpr, type ResourceModel } from '@protobase/schema'
+import { tableDisplay } from '@protobase/schema/internal'
 import { PageHeader } from '../app-shell'
 import { useAuth } from '../auth'
 import { DataGrid, pinnedStorageKey, type GridRow } from '../data-grid'

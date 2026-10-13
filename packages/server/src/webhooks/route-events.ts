@@ -1,4 +1,5 @@
-import { checkEventFilter, evaluateFilter, type CheckedFilter, type ResourceModel } from '@protobase/schema'
+import { evaluateFilter, type CheckedFilter, type ResourceModel } from '@protobase/schema'
+import { checkEventFilter } from '@protobase/schema/internal'
 import type { ResourceChange } from '../changes/resource-change'
 import { eventPatternMatches, type SubscriptionDefinition } from './subscription'
 

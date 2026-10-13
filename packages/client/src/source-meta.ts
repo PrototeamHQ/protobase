@@ -1,5 +1,6 @@
 import { resolveFieldPath } from '@protobase/layout'
-import { addressErrors, type ActionModel, type FieldModel, type LayoutItemModel, type ResourceModel, type ViewModel } from '@protobase/schema'
+import type { ActionModel, FieldModel, LayoutItemModel, ResourceModel, ViewModel } from '@protobase/schema'
+import { addressErrors } from '@protobase/schema/internal'
 import type { Meta, ResourcePermissions, SourceRef } from './types'
 
 /** What the app draws of a source: the resources it lists that the user may see there, their views and what the user may do. */

@@ -1,4 +1,4 @@
-import { checkedProvider } from '@protobase/schema'
+import { checkedProvider } from '@protobase/schema/internal'
 import { parseDuration } from './duration'
 import { localFiles } from './local-files'
 import type { FilesOptions } from './options'

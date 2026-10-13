@@ -1,4 +1,5 @@
-import { checkEventFilter, evaluateFilter, type CheckedFilter, type EventContext, type EventMatch, type EventModel, type ResourceModel } from '@protobase/schema'
+import { evaluateFilter, type CheckedFilter, type EventContext, type EventMatch, type EventModel, type ResourceModel } from '@protobase/schema'
+import { checkEventFilter } from '@protobase/schema/internal'
 import type { ResourceChange } from './resource-change'
 
 type Test = (change: ResourceChange) => boolean

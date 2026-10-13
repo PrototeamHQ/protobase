@@ -5,7 +5,7 @@ import { notFound } from '../problem'
 import type { Row, Session } from '../types'
 import { runWrite } from '../write-pipeline'
 import { decodeKeyText } from '../key'
-import { encodeKey } from '@protobase/schema'
+import { encodeKey } from '@protobase/schema/internal'
 
 /** The list parameters of the REST API (AIP-132), as values rather than query text. */
 export type ListParams = {

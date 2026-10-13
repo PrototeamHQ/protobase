@@ -1,28 +1,6 @@
 import { resolveFieldPath } from '@protobase/layout'
-import {
-  addressErrors,
-  hrefPlaceholders,
-  navRecentErrors,
-  pruneByShape,
-  shapes as s,
-  tableDisplay,
-  type ActionModel,
-  type ActionRun,
-  type CardPhotosModel,
-  type ChartModel,
-  type CustomSectionModel,
-  type FilterWidgetModel,
-  type LayoutItemModel,
-  type ListDisplayModel,
-  type ListModel,
-  type MapSectionModel,
-  type NavModel,
-  type NavRecentModel,
-  type RelatedModel,
-  type ResourceModel,
-  type SearchResultModel,
-  type ViewModel,
-} from '@protobase/schema'
+import type { ActionModel, ActionRun, CardPhotosModel, ChartModel, CustomSectionModel, FilterWidgetModel, LayoutItemModel, ListDisplayModel, ListModel, MapSectionModel, NavModel, NavRecentModel, RelatedModel, ResourceModel, SearchResultModel, ViewModel } from '@protobase/schema'
+import { addressErrors, hrefPlaceholders, navRecentErrors, pruneByShape, shapes as s, tableDisplay } from '@protobase/schema/internal'
 import { cardPhotosErrors } from './view-card-photos'
 import { relatedErrors } from './view-related'
 

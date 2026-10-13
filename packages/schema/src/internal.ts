@@ -1,0 +1,18 @@
+// Helpers the @protobase packages share with each other, which an app has no use for: they check, prune and match the
+// models the server sends, and are not part of the documented API.
+export { checkEventFilter } from './events/event-models'
+export { webhookResources } from './webhooks/webhook-resources'
+export { displayFields, tableDisplay } from './view-displays'
+export { fieldRefsIn, isFieldRef, markFieldRefs, unmarkFieldRefs } from './field-ref'
+export { pruneByShape, shapes, type PropShapes, type RefShape } from './ref-shape'
+export { matchesSearch, matchedSearchField, searchTerms, termMatches, type SearchTerm } from './search-match'
+export { navRecentErrors, statusTones, defaultRecentLimit } from './nav-recent'
+export { bottomBarFor } from './bottom-bar'
+export { encodeKey, decodeKey } from './keys'
+export { inRange, pluginProblem, type PluginHost, type PluginRequirement } from './plugin-version'
+export { redactSecrets } from './redact-secrets'
+export { addressPlaceholders, appHrefError, fillAddress, hrefPlaceholders, leavesApp } from './address-template'
+export { addressErrors, type AddressCheck } from './address-errors'
+export { checkedAccept, checkedProvider, parseSize } from './files/file-options'
+export { applyAssistantEvent, emptyAssistantState } from './assistant/apply-event'
+export { readEventStream } from './assistant/event-stream'

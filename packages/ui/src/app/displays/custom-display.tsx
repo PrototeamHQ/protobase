@@ -1,4 +1,5 @@
-import { unmarkFieldRefs, type ListDisplayModel } from '@protobase/schema'
+import type { ListDisplayModel } from '@protobase/schema'
+import { unmarkFieldRefs } from '@protobase/schema/internal'
 import { CustomBoundary } from '../pages/custom-boundary'
 import { Problem } from '../pages/problem'
 import { useProjectUi } from '../pages/project-ui'

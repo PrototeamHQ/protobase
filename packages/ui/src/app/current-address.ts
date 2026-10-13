@@ -1,4 +1,5 @@
-import { encodeKey, type AppAddress, type FilterLayout, type MapView, type ResourceModel, type ViewModel } from '@protobase/schema'
+import type { AppAddress, FilterLayout, MapView, ResourceModel, ViewModel } from '@protobase/schema'
+import { encodeKey } from '@protobase/schema/internal'
 import { defaultDisplay } from './displays/list-displays'
 import { defaultOrderBy } from './list-order'
 

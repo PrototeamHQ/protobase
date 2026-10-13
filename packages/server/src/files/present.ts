@@ -1,4 +1,5 @@
-import { encodeKey, type FieldModel } from '@protobase/schema'
+import type { FieldModel } from '@protobase/schema'
+import { encodeKey } from '@protobase/schema/internal'
 import type { RequestAccess } from '../request-access'
 import type { Row } from '../types'
 import { downloadExpiry, signedDownloadUrl } from './download-url'

@@ -1,5 +1,6 @@
 import type { NavRecord } from '../app-shell'
-import { appPath, defaultRecentLimit, encodeKey, enumLabel, type NavRecentModel, type ResourceModel, type ViewModel } from '@protobase/schema'
+import { appPath, enumLabel, type NavRecentModel, type ResourceModel, type ViewModel } from '@protobase/schema'
+import { defaultRecentLimit, encodeKey } from '@protobase/schema/internal'
 import { recordKey, recordTitle, recordTitleField } from '../live/model-helpers'
 import { defaultOrderBy } from './list-order'
 

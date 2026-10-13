@@ -1,6 +1,7 @@
 import { ApiError, type Client, type PluginRef, type ResourcePermissions, type SourceRef, type StoredFile, type UploadOptions, type UploadResult } from '@protobase/client'
 import { evaluateCondition, parseCondition, type PageModel } from '@protobase/layout'
-import { checkFilter, encodeKey, evaluateFilter, matchesSearch, parseFilter, type ResourceModel, type ViewModel } from '@protobase/schema'
+import { checkFilter, evaluateFilter, parseFilter, type ResourceModel, type ViewModel } from '@protobase/schema'
+import { encodeKey, matchesSearch } from '@protobase/schema/internal'
 
 type Row = Record<string, unknown>
 

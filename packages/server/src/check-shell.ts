@@ -1,4 +1,5 @@
-import { bottomBarErrors, navRecentErrors, type BottomBarModel, type UserMenuModel, type ViewModel } from '@protobase/schema'
+import { bottomBarErrors, type BottomBarModel, type UserMenuModel, type ViewModel } from '@protobase/schema'
+import { navRecentErrors } from '@protobase/schema/internal'
 import type { Registry } from './registry'
 
 /** Fails at startup when a sidebar group or a user menu entry does not fit the resources, instead of on the first page load. */

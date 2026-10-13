@@ -1,4 +1,5 @@
-import { encodeKey, type KeyValue } from '@protobase/schema'
+import type { KeyValue } from '@protobase/schema'
+import { encodeKey } from '@protobase/schema/internal'
 import type { Deps } from '../deps'
 import type { FunctionRecords } from '../functions/records'
 import { HttpProblem } from '../problem'

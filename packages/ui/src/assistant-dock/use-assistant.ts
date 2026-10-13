@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { applyAssistantEvent, emptyAssistantState } from '@protobase/schema'
+import { applyAssistantEvent, emptyAssistantState } from '@protobase/schema/internal'
 import type { AssistantClient } from '@protobase/client'
 
 const messageOf = (error: unknown) => (error instanceof Error ? error.message : 'The assistant did not answer')

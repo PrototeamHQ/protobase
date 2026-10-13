@@ -1,5 +1,6 @@
 import type { LinkProps } from '@protobase/layout'
-import { appPath, fillAddress } from '@protobase/schema'
+import { appPath } from '@protobase/schema'
+import { fillAddress } from '@protobase/schema/internal'
 import { AppLink } from '../../use-app-address'
 import { useLayoutRecord } from '../record-scope'
 import { propsOf, type BlockProps } from './block-props'

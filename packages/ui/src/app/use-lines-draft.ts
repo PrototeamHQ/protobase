@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useState } from 'react'
 import type { BatchOp } from '@protobase/client'
 import type { ResourceModel } from '@protobase/schema'
-import { encodeKey } from '@protobase/schema'
+import { encodeKey } from '@protobase/schema/internal'
 import { recordKey } from '../live/model-helpers'
 
 type Line = Record<string, unknown>

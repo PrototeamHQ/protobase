@@ -1,4 +1,5 @@
-import { applyAssistantEvent, emptyAssistantState, type AssistantEvent, type AssistantState } from '@protobase/schema'
+import type { AssistantEvent, AssistantState } from '@protobase/schema'
+import { applyAssistantEvent, emptyAssistantState } from '@protobase/schema/internal'
 import type { Session } from '../types'
 import type { ChatMessage } from './chat-completions'
 import type { ConversationRecord, ConversationStore } from './conversation-store'

@@ -1,4 +1,5 @@
-import { addressErrors, checkFilter, checkOrderBy, fieldRefsIn, parseFilter, parseOrderBy, type AppAddress, type ResourceModel } from '@protobase/schema'
+import { checkFilter, checkOrderBy, parseFilter, parseOrderBy, type AppAddress, type ResourceModel } from '@protobase/schema'
+import { addressErrors, fieldRefsIn } from '@protobase/schema/internal'
 import { countedResource, parseCondition } from './condition'
 import { resolveFieldPath } from './field-path'
 import { dataProps, type LayoutNode } from './node'

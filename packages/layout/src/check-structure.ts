@@ -1,4 +1,4 @@
-import { appHrefError } from '@protobase/schema'
+import { appHrefError } from '@protobase/schema/internal'
 import { blockSpecs, propProblems } from './block-specs'
 import { parseCondition } from './condition'
 import type { LayoutNode } from './node'

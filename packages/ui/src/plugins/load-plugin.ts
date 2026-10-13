@@ -1,5 +1,5 @@
 import type { PluginRef } from '@protobase/client'
-import { pluginProblem, type PluginHost } from '@protobase/schema'
+import { pluginProblem, type PluginHost } from '@protobase/schema/internal'
 import type { ProjectUi } from '../app/pages/project-ui'
 import type { PluginInfo } from './plugin-context'
 import { parseManifest } from './plugin-manifest'

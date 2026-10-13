@@ -1,4 +1,5 @@
-import { unmarkFieldRefs, type CustomSectionModel } from '@protobase/schema'
+import type { CustomSectionModel } from '@protobase/schema'
+import { unmarkFieldRefs } from '@protobase/schema/internal'
 import { Section, SidebarCard } from '../record-view'
 import { CustomBoundary } from './pages/custom-boundary'
 import { Problem } from './pages/problem'

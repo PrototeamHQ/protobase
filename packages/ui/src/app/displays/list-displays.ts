@@ -1,4 +1,5 @@
-import { encodeKey, tableDisplay, type FieldModel, type FieldViewModel, type ListDisplayModel, type ResourceModel, type ViewModel } from '@protobase/schema'
+import type { FieldModel, FieldViewModel, ListDisplayModel, ResourceModel, ViewModel } from '@protobase/schema'
+import { encodeKey, tableDisplay } from '@protobase/schema/internal'
 import { displayValue } from '../../live/display-value'
 import { recordKey, recordTitleField } from '../../live/model-helpers'
 import { humanize } from '../../live/naming'

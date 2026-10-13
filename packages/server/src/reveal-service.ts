@@ -1,4 +1,4 @@
-import { encodeKey } from '@protobase/schema'
+import { encodeKey } from '@protobase/schema/internal'
 import type { AuditOrigin } from './types'
 import type { Deps } from './deps'
 import { badRequest, notFound } from './problem'

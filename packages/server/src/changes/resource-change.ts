@@ -1,4 +1,5 @@
-import { encodeKey, type EventActor, type EventOperation, type KeyValue, type ResourceModel } from '@protobase/schema'
+import type { EventActor, EventOperation, KeyValue, ResourceModel } from '@protobase/schema'
+import { encodeKey } from '@protobase/schema/internal'
 import type { Row, TenantValue } from '../types'
 import type { CoalescedChange } from './coalesce'
 

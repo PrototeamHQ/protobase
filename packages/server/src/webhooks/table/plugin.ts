@@ -1,4 +1,4 @@
-import { webhookResources } from '@protobase/schema'
+import { webhookResources } from '@protobase/schema/internal'
 import type { ProjectConfig } from '../../project-config'
 import { webhooksSchema, type WebhooksOptions } from './options'
 

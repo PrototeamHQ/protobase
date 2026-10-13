@@ -1,4 +1,4 @@
-import { parseSize } from '@protobase/schema'
+import { parseSize } from '@protobase/schema/internal'
 import { HttpProblem } from '../problem'
 import type { FileStore } from './store'
 import { isFilePath } from './uri'

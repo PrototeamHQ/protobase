@@ -1,4 +1,5 @@
-import { applyAssistantEvent, emptyAssistantState, type AssistantCardPart, type AssistantEvent, type AssistantState } from '@protobase/schema'
+import type { AssistantCardPart, AssistantEvent, AssistantState } from '@protobase/schema'
+import { applyAssistantEvent, emptyAssistantState } from '@protobase/schema/internal'
 import { ApiError, type AssistantClient, type ProblemDetails } from '@protobase/client'
 
 /** A proposal-like card made only of generic parts: a summary, steps, a diff and two buttons. */

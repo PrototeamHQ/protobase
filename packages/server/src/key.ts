@@ -1,5 +1,5 @@
 import type { Context } from 'hono'
-import { decodeKey } from '@protobase/schema'
+import { decodeKey } from '@protobase/schema/internal'
 import { badRequest } from './problem'
 import type { Entry } from './registry'
 

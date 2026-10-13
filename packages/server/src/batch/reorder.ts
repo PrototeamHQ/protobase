@@ -1,6 +1,6 @@
 import { sql } from 'kysely'
 import type { Db } from '@protobase/query'
-import { encodeKey } from '@protobase/schema'
+import { encodeKey } from '@protobase/schema/internal'
 import type { Deps } from '../deps'
 import { badRequest } from '../problem'
 import { fetchRecord } from '../records'

@@ -1,4 +1,5 @@
-import { readEventStream, type AssistantActionRequest, type AssistantEvent, type AssistantMessageRequest } from '@protobase/schema'
+import type { AssistantActionRequest, AssistantEvent, AssistantMessageRequest } from '@protobase/schema'
+import { readEventStream } from '@protobase/schema/internal'
 import { readProblem } from './problem'
 
 export type AssistantClientOptions = {

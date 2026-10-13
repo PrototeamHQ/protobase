@@ -1,6 +1,6 @@
 import { createStackParser, createTransport, dedupeIntegration, eventFiltersIntegration, functionToStringIntegration, linkedErrorsIntegration, requestDataIntegration, Scope, winterCGRequestToRequestData, type BaseTransportOptions } from '@sentry/core'
 import { nodeStackLineParser, ServerRuntimeClient } from '@sentry/core/server'
-import { redactSecrets } from '@protobase/schema'
+import { redactSecrets } from '@protobase/schema/internal'
 import type { ErrorReportingSettings } from './error-reporting-settings'
 
 /** Sends errors to the error tracker. `request`: the one being handled when the error happened, without its secrets. */

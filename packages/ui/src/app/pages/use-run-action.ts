@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { fillAddress, type ActionModel } from '@protobase/schema'
+import type { ActionModel } from '@protobase/schema'
+import { fillAddress } from '@protobase/schema/internal'
 import { useClient, useResourceClient } from '../../data/api-provider'
 import { useToast } from '../../toasts'
 import { useAdminMeta, usePermissions } from '../meta-gate'

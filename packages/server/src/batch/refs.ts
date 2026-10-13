@@ -1,4 +1,4 @@
-import { encodeKey } from '@protobase/schema'
+import { encodeKey } from '@protobase/schema/internal'
 import { badRequest } from '../problem'
 import { decodeKeyText } from '../key'
 import type { Entry } from '../registry'

@@ -1,5 +1,6 @@
 import { prunePage, type PageModel } from '@protobase/layout'
-import { bottomBarFor, pickView, type BottomBarItemModel, type ResourceModel, type UserMenuItemModel, type UserMenuModel, type ViewModel } from '@protobase/schema'
+import { pickView, type BottomBarItemModel, type ResourceModel, type UserMenuItemModel, type UserMenuModel, type ViewModel } from '@protobase/schema'
+import { bottomBarFor } from '@protobase/schema/internal'
 import { activeRole } from './active-role'
 import { seesAssistant } from './assistant/assistant-settings'
 import type { Deps } from './deps'

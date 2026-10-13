@@ -1,5 +1,5 @@
 import type { Meta } from '@protobase/client'
-import { redactSecrets } from '@protobase/schema'
+import { redactSecrets } from '@protobase/schema/internal'
 
 type Capture = (error: unknown, componentStack?: string) => void
 

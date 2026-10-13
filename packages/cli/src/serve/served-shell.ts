@@ -1,4 +1,4 @@
-import { pluginProblem } from '@protobase/schema'
+import { pluginProblem } from '@protobase/schema/internal'
 import type { BundleLayout } from '../bundle/manifest'
 import { readShell } from '../build/shell'
 

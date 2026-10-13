@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import type { KeyValue } from '@protobase/schema'
-import { encodeKey } from '@protobase/schema'
+import { encodeKey } from '@protobase/schema/internal'
 import type { Stored } from '@protobase/client'
 import { useClient } from './api-provider'
 import { keys } from './query-keys'

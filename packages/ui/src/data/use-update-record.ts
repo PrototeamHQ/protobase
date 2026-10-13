@@ -1,5 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { encodeKey, type KeyValue } from '@protobase/schema'
+import type { KeyValue } from '@protobase/schema'
+import { encodeKey } from '@protobase/schema/internal'
 import { PreconditionFailedError } from '@protobase/client'
 import { useClient } from './api-provider'
 import { keys } from './query-keys'

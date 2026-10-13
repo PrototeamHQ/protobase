@@ -1,4 +1,5 @@
-import { appPath, createWhere, encodeKey, enumLabel, matchedSearchField, printFilter, type ResourceModel, type ViewModel } from '@protobase/schema'
+import { appPath, createWhere, enumLabel, printFilter, type ResourceModel, type ViewModel } from '@protobase/schema'
+import { encodeKey, matchedSearchField } from '@protobase/schema/internal'
 import type { SearchResultGroup } from '../../app-shell'
 import type { MetaData } from '../../data/meta-data'
 import { recordKey, recordTitleField } from '../../live/model-helpers'

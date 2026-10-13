@@ -1,4 +1,5 @@
-import { addressErrors, checkFilter, checkOrderBy, parseFilter, parseOrderBy, pruneByShape, shapes, type AppAddress, type ResourceModel } from '@protobase/schema'
+import { checkFilter, checkOrderBy, parseFilter, parseOrderBy, type AppAddress, type ResourceModel } from '@protobase/schema'
+import { addressErrors, pruneByShape, shapes } from '@protobase/schema/internal'
 import { elementResource, linkSource } from './check-page'
 import { countedResource, parseCondition } from './condition'
 import { resolveFieldPath } from './field-path'

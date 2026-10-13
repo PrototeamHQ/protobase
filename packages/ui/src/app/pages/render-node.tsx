@@ -1,6 +1,6 @@
 import { Fragment, type ComponentType } from 'react'
 import { isLayoutNode, type LayoutChild, type LayoutNode, type LayoutValue } from '@protobase/layout'
-import { unmarkFieldRefs } from '@protobase/schema'
+import { unmarkFieldRefs } from '@protobase/schema/internal'
 import { ActionBlock } from './blocks/action'
 import type { BlockProps } from './blocks/block-props'
 import { CardBlock } from './blocks/card'

@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { matchesSearch } from '@protobase/schema'
+import { matchesSearch } from '@protobase/schema/internal'
 import { compileFilter } from '../src/compile-filter'
 import { check, createTestDb, field, model } from '../../../test-support/query'
 

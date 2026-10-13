@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from '@storybook/react-vite'
 import { useState } from 'react'
 import { expect, userEvent, waitFor, within } from 'storybook/test'
 import { createStaticSession, type ResourcePermissions } from '@protobase/client'
-import { webhookResources } from '@protobase/schema'
+import { webhookResources } from '@protobase/schema/internal'
 import { App } from './app'
 import { fakeApi } from './testing/fake-api'
 

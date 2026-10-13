@@ -1,4 +1,5 @@
-import { addressErrors, addressPlaceholders, appHrefError, displayFields, fieldRefsIn, hrefPlaceholders, type ActionRun, type ResourceModel, type ViewModel } from '@protobase/schema'
+import type { ActionRun, ResourceModel, ViewModel } from '@protobase/schema'
+import { addressErrors, addressPlaceholders, appHrefError, displayFields, fieldRefsIn, hrefPlaceholders } from '@protobase/schema/internal'
 import type { Registry } from './registry'
 import { cardPhotosErrors } from './view-card-photos'
 import { mapDisplayErrors, mapErrors } from './view-map'

@@ -1,4 +1,5 @@
-import { encodeKey, type KeyValue } from '@protobase/schema'
+import type { KeyValue } from '@protobase/schema'
+import { encodeKey } from '@protobase/schema/internal'
 import { listWire, queryString, filterText, type FilterInput, type ListParams, type MapParams } from './query-string'
 import { originOf, withFileOrigin } from './file-urls'
 import { createTransport, type ClientOptions } from './transport'
