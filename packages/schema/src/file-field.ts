@@ -1,6 +1,6 @@
 import type { FieldAccess } from './access/types'
 import { Field, type FieldMeta } from './field'
-import { checkedAccept, checkedProvider, parseSize, type FileOptions, type FileProcessor } from './files/file-options'
+import { checkedAccept, checkedProvider, checkedVariant, checkedVariants, parseSize, type FileOptions, type FileProcessor, type ImageVariant, type ImageVariantOptions } from './files/file-options'
 
 /** `f.file()`: a text column holding a file's URI, uploaded through `:upload`. */
 export class FileField<V> extends Field<V> {
@@ -30,6 +30,25 @@ export class FileField<V> extends Field<V> {
    */
   derive(processors: Record<string, FileProcessor>) {
     return this.withFile({ derive: { ...this.meta.file!.derive, ...processors } })
+  }
+
+  /**
+   * Computes a ThumbHash of each image into a read-only text field (`photo_placeholder`), which the admin app shows
+   * while the image loads. Other files leave it null.
+   */
+  placeholder(field: string) {
+    return this.withFile({ placeholder: field })
+  }
+
+  /**
+   * Resized copies of each image, stored beside it under these names: `{ card: { width: 640, height: 480, fit: 'cover',
+   * format: 'webp' } }`. `{ original }` stores that image instead of the upload. Other files get none.
+   */
+  variants(variants: Record<string, ImageVariant>, options: ImageVariantOptions = {}) {
+    return this.withFile({
+      variants: { ...this.meta.file!.variants, ...checkedVariants(variants) },
+      ...(options.original && { original: checkedVariant('The original', options.original) }),
+    })
   }
 
   override optional() {

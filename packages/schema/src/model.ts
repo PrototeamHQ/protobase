@@ -1,3 +1,5 @@
+import type { ImageVariant } from './files/file-options'
+
 export type FieldType =
   | 'text' | 'integer' | 'bigint' | 'decimal' | 'boolean' | 'date' | 'timestamp'
   | 'uuid' | 'enum' | 'json' | 'relation' | 'file' | 'currency' | 'country'
@@ -17,11 +19,23 @@ export type FieldModel = {
   sensitive?: true
   /** A value the form prefills, or `db` when the database supplies it (identity, now(), ...). */
   default?: { value: unknown } | { db: true }
-  /** A file field's allowed types (empty: any), largest upload in bytes, provider, and the fields `.derive()` writes. */
+  /** A file field's allowed types (empty: any), largest upload in bytes, provider, and what each upload writes. */
   file?: FileFieldModel
 }
 
-export type FileFieldModel = { accept: string[]; maxSize: number; provider: string; derive?: string[] }
+export type FileFieldModel = {
+  accept: string[]
+  maxSize: number
+  provider: string
+  /** The fields each upload writes: those of `.derive()` and the placeholder's. */
+  derive?: string[]
+  /** The text field holding each image's ThumbHash, base64 (`.placeholder()`). */
+  placeholder?: string
+  /** The resized copies stored beside each image, by name (`.variants()`). */
+  variants?: Record<string, ImageVariant>
+  /** What is stored instead of an uploaded image, when the upload is not kept. */
+  original?: ImageVariant
+}
 
 /** `digitsEnd`: only the end of the value's digits, spaces, `+` and dashes ignored (phone numbers). */
 export type SearchMatch = 'digitsEnd'

@@ -1,6 +1,7 @@
 import { buildEventModels } from './events/event-models'
 import type { EventSpec } from './events/event-helpers'
 import type { AnyField } from './field'
+import type { FileOptions } from './files/file-options'
 import type { FieldModel, ResourceModel, SearchMatch } from './model'
 import { snakeCase } from './naming'
 import type { FieldsInput } from './refs'
@@ -24,6 +25,9 @@ const parseTable = (table: string) => {
   if (parts.length === 2) return { schema: parts[0]!, name: parts[1]! }
   throw new Error(`Invalid table "${table}", expected "table" or "schema.table"`)
 }
+
+// The fields an upload writes besides the file: those of `.derive()`, then the placeholder's.
+const writtenFields = (file: FileOptions) => [...Object.keys(file.derive ?? {}), ...(file.placeholder === undefined ? [] : [file.placeholder])]
 
 const fieldModel = (name: string, field: AnyField): FieldModel => {
   const { meta } = field
@@ -49,7 +53,10 @@ const fieldModel = (name: string, field: AnyField): FieldModel => {
         accept: [...meta.file.accept],
         maxSize: meta.file.maxSize,
         provider: meta.file.provider,
-        ...(meta.file.derive && Object.keys(meta.file.derive).length > 0 && { derive: Object.keys(meta.file.derive) }),
+        ...(writtenFields(meta.file).length > 0 && { derive: writtenFields(meta.file) }),
+        ...(meta.file.placeholder !== undefined && { placeholder: meta.file.placeholder }),
+        ...(meta.file.variants && Object.keys(meta.file.variants).length > 0 && { variants: structuredClone(meta.file.variants) }),
+        ...(meta.file.original && { original: { ...meta.file.original } }),
       },
     }),
   }
@@ -107,7 +114,18 @@ const fileProblems = (model: ResourceModel) =>
         if (target === field.name || derived.file) return [`derives "${target}", which is a file field`]
         return derived.readOnly ? [] : [`derives "${target}", which must be readOnly()`]
       }),
+      ...placeholderProblems(model, field),
     ].map((problem) => `file field "${field.name}" ${problem}`))
+
+// The placeholder's field is derived like any other (see above), holds text, and is not also a `.derive()` target.
+const placeholderProblems = (model: ResourceModel, field: FieldModel) => {
+  const target = field.file!.placeholder
+  if (target === undefined) return []
+  const derive = field.file!.derive ?? []
+  if (derive.indexOf(target) !== derive.lastIndexOf(target)) return [`has "${target}" as its placeholder and derives it as well`]
+  const placeholder = Object.hasOwn(model.fields, target) ? model.fields[target]! : undefined
+  return placeholder && !placeholder.file && placeholder.type !== 'text' ? [`has "${target}" as its placeholder, which must be a text field`] : []
+}
 
 export const buildResourceModel = (state: ResourceState): ResourceModel => {
   const model = assembleModel(state)

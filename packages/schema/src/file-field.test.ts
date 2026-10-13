@@ -18,6 +18,31 @@ describe('f.file()', () => {
     expect(model.fields.width!.file).toBeUndefined()
   })
 
+  it('show the placeholder as a derived field, and the variants and original as written', () => {
+    const card = { width: 640, height: 480, fit: 'cover' as const, format: 'webp' as const, quality: 75 }
+    const photo = f.file().accept(['image/*']).placeholder('photo_placeholder').variants({ card }, { original: { width: 2560, format: 'webp' } })
+    const model = products({ photo, photo_placeholder: f.text().readOnly() }).toModel()
+    expect(model.fields.photo!.file).toEqual({
+      accept: ['image/*'],
+      maxSize: 50_000_000,
+      provider: 'private',
+      derive: ['photo_placeholder'],
+      placeholder: 'photo_placeholder',
+      variants: { card },
+      original: { width: 2560, format: 'webp' },
+    })
+    const more = photo.variants({ thumb: { width: 96, height: 96, fit: 'cover', format: 'avif' } })
+    expect(Object.keys(more.meta.file!.variants!)).toEqual(['card', 'thumb'])
+  })
+
+  it('refuse a placeholder field that is missing, writable, not text, or derived as well', () => {
+    const photo = f.file().placeholder('photo_placeholder')
+    expect(() => products({ photo }).toModel()).toThrow('derives "photo_placeholder", which is not a field')
+    expect(() => products({ photo, photo_placeholder: f.text() }).toModel()).toThrow('which must be readOnly()')
+    expect(() => products({ photo, photo_placeholder: f.integer().readOnly() }).toModel()).toThrow('which must be a text field')
+    expect(() => products({ photo: photo.derive({ photo_placeholder: width }), photo_placeholder: f.text().readOnly() }).toModel()).toThrow('derives it as well')
+  })
+
   it('stores text and refuses anything else', () => {
     expect(f.file().schema.safeParse('private:acme/a.png?name=a.png&size=1').success).toBe(true)
     expect(f.file().schema.safeParse('').success).toBe(false)

@@ -19,12 +19,31 @@ export type FileProcessor = {
   run: (file: FileProcessorInput) => unknown
 }
 
+/** The formats an image variant is written in. */
+export const imageFormats = ['webp', 'avif', 'jpeg', 'png'] as const
+
+export type ImageFormat = (typeof imageFormats)[number]
+
+/**
+ * A resized copy of an uploaded image: at most `width` by `height` pixels, never enlarged. `inside` (the default) keeps
+ * the whole image within that box, `cover` fills the box and crops what is outside it. `quality` is 1 to 100, the
+ * format's default when omitted.
+ */
+export type ImageVariant = { width?: number; height?: number; fit?: 'inside' | 'cover'; format: ImageFormat; quality?: number }
+
+/** `.variants()`' second argument: `original` replaces the upload by that image, so the upload itself is not kept. */
+export type ImageVariantOptions = { original?: ImageVariant }
+
 /** A file field's settings, as the builder collects them. */
 export type FileOptions = {
   accept: string[]
   maxSize: number
   provider: string
   derive?: Record<string, FileProcessor>
+  /** The read-only text field each image's ThumbHash goes to (`.placeholder()`). */
+  placeholder?: string
+  variants?: Record<string, ImageVariant>
+  original?: ImageVariant
 }
 
 export const defaultMaxSize = 50_000_000
@@ -63,3 +82,33 @@ export const checkedProvider = (name: string) => {
   if (reservedProviders.has(name)) throw new Error(`"${name}" cannot name a file provider: stored values would read as ${name}: links`)
   return name
 }
+
+const variantNamePattern = /^[a-z][a-z0-9_]{0,31}$/
+const fits = ['inside', 'cover']
+
+// A pixel bound of a variant: a whole number from 1 to 16384, the largest side WebP can hold.
+const checkedBound = (label: string, value: number | undefined) => {
+  if (value !== undefined && (!Number.isSafeInteger(value) || value < 1 || value > 16_384)) throw new Error(`${label} must be a whole number of pixels from 1 to 16384, not ${value}`)
+}
+
+/** A variant as written, checked: a known format and fit, and bounds and a quality in range. */
+export const checkedVariant = (label: string, variant: ImageVariant): ImageVariant => {
+  if (!(imageFormats as readonly string[]).includes(variant.format)) throw new Error(`${label}: "${variant.format}" is not an image format; use ${imageFormats.join(', ')}`)
+  if (variant.fit !== undefined && !fits.includes(variant.fit)) throw new Error(`${label}: fit is "inside" or "cover", not "${variant.fit}"`)
+  if (variant.fit === 'cover' && (variant.width === undefined || variant.height === undefined)) throw new Error(`${label}: fit "cover" needs both a width and a height`)
+  checkedBound(`${label}: width`, variant.width)
+  checkedBound(`${label}: height`, variant.height)
+  if (variant.quality !== undefined && (!Number.isSafeInteger(variant.quality) || variant.quality < 1 || variant.quality > 100)) {
+    throw new Error(`${label}: quality must be a whole number from 1 to 100, not ${variant.quality}`)
+  }
+  return { ...variant }
+}
+
+/** Variants by name: snake_case names, since each one is part of its file's path. */
+export const checkedVariants = (variants: Record<string, ImageVariant>) =>
+  Object.fromEntries(
+    Object.entries(variants).map(([name, variant]) => {
+      if (!variantNamePattern.test(name)) throw new Error(`"${name}" cannot name an image variant: lowercase letters, digits and underscores, starting with a letter`)
+      return [name, checkedVariant(`Image variant "${name}"`, variant)]
+    }),
+  )

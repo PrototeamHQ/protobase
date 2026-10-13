@@ -82,7 +82,7 @@ export type { KeyType } from './keys'
 export type { InferRecord, RecordKey } from './resource-types'
 export type { Field } from './field'
 export type { FileField } from './file-field'
-export { checkedAccept, checkedProvider, parseSize, type FileProcessor, type FileProcessorInput } from './files/file-options'
+export { checkedAccept, checkedProvider, imageFormats, parseSize, type FileProcessor, type FileProcessorInput, type ImageFormat, type ImageVariant, type ImageVariantOptions } from './files/file-options'
 export {
   parseFilter,
   checkFilter,
