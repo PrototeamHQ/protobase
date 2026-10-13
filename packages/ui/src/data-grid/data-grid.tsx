@@ -1,5 +1,5 @@
 import { useTable, type SortingState } from '@tanstack/react-table'
-import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { cn } from '../lib/cn'
 import type { ColumnSpec, GridRow } from './column-spec'
 import { buildColumns, features } from './columns'
@@ -21,6 +21,8 @@ export type DataGridProps = {
   /** The order in which `source` yields rows; sorting the other way flips the index mapping. */
   naturalSort?: { columnId: string; direction: 'asc' | 'desc' }
   initialScrollIndex?: number
+  /** Called with the first row in view as it changes, to come back to it with `initialScrollIndex`. */
+  onScrollIndex?: (index: number) => void
   /** Simulated page load time for mock sources. 0 loads synchronously. */
   latencyMs?: number
   /** Controlled sorting, for sources that sort on the server. Without it, sorting flips the mock source. */
@@ -46,7 +48,7 @@ export type DataGridProps = {
 
 const headerHeight = 32
 
-export const DataGrid = ({ columns: given, source, naturalSort, initialScrollIndex = 0, latencyMs = 150, sort: controlledSort, onSortChange, onOpenRow, rowActions, bulkActions, pinKey, defaultPinned, rowNumbers = true, compact = false, selectable = true, fit = false, className }: DataGridProps) => {
+export const DataGrid = ({ columns: given, source, naturalSort, initialScrollIndex = 0, onScrollIndex, latencyMs = 150, sort: controlledSort, onSortChange, onOpenRow, rowActions, bulkActions, pinKey, defaultPinned, rowNumbers = true, compact = false, selectable = true, fit = false, className }: DataGridProps) => {
   const rowHeight = compact ? 28 : 36
   const [pinned, setPinned] = usePinnedColumns(pinKey, defaultPinned)
   const columns = useMemo(() => {
@@ -75,6 +77,8 @@ export const DataGrid = ({ columns: given, source, naturalSort, initialScrollInd
   const narrow = !useIsDesktop()
   const gutter = narrow || !rowNumbers ? compactGutter : gutterWidthFor(total)
   const bodyHeight = Math.max(0, viewport - headerHeight)
+  const topIndex = Math.floor(top / rowHeight)
+  useEffect(() => onScrollIndex?.(topIndex), [topIndex, onScrollIndex])
   const getRow = usePagedRows({ total, rowAt: sourceRowAt ? rowAt : undefined, loadRows: source.loadRows, latencyMs }, firstIndex, lastIndex)
 
   const loaded = virtualRows.map(({ index, offset }) => ({ index, offset, row: getRow(index) }))

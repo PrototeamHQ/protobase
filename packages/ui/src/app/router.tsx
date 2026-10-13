@@ -7,6 +7,8 @@ type RouterValue = {
   path: string
   params: URLSearchParams
   basePath: string
+  /** The place of this page in the tab's history; Back and Forward return to the same number. 0 in memory. */
+  entry: number
   /** Moves to a path below the base path, as `appPath` writes it. */
   navigate: (to: string, options?: { replace?: boolean }) => void
   /** Asks to be told before the page changes; returns how to stop asking. Used by `useNavigationGuard`. */
@@ -116,6 +118,7 @@ export const Router = ({ basePath = '', initialUrl, children }: RouterProps) => 
       path,
       params: parsed.searchParams,
       basePath,
+      entry: position.current,
       navigate,
       registerGuard,
     }

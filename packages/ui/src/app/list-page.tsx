@@ -18,12 +18,13 @@ import { Sheet } from '../primitives/sheet'
 import { useDeleteFlow, type DeleteTarget } from './delete/use-delete-flow'
 import { useRestore } from './delete/use-restore'
 import { ErrorBanner } from './error-banner'
-import { CardsDisplay } from './displays/cards-display'
+import { ListCards } from './displays/list-cards'
 import { MapDisplay } from './displays/map-display'
 import { CustomDisplay } from './displays/custom-display'
 import { DisplaySwitch, SortMenu } from './displays/display-controls'
 import { loadedFields, shownDisplay } from './displays/list-displays'
 import { useDisplayRows } from './displays/use-display-rows'
+import { useListScroll } from './list-scroll'
 import { ListChart } from './list-chart'
 import { parseSort, sortToOrderBy } from './list-order'
 import { ListSearch } from './list-search'
@@ -65,7 +66,9 @@ const LoadedList = ({ model, address }: { model: ResourceModel; address: ListAdd
   const loaded = useMemo(() => loadedFields(model, view, columns.map((column) => column.id)), [model, view, columns])
   const rows = useLiveRows({ resources: meta.resources, views: meta.views, model, columns: loaded, filter: parsed.ok ? filterText : '', orderBy })
   const display = shownDisplay(view, address.display)
-  const displayRows = useDisplayRows(model, rows.page, rows.key, display !== undefined)
+  // The map and custom displays page through the rows with `loadMore`; the table and cards scroll through them
+  const displayRows = useDisplayRows(model, rows.page, rows.key, display !== undefined && display.kind !== 'cards')
+  const scroll = useListScroll()
 
   const titleField = recordTitleField(model, view)
   const target = (row: GridRow): DeleteTarget => ({
@@ -133,6 +136,8 @@ const LoadedList = ({ model, address }: { model: ResourceModel; address: ListAdd
       sort={parseSort(orderBy)}
       onSortChange={(sort) => set({ orderBy: sortToOrderBy(sort) })}
       onOpenRow={openRecord}
+      initialScrollIndex={scroll.initialIndex}
+      onScrollIndex={scroll.remember}
       rowActions={[
         { label: `Open ${singular.toLowerCase()}`, onSelect: openRecord },
         ...(can(permissions, 'delete') ? [{ label: 'Delete', destructive: true, available: (row: GridRow) => rowAllows(row, 'delete'), onSelect: (row: GridRow) => void remove.start(target(row)) }] : []),
@@ -145,9 +150,11 @@ const LoadedList = ({ model, address }: { model: ResourceModel; address: ListAdd
   ) : (
     <div className="flex-1 rounded-lg border bg-surface" />
   )
+  const cardsList = { ...rows, initialIndex: scroll.initialIndex, onScrollIndex: scroll.remember }
   const drawDisplay = () => {
     if (!display) return table
-    if (display.kind === 'cards') return <CardsDisplay model={model} view={view} display={display} list={displayRows} />
+    // A change of filter or sort starts the cards again at the top
+    if (display.kind === 'cards') return <ListCards key={rows.key.join(' ')} model={model} view={view} display={display} list={cardsList} />
     if (display.kind === 'map') return <MapDisplay model={model} view={view} display={display} list={displayRows} />
     return <CustomDisplay display={display} list={displayRows} />
   }

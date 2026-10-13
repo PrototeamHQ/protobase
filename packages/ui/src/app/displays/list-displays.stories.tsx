@@ -125,7 +125,7 @@ export const CardsChecks: StoryObj = {
     expect(first).toHaveTextContent('VanMoof S5')
     expect(first).toHaveTextContent('Daan Bakker')
     expect(first).toHaveTextContent('Booked')
-    expect(canvas.getByText('14 of 14')).toBeVisible()
+    expect(canvas.getByText('1–14 of 14')).toBeVisible()
     await userEvent.selectOptions(canvas.getByRole('combobox', { name: 'Sort' }), 'booked_on asc')
     await waitFor(async () => expect((await cardTitles(canvas))[0]).toBe('Gazelle Orange'))
     await userEvent.click(canvas.getByRole('button', { name: 'Table' }))

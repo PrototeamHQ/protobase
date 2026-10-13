@@ -54,11 +54,21 @@ export const useGridScroll = (total: number, rowHeight: number, initialIndex: nu
     return () => element.removeEventListener('wheel', onWheel)
   }, [syncNative])
 
+  /** Moves to a virtual offset, for a layout change that keeps a row in view. */
+  const scrollTo = useCallback(
+    (nextTop: number) => {
+      const next = clampTop(latest.current.geometry, nextTop)
+      setTop(next)
+      syncNative(next)
+    },
+    [syncNative],
+  )
+
   const onScroll = useCallback(() => {
     const element = ref.current
     if (!element || performance.now() < ignoreScrollUntil.current) return
     setTop(topFromScroll(latest.current.geometry, element.scrollTop))
   }, [])
 
-  return { ref, onScroll, viewport, top, geometry }
+  return { ref, onScroll, viewport, top, geometry, scrollTo }
 }
