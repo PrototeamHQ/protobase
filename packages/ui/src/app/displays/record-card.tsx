@@ -155,7 +155,7 @@ export const RecordCard = ({ model, view, display, row, swipe = true }: RecordCa
   return (
     <div className={photos ? 'group/card relative h-full' : favorite ? 'relative h-full' : 'h-full'}>
       {photos ? (
-        <CardCarousel photos={photos} recordKey={row.key} cover={cover} swipe={swipe}>
+        <CardCarousel photos={row.photos ?? []} cover={cover} swipe={swipe}>
           {card}
         </CardCarousel>
       ) : (

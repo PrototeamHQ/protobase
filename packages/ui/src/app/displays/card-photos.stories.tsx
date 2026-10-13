@@ -59,8 +59,10 @@ const photo = (name: string, hue: number) => ({ uri: `public:bikes/${name}.png`,
 
 const brompton = photo('brompton', 200)
 
-// The resources the cards asked the list API for, in order, to see that each card loads its photos once.
+// The resources the list page asked the list API for, and the photos it asked for with them, to see that the photos
+// come with the list.
 const listed: string[] = []
+const asked: unknown[] = []
 
 const Shop = ({ url = '/bikes' }: { url?: string }) => {
   const [client] = useState(() => {
@@ -81,8 +83,10 @@ const Shop = ({ url = '/bikes' }: { url?: string }) => {
       },
     })
     listed.length = 0
+    asked.length = 0
     const list: typeof api.client.list = (resource, params) => {
       listed.push(String(resource))
+      if (params?.photos) asked.push(params.photos)
       return api.client.list(resource, params)
     }
     return { ...api.client, list }
@@ -108,9 +112,11 @@ export const CardPhotosChecks: StoryObj = {
     expect(slide(0)).toBe(brompton.url)
     expect(getComputedStyle(within(card).getByRole('button', { name: 'Next photo' })).opacity).toBe('0')
 
-    // The photos load with the card, so the dots mark the cover before anything is touched
-    await waitFor(() => expect(within(card).getByText('Photo 1 of 3')).toBeTruthy())
+    // The photos come with the list, so the dots mark the cover from the first drawing, with no request of their own
+    expect(within(card).getByText('Photo 1 of 3')).toBeTruthy()
     expect(track().scrollLeft).toBe(0)
+    expect(listed).not.toContain('bike_photos')
+    expect(asked[0]).toEqual({ resource: 'bike_photos', field: 'bike_id', image: 'photo', sort: 'position' })
 
     // A press scrolls to the next photo, the cover once, in their order, and stays on the list
     await userEvent.click(within(card).getByRole('button', { name: 'Next photo' }))
@@ -118,7 +124,7 @@ export const CardPhotosChecks: StoryObj = {
     expect(slide(1)).toMatch(/^data:image\/png/)
     expect(slide(1)).not.toBe(brompton.url)
     expect(track().scrollLeft).toBeGreaterThan(0)
-    expect(listed.filter((name) => name === 'bike_photos')).toHaveLength(2)
+    expect(listed).not.toContain('bike_photos')
     expect(canvas.getByRole('list', { name: 'Bikes' })).toBeTruthy()
 
     // Back past the first wraps to the last, however quickly pressed
@@ -131,9 +137,9 @@ export const CardPhotosChecks: StoryObj = {
     await waitFor(() => expect(within(card).getByText('Photo 1 of 3')).toBeTruthy())
     expect(getComputedStyle(track()).overflowX).toBe('auto')
 
-    // A bike without further photos keeps its cover and loses its arrows once they are known
-    const cortina = (await canvas.findByText('Cortina U4')).closest('li')!
-    await waitFor(() => expect(within(cortina).queryByRole('button', { name: 'Next photo' })).toBeNull())
+    // A bike without further photos keeps its cover, with no arrows
+    const cortina = canvas.getByText('Cortina U4').closest('li')!
+    expect(within(cortina).queryByRole('button', { name: 'Next photo' })).toBeNull()
     expect(cortina.querySelector('img')).not.toBeNull()
   },
 }

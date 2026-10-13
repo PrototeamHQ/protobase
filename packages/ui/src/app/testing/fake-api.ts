@@ -1,7 +1,7 @@
 import { ApiError, type Client, type PluginRef, type ResourcePermissions, type SourceRef, type StoredFile, type UploadOptions, type UploadResult } from '@protobase/client'
 import { evaluateCondition, parseCondition, type PageModel } from '@protobase/layout'
-import { checkFilter, evaluateFilter, parseFilter, type BottomBarModel, type ResourceModel, type SignInViewModel, type ViewModel } from '@protobase/schema'
-import { encodeKey, matchesSearch } from '@protobase/schema/internal'
+import { checkFilter, evaluateFilter, parseFilter, type BottomBarModel, type CardPhotosModel, type ResourceModel, type SignInViewModel, type ViewModel } from '@protobase/schema'
+import { cardPhotoLimit, encodeKey, matchesSearch } from '@protobase/schema/internal'
 
 type Row = Record<string, unknown>
 
@@ -76,8 +76,8 @@ const matches = (filter: string | undefined, model: ResourceModel | undefined) =
 }
 
 /**
- * An in-memory server for stories and docs: lists with filters (simple AIP-160), sorting, paging, exact counts and
- * related names, and get, create, update and delete that change the rows and their ETags. Not a model of the real access rules.
+ * An in-memory server for stories and docs: lists with filters (simple AIP-160), sorting, paging, exact counts,
+ * related names and photos, and get, create, update and delete that change the rows and their ETags. Not a model of the real access rules.
  */
 export const fakeApi = ({ resources, views = [], pages = [], rows: initial, permissions = {}, plugins, sources, maps, bottomBar, signIn, afterWrite, reveal, upload }: FakeApiInput) => {
   const rows: Record<string, Row[]> = structuredClone(initial)
@@ -103,7 +103,7 @@ export const fakeApi = ({ resources, views = [], pages = [], rows: initial, perm
     for (const [name, list] of Object.entries(rows)) rows[name] = list.map((entry) => (entry === row || !entry.etag ? stamp(entry) : entry))
   }
 
-  type ListParams = { filter?: string; orderBy?: string; pageSize?: number; pageToken?: string; labels?: Record<string, string> }
+  type ListParams = { filter?: string; orderBy?: string; pageSize?: number; pageToken?: string; labels?: Record<string, string>; photos?: CardPhotosModel }
   const select = (resource: string, params: ListParams) => table(resource).filter(matches(params.filter, models[resource])).sort(sorter(params.orderBy))
   // The names `labels` asks for: each relation's records among the fake's rows, by key, those with a name
   const namesOf = (resource: string, items: Row[], labels: Record<string, string>) =>
@@ -113,7 +113,15 @@ export const fakeApi = ({ resources, views = [], pages = [], rows: initial, perm
       const named = target ? table(target.name).filter((row) => keys.has(keyOf(target, row)) && row[field] != null) : []
       return [relation, Object.fromEntries(named.map((row) => [keyOf(target!, row), String(row[field])]))]
     }))
-  const pageAt = (resource: string, all: Row[], start: number, size: number, labels?: Record<string, string>) => {
+  // The photos `photos` asks for: each item's first ones among the fake's rows, in their order, those it has
+  const photosOf = (resource: string, items: Row[], photos: CardPhotosModel) => {
+    const key = models[resource]!.primaryKey[0]!
+    return Object.fromEntries(items.flatMap((item) => {
+      const own = select(photos.resource, { orderBy: photos.sort }).filter((row) => String(row[photos.field]) === String(item[key]) && row[photos.image] != null)
+      return own.length > 0 ? [[String(item[key]), own.slice(0, cardPhotoLimit).map((row) => row[photos.image] as StoredFile)]] : []
+    }))
+  }
+  const pageAt = (resource: string, all: Row[], start: number, size: number, { labels, photos }: ListParams) => {
     const items = all.slice(start, start + size).map((row) => shown(resource, row))
     return {
       items,
@@ -122,14 +130,15 @@ export const fakeApi = ({ resources, views = [], pages = [], rows: initial, perm
       totalSizeEstimate: all.length,
       totalSize: all.length,
       ...(labels && { labels: namesOf(resource, items, labels) }),
+      ...(photos && { photos: photosOf(resource, items, photos) }),
     }
   }
 
   const client = {
     meta: async () => ({ status: 'modified' as const, etag: '"fake-meta"', meta: { resources, views, pages, permissions, ...(plugins && { plugins }), ...(sources && { sources }), ...(maps && { maps }), ...(bottomBar && { bottomBar }), ...(signIn && { signIn }) } }),
-    list: async (resource: string, params: ListParams = {}) => pageAt(resource, select(resource, params), Number(params.pageToken || 0), params.pageSize ?? 50, params.labels),
-    search: async (resource: string, params: ListParams = {}) => pageAt(resource, select(resource, params), Number(params.pageToken || 0), params.pageSize ?? 50, params.labels),
-    seek: async (resource: string, params: ListParams & { position: number }) => pageAt(resource, select(resource, params), params.position, params.pageSize ?? 50, params.labels),
+    list: async (resource: string, params: ListParams = {}) => pageAt(resource, select(resource, params), Number(params.pageToken || 0), params.pageSize ?? 50, params),
+    search: async (resource: string, params: ListParams = {}) => pageAt(resource, select(resource, params), Number(params.pageToken || 0), params.pageSize ?? 50, params),
+    seek: async (resource: string, params: ListParams & { position: number }) => pageAt(resource, select(resource, params), params.position, params.pageSize ?? 50, params),
     get: async (resource: string, key: string) => stored(resource, find(resource, key)),
     reveal: async (resource: string, key: string, field: string) => {
       const value = find(resource, key)[field] ?? null

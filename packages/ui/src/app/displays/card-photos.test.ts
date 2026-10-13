@@ -1,27 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { cardPhotoList, cardPhotosRequest, maxCardPhotos, scrolledPhoto, shownPhoto } from './card-photos'
+import { cardPhotoList, maxCardDots, scrolledPhoto, shownPhoto } from './card-photos'
 
 const file = (name: string) => ({ uri: `public:listing_photos/${name}.jpg`, name: `${name}.jpg`, type: 'image/jpeg', size: 1024, url: `/files/${name}.jpg` })
 
-describe('cardPhotosRequest', () => {
-  const photos = { resource: 'listing_photos', field: 'listing_id', image: 'photo', sort: 'position' }
-
-  it("asks for the photos of the card's record, in the display's order, with only the image and its placeholder", () => {
-    expect(cardPhotosRequest(photos, '42')).toEqual({ filter: 'listing_id = "42"', orderBy: 'position', fields: ['photo'], pageSize: maxCardPhotos })
-    expect(cardPhotosRequest(photos, '42', 'photo_placeholder').fields).toEqual(['photo', 'photo_placeholder'])
-  })
-
-  it('leaves the order to the list API when the display names none', () => {
-    expect(cardPhotosRequest({ ...photos, sort: undefined }, '42')).not.toHaveProperty('orderBy')
-  })
-
-  it('quotes a key that is text', () => {
-    expect(cardPhotosRequest(photos, 'a "b"').filter).toBe('listing_id = "a \\"b\\""')
-  })
-})
-
 describe('cardPhotoList', () => {
-  it('puts the cover first, then the loaded photos in their order', () => {
+  it('puts the cover first, then the photos in their order', () => {
     expect(cardPhotoList(file('front'), [file('kitchen'), file('garden')])).toEqual([file('front'), file('kitchen'), file('garden')])
   })
 
@@ -34,8 +17,14 @@ describe('cardPhotoList', () => {
     expect(cardPhotoList(undefined, [])).toEqual([])
   })
 
-  it('is the cover alone before the photos load', () => {
+  it('is the cover alone without photos', () => {
     expect(cardPhotoList(file('front'), [])).toEqual([file('front')])
+  })
+
+  it('holds as many as the card has dots, the cover among them', () => {
+    const photos = Array.from({ length: maxCardDots }, (_, index) => file(`room-${index}`))
+    expect(cardPhotoList(file('front'), photos)).toEqual([file('front'), ...photos.slice(0, maxCardDots - 1)])
+    expect(cardPhotoList(undefined, photos)).toEqual(photos)
   })
 })
 

@@ -39,9 +39,10 @@ export const displays = {
    * With `card`, a component of the project or a plugin draws each card's content instead, from the row of those
    * fields (`{ row }`); without it, or when it throws, the card is the built-in one. With `photos`, the built-in card's
    * picture gets arrows through the `image` of the records of another resource that point at the card's record, after
-   * its own `image`; they load with the card, so its dots mark the one shown from the start. With `favorite`, a heart in
-   * the card's top right corner saves the record to the signed-in user's own records of another resource, such as
-   * favorites, and takes it off again; a visitor who is not signed in is told why to sign in. Named `cards` unless `name` says otherwise.
+   * its own `image`, ten pictures at most; they come with the list's records, so its dots mark the one shown from the
+   * start. A list's cards displays name the same `photos`. With `favorite`, a heart in the card's top right corner saves
+   * the record to the signed-in user's own records of another resource, such as favorites, and takes it off again; a
+   * visitor who is not signed in is told why to sign in. Named `cards` unless `name` says otherwise.
    */
   cards: (
     fields: { image?: Ref; title?: Ref; subtitle?: Ref; amount?: Ref[]; badge?: Ref; meta?: Ref[]; footer?: Ref[]; flags?: Ref[] },

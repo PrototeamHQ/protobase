@@ -336,7 +336,8 @@ export type ListDisplayModel =
 
 /**
  * Where a card's further photos come from: the records of `resource` whose relation `field` points at the card's record,
- * in `sort` order, each shown by its file field `image`. The card loads them when its arrows are first used. See
+ * in `sort` order, each shown by its file field `image`. They come with the list's records, in the same request, so
+ * an index on `field` and the sorted fields serves them. See
  * [Card photos](website/src/content/docs/reference/ui-config.mdx#card-photos).
  */
 export type CardPhotosModel = {

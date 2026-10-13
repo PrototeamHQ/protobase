@@ -3,6 +3,7 @@ import { encodeKey, tableDisplay } from '@protobase/schema/internal'
 import { displayValue } from '../../live/display-value'
 import { recordKey, recordTitleField } from '../../live/model-helpers'
 import { humanize } from '../../live/naming'
+import { photosKey } from '../../live/row-photos'
 
 /** A row as a list display gets it: its key, the record as the list API gives it, and names of the records its relations point at. */
 export type ListDisplayRow = {
@@ -11,6 +12,8 @@ export type ListDisplayRow = {
   record: Record<string, unknown>
   /** The name of the record a relation field points at, for the relations the list shows. */
   labels: Record<string, string>
+  /** The files of its first photos, when the list loaded the photos its cards display names. */
+  photos?: unknown[]
 }
 
 /** What a card component of a cards display (`d.cards(..., { card })`) gets: the record it draws, of the display's fields. */
@@ -101,12 +104,16 @@ export const sortFields = (model: ResourceModel, view: ViewModel | undefined, di
 
 const isLabelled = (value: unknown): value is { id: unknown; name: string } => typeof value === 'object' && value !== null && 'id' in value && 'name' in value
 
-/** A loaded row, its relations as `{ id, name }`, split into the record as the API gives it and the relations' names. */
+/**
+ * A loaded row, its relations as `{ id, name }`, split into the record as the API gives it, the relations' names and
+ * the photos it was loaded with.
+ */
 export const displayRow = (model: ResourceModel, row: Record<string, unknown>): ListDisplayRow => {
   const record: Record<string, unknown> = {}
   const labels: Record<string, string> = {}
+  const photos = Array.isArray(row[photosKey]) ? (row[photosKey] as unknown[]) : undefined
   for (const [name, value] of Object.entries(row)) {
-    if (name === 'id' && !Object.hasOwn(model.fields, 'id')) continue
+    if ((name === 'id' || name === photosKey) && !Object.hasOwn(model.fields, name)) continue
     if (model.fields[name]?.type === 'relation' && isLabelled(value)) {
       record[name] = value.id
       labels[name] = value.name
@@ -114,5 +121,5 @@ export const displayRow = (model: ResourceModel, row: Record<string, unknown>): 
       record[name] = value
     }
   }
-  return { key: encodeKey(recordKey(model, record)), record, labels }
+  return { key: encodeKey(recordKey(model, record)), record, labels, ...(photos && { photos }) }
 }

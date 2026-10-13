@@ -3,6 +3,7 @@ import type { ListDisplayModel, ResourceModel } from '@protobase/schema'
 import { useClient } from '../../data/api-provider'
 import { keys } from '../../data/query-keys'
 import { listLabels, withLabels } from '../../live/relation-labels'
+import { listPhotos, withPhotos } from '../../live/row-photos'
 import { areaFilter, requestZoom, type MapArea } from '../map/map-area'
 import { useAdminMeta } from '../meta-gate'
 import { displayRow } from './list-displays'
@@ -20,7 +21,7 @@ export type MapRecordsParams = {
 }
 
 /**
- * The records in the map's area through the list API's `:map`, labelled for the card, or buckets of them when it holds
+ * The records in the map's area through the list API's `:map`, labelled for the card and with its photos, or buckets of them when it holds
  * many. A new area or filter keeps the previous answer until its own arrives, and an answer for an area the map has
  * left is never shown.
  */
@@ -35,8 +36,8 @@ export const useMapRecords = ({ model, display, fields, filter, orderBy, area }:
     enabled: area !== undefined,
     placeholderData: keepPreviousData,
     queryFn: async () => {
-      const result = await client.map(model.name, { ...position, zoom, filter: inside, orderBy, labels: listLabels(resources, views, model, fields) })
-      const labelled = withLabels(resources, model, fields, result.items, result.labels)
+      const result = await client.map(model.name, { ...position, zoom, filter: inside, orderBy, labels: listLabels(resources, views, model, fields), photos: listPhotos(views[model.name]) })
+      const labelled = withLabels(resources, model, fields, withPhotos(model, result.items, result.photos), result.labels)
       return { rows: labelled.map((record) => displayRow(model, record)), buckets: result.buckets, total: result.totalSize }
     },
   })
