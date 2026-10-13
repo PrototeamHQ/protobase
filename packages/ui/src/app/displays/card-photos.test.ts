@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { cardPhotoList, cardPhotosRequest, maxCardPhotos, shownPhoto } from './card-photos'
+import { cardPhotoList, cardPhotosRequest, maxCardPhotos, scrolledPhoto, shownPhoto } from './card-photos'
 
 const file = (name: string) => ({ uri: `public:listing_photos/${name}.jpg`, name: `${name}.jpg`, type: 'image/jpeg', size: 1024, url: `/files/${name}.jpg` })
 
@@ -51,5 +51,21 @@ describe('shownPhoto', () => {
   it('stays on the first with one photo or none', () => {
     expect(shownPhoto(5, 1)).toBe(0)
     expect(shownPhoto(-2, 0)).toBe(0)
+  })
+})
+
+describe('scrolledPhoto', () => {
+  it('is the photo mostly in view, part way through a swipe', () => {
+    expect([0, 100, 159, 161, 320, 470].map((left) => scrolledPhoto(left, 320, 3))).toEqual([0, 0, 0, 1, 1, 1])
+  })
+
+  it('stays within the photos when the track overscrolls', () => {
+    expect(scrolledPhoto(-40, 320, 3)).toBe(0)
+    expect(scrolledPhoto(2000, 320, 3)).toBe(2)
+  })
+
+  it('is the first before the track has a width or photos', () => {
+    expect(scrolledPhoto(100, 0, 3)).toBe(0)
+    expect(scrolledPhoto(100, 320, 0)).toBe(0)
   })
 })

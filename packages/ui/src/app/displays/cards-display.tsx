@@ -28,7 +28,7 @@ export const CardsDisplay = ({ model, view, display, list, row = false, footer =
       <ul className={row ? scroller : grid} aria-label={view?.names?.plural ?? humanize(model.name)}>
         {list.rows.map((record) => (
           <li key={record.key} className={cn(row && 'w-64 shrink-0 snap-start')}>
-            <RecordCard model={model} view={view} display={display} row={record} />
+            <RecordCard model={model} view={view} display={display} row={record} swipe={!row} />
           </li>
         ))}
       </ul>

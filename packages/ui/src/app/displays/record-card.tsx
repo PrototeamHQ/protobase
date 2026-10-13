@@ -1,8 +1,6 @@
 import type { ReactNode } from 'react'
 import type { ListDisplayModel, ResourceModel, ViewModel } from '@protobase/schema'
 import { displayValue } from '../../live/display-value'
-import { FileImage } from '../../live/file-image'
-import { shownImage } from '../../live/file-values'
 import { humanize } from '../../live/naming'
 import { Badge } from '../../primitives/badge'
 import { AppLink } from '../use-app-address'
@@ -13,18 +11,16 @@ import { CustomBoundary } from '../pages/custom-boundary'
 import { useProjectUi } from '../pages/project-ui'
 import { ValueBadge } from '../value-badge'
 import { CardCarousel } from './card-carousel'
+import { CardImage } from './card-image'
 import { amountParts, cardFields, filledAmount, filledMeta, type ListDisplayRow } from './list-displays'
 
-type RecordCardProps = { model: ResourceModel; view: ViewModel | undefined; display: Extract<ListDisplayModel, { kind: 'cards' }>; row: ListDisplayRow }
-
-// A picture across the card's top, from the edge of the card in: a raster image only, an empty frame otherwise.
-const CardImage = ({ value }: { value: unknown }) => {
-  const image = shownImage(value, { width: 320, height: 240 })
-  return (
-    <span className="-mx-3 -mt-3 mb-1.5 block aspect-[4/3] overflow-hidden rounded-t-lg border-b border-border bg-muted">
-      {image && <FileImage image={image} loading="lazy" className="size-full object-cover" />}
-    </span>
-  )
+type RecordCardProps = {
+  model: ResourceModel
+  view: ViewModel | undefined
+  display: Extract<ListDisplayModel, { kind: 'cards' }>
+  row: ListDisplayRow
+  /** Whether a swipe steps through the card's photos; off in a row that scrolls sideways, which the swipe scrolls instead. */
+  swipe?: boolean
 }
 
 // A meta field's value after the icon its view names.
@@ -39,13 +35,13 @@ const MetaValue = ({ icon, children }: { icon: string | undefined; children: Rea
 }
 
 /**
- * A record's card of a cards display, opening its page: its image across the top, with arrows through its photos when
- * the display names them, the title over the subtitle, the badge beside it, the first amount with a value in bold, small
- * meta fields below, those with a value, the labels of its flags that are true and the footer's fields with a value,
- * joined by bullets; or, with a `card` component, what it draws of the row, the built-in content again when it is
- * missing or throws.
+ * A record's card of a cards display, opening its page: its image across the top, swiped or stepped through its photos
+ * when the display names them, the title over the subtitle, the badge beside it, the first amount with a value in bold,
+ * small meta fields below, those with a value, the labels of its flags that are true and the footer's fields with a
+ * value, joined by bullets; or, with a `card` component, what it draws of the row, the built-in content again when it
+ * is missing or throws.
  */
-export const RecordCard = ({ model, view, display, row }: RecordCardProps) => {
+export const RecordCard = ({ model, view, display, row, swipe = true }: RecordCardProps) => {
   const { image, title, subtitle, amount, badge, meta, footer, flags } = cardFields(model, view, display)
   const label = (name: string) => view?.fields[name]?.label ?? humanize(name)
   const text = (name: string) => {
@@ -93,9 +89,9 @@ export const RecordCard = ({ model, view, display, row }: RecordCardProps) => {
   const cover = image === undefined ? undefined : row.record[image]
   const shownAmount = filledAmount(row, amount)
   const footing = filledMeta(row, footer)
-  const builtIn = (photo: unknown) => (
+  const builtIn = (picture: ReactNode) => (
     <>
-      {(image !== undefined || photos !== undefined) && <CardImage value={photo} />}
+      {(image !== undefined || photos !== undefined) && picture}
       <span className="flex items-start justify-between gap-2">
         <span className="min-w-0 truncate font-medium">{shownValue(title)}</span>
         {badge !== undefined && status !== null && status !== undefined && (
@@ -137,28 +133,28 @@ export const RecordCard = ({ model, view, display, row }: RecordCardProps) => {
       )}
     </>
   )
-  const card = (photo: unknown) => (
+  const card = (picture: ReactNode) => (
     <AppLink
       to={{ kind: 'record', resource: model.name, key: row.key }}
       className="flex h-full flex-col gap-1.5 rounded-lg border border-border bg-background p-3 text-[13px] hover:border-border-strong hover:bg-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
     >
       {Card ? (
-        <CustomBoundary name={display.card!} fallback={builtIn(photo)}>
+        <CustomBoundary name={display.card!} fallback={builtIn(picture)}>
           <Card row={row} />
         </CustomBoundary>
       ) : (
-        builtIn(photo)
+        builtIn(picture)
       )}
     </AppLink>
   )
   return (
     <div className={photos ? 'group/card relative h-full' : 'h-full'}>
       {photos ? (
-        <CardCarousel photos={photos} recordKey={row.key} cover={cover}>
+        <CardCarousel photos={photos} recordKey={row.key} cover={cover} swipe={swipe}>
           {card}
         </CardCarousel>
       ) : (
-        card(cover)
+        card(<CardImage value={cover} />)
       )}
     </div>
   )
