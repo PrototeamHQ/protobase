@@ -5,12 +5,12 @@ import { invoiceModel } from './fixtures'
 import { parseFilter } from './parse'
 
 const now = () => new Date('2024-06-01T00:00:00Z')
-const holds = (source: string, record: unknown) => {
+const holds = (source: string, record: unknown, search?: typeof invoiceModel) => {
   const parsed = parseFilter(source)
   if (!parsed.ok || !parsed.ast) throw new Error(JSON.stringify(parsed.errors))
   const checked = checkFilter(invoiceModel, parsed.ast)
   if (!checked.ok) throw new Error(JSON.stringify(checked.errors))
-  return evaluateFilter(checked.filter, record, { now })
+  return evaluateFilter(checked.filter, record, { now, ...(search && { search }) })
 }
 
 describe('evaluateFilter', () => {
@@ -49,6 +49,13 @@ describe('evaluateFilter', () => {
     expect(holds('regex(title, "^SO-")', { title: 'SO-1' })).toBe(true)
     expect(holds('regex(title, "^SO-")', { title: 'PO-1' })).toBe(false)
     expect(holds('regex(title, "^SO-")', { title: 5 })).toBe(false)
+  })
+
+  it('searches the search fields of the resource it is given, as the API does', () => {
+    expect(holds('search("canal flat")', { title: 'Flat on the Canal', notes: null }, invoiceModel)).toBe(true)
+    expect(holds('canal AND id = 7', { title: 'Canal view', id: 7 }, invoiceModel)).toBe(true)
+    expect(holds('search("canal garden")', { title: 'Canal view', notes: 'No garden' }, invoiceModel)).toBe(true)
+    expect(holds('search("canal garden")', { title: 'Canal view', notes: null }, invoiceModel)).toBe(false)
   })
 
   it('search and similar are not implemented without the database', () => {

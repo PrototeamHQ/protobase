@@ -10,6 +10,8 @@ import type {
   NavRecentModel,
   ListDisplayModel,
   ResourceModel,
+  SaveSearchModel,
+  SearchesOfModel,
   SignInPromptModel,
   ViewModel,
 } from './model'
@@ -22,6 +24,19 @@ import { FieldView } from './view-field'
 import { widgets } from './view-widgets'
 
 type FieldsOf<R extends { readonly $fields: unknown }> = R['$fields']
+
+// The saved search's own fields: text for the filter and name, a timestamp for when its results were last opened.
+const searchesOfErrors = (searches: SearchesOfModel, resource: ResourceModel) => {
+  const typed = (role: string, name: string | undefined, type: string) =>
+    name === undefined || resource.fields[name]?.type === type ? [] : [`${role} "${name}" is not a ${type} field of the resource`]
+  return [
+    ...typed('filter', searches.filter, 'text'),
+    ...typed('name', searches.name, 'text'),
+    ...typed('unseen.seenAt', searches.unseen?.seenAt, 'timestamp'),
+    ...(searches.controls ?? []).flatMap((name) => (['enum', 'boolean'].includes(resource.fields[name]?.type ?? '') ? [] : [`control "${name}" is not an enum or boolean field of the resource`])),
+    ...(searches.limit === undefined || (Number.isInteger(searches.limit) && searches.limit > 0) ? [] : ['limit must be a positive whole number']),
+  ]
+}
 
 /**
  * `nav(...)` with `recent.status` limited to the resource's fields.
@@ -176,8 +191,8 @@ export class ViewBuilder<R extends {
 
   /**
    * What a visitor who is not signed in is told about this resource, which they could use once signed in: on its list
-   * page, in place of the list, and in the dialog of a card's favorite button that saves here. The page offers "Sign
-   * in", and a page to make an account when `signUp` names one. With it, the resource keeps its place in the bottom
+   * page, in place of the list, and in the dialog of a card's favorite button or a list's "Save search" button that
+   * saves here. The page offers "Sign in", and a page to make an account when `signUp` names one. With it, the resource keeps its place in the bottom
    * bar and the sidebar of visitors. Throws when `signUp.href` is not `https:`, `http:` or `mailto:`. See
    * [Sign-in prompts](website/src/content/docs/reference/ui-config.mdx#sign-in-prompts).
    */
@@ -186,7 +201,47 @@ export class ViewBuilder<R extends {
     return this.next({ signIn: structuredClone(prompt) })
   }
 
-  /** With the resource's model, also verifies the title, search result and list display fields, `listOf` and the sidebar's `recent` group. */
+  /**
+   * A "Save search" button on the list page while its filter narrows it: it saves the filter as a record of `resource`,
+   * the signed-in user's own, whose view lists them with `.searchesOf(...)`, and takes it off again while pressed. A
+   * visitor is told what signing in gives, when that view has `.signIn(...)`. See
+   * [Saved searches](website/src/content/docs/reference/ui-config.mdx#saved-searches).
+   */
+  saveSearch(search: SaveSearchModel) {
+    return this.next({ saveSearch: { ...search } })
+  }
+
+  /**
+   * This resource holds saved searches of `resource`, which a list page saves with `.saveSearch(...)`: its list page
+   * shows each of the user's searches with its filters, its `controls` to change in place, the newest records it finds
+   * (with `unseen`, only those new since the user last opened its results) and a link to all of them. Throws in
+   * `toModel` when `filter` or `name` is not a text field, `unseen.seenAt` not a timestamp or a control not an enum or
+   * boolean field.
+   * See [Saved searches](website/src/content/docs/reference/ui-config.mdx#saved-searches).
+   */
+  searchesOf(
+    pick: (r: FieldRefs<FieldsOf<R>>) => {
+      resource: string
+      filter: Ref
+      name?: Ref
+      controls?: Ref[]
+      unseen?: { seenAt: Ref; field: string }
+      limit?: number
+    },
+  ) {
+    const { resource, filter, name, controls, unseen, limit } = pick(this.refs())
+    const searches: SearchesOfModel = {
+      resource,
+      filter: filter.name,
+      ...(name && { name: name.name }),
+      ...(controls && { controls: controls.map((control) => control.name) }),
+      ...(unseen && { unseen: { seenAt: unseen.seenAt.name, field: unseen.field } }),
+      ...(limit !== undefined && { limit }),
+    }
+    return this.next({ searchesOf: searches })
+  }
+
+  /** With the resource's model, also verifies the title, search result and list display fields, `listOf`, `searchesOf` and the sidebar's `recent` group. */
   toModel(resource?: ResourceModel): ViewModel {
     const { title, nav, searchResult, list, listOf } = this.state
     if (resource && title !== undefined && !Object.hasOwn(resource.fields, title)) {
@@ -206,6 +261,8 @@ export class ViewBuilder<R extends {
     if (resource && listOf !== undefined && (!Object.hasOwn(resource.fields, listOf) || resource.fields[listOf]!.type !== 'relation')) {
       throw new Error(`View "${this.state.resource}": listOf names "${listOf}", which is not a relation field of the resource`)
     }
+    const searchErrors = resource && this.state.searchesOf ? searchesOfErrors(this.state.searchesOf, resource) : []
+    if (searchErrors.length > 0) throw new Error(`View "${this.state.resource}": searchesOf ${searchErrors.join('; ')}`)
     const recentErrors = resource && nav?.recent ? navRecentErrors(nav.recent, resource) : []
     if (recentErrors.length > 0) throw new Error(`View "${this.state.resource}": nav.recent ${recentErrors.join('; ')}`)
     return structuredClone(this.state)

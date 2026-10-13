@@ -368,7 +368,8 @@ export type CardFavoriteModel = {
 
 /**
  * What a visitor who is not signed in is told about a resource they could use once signed in (`.signIn(...)`): on its
- * list page, in place of the list, and in the dialog of a card's favorite button that saves to it. See
+ * list page, in place of the list, and in the dialog of a card's favorite button or a list's "Save search" button
+ * that saves to it. See
  * [Sign-in prompts](website/src/content/docs/reference/ui-config.mdx#sign-in-prompts).
  */
 export type SignInPromptModel = {
@@ -393,6 +394,46 @@ export type SignInPromptModel = {
 export type SignInViewModel = Pick<ViewModel, 'resource' | 'names' | 'nav'> & {
   /** What the visitor is told. */
   signIn: SignInPromptModel
+}
+
+/**
+ * The "Save search" button of a list page: it saves the list's filter as a record of `resource`, the signed-in user's
+ * own, whose view lists them (`.searchesOf(...)`). A visitor who is not signed in gets the resource's sign-in prompt
+ * instead. See [Saved searches](website/src/content/docs/reference/ui-config.mdx#saved-searches).
+ */
+export type SaveSearchModel = {
+  /** The resource holding the saved searches, whose view has `searchesOf` for this one. */
+  resource: string
+  /** The button's text, pressed while the filter is saved; "Save search" when omitted. */
+  label?: string
+}
+
+/**
+ * What a saved search is (`.searchesOf(...)`): the list page shows each of the user's searches, with its filters, its
+ * `controls`, and the first records of `resource` it finds, newest first, and a link to all of them. See
+ * [Saved searches](website/src/content/docs/reference/ui-config.mdx#saved-searches).
+ */
+export type SearchesOfModel = {
+  /** The resource searched, such as listings. */
+  resource: string
+  /** The text field holding the search's filter, as the list's address has it. */
+  filter: string
+  /** The text field a new search is named in, from its filters; the view's title shows it. */
+  name?: string
+  /** Enum and boolean fields changed in place on each search, such as how often to hear of new records. */
+  controls?: string[]
+  /**
+   * With it, each search shows only the records new to the user: those whose `field` (of `resource`) is after the
+   * search's `seenAt` (a timestamp field of this resource), which opening all of its results sets to now.
+   */
+  unseen?: {
+    /** When the user last opened the search's results. */
+    seenAt: string
+    /** The searched resource's timestamp that makes a record new, such as when it was published. */
+    field: string
+  }
+  /** How many records each search shows; default 12. */
+  limit?: number
 }
 
 /** A view's list page (`.list(...)`). */
@@ -788,8 +829,12 @@ export type ViewModel = {
   actions: ActionModel[]
   /** The relation field whose records the list page shows instead of this resource's rows, in their own view's list. */
   listOf?: string
-  /** What a visitor who is not signed in is told in place of the list, and by a card's favorite button that saves here. */
+  /** What a visitor who is not signed in is told in place of the list, and by a favorite or "Save search" button that saves here. */
   signIn?: SignInPromptModel
+  /** The list page's button that saves its filter as a search of the user's own. */
+  saveSearch?: SaveSearchModel
+  /** The list page shows the user's saved searches of another resource, each with what it finds, instead of rows. */
+  searchesOf?: SearchesOfModel
 }
 
 /** Where a part of a filter or order stands in its text, as character offsets. */

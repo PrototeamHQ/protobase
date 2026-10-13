@@ -199,6 +199,31 @@ describe('view builder', () => {
     expect(() => view<typeof saved>('saved_articles').listOf((r) => r.user_id).toModel(saved.toModel())).toThrow('listOf names "user_id", which is not a relation field')
   })
 
+  it('saves a list\'s filter as a search of the user\'s own, under a label of its own', () => {
+    const search = { resource: 'saved_searches', label: 'Keep this search' }
+    const model = view<typeof article>('article').saveSearch(search).toModel(article.toModel())
+    search.label = 'Save'
+    expect(model.saveSearch).toEqual({ resource: 'saved_searches', label: 'Keep this search' })
+  })
+
+  it('names the fields of a saved search, and refuses ones of the wrong type', () => {
+    const searches = resource('saved_searches')
+      .table('saved_searches')
+      .fields({ id: f.integer(), user_id: f.text(), name: f.text(), filter: f.text(), frequency: f.enum(['instant', 'daily']), seen_at: f.timestamp(), count: f.integer() })
+      .primaryKey((r) => r.id)
+      .owner((r) => r.user_id)
+    const model = searches.toModel()
+    const of = view<typeof searches>('saved_searches').searchesOf((r) => ({ resource: 'article', filter: r.filter, name: r.name, controls: [r.frequency], unseen: { seenAt: r.seen_at, field: 'createdAt' }, limit: 6 }))
+    expect(of.toModel(model).searchesOf).toEqual({ resource: 'article', filter: 'filter', name: 'name', controls: ['frequency'], unseen: { seenAt: 'seen_at', field: 'createdAt' }, limit: 6 })
+    expect(view<typeof searches>('saved_searches').searchesOf((r) => ({ resource: 'article', filter: r.filter })).toModel(model).searchesOf).toEqual({ resource: 'article', filter: 'filter' })
+    expect(() => view<typeof searches>('saved_searches').searchesOf((r) => ({ resource: 'article', filter: r.count })).toModel(model)).toThrow('View "saved_searches": searchesOf filter "count" is not a text field of the resource')
+    expect(() => view<typeof searches>('saved_searches').searchesOf((r) => ({ resource: 'article', filter: r.filter, unseen: { seenAt: r.name, field: 'createdAt' } })).toModel(model)).toThrow(
+      'unseen.seenAt "name" is not a timestamp field',
+    )
+    expect(() => view<typeof searches>('saved_searches').searchesOf((r) => ({ resource: 'article', filter: r.filter, limit: 0 })).toModel(model)).toThrow('limit must be a positive whole number')
+    expect(() => view<typeof searches>('saved_searches').searchesOf((r) => ({ resource: 'article', filter: r.filter, controls: [r.count] })).toModel(model)).toThrow('control "count" is not an enum or boolean field')
+  })
+
   it('tells visitors what signing in gives, with a sign-up page only at an address outside the app', () => {
     const prompt = { title: 'Keep articles', description: 'Sign in to save them.', benefits: ['Read them later'], signUp: { label: 'Create an account', href: 'https://example.com/join' } }
     const model = view<typeof article>('article').signIn(prompt).toModel()

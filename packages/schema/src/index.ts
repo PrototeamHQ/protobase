@@ -29,6 +29,8 @@ export type {
   ListDisplayModel,
   CardPhotosModel,
   CardFavoriteModel,
+  SaveSearchModel,
+  SearchesOfModel,
   SignInPromptModel,
   SignInViewModel,
   JsonValue,
