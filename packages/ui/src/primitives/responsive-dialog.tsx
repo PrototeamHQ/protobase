@@ -15,20 +15,22 @@ export type ResponsiveDialogProps = {
 
 /**
  * A modal centred on the screen from the `md` breakpoint up, and a sheet rising from the bottom on a phone, switching as
- * the viewport does. Both close on Escape and on a press outside, and keep focus inside while open.
+ * the viewport does. Both close on Escape and on a press outside, and keep focus inside while open; the sheet also
+ * closes when swiped down.
  */
 export const ResponsiveDialog = ({ title, description, open, onClose, actions, children }: ResponsiveDialogProps) => {
   const desktop = useIsDesktop()
-  if (!open) return null
   if (desktop) {
+    if (!open) return null
     return (
       <Dialog title={title} description={description} onClose={onClose} actions={actions}>
         {children}
       </Dialog>
     )
   }
+  // The sheet stays rendered while closed, so it can slide away before it leaves the page.
   return (
-    <Sheet title={title} open onClose={onClose}>
+    <Sheet title={title} open={open} onClose={onClose}>
       <div className="pt-3 text-[13px]">
         {description && <p className="text-muted-foreground">{description}</p>}
         {children && <div className="mt-4">{children}</div>}
