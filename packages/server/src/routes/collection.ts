@@ -2,6 +2,7 @@ import { Hono } from 'hono'
 import { facets, numericHistogram, timeSeries } from '../aggregate-service'
 import type { Deps } from '../deps'
 import { listRecords } from '../list-service'
+import { mapRecords } from '../map-service'
 import { encodeKey } from '@protobase/schema'
 import type { AdminEnv } from '../types'
 import { uploadFile } from '../files/upload'
@@ -28,6 +29,10 @@ export const collectionRoutes = (deps: Deps) => {
     if (action === 'facets') return c.json(await facets(deps, entry, session, query))
     if (action === 'series') return c.json(await timeSeries(deps, entry, session, query))
     if (action === 'histogram') return c.json(await numericHistogram(deps, entry, session, query))
+    if (action === 'map') {
+      const { body, warning } = await mapRecords(deps, entry, session, query)
+      return c.json(body, 200, warningHeader(warning))
+    }
     if (action === 'seek') {
       const { body, warning } = await listRecords(deps, entry, session, query, undefined, true)
       return c.json(body, 200, warningHeader(warning))

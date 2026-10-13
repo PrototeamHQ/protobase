@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { f, resource, type MapSectionModel } from '@protobase/schema'
-import { mapErrors } from './view-map'
+import { mapDisplayErrors, mapErrors } from './view-map'
 
 const shops = resource('shops')
   .table('shops')
@@ -28,5 +28,21 @@ describe('mapErrors', () => {
     expect(mapErrors(map({ zoom: -1 }), shops)).toEqual(['zoom -1 is not between 0 and 22'])
     expect(mapErrors(map({ zoom: 23 }), shops)).toEqual(['zoom 23 is not between 0 and 22'])
     expect(mapErrors(map({ zoom: Number.NaN }), shops)).toEqual(['zoom NaN is not between 0 and 22'])
+  })
+})
+
+describe('mapDisplayErrors', () => {
+  const places = resource('places')
+    .table('places')
+    .fields({ id: f.integer(), lat: f.decimal({ precision: 8, scale: 6 }).filterable(), lng: f.decimal({ precision: 9, scale: 6 }).filterable(), raw_lat: f.decimal({ precision: 8, scale: 6 }), name: f.text().filterable() })
+    .primaryKey((r) => r.id)
+    .toModel()
+  const display = (o: { latitude?: string; longitude?: string } = {}) => ({ kind: 'map' as const, name: 'map', latitude: 'lat', longitude: 'lng', ...o })
+
+  it('takes two filterable number fields, since it asks for the records inside its bounding box', () => {
+    expect(mapDisplayErrors(display(), places)).toEqual([])
+    expect(mapDisplayErrors(display({ latitude: 'raw_lat' }), places)).toEqual(['"raw_lat" on places is not filterable, and the map display filters by position'])
+    expect(mapDisplayErrors(display({ longitude: 'name' }), places)).toEqual(['"name" on places is text, not a number of degrees'])
+    expect(mapDisplayErrors(display({ longitude: 'toString' }), places)).toEqual(['unknown field "toString" on places'])
   })
 })

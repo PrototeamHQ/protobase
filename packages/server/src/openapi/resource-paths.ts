@@ -1,4 +1,6 @@
+import { mapCellPixels, maxMapBuckets, maxMapZoom } from '@protobase/query'
 import type { Entry } from '../registry'
+import { mapRecordsLimit, mapRecordsZoom } from '../map-service'
 import { writableFields, type RequestAccess } from '../request-access'
 import { pascal } from './naming'
 
@@ -32,9 +34,21 @@ const page = (name: string, seek = false) => json({
   },
 })
 
+const bounds = { type: 'object', properties: { south: { type: 'number' }, west: { type: 'number' }, north: { type: 'number' }, east: { type: 'number' } } }
+
+const mapResult = (name: string) => json({
+  type: 'object',
+  required: ['items', 'buckets', 'total_size'],
+  properties: {
+    items: { type: 'array', items: ref(name) },
+    buckets: { type: 'array', items: { type: 'object', properties: { count: { type: 'integer' }, latitude: { type: 'number' }, longitude: { type: 'number' }, bounds } } },
+    total_size: { type: 'integer', description: 'How many records match' },
+  },
+})
+
 // The operation each documented method needs; methods the caller may not use are left out of their document.
 const needs: Record<string, 'list' | 'read' | 'create' | 'update' | 'delete'> = {
-  list: 'list', search: 'list', facets: 'list', series: 'list', histogram: 'list', seek: 'list',
+  list: 'list', search: 'list', facets: 'list', series: 'list', histogram: 'list', map: 'list', seek: 'list',
   get: 'read', reveal: 'read', create: 'create', update: 'update', undelete: 'update', delete: 'delete',
 }
 
@@ -182,6 +196,24 @@ export const resourcePaths = (access: RequestAccess) => {
         parameters: [field('A filterable numeric field'), param('filter'), query('buckets', 'Default 20, at most 200', { type: 'integer' })],
         responses: {
           200: { description: 'Buckets between the filtered minimum and maximum', content: json({ type: 'object', properties: { field: { type: 'string' }, min: { type: ['number', 'null'] }, max: { type: ['number', 'null'] }, buckets: { type: 'array', items: { type: 'object', properties: { from: { type: 'number' }, to: { type: 'number' }, count: { type: 'integer' } } } } } }) },
+          400: error('BadRequest'), ...auth,
+        },
+      },
+    },
+    [`/${entry.name}:map`]: {
+      get: {
+        operationId: `map_${entry.name}`,
+        tags: tag,
+        summary: `${entry.name} records on a map, or buckets of them`,
+        description: `Put the map's bounding box in the filter, such as \`lat >= 51.9 AND lat <= 52.1 AND lng >= 4.2 AND lng <= 4.5\`. When up to ${mapRecordsLimit} records match, or from zoom ${mapRecordsZoom} on, \`items\` holds them (at most ${mapRecordsLimit}) as a list returns them and \`buckets\` is empty; otherwise \`buckets\` counts them per cell of a Web Mercator grid about ${mapCellPixels} pixels across at the zoom (the fullest ${maxMapBuckets}) and \`items\` is empty. Records without a position are in no bucket.`,
+        parameters: [
+          query('latitude', 'A filterable number field holding the latitude in decimal degrees', { type: 'string' }, true),
+          query('longitude', 'A filterable number field holding the longitude in decimal degrees', { type: 'string' }, true),
+          query('zoom', 'The map\'s zoom, as MapLibre counts it', { type: 'integer', minimum: 0, maximum: maxMapZoom }, true),
+          param('filter'), param('orderBy'), param('fields'),
+        ],
+        responses: {
+          200: { description: 'The records or the buckets, and how many records match', content: mapResult(name) },
           400: error('BadRequest'), ...auth,
         },
       },

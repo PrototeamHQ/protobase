@@ -45,6 +45,7 @@ Under `/api/v1`:
 | `GET /{resource}:facets?field=&filter=&limit=` | `{ field, facets: [{ value, count }] }` |
 | `GET /{resource}:series?field=&range=&granularity=&time_zone=&filter=` | `range` is `7d`, `30d`, `90d`, `1y`, `all`, or `from` and `to` (ISO) |
 | `GET /{resource}:histogram?field=&buckets=&filter=` | equal-width buckets of a numeric field |
+| `GET /{resource}:map?latitude=&longitude=&zoom=&filter=&order_by=&fields=` | the records in a map's view, the bounding box being in `filter` (`lat >= 51.9 AND lat <= 52.1 AND lng >= 4.2 AND lng <= 4.5`), as `{ items, buckets, total_size }`; see [Maps](#maps) |
 | `GET /{resource}:seek?position=&order_by=&filter=&page_size=&fields=` | the page at a row position (scrollbar jumps), with `next_page_token` and `prev_page_token`; same items as a list |
 | `GET /api/meta` | resource, view and page models (fields carry `default`: `{ value }` or `{ db: true }`) and the caller's `permissions`; the `ETag` hashes both, so it differs per user; `If-None-Match` gives `304` |
 | `POST /api/files:cleanup` | runs the [scheduled file deletes](/reference/files/#deleting-files) that are due, for an admin; `{ deleted, kept }` |
@@ -56,12 +57,16 @@ Every response carries `X-Meta-Version`, the hash of the models and of the calle
 
 A list returns `{ items, next_page_token, total_size_estimate }` (`total_size` with `count=exact`). `next_page_token` is `""` on the last page, and a token only continues the `filter` and `order_by` it came from: with others the request fails with `400 invalid-cursor`. Items use field names, dates as ISO 8601 text, 64-bit integers and decimals as strings.
 
+### Maps
+
+`:map` answers a map of a resource's records at their position, two filterable number fields in decimal degrees (`latitude` and `longitude` name them) and MapLibre's `zoom`, a whole number from 0 to 22. The map's bounding box is part of the AIP-160 `filter`, with the list's own filter: `(rooms >= 3) AND lat >= 51.9 AND lat <= 52.1 AND lng >= 4.2 AND lng <= 4.5`, or `(lng >= 170 OR lng <= -170)` across the antimeridian. When up to 200 records match, or from zoom 16 on, `items` holds them (at most 200, in `order_by` order) as a list returns them, and `buckets` is empty. Otherwise `buckets` counts them per cell of a grid about 64 pixels across at the zoom, square on a Web Mercator map and fixed as it pans, the fullest 1,000 cells, each as `{ count, latitude, longitude, bounds: { south, west, north, east } }`: the records' mean position and the bounds around them, which a map zooms to when the bucket is chosen. `items` is then empty, and records without a position are in no bucket. `total_size` counts the matches either way. Postgres counts and groups the records, so an index on the position serves the bounding box.
+
 ## Access
 
 Access is resolved once per request and resource (`resolveAccess`, see [Login with Better Auth](/reference/auth/) for roles and capabilities), and everything downstream uses the result:
 
 - **Operations**: a denied operation is `403`; a resource the caller can do nothing with does not exist for them (`404` everywhere, absent from `/meta` and the OpenAPI document).
-- **Readable fields**: the caller works with a restricted model that has only the fields they may read. `filter`, `order_by`, `fields`, `search(...)`, `:facets`, ``:histogram`, `:series`, `:seek` and `:search` bodies are checked against it, so a hidden field is refused exactly like an unknown one (same status, same message and hint, nothing that says it exists). List, get, create, update and delete responses contain readable fields only, and queries select only those columns.
+- **Readable fields**: the caller works with a restricted model that has only the fields they may read. `filter`, `order_by`, `fields`, `search(...)`, `:facets`, ``:histogram`, `:series`, `:map`, `:seek` and `:search` bodies are checked against it, so a hidden field is refused exactly like an unknown one (same status, same message and hint, nothing that says it exists). List, get, create, update and delete responses contain readable fields only, and queries select only those columns.
 - **Sensitive fields** are readable fields that no response carries and no request may name, except `:reveal`; they can be written. See [Sensitive fields and audit](#sensitive-fields-and-audit).
 - **Writable fields**: only fields the caller may write (and read) are accepted; any other is `400`, worded as unknown (hidden) or read-only. Nobody writes a field blind.
 - **Row filters**: a rule that returns a filter (`.own`, `.team`) narrows every read (list, get, aggregates) and the rows a write may target; the database applies it, so it may use columns the caller cannot see. A row outside it is a `404`.
@@ -164,7 +169,7 @@ The API sends no CORS headers until it has something to allow: other websites in
 
 ## Safety
 
-- Every request runs in a transaction with `SET LOCAL statement_timeout` (`statementTimeoutMs`, default 15 s); a timeout is `504`. List, search, get, histogram, series and seek transactions are read-only.
+- Every request runs in a transaction with `SET LOCAL statement_timeout` (`statementTimeoutMs`, default 15 s); a timeout is `504`. List, search, get, histogram, series, map and seek transactions are read-only.
 - **Scan guard**: before a list shape runs for the first time, the server runs `EXPLAIN` on the filtered query and on the query layer's page query (`buildListQuery`) and caches the verdict by shape (resource, filter without its values, sort). A sequential scan of a table above `seqScanRows` (default 10,000) is a `400` `expensive-query` problem with a `create index` suggestion; `scanGuard: { mode: 'warn' }` returns the list with an `X-Protobase-Warning` header instead, `'off'` disables it. The verdict is planned with the first request's values and kept for the process lifetime.
 
 ## Errors
