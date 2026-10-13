@@ -69,9 +69,21 @@ describe('createGridLoader', () => {
   it('seeks to the row position when jumping, and continues from its token', async () => {
     const { seek, list, loader } = setup()
     expect((await loader.page(5)).rows[0]).toMatchObject({ id: '200' })
-    expect(seek).toHaveBeenCalledWith('orders', { orderBy: 'id asc', filter: 'status = "draft"', pageSize: 40, position: 200 })
+    expect(seek).toHaveBeenCalledWith('orders', { orderBy: 'id asc', filter: 'status = "draft"', pageSize: 40, labels: {}, position: 200 })
     await loader.page(6)
     expect(list.mock.calls[0]![1]).toMatchObject({ pageToken: 'after-jump' })
+  })
+
+  it('names the relations in the page\'s own list call, and goes by the key where the answer names none', async () => {
+    const customers = { name: 'customers', table: { name: 'customers' }, primaryKey: ['id'], fields: { id: { name: 'id', type: 'integer' }, name: { name: 'name', type: 'text' } } } as unknown as ResourceModel
+    const orders = { ...model, fields: { ...model.fields, customer_id: { name: 'customer_id', type: 'relation', relation: { resource: 'customers' } } } } as unknown as ResourceModel
+    const list = vi.fn(async () => ({ items: [{ id: 1, customer_id: 7 }, { id: 2, customer_id: 8 }], nextPageToken: '', totalSizeEstimate: 2, labels: { customer_id: { 7: 'Acme' } } }))
+    const client = { list } as unknown as Client
+    const loader = createGridLoader({ queryClient: new QueryClient(), client, resources: { orders, customers }, views: {}, model: orders, columns: ['customer_id'], filter: '', orderBy: 'id asc' })
+    const { rows } = await loader.page(0)
+    expect(list).toHaveBeenCalledTimes(1)
+    expect(list.mock.calls[0]).toMatchObject(['orders', { labels: { customer_id: 'name' } }])
+    expect(rows.map((row) => row.customer_id)).toEqual([{ id: 7, name: 'Acme' }, { id: 8, name: '8' }])
   })
 
   it('returns no rows past the end', async () => {

@@ -1,8 +1,8 @@
-import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query'
+import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import type { ListDisplayModel, ResourceModel } from '@protobase/schema'
 import { useClient } from '../../data/api-provider'
 import { keys } from '../../data/query-keys'
-import { withLabels } from '../../live/relation-labels'
+import { listLabels, withLabels } from '../../live/relation-labels'
 import { areaFilter, requestZoom, type MapArea } from '../map/map-area'
 import { useAdminMeta } from '../meta-gate'
 import { displayRow } from './list-displays'
@@ -26,7 +26,6 @@ export type MapRecordsParams = {
  */
 export const useMapRecords = ({ model, display, fields, filter, orderBy, area }: MapRecordsParams) => {
   const client = useClient()
-  const queryClient = useQueryClient()
   const { resources, views } = useAdminMeta()
   const position = { latitude: display.latitude, longitude: display.longitude }
   const inside = area ? areaFilter(filter, position, area.bounds) : ''
@@ -36,8 +35,8 @@ export const useMapRecords = ({ model, display, fields, filter, orderBy, area }:
     enabled: area !== undefined,
     placeholderData: keepPreviousData,
     queryFn: async () => {
-      const result = await client.map(model.name, { ...position, zoom, filter: inside, orderBy })
-      const labelled = await withLabels(queryClient, client, resources, views, model, fields, result.items)
+      const result = await client.map(model.name, { ...position, zoom, filter: inside, orderBy, labels: listLabels(resources, views, model, fields) })
+      const labelled = withLabels(resources, model, fields, result.items, result.labels)
       return { rows: labelled.map((record) => displayRow(model, record)), buckets: result.buckets, total: result.totalSize }
     },
   })

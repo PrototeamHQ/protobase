@@ -23,5 +23,4 @@ export const keys = {
   count: (resource: string, filter: string) => ['count', resource, filter] as const,
   firstRecord: (resource: string, filter: string, orderBy: string) => ['first-record', resource, filter, orderBy] as const,
   pathValue: (resource: string, key: string, path: string) => ['path-value', resource, key, path] as const,
-  labelMap: (resource: string, ids: string) => ['label-map', resource, ids] as const,
 }

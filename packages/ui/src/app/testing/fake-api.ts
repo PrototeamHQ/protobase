@@ -72,8 +72,8 @@ const matches = (filter: string | undefined, model: ResourceModel | undefined) =
 }
 
 /**
- * An in-memory server for stories and docs: lists with filters (simple AIP-160), sorting, paging and exact counts, and
- * get, create, update and delete that change the rows and their ETags. Not a model of the real access rules.
+ * An in-memory server for stories and docs: lists with filters (simple AIP-160), sorting, paging, exact counts and
+ * related names, and get, create, update and delete that change the rows and their ETags. Not a model of the real access rules.
  */
 export const fakeApi = ({ resources, views = [], pages = [], rows: initial, permissions = {}, plugins, sources, maps, afterWrite, reveal, upload }: FakeApiInput) => {
   const rows: Record<string, Row[]> = structuredClone(initial)
@@ -99,21 +99,33 @@ export const fakeApi = ({ resources, views = [], pages = [], rows: initial, perm
     for (const [name, list] of Object.entries(rows)) rows[name] = list.map((entry) => (entry === row || !entry.etag ? stamp(entry) : entry))
   }
 
-  type ListParams = { filter?: string; orderBy?: string; pageSize?: number; pageToken?: string }
+  type ListParams = { filter?: string; orderBy?: string; pageSize?: number; pageToken?: string; labels?: Record<string, string> }
   const select = (resource: string, params: ListParams) => table(resource).filter(matches(params.filter, models[resource])).sort(sorter(params.orderBy))
-  const pageAt = (resource: string, all: Row[], start: number, size: number) => ({
-    items: all.slice(start, start + size).map((row) => shown(resource, row)),
-    nextPageToken: start + size < all.length ? String(start + size) : '',
-    prevPageToken: start > 0 ? String(Math.max(0, start - size)) : '',
-    totalSizeEstimate: all.length,
-    totalSize: all.length,
-  })
+  // The names `labels` asks for: each relation's records among the fake's rows, by key, those with a name
+  const namesOf = (resource: string, items: Row[], labels: Record<string, string>) =>
+    Object.fromEntries(Object.entries(labels).map(([relation, field]) => {
+      const target = models[models[resource]?.fields[relation]?.relation?.resource ?? '']
+      const keys = new Set(items.flatMap((item) => (item[relation] == null ? [] : [String(item[relation])])))
+      const named = target ? table(target.name).filter((row) => keys.has(keyOf(target, row)) && row[field] != null) : []
+      return [relation, Object.fromEntries(named.map((row) => [keyOf(target!, row), String(row[field])]))]
+    }))
+  const pageAt = (resource: string, all: Row[], start: number, size: number, labels?: Record<string, string>) => {
+    const items = all.slice(start, start + size).map((row) => shown(resource, row))
+    return {
+      items,
+      nextPageToken: start + size < all.length ? String(start + size) : '',
+      prevPageToken: start > 0 ? String(Math.max(0, start - size)) : '',
+      totalSizeEstimate: all.length,
+      totalSize: all.length,
+      ...(labels && { labels: namesOf(resource, items, labels) }),
+    }
+  }
 
   const client = {
     meta: async () => ({ status: 'modified' as const, etag: '"fake-meta"', meta: { resources, views, pages, permissions, ...(plugins && { plugins }), ...(sources && { sources }), ...(maps && { maps }) } }),
-    list: async (resource: string, params: ListParams = {}) => pageAt(resource, select(resource, params), Number(params.pageToken || 0), params.pageSize ?? 50),
-    search: async (resource: string, params: ListParams = {}) => pageAt(resource, select(resource, params), Number(params.pageToken || 0), params.pageSize ?? 50),
-    seek: async (resource: string, params: ListParams & { position: number }) => pageAt(resource, select(resource, params), params.position, params.pageSize ?? 50),
+    list: async (resource: string, params: ListParams = {}) => pageAt(resource, select(resource, params), Number(params.pageToken || 0), params.pageSize ?? 50, params.labels),
+    search: async (resource: string, params: ListParams = {}) => pageAt(resource, select(resource, params), Number(params.pageToken || 0), params.pageSize ?? 50, params.labels),
+    seek: async (resource: string, params: ListParams & { position: number }) => pageAt(resource, select(resource, params), params.position, params.pageSize ?? 50, params.labels),
     get: async (resource: string, key: string) => stored(resource, find(resource, key)),
     reveal: async (resource: string, key: string, field: string) => {
       const value = find(resource, key)[field] ?? null

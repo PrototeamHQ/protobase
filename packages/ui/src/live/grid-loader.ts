@@ -5,7 +5,7 @@ import type { GridRow } from '../data-grid'
 import { gridPageSize } from '../data-grid'
 import { keys } from '../data/query-keys'
 import { recordId } from './model-helpers'
-import { withLabels } from './relation-labels'
+import { listLabels, withLabels } from './relation-labels'
 
 export type GridLoaderOptions = {
   queryClient: QueryClient
@@ -30,6 +30,7 @@ export type LoadedPage = { rows: GridRow[]; total: number; nextPageToken: string
  */
 export const createGridLoader = ({ queryClient, client, resources, views, model, columns, filter, orderBy }: GridLoaderOptions) => {
   const pageKey = (number: number) => keys.page(model.name, filter, orderBy, gridPageSize, number)
+  const labels = listLabels(resources, views, model, columns)
 
   /** The server's total is a planner estimate, off by a lot for small results; settle those exactly. */
   const firstPageTotal = async (result: { items: unknown[]; nextPageToken: string; totalSizeEstimate: number }) => {
@@ -51,14 +52,14 @@ export const createGridLoader = ({ queryClient, client, resources, views, model,
   const fetchPage = async (page: number): Promise<LoadedPage> => {
     const token = await tokenBefore(page)
     if (page > 0 && token === '') return { rows: [], total: 0, nextPageToken: '' }
-    const params = { filter, orderBy, pageSize: gridPageSize }
+    const params = { filter, orderBy, pageSize: gridPageSize, labels }
     const result =
       token !== undefined
         ? await client.list(model.name, { ...params, pageToken: token })
         : await client.seek(model.name, { ...params, position: page * gridPageSize })
     if (result.items.length === 0 && page > 0) return { rows: [], total: 0, nextPageToken: '' }
     const ids = result.items.map((record) => recordId(model, record))
-    const labelled = await withLabels(queryClient, client, resources, views, model, columns, result.items)
+    const labelled = withLabels(resources, model, columns, result.items, result.labels)
     const rows = labelled.map((record, index) => ({ ...record, id: ids[index]! }))
     return { rows, total: page === 0 ? await firstPageTotal(result) : result.totalSizeEstimate, nextPageToken: result.nextPageToken }
   }

@@ -1,6 +1,6 @@
 import type { QueryClient } from '@tanstack/react-query'
 import { createWhere, printFilter, type ResourceModel, type ViewModel } from '@protobase/schema'
-import type { Client } from '@protobase/client'
+import type { Client, RelatedLabels } from '@protobase/client'
 import { keys } from '../data/query-keys'
 import { labelFieldOf } from './model-helpers'
 
@@ -29,33 +29,35 @@ export const fetchLabels = async (queryClient: QueryClient, client: Client, targ
   return new Map(entries)
 }
 
-/** Replaces each relation value with `{ id, name }` so grid cells can show the name. */
-export const withLabels = async (
-  queryClient: QueryClient,
-  client: Client,
-  resources: Record<string, ResourceModel>,
-  views: Record<string, ViewModel>,
-  model: ResourceModel,
-  columns: string[],
-  rows: Array<Record<string, unknown>>,
-) => {
-  const relations = columns.flatMap((name) => {
+const relationColumns = (resources: Record<string, ResourceModel>, model: ResourceModel, columns: string[]) =>
+  columns.flatMap((name) => {
     const field = model.fields[name]
     const target = field?.type === 'relation' && field.relation ? resources[field.relation.resource] : undefined
     return target ? [{ name, target }] : []
   })
-  const resolved = await Promise.all(
-    relations.map(async ({ name, target }) => {
-      const ids = rows.flatMap((row) => (row[name] == null ? [] : [String(row[name])]))
-      return [name, await fetchLabels(queryClient, client, target, ids, views[target.name])] as const
-    }),
+
+/** What a list call asks `labels` for: each relation among `columns` to a single-key resource, by the field that names its records. */
+export const listLabels = (resources: Record<string, ResourceModel>, views: Record<string, ViewModel>, model: ResourceModel, columns: string[]) =>
+  Object.fromEntries(
+    relationColumns(resources, model, columns)
+      .filter(({ target }) => target.primaryKey.length === 1)
+      .map(({ name, target }) => [name, labelFieldOf(target, views[target.name])]),
   )
-  const labels = new Map(resolved)
+
+/** Replaces each relation value among `columns` with `{ id, name }`, named by the list call's `labels`, else by its key. */
+export const withLabels = (
+  resources: Record<string, ResourceModel>,
+  model: ResourceModel,
+  columns: string[],
+  rows: Array<Record<string, unknown>>,
+  labels: RelatedLabels = {},
+) => {
+  const relations = relationColumns(resources, model, columns)
   return rows.map((row) => {
     const next = { ...row }
-    for (const [name, names] of labels) {
+    for (const { name } of relations) {
       if (row[name] == null) continue
-      next[name] = { id: row[name], name: names.get(String(row[name])) ?? String(row[name]) }
+      next[name] = { id: row[name], name: labels[name]?.[String(row[name])] ?? String(row[name]) }
     }
     return next
   })
