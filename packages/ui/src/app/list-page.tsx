@@ -163,7 +163,7 @@ const LoadedList = ({ model, address }: { model: ResourceModel; address: ListAdd
     // A change of filter or sort starts the cards again at the top
     if (display.kind === 'cards') return <ListCards key={rows.key.join(' ')} model={model} view={view} display={display} list={cardsList} />
     if (display.kind === 'map') {
-      return <MapDisplay model={model} view={view} display={display} filter={parsed.ok ? filterText : ''} orderBy={orderBy} fields={loaded} at={address.map} onMove={(map) => set({ map })} />
+      return <MapDisplay model={model} view={view} display={display} filter={parsed.ok ? filterText : ''} orderBy={orderBy} fields={loaded} at={address.map} onMove={(map) => set({ map })} flush />
     }
     return <CustomDisplay display={display} list={displayRows} />
   }

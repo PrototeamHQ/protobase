@@ -3,6 +3,7 @@ import { ChevronLeft, ChevronRight, X } from 'lucide-react'
 import type { ListDisplayModel, MapView, ResourceModel, ViewModel } from '@protobase/schema'
 import { useDebounced } from '../../lib/use-debounced'
 import { humanize } from '../../live/naming'
+import { cn } from '../../lib/cn'
 import { Button } from '../../primitives/button'
 import { ErrorBanner } from '../error-banner'
 import { boundsAround, worldArea, type MapArea } from '../map/map-area'
@@ -32,8 +33,10 @@ type MapProps = {
   at?: MapView
   /** Where the map came to rest, for the list's address. */
   onMove?: (view: MapView) => void
-  /** How many records are in view, under the map; an embedded list, which links to the list instead, leaves it out. */
+  /** How many records are in view, under the map at desktop width; an embedded list, which links to the list instead, leaves it out. */
   footer?: boolean
+  /** Below desktop width, fills the page's sides and bottom edge to edge, with no frame. */
+  flush?: boolean
 }
 
 const arrow = 'flex size-8 items-center justify-center rounded-full border border-border bg-background hover:bg-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30'
@@ -45,7 +48,7 @@ const arrow = 'flex size-8 items-center justify-center rounded-full border borde
  * its record at the map's bottom, with arrows through the records the marker stands for; closing it or choosing the map
  * elsewhere clears it.
  */
-export const MapDisplay = ({ model, view, display, filter, orderBy, fields, at, onMove, footer = true }: MapProps) => {
+export const MapDisplay = ({ model, view, display, filter, orderBy, fields, at, onMove, footer = true, flush = false }: MapProps) => {
   const style = useAdminMeta().maps?.style
   const [chosen, setChosen] = useState<MapSelection>()
   const [area, setArea] = useState<MapArea>()
@@ -74,8 +77,8 @@ export const MapDisplay = ({ model, view, display, filter, orderBy, fields, at, 
   if (!style) return <Problem>The map display needs a map style: set PROTOBASE_MAP_STYLE_URL.</Problem>
   const empty = loaded?.total === 0
   return (
-    <div className="flex h-full min-h-[36rem] flex-1 flex-col sm:min-h-[28rem]">
-      <div className="relative min-h-0 flex-1 overflow-hidden rounded-lg border border-border bg-muted">
+    <div className={cn('flex h-full min-h-[36rem] flex-1 flex-col sm:min-h-[28rem]', flush && 'max-md:-mx-5 max-md:-mb-4 max-md:min-h-0')}>
+      <div className={cn('relative min-h-0 flex-1 overflow-hidden rounded-lg border border-border bg-muted', flush && 'max-md:rounded-none max-md:border-0')}>
         <Suspense fallback={null}>
           <RecordsMap
             style={style}
@@ -141,7 +144,7 @@ export const MapDisplay = ({ model, view, display, filter, orderBy, fields, at, 
           </div>
         )}
       </div>
-      {footer && <p className="py-3 text-xs text-muted-foreground">{inView(records.data, plural)}</p>}
+      {footer && <p className="hidden py-3 text-xs text-muted-foreground md:block">{inView(records.data, plural)}</p>}
     </div>
   )
 }
