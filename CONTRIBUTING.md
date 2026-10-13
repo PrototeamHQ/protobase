@@ -19,6 +19,12 @@ docs: the record page runs named actions too
 
 `bun install` installs a `commit-msg` hook (`.githooks/`) that checks each message with commitlint (`commitlint.config.mjs`); the release workflow checks every commit pushed to `main` again. To check messages by hand: `bun x commitlint --from <commit>`.
 
+## Doc comments and the API reference
+
+The [schema API reference](https://docs.protobase.net/api/schema/) is generated from the doc comments of `@protobase/schema`'s entry point (`packages/schema/src/index.ts`) by TypeDoc and starlight-typedoc while the site builds; the guides and reference pages beside it are written by hand. Every item the entry point exports, and every member of what it exports, such as each builder method, needs a doc comment: `bun run docs:build` fails on one without, as on a broken `{@link}`. Helpers only the `@protobase` packages use are exported from `@protobase/schema/internal` instead, which the reference leaves out. `bun x typedoc --emit none` in `website/` runs the same check in seconds.
+
+A doc comment links a guide or reference page by its file, from the repository's root: `[Access](website/src/content/docs/reference/access.mdx#capabilities)` becomes a link to `/reference/access/#capabilities`. A link to a file that does not exist, or that is no page of the site, fails the build, and so does an anchor the page does not have. The options are in `website/typedoc.json`, the link handling in `website/typedoc-doc-pages.mjs`.
+
 ## Layout snapshots
 
 `bun run test:dom` builds Storybook and compares the layout of the main pages (a list with filters, a list of cards and a record with actions, on desktop and phone) with the snapshots in `scripts/dom-snapshots/layouts`. A snapshot is the element tree with each element's classes, role and the computed CSS that places it, read with a plugin's stylesheet loaded after the app's, as the app loads a project's UI. CI runs the same comparison.

@@ -7,3 +7,4 @@ coverage
 .env
 screenshots
 .protobase
+website/src/content/docs/api

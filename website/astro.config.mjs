@@ -1,6 +1,7 @@
 import starlight from '@astrojs/starlight'
 import { defineConfig } from 'astro/config'
 import starlightLinksValidator from 'starlight-links-validator'
+import starlightTypeDoc, { typeDocSidebarGroup } from 'starlight-typedoc'
 
 export default defineConfig({
   site: 'https://docs.protobase.net',
@@ -12,7 +13,8 @@ export default defineConfig({
       social: [{ icon: 'github', label: 'GitHub', href: 'https://github.com/PrototeamHQ/protobase' }],
       editLink: { baseUrl: 'https://github.com/PrototeamHQ/protobase/edit/main/website/' },
       customCss: ['./src/styles/theme.css'],
-      plugins: [starlightLinksValidator()],
+      // The schema API reference, generated from its doc comments with the options in typedoc.json.
+      plugins: [starlightTypeDoc({ output: 'api/schema', sidebar: { label: 'Schema items', collapsed: true }, typeDoc: { entryFileName: 'index' } }), starlightLinksValidator()],
       sidebar: [
         { label: 'Start here', items: ['getting-started', 'guides/deploy'] },
         { label: 'Guides', items: ['guides/table-to-admin', 'guides/first-composed-page', 'guides/billing-page', 'guides/api-functions', 'guides/first-plugin', 'guides/theme-an-app', 'guides/field-type', 'guides/record-card', 'guides/plugin-build', 'guides/remote-resources'] },
@@ -44,6 +46,7 @@ export default defineConfig({
             'reference/versioning',
           ],
         },
+        { label: 'API', items: [{ label: '@protobase/schema', link: '/api/schema/' }, typeDocSidebarGroup] },
       ],
     }),
   ],
