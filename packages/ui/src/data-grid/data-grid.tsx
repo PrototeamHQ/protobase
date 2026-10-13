@@ -41,12 +41,14 @@ export type DataGridProps = {
   defaultPinned?: string[]
   compact?: boolean
   selectable?: boolean
+  /** Sized to show every row of `source` without scrolling and without the footer, for a few rows shown whole. */
+  fit?: boolean
   className?: string
 }
 
 const headerHeight = 32
 
-export const DataGrid = ({ columns: given, source, naturalSort, initialScrollIndex = 0, latencyMs = 150, sort: controlledSort, onSortChange, onOpenRow, rowActions, bulkActions, pinKey, defaultPinned, rowNumbers = true, compact = false, selectable = true, className }: DataGridProps) => {
+export const DataGrid = ({ columns: given, source, naturalSort, initialScrollIndex = 0, latencyMs = 150, sort: controlledSort, onSortChange, onOpenRow, rowActions, bulkActions, pinKey, defaultPinned, rowNumbers = true, compact = false, selectable = true, fit = false, className }: DataGridProps) => {
   const rowHeight = compact ? 28 : 36
   const [pinned, setPinned] = usePinnedColumns(pinKey, defaultPinned)
   const columns = useMemo(() => {
@@ -102,7 +104,8 @@ export const DataGrid = ({ columns: given, source, naturalSort, initialScrollInd
   const getRow = usePagedRows({ total, rowAt: sourceRowAt ? rowAt : undefined, loadRows: source.loadRows, latencyMs }, firstIndex, lastIndex)
 
   const loaded = items.map((item) => ({ item, index: base + item.index, row: getRow(base + item.index) }))
-  const data = useMemo(() => loaded.flatMap(({ row }) => (row ? [row] : [])), [getRow, firstIndex, lastIndex])
+  // The count matters too: a single row is index 0 to 0 both before the viewport is measured, with no items, and after
+  const data = useMemo(() => loaded.flatMap(({ row }) => (row ? [row] : [])), [getRow, firstIndex, lastIndex, items.length])
   const table = useTable({
     features,
     columns: tableColumns,
@@ -150,7 +153,7 @@ export const DataGrid = ({ columns: given, source, naturalSort, initialScrollInd
   const last = Math.min(total, first + visibleRows - 1)
 
   return (
-    <div className={cn('flex min-h-0 flex-col overflow-hidden rounded-lg border bg-background', className)}>
+    <div className={cn('flex min-h-0 flex-col overflow-hidden rounded-lg border bg-background', className)} style={fit ? { height: headerHeight + total * rowHeight + 2 } : undefined}>
       <div ref={ref} onScroll={onScroll} className="relative min-h-0 flex-1 overflow-y-auto overflow-x-hidden" role="grid" aria-rowcount={total}>
         <div style={{ height: geometry.contentHeight || undefined }}>
           <div className="sticky top-0" style={{ height: viewport }}>
@@ -189,21 +192,23 @@ export const DataGrid = ({ columns: given, source, naturalSort, initialScrollInd
           </div>
         </div>
       </div>
-      <GridFooter
-        total={total}
-        first={first}
-        last={last}
-        selectedCount={selectedCount}
-        bulkActions={bulkActions?.map((action) => ({
-          label: action.label(selectedCount),
-          destructive: action.destructive,
-          onRun: () => {
-            action.onRun(Object.keys(rowSelection).flatMap((id) => selectedRows.current.get(id) ?? []))
-            setRowSelection({})
-            selectedRows.current.clear()
-          },
-        }))}
-      />
+      {!fit && (
+        <GridFooter
+          total={total}
+          first={first}
+          last={last}
+          selectedCount={selectedCount}
+          bulkActions={bulkActions?.map((action) => ({
+            label: action.label(selectedCount),
+            destructive: action.destructive,
+            onRun: () => {
+              action.onRun(Object.keys(rowSelection).flatMap((id) => selectedRows.current.get(id) ?? []))
+              setRowSelection({})
+              selectedRows.current.clear()
+            },
+          }))}
+        />
+      )}
     </div>
   )
 }
