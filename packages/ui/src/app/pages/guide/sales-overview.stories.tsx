@@ -62,12 +62,12 @@ export const Step2Checks: StoryObj = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
     const overdue = within(await canvas.findByRole('region', { name: 'Overdue invoices' }))
-    expect(await overdue.findByRole('link', { name: 'INV-1101' })).toHaveAttribute('href', '/invoices/1')
+    expect(await overdue.findByText('INV-1101')).toBeVisible()
     expect(await overdue.findByText('Hollis & Rowe')).toBeVisible()
+    // Two of the three, and the overdue invoices list for the rest
     expect(overdue.queryByText('INV-1103')).toBeNull()
-    await userEvent.click(overdue.getByRole('button', { name: 'Next page' }))
-    expect(await overdue.findByRole('link', { name: 'INV-1103' })).toBeVisible()
-    expect(overdue.getByText('Page 2')).toBeVisible()
+    expect(overdue.queryByRole('button', { name: 'Next page' })).toBeNull()
+    expect(overdue.getByRole('link', { name: /^View all/ })).toHaveAttribute('href', '/invoices?filter=status+%3D+%27overdue%27&order_by=issued_at')
     const latest = within(await canvas.findByRole('region', { name: 'Latest orders' }))
     expect(await latest.findAllByRole('row')).toHaveLength(6)
   }}

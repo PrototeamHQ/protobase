@@ -107,7 +107,7 @@ export const thingsView = view('things').names({ singular: 'Thing 😀', plural:
     projectDir = await createProject({
       'config/index.ts': `export { things } from './things/data'\nexport { overview } from './overview/page'\n`,
       'config/things/data.ts': things,
-      'config/overview/page.tsx': `/** @jsxImportSource @protobase/layout */\nimport { Page, Table, page } from '@protobase/layout'\nexport const overview = page('overview', <Page title="Overview"><Table resource="things" pageSize={5} /></Page>)\n`,
+      'config/overview/page.tsx': `/** @jsxImportSource @protobase/layout */\nimport { Page, Table, page } from '@protobase/layout'\nexport const overview = page('overview', <Page title="Overview"><Table resource="things" limit={5} /></Page>)\n`,
     })
     const outFile = path.join(projectDir, 'dist/protobase.config.js')
     await buildConfigBundle({ projectDir, outFile })
@@ -115,7 +115,7 @@ export const thingsView = view('things').names({ singular: 'Thing 😀', plural:
     expect(code).toContain('from "@protobase/layout/jsx-runtime"')
     expect(code).toContain('from "@protobase/layout"')
     const { default: project } = await import(pathToFileURL(outFile).href)
-    expect(project.config.overview.toModel().tree).toEqual({ type: 'Page', props: { title: 'Overview' }, children: [{ type: 'Table', props: { resource: 'things', pageSize: 5 }, children: [] }] })
+    expect(project.config.overview.toModel().tree).toEqual({ type: 'Page', props: { title: 'Overview' }, children: [{ type: 'Table', props: { resource: 'things', limit: 5 }, children: [] }] })
   })
 
   it('refuses a layout with values that cannot be static, before anything runs', async () => {

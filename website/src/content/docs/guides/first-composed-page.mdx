@@ -45,7 +45,7 @@ A number says *how many*; Sam also wants to see *which*. Two tables under the nu
 
 <Code code={step2} lang="tsx" title="config/overview/page.tsx" />
 
-A `Table` takes the same `resource`, `filter` and `sort` (AIP-132, like `?order_by=`), plus the `columns` to show and a `pageSize`. Relations such as `company_id` show the company's name, the first column opens the record, and the arrows page through the rest. Try them on the overdue invoices: there are three, two to a page.
+A `Table` takes the same `resource`, `filter` and `sort` (AIP-132, like `?order_by=`), plus the `columns` to show and a `limit`. Relations such as `company_id` show the company's name, a row opens the record, and **View all** opens the list with the same filter and order. Try it on the overdue invoices: there are three, and the table shows two.
 
 <StoryFrame id="guides-sales-overview--step-2" title="Step 2: the lists behind the numbers" height={640} />
 

@@ -25,7 +25,7 @@ export const billing = page(
       <Field name="last4" />
       <Action name="makeDefault" />
     </CardRow>
-    <Table resource="invoices" sort="number desc" columns={['number', 'status', 'total']} pageSize={10} title="Invoices" />
+    <Table resource="invoices" sort="number desc" columns={['number', 'status', 'total']} limit={10} title="Invoices" />
     <Card title="Questions?">
       Mail <Link href="mailto:billing@example.com">billing@example.com</Link>
       {false}

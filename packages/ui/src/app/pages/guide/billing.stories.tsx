@@ -147,9 +147,10 @@ export const Step4Checks: StoryObj = {
     const canvas = within(canvasElement)
     expect(await canvas.findByRole('figure', { name: 'Seat history' })).toBeVisible()
     const invoices = await region(canvas, 'Invoices')
+    // The newest five of eight, and a link to them all instead of pages
     await waitFor(() => expect(invoices.getAllByRole('row')).toHaveLength(6))
-    await userEvent.click(invoices.getByRole('button', { name: 'Next page' }))
-    await waitFor(() => expect(invoices.getAllByRole('row')).toHaveLength(4))
+    expect(invoices.queryByRole('button', { name: 'Next page' })).toBeNull()
+    expect(invoices.getByRole('link', { name: /^View all/ }).getAttribute('href')).toMatch(/^\/invoices\b/)
     const latest = await region(canvas, 'Latest invoice')
     expect(await latest.findByText('INV-2026-010')).toBeVisible()
     await userEvent.click(latest.getByRole('button', { name: 'Download PDF' }))

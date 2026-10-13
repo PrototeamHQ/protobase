@@ -26,7 +26,7 @@ export const blockSpecs: Record<string, BlockSpec> = {
   },
   RecordCard: { children: true, props: { ...data, ...heading, recordKey: optional('text'), empty: optional('text'), span: optional('span') } },
   Field: { children: false, props: { name: required('text'), label: optional('label'), format: optional('format') } },
-  Table: { children: false, props: { ...data, ...heading, columns: optional('texts'), pageSize: optional('integer'), empty: optional('text'), span: optional('span') } },
+  Table: { children: false, props: { ...data, ...heading, columns: optional('texts'), limit: optional('integer'), display: optional('text'), empty: optional('text'), span: optional('span') } },
   CardRow: { children: true, props: { ...data, ...heading, limit: optional('integer'), empty: optional('text'), span: optional('span') } },
   Progress: { children: false, props: { value: required('amount'), max: optional('amount'), label: optional('text'), span: optional('span') } },
   ModalForm: {

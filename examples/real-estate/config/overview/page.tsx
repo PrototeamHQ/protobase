@@ -48,10 +48,10 @@ export const portfolioOverview = page(
       </RecordCard>
     </Grid>
     <Grid columns={2}>
-      <Table title="Arrears" resource="arrears" sort="balance desc" columns={['lease_id', 'balance', 'open_charges', 'oldest_due_on']} pageSize={5} empty="Every tenant is paid up." />
-      <Table title="Open tickets" resource="tickets" filter="status = 'reported' OR status = 'scheduled'" sort="reported_at desc" columns={['number', 'title', 'priority', 'status']} pageSize={5} empty="Nothing is open." />
+      <Table title="Arrears" resource="arrears" sort="balance desc" columns={['lease_id', 'balance', 'open_charges', 'oldest_due_on']} limit={5} empty="Every tenant is paid up." />
+      <Table title="Open tickets" resource="tickets" filter="status = 'reported' OR status = 'scheduled'" sort="reported_at desc" columns={['number', 'title', 'priority', 'status']} limit={5} empty="Nothing is open." />
     </Grid>
-    <Table title="Vacant units" resource="units" filter="status = 'vacant'" columns={['label', 'property_id', 'bedrooms', 'base_rent']} pageSize={5} empty="Every unit is let." />
+    <Table title="Vacant units" resource="units" filter="status = 'vacant'" columns={['label', 'property_id', 'bedrooms', 'base_rent']} limit={5} empty="Every unit is let." />
   </Page>,
   { nav: { group: 'Portfolio', order: 0 }, icon: 'layout-dashboard' },
 )

@@ -175,7 +175,10 @@ export type RelatedModel = {
   sort?: string
   /** Fields of `resource`, through relations too (`unitId.propertyId`). */
   columns?: string[]
-  pageSize?: number
+  /** How many records it shows, the first in `sort` order; "View all" opens the rest in the list. */
+  limit?: number
+  /** The display of `resource`'s list it opens in, such as `cards`; the list's default when omitted. */
+  display?: string
   empty?: string
 }
 

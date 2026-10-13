@@ -52,7 +52,7 @@ export const billing = page(
       </Show>
     </CardRow>
     <Grid columns={3}>
-      <Table title="Invoices" resource="invoices" sort="issued_at desc" pageSize={5} span={2} />
+      <Table title="Invoices" resource="invoices" sort="issued_at desc" limit={5} span={2} />
       <Grid columns={1}>
         <Stat label="Open invoices" resource="invoices" filter="status = 'open'" />
         <RecordCard title="Latest invoice" resource="invoices" sort="issued_at desc" actions={<Action name="download" />}>

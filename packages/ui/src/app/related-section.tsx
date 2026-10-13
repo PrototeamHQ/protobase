@@ -1,21 +1,25 @@
-import { keepPreviousData, useQuery } from '@tanstack/react-query'
-import { useState } from 'react'
-import { createWhere, printFilter, type RelatedModel, type ResourceModel } from '@protobase/schema'
+import { useQuery } from '@tanstack/react-query'
+import { createWhere, printFilter, type RelatedModel } from '@protobase/schema'
 import { useClient } from '../data/api-provider'
 import { keys } from '../data/query-keys'
+import { listColumnNames } from '../live/columns-from-model'
 import { Skeleton } from '../primitives/skeleton'
 import { Section } from '../record-view'
+import { EmbeddedDisplaySwitch, EmbeddedList } from './embedded-list/embedded-list'
+import { useEmbeddedDisplay } from './embedded-list/use-embedded-display'
 import { ErrorBanner } from './error-banner'
 import { useAdminMeta } from './meta-gate'
-import { defaultColumns } from './pages/blocks/table'
-import { RecordTable } from './pages/record-table'
 
 const where = createWhere()
 
 /** The most join records a section reads to find its records; the list API's largest page. */
 const maxThrough = 500
 
-const and = (...parts: Array<string | undefined>) => parts.filter((part): part is string => Boolean(part)).map((part) => `(${part})`).join(' AND ')
+// A single condition stays as it is, so the list that "View all" opens reads it as its own filter
+const and = (...parts: Array<string | undefined>) => {
+  const given = parts.filter((part): part is string => Boolean(part))
+  return given.length === 1 ? given[0]! : given.map((part) => `(${part})`).join(' AND ')
+}
 
 /**
  * The filter on the section's resource: its `field` is this record's key, or, through a join resource, one of the keys
@@ -42,55 +46,25 @@ const useMatch = (item: RelatedModel, recordKey: string) => {
   return { filter, isPending: false, error: null }
 }
 
-const RelatedRows = ({ item, model, filter }: { item: RelatedModel; model: ResourceModel; filter: string }) => {
-  const client = useClient()
-  const { views } = useAdminMeta()
-  const [tokens, setTokens] = useState<string[]>([''])
-  const pageSize = item.pageSize ?? 10
-  const sort = item.sort ?? ''
-  const token = tokens.at(-1) ?? ''
-  // A filter through a join resource may hold hundreds of keys, so the list is asked for with a JSON body
-  const page = useQuery({
-    queryKey: keys.list(model.name, filter, sort, pageSize, token),
-    placeholderData: keepPreviousData,
-    queryFn: () => client.search(model.name, { filter, orderBy: sort || undefined, pageSize, pageToken: token || undefined }),
-  })
-  if (page.isPending) return <Loading />
-  if (page.error) return <ErrorBanner title="Could not load" error={page.error} />
-  const rows = page.data.items
-  if (rows.length === 0 && tokens.length === 1) return <Empty text={item.empty} />
-  const columns = (item.columns ?? defaultColumns(model, views[model.name]).filter((name) => name !== item.field)).filter((name) => name.includes('.') || Object.hasOwn(model.fields, name))
-  const next = page.data.nextPageToken
-  return (
-    <RecordTable
-      model={model}
-      columns={columns}
-      rows={rows}
-      label={item.title}
-      pager={{
-        page: tokens.length,
-        hasPrevious: tokens.length > 1,
-        hasNext: Boolean(next),
-        busy: page.isFetching,
-        previous: () => setTokens((stack) => stack.slice(0, -1)),
-        next: () => next && setTokens((stack) => [...stack, next]),
-      }}
-    />
-  )
-}
-
 const Loading = () => <div className="flex flex-col gap-2">{Array.from({ length: 3 }, (_, index) => <Skeleton key={index} className="h-4 w-full" />)}</div>
 
 const Empty = ({ text }: { text: string | undefined }) => <p className="text-[13px] text-muted-foreground">{text ?? 'Nothing here yet.'}</p>
 
-/** A record page section listing the records of another resource that point at this record, directly or through a join resource. */
-export const RelatedSection = ({ item, recordKey }: { item: RelatedModel; recordKey: string }) => {
-  const { resources } = useAdminMeta()
+/**
+ * A record page section listing the first records of another resource that point at this record, directly or through
+ * a join resource, in the list page's table or display, with a link to them all in the list.
+ */
+export const RelatedSection = ({ item, recordKey, owner }: { item: RelatedModel; recordKey: string; owner: string }) => {
+  const { resources, views } = useAdminMeta()
   const model = resources[item.resource]
+  const view = model && views[model.name]
   const match = useMatch(item, recordKey)
+  const [display, pick] = useEmbeddedDisplay(view, `related:${owner}:${item.title}`, item.display)
   if (!model) return null
+  // The relation names this record on every row, so it is left out of the default columns
+  const columns = item.columns ?? listColumnNames(model, view).filter((name) => name !== item.field)
   return (
-    <Section title={item.title} help={item.help}>
+    <Section title={item.title} help={item.help} actions={<EmbeddedDisplaySwitch view={view} value={display} onChange={pick} />}>
       {match.isPending ? (
         <Loading />
       ) : match.error ? (
@@ -98,7 +72,7 @@ export const RelatedSection = ({ item, recordKey }: { item: RelatedModel; record
       ) : match.filter === null || match.filter === undefined ? (
         <Empty text={item.empty} />
       ) : (
-        <RelatedRows key={match.filter} item={item} model={model} filter={match.filter} />
+        <EmbeddedList key={match.filter} model={model} view={view} filter={match.filter} sort={item.sort ?? ''} columns={columns} limit={item.limit ?? 10} display={display} empty={item.empty} />
       )}
     </Section>
   )

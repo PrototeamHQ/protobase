@@ -27,8 +27,8 @@ export const overview = page(
       <Show when="company_id.status = 'dormant'">The customer has gone quiet: call before sending a reminder.</Show>
     </RecordCard>
     <Grid columns={2}>
-      <Table title="Overdue invoices" resource="invoices" filter="status = 'overdue'" sort="issued_at" columns={['number', 'company_id', 'due_at', 'total']} pageSize={2} empty="Nothing is overdue." />
-      <Table title="Latest orders" resource="orders" sort="created_at desc" columns={['number', 'company_id', 'status', 'total']} pageSize={5} />
+      <Table title="Overdue invoices" resource="invoices" filter="status = 'overdue'" sort="issued_at" columns={['number', 'company_id', 'due_at', 'total']} limit={2} empty="Nothing is overdue." />
+      <Table title="Latest orders" resource="orders" sort="created_at desc" columns={['number', 'company_id', 'status', 'total']} limit={5} />
     </Grid>
     <CardRow
       title="New leads"

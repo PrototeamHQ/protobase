@@ -24,8 +24,8 @@ export const leasesView = view<typeof leases>('leases')
       field: 'lease_id',
       sort: 'period desc',
       columns: ['period', 'due_on', 'description', 'amount', 'paid_amount', 'outstanding'],
-      // a year of monthly charges per page
-      pageSize: 12,
+      // a year of monthly charges
+      limit: 12,
       empty: 'No rent charged yet.',
     }),
     l.sidebar([r.term, r.monthly_rent]),

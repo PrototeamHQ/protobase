@@ -64,7 +64,7 @@ describe('l.related', () => {
       [{ resource: 'bookings', field: 'roomId', filter: 'note = "x"' }, 'filter: Field "note" cannot be filtered on'],
       [{ resource: 'bookings', field: 'roomId', sort: 'note' }, 'sort:'],
       [{ resource: 'bookings', field: 'roomId', columns: ['roomId.floor'] }, 'column: unknown field "roomId.floor" on rooms'],
-      [{ resource: 'bookings', field: 'roomId', pageSize: 0 }, 'pageSize must be a whole number from 1 to 100'],
+      [{ resource: 'bookings', field: 'roomId', limit: 0 }, 'limit must be a whole number from 1 to 100'],
       [{ resource: 'bookingGuests', field: 'bookingId', through: { resource: 'bookings', field: 'note' } }, 'through: "note" on bookings is not filterable'],
       [{ resource: 'guests', field: 'id', through: { resource: 'bookingGuests', field: 'bookingId' } }, 'through: bookingGuests has a composite key, so name the field to collect with "key"'],
       [{ resource: 'bookingGuests', field: 'bookingId', through: { resource: 'bookings', field: 'roomId' }, columns: ['guestId.passport'] }, 'column: "guestId.passport" is sensitive'],

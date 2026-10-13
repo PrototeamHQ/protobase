@@ -44,6 +44,12 @@ describe('defaultDisplay', () => {
     expect(defaultDisplay(customOnly, true)).toBe('table')
     expect(defaultDisplay(undefined, true)).toBe('table')
   })
+
+  it('opens the display the caller prefers instead of the default, a cards display still below sm', () => {
+    expect(defaultDisplay(boardView, false, 'table')).toBe('table')
+    expect(defaultDisplay(boardView, true, 'table')).toBe('cards')
+    expect(defaultDisplay(undefined, false, 'table')).toBe('table')
+  })
 })
 
 describe('displayChoices', () => {

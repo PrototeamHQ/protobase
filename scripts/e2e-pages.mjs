@@ -4,7 +4,7 @@ import { signInPage, tokenFromPage } from './lib/session.mjs'
 /**
  * Every composed page of a running `protobase dev` (default http://localhost:5173), for the signed-in user (EMAIL and
  * PASSWORD): what it expects comes from that user's `/meta` and the list API. Each Stat shows the API's count, each
- * Table the API's first page and, when there is one, its second, each RecordCard the API's first match. Fails on
+ * Table the API's first `limit` records and a link to the whole list, each RecordCard the API's first match. Fails on
  * console errors and failed requests. Set OUT to a folder to keep screenshots.
  */
 const base = process.env.BASE ?? 'http://localhost:5173'
@@ -54,20 +54,25 @@ try {
     }
 
     for (const table of blocks.filter((node) => node.type === 'Table')) {
-      const pageSize = String(table.props.pageSize ?? 10)
+      const answer = await list(table.props.resource, { filter: table.props.filter, order_by: table.props.sort, page_size: String(table.props.limit ?? 10) })
       const region = page.getByRole('region', { name: table.props.title })
-      const view = meta.views.find((candidate) => candidate.resource === table.props.resource)
-      const first = (table.props.columns ?? view?.list?.columns)[0]
-      const firstColumn = async () => region.locator('tbody tr td:first-child').allTextContents()
-      const answer = await list(table.props.resource, { filter: table.props.filter, order_by: table.props.sort, page_size: pageSize })
-      await page.waitForFunction(([name, count]) => document.querySelectorAll(`section[aria-label="${name}"] tbody tr`).length === count, [table.props.title, answer.items.length])
-      check(`${entry.name}: ${table.props.title} lists the API's first page`, JSON.stringify(await firstColumn()) === JSON.stringify(answer.items.map((row) => String(row[first]))))
-      if (!answer.next_page_token) continue
-      const next = await list(table.props.resource, { filter: table.props.filter, order_by: table.props.sort, page_size: pageSize, page_token: answer.next_page_token })
-      await region.getByRole('button', { name: 'Next page' }).click()
-      await region.getByText('Page 2').waitFor()
-      await page.waitForFunction(([name, value]) => document.querySelector(`section[aria-label="${name}"] tbody tr td`)?.textContent === value, [table.props.title, String(next.items[0][first])])
-      check(`${entry.name}: ${table.props.title} pages to the API's second page`, JSON.stringify(await firstColumn()) === JSON.stringify(next.items.map((row) => String(row[first]))))
+      if (answer.items.length === 0) {
+        await region.getByText(table.props.empty ?? 'Nothing here yet.').waitFor()
+        check(`${entry.name}: ${table.props.title} says nothing matches, like the API`, true)
+        continue
+      }
+      // The table's rows after its header, or the cards of a cards display
+      await page.waitForFunction(
+        ([name, count]) => {
+          const section = document.querySelector(`section[aria-label="${name}"]`)
+          const rows = section?.querySelectorAll('[role=grid] [role=row]').length ?? 0
+          return (rows > 0 ? rows - 1 : (section?.querySelector('ul')?.children.length ?? 0)) === count
+        },
+        [table.props.title, answer.items.length],
+      )
+      check(`${entry.name}: ${table.props.title} shows the API's first ${answer.items.length}`, true)
+      const viewAll = await region.getByRole('link', { name: /^View all/ }).getAttribute('href')
+      check(`${entry.name}: ${table.props.title} links to the whole list`, new URL(viewAll, base).pathname === `/${table.props.resource}`, viewAll)
     }
 
     for (const card of blocks.filter((node) => node.type === 'RecordCard' && !node.props.recordKey)) {

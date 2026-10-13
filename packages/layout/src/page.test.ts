@@ -23,7 +23,7 @@ describe('page', () => {
     const [grid, cardRow, table, questions] = model.tree.children as LayoutNode[]
     expect(grid!.type).toBe('Grid')
     expect(cardRow!.props.actions).toMatchObject({ type: 'ModalForm', props: { mode: 'create', fields: ['brand', 'last4'] } })
-    expect(table!.props).toEqual({ resource: 'invoices', sort: 'number desc', columns: ['number', 'status', 'total'], pageSize: 10, title: 'Invoices' })
+    expect(table!.props).toEqual({ resource: 'invoices', sort: 'number desc', columns: ['number', 'status', 'total'], limit: 10, title: 'Invoices' })
     expect(questions!.children).toEqual(['Mail ', { type: 'Link', props: { href: 'mailto:billing@example.com' }, children: ['billing@example.com'] }, '3'])
     expect(JSON.parse(JSON.stringify(model))).toEqual(model)
   })
@@ -41,11 +41,20 @@ describe('page', () => {
   })
 
   it('names unknown, missing and mistyped props', () => {
-    const tree: LayoutNode = { type: 'Page', props: { title: 'x' }, children: [{ type: 'Table', props: { colums: ['a'], pageSize: 0 }, children: [] }] }
+    const tree: LayoutNode = { type: 'Page', props: { title: 'x' }, children: [{ type: 'Table', props: { colums: ['a'], limit: 0 }, children: [] }] }
     expect(problems(tree)).toEqual([
-      '<Page> › <Table>: unknown prop "colums"; it takes resource, filter, sort, title, description, actions, columns, pageSize, empty, span',
+      '<Page> › <Table>: unknown prop "colums"; it takes resource, filter, sort, title, description, actions, columns, limit, display, empty, span',
       '<Page> › <Table>: "resource" is required',
-      '<Page> › <Table>: "pageSize" must be a positive whole number',
+      '<Page> › <Table>: "limit" must be a positive whole number',
+    ])
+  })
+
+  it('caps a Table at a number of records and opens it in a display, without pages', () => {
+    const table = (props: Record<string, unknown>): LayoutNode => ({ type: 'Page', props: { title: 'x' }, children: [{ type: 'Table', props: { resource: 'listings', ...props }, children: [] }] })
+    expect(problems(table({ limit: 8, display: 'cards' }))).toEqual([])
+    expect(problems(table({ display: 3 }))).toEqual(['<Page> › <Table resource="listings">: "display" must be text'])
+    expect(problems(table({ pageSize: 8 }))).toEqual([
+      '<Page> › <Table resource="listings">: unknown prop "pageSize"; it takes resource, filter, sort, title, description, actions, columns, limit, display, empty, span',
     ])
   })
 
@@ -124,8 +133,8 @@ describe('page', () => {
   })
 
   it('reports every problem at once, under the page name', () => {
-    expect(() => page('broken', Page({ title: 'x', children: [Field({ name: 'a' }), Table({ resource: 'r', pageSize: 1.5 })] }))).toThrow(
-      'Page "broken" is not a valid layout:\n  - <Page> › <Field name="a">: needs a record: put it inside a RecordCard or a CardRow\n  - <Page> › <Table resource="r">: "pageSize" must be a positive whole number',
+    expect(() => page('broken', Page({ title: 'x', children: [Field({ name: 'a' }), Table({ resource: 'r', limit: 1.5 })] }))).toThrow(
+      'Page "broken" is not a valid layout:\n  - <Page> › <Field name="a">: needs a record: put it inside a RecordCard or a CardRow\n  - <Page> › <Table resource="r">: "limit" must be a positive whole number',
     )
   })
 })

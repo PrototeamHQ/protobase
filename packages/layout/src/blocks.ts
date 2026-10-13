@@ -33,7 +33,16 @@ export type StatProps = {
 }
 export type RecordCardProps = DataProps & Heading & { recordKey?: string; empty?: string; span?: GridSpan; children?: LayoutChildren }
 export type FieldProps = { name: string; label?: string | false; format?: FieldFormat }
-export type TableProps = DataProps & Heading & { columns?: string[]; pageSize?: number; empty?: string; span?: GridSpan }
+export type TableProps = DataProps &
+  Heading & {
+    columns?: string[]
+    /** How many records it shows, the first in `sort` order; default 10. "View all" opens the rest in the list. */
+    limit?: number
+    /** The display of the resource's list it opens in, such as `cards`; the list's default when omitted. */
+    display?: string
+    empty?: string
+    span?: GridSpan
+  }
 export type CardRowProps = DataProps & Heading & { limit?: number; empty?: string; span?: GridSpan; children?: LayoutChildren }
 export type ProgressProps = {
   /** A number, or a field of the record around it. */

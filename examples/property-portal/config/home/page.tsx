@@ -14,10 +14,10 @@ export const home = page(
       <Stat label="Your favorites" resource="favorites" />
       <Stat label="New alerts" resource="alerts" filter="seen = false" description="Not seen yet" />
     </Grid>
-    <Table title="Newest listings" resource="listings" sort="published_at desc" columns={['address', 'place_id', 'property_type', 'purchase_price', 'rent_price', 'living_area']} pageSize={8} />
+    <Table title="Newest listings" resource="listings" sort="published_at desc" columns={['address', 'place_id', 'property_type', 'purchase_price', 'rent_price', 'living_area']} limit={8} />
     <Grid columns={2}>
-      <Table title="Your new alerts" resource="alerts" filter="seen = false" sort="matched_at desc" columns={['listing_id', 'search_profile_id', 'matched_at']} pageSize={5} empty="Nothing new. Add a search profile to hear of new listings." />
-      <Table title="Your favorites" resource="favorites" sort="created_at desc" columns={['listing_id', 'created_at']} pageSize={5} empty="Save a listing with Save to favorites on its page." />
+      <Table title="Your new alerts" resource="alerts" filter="seen = false" sort="matched_at desc" columns={['listing_id', 'search_profile_id', 'matched_at']} limit={5} empty="Nothing new. Add a search profile to hear of new listings." />
+      <Table title="Your favorites" resource="favorites" sort="created_at desc" columns={['listing_id', 'created_at']} limit={5} empty="Save a listing with Save to favorites on its page." />
     </Grid>
   </Page>,
   { nav: { group: 'Browse', order: 0 }, icon: 'layout-dashboard' },

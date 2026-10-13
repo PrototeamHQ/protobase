@@ -218,7 +218,7 @@ const LoadedRecord = ({ model, recordKey, stored }: { model: ResourceModel; reco
           <div className="grid grid-cols-1 gap-8 md:grid-cols-[minmax(0,1fr)_300px] md:gap-12">
             <main className="divide-y divide-border">
               {layout.flatMap((item, index) => {
-                if (item.kind === 'related') return [<RelatedSection key={`related:${item.title}`} item={item} recordKey={recordKey} />]
+                if (item.kind === 'related') return [<RelatedSection key={`related:${item.title}`} item={item} recordKey={recordKey} owner={model.name} />]
                 if (item.kind === 'custom') return item.sidebar ? [] : [<CustomSection key={`custom:${index}`} item={item} scope={scope} />]
                 if (item.kind === 'map') return item.sidebar ? [] : [<MapSection key={`map:${index}`} item={item} record={stored.record} />]
                 if (item.kind !== 'section') return []

@@ -19,12 +19,12 @@ describe('real estate pages', () => {
     expect(resources).toHaveLength(19)
   })
 
-  it('lists a lease\'s rent charges on its page, newest period first, a year per page', () => {
+  it('lists a lease\'s rent charges on its page, newest period first, a year of them', () => {
     const { resources, views } = configExports(config)
     const charges = resources.map((source) => source.toModel()).find((model) => model.name === 'rent_charges')!
     const lease = views.map((view) => view.toModel()).find((view) => view.resource === 'leases')!
     const section = lease.layout.find((item) => item.kind === 'related' && item.title === 'Rent charges')
-    expect(section).toMatchObject({ resource: 'rent_charges', field: 'lease_id', sort: 'period desc', pageSize: 12 })
+    expect(section).toMatchObject({ resource: 'rent_charges', field: 'lease_id', sort: 'period desc', limit: 12 })
     expect(section?.kind === 'related' && section.columns?.filter((column) => !Object.hasOwn(charges.fields, column))).toEqual([])
     expect(section?.kind === 'related' && section.columns?.slice(-2)).toEqual(['paid_amount', 'outstanding'])
   })

@@ -54,8 +54,8 @@ export const salesOverview = page(
       </Card>
     </Grid>
     <Grid columns={2}>
-      <Table title="Overdue invoices" resource="invoices" filter="status = 'overdue'" sort="issued_at" columns={['number', 'company_id', 'due_at', 'total']} pageSize={5} empty="Nothing is overdue." />
-      <Table title="Latest orders" resource="orders" sort="created_at desc" columns={['number', 'company_id', 'status', 'total']} pageSize={5} />
+      <Table title="Overdue invoices" resource="invoices" filter="status = 'overdue'" sort="issued_at" columns={['number', 'company_id', 'due_at', 'total']} limit={5} empty="Nothing is overdue." />
+      <Table title="Latest orders" resource="orders" sort="created_at desc" columns={['number', 'company_id', 'status', 'total']} limit={5} />
     </Grid>
     <CardRow
       title="New leads"

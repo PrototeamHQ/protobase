@@ -14,7 +14,14 @@ import { RecordCard } from './record-card'
 // MapLibre loads with the first map drawn, so a list that never shows one never loads it.
 const RecordsMap = lazy(() => import('../map/records-map').then((module) => ({ default: module.RecordsMap })))
 
-type MapProps = { model: ResourceModel; view: ViewModel | undefined; display: Extract<ListDisplayModel, { kind: 'map' }>; list: ListDisplay }
+type MapProps = {
+  model: ResourceModel
+  view: ViewModel | undefined
+  display: Extract<ListDisplayModel, { kind: 'map' }>
+  list: ListDisplay
+  /** How many are on the map and a button for more, under it; an embedded list, which links to the list instead, leaves it out. */
+  footer?: boolean
+}
 
 const arrow = 'flex size-8 items-center justify-center rounded-full border border-border bg-background hover:bg-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30'
 
@@ -23,7 +30,7 @@ const arrow = 'flex size-8 items-center justify-center rounded-full border borde
  * record at the map's bottom, with arrows through the records the marker stands for; closing it or choosing the map
  * elsewhere clears it. Below the map, how many of the matching records are on it and a button for more.
  */
-export const MapDisplay = ({ model, view, display, list }: MapProps) => {
+export const MapDisplay = ({ model, view, display, list, footer = true }: MapProps) => {
   const style = useAdminMeta().maps?.style
   const [chosen, setChosen] = useState<MapSelection>()
   const cards = mapCards(view, display)
@@ -81,7 +88,7 @@ export const MapDisplay = ({ model, view, display, list }: MapProps) => {
             </div>
           )}
         </div>
-        <DisplayFooter list={list} />
+        {footer && <DisplayFooter list={list} />}
       </div>
     </DisplayState>
   )

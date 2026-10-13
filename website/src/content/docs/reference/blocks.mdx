@@ -89,19 +89,20 @@ One number or value with a label. Exactly one of `value`, `resource` and `field`
 
 ### Table
 
-A page of records at a time, with arrows to page through the rest. The first column opens the record; relations show the related record's name.
+The first records of a list, drawn the way the resource's list page draws them: its table, or one of the view's [list displays](/reference/ui-config/#list-displays) such as cards, with the same switch between them when the view has several. A row or card opens the record, and **View all** opens the list with the same filter and order. On a phone a view with a cards display opens in it, as one row of cards that scrolls sideways; a display the viewer picks is kept for them in the browser.
 
 | Prop | |
 | --- | --- |
-| `resource`, `filter`, `sort` | Which records, in which order. `resource` is required. |
-| `columns` | Field names; default the view's list columns. |
-| `pageSize` | Rows per page; default 10. |
+| `resource`, `filter`, `sort` | Which records, in which order. `resource` is required; `sort` defaults to the list's. |
+| `columns` | Field names for the table; default the view's list columns. |
+| `limit` | How many records it shows; default 10. It has no pages: the rest are in the list. Before 0.13 this was `pageSize`, rows per page; rename it. |
+| `display` | The display it opens in, such as `cards`; default the list's. |
 | `title`, `description`, `actions` | The heading. |
 | `empty` | Text when nothing matches; default "Nothing here yet.". |
 | `span` | Width in a grid. |
 
 ```tsx
-<Table title="Overdue invoices" resource="invoices" filter="status = 'overdue'" sort="issued_at" columns={['number', 'company_id', 'due_at', 'total']} pageSize={5} empty="Nothing is overdue." />
+<Table title="Overdue invoices" resource="invoices" filter="status = 'overdue'" sort="issued_at" columns={['number', 'company_id', 'due_at', 'total']} limit={5} empty="Nothing is overdue." />
 ```
 
 ### RecordCard

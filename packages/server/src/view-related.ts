@@ -58,6 +58,6 @@ export const relatedErrors = (item: RelatedModel, resource: string, models: Reco
       if (!resolved.ok) return [`column: ${resolved.message}`]
       return resolved.steps.at(-1)!.field.sensitive ? [`column: "${column}" is sensitive, so it cannot be listed`] : []
     }),
-    ...(item.pageSize === undefined || (Number.isInteger(item.pageSize) && item.pageSize >= 1 && item.pageSize <= 100) ? [] : ['pageSize must be a whole number from 1 to 100']),
+    ...(item.limit === undefined || (Number.isInteger(item.limit) && item.limit >= 1 && item.limit <= 100) ? [] : ['limit must be a whole number from 1 to 100']),
   ]
 }
