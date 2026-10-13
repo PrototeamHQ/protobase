@@ -3,6 +3,7 @@ import { addressErrors, addressPlaceholders, appHrefError, displayFields, fieldR
 import type { Registry } from './registry'
 import { cardFavoriteErrors, favoriteOwnerErrors } from './view-card-favorite'
 import { cardPhotosErrors } from './view-card-photos'
+import { saveSearchErrors, searchesOfErrors } from './view-saved-search'
 import { mapDisplayErrors, mapErrors } from './view-map'
 import { relatedErrors } from './view-related'
 
@@ -92,7 +93,8 @@ const listOfErrors = (model: ResourceModel, name: string, models: Record<string,
  * Fails at startup when a view uses a sensitive field where it would show empty, a display or custom section names a
  * field the resource does not have, labels or colours values its enum does not have, shows a field with a field type of
  * `fieldTypes` (each with the storage types it shows) that does not show it,
- * has a related section, a cards display's photos or favorite button or a `listOf` that do not fit the resources, cards
+ * has a related section, a cards display's photos or favorite button, a `listOf`, a "Save search" button or a
+ * `searchesOf` that do not fit the resources, cards
  * displays of one list that name different photos, a map that cannot show the
  * record's position or a map display that cannot find the records in its view, or a link to an address the app does not have.
  */
@@ -115,11 +117,15 @@ export const checkViews = (registry: Registry, views: ViewModel[], pages: readon
         : [],
     )
     const listOf = view.listOf === undefined ? [] : listOfErrors(model, view.listOf, models).map((error) => `listOf: ${error}`)
+    const searches = [
+      ...(view.saveSearch ? saveSearchErrors(view.saveSearch, view.resource, models, views).map((error) => `saveSearch: ${error}`) : []),
+      ...(view.searchesOf ? searchesOfErrors(view.searchesOf, view.resource, models).map((error) => `searchesOf: ${error}`) : []),
+    ]
     const maps = [
       ...view.layout.flatMap((item) => (item.kind === 'map' ? mapErrors(item, model).map((error) => `map "${item.title}": ${error}`) : [])),
       ...(view.list?.displays ?? []).flatMap((display) => (display.kind === 'map' ? mapDisplayErrors(display, model).map((error) => `display "${display.name}": ${error}`) : [])),
     ]
-    return [...sensitiveErrors(view, model), ...unknownFieldErrors(view, model), ...valueLabelErrors(view, model), ...valueColorErrors(view, model), ...widgetErrors(view, model, fieldTypes), ...related, ...photos, ...favorites, ...listOf, ...maps, ...linkErrors(view, model, models, pageNames)].map((problem) => `View "${view.resource}": ${problem}`)
+    return [...sensitiveErrors(view, model), ...unknownFieldErrors(view, model), ...valueLabelErrors(view, model), ...valueColorErrors(view, model), ...widgetErrors(view, model, fieldTypes), ...related, ...photos, ...favorites, ...listOf, ...searches, ...maps, ...linkErrors(view, model, models, pageNames)].map((problem) => `View "${view.resource}": ${problem}`)
   })
   if (problems.length > 0) throw new Error(`The views do not match the resources:\n${problems.map((problem) => `  - ${problem}`).join('\n')}`)
 }

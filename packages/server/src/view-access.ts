@@ -1,9 +1,10 @@
 import { resolveFieldPath } from '@protobase/layout'
-import type { ActionModel, ActionRun, CardFavoriteModel, CardPhotosModel, ChartModel, CustomSectionModel, FilterWidgetModel, LayoutItemModel, ListDisplayModel, ListModel, MapSectionModel, NavModel, NavRecentModel, RelatedModel, ResourceModel, SearchResultModel, ViewModel } from '@protobase/schema'
+import type { ActionModel, ActionRun, CardFavoriteModel, CardPhotosModel, ChartModel, CustomSectionModel, FilterWidgetModel, LayoutItemModel, ListDisplayModel, ListModel, MapSectionModel, NavModel, NavRecentModel, RelatedModel, ResourceModel, SaveSearchModel, SearchesOfModel, SearchResultModel, ViewModel } from '@protobase/schema'
 import { addressErrors, hrefPlaceholders, navRecentErrors, pruneByShape, shapes as s, tableDisplay } from '@protobase/schema/internal'
 import { cardFavoriteErrors } from './view-card-favorite'
 import { cardPhotosErrors } from './view-card-photos'
 import { relatedErrors } from './view-related'
+import { searchesOfFor } from './view-saved-search'
 
 type Of<U, K extends string> = Extract<U, { kind: K }>
 
@@ -126,14 +127,18 @@ const viewShape = (resource: string, model: ResourceModel, models: Record<string
     actions: s.list(actionShape(model, models)),
     listOf: s.field,
     signIn: s.data,
+    // The button stays for a caller who can see the searches' resource, or a visitor it asks to sign in
+    saveSearch: s.map<SaveSearchModel>((search) => (prompted.has(search.resource) || models[search.resource] ? search : undefined)),
+    searchesOf: s.map<SearchesOfModel>((searches) => searchesOfFor(searches, resource, models)),
   })
 
 /**
  * The view with every reference to a field the caller cannot read removed: list columns, sort, search and displays,
  * field hints, filter widgets, record sections, maps and custom components' props, the chart, title and search result, the
  * actions that set or read one, and the sidebar's `recent` group. Nothing in it may name a hidden field. Related sections
- * and links are checked against `models`, the caller's view of every resource, and so are cards' favorite buttons,
- * which stay for a visitor when their resource is one of `prompted`, those that ask the visitor to sign in.
+ * and links are checked against `models`, the caller's view of every resource, and so are `searchesOf`, cards' favorite
+ * buttons and the "Save search" button; the buttons stay for a visitor when their resource is one of `prompted`, those
+ * that ask the visitor to sign in.
  */
 export const pruneView = (view: ViewModel, model: ResourceModel, models: Record<string, ResourceModel>, prompted: ReadonlySet<string> = new Set()): ViewModel => {
   const pruned = pruneByShape(view, viewShape(view.resource, model, models, prompted), (name) => Object.hasOwn(model.fields, name))

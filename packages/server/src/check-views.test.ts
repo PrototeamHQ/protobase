@@ -98,6 +98,17 @@ describe('checkViews', () => {
     expect(() => checkViews(registry, [shown.toModel()])).toThrow('View "payments": display "cards" favorite: unknown resource "saved"')
   })
 
+  it('wants a "Save search" button whose searches a view lists, and those searches to be each user\'s own', () => {
+    const searches = resource('searches').table('searches').fields({ id: f.integer(), user_id: f.text().readOnly(), filter: f.text() }).primaryKey((r) => r.id).owner((r) => r.user_id)
+    const all = { entries: [...registry.entries, { name: 'searches', model: searches.toModel() }] } as unknown as Registry
+    const saving = view<typeof payments>('payments').saveSearch({ resource: 'searches' }).toModel()
+    const listing = view<typeof searches>('searches').searchesOf((r) => ({ resource: 'payments', filter: r.filter })).toModel()
+    expect(() => checkViews(all, [saving, listing])).not.toThrow()
+    expect(() => checkViews(all, [saving])).toThrow('View "payments": saveSearch: no view of searches has searchesOf("payments")')
+    const elsewhere = view<typeof searches>('searches').searchesOf((r) => ({ resource: 'invoices', filter: r.filter })).toModel()
+    expect(() => checkViews(all, [elsewhere])).toThrow('View "searches": searchesOf: unknown resource "invoices"')
+  })
+
   it('wants listOf to point at records with a single-column key', () => {
     const visits = resource('visits').table('visits').fields({ payment_id: f.integer(), day: f.date() }).primaryKey((r) => [r.payment_id, r.day])
     const saved = resource('saved').table('saved').fields({ id: f.integer(), payment_id: f.relation('payments'), visit_id: f.relation('visits') }).primaryKey((r) => r.id)
