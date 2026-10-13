@@ -28,6 +28,7 @@
     "screenshots": "storybook build && bun scripts/screenshots.mjs",
     "protobase": "protobase",
     "build:serve": "protobase build-serve",
+    "screenshots:dark": "storybook build && bun scripts/screenshots.mjs --dark",
     "screenshots:live": "storybook build && bun scripts/screenshots.mjs --live",
     "test:stories": "storybook build && bun scripts/play-tests.mjs",
     "test:dom": "storybook build && bun scripts/dom-snapshots.mjs",

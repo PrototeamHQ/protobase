@@ -5,7 +5,9 @@ import { serveStatic } from './static-server.mjs'
 
 const root = join(import.meta.dirname, '..', 'storybook-static')
 const live = process.argv.includes('--live')
-const outDir = join(import.meta.dirname, '..', 'screenshots', live ? 'live' : '')
+// --dark draws the stories in the dark theme, into screenshots/dark (or screenshots/live/dark).
+const theme = process.argv.includes('--dark') ? 'dark' : 'light'
+const outDir = join(import.meta.dirname, '..', 'screenshots', live ? 'live' : '', theme === 'dark' ? 'dark' : '')
 
 const { base, close } = await serveStatic(root, live ? (process.env.PROTOBASE_API ?? 'http://localhost:8787') : undefined)
 
@@ -15,11 +17,11 @@ if (stories.length === 0) throw new Error(live ? 'No Live stories found in story
 
 await mkdir(outDir, { recursive: true })
 const browser = await chromium.launch()
-const context = await browser.newContext({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: 2, colorScheme: 'light' })
+const context = await browser.newContext({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: 2, colorScheme: theme })
 
 for (const story of stories) {
   const page = await context.newPage()
-  await page.goto(`${base}/iframe.html?id=${story.id}&viewMode=story&globals=theme:light`)
+  await page.goto(`${base}/iframe.html?id=${story.id}&viewMode=story&globals=theme:${theme}`)
   await page.waitForSelector('#storybook-root > *')
   await page.evaluate(() => document.fonts.ready)
   await page.waitForLoadState('networkidle')

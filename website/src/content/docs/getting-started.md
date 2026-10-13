@@ -65,6 +65,7 @@ bun run --cwd examples/property-portal dev              # http://localhost:5173
 | `bun run check` | typecheck + test + test:integration + check:boundaries |
 | `bun run storybook` | Storybook on port 6006 |
 | `bun run build-storybook` | static Storybook build; its toolbar switches every story between light and dark |
+| `bun run screenshots` / `bun run screenshots:dark` | screenshots of the stories tagged `website`, in light into `screenshots/`, in dark into `screenshots/dark/` |
 | `bun run build:serve` | the serve runtime, `dist/protobase-serve.js` (see [Deploy](/guides/deploy/)) |
 | `bun run docs:dev` | this site on port 4321 |
 | `bun run docs:build` | this site, built into `website/dist/`; fails on broken links |
