@@ -24,8 +24,9 @@ const exactBelow = 5000
 export type LoadedPage = { rows: GridRow[]; total: number; nextPageToken: string }
 
 /**
- * Loads fixed-size pages by number. The page after a cached one follows that page's `next_page_token`; a jump to a page
- * whose predecessor is not cached asks `:seek` for the page at that row position. Every page is cached by TanStack Query.
+ * Loads fixed-size pages by number. The page after a cached or loading one follows that page's `next_page_token`; a
+ * jump to a page whose predecessor is neither asks `:seek` for the page at that row position, so the pages of one jump
+ * are read on from a single seek. Every page is cached by TanStack Query.
  */
 export const createGridLoader = ({ queryClient, client, resources, views, model, columns, filter, orderBy }: GridLoaderOptions) => {
   const pageKey = (number: number) => keys.page(model.name, filter, orderBy, gridPageSize, number)
@@ -37,8 +38,18 @@ export const createGridLoader = ({ queryClient, client, resources, views, model,
     return (await client.list(model.name, { filter, orderBy, pageSize: 1, count: 'exact' })).totalSize ?? result.totalSizeEstimate
   }
 
+  /** The token that continues after the page before `number`, or undefined when that page is neither cached nor loading. */
+  const tokenBefore = async (number: number) => {
+    if (number === 0) return ''
+    const key = pageKey(number - 1)
+    const cached = queryClient.getQueryData<LoadedPage>(key)
+    if (cached) return cached.nextPageToken
+    if (queryClient.getQueryState(key)?.fetchStatus !== 'fetching') return undefined
+    return (await page(number - 1)).nextPageToken
+  }
+
   const fetchPage = async (page: number): Promise<LoadedPage> => {
-    const token = page === 0 ? '' : queryClient.getQueryData<LoadedPage>(pageKey(page - 1))?.nextPageToken
+    const token = await tokenBefore(page)
     if (page > 0 && token === '') return { rows: [], total: 0, nextPageToken: '' }
     const params = { filter, orderBy, pageSize: gridPageSize }
     const result =
@@ -52,7 +63,7 @@ export const createGridLoader = ({ queryClient, client, resources, views, model,
     return { rows, total: page === 0 ? await firstPageTotal(result) : result.totalSizeEstimate, nextPageToken: result.nextPageToken }
   }
 
-  const page = (number: number) =>
+  const page = (number: number): Promise<LoadedPage> =>
     queryClient.fetchQuery({ queryKey: pageKey(number), staleTime: 60_000, queryFn: () => fetchPage(number) })
 
   const loadRows = async (start: number) => (await page(Math.floor(start / gridPageSize))).rows

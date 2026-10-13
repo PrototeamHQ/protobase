@@ -50,6 +50,13 @@ describe('createGridLoader', () => {
     expect(seek).not.toHaveBeenCalled()
   })
 
+  it('reads on from a page that is still loading instead of seeking again', async () => {
+    const { seek, list, loader } = setup()
+    await Promise.all([loader.page(5), loader.page(6)])
+    expect(seek).toHaveBeenCalledTimes(1)
+    expect(list.mock.calls[0]![1]).toMatchObject({ pageToken: 'after-jump' })
+  })
+
   it('stops after the last page instead of starting over', async () => {
     const list = vi.fn(async () => ({ items: [{ id: 1 }], nextPageToken: '', totalSizeEstimate: 1 }))
     const client = { list } as unknown as Client
