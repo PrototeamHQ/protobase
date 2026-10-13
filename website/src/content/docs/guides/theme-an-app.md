@@ -53,15 +53,19 @@ A font the browser does not have comes with an `@font-face` rule in the same fil
 
 ## 3. Dark
 
-The app follows the user's choice of light or dark. Values under `:root` hold for both, so teal on white is also teal on near-black. Give dark its own where it needs them, under `[data-theme="dark"]`:
+The app draws in light or dark as each user chooses in the profile menu, and follows their system until they choose ([Light, dark or the system](/reference/theme/#light-dark-or-the-system)). Values under `:root` hold for both, so teal on white is also teal on near-black. Give dark its own where it needs them, under `[data-theme="dark"]`:
 
 ```css
 [data-theme="dark"] {
   --primary: #2dd4bf;
+  --primary-hover: #5eead4;
+  --primary-foreground: #042f2e;
   --primary-soft: #11302c;
   --primary-text: #5eead4;
 }
 ```
+
+A light teal needs dark text on it, so the button's text, `--primary-foreground`, turns near-black here. A soft background from `:root` would glare on the dark page, so `--primary-soft` gets a dark one too. Pick "Dark" in the profile menu to check each screen, the sign-in page included.
 
 ## 4. Build and ship
 

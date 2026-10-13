@@ -3,6 +3,7 @@ import { cn } from '../lib/cn'
 import { Logo } from './logo'
 import { navGroups as defaultGroups, type NavGroup } from './nav'
 import { ProfileMenu, type ProfileMenuItem, type ProfileOrganizations, type ProfileRoles, type ShellUser } from './profile-menu'
+import type { ProfileTheme } from './theme-switch'
 import { SidebarGroup } from './sidebar-group'
 import { SidebarItem } from './sidebar-item'
 import { isTextMode, sidebarWidth, type SidebarMode } from './sidebar-mode'
@@ -24,11 +25,12 @@ export type SidebarProps = {
   onSignIn?: () => void
   organizations?: ProfileOrganizations
   roles?: ProfileRoles
+  theme?: ProfileTheme
   /** Stays in view, as tall as the screen, while the page scrolls, for a shell whose page scrolls. */
   sticky?: boolean
 }
 
-export const Sidebar = ({ mode, activeItem, user, workspace, forceExpanded, profileMenuOpen, groups = defaultGroups, userMenu, onNavigate, onSignOut, onSignIn, organizations, roles, sticky }: SidebarProps) => {
+export const Sidebar = ({ mode, activeItem, user, workspace, forceExpanded, profileMenuOpen, groups = defaultGroups, userMenu, onNavigate, onSignOut, onSignIn, organizations, roles, theme, sticky }: SidebarProps) => {
   const expanding = mode === 'icon-expand'
   const expanded = expanding && forceExpanded
   const inline = isTextMode(mode) || expanding
@@ -72,7 +74,7 @@ export const Sidebar = ({ mode, activeItem, user, workspace, forceExpanded, prof
         </div>
         <div className={cn('shrink-0 border-t p-2', mode !== 'text-large' && mode !== 'text-small' && !expanding && 'flex justify-center')}>
           {user ? (
-            <ProfileMenu user={user} compact={!inline} open={profileMenuOpen} items={userMenu} onNavigate={onNavigate} onSignOut={onSignOut} organizations={organizations} roles={roles} />
+            <ProfileMenu user={user} compact={!inline} open={profileMenuOpen} items={userMenu} onNavigate={onNavigate} onSignOut={onSignOut} organizations={organizations} roles={roles} theme={theme} />
           ) : (
             onSignIn && (
               <button type="button" onClick={onSignIn} aria-label="Sign in" className="flex min-h-11 w-full items-center gap-2.5 rounded-md p-1.5 text-left text-[13px] font-medium text-muted-foreground hover:bg-muted hover:text-foreground md:min-h-0">

@@ -4,6 +4,7 @@ import { cn } from '../lib/cn'
 import { Avatar } from '../primitives/avatar'
 import { Badge, type BadgeTone } from '../primitives/badge'
 import { SwitchGroup } from './switch-group'
+import { ThemeSwitch, type ProfileTheme } from './theme-switch'
 
 export type ShellUser = { name: string; email: string; initials: string; hue: number; role: string; roleTone: BadgeTone }
 
@@ -31,12 +32,14 @@ export type ProfileMenuProps = {
   organizations?: ProfileOrganizations
   /** Lists the roles below the organizations, to switch between them; left out for someone with one role. */
   roles?: ProfileRoles
+  /** Adds the theme switch above "Sign out". */
+  theme?: ProfileTheme
 }
 
 const menuRow = 'flex min-h-11 w-full items-center gap-2.5 px-3 py-1.5 text-left text-[13px] text-muted-foreground hover:bg-muted md:min-h-0'
 
 /** The person at the bottom of the sidebar; the menu is fixed to the viewport so a narrow sidebar cannot clip it. */
-export const ProfileMenu = ({ user, compact, open: controlled, items = [], onNavigate, onSignOut, organizations, roles }: ProfileMenuProps) => {
+export const ProfileMenu = ({ user, compact, open: controlled, items = [], onNavigate, onSignOut, organizations, roles, theme }: ProfileMenuProps) => {
   const activeRole = roles?.roles.find((role) => role.name === roles.active)
   const [local, setLocal] = useState(false)
   const open = controlled ?? local
@@ -109,7 +112,7 @@ export const ProfileMenu = ({ user, compact, open: controlled, items = [], onNav
             />
           )}
           {items.length > 0 && (
-            <div className={cn(onSignOut && 'border-b')}>
+            <div className={cn((theme || onSignOut) && 'border-b')}>
               {items.map((item) => {
                 const Icon = item.icon
                 return (
@@ -132,6 +135,11 @@ export const ProfileMenu = ({ user, compact, open: controlled, items = [], onNav
                   </a>
                 )
               })}
+            </div>
+          )}
+          {theme && (
+            <div className={cn(onSignOut && 'border-b')}>
+              <ThemeSwitch theme={theme} className={cn(menuRow, 'hover:bg-transparent')} />
             </div>
           )}
           {onSignOut && (

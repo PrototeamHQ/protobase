@@ -3,18 +3,22 @@ import { cn } from '../lib/cn'
 
 export type SegmentedOption<T extends string> = { value: T; label: string; icon?: ComponentType<{ className?: string }> }
 
-/** `md` matches a medium Button, for a switch that sits among buttons. */
-export type SegmentedProps<T extends string> = { value: T; options: Array<SegmentedOption<T>>; onChange: (value: T) => void; label?: string; size?: 'sm' | 'md' }
+/**
+ * `md` matches a medium Button, for a switch that sits among buttons. `iconOnly` draws each option as its icon alone,
+ * its label the button's name, for a row without room for the words.
+ */
+export type SegmentedProps<T extends string> = { value: T; options: Array<SegmentedOption<T>>; onChange: (value: T) => void; label?: string; size?: 'sm' | 'md'; iconOnly?: boolean }
 
 const sizes = { sm: { group: 'h-7', option: 'px-2.5 text-xs' }, md: { group: 'h-8', option: 'px-3 text-[13px]' } }
 
-export const Segmented = <T extends string>({ value, options, onChange, label, size = 'sm' }: SegmentedProps<T>) => (
+export const Segmented = <T extends string>({ value, options, onChange, label, size = 'sm', iconOnly = false }: SegmentedProps<T>) => (
   <span role="group" aria-label={label} className={cn('inline-flex', sizes[size].group, 'rounded-md bg-muted p-0.5')}>
     {options.map((option) => (
       <button
         key={option.value}
         type="button"
         aria-pressed={option.value === value}
+        {...(iconOnly && { 'aria-label': option.label, title: option.label })}
         onClick={() => onChange(option.value)}
         className={cn(
           'inline-flex items-center gap-1.5 rounded',
@@ -24,7 +28,7 @@ export const Segmented = <T extends string>({ value, options, onChange, label, s
         )}
       >
         {option.icon && <option.icon className="size-3.5" />}
-        {option.label}
+        {!iconOnly && option.label}
       </button>
     ))}
   </span>

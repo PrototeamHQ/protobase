@@ -18,6 +18,7 @@ A project themes its admin app with one file, `protobase.theme.css` at its root,
 
 [data-theme="dark"] {
   --primary: #2dd4bf;
+  --primary-foreground: #042f2e;
   --primary-soft: #11302c;
   --primary-text: #5eead4;
 }
@@ -46,6 +47,14 @@ Changing how one part of the app looks, beyond its tokens, is not a theme's job:
 ## How the app links it
 
 The app's `index.html` links `/protobase.theme.css` after its own stylesheets, so the theme applies before anything draws, the sign-in page included, and needs no request to the API. The app's own token values sit in a cascade layer (`@layer base`) and the theme's in none, so the theme wins whatever order the browser loads them in. Hosts serve the file with `no-cache`, so a new build of the theme shows on the next load.
+
+## Light, dark or the system
+
+Each user picks light, dark or "System" with the theme switch in the profile menu, and the app follows their system's setting until they pick one. The choice is kept in their browser (`localStorage`, under `protobase:theme`), so it holds on every visit and in every tab; with storage blocked the app follows the system.
+
+The app draws dark by setting `data-theme="dark"` on the `<html>` element, and `data-theme="light"` for light. The app's `index.html` sets it with a small script in its `<head>`, before the first paint, so a dark page never flashes white while the app loads, the sign-in page included. Native parts of the page, such as scrollbars and date pickers, follow it too (`color-scheme`).
+
+Pictures, file previews and maps keep their own colors in dark: a map draws in the style the project names for it. A theme's `[data-theme="dark"]` values win over the app's dark ones, as its `:root` values win over the app's light ones, and a `:root` value without a dark one holds in dark too.
 
 ## Tokens
 

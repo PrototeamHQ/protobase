@@ -7,6 +7,7 @@ import { PageScrollContext, usePageInsets } from './page-scroll'
 import type { NavGroup } from './nav'
 import { Sidebar } from './sidebar'
 import type { ProfileMenuItem, ProfileOrganizations, ProfileRoles, ShellUser } from './profile-menu'
+import type { ProfileTheme } from './theme-switch'
 import type { SidebarMode } from './sidebar-mode'
 import type { GlobalSearchModel } from './global-search'
 import type { Crumb } from './breadcrumb'
@@ -39,6 +40,8 @@ export type AppShellProps = {
   organizations?: ProfileOrganizations
   /** The roles to switch between, in the profile menu. */
   roles?: ProfileRoles
+  /** The light, dark or system switch, in the profile menu. */
+  theme?: ProfileTheme
   /** The top bar's search; without it there is no search box. */
   search?: GlobalSearchModel
   className?: string
@@ -47,7 +50,7 @@ export type AppShellProps = {
 
 const drawerId = 'app-drawer'
 
-export const AppShell = ({ sidebarMode, activeItem, breadcrumb, user, workspace, actions, rightPanel, forceExpanded, profileMenuOpen, navGroups, userMenu, bottomBar, onNavigate, onSignOut, onSignIn, organizations, roles, search, className, children }: AppShellProps) => {
+export const AppShell = ({ sidebarMode, activeItem, breadcrumb, user, workspace, actions, rightPanel, forceExpanded, profileMenuOpen, navGroups, userMenu, bottomBar, onNavigate, onSignOut, onSignIn, organizations, roles, theme, search, className, children }: AppShellProps) => {
   const desktop = useIsDesktop()
   const [drawerOpen, setDrawerOpen] = useState(false)
   useEffect(() => {
@@ -60,7 +63,7 @@ export const AppShell = ({ sidebarMode, activeItem, breadcrumb, user, workspace,
   const bottomBarRef = useRef<HTMLElement>(null)
   usePageInsets(pageScroll, topBarRef, bottomBarRef, Boolean(tabs))
   const sidebar = (mode: SidebarMode, sticky = false) => (
-    <Sidebar mode={mode} sticky={sticky} activeItem={activeItem} user={user} workspace={workspace} forceExpanded={forceExpanded} profileMenuOpen={profileMenuOpen} groups={navGroups} userMenu={userMenu} onNavigate={onNavigate} onSignOut={onSignOut} onSignIn={onSignIn} organizations={organizations} roles={roles} />
+    <Sidebar mode={mode} sticky={sticky} activeItem={activeItem} user={user} workspace={workspace} forceExpanded={forceExpanded} profileMenuOpen={profileMenuOpen} groups={navGroups} userMenu={userMenu} onNavigate={onNavigate} onSignOut={onSignOut} onSignIn={onSignIn} organizations={organizations} roles={roles} theme={theme} />
   )
   return (
     <PageScrollContext.Provider value={setPageScroll}>

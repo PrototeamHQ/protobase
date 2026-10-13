@@ -9,6 +9,7 @@ import { AuthGate, AuthProvider, isAdmin, userToShell, useAuth } from '../auth'
 import { useRecord } from '../data/use-record'
 import { recordTitle } from '../live/model-helpers'
 import { humanize } from '../live/naming'
+import { ThemeProvider, useTheme } from '../theme/theme-provider'
 import { ToastProvider } from '../toasts'
 import { AssistantButton, AssistantPanel } from './assistant-shell'
 import { bottomBarFromMeta } from './bottom-bar-from-meta'
@@ -84,6 +85,7 @@ const Routes = ({ workspace, sidebarMode, assistant, runtime }: Pick<AppProps, '
   const place = placeOf(address)
   const shown = recordOf(address)
   const search = useGlobalSearch()
+  const theme = useTheme()
   const recent = useNavRecent(meta, basePath, { resource: place, key: shown?.key })
   const groups = navFromMeta(meta, basePath, recent)
   const firstPage = Object.keys(meta.pages)[0]
@@ -181,6 +183,7 @@ const Routes = ({ workspace, sidebarMode, assistant, runtime }: Pick<AppProps, '
           onSwitch: (id) => void session.organizations.switchTo(id).then(() => reopenIn(basePath)),
         }
       }
+      theme={user && { preference: theme.preference, onChange: theme.choose }}
       roles={role.current?.active ? { active: role.current.active, roles: role.current.roles, onSwitch: role.switchTo } : undefined}
       onNavigate={open}
       search={search.available ? { placeholder: search.placeholder, text: search.text, onTextChange: search.setText, query: search.query, loading: search.loading, groups: search.groups, onSelect: open } : undefined}
@@ -223,12 +226,15 @@ const Authenticated = ({ baseUrl, client, sources, basePath, initialUrl, workspa
 
 /**
  * The admin: sign-in first, or browsing as a visitor when the project has an anonymous role, then a sidebar from
- * `/meta`, `/:page` composed pages, `/:resource` lists and `/:resource/:key` records. Fills its parent.
+ * `/meta`, `/:page` composed pages, `/:resource` lists and `/:resource/:key` records. Fills its parent, in the theme
+ * this browser chose, light, dark or the system's.
  */
 export const App = ({ auth, workspace, ...rest }: AppProps) => (
-  <AuthProvider session={auth}>
-    <AuthGate workspace={workspace}>
-      <Authenticated workspace={workspace} {...rest} />
-    </AuthGate>
-  </AuthProvider>
+  <ThemeProvider>
+    <AuthProvider session={auth}>
+      <AuthGate workspace={workspace}>
+        <Authenticated workspace={workspace} {...rest} />
+      </AuthGate>
+    </AuthProvider>
+  </ThemeProvider>
 )

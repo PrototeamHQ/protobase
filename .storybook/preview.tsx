@@ -1,5 +1,6 @@
 import type { Preview } from '@storybook/react-vite'
 import '../packages/ui/src/styles.css'
+import { writeThemePreference } from '../packages/ui/src/theme/theme-preference'
 
 const preview: Preview = {
   globalTypes: {
@@ -15,6 +16,8 @@ const preview: Preview = {
   initialGlobals: { theme: 'light', apiBase: '/api/v1' },
   decorators: [
     (Story, context) => {
+      // The toolbar's theme is the one picked in this browser too, so an App story draws in it rather than the system's.
+      writeThemePreference(localStorage, context.globals.theme)
       document.documentElement.dataset.theme = context.globals.theme
       return <Story />
     },
