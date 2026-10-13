@@ -36,14 +36,18 @@ import { useAppAddress, type ListAddress } from './use-app-address'
 import { withFieldTypeCells } from './field-types/field-type-cells'
 import { useProjectUi } from './pages/project-ui'
 import { SavedList } from './saved/saved-list'
+import { facetNames, filterChips, searchName } from './searches/saved-search'
+import { SaveSearchButton } from './searches/save-search-button'
+import { SavedSearches } from './searches/saved-searches'
 import { SignInPrompt } from '../auth/sign-in-prompt'
 
 const where = createWhere()
 const searchText = (extras: FilterExpr[]) => extras.find((clause) => clause.kind === 'search')
 
 /**
- * A resource's list: its rows, or with `listOf` the records its relation points at (`SavedList`). A visitor who cannot
- * see the resource is told what signing in gives, when its view says (`SignInPrompt`).
+ * A resource's list: its rows, with `listOf` the records its relation points at (`SavedList`), or with `searchesOf` the
+ * user's saved searches and what each finds (`SavedSearches`). A visitor who cannot see the resource is told what
+ * signing in gives, when its view says (`SignInPrompt`).
  */
 export const ListPage = ({ address }: { address: ListAddress }) => {
   const { resources, views, signIn } = useAdminMeta()
@@ -51,6 +55,7 @@ export const ListPage = ({ address }: { address: ListAddress }) => {
   const prompt = signIn?.[address.resource]
   if (!model) return prompt ? <SignInPrompt as="page" prompt={prompt.signIn} /> : <Notice title="Not found">There is no resource called {address.resource}.</Notice>
   const view = views[address.resource]
+  if (view?.searchesOf) return <SavedSearches model={model} view={view} />
   const listed = listedResource(resources, views, address.resource)
   if (view && listed.listOf) {
     const target = listed.model!
@@ -160,6 +165,10 @@ const LoadedList = ({ model, address, scope, heading }: LoadedListProps) => {
       New {singular.toLowerCase()}
     </Button>
   )
+  // A filtered list can be saved as a search; the name is its filters as the chips read
+  const saveSearch = view?.saveSearch && !scope && parsed.ok && filterText && (
+    <SaveSearchButton search={view.saveSearch} filter={filterText} name={searchName(filterChips(model, view, filterText, facetNames(config)))} />
+  )
   const displaySwitch = (menu: boolean) => <DisplaySwitch view={view} value={display?.name ?? tableDisplay} onChange={(name) => set({ display: name })} menu={menu} />
 
   const openRecord = (row: GridRow) => go({ kind: 'record', resource, key: recordKey(model, row) })
@@ -209,10 +218,14 @@ const LoadedList = ({ model, address, scope, heading }: LoadedListProps) => {
           desktop ? (
             <>
               {displaySwitch(false)}
+              {saveSearch}
               {createButton}
             </>
           ) : (
-            createButton
+            <>
+              {saveSearch}
+              {createButton}
+            </>
           )
         }
       />

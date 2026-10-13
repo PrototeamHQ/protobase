@@ -2,7 +2,6 @@ import { useQueries, useQueryClient } from '@tanstack/react-query'
 import { enumLabel, type FilterExpr, type ResourceModel, type ViewModel } from '@protobase/schema'
 import { useClient } from '../data/api-provider'
 import { keys } from '../data/query-keys'
-import { formatMoney } from '../format/money'
 import type { FacetOption, FilterConfig, FilterState, RangeConfig } from '../filter-panel'
 import { setRange } from '../filter-panel/filter-state'
 import { stateToText } from './filter-string'
@@ -11,7 +10,7 @@ import { humanize } from './naming'
 import { labelKeys, matchOptions } from './reference-options'
 import { fetchLabels } from './relation-labels'
 import { useReferenceSearch } from './use-reference-search'
-import { rangeHistogram, widgetFields } from './view-fields'
+import { rangeFormat, rangeHistogram, widgetFields } from './view-fields'
 
 export type FilterConfigParams = {
   model: ResourceModel
@@ -103,9 +102,6 @@ export const useFilterConfig = ({ model, resources, views, view, state, extras }
   const rangeConfig = (range: RangeConfig, index: number): RangeConfig[] => {
     const data = histogramQueries[index]?.data
     if (!data || data.min === null || data.max === null) return []
-    const hints = view?.fields[range.id]
-    const prefix = hints?.prefix
-    const suffix = hints?.suffix ?? ''
     return [
       {
         ...range,
@@ -114,7 +110,7 @@ export const useFilterConfig = ({ model, resources, views, view, state, extras }
         max: Math.ceil(data.max),
         step: Math.max(1, Math.round((data.max - data.min) / 100)),
         histogram: rangeHistogram(view, range.id) ? data.buckets.map((bucket) => bucket.count) : [],
-        format: (value: number) => `${prefix === '€' ? formatMoney(value * 100).replace('.00', '') : String(value)}${suffix}`,
+        format: rangeFormat(view, range.id),
       },
     ]
   }

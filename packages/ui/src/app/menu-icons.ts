@@ -1,8 +1,9 @@
-import { Bell, BookOpen, Building2, CreditCard, ExternalLink, FileText, Heart, KeyRound, LayoutDashboard, LifeBuoy, Mail, Receipt, Settings, ShieldCheck, Users, type LucideIcon } from 'lucide-react'
+import { Bell, BookOpen, Bookmark, Building2, CreditCard, ExternalLink, FileText, Heart, KeyRound, LayoutDashboard, LifeBuoy, Mail, Receipt, Settings, ShieldCheck, Users, type LucideIcon } from 'lucide-react'
 
 const byName: Record<string, LucideIcon> = {
   bell: Bell,
   'book-open': BookOpen,
+  bookmark: Bookmark,
   building: Building2,
   'credit-card': CreditCard,
   'external-link': ExternalLink,

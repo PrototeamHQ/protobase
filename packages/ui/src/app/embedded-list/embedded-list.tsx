@@ -34,6 +34,10 @@ export type EmbeddedListProps = {
   /** The display shown, from `useEmbeddedDisplay`. */
   display: string
   empty?: string
+  /** The cards in one row that scrolls sideways on every screen, not only on a phone. */
+  row?: boolean
+  /** Where "View all" leads instead of the same list: the list with this filter, under this label, calling `onOpen` first. */
+  viewAll?: { filter: string; label: string; onOpen?: () => void }
 }
 
 /** The switch between the table and the view's displays, for an embedded list's heading; nothing with only a table. */
@@ -47,7 +51,7 @@ const Loading = () => <div className="flex flex-col gap-2">{Array.from({ length:
  * The first `limit` records of a list, drawn by the list page's own table (sized to its rows) or display, and a link
  * to the whole list with the same filter, order and display. On a phone a cards display is one row that scrolls sideways.
  */
-export const EmbeddedList = ({ model, view, filter, sort, columns, limit, display, empty }: EmbeddedListProps) => {
+export const EmbeddedList = ({ model, view, filter, sort, columns, limit, display, empty, row = false, viewAll }: EmbeddedListProps) => {
   const { resources, views } = useAdminMeta()
   const { fields: fieldTypes } = useProjectUi()
   const { go } = useAppAddress()
@@ -61,9 +65,25 @@ export const EmbeddedList = ({ model, view, filter, sort, columns, limit, displa
   const source = useMemo(() => loaded && { total: loaded.length, rowAt: (index: number) => loaded[index]! }, [loaded])
   const shown = shownDisplay(view, display)
 
+  const plural = view?.names?.plural ?? humanize(model.name)
+  const allLink = (
+    <AppLink
+      to={viewAllAddress(model, view, xs, viewAll ? { filter: viewAll.filter, orderBy: defaultOrderBy(model, view), display } : { filter, orderBy, display })}
+      onClick={viewAll?.onOpen}
+      className="flex items-center gap-1 self-end text-[13px] font-medium text-primary-text hover:underline"
+    >
+      {viewAll ? viewAll.label : <>View all <span className="sr-only">{plural.toLowerCase()}</span></>}
+      <ArrowRight className="size-3.5" aria-hidden />
+    </AppLink>
+  )
+
   if (rows.isPending) return <Loading />
   if (rows.error) return <ErrorBanner title="Could not load" error={rows.error} />
-  if (!source || source.total === 0) return <p className="text-[13px] text-muted-foreground">{empty ?? 'Nothing here yet.'}</p>
+  // A link of its own still leads somewhere when nothing here matches
+  if (!source || source.total === 0) {
+    const nothing = <p className="text-[13px] text-muted-foreground">{empty ?? 'Nothing here yet.'}</p>
+    return viewAll ? <div className="flex flex-col gap-3">{nothing}{allLink}</div> : nothing
+  }
 
   const list: ListDisplay = {
     resource: model.name,
@@ -76,7 +96,6 @@ export const EmbeddedList = ({ model, view, filter, sort, columns, limit, displa
   }
   const openRecord = (row: GridRow) => go({ kind: 'record', resource: model.name, key: recordKey(model, row) })
   const singular = view?.names?.singular ?? humanize(model.name)
-  const plural = view?.names?.plural ?? humanize(model.name)
   return (
     <div className="flex flex-col gap-3">
       {!shown ? (
@@ -93,16 +112,13 @@ export const EmbeddedList = ({ model, view, filter, sort, columns, limit, displa
           selectable={false}
         />
       ) : shown.kind === 'cards' ? (
-        <CardsDisplay model={model} view={view} display={shown} list={list} row={xs} footer={false} />
+        <CardsDisplay model={model} view={view} display={shown} list={list} row={row || xs} footer={false} />
       ) : shown.kind === 'map' ? (
         <MapDisplay model={model} view={view} display={shown} filter={filter} orderBy={orderBy} fields={fields} footer={false} />
       ) : (
         <CustomDisplay display={shown} list={list} />
       )}
-      <AppLink to={viewAllAddress(model, view, xs, { filter, orderBy, display })} className="flex items-center gap-1 self-end text-[13px] font-medium text-primary-text hover:underline">
-        View all <span className="sr-only">{plural.toLowerCase()}</span>
-        <ArrowRight className="size-3.5" aria-hidden />
-      </AppLink>
+      {allLink}
     </div>
   )
 }
