@@ -171,9 +171,12 @@ export const resourcePaths = (access: RequestAccess) => {
         tags: tag,
         summary: `Value counts of a ${entry.name} field`,
         description: 'Applies the filter except its own terms on the field.',
-        parameters: [field('A filterable field'), param('filter'), query('limit', 'Most values to return', { type: 'integer' })],
+        parameters: [
+          field('A filterable field'), param('filter'), query('limit', 'Most values to return', { type: 'integer' }),
+          query('label', 'For a relation to a single-key resource: the field of that resource whose value each facet carries as `label`, as a list\'s `labels` names records'),
+        ],
         responses: {
-          200: { description: 'Counts, most frequent first', content: json({ type: 'object', properties: { field: { type: 'string' }, facets: { type: 'array', items: { type: 'object', properties: { value: {}, count: { type: 'integer' } } } } } }) },
+          200: { description: 'Counts, most frequent first', content: json({ type: 'object', properties: { field: { type: 'string' }, facets: { type: 'array', items: { type: 'object', properties: { value: {}, count: { type: 'integer' }, label: { type: 'string', description: 'Only with `label`, for a record the caller may name' } } } } } }) },
           400: error('BadRequest'), ...auth,
         },
       },

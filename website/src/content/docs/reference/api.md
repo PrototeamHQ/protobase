@@ -42,7 +42,7 @@ Under `/api/v1`:
 | `POST /{resource}/{key}:reveal` | `{ "field": "iban" }` gives `{ field, value }` of one [sensitive field](#sensitive-fields-and-audit), with `Cache-Control: no-store`, and publishes an audit event |
 | `POST /{resource}/{key}:undelete` | restores a soft-deleted record ([AIP-164](https://google.aip.dev/164)); `If-Match` optional; `409` when not deleted, `400` on hard-delete resources |
 | `POST /api/v1:batchWrite` | many writes in one transaction, see [Batch writes](#batch-writes) |
-| `GET /{resource}:facets?field=&filter=&limit=` | `{ field, facets: [{ value, count }] }` |
+| `GET /{resource}:facets?field=&filter=&limit=&label=` | `{ field, facets: [{ value, count }] }`; with `label`, a relation's facets carry the related record's name as `label`, as in [Related names](#related-names) |
 | `GET /{resource}:series?field=&range=&granularity=&time_zone=&filter=` | `range` is `7d`, `30d`, `90d`, `1y`, `all`, or `from` and `to` (ISO) |
 | `GET /{resource}:histogram?field=&buckets=&filter=` | equal-width buckets of a numeric field |
 | `GET /{resource}:map?latitude=&longitude=&zoom=&filter=&order_by=&fields=&labels=` | the records in a map's view, the bounding box being in `filter` (`lat >= 51.9 AND lat <= 52.1 AND lng >= 4.2 AND lng <= 4.5`), as `{ items, buckets, total_size }`; see [Maps](#maps) |

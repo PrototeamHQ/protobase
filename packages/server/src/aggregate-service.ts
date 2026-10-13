@@ -7,6 +7,7 @@ import type { Deps } from './deps'
 import type { ResourceModel } from '@protobase/schema'
 import { badRequest } from './problem'
 import { parseParams } from './params'
+import { labelRequests, relatedLabels } from './related-labels'
 import type { Entry } from './registry'
 import { readScope, requestAccess, requireOperation, type RequestAccess } from './request-access'
 import { columnId, filterCondition, scopeConditions, tableId, whereClause } from './sql-parts'
@@ -16,7 +17,7 @@ import type { Session } from './types'
 const field = z.string().min(1)
 const filter = z.string().optional()
 
-const facetParams = z.object({ field, filter, limit: z.coerce.number().int().optional() })
+const facetParams = z.object({ field, filter, limit: z.coerce.number().int().optional(), label: z.string().min(1).optional() })
 const seriesParams = z.object({
   field,
   filter,
@@ -38,17 +39,27 @@ const scoped = async (deps: Deps, entry: Entry, session: Session, source?: strin
   return { access, model: access.model, filter: checkedFilter(access.model, source), scope: readScope(access) }
 }
 
-/** Counts per value of a field, ignoring the filter's own terms on that field (AIP-160 filters, UI facet panels). */
+/**
+ * Counts per value of a field, ignoring the filter's own terms on that field (AIP-160 filters, UI facet panels). With
+ * `label`, a relation's values carry the `label` field of the record each points at, read as a list's `labels` reads it.
+ */
 export const facets = async (deps: Deps, entry: Entry, session: Session, input: unknown) => {
   const params = parseParams(facetParams, input)
   const { model, filter: checked, scope } = await scoped(deps, entry, session, params.filter)
-  const counts = await readTransaction(deps.db, deps.statementTimeoutMs, (trx) =>
-    facetCounts(trx, model, params.field, checked, {
+  const labels = params.label === undefined ? [] : await labelRequests(deps, session, model, [params.field], `${params.field}.${params.label}`)
+  return readTransaction(deps.db, deps.statementTimeoutMs, async (trx) => {
+    const counts = await facetCounts(trx, model, params.field, checked, {
       statementTimeoutMs: deps.statementTimeoutMs,
       ...(params.limit !== undefined && { limit: params.limit }),
       scope,
-    }))
-  return { field: params.field, facets: counts }
+    })
+    const names = (await relatedLabels(trx, labels, counts.map((facet) => ({ [params.field]: facet.value }))))[params.field] ?? {}
+    const named = counts.map((facet) => {
+      const label = facet.value === null ? undefined : names[String(facet.value)]
+      return label === undefined ? facet : { ...facet, label }
+    })
+    return { field: params.field, facets: named }
+  })
 }
 
 const earliest = async (deps: Deps, access: RequestAccess, fieldName: string, scope: ReturnType<typeof readScope>) => {

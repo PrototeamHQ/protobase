@@ -22,7 +22,7 @@ const listings = resource('listings')
   .fields({
     id: f.integer().readOnly().sortable(),
     address: f.text(),
-    placeId: f.relation('places').optional(),
+    placeId: f.relation('places').optional().filterable(),
     agencyId: f.relation('agencies'),
     price: f.integer().filterable(),
     lat: f.decimal({ precision: 8, scale: 6 }).filterable(),
@@ -142,5 +142,32 @@ describe('labels on a list', () => {
       return response.json()
     }
     expect((await map('10')).labels).toEqual({ placeId: { 1: 'Amsterdam', 2: 'Haarlem' } })
+  })
+})
+
+describe('label on facets', () => {
+  const facets = async (role: string, params: Record<string, string>) => {
+    const response = await app.request(`/api/v1/listings:facets?${new URLSearchParams({ field: 'placeId', ...params })}`, { headers: as(undefined, role) })
+    return { status: response.status, body: await response.json() }
+  }
+
+  it('names each value of a relation by the record it points at', async () => {
+    const { body } = await facets('admin', { label: 'name' })
+    expect(body.facets).toEqual([
+      { value: 1, count: 2, label: 'Amsterdam' },
+      expect.objectContaining({ value: 2, label: 'Haarlem' }),
+      expect.objectContaining({ value: 3, label: 'Madrid' }),
+      { value: null, count: 1 },
+    ])
+  })
+
+  it('names no value outside the related resource\'s row filter, or by a field the caller cannot read', async () => {
+    expect((await facets('northern', { label: 'name' })).body.facets.map((facet: { label?: string }) => facet.label)).toEqual(['Amsterdam', 'Haarlem', undefined, undefined])
+    expect((await facets('nameless', { label: 'name' })).body.facets.every((facet: object) => !('label' in facet))).toBe(true)
+  })
+
+  it('refuses a label for a field that is not a relation', async () => {
+    const response = await app.request(`/api/v1/listings:facets?${new URLSearchParams({ field: 'price', label: 'name' })}`, { headers: as(undefined, 'admin') })
+    expect(response.status).toBe(400)
   })
 })
