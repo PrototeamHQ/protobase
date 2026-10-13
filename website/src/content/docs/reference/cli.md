@@ -267,7 +267,7 @@ A package with a native add-on cannot be inlined: it loads a compiled `.node` fi
 What that means for a package:
 
 - **Prebuilt binaries for every platform inside the npm package** (prebuildify and node-gyp-build: `argon2`, `bcrypt` 6, `bufferutil`): builds anywhere, macOS included.
-- **Per-platform optional packages** (napi-rs, such as `@node-rs/argon2`, and sharp): a package manager installs only the build machine's, so the build fails until the linux ones are installed as well. With pnpm, in `pnpm-workspace.yaml`:
+- **Per-platform optional packages** (napi-rs, such as `@node-rs/argon2`, and sharp): a package manager installs only the build machine's, so the build fails until the linux ones are installed as well. With Bun, `bun install --os='*' --cpu='*'` installs every platform's. With pnpm, in `pnpm-workspace.yaml`:
 
   ```yaml
   supportedArchitectures:

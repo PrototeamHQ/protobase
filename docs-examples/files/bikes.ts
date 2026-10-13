@@ -10,7 +10,7 @@ const sha256 = processor({
 })
 
 // A bike shop's bikes for sale: a photo with its size in two more columns, a manual, and a public picture for the
-// shop's website.
+// shop's website, stored at most 2048 pixels wide as WebP, with a card-sized copy and a placeholder.
 export const bikes = resource('bikes')
   .table('shop.bikes')
   .fields({
@@ -22,6 +22,14 @@ export const bikes = resource('bikes')
     manual: f.file().accept(['application/pdf']).optional().derive({ manual_bytes: fileSize(), manual_sha256: sha256 }),
     manual_bytes: f.integer().readOnly().optional(),
     manual_sha256: f.text().readOnly().optional(),
-    listing: f.file().accept(['image/png', 'image/jpeg', 'image/webp']).maxSize('2 MB').public().optional(),
+    listing: f
+      .file()
+      .accept(['image/png', 'image/jpeg', 'image/webp'])
+      .maxSize('2 MB')
+      .public()
+      .optional()
+      .placeholder('listing_placeholder')
+      .variants({ card: { width: 640, height: 480, fit: 'cover', format: 'webp', quality: 75 } }, { original: { width: 2048, format: 'webp' } }),
+    listing_placeholder: f.text().readOnly().optional(),
   })
   .primaryKey((r) => r.id)

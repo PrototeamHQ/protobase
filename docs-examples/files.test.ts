@@ -19,7 +19,13 @@ describe('files', () => {
   it('declare file fields with their allowed types, size, provider and derived fields', () => {
     const model = bikes.toModel()
     expect(model.fields.photo!.file).toEqual({ accept: ['image/*'], maxSize: 10_000_000, provider: 'private', derive: ['photo_width', 'photo_ratio'] })
-    expect(model.fields.listing!.file).toMatchObject({ provider: 'public', maxSize: 2_000_000 })
+    expect(model.fields.listing!.file).toMatchObject({
+      provider: 'public',
+      maxSize: 2_000_000,
+      placeholder: 'listing_placeholder',
+      variants: { card: { width: 640, height: 480, fit: 'cover', format: 'webp', quality: 75 } },
+      original: { width: 2048, format: 'webp' },
+    })
     expect(model.fields.manual!.file).toMatchObject({ accept: ['application/pdf'], provider: 'private' })
   })
 
@@ -30,7 +36,8 @@ describe('files', () => {
     expect(await derived('manual').manual_sha256!.run(input('application/pdf', manual))).toMatch(/^[0-9a-f]{64}$/)
   })
 
-  it('configure three providers, one of them public and one keeping files longer', () => {
+  it('configure three providers, one of them public and one keeping files longer, and sharp for the images', () => {
+    expect(project.files!.sharp).toBeTypeOf('function')
     const providers = project.files!.providers!
     expect(Object.keys(providers)).toEqual(['private', 'public', 'archive'])
     expect(providers.public!.public).toBe(true)

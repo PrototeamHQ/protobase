@@ -1,3 +1,4 @@
+import sharp from 'sharp'
 import { defineConfig, localFiles } from '@protobase/server'
 import * as config from './config'
 
@@ -10,5 +11,7 @@ export default defineConfig({
       archive: localFiles({ dir: '/mnt/archive', retention: '30 days' }),
     },
     retention: '1 day',
+    // Makes the image variants and placeholders
+    sharp,
   },
 })

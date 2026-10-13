@@ -1,6 +1,6 @@
 ---
 title: Files
-description: File fields, uploads with types detected from the content, downloads, derived fields, and how stored files are deleted.
+description: File fields, uploads with types detected from the content, downloads, derived fields, image variants and placeholders, and how stored files are deleted.
 ---
 
 import { Code } from '@astrojs/starlight/components'
@@ -18,6 +18,8 @@ A file field is a `text` column that holds the file's URI. The bytes live with a
 | `.public()` | Stored with the `public` provider, whose files anyone with the link may open. |
 | `.storage('archive')` | Stored with another provider; default `private`. |
 | `.derive({ field: processor })` | Values computed from each upload and written to other fields of the row, see [Derived fields](#derived-fields). |
+| `.placeholder('photo_placeholder')` | Each image's ThumbHash in that text field, drawn while the image loads, see [Image variants and placeholders](#image-variants-and-placeholders). |
+| `.variants({ card: { … } }, { original? })` | Resized copies of each image stored beside it, see [Image variants and placeholders](#image-variants-and-placeholders). |
 
 A file field cannot be filterable, sortable, aliased, searched, sensitive, or the key, tenant, owner or soft delete field. [`protobase doctor`](/reference/cli/#doctor) checks that its column is a text type.
 
@@ -29,7 +31,7 @@ private:1/2992db9c-776e-4d4e-9e0f-59d485fefaf9.jpg?name=bike+red.png&size=48211
 
 - The **scheme is the provider's name**, so a provider can move from local disk to a bucket without touching any row. Name the role (`archive`), not the vendor: the name is part of every stored value.
 - The **path** of an upload is `<tenant>/<random id>.<extension>`, with `_` for a resource without a tenant. Nothing in it comes from the row or from what the user typed, so renames and key changes need nothing.
-- The **query** holds the uploader's file name and the size in bytes. A plain `{provider}:{path}`, such as `public:images/test.jpg` written by an import, is valid too; its name is its last path segment.
+- The **query** holds the uploader's file name and the size in bytes, and for an image with [variants](#image-variants-and-placeholders) their names and extensions: `&variants=card.webp,thumb.webp`. A plain `{provider}:{path}`, such as `public:images/test.jpg` written by an import, is valid too; its name is its last path segment.
 - The **type is not stored**. It is the path's extension, looked up in one fixed table, which is also what downloads are served as.
 
 Responses carry each file field as an object, and the stored value stays the URI:
@@ -39,7 +41,7 @@ Responses carry each file field as an object, and the stored value stays the URI
   "url": "/api/files/private/1/2992db9c-….jpg?r=bikes&k=42&f=photo&exp=1791673200&sig=…" }
 ```
 
-A value that does not parse, or names a provider the config lacks, comes back as `{ uri, missing: true }`. The URL is made for each response and never changes the record's ETag.
+An image with variants also has `variants`, each `{ url, type, width, height }` by name, and one with a placeholder its `placeholder`. A value that does not parse, or names a provider the config lacks, comes back as `{ uri, missing: true }`. The URL is made for each response and never changes the record's ETag.
 
 ## Providers
 
@@ -130,11 +132,42 @@ The decided type picks the stored extension, and downloads are served by that ex
 
 Processors run once, on the upload route, after the file is stored. A processor whose `accepts` does not match the type leaves its field `null`, so a field that takes images and PDFs gets a width only for images. The values travel signed inside the ticket and are written with the file in the same transaction; replacing the file recomputes them and clearing it sets them to `null`. A value the field's own schema refuses is an error in the processor. Files stored before a processor was added keep their fields as they are.
 
+## Image variants and placeholders
+
+`.placeholder()` and `.variants()` process each image as it is uploaded, with [sharp](https://sharp.pixelplumbing.com):
+
+```ts
+photo: f.file().accept(['image/*']).public()
+  .placeholder('photo_placeholder')
+  .variants({
+    card: { width: 800, height: 600, fit: 'cover', format: 'webp', quality: 75 },
+    thumb: { width: 96, height: 96, fit: 'cover', format: 'webp' },
+  }),
+photo_placeholder: f.text().readOnly().optional(),
+```
+
+- **`.placeholder('photo_placeholder')`** computes the image's [ThumbHash](https://evanw.github.io/thumbhash/), about 30 characters of base64 that hold its shape and colours, into that read-only text field, written with the file like a [derived field](#derived-fields). The admin app draws it blurred wherever it shows the image, until the image has loaded.
+- **`.variants({ name: variant })`** stores resized copies beside the file, each at most `width` by `height` pixels (either may be left out) and never enlarged. `fit: 'inside'`, the default, keeps the whole image in that box; `'cover'` fills the box and crops the rest, and needs both sides. `format` is `webp`, `avif`, `jpeg` or `png`, and `quality` 1 to 100, the format's default when left out. Names are snake_case. A variant is stored at the file's path followed by its name and extension (`…/2992db9c-….jpg.card.webp`) with the same provider, served and deleted with the file. The admin app shows tables, forms and cards with the smallest variant large enough for them.
+- **`{ original: variant }`**, as `.variants()`' second argument, stores that image instead of the upload, so the upload is not kept: `{ original: { width: 2560, format: 'webp' } }` stores at most 2560 pixels wide as WebP.
+
+Variants and placeholders turn the image upright first, following its EXIF orientation, and carry no metadata. JPEG, PNG, WebP, AVIF, GIF and TIFF images are processed; any other file, HEIC and SVG included, is stored as it is, without variants, and its placeholder is `null`. Files uploaded before a field declared them keep none.
+
+sharp is a native package, so the config passes it in, and a [built bundle](/reference/cli/#native-packages) carries it with its add-on for linux:
+
+```ts
+// protobase.config.ts
+import sharp from 'sharp'
+
+export default defineConfig({ config, files: { sharp } })
+```
+
+The server does not start with a field that declares variants or a placeholder and no `files.sharp`. In code, `fileUrl(file, 'card')` from `@protobase/client` links a variant by name, or the file itself when it has none.
+
 ## Deleting files
 
 Files are deleted by schedule, never in the write itself, so a restore of the database to an earlier moment still finds its files:
 
-- A write that **replaces or clears** a file, or **deletes a row** (not a soft delete), schedules the delete of each file it took out of its row. It is due after the provider's retention: `files.retention`, 1 day by default, or 0 for a public provider.
+- A write that **replaces or clears** a file, or **deletes a row** (not a soft delete), schedules the delete of each file it took out of its row, with its variants. It is due after the provider's retention: `files.retention`, 1 day by default, or 0 for a public provider.
 - Every **upload** schedules one too, due an hour after its ticket expires, so a file nobody saved, or whose write rolled back, goes as well.
 - Each scheduled delete is a small JSON object in the provider's own storage, in a `.cleanup/` folder, named after its due time and saying what to delete: `.cleanup/2026-10-12T03-00-00Z-<uuid>.json` holding `{ "provider": "private", "path": "1/2992db9c-….jpg", "due": "…" }`.
 - A **cleanup run** handles the entries that are due. Right before deleting, it checks every file column of every resource for the file: one that a row holds again (a rolled-back write, a restore, a copied value) is kept, and its entry dropped. Two runs at once do no harm.
