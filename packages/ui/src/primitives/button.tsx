@@ -17,16 +17,19 @@ const variants = {
 
 const sizes = { sm: 'h-7 px-2.5 text-xs gap-1.5', md: 'h-8 px-3 text-[13px] gap-2' }
 
+/** A button's classes, for a link that looks like one. */
+export const buttonClass = ({ variant = 'secondary', size = 'md' }: Pick<ButtonProps, 'variant' | 'size'> = {}) =>
+  cn(
+    'inline-flex shrink-0 items-center justify-center rounded-md font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:opacity-60 disabled:cursor-default',
+    variants[variant],
+    sizes[size],
+  )
+
 export const Button = ({ variant = 'secondary', size = 'md', loading, className, children, disabled, ...rest }: ButtonProps) => (
   <button
     type="button"
     disabled={disabled || loading}
-    className={cn(
-      'inline-flex shrink-0 items-center justify-center rounded-md font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:opacity-60 disabled:cursor-default',
-      variants[variant],
-      sizes[size],
-      className,
-    )}
+    className={cn(buttonClass({ variant, size }), className)}
     {...rest}
   >
     {loading && <Spinner className="size-3.5" />}

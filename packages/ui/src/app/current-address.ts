@@ -18,6 +18,17 @@ export type ListChange = Partial<Omit<ListAddress, 'kind' | 'resource'>>
 
 export type ListDefaults = Pick<ListAddress, 'display' | 'orderBy' | 'filterLayout'>
 
+/**
+ * The resource whose records a list shows, with its view: the list's own, or, when its view has `listOf`, the resource
+ * that relation points at, if the caller can see it.
+ */
+export const listedResource = (resources: Record<string, ResourceModel>, views: Record<string, ViewModel>, resource: string) => {
+  const model = resources[resource]
+  const listOf = views[resource]?.listOf
+  const target = listOf === undefined ? undefined : model?.fields[listOf]?.relation?.resource
+  return target !== undefined && resources[target] ? { model: resources[target], view: views[target], listOf: true } : { model, view: views[resource], listOf: false }
+}
+
 /** What a list shows when its address names nothing: its default display for the screen, the list's sort, the filters in a bar. */
 export const listDefaults = (model: ResourceModel | undefined, view: ViewModel | undefined, xs = false): ListDefaults => ({
   display: defaultDisplay(view, xs),

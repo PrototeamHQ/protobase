@@ -20,7 +20,7 @@ export const Dialog = ({ title, description, onClose, actions, children }: Dialo
         <h2 className="text-[15px] font-semibold">{title}</h2>
         {description && <p className="mt-1.5 text-[13px] text-muted-foreground">{description}</p>}
         {children && <div className="mt-4">{children}</div>}
-        <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end [&>button]:min-h-11 sm:[&>button]:min-h-0">{actions}</div>
+        <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end [&>*]:min-h-11 sm:[&>*]:min-h-0">{actions}</div>
       </div>
     </div>
   )

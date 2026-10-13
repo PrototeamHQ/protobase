@@ -18,6 +18,8 @@ export { useListDisplay, type ListDisplay } from './app/displays/display-context
 export type { ListDisplayRow, RecordCardProps } from './app/displays/list-displays'
 export { RecordLink } from './app/displays/record-link'
 export { useApiToken } from './auth/use-api-token'
+export { SignInPrompt, type SignInPromptProps } from './auth/sign-in-prompt'
+export { ResponsiveDialog, type ResponsiveDialogProps } from './primitives/responsive-dialog'
 export { AssistantDock, PartView, useAssistant, useAssistantClient, useBackendData, type AssistantDockProps, type BackendData, type BackendRefresh } from './assistant-dock'
 export { ChatMessage, ChatThread, Composer, type ChatThreadProps, type ComposerProps } from './chat'
 export { SidePanel, type SidePanelProps } from './side-panel'

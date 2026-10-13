@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
-import type { ListDisplayModel, ResourceModel, ViewModel } from '@protobase/schema'
+import type { KeyValue, ListDisplayModel, ResourceModel, ViewModel } from '@protobase/schema'
 import { displayValue } from '../../live/display-value'
+import { recordKey } from '../../live/model-helpers'
 import { humanize } from '../../live/naming'
 import { Badge } from '../../primitives/badge'
 import { AppLink } from '../use-app-address'
@@ -8,6 +9,7 @@ import { shownWidget } from '../field-types/shown-widget'
 import { WidgetPart } from '../field-types/widget-part'
 import { namedIcon } from '../named-icon'
 import { CustomBoundary } from '../pages/custom-boundary'
+import { FavoriteButton } from '../saved/favorite-button'
 import { useProjectUi } from '../pages/project-ui'
 import { ValueBadge } from '../value-badge'
 import { CardCarousel } from './card-carousel'
@@ -39,7 +41,7 @@ const MetaValue = ({ icon, children }: { icon: string | undefined; children: Rea
  * when the display names them, the title over the subtitle, the badge beside it, the first amount with a value in bold,
  * small meta fields below, those with a value, the labels of its flags that are true and the footer's fields with a
  * value, joined by bullets; or, with a `card` component, what it draws of the row, the built-in content again when it
- * is missing or throws.
+ * is missing or throws. With a favorite button, a heart in the top right corner saves the record.
  */
 export const RecordCard = ({ model, view, display, row, swipe = true }: RecordCardProps) => {
   const { image, title, subtitle, amount, badge, meta, footer, flags } = cardFields(model, view, display)
@@ -89,10 +91,13 @@ export const RecordCard = ({ model, view, display, row, swipe = true }: RecordCa
   const cover = image === undefined ? undefined : row.record[image]
   const shownAmount = filledAmount(row, amount)
   const footing = filledMeta(row, footer)
+  const pictured = image !== undefined || photos !== undefined
+  // The heart sits over the picture, or beside the title, which leaves it room
+  const favorite = display.favorite
   const builtIn = (picture: ReactNode) => (
     <>
-      {(image !== undefined || photos !== undefined) && picture}
-      <span className="flex items-start justify-between gap-2">
+      {pictured && picture}
+      <span className={`flex items-start justify-between gap-2 ${favorite && !pictured ? 'pr-8' : ''}`}>
         <span className="min-w-0 truncate font-medium">{shownValue(title)}</span>
         {badge !== undefined && status !== null && status !== undefined && (
           <ValueBadge value={status} hints={view?.fields[badge]}>
@@ -148,7 +153,7 @@ export const RecordCard = ({ model, view, display, row, swipe = true }: RecordCa
     </AppLink>
   )
   return (
-    <div className={photos ? 'group/card relative h-full' : 'h-full'}>
+    <div className={photos ? 'group/card relative h-full' : favorite ? 'relative h-full' : 'h-full'}>
       {photos ? (
         <CardCarousel photos={photos} recordKey={row.key} cover={cover} swipe={swipe}>
           {card}
@@ -156,6 +161,7 @@ export const RecordCard = ({ model, view, display, row, swipe = true }: RecordCa
       ) : (
         card(<CardImage value={cover} />)
       )}
+      {favorite && <FavoriteButton favorite={favorite} recordKey={row.key} target={recordKey(model, row.record) as KeyValue} className={pictured ? undefined : 'right-1.5 top-1.5'} />}
     </div>
   )
 }

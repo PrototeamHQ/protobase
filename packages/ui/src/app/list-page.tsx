@@ -31,21 +31,48 @@ import { parseSort, sortToOrderBy } from './list-order'
 import { ListSearch } from './list-search'
 import { Notice, useAdminMeta, usePermissions } from './meta-gate'
 import { can, rowAllows } from './permissions'
+import { listedResource } from './current-address'
 import { useAppAddress, type ListAddress } from './use-app-address'
 import { withFieldTypeCells } from './field-types/field-type-cells'
 import { useProjectUi } from './pages/project-ui'
+import { SavedList } from './saved/saved-list'
+import { SignInPrompt } from '../auth/sign-in-prompt'
 
 const where = createWhere()
 const searchText = (extras: FilterExpr[]) => extras.find((clause) => clause.kind === 'search')
 
+/**
+ * A resource's list: its rows, or with `listOf` the records its relation points at (`SavedList`). A visitor who cannot
+ * see the resource is told what signing in gives, when its view says (`SignInPrompt`).
+ */
 export const ListPage = ({ address }: { address: ListAddress }) => {
-  const { resources } = useAdminMeta()
+  const { resources, views, signIn } = useAdminMeta()
   const model = resources[address.resource]
-  if (!model) return <Notice title="Not found">There is no resource called {address.resource}.</Notice>
+  const prompt = signIn?.[address.resource]
+  if (!model) return prompt ? <SignInPrompt as="page" prompt={prompt.signIn} /> : <Notice title="Not found">There is no resource called {address.resource}.</Notice>
+  const view = views[address.resource]
+  const listed = listedResource(resources, views, address.resource)
+  if (view && listed.listOf) {
+    const target = listed.model!
+    return (
+      <SavedList model={model} view={view} target={target}>
+        {(scope) => <LoadedList model={target} address={address} scope={scope} heading={{ title: view.names?.plural ?? humanize(model.name), subtitle: view.help }} />}
+      </SavedList>
+    )
+  }
   return <LoadedList model={model} address={address} />
 }
 
-const LoadedList = ({ model, address }: { model: ResourceModel; address: ListAddress }) => {
+type LoadedListProps = {
+  model: ResourceModel
+  address: ListAddress
+  /** A filter every load adds to the address's, which the address never shows: the records among the user's saved ones. */
+  scope?: FilterExpr
+  /** The title and the line under it, instead of the view's; the list of saved records takes its own resource's. */
+  heading?: { title: string; subtitle?: string }
+}
+
+const LoadedList = ({ model, address, scope, heading }: LoadedListProps) => {
   const meta = useAdminMeta()
   const { set, go } = useAppAddress()
   const resource = model.name
@@ -62,10 +89,12 @@ const LoadedList = ({ model, address }: { model: ResourceModel; address: ListAdd
   const desktop = useIsDesktop()
   const [sheetOpen, setSheetOpen] = useState(false)
 
-  const config = useFilterConfig({ model, resources: meta.resources, views: meta.views, view, state, extras })
+  const scoped = scope ? [...extras, scope] : extras
+  const config = useFilterConfig({ model, resources: meta.resources, views: meta.views, view, state, extras: scoped })
+  const loadFilter = scope ? stateToText(fields, state, scoped) : parsed.ok ? filterText : ''
   // One load serves the table and every display, labelled for the relations any of them shows
   const loaded = useMemo(() => loadedFields(model, view, columns.map((column) => column.id)), [model, view, columns])
-  const rows = useLiveRows({ resources: meta.resources, views: meta.views, model, columns: loaded, filter: parsed.ok ? filterText : '', orderBy })
+  const rows = useLiveRows({ resources: meta.resources, views: meta.views, model, columns: loaded, filter: loadFilter, orderBy })
   const display = shownDisplay(view, address.display)
   // The table and the cards are as tall as all their rows and scroll with the page; the map and a custom display fill
   // the screen
@@ -125,7 +154,7 @@ const LoadedList = ({ model, address }: { model: ResourceModel; address: ListAdd
       </Sheet>
     </div>
   )
-  const createButton = can(permissions, 'create') && (
+  const createButton = !scope && can(permissions, 'create') && (
     <Button variant="primary" onClick={() => go({ kind: 'create', resource })}>
       <Plus className="size-3.5" />
       New {singular.toLowerCase()}
@@ -163,7 +192,7 @@ const LoadedList = ({ model, address }: { model: ResourceModel; address: ListAdd
     // A change of filter or sort starts the cards again at the top
     if (display.kind === 'cards') return <ListCards key={rows.key.join(' ')} model={model} view={view} display={display} list={cardsList} />
     if (display.kind === 'map') {
-      return <MapDisplay model={model} view={view} display={display} filter={parsed.ok ? filterText : ''} orderBy={orderBy} fields={loaded} at={address.map} onMove={(map) => set({ map })} flush />
+      return <MapDisplay model={model} view={view} display={display} filter={loadFilter} orderBy={orderBy} fields={loaded} at={address.map} onMove={(map) => set({ map })} flush />
     }
     return <CustomDisplay display={display} list={displayRows} />
   }
@@ -173,8 +202,8 @@ const LoadedList = ({ model, address }: { model: ResourceModel; address: ListAdd
     <div className="flex min-h-0 flex-1 flex-col gap-3 px-5 py-4">
       {remove.dialogs}
       <PageHeader
-        title={plural}
-        subtitle={view?.help}
+        title={heading?.title ?? plural}
+        subtitle={heading ? heading.subtitle : view?.help}
         aside={!desktop && displaySwitch(true)}
         actions={
           desktop ? (
@@ -189,7 +218,7 @@ const LoadedList = ({ model, address }: { model: ResourceModel; address: ListAdd
       />
       {!parsed.ok && <ErrorBanner title="The filter in the address could not be read" error={new Error(parsed.errors.map((error) => error.message).join('; '))} />}
       {rows.error && !display && <ErrorBanner title="Could not load rows" error={rows.error} />}
-      {view?.chart && <ListChart resource={resource} chart={view.chart} title={`${plural} created`} noun={plural.toLowerCase()} filter={parsed.ok ? filterText : ''} />}
+      {view?.chart && <ListChart resource={resource} chart={view.chart} title={`${plural} created`} noun={plural.toLowerCase()} filter={loadFilter} />}
       {desktop ? desktopToolbar : phoneFilters}
       {desktop && layout === 'panel' ? (
         <div className="flex min-h-0 flex-1 gap-4">

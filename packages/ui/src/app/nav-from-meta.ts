@@ -13,7 +13,8 @@ const groupLabels: Record<string, string> = { sales: 'Sales', crm: 'CRM', catalo
  * One sidebar group per `nav.group` (default: the database schema, and "Pages" for pages); `nav.hidden` and a place in
  * the user menu leave an entry out, `nav.order` sorts within a group, and `recent` (from `useNavRecent`) makes an entry
  * collapsible. Groups with pages come first, so a dashboard leads the sidebar. The resources of a source that cannot be
- * read are listed under its label, each with the problem.
+ * read are listed under its label, each with the problem. A visitor also gets the resources whose views ask them to sign
+ * in, where those views place them, under "Account" without a group.
  */
 export const navFromMeta = (meta: MetaData, basePath = '', recent: Record<string, NavRecent> = {}): NavGroup[] => {
   const groups = new Map<string, NavGroup>()
@@ -42,6 +43,15 @@ export const navFromMeta = (meta: MetaData, basePath = '', recent: Record<string
     })
     groups.set(groupName, group)
     orders.set(model.name, view.nav?.order ?? Number.MAX_SAFE_INTEGER)
+  }
+  // A visitor finds what signing in gives where a signed-in user finds the resource
+  for (const entry of Object.values(meta.signIn ?? {})) {
+    if (entry.nav?.hidden || inMenu.has(entry.resource)) continue
+    const groupName = entry.nav?.group ?? 'Account'
+    const group = groups.get(groupName) ?? { label: groupName, items: [] }
+    group.items.push({ id: entry.resource, label: entry.names?.plural ?? humanize(entry.resource), icon: iconFor(entry.resource), href: appPath({ kind: 'list', resource: entry.resource }, basePath) })
+    groups.set(groupName, group)
+    orders.set(entry.resource, entry.nav?.order ?? Number.MAX_SAFE_INTEGER)
   }
   // A source that cannot be read keeps its resources in the sidebar, under its label and marked, so the person sees
   // what is missing and why; its own views place them once it answers.

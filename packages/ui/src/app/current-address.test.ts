@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { f, resource, view } from '@protobase/schema'
-import { changedList, currentAddress, listDefaults, type ListDefaults } from './current-address'
+import { changedList, currentAddress, listDefaults, listedResource, type ListDefaults } from './current-address'
 
 const defaults: ListDefaults = { display: 'table', orderBy: 'bookedOn desc', filterLayout: 'bar' }
 
@@ -56,5 +56,16 @@ describe('listDefaults', () => {
     const tabled = view<typeof repairs>('repairs').list((r, d) => ({ columns: [r.id], displays: [d.cards({})] })).toModel()
     expect(listDefaults(repairs.toModel(), tabled).display).toBe('table')
     expect(listDefaults(repairs.toModel(), tabled, true).display).toBe('cards')
+  })
+
+  it("lists the records a view's listOf points at, with their view, when the caller can see them", () => {
+    const homes = resource('homes').table('homes').fields({ id: f.integer(), address: f.text() }).primaryKey((r) => r.id)
+    const saved = resource('saved').table('saved').fields({ id: f.integer(), home_id: f.relation('homes') }).primaryKey((r) => r.id)
+    const homesView = view<typeof homes>('homes').toModel()
+    const savedView = view<typeof saved>('saved').listOf((r) => r.home_id).toModel()
+    const resources = { homes: homes.toModel(), saved: saved.toModel() }
+    expect(listedResource(resources, { homes: homesView, saved: savedView }, 'saved')).toEqual({ model: resources.homes, view: homesView, listOf: true })
+    expect(listedResource(resources, { homes: homesView, saved: savedView }, 'homes')).toEqual({ model: resources.homes, view: homesView, listOf: false })
+    expect(listedResource({ saved: resources.saved }, { saved: savedView }, 'saved')).toEqual({ model: resources.saved, view: savedView, listOf: false })
   })
 })

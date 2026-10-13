@@ -37,6 +37,27 @@ describe('navFromMeta', () => {
     ])
   })
 
+  it("lists the resources a visitor is asked to sign in for where their views place them, and under Account without a place", () => {
+    const view = (resource: string) => ({ resource, fields: {}, filters: [], layout: [], actions: [] }) as unknown as ViewModel
+    const prompt = { title: 'Sign in', description: 'To keep them.' }
+    const meta = {
+      etag: '"x"',
+      permissions: {},
+      pages: {},
+      resources: { listings: model('listings', 'market') },
+      views: { listings: { ...view('listings'), nav: { group: 'Browse' } } },
+      signIn: {
+        favorites: { resource: 'favorites', names: { singular: 'Favorite', plural: 'Favorites' }, nav: { group: 'Browse', order: 0 }, signIn: prompt },
+        alerts: { resource: 'alerts', signIn: prompt },
+        notes: { resource: 'notes', nav: { hidden: true }, signIn: prompt },
+      },
+    }
+    expect(navFromMeta(meta, '/app').map((group) => [group.label, group.items.map((item) => [item.label, item.href])])).toEqual([
+      ['Browse', [['Favorites', '/app/favorites'], ['Listings', '/app/listings']]],
+      ['Account', [['Alerts', '/app/alerts']]],
+    ])
+  })
+
   it('honours nav group and order', () => {
     const view = (resource: string, nav: object) => ({ resource, fields: {}, filters: [], layout: [], actions: [], nav }) as unknown as ViewModel
     const meta = {

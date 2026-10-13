@@ -1,7 +1,7 @@
 import { useCallback, useMemo, type AnchorHTMLAttributes } from 'react'
 import { appPath, readAppPath, type AppAddress } from '@protobase/schema'
 import { useIsXs } from '../lib/use-media-query'
-import { changedList, currentAddress, listDefaults, type ListChange } from './current-address'
+import { changedList, currentAddress, listDefaults, listedResource, type ListChange } from './current-address'
 import { useAdminMeta } from './meta-gate'
 import { Link, useRouter } from './router'
 
@@ -19,7 +19,13 @@ export const useAppAddress = () => {
   const pageNames = useMemo(() => new Set(Object.keys(pages)), [pages])
   const query = params.toString()
   const read = useMemo(() => readAppPath(query ? `${path}?${query}` : path, pageNames), [path, query, pageNames])
-  const defaults = useCallback((resource: string) => listDefaults(resources[resource], views[resource], xs), [resources, views, xs])
+  const defaults = useCallback(
+    (resource: string) => {
+      const listed = listedResource(resources, views, resource)
+      return listDefaults(listed.model, listed.view, xs)
+    },
+    [resources, views, xs],
+  )
   const address = useMemo(() => currentAddress(read, defaults), [read, defaults])
 
   const go = useCallback((to: AppAddress, options?: { replace?: boolean }) => navigate(appPath(to), options), [navigate])
