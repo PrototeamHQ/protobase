@@ -1,4 +1,5 @@
 import * as nodeServer from '@hono/node-server'
+import * as reactEmailRender from '@react-email/render'
 import * as apiReference from '@scalar/hono-api-reference'
 import * as aipParsers from 'aip-parsers'
 import * as betterAuth from 'better-auth'
@@ -11,6 +12,8 @@ import * as kysely from 'kysely'
 import * as kyselyPostgres from 'kysely/helpers/postgres'
 import * as pg from 'pg'
 import * as postgres from 'postgres'
+import * as react from 'react'
+import * as reactJsxRuntime from 'react/jsx-runtime'
 import * as zod from 'zod'
 import * as layout from '@protobase/layout'
 import * as query from '@protobase/query'
@@ -38,6 +41,9 @@ const hostModules: Record<HostModuleId, Record<string, unknown>> = {
   'aip-parsers': aipParsers,
   '@hono/node-server': nodeServer,
   '@scalar/hono-api-reference': apiReference,
+  react,
+  'react/jsx-runtime': reactJsxRuntime,
+  '@react-email/render': reactEmailRender,
 }
 
 type ModuleLoader = () => { exports: Record<string, unknown>; loader: 'object' }

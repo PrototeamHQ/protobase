@@ -42,6 +42,7 @@
     "@protobase/schema": "workspace:*",
     "@protobase/server": "workspace:*",
     "@protobase/ui": "workspace:*",
+    "@react-email/render": "^2.1.0",
     "@scalar/hono-api-reference": "^0.12.10",
     "@tailwindcss/vite": "^4.3.3",
     "@vitejs/plugin-react": "^6.1.2",
@@ -56,6 +57,7 @@
     "pg": "^8.23.1",
     "postcss": "^8.5.29",
     "postgres": "^3.4.9",
+    "react": "^19.3.0",
     "ts-morph": "^28.0.0",
     "vite": "^8.3.3",
     "zod": "^4.6.5"

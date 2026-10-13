@@ -1,0 +1,77 @@
+---
+title: Email
+description: The SMTP server and sender an app's mail goes out through, and emails of the app's own, written as React components with typed data and sent from jobs, hooks and API functions.
+---
+
+import { Code } from '@astrojs/starlight/components'
+import template from '../../../../../docs-examples/email/repair-ready.tsx?raw'
+import jobs from '../../../../../docs-examples/email/jobs.ts?raw'
+import config from '../../../../../docs-examples/email/protobase.config.ts?raw'
+import resend from '../../../../../docs-examples/email/resend-repair-ready.ts?raw'
+
+An app sends mail through one SMTP server: Protobase's own mail ([password reset](/reference/auth/#password-reset), [emailed sign-in codes](/reference/auth/#emailed-sign-in-codes), [invitations](/reference/auth/#organizations) and staff sign-in notices) and the emails the app defines itself. Protobase's own mail is plain text; an app's emails are React components, rendered to HTML with a plain-text part beside it.
+
+## Configuration
+
+| Variable | |
+| --- | --- |
+| `PROTOBASE_SMTP_URL` | The SMTP server, credential included: `smtp://user:password@host:587` (STARTTLS when the server offers it) or `smtps://user:password@host:465` (TLS from the start). |
+| `PROTOBASE_MAIL_FROM` | The sender, a plain address such as `noreply@shop.example.com`. The client greets the server with its domain; a `?name=` on the URL overrides that. |
+
+Set both or neither. One without the other, a URL that is not `smtp://` or `smtps://`, or a sender that is not a plain address stops the app at startup. Without them mail is off: password reset and emailed codes are not offered, a job's `mail` is `undefined`, and sending an app's email rejects.
+
+`protobase dev` and `protobase serve` read them from the environment or the nearest `.env`; a host passes them like `DATABASE_URL`. In development, a mail catcher such as [Mailpit](https://mailpit.axllent.org) shows what the app sends without delivering it:
+
+```sh
+docker run -d -p 8025:8025 -p 1025:1025 axllent/mailpit   # its inbox is http://localhost:8025
+
+# .env
+PROTOBASE_SMTP_URL=smtp://localhost:1025
+PROTOBASE_MAIL_FROM=noreply@shop.example.com
+```
+
+A project that delivers mail another way passes a `mailer`, `{ send({ to, subject, text, html }) }`, to [`createAuth`](/reference/auth/#password-reset) and `startJobs`, or `mailer: false` to turn mail off whatever the environment says. A template's `send` takes one too, see [Templates](#templates).
+
+## Templates
+
+An email of the app's own is `defineEmail`: a name, a subject, and a React component whose props are the email's data. The components of [React Email](https://react.email) render the tables and inline styles email clients need. `@protobase/server` brings React's renderer; the project adds the components, and React for its JSX, which a project with a UI has already:
+
+```sh
+bun add react-email react
+bun add -d @types/react
+```
+
+<Code code={template} lang="tsx" title="config/emails/repair-ready.tsx" />
+
+| `defineEmail` option | |
+| --- | --- |
+| `name` | Names the email in errors. |
+| `subject` | The subject line, or a function of the data that makes it. |
+| `component` | The body, a React component of the data. It is rendered with React Email's `render` to the HTML part; the plain-text part is made from that HTML, leaving out what React Email marks to skip, such as `<Preview>`. |
+
+The template that comes back has two methods, both typed by the component's props:
+
+- `render(data)` gives `{ subject, html, text }` without sending anything: for a test, or to look at the result.
+- `send(to, data, mailer?)` renders and sends it, through `mailer` when given (a job's `mail`), otherwise through `PROTOBASE_SMTP_URL`. It rejects when mail is off or the server refuses the message.
+
+React and React Email's renderer are loaded on the first email rendered, not when the app starts.
+
+## Sending
+
+A **job** is the usual place: it runs after the write that asked for it has committed, and a message the server refuses fails the try, which is retried. Pass the job's `mail`, so a job runtime started with a mailer of its own sends through it:
+
+<Code code={jobs} lang="ts" title="config/jobs.ts" />
+
+A **write hook** runs in the write's transaction, which may still roll back. It enqueues the job rather than sending, so the email goes out only for a write that committed:
+
+<Code code={config} lang="ts" title="protobase.config.ts" />
+
+An **[API function](/guides/api-functions/)** may send directly, as the answer to a request:
+
+<Code code={resend} lang="ts" title="functions/resend-repair-ready.ts" />
+
+A message is sent once per call, so a job try that sends and then fails sends again: record what was sent, and check it first.
+
+## In a bundle
+
+A [bundle](/reference/cli/#the-config-module) gets React and React Email's renderer from the serve runtime, as it gets `@protobase/server`, so an email's component and the renderer share one React and hooks such as `useContext` work. React Email's other components are inlined. Its `<Tailwind>` component needs `tailwindcss`, which the runtime does not supply, so a served config cannot use it: style with `style` props instead.

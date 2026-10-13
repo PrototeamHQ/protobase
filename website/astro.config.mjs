@@ -29,6 +29,7 @@ export default defineConfig({
             'reference/events',
             'reference/webhooks',
             'reference/jobs',
+            'reference/email',
             'reference/access',
             'reference/auth',
             'reference/client',

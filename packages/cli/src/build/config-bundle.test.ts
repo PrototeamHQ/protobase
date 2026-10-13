@@ -167,10 +167,41 @@ export const thingsView = view('things').names({ singular: 'Thing 😀', plural:
     for (const id of ['hono/cors', 'hono/http-exception', 'hono/validator']) expect(code).toContain(`from "${id}"`)
   })
 
+  const welcomeEmail = (components: string, body: string) =>
+    [
+      `import { defineEmail } from '@protobase/server'`,
+      `import { ${components} } from 'react-email'`,
+      `export const welcome = defineEmail({ name: 'welcome', subject: 'Welcome', component: ({ url }: { url: string }) => ${body} })`,
+    ].join('\n')
+
+  it("leaves React to the serve runtime, so an email's component renders with the runtime's React Email renderer", async () => {
+    projectDir = await createProject({
+      'protobase.config.ts': `import { welcome } from './welcome'\nexport default { config: {}, options: { welcome } }\n`,
+      'welcome.tsx': welcomeEmail('Button, Html, Text', '<Html><Text>Hi</Text><Button href={url}>Open</Button></Html>'),
+    })
+    const outFile = path.join(projectDir, 'dist/protobase.config.js')
+    await buildConfigBundle({ projectDir, outFile })
+    const code = await readFile(outFile, 'utf8')
+    for (const id of ['react', 'react/jsx-runtime']) expect(code).toContain(`from "${id}"`)
+    expect(code).not.toContain('tailwindcss')
+    const { default: project } = await import(pathToFileURL(outFile).href)
+    const email = await project.options.welcome.render({ url: 'https://app.example.com' })
+    expect(email.html).toContain('href="https://app.example.com"')
+    expect(email.text).toBe('Hi\n\nOpen https://app.example.com')
+  })
+
+  it("refuses React Email's Tailwind component, whose tailwindcss the runtime does not supply", async () => {
+    projectDir = await createProject({
+      'protobase.config.ts': `import { welcome } from './welcome'\nexport default { config: {}, options: { welcome } }\n`,
+      'welcome.tsx': welcomeEmail('Html, Tailwind, Text', '<Tailwind><Html><Text className="p-4">{url}</Text></Html></Tailwind>'),
+    })
+    await expect(buildConfigBundle({ projectDir, outFile: path.join(projectDir, 'dist/out.js') })).rejects.toThrow('tailwindcss is not available to a served config')
+  })
+
   it('refuses dependencies of the @protobase packages that the runtime does not supply', async () => {
     for (const [id, name] of [
       ['better-auth/plugins', 'admin'],
-      ['react', 'useState'],
+      ['@tanstack/react-query', 'QueryClient'],
     ]) {
       projectDir = await createProject({ 'protobase.config.ts': `import { ${name} } from '${id}'\nexport default { config: { ${name} } }\n` })
       await expect(buildConfigBundle({ projectDir, outFile: path.join(projectDir, 'dist/out.js') })).rejects.toThrow(`${id} is not available to a served config`)

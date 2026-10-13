@@ -37,6 +37,7 @@
     "@protobase/layout": "workspace:*",
     "@protobase/query": "workspace:*",
     "@protobase/schema": "workspace:*",
+    "@react-email/render": "^2.1.0",
     "@scalar/hono-api-reference": "^0.12.10",
     "@sentry/core": "^11.7.0",
     "@simplewebauthn/server": "^13.3.1",
@@ -49,6 +50,8 @@
     "kysely": "^0.29.6",
     "nodemailer": "^10.0.16",
     "pg-boss": "12.37.1",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
     "thumbhash": "^0.1.1",
     "zod": "^4.6.5"
   },

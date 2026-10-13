@@ -106,7 +106,7 @@ The server checks `photos` when it starts: `field` is a filterable relation to t
 
 `favorite: { resource, field, label? }` puts a heart in each card's top right corner that saves the card's record for the signed-in user: a record of `resource` whose relation `field` points at the card's record is created on a press and deleted on the next. The heart fills while the record is saved, at once on screen; a refused write puts it back and says why in a toast. It is a toggle button named `label` ("Favorite" by default) with `aria-pressed`, and like the photo arrows it sits over the card's link, so pressing it does not open the record. All of the user's saved records load once, page by page, for every card of the list.
 
-A visitor who is not signed in gets the heart too, when the view of `resource` has a [sign-in prompt](#sign-in-prompts): pressing it tells them what signing in gives, in a modal on a desktop and a sheet from the bottom on a phone, which slides up and closes when swiped down.
+A visitor who is not signed in gets the heart too, when the view of `resource` has a [sign-in prompt](#sign-in-prompts): pressing it tells them what signing in gives, in a modal on a desktop and a sheet from the bottom on a phone.
 
 The view of the saved records' resource can list what they point at with `.listOf`: its list page then shows those records in their own resource's list, with its displays, filters, sort and search, under its own title and help. Unsaving a record there takes its card away. Its record pages and `/api/meta` model stay its own.
 
@@ -133,7 +133,7 @@ view<typeof favorites>('favorites').signIn({
 })
 ```
 
-Only a caller without a token gets the prompts, in `/api/meta` as `signIn`, for the resources they cannot see whose view for the `anonymous` role has one: its names, its sidebar place and the prompt. Those resources keep their place in the sidebar, the [bottom bar](/reference/bottom-bar/) and the [user menu](/reference/user-menu/). Pages of the project can show a prompt too: `SignInPrompt` from `@protobase/ui` takes it `as="page"` or `as="dialog"`, and `ResponsiveDialog` is the modal that becomes a sheet on a phone: it slides up from the bottom and closes when swiped down, on its close button, on a tap above it and on Escape.
+Only a caller without a token gets the prompts, in `/api/meta` as `signIn`, for the resources they cannot see whose view for the `anonymous` role has one: its names, its sidebar place and the prompt. Those resources keep their place in the sidebar, the [bottom bar](/reference/bottom-bar/) and the [user menu](/reference/user-menu/). Pages of the project can show a prompt too: `SignInPrompt` from `@protobase/ui` takes it `as="page"` or `as="dialog"`, and `ResponsiveDialog` is the modal that becomes a sheet on a phone.
 
 <StoryFrame id="list-page-favorites--visitor-cards" title="A visitor's heart asks them to sign in" height={560} />
 

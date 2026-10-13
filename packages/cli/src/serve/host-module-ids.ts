@@ -1,7 +1,8 @@
 // Modules the serve runtime hands to a config bundle, so the bundle and the runtime share one copy of each:
 // `protobase build` leaves them as imports and the runtime supplies them (see host-modules.ts). Besides the server
 // entry points of the @protobase packages, the main entry of every dependency they run on the server, kysely's
-// Postgres helpers and the Hono middleware an API function is likeliest to use.
+// Postgres helpers, the Hono middleware an API function is likeliest to use, and React with React Email's renderer,
+// which `defineEmail` renders an email's component with: one copy for the component and the renderer.
 export const hostModuleIds = [
   '@protobase/schema',
   '@protobase/layout',
@@ -22,6 +23,9 @@ export const hostModuleIds = [
   'aip-parsers',
   '@hono/node-server',
   '@scalar/hono-api-reference',
+  'react',
+  'react/jsx-runtime',
+  '@react-email/render',
 ] as const
 
 export type HostModuleId = (typeof hostModuleIds)[number]

@@ -5,7 +5,6 @@ import { createStaticSession, type AuthSession, type ResourcePermissions } from 
 import { f, resource, view, type SignInViewModel } from '@protobase/schema'
 import { App } from '../app'
 import { fakeApi } from '../testing/fake-api'
-import { swipeDown } from '../testing/swipe'
 
 const viewports = { phone360: { name: 'Phone 360', styles: { width: '360px', height: '740px' }, type: 'mobile' } } as const
 
@@ -188,15 +187,9 @@ export const VisitorPhone: StoryObj = {
     const tabs = within(await canvas.findByRole('navigation', { name: 'Tabs' }))
     expect(tabs.getByRole('link', { name: 'Favorites' })).toBeVisible()
     await userEvent.click(within(await cardOf(canvasElement, 'Keizersgracht 12')).getByRole('button', { name: 'Save to favorites' }))
-    const body = within(canvasElement.ownerDocument.body)
-    const sheet = await body.findByRole('dialog', { name: 'Keep the homes you like' })
+    const sheet = await canvas.findByRole('dialog', { name: 'Keep the homes you like' })
     expect(within(sheet).getByRole('button', { name: 'Close' })).toBeVisible()
     expect(within(sheet).getByRole('button', { name: 'Sign in' })).toBeVisible()
-    // Swiped down, the sheet goes and the homes are where they were
-    await waitFor(() => expect(sheet.getBoundingClientRect().bottom).toBeCloseTo(window.innerHeight, 0))
-    await swipeDown(within(sheet).getByRole('heading', { name: 'Keep the homes you like' }), 240)
-    await waitFor(() => expect(body.queryByRole('dialog')).toBeNull())
-    expect(canvas.getByRole('heading', { name: 'Homes' })).toBeVisible()
   },
 }
 

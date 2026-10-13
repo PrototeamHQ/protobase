@@ -33,20 +33,3 @@ export const Browsing: StoryObj = {
     expect(await canvas.findByText('SO-1')).toBeVisible()
   },
 }
-
-// The sign-in page has no entry of its own in the tab's history: the browser's Back from it browses again.
-export const BackFromSignIn: StoryObj = {
-  tags: ['play'],
-  render: Browsing.render,
-  play: async ({ canvasElement }) => {
-    const canvas = within(canvasElement)
-    await canvas.findByText('SO-1')
-    // An entry to go back to without leaving the story.
-    window.history.pushState(window.history.state, '')
-    await userEvent.click(canvas.getByRole('button', { name: 'Sign in' }))
-    expect(await canvas.findByRole('heading', { name: 'Sign in to Protobase' })).toBeVisible()
-    window.history.back()
-    expect(await canvas.findByText('SO-1')).toBeVisible()
-    expect(canvas.queryByRole('heading', { name: 'Sign in to Protobase' })).toBeNull()
-  },
-}

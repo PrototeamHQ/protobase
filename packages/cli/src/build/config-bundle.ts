@@ -24,14 +24,17 @@ const entry = (file: string, code: string): Plugin => ({
 const importerDir = (importer: string) => path.dirname(importer.replace(/^\0/, '').replace(/\?.*$/, ''))
 
 // Imports that stay imports. The @protobase packages and their dependencies are the serve runtime's to supply: those
-// it supplies stay imports, the rest is not available. A package with a native add-on is loaded from disk, so it stays
-// an import too and is collected in `native` for the bundle to carry. Everything else is inlined.
+// it supplies stay imports, the rest is not available. Such an import fails the build only when the finished bundle
+// still has it, so an inlined package may re-export a module that imports one, as `react-email` does `tailwindcss`, as
+// long as the project leaves that export unused and it is dropped. A package with a native add-on is loaded from disk,
+// so it stays an import too and is collected in `native` for the bundle to carry. Everything else is inlined.
 const servedImports = (native: Map<string, NativeImport>): Plugin => {
   const checked = new Map<string, Promise<boolean>>()
   const isNative = (dir: string) => {
     if (!checked.has(dir)) checked.set(dir, isNativePackage(dir))
     return checked.get(dir)!
   }
+  const unavailable = new Set<string>()
   return {
     name: 'protobase-served-imports',
     enforce: 'pre',
@@ -40,7 +43,10 @@ const servedImports = (native: Map<string, NativeImport>): Plugin => {
       if (name === undefined || importer === undefined) return undefined
       const from = importerDir(importer)
       if (hostPackages.has(name)) {
-        if (!isHostModule(id)) this.error(`${id} is not available to a served config; of the @protobase packages and their dependencies it may import ${hostModuleIds.join(', ')}`)
+        if (!isHostModule(id)) {
+          unavailable.add(id)
+          return { id, external: true }
+        }
         const problem = await hostVersionProblem(name, from)
         if (problem) this.error(problem)
         return { id, external: true }
@@ -51,6 +57,13 @@ const servedImports = (native: Map<string, NativeImport>): Plugin => {
       if (other && other.dir !== dir) this.error(`The config imports two installs of ${name}, a native package: ${other.dir} and ${dir}`)
       native.set(name, { name, dir })
       return { id, external: true }
+    },
+    generateBundle(_, bundle) {
+      for (const output of Object.values(bundle)) {
+        if (output.type !== 'chunk') continue
+        const id = output.imports.find((imported) => unavailable.has(imported))
+        if (id) this.error(`${id} is not available to a served config; of the @protobase packages and their dependencies it may import ${hostModuleIds.join(', ')}`)
+      }
     },
   }
 }
