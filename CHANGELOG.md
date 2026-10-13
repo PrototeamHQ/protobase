@@ -2,6 +2,30 @@
 
 Every release of Protobase, cut by the release workflow from the commits since the last one (see the [versioning page](https://docs.protobase.net/reference/versioning/)).
 
+## [0.14.2](https://github.com/PrototeamHQ/protobase/compare/v0.14.1...v0.14.2) (2026-10-13)
+
+### Features
+
+* **client:** facets take label and return each value's name ([f511a8b](https://github.com/PrototeamHQ/protobase/commit/f511a8bb9e51bce0cbcd6e41d7260653ff463f9c))
+* **client:** list, search, seek and map ask for photos and link their files on the API's origin ([dd7426e](https://github.com/PrototeamHQ/protobase/commit/dd7426e3f763d122d16406151d57555f4e1b8278))
+* **client:** list, search, seek and map take labels and return the related names ([5e0bf79](https://github.com/PrototeamHQ/protobase/commit/5e0bf79944125b1aaade5c2c5289b3837a2b5f64))
+* **examples:** the portal saves listings with a heart, and visitors keep Favorites in the bar ([36b3c1b](https://github.com/PrototeamHQ/protobase/commit/36b3c1bf7e37dc6708c7103a5719dcef59985f0f))
+* **query:** relatedRows reads the first rows of many records in one lateral query ([4e4108e](https://github.com/PrototeamHQ/protobase/commit/4e4108e67089ec0157b3e50eb30242710248fad9))
+* **schema:** cards save their record with a favorite button; views take listOf and sign-in prompts ([7b57f2e](https://github.com/PrototeamHQ/protobase/commit/7b57f2e56be66bf1baca7d40e2713e60aabc0525))
+* **server:** a list's labels option names the records its relations point at, under their access ([f896ec6](https://github.com/PrototeamHQ/protobase/commit/f896ec6ce084bb590ad7f8dd184ee2f15606554e))
+* **server:** a list's photos bring each record's first photos in one query, under their own access ([437a052](https://github.com/PrototeamHQ/protobase/commit/437a052785c946363195f7b8545cb5dd8d120ae9))
+* **server:** facets take label, naming a relation's values by the records they point at ([172ec3d](https://github.com/PrototeamHQ/protobase/commit/172ec3db642c7db708a455f6d6c19a1e17e2354b))
+* **ui:** a heart on cards, saved records listed by listOf, and sign-in prompts for visitors ([2b0effd](https://github.com/PrototeamHQ/protobase/commit/2b0effd9647f31954e3bc6d4f466f7da5e198abb))
+* **ui:** card photos swipe on touch, arrows on picture hover, dots always, no swipe in rows ([7424cea](https://github.com/PrototeamHQ/protobase/commit/7424cea61f6adc1f28317c7b5e702f46eba07737))
+* **ui:** cards read their photos from the list's answer, without a request per card ([9340aa5](https://github.com/PrototeamHQ/protobase/commit/9340aa52bdf3df42ef61958e0902ca3b87fd0d0d))
+* **ui:** list pages name relations from the list call instead of a lookup per relation ([58a3ff2](https://github.com/PrototeamHQ/protobase/commit/58a3ff2b7266dd9c197ef62fe1ddb80b7e28c391))
+* **ui:** the filter panel names relation facets from the facets call ([afa639e](https://github.com/PrototeamHQ/protobase/commit/afa639eb61c094d40739933441ab6c1af375c053))
+
+### Bug Fixes
+
+* **ui:** card photos load with the card, so the dots show before the picture is touched ([1286ffb](https://github.com/PrototeamHQ/protobase/commit/1286ffb28dc4fa6d9704bd1f34ce099773f5f630))
+* **ui:** the list page's map fills the screen edge to edge on phones, without the in-view count ([e2f9289](https://github.com/PrototeamHQ/protobase/commit/e2f928981a49949fafab59425d369a6df1ad9191))
+
 ## [0.14.1](https://github.com/PrototeamHQ/protobase/compare/v0.14.0...v0.14.1) (2026-10-13)
 
 ### Bug Fixes
