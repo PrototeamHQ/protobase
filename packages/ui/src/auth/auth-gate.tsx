@@ -73,6 +73,17 @@ export const AuthGate = ({ workspace, children }: { workspace?: string; children
   useEffect(() => {
     if (state.kind === 'signed-out' && page.kind === 'sign-in' && page.providerError) forgetSignInLink()
   }, [state.kind, page])
+  // The sign-in steps stand in for the whole app, router included, without an entry of their own in the tab's history:
+  // a visitor who goes back or forward from them browses again, on the page the address now names.
+  useEffect(() => {
+    if (state.kind !== 'signed-out' || !browse) return
+    const leave = () => {
+      setPage({ kind: 'sign-in' })
+      browse()
+    }
+    window.addEventListener('popstate', leave)
+    return () => window.removeEventListener('popstate', leave)
+  }, [state.kind, browse])
   const signInFailed = useCallback((error: string) => setPage({ kind: 'sign-in', error }), [])
 
   const leaveResetPage = (next: AuthPage) => {
