@@ -27,6 +27,8 @@ Sign in with one of the seeded accounts, all with the password `property-portal-
 
 Other scripts: `db:reset` (drop, migrate, seed small), `typecheck`, `serve` (`protobase build`, then `protobase serve dist` on port 8787). More accounts: `bun run --cwd examples/property-portal protobase users create you@example.com --generate-password` makes a member; `--role admin` an admin. The database tests are the repository's `bun run test:integration`.
 
+The same data is a REST API with an OpenAPI document: [API.md](API.md) walks through signing in, listing published listings and creating and publishing one with `curl`.
+
 Connection string, which scripts read from `DATABASE_URL`:
 
 ```
