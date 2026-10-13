@@ -2,6 +2,12 @@
 
 Every release of Protobase, cut by the release workflow from the commits since the last one (see the [versioning page](https://docs.protobase.net/reference/versioning/)).
 
+## [0.14.1](https://github.com/PrototeamHQ/protobase/compare/v0.14.0...v0.14.1) (2026-10-13)
+
+### Bug Fixes
+
+* **ui:** list pages scroll natively with the page, drawing only the rows in view, without a counter ([3ea076a](https://github.com/PrototeamHQ/protobase/commit/3ea076a95713770cf442f6bf85537b767f981b42))
+
 ## [0.14.0](https://github.com/PrototeamHQ/protobase/compare/v0.13.4...v0.14.0) (2026-10-13)
 
 ### ⚠ BREAKING CHANGES
