@@ -2,6 +2,12 @@
 
 Every release of Protobase, cut by the release workflow from the commits since the last one (see the [versioning page](https://docs.protobase.net/reference/versioning/)).
 
+## [0.12.20](https://github.com/PrototeamHQ/protobase/compare/v0.12.19...v0.12.20) (2026-10-13)
+
+### Bug Fixes
+
+* **cli:** serve keeps the native Response, so s3Files uploads stop storing [object Response] ([3e72699](https://github.com/PrototeamHQ/protobase/commit/3e7269965201df55364447c3c854b6d81fdfafce))
+
 ## [0.12.19](https://github.com/PrototeamHQ/protobase/compare/v0.12.18...v0.12.19) (2026-10-13)
 
 ### Features
