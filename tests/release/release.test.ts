@@ -74,7 +74,7 @@ describe('scripts/release.mjs', () => {
     expect(notes).not.toContain('a breaking change on main')
   })
 
-  it('cuts a patch on a maintenance branch whose next minor is taken, even for a feature or breaking change', async () => {
+  it('cuts a patch on a maintenance branch whose next minor is taken, even for a feature, but no breaking change', async () => {
     commit('feat: the first feature')
     tag('v1.0.0')
     git('branch', 'maintenance')
@@ -83,8 +83,23 @@ describe('scripts/release.mjs', () => {
     git('checkout', '--quiet', 'maintenance')
     commit('feat: a feature on the maintenance branch')
     expect(await release()).toMatchObject({ tag: 'v1.0.1', notes: expect.stringContaining('a feature on the maintenance branch') })
+    commit('fix: a fix on the maintenance branch')
+    expect((await release()).tag).toBe('v1.0.2')
     commit('feat!: a breaking change on the maintenance branch')
-    expect(await release()).toMatchObject({ tag: 'v1.0.2', notes: expect.stringContaining('BREAKING CHANGES') })
+    await expect(release()).rejects.toThrow('a breaking change cannot be released from a maintenance branch')
+  })
+
+  it('fails for a breaking change on a maintenance branch below 1.0, tagging nothing', async () => {
+    commit('feat: the first feature')
+    tag('v0.1.0')
+    git('branch', 'maintenance')
+    commit('feat!: a breaking change on main')
+    tag('v0.2.0')
+    git('checkout', '--quiet', 'maintenance')
+    commit('feat!: a breaking change on the maintenance branch')
+
+    await expect(release()).rejects.toThrow('a breaking change cannot be released from a maintenance branch')
+    expect(git('tag', '--points-at', 'HEAD')).toBe('')
   })
 
   it('tags nothing without a fix, feature or breaking change, or when HEAD is a release already', async () => {

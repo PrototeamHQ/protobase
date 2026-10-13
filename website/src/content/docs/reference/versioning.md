@@ -18,7 +18,7 @@ Until 1.0, a minor version may break, so it plays the part a major plays from 1.
 
 The first release is 0.1.0.
 
-The version goes up from the newest `v<version>` tag reachable from the released commit, never from a newer tag elsewhere in the repository. When the repository already has a tag above that one, the commit is on a maintenance branch whose next minor and major versions are taken, so its release is always a patch, whatever the commits hold, a breaking change included: with `v0.3.0` released from `main`, a branch from `v0.2.4` releases 0.2.5, then 0.2.6.
+The version goes up from the newest `v<version>` tag reachable from the released commit, never from a newer tag elsewhere in the repository. When the repository already has a tag above that one, the commit is on a maintenance branch whose next minor and major versions are taken, so a fix or a feature there is released as a patch: with `v0.3.0` released from `main`, a branch from `v0.2.4` releases 0.2.5, then 0.2.6. A breaking change cannot be released from a maintenance branch: the release fails, and there is no override, so the breaking change has to be removed from the branch's history.
 
 ## Commit messages
 

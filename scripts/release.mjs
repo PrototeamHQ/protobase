@@ -3,7 +3,8 @@
 // notes to the file `--notes` names and prints the tag, which the release workflow pushes and creates the GitHub
 // release from. Below 1.0 a breaking change bumps the minor and anything else the patch; the first release is 0.1.0.
 // When the repository has a tag above the last one reachable from HEAD, HEAD is on a maintenance branch whose next
-// minor and major are taken, so the release is a patch whatever the commits hold. Nothing to release (only docs,
+// minor and major are taken: fixes and features are released as a patch, and a breaking change fails the release,
+// with no way around it, since it needs the branch's history cleaned up. Nothing to release (only docs,
 // tests, chores, ...), or a HEAD that is a release already, tags nothing and prints nothing. No package.json is
 // bumped: the workflow writes the tag's version into them in its runner (scripts/stamp-version.mjs). `--dry-run`
 // prints the version and notes instead of tagging.
@@ -60,11 +61,23 @@ if (!section) {
 const bumped = /^## \[?(\d+\.\d+\.\d+)/.exec(section)?.[1]
 if (!bumped) throw new Error(`the changelog's section has no version: ${section.split('\n')[0]}`)
 
+const parse = (version) => version.replace(/^v/, '').split('.').map(Number)
+// A breaking change bumps the major from 1.0 on and the minor below it; anything else bumps less.
+const isBreaking = (from, to) => {
+  const [major, minor] = parse(from)
+  const [toMajor, toMinor] = parse(to)
+  return major === 0 ? toMajor > 0 || toMinor > minor : toMajor > major
+}
 const patchAfter = (tag) => {
-  const [major, minor, patch] = tag.slice(1).split('.').map(Number)
+  const [major, minor, patch] = parse(tag)
   return `${major}.${minor}.${patch + 1}`
 }
 const maintenance = lastTag !== undefined && newestTag !== lastTag
+if (maintenance && isBreaking(lastTag, bumped)) {
+  throw new Error(
+    `a breaking change cannot be released from a maintenance branch: HEAD's last release is ${lastTag} and ${newestTag} exists already, so remove the breaking change from the branch's history`,
+  )
+}
 const tag = `v${maintenance ? patchAfter(lastTag) : bumped}`
 if (releaseTags().includes(tag)) throw new Error(`${tag} exists already`)
 const notes = `${section.slice(section.indexOf('\n') + 1).trim()}\n`
