@@ -2,6 +2,24 @@
 
 Every release of Protobase, cut by the release workflow from the commits since the last one (see the [versioning page](https://docs.protobase.net/reference/versioning/)).
 
+## [0.13.0](https://github.com/PrototeamHQ/protobase/compare/v0.12.22...v0.13.0) (2026-10-13)
+
+### ⚠ BREAKING CHANGES
+
+* **ui:** page tables and related lists show the list's displays, capped with a link to the list
+
+### Features
+
+* **ui:** cards scroll like the table, loading only the cards in view, and Back returns to them ([911a365](https://github.com/PrototeamHQ/protobase/commit/911a3656b8849b8ccb5b1d45e2cdac30223e333a))
+* **ui:** page tables and related lists show the list's displays, capped with a link to the list ([ab36ab0](https://github.com/PrototeamHQ/protobase/commit/ab36ab07255de854c7115dbf608bdcaac495867d))
+* **ui:** the data grid can size itself to show a few rows whole, without scrolling or footer ([6bcc5da](https://github.com/PrototeamHQ/protobase/commit/6bcc5da964dcd5622039eedeab0f7a8a10fad118))
+
+### Bug Fixes
+
+* **query:** a page token only continues the filter it was issued for ([6f0378c](https://github.com/PrototeamHQ/protobase/commit/6f0378c1e65d575f60cb0ff6e4fab9fc249c17a6))
+* **ui:** a list keeps paging by cursor after a sort round trip or going back to it ([b14c473](https://github.com/PrototeamHQ/protobase/commit/b14c473df6c567515952406a666a1fa67d747d9f))
+* **ui:** the pages of one scrollbar jump read on from a single seek, so they never overlap ([366d631](https://github.com/PrototeamHQ/protobase/commit/366d63174127e786a47841b8b5fc048e83f7d282))
+
 ## [0.12.22](https://github.com/PrototeamHQ/protobase/compare/v0.12.21...v0.12.22) (2026-10-13)
 
 ### Features
