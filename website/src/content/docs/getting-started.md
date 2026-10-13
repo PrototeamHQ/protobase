@@ -5,6 +5,8 @@ description: Install the repository, run the ERP, real estate and property porta
 
 Protobase is a config-driven admin panel framework for existing Postgres databases. Data config lives in `data.ts`, UI config in `ui.ts`; a Hono server serves the API and a React app renders the admin.
 
+An app's own React code, its components, field types and actions, is a [plugin](/reference/plugins/): built on its own against a plugin API that Protobase's releases keep, and loaded by the admin app when it starts. Protobase maintains the admin app, the API and the server, and a plugin keeps working as the app moves to newer releases, with their fixes and features, without changes of its own. Below 1.0 a new minor version may still change the config, and the bundle is built again for it; the plugins' code stays as it is (see [Who maintains what](/reference/plugins/#who-maintains-what)).
+
 ## Setup
 
 Requires Bun 1.4.2, which installs the repository and runs its scripts and tests, and Node 22.12 or later (`.nvmrc`) for the smoke test on Node.

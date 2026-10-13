@@ -7,9 +7,15 @@ A plugin is a `protobase.ui.tsx` that the admin app loads at runtime instead of 
 
 A project's own `protobase.ui.tsx` is a plugin too: `protobase build` builds it as the plugin `app` beside a prebuilt admin app, and builds each `--extend` folder's the same way. So everything below holds for the code an app's own developers write, for code shared across apps, and for code Protobase adds.
 
-Plugins are how an app keeps code of its own while it follows Protobase's releases: Protobase is maintained for you, and a plugin built today keeps working on the releases that come after it. They are written by an app's developers and by Protobase itself, and they run in the app with the signed-in user's rights, like the app's own code, so load only plugins you trust.
+Plugins are written by an app's developers and by Protobase itself, and they run in the app with the signed-in user's rights, like the app's own code, so load only plugins you trust.
 
 [Your first plugin](/guides/first-plugin/) builds one, step by step. [Adding a field type](/guides/field-type/), [A custom record card](/guides/record-card/) and [Theming an app](/guides/theme-an-app/) add to an app, and [Moving onto the plugin build](/guides/plugin-build/) moves an existing project's `protobase.ui.tsx` onto it.
+
+## Who maintains what
+
+Plugins split the work of keeping an app current. Protobase maintains the admin app, the API and the server; an app's developers maintain their plugins, and those seldom need work. A plugin is built against the plugin API, which releases add to but never break, so the same build keeps loading as the app moves to newer releases, and gets their fixes and new features on the way. Nobody ports it, rebuilds it or tests it again for each release; it needs a new build only when Protobase starts a new plugin API (see [Versions](#versions)).
+
+What still follows Protobase's releases is the rest of the bundle. Below 1.0 a new minor version may change how `data.ts`, `ui.ts` and the server config are written, and a runtime serves only bundles built by its own minor, so moving to a new minor means running `protobase build` again with that version, after any change the release notes ask of the config (see [Bundles and runtimes](/reference/versioning/#bundles-and-runtimes)). The plugins' code stays as it is. Within a minor, where features ship as patches below 1.0, a host that serves the newer release's [shell](#the-shell) gives the app its fixes with nothing rebuilt.
 
 ## How a plugin stays working
 
