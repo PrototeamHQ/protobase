@@ -2,6 +2,12 @@
 
 Every release of Protobase, cut by the release workflow from the commits since the last one (see the [versioning page](https://docs.protobase.net/reference/versioning/)).
 
+## [0.12.18](https://github.com/PrototeamHQ/protobase/compare/v0.12.17...v0.12.18) (2026-10-13)
+
+### Features
+
+* **server:** s3-compatible file providers, and byte and file limits per provider ([b8b7242](https://github.com/PrototeamHQ/protobase/commit/b8b72428cb86a33cbd81c09cb3be19ece2d48fbf))
+
 ## [0.12.17](https://github.com/PrototeamHQ/protobase/compare/v0.12.16...v0.12.17) (2026-10-12)
 
 ### Bug Fixes
