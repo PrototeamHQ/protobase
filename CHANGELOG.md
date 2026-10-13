@@ -2,6 +2,16 @@
 
 Every release of Protobase, cut by the release workflow from the commits since the last one (see the [versioning page](https://docs.protobase.net/reference/versioning/)).
 
+## [0.13.2](https://github.com/PrototeamHQ/protobase/compare/v0.13.1...v0.13.2) (2026-10-13)
+
+### Features
+
+* **client:** file values carry image variants and a placeholder; fileUrl links a variant ([13f7b6f](https://github.com/PrototeamHQ/protobase/commit/13f7b6ffc1f353605ab88184c5788362a0784bbb))
+* **examples:** the property portal's photos get card and thumbnail variants and placeholders ([0540c21](https://github.com/PrototeamHQ/protobase/commit/0540c210dc501317e888c9987180c2fefb02269d))
+* **schema:** file fields name a placeholder column and declare image variants ([5b7366f](https://github.com/PrototeamHQ/protobase/commit/5b7366f383a7c19bb41a90992a0c0f0fa33ee93c))
+* **server:** image fields store resized variants and a ThumbHash placeholder with sharp ([bf7df20](https://github.com/PrototeamHQ/protobase/commit/bf7df204b83c8c7ea12344727089e1eae4135813))
+* **ui:** images show their ThumbHash while loading; thumbnails and cards use the smallest variant ([117257e](https://github.com/PrototeamHQ/protobase/commit/117257ef860a613e6824f8eca7ebbcb31912223c))
+
 ## [0.13.1](https://github.com/PrototeamHQ/protobase/compare/v0.13.0...v0.13.1) (2026-10-13)
 
 ### Features
