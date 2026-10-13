@@ -3,13 +3,16 @@
 // (which pins the workspace:* dependencies) one at a time, then the tarballs are published with npm in dependency
 // layers, each layer's packages concurrently, so a package is never on npm before the @protobase packages it needs. npm
 // authenticates with trusted publishing (OIDC) and adds provenance in the release workflow. `--dry-run` runs
-// `npm publish --dry-run`.
+// `npm publish --dry-run`; `--pack` builds and packs every package, whatever npm has, and publishes nothing, which CI
+// runs so a package that cannot be packed fails before a release is cut.
 import { spawn } from 'node:child_process'
 import { mkdtempSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 
-const dryRun = process.argv.slice(2).includes('--dry-run')
+const args = process.argv.slice(2)
+const dryRun = args.includes('--dry-run')
+const packOnly = args.includes('--pack')
 const outDir = mkdtempSync(path.join(tmpdir(), 'protobase-publish-'))
 
 // Runs a command, resolving with its stdout. Output of concurrent commands is buffered and printed whole on exit, so
@@ -81,12 +84,17 @@ const pack = async ({ dir, name, version }) => {
   return path.join(outDir, `${name.replace('@', '').replace('/', '-')}-${version}.tgz`)
 }
 
-const packages = readPackages()
-const published = await Promise.all(packages.map(isPublished))
-for (const [i, { name, version }] of packages.entries()) {
-  if (published[i]) console.log(`${name}@${version} is already on npm`)
+// The packages whose version npm does not have yet.
+const unpublished = async (packages) => {
+  const published = await Promise.all(packages.map(isPublished))
+  for (const [i, { name, version }] of packages.entries()) {
+    if (published[i]) console.log(`${name}@${version} is already on npm`)
+  }
+  return packages.filter((_, i) => !published[i])
 }
-const pending = packages.filter((_, i) => !published[i])
+
+const packages = readPackages()
+const pending = packOnly ? packages : await unpublished(packages)
 
 // Every package is built before any package.json is rewritten for packing, since a build resolves its dependencies'
 // sources through their workspace exports, and before any is published, so a failing build publishes nothing.
@@ -97,11 +105,19 @@ await Promise.all(pending.map(({ dir }) => run('bun', ['run', 'build'], dir)))
 const tarballOf = new Map()
 for (const p of pending) tarballOf.set(p.name, await pack(p))
 
-for (const layer of toLayers(pending)) {
-  await Promise.all(
-    layer.map(async ({ name, version }) => {
-      await run('npm', ['publish', tarballOf.get(name), '--access', 'public', ...(dryRun ? ['--dry-run'] : [])])
-      console.log(`${dryRun ? 'would publish' : 'published'} ${name}@${version}`)
-    }),
-  )
+const publishLayers = async () => {
+  for (const layer of toLayers(pending)) {
+    await Promise.all(
+      layer.map(async ({ name, version }) => {
+        await run('npm', ['publish', tarballOf.get(name), '--access', 'public', ...(dryRun ? ['--dry-run'] : [])])
+        console.log(`${dryRun ? 'would publish' : 'published'} ${name}@${version}`)
+      }),
+    )
+  }
+}
+
+if (packOnly) {
+  for (const tarball of tarballOf.values()) console.log(`packed ${tarball}`)
+} else {
+  await publishLayers()
 }

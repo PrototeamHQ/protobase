@@ -49,7 +49,7 @@ Every commit message follows [Conventional Commits](https://www.conventionalcomm
 
 The release commit does not start the workflow again. When `main` moved on while the checks ran, the run of the newer push releases both. `bun run release --dry-run` prints the next version and its changelog without changing anything.
 
-Running the workflow by hand with a tag (`gh workflow run release.yml -f tag=v0.1.0`) only publishes: the packages at that tag, skipping every version npm already has, and the images, which repeats a missed or half-done publish. `node scripts/publish.mjs --dry-run` packs the packages and shows what `npm publish` would send. Each package on npm trusts `release.yml` of `PrototeamHQ/protobase` as its publisher; a new package has to be published once by hand before that can be set up. The workflow pushes the images with its own token; a new image on GitHub's registry starts out private and is made public once in its package settings.
+Running the workflow by hand with a tag (`gh workflow run release.yml -f tag=v0.1.0`) only publishes: the packages at that tag, skipping every version npm already has, and the images, which repeats a missed or half-done publish. `node scripts/publish.mjs --dry-run` packs the packages and shows what `npm publish` would send, and `node scripts/publish.mjs --pack`, which CI runs, packs every package without asking npm or publishing. Each package on npm trusts `release.yml` of `PrototeamHQ/protobase` as its publisher; a new package has to be published once by hand before that can be set up. The workflow pushes the images with its own token; a new image on GitHub's registry starts out private and is made public once in its package settings.
 
 ## Bundles and runtimes
 
