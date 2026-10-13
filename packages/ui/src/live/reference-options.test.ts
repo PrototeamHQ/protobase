@@ -9,7 +9,7 @@ describe('matchOptions', () => {
 })
 
 describe('labelKeys', () => {
-  it('names the counted values and the chosen ones outside them, once each', () => {
-    expect(labelKeys(['1', '23'], ['23', '40'])).toEqual(['1', '23', '40'])
+  it('names the chosen values outside the counted ones, once each', () => {
+    expect(labelKeys(['1', '23'], ['23', '40', '40'])).toEqual(['40'])
   })
 })

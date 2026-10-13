@@ -6,6 +6,7 @@ import { formatMoney } from '../format/money'
 import type { FacetOption, FilterConfig, FilterState, RangeConfig } from '../filter-panel'
 import { setRange } from '../filter-panel/filter-state'
 import { stateToText } from './filter-string'
+import { labelFieldOf } from './model-helpers'
 import { humanize } from './naming'
 import { labelKeys, matchOptions } from './reference-options'
 import { fetchLabels } from './relation-labels'
@@ -38,11 +39,14 @@ export const useFilterConfig = ({ model, resources, views, view, state, extras }
   }
 
   // A facet group counts its field's values; a flags group counts each of its fields, of which it shows the true ones.
+  // A relation's facets come named by the records they point at
   const counted = skeleton.facets.flatMap((group) => (group.flags ? group.options.map((option) => option.value) : [group.id]).map((field) => ({ group: group.id, field })))
   const facetQueries = useQueries({
     queries: counted.map(({ group, field }) => {
       const filter = stateToText(skeleton, { ...state, facets: { ...state.facets, [group]: [] } }, extras)
-      return { queryKey: keys.facets(model.name, field, filter), queryFn: () => client.facets(model.name, field, { filter, limit: 50 }) }
+      const target = targetOf(field)
+      const label = target?.primaryKey.length === 1 ? labelFieldOf(target, views[target.name]) : undefined
+      return { queryKey: keys.facets(model.name, field, filter), queryFn: () => client.facets(model.name, field, { filter, limit: 50, ...(label && { label }) }) }
     }),
   })
   const counts = (group: string, field: string) => facetQueries[counted.findIndex((entry) => entry.group === group && entry.field === field)]?.data
@@ -79,7 +83,8 @@ export const useFilterConfig = ({ model, resources, views, view, state, extras }
       return { ...group, options }
     }
     const field = model.fields[group.id]
-    const names = new Map(labelQueries[index]?.data ?? [])
+    const named = (counts(group.id, group.id) ?? []).flatMap((facet): Array<[string, string]> => (facet.label === undefined ? [] : [[String(facet.value), facet.label]]))
+    const names = new Map([...named, ...(labelQueries[index]?.data ?? [])])
     const values = (counts(group.id, group.id) ?? []).flatMap((facet): FacetOption[] =>
       facet.value === null
         ? []

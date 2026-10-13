@@ -159,10 +159,14 @@ export const fakeApi = ({ resources, views = [], pages = [], rows: initial, perm
       const row = find(resource, key)
       rows[resource] = table(resource).filter((entry) => entry !== row)
     },
-    facets: async (resource: string, field: string, params: { filter?: string } = {}) => {
+    facets: async (resource: string, field: string, params: { filter?: string; label?: string } = {}) => {
       const counts = new Map<unknown, number>()
       for (const row of select(resource, params)) counts.set(row[field] ?? null, (counts.get(row[field] ?? null) ?? 0) + 1)
-      return [...counts].map(([value, count]) => ({ value, count })).sort((a, b) => b.count - a.count)
+      const values = [...counts].map(([value]) => ({ [field]: value }))
+      const names: Record<string, string> = params.label ? (namesOf(resource, values, { [field]: params.label })[field] ?? {}) : {}
+      return [...counts]
+        .map(([value, count]) => ({ value, count, ...(value !== null && names[String(value)] !== undefined && { label: names[String(value)] }) }))
+        .sort((a, b) => b.count - a.count)
     },
     histogram: async (resource: string, field: string, params: { filter?: string; buckets?: number } = {}) => {
       const values = select(resource, params).map((row) => Number(row[field])).filter(Number.isFinite)

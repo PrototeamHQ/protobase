@@ -6,5 +6,5 @@ export const matchOptions = (matches: Array<[string, string]>, counted: FacetOpt
   return matches.map(([value, label]) => ({ value, label, ...(counts.get(value) !== undefined && { count: counts.get(value) }) }))
 }
 
-/** The keys a facet needs names for: the values it counted and those chosen, which may lie outside the counted ones. */
-export const labelKeys = (counted: string[], chosen: string[]) => [...new Set([...counted, ...chosen])]
+/** The keys a facet still needs names for: the counted values come named, but a chosen one may lie outside them. */
+export const labelKeys = (counted: string[], chosen: string[]) => [...new Set(chosen.filter((value) => !counted.includes(value)))]
