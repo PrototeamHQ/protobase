@@ -2,6 +2,13 @@
 
 Every release of Protobase, cut by the release workflow from the commits since the last one (see the [versioning page](https://docs.protobase.net/reference/versioning/)).
 
+## [0.12.19](https://github.com/PrototeamHQ/protobase/compare/v0.12.18...v0.12.19) (2026-10-13)
+
+### Features
+
+* a record layout shows the record's position on a map with l.map, from PROTOBASE_MAP_STYLE_URL ([aa7f7b7](https://github.com/PrototeamHQ/protobase/commit/aa7f7b7169d3960b0cf9e2956456a5af7e6b3e50))
+* the property portal shows a listing on a map, with development tiles from bun run map:tiles ([00c962c](https://github.com/PrototeamHQ/protobase/commit/00c962c053b7f8be6ff5c34dbcfa34464f432867))
+
 ## [0.12.18](https://github.com/PrototeamHQ/protobase/compare/v0.12.17...v0.12.18) (2026-10-13)
 
 ### Features
