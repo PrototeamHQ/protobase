@@ -59,6 +59,19 @@ An image with variants also has `variants`, each `{ url, type, width, height }` 
 
 A bucket has no quota of its own, so the provider counts what it holds with `list` on the first upload, and again once that count is five minutes old; in between it adds its own uploads. Several instances, or files added by hand, can therefore pass a limit by what they wrote since the last count.
 
+### Writing files from a seed
+
+A seed, an import or another script that writes files outside a request uses `storeFile` from `@protobase/server`, so the same script fills the folder locally and the bucket where the app has one. It finds the provider as the server does, from `env` and the config's `files`, when that declares providers:
+
+```ts
+import { storeFile } from '@protobase/server'
+
+// A row then holds public:images/test.png
+await storeFile({ provider: 'public', path: 'images/test.png', body: bytes, env: process.env })
+```
+
+`body` is bytes or a stream. A relative folder, such as the default `data/files/public`, is taken from the working directory, so run the script where the server runs. A script that makes [variants](#image-variants-and-placeholders) stores each at `variantPath(path, name, extension)` the same way.
+
 ### S3-compatible buckets
 
 `s3Files` stores files in any bucket with the S3 API, such as Cloudflare R2, Scaleway Object Storage or AWS S3, under `prefix` when given, so one bucket can hold several providers or apps:
