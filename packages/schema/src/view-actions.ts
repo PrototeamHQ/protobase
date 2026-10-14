@@ -1,4 +1,4 @@
-import { appHrefError } from './address-template'
+import { linkActionError } from './address-template'
 import type { ActionModel, AppAddress } from './model'
 
 /** @inline */
@@ -21,13 +21,15 @@ export const actions = {
   remove: (name: string, o: ActionOptions): ActionModel => ({ ...named(name, o), run: { kind: 'delete' } }),
   /**
    * Goes `to` an address in the app, such as `{ kind: 'record', resource: 'orders', key: '{order_id}' }`, or opens an
-   * `href` that leaves it (`https:`, `mailto:`); `{field}` is replaced by the record's value. A path in the app is
-   * refused as an `href`, so every address in the app is written one way.
+   * `href` that leaves it (`https:`, `mailto:`); `{field}` is replaced by the record's value. An `https:` or `http:` link
+   * opens in a new tab without the referrer. An href that is only `{field}`, such as `'{website}'`, opens the URL the
+   * record holds, and the button shows only when it is an `https:` or `http:` URL; `{host}` in the label becomes its host,
+   * as in `'View on {host}'`. A path in the app is refused as an `href`, so every address in the app is written one way.
    */
   link: (name: string, o: Omit<ActionOptions, 'confirm'> & ({ to: AppAddress } | { href: string })): ActionModel => {
-    if ('to' in o) return { ...named(name, o), run: { kind: 'link', to: structuredClone(o.to) } }
-    const error = appHrefError(o.href)
+    const error = linkActionError(o.label, o)
     if (error) throw new Error(`Action "${name}": ${error}`)
+    if ('to' in o) return { ...named(name, o), run: { kind: 'link', to: structuredClone(o.to) } }
     return { ...named(name, o), run: { kind: 'link', href: o.href } }
   },
 }

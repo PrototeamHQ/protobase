@@ -79,10 +79,20 @@ Comparisons, `AND`, `OR`, `NOT` and parentheses work; functions such as `now()` 
 | `a.update(name, { label, set, confirm?, icon? })` | Updates the record with `set`, with its ETag. |
 | `a.remove(name, { label, confirm?, icon? })` | Deletes the record (soft delete when the resource has one). |
 | `a.link(name, { label, to, icon? })` | Goes `to` an [address](#addresses) in the app, with `{field}` in its key, filter, order or create values replaced by the record's value. |
-| `a.link(name, { label, href, icon? })` | Opens an `href` that leaves the app (`https:`, `mailto:`), with `{field}` replaced by the record's value (percent-encoded). A path in the app is refused when the config loads: give it as `to`. |
+| `a.link(name, { label, href, icon? })` | Opens an `href` that leaves the app (`https:`, `mailto:`), with `{field}` replaced by the record's value (percent-encoded); an `https:` or `http:` link opens in a new tab without the referrer. An `href` that is only a field, `'{website}'`, opens the URL the record holds, as it is: see [links to a record's URL](#links-to-a-records-url). A path in the app is refused when the config loads: give it as `to`. |
 | `a.action(name, { label, confirm?, icon?, bulk? })` | Runs the handler the app registers under `name` in [`protobase.ui.tsx`](/reference/custom-components/#action-handlers). |
 
-`icon` is one of `bed`, `bell`, `bookmark`, `file-text`, `heart`, `ruler`, `send` or `wallet`; another name shows a lightning bolt. With `confirm` the button asks first. The button is disabled, with the reason as its tooltip, when the user may not update or delete the record, when an `a.action` has no handler, or when an update or delete has no record. After an action, everything shown of that resource reloads. The record page's action rail runs the same actions the same way.
+`icon` is one of `bed`, `bell`, `bookmark`, `external-link`, `file-text`, `heart`, `ruler`, `send` or `wallet`; another name shows a lightning bolt. With `confirm` the button asks first. The button is disabled, with the reason as its tooltip, when the user may not update or delete the record, when an `a.action` has no handler, or when an update or delete has no record. After an action, everything shown of that resource reloads. The record page's action rail runs the same actions the same way.
+
+### Links to a record's URL
+
+A link whose `href` is a single `{field}` opens the address that field holds, such as the page a listing came from:
+
+```ts
+a.link('source', { label: 'View on {host}', icon: 'external-link', href: '{source_url}' })
+```
+
+The value is used as it is, not percent-encoded, and must be an absolute `https:` or `http:` URL: on a record whose field is empty or holds anything else the button does not show. It opens in a new tab that gets neither the app's window nor its address. `{host}` in the label becomes the URL's host without `www.`, so the button above reads "View on example.com". The field must be one of the resource's, and the button shows to whoever the view grants the field, a visitor who is not signed in included; for anyone it hides the field from, the action is left out.
 
 ## Addresses
 

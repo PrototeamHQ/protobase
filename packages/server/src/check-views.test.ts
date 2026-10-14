@@ -50,6 +50,18 @@ describe('checkViews', () => {
     expect(() => checkViews(registry, [written])).toThrow('action "old": href "/payments/{id}" points inside the app; give the link `to` instead')
   })
 
+  it("wants a link to a record's URL to name a field the resource has, and {host} only in the label of an href", () => {
+    const written = view<typeof payments>('payments').toModel()
+    written.actions = [{ name: 'bank', label: 'View on {host}', bulk: false, run: { kind: 'link', href: '{reference}' } }]
+    expect(() => checkViews(registry, [written])).not.toThrow()
+    written.actions = [{ name: 'bank', label: 'View on {host}', bulk: false, run: { kind: 'link', href: '{website}' } }]
+    expect(() => checkViews(registry, [written])).toThrow('View "payments": action "bank": href names field "website", which payments does not have')
+    written.actions = [{ name: 'iban', label: 'Bank', bulk: false, run: { kind: 'link', href: '{iban}' } }]
+    expect(() => checkViews(registry, [written])).toThrow('sensitive field "iban" cannot be in an action')
+    written.actions = [{ name: 'list', label: 'All on {host}', bulk: false, run: { kind: 'link', to: { kind: 'list', resource: 'payments' } } }]
+    expect(() => checkViews(registry, [written])).toThrow('View "payments": action "list": the label names {host}, which only a link with an href has')
+  })
+
   it('wants list displays to show fields the resource has, none of them sensitive', () => {
     const Board = Object.assign((props: { by: string }) => props, { blockName: 'Board', custom: true })
     const shown = view<typeof payments>('payments').list((r, d) => ({ columns: [r.reference], displays: [d.cards({ badge: r.method }), d.custom(Board, { name: 'board', label: 'Board', fields: [r.reference], props: { by: r.iban } })] }))

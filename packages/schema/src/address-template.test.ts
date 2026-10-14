@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { addressPlaceholders, appHrefError, fillAddress, hrefPlaceholders, leavesApp } from './address-template'
+import { addressPlaceholders, appHrefError, fillAddress, hrefField, hrefPlaceholders, leavesApp, linkActionError } from './address-template'
 
 describe('fillAddress', () => {
   it('fills a record key and a list filter and order from the record', () => {
@@ -42,5 +42,20 @@ describe('leavesApp', () => {
     expect(['/orders/1', 'orders/1', '?filter=x', '#top', '{website}', ''].some(leavesApp)).toBe(false)
     expect(appHrefError('/repairs?filter=x')).toContain('give the link `to` instead')
     expect(appHrefError('https://pay.example')).toBeUndefined()
+  })
+})
+
+describe('linkActionError', () => {
+  it("takes an href that is only a field, the URL the record holds, and nothing else of the app's own", () => {
+    expect(hrefField('{website}')).toBe('website')
+    expect(['https://{website}', '{website}/x', '{ website }', '{a}{b}', ''].map(hrefField)).toEqual([undefined, undefined, undefined, undefined, undefined])
+    expect(linkActionError('View on {host}', { href: '{website}' })).toBeUndefined()
+    expect(linkActionError('Open', { href: '{website}/x' })).toContain('points inside the app')
+  })
+
+  it('refuses {host} in the label of a link to an address in the app', () => {
+    expect(linkActionError('Open on {host}', { href: 'https://pay.example/{plan}' })).toBeUndefined()
+    expect(linkActionError('Go to {host}', { to: { kind: 'page', page: 'overview' } })).toBe('the label names {host}, which only a link with an href has')
+    expect(linkActionError('Overview', { to: { kind: 'page', page: 'overview' } })).toBeUndefined()
   })
 })

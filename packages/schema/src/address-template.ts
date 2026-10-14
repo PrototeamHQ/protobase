@@ -41,3 +41,15 @@ export const leavesApp = (href: string) => /^([a-z][a-z0-9+.-]*:|\/\/)/i.test(hr
 /** Why an href cannot be a link's `href`: it points inside the app, which takes an address in `to`. */
 export const appHrefError = (href: string) =>
   leavesApp(href) ? undefined : `href "${href}" points inside the app; give the link \`to\` instead, an address such as { kind: 'record', resource: 'orders', key: '{order_id}' }`
+
+/** The field an action's href is made of alone, `{field}`: the record's value is the whole URL, as it is stored. */
+export const hrefField = (href: string) => /^\{([A-Za-z_][A-Za-z0-9_]*)\}$/.exec(href)?.[1]
+
+/**
+ * Why a link action cannot be built: an `href` that points inside the app (one that is a single `{field}`, the URL the
+ * record holds, is fine), or `{host}` in the label of a link that goes `to` an address in the app, which has no host.
+ */
+export const linkActionError = (label: string, run: { to: AppAddress } | { href: string }) => {
+  if ('href' in run) return hrefField(run.href) ? undefined : appHrefError(run.href)
+  return label.includes('{host}') ? 'the label names {host}, which only a link with an href has' : undefined
+}

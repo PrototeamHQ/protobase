@@ -643,9 +643,12 @@ export type ActionRun =
       to: AppAddress
     }
   | {
-      /** Opens a link that leaves the app. */
+      /** Opens a link that leaves the app, an `https:` or `http:` one in a new tab without the referrer. */
       kind: 'link'
-      /** The link (`https:`, `mailto:`), with `{field}` replaced by the record's values, percent-encoded. */
+      /**
+       * The link (`https:`, `mailto:`), with `{field}` replaced by the record's values, percent-encoded; or only `{field}`,
+       * the `https:` or `http:` URL the record holds, without which the action does not show.
+       */
       href: string
     }
 
@@ -655,7 +658,7 @@ export type ActionModel = {
   name: string
   /** The button's label. */
   label: string
-  /** The button's icon: `bed`, `file-text`, `ruler`, `send` or `wallet`; another name shows a lightning bolt. */
+  /** The button's icon: `bed`, `bell`, `bookmark`, `external-link`, `file-text`, `heart`, `ruler`, `send` or `wallet`; another name shows a lightning bolt. */
   icon?: string
   /** The question the button asks before it runs the action. */
   confirm?: string

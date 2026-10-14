@@ -1,5 +1,5 @@
 import type { ActionRun, CardPhotosModel, ResourceModel, ViewModel } from '@protobase/schema'
-import { addressErrors, addressPlaceholders, appHrefError, displayFields, fieldRefsIn, hrefPlaceholders } from '@protobase/schema/internal'
+import { addressErrors, addressPlaceholders, displayFields, fieldRefsIn, hrefField, hrefPlaceholders, linkActionError } from '@protobase/schema/internal'
 import type { Registry } from './registry'
 import { cardFavoriteErrors, favoriteOwnerErrors } from './view-card-favorite'
 import { cardPhotosErrors } from './view-card-photos'
@@ -46,15 +46,16 @@ const valueColorErrors = (view: ViewModel, model: ResourceModel) =>
     return Object.keys(hints.valueColors).filter((value) => !field.enumValues?.includes(value)).map((value) => `value colour "${value}" is not a value of "${name}"`)
   })
 
-// A link goes to an address the app has, or leaves the app; a path in the app is written as an address.
+// A link goes to an address the app has, or leaves the app; a path in the app is written as an address, and a link
+// that is only a field's URL names a field the resource has.
 const linkErrors = (view: ViewModel, model: ResourceModel, models: Record<string, ResourceModel>, pages: ReadonlySet<string>) =>
-  view.actions.flatMap(({ name, run }) => {
+  view.actions.flatMap(({ name, label, run }) => {
     if (run?.kind !== 'link') return []
-    if ('href' in run) {
-      const error = appHrefError(run.href)
-      return error ? [`action "${name}": ${error}`] : []
-    }
-    return addressErrors(run.to, { models, pages, source: model }).map((error) => `action "${name}": ${error}`)
+    const error = linkActionError(label, run)
+    if (error) return [`action "${name}": ${error}`]
+    const field = 'href' in run ? hrefField(run.href) : undefined
+    if (field !== undefined && !Object.hasOwn(model.fields, field)) return [`action "${name}": href names field "${field}", which ${model.name} does not have`]
+    return 'to' in run ? addressErrors(run.to, { models, pages, source: model }).map((error) => `action "${name}": ${error}`) : []
   })
 
 // Displays and custom sections name fields of the resource; the builder's types say so, a view written as data is checked here.

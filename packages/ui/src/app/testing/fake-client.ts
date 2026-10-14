@@ -1,5 +1,5 @@
 import { ApiError, type Client, type ResourcePermissions } from '@protobase/client'
-import type { BottomBarModel, NavModel, ResourceModel, UserMenuModel, ViewModel } from '@protobase/schema'
+import type { ActionModel, BottomBarModel, NavModel, ResourceModel, UserMenuModel, ViewModel } from '@protobase/schema'
 
 const field = (name: string, type: string, extra: Record<string, unknown> = {}) => ({ name, column: name, type, nullable: false, readOnly: false, filterable: false, sortable: false, aliases: [], ...extra })
 
@@ -28,13 +28,20 @@ export type FakeClientOptions = {
   assistant?: { url: string }
   /** What `/meta` says of the runtime endpoint. */
   runtime?: { url: string }
+  /** The orders view's named actions. */
+  actions?: ActionModel[]
+  /** A `website` text field on the orders, with its value by order number. */
+  websites?: Record<string, string | null>
 }
 
 /** A server with one resource, for stories and tests that need permissions or failures the real ERP cannot give. */
-export const fakeClient = ({ permissions, remove, nav, userMenu, bottomBar, assistant, runtime }: FakeClientOptions) =>
-  ({
-    meta: async () => ({ status: 'modified' as const, etag: '"meta"', meta: { resources: [orders], views: [{ ...ordersView, ...(nav && { nav }) }], permissions: { orders: permissions }, ...(userMenu && { userMenu }), ...(bottomBar && { bottomBar }), ...(assistant && { assistant }), ...(runtime && { runtime }) } }),
-    list: async () => ({ items: rows, nextPageToken: '', totalSizeEstimate: rows.length }),
-    get: async (_resource: string, key: string) => ({ record: rows.find((row) => row.id === key) ?? rows[0]!, etag: rows.find((row) => row.id === key)?.etag ?? '"v1"' }),
+export const fakeClient = ({ permissions, remove, nav, userMenu, bottomBar, assistant, runtime, actions, websites }: FakeClientOptions) => {
+  const model = websites ? { ...orders, fields: { ...orders.fields, website: field('website', 'text', { nullable: true }) } } : orders
+  const records = websites ? rows.map((row) => ({ ...row, website: websites[row.number] ?? null })) : rows
+  return {
+    meta: async () => ({ status: 'modified' as const, etag: '"meta"', meta: { resources: [model], views: [{ ...ordersView, ...(nav && { nav }), ...(actions && { actions }) }], permissions: { orders: permissions }, ...(userMenu && { userMenu }), ...(bottomBar && { bottomBar }), ...(assistant && { assistant }), ...(runtime && { runtime }) } }),
+    list: async () => ({ items: records, nextPageToken: '', totalSizeEstimate: records.length }),
+    get: async (_resource: string, key: string) => ({ record: records.find((row) => row.id === key) ?? records[0]!, etag: records.find((row) => row.id === key)?.etag ?? '"v1"' }),
     remove: async (_resource: string, key: string, options?: { etag?: string }) => remove?.(key, options?.etag),
-  }) as unknown as Client
+  } as unknown as Client
+}

@@ -61,6 +61,16 @@ describe('pruneView', () => {
     expect(names(without({ repairs: ['customerId'] }))).toEqual(['quote'])
   })
 
+  it("keeps a link to a record's URL for any caller the view grants the field, and leaves it out for one it hides it from", () => {
+    const repairsView = view<typeof repairs>('repairs')
+      .actions((a) => [a.link('source', { label: 'View on {host}', href: '{number}' })])
+      .toModel()
+    const names = (models: Record<string, ResourceModel>) => pruneView(repairsView, models.repairs!, models).actions.map((action) => action.name)
+    // A visitor who is not signed in reads only the number and the status, and gets the link all the same
+    expect(names(without({ repairs: ['customerId', 'estimate', 'costPrice', 'bookedOn', 'urgent', 'insured', 'paid'] }, ['customers', 'repair_photos']))).toEqual(['source'])
+    expect(names(without({ repairs: ['number'] }))).toEqual([])
+  })
+
   it('leaves out a custom section whose props name a field the caller cannot read', () => {
     const Quote = Object.assign((props: { amount: string; currency: string }) => props, { blockName: 'Quote', custom: true })
     const repairsView = view<typeof repairs>('repairs').layout((r) => [l.custom(Quote, { props: { amount: r.estimate, currency: 'EUR' } }), l.section('Repair', [r.status, r.estimate])]).toModel()

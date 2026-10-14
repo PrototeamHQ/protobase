@@ -317,6 +317,14 @@ describe('view builder', () => {
     )
   })
 
+  it("opens the URL a field holds from an href that is only the field, and names its host in the label", () => {
+    const linked = view<typeof article>('article').actions((a) => [a.link('source', { label: 'View on {host}', icon: 'external-link', href: '{title}' })]).toModel()
+    expect(linked.actions).toEqual([{ name: 'source', label: 'View on {host}', icon: 'external-link', bulk: false, run: { kind: 'link', href: '{title}' } }])
+    expect(() => view<typeof article>('article').actions((a) => [a.link('mine', { label: 'Mine on {host}', to: { kind: 'list', resource: 'article' } })])).toThrow(
+      'Action "mine": the label names {host}, which only a link with an href has',
+    )
+  })
+
   it('rejects unknown field names at compile time', () => {
     const v = view<typeof article>('article')
     // @ts-expect-error unknown field

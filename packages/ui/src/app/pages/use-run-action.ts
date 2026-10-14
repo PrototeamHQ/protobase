@@ -6,7 +6,7 @@ import { useToast } from '../../toasts'
 import { useAdminMeta, usePermissions } from '../meta-gate'
 import { can } from '../permissions'
 import { useAppAddress } from '../use-app-address'
-import { fillHref } from './action-href'
+import { actionFor, linkTarget, openLink } from './action-href'
 import { useProjectUi } from './project-ui'
 import type { LayoutRecord } from './record-scope'
 import { useRefreshResource } from './use-layout-data'
@@ -15,8 +15,9 @@ const message = (error: unknown) => (error instanceof Error ? error.message : 'S
 
 /**
  * The named actions of `resource`'s view, ready to run on `scope` (the record they act on): built-in behaviour first
- * (`update`, `delete`, `link`), else the handler the project registered under the action's name. `blocked` says why one
- * cannot run; `afterRun` hears about every action that succeeded.
+ * (`update`, `delete`, `link`), else the handler the project registered under the action's name. A link to a URL the
+ * record holds is left out while it holds none. `blocked` says why one cannot run; `afterRun` hears about every action
+ * that succeeded.
  */
 export const useActionRunner = (resource: string, scope: LayoutRecord | undefined, afterRun?: (action: ActionModel) => void) => {
   const { views } = useAdminMeta()
@@ -29,7 +30,8 @@ export const useActionRunner = (resource: string, scope: LayoutRecord | undefine
   const refresh = useRefreshResource()
   const { go } = useAppAddress()
   const [running, setRunning] = useState<string>()
-  const actions = views[resource]?.actions ?? []
+  // A link to a URL the record holds shows only while it holds one, its label naming the URL's host
+  const actions = (views[resource]?.actions ?? []).flatMap((action) => actionFor(action, scope?.record) ?? [])
 
   const blocked = (action: ActionModel) => {
     const kind = action.run?.kind
@@ -44,7 +46,7 @@ export const useActionRunner = (resource: string, scope: LayoutRecord | undefine
     const { run } = action
     if (run?.kind === 'link') {
       if ('to' in run) go(fillAddress(run.to, scope?.record))
-      else window.location.assign(fillHref(run.href, scope?.record))
+      else openLink(linkTarget(run.href, scope?.record))
       return
     }
     if (run?.kind === 'update') await client.update(resource, scope!.key, run.values as Record<string, unknown>, scope!.etag ?? '*')
