@@ -381,7 +381,10 @@ export type SignInPromptModel = {
   benefits?: string[]
   /** The prompt's icon, a name `icon` hints take; a sign-in icon when omitted. */
   icon?: string
-  /** A page where a visitor makes an account, `https:`, `http:` or `mailto:`, offered beside "Sign in"; none when omitted. */
+  /**
+   * A page elsewhere where a visitor makes an account, `https:`, `http:` or `mailto:`, offered beside "Sign in". When
+   * omitted, the app's own sign-up is offered if the server has open sign-up, and none otherwise.
+   */
   signUp?: {
     /** The button's text, such as "Create an account". */
     label: string

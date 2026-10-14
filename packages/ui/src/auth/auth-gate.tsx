@@ -12,6 +12,7 @@ import { readResetLink, withoutResetLink } from './reset-link'
 import { ResetPasswordPage } from './reset-password-page'
 import { SetupRequiredPage } from './setup-required-page'
 import { SignInPage } from './sign-in-page'
+import { SignUpPage } from './sign-up-page'
 import { readStaffLink, withoutStaffLink, type StaffLink } from './staff-link'
 import { StaffSignInPage } from './staff-sign-in-page'
 import { TwoFactorPage } from './two-factor-page'
@@ -56,7 +57,7 @@ const forgetInvitationLink = () => window.history.replaceState(window.history.st
  * staff link opened. An invited person with an account signs in first and comes back to the invitation.
  */
 export const AuthGate = ({ workspace, children }: { workspace?: string; children: ReactNode }) => {
-  const { state, recheck, passwordReset, signOut, signInProviders, showSignIn, browse } = useAuth()
+  const { state, recheck, passwordReset, signOut, signInProviders, showSignIn, canSignUp, entry, showSignUp, browse } = useAuth()
   const [page, setPage] = useState(firstPage)
   // A notice, an error and a sent code are for the next sign-in only: once its first step went through, signing out
   // starts over. A sign-in link opened by someone signed in already has nothing left to do.
@@ -151,10 +152,11 @@ export const AuthGate = ({ workspace, children }: { workspace?: string; children
   if (page.kind === 'provider-sign-in') return <ProviderSignInPage provider={page.provider} workspace={workspace} onFailed={signInFailed} />
   if (page.kind === 'forgot-password') return <ForgotPasswordPage onBack={() => setPage({ kind: 'sign-in' })} />
   if (page.kind === 'email-code') return <EmailCodePage email={page.email} onBack={() => setPage({ kind: 'sign-in' })} />
+  if (canSignUp && entry === 'sign-up' && page.kind === 'sign-in') return <SignUpPage workspace={workspace} />
   // An invited person signing in sees the plain sign-in page, and the invitation once they are in.
   const signIn = page.kind === 'sign-in' ? page : { kind: 'sign-in' as const }
   // The provider's callback does not say which provider it was; with one, it is that one.
   const providerError = signIn.providerError && providerMessage(signIn.providerError, signInProviders.length === 1 ? signInProviders[0]!.name : 'the provider')
   const error = signIn.error ?? providerError
-  return <SignInPage key={error} workspace={workspace} notice={signIn.notice} error={error} onForgotPassword={passwordReset ? () => setPage({ kind: 'forgot-password' }) : undefined} onCodeSent={(email) => setPage({ kind: 'email-code', email })} onBrowse={browse} />
+  return <SignInPage key={error} workspace={workspace} notice={signIn.notice} error={error} onForgotPassword={passwordReset ? () => setPage({ kind: 'forgot-password' }) : undefined} onCodeSent={(email) => setPage({ kind: 'email-code', email })} onSignUp={canSignUp ? showSignUp : undefined} onBrowse={browse} />
 }

@@ -192,7 +192,8 @@ export class ViewBuilder<R extends {
   /**
    * What a visitor who is not signed in is told about this resource, which they could use once signed in: on its list
    * page, in place of the list, and in the dialog of a card's favorite button or a list's "Save search" button that
-   * saves here. The page offers "Sign in", and a page to make an account when `signUp` names one. With it, the resource keeps its place in the bottom
+   * saves here. The page offers "Sign in", and a way to make an account: the page `signUp` names, or the app's own sign-up
+   * when the server has [open sign-up](website/src/content/docs/reference/auth.md#open-sign-up). With it, the resource keeps its place in the bottom
    * bar and the sidebar of visitors. Throws when `signUp.href` is not `https:`, `http:` or `mailto:`. See
    * [Sign-in prompts](website/src/content/docs/reference/ui-config.mdx#sign-in-prompts).
    */

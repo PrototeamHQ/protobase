@@ -8,6 +8,8 @@ import { ProviderRedirect } from './provider-sign-in-page'
 import { ResetPasswordForm, type ResetPasswordFormProps } from './reset-password-form'
 import { SetupRequiredForm, type SetupRequiredFormProps } from './setup-required-form'
 import { SignInForm, type SignInFormProps } from './sign-in-form'
+import { SignUpDetailsForm, type SignUpDetailsFormProps } from './sign-up-details-form'
+import { SignUpEmailForm, type SignUpEmailFormProps } from './sign-up-email-form'
 import { StaffSignInForm, type StaffSignInFormProps } from './staff-sign-in-form'
 import { TwoFactorForm, type TwoFactorFormProps } from './two-factor-form'
 
@@ -166,6 +168,59 @@ export const EmailCode: StoryObj<EmailCodeFormProps> = {
     expect(args.onSubmit).toHaveBeenCalledWith('482913')
     await userEvent.click(canvas.getByRole('button', { name: 'Send a new code' }))
     expect(args.onResend).toHaveBeenCalledOnce()
+  },
+}
+
+export const SignInWithSignUp: StoryObj<SignInFormProps> = {
+  tags: ['play'],
+  args: { onSubmit: fn(), onSignUp: fn(), workspace: 'Homes' },
+  render: (args) => <SignInForm {...args} />,
+  play: async ({ canvasElement, args }) => {
+    await userEvent.click(within(canvasElement).getByRole('button', { name: 'Create an account' }))
+    expect(args.onSignUp).toHaveBeenCalledOnce()
+  },
+}
+
+export const SignUpEmail: StoryObj<SignUpEmailFormProps> = {
+  tags: ['play'],
+  args: { onSubmit: fn(), onSignIn: fn(), onBrowse: fn(), workspace: 'Homes' },
+  render: (args) => <SignUpEmailForm {...args} />,
+  play: async ({ canvasElement, args }) => {
+    const canvas = within(canvasElement)
+    await userEvent.type(canvas.getByLabelText('Email'), 'nia@homes.example')
+    await userEvent.click(canvas.getByRole('button', { name: 'Email me a code' }))
+    expect(args.onSubmit).toHaveBeenCalledWith('nia@homes.example')
+    await userEvent.click(canvas.getByRole('button', { name: 'Sign in' }))
+    expect(args.onSignIn).toHaveBeenCalledOnce()
+  },
+}
+
+export const SignUpDetails: StoryObj<SignUpDetailsFormProps> = {
+  tags: ['play'],
+  args: { email: 'nia@homes.example', methods: ['password', 'emailCode', 'passkey'], onSubmit: fn(), onResend: fn(), onBack: fn() },
+  render: (args) => <SignUpDetailsForm {...args} />,
+  play: async ({ canvasElement, args }) => {
+    const canvas = within(canvasElement)
+    expect(canvas.getByText('nia@homes.example')).toBeVisible()
+    await userEvent.type(canvas.getByLabelText('Code'), '246810')
+    await userEvent.type(canvas.getByLabelText('Your name'), 'Nia')
+    // With emailed codes on, the password can stay empty
+    await userEvent.click(canvas.getByRole('button', { name: 'Create account' }))
+    expect(args.onSubmit).toHaveBeenCalledWith({ code: '246810', name: 'Nia' })
+    await userEvent.type(canvas.getByLabelText('Password (optional)'), 'correct horse battery')
+    await userEvent.click(canvas.getByRole('button', { name: 'Create account' }))
+    expect(args.onSubmit).toHaveBeenLastCalledWith({ code: '246810', name: 'Nia', password: 'correct horse battery' })
+  },
+}
+
+export const SignUpDetailsPasswordOnly: StoryObj<SignUpDetailsFormProps> = {
+  tags: ['play'],
+  args: { email: 'nia@homes.example', methods: ['password'], onSubmit: fn(), onResend: fn(), onBack: fn(), error: 'The code is not right, or has expired. Ask for a new one.' },
+  render: (args) => <SignUpDetailsForm {...args} />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    expect(canvas.getByLabelText('Password')).toBeRequired()
+    expect(canvas.getByRole('alert')).toHaveTextContent('The code is not right')
   },
 }
 

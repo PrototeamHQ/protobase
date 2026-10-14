@@ -25,15 +25,18 @@ const Benefits = ({ benefits }: { benefits: string[] | undefined }) =>
     </ul>
   ) : null
 
-// "Sign in" opens the app's sign-in page; a page to make an account opens in a new tab, as the app has no sign-up.
+// "Sign in" opens the app's sign-in page. A page the prompt names to make an account opens in a new tab; without one,
+// "Create an account" opens the app's own sign-up page when the server has open sign-up.
 const Actions = ({ prompt }: { prompt: SignInPromptModel }) => {
-  const { showSignIn } = useAuth()
+  const { showSignIn, canSignUp, showSignUp } = useAuth()
   return (
     <>
-      {prompt.signUp && (
+      {prompt.signUp ? (
         <a href={prompt.signUp.href} target="_blank" rel="noreferrer" className={buttonClass()}>
           {prompt.signUp.label}
         </a>
+      ) : (
+        canSignUp && <Button onClick={showSignUp}>Create an account</Button>
       )}
       <Button variant="primary" onClick={showSignIn}>
         Sign in
@@ -44,7 +47,8 @@ const Actions = ({ prompt }: { prompt: SignInPromptModel }) => {
 
 /**
  * What a visitor who is not signed in is told about something they could use once signed in: the prompt's title, what
- * signing in gives and its benefits, with "Sign in" and, when the prompt names one, a page to make an account. As a page
+ * signing in gives and its benefits, with "Sign in" and a way to make an account: the page the prompt names, or the
+ * app's own sign-up when the server has it. As a page
  * it stands in for a list the visitor cannot see; as a dialog it answers a press on a button that needs an account.
  */
 export const SignInPrompt = (props: SignInPromptProps) => {

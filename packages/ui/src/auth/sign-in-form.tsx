@@ -31,6 +31,8 @@ export type SignInFormProps = {
   providers?: Array<{ id: string; name: string }>
   /** Starts sign-in with one of `providers`. */
   onContinueWith?: (provider: string) => void
+  /** Opens the page that makes an account; without it there is no "Create an account" link. */
+  onSignUp?: () => void
   /** Goes back to browsing without signing in; without it there is no such link. */
   onBrowse?: () => void
 }
@@ -43,7 +45,7 @@ const Divider = () => (
   </div>
 )
 
-export const SignInForm = ({ onSubmit, busy, error, workspace, notice, methods = ['password'], onSendCode, onPasskey, passkeyDomains = [], onForgotPassword, providers = [], onContinueWith, onBrowse }: SignInFormProps) => {
+export const SignInForm = ({ onSubmit, busy, error, workspace, notice, methods = ['password'], onSendCode, onPasskey, passkeyDomains = [], onForgotPassword, providers = [], onContinueWith, onSignUp, onBrowse }: SignInFormProps) => {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const emailInput = useRef<HTMLInputElement>(null)
@@ -139,6 +141,14 @@ export const SignInForm = ({ onSubmit, busy, error, workspace, notice, methods =
             </button>
           )}
         </form>
+      )}
+      {onSignUp && (
+        <p className="mt-4 text-center text-[13px] text-muted-foreground">
+          New here?{' '}
+          <button type="button" onClick={onSignUp} className="font-medium text-primary-text hover:underline">
+            Create an account
+          </button>
+        </p>
       )}
       {onBrowse && (
         <button type="button" onClick={onBrowse} className="mt-4 w-full text-center text-[13px] font-medium text-muted-foreground hover:text-foreground hover:underline">

@@ -23,12 +23,20 @@ export type AuthApi = {
   signInMethods: SignInMethod[]
   /** The server can email reset links, so the sign-in page offers "Forgot password?". */
   passwordReset: boolean
+  /** Anyone can make their own account, so the sign-in page and sign-in prompts offer "Create an account". */
+  canSignUp: boolean
+  /** Which page a signed-out person sees: signing in, or making an account (`showSignUp`). */
+  entry: 'sign-in' | 'sign-up'
   /** The domains people's passkeys were made for, when more than one, the passkey domain first; otherwise empty. */
   passkeyDomains: string[]
   /** Each sign-in step rejects with `AuthError`, for the form to show. */
   signIn: (email: string, password: string) => Promise<void>
   sendSignInCode: (email: string) => Promise<void>
   signInWithCode: (email: string, code: string) => Promise<void>
+  /** Open sign-up: emails a code for making an account with the address. */
+  sendSignUpCode: (email: string) => Promise<void>
+  /** Makes the account with the emailed code and signs in with it. */
+  signUp: (input: { email: string; code: string; name: string; password?: string }) => Promise<void>
   /** With a passkey of the app's passkey domain, or of `domain`, one of `passkeyDomains`. */
   signInWithPasskey: (domain?: string) => Promise<void>
   /** The second step, while `state` is `two-factor`. */
@@ -52,6 +60,8 @@ export type AuthApi = {
   markSignedOut: () => void
   /** A visitor asks to sign in: the sign-in page. */
   showSignIn: () => void
+  /** A visitor asks to make an account: the sign-up page, when `canSignUp`. */
+  showSignUp: () => void
   /** Back to browsing from the sign-in page, when the server lets visitors browse without signing in. */
   browse?: () => void
   /** Reads the setup status and session again, for "Check again" and after setting up a required method. */
@@ -74,6 +84,8 @@ export const AuthProvider = ({ session: given, children }: { session?: AuthSessi
   const [state, setState] = useState<AuthState>({ kind: 'loading' })
   const [signInMethods, setSignInMethods] = useState<SignInMethod[]>(['password'])
   const [passwordReset, setPasswordReset] = useState(false)
+  const [canSignUp, setCanSignUp] = useState(false)
+  const [entry, setEntry] = useState<AuthApi['entry']>('sign-in')
   const [passkeyDomains, setPasskeyDomains] = useState<string[]>([])
   const [socialProviders, setSocialProviders] = useState<string[]>([])
   const [platformSignIn, setPlatformSignIn] = useState<PlatformSignIn>()
@@ -88,9 +100,11 @@ export const AuthProvider = ({ session: given, children }: { session?: AuthSessi
   const session = useMemo(() => given ?? createAuthSession({ onSignedOut: () => signedOut.current() }), [given])
 
   // Signed in: the app opens unless the policy requires something the account lacks, which it never does for staff.
+  // Signing out later shows the sign-in page again.
   const enter = useCallback(
     async (user: AuthUser) => {
       const [{ missing }, staff] = await Promise.all([session.account.signInMethods(), session.staff.current()])
+      setEntry('sign-in')
       setState(missing.length > 0 ? { kind: 'setup-required', user, missing } : { kind: 'signed-in', user, ...(staff && { staff }) })
     },
     [session],
@@ -103,6 +117,7 @@ export const AuthProvider = ({ session: given, children }: { session?: AuthSessi
     void session.status().then(async (status) => {
       setSignInMethods(status.signInMethods)
       setPasswordReset(status.passwordReset)
+      setCanSignUp(Boolean(status.signUp))
       setPasskeyDomains(status.passkeyDomains ?? [])
       setSocialProviders(status.socialProviders)
       setPlatformSignIn(status.platformSignIn)
@@ -123,6 +138,8 @@ export const AuthProvider = ({ session: given, children }: { session?: AuthSessi
       session,
       signInMethods,
       passwordReset,
+      canSignUp,
+      entry,
       passkeyDomains,
       socialProviders,
       signInProviders: socialProviders.map((id) => ({ id, name: providerName(id, platformSignIn) })),
@@ -130,11 +147,25 @@ export const AuthProvider = ({ session: given, children }: { session?: AuthSessi
       ...(organizations && { organizations }),
       markSignedOut,
       recheck,
-      showSignIn: () => setState((current) => (current.kind === 'visitor' ? { kind: 'signed-out' } : current)),
-      ...(anonymous && { browse: () => setState((current) => (current.kind === 'signed-out' ? { kind: 'visitor' } : current)) }),
+      showSignIn: () => {
+        setEntry('sign-in')
+        setState((current) => (current.kind === 'visitor' ? { kind: 'signed-out' } : current))
+      },
+      showSignUp: () => {
+        setEntry('sign-up')
+        setState((current) => (current.kind === 'visitor' ? { kind: 'signed-out' } : current))
+      },
+      ...(anonymous && {
+        browse: () => {
+          setEntry('sign-in')
+          setState((current) => (current.kind === 'signed-out' ? { kind: 'visitor' } : current))
+        },
+      }),
       signIn: async (email, password) => finish(await session.signIn(email, password)),
       sendSignInCode: (email) => session.sendSignInCode(email),
       signInWithCode: async (email, code) => finish(await session.signInWithCode(email, code)),
+      sendSignUpCode: (email) => session.sendSignUpCode(email),
+      signUp: async (input) => enter(await session.signUp(input)),
       signInWithPasskey: async (domain) => enter(await session.signInWithPasskey(domain)),
       verifyTwoFactor: async (input) => enter(await session.verifyTwoFactor(input)),
       // The provider comes back to this page without a link's marker, so it does not start again.
@@ -153,7 +184,7 @@ export const AuthProvider = ({ session: given, children }: { session?: AuthSessi
         setState(signedOutState())
       },
     }),
-    [state, session, signInMethods, passwordReset, passkeyDomains, socialProviders, platformSignIn, staffSignIn, organizations, anonymous, signedOutState, markSignedOut, recheck, finish, enter],
+    [state, session, signInMethods, passwordReset, canSignUp, entry, passkeyDomains, socialProviders, platformSignIn, staffSignIn, organizations, anonymous, signedOutState, markSignedOut, recheck, finish, enter],
   )
   return <AuthContext.Provider value={api}>{children}</AuthContext.Provider>
 }
