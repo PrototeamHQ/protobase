@@ -103,9 +103,11 @@ describe.skipIf(!seeded)('a member\'s own data through the API', () => {
 
 describe.skipIf(!seeded)('a visitor', () => {
   it('browses the published listings without the agent to call, and sees no draft', async () => {
-    const { status, json } = await call('visitor', '/listings?page_size=500')
+    // The listings published before it starts: the alert tests publish more meanwhile.
+    const before = new Date().toISOString()
+    const { status, json } = await call('visitor', `/listings?filter=${encodeURIComponent(`published_at < ${before}`)}&page_size=500`)
     expect(status).toBe(200)
-    const published = Number((await sql<{ n: string }>`select count(*)::text as n from market.listings where published_at is not null`.execute(db)).rows[0]!.n)
+    const published = Number((await sql<{ n: string }>`select count(*)::text as n from market.listings where published_at < ${before}`.execute(db)).rows[0]!.n)
     expect(json.items).toHaveLength(published)
     expect(Object.keys(json.items[0])).not.toContain('agent_phone')
     const draft = (await sql<{ id: string }>`select id::text as id from market.listings where published_at is null order by id limit 1`.execute(db)).rows[0]!.id
