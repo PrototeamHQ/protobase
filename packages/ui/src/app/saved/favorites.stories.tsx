@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { useState } from 'react'
 import { expect, userEvent, waitFor, within } from 'storybook/test'
-import { createStaticSession, type AuthSession, type ResourcePermissions } from '@protobase/client'
+import { createStaticSession, type AuthSession, type Client, type ResourcePermissions } from '@protobase/client'
 import { f, resource, view, type SignInViewModel } from '@protobase/schema'
 import { App } from '../app'
 import { fakeApi } from '../testing/fake-api'
@@ -174,6 +174,51 @@ export const VisitorCardsChecks: StoryObj = {
     expect(within(page).getByText('See all your saved homes on one page')).toBeVisible()
     await userEvent.click(within(page).getByRole('button', { name: 'Sign in' }))
     expect(await canvas.findByRole('heading', { name: /^Sign in/ })).toBeVisible()
+  },
+}
+
+// A visitor who signs in: the API answers as the anonymous role until then, and as the member after.
+const SigningIn = ({ at }: { at: string }) => {
+  const [{ client, auth }] = useState(() => {
+    let signedIn = false
+    const auth: AuthSession = {
+      ...visitor,
+      session: async () => (signedIn ? member.session() : undefined),
+      signIn: async (email, password) => {
+        signedIn = true
+        return member.signIn(email, password)
+      },
+    }
+    const [visitorClient, memberClient] = [visitorApi().client, memberApi().client]
+    const client = new Proxy({} as Client, { get: (_, name) => Reflect.get(signedIn ? memberClient : visitorClient, name) })
+    return { client, auth }
+  })
+  return (
+    <div className="h-screen">
+      <App client={client} auth={auth} initialUrl={at} workspace="Homes" />
+    </div>
+  )
+}
+
+export const VisitorSignsIn: StoryObj = {
+  name: 'Visitor: signing in from the favorites page comes back to it',
+  tags: ['play'],
+  render: () => <SigningIn at="/homes" />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    await userEvent.click(await canvas.findByRole('link', { name: 'Favorites' }))
+    const page = await canvas.findByRole('region', { name: 'Keep the homes you like' })
+    await userEvent.click(within(page).getByRole('button', { name: 'Sign in' }))
+    expect(await canvas.findByRole('heading', { name: /^Sign in/ })).toBeVisible()
+    await userEvent.type(canvas.getByLabelText('Email'), 'pip@homes.example')
+    await userEvent.type(canvas.getByLabelText('Password'), 'correct horse battery')
+    await userEvent.click(canvas.getByRole('button', { name: 'Sign in' }))
+
+    // Signed in as the member, on the favorites page: their saved home instead of the prompt
+    expect(await canvas.findByRole('button', { name: 'Profile menu' })).toBeVisible()
+    expect(await canvas.findByRole('heading', { name: 'Favorites' })).toBeVisible()
+    expect(await canvas.findByText('Oudegracht 88')).toBeVisible()
+    expect(canvas.queryByRole('region', { name: 'Keep the homes you like' })).toBeNull()
   },
 }
 

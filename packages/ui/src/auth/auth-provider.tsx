@@ -6,7 +6,7 @@ export type AuthState =
   | { kind: 'loading' }
   | { kind: 'needs-admin' }
   | { kind: 'signed-out' }
-  /** Not signed in, browsing what the project's anonymous role reads; `showSignIn` opens the sign-in page. */
+  /** Not signed in, browsing what the project's anonymous role reads; the sign-in route signs them in. */
   | { kind: 'visitor' }
   /** The password or emailed code was right; the account's second step is next. */
   | { kind: 'two-factor'; methods: TwoFactorMethod[] }
@@ -25,8 +25,6 @@ export type AuthApi = {
   passwordReset: boolean
   /** Anyone can make their own account, so the sign-in page and sign-in prompts offer "Create an account". */
   canSignUp: boolean
-  /** Which page a signed-out person sees: signing in, or making an account (`showSignUp`). */
-  entry: 'sign-in' | 'sign-up'
   /** The domains people's passkeys were made for, when more than one, the passkey domain first; otherwise empty. */
   passkeyDomains: string[]
   /** Each sign-in step rejects with `AuthError`, for the form to show. */
@@ -58,11 +56,7 @@ export type AuthApi = {
   signOut: () => Promise<void>
   /** The API said 401 twice: back to the sign-in page. Signing in again shows what the account has to set up, if anything. */
   markSignedOut: () => void
-  /** A visitor asks to sign in: the sign-in page. */
-  showSignIn: () => void
-  /** A visitor asks to make an account: the sign-up page, when `canSignUp`. */
-  showSignUp: () => void
-  /** Back to browsing from the sign-in page, when the server lets visitors browse without signing in. */
+  /** Someone signed out browses as a visitor again, when the server lets visitors browse without signing in. */
   browse?: () => void
   /** Reads the setup status and session again, for "Check again" and after setting up a required method. */
   recheck: () => void
@@ -85,7 +79,6 @@ export const AuthProvider = ({ session: given, children }: { session?: AuthSessi
   const [signInMethods, setSignInMethods] = useState<SignInMethod[]>(['password'])
   const [passwordReset, setPasswordReset] = useState(false)
   const [canSignUp, setCanSignUp] = useState(false)
-  const [entry, setEntry] = useState<AuthApi['entry']>('sign-in')
   const [passkeyDomains, setPasskeyDomains] = useState<string[]>([])
   const [socialProviders, setSocialProviders] = useState<string[]>([])
   const [platformSignIn, setPlatformSignIn] = useState<PlatformSignIn>()
@@ -104,7 +97,6 @@ export const AuthProvider = ({ session: given, children }: { session?: AuthSessi
   const enter = useCallback(
     async (user: AuthUser) => {
       const [{ missing }, staff] = await Promise.all([session.account.signInMethods(), session.staff.current()])
-      setEntry('sign-in')
       setState(missing.length > 0 ? { kind: 'setup-required', user, missing } : { kind: 'signed-in', user, ...(staff && { staff }) })
     },
     [session],
@@ -139,7 +131,6 @@ export const AuthProvider = ({ session: given, children }: { session?: AuthSessi
       signInMethods,
       passwordReset,
       canSignUp,
-      entry,
       passkeyDomains,
       socialProviders,
       signInProviders: socialProviders.map((id) => ({ id, name: providerName(id, platformSignIn) })),
@@ -147,17 +138,8 @@ export const AuthProvider = ({ session: given, children }: { session?: AuthSessi
       ...(organizations && { organizations }),
       markSignedOut,
       recheck,
-      showSignIn: () => {
-        setEntry('sign-in')
-        setState((current) => (current.kind === 'visitor' ? { kind: 'signed-out' } : current))
-      },
-      showSignUp: () => {
-        setEntry('sign-up')
-        setState((current) => (current.kind === 'visitor' ? { kind: 'signed-out' } : current))
-      },
       ...(anonymous && {
         browse: () => {
-          setEntry('sign-in')
           setState((current) => (current.kind === 'signed-out' ? { kind: 'visitor' } : current))
         },
       }),
@@ -184,7 +166,7 @@ export const AuthProvider = ({ session: given, children }: { session?: AuthSessi
         setState(signedOutState())
       },
     }),
-    [state, session, signInMethods, passwordReset, canSignUp, entry, passkeyDomains, socialProviders, platformSignIn, staffSignIn, organizations, anonymous, signedOutState, markSignedOut, recheck, finish, enter],
+    [state, session, signInMethods, passwordReset, canSignUp, passkeyDomains, socialProviders, platformSignIn, staffSignIn, organizations, anonymous, signedOutState, markSignedOut, recheck, finish, enter],
   )
   return <AuthContext.Provider value={api}>{children}</AuthContext.Provider>
 }

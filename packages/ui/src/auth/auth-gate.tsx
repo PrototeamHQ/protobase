@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import { Button } from '../primitives/button'
 import { Spinner } from '../primitives/spinner'
+import { useRouter } from '../app/router'
 import { useAuth } from './auth-provider'
 import { EmailCodePage } from './email-code-page'
 import { providerMessage } from './auth-messages'
@@ -11,24 +12,27 @@ import { ProviderSignInPage } from './provider-sign-in-page'
 import { readResetLink, withoutResetLink } from './reset-link'
 import { ResetPasswordPage } from './reset-password-page'
 import { SetupRequiredPage } from './setup-required-page'
+import { signInPath, type SignInStep } from './sign-in-address'
 import { SignInPage } from './sign-in-page'
 import { SignUpPage } from './sign-up-page'
 import { readStaffLink, withoutStaffLink, type StaffLink } from './staff-link'
 import { StaffSignInPage } from './staff-sign-in-page'
 import { TwoFactorPage } from './two-factor-page'
+import { useSignInAddress } from './use-sign-in-address'
 import { readInvitationLink, withoutInvitationLink } from '../organizations/invitation-link'
 import { InvitationPage } from '../organizations/invitation-page'
 
 type AuthPage =
-  /** `error`: why the last sign-in did not go through; `providerError`: the code a provider came back with. */
+  /**
+   * The sign-in route's steps, which its address names. `notice`, `error` and `providerError` are for its first step:
+   * `error` says why the last sign-in did not go through, `providerError` is the code a provider came back with.
+   */
   | { kind: 'sign-in'; notice?: string; error?: string; providerError?: string }
   | { kind: 'provider-sign-in'; provider: string }
-  | { kind: 'email-code'; email: string }
-  | { kind: 'forgot-password' }
   | { kind: 'reset-password'; token: string | undefined }
   | { kind: 'staff-sign-in'; link: StaffLink }
-  /** `signingIn`: the invited person has an account, and signs in before they accept. */
-  | { kind: 'invitation'; token: string; signingIn: boolean }
+  /** The invited person sees it signed in, or signed out off the sign-in route, where one with an account signs in first. */
+  | { kind: 'invitation'; token: string }
 
 // An emailed reset link opens the set-password page, and a staff link the staff sign-in page, whoever is signed in. A
 // sign-in link starts the provider's sign-in for someone signed out, and a provider's refusal shows on the sign-in page.
@@ -39,45 +43,66 @@ const firstPage = (): AuthPage => {
   const staff = readStaffLink(href)
   if (staff) return { kind: 'staff-sign-in', link: staff }
   const invitation = readInvitationLink(href)
-  if (invitation) return { kind: 'invitation', token: invitation.token, signingIn: false }
+  if (invitation) return { kind: 'invitation', token: invitation.token }
   const provider = readSignInLink(href)
   if (provider) return { kind: 'provider-sign-in', provider }
   const providerError = readProviderError(href)
   return providerError ? { kind: 'sign-in', providerError } : { kind: 'sign-in' }
 }
 
-const forgetResetLink = () => window.history.replaceState(window.history.state, '', withoutResetLink(window.location.href))
-const forgetStaffLink = () => window.history.replaceState(window.history.state, '', withoutStaffLink(window.location.href))
-const forgetSignInLink = () => window.history.replaceState(window.history.state, '', withoutSignInLink(window.location.href))
-const forgetInvitationLink = () => window.history.replaceState(window.history.state, '', withoutInvitationLink(window.location.href))
+/** Moves to `to`, below the base path, in place of this page in the tab's history, as soon as it shows. */
+const Redirect = ({ to }: { to: string }) => {
+  const { navigate } = useRouter()
+  useEffect(() => navigate(to, { replace: true }), [navigate, to])
+  return null
+}
 
 /**
  * Shows the app when the user is signed in (or the server has no login), or to a visitor when the project lets them
- * browse, and the right page otherwise: the sign-in steps, or the page an emailed reset link, an invitation link or a
- * staff link opened. An invited person with an account signs in first and comes back to the invitation.
+ * browse, and the right page otherwise: the step of the sign-in route the address names, or the page an emailed reset
+ * link, an invitation link or a staff link opened. Someone signed out without a visitor's browsing goes to the sign-in
+ * route, and signing in comes back to the page the route was opened from. An invited person with an account signs in
+ * first and comes back to the invitation.
  */
 export const AuthGate = ({ workspace, children }: { workspace?: string; children: ReactNode }) => {
-  const { state, recheck, passwordReset, signOut, signInProviders, showSignIn, canSignUp, entry, showSignUp, browse } = useAuth()
+  const { state, recheck, passwordReset, signOut, signInProviders, canSignUp, browse } = useAuth()
+  const { path, params, basePath, navigate } = useRouter()
+  const { address, next, open, leave } = useSignInAddress()
   const [page, setPage] = useState(firstPage)
+  // The addresses the steps that enter an emailed code were for. After a reload they are gone, and so are those steps.
+  const [codeEmail, setCodeEmail] = useState<string>()
+  const [signUpEmail, setSignUpEmail] = useState<string>()
+
+  // Takes a used link's parameters out of the address, in place of it in the tab's history.
+  const href = new URL(`${basePath}${path}${params.size > 0 ? `?${params}` : ''}`, window.location.origin).href
+  const forget = useCallback(
+    (without: (href: string) => string) => {
+      const below = without(href).slice(basePath.length)
+      navigate(below.startsWith('/') ? below : `/${below}`, { replace: true })
+    },
+    [href, basePath, navigate],
+  )
+
   // A notice, an error and a sent code are for the next sign-in only: once its first step went through, signing out
   // starts over. A sign-in link opened by someone signed in already has nothing left to do.
+  const entered = state.kind === 'signed-in' || state.kind === 'two-factor' || state.kind === 'setup-required'
   useEffect(() => {
-    if (state.kind === 'signed-in' || state.kind === 'two-factor' || state.kind === 'setup-required') {
-      setPage((current) => {
-        if (current.kind === 'provider-sign-in') forgetSignInLink()
-        const stale = current.kind === 'email-code' || current.kind === 'provider-sign-in' || (current.kind === 'sign-in' && (current.notice || current.error || current.providerError))
-        return stale ? { kind: 'sign-in' } : current
-      })
-    }
-  }, [state.kind])
-  // The provider's refusal shows once; the address keeps no trace of it.
+    if (!entered) return
+    if (page.kind === 'provider-sign-in') forget(withoutSignInLink)
+    const stale = page.kind === 'provider-sign-in' || (page.kind === 'sign-in' && (page.notice || page.error || page.providerError))
+    if (stale) setPage({ kind: 'sign-in' })
+    setCodeEmail(undefined)
+    setSignUpEmail(undefined)
+  }, [entered, page, forget])
+  // The provider's refusal shows once; the address keeps no trace of it. Off the sign-in route, opening the route does.
+  const providerErrorLeft = address !== undefined && readProviderError(href) !== undefined
   useEffect(() => {
-    if (state.kind === 'signed-out' && page.kind === 'sign-in' && page.providerError) forgetSignInLink()
-  }, [state.kind, page])
+    if (!entered && page.kind === 'sign-in' && page.providerError && providerErrorLeft) forget(withoutSignInLink)
+  }, [entered, page, providerErrorLeft, forget])
   const signInFailed = useCallback((error: string) => setPage({ kind: 'sign-in', error }), [])
 
   const leaveResetPage = (next: AuthPage) => {
-    forgetResetLink()
+    forget(withoutResetLink)
     setPage(next)
   }
   // The reset ended every session, so the app forgets its own as well.
@@ -87,7 +112,7 @@ export const AuthGate = ({ workspace, children }: { workspace?: string; children
   }
   const backToSignIn = () => {
     setPage({ kind: 'sign-in' })
-    void signOut().then(showSignIn)
+    void signOut().then(() => open('sign-in', { replace: true }))
   }
 
   switch (state.kind) {
@@ -107,12 +132,21 @@ export const AuthGate = ({ workspace, children }: { workspace?: string; children
     case 'needs-admin':
       return <FirstRunPage onCheckAgain={recheck} />
   }
+  // Signed in on the sign-in route: on to the page it was opened from.
+  if (state.kind === 'signed-in' && address) return <Redirect to={next ?? '/'} />
   if (page.kind === 'reset-password') {
     return (
       <ResetPasswordPage
         token={page.token}
         onDone={() => void passwordChanged()}
-        onRequestNewLink={passwordReset ? () => leaveResetPage({ kind: 'forgot-password' }) : undefined}
+        onRequestNewLink={
+          passwordReset
+            ? () => {
+                setPage({ kind: 'sign-in' })
+                navigate(signInPath({ step: 'forgot-password' }), { replace: true })
+              }
+            : undefined
+        }
         onBack={() => leaveResetPage({ kind: 'sign-in' })}
       />
     )
@@ -122,41 +156,87 @@ export const AuthGate = ({ workspace, children }: { workspace?: string; children
       <StaffSignInPage
         link={page.link}
         onBack={() => {
-          forgetStaffLink()
+          forget(withoutStaffLink)
           setPage({ kind: 'sign-in' })
         }}
       />
     )
   }
   const signedOut = state.kind === 'signed-out' || state.kind === 'visitor'
-  if (page.kind === 'invitation' && (state.kind === 'signed-in' || (signedOut && !page.signingIn))) {
+  if (page.kind === 'invitation' && (state.kind === 'signed-in' || (signedOut && !address))) {
     return (
       <InvitationPage
         token={page.token}
         onDone={() => {
-          forgetInvitationLink()
+          forget(withoutInvitationLink)
           setPage({ kind: 'sign-in' })
         }}
-        onSignIn={() => {
-          setPage({ ...page, signingIn: true })
-          showSignIn()
-        }}
+        onSignIn={() => open()}
       />
     )
   }
   if (state.kind === 'signed-in') return children
-  // A visitor browses until they ask to sign in, or a link or a notice is for the sign-in steps.
-  if (state.kind === 'visitor' && page.kind === 'sign-in' && !page.notice && !page.error && !page.providerError) return children
   if (state.kind === 'two-factor') return <TwoFactorPage methods={state.methods} onBack={backToSignIn} />
   if (state.kind === 'setup-required') return <SetupRequiredPage key={state.missing.join()} missing={state.missing} />
   if (page.kind === 'provider-sign-in') return <ProviderSignInPage provider={page.provider} workspace={workspace} onFailed={signInFailed} />
-  if (page.kind === 'forgot-password') return <ForgotPasswordPage onBack={() => setPage({ kind: 'sign-in' })} />
-  if (page.kind === 'email-code') return <EmailCodePage email={page.email} onBack={() => setPage({ kind: 'sign-in' })} />
-  if (canSignUp && entry === 'sign-up' && page.kind === 'sign-in') return <SignUpPage workspace={workspace} />
   // An invited person signing in sees the plain sign-in page, and the invitation once they are in.
   const signIn = page.kind === 'sign-in' ? page : { kind: 'sign-in' as const }
+  if (!address) {
+    // A visitor browses until they open the sign-in route. Someone signed out, or a notice or an error for the sign-in
+    // page, opens it in place of this page, and signing in comes back here.
+    const message = signIn.notice || signIn.error || signIn.providerError
+    return state.kind === 'visitor' && !message ? children : <Redirect to={signInPath({ next })} />
+  }
+
+  // A step needs what the one before asked for, which a reload forgets, and the server to offer it; else it is the first.
+  const offered: Record<SignInStep, boolean> = {
+    'sign-in': true,
+    'forgot-password': passwordReset,
+    'email-code': codeEmail !== undefined,
+    'sign-up': canSignUp,
+    'sign-up-code': canSignUp && signUpEmail !== undefined,
+  }
+  const step = offered[address.step] ? address.step : 'sign-in'
+  const backTo = (target: SignInStep) => () => open(target, { replace: true })
+  // Back to browsing the page the route was opened from, for someone the API signed out as well.
+  const onBrowse = browse && (() => {
+    browse()
+    leave()
+  })
+  if (step === 'forgot-password') return <ForgotPasswordPage onBack={backTo('sign-in')} />
+  if (step === 'email-code') return <EmailCodePage email={codeEmail!} onBack={backTo('sign-in')} />
+  if (step === 'sign-up' || step === 'sign-up-code') {
+    return (
+      <SignUpPage
+        key={step}
+        workspace={workspace}
+        email={step === 'sign-up-code' ? signUpEmail : undefined}
+        onCodeSent={(email) => {
+          setSignUpEmail(email)
+          open('sign-up-code')
+        }}
+        onBack={backTo('sign-up')}
+        onSignIn={() => open('sign-in')}
+        onBrowse={onBrowse}
+      />
+    )
+  }
   // The provider's callback does not say which provider it was; with one, it is that one.
   const providerError = signIn.providerError && providerMessage(signIn.providerError, signInProviders.length === 1 ? signInProviders[0]!.name : 'the provider')
   const error = signIn.error ?? providerError
-  return <SignInPage key={error} workspace={workspace} notice={signIn.notice} error={error} onForgotPassword={passwordReset ? () => setPage({ kind: 'forgot-password' }) : undefined} onCodeSent={(email) => setPage({ kind: 'email-code', email })} onSignUp={canSignUp ? showSignUp : undefined} onBrowse={browse} />
+  return (
+    <SignInPage
+      key={error}
+      workspace={workspace}
+      notice={signIn.notice}
+      error={error}
+      onForgotPassword={passwordReset ? () => open('forgot-password') : undefined}
+      onCodeSent={(email) => {
+        setCodeEmail(email)
+        open('email-code')
+      }}
+      onSignUp={canSignUp ? () => open('sign-up') : undefined}
+      onBrowse={onBrowse}
+    />
+  )
 }

@@ -52,7 +52,7 @@ anonymous: [{ 'products.read': { fields: ['name', 'slug', 'price', 'image'], fil
 
 ### Browsing the admin app
 
-With an anonymous role, `GET /api/auth/status` says `"anonymous": true`, and the admin app opens for someone who is not signed in instead of the sign-in page: the sidebar, lists, displays, filters and record pages of what the role reads, read-only, with the views and pages of the role `anonymous` (a view `.forRoles(['anonymous'])` is theirs alone). The sidebar has a **Sign in** button where the profile menu would be, and the sign-in page has **Continue without signing in** to go back. Signing out returns to browsing. A link for the sign-in steps, such as a password reset, still opens its page.
+With an anonymous role, `GET /api/auth/status` says `"anonymous": true`, and the admin app opens for someone who is not signed in instead of the sign-in page: the sidebar, lists, displays, filters and record pages of what the role reads, read-only, with the views and pages of the role `anonymous` (a view `.forRoles(['anonymous'])` is theirs alone). The sidebar has a **Sign in** button where the profile menu would be. It opens the sign-in route, `/-/sign-in`, a page of its own: the browser's Back, or **Continue without signing in**, returns to browsing, and signing in comes back to the page it was opened from. Signing out returns to browsing. A link for the sign-in steps, such as a password reset, still opens its page.
 
 ## Use cases
 

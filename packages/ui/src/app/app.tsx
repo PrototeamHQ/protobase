@@ -6,6 +6,7 @@ import { SignInPolicyPage } from '../account/sign-in-policy-page'
 import { AppShell, type SidebarMode } from '../app-shell'
 import { ApiProvider } from '../data/api-provider'
 import { AuthGate, AuthProvider, isAdmin, userToShell, useAuth } from '../auth'
+import { useSignInAddress } from '../auth/use-sign-in-address'
 import { useRecord } from '../data/use-record'
 import { recordTitle } from '../live/model-helpers'
 import { humanize } from '../live/naming'
@@ -75,7 +76,8 @@ const recordOf = (address: CurrentAddress | undefined) => (address?.kind === 're
 
 const Routes = ({ workspace, sidebarMode, assistant, runtime }: Pick<AppProps, 'workspace' | 'sidebarMode' | 'assistant' | 'runtime'>) => {
   const meta = useAdminMeta()
-  const { state, session, signOut, showSignIn, stopStaffSession, organizations: organizationSettings } = useAuth()
+  const { state, session, signOut, stopStaffSession, organizations: organizationSettings } = useAuth()
+  const signIn = useSignInAddress()
   if (state.kind !== 'signed-in' && state.kind !== 'visitor') throw new Error('The shell is only rendered for a signed-in user or a visitor')
   // A visitor browses what the anonymous role reads: no account, roles or organizations, and a "Sign in" button.
   const user = state.kind === 'signed-in' ? state.user : undefined
@@ -171,7 +173,7 @@ const Routes = ({ workspace, sidebarMode, assistant, runtime }: Pick<AppProps, '
       breadcrumb={breadcrumb}
       user={acting && userToShell(acting)}
       onSignOut={user && (() => void signOut())}
-      onSignIn={user ? undefined : showSignIn}
+      onSignIn={user ? undefined : () => signIn.open()}
       workspace={current?.organization?.name ?? workspace}
       navGroups={groups}
       bottomBar={bottomBarFromMeta(meta, basePath, place)}
@@ -206,35 +208,35 @@ const Routes = ({ workspace, sidebarMode, assistant, runtime }: Pick<AppProps, '
   )
 }
 
-const Authenticated = ({ baseUrl, client, sources, basePath, initialUrl, workspace, sidebarMode, ui, assistant, runtime, pluginLoader }: Omit<AppProps, 'auth'>) => {
+const Authenticated = ({ baseUrl, client, sources, workspace, sidebarMode, ui, assistant, runtime, pluginLoader }: Omit<AppProps, 'auth' | 'basePath' | 'initialUrl'>) => {
   const { state, session, markSignedOut } = useAuth()
   // A visitor has no token to ask the session for: their requests go without one, as the anonymous role.
   return (
     <ApiProvider baseUrl={baseUrl} client={client} sources={sources} token={state.kind === 'visitor' ? undefined : session.token} onUnauthenticated={markSignedOut}>
-      <Router basePath={basePath} initialUrl={initialUrl}>
-        <MetaGate>
-          <ToastProvider>
-            <PluginGate ui={ui} {...(pluginLoader && { loader: pluginLoader })}>
-              <Routes workspace={workspace} sidebarMode={sidebarMode} assistant={assistant} runtime={runtime} />
-            </PluginGate>
-          </ToastProvider>
-        </MetaGate>
-      </Router>
+      <MetaGate>
+        <ToastProvider>
+          <PluginGate ui={ui} {...(pluginLoader && { loader: pluginLoader })}>
+            <Routes workspace={workspace} sidebarMode={sidebarMode} assistant={assistant} runtime={runtime} />
+          </PluginGate>
+        </ToastProvider>
+      </MetaGate>
     </ApiProvider>
   )
 }
 
 /**
- * The admin: sign-in first, or browsing as a visitor when the project has an anonymous role, then a sidebar from
- * `/meta`, `/:page` composed pages, `/:resource` lists and `/:resource/:key` records. Fills its parent, in the theme
- * this browser chose, light, dark or the system's.
+ * The admin: the sign-in route first, `/-/sign-in`, or browsing as a visitor when the project has an anonymous role,
+ * then a sidebar from `/meta`, `/:page` composed pages, `/:resource` lists and `/:resource/:key` records. Fills its
+ * parent, in the theme this browser chose, light, dark or the system's.
  */
-export const App = ({ auth, workspace, ...rest }: AppProps) => (
+export const App = ({ auth, workspace, basePath, initialUrl, ...rest }: AppProps) => (
   <ThemeProvider>
     <AuthProvider session={auth}>
-      <AuthGate workspace={workspace}>
-        <Authenticated workspace={workspace} {...rest} />
-      </AuthGate>
+      <Router basePath={basePath} initialUrl={initialUrl}>
+        <AuthGate workspace={workspace}>
+          <Authenticated workspace={workspace} {...rest} />
+        </AuthGate>
+      </Router>
     </AuthProvider>
   </ThemeProvider>
 )

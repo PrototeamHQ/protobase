@@ -5,6 +5,7 @@ import { namedIcon } from '../app/named-icon'
 import { Button, buttonClass } from '../primitives/button'
 import { ResponsiveDialog } from '../primitives/responsive-dialog'
 import { useAuth } from './auth-provider'
+import { useSignInAddress } from './use-sign-in-address'
 
 export type SignInPromptProps = { prompt: SignInPromptModel } & (
   /** A page section, in place of what the visitor cannot use yet. */
@@ -25,10 +26,11 @@ const Benefits = ({ benefits }: { benefits: string[] | undefined }) =>
     </ul>
   ) : null
 
-// "Sign in" opens the app's sign-in page. A page the prompt names to make an account opens in a new tab; without one,
-// "Create an account" opens the app's own sign-up page when the server has open sign-up.
+// "Sign in" opens the app's sign-in route, which comes back to this page. A page the prompt names to make an account
+// opens in a new tab; without one, "Create an account" opens the route's sign-up step when the server has open sign-up.
 const Actions = ({ prompt }: { prompt: SignInPromptModel }) => {
-  const { showSignIn, canSignUp, showSignUp } = useAuth()
+  const { canSignUp } = useAuth()
+  const { open } = useSignInAddress()
   return (
     <>
       {prompt.signUp ? (
@@ -36,9 +38,9 @@ const Actions = ({ prompt }: { prompt: SignInPromptModel }) => {
           {prompt.signUp.label}
         </a>
       ) : (
-        canSignUp && <Button onClick={showSignUp}>Create an account</Button>
+        canSignUp && <Button onClick={() => open('sign-up')}>Create an account</Button>
       )}
-      <Button variant="primary" onClick={showSignIn}>
+      <Button variant="primary" onClick={() => open()}>
         Sign in
       </Button>
     </>

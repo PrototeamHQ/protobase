@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { expect, userEvent, waitFor, within } from 'storybook/test'
 import { createStaticSession } from '@protobase/client'
 import type { SignInPromptModel } from '@protobase/schema'
+import { Router } from '../app/router'
 import { Button } from '../primitives/button'
 import { AuthProvider } from './auth-provider'
 import { SignInPrompt } from './sign-in-prompt'
@@ -31,7 +32,9 @@ const alerts: SignInPromptModel = {
 
 const Page = ({ prompt }: { prompt: SignInPromptModel }) => (
   <AuthProvider session={session}>
-    <SignInPrompt as="page" prompt={prompt} />
+    <Router initialUrl="/favorites">
+      <SignInPrompt as="page" prompt={prompt} />
+    </Router>
   </AuthProvider>
 )
 
@@ -39,10 +42,12 @@ const Opener = ({ prompt }: { prompt: SignInPromptModel }) => {
   const [open, setOpen] = useState(false)
   return (
     <AuthProvider session={session}>
-      <div className="p-6">
-        <Button onClick={() => setOpen(true)}>Save to favorites</Button>
-        <SignInPrompt as="dialog" prompt={prompt} open={open} onClose={() => setOpen(false)} />
-      </div>
+      <Router initialUrl="/homes">
+        <div className="p-6">
+          <Button onClick={() => setOpen(true)}>Save to favorites</Button>
+          <SignInPrompt as="dialog" prompt={prompt} open={open} onClose={() => setOpen(false)} />
+        </div>
+      </Router>
     </AuthProvider>
   )
 }
