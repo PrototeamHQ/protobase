@@ -1,6 +1,6 @@
 div | block
   div .h-screen | block
-    div .flex h-full min-h-0 w-full overflow-hidden bg-background | flex row nowrap normal normal
+    div .relative flex h-full min-h-0 w-full overflow-hidden bg-background | flex row nowrap normal normal relative
       nav .relative z-30 shrink-0 w-52 | block relative
         div .group/side absolute inset-y-0 left-0 flex flex-col overflow-hidden border-r bg-sidebar w-full | flex column nowrap normal normal absolute
           div .flex h-12 shrink-0 items-center px-3.5 | flex row nowrap center normal

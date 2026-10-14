@@ -67,7 +67,8 @@ export const AppShell = ({ sidebarMode, activeItem, breadcrumb, user, workspace,
   )
   return (
     <PageScrollContext.Provider value={setPageScroll}>
-      <div className={cn(pageScroll ? 'flex min-h-full w-full overflow-x-clip bg-background' : 'flex h-full min-h-0 w-full overflow-hidden bg-background', className)}>
+      {/* Relative while a box scrolls, so that it clips absolute content such as sr-only text, which otherwise makes the document taller */}
+      <div className={cn(pageScroll ? 'flex min-h-full w-full overflow-x-clip bg-background' : 'relative flex h-full min-h-0 w-full overflow-hidden bg-background', className)}>
         {desktop ? sidebar(sidebarMode, pageScroll) : (
           <Drawer id={drawerId} open={drawerOpen} onClose={() => setDrawerOpen(false)}>
             {sidebar('text-large')}

@@ -127,3 +127,27 @@ export const BreadcrumbLinks: Story = {
     expect(args.onNavigate).toHaveBeenCalledTimes(1)
   },
 }
+
+/**
+ * A page that scrolls in its own box keeps the document the screen's height: text kept for screen readers far down the
+ * box, positioned with sr-only, is clipped with the box instead of making the document taller, which otherwise scrolls
+ * the shell up past the bottom of the screen and leaves blank space below it.
+ */
+export const ScrollBoxKeepsDocumentHeight: Story = {
+  tags: ['play'],
+  render: (args) => (
+    <div className="h-screen">
+      <AppShell {...args}>
+        <div className="min-h-0 flex-1 overflow-y-auto">
+          <div className="h-[3000px] p-6 text-muted-foreground">Tall page content</div>
+          <a href="#listings">
+            View all <span className="sr-only">listings</span>
+          </a>
+        </div>
+      </AppShell>
+    </div>
+  ),
+  play: async () => {
+    expect(document.documentElement.scrollHeight).toBe(document.documentElement.clientHeight)
+  },
+}

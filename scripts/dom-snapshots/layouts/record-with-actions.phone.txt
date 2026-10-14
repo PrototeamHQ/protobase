@@ -1,6 +1,6 @@
 div | block
   div .h-screen | block
-    div .flex h-full min-h-0 w-full overflow-hidden bg-background | flex row nowrap normal normal
+    div .relative flex h-full min-h-0 w-full overflow-hidden bg-background | flex row nowrap normal normal relative
       div .flex min-w-0 flex-1 flex-col | flex column nowrap normal normal
         header .relative flex h-12 shrink-0 items-center gap-1 border-b bg-background px-2 md:gap-4 md:px-5 | flex row nowrap center normal relative
           button .inline-flex size-11 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted md:hidden -ml-0.5 | flex row nowrap center center
