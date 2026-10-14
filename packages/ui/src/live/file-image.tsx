@@ -1,5 +1,7 @@
 import { useMemo, useState } from 'react'
 import { thumbHashToDataURL } from 'thumbhash'
+import { imageReferrerPolicy } from './image-referrer'
+import { useTrustedImageHosts } from './use-trusted-image-hosts'
 
 // A ThumbHash in base64 drawn as a PNG data URL; `undefined` for text that is no base64.
 const placeholderImage = (hash: string) => {
@@ -20,9 +22,13 @@ export type FileImageProps = {
   loading?: 'lazy'
 }
 
-/** An image of a file, its placeholder drawn blurred behind it until it has loaded. */
+/**
+ * An image of a file, its placeholder drawn blurred behind it until it has loaded. One from another site than the app's
+ * own and its trusted hosts loads without a referrer.
+ */
 export const FileImage = ({ image, className, loading }: FileImageProps) => {
   const [loaded, setLoaded] = useState<string>()
+  const trustedHosts = useTrustedImageHosts()
   const placeholder = useMemo(() => (image.placeholder === undefined ? undefined : placeholderImage(image.placeholder)), [image.placeholder])
   const waiting = placeholder !== undefined && loaded !== image.url
   return (
@@ -31,6 +37,7 @@ export const FileImage = ({ image, className, loading }: FileImageProps) => {
       alt=""
       loading={loading}
       decoding="async"
+      referrerPolicy={imageReferrerPolicy(image.url, window.location.href, trustedHosts)}
       onLoad={() => setLoaded(image.url)}
       className={className}
       style={waiting ? { backgroundImage: `url("${placeholder}")`, backgroundSize: 'cover', backgroundPosition: 'center' } : undefined}

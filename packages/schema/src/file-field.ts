@@ -51,6 +51,15 @@ export class FileField<V> extends Field<V> {
     })
   }
 
+  /**
+   * Also takes an https URL of a file elsewhere, such as `https://images.example.com/photos/42.jpg`, stored as it is:
+   * never uploaded, without variants, and drawn from that address. See
+   * [External URLs](website/src/content/docs/reference/files.mdx#external-urls).
+   */
+  externalUrls() {
+    return this.withFile({ external: true })
+  }
+
   /** The column is nullable: the field may hold no file. */
   override optional() {
     return this.with({ nullable: true }) as unknown as FileField<V | null>

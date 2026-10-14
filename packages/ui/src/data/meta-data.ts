@@ -22,6 +22,8 @@ export type MetaData = {
   errorReporting?: { dsn: string; environment?: string }
   /** The map style the record page's maps are drawn with, when the app has one (see `MapSection`). */
   maps?: { style: string }
+  /** The hosts besides the app's own whose images are drawn with the page's referrer (see `FileImage`). */
+  files?: { trustedHosts: string[] }
   /** The plugins the app loads for the user (see `PluginGate`). */
   plugins?: PluginRef[]
   /** The other APIs the app draws resources from for the user, and how far their `/meta` has loaded (see `withSources`). */

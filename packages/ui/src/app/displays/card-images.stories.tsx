@@ -147,3 +147,73 @@ export const CardPlaceholdersChecks: StoryObj = {
     await waitFor(() => expect(loaded!.style.backgroundImage).toBe(''))
   },
 }
+
+// Photos kept elsewhere, as an image field with `.externalUrls()` links them: no variants, and a placeholder only when
+// the row holds one. Each loads from its own host, which never answers here, so the placeholder stays.
+const linked = resource('bikes')
+  .table('bikes')
+  .fields({
+    id: f.integer().readOnly(),
+    name: f.text(),
+    price: f.decimal({ precision: 10, scale: 2 }),
+    photo: f.file().accept(['image/*']).optional().externalUrls().public().placeholder('photo_placeholder'),
+    photo_placeholder: f.text().readOnly().optional(),
+  })
+  .primaryKey((r) => r.id)
+
+const linkedView = view<typeof linked>('bikes')
+  .title((r) => r.name)
+  .list((r, d) => ({ columns: [r.name, r.price, r.photo], displays: [d.cards({ image: r.photo, meta: [r.price] })], default: 'cards' }))
+
+const linkedRow = (id: number, name: string, url: string, hue?: number) => {
+  const placeholder = hue === undefined ? undefined : thumbHashOf(hue)
+  const file = url.slice(url.lastIndexOf('/') + 1)
+  return { id, name, price: '1450.00', photo_placeholder: placeholder ?? null, photo: { uri: url, name: file, type: 'image/jpeg', url, ...(placeholder && { placeholder }) } }
+}
+
+const LinkedShop = () => {
+  const [api] = useState(() =>
+    fakeApi({
+      resources: [linked.toModel()],
+      views: [linkedView.toModel(linked.toModel())],
+      files: { trustedHosts: ['files.bikeshop.invalid'] },
+      rows: {
+        bikes: [
+          linkedRow(1, 'Brompton from the maker', 'https://images.brompton.invalid/c-line.jpg', 200),
+          linkedRow(2, 'Gazelle from the maker', 'https://images.gazelle.invalid/ultimate.jpg'),
+          linkedRow(3, 'Cortina from our files', 'https://files.bikeshop.invalid/public/_/cortina.jpg', 30),
+          linkedRow(4, 'Batavus from this app', '/api/files/public/_/batavus.jpg', 280),
+        ],
+      },
+    }),
+  )
+  return (
+    <div className="h-screen">
+      <App client={api.client} auth={session} initialUrl="/bikes" workspace="Pip's bike shop" />
+    </div>
+  )
+}
+
+export const CardExternalPhotos: StoryObj = { name: 'Cards with external photos', render: () => <LinkedShop /> }
+
+export const CardExternalPhotosChecks: StoryObj = {
+  ...CardExternalPhotos,
+  name: 'Cards with external photos (checks)',
+  tags: ['play', '!dev'],
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    await canvas.findByText('Brompton from the maker')
+    const [maker, plain, ours, own] = [...canvasElement.querySelectorAll<HTMLImageElement>('ul img')]
+    // Another site's photo is drawn as it is, without telling that site which page showed it
+    expect(maker!.getAttribute('src')).toBe('https://images.brompton.invalid/c-line.jpg')
+    expect(maker!.getAttribute('referrerpolicy')).toBe('no-referrer')
+    expect(maker!.style.backgroundImage).toMatch(/^url\("data:image\/png;base64,/)
+    // Without a placeholder the frame stays empty until the photo loads
+    expect(plain!.getAttribute('referrerpolicy')).toBe('no-referrer')
+    expect(plain!.style.backgroundImage).toBe('')
+    // A trusted host and the app's own origin keep the browser's default
+    expect(ours!.hasAttribute('referrerpolicy')).toBe(false)
+    expect(own!.getAttribute('src')).toBe('/api/files/public/_/batavus.jpg')
+    expect(own!.hasAttribute('referrerpolicy')).toBe(false)
+  },
+}

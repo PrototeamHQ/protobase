@@ -38,6 +38,7 @@ export const useMeta = (): UseQueryResult<MetaData> => {
         ...(result.meta.runtime && { runtime: result.meta.runtime }),
         ...(result.meta.errorReporting && { errorReporting: result.meta.errorReporting }),
         ...(result.meta.maps && { maps: result.meta.maps }),
+        ...(result.meta.files && { files: result.meta.files }),
         ...(result.meta.plugins && { plugins: result.meta.plugins }),
         // The sources' own `/meta` is read below `MetaGate` (see `withSources`).
         ...(result.meta.sources && { sources: result.meta.sources.map((source) => ({ source, state: 'loading' as const })) }),

@@ -16,10 +16,13 @@ export type ProductOptions = {
   placeholder?: boolean
   variants?: Record<string, ImageVariant>
   original?: ImageVariant
+  /** The image may also be an https URL of a file elsewhere. */
+  external?: boolean
 }
 
-const productImage = ({ derive = {}, accept = ['image/*'], placeholder, variants, original }: ProductOptions) => {
-  const image = f.file().accept(accept).maxSize('64 KB').optional().derive(derive)
+const productImage = ({ derive = {}, accept = ['image/*'], placeholder, variants, original, external }: ProductOptions) => {
+  const accepted = f.file().accept(accept).maxSize('64 KB').optional().derive(derive)
+  const image = external ? accepted.externalUrls() : accepted
   const placed = placeholder ? image.placeholder('imagePlaceholder') : image
   return variants ? placed.variants(variants, original && { original }) : placed
 }
@@ -57,7 +60,7 @@ create table avatars (id integer generated always as identity primary key, name 
 `
 
 /** An admin with products and avatars over PGlite, keeping files in a fresh temp folder unless `providers` says otherwise. */
-export const createFilesFixture = async (options: ProductOptions & { providers?: Record<string, FileProvider> } = {}) => {
+export const createFilesFixture = async (options: ProductOptions & { providers?: Record<string, FileProvider>; trustedHosts?: string[] } = {}) => {
   const dir = await mkdtemp(path.join(tmpdir(), 'protobase-files-'))
   const pg = await createEmptyPg()
   await pg.exec(ddl)
@@ -66,6 +69,7 @@ export const createFilesFixture = async (options: ProductOptions & { providers?:
     providers: options.providers ?? { private: localFiles({ dir: path.join(dir, 'private') }), public: localFiles({ dir: path.join(dir, 'public'), public: true }) },
     secret: 'files-test-secret',
     sharp,
+    ...(options.trustedHosts && { trustedHosts: options.trustedHosts }),
   }
   const resources = [products(options), avatars]
   const app = createAdmin({ resources, db, authenticate: testAuthenticator, files })

@@ -69,6 +69,8 @@ export type FileOptions = {
   variants?: Record<string, ImageVariant>
   /** The image stored instead of the upload (`.variants()`' `original`). */
   original?: ImageVariant
+  /** Whether a value may also be an https URL of a file elsewhere (`.externalUrls()`). */
+  external?: true
 }
 
 export const defaultMaxSize = 50_000_000

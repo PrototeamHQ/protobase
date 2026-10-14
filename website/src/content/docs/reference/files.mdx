@@ -1,6 +1,6 @@
 ---
 title: Files
-description: File fields, uploads with types detected from the content, downloads, derived fields, image variants and placeholders, and how stored files are deleted.
+description: File fields, uploads with types detected from the content, downloads, derived fields, image variants and placeholders, external URLs, image referrers, and how stored files are deleted.
 ---
 
 import { Code } from '@astrojs/starlight/components'
@@ -20,6 +20,7 @@ A file field is a `text` column that holds the file's URI. The bytes live with a
 | `.derive({ field: processor })` | Values computed from each upload and written to other fields of the row, see [Derived fields](#derived-fields). |
 | `.placeholder('photo_placeholder')` | Each image's ThumbHash in that text field, drawn while the image loads, see [Image variants and placeholders](#image-variants-and-placeholders). |
 | `.variants({ card: { … } }, { original? })` | Resized copies of each image stored beside it, see [Image variants and placeholders](#image-variants-and-placeholders). |
+| `.externalUrls()` | Also takes an https URL of a file elsewhere instead of an upload, see [External URLs](#external-urls). |
 
 A file field cannot be filterable, sortable, aliased, searched, sensitive, or the key, tenant, owner or soft delete field. [`protobase doctor`](/reference/cli/#doctor) checks that its column is a text type.
 
@@ -33,6 +34,7 @@ private:1/2992db9c-776e-4d4e-9e0f-59d485fefaf9.jpg?name=bike+red.png&size=48211
 - The **path** of an upload is `<tenant>/<random id>.<extension>`, with `_` for a resource without a tenant. Nothing in it comes from the row or from what the user typed, so renames and key changes need nothing.
 - The **query** holds the uploader's file name and the size in bytes, and for an image with [variants](#image-variants-and-placeholders) their names and extensions: `&variants=card.webp,thumb.webp`. A plain `{provider}:{path}`, such as `public:images/test.jpg` written by an import, is valid too; its name is its last path segment.
 - The **type is not stored**. It is the path's extension, looked up in one fixed table, which is also what downloads are served as.
+- A field with `.externalUrls()` may hold an **https URL** instead, such as `https://images.example.com/listings/42.jpg`, see [External URLs](#external-urls).
 
 Responses carry each file field as an object, and the stored value stays the URI:
 
@@ -41,7 +43,7 @@ Responses carry each file field as an object, and the stored value stays the URI
   "url": "/api/files/private/1/2992db9c-….jpg?r=bikes&k=42&f=photo&exp=1791673200&sig=…" }
 ```
 
-An image with variants also has `variants`, each `{ url, type, width, height }` by name, and one with a placeholder its `placeholder`. A value that does not parse, or names a provider the config lacks, comes back as `{ uri, missing: true }`. The URL is made for each response and never changes the record's ETag.
+An image with variants also has `variants`, each `{ url, type, width, height }` by name, and one with a placeholder its `placeholder`. An external URL comes as `{ uri, name, type, url }` with the URL as both `uri` and `url`. A value that does not parse, or names a provider the config lacks, comes back as `{ uri, missing: true }`. The URL is made for each response and never changes the record's ETag.
 
 ## Providers
 
@@ -108,7 +110,7 @@ Uploads go through Protobase's own route, so the type is checked and processors 
 3. The rest streams to the provider while it is counted. The answer is `201 { value, file: { name, type, size }, derived, corrected? }`.
 4. Send `value` as the field's value in a create, update or [batch write](/reference/api/#batch-writes) within 24 hours. It is a ticket, signed for that user, tenant, resource and field: the write stores the clean URI and the derived values in the same transaction.
 
-A write takes only a ticket, `null` to clear the field, or the stored `uri` unchanged. Anything else is refused with `400`, so a row can only point at a file its writer uploaded for that field. From the client, `client.upload(resource, field, file, { onProgress })` does step 1; see [Client](/reference/client/).
+A write takes only a ticket, `null` to clear the field, or the stored `uri` unchanged, and in a field with `.externalUrls()` an https URL. Anything else is refused with `400`, so a row can only point at a file its writer uploaded for that field, or at a URL elsewhere where the field allows one. From the client, `client.upload(resource, field, file, { onProgress })` does step 1; see [Client](/reference/client/).
 
 ### How the type is decided
 
@@ -175,6 +177,48 @@ export default defineConfig({ config, files: { sharp } })
 ```
 
 The server does not start with a field that declares variants or a placeholder and no `files.sharp`. In code, `fileUrl(file, 'card')` from `@protobase/client` links a variant by name, or the file itself when it has none.
+
+## External URLs
+
+`.externalUrls()` lets a file field hold the https URL of a file another site serves, instead of an upload: an import that links a supplier's product photos, say, rather than copying them into the app's storage.
+
+```ts
+photo: f.file().accept(['image/*']).public().externalUrls()
+  .placeholder('photo_placeholder')
+  .variants({ card: { width: 800, height: 600, fit: 'cover', format: 'webp' } }),
+```
+
+```sh
+curl -X PATCH https://app.example.com/api/v1/products/42 -H "authorization: Bearer $TOKEN" -H 'if-match: *' \
+  -H 'content-type: application/json' \
+  -d '{ "photo": "https://images.example.com/products/42/front.jpg" }'
+```
+
+- **What is taken**: an absolute `https://` URL with a host, without a user name or password, written without spaces or other characters a URL escapes. `http:`, `data:` and anything else is refused with `400`, as in a field without the option.
+- **The type** is the URL path's extension, from the same table as stored files, and must pass `.accept()`: an image field takes `…/front.jpg` and refuses `…/front` and `…/scan.pdf`. The name is the path's last segment.
+- **Stored as given**: the column holds the URL itself, and Protobase never fetches, uploads or copies it. It has no size, and responses link it as it is, as `url`, for whoever may read the row.
+- **No variants**: every place an image is drawn, cards, tables, thumbnails, forms and the record page, uses the URL itself, and `fileUrl(file, 'card')` gives it too. Size the image at its source when it should be small.
+- **No ThumbHash**: a write through the API sets the field's derived fields and placeholder to `null`, since there are no bytes to compute them from; the image frame stays empty until the image loads. An import that writes the rows itself may write a placeholder beside the URL, and the admin app draws that one.
+- **Nothing to delete**: replacing an upload with a URL schedules the upload's delete as any replacement does; a URL that is replaced or cleared schedules nothing.
+- The other site sees each viewer's IP address when it serves the image, and decides when it changes or disappears. The admin app draws it without a referrer, see [Image referrers](#image-referrers).
+
+## Image referrers
+
+The admin app draws every image of a file field with `referrerPolicy="no-referrer"`, so another site never learns which page showed its image, unless the image comes from a host it trusts:
+
+- the page's own origin, which serves the app's downloads and the public files without `publicUrl`;
+- the host of each provider's `publicUrl`, such as a bucket's custom domain on another domain than the app;
+- the hosts of the app's [sources](/reference/remote-resources/);
+- the hosts `files.trustedHosts` adds, as lowercase host names without a scheme, port or path:
+
+```ts
+export default defineConfig({
+  config,
+  files: { trustedHosts: ['images.example.com'] },
+})
+```
+
+A trusted host is matched exactly: `images.example.com` does not trust `cdn.images.example.com`. `/meta` names the trusted hosts besides the page's own as `files.trustedHosts`. Download links are opened with `rel="noreferrer"` wherever they point.
 
 ## Deleting files
 

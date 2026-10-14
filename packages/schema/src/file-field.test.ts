@@ -35,6 +35,12 @@ describe('f.file()', () => {
     expect(Object.keys(more.meta.file!.variants!)).toEqual(['card', 'thumb'])
   })
 
+  it('show external URLs in the model only for a field that takes them', () => {
+    const model = products({ photo: f.file().accept(['image/*']).externalUrls().public(), datasheet: f.file() }).toModel()
+    expect(model.fields.photo!.file).toEqual({ accept: ['image/*'], maxSize: 50_000_000, provider: 'public', external: true })
+    expect(model.fields.datasheet!.file!.external).toBeUndefined()
+  })
+
   it('refuse a placeholder field that is missing, writable, not text, or derived as well', () => {
     const photo = f.file().placeholder('photo_placeholder')
     expect(() => products({ photo }).toModel()).toThrow('derives "photo_placeholder", which is not a field')

@@ -32,9 +32,9 @@ const hoist = (entry: Entry, schema: JsonSchema) => {
 export const fileSchema: JsonSchema = {
   type: 'object',
   required: ['uri'],
-  description: 'A stored file. `url` downloads it: a signed link valid one to two hours for private files, a permanent one for public files. A value that names no configured provider comes as `{ uri, missing: true }`.',
+  description: 'A stored file. `url` downloads it: a signed link valid one to two hours for private files, a permanent one for public files, the URL itself for an external file. A value that names no configured provider comes as `{ uri, missing: true }`.',
   properties: {
-    uri: { type: 'string', description: 'The stored value, `{provider}:{path}?name=…&size=…`; send it back unchanged to keep the file' },
+    uri: { type: 'string', description: 'The stored value, `{provider}:{path}?name=…&size=…` or an external https URL; send it back unchanged to keep the file' },
     name: { type: 'string' },
     type: { type: 'string', description: 'Detected from the content at upload' },
     size: { type: 'integer' },

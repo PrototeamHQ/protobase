@@ -3,7 +3,8 @@ import { encodeKey } from '@protobase/schema/internal'
 import type { RequestAccess } from '../request-access'
 import type { Row } from '../types'
 import { downloadExpiry, signedDownloadUrl } from './download-url'
-import { servedType } from './media-types'
+import { externalFile, parseExternalUrl } from './external-url'
+import { octetStream, servedType } from './media-types'
 import type { FilesRuntime } from './runtime'
 import { parseUri, variantPaths, type FileRef } from './uri'
 
@@ -28,12 +29,27 @@ const linker = async (files: FilesRuntime, access: RequestAccess, row: Row, fiel
   return (path: string) => signedDownloadUrl(files.signer, files.path, { provider: ref.provider, path, resource: access.entry.name, key: keyText, field, expires })
 }
 
-const fileObject = async (files: FilesRuntime, access: RequestAccess, row: Row, field: FieldModel, value: string, expires: number): Promise<FileObject> => {
-  const ref = parseUri(value)
-  if (!ref || !files.providers[ref.provider]) return { uri: value, missing: true }
+// The ThumbHash the row holds for the field's image, when its placeholder field is readable.
+const placeholderOf = (access: RequestAccess, row: Row, field: FieldModel) => {
   const target = field.file?.placeholder
   const placeholder = target !== undefined && access.model.fields[target] ? row[target] : undefined
-  const described = { uri: value, name: ref.name, type: servedType(ref.path), ...(ref.size !== undefined && { size: ref.size }), ...(typeof placeholder === 'string' && { placeholder }) }
+  return typeof placeholder === 'string' ? placeholder : undefined
+}
+
+// A URL of a field with `.externalUrls()`: linked as it is, with no size or variants.
+const externalObject = (access: RequestAccess, row: Row, field: FieldModel, value: string, url: URL): FileObject => {
+  const { name, type } = externalFile(url)
+  const placeholder = placeholderOf(access, row, field)
+  return { uri: value, name, type: type ?? octetStream, url: value, ...(placeholder !== undefined && { placeholder }) }
+}
+
+const fileObject = async (files: FilesRuntime, access: RequestAccess, row: Row, field: FieldModel, value: string, expires: number): Promise<FileObject> => {
+  const external = field.file?.external ? parseExternalUrl(value) : undefined
+  if (external) return externalObject(access, row, field, value, external)
+  const ref = parseUri(value)
+  if (!ref || !files.providers[ref.provider]) return { uri: value, missing: true }
+  const placeholder = placeholderOf(access, row, field)
+  const described = { uri: value, name: ref.name, type: servedType(ref.path), ...(ref.size !== undefined && { size: ref.size }), ...(placeholder !== undefined && { placeholder }) }
   const link = await linker(files, access, row, field.name, ref, expires)
   if (!link) return described
   const variants: Record<string, FileVariantObject> = {}
@@ -47,7 +63,8 @@ const fileObject = async (files: FilesRuntime, access: RequestAccess, row: Row, 
 /**
  * Records as responses carry them: each readable file field as `{ uri, name, type, size, url }`, with its `variants` and
  * `placeholder` when it has them. The URLs are minted here, after the ETag, for a caller who may already see the row:
- * private files get a signed link to this row's field, public ones their permanent address. Stored values, hooks and
+ * private files get a signed link to this row's field, public ones their permanent address, and an external URL of a
+ * field with `.externalUrls()` is its own `url`. Stored values, hooks and
  * ETags only ever see the URI.
  */
 export const presentFiles = async (access: RequestAccess, rows: Row[]): Promise<Row[]> => {

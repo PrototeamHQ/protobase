@@ -17,4 +17,9 @@ export type FilesOptions = {
    * config, so a built bundle carries it with its native add-on.
    */
   sharp?: Sharp
+  /**
+   * Hosts whose images the admin app draws with the page's referrer, besides the app's own and those its providers link
+   * public files from: `['images.example.com']`. Images from any other host load with `referrerPolicy="no-referrer"`.
+   */
+  trustedHosts?: string[]
 }

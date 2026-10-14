@@ -43,6 +43,14 @@ describe('file values', () => {
     expect(shownImage({ uri: 'archive:x.png', missing: true }, { width: 20, height: 20 })).toBeUndefined()
   })
 
+  it('draw an external image itself in every box, with no placeholder unless the row holds one', () => {
+    const url = 'https://images.example.com/listings/42.jpg'
+    const external = { uri: url, name: '42.jpg', type: 'image/jpeg', url }
+    expect(shownImage(external, { width: 20, height: 20 })).toEqual({ url })
+    expect(shownImage(external, { width: 320, height: 240 })).toEqual({ url })
+    expect(shownImage({ ...external, placeholder: 'YJqGPQw7sFlslqhFafSE+Q6oJ1h2iHB2Rw' }, { width: 320, height: 240 })).toEqual({ url, placeholder: 'YJqGPQw7sFlslqhFafSE+Q6oJ1h2iHB2Rw' })
+  })
+
   it('format sizes in decimal units', () => {
     expect(formatSize(1)).toBe('1 byte')
     expect(formatSize(999)).toBe('999 bytes')

@@ -42,6 +42,8 @@ export type CallerMeta = {
   errorReporting?: ErrorReportingSettings
   /** The map style the admin app draws the record page's maps with, when the app has one: public, as the tiles are. */
   maps?: { style: string }
+  /** The hosts besides the app's own whose images the admin app draws with the page's referrer, when there are any. */
+  files?: { trustedHosts: string[] }
   /** The plugins the admin app loads for the caller: those for everyone, and those for one of their roles. */
   plugins?: PluginRef[]
   /** The other APIs whose resources the admin app draws for the caller: those for everyone, and those for one of their roles. */
@@ -110,6 +112,7 @@ export const createMeta = (deps: Deps) => {
       ...(deps.runtime && seesRuntime(session.user.roles) && { runtime: { url: deps.runtime } }),
       ...(deps.errorReporting && { errorReporting: deps.errorReporting }),
       ...(deps.mapStyle && { maps: { style: deps.mapStyle } }),
+      ...(deps.files && deps.files.trustedHosts.length > 0 && { files: { trustedHosts: deps.files.trustedHosts } }),
       ...(plugins.length > 0 && { plugins }),
       ...(sources.length > 0 && { sources }),
     }

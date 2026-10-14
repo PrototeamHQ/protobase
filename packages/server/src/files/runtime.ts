@@ -7,6 +7,7 @@ import type { FilesOptions } from './options'
 import { resolveProviders, retentionOf } from './providers'
 import { createSigner, type Signer } from './signer'
 import type { FileProvider } from './store'
+import { trustedImageHosts } from './trusted-hosts'
 
 /** Everything the API needs to handle files, built once at startup. */
 export type FilesRuntime = {
@@ -20,6 +21,8 @@ export type FilesRuntime = {
   columns: FileColumn[]
   /** Makes image variants and placeholders; set when a field declares them. */
   sharp?: Sharp
+  /** The hosts whose images are drawn with the page's referrer, besides the app's own (see `trustedImageHosts`). */
+  trustedHosts: string[]
 }
 
 /** How long an upload ticket stays usable, so a form left open still saves. */
@@ -55,6 +58,7 @@ export const createFilesRuntime = ({ options = {}, env, models, systemPath }: Fi
     retention: (provider) => retention(providers[provider]!),
     path: `${systemPath}/files`,
     columns: fileColumns(models),
+    trustedHosts: trustedImageHosts(providers, options.trustedHosts),
     ...(options.sharp && { sharp: options.sharp }),
   }
 }

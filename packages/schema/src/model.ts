@@ -67,6 +67,8 @@ export type FileFieldModel = {
   variants?: Record<string, ImageVariant>
   /** What is stored instead of an uploaded image, when the upload is not kept. */
   original?: ImageVariant
+  /** Whether a value may also be an https URL of a file elsewhere, drawn and linked as it is (`.externalUrls()`). */
+  external?: true
 }
 
 /** `digitsEnd`: only the end of the value's digits, spaces, `+` and dashes ignored (phone numbers). */
