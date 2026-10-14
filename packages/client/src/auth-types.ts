@@ -14,7 +14,8 @@ export type PlatformSignIn = { provider: string; name: string }
 
 /**
  * `needsAdmin` while no user exists yet; `signInMethods` the ways to sign in the server's policy leaves on;
- * `passwordReset` when the server can email reset links; `socialProviders` the ids of the sign-in providers, for example
+ * `passwordReset` when the server can email reset links; `signUp` when anyone can make their own account (see
+ * `sendSignUpCode`); `socialProviders` the ids of the sign-in providers, for example
  * `github`; `platformSignIn` the one of them the platform adds; `staffSignIn` the operator provider's name when its staff
  * can sign in as people; `organizations` when the app has them; `anonymous` when visitors may browse what the project's
  * anonymous role reads without signing in.
@@ -23,6 +24,7 @@ export type SetupStatus = {
   needsAdmin: boolean
   signInMethods: SignInMethod[]
   passwordReset: boolean
+  signUp?: boolean
   socialProviders: string[]
   platformSignIn?: PlatformSignIn
   staffSignIn?: string

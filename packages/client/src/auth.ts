@@ -92,6 +92,7 @@ export const createAuthSession = (options: AuthSessionOptions = {}) => {
         needsAdmin: Boolean(body.needsAdmin),
         signInMethods: body.signInMethods ?? ['password'],
         passwordReset: Boolean(body.passwordReset),
+        ...(body.signUp && { signUp: true }),
         socialProviders: body.socialProviders ?? [],
         ...(body.platformSignIn && { platformSignIn: body.platformSignIn }),
         ...(body.staffSignIn && { staffSignIn: body.staffSignIn }),

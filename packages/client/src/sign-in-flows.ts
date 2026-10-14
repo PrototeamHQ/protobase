@@ -37,6 +37,26 @@ export const signInFlows = (client: BetterAuthClient, signedIn: () => Promise<un
     },
 
     /**
+     * Open sign-up, when the status has `signUp`: emails a code for making an account with the address. The answer is
+     * the same when the address has an account already; that address is mailed a note instead of a code.
+     */
+    sendSignUpCode: async (email: string) => {
+      const { error } = await client.$fetch('/sign-up/send-code', { method: 'POST', body: { email } })
+      if (error) throw authError(error, 'Could not send the code')
+    },
+
+    /**
+     * Makes the account with the emailed code, the person's name and a password (optional when the server offers emailed
+     * sign-in codes), and signs in with it.
+     */
+    signUp: async (input: { email: string; code: string; name: string; password?: string }): Promise<AuthUser> => {
+      const { data, error } = await client.$fetch<{ user: AuthUser }>('/sign-up/create', { method: 'POST', body: input })
+      if (error || !data) throw authError(error, 'Could not create your account')
+      await signedIn()
+      return data.user
+    },
+
+    /**
      * Asks the browser for one of the person's passkeys made for `domain`, one of the status's `passkeyDomains`, or for
      * the app's passkey domain when left out. A browser asks for the passkeys of one domain at a time.
      */

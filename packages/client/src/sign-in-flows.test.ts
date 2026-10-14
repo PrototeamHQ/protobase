@@ -89,6 +89,22 @@ describe('signing in', () => {
     ])
   })
 
+  it('asks for a sign-up code, makes the account with it and fetches the token', async () => {
+    const { requests, session } = serve({ '/sign-up/send-code': () => json({ sent: true }), '/sign-up/create': () => json({ user }), '/token': () => json({ message: 'none' }, { status: 401 }) })
+    await session.sendSignUpCode('sanne@example.com')
+    expect(await session.signUp({ email: 'sanne@example.com', code: '123456', name: 'Sanne', password: 'correct horse battery' })).toEqual(user)
+    expect(requests).toEqual([
+      { path: '/sign-up/send-code', body: { email: 'sanne@example.com' } },
+      { path: '/sign-up/create', body: { email: 'sanne@example.com', code: '123456', name: 'Sanne', password: 'correct horse battery' } },
+      { path: '/token' },
+    ])
+  })
+
+  it('reports a wrong sign-up code as AuthError', async () => {
+    const { session } = serve({ '/sign-up/create': () => json({ message: 'The code is not right, or has expired. Ask for a new one.', code: 'SIGN_UP_CODE_INVALID' }, { status: 400 }) })
+    await expect(session.signUp({ email: 'sanne@example.com', code: '000000', name: 'Sanne' })).rejects.toMatchObject({ name: 'AuthError', status: 400, code: 'SIGN_UP_CODE_INVALID' })
+  })
+
   it('reports a wrong code and a refused method as AuthError', async () => {
     const { session } = serve({
       '/two-factor/verify-totp': () => json({ message: 'Invalid code', code: 'INVALID_CODE' }, { status: 401 }),

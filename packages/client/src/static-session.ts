@@ -18,6 +18,8 @@ export const createStaticSession = (token: string, user: AuthUser = { id: 'token
   signIn: async () => ({ kind: 'signed-in', user }),
   sendSignInCode: async () => undefined,
   signInWithCode: async () => ({ kind: 'signed-in', user }),
+  sendSignUpCode: unsupported('make an account'),
+  signUp: unsupported('make an account'),
   signInWithPasskey: async () => user,
   sendTwoFactorCode: async () => undefined,
   verifyTwoFactor: async () => user,
