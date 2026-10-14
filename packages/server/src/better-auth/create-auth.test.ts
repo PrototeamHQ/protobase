@@ -18,6 +18,16 @@ describe('betterAuthOptions', () => {
     expect(data(betterAuthOptions({ ...base, socialProviders: undefined }, resolved))).toEqual(data(options))
   })
 
+  it('adds open sign-up only with a sign-up role and a mailer, and limits it as sign-in', () => {
+    const mailer = { send: async () => {} }
+    const plugins = (extra: object) => betterAuthOptions({ ...base, signInPerMinute: 7 }, { ...resolved, ...extra }).plugins.map((plugin) => plugin.id)
+    expect(plugins({ mailer })).not.toContain('protobase-sign-up')
+    expect(plugins({ signUpRole: 'user' })).not.toContain('protobase-sign-up')
+    expect(plugins({ mailer, signUpRole: 'user' })).toContain('protobase-sign-up')
+    const { customRules } = betterAuthOptions({ ...base, signInPerMinute: 7 }, resolved).rateLimit
+    expect([customRules['/sign-up/send-code'], customRules['/sign-up/create']]).toEqual([{ window: 60, max: 7 }, { window: 60, max: 7 }])
+  })
+
   it('passes the social providers through and leaves everything else as it was', () => {
     const { socialProviders, ...rest } = betterAuthOptions({ ...base, socialProviders: github }, resolved)
     expect(socialProviders).toBe(github)

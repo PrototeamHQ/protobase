@@ -21,6 +21,7 @@ import type { RoleSession, RoleUser } from './roles/session-role'
 import { platformSignInFor, platformSignInProvider, readPlatformSignIn, resolvePlatformSignIn, type PlatformSignIn, type ResolvedPlatformSignIn } from './platform-sign-in'
 import { signInPolicyPlugin } from './policy-plugin'
 import { emailCodeOptions, twoFactorCodeOptions, unusedEmailCodePaths } from './sign-in-mail'
+import { signUpPaths, signUpPlugin } from './sign-up/sign-up-plugin'
 import { coreNames, pluginNames } from './snake-case-names'
 import { staffSignInPlugin } from './staff-plugin'
 import { twoFactorAfterPasswordOrCode } from './two-factor-challenge'
@@ -60,7 +61,14 @@ export type CreateAuthOptions = {
    * creating a user without a role is an error that asks for one. With exactly one other role, that role is the default.
    */
   defaultRole?: string
-  /** Sign-in attempts allowed per minute and client, default 5. */
+  /**
+   * Open sign-up: anyone makes their own account from the sign-in page, with `role`, after proving their address with
+   * an emailed code. Off by default, so accounts come only from the host, an admin, an invitation or a sign-in provider.
+   * Needs a mailer: without one it is not offered. `role` is one of `roles` and never `admin`; give it the least
+   * a stranger may hold. Not with `organizations`, whose people come from invitations.
+   */
+  signUp?: { role: string }
+  /** Sign-in attempts allowed per minute and client, default 5; also the sign-up requests allowed. */
   signInPerMinute?: number
   /**
    * Sends the password-reset email and the emailed sign-in and two-factor codes; without a mailer none of them is
@@ -118,9 +126,9 @@ export const authBasePath = '/api/auth'
 
 /**
  * Better Auth for a single-tenant admin: sign-in with a password, an emailed code or a passkey, two-factor
- * authentication, and the sign-in policy admins set; no public sign-up (every account is created on the host with
- * `createUser`, or by an admin through the admin plugin), roles from the admin plugin's `role` column, 15 minute JWTs
- * at `/api/auth/token` with the keys at `/api/auth/jwks`.
+ * authentication, and the sign-in policy admins set; no public sign-up unless `signUp` turns it on (every account is
+ * created on the host with `createUser`, or by an admin through the admin plugin), roles from the admin plugin's `role`
+ * column, 15 minute JWTs at `/api/auth/token` with the keys at `/api/auth/jwks`.
  */
 /** The configured roles with `admin` first; `admin` is added when missing. */
 export const normalizeRoles = (roles?: RolesInput) => roleDefinitions(roles).names
@@ -138,6 +146,8 @@ type Resolved = {
   definitions: RoleDefinitions
   defaultRole?: string
   mailer?: Mailer
+  /** The role of accounts made by open sign-up, when it is on and there is a mailer. */
+  signUpRole?: string
   operator?: ResolvedOperator
   platformSignIn?: ResolvedPlatformSignIn
   organizations?: ResolvedOrganizations
@@ -155,7 +165,7 @@ const organizationPaths = ['/organization/set-active', '/organization/accept-inv
  * The options `createAuth` gives Better Auth, with the roles, default role, mailer, operator provider and platform
  * sign-in provider already resolved.
  */
-export const betterAuthOptions = (options: CreateAuthOptions, { origins = [], passkeyDomain, roles, definitions, defaultRole, mailer, operator, platformSignIn, organizations, context = noContext }: Resolved) => {
+export const betterAuthOptions = (options: CreateAuthOptions, { origins = [], passkeyDomain, roles, definitions, defaultRole, mailer, signUpRole, operator, platformSignIn, organizations, context = noContext }: Resolved) => {
   const secure = options.baseURL.startsWith('https://')
   const signIn = platformSignInFor(platformSignIn, Object.keys(options.socialProviders ?? {}))
   const hosts = passkeyHosts([options.baseURL, ...origins])
@@ -200,6 +210,7 @@ export const betterAuthOptions = (options: CreateAuthOptions, { origins = [], pa
       twoFactorAfterPasswordOrCode({ schema: pluginNames.twoFactor, allowPasswordless: true, ...(mailer && { otpOptions: twoFactorCodeOptions(mailer) }) }),
       passkeyPlugin({ domain: passkeyDomain ?? hosts[0]!, hosts, formerDomain: hosts[0]! }),
       ...(mailer ? [emailOTP(emailCodeOptions(mailer))] : []),
+      ...(mailer && signUpRole ? [signUpPlugin({ role: signUpRole, mailer, appName: options.appName ?? 'Protobase' })] : []),
       ...(signIn ? [genericOAuth({ config: [platformSignInProvider(signIn)] })] : []),
       signInPolicyPlugin({
         mail: Boolean(mailer),
@@ -239,6 +250,8 @@ export const betterAuthOptions = (options: CreateAuthOptions, { origins = [], pa
         '/sign-in/email': { window: 60, max: options.signInPerMinute ?? 5 },
         '/staff/sign-in': { window: 60, max: 5 },
         '/invitation/sign-up': { window: 60, max: options.signInPerMinute ?? 5 },
+        [signUpPaths.sendCode]: { window: 60, max: options.signInPerMinute ?? 5 },
+        [signUpPaths.create]: { window: 60, max: options.signInPerMinute ?? 5 },
       },
     },
     advanced: {
@@ -251,12 +264,22 @@ export const betterAuthOptions = (options: CreateAuthOptions, { origins = [], pa
   } satisfies BetterAuthOptions
 }
 
+// The role open sign-up gives: one of the roles, and never admin, whatever the app asks.
+const checkSignUpRole = (role: string, roles: string[]) => {
+  if (role === 'admin') throw new Error('signUp.role cannot be admin: give the least a stranger may hold')
+  if (!roles.includes(role)) throw new Error(`signUp.role "${role}" is not one of the roles: ${roles.join(', ')}`)
+  return role
+}
+
 export const createAuth = (options: CreateAuthOptions) => {
+  // People of organizations come from invitations.
+  if (options.signUp && options.organizations) throw new Error('signUp is not available with organizations: their people join by invitation')
   const definitions = roleDefinitions(options.roles, { organizations: options.organizations !== undefined })
   const roles = definitions.names
   if (options.defaultRole !== undefined && !roles.includes(options.defaultRole)) {
     throw new Error(`defaultRole "${options.defaultRole}" is not one of the roles: ${roles.join(', ')}`)
   }
+  const signUpRole = options.signUp && checkSignUpRole(options.signUp.role, roles)
   const others = roles.filter((role) => role !== 'admin')
   // With organizations, roles mostly come with memberships: a new account holds no global role unless given one.
   const defaultRole = options.defaultRole ?? (options.organizations ? noGlobalRole : others.length === 1 ? others[0] : undefined)
@@ -272,7 +295,7 @@ export const createAuth = (options: CreateAuthOptions) => {
   // The organization hooks read the store through the instance made below; they run only once it exists.
   let instance: { $context: Promise<AuthContext> } | undefined
   const context = () => instance?.$context ?? Promise.reject(new Error('The auth instance is not made yet'))
-  const auth = betterAuth(betterAuthOptions(options, { origins, passkeyDomain, roles, definitions, defaultRole, mailer, operator, platformSignIn, ...(organizations && { organizations, context }) }))
+  const auth = betterAuth(betterAuthOptions(options, { origins, passkeyDomain, roles, definitions, defaultRole, mailer, signUpRole, operator, platformSignIn, ...(organizations && { organizations, context }) }))
   instance = auth as unknown as { $context: Promise<AuthContext> }
   return Object.assign(auth, {
     /** Issuer and audience of the tokens: `baseURL`, on every origin. */
@@ -287,6 +310,8 @@ export const createAuth = (options: CreateAuthOptions) => {
     defaultRole,
     mail: Boolean(mailer),
     passwordReset: Boolean(mailer),
+    /** Open sign-up is on and offered: the app asks for it, and can mail the codes. */
+    signUp: Boolean(signUpRole && mailer),
     socialProviders,
     operator: operator?.name,
     platformSignIn: platformSignIn && { provider: platformSignIn.provider, name: platformSignIn.name },

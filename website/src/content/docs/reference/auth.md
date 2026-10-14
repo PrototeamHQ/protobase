@@ -52,18 +52,18 @@ Upgrading from 0.5 or earlier, where `auth:migrate` created the tables, goes thr
 | `PROTOBASE_ORIGINS` | the other origins the app is served on, comma separated, passed by the platform; see [Several origins](#several-origins) |
 | `PROTOBASE_PASSKEY_DOMAIN` | the host new [passkeys](#passkeys) are made for, passed by the platform; default the host of `BETTER_AUTH_URL` |
 | `PROTOBASE_CORS_ORIGINS` | other websites whose browser code may call the API, `*` or comma separated origins, passed by the platform; see [CORS](/reference/api/#cors) |
-| `PROTOBASE_SMTP_URL`, `PROTOBASE_MAIL_FROM` | the mail server and sender for [password reset](#password-reset), [emailed sign-in codes](#emailed-sign-in-codes) and emailed [two-factor](#two-factor-authentication) codes, passed by the platform; all three are off without them |
+| `PROTOBASE_SMTP_URL`, `PROTOBASE_MAIL_FROM` | the mail server and sender for [password reset](#password-reset), [emailed sign-in codes](#emailed-sign-in-codes), emailed [two-factor](#two-factor-authentication) codes and [open sign-up](#open-sign-up), passed by the platform; all four are off without them |
 | `PROTOBASE_SIGN_IN_ISSUER`, `PROTOBASE_SIGN_IN_CLIENT_ID`, `PROTOBASE_SIGN_IN_CLIENT_SECRET` | the [platform sign-in provider](#platform-sign-in-provider) for people who have an account, passed by the platform; off without them. `PROTOBASE_SIGN_IN_PROVIDER` and `PROTOBASE_SIGN_IN_NAME` are optional |
 | `PROTOBASE_OPERATOR_ISSUER`, `PROTOBASE_OPERATOR_CLIENT_ID`, `PROTOBASE_OPERATOR_CLIENT_SECRET` | the [operator provider](#operator-provider) its staff sign in with to sign in as people, passed by the platform; staff sign-in is off without them. `PROTOBASE_OPERATOR_NAME` and `PROTOBASE_OPERATOR_GROUP` are optional |
 
 - Cookies are `SameSite=Lax`, and `Secure` when `BETTER_AUTH_URL` is https.
-- Sign-in is rate limited (5 password attempts per minute and client by default, `signInPerMinute`; 3 per minute for emailed codes); the limiter keys on `x-forwarded-for`, so run behind a proxy that sets it.
+- Sign-in is rate limited (5 password attempts per minute and client by default, `signInPerMinute`, which also limits [sign-up](#open-sign-up) requests; 3 per minute for emailed codes); the limiter keys on `x-forwarded-for`, so run behind a proxy that sets it.
 - Passwords need at least 12 characters.
 - `appName` (default `Protobase`) is the name authenticator apps and passkey prompts show.
 
 ## First run
 
-Accounts are never created over the web while the store is empty: there is no setup route and no public sign-up, so a freshly deployed URL cannot be claimed by whoever reaches it first. The first admin is created on the host, with the CLI (`protobase users create you@example.com --generate-password`) or from code:
+Accounts are never created over the web while the store is empty: there is no setup route, and [open sign-up](#open-sign-up), when an app turns it on, waits for the first admin, so a freshly deployed URL cannot be claimed by whoever reaches it first. The first admin is created on the host, with the CLI (`protobase users create you@example.com --generate-password`) or from code:
 
 ```ts
 import { createUser, hasUsers, listUsers } from '@protobase/server'
@@ -78,7 +78,7 @@ await deleteUser(auth, email)                                // with sessions an
 
 The last active admin cannot be deleted, demoted or banned: those functions throw instead, so every caller is protected. An account created by `createUser` or an admin counts as having a verified address, since whoever created it vouches for it; that lets it sign in with an [emailed code](#emailed-sign-in-codes).
 
-Until a user exists sign-in fails, and `GET /api/auth/status` (public) answers `{ "needsAdmin": true, "signInMethods": ["password", "passkey"], "passwordReset": false, "socialProviders": [] }` so a login page can say what to do. `signInMethods` lists the ways to sign in the [sign-in policy](#sign-in-policy) leaves on (`password`, `emailCode`, `passkey`), `passwordReset` is whether [reset mail](#password-reset) can be sent and passwords are on, and `staffSignIn`, when there, names the provider of [staff sign-in](#staff-sign-in). Further users are created by an admin with Better Auth's `POST /api/auth/admin/create-user`, or with `createUser` on the host. The auth store holds a connection pool; scripts that call these functions end the process themselves.
+Until a user exists sign-in fails, and `GET /api/auth/status` (public) answers `{ "needsAdmin": true, "signInMethods": ["password", "passkey"], "passwordReset": false, "socialProviders": [] }` so a login page can say what to do. `signInMethods` lists the ways to sign in the [sign-in policy](#sign-in-policy) leaves on (`password`, `emailCode`, `passkey`), `passwordReset` is whether [reset mail](#password-reset) can be sent and passwords are on, `signUp`, when there, says anyone can [make an account](#open-sign-up), and `staffSignIn`, when there, names the provider of [staff sign-in](#staff-sign-in). Further users are created by an admin with Better Auth's `POST /api/auth/admin/create-user`, or with `createUser` on the host. The auth store holds a connection pool; scripts that call these functions end the process themselves.
 
 ## Password reset
 
@@ -115,6 +115,24 @@ With mail configured, the sign-in page offers "Email me a sign-in code": the per
 - Only sign-in codes are mailed. The plugin's own email verification, password reset and address change endpoints are off (`404`), and asking for another type of code answers `400`.
 - An account with [two-factor authentication](#two-factor-authentication) is asked for its second step after the code too, as after a password.
 - An account created by Protobase 0.3 or earlier, which has a password, is marked verified the first time it uses a code. Otherwise Better Auth would treat the code as taking over an unverified account and delete its password.
+
+## Open sign-up
+
+Off by default: accounts come from the host, an admin, an [invitation](#organizations) or a [sign-in provider](#sign-in-with-github). An app where anyone may make an account, such as a public portal whose visitors save searches, turns it on with the role new accounts get:
+
+```ts
+createAuth({ ..., roles: ['admin', 'member'], signUp: { role: 'member' } })
+```
+
+The sign-in page then offers "Create an account", and so do [sign-in prompts](/reference/ui-config/#sign-in-prompts): the person enters their address, gets a 6-digit code, and enters it with their name and a password. The account is made only then, with the address verified, and signed in.
+
+- `role` is one of `roles`, and never `admin`: `createAuth` stops with an error otherwise. Give it the least a stranger may hold; a request that names another role, or sets `role` through Better Auth's own endpoints, does not get it.
+- It needs mail: without a mailer it is not offered, `GET /api/auth/status` has no `signUp`, and its endpoints answer `404`. Not with [organizations](#organizations), whose people join by invitation.
+- `POST /api/auth/sign-up/send-code` with `{ email }` mails the code. It answers the same whether the address has an account or not; an address that has one is mailed a note saying so instead of a code, so nobody can tell from the answer, and no second account is made.
+- `POST /api/auth/sign-up/create` with `{ email, code, name, password? }` makes the account and signs in. A code works for 5 minutes, once, and three wrong tries end it; asking again sends a new one. Codes are stored hashed.
+- The password follows the [sign-in policy](#sign-in-policy) as for an invitation: none while passwords are off, optional while emailed codes are on, 12 characters or more. What the policy requires, such as two-factor authentication, is set up after the first sign-in, as for every account.
+- Both requests are limited per minute and client like sign-in (`signInPerMinute`, default 5), and refused (`NO_ADMIN_YET`) while the store has no user.
+- `onUserCreated` runs for every account made this way.
 
 ## Passkeys
 
@@ -332,7 +350,7 @@ It is Better Auth's organization plugin, with its tables named in snake_case (`o
 
 **The organization in the token.** A new session starts in the organization the person last worked in, else their oldest membership. `/api/auth/token` adds `org` (the organization), `org_role` and `app_roles` (the membership's, narrowed to the active role), read when the token is issued, so a removed member or a changed role shows within its 15 minutes. `betterAuthAuthenticator` makes `org` the tenant and `ctx.organization.id`, and adds `app_roles` to the global roles. `POST /api/auth/organization/switch` with `{ organizationId }` moves the session; the next token names the new organization, without signing in again. Someone with a global role may switch into any organization, without being a member, and sees there what those roles allow; each such entry is an `organization.entered` [audit event](/reference/api/#audit-events). `GET /api/auth/organization/search?query=` finds organizations for them. A list across organizations stays a resource without `.tenant`, readable by the global role.
 
-**Invitations.** Better Auth's `POST /api/auth/organization/invite-member` with `{ organizationId, email, role, appRoles }`; inviting again replaces the earlier invitation, and it works for `invitationDays` (default 7). The email links to `{baseURL}/-/invitation?token=…` (`invitationUrl`), with a token signed with `secret`, since members can read invitation ids; without a mailer, the answer carries the `link` to pass on. The link page shows `GET /api/auth/invitation?token=`, accepts with `POST /api/auth/invitation/accept` for someone signed in as the invited address, and makes an account with `POST /api/auth/invitation/sign-up` (`{ token, name, password? }`) for an address without one. Open sign-up stays off: an invitation is the address someone vouched for.
+**Invitations.** Better Auth's `POST /api/auth/organization/invite-member` with `{ organizationId, email, role, appRoles }`; inviting again replaces the earlier invitation, and it works for `invitationDays` (default 7). The email links to `{baseURL}/-/invitation?token=…` (`invitationUrl`), with a token signed with `secret`, since members can read invitation ids; without a mailer, the answer carries the `link` to pass on. The link page shows `GET /api/auth/invitation?token=`, accepts with `POST /api/auth/invitation/accept` for someone signed in as the invited address, and makes an account with `POST /api/auth/invitation/sign-up` (`{ token, name, password? }`) for an address without one. [Open sign-up](#open-sign-up) is not available with organizations: an invitation is the address someone vouched for.
 
 **Members.** Better Auth's `list-members`, `update-member-role`, `remove-member` and `leave`; `POST /api/auth/organization/set-app-roles` (`{ memberId, appRoles }`); `POST /api/auth/organization/transfer-ownership` (`{ memberId, keepAs? }`) makes a member owner and the caller an admin in one step. `GET /api/auth/organization/current` answers the organization a session works in with the caller's roles there.
 
@@ -389,7 +407,7 @@ createAuth({ ..., baseURL: 'https://erp-x1.protobase.net', origins: ['https://ad
 
 ## Public endpoints
 
-Only the Better Auth routes under `/api/auth/*` (sign-in, password reset, the start and callback of a [staff sign-in](#staff-sign-in) and the like), `GET /api/auth/status` and, with [several origins](#several-origins), `GET /.well-known/webauthn` are reachable without a token; the account, policy and staff session endpoints there need a session. The API (`/api/v1/*`) and the system endpoints (`/api/meta`, `/api/openapi.json`, `/api/docs`) all answer `401` without one, but for what an [anonymous role](/reference/access/#anonymous-access) reads in `/api/v1` and `/api/meta`, when the project defines one.
+Only the Better Auth routes under `/api/auth/*` (sign-in, password reset, [open sign-up](#open-sign-up), the start and callback of a [staff sign-in](#staff-sign-in) and the like), `GET /api/auth/status` and, with [several origins](#several-origins), `GET /.well-known/webauthn` are reachable without a token; the account, policy and staff session endpoints there need a session. The API (`/api/v1/*`) and the system endpoints (`/api/meta`, `/api/openapi.json`, `/api/docs`) all answer `401` without one, but for what an [anonymous role](/reference/access/#anonymous-access) reads in `/api/v1` and `/api/meta`, when the project defines one.
 
 ## Roles and access in the API
 

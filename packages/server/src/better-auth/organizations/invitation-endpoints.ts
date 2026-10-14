@@ -1,6 +1,7 @@
 import { APIError, createAuthEndpoint, createAuthMiddleware, sessionMiddleware } from 'better-auth/api'
 import { setSessionCookie } from 'better-auth/cookies'
 import * as z from 'zod'
+import { checkNewAccountPassword } from '../new-account-password'
 import { readSignInPolicy } from '../policy-store'
 import { effectiveSignInPolicy } from '../sign-in-policy'
 import { acceptInvitation, invitationOfToken } from './accept-invitation'
@@ -8,9 +9,6 @@ import { invitationLink, invitationToken } from './invitation-token'
 import type { ResolvedOrganizations } from './options'
 import { noGlobalRole } from './role-definitions'
 import { findOrganization, type AuthContext } from './store'
-
-const minPasswordLength = 12
-const maxPasswordLength = 128
 
 const tokenBody = z.object({ token: z.string().min(1) })
 
@@ -62,17 +60,8 @@ export const invitationEndpoints = ({ resolved, mail }: { resolved: ResolvedOrga
       if (await internalAdapter.findUserByEmail(invitation.email.toLowerCase())) {
         throw new APIError('BAD_REQUEST', { code: 'ACCOUNT_EXISTS', message: 'This address has an account already: sign in to accept the invitation.' })
       }
-      const policy = effectiveSignInPolicy((await readSignInPolicy(ctx.context.adapter)).policy, { mail })
       const { password } = ctx.body
-      if (password !== undefined && policy.password === 'forbidden') {
-        throw new APIError('BAD_REQUEST', { code: 'SIGN_IN_METHOD_FORBIDDEN', message: 'This app does not sign in with passwords; leave the password out.' })
-      }
-      if (password === undefined && policy.emailCode !== 'allowed') {
-        throw new APIError('BAD_REQUEST', { code: 'PASSWORD_REQUIRED', message: 'Choose a password to sign in with.' })
-      }
-      if (password !== undefined && (password.length < minPasswordLength || password.length > maxPasswordLength)) {
-        throw new APIError('BAD_REQUEST', { code: 'PASSWORD_LENGTH', message: `Choose a password of ${minPasswordLength} to ${maxPasswordLength} characters.` })
-      }
+      checkNewAccountPassword(effectiveSignInPolicy((await readSignInPolicy(ctx.context.adapter)).policy, { mail }), password)
       const user = await internalAdapter.createUser({ email: invitation.email.toLowerCase(), name: ctx.body.name, emailVerified: true, role: noGlobalRole }, { method: 'invitation' })
       if (password !== undefined) {
         await internalAdapter.linkAccount({ userId: user.id, providerId: 'credential', accountId: user.id, password: await ctx.context.password.hash(password) })
