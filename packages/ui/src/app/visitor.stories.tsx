@@ -1,6 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { expect, userEvent, waitFor, within } from 'storybook/test'
 import { createStaticSession, type AuthSession } from '@protobase/client'
+import { themeStorageKey } from '../theme/theme-preference'
 import { App } from './app'
 import { fakeClient } from './testing/fake-client'
 
@@ -68,5 +69,29 @@ export const BackFromSignIn: StoryObj = {
 
     window.history.forward()
     expect(await canvas.findByRole('heading', { name: 'Sign in to Protobase' })).toBeVisible()
+  },
+}
+
+// A visitor picks a theme above "Sign in", as a signed-in user does in the profile menu, and the sign-in page keeps it.
+export const PickingTheme: StoryObj = {
+  name: 'Picking a theme',
+  tags: ['play'],
+  render: () => (
+    <div className="h-screen">
+      <App client={fakeClient({ permissions: { create: false, update: false, delete: false, conditional: [] } })} auth={visitorSession} initialUrl="/orders" />
+    </div>
+  ),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    await canvas.findByText('SO-1')
+    const group = within(canvas.getByRole('group', { name: 'Theme' }))
+    await userEvent.click(group.getByRole('button', { name: 'Dark' }))
+    expect(document.documentElement.dataset.theme).toBe('dark')
+    expect(localStorage.getItem(themeStorageKey)).toBe('dark')
+    expect(getComputedStyle(document.body).backgroundColor).toBe('rgb(15, 15, 17)')
+
+    await userEvent.click(canvas.getByRole('button', { name: 'Sign in' }))
+    expect(await canvas.findByRole('heading', { name: 'Sign in to Protobase' })).toBeVisible()
+    expect(document.documentElement.dataset.theme).toBe('dark')
   },
 }

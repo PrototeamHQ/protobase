@@ -185,7 +185,7 @@ const Routes = ({ workspace, sidebarMode, assistant, runtime }: Pick<AppProps, '
           onSwitch: (id) => void session.organizations.switchTo(id).then(() => reopenIn(basePath)),
         }
       }
-      theme={user && { preference: theme.preference, onChange: theme.choose }}
+      theme={{ preference: theme.preference, onChange: theme.choose }}
       roles={role.current?.active ? { active: role.current.active, roles: role.current.roles, onSwitch: role.switchTo } : undefined}
       onNavigate={open}
       search={search.available ? { placeholder: search.placeholder, text: search.text, onTextChange: search.setText, query: search.query, loading: search.loading, groups: search.groups, onSelect: open } : undefined}

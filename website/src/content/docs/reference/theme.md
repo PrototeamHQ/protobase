@@ -50,7 +50,7 @@ The app's `index.html` links `/protobase.theme.css` after its own stylesheets, s
 
 ## Light, dark or the system
 
-Each user picks light, dark or "System" with the theme switch in the profile menu, and the app follows their system's setting until they pick one. The choice is kept in their browser (`localStorage`, under `protobase:theme`), so it holds on every visit and in every tab; with storage blocked the app follows the system.
+Each user picks light, dark or "System" with the theme switch in the profile menu, a visitor who is not signed in with the one above "Sign in" at the bottom of the sidebar, and the app follows their system's setting until they pick one. The choice is kept in their browser (`localStorage`, under `protobase:theme`), so it holds on every visit and in every tab; with storage blocked the app follows the system.
 
 The app draws dark by setting `data-theme="dark"` on the `<html>` element, and `data-theme="light"` for light. The app's `index.html` sets it with a small script in its `<head>`, before the first paint, so a dark page never flashes white while the app loads, the sign-in page included. Native parts of the page, such as scrollbars and date pickers, follow it too (`color-scheme`).
 

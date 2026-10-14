@@ -3,7 +3,7 @@ import { cn } from '../lib/cn'
 import { Logo } from './logo'
 import { navGroups as defaultGroups, type NavGroup } from './nav'
 import { ProfileMenu, type ProfileMenuItem, type ProfileOrganizations, type ProfileRoles, type ShellUser } from './profile-menu'
-import type { ProfileTheme } from './theme-switch'
+import { ThemeSwitch, type ProfileTheme } from './theme-switch'
 import { SidebarGroup } from './sidebar-group'
 import { SidebarItem } from './sidebar-item'
 import { isTextMode, sidebarWidth, type SidebarMode } from './sidebar-mode'
@@ -25,6 +25,7 @@ export type SidebarProps = {
   onSignIn?: () => void
   organizations?: ProfileOrganizations
   roles?: ProfileRoles
+  /** The light, dark or system switch: in the profile menu, or above "Sign in" for someone signed out. */
   theme?: ProfileTheme
   /** Stays in view, as tall as the screen, while the page scrolls, for a shell whose page scrolls. */
   sticky?: boolean
@@ -76,12 +77,16 @@ export const Sidebar = ({ mode, activeItem, user, workspace, forceExpanded, prof
           {user ? (
             <ProfileMenu user={user} compact={!inline} open={profileMenuOpen} items={userMenu} onNavigate={onNavigate} onSignOut={onSignOut} organizations={organizations} roles={roles} theme={theme} />
           ) : (
-            onSignIn && (
-              <button type="button" onClick={onSignIn} aria-label="Sign in" className="flex min-h-11 w-full items-center gap-2.5 rounded-md p-1.5 text-left text-[13px] font-medium text-muted-foreground hover:bg-muted hover:text-foreground md:min-h-0">
-                <LogIn className="size-4 shrink-0" />
-                {inline && <span className="whitespace-nowrap">Sign in</span>}
-              </button>
-            )
+            <>
+              {/* An icon-only sidebar has no room for the switch; the page still follows the system or a stored choice. */}
+              {theme && inline && <ThemeSwitch theme={theme} className="flex min-h-11 w-full items-center gap-2.5 whitespace-nowrap p-1.5 text-[13px] text-muted-foreground md:min-h-0" />}
+              {onSignIn && (
+                <button type="button" onClick={onSignIn} aria-label="Sign in" className="flex min-h-11 w-full items-center gap-2.5 rounded-md p-1.5 text-left text-[13px] font-medium text-muted-foreground hover:bg-muted hover:text-foreground md:min-h-0">
+                  <LogIn className="size-4 shrink-0" />
+                  {inline && <span className="whitespace-nowrap">Sign in</span>}
+                </button>
+              )}
+            </>
           )}
         </div>
       </div>
