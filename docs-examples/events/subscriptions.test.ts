@@ -25,7 +25,7 @@ describe('the subscriptions of orders', () => {
       functions: { 'sync-order': defineFunction({ public: true }, () => new Response(null, { status: 204 })) },
       subscriptions: [newOrdersToSlack, ordersToAccounting, rushOrders],
     })
-    expect(admin.jobs.map((job) => job.name)).toEqual(['changes.dispatch', 'webhooks.deliver', 'webhooks.deliver-ordered'])
+    expect(admin.jobs.map((job) => job.name)).toEqual(['changes.dispatch', 'webhooks.dispatch-change', 'webhooks.deliver', 'webhooks.deliver-ordered'])
   })
 
   it('refuse to start without the function they call', async () => {

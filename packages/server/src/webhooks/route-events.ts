@@ -1,5 +1,6 @@
 import { evaluateFilter, type CheckedFilter, type ResourceModel } from '@protobase/schema'
 import { checkEventFilter } from '@protobase/schema/internal'
+import { EventCodeError } from '../changes/event-code-error'
 import type { ResourceChange } from '../changes/resource-change'
 import { eventPatternMatches, type SubscriptionDefinition } from './subscription'
 
@@ -57,7 +58,12 @@ export const subscriptionRouter = (subscriptions: readonly SubscriptionDefinitio
     if (options.enabled === false) return false
     if (options.tenant !== undefined && String(options.tenant) !== String(change.tenant)) return false
     const filter = filters.get(`${subscription.name}\0${change.resource}`)
-    return !filter || evaluateFilter(filter, change.after ?? change.before) === true
+    if (!filter) return true
+    try {
+      return evaluateFilter(filter, change.after ?? change.before) === true
+    } catch (error) {
+      throw new EventCodeError(`The when of subscription "${subscription.name}" on ${change.resource} ${change.key}`, error)
+    }
   }
   return (change: ResourceChange, events: readonly string[]): Route[] =>
     subscriptions.flatMap((subscription) => {

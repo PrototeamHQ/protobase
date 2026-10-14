@@ -1,4 +1,5 @@
 import { checkRecord, evaluateFilter } from '@protobase/schema'
+import { EventCodeError } from '../changes/event-code-error'
 import type { ResourceChange } from '../changes/resource-change'
 import type { Deps } from '../deps'
 import { requestAccess, type RequestAccess } from '../request-access'
@@ -61,8 +62,15 @@ export const subscriberEvents = (deps: Deps) => {
     if (!entry) throw new Error(`Not implemented: a change of "${change.resource}", which is no resource of the app`)
     const cacheKey = `${subscription.name}\0${change.resource}`
     if (!accesses.has(cacheKey)) accesses.set(cacheKey, requestAccess(deps, entry, session))
-    const access = await accesses.get(cacheKey)!
-    if (!(await mayRead(access, (change.after ?? change.before)!))) return undefined
+    const readable = async () => {
+      const access = await accesses.get(cacheKey)!
+      return (await mayRead(access, (change.after ?? change.before)!)) ? access : undefined
+    }
+    // The access rules are the app's code.
+    const access = await readable().catch((error: unknown) => {
+      throw new EventCodeError(`The access check of subscription "${subscription.name}" on ${change.resource} ${change.key}`, error)
+    })
+    if (!access) return undefined
     return subscriptionEvent(change, event, { fields: Object.keys(access.readable.fields), thin })
   }
 }

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { f, resource } from '@protobase/schema'
 import type { CoalescedChange } from './coalesce'
+import { EventCodeError } from './event-code-error'
 import { eventMatcher } from './match-events'
 import { resourceChange } from './resource-change'
 
@@ -99,6 +100,13 @@ describe('eventMatcher', () => {
 
   it('asks the code predicate with the change as the event sees it', () => {
     expect(events(change(null, { notes: 'RUSH please' }))).toEqual(['orders.created', 'orders.rush'])
+  })
+
+  it('names the event and the record when the code predicate throws', () => {
+    const throwing = eventMatcher(model, { 'orders.rush': ({ after }) => (after!.notes as string).includes('RUSH') })
+    const raise = () => throwing(resourceChange(model, change(null, {})))
+    expect(raise).toThrow(EventCodeError)
+    expect(raise).toThrow(/^Event orders\.rush on orders 7 threw: /)
   })
 
   it('raises nothing for a resource without events', () => {

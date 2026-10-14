@@ -1,5 +1,6 @@
 import { evaluateFilter, type CheckedFilter, type EventContext, type EventMatch, type EventModel, type ResourceModel } from '@protobase/schema'
 import { checkEventFilter } from '@protobase/schema/internal'
+import { EventCodeError } from './event-code-error'
 import type { ResourceChange } from './resource-change'
 
 type Test = (change: ResourceChange) => boolean
@@ -46,7 +47,13 @@ const eventTest = (model: ResourceModel, event: EventModel, match: EventMatch<an
     if (!match) throw new Error(`Resource "${model.name}": event "${event.name}" has no match function`)
     tests.push((change) => match(contextOf(change)))
   }
-  return (change) => tests.every((test) => test(change))
+  return (change) => {
+    try {
+      return tests.every((test) => test(change))
+    } catch (error) {
+      throw new EventCodeError(`Event ${event.name} on ${change.resource} ${change.key}`, error)
+    }
+  }
 }
 
 /**
