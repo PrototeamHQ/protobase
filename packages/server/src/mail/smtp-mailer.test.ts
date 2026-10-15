@@ -22,4 +22,10 @@ describe('smtpMailer', () => {
     await mailer.send({ to: 'ada@example.com', subject: 'Welcome', text: 'Hello', html: '<p>Hello</p>' })
     expect(sendMail).toHaveBeenLastCalledWith({ from: 'noreply@acme.example.com', to: 'ada@example.com', subject: 'Welcome', text: 'Hello', html: '<p>Hello</p>' })
   })
+
+  it('shows the name, when it has one, as the sender display name', async () => {
+    const mailer = smtpMailer({ smtpUrl: 'smtp://relay.example.net:587', from: 'noreply@shop.example.com', name: 'Shop "North"' })
+    await mailer.send({ to: 'ada@example.com', subject: 'Hello', text: 'Hello' })
+    expect(sendMail).toHaveBeenLastCalledWith({ from: { name: 'Shop "North"', address: 'noreply@shop.example.com' }, to: 'ada@example.com', subject: 'Hello', text: 'Hello' })
+  })
 })

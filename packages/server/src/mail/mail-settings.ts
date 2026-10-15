@@ -3,6 +3,8 @@ export type MailSettings = {
   smtpUrl: string
   /** The sender address, for example `noreply@admin.example.com`. */
   from: string
+  /** The name mail clients show for the sender, such as the app's name; none by default. */
+  name?: string
 }
 
 export const smtpUrlVariable = 'PROTOBASE_SMTP_URL'
