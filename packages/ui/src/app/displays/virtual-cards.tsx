@@ -4,6 +4,7 @@ import { usePagedRows } from '../../data-grid/use-paged-rows'
 import { useVirtualRows } from '../../data-grid/use-virtual-rows'
 import { Skeleton } from '../../primitives/skeleton'
 import { anchoredTop, cardColumns, cardGap, cardWidth, recordRange, type CardLayout } from './card-layout'
+import { withMeasuredHeight, type MeasuredHeights } from './measured-heights'
 
 type VirtualCardsProps = {
   source: RowSource
@@ -21,7 +22,7 @@ type VirtualCardsProps = {
  * Cards in rows as wide as the list, scrolled like the table by the page or the nearest scrolling ancestor: the list is
  * as tall as all its rows, only the rows in view are drawn, and the records are loaded in the table's pages, so a
  * change of width keeps the loaded pages and the first record in view. Every card in a width is as tall as the tallest
- * drawn so far.
+ * drawn so far at that width.
  */
 export const VirtualCards = ({ source, label, initialIndex, onScrollIndex, minHeight, children }: VirtualCardsProps) => {
   const { total } = source
@@ -30,8 +31,8 @@ export const VirtualCards = ({ source, label, initialIndex, onScrollIndex, minHe
   const [width, setWidth] = useState(0)
   const columns = cardColumns(width)
   const itemWidth = cardWidth(width, columns)
-  const [measured, setMeasured] = useState({ width: 0, height: 0 })
-  const itemHeight = Math.ceil(Math.max(minHeight(itemWidth), measured.width === itemWidth ? measured.height : 0))
+  const [measured, setMeasured] = useState<MeasuredHeights>(() => new Map())
+  const itemHeight = Math.ceil(Math.max(minHeight(itemWidth), measured.get(itemWidth) ?? 0))
   const rowHeight = itemHeight + cardGap
 
   // Keep the same records in view across a change of columns or card height, once the list has reached the top of the
@@ -41,7 +42,7 @@ export const VirtualCards = ({ source, label, initialIndex, onScrollIndex, minHe
   const changed = anchor.current.top > 0 && (anchor.current.layout.columns !== columns || anchor.current.layout.rowHeight !== rowHeight)
   const settle = (top: number) => (changed ? anchoredTop(anchor.current.top, anchor.current.layout, layout) : top)
   // Until a card of this width is measured, its height is a guess, and the list waits for it to start at `initialIndex`
-  const ready = itemWidth > 0 && measured.width === itemWidth
+  const ready = itemWidth > 0 && measured.has(itemWidth)
   const scroll = useVirtualRows<HTMLUListElement>({ total: Math.ceil(total / columns), rowHeight, initialIndex: Math.floor(startIndex / columns), settle, ready })
   useLayoutEffect(() => {
     if (changed) scroll.scrollTo(scroll.top)
@@ -67,7 +68,7 @@ export const VirtualCards = ({ source, label, initialIndex, onScrollIndex, minHe
     new ResizeObserver((entries) => {
       const tallest = Math.max(...entries.map((entry) => entry.borderBoxSize[0]?.blockSize ?? entry.contentRect.height))
       const at = widthRef.current
-      setMeasured((current) => (current.width === at && current.height >= tallest ? current : { width: at, height: Math.max(tallest, current.width === at ? current.height : 0) }))
+      setMeasured((current) => withMeasuredHeight(current, at, tallest))
     }),
   )
   useLayoutEffect(() => () => observer.disconnect(), [observer])
