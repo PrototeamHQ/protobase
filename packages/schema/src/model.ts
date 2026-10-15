@@ -230,6 +230,8 @@ export type FieldViewModel = {
   help?: string
   /** How the value is shown. */
   format?: FieldFormat
+  /** A text that runs over several lines: forms edit it in a box that grows with it, and its line breaks show. */
+  multiline?: boolean
   /** Text before a number wherever it is shown, such as `€`. */
   prefix?: string
   /** Text after a number wherever it is shown, such as a unit: `m²` shows `120 m²`. */

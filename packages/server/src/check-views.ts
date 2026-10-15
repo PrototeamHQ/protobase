@@ -46,6 +46,13 @@ const valueColorErrors = (view: ViewModel, model: ResourceModel) =>
     return Object.keys(hints.valueColors).filter((value) => !field.enumValues?.includes(value)).map((value) => `value colour "${value}" is not a value of "${name}"`)
   })
 
+// Only text runs over several lines, so a box that grows with it fits no other field.
+const multilineErrors = (view: ViewModel, model: ResourceModel) =>
+  Object.entries(view.fields).flatMap(([name, hints]) => {
+    const field = model.fields[name]
+    return hints.multiline && field && field.type !== 'text' ? [`multiline "${name}" needs a text field, not ${field.type}`] : []
+  })
+
 // A link goes to an address the app has, or leaves the app; a path in the app is written as an address, and a link
 // that is only a field's URL names a field the resource has.
 const linkErrors = (view: ViewModel, model: ResourceModel, models: Record<string, ResourceModel>, pages: ReadonlySet<string>) =>
@@ -126,7 +133,7 @@ export const checkViews = (registry: Registry, views: ViewModel[], pages: readon
       ...view.layout.flatMap((item) => (item.kind === 'map' ? mapErrors(item, model).map((error) => `map "${item.title}": ${error}`) : [])),
       ...(view.list?.displays ?? []).flatMap((display) => (display.kind === 'map' ? mapDisplayErrors(display, model).map((error) => `display "${display.name}": ${error}`) : [])),
     ]
-    return [...sensitiveErrors(view, model), ...unknownFieldErrors(view, model), ...valueLabelErrors(view, model), ...valueColorErrors(view, model), ...widgetErrors(view, model, fieldTypes), ...related, ...photos, ...favorites, ...listOf, ...searches, ...maps, ...linkErrors(view, model, models, pageNames)].map((problem) => `View "${view.resource}": ${problem}`)
+    return [...sensitiveErrors(view, model), ...unknownFieldErrors(view, model), ...valueLabelErrors(view, model), ...valueColorErrors(view, model), ...multilineErrors(view, model), ...widgetErrors(view, model, fieldTypes), ...related, ...photos, ...favorites, ...listOf, ...searches, ...maps, ...linkErrors(view, model, models, pageNames)].map((problem) => `View "${view.resource}": ${problem}`)
   })
   if (problems.length > 0) throw new Error(`The views do not match the resources:\n${problems.map((problem) => `  - ${problem}`).join('\n')}`)
 }
