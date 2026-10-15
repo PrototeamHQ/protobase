@@ -22,7 +22,7 @@ export const useSaveSearch = (search: SaveSearchModel, filter: string, name: str
   const client = useClient()
   const toast = useToast()
   const refresh = useRefreshResource()
-  const { go } = useAppAddress()
+  const { href, open } = useAppAddress()
   const { resource } = search
   const model = meta.resources[resource]
   const of = meta.views[resource]?.searchesOf
@@ -39,7 +39,7 @@ export const useSaveSearch = (search: SaveSearchModel, filter: string, name: str
       else await client.create(resource, { [of!.filter]: filter, ...(of!.name && { [of!.name]: name }) })
     },
     onSuccess: (_, existing) => {
-      if (!existing) toast.show({ state: 'success', title: 'Search saved', action: { label: `Open ${plural.toLowerCase()}`, onClick: () => go({ kind: 'list', resource }) } })
+      if (!existing) toast.show({ state: 'success', title: 'Search saved', action: { label: `Open ${plural.toLowerCase()}`, href: href({ kind: 'list', resource }), onNavigate: open } })
     },
     onError: (error, existing) => toast.show({ state: 'error', title: existing ? 'Could not take the search off' : 'Could not save the search', description: message(error) }),
     onSettled: () => refresh(resource),
