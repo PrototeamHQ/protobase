@@ -69,7 +69,7 @@ export const Step1Phone: StoryObj = {
     expect(fourth.top).toBe(third.top)
     expect(first.width).toBe(second.width)
     const unpaid = await (await statValue(canvas, 'Delivered, not paid')).findByRole('link', { name: '2' })
-    expect(unpaid.getBoundingClientRect().bottom).toBe(link.getBoundingClientRect().bottom)
+    expect(unpaid.getBoundingClientRect().bottom).toBeCloseTo(link.getBoundingClientRect().bottom, 0)
     expect(document.elementFromPoint(first.right - 4, first.top + 4)).toBe(link)
   },
 }

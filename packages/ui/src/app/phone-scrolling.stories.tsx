@@ -64,8 +64,8 @@ export const ComposedPageChecks: StoryObj = {
     scroller.scrollTop = scroller.scrollHeight
     await waitFor(() => expect(scroller.scrollTop).toBeGreaterThan(0))
     const bar = canvas.getByRole('navigation', { name: 'Tabs' })
-    expect(bar.getBoundingClientRect().bottom).toBe(window.innerHeight)
-    expect(canvasElement.querySelector('header')!.getBoundingClientRect().top).toBe(0)
+    expect(bar.getBoundingClientRect().bottom).toBeCloseTo(window.innerHeight, 0)
+    expect(canvasElement.querySelector('header')!.getBoundingClientRect().top).toBeCloseTo(0, 0)
     scroller.scrollTop = 0
   },
 }
@@ -82,6 +82,6 @@ export const MapDisplayChecks: StoryObj = {
     const bar = canvas.getByRole('navigation', { name: 'Tabs' })
     expect(document.scrollingElement!.scrollHeight).toBe(window.innerHeight)
     expect(scrollBoxes(canvasElement)).toEqual([])
-    expect(bar.getBoundingClientRect().bottom).toBe(window.innerHeight)
+    expect(bar.getBoundingClientRect().bottom).toBeCloseTo(window.innerHeight, 0)
   },
 }

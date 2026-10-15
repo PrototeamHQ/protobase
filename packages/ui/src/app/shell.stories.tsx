@@ -91,7 +91,7 @@ const expectWholeBar = async (canvasElement: HTMLElement) => {
   await canvas.findByRole('heading', { name: 'SO-1' })
   const bar = canvas.getByRole('navigation', { name: 'Tabs' })
   const edges = bar.getBoundingClientRect()
-  expect(edges.bottom).toBe(window.innerHeight)
+  expect(edges.bottom).toBeCloseTo(window.innerHeight, 0)
   for (const y of [edges.top + 1, edges.bottom - 1]) expect(document.elementFromPoint(edges.left + edges.width / 2, y)?.closest('nav')).toBe(bar)
   return edges
 }

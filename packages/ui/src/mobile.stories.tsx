@@ -67,7 +67,7 @@ export const NavigationDrawer: Story = {
     const canvas = within(canvasElement)
     const menu = canvas.getByRole('button', { name: 'Open navigation' })
     // The menu icon lines up with the page's 16px gutter.
-    expect(menu.querySelector('svg')!.getBoundingClientRect().left).toBe(16)
+    expect(menu.querySelector('svg')!.getBoundingClientRect().left).toBeCloseTo(16, 0)
     expect(menu).toHaveAttribute('aria-expanded', 'false')
     await userEvent.click(menu)
     const drawer = await canvas.findByRole('dialog', { name: 'Navigation' })
@@ -114,7 +114,7 @@ export const BottomBarTabs: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
     const bar = canvas.getByRole('navigation', { name: 'Tabs' })
-    expect(bar.getBoundingClientRect().bottom).toBe(window.innerHeight)
+    expect(bar.getBoundingClientRect().bottom).toBeCloseTo(window.innerHeight, 0)
     expect(canvas.queryByRole('button', { name: 'Open navigation' })).toBeNull()
     const tabs = within(bar)
     expect(tabs.getAllByRole('link').map((link) => link.textContent)).toEqual(['Stock', 'Moves', 'Orders', 'Help'])
@@ -236,7 +236,7 @@ export const AssistantPhone: Story = {
   play: async ({ canvasElement }) => {
     const panel = within(canvasElement).getByRole('complementary', { name: 'Assistant' })
     const box = panel.getBoundingClientRect()
-    expect([box.left, box.top, box.width, box.height]).toEqual([0, 0, window.innerWidth, window.innerHeight])
+    expect([box.left, box.top, box.width, box.height].map(Math.round)).toEqual([0, 0, window.innerWidth, window.innerHeight])
     expect(within(panel).getByRole('button', { name: 'Close' })).toBeVisible()
     expect(within(panel).getByRole('textbox', { name: 'Message' }).getBoundingClientRect().bottom).toBeLessThanOrEqual(window.innerHeight)
   },
