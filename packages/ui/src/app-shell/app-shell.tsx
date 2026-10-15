@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { cn } from '../lib/cn'
 import { useIsDesktop } from '../lib/use-media-query'
+import type { RouteTarget } from '../primitives/route-link'
 import { BottomBar, type BottomBarTab } from './bottom-bar'
 import { Drawer } from './drawer'
 import { PageScrollContext, usePageInsets } from './page-scroll'
@@ -19,7 +20,7 @@ export type AppShellProps = {
   activeItem: string
   /** Crumbs with an `href` are links, followed with `onNavigate`. */
   breadcrumb: Crumb[]
-  /** The signed-in person, with their profile menu; without one the sidebar offers `onSignIn` instead. */
+  /** The signed-in person, with their profile menu; without one the sidebar links to `signIn` instead. */
   user?: ShellUser
   workspace?: string
   actions?: ReactNode
@@ -32,8 +33,8 @@ export type AppShellProps = {
   onNavigate?: (href: string) => void
   /** Adds "Sign out" to the profile menu. */
   onSignOut?: () => void
-  /** A "Sign in" button in the sidebar for a visitor, who has no `user`. */
-  onSignIn?: () => void
+  /** The sign-in page, a "Sign in" link in the sidebar for a visitor, who has no `user`. */
+  signIn?: RouteTarget
   /** Tabs along the bottom on phones, before "More", which opens the drawer instead of the top bar's menu button. */
   bottomBar?: BottomBarTab[]
   /** The organizations to switch between, in the profile menu. */
@@ -52,7 +53,7 @@ export type AppShellProps = {
 
 const drawerId = 'app-drawer'
 
-export const AppShell = ({ sidebarMode, activeItem, breadcrumb, user, workspace, actions, rightPanel, forceExpanded, profileMenuOpen, navGroups, userMenu, bottomBar, onNavigate, onSignOut, onSignIn, organizations, roles, theme, search, pageScroll: scrollsByDefault = false, className, children }: AppShellProps) => {
+export const AppShell = ({ sidebarMode, activeItem, breadcrumb, user, workspace, actions, rightPanel, forceExpanded, profileMenuOpen, navGroups, userMenu, bottomBar, onNavigate, onSignOut, signIn, organizations, roles, theme, search, pageScroll: scrollsByDefault = false, className, children }: AppShellProps) => {
   const desktop = useIsDesktop()
   const [drawerOpen, setDrawerOpen] = useState(false)
   useEffect(() => {
@@ -66,7 +67,7 @@ export const AppShell = ({ sidebarMode, activeItem, breadcrumb, user, workspace,
   const bottomBarRef = useRef<HTMLElement>(null)
   usePageInsets(pageScroll, topBarRef, bottomBarRef, Boolean(tabs))
   const sidebar = (mode: SidebarMode, sticky = false) => (
-    <Sidebar mode={mode} sticky={sticky} activeItem={activeItem} user={user} workspace={workspace} forceExpanded={forceExpanded} profileMenuOpen={profileMenuOpen} groups={navGroups} userMenu={userMenu} onNavigate={onNavigate} onSignOut={onSignOut} onSignIn={onSignIn} organizations={organizations} roles={roles} theme={theme} />
+    <Sidebar mode={mode} sticky={sticky} activeItem={activeItem} user={user} workspace={workspace} forceExpanded={forceExpanded} profileMenuOpen={profileMenuOpen} groups={navGroups} userMenu={userMenu} onNavigate={onNavigate} onSignOut={onSignOut} signIn={signIn} organizations={organizations} roles={roles} theme={theme} />
   )
   return (
     <PageScrollContext.Provider value={setPageScroll}>

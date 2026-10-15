@@ -1,11 +1,12 @@
 import { useState } from 'react'
 import { AuthError } from '@protobase/client'
+import type { RouteTarget } from '../primitives/route-link'
 import { useAuth } from './auth-provider'
 import { ForgotPasswordForm } from './forgot-password-form'
 import { resetLinkTarget } from './reset-link'
 
 /** Asks the server to email a reset link that leads back to this page. */
-export const ForgotPasswordPage = ({ onBack }: { onBack: () => void }) => {
+export const ForgotPasswordPage = ({ back }: { back: RouteTarget }) => {
   const { session } = useAuth()
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string>()
@@ -24,5 +25,5 @@ export const ForgotPasswordPage = ({ onBack }: { onBack: () => void }) => {
     setBusy(false)
   }
 
-  return <ForgotPasswordForm busy={busy} error={error} sentTo={sentTo} onBack={onBack} onSubmit={(email) => void submit(email)} />
+  return <ForgotPasswordForm busy={busy} error={error} sentTo={sentTo} back={back} onSubmit={(email) => void submit(email)} />
 }

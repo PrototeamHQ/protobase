@@ -3,6 +3,7 @@ import { useId } from 'react'
 import type { SignInPromptModel } from '@protobase/schema'
 import { namedIcon } from '../app/named-icon'
 import { Button, buttonClass } from '../primitives/button'
+import { RouteLink } from '../primitives/route-link'
 import { ResponsiveDialog } from '../primitives/responsive-dialog'
 import { useAuth } from './auth-provider'
 import { useSignInAddress } from './use-sign-in-address'
@@ -30,7 +31,7 @@ const Benefits = ({ benefits }: { benefits: string[] | undefined }) =>
 // opens in a new tab; without one, "Create an account" opens the route's sign-up step when the server has open sign-up.
 const Actions = ({ prompt }: { prompt: SignInPromptModel }) => {
   const { canSignUp } = useAuth()
-  const { open } = useSignInAddress()
+  const { link } = useSignInAddress()
   return (
     <>
       {prompt.signUp ? (
@@ -38,11 +39,15 @@ const Actions = ({ prompt }: { prompt: SignInPromptModel }) => {
           {prompt.signUp.label}
         </a>
       ) : (
-        canSignUp && <Button onClick={() => open('sign-up')}>Create an account</Button>
+        canSignUp && (
+          <RouteLink to={link('sign-up')} className={buttonClass()}>
+            Create an account
+          </RouteLink>
+        )
       )}
-      <Button variant="primary" onClick={() => open()}>
+      <RouteLink to={link()} className={buttonClass({ variant: 'primary' })}>
         Sign in
-      </Button>
+      </RouteLink>
     </>
   )
 }

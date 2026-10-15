@@ -79,7 +79,7 @@ const Routes = ({ workspace, sidebarMode, assistant, runtime }: Pick<AppProps, '
   const { state, session, signOut, stopStaffSession, organizations: organizationSettings } = useAuth()
   const signIn = useSignInAddress()
   if (state.kind !== 'signed-in' && state.kind !== 'visitor') throw new Error('The shell is only rendered for a signed-in user or a visitor')
-  // A visitor browses what the anonymous role reads: no account, roles or organizations, and a "Sign in" button.
+  // A visitor browses what the anonymous role reads: no account, roles or organizations, and a "Sign in" link.
   const user = state.kind === 'signed-in' ? state.user : undefined
   const staff = state.kind === 'signed-in' ? state.staff : undefined
   const { path, params, basePath } = useRouter()
@@ -174,7 +174,7 @@ const Routes = ({ workspace, sidebarMode, assistant, runtime }: Pick<AppProps, '
       breadcrumb={breadcrumb}
       user={acting && userToShell(acting)}
       onSignOut={user && (() => void signOut())}
-      onSignIn={user ? undefined : () => signIn.open()}
+      signIn={user ? undefined : signIn.link()}
       workspace={current?.organization?.name ?? workspace}
       navGroups={groups}
       bottomBar={bottomBarFromMeta(meta, basePath, place)}

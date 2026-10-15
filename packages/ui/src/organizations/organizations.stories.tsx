@@ -113,7 +113,7 @@ export const InvitationForANewAccount: StoryObj<InvitationArgs> = {
     // Signed out, as someone opening the link for the first time is.
     return (
       <WithSession session={{ ...session, session: async () => undefined }}>
-        <div className="h-screen"><InvitationPage token="i1.signature" onDone={fn()} onSignIn={fn()} /></div>
+        <div className="h-screen"><InvitationPage token="i1.signature" onDone={fn()} signIn={{ href: '/-/sign-in', onFollow: fn() }} /></div>
       </WithSession>
     )
   },

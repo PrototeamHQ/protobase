@@ -6,14 +6,14 @@ import { SignInForm, type SignInFormProps } from './sign-in-form'
 
 export { signInMessage }
 
-export type SignInPageProps = Pick<SignInFormProps, 'workspace' | 'notice' | 'onForgotPassword' | 'onSignUp' | 'onBrowse'> & {
+export type SignInPageProps = Pick<SignInFormProps, 'workspace' | 'notice' | 'forgotPassword' | 'signUp' | 'onBrowse'> & {
   /** A sign-in code was emailed to `email`: the page for entering it is next. */
   onCodeSent: (email: string) => void
   /** Why the last sign-in did not go through, for example the provider's refusal. */
   error?: string
 }
 
-export const SignInPage = ({ workspace, notice, onForgotPassword, onSignUp, onBrowse, onCodeSent, error: initialError }: SignInPageProps) => {
+export const SignInPage = ({ workspace, notice, forgotPassword, signUp, onBrowse, onCodeSent, error: initialError }: SignInPageProps) => {
   const { signIn, signInSocial, signInProviders, signInMethods, passkeyDomains, sendSignInCode, signInWithPasskey } = useAuth()
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(initialError)
@@ -37,8 +37,8 @@ export const SignInPage = ({ workspace, notice, onForgotPassword, onSignUp, onBr
       workspace={workspace}
       notice={notice}
       methods={signInMethods}
-      onForgotPassword={onForgotPassword}
-      onSignUp={onSignUp}
+      forgotPassword={forgotPassword}
+      signUp={signUp}
       onBrowse={onBrowse}
       providers={signInProviders}
       onContinueWith={(provider) => void attempt(() => signInSocial(provider), signInMessage)}

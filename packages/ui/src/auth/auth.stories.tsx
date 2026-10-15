@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { expect, fn, userEvent, within } from 'storybook/test'
+import { signInPath, type SignInStep } from '@protobase/schema'
 import { providerMessage } from './auth-messages'
 import { EmailCodeForm, type EmailCodeFormProps } from './email-code-form'
 import { FirstRunPage } from './first-run-page'
@@ -16,6 +17,9 @@ import { TwoFactorForm, type TwoFactorFormProps } from './two-factor-form'
 
 const meta = { title: 'Auth', parameters: { layout: 'fullscreen' }, decorators: [(Story) => <div className="h-screen"><Story /></div>] } satisfies Meta
 export default meta
+
+// A step of the sign-in route as the forms link to it, followed in place with a spy.
+const stepLink = (step: SignInStep) => ({ href: signInPath({ step }), onFollow: fn() })
 
 export const SignIn: StoryObj<SignInFormProps> = {
   tags: ['play'],
@@ -100,22 +104,24 @@ export const SigningIn: StoryObj<SignInFormProps> = {
 
 export const SignInWithPasswordReset: StoryObj<SignInFormProps> = {
   tags: ['play'],
-  args: { onSubmit: fn(), onForgotPassword: fn(), workspace: 'Veldhuis Supply' },
+  args: { onSubmit: fn(), forgotPassword: stepLink('forgot-password'), workspace: 'Veldhuis Supply' },
   render: (args) => <SignInForm {...args} />,
   play: async ({ canvasElement, args }) => {
-    await userEvent.click(within(canvasElement).getByRole('button', { name: 'Forgot password?' }))
-    expect(args.onForgotPassword).toHaveBeenCalledOnce()
+    const link = within(canvasElement).getByRole('link', { name: 'Forgot password?' })
+    expect(link).toHaveAttribute('href', signInPath({ step: 'forgot-password' }))
+    await userEvent.click(link)
+    expect(args.forgotPassword!.onFollow).toHaveBeenCalledOnce()
   },
 }
 
 export const SignInAfterPasswordReset: StoryObj<SignInFormProps> = {
-  args: { onSubmit: fn(), onForgotPassword: fn(), notice: 'Your password is changed. Sign in with the new one.' },
+  args: { onSubmit: fn(), forgotPassword: stepLink('forgot-password'), notice: 'Your password is changed. Sign in with the new one.' },
   render: (args) => <SignInForm {...args} />,
 }
 
 export const SignInWithEveryMethod: StoryObj<SignInFormProps> = {
   tags: ['play'],
-  args: { onSubmit: fn(), onSendCode: fn(), onPasskey: fn(), onForgotPassword: fn(), methods: ['password', 'emailCode', 'passkey'], workspace: 'Veldhuis Supply' },
+  args: { onSubmit: fn(), onSendCode: fn(), onPasskey: fn(), forgotPassword: stepLink('forgot-password'), methods: ['password', 'emailCode', 'passkey'], workspace: 'Veldhuis Supply' },
   render: (args) => <SignInForm {...args} />,
   play: async ({ canvasElement, args }) => {
     const canvas = within(canvasElement)
@@ -146,12 +152,12 @@ export const SignInWithPasskeysOfTwoDomains: StoryObj<SignInFormProps> = {
 
 export const SignInWithoutPasswords: StoryObj<SignInFormProps> = {
   tags: ['play'],
-  args: { onSubmit: fn(), onSendCode: fn(), onPasskey: fn(), onForgotPassword: fn(), methods: ['emailCode', 'passkey'], workspace: 'Veldhuis Supply' },
+  args: { onSubmit: fn(), onSendCode: fn(), onPasskey: fn(), forgotPassword: stepLink('forgot-password'), methods: ['emailCode', 'passkey'], workspace: 'Veldhuis Supply' },
   render: (args) => <SignInForm {...args} />,
   play: async ({ canvasElement, args }) => {
     const canvas = within(canvasElement)
     expect(canvas.queryByLabelText('Password')).toBeNull()
-    expect(canvas.queryByRole('button', { name: 'Forgot password?' })).toBeNull()
+    expect(canvas.queryByRole('link', { name: 'Forgot password?' })).toBeNull()
     await userEvent.type(canvas.getByLabelText('Email'), 'sanne@veldhuis-supply.example{enter}')
     expect(args.onSendCode).toHaveBeenCalledWith('sanne@veldhuis-supply.example')
   },
@@ -179,11 +185,13 @@ export const EmailCode: StoryObj<EmailCodeFormProps> = {
 
 export const SignInWithSignUp: StoryObj<SignInFormProps> = {
   tags: ['play'],
-  args: { onSubmit: fn(), onSignUp: fn(), workspace: 'Homes' },
+  args: { onSubmit: fn(), signUp: stepLink('sign-up'), workspace: 'Homes' },
   render: (args) => <SignInForm {...args} />,
   play: async ({ canvasElement, args }) => {
-    await userEvent.click(within(canvasElement).getByRole('button', { name: 'Create an account' }))
-    expect(args.onSignUp).toHaveBeenCalledOnce()
+    const link = within(canvasElement).getByRole('link', { name: 'Create an account' })
+    expect(link).toHaveAttribute('href', signInPath({ step: 'sign-up' }))
+    await userEvent.click(link)
+    expect(args.signUp!.onFollow).toHaveBeenCalledOnce()
   },
 }
 
@@ -343,21 +351,21 @@ export const SetupPasskeyCancelled: StoryObj<SetupRequiredFormProps> = {
 
 export const ForgotPassword: StoryObj<ForgotPasswordFormProps> = {
   tags: ['play'],
-  args: { onSubmit: fn(), onBack: fn() },
+  args: { onSubmit: fn(), back: stepLink('sign-in') },
   render: (args) => <ForgotPasswordForm {...args} />,
   play: async ({ canvasElement, args }) => {
     const canvas = within(canvasElement)
     await userEvent.type(canvas.getByLabelText('Email'), 'sanne@veldhuis-supply.example ')
     await userEvent.click(canvas.getByRole('button', { name: 'Send reset link' }))
     expect(args.onSubmit).toHaveBeenCalledWith('sanne@veldhuis-supply.example')
-    await userEvent.click(canvas.getByRole('button', { name: 'Back to sign in' }))
-    expect(args.onBack).toHaveBeenCalledOnce()
+    await userEvent.click(canvas.getByRole('link', { name: 'Back to sign in' }))
+    expect(args.back.onFollow).toHaveBeenCalledOnce()
   },
 }
 
 export const ForgotPasswordSent: StoryObj<ForgotPasswordFormProps> = {
   tags: ['play'],
-  args: { onSubmit: fn(), onBack: fn(), sentTo: 'sanne@veldhuis-supply.example' },
+  args: { onSubmit: fn(), back: stepLink('sign-in'), sentTo: 'sanne@veldhuis-supply.example' },
   render: (args) => <ForgotPasswordForm {...args} />,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
@@ -367,7 +375,7 @@ export const ForgotPasswordSent: StoryObj<ForgotPasswordFormProps> = {
 }
 
 export const ForgotPasswordRateLimited: StoryObj<ForgotPasswordFormProps> = {
-  args: { onSubmit: fn(), onBack: fn(), error: 'Too many requests. Wait a minute and try again.' },
+  args: { onSubmit: fn(), back: stepLink('sign-in'), error: 'Too many requests. Wait a minute and try again.' },
   render: (args) => <ForgotPasswordForm {...args} />,
 }
 

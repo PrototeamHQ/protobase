@@ -3,6 +3,7 @@ import { useRef, useState } from 'react'
 import type { SignInMethod } from '@protobase/client'
 import { Button } from '../primitives/button'
 import { Input } from '../primitives/input'
+import { RouteLink, type RouteTarget } from '../primitives/route-link'
 import { AuthLayout } from './auth-layout'
 import { ProviderIcon } from './provider-icon'
 
@@ -25,14 +26,14 @@ export type SignInFormProps = {
    * the others is offered too, since the browser asks for the passkeys of one domain at a time.
    */
   passkeyDomains?: string[]
-  /** Opens the page that emails a reset link; without it there is no "Forgot password?" link. */
-  onForgotPassword?: () => void
+  /** The page that emails a reset link; without it there is no "Forgot password?" link. */
+  forgotPassword?: RouteTarget
   /** The sign-in providers, each offered as "Continue with {name}". */
   providers?: Array<{ id: string; name: string }>
   /** Starts sign-in with one of `providers`. */
   onContinueWith?: (provider: string) => void
-  /** Opens the page that makes an account; without it there is no "Create an account" link. */
-  onSignUp?: () => void
+  /** The page that makes an account; without it there is no "Create an account" link. */
+  signUp?: RouteTarget
   /** Goes back to browsing without signing in; without it there is no such link. */
   onBrowse?: () => void
 }
@@ -45,7 +46,7 @@ const Divider = () => (
   </div>
 )
 
-export const SignInForm = ({ onSubmit, busy, error, workspace, notice, methods = ['password'], onSendCode, onPasskey, passkeyDomains = [], onForgotPassword, providers = [], onContinueWith, onSignUp, onBrowse }: SignInFormProps) => {
+export const SignInForm = ({ onSubmit, busy, error, workspace, notice, methods = ['password'], onSendCode, onPasskey, passkeyDomains = [], forgotPassword, providers = [], onContinueWith, signUp, onBrowse }: SignInFormProps) => {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const emailInput = useRef<HTMLInputElement>(null)
@@ -135,19 +136,19 @@ export const SignInForm = ({ onSubmit, busy, error, workspace, notice, methods =
               Email me a sign-in code
             </Button>
           )}
-          {withPassword && onForgotPassword && (
-            <button type="button" onClick={onForgotPassword} className="self-center text-[13px] font-medium text-primary-text hover:underline">
+          {withPassword && forgotPassword && (
+            <RouteLink to={forgotPassword} className="self-center text-[13px] font-medium text-primary-text hover:underline">
               Forgot password?
-            </button>
+            </RouteLink>
           )}
         </form>
       )}
-      {onSignUp && (
+      {signUp && (
         <p className="mt-4 text-center text-[13px] text-muted-foreground">
           New here?{' '}
-          <button type="button" onClick={onSignUp} className="font-medium text-primary-text hover:underline">
+          <RouteLink to={signUp} className="font-medium text-primary-text hover:underline">
             Create an account
-          </button>
+          </RouteLink>
         </p>
       )}
       {onBrowse && (
