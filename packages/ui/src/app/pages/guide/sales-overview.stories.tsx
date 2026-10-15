@@ -50,6 +50,30 @@ export const Step1Checks: StoryObj = {
     expect(await (await statValue(canvas, 'Open leads')).findByRole('link', { name: '3' })).toBeVisible()
   }}
 
+/** On a phone the four numbers sit two to a row, and a tap anywhere on a card opens its list. */
+export const Step1Phone: StoryObj = {
+  ...Step1,
+  name: '1. Four numbers (phone)',
+  tags: ['play', 'phone'],
+  parameters: { viewport: { options: { phone360: { name: 'Phone 360', styles: { width: '360px', height: '740px' }, type: 'mobile' } } } },
+  globals: { viewport: { value: 'phone360' } },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    const link = await (await statValue(canvas, 'Draft orders')).findByRole('link', { name: '2' })
+    const cards = await Promise.all(['Draft orders', 'Delivered, not paid', 'Overdue invoices', 'Open leads'].map(async (label) => (await canvas.findByText(label)).closest('section')!.getBoundingClientRect()))
+    const [first, second, third, fourth] = cards as [DOMRect, DOMRect, DOMRect, DOMRect]
+    expect(second.top).toBe(first.top)
+    expect(second.left).toBeGreaterThan(first.right)
+    expect(third.top).toBeGreaterThanOrEqual(first.bottom)
+    expect(third.left).toBe(first.left)
+    expect(fourth.top).toBe(third.top)
+    expect(first.width).toBe(second.width)
+    const unpaid = await (await statValue(canvas, 'Delivered, not paid')).findByRole('link', { name: '2' })
+    expect(unpaid.getBoundingClientRect().bottom).toBe(link.getBoundingClientRect().bottom)
+    expect(document.elementFromPoint(first.right - 4, first.top + 4)).toBe(link)
+  },
+}
+
 export const Step2: StoryObj = {
   name: '2. The lists behind the numbers',
   render: () => <GuideApp step={step2} />,

@@ -17,7 +17,7 @@ const Count = ({ model, filter }: { model: ResourceModel; filter?: string }) => 
   if (count.isPending) return <Skeleton className="h-8 w-16" />
   if (count.error) return <span className="text-[13px] text-danger-text">Could not count</span>
   return (
-    <AppLink to={{ kind: 'list', resource: model.name, filter }} className={`${big} hover:text-primary-text`}>
+    <AppLink to={{ kind: 'list', resource: model.name, filter }} className={`${big} hover:text-primary-text after:absolute after:inset-0 after:content-['']`}>
       {count.data.toLocaleString('en-IE')}
     </AppLink>
   )
@@ -34,15 +34,18 @@ const RecordValue = ({ field, format }: { field: string; format: StatProps['form
   )
 }
 
-/** One number or value with a label: fixed, a count of matching records (linking to them), or a field of the record. */
+/**
+ * One number or value with a label: fixed, a count of matching records (linking to them from anywhere on the card), or
+ * a field of the record. A label that wraps pushes nothing out of line: the value sits at the card's bottom.
+ */
 export const StatBlock = ({ node }: BlockProps) => {
   const { label, value, resource, filter, field, format, description } = propsOf<StatProps>(node)
   const { resources } = useAdminMeta()
   const model = resource === undefined ? undefined : resources[resource]
   return (
-    <CardFrame className="h-full">
-      <p className="text-[13px] text-muted-foreground">{label}</p>
-      <div className="mt-1">
+    <CardFrame className="relative h-full" bodyClassName="flex flex-col">
+      <p className="text-[13px] text-muted-foreground break-words">{label}</p>
+      <div className="mt-auto pt-1">
         {value !== undefined && <span className={big}>{value}</span>}
         {model && <Count model={model} filter={filter} />}
         {field !== undefined && <RecordValue field={field} format={format} />}
