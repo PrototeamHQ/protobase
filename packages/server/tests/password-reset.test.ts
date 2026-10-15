@@ -7,6 +7,7 @@ import { createAuth, type CreateAuthOptions } from '../src/better-auth/create-au
 import { createUser } from '../src/better-auth/users'
 import { createAdmin } from '../src/create-admin'
 import { createAuthStore } from '../../../test-support/auth'
+import { cloneForTest } from '../../../test-support/pglite-snapshot'
 import type { MailMessage } from '../src/mail/smtp-mailer'
 
 const origin = 'http://localhost:5173'
@@ -35,7 +36,7 @@ let client = 0
 
 // Every app gets a copy of the migrated store, so no app sees another's users.
 const serve = async (options: Partial<CreateAuthOptions> = {}) => {
-  const auth = authWith(options, (await shared.clone()) as PGlite)
+  const auth = authWith(options, await cloneForTest(shared))
   const address = `203.0.113.${++client}`
   await createUser(auth, { email: 'root@example.com', password })
   const app = createAdmin({ resources: [], db: appDb, authenticate: betterAuthAuthenticator({ auth }), auth })

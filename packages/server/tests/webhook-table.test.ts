@@ -1,4 +1,3 @@
-import type { PGlite } from '@electric-sql/pglite'
 import { Kysely, sql } from 'kysely'
 import { PGliteDialect } from 'kysely-pglite-dialect'
 import { describe, expect, it } from 'vitest'
@@ -15,6 +14,7 @@ import { checkWebhookUrl } from '../src/webhooks/table/address-check'
 import type { WriteEvent } from '../src/types'
 import { createAuthStore } from '../../../test-support/auth'
 import { createJobsPg } from '../../../test-support/jobs'
+import { cloneForTest } from '../../../test-support/pglite-snapshot'
 
 const orders = resource('orders')
   .table('orders')
@@ -86,7 +86,7 @@ describe('subscriptionWriteCheck', () => {
 
 describe('betterAuthOwnerRoles', () => {
   it('reads the role someone acts with now, of their global ones and app roles in the organization they are a member of', async () => {
-    const store = (await (await createAuthStore()).clone()) as PGlite
+    const store = await cloneForTest(await createAuthStore())
     const make = () =>
       createAuth({
         database: { dialect: new PGliteDialect(store), type: 'postgres' },

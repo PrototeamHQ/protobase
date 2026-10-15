@@ -10,6 +10,7 @@ import { createUser } from '../src/better-auth/users'
 import { createAdmin } from '../src/create-admin'
 import type { MailMessage } from '../src/mail/smtp-mailer'
 import { createAuthStore } from '../../../test-support/auth'
+import { cloneForTest } from '../../../test-support/pglite-snapshot'
 
 const origin = 'http://localhost:5173'
 const secret = 'test-secret-test-secret-test-secret-1234'
@@ -39,7 +40,7 @@ let client = 0
 
 // Every app gets a copy of the store with an admin and a member, or of the empty one, and keeps the mail it sends.
 const serve = async (options: Partial<CreateAuthOptions> = {}, { users = true } = {}) => {
-  const store = (await (users ? withUsers : empty).clone()) as PGlite
+  const store = await cloneForTest(users ? withUsers : empty)
   const sent: MailMessage[] = []
   const auth = authOf(store, { mailer: { send: async (message) => void sent.push(message) }, ...options })
   const app = createAdmin({ resources: [], db: appDb, authenticate: betterAuthAuthenticator({ auth }), auth })

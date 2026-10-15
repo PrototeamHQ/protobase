@@ -7,6 +7,7 @@ import { createAuth, type CreateAuthOptions } from '../src/better-auth/create-au
 import { createUser } from '../src/better-auth/users'
 import { createAdmin } from '../src/create-admin'
 import { createAuthStore } from '../../../test-support/auth'
+import { cloneForTest } from '../../../test-support/pglite-snapshot'
 import { softwarePasskey, type SoftwarePasskey } from './support/software-passkey'
 
 const label = 'https://erp-x1.protobase.net'
@@ -23,7 +24,7 @@ beforeAll(async () => {
 const cookiesOf = (response: Response) => response.headers.getSetCookie().map((line) => line.split(';')[0]!).join('; ')
 
 const serve = async (options: Partial<CreateAuthOptions> = {}) => {
-  const auth = createAuth({ database: { dialect: new PGliteDialect((await shared.clone()) as PGlite), type: 'postgres' }, baseURL: label, secret, mailer: false, ...options })
+  const auth = createAuth({ database: { dialect: new PGliteDialect(await cloneForTest(shared)), type: 'postgres' }, baseURL: label, secret, mailer: false, ...options })
   await createUser(auth, { email: 'root@example.com', password: 'correct horse battery' })
   const { adapter } = await auth.$context
   const [user] = await adapter.findMany<{ id: string }>({ model: 'user' })

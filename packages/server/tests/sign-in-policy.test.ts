@@ -8,6 +8,7 @@ import { defaultSignInPolicy } from '../src/better-auth/sign-in-policy'
 import { createUser } from '../src/better-auth/users'
 import { createAdmin } from '../src/create-admin'
 import { createAuthStore } from '../../../test-support/auth'
+import { cloneForTest } from '../../../test-support/pglite-snapshot'
 import type { MailMessage } from '../src/mail/smtp-mailer'
 
 const origin = 'http://localhost:5173'
@@ -26,7 +27,7 @@ let client = 0
 
 // Every app gets a copy of the migrated store, with an admin and a user, and keeps the mail it sends.
 const serve = async (options: Partial<CreateAuthOptions> = {}) => {
-  const store = (await shared.clone()) as PGlite
+  const store = await cloneForTest(shared)
   const sent: MailMessage[] = []
   const auth = createAuth({ database: { dialect: new PGliteDialect(store), type: 'postgres' }, baseURL: origin, secret, mailer: { send: async (message) => void sent.push(message) }, ...options })
   await createUser(auth, { email: 'root@example.com', password })

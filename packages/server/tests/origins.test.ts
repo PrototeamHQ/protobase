@@ -8,6 +8,7 @@ import { createUser } from '../src/better-auth/users'
 import { createAdmin } from '../src/create-admin'
 import type { MailMessage } from '../src/mail/smtp-mailer'
 import { createAuthStore } from '../../../test-support/auth'
+import { cloneForTest } from '../../../test-support/pglite-snapshot'
 
 const label = 'https://erp-x1.protobase.net'
 const custom = 'https://admin.shop.com'
@@ -31,7 +32,7 @@ let client = 0
 const serve = async (options: Partial<CreateAuthOptions> = {}) => {
   const sent: MailMessage[] = []
   const mailer = { send: async (message: MailMessage) => void sent.push(message) }
-  const auth = createAuth({ database: { dialect: new PGliteDialect((await shared.clone()) as PGlite), type: 'postgres' }, baseURL: label, secret, mailer, ...options })
+  const auth = createAuth({ database: { dialect: new PGliteDialect(await cloneForTest(shared)), type: 'postgres' }, baseURL: label, secret, mailer, ...options })
   await createUser(auth, { email: 'root@example.com', password })
   const app = createAdmin({ resources: [], db: appDb, authenticate: betterAuthAuthenticator({ auth }), auth })
   const address = `203.0.113.${++client}`

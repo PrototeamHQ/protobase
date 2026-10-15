@@ -8,6 +8,7 @@ import { defaultSignInPolicy, type SignInPolicy } from '../src/better-auth/sign-
 import { createUser } from '../src/better-auth/users'
 import { createAdmin } from '../src/create-admin'
 import { createAuthStore } from '../../../test-support/auth'
+import { cloneForTest } from '../../../test-support/pglite-snapshot'
 import { startFakeOidcProvider, type TokenTwist } from './support/fake-oidc-provider'
 
 const origin = 'http://localhost:5173'
@@ -40,7 +41,7 @@ type Serve = Partial<CreateAuthOptions> & { provider?: string; discoveredIssuer?
 // Every app gets a copy of the migrated store with an admin, the platform's provider, and a client address of its own.
 const serve = async ({ provider = 'github', discoveredIssuer, ...options }: Serve = {}) => {
   const platform = await startFakeOidcProvider({ issuer, client, ...(discoveredIssuer && { discoveredIssuer }) })
-  const store = (await shared.clone()) as PGlite
+  const store = await cloneForTest(shared)
   const auth = createAuth({
     database: { dialect: new PGliteDialect(store), type: 'postgres' },
     baseURL: origin,
