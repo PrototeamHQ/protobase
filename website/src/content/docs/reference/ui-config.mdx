@@ -33,7 +33,7 @@ export const repairsView = view<typeof repairs>('repairs')
 | `.names({ singular, plural })` | "New repair", "Repairs" in the sidebar and breadcrumbs. Default: the resource name in words. |
 | `.title((r) => r.number)` | The field that names a record: in breadcrumbs, the record page's heading, relation links and search results. |
 | `.searchResult((r) => ({ title?, subtitle? }))` | A record in the [global search](/reference/client/#global-search): `title` is one field or several joined by spaces (`[r.first_name, r.last_name]`, default: `.title`), `subtitle` the line under it (default: the first search field not in the title), replaced by the search field the text matched when neither line shows it. |
-| `.list((r, d) => ({ columns, sort?, search?, displays?, default? }))` | The list's columns in order; its starting `sort` as `[[field, 'asc' \| 'desc'], ...]`; the fields the search box suggests (the resource's `.search` decides what search matches on the server); other ways to show it, see [List displays](#list-displays). |
+| `.list((r, d) => ({ columns, sort?, search?, displays?, default? }))` | The list's columns in order; its starting `sort` as `[[field, 'asc' \| 'desc'], ...]`, on `.sortable()` fields; the fields the search box suggests, among the resource's `.search` fields, which decide what search matches on the server; other ways to show it, see [List displays](#list-displays). `protobase build` fails on a sort or search field outside those. |
 | `.fields((r) => ({ name: r.name.label(...) }))` | Hints per field, below. Calls add up. |
 | `.help(text)` | A line under the list's title. |
 | `.nav({ group, order, hidden, recent })` | Where the resource sits in the sidebar, and its [recent-record group](/reference/sidebar/#recent-records). |
@@ -61,7 +61,7 @@ An enum's value labels show everywhere the admin shows its values: badges, selec
 
 <Code code={step3} lang="ts" title="docs-examples/bike-shop/step-3.ts" />
 
-`.filters((r, w) => [...])` puts widgets above the list, in order. Each needs a field that is `.filterable()` and an index that serves it, as the [scan guard](/reference/api/#safety) checks; together they write the list's `?filter=`, so a filtered list can be bookmarked and shared.
+`.filters((r, w) => [...])` puts widgets above the list, in order. Each needs a field that is `.filterable()`, which [`protobase build`](/reference/cli/#build) checks, and an index that serves it, as the [scan guard](/reference/api/#safety) and [`protobase doctor`](/reference/cli/#doctor) check; together they write the list's `?filter=`, so a filtered list can be bookmarked and shared.
 
 | Widget | |
 | --- | --- |

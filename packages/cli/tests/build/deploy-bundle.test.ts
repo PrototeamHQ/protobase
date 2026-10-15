@@ -132,13 +132,27 @@ describe('buildDeployBundle', () => {
     expect((await readFile(path.join(outDir, 'protobase.config.js'), 'utf8')).startsWith('// @bun\n')).toBe(true)
   }, buildTimeout)
 
-  it('never runs the project: a config that throws on import still builds', async () => {
+  it('never runs protobase.config.ts: one that throws on import still builds', async () => {
     projectDir = await createProject({
       'protobase.config.ts': `import * as config from './resources'\nthrow new Error('protobase.config.ts ran at build time')\nexport default { config }\n`,
       'resources.ts': things,
     })
     const manifest = await buildDeployBundle({ projectDir, outDir: path.join(projectDir, 'dist') })
     expect(manifest.api).toEqual(['/api'])
+  }, buildTimeout)
+
+  // property-finder's listings offered a district filter on a field that was not filterable, which the API refused.
+  it('fails on a view that filters by a field its resource does not mark filterable, before it builds the app', async () => {
+    projectDir = await createProject({
+      'config/index.ts': `export { things } from './things/data'\n`,
+      'config/things/data.ts': `import { f, resource } from '@protobase/schema'\nexport const things = resource('things').table('things').fields({ id: f.integer(), district: f.text() }).primaryKey((r) => r.id)\n`,
+      'config/things/ui.ts': `import { view } from '@protobase/schema'\nimport type { things } from './data'\nexport const thingsView = view<typeof things>('things').filters((r, w) => [w.facets(r.district)])\n`,
+    })
+    const outDir = path.join(projectDir, 'dist')
+    await expect(buildDeployBundle({ projectDir, outDir })).rejects.toThrow(
+      'View "things": the facets filter uses "district", which is not filterable, so the API refuses it: mark "district" .filterable()',
+    )
+    expect(existsSync(path.join(outDir, 'public'))).toBe(false)
   }, buildTimeout)
 
   it('builds protobase.ui.tsx as the plugin app, its components exported by name, and fails on a declared one it lacks', async () => {

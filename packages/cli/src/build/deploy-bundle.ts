@@ -9,6 +9,7 @@ import { copyPackages } from './packages/copy-packages'
 import { shellForBuild, shellManifestFile } from './shell'
 import { buildTheme } from './theme'
 import { checkUi } from './ui-check'
+import { checkViews } from './view-check'
 import type { Extension } from '../project/extensions'
 
 export type DeployBundleInput = {
@@ -46,13 +47,14 @@ const copyShell = async (publicDir: string) => {
 // The folder a host deploys: the config module for the serve runtime with the packages it loads from disk; under
 // public/ the prebuilt app (the shell), the project's protobase.ui.tsx and extensions' UI configs as plugins and its
 // theme, checked and minified; and the manifest saying which paths go to the server, which Protobase version built
-// it, and its plugins, theme and shell. Nothing of the project's server config runs at build time; when it declares
-// custom components, or extensions have UI configs, the UI is loaded once to check its names against the config's and
-// each other's.
+// it, and its plugins, theme and shell. Of the project's server config only the config folder runs at build time, to
+// check its views against its resources; when it declares custom components, or extensions have UI configs, the UI is
+// loaded once to check its names against the config's and each other's.
 export const buildDeployBundle = async ({ projectDir, outDir, bun, extensions = [], onWarning }: DeployBundleInput): Promise<BundleManifest> => {
   await removeOwnNodeModules(outDir)
   const components = new Set<string>()
   const native = await buildConfigBundle({ projectDir, outFile: path.join(outDir, bundleLayout.server), bun, extensions, components })
+  await checkViews(projectDir)
   await checkUi(projectDir, extensions, components)
   const packages = native.length > 0 ? await copyPackages(native, path.join(outDir, bundleNodeModules)) : []
   const publicDir = path.join(outDir, bundleLayout.public)

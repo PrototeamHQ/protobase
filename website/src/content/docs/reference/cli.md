@@ -181,7 +181,7 @@ dist/
   protobase.bundle.json     the manifest
 ```
 
-The output folder is not emptied; `public/` and `node_modules/` are replaced on every build. `node_modules/` is deleted only when the previous build's manifest names it, so a build into a folder with a project's own `node_modules` fails instead. Nothing of the project's server config runs at build time, so the build needs no secrets and no database. Its browser code is loaded once in Node: to check its component names (see [The UI](#the-ui)) and to read the field types each plugin registers.
+The output folder is not emptied; `public/` and `node_modules/` are replaced on every build. `node_modules/` is deleted only when the previous build's manifest names it, so a build into a folder with a project's own `node_modules` fails instead. Of the project's server config only the config folder runs at build time, `config/index.ts` and `config/*/ui.ts` with what they import, never `protobase.config.ts`, so the build needs no secrets and no database. It is loaded once in Node to check each view against its resource: a filter widget or the chart on a field that is not `.filterable()`, a list sorted by one that is not `.sortable()`, or a list search on a field outside the resource's `.search(...)` fails the build, naming the view and the field, since the API would refuse it once a page asked. Whether an index serves those reads needs the database, which [`doctor`](#doctor) checks. Its browser code is loaded once in Node too: to check its component names (see [The UI](#the-ui)) and to read the field types each plugin registers.
 
 A token the [theme](/reference/theme/) sets that the app does not read prints a `warning:` line, a likely typo; the build still succeeds.
 
