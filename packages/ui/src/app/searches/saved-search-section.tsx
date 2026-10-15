@@ -64,7 +64,7 @@ export const SavedSearchSection = ({ model, view, of, target, targetView, row, r
           </h2>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          {of.controls && <SearchControls model={model} view={view} recordKey={recordKey} row={row} fields={of.controls} />}
+          {of.controls && <SearchControls model={model} view={view} recordKey={recordKey} title={title} row={row} fields={of.controls} />}
           {canRename && nameField && (
             <Button variant="ghost" aria-label={`Rename ${title}`} aria-haspopup="dialog" onClick={() => setRenaming(true)}>
               <Pencil className="size-3.5" aria-hidden />

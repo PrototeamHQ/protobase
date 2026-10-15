@@ -152,6 +152,22 @@ export const MemberSearchesChecks: StoryObj = {
   },
 }
 
+export const MemberControlChecks: StoryObj = {
+  ...MemberSearches,
+  name: 'Member: changing how often to hear of a search (checks)',
+  tags: ['play', '!dev'],
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    const gardens = within(await canvas.findByRole('region', { name: 'Gardens' }))
+    await userEvent.selectOptions(gardens.getByRole('combobox', { name: 'Email' }), 'No email')
+    // A toast says the change is saved, and what it is now
+    const toast = await canvas.findByRole('status')
+    expect(toast).toHaveTextContent('Gardens saved')
+    expect(toast).toHaveTextContent('Email: No email')
+    expect(gardens.getByRole('combobox', { name: 'Email' })).toHaveValue('none')
+  },
+}
+
 export const MemberSave: StoryObj = { name: 'Member: saving a filtered list', render: () => <Portal api={memberApi} auth={member} at={`/homes?filter=${encodeURIComponent('rent >= 1500 AND rent <= 2500')}`} /> }
 
 export const MemberSaveChecks: StoryObj = {
