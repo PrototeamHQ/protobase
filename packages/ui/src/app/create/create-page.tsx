@@ -83,6 +83,7 @@ const LoadedCreate = ({ resource, values }: CreatePageProps) => {
         help: view?.fields[name]?.help,
         required: isRequired(field),
         error: errors[name],
+        wide: Boolean(view?.fields[name]?.multiline),
         editor: (
           <FieldEditor
             field={field}

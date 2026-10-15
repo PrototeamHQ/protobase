@@ -1,5 +1,6 @@
 import { Switch } from '../primitives/switch'
 import { Input } from '../primitives/input'
+import { Textarea } from '../primitives/textarea'
 import { cn } from '../lib/cn'
 import { AppLink } from './use-app-address'
 import { enumLabel, type AppAddress, type FieldModel, type FieldViewModel, type ResourceModel, type ViewModel } from '@protobase/schema'
@@ -49,7 +50,10 @@ const BuiltInEditor = ({ field, hints, value, stored, relationLabel, relationTo,
     const label = relationLabel ?? String(stored ?? '—')
     return <div className="py-1.5 text-[13px]">{relationTo ? <AppLink to={relationTo} className="font-medium text-primary-text hover:underline">{label}</AppLink> : label}</div>
   }
-  if (!isEditable(field) || locked) return <div className={cn('py-1.5 text-[13px] tabular-nums', field.type === 'decimal' || field.type === 'integer' ? 'font-medium' : 'text-muted-foreground')}>{displayValue(field, stored, hints)}</div>
+  const multiline = Boolean(hints?.multiline) && field.type === 'text'
+  if (!isEditable(field) || locked) {
+    return <div className={cn('py-1.5 text-[13px] tabular-nums', field.type === 'decimal' || field.type === 'integer' ? 'font-medium' : 'text-muted-foreground', multiline && 'whitespace-pre-line break-words')}>{displayValue(field, stored, hints)}</div>
+  }
   if (field.type === 'enum') {
     return (
       <select
@@ -66,6 +70,7 @@ const BuiltInEditor = ({ field, hints, value, stored, relationLabel, relationTo,
       </select>
     )
   }
+  if (multiline) return <Textarea invalid={invalid} placeholder={placeholder} value={String(value)} onChange={(event) => onChange(event.target.value)} />
   return (
     <Input
       invalid={invalid}

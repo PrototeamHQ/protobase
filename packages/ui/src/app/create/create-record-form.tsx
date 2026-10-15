@@ -3,7 +3,7 @@ import { Button } from '../../primitives/button'
 import { Field, Section } from '../../record-view'
 import { ErrorBanner } from '../error-banner'
 
-export type CreateFormField = { name: string; label: string; help?: string; required?: boolean; error?: string; editor: ReactNode }
+export type CreateFormField = { name: string; label: string; help?: string; required?: boolean; error?: string; wide?: boolean; editor: ReactNode }
 
 export type CreateFormSection = { title: string; help?: string; fields: CreateFormField[] }
 
@@ -50,7 +50,7 @@ export const CreateRecordForm = ({ noun, collection, sections, saving, message, 
           <Section key={section.title} title={section.title} help={section.help}>
             <div className="grid grid-cols-1 gap-x-6 gap-y-5 sm:grid-cols-2">
               {section.fields.map((field) => (
-                <Field key={field.name} label={field.label} required={field.required} help={field.help} error={field.error}>
+                <Field key={field.name} label={field.label} required={field.required} help={field.help} error={field.error} wide={field.wide}>
                   {field.editor}
                 </Field>
               ))}
