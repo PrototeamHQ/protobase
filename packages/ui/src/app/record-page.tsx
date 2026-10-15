@@ -1,4 +1,4 @@
-import { Check } from 'lucide-react'
+import { Check, Pencil } from 'lucide-react'
 import { useQueryClient } from '@tanstack/react-query'
 import { Fragment, useMemo } from 'react'
 import { isApiError } from '@protobase/client'
@@ -12,8 +12,9 @@ import { humanize } from '../live/naming'
 import { recordTitle } from '../live/model-helpers'
 import { toneFor } from '../live/columns-from-model'
 import { formatRelativeTime } from '../format'
-import { Button } from '../primitives/button'
-import { Field, MetadataCard, RecordHeader, RelatedRecords, Section, SidebarCard } from '../record-view'
+import { Button, buttonClass } from '../primitives/button'
+import { cn } from '../lib/cn'
+import { Field, MetadataCard, RecordHeader, RelatedRecords, Section, SidebarCard, SpecTable } from '../record-view'
 import { ErrorBanner } from './error-banner'
 import { CustomSection } from './custom-section'
 import { MapSection } from './map/map-section'
@@ -28,12 +29,16 @@ import { can, fieldAccess } from './permissions'
 import { useRestore } from './delete/use-restore'
 import { RecordLines, findLinesResource } from './record-lines'
 import { useAuth } from '../auth'
+import { inApp } from '../app-shell/breadcrumb'
 import { draftStorageKey } from './draft-storage'
 import { useLines } from './use-lines'
 import { useLinesDraft } from './use-lines-draft'
 import { useDeleteFlow } from './delete/use-delete-flow'
 import { useNavigationGuard, useRouter } from './router'
-import { useAppAddress } from './use-app-address'
+import { AppLink, useAppAddress } from './use-app-address'
+import { FieldValue } from './pages/field-value'
+import { GallerySection } from './gallery/gallery-section'
+import { fieldHelp, helpShown, recordShown } from './record-mode/record-mode'
 import { useRecordEditor } from './use-record-editor'
 import { useRelatedRecords } from './use-related-records'
 import { RelatedSection } from './related-section'
@@ -44,13 +49,14 @@ const hidden = (model: ResourceModel, name: string) => name === model.tenant || 
 
 /**
  * The view's layout, or one section with the editable fields when the view has none. A user who may only read the
- * resource has every field read-only, so they get every field, locked, rather than an empty section.
+ * resource has every field read-only, so they get every field, locked, rather than an empty section; so does the read
+ * view, which shows the record rather than what can be changed.
  */
-const layoutFor = (model: ResourceModel, view: ViewModel | undefined): LayoutItemModel[] => {
+const layoutFor = (model: ResourceModel, view: ViewModel | undefined, read: boolean): LayoutItemModel[] => {
   if (view && view.layout.length > 0) return view.layout
   const shown = Object.values(model.fields).filter((field) => !hidden(model, field.name))
   const editable = shown.filter((field) => !field.readOnly)
-  const fields = (editable.length > 0 ? editable : shown).map((field) => field.name)
+  const fields = (editable.length > 0 && !read ? editable : shown).map((field) => field.name)
   return [{ kind: 'section', title: 'Details', fields }]
 }
 
@@ -69,7 +75,7 @@ export const RecordPage = ({ resource, recordKey }: { resource: string; recordKe
 const LoadedRecord = ({ model, recordKey, stored }: { model: ResourceModel; recordKey: string; stored: NonNullable<ReturnType<typeof useRecord>['data']> }) => {
   const meta = useAdminMeta()
   const { basePath } = useRouter()
-  const { go, open } = useAppAddress()
+  const { address, go, open } = useAppAddress()
   const view = meta.views[model.name]
   const singular = view?.names?.singular ?? humanize(model.name)
   const title = recordTitle(model, view, stored.record, recordKey)
@@ -86,12 +92,18 @@ const LoadedRecord = ({ model, recordKey, stored }: { model: ResourceModel; reco
     draftKey: auth.kind === 'signed-in' ? draftStorageKey(auth.user.id, model.name, recordKey) : undefined,
     lines: linesDraft,
   })
-  useNavigationGuard(editor.dirty)
   const queryClient = useQueryClient()
   const client = useClient()
   const permissions = usePermissions(model.name)
   const restore = useRestore(model)
   const canUpdate = can(permissions, 'update') && stored.permissions?.update !== false
+  const { shown, offersEdit, editing } = recordShown(view?.recordMode, canUpdate, address?.kind === 'record' && address.edit === true)
+  // Only the form leaves changes behind; on the read view a draft kept from before waits for Edit
+  useNavigationGuard(editor.dirty && shown === 'form')
+  const readAddress = { kind: 'record' as const, resource: model.name, key: recordKey }
+  const editAddress = { ...readAddress, edit: true }
+  // A form that Edit opened goes back to the record once saved, or when its changes are dropped
+  const leavesForm = shown === 'form' && view?.recordMode !== undefined && view.recordMode !== 'edit'
   const canDelete = can(permissions, 'delete') && stored.permissions?.delete !== false
   const remove = useDeleteFlow({
     model,
@@ -102,7 +114,7 @@ const LoadedRecord = ({ model, recordKey, stored }: { model: ResourceModel; reco
   })
   const related = useRelatedRecords(model, view, meta.resources, meta.views, stored.record, basePath)
   const { fields: fieldTypes } = useProjectUi()
-  const layout = layoutFor(model, view)
+  const layout = layoutFor(model, view, shown === 'read')
   const sidebarFields = layout.flatMap((item) => (item.kind === 'sidebar' ? item.fields : []))
   const status = model.fields.status?.type === 'enum' ? String(stored.record.status) : undefined
   const updatedAt = auditField(model, 'updated')
@@ -120,7 +132,7 @@ const LoadedRecord = ({ model, recordKey, stored }: { model: ResourceModel; reco
         // A revealed sensitive value is forgotten when the record changes
         key={field.sensitive ? `${name}:${stored.etag}` : name}
         label={hint(name)?.label ?? humanize(name)}
-        help={hint(name)?.help}
+        help={fieldHelp(hint(name), view, editing)}
         error={editor.errors[name]}
         wide={Boolean(hint(name)?.multiline)}
         conflict={
@@ -136,7 +148,7 @@ const LoadedRecord = ({ model, recordKey, stored }: { model: ResourceModel; reco
           stored={stored.record[name]}
           relationLabel={related.labels[name]}
           relationTo={related.addresses[name]}
-          locked={!canUpdate || access === 'read'}
+          locked={shown !== 'form' || access === 'read'}
           invalid={Boolean(editor.errors[name])}
           reveal={field.sensitive ? () => client.reveal(model.name, recordKey, name) : undefined}
           resource={model.name}
@@ -144,6 +156,17 @@ const LoadedRecord = ({ model, recordKey, stored }: { model: ResourceModel; reco
         />
       </Field>
     )
+  }
+
+  // The read view's row of a field: its value as the record page shows values, a sensitive one masked with its eye
+  const readRow = (name: string) => {
+    const field = model.fields[name]!
+    const value = field.sensitive ? (
+      <FieldEditor field={field} hints={hint(name)} value="" stored={stored.record[name]} locked reveal={() => client.reveal(model.name, recordKey, name)} resource={model.name} onChange={(next) => editor.change(name, next)} />
+    ) : (
+      <FieldValue model={model} field={field} value={stored.record[name]} relationLabel={related.labels[name]} />
+    )
+    return { label: hint(name)?.label ?? humanize(name), help: fieldHelp(hint(name), view, editing), wide: Boolean(hint(name)?.multiline), value }
   }
 
   // The sidebar's fields are one Summary card, where the first sidebar stands among the sidebar's custom components and maps
@@ -163,21 +186,40 @@ const LoadedRecord = ({ model, recordKey, stored }: { model: ResourceModel; reco
   )
   const scope: LayoutRecord = { model, record: stored.record, key: recordKey, etag: stored.etag, permissions: stored.permissions }
 
-  const saveControls = (
+  const save = async () => {
+    if ((await editor.save()) && leavesForm) go(readAddress, { replace: true })
+  }
+
+  const deleteButton = canDelete && (
+    <Button variant="danger" className="max-md:min-h-11" onClick={() => void remove.start({ key: recordKey, title, etag: stored.etag, snapshot: stored.record })}>
+      Delete
+    </Button>
+  )
+  const saveControls = offersEdit ? (
+    <>
+      {deleteButton}
+      <AppLink to={editAddress} className={cn(buttonClass({ variant: 'primary' }), 'max-md:min-h-11 max-md:flex-1')}>
+        <Pencil className="size-3.5" aria-hidden />
+        Edit
+      </AppLink>
+    </>
+  ) : (
     <>
       {editor.dirty && <span className="text-xs text-muted-foreground">Unsaved changes</span>}
-      {editor.dirty && canUpdate && (
+      {editor.dirty && canUpdate && !leavesForm && (
         <Button className="max-md:min-h-11" disabled={editor.saving} onClick={editor.discard}>
           Discard
         </Button>
       )}
-      {canDelete && (
-        <Button variant="danger" className="max-md:min-h-11" onClick={() => void remove.start({ key: recordKey, title, etag: stored.etag, snapshot: stored.record })}>
-          Delete
-        </Button>
+      {leavesForm && (
+        // Cancel drops the changes when it leaves the form here, not when it opens the record in another tab
+        <AppLink to={readAddress} className={cn(buttonClass(), 'max-md:min-h-11')} onClick={(event) => inApp(event) && editor.discard()}>
+          Cancel
+        </AppLink>
       )}
+      {deleteButton}
       {canUpdate && (
-        <Button variant="primary" className="max-md:min-h-11 max-md:flex-1" loading={editor.saving} disabled={!editor.dirty && editor.phase !== 'saved'} onClick={() => void editor.save()}>
+        <Button variant="primary" className="max-md:min-h-11 max-md:flex-1" loading={editor.saving} disabled={!editor.dirty && editor.phase !== 'saved'} onClick={() => void save()}>
           {editor.phase === 'saved' && <Check className="size-4" />}
           {editor.phase === 'saved' ? 'Saved' : 'Save'}
         </Button>
@@ -207,7 +249,16 @@ const LoadedRecord = ({ model, recordKey, stored }: { model: ResourceModel; reco
               <ErrorBanner title="The lines were changed by someone else" error={new Error('The lines were reloaded. Your new order is kept: Save again to apply it, or Discard to drop it.')} />
             </div>
           )}
-          {editor.restored && (
+          {shown !== 'form' && offersEdit && editor.dirty && (
+            <div className="mt-4 flex items-center justify-between gap-3 rounded-lg border bg-surface px-3 py-2 text-[13px]" role="status">
+              <span>You have unsaved changes to this record.</span>
+              <span className="flex gap-2">
+                <AppLink to={editAddress} className={buttonClass({ size: 'sm' })}>Continue editing</AppLink>
+                <Button size="sm" onClick={editor.discard}>Discard</Button>
+              </span>
+            </div>
+          )}
+          {shown === 'form' && editor.restored && (
             <div className="mt-4 flex items-center justify-between gap-3 rounded-lg border bg-surface px-3 py-2 text-[13px]" role="status">
               <span>Your unsaved changes were restored.</span>
               <span className="flex gap-2">
@@ -222,17 +273,18 @@ const LoadedRecord = ({ model, recordKey, stored }: { model: ResourceModel; reco
                 if (item.kind === 'related') return [<RelatedSection key={`related:${item.title}`} item={item} recordKey={recordKey} owner={model.name} />]
                 if (item.kind === 'custom') return item.sidebar ? [] : [<CustomSection key={`custom:${index}`} item={item} scope={scope} />]
                 if (item.kind === 'map') return item.sidebar ? [] : [<MapSection key={`map:${index}`} item={item} record={stored.record} />]
+                if (item.kind === 'gallery') return [<GallerySection key={`gallery:${index}`} item={item} record={stored.record} recordKey={recordKey} />]
                 if (item.kind !== 'section') return []
                 // A section whose fields are all hidden from this user would be a lone heading
                 const fields = item.fields.filter((name) => model.fields[name] && visible(name))
                 if (fields.length === 0) return []
                 return [
-                  <Section key={item.title} title={item.title} help={item.help}>
-                    <div className="grid grid-cols-1 gap-x-6 gap-y-5 sm:grid-cols-2">{fields.map(fieldView)}</div>
+                  <Section key={item.title} title={item.title} help={helpShown(item.helpWhen, view, editing) ? item.help : undefined}>
+                    {shown === 'read' ? <SpecTable rows={fields.map(readRow)} /> : <div className="grid grid-cols-1 gap-x-6 gap-y-5 sm:grid-cols-2">{fields.map(fieldView)}</div>}
                   </Section>,
                 ]
               })}
-              {linesModel && <RecordLines lines={linesModel} draft={linesDraft} vatRate={Number(stored.record.vatRate ?? 21) / 100} saving={editor.saving} />}
+              {linesModel && <RecordLines lines={linesModel} draft={linesDraft} vatRate={Number(stored.record.vatRate ?? 21) / 100} saving={editor.saving} locked={shown !== 'form'} />}
             </main>
             <aside className="space-y-4 md:pt-8">
               <RecordActions model={model} stored={stored} recordKey={recordKey} />

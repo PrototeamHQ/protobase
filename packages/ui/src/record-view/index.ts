@@ -2,6 +2,7 @@ export { InvoiceRecordView, type InvoiceRecordViewProps } from './invoice-record
 export { RecordHeader, type RecordHeaderProps } from './record-header'
 export { Section } from './section'
 export { Field, type FieldProps, type FieldConflict } from './field'
+export { SpecTable, type SpecRow } from './spec-table'
 export { ActionRail, type RailAction } from './action-rail'
 export { AutosaveStatus, type AutosaveStatusProps } from './autosave-status'
 export { MetadataCard, MetadataList, RelatedRecords, SidebarCard, type MetadataRow, type RelatedRecord } from './record-sidebar'

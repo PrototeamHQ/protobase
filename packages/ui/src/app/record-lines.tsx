@@ -25,7 +25,7 @@ const toLine = (record: Record<string, unknown>): InvoiceLine => ({
 })
 
 /** The lines of a record. Reordering only changes `draft`; the record's Save writes it, in one batch. */
-export const RecordLines = ({ lines, draft, vatRate, saving }: { lines: ResourceModel; draft: LinesDraft; vatRate: number; saving: boolean }) => {
+export const RecordLines = ({ lines, draft, vatRate, saving, locked = false }: { lines: ResourceModel; draft: LinesDraft; vatRate: number; saving: boolean; locked?: boolean }) => {
   const canReorder = can(usePermissions(lines.name), 'update')
   return (
     <Section title="Lines" help="What the document bills for. Drag the handle, or use the menu, to change the order; Save applies it.">
@@ -37,7 +37,7 @@ export const RecordLines = ({ lines, draft, vatRate, saving }: { lines: Resource
             onReorder={(next) => draft.setOrder(next.map((line) => line.id))}
             vatRate={vatRate}
             readOnly
-            reorderable={canReorder && !saving}
+            reorderable={canReorder && !saving && !locked}
           />
         </div>
       </div>

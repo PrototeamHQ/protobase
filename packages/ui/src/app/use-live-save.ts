@@ -9,7 +9,8 @@ const savedForMs = 2000
 
 /**
  * Shows the outcome of a save the way the view asks: a toast (spinner, then check) or the state of
- * the Save button. API errors are reported and not rethrown; anything else propagates.
+ * the Save button. API errors are reported and not rethrown; anything else propagates. `run` resolves to whether the
+ * save went through.
  */
 export const useLiveSave = (mode: SaveMode, subject: string) => {
   const toast = useToast()
@@ -29,6 +30,7 @@ export const useLiveSave = (mode: SaveMode, subject: string) => {
         setPhase('saved')
         timer.current = setTimeout(() => setPhase('idle'), savedForMs)
       }
+      return true
     } catch (error) {
       if (!isApiError(error)) throw error
       const title = error.status === 412 ? 'Changed by someone else' : 'Could not save'
@@ -37,6 +39,7 @@ export const useLiveSave = (mode: SaveMode, subject: string) => {
         setPhase('idle')
         setMessage(`${title}: ${error.message}`)
       }
+      return false
     }
   }
 
