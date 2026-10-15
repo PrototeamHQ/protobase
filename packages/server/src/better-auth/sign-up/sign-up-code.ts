@@ -12,7 +12,8 @@ const allowedAttempts = 3
 
 const identifierOf = (email: string) => `sign-up-otp-${email}`
 
-const hashOf = async (code: string) => {
+/** The SHA-256 of `secret`, base64: what the store keeps of a code or a ticket. */
+export const hashOf = async (code: string) => {
   const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(code))
   return btoa(String.fromCharCode(...new Uint8Array(digest)))
 }

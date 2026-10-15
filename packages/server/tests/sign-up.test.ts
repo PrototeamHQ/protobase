@@ -2,7 +2,7 @@ import { PGlite } from '@electric-sql/pglite'
 import { decodeJwt } from 'jose'
 import { Kysely } from 'kysely'
 import { PGliteDialect } from 'kysely-pglite-dialect'
-import { beforeAll, describe, expect, it } from 'vitest'
+import { beforeAll, describe, expect, it, vi } from 'vitest'
 import { betterAuthAuthenticator } from '../src/better-auth/authenticator'
 import { createAuth, type CreateAuthOptions } from '../src/better-auth/create-auth'
 import { defaultSignInPolicy } from '../src/better-auth/sign-in-policy'
@@ -66,7 +66,14 @@ const serve = async (options: Partial<CreateAuthOptions> = {}, { users = true } 
   }
   const cookiesOf = (response: Response) => response.headers.getSetCookie().map((line) => line.split(';')[0]!).filter((pair) => !pair.endsWith('=')).join('; ')
   const tokenOf = async (cookie: string) => (await (await request('/token', { cookie })).json()) as { token?: string; code?: string }
-  return { auth, store, sent, request, askCode, status, codeFor, cookiesOf, tokenOf }
+  const verify = (email: string, code: string) => request('/sign-up/verify-code', { body: { email, code } })
+  // The ticket a right code for `to` is traded for: what makes the account.
+  const ticketFor = async (to: string) => {
+    await askCode(to)
+    const { ticket } = (await (await verify(to, codeFor(to))).json()) as { ticket: string }
+    return ticket
+  }
+  return { auth, store, sent, request, askCode, status, codeFor, cookiesOf, tokenOf, verify, ticketFor }
 }
 
 const signUp = { role: 'member' }
@@ -77,7 +84,8 @@ describe('open sign-up, off by default', () => {
     expect(auth.signUp).toBe(false)
     expect(await status()).not.toHaveProperty('signUp')
     expect((await request('/sign-up/send-code', { body: { email: 'new@example.com' } })).status).toBe(404)
-    expect((await request('/sign-up/create', { body: { email: 'new@example.com', code: '123456', name: 'New', password } })).status).toBe(404)
+    expect((await request('/sign-up/verify-code', { body: { email: 'new@example.com', code: '123456' } })).status).toBe(404)
+    expect((await request('/sign-up/create', { body: { ticket: 'ticket', name: 'New', password } })).status).toBe(404)
     const native = await request('/sign-up/email', { body: { email: 'new@example.com', name: 'New', password } })
     expect(native.status).toBeGreaterThanOrEqual(400)
     expect(await (await auth.$context).internalAdapter.findUserByEmail('new@example.com')).toBeNull()
@@ -102,7 +110,7 @@ describe('open sign-up, off by default', () => {
 describe('open sign-up, turned on', () => {
   // The whole flow, from the mailed code to a second sign-in: longer than one request on a busy runner.
   it('makes a verified account with the sign-up role from the mailed code, signed in, whatever role the request asks for', async () => {
-    const { auth, request, status, sent, codeFor, cookiesOf, tokenOf, askCode } = await serve({ signUp, appName: 'Homes' })
+    const { auth, request, status, sent, codeFor, cookiesOf, tokenOf, askCode, verify } = await serve({ signUp, appName: 'Homes' })
     expect(await status()).toMatchObject({ signUp: true })
     const asked = await askCode(' New@Example.com ')
     expect(asked.status).toBe(200)
@@ -110,7 +118,15 @@ describe('open sign-up, turned on', () => {
     expect(sent.at(-1)).toMatchObject({ to: 'new@example.com', subject: 'Your code to create an account with Homes' })
     expect(sent.at(-1)!.text).toContain('create your account with Homes')
 
-    const created = await request('/sign-up/create', { body: { email: 'new@example.com', code: codeFor('new@example.com'), name: 'Nia', password, role: 'admin', emailVerified: false } })
+    // The code is checked on its own, and traded for a ticket; nothing is made or signed in yet.
+    const verified = await verify('new@example.com', codeFor('new@example.com'))
+    expect(verified.status).toBe(200)
+    const { ticket } = (await verified.json()) as { ticket: string }
+    expect(ticket).toMatch(/^[\w-]{43}$/)
+    expect(cookiesOf(verified)).toBe('')
+    expect(await (await auth.$context).internalAdapter.findUserByEmail('new@example.com')).toBeNull()
+
+    const created = await request('/sign-up/create', { body: { ticket, email: 'other@example.com', name: 'Nia', password, role: 'admin', emailVerified: false } })
     expect(created.status).toBe(200)
     expect(await created.json()).toEqual({ user: { id: expect.any(String), email: 'new@example.com', name: 'Nia', role: 'member' } })
     const user = await (await auth.$context).internalAdapter.findUserByEmail('new@example.com')
@@ -133,56 +149,72 @@ describe('open sign-up, turned on', () => {
     expect(sent.at(-1)).toMatchObject({ to: 'sanne@example.com', subject: 'You already have an account with Protobase' })
     expect(sent.at(-1)!.text).not.toMatch(/\d{6}/)
     expect(sent.at(-1)!.text).toContain(`Sign in to Protobase ${origin}/-/sign-in`)
-    const guessed = await request('/sign-up/create', { body: { email: 'sanne@example.com', code: '000000', name: 'Mallory', password: 'mallory-password-1' } })
-    expect(await guessed.json()).toMatchObject({ code: 'SIGN_UP_CODE_INVALID' })
+    expect(await (await request('/sign-up/verify-code', { body: { email: 'sanne@example.com', code: '000000' } })).json()).toMatchObject({ code: 'SIGN_UP_CODE_INVALID' })
     expect((await (await auth.$context).internalAdapter.findUserByEmail('sanne@example.com'))?.user).toMatchObject({ name: 'sanne', role: 'member' })
   })
 
   it('takes a code once, and only for its address', async () => {
-    const { request, codeFor, askCode } = await serve({ signUp })
+    const { codeFor, askCode, verify } = await serve({ signUp })
     await askCode('new@example.com')
     const code = codeFor('new@example.com')
-    expect(await (await request('/sign-up/create', { body: { email: 'other@example.com', code, name: 'Other', password } })).json()).toMatchObject({ code: 'SIGN_UP_CODE_INVALID' })
-    expect((await request('/sign-up/create', { body: { email: 'new@example.com', code, name: 'Nia', password } })).status).toBe(200)
-    expect(await (await request('/sign-up/create', { body: { email: 'new@example.com', code, name: 'Nia', password } })).json()).toMatchObject({ code: 'SIGN_UP_CODE_INVALID' })
+    expect(await (await verify('other@example.com', code)).json()).toMatchObject({ code: 'SIGN_UP_CODE_INVALID' })
+    expect((await verify('new@example.com', code)).status).toBe(200)
+    expect(await (await verify('new@example.com', code)).json()).toMatchObject({ code: 'SIGN_UP_CODE_INVALID' })
   })
 
   it('locks a code out after three wrong tries', async () => {
-    const { request, codeFor, askCode } = await serve({ signUp, signInPerMinute: 100 })
+    const { codeFor, askCode, verify } = await serve({ signUp, signInPerMinute: 100 })
     await askCode('new@example.com')
     const code = codeFor('new@example.com')
     const wrong = code === '000000' ? '111111' : '000000'
-    for (let attempt = 0; attempt < 3; attempt++) {
-      expect(await (await request('/sign-up/create', { body: { email: 'new@example.com', code: wrong, name: 'Nia', password } })).json()).toMatchObject({ code: 'SIGN_UP_CODE_INVALID' })
-    }
-    expect(await (await request('/sign-up/create', { body: { email: 'new@example.com', code, name: 'Nia', password } })).json()).toMatchObject({ code: 'SIGN_UP_CODE_INVALID' })
+    for (let attempt = 0; attempt < 3; attempt++) expect(await (await verify('new@example.com', wrong)).json()).toMatchObject({ code: 'SIGN_UP_CODE_INVALID' })
+    expect(await (await verify('new@example.com', code)).json()).toMatchObject({ code: 'SIGN_UP_CODE_INVALID' })
   })
 
-  it('follows the sign-in policy for the password, and keeps the code when the password is refused', async () => {
-    const { request, codeFor, cookiesOf, askCode } = await serve({ signUp })
+  it('makes one account with a ticket, once, and none with a ticket it did not hand out', async () => {
+    const { auth, request, ticketFor } = await serve({ signUp })
+    const ticket = await ticketFor('new@example.com')
+    expect(await (await request('/sign-up/create', { body: { ticket: `${ticket}x`, name: 'Mallory', password } })).json()).toMatchObject({ code: 'SIGN_UP_TICKET_INVALID' })
+    expect(await (await request('/sign-up/create', { body: { ticket: '', name: 'Mallory', password } })).json()).toMatchObject({ code: 'VALIDATION_ERROR' })
+    expect((await request('/sign-up/create', { body: { ticket, name: 'Nia', password } })).status).toBe(200)
+    expect(await (await request('/sign-up/create', { body: { ticket, name: 'Mallory', password } })).json()).toMatchObject({ code: 'SIGN_UP_TICKET_INVALID' })
+    expect((await (await auth.$context).internalAdapter.findUserByEmail('new@example.com'))?.user).toMatchObject({ name: 'Nia' })
+  })
+
+  it('takes no ticket once it expired', async () => {
+    const { request, ticketFor } = await serve({ signUp })
+    const ticket = await ticketFor('new@example.com')
+    vi.useFakeTimers({ now: Date.now() + 31 * 60 * 1000, toFake: ['Date'] })
+    try {
+      expect(await (await request('/sign-up/create', { body: { ticket, name: 'Nia', password } })).json()).toMatchObject({ code: 'SIGN_UP_TICKET_INVALID' })
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('follows the sign-in policy for the password, and keeps the ticket when the password is refused', async () => {
+    const { request, cookiesOf, ticketFor } = await serve({ signUp })
     const root = cookiesOf(await request('/sign-in/email', { body: { email: 'root@example.com', password } }))
     expect((await request('/policy/sign-in', { cookie: root, body: { ...defaultSignInPolicy, password: 'forbidden' } })).status).toBe(200)
-    await askCode('new@example.com')
-    const code = codeFor('new@example.com')
-    expect(await (await request('/sign-up/create', { body: { email: 'new@example.com', code, name: 'Nia', password } })).json()).toMatchObject({ code: 'SIGN_IN_METHOD_FORBIDDEN' })
-    expect((await request('/sign-up/create', { body: { email: 'new@example.com', code, name: 'Nia' } })).status).toBe(200)
+    const ticket = await ticketFor('new@example.com')
+    expect(await (await request('/sign-up/create', { body: { ticket, name: 'Nia', password } })).json()).toMatchObject({ code: 'SIGN_IN_METHOD_FORBIDDEN' })
+    expect((await request('/sign-up/create', { body: { ticket, name: 'Nia' } })).status).toBe(200)
   })
 
   it('needs a password while emailed codes are off', async () => {
-    const { request, codeFor, cookiesOf, askCode } = await serve({ signUp })
+    const { request, cookiesOf, ticketFor } = await serve({ signUp })
     const root = cookiesOf(await request('/sign-in/email', { body: { email: 'root@example.com', password } }))
     expect((await request('/policy/sign-in', { cookie: root, body: { ...defaultSignInPolicy, emailCode: 'forbidden' } })).status).toBe(200)
-    await askCode('new@example.com')
-    expect(await (await request('/sign-up/create', { body: { email: 'new@example.com', code: codeFor('new@example.com'), name: 'Nia' } })).json()).toMatchObject({ code: 'PASSWORD_REQUIRED' })
-    expect(await (await request('/sign-up/create', { body: { email: 'new@example.com', code: codeFor('new@example.com'), name: 'Nia', password: 'short' } })).json()).toMatchObject({ code: 'PASSWORD_LENGTH' })
+    const ticket = await ticketFor('new@example.com')
+    expect(await (await request('/sign-up/create', { body: { ticket, name: 'Nia' } })).json()).toMatchObject({ code: 'PASSWORD_REQUIRED' })
+    expect(await (await request('/sign-up/create', { body: { ticket, name: 'Nia', password: 'short' } })).json()).toMatchObject({ code: 'PASSWORD_LENGTH' })
   })
 
   it('holds the token back until what the policy requires is set up, as after any sign-in', async () => {
-    const { request, codeFor, cookiesOf, tokenOf, askCode } = await serve({ signUp })
+    const { request, cookiesOf, tokenOf, ticketFor } = await serve({ signUp })
     const root = cookiesOf(await request('/sign-in/email', { body: { email: 'root@example.com', password } }))
     expect((await request('/policy/sign-in', { cookie: root, body: { ...defaultSignInPolicy, twoFactor: 'required' } })).status).toBe(200)
-    await askCode('new@example.com')
-    const created = await request('/sign-up/create', { body: { email: 'new@example.com', code: codeFor('new@example.com'), name: 'Nia', password } })
+    const created = await request('/sign-up/create', { body: { ticket: await ticketFor('new@example.com'), name: 'Nia', password } })
     expect(created.status).toBe(200)
     expect(await tokenOf(cookiesOf(created))).toMatchObject({ code: 'SIGN_IN_SETUP_REQUIRED' })
   })
@@ -190,7 +222,8 @@ describe('open sign-up, turned on', () => {
   it('makes no account while the store has no user: the first admin is made on the host', async () => {
     const { request, sent } = await serve({ signUp }, { users: false })
     expect(await (await request('/sign-up/send-code', { body: { email: 'new@example.com' } })).json()).toMatchObject({ code: 'NO_ADMIN_YET' })
-    expect(await (await request('/sign-up/create', { body: { email: 'new@example.com', code: '123456', name: 'Nia', password } })).json()).toMatchObject({ code: 'NO_ADMIN_YET' })
+    expect(await (await request('/sign-up/verify-code', { body: { email: 'new@example.com', code: '123456' } })).json()).toMatchObject({ code: 'NO_ADMIN_YET' })
+    expect(await (await request('/sign-up/create', { body: { ticket: 'ticket', name: 'Nia', password } })).json()).toMatchObject({ code: 'NO_ADMIN_YET' })
     expect(sent).toEqual([])
   })
 
@@ -199,5 +232,12 @@ describe('open sign-up, turned on', () => {
     const answers = []
     for (let attempt = 0; attempt < 6; attempt++) answers.push((await request('/sign-up/send-code', { body: { email: `new${attempt}@example.com` } })).status)
     expect(answers).toEqual([200, 200, 200, 200, 200, 429])
+  })
+
+  it('limits code checks per client as sign-ins are', async () => {
+    const { verify } = await serve({ signUp })
+    const answers = []
+    for (let attempt = 0; attempt < 6; attempt++) answers.push((await verify(`new${attempt}@example.com`, '000000')).status)
+    expect(answers).toEqual([400, 400, 400, 400, 400, 429])
   })
 })
