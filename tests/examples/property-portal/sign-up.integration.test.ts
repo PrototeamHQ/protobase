@@ -57,14 +57,17 @@ const call = async (path: string, init: { method?: string; body?: unknown; cooki
   return { status: response.status, cookie: response.headers.getSetCookie().map((line) => line.split(';')[0]!).join('; '), json: text ? (JSON.parse(text) as any) : undefined }
 }
 
-// Makes an account the way the sign-in page does: the address, the code mailed to it, then a name and a password.
+// Makes an account the way the sign-in page does: the address, the code mailed to it on its own, then a name and a
+// password with the ticket the code was traded for.
 const signUp = async (email: (typeof emails)[number]) => {
   const before = sent.length
   expect((await call('/api/auth/sign-up/send-code', { body: { email } })).status).toBe(200)
   // Mail goes out after the answer.
   await expect.poll(() => sent.length, { timeout: 10_000 }).toBeGreaterThan(before)
   const code = /^\d{6}$/m.exec(sent.findLast((message) => message.to === email)!.text)![0]
-  const created = await call('/api/auth/sign-up/create', { body: { email, code, name: 'Nia', password, role: 'admin' } })
+  const verified = await call('/api/auth/sign-up/verify-code', { body: { email, code } })
+  expect(verified.status).toBe(200)
+  const created = await call('/api/auth/sign-up/create', { body: { ticket: verified.json.ticket, name: 'Nia', password, role: 'admin' } })
   expect(created.status).toBe(200)
   const { token } = (await call('/api/auth/token', { cookie: created.cookie })).json as { token: string }
   return { cookie: created.cookie, token, id: created.json.user.id as string }

@@ -264,6 +264,7 @@ export const betterAuthOptions = (options: CreateAuthOptions, { origins = [], pa
         '/staff/sign-in': { window: 60, max: 5 },
         '/invitation/sign-up': { window: 60, max: options.signInPerMinute ?? 5 },
         [signUpPaths.sendCode]: { window: 60, max: options.signInPerMinute ?? 5 },
+        [signUpPaths.verifyCode]: { window: 60, max: options.signInPerMinute ?? 5 },
         [signUpPaths.create]: { window: 60, max: options.signInPerMinute ?? 5 },
       },
     },
