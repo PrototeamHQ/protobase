@@ -9,11 +9,14 @@ const stories = Object.values(index.entries).filter((entry) => entry.type === 's
 if (stories.length === 0) throw new Error('No stories tagged "play" found in storybook-static/index.json')
 
 const browser = await chromium.launch()
+// Headless Chromium hides scrollbars; a story tagged "scrollbars" gets a browser whose scrollbars take room, as they do
+// on Windows and Linux.
+const scrollbars = stories.some((story) => story.tags.includes('scrollbars')) ? await chromium.launch({ ignoreDefaultArgs: ['--hide-scrollbars'] }) : undefined
 
 // The error a story's play function raised, or undefined when it rendered and played.
 const playStory = async (story) => {
   // The Storybook viewport toolbar does not apply when an iframe is opened directly, so phone stories get a phone-sized page.
-  const page = await browser.newPage({ viewport: story.tags.includes('phone') ? { width: 360, height: 740 } : { width: 1280, height: 720 } })
+  const page = await (story.tags.includes('scrollbars') ? scrollbars : browser).newPage({ viewport: story.tags.includes('phone') ? { width: 360, height: 740 } : { width: 1280, height: 720 } })
   await page.addInitScript(() => {
     const timer = setInterval(() => {
       const channel = window.__STORYBOOK_ADDONS_CHANNEL__
@@ -41,6 +44,7 @@ await Promise.all(Array.from({ length: pages }, async () => {
   }
 }))
 await browser.close()
+await scrollbars?.close()
 close()
 
 let failed = 0

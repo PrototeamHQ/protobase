@@ -3,7 +3,7 @@ import { cn } from '../lib/cn'
 import { useIsDesktop } from '../lib/use-media-query'
 import { BottomBar, type BottomBarTab } from './bottom-bar'
 import { Drawer } from './drawer'
-import { PageScrollContext, usePageInsets } from './page-scroll'
+import { PageScrollContext, usePageGutter, usePageInsets } from './page-scroll'
 import type { NavGroup } from './nav'
 import { Sidebar } from './sidebar'
 import type { ProfileMenuItem, ProfileOrganizations, ProfileRoles, ShellUser } from './profile-menu'
@@ -65,6 +65,7 @@ export const AppShell = ({ sidebarMode, activeItem, breadcrumb, user, workspace,
   const topBarRef = useRef<HTMLElement>(null)
   const bottomBarRef = useRef<HTMLElement>(null)
   usePageInsets(pageScroll, topBarRef, bottomBarRef, Boolean(tabs))
+  usePageGutter(pageScroll)
   const sidebar = (mode: SidebarMode, sticky = false) => (
     <Sidebar mode={mode} sticky={sticky} activeItem={activeItem} user={user} workspace={workspace} forceExpanded={forceExpanded} profileMenuOpen={profileMenuOpen} groups={navGroups} userMenu={userMenu} onNavigate={onNavigate} onSignOut={onSignOut} onSignIn={onSignIn} organizations={organizations} roles={roles} theme={theme} />
   )

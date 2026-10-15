@@ -18,6 +18,23 @@ export const usePageScroll = (on: boolean) => {
   }, [set, on])
 }
 
+/**
+ * While the page scrolls, keeps room for its scrollbar whether or not the page overflows, where scrollbars take room
+ * (Windows, Linux, or a Mac set to always show them). Otherwise a page whose height follows its width, such as the
+ * cards, can be just too tall with the width without a scrollbar and short enough with the width beside one: the
+ * scrollbar narrows the cards, they get shorter, the page fits, the scrollbar goes, they widen again, every frame.
+ */
+export const usePageGutter = (on: boolean) => {
+  useLayoutEffect(() => {
+    if (!on) return
+    const root = document.documentElement
+    root.style.setProperty('scrollbar-gutter', 'stable')
+    return () => {
+      root.style.removeProperty('scrollbar-gutter')
+    }
+  }, [on])
+}
+
 const properties = ['--pb-sticky-top', '--pb-sticky-bottom', 'scroll-padding-top', 'scroll-padding-bottom']
 
 /**
