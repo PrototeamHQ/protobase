@@ -46,7 +46,7 @@ Field hints:
 | Hint | |
 | --- | --- |
 | `.label(text)` | Instead of the name in words (`customer_id` would be "Customer" anyway). |
-| `.help(text)` | A line under the field on the record page and in forms. |
+| `.help(text, { when? })` | A line under the field on the record page and in forms. `when: 'editing'` shows it only while the record is edited; see [Help while editing](#help-while-editing). |
 | `.format(format)` | `badge` shows statuses as coloured badges, `code` sets identifiers in monospace, `percent` adds a % sign. `relative`, `absolute` and `compact` are accepted and carried in `/meta` for apps that render their own lists; the admin does not use them yet. |
 | `.multiline()` | A text of several lines, such as a description: forms edit it in a box that grows with the text, so the page scrolls rather than the box, and the record page, a page's field blocks and a card's subtitle keep its line breaks (a card shows the first three lines). On the record page and the create form it takes the whole width of its section. Only a text field takes it; the list's table shows the text on one line. |
 | `.prefix(text)`, `.suffix(text)`, `.decimals(n)` | Money and measures: `€` and `2` show `€1,234.50`, `.suffix(' m²')` shows `120 m²`. They show wherever the number does: records, cards, table cells, forms and the range filter. |
@@ -174,17 +174,65 @@ Only a caller without a token gets the prompts, in `/api/meta` as `signIn`, for 
 
 | Item | |
 | --- | --- |
-| `l.section(title, fields, { help? })` | A titled group of fields in the main column, editable where the user may write. |
+| `l.section(title, fields, { help?, helpWhen? })` | A titled group of fields in the main column, editable where the user may write. |
 | `l.sidebar(fields)` | A summary card beside it, read-only. |
 | `l.related(title, { ... })` | A table of the records of another resource that point at this one, in the main column. See [Related records](#related-records). |
 | `l.custom(Component, { title?, props?, sidebar? })` | A [custom component](/reference/custom-components/#record-sections) where it is listed: in the main column under `title`, or with `sidebar: true` as a sidebar card. |
 | `l.map(title, { latitude, longitude, zoom?, sidebar? })` | A map with a pin at the record's position, in the main column or with `sidebar: true` as a sidebar card. See [Maps](#maps). |
+| `l.gallery(title, { image?, photos? })` | The record's photos as tiles, opening a lightbox. See [Galleries](#galleries). |
 
 A custom component draws only its part: the page around it stays the record page, at `/<resource>/<key>`, with its breadcrumbs, title and badge, Save, Discard and Delete, the action rail and the related records, and a layout may hold only custom components. The repairs above list the customer's earlier repairs under the bike:
 
 <StoryFrame id="record-page-custom-sections--earlier-repairs" title="A repair with the customer's earlier repairs" height={760} />
 
-Without a layout the record page shows one section with every field the user may change, or every field, read-only, to a user who may change none. A section or sidebar card with no field the user may see is left out. `.saveFeedback('button')` shows saving on the Save button instead of a toast (`'toast'`, the default). A [sensitive field](/reference/data-config/#sensitive-fields) in a section is masked, with an eye button that reveals it.
+Without a layout the record page shows one section with every field the user may change, or every field, read-only, to a user who may change none; its [read view](#read-view-and-edit) shows every field. A section or sidebar card with no field the user may see is left out. `.saveFeedback('button')` shows saving on the Save button instead of a toast (`'toast'`, the default). A [sensitive field](/reference/data-config/#sensitive-fields) in a section is masked, with an eye button that reveals it.
+
+### Read view and edit
+
+`.recordMode(mode)` says how the record page opens to a user who may change the record:
+
+| Mode | |
+| --- | --- |
+| `'edit'` | The form, ready to change, as without the setting. The default. |
+| `'read'` | A read view: each section a table of labels on the left and values on the right, as a property's features on a real estate site, and a text of several lines under its label. An **Edit** button opens the form. |
+| `'locked'` | The form, its fields locked until **Edit** is pressed, for records where reading and editing look alike but a change should be meant. |
+
+The form that **Edit** opens has its own address, the record's with `?edit=true` (`{ kind: 'record', resource, key, edit: true }`), so it opens in a new tab and Back leaves it. It has **Cancel**, which drops the changes and goes back to the record, and **Save**, which goes back once the record saved. A user who may not change the record never gets the form, at that address too: `'read'` shows them the read view, the others the locked form. Values on the read view show as they do everywhere else, an empty one as `—` and a boolean as Yes or No, and a sensitive field stays masked behind its eye. Changes not saved stay in the browser, as they do on the form: the read view then offers to continue editing them or discard them.
+
+```ts
+view<typeof listings>('listings').recordMode('read')
+```
+
+<StoryFrame id="record-page-read-view-and-edit--read-view" title="A home's read view, with Edit" height={760} />
+
+### Help while editing
+
+Help lines show on the record page and in forms by default. Those meant for whoever changes the record, such as where a value comes from, can show only while it is edited: on its form and the create form, not on the read view or a locked form. `.helpWhen('editing')` on the view says so for all of its fields and sections; a field's `.help(text, { when })` and a section's `helpWhen` say it for their own, and win over the view's.
+
+```ts
+view<typeof listings>('listings')
+  .recordMode('read')
+  .helpWhen('editing')
+  .fields((r) => ({
+    price: r.price.help('The asking price, without costs.'),
+    agent_phone: r.agent_phone.help('Call to plan a viewing.', { when: 'always' }),
+  }))
+```
+
+### Galleries
+
+`l.gallery(title, { image?, photos? })` shows a record's photos as tiles in the main column: one large, the next four smaller beside it, the last counting the photos not drawn ("+12"). On a mobile screen it draws the large one with the number of photos. A tile opens a lightbox at its photo, at full size over the page, with a counter, arrows and the left and right keys to step through them all, wrapping around, a sideways swipe on a touch screen, and Escape or the close button to return. `image` is a file field of the record, shown first; `photos` names the records holding the further photos, as a cards display's [`photos`](#card-photos) does: those of `resource` whose relation `field` points at the record, in `sort` order, each shown by its file field `image`. A photo that is also the record's `image` is shown once, and files that are no image are left out. A record without photos has no gallery.
+
+```ts
+.layout((r) => [
+  l.gallery('Photos', { image: r.photo, photos: { resource: 'listing_photos', field: 'listing_id', image: 'photo', sort: 'position' } }),
+  l.section('Listing', [r.address, r.price]),
+])
+```
+
+The photos are read with the list API under the user's own access, up to 500, so an index on `field` and the sorted fields serves them, which [`protobase doctor`](/reference/cli/#doctor) checks. In the lightbox, a photo held by a record of a resource the user may read has a details button: it shows that record's fields, as the record API answers the user, so the server decides what they see, and a link to its record page. In `/api/meta`, a user who cannot read `image` gets the gallery without it, and one who cannot list the photos without them; a gallery left with neither is left out. The server checks when it starts that `image` is a file field and that `photos` fits the resources.
+
+<StoryFrame id="record-page-gallery--gallery" title="A home's photos as tiles" height={640} />
 
 ### Maps
 

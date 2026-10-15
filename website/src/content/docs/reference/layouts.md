@@ -101,7 +101,7 @@ Every place in the app has an address, and the app writes and reads them in one 
 | Address | Is |
 | --- | --- |
 | `{ kind: 'list', resource, filter?, orderBy?, display? }` | A resource's list, with the filter, order and [display](/reference/ui-config/#list-displays) the list page would show. |
-| `{ kind: 'record', resource, key }` | One record; `key` is its value, or its parts for a composite key. |
+| `{ kind: 'record', resource, key, edit? }` | One record; `key` is its value, or its parts for a composite key. `edit: true` is its form (`?edit=true`), on a view whose record page opens as a [read view or locked](/reference/ui-config/#read-view-and-edit). |
 | `{ kind: 'create', resource, values? }` | The form for a new record, with `values` filled in by field name, as text: `{ kind: 'create', resource: 'notes', values: { listing_id: '{id}' } }` on a listing's page starts a note about that listing. A relation shows the name of the record it points at. The values are a start the person can change, not a rule: what they may write is still up to the access rules. |
 | `{ kind: 'page', page }` | A composed page. |
 
