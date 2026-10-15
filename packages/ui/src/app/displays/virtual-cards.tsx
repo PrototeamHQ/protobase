@@ -2,6 +2,7 @@ import { useCallback, useLayoutEffect, useRef, useState, type ReactNode } from '
 import type { GridRow, RowSource } from '../../data-grid'
 import { usePagedRows } from '../../data-grid/use-paged-rows'
 import { useVirtualRows } from '../../data-grid/use-virtual-rows'
+import { createFlipGuard } from '../../lib/flip-guard'
 import { Skeleton } from '../../primitives/skeleton'
 import { anchoredTop, cardColumns, cardGap, cardWidth, recordRange, type CardLayout } from './card-layout'
 import { withMeasuredHeight, type MeasuredHeights } from './measured-heights'
@@ -52,14 +53,18 @@ export const VirtualCards = ({ source, label, initialIndex, onScrollIndex, minHe
   const range = recordRange(scroll.first, scroll.last, columns, total)
   const getRow = usePagedRows({ total, rowAt: source.rowAt, loadRows: source.loadRows, latencyMs: 0 }, range.start, range.end)
 
+  // The cards' width changes their height, which can bring or take away a scrollbar that changes their width: should
+  // that ever loop, the guard holds a width that fits instead of the cards flashing between two
+  const [guard] = useState(() => createFlipGuard())
   useLayoutEffect(() => {
     const body = scroll.ref.current
     if (!body) return
-    const observer = new ResizeObserver(() => setWidth(body.clientWidth))
+    const update = () => setWidth(guard(body.clientWidth, performance.now()))
+    const observer = new ResizeObserver(update)
     observer.observe(body)
-    setWidth(body.clientWidth)
+    update()
     return () => observer.disconnect()
-  }, [])
+  }, [guard])
 
   // A card taller than the others makes every card of this width as tall
   const widthRef = useRef(itemWidth)
