@@ -40,6 +40,7 @@ Each place a plugin can fill is an extension point. The config names it, or a pl
 | Widget part (the [assistant](/reference/assistant/#widget-parts)) | A widget part's name | A PascalCase export | The part's props | The part's fallback card |
 | [Action handler](/reference/custom-components/#action-handlers) | `a.action('name')` in a view | `actions: { name }` | `ActionContext` | The button is disabled |
 | [Shell slot](/reference/custom-components/#shell-slots) | Nothing: drawn on every page | `shell: { actions, rightPanel }` | Nothing | Not drawn |
+| [Before sign-in](#before-sign-in) | `beforeSignIn: true` where the plugin is listed | `beforeSignIn` | `children`, `params`, `removeParams`, `signedIn` | The pages as they are without it |
 
 Components and cards share one namespace of names, which `component('Name')` joins to the export; field types and action handlers each have their own. Props that name fields go through the same walker as everything else in `/api/meta`, so a user who may not read a field never gets it in a component's props; a field type's `props` are plain data, and a field the user may not read is left out of the view, field type and all.
 
@@ -65,7 +66,7 @@ export { DraftOrders } from './components/draft-orders'
 export default definePlugin({ name: 'sales-tools', actions: { remindCustomer } })
 ```
 
-It is written as a project's `protobase.ui.tsx` is: each component exported under the PascalCase name the config declares, from a file of its own, and the rest in the default export, `definePlugin({ name, actions, fields, shell, extends })` (`defineUi` is the same function). Its components use the hooks and components of `@protobase/ui`, which read the API as the signed-in user, under the same access rules as everything else.
+It is written as a project's `protobase.ui.tsx` is: each component exported under the PascalCase name the config declares, from a file of its own, and the rest in the default export, `definePlugin({ name, actions, fields, shell, beforeSignIn, extends })` (`defineUi` is the same function). Its components use the hooks and components of `@protobase/ui`, which read the API as the signed-in user, under the same access rules as everything else.
 
 **Imports.** `react`, `react/jsx-runtime` (the JSX), `react-dom` and `@protobase/ui`, by those names, come from the app. Everything else a plugin imports, its own files, icons or a chart library, is built into it. Other modules of those packages, such as `react-dom/client` or a file inside `@protobase/ui`, fail the build: a copy of its own would not work with the app's. Read data with `@protobase/ui`'s hooks (`useList`, `useRecord`, `useClient`), which share the app's cache: a data library of the plugin's own keeps a cache of its own.
 
@@ -91,7 +92,7 @@ export const Greeting = () => {
 | `url` | Its `plugin.json`: `new URL('./data.json', url)` finds a file served beside it. |
 | `settings` | What the app gives it in `options.plugins` (see [loading](#loading)), `{}` otherwise. |
 
-It works in the components, field types and shell slots a plugin registers and everything they render, and throws anywhere else.
+It works in the components, field types, shell slots and `beforeSignIn` a plugin registers and everything they render, and throws anywhere else.
 
 ## Declaring its components in the config
 
@@ -191,7 +192,8 @@ The app loads the plugins `/api/meta` names to the signed-in user, in this order
 
 1. the bundle's own, from its manifest: each `--extend` folder's, then the project's (`app`), for everyone;
 2. those `createAdmin`'s `options.plugins` lists, in `protobase.config.ts`;
-3. those `PROTOBASE_PLUGINS` lists: URLs separated by commas, which a hosting platform sets for the plugins it adds to its apps.
+3. those `PROTOBASE_PLUGINS` lists: URLs separated by commas, which a hosting platform sets for the plugins it adds to its apps;
+4. those `PROTOBASE_PLUGINS_BEFORE_SIGN_IN` lists, the same way, which also load [before sign-in](#before-sign-in).
 
 ```ts
 // protobase.config.ts
@@ -211,10 +213,11 @@ export default {
 | `url` | The plugin's `plugin.json`: an `https://` or `http://` URL, or a path on the app's own origin. |
 | `settings` | Data the plugin reads with `usePlugin()`. |
 | `roles` | When set, only callers with one of these roles load it; without, everyone does. This decides what the app loads, not what anyone may do: the API's access rules still decide that. |
+| `beforeSignIn` | `true` loads it [before sign-in](#before-sign-in) too, for everyone; it cannot have `roles`. Off by default. |
 
-`options.plugins: false` turns off the second and third; the bundle's own plugins are the app's own UI and always load. A URL that is not one stops the server at startup, naming where it came from. Each URL is loaded once.
+`options.plugins: false` turns off all but the first; the bundle's own plugins are the app's own UI and always load. A URL that is not one stops the server at startup, naming where it came from, and so does a plugin with both `roles` and `beforeSignIn`. Each URL is loaded once, where it is first listed; one `PROTOBASE_PLUGINS_BEFORE_SIGN_IN` lists loads before sign-in wherever it is listed.
 
-When the user signs in, the app reads each `plugin.json`, then loads the module and the stylesheet of each plugin that fits, and draws once they have loaded, or after ten seconds at most: a slower plugin comes in when it arrives. So a host serves them like this:
+When the user signs in, or before for a plugin that loads [before sign-in](#before-sign-in), the app reads each `plugin.json`, then loads the module and the stylesheet of each plugin that fits, and draws once they have loaded, or after ten seconds at most: a slower plugin comes in when it arrives. So a host serves them like this:
 
 - `plugin.json` without caching, or with a short one (`Cache-Control: no-cache`): a new build of the plugin reaches every app on its next load.
 - The files in `assets/`, named by their content, forever (`Cache-Control: public, max-age=31536000, immutable`).
@@ -225,6 +228,46 @@ The plugins are merged in the order listed. Two of them cannot define one name: 
 `protobase dev` loads plugins the same way, its page sharing the same four modules. The project's own `protobase.ui.tsx` is built into the dev page with hot reload instead, merged after the plugins, and keeps its names over theirs.
 
 The components a [remote resource](/reference/remote-resources/#custom-components)'s view names are drawn from the same plugins, by name, so whoever runs a source lists the plugin that provides them with it. Inside one, `useList` and `useRecord` read the source for its resources, and `useResourceClient(resource)` gives the client of the API that serves a resource.
+
+## Before sign-in
+
+Plugins load once someone has signed in, or for a visitor of a project with an anonymous role, so no plugin code runs for someone signed out: they get the sign-in page. A plugin listed with `beforeSignIn: true`, or in `PROTOBASE_PLUGINS_BEFORE_SIGN_IN`, loads before that. The sign-in status (`GET /api/auth/status`) names it to everyone, as `plugins`, and the app loads it first and waits for it, as it waits for the others. Its `beforeSignIn` component is drawn around what someone signed out sees: the sign-in page, or the app a visitor browses. Once they are in, it is no longer drawn, and the plugin stays loaded: `/api/meta` names it to everyone, and the app merges its other parts as any plugin's, without loading it again.
+
+So a plugin can sign someone in from a link, such as one a platform hands out with a one-time code:
+
+```tsx
+// protobase.ui.tsx
+import { useEffect, useRef, useState } from 'react'
+import { definePlugin, type BeforeSignInProps } from '@protobase/ui'
+
+const GuestAccess = ({ children, params, removeParams, signedIn }: BeforeSignInProps) => {
+  const [code] = useState(() => params.get('access'))
+  const [failed, setFailed] = useState(false)
+  const started = useRef(false)
+  useEffect(() => {
+    if (!code || started.current) return
+    started.current = true
+    removeParams(['access'])
+    // An endpoint on the app's origin that trades the code for the session cookie.
+    void fetch('/guest/exchange', { method: 'POST', body: code })
+      .then(signedIn)
+      .then((entered) => setFailed(!entered))
+  }, [code, removeParams, signedIn])
+  if (code && !failed) return <p role="status">Signing you in…</p>
+  return children
+}
+
+export default definePlugin({ name: 'guest', beforeSignIn: GuestAccess })
+```
+
+| `BeforeSignInProps` | |
+| --- | --- |
+| `children` | What the app shows someone signed out: the sign-in page, or the app a visitor browses. Draw it when the plugin has nothing to do. |
+| `params` | The query parameters of the page's address. |
+| `removeParams(names)` | Takes those query parameters out of the address, in place of it in the tab's history, as the app does with a used [sign-in link](/reference/auth/#sign-in-links-and-connected-accounts). |
+| `signedIn()` | Enters the app with a session something other than the sign-in page started: it reads the session cookie again and shows the app signed in, as the sign-in page does, with no reload. Resolves `false`, and changes nothing, when there is no session. |
+
+The plugin starts the session itself, with a request that sets the app's session cookie on the app's origin; `signedIn()` only tells the app. Several plugins' `beforeSignIn` are drawn one around the other, the first listed outermost, and one that throws leaves the pages as they are. Like every plugin, one loaded before sign-in runs with the rights of whoever opens the app, here someone not signed in, and its `plugin.json` and files are served to them, so list only plugins you trust there.
 
 ## The shell
 
@@ -271,7 +314,8 @@ From `@protobase/ui`:
 
 | | |
 | --- | --- |
-| `definePlugin(config)` | Typed identity for a plugin's default export: `name`, `actions`, `fields`, `shell`, `extends`, as `defineUi`. |
+| `definePlugin(config)` | Typed identity for a plugin's default export: `name`, `actions`, `fields`, `shell`, `beforeSignIn`, `extends`, as `defineUi`. |
+| `BeforeSignInProps` | The props of a plugin's [`beforeSignIn`](#before-sign-in) component. |
 | `usePlugin()` | The plugin the calling component belongs to (see [above](#writing-a-plugin)). |
 | `useResourceClient(resource)` | The client of the API that serves a resource: the app's own, or a source's for a [remote resource](/reference/remote-resources/). |
 | `FieldWidget`, `FieldWidgetProps`, `FieldWidgetEditorProps` | The types of a [field type](#field-types) and of its parts' props. |
@@ -279,4 +323,4 @@ From `@protobase/ui`:
 | `pluginApi` | The plugin API of the app's `@protobase/ui`. |
 | `protobaseVersion` | The Protobase version of the app's `@protobase/ui`. |
 
-From `@protobase/layout`: `component(name, { plugin })` (see [above](#declaring-its-components-in-the-config)). From `@protobase/schema`: `.widget(name, props)` on a view's fields and `d.cards(fields, { card })` (see [Views](/reference/ui-config/)). From `@protobase/server`: `options.plugins` of `createAdmin` and `PROTOBASE_PLUGINS` (see [loading](#loading)). The tokens a plugin's utilities read are in [Theme](/reference/theme/).
+From `@protobase/layout`: `component(name, { plugin })` (see [above](#declaring-its-components-in-the-config)). From `@protobase/schema`: `.widget(name, props)` on a view's fields and `d.cards(fields, { card })` (see [Views](/reference/ui-config/)). From `@protobase/server`: `options.plugins` of `createAdmin`, `PROTOBASE_PLUGINS` and `PROTOBASE_PLUGINS_BEFORE_SIGN_IN` (see [loading](#loading)). The tokens a plugin's utilities read are in [Theme](/reference/theme/).
