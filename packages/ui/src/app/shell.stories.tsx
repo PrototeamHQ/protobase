@@ -99,6 +99,7 @@ const expectWholeBar = async (canvasElement: HTMLElement) => {
 /** A record page on a phone: Save and Delete sit above the bottom bar, which stays whole. */
 export const BottomBarOnRecordPage: StoryObj = {
   ...BottomBarFromMeta,
+  tags: ['play', 'phone'],
   render: recordOnPhone(allowed),
   play: async ({ canvasElement }) => {
     const bar = await expectWholeBar(canvasElement)
@@ -109,6 +110,7 @@ export const BottomBarOnRecordPage: StoryObj = {
 /** A record the user can neither change nor delete: no controls, and no empty strip over the bottom bar. */
 export const BottomBarOnReadOnlyRecord: StoryObj = {
   ...BottomBarFromMeta,
+  tags: ['play', 'phone'],
   render: recordOnPhone({ create: false, update: false, delete: false, conditional: [] }),
   play: async ({ canvasElement }) => {
     await expectWholeBar(canvasElement)

@@ -1,8 +1,8 @@
 div | block
   div .h-screen | block
-    div .relative flex h-full min-h-0 w-full overflow-hidden bg-background | flex row nowrap normal normal relative
+    div .flex min-h-full w-full overflow-x-clip bg-background | flex row nowrap normal normal
       div .flex min-w-0 flex-1 flex-col | flex column nowrap normal normal
-        header .relative flex h-12 shrink-0 items-center gap-1 border-b bg-background px-2 md:gap-4 md:px-5 | flex row nowrap center normal relative
+        header .sticky top-0 z-30 flex h-12 shrink-0 items-center gap-1 border-b bg-background px-2 md:gap-4 md:px-5 | flex row nowrap center normal sticky
           button .inline-flex size-11 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted md:hidden -ml-0.5 | flex row nowrap center center
             svg .lucide lucide-menu size-5 | block
           a .inline-flex size-11 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted md:hidden | flex row nowrap center center
@@ -26,9 +26,9 @@ div | block
                     kbd .inline-flex h-5 items-center rounded border border-border-strong bg-background px-1.5 font-sans text-[11px] font-medium text-muted-foreground | inline-flex row nowrap center normal
             button .inline-flex size-11 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted md:hidden | flex row nowrap center center
               svg .lucide lucide-search size-5 | block
-        main .flex min-h-0 flex-1 flex-col | flex column nowrap normal normal
-          div .flex min-h-0 flex-1 flex-col | flex column nowrap normal normal
-            div .min-h-0 flex-1 overflow-y-auto | block
+        main .flex flex-1 flex-col | flex column nowrap normal normal
+          div .flex flex-1 flex-col | flex column nowrap normal normal
+            div .flex-1 | block
               div .mx-auto max-w-[1100px] px-4 pb-8 pt-6 md:px-10 md:py-8 | block
                 header .flex flex-col gap-4 border-b border-border pb-6 md:flex-row md:items-end md:justify-between md:gap-6 | flex column nowrap normal normal
                   div | block
@@ -160,7 +160,7 @@ div | block
                               span .block text-[11px] uppercase tracking-wide text-faint-foreground | block
                               span .block truncate text-[13px] font-medium text-primary-text | block
                             svg .lucide lucide-chevron-right size-4 shrink-0 text-faint-foreground group-hover:text-foreground | block
-            div .flex shrink-0 items-center gap-2 border-t bg-background p-3 md:hidden | flex row nowrap center normal
+            div .sticky bottom-[var(--pb-sticky-bottom,0px)] z-20 flex shrink-0 items-center gap-2 border-t bg-background p-3 md:hidden | flex row nowrap center normal sticky
               button .inline-flex shrink-0 items-center justify-center rounded-md font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:opacity-60 disabled:cursor-default bg-background text-danger-text border border-border-strong hover:bg-danger-soft shadow-sm h-8 px-3 text-[13px] gap-2 max-md:min-h-11 | flex row nowrap center center
               button .inline-flex shrink-0 items-center justify-center rounded-md font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:opacity-60 disabled:cursor-default bg-primary text-primary-foreground hover:bg-primary-hover shadow-sm h-8 px-3 text-[13px] gap-2 max-md:min-h-11 max-md:flex-1 | flex row nowrap center center
     div .pointer-events-none fixed inset-x-4 bottom-24 z-[100] flex flex-col items-end gap-2 md:inset-x-auto md:bottom-4 md:right-4 | flex column nowrap flex-end normal fixed

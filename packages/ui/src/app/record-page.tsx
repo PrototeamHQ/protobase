@@ -185,9 +185,9 @@ const LoadedRecord = ({ model, recordKey, stored }: { model: ResourceModel; reco
   )
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col">
+    <div className="flex flex-1 flex-col">
       {remove.dialogs}
-      <div className="min-h-0 flex-1 overflow-y-auto">
+      <div className="flex-1">
         <div className="mx-auto max-w-[1100px] px-4 pb-8 pt-6 md:px-10 md:py-8">
           <RecordHeader
             collection={view?.names?.plural ?? humanize(model.name)}
@@ -257,8 +257,8 @@ const LoadedRecord = ({ model, recordKey, stored }: { model: ResourceModel; reco
           </div>
         </div>
       </div>
-      {/* On phones the controls sit below the record, above the shell's bottom bar; a record without any has no bar */}
-      {(editor.dirty || canDelete || canUpdate) && <div className="flex shrink-0 items-center gap-2 border-t bg-background p-3 md:hidden">{saveControls}</div>}
+      {/* On phones the controls stay in view below the record, above the shell's bottom bar; a record without any has no bar */}
+      {(editor.dirty || canDelete || canUpdate) && <div className="sticky bottom-[var(--pb-sticky-bottom,0px)] z-20 flex shrink-0 items-center gap-2 border-t bg-background p-3 md:hidden">{saveControls}</div>}
     </div>
   )
 }

@@ -101,9 +101,9 @@ const LoadedList = ({ model, address, scope, heading }: LoadedListProps) => {
   const loaded = useMemo(() => loadedFields(model, view, columns.map((column) => column.id)), [model, view, columns])
   const rows = useLiveRows({ resources: meta.resources, views: meta.views, model, columns: loaded, filter: loadFilter, orderBy })
   const display = shownDisplay(view, address.display)
-  // The table and the cards are as tall as all their rows and scroll with the page; the map and a custom display fill
-  // the screen
-  const pageScroll = !display || display.kind === 'cards'
+  // The table, the cards and a custom display are as tall as all their rows and scroll with the page; the map fills the
+  // screen
+  const pageScroll = display?.kind !== 'map'
   usePageScroll(pageScroll)
   // A custom display pages through the rows with `loadMore`; the table and cards scroll through them, and the map asks
   // for the records in its view

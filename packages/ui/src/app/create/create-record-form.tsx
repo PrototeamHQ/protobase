@@ -21,7 +21,7 @@ export type CreateRecordFormProps = {
 /** The presentation of "New <thing>": the view's sections, each field with its editor, and Create or Cancel. */
 export const CreateRecordForm = ({ noun, collection, sections, saving, message, onSubmit, onCancel }: CreateRecordFormProps) => (
   <form
-    className="min-h-0 flex-1 overflow-y-auto"
+    className="flex-1"
     onSubmit={(event) => {
       event.preventDefault()
       onSubmit()

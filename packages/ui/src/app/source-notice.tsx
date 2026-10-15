@@ -17,13 +17,13 @@ export const SourceNotice = ({ status }: { status: SourceStatus }) => {
   const queryClient = useQueryClient()
   if (status.state !== 'error') {
     return (
-      <div className="flex h-full min-h-48 items-center justify-center gap-2 text-[13px] text-muted-foreground">
+      <div className="flex h-full min-h-48 flex-1 items-center justify-center gap-2 text-[13px] text-muted-foreground">
         <Spinner /> Loading from {status.source.label}
       </div>
     )
   }
   return (
-    <div className="flex h-full min-h-48 items-center justify-center p-8">
+    <div className="flex h-full min-h-48 flex-1 items-center justify-center p-8">
       <div className="max-w-md text-center">
         <h1 className="text-[15px] font-semibold">Cannot reach {status.source.label}</h1>
         <p className="mt-1 text-[13px] text-muted-foreground">{reason(status.error)} The rest of the app works as before.</p>

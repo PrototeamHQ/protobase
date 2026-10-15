@@ -168,6 +168,7 @@ const Routes = ({ workspace, sidebarMode, assistant, runtime }: Pick<AppProps, '
 
   const appShell = (
     <AppShell
+      pageScroll
       sidebarMode={sidebarMode ?? 'text-small'}
       activeItem={place ?? ''}
       breadcrumb={breadcrumb}

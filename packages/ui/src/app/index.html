@@ -16,8 +16,8 @@
     </script>
   </head>
   <body>
-    <!-- The page reaches under the iPhone home indicator, which the bottom bar keeps clear of; the sides keep clear of the notch. -->
-    <div id="root" class="h-screen" style="padding-left: env(safe-area-inset-left); padding-right: env(safe-area-inset-right)"></div>
+    <!-- As tall as the screen shows, browser toolbars aside, so a page that fills it, such as a map, keeps the bottom bar in view. The page reaches under the iPhone home indicator, which the bottom bar keeps clear of; the sides keep clear of the notch. -->
+    <div id="root" class="h-dvh" style="padding-left: env(safe-area-inset-left); padding-right: env(safe-area-inset-right)"></div>
     <script type="module" src="./main"></script>
   </body>
 </html>

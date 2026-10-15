@@ -44,21 +44,24 @@ export type AppShellProps = {
   theme?: ProfileTheme
   /** The top bar's search; without it there is no search box. */
   search?: GlobalSearchModel
+  /** Whether the document scrolls on a page that does not choose with `usePageScroll`; otherwise the page fills a box of the screen's height. */
+  pageScroll?: boolean
   className?: string
   children: ReactNode
 }
 
 const drawerId = 'app-drawer'
 
-export const AppShell = ({ sidebarMode, activeItem, breadcrumb, user, workspace, actions, rightPanel, forceExpanded, profileMenuOpen, navGroups, userMenu, bottomBar, onNavigate, onSignOut, onSignIn, organizations, roles, theme, search, className, children }: AppShellProps) => {
+export const AppShell = ({ sidebarMode, activeItem, breadcrumb, user, workspace, actions, rightPanel, forceExpanded, profileMenuOpen, navGroups, userMenu, bottomBar, onNavigate, onSignOut, onSignIn, organizations, roles, theme, search, pageScroll: scrollsByDefault = false, className, children }: AppShellProps) => {
   const desktop = useIsDesktop()
   const [drawerOpen, setDrawerOpen] = useState(false)
   useEffect(() => {
     if (desktop) setDrawerOpen(false)
   }, [desktop])
   const tabs = !desktop && bottomBar && bottomBar.length > 0 ? bottomBar : undefined
-  // A page that scrolls the document turns it on with `usePageScroll`
-  const [pageScroll, setPageScroll] = useState(false)
+  // A page turns the document's scrolling on or off with `usePageScroll`
+  const [chosen, setPageScroll] = useState<boolean>()
+  const pageScroll = chosen ?? scrollsByDefault
   const topBarRef = useRef<HTMLElement>(null)
   const bottomBarRef = useRef<HTMLElement>(null)
   usePageInsets(pageScroll, topBarRef, bottomBarRef, Boolean(tabs))
