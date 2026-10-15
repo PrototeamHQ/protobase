@@ -51,7 +51,7 @@ const BuiltInValue = ({ model, field, value, format, relationLabel }: FieldValue
   }
   const text = displayValue(field, value, hints)
   if (field.type === 'enum' || hints.format === 'badge') return <ValueBadge value={value} hints={hints}>{text}</ValueBadge>
-  return <span className={cn(hints.format === 'code' && 'font-mono text-xs', (field.type === 'decimal' || field.type === 'integer') && 'tabular-nums')}>{text}</span>
+  return <span className={cn(hints.format === 'code' && 'font-mono text-xs', (field.type === 'decimal' || field.type === 'integer') && 'tabular-nums', hints.multiline && 'whitespace-pre-line break-words')}>{text}</span>
 }
 
 /**

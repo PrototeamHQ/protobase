@@ -13,11 +13,13 @@ export type FieldProps = {
   example?: string
   error?: string
   conflict?: FieldConflict
+  /** Takes the whole row of a grid of two columns, as a text of several lines does. */
+  wide?: boolean
   children: ReactNode
 }
 
-export const Field = ({ label, required, help, example, error, conflict, children }: FieldProps) => (
-  <div>
+export const Field = ({ label, required, help, example, error, conflict, wide, children }: FieldProps) => (
+  <div className={wide ? 'sm:col-span-2' : undefined}>
     <div className="mb-1.5 flex items-center gap-2">
       <label className="text-[13px] font-medium text-foreground">
         {label}

@@ -105,7 +105,10 @@ export const RecordCard = ({ model, view, display, row, swipe = true }: RecordCa
           </ValueBadge>
         )}
       </span>
-      {subtitle !== undefined && <span className="truncate text-muted-foreground">{shownValue(subtitle)}</span>}
+      {subtitle !== undefined && (
+        // A text of several lines keeps its first three, line breaks and all
+        <span className={view?.fields[subtitle]?.multiline ? 'line-clamp-3 whitespace-pre-line break-words text-muted-foreground' : 'truncate text-muted-foreground'}>{shownValue(subtitle)}</span>
+      )}
       {shownAmount !== undefined && <span className="truncate tabular-nums text-muted-foreground">{amountValue(shownAmount)}</span>}
       {meta.length > 0 && (
         <dl className="mt-auto flex flex-wrap items-center gap-x-3 gap-y-0.5 pt-1 text-xs text-muted-foreground">

@@ -36,7 +36,7 @@ Field and resource names are snake_case by convention, like the columns: they ar
 
 | Builder | Column types | API value | Options |
 | --- | --- | --- | --- |
-| `f.text()` | `text`, `varchar`, `bpchar` | string | `.min(n)`, `.max(n)` (length), `.regex(re, message)` |
+| `f.text()` | `text`, `varchar`, `bpchar` | string | `.min(n)`, `.max(n)` (length), `.regex(re, message)`; a text of several lines, such as a description, takes the view's [`.multiline()`](/reference/ui-config/#names-and-columns) |
 | `f.integer()` | `int2`, `int4` | number | `.min(n)`, `.max(n)` |
 | `f.bigint()` | `int8` | string (all 64 bits) | |
 | `f.decimal({ precision, scale })` | `numeric` | string (exact) | |

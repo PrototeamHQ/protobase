@@ -122,6 +122,7 @@ const LoadedRecord = ({ model, recordKey, stored }: { model: ResourceModel; reco
         label={hint(name)?.label ?? humanize(name)}
         help={hint(name)?.help}
         error={editor.errors[name]}
+        wide={Boolean(hint(name)?.multiline)}
         conflict={
           conflict === undefined
             ? undefined
@@ -154,7 +155,7 @@ const LoadedRecord = ({ model, recordKey, stored }: { model: ResourceModel; reco
         const field = model.fields[name]
         if (!field || !visible(name)) return []
         const text = displayValue(field, stored.record[name], hint(name))
-        const builtIn = field.type === 'enum' ? <ValueBadge value={stored.record[name]} hints={hint(name)}>{text}</ValueBadge> : <strong>{text}</strong>
+        const builtIn = field.type === 'enum' ? <ValueBadge value={stored.record[name]} hints={hint(name)}>{text}</ValueBadge> : <strong className={hint(name)?.multiline ? 'whitespace-pre-line break-words' : undefined}>{text}</strong>
         const shown = shownWidget(fieldTypes, field, hint(name))
         return [{ label: hint(name)?.label ?? humanize(name), value: shown ? <WidgetPart shown={shown} part="display" field={field} value={stored.record[name]} fallback={builtIn} /> : builtIn }]
       })}
