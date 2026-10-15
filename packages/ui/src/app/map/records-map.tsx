@@ -1,16 +1,14 @@
 import { useEffect, useRef, useState } from 'react'
 import { MapPin } from 'lucide-react'
-import * as maplibre from 'maplibre-gl'
 import { Map, Marker, NavigationControl, type MapRef } from 'react-map-gl/maplibre'
 import type { MapBounds, MapBucket } from '@protobase/client'
 import type { MapView } from '@protobase/schema'
 import { cn } from '../../lib/cn'
 import { groupPoints, type MapGroup, type MapPoint } from '../displays/map-groups'
 import type { MapArea } from './map-area'
+import { mapLib } from './maplibre'
 import { PositionAreas, type AreaColors } from './position-areas'
 import { themeColor } from './theme-color'
-// MapLibre's worker and the pmtiles protocol are set up where the record map loads them
-import './record-map'
 
 // How close, in pixels, records are drawn under one marker, about a marker's width.
 const groupRadius = 28
@@ -112,7 +110,7 @@ export const RecordsMap = ({ style, initial, points, buckets, fit, onFitted, onM
   return (
     <Map
       ref={ref}
-      mapLib={maplibre}
+      mapLib={mapLib}
       mapStyle={style}
       initialViewState={initial ?? { latitude: 0, longitude: 0, zoom: 1 }}
       style={{ width: '100%', height: '100%' }}
