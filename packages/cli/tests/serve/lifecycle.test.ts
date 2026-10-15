@@ -1,4 +1,3 @@
-import { PGlite } from '@electric-sql/pglite'
 import { Kysely, sql } from 'kysely'
 import { PGliteDialect } from 'kysely-pglite-dialect'
 import { describe, expect, it, vi } from 'vitest'
@@ -8,9 +7,16 @@ import { createEmptyPg } from '../../../../test-support/pglite-snapshot'
 import { startServe } from '../../src/serve/lifecycle'
 import type { ServedProject } from '../../src/serve/load-bundle'
 
-const pgliteDb = () => {
-  const db = new Kysely<any>({ dialect: new PGliteDialect(new PGlite()) })
+// From the empty snapshot: a `new PGlite()` runs initdb, which blocks the event loop for seconds on a busy machine.
+const pgliteDb = async () => {
+  const db = new Kysely<any>({ dialect: new PGliteDialect(await createEmptyPg()) })
   return Object.assign(db, { destroy: vi.fn(() => Kysely.prototype.destroy.call(db)) })
+}
+
+// A createDb that hands out one db from the snapshot, created before the server starts.
+const dbFactory = async () => {
+  const db = await pgliteDb()
+  return () => db
 }
 
 const project: ServedProject = {
@@ -28,7 +34,7 @@ const env = { port: 0, databaseUrl: 'postgres://unused/app', requestLog: false, 
 
 describe('startServe', () => {
   it('serves /health without a token and the admin API behind the authenticator', async () => {
-    const server = await startServe({ project, env, createDb: pgliteDb })
+    const server = await startServe({ project, env, createDb: await dbFactory() })
     const base = `http://localhost:${server.port}`
     const health = await fetch(`${base}/health`)
     expect(health.status).toBe(200)
@@ -40,7 +46,7 @@ describe('startServe', () => {
 
   // Bun's S3 and file writes take the native Response; given another class they store its text, `[object Response]`.
   it("keeps the runtime's own Request and Response after serving a request", async () => {
-    const server = await startServe({ project, env, createDb: pgliteDb })
+    const server = await startServe({ project, env, createDb: await dbFactory() })
     expect((await fetch(`http://localhost:${server.port}/health`)).status).toBe(200)
     await server.close()
     expect(globalThis.Response).toBe(Response)
@@ -48,7 +54,7 @@ describe('startServe', () => {
   })
 
   it('creates a pool from DATABASE_URL and drains it after the server stops', async () => {
-    const db = pgliteDb()
+    const db = await pgliteDb()
     const createDb = vi.fn(() => db)
     const server = await startServe({ project, env, createDb })
     expect(createDb).toHaveBeenCalledWith('postgres://unused/app')
@@ -58,8 +64,8 @@ describe('startServe', () => {
   })
 
   it('uses the db the project exports and leaves closing it to the project', async () => {
-    const db = pgliteDb()
-    const createDb = vi.fn(pgliteDb)
+    const db = await pgliteDb()
+    const createDb = vi.fn(() => db)
     const server = await startServe({ project: { ...project, db }, env: { ...env, databaseUrl: undefined }, createDb })
     await server.close()
     expect(createDb).not.toHaveBeenCalled()
@@ -72,8 +78,8 @@ describe('startServe', () => {
   })
 
   it('drains its pool when the port is taken', async () => {
-    const first = await startServe({ project, env, createDb: pgliteDb })
-    const db = pgliteDb()
+    const first = await startServe({ project, env, createDb: await dbFactory() })
+    const db = await pgliteDb()
     await expect(startServe({ project, env: { ...env, port: first.port }, createDb: () => db })).rejects.toMatchObject({ code: 'EADDRINUSE' })
     expect(db.destroy).toHaveBeenCalledTimes(1)
     await first.close()
