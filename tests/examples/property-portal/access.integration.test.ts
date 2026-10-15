@@ -164,5 +164,6 @@ describe.skipIf(!seeded)('a visitor', () => {
     const listingsView = json.views.find((view: { resource: string }) => view.resource === 'listings')
     expect(listingsView.actions).toEqual([])
     expect(JSON.stringify(json.pages)).not.toContain('favorites')
+    expect(JSON.stringify(json.pages)).not.toContain('saved_searches')
   })
 })
