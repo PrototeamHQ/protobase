@@ -25,7 +25,12 @@ export const embeddedDisplay = (view: ViewModel | undefined, xs: boolean, { pick
 
 /**
  * The resource's list with the embedded list's filter, order and display, leaving out what the list does by default, and
- * the saved search whose results it shows, if any.
+ * the saved search whose results it shows, if any. `resource` names another list of the same records, such as the
+ * favorites that list a user's saved listings.
  */
-export const viewAllAddress = (model: ResourceModel, view: ViewModel | undefined, xs: boolean, list: { filter: string; orderBy: string; display: string; savedSearch?: string }) =>
-  changedList({ kind: 'list', resource: model.name }, list, listDefaults(model, view, xs))
+export const viewAllAddress = (
+  model: ResourceModel,
+  view: ViewModel | undefined,
+  xs: boolean,
+  { resource = model.name, ...list }: { filter: string; orderBy: string; display: string; savedSearch?: string; resource?: string },
+) => changedList({ kind: 'list', resource }, list, listDefaults(model, view, xs))

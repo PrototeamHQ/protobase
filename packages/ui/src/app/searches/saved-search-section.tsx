@@ -1,4 +1,4 @@
-import { useMutation, useQuery } from '@tanstack/react-query'
+import { useMutation } from '@tanstack/react-query'
 import { Pencil, Trash2 } from 'lucide-react'
 import { useState } from 'react'
 import type { ResourceModel, SearchesOfModel, ViewModel } from '@protobase/schema'
@@ -6,18 +6,16 @@ import { useClient } from '../../data/api-provider'
 import { humanize } from '../../live/naming'
 import { Button } from '../../primitives/button'
 import { useToast } from '../../toasts'
-import { countQuery, useRefreshResource } from '../pages/use-layout-data'
+import { useRefreshResource } from '../pages/use-layout-data'
 import { RecordRowBody } from '../record-row/record-row-body'
 import { AppLink } from '../use-app-address'
-import { chipsText, InlineFilterChips } from './filter-chip-list'
-import { isUnseen, unseenFilter } from './saved-search'
+import { InlineFilterChips } from './filter-chip-list'
 import { SearchControls } from './search-controls'
 import { SearchNameDialog } from './search-name-dialog'
-import { useFilterChips } from './use-filter-chips'
+import { useSearchRow } from './use-search-row'
 import type { SavedSearchRow } from './use-saved-searches'
 
 const message = (error: unknown) => (error instanceof Error ? error.message : 'Something went wrong')
-
 
 type SavedSearchSectionProps = {
   /** The saved searches' resource and its view, whose `searchesOf` is `of`. */
@@ -37,26 +35,16 @@ type SavedSearchSectionProps = {
 }
 
 /**
- * One saved search: its name when it has one, and what it filters on as chips, which are its title when it has none;
- * its controls, rename and delete; and the records it finds in a row of their cards that scrolls sideways
- * (`RecordRowBody`), with `unseen` newest first, those new to the user marked "New", and "View all results", which opens
- * the list with its filter and counts as having seen them.
+ * One saved search on its list page: its name when it has one, and what it filters on as chips, which are its title
+ * when it has none; its controls, rename and delete; and the records it finds in a row of their cards that scrolls
+ * sideways (`useSearchRow`).
  */
 export const SavedSearchSection = ({ model, view, of, target, targetView, row, recordKey, canRename, onDelete }: SavedSearchSectionProps) => {
   const client = useClient()
   const toast = useToast()
   const refresh = useRefreshResource()
   const [renaming, setRenaming] = useState(false)
-  const filter = String(row[of.filter] ?? '')
-  const chips = useFilterChips(target, filter)
-  const stored = of.name === undefined ? undefined : row[of.name]
-  const name = typeof stored === 'string' && stored !== '' ? stored : undefined
-  const title = name ?? chipsText(chips)
-  const unseen = of.unseen
-  const markSeen = useMutation({
-    mutationFn: (seenAt: string) => client.update(model.name, recordKey, { [unseen!.seenAt]: seenAt }, row.etag ?? '*'),
-    onSettled: () => refresh(model.name),
-  })
+  const { name, chips, title, body } = useSearchRow({ model, of, target, targetView, row, recordKey })
   const rename = useMutation({
     mutationFn: (next: string | null) => client.update(model.name, recordKey, { [of.name!]: next }, row.etag ?? '*'),
     onSuccess: () => setRenaming(false),
@@ -64,9 +52,6 @@ export const SavedSearchSection = ({ model, view, of, target, targetView, row, r
     onSettled: () => refresh(model.name),
   })
   const nameField = of.name === undefined ? undefined : model.fields[of.name]
-  const plural = (targetView?.names?.plural ?? humanize(target.name)).toLowerCase()
-  // How many of its records are new, to say when none are; every record is new to a search never seen
-  const newCount = useQuery({ ...countQuery(client, target, unseen ? unseenFilter(filter, unseen.field, row[unseen.seenAt]) : ''), enabled: unseen !== undefined })
 
   return (
     <section aria-label={title} className="flex flex-col gap-3 rounded-lg border bg-surface p-4">
@@ -104,18 +89,7 @@ export const SavedSearchSection = ({ model, view, of, target, targetView, row, r
           onClose={() => setRenaming(false)}
         />
       )}
-      <RecordRowBody
-        model={target}
-        view={targetView}
-        filter={filter}
-        sort={unseen ? `${unseen.field} desc` : undefined}
-        limit={of.limit}
-        chips={name !== undefined}
-        empty={`No ${plural} match.`}
-        note={unseen && newCount.data === 0 && `No new ${plural} since you last looked.`}
-        isNew={unseen && ((record) => isUnseen(record.record[unseen.field], row[unseen.seenAt]))}
-        viewAll={{ label: 'View all results', savedSearch: recordKey, ...(unseen && { onOpen: () => markSeen.mutate(new Date().toISOString()) }) }}
-      />
+      <RecordRowBody {...body} />
     </section>
   )
 }

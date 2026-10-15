@@ -5,6 +5,7 @@ import { createStaticSession, type AuthSession, type Client, type ResourcePermis
 import { f, resource, signInPath, view, type SignInViewModel } from '@protobase/schema'
 import { App } from '../app'
 import { fakeApi } from '../testing/fake-api'
+import { home } from './story-home-page'
 
 const viewports = { phone360: { name: 'Phone 360', styles: { width: '360px', height: '740px' }, type: 'mobile' } } as const
 
@@ -147,6 +148,33 @@ export const MemberFavoritesPhone: StoryObj = {
     expect(canvas.queryByText('Keizersgracht 12')).toBeNull()
     const tabs = within(canvas.getByRole('navigation', { name: 'Tabs' }))
     expect(tabs.getByRole('link', { name: 'Favorites' })).toHaveAttribute('aria-current', 'page')
+  },
+}
+
+const homeApi = () =>
+  fakeApi({
+    resources: [homes.toModel(), favorites.toModel()],
+    views: [homesView.toModel(homes.toModel()), favoritesView.toModel(favorites.toModel())],
+    pages: [home.toModel()],
+    rows: { homes: homeRows, favorites: [{ id: 1, user_id: 'pip', home_id: 2 }, { id: 2, user_id: 'pip', home_id: 3 }] },
+    permissions: { homes: readOnly, favorites: own },
+    bottomBar: bottomBar('Portal'),
+  })
+
+export const MemberHome: StoryObj = { name: 'Member: favorites in a row on a page', render: () => <Portal api={homeApi} auth={member} at="/home" /> }
+
+export const MemberHomeChecks: StoryObj = {
+  ...MemberHome,
+  name: 'Member: favorites in a row on a page (checks)',
+  tags: ['play', '!dev'],
+  play: async ({ canvasElement }) => {
+    const row = within(await within(canvasElement).findByRole('region', { name: 'Your favorites' }))
+    // The homes among the favorites, as the homes' cards, and "View all" to the favorites
+    expect(await row.findByText('2 homes')).toBeVisible()
+    expect(await row.findByRole('link', { name: /Oudegracht 88/ })).toHaveAttribute('href', '/homes/2')
+    expect(row.getByRole('link', { name: /Witte de Withstraat 5/ })).toBeVisible()
+    expect(row.queryByText('Keizersgracht 12')).toBeNull()
+    expect(row.getByRole('link', { name: /^View all/ })).toHaveAttribute('href', '/favorites')
   },
 }
 

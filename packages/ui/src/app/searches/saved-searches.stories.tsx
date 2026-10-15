@@ -5,6 +5,7 @@ import { createStaticSession, type AuthSession, type ResourcePermissions } from 
 import { appPath, f, resource, view, type SignInViewModel } from '@protobase/schema'
 import { App } from '../app'
 import { fakeApi } from '../testing/fake-api'
+import { home } from './story-home-page'
 
 const viewports = { phone360: { name: 'Phone 360', styles: { width: '360px', height: '740px' }, type: 'mobile' } } as const
 
@@ -301,6 +302,37 @@ export const MemberLongRowChecks: StoryObj = {
     row.scrollLeft = row.scrollWidth
     const last = await within(row).findByRole('link', { name: /Tuinstraat 60\b/ })
     expect(within(last.closest('li')!).queryByText('New')).toBeNull()
+  },
+}
+
+const homeApi = () =>
+  fakeApi({
+    resources: [homes.toModel(), searches.toModel()],
+    views: [homesView.toModel(homes.toModel()), searchesView.toModel(searches.toModel())],
+    pages: [home.toModel()],
+    rows: { homes: homeRows, searches: searchRows },
+    permissions: { homes: readOnly, searches: own },
+    bottomBar: bottomBar('Portal'),
+  })
+
+export const MemberHome: StoryObj = { name: 'Member: a home page with a row per search', render: () => <Portal api={homeApi} auth={member} at="/home" /> }
+
+export const MemberHomeChecks: StoryObj = {
+  ...MemberHome,
+  name: 'Member: a home page with a row per search (checks)',
+  tags: ['play', '!dev'],
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    const searches = within(await canvas.findByRole('region', { name: 'Your searches' }))
+    // Each search is a row of what it finds, its new homes marked, under its name or filters, which open it
+    const gardens = within(await searches.findByRole('region', { name: 'Gardens' }))
+    expect(gardens.getByRole('link', { name: 'Gardens' })).toHaveAttribute('href', '/searches/1')
+    expect(await gardens.findByText('3 homes')).toBeVisible()
+    const keizersgracht = await gardens.findByRole('link', { name: /Keizersgracht 12/ })
+    expect(within(keizersgracht.closest('li')!).getByText('New')).toBeVisible()
+    expect(gardens.getByRole('link', { name: 'View all results' })).toHaveAttribute('href', `/homes?${new URLSearchParams({ filter: 'garden = true', saved_search: '1' })}`)
+    const rents = within(searches.getByRole('region', { name: 'Rent: €1,000 /month – €2,000 /month' }))
+    expect(await rents.findByText('No new homes since you last looked.')).toBeVisible()
   },
 }
 

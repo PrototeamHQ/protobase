@@ -140,6 +140,8 @@ Up to `limit` records side by side, each a small card made from the children, wh
 
 What a filter finds, the way a home page shows it: the filter's chips, as the list's filter panel names them, how many records match, the records as the cards of the resource's [cards display](/reference/ui-config/#list-displays) in one row, and **View all**, which opens the list with the same filter and order. The row scrolls sideways by touch, trackpad or its arrow buttons; only the cards near the view are drawn, and the records load through the list API in pages as it scrolls. Each card opens its record. A resource without a cards display gets cards of the title alone.
 
+It follows the resource's view as its list page does. Of a resource whose view has [`listOf`](/reference/ui-config/#favorites), such as favorites, it shows the records the user's saved ones point at, as their own resource's cards, and **View all** opens the favorites. Of one whose view has [`searchesOf`](/reference/ui-config/#saved-searches), it shows a row for each of the user's saved searches, under its name or its filters, with the records new to them marked **New** and **View all results**, as their list page shows them. `filter` and `sort` do not apply to those two.
+
 | Prop | |
 | --- | --- |
 | `resource`, `filter`, `sort` | Which records, in which order. `resource` is required; `sort` defaults to the list's. |
