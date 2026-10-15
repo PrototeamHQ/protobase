@@ -440,7 +440,7 @@ export type SearchesOfModel = {
   resource: string
   /** The text field holding the search's filter, as the list's address has it. */
   filter: string
-  /** The text field a new search is named in, from its filters; the view's title shows it. */
+  /** The text field holding the name the user gives a search, if any; without one, the search's filters are its title. */
   name?: string
   /** Enum and boolean fields changed in place on each search, such as how often to hear of new records. */
   controls?: string[]
