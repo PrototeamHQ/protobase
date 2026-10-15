@@ -1,7 +1,7 @@
 import { useCallback, useMemo } from 'react'
+import { readSignInAddress, signInPath, type SignInStep } from '@protobase/schema'
 import { useRouter } from '../app/router'
 import { withoutSignInLink } from './provider-link'
-import { readSignInAddress, signInPath, type SignInStep } from './sign-in-address'
 
 /**
  * The sign-in route as logical values, and the ways to move along it: `address` is the step it shows, or `undefined` on

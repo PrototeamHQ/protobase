@@ -2,17 +2,28 @@
 export const signInRoute = '/-/sign-in'
 
 /** The names of the sign-in route's query parameters: the step it shows, and the page to come back to after it. */
-export const signInParams = { step: 'step', next: 'next' } as const
+export const signInParams = {
+  /** The step the route shows, when it is not the first. */
+  step: 'step',
+  /** The page below the base path to come back to after signing in. */
+  next: 'next',
+} as const
 
 /**
  * A step of signing in or making an account, each with an address of its own: Back from a step returns to the one
  * before. `email-code` and `sign-up-code` enter the code emailed to an address the step before asked for.
  */
 export const signInSteps = ['sign-in', 'forgot-password', 'email-code', 'sign-up', 'sign-up-code'] as const
+/** A step of the sign-in route: one of `signInSteps`. */
 export type SignInStep = (typeof signInSteps)[number]
 
 /** Where the sign-in route is: its step, and the page below the base path to come back to, when it names one. */
-export type SignInAddress = { step: SignInStep; next?: string }
+export type SignInAddress = {
+  /** The step the route shows. */
+  step: SignInStep
+  /** The page below the base path to come back to, when it names one. */
+  next?: string
+}
 
 const isStep = (value: string | null): value is SignInStep => signInSteps.includes(value as SignInStep)
 
