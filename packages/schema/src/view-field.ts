@@ -27,6 +27,14 @@ export class FieldView<N extends string = string, V = unknown> {
     return this.with({ format })
   }
 
+  /**
+   * A text of several lines, such as a description: forms edit it in a box that grows with the text, and the record
+   * page and cards keep its line breaks. Only a text field takes it.
+   */
+  multiline() {
+    return this.with({ multiline: true })
+  }
+
   /** Text before a number wherever it is shown, such as a currency: `.prefix('€')`. */
   prefix(prefix: string) {
     return this.with({ prefix })
