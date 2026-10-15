@@ -125,7 +125,7 @@ Off by default: accounts come from the host, an admin, an [invitation](#organiza
 createAuth({ ..., roles: ['admin', 'member'], signUp: { role: 'member' } })
 ```
 
-The sign-in page then offers "Create an account", and so do [sign-in prompts](/reference/ui-config/#sign-in-prompts): the person enters their address, gets a 6-digit code, and enters it with their name and a password. The account is made only then, with the address verified, and signed in.
+The sign-in page then offers "Create an account", and so do [sign-in prompts](/reference/ui-config/#sign-in-prompts): the person enters their address, gets a 6-digit code, and enters it on a page of its own. Only once the code is right does the next page ask for their name and a password. The account is made only then, with the address verified, and signed in.
 
 - `role` is one of `roles`, and never `admin`: `createAuth` stops with an error otherwise. Give it the least a stranger may hold; a request that names another role, or sets `role` through Better Auth's own endpoints, does not get it.
 - It needs mail: without a mailer it is not offered, `GET /api/auth/status` has no `signUp`, and its endpoints answer `404`. Not with [organizations](#organizations), whose people join by invitation.

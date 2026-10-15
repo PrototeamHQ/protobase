@@ -25,7 +25,7 @@ Sign in with one of the seeded accounts, all with the password `property-portal-
 | `bram@portal.example` | a member renting in Madrid, in the daily digest, and near Barcelona, without email |
 | `admin@portal.example` | runs the catalogue: places, agencies and listings, drafts included |
 
-Anyone can also make their own account: **Create an account** on the sign-in page, or on a sign-in prompt, emails a code to the address, and the code with a name and a password makes a member ([Open sign-up](https://docs.protobase.net/reference/auth/#open-sign-up), turned on in `auth/accounts.ts`). It needs mail, `PROTOBASE_SMTP_URL` and `PROTOBASE_MAIL_FROM` in `.env`, with a mail catcher such as Mailpit in development; without them it is not offered.
+Anyone can also make their own account: **Create an account** on the sign-in page, or on a sign-in prompt, emails a code to the address; once the code is right, a name and a password make a member ([Open sign-up](https://docs.protobase.net/reference/auth/#open-sign-up), turned on in `auth/accounts.ts`). It needs mail, `PROTOBASE_SMTP_URL` and `PROTOBASE_MAIL_FROM` in `.env`, with a mail catcher such as Mailpit in development; without them it is not offered.
 
 Other scripts: `db:reset` (drop, migrate, seed small), `typecheck`, `serve` (`protobase build`, then `protobase serve dist` on port 8787). More accounts: `bun run --cwd examples/property-portal protobase users create you@example.com --generate-password` makes a member; `--role admin` an admin. The database tests are the repository's `bun run test:integration`.
 

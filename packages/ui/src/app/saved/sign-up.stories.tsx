@@ -68,15 +68,24 @@ const code = '246810'
 const openSignUp = () => {
   const base = createStaticSession('story-token', { id: 'story', email: 'story@example.test', name: 'Story', role: 'member' })
   const mailed = new Set<string>()
+  const tickets = new Map<string, string>()
   let user: AuthUser | undefined
   const session: AuthSession = {
     ...base,
     status: async () => ({ ...(await base.status()), signInMethods: ['password', 'emailCode'], anonymous: true, signUp: true }),
     session: async () => user,
     sendSignUpCode: async (email) => void mailed.add(email),
+    verifySignUpCode: async (email, given) => {
+      if (!mailed.has(email) || given !== code) throw new AuthError('The code is not right, or has expired. Ask for a new one.', 400, 'SIGN_UP_CODE_INVALID')
+      const ticket = `ticket-${tickets.size}`
+      tickets.set(ticket, email)
+      return ticket
+    },
     signUp: async (input) => {
-      if (!mailed.has(input.email) || input.code !== code) throw new AuthError('The code is not right, or has expired. Ask for a new one.', 400, 'SIGN_UP_CODE_INVALID')
-      user = { id: 'new-member', email: input.email, name: input.name, role: 'member' }
+      const email = tickets.get(input.ticket)
+      if (!email) throw new AuthError('This sign-up took too long. Start again with your email address.', 400, 'SIGN_UP_TICKET_INVALID')
+      tickets.delete(input.ticket)
+      user = { id: 'new-member', email, name: input.name, role: 'member' }
       return user
     },
   }
@@ -111,19 +120,24 @@ export const FromAHeart: StoryObj = {
     expect(within(dialog).getByRole('button', { name: 'Sign in' })).toBeVisible()
     await userEvent.click(within(dialog).getByRole('button', { name: 'Create an account' }))
 
-    // The address first, then the code mailed to it with a name and a password
+    // The address first, then the code mailed to it on its own: a whole code checks itself
     expect(await canvas.findByRole('heading', { name: 'Create an account' })).toBeVisible()
     await userEvent.type(canvas.getByLabelText('Email'), 'nia@homes.example')
     await userEvent.click(canvas.getByRole('button', { name: 'Email me a code' }))
     expect(await canvas.findByRole('heading', { name: 'Check your email' })).toBeVisible()
     expect(canvas.getByText('nia@homes.example')).toBeVisible()
+    expect(canvas.queryByLabelText('Your name')).toBeNull()
     await userEvent.type(canvas.getByLabelText('Code'), '000000')
-    await userEvent.type(canvas.getByLabelText('Your name'), 'Nia')
-    await userEvent.type(canvas.getByLabelText('Password (optional)'), 'correct horse battery')
-    await userEvent.click(canvas.getByRole('button', { name: 'Create account' }))
     expect(await canvas.findByRole('alert')).toHaveTextContent('The code is not right, or has expired.')
     await userEvent.clear(canvas.getByLabelText('Code'))
     await userEvent.type(canvas.getByLabelText('Code'), code)
+
+    // Then the name and a password, for the address the code proved
+    expect(await canvas.findByRole('heading', { name: 'Your details' })).toBeVisible()
+    expect(canvas.getByText('nia@homes.example')).toBeVisible()
+    expect(canvas.queryByLabelText('Code')).toBeNull()
+    await userEvent.type(canvas.getByLabelText('Your name'), 'Nia')
+    await userEvent.type(canvas.getByLabelText('Password (optional)'), 'correct horse battery')
     await userEvent.click(canvas.getByRole('button', { name: 'Create account' }))
 
     // Signed in as the new member: their own favorites, empty, instead of the prompt

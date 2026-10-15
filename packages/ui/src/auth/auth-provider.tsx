@@ -33,8 +33,10 @@ export type AuthApi = {
   signInWithCode: (email: string, code: string) => Promise<void>
   /** Open sign-up: emails a code for making an account with the address. */
   sendSignUpCode: (email: string) => Promise<void>
-  /** Makes the account with the emailed code and signs in with it. */
-  signUp: (input: { email: string; code: string; name: string; password?: string }) => Promise<void>
+  /** Checks the emailed sign-up code on its own; resolves with the ticket that makes the account with `signUp`. */
+  verifySignUpCode: (email: string, code: string) => Promise<string>
+  /** Makes the account for the address whose code was right, with the ticket that answered it, and signs in with it. */
+  signUp: (input: { ticket: string; name: string; password?: string }) => Promise<void>
   /** With a passkey of the app's passkey domain, or of `domain`, one of `passkeyDomains`. */
   signInWithPasskey: (domain?: string) => Promise<void>
   /** The second step, while `state` is `two-factor`. */
@@ -147,6 +149,7 @@ export const AuthProvider = ({ session: given, children }: { session?: AuthSessi
       sendSignInCode: (email) => session.sendSignInCode(email),
       signInWithCode: async (email, code) => finish(await session.signInWithCode(email, code)),
       sendSignUpCode: (email) => session.sendSignUpCode(email),
+      verifySignUpCode: (email, code) => session.verifySignUpCode(email, code),
       signUp: async (input) => enter(await session.signUp(input)),
       signInWithPasskey: async (domain) => enter(await session.signInWithPasskey(domain)),
       verifyTwoFactor: async (input) => enter(await session.verifyTwoFactor(input)),

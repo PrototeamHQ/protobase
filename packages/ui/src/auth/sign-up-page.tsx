@@ -2,16 +2,21 @@ import { useState } from 'react'
 import { AuthError } from '@protobase/client'
 import { authMessage } from './auth-messages'
 import { useAuth } from './auth-provider'
+import { SignUpCodeForm } from './sign-up-code-form'
 import { SignUpDetailsForm } from './sign-up-details-form'
 import { SignUpEmailForm } from './sign-up-email-form'
 
 export type SignUpPageProps = {
   workspace?: string
-  /** The address the code went to: the step that makes the account. Without it, the step that asks for the address. */
+  /** The address the code went to: the step that checks the code. Without it, the step that asks for the address. */
   email?: string
-  /** A code was emailed to `email`: the step that makes the account is next. */
+  /** What the right code for `email` was traded for: the step that asks for the name and password, and makes the account. */
+  ticket?: string
+  /** A code was emailed to `email`: the step that checks it is next. */
   onCodeSent: (email: string) => void
-  /** From the step that makes the account back to the one that asks for the address. */
+  /** The code was right: the step that makes the account with `ticket` is next. */
+  onVerified: (ticket: string) => void
+  /** From a later step back to the one that asks for the address. */
   onBack: () => void
   onSignIn: () => void
   /** Back to browsing, when the server lets visitors browse without signing in. */
@@ -19,11 +24,12 @@ export type SignUpPageProps = {
 }
 
 /**
- * Makes an account on a server with open sign-up: the address, then the code emailed to it with the person's name and
- * password. The new account is signed in, and sets up what the sign-in policy requires as after any sign-in.
+ * Makes an account on a server with open sign-up: the address, then the code emailed to it on its own, then the
+ * person's name and password. The new account is signed in, and sets up what the sign-in policy requires as after any
+ * sign-in.
  */
-export const SignUpPage = ({ workspace, email, onCodeSent, onBack, onSignIn, onBrowse }: SignUpPageProps) => {
-  const { signInMethods, sendSignUpCode, signUp } = useAuth()
+export const SignUpPage = ({ workspace, email, ticket, onCodeSent, onVerified, onBack, onSignIn, onBrowse }: SignUpPageProps) => {
+  const { signInMethods, sendSignUpCode, verifySignUpCode, signUp } = useAuth()
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string>()
   const [notice, setNotice] = useState<string>()
@@ -56,19 +62,30 @@ export const SignUpPage = ({ workspace, email, onCodeSent, onBack, onSignIn, onB
       />
     )
   }
+  if (ticket === undefined) {
+    return (
+      <SignUpCodeForm
+        email={email}
+        busy={busy}
+        error={error}
+        notice={notice}
+        onBack={onBack}
+        onSubmit={(code) => void attempt(async () => onVerified(await verifySignUpCode(email, code)))}
+        onResend={() => void attempt(async () => {
+          await sendSignUpCode(email)
+          setNotice('A new code is on its way. Only the newest one works.')
+        })}
+      />
+    )
+  }
   return (
     <SignUpDetailsForm
       email={email}
       methods={signInMethods}
       busy={busy}
       error={error}
-      notice={notice}
       onBack={onBack}
-      onResend={() => void attempt(async () => {
-        await sendSignUpCode(email)
-        setNotice('A new code is on its way. Only the newest one works.')
-      })}
-      onSubmit={(details) => void attempt(() => signUp({ email, ...details }))}
+      onSubmit={(details) => void attempt(() => signUp({ ticket, ...details }))}
     />
   )
 }

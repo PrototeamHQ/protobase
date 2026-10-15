@@ -11,9 +11,10 @@ export const signInParams = {
 
 /**
  * A step of signing in or making an account, each with an address of its own: Back from a step returns to the one
- * before. `email-code` and `sign-up-code` enter the code emailed to an address the step before asked for.
+ * before. `email-code` and `sign-up-code` enter the code emailed to an address the step before asked for, and
+ * `sign-up-details` asks for the name and password once that code was right.
  */
-export const signInSteps = ['sign-in', 'forgot-password', 'email-code', 'sign-up', 'sign-up-code'] as const
+export const signInSteps = ['sign-in', 'forgot-password', 'email-code', 'sign-up', 'sign-up-code', 'sign-up-details'] as const
 /** A step of the sign-in route: one of `signInSteps`. */
 export type SignInStep = (typeof signInSteps)[number]
 
