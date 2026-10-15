@@ -1,7 +1,4 @@
-import { useState } from 'react'
-import { Button } from '../primitives/button'
-import { AuthLayout } from './auth-layout'
-import { CodeInput } from './code-input'
+import { CodeForm } from './code-form'
 
 export type EmailCodeFormProps = {
   /** The address the code went to. */
@@ -15,49 +12,23 @@ export type EmailCodeFormProps = {
   error?: string
   /** Shown once a new code is on its way. */
   notice?: string
+  /** Seconds before "Send a new code" works; 30 by default. */
+  resendCooldown?: number
 }
 
 /** The second half of signing in with an emailed code: the code from the email. */
-export const EmailCodeForm = ({ email, onSubmit, onResend, onBack, busy, error, notice }: EmailCodeFormProps) => {
-  const [code, setCode] = useState('')
-  return (
-    <AuthLayout title="Check your email" description="Enter the code we sent to sign in.">
-      <p className="mb-4 text-[13px] text-muted-foreground">
+export const EmailCodeForm = ({ email, onBack, ...rest }: EmailCodeFormProps) => (
+  <CodeForm
+    title="Check your email"
+    description="Enter the code we sent to sign in."
+    explanation={
+      <>
         If <span className="font-medium text-foreground">{email}</span> has an account, a 6-digit code is on its way. It works for 5 minutes, once.
-      </p>
-      {notice && (
-        <p role="status" className="mb-4 rounded-md bg-success-soft px-3 py-2 text-xs font-medium text-success-text">
-          {notice}
-        </p>
-      )}
-      <form
-        className="flex flex-col gap-4"
-        onSubmit={(event) => {
-          event.preventDefault()
-          onSubmit(code.trim())
-        }}
-      >
-        <label className="flex flex-col gap-1.5 text-[13px] font-medium">
-          Code
-          <CodeInput name="code" required autoFocus value={code} invalid={Boolean(error)} onChange={(event) => setCode(event.target.value)} />
-        </label>
-        {error && (
-          <p role="alert" className="text-xs font-medium text-danger-text">
-            {error}
-          </p>
-        )}
-        <Button variant="primary" type="submit" loading={busy} className="min-h-10">
-          Sign in
-        </Button>
-        <div className="flex justify-between gap-2">
-          <Button variant="ghost" onClick={onBack} className="min-h-10">
-            Back to sign in
-          </Button>
-          <Button variant="ghost" onClick={onResend} disabled={busy} className="min-h-10">
-            Send a new code
-          </Button>
-        </div>
-      </form>
-    </AuthLayout>
-  )
-}
+      </>
+    }
+    submitLabel="Sign in"
+    onChangeAddress={onBack}
+    changeAddressLabel="Back to sign in"
+    {...rest}
+  />
+)

@@ -156,18 +156,23 @@ export const SignInWithoutPasswords: StoryObj<SignInFormProps> = {
   },
 }
 
+/** A whole code signs in by itself; "Sign in" sends it again, and a new code can be asked for once the wait is over. */
 export const EmailCode: StoryObj<EmailCodeFormProps> = {
   tags: ['play'],
-  args: { email: 'sanne@veldhuis-supply.example', onSubmit: fn(), onResend: fn(), onBack: fn() },
+  args: { email: 'sanne@veldhuis-supply.example', onSubmit: fn(), onResend: fn(), onBack: fn(), resendCooldown: 0 },
   render: (args) => <EmailCodeForm {...args} />,
   play: async ({ canvasElement, args }) => {
     const canvas = within(canvasElement)
     expect(canvas.getByText('sanne@veldhuis-supply.example')).toBeVisible()
     await userEvent.type(canvas.getByLabelText('Code'), '482913')
-    await userEvent.click(canvas.getByRole('button', { name: 'Sign in' }))
+    expect(args.onSubmit).toHaveBeenCalledOnce()
     expect(args.onSubmit).toHaveBeenCalledWith('482913')
+    await userEvent.click(canvas.getByRole('button', { name: 'Sign in' }))
+    expect(args.onSubmit).toHaveBeenCalledTimes(2)
     await userEvent.click(canvas.getByRole('button', { name: 'Send a new code' }))
     expect(args.onResend).toHaveBeenCalledOnce()
+    await userEvent.click(canvas.getByRole('button', { name: 'Back to sign in' }))
+    expect(args.onBack).toHaveBeenCalledOnce()
   },
 }
 

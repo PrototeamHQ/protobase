@@ -78,8 +78,8 @@ export const TwoFactorOff: StoryObj<TwoFactorSectionProps> = {
     await userEvent.type(canvas.getByLabelText('Your password'), 'correct horse battery')
     await userEvent.click(canvas.getByRole('button', { name: 'Continue' }))
     expect(args.onStartApp).toHaveBeenCalledWith('correct horse battery')
+    // A whole code turns it on by itself.
     await userEvent.type(await canvas.findByLabelText('Code from the app'), '123456')
-    await userEvent.click(canvas.getByRole('button', { name: 'Turn on' }))
     expect(args.onConfirmApp).toHaveBeenCalledWith('123456')
     expect(await canvas.findByText('k3PqZ-9vTzA')).toBeVisible()
     await userEvent.click(canvas.getByRole('button', { name: 'I saved my backup codes' }))

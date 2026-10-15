@@ -1,10 +1,10 @@
 import { useState } from 'react'
 import { AuthError, type AuthenticatorSetup } from '@protobase/client'
 import { authMessage } from '../auth/auth-messages'
-import { CodeInput } from '../auth/code-input'
 import { cn } from '../lib/cn'
 import { Button } from '../primitives/button'
 import { Input } from '../primitives/input'
+import { OtpInput } from '../primitives/otp-input'
 import { BackupCodes } from './backup-codes'
 import { TotpQr, totpKey } from './totp-qr'
 
@@ -62,9 +62,9 @@ export const TwoFactorSetup = ({ offerEmailedCodes, needsPassword, onStartApp, o
       setStep({ kind: 'scan', setup: await onStartApp(given) })
     })
 
-  const confirm = (setup: AuthenticatorSetup) =>
+  const confirm = (setup: AuthenticatorSetup, entered = code) =>
     attempt(async () => {
-      await onConfirmApp(code.trim())
+      await onConfirmApp(entered)
       setStep({ kind: 'backup-codes', codes: setup.backupCodes })
     })
 
@@ -105,7 +105,7 @@ export const TwoFactorSetup = ({ offerEmailedCodes, needsPassword, onStartApp, o
         </div>
         <label className="flex flex-col gap-1.5 text-[13px] font-medium">
           Code from the app
-          <CodeInput name="code" required autoFocus value={code} invalid={Boolean(error)} onChange={(event) => setCode(event.target.value)} />
+          <OtpInput name="code" required autoFocus value={code} invalid={Boolean(error)} onChange={setCode} onComplete={(complete) => !busy && void confirm(step.setup, complete)} />
         </label>
         {errorLine}
         <Button variant="primary" type="submit" loading={busy} className="min-h-10">
