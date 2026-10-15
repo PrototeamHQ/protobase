@@ -7,6 +7,7 @@ export { readSignInAddress, signInParams, signInPath, signInRoute, signInSteps, 
 export { useSignInAddress } from './use-sign-in-address'
 export { SignUpEmailForm, type SignUpEmailFormProps } from './sign-up-email-form'
 export { SignUpDetailsForm, type SignUpDetails, type SignUpDetailsFormProps } from './sign-up-details-form'
+export { CodeForm, type CodeFormProps } from './code-form'
 export { authMessage, signInMessage, staffSignInMessage } from './auth-messages'
 export { EmailCodeForm, type EmailCodeFormProps } from './email-code-form'
 export { TwoFactorForm, type TwoFactorFormProps, type TwoFactorStep } from './two-factor-form'

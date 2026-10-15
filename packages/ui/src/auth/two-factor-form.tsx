@@ -3,8 +3,8 @@ import type { TwoFactorMethod } from '@protobase/client'
 import { Button } from '../primitives/button'
 import { Checkbox } from '../primitives/checkbox'
 import { Input } from '../primitives/input'
+import { OtpInput } from '../primitives/otp-input'
 import { AuthLayout } from './auth-layout'
-import { CodeInput } from './code-input'
 
 export type TwoFactorStep = TwoFactorMethod | 'backup'
 
@@ -71,7 +71,7 @@ export const TwoFactorForm = ({ methods, onVerify, onSendCode, onBack, busy, err
             {step === 'backup' ? (
               <Input name="code" autoComplete="off" spellCheck={false} required autoFocus value={code} invalid={Boolean(error)} onChange={(event) => setCode(event.target.value)} className="min-h-6 font-mono" />
             ) : (
-              <CodeInput name="code" required autoFocus value={code} invalid={Boolean(error)} onChange={(event) => setCode(event.target.value)} />
+              <OtpInput name="code" required autoFocus value={code} invalid={Boolean(error)} onChange={setCode} />
             )}
           </label>
           <label className="flex items-center gap-2 text-[13px] text-muted-foreground">
