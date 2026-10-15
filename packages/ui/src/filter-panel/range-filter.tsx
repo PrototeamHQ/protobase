@@ -1,15 +1,30 @@
+import { useEffect, useState } from 'react'
 import { cn } from '../lib/cn'
+import { useDebounced } from '../lib/use-debounced'
 import type { RangeConfig } from './filter-config'
 import { barInRange, fraction, moveThumb } from './range-math'
 import './range-slider.css'
 
 export type RangeFilterProps = { config: RangeConfig; value?: [number, number]; onChange: (value: [number, number] | undefined) => void }
 
+/** How long a thumb rests, mid-drag or between arrow keys, before the list filters on it. */
+export const rangeSettleMs = 1000
+
 export const RangeFilter = ({ config, value, onChange }: RangeFilterProps) => {
   const { min, max, step, histogram, format } = config
-  const selected = value ?? [min, max]
+  // The thumbs follow a drag as it happens; the list filters once they are let go of or rest, so it does not reflow under the pointer
+  const [draft, setDraft] = useState<[number, number]>()
+  const selected = draft ?? value ?? [min, max]
   const peak = Math.max(...histogram)
-  const commit = (next: [number, number]) => onChange(next[0] === min && next[1] === max ? undefined : next)
+  const commit = () => {
+    if (!draft) return
+    setDraft(undefined)
+    onChange(draft[0] === min && draft[1] === max ? undefined : draft)
+  }
+  const rested = useDebounced(draft, rangeSettleMs)
+  useEffect(() => {
+    if (rested) commit()
+  }, [rested])
 
   return (
     <div className="w-full">
@@ -44,7 +59,10 @@ export const RangeFilter = ({ config, value, onChange }: RangeFilterProps) => {
             max={max}
             step={step}
             value={selected[thumb]}
-            onChange={(event) => commit(moveThumb(selected, thumb, Number(event.target.value)))}
+            onChange={(event) => setDraft(moveThumb(selected, thumb, Number(event.target.value)))}
+            onPointerUp={commit}
+            onTouchEnd={commit}
+            onBlur={commit}
           />
         ))}
       </div>

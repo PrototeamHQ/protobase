@@ -66,7 +66,7 @@ An enum's value labels show everywhere the admin shows its values: badges, selec
 | --- | --- |
 | `w.facets(r.status, { search? })` | A menu of the field's values with counts; `search` adds a search box for long lists. On a relation it is a dropdown that searches the referenced records as you type and holds several of them; on a number field, a range slider. |
 | `w.dateRange(r.booked_on, { presets? })` | Buttons for `today`, `yesterday`, `7d`, `30d`, `90d`, `month`, `quarter`, `year`. |
-| `w.range(r.estimate, { histogram? })` | A slider between the lowest and highest value; `histogram` draws the values' histogram behind it. |
+| `w.range(r.estimate, { histogram? })` | A slider between the lowest and highest value; `histogram` draws the values' histogram behind it. The list filters when a thumb is let go of, or has rested a second. |
 | `w.toggle(r.paid)` | A switch for a boolean field. |
 | `w.flags([r.for_sale, r.for_rent], { label })` | A menu of boolean fields under one label, with how many records have each: a record shows when any chosen field is true, so one that is both shows under each. |
 

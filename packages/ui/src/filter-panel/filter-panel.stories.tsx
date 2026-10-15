@@ -1,8 +1,9 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
-import { expect, fireEvent, userEvent, within } from 'storybook/test'
+import { expect, fireEvent, userEvent, waitFor, within } from 'storybook/test'
 import { FilterPanel } from './filter-panel'
 import { listingFilters } from './listing-filters'
 import { ordersFilters } from './orders-filters'
+import { rangeSettleMs } from './range-filter'
 import { stockMoveFilters } from './stock-move-filters'
 
 const activeOrders = {
@@ -34,6 +35,9 @@ export const BarWithOpenMenu: Story = { args: { layout: 'bar', defaultOpenMenu: 
 export const LockedChip: Story = { args: { layout: 'bar', lockedLabels: ['Showing your orders only'] }, parameters: { layout: 'padded' } }
 
 export const StockMoves: Story = { args: { config: stockMoveFilters, defaultValue: { facets: { kind: ['issue'] }, toggles: [] } } }
+
+/** React renders an event's update after the event, as a browser does between a slider's input and its release. */
+const nextTask = () => new Promise((resolve) => setTimeout(resolve))
 
 const chipLabels = (root: HTMLElement) => within(root).queryAllByRole('button', { name: /^Remove .+: / }).map((button) => button.getAttribute('aria-label'))
 
@@ -71,8 +75,50 @@ export const SeveralRanges: Story = {
     expect(canvas.getAllByRole('slider').map((slider) => slider.getAttribute('aria-label'))).toEqual([
       'Price minimum', 'Price maximum', 'Living area (m²) minimum', 'Living area (m²) maximum', 'Bedrooms minimum', 'Bedrooms maximum',
     ])
-    fireEvent.change(canvas.getByRole('slider', { name: 'Bedrooms minimum' }), { target: { value: '2' } })
+    const bedrooms = canvas.getByRole('slider', { name: 'Bedrooms minimum' })
+    fireEvent.change(bedrooms, { target: { value: '2' } })
+    await nextTask()
+    fireEvent.pointerUp(bedrooms)
+    await nextTask()
     expect(chipLabels(canvasElement)).toEqual(['Remove Bedrooms: 2 – 6'])
+  },
+}
+
+/** A dragged thumb and its label move at once, but the list filters only when it is let go of, or rests a second. */
+export const RangeAppliesOnRelease: Story = {
+  args: { config: listingFilters },
+  tags: ['play'],
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    const bedrooms = canvas.getByRole('slider', { name: 'Bedrooms minimum' })
+    fireEvent.pointerDown(bedrooms)
+    fireEvent.change(bedrooms, { target: { value: '2' } })
+    await nextTask()
+    fireEvent.change(bedrooms, { target: { value: '3' } })
+    await nextTask()
+    expect(bedrooms).toHaveValue('3')
+    expect(chipLabels(canvasElement)).toEqual([])
+    fireEvent.pointerUp(bedrooms)
+    await nextTask()
+    expect(chipLabels(canvasElement)).toEqual(['Remove Bedrooms: 3 – 6'])
+
+    const living = canvas.getByRole('slider', { name: 'Living area (m²) minimum' })
+    fireEvent.pointerDown(living)
+    fireEvent.change(living, { target: { value: '99' } })
+    await nextTask()
+    expect(chipLabels(canvasElement)).toEqual(['Remove Bedrooms: 3 – 6'])
+    await waitFor(() => expect(chipLabels(canvasElement)).toHaveLength(2), { timeout: rangeSettleMs * 2 })
+    fireEvent.pointerUp(living)
+
+    const maximum = canvas.getByRole('slider', { name: 'Bedrooms maximum' })
+    // An arrow key moves a slider by its browser's default action, which a synthetic key press does not run
+    maximum.focus()
+    fireEvent.keyDown(maximum, { key: 'ArrowLeft' })
+    fireEvent.change(maximum, { target: { value: '5' } })
+    fireEvent.keyUp(maximum, { key: 'ArrowLeft' })
+    await nextTask()
+    expect(chipLabels(canvasElement)).toHaveLength(2)
+    await waitFor(() => expect(chipLabels(canvasElement)).toContain('Remove Bedrooms: 3 – 5'), { timeout: rangeSettleMs * 2 })
   },
 }
 
