@@ -3,15 +3,16 @@ name: ci
 on:
   pull_request:
   push:
-    branches: [production]
+    # fm/** are the task branches that workers push to have the checks run on CHECK_RUNNER's runner.
+    branches: [production, 'fm/**']
   # The release workflow runs these checks before it releases.
   workflow_call:
 
 jobs:
   check:
-    # Pushes to main run on the runner the CHECK_RUNNER variable names, when it is set; pull requests, which forks can
-    # open, always run on GitHub's runners. See CONTRIBUTING.md.
-    runs-on: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.CHECK_RUNNER || 'ubuntu-latest' }}
+    # Pushes to main and to fm/** branches run on the runner the CHECK_RUNNER variable names, when it is set; pull
+    # requests, which forks can open, always run on GitHub's runners. See CONTRIBUTING.md.
+    runs-on: ${{ github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/fm/')) && vars.CHECK_RUNNER || 'ubuntu-latest' }}
     # The integration tests' Postgres, as docker-compose.yml runs it locally: same image, user and port.
     services:
       postgres:

@@ -37,8 +37,8 @@ Every push to `main` with a fix, feature or breaking change is released by `.git
 
 ## The check job's runner
 
-Pull requests run the checks on GitHub's runners. Pushes to `main`, which the release workflow checks, run them on the runner that the repository variable `CHECK_RUNNER` names, or on GitHub's when it is unset. The self-hosted runner `hetzner` runs on the Hetzner server as the `gh-runner` user, with the Postgres service in rootless Podman, and its job-started hook (`/home/gh-runner/hooks/job-started.sh`) refuses any job that is not a push to `main`.
+Pull requests run the checks on GitHub's runners. Pushes to `main`, which the release workflow checks, and pushes to `fm/**` task branches run them on the runner that the repository variable `CHECK_RUNNER` names, or on GitHub's when it is unset. To have a branch's checks run there, push it as `fm/<task>` and wait for that commit's `ci` run. The self-hosted runner `hetzner` runs on the Hetzner server as the `gh-runner` user, with the Postgres service in rootless Podman, and its job-started hook (`/home/gh-runner/hooks/job-started.sh`) refuses any job that is not a push to `main` or `fm/*`. It runs one job at a time, so pushes queue, and its jobs run at a low CPU and IO priority (drop-ins in `/etc/systemd/system/actions.runner.PrototeamHQ-protobase.hetzner.service.d/` and `user-1003.slice.d/`) so they do not slow the server's other services.
 
 - Use it: `gh variable set CHECK_RUNNER --body hetzner`
 - Go back to GitHub's runners: `gh variable delete CHECK_RUNNER`; no commit is needed either way.
-- Stop it, on the server: `systemctl disable --now actions.runner.PrototeamHQ-protobase.hetzner`. Delete the variable first, since pushes to `main` wait for a runner that is offline.
+- Stop it, on the server: `systemctl disable --now actions.runner.PrototeamHQ-protobase.hetzner`. Delete the variable first, since pushes to `main` and `fm/**` wait for a runner that is offline.
