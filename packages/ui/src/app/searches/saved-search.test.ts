@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { f, resource, view } from '@protobase/schema'
-import { chosenRelations, filterChips, searchName, unseenFilter } from './saved-search'
+import { chosenRelations, filterChips, unseenFilter } from './saved-search'
 
 const listings = resource('listings')
   .table('listings')
@@ -34,10 +34,6 @@ describe('filterChips', () => {
   it('shows a value it has no name for as it is, and a condition no widget holds as written', () => {
     expect(filterChips(model, listingsView, 'place_id = 3 AND address = "Keizersgracht"').map((chip) => chip.label)).toEqual(['Place: 3', 'address = "Keizersgracht"'])
     expect(filterChips(model, listingsView, 'place_id = ')).toEqual([{ key: 'unreadable', label: 'A filter that cannot be read' }])
-  })
-
-  it('names a new search after its chips', () => {
-    expect(searchName(filterChips(model, listingsView, 'for_rent = true AND garden = true'))).toBe('Offer: For rent, Garden')
   })
 })
 

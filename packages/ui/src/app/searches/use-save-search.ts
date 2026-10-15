@@ -17,11 +17,11 @@ const message = (error: unknown) => (error instanceof Error ? error.message : 'S
 /**
  * A list page's "Save search" button for its `filter`: `save` for someone who can list, create and delete the saved
  * searches, `sign-in` for a visitor their resource asks to sign in (`prompt`), nothing otherwise. `saved` while a search
- * has the filter, and a press takes it off again; otherwise a press saves the filter as a search named `name`. While the
- * list was opened from a saved search (`opened`) whose filter differs, `update` gives that search the list's filter, and
- * `saveNew` saves it as another.
+ * has the filter, and `remove` takes it off again; otherwise `saveNew` saves the filter as a search, with the name the
+ * user gave (`naming` says how to ask for it) or none. While the list was opened from a saved search (`opened`) whose
+ * filter differs, `update` gives that search the list's filter.
  */
-export const useSaveSearch = (search: SaveSearchModel, filter: string, name: string) => {
+export const useSaveSearch = (search: SaveSearchModel, filter: string) => {
   const meta = useAdminMeta()
   const client = useClient()
   const toast = useToast()
@@ -42,8 +42,9 @@ export const useSaveSearch = (search: SaveSearchModel, filter: string, name: str
   const names = meta.views[resource]?.names
   const plural = names?.plural ?? 'saved searches'
 
+  const nameField = of?.name === undefined ? undefined : model?.fields[of.name]
   const create = useMutation({
-    mutationFn: () => client.create(resource, { [of!.filter]: filter, ...(of!.name && { [of!.name]: name }) }),
+    mutationFn: (name: string | null) => client.create(resource, { [of!.filter]: filter, ...(of!.name && { [of!.name]: name }) }),
     onSuccess: (created) => {
       opened.open(keyOf(created.record))
       toast.show({ state: 'success', title: 'Search saved', action: { label: `Open ${plural.toLowerCase()}`, href: href({ kind: 'list', resource }), onNavigate: open } })
@@ -72,12 +73,14 @@ export const useSaveSearch = (search: SaveSearchModel, filter: string, name: str
     opened: edited && { filter: String(edited[of!.filter] ?? ''), name: of!.name && typeof edited[of!.name] === 'string' && edited[of!.name] !== '' ? String(edited[of!.name]) : undefined },
     /** What one search is called, as the saved searches' view names it. */
     noun: (names?.singular ?? humanize(resource)).toLowerCase(),
+    /** How to ask for a new search's name, from its field and view; none when searches have no name. */
+    naming: nameField && { label: meta.views[resource]?.fields[nameField.name]?.label ?? humanize(nameField.name), required: !nameField.nullable },
     // Until the saved searches are known, and while a press is on its way, another press would not know what to do
     ready: saved.data !== undefined && !pending,
     updating: update.isPending,
     creating: create.isPending,
-    toggle: () => (current ? remove.mutate(current) : create.mutate()),
-    saveNew: (options?: { onSuccess?: () => void }) => create.mutate(undefined, options),
+    remove: () => current && remove.mutate(current),
+    saveNew: (name: string | null, options?: { onSuccess?: () => void }) => create.mutate(name, options),
     update: (options?: { onSuccess?: () => void }) => edited && update.mutate(edited, options),
   }
 }

@@ -36,7 +36,7 @@ import { useAppAddress, type ListAddress } from './use-app-address'
 import { withFieldTypeCells } from './field-types/field-type-cells'
 import { useProjectUi } from './pages/project-ui'
 import { SavedList } from './saved/saved-list'
-import { facetNames, filterChips, searchName } from './searches/saved-search'
+import { facetNames, filterChips } from './searches/saved-search'
 import { SaveSearchButton } from './searches/save-search-button'
 import { SavedSearches } from './searches/saved-searches'
 import { SignInPrompt } from '../auth/sign-in-prompt'
@@ -165,9 +165,9 @@ const LoadedList = ({ model, address, scope, heading }: LoadedListProps) => {
       New {singular.toLowerCase()}
     </Button>
   )
-  // A filtered list can be saved as a search; the name is its filters as the chips read
+  // A filtered list can be saved as a search, which shows what it filters on as the chips read
   const saveSearch = view?.saveSearch && !scope && parsed.ok && filterText && (
-    <SaveSearchButton model={model} view={view} search={view.saveSearch} filter={filterText} name={searchName(filterChips(model, view, filterText, facetNames(config)))} />
+    <SaveSearchButton model={model} view={view} search={view.saveSearch} filter={filterText} chips={filterChips(model, view, filterText, facetNames(config))} />
   )
   const displaySwitch = (menu: boolean) => <DisplaySwitch view={view} value={display?.name ?? tableDisplay} onChange={(name) => set({ display: name })} menu={menu} />
 

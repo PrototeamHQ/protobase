@@ -7,8 +7,8 @@ export type AlertedListing = {
   purchasePrice: string | null
   rentPrice: string | null
   livingArea: number
-  /** The name of the saved search it fits. */
-  search: string
+  /** The name of the saved search it fits, `null` for one saved without a name. */
+  search: string | null
   url: string
 }
 
@@ -33,7 +33,7 @@ export const ListingBlock = ({ listing }: { listing: AlertedListing }) => (
     <Text style={{ margin: '4px 0' }}>
       {prices(listing)}, {listing.livingArea} m²
     </Text>
-    <Text style={{ margin: '4px 0', color: '#71717a' }}>Fits "{listing.search}"</Text>
+    <Text style={{ margin: '4px 0', color: '#71717a' }}>{listing.search === null ? 'Fits one of your searches' : `Fits "${listing.search}"`}</Text>
   </Section>
 )
 

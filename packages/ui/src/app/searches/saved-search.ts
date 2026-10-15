@@ -53,9 +53,6 @@ export const filterChips = (model: ResourceModel, view: ViewModel | undefined, t
 export const facetNames = (config: FilterConfig): ValueNames =>
   Object.fromEntries(config.facets.filter((group) => !group.flags).map((group) => [group.id, { ...group.labels, ...Object.fromEntries(group.options.map((option) => [option.value, option.label])) }]))
 
-/** The name a new search gets: its chips, one after the other. */
-export const searchName = (chips: readonly FilterChip[]) => chips.map((chip) => chip.label).join(', ')
-
 /**
  * The search's filter narrowed to the records new since the user last opened its results: those whose `field` is after
  * `seenAt`. Without a `seenAt` every record is new.

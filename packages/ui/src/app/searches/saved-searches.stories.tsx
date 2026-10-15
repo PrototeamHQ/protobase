@@ -32,7 +32,7 @@ const searches = resource('searches')
   .fields({
     id: f.integer().readOnly().sortable(),
     user_id: f.text().readOnly(),
-    name: f.text(),
+    name: f.text().optional(),
     filter: f.text(),
     email: f.enum(['instant', 'daily', 'none']),
     seen_at: f.timestamp(),
@@ -74,10 +74,10 @@ const homeRows = [
   { id: 5, address: 'Nobelstraat 21', rent: '1650.00', garden: false, published_at: '2026-09-15T09:00:00.000Z' },
 ]
 
-// Pip saved two searches: homes with a garden, last looked at on 1 October, and one named after its filters, looked at since the newest home.
+// Pip saved two searches: homes with a garden, last looked at on 1 October, and one without a name, looked at since the newest home.
 const searchRows = [
   { id: 1, user_id: 'pip', name: 'Gardens', filter: 'garden = true', email: 'daily', seen_at: '2026-10-01T09:00:00.000Z' },
-  { id: 2, user_id: 'pip', name: 'Rent: €1,000 /month – €2,000 /month', filter: 'rent >= 1000 AND rent <= 2000', email: 'instant', seen_at: '2026-10-12T09:00:00.000Z' },
+  { id: 2, user_id: 'pip', name: null, filter: 'rent >= 1000 AND rent <= 2000', email: 'instant', seen_at: '2026-10-12T09:00:00.000Z' },
 ]
 
 const readOnly: ResourcePermissions = { create: false, update: false, delete: false, conditional: [] }
@@ -131,7 +131,7 @@ export const MemberSearchesChecks: StoryObj = {
     expect(within(gardensSearch).queryByText('Lange Voorhout 3')).toBeNull()
     expect(within(gardensSearch).getByRole('combobox', { name: 'Email' })).toHaveValue('daily')
 
-    // A search named after its filters does not list them twice, and has nothing new
+    // A search without a name has its filters for a title, and has nothing new
     const rents = canvas.getByRole('region', { name: 'Rent: €1,000 /month – €2,000 /month' })
     expect(within(rents).queryByRole('list', { name: 'Filters' })).toBeNull()
     expect(await within(rents).findByText('No new homes since you last looked.')).toBeVisible()
@@ -155,10 +155,31 @@ export const MemberSaveChecks: StoryObj = {
     const canvas = within(canvasElement)
     const save = await canvas.findByRole('button', { name: 'Save search' })
     await waitFor(() => expect(save).toHaveAttribute('aria-pressed', 'false'))
+    // Saving asks for a name, which may be left empty, and shows what the search filters on
     await userEvent.click(save)
+    const dialog = await canvas.findByRole('dialog', { name: 'Save search' })
+    expect(within(dialog).getByRole('list', { name: 'Filters' })).toHaveTextContent('Rent: €1,500 /month – €2,500 /month')
+    await userEvent.type(within(dialog).getByRole('textbox', { name: 'Name' }), 'Mid-range')
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Save' }))
     await waitFor(() => expect(save).toHaveAttribute('aria-pressed', 'true'))
     await userEvent.click(canvas.getByRole('link', { name: 'Searches' }))
-    expect(await canvas.findByRole('region', { name: 'Rent: €1,500 /month – €2,500 /month' })).toBeVisible()
+    const saved = await canvas.findByRole('region', { name: 'Mid-range' })
+    expect(within(saved).getByRole('list', { name: 'Filters' })).toHaveTextContent('Rent: €1,500 /month – €2,500 /month')
+  },
+}
+
+export const MemberRenameChecks: StoryObj = {
+  ...MemberSearches,
+  name: 'Member: renaming a saved search (checks)',
+  tags: ['play', '!dev'],
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    await userEvent.click(await canvas.findByRole('button', { name: 'Rename Rent: €1,000 /month – €2,000 /month' }))
+    const dialog = await canvas.findByRole('dialog', { name: 'Rename Rent: €1,000 /month – €2,000 /month' })
+    await userEvent.type(within(dialog).getByRole('textbox', { name: 'Name' }), 'Affordable')
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Save' }))
+    const renamed = await canvas.findByRole('region', { name: 'Affordable' })
+    expect(within(renamed).getByRole('list', { name: 'Filters' })).toHaveTextContent('Rent: €1,000 /month – €2,000 /month')
   },
 }
 
@@ -218,6 +239,8 @@ export const MemberSaveAsNewChecks: StoryObj = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
     await userEvent.click(await canvas.findByRole('button', { name: 'Save as new search' }))
+    const dialog = await canvas.findByRole('dialog', { name: 'Save as new search' })
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Save' }))
     await waitFor(() => expect(canvas.getByRole('button', { name: 'Save search' })).toHaveAttribute('aria-pressed', 'true'))
     await userEvent.click(canvas.getByRole('link', { name: 'Searches' }))
     expect(await canvas.findByRole('region', { name: 'Gardens' })).toBeVisible()

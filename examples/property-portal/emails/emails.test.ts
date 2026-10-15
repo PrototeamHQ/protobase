@@ -18,6 +18,10 @@ describe('the instant alert', () => {
     expect(email.text).toContain(searchesUrl)
   })
 
+  it('says a search saved without a name is one of theirs', async () => {
+    expect((await instantAlert.render({ listings: [{ ...flat, search: null }], searchesUrl })).text).toContain('Fits one of your searches')
+  })
+
   it('counts the listings when several came at once', async () => {
     expect((await instantAlert.render({ listings: [flat, piso], searchesUrl })).subject).toBe('2 new homes fit your searches')
   })

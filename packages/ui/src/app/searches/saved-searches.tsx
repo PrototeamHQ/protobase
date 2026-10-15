@@ -2,7 +2,7 @@ import type { ReactNode } from 'react'
 import type { ResourceModel, ViewModel } from '@protobase/schema'
 import { encodeKey } from '@protobase/schema/internal'
 import { PageHeader } from '../../app-shell'
-import { recordKey, recordTitleField } from '../../live/model-helpers'
+import { recordKey } from '../../live/model-helpers'
 import { humanize } from '../../live/naming'
 import { Skeleton } from '../../primitives/skeleton'
 import { useDeleteFlow } from '../delete/use-delete-flow'
@@ -26,7 +26,6 @@ export const SavedSearches = ({ model, view }: { model: ResourceModel; view: Vie
   const permissions = usePermissions(model.name)
   const remove = useDeleteFlow({ model, view })
   const plural = view.names?.plural ?? humanize(model.name)
-  const titleField = recordTitleField(model, view)
 
   const frame = (body: ReactNode) => (
     <div className="flex min-h-0 flex-1 flex-col gap-3 px-5 py-4">
@@ -54,9 +53,8 @@ export const SavedSearches = ({ model, view }: { model: ResourceModel; view: Vie
     <div className="flex flex-col gap-4">
       {saved.data.map((row) => {
         const key = encodeKey(recordKey(model, row))
-        const title = String(row[titleField] ?? key)
-        const onDelete = can(permissions, 'delete') ? () => void remove.start({ key, title, etag: row.etag, snapshot: row }) : undefined
-        return <SavedSearchSection key={key} model={model} view={view} of={of} target={target} targetView={targetView} row={row} recordKey={key} title={title} onDelete={onDelete} />
+        const onDelete = can(permissions, 'delete') ? (title: string) => void remove.start({ key, title, etag: row.etag, snapshot: row }) : undefined
+        return <SavedSearchSection key={key} model={model} view={view} of={of} target={target} targetView={targetView} row={row} recordKey={key} canRename={can(permissions, 'update')} onDelete={onDelete} />
       })}
     </div>,
   )

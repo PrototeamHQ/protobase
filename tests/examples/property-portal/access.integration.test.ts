@@ -91,6 +91,10 @@ describe.skipIf(!seeded)('a member\'s own data through the API', () => {
       expect((await call('anna', '/saved_searches', { method: 'POST', body: { name: 'Again', filter } })).status).toBe(409)
       const changed = await call('anna', `/saved_searches/${saved.json.id}`, { method: 'PATCH', body: { alert_frequency: 'none', seen_at: '2026-10-12T09:00:00Z' } })
       expect(changed.json).toMatchObject({ alert_frequency: 'none', seen_at: '2026-10-12T09:00:00.000Z' })
+      // A name is the member's to give or take away
+      const unnamed = await call('anna', `/saved_searches/${saved.json.id}`, { method: 'PATCH', body: { name: null } })
+      expect(unnamed.status, unnamed.text).toBe(200)
+      expect(unnamed.json).toMatchObject({ name: null })
       expect((await call('bram', `/saved_searches/${saved.json.id}`)).status).toBe(404)
     } finally {
       await sql`delete from members.saved_searches where id = ${saved.json?.id ?? 0}`.execute(db)
