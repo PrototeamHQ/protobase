@@ -181,6 +181,24 @@ describe('open sign-up, turned on', () => {
     expect((await (await auth.$context).internalAdapter.findUserByEmail('new@example.com'))?.user).toMatchObject({ name: 'Nia' })
   })
 
+  // Two codes and the account: the whole flow, longer than one request on a busy runner.
+  it('sends a new code after one lapsed, and makes the account with that one', async () => {
+    const { auth, request, codeFor, verify, askCode } = await serve({ signUp })
+    await askCode('new@example.com')
+    const lapsed = codeFor('new@example.com')
+    vi.useFakeTimers({ now: Date.now() + 6 * 60 * 1000, toFake: ['Date'] })
+    try {
+      expect(await (await verify('new@example.com', lapsed)).json()).toMatchObject({ code: 'SIGN_UP_CODE_INVALID' })
+      expect(await (await auth.$context).internalAdapter.findUserByEmail('new@example.com')).toBeNull()
+      await askCode('new@example.com')
+      const fresh = codeFor('new@example.com')
+      const { ticket } = (await (await verify('new@example.com', fresh)).json()) as { ticket: string }
+      expect((await request('/sign-up/create', { body: { ticket, name: 'Nia', password } })).status).toBe(200)
+    } finally {
+      vi.useRealTimers()
+    }
+  }, 20_000)
+
   it('takes no ticket once it expired', async () => {
     const { request, ticketFor } = await serve({ signUp })
     const ticket = await ticketFor('new@example.com')
