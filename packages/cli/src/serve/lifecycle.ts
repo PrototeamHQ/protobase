@@ -42,19 +42,20 @@ const closeServer = (server: Server) =>
 // Serves the project until `close`, which stops accepting connections, lets open requests finish, lets running jobs
 // finish and then drains the pool it created. A `db` exported by the project stays the project's to close. It does not
 // start while the auth schema, the change capture of resources with events or the jobs schema is behind, which it only
-// reads: the project's migrations change them, before the new version serves. With jobs it runs them too, unless
+// reads: the project's migrations change them, before the new version serves. `startupChecks` off skips those reads,
+// for a restart of a bundle that already started on this database. With jobs it runs them too, unless
 // `runJobs` is off; with file fields it runs their scheduled deletes every `filesCleanupMinutes`.
 export const startServe = async ({ project, env, createDb = (url) => createPgDb(pg, url), site, ui, reporter }: ServeOptions): Promise<RunningServer> => {
   if (!project.db && !env.databaseUrl) throw new Error('No database: set DATABASE_URL or export `db` from protobase.config.ts')
-  if (project.auth) await checkAuthSchema(project.auth)
+  if (env.startupChecks && project.auth) await checkAuthSchema(project.auth)
   const ownDb = project.db ? undefined : createDb(env.databaseUrl!)
   const db = project.db ?? ownDb!
   const { resources } = configExports(project.config)
   const startJobsAndListen = async () => {
-    await checkChanges(db, resources.map((resource) => resource.toModel()), project.events)
-    if (project.webhooks) await checkWebhooksSchema(db, project.webhooks)
+    if (env.startupChecks) await checkChanges(db, resources.map((resource) => resource.toModel()), project.events)
+    if (env.startupChecks && project.webhooks) await checkWebhooksSchema(db, project.webhooks)
     const { admin, jobs: definitions } = projectAdmin(project, project.config, db, ui, reporter)
-    if (definitions.length > 0) await checkJobsSchema(db)
+    if (env.startupChecks && definitions.length > 0) await checkJobsSchema(db)
     const jobs = definitions.length > 0 ? await startJobs({ db, jobs: definitions, work: env.runJobs, onError: (error) => console.error(error) }) : undefined
     const app = createServeApp({ admin, requestLog: env.requestLog, site, ...(jobs && { jobs }), ...(env.drainToken && { drainToken: env.drainToken }) })
     const server = createAdaptorServer({ fetch: app.fetch, overrideGlobalObjects: false }) as Server

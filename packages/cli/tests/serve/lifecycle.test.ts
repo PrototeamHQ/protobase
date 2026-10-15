@@ -30,7 +30,7 @@ const project: ServedProject = {
 // Taken before any test serves, since a replaced global stays replaced for the rest of the file.
 const { Request, Response } = globalThis
 
-const env = { port: 0, databaseUrl: 'postgres://unused/app', requestLog: false, filesCleanupMinutes: 0, runJobs: true }
+const env = { port: 0, databaseUrl: 'postgres://unused/app', requestLog: false, filesCleanupMinutes: 0, runJobs: true, startupChecks: true }
 
 describe('startServe', () => {
   it('serves /health without a token and the admin API behind the authenticator', async () => {

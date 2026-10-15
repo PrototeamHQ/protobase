@@ -8,7 +8,7 @@ import { startServe } from '../../src/serve/lifecycle'
 
 const notes = resource('notes').table('notes').fields({ id: f.integer(), body: f.text() }).primaryKey((r) => r.id).events((e) => e.crud())
 const project = { config: { notes }, authenticate: () => ({ user: { id: 1, roles: ['admin'] } }) }
-const env = { port: 0, databaseUrl: 'postgres://unused/app', requestLog: false, filesCleanupMinutes: 0, runJobs: true }
+const env = { port: 0, databaseUrl: 'postgres://unused/app', requestLog: false, filesCleanupMinutes: 0, runJobs: true, startupChecks: true }
 
 describe('startServe with resource events', () => {
   it('does not start while a resource with events has no triggers, and drains its pool', async () => {
@@ -19,6 +19,15 @@ describe('startServe with resource events', () => {
     expect(db.destroy).toHaveBeenCalledTimes(1)
     await pg.exec((await changesMigration(db, [notes.toModel()]))!)
     const server = await startServe({ project, env, createDb: () => db })
+    await server.close()
+    await pg.close()
+  })
+
+  it('starts without reading the triggers with PROTOBASE_STARTUP_CHECKS=off', async () => {
+    const pg = await createJobsPg()
+    await pg.exec('create table notes (id integer primary key, body text not null)')
+    const db = Object.assign(new Kysely<any>({ dialect: new PGliteDialect(pg) }), { destroy: vi.fn(async () => {}) })
+    const server = await startServe({ project, env: { ...env, startupChecks: false }, createDb: () => db })
     await server.close()
     await pg.close()
   })
