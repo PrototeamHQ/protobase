@@ -29,25 +29,29 @@ const Benefits = ({ benefits }: { benefits: string[] | undefined }) =>
 
 // "Sign in" opens the app's sign-in route, which comes back to this page. A page the prompt names to make an account
 // opens in a new tab; without one, "Create an account" opens the route's sign-up step when the server has open sign-up.
+// A visitor is most likely new, so making an account is the primary action, last in the row, and "Sign in" the
+// secondary one; without a way to make an account, "Sign in" is the primary action.
 const Actions = ({ prompt }: { prompt: SignInPromptModel }) => {
   const { canSignUp } = useAuth()
   const { link } = useSignInAddress()
+  const primary = buttonClass({ variant: 'primary' })
+  const signUp = prompt.signUp ? (
+    <a href={prompt.signUp.href} target="_blank" rel="noreferrer" className={primary}>
+      {prompt.signUp.label}
+    </a>
+  ) : (
+    canSignUp && (
+      <RouteLink to={link('sign-up')} className={primary}>
+        Create an account
+      </RouteLink>
+    )
+  )
   return (
     <>
-      {prompt.signUp ? (
-        <a href={prompt.signUp.href} target="_blank" rel="noreferrer" className={buttonClass()}>
-          {prompt.signUp.label}
-        </a>
-      ) : (
-        canSignUp && (
-          <RouteLink to={link('sign-up')} className={buttonClass()}>
-            Create an account
-          </RouteLink>
-        )
-      )}
-      <RouteLink to={link()} className={buttonClass({ variant: 'primary' })}>
+      <RouteLink to={link()} className={signUp ? buttonClass() : primary}>
         Sign in
       </RouteLink>
+      {signUp}
     </>
   )
 }
