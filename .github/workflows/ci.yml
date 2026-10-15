@@ -38,8 +38,6 @@ jobs:
       # bunfig.toml has `bun run` put a node that is Bun first on PATH, so the checks run on Bun. Bun skips that without a
       # word when another user owns its /tmp/bun-node-* directory, as on a shared server, and they would run on Node.
       - run: bun run sh -c 'node -e "process.versions.bun || (console.error(\"bun run starts Node, not Bun\"), process.exit(1))"'
-      # The packages as they are published, declarations included, so a package that cannot build fails before release.
-      - run: bun run build
       # The template databases each integration run clones; with CI set, a missing one fails the run instead of skipping.
       - run: bun run test:db
       # A self-hosted runner has no root to install Chromium's system packages, so its server provides them.
@@ -50,8 +48,8 @@ jobs:
         with:
           node-version-file: .nvmrc
       - run: node --run test:smoke
-      # Every package built and packed as the release workflow publishes it, so a package that cannot be packed fails
-      # before a release is cut.
+      # Every package built, declarations included, and packed as the release workflow publishes it, so a package that
+      # cannot build or be packed fails before a release is cut. The tests run on the sources, so nothing builds earlier.
       - run: node scripts/publish.mjs --pack
       - run: bun run docs:build
       - run: bun scripts/play-tests.mjs
