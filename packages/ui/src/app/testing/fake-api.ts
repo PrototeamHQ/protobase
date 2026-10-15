@@ -141,6 +141,11 @@ export const fakeApi = ({ resources, views = [], pages = [], rows: initial, perm
     list: async (resource: string, params: ListParams = {}) => pageAt(resource, select(resource, params), Number(params.pageToken || 0), params.pageSize ?? 50, params),
     search: async (resource: string, params: ListParams = {}) => pageAt(resource, select(resource, params), Number(params.pageToken || 0), params.pageSize ?? 50, params),
     seek: async (resource: string, params: ListParams & { position: number }) => pageAt(resource, select(resource, params), params.position, params.pageSize ?? 50, params),
+    // The records in the map's bounding box, never buckets of them, as the real `:map` answers for a few records.
+    map: async (resource: string, params: ListParams) => {
+      const { items, totalSize, labels, photos } = pageAt(resource, select(resource, params), 0, 200, params)
+      return { items, buckets: [], totalSize, ...(labels && { labels }), ...(photos && { photos }) }
+    },
     get: async (resource: string, key: string) => stored(resource, find(resource, key)),
     reveal: async (resource: string, key: string, field: string) => {
       const value = find(resource, key)[field] ?? null

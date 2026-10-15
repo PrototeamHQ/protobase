@@ -159,4 +159,13 @@ describe('pruneView', () => {
     const hidden = without({ repairs: ['costPrice'] })
     expect(pruneView(mapped, hidden.repairs!, hidden).layout).toEqual([{ kind: 'section', title: 'Repair', fields: ['status'] }])
   })
+
+  it('keeps a map display\'s approximate positions only as far as the caller can read the fields that state them', () => {
+    const mapped = view<typeof repairs>('repairs')
+      .list((r, d) => ({ columns: [r.number], displays: [d.map({ latitude: r.estimate, longitude: r.costPrice, exact: r.insured, radius: r.estimate }, { defaultRadius: 100 })] }))
+      .toModel()
+    const displays = (models: Record<string, ResourceModel>) => pruneView(mapped, models.repairs!, models).list?.displays
+    expect(displays(all)).toEqual([{ kind: 'map', name: 'map', latitude: 'estimate', longitude: 'costPrice', exact: 'insured', radius: 'estimate', defaultRadius: 100 }])
+    expect(displays(without({ repairs: ['insured'] }))).toEqual([{ kind: 'map', name: 'map', latitude: 'estimate', longitude: 'costPrice', radius: 'estimate', defaultRadius: 100 }])
+  })
 })

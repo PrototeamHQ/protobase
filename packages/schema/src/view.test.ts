@@ -243,6 +243,21 @@ describe('view builder', () => {
     expect(unknown).toThrow('display "map" names cards "tiles", which is not a cards display of the list')
   })
 
+  it('marks the map\'s approximate positions by a field, with the area around them', () => {
+    const homes = resource('homes')
+      .table('homes')
+      .fields({ id: f.integer(), lat: f.decimal({ precision: 8, scale: 6 }), lng: f.decimal({ precision: 9, scale: 6 }), exact: f.boolean(), accuracy: f.integer().optional(), outline: f.json().optional() })
+      .primaryKey((r) => r.id)
+    const map = (pick: (r: Parameters<Parameters<ReturnType<typeof view<typeof homes>>['list']>[0]>[0], d: typeof displays) => ListDisplayModel) => () =>
+      view<typeof homes>('homes').list((r, d) => ({ columns: [r.id], displays: [pick(r, d)] })).toModel(homes.toModel())
+    const model = map((r, d) => d.map({ latitude: r.lat, longitude: r.lng, exact: r.exact, radius: r.accuracy, area: r.outline }, { defaultRadius: 250 }))()
+    expect(model.list?.displays?.[0]).toEqual({ kind: 'map', name: 'map', latitude: 'lat', longitude: 'lng', exact: 'exact', radius: 'accuracy', defaultRadius: 250, area: 'outline' })
+    expect(displayFields(model.list!.displays![0]!)).toEqual(['lat', 'lng', 'exact', 'accuracy', 'outline'])
+    expect(map((r, d) => d.map({ latitude: r.lat, longitude: r.lng, radius: r.accuracy }))).toThrow('display "map": an area around approximate positions needs the approximate or exact field')
+    expect(map((r, d) => d.map({ latitude: r.lat, longitude: r.lng, approximate: r.exact, exact: r.exact }))).toThrow('display "map": name approximate or exact, not both')
+    expect(map((r, d) => d.map({ latitude: r.lat, longitude: r.lng, exact: r.exact }, { defaultRadius: 0 }))).toThrow('display "map": defaultRadius 0 is not a number of metres above 0')
+  })
+
   it('refuses displays that collide, a default that is none of them, and built-in blocks as components', () => {
     const list = (pick: (d: typeof displays) => { displays: ListDisplayModel[]; default?: string }) => () =>
       view<typeof article>('article').list((r, d) => ({ columns: [r.title], ...pick(d) }))

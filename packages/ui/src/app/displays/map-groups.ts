@@ -1,8 +1,9 @@
+import { isApproximate, positionArea, type ApproximateFields, type AreaGeometry } from '../map/approximate-position'
 import { recordPosition, type Position } from '../map/record-position'
 import type { ListDisplayRow } from './list-displays'
 
-/** A record on a map display: its key and its position. */
-export type MapPoint = Position & { key: string }
+/** A record on a map display: its key, its position, whether that is approximate, and the area drawn around it if so. */
+export type MapPoint = Position & { key: string; approximate?: true; area?: AreaGeometry }
 
 /** A point as the map draws it, in pixels from the map's corner. */
 export type ScreenPoint = { key: string; x: number; y: number }
@@ -10,11 +11,14 @@ export type ScreenPoint = { key: string; x: number; y: number }
 /** The records a map marker stands for, by their keys, at the position of the first. */
 export type MapGroup = { keys: string[]; at: string }
 
-/** The rows with a position, in their order; a row without one is not on the map. */
-export const mapPoints = (rows: ListDisplayRow[], fields: { latitude: string; longitude: string }): MapPoint[] =>
+/** The rows with a position, in their order, approximate ones marked with their area; a row without one is not on the map. */
+export const mapPoints = (rows: ListDisplayRow[], fields: { latitude: string; longitude: string } & ApproximateFields): MapPoint[] =>
   rows.flatMap((row) => {
     const position = recordPosition(row.record, fields)
-    return position ? [{ key: row.key, ...position }] : []
+    if (!position) return []
+    if (!isApproximate(row.record, fields)) return [{ key: row.key, ...position }]
+    const area = positionArea(row.record, fields, position)
+    return [{ key: row.key, ...position, approximate: true as const, ...(area && { area }) }]
   })
 
 /**

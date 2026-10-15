@@ -24,10 +24,22 @@ export const mapErrors = (item: MapSectionModel, model: ResourceModel) => [
 const filterableErrors = (model: ResourceModel, name: string) =>
   Object.hasOwn(model.fields, name) && !model.fields[name]!.filterable ? [`"${name}" on ${model.name} is not filterable, and the map display filters by position`] : []
 
-/** What makes a map display unable to show the records: a field that is no number, or one it cannot filter by. */
+// A field that says how exact a position is holds what the map reads from it: a flag, metres, or GeoJSON as data or text.
+const typeErrors = (model: ResourceModel, name: string | undefined, types: string[], what: string) => {
+  if (name === undefined) return []
+  const field = Object.hasOwn(model.fields, name) ? model.fields[name]! : undefined
+  if (!field) return [`unknown field "${name}" on ${model.name}`]
+  return types.includes(field.type) ? [] : [`"${name}" on ${model.name} is ${field.type}, not ${what}`]
+}
+
+/** What makes a map display unable to show the records: a field that is no number, one it cannot filter by, or one of the wrong type for how exact a position is. */
 export const mapDisplayErrors = (display: Extract<ListDisplayModel, { kind: 'map' }>, model: ResourceModel) => [
   ...coordinateErrors(model, display.latitude),
   ...coordinateErrors(model, display.longitude),
   ...filterableErrors(model, display.latitude),
   ...filterableErrors(model, display.longitude),
+  ...typeErrors(model, display.approximate, ['boolean'], 'a boolean'),
+  ...typeErrors(model, display.exact, ['boolean'], 'a boolean'),
+  ...typeErrors(model, display.radius, [...coordinateTypes], 'a number of metres'),
+  ...typeErrors(model, display.area, ['json', 'text'], 'GeoJSON as json or text'),
 ]

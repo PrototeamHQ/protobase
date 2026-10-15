@@ -68,15 +68,27 @@ export const displays = {
    * map style. It asks for the records in its view as it pans and zooms: from far out a count for each part of the map,
    * which zooms in when chosen, closer in the records. A marker stands for the records that lie close together at the
    * zoom; choosing it shows their card at the map's bottom, with arrows through them. The card is the one of the cards display named `cards`, the list's first cards display
-   * when it names none, or the record's title alone without one. Named `map` unless `name` says otherwise.
+   * when it names none, or the record's title alone without one. A record's position is approximate when its boolean
+   * `approximate` field is true, or its `exact` field false: its marker is drawn hollow and says so, and close enough in
+   * an area is drawn around it, the GeoJSON polygon or line its `area` field holds, else a circle of its `radius` field
+   * in metres, else one of `defaultRadius`. Named `map` unless `name` says otherwise. See
+   * [Approximate positions](website/src/content/docs/reference/ui-config.mdx#approximate-positions).
    */
-  map: (fields: { latitude: Ref; longitude: Ref }, o: Naming & { cards?: string } = {}): ListDisplayModel => ({
+  map: (
+    fields: { latitude: Ref; longitude: Ref; approximate?: Ref; exact?: Ref; radius?: Ref; area?: Ref },
+    o: Naming & { cards?: string; defaultRadius?: number } = {},
+  ): ListDisplayModel => ({
     kind: 'map',
     name: o.name ?? 'map',
     ...naming(o),
     latitude: fields.latitude.name,
     longitude: fields.longitude.name,
     ...(o.cards !== undefined && { cards: o.cards }),
+    ...(fields.approximate && { approximate: fields.approximate.name }),
+    ...(fields.exact && { exact: fields.exact.name }),
+    ...(fields.radius && { radius: fields.radius.name }),
+    ...(o.defaultRadius !== undefined && { defaultRadius: o.defaultRadius }),
+    ...(fields.area && { area: fields.area.name }),
   }),
   /**
    * The list drawn by a component of the project, registered in `protobase.ui.tsx` under its name. It gets `props` and
@@ -107,13 +119,25 @@ export const displayErrors = (list: { displays?: ListDisplayModel[]; default?: s
         ? [`display "${display.name}" names cards "${display.cards}", which is not a cards display of the list`]
         : [],
     ),
+    ...(list.displays ?? []).flatMap((display) => (display.kind === 'map' ? approximateErrors(display).map((error) => `display "${display.name}": ${error}`) : [])),
     ...(list.default === undefined || list.default === tableDisplay || names.includes(list.default) ? [] : [`default "${list.default}" is not one of the displays (${[tableDisplay, ...names].join(', ')})`]),
   ]
 }
 
-/** Every field a display names: what it shows, a map's position, and the field references in a custom display's props. */
+// An area surrounds an approximate position, so it needs the field that says which positions are.
+const approximateErrors = (display: Extract<ListDisplayModel, { kind: 'map' }>) => {
+  const { approximate, exact, radius, defaultRadius, area } = display
+  if (approximate !== undefined && exact !== undefined) return ['name approximate or exact, not both']
+  const surrounds = radius !== undefined || defaultRadius !== undefined || area !== undefined
+  return [
+    ...(surrounds && approximate === undefined && exact === undefined ? ['an area around approximate positions needs the approximate or exact field'] : []),
+    ...(defaultRadius === undefined || (Number.isFinite(defaultRadius) && defaultRadius > 0) ? [] : [`defaultRadius ${defaultRadius} is not a number of metres above 0`]),
+  ]
+}
+
+/** Every field a display names: what it shows, a map's position and the fields saying how exact it is, and the field references in a custom display's props. */
 export const displayFields = (display: ListDisplayModel): string[] => {
-  if (display.kind === 'map') return [display.latitude, display.longitude]
+  if (display.kind === 'map') return [display.latitude, display.longitude, display.approximate, display.exact, display.radius, display.area].filter((name): name is string => name !== undefined)
   if (display.kind === 'custom') return [...display.fields, ...fieldRefsIn(display.props)]
   return [display.image, display.title, display.subtitle, ...(display.amount ?? []), display.badge, ...(display.meta ?? []), ...(display.footer ?? []), ...(display.flags ?? [])].filter((name): name is string => name !== undefined)
 }

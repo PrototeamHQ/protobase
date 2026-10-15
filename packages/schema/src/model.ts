@@ -318,6 +318,16 @@ export type ListDisplayModel =
       longitude: string
       /** The cards display whose card a chosen marker shows; the list's first cards display when omitted. */
       cards?: string
+      /** The boolean field that is true when the record's position is approximate. */
+      approximate?: string
+      /** The boolean field that is false when the record's position is approximate. */
+      exact?: string
+      /** The number field holding the radius, in metres, of the circle around an approximate position. */
+      radius?: string
+      /** The radius, in metres, of the circle around an approximate position whose record states no area or radius. */
+      defaultRadius?: number
+      /** The field holding the GeoJSON geometry around an approximate position: a polygon, or a line such as a street. */
+      area?: string
     }
   | {
       /** The rows drawn by a project component. */

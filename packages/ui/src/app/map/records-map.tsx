@@ -7,6 +7,8 @@ import type { MapView } from '@protobase/schema'
 import { cn } from '../../lib/cn'
 import { groupPoints, type MapGroup, type MapPoint } from '../displays/map-groups'
 import type { MapArea } from './map-area'
+import { PositionAreas, type AreaColors } from './position-areas'
+import { themeColor } from './theme-color'
 // MapLibre's worker and the pmtiles protocol are set up where the record map loads them
 import './record-map'
 
@@ -49,13 +51,15 @@ type RecordsMapProps = {
 
 /**
  * A map of `style` with a marker for each group of records that lie close together at the zoom, showing how many it
- * stands for, and a circle with the count of each bucket, which zooms in on its records when chosen. Choosing a marker
- * selects its records; choosing the map elsewhere clears the selection. A chosen marker the covered bottom would hide
- * moves up into the open part of the map.
+ * stands for, and a circle with the count of each bucket, which zooms in on its records when chosen. A marker whose
+ * records' positions are all approximate is drawn hollow with a dashed edge, over the areas around them. Choosing a
+ * marker selects its records; choosing the map elsewhere clears the selection. A chosen marker the covered bottom would
+ * hide moves up into the open part of the map.
  */
 export const RecordsMap = ({ style, initial, points, buckets, fit, onFitted, onMove, selected, covered, onSelect, onClear, markerLabel, bucketLabel }: RecordsMapProps) => {
   const ref = useRef<MapRef>(null)
   const [groups, setGroups] = useState<MapGroup[]>([])
+  const [colors, setColors] = useState<AreaColors>()
   const byKey = new globalThis.Map(points.map((point) => [point.key, point]))
   const pointKeys = points.map((point) => point.key).join(',')
   const fitKey = fit && JSON.stringify(fit)
@@ -113,6 +117,8 @@ export const RecordsMap = ({ style, initial, points, buckets, fit, onFitted, onM
       initialViewState={initial ?? { latitude: 0, longitude: 0, zoom: 1 }}
       style={{ width: '100%', height: '100%' }}
       onLoad={() => {
+        const container = ref.current!.getMap().getContainer()
+        setColors({ area: themeColor(container, '--primary'), chosen: themeColor(container, '--foreground') })
         regroup()
         if (fit) fitNow()
         else report()
@@ -122,6 +128,7 @@ export const RecordsMap = ({ style, initial, points, buckets, fit, onFitted, onM
       onClick={onClear}
     >
       <NavigationControl showCompass={false} />
+      {colors && <PositionAreas points={points} selected={selected} colors={colors} />}
       {buckets.map((bucket) => (
         <Marker key={`${bucket.latitude},${bucket.longitude}`} latitude={bucket.latitude} longitude={bucket.longitude} anchor="center">
           <button
@@ -141,6 +148,7 @@ export const RecordsMap = ({ style, initial, points, buckets, fit, onFitted, onM
         const at = byKey.get(group.at)
         if (!at) return null
         const chosen = selected !== undefined && group.keys.some((key) => selected.includes(key))
+        const approximate = group.keys.every((key) => byKey.get(key)?.approximate)
         return (
           <Marker key={group.at} latitude={at.latitude} longitude={at.longitude} anchor="bottom" style={{ zIndex: chosen ? 1 : 0 }}>
             <button
@@ -153,7 +161,13 @@ export const RecordsMap = ({ style, initial, points, buckets, fit, onFitted, onM
                 onSelect(group.keys)
               }}
             >
-              <MapPin aria-hidden className={cn('size-8 drop-shadow', chosen ? 'fill-foreground text-background' : 'fill-primary text-primary-foreground')} strokeWidth={1.5} />
+              <MapPin
+                aria-hidden
+                data-approximate={approximate || undefined}
+                className={cn('size-8 drop-shadow', approximate ? (chosen ? 'fill-background text-foreground' : 'fill-background text-primary') : chosen ? 'fill-foreground text-background' : 'fill-primary text-primary-foreground')}
+                strokeWidth={approximate ? 2 : 1.5}
+                strokeDasharray={approximate ? '3 2' : undefined}
+              />
               {group.keys.length > 1 && (
                 <span className="absolute -right-2 -top-1 min-w-5 rounded-full border border-background bg-foreground px-1 text-center text-[11px] font-medium leading-4 text-background tabular-nums">
                   {group.keys.length}

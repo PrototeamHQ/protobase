@@ -51,7 +51,20 @@ const listShape = (resource: string, models: Record<string, ResourceModel>, prom
             favorite: s.map<CardFavoriteModel>((favorite) => (prompted.has(favorite.resource) || cardFavoriteErrors(favorite, resource, models).length === 0 ? favorite : undefined)),
           }),
           map: s.object<Of<ListDisplayModel, 'map'>>(
-            { kind: s.data, name: s.data, label: s.data, icon: s.data, latitude: s.field, longitude: s.field, cards: s.data },
+            {
+              kind: s.data,
+              name: s.data,
+              label: s.data,
+              icon: s.data,
+              latitude: s.field,
+              longitude: s.field,
+              cards: s.data,
+              approximate: s.field,
+              exact: s.field,
+              radius: s.field,
+              defaultRadius: s.data,
+              area: s.field,
+            },
             { requires: ['latitude', 'longitude'] },
           ),
           custom: s.object<Of<ListDisplayModel, 'custom'>>(

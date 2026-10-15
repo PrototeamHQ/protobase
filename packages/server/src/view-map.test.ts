@@ -45,4 +45,21 @@ describe('mapDisplayErrors', () => {
     expect(mapDisplayErrors(display({ longitude: 'name' }), places)).toEqual(['"name" on places is text, not a number of degrees'])
     expect(mapDisplayErrors(display({ longitude: 'toString' }), places)).toEqual(['unknown field "toString" on places'])
   })
+
+  it('reads how exact a position is from a boolean, its radius from a number and its area from GeoJSON', () => {
+    const homes = resource('homes')
+      .table('homes')
+      .fields({ id: f.integer(), lat: f.decimal({ precision: 8, scale: 6 }).filterable(), lng: f.decimal({ precision: 9, scale: 6 }).filterable(), exact: f.boolean(), accuracy: f.decimal({ precision: 8, scale: 1 }), outline: f.json(), street: f.text() })
+      .primaryKey((r) => r.id)
+      .toModel()
+    const map = { kind: 'map' as const, name: 'map', latitude: 'lat', longitude: 'lng' }
+    expect(mapDisplayErrors({ ...map, exact: 'exact', radius: 'accuracy', area: 'outline' }, homes)).toEqual([])
+    expect(mapDisplayErrors({ ...map, approximate: 'exact', area: 'street' }, homes)).toEqual([])
+    expect(mapDisplayErrors({ ...map, exact: 'street', radius: 'exact', area: 'accuracy' }, homes)).toEqual([
+      '"street" on homes is text, not a boolean',
+      '"exact" on homes is boolean, not a number of metres',
+      '"accuracy" on homes is decimal, not GeoJSON as json or text',
+    ])
+    expect(mapDisplayErrors({ ...map, approximate: 'near' }, homes)).toEqual(['unknown field "near" on homes'])
+  })
 })

@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { circleArea } from '../map/approximate-position'
 import { groupPoints, keptSelection, mapPoints, stepSelection } from './map-groups'
 
 const row = (key: string, record: Record<string, unknown>) => ({ key, record, labels: {} })
@@ -10,6 +11,18 @@ describe('mapPoints', () => {
       { key: '1', latitude: 52.370216, longitude: 4.885168 },
       { key: '3', latitude: 40.4, longitude: -3.7 },
     ])
+  })
+
+  it('marks the approximate positions, with the area the record or the display states', () => {
+    const street = { type: 'LineString', coordinates: [[4.88, 52.37], [4.89, 52.37]] }
+    const rows = [row('1', { lat: 52.37, lng: 4.88, exact: true }), row('2', { lat: 52.37, lng: 4.88, exact: false, street }), row('3', { lat: 52.37, lng: 4.88, exact: false, street: null })]
+    const fields = { latitude: 'lat', longitude: 'lng', exact: 'exact', area: 'street' }
+    expect(mapPoints(rows, fields)).toEqual([
+      { key: '1', latitude: 52.37, longitude: 4.88 },
+      { key: '2', latitude: 52.37, longitude: 4.88, approximate: true, area: street },
+      { key: '3', latitude: 52.37, longitude: 4.88, approximate: true },
+    ])
+    expect(mapPoints(rows.slice(2), { ...fields, defaultRadius: 200 })).toEqual([{ key: '3', latitude: 52.37, longitude: 4.88, approximate: true, area: circleArea({ latitude: 52.37, longitude: 4.88 }, 200) }])
   })
 })
 
