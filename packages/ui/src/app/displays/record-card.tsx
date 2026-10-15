@@ -158,7 +158,8 @@ export const RecordCard = ({ model, view, display, row, swipe = true }: RecordCa
   return (
     <div className={photos ? 'group/card relative h-full' : favorite ? 'relative h-full' : 'h-full'}>
       {photos ? (
-        <CardCarousel photos={row.photos ?? []} cover={cover} swipe={swipe}>
+        // A card drawn for another record, as the map's chosen card is, starts again at that record's first photo
+        <CardCarousel key={row.key} photos={row.photos ?? []} cover={cover} swipe={swipe}>
           {card}
         </CardCarousel>
       ) : (
