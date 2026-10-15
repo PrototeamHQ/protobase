@@ -1,0 +1,42 @@
+// The hand-written pages in the sidebar's order, which the site and the protobase skill (scripts/protobase-skill.ts) share.
+export const startHere = ['getting-started', 'guides/deploy']
+
+export const guides = [
+  'guides/table-to-admin',
+  'guides/first-composed-page',
+  'guides/billing-page',
+  'guides/api-functions',
+  'guides/first-plugin',
+  'guides/theme-an-app',
+  'guides/field-type',
+  'guides/record-card',
+  'guides/plugin-build',
+  'guides/remote-resources',
+]
+
+export const reference = [
+  'reference/data-config',
+  'reference/ui-config',
+  'reference/architecture',
+  'reference/api',
+  'reference/files',
+  'reference/events',
+  'reference/webhooks',
+  'reference/jobs',
+  'reference/email',
+  'reference/access',
+  'reference/auth',
+  'reference/client',
+  'reference/layouts',
+  'reference/blocks',
+  'reference/custom-components',
+  'reference/plugins',
+  'reference/remote-resources',
+  'reference/theme',
+  'reference/sidebar',
+  'reference/user-menu',
+  'reference/bottom-bar',
+  'reference/assistant',
+  'reference/cli',
+  'reference/versioning',
+]

@@ -2,6 +2,7 @@ import starlight from '@astrojs/starlight'
 import { defineConfig } from 'astro/config'
 import starlightLinksValidator from 'starlight-links-validator'
 import starlightTypeDoc, { typeDocSidebarGroup } from 'starlight-typedoc'
+import { guides, reference, startHere } from './sidebar.mjs'
 
 export default defineConfig({
   site: 'https://docs.protobase.net',
@@ -16,37 +17,9 @@ export default defineConfig({
       // The schema API reference, generated from its doc comments with the options in typedoc.json.
       plugins: [starlightTypeDoc({ output: 'api/schema', sidebar: { label: 'Schema items', collapsed: true }, typeDoc: { entryFileName: 'index' } }), starlightLinksValidator()],
       sidebar: [
-        { label: 'Start here', items: ['getting-started', 'guides/deploy'] },
-        { label: 'Guides', items: ['guides/table-to-admin', 'guides/first-composed-page', 'guides/billing-page', 'guides/api-functions', 'guides/first-plugin', 'guides/theme-an-app', 'guides/field-type', 'guides/record-card', 'guides/plugin-build', 'guides/remote-resources'] },
-        {
-          label: 'Reference',
-          items: [
-            'reference/data-config',
-            'reference/ui-config',
-            'reference/architecture',
-            'reference/api',
-            'reference/files',
-            'reference/events',
-            'reference/webhooks',
-            'reference/jobs',
-            'reference/email',
-            'reference/access',
-            'reference/auth',
-            'reference/client',
-            'reference/layouts',
-            'reference/blocks',
-            'reference/custom-components',
-            'reference/plugins',
-            'reference/remote-resources',
-            'reference/theme',
-            'reference/sidebar',
-            'reference/user-menu',
-            'reference/bottom-bar',
-            'reference/assistant',
-            'reference/cli',
-            'reference/versioning',
-          ],
-        },
+        { label: 'Start here', items: startHere },
+        { label: 'Guides', items: guides },
+        { label: 'Reference', items: reference },
         { label: 'API', items: [{ label: '@protobase/schema', link: '/api/schema/' }, typeDocSidebarGroup] },
       ],
     }),
