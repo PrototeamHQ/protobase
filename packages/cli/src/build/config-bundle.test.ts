@@ -3,9 +3,12 @@ import { randomBytes } from 'node:crypto'
 import { mkdir, readFile, realpath, rm, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { prebuildifyFiles, writePackage } from '../../tests/support/packages'
 import { buildConfigBundle } from './config-bundle'
+
+// Each test bundles with esbuild, CPU work a busy machine stretches past 5 s.
+vi.setConfig({ testTimeout: 30_000 })
 
 const root = path.resolve(__dirname, '../../../..')
 

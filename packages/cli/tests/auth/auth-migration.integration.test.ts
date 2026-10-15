@@ -5,13 +5,16 @@ import path from 'node:path'
 import { getMigrations } from 'better-auth/db/migration'
 import pg from 'pg'
 import postgres from 'postgres'
-import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { checkAuthSchema, createAuth, unauthorized, type AdminAuth } from '@protobase/server'
 import { writeAuthMigration } from '../../src/auth/write-migration'
 import { startServe } from '../../src/serve/lifecycle'
 import { root, run, typescriptArgs } from '../support/auth-project'
 import { databaseReachable, testDatabaseUrl } from '../support/database'
 import { withDatabase } from '../support/serve-process'
+
+// afterAll drops every database the tests made, one at a time, and a loaded Postgres takes seconds for some drops.
+vi.setConfig({ hookTimeout: 30_000 })
 
 const url = testDatabaseUrl()
 const reachable = await databaseReachable(url)
