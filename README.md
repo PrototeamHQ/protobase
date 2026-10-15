@@ -4,6 +4,10 @@ Config-driven admin panel framework for existing Postgres databases. Data config
 
 Documentation: **[docs.protobase.net](https://docs.protobase.net)**, built from `website/` ([Getting started](https://docs.protobase.net/getting-started/), [Deploy](https://docs.protobase.net/guides/deploy/), [Architecture](https://docs.protobase.net/reference/architecture/)).
 
+For coding agents, the same docs are an [Agent Skill](https://agentskills.io): [`skills/protobase/SKILL.md`](skills/protobase/SKILL.md), also served at
+`https://docs.protobase.net/skills/protobase/SKILL.md`. Copy it into the agent's skills folder, such as
+`.claude/skills/protobase/`. `bun run docs:skill` writes it from `website/`, and CI fails when it falls behind the docs.
+
 ## Packages
 
 npm packages under the `@protobase` scope, all at one version, built from `packages/`:

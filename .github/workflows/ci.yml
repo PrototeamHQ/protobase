@@ -43,6 +43,8 @@ jobs:
       # bunfig.toml has `bun run` put a node that is Bun first on PATH, so the checks run on Bun. Bun skips that without a
       # word when another user owns its /tmp/bun-node-* directory, as on a shared server, and they would run on Node.
       - run: bun run sh -c 'node -e "process.versions.bun || (console.error(\"bun run starts Node, not Bun\"), process.exit(1))"'
+      # The protobase skill is generated from the docs and served by the site: it fails here when it falls behind them.
+      - run: bun run docs:skill --check
       # The template databases each integration run clones; with CI set, a missing one fails the run instead of skipping.
       - run: bun run test:db
       # A self-hosted runner has no root to install Chromium's system packages, so its server provides them.
