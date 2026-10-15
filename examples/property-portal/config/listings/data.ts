@@ -24,6 +24,7 @@ export const listings = resource('listings')
     postal_code: f.text().filterable(),
     latitude: f.decimal({ precision: 8, scale: 6 }).filterable(),
     longitude: f.decimal({ precision: 9, scale: 6 }).filterable(),
+    position_exact: f.boolean().default(true),
     purchase_price: f.decimal({ precision: 12, scale: 2 }).optional().filterable().sortable(),
     rent_price: f.decimal({ precision: 12, scale: 2 }).optional().filterable().sortable(),
     for_sale: f.boolean().readOnly().filterable().sortable(),

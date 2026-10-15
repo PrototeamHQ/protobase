@@ -21,6 +21,8 @@ export type SeededListing = {
   postalCode: string
   latitude: number
   longitude: number
+  /** False when the listing gives its position only roughly. */
+  positionExact: boolean
   /** The asking price, empty when the home is not for sale. */
   purchasePrice: number | null
   /** The rent per month, empty when the home is not for rent. */
@@ -50,6 +52,9 @@ const pricePerM2: Record<string, number> = {
   Madrid: 5000, Barcelona: 4800, Marbella: 5200, 'San Sebastián': 6000, Palma: 4600, 'Pozuelo de Alarcón': 4700, Sitges: 4900, Málaga: 3600,
 }
 const defaultPerM2 = { NL: 3900, ES: 2300 }
+
+// The share of the listings that give their position only roughly, common on Spanish portals.
+const approximatePosition = { NL: 0.05, ES: 0.3 }
 
 // The share of the homes for sale that are let in the meantime, common in the Netherlands (leegstandswet).
 const letWhileForSale = { NL: 0.12, ES: 0.04 }
@@ -148,6 +153,7 @@ export const listingAt = (places: PlaceSeed[], agenciesByPlace: Map<number, Seed
     postalCode: postalOf(place, rand),
     latitude: Number((place.latitude + (rand() - 0.5) * 0.06).toFixed(6)),
     longitude: Number((place.longitude + (rand() - 0.5) * 0.09).toFixed(6)),
+    positionExact: rngAt(407, ordinal)() >= approximatePosition[country],
     purchasePrice,
     rentPrice,
     livingArea,

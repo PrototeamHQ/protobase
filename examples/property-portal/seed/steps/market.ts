@@ -25,7 +25,7 @@ function* listingRows(world: World, photos: Photos) {
   for (const l of world.listings) {
     const photo = storedPhoto(photos, l.photo)
     yield row(
-      l.id, l.agencyId, l.placeId, l.propertyType, l.status, l.address, l.postalCode, l.latitude.toFixed(6), l.longitude.toFixed(6),
+      l.id, l.agencyId, l.placeId, l.propertyType, l.status, l.address, l.postalCode, l.latitude.toFixed(6), l.longitude.toFixed(6), l.positionExact,
       l.purchasePrice?.toFixed(2), l.rentPrice?.toFixed(2), l.livingArea, l.plotArea, l.rooms, l.bedrooms, l.bathrooms, l.builtYear, l.energyLabel, l.garden, l.balcony, l.parking,
       l.description, photo.value, photo.placeholder, l.agentName, l.agentPhone, l.publishedAt === null ? null : iso(l.publishedAt), iso(l.createdAt), iso(l.publishedAt ?? l.createdAt),
     )
@@ -47,7 +47,7 @@ export const seedMarket = async (sql: Db, world: World, photos: Photos) => {
   await copyRows(sql, 'market.agencies (id, name, place_id, phone, email, website, created_at, updated_at)', agencyRows(world))
   await copyRows(
     sql,
-    'market.listings (id, agency_id, place_id, property_type, status, address, postal_code, latitude, longitude, purchase_price, rent_price, living_area, plot_area, rooms, bedrooms, bathrooms, built_year, energy_label, garden, balcony, parking, description, photo, photo_placeholder, agent_name, agent_phone, published_at, created_at, updated_at)',
+    'market.listings (id, agency_id, place_id, property_type, status, address, postal_code, latitude, longitude, position_exact, purchase_price, rent_price, living_area, plot_area, rooms, bedrooms, bathrooms, built_year, energy_label, garden, balcony, parking, description, photo, photo_placeholder, agent_name, agent_phone, published_at, created_at, updated_at)',
     listingRows(world, photos),
   )
   await copyRows(sql, 'market.listing_photos (listing_id, position, photo, photo_placeholder, caption)', photoRows(world, photos))
