@@ -42,9 +42,9 @@ export const TopBar = ({ breadcrumb, onNavigate, actions, onMenu, menuOpen, menu
     return () => window.removeEventListener('keydown', onKey)
   }, [search])
   return (
-    <header ref={ref} className={cn(sticky ? 'sticky top-0 z-30' : 'relative', 'flex h-12 shrink-0 items-center gap-1 border-b bg-background px-2 md:gap-4 md:px-5')}>
+    <header ref={ref} className={cn(sticky ? 'sticky top-0 z-30' : 'relative', 'flex h-12 shrink-0 items-center gap-1 border-b bg-background pl-4 pr-2 md:gap-4 md:px-5')}>
       {onMenu && (
-        <button type="button" aria-label="Open navigation" aria-expanded={Boolean(menuOpen)} aria-controls={menuControls} onClick={onMenu} className={cn(iconButton, '-ml-0.5')}>
+        <button type="button" aria-label="Open navigation" aria-expanded={Boolean(menuOpen)} aria-controls={menuControls} onClick={onMenu} className={cn(iconButton, '-ml-3')}>
           <Menu className="size-5" />
         </button>
       )}
@@ -57,7 +57,7 @@ export const TopBar = ({ breadcrumb, onNavigate, actions, onMenu, menuOpen, menu
             event.preventDefault()
             onNavigate(back.href)
           }}
-          className={cn(iconButton, !onMenu && '-ml-0.5')}
+          className={cn(iconButton, !onMenu && '-ml-3')}
         >
           <ChevronLeft className="size-5" />
         </a>
