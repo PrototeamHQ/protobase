@@ -43,6 +43,7 @@ export { checkPages } from './check-page'
 export { prunePage } from './prune-page'
 export { parseCondition, evaluateCondition, countedResource } from './condition'
 export { resolveFieldPath, type PathStep } from './field-path'
+export { walkTree, type Location } from './walk'
 
 /** What `@protobase/layout/jsx-runtime` exports, for runtimes that supply it as a module. */
 export * as jsxRuntime from './jsx-runtime'

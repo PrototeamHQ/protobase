@@ -77,12 +77,21 @@ After each run, declared fields are compared with the database: a column that no
 protobase doctor <connection string | --env VAR> [--config <dir>]
 ```
 
-Imports `config/index.ts` and checks every exported resource:
+Imports `config/index.ts` and the views of `config/*/ui.ts`, as the config module has them by convention, and checks every exported resource against the database:
 
 - error: missing table or column, field type that does not fit the column (a file field needs a text column), table without a usable key, configured key not backed by a unique index
-- warning: enum values differ, filterable field without an index (with the `CREATE INDEX` statement)
+- error: a read the [scan guard](/reference/api/#safety) refuses, because no index serves a column it filters, sorts, searches or counts by. Doctor reads each table's indexes from the catalog, as the server does, and judges with the scan guard's own rule every read the API takes and the app makes: a filter on each `.filterable()` field, a sort by each `.sortable()` one, `search()` over the search fields, a role's own records (`.owner()`) and the names a relation shows; each view's list in its order, its filter widgets and their counts, its map and card photos, its related sections, its recent records and a saved search's new records; and each block of a [composed page](/reference/layouts/) that lists records. Each error is an index to add, with every request that needs it and where it comes from:
 
-Exit code is 1 when there are errors.
+  ```
+    error   agencies: no index serves the column "name", so the API refuses:
+              GET /agencies?order_by=name asc ("name" is sortable; the agencies list's order)
+            fix: create index on "market"."agencies" ("name");
+  ```
+
+  Reads are judged as the scan guard's default `reject` mode judges them, for a role that reads every row, such as admin; other access rules are code doctor does not run. A resource on a plain view or a foreign table is not judged, as the scan guard does not judge it.
+- warning: enum values differ
+
+Exit code is 1 when there are errors. Run it after the project's migrations and before a new version serves, as a platform's deploy does: a read it fails is one the API would refuse once the version runs. `protobase build` needs no database, so the indexes are doctor's to check.
 
 ## `dev`
 

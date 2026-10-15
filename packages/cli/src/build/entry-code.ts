@@ -1,16 +1,11 @@
-import { existsSync, readdirSync } from 'node:fs'
+import { existsSync } from 'node:fs'
 import path from 'node:path'
 import { moduleFile } from '../module-file'
+import { uiDirs } from '../project/convention-files'
 import type { Extension } from '../project/extensions'
 import { functionFiles } from '../project/functions-folder'
 
 const conventionModule = moduleFile('../project/convention', import.meta.url)
-
-const uiDirs = (configDir: string) =>
-  readdirSync(configDir, { withFileTypes: true })
-    .filter((entry) => entry.isDirectory() && existsSync(path.join(configDir, entry.name, 'ui.ts')))
-    .map((entry) => entry.name)
-    .sort()
 
 // The bundle's entry module: protobase.config.ts's default export, with `config` from the convention
 // (config/index.ts and config/*/ui.ts) and `functions` from ./functions when it has none, merged after the extensions' configs and with the configs it

@@ -46,14 +46,6 @@ describe('checkResource', () => {
     expect(checkResource(model({ id: f.file(), title: f.text() }, 'title'), [table]).map((i) => i.message)).toContain('id: declared file, but id is integer')
   })
 
-  it('suggests an index for filterable fields without one', () => {
-    const [issue] = checkResource(model({ id: f.integer(), title: f.text().filterable() }), [table])
-    expect(issue).toMatchObject({
-      severity: 'warning',
-      suggestion: 'CREATE INDEX ON shop.items (title);',
-    })
-  })
-
   it('flags database defaults the field does not declare, and the reverse', () => {
     const withDefault = { ...table, columns: [{ ...table.columns[0]!, defaultExpr: 'nextval(...)' }, table.columns[1]!] }
     const [missing] = checkResource(model({ id: f.integer(), title: f.text() }), [withDefault])
@@ -81,11 +73,8 @@ describe('checkResource', () => {
     const columns = table.columns.map((c) => ({ ...c, notNull: false }))
     const matview: DbTable = { ...table, kind: 'materialized view', columns, indexes: [unique] }
     expect(checkResource(model({ id: f.integer(), title: f.text() }), [matview])).toEqual([])
-    const issues = checkResource(model({ id: f.integer(), title: f.text().filterable() }, 'title'), [matview])
-    expect(issues.map((i) => i.message)).toEqual([
-      'title: filterable but title has no index',
-      'primary key (title) is not backed by a unique index',
-    ])
+    const issues = checkResource(model({ id: f.integer(), title: f.text() }, 'title'), [matview])
+    expect(issues.map((i) => i.message)).toEqual(['primary key (title) is not backed by a unique index'])
   })
 
   it('reports a configured key that is not unique', () => {

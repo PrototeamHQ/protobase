@@ -63,8 +63,8 @@ Every option returns a new [field](/api/schema/interfaces/field/), so they chain
 | `.readOnly()` | Never written through the API: ids, computed columns, audit timestamps. |
 | `.default(value)` | The value a create uses when none is given; the admin's create form shows it. |
 | `.dbDefault()` | The database supplies a value when none is given (identity, `now()`, a sequence). |
-| `.filterable()` | May appear in `filter`, in filter widgets and in `Stat`/`Table` filters. It needs an index: the API refuses a filter on a column no index serves (see the [scan guard](/reference/api/#safety)). |
-| `.sortable()` | May appear in `order_by` and in sorts. It needs a btree index, as a filterable field does. |
+| `.filterable()` | May appear in `filter`, in filter widgets and in `Stat`/`Table` filters. It needs an index: the API refuses a filter on a column no index serves (see the [scan guard](/reference/api/#safety)), and [`protobase doctor`](/reference/cli/#doctor) fails without one. |
+| `.sortable()` | May appear in `order_by` and in sorts. It needs a btree index that serves it alone, as a filterable field does, since a list may be sorted by it. |
 | `.alias(...names)` | Other names filters may use for the field. |
 | `.column('name')` | The column, when it is not the snake_case of the field name (`'EMP_NAME'`). |
 | `.access({ read, create, update })` | Role rules for this column. See [Access](#access). |

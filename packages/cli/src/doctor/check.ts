@@ -1,4 +1,4 @@
-import { isUniqueSet, keyColumns, leadingIndex } from '../db/keys'
+import { isUniqueSet, keyColumns } from '../db/keys'
 import { tableKey, type DbTable } from '../db/model'
 import { checkEnumValues } from '../infer/check-values'
 import { typesCompatible } from '../infer/compat'
@@ -59,15 +59,6 @@ const checkField = (model: ResourceModel, table: DbTable, name: string): Issue[]
       severity: 'warning',
       resource: model.name,
       message: `${name}: declared .dbDefault() but ${column.name} has no default the database computes`,
-    })
-  }
-  // A plain view has no indexes of its own; the indexes on the tables it reads are what the planner uses.
-  if (field.filterable && table.kind !== 'view' && !leadingIndex(table, column.name, model.tenant && model.fields[model.tenant]?.column)) {
-    issues.push({
-      severity: 'warning',
-      resource: model.name,
-      message: `${name}: filterable but ${column.name} has no index`,
-      suggestion: `CREATE INDEX ON ${quoteIdent(table.schema)}.${quoteIdent(table.name)} (${quoteIdent(column.name)});`,
     })
   }
   return issues

@@ -185,7 +185,7 @@ The API sends no CORS headers until it has something to allow: other websites in
   - Patterns (`name = "*port*"`), `regex()`, `similar()` and `search()` need a pg_trgm (GIN or GiST) index on each column they read, a `digitsEnd` search field one on its digits; JSON `field:value` needs a GIN index.
   - A partial index counts for nothing, and a resource on a plain view or a foreign table, which has no indexes of its own, is not checked.
 
-  A column without one is a `400` `expensive-query` problem that names it, with `columns` (each `{ field, column, use, need, suggestion }`) and a `create index` `suggestion`; `scanGuard: { mode: 'warn' }` answers with an `X-Protobase-Warning` header instead, `'off'` disables it. The indexes are read when a table is first queried and kept for the process lifetime, so restart the server after adding one.
+  A column without one is a `400` `expensive-query` problem that names it, with `columns` (each `{ field, column, use, need, suggestion }`) and a `create index` `suggestion`; `scanGuard: { mode: 'warn' }` answers with an `X-Protobase-Warning` header instead, `'off'` disables it. The indexes are read when a table is first queried and kept for the process lifetime, so restart the server after adding one. [`protobase doctor`](/reference/cli/#doctor) judges every read the config makes by the same rule against the database's indexes, so a missing index fails it before a deploy instead of a page after.
 
 ## Errors
 
