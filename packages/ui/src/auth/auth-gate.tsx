@@ -67,7 +67,7 @@ const Redirect = ({ to }: { to: string }) => {
 export const AuthGate = ({ workspace, children }: { workspace?: string; children: ReactNode }) => {
   const { state, recheck, passwordReset, signOut, signInProviders, canSignUp, browse } = useAuth()
   const { path, params, basePath, navigate } = useRouter()
-  const { address, next, open, leave } = useSignInAddress()
+  const { address, next, open, link, leave } = useSignInAddress()
   const [page, setPage] = useState(firstPage)
   // The addresses the steps that enter an emailed code were for, and what a right sign-up code was traded for. After a
   // reload they are gone, and so are the steps that need them.
@@ -174,7 +174,7 @@ export const AuthGate = ({ workspace, children }: { workspace?: string; children
           forget(withoutInvitationLink)
           setPage({ kind: 'sign-in' })
         }}
-        onSignIn={() => open()}
+        signIn={link()}
       />
     )
   }
@@ -207,7 +207,7 @@ export const AuthGate = ({ workspace, children }: { workspace?: string; children
     browse()
     leave()
   })
-  if (step === 'forgot-password') return <ForgotPasswordPage onBack={backTo('sign-in')} />
+  if (step === 'forgot-password') return <ForgotPasswordPage back={link('sign-in', { replace: true })} />
   if (step === 'email-code') return <EmailCodePage email={codeEmail!} onBack={backTo('sign-in')} />
   if (step === 'sign-up' || step === 'sign-up-code' || step === 'sign-up-details') {
     // The code works once, so the step that took it gives its place in the tab's history to the next: Back from the
@@ -242,12 +242,12 @@ export const AuthGate = ({ workspace, children }: { workspace?: string; children
       workspace={workspace}
       notice={signIn.notice}
       error={error}
-      onForgotPassword={passwordReset ? () => open('forgot-password') : undefined}
+      forgotPassword={passwordReset ? link('forgot-password') : undefined}
       onCodeSent={(email) => {
         setCodeEmail(email)
         open('email-code')
       }}
-      onSignUp={canSignUp ? () => open('sign-up') : undefined}
+      signUp={canSignUp ? link('sign-up') : undefined}
       onBrowse={onBrowse}
     />
   )

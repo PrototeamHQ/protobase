@@ -4,8 +4,10 @@ import { AuthLayout } from '../auth/auth-layout'
 import { authMessage } from '../auth/auth-messages'
 import { useAuth } from '../auth/auth-provider'
 import { minPasswordLength } from '../auth/reset-password-form'
-import { Button } from '../primitives/button'
+import { cn } from '../lib/cn'
+import { Button, buttonClass } from '../primitives/button'
 import { Input } from '../primitives/input'
+import { RouteLink, type RouteTarget } from '../primitives/route-link'
 import { Spinner } from '../primitives/spinner'
 import { organizationRoleLabels, roleLabel } from './organization-paths'
 import { useAction } from './use-action'
@@ -15,7 +17,7 @@ export type InvitationPageProps = {
   /** The person is a member now, and signed in: on to the app. */
   onDone: () => void
   /** Someone with an account signs in first, then comes back here to accept. */
-  onSignIn: () => void
+  signIn: RouteTarget
 }
 
 const SignUp = ({ token, preview, onDone }: { token: string; preview: InvitationPreview; onDone: () => void }) => {
@@ -57,7 +59,7 @@ const SignUp = ({ token, preview, onDone }: { token: string; preview: Invitation
  * Where an emailed invitation link leads: what it is for, then accepting it signed in as the invited address, signing
  * in first, or making an account for an address without one.
  */
-export const InvitationPage = ({ token, onDone, onSignIn }: InvitationPageProps) => {
+export const InvitationPage = ({ token, onDone, signIn }: InvitationPageProps) => {
   const { session, state, signOut, organizations } = useAuth()
   const [preview, setPreview] = useState<InvitationPreview>()
   const [invalid, setInvalid] = useState<string>()
@@ -102,7 +104,7 @@ export const InvitationPage = ({ token, onDone, onSignIn }: InvitationPageProps)
           </Button>
         </div>
       ) : preview.hasAccount ? (
-        <Button variant="primary" className="w-full" onClick={onSignIn}>Sign in as {preview.email} to join</Button>
+        <RouteLink to={signIn} className={cn(buttonClass({ variant: 'primary' }), 'w-full')}>Sign in as {preview.email} to join</RouteLink>
       ) : (
         <SignUp token={token} preview={preview} onDone={onDone} />
       )}

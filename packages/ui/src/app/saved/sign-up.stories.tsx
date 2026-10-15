@@ -117,8 +117,8 @@ export const FromAHeart: StoryObj = {
     const card = (await canvas.findByText('Keizersgracht 12')).closest('li')!
     await userEvent.click(within(card).getByRole('button', { name: 'Save to favorites' }))
     const dialog = await canvas.findByRole('dialog', { name: 'Keep the homes you like' })
-    expect(within(dialog).getByRole('button', { name: 'Sign in' })).toBeVisible()
-    await userEvent.click(within(dialog).getByRole('button', { name: 'Create an account' }))
+    expect(within(dialog).getByRole('link', { name: 'Sign in' })).toBeVisible()
+    await userEvent.click(within(dialog).getByRole('link', { name: 'Create an account' }))
 
     // The address first, then the code mailed to it on its own: a whole code checks itself
     expect(await canvas.findByRole('heading', { name: 'Create an account' })).toBeVisible()
@@ -155,13 +155,13 @@ export const FromTheSignInPage: StoryObj = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
     await canvas.findByText('Keizersgracht 12')
-    await userEvent.click(canvas.getByRole('button', { name: 'Sign in' }))
+    await userEvent.click(canvas.getByRole('link', { name: 'Sign in' }))
     expect(await canvas.findByRole('heading', { name: /^Sign in/ })).toBeVisible()
-    await userEvent.click(canvas.getByRole('button', { name: 'Create an account' }))
+    await userEvent.click(canvas.getByRole('link', { name: 'Create an account' }))
     expect(await canvas.findByRole('heading', { name: 'Create an account' })).toBeVisible()
     await userEvent.click(canvas.getByRole('button', { name: 'Sign in' }))
     expect(await canvas.findByRole('heading', { name: /^Sign in/ })).toBeVisible()
-    await userEvent.click(canvas.getByRole('button', { name: 'Create an account' }))
+    await userEvent.click(canvas.getByRole('link', { name: 'Create an account' }))
     await userEvent.click(await canvas.findByRole('button', { name: 'Continue without an account' }))
     expect(await canvas.findByText('Keizersgracht 12')).toBeVisible()
   },

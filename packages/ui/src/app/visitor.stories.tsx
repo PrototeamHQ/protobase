@@ -1,6 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { expect, fn, userEvent, waitFor, within } from 'storybook/test'
 import { createStaticSession, type AuthSession } from '@protobase/client'
+import { signInPath } from '@protobase/schema'
 import { themeStorageKey } from '../theme/theme-preference'
 import { App } from './app'
 import { fakeClient } from './testing/fake-client'
@@ -28,7 +29,10 @@ export const Browsing: StoryObj = {
     await canvas.findByText('SO-1')
     expect(canvas.queryByRole('button', { name: 'Profile menu' })).toBeNull()
     expect(canvas.queryByRole('button', { name: /New order/ })).toBeNull()
-    await userEvent.click(canvas.getByRole('button', { name: 'Sign in' }))
+    // "Sign in" is a link to the sign-in route, which the browser shows and can open in a new tab
+    const signIn = canvas.getByRole('link', { name: 'Sign in' })
+    expect(signIn).toHaveAttribute('href', signInPath({ next: '/orders' }))
+    await userEvent.click(signIn)
     expect(await canvas.findByRole('heading', { name: 'Sign in to Protobase' })).toBeVisible()
     await userEvent.click(canvas.getByRole('button', { name: 'Continue without signing in' }))
     expect(await canvas.findByText('SO-1')).toBeVisible()
@@ -53,10 +57,10 @@ export const BackFromSignIn: StoryObj = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
     await canvas.findByText('SO-1')
-    await userEvent.click(canvas.getByRole('button', { name: 'Sign in' }))
+    await userEvent.click(canvas.getByRole('link', { name: 'Sign in' }))
     expect(await canvas.findByRole('heading', { name: 'Sign in to Protobase' })).toBeVisible()
     expect(address()).toBe('/-/sign-in?next=%2Forders')
-    await userEvent.click(canvas.getByRole('button', { name: 'Forgot password?' }))
+    await userEvent.click(canvas.getByRole('link', { name: 'Forgot password?' }))
     expect(await canvas.findByRole('heading', { name: 'Reset your password' })).toBeVisible()
     expect(address()).toBe('/-/sign-in?step=forgot-password&next=%2Forders')
 
@@ -90,7 +94,7 @@ export const PickingTheme: StoryObj = {
     expect(localStorage.getItem(themeStorageKey)).toBe('dark')
     expect(getComputedStyle(document.body).backgroundColor).toBe('rgb(15, 15, 17)')
 
-    await userEvent.click(canvas.getByRole('button', { name: 'Sign in' }))
+    await userEvent.click(canvas.getByRole('link', { name: 'Sign in' }))
     expect(await canvas.findByRole('heading', { name: 'Sign in to Protobase' })).toBeVisible()
     expect(document.documentElement.dataset.theme).toBe('dark')
   },

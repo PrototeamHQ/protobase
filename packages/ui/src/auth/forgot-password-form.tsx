@@ -1,19 +1,22 @@
 import { useState } from 'react'
-import { Button } from '../primitives/button'
+import { cn } from '../lib/cn'
+import { Button, buttonClass } from '../primitives/button'
 import { Input } from '../primitives/input'
+import { RouteLink, type RouteTarget } from '../primitives/route-link'
 import { AuthLayout } from './auth-layout'
 
 export type ForgotPasswordFormProps = {
   /** Called with the email; the page shows `error` when the request fails. */
   onSubmit: (email: string) => void
-  onBack: () => void
+  /** The sign-in page, which "Back to sign in" links to. */
+  back: RouteTarget
   busy?: boolean
   error?: string
   /** The address a link was asked for: the page then says to check the inbox. */
   sentTo?: string
 }
 
-export const ForgotPasswordForm = ({ onSubmit, onBack, busy, error, sentTo }: ForgotPasswordFormProps) => {
+export const ForgotPasswordForm = ({ onSubmit, back, busy, error, sentTo }: ForgotPasswordFormProps) => {
   const [email, setEmail] = useState('')
   if (sentTo) {
     return (
@@ -21,9 +24,9 @@ export const ForgotPasswordForm = ({ onSubmit, onBack, busy, error, sentTo }: Fo
         <p className="text-[13px] text-muted-foreground">
           If <span className="font-medium text-foreground">{sentTo}</span> has an account, an email with a link to choose a new password is on its way. The link works once, for a limited time.
         </p>
-        <Button variant="primary" className="mt-4 min-h-10 w-full" onClick={onBack}>
+        <RouteLink to={back} className={cn(buttonClass({ variant: 'primary' }), 'mt-4 min-h-10 w-full')}>
           Back to sign in
-        </Button>
+        </RouteLink>
       </AuthLayout>
     )
   }
@@ -48,9 +51,9 @@ export const ForgotPasswordForm = ({ onSubmit, onBack, busy, error, sentTo }: Fo
         <Button variant="primary" type="submit" loading={busy} className="min-h-10">
           Send reset link
         </Button>
-        <Button variant="ghost" onClick={onBack} className="min-h-10">
+        <RouteLink to={back} className={cn(buttonClass({ variant: 'ghost' }), 'min-h-10')}>
           Back to sign in
-        </Button>
+        </RouteLink>
       </form>
     </AuthLayout>
   )

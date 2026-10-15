@@ -1,5 +1,6 @@
 import { LogIn } from 'lucide-react'
 import { cn } from '../lib/cn'
+import { RouteLink, type RouteTarget } from '../primitives/route-link'
 import { Logo } from './logo'
 import { navGroups as defaultGroups, type NavGroup } from './nav'
 import { ProfileMenu, type ProfileMenuItem, type ProfileOrganizations, type ProfileRoles, type ShellUser } from './profile-menu'
@@ -11,7 +12,7 @@ import { isTextMode, sidebarWidth, type SidebarMode } from './sidebar-mode'
 export type SidebarProps = {
   mode: SidebarMode
   activeItem: string
-  /** The signed-in person; without one the footer offers `onSignIn`. */
+  /** The signed-in person; without one the footer links to `signIn`. */
   user?: ShellUser
   workspace?: string
   forceExpanded?: boolean
@@ -22,7 +23,8 @@ export type SidebarProps = {
   userMenu?: ProfileMenuItem[]
   onNavigate?: (href: string) => void
   onSignOut?: () => void
-  onSignIn?: () => void
+  /** The sign-in page, a link in the footer for someone signed out. */
+  signIn?: RouteTarget
   organizations?: ProfileOrganizations
   roles?: ProfileRoles
   /** The light, dark or system switch: in the profile menu, or above "Sign in" for someone signed out. */
@@ -31,7 +33,7 @@ export type SidebarProps = {
   sticky?: boolean
 }
 
-export const Sidebar = ({ mode, activeItem, user, workspace, forceExpanded, profileMenuOpen, groups = defaultGroups, userMenu, onNavigate, onSignOut, onSignIn, organizations, roles, theme, sticky }: SidebarProps) => {
+export const Sidebar = ({ mode, activeItem, user, workspace, forceExpanded, profileMenuOpen, groups = defaultGroups, userMenu, onNavigate, onSignOut, signIn, organizations, roles, theme, sticky }: SidebarProps) => {
   const expanding = mode === 'icon-expand'
   const expanded = expanding && forceExpanded
   const inline = isTextMode(mode) || expanding
@@ -80,11 +82,11 @@ export const Sidebar = ({ mode, activeItem, user, workspace, forceExpanded, prof
             <>
               {/* An icon-only sidebar has no room for the switch; the page still follows the system or a stored choice. */}
               {theme && inline && <ThemeSwitch theme={theme} className="flex min-h-11 w-full items-center gap-2.5 whitespace-nowrap p-1.5 text-[13px] text-muted-foreground md:min-h-0" />}
-              {onSignIn && (
-                <button type="button" onClick={onSignIn} aria-label="Sign in" className="flex min-h-11 w-full items-center gap-2.5 rounded-md p-1.5 text-left text-[13px] font-medium text-muted-foreground hover:bg-muted hover:text-foreground md:min-h-0">
+              {signIn && (
+                <RouteLink to={signIn} aria-label="Sign in" className="flex min-h-11 w-full items-center gap-2.5 rounded-md p-1.5 text-left text-[13px] font-medium text-muted-foreground hover:bg-muted hover:text-foreground md:min-h-0">
                   <LogIn className="size-4 shrink-0" />
                   {inline && <span className="whitespace-nowrap">Sign in</span>}
-                </button>
+                </RouteLink>
               )}
             </>
           )}

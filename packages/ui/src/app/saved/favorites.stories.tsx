@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from '@storybook/react-vite'
 import { useState } from 'react'
 import { expect, userEvent, waitFor, within } from 'storybook/test'
 import { createStaticSession, type AuthSession, type Client, type ResourcePermissions } from '@protobase/client'
-import { f, resource, view, type SignInViewModel } from '@protobase/schema'
+import { f, resource, signInPath, view, type SignInViewModel } from '@protobase/schema'
 import { App } from '../app'
 import { fakeApi } from '../testing/fake-api'
 
@@ -172,7 +172,9 @@ export const VisitorCardsChecks: StoryObj = {
     await userEvent.click(canvas.getByRole('link', { name: 'Favorites' }))
     const page = await canvas.findByRole('region', { name: 'Keep the homes you like' })
     expect(within(page).getByText('See all your saved homes on one page')).toBeVisible()
-    await userEvent.click(within(page).getByRole('button', { name: 'Sign in' }))
+    const signIn = within(page).getByRole('link', { name: 'Sign in' })
+    expect(signIn).toHaveAttribute('href', signInPath({ next: '/favorites' }))
+    await userEvent.click(signIn)
     expect(await canvas.findByRole('heading', { name: /^Sign in/ })).toBeVisible()
   },
 }
@@ -208,7 +210,7 @@ export const VisitorSignsIn: StoryObj = {
     const canvas = within(canvasElement)
     await userEvent.click(await canvas.findByRole('link', { name: 'Favorites' }))
     const page = await canvas.findByRole('region', { name: 'Keep the homes you like' })
-    await userEvent.click(within(page).getByRole('button', { name: 'Sign in' }))
+    await userEvent.click(within(page).getByRole('link', { name: 'Sign in' }))
     expect(await canvas.findByRole('heading', { name: /^Sign in/ })).toBeVisible()
     await userEvent.type(canvas.getByLabelText('Email'), 'pip@homes.example')
     await userEvent.type(canvas.getByLabelText('Password'), 'correct horse battery')
@@ -234,7 +236,7 @@ export const VisitorPhone: StoryObj = {
     await userEvent.click(within(await cardOf(canvasElement, 'Keizersgracht 12')).getByRole('button', { name: 'Save to favorites' }))
     const sheet = await canvas.findByRole('dialog', { name: 'Keep the homes you like' })
     expect(within(sheet).getByRole('button', { name: 'Close' })).toBeVisible()
-    expect(within(sheet).getByRole('button', { name: 'Sign in' })).toBeVisible()
+    expect(within(sheet).getByRole('link', { name: 'Sign in' })).toBeVisible()
   },
 }
 

@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type AnchorHTMLAttributes, type ReactNode } from 'react'
 import { Button } from '../primitives/button'
 import { Dialog } from '../primitives/dialog'
+import { RouteLink } from '../primitives/route-link'
 
 type RouterValue = {
   /** Path below the base path, always starting with `/`. */
@@ -146,20 +147,10 @@ export const Router = ({ basePath = '', initialUrl, children }: RouterProps) => 
   )
 }
 
-export const Link = ({ to, onClick, ...rest }: AnchorHTMLAttributes<HTMLAnchorElement> & { to: string }) => {
+/** A link to a path below the base path, as `appPath` writes it, that the router follows without reloading the page. */
+export const Link = ({ to, replace, ...rest }: AnchorHTMLAttributes<HTMLAnchorElement> & { to: string; replace?: boolean }) => {
   const { navigate, basePath } = useRouter()
-  return (
-    <a
-      href={`${basePath}${to}`}
-      onClick={(event) => {
-        onClick?.(event)
-        if (event.defaultPrevented || event.metaKey || event.ctrlKey || event.button !== 0) return
-        event.preventDefault()
-        navigate(to)
-      }}
-      {...rest}
-    />
-  )
+  return <RouteLink to={{ href: `${basePath}${to}`, onFollow: () => navigate(to, { replace }) }} {...rest} />
 }
 
 /** While `active`, leaving the page asks first (in-app links and closing the tab). */
