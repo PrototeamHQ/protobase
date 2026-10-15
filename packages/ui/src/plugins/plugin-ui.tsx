@@ -26,8 +26,8 @@ const fieldWithin = (plugin: PluginInfo, name: string, widget: FieldWidget): Fie
 
 /**
  * A plugin's UI config from its module, read as a `protobase.ui.tsx` module and merged with the configs it extends,
- * named after the plugin: its components, field types and shell slots draw inside the plugin. Throws `UiConflictError`
- * when the configs it merges define a name twice.
+ * named after the plugin: its components, field types, shell slots and `beforeSignIn` draw inside the plugin. Throws
+ * `UiConflictError` when the configs it merges define a name twice.
  */
 export const pluginUi = (plugin: PluginInfo, module: Record<string, unknown>): ProjectUi => {
   const ui = mergeUi({ ...uiFromModule(module), name: plugin.name })
@@ -37,5 +37,6 @@ export const pluginUi = (plugin: PluginInfo, module: Record<string, unknown>): P
     ...(ui.shell.actions && { actions: within(plugin, ui.shell.actions, 'shell.actions') }),
     ...(ui.shell.rightPanel && { rightPanel: within(plugin, ui.shell.rightPanel, 'shell.rightPanel') }),
   }
-  return { name: plugin.name, components, ...(ui.actions && { actions: ui.actions }), ...(fields && { fields }), ...(shell && { shell }) }
+  const beforeSignIn = ui.beforeSignIn && within(plugin, ui.beforeSignIn, 'beforeSignIn')
+  return { name: plugin.name, components, ...(ui.actions && { actions: ui.actions }), ...(fields && { fields }), ...(shell && { shell }), ...(beforeSignIn && { beforeSignIn }) }
 }

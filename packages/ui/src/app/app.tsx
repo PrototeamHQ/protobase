@@ -33,6 +33,7 @@ import { CustomBoundary } from './pages/custom-boundary'
 import { useProjectUi, type ProjectUi } from './pages/project-ui'
 import type { PluginLoader } from '../plugins/load-plugin'
 import { PluginGate, usePluginsOff } from '../plugins/plugin-gate'
+import { PluginSourceProvider } from '../plugins/plugin-source'
 import { PluginNotice } from '../plugins/plugin-notice'
 import { RecordPage } from './record-page'
 import { SourceNotice } from './source-notice'
@@ -66,7 +67,7 @@ export type AppProps = {
   assistant?: AssistantClient
   /** A ready-made client of the runtime endpoint, for stories and tests; used only when `/meta` names one. */
   runtime?: RuntimeClient
-  /** How the plugins `/meta` names are loaded, for stories and tests; the page's `fetch` and `import()` by default. */
+  /** How the plugins are loaded, for stories and tests; the page's `fetch` and `import()` by default. */
   pluginLoader?: PluginLoader
 }
 
@@ -209,14 +210,14 @@ const Routes = ({ workspace, sidebarMode, assistant, runtime }: Pick<AppProps, '
   )
 }
 
-const Authenticated = ({ baseUrl, client, sources, workspace, sidebarMode, ui, assistant, runtime, pluginLoader }: Omit<AppProps, 'auth' | 'basePath' | 'initialUrl'>) => {
+const Authenticated = ({ baseUrl, client, sources, workspace, sidebarMode, ui, assistant, runtime }: Omit<AppProps, 'auth' | 'basePath' | 'initialUrl' | 'pluginLoader'>) => {
   const { state, session, markSignedOut } = useAuth()
   // A visitor has no token to ask the session for: their requests go without one, as the anonymous role.
   return (
     <ApiProvider baseUrl={baseUrl} client={client} sources={sources} token={state.kind === 'visitor' ? undefined : session.token} onUnauthenticated={markSignedOut}>
       <MetaGate>
         <ToastProvider>
-          <PluginGate ui={ui} {...(pluginLoader && { loader: pluginLoader })}>
+          <PluginGate ui={ui}>
             <Routes workspace={workspace} sidebarMode={sidebarMode} assistant={assistant} runtime={runtime} />
           </PluginGate>
         </ToastProvider>
@@ -230,13 +231,15 @@ const Authenticated = ({ baseUrl, client, sources, workspace, sidebarMode, ui, a
  * then a sidebar from `/meta`, `/:page` composed pages, `/:resource` lists and `/:resource/:key` records. Fills its
  * parent, in the theme this browser chose, light, dark or the system's.
  */
-export const App = ({ auth, workspace, basePath, initialUrl, ...rest }: AppProps) => (
+export const App = ({ auth, workspace, basePath, initialUrl, pluginLoader, ...rest }: AppProps) => (
   <ThemeProvider>
     <AuthProvider session={auth}>
       <Router basePath={basePath} initialUrl={initialUrl}>
-        <AuthGate workspace={workspace}>
-          <Authenticated workspace={workspace} {...rest} />
-        </AuthGate>
+        <PluginSourceProvider {...(pluginLoader && { loader: pluginLoader })}>
+          <AuthGate workspace={workspace}>
+            <Authenticated workspace={workspace} {...rest} />
+          </AuthGate>
+        </PluginSourceProvider>
       </Router>
     </AuthProvider>
   </ThemeProvider>

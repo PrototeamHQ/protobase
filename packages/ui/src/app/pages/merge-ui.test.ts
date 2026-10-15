@@ -2,7 +2,7 @@ import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import { mergeUi } from './merge-ui'
-import { defineUi } from './project-ui'
+import { defineUi, type BeforeSignInProps } from './project-ui'
 
 const text = (value: string) => () => createElement('span', null, value)
 const TaskWidget = text('task')
@@ -44,5 +44,13 @@ describe('mergeUi', () => {
     expect(renderToStaticMarkup(createElement(shell!.actions!))).toBe('<span>cloud action</span><span>own action</span>')
     expect(renderToStaticMarkup(createElement(shell!.rightPanel!))).toBe('<span>cloud panel</span>')
     expect(mergeUi(defineUi({ components: {} }))).not.toHaveProperty('shell')
+  })
+
+  it('draws every beforeSignIn component around the pages, the extended configs outermost', () => {
+    const around = (label: string) => ({ children }: BeforeSignInProps) => createElement('div', { title: label }, children)
+    const { beforeSignIn } = mergeUi(defineUi({ extends: [defineUi({ beforeSignIn: around('cloud') })], beforeSignIn: around('own') }))
+    const props = { signedIn: async () => false, params: new URLSearchParams(), removeParams: () => undefined, children: createElement('p', null, 'Sign in') }
+    expect(renderToStaticMarkup(createElement(beforeSignIn!, props))).toBe('<div title="cloud"><div title="own"><p>Sign in</p></div></div>')
+    expect(mergeUi(defineUi({ components: {} }))).not.toHaveProperty('beforeSignIn')
   })
 })

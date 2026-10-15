@@ -21,6 +21,7 @@ import { TwoFactorPage } from './two-factor-page'
 import { useSignInAddress } from './use-sign-in-address'
 import { readInvitationLink, withoutInvitationLink } from '../organizations/invitation-link'
 import { InvitationPage } from '../organizations/invitation-page'
+import { BeforeSignIn } from '../plugins/before-sign-in'
 
 type AuthPage =
   /**
@@ -62,9 +63,16 @@ const Redirect = ({ to }: { to: string }) => {
  * browse, and the right page otherwise: the step of the sign-in route the address names, or the page an emailed reset
  * link, an invitation link or a staff link opened. Someone signed out without a visitor's browsing goes to the sign-in
  * route, and signing in comes back to the page the route was opened from. An invited person with an account signs in
- * first and comes back to the invitation.
+ * first and comes back to the invitation. The plugins the app loads before sign-in draw around what someone signed
+ * out sees (see `BeforeSignIn`), while the gate keeps its state.
  */
 export const AuthGate = ({ workspace, children }: { workspace?: string; children: ReactNode }) => {
+  const page = useAuthPage(workspace, children)
+  return <BeforeSignIn>{page}</BeforeSignIn>
+}
+
+// What the gate shows, by the sign-in state and the page the address or a link opened.
+const useAuthPage = (workspace: string | undefined, children: ReactNode): ReactNode => {
   const { state, recheck, passwordReset, signOut, signInProviders, canSignUp, browse } = useAuth()
   const { path, params, basePath, navigate } = useRouter()
   const { address, next, open, link, leave } = useSignInAddress()

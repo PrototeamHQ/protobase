@@ -1,5 +1,5 @@
-import type { ComponentType } from 'react'
-import type { ProjectUi, UiModule } from './project-ui'
+import type { ComponentType, ReactNode } from 'react'
+import type { BeforeSignInProps, ProjectUi, UiModule } from './project-ui'
 import { uiFromModule } from './ui-from-module'
 
 type Named = { ui: ProjectUi; label: string }
@@ -39,10 +39,17 @@ const slot = (slots: ComponentType[]): ComponentType | undefined => {
   return All
 }
 
+// One component drawing every config's around the pages someone signed out sees, the first outermost.
+const around = (wrappers: ComponentType<BeforeSignInProps>[]): ComponentType<BeforeSignInProps> | undefined => {
+  if (wrappers.length <= 1) return wrappers[0]
+  const All = ({ children, ...given }: BeforeSignInProps) => wrappers.reduceRight<ReactNode>((inner, Wrapper) => <Wrapper {...given}>{inner}</Wrapper>, children)
+  return All
+}
+
 /**
  * One UI config from several, each after the ones it `extends`, the last being the app's own: components, action
  * handlers and field types are all kept, and one name defined by two configs is an error naming both; every shell slot
- * is drawn, the extended configs' first.
+ * and `beforeSignIn` component is drawn, the extended configs' first.
  */
 export const mergeUi = (...uis: ProjectUi[]): ProjectUi => {
   const named = uis.flatMap((ui, index) => flatten(ui, ui.name ?? `UI config ${index + 1}`))
@@ -51,6 +58,7 @@ export const mergeUi = (...uis: ProjectUi[]): ProjectUi => {
   const fields = union('The field type', named, (ui) => ui.fields)
   const actionSlot = slot(named.flatMap(({ ui }) => (ui.shell?.actions ? [ui.shell.actions] : [])))
   const rightPanel = slot(named.flatMap(({ ui }) => (ui.shell?.rightPanel ? [ui.shell.rightPanel] : [])))
+  const beforeSignIn = around(named.flatMap(({ ui }) => (ui.beforeSignIn ? [ui.beforeSignIn] : [])))
   const name = uis.at(-1)?.name
   return {
     ...(name && { name }),
@@ -58,5 +66,6 @@ export const mergeUi = (...uis: ProjectUi[]): ProjectUi => {
     actions,
     ...(Object.keys(fields).length > 0 && { fields }),
     ...((actionSlot || rightPanel) && { shell: { ...(actionSlot && { actions: actionSlot }), ...(rightPanel && { rightPanel }) } }),
+    ...(beforeSignIn && { beforeSignIn }),
   }
 }
