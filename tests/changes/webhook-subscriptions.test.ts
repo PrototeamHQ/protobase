@@ -50,6 +50,7 @@ describe('webhook subscriptions made in the admin app', () => {
     const pg = await createJobsPg()
     db = new Kysely<any>({ dialect: new PGliteDialect(pg) })
     await pg.exec('create table orders (id integer generated always as identity primary key, organization_id integer not null, status text not null default \'open\', total numeric(12, 2) not null, cost numeric(12, 2) not null default 0)')
+    await pg.exec('create index on orders (organization_id, status)')
     await pg.exec((await changesMigration(db, [orders.toModel()]))!)
     await pg.exec((await webhooksMigration(db, plugin.webhooks))!)
     receiver = await startReceiver()

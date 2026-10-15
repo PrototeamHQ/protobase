@@ -36,8 +36,7 @@ const adminFor = async (tenant: number) => {
 
 const org1 = await adminFor(1)
 
-// The scan guard on a real planner and a big table: paging, totals, aggregates and tenancy are @protobase/server's
-// tests.
+// The scan guard on the seeded ERP's indexes: paging, totals, aggregates and tenancy are @protobase/server's tests.
 describe.skipIf(!reachable)('the scan guard against the seeded erp database', () => {
   const get = (app: typeof org1, path: string) => app.request(path)
 

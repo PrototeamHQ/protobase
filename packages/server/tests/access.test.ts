@@ -5,7 +5,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { f, resource, view } from '@protobase/schema'
 import { createAdmin } from '../src/create-admin'
 import { as, json, testAuthenticator } from '../../../test-support/server'
-import { createEmptyPg } from '../../../test-support/pglite-snapshot'
+import { createTrigramPg } from '../../../test-support/pglite-snapshot'
 
 const isAdmin = (ctx: { user?: { roles?: readonly string[] } }) => ctx.user?.roles?.includes('admin') ?? false
 
@@ -34,10 +34,14 @@ let pg: PGlite
 let db: Kysely<any>
 let app: ReturnType<typeof createAdmin>
 beforeAll(async () => {
-  pg = await createEmptyPg()
+  pg = await createTrigramPg()
   await pg.exec(`
     create table ledger (id integer generated always as identity primary key, organization_id integer not null, title text not null, secret text not null, status text not null default 'open');
     insert into ledger (organization_id, title, secret, status) values (1, 'visible one', 'alpha-secret', 'open'), (1, 'visible two', 'beta-secret', 'locked');
+    create index on ledger (organization_id, title);
+    create index on ledger (organization_id, secret);
+    create index on ledger (organization_id, status);
+    create index on ledger using gin (title gin_trgm_ops, secret gin_trgm_ops);
   `)
   db = new Kysely({ dialect: new PGliteDialect(pg) })
   app = createAdmin({ resources: [ledger], views: [ledgerView], db, authenticate: testAuthenticator })

@@ -1,5 +1,6 @@
 import { readFile } from 'node:fs/promises'
 import { PGlite, type PGliteOptions } from '@electric-sql/pglite'
+import { pg_trgm } from '@electric-sql/pglite/contrib/pg_trgm'
 import { inject, onTestFinished, TestRunner } from 'vitest'
 
 declare module 'vitest' {
@@ -37,3 +38,14 @@ export const buildEmptyPg = async () => new PGlite()
 
 /** An empty database. */
 export const createEmptyPg = () => fromSnapshot('empty', buildEmptyPg)
+
+const trigramOptions = { extensions: { pg_trgm } }
+
+export const buildTrigramPg = async () => {
+  const pg = new PGlite(trigramOptions)
+  await pg.exec('create extension pg_trgm')
+  return pg
+}
+
+/** An empty database with pg_trgm, for tables whose text filters and search need trigram indexes. */
+export const createTrigramPg = () => fromSnapshot('trigram', buildTrigramPg, trigramOptions)

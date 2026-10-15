@@ -42,6 +42,11 @@ create table listings (
 insert into listings (address, place_id, agency_id, price, lat, lng) values
   ('Damrak 1', 1, 1, 500, 52.37, 4.89), ('Grote Markt 2', 2, 2, 400, 52.38, 4.63), ('Gran Via 3', 3, 1, 300, 40.42, -3.70),
   ('Damrak 4', 1, 1, 200, 52.37, 4.90), ('Nowhere 5', null, 1, 100, 52.00, 5.00);
+create index on places (region);
+create index on listings (place_id);
+create index on listings (price);
+create index on listings (lat);
+create index on listings (lng);
 `
 
 const roles = defineRoles<'places' | 'agencies' | 'listings'>({

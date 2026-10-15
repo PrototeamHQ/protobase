@@ -26,7 +26,10 @@ export const collectionRoutes = (deps: Deps) => {
       const { body, warning } = await listRecords(deps, entry, session, query)
       return c.json(body, 200, warningHeader(warning))
     }
-    if (action === 'facets') return c.json(await facets(deps, entry, session, query))
+    if (action === 'facets') {
+      const { body, warning } = await facets(deps, entry, session, query)
+      return c.json(body, 200, warningHeader(warning))
+    }
     if (action === 'series') return c.json(await timeSeries(deps, entry, session, query))
     if (action === 'histogram') return c.json(await numericHistogram(deps, entry, session, query))
     if (action === 'map') {

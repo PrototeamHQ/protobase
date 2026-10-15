@@ -3,7 +3,7 @@ import { PGliteDialect } from 'kysely-pglite-dialect'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { defineRoles, f, resource } from '@protobase/schema'
 import { createAdmin } from '@protobase/server'
-import { createEmptyPg } from '../../test-support/pglite-snapshot'
+import { createTrigramPg } from '../../test-support/pglite-snapshot'
 import { as, testAuthenticator } from '../../test-support/server'
 
 const roles = defineRoles<'products' | 'orders'>({
@@ -35,10 +35,15 @@ describe('the anonymous role and field lists through the API', () => {
   let closed: ReturnType<typeof createAdmin>
 
   beforeAll(async () => {
-    const pg = await createEmptyPg()
+    const pg = await createTrigramPg()
     await pg.exec(`
       create table products (id integer generated always as identity primary key, sku text not null, name text not null, price numeric(10,2) not null, cost_price numeric(10,2) not null, stock integer not null, published boolean not null);
       insert into products (sku, name, price, cost_price, stock, published) values ('B-1', 'Bell', 9.50, 4.00, 12, true), ('L-1', 'Lamp', 24.00, 11.00, 3, true), ('S-1', 'Saddle', 60.00, 30.00, 0, false);
+      create index on products (sku);
+      create index on products (name);
+      create index on products (price);
+      create index on products (published);
+      create index on products using gin (name gin_trgm_ops, sku gin_trgm_ops);
       create table orders (id integer generated always as identity primary key, total numeric(10,2) not null);
       insert into orders (total) values (10);
     `)

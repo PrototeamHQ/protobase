@@ -1,6 +1,6 @@
 import { Kysely } from 'kysely'
 import { afterAll, describe, expect, it } from 'vitest'
-import { compileFilter, estimateCount, exactCount, explainGuard, facetCounts, seekToPosition } from '@protobase/query'
+import { estimateCount, exactCount, facetCounts, seekToPosition, tableIndexes, uncoveredColumns } from '@protobase/query'
 import { connect } from '../../../examples/erp/db/connection'
 import { PostgresJsDialect } from './kysely-postgres-js'
 import { allOrders, allStockMoves, check, orders, stockMoves } from './erp-models'
@@ -30,19 +30,17 @@ describe.skipIf(!reachable)('query layer against the seeded erp database', async
     expect(generous.length).toBeGreaterThan(0)
   })
 
-  describe('explainGuard on inventory.stock_moves', () => {
-    const plan = (source: string) =>
-      explainGuard(db, db.selectFrom('inventory.stock_moves as t').select('t.id').where(compileFilter(allStockMoves, check(allStockMoves, source))))
+  describe('uncoveredColumns on inventory.stock_moves', () => {
+    const uncovered = async (source: string) => uncoveredColumns(stockMoves, await tableIndexes(db, stockMoves), { filter: check(stockMoves, source) }, scope)
 
-    it.skipIf(!medium)('passes an indexed filter', async () => {
-      const report = await plan('moved_at >= "2026-09-01T00:00:00Z" AND moved_at <= "2026-09-02T00:00:00Z"')
-      expect(report).toEqual({ ok: true, findings: [] })
+    it('passes an indexed filter, the tenant pinning the first key of (organization_id, quantity)', async () => {
+      expect(await uncovered('moved_at >= "2026-09-01T00:00:00Z" AND quantity > 5')).toEqual([])
     })
 
-    it.skipIf(!medium)('fails an unindexed filter', async () => {
-      const report = await plan('reference = "no-such-reference"')
-      expect(report.ok).toBe(false)
-      expect(report.findings).toEqual([expect.objectContaining({ kind: 'seqScan', relation: 'stock_moves' })])
+    it('names an unindexed column and the index to add', async () => {
+      expect(await uncovered('reference = "no-such-reference"')).toEqual([
+        expect.objectContaining({ field: 'reference', suggestion: 'create index on "inventory"."stock_moves" ("reference")' }),
+      ])
     })
   })
 

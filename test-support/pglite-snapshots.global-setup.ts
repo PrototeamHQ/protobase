@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import type { PGlite } from '@electric-sql/pglite'
 import type { TestProject } from 'vitest/node'
-import { buildEmptyPg } from './pglite-snapshot'
+import { buildEmptyPg, buildTrigramPg } from './pglite-snapshot'
 import { buildTestPg, testDbSnapshot } from './query'
 import { buildAuthPg } from './auth'
 import { buildFixturePg } from './server'
@@ -11,6 +11,7 @@ import { buildJobsPg } from './jobs'
 
 const builds: Record<string, () => Promise<PGlite>> = {
   empty: buildEmptyPg,
+  trigram: buildTrigramPg,
   server: buildFixturePg,
   auth: buildAuthPg,
   jobs: buildJobsPg,

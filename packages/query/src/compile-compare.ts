@@ -9,10 +9,15 @@ const operators = { '=': '=', '!=': '<>', '<': '<', '<=': '<=', '>': '>', '>=': 
 type Compare = Extract<CheckedFilter, { kind: 'compare' }>
 type In = Extract<CheckedFilter, { kind: 'in' }>
 
-/** `=` and `!=` on text with a `*` in the value become (NOT) ILIKE with the rest escaped. */
-export const compileCompare = ({ field, op, value }: Compare): Expression<SqlBool> => {
+/** `=` and `!=` on text with a `*` in the value: a pattern, which compiles to (NOT) ILIKE. */
+export const isPatternCompare = ({ field, op, value }: Compare) =>
+  field.type === 'text' && (op === '=' || op === '!=') && value.kind === 'string' && value.value.includes('*')
+
+/** A pattern becomes (NOT) ILIKE with the rest escaped. */
+export const compileCompare = (node: Compare): Expression<SqlBool> => {
+  const { field, op, value } = node
   const col = columnRef(field)
-  if (field.type === 'text' && (op === '=' || op === '!=') && value.kind === 'string' && value.value.includes('*')) {
+  if (isPatternCompare(node) && value.kind === 'string') {
     const pattern = wildcardPattern(value.value)
     return op === '=' ? sql<SqlBool>`${col} ilike ${pattern}` : sql<SqlBool>`${col} not ilike ${pattern}`
   }

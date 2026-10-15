@@ -1,6 +1,6 @@
 import { sql } from 'kysely'
 import { z } from 'zod'
-import { facetCounts, histogram, series } from '@protobase/query'
+import { facetCounts, histogram, series, withoutField } from '@protobase/query'
 import type { Granularity } from '@protobase/query'
 import { checkedFilter } from './filter-input'
 import type { Deps } from './deps'
@@ -47,7 +47,9 @@ export const facets = async (deps: Deps, entry: Entry, session: Session, input: 
   const params = parseParams(facetParams, input)
   const { model, filter: checked, scope } = await scoped(deps, entry, session, params.filter)
   const labels = params.label === undefined ? [] : await labelRequests(deps, session, model, [params.field], `${params.field}.${params.label}`)
-  return readTransaction(deps.db, deps.statementTimeoutMs, async (trx) => {
+  const others = withoutField(checked, params.field)
+  const warning = await deps.guard(entry, { ...(others && { filter: others }), groupBy: params.field }, { model, scope })
+  const body = await readTransaction(deps.db, deps.statementTimeoutMs, async (trx) => {
     const counts = await facetCounts(trx, model, params.field, checked, {
       statementTimeoutMs: deps.statementTimeoutMs,
       ...(params.limit !== undefined && { limit: params.limit }),
@@ -60,6 +62,7 @@ export const facets = async (deps: Deps, entry: Entry, session: Session, input: 
     })
     return { field: params.field, facets: named }
   })
+  return { body, warning }
 }
 
 const earliest = async (deps: Deps, access: RequestAccess, fieldName: string, scope: ReturnType<typeof readScope>) => {

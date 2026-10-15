@@ -13,8 +13,8 @@ export type AdminOptions = {
   basePath?: string
   /** Applied to every request's transaction with SET LOCAL. Default 15000. */
   statementTimeoutMs?: number
-  /** List shapes that would sequentially scan a table of more than `seqScanRows` rows (default 10000). Default mode `reject`. */
-  scanGuard?: { mode?: ScanGuardMode; seqScanRows?: number }
+  /** Reads that filter, sort or count values by a column no index serves. Default mode `reject`. */
+  scanGuard?: { mode?: ScanGuardMode }
   /** Runs inside the write transaction after each create, update and delete. */
   writeHooks?: PipelineHook[]
   /**

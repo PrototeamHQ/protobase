@@ -42,7 +42,7 @@ Under `/api/v1`:
 | `POST /{resource}/{key}:reveal` | `{ "field": "iban" }` gives `{ field, value }` of one [sensitive field](#sensitive-fields-and-audit), with `Cache-Control: no-store`, and publishes an audit event |
 | `POST /{resource}/{key}:undelete` | restores a soft-deleted record ([AIP-164](https://google.aip.dev/164)); `If-Match` optional; `409` when not deleted, `400` on hard-delete resources |
 | `POST /api/v1:batchWrite` | many writes in one transaction, see [Batch writes](#batch-writes) |
-| `GET /{resource}:facets?field=&filter=&limit=&label=` | `{ field, facets: [{ value, count }] }`; with `label`, a relation's facets carry the related record's name as `label`, as in [Related names](#related-names) |
+| `GET /{resource}:facets?field=&filter=&limit=&label=` | `{ field, facets: [{ value, count }] }`, the `limit` most frequent values (100 by default, at most 1,000), never all of them; with `label`, a relation's facets carry the related record's name as `label`, as in [Related names](#related-names) |
 | `GET /{resource}:series?field=&range=&granularity=&time_zone=&filter=` | `range` is `7d`, `30d`, `90d`, `1y`, `all`, or `from` and `to` (ISO) |
 | `GET /{resource}:histogram?field=&buckets=&filter=` | equal-width buckets of a numeric field |
 | `GET /{resource}:map?latitude=&longitude=&zoom=&filter=&order_by=&fields=&labels=&photos=&photos_order_by=` | the records in a map's view, the bounding box being in `filter` (`lat >= 51.9 AND lat <= 52.1 AND lng >= 4.2 AND lng <= 4.5`), as `{ items, buckets, total_size }`; see [Maps](#maps) |
@@ -180,7 +180,12 @@ The API sends no CORS headers until it has something to allow: other websites in
 ## Safety
 
 - Every request runs in a transaction with `SET LOCAL statement_timeout` (`statementTimeoutMs`, default 15 s); a timeout is `504`. List, search, get, histogram, series, map and seek transactions are read-only.
-- **Scan guard**: before a list shape runs for the first time, the server runs `EXPLAIN` on the filtered query and on the query layer's page query (`buildListQuery`) and caches the verdict by shape (resource, filter without its values, sort). A sequential scan of a table above `seqScanRows` (default 10,000) is a `400` `expensive-query` problem with a `create index` suggestion; `scanGuard: { mode: 'warn' }` returns the list with an `X-Protobase-Warning` header instead, `'off'` disables it. The verdict is planned with the first request's values and kept for the process lifetime.
+- **Scan guard**: a list, `:search`, `:seek`, `:map` page, card photos and `:facets` read only columns an index serves, so they stay cheap however many rows match. The server reads each table's valid indexes from the catalog once, then checks every column the caller's filter, the role's row filter, the sort's first field and a facet's field read:
+  - Comparisons, `in`, null checks, sorts and facets need a btree index with the column as a key, every key before it pinned by the query: by `=` or `in` in the filter (outside `OR` and `NOT`), by the tenant or by soft delete. `(for_sale, status, published_at desc)` serves `for_sale = true AND status = "available"` sorted by `published_at desc`, but not `status` alone. `=` on text may use a pg_trgm index instead.
+  - Patterns (`name = "*port*"`), `regex()`, `similar()` and `search()` need a pg_trgm (GIN or GiST) index on each column they read, a `digitsEnd` search field one on its digits; JSON `field:value` needs a GIN index.
+  - A partial index counts for nothing, and a resource on a plain view or a foreign table, which has no indexes of its own, is not checked.
+
+  A column without one is a `400` `expensive-query` problem that names it, with `columns` (each `{ field, column, use, need, suggestion }`) and a `create index` `suggestion`; `scanGuard: { mode: 'warn' }` answers with an `X-Protobase-Warning` header instead, `'off'` disables it. The indexes are read when a table is first queried and kept for the process lifetime, so restart the server after adding one.
 
 ## Errors
 

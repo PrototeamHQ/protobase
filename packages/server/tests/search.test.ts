@@ -4,7 +4,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { f, resource } from '@protobase/schema'
 import { createAdmin } from '../src/create-admin'
 import { as, json, testAuthenticator } from '../../../test-support/server'
-import { createEmptyPg } from '../../../test-support/pglite-snapshot'
+import { createTrigramPg } from '../../../test-support/pglite-snapshot'
 
 const contacts = resource('contacts')
   .table('contacts')
@@ -23,7 +23,7 @@ const contacts = resource('contacts')
 let db: Kysely<any>
 let app: ReturnType<typeof createAdmin>
 beforeAll(async () => {
-  const pg = await createEmptyPg()
+  const pg = await createTrigramPg()
   await pg.exec(`
     create table contacts (id integer primary key, organization_id integer not null, name text not null, phone text, status text not null);
     insert into contacts values
@@ -31,6 +31,9 @@ beforeAll(async () => {
       (2, 1, 'Bram Smit', '+31-6-1234-9623', 'closed'),
       (3, 2, 'Chris Jansen', '+31 6 47069623', 'open'),
       (4, 1, 'Dewi 4706 Bakker', null, 'open');
+    create index on contacts (organization_id, status);
+    create index on contacts using gin (name gin_trgm_ops);
+    create index on contacts using gin ((regexp_replace(phone, '[^0-9]', '', 'g')) gin_trgm_ops);
   `)
   db = new Kysely({ dialect: new PGliteDialect(pg) })
   app = createAdmin({ resources: [contacts], db, authenticate: testAuthenticator })

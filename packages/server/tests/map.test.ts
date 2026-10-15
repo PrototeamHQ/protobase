@@ -24,6 +24,9 @@ create table places (id integer generated always as identity primary key, name t
 insert into places (name, kind, lat, lng) select 'Amsterdam ' || i, case when i % 5 = 0 then 'house' else 'flat' end, 52.33 + (i / 16) * 0.005, 4.75 + (i % 16) * 0.006 from generate_series(0, 249) i;
 insert into places (name, kind, lat, lng) select 'Utrecht ' || i, 'flat', 52.09 + i * 0.0002, 5.12 from generate_series(0, 39) i;
 insert into places (name, kind, lat, lng) select 'Rotterdam ' || i, 'house', 51.92, 4.48 + i * 0.001 from generate_series(0, 2) i;
+create index on places (kind);
+create index on places (lat);
+create index on places (lng);
 `
 
 let db: Kysely<any>

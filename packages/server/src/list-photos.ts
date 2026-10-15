@@ -66,7 +66,7 @@ export const recordPhotos = async (deps: Deps, request: PhotosRequest, model: Re
   const filter = checkFilter(access.model, where.in(photos.field, keys))
   if (!filter.ok) throw new Error(`Keys of "${model.name}" do not make a filter of "${photos.resource}": ${filter.errors[0]!.message}`)
   const scope = readScope(access)
-  const warning = await deps.guard(access.entry, { filter: filter.filter, ...(sort && { sort }), limit: cardPhotoLimit }, { model: access.model, scope })
+  const warning = await deps.guard(access.entry, { filter: filter.filter, ...(sort && { sort }) }, { model: access.model, scope })
   const found = await readTransaction(deps.db, deps.statementTimeoutMs, (trx) =>
     relatedRows(trx, access.model, { field: photos.field, values: keys, columns: photoColumns({ photos, access }), ...(sort && { sort }), limit: cardPhotoLimit }, scope),
   )

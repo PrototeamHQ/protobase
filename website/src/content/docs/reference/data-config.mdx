@@ -25,7 +25,7 @@ A **resource** describes one table of a database you already have: its columns a
 | `.softDelete((r) => r.deleted_at)` | A nullable timestamp or date: deleting sets it, lists leave such rows out, `:undelete` clears it. See [REST API](/reference/api/#routes). |
 | `.tenant((r) => r.organization_id)` | The column that separates tenants: every query is limited to the caller's tenant, creates set it, and a request body may not. |
 | `.owner((r) => r.owner_id)` | The field holding the owning user's id, which `.own` capabilities filter on (see [Access](#access)). |
-| `.search((r) => [r.number, r.name])` | The fields that `search("...")` and bare words in a filter match, and what the admin's [global search](/reference/client/#global-search) looks in. Every word of the text must appear in one of them, ignoring case, and part of a word is enough: `port` finds "Portfolio". `r.phone.digitsEnd()` matches only the end of a field's digits instead, ignoring spaces, `+` and dashes, and only words written like phone numbers: `9623`, `47069623` and `+31 6 47069623` find "+31 6 47069623", `4706` and `+316` do not. A pg_trgm index on `regexp_replace(phone, '[^0-9]', '', 'g')` serves it. |
+| `.search((r) => [r.number, r.name])` | The fields that `search("...")` and bare words in a filter match, and what the admin's [global search](/reference/client/#global-search) looks in. Every word of the text must appear in one of them, ignoring case, and part of a word is enough: `port` finds "Portfolio". `r.phone.digitsEnd()` matches only the end of a field's digits instead, ignoring spaces, `+` and dashes, and only words written like phone numbers: `9623`, `47069623` and `+31 6 47069623` find "+31 6 47069623", `4706` and `+316` do not. Each field needs a pg_trgm index (`using gin (name gin_trgm_ops)`), a `digitsEnd` one on `regexp_replace(phone, '[^0-9]', '', 'g')`, or the API refuses the search. |
 | `.validate((record) => issues)` | A rule over the whole record, run after the field checks on every create and update. It returns `[{ field, message }]` or `undefined`; issues answer `400` with the field named. |
 | `.access({ ... })` | Rules per operation. See [Access](#access). |
 | `.events((e, r) => [...])` | What changes of its records mean, such as `orders.created`, captured in the database for every write. See [Events](/reference/events/). |
@@ -63,8 +63,8 @@ Every option returns a new [field](/api/schema/interfaces/field/), so they chain
 | `.readOnly()` | Never written through the API: ids, computed columns, audit timestamps. |
 | `.default(value)` | The value a create uses when none is given; the admin's create form shows it. |
 | `.dbDefault()` | The database supplies a value when none is given (identity, `now()`, a sequence). |
-| `.filterable()` | May appear in `filter`, in filter widgets and in `Stat`/`Table` filters. Give it an index. |
-| `.sortable()` | May appear in `order_by` and in sorts. |
+| `.filterable()` | May appear in `filter`, in filter widgets and in `Stat`/`Table` filters. It needs an index: the API refuses a filter on a column no index serves (see the [scan guard](/reference/api/#safety)). |
+| `.sortable()` | May appear in `order_by` and in sorts. It needs a btree index, as a filterable field does. |
 | `.alias(...names)` | Other names filters may use for the field. |
 | `.column('name')` | The column, when it is not the snake_case of the field name (`'EMP_NAME'`). |
 | `.access({ read, create, update })` | Role rules for this column. See [Access](#access). |

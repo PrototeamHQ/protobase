@@ -83,6 +83,10 @@ create table companies (
   created_at timestamptz not null default now(), updated_at timestamptz not null default now(), deleted_at timestamptz
 );
 create index on companies (organization_id, id);
+create index on companies (organization_id, name);
+create index on companies (organization_id, status);
+create index on companies (organization_id, revenue);
+create index on companies (organization_id, created_at);
 insert into companies (organization_id, name, status, revenue, created_at)
 select case when i <= 3000 then 1 else 2 end, 'Company ' || i, (array['open','won','lost'])[1 + i % 3], i % 1000,
   timestamptz '2026-01-01 00:00:00+00' + (i % 200) * interval '1 day'
