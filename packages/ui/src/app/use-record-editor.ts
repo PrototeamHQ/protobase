@@ -44,7 +44,10 @@ export const useRecordEditor = ({ model, stored, recordKey, mode, subject, draft
   const [conflicts, setConflicts] = useState<Record<string, string>>({})
   const [errors, setErrors] = useState<Record<string, string>>({})
 
-  const fieldsDirty = Object.keys(draft).length > 0
+  // A draft is kept as typed, so a line break or space at its end stays while the rest is still to come; it is a change
+  // only when it stands for another value than the stored one.
+  const changed = Object.entries(draft).filter(([name, entry]) => differs(model.fields[name]!, entry, stored.record[name]))
+  const fieldsDirty = changed.length > 0
   const dirty = fieldsDirty || Boolean(lines?.dirty)
 
   // The restored order is applied once, when the record opens.
@@ -65,7 +68,8 @@ export const useRecordEditor = ({ model, stored, recordKey, mode, subject, draft
 
   const change = (name: string, next: unknown) => {
     setErrors((current) => without(current, name))
-    setDraft((current) => (differs(model.fields[name]!, next, stored.record[name]) ? { ...current, [name]: next } : without(current, name)))
+    const typed = typeof next === 'string' ? next !== toDraft(stored.record[name]) : differs(model.fields[name]!, next, stored.record[name])
+    setDraft((current) => (typed ? { ...current, [name]: next } : without(current, name)))
   }
 
   const adoptLatest = async () => {
@@ -83,7 +87,7 @@ export const useRecordEditor = ({ model, stored, recordKey, mode, subject, draft
     setConflicts(theirs)
   }
 
-  const patchOf = () => Object.fromEntries(Object.entries(draft).map(([name, entry]) => [name, toPatchValue(model.fields[name]!, entry)]))
+  const patchOf = () => Object.fromEntries(changed.map(([name, entry]) => [name, toPatchValue(model.fields[name]!, entry)]))
 
   const fieldErrors = (error: unknown) => (isApiError(error) ? Object.fromEntries(error.errors.flatMap((entry) => (entry.field ? [[entry.field, entry.message]] : []))) : {})
 
