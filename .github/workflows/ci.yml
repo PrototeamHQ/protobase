@@ -20,7 +20,9 @@ jobs:
     # Pushes to main and to fm/** branches run on the runner the CHECK_RUNNER variable names, when it is set; pull
     # requests, which forks can open, always run on GitHub's runners. See CONTRIBUTING.md.
     runs-on: ${{ github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/fm/')) && vars.CHECK_RUNNER || 'ubuntu-latest' }}
-    # The integration tests' Postgres, as docker-compose.yml runs it locally: same image, user and port.
+    # The integration tests' Postgres, as docker-compose.yml runs it locally: same image and user. Its host port is a free
+    # one Docker picks, not docker-compose.yml's fixed one, so each job's database is its own and one left behind by an
+    # earlier job cannot hold the port this one needs.
     services:
       postgres:
         image: postgres:18
@@ -29,7 +31,7 @@ jobs:
           POSTGRES_PASSWORD: protobase
           POSTGRES_DB: protobase
         ports:
-          - 55432:5432
+          - 5432
         options: >-
           --shm-size 1g
           --health-cmd "pg_isready -U protobase -d protobase"
@@ -45,6 +47,11 @@ jobs:
         with:
           bun-version: 1.4.2
       - run: bun install --frozen-lockfile
+      # The tests reach the server on the port the service was given (scripts/test-db/templates.ts).
+      - name: Point the tests at the service's Postgres
+        env:
+          POSTGRES_PORT: ${{ job.services.postgres.ports['5432'] }}
+        run: echo "TEST_POSTGRES_URL=postgres://protobase:protobase@localhost:$POSTGRES_PORT/postgres" >> "$GITHUB_ENV"
       # bunfig.toml has `bun run` put a node that is Bun first on PATH, so the checks run on Bun. Bun skips that without a
       # word when another user owns its /tmp/bun-node-* directory, as on a shared server, and they would run on Node.
       - run: bun run sh -c 'node -e "process.versions.bun || (console.error(\"bun run starts Node, not Bun\"), process.exit(1))"'
