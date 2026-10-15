@@ -17,33 +17,47 @@ const paths = [...sitemap.matchAll(/<loc>([^<]+)<\/loc>/g)].map(([, url]) => new
 if (paths.length === 0) throw new Error('The sitemap lists no pages')
 
 const browser = await chromium.launch()
-const problems = []
 const report = (label, found) => {
   console.log(`${found.length === 0 ? 'PASS' : 'FAIL'} ${label}${found.map((problem) => `\n  ${problem}`).join('')}`)
   if (found.length > 0) process.exitCode = 1
 }
 
+// Four pages at a time, in one context so they share its cache: a page mostly waits for the network to go idle. Each
+// url gets the problems its page met and what `inspect` returns once the network is idle, in the order of `urls`.
+const pages = 4
+const visitAll = async (context, urls, inspect) => {
+  const visits = new Array(urls.length)
+  let next = 0
+  await Promise.all(Array.from({ length: pages }, async () => {
+    const page = await context.newPage()
+    const problems = []
+    page.on('console', (message) => message.type() === 'error' && problems.push(`console: ${message.text()}`))
+    page.on('pageerror', (error) => problems.push(`exception: ${error.message}`))
+    page.on('requestfailed', (request) => problems.push(`request failed: ${request.url()}`))
+    page.on('response', (response) => response.status() >= 400 && problems.push(`${response.status()}: ${response.url()}`))
+    while (next < urls.length) {
+      const i = next++
+      problems.length = 0
+      await page.goto(new URL(urls[i], base).href, { waitUntil: 'networkidle' })
+      const found = await inspect(page, problems)
+      visits[i] = { problems: [...problems], found }
+    }
+    await page.close()
+  }))
+  return visits
+}
+
 try {
-  const page = await browser.newPage()
-  page.on('console', (message) => message.type() === 'error' && problems.push(`console: ${message.text()}`))
-  page.on('pageerror', (error) => problems.push(`exception: ${error.message}`))
-  page.on('requestfailed', (request) => problems.push(`request failed: ${request.url()}`))
-  page.on('response', (response) => response.status() >= 400 && problems.push(`${response.status()}: ${response.url()}`))
-  const stories = new Set()
-  for (const path of paths) {
-    problems.length = 0
-    await page.goto(new URL(path, base).href, { waitUntil: 'networkidle' })
-    for (const src of await page.$$eval('iframe[src]', (frames) => frames.map((frame) => frame.getAttribute('src')))) stories.add(src)
-    report(path, [...problems])
-  }
-  for (const src of stories) {
-    problems.length = 0
-    await page.goto(new URL(src, base).href, { waitUntil: 'networkidle' })
+  const context = await browser.newContext()
+  const pageVisits = await visitAll(context, paths, (page) => page.$$eval('iframe[src]', (frames) => frames.map((frame) => frame.getAttribute('src'))))
+  pageVisits.forEach((visit, i) => report(paths[i], visit.problems))
+  const stories = [...new Set(pageVisits.flatMap((visit) => visit.found))]
+  const storyVisits = await visitAll(context, stories, async (page, problems) => {
     const rendered = await page.waitForFunction(() => document.querySelector('#storybook-root')?.childElementCount > 0, null, { timeout: 15_000 }).then(() => true, () => false)
     if (!rendered) problems.push('the story did not render')
     if (await page.evaluate(() => document.body.classList.contains('sb-show-errordisplay'))) problems.push('the story shows an error')
-    report(`story ${src}`, [...problems])
-  }
+  })
+  storyVisits.forEach((visit, i) => report(`story ${stories[i]}`, visit.problems))
 } finally {
   await browser.close()
   local?.close()
