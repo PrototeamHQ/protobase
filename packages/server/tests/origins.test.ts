@@ -64,10 +64,11 @@ describe('an app on several origins', () => {
 
   it('mails a password reset link on the origin that asked for it, and on baseURL for another host', async () => {
     const { sent, post } = await serve({ origins: [custom] })
-    for (const origin of [custom, label]) {
+    // Mail goes out after the answer, so each request waits for its own before the next.
+    for (const [index, origin] of [custom, label].entries()) {
       expect((await post(origin, '/request-password-reset', { email: 'root@example.com', redirectTo: `${origin}/?password-reset` })).status).toBe(200)
+      await vi.waitFor(() => expect(sent).toHaveLength(index + 1), { timeout: 10_000 })
     }
-    await vi.waitFor(() => expect(sent).toHaveLength(2))
     const links = sent.map((message) => /https?:\/\/\S+/.exec(message.text)![0])
     expect(links[0]).toMatch(new RegExp(`^${custom}/api/auth/reset-password/`))
     expect(decodeURIComponent(new URL(links[0]!).searchParams.get('callbackURL')!)).toBe(`${custom}/?password-reset`)

@@ -44,6 +44,7 @@ const mailedCode = async (to: string, subject: string) => {
   const message = await relay.next()
   expect(message).toMatchObject({ from: sender, to: [to] })
   expect(message.raw).toContain(`Subject: ${subject}`)
+  expect(message.raw).toContain(`From: Acme ERP <${sender}>`)
   const code = /^\d{6}$/m.exec(bodyOf(message.raw))?.[0]
   if (!code) throw new Error(`No code in the email:\n${message.raw}`)
   return code
@@ -67,7 +68,7 @@ const signInWithPassword = (email: string) => post('/sign-in/email', { email, pa
 
 const signInWithCode = async (email: string) => {
   expect((await post('/email-otp/send-verification-otp', { email, type: 'sign-in' })).status).toBe(200)
-  return post('/sign-in/email-otp', { email, otp: await mailedCode(email, 'Your sign-in code') })
+  return post('/sign-in/email-otp', { email, otp: await mailedCode(email, 'Your Acme ERP sign-in code') })
 }
 
 // Turns on two-factor authentication with an authenticator app, as the account page does; returns the scanned URI and the backup codes.
@@ -113,7 +114,7 @@ describe('two-factor authentication', () => {
   it('mails the second step instead when asked', async () => {
     const pending = cookiesOf(await signInWithPassword('bob@acme.example.com'))
     expect((await post('/two-factor/send-otp', {}, pending)).status).toBe(200)
-    const code = await mailedCode('bob@acme.example.com', 'Your verification code')
+    const code = await mailedCode('bob@acme.example.com', 'Your Acme ERP verification code')
     await expectSignedIn(await post('/two-factor/verify-otp', { code }, pending))
   })
 

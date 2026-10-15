@@ -89,7 +89,7 @@ describe('an app on two origins in a browser', () => {
   it('mails a password reset link on the origin that asked for it, which leads back there', async () => {
     await open(second)
     await page.evaluate(([address, back]) => window.auth.requestPasswordReset(address!, back!), [email, `${second}/?password-reset`])
-    await vi.waitFor(() => expect(sent).toHaveLength(1))
+    await vi.waitFor(() => expect(sent).toHaveLength(1), { timeout: 10_000 })
     const link = /https:\/\/\S+/.exec(sent[0]!.text)![0]
     expect(new URL(link).origin).toBe(second)
 

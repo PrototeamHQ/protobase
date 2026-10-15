@@ -202,7 +202,7 @@ describe('the guardrails of a staff sign-in', () => {
     await savePolicy({ staffAccess: 'notify' })
     expect((await staffSignIn()).callback.headers.get('location')).toBe(`${origin}/`)
     expect(sent).toHaveLength(1)
-    expect(sent[0]).toMatchObject({ to: 'sanne@example.com', subject: 'Staff signed in as you' })
+    expect(sent[0]).toMatchObject({ to: 'sanne@example.com', subject: 'Staff signed in to Protobase as you' })
     expect(sent[0]!.text).toContain('alex@operator.example')
     expect(sent[0]!.text).toContain(reason)
   })

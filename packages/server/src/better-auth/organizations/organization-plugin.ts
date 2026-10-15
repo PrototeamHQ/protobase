@@ -1,8 +1,7 @@
 import { APIError } from 'better-auth/api'
 import { organization, type OrganizationOptions } from 'better-auth/plugins/organization'
-import type { Mailer } from '../../mail/smtp-mailer'
+import { sendAuthEmail, type AuthMail } from '../auth-mail/send-auth-email'
 import { checkAppRoleChange, globalRoles, parseAppRoles, effectiveRoles } from './app-roles'
-import { invitationEmail } from './invitation-mail'
 import { invitationLink, invitationToken } from './invitation-token'
 import type { ResolvedOrganizations } from './options'
 import { superuserRole } from './role-definitions'
@@ -45,7 +44,7 @@ const mergeHooks = (own: Hooks, project: Hooks = {}): Hooks => {
 export type OrganizationPluginInput = {
   resolved: ResolvedOrganizations
   secret: string
-  mailer?: Mailer
+  mail?: AuthMail
   /** The auth context, once the instance exists: the hooks read memberships through its adapter. */
   context: () => Promise<AuthContext>
 }
@@ -56,7 +55,7 @@ export type OrganizationPluginInput = {
  * `creatorAppRoles`, invitations checked against what the inviter may give and mailed with a signed link, and the
  * project's hooks after Protobase's.
  */
-export const organizationPlugin = ({ resolved, secret, mailer, context }: OrganizationPluginInput) => {
+export const organizationPlugin = ({ resolved, secret, mail, context }: OrganizationPluginInput) => {
   const { definitions } = resolved
 
   const own: Hooks = {
@@ -98,10 +97,11 @@ export const organizationPlugin = ({ resolved, secret, mailer, context }: Organi
     schema: organizationNames,
     // Also on resend, which moves the expiry and so voids the earlier link. Without a mailer the inviter gets the link
     // in the answer instead (see the invitation endpoints).
-    ...(mailer && {
+    ...(mail && {
       sendInvitationEmail: async ({ invitation, organization, inviter }) => {
         const token = await invitationToken(secret, invitation)
-        await mailer.send(invitationEmail({ to: invitation.email, inviter: inviter.user.name || inviter.user.email, organization: organization.name, url: invitationLink(resolved.invitationUrl, token), expiresAt: invitation.expiresAt }))
+        const url = invitationLink(resolved.invitationUrl, token)
+        await sendAuthEmail(mail, 'invitationEmail', invitation.email, { inviter: inviter.user.name || inviter.user.email, organization: organization.name, url, expiresAt: new Date(invitation.expiresAt) }, url)
       },
     }),
     organizationHooks: mergeHooks(own, resolved.options.hooks),

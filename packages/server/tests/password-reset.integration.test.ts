@@ -58,7 +58,7 @@ describe('password reset over SMTP', () => {
 
     const { message, link } = await linkIn()
     expect(message).toMatchObject({ from: sender, to: ['sanne@acme.example.com'], user: credential.username })
-    expect(message.raw).toContain('Subject: Reset your password')
+    expect(message.raw).toContain('Subject: Reset your Protobase password')
     expect(bodyOf(message.raw)).toContain('The link works for 1 hour, once.')
     expect(link.startsWith(`${origin}/api/auth/reset-password/`)).toBe(true)
 

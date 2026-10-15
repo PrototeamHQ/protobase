@@ -11,6 +11,8 @@ const config: StorybookConfig = {
       plugins: [tailwindcss()],
       // Live stories call /api/v1 on the Storybook origin; PROTOBASE_API says where the ERP server runs.
       server: { proxy: { '/api': { target: process.env.PROTOBASE_API ?? 'http://localhost:8787', changeOrigin: true } } },
+      // The auth email stories render @protobase/server's templates, whose mailer loads nodemailer only to send.
+      build: { rollupOptions: { external: ['nodemailer'] } },
     }),
 }
 

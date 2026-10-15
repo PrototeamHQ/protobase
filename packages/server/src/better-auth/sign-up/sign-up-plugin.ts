@@ -2,18 +2,16 @@ import type { BetterAuthPlugin } from 'better-auth'
 import { APIError, createAuthEndpoint } from 'better-auth/api'
 import { setSessionCookie } from 'better-auth/cookies'
 import * as z from 'zod'
-import type { Mailer } from '../../mail/smtp-mailer'
+import { sendAuthEmail, type AuthMail } from '../auth-mail/send-auth-email'
 import { checkNewAccountPassword } from '../new-account-password'
 import { readSignInPolicy } from '../policy-store'
 import { effectiveSignInPolicy } from '../sign-in-policy'
-import { consumeSignUpCode, issueSignUpCode } from './sign-up-code'
-import { accountExistsEmail, signUpCodeEmail } from './sign-up-mail'
+import { consumeSignUpCode, issueSignUpCode, signUpCodeLifetime } from './sign-up-code'
 
 export type SignUpPluginOptions = {
   /** The role every account made here gets, whatever the request says. */
   role: string
-  mailer: Mailer
-  appName: string
+  mail: AuthMail
 }
 
 const address = z.string().trim().toLowerCase().pipe(z.email())
@@ -27,9 +25,9 @@ const noAdminYet = () => new APIError('FORBIDDEN', { code: 'NO_ADMIN_YET', messa
  * Open sign-up: anyone makes their own account, with `role`. The address comes first, and a code mailed to it, so an
  * account exists only for an address its owner reads, verified from the start, and nobody can claim an address before
  * its owner does. Asking for a code answers the same whether the address has an account or not; one that has gets a
- * mail saying so instead of a code. While the store has no user, nobody signs up: the first admin is made on the host.
+ * mail saying so, with a link to sign in, instead of a code. While the store has no user, nobody signs up: the first admin is made on the host.
  */
-export const signUpPlugin = ({ role, mailer, appName }: SignUpPluginOptions) =>
+export const signUpPlugin = ({ role, mail }: SignUpPluginOptions) =>
   ({
     id: 'protobase-sign-up',
     endpoints: {
@@ -38,10 +36,10 @@ export const signUpPlugin = ({ role, mailer, appName }: SignUpPluginOptions) =>
         const { email } = ctx.body
         const { internalAdapter, adapter } = ctx.context
         if ((await adapter.count({ model: 'user' })) === 0) throw noAdminYet()
-        const message = (await internalAdapter.findUserByEmail(email))
-          ? accountExistsEmail({ to: email, appName })
-          : signUpCodeEmail({ to: email, code: await issueSignUpCode(ctx.context, email), appName })
-        await ctx.context.runInBackgroundOrAwait(mailer.send(message))
+        const sending = (await internalAdapter.findUserByEmail(email))
+          ? sendAuthEmail(mail, 'accountExistsEmail', email, {}, ctx.context.baseURL)
+          : sendAuthEmail(mail, 'signUpCodeEmail', email, { code: await issueSignUpCode(ctx.context, email), lifetime: signUpCodeLifetime }, ctx.context.baseURL)
+        await ctx.context.runInBackgroundOrAwait(sending)
         return ctx.json({ sent: true })
       }),
 

@@ -2,6 +2,7 @@ import { APIError } from 'better-auth/api'
 import { betterAuth, type BetterAuthOptions } from 'better-auth'
 import { admin, emailOTP, genericOAuth, jwt } from 'better-auth/plugins'
 import { adminAc, userAc } from 'better-auth/plugins/admin/access'
+import { readAppName } from '../app-name'
 import { platformMailer } from '../mail/platform-mailer'
 import type { Mailer } from '../mail/smtp-mailer'
 import { readOperatorSettings, resolveOperator, type OperatorProvider, type ResolvedOperator } from './operator-provider'
@@ -44,7 +45,11 @@ export type CreateAuthOptions = {
    * passes in `PROTOBASE_PASSKEY_DOMAIN`, when set, and to the host of `baseURL` otherwise.
    */
   passkeyDomain?: string
-  /** The name authenticator apps and passkey prompts show for this app. Default `Protobase`. */
+  /**
+   * The app's name: authenticator apps and passkey prompts show it, the auth emails name the app with it, and the
+   * default mailer sends them from it, as the sender's display name. Defaults to the name the platform passes in
+   * `PROTOBASE_APP_NAME`, when set, and to `Protobase` otherwise (without a sender's display name).
+   */
   appName?: string
   /** Signs cookies and encrypts the JWT private keys. Generate with `openssl rand -base64 32`. */
   secret: string
@@ -71,9 +76,10 @@ export type CreateAuthOptions = {
   /** Sign-in attempts allowed per minute and client, default 5; also the sign-up requests allowed. */
   signInPerMinute?: number
   /**
-   * Sends the password-reset email and the emailed sign-in and two-factor codes; without a mailer none of them is
-   * offered. Defaults to SMTP with the settings the platform passes in `PROTOBASE_SMTP_URL` and `PROTOBASE_MAIL_FROM`
-   * (see `readMailSettings`), when set; `false` turns mail off whatever the environment says.
+   * Sends the auth emails: the password-reset email, the emailed sign-in and two-factor codes, and those of sign-up,
+   * staff sign-in and invitations; without a mailer none of them is offered. Defaults to SMTP with the settings the
+   * platform passes in `PROTOBASE_SMTP_URL` and `PROTOBASE_MAIL_FROM` (see `readMailSettings`), when set; `false`
+   * turns mail off whatever the environment says.
    */
   mailer?: Mailer | false
   /**
@@ -120,6 +126,10 @@ const platformOrigins = () => readOrigins(globalThis.process?.env ?? {})
 
 const platformPasskeyDomain = () => readPasskeyDomain(globalThis.process?.env ?? {})
 
+const platformAppName = () => readAppName(globalThis.process?.env ?? {})
+
+const defaultAppName = 'Protobase'
+
 const tokenLifetime = '15m'
 
 export const authBasePath = '/api/auth'
@@ -145,6 +155,8 @@ type Resolved = {
   /** The roles with their labels, for the role switcher. */
   definitions: RoleDefinitions
   defaultRole?: string
+  /** The app's name, from `appName` or `PROTOBASE_APP_NAME`; default `Protobase`. */
+  appName?: string
   mailer?: Mailer
   /** The role of accounts made by open sign-up, when it is on and there is a mailer. */
   signUpRole?: string
@@ -165,18 +177,19 @@ const organizationPaths = ['/organization/set-active', '/organization/accept-inv
  * The options `createAuth` gives Better Auth, with the roles, default role, mailer, operator provider and platform
  * sign-in provider already resolved.
  */
-export const betterAuthOptions = (options: CreateAuthOptions, { origins = [], passkeyDomain, roles, definitions, defaultRole, mailer, signUpRole, operator, platformSignIn, organizations, context = noContext }: Resolved) => {
+export const betterAuthOptions = (options: CreateAuthOptions, { origins = [], passkeyDomain, roles, definitions, defaultRole, appName = defaultAppName, mailer, signUpRole, operator, platformSignIn, organizations, context = noContext }: Resolved) => {
   const secure = options.baseURL.startsWith('https://')
   const signIn = platformSignInFor(platformSignIn, Object.keys(options.socialProviders ?? {}))
   const hosts = passkeyHosts([options.baseURL, ...origins])
+  const mail = mailer && { mailer, appName, baseURL: options.baseURL }
   return {
-    appName: options.appName ?? 'Protobase',
+    appName,
     database: options.database,
     baseURL: multiHostBaseURL(options.baseURL, origins),
     basePath: authBasePath,
     secret: options.secret,
     trustedOrigins: [options.baseURL, ...origins, 'https://*.trycloudflare.com', ...(options.trustedOrigins ?? [])],
-    emailAndPassword: { enabled: true, disableSignUp: true, minPasswordLength: 12, ...(mailer && passwordResetOptions(mailer)) },
+    emailAndPassword: { enabled: true, disableSignUp: true, minPasswordLength: 12, ...(mail && passwordResetOptions(mail)) },
     ...(options.socialProviders && { socialProviders: options.socialProviders }),
     user: organizations ? { ...coreNames.user, additionalFields: lastOrganizationField } : coreNames.user,
     session: coreNames.session,
@@ -207,10 +220,10 @@ export const betterAuthOptions = (options: CreateAuthOptions, { origins = [], pa
         disableSettingJwtHeader: true,
       }),
       // Without a password, as for someone who signs in with a provider only, two-factor authentication is turned on without one.
-      twoFactorAfterPasswordOrCode({ schema: pluginNames.twoFactor, allowPasswordless: true, ...(mailer && { otpOptions: twoFactorCodeOptions(mailer) }) }),
+      twoFactorAfterPasswordOrCode({ schema: pluginNames.twoFactor, allowPasswordless: true, ...(mail && { otpOptions: twoFactorCodeOptions(mail) }) }),
       passkeyPlugin({ domain: passkeyDomain ?? hosts[0]!, hosts, formerDomain: hosts[0]! }),
-      ...(mailer ? [emailOTP(emailCodeOptions(mailer))] : []),
-      ...(mailer && signUpRole ? [signUpPlugin({ role: signUpRole, mailer, appName: options.appName ?? 'Protobase' })] : []),
+      ...(mail ? [emailOTP(emailCodeOptions(mail))] : []),
+      ...(mail && signUpRole ? [signUpPlugin({ role: signUpRole, mail })] : []),
       ...(signIn ? [genericOAuth({ config: [platformSignInProvider(signIn)] })] : []),
       signInPolicyPlugin({
         mail: Boolean(mailer),
@@ -218,10 +231,10 @@ export const betterAuthOptions = (options: CreateAuthOptions, { origins = [], pa
         ...(operator && { operator: operator.name }),
         ...(signIn && { platformSignIn: { provider: signIn.provider, name: signIn.name } }),
       }),
-      staffSignInPlugin({ ...(operator && { operator }), ...(mailer && { mailer }) }),
+      staffSignInPlugin({ ...(operator && { operator }), ...(mail && { mail }) }),
       rolesPlugin({ definitions }),
       ...(organizations
-        ? [organizationPlugin({ resolved: organizations, secret: options.secret, ...(mailer && { mailer }), context }), protobaseOrganizationPlugin({ resolved: organizations, mail: Boolean(mailer) })]
+        ? [organizationPlugin({ resolved: organizations, secret: options.secret, ...(mail && { mail }), context }), protobaseOrganizationPlugin({ resolved: organizations, mail: Boolean(mailer) })]
         : []),
     ],
     disabledPaths: [...unusedEmailCodePaths, ...adminImpersonationPaths, ...(organizations ? organizationPaths : [])],
@@ -283,7 +296,9 @@ export const createAuth = (options: CreateAuthOptions) => {
   const others = roles.filter((role) => role !== 'admin')
   // With organizations, roles mostly come with memberships: a new account holds no global role unless given one.
   const defaultRole = options.defaultRole ?? (options.organizations ? noGlobalRole : others.length === 1 ? others[0] : undefined)
-  const mailer = options.mailer === undefined ? platformMailer() : options.mailer || undefined
+  const appName = options.appName ?? platformAppName()
+  // The platform's mailer sends as the app's own name, when the app or the platform names it.
+  const mailer = options.mailer === undefined ? platformMailer(undefined, appName) : options.mailer || undefined
   const provider = options.operator === undefined ? platformOperator() : options.operator || undefined
   const operator = provider && resolveOperator(provider)
   const signInSettings = options.signInProvider === undefined ? platformSignInSettings() : options.signInProvider || undefined
@@ -295,7 +310,7 @@ export const createAuth = (options: CreateAuthOptions) => {
   // The organization hooks read the store through the instance made below; they run only once it exists.
   let instance: { $context: Promise<AuthContext> } | undefined
   const context = () => instance?.$context ?? Promise.reject(new Error('The auth instance is not made yet'))
-  const auth = betterAuth(betterAuthOptions(options, { origins, passkeyDomain, roles, definitions, defaultRole, mailer, signUpRole, operator, platformSignIn, ...(organizations && { organizations, context }) }))
+  const auth = betterAuth(betterAuthOptions(options, { origins, passkeyDomain, roles, definitions, defaultRole, ...(appName && { appName }), mailer, signUpRole, operator, platformSignIn, ...(organizations && { organizations, context }) }))
   instance = auth as unknown as { $context: Promise<AuthContext> }
   return Object.assign(auth, {
     /** Issuer and audience of the tokens: `baseURL`, on every origin. */

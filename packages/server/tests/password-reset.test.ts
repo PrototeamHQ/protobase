@@ -4,7 +4,6 @@ import { PGliteDialect } from 'kysely-pglite-dialect'
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { betterAuthAuthenticator } from '../src/better-auth/authenticator'
 import { createAuth, type CreateAuthOptions } from '../src/better-auth/create-auth'
-import { resetEmail } from '../src/better-auth/password-reset'
 import { createUser } from '../src/better-auth/users'
 import { createAdmin } from '../src/create-admin'
 import { createAuthStore } from '../../../test-support/auth'
@@ -93,7 +92,8 @@ describe('asking for a reset link', () => {
     const known = await requestReset('root@example.com')
     expect(unknown.status).toBe(known.status)
     expect(await unknown.json()).toEqual(await known.json())
-    expect(sent.map((message) => message.to)).toEqual(['root@example.com'])
+    // Mail goes out after the answer
+    await expect.poll(() => sent.map((message) => message.to), { timeout: 10_000 }).toEqual(['root@example.com'])
   })
 
   it('answers before the mail is sent, so a slow or failing server tells nothing either', async () => {
@@ -103,16 +103,5 @@ describe('asking for a reset link', () => {
     vi.spyOn(console, 'error').mockImplementation(() => {})
     expect((await requestReset('root@example.com')).status).toBe(200)
     finish()
-  })
-})
-
-describe('resetEmail', () => {
-  it('is plain and short: the link, how long it works, and that it can be ignored', () => {
-    const url = `${origin}/api/auth/reset-password/abc?callbackURL=x`
-    const message = resetEmail({ to: 'root@example.com', url })
-    expect(message).toMatchObject({ to: 'root@example.com', subject: 'Reset your password' })
-    expect(message.text).toContain(`\n${url}\n`)
-    expect(message.text).toContain('works for 1 hour')
-    expect(message.text).toContain('If you did not ask for this, ignore this email')
   })
 })

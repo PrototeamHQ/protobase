@@ -1,11 +1,10 @@
 import { APIError, createAuthEndpoint, type createAuthMiddleware } from 'better-auth/api'
 import { expireCookie, setSessionCookie } from 'better-auth/cookies'
 import * as z from 'zod'
-import type { Mailer } from '../mail/smtp-mailer'
+import { sendAuthEmail, type AuthMail } from './auth-mail/send-auth-email'
 import { operatorClient, randomValue, type OperatorClient, type ResolvedOperator } from './operator-provider'
 import { readSignInPolicy } from './policy-store'
 import { policyRefusal, staffSignInPath } from './sign-in-enforcement'
-import { staffSignInEmail } from './sign-in-mail'
 import { effectiveSignInPolicy } from './sign-in-policy'
 import { reasonProblem, staffClaimsRefusal, staffLabel, type StaffClaims, type StaffRefusal } from './staff-checks'
 import { logStaffSignIn } from './staff-log'
@@ -35,7 +34,7 @@ const withError = (url: string, code: string) => {
  * permission and sign-in and starts a session as the person, of Better Auth's admin plugin (`impersonatedBy` names
  * them). The session is short and never extended, and the person's two-factor and passkey requirements do not stop it.
  */
-export const staffSignInEndpoints = ({ operator, mailer }: { operator: ResolvedOperator; mailer?: Mailer }) => {
+export const staffSignInEndpoints = ({ operator, mail }: { operator: ResolvedOperator; mail?: AuthMail }) => {
   // One client per callback: an app on several origins sends each staff member back to the one they started on.
   const clients = new Map<string, OperatorClient>()
   const clientOf = (context: Context) => {
@@ -52,7 +51,7 @@ export const staffSignInEndpoints = ({ operator, mailer }: { operator: ResolvedO
     const refusal = staffClaimsRefusal(claims, { group: operator.group, acrValues: operator.acrValues, now: Math.floor(Date.now() / 1000) })
     if (refusal) return refusal
     // The policy may have changed since the start.
-    const policy = effectiveSignInPolicy((await readSignInPolicy(ctx.context.adapter)).policy, { mail: Boolean(mailer) })
+    const policy = effectiveSignInPolicy((await readSignInPolicy(ctx.context.adapter)).policy, { mail: Boolean(mail) })
     const off = policyRefusal(policy, { path: staffSignInPath })
     if (off) return off
     const found = await ctx.context.internalAdapter.findUserByEmail(started.email.toLowerCase())
@@ -60,7 +59,7 @@ export const staffSignInEndpoints = ({ operator, mailer }: { operator: ResolvedO
 
     const staff = staffLabel(claims)
     const expiresAt = new Date(Date.now() + operator.sessionMinutes * 60 * 1000)
-    if (policy.staffAccess === 'notify' && mailer) await mailer.send(staffSignInEmail({ to: found.user.email, staff, reason: started.reason, expiresAt }))
+    if (policy.staffAccess === 'notify' && mail) await sendAuthEmail(mail, 'staffSignInEmail', found.user.email, { staff, reason: started.reason, expiresAt }, ctx.context.baseURL)
     // Not remembered, so Better Auth never extends it, and gone with the browser.
     const session = await ctx.context.internalAdapter.createSession(found.user.id, true, { impersonatedBy: staff, expiresAt }, true)
     await logStaffSignIn(ctx.context.adapter, {

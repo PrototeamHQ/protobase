@@ -198,8 +198,8 @@ describe('inviting people', () => {
     const answer = await (await app.request('/api/auth/organization/invite-member', { cookie: await app.signIn('bo@example.com'), body: { email: 'jan@ledger.example', role: 'member', appRoles: ['accountant'] } })).json()
     expect(answer).not.toHaveProperty('link')
     // Mail goes out after the answer
-    await expect.poll(() => sent.length).toBe(1)
-    expect(sent[0]).toMatchObject({ to: 'jan@ledger.example', subject: 'Join Acme', text: expect.stringContaining('http://localhost:5173/-/invitation?token=') })
+    await expect.poll(() => sent.length, { timeout: 10_000 }).toBe(1)
+    expect(sent[0]).toMatchObject({ to: 'jan@ledger.example', subject: 'Join Acme on Protobase', text: expect.stringContaining('http://localhost:5173/-/invitation?token=') })
     const token = decodeURIComponent(/token=(\S+)/.exec(sent[0]!.text)![1]!)
     expect((await app.request(`/api/auth/invitation?token=${encodeURIComponent(token)}`)).status).toBe(200)
   })

@@ -5,6 +5,11 @@ import { findPackageDir, findPackageDirSync, readPackageJson, type PackageJson }
 
 const cliRoot = fileURLToPath(new URL('../../..', import.meta.url))
 
+// Packages a @protobase package depends on but loads only when it needs them, so the serve runtime does not supply
+// them: a served config inlines its own copy, as of any other package. React Email's components, which the auth emails
+// load when one is sent, are one; a project's own email templates bring theirs.
+const loadedOnDemand = new Set(['react-email'])
+
 // Every @protobase package the CLI runs on, found from its own package.json down, and every package they depend on,
 // each with the folder of the @protobase package that declares it: the serve runtime's own copy is found from there.
 const collectHostPackages = () => {
@@ -12,7 +17,7 @@ const collectHostPackages = () => {
   const visit = (dir: string) => {
     const manifest = JSON.parse(readFileSync(path.join(dir, 'package.json'), 'utf8')) as PackageJson
     for (const name of Object.keys(manifest.dependencies ?? {})) {
-      if (declaredIn.has(name)) continue
+      if (declaredIn.has(name) || loadedOnDemand.has(name)) continue
       declaredIn.set(name, dir)
       if (!name.startsWith('@protobase/')) continue
       const found = findPackageDirSync(name, dir)

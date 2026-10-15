@@ -30,7 +30,9 @@ beforeAll(async () => {
   await createUser(auth, { email: 'root@example.com', password })
   await createUser(auth, { email: 'sanne@example.com', password, role: 'member' })
   appDb = new Kysely<any>({ dialect: new PGliteDialect(empty) })
-})
+  // React Email and the templates load with the first auth email; render one here, so no test pays for that load.
+  await (await import('../src/better-auth/auth-mail/auth-emails')).accountExistsEmail.render({ app: { name: 'Protobase', url: `${origin}/` } })
+}, 60_000)
 
 // Better Auth's rate limits are per client address and kept in memory, so every app gets an address of its own.
 let client = 0
@@ -49,6 +51,13 @@ const serve = async (options: Partial<CreateAuthOptions> = {}, { users = true } 
       ...(init.body !== undefined && { body: JSON.stringify(init.body) }),
     })
   const status = async () => (await request('/status')).json()
+  // Mail goes out after the answer: an answered code request waits for its mail, the first one rendered included.
+  const askCode = async (email: string) => {
+    const before = sent.length
+    const response = await request('/sign-up/send-code', { body: { email } })
+    if (response.ok) await expect.poll(() => sent.length, { timeout: 10_000 }).toBeGreaterThan(before)
+    return response
+  }
   const codeFor = (to: string) => {
     const message = sent.findLast((mail) => mail.to === to)
     const code = message && /^\d{6}$/m.exec(message.text)?.[0]
@@ -57,7 +66,7 @@ const serve = async (options: Partial<CreateAuthOptions> = {}, { users = true } 
   }
   const cookiesOf = (response: Response) => response.headers.getSetCookie().map((line) => line.split(';')[0]!).filter((pair) => !pair.endsWith('=')).join('; ')
   const tokenOf = async (cookie: string) => (await (await request('/token', { cookie })).json()) as { token?: string; code?: string }
-  return { auth, store, sent, request, status, codeFor, cookiesOf, tokenOf }
+  return { auth, store, sent, request, askCode, status, codeFor, cookiesOf, tokenOf }
 }
 
 const signUp = { role: 'member' }
@@ -91,14 +100,15 @@ describe('open sign-up, off by default', () => {
 })
 
 describe('open sign-up, turned on', () => {
+  // The whole flow, from the mailed code to a second sign-in: longer than one request on a busy runner.
   it('makes a verified account with the sign-up role from the mailed code, signed in, whatever role the request asks for', async () => {
-    const { auth, request, status, sent, codeFor, cookiesOf, tokenOf } = await serve({ signUp, appName: 'Homes' })
+    const { auth, request, status, sent, codeFor, cookiesOf, tokenOf, askCode } = await serve({ signUp, appName: 'Homes' })
     expect(await status()).toMatchObject({ signUp: true })
-    const asked = await request('/sign-up/send-code', { body: { email: ' New@Example.com ' } })
+    const asked = await askCode(' New@Example.com ')
     expect(asked.status).toBe(200)
     expect(await asked.json()).toEqual({ sent: true })
-    expect(sent.at(-1)).toMatchObject({ to: 'new@example.com', subject: 'Your code to create an account' })
-    expect(sent.at(-1)!.text).toContain('create your account for Homes')
+    expect(sent.at(-1)).toMatchObject({ to: 'new@example.com', subject: 'Your code to create an account with Homes' })
+    expect(sent.at(-1)!.text).toContain('create your account with Homes')
 
     const created = await request('/sign-up/create', { body: { email: 'new@example.com', code: codeFor('new@example.com'), name: 'Nia', password, role: 'admin', emailVerified: false } })
     expect(created.status).toBe(200)
@@ -113,23 +123,24 @@ describe('open sign-up, turned on', () => {
 
     // Signing in again works with the password chosen.
     expect((await request('/sign-in/email', { body: { email: 'new@example.com', password } })).status).toBe(200)
-  })
+  }, 20_000)
 
   it('answers the same for an address with an account, mails it no code, and makes no second account', async () => {
-    const { auth, request, sent } = await serve({ signUp })
-    const asked = await request('/sign-up/send-code', { body: { email: 'sanne@example.com' } })
+    const { auth, request, sent, askCode } = await serve({ signUp })
+    const asked = await askCode('sanne@example.com')
     expect(asked.status).toBe(200)
     expect(await asked.json()).toEqual({ sent: true })
-    expect(sent.at(-1)).toMatchObject({ to: 'sanne@example.com', subject: 'You already have an account' })
+    expect(sent.at(-1)).toMatchObject({ to: 'sanne@example.com', subject: 'You already have an account with Protobase' })
     expect(sent.at(-1)!.text).not.toMatch(/\d{6}/)
+    expect(sent.at(-1)!.text).toContain(`Sign in to Protobase ${origin}/-/sign-in`)
     const guessed = await request('/sign-up/create', { body: { email: 'sanne@example.com', code: '000000', name: 'Mallory', password: 'mallory-password-1' } })
     expect(await guessed.json()).toMatchObject({ code: 'SIGN_UP_CODE_INVALID' })
     expect((await (await auth.$context).internalAdapter.findUserByEmail('sanne@example.com'))?.user).toMatchObject({ name: 'sanne', role: 'member' })
   })
 
   it('takes a code once, and only for its address', async () => {
-    const { request, codeFor } = await serve({ signUp })
-    await request('/sign-up/send-code', { body: { email: 'new@example.com' } })
+    const { request, codeFor, askCode } = await serve({ signUp })
+    await askCode('new@example.com')
     const code = codeFor('new@example.com')
     expect(await (await request('/sign-up/create', { body: { email: 'other@example.com', code, name: 'Other', password } })).json()).toMatchObject({ code: 'SIGN_UP_CODE_INVALID' })
     expect((await request('/sign-up/create', { body: { email: 'new@example.com', code, name: 'Nia', password } })).status).toBe(200)
@@ -137,8 +148,8 @@ describe('open sign-up, turned on', () => {
   })
 
   it('locks a code out after three wrong tries', async () => {
-    const { request, codeFor } = await serve({ signUp, signInPerMinute: 100 })
-    await request('/sign-up/send-code', { body: { email: 'new@example.com' } })
+    const { request, codeFor, askCode } = await serve({ signUp, signInPerMinute: 100 })
+    await askCode('new@example.com')
     const code = codeFor('new@example.com')
     const wrong = code === '000000' ? '111111' : '000000'
     for (let attempt = 0; attempt < 3; attempt++) {
@@ -148,29 +159,29 @@ describe('open sign-up, turned on', () => {
   })
 
   it('follows the sign-in policy for the password, and keeps the code when the password is refused', async () => {
-    const { request, codeFor, cookiesOf } = await serve({ signUp })
+    const { request, codeFor, cookiesOf, askCode } = await serve({ signUp })
     const root = cookiesOf(await request('/sign-in/email', { body: { email: 'root@example.com', password } }))
     expect((await request('/policy/sign-in', { cookie: root, body: { ...defaultSignInPolicy, password: 'forbidden' } })).status).toBe(200)
-    await request('/sign-up/send-code', { body: { email: 'new@example.com' } })
+    await askCode('new@example.com')
     const code = codeFor('new@example.com')
     expect(await (await request('/sign-up/create', { body: { email: 'new@example.com', code, name: 'Nia', password } })).json()).toMatchObject({ code: 'SIGN_IN_METHOD_FORBIDDEN' })
     expect((await request('/sign-up/create', { body: { email: 'new@example.com', code, name: 'Nia' } })).status).toBe(200)
   })
 
   it('needs a password while emailed codes are off', async () => {
-    const { request, codeFor, cookiesOf } = await serve({ signUp })
+    const { request, codeFor, cookiesOf, askCode } = await serve({ signUp })
     const root = cookiesOf(await request('/sign-in/email', { body: { email: 'root@example.com', password } }))
     expect((await request('/policy/sign-in', { cookie: root, body: { ...defaultSignInPolicy, emailCode: 'forbidden' } })).status).toBe(200)
-    await request('/sign-up/send-code', { body: { email: 'new@example.com' } })
+    await askCode('new@example.com')
     expect(await (await request('/sign-up/create', { body: { email: 'new@example.com', code: codeFor('new@example.com'), name: 'Nia' } })).json()).toMatchObject({ code: 'PASSWORD_REQUIRED' })
     expect(await (await request('/sign-up/create', { body: { email: 'new@example.com', code: codeFor('new@example.com'), name: 'Nia', password: 'short' } })).json()).toMatchObject({ code: 'PASSWORD_LENGTH' })
   })
 
   it('holds the token back until what the policy requires is set up, as after any sign-in', async () => {
-    const { request, codeFor, cookiesOf, tokenOf } = await serve({ signUp })
+    const { request, codeFor, cookiesOf, tokenOf, askCode } = await serve({ signUp })
     const root = cookiesOf(await request('/sign-in/email', { body: { email: 'root@example.com', password } }))
     expect((await request('/policy/sign-in', { cookie: root, body: { ...defaultSignInPolicy, twoFactor: 'required' } })).status).toBe(200)
-    await request('/sign-up/send-code', { body: { email: 'new@example.com' } })
+    await askCode('new@example.com')
     const created = await request('/sign-up/create', { body: { email: 'new@example.com', code: codeFor('new@example.com'), name: 'Nia', password } })
     expect(created.status).toBe(200)
     expect(await tokenOf(cookiesOf(created))).toMatchObject({ code: 'SIGN_IN_SETUP_REQUIRED' })

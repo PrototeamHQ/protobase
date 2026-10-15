@@ -1,8 +1,8 @@
 import type { BetterAuthPlugin } from 'better-auth'
 import { APIError, createAuthEndpoint, createAuthMiddleware, getSessionFromCtx, sessionMiddleware } from 'better-auth/api'
 import { deleteSessionCookie } from 'better-auth/cookies'
-import type { Mailer } from '../mail/smtp-mailer'
 import { adminOnly } from './admin-only'
+import type { AuthMail } from './auth-mail/send-auth-email'
 import type { ResolvedOperator } from './operator-provider'
 import { isRefusedForStaff, isStaffSession, staffCannotChange } from './staff-checks'
 import { endStaffSignIn, listStaffSignIns, staffSignInOfSession, staffSignInSchema } from './staff-log'
@@ -12,7 +12,7 @@ export type StaffPluginOptions = {
   /** The provider staff sign in with; without one, nobody can start a staff session, and the log stays as it is. */
   operator?: ResolvedOperator
   /** Sends the email a person gets when the policy says to tell them; without it the policy cannot say so. */
-  mailer?: Mailer
+  mail?: AuthMail
 }
 
 /**
@@ -21,12 +21,12 @@ export type StaffPluginOptions = {
  * staff sign-in is logged for the app's admins. The plugin is there without an operator provider too, so its table
  * exists from the first auth migration.
  */
-export const staffSignInPlugin = ({ operator, mailer }: StaffPluginOptions) =>
+export const staffSignInPlugin = ({ operator, mail }: StaffPluginOptions) =>
   ({
     id: 'protobase-staff-sign-in',
     schema: staffSignInSchema,
     endpoints: {
-      ...(operator && staffSignInEndpoints({ operator, ...(mailer && { mailer }) })),
+      ...(operator && staffSignInEndpoints({ operator, ...(mail && { mail }) })),
 
       /** `GET /staff/session`: for a staff session, who started it, as whom, why, and until when; otherwise `{ staff: null }`. */
       getStaffSession: createAuthEndpoint('/staff/session', { method: 'GET', use: [sessionMiddleware] }, async (ctx) => {
