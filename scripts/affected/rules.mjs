@@ -1,0 +1,75 @@
+// Which tests and steps a change affects, beyond what the module graph shows. Vitest finds the tests that import a
+// changed module; these rules cover what it cannot see. Paths are globs from the repository's root.
+
+// Files every test or step depends on: a change to one runs everything.
+export const runEverything = [
+  '**/package.json',
+  'bun.lock',
+  '**/bunfig.toml',
+  '**/tsconfig*.json',
+  '**/vitest.config.*',
+  '**/vite.config.*',
+  '.nvmrc',
+  '.github/**',
+  'docker-compose.yml',
+  // The databases, PGlite snapshots and setup files the tests run with.
+  'test-support/**',
+  'scripts/test-db/**',
+  // These rules and the scripts that apply them.
+  'scripts/affected/**',
+  'scripts/affected-*.mjs',
+]
+
+// Files that are no module and that no test reads.
+export const readByNoTest = ['**/*.md', '**/*.mdx', '**/LICENSE', '**/.gitignore', '**/.env.example', '.githooks/**', 'docker/**', 'website/**', 'scripts/dom-snapshots/layouts/**']
+
+// Tests that run on every push, whatever it changed: the ERP built and served by the CLI, as on Node after the tests.
+export const alwaysRun = ['tests/smoke/**']
+
+// What a module uses without importing it, which the module graph cannot see. Each file `from` matches counts as changed
+// when one of these changed:
+// - `starts`: modules it runs as a process, through what they import. What the command it runs loads or reads by path,
+//   such as the admin app `protobase build` bundles, counts only for a test that names it, so a change to the UI runs
+//   the tests that build an app and not every test that starts the CLI.
+// - `loads`: modules it loads or bundles by path, through what they import and what they use in turn.
+// - `reads`: files it reads by path.
+// A file that is no module and that no rule reads runs everything.
+const cliModuleFiles = ['packages/cli/src/project/admin-app.ts', 'packages/cli/src/build/entry-code.ts', 'packages/cli/src/build/serve-runtime.ts', 'packages/cli/src/dev/run.ts']
+const exampleDatabase = (example) => ({ from: [`tests/examples/${example}/**`], reads: [`examples/${example}/db/migrations/**`, `examples/${example}/seed/**`] })
+
+export const edges = [
+  // The CLI's tests start the CLI from source in the ERP, or in a project beside it.
+  { from: ['packages/cli/tests/support/auth-project.ts'], starts: ['packages/cli/bin/protobase-source.mjs', 'examples/erp/protobase.config.ts'], reads: ['examples/erp/**'] },
+  // Those that build, serve or develop the ERP, with its UI.
+  { from: ['tests/smoke/erp-bundle.test.ts', 'packages/cli/tests/serve/serve.integration.test.ts', 'packages/cli/tests/dev/dev.integration.test.ts'], loads: [...cliModuleFiles, 'examples/erp/protobase.ui.tsx'] },
+  // The admin app, found by @protobase/ui's path, which a build bundles and checks a theme against.
+  { from: ['packages/cli/src/project/admin-app.ts'], loads: ['packages/ui/src/app/main.tsx'], reads: ['packages/ui/**'] },
+  // Modules the CLI loads by path (module-file.ts).
+  { from: ['packages/cli/src/build/entry-code.ts'], loads: ['packages/cli/src/project/convention.ts'] },
+  { from: ['packages/cli/src/build/serve-runtime.ts'], loads: ['packages/cli/src/serve/main.ts'] },
+  { from: ['packages/cli/src/dev/run.ts'], loads: ['packages/cli/src/dev/entry.ts'] },
+  // A deploy bundle copies the @protobase packages.
+  { from: ['packages/cli/src/build/packages/copy-packages.ts'], reads: ['packages/**'] },
+  // The UI's tests of its stylesheet and page, and the auth schema a server test upgrades.
+  { from: ['packages/ui/src/tokens.test.ts'], reads: ['packages/ui/src/tokens.css'] },
+  { from: ['packages/ui/src/app/index-html.test.ts', 'packages/ui/src/theme/theme-preference.test.ts'], reads: ['packages/ui/src/app/index.html'] },
+  { from: ['packages/server/tests/auth-snake-case.test.ts'], reads: ['packages/server/tests/support/*.sql'] },
+  // The examples' tests run on a clone of a template database, migrated and seeded from the example.
+  exampleDatabase('erp'),
+  exampleDatabase('real-estate'),
+  exampleDatabase('property-portal'),
+  // The browser clients the e2e tests bundle.
+  { from: ['tests/e2e/support/bundle-client.ts'], loads: ['tests/e2e/support/browser-client.ts', 'tests/e2e/support/sources-client.ts'] },
+  // The release scripts the release tests run.
+  { from: ['tests/release/release.test.ts'], starts: ['scripts/release.mjs'], reads: ['.versionrc.json'] },
+  { from: ['tests/release/publish-pack.test.ts'], starts: ['scripts/publish.mjs'] },
+]
+
+// The documentation site and Storybook, which `bun run docs:build` builds and the play tests, layout snapshots and
+// `bun run docs:check` check: the stories and what they import, the stylesheets, whose own imports the module graph
+// does not show, the schema API reference, the site's pages and the example code they show, and the scripts that check
+// them.
+export const site = {
+  loads: ['packages/*/src/**/*.stories.tsx', '.storybook/*', 'packages/schema/src/index.ts'],
+  reads: ['packages/**/*.css', 'website/**', 'docs-examples/**', 'examples/erp/config/**', 'scripts/dom-snapshots/**', 'scripts/lib/**', 'scripts/{play-tests,dom-snapshots,check-docs,static-server}.mjs'],
+}

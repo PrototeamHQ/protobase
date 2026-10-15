@@ -35,6 +35,16 @@ When a layout changes, the check prints the changed lines and writes before and 
 
 Every push to `main` with a fix, feature or breaking change is released by `.github/workflows/release.yml`: a `v<version>` tag and a GitHub release with the notes, without a commit to `main`. Below 1.0 a breaking change bumps the minor and a feature or fix the patch. `bun run release --dry-run` shows the next release. The rules, and which bundles a serve runtime runs, are on the [Versioning](https://docs.protobase.net/reference/versioning/) page.
 
+## What a push checks
+
+A pull request, and the `ci` workflow run by hand (`gh workflow run ci.yml --ref <branch>`), run every test and step. A push to `main`, which the release workflow checks, and a push to an `fm/**` branch run only what their changes affect: on `main` the changes since the last release tag, on a branch those since it left `main`. `bun run check` takes that commit as `CHECK_BASE`; without it, everything runs.
+
+- A test runs when it, or a module it imports, changed (`scripts/affected-tests.mjs`, with Vitest's own selection of `vitest related`). The job log lists each test that runs with the change it imports, and the tests it skips. The rules in `scripts/affected/rules.mjs` add what the module graph cannot see: a test that starts the CLI as a process, and a module loaded or a file read by path. A change to a file every test depends on, such as a `package.json`, `bun.lock`, a tsconfig, `vitest.config.ts`, a workflow or `test-support/`, runs every test, and so does a change to a file that is no module and that no rule reads. The ERP smoke test runs on every push.
+- The site and Storybook steps (`docs:build`, the play tests, the layout snapshots and `docs:check`) run when a change reaches what they are built from (`scripts/affected-site.mjs`).
+- The typecheck, the dependency boundaries, the packing and the smoke test on Node run on every push.
+
+A test that reads a file or starts a process by path needs a rule, or a change to that file skips it. `CHECK_BASE=main bun run check` runs what a push of the current branch, with its uncommitted changes, would.
+
 ## The check job's runner
 
 Pull requests run the checks on GitHub's runners. Pushes to `main`, which the release workflow checks, and pushes to `fm/**` task branches run them on the runner that the repository variable `CHECK_RUNNER` names, or on GitHub's when it is unset. To have a branch's checks run there, push it as `fm/<task>` and wait for that commit's `ci` run. The self-hosted runner `hetzner` runs on the Hetzner server as the `gh-runner` user, with the Postgres service in rootless Podman, and its job-started hook (`/home/gh-runner/hooks/job-started.sh`) refuses any job that is not a push to `main` or `fm/*`. It runs one job at a time, so pushes queue, and its jobs run at a low CPU and IO priority (drop-ins in `/etc/systemd/system/actions.runner.PrototeamHQ-protobase.hetzner.service.d/` and `user-1003.slice.d/`) so they do not slow the server's other services.

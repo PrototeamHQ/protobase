@@ -7,6 +7,8 @@ on:
     branches: [production, 'fm/**']
   # The release workflow runs these checks before it releases.
   workflow_call:
+  # Run by hand, every test and step runs, as on a pull request.
+  workflow_dispatch:
 
 jobs:
   check:
@@ -31,6 +33,9 @@ jobs:
           --health-retries 30
     steps:
       - uses: actions/checkout@v4
+        with:
+          # The history and tags, to find what a push changed.
+          fetch-depth: 0
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: 1.4.2
@@ -42,6 +47,21 @@ jobs:
       - run: bun run test:db
       # A self-hosted runner has no root to install Chromium's system packages, so its server provides them.
       - run: bun x --bun playwright install ${{ runner.environment == 'github-hosted' && '--with-deps' || '' }} chromium
+      # A push to main, which the release workflow checks, or to an fm/** branch runs only the tests and steps its
+      # changes affect (scripts/affected-tests.mjs, see CONTRIBUTING.md): on main the changes since the last release, on
+      # a branch those since it left main. Without CHECK_BASE, as on a pull request or a run by hand, everything runs.
+      - name: Find the commit the push's changes count from
+        if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/fm/'))
+        env:
+          BEFORE: ${{ github.event.before }}
+        run: |
+          if [ "$GITHUB_REF" = refs/heads/main ]; then
+            base=$(git describe --tags --abbrev=0 --match 'v[0-9]*' HEAD 2>/dev/null || true)
+            if [ -z "$base" ] && [ "$BEFORE" != 0000000000000000000000000000000000000000 ]; then base=$BEFORE; fi
+          else
+            base=$(git merge-base origin/main HEAD)
+          fi
+          echo "CHECK_BASE=$base" >> "$GITHUB_ENV"
       - run: bun run check
       # check ran the smoke test on Bun; the CLI is supported on Node as well, so it runs there too.
       - uses: actions/setup-node@v4
@@ -51,7 +71,14 @@ jobs:
       # Every package built, declarations included, and packed as the release workflow publishes it, so a package that
       # cannot build or be packed fails before a release is cut. The tests run on the sources, so nothing builds earlier.
       - run: node scripts/publish.mjs --pack
-      - run: bun run docs:build
-      - run: bun scripts/play-tests.mjs
-      - run: bun scripts/dom-snapshots.mjs --no-screenshots
-      - run: bun run docs:check
+      - name: Find whether the changes reach the site or Storybook
+        id: site
+        run: bun scripts/affected-site.mjs
+      - if: steps.site.outputs.run == 'true'
+        run: bun run docs:build
+      - if: steps.site.outputs.run == 'true'
+        run: bun scripts/play-tests.mjs
+      - if: steps.site.outputs.run == 'true'
+        run: bun scripts/dom-snapshots.mjs --no-screenshots
+      - if: steps.site.outputs.run == 'true'
+        run: bun run docs:check
