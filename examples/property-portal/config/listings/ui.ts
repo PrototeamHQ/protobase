@@ -31,6 +31,7 @@ export const listingsView = view<typeof listings>('listings')
     longitude: r.longitude.help('Decimal degrees, WGS84.').decimals(6),
     position_exact: r.position_exact.label('Exact position').help('Off when the listing gives its position only roughly: the map marks it as approximate.'),
     photo: r.photo.label('Cover photo'),
+    description: r.description.multiline(),
     agent_name: r.agent_name.label('Agent'),
     agent_phone: r.agent_phone.label('Agent phone'),
     published_at: r.published_at.label('Published').help('Empty while the listing is a draft that only admins see.'),
