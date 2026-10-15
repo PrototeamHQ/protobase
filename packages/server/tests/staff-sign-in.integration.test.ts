@@ -9,6 +9,7 @@ import { createUser } from '../src/better-auth/users'
 import { createAdmin } from '../src/create-admin'
 import type { MailMessage } from '../src/mail/smtp-mailer'
 import { createAuthStore } from '../../../test-support/auth'
+import { cloneForTest } from '../../../test-support/pglite-snapshot'
 import { operatorClient, operatorIssuer, permittedStaff, startFakeOperator } from './support/fake-oidc-provider'
 
 const origin = 'http://localhost:5173'
@@ -45,7 +46,7 @@ const merge = (jar: string, response: Response) => {
 // Every app gets a copy of the migrated store with an admin and a user, an operator provider, and keeps its mail.
 const serve = async (options: Partial<CreateAuthOptions> = {}) => {
   const operator = await startFakeOperator()
-  const store = (await shared.clone()) as PGlite
+  const store = await cloneForTest(shared)
   const sent: MailMessage[] = []
   const auth = createAuth({
     database: { dialect: new PGliteDialect(store), type: 'postgres' },

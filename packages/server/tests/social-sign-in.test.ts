@@ -7,6 +7,7 @@ import { createAuth, type CreateAuthOptions } from '../src/better-auth/create-au
 import { createUser } from '../src/better-auth/users'
 import { createAdmin } from '../src/create-admin'
 import { createAuthStore } from '../../../test-support/auth'
+import { cloneForTest } from '../../../test-support/pglite-snapshot'
 
 const origin = 'http://localhost:5173'
 const secret = 'test-secret-test-secret-test-secret-1234'
@@ -46,7 +47,7 @@ beforeAll(async () => {
 let client = 0
 
 const serve = async (options: Partial<CreateAuthOptions> = {}) => {
-  const store = (await shared.clone()) as PGlite
+  const store = await cloneForTest(shared)
   const auth = createAuth({ database: { dialect: new PGliteDialect(store), type: 'postgres' }, baseURL: origin, secret, mailer: false, ...options })
   await createUser(auth, { email: 'root@example.com', password: 'correct horse battery' })
   const app = createAdmin({ resources: [], db: appDb, authenticate: betterAuthAuthenticator({ auth }), auth })

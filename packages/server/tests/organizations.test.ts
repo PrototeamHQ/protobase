@@ -11,6 +11,7 @@ import { createAdmin } from '../src/create-admin'
 import type { AuditEvent } from '../src/types'
 import { createAuthStore } from '../../../test-support/auth'
 import { allResources, createFixtureDb } from '../../../test-support/server'
+import { cloneForTest } from '../../../test-support/pglite-snapshot'
 
 const origin = 'http://localhost:5173'
 const secret = 'test-secret-test-secret-test-secret-1234'
@@ -36,7 +37,7 @@ let client = 0
 
 /** An app with organizations on a copy of the auth store, brought up to date the way a project's migration does. */
 const serve = async (options: Partial<CreateAuthOptions> = {}) => {
-  const store = (await base.clone()) as PGlite
+  const store = await cloneForTest(base)
   const ids = ['1', '2', '3']
   const make = () =>
     createAuth({
@@ -103,7 +104,7 @@ describe('the auth schema with organizations', () => {
   })
 
   it('stays as it was without organizations', async () => {
-    const auth = createAuth({ database: { dialect: new PGliteDialect((await base.clone()) as PGlite), type: 'postgres' }, baseURL: origin, secret, mailer: false })
+    const auth = createAuth({ database: { dialect: new PGliteDialect(await cloneForTest(base)), type: 'postgres' }, baseURL: origin, secret, mailer: false })
     expect(await authSchemaMigration(auth)).toBeUndefined()
     expect(auth.organizations).toBeUndefined()
   })
