@@ -12,6 +12,10 @@
   html[data-theme="dark"] {
     color-scheme: dark;
   }
+  /* A modal's scroll lock hides the page's scrollbar; its room stays, so the page behind keeps its width. */
+  html[data-pb-scroll-locked] {
+    scrollbar-gutter: stable;
+  }
   body {
     background: var(--background);
     color: var(--foreground);
