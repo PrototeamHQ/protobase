@@ -45,6 +45,13 @@ describe('changedList', () => {
     expect(changedList(read, { map: { ...map, zoom: 14 } }, defaults)).toEqual({ ...read, map: { ...map, zoom: 14 } })
     expect(changedList(read, { map: undefined }, defaults)).toEqual({ kind: 'list', resource: 'listings', display: 'map' })
   })
+
+  it('keeps the saved search the list was opened from while its filters change, until a change leaves it out', () => {
+    const read = { kind: 'list', resource: 'listings', filter: 'garden = true', savedSearch: '12' } as const
+    expect(changedList(read, { filter: 'garden = true AND rooms >= 3' }, defaults)).toEqual({ ...read, filter: 'garden = true AND rooms >= 3' })
+    expect(changedList(read, { savedSearch: '13' }, defaults)).toEqual({ ...read, savedSearch: '13' })
+    expect(changedList(read, { savedSearch: undefined }, defaults)).toEqual({ kind: 'list', resource: 'listings', filter: 'garden = true' })
+  })
 })
 
 describe('listDefaults', () => {

@@ -90,7 +90,7 @@ export const SavedSearchSection = ({ model, view, of, target, targetView, row, r
         display={cards?.name ?? tableDisplay}
         row
         empty={unseen ? `No new ${plural} since you last looked.` : `No ${plural} match.`}
-        viewAll={{ filter, label: 'View all results', ...(unseen && { onOpen: () => markSeen.mutate(new Date().toISOString()) }) }}
+        viewAll={{ filter, label: 'View all results', savedSearch: recordKey, ...(unseen && { onOpen: () => markSeen.mutate(new Date().toISOString()) }) }}
       />
     </section>
   )

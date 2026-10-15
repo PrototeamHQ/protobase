@@ -192,6 +192,11 @@ export type AppAddress =
       filterLayout?: FilterLayout
       /** Where its map display looks. */
       map?: MapView
+      /**
+       * The saved search the list was opened from, by its key in the text form the record API takes: while the list's
+       * filter differs from the search's, the list offers to update the search.
+       */
+      savedSearch?: string
     }
   | {
       /** One record. */

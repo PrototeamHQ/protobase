@@ -1,4 +1,5 @@
 import { useRef, type ReactNode } from 'react'
+import { cn } from '../lib/cn'
 import { useFocusTrap } from '../lib/use-focus-trap'
 
 export type DialogProps = {
@@ -8,15 +9,17 @@ export type DialogProps = {
   /** Buttons, rendered right-aligned. */
   actions: ReactNode
   children?: ReactNode
+  /** Room for a row of cards or a table in the body, instead of a short question. */
+  wide?: boolean
 }
 
 /** A modal with a title, optional body and action buttons. Closes on Escape and on a click outside. */
-export const Dialog = ({ title, description, onClose, actions, children }: DialogProps) => {
+export const Dialog = ({ title, description, onClose, actions, children, wide = false }: DialogProps) => {
   const panel = useRef<HTMLDivElement>(null)
   useFocusTrap(panel, true, onClose)
   return (
     <div className="fixed inset-0 z-[90] flex items-center justify-center bg-backdrop/30 p-4" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
-      <div ref={panel} tabIndex={-1} role="dialog" aria-modal="true" aria-label={title} className="outline-none max-h-[90vh] w-full max-w-md overflow-y-auto rounded-lg border bg-background p-4 shadow-pop sm:p-5">
+      <div ref={panel} tabIndex={-1} role="dialog" aria-modal="true" aria-label={title} className={cn('outline-none max-h-[90vh] w-full overflow-y-auto rounded-lg border bg-background p-4 shadow-pop sm:p-5', wide ? 'max-w-3xl' : 'max-w-md')}>
         <h2 className="text-[15px] font-semibold">{title}</h2>
         {description && <p className="mt-1.5 text-[13px] text-muted-foreground">{description}</p>}
         {children && <div className="mt-4">{children}</div>}

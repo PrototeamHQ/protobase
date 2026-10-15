@@ -59,4 +59,8 @@ describe('viewAllAddress', () => {
     expect(appPath(viewAllAddress(model, withCards, false, { filter: '', orderBy: 'publishedAt desc', display: 'table' }))).toBe('/listings')
     expect(viewAllAddress(model, withCards, true, { filter: '', orderBy: 'publishedAt desc', display: 'cards' })).toEqual({ kind: 'list', resource: 'listings' })
   })
+
+  it("names the saved search whose results it opens, so the list can offer to update it", () => {
+    expect(appPath(viewAllAddress(model, withCards, true, { filter: 'price > 100', orderBy: 'publishedAt desc', display: 'cards', savedSearch: '4' }))).toBe('/listings?filter=price+%3E+100&saved_search=4')
+  })
 })

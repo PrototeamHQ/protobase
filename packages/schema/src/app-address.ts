@@ -16,11 +16,13 @@ export const addressWords = {
   filterLayout: 'layout',
   /** Where a list's map display looks: `latitude,longitude,zoom`. */
   map: 'map',
+  /** The saved search a list was opened from, by its key. */
+  savedSearch: 'saved_search',
   /** The second path segment that opens a resource's create form instead of a record. */
   create: 'new',
 } as const
 
-const listWords = ['display', 'filter', 'orderBy', 'filterLayout'] as const
+const listWords = ['display', 'filter', 'orderBy', 'filterLayout', 'savedSearch'] as const
 
 // Five decimals of a degree are about a metre; two of a zoom are less than a pixel's difference.
 const mapText = (view: MapView) => `${view.latitude.toFixed(5)},${view.longitude.toFixed(5)},${view.zoom.toFixed(2)}`
@@ -99,5 +101,15 @@ export const readAppPath = (pathAndQuery: string, pages: ReadonlySet<string>): A
   const orderBy = params.get(addressWords.orderBy) || undefined
   const layout = filterLayout(params.get(addressWords.filterLayout))
   const map = readMap(params.get(addressWords.map))
-  return { kind: 'list', resource: first, ...(display && { display }), ...(filter && { filter }), ...(orderBy && { orderBy }), ...(layout && { filterLayout: layout }), ...(map && { map }) }
+  const savedSearch = params.get(addressWords.savedSearch) || undefined
+  return {
+    kind: 'list',
+    resource: first,
+    ...(display && { display }),
+    ...(filter && { filter }),
+    ...(orderBy && { orderBy }),
+    ...(layout && { filterLayout: layout }),
+    ...(map && { map }),
+    ...(savedSearch && { savedSearch }),
+  }
 }

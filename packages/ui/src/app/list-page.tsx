@@ -167,7 +167,7 @@ const LoadedList = ({ model, address, scope, heading }: LoadedListProps) => {
   )
   // A filtered list can be saved as a search; the name is its filters as the chips read
   const saveSearch = view?.saveSearch && !scope && parsed.ok && filterText && (
-    <SaveSearchButton search={view.saveSearch} filter={filterText} name={searchName(filterChips(model, view, filterText, facetNames(config)))} />
+    <SaveSearchButton model={model} view={view} search={view.saveSearch} filter={filterText} name={searchName(filterChips(model, view, filterText, facetNames(config)))} />
   )
   const displaySwitch = (menu: boolean) => <DisplaySwitch view={view} value={display?.name ?? tableDisplay} onChange={(name) => set({ display: name })} menu={menu} />
 

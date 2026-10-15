@@ -23,6 +23,10 @@ describe('appPath', () => {
     expect(appPath({ kind: 'list', resource: 'listings', display: 'map', map: { latitude: 52.370216, longitude: 4.895168, zoom: 12.456 } })).toBe('/listings?display=map&map=52.37022%2C4.89517%2C12.46')
   })
 
+  it('writes the saved search a list was opened from last', () => {
+    expect(appPath({ kind: 'list', resource: 'listings', filter: 'garden = true', savedSearch: '12' })).toBe('/listings?filter=garden+%3D+true&saved_search=12')
+  })
+
   it("writes a create form's values as its query, leaving out empty ones", () => {
     expect(appPath({ kind: 'create', resource: 'notes', values: { listing_id: '42', body: 'Big garden', title: '' } })).toBe('/notes/new?listing_id=42&body=Big+garden')
   })
@@ -40,6 +44,7 @@ describe('readAppPath', () => {
       { kind: 'list', resource: 'repairs' },
       { kind: 'list', resource: 'repairs', display: 'board', filter: 'status = "ready" AND bike : "e"', orderBy: 'bookedOn desc', filterLayout: 'panel' },
       { kind: 'list', resource: 'listings', display: 'map', map: { latitude: -33.87, longitude: 151.21, zoom: 9.5 } },
+      { kind: 'list', resource: 'listings', filter: 'garden = true', savedSearch: '3,7' },
       { kind: 'record', resource: 'files', key: 'a/b' },
       { kind: 'record', resource: 'leaseTenants', key: '3,7' },
       { kind: 'create', resource: 'repairs' },

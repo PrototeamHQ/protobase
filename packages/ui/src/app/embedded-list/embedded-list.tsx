@@ -36,8 +36,13 @@ export type EmbeddedListProps = {
   empty?: string
   /** The cards in one row that scrolls sideways on every screen, not only on a phone. */
   row?: boolean
-  /** Where "View all" leads instead of the same list: the list with this filter, under this label, calling `onOpen` first. */
-  viewAll?: { filter: string; label: string; onOpen?: () => void }
+  /**
+   * Where "View all" leads instead of the same list: the list with this filter, opened from the saved search
+   * `savedSearch`, under this label, calling `onOpen` first.
+   */
+  viewAll?: { filter: string; label: string; savedSearch?: string; onOpen?: () => void }
+  /** Whether it ends with the link to the whole list. */
+  link?: boolean
 }
 
 /** The switch between the table and the view's displays, for an embedded list's heading; nothing with only a table. */
@@ -51,7 +56,7 @@ const Loading = () => <div className="flex flex-col gap-2">{Array.from({ length:
  * The first `limit` records of a list, drawn by the list page's own table (sized to its rows) or display, and a link
  * to the whole list with the same filter, order and display. On a phone a cards display is one row that scrolls sideways.
  */
-export const EmbeddedList = ({ model, view, filter, sort, columns, limit, display, empty, row = false, viewAll }: EmbeddedListProps) => {
+export const EmbeddedList = ({ model, view, filter, sort, columns, limit, display, empty, row = false, viewAll, link = true }: EmbeddedListProps) => {
   const { resources, views } = useAdminMeta()
   const { fields: fieldTypes } = useProjectUi()
   const { go } = useAppAddress()
@@ -66,9 +71,9 @@ export const EmbeddedList = ({ model, view, filter, sort, columns, limit, displa
   const shown = shownDisplay(view, display)
 
   const plural = view?.names?.plural ?? humanize(model.name)
-  const allLink = (
+  const allLink = link && (
     <AppLink
-      to={viewAllAddress(model, view, xs, viewAll ? { filter: viewAll.filter, orderBy: defaultOrderBy(model, view), display } : { filter, orderBy, display })}
+      to={viewAllAddress(model, view, xs, viewAll ? { filter: viewAll.filter, orderBy: defaultOrderBy(model, view), display, savedSearch: viewAll.savedSearch } : { filter, orderBy, display })}
       onClick={viewAll?.onOpen}
       className="flex items-center gap-1 self-end text-[13px] font-medium text-primary-text hover:underline"
     >
@@ -82,7 +87,7 @@ export const EmbeddedList = ({ model, view, filter, sort, columns, limit, displa
   // A link of its own still leads somewhere when nothing here matches
   if (!source || source.total === 0) {
     const nothing = <p className="text-[13px] text-muted-foreground">{empty ?? 'Nothing here yet.'}</p>
-    return viewAll ? <div className="flex flex-col gap-3">{nothing}{allLink}</div> : nothing
+    return viewAll && link ? <div className="flex flex-col gap-3">{nothing}{allLink}</div> : nothing
   }
 
   const list: ListDisplay = {
