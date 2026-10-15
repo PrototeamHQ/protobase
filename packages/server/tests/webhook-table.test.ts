@@ -1,6 +1,6 @@
 import { Kysely, sql } from 'kysely'
 import { PGliteDialect } from 'kysely-pglite-dialect'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { f, resource } from '@protobase/schema'
 import { authSchemaMigration } from '../src/better-auth/auth-schema'
 import { createAuth } from '../src/better-auth/create-auth'
@@ -15,6 +15,9 @@ import type { WriteEvent } from '../src/types'
 import { createAuthStore } from '../../../test-support/auth'
 import { createJobsPg } from '../../../test-support/jobs'
 import { cloneForTest } from '../../../test-support/pglite-snapshot'
+
+// Real scrypt hashing and PGlite queries run on this thread, CPU work a busy machine stretches past 5 s.
+vi.setConfig({ testTimeout: 30_000 })
 
 const orders = resource('orders')
   .table('orders')

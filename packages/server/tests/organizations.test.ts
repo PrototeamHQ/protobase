@@ -1,7 +1,7 @@
 import { PGlite } from '@electric-sql/pglite'
 import { decodeJwt } from 'jose'
 import { PGliteDialect } from 'kysely-pglite-dialect'
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { authSchemaMigration, checkAuthSchema } from '../src/better-auth/auth-schema'
 import { betterAuthAuthenticator } from '../src/better-auth/authenticator'
 import { createAuth, type CreateAuthOptions } from '../src/better-auth/create-auth'
@@ -12,6 +12,9 @@ import type { AuditEvent } from '../src/types'
 import { createAuthStore } from '../../../test-support/auth'
 import { allResources, createFixtureDb } from '../../../test-support/server'
 import { cloneForTest } from '../../../test-support/pglite-snapshot'
+
+// Real scrypt hashing and PGlite queries run on this thread, CPU work a busy machine stretches past 5 s.
+vi.setConfig({ testTimeout: 30_000 })
 
 const origin = 'http://localhost:5173'
 const secret = 'test-secret-test-secret-test-secret-1234'

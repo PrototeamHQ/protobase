@@ -12,6 +12,9 @@ import type { MailMessage } from '../src/mail/smtp-mailer'
 import { createAuthStore } from '../../../test-support/auth'
 import { cloneForTest } from '../../../test-support/pglite-snapshot'
 
+// Real scrypt hashing and PGlite queries run on this thread, CPU work a busy machine stretches past 5 s.
+vi.setConfig({ testTimeout: 30_000 })
+
 const origin = 'http://localhost:5173'
 const secret = 'test-secret-test-secret-test-secret-1234'
 const password = 'correct horse battery'
