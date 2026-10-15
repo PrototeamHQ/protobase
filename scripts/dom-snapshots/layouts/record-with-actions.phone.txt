@@ -2,8 +2,8 @@ div | block
   div .h-screen | block
     div .flex min-h-full w-full overflow-x-clip bg-background | flex row nowrap normal normal
       div .flex min-w-0 flex-1 flex-col | flex column nowrap normal normal
-        header .sticky top-0 z-30 flex h-12 shrink-0 items-center gap-1 border-b bg-background px-2 md:gap-4 md:px-5 | flex row nowrap center normal sticky
-          button .inline-flex size-11 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted md:hidden -ml-0.5 | flex row nowrap center center
+        header .sticky top-0 z-30 flex h-12 shrink-0 items-center gap-1 border-b bg-background pl-4 pr-2 md:gap-4 md:px-5 | flex row nowrap center normal sticky
+          button .inline-flex size-11 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted md:hidden -ml-3 | flex row nowrap center center
             svg .lucide lucide-menu size-5 | block
           a .inline-flex size-11 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted md:hidden | flex row nowrap center center
             svg .lucide lucide-chevron-left size-5 | block

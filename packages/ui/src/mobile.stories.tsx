@@ -66,6 +66,8 @@ export const NavigationDrawer: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
     const menu = canvas.getByRole('button', { name: 'Open navigation' })
+    // The menu icon lines up with the page's 16px gutter.
+    expect(menu.querySelector('svg')!.getBoundingClientRect().left).toBe(16)
     expect(menu).toHaveAttribute('aria-expanded', 'false')
     await userEvent.click(menu)
     const drawer = await canvas.findByRole('dialog', { name: 'Navigation' })
