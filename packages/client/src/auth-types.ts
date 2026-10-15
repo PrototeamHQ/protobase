@@ -1,3 +1,5 @@
+import type { PluginRef } from './types'
+
 export type AuthUser = { id: string; email: string; name: string; role?: string | null }
 
 /** A way to sign in the server offers: a password, a code emailed to the address, or a passkey. */
@@ -18,7 +20,7 @@ export type PlatformSignIn = { provider: string; name: string }
  * `sendSignUpCode`); `socialProviders` the ids of the sign-in providers, for example
  * `github`; `platformSignIn` the one of them the platform adds; `staffSignIn` the operator provider's name when its staff
  * can sign in as people; `organizations` when the app has them; `anonymous` when visitors may browse what the project's
- * anonymous role reads without signing in.
+ * anonymous role reads without signing in; `plugins` those the app loads before anyone signs in.
  */
 export type SetupStatus = {
   needsAdmin: boolean
@@ -36,6 +38,7 @@ export type SetupStatus = {
   /** With organizations: who may create them, and every role with its label, `membership` for those a member can hold. */
   organizations?: { create: 'admins' | 'everyone'; roles: RoleLabel[] }
   anonymous?: boolean
+  plugins?: PluginRef[]
 }
 
 /** A role with its label; `membership` when a member can hold it, `grants` the other roles its holders may give. */

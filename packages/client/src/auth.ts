@@ -99,6 +99,7 @@ export const createAuthSession = (options: AuthSessionOptions = {}) => {
         ...(body.passkeyDomains && { passkeyDomains: body.passkeyDomains }),
         ...(body.organizations && { organizations: body.organizations }),
         ...(body.anonymous && { anonymous: true }),
+        ...(body.plugins && body.plugins.length > 0 && { plugins: body.plugins }),
       }
     },
 

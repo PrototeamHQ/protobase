@@ -81,6 +81,8 @@ describe('auth session sign-in', () => {
     expect(await signUp.status()).toMatchObject({ signUp: true })
     const platform = createAuthSession({ origin: 'http://localhost', fetch: (async () => json({ needsAdmin: false, signInMethods: ['password'], socialProviders: ['github'], platformSignIn: { provider: 'github', name: 'GitHub' } })) as typeof fetch })
     expect(await platform.status()).toMatchObject({ socialProviders: ['github'], platformSignIn: { provider: 'github', name: 'GitHub' } })
+    const early = createAuthSession({ origin: 'http://localhost', fetch: (async () => json({ needsAdmin: false, signInMethods: ['password'], socialProviders: [], plugins: [{ url: 'https://cloud.example.com/plugin.json' }] })) as typeof fetch })
+    expect(await early.status()).toMatchObject({ plugins: [{ url: 'https://cloud.example.com/plugin.json' }] })
   })
 
   it('says so when the URL is not a Protobase server', async () => {
