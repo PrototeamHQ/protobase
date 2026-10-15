@@ -98,8 +98,8 @@ With jobs, the admin app has a **Failed jobs** page, for admins only: each job t
 ## Where jobs run
 
 - **`protobase dev`** runs them in its process. An edited job runs its new code from the next job on.
-- **`protobase serve`** runs them in its process, beside the API, unless `PROTOBASE_JOBS=off`; it enqueues them either way. On SIGTERM it stops taking jobs and gives running ones 30 seconds to finish. A job still running then is failed, to be retried.
-- **[`protobase worker <bundle>`](/reference/cli/#worker)** runs the same jobs from the same bundle in a process of its own, with the same shutdown, for a `serve` with `PROTOBASE_JOBS=off`.
+- **`protobase serve`** runs them in its process, beside the API, unless `PROTOBASE_JOBS=false`; it enqueues them either way. On SIGTERM it stops taking jobs and gives running ones 30 seconds to finish. A job still running then is failed, to be retried.
+- **[`protobase worker <bundle>`](/reference/cli/#worker)** runs the same jobs from the same bundle in a process of its own, with the same shutdown, for a `serve` with `PROTOBASE_JOBS=false`.
 - Each worker checks every job name for due jobs every 2 seconds: one indexed query per job name and interval. Once a minute, one of the workers also counts the queues and retries the jobs whose worker died (their `timeout` passed); once a day it deletes completed and failed jobs older than 7 days.
 
 ### Hosts that sleep
@@ -107,7 +107,7 @@ With jobs, the admin app has a **Failed jobs** page, for admins only: each job t
 A host that stops an idle app needs to know when a job is due, and to have it run:
 
 - `select jobs.next_due()` answers when the next job is due, or `null` when none waits: a waiting job's start time, a recurring job's next run, or the timeout of a job that was running when the app stopped. It is one read-only statement, through any pooler.
-- `POST /api/jobs/drain?seconds=25` runs the due jobs until none is due or running, or the seconds have passed, and answers `{ "drained": true, "remaining": 0, "nextDue": "2026-10-12T05:00:00.000Z" }`. It takes the operator's token, `PROTOBASE_JOBS_DRAIN_TOKEN`, as a bearer token; without that variable there is no such endpoint. A process with `PROTOBASE_JOBS=off` answers `409`.
+- `POST /api/jobs/drain?seconds=25` runs the due jobs until none is due or running, or the seconds have passed, and answers `{ "drained": true, "remaining": 0, "nextDue": "2026-10-12T05:00:00.000Z" }`. It takes the operator's token, `PROTOBASE_JOBS_DRAIN_TOKEN`, as a bearer token; without that variable there is no such endpoint. A process with `PROTOBASE_JOBS=false` answers `409`.
 
 ## The `jobs` schema
 

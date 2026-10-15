@@ -109,11 +109,11 @@ describe.skipIf(!reachable)(`the ERP built and served by the CLI on ${runtime}`,
     }
   }, timeout)
 
-  // The jobs in a process of their own: `serve` with PROTOBASE_JOBS=off only enqueues them, `protobase worker` runs them.
+  // The jobs in a process of their own: `serve` with PROTOBASE_JOBS=false only enqueues them, `protobase worker` runs them.
   it('runs the jobs in protobase worker beside a serve that only enqueues them', async () => {
     await build('worker')
     const worker = spawn(process.execPath, [bin, 'worker', path.join(outDir, 'worker')], { cwd: erpDir, env: { ...process.env, ...store.env } })
-    child = spawn(process.execPath, [bin, 'serve', path.join(outDir, 'worker')], { cwd: erpDir, env: { ...process.env, ...store.env, PORT: String(port), PROTOBASE_JOBS: 'off' } })
+    child = spawn(process.execPath, [bin, 'serve', path.join(outDir, 'worker')], { cwd: erpDir, env: { ...process.env, ...store.env, PORT: String(port), PROTOBASE_JOBS: 'false' } })
     try {
       await Promise.all([untilListening(child, timeout - 10_000), untilPrinted(worker, 'protobase worker running 2 jobs', timeout - 10_000)])
       const token = await signIn(base, email, password)

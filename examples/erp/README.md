@@ -83,4 +83,4 @@ bun run build:serve           # dist/protobase-serve.js at the repository root, 
 bun --no-install /opt/protobase/protobase-serve.js /app/protobase.config.js
 ```
 
-The host passes `DATABASE_URL`, `PORT`, `REQUEST_LOG`, and for password reset `PROTOBASE_SMTP_URL` and `PROTOBASE_MAIL_FROM`; the ERP itself reads `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, and `TRUSTED_ORIGINS`. Run `db:migrate` against the database before the first start. The bundle's shape and the runtime's lifecycle are in the [CLI reference](https://docs.protobase.net/reference/cli/#build).
+The host passes `DATABASE_URL`, `PORT`, `REQUEST_LOG` (`true` logs every request), and for password reset `PROTOBASE_SMTP_URL` and `PROTOBASE_MAIL_FROM`; the ERP itself reads `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, and `TRUSTED_ORIGINS`. Run `db:migrate` against the database before the first start. The bundle's shape and the runtime's lifecycle are in the [CLI reference](https://docs.protobase.net/reference/cli/#build).

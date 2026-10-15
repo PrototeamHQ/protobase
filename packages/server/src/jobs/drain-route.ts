@@ -23,7 +23,7 @@ export const jobsDrainApp = ({ runtime, token }: { runtime: JobsRuntime; token: 
     if (!sameToken(c.req.header('authorization')?.replace(/^Bearer /, ''), token)) return problem(unauthorized('Send the operator token as a bearer token'))
     const seconds = Number(c.req.query('seconds') ?? 25)
     if (!Number.isFinite(seconds) || seconds <= 0 || seconds > maxSeconds) return problem(badRequest('invalid-seconds', `seconds must be more than 0 and at most ${maxSeconds}`))
-    if (!runtime.works) return problem(new HttpProblem(409, 'jobs-elsewhere', 'Conflict', 'This process runs no jobs (PROTOBASE_JOBS=off); drain the one that does'))
+    if (!runtime.works) return problem(new HttpProblem(409, 'jobs-elsewhere', 'Conflict', 'This process runs no jobs (PROTOBASE_JOBS=false); drain the one that does'))
     const { drained, remaining, nextDue } = await runtime.drain(seconds)
     return c.json({ drained, remaining, nextDue: nextDue?.toISOString() ?? null })
   })

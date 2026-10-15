@@ -23,7 +23,7 @@ describe('startServe with resource events', () => {
     await pg.close()
   })
 
-  it('starts without reading the triggers with PROTOBASE_STARTUP_CHECKS=off', async () => {
+  it('starts without reading the triggers with PROTOBASE_STARTUP_CHECKS=false', async () => {
     const pg = await createJobsPg()
     await pg.exec('create table notes (id integer primary key, body text not null)')
     const db = Object.assign(new Kysely<any>({ dialect: new PGliteDialect(pg) }), { destroy: vi.fn(async () => {}) })

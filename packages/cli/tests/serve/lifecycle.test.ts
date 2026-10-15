@@ -113,7 +113,7 @@ describe('startServe', () => {
     await expect(job.enqueue(db)).rejects.toThrow('Jobs are not running in this process')
   }, 30_000)
 
-  it('enqueues but runs no job with PROTOBASE_JOBS=off', async () => {
+  it('enqueues but runs no job with PROTOBASE_JOBS=false', async () => {
     const db = new Kysely<any>({ dialect: new PGliteDialect(await createJobsPg()) })
     const run = vi.fn()
     const job = defineJob({ name: 'elsewhere', run })
@@ -148,7 +148,7 @@ describe('startServe', () => {
     }
   }, 30_000)
 
-  it('has no drain endpoint without a drain token, and refuses to drain with PROTOBASE_JOBS=off', async () => {
+  it('has no drain endpoint without a drain token, and refuses to drain with PROTOBASE_JOBS=false', async () => {
     const db = new Kysely<any>({ dialect: new PGliteDialect(await createJobsPg()) })
     const job = defineJob({ name: 'elsewhere', run: () => {} })
     const without = await startServe({ project: { ...project, db, jobs: { job } }, env: { ...env, databaseUrl: undefined } })
@@ -161,7 +161,7 @@ describe('startServe', () => {
     try {
       const refused = await fetch(`http://localhost:${off.port}/api/jobs/drain`, { method: 'POST', headers: { authorization: 'Bearer t' } })
       expect(refused.status).toBe(409)
-      expect((await refused.json()).detail).toBe('This process runs no jobs (PROTOBASE_JOBS=off); drain the one that does')
+      expect((await refused.json()).detail).toBe('This process runs no jobs (PROTOBASE_JOBS=false); drain the one that does')
     } finally {
       await off.close()
     }

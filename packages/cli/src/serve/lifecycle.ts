@@ -42,7 +42,7 @@ const closeServer = (server: Server) =>
 // Serves the project until `close`, which stops accepting connections, lets open requests finish, lets running jobs
 // finish and then drains the pool it created. A `db` exported by the project stays the project's to close. It does not
 // start while the auth schema, the change capture of resources with events or the jobs schema is behind, which it only
-// reads: the project's migrations change them, before the new version serves. `startupChecks` off skips those reads,
+// reads: the project's migrations change them, before the new version serves. `startupChecks` false skips those reads,
 // for a restart of a bundle that already started on this database. With jobs it runs them too, unless
 // `runJobs` is off; with file fields it runs their scheduled deletes every `filesCleanupMinutes`.
 export const startServe = async ({ project, env, createDb = (url) => createPgDb(pg, url), site, ui, reporter }: ServeOptions): Promise<RunningServer> => {
