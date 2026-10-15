@@ -8,6 +8,7 @@ import { ProviderRedirect } from './provider-sign-in-page'
 import { ResetPasswordForm, type ResetPasswordFormProps } from './reset-password-form'
 import { SetupRequiredForm, type SetupRequiredFormProps } from './setup-required-form'
 import { SignInForm, type SignInFormProps } from './sign-in-form'
+import { SignUpCodeForm, type SignUpCodeFormProps } from './sign-up-code-form'
 import { SignUpDetailsForm, type SignUpDetailsFormProps } from './sign-up-details-form'
 import { SignUpEmailForm, type SignUpEmailFormProps } from './sign-up-email-form'
 import { StaffSignInForm, type StaffSignInFormProps } from './staff-sign-in-form'
@@ -200,32 +201,65 @@ export const SignUpEmail: StoryObj<SignUpEmailFormProps> = {
   },
 }
 
+/** The code on its own, before anything else: a whole code checks itself, and a new one waits 30 seconds after the last. */
+export const SignUpCode: StoryObj<SignUpCodeFormProps> = {
+  tags: ['play'],
+  args: { email: 'nia@homes.example', onSubmit: fn(), onResend: fn(), onBack: fn() },
+  render: (args) => <SignUpCodeForm {...args} />,
+  play: async ({ canvasElement, args }) => {
+    const canvas = within(canvasElement)
+    expect(canvas.getByRole('heading', { name: 'Check your email' })).toBeVisible()
+    expect(canvas.getByText('nia@homes.example')).toBeVisible()
+    expect(canvas.queryByLabelText('Your name')).toBeNull()
+    expect(canvas.getByRole('button', { name: /^Send a new code in \d+s$/ })).toBeDisabled()
+    await userEvent.type(canvas.getByLabelText('Code'), '246810')
+    expect(args.onSubmit).toHaveBeenCalledOnce()
+    expect(args.onSubmit).toHaveBeenCalledWith('246810')
+    await userEvent.click(canvas.getByRole('button', { name: 'Use another address' }))
+    expect(args.onBack).toHaveBeenCalledOnce()
+  },
+}
+
+/** The code was not right: every box in the danger colour, with why. */
+export const SignUpCodeWrong: StoryObj<SignUpCodeFormProps> = {
+  args: { email: 'nia@homes.example', onSubmit: fn(), onResend: fn(), onBack: fn(), error: 'The code is not right, or has expired. Ask for a new one.' },
+  render: (args) => <SignUpCodeForm {...args} />,
+}
+
+export const SignUpCodeOnPhone: StoryObj<SignUpCodeFormProps> = {
+  globals: { viewport: { value: 'phone360' } },
+  parameters: { viewport: { options: { phone360: { name: 'Phone 360', styles: { width: '360px', height: '740px' }, type: 'mobile' } } } },
+  args: { email: 'nia@homes.example', onSubmit: fn(), onResend: fn(), onBack: fn() },
+  render: (args) => <SignUpCodeForm {...args} />,
+}
+
+/** Once the code was right: the name and how they sign in, with no code to enter again. */
 export const SignUpDetails: StoryObj<SignUpDetailsFormProps> = {
   tags: ['play'],
-  args: { email: 'nia@homes.example', methods: ['password', 'emailCode', 'passkey'], onSubmit: fn(), onResend: fn(), onBack: fn() },
+  args: { email: 'nia@homes.example', methods: ['password', 'emailCode', 'passkey'], onSubmit: fn(), onBack: fn() },
   render: (args) => <SignUpDetailsForm {...args} />,
   play: async ({ canvasElement, args }) => {
     const canvas = within(canvasElement)
     expect(canvas.getByText('nia@homes.example')).toBeVisible()
-    await userEvent.type(canvas.getByLabelText('Code'), '246810')
+    expect(canvas.queryByLabelText('Code')).toBeNull()
     await userEvent.type(canvas.getByLabelText('Your name'), 'Nia')
     // With emailed codes on, the password can stay empty
     await userEvent.click(canvas.getByRole('button', { name: 'Create account' }))
-    expect(args.onSubmit).toHaveBeenCalledWith({ code: '246810', name: 'Nia' })
+    expect(args.onSubmit).toHaveBeenCalledWith({ name: 'Nia' })
     await userEvent.type(canvas.getByLabelText('Password (optional)'), 'correct horse battery')
     await userEvent.click(canvas.getByRole('button', { name: 'Create account' }))
-    expect(args.onSubmit).toHaveBeenLastCalledWith({ code: '246810', name: 'Nia', password: 'correct horse battery' })
+    expect(args.onSubmit).toHaveBeenLastCalledWith({ name: 'Nia', password: 'correct horse battery' })
   },
 }
 
 export const SignUpDetailsPasswordOnly: StoryObj<SignUpDetailsFormProps> = {
   tags: ['play'],
-  args: { email: 'nia@homes.example', methods: ['password'], onSubmit: fn(), onResend: fn(), onBack: fn(), error: 'The code is not right, or has expired. Ask for a new one.' },
+  args: { email: 'nia@homes.example', methods: ['password'], onSubmit: fn(), onBack: fn(), error: 'This sign-up took too long. Start again with your email address.' },
   render: (args) => <SignUpDetailsForm {...args} />,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
     expect(canvas.getByLabelText('Password')).toBeRequired()
-    expect(canvas.getByRole('alert')).toHaveTextContent('The code is not right')
+    expect(canvas.getByRole('alert')).toHaveTextContent('This sign-up took too long')
   },
 }
 

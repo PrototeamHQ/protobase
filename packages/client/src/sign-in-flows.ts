@@ -46,10 +46,20 @@ export const signInFlows = (client: BetterAuthClient, signedIn: () => Promise<un
     },
 
     /**
-     * Makes the account with the emailed code, the person's name and a password (optional when the server offers emailed
-     * sign-in codes), and signs in with it.
+     * Checks the code emailed to `email` on its own, before anything else is asked, and answers the ticket that makes the
+     * account with `signUp`. A ticket works once, for 30 minutes; a wrong code rejects with `SIGN_UP_CODE_INVALID`.
      */
-    signUp: async (input: { email: string; code: string; name: string; password?: string }): Promise<AuthUser> => {
+    verifySignUpCode: async (email: string, code: string): Promise<string> => {
+      const { data, error } = await client.$fetch<{ ticket: string }>('/sign-up/verify-code', { method: 'POST', body: { email, code } })
+      if (error || !data) throw authError(error, 'Could not check the code')
+      return data.ticket
+    },
+
+    /**
+     * Makes the account for the address whose code `verifySignUpCode` took, with the ticket it answered, the person's
+     * name and a password (optional when the server offers emailed sign-in codes), and signs in with it.
+     */
+    signUp: async (input: { ticket: string; name: string; password?: string }): Promise<AuthUser> => {
       const { data, error } = await client.$fetch<{ user: AuthUser }>('/sign-up/create', { method: 'POST', body: input })
       if (error || !data) throw authError(error, 'Could not create your account')
       await signedIn()

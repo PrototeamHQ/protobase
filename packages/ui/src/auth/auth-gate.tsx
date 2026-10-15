@@ -69,9 +69,11 @@ export const AuthGate = ({ workspace, children }: { workspace?: string; children
   const { path, params, basePath, navigate } = useRouter()
   const { address, next, open, leave } = useSignInAddress()
   const [page, setPage] = useState(firstPage)
-  // The addresses the steps that enter an emailed code were for. After a reload they are gone, and so are those steps.
+  // The addresses the steps that enter an emailed code were for, and what a right sign-up code was traded for. After a
+  // reload they are gone, and so are the steps that need them.
   const [codeEmail, setCodeEmail] = useState<string>()
   const [signUpEmail, setSignUpEmail] = useState<string>()
+  const [signUpTicket, setSignUpTicket] = useState<string>()
 
   // Takes a used link's parameters out of the address, in place of it in the tab's history.
   const href = new URL(`${basePath}${path}${params.size > 0 ? `?${params}` : ''}`, window.location.origin).href
@@ -93,6 +95,7 @@ export const AuthGate = ({ workspace, children }: { workspace?: string; children
     if (stale) setPage({ kind: 'sign-in' })
     setCodeEmail(undefined)
     setSignUpEmail(undefined)
+    setSignUpTicket(undefined)
   }, [entered, page, forget])
   // The provider's refusal shows once; the address keeps no trace of it. Off the sign-in route, opening the route does.
   const providerErrorLeft = address !== undefined && readProviderError(href) !== undefined
@@ -195,6 +198,7 @@ export const AuthGate = ({ workspace, children }: { workspace?: string; children
     'email-code': codeEmail !== undefined,
     'sign-up': canSignUp,
     'sign-up-code': canSignUp && signUpEmail !== undefined,
+    'sign-up-details': canSignUp && signUpTicket !== undefined,
   }
   const step = offered[address.step] ? address.step : 'sign-in'
   const backTo = (target: SignInStep) => () => open(target, { replace: true })
@@ -205,15 +209,23 @@ export const AuthGate = ({ workspace, children }: { workspace?: string; children
   })
   if (step === 'forgot-password') return <ForgotPasswordPage onBack={backTo('sign-in')} />
   if (step === 'email-code') return <EmailCodePage email={codeEmail!} onBack={backTo('sign-in')} />
-  if (step === 'sign-up' || step === 'sign-up-code') {
+  if (step === 'sign-up' || step === 'sign-up-code' || step === 'sign-up-details') {
+    // The code works once, so the step that took it gives its place in the tab's history to the next: Back from the
+    // name and password goes to the address.
     return (
       <SignUpPage
         key={step}
         workspace={workspace}
-        email={step === 'sign-up-code' ? signUpEmail : undefined}
+        email={step === 'sign-up' ? undefined : signUpEmail}
+        ticket={step === 'sign-up-details' ? signUpTicket : undefined}
         onCodeSent={(email) => {
           setSignUpEmail(email)
+          setSignUpTicket(undefined)
           open('sign-up-code')
+        }}
+        onVerified={(ticket) => {
+          setSignUpTicket(ticket)
+          open('sign-up-details', { replace: true })
         }}
         onBack={backTo('sign-up')}
         onSignIn={() => open('sign-in')}

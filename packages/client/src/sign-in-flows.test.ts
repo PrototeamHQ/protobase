@@ -89,20 +89,31 @@ describe('signing in', () => {
     ])
   })
 
-  it('asks for a sign-up code, makes the account with it and fetches the token', async () => {
-    const { requests, session } = serve({ '/sign-up/send-code': () => json({ sent: true }), '/sign-up/create': () => json({ user }), '/token': () => json({ message: 'none' }, { status: 401 }) })
+  it('asks for a sign-up code, trades it for a ticket, makes the account with that and fetches the token', async () => {
+    const { requests, session } = serve({
+      '/sign-up/send-code': () => json({ sent: true }),
+      '/sign-up/verify-code': () => json({ ticket: 'the-ticket' }),
+      '/sign-up/create': () => json({ user }),
+      '/token': () => json({ message: 'none' }, { status: 401 }),
+    })
     await session.sendSignUpCode('sanne@example.com')
-    expect(await session.signUp({ email: 'sanne@example.com', code: '123456', name: 'Sanne', password: 'correct horse battery' })).toEqual(user)
+    expect(await session.verifySignUpCode('sanne@example.com', '123456')).toBe('the-ticket')
+    expect(await session.signUp({ ticket: 'the-ticket', name: 'Sanne', password: 'correct horse battery' })).toEqual(user)
     expect(requests).toEqual([
       { path: '/sign-up/send-code', body: { email: 'sanne@example.com' } },
-      { path: '/sign-up/create', body: { email: 'sanne@example.com', code: '123456', name: 'Sanne', password: 'correct horse battery' } },
+      { path: '/sign-up/verify-code', body: { email: 'sanne@example.com', code: '123456' } },
+      { path: '/sign-up/create', body: { ticket: 'the-ticket', name: 'Sanne', password: 'correct horse battery' } },
       { path: '/token' },
     ])
   })
 
-  it('reports a wrong sign-up code as AuthError', async () => {
-    const { session } = serve({ '/sign-up/create': () => json({ message: 'The code is not right, or has expired. Ask for a new one.', code: 'SIGN_UP_CODE_INVALID' }, { status: 400 }) })
-    await expect(session.signUp({ email: 'sanne@example.com', code: '000000', name: 'Sanne' })).rejects.toMatchObject({ name: 'AuthError', status: 400, code: 'SIGN_UP_CODE_INVALID' })
+  it('reports a wrong sign-up code and a stale ticket as AuthError', async () => {
+    const { session } = serve({
+      '/sign-up/verify-code': () => json({ message: 'The code is not right, or has expired. Ask for a new one.', code: 'SIGN_UP_CODE_INVALID' }, { status: 400 }),
+      '/sign-up/create': () => json({ message: 'This sign-up took too long. Start again with your email address.', code: 'SIGN_UP_TICKET_INVALID' }, { status: 400 }),
+    })
+    await expect(session.verifySignUpCode('sanne@example.com', '000000')).rejects.toMatchObject({ name: 'AuthError', status: 400, code: 'SIGN_UP_CODE_INVALID' })
+    await expect(session.signUp({ ticket: 'stale', name: 'Sanne' })).rejects.toMatchObject({ name: 'AuthError', status: 400, code: 'SIGN_UP_TICKET_INVALID' })
   })
 
   it('reports a wrong code and a refused method as AuthError', async () => {
