@@ -53,8 +53,8 @@ export type AdminOptions = {
    */
   maps?: MapOptions | false
   /**
-   * The plugins the admin app loads (see `PluginOption`), before the ones the platform lists in `PROTOBASE_PLUGINS`;
-   * `false` turns both off.
+   * The plugins the admin app loads (see `PluginOption`), before the ones the platform lists in `PROTOBASE_PLUGINS`
+   * and, for those that load before sign-in, `PROTOBASE_PLUGINS_BEFORE_SIGN_IN`; `false` turns all of them off.
    */
   plugins?: PluginOption[] | false
   /**

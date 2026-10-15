@@ -39,7 +39,7 @@ import { docsRoutes } from './routes/docs'
 import { metaRoutes } from './routes/meta'
 import { recordRoutes } from './routes/record'
 import { runtimeUrl } from './runtime/runtime-settings'
-import { pluginOptions } from './plugins/plugin-settings'
+import { pluginOptions, pluginsBeforeSignIn } from './plugins/plugin-settings'
 import { checkSourceNames, sourceOptions } from './sources/source-settings'
 import { createScanGuard } from './scan-guard'
 import type { AdminOptions } from './admin-options'
@@ -191,7 +191,7 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], pag
     app.use(`${systemPath}/*`, apiCors({ own: ownOrigins, allowed: corsOrigins ?? [], skip }))
   }
   if (auth) {
-    app.route(authBasePath, statusRoute(auth, { anonymous: Object.hasOwn(options.roles?.definitions ?? {}, anonymousRole) }))
+    app.route(authBasePath, statusRoute(auth, { anonymous: Object.hasOwn(options.roles?.definitions ?? {}, anonymousRole), plugins: pluginsBeforeSignIn(plugins) }))
     if (auth.organizations) app.route(authBasePath, organizationRoutes({ auth, audit: deps.audit, registry, db }))
     app.on(['GET', 'POST'], `${authBasePath}/*`, (c) => auth.handler(c.req.raw))
     // On several origins, each says which origins may use the app's passkeys: all of them (Related Origin Requests).

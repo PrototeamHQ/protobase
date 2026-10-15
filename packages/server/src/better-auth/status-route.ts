@@ -1,4 +1,5 @@
 import { Hono } from 'hono'
+import type { PluginRef } from '../plugins/plugin-settings'
 import type { AdminAuth } from './create-auth'
 import { signInPasskeyDomains } from './passkey-domain'
 import { membershipRoles } from './organizations/role-definitions'
@@ -15,9 +16,10 @@ import { hasUsers } from './users'
  * operator provider's name, when staff can sign in as people; `passkeyDomains`, when people have passkeys for more than
  * one of the app's hosts, the RP IDs a passkey sign-in can ask for, the passkey domain first; with organizations, who may create them and the roles
  * with their labels, `membership` for those a member can hold, and the roles each one's holders may also give; and
- * `anonymous` when the project has an anonymous role, so the admin app opens for visitors before anyone signs in.
+ * `anonymous` when the project has an anonymous role, so the admin app opens for visitors before anyone signs in; and
+ * `plugins`, those the app loads before sign-in (see `PluginOption`).
  */
-export const statusRoute = (auth: AdminAuth, { anonymous = false }: { anonymous?: boolean } = {}) => {
+export const statusRoute = (auth: AdminAuth, { anonymous = false, plugins = [] }: { anonymous?: boolean; plugins?: PluginRef[] } = {}) => {
   const app = new Hono()
   app.get('/status', async (c) => {
     const context = await auth.$context
@@ -39,6 +41,7 @@ export const statusRoute = (auth: AdminAuth, { anonymous = false }: { anonymous?
       ...(staffSignIn && { staffSignIn }),
       ...(passkeyDomains.length > 1 && { passkeyDomains }),
       ...(anonymous && { anonymous }),
+      ...(plugins.length > 0 && { plugins }),
       ...(auth.organizations && {
         organizations: {
           create: auth.organizations.create,

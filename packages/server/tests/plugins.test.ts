@@ -19,7 +19,10 @@ beforeAll(async () => {
   db = new Kysely({ dialect: new PGliteDialect(pg) })
 })
 afterAll(async () => { await db.destroy() })
-afterEach(() => { delete process.env.PROTOBASE_PLUGINS })
+afterEach(() => {
+  delete process.env.PROTOBASE_PLUGINS
+  delete process.env.PROTOBASE_PLUGINS_BEFORE_SIGN_IN
+})
 
 const admin = (plugins: AdminOptions['plugins']) => createAdmin({ resources: [tasks], db, authenticate: testAuthenticator, options: { plugins } })
 
@@ -47,6 +50,12 @@ describe('the plugins in /meta', () => {
     process.env.PROTOBASE_PLUGINS = 'https://cloud.example.com/plugins/tasks/plugin.json'
     const app = createAdmin({ resources: [tasks], db, authenticate: testAuthenticator, bundlePlugins: ['/plugins/app/plugin.json'], options: { plugins: false } })
     expect((await metaFor(app, 'sales')).plugins).toEqual([{ url: '/plugins/app/plugin.json' }])
+  })
+
+  it('names a plugin that loads before sign-in to everyone, after the others', async () => {
+    process.env.PROTOBASE_PLUGINS_BEFORE_SIGN_IN = 'https://cloud.example.com/plugins/cloud/plugin.json'
+    const app = admin([{ url: '/plugins/board/plugin.json' }])
+    expect((await metaFor(app, 'sales')).plugins).toEqual([{ url: '/plugins/board/plugin.json' }, { url: 'https://cloud.example.com/plugins/cloud/plugin.json' }])
   })
 
   it('stops the server at startup on a plugin URL that is no URL', () => {

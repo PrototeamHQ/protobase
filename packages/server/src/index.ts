@@ -67,7 +67,7 @@ export { runtimeUrl, runtimeVariable, seesRuntime, type RuntimeOptions } from '.
 export { mapStyleUrl, mapStyleVariable, type MapOptions } from './maps/map-settings'
 export { errorReportingSettings, errorReportingVariable, type ErrorReportingOptions, type ErrorReportingSettings } from './error-reporting/error-reporting-settings'
 export { startErrorReporting, type ErrorReporter } from './error-reporting/error-reporter'
-export { pluginOptions, pluginsFor, pluginsVariable, type PluginOption, type PluginRef } from './plugins/plugin-settings'
+export { beforeSignInPluginsVariable, pluginOptions, pluginsBeforeSignIn, pluginsFor, pluginsVariable, type PluginOption, type PluginRef } from './plugins/plugin-settings'
 export { checkSourceNames, sourceOptions, sourcesFor, sourcesVariable, type SourceOption, type SourceRef } from './sources/source-settings'
 export {
   defineFunction,

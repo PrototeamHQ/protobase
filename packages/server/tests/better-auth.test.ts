@@ -71,6 +71,13 @@ describe('the first admin', () => {
     expect(await (await app.request(`${origin}/api/auth/status`)).json()).not.toHaveProperty('anonymous')
   })
 
+  it('names the plugins the app loads before sign-in, and no others', async () => {
+    const plugins = [{ url: '/plugins/board/plugin.json' }, { url: 'https://cloud.example.com/cloud/plugin.json', settings: { region: 'eu' }, beforeSignIn: true }]
+    const early = createAdmin({ resources: allResources, db: fixture.db, authenticate: betterAuthAuthenticator({ auth, tenant: 1 }), auth, options: { plugins } })
+    expect(await (await early.request(`${origin}/api/auth/status`)).json()).toMatchObject({ plugins: [{ url: 'https://cloud.example.com/cloud/plugin.json', settings: { region: 'eu' } }] })
+    expect(await (await app.request(`${origin}/api/auth/status`)).json()).not.toHaveProperty('plugins')
+  })
+
   it('lists users without secrets, and later users get the requested role', async () => {
     const second = await createUser(auth, { email: 'later@example.com', password })
     expect(second.role).toBe('user')
