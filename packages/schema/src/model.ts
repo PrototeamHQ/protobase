@@ -205,6 +205,11 @@ export type AppAddress =
       resource: string
       /** The record's key: its value, or its parts for a composite key. */
       key: KeyValue | readonly KeyValue[]
+      /**
+       * The record's form, on a view whose record page opens as a read view or locked (`.recordMode(...)`): the page that
+       * Edit opens. A view whose record page is always editable ignores it.
+       */
+      edit?: boolean
     }
   | {
       /** The form for a new record. */
@@ -233,6 +238,8 @@ export type FieldViewModel = {
   label?: string
   /** A line under the field on the record page and in forms. */
   help?: string
+  /** When `help` shows: always, or only while the record is edited; the view's `helpWhen` when omitted. */
+  helpWhen?: HelpWhen
   /** How the value is shown. */
   format?: FieldFormat
   /** A text that runs over several lines: forms edit it in a box that grows with it, and its line breaks show. */
@@ -257,6 +264,13 @@ export type FieldViewModel = {
    */
   widget?: FieldWidgetModel
 }
+
+/**
+ * When a help line shows: `always`, the default, or only while the record is `editing`: on its form and the create
+ * form, not on the record page's read view or its locked form. See
+ * [The record page](website/src/content/docs/reference/ui-config.mdx#the-record-page).
+ */
+export type HelpWhen = 'always' | 'editing'
 
 /** How a field's badges are drawn: `arrow` points them right, as on a rating scale. */
 export type BadgeShape = 'arrow'
@@ -609,6 +623,8 @@ export type LayoutItemModel =
       fields: string[]
       /** A line under the title. */
       help?: string
+      /** When `help` shows: always, or only while the record is edited; the view's `helpWhen` when omitted. */
+      helpWhen?: HelpWhen
     }
   | {
       /** A read-only summary card beside the main column. */
@@ -619,6 +635,24 @@ export type LayoutItemModel =
   | RelatedModel
   | CustomSectionModel
   | MapSectionModel
+  | GalleryModel
+
+/**
+ * A record's photos as tiles in the main column under `title`, one large and the next few smaller, opening a lightbox
+ * that steps through them all: first the record's own file field `image`, then the `image` of the records of
+ * `photos.resource` whose relation `photos.field` points at it, in `photos.sort` order, as a cards display's `photos`
+ * names them. See [Galleries](website/src/content/docs/reference/ui-config.mdx#galleries).
+ */
+export type GalleryModel = {
+  /** A gallery of photos. */
+  kind: 'gallery'
+  /** The section's title. */
+  title: string
+  /** The record's own file field, shown first. */
+  image?: string
+  /** The records holding the further photos. */
+  photos?: CardPhotosModel
+}
 
 /** How far back a list's chart reaches. */
 export type ChartRange = '7d' | '30d' | '90d' | '1y' | 'all'
@@ -634,6 +668,14 @@ export type ChartModel = {
   /** How long each bar is. */
   granularity: ChartGranularity
 }
+
+/**
+ * How the record page opens to a user who may change the record: `edit`, the default, as its form, ready to change;
+ * `read` as a read view of label/value tables, with an Edit button to the form; `locked` as the same form, locked until
+ * Edit is pressed, where reading and editing look alike. A user who may not change it sees the read view with `read`,
+ * and the locked form otherwise.
+ */
+export type RecordMode = 'edit' | 'read' | 'locked'
 
 /** How the record page shows that a save went through: a `toast` (the default) or on the Save `button`. */
 export type SaveFeedback = 'toast' | 'button'
@@ -849,6 +891,10 @@ export type ViewModel = {
   layout: LayoutItemModel[]
   /** A chart of records over time above the list. */
   chart?: ChartModel
+  /** How the record page opens: as its form, a read view or a locked form; as its form when omitted. */
+  recordMode?: RecordMode
+  /** When the help lines of its fields and sections show, unless their own `helpWhen` says; always when omitted. */
+  helpWhen?: HelpWhen
   /** How the record page shows that a save went through. */
   saveFeedback?: SaveFeedback
   /** The named actions of its records. */

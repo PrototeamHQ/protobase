@@ -318,6 +318,31 @@ describe('view builder', () => {
     ])
   })
 
+  it('puts a gallery of the record and its photo records in the record layout, and refuses one without photos', () => {
+    const home = resource('home').table('homes').fields({ id: f.integer(), title: f.text(), cover: f.file().accept(['image/*']) }).primaryKey((r) => r.id)
+    const photos = { resource: 'home_photos', field: 'home_id', image: 'photo', sort: 'position' }
+    const model = view<typeof home>('home').layout((r) => [l.gallery('Photos', { image: r.cover, photos }), l.gallery('Cover', { image: r.cover })]).toModel(home.toModel())
+    expect(model.layout).toEqual([
+      { kind: 'gallery', title: 'Photos', image: 'cover', photos },
+      { kind: 'gallery', title: 'Cover', image: 'cover' },
+    ])
+    expect(() => l.gallery('Photos', {})).toThrow('l.gallery "Photos" needs an image field, photos or both')
+    const titled = view<typeof home>('home').layout((r) => [l.gallery('Photos', { image: r.title })])
+    expect(() => titled.toModel(home.toModel())).toThrow('View "home": gallery "Photos" shows "title" as its image, which is not a file field')
+  })
+
+  it('opens the record page as a read view or locked, and shows help only while editing', () => {
+    const model = view<typeof article>('article')
+      .recordMode('read')
+      .helpWhen('editing')
+      .fields((r) => ({ title: r.title.help('Shown in lists', { when: 'always' }), price: r.price.help('Without VAT') }))
+      .layout((r) => [l.section('Content', [r.title], { help: 'Main fields', helpWhen: 'always' })])
+      .toModel()
+    expect(model).toMatchObject({ recordMode: 'read', helpWhen: 'editing', fields: { title: { help: 'Shown in lists', helpWhen: 'always' }, price: { help: 'Without VAT' } } })
+    expect(model.layout).toEqual([{ kind: 'section', title: 'Content', fields: ['title'], help: 'Main fields', helpWhen: 'always' }])
+    expect(view<typeof article>('article').recordMode('locked').toModel().recordMode).toBe('locked')
+  })
+
   it('refuses display fields the resource does not have', () => {
     const stale = view<typeof article>('article').list((r, d) => ({ columns: [r.title], displays: [d.cards({ badge: { name: 'state' } })] }))
     expect(() => stale.toModel(article.toModel())).toThrow('View "article": display "cards" names field "state", which the resource does not have')

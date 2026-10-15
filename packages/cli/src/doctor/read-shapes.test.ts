@@ -32,7 +32,11 @@ const agencies = resource('agencies')
 const placesView = view<typeof places>('places')
   .list((r) => ({ columns: [r.name], sort: [[r.name, 'asc']] }))
   .filters((r, w) => [w.facets(r.region), w.facets(r.population), w.toggle(r.coastal), w.flags([r.coastal, r.capital], { label: 'Kind' })])
-  .layout(() => [l.related('Agencies', { resource: 'agencies', field: 'place_id', filter: 'opened_at > now() - 30d', sort: 'opened_at desc' })])
+  .layout(() => [
+    l.related('Agencies', { resource: 'agencies', field: 'place_id', filter: 'opened_at > now() - 30d', sort: 'opened_at desc' }),
+    // The agencies stand in for photos: the shape reads only the relation and the order
+    l.gallery('Agency photos', { photos: { resource: 'agencies', field: 'place_id', image: 'name', sort: 'opened_at desc' } }),
+  ])
 
 const home = page(
   'home',
@@ -71,6 +75,12 @@ describe('readShapes', () => {
       ]),
     )
     expect(requests('places')).not.toContain("GET /places:facets?field=population (the places list's facets filter)")
+  })
+
+  it("reads a gallery's photos by this record's key, in their order", () => {
+    const gallery = shapes.find((shape) => shape.from === 'gallery "Agency photos" on the places record page')
+    expect(gallery).toMatchObject({ resource: 'agencies', request: 'GET /agencies?filter=place_id = …&order_by=opened_at desc', query: { sort: [['opened_at', 'desc']] } })
+    expect(gallery?.query.filter).toMatchObject({ kind: 'compare', field: { name: 'place_id' } })
   })
 
   it("reads a related section's records by this record's key, with its filter and sort", () => {

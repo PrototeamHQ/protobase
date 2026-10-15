@@ -12,6 +12,11 @@ describe('appPath', () => {
     expect(appPath({ kind: 'page', page: 'overview' }, '/admin')).toBe('/admin/overview')
   })
 
+  it("writes a record's form as edit=true, and the record alone without it", () => {
+    expect(appPath({ kind: 'record', resource: 'listings', key: 42, edit: true }, '/admin')).toBe('/admin/listings/42?edit=true')
+    expect(appPath({ kind: 'record', resource: 'listings', key: 42, edit: false })).toBe('/listings/42')
+  })
+
   it('writes a list state in one order, leaving out what is empty', () => {
     expect(appPath({ kind: 'list', resource: 'repairs', filterLayout: 'panel', orderBy: 'bookedOn desc', filter: 'status = "ready"', display: 'cards' })).toBe(
       '/repairs?display=cards&filter=status+%3D+%22ready%22&order_by=bookedOn+desc&layout=panel',
@@ -47,11 +52,17 @@ describe('readAppPath', () => {
       { kind: 'list', resource: 'listings', filter: 'garden = true', savedSearch: '3,7' },
       { kind: 'record', resource: 'files', key: 'a/b' },
       { kind: 'record', resource: 'leaseTenants', key: '3,7' },
+      { kind: 'record', resource: 'listings', key: '42', edit: true },
       { kind: 'create', resource: 'repairs' },
       { kind: 'create', resource: 'notes', values: { listing_id: '42', body: 'Big garden & a shed' } },
       { kind: 'page', page: 'overview' },
     ]
     for (const address of addresses) expect(readAppPath(appPath(address), pages)).toEqual(address)
+  })
+
+  it('reads only edit=true as the form', () => {
+    expect(readAppPath('/listings/42?edit=1', pages)).toEqual({ kind: 'record', resource: 'listings', key: '42' })
+    expect(readAppPath('/listings/42?edit=false', pages)).toEqual({ kind: 'record', resource: 'listings', key: '42' })
   })
 
   it('gives a composite key in the text form the record API takes', () => {

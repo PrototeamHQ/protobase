@@ -1,4 +1,4 @@
-import type { BadgeShape, FieldFormat, FieldViewModel, JsonValue } from './model'
+import type { BadgeShape, FieldFormat, FieldViewModel, HelpWhen, JsonValue } from './model'
 
 const hexColor = /^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i
 
@@ -17,9 +17,12 @@ export class FieldView<N extends string = string, V = unknown> {
     return this.with({ label })
   }
 
-  /** A line under the field on the record page and in forms. */
-  help(help: string) {
-    return this.with({ help })
+  /**
+   * A line under the field on the record page and in forms; `when: 'editing'` shows it only while the record is edited,
+   * not on its read view (the view's `.helpWhen(...)` when omitted).
+   */
+  help(help: string, o: { when?: HelpWhen } = {}) {
+    return this.with({ help, ...(o.when !== undefined && { helpWhen: o.when }) })
   }
 
   /** How the value shows: `badge` for statuses, `code` in monospace, `percent` with a % sign. */

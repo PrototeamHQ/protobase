@@ -106,6 +106,20 @@ describe('checkViews', () => {
     expect(() => checkViews(withScans, [shown('page desc').toModel()])).toThrow('View "payments": display "gallery" photos: the list\'s records load with one set of photos, so name those of display "cards"')
   })
 
+  it("wants a gallery's image to be a file field and its photos to fit the resources", () => {
+    const scans = resource('scans').table('scans').fields({ id: f.integer(), payment_id: f.relation('payments').filterable(), scan: f.file(), page: f.integer().sortable() }).primaryKey((r) => r.id)
+    const withScans = { entries: [...registry.entries, { name: 'scans', model: scans.toModel() }] } as unknown as Registry
+    const gallery = (image: string | undefined, photos: { resource: string; sort?: string }) => {
+      const written = view<typeof payments>('payments').toModel()
+      written.layout = [{ kind: 'gallery', title: 'Scans', ...(image && { image }), photos: { field: 'payment_id', image: 'scan', ...photos } }]
+      return written
+    }
+    expect(() => checkViews(withScans, [gallery(undefined, { resource: 'scans', sort: 'page' })])).not.toThrow()
+    expect(() => checkViews(withScans, [gallery(undefined, { resource: 'receipts' })])).toThrow('View "payments": gallery "Scans": photos: unknown resource "receipts"')
+    expect(() => checkViews(withScans, [gallery('reference', { resource: 'scans' })])).toThrow('View "payments": gallery "Scans": "reference" is not a file field')
+    expect(() => checkViews(withScans, [gallery('cover', { resource: 'scans' })])).toThrow('View "payments": gallery "Scans" names field "cover", which payments does not have')
+  })
+
   it("wants a cards display's favorite button to save to records each user owns", () => {
     const saved = (owned: boolean) => {
       const base = resource('saved').table('saved').fields({ id: f.integer(), user_id: f.text().readOnly(), payment_id: f.relation('payments').filterable() }).primaryKey((r) => r.id)

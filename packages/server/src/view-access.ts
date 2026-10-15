@@ -1,5 +1,5 @@
 import { resolveFieldPath } from '@protobase/layout'
-import type { ActionModel, ActionRun, CardFavoriteModel, CardPhotosModel, ChartModel, CustomSectionModel, FilterWidgetModel, LayoutItemModel, ListDisplayModel, ListModel, MapSectionModel, NavModel, NavRecentModel, RelatedModel, ResourceModel, SaveSearchModel, SearchesOfModel, SearchResultModel, ViewModel } from '@protobase/schema'
+import type { ActionModel, ActionRun, CardFavoriteModel, CardPhotosModel, ChartModel, CustomSectionModel, FilterWidgetModel, GalleryModel, LayoutItemModel, ListDisplayModel, ListModel, MapSectionModel, NavModel, NavRecentModel, RelatedModel, ResourceModel, SaveSearchModel, SearchesOfModel, SearchResultModel, ViewModel } from '@protobase/schema'
 import { addressErrors, hrefPlaceholders, navRecentErrors, pruneByShape, shapes as s, tableDisplay } from '@protobase/schema/internal'
 import { cardFavoriteErrors } from './view-card-favorite'
 import { cardPhotosErrors } from './view-card-photos'
@@ -14,6 +14,15 @@ const pruneRelated = (item: RelatedModel, resource: string, models: Record<strin
   const visible = models[item.resource] ? columns?.filter((column) => resolveFieldPath(models, item.resource, column).ok) : undefined
   const narrowed = visible && visible.length > 0 ? { ...rest, columns: visible } : rest
   return relatedErrors(narrowed, resource, models).length === 0 ? narrowed : undefined
+}
+
+// A gallery keeps the record's image when the caller can read it, and the photos when they can load them, as a card does;
+// a gallery left with neither goes.
+const pruneGallery = (item: GalleryModel, resource: string, model: ResourceModel, models: Record<string, ResourceModel>): GalleryModel | undefined => {
+  const image = item.image !== undefined && Object.hasOwn(model.fields, item.image) ? item.image : undefined
+  const photos = item.photos && cardPhotosErrors(item.photos, resource, models).length === 0 ? item.photos : undefined
+  if (image === undefined && photos === undefined) return undefined
+  return { kind: 'gallery', title: item.title, ...(image !== undefined && { image }), ...(photos && { photos }) }
 }
 
 // The list opens in its table when the display it names as its default is left out.
@@ -86,13 +95,14 @@ const widgetShape = s.oneOf<FilterWidgetModel>({
   flags: s.object<Of<FilterWidgetModel, 'flags'>>({ kind: s.data, fields: s.list(s.field, { nonEmpty: true }), label: s.data }, { requires: ['fields'] }),
 })
 
-const layoutShape = (resource: string, models: Record<string, ResourceModel>) =>
+const layoutShape = (resource: string, model: ResourceModel, models: Record<string, ResourceModel>) =>
   s.oneOf<LayoutItemModel>({
-    section: s.object<Of<LayoutItemModel, 'section'>>({ kind: s.data, title: s.data, help: s.data, fields: s.list(s.field, { nonEmpty: true }) }, { requires: ['fields'] }),
+    section: s.object<Of<LayoutItemModel, 'section'>>({ kind: s.data, title: s.data, help: s.data, helpWhen: s.data, fields: s.list(s.field, { nonEmpty: true }) }, { requires: ['fields'] }),
     sidebar: s.object<Of<LayoutItemModel, 'sidebar'>>({ kind: s.data, fields: s.list(s.field, { nonEmpty: true }) }, { requires: ['fields'] }),
     related: s.map<RelatedModel>((item) => pruneRelated(item, resource, models)),
     custom: s.object<CustomSectionModel>({ kind: s.data, component: s.data, title: s.data, sidebar: s.data, props: s.refs }, { requires: ['props'] }),
     map: s.object<MapSectionModel>({ kind: s.data, title: s.data, latitude: s.field, longitude: s.field, zoom: s.data, sidebar: s.data }, { requires: ['latitude', 'longitude'] }),
+    gallery: s.map<GalleryModel>((item) => pruneGallery(item, resource, model, models)),
   })
 
 // A link goes when it reads a hidden field, or leads to a resource or field the caller cannot see.
@@ -134,8 +144,10 @@ const viewShape = (resource: string, model: ResourceModel, models: Record<string
     fields: s.keys(),
     list: listShape(resource, models, prompted),
     filters: s.list(widgetShape),
-    layout: s.list(layoutShape(resource, models)),
+    layout: s.list(layoutShape(resource, model, models)),
     chart: s.object<ChartModel>({ field: s.field, range: s.data, granularity: s.data }, { requires: ['field'] }),
+    recordMode: s.data,
+    helpWhen: s.data,
     saveFeedback: s.data,
     actions: s.list(actionShape(model, models)),
     listOf: s.field,
@@ -147,7 +159,7 @@ const viewShape = (resource: string, model: ResourceModel, models: Record<string
 
 /**
  * The view with every reference to a field the caller cannot read removed: list columns, sort, search and displays,
- * field hints, filter widgets, record sections, maps and custom components' props, the chart, title and search result, the
+ * field hints, filter widgets, record sections, maps, galleries and custom components' props, the chart, title and search result, the
  * actions that set or read one, and the sidebar's `recent` group. Nothing in it may name a hidden field. Related sections
  * and links are checked against `models`, the caller's view of every resource, and so are `searchesOf`, cards' favorite
  * buttons and the "Save search" button; the buttons stay for a visitor when their resource is one of `prompted`, those

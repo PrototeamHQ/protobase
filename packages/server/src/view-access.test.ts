@@ -153,6 +153,18 @@ describe('pruneView', () => {
     expect(cards(without({}, ['repair_photos']))).toEqual([{ kind: 'cards', name: 'cards', title: 'number' }])
   })
 
+  it("keeps a gallery's image and photos as far as the caller can load them, and leaves out one with neither", () => {
+    const photos = { resource: 'repair_photos', field: 'repairId', image: 'photo', sort: 'position' }
+    const written = view<typeof repairs>('repairs').recordMode('read').helpWhen('editing').layout((r) => [l.section('Repair', [r.status], { help: 'As booked', helpWhen: 'always' })]).toModel()
+    // The repair's own picture stands in for a file field: pruning reads only whether the caller may see it
+    written.layout = [...written.layout, { kind: 'gallery', title: 'Photos', image: 'costPrice', photos }]
+    const galleries = (models: Record<string, ResourceModel>) => pruneView(written, models.repairs!, models).layout.filter((item) => item.kind === 'gallery')
+    expect(pruneView(written, all.repairs, all)).toEqual(written)
+    expect(galleries(without({ repairs: ['costPrice'] }))).toEqual([{ kind: 'gallery', title: 'Photos', photos }])
+    expect(galleries(without({ repair_photos: ['photo'] }))).toEqual([{ kind: 'gallery', title: 'Photos', image: 'costPrice' }])
+    expect(galleries(without({ repairs: ['costPrice'] }, ['repair_photos']))).toEqual([])
+  })
+
   it('leaves out a map whose position the caller cannot read', () => {
     const mapped = view<typeof repairs>('repairs').layout((r) => [l.map('Where', { latitude: r.estimate, longitude: r.costPrice, zoom: 12, sidebar: true }), l.section('Repair', [r.status])]).toModel()
     expect(pruneView(mapped, all.repairs, all).layout).toEqual(mapped.layout)

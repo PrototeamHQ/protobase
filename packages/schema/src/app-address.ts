@@ -20,6 +20,8 @@ export const addressWords = {
   savedSearch: 'saved_search',
   /** The second path segment that opens a resource's create form instead of a record. */
   create: 'new',
+  /** A record's form, `edit=true`, on a view whose record page opens as a read view or locked. */
+  edit: 'edit',
 } as const
 
 const listWords = ['display', 'filter', 'orderBy', 'filterLayout', 'savedSearch'] as const
@@ -56,7 +58,7 @@ export const appPath = (address: AppAddress, basePath = ''): string => {
     case 'create':
       return `${basePath}/${encodeURIComponent(address.resource)}/${addressWords.create}${valuesQuery(address.values)}`
     case 'record':
-      return `${basePath}/${encodeURIComponent(address.resource)}/${encodeURIComponent(encodeKey(address.key))}`
+      return `${basePath}/${encodeURIComponent(address.resource)}/${encodeURIComponent(encodeKey(address.key))}${address.edit ? `?${addressWords.edit}=true` : ''}`
     case 'list':
       return `${basePath}/${encodeURIComponent(address.resource)}${listQuery(address)}`
   }
@@ -94,7 +96,7 @@ export const readAppPath = (pathAndQuery: string, pages: ReadonlySet<string>): A
     const values = Object.fromEntries([...url.searchParams].filter(([, value]) => value !== ''))
     return { kind: 'create', resource: first, ...(Object.keys(values).length > 0 && { values }) }
   }
-  if (second !== undefined) return { kind: 'record', resource: first, key: second }
+  if (second !== undefined) return { kind: 'record', resource: first, key: second, ...(url.searchParams.get(addressWords.edit) === 'true' && { edit: true }) }
   const params = url.searchParams
   const display = params.get(addressWords.display) || undefined
   const filter = params.get(addressWords.filter) || undefined

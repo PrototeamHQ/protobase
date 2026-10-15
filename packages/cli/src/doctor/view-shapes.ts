@@ -1,4 +1,4 @@
-import type { FilterWidgetModel, RelatedModel, ResourceModel, SortSpec, ViewModel } from '@protobase/schema'
+import type { FilterWidgetModel, GalleryModel, RelatedModel, ResourceModel, SortSpec, ViewModel } from '@protobase/schema'
 import type { ReadShape } from './read-shape'
 import { all, any, anyOf, compare, configFilter, configSort, isTrue, sortText } from './shape-filters'
 
@@ -59,6 +59,15 @@ const relatedShapes = (item: RelatedModel, owner: string, models: Models): ReadS
   return [...join, { resource: target.name, request: request(target.name, `${text}${extra}`, sort), from, query: { filter: all([matched, filter]), ...(sort && { sort }) } }]
 }
 
+// A gallery reads its photos for the one record on the page, in their order.
+const galleryShapes = (item: GalleryModel, owner: string, models: Models): ReadShape[] => {
+  const holder = item.photos && models[item.photos.resource]
+  const field = holder?.fields[item.photos!.field]
+  if (!holder || !field) return []
+  const sort = configSort(holder, item.photos!.sort)
+  return [{ resource: holder.name, request: request(holder.name, `${field.name} = …`, sort), from: `gallery "${item.title}" on the ${owner} record page`, query: { filter: compare(field), ...(sort && { sort }) } }]
+}
+
 const displayShapes = (model: ResourceModel, view: ViewModel, models: Models): ReadShape[] =>
   (view.list?.displays ?? []).flatMap((display): ReadShape[] => {
     if (display.kind === 'map') {
@@ -96,7 +105,7 @@ const recentShapes = (model: ResourceModel, view: ViewModel): ReadShape[] => {
 
 /**
  * The reads a view's pages make: its list in its order, the filter widgets and their counts, its displays' maps and
- * photos, the records of its related sections, the recent records in the sidebar and a saved search's new records.
+ * photos, the records of its related sections and the photos of its galleries, the recent records in the sidebar and a saved search's new records.
  */
 export const viewShapes = (view: ViewModel, models: Models): ReadShape[] => {
   const model = models[view.resource]
@@ -107,7 +116,7 @@ export const viewShapes = (view: ViewModel, models: Models): ReadShape[] => {
     { resource: model.name, request: request(model.name, undefined, sort), from: `${list}'s order`, query: { sort } },
     ...view.filters.flatMap((widget) => widgetShapes(model, widget, `${list}'s ${widget.kind === 'dateRange' ? 'date range' : widget.kind} filter`)),
     ...displayShapes(model, view, models),
-    ...view.layout.flatMap((item) => (item.kind === 'related' ? relatedShapes(item, model.name, models) : [])),
+    ...view.layout.flatMap((item) => (item.kind === 'related' ? relatedShapes(item, model.name, models) : item.kind === 'gallery' ? galleryShapes(item, model.name, models) : [])),
     ...recentShapes(model, view),
     ...searchesShapes(view, models),
   ]

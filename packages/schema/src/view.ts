@@ -3,7 +3,9 @@ import type {
   ChartGranularity,
   ChartRange,
   FilterWidgetModel,
+  HelpWhen,
   LayoutItemModel,
+  RecordMode,
   SaveFeedback,
   SortSpec,
   NavModel,
@@ -167,6 +169,24 @@ export class ViewBuilder<R extends {
     return this.next({ chart: { field: field.name, range, granularity } })
   }
 
+  /**
+   * How the record page opens to a user who may change the record: `edit`, the default, as its form; `read` as a read
+   * view, its sections as tables of labels and values, with an Edit button to the form; `locked` as the form, locked
+   * until Edit is pressed. The form has its own address (`edit: true`), so it opens in a new tab and Back leaves it. See
+   * [The record page](website/src/content/docs/reference/ui-config.mdx#read-view-and-edit).
+   */
+  recordMode(recordMode: RecordMode) {
+    return this.next({ recordMode })
+  }
+
+  /**
+   * When the help lines of the view's fields and sections show: `always`, the default, or only while the record is
+   * `editing`, on its form; a field's `.help(text, { when })` or a section's `helpWhen` says otherwise for its own.
+   */
+  helpWhen(helpWhen: HelpWhen) {
+    return this.next({ helpWhen })
+  }
+
   /** Where the record page shows that it saved: a toast (the default) or the Save button. */
   saveFeedback(saveFeedback: SaveFeedback) {
     return this.next({ saveFeedback })
@@ -242,7 +262,7 @@ export class ViewBuilder<R extends {
     return this.next({ searchesOf: searches })
   }
 
-  /** With the resource's model, also verifies the title, search result and list display fields, `listOf`, `searchesOf` and the sidebar's `recent` group. */
+  /** With the resource's model, also verifies the title, search result and list display fields, a gallery's image, `listOf`, `searchesOf` and the sidebar's `recent` group. */
   toModel(resource?: ResourceModel): ViewModel {
     const { title, nav, searchResult, list, listOf } = this.state
     if (resource && title !== undefined && !Object.hasOwn(resource.fields, title)) {
@@ -258,6 +278,11 @@ export class ViewBuilder<R extends {
       }
       const flag = display.kind === 'cards' ? display.flags?.find((name) => resource!.fields[name]!.type !== 'boolean') : undefined
       if (flag !== undefined) throw new Error(`View "${this.state.resource}": display "${display.name}" shows "${flag}" as a flag, which is not a boolean field`)
+    }
+    for (const item of resource ? this.state.layout : []) {
+      if (item.kind !== 'gallery' || item.image === undefined) continue
+      if (!Object.hasOwn(resource!.fields, item.image)) throw new Error(`View "${this.state.resource}": gallery "${item.title}" names field "${item.image}", which the resource does not have`)
+      if (resource!.fields[item.image]!.type !== 'file') throw new Error(`View "${this.state.resource}": gallery "${item.title}" shows "${item.image}" as its image, which is not a file field`)
     }
     if (resource && listOf !== undefined && (!Object.hasOwn(resource.fields, listOf) || resource.fields[listOf]!.type !== 'relation')) {
       throw new Error(`View "${this.state.resource}": listOf names "${listOf}", which is not a relation field of the resource`)
