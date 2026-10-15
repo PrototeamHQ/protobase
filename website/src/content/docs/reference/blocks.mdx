@@ -24,7 +24,7 @@ The root of every page, and only the root.
 
 ### Grid
 
-Columns that collapse to one on a phone. A child's `span` (1 to 4) makes it wider.
+Columns that collapse to one on a phone, or to two when the grid holds only `Stat`s. A child's `span` (1 to 4) makes it wider.
 
 | Prop | |
 | --- | --- |
@@ -77,7 +77,7 @@ One number or value with a label. Exactly one of `value`, `resource` and `field`
 | --- | --- |
 | `label` | Required. |
 | `value` | A fixed value. |
-| `resource`, `filter` | Counts the matching records the user can see; the number links to that filtered list. |
+| `resource`, `filter` | Counts the matching records the user can see; the card links to that filtered list. |
 | `field` | A field of the record, through relations (`plan.name`). |
 | `format` | Instead of the view's [format](/reference/ui-config/#names-and-columns), such as `badge`. |
 | `description` | A line under the value. |
