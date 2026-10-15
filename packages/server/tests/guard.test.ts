@@ -109,4 +109,11 @@ describe('scan guard on a broad filter that an index serves', () => {
     expect(response.status).toBe(400)
     expect(await response.json()).toMatchObject({ suggestion: 'create index on "listings" ("city")', columns: [{ field: 'city', use: 'filter' }] })
   })
+
+  it('counts no further than 10,000 matches, leaving the estimate above that', async () => {
+    const response = await app.request(`/api/v1/listings?${new URLSearchParams({ filter: 'id > 0', count: 'exact', page_size: '1' })}`, { headers: as(undefined) })
+    const body = await response.json()
+    expect(body).not.toHaveProperty('total_size')
+    expect(body.total_size_estimate).toBeGreaterThan(10_000)
+  })
 })

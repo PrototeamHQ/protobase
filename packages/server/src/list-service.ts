@@ -1,4 +1,4 @@
-import { estimateCount, exactCount, listQuery, seekToPosition } from '@protobase/query'
+import { countUpTo, estimateCount, listQuery, seekToPosition } from '@protobase/query'
 import { checkedFilter, checkedSort } from './filter-input'
 import type { Deps } from './deps'
 import { deletedRows, listParams, pageSizeOf, parseParams, seekParams, selectedFields } from './params'
@@ -13,6 +13,10 @@ import { photosRequest, recordPhotos } from './list-photos'
 import { exposeRow, pickFields } from './rows'
 import { readTransaction } from './transactions'
 import type { Session } from './types'
+
+// `count=exact` counts no further than this, so a broad filter never reads every match to count it: above it the total
+// is the planner's estimate alone.
+const exactCountLimit = 10_000
 
 /**
  * AIP-132 list, the `:search` variant and (with `jump`) `:seek`: both take the same parameters, from the query string or a JSON body.
@@ -61,7 +65,7 @@ export const listRecords = async (deps: Deps, entry: Entry, session: Session, in
       etags: await Promise.all(rows.map((row, i) => etagOf(entry, page.rows[i]!, row))),
       permissions: deps.rowPermissions(entry.name) ? await rowPermissions(trx, access, rows) : undefined,
       estimate: await estimateCount(trx, queryModel, filter, scope),
-      ...(params.count === 'exact' && { total: await exactCount(trx, queryModel, filter, scope) }),
+      ...(params.count === 'exact' && { counted: await countUpTo(trx, queryModel, exactCountLimit + 1, filter, scope) }),
       ...(params.labels !== undefined && { labels: await relatedLabels(trx, labels, rows) }),
     }
   })
@@ -79,7 +83,7 @@ export const listRecords = async (deps: Deps, entry: Entry, session: Session, in
       next_page_token: result.page.nextCursor ?? '',
       ...(position !== undefined && { prev_page_token: result.page.prevCursor ?? '' }),
       total_size_estimate: result.estimate,
-      ...(result.total !== undefined && { total_size: result.total }),
+      ...(result.counted !== undefined && result.counted <= exactCountLimit && { total_size: result.counted }),
       ...(result.labels && { labels: result.labels }),
       ...(included && { photos: included.photos }),
     },

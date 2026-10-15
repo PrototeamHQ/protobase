@@ -57,7 +57,7 @@ export const parameters = {
   },
   pageToken: { name: 'page_token', in: 'query', description: 'The `next_page_token` of the previous page', schema: { type: 'string' } },
   fields: { name: 'fields', in: 'query', description: 'Comma separated field names to return', schema: { type: 'string' } },
-  count: { name: 'count', in: 'query', description: '`exact` adds `total_size`, a real count(*)', schema: { type: 'string', enum: ['exact'] } },
+  count: { name: 'count', in: 'query', description: '`exact` adds `total_size`, a count of the matches when at most 10,000 match', schema: { type: 'string', enum: ['exact'] } },
   labels: { name: 'labels', in: 'query', description: 'Comma separated `relation.field` entries, such as `place_id.name`: the answer\'s `labels` maps each relation to the names of the records it points at, by key, each the `field` of that record. Only for returned relations to single-key resources. A related record the caller cannot list, or whose `field` they cannot read, is left out, so it goes by its key.', schema: { type: 'string' } },
   photos: {
     name: 'photos',

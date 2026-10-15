@@ -42,7 +42,7 @@ const page = (name: string, seek = false) => json({
     next_page_token: { type: 'string', description: 'Empty on the last page' },
     ...(seek && { prev_page_token: { type: 'string', description: 'Empty on the first page' } }),
     total_size_estimate: { type: 'integer', description: 'The planner\'s estimate' },
-    total_size: { type: 'integer', description: 'Only with count=exact' },
+    total_size: { type: 'integer', description: 'Only with count=exact, and when at most 10,000 records match' },
     labels,
     photos,
   },

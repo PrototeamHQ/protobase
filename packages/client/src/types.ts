@@ -22,7 +22,7 @@ export type ListPage<T> = {
   /** Only from `seek`; `""` on the first page. */
   prevPageToken?: string
   totalSizeEstimate: number
-  /** Only with `count: 'exact'`. */
+  /** Only with `count: 'exact'`, and when at most 10,000 records match; `totalSizeEstimate` stands above that. */
   totalSize?: number
   /** Only with `labels`: per relation, the names of the records it points at, by key as text. */
   labels?: RelatedLabels

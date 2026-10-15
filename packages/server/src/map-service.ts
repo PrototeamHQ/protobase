@@ -47,7 +47,7 @@ export const mapRecords = async (deps: Deps, entry: Entry, session: Session, inp
     const { latitude: _latitude, longitude: _longitude, zoom: _zoom, ...asked } = params
     const list = { ...asked, page_size: mapRecordsLimit, ...(found > mapRecordsLimit && { count: 'exact' }) }
     const { body, warning } = await listRecords(deps, entry, session, list)
-    return { warning, body: { items: body.items, buckets: [], total_size: body.total_size ?? found, ...(body.labels && { labels: body.labels }), ...(body.photos && { photos: body.photos }) } }
+    return { warning, body: { items: body.items, buckets: [], total_size: body.total_size ?? (found > mapRecordsLimit ? body.total_size_estimate : found), ...(body.labels && { labels: body.labels }), ...(body.photos && { photos: body.photos }) } }
   }
   // Buckets name no records, but `labels` and `photos` are checked all the same, so a wrong one fails at every zoom
   if (params.labels !== undefined) await labelRequests(deps, session, access.model, selectedFields(access.model, params.fields), params.labels)
