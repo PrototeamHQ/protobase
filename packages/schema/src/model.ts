@@ -445,8 +445,9 @@ export type SearchesOfModel = {
   /** Enum and boolean fields changed in place on each search, such as how often to hear of new records. */
   controls?: string[]
   /**
-   * With it, each search shows only the records new to the user: those whose `field` (of `resource`) is after the
-   * search's `seenAt` (a timestamp field of this resource), which opening all of its results sets to now.
+   * With it, each search shows its records newest first by `field` (of `resource`) and marks those new to the user:
+   * those whose `field` is after the search's `seenAt` (a timestamp field of this resource), which opening all of its
+   * results sets to now.
    */
   unseen?: {
     /** When the user last opened the search's results. */
@@ -454,7 +455,7 @@ export type SearchesOfModel = {
     /** The searched resource's timestamp that makes a record new, such as when it was published. */
     field: string
   }
-  /** How many records each search shows; default 12. */
+  /** How many records each search shows at most; default every one it finds, loaded as its row scrolls. */
   limit?: number
 }
 

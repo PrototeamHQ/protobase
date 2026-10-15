@@ -44,6 +44,19 @@ export type TableProps = DataProps &
     span?: GridSpan
   }
 export type CardRowProps = DataProps & Heading & { limit?: number; empty?: string; span?: GridSpan; children?: LayoutChildren }
+/**
+ * What a filter finds, as the resource's list draws it: the filter's chips, how many records match, and the records as
+ * the cards of `display` in one row that scrolls sideways, loading more as it scrolls, with "View all".
+ */
+export type RecordRowProps = DataProps &
+  Heading & {
+    /** How many records it shows at most; every one that matches when omitted. */
+    limit?: number
+    /** The cards display of the resource's view whose cards it draws; its first when omitted. */
+    display?: string
+    empty?: string
+    span?: GridSpan
+  }
 export type ProgressProps = {
   /** A number, or a field of the record around it. */
   value: number | string
@@ -82,6 +95,7 @@ export const RecordCard = defineBlock<RecordCardProps>('RecordCard', false)
 export const Field = defineBlock<FieldProps>('Field', false)
 export const Table = defineBlock<TableProps>('Table', false)
 export const CardRow = defineBlock<CardRowProps>('CardRow', false)
+export const RecordRow = defineBlock<RecordRowProps>('RecordRow', false)
 export const Progress = defineBlock<ProgressProps>('Progress', false)
 export const ModalForm = defineBlock<ModalFormProps>('ModalForm', false)
 export const Action = defineBlock<ActionProps>('Action', false)

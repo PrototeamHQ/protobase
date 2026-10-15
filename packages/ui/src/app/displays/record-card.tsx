@@ -23,6 +23,8 @@ type RecordCardProps = {
   row: ListDisplayRow
   /** Whether a swipe steps through the card's photos; off in a row that scrolls sideways, which the swipe scrolls instead. */
   swipe?: boolean
+  /** A word marked in the card's top left corner, such as "New": over its picture, or above its title without one. */
+  mark?: string
 }
 
 // A meta field's value after the icon its view names.
@@ -43,7 +45,7 @@ const MetaValue = ({ icon, children }: { icon: string | undefined; children: Rea
  * value, joined by bullets; or, with a `card` component, what it draws of the row, the built-in content again when it
  * is missing or throws. With a favorite button, a heart in the top right corner saves the record.
  */
-export const RecordCard = ({ model, view, display, row, swipe = true }: RecordCardProps) => {
+export const RecordCard = ({ model, view, display, row, swipe = true, mark }: RecordCardProps) => {
   const { image, title, subtitle, amount, badge, meta, footer, flags } = cardFields(model, view, display)
   const label = (name: string) => view?.fields[name]?.label ?? humanize(name)
   const text = (name: string) => {
@@ -146,6 +148,11 @@ export const RecordCard = ({ model, view, display, row, swipe = true }: RecordCa
       to={{ kind: 'record', resource: model.name, key: row.key }}
       className="flex h-full flex-col gap-1.5 rounded-lg border border-border bg-background p-3 text-[13px] hover:border-border-strong hover:bg-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
     >
+      {mark && !pictured && (
+        <Badge tone="blue" className="self-start">
+          {mark}
+        </Badge>
+      )}
       {Card ? (
         <CustomBoundary name={display.card!} fallback={builtIn(picture)}>
           <Card row={row} />
@@ -156,7 +163,7 @@ export const RecordCard = ({ model, view, display, row, swipe = true }: RecordCa
     </AppLink>
   )
   return (
-    <div className={photos ? 'group/card relative h-full' : favorite ? 'relative h-full' : 'h-full'}>
+    <div className={photos ? 'group/card relative h-full' : favorite || mark ? 'relative h-full' : 'h-full'}>
       {photos ? (
         // A card drawn for another record, as the map's chosen card is, starts again at that record's first photo
         <CardCarousel key={row.key} photos={row.photos ?? []} cover={cover} swipe={swipe}>
@@ -164,6 +171,11 @@ export const RecordCard = ({ model, view, display, row, swipe = true }: RecordCa
         </CardCarousel>
       ) : (
         card(<CardImage value={cover} />)
+      )}
+      {mark && pictured && (
+        <Badge tone="blue" className="pointer-events-none absolute top-2 left-2 shadow-sm">
+          {mark}
+        </Badge>
       )}
       {favorite && <FavoriteButton favorite={favorite} recordKey={row.key} target={recordKey(model, row.record) as KeyValue} className={pictured ? undefined : 'right-1.5 top-1.5'} />}
     </div>

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { Action, CardRow, Field, Link, ModalForm, Page, RecordCard, Show, Stat, Table } from './blocks'
+import { Action, CardRow, Field, Link, ModalForm, Page, RecordCard, RecordRow, Show, Stat, Table } from './blocks'
 import { fieldRef, type FieldRefValue } from '@protobase/schema'
 import { checkPages, pageProblems } from './check-page'
 import { component } from './component'
@@ -49,6 +49,14 @@ describe('pageProblems', () => {
       '<Page> › <RecordCard resource="subscriptions"> › <Field name="plan.title">: unknown field "plan.title" on plans',
       '<Page> › <RecordCard resource="subscriptions"> › <Stat>: unknown field "seats" on subscriptions',
     ])
+  })
+
+  it("checks a record row's resource, filter and sort like a table's", () => {
+    const tree = Page({ title: 'x', children: [RecordRow({ resource: 'nope' }), RecordRow({ resource: 'invoices', filter: "stauts = 'open'", sort: 'number desc' })] })
+    const found = pageProblems(model(tree), input)
+    expect(found[0]).toBe('<Page> › <RecordRow resource="nope">: unknown resource "nope"')
+    expect(found[1]).toMatch(/^<Page> › <RecordRow resource="invoices">: filter: .*stauts/)
+    expect(found).toHaveLength(2)
   })
 
   it('wants forms to set writable fields only', () => {

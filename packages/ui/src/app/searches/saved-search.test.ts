@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { f, resource, view } from '@protobase/schema'
-import { chosenRelations, filterChips, unseenFilter } from './saved-search'
+import { chosenRelations, filterChips, isUnseen, unseenFilter } from './saved-search'
 
 const listings = resource('listings')
   .table('listings')
@@ -52,5 +52,18 @@ describe('unseenFilter', () => {
 
   it('takes every record of a search never seen', () => {
     expect(unseenFilter('garden = true', 'published_at', null)).toBe('garden = true')
+  })
+})
+
+describe('isUnseen', () => {
+  it('marks a record after the search was last seen as new, as unseenFilter finds it', () => {
+    expect(isUnseen('2026-10-02T08:00:00.000Z', '2026-10-01T08:00:00.000Z')).toBe(true)
+    expect(isUnseen('2026-09-30T08:00:00.000Z', '2026-10-01T08:00:00.000Z')).toBe(false)
+    expect(isUnseen('2026-10-01T08:00:00.000Z', '2026-10-01T08:00:00Z')).toBe(false)
+    expect(isUnseen(null, '2026-10-01T08:00:00.000Z')).toBe(false)
+  })
+
+  it('marks every record of a search never seen as new', () => {
+    expect(isUnseen('2026-09-30T08:00:00.000Z', null)).toBe(true)
   })
 })

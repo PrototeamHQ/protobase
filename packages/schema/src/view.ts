@@ -214,8 +214,8 @@ export class ViewBuilder<R extends {
 
   /**
    * This resource holds saved searches of `resource`, which a list page saves with `.saveSearch(...)`: its list page
-   * shows each of the user's searches with its filters, its `controls` to change in place, the newest records it finds
-   * (with `unseen`, only those new since the user last opened its results) and a link to all of them. Throws in
+   * shows each of the user's searches with its filters, its `controls` to change in place, the records it finds (with
+   * `unseen`, newest first, those new since the user last opened its results marked) and a link to all of them. Throws in
    * `toModel` when `filter` or `name` is not a text field, `unseen.seenAt` not a timestamp or a control not an enum or
    * boolean field.
    * See [Saved searches](website/src/content/docs/reference/ui-config.mdx#saved-searches).

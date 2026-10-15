@@ -12,6 +12,7 @@ import { ModalFormBlock } from './blocks/modal-form'
 import { PageBlock } from './blocks/page-block'
 import { ProgressBlock } from './blocks/progress'
 import { RecordCardBlock } from './blocks/record-card'
+import { RecordRowBlock } from './blocks/record-row'
 import { ShowBlock } from './blocks/show'
 import { StatBlock } from './blocks/stat'
 import { TableBlock } from './blocks/table'
@@ -28,6 +29,7 @@ const blocks: Record<string, ComponentType<BlockProps>> = {
   Field: FieldBlock,
   Table: TableBlock,
   CardRow: CardRowBlock,
+  RecordRow: RecordRowBlock,
   Progress: ProgressBlock,
   ModalForm: ModalFormBlock,
   Action: ActionBlock,

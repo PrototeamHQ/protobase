@@ -1,18 +1,16 @@
-import { useMutation } from '@tanstack/react-query'
+import { useMutation, useQuery } from '@tanstack/react-query'
 import { Pencil, Trash2 } from 'lucide-react'
 import { useState } from 'react'
 import type { ResourceModel, SearchesOfModel, ViewModel } from '@protobase/schema'
-import { tableDisplay } from '@protobase/schema/internal'
 import { useClient } from '../../data/api-provider'
 import { humanize } from '../../live/naming'
 import { Button } from '../../primitives/button'
 import { useToast } from '../../toasts'
-import { EmbeddedList } from '../embedded-list/embedded-list'
-import { defaultOrderBy } from '../list-order'
-import { useRefreshResource } from '../pages/use-layout-data'
+import { countQuery, useRefreshResource } from '../pages/use-layout-data'
+import { RecordRowBody } from '../record-row/record-row-body'
 import { AppLink } from '../use-app-address'
-import { chipsText, FilterChipList, InlineFilterChips } from './filter-chip-list'
-import { unseenFilter } from './saved-search'
+import { chipsText, InlineFilterChips } from './filter-chip-list'
+import { isUnseen, unseenFilter } from './saved-search'
 import { SearchControls } from './search-controls'
 import { SearchNameDialog } from './search-name-dialog'
 import { useFilterChips } from './use-filter-chips'
@@ -20,7 +18,6 @@ import type { SavedSearchRow } from './use-saved-searches'
 
 const message = (error: unknown) => (error instanceof Error ? error.message : 'Something went wrong')
 
-const defaultLimit = 12
 
 type SavedSearchSectionProps = {
   /** The saved searches' resource and its view, whose `searchesOf` is `of`. */
@@ -41,8 +38,9 @@ type SavedSearchSectionProps = {
 
 /**
  * One saved search: its name when it has one, and what it filters on as chips, which are its title when it has none;
- * its controls, rename and delete; and a row of the records it finds that are new to the user (with `unseen`), newest
- * first, with "View all results", which opens the list with its filter and counts as having seen them.
+ * its controls, rename and delete; and the records it finds in a row of their cards that scrolls sideways
+ * (`RecordRowBody`), with `unseen` newest first, those new to the user marked "New", and "View all results", which opens
+ * the list with its filter and counts as having seen them.
  */
 export const SavedSearchSection = ({ model, view, of, target, targetView, row, recordKey, canRename, onDelete }: SavedSearchSectionProps) => {
   const client = useClient()
@@ -66,8 +64,9 @@ export const SavedSearchSection = ({ model, view, of, target, targetView, row, r
     onSettled: () => refresh(model.name),
   })
   const nameField = of.name === undefined ? undefined : model.fields[of.name]
-  const cards = targetView?.list?.displays?.find((display) => display.kind === 'cards')
   const plural = (targetView?.names?.plural ?? humanize(target.name)).toLowerCase()
+  // How many of its records are new, to say when none are; every record is new to a search never seen
+  const newCount = useQuery({ ...countQuery(client, target, unseen ? unseenFilter(filter, unseen.field, row[unseen.seenAt]) : ''), enabled: unseen !== undefined })
 
   return (
     <section aria-label={title} className="flex flex-col gap-3 rounded-lg border bg-surface p-4">
@@ -78,7 +77,6 @@ export const SavedSearchSection = ({ model, view, of, target, targetView, row, r
               {name ?? <InlineFilterChips chips={chips} />}
             </AppLink>
           </h2>
-          {name !== undefined && chips.length > 0 && <FilterChipList chips={chips} />}
         </div>
         <div className="flex flex-wrap items-center gap-2">
           {of.controls && <SearchControls model={model} view={view} recordKey={recordKey} row={row} fields={of.controls} />}
@@ -106,16 +104,17 @@ export const SavedSearchSection = ({ model, view, of, target, targetView, row, r
           onClose={() => setRenaming(false)}
         />
       )}
-      <EmbeddedList
+      <RecordRowBody
         model={target}
         view={targetView}
-        filter={unseen ? unseenFilter(filter, unseen.field, row[unseen.seenAt]) : filter}
-        sort={unseen ? `${unseen.field} desc` : defaultOrderBy(target, targetView)}
-        limit={of.limit ?? defaultLimit}
-        display={cards?.name ?? tableDisplay}
-        row
-        empty={unseen ? `No new ${plural} since you last looked.` : `No ${plural} match.`}
-        viewAll={{ filter, label: 'View all results', savedSearch: recordKey, ...(unseen && { onOpen: () => markSeen.mutate(new Date().toISOString()) }) }}
+        filter={filter}
+        sort={unseen ? `${unseen.field} desc` : undefined}
+        limit={of.limit}
+        chips={name !== undefined}
+        empty={`No ${plural} match.`}
+        note={unseen && newCount.data === 0 && `No new ${plural} since you last looked.`}
+        isNew={unseen && ((record) => isUnseen(record.record[unseen.field], row[unseen.seenAt]))}
+        viewAll={{ label: 'View all results', savedSearch: recordKey, ...(unseen && { onOpen: () => markSeen.mutate(new Date().toISOString()) }) }}
       />
     </section>
   )

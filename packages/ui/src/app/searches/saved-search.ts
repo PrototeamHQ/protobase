@@ -64,3 +64,10 @@ export const unseenFilter = (text: string, field: string, seenAt: unknown) => {
   if (!parsed.ok) throw new Error(`The saved filter cannot be read: ${parsed.errors.map((error) => error.message).join('; ')}`)
   return printFilter(parsed.ast ? where.and(parsed.ast, after) : after)
 }
+
+/** Whether a record whose `field` holds `value` is new to the user, as `unseenFilter` finds it: after `seenAt`, or any. */
+export const isUnseen = (value: unknown, seenAt: unknown) => {
+  if (typeof seenAt !== 'string' || seenAt === '') return true
+  if (typeof value !== 'string' || value === '') return false
+  return new Date(value).getTime() > new Date(seenAt).getTime()
+}

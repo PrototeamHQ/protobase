@@ -124,17 +124,23 @@ export const MemberSearchesChecks: StoryObj = {
   tags: ['play', '!dev'],
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
-    // Each search with its filters and new homes: the gardens published since 1 October, newest first
+    // Each search with its filters, how many homes it finds, and the homes newest first, those published since it was
+    // last looked at, 1 October, marked new
     const gardensSearch = await canvas.findByRole('region', { name: 'Gardens' })
     expect(within(gardensSearch).getByRole('list', { name: 'Filters' })).toHaveTextContent('Garden')
-    await waitFor(() => expect(within(gardensSearch).getAllByRole('listitem').map((item) => item.textContent)).toEqual(expect.arrayContaining([expect.stringContaining('Keizersgracht 12')])))
-    expect(within(gardensSearch).queryByText('Lange Voorhout 3')).toBeNull()
+    expect(await within(gardensSearch).findByText('3 homes')).toBeVisible()
+    const gardens = await within(gardensSearch).findByRole('list', { name: 'Homes' })
+    const cards = await within(gardens).findAllByRole('link')
+    expect(cards.map((card) => card.textContent)).toEqual([expect.stringContaining('Keizersgracht 12'), expect.stringContaining('Oudegracht 88'), expect.stringContaining('Lange Voorhout 3')])
+    expect(cards.map((card) => within(card.closest('li')!).queryByText('New') !== null)).toEqual([true, true, false])
     expect(within(gardensSearch).getByRole('combobox', { name: 'Email' })).toHaveValue('daily')
 
-    // A search without a name has its filters for a title, and has nothing new
+    // A search without a name has its filters for a title, and nothing new, which it says beside its homes
     const rents = canvas.getByRole('region', { name: 'Rent: €1,000 /month – €2,000 /month' })
     expect(within(rents).queryByRole('list', { name: 'Filters' })).toBeNull()
     expect(await within(rents).findByText('No new homes since you last looked.')).toBeVisible()
+    expect(await within(rents).findByRole('link', { name: /Oudegracht 88/ })).toBeVisible()
+    expect(within(rents).queryByText('New')).toBeNull()
 
     // "View all results" opens the homes with the search's filter, where the search shows as saved
     await userEvent.click(within(gardensSearch).getByRole('link', { name: 'View all results' }))
@@ -190,7 +196,11 @@ export const MemberSearchesPhone: StoryObj = {
   render: () => <Portal api={memberApi} auth={member} at="/searches" />,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
-    expect(await canvas.findByRole('region', { name: 'Gardens' })).toBeVisible()
+    const gardensSearch = await canvas.findByRole('region', { name: 'Gardens' })
+    // The homes sit in one row that a swipe scrolls sideways, within the screen
+    const gardens = await within(gardensSearch).findByRole('list', { name: 'Homes' })
+    await waitFor(() => expect(gardens.scrollWidth).toBeGreaterThan(gardens.clientWidth))
+    expect(gardens.getBoundingClientRect().right).toBeLessThanOrEqual(360)
     const tabs = within(canvas.getByRole('navigation', { name: 'Tabs' }))
     expect(tabs.getByRole('link', { name: 'Searches' })).toHaveAttribute('aria-current', 'page')
   },
@@ -245,6 +255,52 @@ export const MemberSaveAsNewChecks: StoryObj = {
     await userEvent.click(canvas.getByRole('link', { name: 'Searches' }))
     expect(await canvas.findByRole('region', { name: 'Gardens' })).toBeVisible()
     expect(await canvas.findByRole('region', { name: 'Rent: €1,400 /month – €2,200 /month' })).toBeVisible()
+  },
+}
+
+// Sixty homes with a garden, one published each day before 12 October, and a search of them last looked at on 1 October
+const manyHomes = Array.from({ length: 60 }, (_, index) => ({
+  id: 100 + index,
+  address: `Tuinstraat ${index + 1}`,
+  rent: String(1200 + index * 10),
+  garden: true,
+  published_at: new Date(Date.UTC(2026, 9, 11 - index, 9)).toISOString(),
+}))
+const manyApi = () =>
+  fakeApi({
+    resources: [homes.toModel(), searches.toModel()],
+    views: [homesView.toModel(homes.toModel()), searchesView.toModel(searches.toModel())],
+    rows: { homes: manyHomes, searches: [searchRows[0]!] },
+    permissions: { homes: readOnly, searches: own },
+    bottomBar: bottomBar('Portal'),
+  })
+
+export const MemberLongRow: StoryObj = { name: 'Member: a search that finds many homes', render: () => <Portal api={manyApi} auth={member} at="/searches" /> }
+
+export const MemberLongRowChecks: StoryObj = {
+  ...MemberLongRow,
+  name: 'Member: a search that finds many homes (checks)',
+  tags: ['play', '!dev'],
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    const search = await canvas.findByRole('region', { name: 'Gardens' })
+    expect(await within(search).findByText('60 homes')).toBeVisible()
+    // Only the cards near the view are drawn, each knowing its place among all sixty
+    const row = await within(search).findByRole('list', { name: 'Homes' })
+    const drawn = await within(row).findAllByRole('link')
+    expect(drawn.length).toBeLessThan(15)
+    expect(drawn[0]!.closest('li')).toHaveAttribute('aria-setsize', '60')
+    expect(within(drawn[0]!.closest('li')!).getByText('New')).toBeVisible()
+    expect(within(search).queryByRole('button', { name: 'Previous homes' })).toBeNull()
+    // The arrow scrolls on by a view's width, drawing the cards it comes to
+    await userEvent.click(within(search).getByRole('button', { name: 'Next homes' }))
+    await waitFor(() => expect(row.scrollLeft).toBeGreaterThan(500))
+    await waitFor(() => expect(within(row).getByRole('link', { name: /Tuinstraat 8\b/ })).toBeVisible())
+    expect(within(search).getByRole('button', { name: 'Previous homes' })).toBeVisible()
+    // The homes published before 1 October are not new
+    row.scrollLeft = row.scrollWidth
+    const last = await within(row).findByRole('link', { name: /Tuinstraat 60\b/ })
+    expect(within(last.closest('li')!).queryByText('New')).toBeNull()
   },
 }
 

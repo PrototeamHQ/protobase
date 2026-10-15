@@ -6,7 +6,7 @@ description: Every built-in layout block, its props and what it does, with examp
 import { Code } from '@astrojs/starlight/components'
 import erpPage from '../../../../../examples/erp/config/overview/page.tsx?raw'
 
-Blocks are imported from `@protobase/layout`. "Record" below means the record of the `RecordCard` or `CardRow` card around a block (see [Data](/reference/layouts/#data)); `filter` is AIP-160 and `sort` AIP-132, as in the list API. Every block below appears in the ERP example's sales overview:
+Blocks are imported from `@protobase/layout`. "Record" below means the record of the `RecordCard` or `CardRow` card around a block (see [Data](/reference/layouts/#data)); `filter` is AIP-160 and `sort` AIP-132, as in the list API. Every block below but `RecordRow`, which the property portal's home uses, appears in the ERP example's sales overview:
 
 <Code code={erpPage} lang="tsx" title="examples/erp/config/overview/page.tsx" />
 
@@ -135,6 +135,23 @@ Up to `limit` records side by side, each a small card made from the children, wh
 | `title`, `description`, `actions` | The heading. |
 | `empty` | Text when nothing matches. |
 | `span` | Width in a grid. |
+
+### RecordRow
+
+What a filter finds, the way a home page shows it: the filter's chips, as the list's filter panel names them, how many records match, the records as the cards of the resource's [cards display](/reference/ui-config/#list-displays) in one row, and **View all**, which opens the list with the same filter and order. The row scrolls sideways by touch, trackpad or its arrow buttons; only the cards near the view are drawn, and the records load through the list API in pages as it scrolls. Each card opens its record. A resource without a cards display gets cards of the title alone.
+
+| Prop | |
+| --- | --- |
+| `resource`, `filter`, `sort` | Which records, in which order. `resource` is required; `sort` defaults to the list's. |
+| `limit` | How many records it shows at most; default every one that matches. |
+| `display` | The cards display whose cards it draws; default the view's first. |
+| `title`, `description`, `actions` | The heading. |
+| `empty` | Text when nothing matches; default "No … match.", with the view's plural. |
+| `span` | Width in a grid. |
+
+```tsx
+<RecordRow title="For rent" resource="listings" filter="for_rent = true AND status = 'available'" sort="published_at desc" />
+```
 
 ### Field
 
