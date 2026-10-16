@@ -11,6 +11,7 @@ import { ErrorBanner } from '../error-banner'
 import { useAdminMeta, usePermissions } from '../meta-gate'
 import { galleryTiles } from './gallery-layout'
 import { Lightbox } from './lightbox'
+import { detailFields } from './detail-fields'
 import { PhotoDetails } from './photo-details'
 import { useGalleryPhotos } from './use-gallery-photos'
 
@@ -46,11 +47,13 @@ export const GallerySection = ({ item, record, recordKey }: { item: GalleryModel
   const { shown, more } = galleryTiles(count)
   const holder = photos.holder
   const holderView = holder && views[holder.name]
-  // Reading a photo's record is the user's to do: its resource is in their `/meta`, readable, and they can read its key
-  const readable = holder !== undefined && photoPermissions.read !== false
+  // Reading a photo's record is the user's to do: its resource is in their `/meta`, readable, and they can read its key.
+  // Its file and the field pointing here are what the lightbox and this page show already.
+  const fields = holder ? detailFields(holder, holderView, [item.photos?.image, item.photos?.field].filter((name) => name !== undefined)) : []
+  const readable = holder !== undefined && photoPermissions.read !== false && fields.length > 0
   const details = (index: number) => {
     const key = photos.items[index]?.key
-    return readable && key !== undefined ? <PhotoDetails key={key} model={holder} view={holderView} photoKey={key} /> : undefined
+    return readable && key !== undefined ? <PhotoDetails key={key} model={holder} view={holderView} photoKey={key} fields={fields} /> : undefined
   }
 
   return (

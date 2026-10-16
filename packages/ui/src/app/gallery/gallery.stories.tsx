@@ -99,7 +99,8 @@ export const PhotoDetailsChecks: StoryObj = {
     const sidebar = within(dialog).getByRole('complementary', { name: 'Photo details' })
     expect(within(dialog).queryByRole('button', { name: 'Photo details' })).toBeNull()
     expect(await within(sidebar).findByText('Front')).toBeVisible()
-    expect(sidebar.querySelector('dl')).not.toBeNull()
+    // A table of labels and values, less the photo's file, which is beside it
+    expect([...sidebar.querySelectorAll('dt')].map((label) => label.textContent)).toEqual(['Caption', 'Position'])
     expect(sidebar.getBoundingClientRect().left).toBeGreaterThanOrEqual(dialog.querySelector('img')!.parentElement!.getBoundingClientRect().right)
     expect(within(sidebar).getByRole('link', { name: 'Open photo' }).getAttribute('href')).toBe('/home_photos/11')
 
