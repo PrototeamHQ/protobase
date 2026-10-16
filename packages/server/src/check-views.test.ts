@@ -40,6 +40,14 @@ describe('checkViews', () => {
     expect(() => checkViews(registry, [written])).toThrow('View "payments": multiline "method" needs a text field, not enum')
   })
 
+  it('takes markdown on a text field only', () => {
+    const markdown = view<typeof payments>('payments').fields((r) => ({ reference: r.reference.markdown() }))
+    expect(() => checkViews(registry, [markdown.toModel()])).not.toThrow()
+    const written = view<typeof payments>('payments').toModel()
+    written.fields = { method: { markdown: true } }
+    expect(() => checkViews(registry, [written])).toThrow('View "payments": markdown "method" needs a text field, not enum')
+  })
+
   it("refuses a field type of the app's plugins on a field of a storage type it does not show, and trusts unknown ones", () => {
     const shown = view<typeof payments>('payments').fields((r) => ({ reference: r.reference.widget('iban', { mask: true }), method: r.method.widget('chips') })).toModel()
     expect(() => checkViews(registry, [shown], [], { iban: ['text'] })).not.toThrow()

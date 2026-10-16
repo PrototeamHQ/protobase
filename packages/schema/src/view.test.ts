@@ -304,6 +304,11 @@ describe('view builder', () => {
     expect(hinted.fields).toEqual({ title: { multiline: true, label: 'Body' } })
   })
 
+  it('carries markdown as a field hint', () => {
+    const hinted = view<typeof article>('article').fields((r) => ({ title: r.title.markdown() })).toModel()
+    expect(hinted.fields).toEqual({ title: { markdown: true } })
+  })
+
   it('refuses a value colour that is not a hex colour', () => {
     expect(() => view<typeof article>('article').fields((r) => ({ status: r.status.valueColors({ live: 'green' }) }))).toThrow('Field "status": value colour "green" of "live" is not a hex colour such as #00a651')
   })

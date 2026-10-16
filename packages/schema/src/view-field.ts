@@ -38,6 +38,15 @@ export class FieldView<N extends string = string, V = unknown> {
     return this.with({ multiline: true })
   }
 
+  /**
+   * Markdown, such as notes: forms edit its source with a Write and Preview switch, and the record page, a page's field
+   * blocks and a card's subtitle show it rendered, raw HTML shown as text and links opening in a new tab; the list's
+   * table shows its text on one line. Only a text field takes it.
+   */
+  markdown() {
+    return this.with({ markdown: true })
+  }
+
   /** Text before a number wherever it is shown, such as a currency: `.prefix('€')`. */
   prefix(prefix: string) {
     return this.with({ prefix })
