@@ -5,14 +5,15 @@ export type RecordShown = 'form' | 'locked' | 'read'
 
 /**
  * What the record page shows a user, by the view's `mode`, whether they may change the record and whether its address
- * asks for the form (`edit`). Always editable (`edit`, the default) shows the form, locked to a user who may not change
- * it, and ignores `edit`; `read` and `locked` show the read view or the locked form until the address asks for the
- * form, which only a user who may change the record gets. `offersEdit` is whether the page links to the form;
- * `editing` whether the record is being edited, which decides the help shown only while editing.
+ * asks for the form (`edit`). A user who may not change the record gets the read view in every mode, at any address.
+ * To one who may, always editable (`edit`, the default) shows the form and ignores `edit`; `read` and `locked` show the
+ * read view or the locked form until the address asks for the form. `offersEdit` is whether the page links to the
+ * form; `editing` whether the record is being edited, which decides the help shown only while editing.
  */
 export const recordShown = (mode: RecordMode | undefined, canUpdate: boolean, edit: boolean): { shown: RecordShown; offersEdit: boolean; editing: boolean } => {
-  if (mode === undefined || mode === 'edit') return { shown: canUpdate ? 'form' : 'locked', offersEdit: false, editing: canUpdate }
-  if (canUpdate && edit) return { shown: 'form', offersEdit: false, editing: true }
+  if (!canUpdate) return { shown: 'read', offersEdit: false, editing: false }
+  if (mode === undefined || mode === 'edit') return { shown: 'form', offersEdit: false, editing: true }
+  if (edit) return { shown: 'form', offersEdit: false, editing: true }
   return { shown: mode, offersEdit: canUpdate, editing: false }
 }
 

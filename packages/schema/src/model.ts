@@ -672,8 +672,7 @@ export type ChartModel = {
 /**
  * How the record page opens to a user who may change the record: `edit`, the default, as its form, ready to change;
  * `read` as a read view of label/value tables, with an Edit button to the form; `locked` as the same form, locked until
- * Edit is pressed, where reading and editing look alike. A user who may not change it sees the read view with `read`,
- * and the locked form otherwise.
+ * Edit is pressed, where reading and editing look alike. A user who may not change it sees the read view in every mode.
  */
 export type RecordMode = 'edit' | 'read' | 'locked'
 

@@ -165,16 +165,31 @@ export const AlwaysEditable: StoryObj = {
 }
 
 export const AlwaysEditableReader: StoryObj = {
-  name: 'Always editable to a reader, help hidden (checks)',
+  name: 'Always editable, read view to a reader (checks)',
   tags: ['play', '!dev'],
   render: () => <Home mode="edit" update={false} />,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
-    // The locked form, which is no editing, so help meant for editing stays hidden
+    // A user who may change nothing gets the read view, not the form, and help meant for editing stays hidden
     const home = await section(canvasElement, 'Home')
-    expect(within(home).getByText('Keizersgracht 120')).toBeVisible()
+    expect(home.querySelector('dl')).not.toBeNull()
+    expect(home.querySelector('dd')!.textContent).toBe('Keizersgracht 120')
     expect(canvas.queryByRole('textbox')).toBeNull()
+    expect(canvas.queryByRole('link', { name: 'Edit' })).toBeNull()
+    expect(canvas.queryByRole('button', { name: 'Save' })).toBeNull()
     expect(canvas.queryByText("Without the buyer's costs.")).toBeNull()
     expect(canvas.getByText('Call to plan a viewing.')).toBeVisible()
+  },
+}
+
+export const LockedReader: StoryObj = {
+  name: 'Locked until Edit, read view to a reader (checks)',
+  tags: ['play', '!dev'],
+  render: () => <Home mode="locked" update={false} />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    const home = await section(canvasElement, 'Home')
+    expect(home.querySelector('dl')).not.toBeNull()
+    expect(canvas.queryByRole('link', { name: 'Edit' })).toBeNull()
   },
 }

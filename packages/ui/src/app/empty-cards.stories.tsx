@@ -70,7 +70,7 @@ export const ReadOnlyWithoutTimestamps: StoryObj = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
     await canvas.findByRole('heading', { level: 1, name: 'Balcony' })
-    // Nothing is editable, so the default section shows the fields locked instead of a lone heading
+    // Nothing is editable, so the read view shows every field instead of a lone heading
     await waitFor(() => expect(sections(canvasElement)).toEqual(['Details']))
     expect(canvas.getByText('Name')).toBeTruthy()
     // No created or updated timestamps: no Details card in the sidebar

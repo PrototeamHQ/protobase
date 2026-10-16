@@ -172,8 +172,8 @@ export class ViewBuilder<R extends {
   /**
    * How the record page opens to a user who may change the record: `edit`, the default, as its form; `read` as a read
    * view, its sections as tables of labels and values, with an Edit button to the form; `locked` as the form, locked
-   * until Edit is pressed. The form has its own address (`edit: true`), so it opens in a new tab and Back leaves it. See
-   * [The record page](website/src/content/docs/reference/ui-config.mdx#read-view-and-edit).
+   * until Edit is pressed. A user who may not change it gets the read view in every mode. The form has its own address
+   * (`edit: true`), so it opens in a new tab and Back leaves it. See [The record page](website/src/content/docs/reference/ui-config.mdx#read-view-and-edit).
    */
   recordMode(recordMode: RecordMode) {
     return this.next({ recordMode })

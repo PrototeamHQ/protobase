@@ -5,10 +5,9 @@ import { fieldHelp, helpShown, recordShown } from './record-mode'
 const view = (helpWhen?: ViewModel['helpWhen']): ViewModel => ({ resource: 'listings', fields: {}, filters: [], layout: [], actions: [], ...(helpWhen && { helpWhen }) })
 
 describe('recordShown', () => {
-  it('shows an always editable record as its form, locked to a user who may not change it, whatever the address says', () => {
+  it('shows an always editable record as its form, whatever the address says', () => {
     expect(recordShown(undefined, true, false)).toEqual({ shown: 'form', offersEdit: false, editing: true })
     expect(recordShown('edit', true, true)).toEqual({ shown: 'form', offersEdit: false, editing: true })
-    expect(recordShown('edit', false, true)).toEqual({ shown: 'locked', offersEdit: false, editing: false })
   })
 
   it('shows the read view or the locked form first, with Edit to the form for a user who may change the record', () => {
@@ -18,9 +17,11 @@ describe('recordShown', () => {
     expect(recordShown('locked', true, true)).toEqual({ shown: 'form', offersEdit: false, editing: true })
   })
 
-  it('never opens the form for a user who may not change the record, even when the address asks for it', () => {
-    expect(recordShown('read', false, true)).toEqual({ shown: 'read', offersEdit: false, editing: false })
-    expect(recordShown('locked', false, true)).toEqual({ shown: 'locked', offersEdit: false, editing: false })
+  it('shows a user who may not change the record the read view in every mode, even when the address asks for the form', () => {
+    for (const mode of [undefined, 'edit', 'read', 'locked'] as const) {
+      expect(recordShown(mode, false, false)).toEqual({ shown: 'read', offersEdit: false, editing: false })
+      expect(recordShown(mode, false, true)).toEqual({ shown: 'read', offersEdit: false, editing: false })
+    }
   })
 })
 

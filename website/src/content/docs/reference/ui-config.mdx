@@ -187,7 +187,7 @@ A custom component draws only its part: the page around it stays the record page
 
 <StoryFrame id="record-page-custom-sections--earlier-repairs" title="A repair with the customer's earlier repairs" height={760} />
 
-Without a layout the record page shows one section with every field the user may change, or every field, read-only, to a user who may change none; its [read view](#read-view-and-edit) shows every field. A section or sidebar card with no field the user may see is left out. `.saveFeedback('button')` shows saving on the Save button instead of a toast (`'toast'`, the default). A [sensitive field](/reference/data-config/#sensitive-fields) in a section is masked, with an eye button that reveals it.
+Without a layout the record page shows one section with every field the user may change; its [read view](#read-view-and-edit), which is what a user who may change none gets, shows every field. A section or sidebar card with no field the user may see is left out. `.saveFeedback('button')` shows saving on the Save button instead of a toast (`'toast'`, the default). A [sensitive field](/reference/data-config/#sensitive-fields) in a section is masked, with an eye button that reveals it.
 
 ### Read view and edit
 
@@ -199,7 +199,7 @@ Without a layout the record page shows one section with every field the user may
 | `'read'` | A read view: each section a table of labels on the left and values on the right, as a property's features on a real estate site, and a text of several lines under its label. An **Edit** button opens the form. |
 | `'locked'` | The form, its fields locked until **Edit** is pressed, for records where reading and editing look alike but a change should be meant. |
 
-The form that **Edit** opens has its own address, the record's with `?edit=true` (`{ kind: 'record', resource, key, edit: true }`), so it opens in a new tab and Back leaves it. It has **Cancel**, which drops the changes and goes back to the record, and **Save**, which goes back once the record saved. A user who may not change the record never gets the form, at that address too: `'read'` shows them the read view, the others the locked form. Values on the read view show as they do everywhere else, an empty one as `—` and a boolean as Yes or No, and a sensitive field stays masked behind its eye. Changes not saved stay in the browser, as they do on the form: the read view then offers to continue editing them or discard them.
+The form that **Edit** opens has its own address, the record's with `?edit=true` (`{ kind: 'record', resource, key, edit: true }`), so it opens in a new tab and Back leaves it. It has **Cancel**, which drops the changes and goes back to the record, and **Save**, which goes back once the record saved. A user who may not change the record, such as a visitor who is not signed in, never gets the form, at that address too: they get the read view in every mode, without Edit. Values on the read view show as they do everywhere else, an empty one as `—` and a boolean as Yes or No, and a sensitive field stays masked behind its eye. Changes not saved stay in the browser, as they do on the form: the read view then offers to continue editing them or discard them.
 
 ```ts
 view<typeof listings>('listings').recordMode('read')

@@ -48,9 +48,8 @@ import { useClient } from '../data/api-provider'
 const hidden = (model: ResourceModel, name: string) => name === model.tenant || model.primaryKey.includes(name)
 
 /**
- * The view's layout, or one section with the editable fields when the view has none. A user who may only read the
- * resource has every field read-only, so they get every field, locked, rather than an empty section; so does the read
- * view, which shows the record rather than what can be changed.
+ * The view's layout, or one section with the editable fields when the view has none. The read view, which is all a
+ * user who may only read the resource gets, shows every field: the record rather than what can be changed.
  */
 const layoutFor = (model: ResourceModel, view: ViewModel | undefined, read: boolean): LayoutItemModel[] => {
   if (view && view.layout.length > 0) return view.layout
