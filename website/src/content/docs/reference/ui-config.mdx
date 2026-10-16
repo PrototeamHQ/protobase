@@ -1,6 +1,6 @@
 ---
 title: UI config
-description: Views in ui.ts, with names, list columns, filters, charts (graphs of records per day), record layouts, related records, field hints, actions and views per role.
+description: Views in ui.ts, with names, list columns, filters, charts (graphs of records per day), exports to Excel and CSV, record layouts, related records, field hints, actions and views per role.
 ---
 
 import { Code } from '@astrojs/starlight/components'
@@ -150,6 +150,21 @@ view<typeof savedSearches>('saved_searches').searchesOf((r) => ({
 The view checks its own fields when the config loads: `filter` and `name` are text fields, `seenAt` a timestamp and each control an enum or boolean. The server checks the rest when it starts: `resource` has an [owner](/reference/data-config/#access), the fields a save or a control writes are writable, `unseen.field` is a filterable timestamp or date of the searched resource, and a view of the resource a list saves to has `searchesOf` for that list. In `/api/meta`, a user who cannot list the searched resource or read `filter` gets the view without `searchesOf`, and its controls and `unseen` narrow to what they can write. A search's filter is checked like any list's when its records load; checking it on a write, against the searched resource, is the data config's: a `.validate` rule with `parseFilter` and `checkFilter`.
 
 To tell users of new records, a job matches each new record against the saved filters with `evaluateFilter`, given the searched resource as `search` so that a search text in the filter looks in its search fields too, and sends an [email](/reference/email/). The [property portal example](https://github.com/PrototeamHQ/protobase/tree/main/examples/property-portal#alerts) mails at once or in a daily digest.
+
+### Exports
+
+Every list has an **Export** button beside its title, and **Export N** beside **Delete N** for the rows selected in its table. Both open one dialog that asks for the format, Excel (`.xlsx`) or CSV; the rows, those the list finds with its filters, search and sort, or the selected ones; the columns, the list's own in its order to start with, then any field the user may read, each moved up or down; and the values, **As shown**, as the list shows them (enum value labels, the names of related records, dates and numbers formatted with the view's prefix, suffix and decimals), or **Raw values**, as the API stores them (keys, codes, ISO dates). It says how many rows that is before it starts: counted exactly up to 10,000, the planner's estimate above.
+
+The rows come through the list API as the user may read them, page by page with its page tokens (`POST /{resource}:search`, 500 a page), so the [scan guard](/reference/api/#safety), the role's row filter and its readable fields apply as on the list; a [sensitive field](/reference/data-config/#sensitive-fields) is never offered. The selected rows are found again by their key, so a resource with a composite key offers only the list's rows. The browser builds the file in a Web Worker, the server only answering the pages it reads anyway, and writes it as it goes: to the file the user picks where the browser has the [File System Access API](https://developer.mozilla.org/docs/Web/API/File_System_API), as a download otherwise. A progress dialog counts the rows, and **Cancel** stops after the page being read and discards the file.
+
+A workbook has one sheet named after the records, a bold header row of the columns' labels that stays in view, columns as wide as their header and the first page's values, and typed cells: numbers, dates and times with a number format (as shown, the list's format; raw, `yyyy-mm-dd`), booleans as TRUE and FALSE, and text. Dates and times are in UTC, as the list shows them; a 64-bit integer past 2^53 stays text so that no digit is lost, and a text is cut at Excel's 32,767 characters. A sheet holds at most 1,048,575 rows. A CSV file is UTF-8 with a byte order mark, so Excel reads it as such, quoted as RFC 4180 has it, with a text that starts with `=`, `+`, `-`, `@`, a tab or a carriage return written after an apostrophe, so that a spreadsheet does not run it as a formula. The file is named after the records and the day, as `Orders 2026-10-16.xlsx`.
+
+`.export(false)` takes Export off a view's list, and `.export({ maxRows })` limits how many rows a file holds: the dialog says when the list finds more, and the toast that ends the export says the file holds only the first rows. Like the rest of a view, this only shapes the page: what a user may read is the [data config's access rules](/reference/data-config/#access), and the API serves it as it does to the list.
+
+```ts
+view<typeof orders>('orders').export({ maxRows: 50_000 })
+view<typeof auditLog>('audit_log').export(false)
+```
 
 ## Importing records
 
