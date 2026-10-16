@@ -115,7 +115,10 @@ const LoadedRecord = ({ model, recordKey, stored }: { model: ResourceModel; reco
   const { fields: fieldTypes } = useProjectUi()
   const layout = layoutFor(model, view, shown === 'read')
   const sidebarFields = layout.flatMap((item) => (item.kind === 'sidebar' ? item.fields : []))
-  const status = model.fields.status?.type === 'enum' ? String(stored.record.status) : undefined
+  // An enum status shows as the badge, a missing one as none; without a status field the badge names the resource
+  const hasStatus = model.fields.status?.type === 'enum'
+  const statusValue = stored.record.status
+  const status = hasStatus && statusValue !== null && statusValue !== undefined && statusValue !== '' ? String(statusValue) : undefined
   const updatedAt = auditField(model, 'updated')
   const updated = updatedAt && stored.record[updatedAt] ? Math.max(0, Math.round((Date.now() - Date.parse(String(stored.record[updatedAt]))) / 1000)) : undefined
   const hint = (name: string) => view?.fields[name]
@@ -234,7 +237,7 @@ const LoadedRecord = ({ model, recordKey, stored }: { model: ResourceModel; reco
           <RecordHeader
             collection={view?.names?.plural ?? humanize(model.name)}
             title={title}
-            status={{ label: status ? enumLabel(status, hint('status')?.valueLabels) : singular, tone: status ? toneFor(status) : 'neutral' }}
+            status={status ? { label: enumLabel(status, hint('status')?.valueLabels), tone: toneFor(status) } : hasStatus ? undefined : { label: singular, tone: 'neutral' }}
             lastEditedBy={{ ago: updated === undefined ? 'recently' : formatRelativeTime(updated) }}
             actions={
               <div className="hidden items-center gap-4 md:flex">

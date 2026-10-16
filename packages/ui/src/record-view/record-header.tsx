@@ -5,7 +5,8 @@ import { AvatarStack } from '../primitives/avatar'
 export type RecordHeaderProps = {
   collection: string
   title: string
-  status: { label: string; tone: BadgeTone }
+  /** The badge beside the title; without it there is none. */
+  status?: { label: string; tone: BadgeTone }
   /** Without a name the line reads "Last updated ...". */
   lastEditedBy: { name?: string; ago: string }
   presence?: Array<{ initials: string; hue: number }>
@@ -18,7 +19,7 @@ export const RecordHeader = ({ collection, title, status, lastEditedBy, presence
       <p className="text-xs text-muted-foreground">{collection}</p>
       <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1">
         <h1 className="text-xl font-semibold tracking-tight text-foreground md:text-2xl">{title}</h1>
-        <Badge tone={status.tone}>{status.label}</Badge>
+        {status && <Badge tone={status.tone}>{status.label}</Badge>}
       </div>
       <p className="mt-1.5 text-xs text-muted-foreground">
         {lastEditedBy.name ? (
