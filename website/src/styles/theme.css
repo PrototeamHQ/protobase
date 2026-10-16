@@ -1,11 +1,107 @@
+/*
+ * The Protobase brand on Starlight: paper and ink, with signal marking what the reader writes (the code they copy, the
+ * links they follow), in Instrument Sans and IBM Plex Mono. Starlight draws dark at :root and light under
+ * [data-theme='light']; the --pb-* tokens are the brand's, the --sl-* ones Starlight's, set from them.
+ */
 :root {
-  --sl-color-accent-low: #172036;
-  --sl-color-accent: #3b82f6;
-  --sl-color-accent-high: #bfdbfe;
+  --pb-paper: #111216;
+  --pb-paper-2: #17181d;
+  --pb-ink: #f1f0ea;
+  --pb-ink-2: #b4b6bd;
+  --pb-ink-3: #8c9099;
+  --pb-line: #26282e;
+  --pb-line-2: #383b42;
+  --pb-signal: #ff6a33;
+  --pb-signal-ink: #ff8a5c;
+
+  --sl-font: 'Instrument Sans Variable', ui-sans-serif, system-ui, sans-serif;
+  --sl-font-mono: 'IBM Plex Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
+
+  --sl-color-white: var(--pb-ink);
+  --sl-color-gray-1: var(--pb-ink);
+  --sl-color-gray-2: var(--pb-ink-2);
+  --sl-color-gray-3: var(--pb-ink-3);
+  --sl-color-gray-4: #5d6069;
+  --sl-color-gray-5: var(--pb-line-2);
+  --sl-color-gray-6: var(--pb-line);
+  --sl-color-black: var(--pb-paper);
+
+  /* Solid controls are ink, as on the website: the current page, the main button. Signal is never behind text. */
+  --sl-color-accent-low: var(--pb-paper-2);
+  --sl-color-accent: var(--pb-ink);
+  --sl-color-accent-high: var(--pb-ink);
+
+  --sl-color-bg-nav: var(--pb-paper);
+  --sl-color-bg-sidebar: var(--pb-paper);
+  --sl-color-bg-inline-code: var(--pb-paper-2);
+  --sl-color-hairline: var(--pb-line);
+  --sl-color-hairline-light: var(--pb-line);
+  --sl-color-hairline-shade: var(--pb-line);
 }
 
 :root[data-theme='light'] {
-  --sl-color-accent-low: #eff6ff;
-  --sl-color-accent: #2563eb;
-  --sl-color-accent-high: #1d4ed8;
+  --pb-paper: #f4f3ee;
+  --pb-paper-2: #ebe9e2;
+  --pb-ink: #14161a;
+  --pb-ink-2: #4f535c;
+  --pb-ink-3: #686c75;
+  --pb-line: #dcd9d0;
+  --pb-line-2: #c8c4b9;
+  --pb-signal: #ff5a1f;
+  --pb-signal-ink: #c2410c;
+
+  --sl-color-white: var(--pb-ink);
+  --sl-color-gray-1: var(--pb-ink);
+  --sl-color-gray-2: var(--pb-ink-2);
+  --sl-color-gray-3: var(--pb-ink-3);
+  --sl-color-gray-4: #9a9890;
+  --sl-color-gray-5: var(--pb-line-2);
+  --sl-color-gray-6: var(--pb-line);
+  --sl-color-gray-7: var(--pb-paper-2);
+  --sl-color-black: var(--pb-paper);
+
+  --sl-color-accent-low: var(--pb-paper-2);
+  --sl-color-accent: var(--pb-ink);
+  --sl-color-accent-high: var(--pb-ink);
+
+  --sl-color-bg-nav: var(--pb-paper);
+  --sl-color-bg-sidebar: var(--pb-paper);
+  --sl-color-bg-inline-code: var(--pb-paper-2);
+  --sl-color-hairline: var(--pb-line);
+  --sl-color-hairline-light: var(--pb-line);
+  --sl-color-hairline-shade: var(--pb-line);
+}
+
+::selection {
+  background: color-mix(in srgb, var(--pb-signal) 22%, transparent);
+}
+
+:focus-visible {
+  outline-color: var(--pb-signal);
+}
+
+/* Display and headings semi-condensed, as the brand sets them. */
+h1,
+.sl-markdown-content :is(h2, h3, h4, h5, h6) {
+  font-stretch: 85%;
+  font-weight: 620;
+  letter-spacing: -0.03em;
+}
+
+/* Links are ink, underlined in signal; text in signal is signal-ink, readable on paper. */
+.sl-markdown-content a:not(:where(.not-content *, .sl-link-card *)) {
+  color: var(--pb-ink);
+  text-decoration: underline;
+  text-decoration-color: var(--pb-signal);
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 3px;
+}
+
+.sl-markdown-content a:not(:where(.not-content *, .sl-link-card *)):hover {
+  color: var(--pb-signal-ink);
+}
+
+/* The lockup in the header, at the height the brand's 20px minimum allows comfortably. */
+.site-title img {
+  height: 1.5rem;
 }
