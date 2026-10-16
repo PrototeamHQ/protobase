@@ -2,6 +2,8 @@ import { enumLabel, type FieldModel, type ResourceModel, type ViewModel } from '
 import type { BadgeTone } from '../primitives/badge'
 import type { ColumnKind, ColumnSpec } from '../data-grid'
 import { humanize } from './naming'
+import { markdownExcerpt } from '../markdown/markdown-excerpt'
+import { isMarkdown } from '../markdown/markdown-hint'
 
 const tones: Record<string, BadgeTone> = {
   draft: 'neutral',
@@ -105,6 +107,7 @@ export const columnsFromModel = (resource: ResourceModel, view: ViewModel | unde
       ...(kind === 'money' && viewField?.decimals !== undefined && { decimals: viewField.decimals }),
       ...(kind === 'money' && { currency: 'EUR', value: (row: { [key: string]: unknown }) => (row[name] == null ? null : currencyCents(row[name])) }),
       ...((kind === 'datetime' || kind === 'date') && { value: (row: { [key: string]: unknown }) => (row[name] == null ? null : Date.parse(String(row[name]))) }),
+      ...(isMarkdown(field, viewField) && { value: (row: { [key: string]: unknown }) => (typeof row[name] === 'string' ? markdownExcerpt(row[name]) : row[name]) }),
       ...((kind === 'percent' || (kind === 'number' && field.type === 'decimal')) && { value: (row: { [key: string]: unknown }) => (row[name] == null ? null : Number(row[name])) }),
     }
     return [spec]

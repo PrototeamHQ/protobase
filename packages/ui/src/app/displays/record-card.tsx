@@ -14,6 +14,9 @@ import { useProjectUi } from '../pages/project-ui'
 import { ValueBadge } from '../value-badge'
 import { CardCarousel } from './card-carousel'
 import { CardImage } from './card-image'
+import { Markdown } from '../../markdown/markdown'
+import { markdownExcerpt } from '../../markdown/markdown-excerpt'
+import { isMarkdown } from '../../markdown/markdown-hint'
 import { amountParts, cardFields, filledAmount, filledMeta, type ListDisplayRow } from './list-displays'
 
 type RecordCardProps = {
@@ -51,7 +54,10 @@ export const RecordCard = ({ model, view, display, row, swipe = true, mark }: Re
   const text = (name: string) => {
     const field = model.fields[name]
     if (!field) return ''
-    return row.labels[name] ?? displayValue(field, row.record[name], view?.fields[name])
+    const value = row.record[name]
+    // Markdown reads as its text on a card's one-line parts
+    if (row.labels[name] === undefined && isMarkdown(field, view?.fields[name]) && typeof value === 'string' && value !== '') return markdownExcerpt(value)
+    return row.labels[name] ?? displayValue(field, value, view?.fields[name])
   }
   // A field the view shows with a field type draws its display
   const { fields: fieldTypes, components } = useProjectUi()
@@ -60,6 +66,13 @@ export const RecordCard = ({ model, view, display, row, swipe = true, mark }: Re
     const field = model.fields[name]
     const shown = field && shownWidget(fieldTypes, field, view?.fields[name])
     return shown ? <WidgetPart shown={shown} part="display" field={field} value={row.record[name]} fallback={text(name)} /> : text(name)
+  }
+  // A markdown subtitle shows rendered, its links as text inside the card's own link
+  const subtitleValue = (name: string) => {
+    const field = model.fields[name]
+    const value = row.record[name]
+    if (!field || !isMarkdown(field, view?.fields[name]) || shownWidget(fieldTypes, field, view?.fields[name]) || typeof value !== 'string' || value === '') return shownValue(name)
+    return <Markdown source={value} inLink />
   }
   // A meta field the view formats as a badge shows as one, unless a field type draws it
   const metaValue = (name: string) => {
@@ -108,8 +121,8 @@ export const RecordCard = ({ model, view, display, row, swipe = true, mark }: Re
         )}
       </span>
       {subtitle !== undefined && (
-        // A text of several lines keeps its first three, line breaks and all
-        <span className={view?.fields[subtitle]?.multiline ? 'line-clamp-3 whitespace-pre-line break-words text-muted-foreground' : 'truncate text-muted-foreground'}>{shownValue(subtitle)}</span>
+        // A text of several lines keeps its first three, line breaks and all, and markdown its first three rendered
+        <span className={view?.fields[subtitle]?.markdown ? 'line-clamp-3 break-words text-muted-foreground' : view?.fields[subtitle]?.multiline ? 'line-clamp-3 whitespace-pre-line break-words text-muted-foreground' : 'truncate text-muted-foreground'}>{subtitleValue(subtitle)}</span>
       )}
       {shownAmount !== undefined && <span className="truncate tabular-nums text-muted-foreground">{amountValue(shownAmount)}</span>}
       {meta.length > 0 && (

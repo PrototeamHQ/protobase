@@ -45,6 +45,8 @@ import { useRelatedRecords } from './use-related-records'
 import { RelatedSection } from './related-section'
 import { ValueBadge } from './value-badge'
 import { useClient } from '../data/api-provider'
+import { Markdown } from '../markdown/markdown'
+import { isMarkdown } from '../markdown/markdown-hint'
 
 const hidden = (model: ResourceModel, name: string) => name === model.tenant || model.primaryKey.includes(name)
 
@@ -136,7 +138,7 @@ const LoadedRecord = ({ model, recordKey, stored }: { model: ResourceModel; reco
         label={hint(name)?.label ?? humanize(name)}
         help={fieldHelp(hint(name), view, editing)}
         error={editor.errors[name]}
-        wide={Boolean(hint(name)?.multiline)}
+        wide={Boolean(hint(name)?.multiline || hint(name)?.markdown)}
         conflict={
           conflict === undefined
             ? undefined
@@ -168,7 +170,7 @@ const LoadedRecord = ({ model, recordKey, stored }: { model: ResourceModel; reco
     ) : (
       <FieldValue model={model} field={field} value={stored.record[name]} relationLabel={related.labels[name]} />
     )
-    return { label: hint(name)?.label ?? humanize(name), help: fieldHelp(hint(name), view, editing), wide: Boolean(hint(name)?.multiline), value }
+    return { label: hint(name)?.label ?? humanize(name), help: fieldHelp(hint(name), view, editing), wide: Boolean(hint(name)?.multiline || hint(name)?.markdown), value }
   }
 
   // The sidebar's fields are one Summary card, where the first sidebar stands among the sidebar's custom components and maps
@@ -180,7 +182,9 @@ const LoadedRecord = ({ model, recordKey, stored }: { model: ResourceModel; reco
         const field = model.fields[name]
         if (!field || !visible(name)) return []
         const text = displayValue(field, stored.record[name], hint(name))
-        const builtIn = field.type === 'enum' ? <ValueBadge value={stored.record[name]} hints={hint(name)}>{text}</ValueBadge> : <strong className={hint(name)?.multiline ? 'whitespace-pre-line break-words' : undefined}>{text}</strong>
+        const value = stored.record[name]
+        const markdown = isMarkdown(field, hint(name)) && typeof value === 'string' && value !== ''
+        const builtIn = field.type === 'enum' ? <ValueBadge value={value} hints={hint(name)}>{text}</ValueBadge> : markdown ? <Markdown source={value} /> : <strong className={hint(name)?.multiline ? 'whitespace-pre-line break-words' : undefined}>{text}</strong>
         const shown = shownWidget(fieldTypes, field, hint(name))
         return [{ label: hint(name)?.label ?? humanize(name), value: shown ? <WidgetPart shown={shown} part="display" field={field} value={stored.record[name]} fallback={builtIn} /> : builtIn }]
       })}

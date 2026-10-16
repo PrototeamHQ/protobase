@@ -11,6 +11,10 @@ import { displayValue } from '../live/display-value'
 import { fromDraft, isEditable, toFieldDraft } from '../live/field-values'
 import { useShownWidget } from './field-types/shown-widget'
 import { WidgetPart } from './field-types/widget-part'
+import { humanize } from '../live/naming'
+import { Markdown } from '../markdown/markdown'
+import { MarkdownEditor } from '../markdown/markdown-editor'
+import { isMarkdown } from '../markdown/markdown-hint'
 
 export type FieldEditorProps = {
   field: FieldModel
@@ -51,6 +55,8 @@ const BuiltInEditor = ({ field, hints, value, stored, relationLabel, relationTo,
     return <div className="py-1.5">{relationTo ? <AppLink to={relationTo} className="font-medium text-primary-text hover:underline">{label}</AppLink> : label}</div>
   }
   const multiline = Boolean(hints?.multiline) && field.type === 'text'
+  const markdown = isMarkdown(field, hints)
+  if ((!isEditable(field) || locked) && markdown && typeof stored === 'string' && stored !== '') return <Markdown source={stored} className="py-1.5" />
   if (!isEditable(field) || locked) {
     return <div className={cn('py-1.5 tabular-nums', field.type === 'decimal' || field.type === 'integer' ? 'font-medium' : 'text-muted-foreground', multiline && 'whitespace-pre-line break-words')}>{displayValue(field, stored, hints)}</div>
   }
@@ -70,6 +76,7 @@ const BuiltInEditor = ({ field, hints, value, stored, relationLabel, relationTo,
       </select>
     )
   }
+  if (markdown) return <MarkdownEditor label={hints?.label ?? humanize(field.name)} invalid={invalid} placeholder={placeholder} value={String(value)} onChange={onChange} />
   if (multiline) return <Textarea invalid={invalid} placeholder={placeholder} value={String(value)} onChange={(event) => onChange(event.target.value)} />
   return (
     <Input
