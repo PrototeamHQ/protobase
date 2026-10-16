@@ -13,7 +13,7 @@ import { recordTitle } from '../live/model-helpers'
 import { toneFor } from '../live/columns-from-model'
 import { Button, buttonClass } from '../primitives/button'
 import { cn } from '../lib/cn'
-import { Field, MetadataCard, RecordHeader, RelatedRecords, Section, SidebarCard, SpecTable } from '../record-view'
+import { Field, KeyFacts, MetadataCard, RecordHeader, RelatedRecords, Section, SidebarCard, SpecTable } from '../record-view'
 import { ErrorBanner } from './error-banner'
 import { CustomSection } from './custom-section'
 import { MapSection } from './map/map-section'
@@ -37,6 +37,8 @@ import { useNavigationGuard, useRouter } from './router'
 import { AppLink, useAppAddress } from './use-app-address'
 import { FieldValue } from './pages/field-value'
 import { GallerySection } from './gallery/gallery-section'
+import { filledFields } from './filled-fields'
+import { namedIcon } from './named-icon'
 import { fieldHelp, helpShown, recordShown } from './record-mode/record-mode'
 import { useRecordEditor } from './use-record-editor'
 import { useRelatedRecords } from './use-related-records'
@@ -259,12 +261,20 @@ const LoadedRecord = ({ model, recordKey, stored }: { model: ResourceModel; reco
                 if (item.kind === 'map') return item.sidebar ? [] : [<MapSection key={`map:${index}`} item={item} record={stored.record} />]
                 if (item.kind === 'gallery') return [<GallerySection key={`gallery:${index}`} item={item} record={stored.record} recordKey={recordKey} />]
                 if (item.kind !== 'section') return []
-                // A section whose fields are all hidden from this user would be a lone heading
-                const fields = item.fields.filter((name) => model.fields[name] && visible(name))
+                // A section whose fields are all hidden from this user would be a lone heading, as would key facts all empty
+                const visibleFields = item.fields.filter((name) => model.fields[name] && visible(name))
+                const facts = shown === 'read' && item.presentation === 'facts'
+                const fields = facts ? filledFields(stored.record, visibleFields) : visibleFields
                 if (fields.length === 0) return []
                 return [
                   <Section key={item.title} title={item.title} help={helpShown(item.helpWhen, view, editing) ? item.help : undefined}>
-                    {shown === 'read' ? <SpecTable rows={fields.map(readRow)} /> : <div className="grid grid-cols-1 gap-x-6 gap-y-5 sm:grid-cols-2">{fields.map(fieldView)}</div>}
+                    {facts ? (
+                      <KeyFacts facts={fields.map((name) => ({ label: readRow(name).label, value: readRow(name).value, icon: namedIcon(hint(name)?.icon) }))} />
+                    ) : shown === 'read' ? (
+                      <SpecTable rows={fields.map(readRow)} />
+                    ) : (
+                      <div className="grid grid-cols-1 gap-x-6 gap-y-5 sm:grid-cols-2">{fields.map(fieldView)}</div>
+                    )}
                   </Section>,
                 ]
               })}

@@ -97,7 +97,7 @@ const widgetShape = s.oneOf<FilterWidgetModel>({
 
 const layoutShape = (resource: string, model: ResourceModel, models: Record<string, ResourceModel>) =>
   s.oneOf<LayoutItemModel>({
-    section: s.object<Of<LayoutItemModel, 'section'>>({ kind: s.data, title: s.data, help: s.data, helpWhen: s.data, fields: s.list(s.field, { nonEmpty: true }) }, { requires: ['fields'] }),
+    section: s.object<Of<LayoutItemModel, 'section'>>({ kind: s.data, title: s.data, help: s.data, helpWhen: s.data, presentation: s.data, fields: s.list(s.field, { nonEmpty: true }) }, { requires: ['fields'] }),
     sidebar: s.object<Of<LayoutItemModel, 'sidebar'>>({ kind: s.data, fields: s.list(s.field, { nonEmpty: true }) }, { requires: ['fields'] }),
     related: s.map<RelatedModel>((item) => pruneRelated(item, resource, models)),
     custom: s.object<CustomSectionModel>({ kind: s.data, component: s.data, title: s.data, sidebar: s.data, props: s.refs }, { requires: ['props'] }),

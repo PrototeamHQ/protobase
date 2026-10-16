@@ -4,6 +4,7 @@ import { displayValue } from '../../live/display-value'
 import { recordKey, recordTitleField } from '../../live/model-helpers'
 import { humanize } from '../../live/naming'
 import { photosKey } from '../../live/row-photos'
+import { filledFields } from '../filled-fields'
 
 /** A row as a list display gets it: its key, the record as the list API gives it, and names of the records its relations point at. */
 export type ListDisplayRow = {
@@ -65,7 +66,7 @@ export const cardFields = (model: ResourceModel, view: ViewModel | undefined, di
 })
 
 /** The meta fields a card shows for a row: those with a value, so a listing for rent only shows no purchase price. */
-export const filledMeta = (row: ListDisplayRow, meta: string[]) => meta.filter((name) => row.record[name] !== null && row.record[name] !== undefined && row.record[name] !== '')
+export const filledMeta = (row: ListDisplayRow, meta: string[]) => filledFields(row.record, meta)
 
 /** The amount field a card shows for a row: the first with a value, so a listing for rent only shows its rent. */
 export const filledAmount = (row: ListDisplayRow, amount: string[]): string | undefined => filledMeta(row, amount)[0]

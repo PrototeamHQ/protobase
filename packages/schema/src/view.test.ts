@@ -331,6 +331,15 @@ describe('view builder', () => {
     expect(() => titled.toModel(home.toModel())).toThrow('View "home": gallery "Photos" shows "title" as its image, which is not a file field')
   })
 
+  it('shows a section as key facts, each under its icon', () => {
+    const model = view<typeof article>('article')
+      .fields((r) => ({ price: r.price.icon('wallet') }))
+      .layout((r) => [l.section('Key facts', [r.price, r.title], { presentation: 'facts' })])
+      .toModel()
+    expect(model.layout).toEqual([{ kind: 'section', title: 'Key facts', fields: ['price', 'title'], presentation: 'facts' }])
+    expect(model.fields.price).toEqual({ icon: 'wallet' })
+  })
+
   it('opens the record page as a read view or locked, and shows help only while editing', () => {
     const model = view<typeof article>('article')
       .recordMode('read')

@@ -37,6 +37,7 @@ export type {
   DatePreset,
   FilterWidgetModel,
   LayoutItemModel,
+  SectionPresentation,
   RelatedModel,
   CustomSectionModel,
   MapSectionModel,

@@ -71,7 +71,10 @@ export class FieldView<N extends string = string, V = unknown> {
     return this.with({ badgeShape })
   }
 
-  /** An icon before the value on a card's meta row, by the names actions take, such as `ruler`. */
+  /**
+   * An icon before the value on a card's meta row and above it in a section of key facts, by the names actions take,
+   * such as `ruler`.
+   */
   icon(icon: string) {
     return this.with({ icon })
   }

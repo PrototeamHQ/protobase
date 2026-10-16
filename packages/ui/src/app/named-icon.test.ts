@@ -1,4 +1,4 @@
-import { Bed, RulerDimensionLine, Send } from 'lucide-react'
+import { Bath, Bed, KeyRound, RulerDimensionLine, Send } from 'lucide-react'
 import { describe, expect, it } from 'vitest'
 import { actionIcon } from './action-icon'
 import { namedIcon } from './named-icon'
@@ -8,6 +8,8 @@ describe('namedIcon', () => {
     expect(namedIcon('ruler')).toBe(RulerDimensionLine)
     expect(namedIcon('send')).toBe(Send)
     expect(namedIcon('bed')).toBe(Bed)
+    expect(namedIcon('bath')).toBe(Bath)
+    expect(namedIcon('key')).toBe(KeyRound)
     expect(namedIcon('toString')).toBeUndefined()
     expect(namedIcon(undefined)).toBeUndefined()
   })

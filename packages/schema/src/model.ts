@@ -250,7 +250,10 @@ export type FieldViewModel = {
   suffix?: string
   /** How many decimals a number shows. */
   decimals?: number
-  /** An icon before the value on a card's meta row, by the names actions take (`ruler`); an unknown name shows none. */
+  /**
+   * An icon before the value on a card's meta row and above it in a section of key facts, by the names actions take
+   * (`ruler`); an unknown name shows none.
+   */
   icon?: string
   /** What an enum value reads as wherever it is shown; a value without one reads as itself in words (`enumLabel`). */
   valueLabels?: Record<string, string>
@@ -612,6 +615,9 @@ export type MapSectionModel = {
   sidebar?: true
 }
 
+/** How a section shows its fields on the read view: `facts` as a row of key facts; label/value rows when omitted. */
+export type SectionPresentation = 'facts'
+
 /** An item of the record page (`.layout((r) => ...)` with `l`); see [The record page](website/src/content/docs/reference/ui-config.mdx#the-record-page). */
 export type LayoutItemModel =
   | {
@@ -625,6 +631,11 @@ export type LayoutItemModel =
       help?: string
       /** When `help` shows: always, or only while the record is edited; the view's `helpWhen` when omitted. */
       helpWhen?: HelpWhen
+      /**
+       * `facts` shows the read view's fields as a row of key facts, each value under its field's `icon`, instead of
+       * label/value rows; the form edits them as any section's.
+       */
+      presentation?: SectionPresentation
     }
   | {
       /** A read-only summary card beside the main column. */
@@ -717,7 +728,10 @@ export type ActionModel = {
   name: string
   /** The button's label. */
   label: string
-  /** The button's icon: `bed`, `bell`, `bookmark`, `external-link`, `file-text`, `heart`, `ruler`, `send` or `wallet`; another name shows a lightning bolt. */
+  /**
+   * The button's icon: `bath`, `bed`, `bell`, `bookmark`, `calendar`, `door-open`, `external-link`, `file-text`, `heart`,
+   * `house`, `key`, `land-plot`, `leaf`, `ruler`, `send`, `tag` or `wallet`; another name shows a lightning bolt.
+   */
   icon?: string
   /** The question the button asks before it runs the action. */
   confirm?: string

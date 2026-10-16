@@ -50,7 +50,7 @@ Field hints:
 | `.format(format)` | `badge` shows statuses as coloured badges, `code` sets identifiers in monospace, `percent` adds a % sign. `relative`, `absolute` and `compact` are accepted and carried in `/meta` for apps that render their own lists; the admin does not use them yet. |
 | `.multiline()` | A text of several lines, such as a description: forms edit it in a box that grows with the text, so the page scrolls rather than the box, and the record page, a page's field blocks and a card's subtitle keep its line breaks (a card shows the first three lines). On the record page and the create form it takes the whole width of its section. Only a text field takes it; the list's table shows the text on one line. |
 | `.prefix(text)`, `.suffix(text)`, `.decimals(n)` | Money and measures: `€` and `2` show `€1,234.50`, `.suffix(' m²')` shows `120 m²`. They show wherever the number does: records, cards, table cells, forms and the range filter. |
-| `.icon(name)` | An icon before the value on a card's meta row: `bed`, `bell`, `bookmark`, `external-link`, `file-text`, `heart`, `ruler`, `send` or `wallet`, as for [actions](/reference/layouts/#named-actions). Nowhere else shows it. |
+| `.icon(name)` | An icon before the value on a card's meta row: `bath`, `bed`, `bell`, `bookmark`, `calendar`, `door-open`, `external-link`, `file-text`, `heart`, `house`, `key`, `land-plot`, `leaf`, `ruler`, `send`, `tag` or `wallet`, as for [actions](/reference/layouts/#named-actions), and above the value in a section of [key facts](#key-facts). Nowhere else shows it. |
 | `.valueLabels({ value: text })` | How an enum's values read: `r.method.valueLabels({ ideal: 'iDEAL' })`. Only the enum's values are accepted. A value without a label shows as stored (`direct_debit`), so label every value that should read as words. |
 | `.valueColors({ value: '#hex' })`, `.badgeShape('arrow')` | An enum's badges filled with a colour per value (the text turns white or black, whichever reads), and drawn as arrows pointing right, as on a rating scale. The property portal's energy label: `r.energy_label.format('badge').valueColors({ a: '#00a651', g: '#ed1c24' }).badgeShape('arrow')`. Only the enum's values are accepted. |
 | `.widget(name, props?)` | Shows and edits the field with a [field type](/reference/plugins/#field-types) of the project or a plugin, such as `r.status.widget('steps')` or `r.score.widget('rating', { max: 5 })`; `props` are plain data. Without it, or on a storage type it does not show, the field shows as it would without the hint. |
@@ -192,7 +192,7 @@ Only a caller without a token gets the prompts, in `/api/meta` as `signIn`, for 
 
 | Item | |
 | --- | --- |
-| `l.section(title, fields, { help?, helpWhen? })` | A titled group of fields in the main column, editable where the user may write. |
+| `l.section(title, fields, { help?, helpWhen?, presentation? })` | A titled group of fields in the main column, editable where the user may write. `presentation: 'facts'` shows them on the read view as a row of [key facts](#key-facts). |
 | `l.sidebar(fields)` | A summary card beside it, read-only. |
 | `l.related(title, { ... })` | A table of the records of another resource that point at this one, in the main column. See [Related records](#related-records). |
 | `l.custom(Component, { title?, props?, sidebar? })` | A [custom component](/reference/custom-components/#record-sections) where it is listed: in the main column under `title`, or with `sidebar: true` as a sidebar card. |
@@ -212,16 +212,34 @@ Without a layout the record page shows one section with every field the user may
 | Mode | |
 | --- | --- |
 | `'edit'` | The form, ready to change, as without the setting. The default. |
-| `'read'` | A read view: each section a table of labels on the left and values on the right, as a property's features on a real estate site, and a text of several lines under its label. **Edit**, among the record's actions, opens the form. |
+| `'read'` | A read view: each section a table of labels on the left and values on the right, as a property's features on a real estate site, and a text of several lines under its label, or a row of [key facts](#key-facts). **Edit**, among the record's actions, opens the form. |
 | `'locked'` | The form, its fields locked until **Edit** is pressed, for records where reading and editing look alike but a change should be meant. |
 
-The form that **Edit** opens has its own address, the record's with `?edit=true` (`{ kind: 'record', resource, key, edit: true }`), so it opens in a new tab and Back leaves it. It has **Cancel**, which drops the changes and goes back to the record, and **Save**, which goes back once the record saved. A user who may not change the record, such as a visitor who is not signed in, never gets the form, at that address too: they get the read view in every mode, without Edit. Values on the read view show as they do everywhere else, an empty one as `—` and a boolean as Yes or No, and a sensitive field stays masked behind its eye. Changes not saved stay in the browser, as they do on the form: the read view then offers to continue editing them or discard them.
+The form that **Edit** opens has its own address, the record's with `?edit=true` (`{ kind: 'record', resource, key, edit: true }`), so it opens in a new tab and Back leaves it. It has **Cancel**, which drops the changes and goes back to the record, and **Save**, which goes back once the record saved. A user who may not change the record, such as a visitor who is not signed in, never gets the form, at that address too: they get the read view in every mode, without Edit. Values on the read view show as they do everywhere else, an empty one as `—` (key facts leave it out) and a boolean as Yes or No, and a sensitive field stays masked behind its eye. Changes not saved stay in the browser, as they do on the form: the read view then offers to continue editing them or discard them.
 
 ```ts
 view<typeof listings>('listings').recordMode('read')
 ```
 
 <StoryFrame id="record-page-read-view-and-edit--read-view" title="A home's read view, with Edit" height={760} />
+
+### Key facts
+
+`presentation: 'facts'` on a section shows its fields on the read view as a real estate site shows a home's key facts: side by side, wrapping onto more rows as needed, each value under the icon its field's [`.icon(name)`](#names-and-columns) names, or under the field's label without one. A fact with an icon still has its label, for screen readers and as the tooltip. On a mobile screen, below the `sm` breakpoint (640px), the facts sit two to a row. A field without a value is left out rather than shown as `—`, and a section with none left is left out; a value of `0` or No stays. The form edits the section as any other, its fields under their labels.
+
+```ts
+view<typeof listings>('listings')
+  .recordMode('read')
+  .fields((r) => ({
+    purchase_price: r.purchase_price.prefix('€').icon('tag'),
+    living_area: r.living_area.suffix(' m²').icon('ruler'),
+    bedrooms: r.bedrooms.icon('bed'),
+    energy_label: r.energy_label.format('badge').icon('leaf'),
+  }))
+  .layout((r) => [l.section('Key facts', [r.purchase_price, r.living_area, r.bedrooms, r.energy_label, r.garden], { presentation: 'facts' })])
+```
+
+<StoryFrame id="record-page-key-facts--key-facts" title="A home's key facts" height={760} />
 
 ### Help while editing
 

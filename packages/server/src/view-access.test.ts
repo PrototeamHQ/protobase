@@ -155,7 +155,7 @@ describe('pruneView', () => {
 
   it("keeps a gallery's image and photos as far as the caller can load them, and leaves out one with neither", () => {
     const photos = { resource: 'repair_photos', field: 'repairId', image: 'photo', sort: 'position' }
-    const written = view<typeof repairs>('repairs').recordMode('read').helpWhen('editing').layout((r) => [l.section('Repair', [r.status], { help: 'As booked', helpWhen: 'always' })]).toModel()
+    const written = view<typeof repairs>('repairs').recordMode('read').helpWhen('editing').layout((r) => [l.section('Repair', [r.status], { help: 'As booked', helpWhen: 'always', presentation: 'facts' })]).toModel()
     // The repair's own picture stands in for a file field: pruning reads only whether the caller may see it
     written.layout = [...written.layout, { kind: 'gallery', title: 'Photos', image: 'costPrice', photos }]
     const galleries = (models: Record<string, ResourceModel>) => pruneView(written, models.repairs!, models).layout.filter((item) => item.kind === 'gallery')

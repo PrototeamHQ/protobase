@@ -1,7 +1,8 @@
 import { f, l, resource, view, type RecordMode } from '@protobase/schema'
 
-// A home for sale with its photos, for the record page's read view, its Edit switch, its gallery and lightbox: the
-// stories show it to an admin who may change it and read its photos' records, and to a visitor who may do neither.
+// A home for sale with its photos, for the record page's read view, its Edit switch, its key facts, its gallery and
+// lightbox: the stories show it to an admin who may change it and read its photos' records, and to a visitor who may do
+// neither.
 
 const homes = resource('homes')
   .table('homes')
@@ -29,8 +30,8 @@ const homePhotos = resource('home_photos')
   })
   .primaryKey((r) => r.id)
 
-/** The view of a home whose record page opens as `mode` says. */
-const homesView = (mode: RecordMode) =>
+/** The view of a home whose record page opens as `mode` says, its first section as key facts with `facts`. */
+const homesView = (mode: RecordMode, facts: boolean) =>
   view<typeof homes>('homes')
     .names({ singular: 'Home', plural: 'Homes' })
     .title((r) => r.title)
@@ -38,8 +39,9 @@ const homesView = (mode: RecordMode) =>
     .helpWhen('editing')
     .fields((r) => ({
       title: r.title.label('Address'),
-      price: r.price.label('Asking price').prefix('€').decimals(0).help('Without the buyer\'s costs.'),
-      energy_label: r.energy_label.label('Energy label').format('badge'),
+      price: r.price.label('Asking price').prefix('€').decimals(0).help('Without the buyer\'s costs.').icon('tag'),
+      bedrooms: r.bedrooms.icon('bed'),
+      energy_label: r.energy_label.label('Energy label').format('badge').icon('leaf'),
       description: r.description.multiline(),
       agent_phone: r.agent_phone.label('Agent phone').help('Call to plan a viewing.', { when: 'always' }),
       cover: r.cover.label('Cover photo'),
@@ -47,7 +49,7 @@ const homesView = (mode: RecordMode) =>
     .list((r) => ({ columns: [r.title, r.price] }))
     .layout((r) => [
       l.gallery('Photos', { image: r.cover, photos: { resource: 'home_photos', field: 'home_id', image: 'photo', sort: 'position' } }),
-      l.section('Home', [r.title, r.price, r.bedrooms, r.energy_label, r.garden], { help: 'As the seller states it.' }),
+      l.section('Home', [r.title, r.price, r.bedrooms, r.energy_label, r.garden], { help: 'As the seller states it.', ...(facts && { presentation: 'facts' as const }) }),
       l.section('About', [r.description]),
       l.section('Viewing', [r.agent_phone], { help: 'The agent shows the home.', helpWhen: 'always' }),
     ])
@@ -59,7 +61,7 @@ const homePhotosView = view<typeof homePhotos>('home_photos')
 
 export const homeResources = [homes.toModel(), homePhotos.toModel()]
 
-export const homeViews = (mode: RecordMode) => [homesView(mode).toModel(homes.toModel()), homePhotosView.toModel(homePhotos.toModel())]
+export const homeViews = (mode: RecordMode, { facts = false } = {}) => [homesView(mode, facts).toModel(homes.toModel()), homePhotosView.toModel(homePhotos.toModel())]
 
 // A photo stand-in: a sky and a ground in its own colour, drawn as a PNG.
 const picture = (hue: number) => {
