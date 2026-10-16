@@ -1,13 +1,14 @@
 import { useEffect, useRef, useState } from 'react'
 import { MapPin } from 'lucide-react'
 import { Map, Marker, NavigationControl, type MapRef } from 'react-map-gl/maplibre'
-import type { MapBounds, MapBucket } from '@protobase/client'
+import type { MapBounds, MapBucket, MapLayerModel } from '@protobase/client'
 import type { MapView } from '@protobase/schema'
 import { cn } from '../../lib/cn'
 import { groupPoints, type MapGroup, type MapPoint } from '../displays/map-groups'
 import type { MapArea } from './map-area'
+import { MapLayerSwitch } from './map-layer-switch'
 import { mapLib } from './maplibre'
-import { PositionAreas, type AreaColors } from './position-areas'
+import { areaLayerId, PositionAreas, type AreaColors } from './position-areas'
 import { themeColor } from './theme-color'
 
 // How close, in pixels, records are drawn under one marker, about a marker's width.
@@ -25,6 +26,8 @@ const corners = (bounds: MapBounds): [[number, number], [number, number]] => [
 
 type RecordsMapProps = {
   style: string
+  /** The layers the map may switch to in place of the style's. */
+  layers?: MapLayerModel[]
   /** Where the map looks when it opens; the whole world without it. */
   initial: MapView | undefined
   points: MapPoint[]
@@ -54,7 +57,7 @@ type RecordsMapProps = {
  * marker selects its records; choosing the map elsewhere clears the selection. A chosen marker the covered bottom would
  * hide moves up into the open part of the map.
  */
-export const RecordsMap = ({ style, initial, points, buckets, fit, onFitted, onMove, selected, covered, onSelect, onClear, markerLabel, bucketLabel }: RecordsMapProps) => {
+export const RecordsMap = ({ style, layers, initial, points, buckets, fit, onFitted, onMove, selected, covered, onSelect, onClear, markerLabel, bucketLabel }: RecordsMapProps) => {
   const ref = useRef<MapRef>(null)
   const [groups, setGroups] = useState<MapGroup[]>([])
   const [colors, setColors] = useState<AreaColors>()
@@ -126,6 +129,7 @@ export const RecordsMap = ({ style, initial, points, buckets, fit, onFitted, onM
       onClick={onClear}
     >
       <NavigationControl showCompass={false} />
+      <MapLayerSwitch layers={layers} below={areaLayerId} />
       {colors && <PositionAreas points={points} selected={selected} colors={colors} />}
       {buckets.map((bucket) => (
         <Marker key={`${bucket.latitude},${bucket.longitude}`} latitude={bucket.latitude} longitude={bucket.longitude} anchor="center">

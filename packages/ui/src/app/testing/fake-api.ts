@@ -1,4 +1,4 @@
-import { ApiError, type Client, type PluginRef, type ResourcePermissions, type SourceRef, type StoredFile, type UploadOptions, type UploadResult } from '@protobase/client'
+import { ApiError, type Client, type MapLayerModel, type PluginRef, type ResourcePermissions, type SourceRef, type StoredFile, type UploadOptions, type UploadResult } from '@protobase/client'
 import { evaluateCondition, parseCondition, type PageModel } from '@protobase/layout'
 import { checkFilter, evaluateFilter, parseFilter, type BottomBarModel, type CardPhotosModel, type ResourceModel, type SignInViewModel, type ViewModel } from '@protobase/schema'
 import { cardPhotoLimit, encodeKey, matchesSearch } from '@protobase/schema/internal'
@@ -15,8 +15,8 @@ export type FakeApiInput = {
   plugins?: PluginRef[]
   /** The sources `/meta` names, whose resources another fake API serves (`App`'s `sources`). */
   sources?: SourceRef[]
-  /** The map style `/meta` names. */
-  maps?: { style: string }
+  /** The map style `/meta` names, and the layers the maps may switch to. */
+  maps?: { style: string; layers?: MapLayerModel[] }
   /** The trusted image hosts `/meta` names. */
   files?: { trustedHosts: string[] }
   /** The bottom bar `/meta` names. */

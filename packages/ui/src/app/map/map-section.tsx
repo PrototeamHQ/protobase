@@ -14,14 +14,15 @@ const defaultZoom = 15
  * `/meta` names. Without a style, or for a record without a position, there is nothing to draw and no section.
  */
 export const MapSection = ({ item, record }: { item: MapSectionModel; record: Record<string, unknown> }) => {
-  const style = useAdminMeta().maps?.style
+  const maps = useAdminMeta().maps
+  const style = maps?.style
   const position = recordPosition(record, item)
   if (!style || !position) return null
   const map = (
     <div className={`overflow-hidden rounded-lg border border-border bg-muted ${item.sidebar ? 'h-48' : 'h-64 md:h-80'}`}>
       <Suspense fallback={null}>
         {/* A new position is a new map, centred on it */}
-        <RecordMap key={`${position.latitude},${position.longitude}`} style={style} position={position} zoom={item.zoom ?? defaultZoom} />
+        <RecordMap key={`${position.latitude},${position.longitude}`} style={style} layers={maps?.layers} position={position} zoom={item.zoom ?? defaultZoom} />
       </Suspense>
     </div>
   )

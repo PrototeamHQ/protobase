@@ -1,4 +1,4 @@
-import type { PluginRef, ResourcePermissions, SourceRef } from '@protobase/client'
+import type { MapLayerModel, PluginRef, ResourcePermissions, SourceRef } from '@protobase/client'
 import type { PageModel } from '@protobase/layout'
 import type { BottomBarModel, ResourceModel, SignInViewModel, UserMenuModel, ViewModel } from '@protobase/schema'
 
@@ -20,8 +20,8 @@ export type MetaData = {
   runtime?: { url: string }
   /** The error tracker the app sends its errors to, when the app reports them (see `startErrorReporting`). */
   errorReporting?: { dsn: string; environment?: string }
-  /** The map style the record page's maps are drawn with, when the app has one (see `MapSection`). */
-  maps?: { style: string }
+  /** The map style the app's maps are drawn with, and the layers they may switch to, when the app has one (see `MapSection`). */
+  maps?: { style: string; layers?: MapLayerModel[] }
   /** The hosts besides the app's own whose images are drawn with the page's referrer (see `FileImage`). */
   files?: { trustedHosts: string[] }
   /** The plugins the app loads for the user (see `PluginGate`). */

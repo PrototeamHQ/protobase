@@ -49,7 +49,8 @@ const arrow = 'flex size-8 items-center justify-center rounded-full border borde
  * elsewhere clears it. A marker and a card whose record's position is approximate say so.
  */
 export const MapDisplay = ({ model, view, display, filter, orderBy, fields, at, onMove, footer = true, flush = false }: MapProps) => {
-  const style = useAdminMeta().maps?.style
+  const maps = useAdminMeta().maps
+  const style = maps?.style
   const [chosen, setChosen] = useState<MapSelection>()
   const [area, setArea] = useState<MapArea>()
   const settled = useDebounced(area, settleMs)
@@ -88,6 +89,7 @@ export const MapDisplay = ({ model, view, display, filter, orderBy, fields, at, 
         <Suspense fallback={null}>
           <RecordsMap
             style={style}
+            layers={maps?.layers}
             initial={at}
             points={points}
             buckets={buckets}
