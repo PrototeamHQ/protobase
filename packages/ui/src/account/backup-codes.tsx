@@ -1,5 +1,6 @@
 import { Check, Copy, Download } from 'lucide-react'
 import { useState } from 'react'
+import { saveFile } from '../lib/save-file'
 import { Button } from '../primitives/button'
 
 /** The backup codes, shown once, with ways to keep them: each works once instead of a code from the app. */
@@ -26,18 +27,11 @@ export const BackupCodes = ({ codes }: { codes: string[] }) => {
           {copied ? <Check className="size-3.5 text-success" /> : <Copy className="size-3.5" />}
           {copied ? 'Copied' : 'Copy'}
         </Button>
-        <Button size="sm" onClick={() => saveText(text, 'backup-codes.txt')}>
+        <Button size="sm" onClick={() => saveFile(text, 'backup-codes.txt')}>
           <Download className="size-3.5" />
           Download
         </Button>
       </div>
     </div>
   )
-}
-
-const saveText = (text: string, name: string) => {
-  const url = URL.createObjectURL(new Blob([text], { type: 'text/plain' }))
-  const link = Object.assign(document.createElement('a'), { href: url, download: name })
-  link.click()
-  URL.revokeObjectURL(url)
 }

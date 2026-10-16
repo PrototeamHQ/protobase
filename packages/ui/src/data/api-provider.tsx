@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { createContext, useContext, useMemo, useRef, useState, type ReactNode } from 'react'
+import { createContext, useCallback, useContext, useMemo, useRef, useState, type ReactNode } from 'react'
 import { createClient, type Client, type ClientOptions, type SourceRef } from '@protobase/client'
 import { keys } from './query-keys'
 
@@ -21,6 +21,13 @@ export const useClient = () => {
 export const useResourceClient = (resource: string) => {
   const own = useClient()
   return useContext(ResourceClientContext)?.(resource) ?? own
+}
+
+/** `useResourceClient` for any resource: the client of the API that serves each, for code that reaches several. */
+export const useResourceClients = () => {
+  const own = useClient()
+  const resourceClient = useContext(ResourceClientContext)
+  return useCallback((resource: string) => resourceClient?.(resource) ?? own, [own, resourceClient])
 }
 
 /** The client of a source's API, one per URL, with the signed-in user's token; for `MetaGate`. */

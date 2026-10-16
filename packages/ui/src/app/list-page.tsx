@@ -19,6 +19,7 @@ import { Sheet } from '../primitives/sheet'
 import { useDeleteFlow, type DeleteTarget } from './delete/use-delete-flow'
 import { useRestore } from './delete/use-restore'
 import { ErrorBanner } from './error-banner'
+import { ImportButton } from './import/import-button'
 import { ListCards } from './displays/list-cards'
 import { MapDisplay } from './displays/map-display'
 import { CustomDisplay } from './displays/custom-display'
@@ -169,6 +170,7 @@ const LoadedList = ({ model, address, scope, heading }: LoadedListProps) => {
   const saveSearch = view?.saveSearch && !scope && parsed.ok && filterText && (
     <SaveSearchButton model={model} view={view} search={view.saveSearch} filter={filterText} chips={filterChips(model, view, filterText, facetNames(config))} />
   )
+  const importButton = !scope && <ImportButton model={model} />
   const displaySwitch = (menu: boolean) => <DisplaySwitch view={view} value={display?.name ?? tableDisplay} onChange={(name) => set({ display: name })} menu={menu} />
 
   const openRecord = (row: GridRow) => go({ kind: 'record', resource, key: recordKey(model, row) })
@@ -219,11 +221,13 @@ const LoadedList = ({ model, address, scope, heading }: LoadedListProps) => {
             <>
               {displaySwitch(false)}
               {saveSearch}
+              {importButton}
               {createButton}
             </>
           ) : (
             <>
               {saveSearch}
+              {importButton}
               {createButton}
             </>
           )
