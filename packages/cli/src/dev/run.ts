@@ -10,6 +10,7 @@ import { extensionImports, extensionStyles, type Extension } from '../project/ex
 import { projectUiPlugin } from '../project/project-ui'
 import { sharedModulesPlugin } from '../project/shared-modules'
 import { themeLink } from '../project/theme-link'
+import { faviconLink } from '../project/favicon-link'
 import { layoutCheck } from '../build/layout-check'
 import { checkDatabase } from './check-database'
 import { stopDevJobs } from './dev-jobs'
@@ -100,6 +101,7 @@ export const runDev = async (options: DevOptions, out: (text: string) => void) =
       stopJobsOnClose,
       sharedModulesPlugin(),
       themeLink(options.projectDir),
+      faviconLink(options.projectDir),
       projectUiPlugin(options.projectDir, extensions),
       extensionImports(options.projectDir, extensions),
       extensionStyles(extensions),

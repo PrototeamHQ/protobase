@@ -123,7 +123,7 @@ One process, one port: Vite serves the admin app from `@protobase/ui`'s `src/app
 
   `defineConfig` from `@protobase/server` types it, and its `extends` merges other configs in (see [Extending a config](#extending-a-config)).
 - **Project UI:** the app imports `protobase.ui.tsx` from the project root, with hot reload, when it exists (see [Custom components](/reference/custom-components/)): the same contract as the plugin `protobase build` makes of it, built into the dev page instead. Layout files are checked as they load, as `protobase build` checks them.
-- **Theme:** the page links `/protobase.theme.css`, which the dev server answers from the project's [theme](/reference/theme/), checked as the build checks it, on every request, so an edit shows on the next reload.
+- **Theme:** the page links `/protobase.theme.css`, which the dev server answers from the project's [theme](/reference/theme/), checked as the build checks it, on every request, so an edit shows on the next reload. It links `/protobase.favicon.svg` too, the project's [favicon](/reference/theme/#logo-and-favicon) or Protobase's.
 - **Extensions:** `--extend <dir>` merges an extension in, its UI built into the dev page beside the project's, to try one out; its files reload like the project's.
 - **Hot reload:** server code, data configs, `ui.ts` views, layouts and `protobase.config.ts` are loaded through Vite's SSR module graph. A change inside the project (or, in this repository, in `packages/server`, `packages/query`, `packages/schema`) rebuilds the API on the next request without a restart; `/meta` and `X-Meta-Version` change, so open tabs refetch. The database pool survives reloads. Newly added `ui.ts` files appear after the next change inside the project.
 
@@ -179,6 +179,7 @@ dist/
     plugins/app/            the project's protobase.ui.tsx, built as a plugin
     plugins/<extension>/    each --extend folder's protobase.ui.tsx, built as a plugin
     protobase.theme.css     the project's theme, checked and minified; empty without one
+    protobase.favicon.svg   the project's favicon; Protobase's without one
   protobase.bundle.json     the manifest
 ```
 
@@ -232,7 +233,7 @@ By default the bundle runs on Node and on Bun. `--bun` makes it a bundle for Bun
 
 `public/` holds two parts that are built apart.
 
-- **The shell**, `index.html` and `assets/`: the admin app, a production build of `@protobase/ui`'s `src/app` with no project code in it, the same for every project on a release. `@protobase/ui`'s package ships it prebuilt in `dist/shell/` and the [protobase image](/guides/deploy/#images) at `/opt/protobase/shell/`; the build copies it. It calls the API on its own origin under `/api`, so the same bundle works under any hostname, and reads everything else at runtime: the resources, views, pages and roles from `/api/meta`, sign-in from `/api/auth`, the project's UI from its plugins and its look from `/protobase.theme.css`, which it links after its own stylesheets.
+- **The shell**, `index.html` and `assets/`: the admin app, a production build of `@protobase/ui`'s `src/app` with no project code in it, the same for every project on a release. `@protobase/ui`'s package ships it prebuilt in `dist/shell/` and the [protobase image](/guides/deploy/#images) at `/opt/protobase/shell/`; the build copies it. It calls the API on its own origin under `/api`, so the same bundle works under any hostname, and reads everything else at runtime: the resources, views, pages and roles from `/api/meta`, sign-in from `/api/auth`, the project's UI from its plugins and its look from `/protobase.theme.css`, which it links after its own stylesheets, and its tab icon from `/protobase.favicon.svg`.
 - **The plugins**, `plugins/<name>/`: the project's `protobase.ui.tsx` as the plugin `app`, and each [extension](#extensions)'s, each built as [`build-plugin`](#build-plugin) builds one, against the `@protobase/ui` installed in the project. `/api/meta` names them, and the shell loads them as it loads any [plugin](/reference/plugins/). A component or field type the config declares but no `protobase.ui.tsx` exports fails the build (see [Components](/reference/custom-components/#components)).
 
 The modules the app shares with plugins, `react`, `react/jsx-runtime`, `react-dom` and `@protobase/ui`, are entries of their own, `/assets/shared-<name>-<hash>.js`, each exporting every name of its module. `index.html` maps the four names to them with an import map, ahead of every script, so a plugin's imports of them run on the app's copies.

@@ -8,6 +8,7 @@ import { protobaseVersion } from '../version/version'
 import { copyPackages } from './packages/copy-packages'
 import { shellForBuild, shellManifestFile } from './shell'
 import { buildTheme } from './theme'
+import { buildFavicon, faviconFile } from './favicon'
 import { checkUi } from './ui-check'
 import { checkViews } from './view-check'
 import type { Extension } from '../project/extensions'
@@ -46,7 +47,7 @@ const copyShell = async (publicDir: string) => {
 
 // The folder a host deploys: the config module for the serve runtime with the packages it loads from disk; under
 // public/ the prebuilt app (the shell), the project's protobase.ui.tsx and extensions' UI configs as plugins and its
-// theme, checked and minified; and the manifest saying which paths go to the server, which Protobase version built
+// theme, checked and minified, and favicon; and the manifest saying which paths go to the server, which Protobase version built
 // it, and its plugins, theme and shell. Of the project's server config only the config folder runs at build time, to
 // check its views against its resources; when it declares custom components, or extensions have UI configs, the UI is
 // loaded once to check its names against the config's and each other's.
@@ -61,6 +62,7 @@ export const buildDeployBundle = async ({ projectDir, outDir, bun, extensions = 
   const shell = await copyShell(publicDir)
   const plugins = await buildBundlePlugins({ projectDir, publicDir, extensions, ignore: [outDir] })
   for (const warning of await buildTheme({ projectDir, outFile: path.join(publicDir, bundleLayout.theme) })) onWarning?.(warning)
+  await buildFavicon({ projectDir, outFile: path.join(publicDir, faviconFile) })
   const manifest: BundleManifest = {
     version: 3,
     protobase: protobaseVersion,

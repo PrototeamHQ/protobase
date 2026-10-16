@@ -9,6 +9,7 @@ import type { BundleShell } from '../bundle/manifest'
 import { adminAppDir, uiEntry, uiPackageDir } from '../project/admin-app'
 import { projectUiPlugin } from '../project/project-ui'
 import { sharedModulesPlugin } from '../project/shared-modules'
+import { faviconLink } from '../project/favicon-link'
 import { themeLink } from '../project/theme-link'
 import { readPackageJson, type PackageJson } from './packages/package-dir'
 
@@ -34,7 +35,7 @@ const shellIdentity = async (): Promise<BundleShell> => {
  * The admin app as a production build, the same for every project: index.html and content-hashed files under assets/,
  * with protobase.shell.json saying which version it is. Asset URLs are absolute, so index.html works as the answer to
  * any deep link. It calls /api on its own origin and loads the project's UI, like every plugin, from what `/meta`
- * names, and links the project's theme at /protobase.theme.css. The modules plugins share with it have entries of
+ * names, and links the project's theme at /protobase.theme.css and its favicon at /protobase.favicon.svg. The modules plugins share with it have entries of
  * their own, which index.html's import map names.
  */
 export const buildShell = async (outDir: string) => {
@@ -49,7 +50,7 @@ export const buildShell = async (outDir: string) => {
     mode: 'production',
     publicDir: false,
     logLevel: 'warn',
-    plugins: [sharedModulesPlugin(), projectUiPlugin(undefined), themeLink(), react(), tailwindcss()],
+    plugins: [sharedModulesPlugin(), projectUiPlugin(undefined), themeLink(), faviconLink(), react(), tailwindcss()],
     build: { outDir, emptyOutDir: true, chunkSizeWarningLimit: 4096 },
   }).finally(() => {
     if (nodeEnv === undefined) delete process.env.NODE_ENV

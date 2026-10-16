@@ -15,5 +15,6 @@ export default defineConfig({
     { from: 'src/tokens.css', to: 'dist' },
     { from: 'src/filter-panel/range-slider.css', to: 'dist/filter-panel' },
     { from: 'src/app/index.html', to: 'dist/app' },
+    { from: 'src/app/favicon.svg', to: 'dist/app' },
   ],
 })

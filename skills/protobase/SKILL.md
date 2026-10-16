@@ -105,7 +105,7 @@ dist/
   protobase.config.js     the config module, run by the serve runtime
   node_modules/           only with native add-ons: those packages, with linux x64 and arm64 binaries
   public/                 the admin app (index.html and content-hashed assets/), the project's UI as plugins in
-                          plugins/ and its theme, protobase.theme.css
+                          plugins/, its theme, protobase.theme.css, and its favicon, protobase.favicon.svg
   protobase.bundle.json   the manifest: which paths go to the server, which Protobase version built it, the
                           plugins and the app's version
 ```
@@ -1566,6 +1566,7 @@ dist/
     index.html, assets/      the prebuilt admin app
     plugins/app/             protobase.ui.tsx, as the plugin app
     protobase.theme.css      empty until the project has a theme
+    protobase.favicon.svg    Protobase's until the project has its own
   protobase.bundle.json      version 3, naming the plugins and the app's version
 ```
 
@@ -1589,7 +1590,7 @@ Each `--extend` folder's `protobase.ui.tsx` becomes a plugin of its own, `plugin
 
 A host that serves `public/` as before keeps working: `index.html` for navigations, files for the rest. Two things are new:
 
-- The plugins' `assets/` folders, `public/plugins/<name>/assets/`, are named by their content like `public/assets/`: serve them as immutable too. `plugin.json` and `protobase.theme.css` are served with `no-cache`.
+- The plugins' `assets/` folders, `public/plugins/<name>/assets/`, are named by their content like `public/assets/`: serve them as immutable too. `plugin.json`, `protobase.theme.css` and `protobase.favicon.svg` are served with `no-cache`.
 - A host that keeps the prebuilt app of newer releases may serve it for the manifest's `shell.paths`, so the app gets that release's fixes without a rebuild (see [the shell](https://docs.protobase.net/reference/plugins/#the-shell)). `protobase serve` does so with its own when every plugin of the bundle loads in it.
 
 ### 6. protobase dev

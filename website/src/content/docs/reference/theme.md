@@ -111,9 +111,11 @@ What they color:
 
 The list is `packages/ui/src/tokens.css`, and a test fails when one of its tokens disappears.
 
-## Logo
+## Logo and favicon
 
 The sidebar shows Protobase's logo, its mark alone when the sidebar shows only icons. A project shows its own with `shell.logo` in `protobase.ui.tsx`, a component drawn in its place ([Shell slots](/reference/custom-components/#shell-slots)); it draws with these tokens like the rest of the app.
+
+The browser tab shows Protobase's mark. A project shows its own with a `protobase.favicon.svg` at its root, beside `protobase.theme.css`: the app's `index.html` links `/protobase.favicon.svg`, which `protobase build` writes to the bundle's `public/`, the project's file or Protobase's without one, and which `protobase dev` serves the same way. An SVG can follow the system's light or dark with a `prefers-color-scheme` media query inside it, as Protobase's does.
 
 ## In a plugin
 

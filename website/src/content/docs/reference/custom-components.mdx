@@ -177,7 +177,7 @@ export default defineUi({ shell: { actions: NotesButton, rightPanel: Notes } })
 
 When the app has an [assistant](/reference/assistant/), its button follows the project's actions and its dock the project's panel.
 
-`logo` replaces Protobase's logo at the top of the sidebar with the app's own. It gets `compact`, true when the sidebar shows only icons, so it draws a mark alone, and `workspace`, the name of the user's organization that Protobase's logo shows under it (`ShellLogoProps`). Its colors follow the [theme](/reference/theme/), and a `dark:` class gives dark its own. When it throws, Protobase's logo shows instead.
+`logo` replaces Protobase's logo at the top of the sidebar with the app's own. It gets `compact`, true when the sidebar shows only icons, so it draws a mark alone, and `workspace`, the name of the user's organization that Protobase's logo shows under it (`ShellLogoProps`). Its colors follow the [theme](/reference/theme/), and a `dark:` class gives dark its own. When it throws, Protobase's logo shows instead. The tab's icon is [the favicon](/reference/theme/#logo-and-favicon).
 
 ```tsx
 import { defineUi, type ShellLogoProps } from '@protobase/ui'

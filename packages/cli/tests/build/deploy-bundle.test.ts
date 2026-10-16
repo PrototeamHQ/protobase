@@ -96,6 +96,19 @@ describe('buildDeployBundle', () => {
     await expect(buildDeployBundle({ projectDir, outDir })).rejects.toThrow('protobase.theme.css is not a theme:')
   }, buildTimeout)
 
+  it("writes the project's favicon, which the app links, and Protobase's without one", async () => {
+    projectDir = await createProject({ 'config/index.ts': things })
+    const outDir = path.join(projectDir, 'dist')
+    await buildDeployBundle({ projectDir, outDir })
+    expect(await readFile(path.join(outDir, 'public/protobase.favicon.svg'), 'utf8')).toBe(await readFile(path.join(root, 'packages/ui/src/app/favicon.svg'), 'utf8'))
+    expect(await readFile(path.join(outDir, 'public/index.html'), 'utf8')).toContain('<link rel="icon" type="image/svg+xml" href="/protobase.favicon.svg">')
+
+    const own = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><circle cx="8" cy="8" r="8"/></svg>'
+    await writeFile(path.join(projectDir, 'protobase.favicon.svg'), own)
+    await buildDeployBundle({ projectDir, outDir })
+    expect(await readFile(path.join(outDir, 'public/protobase.favicon.svg'), 'utf8')).toBe(own)
+  }, buildTimeout)
+
   it('carries a native package in node_modules and names it in the manifest, until a build without one', async () => {
     projectDir = await createProject({
       'protobase.config.ts': `import { hash } from 'native-hash'\nimport * as config from './resources'\nexport default { config, options: { hash } }\n`,
