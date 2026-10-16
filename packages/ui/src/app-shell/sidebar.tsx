@@ -1,7 +1,8 @@
+import type { ComponentType } from 'react'
 import { LogIn } from 'lucide-react'
 import { cn } from '../lib/cn'
 import { RouteLink, type RouteTarget } from '../primitives/route-link'
-import { Logo } from './logo'
+import { Logo, type ShellLogoProps } from './logo'
 import { navGroups as defaultGroups, type NavGroup } from './nav'
 import { ProfileMenu, type ProfileMenuItem, type ProfileOrganizations, type ProfileRoles, type ShellUser } from './profile-menu'
 import { ThemeSwitch, type ProfileTheme } from './theme-switch'
@@ -31,9 +32,11 @@ export type SidebarProps = {
   theme?: ProfileTheme
   /** Stays in view, as tall as the screen, while the page scrolls, for a shell whose page scrolls. */
   sticky?: boolean
+  /** Drawn at the top in place of Protobase's logo. */
+  logo?: ComponentType<ShellLogoProps>
 }
 
-export const Sidebar = ({ mode, activeItem, user, workspace, forceExpanded, profileMenuOpen, groups = defaultGroups, userMenu, onNavigate, onSignOut, signIn, organizations, roles, theme, sticky }: SidebarProps) => {
+export const Sidebar = ({ mode, activeItem, user, workspace, forceExpanded, profileMenuOpen, groups = defaultGroups, userMenu, onNavigate, onSignOut, signIn, organizations, roles, theme, sticky, logo: SidebarLogo = Logo }: SidebarProps) => {
   const expanding = mode === 'icon-expand'
   const expanded = expanding && forceExpanded
   const inline = isTextMode(mode) || expanding
@@ -47,7 +50,7 @@ export const Sidebar = ({ mode, activeItem, user, workspace, forceExpanded, prof
         )}
       >
         <div className={cn('flex h-12 shrink-0 items-center px-3.5', mode === 'icon-label' && 'justify-center px-0')}>
-          <Logo showName={isTextMode(mode) || expanding} workspace={workspace} />
+          <SidebarLogo compact={!inline} workspace={workspace} />
         </div>
         <div className={cn('flex-1 overflow-y-auto overflow-x-hidden pb-2', mode === 'icon-label' ? 'px-2' : 'px-2')}>
           {groups.map((group, index) => (

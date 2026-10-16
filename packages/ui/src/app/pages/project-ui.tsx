@@ -1,6 +1,7 @@
 import { createContext, useContext, type ComponentType, type ReactNode } from 'react'
 import type { Client } from '@protobase/client'
 import type { AppAddress } from '@protobase/schema'
+import type { ShellLogoProps } from '../../app-shell/logo'
 import type { FieldWidget } from '../field-types/field-widget'
 
 /**
@@ -51,8 +52,11 @@ export type ProjectUi = {
   actions?: Record<string, ActionHandler>
   /** Field types by name, each with the storage types it shows and its components (see `FieldWidget`). */
   fields?: Record<string, FieldWidget>
-  /** Rendered in the shell on every page: `actions` at the end of the top bar, `rightPanel` beside the page. */
-  shell?: { actions?: ComponentType; rightPanel?: ComponentType }
+  /**
+   * Rendered in the shell on every page: `actions` at the end of the top bar, `rightPanel` beside the page, and `logo`
+   * at the top of the sidebar in place of Protobase's (see `ShellLogoProps`).
+   */
+  shell?: { actions?: ComponentType; rightPanel?: ComponentType; logo?: ComponentType<ShellLogoProps> }
   /**
    * Drawn around the pages someone signed out sees, only for a plugin the app loads before sign-in (`beforeSignIn` in
    * `options.plugins`): its code runs for them, and it can sign them in (see `BeforeSignInProps`).

@@ -49,7 +49,7 @@ const around = (wrappers: ComponentType<BeforeSignInProps>[]): ComponentType<Bef
 /**
  * One UI config from several, each after the ones it `extends`, the last being the app's own: components, action
  * handlers and field types are all kept, and one name defined by two configs is an error naming both; every shell slot
- * and `beforeSignIn` component is drawn, the extended configs' first.
+ * and `beforeSignIn` component is drawn, the extended configs' first, except the logo, the last config's to set one.
  */
 export const mergeUi = (...uis: ProjectUi[]): ProjectUi => {
   const named = uis.flatMap((ui, index) => flatten(ui, ui.name ?? `UI config ${index + 1}`))
@@ -58,6 +58,7 @@ export const mergeUi = (...uis: ProjectUi[]): ProjectUi => {
   const fields = union('The field type', named, (ui) => ui.fields)
   const actionSlot = slot(named.flatMap(({ ui }) => (ui.shell?.actions ? [ui.shell.actions] : [])))
   const rightPanel = slot(named.flatMap(({ ui }) => (ui.shell?.rightPanel ? [ui.shell.rightPanel] : [])))
+  const logo = named.findLast(({ ui }) => ui.shell?.logo)?.ui.shell?.logo
   const beforeSignIn = around(named.flatMap(({ ui }) => (ui.beforeSignIn ? [ui.beforeSignIn] : [])))
   const name = uis.at(-1)?.name
   return {
@@ -65,7 +66,7 @@ export const mergeUi = (...uis: ProjectUi[]): ProjectUi => {
     components,
     actions,
     ...(Object.keys(fields).length > 0 && { fields }),
-    ...((actionSlot || rightPanel) && { shell: { ...(actionSlot && { actions: actionSlot }), ...(rightPanel && { rightPanel }) } }),
+    ...((actionSlot || rightPanel || logo) && { shell: { ...(actionSlot && { actions: actionSlot }), ...(rightPanel && { rightPanel }), ...(logo && { logo }) } }),
     ...(beforeSignIn && { beforeSignIn }),
   }
 }

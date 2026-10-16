@@ -21,10 +21,14 @@ export const Wordmark = ({ className }: { className?: string }) => (
   </svg>
 )
 
-export const Logo = ({ showName, workspace }: { showName: boolean; workspace?: string }) => (
+/** What the logo at the top of the sidebar gets: `compact` when the sidebar shows only icons, and the workspace's name. */
+export type ShellLogoProps = { compact: boolean; workspace?: string }
+
+/** Protobase's logo at the top of the sidebar, the workspace's name under the wordmark, or the mark alone when compact. */
+export const Logo = ({ compact, workspace }: ShellLogoProps) => (
   <div className="flex items-center gap-2.5 overflow-hidden">
     <LogoMark />
-    {showName && (
+    {!compact && (
       <div className="flex min-w-0 flex-col gap-0.5 leading-tight">
         <Wordmark className="self-start" />
         {workspace && <div className="truncate text-[11px] text-muted-foreground">{workspace}</div>}

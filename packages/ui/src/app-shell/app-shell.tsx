@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ComponentType, type ReactNode } from 'react'
 import { cn } from '../lib/cn'
 import { useIsDesktop } from '../lib/use-media-query'
 import type { RouteTarget } from '../primitives/route-link'
@@ -12,6 +12,7 @@ import type { ProfileTheme } from './theme-switch'
 import type { SidebarMode } from './sidebar-mode'
 import type { GlobalSearchModel } from './global-search'
 import type { Crumb } from './breadcrumb'
+import type { ShellLogoProps } from './logo'
 import { TopBar } from './top-bar'
 
 export type AppShellProps = {
@@ -23,6 +24,8 @@ export type AppShellProps = {
   /** The signed-in person, with their profile menu; without one the sidebar links to `signIn` instead. */
   user?: ShellUser
   workspace?: string
+  /** Drawn at the top of the sidebar in place of Protobase's logo. */
+  logo?: ComponentType<ShellLogoProps>
   actions?: ReactNode
   rightPanel?: ReactNode
   forceExpanded?: boolean
@@ -53,7 +56,7 @@ export type AppShellProps = {
 
 const drawerId = 'app-drawer'
 
-export const AppShell = ({ sidebarMode, activeItem, breadcrumb, user, workspace, actions, rightPanel, forceExpanded, profileMenuOpen, navGroups, userMenu, bottomBar, onNavigate, onSignOut, signIn, organizations, roles, theme, search, pageScroll: scrollsByDefault = false, className, children }: AppShellProps) => {
+export const AppShell = ({ sidebarMode, activeItem, breadcrumb, user, workspace, logo, actions, rightPanel, forceExpanded, profileMenuOpen, navGroups, userMenu, bottomBar, onNavigate, onSignOut, signIn, organizations, roles, theme, search, pageScroll: scrollsByDefault = false, className, children }: AppShellProps) => {
   const desktop = useIsDesktop()
   const [drawerOpen, setDrawerOpen] = useState(false)
   useEffect(() => {
@@ -68,7 +71,7 @@ export const AppShell = ({ sidebarMode, activeItem, breadcrumb, user, workspace,
   usePageInsets(pageScroll, topBarRef, bottomBarRef, Boolean(tabs))
   usePageGutter(pageScroll)
   const sidebar = (mode: SidebarMode, sticky = false) => (
-    <Sidebar mode={mode} sticky={sticky} activeItem={activeItem} user={user} workspace={workspace} forceExpanded={forceExpanded} profileMenuOpen={profileMenuOpen} groups={navGroups} userMenu={userMenu} onNavigate={onNavigate} onSignOut={onSignOut} signIn={signIn} organizations={organizations} roles={roles} theme={theme} />
+    <Sidebar mode={mode} sticky={sticky} activeItem={activeItem} user={user} workspace={workspace} forceExpanded={forceExpanded} profileMenuOpen={profileMenuOpen} groups={navGroups} userMenu={userMenu} onNavigate={onNavigate} onSignOut={onSignOut} signIn={signIn} organizations={organizations} roles={roles} theme={theme} logo={logo} />
   )
   return (
     <PageScrollContext.Provider value={setPageScroll}>

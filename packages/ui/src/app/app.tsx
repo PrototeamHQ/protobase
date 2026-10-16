@@ -30,6 +30,7 @@ import { useActiveRole } from '../roles/use-active-role'
 import { navFromMeta } from './nav-from-meta'
 import { ComposedPage } from './pages/composed-page'
 import { CustomBoundary } from './pages/custom-boundary'
+import { ProjectLogo } from './project-logo'
 import { useProjectUi, type ProjectUi } from './pages/project-ui'
 import type { PluginLoader } from '../plugins/load-plugin'
 import { PluginGate, usePluginsOff } from '../plugins/plugin-gate'
@@ -177,6 +178,7 @@ const Routes = ({ workspace, sidebarMode, assistant, runtime }: Pick<AppProps, '
       onSignOut={user && (() => void signOut())}
       signIn={user ? undefined : signIn.link()}
       workspace={current?.organization?.name ?? workspace}
+      logo={ProjectLogo}
       navGroups={groups}
       bottomBar={bottomBarFromMeta(meta, basePath, place)}
       userMenu={[...userMenuFromMeta(meta, basePath, place), ...(organizationSettings && user ? organizationMenuItems(basePath, path, current) : []), ...(user ? accountMenuItems(basePath, path, admin) : [])]}

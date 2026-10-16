@@ -46,6 +46,13 @@ describe('mergeUi', () => {
     expect(mergeUi(defineUi({ components: {} }))).not.toHaveProperty('shell')
   })
 
+  it('draws one logo, the last config to set one', () => {
+    const ownLogo = text('own logo')
+    const cloudLogo = text('cloud logo')
+    expect(mergeUi(defineUi({ extends: [{ shell: { logo: cloudLogo } }], shell: { logo: ownLogo } })).shell?.logo).toBe(ownLogo)
+    expect(mergeUi(defineUi({ extends: [{ shell: { logo: cloudLogo } }] })).shell).toEqual({ logo: cloudLogo })
+  })
+
   it('draws every beforeSignIn component around the pages, the extended configs outermost', () => {
     const around = (label: string) => ({ children }: BeforeSignInProps) => createElement('div', { title: label }, children)
     const { beforeSignIn } = mergeUi(defineUi({ extends: [defineUi({ beforeSignIn: around('cloud') })], beforeSignIn: around('own') }))

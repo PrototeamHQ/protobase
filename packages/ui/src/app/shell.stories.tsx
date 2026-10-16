@@ -2,6 +2,7 @@ import type { Meta, StoryObj } from '@storybook/react-vite'
 import { useState } from 'react'
 import { expect, userEvent, within } from 'storybook/test'
 import { createStaticSession, type AuthSession, type Client } from '@protobase/client'
+import type { ShellLogoProps } from '../app-shell'
 import { navOpenStorageKey } from '../app-shell/nav-open-storage'
 import { useRecord } from '../data/use-record'
 import { Button } from '../primitives/button'
@@ -182,6 +183,29 @@ export const ProjectShellSlots: StoryObj = {
     await canvas.findByRole('button', { name: 'Notes' })
     within(canvas.getByRole('complementary', { name: 'Notes' })).getByText('Pinned notes for this team.')
     expect(canvas.queryByRole('button', { name: 'Assistant' })).toBeNull()
+  },
+}
+
+// A project's own logo: its initials alone in a compact sidebar, its name beside them otherwise.
+const RijnlandLogo = ({ compact }: ShellLogoProps) => (
+  <div className="flex items-center gap-2.5">
+    <span className="flex size-7 shrink-0 items-center justify-center rounded-md bg-primary text-[11px] font-bold text-primary-foreground">RI</span>
+    {!compact && <span className="text-[13px] font-semibold">Rijnland Industrial</span>}
+  </div>
+)
+
+/** The project's `shell.logo` from `protobase.ui.tsx`, at the top of the sidebar in place of Protobase's. */
+export const ProjectLogo: StoryObj = {
+  tags: ['play'],
+  render: () => (
+    <div className="h-screen">
+      <App client={fakeClient({ permissions: allowed })} auth={session} initialUrl="/orders" ui={{ shell: { logo: RijnlandLogo } }} />
+    </div>
+  ),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    await canvas.findByText('Rijnland Industrial')
+    expect(canvas.queryByRole('img', { name: 'Protobase' })).toBeNull()
   },
 }
 

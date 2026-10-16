@@ -158,6 +158,7 @@ export default defineUi({ extends: [tasksUi] })
 | every other value (`db`, `auth`, `authenticate`, `roles`, `assistant.url`, ...) | the app's own; otherwise the last config that sets it | |
 | UI components (exported by name or in `components`), `actions` | all kept | an error naming the name and both configs |
 | UI `shell.actions`, `shell.rightPanel` | all drawn, the extended configs' first | |
+| UI `shell.logo` | the app's own; otherwise the last config that sets it | |
 
 A config's `name` names it in these errors; an extension should set one. Nothing is namespaced, so a collision is always an error, never a silent override. Names starting with `Protobase` (components) and `protobase_` (tools) belong to Protobase's own extensions, such as `ProtobaseCloudTask` and `protobase_cloud_create_proposal`; give yours other names. `mergeConfig(...configs)` from `@protobase/server` and `mergeUi(...configs)` from `@protobase/ui` merge the same way in code.
 

@@ -177,6 +177,21 @@ export default defineUi({ shell: { actions: NotesButton, rightPanel: Notes } })
 
 When the app has an [assistant](/reference/assistant/), its button follows the project's actions and its dock the project's panel.
 
+`logo` replaces Protobase's logo at the top of the sidebar with the app's own. It gets `compact`, true when the sidebar shows only icons, so it draws a mark alone, and `workspace`, the name of the user's organization that Protobase's logo shows under it (`ShellLogoProps`). Its colors follow the [theme](/reference/theme/), and a `dark:` class gives dark its own. When it throws, Protobase's logo shows instead.
+
+```tsx
+import { defineUi, type ShellLogoProps } from '@protobase/ui'
+
+const Logo = ({ compact }: ShellLogoProps) => (
+  <div className="flex items-center gap-2.5">
+    <img src="https://cdn.example.com/rijnland-mark.svg" alt="Rijnland Industrial" className="size-7" />
+    {!compact && <span className="text-[13px] font-semibold">Rijnland Industrial</span>}
+  </div>
+)
+
+export default defineUi({ shell: { logo: Logo } })
+```
+
 ## Without protobase dev
 
 `<App ui={...} />` from `@protobase/ui` takes the same object, for an app that mounts the admin itself, and so do stories.
