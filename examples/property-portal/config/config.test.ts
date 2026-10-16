@@ -1,3 +1,4 @@
+import type { LayoutItemModel } from '@protobase/schema'
 import sharp from 'sharp'
 import { configExports, createAdmin, MissingCredentials } from '@protobase/server'
 import { describe, expect, it } from 'vitest'
@@ -11,11 +12,26 @@ describe('the portal config', () => {
     expect(() => createAdmin({ resources, views, db: {} as never, files: { secret: 'config-test-secret', sharp }, authenticate: () => { throw new Error('No requests in this test') }, options: { roles } })).not.toThrow()
   })
 
-  it('has a view for every table, and one more for members on listings', () => {
+  it('has a view for every table, and more for members and admins on listings and for admins on photos', () => {
     const viewed = views.map((view) => view.toModel())
     expect(resources.map((source) => source.toModel().name).filter((name) => !viewed.some((view) => view.resource === name))).toEqual([])
-    expect(viewed.filter((view) => view.resource === 'listings').map((view) => view.roles ?? [])).toEqual([[], ['member', 'admin']])
+    expect(viewed.filter((view) => view.resource === 'listings').map((view) => view.roles ?? [])).toEqual([[], ['member'], ['admin']])
+    expect(viewed.filter((view) => view.resource === 'listing_photos').map((view) => view.roles ?? [])).toEqual([[], ['admin']])
     expect(pages.map((entry) => entry.name)).toEqual(['home'])
+  })
+
+  it("reads a listing's page as a portal's: the photos in a gallery, the key facts and a table of features, editing help left out", () => {
+    const [everyone, members, admins] = views.map((view) => view.toModel()).filter((view) => view.resource === 'listings')
+    for (const listing of [everyone!, members!, admins!]) expect(listing).toMatchObject({ recordMode: 'read', helpWhen: 'editing' })
+    const titles = (layout: LayoutItemModel[]) => layout.map((item) => ('title' in item ? item.title : item.kind))
+    expect(titles(everyone!.layout)).toEqual(['Photos', 'Key facts', 'About this home', 'Features', 'Location', 'Address', 'Viewing', 'sidebar', 'Your notes'])
+    expect(everyone!.layout[0]).toEqual({ kind: 'gallery', title: 'Photos', image: 'photo', photos: { resource: 'listing_photos', field: 'listing_id', image: 'photo', sort: 'position' } })
+    expect(everyone!.layout.find((item) => item.kind === 'section' && item.title === 'Viewing')).toMatchObject({ helpWhen: 'always' })
+    // What only an editor needs is on the admins' page alone
+    expect(titles(admins!.layout).filter((title) => !titles(everyone!.layout).includes(title))).toEqual(['Map position', 'Publishing', 'Photo list'])
+    const editorFields = ['latitude', 'longitude', 'position_exact', 'photo']
+    const sectionFields = everyone!.layout.flatMap((item) => (item.kind === 'section' ? item.fields : []))
+    expect(sectionFields.filter((name) => editorFields.includes(name))).toEqual([])
   })
 
   it('opens listings as cards with their cover photo and arrows through the rest, offers them on a map, and starts a note from a listing with the listing chosen', () => {

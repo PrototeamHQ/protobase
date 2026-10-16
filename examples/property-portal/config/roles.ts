@@ -35,6 +35,6 @@ export const roles = defineRoles<PortalName>({
     { 'places.read': ['name', 'region', 'country', 'latitude', 'longitude'] },
     { 'agencies.read': ['name', 'place_id', 'phone', 'email', 'website'] },
     { 'listings.read': { fields: publicListingFields, filter: published } },
-    { 'listing_photos.read': ['listing_id', 'position', 'photo', 'photo_placeholder', 'caption'] },
+    { 'listing_photos.read': ['id', 'listing_id', 'position', 'photo', 'photo_placeholder', 'caption'] },
   ],
 })

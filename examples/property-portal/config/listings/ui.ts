@@ -2,9 +2,17 @@ import { l, view } from '@protobase/schema'
 import type { listings } from './data'
 import { energyLabelColors, energyLabelLabels, propertyTypeLabels } from './labels'
 
+// A listing's further photos, after its cover: on its cards and in its page's gallery.
+const photos = { resource: 'listing_photos', field: 'listing_id', image: 'photo', sort: 'position' }
+
+const keyFactsHelp = 'A purchase price, a rent or both: a home for sale can be let in the meantime.'
+const viewingHelp = 'Call the agency or the agent to plan a viewing.'
+
 /**
  * What everyone sees of a listing: the cards with their photos first, arrows through the rest and a heart to save it,
- * the table and the filters of a portal, and "Save search" to keep the filters set as one of the member's searches.
+ * the table and the filters of a portal, and "Save search" to keep the filters set as one of the member's searches. Its
+ * page reads as a listing on a portal: the photos, the key facts, the description and a table of its features, without
+ * the help lines meant for whoever edits it.
  */
 export const listingsView = view<typeof listings>('listings')
   .title((r) => r.address)
@@ -43,7 +51,7 @@ export const listingsView = view<typeof listings>('listings')
     displays: [
       d.cards(
         { image: r.photo, title: r.address, amount: [r.purchase_price, r.rent_price], badge: r.status, meta: [r.living_area, r.bedrooms, r.energy_label], footer: [r.place_id, r.agent_name], flags: [r.garden, r.balcony, r.parking] },
-        { label: 'Photos', photos: { resource: 'listing_photos', field: 'listing_id', image: 'photo', sort: 'position' }, favorite: { resource: 'favorites', field: 'listing_id', label: 'Save to favorites' } },
+        { label: 'Photos', photos, favorite: { resource: 'favorites', field: 'listing_id', label: 'Save to favorites' } },
       ),
       d.map({ latitude: r.latitude, longitude: r.longitude, exact: r.position_exact }, { label: 'Map' }),
     ],
@@ -64,17 +72,17 @@ export const listingsView = view<typeof listings>('listings')
     w.toggle(r.parking),
   ])
   .saveSearch({ resource: 'saved_searches' })
+  .recordMode('read')
+  .helpWhen('editing')
   .layout((r) => [
-    l.section('Listing', [r.address, r.postal_code, r.place_id, r.property_type, r.status]),
-    l.section('Price', [r.purchase_price, r.rent_price, r.price_per_m2], { help: 'A purchase price, a rent or both: a home for sale can be let in the meantime.' }),
-    l.section('Size', [r.living_area, r.plot_area, r.rooms, r.bedrooms, r.bathrooms, r.built_year, r.energy_label]),
-    l.section('About', [r.description, r.garden, r.balcony, r.parking]),
-    l.section('Viewing', [r.agency_id, r.agent_name, r.agent_phone], { help: 'Call the agent to plan a viewing.' }),
+    l.gallery('Photos', { image: r.photo, photos }),
+    l.section('Key facts', [r.purchase_price, r.rent_price, r.living_area, r.bedrooms, r.energy_label], { help: keyFactsHelp }),
+    l.section('About this home', [r.description]),
+    l.section('Features', [r.property_type, r.built_year, r.plot_area, r.rooms, r.bathrooms, r.price_per_m2, r.garden, r.balcony, r.parking]),
     l.map('Location', { latitude: r.latitude, longitude: r.longitude }),
-    l.section('Coordinates', [r.latitude, r.longitude, r.position_exact]),
-    l.section('Publishing', [r.photo, r.published_at]),
-    l.sidebar([r.status, r.purchase_price, r.rent_price, r.published_at]),
-    l.related('Photos', { resource: 'listing_photos', field: 'listing_id', sort: 'position', columns: ['caption', 'photo'] }),
+    l.section('Address', [r.address, r.postal_code, r.place_id]),
+    l.section('Viewing', [r.agency_id, r.agent_name, r.agent_phone], { help: viewingHelp, helpWhen: 'always' }),
+    l.sidebar([r.published_at]),
     l.related('Your notes', { resource: 'notes', field: 'listing_id', sort: 'updated_at desc', columns: ['body', 'updated_at'], empty: 'No notes yet: only you see the notes you add.' }),
   ])
 
@@ -88,4 +96,24 @@ export const memberListingsView = listingsView
     a.action('remove_favorite', { label: 'Remove from favorites' }),
     a.link('add_note', { label: 'Add a note', icon: 'file-text', to: { kind: 'create', resource: 'notes', values: { listing_id: '{id}' } } }),
   ])
-  .forRoles(['member', 'admin'])
+  .forRoles(['member'])
+
+/**
+ * Admins edit the listings: their page is everyone's with the sections only an editor needs, the position on the map,
+ * the status, cover photo and publishing, and the photos as records to add, reorder and caption.
+ */
+export const adminListingsView = memberListingsView
+  .layout((r) => [
+    l.gallery('Photos', { image: r.photo, photos }),
+    l.section('Key facts', [r.purchase_price, r.rent_price, r.living_area, r.bedrooms, r.energy_label], { help: keyFactsHelp }),
+    l.section('About this home', [r.description]),
+    l.section('Features', [r.property_type, r.built_year, r.plot_area, r.rooms, r.bathrooms, r.price_per_m2, r.garden, r.balcony, r.parking]),
+    l.map('Location', { latitude: r.latitude, longitude: r.longitude }),
+    l.section('Address', [r.address, r.postal_code, r.place_id]),
+    l.section('Viewing', [r.agency_id, r.agent_name, r.agent_phone], { help: viewingHelp, helpWhen: 'always' }),
+    l.section('Map position', [r.latitude, r.longitude, r.position_exact]),
+    l.section('Publishing', [r.status, r.photo, r.published_at]),
+    l.related('Photo list', { resource: 'listing_photos', field: 'listing_id', sort: 'position', columns: ['position', 'caption', 'photo'] }),
+    l.related('Your notes', { resource: 'notes', field: 'listing_id', sort: 'updated_at desc', columns: ['body', 'updated_at'], empty: 'No notes yet: only you see the notes you add.' }),
+  ])
+  .forRoles(['admin'])

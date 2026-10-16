@@ -4,6 +4,8 @@ import type { places } from './data'
 export const placesView = view<typeof places>('places')
   .title((r) => r.name)
   .names({ singular: 'Place', plural: 'Places' })
+  .recordMode('read')
+  .helpWhen('editing')
   .nav({ group: 'Browse', order: 3 })
   .fields((r) => ({
     region: r.region.help('The province in the Netherlands, the autonomous community in Spain.'),

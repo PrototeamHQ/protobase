@@ -4,6 +4,8 @@ import type { agencies } from './data'
 export const agenciesView = view<typeof agencies>('agencies')
   .title((r) => r.name)
   .names({ singular: 'Agency', plural: 'Agencies' })
+  .recordMode('read')
+  .helpWhen('editing')
   .nav({ group: 'Browse', order: 2 })
   .fields((r) => ({
     place_id: r.place_id.label('Office in'),
