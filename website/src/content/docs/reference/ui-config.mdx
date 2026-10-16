@@ -270,6 +270,43 @@ d.map(
 
 A map does not edit the position: list the fields in a section as well when users should change them. The [property portal example](https://github.com/PrototeamHQ/protobase/tree/main/examples/property-portal) shows a listing on a map, and its listings on one.
 
+#### Map layers
+
+`options.maps.layers` adds other maps of raster tiles, such as aerial photos, next to the style. With layers, every map (`l.map` and `d.map`) has a switch in its top left corner between **Map**, the style's map and the default, and each layer by its `label`. The choice is remembered in the browser for every map, and a layer the app no longer offers falls back to the default. The chosen layer is drawn over the style's map, under the areas and markers, and its `attribution` shows in the map's corner while it is.
+
+```ts
+createAdmin({
+  // ...
+  options: {
+    maps: {
+      layers: [
+        {
+          id: 'aerial_nl',
+          label: 'Aerial (NL)',
+          tiles: 'https://service.pdok.nl/hwh/luchtfotorgb/wmts/v1_0/Actueel_orthoHR/EPSG:3857/{z}/{x}/{y}.jpeg',
+          attribution: 'Luchtfoto <a href="https://www.beeldmateriaal.nl/">Beeldmateriaal Nederland</a>, CC BY 4.0, via <a href="https://www.pdok.nl/">PDOK</a>',
+          bounds: [3.2, 50.7, 7.3, 53.7],
+          maxzoom: 21,
+        },
+      ],
+    },
+  },
+})
+```
+
+| Field | What it is |
+| --- | --- |
+| `id` | Lowercase letters, digits and `_`, unique: what the browser remembers. |
+| `label` | What the switch says. |
+| `tiles` | The http(s) URL of 256-pixel Web Mercator tiles with `{z}`, `{x}` and `{y}`: an XYZ service, or a WMTS `GetTile` URL in its `GoogleMapsCompatible` or `EPSG:3857` tile matrix set, with `{z}` as the tile matrix, `{y}` the row and `{x}` the column. |
+| `attribution` | The credit the tiles' licence asks for; it may hold links. |
+| `bounds` | Optional `[west, south, east, north]` in degrees, where the tiles are. The layer is offered everywhere; outside its bounds no tiles are asked for and the style's map shows through. |
+| `maxzoom` | Optional deepest zoom of the tiles, from 0 to 24 (default 22); closer in, the map enlarges them. |
+
+The browser fetches the tiles, so their host must answer the app's origins with CORS. Layers need a style: without one there is no map to switch. A layer that is not as above stops the server at startup. Use only tiles whose terms allow it: open aerial photos are published per country, such as the Netherlands' [PDOK Luchtfoto](https://www.pdok.nl/-/open-data-hr-luchtfoto) and Spain's [PNOA](https://pnoa.ign.es/) from the IGN, both CC BY 4.0, free and without a key; the [property portal example](https://github.com/PrototeamHQ/protobase/tree/main/examples/property-portal) offers both.
+
+<StoryFrame id="record-page-map--with-layers" title="A record on the map, with a switch to aerial photos" height={640} />
+
 ### Related records
 
 `l.related(title, options)` lists the first records of `resource` that point at the record on the page, in the table or display the resource's list page uses (with its switch, and on a phone its cards in one sideways row, as a [`Table` block](/reference/blocks/#table) shows them), and links to all of them in that list. They point at it directly, through a relation field, or through a join resource (`through`), such as the leases a tenant signed through `lease_tenants`:
