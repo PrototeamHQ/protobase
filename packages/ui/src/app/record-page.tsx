@@ -11,7 +11,6 @@ import { auditField } from '../live/audit-fields'
 import { humanize } from '../live/naming'
 import { recordTitle } from '../live/model-helpers'
 import { toneFor } from '../live/columns-from-model'
-import { formatRelativeTime } from '../format'
 import { Button, buttonClass } from '../primitives/button'
 import { cn } from '../lib/cn'
 import { Field, MetadataCard, RecordHeader, RelatedRecords, Section, SidebarCard, SpecTable } from '../record-view'
@@ -120,7 +119,6 @@ const LoadedRecord = ({ model, recordKey, stored }: { model: ResourceModel; reco
   const statusValue = stored.record.status
   const status = hasStatus && statusValue !== null && statusValue !== undefined && statusValue !== '' ? String(statusValue) : undefined
   const updatedAt = auditField(model, 'updated')
-  const updated = updatedAt && stored.record[updatedAt] ? Math.max(0, Math.round((Date.now() - Date.parse(String(stored.record[updatedAt]))) / 1000)) : undefined
   const hint = (name: string) => view?.fields[name]
   const visible = (name: string) => fieldAccess(stored.permissions, name) !== 'hidden'
 
@@ -235,10 +233,8 @@ const LoadedRecord = ({ model, recordKey, stored }: { model: ResourceModel; reco
       <div className="flex-1">
         <div className="mx-auto max-w-[1100px] px-4 pb-8 pt-6 md:px-10 md:py-8">
           <RecordHeader
-            collection={view?.names?.plural ?? humanize(model.name)}
             title={title}
             status={status ? { label: enumLabel(status, hint('status')?.valueLabels), tone: toneFor(status) } : hasStatus ? undefined : { label: singular, tone: 'neutral' }}
-            lastEditedBy={{ ago: updated === undefined ? 'recently' : formatRelativeTime(updated) }}
             actions={
               <div className="hidden items-center gap-4 md:flex">
                 {saveControls}

@@ -47,3 +47,15 @@ export const Status: StoryObj = {
     expect(within(top).getByText('Vacant')).toBeVisible()
   },
 }
+
+export const TitleOnly: StoryObj = {
+  name: 'The title without the collection or when it was updated (checks)',
+  tags: ['play'],
+  render: () => <Units path="/units/2" />,
+  play: async ({ canvasElement }) => {
+    const top = await header(canvasElement, 'Keizersgracht 120 2.02')
+    // The breadcrumb names the collection as a link, and the sidebar says when the record changed
+    expect(within(top).queryByText('Units')).toBeNull()
+    expect(top.textContent).not.toMatch(/Last updated|Last edited/)
+  },
+}
