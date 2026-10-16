@@ -29,7 +29,7 @@ import { createFilesRuntime } from './files/runtime'
 import { toApiFunction, type FunctionSource } from './functions/define-function'
 import { callerRecords } from './functions/records'
 import { functionRoutes } from './functions/routes'
-import { mapStyleUrl } from './maps/map-settings'
+import { mapSettings } from './maps/map-settings'
 import { createMeta } from './meta'
 import { buildRegistry } from './registry'
 import type { ResourceSource } from './resource-source'
@@ -118,7 +118,7 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], pag
   const assistant = assistantSettings(options.assistant, globalThis.process?.env ?? {})
   const runtime = runtimeUrl(options.runtime, globalThis.process?.env ?? {})
   const errorReporting = errorReportingSettings(options.errorReporting, globalThis.process?.env ?? {})
-  const mapStyle = mapStyleUrl(options.maps, globalThis.process?.env ?? {})
+  const maps = mapSettings(options.maps, globalThis.process?.env ?? {})
   const plugins = pluginOptions(options.plugins, globalThis.process?.env ?? {}, bundlePlugins)
   const sources = sourceOptions(options.sources, globalThis.process?.env ?? {})
   checkSourceNames(sources, { resources: registry.entries.map((entry) => entry.name), pages: pageModels.map((entry) => entry.name) })
@@ -142,7 +142,7 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], pag
     ...(assistant && { assistant: assistant.kind === 'external' ? assistant.url : `${systemPath}/assistant` }),
     ...(runtime && { runtime }),
     ...(errorReporting && { errorReporting }),
-    ...(mapStyle && { mapStyle }),
+    ...(maps && { maps }),
     plugins,
     sources,
     ...(files && { files }),

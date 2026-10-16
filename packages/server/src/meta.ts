@@ -6,6 +6,7 @@ import { seesAssistant } from './assistant/assistant-settings'
 import type { Deps } from './deps'
 import type { ErrorReportingSettings } from './error-reporting/error-reporting-settings'
 import { sha256Hex, stableJson } from './hash'
+import type { MapSettings } from './maps/map-settings'
 import { pluginsFor, type PluginRef } from './plugins/plugin-settings'
 import { requestAccess } from './request-access'
 import { seesRuntime } from './runtime/runtime-settings'
@@ -40,8 +41,8 @@ export type CallerMeta = {
   runtime?: { url: string }
   /** Where the admin app sends its errors, when the app reports them: the DSN is public, as in any browser app. */
   errorReporting?: ErrorReportingSettings
-  /** The map style the admin app draws the record page's maps with, when the app has one: public, as the tiles are. */
-  maps?: { style: string }
+  /** The map style the admin app draws its maps with, and the layers they may switch to, when the app has one: public, as the tiles are. */
+  maps?: MapSettings
   /** The hosts besides the app's own whose images the admin app draws with the page's referrer, when there are any. */
   files?: { trustedHosts: string[] }
   /** The plugins the admin app loads for the caller: those for everyone, and those for one of their roles. */
@@ -111,7 +112,7 @@ export const createMeta = (deps: Deps) => {
       ...(deps.assistant && seesAssistant(session.user.roles) && { assistant: { url: deps.assistant } }),
       ...(deps.runtime && seesRuntime(session.user.roles) && { runtime: { url: deps.runtime } }),
       ...(deps.errorReporting && { errorReporting: deps.errorReporting }),
-      ...(deps.mapStyle && { maps: { style: deps.mapStyle } }),
+      ...(deps.maps && { maps: deps.maps }),
       ...(deps.files && deps.files.trustedHosts.length > 0 && { files: { trustedHosts: deps.files.trustedHosts } }),
       ...(plugins.length > 0 && { plugins }),
       ...(sources.length > 0 && { sources }),

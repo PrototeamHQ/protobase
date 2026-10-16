@@ -69,11 +69,18 @@ export type ResourcePermissions = { read?: boolean; create: boolean; update: boo
  * `runtime`: the runtime updates endpoint, for a caller with the `admin` role when the app has one.
  * `signIn`: for a visitor who is not signed in, the resources they could use once signed in, with what to tell them.
  * `bottomBar`: the tabs on phones, of the bottom bar that names the caller's active role.
+ * `maps`: the map style the admin app draws maps with, and the layers of raster tiles its maps may switch to.
  * `files`: the hosts besides the page's own whose images the admin app draws with the page's referrer.
  * `plugins`: the plugins the admin app loads for the caller, each by its plugin.json.
  * `sources`: the other APIs whose resources the admin app draws for the caller.
  */
-export type Meta = { resources: ResourceModel[]; views: ViewModel[]; pages?: PageModel[]; permissions?: Record<string, ResourcePermissions>; userMenu?: UserMenuModel; signIn?: SignInViewModel[]; bottomBar?: Omit<BottomBarModel, 'roles'>; assistant?: { url: string }; runtime?: { url: string }; errorReporting?: { dsn: string; environment?: string }; maps?: { style: string }; files?: { trustedHosts: string[] }; plugins?: PluginRef[]; sources?: SourceRef[] }
+export type Meta = { resources: ResourceModel[]; views: ViewModel[]; pages?: PageModel[]; permissions?: Record<string, ResourcePermissions>; userMenu?: UserMenuModel; signIn?: SignInViewModel[]; bottomBar?: Omit<BottomBarModel, 'roles'>; assistant?: { url: string }; runtime?: { url: string }; errorReporting?: { dsn: string; environment?: string }; maps?: { style: string; layers?: MapLayerModel[] }; files?: { trustedHosts: string[] }; plugins?: PluginRef[]; sources?: SourceRef[] }
+
+/**
+ * A map of raster tiles a map may switch to in place of the style's: `tiles` is its URL with `{z}`, `{x}` and `{y}`,
+ * `attribution` the credit shown while it is, `bounds` `[west, south, east, north]` where its tiles are.
+ */
+export type MapLayerModel = { id: string; label: string; tiles: string; attribution: string; bounds?: [number, number, number, number]; maxzoom?: number }
 
 /** A plugin as `/meta` names it: the URL of its plugin.json, and the settings it reads with `usePlugin()`. */
 export type PluginRef = { url: string; settings?: Record<string, unknown> }

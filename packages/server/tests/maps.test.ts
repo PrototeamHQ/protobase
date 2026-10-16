@@ -30,6 +30,12 @@ describe('the map style in /meta', () => {
     expect((await metaFor(app, 'sales')).maps).toEqual({ style: 'https://tiles.example.com/style.json' })
   })
 
+  it('names the layers the maps may switch to, beside the style', async () => {
+    const layers = [{ id: 'aerial_nl', label: 'Aerial', tiles: 'https://tiles.example.com/{z}/{x}/{y}.jpeg', attribution: 'Tiles CC BY 4.0', bounds: [3.2, 50.7, 7.3, 53.6] as [number, number, number, number] }]
+    const app = admin({ style: 'https://tiles.example.com/style.json', layers })
+    expect((await metaFor(app, 'sales')).maps).toEqual({ style: 'https://tiles.example.com/style.json', layers })
+  })
+
   it('is off without a style', async () => {
     expect(await metaFor(admin(undefined), 'admin')).not.toHaveProperty('maps')
     expect(await metaFor(admin(false), 'admin')).not.toHaveProperty('maps')

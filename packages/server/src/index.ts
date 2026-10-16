@@ -64,7 +64,7 @@ export { streamChatCompletion, ModelError, type ChatMessage, type ChatTextPart, 
 export { readOnlyQueryTool, readWriteQueryTool } from './assistant/query-tools'
 export { runReadOnlyQuery, runReadWriteQuery, type QueryOptions, type QueryResult } from './assistant/run-query'
 export { runtimeUrl, runtimeVariable, seesRuntime, type RuntimeOptions } from './runtime/runtime-settings'
-export { mapStyleUrl, mapStyleVariable, type MapOptions } from './maps/map-settings'
+export { mapSettings, mapStyleUrl, mapStyleVariable, type MapLayer, type MapOptions, type MapSettings } from './maps/map-settings'
 export { errorReportingSettings, errorReportingVariable, type ErrorReportingOptions, type ErrorReportingSettings } from './error-reporting/error-reporting-settings'
 export { startErrorReporting, type ErrorReporter } from './error-reporting/error-reporter'
 export { beforeSignInPluginsVariable, pluginOptions, pluginsBeforeSignIn, pluginsFor, pluginsVariable, type PluginOption, type PluginRef } from './plugins/plugin-settings'

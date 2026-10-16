@@ -48,8 +48,9 @@ export type AdminOptions = {
   /** The runtime updates endpoint behind the top bar's update button (see `RuntimeOptions`); `false` turns it off. */
   runtime?: RuntimeOptions | false
   /**
-   * The map style the record page's maps (`l.map`) are drawn with (see `MapOptions`). Defaults to the one the platform
-   * passes in `PROTOBASE_MAP_STYLE_URL`; without either, or with `false`, the app draws no maps.
+   * The map style the app's maps (`l.map`, `d.map`) are drawn with, and the layers they may switch to (see
+   * `MapOptions`). The style defaults to the one the platform passes in `PROTOBASE_MAP_STYLE_URL`; without either, or
+   * with `false`, the app draws no maps.
    */
   maps?: MapOptions | false
   /**

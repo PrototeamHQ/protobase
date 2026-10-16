@@ -3,6 +3,7 @@ import type { Db } from '@protobase/query'
 import type { BottomBarModel, ResolveOptions, UserMenuModel, ViewModel } from '@protobase/schema'
 import type { ErrorReportingSettings } from './error-reporting/error-reporting-settings'
 import type { FilesRuntime } from './files/runtime'
+import type { MapSettings } from './maps/map-settings'
 import type { PluginOption } from './plugins/plugin-settings'
 import type { Registry } from './registry'
 import type { SourceOption } from './sources/source-settings'
@@ -35,8 +36,8 @@ export type Deps = {
   runtime?: string
   /** Where the admin app sends its errors, which `/meta` names to everyone. */
   errorReporting?: ErrorReportingSettings
-  /** The URL of the map style the admin app draws maps with, which `/meta` names to everyone. */
-  mapStyle?: string
+  /** The map style the admin app draws maps with and the layers they may switch to, which `/meta` names to everyone. */
+  maps?: MapSettings
   /** The plugins `/meta` names to the callers they are for. */
   plugins: PluginOption[]
   /** The other APIs whose resources `/meta` names to the callers they are for. */

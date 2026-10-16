@@ -21,6 +21,7 @@ export type {
   MapBounds,
   MapBucket,
   MapResult,
+  MapLayerModel,
   Meta,
   ResourcePermissions,
   MetaResult,
