@@ -5,6 +5,8 @@ import { mergeConfig } from 'vite'
 const config: StorybookConfig = {
   stories: ['../packages/*/src/**/*.stories.tsx'],
   addons: ['@storybook/addon-docs'],
+  // Protobase's favicon and the lockup manager.ts shows.
+  staticDirs: [{ from: './brand', to: '/' }],
   framework: '@storybook/react-vite',
   viteFinal: (viteConfig) =>
     mergeConfig(viteConfig, {
