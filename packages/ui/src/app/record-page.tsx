@@ -236,7 +236,7 @@ const LoadedRecord = ({ model, recordKey, stored }: { model: ResourceModel; reco
             </div>
           )}
           {shown !== 'form' && offersEdit && editor.dirty && (
-            <div className="mt-4 flex items-center justify-between gap-3 rounded-lg border bg-surface px-3 py-2 text-[13px]" role="status">
+            <div className="mt-4 flex items-center justify-between gap-3 rounded-lg border bg-surface px-3 py-2" role="status">
               <span>You have unsaved changes to this record.</span>
               <span className="flex gap-2">
                 <AppLink to={editAddress} className={buttonClass({ size: 'sm' })}>Continue editing</AppLink>
@@ -245,7 +245,7 @@ const LoadedRecord = ({ model, recordKey, stored }: { model: ResourceModel; reco
             </div>
           )}
           {shown === 'form' && editor.restored && (
-            <div className="mt-4 flex items-center justify-between gap-3 rounded-lg border bg-surface px-3 py-2 text-[13px]" role="status">
+            <div className="mt-4 flex items-center justify-between gap-3 rounded-lg border bg-surface px-3 py-2" role="status">
               <span>Your unsaved changes were restored.</span>
               <span className="flex gap-2">
                 <Button size="sm" onClick={editor.dismissRestored}>Keep</Button>

@@ -32,7 +32,7 @@ export const SidePanel = ({ title, icon, status, onClose, footer, children }: Si
     >
       <header className="flex h-12 shrink-0 items-center gap-2 border-b border-border bg-background px-4">
         {icon}
-        <h2 className="flex-1 text-[13px] font-semibold">{title}</h2>
+        <h2 className="flex-1 font-semibold">{title}</h2>
         {status && <span className="truncate text-xs font-medium text-muted-foreground">{status}</span>}
         {onClose && (
           <Button variant="ghost" size="sm" className="w-7 px-0" aria-label="Close" onClick={onClose}>

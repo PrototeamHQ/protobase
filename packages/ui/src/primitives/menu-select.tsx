@@ -51,14 +51,14 @@ export const MenuSelect = <T extends string>({ value, options, onChange, label }
         aria-haspopup="menu"
         aria-expanded={open}
         onClick={() => setOpen(!open)}
-        className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border-strong bg-background px-2.5 text-[13px] font-medium shadow-sm transition-colors hover:bg-muted pointer-coarse:h-11"
+        className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border-strong bg-background px-2.5 text-body font-medium shadow-sm transition-colors hover:bg-muted pointer-coarse:h-11"
       >
         {current?.icon && <current.icon className="size-3.5" />}
         {current?.label ?? label}
         <ChevronDown className="size-3.5 text-muted-foreground" />
       </button>
       {open && (
-        <ul role="menu" aria-label={label} onKeyDown={onKeyDown} className="absolute right-0 top-full z-30 mt-1 min-w-40 rounded-md border bg-background py-1 text-[13px] shadow-pop">
+        <ul role="menu" aria-label={label} onKeyDown={onKeyDown} className="absolute right-0 top-full z-30 mt-1 min-w-40 rounded-md border bg-background py-1 text-body shadow-pop">
           {options.map((option, index) => (
             <li key={option.value} role="none">
               <button

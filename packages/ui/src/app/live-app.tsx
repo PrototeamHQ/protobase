@@ -38,11 +38,11 @@ export const LiveApp = ({ baseUrl, start, sidebarMode }: { baseUrl: string; star
     }
   }, [baseUrl, start])
 
-  if (reach.state === 'checking') return <div className="p-8 text-[13px] text-muted-foreground">Connecting to {baseUrl}...</div>
+  if (reach.state === 'checking') return <div className="p-8 text-muted-foreground">Connecting to {baseUrl}...</div>
   if (reach.state === 'down') {
     return (
-      <div className="mx-auto max-w-lg p-10 text-[13px]">
-        <h1 className="text-[15px] font-semibold">Live story skipped: no API at {baseUrl}</h1>
+      <div className="mx-auto max-w-lg p-10">
+        <h1 className="text-[16px] font-semibold">Live story skipped: no API at {baseUrl}</h1>
         <p className="mt-2 text-muted-foreground">{reach.reason}</p>
         <p className="mt-2 text-muted-foreground">
           Start the ERP database and server with <code className="font-mono">bun run db:up</code> and <code className="font-mono">bun run --cwd examples/erp serve</code>, then reload. To use another server, set <code className="font-mono">PROTOBASE_API</code> when starting Storybook or pick another API in the toolbar.

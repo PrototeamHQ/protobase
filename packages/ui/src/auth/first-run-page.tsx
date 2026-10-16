@@ -15,7 +15,7 @@ export const FirstRunPage = ({ command = createAdminCommand, onCheckAgain, busy 
   const [copied, setCopied] = useState(false)
   return (
     <AuthLayout title="No admin yet" description="This Protobase has no users to sign in with.">
-      <p className="text-[13px] text-muted-foreground">Run this in the terminal where Protobase runs, then reload. The first admin is created on the server, not in the browser, so nobody else can claim a fresh URL.</p>
+      <p className="text-muted-foreground">Run this in the terminal where Protobase runs, then reload. The first admin is created on the server, not in the browser, so nobody else can claim a fresh URL.</p>
       <div className="mt-4 flex items-center gap-2 rounded-md border bg-surface py-1.5 pl-3 pr-1.5">
         <code className="min-w-0 flex-1 break-all font-mono text-xs">{command}</code>
         <button

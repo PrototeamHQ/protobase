@@ -26,17 +26,17 @@ const stateOf = (entry: StaffSignIn, now: number) =>
 export const StaffSignInLog = ({ signIns, operator, error, now = Date.now() }: StaffSignInLogProps) => (
   <AccountSection title="Staff sign-ins" description={`Each time staff of ${operator} signed in as someone here, newest first.`}>
     <SectionError message={error} />
-    {signIns && signIns.length === 0 && <p className="text-[13px] text-muted-foreground">No staff has signed in as anyone yet.</p>}
+    {signIns && signIns.length === 0 && <p className="text-muted-foreground">No staff has signed in as anyone yet.</p>}
     {signIns && signIns.length > 0 && (
       <ul className="divide-y rounded-md border">
         {signIns.map((entry) => (
           <li key={entry.id} className="flex flex-col gap-1.5 p-3">
-            <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px]">
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
               <span className="font-medium break-all">{entry.staffName ? `${entry.staffName} (${entry.staff})` : entry.staff}</span>
               <span className="text-muted-foreground">as</span>
               <span className="font-medium break-all">{entry.user}</span>
             </div>
-            <p className="text-[13px] break-words">{entry.reason}</p>
+            <p className="break-words">{entry.reason}</p>
             <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
               <span>{formatDateTime(Date.parse(entry.startedAt))}</span>
               {stateOf(entry, now)}

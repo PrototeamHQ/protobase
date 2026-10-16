@@ -174,7 +174,7 @@ export const ProjectShellSlots: StoryObj = {
         client={fakeClient({ permissions: allowed })}
         auth={session}
         initialUrl="/orders"
-        ui={{ shell: { actions: () => <Button size="sm">Notes</Button>, rightPanel: () => <SidePanel title="Notes"><p className="p-4 text-[13px]">Pinned notes for this team.</p></SidePanel> } }}
+        ui={{ shell: { actions: () => <Button size="sm">Notes</Button>, rightPanel: () => <SidePanel title="Notes"><p className="p-4">Pinned notes for this team.</p></SidePanel> } }}
       />
     </div>
   ),
@@ -190,7 +190,7 @@ export const ProjectShellSlots: StoryObj = {
 const RijnlandLogo = ({ compact }: ShellLogoProps) => (
   <div className="flex items-center gap-2.5">
     <span className="flex size-7 shrink-0 items-center justify-center rounded-md bg-primary text-[11px] font-bold text-primary-foreground">RI</span>
-    {!compact && <span className="text-[13px] font-semibold">Rijnland Industrial</span>}
+    {!compact && <span className="font-semibold">Rijnland Industrial</span>}
   </div>
 )
 

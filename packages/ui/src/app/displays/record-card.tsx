@@ -146,7 +146,7 @@ export const RecordCard = ({ model, view, display, row, swipe = true, mark }: Re
   const card = (picture: ReactNode) => (
     <AppLink
       to={{ kind: 'record', resource: model.name, key: row.key }}
-      className="flex h-full flex-col gap-1.5 rounded-lg border border-border bg-background p-3 text-[13px] hover:border-border-strong hover:bg-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+      className="flex h-full flex-col gap-1.5 rounded-lg border border-border bg-background p-3 hover:border-border-strong hover:bg-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
     >
       {mark && !pictured && (
         <Badge tone="blue" className="self-start">

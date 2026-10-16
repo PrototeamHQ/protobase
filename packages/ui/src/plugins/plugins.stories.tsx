@@ -20,7 +20,7 @@ export default meta
 /** A plugin's component: it reads the plugin it belongs to and the settings the app gave it. */
 const Greeting = () => {
   const plugin = usePlugin()
-  return <p className="text-[13px]">{`${plugin.name} ${plugin.version} says ${String(plugin.settings.greeting)}`}</p>
+  return <p>{`${plugin.name} ${plugin.version} says ${String(plugin.settings.greeting)}`}</p>
 }
 
 /** A plugin's component that throws while drawing. */

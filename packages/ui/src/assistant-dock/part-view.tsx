@@ -15,7 +15,7 @@ export const PartView = ({ part, onAction }: { part: AssistantPart; onAction?: (
     case 'card':
       return (
         <ActionCard title={part.title} tone={part.tone} badge={part.badge} note={part.note} actions={part.actions} onAction={(actionId) => onAction?.(part.id, actionId)}>
-          {part.body && <p className="text-[13px]">{part.body}</p>}
+          {part.body && <p>{part.body}</p>}
           {part.code && <pre className="overflow-x-auto rounded-md bg-surface px-2.5 py-2 font-mono text-[11px] whitespace-pre-wrap break-words">{part.code}</pre>}
           {part.fields && part.fields.length > 0 && <FieldList fields={part.fields} />}
           {part.steps && part.steps.length > 0 && <StepList steps={part.steps} />}

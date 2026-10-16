@@ -46,7 +46,7 @@ export const RelationPicker = ({ target, view, value, label, invalid, onChange }
         onChange={(event) => setText(event.target.value)}
       />
       {open && (
-        <ul role="listbox" className="absolute z-30 mt-1 max-h-60 w-full overflow-y-auto rounded-md border bg-background py-1 text-[13px] shadow-pop">
+        <ul role="listbox" className="absolute z-30 mt-1 max-h-60 w-full overflow-y-auto rounded-md border bg-background py-1 shadow-pop">
           {options.data?.items.map((item) => (
             <li key={String(item[keyField])}>
               <button

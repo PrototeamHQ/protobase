@@ -39,7 +39,7 @@ const InviteForm = ({ current, onSent }: { current: CurrentOrganization; onSent:
       <form className="flex flex-col gap-3" onSubmit={(event) => { event.preventDefault(); void invite() }}>
         <div className="flex flex-col gap-2 sm:flex-row">
           <Input aria-label="Email" type="email" placeholder="name@example.com" value={email} onChange={(event) => setEmail(event.target.value)} wrapperClassName="flex-1" />
-          <select aria-label="Organization role" value={role} onChange={(event) => setRole(event.target.value as OrganizationRole)} className="h-8 rounded-md border border-border-strong bg-background px-2 text-[13px]">
+          <select aria-label="Organization role" value={role} onChange={(event) => setRole(event.target.value as OrganizationRole)} className="h-8 rounded-md border border-border-strong bg-background px-2">
             {assignableOrganizationRoles(current).map((option) => <option key={option} value={option}>{organizationRoleLabels[option]}</option>)}
           </select>
           <Button type="submit" variant="primary" loading={busy} disabled={!email.trim()}>Invite</Button>
@@ -60,7 +60,7 @@ const PendingRow = ({ invitation, organizationId, onChanged }: { invitation: Org
     <li className="px-3 py-2.5">
       <div className="flex flex-wrap items-center gap-2">
         <span className="min-w-0 flex-1">
-          <span className="block truncate text-[13px] font-medium">{invitation.email}</span>
+          <span className="block truncate font-medium">{invitation.email}</span>
           <span className="block text-xs text-muted-foreground">
             {organizationRoleLabels[invitation.role]}
             {invitation.appRoles.length > 0 && ` · ${invitation.appRoles.map((name) => roleLabel(organizations?.roles ?? [], name)).join(', ')}`} · {expired ? 'Expired' : `Until ${new Date(invitation.expiresAt).toLocaleDateString()}`}

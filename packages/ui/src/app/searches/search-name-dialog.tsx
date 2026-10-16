@@ -50,7 +50,7 @@ export const SearchNameDialog = ({ title, chips, label, required, initial = '', 
       >
         {chips.length > 0 && <FilterChipList chips={chips} />}
         <div className="flex flex-col gap-1.5">
-          <div className="flex items-baseline justify-between gap-2 text-[13px]">
+          <div className="flex items-baseline justify-between gap-2">
             <label htmlFor={id} className="font-medium">
               {label}
             </label>

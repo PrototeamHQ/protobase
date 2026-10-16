@@ -57,7 +57,7 @@ export const SavedSearchSection = ({ model, view, of, target, targetView, row, r
     <section aria-label={title} className="flex flex-col gap-3 rounded-lg border bg-surface p-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="flex min-w-0 flex-col gap-2">
-          <h2 className="text-[15px] font-semibold">
+          <h2 className="text-[16px] font-semibold">
             <AppLink to={{ kind: 'record', resource: model.name, key: recordKey }} className="hover:underline">
               {name ?? <InlineFilterChips chips={chips} />}
             </AppLink>

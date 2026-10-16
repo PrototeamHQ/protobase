@@ -9,7 +9,7 @@ export type SegmentedOption<T extends string> = { value: T; label: string; icon?
  */
 export type SegmentedProps<T extends string> = { value: T; options: Array<SegmentedOption<T>>; onChange: (value: T) => void; label?: string; size?: 'sm' | 'md'; iconOnly?: boolean }
 
-const sizes = { sm: { group: 'h-7', option: 'px-2.5 text-xs' }, md: { group: 'h-8', option: 'px-3 text-[13px]' } }
+const sizes = { sm: { group: 'h-7', option: 'px-2.5 text-xs' }, md: { group: 'h-8', option: 'px-3 text-body' } }
 
 export const Segmented = <T extends string>({ value, options, onChange, label, size = 'sm', iconOnly = false }: SegmentedProps<T>) => (
   <span role="group" aria-label={label} className={cn('inline-flex', sizes[size].group, 'rounded-md bg-muted p-0.5')}>

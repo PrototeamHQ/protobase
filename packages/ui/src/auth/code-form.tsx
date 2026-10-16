@@ -34,7 +34,7 @@ export const CodeForm = ({ title, description, explanation, submitLabel, onSubmi
   const [code, setCode] = useState('')
   return (
     <AuthLayout title={title} description={description}>
-      <p className="mb-4 text-[13px] text-muted-foreground">{explanation}</p>
+      <p className="mb-4 text-muted-foreground">{explanation}</p>
       {notice && (
         <p role="status" className="mb-4 rounded-md bg-success-soft px-3 py-2 text-xs font-medium text-success-text">
           {notice}
@@ -47,7 +47,7 @@ export const CodeForm = ({ title, description, explanation, submitLabel, onSubmi
           onSubmit(code)
         }}
       >
-        <label className="flex flex-col gap-1.5 text-[13px] font-medium">
+        <label className="flex flex-col gap-1.5 font-medium">
           Code
           <OtpInput name="code" required autoFocus value={code} invalid={Boolean(error)} onChange={setCode} onComplete={(complete) => !busy && onSubmit(complete)} />
         </label>

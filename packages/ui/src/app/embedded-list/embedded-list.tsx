@@ -75,7 +75,7 @@ export const EmbeddedList = ({ model, view, filter, sort, columns, limit, displa
     <AppLink
       to={viewAllAddress(model, view, xs, viewAll ? { filter: viewAll.filter, orderBy: defaultOrderBy(model, view), display, savedSearch: viewAll.savedSearch } : { filter, orderBy, display })}
       onClick={viewAll?.onOpen}
-      className="flex items-center gap-1 self-end text-[13px] font-medium text-primary-text hover:underline"
+      className="flex items-center gap-1 self-end font-medium text-primary-text hover:underline"
     >
       {viewAll ? viewAll.label : <>View all <span className="sr-only">{plural.toLowerCase()}</span></>}
       <ArrowRight className="size-3.5" aria-hidden />
@@ -86,7 +86,7 @@ export const EmbeddedList = ({ model, view, filter, sort, columns, limit, displa
   if (rows.error) return <ErrorBanner title="Could not load" error={rows.error} />
   // A link of its own still leads somewhere when nothing here matches
   if (!source || source.total === 0) {
-    const nothing = <p className="text-[13px] text-muted-foreground">{empty ?? 'Nothing here yet.'}</p>
+    const nothing = <p className="text-muted-foreground">{empty ?? 'Nothing here yet.'}</p>
     return viewAll && link ? <div className="flex flex-col gap-3">{nothing}{allLink}</div> : nothing
   }
 

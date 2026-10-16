@@ -9,7 +9,7 @@ import { providerName } from './provider-link'
 /** What the page shows while the browser leaves for the provider `name`. */
 export const ProviderRedirect = ({ name, workspace }: { name: string; workspace?: string }) => (
   <AuthLayout title={`Signing in with ${name}`} description={workspace}>
-    <p role="status" className="flex items-center justify-center gap-2 text-[13px] text-muted-foreground">
+    <p role="status" className="flex items-center justify-center gap-2 text-muted-foreground">
       <Spinner /> Taking you to {name}…
     </p>
   </AuthLayout>

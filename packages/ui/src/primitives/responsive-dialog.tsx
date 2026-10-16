@@ -31,7 +31,7 @@ export const ResponsiveDialog = ({ title, description, open, onClose, actions, c
   }
   return (
     <Sheet title={title} open onClose={onClose}>
-      <div className="pt-3 text-[13px]">
+      <div className="pt-3">
         {description && <p className="text-muted-foreground">{description}</p>}
         {children && <div className="mt-4">{children}</div>}
         <div className="mt-5 flex flex-col-reverse gap-2 [&>*]:min-h-11">{actions}</div>

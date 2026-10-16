@@ -45,7 +45,7 @@ export const SensitiveField = ({ field, hints, value, reveal, locked, invalid, p
   if (locked) {
     return (
       <div>
-        <div className="flex items-center gap-2 py-1 text-[13px]">
+        <div className="flex items-center gap-2 py-1">
           <span className={cn(shown ? (hints?.format === 'code' ? 'font-mono text-xs' : '') : 'tracking-widest text-muted-foreground')}>{shown ? displayValue(field, stored.data, hints) : mask}</span>
           {reveal && eye}
         </div>

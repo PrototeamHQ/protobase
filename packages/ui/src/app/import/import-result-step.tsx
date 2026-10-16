@@ -11,7 +11,7 @@ const count = (value: number) => value.toLocaleString('en-IE')
 export const ImportProgressStep = ({ progress, total, cancelling }: { progress: ImportProgress; total: number; cancelling: boolean }) => {
   const done = progress.created + progress.updated + progress.failed
   return (
-    <div className="flex flex-col gap-2 text-[13px]">
+    <div className="flex flex-col gap-2">
       <div className="flex items-baseline justify-between gap-2 text-xs">
         <span className="text-muted-foreground">{cancelling ? 'Stopping after this batch…' : 'Saving rows…'}</span>
         <span className="tabular-nums">
@@ -35,7 +35,7 @@ type ImportSummaryProps = {
 
 /** What the import did: created, updated, skipped and failed rows, and the rows it did not write with the reasons, to download. */
 export const ImportSummary = ({ result, stopped, headers, fileName }: ImportSummaryProps) => (
-  <div className="flex flex-col gap-4 text-[13px]">
+  <div className="flex flex-col gap-4">
     {stopped !== undefined && <ErrorBanner title="The import stopped. The rows counted below were saved." error={stopped} />}
     {result.cancelled && <p role="status">Cancelled. The rows counted below were saved.</p>}
     <ImportCounts

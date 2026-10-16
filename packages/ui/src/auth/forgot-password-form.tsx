@@ -21,7 +21,7 @@ export const ForgotPasswordForm = ({ onSubmit, back, busy, error, sentTo }: Forg
   if (sentTo) {
     return (
       <AuthLayout title="Check your email">
-        <p className="text-[13px] text-muted-foreground">
+        <p className="text-muted-foreground">
           If <span className="font-medium text-foreground">{sentTo}</span> has an account, an email with a link to choose a new password is on its way. The link works once, for a limited time.
         </p>
         <RouteLink to={back} className={cn(buttonClass({ variant: 'primary' }), 'mt-4 min-h-10 w-full')}>
@@ -39,7 +39,7 @@ export const ForgotPasswordForm = ({ onSubmit, back, busy, error, sentTo }: Forg
           onSubmit(email.trim())
         }}
       >
-        <label className="flex flex-col gap-1.5 text-[13px] font-medium">
+        <label className="flex flex-col gap-1.5 font-medium">
           Email
           <Input type="email" name="email" autoComplete="username" required autoFocus value={email} invalid={Boolean(error)} onChange={(event) => setEmail(event.target.value)} className="min-h-6" />
         </label>

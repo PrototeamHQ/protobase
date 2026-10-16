@@ -29,7 +29,7 @@ export const SignUpDetailsForm = ({ email, onSubmit, onBack, methods, busy, erro
   const passwordOptional = methods.includes('emailCode')
   return (
     <AuthLayout title="Your details" description="One last step to create your account.">
-      <p className="mb-4 text-[13px] text-muted-foreground">
+      <p className="mb-4 text-muted-foreground">
         The code was right: the account is for <span className="font-medium text-foreground">{email}</span>.
       </p>
       <form
@@ -39,13 +39,13 @@ export const SignUpDetailsForm = ({ email, onSubmit, onBack, methods, busy, erro
           onSubmit({ name: name.trim(), ...(withPassword && password && { password }) })
         }}
       >
-        <label className="flex flex-col gap-1.5 text-[13px] font-medium">
+        <label className="flex flex-col gap-1.5 font-medium">
           Your name
           <Input name="name" autoComplete="name" required autoFocus maxLength={200} value={name} onChange={(event) => setName(event.target.value)} className="min-h-6" />
         </label>
         {withPassword && (
           <div className="flex flex-col gap-1.5">
-            <label className="flex flex-col gap-1.5 text-[13px] font-medium">
+            <label className="flex flex-col gap-1.5 font-medium">
               {passwordOptional ? 'Password (optional)' : 'Password'}
               <Input
                 type="password"

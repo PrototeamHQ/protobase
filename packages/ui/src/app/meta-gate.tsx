@@ -17,8 +17,8 @@ export const useAdminMeta = () => {
 const Notice = ({ title, children }: { title: string; children: ReactNode }) => (
   <div className="flex h-full min-h-48 flex-1 items-center justify-center p-8">
     <div className="max-w-md text-center">
-      <h1 className="text-[15px] font-semibold">{title}</h1>
-      <p className="mt-1 text-[13px] text-muted-foreground">{children}</p>
+      <h1 className="text-[16px] font-semibold">{title}</h1>
+      <p className="mt-1 text-muted-foreground">{children}</p>
     </div>
   </div>
 )
@@ -57,7 +57,7 @@ export const MetaGate = ({ children }: { children: ReactNode }) => {
   const meta = useMeta()
   if (meta.isPending) {
     return (
-      <div className="flex h-full min-h-48 items-center justify-center gap-2 text-[13px] text-muted-foreground">
+      <div className="flex h-full min-h-48 items-center justify-center gap-2 text-muted-foreground">
         <Spinner /> Loading
       </div>
     )

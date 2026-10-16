@@ -18,7 +18,7 @@ const SearchRowItem = ({ model, view, target, targetView, row }: SearchRowItemPr
   const { name, chips, title, body } = useSearchRow({ model, of: view.searchesOf!, target, targetView, row, recordKey: key })
   return (
     <section aria-label={title} className="flex flex-col gap-3 py-4 first:pt-0 last:pb-0">
-      <h3 className="text-[14px] font-semibold">
+      <h3 className="text-[15px] font-semibold">
         <AppLink to={{ kind: 'record', resource: model.name, key }} className="hover:underline">
           {name ?? <InlineFilterChips chips={chips} />}
         </AppLink>
@@ -41,7 +41,7 @@ export const SavedSearchRows = ({ model, view, empty }: { model: ResourceModel; 
   if (!target) return null
   if (saved.error) return <ErrorBanner title={`Could not load your ${plural}`} error={saved.error} />
   if (!saved.data) return <Skeleton className="h-40" />
-  if (saved.data.length === 0) return <p className="text-[13px] text-muted-foreground">{empty ?? `No ${plural} yet.`}</p>
+  if (saved.data.length === 0) return <p className="text-muted-foreground">{empty ?? `No ${plural} yet.`}</p>
   return (
     <div className="flex flex-col divide-y">
       {saved.data.map((row) => (

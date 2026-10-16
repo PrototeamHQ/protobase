@@ -32,7 +32,7 @@ export const SidebarModes: StoryObj = {
         {sidebarModes.map((mode) => (
           <div key={mode} className="flex shrink-0 flex-col gap-3" style={{ width: columns[mode].width }}>
             <div>
-              <div className="text-[13px] font-semibold">{columns[mode].title}</div>
+              <div className="font-semibold">{columns[mode].title}</div>
               <div className="text-xs text-muted-foreground">{columns[mode].note}</div>
             </div>
             <div className="flex min-h-0 flex-1 overflow-hidden rounded-lg border bg-background">

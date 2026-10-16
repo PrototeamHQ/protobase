@@ -10,7 +10,7 @@ const describe = (error: unknown): Detail[] => {
 }
 
 export const ErrorBanner = ({ error, title }: { error: unknown; title: string }) => (
-  <div role="alert" className="flex gap-2.5 rounded-lg border border-danger/30 bg-danger-soft px-3 py-2 text-[13px] text-danger-text">
+  <div role="alert" className="flex gap-2.5 rounded-lg border border-danger/30 bg-danger-soft px-3 py-2 text-danger-text">
     <TriangleAlert className="mt-0.5 size-4 shrink-0" />
     <div>
       <p className="font-medium">{title}</p>

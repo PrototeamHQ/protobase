@@ -16,7 +16,7 @@ describe('ActionCard', () => {
   it('draws a bordered card with a title row by default', () => {
     const html = render()
     expect(html).toMatch(/^<section aria-label="New task" class="[^"]*rounded-lg border /)
-    expect(html).toContain('<h3 class="min-w-0 flex-1 text-[13px] font-semibold">New task</h3>')
+    expect(html).toContain('<h3 class="min-w-0 flex-1 font-semibold">New task</h3>')
     expect(html).toContain('Draft')
     expect(html).toContain('px-3 py-2.5')
   })

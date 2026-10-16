@@ -29,7 +29,7 @@ export const ActionRail = ({ actions }: { actions: RailAction[] }) => (
           <>
             <Icon className={cn('size-4 shrink-0 md:mt-0.5', tone === 'danger' ? 'text-danger-text' : 'text-muted-foreground')} aria-hidden />
             <span>
-              <span className={cn('block text-[13px] font-medium', tone === 'danger' ? 'text-danger-text' : 'text-foreground')}>{name}</span>
+              <span className={cn('block font-medium', tone === 'danger' ? 'text-danger-text' : 'text-foreground')}>{name}</span>
               {description && <span className="mt-0.5 hidden text-xs leading-snug text-muted-foreground md:block">{description}</span>}
             </span>
           </>

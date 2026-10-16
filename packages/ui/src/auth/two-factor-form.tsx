@@ -47,7 +47,7 @@ export const TwoFactorForm = ({ methods, onVerify, onSendCode, onBack, busy, err
     <AuthLayout title="Two-factor authentication" description="One more step to sign in.">
       {waitingForEmail ? (
         <div className="flex flex-col gap-4">
-          <p className="text-[13px] text-muted-foreground">We email you a code to finish signing in.</p>
+          <p className="text-muted-foreground">We email you a code to finish signing in.</p>
           {error && (
             <p role="alert" className="text-xs font-medium text-danger-text">
               {error}
@@ -65,8 +65,8 @@ export const TwoFactorForm = ({ methods, onVerify, onSendCode, onBack, busy, err
             onVerify({ method: step, code: code.trim(), trustDevice })
           }}
         >
-          <p className="text-[13px] text-muted-foreground">{instructions[step]}</p>
-          <label className="flex flex-col gap-1.5 text-[13px] font-medium">
+          <p className="text-muted-foreground">{instructions[step]}</p>
+          <label className="flex flex-col gap-1.5 font-medium">
             {step === 'backup' ? 'Backup code' : 'Code'}
             {step === 'backup' ? (
               <Input name="code" autoComplete="off" spellCheck={false} required autoFocus value={code} invalid={Boolean(error)} onChange={(event) => setCode(event.target.value)} className="min-h-6 font-mono" />
@@ -74,7 +74,7 @@ export const TwoFactorForm = ({ methods, onVerify, onSendCode, onBack, busy, err
               <OtpInput name="code" required autoFocus value={code} invalid={Boolean(error)} onChange={setCode} />
             )}
           </label>
-          <label className="flex items-center gap-2 text-[13px] text-muted-foreground">
+          <label className="flex items-center gap-2 text-muted-foreground">
             <Checkbox checked={trustDevice} onChange={setTrustDevice} label="Trust this browser" />
             Don't ask again in this browser for 30 days
           </label>
@@ -88,7 +88,7 @@ export const TwoFactorForm = ({ methods, onVerify, onSendCode, onBack, busy, err
           </Button>
         </form>
       )}
-      <div className="mt-4 flex flex-col items-center gap-2 border-t pt-4 text-[13px]">
+      <div className="mt-4 flex flex-col items-center gap-2 border-t pt-4">
         {step !== 'totp' && methods.includes('totp') && (
           <button type="button" onClick={() => switchTo('totp')} className="font-medium text-primary-text hover:underline">
             Use the authenticator app

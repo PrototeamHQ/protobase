@@ -44,22 +44,22 @@ const BuiltInEditor = ({ field, hints, value, stored, relationLabel, relationTo,
   if (field.type === 'relation' && relationPicker && !field.readOnly) {
     return <RelationPicker target={relationPicker.target} view={relationPicker.view} value={String(value)} label={relationLabel} invalid={invalid} onChange={(next, label) => onChange({ key: next, label })} />
   }
-  if (field.type === 'boolean' && locked) return <div className="py-1.5 text-[13px] text-muted-foreground">{displayValue(field, stored, hints)}</div>
+  if (field.type === 'boolean' && locked) return <div className="py-1.5 text-muted-foreground">{displayValue(field, stored, hints)}</div>
   if (field.type === 'boolean') return <Switch checked={Boolean(value)} onChange={onChange} label={field.name} />
   if (field.type === 'relation') {
     const label = relationLabel ?? String(stored ?? '—')
-    return <div className="py-1.5 text-[13px]">{relationTo ? <AppLink to={relationTo} className="font-medium text-primary-text hover:underline">{label}</AppLink> : label}</div>
+    return <div className="py-1.5">{relationTo ? <AppLink to={relationTo} className="font-medium text-primary-text hover:underline">{label}</AppLink> : label}</div>
   }
   const multiline = Boolean(hints?.multiline) && field.type === 'text'
   if (!isEditable(field) || locked) {
-    return <div className={cn('py-1.5 text-[13px] tabular-nums', field.type === 'decimal' || field.type === 'integer' ? 'font-medium' : 'text-muted-foreground', multiline && 'whitespace-pre-line break-words')}>{displayValue(field, stored, hints)}</div>
+    return <div className={cn('py-1.5 tabular-nums', field.type === 'decimal' || field.type === 'integer' ? 'font-medium' : 'text-muted-foreground', multiline && 'whitespace-pre-line break-words')}>{displayValue(field, stored, hints)}</div>
   }
   if (field.type === 'enum') {
     return (
       <select
         value={String(value)}
         onChange={(event) => onChange(event.target.value)}
-        className="h-8 w-full rounded-md border border-border-strong bg-background px-2 text-[13px] shadow-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+        className="h-8 w-full rounded-md border border-border-strong bg-background px-2 shadow-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
       >
         {value === '' && <option value="">Choose...</option>}
         {(field.enumValues ?? []).map((option) => (
@@ -74,8 +74,8 @@ const BuiltInEditor = ({ field, hints, value, stored, relationLabel, relationTo,
   return (
     <Input
       invalid={invalid}
-      leading={hints?.prefix ? <span className="text-[13px]">{hints.prefix}</span> : undefined}
-      trailing={hints?.suffix ? <span className="text-[13px]">{hints.suffix.trim()}</span> : undefined}
+      leading={hints?.prefix ? <span>{hints.prefix}</span> : undefined}
+      trailing={hints?.suffix ? <span>{hints.suffix.trim()}</span> : undefined}
       placeholder={placeholder}
       className={cn(numeric.has(field.type) && 'text-right tabular-nums')}
       value={String(value)}

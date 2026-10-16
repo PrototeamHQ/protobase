@@ -36,14 +36,14 @@ const Thumbnail = ({ value }: { value: unknown }) => {
 /** The file as it is: thumbnail or icon, name (a link while it has a URL), type and size, and what the server corrected. */
 const FileSummary = ({ value }: { value: unknown }) => {
   const shown = fileShown(value)
-  if (!shown) return <div className="py-1.5 text-[13px] text-muted-foreground">—</div>
-  if ('missing' in shown) return <div className="py-1.5 text-[13px] text-danger-text">The file is missing from storage</div>
+  if (!shown) return <div className="py-1.5 text-muted-foreground">—</div>
+  if ('missing' in shown) return <div className="py-1.5 text-danger-text">The file is missing from storage</div>
   const url = 'url' in shown ? shown.url : undefined
   const corrected = 'corrected' in shown ? shown.corrected : undefined
   return (
     <div className="flex min-w-0 items-center gap-3 py-1">
       <Thumbnail value={value} />
-      <div className="min-w-0 text-[13px]">
+      <div className="min-w-0">
         {url && !url.startsWith('blob:') ? (
           <a href={url} target="_blank" rel="noreferrer" className="block truncate font-medium text-primary-text hover:underline">{shown.name}</a>
         ) : (
@@ -128,7 +128,7 @@ export const FileField = ({ field, hints, resource, value, locked, invalid, onCh
         onDragLeave={() => setDragging(false)}
         onDrop={drop}
         className={cn(
-          'flex items-center gap-3 rounded-md border border-dashed px-3 py-2.5 text-[13px] text-muted-foreground',
+          'flex items-center gap-3 rounded-md border border-dashed px-3 py-2.5 text-muted-foreground',
           dragging ? 'border-primary bg-primary/5' : invalid ? 'border-danger' : 'border-border-strong',
         )}
       >

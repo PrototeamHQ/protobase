@@ -20,8 +20,8 @@ export const Dialog = ({ title, description, onClose, actions, children, wide = 
   return (
     <div className="fixed inset-0 z-[90] flex items-center justify-center bg-backdrop/30 p-4" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
       <div ref={panel} tabIndex={-1} role="dialog" aria-modal="true" aria-label={title} className={cn('outline-none max-h-[90vh] w-full overflow-y-auto rounded-lg border bg-background p-4 shadow-pop sm:p-5', wide ? 'max-w-3xl' : 'max-w-md')}>
-        <h2 className="text-[15px] font-semibold">{title}</h2>
-        {description && <p className="mt-1.5 text-[13px] text-muted-foreground">{description}</p>}
+        <h2 className="text-[16px] font-semibold">{title}</h2>
+        {description && <p className="mt-1.5 text-muted-foreground">{description}</p>}
         {children && <div className="mt-4">{children}</div>}
         <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end [&>*]:min-h-11 sm:[&>*]:min-h-0">{actions}</div>
       </div>

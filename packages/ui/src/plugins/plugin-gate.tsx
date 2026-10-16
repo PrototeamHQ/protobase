@@ -28,7 +28,7 @@ export const PluginGate = ({ ui, children }: PluginGateProps) => {
   const merged = useMemo(() => mergePlugins(ui, loads), [ui, loads])
   if (!settled) {
     return (
-      <div className="flex h-full min-h-48 items-center justify-center gap-2 text-[13px] text-muted-foreground">
+      <div className="flex h-full min-h-48 items-center justify-center gap-2 text-muted-foreground">
         <Spinner /> Loading
       </div>
     )

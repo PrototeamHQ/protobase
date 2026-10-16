@@ -77,8 +77,8 @@ export const SignInPolicyForm = ({ state, onSave, busy, error, notice }: SignInP
           return (
             <li key={row.method} className="flex flex-col gap-3 p-4 sm:flex-row sm:items-start sm:justify-between">
               <div className="min-w-0">
-                <h2 className="text-[13px] font-semibold">{row.label}</h2>
-                <p className="mt-0.5 text-[13px] text-muted-foreground">{row.description}</p>
+                <h2 className="font-semibold">{row.label}</h2>
+                <p className="mt-0.5 text-muted-foreground">{row.description}</p>
                 {note && <p className="mt-1.5 text-xs font-medium text-warning-text">{note}</p>}
               </div>
               <RuleChoice row={row} value={draft[row.method]} onChange={(rule) => setDraft({ ...draft, [row.method]: rule } as SignInPolicy)} />

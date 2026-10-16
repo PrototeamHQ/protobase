@@ -84,9 +84,9 @@ export const Sidebar = ({ mode, activeItem, user, workspace, forceExpanded, prof
           ) : (
             <>
               {/* An icon-only sidebar has no room for the switch; the page still follows the system or a stored choice. */}
-              {theme && inline && <ThemeSwitch theme={theme} className="flex min-h-11 w-full items-center gap-2.5 whitespace-nowrap p-1.5 text-[13px] text-muted-foreground md:min-h-0" />}
+              {theme && inline && <ThemeSwitch theme={theme} className="flex min-h-11 w-full items-center gap-2.5 whitespace-nowrap p-1.5 text-muted-foreground md:min-h-0" />}
               {signIn && (
-                <RouteLink to={signIn} aria-label="Sign in" className="flex min-h-11 w-full items-center gap-2.5 rounded-md p-1.5 text-left text-[13px] font-medium text-muted-foreground hover:bg-muted hover:text-foreground md:min-h-0">
+                <RouteLink to={signIn} aria-label="Sign in" className="flex min-h-11 w-full items-center gap-2.5 rounded-md p-1.5 text-left font-medium text-muted-foreground hover:bg-muted hover:text-foreground md:min-h-0">
                   <LogIn className="size-4 shrink-0" />
                   {inline && <span className="whitespace-nowrap">Sign in</span>}
                 </RouteLink>

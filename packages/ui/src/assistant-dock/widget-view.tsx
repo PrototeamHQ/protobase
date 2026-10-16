@@ -8,7 +8,7 @@ import { useProjectUi } from '../app/pages/project-ui'
 const Fallback = ({ part, note }: { part: AssistantWidgetPart; note: string }) =>
   part.fallback ? (
     <ActionCard title={part.fallback.title} note={note}>
-      {part.fallback.body && <p className="text-[13px]">{part.fallback.body}</p>}
+      {part.fallback.body && <p>{part.fallback.body}</p>}
     </ActionCard>
   ) : (
     <p className="text-xs text-muted-foreground">{`${part.name}: ${note}`}</p>

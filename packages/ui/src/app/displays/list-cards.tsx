@@ -35,7 +35,7 @@ export const ListCards = ({ model, view, display, list }: ListCardsProps) => {
     return <div className={`min-h-0 flex-1 overflow-hidden ${grid}`}>{Array.from({ length: 6 }, (_, index) => <Skeleton key={index} className="h-24" />)}</div>
   }
   if (list.error) return <ErrorBanner title="Could not load rows" error={list.error} />
-  if (!list.source || list.source.total === 0) return <p className="py-8 text-center text-[13px] text-muted-foreground">No {plural.toLowerCase()} match.</p>
+  if (!list.source || list.source.total === 0) return <p className="py-8 text-center text-muted-foreground">No {plural.toLowerCase()} match.</p>
   return (
     <VirtualCards
       source={list.source}

@@ -57,20 +57,20 @@ export const LineRow = ({ line, position, count, reorderable, editable, onChange
         <span />
       )}
       <div className="min-w-0">
-        <p className="truncate text-[13px] text-foreground">{line.description}</p>
+        <p className="truncate text-foreground">{line.description}</p>
         <p className="font-mono text-[11px] text-faint-foreground">{line.productId}</p>
       </div>
       {editable ? (
         <NumberCell label="Quantity" value={line.quantity} format={String} parse={(text) => Math.round(Number(text))} onCommit={(quantity) => onChange({ quantity })} />
       ) : (
-        <span className="px-2 text-right text-[13px] tabular-nums">{line.quantity}</span>
+        <span className="px-2 text-right tabular-nums">{line.quantity}</span>
       )}
       {editable ? (
         <NumberCell label="Unit price" value={line.unitPriceCents} format={(cents) => (cents / 100).toFixed(2)} parse={parseEuros} onCommit={(unitPriceCents) => onChange({ unitPriceCents })} />
       ) : (
-        <span className="px-2 text-right text-[13px] tabular-nums">{(line.unitPriceCents / 100).toFixed(2)}</span>
+        <span className="px-2 text-right tabular-nums">{(line.unitPriceCents / 100).toFixed(2)}</span>
       )}
-      <span className="px-2 text-right text-[13px] font-medium tabular-nums text-foreground">{formatMoney(lineTotalCents(line))}</span>
+      <span className="px-2 text-right font-medium tabular-nums text-foreground">{formatMoney(lineTotalCents(line))}</span>
       {menu.length > 0 ? <LineMenu label={`Actions for ${line.description}`} items={menu} /> : <span />}
     </div>
   )

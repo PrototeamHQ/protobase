@@ -7,7 +7,7 @@ import { nextUpdateText, showsUpdateButton, updateErrorText } from './runtime-st
 import { useRuntimeClient, useRuntimeStatus } from './use-runtime-status'
 
 const Row = ({ label, value }: { label: string; value: string }) => (
-  <div className="flex justify-between gap-4 py-1 text-[13px]">
+  <div className="flex justify-between gap-4 py-1">
     <span className="text-muted-foreground">{label}</span>
     <span className="font-medium tabular-nums">{value}</span>
   </div>
@@ -44,8 +44,8 @@ const RuntimeUpdate = ({ client }: { client: RuntimeClient | undefined }) => {
         >
           <Row label="Current version" value={status.version} />
           <Row label="Latest version" value={status.latest} />
-          {error !== undefined && <p role="alert" className="mt-3 text-[13px] text-danger-text">{updateErrorText(error)}</p>}
-          {checkError !== undefined && <p className="mt-3 text-[13px] text-muted-foreground">The status could not be checked again; this is the last one read.</p>}
+          {error !== undefined && <p role="alert" className="mt-3 text-danger-text">{updateErrorText(error)}</p>}
+          {checkError !== undefined && <p className="mt-3 text-muted-foreground">The status could not be checked again; this is the last one read.</p>}
         </Dialog>
       )}
     </>

@@ -40,7 +40,7 @@ export const SavedSearches = ({ model, view }: { model: ResourceModel; view: Vie
   if (saved.data.length === 0) {
     const searched = (targetView?.names?.plural ?? humanize(target.name)).toLowerCase()
     return frame(
-      <p className="py-8 text-center text-[13px] text-muted-foreground">
+      <p className="py-8 text-center text-muted-foreground">
         No {plural.toLowerCase()} yet. Filter the{' '}
         <AppLink to={{ kind: 'list', resource: target.name }} className="font-medium text-primary-text hover:underline">
           {searched}

@@ -18,7 +18,7 @@ const tones = { pending: 'text-muted-foreground', running: 'text-foreground', do
 export const StepList = ({ steps, className }: { steps: Step[]; className?: string }) => (
   <ul className={cn('shrink-0 space-y-2', className)}>
     {steps.map((step, index) => (
-      <li key={`${index}-${step.label}`} className="flex items-start gap-2.5 text-[13px]" data-state={step.state}>
+      <li key={`${index}-${step.label}`} className="flex items-start gap-2.5" data-state={step.state}>
         <span className="mt-0.5 flex size-4 shrink-0 items-center justify-center">{icons[step.state]}</span>
         <span className={tones[step.state]}>{step.label}</span>
       </li>

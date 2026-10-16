@@ -29,7 +29,7 @@ export const ProblemList = ({ rows }: { rows: FailedRow[] }) => (
 )
 
 export const ImportChecking = ({ rows }: { rows: number }) => (
-  <p className="flex items-center gap-2 text-[13px] text-muted-foreground" role="status">
+  <p className="flex items-center gap-2 text-muted-foreground" role="status">
     <Spinner className="size-3.5" />
     Checking rows… {rows.toLocaleString('en-IE')} read
   </p>
@@ -53,7 +53,7 @@ export const ImportCheckStep = ({ check, model, resources, views, columns, heade
   const view = views[model.name]
   const shown = columns.map((column) => model.fields[column.field]!)
   return (
-    <div className="flex flex-col gap-4 text-[13px]">
+    <div className="flex flex-col gap-4">
       <ImportCounts
         label="Check"
         counts={[

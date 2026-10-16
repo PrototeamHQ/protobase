@@ -51,7 +51,7 @@ const renderChildren = (children: LayoutChild[]) => {
     const [first] = run
     if (!isInline(first!)) return <RenderNode key={index} node={first as LayoutNode} />
     return (
-      <p key={index} className="text-[13px] leading-relaxed">
+      <p key={index} className="leading-6">
         {run.map((child, position) => (typeof child === 'string' ? <Fragment key={position}>{child}</Fragment> : <RenderNode key={position} node={child} />))}
       </p>
     )

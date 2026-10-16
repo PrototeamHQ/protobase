@@ -14,7 +14,7 @@ export type ToastAction = { label: string; onClick: () => void } | { label: stri
 export type ToastProps = { state: ToastState; title: string; description?: string; action?: ToastAction; onDismiss?: () => void }
 
 // The negative margin takes the padding of the hover background back, so the label lines up with the title.
-const actionClass = '-my-0.5 rounded px-1.5 py-0.5 text-[13px] font-medium text-primary-text hover:bg-primary-soft'
+const actionClass = '-my-0.5 rounded px-1.5 py-0.5 font-medium text-primary-text hover:bg-primary-soft'
 
 const Action = ({ action }: { action: ToastAction }) => {
   if ('onClick' in action) {
@@ -56,7 +56,7 @@ export const Toast = ({ state, title, description, action, onDismiss }: ToastPro
   >
     <span className="mt-0.5">{icons[state]}</span>
     <div className="min-w-0 flex-1">
-      <p className="text-[13px] font-medium text-foreground">{title}</p>
+      <p className="font-medium text-foreground">{title}</p>
       {description && <p className="mt-0.5 text-xs text-muted-foreground">{description}</p>}
     </div>
     {action && <Action action={action} />}

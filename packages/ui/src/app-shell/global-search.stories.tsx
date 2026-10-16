@@ -28,7 +28,7 @@ const Searchable = ({ failing }: { failing?: string }) => {
   return (
     <div className="h-80">
       <TopBar breadcrumb={['Control panel', 'Overview']} search={search} />
-      <p className="p-5 text-[13px]">
+      <p className="p-5">
         Opened: <output aria-label="Opened">{opened}</output>
       </p>
     </div>

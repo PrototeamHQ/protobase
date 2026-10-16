@@ -6,7 +6,7 @@ export type RelatedRecord = { kind: string; label: string; meta?: string; href?:
 export type MetadataRow = { label: string; value: ReactNode }
 
 export const MetadataList = ({ rows }: { rows: MetadataRow[] }) => (
-  <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-[13px]">
+  <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2">
     {rows.map((row) => (
       <div key={row.label} className="contents">
         <dt className="text-muted-foreground">{row.label}</dt>
@@ -29,7 +29,7 @@ export const RelatedRecords = ({ records, onNavigate }: { records: RelatedRecord
           className="group flex items-center justify-between gap-3 rounded-md px-2 py-2 hover:bg-muted">
           <span className="min-w-0">
             <span className="block text-[11px] uppercase tracking-wide text-faint-foreground">{record.kind}</span>
-            <span className="block truncate text-[13px] font-medium text-primary-text">{record.label}</span>
+            <span className="block truncate font-medium text-primary-text">{record.label}</span>
             {record.meta && <span className="block text-xs text-muted-foreground">{record.meta}</span>}
           </span>
           <ChevronRight className="size-4 shrink-0 text-faint-foreground group-hover:text-foreground" />

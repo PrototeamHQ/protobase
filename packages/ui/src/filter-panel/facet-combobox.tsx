@@ -87,7 +87,7 @@ export const FacetCombobox = ({ config, selected, onToggle, inline = false }: Fa
           aria-autocomplete="list"
           aria-activedescendant={options[active] ? `${id}-${active}` : undefined}
           placeholder={selected.length > 0 ? '' : `Search ${config.label.toLowerCase()}`}
-          className="h-6 min-w-16 flex-1 bg-transparent text-[13px] text-foreground outline-none placeholder:text-faint-foreground"
+          className="h-6 min-w-16 flex-1 bg-transparent text-foreground outline-none placeholder:text-faint-foreground"
           value={query}
           onChange={(event) => search(event.target.value)}
           onKeyDown={onKeyDown}

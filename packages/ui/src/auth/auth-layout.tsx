@@ -10,7 +10,7 @@ export const AuthLayout = ({ title, description, children }: AuthLayoutProps) =>
       <div className="mb-6 flex flex-col items-center text-center">
         <LogoMark className="size-10" />
         <h1 className="mt-4 text-xl font-semibold tracking-tight">{title}</h1>
-        {description && <p className="mt-1 text-[13px] text-muted-foreground">{description}</p>}
+        {description && <p className="mt-1 text-muted-foreground">{description}</p>}
       </div>
       <div className="rounded-lg border bg-background p-5 shadow-sm">{children}</div>
     </div>

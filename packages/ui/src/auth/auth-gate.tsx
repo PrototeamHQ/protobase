@@ -129,14 +129,14 @@ const useAuthPage = (workspace: string | undefined, children: ReactNode): ReactN
   switch (state.kind) {
     case 'loading':
       return (
-        <div className="flex h-full min-h-48 items-center justify-center gap-2 text-[13px] text-muted-foreground">
+        <div className="flex h-full min-h-48 items-center justify-center gap-2 text-muted-foreground">
           <Spinner /> Loading
         </div>
       )
     case 'error':
       return (
         <div className="flex h-full min-h-48 flex-col items-center justify-center gap-3 p-8 text-center">
-          <p className="text-[13px] text-muted-foreground">Cannot reach the server: {state.message}</p>
+          <p className="text-muted-foreground">Cannot reach the server: {state.message}</p>
           <Button onClick={recheck}>Try again</Button>
         </div>
       )

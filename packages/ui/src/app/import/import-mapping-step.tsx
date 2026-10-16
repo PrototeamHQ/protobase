@@ -44,7 +44,7 @@ export const ImportMappingStep = ({ flow, model, resources, views, canUpdate }: 
   const keys = matchFields(model)
 
   return (
-    <div className="flex flex-col gap-5 text-[13px]">
+    <div className="flex flex-col gap-5">
       {canUpdate && (
         <div className="flex flex-col gap-1.5">
           <span className="font-medium">Rows</span>

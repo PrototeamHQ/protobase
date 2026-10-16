@@ -19,7 +19,7 @@ export const OrderStatusChoice = ({ value, onChange }: { value: OrderStatusValue
         onClick={() => onChange(option.value)}
         className={cn('rounded-lg border p-3 text-left transition-colors', option.value === value ? 'border-primary bg-primary-soft' : 'bg-background hover:bg-surface')}
       >
-        <span className={cn('block text-[13px] font-medium', option.value === value && 'text-primary-text')}>{option.label}</span>
+        <span className={cn('block font-medium', option.value === value && 'text-primary-text')}>{option.label}</span>
         <span className="mt-0.5 block text-xs leading-snug text-muted-foreground">{option.description}</span>
       </button>
     ))}

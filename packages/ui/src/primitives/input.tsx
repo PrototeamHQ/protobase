@@ -12,7 +12,7 @@ export const Input = ({ leading, trailing, invalid, className, wrapperClassName,
     )}
   >
     {leading}
-    <input className={cn('min-w-0 flex-1 bg-transparent text-[13px] text-foreground outline-none placeholder:text-faint-foreground', className)} {...rest} />
+    <input className={cn('min-w-0 flex-1 bg-transparent text-body text-foreground outline-none placeholder:text-faint-foreground', className)} {...rest} />
     {trailing}
   </span>
 )

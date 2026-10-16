@@ -17,7 +17,7 @@ export type SignInPromptProps = { prompt: SignInPromptModel } & (
 
 const Benefits = ({ benefits }: { benefits: string[] | undefined }) =>
   benefits && benefits.length > 0 ? (
-    <ul className="flex flex-col gap-2 text-left text-[13px]">
+    <ul className="flex flex-col gap-2 text-left">
       {benefits.map((benefit) => (
         <li key={benefit} className="flex items-start gap-2">
           <Check className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden />
@@ -93,7 +93,7 @@ export const SignInPrompt = (props: SignInPromptProps) => {
         <h1 id={heading} className="text-lg font-semibold">
           {prompt.title}
         </h1>
-        <p className="text-[13px] text-muted-foreground">{prompt.description}</p>
+        <p className="text-muted-foreground">{prompt.description}</p>
       </div>
       <Benefits benefits={prompt.benefits} />
       <div className="mt-2 flex w-full flex-col-reverse gap-2 sm:w-auto sm:flex-row sm:justify-center [&>*]:min-h-11 sm:[&>*]:min-h-0">

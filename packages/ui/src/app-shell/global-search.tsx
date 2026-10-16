@@ -121,7 +121,7 @@ export const GlobalSearch = ({ search, className = 'w-96', autoFocus, showShortc
         onKeyDown={onKeyDown}
       />
       {open && (
-        <div id={listId} role="listbox" aria-label="Search results" className="absolute right-0 top-full z-40 mt-1 max-h-96 w-full min-w-72 overflow-y-auto rounded-lg border bg-background py-1 text-[13px] shadow-pop">
+        <div id={listId} role="listbox" aria-label="Search results" className="absolute right-0 top-full z-40 mt-1 max-h-96 w-full min-w-72 overflow-y-auto rounded-lg border bg-background py-1 shadow-pop">
           {search.groups.length === 0 && <p className="px-3 py-2 text-muted-foreground">{search.loading ? 'Searching' : `No matches for “${search.query}”`}</p>}
           {search.groups.map((group) => (
             <div key={group.id} role="group" aria-label={group.label}>

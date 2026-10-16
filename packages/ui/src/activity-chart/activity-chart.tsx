@@ -38,8 +38,8 @@ export const ActivityChart = ({ title = 'Orders created', noun = 'orders', defau
     <section className={cn('rounded-lg border bg-background px-4 pb-2 pt-3', className)}>
       <header className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-baseline gap-2">
-          <h2 className="text-[13px] font-semibold">{title}</h2>
-          <span className="text-[13px] font-semibold tabular-nums">{formatInt(totalCount(series))}</span>
+          <h2 className="font-semibold">{title}</h2>
+          <span className="font-semibold tabular-nums">{formatInt(totalCount(series))}</span>
           <span className={cn('text-xs font-medium tabular-nums', delta >= 0 ? 'text-success-text' : 'text-danger-text')}>
             {delta >= 0 ? '+' : '−'}
             {Math.abs(delta).toFixed(1)}%

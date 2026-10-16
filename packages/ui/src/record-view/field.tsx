@@ -21,7 +21,7 @@ export type FieldProps = {
 export const Field = ({ label, required, help, example, error, conflict, wide, children }: FieldProps) => (
   <div className={wide ? 'sm:col-span-2' : undefined}>
     <div className="mb-1.5 flex items-center gap-2">
-      <label className="text-[13px] font-medium text-foreground">
+      <label className="font-medium text-foreground">
         {label}
         {required && <span className="ml-0.5 text-danger-text" aria-label="required">*</span>}
       </label>

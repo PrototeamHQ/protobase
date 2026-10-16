@@ -25,7 +25,7 @@ export const SetupRequiredForm = ({ step, twoFactor, onAddPasskey, busy, error, 
       <TwoFactorSetup {...twoFactor} />
     ) : (
       <div className="flex flex-col gap-4">
-        <p className="text-[13px] text-muted-foreground">A passkey signs you in with Face ID, Touch ID, Windows Hello, your phone or a security key. Your browser asks which one to use.</p>
+        <p className="text-muted-foreground">A passkey signs you in with Face ID, Touch ID, Windows Hello, your phone or a security key. Your browser asks which one to use.</p>
         {error && (
           <p role="alert" className="text-xs font-medium text-danger-text">
             {error}
@@ -37,7 +37,7 @@ export const SetupRequiredForm = ({ step, twoFactor, onAddPasskey, busy, error, 
         </Button>
       </div>
     )}
-    <button type="button" onClick={onSignOut} className="mt-4 w-full text-center text-[13px] font-medium text-muted-foreground hover:underline">
+    <button type="button" onClick={onSignOut} className="mt-4 w-full text-center font-medium text-muted-foreground hover:underline">
       Sign out
     </button>
   </AuthLayout>

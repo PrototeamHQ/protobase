@@ -38,7 +38,7 @@ export const SortMenu = ({ model, view, display, orderBy, onChange, className }:
       aria-label="Sort"
       value={`${current.columnId} ${current.direction}`}
       onChange={(event) => onChange(event.target.value)}
-      className={cn('h-8 rounded-md border border-border-strong bg-background px-2.5 text-[13px] shadow-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20', className)}
+      className={cn('h-8 rounded-md border border-border-strong bg-background px-2.5 shadow-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20', className)}
     >
       {names.flatMap((name) =>
         directions.map(([direction, word]) => (

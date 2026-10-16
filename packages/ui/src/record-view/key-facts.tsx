@@ -14,7 +14,7 @@ export type KeyFact = {
  * screen.
  */
 export const KeyFacts = ({ facts }: { facts: KeyFact[] }) => (
-  <dl className="grid grid-cols-2 gap-x-4 gap-y-5 text-[13px] sm:flex sm:flex-wrap sm:gap-x-10">
+  <dl className="grid grid-cols-2 gap-x-4 gap-y-5 sm:flex sm:flex-wrap sm:gap-x-10">
     {facts.map(({ label, value, icon: Icon }) => (
       <div key={label} title={label} className="flex min-w-0 flex-col gap-1.5">
         <dt className="text-muted-foreground">
@@ -27,7 +27,7 @@ export const KeyFacts = ({ facts }: { facts: KeyFact[] }) => (
             label
           )}
         </dt>
-        <dd className="min-w-0 break-words text-[15px] font-semibold text-foreground">{value}</dd>
+        <dd className="min-w-0 break-words text-[16px] font-semibold text-foreground">{value}</dd>
       </div>
     ))}
   </dl>

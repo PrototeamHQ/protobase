@@ -23,7 +23,7 @@ const changeStyle: Record<FilterChange['kind'], { word: string; className: strin
 }
 
 const FilterChanges = ({ changes }: { changes: FilterChange[] }) => (
-  <ul aria-label="Filter changes" className="divide-y rounded-md border text-[13px]">
+  <ul aria-label="Filter changes" className="divide-y rounded-md border">
     {changes.map((change) => (
       <li key={`${change.kind}:${change.label}`} className="grid grid-cols-[72px_1fr] gap-3 px-3 py-2">
         <span className={`font-medium ${changeStyle[change.kind].className}`}>{changeStyle[change.kind].word}</span>
@@ -61,12 +61,12 @@ const RecordsSide = ({ model, view, title, filter, total, plural }: RecordsSideP
   const cards = view?.list?.displays?.find((display) => display.kind === 'cards')
   return (
     <section aria-label={title} className="flex flex-col gap-2">
-      <h3 className="text-[13px] font-semibold">
+      <h3 className="font-semibold">
         {title} <span className="font-normal text-muted-foreground">({total ?? '…'})</span>
       </h3>
       {total !== undefined && total > shownLimit && <p className="text-xs text-muted-foreground">The first {shownLimit} of {total}.</p>}
       {filter === null || total === 0 ? (
-        <p className="text-[13px] text-muted-foreground">No {plural}.</p>
+        <p className="text-muted-foreground">No {plural}.</p>
       ) : (
         <EmbeddedList model={model} view={view} filter={filter} sort={defaultOrderBy(model, view)} limit={shownLimit} display={cards?.name ?? tableDisplay} row link={false} empty={`No ${plural}.`} />
       )}
@@ -127,7 +127,7 @@ export const UpdateSearchDialog = ({ model, view, title, before, after, saveNewL
       <div className="flex flex-col gap-4">
         {changes.length > 0 && <FilterChanges changes={changes} />}
         {counted ? (
-          <p className="text-[13px]">
+          <p>
             <span className="font-semibold">{netChange(addedCount, removedCount, singular, plural)}</span>
             <span className="text-muted-foreground">
               : {count(addedCount, singular, plural)} added, {removedCount} removed

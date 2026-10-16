@@ -46,11 +46,11 @@ export const StaffSignInForm = ({ operator, email: givenEmail = '', reason: give
           onSubmit(email.trim(), reason.trim())
         }}
       >
-        <label className="flex flex-col gap-1.5 text-[13px] font-medium">
+        <label className="flex flex-col gap-1.5 font-medium">
           Their email
           <Input type="email" name="email" required autoFocus={!givenEmail} value={email} onChange={(event) => setEmail(event.target.value)} className="min-h-6" />
         </label>
-        <label className="flex flex-col gap-1.5 text-[13px] font-medium">
+        <label className="flex flex-col gap-1.5 font-medium">
           Reason
           <textarea
             name="reason"
@@ -61,7 +61,7 @@ export const StaffSignInForm = ({ operator, email: givenEmail = '', reason: give
             placeholder="Ticket 4211: the invoice totals look wrong"
             onChange={(event) => setReason(event.target.value)}
             className={cn(
-              'resize-y rounded-md border bg-background px-2.5 py-1.5 text-[13px] font-normal shadow-sm outline-none placeholder:text-faint-foreground focus:border-primary focus:ring-2 focus:ring-primary/20',
+              'resize-y rounded-md border bg-background px-2.5 py-1.5 font-normal shadow-sm outline-none placeholder:text-faint-foreground focus:border-primary focus:ring-2 focus:ring-primary/20',
               error ? 'border-danger' : 'border-border-strong',
             )}
           />

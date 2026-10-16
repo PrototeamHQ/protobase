@@ -42,7 +42,7 @@ export const SignInProvidersSection = ({ providers, linked, onConnect, error: re
         {providers.map((provider) => (
           <li key={provider.id} className="flex flex-wrap items-center gap-3 px-3 py-2.5">
             <Link2 className="size-4 shrink-0 text-muted-foreground" />
-            <span className="min-w-0 flex-1 truncate text-[13px] font-medium">{provider.name}</span>
+            <span className="min-w-0 flex-1 truncate font-medium">{provider.name}</span>
             {linked.includes(provider.id) ? (
               <Badge tone="green">Connected</Badge>
             ) : (

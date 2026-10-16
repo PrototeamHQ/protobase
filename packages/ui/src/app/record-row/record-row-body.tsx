@@ -89,7 +89,7 @@ export const RecordRowBody = ({ model, view, filter, sort = '', display: named, 
       {(showChips && chips.length > 0) || total !== undefined || note ? (
         <div className="flex flex-wrap items-center justify-between gap-2">
           {showChips && chips.length > 0 ? <FilterChipList chips={chips} /> : <span />}
-          <p className="flex flex-wrap gap-x-3 text-[13px] text-muted-foreground">
+          <p className="flex flex-wrap gap-x-3 text-muted-foreground">
             {note && <span>{note}</span>}
             {total !== undefined && <span className="tabular-nums">{`${total.toLocaleString('en-GB')} ${total === 1 ? singular : plural.toLowerCase()}`}</span>}
           </p>
@@ -100,14 +100,14 @@ export const RecordRowBody = ({ model, view, filter, sort = '', display: named, 
       ) : rows.error ? (
         <ErrorBanner title="Could not load" error={rows.error} />
       ) : !source || source.total === 0 ? (
-        <p className="text-[13px] text-muted-foreground">{empty ?? `No ${plural.toLowerCase()} match.`}</p>
+        <p className="text-muted-foreground">{empty ?? `No ${plural.toLowerCase()} match.`}</p>
       ) : (
         <RecordRow model={model} view={view} display={display} source={source} label={plural} isNew={isNew} />
       )}
       <AppLink
         to={viewAllAddress(model, view, xs, { filter, orderBy, display: display.name, savedSearch: viewAll?.savedSearch, resource: list })}
         onClick={viewAll?.onOpen}
-        className="flex items-center gap-1 self-end text-[13px] font-medium text-primary-text hover:underline"
+        className="flex items-center gap-1 self-end font-medium text-primary-text hover:underline"
       >
         {viewAll?.label ?? <>View all <span className="sr-only">{plural.toLowerCase()}</span></>}
         <ArrowRight className="size-3.5" aria-hidden />

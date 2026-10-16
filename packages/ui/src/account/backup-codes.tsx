@@ -9,7 +9,7 @@ export const BackupCodes = ({ codes }: { codes: string[] }) => {
   const text = `${codes.join('\n')}\n`
   return (
     <div className="flex flex-col gap-3">
-      <ul aria-label="Backup codes" className="grid grid-cols-2 gap-x-4 gap-y-1 rounded-md border bg-surface p-3 font-mono text-[13px]">
+      <ul aria-label="Backup codes" className="grid grid-cols-2 gap-x-4 gap-y-1 rounded-md border bg-surface p-3 font-mono">
         {codes.map((code) => (
           <li key={code}>{code}</li>
         ))}

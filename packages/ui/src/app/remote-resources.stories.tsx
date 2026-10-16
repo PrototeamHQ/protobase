@@ -35,7 +35,7 @@ const notes = resource('ticket_notes')
 const TicketSummary = () => {
   const scope = useLayoutRecord()
   const source = useMeta().data?.sources?.find((status) => status.state === 'ready' && status.source.resources.includes('tickets'))?.source
-  return <p className="text-[13px]">{`Ticket ${String(scope?.record.id)} is ${String(scope?.record.status)}, from the ${source?.label ?? 'app'}`}</p>
+  return <p>{`Ticket ${String(scope?.record.id)} is ${String(scope?.record.status)}, from the ${source?.label ?? 'app'}`}</p>
 }
 
 const ticketsView = view<typeof tickets>('tickets')

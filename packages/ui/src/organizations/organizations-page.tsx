@@ -25,7 +25,7 @@ export const slugOf = (name: string) =>
 const OrganizationRow = ({ organization, current, busy, onOpen }: { organization: Organization; current: boolean; busy: boolean; onOpen: () => void }) => (
   <li className="flex items-center gap-3 px-3 py-2.5">
     <span className="min-w-0 flex-1">
-      <span className="block truncate text-[13px] font-medium">{organization.name}</span>
+      <span className="block truncate font-medium">{organization.name}</span>
       <span className="block text-xs text-muted-foreground">{organization.slug}</span>
     </span>
     {current ? <Badge tone="green">Current</Badge> : <Button size="sm" loading={busy} onClick={onOpen}>Open</Button>}
@@ -89,7 +89,7 @@ const YourInvitations = () => {
     <AccountSection title="Invitations for you" description="Open the link in the invitation email to accept one.">
       <ul className="divide-y rounded-md border">
         {invitations.map((invitation) => (
-          <li key={invitation.id} className="px-3 py-2.5 text-[13px]">
+          <li key={invitation.id} className="px-3 py-2.5">
             <span className="font-medium">{invitation.organizationName ?? 'An organization'}</span>: {invitation.appRoles.map((name) => roleLabel(roles, name)).join(', ') || 'no app roles'}
             <span className="block text-xs text-muted-foreground">Until {new Date(invitation.expiresAt).toLocaleDateString()}</span>
           </li>

@@ -20,7 +20,7 @@ export const AppRolesPicker = ({ roles, selected, grantable, disabled, onChange 
         const held = selected.includes(role.name)
         const locked = disabled || !grantable.has(role.name)
         return (
-          <label key={role.name} title={locked && !disabled ? 'You cannot give or take away this role' : undefined} className={cn('inline-flex items-center gap-1.5 text-[13px]', locked && 'text-muted-foreground')}>
+          <label key={role.name} title={locked && !disabled ? 'You cannot give or take away this role' : undefined} className={cn('inline-flex items-center gap-1.5', locked && 'text-muted-foreground')}>
             <Checkbox
               checked={held}
               label={role.label}

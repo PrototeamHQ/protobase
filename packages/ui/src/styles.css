@@ -20,7 +20,7 @@
     background: var(--background);
     color: var(--foreground);
     font-family: var(--font-sans);
-    font-size: 13px;
+    font-size: --theme(--text-body);
     line-height: 1.5;
     -webkit-font-smoothing: antialiased;
   }

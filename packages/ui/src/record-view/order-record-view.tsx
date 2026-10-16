@@ -55,13 +55,13 @@ export const OrderRecordView = ({ ticking = true }: { ticking?: boolean }) => {
                 <Input readOnly value={order.number} />
               </Field>
               <Field label="Customer" help="The company that placed the order. Click to open its record.">
-                <a href="#customer" onClick={(event) => event.preventDefault()} className="flex h-8 items-center rounded-md border border-border-strong bg-background px-2.5 text-[13px] font-medium text-primary-text shadow-sm hover:underline">
+                <a href="#customer" onClick={(event) => event.preventDefault()} className="flex h-8 items-center rounded-md border border-border-strong bg-background px-2.5 font-medium text-primary-text shadow-sm hover:underline">
                   {order.customer.name}
                 </a>
               </Field>
               <Field label="Total" help="Including VAT, in euros." example="1,240.00">
                 <Input
-                  leading={<span className="text-[13px]">€</span>}
+                  leading={<span>€</span>}
                   className="text-right tabular-nums"
                   value={total}
                   onChange={(event) => {

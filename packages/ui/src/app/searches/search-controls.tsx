@@ -29,13 +29,13 @@ const Control = ({ model, view, name, value, onChange }: { model: ResourceModel;
   if (field?.type === 'boolean') return <Switch checked={value === true} onChange={onChange} label={label} />
   if (field?.type !== 'enum') throw new Error(`Not implemented: "${name}" is ${field?.type ?? 'unknown'}, and a saved search's controls are enums or booleans`)
   return (
-    <label htmlFor={id} className="flex items-center gap-2 text-[13px] text-muted-foreground">
+    <label htmlFor={id} className="flex items-center gap-2 text-muted-foreground">
       {label}
       <select
         id={id}
         value={String(value ?? '')}
         onChange={(event) => onChange(event.target.value)}
-        className="h-8 rounded-md border border-border-strong bg-background px-2 text-[13px] text-foreground shadow-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+        className="h-8 rounded-md border border-border-strong bg-background px-2 text-foreground shadow-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
       >
         {(field.enumValues ?? []).map((option) => (
           <option key={option} value={option}>

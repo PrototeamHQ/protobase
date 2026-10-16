@@ -7,7 +7,7 @@ import { RecordLink } from '../displays/record-link'
  */
 export const RepairBoard = ({ by }: { by: string }) => {
   const list = useListDisplay()
-  if (list.loading) return <p className="text-[13px] text-muted-foreground">Loading</p>
+  if (list.loading) return <p className="text-muted-foreground">Loading</p>
   const columns = [...new Set(list.rows.map((row) => String(row.record[by])))]
   return (
     <div className="grid auto-cols-[minmax(12rem,1fr)] grid-flow-col gap-3 overflow-x-auto pb-2">
@@ -17,7 +17,7 @@ export const RepairBoard = ({ by }: { by: string }) => {
           {list.rows
             .filter((row) => String(row.record[by]) === value)
             .map((row) => (
-              <RecordLink key={row.key} row={row} className="rounded-md border border-border bg-background p-2 text-[13px] hover:border-border-strong">
+              <RecordLink key={row.key} row={row} className="rounded-md border border-border bg-background p-2 hover:border-border-strong">
                 <span className="block font-medium">{String(row.record.number)}</span>
                 <span className="block text-muted-foreground">{String(row.record.bike)}</span>
               </RecordLink>

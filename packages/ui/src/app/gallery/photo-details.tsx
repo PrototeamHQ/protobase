@@ -21,7 +21,7 @@ export const PhotoDetails = ({ model, view, photoKey, fields }: { model: Resourc
   return (
     <>
       <SpecTable rows={shown.map((name) => ({ label: view?.fields[name]?.label ?? humanize(name), value: <FieldValue model={model} field={model.fields[name]!} value={record.data.record[name]} /> }))} />
-      <AppLink to={{ kind: 'record', resource: model.name, key: photoKey }} className="mt-3 inline-block text-[13px] font-medium text-primary-text hover:underline">
+      <AppLink to={{ kind: 'record', resource: model.name, key: photoKey }} className="mt-3 inline-block font-medium text-primary-text hover:underline">
         {`Open ${singular}`}
       </AppLink>
     </>

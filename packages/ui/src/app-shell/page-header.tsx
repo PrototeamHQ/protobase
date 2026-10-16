@@ -12,7 +12,7 @@ export const PageHeader = ({ title, subtitle, aside, actions }: PageHeaderProps)
   const heading = (
     <div>
       <h1 className="text-xl font-semibold tracking-tight">{title}</h1>
-      {subtitle && <p className="text-[13px] text-muted-foreground">{subtitle}</p>}
+      {subtitle && <p className="text-muted-foreground">{subtitle}</p>}
     </div>
   )
   return (

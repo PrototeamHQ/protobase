@@ -36,7 +36,7 @@ export type ProfileMenuProps = {
   theme?: ProfileTheme
 }
 
-const menuRow = 'flex min-h-11 w-full items-center gap-2.5 px-3 py-1.5 text-left text-[13px] text-muted-foreground hover:bg-muted md:min-h-0'
+const menuRow = 'flex min-h-11 w-full items-center gap-2.5 px-3 py-1.5 text-left text-muted-foreground hover:bg-muted md:min-h-0'
 
 /** The person at the bottom of the sidebar; the menu is fixed to the viewport so a narrow sidebar cannot clip it. */
 export const ProfileMenu = ({ user, compact, open: controlled, items = [], onNavigate, onSignOut, organizations, roles, theme }: ProfileMenuProps) => {
@@ -72,7 +72,7 @@ export const ProfileMenu = ({ user, compact, open: controlled, items = [], onNav
         {!compact && (
           <>
             <span className="min-w-0 flex-1 leading-tight">
-              <span className="block truncate text-[13px] font-medium">{user.name}</span>
+              <span className="block truncate font-medium">{user.name}</span>
               <Badge tone={user.roleTone} dot={false} className="mt-0.5 h-4 px-1.5 text-[10px]">
                 {user.role}
               </Badge>
@@ -84,7 +84,7 @@ export const ProfileMenu = ({ user, compact, open: controlled, items = [], onNav
       {open && (
         <div role="menu" className={controlled === undefined ? 'fixed z-[60] w-56 overflow-hidden rounded-lg border bg-background py-1 shadow-pop' : 'absolute bottom-full left-0 z-50 mb-2 w-56 overflow-hidden rounded-lg border bg-background py-1 shadow-pop'} style={controlled === undefined && anchor ? { left: anchor.left, bottom: anchor.bottom } : undefined}>
           <div className="border-b px-3 pb-2 pt-1.5">
-            <div className="text-[13px] font-medium">{user.name}</div>
+            <div className="font-medium">{user.name}</div>
             <div className="truncate text-xs text-muted-foreground">{user.email}</div>
           </div>
           {organizations && (organizations.current || organizations.others.length > 0) && (

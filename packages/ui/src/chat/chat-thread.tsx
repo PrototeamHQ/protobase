@@ -17,7 +17,7 @@ export const ChatThread = ({ children, empty, length }: ChatThreadProps) => {
   }, [length])
   return (
     <div ref={list} role="log" aria-live="polite" className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-4">
-      {length === 0 && empty ? <div className="m-auto max-w-60 text-center text-[13px] text-muted-foreground">{empty}</div> : children}
+      {length === 0 && empty ? <div className="m-auto max-w-60 text-center text-muted-foreground">{empty}</div> : children}
     </div>
   )
 }

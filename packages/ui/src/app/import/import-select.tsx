@@ -20,7 +20,7 @@ export const ImportSelect = ({ label, name, value, options, onChange, help, clas
   const id = useId()
   return (
     <div className={cn('flex min-w-0 flex-col gap-1.5', className)}>
-      <label htmlFor={id} className="text-[13px] font-medium">
+      <label htmlFor={id} className="font-medium">
         {label}
       </label>
       <select
@@ -28,7 +28,7 @@ export const ImportSelect = ({ label, name, value, options, onChange, help, clas
         aria-label={name}
         value={value}
         onChange={(event) => onChange(event.target.value)}
-        className="h-8 w-full min-w-0 rounded-md border border-border-strong bg-background px-2 text-[13px] shadow-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 max-sm:min-h-11"
+        className="h-8 w-full min-w-0 rounded-md border border-border-strong bg-background px-2 shadow-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 max-sm:min-h-11"
       >
         {options.map((option) => (
           <option key={option.value} value={option.value}>

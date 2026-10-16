@@ -110,12 +110,12 @@ export const SignInForm = ({ onSubmit, busy, error, workspace, notice, methods =
             else sendCode()
           }}
         >
-          <label className="flex flex-col gap-1.5 text-[13px] font-medium">
+          <label className="flex flex-col gap-1.5 font-medium">
             Email
             <Input ref={emailInput} type="email" name="email" autoComplete="username webauthn" required autoFocus value={email} invalid={Boolean(error)} onChange={(event) => setEmail(event.target.value)} className="min-h-6" />
           </label>
           {withPassword && (
-            <label className="flex flex-col gap-1.5 text-[13px] font-medium">
+            <label className="flex flex-col gap-1.5 font-medium">
               Password
               <Input type="password" name="password" autoComplete="current-password" required value={password} invalid={Boolean(error)} onChange={(event) => setPassword(event.target.value)} className="min-h-6" />
             </label>
@@ -137,14 +137,14 @@ export const SignInForm = ({ onSubmit, busy, error, workspace, notice, methods =
             </Button>
           )}
           {withPassword && forgotPassword && (
-            <RouteLink to={forgotPassword} className="self-center text-[13px] font-medium text-primary-text hover:underline">
+            <RouteLink to={forgotPassword} className="self-center font-medium text-primary-text hover:underline">
               Forgot password?
             </RouteLink>
           )}
         </form>
       )}
       {signUp && (
-        <p className="mt-4 text-center text-[13px] text-muted-foreground">
+        <p className="mt-4 text-center text-muted-foreground">
           New here?{' '}
           <RouteLink to={signUp} className="font-medium text-primary-text hover:underline">
             Create an account
@@ -152,7 +152,7 @@ export const SignInForm = ({ onSubmit, busy, error, workspace, notice, methods =
         </p>
       )}
       {onBrowse && (
-        <button type="button" onClick={onBrowse} className="mt-4 w-full text-center text-[13px] font-medium text-muted-foreground hover:text-foreground hover:underline">
+        <button type="button" onClick={onBrowse} className="mt-4 w-full text-center font-medium text-muted-foreground hover:text-foreground hover:underline">
           Continue without signing in
         </button>
       )}

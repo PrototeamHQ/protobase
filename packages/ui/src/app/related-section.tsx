@@ -48,7 +48,7 @@ const useMatch = (item: RelatedModel, recordKey: string) => {
 
 const Loading = () => <div className="flex flex-col gap-2">{Array.from({ length: 3 }, (_, index) => <Skeleton key={index} className="h-4 w-full" />)}</div>
 
-const Empty = ({ text }: { text: string | undefined }) => <p className="text-[13px] text-muted-foreground">{text ?? 'Nothing here yet.'}</p>
+const Empty = ({ text }: { text: string | undefined }) => <p className="text-muted-foreground">{text ?? 'Nothing here yet.'}</p>
 
 /**
  * A record page section listing the first records of another resource that point at this record, directly or through

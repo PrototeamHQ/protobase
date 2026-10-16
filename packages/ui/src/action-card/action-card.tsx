@@ -39,7 +39,7 @@ export const ActionCard = ({ title, tone = 'neutral', badge, note, actions = [],
     <section aria-label={title} className={frameless ? 'whitespace-normal text-foreground' : cn('shrink-0 overflow-hidden rounded-lg border bg-background whitespace-normal text-foreground shadow-sm', frames[tone].border)}>
       {!frameless && (
         <header className={cn('flex items-center gap-2 px-3 py-2', frames[tone].header)}>
-          <h3 className="min-w-0 flex-1 text-[13px] font-semibold">{title}</h3>
+          <h3 className="min-w-0 flex-1 font-semibold">{title}</h3>
           {badge && <span className="shrink-0 text-xs font-medium">{badge}</span>}
         </header>
       )}

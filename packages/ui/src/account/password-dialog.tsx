@@ -51,7 +51,7 @@ export const PasswordDialog = ({ title, description, confirmLabel, danger, needs
       }
     >
       {needsPassword && (
-        <label className="flex flex-col gap-1.5 text-[13px] font-medium">
+        <label className="flex flex-col gap-1.5 font-medium">
           Your password
           <Input type="password" autoComplete="current-password" autoFocus value={password} invalid={Boolean(error)} onChange={(event) => setPassword(event.target.value)} onKeyDown={(event) => event.key === 'Enter' && password && void confirm()} />
         </label>

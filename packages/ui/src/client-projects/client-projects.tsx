@@ -12,14 +12,14 @@ export const ClientProjects = () => (
     <header className="flex h-12 items-center gap-6 border-b bg-background px-6">
       <div className="flex items-center gap-2.5">
         <LogoMark className="size-6" />
-        <span className="text-[13px] font-semibold">Protobase Cloud</span>
+        <span className="font-semibold">Protobase Cloud</span>
         <span className="text-faint-foreground">/</span>
-        <span className="flex items-center gap-1 text-[13px] text-muted-foreground">
+        <span className="flex items-center gap-1 text-muted-foreground">
           Northlane Agency
           <ChevronsUpDown className="size-3.5" />
         </span>
       </div>
-      <nav className="ml-6 flex gap-5 text-[13px]">
+      <nav className="ml-6 flex gap-5">
         {tabs.map((tab) => (
           <span key={tab} className={tab === 'Projects' ? 'font-medium' : 'text-muted-foreground'}>
             {tab}
@@ -34,7 +34,7 @@ export const ClientProjects = () => (
       <div className="flex items-end justify-between">
         <div>
           <h1 className="text-xl font-semibold tracking-tight">Client projects</h1>
-          <p className="text-[13px] text-muted-foreground">One admin panel per client, each on its own domain, in the region they choose.</p>
+          <p className="text-muted-foreground">One admin panel per client, each on its own domain, in the region they choose.</p>
         </div>
         <Button variant="primary">
           <Plus className="size-3.5" />

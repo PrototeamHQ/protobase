@@ -56,7 +56,7 @@ export const PasskeysSection = ({ rule, passkeys, onAdd, onRename, onRemove }: P
             <li key={passkey.id} className="flex flex-wrap items-center gap-3 px-3 py-2.5">
               <KeyRound className="size-4 shrink-0 text-muted-foreground" />
               <span className="min-w-0 flex-1">
-                <span className="block truncate text-[13px] font-medium">{passkey.name ?? 'Passkey'}</span>
+                <span className="block truncate font-medium">{passkey.name ?? 'Passkey'}</span>
                 <span className="block text-xs text-muted-foreground">
                   {passkey.createdAt ? `Added ${formatDate(Date.parse(passkey.createdAt))}` : 'Added earlier'} · {passkey.backedUp ? 'Synced across your devices' : 'On one device'}
                 </span>
@@ -100,7 +100,7 @@ export const PasskeysSection = ({ rule, passkeys, onAdd, onRename, onRemove }: P
             </>
           }
         >
-          <label className="flex flex-col gap-1.5 text-[13px] font-medium">
+          <label className="flex flex-col gap-1.5 font-medium">
             Name
             <Input autoFocus value={name} maxLength={60} onChange={(event) => setName(event.target.value)} />
           </label>

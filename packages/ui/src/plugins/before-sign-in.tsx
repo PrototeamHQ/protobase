@@ -30,7 +30,7 @@ export const BeforeSignIn = ({ children }: { children: ReactNode }) => {
   if (state.kind !== 'signed-out' && state.kind !== 'visitor') return children
   if (!settled) {
     return (
-      <div className="flex h-full min-h-48 items-center justify-center gap-2 text-[13px] text-muted-foreground">
+      <div className="flex h-full min-h-48 items-center justify-center gap-2 text-muted-foreground">
         <Spinner /> Loading
       </div>
     )

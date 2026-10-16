@@ -33,9 +33,9 @@ export const ConflictDialog = ({ title, changes, busy, onReview, onDeleteAnyway,
     }
   >
     {changes.length === 0 ? (
-      <p className="text-[13px] text-muted-foreground">No visible fields differ; the record was saved again with the same values.</p>
+      <p className="text-muted-foreground">No visible fields differ; the record was saved again with the same values.</p>
     ) : (
-      <ul className="divide-y rounded-md border text-[13px]">
+      <ul className="divide-y rounded-md border">
         {changes.map((change) => (
           <li key={change.field} className="grid grid-cols-[96px_1fr] gap-3 px-3 py-2">
             <span className="text-muted-foreground">{change.label}</span>
@@ -84,7 +84,7 @@ export const BulkDeleteDialog = (
       actions={<Button variant="primary" onClick={props.onClose}>Done</Button>}
     >
       {props.failures.length > 0 && (
-        <ul className="max-h-48 divide-y overflow-y-auto rounded-md border text-[13px]">
+        <ul className="max-h-48 divide-y overflow-y-auto rounded-md border">
           {props.failures.map((failure) => (
             <li key={failure.title} className="px-3 py-2">
               <span className="font-medium">{failure.title}</span>

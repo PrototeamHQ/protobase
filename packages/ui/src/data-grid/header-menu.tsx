@@ -34,7 +34,7 @@ export const HeaderMenu = ({ header, pinned, onTogglePin }: HeaderMenuProps) => 
         <MoreHorizontal className="size-3.5" />
       </button>
       {open && (
-        <ul role="menu" className="absolute right-0 top-full z-30 mt-1 min-w-32 rounded-md border bg-background py-1 text-[13px] font-normal text-foreground shadow-pop">
+        <ul role="menu" className="absolute right-0 top-full z-30 mt-1 min-w-32 rounded-md border bg-background py-1 text-body font-normal text-foreground shadow-pop">
           <li role="none">
             <button
               type="button"

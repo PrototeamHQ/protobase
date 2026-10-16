@@ -26,7 +26,7 @@ const MemberRow = ({ member, current, onChanged }: { member: OrganizationMember;
     <li className="flex flex-col gap-2 px-3 py-3">
       <div className="flex flex-wrap items-center gap-2">
         <span className="min-w-0 flex-1">
-          <span className="block truncate text-[13px] font-medium">{member.name}{self && ' (you)'}</span>
+          <span className="block truncate font-medium">{member.name}{self &&' (you)'}</span>
           <span className="block truncate text-xs text-muted-foreground">{member.email}</span>
         </span>
         <select
@@ -74,7 +74,7 @@ export const MembersPage = ({ current }: { current?: CurrentOrganization }) => {
             {members.map((member) => <MemberRow key={`${member.id}/${member.role}/${member.appRoles.join()}`} member={member} current={current} onChanged={load} />)}
           </ul>
         ) : (
-          !error && <div className="flex items-center gap-2 text-[13px] text-muted-foreground"><Spinner /> Loading</div>
+          !error && <div className="flex items-center gap-2 text-muted-foreground"><Spinner /> Loading</div>
         )}
       </AccountSection>
     </div>

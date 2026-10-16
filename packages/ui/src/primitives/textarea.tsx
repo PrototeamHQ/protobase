@@ -34,7 +34,7 @@ export const Textarea = ({ invalid, className, rows = 3, value, ...rest }: Texta
       rows={rows}
       value={value}
       className={cn(
-        'block w-full resize-none overflow-hidden rounded-md border bg-background px-2.5 py-1.5 text-[13px] text-foreground shadow-sm outline-none placeholder:text-faint-foreground focus:border-primary focus:ring-2 focus:ring-primary/20',
+        'block w-full resize-none overflow-hidden rounded-md border bg-background px-2.5 py-1.5 text-body text-foreground shadow-sm outline-none placeholder:text-faint-foreground focus:border-primary focus:ring-2 focus:ring-primary/20',
         invalid ? 'border-danger' : 'border-border-strong',
         className,
       )}

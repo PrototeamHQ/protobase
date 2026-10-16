@@ -114,7 +114,7 @@ export const MapDisplay = ({ model, view, display, filter, orderBy, fields, at, 
         )}
         {empty && (
           <div className="pointer-events-none absolute inset-x-3 top-3 z-10 flex justify-center">
-            <p className="pointer-events-auto flex items-center gap-3 rounded-full border border-border bg-background px-4 py-1.5 text-[13px] text-muted-foreground shadow" role="status">
+            <p className="pointer-events-auto flex items-center gap-3 rounded-full border border-border bg-background px-4 py-1.5 text-muted-foreground shadow" role="status">
               {fitting ? `No ${plural} match.` : `No ${plural} in this part of the map.`}
               {!fitting && (
                 <Button size="sm" onClick={() => setFitting(true)}>

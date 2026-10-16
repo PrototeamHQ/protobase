@@ -65,7 +65,7 @@ export const RowMenu = ({ row, actions }: { row: GridRow; actions: RowAction[] }
       </button>
       {open &&
         createPortal(
-          <ul ref={menu} role="menu" onClick={(event) => event.stopPropagation()} style={place ?? { visibility: 'hidden' }} className="fixed z-50 min-w-36 rounded-md border bg-background py-1 text-[13px] shadow-pop">
+          <ul ref={menu} role="menu" onClick={(event) => event.stopPropagation()} style={place ?? { visibility: 'hidden' }} className="fixed z-50 min-w-36 rounded-md border bg-background py-1 shadow-pop">
             {actions.map((action) => (
               <li key={action.label} role="none">
                 <button

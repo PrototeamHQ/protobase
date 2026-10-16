@@ -34,6 +34,6 @@ export const SavedList = ({ model, view, target, children }: SavedListProps) => 
   if (saved.error) return frame(<ErrorBanner title={`Could not load your ${plural.toLowerCase()}`} error={saved.error} />)
   if (!saved.data) return frame(<div className="grid grid-cols-[repeat(auto-fill,minmax(15rem,1fr))] gap-3">{Array.from({ length: 3 }, (_, index) => <Skeleton key={index} className="h-24" />)}</div>)
   const scope = savedScope(target, saved.data)
-  if (!scope) return frame(<p className="py-8 text-center text-[13px] text-muted-foreground">No {plural.toLowerCase()} yet.</p>)
+  if (!scope) return frame(<p className="py-8 text-center text-muted-foreground">No {plural.toLowerCase()} yet.</p>)
   return children(scope)
 }

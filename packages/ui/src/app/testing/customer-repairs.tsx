@@ -11,10 +11,10 @@ export const CustomerRepairs = ({ limit }: { limit: number }) => {
   if (!around) throw new Error("CustomerRepairs sits on a repair's page")
   const { record } = around
   const earlier = useList('repairs', { filter: `customer_id = ${String(record.customer_id)} AND id != ${String(record.id)}`, orderBy: 'booked_on desc', pageSize: limit })
-  if (earlier.isPending) return <p className="text-[13px] text-muted-foreground">Loading</p>
-  if (earlier.items.length === 0) return <p className="text-[13px] text-muted-foreground">No other repairs.</p>
+  if (earlier.isPending) return <p className="text-muted-foreground">Loading</p>
+  if (earlier.items.length === 0) return <p className="text-muted-foreground">No other repairs.</p>
   return (
-    <ul aria-label="Earlier repairs" className="divide-y divide-border text-[13px]">
+    <ul aria-label="Earlier repairs" className="divide-y divide-border">
       {earlier.items.map((item) => (
         <li key={String(item.id)} className="flex justify-between gap-4 py-2">
           <RecordLink recordKey={item.id as number} className="font-medium text-primary-text hover:underline">

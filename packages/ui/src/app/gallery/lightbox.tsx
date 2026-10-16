@@ -85,7 +85,7 @@ export const Lightbox = ({ title, photos, index, onIndex, onClose, details, deta
     <div ref={panel} tabIndex={-1} role="dialog" aria-modal="true" aria-label={title} onKeyDown={key} className="fixed inset-0 z-[90] flex flex-col overflow-y-auto overscroll-contain bg-backdrop outline-none md:flex-row">
       <div className="flex h-dvh shrink-0 flex-col md:sticky md:top-0 md:min-w-0 md:flex-1">
         <div className="flex shrink-0 items-center justify-between gap-2 p-3">
-          <span className="rounded-full bg-background/85 px-3 py-1 text-[13px] font-medium tabular-nums text-foreground" aria-live="polite">
+          <span className="rounded-full bg-background/85 px-3 py-1 font-medium tabular-nums text-foreground" aria-live="polite">
             {`${index + 1} / ${count}`}
           </span>
           <div className="flex items-center gap-2">
@@ -123,7 +123,7 @@ export const Lightbox = ({ title, photos, index, onIndex, onClose, details, deta
       </div>
       {hasDetails && detailsOpen && desktop && (
         <aside id={sidebarId} aria-label={detailsTitle} className="min-h-dvh w-[360px] shrink-0 border-l border-border bg-background p-5 text-foreground">
-          <h2 className="mb-3 text-[15px] font-semibold">{detailsTitle}</h2>
+          <h2 className="mb-3 text-[16px] font-semibold">{detailsTitle}</h2>
           {shownDetails}
         </aside>
       )}

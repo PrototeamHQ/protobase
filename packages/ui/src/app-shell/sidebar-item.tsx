@@ -12,7 +12,7 @@ const layout = {
   icon: 'size-9 justify-center',
   'icon-label': 'w-full flex-col gap-0.5 py-1.5 text-[10px]',
   'icon-tooltip': 'size-9 justify-center',
-  'icon-expand': 'h-8 gap-3 px-3 text-[13px]',
+  'icon-expand': 'h-8 gap-3 px-3',
 } satisfies Record<SidebarMode, string>
 
 export const SidebarItem = ({ item, mode, active, onNavigate, className }: SidebarItemProps) => {

@@ -28,11 +28,11 @@ export const SignUpEmailForm = ({ onSubmit, onSignIn, onBrowse, busy, error, wor
           onSubmit(email.trim())
         }}
       >
-        <label className="flex flex-col gap-1.5 text-[13px] font-medium">
+        <label className="flex flex-col gap-1.5 font-medium">
           Email
           <Input type="email" name="email" autoComplete="email" required autoFocus value={email} invalid={Boolean(error)} onChange={(event) => setEmail(event.target.value)} className="min-h-6" />
         </label>
-        <p className="text-[13px] text-muted-foreground">We email you a code to make sure the address is yours.</p>
+        <p className="text-muted-foreground">We email you a code to make sure the address is yours.</p>
         {error && (
           <p role="alert" className="text-xs font-medium text-danger-text">
             {error}
@@ -42,7 +42,7 @@ export const SignUpEmailForm = ({ onSubmit, onSignIn, onBrowse, busy, error, wor
           <Mail className="size-4" />
           Email me a code
         </Button>
-        <p className="text-center text-[13px] text-muted-foreground">
+        <p className="text-center text-muted-foreground">
           Have an account?{' '}
           <button type="button" onClick={onSignIn} className="font-medium text-primary-text hover:underline">
             Sign in
@@ -50,7 +50,7 @@ export const SignUpEmailForm = ({ onSubmit, onSignIn, onBrowse, busy, error, wor
         </p>
       </form>
       {onBrowse && (
-        <button type="button" onClick={onBrowse} className="mt-4 w-full text-center text-[13px] font-medium text-muted-foreground hover:text-foreground hover:underline">
+        <button type="button" onClick={onBrowse} className="mt-4 w-full text-center font-medium text-muted-foreground hover:text-foreground hover:underline">
           Continue without an account
         </button>
       )}

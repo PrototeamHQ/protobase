@@ -44,7 +44,7 @@ const guestPlugin = (exchange: (code: string) => Promise<void>) => {
     if (code && !failed) return <p role="status">Signing you in as a guest…</p>
     return children
   }
-  const CloudBadge = () => <span className="text-[13px]">Cloud</span>
+  const CloudBadge = () => <span>Cloud</span>
   return { default: definePlugin({ name: 'cloud', beforeSignIn: GuestAccess, shell: { actions: CloudBadge } }) }
 }
 

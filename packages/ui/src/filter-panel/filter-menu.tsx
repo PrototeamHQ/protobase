@@ -31,7 +31,7 @@ export const FilterMenu = ({ label, activeCount, width = 240, defaultOpen = fals
         aria-expanded={open}
         onClick={() => setOpen(!open)}
         className={cn(
-          'inline-flex h-8 items-center gap-1.5 rounded-md border bg-background px-2.5 text-[13px] font-medium shadow-sm transition-colors hover:bg-muted',
+          'inline-flex h-8 items-center gap-1.5 rounded-md border bg-background px-2.5 font-medium shadow-sm transition-colors hover:bg-muted',
           activeCount > 0 ? 'border-primary-border text-primary-text' : 'border-border-strong text-foreground',
         )}
       >

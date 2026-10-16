@@ -15,7 +15,7 @@ const variants = {
   danger: 'bg-background text-danger-text border border-border-strong hover:bg-danger-soft shadow-sm',
 }
 
-const sizes = { sm: 'h-7 px-2.5 text-xs gap-1.5', md: 'h-8 px-3 text-[13px] gap-2' }
+const sizes = { sm: 'h-7 px-2.5 text-xs gap-1.5', md: 'h-8 px-3 text-body gap-2' }
 
 /** A button's classes, for a link that looks like one. */
 export const buttonClass = ({ variant = 'secondary', size = 'md' }: Pick<ButtonProps, 'variant' | 'size'> = {}) =>

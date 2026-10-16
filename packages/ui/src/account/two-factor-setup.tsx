@@ -77,7 +77,7 @@ export const TwoFactorSetup = ({ offerEmailedCodes, needsPassword, onStartApp, o
   if (step.kind === 'backup-codes') {
     return (
       <div className="flex flex-col gap-4">
-        <p className="text-[13px] text-muted-foreground">Two-factor authentication is on. Keep these backup codes somewhere safe: each one signs you in once if you lose your phone. They are not shown again.</p>
+        <p className="text-muted-foreground">Two-factor authentication is on. Keep these backup codes somewhere safe: each one signs you in once if you lose your phone. They are not shown again.</p>
         <BackupCodes codes={step.codes} />
         <Button variant="primary" onClick={onDone} className="min-h-10">
           I saved my backup codes
@@ -95,15 +95,15 @@ export const TwoFactorSetup = ({ offerEmailedCodes, needsPassword, onStartApp, o
           void confirm(step.setup)
         }}
       >
-        <p className="text-[13px] text-muted-foreground">Scan this code with your authenticator app, then enter the 6-digit code it shows.</p>
+        <p className="text-muted-foreground">Scan this code with your authenticator app, then enter the 6-digit code it shows.</p>
         <div className="flex flex-col items-center gap-2">
           <TotpQr uri={step.setup.totpURI} className="size-44 rounded-md border" />
           <p className="text-center text-xs text-muted-foreground">
             Can't scan it? Enter this key in the app:
-            <span className="mt-1 block break-all font-mono text-[13px] text-foreground">{totpKey(step.setup.totpURI)}</span>
+            <span className="mt-1 block break-all font-mono text-body text-foreground">{totpKey(step.setup.totpURI)}</span>
           </p>
         </div>
-        <label className="flex flex-col gap-1.5 text-[13px] font-medium">
+        <label className="flex flex-col gap-1.5 font-medium">
           Code from the app
           <OtpInput name="code" required autoFocus value={code} invalid={Boolean(error)} onChange={setCode} onComplete={(complete) => !busy && void confirm(step.setup, complete)} />
         </label>
@@ -138,13 +138,13 @@ export const TwoFactorSetup = ({ offerEmailedCodes, needsPassword, onStartApp, o
             onClick={() => setChoice(option.value)}
             className={cn('rounded-md border p-3 text-left transition-colors', choice === option.value ? 'border-primary bg-primary-soft' : 'border-border-strong hover:bg-muted')}
           >
-            <span className="block text-[13px] font-medium">{option.label}</span>
+            <span className="block font-medium">{option.label}</span>
             <span className="mt-0.5 block text-xs text-muted-foreground">{option.description}</span>
           </button>
         ))}
       </div>
       {needsPassword && (
-        <label className="flex flex-col gap-1.5 text-[13px] font-medium">
+        <label className="flex flex-col gap-1.5 font-medium">
           Your password
           <Input type="password" name="password" autoComplete="current-password" required value={password} invalid={Boolean(error)} onChange={(event) => setPassword(event.target.value)} className="min-h-6" />
         </label>

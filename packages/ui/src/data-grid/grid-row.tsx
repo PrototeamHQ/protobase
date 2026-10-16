@@ -40,7 +40,7 @@ export const DataRow = ({ cells, selected, onToggle, onOpen, menu, ...frame }: D
   <div
     role="row"
     onClick={onOpen}
-    className={cn('absolute inset-x-0 top-0 grid items-center border-b text-[13px]', selected ? 'bg-primary-soft' : 'bg-background hover:bg-surface', onOpen && 'cursor-pointer')}
+    className={cn('absolute inset-x-0 top-0 grid items-center border-b', selected ? 'bg-primary-soft' : 'bg-background hover:bg-surface', onOpen && 'cursor-pointer')}
     style={frameStyle(frame)}
   >
     <Gutter width={frame.gutter} index={frame.index} selectable={frame.selectable} selected={selected} onToggle={onToggle} edge={frame.scrolled && !frame.lastPinned} />

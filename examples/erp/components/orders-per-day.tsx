@@ -3,8 +3,8 @@ import { useSeries } from '@protobase/ui'
 /** Bars for orders per day; the custom component behind `<OrdersPerDay>` in config/overview/page.tsx. */
 export const OrdersPerDay = ({ days }: { days: 7 | 30 | 90 }) => {
   const series = useSeries('orders', { field: 'created_at', range: `${days}d`, granularity: 'day' })
-  if (series.isPending) return <p className="text-[13px] text-muted-foreground">Loading</p>
-  if (series.error) return <p className="text-[13px] text-danger-text">Could not load the orders</p>
+  if (series.isPending) return <p className="text-muted-foreground">Loading</p>
+  if (series.error) return <p className="text-danger-text">Could not load the orders</p>
   const points = series.data.points
   const highest = Math.max(1, ...points.map((point) => point.count))
   const total = points.reduce((sum, point) => sum + point.count, 0)

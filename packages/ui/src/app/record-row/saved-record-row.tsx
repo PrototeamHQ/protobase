@@ -27,6 +27,6 @@ export const SavedRecordRow = ({ model, view, empty, ...props }: SavedRecordRowP
   if (saved.error) return <ErrorBanner title={`Could not load your ${plural}`} error={saved.error} />
   if (!saved.data) return <Skeleton className="h-24" />
   const scope = savedScope(listed.model!, saved.data)
-  if (!scope) return <p className="text-[13px] text-muted-foreground">{empty ?? `No ${plural} yet.`}</p>
+  if (!scope) return <p className="text-muted-foreground">{empty ?? `No ${plural} yet.`}</p>
   return <RecordRowBody {...props} model={listed.model!} view={listed.view} filter="" scope={scope} list={model.name} empty={empty} />
 }

@@ -30,7 +30,7 @@ export const Sheet = ({ title, open, onClose, children }: SheetProps) => {
       <div ref={panel} role="dialog" aria-modal="true" aria-label={title} tabIndex={-1} className="absolute inset-x-0 bottom-0 flex max-h-[85vh] flex-col rounded-t-xl border-t bg-background shadow-pop outline-none">
         <header className="relative flex shrink-0 touch-none items-center justify-between border-b px-4" onPointerDown={down} onPointerUp={up} onPointerCancel={() => (start.current = undefined)}>
           <span className="absolute left-1/2 top-1.5 h-1 w-9 -translate-x-1/2 rounded-full bg-border-strong" aria-hidden />
-          <h2 className="text-[15px] font-semibold">{title}</h2>
+          <h2 className="text-[16px] font-semibold">{title}</h2>
           <button type="button" aria-label="Close" onClick={onClose} className="-mr-2 inline-flex size-11 items-center justify-center rounded-md text-muted-foreground hover:bg-muted">
             <X className="size-5" />
           </button>

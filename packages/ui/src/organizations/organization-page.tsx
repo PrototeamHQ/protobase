@@ -42,7 +42,7 @@ const HandOver = ({ organization, memberId }: { organization: Organization; memb
     <AccountSection title="Hand over" description="Make another member the owner. You stay as an admin.">
       <SectionError message={error} />
       <div className="flex flex-col gap-2 sm:flex-row">
-        <select aria-label="New owner" value={target} onChange={(event) => setTarget(event.target.value)} className="h-8 flex-1 rounded-md border border-border-strong bg-background px-2 text-[13px]">
+        <select aria-label="New owner" value={target} onChange={(event) => setTarget(event.target.value)} className="h-8 flex-1 rounded-md border border-border-strong bg-background px-2">
           <option value="">Choose a member</option>
           {members.map((member) => <option key={member.id} value={member.id}>{member.name} ({member.email})</option>)}
         </select>

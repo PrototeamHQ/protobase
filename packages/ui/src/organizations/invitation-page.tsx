@@ -35,7 +35,7 @@ const SignUp = ({ token, preview, onDone }: { token: string; preview: Invitation
     })
   return (
     <form className="flex flex-col gap-3" onSubmit={(event) => { event.preventDefault(); void submit() }}>
-      <p className="text-[13px] text-muted-foreground">Make your account for {preview.email} to join.</p>
+      <p className="text-muted-foreground">Make your account for {preview.email} to join.</p>
       {error && <p role="alert" className="text-xs font-medium text-danger-text">{error}</p>}
       <Input aria-label="Your name" placeholder="Your name" autoComplete="name" value={name} onChange={(event) => setName(event.target.value)} />
       {withPassword && (
@@ -78,7 +78,7 @@ export const InvitationPage = ({ token, onDone, signIn }: InvitationPageProps) =
   if (!preview) {
     return (
       <AuthLayout title="Invitation">
-        <div className="flex items-center justify-center gap-2 text-[13px] text-muted-foreground"><Spinner /> Loading</div>
+        <div className="flex items-center justify-center gap-2 text-muted-foreground"><Spinner /> Loading</div>
       </AuthLayout>
     )
   }
@@ -89,7 +89,7 @@ export const InvitationPage = ({ token, onDone, signIn }: InvitationPageProps) =
   if (user && user.email.toLowerCase() !== preview.email.toLowerCase()) {
     return (
       <AuthLayout title={`Join ${preview.organization.name}`} description={description}>
-        <p className="mb-3 text-[13px] text-muted-foreground">This invitation is for {preview.email}, and you are signed in as {user.email}.</p>
+        <p className="mb-3 text-muted-foreground">This invitation is for {preview.email}, and you are signed in as {user.email}.</p>
         <Button className="w-full" onClick={() => void signOut()}>Sign out to accept it</Button>
       </AuthLayout>
     )

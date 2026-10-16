@@ -15,7 +15,7 @@ export type SpecRow = {
  * site: what a record page's section shows on its read view. A wide row puts its value under the label.
  */
 export const SpecTable = ({ rows }: { rows: SpecRow[] }) => (
-  <dl className="border-t border-border text-[13px]">
+  <dl className="border-t border-border">
     {rows.map((row) => (
       <div key={row.label} className={cn('grid gap-x-4 border-b border-border py-2.5', row.wide ? 'grid-cols-1 gap-y-1.5' : 'grid-cols-[minmax(0,2fr)_minmax(0,3fr)]')}>
         <dt className="min-w-0 text-muted-foreground">

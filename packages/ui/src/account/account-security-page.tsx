@@ -72,11 +72,11 @@ export const AccountSecurityPage = ({ email }: { email: string }) => {
           )}
         </>
       ) : error ? (
-        <p role="alert" className="text-[13px] text-danger-text">
+        <p role="alert" className="text-danger-text">
           {error}
         </p>
       ) : (
-        <div className="flex items-center gap-2 text-[13px] text-muted-foreground">
+        <div className="flex items-center gap-2 text-muted-foreground">
           <Spinner /> Loading
         </div>
       )}

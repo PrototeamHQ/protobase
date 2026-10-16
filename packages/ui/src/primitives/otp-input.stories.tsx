@@ -11,7 +11,7 @@ type Args = Pick<OtpInputProps, 'onComplete' | 'invalid' | 'disabled' | 'length'
 const Field = ({ initial = '', ...rest }: Args) => {
   const [code, setCode] = useState(initial)
   return (
-    <label className="flex w-80 flex-col gap-1.5 text-[13px] font-medium">
+    <label className="flex w-80 flex-col gap-1.5 font-medium">
       Code
       <OtpInput value={code} onChange={setCode} {...rest} />
     </label>

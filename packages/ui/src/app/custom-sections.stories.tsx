@@ -21,7 +21,7 @@ export default meta
 const session = createStaticSession('story-token', { id: 'pip', email: 'pip@bikeshop.example', name: 'Pip', role: 'admin' })
 
 /** Whether the repair is paid, as a sidebar card of the project's own. */
-const PaymentNote = () => <p className="text-[13px]">{useLayoutRecord()?.record.paid ? 'Paid' : 'Not paid yet'}</p>
+const PaymentNote = () => <p>{useLayoutRecord()?.record.paid ? 'Paid' : 'Not paid yet'}</p>
 
 const ui = defineUi({ components: { RepairBoard, CustomerRepairs, PaymentNote } })
 

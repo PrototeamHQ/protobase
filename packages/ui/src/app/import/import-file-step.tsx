@@ -16,7 +16,7 @@ type ImportFileStepProps = {
 export const ImportFileStep = ({ file, sheets, sheet, reading, onChoose, onSheet }: ImportFileStepProps) => {
   const id = useId()
   return (
-    <div className="flex flex-col gap-4 text-[13px]">
+    <div className="flex flex-col gap-4">
       <div className="flex flex-col gap-1.5">
         <label htmlFor={id} className="font-medium">
           File
@@ -30,7 +30,7 @@ export const ImportFileStep = ({ file, sheets, sheet, reading, onChoose, onSheet
             const chosen = event.target.files?.[0]
             if (chosen) onChoose(chosen)
           }}
-          className="text-[13px] file:mr-3 file:h-8 file:rounded-md file:border file:border-border-strong file:bg-background file:px-3 file:font-medium file:text-foreground max-sm:file:min-h-11"
+          className="file:mr-3 file:h-8 file:rounded-md file:border file:border-border-strong file:bg-background file:px-3 file:font-medium file:text-foreground max-sm:file:min-h-11"
         />
         <p className="text-xs text-muted-foreground">An Excel workbook (.xlsx) or a CSV file saved as UTF-8. Its first row names the columns.</p>
       </div>

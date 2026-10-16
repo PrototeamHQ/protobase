@@ -30,7 +30,7 @@ export const NumberCell = ({ value, onCommit, format, parse, label, width = 'w-f
       onBlur={commit}
       onKeyDown={(event) => event.key === 'Enter' && event.currentTarget.blur()}
       className={cn(
-        'h-7 rounded-md border border-transparent bg-transparent px-2 text-right text-[13px] tabular-nums text-foreground outline-none hover:border-border-strong focus:border-primary focus:bg-background focus:ring-2 focus:ring-primary/20',
+        'h-7 rounded-md border border-transparent bg-transparent px-2 text-right tabular-nums text-foreground outline-none hover:border-border-strong focus:border-primary focus:bg-background focus:ring-2 focus:ring-primary/20',
         width,
       )}
     />

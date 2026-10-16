@@ -53,7 +53,7 @@ export const FilterPanel = ({ config, layout, value, defaultValue, onChange, loc
     return (
       <aside className={fullWidth ? 'flex w-full flex-col gap-1' : 'flex w-64 shrink-0 flex-col gap-1 overflow-y-auto rounded-lg border bg-background px-4 py-3'}>
         <div className="flex items-center justify-between pb-1">
-          <h2 className="text-[13px] font-semibold">Filters</h2>
+          <h2 className="font-semibold">Filters</h2>
         </div>
         {(chips.length > 0 || (lockedLabels?.length ?? 0) > 0) && <div className="border-b pb-3">{chipsView}</div>}
         {leading}
@@ -87,7 +87,7 @@ export const FilterPanel = ({ config, layout, value, defaultValue, onChange, loc
     ...(dateView ? [<Fragment key="date">{dateView}</Fragment>] : []),
   ]
   const toggles = (config.toggles ?? []).map((toggle) => (
-    <div key={toggle.id} className="flex items-center gap-2 text-[13px] text-muted-foreground">
+    <div key={toggle.id} className="flex items-center gap-2 text-muted-foreground">
       <ToggleRow label={toggle.label} checked={state.toggles.includes(toggle.id)} onChange={() => setState(toggleFlag(state, toggle.id))} />
     </div>
   ))

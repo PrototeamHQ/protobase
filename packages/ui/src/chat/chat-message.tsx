@@ -6,7 +6,7 @@ export const ChatMessage = ({ from, children }: { from: 'user' | 'assistant'; ch
   <div
     data-from={from}
     className={cn(
-      'flex min-w-0 flex-col gap-2 whitespace-pre-wrap break-words text-[13px]',
+      'flex min-w-0 flex-col gap-2 whitespace-pre-wrap break-words',
       from === 'user' ? 'ml-8 self-end rounded-lg rounded-br-sm bg-primary px-3 py-2 text-primary-foreground shadow-sm' : 'mr-4 text-foreground',
     )}
   >

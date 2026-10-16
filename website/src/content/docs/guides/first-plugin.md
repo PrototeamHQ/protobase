@@ -53,7 +53,7 @@ export const DraftOrders = () => {
     <div>
       <ul className="divide-y divide-border">
         {drafts.items.map((order) => (
-          <li key={String(order.id)} className="flex justify-between py-1.5 text-[13px]">
+          <li key={String(order.id)} className="flex justify-between py-1.5">
             <RecordLink resource="orders" recordKey={String(order.id)} className="font-medium text-primary-text hover:underline">
               {String(order.number)}
             </RecordLink>

@@ -17,7 +17,7 @@ export const inApp = (event: MouseEvent) => event.button === 0 && !event.metaKey
 
 /** The trail of where you are; the last crumb, the current page, shows on phones too. */
 export const Breadcrumb = ({ parts, onNavigate }: BreadcrumbProps) => (
-  <nav aria-label="Breadcrumb" className="flex min-w-0 items-center gap-1.5 text-[13px]">
+  <nav aria-label="Breadcrumb" className="flex min-w-0 items-center gap-1.5">
     {parts.map((part, index) => {
       const last = index === parts.length - 1
       const { label, href, loading } = typeof part === 'string' ? { label: part, href: undefined, loading: false } : part

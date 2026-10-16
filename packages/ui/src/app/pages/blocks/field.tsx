@@ -21,12 +21,12 @@ export const FieldBlock = ({ node }: BlockProps) => {
   const value = usePathValue(useLayoutRecord(), name)
   if (value.state === 'missing') return null
   const shown = value.state === 'loading' ? <Skeleton className="h-4 w-24" /> : <FieldValue model={value.model} field={value.field} value={value.value} format={format} />
-  if (label === false) return <div className="text-[13px]">{shown}</div>
+  if (label === false) return <div>{shown}</div>
   const text = label ?? fieldLabel(name, value.state === 'ready' ? views[value.model.name]?.fields[value.field.name]?.label : undefined)
   return (
     <div className="min-w-0">
       <div className="text-xs text-muted-foreground">{text}</div>
-      <div className="mt-0.5 truncate text-[13px]">{shown}</div>
+      <div className="mt-0.5 truncate">{shown}</div>
     </div>
   )
 }

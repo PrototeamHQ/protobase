@@ -27,7 +27,7 @@ export const StaffBanner = ({ signIn, onStop }: StaffBannerProps) => {
     }
   }
   return (
-    <div role="region" aria-label="Staff session" className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-warning/40 bg-warning-soft px-4 py-2 text-[13px] text-warning-text">
+    <div role="region" aria-label="Staff session" className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-warning/40 bg-warning-soft px-4 py-2 text-warning-text">
       <UserRoundCog aria-hidden className="size-4 shrink-0" />
       <p className="min-w-64 flex-1 break-words">
         <span className="font-semibold">{signIn.staffName ?? signIn.staff}</span> is signed in as <span className="font-semibold">{signIn.user}</span> until{' '}
