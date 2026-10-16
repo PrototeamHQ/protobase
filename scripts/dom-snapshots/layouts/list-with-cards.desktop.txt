@@ -6,8 +6,8 @@ div | block
           div .flex h-12 shrink-0 items-center px-3.5 | flex row nowrap center normal
             div .flex items-center gap-2.5 overflow-hidden | flex row nowrap center normal
               svg .size-7 shrink-0 | block
-              div .min-w-0 leading-tight | block
-                div .text-[13px] font-semibold tracking-tight | block
+              div .flex min-w-0 flex-col gap-0.5 leading-tight | flex column nowrap normal normal
+                svg role=img .h-3.5 w-auto self-start | block
                 div .truncate text-[11px] text-muted-foreground | block
           div .flex-1 overflow-y-auto overflow-x-hidden pb-2 px-2 | block
             div .flex flex-col gap-0.5 | flex column nowrap normal normal
