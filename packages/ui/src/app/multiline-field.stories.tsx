@@ -89,7 +89,8 @@ export const ReadOnlyKeepsLineBreaks: StoryObj = {
   render: () => <Homes path="/homes/1" canUpdate={false} />,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
-    const shown = await canvas.findByText((_, element) => element?.tagName === 'DIV' && element.textContent === description)
+    // A reader gets the read view, whose value keeps the line breaks
+    const shown = await canvas.findByText((_, element) => element?.tagName === 'SPAN' && element.parentElement?.tagName === 'DD' && element.textContent === description)
     expect(getComputedStyle(shown).whiteSpace).toBe('pre-line')
     expect(canvasElement.querySelector('textarea')).toBeNull()
   },
