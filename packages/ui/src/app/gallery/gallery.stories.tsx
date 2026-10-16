@@ -58,17 +58,41 @@ export const GalleryChecks: StoryObj = {
     await counter(dialog, '2 / 8')
     expect(dialog.querySelector('img')).not.toBeNull()
 
-    // Arrows, keys and a swipe step through them, wrapping around
+    // Arrows, keys and a swipe step through them
     await userEvent.click(within(dialog).getByRole('button', { name: 'Next photo' }))
     await counter(dialog, '3 / 8')
-    await userEvent.keyboard('{ArrowLeft}{ArrowLeft}{ArrowLeft}')
-    await counter(dialog, '8 / 8')
-    await userEvent.keyboard('{ArrowRight}')
+    await userEvent.keyboard('{ArrowLeft}{ArrowLeft}')
     await counter(dialog, '1 / 8')
     const stage = dialog.querySelector('img')!.parentElement!
-    stage.dispatchEvent(new PointerEvent('pointerdown', { pointerType: 'touch', clientX: 300, clientY: 200, bubbles: true }))
-    stage.dispatchEvent(new PointerEvent('pointerup', { pointerType: 'touch', clientX: 180, clientY: 210, bubbles: true }))
+    const swipe = async (from: number, to: number) => {
+      stage.dispatchEvent(new PointerEvent('pointerdown', { pointerType: 'touch', clientX: from, clientY: 200, bubbles: true }))
+      stage.dispatchEvent(new PointerEvent('pointerup', { pointerType: 'touch', clientX: to, clientY: 210, bubbles: true }))
+    }
+    await swipe(300, 180)
     await counter(dialog, '2 / 8')
+
+    // The first photo is the first: Previous, the left key and a swipe right go nowhere
+    await userEvent.keyboard('{ArrowLeft}')
+    await counter(dialog, '1 / 8')
+    const previous = within(dialog).getByRole('button', { name: 'Previous photo' })
+    expect(previous.getAttribute('aria-disabled')).toBe('true')
+    await userEvent.click(previous)
+    await userEvent.keyboard('{ArrowLeft}')
+    await swipe(180, 300)
+    await counter(dialog, '1 / 8')
+
+    // And the last is the last
+    await userEvent.keyboard('{ArrowRight}{ArrowRight}{ArrowRight}{ArrowRight}{ArrowRight}{ArrowRight}{ArrowRight}')
+    await counter(dialog, '8 / 8')
+    const next = within(dialog).getByRole('button', { name: 'Next photo' })
+    expect(next.getAttribute('aria-disabled')).toBe('true')
+    await userEvent.click(next)
+    await userEvent.keyboard('{ArrowRight}')
+    await swipe(300, 180)
+    await counter(dialog, '8 / 8')
+    expect(previous.getAttribute('aria-disabled')).toBe('false')
+    await userEvent.click(previous)
+    await counter(dialog, '7 / 8')
 
     // Escape closes it and gives focus back to the tile
     await userEvent.keyboard('{Escape}')

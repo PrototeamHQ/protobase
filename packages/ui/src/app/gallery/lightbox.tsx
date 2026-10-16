@@ -4,8 +4,7 @@ import { cn } from '../../lib/cn'
 import { useFocusTrap } from '../../lib/use-focus-trap'
 import { FileImage } from '../../live/file-image'
 import { shownImage } from '../../live/file-values'
-import { shownPhoto } from '../displays/card-photos'
-import { keyStep, swipeStep } from './gallery-layout'
+import { keyStep, steppedPhoto, swipeStep } from './gallery-layout'
 
 export type LightboxProps = {
   /** The dialog's accessible name, such as the gallery's title. */
@@ -30,7 +29,7 @@ const control =
 
 /**
  * Photos one at a time at full size over the page: a modal dialog with a counter, arrows and keys (left, right, Escape)
- * that step through them and wrap around, a sideways swipe on a touch screen, and, for a photo with details the user may
+ * that step through them, stopping at the first and the last, a sideways swipe on a touch screen, and, for a photo with details the user may
  * read, those details in a sidebar beside it, or below it on a mobile screen, where the dialog scrolls down to them. The
  * page does not scroll behind it, and focus returns to what opened it.
  */
@@ -39,7 +38,11 @@ export const Lightbox = ({ title, photos, index, onIndex, onClose, details, deta
   const start = useRef<{ x: number; y: number }>(undefined)
   useFocusTrap(panel, true, onClose)
   const count = photos.length
-  const step = (by: number) => by !== 0 && onIndex(shownPhoto(index + by, count))
+  // At an end the arrow stays focusable, so the keys keep working, and does nothing
+  const step = (by: number) => {
+    const next = steppedPhoto(index, by, count)
+    if (next !== index) onIndex(next)
+  }
   const image = shownImage(photos[index], { width: 1600, height: 1200 })
   const shownDetails = details?.(index)
 
@@ -74,10 +77,10 @@ export const Lightbox = ({ title, photos, index, onIndex, onClose, details, deta
           {image && <FileImage key={image.url} image={image} className="max-h-full max-w-full select-none object-contain" />}
           {count > 1 && (
             <>
-              <button type="button" className={cn(control, 'absolute left-3 top-1/2 -translate-y-1/2')} aria-label="Previous photo" onClick={() => step(-1)}>
+              <button type="button" className={cn(control, 'absolute left-3 top-1/2 -translate-y-1/2 aria-disabled:cursor-default aria-disabled:opacity-40')} aria-label="Previous photo" aria-disabled={index === 0} onClick={() => step(-1)}>
                 <ChevronLeft className="size-5" aria-hidden />
               </button>
-              <button type="button" className={cn(control, 'absolute right-3 top-1/2 -translate-y-1/2')} aria-label="Next photo" onClick={() => step(1)}>
+              <button type="button" className={cn(control, 'absolute right-3 top-1/2 -translate-y-1/2 aria-disabled:cursor-default aria-disabled:opacity-40')} aria-label="Next photo" aria-disabled={index === count - 1} onClick={() => step(1)}>
                 <ChevronRight className="size-5" aria-hidden />
               </button>
             </>

@@ -15,3 +15,6 @@ export const swipeStep = (dx: number, dy: number) => (Math.abs(dx) < 40 || Math.
 
 /** A key's step: the right arrow moves to the next photo, the left arrow to the previous one. */
 export const keyStep = (key: string) => (key === 'ArrowRight' ? 1 : key === 'ArrowLeft' ? -1 : 0)
+
+/** The photo a step from `index` lands on among `count`: it stops at the first and the last rather than wrapping around. */
+export const steppedPhoto = (index: number, by: number, count: number) => Math.min(Math.max(index + by, 0), Math.max(count - 1, 0))
