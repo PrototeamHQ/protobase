@@ -1,6 +1,6 @@
 ---
 title: UI config
-description: Views in ui.ts, with names, list columns, filters, charts, record layouts, related records, field hints, actions and views per role.
+description: Views in ui.ts, with names, list columns, filters, charts (graphs of records per day), record layouts, related records, field hints, actions and views per role.
 ---
 
 import { Code } from '@astrojs/starlight/components'
@@ -71,7 +71,9 @@ An enum's value labels show everywhere the admin shows its values: badges, selec
 | `w.toggle(r.paid)` | A switch for a boolean field. |
 | `w.flags([r.for_sale, r.for_rent], { label })` | A menu of boolean fields under one label, with how many records have each: a record shows when any chosen field is true, so one that is both shows under each. |
 
-`.chart((r) => ({ field, range, granularity }))` draws records per day or week over a date or timestamp field above the list, following its filters: `range` is `7d`, `30d`, `90d`, `1y` or `all`, `granularity` `hour`, `day`, `week` or `month`.
+### Charts (graphs): records per day, week or month above a list
+
+A list can show a graph of how many of its records fall on each hour, day, week or month, such as a daily graph of new listings. `.chart((r) => ({ field, range, granularity }))` draws records per day or week over a date or timestamp field above the list, following its filters: `range` is `7d`, `30d`, `90d`, `1y` or `all`, `granularity` `hour`, `day`, `week` or `month`.
 
 ## List displays
 
