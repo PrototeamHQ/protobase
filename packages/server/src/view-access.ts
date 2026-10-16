@@ -156,6 +156,7 @@ const viewShape = (resource: string, model: ResourceModel, models: Record<string
     saveSearch: s.map<SaveSearchModel>((search) => (prompted.has(search.resource) || models[search.resource] ? search : undefined)),
     searchesOf: s.map<SearchesOfModel>((searches) => searchesOfFor(searches, resource, models)),
     import: s.data,
+    export: s.data,
   })
 
 /**

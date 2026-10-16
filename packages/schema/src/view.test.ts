@@ -206,6 +206,14 @@ describe('view builder', () => {
     expect(model.saveSearch).toEqual({ resource: 'saved_searches', label: 'Keep this search' })
   })
 
+  it('takes Export off a list or limits its rows, and refuses a limit that is no positive whole number', () => {
+    expect(view<typeof article>('article').toModel().export).toBeUndefined()
+    expect(view<typeof article>('article').export(false).toModel().export).toBe(false)
+    expect(view<typeof article>('article').export({ maxRows: 10_000 }).toModel().export).toEqual({ maxRows: 10_000 })
+    expect(() => view<typeof article>('article').export({ maxRows: 0 })).toThrow('export maxRows must be a positive whole number')
+    expect(() => view<typeof article>('article').export({ maxRows: 2.5 })).toThrow('export maxRows must be a positive whole number')
+  })
+
   it('names the fields of a saved search, and refuses ones of the wrong type', () => {
     const searches = resource('saved_searches')
       .table('saved_searches')

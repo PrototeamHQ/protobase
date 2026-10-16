@@ -922,6 +922,14 @@ export type ViewModel = {
   import?: boolean
   /** The list page shows the user's saved searches of another resource, each with what it finds, instead of rows. */
   searchesOf?: SearchesOfModel
+  /** Whether the list page offers Export, and the most rows a file holds; offered without a limit when omitted. */
+  export?: false | ExportModel
+}
+
+/** The list page's Export (`.export(...)`): how many rows a file may hold. */
+export type ExportModel = {
+  /** The most rows one file holds; the rows after them are left out, and the export says so. */
+  maxRows?: number
 }
 
 /** Where a part of a filter or order stands in its text, as character offsets. */

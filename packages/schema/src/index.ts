@@ -30,6 +30,7 @@ export type {
   CardPhotosModel,
   CardFavoriteModel,
   SaveSearchModel,
+  ExportModel,
   SearchesOfModel,
   SignInPromptModel,
   SignInViewModel,

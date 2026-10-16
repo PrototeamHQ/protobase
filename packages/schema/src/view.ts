@@ -2,6 +2,7 @@ import type {
   ActionModel,
   ChartGranularity,
   ChartRange,
+  ExportModel,
   FilterWidgetModel,
   HelpWhen,
   LayoutItemModel,
@@ -239,6 +240,19 @@ export class ViewBuilder<R extends {
    */
   saveSearch(search: SaveSearchModel) {
     return this.next({ saveSearch: { ...search } })
+  }
+
+  /**
+   * Whether the list page offers Export, which saves its rows as an Excel or CSV file built in the browser: `false`
+   * takes it away, `{ maxRows }` limits how many rows a file holds. A list offers it by default. It only shapes the
+   * page: the rows and fields a file holds are those the list API gives the user. Throws when `maxRows` is not a
+   * positive whole number. See [Exports](website/src/content/docs/reference/ui-config.mdx#exports).
+   */
+  export(options: false | ExportModel) {
+    if (options && options.maxRows !== undefined && !(Number.isInteger(options.maxRows) && options.maxRows > 0)) {
+      throw new Error(`View "${this.state.resource}": export maxRows must be a positive whole number`)
+    }
+    return this.next({ export: options && { ...options } })
   }
 
   /**
