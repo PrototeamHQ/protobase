@@ -343,6 +343,11 @@ describe('view builder', () => {
     expect(view<typeof article>('article').recordMode('locked').toModel().recordMode).toBe('locked')
   })
 
+  it('offers Import on the list page unless turned off', () => {
+    expect(view<typeof article>('article').toModel().import).toBeUndefined()
+    expect(view<typeof article>('article').import(false).toModel().import).toBe(false)
+  })
+
   it('refuses display fields the resource does not have', () => {
     const stale = view<typeof article>('article').list((r, d) => ({ columns: [r.title], displays: [d.cards({ badge: { name: 'state' } })] }))
     expect(() => stale.toModel(article.toModel())).toThrow('View "article": display "cards" names field "state", which the resource does not have')

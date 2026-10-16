@@ -193,6 +193,15 @@ export class ViewBuilder<R extends {
   }
 
   /**
+   * Whether the list page offers Import, which creates or updates records from an .xlsx or CSV file the user picks
+   * (`true`, the default, to users who may create records); `.import(false)` turns it off. See
+   * [Importing records](website/src/content/docs/reference/ui-config.mdx#importing-records).
+   */
+  import(enabled: boolean) {
+    return this.next({ import: enabled })
+  }
+
+  /**
    * The named actions of the record page's action rail, which composed pages can put on buttons too: `a.update`,
    * `a.remove` and `a.link` need no code, `a.action` runs a handler the app registers.
    */

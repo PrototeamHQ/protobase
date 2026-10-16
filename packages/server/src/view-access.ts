@@ -155,6 +155,7 @@ const viewShape = (resource: string, model: ResourceModel, models: Record<string
     // The button stays for a caller who can see the searches' resource, or a visitor it asks to sign in
     saveSearch: s.map<SaveSearchModel>((search) => (prompted.has(search.resource) || models[search.resource] ? search : undefined)),
     searchesOf: s.map<SearchesOfModel>((searches) => searchesOfFor(searches, resource, models)),
+    import: s.data,
   })
 
 /**

@@ -904,6 +904,8 @@ export type ViewModel = {
   signIn?: SignInPromptModel
   /** The list page's button that saves its filter as a search of the user's own. */
   saveSearch?: SaveSearchModel
+  /** Whether the list page offers Import, which creates or updates records from an .xlsx or CSV file; it does when omitted. */
+  import?: boolean
   /** The list page shows the user's saved searches of another resource, each with what it finds, instead of rows. */
   searchesOf?: SearchesOfModel
 }
