@@ -27,6 +27,9 @@ describe('the portal config', () => {
     expect(titles(everyone!.layout)).toEqual(['Photos', 'Key facts', 'About this home', 'Features', 'Location', 'Address', 'Viewing', 'sidebar', 'Your notes'])
     expect(everyone!.layout[0]).toEqual({ kind: 'gallery', title: 'Photos', image: 'photo', photos: { resource: 'listing_photos', field: 'listing_id', image: 'photo', sort: 'position' } })
     expect(everyone!.layout.find((item) => item.kind === 'section' && item.title === 'Viewing')).toMatchObject({ helpWhen: 'always' })
+    // The key facts are a row of values under their icons, as on a portal
+    expect(everyone!.layout.find((item) => item.kind === 'section' && item.title === 'Key facts')).toMatchObject({ presentation: 'facts' })
+    expect(['purchase_price', 'living_area', 'bedrooms', 'bathrooms', 'energy_label'].map((name) => everyone!.fields[name]?.icon)).toEqual(['tag', 'ruler', 'bed', 'bath', 'leaf'])
     // What only an editor needs is on the admins' page alone
     expect(titles(admins!.layout).filter((title) => !titles(everyone!.layout).includes(title))).toEqual(['Map position', 'Publishing', 'Photo list'])
     const editorFields = ['latitude', 'longitude', 'position_exact', 'photo']

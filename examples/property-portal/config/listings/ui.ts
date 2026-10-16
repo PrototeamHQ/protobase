@@ -11,8 +11,8 @@ const viewingHelp = 'Call the agency or the agent to plan a viewing.'
 /**
  * What everyone sees of a listing: the cards with their photos first, arrows through the rest and a heart to save it,
  * the table and the filters of a portal, and "Save search" to keep the filters set as one of the member's searches. Its
- * page reads as a listing on a portal: the photos, the key facts, the description and a table of its features, without
- * the help lines meant for whoever edits it.
+ * page reads as a listing on a portal: the photos, a row of key facts under their icons, the description and a table of
+ * its features, without the help lines meant for whoever edits it.
  */
 export const listingsView = view<typeof listings>('listings')
   .title((r) => r.address)
@@ -23,18 +23,20 @@ export const listingsView = view<typeof listings>('listings')
     agency_id: r.agency_id.label('Agency'),
     postal_code: r.postal_code.label('Postal code'),
     place_id: r.place_id.label('Place'),
-    property_type: r.property_type.label('Type').valueLabels(propertyTypeLabels),
+    property_type: r.property_type.label('Type').valueLabels(propertyTypeLabels).icon('house'),
     status: r.status.format('badge').valueLabels({ available: 'Available', under_offer: 'Under offer', sold: 'Sold', let: 'Let' }),
-    purchase_price: r.purchase_price.label('Purchase price').prefix('€').decimals(0).help('The asking price. Empty when the home is not for sale.'),
-    rent_price: r.rent_price.label('Rent').prefix('€').suffix(' /month').decimals(0).help('The rent per month. Empty when the home is not for rent.'),
+    purchase_price: r.purchase_price.label('Purchase price').prefix('€').decimals(0).help('The asking price. Empty when the home is not for sale.').icon('tag'),
+    rent_price: r.rent_price.label('Rent').prefix('€').suffix(' /month').decimals(0).help('The rent per month. Empty when the home is not for rent.').icon('key'),
     for_sale: r.for_sale.label('For sale'),
     for_rent: r.for_rent.label('For rent'),
     price_per_m2: r.price_per_m2.label('Price per m²').prefix('€').decimals(0).help('From the purchase price.'),
     living_area: r.living_area.label('Living area').suffix(' m²').icon('ruler'),
-    plot_area: r.plot_area.label('Plot').suffix(' m²'),
+    plot_area: r.plot_area.label('Plot').suffix(' m²').icon('land-plot'),
+    rooms: r.rooms.icon('door-open'),
     bedrooms: r.bedrooms.icon('bed'),
+    bathrooms: r.bathrooms.icon('bath'),
     built_year: r.built_year.label('Built'),
-    energy_label: r.energy_label.label('Energy label').format('badge').valueLabels(energyLabelLabels).valueColors(energyLabelColors).badgeShape('arrow'),
+    energy_label: r.energy_label.label('Energy label').format('badge').valueLabels(energyLabelLabels).valueColors(energyLabelColors).badgeShape('arrow').icon('leaf'),
     latitude: r.latitude.help('Decimal degrees, WGS84.').decimals(6),
     longitude: r.longitude.help('Decimal degrees, WGS84.').decimals(6),
     position_exact: r.position_exact.label('Exact position').help('Off when the listing gives its position only roughly: the map marks it as approximate.'),
@@ -76,9 +78,9 @@ export const listingsView = view<typeof listings>('listings')
   .helpWhen('editing')
   .layout((r) => [
     l.gallery('Photos', { image: r.photo, photos }),
-    l.section('Key facts', [r.purchase_price, r.rent_price, r.living_area, r.bedrooms, r.energy_label], { help: keyFactsHelp }),
+    l.section('Key facts', [r.purchase_price, r.rent_price, r.price_per_m2, r.property_type, r.living_area, r.plot_area, r.rooms, r.bedrooms, r.bathrooms, r.energy_label], { help: keyFactsHelp, presentation: 'facts' }),
     l.section('About this home', [r.description]),
-    l.section('Features', [r.property_type, r.built_year, r.plot_area, r.rooms, r.bathrooms, r.price_per_m2, r.garden, r.balcony, r.parking]),
+    l.section('Features', [r.built_year, r.garden, r.balcony, r.parking]),
     l.map('Location', { latitude: r.latitude, longitude: r.longitude }),
     l.section('Address', [r.address, r.postal_code, r.place_id]),
     l.section('Viewing', [r.agency_id, r.agent_name, r.agent_phone], { help: viewingHelp, helpWhen: 'always' }),
@@ -105,9 +107,9 @@ export const memberListingsView = listingsView
 export const adminListingsView = memberListingsView
   .layout((r) => [
     l.gallery('Photos', { image: r.photo, photos }),
-    l.section('Key facts', [r.purchase_price, r.rent_price, r.living_area, r.bedrooms, r.energy_label], { help: keyFactsHelp }),
+    l.section('Key facts', [r.purchase_price, r.rent_price, r.price_per_m2, r.property_type, r.living_area, r.plot_area, r.rooms, r.bedrooms, r.bathrooms, r.energy_label], { help: keyFactsHelp, presentation: 'facts' }),
     l.section('About this home', [r.description]),
-    l.section('Features', [r.property_type, r.built_year, r.plot_area, r.rooms, r.bathrooms, r.price_per_m2, r.garden, r.balcony, r.parking]),
+    l.section('Features', [r.built_year, r.garden, r.balcony, r.parking]),
     l.map('Location', { latitude: r.latitude, longitude: r.longitude }),
     l.section('Address', [r.address, r.postal_code, r.place_id]),
     l.section('Viewing', [r.agency_id, r.agent_name, r.agent_phone], { help: viewingHelp, helpWhen: 'always' }),
