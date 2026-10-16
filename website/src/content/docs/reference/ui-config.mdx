@@ -232,7 +232,7 @@ view<typeof listings>('listings')
 ])
 ```
 
-The photos are read with the list API under the user's own access, up to 500, so an index on `field` and the sorted fields serves them, which [`protobase doctor`](/reference/cli/#doctor) checks. In the lightbox, a photo held by a record of a resource the user may read has a details button: it shows that record's fields, as the record API answers the user, so the server decides what they see, and a link to its record page. In `/api/meta`, a user who cannot read `image` gets the gallery without it, and one who cannot list the photos without them; a gallery left with neither is left out. The server checks when it starts that `image` is a file field and that `photos` fits the resources.
+The photos are read with the list API under the user's own access, up to 500, so an index on `field` and the sorted fields serves them, which [`protobase doctor`](/reference/cli/#doctor) checks. In the lightbox, a photo held by a record of a resource the user may read has that record's details in a sidebar beside it, or below it on a mobile screen: the fields its record page's sections show, as a table of labels and values, as the record API answers the user, so the server decides what they see, and a link to its record page. A user who may not read that resource sees the photo alone. In `/api/meta`, a user who cannot read `image` gets the gallery without it, and one who cannot list the photos without them; a gallery left with neither is left out. The server checks when it starts that `image` is a file field and that `photos` fits the resources.
 
 <StoryFrame id="record-page-gallery--gallery" title="A home's photos as tiles" height={640} />
 

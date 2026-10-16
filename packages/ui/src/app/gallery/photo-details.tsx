@@ -26,11 +26,11 @@ export const PhotoDetails = ({ model, view, photoKey }: { model: ResourceModel; 
   if (record.error) return <ErrorBanner title={`Could not load the ${singular}`} error={record.error} />
   const shown = detailFields(model, view).filter((name) => fieldAccess(record.data.permissions, name) !== 'hidden')
   return (
-    <div className="mx-auto max-w-2xl">
+    <>
       <SpecTable rows={shown.map((name) => ({ label: view?.fields[name]?.label ?? humanize(name), value: <FieldValue model={model} field={model.fields[name]!} value={record.data.record[name]} /> }))} />
       <AppLink to={{ kind: 'record', resource: model.name, key: photoKey }} className="mt-3 inline-block text-[13px] font-medium text-primary-text hover:underline">
         {`Open ${singular}`}
       </AppLink>
-    </div>
+    </>
   )
 }

@@ -78,26 +78,35 @@ export const GalleryChecks: StoryObj = {
 }
 
 export const PhotoDetails: StoryObj = {
-  name: "A photo's details for a user who may read them (checks)",
-  tags: ['play', '!dev'],
+  name: "A photo's details beside it, for a user who may read them",
   render: () => <Home />,
+  play: async ({ canvasElement }) => {
+    const photos = await gallery(canvasElement)
+    await userEvent.click(await within(photos).findByRole('button', { name: 'Show photo 1 of 8' }))
+  },
+}
+
+export const PhotoDetailsChecks: StoryObj = {
+  ...PhotoDetails,
+  name: "A photo's details beside it, for a user who may read them (checks)",
+  tags: ['play', '!dev'],
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
     const photos = await gallery(canvasElement)
-    // The cover is the first photo record, so it has its details too
+    // The cover is the first photo record, so it has its details too, in a sidebar right of the photo with no button to press
     await userEvent.click(await within(photos).findByRole('button', { name: 'Show photo 1 of 8' }))
     const dialog = await canvas.findByRole('dialog', { name: 'Photos' })
-    const toggle = within(dialog).getByRole('button', { name: 'Photo details' })
-    expect(toggle.getAttribute('aria-pressed')).toBe('false')
-    await userEvent.click(toggle)
-    expect(toggle.getAttribute('aria-pressed')).toBe('true')
-    expect(await within(dialog).findByText('Front')).toBeVisible()
-    expect(within(dialog).getByRole('link', { name: 'Open photo' }).getAttribute('href')).toBe('/home_photos/11')
+    const sidebar = within(dialog).getByRole('complementary', { name: 'Photo details' })
+    expect(within(dialog).queryByRole('button', { name: 'Photo details' })).toBeNull()
+    expect(await within(sidebar).findByText('Front')).toBeVisible()
+    expect(sidebar.querySelector('dl')).not.toBeNull()
+    expect(sidebar.getBoundingClientRect().left).toBeGreaterThanOrEqual(dialog.querySelector('img')!.parentElement!.getBoundingClientRect().right)
+    expect(within(sidebar).getByRole('link', { name: 'Open photo' }).getAttribute('href')).toBe('/home_photos/11')
 
     // They follow the photo shown
     await userEvent.click(within(dialog).getByRole('button', { name: 'Next photo' }))
-    expect(await within(dialog).findByText('Living room')).toBeVisible()
-    expect(within(dialog).getByRole('link', { name: 'Open photo' }).getAttribute('href')).toBe('/home_photos/12')
+    expect(await within(sidebar).findByText('Living room')).toBeVisible()
+    expect(within(sidebar).getByRole('link', { name: 'Open photo' }).getAttribute('href')).toBe('/home_photos/12')
   },
 }
 
@@ -111,7 +120,8 @@ export const NoPhotoDetails: StoryObj = {
     await userEvent.click(await within(photos).findByRole('button', { name: 'Show photo 2 of 8' }))
     const dialog = await canvas.findByRole('dialog', { name: 'Photos' })
     await counter(dialog, '2 / 8')
-    expect(within(dialog).queryByRole('button', { name: 'Photo details' })).toBeNull()
+    // The plain lightbox: the photo alone
+    expect(within(dialog).queryByRole('complementary')).toBeNull()
     expect(within(dialog).queryByRole('link', { name: 'Open photo' })).toBeNull()
   },
 }
@@ -125,7 +135,6 @@ export const PhotoDetailsRefused: StoryObj = {
     const photos = await gallery(canvasElement)
     await userEvent.click(await within(photos).findByRole('button', { name: 'Show photo 2 of 8' }))
     const dialog = await canvas.findByRole('dialog', { name: 'Photos' })
-    await userEvent.click(within(dialog).getByRole('button', { name: 'Photo details' }))
     expect(await within(dialog).findByText('Could not load the photo')).toBeVisible()
     expect(within(dialog).getByText('You may not read photos.')).toBeVisible()
     expect(within(dialog).queryByText('Living room')).toBeNull()
@@ -148,5 +157,32 @@ export const MobileGalleryChecks: StoryObj = {
     const first = await within(photos).findByRole('button', { name: 'Show photo 1 of 8' })
     expect(first.textContent).toContain('8')
     expect(within(photos).getAllByRole('button').filter((tile) => getComputedStyle(tile).display !== 'none')).toEqual([first])
+  },
+}
+
+export const MobilePhotoDetails: StoryObj = {
+  name: "A photo's details below it on a mobile screen",
+  globals: { viewport: { value: 'mobile360' } },
+  render: () => <Home />,
+  play: PhotoDetails.play,
+}
+
+export const MobilePhotoDetailsChecks: StoryObj = {
+  ...MobilePhotoDetails,
+  name: "A photo's details below it on a mobile screen (checks)",
+  tags: ['play', 'phone', '!dev'],
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    const photos = await gallery(canvasElement)
+    await userEvent.click(await within(photos).findByRole('button', { name: 'Show photo 1 of 8' }))
+    const dialog = await canvas.findByRole('dialog', { name: 'Photos' })
+    const sidebar = within(dialog).getByRole('complementary', { name: 'Photo details' })
+    expect(await within(sidebar).findByText('Front')).toBeInTheDocument()
+    // Below the photo, across the screen, reached by scrolling the dialog
+    const photo = dialog.querySelector('img')!.parentElement!.getBoundingClientRect()
+    const box = sidebar.getBoundingClientRect()
+    expect(box.top).toBeGreaterThanOrEqual(photo.bottom)
+    expect(box.width).toBe(dialog.clientWidth)
+    expect(dialog.scrollWidth).toBe(dialog.clientWidth)
   },
 }

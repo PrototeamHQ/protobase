@@ -31,7 +31,7 @@ const Tile = ({ photo, large }: { photo: unknown; large: boolean }) => {
 /**
  * A record's photos as tiles, one large and the next ones smaller, the last counting those not drawn ("+N"); a mobile
  * screen draws the large one with the number of photos. Each tile opens the lightbox at its photo. A photo held by a
- * record of a resource the user may read gets a details button there, whose details the record API answers. A record
+ * record of a resource the user may read has its details beside it there, as the record API answers them. A record
  * without photos has no gallery.
  */
 export const GallerySection = ({ item, record, recordKey }: { item: GalleryModel; record: Record<string, unknown>; recordKey: string }) => {
@@ -90,7 +90,7 @@ export const GallerySection = ({ item, record, recordKey }: { item: GalleryModel
           onIndex={setOpen}
           onClose={() => setOpen(undefined)}
           details={details}
-          detailsLabel={holder && `${holderView?.names?.singular ?? humanize(holder.name)} details`}
+          detailsTitle={holder && `${holderView?.names?.singular ?? humanize(holder.name)} details`}
         />
       )}
     </Section>
