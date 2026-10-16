@@ -12,6 +12,7 @@ export const guides = [
   'guides/record-card',
   'guides/plugin-build',
   'guides/remote-resources',
+  'guides/import-records',
 ]
 
 export const reference = [
