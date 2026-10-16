@@ -1,19 +1,35 @@
 import { X } from 'lucide-react'
-import { useRef, type ReactNode } from 'react'
+import { useRef, type PointerEvent, type ReactNode } from 'react'
 import { useFocusTrap } from '../lib/use-focus-trap'
+import { closesSheet } from './sheet-swipe'
 
 export type SheetProps = { title: string; open: boolean; onClose: () => void; children: ReactNode }
 
-/** A panel that rises from the bottom of the screen, for the filter panel on phones. */
+/**
+ * A panel that rises from the bottom of the screen, for the filter panel on mobile screens. It closes on Escape, the
+ * close button, a press above it and a swipe down on its header. Its content scrolls inside it when taller than the
+ * panel, which stops short of the top so the screen behind stays in sight.
+ */
 export const Sheet = ({ title, open, onClose, children }: SheetProps) => {
   const panel = useRef<HTMLDivElement>(null)
+  const start = useRef<{ x: number; y: number }>(undefined)
   useFocusTrap(panel, open, onClose)
   if (!open) return null
+  const down = (event: PointerEvent) => {
+    if (event.pointerType === 'touch') start.current = { x: event.clientX, y: event.clientY }
+  }
+  const up = (event: PointerEvent) => {
+    if (!start.current) return
+    const closes = closesSheet(event.clientX - start.current.x, event.clientY - start.current.y)
+    start.current = undefined
+    if (closes) onClose()
+  }
   return (
     <div className="fixed inset-0 z-[80]">
       <div className="absolute inset-0 bg-backdrop/40" onClick={onClose} aria-hidden />
       <div ref={panel} role="dialog" aria-modal="true" aria-label={title} tabIndex={-1} className="absolute inset-x-0 bottom-0 flex max-h-[85vh] flex-col rounded-t-xl border-t bg-background shadow-pop outline-none">
-        <header className="flex shrink-0 items-center justify-between border-b px-4">
+        <header className="relative flex shrink-0 touch-none items-center justify-between border-b px-4" onPointerDown={down} onPointerUp={up} onPointerCancel={() => (start.current = undefined)}>
+          <span className="absolute left-1/2 top-1.5 h-1 w-9 -translate-x-1/2 rounded-full bg-border-strong" aria-hidden />
           <h2 className="text-[15px] font-semibold">{title}</h2>
           <button type="button" aria-label="Close" onClick={onClose} className="-mr-2 inline-flex size-11 items-center justify-center rounded-md text-muted-foreground hover:bg-muted">
             <X className="size-5" />

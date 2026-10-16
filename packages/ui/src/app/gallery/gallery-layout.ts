@@ -18,3 +18,6 @@ export const keyStep = (key: string) => (key === 'ArrowRight' ? 1 : key === 'Arr
 
 /** The photo a step from `index` lands on among `count`: it stops at the first and the last rather than wrapping around. */
 export const steppedPhoto = (index: number, by: number, count: number) => Math.min(Math.max(index + by, 0), Math.max(count - 1, 0))
+
+/** Whether a key press toggles a photo's details: `i` alone, without Ctrl, Cmd or Alt, which belong to the browser. */
+export const togglesDetails = (event: { key: string; ctrlKey: boolean; metaKey: boolean; altKey: boolean }) => event.key === 'i' && !event.ctrlKey && !event.metaKey && !event.altKey
