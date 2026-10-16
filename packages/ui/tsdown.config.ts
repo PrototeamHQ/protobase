@@ -3,7 +3,7 @@ import { defineConfig } from 'tsdown'
 // A Web Worker is started from its module's URL, `new URL('./parse-worker.ts', import.meta.url)`, which Vite bundles
 // from the sources. Each worker is an entry of its own here, and its URL is rewritten to the .js file that entry becomes,
 // for the Vite that builds the app from this package.
-const workers = ['src/app/import/parse-worker.ts']
+const workers = ['src/app/import/parse-worker.ts', 'src/app/export/export-worker.ts']
 const workerUrls = {
   name: 'worker-urls',
   renderChunk: (code: string) => ({ code: code.replace(/new URL\((["'])(\.{1,2}\/[^"']+)\.ts\1, import\.meta\.url\)/g, 'new URL($1$2.js$1, import.meta.url)') }),

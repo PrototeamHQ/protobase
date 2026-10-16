@@ -70,6 +70,7 @@ const appDependencies = [
   '@sentry/browser',
   'maplibre-gl',
   'pmtiles',
+  'fflate',
   'react-map-gl/maplibre',
 ]
 

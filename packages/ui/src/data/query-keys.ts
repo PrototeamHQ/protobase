@@ -21,6 +21,8 @@ export const keys = {
   relatedLabel: (resource: string, id: string) => ['related-label', resource, id] as const,
   labels: (resource: string, ids: string) => ['labels', resource, ids] as const,
   count: (resource: string, filter: string) => ['count', resource, filter] as const,
+  /** How many rows an export of the list would hold, exactly up to 10,000; starts with `list`, so it refreshes with the list. */
+  exportCount: (resource: string, filter: string) => ['list', resource, filter, 'export-count'] as const,
   firstRecord: (resource: string, filter: string, orderBy: string) => ['first-record', resource, filter, orderBy] as const,
   pathValue: (resource: string, key: string, path: string) => ['path-value', resource, key, path] as const,
 }

@@ -1,4 +1,4 @@
-import { Plus, SlidersHorizontal } from 'lucide-react'
+import { Download, Plus, SlidersHorizontal } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { createWhere, type FilterExpr, type ResourceModel } from '@protobase/schema'
 import { tableDisplay } from '@protobase/schema/internal'
@@ -20,6 +20,8 @@ import { useDeleteFlow, type DeleteTarget } from './delete/use-delete-flow'
 import { useRestore } from './delete/use-restore'
 import { ErrorBanner } from './error-banner'
 import { ImportButton } from './import/import-button'
+import { exportOffered, exportsSelection } from './export/export-options'
+import { useExportFlow } from './export/use-export-flow'
 import { ListCards } from './displays/list-cards'
 import { MapDisplay } from './displays/map-display'
 import { CustomDisplay } from './displays/custom-display'
@@ -171,6 +173,14 @@ const LoadedList = ({ model, address, scope, heading }: LoadedListProps) => {
     <SaveSearchButton model={model} view={view} search={view.saveSearch} filter={filterText} chips={filterChips(model, view, filterText, facetNames(config))} />
   )
   const importButton = !scope && <ImportButton model={model} />
+  const exportFlow = useExportFlow({ model, view, resources: meta.resources, views: meta.views, plural, filter: loadFilter, orderBy })
+  // On mobile the button is its icon alone, so that the title's buttons keep to one row
+  const exportButton = exportOffered(view) && (
+    <Button onClick={() => exportFlow.open()} {...(!desktop && { 'aria-label': 'Export', title: 'Export' })}>
+      <Download className="size-3.5" />
+      {desktop && 'Export'}
+    </Button>
+  )
   const displaySwitch = (menu: boolean) => <DisplaySwitch view={view} value={display?.name ?? tableDisplay} onChange={(name) => set({ display: name })} menu={menu} />
 
   const openRecord = (row: GridRow) => go({ kind: 'record', resource, key: recordKey(model, row) })
@@ -188,7 +198,10 @@ const LoadedList = ({ model, address, scope, heading }: LoadedListProps) => {
         { label: `Open ${singular.toLowerCase()}`, onSelect: openRecord },
         ...(can(permissions, 'delete') ? [{ label: 'Delete', destructive: true, available: (row: GridRow) => rowAllows(row, 'delete'), onSelect: (row: GridRow) => void remove.start(target(row)) }] : []),
       ]}
-      bulkActions={can(permissions, 'delete') ? [{ label: (count: number) => `Delete ${count}`, destructive: true, onRun: (rows: GridRow[]) => remove.startBulk(rows.map(target)) }] : []}
+      bulkActions={[
+        ...(exportOffered(view) && exportsSelection(model) ? [{ label: (count: number) => `Export ${count}`, onRun: (rows: GridRow[]) => exportFlow.open(rows) }] : []),
+        ...(can(permissions, 'delete') ? [{ label: (count: number) => `Delete ${count}`, destructive: true, onRun: (rows: GridRow[]) => remove.startBulk(rows.map(target)) }] : []),
+      ]}
       rowNumbers={false}
       pinKey={auth.kind === 'signed-in' ? pinnedStorageKey(auth.user.id, resource) : undefined}
       scroll="parent"
@@ -212,6 +225,7 @@ const LoadedList = ({ model, address, scope, heading }: LoadedListProps) => {
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-3 px-5 py-4">
       {remove.dialogs}
+      {exportFlow.dialogs}
       <PageHeader
         title={heading?.title ?? plural}
         subtitle={heading ? heading.subtitle : view?.help}
@@ -222,12 +236,14 @@ const LoadedList = ({ model, address, scope, heading }: LoadedListProps) => {
               {displaySwitch(false)}
               {saveSearch}
               {importButton}
+              {exportButton}
               {createButton}
             </>
           ) : (
             <>
               {saveSearch}
               {importButton}
+              {exportButton}
               {createButton}
             </>
           )
