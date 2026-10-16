@@ -28,3 +28,11 @@ export { ActionCard, FieldList, type ActionCardProps, type CardAction, type Card
 export { StepList, type Step, type StepState } from './step-list'
 export { DiffView, diffStats, parseDiff, type DiffLine, type DiffViewProps } from './diff-view'
 export { CompactTable, type CompactTableProps } from './compact-table'
+// The pieces of the sign-in pages, for a host's own pages that look like the app's; `@protobase/ui/styles.css` styles them.
+export { AuthLayout, type AuthLayoutProps } from './auth/auth-layout'
+export { CodeForm, type CodeFormProps } from './auth/code-form'
+export { ResendCodeButton, type ResendCodeButtonProps } from './auth/resend-code-button'
+export { Button, buttonClass, type ButtonProps } from './primitives/button'
+export { Input, type InputProps } from './primitives/input'
+export { Spinner } from './primitives/spinner'
+export { LogoMark } from './app-shell/logo'

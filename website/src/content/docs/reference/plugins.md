@@ -320,6 +320,7 @@ From `@protobase/ui`:
 | `useResourceClient(resource)` | The client of the API that serves a resource: the app's own, or a source's for a [remote resource](/reference/remote-resources/). |
 | `FieldWidget`, `FieldWidgetProps`, `FieldWidgetEditorProps` | The types of a [field type](#field-types) and of its parts' props. |
 | `RecordCardProps` | The props of a [record card](/reference/custom-components/#record-cards), `{ row }`. |
+| `AuthLayout`, `CodeForm`, `ResendCodeButton`, `Button`, `buttonClass`, `Input`, `Spinner`, `LogoMark` | The pieces of the app's sign-in pages, for a page of a plugin or a host's own that looks like them. Outside the app, `@protobase/ui/styles.css` is the stylesheet that draws them, for a Vite build with Tailwind. |
 | `pluginApi` | The plugin API of the app's `@protobase/ui`. |
 | `protobaseVersion` | The Protobase version of the app's `@protobase/ui`. |
 
