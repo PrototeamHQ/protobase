@@ -1,4 +1,4 @@
-import { Check, Pencil } from 'lucide-react'
+import { Check } from 'lucide-react'
 import { useQueryClient } from '@tanstack/react-query'
 import { Fragment, useMemo } from 'react'
 import { isApiError } from '@protobase/client'
@@ -190,23 +190,12 @@ const LoadedRecord = ({ model, recordKey, stored }: { model: ResourceModel; reco
     if ((await editor.save()) && leavesForm) go(readAddress, { replace: true })
   }
 
-  const deleteButton = canDelete && (
-    <Button variant="danger" className="max-md:min-h-11" onClick={() => void remove.start({ key: recordKey, title, etag: stored.etag, snapshot: stored.record })}>
-      Delete
-    </Button>
-  )
-  const saveControls = offersEdit ? (
-    <>
-      {deleteButton}
-      <AppLink to={editAddress} className={cn(buttonClass({ variant: 'primary' }), 'max-md:min-h-11 max-md:flex-1')}>
-        <Pencil className="size-3.5" aria-hidden />
-        Edit
-      </AppLink>
-    </>
-  ) : (
+  // Edit and Delete are actions like the view's own, in the rail; the form's controls stay with the form
+  const startDelete = canDelete ? () => void remove.start({ key: recordKey, title, etag: stored.etag, snapshot: stored.record }) : undefined
+  const formControls = shown === 'form' && (
     <>
       {editor.dirty && <span className="text-xs text-muted-foreground">Unsaved changes</span>}
-      {editor.dirty && canUpdate && !leavesForm && (
+      {editor.dirty && !leavesForm && (
         <Button className="max-md:min-h-11" disabled={editor.saving} onClick={editor.discard}>
           Discard
         </Button>
@@ -217,13 +206,10 @@ const LoadedRecord = ({ model, recordKey, stored }: { model: ResourceModel; reco
           Cancel
         </AppLink>
       )}
-      {deleteButton}
-      {canUpdate && (
-        <Button variant="primary" className="max-md:min-h-11 max-md:flex-1" loading={editor.saving} disabled={!editor.dirty && editor.phase !== 'saved'} onClick={() => void save()}>
-          {editor.phase === 'saved' && <Check className="size-4" />}
-          {editor.phase === 'saved' ? 'Saved' : 'Save'}
-        </Button>
-      )}
+      <Button variant="primary" className="max-md:min-h-11 max-md:flex-1" loading={editor.saving} disabled={!editor.dirty && editor.phase !== 'saved'} onClick={() => void save()}>
+        {editor.phase === 'saved' && <Check className="size-4" />}
+        {editor.phase === 'saved' ? 'Saved' : 'Save'}
+      </Button>
     </>
   )
 
@@ -237,7 +223,7 @@ const LoadedRecord = ({ model, recordKey, stored }: { model: ResourceModel; reco
             status={status ? { label: enumLabel(status, hint('status')?.valueLabels), tone: toneFor(status) } : hasStatus ? undefined : { label: singular, tone: 'neutral' }}
             actions={
               <div className="hidden items-center gap-4 md:flex">
-                {saveControls}
+                {formControls}
               </div>
             }
           />
@@ -285,7 +271,7 @@ const LoadedRecord = ({ model, recordKey, stored }: { model: ResourceModel; reco
               {linesModel && <RecordLines lines={linesModel} draft={linesDraft} vatRate={Number(stored.record.vatRate ?? 21) / 100} saving={editor.saving} locked={shown !== 'form'} />}
             </main>
             <aside className="space-y-4 md:pt-8">
-              <RecordActions model={model} stored={stored} recordKey={recordKey} />
+              <RecordActions model={model} stored={stored} recordKey={recordKey} edit={offersEdit ? editAddress : undefined} onDelete={startDelete} />
               {firstSidebar === -1 && summary}
               {layout.map((item, index) => {
                 if (item.kind === 'custom' && item.sidebar) return <CustomSection key={`custom:${index}`} item={item} scope={scope} />
@@ -308,8 +294,8 @@ const LoadedRecord = ({ model, recordKey, stored }: { model: ResourceModel; reco
           </div>
         </div>
       </div>
-      {/* On phones the controls stay in view below the record, above the shell's bottom bar; a record without any has no bar */}
-      {(editor.dirty || canDelete || canUpdate) && <div className="sticky bottom-[var(--pb-sticky-bottom,0px)] z-20 flex shrink-0 items-center gap-2 border-t bg-background p-3 md:hidden">{saveControls}</div>}
+      {/* On a mobile screen the form's controls stay in view below the record, above the shell's bottom bar */}
+      {formControls && <div className="sticky bottom-[var(--pb-sticky-bottom,0px)] z-20 flex shrink-0 items-center gap-2 border-t bg-background p-3 md:hidden">{formControls}</div>}
     </div>
   )
 }

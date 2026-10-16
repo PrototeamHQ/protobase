@@ -59,3 +59,17 @@ export const TitleOnly: StoryObj = {
     expect(top.textContent).not.toMatch(/Last updated|Last edited/)
   },
 }
+
+export const DeleteInRail: StoryObj = {
+  name: 'Delete among the actions, Save with the form (checks)',
+  tags: ['play'],
+  render: () => <Units path="/units/2" />,
+  play: async ({ canvasElement }) => {
+    const top = await header(canvasElement, 'Keizersgracht 120 2.02')
+    // The rail holds Delete as one of the record's actions; the header keeps only the form's Save
+    const rail = (await within(canvasElement).findByRole('heading', { name: 'Actions' })).parentElement!
+    expect(within(rail).getByRole('button', { name: 'Delete' })).toBeInTheDocument()
+    expect(within(top).queryByRole('button', { name: 'Delete' })).toBeNull()
+    expect(within(top).getByRole('button', { name: 'Save' })).toBeVisible()
+  },
+}

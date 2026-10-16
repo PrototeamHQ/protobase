@@ -88,7 +88,7 @@ A display never fetches its list, changes the address or keeps its own history: 
 
 ## Record sections
 
-A record page can hold a component of the project's own beside its sections, declared in the view with [`l.custom`](/reference/ui-config/#the-record-page). `useLayoutRecord()` gives it the record the page shows, as inside a `RecordCard`, so one component works in both. It reads more through the hooks (`useList`, `useRecord`), and acts through named actions or the API. Breadcrumbs, the heading, Save and Delete, the action rail and the related records stay the page's.
+A record page can hold a component of the project's own beside its sections, declared in the view with [`l.custom`](/reference/ui-config/#the-record-page). `useLayoutRecord()` gives it the record the page shows, as inside a `RecordCard`, so one component works in both. It reads more through the hooks (`useList`, `useRecord`), and acts through named actions or the API. Breadcrumbs, the heading, Save, the action rail with Edit and Delete, and the related records stay the page's.
 
 ```tsx
 // components/customer-repairs.tsx

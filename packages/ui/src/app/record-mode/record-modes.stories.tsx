@@ -53,8 +53,11 @@ export const ReadViewChecks: StoryObj = {
     expect(canvas.getByText('Call to plan a viewing.')).toBeVisible()
     expect(canvas.getByText('The agent shows the home.')).toBeVisible()
 
-    // Edit is a link to the form's own address
-    expect(canvas.getAllByRole('link', { name: 'Edit' })[0]!.getAttribute('href')).toBe('/homes/1?edit=true')
+    // Edit is a link to the form's own address, among the record's actions rather than in the header
+    const edit = canvas.getByRole('link', { name: 'Edit' })
+    expect(edit.getAttribute('href')).toBe('/homes/1?edit=true')
+    expect(edit.closest('header')).toBeNull()
+    expect(within(edit.closest('ul')!.parentElement!).getByRole('heading', { name: 'Actions' })).toBeInTheDocument()
   },
 }
 

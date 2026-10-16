@@ -55,15 +55,12 @@ div | block
               div .mx-auto max-w-[1100px] px-4 pb-8 pt-6 md:px-10 md:py-8 | block
                 header .flex flex-col gap-4 border-b border-border pb-6 md:flex-row md:items-end md:justify-between md:gap-6 | flex row nowrap flex-end space-between
                   div | block
-                    p .text-xs text-muted-foreground | block
-                    div .mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 | flex row wrap center normal
+                    div .flex flex-wrap items-center gap-x-3 gap-y-1 | flex row wrap center normal
                       h1 .text-xl font-semibold tracking-tight text-foreground md:text-2xl | block
                       span .inline-flex h-5 items-center gap-1.5 rounded-full px-2 text-xs font-medium whitespace-nowrap bg-muted text-muted-foreground | flex row nowrap center normal
                         span .size-1.5 rounded-full bg-faint-foreground | block
-                    p .mt-1.5 text-xs text-muted-foreground | block
                   div .flex items-center gap-4 | flex row nowrap center normal
                     div .hidden items-center gap-4 md:flex | flex row nowrap center normal
-                      button .inline-flex shrink-0 items-center justify-center rounded-md font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:opacity-60 disabled:cursor-default bg-background text-danger-text border border-border-strong hover:bg-danger-soft shadow-sm h-8 px-3 text-[13px] gap-2 max-md:min-h-11 | flex row nowrap center center
                       button .inline-flex shrink-0 items-center justify-center rounded-md font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:opacity-60 disabled:cursor-default bg-primary text-primary-foreground hover:bg-primary-hover shadow-sm h-8 px-3 text-[13px] gap-2 max-md:min-h-11 max-md:flex-1 | flex row nowrap center center
                 div .grid grid-cols-1 gap-8 md:grid-cols-[minmax(0,1fr)_300px] md:gap-12 | grid row nowrap normal normal
                   main .divide-y divide-border | block
@@ -139,19 +136,24 @@ div | block
                       ul .flex flex-wrap gap-2 p-2 md:block md:divide-y md:divide-border md:p-0 | block
                         li | list-item
                           button .flex min-h-11 items-center gap-2 rounded-md border border-border-strong px-3 text-left hover:bg-surface disabled:cursor-default disabled:opacity-60 md:min-h-0 md:w-full md:items-start md:gap-3 md:rounded-none md:border-0 md:px-4 md:py-3 | flex row nowrap flex-start normal
-                            svg .lucide lucide-send size-4 shrink-0 text-muted-foreground md:mt-0.5 | block
+                            svg .lucide lucide-send size-4 shrink-0 md:mt-0.5 text-muted-foreground | block
                             span | block
                               span .block text-[13px] font-medium text-foreground | block
                         li | list-item
                           button .flex min-h-11 items-center gap-2 rounded-md border border-border-strong px-3 text-left hover:bg-surface disabled:cursor-default disabled:opacity-60 md:min-h-0 md:w-full md:items-start md:gap-3 md:rounded-none md:border-0 md:px-4 md:py-3 | flex row nowrap flex-start normal
-                            svg .lucide lucide-wallet size-4 shrink-0 text-muted-foreground md:mt-0.5 | block
+                            svg .lucide lucide-wallet size-4 shrink-0 md:mt-0.5 text-muted-foreground | block
                             span | block
                               span .block text-[13px] font-medium text-foreground | block
                         li | list-item
                           button .flex min-h-11 items-center gap-2 rounded-md border border-border-strong px-3 text-left hover:bg-surface disabled:cursor-default disabled:opacity-60 md:min-h-0 md:w-full md:items-start md:gap-3 md:rounded-none md:border-0 md:px-4 md:py-3 | flex row nowrap flex-start normal
-                            svg .lucide lucide-file-text size-4 shrink-0 text-muted-foreground md:mt-0.5 | block
+                            svg .lucide lucide-file-text size-4 shrink-0 md:mt-0.5 text-muted-foreground | block
                             span | block
                               span .block text-[13px] font-medium text-foreground | block
+                        li | list-item
+                          button .flex min-h-11 items-center gap-2 rounded-md border border-border-strong px-3 text-left hover:bg-surface disabled:cursor-default disabled:opacity-60 md:min-h-0 md:w-full md:items-start md:gap-3 md:rounded-none md:border-0 md:px-4 md:py-3 | flex row nowrap flex-start normal
+                            svg .lucide lucide-trash lucide-trash-2 size-4 shrink-0 md:mt-0.5 text-danger-text | block
+                            span | block
+                              span .block text-[13px] font-medium text-danger-text | block
                     div .rounded-lg border border-border bg-background p-4 | block
                       h3 .mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground | block
                       dl .grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-[13px] | grid row nowrap normal normal
@@ -184,7 +186,6 @@ div | block
                               span .block truncate text-[13px] font-medium text-primary-text | block
                             svg .lucide lucide-chevron-right size-4 shrink-0 text-faint-foreground group-hover:text-foreground | block
             div .sticky bottom-[var(--pb-sticky-bottom,0px)] z-20 flex shrink-0 items-center gap-2 border-t bg-background p-3 md:hidden | none sticky
-              button .inline-flex shrink-0 items-center justify-center rounded-md font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:opacity-60 disabled:cursor-default bg-background text-danger-text border border-border-strong hover:bg-danger-soft shadow-sm h-8 px-3 text-[13px] gap-2 max-md:min-h-11 | inline-flex row nowrap center center
               button .inline-flex shrink-0 items-center justify-center rounded-md font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:opacity-60 disabled:cursor-default bg-primary text-primary-foreground hover:bg-primary-hover shadow-sm h-8 px-3 text-[13px] gap-2 max-md:min-h-11 max-md:flex-1 | inline-flex row nowrap center center
     div .pointer-events-none fixed inset-x-4 bottom-24 z-[100] flex flex-col items-end gap-2 md:inset-x-auto md:bottom-4 md:right-4 | flex column nowrap flex-end normal fixed
 div | block

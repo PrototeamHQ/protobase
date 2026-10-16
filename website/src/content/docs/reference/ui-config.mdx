@@ -183,7 +183,7 @@ Only a caller without a token gets the prompts, in `/api/meta` as `signIn`, for 
 | `l.map(title, { latitude, longitude, zoom?, sidebar? })` | A map with a pin at the record's position, in the main column or with `sidebar: true` as a sidebar card. See [Maps](#maps). |
 | `l.gallery(title, { image?, photos? })` | The record's photos as tiles, opening a lightbox. See [Galleries](#galleries). |
 
-A custom component draws only its part: the page around it stays the record page, at `/<resource>/<key>`, with its breadcrumbs, title and badge, Save, Discard and Delete, the action rail and the related records, and a layout may hold only custom components. The repairs above list the customer's earlier repairs under the bike:
+A custom component draws only its part: the page around it stays the record page, at `/<resource>/<key>`, with its breadcrumbs, title and badge, Save and Discard, the action rail with Edit and Delete, and the related records, and a layout may hold only custom components. The repairs above list the customer's earlier repairs under the bike:
 
 <StoryFrame id="record-page-custom-sections--earlier-repairs" title="A repair with the customer's earlier repairs" height={760} />
 
@@ -196,7 +196,7 @@ Without a layout the record page shows one section with every field the user may
 | Mode | |
 | --- | --- |
 | `'edit'` | The form, ready to change, as without the setting. The default. |
-| `'read'` | A read view: each section a table of labels on the left and values on the right, as a property's features on a real estate site, and a text of several lines under its label. An **Edit** button opens the form. |
+| `'read'` | A read view: each section a table of labels on the left and values on the right, as a property's features on a real estate site, and a text of several lines under its label. **Edit**, among the record's actions, opens the form. |
 | `'locked'` | The form, its fields locked until **Edit** is pressed, for records where reading and editing look alike but a change should be meant. |
 
 The form that **Edit** opens has its own address, the record's with `?edit=true` (`{ kind: 'record', resource, key, edit: true }`), so it opens in a new tab and Back leaves it. It has **Cancel**, which drops the changes and goes back to the record, and **Save**, which goes back once the record saved. A user who may not change the record, such as a visitor who is not signed in, never gets the form, at that address too: they get the read view in every mode, without Edit. Values on the read view show as they do everywhere else, an empty one as `—` and a boolean as Yes or No, and a sensitive field stays masked behind its eye. Changes not saved stay in the browser, as they do on the form: the read view then offers to continue editing them or discard them.
@@ -295,7 +295,7 @@ Every name is checked when the config loads. In `/meta` a caller who cannot read
 
 <Code code={step5} lang="ts" title="docs-examples/bike-shop/step-5.ts" />
 
-`.actions((a) => [...])` names the moves a record page offers in its action rail, and composed pages can put the same actions on buttons. `a.update`, `a.remove` and `a.link` work without code; `a.action` runs a handler the app registers. They are described with [named actions](/reference/layouts/#named-actions).
+`.actions((a) => [...])` names the moves a record page offers in its action rail, between **Edit**, when the record opens as a read view or locked, and **Delete**, for a user who may delete it, unless an `a.remove` deletes already; composed pages can put the same actions on buttons. Save, Cancel and Discard stay with the form, at the top and, on a mobile screen, in a bar under it. `a.update`, `a.remove` and `a.link` work without code; `a.action` runs a handler the app registers. They are described with [named actions](/reference/layouts/#named-actions).
 
 `.forRoles([...])` makes a view for users with one of those roles: each user gets the first such view that matches their roles, and the view without roles otherwise. A per-role view is a whole view, so build it from another (`laidOut.forRoles(...)` above) and change what differs.
 
