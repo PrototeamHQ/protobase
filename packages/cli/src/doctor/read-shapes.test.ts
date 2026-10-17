@@ -48,6 +48,19 @@ const shapes = readShapes({ models: [places.toModel(), agencies.toModel()], view
 const requests = (resource: string) => shapes.filter((shape) => shape.resource === resource).map((shape) => `${shape.request} (${shape.from})`)
 
 describe('readShapes', () => {
+  it("reads the records sorted by hand in their order: all of them, or each parent's", () => {
+    const lists = resource('lists').table('lists').fields({ id: f.integer().filterable().sortable(), rank: f.integer().sortable() }).primaryKey((r) => r.id).position((r) => r.rank)
+    const entries = resource('entries')
+      .table('entries')
+      .fields({ id: f.integer().filterable().sortable(), list_id: f.relation('lists').filterable(), position: f.integer().sortable() })
+      .primaryKey((r) => r.id)
+      .position((r) => r.position, { within: (r) => r.list_id })
+    const listsView = view<typeof lists>('lists').layout(() => [l.related('Entries', { resource: 'entries', field: 'list_id' })])
+    const sorted = readShapes({ models: [lists.toModel(), entries.toModel()], views: [listsView.toModel(), view<typeof entries>('entries').toModel()], pages: [] }).filter((shape) => shape.from.endsWith('sorted by hand'))
+    expect(sorted.map((shape) => shape.request)).toEqual(['GET /lists?order_by=rank asc', 'GET /entries?filter=list_id = …&order_by=position asc'])
+    expect(sorted[1]!.query).toMatchObject({ filter: { kind: 'compare', field: { name: 'list_id' } }, sort: [['position', 'asc']] })
+  })
+
   it('takes a sort by each sortable field, a filter on each filterable one and the search', () => {
     expect(requests('places')).toEqual(
       expect.arrayContaining([

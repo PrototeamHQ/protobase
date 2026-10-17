@@ -60,6 +60,25 @@ const relatedShapes = (item: RelatedModel, owner: string, models: Models): ReadS
   return [...join, { resource: target.name, request: request(target.name, `${text}${extra}`, sort), from, query: { filter: all([matched, filter]), ...(sort && { sort }) } }]
 }
 
+// Sorting by hand reads every record in the order of the resource's position: all of them on the list page, those of
+// one parent in its related section.
+const handOrderShapes = (model: ResourceModel, view: ViewModel, list: string, models: Models): ReadShape[] => {
+  const own = model.position && model.position.within === undefined && model.fields[model.position.field]
+  const listed: ReadShape[] = own ? [{ resource: model.name, request: request(model.name, undefined, [[own.name, 'asc']]), from: `${list} sorted by hand`, query: { sort: [[own.name, 'asc']] } }] : []
+  const related = view.layout.flatMap((item): ReadShape[] => {
+    if (item.kind !== 'related' || item.through || item.filter) return []
+    const target = models[item.resource]
+    const position = target?.position
+    if (!target || position?.within !== item.field) return []
+    const field = target.fields[position.field]
+    const match = target.fields[item.field]
+    if (!field || !match) return []
+    const sort: SortSpec = [[field.name, 'asc']]
+    return [{ resource: target.name, request: request(target.name, `${match.name} = …`, sort), from: `related "${item.title}" on the ${model.name} record page, sorted by hand`, query: { filter: compare(match), sort } }]
+  })
+  return [...listed, ...related]
+}
+
 // A gallery reads its photos for the one record on the page, in their order.
 const galleryShapes = (item: GalleryModel, owner: string, models: Models): ReadShape[] => {
   const holder = item.photos && models[item.photos.resource]
@@ -120,7 +139,7 @@ const recentShapes = (model: ResourceModel, view: ViewModel): ReadShape[] => {
 
 /**
  * The reads a view's pages make: its list in its order, the filter widgets and their counts, its chart per value, its displays' maps,
- * board columns and photos, the records of its related sections and the photos of its galleries, the recent records in the sidebar and a saved search's new records.
+ * board columns and photos, the records of its related sections and the photos of its galleries, the recent records in the sidebar, a saved search's new records and the records sorted by hand.
  */
 export const viewShapes = (view: ViewModel, models: Models): ReadShape[] => {
   const model = models[view.resource]
@@ -135,5 +154,6 @@ export const viewShapes = (view: ViewModel, models: Models): ReadShape[] => {
     ...view.layout.flatMap((item) => (item.kind === 'related' ? relatedShapes(item, model.name, models) : item.kind === 'gallery' ? galleryShapes(item, model.name, models) : [])),
     ...recentShapes(model, view),
     ...searchesShapes(view, models),
+    ...handOrderShapes(model, view, list, models),
   ]
 }
