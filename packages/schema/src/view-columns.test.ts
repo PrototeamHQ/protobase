@@ -34,4 +34,20 @@ describe('related list columns', () => {
     const clash = view<typeof objectives>('objectives').list((r, _, c) => ({ columns: [r.title, c.related('progress', { resource: 'tasks', field: 'objective_id', status: 'status' })] }))
     expect(() => clash.toModel(objectives.toModel())).toThrow('View "objectives": related column "progress" has the name of a field of the resource')
   })
+
+  it('shows a related column as dots on a card by its name', () => {
+    const built = view<typeof objectives>('objectives')
+      .list((r, d, c) => {
+        const tasks = c.related('tasks', { resource: 'tasks', field: 'id', through, status: 'status', sort: 'position' })
+        return { columns: [r.title, tasks], displays: [d.cards({ title: r.title, dots: [tasks] })] }
+      })
+      .toModel(objectives.toModel())
+    expect(built.list?.displays).toEqual([{ kind: 'cards', name: 'cards', title: 'title', dots: ['tasks'] }])
+  })
+
+  it('refuses dots of a related column that is not among the columns', () => {
+    const stray = () =>
+      view<typeof objectives>('objectives').list((r, d, c) => ({ columns: [r.title], displays: [d.cards({ dots: [c.related('tasks', { resource: 'tasks', field: 'objective_id', status: 'status' })] })] }))
+    expect(stray).toThrow('View "objectives": display "cards" shows dots of "tasks", which is not a related column of the list')
+  })
 })

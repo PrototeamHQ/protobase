@@ -1,6 +1,7 @@
 import { fieldRefsIn, markFieldRefs } from './field-ref'
-import type { CardFavoriteModel, CardPhotosModel, JsonValue, ListDisplayModel, ResourceModel } from './model'
+import type { CardFavoriteModel, CardPhotosModel, JsonValue, ListDisplayModel, RelatedColumnModel, ResourceModel } from './model'
 import type { Ref } from './refs'
+import type { ListColumn } from './view-columns'
 
 /** A custom component as `component(name)` from `@protobase/layout` declares it. */
 export type ComponentRef<P> = ((props: P) => unknown) & {
@@ -36,6 +37,8 @@ export const displays = {
    * view's title) over `subtitle`, `badge` drawn as a badge with its value labels, `amount` the first of its fields with a
    * value in bold, such as a purchase price or a rent, and a few small `meta` fields such as dates. `footer` is a line at
    * the card's bottom of its fields with a value, joined by bullets. `flags` are boolean fields shown as small badges of their labels when true, such as a garden or parking.
+   * `dots` are related columns of the list (`c.related`), each a line of its dots under the rest of the card, with the
+   * colours, order and hover cards they have in the table; a column with no records for the row shows no line.
    * With `card`, a component of the project or a plugin draws each card's content instead, from the row of those
    * fields (`{ row }`); without it, or when it throws, the card is the built-in one. With `photos`, the built-in card's
    * picture gets arrows through the `image` of the records of another resource that point at the card's record, after
@@ -45,7 +48,7 @@ export const displays = {
    * visitor who is not signed in is told why to sign in. Named `cards` unless `name` says otherwise.
    */
   cards: (
-    fields: { image?: Ref; title?: Ref; subtitle?: Ref; amount?: Ref[]; badge?: Ref; meta?: Ref[]; footer?: Ref[]; flags?: Ref[] },
+    fields: { image?: Ref; title?: Ref; subtitle?: Ref; amount?: Ref[]; badge?: Ref; meta?: Ref[]; footer?: Ref[]; flags?: Ref[]; dots?: ListColumn[] },
     o: Naming & { card?: ComponentRef<never>; photos?: CardPhotosModel; favorite?: CardFavoriteModel } = {},
   ): ListDisplayModel => ({
     kind: 'cards',
@@ -59,6 +62,7 @@ export const displays = {
     ...(fields.meta && { meta: fields.meta.map((ref) => ref.name) }),
     ...(fields.footer && { footer: fields.footer.map((ref) => ref.name) }),
     ...(fields.flags && { flags: fields.flags.map((ref) => ref.name) }),
+    ...(fields.dots && { dots: fields.dots.map((column) => column.name) }),
     ...(o.card && { card: customComponent(o.card, 'd.cards card') }),
     ...(o.photos && { photos: { ...o.photos } }),
     ...(o.favorite && { favorite: { ...o.favorite } }),
@@ -129,7 +133,7 @@ export const displays = {
 const displayName = /^[a-z][a-zA-Z0-9-]*$/
 
 /** What is wrong with a list's displays and default, by their names alone. */
-export const displayErrors = (list: { displays?: ListDisplayModel[]; default?: string }): string[] => {
+export const displayErrors = (list: { displays?: ListDisplayModel[]; default?: string; relatedColumns?: RelatedColumnModel[] }): string[] => {
   const names = (list.displays ?? []).map((display) => display.name)
   return [
     ...names.filter((name) => !displayName.test(name)).map((name) => `display name "${name}" must start with a lowercase letter and hold only letters, digits and dashes`),
@@ -138,6 +142,11 @@ export const displayErrors = (list: { displays?: ListDisplayModel[]; default?: s
     ...(list.displays ?? []).flatMap((display) =>
       display.kind === 'map' && display.cards !== undefined && !list.displays!.some((other) => other.kind === 'cards' && other.name === display.cards)
         ? [`display "${display.name}" names cards "${display.cards}", which is not a cards display of the list`]
+        : [],
+    ),
+    ...(list.displays ?? []).flatMap((display) =>
+      display.kind === 'cards'
+        ? (display.dots ?? []).filter((name) => !list.relatedColumns?.some((column) => column.name === name)).map((name) => `display "${display.name}" shows dots of "${name}", which is not a related column of the list`)
         : [],
     ),
     ...(list.displays ?? []).flatMap((display) => (display.kind === 'map' ? approximateErrors(display).map((error) => `display "${display.name}": ${error}`) : [])),

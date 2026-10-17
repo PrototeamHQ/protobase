@@ -331,6 +331,8 @@ export type ListDisplayModel =
       footer?: string[]
       /** Boolean fields shown as small badges of their labels when true. */
       flags?: string[]
+      /** Related columns of the list (`c.related`) shown as lines of their dots at the card's bottom, by their names. */
+      dots?: string[]
       /** The component that draws each card's content instead of the built-in card. */
       card?: string
       /** Where the card's further photos come from. */

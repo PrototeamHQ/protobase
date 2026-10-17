@@ -26,12 +26,20 @@ const pruneGallery = (item: GalleryModel, resource: string, model: ResourceModel
   return { kind: 'gallery', title: item.title, ...(image !== undefined && { image }), ...(photos && { photos }), ...(item.when !== undefined && { when: item.when }) }
 }
 
+// A card's dots keep the related columns the caller can use.
+const withKeptDots = (display: ListDisplayModel, related: RelatedColumnModel[] = []): ListDisplayModel => {
+  if (display.kind !== 'cards' || display.dots === undefined) return display
+  const { dots, ...card } = display
+  const kept = dots.filter((name) => related.some((column) => column.name === name))
+  return kept.length > 0 ? { ...card, dots: kept } : card
+}
+
 // The list opens in its table when the display it names as its default is left out. Its columns keep the fields the
 // caller can read and the related columns they can use, and its editable columns the fields the caller may write.
 const tidyList = (model: ResourceModel) => ({ default: opens, displays, columns, relatedColumns, editable, ...list }: ListModel): ListModel => {
-  const shown = displays && displays.length > 0 ? displays : undefined
-  const kept = opens === tableDisplay || shown?.some((display) => display.name === opens)
   const related = relatedColumns && relatedColumns.length > 0 ? relatedColumns : undefined
+  const shown = displays && displays.length > 0 ? displays.map((display) => withKeptDots(display, related)) : undefined
+  const kept = opens === tableDisplay || shown?.some((display) => display.name === opens)
   const visible = columns.filter((name) => Object.hasOwn(model.fields, name) || related?.some((column) => column.name === name))
   const writable = editable?.filter((name) => visible.includes(name) && !model.fields[name]!.readOnly)
   return {
@@ -70,6 +78,8 @@ const listShape = (resource: string, model: ResourceModel, models: Record<string
             meta: s.list(s.field),
             footer: s.list(s.field),
             flags: s.list(s.field),
+            // Names related columns, which `tidyList` narrows
+            dots: s.data,
             card: s.data,
             photos: s.map<CardPhotosModel>((photos) => (cardPhotosErrors(photos, resource, models).length === 0 ? photos : undefined)),
             favorite: s.map<CardFavoriteModel>((favorite) => (prompted.has(favorite.resource) || cardFavoriteErrors(favorite, resource, models).length === 0 ? favorite : undefined)),

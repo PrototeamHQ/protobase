@@ -23,6 +23,13 @@ const objectivesView = view<typeof objectives>('objectives')
   .list((r, _, c) => ({ columns: [r.title, c.related('tasks', { ...column, label: 'Tasks' })] }))
   .toModel()
 
+const cardsView = view<typeof objectives>('objectives')
+  .list((r, d, c) => {
+    const shown = c.related('tasks', column)
+    return { columns: [r.title, shown], displays: [d.cards({ title: r.title, dots: [shown] })] }
+  })
+  .toModel()
+
 // The models as a caller who cannot read `hidden` and cannot see the `gone` resources gets them, as `/meta` does.
 const without = (hidden: Record<string, string[]>, gone: string[] = []): Record<string, ResourceModel> =>
   Object.fromEntries(
@@ -84,5 +91,11 @@ describe('pruneView with related columns', () => {
 
   it('still leaves out a field column the caller cannot read', () => {
     expect(listFor(without({ objectives: ['title'] }))).toEqual({ columns: ['tasks'], relatedColumns: objectivesView.list!.relatedColumns })
+  })
+
+  it("keeps a card's dots of a related column the caller can use, and leaves them out with the column", () => {
+    const cardsFor = (models: Record<string, ResourceModel>) => pruneView(cardsView, models.objectives!, models).list?.displays
+    expect(cardsFor(all)).toEqual([{ kind: 'cards', name: 'cards', title: 'title', dots: ['tasks'] }])
+    expect(cardsFor(without({ tasks: ['status'] }))).toEqual([{ kind: 'cards', name: 'cards', title: 'title' }])
   })
 })
