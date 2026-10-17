@@ -746,8 +746,8 @@ export type ChartRange = '7d' | '30d' | '90d' | '1y' | 'all'
 /** How long each bar of a list's chart is. */
 export type ChartGranularity = 'hour' | 'day' | 'week' | 'month'
 
-/** A chart of records over time above a list, following its filters (`.chart(...)`). */
-export type ChartModel = {
+/** A chart of records over time above a list, following its filters (`.chart(...)` with `field`). */
+export type PeriodChartModel = {
   /** The date or timestamp field the records are counted by. */
   field: string
   /** How far back it reaches. */
@@ -755,6 +755,23 @@ export type ChartModel = {
   /** How long each bar is. */
   granularity: ChartGranularity
 }
+
+/** A chart of records per value of a field above a list, following its filters (`.chart(...)` with `groupBy`). */
+export type GroupChartModel = {
+  /** The field whose values make the groups, such as a status or a relation; not a date. */
+  groupBy: string
+  /** Bars, the largest first, or a donut. */
+  type: 'bar' | 'donut'
+  /** A numeric field each group adds up, instead of counting its records. */
+  sum?: string
+  /** A numeric field each group averages, instead of counting its records. */
+  average?: string
+  /** How many values it shows, the largest. */
+  limit: number
+}
+
+/** The chart above a list: records over time, or records per value of a field. */
+export type ChartModel = PeriodChartModel | GroupChartModel
 
 /**
  * How the record page opens to a user who may change the record: `edit`, the default, as its form, ready to change;

@@ -1,6 +1,6 @@
 import { resolveFieldPath } from '@protobase/layout'
 import type { ActionInputModel, ActionModel, ActionRun, CardFavoriteModel, CardPhotosModel, ChartModel, CustomSectionModel, FilterWidgetModel, GalleryModel, LayoutItemModel, ListDisplayModel, ListModel, MapSectionModel, NavModel, NavRecentModel, RelatedColumnModel, RelatedModel, ResourceModel, SaveSearchModel, SearchesOfModel, SearchResultModel, ViewModel } from '@protobase/schema'
-import { addressErrors, hrefPlaceholders, navRecentErrors, pruneByShape, shapes as s, tableDisplay } from '@protobase/schema/internal'
+import { addressErrors, chartFields, hrefPlaceholders, navRecentErrors, pruneByShape, shapes as s, tableDisplay } from '@protobase/schema/internal'
 import { cardFavoriteErrors } from './view-card-favorite'
 import { cardPhotosErrors } from './view-card-photos'
 import { relatedErrors } from './view-related'
@@ -179,7 +179,8 @@ const viewShape = (resource: string, model: ResourceModel, models: Record<string
     list: listShape(resource, model, models, prompted),
     filters: s.list(widgetShape),
     layout: s.list(layoutShape(resource, model, models)),
-    chart: s.object<ChartModel>({ field: s.field, range: s.data, granularity: s.data }, { requires: ['field'] }),
+    // A chart goes when the caller cannot read a field it groups, counts over or adds up
+    chart: s.map<ChartModel>((chart) => (chartFields(chart).every((name) => Object.hasOwn(model.fields, name)) ? chart : undefined)),
     recordMode: s.data,
     helpWhen: s.data,
     saveFeedback: s.data,

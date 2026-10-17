@@ -48,6 +48,8 @@ export type {
   ChartRange,
   ChartGranularity,
   ChartModel,
+  GroupChartModel,
+  PeriodChartModel,
   SaveFeedback,
   RecordMode,
   HelpWhen,
@@ -87,6 +89,7 @@ export { view, type ViewBuilder, type FieldViews } from './view'
 export type { FieldView } from './view-field'
 export type { ComponentRef, ViewProps } from './view-displays'
 export type { ListColumn } from './view-columns'
+export type { ChartInput, GroupChartInput, PeriodChartInput } from './view-chart'
 export { fieldRef, type FieldRefValue } from './field-ref'
 export { enumLabel } from './enum-label'
 export { userMenu, type UserMenuSource } from './user-menu'

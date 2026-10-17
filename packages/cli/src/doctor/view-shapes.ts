@@ -1,4 +1,5 @@
 import type { FilterWidgetModel, GalleryModel, RelatedModel, ResourceModel, SortSpec, ViewModel } from '@protobase/schema'
+import { isGroupChart } from '@protobase/schema/internal'
 import type { ReadShape } from './read-shape'
 import { all, any, anyOf, compare, configFilter, configSort, isTrue, sortText } from './shape-filters'
 
@@ -102,6 +103,13 @@ const searchesShapes = (view: ViewModel, models: Models): ReadShape[] => {
   return [{ resource: target.name, request: request(target.name, `${field.name} > …`, sort), from: `the new records of each saved search of ${view.resource}`, query: { filter: compare(field, '>'), sort } }]
 }
 
+// A chart per value groups the list's records by its field; a chart over time reads its buckets, which no rule judges.
+const chartShapes = (model: ResourceModel, view: ViewModel, list: string): ReadShape[] => {
+  const chart = view.chart
+  if (!chart || !isGroupChart(chart) || !model.fields[chart.groupBy]) return []
+  return [{ resource: model.name, request: `GET /${model.name}:aggregate?group_by=${chart.groupBy}`, from: `${list}'s chart`, query: { groupBy: chart.groupBy } }]
+}
+
 const recentShapes = (model: ResourceModel, view: ViewModel): ReadShape[] => {
   const recent = view.nav?.recent
   if (!recent) return []
@@ -111,7 +119,7 @@ const recentShapes = (model: ResourceModel, view: ViewModel): ReadShape[] => {
 }
 
 /**
- * The reads a view's pages make: its list in its order, the filter widgets and their counts, its displays' maps,
+ * The reads a view's pages make: its list in its order, the filter widgets and their counts, its chart per value, its displays' maps,
  * board columns and photos, the records of its related sections and the photos of its galleries, the recent records in the sidebar and a saved search's new records.
  */
 export const viewShapes = (view: ViewModel, models: Models): ReadShape[] => {
@@ -123,6 +131,7 @@ export const viewShapes = (view: ViewModel, models: Models): ReadShape[] => {
     { resource: model.name, request: request(model.name, undefined, sort), from: `${list}'s order`, query: { sort } },
     ...view.filters.flatMap((widget) => widgetShapes(model, widget, `${list}'s ${widget.kind === 'dateRange' ? 'date range' : widget.kind} filter`)),
     ...displayShapes(model, view, models),
+    ...chartShapes(model, view, list),
     ...view.layout.flatMap((item) => (item.kind === 'related' ? relatedShapes(item, model.name, models) : item.kind === 'gallery' ? galleryShapes(item, model.name, models) : [])),
     ...recentShapes(model, view),
     ...searchesShapes(view, models),

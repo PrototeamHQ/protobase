@@ -32,6 +32,7 @@ const agencies = resource('agencies')
 const placesView = view<typeof places>('places')
   .list((r, d) => ({ columns: [r.name], sort: [[r.name, 'asc']], displays: [d.board({ by: r.country })] }))
   .filters((r, w) => [w.facets(r.region), w.facets(r.population), w.toggle(r.coastal), w.flags([r.coastal, r.capital], { label: 'Kind' })])
+  .chart((r) => ({ groupBy: r.country, type: 'donut' }))
   .layout(() => [
     l.related('Agencies', { resource: 'agencies', field: 'place_id', filter: 'opened_at > now() - 30d', sort: 'opened_at desc' }),
     // The agencies stand in for photos: the shape reads only the relation and the order
@@ -63,6 +64,7 @@ describe('readShapes', () => {
     expect(of.find((shape) => shape.from === "the places list's order")).toMatchObject({ request: 'GET /places?order_by=name asc', query: { sort: [['name', 'asc']] } })
     expect(of.find((shape) => shape.request === 'GET /places:facets?field=region')).toMatchObject({ from: "the places list's facets filter", query: { groupBy: 'region' } })
     expect(of.find((shape) => shape.request === 'GET /places?filter=region in (…)')?.query.filter).toMatchObject({ kind: 'in', field: { name: 'region' } })
+    expect(of.find((shape) => shape.from === "the places list's chart")).toMatchObject({ request: 'GET /places:aggregate?group_by=country', query: { groupBy: 'country' } })
   })
 
   it('reads a facets widget on a number as a range, a toggle as true and flags each counted and ORed', () => {

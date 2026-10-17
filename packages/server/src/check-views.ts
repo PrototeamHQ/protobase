@@ -1,9 +1,10 @@
 import type { ActionRun, CardPhotosModel, GalleryModel, ResourceModel, ViewModel } from '@protobase/schema'
-import { actionInputErrors, addressErrors, addressPlaceholders, boardErrors, displayFields, fieldRefsIn, hrefField, hrefPlaceholders, linkActionError } from '@protobase/schema/internal'
+import { actionInputErrors, addressErrors, addressPlaceholders, boardErrors, chartFields, displayFields, fieldRefsIn, hrefField, hrefPlaceholders, linkActionError } from '@protobase/schema/internal'
 import type { Registry } from './registry'
 import { cardFavoriteErrors, favoriteOwnerErrors } from './view-card-favorite'
 import { cardPhotosErrors } from './view-card-photos'
 import { saveSearchErrors, searchesOfErrors } from './view-saved-search'
+import { chartErrors } from './view-chart'
 import { mapDisplayErrors, mapErrors } from './view-map'
 import { relatedErrors } from './view-related'
 import { relatedColumnErrors } from './view-related-column'
@@ -21,7 +22,7 @@ const sensitiveErrors = (view: ViewModel, model: ResourceModel) => {
     ['a list column, sort or search', [...(view.list?.columns ?? []), ...(view.list?.sort ?? []).map(([name]) => name), ...(view.list?.search ?? [])]],
     ['a list display', (view.list?.displays ?? []).flatMap(displayFields)],
     ['a filter', view.filters.flatMap((widget) => (widget.kind === 'flags' ? widget.fields : [widget.field]))],
-    ['the chart', view.chart ? [view.chart.field] : []],
+    ['the chart', view.chart ? chartFields(view.chart) : []],
     ['the sidebar', view.layout.flatMap((item) => (item.kind === 'sidebar' ? item.fields : []))],
     ['a map', view.layout.flatMap((item) => (item.kind === 'map' ? [item.latitude, item.longitude] : []))],
     ['a gallery', view.layout.flatMap((item) => (item.kind === 'gallery' && item.image !== undefined ? [item.image] : []))],
@@ -151,7 +152,7 @@ const listOfErrors = (model: ResourceModel, name: string, models: Record<string,
  * edits a list column in its cell that is not a field with an editor of one line the API may write,
  * has a related section or related list column, a cards display's or gallery's photos or a cards display's favorite button, a `listOf`, a "Save search" button or a
  * `searchesOf` that do not fit the resources, cards
- * displays of one list that name different photos, a map that cannot show the
+ * displays of one list that name different photos, a chart per value that cannot group or add up its fields, a map that cannot show the
  * record's position or a map display that cannot find the records in its view, a board whose columns are no filterable enum, a link to an address the app does not have, action inputs that do not fit, or a create page that is not one of `pages`.
  */
 export const checkViews = (registry: Registry, views: ViewModel[], pages: readonly string[] = [], fieldTypes: Readonly<Record<string, readonly string[]>> = {}) => {
@@ -186,7 +187,8 @@ export const checkViews = (registry: Registry, views: ViewModel[], pages: readon
       ...(view.list?.displays ?? []).flatMap((display) => (display.kind === 'map' ? mapDisplayErrors(display, model).map((error) => `display "${display.name}": ${error}`) : [])),
     ]
     const boards = (view.list?.displays ?? []).flatMap((display) => (display.kind === 'board' ? boardErrors(display, model).map((error) => `display "${display.name}": ${error}`) : []))
-    return [...sensitiveErrors(view, model), ...unknownFieldErrors(view, model), ...valueLabelErrors(view, model), ...valueColorErrors(view, model), ...textHintErrors(view, model), ...listEditErrors(view, model), ...widgetErrors(view, model, fieldTypes), ...related, ...photos, ...favorites, ...listOf, ...searches, ...maps, ...boards, ...linkErrors(view, model, models, pageNames), ...inputErrors(view, models), ...createErrors(view, pageNames)].map((problem) => `View "${view.resource}": ${problem}`)
+    const chart = view.chart ? chartErrors(view.chart, model).map((error) => `chart: ${error}`) : []
+    return [...sensitiveErrors(view, model), ...unknownFieldErrors(view, model), ...valueLabelErrors(view, model), ...valueColorErrors(view, model), ...textHintErrors(view, model), ...listEditErrors(view, model), ...widgetErrors(view, model, fieldTypes), ...related, ...photos, ...favorites, ...listOf, ...searches, ...maps, ...boards, ...chart, ...linkErrors(view, model, models, pageNames), ...inputErrors(view, models), ...createErrors(view, pageNames)].map((problem) => `View "${view.resource}": ${problem}`)
   })
   if (problems.length > 0) throw new Error(`The views do not match the resources:\n${problems.map((problem) => `  - ${problem}`).join('\n')}`)
 }

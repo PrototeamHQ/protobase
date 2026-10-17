@@ -1,7 +1,5 @@
 import type {
   ActionModel,
-  ChartGranularity,
-  ChartRange,
   CreateModel,
   ExportModel,
   FilterWidgetModel,
@@ -23,6 +21,7 @@ import { isMenuHref } from './menu-href'
 import { navRecentErrors } from './nav-recent'
 import { createRefs, ref, type FieldRefs, type Ref } from './refs'
 import { actions } from './view-actions'
+import { chartModel, type ChartInput } from './view-chart'
 import { columns as listColumns, isListColumn, type ListColumn } from './view-columns'
 import { boardErrors, displayErrors, displayFields, displays } from './view-displays'
 import { FieldView } from './view-field'
@@ -179,10 +178,13 @@ export class ViewBuilder<R extends {
     return this.next({ layout: build(this.refs()) })
   }
 
-  /** A chart of records per `granularity` over a date or timestamp `field` above the list, following its filters. */
-  chart(build: (r: FieldRefs<FieldsOf<R>>) => { field: Ref; range: ChartRange; granularity: ChartGranularity }) {
-    const { field, range, granularity } = build(this.refs())
-    return this.next({ chart: { field: field.name, range, granularity } })
+  /**
+   * A chart above the list, following its filters: records per `granularity` over a date or timestamp `field`, or
+   * records per value of `groupBy`, such as a status or a relation, as bars or a donut of the `limit` largest (default
+   * 10), counted or with `sum` or `average` that of a numeric field.
+   */
+  chart(build: (r: FieldRefs<FieldsOf<R>>) => ChartInput) {
+    return this.next({ chart: chartModel(build(this.refs())) })
   }
 
   /**
