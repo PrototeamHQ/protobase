@@ -15,9 +15,10 @@ const message = (error: unknown) => (error instanceof Error ? error.message : 'S
 
 /**
  * The named actions of `resource`'s view, ready to run on `scope` (the record they act on): built-in behaviour first
- * (`update`, `delete`, `link`), else the handler the project registered under the action's name. A link to a URL the
- * record holds is left out while it holds none. `blocked` says why one cannot run; `afterRun` hears about every action
- * that succeeded. `submit` runs one with the answers to its inputs and throws its failure, for the dialog to show.
+ * (`update`, `delete`, `link`), else the handler the project registered under the action's name. An update whose values
+ * the record holds already is left out, and so is a link to a URL the record holds while it holds none. `blocked` says
+ * why one cannot run; `afterRun` hears about every action that succeeded. `submit` runs one with the answers to its
+ * inputs and throws its failure, for the dialog to show.
  */
 export const useActionRunner = (resource: string, scope: LayoutRecord | undefined, afterRun?: (action: ActionModel) => void) => {
   const { views } = useAdminMeta()
@@ -30,7 +31,7 @@ export const useActionRunner = (resource: string, scope: LayoutRecord | undefine
   const refresh = useRefreshResource()
   const { go } = useAppAddress()
   const [running, setRunning] = useState<string>()
-  // A link to a URL the record holds shows only while it holds one, its label naming the URL's host
+  // An update shows only while it would change the record, a link to a URL the record holds only while it holds one, its label naming the URL's host
   const actions = (views[resource]?.actions ?? []).flatMap((action) => actionFor(action, scope?.record) ?? [])
 
   const blocked = (action: ActionModel) => {

@@ -32,12 +32,16 @@ export const openLink = (target: string | undefined) => {
 
 const hostOf = (target: string) => (URL.canParse(target) ? new URL(target).hostname.replace(/^www\./, '') : '')
 
+// An update sets values the record may hold already, as `paid: true` on a paid order.
+const holdsAll = (record: Record<string, unknown>, values: Record<string, unknown>) => Object.entries(values).every(([name, value]) => Object.is(record[name], value))
+
 /**
- * `action` as it shows for `record`: a link whose `href` has no target there is left out, and `{host}` in a link's label
- * becomes the host its target opens, without `www.`.
+ * `action` as it shows for `record`: an update that would change nothing there, and a link whose `href` has no target
+ * there, are left out, and `{host}` in a link's label becomes the host its target opens, without `www.`.
  */
 export const actionFor = (action: ActionModel, record: Record<string, unknown> | undefined): ActionModel | undefined => {
   const run = action.run
+  if (run?.kind === 'update') return record && holdsAll(record, run.values as Record<string, unknown>) ? undefined : action
   if (run?.kind !== 'link' || !('href' in run)) return action
   const target = linkTarget(run.href, record)
   if (target === undefined) return undefined

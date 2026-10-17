@@ -40,6 +40,13 @@ describe('actionFor', () => {
     expect(actionFor(source, undefined)).toBeUndefined()
   })
 
+  it('leaves out an update on a record that holds its values already', () => {
+    const markPaid: ActionModel = { name: 'markPaid', label: 'Mark as paid', bulk: false, run: { kind: 'update', values: { paid: true } } }
+    expect(actionFor(markPaid, { paid: true })).toBeUndefined()
+    expect(actionFor(markPaid, { paid: false })).toBe(markPaid)
+    expect(actionFor(markPaid, {})).toBe(markPaid)
+  })
+
   it('leaves every other action as it is', () => {
     const update: ActionModel = { name: 'ship', label: 'Ship to {host}', bulk: false, run: { kind: 'update', values: { status: 'shipped' } } }
     const mail: ActionModel = { name: 'mail', label: 'Mail', bulk: false, run: { kind: 'link', href: 'mailto:{email}' } }

@@ -26,7 +26,10 @@ export const actions = {
     if (errors.length > 0) throw new Error(`Action "${name}": ${errors.join('; ')}`)
     return { ...named(name, o), inputs: built }
   },
-  /** Sets fields of the record, as one update with its ETag, for example `{ status: 'paid' }`. */
+  /**
+   * Sets fields of the record, as one update with its ETag, for example `{ status: 'paid' }`. It is not offered on a
+   * record that holds these values already.
+   */
   update: (name: string, o: ActionOptions & { set: Record<string, unknown> }): ActionModel => ({ ...named(name, o), run: { kind: 'update', values: o.set } }),
   /** Deletes the record (soft delete when the resource has one). */
   remove: (name: string, o: ActionOptions): ActionModel => ({ ...named(name, o), run: { kind: 'delete' } }),
