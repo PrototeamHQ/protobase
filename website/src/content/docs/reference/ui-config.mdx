@@ -265,6 +265,8 @@ A custom component draws only its part: the page around it stays the record page
 
 Without a layout the record page shows one section with every field the user may change; its [read view](#read-view-and-edit), which is what a user who may change none gets, shows every field. A section or sidebar card with no field the user may see is left out. The breadcrumb names the record, so its title is a heading for screen readers only; an enum `status` shows as a badge above the sections unless the sidebar shows it already. `.saveFeedback('button')` shows saving on the Save button instead of a toast (`'toast'`, the default). A [sensitive field](/reference/data-config/#sensitive-fields) in a section is masked, with an eye button that reveals it.
 
+A record opened from a list, by its row or its card, shows the fields the list loaded at once, with placeholders for the others, and takes input once the whole record has loaded; actions, custom components, maps and galleries wait for it. What the page shows is read again whenever the browser tab or window regains focus, as are the lists, unless the record has unsaved changes, which keep the version they were made to.
+
 ### Read view and edit
 
 `.recordMode(mode)` says how the record page opens to a user who may change the record:

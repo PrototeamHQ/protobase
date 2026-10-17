@@ -5,7 +5,7 @@ import { isApiError } from '@protobase/client'
 import { enumLabel, type LayoutItemModel, type ResourceModel, type ViewModel } from '@protobase/schema'
 import { usePauseFocusRefresh } from '../data/focus-refresh'
 import { keys } from '../data/query-keys'
-import { useRecord } from '../data/use-record'
+import { useOpenedRecord, type LiveRecord } from '../data/use-record'
 import { displayValue } from '../live/display-value'
 import { toDraft } from '../live/field-values'
 import { auditField } from '../live/audit-fields'
@@ -13,6 +13,7 @@ import { humanize } from '../live/naming'
 import { recordTitle } from '../live/model-helpers'
 import { toneFor } from '../live/columns-from-model'
 import { Button, buttonClass } from '../primitives/button'
+import { Skeleton } from '../primitives/skeleton'
 import { cn } from '../lib/cn'
 import { Field, KeyFacts, MetadataCard, RecordHeader, RelatedRecords, Section, SidebarCard, SpecTable } from '../record-view'
 import { ErrorBanner } from './error-banner'
@@ -66,16 +67,24 @@ const layoutFor = (model: ResourceModel, view: ViewModel | undefined, read: bool
 export const RecordPage = ({ resource, recordKey }: { resource: string; recordKey: string }) => {
   const { resources } = useAdminMeta()
   const model = resources[resource]
-  const record = useRecord(resource, recordKey)
+  const record = useOpenedRecord(resource, recordKey)
   if (!model) return <Notice title="Not found">There is no resource called {resource}.</Notice>
   if (record.isPending) return <Notice title="Loading">Fetching the record.</Notice>
   if (record.error) return <div className="p-8">{isApiError(record.error) && record.error.status === 404 ? <Notice title="Not found">This record does not exist, or you cannot see it.</Notice> : <ErrorBanner title="Could not load the record" error={record.error} />}</div>
-  return (
-    <LoadedRecord model={model} recordKey={recordKey} stored={record.data} />
-  )
+  // A record opened from a list shows that row's fields until it has loaded; the loaded record draws the page anew, so
+  // its form starts from the whole record
+  return <LoadedRecord key={record.isPlaceholderData ? 'preview' : 'loaded'} model={model} recordKey={recordKey} stored={record.data} preview={record.isPlaceholderData} />
 }
 
-const LoadedRecord = ({ model, recordKey, stored }: { model: ResourceModel; recordKey: string; stored: NonNullable<ReturnType<typeof useRecord>['data']> }) => {
+type LoadedRecordProps = {
+  model: ResourceModel
+  recordKey: string
+  stored: LiveRecord
+  /** `stored` is what a list row knows of the record: its fields show as they will, the others as placeholders, and none takes input. */
+  preview: boolean
+}
+
+const LoadedRecord = ({ model, recordKey, stored, preview }: LoadedRecordProps) => {
   const meta = useAdminMeta()
   const { basePath } = useRouter()
   const { address, go, open } = useAppAddress()
@@ -91,7 +100,8 @@ const LoadedRecord = ({ model, recordKey, stored }: { model: ResourceModel; reco
     recordKey,
     mode: view?.saveFeedback ?? 'toast',
     subject: title,
-    draftKey: auth.kind === 'signed-in' ? draftStorageKey(auth.user.id, model.name, recordKey) : undefined,
+    // A draft kept from before waits for the whole record, which it was made to
+    draftKey: !preview && auth.kind === 'signed-in' ? draftStorageKey(auth.user.id, model.name, recordKey) : undefined,
     lines: linesDraft,
   })
   const queryClient = useQueryClient()
@@ -128,6 +138,7 @@ const LoadedRecord = ({ model, recordKey, stored }: { model: ResourceModel; reco
   const updatedAt = auditField(model, 'updated')
   const hint = (name: string) => view?.fields[name]
   const visible = (name: string) => fieldAccess(stored.permissions, name) !== 'hidden' && whenShown(hint(name)?.when, editing)
+  const known = (name: string) => !preview || Object.hasOwn(stored.record, name)
 
   const fieldView = (name: string) => {
     const field = model.fields[name]
@@ -148,19 +159,23 @@ const LoadedRecord = ({ model, recordKey, stored }: { model: ResourceModel; reco
             : { user: { name: 'Someone else', initials: '?', hue: 40 }, ago: 'just now', theirValue: conflict || '—', onKeepMine: () => editor.keepMine(name), onUseTheirs: () => editor.useTheirs(name) }
         }
       >
-        <FieldEditor
-          field={field}
-          hints={hint(name)}
-          value={editor.value(name)}
-          stored={stored.record[name]}
-          relationLabel={related.labels[name]}
-          relationTo={related.addresses[name]}
-          locked={shown !== 'form' || access === 'read'}
-          invalid={Boolean(editor.errors[name])}
-          reveal={field.sensitive ? () => client.reveal(model.name, recordKey, name) : undefined}
-          resource={model.name}
-          onChange={(next) => editor.change(name, next)}
-        />
+        {known(name) ? (
+          <FieldEditor
+            field={field}
+            hints={hint(name)}
+            value={editor.value(name)}
+            stored={stored.record[name]}
+            relationLabel={related.labels[name]}
+            relationTo={related.addresses[name]}
+            locked={shown !== 'form' || access === 'read'}
+            invalid={Boolean(editor.errors[name])}
+            reveal={field.sensitive ? () => client.reveal(model.name, recordKey, name) : undefined}
+            resource={model.name}
+            onChange={(next) => editor.change(name, next)}
+          />
+        ) : (
+          <Skeleton className="h-9" />
+        )}
       </Field>
     )
   }
@@ -168,7 +183,9 @@ const LoadedRecord = ({ model, recordKey, stored }: { model: ResourceModel; reco
   // The read view's row of a field: its value as the record page shows values, a sensitive one masked with its eye
   const readRow = (name: string) => {
     const field = model.fields[name]!
-    const value = field.sensitive ? (
+    const value = !known(name) ? (
+      <Skeleton className="h-4 w-32" />
+    ) : field.sensitive ? (
       <FieldEditor field={field} hints={hint(name)} value="" stored={stored.record[name]} locked reveal={() => client.reveal(model.name, recordKey, name)} resource={model.name} onChange={(next) => editor.change(name, next)} />
     ) : (
       <FieldValue model={model} field={field} value={stored.record[name]} relationLabel={related.labels[name]} />
@@ -184,6 +201,7 @@ const LoadedRecord = ({ model, recordKey, stored }: { model: ResourceModel; reco
       rows={sidebarFields.flatMap((name) => {
         const field = model.fields[name]
         if (!field || !visible(name)) return []
+        if (!known(name)) return [{ label: hint(name)?.label ?? humanize(name), value: <Skeleton className="h-4 w-24" /> }]
         const text = displayValue(field, stored.record[name], hint(name))
         const value = stored.record[name]
         const markdown = isMarkdown(field, hint(name)) && typeof value === 'string' && value !== ''
@@ -218,7 +236,8 @@ const LoadedRecord = ({ model, recordKey, stored }: { model: ResourceModel; reco
   )
 
   return (
-    <div className="flex flex-1 flex-col">
+    // The preview looks as the loaded form will, but takes no input: typing there would be lost when the record loads
+    <div className="flex flex-1 flex-col" inert={preview}>
       {remove.dialogs}
       <div className="flex-1">
         <div className="mx-auto max-w-[1100px] px-4 pb-8 pt-6 md:px-10 md:py-8">
@@ -256,6 +275,8 @@ const LoadedRecord = ({ model, recordKey, stored }: { model: ResourceModel; reco
             <main className={cn('divide-y divide-border', !status && '*:first:pt-0!')}>
               {layout.flatMap((item, index) => {
                 if (item.kind === 'related') return [<RelatedSection key={`related:${item.title}`} item={item} recordKey={recordKey} owner={model.name} />]
+                // Project components, maps and photos read fields a list row may not have, so they wait for the record
+                if (preview && (item.kind === 'custom' || item.kind === 'map' || item.kind === 'gallery')) return []
                 if (item.kind === 'custom') return item.sidebar ? [] : [<CustomSection key={`custom:${index}`} item={item} scope={scope} />]
                 if (item.kind === 'map') return item.sidebar ? [] : [<MapSection key={`map:${index}`} item={item} record={stored.record} />]
                 if (item.kind === 'gallery') return [<GallerySection key={`gallery:${index}`} item={item} record={stored.record} recordKey={recordKey} />]
@@ -277,22 +298,23 @@ const LoadedRecord = ({ model, recordKey, stored }: { model: ResourceModel; reco
                   </Section>,
                 ]
               })}
-              {linesModel && <RecordLines lines={linesModel} draft={linesDraft} vatRate={Number(stored.record.vatRate ?? 21) / 100} saving={editor.saving} locked={shown !== 'form'} />}
+              {linesModel && !preview && <RecordLines lines={linesModel} draft={linesDraft} vatRate={Number(stored.record.vatRate ?? 21) / 100} saving={editor.saving} locked={shown !== 'form'} />}
             </main>
             <aside className={cn('space-y-4', status && 'md:pt-8')}>
               {formControls && <div className="hidden flex-col items-center gap-2 md:flex">{formControls}</div>}
-              <RecordActions model={model} stored={stored} recordKey={recordKey} edit={offersEdit ? editAddress : undefined} onDelete={startDelete} />
+              {!preview && <RecordActions model={model} stored={stored} recordKey={recordKey} edit={offersEdit ? editAddress : undefined} onDelete={startDelete} />}
               {firstSidebar === -1 && summary}
               {layout.map((item, index) => {
-                if (item.kind === 'custom' && item.sidebar) return <CustomSection key={`custom:${index}`} item={item} scope={scope} />
-                if (item.kind === 'map' && item.sidebar) return <MapSection key={`map:${index}`} item={item} record={stored.record} />
+                if (item.kind === 'custom' && item.sidebar && !preview) return <CustomSection key={`custom:${index}`} item={item} scope={scope} />
+                if (item.kind === 'map' && item.sidebar && !preview) return <MapSection key={`map:${index}`} item={item} record={stored.record} />
                 return index === firstSidebar ? <Fragment key="summary">{summary}</Fragment> : null
               })}
               <MetadataCard
                 title="Details"
                 rows={[auditField(model, 'created'), updatedAt].flatMap((name) => {
                   const field = name ? model.fields[name] : undefined
-                  return name && field && visible(name) ? [{ label: hint(name)?.label ?? humanize(name), value: displayValue(field, stored.record[name], hint(name)) }] : []
+                  if (!name || !field || !visible(name)) return []
+                  return [{ label: hint(name)?.label ?? humanize(name), value: known(name) ? displayValue(field, stored.record[name], hint(name)) : <Skeleton className="h-4 w-24" /> }]
                 })}
               />
               {related.records.length > 0 && (

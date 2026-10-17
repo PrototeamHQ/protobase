@@ -27,7 +27,8 @@ import { ListCards } from './displays/list-cards'
 import { MapDisplay } from './displays/map-display'
 import { CustomDisplay } from './displays/custom-display'
 import { DisplaySwitch, SortMenu } from './displays/display-controls'
-import { loadedFields, shownDisplay } from './displays/list-displays'
+import { displayRow, loadedFields, shownDisplay } from './displays/list-displays'
+import { useSeedRecord } from './record-preview'
 import { useDisplayRows } from './displays/use-display-rows'
 import { useListScroll } from './list-scroll'
 import { ListChart } from './list-chart'
@@ -187,7 +188,11 @@ const LoadedList = ({ model, address, scope, heading }: LoadedListProps) => {
   )
   const displaySwitch = (menu: boolean) => <DisplaySwitch view={view} value={display?.name ?? tableDisplay} onChange={(name) => set({ display: name })} menu={menu} />
 
-  const openRecord = (row: GridRow) => go({ kind: 'record', resource, key: recordKey(model, row) })
+  const seedRecord = useSeedRecord(model)
+  const openRecord = (row: GridRow) => {
+    seedRecord(displayRow(model, row).record)
+    go({ kind: 'record', resource, key: recordKey(model, row) })
+  }
 
   const table = rows.source ? (
     <DataGrid

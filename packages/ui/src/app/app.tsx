@@ -7,7 +7,7 @@ import { AppShell, type SidebarMode } from '../app-shell'
 import { ApiProvider } from '../data/api-provider'
 import { AuthGate, AuthProvider, isAdmin, userToShell, useAuth } from '../auth'
 import { useSignInAddress } from '../auth/use-sign-in-address'
-import { useRecord } from '../data/use-record'
+import { useOpenedRecord } from '../data/use-record'
 import { recordTitle } from '../live/model-helpers'
 import { humanize } from '../live/naming'
 import { ThemeProvider, useTheme } from '../theme/theme-provider'
@@ -109,7 +109,7 @@ const Routes = ({ workspace, sidebarMode, assistant, runtime }: Pick<AppProps, '
   const view = resource ? meta.views[resource] : undefined
   const group = groups.find((entry) => entry.items.some((item) => item.id === place))
   const model = resource ? meta.resources[resource] : undefined
-  const record = useRecord(shown?.resource ?? '', shown?.key ?? '', Boolean(model && shown))
+  const record = useOpenedRecord(shown?.resource ?? '', shown?.key ?? '', Boolean(model && shown))
   const title = model && shown && record.data ? recordTitle(model, view, record.data.record, shown.key) : undefined
   // Until the record (or the source it is drawn from) has loaded, its crumb is a skeleton; a failed load falls back to the key.
   const titleLoading = Boolean(shown) && (record.isLoading || drawnFrom?.state === 'loading')

@@ -5,6 +5,7 @@ import { recordKey } from '../../live/model-helpers'
 import { humanize } from '../../live/naming'
 import { Badge } from '../../primitives/badge'
 import { AppLink } from '../use-app-address'
+import { useSeedRecord } from '../record-preview'
 import { shownWidget } from '../field-types/shown-widget'
 import { WidgetPart } from '../field-types/widget-part'
 import { namedIcon } from '../named-icon'
@@ -61,6 +62,7 @@ export const RecordCard = ({ model, view, display, row, swipe = true, mark }: Re
   }
   // A field the view shows with a field type draws its display
   const { fields: fieldTypes, components } = useProjectUi()
+  const seedRecord = useSeedRecord(model)
   const Card = display.card === undefined ? undefined : components?.[display.card]
   const shownValue = (name: string) => {
     const field = model.fields[name]
@@ -159,6 +161,7 @@ export const RecordCard = ({ model, view, display, row, swipe = true, mark }: Re
   const card = (picture: ReactNode) => (
     <AppLink
       to={{ kind: 'record', resource: model.name, key: row.key }}
+      onClick={() => seedRecord(row.record)}
       className="flex h-full flex-col gap-1.5 rounded-lg border border-border bg-background p-3 hover:border-border-strong hover:bg-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
     >
       {mark && !pictured && (
