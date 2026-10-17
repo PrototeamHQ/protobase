@@ -23,6 +23,7 @@ import { isMenuHref } from './menu-href'
 import { navRecentErrors } from './nav-recent'
 import { createRefs, ref, type FieldRefs, type Ref } from './refs'
 import { actions } from './view-actions'
+import { columns as listColumns, isListColumn, type ListColumn } from './view-columns'
 import { displayErrors, displayFields, displays } from './view-displays'
 import { FieldView } from './view-field'
 import { widgets } from './view-widgets'
@@ -121,24 +122,31 @@ export class ViewBuilder<R extends {
   }
 
   /**
-   * The list: its table's `columns`, `sort` and `search`, and other `displays` to switch to (`d.cards`, `d.custom`), one
-   * of which may be the `default` the list opens in. Throws when display names collide or `default` names none.
+   * The list: its table's `columns`, fields or columns of related records (`c.related`), `sort` and `search`, and other
+   * `displays` to switch to (`d.cards`, `d.custom`), one of which may be the `default` the list opens in. Throws when
+   * display or column names collide or `default` names none.
    */
   list(
     build: (
       r: FieldRefs<FieldsOf<R>>,
       d: typeof displays,
+      c: typeof listColumns,
     ) => {
-      columns: Ref[]
+      columns: Array<Ref | ListColumn>
       sort?: Array<[Ref, 'asc' | 'desc']>
       search?: Ref[]
       displays?: ListDisplayModel[]
       default?: string
     },
   ) {
-    const { columns, sort, search, displays: shown = [], default: opens } = build(this.refs(), displays)
+    const { columns, sort, search, displays: shown = [], default: opens } = build(this.refs(), displays, listColumns)
+    const related = columns.filter(isListColumn).map(({ kind: _, ...column }) => column)
+    const names = columns.map((column) => column.name)
+    const repeated = names.find((name, index) => names.indexOf(name) !== index)
+    if (repeated !== undefined) throw new Error(`View "${this.state.resource}": the list has two columns named "${repeated}"`)
     const list = {
-      columns: columns.map((ref) => ref.name),
+      columns: names,
+      ...(related.length > 0 && { relatedColumns: related }),
       ...(sort && { sort: sort.map(([ref, dir]) => [ref.name, dir]) as SortSpec }),
       ...(search && { search: search.map((ref) => ref.name) }),
       ...(shown.length > 0 && { displays: shown }),
@@ -297,7 +305,7 @@ export class ViewBuilder<R extends {
     return this.next({ searchesOf: searches })
   }
 
-  /** With the resource's model, also verifies the title, search result and list display fields, a gallery's image, `listOf`, `searchesOf` and the sidebar's `recent` group. */
+  /** With the resource's model, also verifies the title, search result and list display fields, related column names, a gallery's image, `listOf`, `searchesOf` and the sidebar's `recent` group. */
   toModel(resource?: ResourceModel): ViewModel {
     const { title, nav, searchResult, list, listOf } = this.state
     if (resource && title !== undefined && !Object.hasOwn(resource.fields, title)) {
@@ -314,6 +322,8 @@ export class ViewBuilder<R extends {
       const flag = display.kind === 'cards' ? display.flags?.find((name) => resource!.fields[name]!.type !== 'boolean') : undefined
       if (flag !== undefined) throw new Error(`View "${this.state.resource}": display "${display.name}" shows "${flag}" as a flag, which is not a boolean field`)
     }
+    const clash = resource ? list?.relatedColumns?.find((column) => Object.hasOwn(resource.fields, column.name)) : undefined
+    if (clash) throw new Error(`View "${this.state.resource}": related column "${clash.name}" has the name of a field of the resource`)
     for (const item of resource ? this.state.layout : []) {
       if (item.kind !== 'gallery' || item.image === undefined) continue
       if (!Object.hasOwn(resource!.fields, item.image)) throw new Error(`View "${this.state.resource}": gallery "${item.title}" names field "${item.image}", which the resource does not have`)

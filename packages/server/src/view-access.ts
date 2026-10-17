@@ -1,9 +1,10 @@
 import { resolveFieldPath } from '@protobase/layout'
-import type { ActionModel, ActionRun, CardFavoriteModel, CardPhotosModel, ChartModel, CustomSectionModel, FilterWidgetModel, GalleryModel, LayoutItemModel, ListDisplayModel, ListModel, MapSectionModel, NavModel, NavRecentModel, RelatedModel, ResourceModel, SaveSearchModel, SearchesOfModel, SearchResultModel, ViewModel } from '@protobase/schema'
+import type { ActionModel, ActionRun, CardFavoriteModel, CardPhotosModel, ChartModel, CustomSectionModel, FilterWidgetModel, GalleryModel, LayoutItemModel, ListDisplayModel, ListModel, MapSectionModel, NavModel, NavRecentModel, RelatedColumnModel, RelatedModel, ResourceModel, SaveSearchModel, SearchesOfModel, SearchResultModel, ViewModel } from '@protobase/schema'
 import { addressErrors, hrefPlaceholders, navRecentErrors, pruneByShape, shapes as s, tableDisplay } from '@protobase/schema/internal'
 import { cardFavoriteErrors } from './view-card-favorite'
 import { cardPhotosErrors } from './view-card-photos'
 import { relatedErrors } from './view-related'
+import { relatedColumnErrors } from './view-related-column'
 import { searchesOfFor } from './view-saved-search'
 
 type Of<U, K extends string> = Extract<U, { kind: K }>
@@ -25,19 +26,24 @@ const pruneGallery = (item: GalleryModel, resource: string, model: ResourceModel
   return { kind: 'gallery', title: item.title, ...(image !== undefined && { image }), ...(photos && { photos }) }
 }
 
-// The list opens in its table when the display it names as its default is left out.
-const keepDefault = ({ default: opens, displays, ...list }: ListModel): ListModel => {
+// The list opens in its table when the display it names as its default is left out. Its columns keep the fields the
+// caller can read and the related columns they can use.
+const tidyList = (model: ResourceModel) => ({ default: opens, displays, columns, relatedColumns, ...list }: ListModel): ListModel => {
   const shown = displays && displays.length > 0 ? displays : undefined
   const kept = opens === tableDisplay || shown?.some((display) => display.name === opens)
-  return { ...list, ...(shown && { displays: shown }), ...(opens !== undefined && kept && { default: opens }) }
+  const related = relatedColumns && relatedColumns.length > 0 ? relatedColumns : undefined
+  const visible = columns.filter((name) => Object.hasOwn(model.fields, name) || related?.some((column) => column.name === name))
+  return { ...list, columns: visible, ...(related && { relatedColumns: related }), ...(shown && { displays: shown }), ...(opens !== undefined && kept && { default: opens }) }
 }
 
 // A card keeps its photos only when the caller can load them; without them it shows its own image alone. It keeps its
 // favorite button when the caller can save with it, or is a visitor the button's resource asks to sign in.
-const listShape = (resource: string, models: Record<string, ResourceModel>, prompted: ReadonlySet<string>) =>
+const listShape = (resource: string, model: ResourceModel, models: Record<string, ResourceModel>, prompted: ReadonlySet<string>) =>
   s.object<ListModel>(
     {
-      columns: s.list(s.field),
+      // Names a related column too, so `tidyList` narrows it
+      columns: s.data,
+      relatedColumns: s.list(s.map<RelatedColumnModel>((column) => (relatedColumnErrors(column, resource, models).length === 0 ? column : undefined))),
       sort: s.list(s.tuple(s.field, s.data)),
       search: s.list(s.field),
       displays: s.list(
@@ -84,7 +90,7 @@ const listShape = (resource: string, models: Record<string, ResourceModel>, prom
       ),
       default: s.data,
     },
-    { after: keepDefault },
+    { after: tidyList(model) },
   )
 
 const widgetShape = s.oneOf<FilterWidgetModel>({
@@ -142,7 +148,7 @@ const viewShape = (resource: string, model: ResourceModel, models: Record<string
     icon: s.data,
     help: s.data,
     fields: s.keys(),
-    list: listShape(resource, models, prompted),
+    list: listShape(resource, model, models, prompted),
     filters: s.list(widgetShape),
     layout: s.list(layoutShape(resource, model, models)),
     chart: s.object<ChartModel>({ field: s.field, range: s.data, granularity: s.data }, { requires: ['field'] }),
@@ -163,7 +169,7 @@ const viewShape = (resource: string, model: ResourceModel, models: Record<string
 /**
  * The view with every reference to a field the caller cannot read removed: list columns, sort, search and displays,
  * field hints, filter widgets, record sections, maps, galleries and custom components' props, the chart, title and search result, the
- * actions that set or read one, and the sidebar's `recent` group. Nothing in it may name a hidden field. Related sections
+ * actions that set or read one, and the sidebar's `recent` group. Nothing in it may name a hidden field. Related sections, related list columns
  * and links are checked against `models`, the caller's view of every resource, and so are `searchesOf`, cards' favorite
  * buttons and the "Save search" button; the buttons stay for a visitor when their resource is one of `prompted`, those
  * that ask the visitor to sign in.

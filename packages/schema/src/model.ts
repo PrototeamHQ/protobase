@@ -490,6 +490,32 @@ export type ListModel = {
   displays?: ListDisplayModel[]
   /** The display the list opens in when the address names none; the table when omitted. */
   default?: string
+  /** The columns of related records among `columns`, each named there by its `name`. */
+  relatedColumns?: RelatedColumnModel[]
+}
+
+/**
+ * A list column of the records of another resource that point at each row, directly or through a join resource, as a
+ * dot per record in its status's colour, each opening the record (`c.related(...)`). See
+ * [Related records in a list](website/src/content/docs/reference/ui-config.mdx#related-records-in-a-list).
+ */
+export type RelatedColumnModel = {
+  /** The column's name in the list's `columns`, which no field of the resource has. */
+  name: string
+  /** The column's header; the name in words when omitted. */
+  label?: string
+  /** The resource whose records it shows. */
+  resource: string
+  /** The filterable field of `resource` matched against the row's key, or with `through` against the join records' keys. */
+  field: string
+  /** The join records between the row and the shown ones, as a related section's. */
+  through?: RelatedModel['through']
+  /** An AIP-160 filter on the shown records. */
+  filter?: string
+  /** An AIP-132 order of the dots. */
+  sort?: string
+  /** The enum field of `resource` whose value colours each dot, by its view's `valueColors`. */
+  status: string
 }
 
 /** A button of a date range filter: today, yesterday, the last 7, 30 or 90 days, or this month, quarter or year. */
