@@ -5,10 +5,10 @@ import { dotCard, relatedColumnLoads } from './dot-card'
 const tasksView = (displays: NonNullable<ViewModel['list']>['displays']) => ({ resource: 'tasks', fields: {}, filters: [], layout: [], actions: [], list: { columns: ['title'], displays } }) as ViewModel
 
 describe('dotCard', () => {
-  it("takes the view's first cards display, without photos or a favorite button", () => {
+  it("takes the view's first cards display, without photos, a favorite button or dots", () => {
     const view = tasksView([
       { kind: 'custom', name: 'board', label: 'Board', component: 'Board', fields: [] },
-      { kind: 'cards', name: 'cards', subtitle: 'owner', badge: 'status', photos: { resource: 'shots', field: 'task_id', image: 'file' }, favorite: { resource: 'stars', field: 'task_id' } },
+      { kind: 'cards', name: 'cards', subtitle: 'owner', badge: 'status', photos: { resource: 'shots', field: 'task_id', image: 'file' }, favorite: { resource: 'stars', field: 'task_id' }, dots: ['subtasks'] },
       { kind: 'cards', name: 'small', title: 'title' },
     ])
     expect(dotCard(view, 'status')).toEqual({ kind: 'cards', name: 'cards', subtitle: 'owner', badge: 'status' })

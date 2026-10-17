@@ -1,6 +1,6 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, type FocusEvent, type MouseEvent, type PointerEvent } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ComponentType, type FocusEvent, type MouseEvent, type PointerEvent } from 'react'
 import { createPortal } from 'react-dom'
-import type { RelatedColumnModel, ResourceModel, ViewModel } from '@protobase/schema'
+import type { ListDisplayModel, RelatedColumnModel, ResourceModel, ViewModel } from '@protobase/schema'
 import { cn } from '../../lib/cn'
 import { displayValue } from '../../live/display-value'
 import { toneFor } from '../../live/columns-from-model'
@@ -9,7 +9,6 @@ import { humanize } from '../../live/naming'
 import { valueColor } from '../../live/value-color'
 import { toneDots } from '../../primitives/badge'
 import { displayRow, type ListDisplayRow } from '../displays/list-displays'
-import { RecordCard } from '../displays/record-card'
 import { AppLink } from '../use-app-address'
 import { placeCard } from './card-place'
 import { dotCard } from './dot-card'
@@ -21,7 +20,19 @@ type RelatedDotsProps = {
   records: Array<Record<string, unknown>>
   target: ResourceModel
   view: ViewModel | undefined
+  /** Whether the dots wrap onto more lines, as a card's do, over a card whose link takes the pointer between them. */
+  wrap?: boolean
+  /** Draws the card a dot shows: `RecordCard`, passed in because a card draws dots too. */
+  Card: DotCardComponent
 }
+
+/** A record's card as `RecordCard` draws it. */
+export type DotCardComponent = ComponentType<{ model: ResourceModel; view: ViewModel | undefined; display: Extract<ListDisplayModel, { kind: 'cards' }>; row: ListDisplayRow }>
+
+/** A dot's box and its mark, which a card's room for its dots (`DotsRoom`) takes the size of. */
+const dotBox = 'flex shrink-0 items-center justify-center rounded-full p-0.5 pointer-coarse:p-1.5'
+const dotMark = 'size-2.5 rounded-full'
+const dotsLine = 'flex min-w-0 items-center gap-0.5'
 
 // How long the card stays after the pointer leaves its dot, so it can move onto the card. A touch shows it on a tap
 // instead, and keyboard focus as it reaches the dot
@@ -35,7 +46,7 @@ type Shown = { key: string; dot: DOMRect }
  * The card of the dot that is hovered, focused or tapped, portalled to the body: every grid row is its own stacking
  * context and the grid body clips, so a card inside the row would sit under the rows below it.
  */
-const DotCardPopover = ({ shown, row, target, view, column, onEnter, onLeave }: { shown: Shown; row: ListDisplayRow; target: ResourceModel; view: ViewModel | undefined; column: RelatedColumnModel; onEnter: () => void; onLeave: () => void }) => {
+const DotCardPopover = ({ shown, row, target, view, column, Card, onEnter, onLeave }: { shown: Shown; row: ListDisplayRow; target: ResourceModel; view: ViewModel | undefined; column: RelatedColumnModel; Card: DotCardComponent; onEnter: () => void; onLeave: () => void }) => {
   const card = useRef<HTMLDivElement>(null)
   const [place, setPlace] = useState<{ top: number; left: number }>()
   useLayoutEffect(() => {
@@ -44,7 +55,7 @@ const DotCardPopover = ({ shown, row, target, view, column, onEnter, onLeave }: 
   }, [shown])
   return createPortal(
     <div ref={card} data-dot-card onMouseEnter={onEnter} onMouseLeave={onLeave} style={{ width: cardWidth, ...(place ?? { visibility: 'hidden', top: 0, left: 0 }) }} className="fixed z-50 rounded-lg shadow-pop">
-      <RecordCard model={target} view={view} display={dotCard(view, column.status)} row={row} />
+      <Card model={target} view={view} display={dotCard(view, column.status)} row={row} />
     </div>,
     document.body,
   )
@@ -55,7 +66,7 @@ const DotCardPopover = ({ shown, row, target, view, column, onEnter, onLeave }: 
  * or focusing a dot shows the record's card; on a touch screen the first tap shows it, and the card opens the record.
  * The dots say how many records have each status to a screen reader.
  */
-export const RelatedDots = ({ column, records, target, view }: RelatedDotsProps) => {
+export const RelatedDots = ({ column, records, target, view, wrap = false, Card }: RelatedDotsProps) => {
   const rows = useMemo(() => records.map((record) => displayRow(target, record)), [records, target])
   const [shown, setShown] = useState<Shown>()
   const hideTimer = useRef<number>(undefined)
@@ -119,7 +130,7 @@ export const RelatedDots = ({ column, records, target, view }: RelatedDotsProps)
 
   return (
     // A click on a dot or its card stays out of the row, which opens its own record
-    <div ref={box} className="flex min-w-0 items-center gap-0.5" onClick={(event) => event.stopPropagation()} onPointerDown={(event: PointerEvent) => (pointer.current = event.pointerType)}>
+    <div ref={box} className={cn(dotsLine, wrap && 'pointer-events-none flex-wrap')} onClick={(event) => event.stopPropagation()} onPointerDown={(event: PointerEvent) => (pointer.current = event.pointerType)}>
       <span className="sr-only">{summary}</span>
       {rows.map((row) => {
         const value = row.record[column.status]
@@ -134,13 +145,24 @@ export const RelatedDots = ({ column, records, target, view }: RelatedDotsProps)
             onFocus={(event) => event.currentTarget.matches(':focus-visible') && show(row.key, event.currentTarget)}
             onBlur={blur}
             onClick={tap(row.key)}
-            className="flex shrink-0 items-center justify-center rounded-full p-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 pointer-coarse:p-1.5"
+            className={cn(dotBox, 'pointer-events-auto focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40')}
           >
-            <span aria-hidden style={color === undefined ? undefined : { backgroundColor: color }} className={cn('size-2.5 rounded-full', color === undefined && toneDots[toneFor(String(value))], shown?.key === row.key && 'ring-2 ring-foreground/30')} />
+            <span aria-hidden style={color === undefined ? undefined : { backgroundColor: color }} className={cn(dotMark, color === undefined && toneDots[toneFor(String(value))], shown?.key === row.key && 'ring-2 ring-foreground/30')} />
           </AppLink>
         )
       })}
-      {shown && shownRow && <DotCardPopover shown={shown} row={shownRow} target={target} view={view} column={column} onEnter={cancelHide} onLeave={hideSoon} />}
+      {shown && shownRow && <DotCardPopover shown={shown} row={shownRow} target={target} view={view} column={column} Card={Card} onEnter={cancelHide} onLeave={hideSoon} />}
     </div>
   )
 }
+
+/** Room for `count` dots that wrap as `RelatedDots` with `wrap` does, for a card to hold the dots drawn over it. */
+export const DotsRoom = ({ count }: { count: number }) => (
+  <span aria-hidden className={cn(dotsLine, 'invisible flex-wrap')}>
+    {Array.from({ length: count }, (_, index) => (
+      <span key={index} className={dotBox}>
+        <span className={dotMark} />
+      </span>
+    ))}
+  </span>
+)

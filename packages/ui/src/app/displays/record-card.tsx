@@ -13,6 +13,8 @@ import { CustomBoundary } from '../pages/custom-boundary'
 import { FavoriteButton } from '../saved/favorite-button'
 import { useProjectUi } from '../pages/project-ui'
 import { ValueBadge } from '../value-badge'
+import { CardDots, CardDotsRoom } from '../related-dots/card-dots'
+import { cardDotsLines } from '../related-dots/card-dots-lines'
 import { CardCarousel } from './card-carousel'
 import { CardImage } from './card-image'
 import { Markdown } from '../../markdown/markdown'
@@ -45,9 +47,9 @@ const MetaValue = ({ icon, children }: { icon: string | undefined; children: Rea
 /**
  * A record's card of a cards display, opening its page: its image across the top, swiped or stepped through its photos
  * when the display names them, the title over the subtitle, the badge beside it, the first amount with a value in bold,
- * small meta fields below, those with a value, the labels of its flags that are true and the footer's fields with a
- * value, joined by bullets; or, with a `card` component, what it draws of the row, the built-in content again when it
- * is missing or throws. With a favorite button, a heart in the top right corner saves the record.
+ * small meta fields below, those with a value, the labels of its flags that are true, the footer's fields with a
+ * value, joined by bullets, and a line of dots for each related column of the list it names; or, with a `card`
+ * component, what it draws of the row, the built-in content again when it is missing or throws. With a favorite button, a heart in the top right corner saves the record.
  */
 export const RecordCard = ({ model, view, display, row, swipe = true, mark }: RecordCardProps) => {
   const { image, title, subtitle, amount, badge, meta, footer, flags } = cardFields(model, view, display)
@@ -111,6 +113,8 @@ export const RecordCard = ({ model, view, display, row, swipe = true, mark }: Re
   const pictured = image !== undefined || photos !== undefined
   // The heart sits over the picture, or beside the title, which leaves it room
   const favorite = display.favorite
+  // A card component draws its own content, so only the built-in card shows the list's dots
+  const dots = Card ? [] : cardDotsLines(view, display, row)
   const builtIn = (picture: ReactNode) => (
     <>
       {pictured && picture}
@@ -156,6 +160,7 @@ export const RecordCard = ({ model, view, display, row, swipe = true, mark }: Re
           ))}
         </span>
       )}
+      {dots.length > 0 && <CardDotsRoom dots={dots} />}
     </>
   )
   const card = (picture: ReactNode) => (
@@ -179,7 +184,7 @@ export const RecordCard = ({ model, view, display, row, swipe = true, mark }: Re
     </AppLink>
   )
   return (
-    <div className={photos ? 'group/card relative h-full' : favorite || mark ? 'relative h-full' : 'h-full'}>
+    <div className={photos ? 'group/card relative h-full' : favorite || mark || dots.length > 0 ? 'relative h-full' : 'h-full'}>
       {photos ? (
         // A card drawn for another record, as the map's chosen card is, starts again at that record's first photo
         <CardCarousel key={row.key} photos={row.photos ?? []} cover={cover} swipe={swipe}>
@@ -193,6 +198,7 @@ export const RecordCard = ({ model, view, display, row, swipe = true, mark }: Re
           {mark}
         </Badge>
       )}
+      {dots.length > 0 && <CardDots dots={dots} Card={RecordCard} />}
       {favorite && <FavoriteButton favorite={favorite} recordKey={row.key} target={recordKey(model, row.record) as KeyValue} className={pictured ? undefined : 'right-1.5 top-1.5'} />}
     </div>
   )

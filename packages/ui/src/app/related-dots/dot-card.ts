@@ -5,13 +5,13 @@ import { displaysOf, shownFields } from '../displays/list-displays'
 type CardsDisplayModel = Extract<ListDisplayModel, { kind: 'cards' }>
 
 /**
- * The card a dot shows of its record: the first cards display of the record's view, without the photos and favorite
- * button a small card has no room for, else the record's title with its status as the badge.
+ * The card a dot shows of its record: the first cards display of the record's view, without the photos, favorite
+ * button and dots a small card has no room for, else the record's title with its status as the badge.
  */
 export const dotCard = (view: ViewModel | undefined, status: string): CardsDisplayModel => {
   const cards = displaysOf(view).find((display): display is CardsDisplayModel => display.kind === 'cards')
   if (!cards) return { kind: 'cards', name: 'dot', badge: status }
-  const { photos: _, favorite: __, ...card } = cards
+  const { photos: _, favorite: __, dots: ___, ...card } = cards
   return card
 }
 

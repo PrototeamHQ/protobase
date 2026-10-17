@@ -2,6 +2,7 @@ import type { ResourceModel, ViewModel } from '@protobase/schema'
 import type { ColumnSpec } from '../../data-grid'
 import { headerWidth, listColumnNames } from '../../live/columns-from-model'
 import { humanize } from '../../live/naming'
+import { RecordCard } from '../displays/record-card'
 import { RelatedDots } from './related-dots'
 
 /**
@@ -27,7 +28,7 @@ export const withRelatedDotsColumns = (columns: ColumnSpec[], model: ResourceMod
         width: 160,
         minWidth: headerWidth(header, false),
         sortable: false,
-        render: (row) => <RelatedDots column={column} records={(row[column.name] as Array<Record<string, unknown>> | undefined) ?? []} target={target} view={views[target.name]} />,
+        render: (row) => <RelatedDots column={column} records={(row[column.name] as Array<Record<string, unknown>> | undefined) ?? []} target={target} view={views[target.name]} Card={RecordCard} />,
       },
     ]
   })

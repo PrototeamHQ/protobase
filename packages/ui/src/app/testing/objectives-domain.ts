@@ -1,7 +1,8 @@
 import { f, resource, view } from '@protobase/schema'
 
 // A backlog for the related-dots stories: objectives, the tasks that serve them through a link table (a task can serve
-// several), and the tasks' status coloured per value, so the dots of an objective turn green as its tasks get done.
+// several), and the tasks' status coloured per value, so the dots of an objective turn green as its tasks get done,
+// in the table and on the objectives' cards.
 
 const objectives = resource('objectives')
   .table('objectives')
@@ -21,9 +22,10 @@ const objectiveTasks = resource('objective_tasks')
 const objectivesView = view<typeof objectives>('objectives')
   .title((r) => r.title)
   .names({ singular: 'Objective', plural: 'Objectives' })
-  .list((r, _, c) => ({
-    columns: [r.title, c.related('tasks', { resource: 'tasks', field: 'id', through: { resource: 'objective_tasks', field: 'objective_id', key: 'task_id' }, status: 'status', sort: 'position' }), r.quarter],
-  }))
+  .list((r, d, c) => {
+    const tasks = c.related('tasks', { resource: 'tasks', field: 'id', through: { resource: 'objective_tasks', field: 'objective_id', key: 'task_id' }, status: 'status', sort: 'position' })
+    return { columns: [r.title, tasks, r.quarter], displays: [d.cards({ title: r.title, footer: [r.quarter], dots: [tasks] })] }
+  })
 
 const tasksView = view<typeof tasks>('tasks')
   .title((r) => r.title)
