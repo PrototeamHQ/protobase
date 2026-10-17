@@ -24,7 +24,7 @@ import { navRecentErrors } from './nav-recent'
 import { createRefs, ref, type FieldRefs, type Ref } from './refs'
 import { actions } from './view-actions'
 import { columns as listColumns, isListColumn, type ListColumn } from './view-columns'
-import { displayErrors, displayFields, displays } from './view-displays'
+import { boardErrors, displayErrors, displayFields, displays } from './view-displays'
 import { FieldView } from './view-field'
 import { widgets } from './view-widgets'
 
@@ -123,7 +123,7 @@ export class ViewBuilder<R extends {
 
   /**
    * The list: its table's `columns`, fields or columns of related records (`c.related`), `sort` and `search`, the
-   * columns that are `editable` in their cell, and other `displays` to switch to (`d.cards`, `d.custom`), one of which
+   * columns that are `editable` in their cell, and other `displays` to switch to (`d.cards`, `d.map`, `d.board`, `d.custom`), one of which
    * may be the `default` the list opens in. Throws when display or column names collide, `default` names none or an
    * editable field is not among the columns. See
    * [Editing in the list](website/src/content/docs/reference/ui-config.mdx#editing-in-the-list).
@@ -327,6 +327,8 @@ export class ViewBuilder<R extends {
       }
       const flag = display.kind === 'cards' ? display.flags?.find((name) => resource!.fields[name]!.type !== 'boolean') : undefined
       if (flag !== undefined) throw new Error(`View "${this.state.resource}": display "${display.name}" shows "${flag}" as a flag, which is not a boolean field`)
+      const board = display.kind === 'board' ? boardErrors(display, resource!) : []
+      if (board.length > 0) throw new Error(`View "${this.state.resource}": display "${display.name}": ${board.join('; ')}`)
     }
     const clash = resource ? list?.relatedColumns?.find((column) => Object.hasOwn(resource.fields, column.name)) : undefined
     if (clash) throw new Error(`View "${this.state.resource}": related column "${clash.name}" has the name of a field of the resource`)

@@ -95,6 +95,14 @@ describe('checkViews', () => {
     expect(() => checkViews(registry, [written])).toThrow('View "payments": action "list": the label names {host}, which only a link with an href has')
   })
 
+  it('wants a board in columns of a filterable enum', () => {
+    const board = view<typeof payments>('payments').list((r, d) => ({ columns: [r.reference], displays: [d.board({ by: r.method, title: r.reference })] }))
+    expect(() => checkViews(registry, [board.toModel()])).not.toThrow()
+    const written = view<typeof payments>('payments').toModel()
+    written.list = { columns: ['reference'], displays: [{ kind: 'board', name: 'board', by: 'reference' }] }
+    expect(() => checkViews(registry, [written])).toThrow('View "payments": display "board": "reference" on payments is text, not an enum, whose values are the board\'s columns')
+  })
+
   it('wants list displays to show fields the resource has, none of them sensitive', () => {
     const Board = Object.assign((props: { by: string }) => props, { blockName: 'Board', custom: true })
     const shown = view<typeof payments>('payments').list((r, d) => ({ columns: [r.reference], displays: [d.cards({ badge: r.method }), d.custom(Board, { name: 'board', label: 'Board', fields: [r.reference], props: { by: r.iban } })] }))

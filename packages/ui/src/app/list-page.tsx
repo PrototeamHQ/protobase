@@ -25,6 +25,7 @@ import { exportOffered, exportsSelection } from './export/export-options'
 import { useExportFlow } from './export/use-export-flow'
 import { ListCards } from './displays/list-cards'
 import { MapDisplay } from './displays/map-display'
+import { BoardDisplay } from './displays/board-display'
 import { CustomDisplay } from './displays/custom-display'
 import { DisplaySwitch, SortMenu } from './displays/display-controls'
 import { displayRow, loadedFields, shownDisplay } from './displays/list-displays'
@@ -110,8 +111,8 @@ const LoadedList = ({ model, address, scope, heading }: LoadedListProps) => {
   const related = useMemo(() => relatedColumnLoads(view, meta.resources, meta.views, loaded), [view, meta.resources, meta.views, loaded])
   const rows = useLiveRows({ resources: meta.resources, views: meta.views, model, columns: loaded, filter: loadFilter, orderBy, related })
   const display = shownDisplay(view, address.display)
-  // The table, the cards and a custom display are as tall as all their rows and scroll with the page; the map fills the
-  // screen
+  // The table, the cards, a board and a custom display are as tall as all their rows and scroll with the page; the map
+  // fills the screen
   const pageScroll = display?.kind !== 'map'
   usePageScroll(pageScroll)
   // A custom display pages through the rows with `loadMore`; the table and cards scroll through them, and the map asks
@@ -231,6 +232,7 @@ const LoadedList = ({ model, address, scope, heading }: LoadedListProps) => {
     if (display.kind === 'map') {
       return <MapDisplay model={model} view={view} display={display} filter={loadFilter} orderBy={orderBy} fields={loaded} at={address.map} onMove={(map) => set({ map })} flush />
     }
+    if (display.kind === 'board') return <BoardDisplay model={model} view={view} display={display} fields={loaded} filter={loadFilter} orderBy={orderBy} />
     return <CustomDisplay display={display} list={displayRows} />
   }
   const shown = drawDisplay()

@@ -91,7 +91,7 @@ describe('the workshop', () => {
     const list = workshop.repairsView.toModel(models.repairs).list!
     expect(list.displays!.map((display) => display.name)).toEqual(['cards', 'board'])
     expect(list.default).toBe('board')
-    expect(list.displays![1]).toMatchObject({ kind: 'custom', component: 'RepairBoard', props: { by: { $field: 'status' } } })
+    expect(list.displays![1]).toEqual({ kind: 'board', name: 'board', by: 'status', title: 'number', subtitle: 'bike', meta: ['mechanic'] })
   })
 
   it("puts the customer's earlier repairs on a repair's page", () => {

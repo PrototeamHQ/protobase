@@ -153,6 +153,20 @@ describe('view builder', () => {
     })
   })
 
+  it('adds a board by a filterable enum, and refuses one by another field', () => {
+    const task = resource('task')
+      .table('tasks')
+      .fields({ id: f.integer(), title: f.text(), stage: f.enum(['todo', 'doing', 'done']).filterable(), kind: f.enum(['bug', 'feature']), due: f.date() })
+      .primaryKey((r) => r.id)
+    const board = (by: 'stage' | 'kind' | 'title') =>
+      view<typeof task>('task')
+        .list((r, d) => ({ columns: [r.title], displays: [d.board({ by: r[by], title: r.title, meta: [r.due] }, { label: 'Stages' })], default: 'board' }))
+        .toModel(task.toModel())
+    expect(board('stage').list?.displays).toEqual([{ kind: 'board', name: 'board', label: 'Stages', by: 'stage', title: 'title', meta: ['due'] }])
+    expect(() => board('kind')).toThrow('View "task": display "board": "kind" on task is not filterable, and each column of the board filters by its value')
+    expect(() => board('title')).toThrow('View "task": display "board": "title" on task is text, not an enum, whose values are the board\'s columns')
+  })
+
   it("puts a card's amount fields and footer fields in the model, and checks them like its other fields", () => {
     const model = view<typeof article>('article')
       .list((r, d) => ({ columns: [r.title], displays: [d.cards({ amount: [r.price], footer: [r.status, r.createdAt] })] }))

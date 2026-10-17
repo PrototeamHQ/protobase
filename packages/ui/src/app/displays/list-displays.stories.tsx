@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { useState } from 'react'
 import { expect, userEvent, waitFor, within } from 'storybook/test'
-import { createStaticSession } from '@protobase/client'
+import { ApiError, createStaticSession } from '@protobase/client'
 import { component } from '@protobase/layout'
 import type { ViewModel } from '@protobase/schema'
 import { customers, repairs } from '../../../../../docs-examples/bike-shop/data'
@@ -21,16 +21,34 @@ const session = createStaticSession('story-token', { id: 'pip', email: 'pip@bike
 
 const ui = defineUi({ components: { RepairBoard, RepairCard, BrokenCard } })
 
-const Shop = ({ start, repairsView = workshop.repairsView }: { start: string; repairsView?: { toModel(): ViewModel } }) => {
+// With `refuse`, the server refuses every update with the reason `validate` gives, as the real one does for a bike that
+// leaves the shop unpaid.
+const Shop = ({ start, repairsView = workshop.repairsView, refuse }: { start: string; repairsView?: { toModel(): ViewModel }; refuse?: string }) => {
   const [api] = useState(() => fakeApi({ resources: [customers.toModel(), repairs.toModel()], views: [customersView.toModel(), repairsView.toModel()], rows: { customers: customerRows, repairs: repairRows } }))
+  const client = refuse
+    ? {
+        ...api.client,
+        update: async () => {
+          throw new ApiError({ type: 'urn:problem:validation-failed', title: 'Validation failed', status: 422, errors: [{ field: 'paid', message: refuse }] })
+        },
+      }
+    : api.client
   return (
     <div className="h-screen">
-      <App client={api.client} auth={session} initialUrl={start} ui={ui} workspace="Pip's bike shop" />
+      <App client={client} auth={session} initialUrl={start} ui={ui} workspace="Pip's bike shop" />
     </div>
   )
 }
 
-export const Board: StoryObj = { name: 'A custom board, the default', render: () => <Shop start="/repairs" /> }
+export const Board: StoryObj = { name: 'A board, the default', render: () => <Shop start="/repairs" /> }
+
+const withCustomBoard = workshop.repairsView.list((r, d) => ({
+  columns: [r.number],
+  displays: [d.custom(component<{ by: string }>('RepairBoard'), { name: 'board', label: 'Board', icon: 'kanban', fields: [r.number, r.bike, r.status], props: { by: r.status } })],
+  default: 'board',
+}))
+
+export const CustomBoard: StoryObj = { name: 'A board drawn by a component', render: () => <Shop start="/repairs" repairsView={withCustomBoard} /> }
 
 export const Cards: StoryObj = { name: 'Cards', render: () => <Shop start="/repairs?display=cards" /> }
 
@@ -98,18 +116,98 @@ const cardTitles = async (canvas: ReturnType<typeof within>) => {
   return within(list).getAllByRole('link').map((link) => link.firstElementChild?.firstElementChild?.textContent)
 }
 
+const column = (canvas: ReturnType<typeof within>, name: string) => canvas.findByRole('region', { name: new RegExp(`^${name}, \\d+$`) })
+const cardNumbers = (region: HTMLElement) => within(region).queryAllByRole('link').map((link) => link.firstElementChild?.firstElementChild?.textContent)
+
 export const BoardChecks: StoryObj = {
   ...Board,
-  name: 'A custom board, the default (checks)',
+  name: 'A board, the default (checks)',
   tags: ['play', '!dev'],
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
     expect(await pressed(canvas)).toBe('Board')
-    const ready = await canvas.findByRole('region', { name: 'ready' })
-    await waitFor(() => expect(within(ready).getAllByRole('link').map((link) => link.textContent)).toEqual(['R-305Brompton C Line', 'R-311Cannondale Topstone']))
+    // A column per status, in the enum's order, each with its count
+    await waitFor(() => expect(canvas.getAllByRole('region').map((region) => region.getAttribute('aria-label'))).toEqual(['booked, 3', 'waiting, 2', 'working, 2', 'ready, 2', 'collected, 5']))
+    const ready = await column(canvas, 'ready')
+    expect(cardNumbers(ready)).toEqual(['R-305', 'R-311'])
+    expect(within(ready).getAllByRole('link')[0]).toHaveTextContent('Brompton C Line')
     expect(within(ready).getAllByRole('link')[0]).toHaveAttribute('href', '/repairs/5')
     await userEvent.click(within(ready).getAllByRole('link')[0]!)
     await canvas.findByRole('heading', { name: 'R-305' })
+  },
+}
+
+export const BoardFilteredChecks: StoryObj = {
+  name: 'A board, filtered (checks)',
+  tags: ['play', '!dev'],
+  render: () => <Shop start={`/repairs?filter=${encodeURIComponent('mechanic = "Sem"')}`} />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    // Every column follows the list's filter
+    const ready = await column(canvas, 'ready')
+    await waitFor(() => expect(cardNumbers(ready)).toEqual(['R-305']))
+    await waitFor(async () => expect((await column(canvas, 'booked')).getAttribute('aria-label')).toBe('booked, 0'))
+  },
+}
+
+// Space picks the focused card up, the arrow keys move it between columns and Space drops it; the board listens for the
+// next key a moment after each.
+const moveByKeyboard = async (card: HTMLElement, steps: string) => {
+  const settle = () => new Promise((resolve) => setTimeout(resolve, 100))
+  card.focus()
+  await userEvent.keyboard(' ')
+  await settle()
+  await userEvent.keyboard(steps)
+  await settle()
+  await userEvent.keyboard(' ')
+}
+
+export const BoardMoveChecks: StoryObj = {
+  ...Board,
+  name: 'A board, a card moved with the keyboard (checks)',
+  tags: ['play', '!dev'],
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    const ready = await column(canvas, 'ready')
+    await waitFor(() => expect(cardNumbers(ready)).toEqual(['R-305', 'R-311']))
+    await moveByKeyboard(within(ready).getAllByRole('link')[0]!, '{ArrowRight}')
+    const collected = await column(canvas, 'collected')
+    await waitFor(() => expect(cardNumbers(collected)).toContain('R-305'))
+    await waitFor(() => expect(cardNumbers(ready)).toEqual(['R-311']))
+    expect(collected).toHaveAccessibleName('collected, 6')
+    expect(ready).toHaveAccessibleName('ready, 1')
+    // Saved: the repair's page says so
+    await userEvent.click(within(collected).getByRole('link', { name: /R-305/ }))
+    await canvas.findByRole('heading', { name: 'R-305' })
+    expect(await canvas.findAllByText('collected')).not.toHaveLength(0)
+  },
+}
+
+export const BoardRefusedChecks: StoryObj = {
+  name: 'A board, a move the server refuses (checks)',
+  tags: ['play', '!dev'],
+  render: () => <Shop start="/repairs" refuse="A bike leaves the shop paid" />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    const ready = await column(canvas, 'ready')
+    await waitFor(() => expect(cardNumbers(ready)).toEqual(['R-305', 'R-311']))
+    await moveByKeyboard(within(ready).getAllByRole('link')[0]!, '{ArrowRight}')
+    // Put back, with the reason
+    expect(await within(document.body).findByText('A bike leaves the shop paid')).toBeInTheDocument()
+    expect(within(document.body).getByText('Could not move it to collected')).toBeInTheDocument()
+    await waitFor(() => expect(cardNumbers(ready)).toEqual(['R-305', 'R-311']))
+    expect(cardNumbers(await column(canvas, 'collected'))).not.toContain('R-305')
+  },
+}
+
+export const CustomBoardChecks: StoryObj = {
+  ...CustomBoard,
+  name: 'A board drawn by a component (checks)',
+  tags: ['play', '!dev'],
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    const ready = await canvas.findByRole('region', { name: 'ready' })
+    await waitFor(() => expect(within(ready).getAllByRole('link').map((link) => link.textContent)).toEqual(['R-305Brompton C Line', 'R-311Cannondale Topstone']))
   },
 }
 

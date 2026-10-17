@@ -77,6 +77,13 @@ const displayShapes = (model: ResourceModel, view: ViewModel, models: Models): R
       const filter = all([compare(latitude, '>='), compare(latitude, '<='), compare(longitude, '>='), compare(longitude, '<=')])
       return [{ resource: model.name, request: `GET /${model.name}:map?filter=${latitude.name} >= … AND ${latitude.name} <= … AND ${longitude.name} >= … AND ${longitude.name} <= …`, from: `the map display "${display.name}"`, query: { filter } }]
     }
+    // Each column of a board is the list with its value added, in the list's order
+    if (display.kind === 'board') {
+      const by = model.fields[display.by]
+      if (!by) return []
+      const sort = listSort(model, view)
+      return [{ resource: model.name, request: request(model.name, `${by.name} = …`, sort), from: `the board display "${display.name}"`, query: { filter: compare(by), sort } }]
+    }
     const photos = display.kind === 'cards' ? display.photos : undefined
     const holder = photos && models[photos.resource]
     const field = holder?.fields[photos!.field]
@@ -104,8 +111,8 @@ const recentShapes = (model: ResourceModel, view: ViewModel): ReadShape[] => {
 }
 
 /**
- * The reads a view's pages make: its list in its order, the filter widgets and their counts, its displays' maps and
- * photos, the records of its related sections and the photos of its galleries, the recent records in the sidebar and a saved search's new records.
+ * The reads a view's pages make: its list in its order, the filter widgets and their counts, its displays' maps,
+ * board columns and photos, the records of its related sections and the photos of its galleries, the recent records in the sidebar and a saved search's new records.
  */
 export const viewShapes = (view: ViewModel, models: Models): ReadShape[] => {
   const model = models[view.resource]

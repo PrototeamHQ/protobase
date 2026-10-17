@@ -91,6 +91,10 @@ const listShape = (resource: string, model: ResourceModel, models: Record<string
             },
             { requires: ['latitude', 'longitude'] },
           ),
+          board: s.object<Of<ListDisplayModel, 'board'>>(
+            { kind: s.data, name: s.data, label: s.data, icon: s.data, by: s.field, title: s.field, subtitle: s.field, badge: s.field, meta: s.list(s.field) },
+            { requires: ['by'] },
+          ),
           custom: s.object<Of<ListDisplayModel, 'custom'>>(
             { kind: s.data, name: s.data, label: s.data, icon: s.data, component: s.data, fields: s.list(s.field), props: s.refs },
             { requires: ['props'] },

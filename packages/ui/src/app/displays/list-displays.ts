@@ -5,6 +5,7 @@ import { recordKey, recordTitleField } from '../../live/model-helpers'
 import { humanize } from '../../live/naming'
 import { photosKey } from '../../live/row-photos'
 import { filledFields } from '../filled-fields'
+import { boardCard } from './board-columns'
 
 /** A row as a list display gets it: its key, the record as the list API gives it, and names of the records its relations point at. */
 export type ListDisplayRow = {
@@ -46,7 +47,7 @@ export const shownDisplay = (view: ViewModel | undefined, name: string): ListDis
   return named(name) ?? named(view?.list?.default)
 }
 
-const defaultIcons: Partial<Record<ListDisplayModel['kind'], string>> = { cards: 'cards', map: 'map' }
+const defaultIcons: Partial<Record<ListDisplayModel['kind'], string>> = { cards: 'cards', map: 'map', board: 'kanban' }
 
 export const displayChoices = (view: ViewModel | undefined): DisplayChoice[] => [
   { name: tableDisplay, label: 'Table', icon: 'table' },
@@ -90,6 +91,10 @@ export const mapCards = (view: ViewModel | undefined, display: Extract<ListDispl
 export const shownFields = (model: ResourceModel, view: ViewModel | undefined, display: ListDisplayModel): string[] => {
   if (display.kind === 'custom') return display.fields
   if (display.kind === 'map') return [display.latitude, display.longitude, ...shownFields(model, view, mapCards(view, display))]
+  if (display.kind === 'board') {
+    const card = boardCard(model, view, display)
+    return [display.by, card.title, card.subtitle, card.badge, ...(card.meta ?? [])].filter((name): name is string => name !== undefined)
+  }
   const { image, title, subtitle, amount, badge, meta, footer, flags } = cardFields(model, view, display)
   return [image, title, subtitle, ...amount, badge, ...meta, ...footer, ...flags].filter((name): name is string => name !== undefined)
 }

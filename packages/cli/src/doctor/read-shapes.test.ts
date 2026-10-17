@@ -30,7 +30,7 @@ const agencies = resource('agencies')
   .owner((r) => r.owner_id)
 
 const placesView = view<typeof places>('places')
-  .list((r) => ({ columns: [r.name], sort: [[r.name, 'asc']] }))
+  .list((r, d) => ({ columns: [r.name], sort: [[r.name, 'asc']], displays: [d.board({ by: r.country })] }))
   .filters((r, w) => [w.facets(r.region), w.facets(r.population), w.toggle(r.coastal), w.flags([r.coastal, r.capital], { label: 'Kind' })])
   .layout(() => [
     l.related('Agencies', { resource: 'agencies', field: 'place_id', filter: 'opened_at > now() - 30d', sort: 'opened_at desc' }),
@@ -75,6 +75,12 @@ describe('readShapes', () => {
       ]),
     )
     expect(requests('places')).not.toContain("GET /places:facets?field=population (the places list's facets filter)")
+  })
+
+  it("reads each column of a board by its value, in the list's order", () => {
+    const board = shapes.find((shape) => shape.from === 'the board display "board"')
+    expect(board).toMatchObject({ resource: 'places', request: 'GET /places?filter=country = …&order_by=name asc', query: { sort: [['name', 'asc']] } })
+    expect(board?.query.filter).toMatchObject({ kind: 'compare', field: { name: 'country' } })
   })
 
   it("reads a gallery's photos by this record's key, in their order", () => {

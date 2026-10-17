@@ -207,4 +207,13 @@ describe('pruneView', () => {
     expect(displays(all)).toEqual([{ kind: 'map', name: 'map', latitude: 'estimate', longitude: 'costPrice', exact: 'insured', radius: 'estimate', defaultRadius: 100 }])
     expect(displays(without({ repairs: ['insured'] }))).toEqual([{ kind: 'map', name: 'map', latitude: 'estimate', longitude: 'costPrice', radius: 'estimate', defaultRadius: 100 }])
   })
+
+  it('keeps a board for a caller who can read its columns, its card without the fields they cannot, and opens the table without it', () => {
+    const board = view<typeof repairs>('repairs')
+      .list((r, d) => ({ columns: [r.number], displays: [d.board({ by: r.status, title: r.number, meta: [r.costPrice, r.bookedOn] })], default: 'board' }))
+      .toModel()
+    const list = (models: Record<string, ResourceModel>) => pruneView(board, models.repairs!, models).list
+    expect(list(without({ repairs: ['costPrice'] }))).toEqual({ columns: ['number'], displays: [{ kind: 'board', name: 'board', by: 'status', title: 'number', meta: ['bookedOn'] }], default: 'board' })
+    expect(list(without({ repairs: ['status'] }))).toEqual({ columns: ['number'] })
+  })
 })

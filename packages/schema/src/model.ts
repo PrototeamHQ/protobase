@@ -365,6 +365,26 @@ export type ListDisplayModel =
       area?: string
     }
   | {
+      /** A column per value of an enum field, a card per record in its value's column, moved by dragging. */
+      kind: 'board'
+      /** What the address names (`?display=board`). */
+      name: string
+      /** The display's name in the switch. */
+      label?: string
+      /** The display's icon in the switch. */
+      icon?: string
+      /** The filterable enum field whose values are the columns, and which a card dragged to another column sets. */
+      by: string
+      /** The card's title; the view's title when omitted. */
+      title?: string
+      /** The line under the title. */
+      subtitle?: string
+      /** A field drawn as a badge with its value labels. */
+      badge?: string
+      /** A few small fields, such as dates, each shown when it has a value. */
+      meta?: string[]
+    }
+  | {
       /** The rows drawn by a project component. */
       kind: 'custom'
       /** What the address names (`?display=board`). */

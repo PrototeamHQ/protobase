@@ -1,5 +1,5 @@
 import { fieldRefsIn, markFieldRefs } from './field-ref'
-import type { CardFavoriteModel, CardPhotosModel, JsonValue, ListDisplayModel } from './model'
+import type { CardFavoriteModel, CardPhotosModel, JsonValue, ListDisplayModel, ResourceModel } from './model'
 import type { Ref } from './refs'
 
 /** A custom component as `component(name)` from `@protobase/layout` declares it. */
@@ -91,6 +91,27 @@ export const displays = {
     ...(fields.area && { area: fields.area.name }),
   }),
   /**
+   * A column per value of the enum field `by`, in the order the field lists them, each headed by its value label and how
+   * many of the list's records have it; with a column for records without a value when the field may be empty. Each
+   * column pages through the list API with the list's filter and search, its value added, in the list's order. A card
+   * shows `title` (default: the view's title) over `subtitle`, with `badge` and a few small `meta` fields, as the built-in
+   * card of `d.cards` does, and opens the record. Dragging a card to another column, or picking it up with Space and
+   * moving it with the arrow keys, saves the record with `by` set to that column's value, as one update with its ETag,
+   * so the resource's access rules and `validate` decide, and a refusal puts the card back and says why. `by` must be
+   * a filterable enum field. Named `board` unless `name` says otherwise. See
+   * [Boards](website/src/content/docs/reference/ui-config.mdx#boards).
+   */
+  board: (fields: { by: Ref; title?: Ref; subtitle?: Ref; badge?: Ref; meta?: Ref[] }, o: Naming = {}): ListDisplayModel => ({
+    kind: 'board',
+    name: o.name ?? 'board',
+    ...naming(o),
+    by: fields.by.name,
+    ...(fields.title && { title: fields.title.name }),
+    ...(fields.subtitle && { subtitle: fields.subtitle.name }),
+    ...(fields.badge && { badge: fields.badge.name }),
+    ...(fields.meta && { meta: fields.meta.map((ref) => ref.name) }),
+  }),
+  /**
    * The list drawn by a component of the project, registered in `protobase.ui.tsx` under its name. It gets `props` and
    * reads the rows with `useListDisplay()`; `fields` are the fields it shows, fetched with relation names.
    */
@@ -135,9 +156,19 @@ const approximateErrors = (display: Extract<ListDisplayModel, { kind: 'map' }>) 
   ]
 }
 
-/** Every field a display names: what it shows, a map's position and the fields saying how exact it is, and the field references in a custom display's props. */
+/** What makes a board unable to put the records in columns: a `by` field that is no filterable enum. */
+export const boardErrors = (display: Extract<ListDisplayModel, { kind: 'board' }>, model: ResourceModel): string[] => {
+  const field = Object.hasOwn(model.fields, display.by) ? model.fields[display.by]! : undefined
+  // An unknown field is reported with every display's fields
+  if (!field) return []
+  if (field.type !== 'enum') return [`"${display.by}" on ${model.name} is ${field.type}, not an enum, whose values are the board's columns`]
+  return field.filterable ? [] : [`"${display.by}" on ${model.name} is not filterable, and each column of the board filters by its value`]
+}
+
+/** Every field a display names: what it shows, a map's position and the fields saying how exact it is, a board's columns, and the field references in a custom display's props. */
 export const displayFields = (display: ListDisplayModel): string[] => {
   if (display.kind === 'map') return [display.latitude, display.longitude, display.approximate, display.exact, display.radius, display.area].filter((name): name is string => name !== undefined)
   if (display.kind === 'custom') return [...display.fields, ...fieldRefsIn(display.props)]
+  if (display.kind === 'board') return [display.by, display.title, display.subtitle, display.badge, ...(display.meta ?? [])].filter((name): name is string => name !== undefined)
   return [display.image, display.title, display.subtitle, ...(display.amount ?? []), display.badge, ...(display.meta ?? []), ...(display.footer ?? []), ...(display.flags ?? [])].filter((name): name is string => name !== undefined)
 }
