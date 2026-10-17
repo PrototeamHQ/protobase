@@ -54,6 +54,13 @@ describe('betterAuthOptions', () => {
     expect(options.databaseHooks.user.create.before).toBeTypeOf('function')
   })
 
+  it("gives a new user the id generateUserId makes, and Better Auth's own without it", async () => {
+    const user = { email: 'rep@example.com', name: 'Rep', role: 'user' }
+    const before = (options: CreateAuthOptions) => betterAuthOptions(options, resolved).databaseHooks.user.create.before as (user: object, context: null) => Promise<{ data: object }>
+    expect((await before({ ...base, generateUserId: async () => '42' })(user, null)).data).toEqual({ ...user, id: '42' })
+    expect((await before(base)(user, null)).data).toEqual(user)
+  })
+
   it('answers each of several origins for its own host, with baseURL as issuer and passkeys on its host', () => {
     const options = betterAuthOptions(base, { ...resolved, origins: ['https://admin.shop.com'] })
     expect(options.baseURL).toEqual({ allowedHosts: ['admin.example.com', 'admin.shop.com'], fallback: 'https://admin.example.com', protocol: 'https' })

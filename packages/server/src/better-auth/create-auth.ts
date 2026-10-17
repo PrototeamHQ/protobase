@@ -93,6 +93,11 @@ export type CreateAuthOptions = {
   /** Runs after a user is created, by any route: `createUser`, an admin, or a social sign-up. Default none. */
   onUserCreated?: UserCreatedHook
   /**
+   * The id of a new user, by any route. Default Better Auth's random 32-character text. `.owner()` fields hold it: a
+   * `text` column for the default, or an integer column when this takes the next value of the app's own users sequence.
+   */
+  generateUserId?: () => string | Promise<string>
+  /**
    * The identity provider the operator's staff sign in with to sign in as people of this app, for support. Defaults
    * to the one the platform passes in `PROTOBASE_OPERATOR_ISSUER`, `PROTOBASE_OPERATOR_CLIENT_ID` and
    * `PROTOBASE_OPERATOR_CLIENT_SECRET` (see `readOperatorSettings`), when set; `false` turns staff sign-in off
@@ -247,8 +252,9 @@ export const betterAuthOptions = (options: CreateAuthOptions, { origins = [], pa
             if (given.length === 0 || unknown !== undefined) {
               throw new APIError('BAD_REQUEST', { message: `Choose a role for the new user: ${roles.join(', ')}` })
             }
+            const withId = options.generateUserId ? { ...user, id: await options.generateUserId() } : user
             // An admin, or the host, creates the account for an address they vouch for.
-            return { data: context?.path === '/admin/create-user' ? { ...user, emailVerified: true } : user }
+            return { data: context?.path === '/admin/create-user' ? { ...withId, emailVerified: true } : withId }
           },
           ...(options.onUserCreated && { after: options.onUserCreated }),
         },
@@ -324,6 +330,8 @@ export const createAuth = (options: CreateAuthOptions) => {
     roleDefinitions: definitions,
     organizations,
     defaultRole,
+    /** New users get their ids from `generateUserId` instead of Better Auth's random text. */
+    generatesUserIds: Boolean(options.generateUserId),
     mail: Boolean(mailer),
     passwordReset: Boolean(mailer),
     /** Open sign-up is on and offered: the app asks for it, and can mail the codes. */
