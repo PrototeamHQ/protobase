@@ -248,7 +248,8 @@ const LoadedRecord = ({ model, recordKey, stored }: { model: ResourceModel; reco
             </div>
           )}
           <div className="grid grid-cols-1 gap-8 md:grid-cols-[minmax(0,1fr)_300px] md:gap-12">
-            <main className="divide-y divide-border">
+            {/* Without a header above them, the first section and the sidebar start at the page's top */}
+            <main className={cn('divide-y divide-border', !status && '*:first:pt-0!')}>
               {layout.flatMap((item, index) => {
                 if (item.kind === 'related') return [<RelatedSection key={`related:${item.title}`} item={item} recordKey={recordKey} owner={model.name} />]
                 if (item.kind === 'custom') return item.sidebar ? [] : [<CustomSection key={`custom:${index}`} item={item} scope={scope} />]
@@ -274,7 +275,7 @@ const LoadedRecord = ({ model, recordKey, stored }: { model: ResourceModel; reco
               })}
               {linesModel && <RecordLines lines={linesModel} draft={linesDraft} vatRate={Number(stored.record.vatRate ?? 21) / 100} saving={editor.saving} locked={shown !== 'form'} />}
             </main>
-            <aside className="space-y-4 md:pt-8">
+            <aside className={cn('space-y-4', status && 'md:pt-8')}>
               {formControls && <div className="hidden flex-col items-center gap-2 md:flex">{formControls}</div>}
               <RecordActions model={model} stored={stored} recordKey={recordKey} edit={offersEdit ? editAddress : undefined} onDelete={startDelete} />
               {firstSidebar === -1 && summary}
