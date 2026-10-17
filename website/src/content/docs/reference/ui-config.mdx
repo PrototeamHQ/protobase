@@ -1,6 +1,6 @@
 ---
 title: UI config
-description: Views in ui.ts, with names, list columns, filters, charts (graphs of records per day), exports to Excel and CSV, record layouts, related records (in a section or as dots in a list column), field hints, actions and views per role.
+description: Views in ui.ts, with names, list columns, filters, charts (graphs of records per day), exports to Excel and CSV, record layouts, related records (in a section or as dots in a list column), field hints, actions (with a dialog of inputs when they ask for some) and views per role.
 ---
 
 import { Code } from '@astrojs/starlight/components'
@@ -449,10 +449,46 @@ Every name is checked when the config loads. In `/meta` a caller who cannot read
 
 <Code code={step5} lang="ts" title="docs-examples/bike-shop/step-5.ts" />
 
-`.actions((a) => [...])` names the moves a record page offers in its action rail, between **Edit**, when the record opens as a read view or locked, and **Delete**, for a user who may delete it, unless an `a.remove` deletes already; composed pages can put the same actions on buttons. On the form, **Save** leads the sidebar, above the rail, with **Cancel** under it when Edit opened the form; on a mobile screen they sit in a bar under the form instead. `a.update`, `a.remove` and `a.link` work without code; `a.action` runs a handler the app registers. They are described with [named actions](/reference/layouts/#named-actions).
+`.actions((a) => [...])` names the moves a record page offers in its action rail, between **Edit**, when the record opens as a read view or locked, and **Delete**, for a user who may delete it, unless an `a.remove` deletes already; composed pages can put the same actions on buttons. On the form, **Save** leads the sidebar, above the rail, with **Cancel** under it when Edit opened the form; on a mobile screen they sit in a bar under the form instead. `a.update`, `a.remove` and `a.link` work without code; `a.action` runs a handler the app registers, after asking for its [inputs](#actions-that-ask-for-input) when it has some. They are described with [named actions](/reference/layouts/#named-actions).
 
 `.forRoles([...])` makes a view for users with one of those roles: each user gets the first such view that matches their roles, and the view without roles otherwise. A per-role view is a whole view, so build it from another (`laidOut.forRoles(...)` above) and change what differs.
 
 The ERP's orders view uses most of this page at once, with a recent-record group in the sidebar:
 
 <Code code={ordersView} lang="ts" title="examples/erp/config/orders/ui.ts" />
+
+### Actions that ask for input
+
+`inputs` on an `a.action` makes its button open a dialog that asks for them first, each edited as the create form edits a field, with the action's `confirm` text above them and its label on the button that runs it. The handler gets the answers as `values`, by input name:
+
+```ts
+.actions((a) => [
+  a.action('remind', {
+    label: 'Send reminder',
+    icon: 'mail',
+    inputs: (i) => [
+      i.choice('channel', { label: 'Send by', options: [{ value: 'email', label: 'Email' }, { value: 'letter', label: 'Letter' }], default: 'email' }),
+      i.text('note', { label: 'Note', multiline: true, optional: true, when: "channel = 'email'" }),
+    ],
+  }),
+])
+```
+
+| Input | Asks for |
+| --- | --- |
+| `i.text(name, o)` | A line of text, or several with `multiline: true`; `max` is the most characters it may have. |
+| `i.integer(name, o)` | A whole number, which the handler gets as a number. |
+| `i.decimal(name, o)` | A number with decimals, which the handler gets as text, as the API gives decimals, so no digit is lost. |
+| `i.boolean(name, o)` | A switch, `true` or `false`, so it is never required. |
+| `i.date(name, o)` | A date, `YYYY-MM-DD`. |
+| `i.choice(name, { options })` | One of `options`, each a `value` with the `label` it reads as. |
+| `i.choice(name, { resource })` | A record of `resource`, picked as the create form picks a relation; the handler gets its key. |
+| `i.custom(name, { component, props? })` | What a [component](/reference/custom-components/) of the app's `protobase.ui.tsx`, by the name it is registered under, edits. |
+
+Each takes `label`, and optionally `help`, a `default`, `optional: true` to allow an empty answer (every other input is required) and `when`, an AIP-160 condition over the inputs before it, as [`<Show when>`](/reference/layouts/#conditions) is over a record: `"start = 'github' OR code = 'github'"`. An input whose condition does not hold is hidden, not required and left out of `values`, and the inputs after it read it as empty. A `when` that names no input before it, a `default` that is not one of the options and a name given twice stop the config from loading; so does a choice of a resource the app does not have, when the server starts.
+
+An empty answer is `null`. Before the handler runs, the dialog refuses a required answer left empty, a number that is none, a date that is not `YYYY-MM-DD` and a text longer than `max`, each under its input. When the handler throws an `ActionInputError` from `@protobase/ui`, such as `new ActionInputError({ email: 'No user has this address' })`, or an API error, such as a [function's](/guides/api-functions/) answer, whose errors name an input as their `field`, each message shows under its input and the dialog stays open; another error shows above the inputs. When it resolves, the dialog closes and the action ends as any other: everything shown of the resource reloads and a toast says it is done.
+
+A custom input's component gets the answer as `value` (`null` when empty), `onChange`, `invalid` while its answer is refused, the input's `props` and the `input` itself (`ActionInputProps`), as a [field type's](/reference/custom-components/#field-types) editor does. Without that component the button is disabled, with the reason as its tooltip. In `/api/meta`, a user who cannot read the resource of a choice does not get the action.
+
+<StoryFrame id="record-page-action-inputs--dialog" title="Create invoice, asking for a due date, who to bill and how to send it" height={720} />

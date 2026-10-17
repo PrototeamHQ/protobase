@@ -214,8 +214,9 @@ A named action declared with `a.action(name, ...)` in a view has no built-in beh
 | `record`, `recordKey`, `etag` | The record around the button, when there is one. |
 | `client` | The API client (`@protobase/client`) of the API that serves the resource, with the user's token: the app's own, or a source's for a [remote resource](/reference/remote-resources/), whose functions `invoke` then calls. |
 | `navigate(to)` | Moves the app to an [address](/reference/layouts/#addresses), such as `{ kind: 'record', resource: 'orders', key: 42 }`. |
+| `values` | The answers to the action's [inputs](/reference/ui-config/#actions-that-ask-for-input), by input name, when it has some. |
 
-When the handler resolves, everything shown of the resource reloads and a toast says it is done; when it throws, the toast shows the error. Without a handler the button is disabled. Actions with built-in behaviour (`a.update`, `a.remove`, `a.link`) do not need one.
+When the handler resolves, everything shown of the resource reloads and a toast says it is done; when it throws, the toast shows the error, or for an action with inputs its dialog does, under the inputs an `ActionInputError` names. Without a handler the button is disabled. Actions with built-in behaviour (`a.update`, `a.remove`, `a.link`) do not need one.
 
 ## Shell slots
 
