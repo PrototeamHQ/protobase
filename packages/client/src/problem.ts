@@ -4,6 +4,8 @@ export type ProblemError = {
   hint?: string
   span?: { start: number; end: number }
   field?: string
+  /** For an invalid field value, the limit it broke, such as `{ max: 200 }` or a decimal's `{ precision, scale }`. */
+  params?: Record<string, unknown>
   parameter?: string
   /** The index of the operation in a batch that this error belongs to. */
   operation?: number

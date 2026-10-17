@@ -81,6 +81,7 @@ describe('POST /{resource}', () => {
     ]))
     const values = await (await request('/companies', json({ status: 'bogus', revenue: '1.234' }))).json()
     expect(values.errors.map((e: { field: string; code: string }) => `${e.field}:${e.code}`).sort()).toEqual(['name:required', 'revenue:invalid-value', 'status:invalid-value'])
+    expect(values.errors.find((e: { field: string }) => e.field === 'revenue').params).toEqual({ precision: 10, scale: 2 })
   })
 
   it('treats an empty text as missing for a field that may not be null', async () => {

@@ -20,7 +20,7 @@ export const decimal = {
         if (!(match[1] || fraction)) return false
         return integer.length <= maxInteger && fraction.length <= maxFraction
       },
-      { message: `Expected a decimal string with at most ${o.precision} digits, ${o.scale} after the point` },
+      { message: `Expected a decimal string with at most ${o.precision} digits, ${o.scale} after the point`, params: { precision: o.precision, scale: o.scale } },
     )
   },
 } as const
