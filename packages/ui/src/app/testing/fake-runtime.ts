@@ -8,8 +8,9 @@ export const fakeRuntime = (status: Partial<RuntimeStatus> = {}): RuntimeClient 
   return {
     status: async () => current,
     update: async () => {
-      if (current.updating || !current.updateAvailable) throw new ApiError({ type: 'urn:protobase:problem:unknown', title: 'Conflict', status: 409 })
-      current = { ...current, updating: true, nextUpdateAt: null }
+      if (current.updating) throw new ApiError({ type: 'urn:protobase:problem:update_running', title: 'Conflict', status: 409, detail: "An update of the app's runtime is running" })
+      if (!current.updateAvailable) throw new ApiError({ type: 'urn:protobase:problem:up_to_date', title: 'Conflict', status: 409, detail: 'The app runs the latest release' })
+      current = { ...current, updating: true, updateStage: 'job', updateStartedAt: new Date().toISOString(), nextUpdateAt: null }
       return current
     },
   }

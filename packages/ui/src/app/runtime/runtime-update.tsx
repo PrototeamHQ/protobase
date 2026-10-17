@@ -2,20 +2,13 @@ import { useState } from 'react'
 import { ArrowUpCircle } from 'lucide-react'
 import type { RuntimeClient } from '@protobase/client'
 import { Button } from '../../primitives/button'
-import { Dialog } from '../../primitives/dialog'
-import { nextUpdateText, showsUpdateButton, updateErrorText } from './runtime-status'
+import { showsUpdateButton } from './runtime-status'
+import { RuntimeUpdateDialog } from './runtime-update-dialog'
 import { useRuntimeClient, useRuntimeStatus } from './use-runtime-status'
-
-const Row = ({ label, value }: { label: string; value: string }) => (
-  <div className="flex justify-between gap-4 py-1">
-    <span className="text-muted-foreground">{label}</span>
-    <span className="font-medium tabular-nums">{value}</span>
-  </div>
-)
 
 /**
  * The top bar's runtime update button, shown while the endpoint reports an update and wants it shown, and the dialog
- * it opens: the versions, when the update policy applies the latest one, and "Update now". Below `md` only the icon shows.
+ * it opens. On mobile only the icon shows.
  */
 const RuntimeUpdate = ({ client }: { client: RuntimeClient | undefined }) => {
   const { status, update, requesting, error, checkError } = useRuntimeStatus(client)
@@ -28,26 +21,7 @@ const RuntimeUpdate = ({ client }: { client: RuntimeClient | undefined }) => {
         <ArrowUpCircle className="size-3.5 text-primary" />
         <span className="max-md:sr-only">Update</span>
       </Button>
-      {open && (
-        <Dialog
-          title="Runtime update"
-          description={nextUpdateText(status)}
-          onClose={() => setOpen(false)}
-          actions={
-            <>
-              <Button onClick={() => setOpen(false)}>Close</Button>
-              <Button variant="primary" loading={requesting} disabled={status.updating || !status.updateAvailable} onClick={() => void update()}>
-                {status.updating ? 'Updating…' : 'Update now'}
-              </Button>
-            </>
-          }
-        >
-          <Row label="Current version" value={status.version} />
-          <Row label="Latest version" value={status.latest} />
-          {error !== undefined && <p role="alert" className="mt-3 text-danger-text">{updateErrorText(error)}</p>}
-          {checkError !== undefined && <p className="mt-3 text-muted-foreground">The status could not be checked again; this is the last one read.</p>}
-        </Dialog>
-      )}
+      {open && <RuntimeUpdateDialog status={status} requesting={requesting} error={error} checkError={checkError} onUpdate={() => void update()} onClose={() => setOpen(false)} />}
     </>
   )
 }

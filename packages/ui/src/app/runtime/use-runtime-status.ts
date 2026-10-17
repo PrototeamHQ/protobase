@@ -1,10 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createRuntimeClient, type RuntimeClient, type RuntimeStatus } from '@protobase/client'
 import { useApiToken } from '../../auth/use-api-token'
-
-/** How often the status is read again: rarely, and more often while an update runs so the button goes away when it is done. */
-const refreshMs = 30 * 60_000
-const updatingRefreshMs = 30_000
+import { refreshMs } from './runtime-status'
 
 /** A client of the runtime endpoint at `url`, authenticated as the signed-in user; `undefined` until their token is there. */
 export const useRuntimeClient = (url: string) => {
@@ -16,7 +13,7 @@ export const useRuntimeClient = (url: string) => {
 }
 
 /**
- * The runtime's status, read on load and every half hour after, and `update` to apply the latest version now.
+ * The runtime's status, read on load and every half hour after (every few seconds while an update runs), and `update` to apply the latest version now.
  * `status` keeps the last answer when a later read fails, which `checkError` then holds; `error` is why "Update now" failed.
  */
 export const useRuntimeStatus = (client: RuntimeClient | undefined) => {
@@ -39,7 +36,7 @@ export const useRuntimeStatus = (client: RuntimeClient | undefined) => {
         (reason: unknown) => active && setCheckError(reason),
       )
     void read()
-    const timer = setInterval(() => void read(), updating ? updatingRefreshMs : refreshMs)
+    const timer = setInterval(() => void read(), refreshMs(updating))
     return () => {
       active = false
       clearInterval(timer)
