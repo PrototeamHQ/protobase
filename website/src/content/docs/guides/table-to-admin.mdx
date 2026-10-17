@@ -65,6 +65,12 @@ The record page still lists every field in one long column. The paper card the d
 
 Sections group fields under a title, with help where the shop has a habit to explain. The sidebar repeats what matters at a glance and stays read-only. `saveFeedback('button')` makes Save say when it is done, since the desk prefers that to a toast.
 
+The form and the [read view](/reference/ui-config/#form-and-read-view), which a user who may change nothing gets, share the layout. An item or field meant for one of them says so with `when`: `'editing'` keeps it to the form, `'reading'` to the read view. A table of the parts used, for whoever fills in the repair:
+
+```ts
+l.related('Parts used', { resource: 'repair_parts', field: 'repair_id', when: 'editing' })
+```
+
 <StoryFrame id="guides-bike-shop--step-4" title="Step 4: the repair card" height={760} />
 
 ## 5. Daily moves, and the workshop's own view

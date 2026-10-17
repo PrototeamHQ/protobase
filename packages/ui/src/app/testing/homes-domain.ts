@@ -30,8 +30,11 @@ const homePhotos = resource('home_photos')
   })
   .primaryKey((r) => r.id)
 
-/** The view of a home whose record page opens as `mode` says, its first section as key facts with `facts`. */
-const homesView = (mode: RecordMode, facts: boolean) =>
+/**
+ * The view of a home whose record page opens as `mode` says, its first section as key facts with `facts`; with `split`
+ * its bedrooms show only on the read view, and its cover and photo list only on the form.
+ */
+const homesView = (mode: RecordMode, facts: boolean, split: boolean) =>
   view<typeof homes>('homes')
     .names({ singular: 'Home', plural: 'Homes' })
     .title((r) => r.title)
@@ -40,7 +43,7 @@ const homesView = (mode: RecordMode, facts: boolean) =>
     .fields((r) => ({
       title: r.title.label('Address'),
       price: r.price.label('Asking price').prefix('€').decimals(0).help('Without the buyer\'s costs.').icon('tag'),
-      bedrooms: r.bedrooms.icon('bed'),
+      bedrooms: split ? r.bedrooms.icon('bed').when('reading') : r.bedrooms.icon('bed'),
       energy_label: r.energy_label.label('Energy label').format('badge').icon('leaf'),
       description: r.description.multiline(),
       agent_phone: r.agent_phone.label('Agent phone').help('Call to plan a viewing.', { when: 'always' }),
@@ -52,6 +55,7 @@ const homesView = (mode: RecordMode, facts: boolean) =>
       l.section('Home', [r.title, r.price, r.bedrooms, r.energy_label, r.garden], { help: 'As the seller states it.', ...(facts && { presentation: 'facts' as const }) }),
       l.section('About', [r.description]),
       l.section('Viewing', [r.agent_phone], { help: 'The agent shows the home.', helpWhen: 'always' }),
+      ...(split ? [l.section('Cover', [r.cover], { when: 'editing' }), l.related('Photo list', { resource: 'home_photos', field: 'home_id', columns: ['caption'], when: 'editing' })] : []),
     ])
 
 const homePhotosView = view<typeof homePhotos>('home_photos')
@@ -61,7 +65,7 @@ const homePhotosView = view<typeof homePhotos>('home_photos')
 
 export const homeResources = [homes.toModel(), homePhotos.toModel()]
 
-export const homeViews = (mode: RecordMode, { facts = false } = {}) => [homesView(mode, facts).toModel(homes.toModel()), homePhotosView.toModel(homePhotos.toModel())]
+export const homeViews = (mode: RecordMode, { facts = false, split = false } = {}) => [homesView(mode, facts, split).toModel(homes.toModel()), homePhotosView.toModel(homePhotos.toModel())]
 
 // A photo stand-in: a sky and a ground in its own colour, drawn as a PNG.
 const picture = (hue: number) => {

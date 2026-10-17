@@ -39,7 +39,7 @@ import { FieldValue } from './pages/field-value'
 import { GallerySection } from './gallery/gallery-section'
 import { filledFields } from './filled-fields'
 import { namedIcon } from './named-icon'
-import { fieldHelp, helpShown, recordShown } from './record-mode/record-mode'
+import { fieldHelp, helpShown, recordShown, whenShown } from './record-mode/record-mode'
 import { useRecordEditor } from './use-record-editor'
 import { useRelatedRecords } from './use-related-records'
 import { RelatedSection } from './related-section'
@@ -115,7 +115,8 @@ const LoadedRecord = ({ model, recordKey, stored }: { model: ResourceModel; reco
   })
   const related = useRelatedRecords(model, view, meta.resources, meta.views, stored.record, basePath)
   const { fields: fieldTypes } = useProjectUi()
-  const layout = layoutFor(model, view, shown === 'read')
+  // The items and fields meant only for the form, or only for reading the record, show only there
+  const layout = layoutFor(model, view, shown === 'read').filter((item) => whenShown(item.when, editing))
   const sidebarFields = layout.flatMap((item) => (item.kind === 'sidebar' ? item.fields : []))
   // An enum status shows as the badge, unless it is missing or the sidebar shows it already
   const hasStatus = model.fields.status?.type === 'enum'
@@ -123,7 +124,7 @@ const LoadedRecord = ({ model, recordKey, stored }: { model: ResourceModel; reco
   const status = hasStatus && !sidebarFields.includes('status') && statusValue !== null && statusValue !== undefined && statusValue !== '' ? String(statusValue) : undefined
   const updatedAt = auditField(model, 'updated')
   const hint = (name: string) => view?.fields[name]
-  const visible = (name: string) => fieldAccess(stored.permissions, name) !== 'hidden'
+  const visible = (name: string) => fieldAccess(stored.permissions, name) !== 'hidden' && whenShown(hint(name)?.when, editing)
 
   const fieldView = (name: string) => {
     const field = model.fields[name]

@@ -14,6 +14,15 @@ describe('detailFields', () => {
     expect(detailFields(model, laidOut, ['photo', 'home_id'])).toEqual(['caption', 'position'])
   })
 
+  it("leaves out the sections and fields meant only for the photo's form", () => {
+    const laidOut = view<typeof photos>('home_photos')
+      .fields((r) => ({ position: r.position.when('editing') }))
+      .layout((r) => [l.section('Photo', [r.caption, r.position]), l.section('Admin', [r.home_id], { when: 'editing' }), l.section('Shown', [r.photo], { when: 'reading' })])
+      .toModel(model)
+    expect(detailFields(model, laidOut, [])).toEqual(['caption', 'photo'])
+    expect(detailFields(model, view<typeof photos>('home_photos').fields((r) => ({ caption: r.caption.when('editing') })).toModel(model), ['photo', 'home_id'])).toEqual(['position'])
+  })
+
   it('takes every field but the key without a layout, and none when the gallery shows them all', () => {
     expect(detailFields(model, undefined, ['photo', 'home_id'])).toEqual(['position', 'caption'])
     expect(detailFields(model, undefined, ['photo', 'home_id', 'position', 'caption'])).toEqual([])

@@ -51,6 +51,7 @@ export type {
   SaveFeedback,
   RecordMode,
   HelpWhen,
+  ShowWhen,
   ActionModel,
   ActionRun,
   ViewModel,

@@ -23,7 +23,7 @@ const pruneGallery = (item: GalleryModel, resource: string, model: ResourceModel
   const image = item.image !== undefined && Object.hasOwn(model.fields, item.image) ? item.image : undefined
   const photos = item.photos && cardPhotosErrors(item.photos, resource, models).length === 0 ? item.photos : undefined
   if (image === undefined && photos === undefined) return undefined
-  return { kind: 'gallery', title: item.title, ...(image !== undefined && { image }), ...(photos && { photos }) }
+  return { kind: 'gallery', title: item.title, ...(image !== undefined && { image }), ...(photos && { photos }), ...(item.when !== undefined && { when: item.when }) }
 }
 
 // The list opens in its table when the display it names as its default is left out. Its columns keep the fields the
@@ -103,11 +103,11 @@ const widgetShape = s.oneOf<FilterWidgetModel>({
 
 const layoutShape = (resource: string, model: ResourceModel, models: Record<string, ResourceModel>) =>
   s.oneOf<LayoutItemModel>({
-    section: s.object<Of<LayoutItemModel, 'section'>>({ kind: s.data, title: s.data, help: s.data, helpWhen: s.data, presentation: s.data, fields: s.list(s.field, { nonEmpty: true }) }, { requires: ['fields'] }),
-    sidebar: s.object<Of<LayoutItemModel, 'sidebar'>>({ kind: s.data, fields: s.list(s.field, { nonEmpty: true }) }, { requires: ['fields'] }),
+    section: s.object<Of<LayoutItemModel, 'section'>>({ kind: s.data, title: s.data, help: s.data, helpWhen: s.data, presentation: s.data, when: s.data, fields: s.list(s.field, { nonEmpty: true }) }, { requires: ['fields'] }),
+    sidebar: s.object<Of<LayoutItemModel, 'sidebar'>>({ kind: s.data, fields: s.list(s.field, { nonEmpty: true }), when: s.data }, { requires: ['fields'] }),
     related: s.map<RelatedModel>((item) => pruneRelated(item, resource, models)),
-    custom: s.object<CustomSectionModel>({ kind: s.data, component: s.data, title: s.data, sidebar: s.data, props: s.refs }, { requires: ['props'] }),
-    map: s.object<MapSectionModel>({ kind: s.data, title: s.data, latitude: s.field, longitude: s.field, zoom: s.data, sidebar: s.data }, { requires: ['latitude', 'longitude'] }),
+    custom: s.object<CustomSectionModel>({ kind: s.data, component: s.data, title: s.data, sidebar: s.data, when: s.data, props: s.refs }, { requires: ['props'] }),
+    map: s.object<MapSectionModel>({ kind: s.data, title: s.data, latitude: s.field, longitude: s.field, zoom: s.data, sidebar: s.data, when: s.data }, { requires: ['latitude', 'longitude'] }),
     gallery: s.map<GalleryModel>((item) => pruneGallery(item, resource, model, models)),
   })
 

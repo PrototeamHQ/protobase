@@ -1,4 +1,4 @@
-import type { BadgeShape, FieldFormat, FieldViewModel, HelpWhen, JsonValue } from './model'
+import type { BadgeShape, FieldFormat, FieldViewModel, HelpWhen, JsonValue, ShowWhen } from './model'
 
 const hexColor = /^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i
 
@@ -23,6 +23,14 @@ export class FieldView<N extends string = string, V = unknown> {
    */
   help(help: string, o: { when?: HelpWhen } = {}) {
     return this.with({ help, ...(o.when !== undefined && { helpWhen: o.when }) })
+  }
+
+  /**
+   * When the field shows on the record page: `editing` only on its form and the create form, `reading` only on its read
+   * view and locked form; `always` when omitted. Its lists, cards and filters show it either way.
+   */
+  when(when: ShowWhen) {
+    return this.with({ when })
   }
 
   /** How the value shows: `badge` for statuses, `code` in monospace, `percent` with a % sign. */

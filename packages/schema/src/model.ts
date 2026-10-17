@@ -240,6 +240,8 @@ export type FieldViewModel = {
   help?: string
   /** When `help` shows: always, or only while the record is edited; the view's `helpWhen` when omitted. */
   helpWhen?: HelpWhen
+  /** When the field shows on the record page: always, the default, only on its form or only on its read view. */
+  when?: ShowWhen
   /** How the value is shown. */
   format?: FieldFormat
   /** A text that runs over several lines: forms edit it in a box that grows with it, and its line breaks show. */
@@ -276,6 +278,13 @@ export type FieldViewModel = {
  * [The record page](website/src/content/docs/reference/ui-config.mdx#the-record-page).
  */
 export type HelpWhen = 'always' | 'editing'
+
+/**
+ * When a record page's field or layout item shows: `always`, the default; only while the record is `editing`, on its
+ * form and the create form; or only while `reading` it, on the read view and the locked form. See
+ * [Form and read view](website/src/content/docs/reference/ui-config.mdx#form-and-read-view).
+ */
+export type ShowWhen = 'always' | 'editing' | 'reading'
 
 /** How a field's badges are drawn: `arrow` points them right, as on a rating scale. */
 export type BadgeShape = 'arrow'
@@ -604,6 +613,8 @@ export type RelatedModel = {
   display?: string
   /** The text when nothing matches. */
   empty?: string
+  /** Whether it shows on the form, the read view or both. */
+  when?: ShowWhen
 }
 
 /**
@@ -621,6 +632,8 @@ export type CustomSectionModel = {
   props?: Record<string, JsonValue>
   /** Drawn as a sidebar card instead of in the main column. */
   sidebar?: true
+  /** Whether it shows on the form, the read view or both. */
+  when?: ShowWhen
 }
 
 /**
@@ -641,6 +654,8 @@ export type MapSectionModel = {
   zoom?: number
   /** Drawn as a sidebar card instead of in the main column. */
   sidebar?: true
+  /** Whether it shows on the form, the read view or both. */
+  when?: ShowWhen
 }
 
 /** How a section shows its fields on the read view: `facts` as a row of key facts; label/value rows when omitted. */
@@ -664,12 +679,16 @@ export type LayoutItemModel =
        * label/value rows; the form edits them as any section's.
        */
       presentation?: SectionPresentation
+      /** Whether it shows on the form, the read view or both. */
+      when?: ShowWhen
     }
   | {
       /** A read-only summary card beside the main column. */
       kind: 'sidebar'
       /** The fields it shows, in order. */
       fields: string[]
+      /** Whether it shows on the form, the read view or both. */
+      when?: ShowWhen
     }
   | RelatedModel
   | CustomSectionModel
@@ -691,6 +710,8 @@ export type GalleryModel = {
   image?: string
   /** The records holding the further photos. */
   photos?: CardPhotosModel
+  /** Whether it shows on the form, the read view or both. */
+  when?: ShowWhen
 }
 
 /** How far back a list's chart reaches. */

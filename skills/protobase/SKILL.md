@@ -295,6 +295,12 @@ export const repairsView = filtered
 
 Sections group fields under a title, with help where the shop has a habit to explain. The sidebar repeats what matters at a glance and stays read-only. `saveFeedback('button')` makes Save say when it is done, since the desk prefers that to a toast.
 
+The form and the [read view](https://docs.protobase.net/reference/ui-config/#form-and-read-view), which a user who may change nothing gets, share the layout. An item or field meant for one of them says so with `when`: `'editing'` keeps it to the form, `'reading'` to the read view. A table of the parts used, for whoever fills in the repair:
+
+```ts
+l.related('Parts used', { resource: 'repair_parts', field: 'repair_id', when: 'editing' })
+```
+
 ### 5. Daily moves, and the workshop's own view
 
 Two things happen to every repair: it becomes ready, and it gets collected (and paid). Typing a status into a dropdown is how mistakes happen, so they become buttons. And the mechanics would rather not see prices at all.

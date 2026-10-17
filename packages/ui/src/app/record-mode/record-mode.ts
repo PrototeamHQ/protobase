@@ -1,4 +1,4 @@
-import type { FieldViewModel, HelpWhen, RecordMode, ViewModel } from '@protobase/schema'
+import type { FieldViewModel, HelpWhen, RecordMode, ShowWhen, ViewModel } from '@protobase/schema'
 
 /** What the record page draws: its form, ready to change; the same form, locked; or the read view. */
 export type RecordShown = 'form' | 'locked' | 'read'
@@ -23,3 +23,10 @@ export const helpShown = (own: HelpWhen | undefined, view: ViewModel | undefined
 /** A field's help line on the record page, when it shows. */
 export const fieldHelp = (hints: FieldViewModel | undefined, view: ViewModel | undefined, editing: boolean) =>
   hints?.help !== undefined && helpShown(hints.helpWhen, view, editing) ? hints.help : undefined
+
+/** Whether a field or layout item shows: always, unless it says only while editing or only while reading and the page is not. */
+export const whenShown = (when: ShowWhen | undefined, editing: boolean) => {
+  if (when === 'editing') return editing
+  if (when === 'reading') return !editing
+  return true
+}

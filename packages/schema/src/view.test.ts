@@ -358,6 +358,19 @@ describe('view builder', () => {
     expect(model.fields.price).toEqual({ icon: 'wallet' })
   })
 
+  it('shows layout items and fields only on the form or the read view when they say so', () => {
+    const model = view<typeof article>('article')
+      .fields((r) => ({ price: r.price.when('editing') }))
+      .layout((r) => [l.section('Content', [r.title], { when: 'reading' }), l.sidebar([r.price], { when: 'editing' }), l.related('Notes', { resource: 'notes', field: 'article_id', when: 'editing' })])
+      .toModel()
+    expect(model.fields.price).toEqual({ when: 'editing' })
+    expect(model.layout).toEqual([
+      { kind: 'section', title: 'Content', fields: ['title'], when: 'reading' },
+      { kind: 'sidebar', fields: ['price'], when: 'editing' },
+      { kind: 'related', title: 'Notes', resource: 'notes', field: 'article_id', when: 'editing' },
+    ])
+  })
+
   it('opens the record page as a read view or locked, and shows help only while editing', () => {
     const model = view<typeof article>('article')
       .recordMode('read')

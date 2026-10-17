@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { ViewModel } from '@protobase/schema'
-import { fieldHelp, helpShown, recordShown } from './record-mode'
+import { fieldHelp, helpShown, recordShown, whenShown } from './record-mode'
 
 const view = (helpWhen?: ViewModel['helpWhen']): ViewModel => ({ resource: 'listings', fields: {}, filters: [], layout: [], actions: [], ...(helpWhen && { helpWhen }) })
 
@@ -38,5 +38,16 @@ describe('helpShown', () => {
     expect(fieldHelp({ help: 'The asking price' }, view('editing'), false)).toBeUndefined()
     expect(fieldHelp({ help: 'The asking price' }, view('editing'), true)).toBe('The asking price')
     expect(fieldHelp({ label: 'Price' }, view(), true)).toBeUndefined()
+  })
+})
+
+describe('whenShown', () => {
+  it('shows an item always by default, one for editing only on the form and one for reading only off it', () => {
+    for (const editing of [false, true]) {
+      expect(whenShown(undefined, editing)).toBe(true)
+      expect(whenShown('always', editing)).toBe(true)
+      expect(whenShown('editing', editing)).toBe(editing)
+      expect(whenShown('reading', editing)).toBe(!editing)
+    }
   })
 })

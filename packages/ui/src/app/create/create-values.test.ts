@@ -31,11 +31,25 @@ describe('createSections', () => {
   })
 
   it('keeps the view sections and adds the fields they leave out', () => {
-    const view = { layout: [{ kind: 'section', title: 'Money', help: 'h', fields: ['total', 'createdAt', 'id'] }, { kind: 'sidebar', fields: ['status'] }] } as unknown as ViewModel
+    const view = { fields: {}, layout: [{ kind: 'section', title: 'Money', help: 'h', fields: ['total', 'createdAt', 'id'] }, { kind: 'sidebar', fields: ['status'] }] } as unknown as ViewModel
     const sections = createSections(orders, view)
     expect(sections.map((section) => [section.title, section.fields])).toEqual([
       ['Money', ['total']],
       ['Other fields', ['number', 'ownerId', 'status', 'paid', 'quantity', 'notes']],
+    ])
+  })
+
+  it('keeps sections and fields meant only for reading out of their sections, so their fields land in the last one', () => {
+    const view = {
+      fields: { number: { when: 'reading' }, notes: { when: 'editing' } },
+      layout: [
+        { kind: 'section', title: 'Summary', fields: ['total', 'status'], when: 'reading' },
+        { kind: 'section', title: 'Order', fields: ['number', 'total', 'notes'], when: 'editing' },
+      ],
+    } as unknown as ViewModel
+    expect(createSections(orders, view).map((section) => [section.title, section.fields])).toEqual([
+      ['Order', ['total', 'notes']],
+      ['Other fields', ['number', 'ownerId', 'status', 'paid', 'quantity']],
     ])
   })
 })

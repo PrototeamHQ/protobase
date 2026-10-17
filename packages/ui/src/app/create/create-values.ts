@@ -1,5 +1,6 @@
 import type { FieldModel, ResourceModel, ViewModel } from '@protobase/schema'
 import { isEditable, toPatchValue } from '../../live/field-values'
+import { whenShown } from '../record-mode/record-mode'
 
 export type CreateSection = { title: string; help?: string; fields: string[] }
 
@@ -14,13 +15,17 @@ export const isChosen = (value: unknown): value is Chosen => typeof value === 'o
 export const isCreatable = (model: ResourceModel, field: FieldModel) =>
   field.name !== model.tenant && !field.readOnly && (field.type === 'relation' || isEditable(field))
 
-/** The view's sections limited to creatable fields, plus a section for any creatable field the layout leaves out. */
+/**
+ * The view's sections limited to creatable fields, plus a section for any creatable field the layout leaves out. The
+ * create form is a form, so sections and fields meant only for reading the record stay out of their sections, and a
+ * creatable field among them lands in that last section.
+ */
 export const createSections = (model: ResourceModel, view: ViewModel | undefined): CreateSection[] => {
   const creatable = Object.values(model.fields).filter((field) => isCreatable(model, field)).map((field) => field.name)
   const placed = new Set<string>()
   const sections = (view?.layout ?? []).flatMap((item) => {
-    if (item.kind !== 'section') return []
-    const fields = item.fields.filter((name) => creatable.includes(name) && !placed.has(name))
+    if (item.kind !== 'section' || !whenShown(item.when, true)) return []
+    const fields = item.fields.filter((name) => creatable.includes(name) && !placed.has(name) && whenShown(view?.fields[name]?.when, true))
     fields.forEach((name) => placed.add(name))
     return fields.length > 0 ? [{ title: item.title, help: item.help, fields }] : []
   })

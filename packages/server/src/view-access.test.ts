@@ -165,6 +165,21 @@ describe('pruneView', () => {
     expect(galleries(without({ repairs: ['costPrice'] }, ['repair_photos']))).toEqual([])
   })
 
+  it('keeps when every layout item shows', () => {
+    const photos = { resource: 'repair_photos', field: 'repairId', image: 'photo', sort: 'position' }
+    const written = view<typeof repairs>('repairs')
+      .fields((r) => ({ estimate: r.estimate.when('editing') }))
+      .layout((r) => [
+        l.section('Repair', [r.status], { when: 'reading' }),
+        l.sidebar([r.number], { when: 'editing' }),
+        l.related('Photos', { resource: 'repair_photos', field: 'repairId', when: 'editing' }),
+        l.gallery('Gallery', { photos, when: 'reading' }),
+        l.map('Where', { latitude: r.estimate, longitude: r.costPrice, when: 'always' }),
+      ])
+      .toModel()
+    expect(pruneView(written, all.repairs, all)).toEqual(written)
+  })
+
   it('leaves out a map whose position the caller cannot read', () => {
     const mapped = view<typeof repairs>('repairs').layout((r) => [l.map('Where', { latitude: r.estimate, longitude: r.costPrice, zoom: 12, sidebar: true }), l.section('Repair', [r.status])]).toModel()
     expect(pruneView(mapped, all.repairs, all).layout).toEqual(mapped.layout)

@@ -17,8 +17,8 @@ const allowed = (update: boolean): Record<string, ResourcePermissions> => ({
   home_photos: { read: true, create: false, update: false, delete: false, conditional: [] },
 })
 
-const Home = ({ path = '/homes/1', mode = 'read', update = true }: { path?: string; mode?: RecordMode; update?: boolean }) => {
-  const [client] = useState(() => fakeApi({ resources: homeResources, views: homeViews(mode), rows: homeRows(), permissions: allowed(update) }).client)
+const Home = ({ path = '/homes/1', mode = 'read', update = true, split = false }: { path?: string; mode?: RecordMode; update?: boolean; split?: boolean }) => {
+  const [client] = useState(() => fakeApi({ resources: homeResources, views: homeViews(mode, { split }), rows: homeRows(), permissions: allowed(update) }).client)
   return (
     <div className="h-screen">
       <App client={client} auth={session} initialUrl={path} />
@@ -194,5 +194,26 @@ export const LockedReader: StoryObj = {
     const home = await section(canvasElement, 'Home')
     expect(home.querySelector('dl')).not.toBeNull()
     expect(canvas.queryByRole('link', { name: 'Edit' })).toBeNull()
+  },
+}
+
+export const FormOnly: StoryObj = {
+  name: 'Sections and fields for the form or the read view only (checks)',
+  tags: ['play', '!dev'],
+  render: () => <Home split />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    // The read view has the bedrooms, without the cover or the photo list meant for the form
+    const home = await section(canvasElement, 'Home')
+    expect([...home.querySelectorAll('dt')].map((label) => label.textContent)).toContain('Bedrooms')
+    expect(canvas.queryByRole('heading', { name: 'Cover' })).toBeNull()
+    expect(canvas.queryByRole('heading', { name: 'Photo list' })).toBeNull()
+
+    // The form swaps them: the cover and the photo list show, the bedrooms do not
+    await userEvent.click(canvas.getAllByRole('link', { name: 'Edit' })[0]!)
+    await canvas.findByDisplayValue('Keizersgracht 120')
+    expect(await canvas.findByRole('heading', { name: 'Cover' })).toBeVisible()
+    expect(await canvas.findByRole('heading', { name: 'Photo list' })).toBeVisible()
+    expect(within(await section(canvasElement, 'Home')).queryByText('Bedrooms')).toBeNull()
   },
 }
