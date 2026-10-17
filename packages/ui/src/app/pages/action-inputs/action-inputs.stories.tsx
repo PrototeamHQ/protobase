@@ -73,22 +73,24 @@ export const Checks: StoryObj = {
     const dialog = within(await canvas.findByRole('dialog', { name: 'Create invoice' }))
     // An input shows only while its `when` holds
     expect(dialog.queryByText('Postal address')).toBeNull()
-    await userEvent.selectOptions(dialog.getByRole('combobox'), 'post')
+    // "Send by" is the one combobox that is a select; "Bill to" is a relation picker
+    const sendBy = dialog.getAllByRole('combobox').find((box) => box.tagName === 'SELECT')!
+    await userEvent.selectOptions(sendBy, 'post')
     expect(await dialog.findByText('Postal address')).toBeVisible()
 
     // Required answers are asked for before the handler runs
     await userEvent.click(dialog.getByRole('button', { name: 'Create invoice' }))
     await waitFor(() => expect(dialog.getAllByText('Required')).toHaveLength(2))
 
-    // The handler's refusal shows under the input it is about, and the dialog stays open; the second box picks a company
-    const [dueOn, , address] = dialog.getAllByRole('textbox')
+    // The handler's refusal shows under the input it is about, and the dialog stays open
+    const [dueOn, address] = dialog.getAllByRole('textbox')
     await userEvent.type(dueOn!, '2020-01-01')
     await userEvent.type(address!, 'Stationsplein 1, Utrecht')
     await userEvent.click(dialog.getByRole('button', { name: 'Create invoice' }))
     expect(await dialog.findByText('The due date has passed')).toBeVisible()
 
     // A hidden input is left out of the values; a custom input's answer is in them
-    await userEvent.selectOptions(dialog.getByRole('combobox'), 'email')
+    await userEvent.selectOptions(sendBy, 'email')
     await userEvent.clear(dueOn!)
     await userEvent.type(dueOn!, '2026-11-01')
     await userEvent.click(dialog.getByRole('button', { name: 'High' }))
