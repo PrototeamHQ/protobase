@@ -1,12 +1,26 @@
 import type { FieldModel } from '@protobase/schema'
+import type { z } from 'zod'
 import { badRequest } from './problem'
 import { writableFields, type RequestAccess } from './request-access'
 import type { Row } from './types'
 
-export type FieldError = { field: string; code: 'unknown-field' | 'read-only' | 'required' | 'invalid-value' | 'invalid-record'; message: string }
+/** `params` is the limit an invalid value broke, such as `{ max: 200 }` or a decimal's `{ precision, scale }`, so a client can word the problem itself. */
+export type FieldError = { field: string; code: 'unknown-field' | 'read-only' | 'required' | 'invalid-value' | 'invalid-record'; message: string; params?: Record<string, unknown> }
 
 const fail = (errors: FieldError[]) =>
   badRequest('invalid-record', `The request body is invalid: ${errors[0]!.field}: ${errors[0]!.message}`, { errors })
+
+const paramsOf = (issue: z.core.$ZodIssue): Record<string, unknown> | undefined => {
+  if (issue.code === 'too_small') return { min: Number(issue.minimum) }
+  if (issue.code === 'too_big') return { max: Number(issue.maximum) }
+  if (issue.code === 'custom') return issue.params
+  return undefined
+}
+
+const invalidValue = (field: string, issue: z.core.$ZodIssue): FieldError => {
+  const params = paramsOf(issue)
+  return { field, code: 'invalid-value', message: issue.message, ...(params && { params }) }
+}
 
 const isObject = (value: unknown): value is Row => typeof value === 'object' && value !== null && !Array.isArray(value)
 
@@ -57,7 +71,7 @@ export const validateBody = (access: RequestAccess, mode: 'create' | 'update', b
     }
     if (!provided && field.nullable) continue
     if (!provided) errors.push({ field: name, code: 'required', message: `"${name}" is required` })
-    else errors.push(...parsed.error.issues.map((issue): FieldError => ({ field: name, code: 'invalid-value', message: issue.message })))
+    else errors.push(...parsed.error.issues.map((issue) => invalidValue(name, issue)))
   }
   if (errors.length > 0) throw fail(errors)
 
