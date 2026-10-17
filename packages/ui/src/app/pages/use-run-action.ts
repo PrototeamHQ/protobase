@@ -17,11 +17,11 @@ const message = (error: unknown) => (error instanceof Error ? error.message : 'S
  * The named actions of `resource`'s view, ready to run on `scope` (the record they act on): built-in behaviour first
  * (`update`, `delete`, `link`), else the handler the project registered under the action's name. A link to a URL the
  * record holds is left out while it holds none. `blocked` says why one cannot run; `afterRun` hears about every action
- * that succeeded.
+ * that succeeded. `submit` runs one with the answers to its inputs and throws its failure, for the dialog to show.
  */
 export const useActionRunner = (resource: string, scope: LayoutRecord | undefined, afterRun?: (action: ActionModel) => void) => {
   const { views } = useAdminMeta()
-  const { actions: handlers } = useProjectUi()
+  const { actions: handlers, components } = useProjectUi()
   const permissions = usePermissions(resource)
   const client = useClient()
   // A handler works on the API that serves the resource, functions included: a source's for one drawn from it.
@@ -39,10 +39,12 @@ export const useActionRunner = (resource: string, scope: LayoutRecord | undefine
     if (kind === 'update' && (!can(permissions, 'update') || scope?.permissions?.update === false)) return 'You cannot change this record'
     if (kind === 'delete' && (!can(permissions, 'delete') || scope?.permissions?.delete === false)) return 'You cannot delete this record'
     if (!action.run && !handlers?.[action.name]) return `The app has no handler for "${action.name}"`
+    const custom = action.inputs?.find((input) => input.kind === 'custom' && !components?.[input.component ?? ''])
+    if (custom) return `The app has no component "${custom.component}" for input "${custom.name}"`
     return undefined
   }
 
-  const perform = async (action: ActionModel) => {
+  const perform = async (action: ActionModel, values?: Record<string, unknown>) => {
     const { run } = action
     if (run?.kind === 'link') {
       if ('to' in run) go(fillAddress(run.to, scope?.record))
@@ -51,7 +53,7 @@ export const useActionRunner = (resource: string, scope: LayoutRecord | undefine
     }
     if (run?.kind === 'update') await client.update(resource, scope!.key, run.values as Record<string, unknown>, scope!.etag ?? '*')
     else if (run?.kind === 'delete') await client.remove(resource, scope!.key, { etag: scope!.etag })
-    else await handlers![action.name]!({ resource, record: scope?.record, recordKey: scope?.key, etag: scope?.etag, client: handlerClient, navigate: go })
+    else await handlers![action.name]!({ resource, record: scope?.record, recordKey: scope?.key, etag: scope?.etag, client: handlerClient, navigate: go, ...(values && { values }) })
     await refresh(resource)
     toast.show({ state: 'success', title: `${action.label}: done` })
     afterRun?.(action)
@@ -64,7 +66,14 @@ export const useActionRunner = (resource: string, scope: LayoutRecord | undefine
     setRunning(undefined)
   }
 
-  return { actions, blocked, running, run }
+  // An action with inputs runs from its dialog, which shows a failure under the inputs it is about instead of a toast.
+  const submit = async (action: ActionModel, values: Record<string, unknown>) => {
+    if (blocked(action)) return
+    setRunning(action.name)
+    await perform(action, values).finally(() => setRunning(undefined))
+  }
+
+  return { actions, blocked, running, run, submit }
 }
 
 /** One named action of `resource`'s view, for a button. */
@@ -76,5 +85,6 @@ export const useRunAction = (resource: string, name: string, scope: LayoutRecord
     blocked: action ? runner.blocked(action) : `No action "${name}"`,
     running: runner.running === name,
     run: () => (action ? runner.run(action) : Promise.resolve()),
+    submit: (values: Record<string, unknown>) => (action ? runner.submit(action, values) : Promise.resolve()),
   }
 }

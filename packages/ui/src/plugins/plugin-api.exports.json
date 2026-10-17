@@ -2,6 +2,7 @@
   "pluginApi": 1,
   "exports": [
     "ActionCard",
+    "ActionInputError",
     "ApiProvider",
     "App",
     "AppLink",

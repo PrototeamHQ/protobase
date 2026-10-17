@@ -18,6 +18,11 @@ export type ActionContext = {
   client: Client
   /** Moves the app to an address, such as `{ kind: 'record', resource: 'orders', key: 42 }`. */
   navigate: (to: AppAddress) => void
+  /**
+   * The answers to the action's inputs, by input name, for an action with `inputs`: those that show, null when left
+   * empty. Throwing `ActionInputError` refuses them, each message under its input.
+   */
+  values?: Record<string, unknown>
 }
 
 export type ActionHandler = (context: ActionContext) => void | Promise<void>

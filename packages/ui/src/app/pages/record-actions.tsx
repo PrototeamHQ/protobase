@@ -5,7 +5,7 @@ import type { ActionModel, AppAddress, ResourceModel } from '@protobase/schema'
 import { ActionRail, type RailAction } from '../../record-view'
 import { actionIcon } from '../action-icon'
 import { AppLink, useAppAddress } from '../use-app-address'
-import { ConfirmAction } from './confirm-action'
+import { ActionPrompt, asksFirst } from './action-prompt'
 import { useActionRunner } from './use-run-action'
 
 /**
@@ -24,7 +24,7 @@ export const RecordActions = ({ model, stored, recordKey, edit, onDelete }: { mo
     blocked: runner.blocked(action),
     running: runner.running === action.name,
     ...(action.run?.kind === 'delete' && { tone: 'danger' as const }),
-    onRun: () => (action.confirm ? setAsking(action) : void runner.run(action)),
+    onRun: () => (asksFirst(action) ? setAsking(action) : void runner.run(action)),
   }))
   const deletes = runner.actions.some((action) => action.run?.kind === 'delete')
   const actions: RailAction[] = [
@@ -37,7 +37,7 @@ export const RecordActions = ({ model, stored, recordKey, edit, onDelete }: { mo
     <>
       <ActionRail actions={actions} />
       {asking && (
-        <ConfirmAction
+        <ActionPrompt
           action={asking}
           label={asking.label}
           danger={asking.run?.kind === 'delete'}
@@ -45,6 +45,10 @@ export const RecordActions = ({ model, stored, recordKey, edit, onDelete }: { mo
           onConfirm={() => {
             setAsking(undefined)
             void runner.run(asking)
+          }}
+          onSubmit={async (values) => {
+            await runner.submit(asking, values)
+            setAsking(undefined)
           }}
         />
       )}
