@@ -150,15 +150,15 @@ export const BoardFilteredChecks: StoryObj = {
   },
 }
 
-// Space picks the focused card up, the arrow keys move it between columns and Space drops it; the board listens for the
-// next key a moment after each.
-const moveByKeyboard = async (card: HTMLElement, steps: string) => {
-  const settle = () => new Promise((resolve) => setTimeout(resolve, 100))
+// Space picks the focused card up, the arrow keys move it between columns and Space drops it; each key waits for what
+// the board tells a screen reader, so the next one lands once the board listens for it.
+const moveByKeyboard = async (card: HTMLElement, steps: string, to: string) => {
+  const announced = (text: string) => waitFor(() => expect(within(document.body).getByText(text, { exact: false, ignore: 'a, a *' })).toBeInTheDocument())
   card.focus()
   await userEvent.keyboard(' ')
-  await settle()
+  await announced('is over ')
   await userEvent.keyboard(steps)
-  await settle()
+  await announced(`is over ${to}.`)
   await userEvent.keyboard(' ')
 }
 
@@ -170,7 +170,7 @@ export const BoardMoveChecks: StoryObj = {
     const canvas = within(canvasElement)
     const ready = await column(canvas, 'ready')
     await waitFor(() => expect(cardNumbers(ready)).toEqual(['R-305', 'R-311']))
-    await moveByKeyboard(within(ready).getAllByRole('link')[0]!, '{ArrowRight}')
+    await moveByKeyboard(within(ready).getAllByRole('link')[0]!, '{ArrowRight}', 'collected')
     const collected = await column(canvas, 'collected')
     await waitFor(() => expect(cardNumbers(collected)).toContain('R-305'))
     await waitFor(() => expect(cardNumbers(ready)).toEqual(['R-311']))
@@ -191,7 +191,7 @@ export const BoardRefusedChecks: StoryObj = {
     const canvas = within(canvasElement)
     const ready = await column(canvas, 'ready')
     await waitFor(() => expect(cardNumbers(ready)).toEqual(['R-305', 'R-311']))
-    await moveByKeyboard(within(ready).getAllByRole('link')[0]!, '{ArrowRight}')
+    await moveByKeyboard(within(ready).getAllByRole('link')[0]!, '{ArrowRight}', 'collected')
     // Put back, with the reason
     expect(await within(document.body).findByText('A bike leaves the shop paid')).toBeInTheDocument()
     expect(within(document.body).getByText('Could not move it to collected')).toBeInTheDocument()
