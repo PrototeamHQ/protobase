@@ -79,7 +79,6 @@ const LoadedRecord = ({ model, recordKey, stored }: { model: ResourceModel; reco
   const { basePath } = useRouter()
   const { address, go, open } = useAppAddress()
   const view = meta.views[model.name]
-  const singular = view?.names?.singular ?? humanize(model.name)
   const title = recordTitle(model, view, stored.record, recordKey)
   const { state: auth } = useAuth()
   const linesModel = useMemo(() => findLinesResource(meta.resources, model), [meta.resources, model])
@@ -118,10 +117,10 @@ const LoadedRecord = ({ model, recordKey, stored }: { model: ResourceModel; reco
   const { fields: fieldTypes } = useProjectUi()
   const layout = layoutFor(model, view, shown === 'read')
   const sidebarFields = layout.flatMap((item) => (item.kind === 'sidebar' ? item.fields : []))
-  // An enum status shows as the badge, a missing one as none; without a status field the badge names the resource
+  // An enum status shows as the badge, unless it is missing or the sidebar shows it already
   const hasStatus = model.fields.status?.type === 'enum'
   const statusValue = stored.record.status
-  const status = hasStatus && statusValue !== null && statusValue !== undefined && statusValue !== '' ? String(statusValue) : undefined
+  const status = hasStatus && !sidebarFields.includes('status') && statusValue !== null && statusValue !== undefined && statusValue !== '' ? String(statusValue) : undefined
   const updatedAt = auditField(model, 'updated')
   const hint = (name: string) => view?.fields[name]
   const visible = (name: string) => fieldAccess(stored.permissions, name) !== 'hidden'
@@ -196,26 +195,21 @@ const LoadedRecord = ({ model, recordKey, stored }: { model: ResourceModel; reco
     if ((await editor.save()) && leavesForm) go(readAddress, { replace: true })
   }
 
-  // Edit and Delete are actions like the view's own, in the rail; the form's controls stay with the form
+  // Edit and Delete are actions like the view's own, in the rail; Save leads the sidebar, above them
   const startDelete = canDelete ? () => void remove.start({ key: recordKey, title, etag: stored.etag, snapshot: stored.record }) : undefined
   const formControls = shown === 'form' && (
     <>
-      {editor.dirty && <span className="text-xs text-muted-foreground">Unsaved changes</span>}
-      {editor.dirty && !leavesForm && (
-        <Button className="max-md:min-h-11" disabled={editor.saving} onClick={editor.discard}>
-          Discard
-        </Button>
-      )}
-      {leavesForm && (
-        // Cancel drops the changes when it leaves the form here, not when it opens the record in another tab
-        <AppLink to={readAddress} className={cn(buttonClass(), 'max-md:min-h-11')} onClick={(event) => inApp(event) && editor.discard()}>
-          Cancel
-        </AppLink>
-      )}
-      <Button variant="primary" className="max-md:min-h-11 max-md:flex-1" loading={editor.saving} disabled={!editor.dirty && editor.phase !== 'saved'} onClick={() => void save()}>
+      <Button variant="primary" className="max-md:min-h-11 max-md:flex-1 md:w-full" loading={editor.saving} disabled={!editor.dirty && editor.phase !== 'saved'} onClick={() => void save()}>
         {editor.phase === 'saved' && <Check className="size-4" />}
         {editor.phase === 'saved' ? 'Saved' : 'Save'}
       </Button>
+      {leavesForm && (
+        // Cancel drops the changes when it leaves the form here, not when it opens the record in another tab
+        <AppLink to={readAddress} className={cn(buttonClass(), 'max-md:min-h-11 md:w-full')} onClick={(event) => inApp(event) && editor.discard()}>
+          Cancel
+        </AppLink>
+      )}
+      {editor.dirty && <span className="text-xs text-muted-foreground max-md:order-first">Unsaved changes</span>}
     </>
   )
 
@@ -226,17 +220,13 @@ const LoadedRecord = ({ model, recordKey, stored }: { model: ResourceModel; reco
         <div className="mx-auto max-w-[1100px] px-4 pb-8 pt-6 md:px-10 md:py-8">
           <RecordHeader
             title={title}
-            status={status ? { label: enumLabel(status, hint('status')?.valueLabels), tone: toneFor(status) } : hasStatus ? undefined : { label: singular, tone: 'neutral' }}
-            actions={
-              <div className="hidden items-center gap-4 md:flex">
-                {formControls}
-              </div>
-            }
+            titleHidden
+            status={status ? { label: enumLabel(status, hint('status')?.valueLabels), tone: toneFor(status) } : undefined}
           />
           {editor.message && <div className="mt-4"><ErrorBanner title="Not saved" error={new Error(editor.message)} /></div>}
           {editor.linesConflict && (
             <div className="mt-4">
-              <ErrorBanner title="The lines were changed by someone else" error={new Error('The lines were reloaded. Your new order is kept: Save again to apply it, or Discard to drop it.')} />
+              <ErrorBanner title="The lines were changed by someone else" error={new Error('The lines were reloaded. Your new order is kept: Save again to apply it.')} />
             </div>
           )}
           {shown !== 'form' && offersEdit && editor.dirty && (
@@ -285,6 +275,7 @@ const LoadedRecord = ({ model, recordKey, stored }: { model: ResourceModel; reco
               {linesModel && <RecordLines lines={linesModel} draft={linesDraft} vatRate={Number(stored.record.vatRate ?? 21) / 100} saving={editor.saving} locked={shown !== 'form'} />}
             </main>
             <aside className="space-y-4 md:pt-8">
+              {formControls && <div className="hidden flex-col items-center gap-2 md:flex">{formControls}</div>}
               <RecordActions model={model} stored={stored} recordKey={recordKey} edit={offersEdit ? editAddress : undefined} onDelete={startDelete} />
               {firstSidebar === -1 && summary}
               {layout.map((item, index) => {

@@ -53,20 +53,6 @@ export const ReorderThenSave: StoryObj = {
   },
 }
 
-const discarded = fakeInvoiceClient()
-export const DiscardGoesBackToTheSavedOrder: StoryObj = {
-  tags: ['play'],
-  render: render(discarded),
-  play: async ({ canvasElement }) => {
-    const canvas = within(canvasElement)
-    await moveFirstLineDown(canvas)
-    await userEvent.click(canvas.getAllByRole('button', { name: 'Discard' })[0]!)
-    await waitFor(() => expect(canvas.getAllByRole('button', { name: /Drag to reorder/ })[0]).toHaveAccessibleName('Drag to reorder Line A'))
-    expect(canvas.queryAllByText('Unsaved changes')).toHaveLength(0)
-    expect(discarded.batches).toHaveLength(0)
-  },
-}
-
 const guarded = fakeInvoiceClient()
 export const LeavingAsksFirst: StoryObj = {
   tags: ['play'],
