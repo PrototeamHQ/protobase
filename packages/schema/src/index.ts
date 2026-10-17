@@ -54,6 +54,8 @@ export type {
   ShowWhen,
   ActionModel,
   ActionRun,
+  ActionInputKind,
+  ActionInputModel,
   ViewModel,
   SearchResultModel,
   NavModel,

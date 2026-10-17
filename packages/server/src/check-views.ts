@@ -1,5 +1,5 @@
 import type { ActionRun, CardPhotosModel, GalleryModel, ResourceModel, ViewModel } from '@protobase/schema'
-import { addressErrors, addressPlaceholders, displayFields, fieldRefsIn, hrefField, hrefPlaceholders, linkActionError } from '@protobase/schema/internal'
+import { actionInputErrors, addressErrors, addressPlaceholders, displayFields, fieldRefsIn, hrefField, hrefPlaceholders, linkActionError } from '@protobase/schema/internal'
 import type { Registry } from './registry'
 import { cardFavoriteErrors, favoriteOwnerErrors } from './view-card-favorite'
 import { cardPhotosErrors } from './view-card-photos'
@@ -69,6 +69,19 @@ const linkErrors = (view: ViewModel, model: ResourceModel, models: Record<string
     return 'to' in run ? addressErrors(run.to, { models, pages, source: model }).map((error) => `action "${name}": ${error}`) : []
   })
 
+// Inputs are answers a handler gets, checked as the builder checks them for a view written as data; a choice of records
+// picks one of a resource the app has.
+const inputErrors = (view: ViewModel, models: Record<string, ResourceModel>) =>
+  view.actions.flatMap(({ name, run, inputs }) => {
+    if (!inputs) return []
+    const errors = [
+      ...(run ? [`inputs need a handler, and a${run.kind === 'update' ? 'n' : ''} ${run.kind} action has none`] : []),
+      ...actionInputErrors(inputs),
+      ...inputs.flatMap((input) => (input.resource !== undefined && !models[input.resource] ? [`input "${input.name}" picks from resource "${input.resource}", which the app does not have`] : [])),
+    ]
+    return errors.map((error) => `action "${name}": ${error}`)
+  })
+
 // A create page is a page of the app's own.
 const createErrors = (view: ViewModel, pages: ReadonlySet<string>) => (view.create && !pages.has(view.create.page) ? [`create: unknown page "${view.create.page}"`] : [])
 
@@ -131,7 +144,7 @@ const listOfErrors = (model: ResourceModel, name: string, models: Record<string,
  * has a related section or related list column, a cards display's or gallery's photos or a cards display's favorite button, a `listOf`, a "Save search" button or a
  * `searchesOf` that do not fit the resources, cards
  * displays of one list that name different photos, a map that cannot show the
- * record's position or a map display that cannot find the records in its view, a link to an address the app does not have, or a create page that is not one of `pages`.
+ * record's position or a map display that cannot find the records in its view, a link to an address the app does not have, action inputs that do not fit, or a create page that is not one of `pages`.
  */
 export const checkViews = (registry: Registry, views: ViewModel[], pages: readonly string[] = [], fieldTypes: Readonly<Record<string, readonly string[]>> = {}) => {
   const models = Object.fromEntries(registry.entries.map((entry) => [entry.name, entry.model]))
@@ -164,7 +177,7 @@ export const checkViews = (registry: Registry, views: ViewModel[], pages: readon
       ...view.layout.flatMap((item) => (item.kind === 'map' ? mapErrors(item, model).map((error) => `map "${item.title}": ${error}`) : [])),
       ...(view.list?.displays ?? []).flatMap((display) => (display.kind === 'map' ? mapDisplayErrors(display, model).map((error) => `display "${display.name}": ${error}`) : [])),
     ]
-    return [...sensitiveErrors(view, model), ...unknownFieldErrors(view, model), ...valueLabelErrors(view, model), ...valueColorErrors(view, model), ...textHintErrors(view, model), ...widgetErrors(view, model, fieldTypes), ...related, ...photos, ...favorites, ...listOf, ...searches, ...maps, ...linkErrors(view, model, models, pageNames), ...createErrors(view, pageNames)].map((problem) => `View "${view.resource}": ${problem}`)
+    return [...sensitiveErrors(view, model), ...unknownFieldErrors(view, model), ...valueLabelErrors(view, model), ...valueColorErrors(view, model), ...textHintErrors(view, model), ...widgetErrors(view, model, fieldTypes), ...related, ...photos, ...favorites, ...listOf, ...searches, ...maps, ...linkErrors(view, model, models, pageNames), ...inputErrors(view, models), ...createErrors(view, pageNames)].map((problem) => `View "${view.resource}": ${problem}`)
   })
   if (problems.length > 0) throw new Error(`The views do not match the resources:\n${problems.map((problem) => `  - ${problem}`).join('\n')}`)
 }

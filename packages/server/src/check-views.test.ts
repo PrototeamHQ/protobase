@@ -66,6 +66,17 @@ describe('checkViews', () => {
     expect(() => checkViews(registry, [written])).toThrow('action "old": href "/payments/{id}" points inside the app; give the link `to` instead')
   })
 
+  it('wants action inputs to fit: a handler to get them, and a choice of records to pick from a resource the app has', () => {
+    const asked = view<typeof payments>('payments').actions((a) => [a.action('refund', { label: 'Refund', inputs: (i) => [i.choice('to', { label: 'To', resource: 'payments' })] })]).toModel()
+    expect(() => checkViews(registry, [asked])).not.toThrow()
+    const written = structuredClone(asked)
+    written.actions = [{ name: 'refund', label: 'Refund', bulk: false, inputs: [{ name: 'to', kind: 'choice', label: 'To', required: true, resource: 'accounts' }] }]
+    expect(() => checkViews(registry, [written])).toThrow('View "payments": action "refund": input "to" picks from resource "accounts", which the app does not have')
+    written.actions = [{ name: 'paid', label: 'Paid', bulk: false, run: { kind: 'delete' }, inputs: [{ name: 'x', kind: 'text', label: 'X', required: true }, { name: 'x', kind: 'text', label: 'X', required: true }] }]
+    expect(() => checkViews(registry, [written])).toThrow('action "paid": inputs need a handler, and a delete action has none')
+    expect(() => checkViews(registry, [written])).toThrow('action "paid": input "x" is declared twice')
+  })
+
   it('wants a create page to be a page of the app', () => {
     const created = view<typeof payments>('payments').create({ page: 'new-payment' }).toModel()
     expect(() => checkViews(registry, [created], ['new-payment'])).not.toThrow()

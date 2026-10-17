@@ -1,5 +1,5 @@
 import { resolveFieldPath } from '@protobase/layout'
-import type { ActionModel, ActionRun, CardFavoriteModel, CardPhotosModel, ChartModel, CustomSectionModel, FilterWidgetModel, GalleryModel, LayoutItemModel, ListDisplayModel, ListModel, MapSectionModel, NavModel, NavRecentModel, RelatedColumnModel, RelatedModel, ResourceModel, SaveSearchModel, SearchesOfModel, SearchResultModel, ViewModel } from '@protobase/schema'
+import type { ActionInputModel, ActionModel, ActionRun, CardFavoriteModel, CardPhotosModel, ChartModel, CustomSectionModel, FilterWidgetModel, GalleryModel, LayoutItemModel, ListDisplayModel, ListModel, MapSectionModel, NavModel, NavRecentModel, RelatedColumnModel, RelatedModel, ResourceModel, SaveSearchModel, SearchesOfModel, SearchResultModel, ViewModel } from '@protobase/schema'
 import { addressErrors, hrefPlaceholders, navRecentErrors, pruneByShape, shapes as s, tableDisplay } from '@protobase/schema/internal'
 import { cardFavoriteErrors } from './view-card-favorite'
 import { cardPhotosErrors } from './view-card-photos'
@@ -118,6 +118,10 @@ const linkShape = (model: ResourceModel, models: Record<string, ResourceModel>) 
     return followable ? run : undefined
   })
 
+// Inputs name no field of the record; an action whose choice picks records of a resource the caller cannot read goes.
+const inputsShape = (models: Record<string, ResourceModel>) =>
+  s.map<ActionInputModel[]>((inputs) => (inputs.every((input) => input.resource === undefined || Object.hasOwn(models, input.resource)) ? inputs : undefined))
+
 const actionShape = (model: ResourceModel, models: Record<string, ResourceModel>) =>
   s.object<ActionModel>(
     {
@@ -131,8 +135,9 @@ const actionShape = (model: ResourceModel, models: Record<string, ResourceModel>
         delete: s.data,
         link: linkShape(model, models),
       }),
+      inputs: inputsShape(models),
     },
-    { requires: ['run'] },
+    { requires: ['run', 'inputs'] },
   )
 
 // Every part of a view, and what a field the caller cannot read does to it. The compiler wants a shape for each part,

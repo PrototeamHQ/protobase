@@ -788,6 +788,50 @@ export type ActionModel = {
   bulk: boolean
   /** What it does; without it the app runs the handler registered under `name`. */
   run?: ActionRun
+  /** What the button asks for in a dialog before the handler runs, which gets the answers as `values` (`a.action`'s `inputs`). */
+  inputs?: ActionInputModel[]
+}
+
+/**
+ * What an input of a named action asks for: a line of `text`, a whole number (`integer`), a number with decimals
+ * (`decimal`), a yes or no (`boolean`), a `date`, one of `options` or a record of `resource` (`choice`), or what a
+ * project component edits (`custom`).
+ */
+export type ActionInputKind = 'text' | 'integer' | 'decimal' | 'boolean' | 'date' | 'choice' | 'custom'
+
+/** One input of a named action's dialog (`inputs: (i) => [...]`); see [Named actions](website/src/content/docs/reference/ui-config.mdx#actions-that-ask-for-input). */
+export type ActionInputModel = {
+  /** The input's name: the key of its answer in the handler's `values`, and how `when` names it. */
+  name: string
+  /** What it asks for. */
+  kind: ActionInputKind
+  /** Its label. */
+  label: string
+  /** A line under it. */
+  help?: string
+  /** Whether it must be answered before the action runs; a boolean never must. */
+  required: boolean
+  /** An AIP-160 condition over the inputs before it, such as `plan = 'pro'`; it shows, and is answered, only while it holds. */
+  when?: string
+  /** What it holds when the dialog opens. */
+  default?: JsonValue
+  /** A text that runs over several lines, in a box that grows with it. */
+  multiline?: boolean
+  /** The most characters a text may have. */
+  max?: number
+  /** A choice's values, each with its label, in order. */
+  options?: Array<{
+    /** The value the handler gets. */
+    value: string
+    /** What it reads as. */
+    label: string
+  }>
+  /** The resource a choice picks a record of; the handler gets its key. */
+  resource?: string
+  /** The project component (`defineUi({ components })`) a custom input is, which gets `ActionInputProps`. */
+  component?: string
+  /** The plain data a custom input's component gets as `props`. */
+  props?: Record<string, JsonValue>
 }
 
 /** The colour of a status dot in the sidebar. */

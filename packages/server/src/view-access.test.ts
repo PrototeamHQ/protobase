@@ -61,6 +61,18 @@ describe('pruneView', () => {
     expect(names(without({ repairs: ['customerId'] }))).toEqual(['quote'])
   })
 
+  it('keeps an action with inputs whole, and leaves it out when a choice picks records the caller cannot see', () => {
+    const repairsView = view<typeof repairs>('repairs')
+      .actions((a) => [
+        a.action('reassign', { label: 'Reassign', inputs: (i) => [i.choice('customer', { label: 'Customer', resource: 'customers' }), i.text('reason', { label: 'Reason' })] }),
+        a.action('note', { label: 'Note', inputs: (i) => [i.text('text', { label: 'Text' })] }),
+      ])
+      .toModel()
+    const actions = (models: Record<string, ResourceModel>) => pruneView(repairsView, models.repairs!, models).actions
+    expect(actions(all)).toEqual(repairsView.actions)
+    expect(actions(without({}, ['customers'])).map((action) => action.name)).toEqual(['note'])
+  })
+
   it("keeps a link to a record's URL for any caller the view grants the field, and leaves it out for one it hides it from", () => {
     const repairsView = view<typeof repairs>('repairs')
       .actions((a) => [a.link('source', { label: 'View on {host}', href: '{number}' })])

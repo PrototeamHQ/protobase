@@ -1,5 +1,6 @@
+import { actionInputErrors, inputs } from './action-inputs'
 import { linkActionError } from './address-template'
-import type { ActionModel, AppAddress } from './model'
+import type { ActionInputModel, ActionModel, AppAddress } from './model'
 
 /** @inline */
 type ActionOptions = { label: string; icon?: string; confirm?: string }
@@ -13,8 +14,18 @@ const named = (name: string, o: ActionOptions & { bulk?: boolean }): ActionModel
 })
 
 export const actions = {
-  /** An action the app implements: it runs the handler registered under `name`. */
-  action: (name: string, o: ActionOptions & { bulk?: boolean }): ActionModel => named(name, o),
+  /**
+   * An action the app implements: it runs the handler registered under `name`. With `inputs`, such as
+   * `(i) => [i.text('reason', { label: 'Reason' })]`, the button first asks for them in a dialog, and the handler gets the
+   * answers as `values`.
+   */
+  action: (name: string, o: ActionOptions & { bulk?: boolean; inputs?: (i: typeof inputs) => ActionInputModel[] }): ActionModel => {
+    if (!o.inputs) return named(name, o)
+    const built = o.inputs(inputs)
+    const errors = actionInputErrors(built)
+    if (errors.length > 0) throw new Error(`Action "${name}": ${errors.join('; ')}`)
+    return { ...named(name, o), inputs: built }
+  },
   /** Sets fields of the record, as one update with its ETag, for example `{ status: 'paid' }`. */
   update: (name: string, o: ActionOptions & { set: Record<string, unknown> }): ActionModel => ({ ...named(name, o), run: { kind: 'update', values: o.set } }),
   /** Deletes the record (soft delete when the resource has one). */
