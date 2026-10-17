@@ -264,7 +264,7 @@ export const repairsView = named
   .chart((r) => ({ field: r.booked_on, range: '30d', granularity: 'day' }))
 ```
 
-From here on each step starts from the view of the step before (`named` is step 2's), so the file shows only what changes; in a project it is one view in one `ui.ts`. Each widget writes into the list's `?filter=`, so "ready and unpaid" is a link someone can send. The chart above the list, a daily graph, counts repairs per day, following the same filters; [UI config](https://docs.protobase.net/reference/ui-config/#charts-graphs-records-per-day-week-or-month-above-a-list) has its ranges and granularities. In the story, switch on "Paid" and watch the list drop to six.
+From here on each step starts from the view of the step before (`named` is step 2's), so the file shows only what changes; in a project it is one view in one `ui.ts`. Each widget writes into the list's `?filter=`, so "ready and unpaid" is a link someone can send. The chart above the list, a daily graph, counts repairs per day, following the same filters; [UI config](https://docs.protobase.net/reference/ui-config/#charts-graphs-records-per-day-week-or-month-or-per-value-above-a-list) has its ranges and granularities. In the story, switch on "Paid" and watch the list drop to six.
 
 ### 4. The repair card
 
@@ -1988,7 +1988,7 @@ The [UI config](https://docs.protobase.net/reference/ui-config/#create-pages) ha
 For what the guides leave out, read a reference page: each is Markdown at its URL, so fetch the one you need instead of the HTML page.
 
 - [Data config](https://docs.protobase.net/reference/data-config.md): Resources in data.ts, every field type and option, keys and relations, soft delete, tenants, search, validation and access.
-- [UI config](https://docs.protobase.net/reference/ui-config.md): Views in ui.ts, with names, list columns, editing in the list, filters, charts (graphs of records per day), exports to Excel and CSV, record layouts, related records (in a section or as dots in a list column), field hints, actions (with a dialog of inputs when they ask for some) and views per role.
+- [UI config](https://docs.protobase.net/reference/ui-config.md): Views in ui.ts, with names, list columns, editing in the list, filters, charts (graphs of records per day or per value), exports to Excel and CSV, record layouts, related records (in a section or as dots in a list column), field hints, actions (with a dialog of inputs when they ask for some) and views per role.
 - [Architecture](https://docs.protobase.net/reference/architecture.md): How the packages are laid out, which package may import which, and where tests and stories live.
 - [REST API](https://docs.protobase.net/reference/api.md): The REST API that @protobase/server generates, with its routes, access, filters, writes, batches and errors.
 - [Files](https://docs.protobase.net/reference/files.md): File fields, uploads with types detected from the content, downloads, derived fields, image variants and placeholders, external URLs, image referrers, and how stored files are deleted.
