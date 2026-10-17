@@ -7,6 +7,7 @@ import { saveSearchErrors, searchesOfErrors } from './view-saved-search'
 import { mapDisplayErrors, mapErrors } from './view-map'
 import { relatedErrors } from './view-related'
 import { relatedColumnErrors } from './view-related-column'
+import { editableErrors } from './view-editable'
 
 // The fields a link action takes from the record.
 const linkFields = (run: ActionRun | undefined) => (run?.kind !== 'link' ? [] : 'to' in run ? addressPlaceholders(run.to) : hrefPlaceholders(run.href))
@@ -121,6 +122,12 @@ const relatedColumnsErrors = (view: ViewModel, model: ResourceModel, models: Rec
     ].map((error) => `related column "${column.name}": ${error}`),
   )
 
+// An editable field is among the list's columns and has an editor that fits in a cell.
+const listEditErrors = (view: ViewModel, model: ResourceModel) =>
+  (view.list?.editable ?? []).flatMap((name) =>
+    [...(view.list!.columns.includes(name) ? [] : ["it is not among the list's columns"]), ...editableErrors(name, model, view.fields[name])].map((error) => `editable field "${name}": ${error}`),
+  )
+
 // A gallery shows the record's own file field first, then its photos, which load as a card's do.
 const galleryErrors = (item: GalleryModel, resource: string, model: ResourceModel, models: Record<string, ResourceModel>) => {
   const image = item.image === undefined ? undefined : model.fields[item.image]
@@ -141,6 +148,7 @@ const listOfErrors = (model: ResourceModel, name: string, models: Record<string,
  * Fails at startup when a view uses a sensitive field where it would show empty, a display or custom section names a
  * field the resource does not have, labels or colours values its enum does not have, shows a field with a field type of
  * `fieldTypes` (each with the storage types it shows) that does not show it,
+ * edits a list column in its cell that is not a field with an editor of one line the API may write,
  * has a related section or related list column, a cards display's or gallery's photos or a cards display's favorite button, a `listOf`, a "Save search" button or a
  * `searchesOf` that do not fit the resources, cards
  * displays of one list that name different photos, a map that cannot show the
@@ -177,7 +185,7 @@ export const checkViews = (registry: Registry, views: ViewModel[], pages: readon
       ...view.layout.flatMap((item) => (item.kind === 'map' ? mapErrors(item, model).map((error) => `map "${item.title}": ${error}`) : [])),
       ...(view.list?.displays ?? []).flatMap((display) => (display.kind === 'map' ? mapDisplayErrors(display, model).map((error) => `display "${display.name}": ${error}`) : [])),
     ]
-    return [...sensitiveErrors(view, model), ...unknownFieldErrors(view, model), ...valueLabelErrors(view, model), ...valueColorErrors(view, model), ...textHintErrors(view, model), ...widgetErrors(view, model, fieldTypes), ...related, ...photos, ...favorites, ...listOf, ...searches, ...maps, ...linkErrors(view, model, models, pageNames), ...inputErrors(view, models), ...createErrors(view, pageNames)].map((problem) => `View "${view.resource}": ${problem}`)
+    return [...sensitiveErrors(view, model), ...unknownFieldErrors(view, model), ...valueLabelErrors(view, model), ...valueColorErrors(view, model), ...textHintErrors(view, model), ...listEditErrors(view, model), ...widgetErrors(view, model, fieldTypes), ...related, ...photos, ...favorites, ...listOf, ...searches, ...maps, ...linkErrors(view, model, models, pageNames), ...inputErrors(view, models), ...createErrors(view, pageNames)].map((problem) => `View "${view.resource}": ${problem}`)
   })
   if (problems.length > 0) throw new Error(`The views do not match the resources:\n${problems.map((problem) => `  - ${problem}`).join('\n')}`)
 }
