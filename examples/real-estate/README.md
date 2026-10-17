@@ -76,7 +76,7 @@ A tenant's IBAN is a [sensitive field](https://docs.protobase.net/reference/data
 
 ## Login
 
-`bun run --cwd examples/real-estate db:migrate` also creates Better Auth's tables in the `auth` schema of the real estate database (`db/migrations/007_auth.sql`); `bun run --cwd examples/real-estate dev` (http://localhost:5173) or `serve` then needs `BETTER_AUTH_SECRET` in `.env`. Create the first admin with `bun run --cwd examples/real-estate protobase users create you@example.com --role admin --generate-password`. See [Login with Better Auth](https://docs.protobase.net/reference/auth/).
+`bun run --cwd examples/real-estate db:migrate` also creates Better Auth's tables in the `auth` schema of the real estate database (`db/migrations/007_auth.sql`); `bun run --cwd examples/real-estate dev` (http://localhost:5173) or `serve` then needs `BETTER_AUTH_SECRET` in `.env`. Create the first admin with `bun run --cwd examples/real-estate protobase users create you@example.com --role admin --generate-password`. A new user takes the next id of `core.users` (`generateUserId` in `auth/auth.ts`), which tickets name as their assignee, and gets their row there in organization 1 (`db/migrations/013_auth_users.sql`), without a `role`, since their roles live in the auth schema. See [Login with Better Auth](https://docs.protobase.net/reference/auth/).
 
 ## Serve and deploy
 
