@@ -51,7 +51,8 @@ export const KeyboardChecks: Story = {
     const handle = within(grid).getByRole('button', { name: `Move ${first}` })
     handle.focus()
     await userEvent.keyboard(' ')
-    await waitFor(() => expect(canvasElement.ownerDocument.body).toHaveTextContent(`Picked up ${first}, row 1 of 6.`))
+    // Picking it up puts it over its own row, which a screen reader is told next
+    await waitFor(() => expect(canvasElement.ownerDocument.body).toHaveTextContent(`${first} is over row 1 of 6.`))
     await userEvent.keyboard('{ArrowDown}')
     await waitFor(() => expect(canvasElement.ownerDocument.body).toHaveTextContent(`${first} is over row 2 of 6.`))
     await userEvent.keyboard(' ')

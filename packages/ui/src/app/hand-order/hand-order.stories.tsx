@@ -66,7 +66,8 @@ const moveByKeyboard = async (handle: HTMLElement, steps: string, to: string) =>
   const announced = (text: string) => waitFor(() => expect(within(document.body).getByText(text, { exact: false })).toBeInTheDocument())
   handle.focus()
   await userEvent.keyboard(' ')
-  await announced('Picked up ')
+  // Picking it up puts it over its own row, which a screen reader is told right after
+  await announced('is over row ')
   await userEvent.keyboard(steps)
   await announced(`is over ${to}.`)
   await userEvent.keyboard(' ')
