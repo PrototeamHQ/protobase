@@ -1,7 +1,7 @@
 import { Download, Plus, SlidersHorizontal } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { createWhere, type FilterExpr, type ResourceModel } from '@protobase/schema'
-import { tableDisplay } from '@protobase/schema/internal'
+import { isGroupChart, tableDisplay } from '@protobase/schema/internal'
 import { PageHeader, usePageScroll } from '../app-shell'
 import { useAuth } from '../auth'
 import { DataGrid, pinnedStorageKey, type GridRow } from '../data-grid'
@@ -266,7 +266,7 @@ const LoadedList = ({ model, address, scope, heading }: LoadedListProps) => {
       />
       {!parsed.ok && <ErrorBanner title="The filter in the address could not be read" error={new Error(parsed.errors.map((error) => error.message).join('; '))} />}
       {rows.error && !display && <ErrorBanner title="Could not load rows" error={rows.error} />}
-      {view?.chart && <ListChart resource={resource} chart={view.chart} title={`${plural} created`} noun={plural.toLowerCase()} filter={loadFilter} />}
+      {view?.chart && !isGroupChart(view.chart) && <ListChart resource={resource} chart={view.chart} title={`${plural} created`} noun={plural.toLowerCase()} filter={loadFilter} />}
       {desktop ? desktopToolbar : phoneFilters}
       {desktop && layout === 'panel' ? (
         <div className="flex min-h-0 flex-1 gap-4">

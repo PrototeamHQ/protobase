@@ -1,4 +1,5 @@
 import type { FilterWidgetModel, ResourceModel, ViewModel } from '@protobase/schema'
+import { isGroupChart } from '@protobase/schema/internal'
 
 const widgetName: Record<FilterWidgetModel['kind'], string> = { facets: 'facets filter', range: 'range filter', dateRange: 'date range filter', toggle: 'toggle', flags: 'flags filter' }
 
@@ -30,7 +31,7 @@ const searchErrors = (model: ResourceModel, view: ViewModel) =>
  */
 export const viewQueryErrors = (view: ViewModel, model: ResourceModel): string[] => [
   ...view.filters.flatMap((widget) => filterableErrors(model, widget.kind === 'flags' ? widget.fields : [widget.field], `the ${widgetName[widget.kind]}`)),
-  ...(view.chart ? filterableErrors(model, [view.chart.field], 'the chart') : []),
+  ...(view.chart ? filterableErrors(model, [isGroupChart(view.chart) ? view.chart.groupBy : view.chart.field], 'the chart') : []),
   ...listSortErrors(model, view),
   ...searchErrors(model, view),
 ]
