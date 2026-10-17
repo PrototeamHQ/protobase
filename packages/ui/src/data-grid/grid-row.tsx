@@ -1,4 +1,4 @@
-import type { HTMLAttributes, ReactNode } from 'react'
+import type { HTMLAttributes, ReactNode, Ref } from 'react'
 import { formatInt } from '../format/number'
 import { Checkbox } from '../primitives/checkbox'
 import { Skeleton } from '../primitives/skeleton'
@@ -47,16 +47,34 @@ const Gutter = ({ width, index, selectable, selected, onToggle, edge }: { width:
  */
 export type RowCell = { spec: ColumnSpec; content: ReactNode; props?: HTMLAttributes<HTMLDivElement>; chosen?: boolean; editing?: boolean; editable?: boolean }
 
-export type DataRowProps = RowFrame & { cells: RowCell[]; selected: boolean; onToggle: () => void; onOpen?: () => void; menu?: ReactNode }
+export type DataRowProps = RowFrame & {
+  cells: RowCell[]
+  selected: boolean
+  onToggle: () => void
+  onOpen?: () => void
+  menu?: ReactNode
+  /** A drag handle in the checkbox's place, for a row moved by hand, with the row's element and its move back. */
+  handle?: ReactNode
+  rowRef?: Ref<HTMLDivElement>
+  transition?: string
+  dragging?: boolean
+}
 
-export const DataRow = ({ cells, selected, onToggle, onOpen, menu, ...frame }: DataRowProps) => (
+export const DataRow = ({ cells, selected, onToggle, onOpen, menu, handle, rowRef, transition, dragging, ...frame }: DataRowProps) => (
   <div
+    ref={rowRef}
     role="row"
     onClick={onOpen}
-    className={cn('absolute inset-x-0 top-0 grid items-center border-b', selected ? 'bg-primary-soft' : 'bg-background hover:bg-surface', onOpen && 'cursor-pointer')}
-    style={frameStyle(frame)}
+    className={cn('absolute inset-x-0 top-0 grid items-center border-b', selected ? 'bg-primary-soft' : 'bg-background hover:bg-surface', onOpen && 'cursor-pointer', dragging && 'z-30 bg-surface shadow-pop')}
+    style={{ ...frameStyle(frame), transition }}
   >
-    <Gutter width={frame.gutter} index={frame.index} selectable={frame.selectable} selected={selected} onToggle={onToggle} edge={frame.scrolled && !frame.lastPinned} />
+    {handle ? (
+      <div className={cn('sticky left-0 z-10 flex h-full items-center bg-inherit pl-1.5', frame.scrolled && !frame.lastPinned && 'shadow-[1px_0_0_var(--border),4px_0_6px_-2px_rgb(0_0_0/0.12)]')} style={{ width: frame.gutter }}>
+        {handle}
+      </div>
+    ) : (
+      <Gutter width={frame.gutter} index={frame.index} selectable={frame.selectable} selected={selected} onToggle={onToggle} edge={frame.scrolled && !frame.lastPinned} />
+    )}
     {cells.map(({ spec, content, props, chosen, editing, editable }) => (
       <div
         key={spec.id}

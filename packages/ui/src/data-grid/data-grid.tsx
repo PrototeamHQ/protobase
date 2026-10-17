@@ -15,6 +15,7 @@ import type { RowSource } from './row-source'
 import { usePagedRows } from './use-paged-rows'
 import { useVirtualRows } from './use-virtual-rows'
 import { useCellEditing, type CellEditor } from './use-cell-editing'
+import { ReorderRows, SortableRow, type RowReorder } from './row-reorder'
 
 export type DataGridProps = {
   columns: ColumnSpec[]
@@ -46,6 +47,8 @@ export type DataGridProps = {
   defaultPinned?: string[]
   compact?: boolean
   selectable?: boolean
+  /** Rows moved by a drag handle in place of the checkbox, every row of `source` loaded; nothing is selected meanwhile. */
+  reorder?: RowReorder
   /** Sized to show every row of `source` without scrolling and without the footer, for a few rows shown whole. */
   fit?: boolean
   /**
@@ -58,7 +61,8 @@ export type DataGridProps = {
 
 const headerHeight = 32
 
-export const DataGrid = ({ columns: given, source, naturalSort, initialScrollIndex = 0, onScrollIndex, latencyMs = 150, sort: controlledSort, onSortChange, onOpenRow, rowActions, cellEditor, rowPatches, bulkActions, pinKey, defaultPinned, rowNumbers = true, compact = false, selectable = true, fit = false, scroll = 'own', className }: DataGridProps) => {
+export const DataGrid = ({ columns: given, source, naturalSort, initialScrollIndex = 0, onScrollIndex, latencyMs = 150, sort: controlledSort, onSortChange, onOpenRow, rowActions, cellEditor, rowPatches, bulkActions, pinKey, defaultPinned, rowNumbers = true, compact = false, selectable: selecting = true, reorder, fit = false, scroll = 'own', className }: DataGridProps) => {
+  const selectable = selecting && !reorder
   const rowHeight = compact ? 28 : 36
   const [pinned, setPinned] = usePinnedColumns(pinKey, defaultPinned)
   const columns = useMemo(() => {
@@ -159,29 +163,34 @@ export const DataGrid = ({ columns: given, source, naturalSort, initialScrollInd
       </div>
     </div>
   )
+  const rowsInView = loaded.map(({ index, offset, row }) => {
+    const frame = { specs: columns, gutter, index, offset, height: rowHeight, selectable, trailing, minScale, scrolled: horizontal.scrolled, pins, lastPinned }
+    const tableRow = row ? tableRows.get(row.id) : undefined
+    if (!tableRow || !row) return <SkeletonRow key={`skeleton-${index}`} {...frame} />
+    const actions = trailing ? availableActions(rowActions!, row) : []
+    const props = {
+      ...frame,
+      selected: tableRow.getIsSelected(),
+      onToggle: () => tableRow.toggleSelected(),
+      onOpen: onOpenRow ? () => onOpenRow(row) : undefined,
+      menu: actions.length > 0 ? <RowMenu row={row} actions={actions} /> : undefined,
+      cells: tableRow.getAllCells().map((cell) => {
+        const content = <table.FlexRender cell={cell} />
+        return { spec: columns.find((spec) => spec.id === cell.column.id)!, ...(cellEditing ? cellEditing.cell(index, row, cell.column.id, content) : { content }) }
+      }),
+    }
+    return reorder ? <SortableRow key={row.id} {...props} row={row} label={reorder.label(row)} /> : <DataRow key={row.id} {...props} />
+  })
   const body = (
     <div ref={horizontal.attach} onScroll={onBodyScroll} className="overflow-x-auto overflow-y-hidden overscroll-x-contain [-webkit-overflow-scrolling:touch]">
       <div ref={ref} className="relative" style={{ minWidth, height: geometry.contentHeight }}>
-        {loaded.map(({ index, offset, row }) => {
-          const frame = { specs: columns, gutter, index, offset, height: rowHeight, selectable, trailing, minScale, scrolled: horizontal.scrolled, pins, lastPinned }
-          const tableRow = row ? tableRows.get(row.id) : undefined
-          if (!tableRow) return <SkeletonRow key={`skeleton-${index}`} {...frame} />
-          const actions = trailing && row ? availableActions(rowActions!, row) : []
-          return (
-            <DataRow
-              key={row?.id}
-              {...frame}
-              selected={tableRow.getIsSelected()}
-              onToggle={() => tableRow.toggleSelected()}
-              onOpen={onOpenRow && row ? () => onOpenRow(row) : undefined}
-              menu={row && actions.length > 0 ? <RowMenu row={row} actions={actions} /> : undefined}
-              cells={tableRow.getAllCells().map((cell) => {
-                const content = <table.FlexRender cell={cell} />
-                return { spec: columns.find((spec) => spec.id === cell.column.id)!, ...(cellEditing && row ? cellEditing.cell(index, row, cell.column.id, content) : { content }) }
-              })}
-            />
-          )
-        })}
+        {reorder ? (
+          <ReorderRows ids={Array.from({ length: total }, (_, index) => patchedRow(index)?.id ?? `missing-${index}`)} rowAt={patchedRow} reorder={reorder}>
+            {rowsInView}
+          </ReorderRows>
+        ) : (
+          rowsInView
+        )}
       </div>
     </div>
   )
