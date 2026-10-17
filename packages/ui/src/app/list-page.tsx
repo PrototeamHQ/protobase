@@ -33,6 +33,7 @@ import { useSeedRecord } from './record-preview'
 import { useDisplayRows } from './displays/use-display-rows'
 import { useListScroll } from './list-scroll'
 import { ListChart } from './list-chart'
+import { ListGroupChart } from './list-group-chart'
 import { parseSort, sortToOrderBy } from './list-order'
 import { ListSearch } from './list-search'
 import { Notice, useAdminMeta, usePermissions } from './meta-gate'
@@ -266,7 +267,12 @@ const LoadedList = ({ model, address, scope, heading }: LoadedListProps) => {
       />
       {!parsed.ok && <ErrorBanner title="The filter in the address could not be read" error={new Error(parsed.errors.map((error) => error.message).join('; '))} />}
       {rows.error && !display && <ErrorBanner title="Could not load rows" error={rows.error} />}
-      {view?.chart && !isGroupChart(view.chart) && <ListChart resource={resource} chart={view.chart} title={`${plural} created`} noun={plural.toLowerCase()} filter={loadFilter} />}
+      {view?.chart &&
+        (isGroupChart(view.chart) ? (
+          <ListGroupChart model={model} view={view} chart={view.chart} plural={plural} filter={loadFilter} />
+        ) : (
+          <ListChart resource={resource} chart={view.chart} title={`${plural} created`} noun={plural.toLowerCase()} filter={loadFilter} />
+        ))}
       {desktop ? desktopToolbar : phoneFilters}
       {desktop && layout === 'panel' ? (
         <div className="flex min-h-0 flex-1 gap-4">

@@ -197,6 +197,43 @@ export const fakeApi = ({ resources, views = [], pages = [], rows: initial, perm
       for (const value of values) buckets[Math.min(count - 1, Math.floor((value - min) / width))]!.count += 1
       return values.length > 0 ? { min, max, buckets } : { min: null, max: null, buckets: [] }
     },
+    // Like the real `:aggregate`, except that a date field's buckets run from its earliest to its latest record and
+    // ignore the range, so a story shows the same chart whatever day it runs.
+    aggregate: async (resource: string, params: { groupBy: string; filter?: string; sum?: string; average?: string; limit?: number; label?: string; granularity?: string }) => {
+      const measured = params.sum ?? params.average
+      const kind = params.sum !== undefined ? 'sum' : 'average'
+      const type = models[resource]?.fields[params.groupBy]?.type
+      const dated = type === 'date' || type === 'timestamp'
+      const granularity = params.granularity ?? 'day'
+      const bucketOf = (value: unknown) => {
+        const text = String(value)
+        if (granularity === 'year') return `${text.slice(0, 4)}-01-01T00:00:00`
+        if (granularity === 'month') return `${text.slice(0, 7)}-01T00:00:00`
+        return `${text.slice(0, 10)}T00:00:00`
+      }
+      const groups = new Map<unknown, Row[]>()
+      for (const row of select(resource, params)) {
+        const value = row[params.groupBy] ?? null
+        const key = dated && value !== null ? bucketOf(value) : value
+        groups.set(key, [...(groups.get(key) ?? []), row])
+      }
+      const total = (rows: Row[]) => {
+        if (measured === undefined) return {}
+        const values = rows.map((row) => row[measured]).filter((value) => value !== null && value !== undefined).map(Number)
+        const sum = values.reduce((all, value) => all + value, 0)
+        return { [kind]: values.length === 0 ? null : kind === 'sum' ? sum : sum / values.length }
+      }
+      const totals = [...groups].map(([value, rows]) => ({ value, count: rows.length, ...total(rows) }))
+      if (dated) {
+        const sorted = totals.filter((group) => group.value !== null).sort((a, b) => String(a.value).localeCompare(String(b.value)))
+        return { groupBy: params.groupBy, granularity, timeZone: 'UTC', groups: sorted }
+      }
+      const size = (group: Row) => Number(measured === undefined ? group.count : (group[kind] ?? -Infinity))
+      const ranked = totals.sort((a, b) => size(b) - size(a)).slice(0, params.limit ?? 100)
+      const names: Record<string, string> = params.label ? (namesOf(resource, ranked.map((group) => ({ [params.groupBy]: group.value })), { [params.groupBy]: params.label })[params.groupBy] ?? {}) : {}
+      const groupsOut = ranked.map((group) => (group.value !== null && names[String(group.value)] !== undefined ? { ...group, label: names[String(group.value)] } : group))
+      return { groupBy: params.groupBy, groups: groupsOut }
+    },
     series: async (resource: string, params: { field: string; filter?: string; granularity?: string }) => {
       const counts = new Map<string, number>()
       for (const row of select(resource, params)) {

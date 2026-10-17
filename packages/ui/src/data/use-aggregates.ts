@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { filterText, type FilterInput, type SeriesParams } from '@protobase/client'
+import { filterText, type AggregateParams, type FilterInput, type SeriesParams } from '@protobase/client'
 import { useClient } from './api-provider'
 import { keys } from './query-keys'
 
@@ -23,4 +23,11 @@ export const useHistogram = (resource: string, field: string, filter?: FilterInp
   const client = useClient()
   const text = filterText(filter) ?? ''
   return useQuery({ queryKey: keys.histogram(resource, field, buckets, text), enabled, queryFn: () => client.histogram(resource, field, { filter: text, buckets }) })
+}
+
+/** Totals per value or date bucket of a field (`:aggregate`), refetched whenever the resource is written. */
+export const useAggregate = (resource: string, params: AggregateParams, enabled = true) => {
+  const client = useClient()
+  const wire = { ...params, filter: filterText(params.filter) ?? '' }
+  return useQuery({ queryKey: keys.aggregate(resource, JSON.stringify(wire)), enabled, queryFn: () => client.aggregate(resource, wire) })
 }
