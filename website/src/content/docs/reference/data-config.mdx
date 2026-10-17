@@ -90,7 +90,7 @@ A key of several columns is a list, and a record's address joins its parts with 
 
 <Code code={keys} lang="ts" title="docs-examples/reference/keys.ts" />
 
-A relation's value in the API is the other record's key. The admin shows the other record's name instead (its view's `title`, else a field such as `name` or `number`) and links to it, and a create form picks it from a list.
+A relation's value in the API is the other record's key. The admin shows the other record's name instead (its view's `title`, else a field such as `name` or `number`) and links to it. The create form and the record's form pick it from a list, with a link beside it on the record's form; a relation the user may not change, the record's own key and a relation to a record with a key of several columns stay links.
 
 ## Access
 
