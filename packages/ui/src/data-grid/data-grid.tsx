@@ -14,6 +14,7 @@ import { DataRow, SkeletonRow } from './grid-row'
 import type { RowSource } from './row-source'
 import { usePagedRows } from './use-paged-rows'
 import { useVirtualRows } from './use-virtual-rows'
+import { useCellEditing, type CellEditor } from './use-cell-editing'
 
 export type DataGridProps = {
   columns: ColumnSpec[]
@@ -31,6 +32,10 @@ export type DataGridProps = {
   onOpenRow?: (row: GridRow) => void
   /** Entries of the "..." menu at the end of each row; a row none apply to gets no menu, but keeps the column. */
   rowActions?: RowAction[]
+  /** Cells edited in place, between which the arrow keys and Tab move. */
+  cellEditor?: CellEditor
+  /** Values to show over the loaded rows', by row id, such as those of edits saving or saved since the rows loaded. */
+  rowPatches?: ReadonlyMap<string, Partial<GridRow>>
   /** Buttons shown next to the selection count, run on the selected rows. */
   bulkActions?: BulkAction[]
   /** Where to remember pinned columns in local storage, for example one key per user and resource. */
@@ -53,7 +58,7 @@ export type DataGridProps = {
 
 const headerHeight = 32
 
-export const DataGrid = ({ columns: given, source, naturalSort, initialScrollIndex = 0, onScrollIndex, latencyMs = 150, sort: controlledSort, onSortChange, onOpenRow, rowActions, bulkActions, pinKey, defaultPinned, rowNumbers = true, compact = false, selectable = true, fit = false, scroll = 'own', className }: DataGridProps) => {
+export const DataGrid = ({ columns: given, source, naturalSort, initialScrollIndex = 0, onScrollIndex, latencyMs = 150, sort: controlledSort, onSortChange, onOpenRow, rowActions, cellEditor, rowPatches, bulkActions, pinKey, defaultPinned, rowNumbers = true, compact = false, selectable = true, fit = false, scroll = 'own', className }: DataGridProps) => {
   const rowHeight = compact ? 28 : 36
   const [pinned, setPinned] = usePinnedColumns(pinKey, defaultPinned)
   const columns = useMemo(() => {
@@ -86,8 +91,13 @@ export const DataGrid = ({ columns: given, source, naturalSort, initialScrollInd
   useEffect(() => onScrollIndex?.(topIndex), [topIndex, onScrollIndex])
   const getRow = usePagedRows({ total, rowAt: sourceRowAt ? rowAt : undefined, loadRows: source.loadRows, latencyMs }, firstIndex, lastIndex)
 
-  const loaded = virtualRows.map(({ index, offset }) => ({ index, offset, row: getRow(index) }))
-  const data = useMemo(() => loaded.flatMap(({ row }) => (row ? [row] : [])), [getRow, firstIndex, lastIndex])
+  const patchedRow = useCallback((index: number) => {
+    const row = getRow(index)
+    const patch = row && rowPatches?.get(row.id)
+    return patch ? { ...row, ...patch } : row
+  }, [getRow, rowPatches])
+  const loaded = virtualRows.map(({ index, offset }) => ({ index, offset, row: patchedRow(index) }))
+  const data = useMemo(() => loaded.flatMap(({ row }) => (row ? [row] : [])), [patchedRow, firstIndex, lastIndex])
   const table = useTable({
     features,
     columns: tableColumns,
@@ -136,6 +146,10 @@ export const DataGrid = ({ columns: given, source, naturalSort, initialScrollInd
     })),
   )
 
+  const gridRef = useRef<HTMLDivElement>(null)
+  const columnIds = useMemo(() => columns.map((spec) => spec.id), [columns])
+  const cellEditing = useCellEditing({ editor: cellEditor, columns: columnIds, total, rowAt: patchedRow, onOpenRow, container: gridRef })
+
   const minWidth = gridMinWidth(columns, gutter, trailing, minScale)
   const own = scroll === 'own'
   const header = (
@@ -161,10 +175,10 @@ export const DataGrid = ({ columns: given, source, naturalSort, initialScrollInd
               onToggle={() => tableRow.toggleSelected()}
               onOpen={onOpenRow && row ? () => onOpenRow(row) : undefined}
               menu={row && actions.length > 0 ? <RowMenu row={row} actions={actions} /> : undefined}
-              cells={tableRow.getAllCells().map((cell) => ({
-                spec: columns.find((spec) => spec.id === cell.column.id)!,
-                content: <table.FlexRender cell={cell} />,
-              }))}
+              cells={tableRow.getAllCells().map((cell) => {
+                const content = <table.FlexRender cell={cell} />
+                return { spec: columns.find((spec) => spec.id === cell.column.id)!, ...(cellEditing && row ? cellEditing.cell(index, row, cell.column.id, content) : { content }) }
+              })}
             />
           )
         })}
@@ -174,8 +188,10 @@ export const DataGrid = ({ columns: given, source, naturalSort, initialScrollInd
 
   return (
     <div
+      ref={gridRef}
       role="grid"
       aria-rowcount={total}
+      onKeyDown={cellEditing?.onKeyDown}
       className={cn('flex flex-col rounded-lg border bg-background', own ? 'min-h-0 overflow-hidden' : 'overflow-clip', className)}
       style={fit && own ? { height: headerHeight + total * rowHeight + 2 } : undefined}
     >

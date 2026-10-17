@@ -46,6 +46,7 @@ import { facetNames, filterChips } from './searches/saved-search'
 import { SaveSearchButton } from './searches/save-search-button'
 import { SavedSearches } from './searches/saved-searches'
 import { SignInPrompt } from '../auth/sign-in-prompt'
+import { useListCellEditor } from './list-edit/use-list-cell-editor'
 
 const where = createWhere()
 const searchText = (extras: FilterExpr[]) => extras.find((clause) => clause.kind === 'search')
@@ -126,6 +127,7 @@ const LoadedList = ({ model, address, scope, heading }: LoadedListProps) => {
   })
   const singular = view?.names?.singular ?? humanize(resource)
   const permissions = usePermissions(resource)
+  const cellEditing = useListCellEditor(model, view, permissions)
   const { state: auth } = useAuth()
   const restore = useRestore(model)
   const remove = useDeleteFlow({ model, view, restore, onReview: (deleted) => go({ kind: 'record', resource, key: deleted.key }) })
@@ -196,6 +198,8 @@ const LoadedList = ({ model, address, scope, heading }: LoadedListProps) => {
       sort={parseSort(orderBy)}
       onSortChange={(sort) => set({ orderBy: sortToOrderBy(sort) })}
       onOpenRow={openRecord}
+      cellEditor={cellEditing.editor}
+      rowPatches={cellEditing.patches}
       initialScrollIndex={scroll.initialIndex}
       onScrollIndex={scroll.remember}
       rowActions={[

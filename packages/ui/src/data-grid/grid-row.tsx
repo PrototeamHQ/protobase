@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import type { HTMLAttributes, ReactNode } from 'react'
 import { formatInt } from '../format/number'
 import { Checkbox } from '../primitives/checkbox'
 import { Skeleton } from '../primitives/skeleton'
@@ -34,7 +34,13 @@ const Gutter = ({ width, index, selectable, selected, onToggle, edge }: { width:
   </div>
 )
 
-export type DataRowProps = RowFrame & { cells: Array<{ spec: ColumnSpec; content: ReactNode }>; selected: boolean; onToggle: () => void; onOpen?: () => void; menu?: ReactNode }
+/**
+ * A cell of a row: its column and content and, in a grid whose cells are edited in place, its handlers and whether it
+ * is the chosen cell, is being edited, or can be.
+ */
+export type RowCell = { spec: ColumnSpec; content: ReactNode; props?: HTMLAttributes<HTMLDivElement>; chosen?: boolean; editing?: boolean; editable?: boolean }
+
+export type DataRowProps = RowFrame & { cells: RowCell[]; selected: boolean; onToggle: () => void; onOpen?: () => void; menu?: ReactNode }
 
 export const DataRow = ({ cells, selected, onToggle, onOpen, menu, ...frame }: DataRowProps) => (
   <div
@@ -44,8 +50,20 @@ export const DataRow = ({ cells, selected, onToggle, onOpen, menu, ...frame }: D
     style={frameStyle(frame)}
   >
     <Gutter width={frame.gutter} index={frame.index} selectable={frame.selectable} selected={selected} onToggle={onToggle} edge={frame.scrolled && !frame.lastPinned} />
-    {cells.map(({ spec, content }) => (
-      <div key={spec.id} role="cell" className={cellClass(spec, frame)} style={pinStyle(spec, frame.pins)}>
+    {cells.map(({ spec, content, props, chosen, editing, editable }) => (
+      <div
+        key={spec.id}
+        role={props ? 'gridcell' : 'cell'}
+        {...props}
+        className={cn(
+          cellClass(spec, frame),
+          props && 'scroll-mb-[calc(var(--pb-sticky-bottom,0px)+3rem)] scroll-mt-[calc(var(--pb-sticky-top,0px)+2rem)] outline-none',
+          editable && !editing && 'cursor-default',
+          chosen && 'shadow-[inset_0_0_0_2px_var(--primary)]',
+          editing && 'z-30 overflow-visible bg-background px-1',
+        )}
+        style={pinStyle(spec, frame.pins)}
+      >
         {content}
       </div>
     ))}
