@@ -66,6 +66,12 @@ describe('checkViews', () => {
     expect(() => checkViews(registry, [written])).toThrow('action "old": href "/payments/{id}" points inside the app; give the link `to` instead')
   })
 
+  it('wants a create page to be a page of the app', () => {
+    const created = view<typeof payments>('payments').create({ page: 'new-payment' }).toModel()
+    expect(() => checkViews(registry, [created], ['new-payment'])).not.toThrow()
+    expect(() => checkViews(registry, [created])).toThrow('View "payments": create: unknown page "new-payment"')
+  })
+
   it("wants a link to a record's URL to name a field the resource has, and {host} only in the label of an href", () => {
     const written = view<typeof payments>('payments').toModel()
     written.actions = [{ name: 'bank', label: 'View on {host}', bulk: false, run: { kind: 'link', href: '{reference}' } }]

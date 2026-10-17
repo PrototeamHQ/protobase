@@ -68,6 +68,9 @@ const linkErrors = (view: ViewModel, model: ResourceModel, models: Record<string
     return 'to' in run ? addressErrors(run.to, { models, pages, source: model }).map((error) => `action "${name}": ${error}`) : []
   })
 
+// A create page is a page of the app's own.
+const createErrors = (view: ViewModel, pages: ReadonlySet<string>) => (view.create && !pages.has(view.create.page) ? [`create: unknown page "${view.create.page}"`] : [])
+
 // Displays and custom sections name fields of the resource; the builder's types say so, a view written as data is checked here.
 const unknownFieldErrors = (view: ViewModel, model: ResourceModel) => {
   const unknown = (names: string[], what: string) => names.filter((name) => !Object.hasOwn(model.fields, name)).map((name) => `${what} names field "${name}", which ${model.name} does not have`)
@@ -117,7 +120,7 @@ const listOfErrors = (model: ResourceModel, name: string, models: Record<string,
  * has a related section, a cards display's or gallery's photos or a cards display's favorite button, a `listOf`, a "Save search" button or a
  * `searchesOf` that do not fit the resources, cards
  * displays of one list that name different photos, a map that cannot show the
- * record's position or a map display that cannot find the records in its view, or a link to an address the app does not have.
+ * record's position or a map display that cannot find the records in its view, a link to an address the app does not have, or a create page that is not one of `pages`.
  */
 export const checkViews = (registry: Registry, views: ViewModel[], pages: readonly string[] = [], fieldTypes: Readonly<Record<string, readonly string[]>> = {}) => {
   const models = Object.fromEntries(registry.entries.map((entry) => [entry.name, entry.model]))
@@ -147,7 +150,7 @@ export const checkViews = (registry: Registry, views: ViewModel[], pages: readon
       ...view.layout.flatMap((item) => (item.kind === 'map' ? mapErrors(item, model).map((error) => `map "${item.title}": ${error}`) : [])),
       ...(view.list?.displays ?? []).flatMap((display) => (display.kind === 'map' ? mapDisplayErrors(display, model).map((error) => `display "${display.name}": ${error}`) : [])),
     ]
-    return [...sensitiveErrors(view, model), ...unknownFieldErrors(view, model), ...valueLabelErrors(view, model), ...valueColorErrors(view, model), ...textHintErrors(view, model), ...widgetErrors(view, model, fieldTypes), ...related, ...photos, ...favorites, ...listOf, ...searches, ...maps, ...linkErrors(view, model, models, pageNames)].map((problem) => `View "${view.resource}": ${problem}`)
+    return [...sensitiveErrors(view, model), ...unknownFieldErrors(view, model), ...valueLabelErrors(view, model), ...valueColorErrors(view, model), ...textHintErrors(view, model), ...widgetErrors(view, model, fieldTypes), ...related, ...photos, ...favorites, ...listOf, ...searches, ...maps, ...linkErrors(view, model, models, pageNames), ...createErrors(view, pageNames)].map((problem) => `View "${view.resource}": ${problem}`)
   })
   if (problems.length > 0) throw new Error(`The views do not match the resources:\n${problems.map((problem) => `  - ${problem}`).join('\n')}`)
 }

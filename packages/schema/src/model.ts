@@ -926,6 +926,14 @@ export type ViewModel = {
   searchesOf?: SearchesOfModel
   /** Whether the list page offers Export, and the most rows a file holds; offered without a limit when omitted. */
   export?: false | ExportModel
+  /** The page that creates the resource's records, in place of the create form. */
+  create?: CreateModel
+}
+
+/** How the resource's records are created (`.create(...)`): a page of the app's own. */
+export type CreateModel = {
+  /** The composed page shown at `/<resource>/new`, which the list's New button opens. */
+  page: string
 }
 
 /** The list page's Export (`.export(...)`): how many rows a file may hold. */

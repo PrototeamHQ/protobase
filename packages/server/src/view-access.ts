@@ -157,6 +157,7 @@ const viewShape = (resource: string, model: ResourceModel, models: Record<string
     searchesOf: s.map<SearchesOfModel>((searches) => searchesOfFor(searches, resource, models)),
     import: s.data,
     export: s.data,
+    create: s.data,
   })
 
 /**

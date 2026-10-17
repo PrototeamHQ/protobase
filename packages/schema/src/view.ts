@@ -2,6 +2,7 @@ import type {
   ActionModel,
   ChartGranularity,
   ChartRange,
+  CreateModel,
   ExportModel,
   FilterWidgetModel,
   HelpWhen,
@@ -253,6 +254,17 @@ export class ViewBuilder<R extends {
       throw new Error(`View "${this.state.resource}": export maxRows must be a positive whole number`)
     }
     return this.next({ export: options && { ...options } })
+  }
+
+  /**
+   * Records are created on `page`, a composed page of the app's own, in place of the create form: `/<resource>/new`
+   * shows it with the address's `values`, and the list's New button opens it for whoever may open the page, whatever the
+   * resource's `create` access. So the resource's API can refuse creates (`create: never`) while the page creates
+   * through an API function. The server refuses a page that does not exist when it starts. See
+   * [Create pages](website/src/content/docs/reference/ui-config.mdx#create-pages).
+   */
+  create(options: CreateModel) {
+    return this.next({ create: { ...options } })
   }
 
   /**

@@ -206,6 +206,11 @@ describe('view builder', () => {
     expect(model.saveSearch).toEqual({ resource: 'saved_searches', label: 'Keep this search' })
   })
 
+  it('names the page that creates its records', () => {
+    expect(view<typeof article>('article').toModel().create).toBeUndefined()
+    expect(view<typeof article>('article').create({ page: 'new-article' }).toModel().create).toEqual({ page: 'new-article' })
+  })
+
   it('takes Export off a list or limits its rows, and refuses a limit that is no positive whole number', () => {
     expect(view<typeof article>('article').toModel().export).toBeUndefined()
     expect(view<typeof article>('article').export(false).toModel().export).toBe(false)
