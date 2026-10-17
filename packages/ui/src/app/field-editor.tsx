@@ -1,4 +1,6 @@
+import { ArrowUpRight } from 'lucide-react'
 import { Switch } from '../primitives/switch'
+import { buttonClass } from '../primitives/button'
 import { Input } from '../primitives/input'
 import { Textarea } from '../primitives/textarea'
 import { cn } from '../lib/cn'
@@ -27,7 +29,7 @@ export type FieldEditorProps = {
   relationLabel?: string
   /** The record a relation value leads to. */
   relationTo?: AppAddress
-  /** On the create form a relation is chosen; on the record page it is shown as a link. */
+  /** A relation the user may change is chosen with a picker, and stays a link beside it to the record chosen. */
   relationPicker?: { target: ResourceModel; view: ViewModel | undefined }
   invalid?: boolean
   /** The user may not change this record: show values, not inputs. */
@@ -45,8 +47,17 @@ const numeric = new Set(['integer', 'bigint', 'decimal'])
 const BuiltInEditor = ({ field, hints, value, stored, relationLabel, relationTo, relationPicker, invalid, locked, placeholder, reveal, resource, onChange }: FieldEditorProps) => {
   if (field.type === 'file') return <FileField field={field} hints={hints} resource={resource ?? ''} value={value} locked={locked || !resource} invalid={invalid} onChange={onChange} />
   if (field.sensitive) return <SensitiveField field={field} hints={hints} value={value} reveal={reveal} locked={locked || field.readOnly} invalid={invalid} placeholder={placeholder} onChange={onChange} />
-  if (field.type === 'relation' && relationPicker && !field.readOnly) {
-    return <RelationPicker target={relationPicker.target} view={relationPicker.view} value={String(value)} label={relationLabel} invalid={invalid} onChange={(next, label) => onChange({ key: next, label })} />
+  if (field.type === 'relation' && relationPicker && !field.readOnly && !locked) {
+    const picker = <RelationPicker target={relationPicker.target} view={relationPicker.view} value={String(value)} label={relationLabel} invalid={invalid} onChange={(next, label) => onChange({ key: next, label })} />
+    if (!relationTo) return picker
+    return (
+      <div className="flex items-center gap-1">
+        <div className="min-w-0 flex-1">{picker}</div>
+        <AppLink to={relationTo} aria-label={`Open ${relationLabel ?? String(value)}`} title="Open" className={cn(buttonClass({ variant: 'ghost' }), 'w-8 px-0')}>
+          <ArrowUpRight className="size-4" />
+        </AppLink>
+      </div>
+    )
   }
   if (field.type === 'boolean' && locked) return <div className="py-1.5 text-muted-foreground">{displayValue(field, stored, hints)}</div>
   if (field.type === 'boolean') return <Switch checked={Boolean(value)} onChange={onChange} label={field.name} />

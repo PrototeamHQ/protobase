@@ -7,7 +7,7 @@ import { usePauseFocusRefresh } from '../data/focus-refresh'
 import { keys } from '../data/query-keys'
 import { useOpenedRecord, type LiveRecord } from '../data/use-record'
 import { displayValue } from '../live/display-value'
-import { isRequiredOnEdit, toDraft } from '../live/field-values'
+import { fromDraft, isRequiredOnEdit, toDraft } from '../live/field-values'
 import { auditField } from '../live/audit-fields'
 import { humanize } from '../live/naming'
 import { recordTitle } from '../live/model-helpers'
@@ -44,6 +44,7 @@ import { namedIcon } from './named-icon'
 import { fieldHelp, helpShown, recordShown, whenShown } from './record-mode/record-mode'
 import { useRecordEditor } from './use-record-editor'
 import { useRelatedRecords } from './use-related-records'
+import { isChosen, keyValue } from './create/create-values'
 import { RelatedSection } from './related-section'
 import { ValueBadge } from './value-badge'
 import { useClient } from '../data/api-provider'
@@ -127,6 +128,24 @@ const LoadedRecord = ({ model, recordKey, stored, preview }: LoadedRecordProps) 
     onReview: () => void queryClient.invalidateQueries({ queryKey: keys.record(model.name, recordKey) }),
   })
   const related = useRelatedRecords(model, view, meta.resources, meta.views, stored.record, basePath)
+  // A relation to a record of one key column is chosen on the form; the record's own key and its tenant are not
+  const pickTarget = (name: string) => {
+    const field = model.fields[name]
+    const target = field?.relation ? meta.resources[field.relation.resource] : undefined
+    if (!target || target.primaryKey.length !== 1 || name === model.tenant || model.primaryKey.includes(name)) return undefined
+    return target
+  }
+  const picked = Object.values(model.fields).filter((field) => pickTarget(field.name))
+  // The form names and links the record each relation points at now, chosen or stored
+  const drafted = { ...stored.record, ...Object.fromEntries(picked.map((field) => [field.name, fromDraft(field, editor.value(field.name))])) }
+  const chosen = useRelatedRecords(model, view, meta.resources, meta.views, drafted, basePath)
+  const pick = (name: string, next: unknown) => {
+    const target = pickTarget(name)
+    if (!target || !isChosen(next)) return editor.change(name, next)
+    // The picker knows the chosen record's name, so the form shows it without asking the server
+    queryClient.setQueryData(keys.relatedLabel(target.name, next.key), next.label)
+    editor.change(name, keyValue(target, next.key))
+  }
   const { fields: fieldTypes } = useProjectUi()
   // The items and fields meant only for the form, or only for reading the record, show only there
   const layout = layoutFor(model, view, shown === 'read').filter((item) => whenShown(item.when, editing))
@@ -145,6 +164,7 @@ const LoadedRecord = ({ model, recordKey, stored, preview }: LoadedRecordProps) 
     const access = fieldAccess(stored.permissions, name)
     if (!field || access === 'hidden') return null
     const conflict = editor.conflicts[name]
+    const target = pickTarget(name)
     return (
       <Field
         // A revealed sensitive value is forgotten when the record changes
@@ -166,13 +186,14 @@ const LoadedRecord = ({ model, recordKey, stored, preview }: LoadedRecordProps) 
             hints={hint(name)}
             value={editor.value(name)}
             stored={stored.record[name]}
-            relationLabel={related.labels[name]}
-            relationTo={related.addresses[name]}
+            relationLabel={chosen.labels[name]}
+            relationTo={chosen.addresses[name]}
+            relationPicker={target && { target, view: meta.views[target.name] }}
             locked={shown !== 'form' || access === 'read'}
             invalid={Boolean(editor.errors[name])}
             reveal={field.sensitive ? () => client.reveal(model.name, recordKey, name) : undefined}
             resource={model.name}
-            onChange={(next) => editor.change(name, next)}
+            onChange={(next) => pick(name, next)}
           />
         ) : (
           <Skeleton className="h-9" />

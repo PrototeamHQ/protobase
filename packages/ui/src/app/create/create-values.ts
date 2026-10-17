@@ -34,7 +34,8 @@ export const createSections = (model: ResourceModel, view: ViewModel | undefined
   return [...sections, { title: sections.length === 0 ? 'Details' : 'Other fields', fields: rest }]
 }
 
-const keyValue = (target: ResourceModel | undefined, key: string) => {
+/** A chosen record's key as the API takes it: a number when the target's key is an integer. */
+export const keyValue = (target: ResourceModel | undefined, key: string) => {
   const type = target?.primaryKey.length === 1 ? target.fields[target.primaryKey[0]!]?.type : undefined
   return type === 'integer' ? Number(key) : key
 }

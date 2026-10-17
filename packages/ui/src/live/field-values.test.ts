@@ -18,6 +18,13 @@ describe('field values', () => {
     expect(toPatchValue(field('boolean'), true)).toBe(true)
   })
 
+  it("sends a relation's chosen key as it was chosen, a number or text", () => {
+    expect(toPatchValue(field('relation'), 7)).toBe(7)
+    expect(toPatchValue(field('relation'), 'task-7')).toBe('task-7')
+    expect(differs(field('relation'), 7, 7)).toBe(false)
+    expect(differs(field('relation'), 8, 7)).toBe(true)
+  })
+
   it('sends null for an emptied optional field', () => {
     expect(toPatchValue(field('text', { nullable: true }), '')).toBeNull()
     expect(toPatchValue(field('text'), '')).toBe('')

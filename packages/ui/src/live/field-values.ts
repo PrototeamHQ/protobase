@@ -18,6 +18,8 @@ export const toPatchValue = (field: FieldModel, draft: unknown) => {
   const text = String(draft).trim()
   if (text === '') return field.nullable ? null : ''
   if (field.type === 'integer') return Number(text)
+  // A relation holds the other record's key, a number when that key is one
+  if (field.type === 'relation') return typeof draft === 'number' ? draft : text
   if (textEdited.has(field.type) || field.type === 'enum') return text
   throw new Error(`Not implemented: editing ${field.type} fields`)
 }
