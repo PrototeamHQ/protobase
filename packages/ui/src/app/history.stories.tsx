@@ -78,7 +78,8 @@ export const ASaveShowsUp: StoryObj = {
     expect(await changes.findAllByRole('listitem')).toHaveLength(2)
     await userEvent.click(changes.getByRole('button', { name: 'Show more' }))
     await waitFor(() => expect(changes.getAllByRole('listitem')).toHaveLength(3))
-    const title = canvas.getByLabelText('Title')
+    // The ticket's only plain text input
+    const title = canvasElement.querySelector<HTMLInputElement>('form input:not([type])')!
     await userEvent.clear(title)
     await userEvent.type(title, 'Flat tyre, front wheel')
     await userEvent.click(canvas.getByRole('button', { name: 'Save' }))
