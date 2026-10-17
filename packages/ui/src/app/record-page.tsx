@@ -7,7 +7,7 @@ import { usePauseFocusRefresh } from '../data/focus-refresh'
 import { keys } from '../data/query-keys'
 import { useOpenedRecord, type LiveRecord } from '../data/use-record'
 import { displayValue } from '../live/display-value'
-import { toDraft } from '../live/field-values'
+import { isRequiredOnEdit, toDraft } from '../live/field-values'
 import { auditField } from '../live/audit-fields'
 import { humanize } from '../live/naming'
 import { recordTitle } from '../live/model-helpers'
@@ -150,6 +150,7 @@ const LoadedRecord = ({ model, recordKey, stored, preview }: LoadedRecordProps) 
         // A revealed sensitive value is forgotten when the record changes
         key={field.sensitive ? `${name}:${stored.etag}` : name}
         label={hint(name)?.label ?? humanize(name)}
+        required={shown === 'form' && access !== 'read' && isRequiredOnEdit(field)}
         help={fieldHelp(hint(name), view, editing)}
         error={editor.errors[name]}
         wide={Boolean(hint(name)?.multiline || hint(name)?.markdown)}

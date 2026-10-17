@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { FieldModel } from '@protobase/schema'
-import { differs, fromDraft, isEditable, toDraft, toFieldDraft, toPatchValue } from './field-values'
+import { differs, fromDraft, isEditable, isRequiredOnEdit, toDraft, toFieldDraft, toPatchValue } from './field-values'
 
 const field = (type: FieldModel['type'], extra: Partial<FieldModel> = {}) =>
   ({ name: 'x', column: 'x', type, nullable: false, readOnly: false, filterable: false, sortable: false, aliases: [], ...extra }) as FieldModel
@@ -21,6 +21,14 @@ describe('field values', () => {
   it('sends null for an emptied optional field', () => {
     expect(toPatchValue(field('text', { nullable: true }), '')).toBeNull()
     expect(toPatchValue(field('text'), '')).toBe('')
+  })
+
+  it('requires a value on the form for a written field that may not be null, defaults included', () => {
+    expect(isRequiredOnEdit(field('text'))).toBe(true)
+    expect(isRequiredOnEdit(field('enum', { default: { value: 'open' } }))).toBe(true)
+    expect(isRequiredOnEdit(field('text', { nullable: true }))).toBe(false)
+    expect(isRequiredOnEdit(field('text', { readOnly: true }))).toBe(false)
+    expect(isRequiredOnEdit(field('boolean'))).toBe(false)
   })
 
   it("gives a field type's editor the value a draft stands for, and takes a value back as a draft", () => {

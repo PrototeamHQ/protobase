@@ -40,16 +40,19 @@ div | block
                           div | block
                             div .mb-1.5 flex items-center gap-2 | flex row nowrap center normal
                               label .font-medium text-foreground | block
+                                span .ml-0.5 text-danger-text | inline
                             div .py-1.5 | block
                               a .font-medium text-primary-text hover:underline | inline
                           div | block
                             div .mb-1.5 flex items-center gap-2 | flex row nowrap center normal
                               label .font-medium text-foreground | block
+                                span .ml-0.5 text-danger-text | inline
                             span .flex h-8 items-center gap-2 rounded-md border bg-background px-2.5 text-muted-foreground shadow-sm focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20 border-border-strong | flex row nowrap center normal
                               input .min-w-0 flex-1 bg-transparent text-body text-foreground outline-none placeholder:text-faint-foreground | block
                           div | block
                             div .mb-1.5 flex items-center gap-2 | flex row nowrap center normal
                               label .font-medium text-foreground | block
+                                span .ml-0.5 text-danger-text | inline
                             span .flex h-8 items-center gap-2 rounded-md border bg-background px-2.5 text-muted-foreground shadow-sm focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20 border-border-strong | flex row nowrap center normal
                               input .min-w-0 flex-1 bg-transparent text-body text-foreground outline-none placeholder:text-faint-foreground | block
                             p .mt-1.5 text-xs text-muted-foreground | block
@@ -61,6 +64,7 @@ div | block
                           div | block
                             div .mb-1.5 flex items-center gap-2 | flex row nowrap center normal
                               label .font-medium text-foreground | block
+                                span .ml-0.5 text-danger-text | inline
                             select .h-8 w-full rounded-md border border-border-strong bg-background px-2 shadow-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 | inline-block
                               option | block
                               option | block
@@ -85,12 +89,14 @@ div | block
                           div | block
                             div .mb-1.5 flex items-center gap-2 | flex row nowrap center normal
                               label .font-medium text-foreground | block
+                                span .ml-0.5 text-danger-text | inline
                             span .flex h-8 items-center gap-2 rounded-md border bg-background px-2.5 text-muted-foreground shadow-sm focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20 border-border-strong | flex row nowrap center normal
                               span | block
                               input .min-w-0 flex-1 bg-transparent text-body text-foreground outline-none placeholder:text-faint-foreground text-right tabular-nums | block
                           div | block
                             div .mb-1.5 flex items-center gap-2 | flex row nowrap center normal
                               label .font-medium text-foreground | block
+                                span .ml-0.5 text-danger-text | inline
                             span .flex h-8 items-center gap-2 rounded-md border bg-background px-2.5 text-muted-foreground shadow-sm focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20 border-border-strong | flex row nowrap center normal
                               input .min-w-0 flex-1 bg-transparent text-body text-foreground outline-none placeholder:text-faint-foreground | block
                           div | block

@@ -8,6 +8,9 @@ const textEdited = new Set(['text', 'integer', 'bigint', 'decimal', 'date', 'cur
 
 export const isEditable = (field: FieldModel) => !field.readOnly && field.type !== 'json' && field.type !== 'uuid' && field.type !== 'timestamp' && field.type !== 'relation'
 
+/** A field a record's form cannot leave empty: written through the API, never null and no boolean, which always holds a value. */
+export const isRequiredOnEdit = (field: FieldModel) => !field.readOnly && !field.nullable && field.type !== 'boolean'
+
 /** The JSON value to send for an edited field: integers become numbers, empty optional fields become null. */
 export const toPatchValue = (field: FieldModel, draft: unknown) => {
   if (field.type === 'boolean') return Boolean(draft)
