@@ -52,6 +52,7 @@
     "useBackendData",
     "useClient",
     "useFacets",
+    "useFieldControl",
     "useHistogram",
     "useLayoutRecord",
     "useList",

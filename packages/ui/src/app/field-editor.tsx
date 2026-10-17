@@ -3,6 +3,7 @@ import { Switch } from '../primitives/switch'
 import { buttonClass } from '../primitives/button'
 import { Input } from '../primitives/input'
 import { Textarea } from '../primitives/textarea'
+import { useFieldControl } from '../primitives/field-control'
 import { cn } from '../lib/cn'
 import { AppLink } from './use-app-address'
 import { enumLabel, type AppAddress, type FieldModel, type FieldViewModel, type ResourceModel, type ViewModel } from '@protobase/schema'
@@ -45,6 +46,7 @@ export type FieldEditorProps = {
 const numeric = new Set(['integer', 'bigint', 'decimal'])
 
 const BuiltInEditor = ({ field, hints, value, stored, relationLabel, relationTo, relationPicker, invalid, locked, placeholder, reveal, resource, onChange }: FieldEditorProps) => {
+  const control = useFieldControl()
   if (field.type === 'file') return <FileField field={field} hints={hints} resource={resource ?? ''} value={value} locked={locked || !resource} invalid={invalid} onChange={onChange} />
   if (field.sensitive) return <SensitiveField field={field} hints={hints} value={value} reveal={reveal} locked={locked || field.readOnly} invalid={invalid} placeholder={placeholder} onChange={onChange} />
   if (field.type === 'relation' && relationPicker && !field.readOnly && !locked) {
@@ -60,7 +62,7 @@ const BuiltInEditor = ({ field, hints, value, stored, relationLabel, relationTo,
     )
   }
   if (field.type === 'boolean' && locked) return <div className="py-1.5 text-muted-foreground">{displayValue(field, stored, hints)}</div>
-  if (field.type === 'boolean') return <Switch checked={Boolean(value)} onChange={onChange} label={field.name} />
+  if (field.type === 'boolean') return <Switch checked={Boolean(value)} onChange={onChange} label={hints?.label ?? humanize(field.name)} />
   if (field.type === 'relation') {
     const label = relationLabel ?? String(stored ?? '—')
     return <div className="py-1.5">{relationTo ? <AppLink to={relationTo} className="font-medium text-primary-text hover:underline">{label}</AppLink> : label}</div>
@@ -74,6 +76,8 @@ const BuiltInEditor = ({ field, hints, value, stored, relationLabel, relationTo,
   if (field.type === 'enum') {
     return (
       <select
+        {...control}
+        {...(invalid && { 'aria-invalid': true })}
         value={String(value)}
         onChange={(event) => onChange(event.target.value)}
         className="h-8 w-full rounded-md border border-border-strong bg-background px-2 shadow-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
