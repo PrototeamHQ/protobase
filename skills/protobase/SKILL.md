@@ -1994,6 +1994,7 @@ For what the guides leave out, read a reference page: each is Markdown at its UR
 - [Files](https://docs.protobase.net/reference/files.md): File fields, uploads with types detected from the content, downloads, derived fields, image variants and placeholders, external URLs, image referrers, and how stored files are deleted.
 - [Events](https://docs.protobase.net/reference/events.md): Events a resource declares, and how the database captures every change they are raised from, through the API or not.
 - [Webhooks](https://docs.protobase.net/reference/webhooks.md): Subscriptions that deliver resource events to URLs, API functions and code, signed with Standard Webhooks, retried and shaped for who receives them.
+- [Record history](https://docs.protobase.net/reference/history.md): Every change of a resource's records kept with who made it, through the API or not, shown on the record page and listed for admins as Activity.
 - [Jobs](https://docs.protobase.net/reference/jobs.md): Background jobs in the app's own database, enqueued with its writes, retried with backoff, run in order per group, and checked at startup.
 - [Email](https://docs.protobase.net/reference/email.md): The SMTP server and sender an app's mail goes out through, and emails of the app's own, written as React components with typed data and sent from jobs, hooks and API functions.
 - [Access](https://docs.protobase.net/reference/access.md): Roles, capabilities with field lists and row filters, field rules, anonymous access, and what they default to.

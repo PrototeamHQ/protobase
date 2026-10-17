@@ -301,6 +301,7 @@ Only a caller without a token gets the prompts, in `/api/meta` as `signIn`, for 
 | `l.custom(Component, { title?, props?, sidebar?, when? })` | A [custom component](/reference/custom-components/#record-sections) where it is listed: in the main column under `title`, or with `sidebar: true` as a sidebar card. |
 | `l.map(title, { latitude, longitude, zoom?, sidebar?, when? })` | A map with a pin at the record's position, in the main column or with `sidebar: true` as a sidebar card. See [Maps](#maps). |
 | `l.gallery(title, { image?, photos?, when? })` | The record's photos as tiles, opening a lightbox. See [Galleries](#galleries). |
+| `l.history(title?, { limit?, when? })` | The record's changes, newest first, with who made each and the fields before and after; needs `.history()` on the resource, and a view without a layout shows it last by itself. See [Record history](/reference/history/#on-the-record-page). |
 
 A custom component draws only its part: the page around it stays the record page, at `/<resource>/<key>`, with its breadcrumbs, Save, the action rail with Edit and Delete, and the related records, and a layout may hold only custom components. The repairs above list the customer's earlier repairs under the bike:
 

@@ -29,6 +29,7 @@ A **resource** describes one table of a database you already have: its columns a
 | `.validate((record) => issues)` | A rule over the whole record, run after the field checks on every create and update. It returns `[{ field, message }]` or `undefined`; issues answer `400` with the field named. |
 | `.access({ ... })` | Rules per operation. See [Access](#access). |
 | `.events((e, r) => [...])` | What changes of its records mean, such as `orders.created`, captured in the database for every write. See [Events](/reference/events/). |
+| `.history()` | Keeps every change of its records with who made it, shown on the record page and listed for admins as Activity. See [Record history](/reference/history/). |
 
 Field and resource names are snake_case by convention, like the columns: they are the names in URLs, the API, filters and sorts as written (`/stock_moves?order_by=moved_at desc`). The column is the snake_case of the name unless `.column()` says otherwise, so a camelCase name such as `movedAt` maps to `moved_at` too.
 
