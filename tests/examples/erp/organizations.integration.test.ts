@@ -74,6 +74,27 @@ describe.skipIf(!reachable)('the ERP with two organizations', () => {
     expect((await request(`/api/v1/companies/${rijnlandCompany}`, { token: await tokenOf(eva) })).status).toBe(404)
   })
 
+  it('makes each person one of the ERP users, so a sales member lists and adds their own orders', async () => {
+    // Eva works in nordlicht since the test above; her row came with her first membership, in rijnland
+    const eva = await tokenOf(await signIn('eva@both.example'))
+    const id = Number(decodeJwt(eva).sub)
+    expect(await db.selectFrom('core.users').select(['organization_id', 'email', 'role']).where('id', '=', id).executeTakeFirst()).toEqual({ organization_id: 1, email: 'eva@both.example', role: null })
+    const listed = await request('/api/v1/orders?page_size=200', { token: eva })
+    expect(listed.status, await listed.clone().text()).toBe(200)
+    expect((await listed.json()).items).toEqual([])
+    const company = (await db.selectFrom('crm.companies').select('id').where('organization_id', '=', 2).limit(1).executeTakeFirstOrThrow()).id
+    const created = await request('/api/v1/orders', { token: eva, body: { number: 'SO-OWN-1', company_id: company, owner_id: id, status: 'draft', currency_code: 'EUR' } })
+    expect(created.status, await created.clone().text()).toBe(201)
+    const order = (await created.json()) as { id: string }
+    try {
+      const own = (await (await request('/api/v1/orders?page_size=200', { token: eva })).json()) as { items: { id: string; owner_id: number }[] }
+      expect(own.items.map((item) => [item.id, item.owner_id])).toEqual([[order.id, id]])
+    } finally {
+      // The run's database is shared with the other ERP tests.
+      await db.deleteFrom('sales.orders').where('id', '=', order.id).execute()
+    }
+  })
+
   it('gives a new organization the next id of the ERP and its own row there', async () => {
     const { organization } = await createOrganization(auth, { name: 'Zuidwind Trading', slug: 'zuidwind', owner: 'root@erp.example' })
     try {

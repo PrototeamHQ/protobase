@@ -29,6 +29,13 @@ const addOrganizationRow = async ({ organization }: { organization: { id: string
   )
 }
 
+// Orders name their owner by core.users' integer id, so a new user takes the next value of that table's sequence; their
+// row there comes with their first membership (db/migrations/019_auth_users.sql).
+const nextUserId = async () => {
+  const { rows } = await pool.query<{ id: string }>("select nextval(pg_get_serial_sequence('core.users', 'id'))::text as id")
+  return rows[0]!.id
+}
+
 export const auth = createAuth({
   database: { dialect: new PostgresDialect({ pool }), type: 'postgres', schemaName: authSchema, transaction: true },
   baseURL: process.env.BETTER_AUTH_URL ?? 'http://localhost:5173',
@@ -44,6 +51,7 @@ export const auth = createAuth({
     editor: 'Editor',
     integration: 'Integration',
   },
+  generateUserId: nextUserId,
   organizations: {
     generateId: nextOrganizationId,
     onCreated: addOrganizationRow,

@@ -65,7 +65,7 @@ protobase organizations add-member nordlicht sanne@example.com --app-roles sales
 protobase organizations list
 ```
 
-A new organization takes the next id of `core.organizations` and gets its row there (`onCreated`).
+A new organization takes the next id of `core.organizations` and gets its row there (`onCreated`). A new user takes the next id of `core.users` (`generateUserId`), which orders name as their owner, and gets their row there when they first join an organization (`db/migrations/019_auth_users.sql`), so `sales` sees and changes the orders they own; the ERP's own `role` column stays empty for them, since their roles live in the auth schema.
 
 ## Serve and deploy
 
