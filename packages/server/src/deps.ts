@@ -44,6 +44,8 @@ export type Deps = {
   sources: SourceOption[]
   /** Providers, signing and scheduled deletes, when a resource has a file field. */
   files?: FilesRuntime
-  /** The transaction setting that tells the change capture who writes, when a resource has events (`changes.actor`). */
+  /** The transaction setting that tells the change capture who writes, when a resource has events or history (`changes.actor`). */
   actorSetting?: string
+  /** Where record history is kept, when a resource has `.history()`, and the names of the users who made changes. */
+  history?: { schema: string; actorNames?: (ids: readonly string[]) => Promise<Record<string, string>> }
 }

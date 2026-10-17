@@ -1,5 +1,5 @@
 import { markFieldRefs } from './field-ref'
-import type { CardPhotosModel, HelpWhen, JsonValue, LayoutItemModel, RelatedModel, SectionPresentation, ShowWhen } from './model'
+import type { CardPhotosModel, HelpWhen, HistorySectionModel, JsonValue, LayoutItemModel, RelatedModel, SectionPresentation, ShowWhen } from './model'
 import type { Ref } from './refs'
 import { customComponent, type ComponentRef, type ViewProps } from './view-displays'
 
@@ -77,6 +77,20 @@ export const layout = {
     ...(o.sidebar && { sidebar: true as const }),
     ...(o.when !== undefined && { when: o.when }),
   }),
+  /**
+   * The record's changes, newest first: who made each, when, and the fields before and after, only those the user may
+   * read. `limit` changes show before Show more (default 10). Needs `.history()` on the resource; a view without a
+   * layout shows it last by itself. See [Record history](website/src/content/docs/reference/history.mdx).
+   */
+  history: (title = 'History', o: { limit?: number; when?: ShowWhen } = {}): LayoutItemModel => {
+    if (o.limit !== undefined && (!Number.isInteger(o.limit) || o.limit < 1)) throw new Error(`l.history "${title}": limit must be a positive whole number`)
+    return {
+      kind: 'history',
+      title,
+      ...(o.limit !== undefined && { limit: o.limit }),
+      ...(o.when !== undefined && { when: o.when }),
+    } satisfies HistorySectionModel
+  },
   /**
    * A component of the project, registered in `protobase.ui.tsx` under its name, drawn where it is listed: in the main
    * column, or in the sidebar with `sidebar: true`. The record page stays around it, with its title, breadcrumbs,

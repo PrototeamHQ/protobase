@@ -11,6 +11,7 @@ const row = (op: CapturedRow['op'], old: Record<string, unknown> | null, next: R
   new: next,
   changed: op === 'UPDATE' ? Object.keys(next ?? {}).filter((key) => old?.[key] !== next?.[key]) : null,
   actor: null,
+  databaseRole: 'app',
   at: '2026-10-10T21:04:05.123Z',
   ...extra,
 })

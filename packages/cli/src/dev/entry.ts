@@ -23,7 +23,7 @@ if (project.auth && !store.__protobaseAuthSchemaChecked) {
   store.__protobaseAuthSchemaChecked = true
 }
 
-// On every load, since editing the config can give a resource events whose triggers the database lacks.
+// On every load, since editing the config can give a resource events or history whose triggers the database lacks.
 await checkChanges(db, resources.map((resource) => resource.toModel()), project.events)
 if (project.webhooks) await checkWebhooksSchema(db, project.webhooks)
 

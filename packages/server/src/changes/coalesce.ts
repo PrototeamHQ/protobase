@@ -14,6 +14,8 @@ export type CapturedRow = {
   /** The columns an update changed, sensitive ones included; `null` for inserts and deletes. */
   changed: string[] | null
   actor: EventActor | null
+  /** The database role that wrote; `null` for a row captured before Protobase kept it. */
+  databaseRole: string | null
   /** When the writing transaction started, ISO 8601. */
   at: string
 }
@@ -29,6 +31,8 @@ export type CoalescedChange = {
   after: Row | null
   changed: string[]
   actor: EventActor | null
+  /** The database role of its last change. */
+  databaseRole: string | null
   /** The id of its last outbox row. */
   sequence: string
   /** When its last change's transaction started. */
@@ -50,7 +54,7 @@ const changedColumns = (before: Row, after: Row, listed: Set<string>) =>
   })
 
 const merged = ({ first, last, actor, listed }: Group): CoalescedChange[] => {
-  const base = { transaction: first.transaction, resource: first.resource, actor, sequence: last.id, at: last.at }
+  const base = { transaction: first.transaction, resource: first.resource, actor, databaseRole: last.databaseRole, sequence: last.id, at: last.at }
   const before = first.op === 'INSERT' ? null : first.old
   const after = last.op === 'DELETE' ? null : last.new
   if (!before && !after) return []

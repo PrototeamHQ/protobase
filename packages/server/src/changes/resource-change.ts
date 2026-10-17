@@ -16,6 +16,8 @@ export type ResourceChange = {
   changed: string[]
   actor: EventActor | null
   source: 'api' | 'database'
+  /** The database role that wrote; `null` when unknown. */
+  databaseRole: string | null
   tenant?: TenantValue
   transaction: string
   /** Grows with every change of a record, so receivers can drop stale events. */
@@ -72,6 +74,7 @@ export const resourceChange = (model: ResourceModel, change: CoalescedChange): R
     changed: fieldsOf(model, change.changed),
     actor: change.actor,
     source: change.actor ? 'api' : 'database',
+    databaseRole: change.databaseRole,
     ...(tenant != null && { tenant }),
     transaction: change.transaction,
     sequence: change.sequence,

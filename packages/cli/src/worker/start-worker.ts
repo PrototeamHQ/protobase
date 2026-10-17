@@ -2,7 +2,7 @@ import { statSync } from 'node:fs'
 import path from 'node:path'
 import pg from 'pg'
 import type { Db } from '@protobase/query'
-import { checkJobsSchema, configExports, jobDefinitions, startJobs } from '@protobase/server'
+import { checkJobsSchema, configExports, isCaptured, jobDefinitions, startJobs } from '@protobase/server'
 import { projectAdmin } from '../project/project-admin'
 import { readManifest } from '../bundle/manifest'
 import { createPgDb } from '../project/pg-db'
@@ -27,8 +27,8 @@ export type WorkerOptions = {
  * their own. It reads the jobs schema at start and refuses one that is missing or behind, like `serve`.
  */
 export const startWorker = async ({ project, databaseUrl, createDb = (url) => createPgDb(pg, url) }: WorkerOptions) => {
-  const withEvents = configExports(project.config).resources.some((resource) => resource.toModel().events)
-  if (jobDefinitions(project.jobs ?? {}).length === 0 && !withEvents) throw new Error('The bundle has no jobs: export them from protobase.config.ts as `jobs`, or give a resource events')
+  const captured = configExports(project.config).resources.some((resource) => isCaptured(resource.toModel()))
+  if (jobDefinitions(project.jobs ?? {}).length === 0 && !captured) throw new Error('The bundle has no jobs: export them from protobase.config.ts as `jobs`, or give a resource events or history')
   if (!project.db && !databaseUrl) throw new Error('No database: set DATABASE_URL or export `db` from protobase.config.ts')
   const ownDb = project.db ? undefined : createDb(databaseUrl!)
   const db = project.db ?? ownDb!

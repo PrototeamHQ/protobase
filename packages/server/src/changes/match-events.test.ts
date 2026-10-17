@@ -40,6 +40,7 @@ const change = (before: Record<string, unknown> | null, after: Record<string, un
   after: after && columns(after),
   changed,
   actor: { id: 'u_12', roles: ['sales'] },
+  databaseRole: 'app',
   sequence: '48211',
   at: '2026-10-10T21:04:05.123Z',
 })
@@ -57,6 +58,7 @@ describe('resourceChange', () => {
       changed: ['total'],
       actor: { id: 'u_12', roles: ['sales'] },
       source: 'api',
+      databaseRole: 'app',
       tenant: 3,
       transaction: '753',
       sequence: '48211',

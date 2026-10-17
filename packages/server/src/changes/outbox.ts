@@ -37,13 +37,13 @@ export const parseColumns = (text: string | null, model?: ResourceModel): Row | 
   )
 }
 
-type OutboxRow = { id: string; transaction: string; resource: string; op: CapturedRow['op']; old: string | null; new: string | null; changed: string[] | null; actor: string | null; at: string }
+type OutboxRow = Omit<CapturedRow, 'old' | 'new' | 'actor'> & { old: string | null; new: string | null; actor: string | null }
 
 /** The oldest `limit` rows of the outbox that committed, in id order. */
 export const readOutbox = async (db: Db, schema: string, models: readonly ResourceModel[], limit: number): Promise<CapturedRow[]> => {
   const byName = new Map(models.map((model) => [model.name, model]))
   const { rows } = await sql<OutboxRow>`select "id"::text as id, "transaction"::text as transaction, "resource", "op", "old"::text as old, "new"::text as new, "changed",
-      "actor"::text as actor, to_char("created_at" at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') as at
+      "actor"::text as actor, "database_role" as "databaseRole", to_char("created_at" at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') as at
     from ${sql.raw(`${quoteIdent(schema)}."outbox"`)} where "dispatch_after" <= now() order by "id" limit ${limit}`.execute(db)
   return rows.map((row) => {
     const model = byName.get(row.resource)

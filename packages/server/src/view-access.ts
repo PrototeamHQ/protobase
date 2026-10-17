@@ -1,5 +1,5 @@
 import { resolveFieldPath } from '@protobase/layout'
-import type { ActionInputModel, ActionModel, ActionRun, CardFavoriteModel, CardPhotosModel, ChartModel, CustomSectionModel, FilterWidgetModel, GalleryModel, LayoutItemModel, ListDisplayModel, ListModel, MapSectionModel, NavModel, NavRecentModel, RelatedColumnModel, RelatedModel, ResourceModel, SaveSearchModel, SearchesOfModel, SearchResultModel, ViewModel } from '@protobase/schema'
+import type { ActionInputModel, ActionModel, ActionRun, CardFavoriteModel, CardPhotosModel, ChartModel, CustomSectionModel, FilterWidgetModel, GalleryModel, HistorySectionModel, LayoutItemModel, ListDisplayModel, ListModel, MapSectionModel, NavModel, NavRecentModel, RelatedColumnModel, RelatedModel, ResourceModel, SaveSearchModel, SearchesOfModel, SearchResultModel, ViewModel } from '@protobase/schema'
 import { addressErrors, chartFields, hrefPlaceholders, navRecentErrors, pruneByShape, shapes as s, tableDisplay } from '@protobase/schema/internal'
 import { cardFavoriteErrors } from './view-card-favorite'
 import { cardPhotosErrors } from './view-card-photos'
@@ -132,6 +132,7 @@ const layoutShape = (resource: string, model: ResourceModel, models: Record<stri
     custom: s.object<CustomSectionModel>({ kind: s.data, component: s.data, title: s.data, sidebar: s.data, when: s.data, props: s.refs }, { requires: ['props'] }),
     map: s.object<MapSectionModel>({ kind: s.data, title: s.data, latitude: s.field, longitude: s.field, zoom: s.data, sidebar: s.data, when: s.data }, { requires: ['latitude', 'longitude'] }),
     gallery: s.map<GalleryModel>((item) => pruneGallery(item, resource, model, models)),
+    history: s.object<HistorySectionModel>({ kind: s.data, title: s.data, limit: s.data, when: s.data }),
   })
 
 // A link goes when it reads a hidden field, or leads to a resource or field the caller cannot see.
