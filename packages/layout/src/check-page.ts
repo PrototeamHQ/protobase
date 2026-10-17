@@ -1,5 +1,6 @@
 import { checkFilter, checkOrderBy, parseFilter, parseOrderBy, type AppAddress, type ResourceModel } from '@protobase/schema'
 import { addressErrors, fieldRefsIn } from '@protobase/schema/internal'
+import { chartProblems } from './check-chart'
 import { countedResource, parseCondition } from './condition'
 import { resolveFieldPath } from './field-path'
 import { dataProps, type LayoutNode } from './node'
@@ -62,6 +63,9 @@ const nodeProblems = (node: LayoutNode, scope: Scope, { models, actions, pages }
       break
     case 'Stat':
       if (text(node.props.field) !== undefined) path(String(node.props.field))
+      break
+    case 'Chart':
+      if (model) problems.push(...chartProblems(node, model))
       break
     case 'Progress':
       for (const name of [node.props.value, node.props.max]) if (typeof name === 'string') path(name)

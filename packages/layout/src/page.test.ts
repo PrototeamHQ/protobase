@@ -59,8 +59,8 @@ describe('page', () => {
   })
 
   it('refuses children on blocks that take none, and unknown blocks', () => {
-    const tree: LayoutNode = { type: 'Page', props: { title: 'x' }, children: [{ type: 'Stat', props: { label: 'a', value: 1 }, children: ['b'] }, { type: 'Chart', props: {}, children: [] }] }
-    expect(problems(tree)).toEqual(['<Page> › <Stat>: takes no children', "<Page> › <Chart>: <Chart> is not a block; custom components are declared with component('Chart')"])
+    const tree: LayoutNode = { type: 'Page', props: { title: 'x' }, children: [{ type: 'Stat', props: { label: 'a', value: 1 }, children: ['b'] }, { type: 'Sparkline', props: {}, children: [] }] }
+    expect(problems(tree)).toEqual(['<Page> › <Stat>: takes no children', "<Page> › <Sparkline>: <Sparkline> is not a block; custom components are declared with component('Sparkline')"])
   })
 
   it('wants a record around elements that show its fields', () => {
@@ -123,8 +123,8 @@ describe('page', () => {
   })
 
   it('leaves the props of custom components to the app', () => {
-    const Chart = component<{ anything: string }>('Chart')
-    expect(problems(Page({ title: 'x', children: Grid({ children: Chart({ anything: 'goes' }) }) }))).toEqual([])
+    const Sparkline = component<{ anything: string }>('Sparkline')
+    expect(problems(Page({ title: 'x', children: Grid({ children: Sparkline({ anything: 'goes' }) }) }))).toEqual([])
   })
 
   it('checks the page name', () => {

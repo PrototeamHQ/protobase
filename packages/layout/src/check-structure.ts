@@ -31,6 +31,8 @@ const statProblems = ({ props }: LayoutNode): string[] => {
   return props.filter !== undefined && props.resource === undefined ? ['"filter" needs "resource"'] : []
 }
 
+const chartStructureProblems = ({ props }: LayoutNode): string[] => (props.sum !== undefined && props.average !== undefined ? ['takes "sum" or "average", not both'] : [])
+
 // A link goes `to` an address in the app, or to an `href` that leaves it.
 const linkProblems = ({ props }: LayoutNode): string[] => {
   if ((props.to === undefined) === (props.href === undefined)) return ['takes exactly one of "to" (an address in the app) and "href" (a link that leaves it)']
@@ -55,6 +57,7 @@ export const structureProblems = (tree: LayoutNode): string[] => {
     propProblems(spec, node.props, node.children.length).forEach(report)
     recordProblems(node, scope).forEach(report)
     if (node.type === 'Stat') statProblems(node).forEach(report)
+    if (node.type === 'Chart') chartStructureProblems(node).forEach(report)
     if (node.type === 'Link') linkProblems(node).forEach(report)
     if (node.type === 'Show' && typeof node.props.when === 'string') {
       const parsed = parseCondition(node.props.when)

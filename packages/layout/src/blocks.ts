@@ -57,6 +57,34 @@ export type RecordRowProps = DataProps &
     empty?: string
     span?: GridSpan
   }
+/** How a chart draws its groups: bars, a line through a date field's buckets, or a donut of a field's values. */
+export type ChartType = 'bar' | 'line' | 'donut'
+/** How long each bucket of a chart over a date or timestamp field is. */
+export type ChartBucket = 'hour' | 'day' | 'week' | 'month' | 'year'
+/**
+ * Records of `resource` matching `filter`, grouped and added up as a chart: how many have each value of `groupBy`, or
+ * fall in each bucket of it when it is a date or timestamp field, or with `sum` or `average` that of a numeric field.
+ */
+export type ChartProps = Heading & {
+  resource: string
+  filter?: string
+  /** A filterable field, such as an enum, a boolean or a relation; an index must serve it. */
+  groupBy: string
+  /** Default `bar`; `line` is for a date `groupBy`, `donut` for one of values. */
+  type?: ChartType
+  /** A numeric field each group adds up, instead of counting its records. */
+  sum?: string
+  /** A numeric field each group averages, instead of counting its records. */
+  average?: string
+  /** A date `groupBy`'s bucket; default `day`. */
+  granularity?: ChartBucket
+  /** How far back a date `groupBy` reaches; default `30d`. */
+  range?: '7d' | '30d' | '90d' | '1y' | 'all'
+  /** How many values a chart of values shows, the largest; default 10. */
+  limit?: number
+  empty?: string
+  span?: GridSpan
+}
 export type ProgressProps = {
   /** A number, or a field of the record around it. */
   value: number | string
@@ -96,6 +124,7 @@ export const Field = defineBlock<FieldProps>('Field', false)
 export const Table = defineBlock<TableProps>('Table', false)
 export const CardRow = defineBlock<CardRowProps>('CardRow', false)
 export const RecordRow = defineBlock<RecordRowProps>('RecordRow', false)
+export const Chart = defineBlock<ChartProps>('Chart', false)
 export const Progress = defineBlock<ProgressProps>('Progress', false)
 export const ModalForm = defineBlock<ModalFormProps>('ModalForm', false)
 export const Action = defineBlock<ActionProps>('Action', false)

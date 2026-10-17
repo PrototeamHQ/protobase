@@ -1,5 +1,6 @@
 import { checkFilter, checkOrderBy, parseFilter, parseOrderBy, type AppAddress, type ResourceModel } from '@protobase/schema'
 import { addressErrors, pruneByShape, shapes } from '@protobase/schema/internal'
+import { chartFields } from './check-chart'
 import { elementResource, linkSource } from './check-page'
 import { countedResource, parseCondition } from './condition'
 import { resolveFieldPath } from './field-path'
@@ -56,6 +57,8 @@ const prune = (node: LayoutNode, scope: Scope, access: CallerAccess): LayoutNode
       return readable(String(node.props.name)) ? node : null
     case 'Stat':
       return text(node.props.field) === undefined || readable(String(node.props.field)) ? node : null
+    case 'Chart':
+      return model && chartFields(node).every((name) => Object.hasOwn(model.fields, name)) ? node : null
     case 'Progress':
       return [node.props.value, node.props.max].every((name) => typeof name !== 'string' || readable(name)) ? node : null
     case 'Table': {
