@@ -53,7 +53,7 @@ A prop that names a field is a field reference, `fieldRef('plan.name')` from `@p
 
 ## List displays
 
-A list can show its rows with a component of the project's own, declared in the view with [`d.custom`](/reference/ui-config/#list-displays). The list page loads the rows, with the filter, search and order of the address, and the component draws them: `useListDisplay()` gives them, `RecordLink` opens one.
+A list can show its rows with a component of the project's own, declared in the view with [`d.custom`](/reference/ui-config/#list-displays). The list page loads the rows, with the filter, search and order of the address, and the component draws them: `useListDisplay()` gives them, `RecordLink` opens one. A board in columns of an enum field, with cards dragged between them, is built in as [`d.board`](/reference/ui-config/#boards); the board below draws its own.
 
 ```tsx
 // components/repair-board.tsx, exported from protobase.ui.tsx: export { RepairBoard } from './components/repair-board'
