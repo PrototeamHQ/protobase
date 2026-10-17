@@ -12,4 +12,10 @@ export const arrearsView = view<typeof arrears>('arrears')
   }))
   .list((r) => ({ columns: [r.lease_id, r.balance, r.open_charges, r.oldest_due_on], sort: [[r.balance, 'desc']] }))
   .filters((r, w) => [w.range(r.balance, { histogram: true }), w.range(r.open_charges)])
-  .actions((a) => [a.action('remind', { label: 'Send reminder', icon: 'mail' })])
+  .actions((a) => [
+    a.action('remind', {
+      label: 'Send reminder',
+      icon: 'mail',
+      inputs: (i) => [i.text('note', { label: 'Note', help: 'Added to the mail under what is outstanding.', multiline: true, optional: true })],
+    }),
+  ])
