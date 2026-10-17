@@ -27,6 +27,47 @@ describe(':facets', () => {
   })
 })
 
+describe(':aggregate', () => {
+  const sums = async (condition: string) =>
+    (await fixture.pg.query<{ status: string; n: string; m: string }>(`select status, count(*)::text n, sum(revenue)::text m from companies where organization_id = 1 and deleted_at is null and ${condition} group by status order by sum(revenue) desc, status`)).rows
+
+  it('counts and adds up per value under the whole filter, largest first', async () => {
+    const body = await (await get('/companies:aggregate?group_by=status&sum=revenue&filter=revenue%20%3C%20500')).json()
+    expect(body).toEqual({ group_by: 'status', groups: (await sums('revenue < 500')).map((row) => ({ value: row.status, count: Number(row.n), sum: Number(row.m) })) })
+    const counted = await (await get('/companies:aggregate?group_by=status&filter=status%20%3D%20%22won%22')).json()
+    expect(counted.groups).toEqual([{ value: 'won', count: await countWhere(`status = 'won'`) }])
+  })
+
+  it("keeps to the caller's tenant and row filter", async () => {
+    const restricted = await (await app.request('/api/v1/companies:aggregate?group_by=status', { headers: as(1, 'sales') })).json()
+    expect(restricted.groups).toEqual([{ value: 'open', count: await countWhere(`status = 'open'`) }])
+    const other = await (await get('/companies:aggregate?group_by=status&average=revenue', 2)).json()
+    expect(other.groups.reduce((sum: number, group: { count: number }) => sum + group.count, 0)).toBe(495)
+  })
+
+  it('buckets a date field, empty buckets included, with the measure', async () => {
+    const body = await (await get('/companies:aggregate?group_by=createdAt&sum=revenue&from=2026-01-01T00:00:00Z&to=2026-01-04T00:00:00Z&granularity=day')).json()
+    expect(body).toMatchObject({ group_by: 'createdAt', granularity: 'day', time_zone: 'UTC' })
+    expect(body.groups.map((group: { value: string }) => group.value)).toEqual(['2026-01-01T00:00:00', '2026-01-02T00:00:00', '2026-01-03T00:00:00'])
+    // Every company of the first day is deleted, so it has nothing to add up
+    expect(body.groups[0]).toEqual({ value: '2026-01-01T00:00:00', count: 0, sum: null })
+    const second = (await fixture.pg.query<{ n: string; m: string }>(`select count(*)::text n, sum(revenue)::text m from companies where organization_id = 1 and deleted_at is null and created_at >= '2026-01-02' and created_at < '2026-01-03'`)).rows[0]!
+    expect(body.groups[1]).toEqual({ value: '2026-01-02T00:00:00', count: Number(second.n), sum: Number(second.m) })
+    const months = await (await get('/companies:aggregate?group_by=createdAt&range=all&granularity=year')).json()
+    expect(months.groups).toEqual([{ value: '2026-01-01T00:00:00', count: await countWhere('true') }])
+  })
+
+  it('refuses what it cannot group, add up or apply', async () => {
+    const status = async (query: string) => (await get(`/companies:aggregate?${query}`)).status
+    expect(await status('')).toBe(400)
+    expect(await status('group_by=notes')).toBe(400)
+    expect(await status('group_by=status&sum=name')).toBe(400)
+    expect(await status('group_by=status&sum=revenue&average=revenue')).toBe(400)
+    expect(await status('group_by=status&granularity=day')).toBe(400)
+    expect(await status('group_by=createdAt&limit=5')).toBe(400)
+  })
+})
+
 describe(':series', () => {
   it('buckets by day with empty buckets and a time zone', async () => {
     const body = await (await get('/companies:series?field=createdAt&from=2026-01-01T00:00:00Z&to=2026-01-08T00:00:00Z&granularity=day&time_zone=Europe/Amsterdam')).json()

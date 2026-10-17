@@ -59,6 +59,13 @@ describe('scan guard', () => {
     expect((await facets('field=id&filter=kind%20%3D%20%22k1%22')).status).toBe(400)
     expect((await facets('field=id&filter=id%20%3E%2029990')).status).toBe(200)
   })
+
+  it('judges a grouped total by its grouped field, a date bucket too', async () => {
+    const aggregate = (query: string) => createTestApp(fixture).request(`/api/v1/events:aggregate?${query}`, { headers: as(undefined) })
+    expect(await (await aggregate('group_by=kind')).json()).toMatchObject({ status: 400, detail: expect.stringMatching(/^Counting the values of "kind"/) })
+    expect((await aggregate('group_by=at&granularity=month')).status).toBe(400)
+    expect((await aggregate('group_by=id&filter=id%20%3E%2029990')).status).toBe(200)
+  })
 })
 
 // The property-finder case: about 60% of the listings are for sale or for rent, and the home page lists those of one
