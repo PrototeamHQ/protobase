@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import type { ReactNode, Ref } from 'react'
 import { Field, Section } from '../../record-view'
 import { Form } from './form'
 
@@ -15,11 +15,13 @@ export type CreateRecordFormProps = {
   message?: string
   onSubmit: () => void
   onCancel: () => void
+  ref?: Ref<HTMLFormElement>
 }
 
 /** The presentation of "New <thing>": the view's sections, each field with its editor, and Create or Cancel. */
-export const CreateRecordForm = ({ noun, collection, sections, saving, message, onSubmit, onCancel }: CreateRecordFormProps) => (
+export const CreateRecordForm = ({ noun, collection, sections, saving, message, onSubmit, onCancel, ref }: CreateRecordFormProps) => (
   <Form
+    ref={ref}
     title={`New ${noun.toLowerCase()}`}
     eyebrow={collection}
     submit={`Create ${noun.toLowerCase()}`}
@@ -33,7 +35,7 @@ export const CreateRecordForm = ({ noun, collection, sections, saving, message, 
       <Section key={section.title} title={section.title} help={section.help}>
         <div className="grid grid-cols-1 gap-x-6 gap-y-5 sm:grid-cols-2">
           {section.fields.map((field) => (
-            <Field key={field.name} label={field.label} required={field.required} help={field.help} error={field.error} wide={field.wide}>
+            <Field key={field.name} name={field.name} label={field.label} required={field.required} help={field.help} error={field.error} wide={field.wide}>
               {field.editor}
             </Field>
           ))}

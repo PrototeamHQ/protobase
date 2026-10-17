@@ -1,4 +1,4 @@
-import type { FormEvent, ReactNode } from 'react'
+import type { FormEvent, ReactNode, Ref } from 'react'
 import { Button } from '../../primitives/button'
 import { ErrorBanner } from '../error-banner'
 
@@ -26,10 +26,11 @@ export type FormProps = {
   onCancel?: () => void
   /** The form's sections (`Section`), drawn one under the other with a line between them. */
   children: ReactNode
+  ref?: Ref<HTMLFormElement>
 }
 
 /** The frame of the app's forms: Cancel and the submit button, a failure that belongs to no field, and the sections. */
-export const Form = ({ title, eyebrow, submit, saving, disabled, error, errorTitle = 'Not saved', onSubmit, onCancel, children }: FormProps) => {
+export const Form = ({ title, eyebrow, submit, saving, disabled, error, errorTitle = 'Not saved', onSubmit, onCancel, children, ref }: FormProps) => {
   const buttons = (
     <div className="flex items-center gap-2">
       {onCancel && <Button className="max-sm:min-h-11" onClick={onCancel}>Cancel</Button>}
@@ -50,7 +51,7 @@ export const Form = ({ title, eyebrow, submit, saving, disabled, error, errorTit
   }
   if (title === undefined) {
     return (
-      <form className="max-w-[760px]" onSubmit={send}>
+      <form ref={ref} className="max-w-[760px]" onSubmit={send}>
         {failure}
         {sections}
         <footer className="border-t pt-6 sm:flex sm:justify-end">{buttons}</footer>
@@ -58,7 +59,7 @@ export const Form = ({ title, eyebrow, submit, saving, disabled, error, errorTit
     )
   }
   return (
-    <form className="flex-1" onSubmit={send}>
+    <form ref={ref} className="flex-1" onSubmit={send}>
       <div className="mx-auto max-w-[760px] px-4 py-6 md:px-10 md:py-8">
         <header className="flex flex-col gap-4 border-b pb-6 sm:flex-row sm:items-end sm:justify-between sm:gap-6">
           <div>

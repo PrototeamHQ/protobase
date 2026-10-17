@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { isApiError } from '@protobase/client'
 import { useToast } from '../toasts'
+import { saveFailureDescription } from './field-errors'
 
 export type SaveMode = 'toast' | 'button'
 export type SavePhase = 'idle' | 'saving' | 'saved'
@@ -34,10 +35,11 @@ export const useLiveSave = (mode: SaveMode, subject: string) => {
     } catch (error) {
       if (!isApiError(error)) throw error
       const title = error.status === 412 ? 'Changed by someone else' : 'Could not save'
-      if (id !== undefined) toast.update(id, { state: 'error', title, description: error.message })
+      const description = saveFailureDescription(error)
+      if (id !== undefined) toast.update(id, { state: 'error', title, description })
       if (mode === 'button') {
         setPhase('idle')
-        setMessage(`${title}: ${error.message}`)
+        setMessage(`${title}: ${description}`)
       }
       return false
     }

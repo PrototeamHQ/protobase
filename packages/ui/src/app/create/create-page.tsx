@@ -1,6 +1,6 @@
 import { useQueryClient } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
-import { isApiError } from '@protobase/client'
+import type { ProblemError } from '@protobase/client'
 import { useClient } from '../../data/api-provider'
 import { humanize } from '../../live/naming'
 import { recordKey } from '../../live/model-helpers'
@@ -9,6 +9,8 @@ import { FieldEditor } from '../field-editor'
 import { Notice, useAdminMeta, usePermissions } from '../meta-gate'
 import { can } from '../permissions'
 import { useAppAddress } from '../use-app-address'
+import { fieldErrors, fieldMessage } from '../field-errors'
+import { useFocusFirstInvalid } from '../use-focus-first-invalid'
 import { useLiveSave } from '../use-live-save'
 import { CreateRecordForm } from './create-record-form'
 import { createBody, createSections, hasDatabaseDefault, initialDraft, isChosen, isRequired, type Draft } from './create-values'
@@ -38,7 +40,10 @@ const LoadedCreate = ({ resource, values }: CreatePageProps) => {
   const feedback = useLiveSave(view?.saveFeedback ?? 'toast', `New ${noun.toLowerCase()}`)
   const sections = createSections(model, view)
   const [draft, setDraft] = useState<Draft>(() => initialDraft(model, sections, values))
-  const [errors, setErrors] = useState<Record<string, string>>({})
+  const [errors, setErrors] = useState<Record<string, ProblemError>>({})
+  // How many creates the server turned down for their fields
+  const [rejections, setRejections] = useState(0)
+  const formRef = useFocusFirstInvalid<HTMLFormElement>(rejections)
 
   // A relation the address fills in shows the name of the record it points at once that has loaded.
   useEffect(() => {
@@ -63,7 +68,9 @@ const LoadedCreate = ({ resource, values }: CreatePageProps) => {
       try {
         created = await client.create(resource, createBody(model, meta.resources, draft))
       } catch (error) {
-        if (isApiError(error)) setErrors(Object.fromEntries(error.errors.flatMap((entry) => (entry.field ? [[entry.field, entry.message]] : []))))
+        const found = fieldErrors(error)
+        setErrors(found)
+        if (Object.keys(found).length > 0) setRejections((count) => count + 1)
         throw error
       }
       for (const prefix of ['page', 'list', 'first-page', 'map', 'facets', 'series']) void queryClient.invalidateQueries({ queryKey: [prefix, resource] })
@@ -77,12 +84,14 @@ const LoadedCreate = ({ resource, values }: CreatePageProps) => {
       const field = model.fields[name]!
       const value = draft[name]
       const target = field.relation ? meta.resources[field.relation.resource] : undefined
+      const label = view?.fields[name]?.label ?? humanize(name)
+      const problem = errors[name]
       return {
         name,
-        label: view?.fields[name]?.label ?? humanize(name),
+        label,
         help: view?.fields[name]?.help,
         required: isRequired(field),
-        error: errors[name],
+        error: problem && fieldMessage(field, label, problem),
         wide: Boolean(view?.fields[name]?.multiline || view?.fields[name]?.markdown),
         editor: (
           <FieldEditor
@@ -104,6 +113,7 @@ const LoadedCreate = ({ resource, values }: CreatePageProps) => {
 
   return (
     <CreateRecordForm
+      ref={formRef}
       noun={noun}
       collection={view?.names?.plural ?? humanize(resource)}
       sections={formSections}
