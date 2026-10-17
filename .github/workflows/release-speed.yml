@@ -1,0 +1,30 @@
+name: release-speed
+
+# How fast releases are tested and built against their targets (scripts/release-speed/config.json): daily, after each
+# release run and by hand, the report goes to this run's job summary. It is a workflow of its own that only reads the
+# Actions API, so it cannot hold up or fail a release, and a target that is not met does not fail it.
+on:
+  schedule:
+    - cron: '23 6 * * *'
+  workflow_run:
+    workflows: [release]
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.2
+      # Node's and Bun's built-ins and the gh CLI only, so no install.
+      - name: Report the release speed
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: bun scripts/release-speed/main.ts

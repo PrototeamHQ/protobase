@@ -1,0 +1,7 @@
+{
+  "window": 20,
+  "workflows": [
+    { "file": "release.yml", "event": "push", "branch": "main", "targetMinutes": 10 },
+    { "file": "ci.yml", "event": "push", "targetMinutes": 5 }
+  ]
+}

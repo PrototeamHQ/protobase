@@ -37,7 +37,8 @@
     "docs:build": "bun run build-storybook && bun run --cwd website build && cp -R storybook-static website/dist/storybook",
     "docs:check": "bun scripts/check-docs.mjs",
     "docs:skill": "bun scripts/protobase-skill.ts",
-    "release": "bun scripts/release.mjs"
+    "release": "bun scripts/release.mjs",
+    "release:speed": "bun scripts/release-speed/main.ts"
   },
   "devDependencies": {
     "@commitlint/cli": "^21.2.3",

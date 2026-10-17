@@ -52,3 +52,9 @@ Pull requests run the checks on GitHub's runners. Pushes to `main`, which the re
 - Use it: `gh variable set CHECK_RUNNER --body hetzner`
 - Go back to GitHub's runners: `gh variable delete CHECK_RUNNER`; no commit is needed either way.
 - Stop it, on the server: `systemctl disable --now actions.runner.PrototeamHQ-protobase.hetzner`. Delete the variable first, since pushes to `main` and `fm/**` wait for a runner that is offline.
+
+## Release speed
+
+`bun run release:speed` reports how fast releases are tested and built: for the `release` and `ci` workflows and each of their jobs, the p50, p90 and latest wall, queue and run time over the last successful runs, and whether the workflow's p50 meets its target, by how much. It reads the Actions API through `gh`, so locally it needs `gh auth login`. The `release-speed` workflow runs it daily and after each release run and writes the report to its job summary; it only reports, so it never holds up or fails a release.
+
+The window and the targets are in `scripts/release-speed/config.json`: `window` is how many runs, and each workflow has `targetMinutes` for its p50 and the `event` and `branch` its runs are taken from. `ci` has no branch, since on `main` its checks run inside the release workflow, as its `check / check` job; its own runs are the pushes to `fm/**` branches.

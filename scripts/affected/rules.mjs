@@ -21,7 +21,7 @@ export const runEverything = [
 ]
 
 // Files that are no module and that no test reads.
-export const readByNoTest = ['**/*.md', '**/*.mdx', '**/LICENSE', '**/.gitignore', '**/.env.example', '.githooks/**', 'docker/**', 'website/**', 'scripts/dom-snapshots/layouts/**']
+export const readByNoTest = ['**/*.md', '**/*.mdx', '**/LICENSE', '**/.gitignore', '**/.env.example', '.githooks/**', 'docker/**', 'website/**', 'scripts/dom-snapshots/layouts/**', 'scripts/release-speed/config.json']
 
 // Tests that run on every push, whatever it changed: the ERP built and served by the CLI, as on Node after the tests.
 export const alwaysRun = ['tests/smoke/**']
