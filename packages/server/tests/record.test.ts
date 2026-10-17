@@ -83,6 +83,13 @@ describe('POST /{resource}', () => {
     expect(values.errors.map((e: { field: string; code: string }) => `${e.field}:${e.code}`).sort()).toEqual(['name:required', 'revenue:invalid-value', 'status:invalid-value'])
   })
 
+  it('treats an empty text as missing for a field that may not be null', async () => {
+    const problem = await (await request('/labels', json({ name: '' }))).json()
+    expect(problem.errors).toEqual([expect.objectContaining({ field: 'name', code: 'required' })])
+    const created = await (await request('/labels', json({ name: 'coded', code: '' }))).json()
+    expect(created.code).toMatch(/^[0-9a-f]{32}$/)
+  })
+
   it('runs .validate() rules', async () => {
     const problem = await (await request('/companies', json({ name: 'forbidden' }))).json()
     expect(problem.errors).toEqual([{ field: 'name', code: 'invalid-record', message: 'That name is not allowed' }])
@@ -133,6 +140,20 @@ describe('PATCH /{resource}/{key}', () => {
     const etag = (await request('/companies/5')).headers.get('etag')!
     expect((await patch('/companies/5', { createdAt: '2020-01-01T00:00:00Z' }, { 'if-match': etag })).status).toBe(400)
     expect((await patch('/companies/5', { status: 'bogus' }, { 'if-match': etag })).status).toBe(400)
+  })
+
+  it('refuses to empty a text field that may not be null, and keeps an empty text already stored readable', async () => {
+    const created = await (await request('/labels', json({ name: 'named', color: 'red' }))).json()
+    const response = await patch(`/labels/${created.id}`, { name: '' }, { 'if-match': created.etag })
+    expect(response.status).toBe(400)
+    expect((await response.json()).errors).toEqual([expect.objectContaining({ field: 'name', code: 'required' })])
+
+    await fixture.pg.query(`update labels set name = '' where id = ${created.id}`)
+    const stored = await request(`/labels/${created.id}`)
+    expect(await stored.json()).toMatchObject({ name: '', color: 'red' })
+    const recolored = await patch(`/labels/${created.id}`, { color: 'green' }, { 'if-match': stored.headers.get('etag')! })
+    expect(recolored.status).toBe(200)
+    expect(await recolored.json()).toMatchObject({ name: '', color: 'green' })
   })
 
   it('is a 404 for a missing record', async () => {

@@ -1,3 +1,4 @@
+import type { FieldModel } from '@protobase/schema'
 import { badRequest } from './problem'
 import { writableFields, type RequestAccess } from './request-access'
 import type { Row } from './types'
@@ -11,10 +12,15 @@ const isObject = (value: unknown): value is Row => typeof value === 'object' && 
 
 const reserved = ['etag', 'permissions']
 
+// An empty text is no value: a text field that may not be null treats it as missing, so it cannot be stored as ''
+const isEmptyText = (field: FieldModel, value: unknown) => field.type === 'text' && !field.nullable && value === ''
+
 /**
  * Checks a create or update body for this caller. A field the caller cannot read is an unknown field, one they can read
  * but not write is read-only (the tenant column and the API's own `etag` and `permissions` keys are always read-only);
- * every provided value goes through its field's zod schema, then `.validate()` rules run on the result.
+ * every provided value goes through its field's zod schema, then `.validate()` rules run on the result. An empty text
+ * for a text field that may not be null counts as not given: a create fills in its default or reports it required,
+ * an update reports it required. Only the values written are checked, so a stored '' still reads.
  * Returns only the values to write: on create the defaults are filled in, on update only the provided fields.
  * `current` is the stored record an update merges into for `.validate()` rules.
  */
@@ -36,7 +42,12 @@ export const validateBody = (access: RequestAccess, mode: 'create' | 'update', b
   for (const [name, source] of Object.entries(entry.source.state.fields ?? {})) {
     const field = full.fields[name]
     if (!source || !field || !writable.has(name) || name === full.tenant) continue
-    const provided = Object.hasOwn(body, name)
+    const empty = Object.hasOwn(body, name) && isEmptyText(field, body[name])
+    if (empty && mode === 'update') {
+      errors.push({ field: name, code: 'required', message: `"${name}" is required` })
+      continue
+    }
+    const provided = Object.hasOwn(body, name) && !empty
     if (!provided && mode === 'update') continue
     if (!provided && field.default && 'db' in field.default) continue
     const parsed = source.schema.safeParse(provided ? body[name] : undefined)
