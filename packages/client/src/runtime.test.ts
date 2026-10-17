@@ -35,4 +35,14 @@ describe('createRuntimeClient', () => {
     await expect(client.status()).rejects.toBeInstanceOf(ApiError)
     expect(endpoint.requests[0]?.headers.has('authorization')).toBe(false)
   })
+
+  it("keeps the endpoint's own message of a refusal as the error's detail", async () => {
+    const endpoint = fakeEndpoint([
+      () => Response.json({ error: { code: 'update_running', message: "An update of the app's runtime is running" } }, { status: 409 }),
+      () => Response.json({ type: 'urn:protobase:problem:up-to-date', title: 'Conflict', status: 409, detail: 'The app runs the latest release' }, { status: 409, headers: { 'content-type': 'application/problem+json' } }),
+    ])
+    const client = createRuntimeClient({ url: 'https://cloud.example.com/runtime', token: () => undefined, fetch: endpoint.fetch })
+    await expect(client.update()).rejects.toMatchObject({ status: 409, slug: 'update_running', problem: { detail: "An update of the app's runtime is running" } })
+    await expect(client.update()).rejects.toMatchObject({ status: 409, problem: { detail: 'The app runs the latest release' } })
+  })
 })

@@ -44,4 +44,4 @@ export type { AccountSecurity, AccountSignIn, AuthenticatorSetup, Passkey, Requi
 export type { SignInPolicy, SignInPolicyClient, SignInPolicyState, SignInRule, StaffAccessRule } from './sign-in-policy'
 export type { StaffSignIn, StaffSignInClient } from './staff-sign-in'
 export { createAssistantClient, type AssistantClient, type AssistantClientOptions, type AssistantConnection } from './assistant'
-export { createRuntimeClient, type RuntimeClient, type RuntimeClientOptions, type RuntimePolicy, type RuntimeStatus } from './runtime'
+export { createRuntimeClient, type RuntimeClient, type RuntimeClientOptions, type RuntimeLastUpdate, type RuntimePolicy, type RuntimeStatus, type RuntimeUpdateStage } from './runtime'
