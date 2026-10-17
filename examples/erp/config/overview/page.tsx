@@ -1,5 +1,5 @@
 /** @jsxImportSource @protobase/layout */
-import { Action, Card, CardRow, Field, Grid, ModalForm, Page, RecordCard, Show, Stat, Table, component, page } from '@protobase/layout'
+import { Action, Card, CardRow, Chart, Field, Grid, ModalForm, Page, RecordCard, Show, Stat, Table, component, page } from '@protobase/layout'
 
 /** Orders per day for the last `days` days, drawn by protobase.ui.tsx. */
 export const OrdersPerDay = component<{ days: 7 | 30 | 90 }>('OrdersPerDay')
@@ -52,6 +52,10 @@ export const salesOverview = page(
       <Card title="Orders per day" description="The last 30 days.">
         <OrdersPerDay days={30} />
       </Card>
+    </Grid>
+    <Grid columns={2}>
+      <Chart title="Orders by status" resource="orders" groupBy="status" type="donut" />
+      <Chart title="Revenue by customer" description="Orders not cancelled." resource="orders" groupBy="company_id" sum="total" filter="status != 'cancelled'" limit={5} />
     </Grid>
     <Grid columns={2}>
       <Table title="Overdue invoices" resource="invoices" filter="status = 'overdue'" sort="issued_at" columns={['number', 'company_id', 'due_at', 'total']} limit={5} empty="Nothing is overdue." />
