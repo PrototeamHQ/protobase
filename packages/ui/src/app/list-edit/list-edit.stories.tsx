@@ -65,6 +65,10 @@ const cellOf = async (canvasElement: HTMLElement, rowText: string, column: numbe
 
 const product = (id: number) => stored.products!.find((row) => row.id === id)!
 
+export const Editable: StoryObj = {
+  render: () => <Products />,
+}
+
 export const EditInPlace: StoryObj = {
   tags: ['play'],
   render: () => <Products />,
