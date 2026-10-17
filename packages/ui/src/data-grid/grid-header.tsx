@@ -66,6 +66,6 @@ export const GridHeader = ({ cells, specs, gutter, selectedCount, selectable, tr
         </div>
       )
     })}
-    {trailing ? <div /> : null}
+    {trailing ? <div className="sticky right-0 z-10 h-full bg-inherit" /> : null}
   </div>
 )

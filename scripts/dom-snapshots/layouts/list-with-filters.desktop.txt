@@ -159,7 +159,7 @@ div | block
                           div .relative ml-auto shrink-0 | block relative
                             button .relative inline-flex size-5 items-center justify-center rounded text-faint-foreground hover:bg-muted hover:text-foreground focus-visible:opacity-100 after:absolute after:-inset-2 after:content-[''] md:opacity-0 md:group-hover/cell:opacity-100 aria-expanded:opacity-100 | inline-flex row nowrap center center relative
                               svg .lucide lucide-ellipsis lucide-more-horizontal size-3.5 | block
-                      div | block
+                      div .sticky right-0 z-10 h-full bg-inherit | block sticky
                 div .overflow-x-auto overflow-y-hidden overscroll-x-contain [-webkit-overflow-scrolling:touch] | block
                   div .relative | block relative
                     div role=row .absolute inset-x-0 top-0 grid items-center border-b bg-background hover:bg-surface cursor-pointer | grid row nowrap center normal absolute
@@ -181,7 +181,7 @@ div | block
                         span .tabular-nums | block
                       div role=cell .flex h-full min-w-0 items-center overflow-hidden whitespace-nowrap px-3 | flex row nowrap center normal
                         span .tabular-nums text-muted-foreground | block
-                      div .flex h-full items-center justify-center | flex row nowrap center center
+                      div .sticky right-0 z-10 flex h-full items-center justify-center bg-inherit | flex row nowrap center center sticky
                         div .relative flex justify-center bg-inherit | flex row nowrap normal center relative
                           button .inline-flex items-center justify-center rounded p-1 text-faint-foreground hover:bg-muted hover:text-foreground pointer-coarse:size-11 | flex row nowrap center center
                             svg .lucide lucide-ellipsis lucide-more-horizontal size-4 | block
@@ -204,7 +204,7 @@ div | block
                         span .tabular-nums | block
                       div role=cell .flex h-full min-w-0 items-center overflow-hidden whitespace-nowrap px-3 | flex row nowrap center normal
                         span .tabular-nums text-muted-foreground | block
-                      div .flex h-full items-center justify-center | flex row nowrap center center
+                      div .sticky right-0 z-10 flex h-full items-center justify-center bg-inherit | flex row nowrap center center sticky
                         div .relative flex justify-center bg-inherit | flex row nowrap normal center relative
                           button .inline-flex items-center justify-center rounded p-1 text-faint-foreground hover:bg-muted hover:text-foreground pointer-coarse:size-11 | flex row nowrap center center
                             svg .lucide lucide-ellipsis lucide-more-horizontal size-4 | block
@@ -227,7 +227,7 @@ div | block
                         span .tabular-nums | block
                       div role=cell .flex h-full min-w-0 items-center overflow-hidden whitespace-nowrap px-3 | flex row nowrap center normal
                         span .tabular-nums text-muted-foreground | block
-                      div .flex h-full items-center justify-center | flex row nowrap center center
+                      div .sticky right-0 z-10 flex h-full items-center justify-center bg-inherit | flex row nowrap center center sticky
                         div .relative flex justify-center bg-inherit | flex row nowrap normal center relative
                           button .inline-flex items-center justify-center rounded p-1 text-faint-foreground hover:bg-muted hover:text-foreground pointer-coarse:size-11 | flex row nowrap center center
                             svg .lucide lucide-ellipsis lucide-more-horizontal size-4 | block
@@ -250,7 +250,7 @@ div | block
                         span .tabular-nums | block
                       div role=cell .flex h-full min-w-0 items-center overflow-hidden whitespace-nowrap px-3 | flex row nowrap center normal
                         span .tabular-nums text-muted-foreground | block
-                      div .flex h-full items-center justify-center | flex row nowrap center center
+                      div .sticky right-0 z-10 flex h-full items-center justify-center bg-inherit | flex row nowrap center center sticky
                         div .relative flex justify-center bg-inherit | flex row nowrap normal center relative
                           button .inline-flex items-center justify-center rounded p-1 text-faint-foreground hover:bg-muted hover:text-foreground pointer-coarse:size-11 | flex row nowrap center center
                             svg .lucide lucide-ellipsis lucide-more-horizontal size-4 | block
@@ -273,7 +273,7 @@ div | block
                         span .tabular-nums | block
                       div role=cell .flex h-full min-w-0 items-center overflow-hidden whitespace-nowrap px-3 | flex row nowrap center normal
                         span .tabular-nums text-muted-foreground | block
-                      div .flex h-full items-center justify-center | flex row nowrap center center
+                      div .sticky right-0 z-10 flex h-full items-center justify-center bg-inherit | flex row nowrap center center sticky
                         div .relative flex justify-center bg-inherit | flex row nowrap normal center relative
                           button .inline-flex items-center justify-center rounded p-1 text-faint-foreground hover:bg-muted hover:text-foreground pointer-coarse:size-11 | flex row nowrap center center
                             svg .lucide lucide-ellipsis lucide-more-horizontal size-4 | block
@@ -296,7 +296,7 @@ div | block
                         span .tabular-nums | block
                       div role=cell .flex h-full min-w-0 items-center overflow-hidden whitespace-nowrap px-3 | flex row nowrap center normal
                         span .tabular-nums text-muted-foreground | block
-                      div .flex h-full items-center justify-center | flex row nowrap center center
+                      div .sticky right-0 z-10 flex h-full items-center justify-center bg-inherit | flex row nowrap center center sticky
                         div .relative flex justify-center bg-inherit | flex row nowrap normal center relative
                           button .inline-flex items-center justify-center rounded p-1 text-faint-foreground hover:bg-muted hover:text-foreground pointer-coarse:size-11 | flex row nowrap center center
                             svg .lucide lucide-ellipsis lucide-more-horizontal size-4 | block
@@ -319,7 +319,7 @@ div | block
                         span .tabular-nums | block
                       div role=cell .flex h-full min-w-0 items-center overflow-hidden whitespace-nowrap px-3 | flex row nowrap center normal
                         span .tabular-nums text-muted-foreground | block
-                      div .flex h-full items-center justify-center | flex row nowrap center center
+                      div .sticky right-0 z-10 flex h-full items-center justify-center bg-inherit | flex row nowrap center center sticky
                         div .relative flex justify-center bg-inherit | flex row nowrap normal center relative
                           button .inline-flex items-center justify-center rounded p-1 text-faint-foreground hover:bg-muted hover:text-foreground pointer-coarse:size-11 | flex row nowrap center center
                             svg .lucide lucide-ellipsis lucide-more-horizontal size-4 | block
@@ -342,7 +342,7 @@ div | block
                         span .tabular-nums | block
                       div role=cell .flex h-full min-w-0 items-center overflow-hidden whitespace-nowrap px-3 | flex row nowrap center normal
                         span .tabular-nums text-muted-foreground | block
-                      div .flex h-full items-center justify-center | flex row nowrap center center
+                      div .sticky right-0 z-10 flex h-full items-center justify-center bg-inherit | flex row nowrap center center sticky
                         div .relative flex justify-center bg-inherit | flex row nowrap normal center relative
                           button .inline-flex items-center justify-center rounded p-1 text-faint-foreground hover:bg-muted hover:text-foreground pointer-coarse:size-11 | flex row nowrap center center
                             svg .lucide lucide-ellipsis lucide-more-horizontal size-4 | block
@@ -365,7 +365,7 @@ div | block
                         span .tabular-nums | block
                       div role=cell .flex h-full min-w-0 items-center overflow-hidden whitespace-nowrap px-3 | flex row nowrap center normal
                         span .tabular-nums text-muted-foreground | block
-                      div .flex h-full items-center justify-center | flex row nowrap center center
+                      div .sticky right-0 z-10 flex h-full items-center justify-center bg-inherit | flex row nowrap center center sticky
                         div .relative flex justify-center bg-inherit | flex row nowrap normal center relative
                           button .inline-flex items-center justify-center rounded p-1 text-faint-foreground hover:bg-muted hover:text-foreground pointer-coarse:size-11 | flex row nowrap center center
                             svg .lucide lucide-ellipsis lucide-more-horizontal size-4 | block
@@ -388,7 +388,7 @@ div | block
                         span .tabular-nums | block
                       div role=cell .flex h-full min-w-0 items-center overflow-hidden whitespace-nowrap px-3 | flex row nowrap center normal
                         span .tabular-nums text-muted-foreground | block
-                      div .flex h-full items-center justify-center | flex row nowrap center center
+                      div .sticky right-0 z-10 flex h-full items-center justify-center bg-inherit | flex row nowrap center center sticky
                         div .relative flex justify-center bg-inherit | flex row nowrap normal center relative
                           button .inline-flex items-center justify-center rounded p-1 text-faint-foreground hover:bg-muted hover:text-foreground pointer-coarse:size-11 | flex row nowrap center center
                             svg .lucide lucide-ellipsis lucide-more-horizontal size-4 | block
@@ -411,7 +411,7 @@ div | block
                         span .tabular-nums | block
                       div role=cell .flex h-full min-w-0 items-center overflow-hidden whitespace-nowrap px-3 | flex row nowrap center normal
                         span .tabular-nums text-muted-foreground | block
-                      div .flex h-full items-center justify-center | flex row nowrap center center
+                      div .sticky right-0 z-10 flex h-full items-center justify-center bg-inherit | flex row nowrap center center sticky
                         div .relative flex justify-center bg-inherit | flex row nowrap normal center relative
                           button .inline-flex items-center justify-center rounded p-1 text-faint-foreground hover:bg-muted hover:text-foreground pointer-coarse:size-11 | flex row nowrap center center
                             svg .lucide lucide-ellipsis lucide-more-horizontal size-4 | block
@@ -434,7 +434,7 @@ div | block
                         span .tabular-nums | block
                       div role=cell .flex h-full min-w-0 items-center overflow-hidden whitespace-nowrap px-3 | flex row nowrap center normal
                         span .tabular-nums text-muted-foreground | block
-                      div .flex h-full items-center justify-center | flex row nowrap center center
+                      div .sticky right-0 z-10 flex h-full items-center justify-center bg-inherit | flex row nowrap center center sticky
                         div .relative flex justify-center bg-inherit | flex row nowrap normal center relative
                           button .inline-flex items-center justify-center rounded p-1 text-faint-foreground hover:bg-muted hover:text-foreground pointer-coarse:size-11 | flex row nowrap center center
                             svg .lucide lucide-ellipsis lucide-more-horizontal size-4 | block
@@ -457,7 +457,7 @@ div | block
                         span .tabular-nums | block
                       div role=cell .flex h-full min-w-0 items-center overflow-hidden whitespace-nowrap px-3 | flex row nowrap center normal
                         span .tabular-nums text-muted-foreground | block
-                      div .flex h-full items-center justify-center | flex row nowrap center center
+                      div .sticky right-0 z-10 flex h-full items-center justify-center bg-inherit | flex row nowrap center center sticky
                         div .relative flex justify-center bg-inherit | flex row nowrap normal center relative
                           button .inline-flex items-center justify-center rounded p-1 text-faint-foreground hover:bg-muted hover:text-foreground pointer-coarse:size-11 | flex row nowrap center center
                             svg .lucide lucide-ellipsis lucide-more-horizontal size-4 | block
@@ -480,7 +480,7 @@ div | block
                         span .tabular-nums | block
                       div role=cell .flex h-full min-w-0 items-center overflow-hidden whitespace-nowrap px-3 | flex row nowrap center normal
                         span .tabular-nums text-muted-foreground | block
-                      div .flex h-full items-center justify-center | flex row nowrap center center
+                      div .sticky right-0 z-10 flex h-full items-center justify-center bg-inherit | flex row nowrap center center sticky
                         div .relative flex justify-center bg-inherit | flex row nowrap normal center relative
                           button .inline-flex items-center justify-center rounded p-1 text-faint-foreground hover:bg-muted hover:text-foreground pointer-coarse:size-11 | flex row nowrap center center
                             svg .lucide lucide-ellipsis lucide-more-horizontal size-4 | block

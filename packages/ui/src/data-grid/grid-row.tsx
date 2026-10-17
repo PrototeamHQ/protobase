@@ -67,7 +67,8 @@ export const DataRow = ({ cells, selected, onToggle, onOpen, menu, ...frame }: D
         {content}
       </div>
     ))}
-    {menu && <div className="flex h-full items-center justify-center">{menu}</div>}
+    {/* The menu stays at the right edge while the row scrolls sideways */}
+    {menu && <div className="sticky right-0 z-10 flex h-full items-center justify-center bg-inherit">{menu}</div>}
   </div>
 )
 
