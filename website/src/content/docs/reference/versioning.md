@@ -84,6 +84,7 @@ An app whose host can update its runtime, such as a hosting platform, can show a
 The app sends the signed-in user's API token as `Authorization: Bearer <token>` (verified like an [assistant backend](/reference/assistant/#another-backend) does) and expects:
 
 - `GET {url}`: `200` with `{ version, latest, updateAvailable, indicator, policy, nextUpdateAt, updating }`. `version` is the runtime the app is pinned to, `policy` one of `immediate`, `weekly`, `scheduled` or `manual`, and `nextUpdateAt` when that policy applies `latest` (null when it never will or nothing is pending).
-- `POST {url}/update`: applies `latest` now, `202` with the same body; `409` when the app is on it already or an update is running.
+  It may also send `updateStage` (`job` or `build`) and `updateStartedAt` while an update runs, and `lastUpdate`, `{ toVersion, outcome, errorCode, message, finishedAt }` with `outcome` one of `succeeded`, `unchanged` or `failed` and `message` plain text for the app's owner. A host that leaves them out gets the dialog without them.
+- `POST {url}/update`: applies `latest` now, `202` with the same body; `409` when the app is on it already or an update is running. A refusal's message, as `{ error: { code, message } }` or a problem's `detail`, is shown as it is.
 
-The app reads the status on load and every half hour, more often while an update runs. It shows the button only while `updateAvailable` and `indicator` are both true; the button opens the two versions, when the policy updates, and **Update now**. When and whether to update is the host's setting.
+The app reads the status on load and every half hour, every 5 seconds while an update runs. It shows the button only while `updateAvailable` and `indicator` are both true; the button opens the two versions, when the policy updates or how far the running update is, how the last update ended, and **Update now**. When and whether to update is the host's setting.
