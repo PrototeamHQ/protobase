@@ -1,4 +1,5 @@
 import { Hono } from 'hono'
+import { aggregate } from '../aggregate-groups'
 import { facets, numericHistogram, timeSeries } from '../aggregate-service'
 import type { Deps } from '../deps'
 import { listRecords } from '../list-service'
@@ -28,6 +29,10 @@ export const collectionRoutes = (deps: Deps) => {
     }
     if (action === 'facets') {
       const { body, warning } = await facets(deps, entry, session, query)
+      return c.json(body, 200, warningHeader(warning))
+    }
+    if (action === 'aggregate') {
+      const { body, warning } = await aggregate(deps, entry, session, query)
       return c.json(body, 200, warningHeader(warning))
     }
     if (action === 'series') return c.json(await timeSeries(deps, entry, session, query))

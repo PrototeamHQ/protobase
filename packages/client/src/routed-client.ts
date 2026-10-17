@@ -26,6 +26,7 @@ export const routedClient = (own: Client, sourceOf: (resource: string) => Client
       return (apis[0] ?? own).batchWrite(ops)
     },
     facets: (resource, field, options) => to(resource).facets(resource, field, options),
+    aggregate: (resource, params) => to(resource).aggregate(resource, params),
     series: (resource, params) => to(resource).series(resource, params),
     histogram: (resource, field, options) => to(resource).histogram(resource, field, options),
     map: (resource, params) => to(resource).map(resource, params),

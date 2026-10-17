@@ -64,7 +64,7 @@ const mapResult = (name: string) => json({
 
 // The operation each documented method needs; methods the caller may not use are left out of their document.
 const needs: Record<string, 'list' | 'read' | 'create' | 'update' | 'delete'> = {
-  list: 'list', search: 'list', facets: 'list', series: 'list', histogram: 'list', map: 'list', seek: 'list',
+  list: 'list', search: 'list', facets: 'list', aggregate: 'list', series: 'list', histogram: 'list', map: 'list', seek: 'list',
   get: 'read', reveal: 'read', create: 'create', update: 'update', undelete: 'update', delete: 'delete',
 }
 
@@ -185,6 +185,39 @@ export const resourcePaths = (access: RequestAccess) => {
         ],
         responses: {
           200: { description: 'Counts, most frequent first', content: json({ type: 'object', properties: { field: { type: 'string' }, facets: { type: 'array', items: { type: 'object', properties: { value: {}, count: { type: 'integer' }, label: { type: 'string', description: 'Only with `label`, for a record the caller may name' } } } } } }) },
+          400: error('BadRequest'), ...auth,
+        },
+      },
+    },
+    [`/${entry.name}:aggregate`]: {
+      get: {
+        operationId: `aggregate_${entry.name}`,
+        tags: tag,
+        summary: `Totals per group of ${entry.name} records`,
+        description: 'Groups the records the filter finds, its own terms on `group_by` included, by the value of a field, or by the hour, day, week, month or year of a date or timestamp field with the empty ones included. Each group has its count and, with `sum` or `average`, that of a numeric field, `null` when no record of the group has a value. Value groups come largest first. An index must serve the grouped field.',
+        parameters: [
+          query('group_by', 'A filterable field', { type: 'string' }, true), param('filter'),
+          query('sum', 'A numeric field to add up per group'), query('average', 'A numeric field to average per group, instead of `sum`'),
+          query('limit', 'Most value groups to return, default 100, at most 1000', { type: 'integer' }),
+          query('label', 'For a relation to a single-key resource: the field of that resource whose value each group carries as `label`'),
+          query('granularity', 'For a date group_by: the bucket, default day', { type: 'string', enum: ['hour', 'day', 'week', 'month', 'year'] }),
+          query('range', 'For a date group_by: the relative range ending now (default 30d); `all` starts at the earliest row', { type: 'string', enum: ['7d', '30d', '90d', '1y', 'all'] }),
+          query('from', 'For a date group_by: the explicit start (ISO 8601); with `to`, replaces range'), query('to', 'For a date group_by: the exclusive end (ISO 8601), default now'),
+          query('time_zone', 'For a date group_by: the IANA time zone of the buckets, default UTC'),
+        ],
+        responses: {
+          200: {
+            description: 'The groups; a date group\'s `value` is its bucket in local ISO time',
+            content: json({
+              type: 'object',
+              properties: {
+                group_by: { type: 'string' },
+                granularity: { type: 'string' },
+                time_zone: { type: 'string' },
+                groups: { type: 'array', items: { type: 'object', properties: { value: {}, label: { type: 'string' }, count: { type: 'integer' }, sum: { type: ['number', 'null'] }, average: { type: ['number', 'null'] } } } },
+              },
+            }),
+          },
           400: error('BadRequest'), ...auth,
         },
       },

@@ -3,6 +3,7 @@ import { QueryError } from '../src/errors'
 import { estimateCount } from '../src/estimate-count'
 import { exactCount } from '../src/exact-count'
 import { facetCounts } from '../src/facet-counts'
+import { groupTotals } from '../src/group-totals'
 import { histogram } from '../src/histogram'
 import { series } from '../src/series'
 import { check, createTestDb, items, orderLines } from '../../../test-support/query'
@@ -64,6 +65,38 @@ describe('facetCounts', () => {
   })
 })
 
+describe('groupTotals', () => {
+  it('counts per value under the whole filter, its own terms on the field included', async () => {
+    const groups = await groupTotals(ctx.db, items, 'category', { statementTimeoutMs: 5000, filter: check(items, 'in(category, "red", "blue") AND active = true') })
+    const expected = await sqlRows<{ category: string; n: string }>(
+      `select category, count(*)::text n from items where category in ('red', 'blue') and active and deleted_at is null group by 1 order by count(*) desc, category`,
+    )
+    expect(groups).toEqual(expected.map(row => ({ value: row.category, count: Number(row.n) })))
+  })
+
+  it('adds up a numeric field per value, largest first', async () => {
+    const sums = await groupTotals(ctx.db, items, 'category', { statementTimeoutMs: 5000, measure: { kind: 'sum', field: 'price' } })
+    const expected = await sqlRows<{ category: string; n: string; m: string }>(
+      `select category, count(*)::text n, sum(price)::text m from items where deleted_at is null group by 1 order by sum(price) desc, category`,
+    )
+    expect(sums).toEqual(expected.map(row => ({ value: row.category, count: Number(row.n), sum: Number(row.m) })))
+    const averages = await groupTotals(ctx.db, items, 'active', { statementTimeoutMs: 5000, measure: { kind: 'average', field: 'qty' } })
+    expect(averages.map(group => group.average)).toEqual(
+      (await sqlRows<{ m: string }>(`select avg(qty)::text m from items where deleted_at is null group by active order by avg(qty) desc, active`)).map(row => Number(row.m)),
+    )
+  })
+
+  it('refuses what it cannot group or add up', async () => {
+    const code = (field: string, options: Partial<Parameters<typeof groupTotals>[3]>) =>
+      groupTotals(ctx.db, items, field, { statementTimeoutMs: 5000, ...options }).catch(error => error.code)
+    expect(await code('secret', {})).toBe('not_filterable')
+    expect(await code('attrs', {})).toBe('unsupported_field_type')
+    expect(await code('category', { measure: { kind: 'sum', field: 'name' } })).toBe('unsupported_field_type')
+    expect(await code('category', { measure: { kind: 'sum', field: 'nope' } })).toBe('unknown_field')
+    expect(await code('category', { limit: 0 })).toBe('invalid_option')
+  })
+})
+
 describe('series', () => {
   const one = check(items, 'name = "item-1"')
   const range = { from: '2024-01-01T00:00:00Z', to: '2024-01-06T00:00:00Z' }
@@ -97,6 +130,15 @@ describe('series', () => {
     expect(monthly.reduce((sum, p) => sum + p.count, 0)).toBe(9800)
     const hourly = await series(ctx.db, items, 'created_at', { range: { from: '2024-01-01T00:00:00Z', to: '2024-01-02T00:00:00Z' }, granularity: 'hour', filter: one })
     expect(hourly).toHaveLength(24)
+  })
+
+  it('adds up a numeric field per bucket, null where no row has a value', async () => {
+    const points = await series(ctx.db, items, 'created_at', { range, granularity: 'day', filter: one, measure: { kind: 'sum', field: 'qty' } })
+    const qty = Number((await sqlRows<{ qty: string }>(`select qty::text from items where name = 'item-1'`))[0]!.qty)
+    expect(points.map(p => p.sum)).toEqual([null, qty, null, null, null])
+    const monthly = await series(ctx.db, items, 'created_at', { range: { from: '2024-01-01T00:00:00Z', to: '2024-02-01T00:00:00Z' }, granularity: 'month', measure: { kind: 'average', field: 'price' } })
+    const average = Number((await sqlRows<{ m: string }>(`select avg(price)::text m from items where deleted_at is null and created_at < '2024-02-01T00:00:00Z'`))[0]!.m)
+    expect(monthly).toEqual([{ bucket: '2024-01-01T00:00:00', count: expect.any(Number), average }])
   })
 
   it('works on date fields', async () => {

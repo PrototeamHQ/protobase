@@ -33,7 +33,7 @@ const rangeDays = { '7d': 7, '30d': 30, '90d': 90, '1y': 365 }
 
 // Aggregates are reads: the caller's filter is checked against the model as the caller sees it (a hidden field is an
 // unknown field), and the tenant and the access row filter are applied by the query layer's scope.
-const scoped = async (deps: Deps, entry: Entry, session: Session, source?: string) => {
+export const scoped = async (deps: Deps, entry: Entry, session: Session, source?: string) => {
   const access = await requestAccess(deps, entry, session)
   requireOperation(access, 'list')
   return { access, model: access.model, filter: checkedFilter(access.model, source), scope: readScope(access) }
@@ -76,17 +76,20 @@ const earliest = async (deps: Deps, access: RequestAccess, fieldName: string, sc
 const bound = (model: ResourceModel, fieldName: string, value: string) =>
   model.fields[fieldName]?.type === 'date' ? value.slice(0, 10) : value
 
-const seriesRange = async (deps: Deps, access: RequestAccess, params: z.output<typeof seriesParams>, scope: ReturnType<typeof readScope>) => {
+export type RangeParams = { range?: keyof typeof rangeDays | 'all'; from?: string; to?: string }
+
+/** The span a series of `field` covers: `from` and `to`, else the `range` up to now, `all` from the earliest row. */
+export const seriesRange = async (deps: Deps, access: RequestAccess, field: string, params: RangeParams, scope: ReturnType<typeof readScope>) => {
   const to = params.to ?? new Date().toISOString()
   const { model } = access
-  if (params.from) return { from: bound(model, params.field, params.from), to: bound(model, params.field, to) }
+  if (params.from) return { from: bound(model, field, params.from), to: bound(model, field, to) }
   const range = params.range ?? '30d'
   if (range !== 'all') {
     const from = new Date(Date.now() - rangeDays[range] * 86_400_000).toISOString()
-    return { from: bound(model, params.field, from), to: bound(model, params.field, to) }
+    return { from: bound(model, field, from), to: bound(model, field, to) }
   }
-  const lowest = await earliest(deps, access, params.field, scope)
-  return lowest ? { from: bound(model, params.field, lowest), to: bound(model, params.field, to) } : undefined
+  const lowest = await earliest(deps, access, field, scope)
+  return lowest ? { from: bound(model, field, lowest), to: bound(model, field, to) } : undefined
 }
 
 /** Row counts per calendar bucket of a date or timestamp field, empty buckets included. */
@@ -95,7 +98,7 @@ export const timeSeries = async (deps: Deps, entry: Entry, session: Session, inp
   const { access, model, filter: checked, scope } = await scoped(deps, entry, session, params.filter)
   // A hidden field is refused exactly like an unknown one
   if (!model.fields[params.field]) throw badRequest('invalid-parameter', `Unknown field "${params.field}"`, { errors: [{ parameter: 'field', message: 'Unknown field' }] })
-  const range = await seriesRange(deps, access, params, scope)
+  const range = await seriesRange(deps, access, params.field, params, scope)
   const timeZone = params.time_zone ?? 'UTC'
   const points = range
     ? await readTransaction(deps.db, deps.statementTimeoutMs, (trx) =>

@@ -4,7 +4,7 @@ import { labelEntries, listWire, photosWire, queryString, filterText, type Filte
 import { originOf, photosWithOrigin, withFileOrigin } from './file-urls'
 import { createTransport, type ClientOptions } from './transport'
 import { fetchWithProgress, type UploadProgress } from './upload-request'
-import type { BatchOp, BatchResult, Facet, Histogram, ListPage, MapResult, Meta, MetaResult, RecordOf, ResourceRef, Series, SeriesParams, Stored } from './types'
+import type { Aggregate, AggregateParams, BatchOp, BatchResult, Facet, Histogram, ListPage, MapResult, Meta, MetaResult, RecordOf, ResourceRef, Series, SeriesParams, Stored } from './types'
 
 type Json = Record<string, any>
 
@@ -151,6 +151,29 @@ export const createClient = (options: ClientOptions = {}) => {
     return ((await response.json()) as { facets: Facet[] }).facets
   }
 
+  /** Totals per value of a field, or per bucket of a date field (`:aggregate`). */
+  const aggregate = async (resource: ResourceRef, params: AggregateParams): Promise<Aggregate> => {
+    const response = await send({
+      method: 'GET',
+      path: `/${nameOf(resource)}:aggregate`,
+      query: queryString({
+        group_by: params.groupBy,
+        filter: filterText(params.filter) || undefined,
+        sum: params.sum,
+        average: params.average,
+        limit: params.limit,
+        label: params.label,
+        granularity: params.granularity,
+        range: params.range,
+        from: params.from,
+        to: params.to,
+        time_zone: params.timeZone,
+      }),
+    })
+    const body = await response.json()
+    return { groupBy: body.group_by, granularity: body.granularity, timeZone: body.time_zone, groups: body.groups }
+  }
+
   const series = async (resource: ResourceRef, params: SeriesParams & { filter?: FilterInput }): Promise<Series> => {
     const response = await send({
       method: 'GET',
@@ -258,7 +281,7 @@ export const createClient = (options: ClientOptions = {}) => {
     return result
   }
 
-  return { list, search, get, create, update, remove, undelete, reveal, batchWrite, facets, series, histogram, map, seek, meta, invoke, upload }
+  return { list, search, get, create, update, remove, undelete, reveal, batchWrite, facets, aggregate, series, histogram, map, seek, meta, invoke, upload }
 }
 
 export type Client = ReturnType<typeof createClient>

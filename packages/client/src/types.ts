@@ -1,5 +1,6 @@
 import type { PageModel } from '@protobase/layout'
 import type { BottomBarModel, InferRecord, ResourceModel, SignInViewModel, UserMenuModel, ViewModel } from '@protobase/schema'
+import type { FilterInput } from './query-string'
 
 /** A resource by name, or the builder from `resource(...)`, which carries its record type. */
 export type ResourceRef = string | { readonly $fields: unknown; toModel(): ResourceModel }
@@ -47,6 +48,31 @@ export type SeriesParams = {
   granularity?: 'hour' | 'day' | 'week' | 'month'
   timeZone?: string
 }
+
+export type AggregateParams = {
+  /** A filterable field: its values make the groups, or for a date or timestamp field its buckets. */
+  groupBy: string
+  filter?: FilterInput
+  /** A numeric field to add up per group. */
+  sum?: string
+  /** A numeric field to average per group, instead of `sum`. */
+  average?: string
+  /** Value groups only: the most to return, default 100. */
+  limit?: number
+  /** Value groups only: for a relation, the field of the related record that names each group. */
+  label?: string
+  /** Date groups only. */
+  granularity?: 'hour' | 'day' | 'week' | 'month' | 'year'
+  range?: '7d' | '30d' | '90d' | '1y' | 'all'
+  from?: string
+  to?: string
+  timeZone?: string
+}
+
+/** One group: its value (a date group's bucket in local ISO time), how many records it holds and its sum or average. */
+export type AggregateGroup = { value: string | number | boolean | null; label?: string; count: number; sum?: number | null; average?: number | null }
+
+export type Aggregate = { groupBy: string; granularity?: string; timeZone?: string; groups: AggregateGroup[] }
 
 export type HistogramBucket = { from: number; to: number; count: number }
 
