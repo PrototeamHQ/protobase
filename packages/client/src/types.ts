@@ -16,6 +16,30 @@ export type RelatedLabels = Record<string, Record<string, string>>
 /** Per record, by key as text, the files of its first photos in their order; a record without any is absent. */
 export type RecordPhotos = Record<string, StoredFile[]>
 
+/** One change of a record, as `history` reads it: only the fields the caller may read. */
+export type HistoryChange = {
+  id: string
+  /** When its transaction started, ISO 8601. */
+  at: string
+  operation: 'create' | 'update' | 'delete' | 'undelete'
+  /** The fields an update changed, sensitive ones included; none for a create or delete. */
+  changed: string[]
+  /** The fields before and after, without sensitive and file fields; none before a create, or after a delete. */
+  before?: Record<string, unknown>
+  after?: Record<string, unknown>
+  /** Who made it through the API, with their name when the server knows it; `null` for a write from elsewhere. */
+  actor: { id: string; name?: string } | null
+  /** The database role that wrote; `null` when unknown. */
+  databaseRole: string | null
+}
+
+/** A page of a record's history, newest first. */
+export type HistoryPage = {
+  items: HistoryChange[]
+  /** `""` on the last page. */
+  nextPageToken: string
+}
+
 export type ListPage<T> = {
   items: T[]
   /** `""` on the last page. */

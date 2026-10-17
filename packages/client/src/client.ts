@@ -4,7 +4,7 @@ import { labelEntries, listWire, photosWire, queryString, filterText, type Filte
 import { originOf, photosWithOrigin, withFileOrigin } from './file-urls'
 import { createTransport, type ClientOptions } from './transport'
 import { fetchWithProgress, type UploadProgress } from './upload-request'
-import type { Aggregate, AggregateParams, BatchOp, BatchResult, Facet, Histogram, ListPage, MapResult, Meta, MetaResult, RecordOf, ResourceRef, Series, SeriesParams, Stored } from './types'
+import type { Aggregate, AggregateParams, BatchOp, BatchResult, Facet, Histogram, HistoryChange, HistoryPage, ListPage, MapResult, Meta, MetaResult, RecordOf, ResourceRef, Series, SeriesParams, Stored } from './types'
 
 type Json = Record<string, any>
 
@@ -126,6 +126,13 @@ export const createClient = (options: ClientOptions = {}) => {
   const reveal = async (resource: ResourceRef, key: KeyValue | readonly KeyValue[], field: string): Promise<unknown> => {
     const response = await send({ method: 'POST', path: `${keyPath(resource, key)}:reveal`, body: { field } })
     return ((await response.json()) as { value: unknown }).value
+  }
+
+  /** A page of a record's changes, newest first, for a resource with `.history()`; `pageToken` is the previous page's `nextPageToken`. */
+  const history = async (resource: ResourceRef, key: KeyValue | readonly KeyValue[], { pageSize, pageToken }: { pageSize?: number; pageToken?: string } = {}): Promise<HistoryPage> => {
+    const query = queryString({ page_size: pageSize, page_token: pageToken || undefined })
+    const body = (await (await send({ method: 'GET', path: `${keyPath(resource, key)}:history`, query })).json()) as { items: Array<Omit<HistoryChange, 'databaseRole'> & { database_role: string | null }>; next_page_token: string }
+    return { items: body.items.map(({ database_role, ...change }) => ({ ...change, databaseRole: database_role })), nextPageToken: body.next_page_token }
   }
 
   /** Applies several writes atomically (`POST /api/v1:batchWrite`), for example a record and its lines on Save. */
@@ -281,7 +288,7 @@ export const createClient = (options: ClientOptions = {}) => {
     return result
   }
 
-  return { list, search, get, create, update, remove, undelete, reveal, batchWrite, facets, aggregate, series, histogram, map, seek, meta, invoke, upload }
+  return { list, search, get, create, update, remove, undelete, reveal, history, batchWrite, facets, aggregate, series, histogram, map, seek, meta, invoke, upload }
 }
 
 export type Client = ReturnType<typeof createClient>

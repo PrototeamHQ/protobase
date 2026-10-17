@@ -1,4 +1,4 @@
-import { ApiError, type Client, type MapLayerModel, type PluginRef, type ResourcePermissions, type SourceRef, type StoredFile, type UploadOptions, type UploadResult } from '@protobase/client'
+import { ApiError, type Client, type HistoryChange, type MapLayerModel, type PluginRef, type ResourcePermissions, type SourceRef, type StoredFile, type UploadOptions, type UploadResult } from '@protobase/client'
 import { evaluateCondition, parseCondition, type PageModel } from '@protobase/layout'
 import { checkFilter, evaluateFilter, parseFilter, type BottomBarModel, type CardPhotosModel, type ResourceModel, type SignInViewModel, type ViewModel } from '@protobase/schema'
 import { cardPhotoLimit, encodeKey, matchesSearch } from '@protobase/schema/internal'
@@ -29,6 +29,13 @@ export type FakeApiInput = {
   reveal?: (resource: string, key: string, field: string, value: unknown) => Promise<unknown>
   /** Answers `upload` instead of accepting every file as the type the browser gave it, to refuse or correct one. */
   upload?: (resource: string, field: string, file: File, options: UploadOptions) => Promise<UploadResult>
+  /**
+   * The changes kept before the story starts, oldest first, by `<resource>/<key>`, for resources with history; every
+   * create and update adds one, made by `actor`.
+   */
+  history?: Record<string, HistoryChange[]>
+  /** Who the history says made the story's own writes. */
+  actor?: HistoryChange['actor']
 }
 
 const keyOf = (model: ResourceModel, row: Row) => encodeKey(model.primaryKey.map((name) => row[name] as string | number))
@@ -81,7 +88,7 @@ const matches = (filter: string | undefined, model: ResourceModel | undefined) =
  * An in-memory server for stories and docs: lists with filters (simple AIP-160), sorting, paging, exact counts,
  * related names and photos, and get, create, update and delete that change the rows and their ETags. Not a model of the real access rules.
  */
-export const fakeApi = ({ resources, views = [], pages = [], rows: initial, permissions = {}, plugins, sources, maps, files, bottomBar, signIn, afterWrite, reveal, upload }: FakeApiInput) => {
+export const fakeApi = ({ resources, views = [], pages = [], rows: initial, permissions = {}, plugins, sources, maps, files, bottomBar, signIn, afterWrite, reveal, upload, history: initialHistory = {}, actor = { id: 'story', name: 'Story User' } }: FakeApiInput) => {
   const rows: Record<string, Row[]> = structuredClone(initial)
   const models = Object.fromEntries(resources.map((model) => [model.name, model]))
   let version = 0
@@ -100,6 +107,16 @@ export const fakeApi = ({ resources, views = [], pages = [], rows: initial, perm
   // An upload's ticket becomes the file it stands for once a write sends it, as the server's attach step does
   const uploads = new Map<string, StoredFile>()
   const attached = (body: Row) => Object.fromEntries(Object.entries(body).map(([name, value]) => [name, typeof value === 'string' && uploads.has(value) ? uploads.get(value) : value]))
+  // Like the server, a change keeps no sensitive value, though it names a sensitive field that changed
+  const history: Record<string, HistoryChange[]> = structuredClone(initialHistory)
+  const keep = (resource: string, operation: HistoryChange['operation'], before: Row | undefined, after: Row) => {
+    const model = models[resource]!
+    if (!model.history) return
+    const changed = before ? Object.keys(model.fields).filter((name) => JSON.stringify(before[name]) !== JSON.stringify(after[name])) : []
+    const values = (row: Row) => Object.fromEntries(Object.keys(model.fields).filter((name) => !model.fields[name]!.sensitive).map((name) => [name, row[name] ?? null]))
+    const list = (history[`${resource}/${keyOf(model, after)}`] ??= [])
+    list.push({ id: String(list.length + 1), at: new Date().toISOString(), operation, changed, ...(before && { before: values(before) }), after: values(after), actor, databaseRole: 'app' })
+  }
   const write = (resource: string, row: Row) => {
     afterWrite?.(resource, row, rows)
     for (const [name, list] of Object.entries(rows)) rows[name] = list.map((entry) => (entry === row || !entry.etag ? stamp(entry) : entry))
@@ -151,6 +168,12 @@ export const fakeApi = ({ resources, views = [], pages = [], rows: initial, perm
       const value = find(resource, key)[field] ?? null
       return reveal ? reveal(resource, key, field, value) : value
     },
+    history: async (resource: string, key: string, { pageSize = 20, pageToken = '' }: { pageSize?: number; pageToken?: string } = {}) => {
+      find(resource, key)
+      const newest = [...(history[`${resource}/${key}`] ?? [])].reverse()
+      const start = Number(pageToken || 0)
+      return { items: newest.slice(start, start + pageSize), nextPageToken: start + pageSize < newest.length ? String(start + pageSize) : '' }
+    },
     upload: async (resource: string, field: string, file: File, options: UploadOptions = {}) => {
       const result = upload
         ? await upload(resource, field, file, options)
@@ -166,12 +189,15 @@ export const fakeApi = ({ resources, views = [], pages = [], rows: initial, perm
       const [keyField] = model.primaryKey
       const row = { ...body, [keyField!]: body[keyField!] ?? table(resource).length + 1 + version }
       table(resource).push(row)
+      keep(resource, 'create', undefined, row)
       write(resource, row)
       return { ...stored(resource, table(resource).find((entry) => keyOf(model, entry) === keyOf(model, row))!), location: '' }
     },
     update: async (resource: string, key: string, patch: Row) => {
       const row = find(resource, key)
+      const before = { ...row }
       Object.assign(row, attached(patch))
+      keep(resource, 'update', before, row)
       write(resource, row)
       return stored(resource, find(resource, key))
     },
