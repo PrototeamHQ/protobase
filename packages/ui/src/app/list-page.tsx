@@ -50,6 +50,10 @@ import { SaveSearchButton } from './searches/save-search-button'
 import { SavedSearches } from './searches/saved-searches'
 import { SignInPrompt } from '../auth/sign-in-prompt'
 import { useListCellEditor } from './list-edit/use-list-cell-editor'
+import { listHandOrder } from './hand-order/hand-order'
+import { HandSortedList } from './hand-order/hand-sorted-list'
+import { SortButton } from './hand-order/sort-button'
+import { listColumnNames } from '../live/columns-from-model'
 
 const where = createWhere()
 const searchText = (extras: FilterExpr[]) => extras.find((clause) => clause.kind === 'search')
@@ -112,9 +116,14 @@ const LoadedList = ({ model, address, scope, heading }: LoadedListProps) => {
   const related = useMemo(() => relatedColumnLoads(view, meta.resources, meta.views, loaded), [view, meta.resources, meta.views, loaded])
   const rows = useLiveRows({ resources: meta.resources, views: meta.views, model, columns: loaded, filter: loadFilter, orderBy, related })
   const display = shownDisplay(view, address.display)
-  // The table, the cards, a board and a custom display are as tall as all their rows and scroll with the page; the map
-  // fills the screen
-  const pageScroll = display?.kind !== 'map'
+  const permissions = usePermissions(resource)
+  // Sorting by hand shows every record in their order, so neither a saved list's scope nor the filters apply
+  const handOrder = scope ? undefined : listHandOrder(model, permissions)
+  const [sorting, setSorting] = useState(false)
+  const handSorting = sorting && handOrder !== undefined
+  // The table, the cards, a board, a custom display and the records sorted by hand are as tall as all their rows and
+  // scroll with the page; the map fills the screen
+  const pageScroll = handSorting || display?.kind !== 'map'
   usePageScroll(pageScroll)
   // A custom display pages through the rows with `loadMore`; the table and cards scroll through them, and the map asks
   // for the records in its view
@@ -129,7 +138,6 @@ const LoadedList = ({ model, address, scope, heading }: LoadedListProps) => {
     snapshot: row,
   })
   const singular = view?.names?.singular ?? humanize(resource)
-  const permissions = usePermissions(resource)
   const cellEditing = useListCellEditor(model, view, permissions)
   const { state: auth } = useAuth()
   const restore = useRestore(model)
@@ -190,7 +198,8 @@ const LoadedList = ({ model, address, scope, heading }: LoadedListProps) => {
       {desktop && 'Export'}
     </Button>
   )
-  const displaySwitch = (menu: boolean) => <DisplaySwitch view={view} value={display?.name ?? tableDisplay} onChange={(name) => set({ display: name })} menu={menu} />
+  const sortButton = handOrder && <SortButton sorting={handSorting} onChange={setSorting} iconOnly={!desktop} />
+  const displaySwitch = (menu: boolean) => !handSorting && <DisplaySwitch view={view} value={display?.name ?? tableDisplay} onChange={(name) => set({ display: name })} menu={menu} />
 
   const seedRecord = useSeedRecord(model)
   const openRecord = (row: GridRow) => {
@@ -236,7 +245,14 @@ const LoadedList = ({ model, address, scope, heading }: LoadedListProps) => {
     if (display.kind === 'board') return <BoardDisplay model={model} view={view} display={display} fields={loaded} filter={loadFilter} orderBy={orderBy} />
     return <CustomDisplay display={display} list={displayRows} />
   }
-  const shown = drawDisplay()
+  const shown = handSorting ? (
+    <div className="flex flex-col gap-3">
+      <p className="text-muted-foreground">Drag a row by its handle to move it. Every move is saved as you drop it.</p>
+      <HandSortedList model={model} view={view} field={handOrder} filter="" columns={listColumnNames(model, view)} />
+    </div>
+  ) : (
+    drawDisplay()
+  )
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-3 px-5 py-4">
@@ -250,6 +266,7 @@ const LoadedList = ({ model, address, scope, heading }: LoadedListProps) => {
           desktop ? (
             <>
               {displaySwitch(false)}
+              {sortButton}
               {saveSearch}
               {importButton}
               {exportButton}
@@ -257,6 +274,7 @@ const LoadedList = ({ model, address, scope, heading }: LoadedListProps) => {
             </>
           ) : (
             <>
+              {sortButton}
               {saveSearch}
               {importButton}
               {exportButton}
@@ -266,15 +284,16 @@ const LoadedList = ({ model, address, scope, heading }: LoadedListProps) => {
         }
       />
       {!parsed.ok && <ErrorBanner title="The filter in the address could not be read" error={new Error(parsed.errors.map((error) => error.message).join('; '))} />}
-      {rows.error && !display && <ErrorBanner title="Could not load rows" error={rows.error} />}
+      {rows.error && !display && !handSorting && <ErrorBanner title="Could not load rows" error={rows.error} />}
       {view?.chart &&
+        !handSorting &&
         (isGroupChart(view.chart) ? (
           <ListGroupChart model={model} view={view} chart={view.chart} plural={plural} filter={loadFilter} />
         ) : (
           <ListChart resource={resource} chart={view.chart} title={`${plural} created`} noun={plural.toLowerCase()} filter={loadFilter} />
         ))}
-      {desktop ? desktopToolbar : phoneFilters}
-      {desktop && layout === 'panel' ? (
+      {!handSorting && (desktop ? desktopToolbar : phoneFilters)}
+      {desktop && layout === 'panel' && !handSorting ? (
         <div className="flex min-h-0 flex-1 gap-4">
           {/* The same element either way, so that switching displays keeps the panel's state; it stays in view while the page scrolls */}
           <div className={pageScroll ? 'sticky top-[calc(var(--pb-sticky-top,0px)+1rem)] flex max-h-[calc(100dvh-var(--pb-sticky-top,0px)-var(--pb-sticky-bottom,0px)-2rem)] shrink-0 self-start' : 'flex shrink-0'}>{panel}</div>

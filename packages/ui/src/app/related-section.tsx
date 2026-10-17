@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
+import { useState } from 'react'
 import { createWhere, printFilter, type RelatedModel } from '@protobase/schema'
 import { useClient } from '../data/api-provider'
 import { keys } from '../data/query-keys'
@@ -8,7 +9,10 @@ import { Section } from '../record-view'
 import { EmbeddedDisplaySwitch, EmbeddedList } from './embedded-list/embedded-list'
 import { useEmbeddedDisplay } from './embedded-list/use-embedded-display'
 import { ErrorBanner } from './error-banner'
-import { useAdminMeta } from './meta-gate'
+import { relatedHandOrder } from './hand-order/hand-order'
+import { HandSortedList } from './hand-order/hand-sorted-list'
+import { SortButton } from './hand-order/sort-button'
+import { useAdminMeta, usePermissions } from './meta-gate'
 
 const where = createWhere()
 
@@ -52,7 +56,8 @@ const Empty = ({ text }: { text: string | undefined }) => <p className="text-mut
 
 /**
  * A record page section listing the first records of another resource that point at this record, directly or through
- * a join resource, in the list page's table or display, with a link to them all in the list.
+ * a join resource, in the list page's table or display, with a link to them all in the list. When they are ordered by
+ * hand within this record, **Sort** shows them all in their order, to be moved by their drag handles.
  */
 export const RelatedSection = ({ item, recordKey, owner }: { item: RelatedModel; recordKey: string; owner: string }) => {
   const { resources, views } = useAdminMeta()
@@ -60,11 +65,30 @@ export const RelatedSection = ({ item, recordKey, owner }: { item: RelatedModel;
   const view = model && views[model.name]
   const match = useMatch(item, recordKey)
   const [display, pick] = useEmbeddedDisplay(view, `related:${owner}:${item.title}`, item.display)
+  const permissions = usePermissions(item.resource)
+  const [sorting, setSorting] = useState(false)
   if (!model) return null
   // The relation names this record on every row, so it is left out of the default columns
   const columns = item.columns ?? listColumnNames(model, view).filter((name) => name !== item.field)
+  const handOrder = relatedHandOrder(item, model, permissions)
+  const displaySwitch = <EmbeddedDisplaySwitch view={view} value={display} onChange={pick} />
+  const actions = handOrder ? (
+    <div className="flex items-center gap-2">
+      {!sorting && displaySwitch}
+      <SortButton size="sm" sorting={sorting} onChange={setSorting} />
+    </div>
+  ) : (
+    displaySwitch
+  )
+  if (sorting && handOrder) {
+    return (
+      <Section title={item.title} help={item.help} actions={actions}>
+        <HandSortedList model={model} view={view} field={handOrder} filter={printFilter(where.eq(item.field, recordKey))} columns={columns} />
+      </Section>
+    )
+  }
   return (
-    <Section title={item.title} help={item.help} actions={<EmbeddedDisplaySwitch view={view} value={display} onChange={pick} />}>
+    <Section title={item.title} help={item.help} actions={actions}>
       {match.isPending ? (
         <Loading />
       ) : match.error ? (

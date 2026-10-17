@@ -201,6 +201,25 @@ export const fakeApi = ({ resources, views = [], pages = [], rows: initial, perm
       write(resource, row)
       return stored(resource, find(resource, key))
     },
+    // Only `reorder`, as sorting by hand sends it: the records numbered 1, 2, 3, ... in the order of their keys, those
+    // whose number changes each refused when its ETag is stale
+    batchWrite: async (ops: Array<{ op: string; resource: string; field?: string; keys?: Array<string | number>; etags?: Record<string, string> }>) => ({
+      results: ops.map((op) => {
+        if (op.op !== 'reorder') throw new Error(`Not implemented: the fake API's batch writes only reorder, not ${op.op}`)
+        const { resource, field } = op as { resource: string; field: string }
+        const keys = op.keys!.map(String)
+        const changing = keys.filter((key, index) => find(resource, key)[field] !== index + 1)
+        const stale = changing.some((key) => ![undefined, '*', find(resource, key).etag].includes(op.etags?.[key]))
+        if (stale) throw new ApiError({ type: 'urn:protobase:problem:precondition-failed', title: 'Precondition Failed', status: 412, detail: 'The record changed since it was read; fetch it again' })
+        for (const key of changing) {
+          const row = find(resource, key)
+          row[field] = keys.indexOf(key) + 1
+          write(resource, row)
+        }
+        const records = keys.map((key) => stored(resource, find(resource, key)))
+        return { op: 'reorder', resource, records }
+      }),
+    }),
     remove: async (resource: string, key: string) => {
       const row = find(resource, key)
       rows[resource] = table(resource).filter((entry) => entry !== row)
