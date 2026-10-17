@@ -40,6 +40,7 @@ Under `/api/v1`:
 | `DELETE /{resource}/{key}` | soft delete when the resource has one ([AIP-135](https://google.aip.dev/135)); `If-Match` optional |
 | `POST /{resource}:upload?field=&name=` | one file for a [file field](/reference/files/#uploading), as the raw body or one multipart file part; `201 { value, file, derived, corrected? }`, where `value` is the ticket a write sends as the field's value; `413` over the field's `maxSize`, `415` for a type it does not take |
 | `POST /{resource}/{key}:reveal` | `{ "field": "iban" }` gives `{ field, value }` of one [sensitive field](#sensitive-fields-and-audit), with `Cache-Control: no-store`, and publishes an audit event |
+| `GET /{resource}/{key}:history` | the record's changes, newest first, for a resource with [history](/reference/history/): `page_size` (20, max 100), `page_token`; see [Record history](#record-history) |
 | `POST /{resource}/{key}:undelete` | restores a soft-deleted record ([AIP-164](https://google.aip.dev/164)); `If-Match` optional; `409` when not deleted, `400` on hard-delete resources |
 | `POST /api/v1:batchWrite` | many writes in one transaction, see [Batch writes](#batch-writes) |
 | `GET /{resource}:facets?field=&filter=&limit=&label=` | `{ field, facets: [{ value, count }] }`, the `limit` most frequent values (100 by default, at most 1,000), never all of them; with `label`, a relation's facets carry the related record's name as `label`, as in [Related names](#related-names) |
@@ -57,6 +58,10 @@ Every response carries `X-Meta-Version`, the hash of the models and of the calle
 `show_deleted=true` on list, `:search` (body) and get also returns soft-deleted records (soft-delete resources only, `400` otherwise).
 
 A list returns `{ items, next_page_token, total_size_estimate }`, the estimate being the planner's, which reads no rows. `count=exact` adds `total_size`, counted through the indexes but no further than 10,000 matches: above that `total_size` is left out and the estimate stands. `next_page_token` is `""` on the last page, and a token only continues the `filter` and `order_by` it came from: with others the request fails with `400 invalid-cursor`. Items use field names, dates as ISO 8601 text, 64-bit integers and decimals as strings.
+
+### Record history
+
+`GET /{resource}/{key}:history` answers `{ items, next_page_token }` for a resource with `.history()`, and `404` for one without. It needs what a get needs, a soft-deleted record included. Each item is `{ id, at, operation, changed, before?, after?, actor, database_role }`: `before` and `after` hold only the fields the caller may read, never a sensitive or file field, `changed` names the changed fields the caller may read, and an update of only other fields is left out. `actor` is `{ id, name? }` for a write through the API, the name when the project's Better Auth knows the user, and `null` otherwise; `database_role` is the role that wrote. See [Record history](/reference/history/).
 
 ### Related names
 

@@ -1,0 +1,58 @@
+---
+title: Record history
+description: Every change of a resource's records kept with who made it, through the API or not, shown on the record page and listed for admins as Activity.
+---
+
+import { Code } from '@astrojs/starlight/components'
+import orders from '../../../../../docs-examples/history/orders.ts?raw'
+import config from '../../../../../docs-examples/history/protobase.config.ts?raw'
+
+A resource with [`.history()`](/api/schema/interfaces/resourcebuilder/#history) keeps every change of its records: what each field was before and after, who made it and when. The changes are captured by the same database triggers as [events](/reference/events/), so writes from psql, other services and cron SQL are kept too, not only those through the API.
+
+<Code code={orders} lang="ts" title="config/orders.ts" />
+
+<Code code={config} lang="ts" title="protobase.config.ts" />
+
+## What a change holds
+
+A change is what an event sees: one per record and transaction, with the record as it was at the start of the transaction and as it is at commit (see [What one change is](/reference/events/#what-one-change-is)).
+
+| | |
+| --- | --- |
+| `operation` | `create`, `update`, `delete` or `undelete`. Setting a `.softDelete()` field is a delete, clearing it an undelete. |
+| `before`, `after` | The fields by name, without sensitive ones. None before a create, or after a delete. |
+| `changed` | The fields an update changed, sensitive ones included: an IBAN that changed is named, never its value. |
+| Who | For a write through the API, the caller's id and roles. For a write from elsewhere, none; the database role that wrote is kept either way: the one `set role` chose, else the session's. |
+| `at` | When the writing transaction started. |
+
+## On the record page
+
+[`l.history(title?, { limit, when })`](/api/schema/variables/l/#history) shows the record's changes newest first: who made each, how long ago, and each changed field before and after, formatted and labelled as the view shows the field. `limit` changes show at first (default 10), and Show more loads the next ones. A view without a layout shows History last by itself. A view that names `l.history()` for a resource without `.history()` stops startup.
+
+The section reads `GET /api/v1/{resource}/{key}:history` (see [REST API](/reference/api/#record-history)). It answers whoever may read the record, with the same tenant, row filter and record-level rule as a get, a soft-deleted record included, and each change carries only the fields that caller may read. An update of only fields they may not read is left out. A change made through the API names its user, with their name when the project signs people in with Better Auth; a change from elsewhere shows as Database with the database role.
+
+A save shows up within a moment: the server keeps a change just after its write commits, and the section looks again shortly after each save.
+
+## Activity
+
+Once a resource has history, admins get **Activity** (the built-in resource `record_history`): every kept change of every resource with history, newest first, filterable by resource, record, operation, user and database role. It lists `before` and `after` whole, so only the `admin` role reads it, whatever the project's roles say, and nobody writes it. When a resource with history has a [tenant](/reference/data-config/#resource), Activity is scoped to the caller's tenant, like the app's own resources.
+
+## Keeping it
+
+`history: { days }` in `protobase.config.ts` keeps changes for that many days: a daily job, `history.prune`, deletes older ones. Without it, changes are kept until deleted by hand.
+
+## The table
+
+[`protobase migration`](/reference/cli/#migration) adds the table `changes.history` to the `changes` schema of the event capture (renamed with `events: { schema }`), and the capture triggers of each resource with history; apply it with the project's other migrations. `protobase dev` and `protobase serve` do not start while the table or a trigger is missing. A resource that drops `.history()` loses its triggers, unless it has events, at the next migration; its changes stay in the table.
+
+| Column | |
+| --- | --- |
+| `id` | Grows with every change, so a record's changes are in commit order. |
+| `resource`, `record_key` | The resource and the record's key as its URL has it. |
+| `tenant_id` | The record's tenant, as text. |
+| `operation`, `before`, `after`, `changed` | As above, by field name. |
+| `actor_id`, `actor_roles` | The API's caller; `null` for a write from elsewhere. |
+| `database_role` | The role that wrote. |
+| `transaction`, `at` | The writing transaction's id and when it started. |
+
+The changes are written by the `changes.dispatch` job, in the transaction that removes them from the outbox, so each is kept exactly once; a resource with history therefore needs the [`jobs` schema](/reference/jobs/#the-jobs-schema) and the app's workers. Turning the capture off for a transaction (`set local changes.capture = 'off'`) keeps nothing of it.

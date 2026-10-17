@@ -8,7 +8,7 @@ import orders from '../../../../../docs-examples/events/orders.ts?raw'
 
 A resource can declare **events**: what a change of its records means, such as an order that was created or became large. The changes are captured in the database itself, by triggers, in the transaction that writes them. Writes through the API count, and so do writes from psql, other services, cron SQL and the database's own triggers and generated columns.
 
-The app's [jobs](/reference/jobs/) then turn the captured changes into events and deliver them to [subscriptions](/reference/webhooks/): URLs, the app's API functions or code of its own.
+The app's [jobs](/reference/jobs/) then turn the captured changes into events and deliver them to [subscriptions](/reference/webhooks/): URLs, the app's API functions or code of its own. A resource with [history](/reference/history/) is captured the same way, and its changes are kept.
 
 <Code code={orders} lang="ts" title="docs-examples/events/orders.ts" />
 
@@ -52,7 +52,7 @@ Filters use the language of [access rules](/reference/access/) and views, on any
 
 - **`changes.outbox`**, one row per changed row, written in the writer's transaction, so it commits or rolls back with the change. A dispatch job reads the committed rows and deletes them once their events are delivered or queued.
 - **`changes.capture()`**, the trigger function. It runs as its owner, with a fixed search path, so a role that writes the table needs no rights on `changes`: another service writing as its own role keeps working once a resource has events.
-- **Two triggers per resource with events**, on its table: `<table>_changes` for inserts and deletes, and `<table>_changes_update` for updates that change the row.
+- **Two triggers per resource with events or history**, on its table: `<table>_changes` for inserts and deletes, and `<table>_changes_update` for updates that change the row.
 
 The first row a transaction captures also enqueues a `changes.dispatch` job with `jobs.enqueue()`, in the same transaction, so a resource with events needs the [`jobs` schema](/reference/jobs/#the-jobs-schema) too. Dispatch jobs run one at a time, in the app's workers. After a write through the API commits, the server has its own worker look for that job at once, so its events usually go out within milliseconds; a write from elsewhere waits for the next poll, two seconds at most.
 
@@ -86,4 +86,5 @@ export default defineConfig({ config, auth, authenticate, events: { schema: 'row
 | `old`, `new` | The row before and after, by column name, without sensitive columns. 64-bit integers and decimals keep every digit when events are built from them. |
 | `changed` | The columns an update changed, sensitive ones included. |
 | `actor` | `{ "id": ..., "roles": [...] }` for a write through the API; `null` otherwise. |
+| `database_role` | The role that wrote: the one `set role` chose, else the session's. |
 | `dispatch_after`, `created_at` | When the row may be dispatched, and when its transaction started: an event's `timestamp`. |
