@@ -2,6 +2,8 @@ export type PageCache<T> = {
   get: (index: number) => T | undefined
   hasPage: (page: number) => boolean
   setPage: (page: number, rows: T[]) => void
+  /** Forgets every page but `kept`. */
+  keepOnly: (kept: number[]) => void
   readonly size: number
 }
 
@@ -18,6 +20,9 @@ export const createPageCache = <T>(pageSize: number, maxPages: number): PageCach
       const oldest = pages.keys().next()
       if (oldest.done) return
       pages.delete(oldest.value)
+    },
+    keepOnly: (kept) => {
+      for (const page of [...pages.keys()]) if (!kept.includes(page)) pages.delete(page)
     },
     get size() {
       return pages.size

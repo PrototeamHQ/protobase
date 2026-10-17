@@ -84,7 +84,7 @@ export const DataGrid = ({ columns: given, source, naturalSort, initialScrollInd
   const gutter = narrow || !rowNumbers ? compactGutter : gutterWidthFor(total)
   const topIndex = Math.floor(Math.max(0, top) / rowHeight)
   useEffect(() => onScrollIndex?.(topIndex), [topIndex, onScrollIndex])
-  const getRow = usePagedRows({ total, rowAt: sourceRowAt ? rowAt : undefined, loadRows: source.loadRows, latencyMs }, firstIndex, lastIndex)
+  const getRow = usePagedRows({ total, rowAt: sourceRowAt ? rowAt : undefined, loadRows: source.loadRows, revision: source.revision, latencyMs }, firstIndex, lastIndex)
 
   const loaded = virtualRows.map(({ index, offset }) => ({ index, offset, row: getRow(index) }))
   const data = useMemo(() => loaded.flatMap(({ row }) => (row ? [row] : [])), [getRow, firstIndex, lastIndex])

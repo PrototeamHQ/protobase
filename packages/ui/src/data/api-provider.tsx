@@ -1,6 +1,7 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { createContext, useCallback, useContext, useMemo, useRef, useState, type ReactNode } from 'react'
+import { focusManager, QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { createClient, type Client, type ClientOptions, type SourceRef } from '@protobase/client'
+import { createFocusRefresh, FocusRefreshContext, listenToWindowFocus } from './focus-refresh'
 import { keys } from './query-keys'
 
 const ApiContext = createContext<Client | null>(null)
@@ -63,10 +64,15 @@ export type ApiProviderProps = {
 /**
  * Owns the query cache and the API client; refetches `/meta` whenever `X-Meta-Version` changes. The version is
  * compared only with the last one seen: it hashes the models and roles, while the `/meta` ETag hashes the whole
- * per-caller body, so the two never match.
+ * per-caller body, so the two never match. The data on screen refetches whenever the window regains focus, unless a
+ * form holds unsaved changes (`usePauseFocusRefresh`).
  */
 export const ApiProvider = ({ baseUrl, client: given, sources, fetch, queryClient: givenQueryClient, token, onUnauthenticated, children }: ApiProviderProps) => {
-  const [queryClient] = useState(() => givenQueryClient ?? new QueryClient({ defaultOptions: { queries: { staleTime: 30_000, retry: false, refetchOnWindowFocus: false } } }))
+  const [focusRefresh] = useState(createFocusRefresh)
+  const [queryClient] = useState(
+    () => givenQueryClient ?? new QueryClient({ defaultOptions: { queries: { staleTime: 30_000, retry: false, refetchOnWindowFocus: focusRefresh.refetchOnWindowFocus } } }),
+  )
+  useEffect(() => focusManager.setEventListener(listenToWindowFocus), [])
   const metaVersion = useRef<string | undefined>(undefined)
   const client = useMemo(
     () =>
@@ -112,7 +118,9 @@ export const ApiProvider = ({ baseUrl, client: given, sources, fetch, queryClien
   return (
     <QueryClientProvider client={queryClient}>
       <ApiContext.Provider value={client}>
-        <SourceClientsContext.Provider value={sourceClient}>{children}</SourceClientsContext.Provider>
+        <SourceClientsContext.Provider value={sourceClient}>
+          <FocusRefreshContext.Provider value={focusRefresh}>{children}</FocusRefreshContext.Provider>
+        </SourceClientsContext.Provider>
       </ApiContext.Provider>
     </QueryClientProvider>
   )

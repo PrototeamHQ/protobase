@@ -6,6 +6,8 @@ export type RowSource = {
   rowAt?: (index: number) => GridRow
   /** Loads `count` rows from `start` (a multiple of the page size), for a live server. */
   loadRows?: (start: number, count: number) => Promise<GridRow[]>
+  /** Changes when the rows were refetched: the pages on screen are loaded again in place, the others when next shown. */
+  revision?: number
 }
 
 export const createRowSource = (total: number, rowAt: (index: number) => GridRow): RowSource => ({ total, rowAt })

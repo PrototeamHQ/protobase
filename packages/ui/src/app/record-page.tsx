@@ -3,6 +3,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { Fragment, useMemo } from 'react'
 import { isApiError } from '@protobase/client'
 import { enumLabel, type LayoutItemModel, type ResourceModel, type ViewModel } from '@protobase/schema'
+import { usePauseFocusRefresh } from '../data/focus-refresh'
 import { keys } from '../data/query-keys'
 import { useRecord } from '../data/use-record'
 import { displayValue } from '../live/display-value'
@@ -101,6 +102,8 @@ const LoadedRecord = ({ model, recordKey, stored }: { model: ResourceModel; reco
   const { shown, offersEdit, editing } = recordShown(view?.recordMode, canUpdate, address?.kind === 'record' && address.edit === true)
   // Only the form leaves changes behind; on the read view a draft kept from before waits for Edit
   useNavigationGuard(editor.dirty && shown === 'form')
+  // Unsaved changes keep the version of the record they were made to, wherever the draft shows
+  usePauseFocusRefresh(editor.dirty)
   const readAddress = { kind: 'record' as const, resource: model.name, key: recordKey }
   const editAddress = { ...readAddress, edit: true }
   // A form that Edit opened goes back to the record once saved, or when its changes are dropped

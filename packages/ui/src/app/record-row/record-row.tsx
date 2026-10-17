@@ -34,7 +34,7 @@ const Spacer = ({ cards }: { cards: number }) => (cards > 0 ? <li aria-hidden cl
 export const RecordRow = ({ model, view, display, source, label, isNew }: RecordRowProps) => {
   const { total } = source
   const scroll = useRowScroll(total)
-  const getRow = usePagedRows({ total, rowAt: source.rowAt, loadRows: source.loadRows, latencyMs: 0 }, scroll.start, Math.max(scroll.start, scroll.end - 1))
+  const getRow = usePagedRows({ total, rowAt: source.rowAt, loadRows: source.loadRows, revision: source.revision, latencyMs: 0 }, scroll.start, Math.max(scroll.start, scroll.end - 1))
   const indexes = Array.from({ length: scroll.end - scroll.start }, (_, offset) => scroll.start + offset)
 
   return (

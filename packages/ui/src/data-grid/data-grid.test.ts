@@ -17,6 +17,12 @@ describe('page cache', () => {
     expect(cache.hasPage(0)).toBe(false)
     expect(cache.size).toBe(2)
   })
+  it('forgets every page but the kept ones', () => {
+    const cache = createPageCache<number>(1, 5)
+    for (const page of [0, 1, 2, 3]) cache.setPage(page, [page])
+    cache.keepOnly([1, 2])
+    expect([0, 1, 2, 3].map((page) => cache.hasPage(page))).toEqual([false, true, true, false])
+  })
   it('lists pages covering a range', () => {
     expect(pagesForRange(95, 205, 100)).toEqual([0, 1, 2])
   })

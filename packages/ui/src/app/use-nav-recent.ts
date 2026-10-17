@@ -56,8 +56,6 @@ export const useNavRecent = (meta: MetaData, basePath: string, active: { resourc
     queries: groups.map((group) => ({
       queryKey: groupKey(group),
       queryFn: () => client.list(group.model.name, group.request),
-      // Statuses change elsewhere too (other users, background jobs); the app's default is not to refetch on focus.
-      refetchOnWindowFocus: true,
     })),
   })
   return Object.fromEntries(
