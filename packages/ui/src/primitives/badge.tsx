@@ -13,7 +13,8 @@ const tones = {
   violet: 'bg-violet-soft text-violet-text',
 }
 
-const dots = {
+/** The dot of a badge in each tone, for a status drawn as a dot alone. */
+export const toneDots: Record<BadgeTone, string> = {
   neutral: 'bg-faint-foreground',
   blue: 'bg-primary',
   green: 'bg-success',
@@ -45,7 +46,7 @@ export const Badge = ({ tone = 'neutral', dot = true, color, shape, children, cl
       className,
     )}
   >
-    {dot && color === undefined && shape === undefined && <span className={cn('size-1.5 rounded-full', dots[tone])} />}
+    {dot && color === undefined && shape === undefined && <span className={cn('size-1.5 rounded-full', toneDots[tone])} />}
     {children}
   </span>
 )

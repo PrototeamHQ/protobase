@@ -5,6 +5,7 @@ import { useClient } from '../data/api-provider'
 import { keys } from '../data/query-keys'
 import type { RowSource } from '../data-grid'
 import { createGridLoader } from './grid-loader'
+import type { RelatedColumnLoad } from './related-column-rows'
 
 export type LiveRowsParams = {
   resources: Record<string, ResourceModel>
@@ -13,19 +14,22 @@ export type LiveRowsParams = {
   columns: string[]
   filter: string
   orderBy: string
+  /** Related columns loaded with each page of rows. */
+  related?: RelatedColumnLoad[]
 }
 
 /**
  * A grid row source backed by the API; `total` is the server's estimate from the first page. `page` loads one page of
  * the same rows by number, and `key` names them in the query cache, for list displays that page through them.
  */
-export const useLiveRows = ({ resources, views, model, columns, filter, orderBy }: LiveRowsParams) => {
+export const useLiveRows = ({ resources, views, model, columns, filter, orderBy, related }: LiveRowsParams) => {
   const client = useClient()
   const queryClient = useQueryClient()
   const columnKey = columns.join(',')
+  const relatedKey = JSON.stringify(related ?? [])
   const loader = useMemo(
-    () => createGridLoader({ queryClient, client, resources, views, model, columns, filter, orderBy }),
-    [queryClient, client, resources, views, model, columnKey, filter, orderBy],
+    () => createGridLoader({ queryClient, client, resources, views, model, columns, filter, orderBy, ...(related && { related }) }),
+    [queryClient, client, resources, views, model, columnKey, filter, orderBy, relatedKey],
   )
   const first = useQuery({ queryKey: [...keys.first(model.name, filter, orderBy), columnKey], queryFn: () => loader.page(0) })
   const source = useMemo<RowSource | undefined>(
