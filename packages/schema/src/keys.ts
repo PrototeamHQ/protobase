@@ -19,6 +19,16 @@ const decodePart = (part: string, type: KeyType): string | number => {
   return value
 }
 
+/** Whether a column of `type` can hold `value`, such as a user id an owner field stores. */
+export const fitsKeyType = (value: string, type: KeyType) => {
+  if (type === 'text') return true
+  if (type === 'uuid') return uuidPattern.test(value)
+  if (!integerPattern.test(value)) return false
+  if (type === 'bigint') return true
+  const number = Number(value)
+  return Number.isSafeInteger(number) && Math.abs(number) <= 2 ** 31 - 1
+}
+
 const decodeComponent = (part: string) => {
   try {
     return decodeURIComponent(part)

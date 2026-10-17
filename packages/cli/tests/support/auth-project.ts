@@ -27,10 +27,13 @@ const maintenanceUrl = (url: string) => {
   return target.toString()
 }
 
+// The ERP's orders name their owner by an integer id, so users take theirs from a sequence the migration makes.
 const authFile = `import pg from 'pg'
 import { betterAuthAuthenticator, createAuth } from '@protobase/server'
+const pool = new pg.Pool({ connectionString: process.env.TEST_AUTH_URL, max: 2 })
 export const auth = createAuth({
-  database: new pg.Pool({ connectionString: process.env.TEST_AUTH_URL, max: 2 }),
+  database: pool,
+  generateUserId: async () => (await pool.query("select nextval('user_ids')::text as id")).rows[0].id,
   baseURL: 'http://localhost:1',
   secret: 'integration-test-secret-integration-test',
 })
@@ -63,8 +66,12 @@ export const createAuthProject = async (databaseUrl: string) => {
   await writeFile(
     path.join(projectDir, 'migrate.ts'),
     `import { getMigrations } from 'better-auth/db/migration'
+import pg from 'pg'
 import { auth } from './auth'
 await (await getMigrations(auth.options)).runMigrations()
+const pool = new pg.Pool({ connectionString: process.env.TEST_AUTH_URL, max: 1 })
+await pool.query('create sequence if not exists user_ids')
+await pool.end()
 process.exit(0)
 `,
   )

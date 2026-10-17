@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { decodeKey, encodeKey, keyTypes } from './keys'
+import { decodeKey, encodeKey, fitsKeyType, keyTypes } from './keys'
 import { resource } from './resource'
 import { f } from './fields'
 
@@ -86,5 +86,17 @@ describe('key codec', () => {
       const wide = resource('w').table('w').fields({ o: f.relation('orders').columns(['a', 'b']) }).primaryKey((r) => r.o).toModel()
       expect(() => keyTypes(wide, resolve)).toThrow('2 column(s)')
     })
+  })
+})
+
+describe('fitsKeyType', () => {
+  it('tells whether a key column of the type can hold the value', () => {
+    expect(fitsKeyType('vTFYcxtQCChwUPftV1l2xGmLi96JzLO3', 'text')).toBe(true)
+    expect(fitsKeyType('vTFYcxtQCChwUPftV1l2xGmLi96JzLO3', 'integer')).toBe(false)
+    expect(fitsKeyType('42', 'integer')).toBe(true)
+    expect(fitsKeyType('2147483648', 'integer')).toBe(false)
+    expect(fitsKeyType('9007199254740993', 'bigint')).toBe(true)
+    expect(fitsKeyType('0b5a4f0e-6f2a-4a3c-9d4e-1f2a3b4c5d6e', 'uuid')).toBe(true)
+    expect(fitsKeyType('42', 'uuid')).toBe(false)
   })
 })

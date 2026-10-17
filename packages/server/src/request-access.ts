@@ -1,6 +1,7 @@
 import { checkFilter, restrictModel, resolveAccess, type AccessAction, type CheckedFilter, type FieldModel, type FilterExpr, type ResolvedAccess, type ResourceModel } from '@protobase/schema'
 import type { Deps } from './deps'
 import { checkedFilter } from './filter-input'
+import { checkOwnerId } from './owner-id'
 import type { Scope } from '@protobase/query'
 import { forbidden, notFound, unauthorized } from './problem'
 import type { Entry } from './registry'
@@ -34,6 +35,7 @@ const withoutSensitive = (model: ResourceModel): ResourceModel => ({
 
 export const requestAccess = async (deps: Deps, entry: Entry, session: Session): Promise<RequestAccess> => {
   const resolved = await resolveAccess(entry.source, { user: { id: session.user.id, roles: session.user.roles }, ...organizationOf(session) }, deps.accessOptions)
+  checkOwnerId(entry, session.user, resolved)
   const readable = restrictModel(entry.model, resolved)
   return { entry, session, resolved, full: entry.model, readable, model: withoutSensitive(readable), deps }
 }

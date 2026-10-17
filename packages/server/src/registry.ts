@@ -8,6 +8,8 @@ export type Entry = {
   source: ResourceSource
   model: ResourceModel
   keyTypes: KeyType[]
+  /** The type of the user ids its `.owner()` field holds: the field's own, or the key type of the record it points at. */
+  ownerType?: KeyType
   /** A database-managed `version` or `updated_at` column, when the table has one; otherwise ETags hash the row. */
   etag?: EtagSource
 }
@@ -26,6 +28,16 @@ const etagSource = (model: ResourceModel): EtagSource | undefined => {
   return updated && { field: updated, kind: 'timestamp' }
 }
 
+const isKeyType = (type: FieldModel['type']): type is KeyType => type === 'text' || type === 'integer' || type === 'bigint' || type === 'uuid'
+
+const ownerType = (model: ResourceModel, resolve: (name: string) => ResourceModel | undefined): KeyType | undefined => {
+  const field = model.owner === undefined ? undefined : model.fields[model.owner]
+  if (!field) return undefined
+  if (isKeyType(field.type)) return field.type
+  const target = field.type === 'relation' && field.relation ? resolve(field.relation.resource) : undefined
+  return target && keyTypes(target, resolve)[0]
+}
+
 export const buildRegistry = (resources: ResourceSource[]): Registry => {
   const built = resources.map((source) => ({ source, model: source.toModel() }))
   const models = new Map(built.map(({ model }) => [model.name, model]))
@@ -37,11 +49,13 @@ export const buildRegistry = (resources: ResourceSource[]): Registry => {
       throw new Error(`Not implemented: resource "${model.name}" has a primary key field that points at a composite-key resource; the server maps one key part per key field`)
     }
     const etag = etagSource(model)
+    const owner = ownerType(model, (name) => models.get(name))
     return {
       name: model.name,
       source,
       model,
       keyTypes: types,
+      ...(owner && { ownerType: owner }),
       ...(etag && { etag }),
     }
   })

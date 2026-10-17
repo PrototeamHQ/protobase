@@ -19,6 +19,7 @@ import type { WebhooksOptions } from './webhooks/table/options'
 import type { SubscriptionDefinition } from './webhooks/subscription'
 import { withAnonymous } from './anonymous'
 import { checkBottomBars, checkShell } from './check-shell'
+import { checkOwnerFields } from './check-owners'
 import { checkRoleLimits } from './check-roles'
 import { checkViews } from './check-views'
 import { createErrorHandler } from './error-handler'
@@ -110,6 +111,7 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], pag
   checkBottomBars(registry, bottomBarModels, pageModels.map((entry) => entry.name), declaredRoles(auth, options.roles))
   checkViews(registry, viewModels, pageModels.map((entry) => entry.name), fieldTypes)
   checkRoleLimits(registry, options.roles?.limits ?? [])
+  checkOwnerFields(registry, auth)
   checkPages(pageModels, {
     models: Object.fromEntries(registry.entries.map((entry) => [entry.name, entry.model])),
     actions: (resource) => new Set(viewModels.filter((view) => view.resource === resource).flatMap((view) => view.actions.map((action) => action.name))),
