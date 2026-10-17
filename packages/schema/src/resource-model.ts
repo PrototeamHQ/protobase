@@ -16,6 +16,7 @@ export type ResourceState = {
   search?: string[]
   searchMatch?: Record<string, SearchMatch>
   owner?: string
+  position?: { field: string; within?: string }
   events?: EventSpec[]
   history?: boolean
 }
@@ -84,6 +85,7 @@ const assembleModel = (state: ResourceState): ResourceModel => {
     ...(state.searchMatch && Object.keys(state.searchMatch).length > 0 && { searchMatch: { ...state.searchMatch } }),
     ...(state.owner && { owner: state.owner }),
     ...(state.history && { history: true as const }),
+    ...(state.position && { position: { ...state.position } }),
   }
 }
 
@@ -130,10 +132,28 @@ const placeholderProblems = (model: ResourceModel, field: FieldModel) => {
   return placeholder && !placeholder.file && placeholder.type !== 'text' ? [`has "${target}" as its placeholder, which must be a text field`] : []
 }
 
+// The order is an integer the lists sort by; each parent's records are found by filtering on `within`.
+const positionProblems = (model: ResourceModel) => {
+  if (!model.position) return []
+  const { field: name, within } = model.position
+  const field = Object.hasOwn(model.fields, name) ? model.fields[name]! : undefined
+  if (!field) return [`position "${name}" is not a field`]
+  const parent = within !== undefined && Object.hasOwn(model.fields, within) ? model.fields[within]! : undefined
+  if (within !== undefined && !parent) return [`position "${name}" is within "${within}", which is not a field`]
+  return [
+    ...(field.type !== 'integer' && field.type !== 'bigint' ? [`position "${name}" is ${field.type}, not an integer`] : []),
+    ...(field.sortable ? [] : [`position "${name}" is not sortable, and the list in its order sorts by it`]),
+    ...(model.primaryKey.includes(name) ? [`position "${name}" is part of the key, which a move would change`] : []),
+    ...(within === name ? [`position "${name}" cannot be within itself`] : []),
+    ...(parent && parent.type !== 'relation' ? [`position "${name}" is within "${within}", which is ${parent.type}, not a relation`] : []),
+    ...(parent && !parent.filterable ? [`position "${name}" is within "${within}", which is not filterable, and each parent's records are found by it`] : []),
+  ]
+}
+
 export const buildResourceModel = (state: ResourceState): ResourceModel => {
   const model = assembleModel(state)
   const events = state.events && buildEventModels(model, state.events)
-  const problems = [...sensitiveProblems(model), ...fileProblems(model), ...(events?.problems ?? [])]
+  const problems = [...sensitiveProblems(model), ...fileProblems(model), ...positionProblems(model), ...(events?.problems ?? [])]
   if (problems.length > 0) throw new Error(`Resource "${model.name}": ${problems.join('; ')}`)
   return events && events.events.length > 0 ? { ...model, events: events.events } : model
 }

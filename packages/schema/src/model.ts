@@ -102,6 +102,13 @@ export type ResourceModel = {
   searchMatch?: Record<string, SearchMatch>
   /** The field holding the owning user's id; `.own` capability scopes filter on it. */
   owner?: string
+  /** The integer field holding the records' order by hand (`.position()`), 1 the first. */
+  position?: {
+    /** The integer field, 1 the first record. */
+    field: string
+    /** The relation whose records each have an order of their own, as an invoice's items do; one order for all records when omitted. */
+    within?: string
+  }
   /** The events its changes raise (`.events()`), the catalogue subscriptions pick from. */
   events?: EventModel[]
   /** Whether every change of its records is kept, with who made it (`.history()`). */

@@ -101,6 +101,22 @@ export class ResourceBuilder<F extends FieldsInput = {}, K = never> {
   }
 
   /**
+   * The integer field holding the records' order, 1 the first, which a list's **Sort** button changes by dragging the
+   * records; a move renumbers them 1, 2, 3, ... in one batch `reorder`. With `within`, a relation, each parent's records
+   * have an order of their own, as an invoice's items do, sorted in the parent's related section. The field must be
+   * sortable and `within` filterable. See [Sorting by hand](website/src/content/docs/reference/ui-config.mdx#sorting-by-hand).
+   *
+   * @example
+   * ```ts
+   * .position((r) => r.position, { within: (r) => r.invoice_id })
+   * ```
+   */
+  position(pick: (r: FieldRefs<F>) => Ref, o: { within?: (r: FieldRefs<F>) => Ref } = {}) {
+    const within = o.within?.(this.refs()).name
+    return this.next({ position: { field: pick(this.refs()).name, ...(within !== undefined && { within }) } })
+  }
+
+  /**
    * The events changes to its records raise, captured in the database for every write, from the API or elsewhere. See
    * [Declaring events](website/src/content/docs/reference/events.mdx#declaring-events).
    *

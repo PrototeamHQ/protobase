@@ -102,6 +102,17 @@ describe('resource builder', () => {
     expect(() => base.primaryKey((r) => r.hidden)).toThrow('Unknown field "hidden"')
   })
 
+  it('records the field holding the order by hand, within a parent, and refuses one it cannot sort by', () => {
+    const items = (position: ReturnType<typeof f.integer> | ReturnType<typeof f.text>, invoice = f.relation('invoices').filterable()) =>
+      resource('items').table('items').fields({ id: f.integer(), invoice_id: invoice, position, note: f.text() }).primaryKey((r) => r.id)
+    expect(items(f.integer().sortable()).position((r) => r.position, { within: (r) => r.invoice_id }).toModel().position).toEqual({ field: 'position', within: 'invoice_id' })
+    expect(items(f.integer().sortable()).position((r) => r.position).toModel().position).toEqual({ field: 'position' })
+    expect(() => items(f.text().sortable()).position((r) => r.position).toModel()).toThrow('position "position" is text, not an integer')
+    expect(() => items(f.integer()).position((r) => r.position).toModel()).toThrow('position "position" is not sortable')
+    expect(() => items(f.integer().sortable(), f.relation('invoices')).position((r) => r.position, { within: (r) => r.invoice_id }).toModel()).toThrow('"invoice_id", which is not filterable')
+    expect(() => items(f.integer().sortable()).position((r) => r.position, { within: (r) => r.note }).toModel()).toThrow('"note", which is text, not a relation')
+  })
+
   it('fails fast on incomplete resources', () => {
     expect(() => resource('a').toModel()).toThrow('no table')
     expect(() => resource('a').table('a').toModel()).toThrow('no fields')

@@ -286,6 +286,16 @@ describe('restrictModel', () => {
     expect(sales.rowFilter.read).toMatchObject({ field: { name: 'ownerId' } })
   })
 
+  it('keeps the order by hand only for a caller who can read its field', async () => {
+    const ranked = resource('orders')
+      .table('orders')
+      .fields({ id: f.integer().readOnly(), rank: f.integer().sortable().access({ read: roles.can('costs.read') }) })
+      .primaryKey((r) => r.id)
+      .position((r) => r.rank)
+    expect(restrictModel(ranked.toModel(), await resolveAccess(ranked, user(1, 'lead'))).position).toEqual({ field: 'rank' })
+    expect(restrictModel(ranked.toModel(), await resolveAccess(ranked, user(7, 'sales')))).not.toHaveProperty('position')
+  })
+
   it('drops tenant, soft-delete and owner fields that are hidden, but keeps key columns', () => {
     const model = source.toModel()
     const restricted = restrictModel(model, { readableFields: ['status'], writableFields: { create: [], update: [] } })
