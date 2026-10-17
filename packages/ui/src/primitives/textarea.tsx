@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, type TextareaHTMLAttributes } from 'react'
 import { cn } from '../lib/cn'
+import { useFieldControl } from './field-control'
 
 export type TextareaProps = Omit<TextareaHTMLAttributes<HTMLTextAreaElement>, 'value'> & { value: string; invalid?: boolean }
 
@@ -12,6 +13,7 @@ const fit = (box: HTMLTextAreaElement) => {
 /** A text box of several lines that grows with its text instead of scrolling inside. */
 export const Textarea = ({ invalid, className, rows = 3, value, ...rest }: TextareaProps) => {
   const ref = useRef<HTMLTextAreaElement>(null)
+  const control = useFieldControl()
   useLayoutEffect(() => {
     if (ref.current) fit(ref.current)
   }, [value])
@@ -38,6 +40,8 @@ export const Textarea = ({ invalid, className, rows = 3, value, ...rest }: Texta
         invalid ? 'border-danger' : 'border-border-strong',
         className,
       )}
+      {...control}
+      {...(invalid && { 'aria-invalid': true })}
       {...rest}
     />
   )

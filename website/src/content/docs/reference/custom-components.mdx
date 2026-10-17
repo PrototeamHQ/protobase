@@ -170,7 +170,7 @@ A component that asks for input looks like the app's own forms when it is built 
 | --- | --- |
 | `Form` | The create form's frame: `submit`, the button's label; `onSubmit`; `saving` and `disabled` for the button; `onCancel`, which adds Cancel; and `error` with `errorTitle`, a failure that belongs to no field, where an `ApiError` shows its messages. With `title` (and `eyebrow`, the line above it) the form is the whole page, its buttons beside the heading, as the create form is. Without, it sits in a composed page under the page's heading, its buttons after the sections. |
 | `Section` | A titled part of a form or page: `title`, `help`, `actions`. Sections in a `Form` have a line between them. |
-| `Field` | A label over its input: `label`, `required`, `help`, `example`, `error`, and `wide` for both columns of a grid of two. The label is not tied to the input, so give the input an `aria-label` too. |
+| `Field` | A label over its input: `label`, `required`, `help`, `example`, `error`, `name` for the browser's autofill, and `wide` for both columns of a grid of two. An `Input` or `Textarea` inside takes its label, name, help and error from it, and whether it is invalid or required; another control spreads `useFieldControl()` on its element. |
 | `Input`, `Textarea` | A text box, with `leading` and `trailing` content and `invalid`; a box of several lines that grows with its text. |
 | `Choices` | One of a few options, each a card in a row of its own with a `description`: `name`, `label`, `options`, `value`, `onChange`. A `disabled` option shows and cannot be chosen. |
 | `Segmented`, `MenuSelect` | A switch between a few short options in a row (`size`, `iconOnly`), and the same options in a menu. |
@@ -188,7 +188,7 @@ export const BookRepair = () => {
       <Section title="The bike">
         <div className="flex flex-col gap-5">
           <Field label="Bike" required>
-            <Input aria-label="Bike" value={values.bike ?? ''} onChange={(event) => answer({ bike: event.target.value })} />
+            <Input value={values.bike ?? ''} onChange={(event) => answer({ bike: event.target.value })} />
           </Field>
           <Field label="What it needs" required>
             <Choices name="kind" label="What it needs" options={kinds} value={values.kind} onChange={(kind) => answer({ kind })} />

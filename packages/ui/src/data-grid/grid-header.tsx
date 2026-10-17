@@ -33,7 +33,8 @@ const SortIcon = ({ sorted }: { sorted: HeaderCell['sorted'] }) => {
 export const GridHeader = ({ cells, specs, gutter, selectedCount, selectable, trailing, minScale, pins = {}, lastPinned, scrolled, onTogglePin, onClearSelection }: GridHeaderProps) => (
   <div className="grid h-8 shrink-0 items-center border-b bg-surface text-xs font-medium text-muted-foreground" style={{ gridTemplateColumns: gridTemplate(specs, gutter, trailing, minScale) }} role="row">
     <div className={cn('sticky left-0 z-10 flex h-full items-center gap-2 bg-inherit pl-3', scrolled && !lastPinned && 'shadow-[1px_0_0_var(--border),4px_0_6px_-2px_rgb(0_0_0/0.12)]')} style={{ width: gutter }}>
-      {selectable && <Checkbox checked={false} indeterminate={selectedCount > 0} label="Clear selection" onChange={onClearSelection} className={cn(selectedCount === 0 && 'opacity-60')} />}
+      {/* It only clears a selection, so with none it says so and cannot be pressed */}
+      {selectable && <Checkbox checked={false} indeterminate={selectedCount > 0} label={selectedCount > 0 ? 'Clear selection' : 'No rows selected'} disabled={selectedCount === 0} onChange={onClearSelection} className={cn(selectedCount === 0 && 'opacity-60')} />}
       {gutter > compactGutter && <span className="w-6 text-right text-faint-foreground">#</span>}
     </div>
     {cells.map(({ spec, sorted, onSort }) => {

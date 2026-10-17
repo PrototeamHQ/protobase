@@ -1943,7 +1943,7 @@ export const BookRepair = () => {
       <Section title="The bike">
         <div className="flex flex-col gap-5">
           <Field label="Bike" required help="Make and model, as on the frame.">
-            <Input aria-label="Bike" value={values.bike ?? ''} onChange={(event) => answer({ bike: event.target.value })} />
+            <Input value={values.bike ?? ''} onChange={(event) => answer({ bike: event.target.value })} />
           </Field>
           <Field label="What it needs" required>
             <Choices name="kind" label="What it needs" options={kinds} value={values.kind} onChange={(kind) => answer({ kind })} />
