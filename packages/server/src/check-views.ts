@@ -186,7 +186,8 @@ export const checkViews = (registry: Registry, views: ViewModel[], pages: readon
       ...(view.list?.displays ?? []).flatMap((display) => (display.kind === 'map' ? mapDisplayErrors(display, model).map((error) => `display "${display.name}": ${error}`) : [])),
     ]
     const boards = (view.list?.displays ?? []).flatMap((display) => (display.kind === 'board' ? boardErrors(display, model).map((error) => `display "${display.name}": ${error}`) : []))
-    return [...sensitiveErrors(view, model), ...unknownFieldErrors(view, model), ...valueLabelErrors(view, model), ...valueColorErrors(view, model), ...textHintErrors(view, model), ...listEditErrors(view, model), ...widgetErrors(view, model, fieldTypes), ...related, ...photos, ...favorites, ...listOf, ...searches, ...maps, ...boards, ...linkErrors(view, model, models, pageNames), ...inputErrors(view, models), ...createErrors(view, pageNames)].map((problem) => `View "${view.resource}": ${problem}`)
+    const history = model.history ? [] : view.layout.flatMap((item) => (item.kind === 'history' ? [`history "${item.title}" needs .history() on resource "${view.resource}"`] : []))
+    return [...sensitiveErrors(view, model), ...unknownFieldErrors(view, model), ...valueLabelErrors(view, model), ...valueColorErrors(view, model), ...textHintErrors(view, model), ...listEditErrors(view, model), ...widgetErrors(view, model, fieldTypes), ...related, ...photos, ...favorites, ...listOf, ...searches, ...maps, ...history, ...boards, ...linkErrors(view, model, models, pageNames), ...inputErrors(view, models), ...createErrors(view, pageNames)].map((problem) => `View "${view.resource}": ${problem}`)
   })
   if (problems.length > 0) throw new Error(`The views do not match the resources:\n${problems.map((problem) => `  - ${problem}`).join('\n')}`)
 }

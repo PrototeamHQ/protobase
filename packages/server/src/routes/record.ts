@@ -12,12 +12,15 @@ import { notFound } from '../problem'
 import { resolveTarget } from './target'
 import { returnPreference } from './preferences'
 import { auditOrigin } from '../audit/origin'
+import { readHistory } from '../history/read-history'
 
 export const recordRoutes = (deps: Deps) => {
   const app = new Hono<AdminEnv>()
 
   app.get('/:resource/:key', async (c) => {
     const { entry } = resolveTarget(deps, c.req.param('resource'))
+    // GET /{resource}/{key}:history: the record's changes, newest first
+    if (c.req.param('key').endsWith(':history')) return c.json(await readHistory(deps, entry, c.get('session'), keyFromPath(c, entry, ':history'), c.req.query()))
     const deleted = deletedRows(entry.model, c.req.query('show_deleted') === 'true')
     const found = await readRecord(deps, entry, c.get('session'), keyFromPath(c, entry), deleted)
     // `fields` is checked against the caller's own readable fields

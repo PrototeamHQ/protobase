@@ -34,6 +34,8 @@ export { readPlatformSignIn, type PlatformSignIn } from './better-auth/platform-
 export { authSchemaMigration, checkAuthSchema } from './better-auth/auth-schema'
 export { changesMigration, checkChanges, migrationCommand } from './changes/capture-schema'
 export type { EventsOptions } from './changes/events-options'
+export type { HistoryOptions } from './history/options'
+export { isCaptured } from './changes/capture-sql'
 export { coalesce, type CapturedRow, type CoalescedChange } from './changes/coalesce'
 export { resourceChange, recordOf, type ResourceChange } from './changes/resource-change'
 export { eventMatcher } from './changes/match-events'

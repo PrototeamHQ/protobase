@@ -11,7 +11,12 @@ import { authBasePath, type AdminAuth } from './better-auth/create-auth'
 import { webauthnPath } from './better-auth/origins'
 import { organizationRoutes } from './better-auth/organizations/admin-routes'
 import { statusRoute } from './better-auth/status-route'
+import { isCaptured } from './changes/capture-sql'
 import { changesSchema, type EventsOptions } from './changes/events-options'
+import { activityResource, activityView } from './history/activity'
+import { betterAuthActorNames } from './history/actor-names'
+import { historyDays, type HistoryOptions } from './history/options'
+import { pruneHistoryJob } from './history/prune-history'
 import { createWebhooks } from './webhooks/webhooks'
 import { webhookTable } from './webhooks/table/webhook-table'
 import { subscriptionWriteCheck } from './webhooks/table/validate-hook'
@@ -67,7 +72,9 @@ export type CreateAdminInput = {
   files?: FilesOptions
   /** Where the changes that resources' events are raised from are captured (see `EventsOptions`). */
   events?: EventsOptions
-  /** The app's jobs (see `defineJob`): with any, or a resource with events, admins get the failed jobs page (`failed_jobs`). */
+  /** How long the history of resources with `.history()` is kept (see `HistoryOptions`). */
+  history?: HistoryOptions
+  /** The app's jobs (see `defineJob`): with any, or a resource with events or history, admins get the failed jobs page (`failed_jobs`). */
   jobs?: JobDefinition[]
   /** Where the resources' events are delivered (`subscription(...)` exports of the config module). */
   subscriptions?: SubscriptionDefinition[]
@@ -95,12 +102,16 @@ const declaredRoles = (auth: AdminAuth | undefined, roles: AdminOptions['roles']
 }
 
 /** The admin REST API as a Hono app. It uses only Web APIs, so it runs on Node, Workers and anywhere else Hono does. */
-export const createAdmin = ({ resources: appResources, views: appViews = [], pages = [], userMenu, bottomBars = [], db, authenticate, auth, functions = {}, files: filesOptions, events, jobs = [], subscriptions = [], webhooks: webhooksOptions, bundlePlugins = [], fieldTypes = {}, options = {} }: CreateAdminInput): Admin => {
+export const createAdmin = ({ resources: appResources, views: appViews = [], pages = [], userMenu, bottomBars = [], db, authenticate, auth, functions = {}, files: filesOptions, events, history: historyOptions, jobs = [], subscriptions = [], webhooks: webhooksOptions, bundlePlugins = [], fieldTypes = {}, options = {} }: CreateAdminInput): Admin => {
   const basePath = options.basePath ?? '/api/v1'
-  // Events are delivered by jobs, whose failures the page lists too.
-  const withJobs = jobs.length > 0 || appResources.some((resource) => resource.toModel().events)
-  const resources = withJobs ? [...appResources, failedJobs] : appResources
-  const views = withJobs ? [...appViews, failedJobsView] : appViews
+  // Events are delivered and history kept by jobs, whose failures the page lists too. Admins list the history as Activity.
+  const appModels = appResources.map((resource) => resource.toModel())
+  const withJobs = jobs.length > 0 || appModels.some(isCaptured)
+  const withHistory = appModels.some((model) => model.history)
+  const changes = changesSchema(events)
+  const days = historyDays(historyOptions)
+  const resources = [...appResources, ...(withJobs ? [failedJobs] : []), ...(withHistory ? [activityResource(changes, { tenant: appModels.some((model) => model.history && model.tenant) })] : [])]
+  const views = [...appViews, ...(withJobs ? [failedJobsView] : []), ...(withHistory ? [activityView] : [])]
   const registry = buildRegistry(resources)
   const apiFunctions = Object.fromEntries(Object.entries(functions).map(([name, source]) => [name, toApiFunction(name, source)]))
   const viewModels = views.map((view) => view.toModel())
@@ -148,7 +159,8 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], pag
     plugins,
     sources,
     ...(files && { files }),
-    ...(registry.entries.some((entry) => entry.model.events) && { actorSetting: `${changesSchema(events)}.actor` }),
+    ...(appModels.some(isCaptured) && { actorSetting: `${changes}.actor` }),
+    ...(withHistory && { history: { schema: changes, ...(auth && { actorNames: betterAuthActorNames(auth) }) } }),
   }
 
   const meta = createMeta(deps)
@@ -210,6 +222,6 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], pag
   app.route(basePath, api)
   app.route(`${deps.systemPath}/meta`, metaApp)
   app.route(deps.systemPath || '/', system)
-  const webhooks = createWebhooks({ deps, subscriptions, functions: apiFunctions, schema: changesSchema(events), log: (line) => console.log(line), ...(table && { table }) })
-  return Object.assign(app, { jobs: webhooks.jobs })
+  const webhooks = createWebhooks({ deps, subscriptions, functions: apiFunctions, schema: changes, log: (line) => console.log(line), ...(table && { table }) })
+  return Object.assign(app, { jobs: [...webhooks.jobs, ...(withHistory && days !== undefined ? [pruneHistoryJob(changes, days)] : [])] })
 }

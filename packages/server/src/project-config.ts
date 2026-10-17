@@ -3,6 +3,7 @@ import type { Db } from '@protobase/query'
 import type { AdminOptions } from './admin-options'
 import type { AssistantOptions } from './assistant/assistant-settings'
 import type { EventsOptions } from './changes/events-options'
+import type { HistoryOptions } from './history/options'
 import type { WebhooksOptions } from './webhooks/table/options'
 import { isSubscription } from './webhooks/subscription'
 import type { AdminAuth } from './better-auth/create-auth'
@@ -29,6 +30,8 @@ export type ProjectConfig = {
   files?: FilesOptions
   /** Where the changes that resources' events are raised from are captured (see `EventsOptions`). */
   events?: EventsOptions
+  /** How long the history of resources with `.history()` is kept (see `HistoryOptions`). */
+  history?: HistoryOptions
   /** Webhook subscriptions made in the admin app; set by `extends: [webhooks()]` (see `WebhooksOptions`). */
   webhooks?: WebhooksOptions
   /** The module of the app's jobs, e.g. `import * as jobs from './config/jobs'`: every `defineJob` it exports. */
@@ -150,7 +153,9 @@ const mergedOptions = (named: Named[]): AdminOptions | undefined => {
  */
 export const mergeConfig = (...configs: ProjectConfig[]): ProjectConfig => {
   const named = configs.flatMap((config, index) => flatten(config, config.name ?? `config ${index + 1}`))
-  const { db, authenticate, auth, events, webhooks } = lastSet(named.map(({ config }) => ({ db: config.db, authenticate: config.authenticate, auth: config.auth, events: config.events, webhooks: config.webhooks })))
+  const { db, authenticate, auth, events, history, webhooks } = lastSet(
+    named.map(({ config }) => ({ db: config.db, authenticate: config.authenticate, auth: config.auth, events: config.events, history: config.history, webhooks: config.webhooks })),
+  )
   const module = mergedModule(named)
   const functions = mergedFunctions(named)
   const files = mergedFiles(named)
@@ -166,6 +171,7 @@ export const mergeConfig = (...configs: ProjectConfig[]): ProjectConfig => {
     ...(functions && { functions }),
     ...(files && { files }),
     ...(events && { events }),
+    ...(history && { history }),
     ...(webhooks && { webhooks }),
     ...(jobs && { jobs }),
     ...(options && { options }),

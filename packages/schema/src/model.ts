@@ -104,6 +104,8 @@ export type ResourceModel = {
   owner?: string
   /** The events its changes raise (`.events()`), the catalogue subscriptions pick from. */
   events?: EventModel[]
+  /** Whether every change of its records is kept, with who made it (`.history()`). */
+  history?: true
 }
 
 /** What happened to a record: `delete` and `undelete` include setting and clearing a soft delete field. */
@@ -685,6 +687,21 @@ export type MapSectionModel = {
   when?: ShowWhen
 }
 
+/**
+ * The record's changes, newest first, with who made each and the fields before and after: only fields the caller may
+ * read. Needs `.history()` on the resource. See [Record history](website/src/content/docs/reference/history.mdx).
+ */
+export type HistorySectionModel = {
+  /** A history section. */
+  kind: 'history'
+  /** The section's title. */
+  title: string
+  /** How many changes it shows before Show more; 10 when omitted. */
+  limit?: number
+  /** Whether it shows on the form, the read view or both. */
+  when?: ShowWhen
+}
+
 /** How a section shows its fields on the read view: `facts` as a row of key facts; label/value rows when omitted. */
 export type SectionPresentation = 'facts'
 
@@ -721,6 +738,7 @@ export type LayoutItemModel =
   | CustomSectionModel
   | MapSectionModel
   | GalleryModel
+  | HistorySectionModel
 
 /**
  * A record's photos as tiles in the main column under `title`, one large and the next few smaller, opening a lightbox

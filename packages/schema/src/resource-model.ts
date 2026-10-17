@@ -17,6 +17,7 @@ export type ResourceState = {
   searchMatch?: Record<string, SearchMatch>
   owner?: string
   events?: EventSpec[]
+  history?: boolean
 }
 
 const parseTable = (table: string) => {
@@ -82,6 +83,7 @@ const assembleModel = (state: ResourceState): ResourceModel => {
     ...(state.search && { search: [...state.search] }),
     ...(state.searchMatch && Object.keys(state.searchMatch).length > 0 && { searchMatch: { ...state.searchMatch } }),
     ...(state.owner && { owner: state.owner }),
+    ...(state.history && { history: true as const }),
   }
 }
 

@@ -118,6 +118,15 @@ export class ResourceBuilder<F extends FieldsInput = {}, K = never> {
     return this.next({ events: define(eventHelpers<RecordOf<F>>(), this.refs()) })
   }
 
+  /**
+   * Keeps every change of its records, from the API or elsewhere: the fields before and after, and who made it. The
+   * record page shows it as History, and admins list every change as Activity. See
+   * [Record history](website/src/content/docs/reference/history.mdx).
+   */
+  history() {
+    return this.next({ history: true })
+  }
+
   /** The code predicates (`match`) of its events, by event name. */
   eventMatches() {
     return eventMatches(this.toModel(), this.state.events ?? [])

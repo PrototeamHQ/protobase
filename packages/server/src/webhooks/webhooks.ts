@@ -1,5 +1,5 @@
 import type { Db } from '@protobase/query'
-import { dispatchJobName } from '../changes/capture-sql'
+import { dispatchJobName, isCaptured } from '../changes/capture-sql'
 import { coalesce } from '../changes/coalesce'
 import { EventCodeError } from '../changes/event-code-error'
 import { eventMatcher } from '../changes/match-events'
@@ -8,6 +8,7 @@ import { resourceChange, type ResourceChange } from '../changes/resource-change'
 import type { Deps } from '../deps'
 import type { ApiFunction } from '../functions/define-function'
 import { callerRecords } from '../functions/records'
+import { writeHistory } from '../history/write-history'
 import { defineJob } from '../jobs/define-job'
 import { FatalJobError } from '../jobs/run-job'
 import { attemptDelivery, type AttemptResult } from './attempt'
@@ -76,7 +77,8 @@ const deliveryGroup = ({ subscription, change }: Delivery) => `${subscription.na
  *
  * - `changes.dispatch`, which `capture()` enqueues once per writing transaction, in one ordered group so one runs at a
  *   time: it turns the committed outbox rows into events, makes the first try of every unordered delivery itself,
- *   queues the failures and the ordered deliveries, and deletes the rows in that same transaction. A process that dies
+ *   queues the failures and the ordered deliveries, keeps the changes of resources with history, and deletes the rows
+ *   in that same transaction. A process that dies
  *   before that commits leaves the rows, and the job's retry delivers them again, under the same `webhook-id`.
  * - `webhooks.dispatch-change`, one change whose app code threw in dispatch: an event's `match` or filter, a
  *   subscription's `when`, or an access rule of its roles. Kept as failed, so dispatch moves on to later changes; a
@@ -88,14 +90,14 @@ const deliveryGroup = ({ subscription, change }: Delivery) => `${subscription.na
  *
  * With `table`, also `webhooks.send-test`, which Send test event queues, and with its log `webhooks.prune-log`, daily.
  *
- * No jobs without a resource with events; the subscriptions must name declared events.
+ * No jobs without a resource with events or history; the subscriptions must name declared events.
  */
 export const createWebhooks = ({ deps, subscriptions, functions, schema, log, table }: WebhooksInput) => {
   const entries = deps.registry.entries
   const models = entries.map((entry) => entry.model)
   const problems = subscriptionProblems(subscriptions, models, Object.keys(functions))
   if (problems.length > 0) throw new Error(problems.join('; '))
-  if (!models.some((model) => model.events)) return { jobs: [] }
+  if (!models.some(isCaptured)) return { jobs: [] }
 
   const matchers = new Map(entries.map((entry) => [entry.name, eventMatcher(entry.model, entry.source.eventMatches?.() ?? {})]))
   const keyColumns = (resource: string) => {
@@ -252,6 +254,7 @@ export const createWebhooks = ({ deps, subscriptions, functions, schema, log, ta
       }
       await queueOrdered(trx, deliveries)
       for (const { change } of failures) await dispatchChange.enqueue(trx, { change })
+      await writeHistory(trx, schema, changes.filter((change) => deps.registry.find(change.resource)?.model.history))
       await deleteOutbox(trx, schema, rows.map((row) => row.id))
     })
     for (const [index, { subscription, event }] of now.entries()) report(subscription.name, event, 1, results[index]!)

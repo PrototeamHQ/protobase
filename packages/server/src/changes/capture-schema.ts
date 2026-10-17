@@ -2,7 +2,7 @@ import { sql } from 'kysely'
 import type { Db } from '@protobase/query'
 import type { ResourceModel } from '@protobase/schema'
 import { capturePlan, planSql, uncaptured, type CaptureState, type FoundTrigger } from './capture-plan'
-import { quoteIdent, tableSql } from './capture-sql'
+import { isCaptured, quoteIdent, tableSql } from './capture-sql'
 import { changesSchema, type EventsOptions } from './events-options'
 
 /** The command that writes what the config needs as a migration file of the project. */
@@ -18,7 +18,7 @@ const rowsOf = async <R>(db: Db, query: ReturnType<typeof sql<R>>) => (await que
 
 // Only reads the catalogue.
 const readCaptureState = async (db: Db, schema: string, models: readonly ResourceModel[]): Promise<CaptureState> => {
-  const [outbox] = await rowsOf(db, sql<{ found: boolean }>`select to_regclass(${`${quoteIdent(schema)}."outbox"`}) is not null as found`)
+  const exists = async (table: string) => (await rowsOf(db, sql<{ found: boolean }>`select to_regclass(${`${quoteIdent(schema)}.${quoteIdent(table)}`}) is not null as found`))[0]?.found ?? false
   const [capture] = await rowsOf(
     db,
     sql<{ oid: string; source: string; definer: boolean }>`select p.oid::text as oid, p.prosrc as source, p.prosecdef as definer from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = ${schema} and p.proname = 'capture' and p.pronargs = 0`,
@@ -37,7 +37,8 @@ const readCaptureState = async (db: Db, schema: string, models: readonly Resourc
       where not t.tgisinternal and (t.tgfoid::text = ${capture?.oid ?? ''} or t.tgrelid::text = any(${oids}::text[]))`,
   )
   return {
-    outbox: outbox?.found ?? false,
+    outbox: await exists('outbox'),
+    history: await exists('history'),
     ...(capture && { capture }),
     triggers: triggers.map((trigger) => ({ ...trigger, args: triggerArgs(trigger.args) })),
     tables,
@@ -46,14 +47,14 @@ const readCaptureState = async (db: Db, schema: string, models: readonly Resourc
 
 const plan = async (db: Db, models: readonly ResourceModel[], options?: EventsOptions) => {
   const schema = changesSchema(options)
-  const withEvents = models.filter((model) => (model.events ?? []).length > 0)
-  return { schema, plan: capturePlan(schema, models, await readCaptureState(db, schema, withEvents)) }
+  return { schema, plan: capturePlan(schema, models, await readCaptureState(db, schema, models.filter(isCaptured))) }
 }
 
 /**
- * The SQL that brings the database to the capture the resources' events need: the schema with the outbox and
- * `capture()`, and a trigger pair per resource with events, recreated when its fields changed; triggers of resources
- * without events any more are dropped. `undefined` when the database is current. Tables are never dropped.
+ * The SQL that brings the database to the capture the resources' events and history need: the schema with the outbox
+ * and `capture()`, the history table, and a trigger pair per resource with either, recreated when its fields changed;
+ * triggers of resources without either any more are dropped. `undefined` when the database is current. Tables are
+ * never dropped.
  */
 export const changesMigration = async (db: Db, models: readonly ResourceModel[], options?: EventsOptions) => {
   const { schema, plan: found } = await plan(db, models, options)
@@ -61,15 +62,16 @@ export const changesMigration = async (db: Db, models: readonly ResourceModel[],
 }
 
 /**
- * Refuses to go on while a resource's events would not be captured as declared: a missing or out-of-date schema, or
- * trigger. The server never changes the schema itself: the project's migrations do, before the new version serves.
+ * Refuses to go on while a resource's events or history would not be captured as declared: a missing or out-of-date
+ * schema, history table or trigger. The server never changes the schema itself: the project's migrations do, before the
+ * new version serves.
  */
 export const checkChanges = async (db: Db, models: readonly ResourceModel[], options?: EventsOptions) => {
-  if (!models.some((model) => model.events)) return
+  if (!models.some(isCaptured)) return
   const { plan: found } = await plan(db, models, options)
   const missing = uncaptured(found, models)
   if (missing.length === 0) return
   throw new Error(
-    `The changes of ${missing.join(', ')} are not captured as their events need: their triggers or the changes schema are missing or out of date. Write the change as a migration with \`${migrationCommand}\`, apply it with the project's migrations, then start again.`,
+    `The changes of ${missing.join(', ')} are not captured as their events or history need: their triggers, the history table or the changes schema are missing or out of date. Write the change as a migration with \`${migrationCommand}\`, apply it with the project's migrations, then start again.`,
   )
 }

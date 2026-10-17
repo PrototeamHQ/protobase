@@ -24,9 +24,13 @@ const identifier = (name: string) => {
 /** The table as SQL names it, qualified when the resource names a schema. */
 export const tableSql = (model: ResourceModel) => qualified(model.table)
 
+/** Whether the triggers capture a resource's changes: for its events, its history, or both. */
+export const isCaptured = (model: ResourceModel) => (model.events ?? []).length > 0 || model.history === true
+
 /**
  * The outbox: one row per changed row, written in the writer's transaction. `transaction` is the writer's transaction
- * id; `dispatch_after` holds back a change that the process which wrote it is delivering itself.
+ * id; `database_role` the role that wrote; `dispatch_after` holds back a change that the process which wrote it is
+ * delivering itself. The `alter` adds the role to an outbox of an earlier version.
  */
 export const outboxSql = (schema: string) => `create table if not exists ${quoteIdent(schema)}."outbox" (
   "id" bigint generated always as identity primary key,
@@ -37,9 +41,11 @@ export const outboxSql = (schema: string) => `create table if not exists ${quote
   "new" jsonb,
   "changed" text[],
   "actor" jsonb,
+  "database_role" text,
   "dispatch_after" timestamptz not null default now(),
   "created_at" timestamptz not null default now()
-)`
+);
+alter table ${quoteIdent(schema)}."outbox" add column if not exists "database_role" text`
 
 /** The job that turns captured changes into events and deliveries: one per writing transaction, run one at a time. */
 export const dispatchJobName = 'changes.dispatch'
@@ -49,7 +55,8 @@ export const dispatchGroup = 'changes'
 
 /**
  * The body of `capture()`: its arguments are the resource, the columns to keep and the sensitive columns, whose names
- * it lists when they change but whose values it never keeps. It skips a transaction that set `<schema>.capture` to
+ * it lists when they change but whose values it never keeps. It keeps the writing role: the one `set role` chose, else
+ * the session's, since the function itself runs as its owner. It skips a transaction that set `<schema>.capture` to
  * `off`, and an update that changed none of those columns. The first row a transaction captures enqueues a dispatch
  * job in the same transaction; `<schema>.dispatch` remembers that for the rest of it, and a rolled-back savepoint
  * forgets it with the job.
@@ -79,7 +86,7 @@ begin
       return null;
     end if;
   end if;
-  insert into ${quoteIdent(schema)}."outbox" ("transaction", "resource", "op", "old", "new", "changed", "actor")
+  insert into ${quoteIdent(schema)}."outbox" ("transaction", "resource", "op", "old", "new", "changed", "actor", "database_role")
   values (
     pg_current_xact_id()::text::bigint,
     TG_ARGV[0],
@@ -87,7 +94,8 @@ begin
     (select jsonb_object_agg(o.key, o.value) from jsonb_each(old_row) as o where o.key = any(kept)),
     (select jsonb_object_agg(n.key, n.value) from jsonb_each(new_row) as n where n.key = any(kept)),
     changed,
-    nullif(current_setting('${schema}.actor', true), '')::jsonb
+    nullif(current_setting('${schema}.actor', true), '')::jsonb,
+    coalesce(nullif(current_setting('role'), 'none'), session_user)
   );
   if current_setting('${schema}.dispatch', true) is distinct from 'queued' then
     perform ${jobsSchema}.enqueue('${dispatchJobName}', null, null, null, '${dispatchGroup}');
@@ -107,7 +115,7 @@ export const captureFunctionSql = (schema: string) =>
 /** A trigger as the database should have it: tgtype bits are row (1), insert (4), delete (8) and update (16). */
 export type TriggerSpec = { name: string; type: number; args: string[] }
 
-/** The two triggers of a resource with events: inserts and deletes, and updates that change the row. */
+/** The two triggers of a resource whose changes are captured: inserts and deletes, and updates that change the row. */
 export const resourceTriggers = (model: ResourceModel): TriggerSpec[] => {
   const fields = Object.values(model.fields)
   const args = [model.name, textArray(fields.filter((field) => !field.sensitive).map((field) => field.column)), textArray(fields.filter((field) => field.sensitive).map((field) => field.column))]

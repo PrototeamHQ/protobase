@@ -45,6 +45,7 @@ export type {
   CustomSectionModel,
   MapSectionModel,
   GalleryModel,
+  HistorySectionModel,
   ChartRange,
   ChartGranularity,
   ChartModel,

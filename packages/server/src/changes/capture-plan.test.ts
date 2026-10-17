@@ -13,6 +13,7 @@ const plain = orders.toModel()
 const capture = { oid: '900', source: captureBody('changes'), definer: true }
 const installed = (extra: Partial<CaptureState> = {}): CaptureState => ({
   outbox: true,
+  history: false,
   capture,
   triggers: resourceTriggers(withEvents).map((trigger) => ({ ...trigger, table: '500', tableSql: '"sales"."orders"', function: '900' })),
   tables: { orders: '500' },
@@ -38,7 +39,7 @@ describe('resourceTriggers', () => {
 
 describe('capturePlan', () => {
   it('sets up the schema and both triggers in an empty database', () => {
-    const plan = capturePlan('changes', [withEvents], { outbox: false, triggers: [], tables: { orders: '500' } })
+    const plan = capturePlan('changes', [withEvents], { outbox: false, history: false, triggers: [], tables: { orders: '500' } })
     expect(plan.setup).toBe(true)
     expect(plan.create.map(({ trigger }) => trigger.name)).toEqual(['orders_changes', 'orders_changes_update'])
     const text = planSql('changes', plan)!
@@ -56,7 +57,7 @@ describe('capturePlan', () => {
 
   it('has nothing to do when the database is current, or without events and triggers', () => {
     expect(planSql('changes', capturePlan('changes', [withEvents], installed()))).toBeUndefined()
-    expect(planSql('changes', capturePlan('changes', [plain], { outbox: false, triggers: [], tables: {} }))).toBeUndefined()
+    expect(planSql('changes', capturePlan('changes', [plain], { outbox: false, history: false, triggers: [], tables: {} }))).toBeUndefined()
   })
 
   it('replaces an out-of-date function, and recreates a trigger whose columns changed', () => {
@@ -70,7 +71,7 @@ describe('capturePlan', () => {
 
   it('drops the triggers of a resource without events, and never refuses for them', () => {
     const plan = capturePlan('changes', [plain], installed())
-    expect(plan).toEqual({ setup: false, create: [], drop: [{ name: 'orders_changes', tableSql: '"sales"."orders"' }, { name: 'orders_changes_update', tableSql: '"sales"."orders"' }] })
+    expect(plan).toEqual({ setup: false, history: false, create: [], drop: [{ name: 'orders_changes', tableSql: '"sales"."orders"' }, { name: 'orders_changes_update', tableSql: '"sales"."orders"' }] })
     expect(planSql('changes', plan)).toBe('drop trigger if exists "orders_changes" on "sales"."orders";\n\ndrop trigger if exists "orders_changes_update" on "sales"."orders";')
     expect(uncaptured(plan, [plain])).toEqual([])
   })
@@ -80,6 +81,24 @@ describe('capturePlan', () => {
     const own = installed().triggers.map((trigger) => ({ ...trigger, function: '77' }))
     expect(() => capturePlan('changes', [withEvents], installed({ triggers: own }))).toThrow('has a trigger "orders_changes" of its own')
     const twin = { ...withEvents, name: 'twin' }
-    expect(() => capturePlan('changes', [withEvents, twin], installed({ tables: { orders: '500', twin: '500' } }))).toThrow('both have events on table')
+    expect(() => capturePlan('changes', [withEvents, twin], installed({ tables: { orders: '500', twin: '500' } }))).toThrow('both have events or history on table')
+  })
+
+  it('captures a resource with history and no events, and adds the history table once', () => {
+    const withHistory = orders.history().toModel()
+    const plan = capturePlan('changes', [withHistory], { outbox: false, history: false, triggers: [], tables: { orders: '500' } })
+    expect([plan.setup, plan.history, plan.create.length]).toEqual([true, true, 2])
+    expect(planSql('changes', plan)).toContain('create table if not exists "changes"."history"')
+    expect(uncaptured(plan, [withHistory])).toEqual(['orders'])
+    const missingTable = capturePlan('changes', [withHistory], installed())
+    expect([missingTable.setup, missingTable.history, missingTable.create]).toEqual([false, true, []])
+    expect(uncaptured(missingTable, [withHistory])).toEqual(['orders'])
+    expect(planSql('changes', capturePlan('changes', [withHistory], installed({ history: true })))).toBeUndefined()
+    expect(planSql('changes', capturePlan('changes', [withEvents], installed()))).toBeUndefined()
+  })
+
+  it('adds the database role to the outbox of an earlier version', () => {
+    const stale = capturePlan('changes', [withEvents], installed({ capture: { ...capture, source: 'old body' } }))
+    expect(planSql('changes', stale)).toContain('alter table "changes"."outbox" add column if not exists "database_role" text')
   })
 })

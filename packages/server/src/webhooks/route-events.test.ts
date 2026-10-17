@@ -23,6 +23,7 @@ const change = (extra: Partial<ResourceChange> = {}): ResourceChange => ({
   changed: [],
   actor: null,
   source: 'database',
+  databaseRole: 'app',
   tenant: 3,
   transaction: '753',
   sequence: '48211',

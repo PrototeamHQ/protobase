@@ -173,6 +173,47 @@ export const resourcePaths = (access: RequestAccess) => {
         },
       },
     }),
+    ...(entry.model.history && {
+      [`/${entry.name}/{key}:history`]: {
+        get: {
+          operationId: `history_${entry.name}`,
+          tags: tag,
+          summary: `The changes of a ${entry.name} record`,
+          description: 'Newest first, with the same access as a get, a deleted record included. Each change carries only the fields the caller may read, never a sensitive value; an update of only other fields is left out.',
+          parameters: [param('key'), query('page_size', 'Changes per page, at most 100 (default 20)', { type: 'integer' }), query('page_token', 'The next_page_token of the previous page')],
+          responses: {
+            200: {
+              description: 'A page of changes',
+              content: json({
+                type: 'object',
+                required: ['items', 'next_page_token'],
+                properties: {
+                  items: {
+                    type: 'array',
+                    items: {
+                      type: 'object',
+                      required: ['id', 'at', 'operation', 'changed', 'actor', 'database_role'],
+                      properties: {
+                        id: { type: 'string' },
+                        at: { type: 'string', format: 'date-time' },
+                        operation: { type: 'string', enum: ['create', 'update', 'delete', 'undelete'] },
+                        changed: { type: 'array', items: { type: 'string' } },
+                        before: { type: 'object' },
+                        after: { type: 'object' },
+                        actor: { type: ['object', 'null'], properties: { id: { type: 'string' }, name: { type: 'string' } } },
+                        database_role: { type: ['string', 'null'] },
+                      },
+                    },
+                  },
+                  next_page_token: { type: 'string', description: 'Empty on the last page' },
+                },
+              }),
+            },
+            ...keyErrors,
+          },
+        },
+      },
+    }),
     [`/${entry.name}:facets`]: {
       get: {
         operationId: `facets_${entry.name}`,
