@@ -26,10 +26,17 @@ const cellClass = (spec: ColumnSpec, frame: Pick<RowFrame, 'pins' | 'lastPinned'
 
 const pinStyle = (spec: ColumnSpec, pins?: Record<string, number>) => (pins && spec.id in pins ? { left: pins[spec.id] } : undefined)
 
-/** The selection column never scrolls away, so rows can be selected from anywhere in a wide grid. */
+/**
+ * The selection column never scrolls away, so rows can be selected from anywhere in a wide grid.
+ * The whole cell toggles the row instead of opening it; the checkbox's own click bubbles up to it.
+ */
 const Gutter = ({ width, index, selectable, selected, onToggle, edge }: { width: number; index: number; selectable: boolean; selected?: boolean; onToggle?: () => void; edge?: boolean }) => (
-  <div className={cn('sticky left-0 z-10 flex h-full items-center gap-2 bg-inherit pl-3', edge && 'shadow-[1px_0_0_var(--border),4px_0_6px_-2px_rgb(0_0_0/0.12)]')} style={{ width }}>
-    {selectable && <span onClick={(event) => event.stopPropagation()}><Checkbox checked={Boolean(selected)} onChange={onToggle} label={`Select row ${index + 1}`} /></span>}
+  <div
+    onClick={selectable ? (event) => { event.stopPropagation(); onToggle?.() } : undefined}
+    className={cn('sticky left-0 z-10 flex h-full items-center gap-2 bg-inherit pl-3', selectable && 'cursor-default', edge && 'shadow-[1px_0_0_var(--border),4px_0_6px_-2px_rgb(0_0_0/0.12)]')}
+    style={{ width }}
+  >
+    {selectable && <Checkbox checked={Boolean(selected)} label={`Select row ${index + 1}`} />}
     {width > compactGutter && <span className="min-w-6 text-right text-[11px] tabular-nums text-faint-foreground">{formatInt(index + 1)}</span>}
   </div>
 )
