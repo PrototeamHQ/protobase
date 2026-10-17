@@ -5,6 +5,7 @@ import type { GridRow } from '../data-grid'
 import { gridPageSize } from '../data-grid'
 import { keys } from '../data/query-keys'
 import { recordId } from './model-helpers'
+import { loadRelatedColumn, type RelatedColumnLoad } from './related-column-rows'
 import { listLabels, withLabels } from './relation-labels'
 import { listPhotos, withPhotos } from './row-photos'
 
@@ -17,6 +18,8 @@ export type GridLoaderOptions = {
   columns: string[]
   filter: string
   orderBy: string
+  /** Related columns whose records each page loads with its rows, under the column's name. */
+  related?: RelatedColumnLoad[]
 }
 
 const exactBelow = 5000
@@ -27,10 +30,12 @@ export type LoadedPage = { rows: GridRow[]; total: number; nextPageToken: string
 /**
  * Loads fixed-size pages by number. The page after a cached or loading one follows that page's `next_page_token`; a
  * jump to a page whose predecessor is neither asks `:seek` for the page at that row position, so the pages of one jump
- * are read on from a single seek. Every page is cached by TanStack Query.
+ * are read on from a single seek. Every page is cached by TanStack Query, with the records of its related columns.
  */
-export const createGridLoader = ({ queryClient, client, resources, views, model, columns, filter, orderBy }: GridLoaderOptions) => {
-  const pageKey = (number: number) => keys.page(model.name, filter, orderBy, gridPageSize, number)
+export const createGridLoader = ({ queryClient, client, resources, views, model, columns, filter, orderBy, related = [] }: GridLoaderOptions) => {
+  // A page with related columns holds more than the same rows without, which an embedded list of them loads
+  const relatedNames = related.map((load) => load.column.name).join(',')
+  const pageKey = (number: number) => (related.length === 0 ? keys.page(model.name, filter, orderBy, gridPageSize, number) : [...keys.page(model.name, filter, orderBy, gridPageSize, number), relatedNames])
   const labels = listLabels(resources, views, model, columns)
   const photos = listPhotos(views[model.name])
 
@@ -62,7 +67,12 @@ export const createGridLoader = ({ queryClient, client, resources, views, model,
     if (result.items.length === 0 && page > 0) return { rows: [], total: 0, nextPageToken: '' }
     const ids = result.items.map((record) => recordId(model, record))
     const labelled = withLabels(resources, model, columns, withPhotos(model, result.items, result.photos), result.labels)
-    const rows = labelled.map((record, index) => ({ ...record, id: ids[index]! }))
+    const shown = await Promise.all(related.map((load) => loadRelatedColumn({ client, resources, views, load, owners: ids })))
+    const rows = labelled.map((record, index) => ({
+      ...record,
+      ...Object.fromEntries(related.map((load, column) => [load.column.name, shown[column]!.get(ids[index]!) ?? []])),
+      id: ids[index]!,
+    }))
     return { rows, total: page === 0 ? await firstPageTotal(result) : result.totalSizeEstimate, nextPageToken: result.nextPageToken }
   }
 

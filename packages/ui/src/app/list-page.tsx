@@ -38,6 +38,8 @@ import { can, rowAllows } from './permissions'
 import { listedResource } from './current-address'
 import { AppLink, useAppAddress, type ListAddress } from './use-app-address'
 import { withFieldTypeCells } from './field-types/field-type-cells'
+import { relatedColumnLoads } from './related-dots/dot-card'
+import { withRelatedDotsColumns } from './related-dots/related-dots-columns'
 import { useProjectUi } from './pages/project-ui'
 import { SavedList } from './saved/saved-list'
 import { facetNames, filterChips } from './searches/saved-search'
@@ -88,7 +90,7 @@ const LoadedList = ({ model, address, scope, heading }: LoadedListProps) => {
   const view = meta.views[resource]
   const fields = useMemo(() => widgetFields(view, model), [view, model])
   const { fields: fieldTypes } = useProjectUi()
-  const columns = useMemo(() => withFieldTypeCells(columnsFromModel(model, view), model, view, fieldTypes), [model, view, fieldTypes])
+  const columns = useMemo(() => withRelatedDotsColumns(withFieldTypeCells(columnsFromModel(model, view), model, view, fieldTypes), model, view, meta.resources, meta.views), [model, view, fieldTypes, meta.resources, meta.views])
 
   const filterText = address.filter
   const parsed = useMemo(() => textToState(fields, filterText), [fields, filterText])
@@ -103,7 +105,8 @@ const LoadedList = ({ model, address, scope, heading }: LoadedListProps) => {
   const loadFilter = scope ? stateToText(fields, state, scoped) : parsed.ok ? filterText : ''
   // One load serves the table and every display, labelled for the relations any of them shows
   const loaded = useMemo(() => loadedFields(model, view, columns.map((column) => column.id)), [model, view, columns])
-  const rows = useLiveRows({ resources: meta.resources, views: meta.views, model, columns: loaded, filter: loadFilter, orderBy })
+  const related = useMemo(() => relatedColumnLoads(view, meta.resources, meta.views, loaded), [view, meta.resources, meta.views, loaded])
+  const rows = useLiveRows({ resources: meta.resources, views: meta.views, model, columns: loaded, filter: loadFilter, orderBy, related })
   const display = shownDisplay(view, address.display)
   // The table, the cards and a custom display are as tall as all their rows and scroll with the page; the map fills the
   // screen
