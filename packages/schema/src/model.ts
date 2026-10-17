@@ -501,6 +501,11 @@ export type ListModel = {
   default?: string
   /** The columns of related records among `columns`, each named there by its `name`. */
   relatedColumns?: RelatedColumnModel[]
+  /**
+   * The fields among `columns` edited in their cell, by a user who may change the record and the field; see
+   * [Editing in the list](website/src/content/docs/reference/ui-config.mdx#editing-in-the-list).
+   */
+  editable?: string[]
 }
 
 /**

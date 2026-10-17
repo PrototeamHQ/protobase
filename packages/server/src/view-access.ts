@@ -27,13 +27,21 @@ const pruneGallery = (item: GalleryModel, resource: string, model: ResourceModel
 }
 
 // The list opens in its table when the display it names as its default is left out. Its columns keep the fields the
-// caller can read and the related columns they can use.
-const tidyList = (model: ResourceModel) => ({ default: opens, displays, columns, relatedColumns, ...list }: ListModel): ListModel => {
+// caller can read and the related columns they can use, and its editable columns the fields the caller may write.
+const tidyList = (model: ResourceModel) => ({ default: opens, displays, columns, relatedColumns, editable, ...list }: ListModel): ListModel => {
   const shown = displays && displays.length > 0 ? displays : undefined
   const kept = opens === tableDisplay || shown?.some((display) => display.name === opens)
   const related = relatedColumns && relatedColumns.length > 0 ? relatedColumns : undefined
   const visible = columns.filter((name) => Object.hasOwn(model.fields, name) || related?.some((column) => column.name === name))
-  return { ...list, columns: visible, ...(related && { relatedColumns: related }), ...(shown && { displays: shown }), ...(opens !== undefined && kept && { default: opens }) }
+  const writable = editable?.filter((name) => visible.includes(name) && !model.fields[name]!.readOnly)
+  return {
+    ...list,
+    columns: visible,
+    ...(related && { relatedColumns: related }),
+    ...(writable && writable.length > 0 && { editable: writable }),
+    ...(shown && { displays: shown }),
+    ...(opens !== undefined && kept && { default: opens }),
+  }
 }
 
 // A card keeps its photos only when the caller can load them; without them it shows its own image alone. It keeps its
@@ -46,6 +54,7 @@ const listShape = (resource: string, model: ResourceModel, models: Record<string
       relatedColumns: s.list(s.map<RelatedColumnModel>((column) => (relatedColumnErrors(column, resource, models).length === 0 ? column : undefined))),
       sort: s.list(s.tuple(s.field, s.data)),
       search: s.list(s.field),
+      editable: s.list(s.field),
       displays: s.list(
         s.oneOf<ListDisplayModel>({
           cards: s.object<Of<ListDisplayModel, 'cards'>>({

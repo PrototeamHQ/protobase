@@ -122,9 +122,11 @@ export class ViewBuilder<R extends {
   }
 
   /**
-   * The list: its table's `columns`, fields or columns of related records (`c.related`), `sort` and `search`, and other
-   * `displays` to switch to (`d.cards`, `d.custom`), one of which may be the `default` the list opens in. Throws when
-   * display or column names collide or `default` names none.
+   * The list: its table's `columns`, fields or columns of related records (`c.related`), `sort` and `search`, the
+   * columns that are `editable` in their cell, and other `displays` to switch to (`d.cards`, `d.custom`), one of which
+   * may be the `default` the list opens in. Throws when display or column names collide, `default` names none or an
+   * editable field is not among the columns. See
+   * [Editing in the list](website/src/content/docs/reference/ui-config.mdx#editing-in-the-list).
    */
   list(
     build: (
@@ -135,20 +137,24 @@ export class ViewBuilder<R extends {
       columns: Array<Ref | ListColumn>
       sort?: Array<[Ref, 'asc' | 'desc']>
       search?: Ref[]
+      editable?: Ref[]
       displays?: ListDisplayModel[]
       default?: string
     },
   ) {
-    const { columns, sort, search, displays: shown = [], default: opens } = build(this.refs(), displays, listColumns)
+    const { columns, sort, search, editable, displays: shown = [], default: opens } = build(this.refs(), displays, listColumns)
     const related = columns.filter(isListColumn).map(({ kind: _, ...column }) => column)
     const names = columns.map((column) => column.name)
     const repeated = names.find((name, index) => names.indexOf(name) !== index)
     if (repeated !== undefined) throw new Error(`View "${this.state.resource}": the list has two columns named "${repeated}"`)
+    const stray = editable?.find((ref) => !names.includes(ref.name))
+    if (stray) throw new Error(`View "${this.state.resource}": editable field "${stray.name}" is not among the list's columns`)
     const list = {
       columns: names,
       ...(related.length > 0 && { relatedColumns: related }),
       ...(sort && { sort: sort.map(([ref, dir]) => [ref.name, dir]) as SortSpec }),
       ...(search && { search: search.map((ref) => ref.name) }),
+      ...(editable && editable.length > 0 && { editable: editable.map((ref) => ref.name) }),
       ...(shown.length > 0 && { displays: shown }),
       ...(opens !== undefined && { default: opens }),
     }
