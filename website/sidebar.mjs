@@ -14,6 +14,7 @@ export const guides = [
   'guides/remote-resources',
   'guides/export-a-list',
   'guides/import-records',
+  'guides/create-page',
 ]
 
 export const reference = [

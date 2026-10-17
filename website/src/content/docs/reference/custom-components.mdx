@@ -150,6 +150,56 @@ href({ kind: 'create', resource: 'repairs' })         // for an <a href>, with t
 
 `RecordLink` (a record, from a display's `row` or a `recordKey`) and `AppLink` (`to` any address) are links written the same way. Code outside React builds and reads addresses with [`appPath(address, basePath?)`](/api/schema/functions/apppath/) and [`readAppPath(path, pages)`](/api/schema/functions/readapppath/) from `@protobase/schema`, whose words (`filter`, `order_by`, `display`) are in [`addressWords`](/api/schema/variables/addresswords/).
 
+## Create pages
+
+A view whose records a page of the app's own creates names it with [`.create({ page })`](/reference/ui-config/#create-pages), and `/<resource>/new` shows that page. The address keeps its `values`: a component on the page reads them from `useAppAddress()`, and writes its answers back with `go(..., { replace: true })`, so a reload, a link, or a round trip through another site, such as an install page that sends the user back, keeps them:
+
+```tsx
+const { address, go } = useAppAddress()
+const values = address?.kind === 'create' ? (address.values ?? {}) : {}
+const answer = (patch: Record<string, string>) => go({ kind: 'create', resource: 'repairs', values: { ...values, ...patch } }, { replace: true })
+```
+
+The same page at its own address, `/<page>`, starts without values.
+
+## Form parts
+
+A component that asks for input looks like the app's own forms when it is built from the parts they use, all from `@protobase/ui`:
+
+| | |
+| --- | --- |
+| `Form` | The create form's frame: `submit`, the button's label; `onSubmit`; `saving` and `disabled` for the button; `onCancel`, which adds Cancel; and `error` with `errorTitle`, a failure that belongs to no field, where an `ApiError` shows its messages. With `title` (and `eyebrow`, the line above it) the form is the whole page, its buttons beside the heading, as the create form is. Without, it sits in a composed page under the page's heading, its buttons after the sections. |
+| `Section` | A titled part of a form or page: `title`, `help`, `actions`. Sections in a `Form` have a line between them. |
+| `Field` | A label over its input: `label`, `required`, `help`, `example`, `error`, and `wide` for both columns of a grid of two. The label is not tied to the input, so give the input an `aria-label` too. |
+| `Input`, `Textarea` | A text box, with `leading` and `trailing` content and `invalid`; a box of several lines that grows with its text. |
+| `Choices` | One of a few options, each a card in a row of its own with a `description`: `name`, `label`, `options`, `value`, `onChange`. A `disabled` option shows and cannot be chosen. |
+| `Segmented`, `MenuSelect` | A switch between a few short options in a row (`size`, `iconOnly`), and the same options in a menu. |
+| `Button`, `buttonClass` | A button (`variant` `primary`, `secondary`, `ghost` or `danger`, `size`, `loading`), and its classes for a link that looks like one. |
+| `Dialog`, `ResponsiveDialog` | A modal with a `title`, `description`, `actions` and a body, which Escape and a click outside close with `onClose`; the responsive one becomes a sheet on a phone. |
+
+```tsx
+// components/book-repair.tsx, exported from protobase.ui.tsx
+import { Choices, Field, Form, Input, Section } from '@protobase/ui'
+
+export const BookRepair = () => {
+  // values and answer as above
+  return (
+    <Form submit="Book repair" disabled={!values.bike || !values.kind} onSubmit={() => void book(values)}>
+      <Section title="The bike">
+        <div className="flex flex-col gap-5">
+          <Field label="Bike" required>
+            <Input aria-label="Bike" value={values.bike ?? ''} onChange={(event) => answer({ bike: event.target.value })} />
+          </Field>
+          <Field label="What it needs" required>
+            <Choices name="kind" label="What it needs" options={kinds} value={values.kind} onChange={(kind) => answer({ kind })} />
+          </Field>
+        </div>
+      </Section>
+    </Form>
+  )
+}
+```
+
 ## Components in the chat
 
 The same components draw the assistant's [widget parts](/reference/assistant/#widget-parts): a part names a component, and the dock draws it with the part's props, so one component can sit on a page and in the chat. In the chat there is no record around it, so a component that needs `useLayoutRecord()` works only on pages; take ids as props instead. Besides the API hooks, a widget can read the assistant backend with [`useBackendData`](/reference/assistant/#reading-the-backend-from-a-widget).
