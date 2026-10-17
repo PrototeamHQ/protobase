@@ -6,6 +6,7 @@ import { cardPhotosErrors } from './view-card-photos'
 import { saveSearchErrors, searchesOfErrors } from './view-saved-search'
 import { mapDisplayErrors, mapErrors } from './view-map'
 import { relatedErrors } from './view-related'
+import { relatedColumnErrors } from './view-related-column'
 
 // The fields a link action takes from the record.
 const linkFields = (run: ActionRun | undefined) => (run?.kind !== 'link' ? [] : 'to' in run ? addressPlaceholders(run.to) : hrefPlaceholders(run.href))
@@ -97,6 +98,16 @@ const sharedPhotosErrors = (view: ViewModel) => {
   return shown.filter(({ photos }) => !same(photos, shown[0]!.photos)).map(({ name }) => `display "${name}" photos: the list's records load with one set of photos, so name those of display "${shown[0]!.name}"`)
 }
 
+// A related column has a name no field has, and is among the list's columns.
+const relatedColumnsErrors = (view: ViewModel, model: ResourceModel, models: Record<string, ResourceModel>) =>
+  (view.list?.relatedColumns ?? []).flatMap((column) =>
+    [
+      ...(Object.hasOwn(model.fields, column.name) ? [`"${column.name}" is a field of ${model.name}`] : []),
+      ...(view.list!.columns.includes(column.name) ? [] : ["it is not among the list's columns"]),
+      ...relatedColumnErrors(column, view.resource, models),
+    ].map((error) => `related column "${column.name}": ${error}`),
+  )
+
 // A gallery shows the record's own file field first, then its photos, which load as a card's do.
 const galleryErrors = (item: GalleryModel, resource: string, model: ResourceModel, models: Record<string, ResourceModel>) => {
   const image = item.image === undefined ? undefined : model.fields[item.image]
@@ -117,7 +128,7 @@ const listOfErrors = (model: ResourceModel, name: string, models: Record<string,
  * Fails at startup when a view uses a sensitive field where it would show empty, a display or custom section names a
  * field the resource does not have, labels or colours values its enum does not have, shows a field with a field type of
  * `fieldTypes` (each with the storage types it shows) that does not show it,
- * has a related section, a cards display's or gallery's photos or a cards display's favorite button, a `listOf`, a "Save search" button or a
+ * has a related section or related list column, a cards display's or gallery's photos or a cards display's favorite button, a `listOf`, a "Save search" button or a
  * `searchesOf` that do not fit the resources, cards
  * displays of one list that name different photos, a map that cannot show the
  * record's position or a map display that cannot find the records in its view, a link to an address the app does not have, or a create page that is not one of `pages`.
@@ -128,7 +139,10 @@ export const checkViews = (registry: Registry, views: ViewModel[], pages: readon
   const problems = views.flatMap((view) => {
     const model = models[view.resource]
     if (!model) return []
-    const related = view.layout.flatMap((item) => (item.kind === 'related' ? relatedErrors(item, view.resource, models).map((error) => `related "${item.title}": ${error}`) : []))
+    const related = [
+      ...view.layout.flatMap((item) => (item.kind === 'related' ? relatedErrors(item, view.resource, models).map((error) => `related "${item.title}": ${error}`) : [])),
+      ...relatedColumnsErrors(view, model, models),
+    ]
     const photos = [
       ...(view.list?.displays ?? []).flatMap((display) =>
         display.kind === 'cards' && display.photos ? cardPhotosErrors(display.photos, view.resource, models).map((error) => `display "${display.name}" photos: ${error}`) : [],

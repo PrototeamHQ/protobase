@@ -26,6 +26,7 @@ export type {
   FieldWidgetModel,
   BadgeShape,
   ListModel,
+  RelatedColumnModel,
   ListDisplayModel,
   CardPhotosModel,
   CardFavoriteModel,
@@ -82,6 +83,7 @@ export type { EventActor, EventContext, EventMatch, EventSpec, EventHelpers, Cre
 export { view, type ViewBuilder, type FieldViews } from './view'
 export type { FieldView } from './view-field'
 export type { ComponentRef, ViewProps } from './view-displays'
+export type { ListColumn } from './view-columns'
 export { fieldRef, type FieldRefValue } from './field-ref'
 export { enumLabel } from './enum-label'
 export { userMenu, type UserMenuSource } from './user-menu'
