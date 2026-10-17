@@ -19,6 +19,7 @@ export const keys = {
   facets: (resource: string, field: string, filter: string) => ['facets', resource, field, filter] as const,
   series: (resource: string, field: string, range: string, granularity: string, filter: string) =>
     ['series', resource, field, range, granularity, filter] as const,
+  aggregate: (resource: string, params: string) => ['aggregate', resource, params] as const,
   histogram: (resource: string, field: string, buckets: number, filter: string) => ['histogram', resource, field, buckets, filter] as const,
   /** The records or buckets a map shows; `filter` holds its bounding box. */
   map: (resource: string, position: string, zoom: number, filter: string, orderBy: string) => ['map', resource, position, zoom, filter, orderBy] as const,

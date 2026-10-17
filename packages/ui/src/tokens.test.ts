@@ -10,6 +10,7 @@ const pinned = [
   '--success', '--success-soft', '--success-text', '--warning', '--warning-soft', '--warning-text',
   '--danger', '--danger-soft', '--danger-text', '--violet', '--violet-soft', '--violet-text',
   '--sidebar', '--shadow-pop', '--radius', '--font', '--font-code', '--backdrop',
+  '--chart-1', '--chart-2', '--chart-3', '--chart-4', '--chart-5', '--chart-6', '--chart-7', '--chart-8',
 ]
 
 const declared = (selector: string) => {

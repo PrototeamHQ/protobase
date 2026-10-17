@@ -5,6 +5,7 @@ import { ActionBlock } from './blocks/action'
 import type { BlockProps } from './blocks/block-props'
 import { CardBlock } from './blocks/card'
 import { CardRowBlock } from './blocks/card-row'
+import { ChartBlock } from './blocks/chart'
 import { FieldBlock } from './blocks/field'
 import { GridBlock } from './blocks/grid'
 import { LinkBlock } from './blocks/link'
@@ -30,6 +31,7 @@ const blocks: Record<string, ComponentType<BlockProps>> = {
   Table: TableBlock,
   CardRow: CardRowBlock,
   RecordRow: RecordRowBlock,
+  Chart: ChartBlock,
   Progress: ProgressBlock,
   ModalForm: ModalFormBlock,
   Action: ActionBlock,
