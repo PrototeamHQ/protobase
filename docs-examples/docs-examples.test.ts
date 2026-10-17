@@ -6,6 +6,7 @@ import { customerRows, repairRows } from './bike-shop/rows'
 import { roles, workOrders } from './reference/access'
 import * as catalog from './reference/catalog'
 import * as workshop from './reference/workshop'
+import * as invoiceItems from './reference/invoice-items'
 import { partOrders, stock } from './reference/keys'
 
 // The documentation shows these files; this keeps what it says about them true.
@@ -96,5 +97,18 @@ describe('the workshop', () => {
 
   it("puts the customer's earlier repairs on a repair's page", () => {
     expect(workshop.repairsView.toModel(models.repairs).layout[2]).toEqual({ kind: 'custom', component: 'CustomerRepairs', title: 'Earlier repairs of this customer', props: { limit: 5 } })
+  })
+})
+
+describe('sorting by hand', () => {
+  it('orders the products as one, and the items of each invoice on their own', () => {
+    expect(invoiceItems.products.toModel().position).toEqual({ field: 'rank' })
+    expect(invoiceItems.invoiceItems.toModel().position).toEqual({ field: 'position', within: 'invoice_id' })
+  })
+
+  it("lists an invoice's items on its page by the relation they are ordered within, so they can be sorted there", () => {
+    const items = invoiceItems.invoicesView.toModel(invoiceItems.invoices.toModel()).layout[1]
+    expect(items).toMatchObject({ kind: 'related', resource: 'invoice_items', field: 'invoice_id' })
+    expect(items).not.toHaveProperty('filter')
   })
 })
