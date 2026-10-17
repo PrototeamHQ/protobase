@@ -4,7 +4,7 @@ import { isLayoutNode } from './node'
 // What each built-in block accepts at runtime, for trees written without TypeScript or built by hand. The types in
 // blocks.ts say the same for the compiler.
 
-type Kind = 'text' | 'texts' | 'integer' | 'elements' | 'values' | 'span' | 'columns' | 'format' | 'variant' | 'mode' | 'label' | 'amount' | 'scalar' | 'address'
+type Kind = 'text' | 'texts' | 'integer' | 'elements' | 'values' | 'span' | 'columns' | 'format' | 'variant' | 'mode' | 'label' | 'amount' | 'scalar' | 'address' | 'chartType' | 'bucket' | 'range'
 
 type PropSpec = { kind: Kind; required?: true }
 
@@ -29,6 +29,23 @@ export const blockSpecs: Record<string, BlockSpec> = {
   Table: { children: false, props: { ...data, ...heading, columns: optional('texts'), limit: optional('integer'), display: optional('text'), empty: optional('text'), span: optional('span') } },
   CardRow: { children: true, props: { ...data, ...heading, limit: optional('integer'), empty: optional('text'), span: optional('span') } },
   RecordRow: { children: false, props: { ...data, ...heading, limit: optional('integer'), display: optional('text'), empty: optional('text'), span: optional('span') } },
+  Chart: {
+    children: false,
+    props: {
+      ...heading,
+      resource: required('text'),
+      filter: optional('text'),
+      groupBy: required('text'),
+      type: optional('chartType'),
+      sum: optional('text'),
+      average: optional('text'),
+      granularity: optional('bucket'),
+      range: optional('range'),
+      limit: optional('integer'),
+      empty: optional('text'),
+      span: optional('span'),
+    },
+  },
   Progress: { children: false, props: { value: required('amount'), max: optional('amount'), label: optional('text'), span: optional('span') } },
   ModalForm: {
     children: false,
@@ -41,6 +58,11 @@ export const blockSpecs: Record<string, BlockSpec> = {
 
 const formats = ['relative', 'absolute', 'compact', 'percent', 'badge', 'code']
 const variants = ['primary', 'secondary', 'danger', 'ghost']
+const chartTypes = ['bar', 'line', 'donut']
+const buckets = ['hour', 'day', 'week', 'month', 'year']
+const ranges = ['7d', '30d', '90d', '1y', 'all']
+
+const oneOf = (values: string[]): [test: (value: LayoutValue) => boolean, expected: string] => [(value) => typeof value === 'string' && values.includes(value), values.join(', ')]
 
 const isObject = (value: LayoutValue): value is Record<string, LayoutValue> => typeof value === 'object' && value !== null && !Array.isArray(value)
 
@@ -58,6 +80,9 @@ const checks: Record<Kind, [test: (value: LayoutValue) => boolean, expected: str
   label: [(value) => typeof value === 'string' || value === false, 'text, or false for none'],
   amount: [(value) => typeof value === 'string' || (typeof value === 'number' && Number.isFinite(value)), 'a number or a field name'],
   scalar: [(value) => typeof value === 'string' || typeof value === 'number', 'text or a number'],
+  chartType: oneOf(chartTypes),
+  bucket: oneOf(buckets),
+  range: oneOf(ranges),
   address: [(value) => isObject(value) && !isLayoutNode(value) && typeof value.kind === 'string', "an address, such as { kind: 'list', resource: 'orders' }"],
 }
 

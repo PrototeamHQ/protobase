@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { fieldRef, type FieldRefValue } from '@protobase/schema'
-import { Link, Page, RecordCard, Show, Table } from './blocks'
+import { Chart, Link, Page, RecordCard, Show, Table } from './blocks'
 import { component } from './component'
 import type { LayoutNode } from './node'
 import type { PageModel } from './page'
@@ -33,6 +33,18 @@ const find = (page: PageModel | undefined, type: string) => {
 describe('prunePage', () => {
   it('keeps everything for a caller who may use everything', () => {
     expect(prunePage(billing.toModel(), [], access())).toEqual(billing.toModel())
+  })
+
+  it('leaves out a chart whose grouped or added up field the caller cannot read', () => {
+    const page: PageModel = {
+      name: 'charts',
+      title: 'Charts',
+      tree: Page({ title: 'Charts', children: [Chart({ resource: 'invoices', groupBy: 'status' }), Chart({ resource: 'invoices', groupBy: 'issuedOn', type: 'line', sum: 'total' })] }),
+    }
+    const charts = (hide: string[]) => types(prunePage(page, [], access({ models: restricted({ invoices: hide }) }))).filter((type) => type === 'Chart').length
+    expect(charts([])).toBe(2)
+    expect(charts(['total'])).toBe(1)
+    expect(charts(['status', 'issuedOn'])).toBe(0)
   })
 
   it('leaves out the page for callers without one of its roles', () => {
@@ -107,22 +119,22 @@ describe('prunePage', () => {
   })
 
   it('never sends a hidden field or resource through a custom component', () => {
-    const Chart = component<{ resource?: string; value: FieldRefValue; label: string }>('Chart')
+    const Sparkline = component<{ resource?: string; value: FieldRefValue; label: string }>('Sparkline')
     const page: PageModel = {
       name: 'p',
       title: 'p',
       tree: Page({
         title: 'p',
         children: [
-          RecordCard({ resource: 'subscriptions', children: [Chart({ value: fieldRef('plan.seats'), label: 'Seats' }), Chart({ value: fieldRef('seatsUsed'), label: 'Used' })] }),
-          Chart({ resource: 'invoices', value: fieldRef('total'), label: 'Total' }),
+          RecordCard({ resource: 'subscriptions', children: [Sparkline({ value: fieldRef('plan.seats'), label: 'Seats' }), Sparkline({ value: fieldRef('seatsUsed'), label: 'Used' })] }),
+          Sparkline({ resource: 'invoices', value: fieldRef('total'), label: 'Total' }),
         ],
       }),
     }
-    expect(types(prunePage(page, [], access()))).toEqual(['Page', 'RecordCard', 'Chart', 'Chart', 'Chart'])
+    expect(types(prunePage(page, [], access()))).toEqual(['Page', 'RecordCard', 'Sparkline', 'Sparkline', 'Sparkline'])
     const pruned = prunePage(page, [], access({ models: restricted({ plans: ['seats'], invoices: ['total'] }) }))
-    expect(types(pruned)).toEqual(['Page', 'RecordCard', 'Chart'])
+    expect(types(pruned)).toEqual(['Page', 'RecordCard', 'Sparkline'])
     expect(JSON.stringify(pruned)).not.toMatch(/seats"|total/)
-    expect(types(prunePage(page, [], access({ models: restricted({}, {}, ['invoices']) })))).toEqual(['Page', 'RecordCard', 'Chart', 'Chart'])
+    expect(types(prunePage(page, [], access({ models: restricted({}, {}, ['invoices']) })))).toEqual(['Page', 'RecordCard', 'Sparkline', 'Sparkline'])
   })
 })

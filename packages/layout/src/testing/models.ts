@@ -31,7 +31,7 @@ export const models: Record<string, ResourceModel> = {
     field('organizationId', 'integer'),
   ], { tenant: 'organizationId' }),
   paymentMethods: model('paymentMethods', [field('id', 'integer', { readOnly: true }), field('brand', 'text'), field('last4', 'text'), field('isDefault', 'boolean')]),
-  invoices: model('invoices', [field('id', 'integer', { readOnly: true }), field('number', 'text'), field('status', 'enum', { enumValues: ['open', 'paid'] }), field('total', 'decimal', { readOnly: true })]),
+  invoices: model('invoices', [field('id', 'integer', { readOnly: true }), field('number', 'text'), field('status', 'enum', { enumValues: ['open', 'paid'] }), field('total', 'decimal', { readOnly: true }), field('issuedOn', 'date'), field('memo', 'text', { filterable: false })]),
 }
 
 /** The same models with some fields gone and others read-only, as `restrictModel` gives them to a caller. */

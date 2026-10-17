@@ -114,20 +114,20 @@ describe('links', () => {
 
 describe('custom components', () => {
   it('names a resource or field reference the models do not have, and a reference outside a record', () => {
-    const Chart = component<{ resource?: string; value: FieldRefValue }>('Chart')
+    const Sparkline = component<{ resource?: string; value: FieldRefValue }>('Sparkline')
     const tree = Page({
       title: 'x',
       children: [
-        RecordCard({ resource: 'subscriptions', children: [Chart({ value: fieldRef('plan.name') }), Chart({ value: fieldRef('plan.title') })] }),
-        Chart({ resource: 'invoices', value: fieldRef('total') }),
-        Chart({ resource: 'invoice', value: fieldRef('total') }),
-        Chart({ value: fieldRef('total') }),
+        RecordCard({ resource: 'subscriptions', children: [Sparkline({ value: fieldRef('plan.name') }), Sparkline({ value: fieldRef('plan.title') })] }),
+        Sparkline({ resource: 'invoices', value: fieldRef('total') }),
+        Sparkline({ resource: 'invoice', value: fieldRef('total') }),
+        Sparkline({ value: fieldRef('total') }),
       ],
     })
     expect(pageProblems(model(tree), input)).toEqual([
-      '<Page> › <RecordCard resource="subscriptions"> › <Chart>: unknown field "plan.title" on plans',
-      '<Page> › <Chart resource="invoice">: unknown resource "invoice"',
-      '<Page> › <Chart>: field reference "total" needs a record around it, or a "resource" prop',
+      '<Page> › <RecordCard resource="subscriptions"> › <Sparkline>: unknown field "plan.title" on plans',
+      '<Page> › <Sparkline resource="invoice">: unknown resource "invoice"',
+      '<Page> › <Sparkline>: field reference "total" needs a record around it, or a "resource" prop',
     ])
   })
 })

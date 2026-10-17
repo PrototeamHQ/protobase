@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { Page, RecordRow, Stat, page } from '@protobase/layout'
+import { Chart, Page, RecordRow, Stat, page } from '@protobase/layout'
 import { f, l, resource, view } from '@protobase/schema'
 import { readShapes } from './read-shapes'
 
@@ -40,7 +40,7 @@ const placesView = view<typeof places>('places')
 
 const home = page(
   'home',
-  Page({ title: 'Home', children: [RecordRow({ title: 'Big places', resource: 'places', filter: 'population > 100000' }), Stat({ label: 'Agencies', resource: 'agencies', filter: 'place_id = 1' })] }),
+  Page({ title: 'Home', children: [RecordRow({ title: 'Big places', resource: 'places', filter: 'population > 100000' }), Stat({ label: 'Agencies', resource: 'agencies', filter: 'place_id = 1' }), Chart({ title: 'By country', resource: 'places', groupBy: 'country', filter: 'coastal = true' })] }),
 )
 
 const shapes = readShapes({ models: [places.toModel(), agencies.toModel()], views: [placesView.toModel()], pages: [home.toModel()] })
@@ -98,6 +98,7 @@ describe('readShapes', () => {
   it("reads a page's blocks, a RecordRow in the list's order when it names none", () => {
     expect(requests('places')).toContain('GET /places?filter=population > 100000&order_by=name asc (page "home", <RecordRow "Big places">)')
     expect(requests('agencies')).toContain('GET /agencies?filter=place_id = 1 (page "home", <Stat "Agencies">)')
+    expect(shapes.find((shape) => shape.from === 'page "home", <Chart "By country">')).toMatchObject({ request: 'GET /places:aggregate?group_by=country&filter=coastal = true', query: { groupBy: 'country' } })
   })
 
   it('looks up the names a relation shows by their keys, and limits a role with own capabilities to its rows', () => {
