@@ -1,6 +1,6 @@
 ---
 title: UI config
-description: Views in ui.ts, with names, list columns, filters, charts (graphs of records per day), exports to Excel and CSV, record layouts, related records, field hints, actions and views per role.
+description: Views in ui.ts, with names, list columns, filters, charts (graphs of records per day), exports to Excel and CSV, record layouts, related records (in a section or as dots in a list column), field hints, actions and views per role.
 ---
 
 import { Code } from '@astrojs/starlight/components'
@@ -33,7 +33,7 @@ export const repairsView = view<typeof repairs>('repairs')
 | `.names({ singular, plural })` | "New repair", "Repairs" in the sidebar and breadcrumbs. Default: the resource name in words. |
 | `.title((r) => r.number)` | The field that names a record: in breadcrumbs, the record page's heading, relation links and search results. |
 | `.searchResult((r) => ({ title?, subtitle? }))` | A record in the [global search](/reference/client/#global-search): `title` is one field or several joined by spaces (`[r.first_name, r.last_name]`, default: `.title`), `subtitle` the line under it (default: the first search field not in the title), replaced by the search field the text matched when neither line shows it. |
-| `.list((r, d) => ({ columns, sort?, search?, displays?, default? }))` | The list's columns in order; its starting `sort` as `[[field, 'asc' \| 'desc'], ...]`, on `.sortable()` fields; the fields the search box suggests, among the resource's `.search` fields, which decide what search matches on the server; other ways to show it, see [List displays](#list-displays). `protobase build` fails on a sort or search field outside those. |
+| `.list((r, d, c) => ({ columns, sort?, search?, displays?, default? }))` | The list's columns in order, fields or [related records](#related-records-in-a-list) (`c.related`); its starting `sort` as `[[field, 'asc' \| 'desc'], ...]`, on `.sortable()` fields; the fields the search box suggests, among the resource's `.search` fields, which decide what search matches on the server; other ways to show it, see [List displays](#list-displays). `protobase build` fails on a sort or search field outside those. |
 | `.fields((r) => ({ name: r.name.label(...) }))` | Hints per field, below. Calls add up. |
 | `.help(text)` | A line under the list's title. |
 | `.nav({ group, order, hidden, recent })` | Where the resource sits in the sidebar, and its [recent-record group](/reference/sidebar/#recent-records). |
@@ -57,6 +57,33 @@ Field hints:
 | `.widget(name, props?)` | Shows and edits the field with a [field type](/reference/plugins/#field-types) of the project or a plugin, such as `r.status.widget('steps')` or `r.score.widget('rating', { max: 5 })`; `props` are plain data. Without it, or on a storage type it does not show, the field shows as it would without the hint. |
 
 An enum's value labels show everywhere the admin shows its values: badges, select options, list and related-table cells, filter options and chips, record titles, the sidebar and search results. They are part of the view in `/api/meta`, so an app with its own screens can show them too, and [`enumLabel(value, labels)`](/api/schema/functions/enumlabel/) from `@protobase/schema` reads a value the same way. A label for a value the enum does not have stops the server at startup, so renaming a value cannot leave a stale label behind.
+
+### Related records in a list
+
+A list column can show the records of another resource that point at each row, as a dot per record: the tasks that serve an objective, say, each in its status's colour, so an objective's dots turn green as its tasks get done. `c`, the list's third argument, makes the column, and its name goes among the `columns`:
+
+```ts
+view<typeof objectives>('objectives').list((r, d, c) => ({
+  columns: [
+    r.title,
+    c.related('tasks', { resource: 'tasks', field: 'id', through: { resource: 'objective_tasks', field: 'objective_id', key: 'task_id' }, status: 'status', sort: 'position' }),
+    r.quarter,
+  ],
+}))
+```
+
+| Option | |
+| --- | --- |
+| `resource`, `field`, `through`, `filter` | Which records each row shows, as a [related section](#related-records) finds them: those whose relation `field` holds the row's key, or, through a join resource, those `through`'s records pick, so a task can serve several objectives. |
+| `status` | An enum field of `resource`. Each dot is filled with the colour its value has in the resource's view (`.valueColors(...)`), else in the value's badge tone. Required. |
+| `sort` | The dots' order, AIP-132 on `resource`. |
+| `label` | The column's header; default the name in words. The name must not be a field of the resource. |
+
+Each dot is a link to its record. Hovering or focusing it shows the record's card: the first cards display of the resource's view, without photos or a favorite button, else its title with its status as the badge. On a touch screen the first tap on a dot shows the card, and the card opens the record. Each dot reads as its record's title and status to a screen reader, and the column says how many records have each status, such as "4 tasks: 2 To do, 1 Doing, 1 Done".
+
+The records load with each page of the list's rows, in two requests for the page through a join resource (one without), as the user may read them: at most 500 join records and 500 records a page. A user who cannot read the resources, `status` or a field the column filters or sorts on does not get the column. The column shows in the list page's table; an embedded list leaves it out.
+
+<StoryFrame id="list-page-related-records-as-dots--mixed-states" title="Objectives with their tasks as dots" height={360} />
 
 ## Filters and the chart
 
