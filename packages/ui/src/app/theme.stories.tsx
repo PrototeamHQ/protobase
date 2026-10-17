@@ -37,7 +37,7 @@ export const LightChecks: StoryObj = {
   tags: ['play', '!dev'],
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
-    const button = await canvas.findByRole('button', { name: 'New repair' })
+    const button = await canvas.findByRole('link', { name: 'New repair' })
     const style = getComputedStyle(button)
     expect(style.backgroundColor).toBe('rgb(13, 148, 136)')
     // rounded-md is --radius, rounded-lg two pixels more
@@ -55,7 +55,7 @@ export const DarkChecks: StoryObj = {
   tags: ['play', '!dev'],
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
-    const button = await canvas.findByRole('button', { name: 'New repair' })
+    const button = await canvas.findByRole('link', { name: 'New repair' })
     const style = getComputedStyle(button)
     expect(document.documentElement.dataset.theme).toBe('dark')
     expect(style.backgroundColor).toBe('rgb(45, 212, 191)')

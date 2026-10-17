@@ -15,7 +15,7 @@ import { ToastProvider } from '../toasts'
 import { AssistantButton, AssistantPanel } from './assistant-shell'
 import { bottomBarFromMeta } from './bottom-bar-from-meta'
 import { breadcrumbFor } from './breadcrumb-for'
-import { CreatePage } from './create/create-page'
+import { CreateRoute } from './create/create-route'
 import { ListPage } from './list-page'
 import { startErrorReporting } from './error-reporting'
 import { MetaGate, Notice, useAdminMeta } from './meta-gate'
@@ -161,7 +161,7 @@ const Routes = ({ workspace, sidebarMode, assistant, runtime }: Pick<AppProps, '
     ) : drawnFrom && drawnFrom.state !== 'ready' ? (
       <SourceNotice status={drawnFrom} />
     ) : address.kind === 'create' ? (
-      <CreatePage key={`${address.resource}/new?${new URLSearchParams(address.values).toString()}`} resource={address.resource} values={address.values} />
+      <CreateRoute key={address.resource} resource={address.resource} values={address.values} />
     ) : address.kind === 'record' ? (
       <RecordPage key={`${address.resource}/${address.key}`} resource={address.resource} recordKey={address.key} />
     ) : (

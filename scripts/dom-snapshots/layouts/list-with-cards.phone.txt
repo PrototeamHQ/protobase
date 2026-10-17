@@ -36,7 +36,7 @@ div | block
                   svg .lucide lucide-upload size-3.5 | block
                 button .inline-flex shrink-0 items-center justify-center rounded-md font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:opacity-60 disabled:cursor-default bg-background text-foreground border border-border-strong hover:bg-muted shadow-sm h-8 px-3 text-body gap-2 | flex row nowrap center center
                   svg .lucide lucide-download size-3.5 | block
-                button .inline-flex shrink-0 items-center justify-center rounded-md font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:opacity-60 disabled:cursor-default bg-primary text-primary-foreground hover:bg-primary-hover shadow-sm h-8 px-3 text-body gap-2 | flex row nowrap center center
+                a .inline-flex shrink-0 items-center justify-center rounded-md font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:opacity-60 disabled:cursor-default bg-primary text-primary-foreground hover:bg-primary-hover shadow-sm h-8 px-3 text-body gap-2 | flex row nowrap center center
                   svg .lucide lucide-plus size-3.5 | block
             section .rounded-lg border bg-background px-4 pb-2 pt-3 | block
               header .flex flex-wrap items-center justify-between gap-2 | flex row wrap center space-between

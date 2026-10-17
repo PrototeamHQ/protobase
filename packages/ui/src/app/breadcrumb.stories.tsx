@@ -41,7 +41,7 @@ export const RecordLinks: StoryObj = {
     expect(trail.getByText('Public').closest('a')).toBeNull()
 
     await userEvent.click(list)
-    await canvas.findByRole('button', { name: /New tenant/ })
+    await canvas.findByRole('link', { name: /New tenant/ })
     expect(trail.getByRole('link', { name: 'Tenants' })).toHaveAttribute('aria-current', 'page')
   },
 }

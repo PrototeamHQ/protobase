@@ -14,10 +14,11 @@ import { humanize } from '../live/naming'
 import { useFilterConfig } from '../live/use-filter-config'
 import { useLiveRows } from '../live/use-live-rows'
 import { widgetFields } from '../live/view-fields'
-import { Button } from '../primitives/button'
+import { Button, buttonClass } from '../primitives/button'
 import { Sheet } from '../primitives/sheet'
 import { useDeleteFlow, type DeleteTarget } from './delete/use-delete-flow'
 import { useRestore } from './delete/use-restore'
+import { createOffered } from './create/create-offered'
 import { ErrorBanner } from './error-banner'
 import { ImportButton } from './import/import-button'
 import { exportOffered, exportsSelection } from './export/export-options'
@@ -35,7 +36,7 @@ import { ListSearch } from './list-search'
 import { Notice, useAdminMeta, usePermissions } from './meta-gate'
 import { can, rowAllows } from './permissions'
 import { listedResource } from './current-address'
-import { useAppAddress, type ListAddress } from './use-app-address'
+import { AppLink, useAppAddress, type ListAddress } from './use-app-address'
 import { withFieldTypeCells } from './field-types/field-type-cells'
 import { useProjectUi } from './pages/project-ui'
 import { SavedList } from './saved/saved-list'
@@ -162,11 +163,11 @@ const LoadedList = ({ model, address, scope, heading }: LoadedListProps) => {
       </Sheet>
     </div>
   )
-  const createButton = !scope && can(permissions, 'create') && (
-    <Button variant="primary" onClick={() => go({ kind: 'create', resource })}>
+  const createButton = !scope && createOffered(view, meta.pages, permissions) && (
+    <AppLink to={{ kind: 'create', resource }} className={buttonClass({ variant: 'primary' })}>
       <Plus className="size-3.5" />
       New {singular.toLowerCase()}
-    </Button>
+    </AppLink>
   )
   // A filtered list can be saved as a search, which shows what it filters on as the chips read
   const saveSearch = view?.saveSearch && !scope && parsed.ok && filterText && (

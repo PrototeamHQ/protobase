@@ -70,7 +70,7 @@ export const Step2Checks: StoryObj = {
   tags: ['play', '!dev'],
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
-    expect(await canvas.findByRole('button', { name: /New repair$/ })).toBeVisible()
+    expect(await canvas.findByRole('link', { name: /New repair$/ })).toBeVisible()
     await waitFor(() => expect(canvas.getAllByRole('row')[1]).toHaveTextContent('R-312'))
     expect(await headings(canvas)).toMatch(/Booked on/)
     expect(await headings(canvas)).not.toMatch(/Problem/)

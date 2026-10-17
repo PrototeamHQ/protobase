@@ -21,7 +21,7 @@ export const ReadOnlyUser: StoryObj = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
     await canvas.findByText('SO-1')
-    expect(canvas.queryByRole('button', { name: /New order/ })).toBeNull()
+    expect(canvas.queryByRole('link', { name: /New order/ })).toBeNull()
     await userEvent.click(canvas.getAllByRole('button', { name: 'Row actions' })[0]!)
     // The row menu is portalled to the body, outside the canvas
     const page = within(canvasElement.ownerDocument.body)
@@ -47,7 +47,7 @@ export const ConditionalDeleteRefused: StoryObj = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
     await canvas.findByText('SO-1')
-    expect(canvas.queryByRole('button', { name: /New order/ })).toBeNull()
+    expect(canvas.queryByRole('link', { name: /New order/ })).toBeNull()
     await userEvent.click(canvas.getAllByRole('button', { name: 'Row actions' })[0]!)
     await userEvent.click(await within(canvasElement.ownerDocument.body).findByRole('menuitem', { name: 'Delete' }))
     const confirm = await canvas.findByRole('dialog', { name: /Delete SO-1\?/ })

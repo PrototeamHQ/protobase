@@ -28,7 +28,7 @@ export const Browsing: StoryObj = {
     const canvas = within(canvasElement)
     await canvas.findByText('SO-1')
     expect(canvas.queryByRole('button', { name: 'Profile menu' })).toBeNull()
-    expect(canvas.queryByRole('button', { name: /New order/ })).toBeNull()
+    expect(canvas.queryByRole('link', { name: /New order/ })).toBeNull()
     // "Sign in" is a link to the sign-in route, which the browser shows and can open in a new tab
     const signIn = canvas.getByRole('link', { name: 'Sign in' })
     expect(signIn).toHaveAttribute('href', signInPath({ next: '/orders' }))

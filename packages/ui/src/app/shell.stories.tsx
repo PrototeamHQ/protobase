@@ -48,7 +48,7 @@ export const RecentAndUserMenu: StoryObj = {
     expect(within(list).getByRole('link', { name: 'SO-2, Shipped' })).toHaveAttribute('aria-current', 'page')
 
     await userEvent.click(within(list).getByRole('link', { name: 'View all' }))
-    await canvas.findByRole('button', { name: /New order/ })
+    await canvas.findByRole('link', { name: /New order/ })
 
     await userEvent.click(canvas.getByRole('button', { name: 'Profile menu' }))
     const menu = await canvas.findByRole('menu')
