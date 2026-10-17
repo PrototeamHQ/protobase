@@ -16,6 +16,8 @@ export const keys = {
   record: (resource: string, key: string) => ['record', resource, key] as const,
   /** What a list row knows of a record, which its page shows until the record has loaded. */
   recordPreview: (resource: string, key: string) => ['record-preview', resource, key] as const,
+  /** A record's changes; starts with `record`, so refreshing the record refreshes them too. */
+  history: (resource: string, key: string, pageSize: number) => ['record', resource, key, 'history', pageSize] as const,
   facets: (resource: string, field: string, filter: string) => ['facets', resource, field, filter] as const,
   series: (resource: string, field: string, range: string, granularity: string, filter: string) =>
     ['series', resource, field, range, granularity, filter] as const,

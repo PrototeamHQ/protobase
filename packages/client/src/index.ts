@@ -9,6 +9,8 @@ export { sourceMeta, type SourceMeta } from './source-meta'
 export type {
   ResourceRef,
   RecordOf,
+  HistoryChange,
+  HistoryPage,
   ListPage,
   RelatedLabels,
   RecordPhotos,
