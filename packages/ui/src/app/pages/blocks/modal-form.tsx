@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from 'react'
-import { isApiError } from '@protobase/client'
+import type { ProblemError } from '@protobase/client'
 import type { ModalFormProps } from '@protobase/layout'
 import type { ResourceModel } from '@protobase/schema'
 import { useClient } from '../../../data/api-provider'
@@ -11,6 +11,8 @@ import { Field } from '../../../record-view'
 import { useToast } from '../../../toasts'
 import { createBody, isChosen, type Draft } from '../../create/create-values'
 import { ErrorBanner } from '../../error-banner'
+import { fieldErrors, fieldMessage } from '../../field-errors'
+import { useFocusFirstInvalid } from '../../use-focus-first-invalid'
 import { FieldEditor } from '../../field-editor'
 import { useAdminMeta, usePermissions } from '../../meta-gate'
 import { can } from '../../permissions'
@@ -49,7 +51,10 @@ const ModalFormDialog = ({ model, record, mode, label, title, fields, values, on
   const refresh = useRefreshResource()
   const view = views[model.name]
   const [draft, setDraft] = useState(() => startingDraft(model, fields, record))
-  const [errors, setErrors] = useState<Record<string, string>>({})
+  const [errors, setErrors] = useState<Record<string, ProblemError>>({})
+  // How many saves the server turned down for their fields
+  const [rejections, setRejections] = useState(0)
+  const formRef = useFocusFirstInvalid<HTMLFormElement>(rejections)
   const [failure, setFailure] = useState<unknown>()
   const [saving, setSaving] = useState(false)
 
@@ -67,7 +72,9 @@ const ModalFormDialog = ({ model, record, mode, label, title, fields, values, on
         onClose()
       },
       (error: unknown) => {
-        if (isApiError(error)) setErrors(Object.fromEntries(error.errors.flatMap((entry) => (entry.field ? [[entry.field, entry.message]] : []))))
+        const found = fieldErrors(error)
+        setErrors(found)
+        if (Object.keys(found).length > 0) setRejections((count) => count + 1)
         setFailure(error)
       },
     )
@@ -88,6 +95,7 @@ const ModalFormDialog = ({ model, record, mode, label, title, fields, values, on
       }
     >
       <form
+        ref={formRef}
         className="flex flex-col gap-4"
         onSubmit={(event) => {
           event.preventDefault()
@@ -99,8 +107,10 @@ const ModalFormDialog = ({ model, record, mode, label, title, fields, values, on
           const field = model.fields[name]!
           const value = draft[name]
           const target = field.relation ? resources[field.relation.resource] : undefined
+          const label = view?.fields[name]?.label ?? humanize(name)
+          const problem = errors[name]
           return (
-            <Field key={name} label={view?.fields[name]?.label ?? humanize(name)} help={view?.fields[name]?.help} error={errors[name]}>
+            <Field key={name} name={name} label={label} help={view?.fields[name]?.help} error={problem && fieldMessage(field, label, problem)}>
               <FieldEditor
                 field={field}
                 hints={view?.fields[name]}

@@ -44,6 +44,8 @@ import { filledFields } from './filled-fields'
 import { namedIcon } from './named-icon'
 import { fieldHelp, helpShown, recordShown, whenShown } from './record-mode/record-mode'
 import { useRecordEditor } from './use-record-editor'
+import { fieldMessage } from './field-errors'
+import { useFocusFirstInvalid } from './use-focus-first-invalid'
 import { useRelatedRecords } from './use-related-records'
 import { RelatedSection } from './related-section'
 import { ValueBadge } from './value-badge'
@@ -108,6 +110,7 @@ const LoadedRecord = ({ model, recordKey, stored, preview }: LoadedRecordProps) 
   })
   const queryClient = useQueryClient()
   const client = useClient()
+  const fieldsRef = useFocusFirstInvalid<HTMLDivElement>(editor.rejections)
   const permissions = usePermissions(model.name)
   const restore = useRestore(model)
   const canUpdate = can(permissions, 'update') && stored.permissions?.update !== false
@@ -147,14 +150,17 @@ const LoadedRecord = ({ model, recordKey, stored, preview }: LoadedRecordProps) 
     const access = fieldAccess(stored.permissions, name)
     if (!field || access === 'hidden') return null
     const conflict = editor.conflicts[name]
+    const label = hint(name)?.label ?? humanize(name)
+    const problem = editor.errors[name]
     return (
       <Field
         // A revealed sensitive value is forgotten when the record changes
         key={field.sensitive ? `${name}:${stored.etag}` : name}
-        label={hint(name)?.label ?? humanize(name)}
+        name={name}
+        label={label}
         required={shown === 'form' && access !== 'read' && isRequiredOnEdit(field)}
         help={fieldHelp(hint(name), view, editing)}
-        error={editor.errors[name]}
+        error={problem && fieldMessage(field, label, problem)}
         wide={Boolean(hint(name)?.multiline || hint(name)?.markdown)}
         conflict={
           conflict === undefined
@@ -240,7 +246,7 @@ const LoadedRecord = ({ model, recordKey, stored, preview }: LoadedRecordProps) 
 
   return (
     // The preview looks as the loaded form will, but takes no input: typing there would be lost when the record loads
-    <div className="flex flex-1 flex-col" inert={preview}>
+    <div ref={fieldsRef} className="flex flex-1 flex-col" inert={preview}>
       {remove.dialogs}
       <div className="flex-1">
         <div className="mx-auto max-w-[1100px] px-4 pb-8 pt-6 md:px-10 md:py-8">

@@ -1,6 +1,6 @@
 import { useQueryClient } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
-import { isApiError, type BatchOp } from '@protobase/client'
+import { isApiError, type BatchOp, type ProblemError } from '@protobase/client'
 import type { ResourceModel } from '@protobase/schema'
 import { useClient } from '../data/api-provider'
 import { keys } from '../data/query-keys'
@@ -9,6 +9,7 @@ import { isConflict, useUpdateRecord } from '../data/use-update-record'
 import { displayValue } from '../live/display-value'
 import { differs, toDraft, toPatchValue } from '../live/field-values'
 import { nameFailingOperation } from './batch-failure'
+import { fieldErrors } from './field-errors'
 import { readDraft, writeDraft } from './draft-storage'
 import type { LinesDraft } from './use-lines-draft'
 import { useLiveSave, type SaveMode } from './use-live-save'
@@ -42,7 +43,9 @@ export const useRecordEditor = ({ model, stored, recordKey, mode, subject, draft
   const [showRestored, setShowRestored] = useState(Boolean(restored))
   const [linesConflict, setLinesConflict] = useState(false)
   const [conflicts, setConflicts] = useState<Record<string, string>>({})
-  const [errors, setErrors] = useState<Record<string, string>>({})
+  const [errors, setErrors] = useState<Record<string, ProblemError>>({})
+  // How many saves the server turned down for their fields
+  const [rejections, setRejections] = useState(0)
 
   // A draft is kept as typed, so a line break or space at its end stays while the rest is still to come; it is a change
   // only when it stands for another value than the stored one.
@@ -89,14 +92,18 @@ export const useRecordEditor = ({ model, stored, recordKey, mode, subject, draft
 
   const patchOf = () => Object.fromEntries(changed.map(([name, entry]) => [name, toPatchValue(model.fields[name]!, entry)]))
 
-  const fieldErrors = (error: unknown) => (isApiError(error) ? Object.fromEntries(error.errors.flatMap((entry) => (entry.field ? [[entry.field, entry.message]] : []))) : {})
+  const reject = (error: unknown) => {
+    const found = fieldErrors(error)
+    setErrors(found)
+    if (Object.keys(found).length > 0) setRejections((count) => count + 1)
+  }
 
   const saveRecordOnly = async () => {
     try {
       await update.mutateAsync({ patch: patchOf(), etag: stored.etag })
     } catch (error) {
       if (isConflict(error)) await adoptLatest()
-      else if (isApiError(error)) setErrors(fieldErrors(error))
+      else if (isApiError(error)) reject(error)
       throw error
     }
   }
@@ -110,7 +117,7 @@ export const useRecordEditor = ({ model, stored, recordKey, mode, subject, draft
         await adoptLatest()
         await queryClient.invalidateQueries({ queryKey: ['list'] })
         setLinesConflict(true)
-      } else if (isApiError(error)) setErrors(fieldErrors(error))
+      } else if (isApiError(error)) reject(error)
       throw isApiError(error) ? nameFailingOperation(error, ops) : error
     }
     await Promise.all([queryClient.invalidateQueries({ queryKey: keys.record(model.name, recordKey) }), queryClient.invalidateQueries({ queryKey: ['list'] }), queryClient.invalidateQueries({ queryKey: ['page'] }), queryClient.invalidateQueries({ queryKey: ['map'] })])
@@ -153,7 +160,9 @@ export const useRecordEditor = ({ model, stored, recordKey, mode, subject, draft
     phase: feedback.phase,
     message: feedback.message,
     conflicts,
+    /** The server's problem with each field, from the last save. */
     errors,
+    rejections,
     keepMine: (name: string) => setConflicts((current) => without(current, name)),
     useTheirs: (name: string) => {
       setConflicts((current) => without(current, name))
