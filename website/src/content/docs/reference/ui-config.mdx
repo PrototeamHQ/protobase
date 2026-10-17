@@ -1,6 +1,6 @@
 ---
 title: UI config
-description: Views in ui.ts, with names, list columns, filters, charts (graphs of records per day), exports to Excel and CSV, record layouts, related records (in a section or as dots in a list column), field hints, actions (with a dialog of inputs when they ask for some) and views per role.
+description: Views in ui.ts, with names, list columns, editing in the list, filters, charts (graphs of records per day), exports to Excel and CSV, record layouts, related records (in a section or as dots in a list column), field hints, actions (with a dialog of inputs when they ask for some) and views per role.
 ---
 
 import { Code } from '@astrojs/starlight/components'
@@ -33,7 +33,7 @@ export const repairsView = view<typeof repairs>('repairs')
 | `.names({ singular, plural })` | "New repair", "Repairs" in the sidebar and breadcrumbs. Default: the resource name in words. |
 | `.title((r) => r.number)` | The field that names a record: in breadcrumbs, the record page's heading, relation links and search results. |
 | `.searchResult((r) => ({ title?, subtitle? }))` | A record in the [global search](/reference/client/#global-search): `title` is one field or several joined by spaces (`[r.first_name, r.last_name]`, default: `.title`), `subtitle` the line under it (default: the first search field not in the title), replaced by the search field the text matched when neither line shows it. |
-| `.list((r, d, c) => ({ columns, sort?, search?, displays?, default? }))` | The list's columns in order, fields or [related records](#related-records-in-a-list) (`c.related`); its starting `sort` as `[[field, 'asc' \| 'desc'], ...]`, on `.sortable()` fields; the fields the search box suggests, among the resource's `.search` fields, which decide what search matches on the server; other ways to show it, see [List displays](#list-displays). `protobase build` fails on a sort or search field outside those. |
+| `.list((r, d, c) => ({ columns, sort?, search?, editable?, displays?, default? }))` | The list's columns in order, fields or [related records](#related-records-in-a-list) (`c.related`); its starting `sort` as `[[field, 'asc' \| 'desc'], ...]`, on `.sortable()` fields; the fields the search box suggests, among the resource's `.search` fields, which decide what search matches on the server; the columns [edited in their cell](#editing-in-the-list); other ways to show it, see [List displays](#list-displays). `protobase build` fails on a sort or search field outside those. |
 | `.fields((r) => ({ name: r.name.label(...) }))` | Hints per field, below. Calls add up. |
 | `.help(text)` | A line under the list's title. |
 | `.nav({ group, order, hidden, recent })` | Where the resource sits in the sidebar, and its [recent-record group](/reference/sidebar/#recent-records). |
@@ -84,6 +84,27 @@ Each dot is a link to its record. Hovering or focusing it shows the record's car
 The records load with each page of the list's rows, in two requests for the page through a join resource (one without), as the user may read them: at most 500 join records and 500 records a page. A user who cannot read the resources, `status` or a field the column filters or sorts on does not get the column. The column shows in the list page's table; an embedded list leaves it out.
 
 <StoryFrame id="list-page-related-records-as-dots--mixed-states" title="Objectives with their tasks as dots" height={360} />
+
+### Editing in the list
+
+The list's table can edit some of its columns in place, as a spreadsheet does: `editable` names them, among the `columns`.
+
+```ts
+view<typeof products>('products').list((r) => ({
+  columns: [r.sku, r.name, r.price, r.status, r.active],
+  editable: [r.price, r.status, r.active],
+}))
+```
+
+A click on an editable cell chooses it instead of opening the record, and a second click, a double-click, Enter or F2 opens the field's editor in the cell: the one the record page uses, a [field type](/reference/plugins/#field-types)'s editor included. Enter, Tab or a click elsewhere saves the change, and Escape leaves the value as it was; a switch or a choice from a list saves as soon as it changes. The arrow keys move between the cells, Tab and Shift+Tab along the row, and Tab from an editor saves it and goes on to the row's next editable cell. Enter on a cell that is not editable opens its record.
+
+Each change is a `PATCH` of that one field with the row's ETag, so it is refused when someone else changed the record since the list loaded it. The cell shows the new value while it saves; when the server refuses, the cell gets its old value back, or the record's current one when someone else changed it, and a toast says why, such as the field's validation message.
+
+Access needs nothing more: `/meta` keeps `editable` to the fields the user may write, and the table edits only the rows they may change, so a user who may not change the records gets the table as before, whose rows open their record. Every save is checked again by the server.
+
+An editable column is a field of the resource with an editor of one line that the API may write: text that is neither `.multiline()` nor `.markdown()`, a number, a date, an enum, a boolean, a currency or a country. A relation is chosen and a file uploaded on the record page. The server refuses at startup an editable field outside the columns, a read-only one, or one of another type, and `.list(...)` throws on one that is not among its columns. Cards, maps and embedded lists show the values without editing them.
+
+<StoryFrame id="list-editing-in-the-list--editable" title="A list of products edited in place" height={320} />
 
 ## Filters and the chart
 
