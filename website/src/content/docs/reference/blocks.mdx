@@ -179,6 +179,28 @@ A bar for `value` out of `max`, with both numbers. It turns amber from 90%.
 <Progress label="Seats" value="seats_used" max="plan.seats" />
 ```
 
+### Chart
+
+Counts, sums or averages of the records that match `filter`, per value of a field or per hour, day, week, month or year of a date field, in a card. It reads [`:aggregate`](/reference/api/#routes), so only what the user may see is counted, and the grouped field needs an index ([scan guard](/reference/api/#safety)).
+
+| Prop | |
+| --- | --- |
+| `resource`, `filter` | The records it counts. `resource` is required. |
+| `groupBy` | A filterable field. Values, such as an enum, a boolean or a relation (named by the related record), are ranked bars or a donut, each linking to its records; a date or timestamp field is a bar or line per bucket, empty ones included. Required. |
+| `type` | `bar` (the default), `line` for a date `groupBy`, `donut` for one of values. |
+| `sum`, `average` | A numeric field each group adds up or averages, with its prefix, suffix and decimals, instead of counting. One of the two; a donut takes no average. |
+| `granularity`, `range` | A date `groupBy`'s bucket, `hour` to `year` (default `day`), and how far back it reaches: `7d`, `30d` (the default), `90d`, `1y` or `all`. |
+| `limit` | How many values it shows, the largest; default 10. |
+| `title`, `description`, `actions`, `empty`, `span` | As on `Table`. |
+
+```tsx
+<Chart title="Orders by status" resource="orders" groupBy="status" type="donut" />
+<Chart title="Revenue by customer" resource="orders" groupBy="company_id" sum="total" filter="status != 'cancelled'" limit={5} />
+<Chart title="Invoiced per month" resource="invoices" groupBy="issued_at" granularity="month" range="1y" type="line" sum="total" />
+```
+
+Each value takes its colour from the view's `valueColors`, else an enum value's place among its values, from the [chart tokens](/reference/theme/#tokens). A chart whose field the user cannot read is left out of their page, and a field it cannot group or add up stops the server at startup.
+
 ## Behaviour
 
 ### Action
