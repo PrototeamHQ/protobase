@@ -1,6 +1,4 @@
-import { PGlite } from '@electric-sql/pglite'
 import { decodeJwt } from 'jose'
-import { PGliteDialect } from 'kysely-pglite-dialect'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { authSchemaMigration, checkAuthSchema } from '../src/better-auth/auth-schema'
 import { betterAuthAuthenticator } from '../src/better-auth/authenticator'
@@ -9,11 +7,10 @@ import { addMember, createOrganization, listOrganizations, setMemberRoles } from
 import { createUser } from '../src/better-auth/users'
 import { createAdmin } from '../src/create-admin'
 import type { AuditEvent } from '../src/types'
-import { createAuthStore } from '../../../test-support/auth'
 import { allResources, createFixtureDb } from '../../../test-support/server'
-import { cloneForTest } from '../../../test-support/pglite-snapshot'
+import { openSnapshotDb, type SnapshotDb } from '../../../test-support/sql-snapshot'
 
-// Real scrypt hashing and PGlite queries run on this thread, CPU work a busy machine stretches past 5 s.
+// Real scrypt hashing runs on this thread, CPU work a busy machine stretches past 5 s.
 vi.setConfig({ testTimeout: 30_000 })
 
 const origin = 'http://localhost:5173'
@@ -29,35 +26,44 @@ const roles: CreateAuthOptions['roles'] = {
 }
 
 let fixture: Awaited<ReturnType<typeof createFixtureDb>>
-let base: PGlite
+let base: SnapshotDb
+let migrated: SnapshotDb
+let peopled: SnapshotDb
+let migration: string
+
+const authOn = (store: SnapshotDb, ids: string[], options: Partial<CreateAuthOptions> = {}) =>
+  createAuth({
+    database: { dialect: store.dialect, type: 'postgres' },
+    baseURL: origin,
+    secret,
+    mailer: false,
+    signInPerMinute: 100,
+    roles,
+    organizations: { generateId: () => ids.shift()!, create: 'everyone' },
+    ...options,
+  })
+
+// The auth store brought up to date the way a project's migration does, and a copy of it with the people below, made
+// once: hashing their passwords and making their organizations is most of what these tests would repeat. Better Auth
+// checks the schema once per instance as soon as it is made, so every instance on a store comes after the migration,
+// as it does when a project migrates before it starts.
 beforeAll(async () => {
   fixture = await createFixtureDb()
-  base = await createAuthStore()
+  base = await openSnapshotDb('auth')
+  migrated = await base.clone()
+  migration = (await authSchemaMigration(authOn(migrated, [])))!
+  await migrated.exec(migration)
+  peopled = await migrated.clone()
+  await people(authOn(peopled, ['1', '2']))
 })
 afterAll(async () => { await fixture.db.destroy() })
 
 let client = 0
 
-/** An app with organizations on a copy of the auth store, brought up to date the way a project's migration does. */
-const serve = async (options: Partial<CreateAuthOptions> = {}) => {
-  const store = await cloneForTest(base)
-  const ids = ['1', '2', '3']
-  const make = () =>
-    createAuth({
-      database: { dialect: new PGliteDialect(store), type: 'postgres' },
-      baseURL: origin,
-      secret,
-      mailer: false,
-      signInPerMinute: 100,
-      roles,
-      organizations: { generateId: () => ids.shift()!, create: 'everyone' },
-      ...options,
-    })
-  // Better Auth checks the schema once per instance as soon as it is made, so the app's instance comes after the
-  // migration, as it does when a project migrates before it starts.
-  const migration = await authSchemaMigration(make())
-  await store.exec(migration!)
-  const auth = make()
+/** An app with organizations on a copy of the migrated auth store, with the people below in it when `people` says so. */
+const serve = async (options: Partial<CreateAuthOptions> = {}, { people = false } = {}) => {
+  const store = await (people ? peopled : migrated).clone()
+  const auth = authOn(store, people ? ['3'] : ['1', '2', '3'], options)
   const audited: AuditEvent[] = []
   const audit = { publish: async (event: AuditEvent) => void audited.push(event) }
   const app = createAdmin({ resources: allResources, db: fixture.db, authenticate: betterAuthAuthenticator({ auth }), auth, options: { audit } })
@@ -107,7 +113,7 @@ describe('the auth schema with organizations', () => {
   })
 
   it('stays as it was without organizations', async () => {
-    const auth = createAuth({ database: { dialect: new PGliteDialect(await cloneForTest(base)), type: 'postgres' }, baseURL: origin, secret, mailer: false })
+    const auth = createAuth({ database: { dialect: (await base.clone()).dialect, type: 'postgres' }, baseURL: origin, secret, mailer: false })
     expect(await authSchemaMigration(auth)).toBeUndefined()
     expect(auth.organizations).toBeUndefined()
   })
@@ -115,8 +121,7 @@ describe('the auth schema with organizations', () => {
 
 describe('organizations on the host', () => {
   it('make the creator owner with every app role a member can hold, and keep members with the roles given', async () => {
-    const { auth } = await serve()
-    await people(auth)
+    const { auth } = await serve({}, { people: true })
     expect(await listOrganizations(auth)).toEqual([
       { id: '1', name: 'Acme', slug: 'acme', members: expect.arrayContaining([
         { email: 'bo@example.com', role: 'owner', appRoles: ['support', 'manager', 'sales', 'accountant'] },
@@ -141,18 +146,16 @@ describe('the first user', () => {
 
 describe('the token of a signed-in person', () => {
   it('carries the organization they start in, their organization role and app roles; the API sees only its rows', async () => {
-    const { auth, request, signIn, tokenOf } = await serve()
-    await people(auth)
+    const { auth, request, signIn, tokenOf } = await serve({}, { people: true })
     const token = await tokenOf(await signIn('sanne@example.com'))
     expect(decodeJwt(token)).toMatchObject({ role: 'user', org: '1', org_role: 'member', app_roles: ['sales'] })
-    const companies = await (await request('/api/v1/companies?page_size=500', { token })).json()
+    const companies = await (await request('/api/v1/companies?page_size=500&fields=id,organizationId', { token })).json()
     expect(companies.items.length).toBeGreaterThan(0)
     expect(new Set(companies.items.map((company: { organizationId: number }) => company.organizationId))).toEqual(new Set([1]))
   })
 
   it('carries one role, the first of the global roles and then the membership roles, never the placeholder user', async () => {
-    const { auth, signIn, tokenOf } = await serve()
-    await people(auth)
+    const { auth, signIn, tokenOf } = await serve({}, { people: true })
     const authenticate = betterAuthAuthenticator({ auth })
     const session = await authenticate(new Request(origin, { headers: { authorization: `Bearer ${await tokenOf(await signIn('root@example.com'))}` } }))
     expect(session).toEqual({ user: { id: expect.any(String), roles: ['admin'] }, tenant: '2', organization: { id: '2' } })
@@ -161,8 +164,7 @@ describe('the token of a signed-in person', () => {
   })
 
   it('has no organization for someone in none, and the tenant resources refuse them', async () => {
-    const { auth, request, signIn, tokenOf } = await serve()
-    await people(auth)
+    const { auth, request, signIn, tokenOf } = await serve({}, { people: true })
     const token = await tokenOf(await signIn('ana@example.com'))
     expect(decodeJwt(token)).not.toHaveProperty('org')
     expect((await request('/api/v1/companies', { token })).status).toBe(403)
@@ -173,8 +175,7 @@ const claimsOf = async (app: Awaited<ReturnType<typeof serve>>, cookie: string) 
 
 describe('inviting people', () => {
   it('gives the inviter the link without a mailer, and makes an account for a new address from it', async () => {
-    const app = await serve()
-    await people(app.auth)
+    const app = await serve({}, { people: true })
     const bo = await app.signIn('bo@example.com')
     const invited = await app.request('/api/auth/organization/invite-member', { cookie: bo, body: { email: 'jan@ledger.example', role: 'member', appRoles: ['accountant'] } })
     expect(invited.status).toBe(200)
@@ -197,8 +198,7 @@ describe('inviting people', () => {
 
   it('emails the link with a mailer, and leaves it out of the answer', async () => {
     const sent: { to: string; subject: string; text: string }[] = []
-    const app = await serve({ mailer: { send: async (message) => void sent.push(message) } })
-    await people(app.auth)
+    const app = await serve({ mailer: { send: async (message) => void sent.push(message) } }, { people: true })
     const answer = await (await app.request('/api/auth/organization/invite-member', { cookie: await app.signIn('bo@example.com'), body: { email: 'jan@ledger.example', role: 'member', appRoles: ['accountant'] } })).json()
     expect(answer).not.toHaveProperty('link')
     // Mail goes out after the answer
@@ -209,8 +209,7 @@ describe('inviting people', () => {
   })
 
   it('lets someone with an account accept signed in as the invited address only', async () => {
-    const app = await serve()
-    await people(app.auth)
+    const app = await serve({}, { people: true })
     const bo = await app.signIn('bo@example.com')
     const { link } = (await (await app.request('/api/auth/organization/invite-member', { cookie: bo, body: { email: 'ana@example.com', role: 'member', appRoles: ['sales'] } })).json()) as { link: string }
     const token = new URL(link).searchParams.get('token')!
@@ -224,8 +223,7 @@ describe('inviting people', () => {
   })
 
   it('refuses app roles the inviter neither holds nor is granted by a role they hold', async () => {
-    const app = await serve()
-    await people(app.auth)
+    const app = await serve({}, { people: true })
     await setMemberRoles(app.auth, { organization: 'acme', email: 'sanne@example.com', role: 'admin', appRoles: ['sales'] })
     const sanne = await app.signIn('sanne@example.com')
     const invite = (appRoles: string[], email = 'kim@example.com') => app.request('/api/auth/organization/invite-member', { cookie: sanne, body: { email, role: 'member', appRoles } })
@@ -241,8 +239,7 @@ const invitationIdFrom = (token: string) => token.slice(0, token.lastIndexOf('.'
 
 describe('managing members', () => {
   it('changes app roles only within what the caller may give, and only for owners, admins and superusers', async () => {
-    const app = await serve()
-    await people(app.auth)
+    const app = await serve({}, { people: true })
     const members = await (await app.request('/api/auth/organization/list-members?organizationId=1', { cookie: await app.signIn('bo@example.com') })).json()
     const sanneId = members.members.find((member: { user: { email: string } }) => member.user.email === 'sanne@example.com').id
     const bo = await app.signIn('bo@example.com')
@@ -258,8 +255,7 @@ describe('managing members', () => {
   })
 
   it('lists members with their app roles, and answers the organization a session works in', async () => {
-    const app = await serve()
-    await people(app.auth)
+    const app = await serve({}, { people: true })
     const sanne = await app.signIn('sanne@example.com')
     const { members } = await (await app.request('/api/auth/organization/list-members?organizationId=1', { cookie: sanne })).json()
     expect(members).toEqual(expect.arrayContaining([expect.objectContaining({ role: 'member', appRoles: ['sales'], user: expect.objectContaining({ email: 'sanne@example.com' }) })]))
@@ -286,8 +282,7 @@ describe('managing members', () => {
   })
 
   it('hands ownership over in one step', async () => {
-    const app = await serve()
-    await people(app.auth)
+    const app = await serve({}, { people: true })
     const bo = await app.signIn('bo@example.com')
     const members = await (await app.request('/api/auth/organization/list-members?organizationId=1', { cookie: bo })).json()
     const sanneId = members.members.find((member: { user: { email: string } }) => member.user.email === 'sanne@example.com').id
@@ -298,8 +293,7 @@ describe('managing members', () => {
   })
 
   it('takes a removed member out of the organization on their other sessions', async () => {
-    const app = await serve()
-    await people(app.auth)
+    const app = await serve({}, { people: true })
     const sanne = await app.signIn('sanne@example.com')
     expect(await claimsOf(app, sanne)).toMatchObject({ org: '1' })
     expect((await app.request('/api/auth/organization/remove-member', { cookie: await app.signIn('bo@example.com'), body: { memberIdOrEmail: 'sanne@example.com', organizationId: '1' } })).status).toBe(200)
@@ -309,8 +303,7 @@ describe('managing members', () => {
 
 describe('working in another organization', () => {
   it('lets someone with a global role enter any organization, audited, with only their global roles there', async () => {
-    const app = await serve()
-    await people(app.auth)
+    const app = await serve({}, { people: true })
     const ana = await app.signIn('ana@example.com')
     const found = await (await app.request('/api/auth/organization/search?query=Glo', { cookie: ana })).json()
     expect(found).toEqual({ organizations: [{ id: '2', name: 'Globex', slug: 'globex' }] })
@@ -324,8 +317,7 @@ describe('working in another organization', () => {
   })
 
   it('refuses someone without a global role an organization they are not in, and the search', async () => {
-    const app = await serve()
-    await people(app.auth)
+    const app = await serve({}, { people: true })
     const sanne = await app.signIn('sanne@example.com')
     expect(await (await app.request('/api/auth/organization/switch', { cookie: sanne, body: { organizationId: '2' } })).json()).toMatchObject({ code: 'NOT_A_MEMBER' })
     expect((await app.request('/api/auth/organization/search?query=Glo', { cookie: sanne })).status).toBe(403)
@@ -336,8 +328,7 @@ describe('working in another organization', () => {
 
 describe('deleting an organization', () => {
   it('is refused while it has records, and done once it has none', async () => {
-    const app = await serve()
-    await people(app.auth)
+    const app = await serve({}, { people: true })
     const bo = await app.signIn('bo@example.com')
     const refused = await app.request('/api/auth/organization/delete', { cookie: bo, body: { organizationId: '1' } })
     expect(refused.status).toBe(409)

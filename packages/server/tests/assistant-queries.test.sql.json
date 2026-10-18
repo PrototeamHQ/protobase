@@ -1,0 +1,236 @@
+{
+  "(hooks)": {
+    "(hooks)#0": [
+      {"sql":"\n    create table notes (id integer generated always as identity primary key, body text not null);\n    create sequence ticket_numbers;\n    create function add_note(text) returns integer language sql as 'insert into notes (body) values ($1) returning id';\n  ","result":[{"command":"CREATE","rowCount":null,"columns":[],"rows":[]},{"command":"CREATE","rowCount":null,"columns":[],"rows":[]},{"command":"CREATE","rowCount":null,"columns":[],"rows":[]}]}
+    ]
+  },
+  "runReadOnlyQuery > returns columns and rows, capped at the row limit": {
+    "(hooks)#0": [
+      {"sql":"truncate notes restart identity","result":{"command":"TRUNCATE","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"insert into notes (body) values ('first'), ('second'), ('third')","result":{"command":"INSERT","rowCount":3,"columns":[],"rows":[]}},
+      {"sql":"begin transaction read only","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config('statement_timeout', $1, true)","params":["5000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["5s"]]}},
+      {"sql":"with result as (\nselect id, body from notes order by id\n) select * from result limit $1","params":["201"],"result":{"command":"SELECT","rowCount":3,"columns":[["id",23],["body",25]],"rows":[
+        ["1","first"],
+        ["2","second"],
+        ["3","third"]
+      ]}},
+      {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"begin transaction read only","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config('statement_timeout', $1, true)","params":["5000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["5s"]]}},
+      {"sql":"with result as (\nselect body from notes order by id\n) select * from result limit $1","params":["3"],"result":{"command":"SELECT","rowCount":3,"columns":[["body",25]],"rows":[
+        ["first"],
+        ["second"],
+        ["third"]
+      ]}},
+      {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"begin transaction read only","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config('statement_timeout', $1, true)","params":["5000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["5s"]]}},
+      {"sql":"with result as (\nwith b as (select body from notes) select count(*)::int as n from b -- a comment\n) select * from result limit $1","params":["201"],"result":{"command":"SELECT","rowCount":1,"columns":[["n",23]],"rows":[["3"]]}},
+      {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}}
+    ]
+  },
+  "runReadOnlyQuery > refuses a write": {
+    "(hooks)#0": [
+      {"sql":"truncate notes restart identity","result":{"command":"TRUNCATE","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"insert into notes (body) values ('first'), ('second'), ('third')","result":{"command":"INSERT","rowCount":3,"columns":[],"rows":[]}},
+      {"sql":"begin transaction read only","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config('statement_timeout', $1, true)","params":["5000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["5s"]]}},
+      {"sql":"with result as (\ndelete from notes\n) select * from result limit $1","params":["201"],"error":{"message":"WITH query \"result\" does not have a RETURNING clause","severity":"ERROR","code":"0A000","position":"52"}},
+      {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select count(*)::int as n from notes","result":{"command":"SELECT","rowCount":1,"columns":[["n",23]],"rows":[["3"]]}},
+      {"sql":"select last_value::int as n from ticket_numbers","result":{"command":"SELECT","rowCount":1,"columns":[["n",23]],"rows":[["1"]]}}
+    ]
+  },
+  "runReadOnlyQuery > refuses COMMIT, then a write": {
+    "(hooks)#0": [
+      {"sql":"truncate notes restart identity","result":{"command":"TRUNCATE","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"insert into notes (body) values ('first'), ('second'), ('third')","result":{"command":"INSERT","rowCount":3,"columns":[],"rows":[]}},
+      {"sql":"begin transaction read only","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config('statement_timeout', $1, true)","params":["5000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["5s"]]}},
+      {"sql":"with result as (\ncommit; delete from notes\n) select * from result limit $1","params":["201"],"error":{"message":"syntax error at or near \"commit\"","severity":"ERROR","code":"42601","position":"18"}},
+      {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select count(*)::int as n from notes","result":{"command":"SELECT","rowCount":1,"columns":[["n",23]],"rows":[["3"]]}},
+      {"sql":"select last_value::int as n from ticket_numbers","result":{"command":"SELECT","rowCount":1,"columns":[["n",23]],"rows":[["1"]]}}
+    ]
+  },
+  "runReadOnlyQuery > refuses a second statement": {
+    "(hooks)#0": [
+      {"sql":"truncate notes restart identity","result":{"command":"TRUNCATE","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"insert into notes (body) values ('first'), ('second'), ('third')","result":{"command":"INSERT","rowCount":3,"columns":[],"rows":[]}},
+      {"sql":"begin transaction read only","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config('statement_timeout', $1, true)","params":["5000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["5s"]]}},
+      {"sql":"with result as (\nselect 1; delete from notes\n) select * from result limit $1","params":["201"],"error":{"message":"syntax error at or near \";\"","severity":"ERROR","code":"42601","position":"26"}},
+      {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select count(*)::int as n from notes","result":{"command":"SELECT","rowCount":1,"columns":[["n",23]],"rows":[["3"]]}},
+      {"sql":"select last_value::int as n from ticket_numbers","result":{"command":"SELECT","rowCount":1,"columns":[["n",23]],"rows":[["1"]]}}
+    ]
+  },
+  "runReadOnlyQuery > refuses closing the wrapper to add a statement": {
+    "(hooks)#0": [
+      {"sql":"truncate notes restart identity","result":{"command":"TRUNCATE","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"insert into notes (body) values ('first'), ('second'), ('third')","result":{"command":"INSERT","rowCount":3,"columns":[],"rows":[]}},
+      {"sql":"begin transaction read only","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config('statement_timeout', $1, true)","params":["5000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["5s"]]}},
+      {"sql":"with result as (\nselect 1) select 1; delete from notes; with result as (select 1\n) select * from result limit $1","params":["201"],"error":{"message":"cannot insert multiple commands into a prepared statement","severity":"ERROR","code":"42601"}},
+      {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select count(*)::int as n from notes","result":{"command":"SELECT","rowCount":1,"columns":[["n",23]],"rows":[["3"]]}},
+      {"sql":"select last_value::int as n from ticket_numbers","result":{"command":"SELECT","rowCount":1,"columns":[["n",23]],"rows":[["1"]]}}
+    ]
+  },
+  "runReadOnlyQuery > refuses SET TRANSACTION READ WRITE": {
+    "(hooks)#0": [
+      {"sql":"truncate notes restart identity","result":{"command":"TRUNCATE","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"insert into notes (body) values ('first'), ('second'), ('third')","result":{"command":"INSERT","rowCount":3,"columns":[],"rows":[]}},
+      {"sql":"begin transaction read only","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config('statement_timeout', $1, true)","params":["5000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["5s"]]}},
+      {"sql":"with result as (\nset transaction read write\n) select * from result limit $1","params":["201"],"error":{"message":"syntax error at or near \"set\"","severity":"ERROR","code":"42601","position":"18"}},
+      {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select count(*)::int as n from notes","result":{"command":"SELECT","rowCount":1,"columns":[["n",23]],"rows":[["3"]]}},
+      {"sql":"select last_value::int as n from ticket_numbers","result":{"command":"SELECT","rowCount":1,"columns":[["n",23]],"rows":[["1"]]}}
+    ]
+  },
+  "runReadOnlyQuery > refuses switching to read-write with set_config": {
+    "(hooks)#0": [
+      {"sql":"truncate notes restart identity","result":{"command":"TRUNCATE","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"insert into notes (body) values ('first'), ('second'), ('third')","result":{"command":"INSERT","rowCount":3,"columns":[],"rows":[]}},
+      {"sql":"begin transaction read only","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config('statement_timeout', $1, true)","params":["5000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["5s"]]}},
+      {"sql":"with result as (\nselect set_config('transaction_read_only', 'off', true)\n) select * from result limit $1","params":["201"],"error":{"message":"transaction read-write mode must be set before any query","severity":"ERROR","code":"25001"}},
+      {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select count(*)::int as n from notes","result":{"command":"SELECT","rowCount":1,"columns":[["n",23]],"rows":[["3"]]}},
+      {"sql":"select last_value::int as n from ticket_numbers","result":{"command":"SELECT","rowCount":1,"columns":[["n",23]],"rows":[["1"]]}}
+    ]
+  },
+  "runReadOnlyQuery > refuses a writable CTE": {
+    "(hooks)#0": [
+      {"sql":"truncate notes restart identity","result":{"command":"TRUNCATE","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"insert into notes (body) values ('first'), ('second'), ('third')","result":{"command":"INSERT","rowCount":3,"columns":[],"rows":[]}},
+      {"sql":"begin transaction read only","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config('statement_timeout', $1, true)","params":["5000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["5s"]]}},
+      {"sql":"with result as (\nwith gone as (delete from notes returning *) select * from gone\n) select * from result limit $1","params":["201"],"error":{"message":"WITH clause containing a data-modifying statement must be at the top level","severity":"ERROR","code":"0A000","position":"23"}},
+      {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select count(*)::int as n from notes","result":{"command":"SELECT","rowCount":1,"columns":[["n",23]],"rows":[["3"]]}},
+      {"sql":"select last_value::int as n from ticket_numbers","result":{"command":"SELECT","rowCount":1,"columns":[["n",23]],"rows":[["1"]]}}
+    ]
+  },
+  "runReadOnlyQuery > refuses a writable CTE after closing the wrapper": {
+    "(hooks)#0": [
+      {"sql":"truncate notes restart identity","result":{"command":"TRUNCATE","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"insert into notes (body) values ('first'), ('second'), ('third')","result":{"command":"INSERT","rowCount":3,"columns":[],"rows":[]}},
+      {"sql":"begin transaction read only","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config('statement_timeout', $1, true)","params":["5000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["5s"]]}},
+      {"sql":"with result as (\nselect 1), gone as (delete from notes returning 1) select * from gone, (select 1\n) select * from result limit $1","params":["201"],"error":{"message":"syntax error at or near \"select\"","severity":"ERROR","code":"42601","position":"101"}},
+      {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select count(*)::int as n from notes","result":{"command":"SELECT","rowCount":1,"columns":[["n",23]],"rows":[["3"]]}},
+      {"sql":"select last_value::int as n from ticket_numbers","result":{"command":"SELECT","rowCount":1,"columns":[["n",23]],"rows":[["1"]]}}
+    ]
+  },
+  "runReadOnlyQuery > refuses nextval": {
+    "(hooks)#0": [
+      {"sql":"truncate notes restart identity","result":{"command":"TRUNCATE","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"insert into notes (body) values ('first'), ('second'), ('third')","result":{"command":"INSERT","rowCount":3,"columns":[],"rows":[]}},
+      {"sql":"begin transaction read only","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config('statement_timeout', $1, true)","params":["5000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["5s"]]}},
+      {"sql":"with result as (\nselect nextval('ticket_numbers')\n) select * from result limit $1","params":["201"],"error":{"message":"cannot execute nextval() in a read-only transaction","severity":"ERROR","code":"25006"}},
+      {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select count(*)::int as n from notes","result":{"command":"SELECT","rowCount":1,"columns":[["n",23]],"rows":[["3"]]}},
+      {"sql":"select last_value::int as n from ticket_numbers","result":{"command":"SELECT","rowCount":1,"columns":[["n",23]],"rows":[["1"]]}}
+    ]
+  },
+  "runReadOnlyQuery > refuses setval": {
+    "(hooks)#0": [
+      {"sql":"truncate notes restart identity","result":{"command":"TRUNCATE","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"insert into notes (body) values ('first'), ('second'), ('third')","result":{"command":"INSERT","rowCount":3,"columns":[],"rows":[]}},
+      {"sql":"begin transaction read only","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config('statement_timeout', $1, true)","params":["5000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["5s"]]}},
+      {"sql":"with result as (\nselect setval('ticket_numbers', 100)\n) select * from result limit $1","params":["201"],"error":{"message":"cannot execute setval() in a read-only transaction","severity":"ERROR","code":"25006"}},
+      {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select count(*)::int as n from notes","result":{"command":"SELECT","rowCount":1,"columns":[["n",23]],"rows":[["3"]]}},
+      {"sql":"select last_value::int as n from ticket_numbers","result":{"command":"SELECT","rowCount":1,"columns":[["n",23]],"rows":[["1"]]}}
+    ]
+  },
+  "runReadOnlyQuery > refuses a DO block": {
+    "(hooks)#0": [
+      {"sql":"truncate notes restart identity","result":{"command":"TRUNCATE","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"insert into notes (body) values ('first'), ('second'), ('third')","result":{"command":"INSERT","rowCount":3,"columns":[],"rows":[]}},
+      {"sql":"begin transaction read only","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config('statement_timeout', $1, true)","params":["5000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["5s"]]}},
+      {"sql":"with result as (\ndo $$ begin delete from notes; end $$\n) select * from result limit $1","params":["201"],"error":{"message":"syntax error at or near \"do\"","severity":"ERROR","code":"42601","position":"18"}},
+      {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select count(*)::int as n from notes","result":{"command":"SELECT","rowCount":1,"columns":[["n",23]],"rows":[["3"]]}},
+      {"sql":"select last_value::int as n from ticket_numbers","result":{"command":"SELECT","rowCount":1,"columns":[["n",23]],"rows":[["1"]]}}
+    ]
+  },
+  "runReadOnlyQuery > refuses a function that writes": {
+    "(hooks)#0": [
+      {"sql":"truncate notes restart identity","result":{"command":"TRUNCATE","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"insert into notes (body) values ('first'), ('second'), ('third')","result":{"command":"INSERT","rowCount":3,"columns":[],"rows":[]}},
+      {"sql":"begin transaction read only","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config('statement_timeout', $1, true)","params":["5000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["5s"]]}},
+      {"sql":"with result as (\nselect add_note('sneaky')\n) select * from result limit $1","params":["201"],"error":{"message":"cannot execute INSERT in a read-only transaction","severity":"ERROR","code":"25006","where":"SQL function \"add_note\" statement 1"}},
+      {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select count(*)::int as n from notes","result":{"command":"SELECT","rowCount":1,"columns":[["n",23]],"rows":[["3"]]}},
+      {"sql":"select last_value::int as n from ticket_numbers","result":{"command":"SELECT","rowCount":1,"columns":[["n",23]],"rows":[["1"]]}}
+    ]
+  },
+  "runReadOnlyQuery > refuses ending the transaction with ROLLBACK first": {
+    "(hooks)#0": [
+      {"sql":"truncate notes restart identity","result":{"command":"TRUNCATE","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"insert into notes (body) values ('first'), ('second'), ('third')","result":{"command":"INSERT","rowCount":3,"columns":[],"rows":[]}},
+      {"sql":"begin transaction read only","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config('statement_timeout', $1, true)","params":["5000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["5s"]]}},
+      {"sql":"with result as (\nrollback; delete from notes\n) select * from result limit $1","params":["201"],"error":{"message":"syntax error at or near \"rollback\"","severity":"ERROR","code":"42601","position":"18"}},
+      {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select count(*)::int as n from notes","result":{"command":"SELECT","rowCount":1,"columns":[["n",23]],"rows":[["3"]]}},
+      {"sql":"select last_value::int as n from ticket_numbers","result":{"command":"SELECT","rowCount":1,"columns":[["n",23]],"rows":[["1"]]}}
+    ]
+  },
+  "runReadOnlyQuery > rolls back session settings it changes": {
+    "(hooks)#0": [
+      {"sql":"truncate notes restart identity","result":{"command":"TRUNCATE","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"insert into notes (body) values ('first'), ('second'), ('third')","result":{"command":"INSERT","rowCount":3,"columns":[],"rows":[]}},
+      {"sql":"begin transaction read only","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config('statement_timeout', $1, true)","params":["5000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["5s"]]}},
+      {"sql":"with result as (\nselect set_config('search_path', 'nowhere', false)\n) select * from result limit $1","params":["201"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["nowhere"]]}},
+      {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select current_setting('search_path') as value","result":{"command":"SELECT","rowCount":1,"columns":[["value",25]],"rows":[["\"$user\", public"]]}}
+    ]
+  },
+  "runReadOnlyQuery > runs under the statement timeout": {
+    "(hooks)#0": [
+      {"sql":"truncate notes restart identity","result":{"command":"TRUNCATE","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"insert into notes (body) values ('first'), ('second'), ('third')","result":{"command":"INSERT","rowCount":3,"columns":[],"rows":[]}},
+      {"sql":"begin transaction read only","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config('statement_timeout', $1, true)","params":["1234"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1234ms"]]}},
+      {"sql":"with result as (\nselect current_setting('statement_timeout') as timeout\n) select * from result limit $1","params":["201"],"result":{"command":"SELECT","rowCount":1,"columns":[["timeout",25]],"rows":[["1234ms"]]}},
+      {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}}
+    ]
+  },
+  "runReadWriteQuery > commits one write and returns what it returned": {
+    "(hooks)#0": [
+      {"sql":"truncate notes restart identity","result":{"command":"TRUNCATE","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"insert into notes (body) values ('first'), ('second'), ('third')","result":{"command":"INSERT","rowCount":3,"columns":[],"rows":[]}},
+      {"sql":"begin transaction read write","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config('statement_timeout', $1, true)","params":["5000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["5s"]]}},
+      {"sql":"with result as (\nupdate notes set body = 'changed' where id = 1 returning id, body\n) select * from result limit $1","params":["201"],"result":{"command":"SELECT","rowCount":1,"columns":[["id",23],["body",25]],"rows":[["1","changed"]]}},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select body from notes where id = 1","result":{"command":"SELECT","rowCount":1,"columns":[["body",25]],"rows":[["changed"]]}}
+    ]
+  },
+  "runReadWriteQuery > runs exactly one statement, and nothing of a failed one": {
+    "(hooks)#0": [
+      {"sql":"truncate notes restart identity","result":{"command":"TRUNCATE","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"insert into notes (body) values ('first'), ('second'), ('third')","result":{"command":"INSERT","rowCount":3,"columns":[],"rows":[]}},
+      {"sql":"begin transaction read write","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config('statement_timeout', $1, true)","params":["5000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["5s"]]}},
+      {"sql":"with result as (\ndelete from notes where id = 1 returning id; delete from notes\n) select * from result limit $1","params":["201"],"error":{"message":"syntax error at or near \";\"","severity":"ERROR","code":"42601","position":"61"}},
+      {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"begin transaction read write","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config('statement_timeout', $1, true)","params":["5000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["5s"]]}},
+      {"sql":"with result as (\ninsert into notes (body) values ('x') returning id), x as (select 1/0) select * from x, (select 1\n) select * from result limit $1","params":["201"],"error":{"message":"syntax error at or near \"select\"","severity":"ERROR","code":"42601","position":"118"}},
+      {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select count(*)::int as n from notes","result":{"command":"SELECT","rowCount":1,"columns":[["n",23]],"rows":[["3"]]}}
+    ]
+  }
+}

@@ -114,11 +114,11 @@ describe(':seek', () => {
   })
 
   it('applies the filter and an access rule filter, and never shows rows outside the tenant', async () => {
-    const won = await (await get('/companies:seek?order_by=id&position=0&page_size=500&filter=status%20%3D%20%22won%22')).json()
+    const won = await (await get('/companies:seek?order_by=id&position=0&page_size=500&fields=id,status&filter=status%20%3D%20%22won%22')).json()
     expect(won.items.every((item: { status: string }) => item.status === 'won')).toBe(true)
-    const restricted = await (await app.request('/api/v1/companies:seek?order_by=id&position=0&page_size=500', { headers: as(1, 'sales') })).json()
+    const restricted = await (await app.request('/api/v1/companies:seek?order_by=id&position=0&page_size=500&fields=id,status', { headers: as(1, 'sales') })).json()
     expect(restricted.items.every((item: { status: string }) => item.status === 'open')).toBe(true)
-    const other = await (await get('/companies:seek?order_by=id&position=0&page_size=500', 2)).json()
+    const other = await (await get('/companies:seek?order_by=id&position=0&page_size=500&fields=id,organizationId', 2)).json()
     expect(other.items.every((item: { organizationId: number }) => item.organizationId === 2)).toBe(true)
   })
 

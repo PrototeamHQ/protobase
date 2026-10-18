@@ -1,0 +1,30 @@
+{
+  "jwt authenticator > accepts a valid token and reads the tenant claim": {
+    "(hooks)#0": [
+      {"sql":"select relkind from pg_class where oid = to_regclass($1)","params":["\"companies\""],"result":{"command":"SELECT","rowCount":1,"columns":[["relkind",18]],"rows":[["r"]]}},
+      {"sql":"\n    select ic.relname as name, am.amname as method, (i.indpred is not null) as partial, a.attname::text as column,\n      pg_get_indexdef(i.indexrelid, k.ord::int, true) as definition, oc.opcname::text as opclass\n    from pg_index i\n    join pg_class ic on ic.oid = i.indexrelid\n    join pg_am am on am.oid = ic.relam\n    cross join lateral unnest(i.indkey::int2[], i.indclass::oid[]) with ordinality k(attnum, opclass, ord)\n    left join pg_attribute a on a.attrelid = i.indrelid and a.attnum = k.attnum and k.attnum > 0\n    join pg_opclass oc on oc.oid = k.opclass\n    where i.indrelid = to_regclass($1) and i.indisvalid and i.indisready and k.ord <= i.indnkeyatts\n    order by ic.relname, k.ord\n  ","params":["\"companies\""],"result":{"command":"SELECT","rowCount":11,"columns":[["name",19],["method",19],["partial",16],["column",25],["definition",25],["opclass",25]],"rows":[
+        ["companies_organization_id_created_at_idx","btree","f","organization_id","organization_id","int4_ops"],
+        ["companies_organization_id_created_at_idx","btree","f","created_at","created_at","timestamptz_ops"],
+        ["companies_organization_id_id_idx","btree","f","organization_id","organization_id","int4_ops"],
+        ["companies_organization_id_id_idx","btree","f","id","id","int4_ops"],
+        ["companies_organization_id_name_idx","btree","f","organization_id","organization_id","int4_ops"],
+        ["companies_organization_id_name_idx","btree","f","name","name","text_ops"],
+        ["companies_organization_id_revenue_idx","btree","f","organization_id","organization_id","int4_ops"],
+        ["companies_organization_id_revenue_idx","btree","f","revenue","revenue","numeric_ops"],
+        ["companies_organization_id_status_idx","btree","f","organization_id","organization_id","int4_ops"],
+        ["companies_organization_id_status_idx","btree","f","status","status","text_ops"],
+        ["companies_pkey","btree","f","id","id","int4_ops"]
+      ]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select \"t\".\"id\" as \"id\", \"t\".\"organization_id\" as \"organizationId\", \"t\".\"name\" as \"name\", \"t\".\"status\" as \"status\", \"t\".\"revenue\" as \"revenue\", \"t\".\"notes\" as \"notes\", \"t\".\"meta\" as \"meta\", \"t\".\"created_at\" as \"createdAt\", \"t\".\"updated_at\" as \"updatedAt\", \"t\".\"deleted_at\" as \"deletedAt\", \"t\".\"updated_at\"::text as \"__pb_etag\", \"t\".\"id\"::text as \"__pb_key0\" from \"companies\" as \"t\" where \"t\".\"deleted_at\" is null and \"t\".\"organization_id\" = $1 order by \"t\".\"id\" asc limit $2","params":["2","2"],"result":{"command":"SELECT","rowCount":2,"columns":[["id",23],["organizationId",23],["name",25],["status",25],["revenue",1700],["notes",25],["meta",3802],["createdAt",1184],["updatedAt",1184],["deletedAt",1184],["__pb_etag",25],["__pb_key0",25]],"rows":[
+        ["3001","2","Company 3001","won","1.00",null,null,"2026-01-02 00:00:00+00","2026-07-25 00:00:00+00",null,"2026-07-25 00:00:00+00","3001"],
+        ["3002","2","Company 3002","lost","2.00",null,null,"2026-01-03 00:00:00+00","2026-07-25 00:00:00+00",null,"2026-07-25 00:00:00+00","3002"]
+      ]}},
+      {"sql":"EXPLAIN (VERBOSE, FORMAT JSON) select 1 as \"one\" from \"companies\" as \"t\" where \"t\".\"deleted_at\" is null and \"t\".\"organization_id\" = $1","params":["2"],"result":{"command":"EXPLAIN","rowCount":null,"columns":[["QUERY PLAN",114]],"rows":[["[\n  {\n    \"Plan\": {\n      \"Node Type\": \"Bitmap Heap Scan\",\n      \"Parallel Aware\": false,\n      \"Async Capable\": false,\n      \"Relation Name\": \"companies\",\n      \"Schema\": \"public\",\n      \"Alias\": \"t\",\n      \"Startup Cost\": 8.15,\n      \"Total Cost\": 51.40,\n      \"Plan Rows\": 495,\n      \"Plan Width\": 4,\n      \"Disabled\": false,\n      \"Output\": [\"1\"],\n      \"Recheck Cond\": \"(t.organization_id = 2)\",\n      \"Filter\": \"(t.deleted_at IS NULL)\",\n      \"Plans\": [\n        {\n          \"Node Type\": \"Bitmap Index Scan\",\n          \"Parent Relationship\": \"Outer\",\n          \"Parallel Aware\": false,\n          \"Async Capable\": false,\n          \"Index Name\": \"companies_organization_id_status_idx\",\n          \"Startup Cost\": 0.00,\n          \"Total Cost\": 8.03,\n          \"Plan Rows\": 500,\n          \"Plan Width\": 0,\n          \"Disabled\": false,\n          \"Index Cond\": \"(t.organization_id = 2)\"\n        }\n      ]\n    }\n  }\n]"]]}},
+      {"sql":"select count(*)::text as \"n\" from (select 1 as \"one\" from \"companies\" as \"t\" where \"t\".\"deleted_at\" is null and \"t\".\"organization_id\" = $1 limit $2) as \"found\"","params":["2","10001"],"result":{"command":"SELECT","rowCount":1,"columns":[["n",25]],"rows":[["495"]]}},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
+    ]
+  }
+}

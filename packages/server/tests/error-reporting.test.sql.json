@@ -1,0 +1,7 @@
+{
+  "(hooks)": {
+    "(hooks)#0": [
+      {"sql":"create table tasks (id integer generated always as identity primary key, title text not null)","result":{"command":"CREATE","rowCount":null,"columns":[],"rows":[]}}
+    ]
+  }
+}

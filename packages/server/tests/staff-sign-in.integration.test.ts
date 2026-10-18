@@ -1,6 +1,4 @@
-import { PGlite } from '@electric-sql/pglite'
 import { Kysely } from 'kysely'
-import { PGliteDialect } from 'kysely-pglite-dialect'
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { betterAuthAuthenticator } from '../src/better-auth/authenticator'
 import { createAuth, type CreateAuthOptions } from '../src/better-auth/create-auth'
@@ -8,20 +6,19 @@ import { defaultSignInPolicy, type SignInPolicy } from '../src/better-auth/sign-
 import { createUser } from '../src/better-auth/users'
 import { createAdmin } from '../src/create-admin'
 import type { MailMessage } from '../src/mail/smtp-mailer'
-import { createAuthStore } from '../../../test-support/auth'
-import { cloneForTest } from '../../../test-support/pglite-snapshot'
 import { operatorClient, operatorIssuer, permittedStaff, startFakeOperator } from './support/fake-oidc-provider'
+import { openSnapshotDb, type SnapshotDb } from '../../../test-support/sql-snapshot'
 
 const origin = 'http://localhost:5173'
 const secret = 'test-secret-test-secret-test-secret-1234'
 const password = 'correct horse battery'
 const reason = 'Ticket 4211: the invoice totals look wrong'
 
-let shared: PGlite
+let shared: SnapshotDb
 let appDb: Kysely<any>
 beforeAll(async () => {
-  shared = await createAuthStore()
-  appDb = new Kysely<any>({ dialect: new PGliteDialect(shared) })
+  shared = await openSnapshotDb('auth')
+  appDb = new Kysely<any>({ dialect: shared.dialect })
 })
 
 afterEach(() => {
@@ -46,10 +43,10 @@ const merge = (jar: string, response: Response) => {
 // Every app gets a copy of the migrated store with an admin and a user, an operator provider, and keeps its mail.
 const serve = async (options: Partial<CreateAuthOptions> = {}) => {
   const operator = await startFakeOperator()
-  const store = await cloneForTest(shared)
+  const store = await shared.clone()
   const sent: MailMessage[] = []
   const auth = createAuth({
-    database: { dialect: new PGliteDialect(store), type: 'postgres' },
+    database: { dialect: store.dialect, type: 'postgres' },
     baseURL: origin,
     secret,
     mailer: { send: async (message) => void sent.push(message) },

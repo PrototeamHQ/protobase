@@ -24,9 +24,10 @@ export type FakeOidcProviderOptions = {
  * provider: it takes the authorization URL and the claims, and returns the code.
  */
 export const startFakeOidcProvider = async ({ issuer, client, discoveredIssuer = issuer }: FakeOidcProviderOptions) => {
-  const { privateKey, publicKey } = await generateKeyPair('ES256')
-  const foreign = await generateKeyPair('ES256')
-  const jwk = { ...(await exportJWK(publicKey)), kid: 'provider-key', alg: 'ES256', use: 'sig' }
+  // EdDSA signs the same token the same way every time, so the ID token the app stores is the same on each recording.
+  const { privateKey, publicKey } = await generateKeyPair('EdDSA')
+  const foreign = await generateKeyPair('EdDSA')
+  const jwk = { ...(await exportJWK(publicKey)), kid: 'provider-key', alg: 'EdDSA', use: 'sig' }
   const grants = new Map<string, { challenge: string; redirectURI: string; claims: Record<string, unknown>; twist: TokenTwist }>()
   const exchanged: string[] = []
   const authorizations: URL[] = []
@@ -40,7 +41,7 @@ export const startFakeOidcProvider = async ({ issuer, client, discoveredIssuer =
         authorization_endpoint: `${issuer}/authorize`,
         token_endpoint: `${issuer}/token`,
         jwks_uri: `${issuer}/jwks`,
-        id_token_signing_alg_values_supported: ['ES256'],
+        id_token_signing_alg_values_supported: ['EdDSA'],
       })
     }
     if (url.href === `${issuer}/jwks`) return json({ keys: [jwk] })
@@ -54,7 +55,7 @@ export const startFakeOidcProvider = async ({ issuer, client, discoveredIssuer =
       if (request.headers.get('authorization') !== basic) return json({ error: 'invalid_client' }, 401)
       if (!grant || challengeOf(form.get('code_verifier') ?? '') !== grant.challenge || form.get('redirect_uri') !== grant.redirectURI) return json({ error: 'invalid_grant' }, 400)
       const idToken = await new SignJWT({ ...grant.claims, ...(grant.twist.nonce !== undefined && { nonce: grant.twist.nonce }) })
-        .setProtectedHeader({ alg: 'ES256', kid: jwk.kid })
+        .setProtectedHeader({ alg: 'EdDSA', kid: jwk.kid })
         .setIssuer(grant.twist.issuer ?? discoveredIssuer)
         .setAudience(client.clientId)
         .setIssuedAt()

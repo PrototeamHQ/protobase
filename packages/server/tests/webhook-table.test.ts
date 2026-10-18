@@ -1,5 +1,4 @@
 import { Kysely, sql } from 'kysely'
-import { PGliteDialect } from 'kysely-pglite-dialect'
 import { describe, expect, it, vi } from 'vitest'
 import { f, resource } from '@protobase/schema'
 import { authSchemaMigration } from '../src/better-auth/auth-schema'
@@ -12,11 +11,9 @@ import { tableSubscriptions } from '../src/webhooks/table/table-subscriptions'
 import { subscriptionWriteCheck } from '../src/webhooks/table/validate-hook'
 import { checkWebhookUrl } from '../src/webhooks/table/address-check'
 import type { WriteEvent } from '../src/types'
-import { createAuthStore } from '../../../test-support/auth'
-import { createJobsPg } from '../../../test-support/jobs'
-import { cloneForTest } from '../../../test-support/pglite-snapshot'
+import { openSnapshotDb, type SnapshotDb } from '../../../test-support/sql-snapshot'
 
-// Real scrypt hashing and PGlite queries run on this thread, CPU work a busy machine stretches past 5 s.
+// Real scrypt hashing runs on this thread, CPU work a busy machine stretches past 5 s.
 vi.setConfig({ testTimeout: 30_000 })
 
 const orders = resource('orders')
@@ -28,8 +25,8 @@ const orders = resource('orders')
 
 describe('the webhooks schema', () => {
   it('is checked at startup, written by the migration with the delivery log when asked, then current', async () => {
-    const pg = await createJobsPg()
-    const db = new Kysely<any>({ dialect: new PGliteDialect(pg) })
+    const pg = await openSnapshotDb('jobs')
+    const db = new Kysely<any>({ dialect: pg.dialect })
     await expect(checkWebhooksSchema(db)).rejects.toThrow('The webhooks schema is missing or behind this version of Protobase. Write it as a migration with `protobase migration`')
     await pg.exec((await webhooksMigration(db))!)
     await checkWebhooksSchema(db)
@@ -44,10 +41,11 @@ describe('the webhooks schema', () => {
   })
 
   it('keeps the outcome of each try on the row, disables a subscription after three days of failures, and logs every try', async () => {
-    const pg = await createJobsPg()
-    const db = new Kysely<any>({ dialect: new PGliteDialect(pg) })
+    const pg = await openSnapshotDb('jobs')
+    const db = new Kysely<any>({ dialect: pg.dialect })
     await pg.exec((await webhooksMigration(db, { deliveryLog: true }))!)
-    const { rows } = await sql<{ id: string }>`insert into webhooks.subscriptions (name, events, url, tenant_id, owner_id) values ('a', 'orders.created', 'https://x.test', '1', 'u1') returning id::text`.execute(db)
+    // A secret of its own rather than the random default, so the recording stays the same.
+    const { rows } = await sql<{ id: string }>`insert into webhooks.subscriptions (name, events, url, tenant_id, owner_id, secret) values ('a', 'orders.created', 'https://x.test', '1', 'u1', 'whsec_dGVzdA==') returning id::text`.execute(db)
     const id = rows[0]!.id
     const table = tableSubscriptions({ schema: 'webhooks', ownerRoles: async () => ['sales'], deliveryLog: true })
     expect((await table.load(db))[0]).toMatchObject({ name: `ui:${id}`, options: { events: ['orders.created'], tenant: '1', as: { roles: ['sales'] }, url: 'https://x.test' } })
@@ -89,10 +87,10 @@ describe('subscriptionWriteCheck', () => {
 
 describe('betterAuthOwnerRoles', () => {
   it('reads the role someone acts with now, of their global ones and app roles in the organization they are a member of', async () => {
-    const store = await cloneForTest(await createAuthStore())
+    const store = await (await openSnapshotDb('auth')).clone()
     const make = () =>
       createAuth({
-        database: { dialect: new PGliteDialect(store), type: 'postgres' },
+        database: { dialect: store.dialect, type: 'postgres' },
         baseURL: 'http://localhost',
         secret: 'test-secret-test-secret-test-secret-1234',
         mailer: false,

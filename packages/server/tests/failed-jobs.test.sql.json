@@ -1,0 +1,61 @@
+{
+  "(hooks)": {
+    "(hooks)#0": [
+      {"sql":"create table notes (id integer generated always as identity primary key, body text not null)","result":{"command":"CREATE","rowCount":null,"columns":[],"rows":[]}}
+    ]
+  },
+  "the failed jobs page > lists failed jobs with their last error, newest first, to admins only": {
+    "(hooks)#0": [
+      {"sql":"select jobs.enqueue('flaky', $1::jsonb) as id","params":["{\"n\":1}"],"result":{"command":"SELECT","rowCount":1,"columns":[["id",2950]],"rows":[["{{uuid:1:4}}"]]}},
+      {"sql":"update jobs.job set state = 'failed', completed_on = now(), output = $1::jsonb where id = $2","params":["{\"name\":\"Error\",\"message\":\"SMTP down for 1\"}","{{uuid:1:4}}"],"result":{"command":"UPDATE","rowCount":1,"columns":[],"rows":[]}},
+      {"sql":"select jobs.enqueue('flaky', $1::jsonb) as id","params":["{\"n\":2}"],"result":{"command":"SELECT","rowCount":1,"columns":[["id",2950]],"rows":[["{{uuid:2:4}}"]]}},
+      {"sql":"update jobs.job set state = 'failed', completed_on = now(), output = $1::jsonb where id = $2","params":["{\"name\":\"Error\",\"message\":\"SMTP down for 2\"}","{{uuid:2:4}}"],"result":{"command":"UPDATE","rowCount":1,"columns":[],"rows":[]}},
+      {"sql":"select relkind from pg_class where oid = to_regclass($1)","params":["\"jobs\".\"failed\""],"result":{"command":"SELECT","rowCount":1,"columns":[["relkind",18]],"rows":[["v"]]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select \"t\".\"id\" as \"id\", \"t\".\"name\" as \"name\", \"t\".\"error\" as \"error\", \"t\".\"attempts\" as \"attempts\", \"t\".\"failed_at\" as \"failed_at\", \"t\".\"created_at\" as \"created_at\", \"t\".\"key\" as \"key\", \"t\".\"payload\" as \"payload\", \"t\".\"output\" as \"output\", \"t\".\"retry\" as \"retry\", \"t\".\"failed_at\"::text as \"__pb_key0\", \"t\".\"id\"::text as \"__pb_key1\" from \"jobs\".\"failed\" as \"t\" order by \"t\".\"failed_at\" desc, \"t\".\"id\" desc limit $1","params":["51"],"result":{"command":"SELECT","rowCount":2,"columns":[["id",2950],["name",25],["error",25],["attempts",23],["failed_at",1184],["created_at",1184],["key",25],["payload",3802],["output",3802],["retry",16],["__pb_key0",25],["__pb_key1",25]],"rows":[
+        ["{{uuid:2:4}}","flaky","SMTP down for 2","1","{{now:4: :-:+00}}","{{now:3: :-:+00}}",null,"{\"n\": 2}","{\"name\": \"Error\", \"message\": \"SMTP down for 2\"}","f","{{now:4: :-:+00}}","{{uuid:2:4}}"],
+        ["{{uuid:1:4}}","flaky","SMTP down for 1","1","{{now:2: :-:+00}}","{{now:1: :-:+00}}",null,"{\"n\": 1}","{\"name\": \"Error\", \"message\": \"SMTP down for 1\"}","f","{{now:2: :-:+00}}","{{uuid:1:4}}"]
+      ]}},
+      {"sql":"\n    select reltuples::float8 as reltuples from pg_class where oid = to_regclass($1)\n  ","params":["\"jobs\".\"failed\""],"result":{"command":"SELECT","rowCount":1,"columns":[["reltuples",701]],"rows":[["-1"]]}},
+      {"sql":"EXPLAIN (VERBOSE, FORMAT JSON) select 1 as \"one\" from \"jobs\".\"failed\" as \"t\"","result":{"command":"EXPLAIN","rowCount":null,"columns":[["QUERY PLAN",114]],"rows":[["[\n  {\n    \"Plan\": {\n      \"Node Type\": \"Index Only Scan\",\n      \"Parallel Aware\": false,\n      \"Async Capable\": false,\n      \"Scan Direction\": \"Forward\",\n      \"Index Name\": \"job_common_completed_on_idx\",\n      \"Relation Name\": \"job_common\",\n      \"Schema\": \"jobs\",\n      \"Alias\": \"job\",\n      \"Startup Cost\": 0.14,\n      \"Total Cost\": 8.16,\n      \"Plan Rows\": 1,\n      \"Plan Width\": 4,\n      \"Disabled\": false,\n      \"Output\": [\"1\"]\n    }\n  }\n]"]]}},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
+    ]
+  },
+  "the failed jobs page > retries a failed job with one more attempt, from now": {
+    "(hooks)#0": [
+      {"sql":"select jobs.enqueue('flaky', $1::jsonb) as id","params":["{\"n\":3}"],"result":{"command":"SELECT","rowCount":1,"columns":[["id",2950]],"rows":[["{{uuid:3:4}}"]]}},
+      {"sql":"update jobs.job set state = 'failed', completed_on = now(), output = $1::jsonb where id = $2","params":["{\"name\":\"Error\",\"message\":\"SMTP down for 3\"}","{{uuid:3:4}}"],"result":{"command":"UPDATE","rowCount":1,"columns":[],"rows":[]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select \"id\" as \"id\", \"name\" as \"name\", \"error\" as \"error\", \"attempts\" as \"attempts\", \"failed_at\" as \"failed_at\", \"created_at\" as \"created_at\", \"key\" as \"key\", \"payload\" as \"payload\", \"output\" as \"output\", \"retry\" as \"retry\" from \"jobs\".\"failed\" as t where \"id\" = $1 limit 1","params":["{{uuid:3:4}}"],"result":{"command":"SELECT","rowCount":1,"columns":[["id",2950],["name",25],["error",25],["attempts",23],["failed_at",1184],["created_at",1184],["key",25],["payload",3802],["output",3802],["retry",16]],"rows":[["{{uuid:3:4}}","flaky","SMTP down for 3","1","{{now:6: :-:+00}}","{{now:5: :-:+00}}",null,"{\"n\": 3}","{\"name\": \"Error\", \"message\": \"SMTP down for 3\"}","f"]]}},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select state, retry_limit from jobs.job where id = $1","params":["{{uuid:3:4}}"],"result":{"command":"SELECT","rowCount":1,"columns":[["state",649427],["retry_limit",23]],"rows":[["failed","2"]]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"select \"id\" as \"id\", \"name\" as \"name\", \"error\" as \"error\", \"attempts\" as \"attempts\", \"failed_at\" as \"failed_at\", \"created_at\" as \"created_at\", \"key\" as \"key\", \"payload\" as \"payload\", \"output\" as \"output\", \"retry\" as \"retry\" from \"jobs\".\"failed\" as t where \"id\" = $1 limit 1 for update","params":["{{uuid:3:4}}"],"result":{"command":"SELECT","rowCount":1,"columns":[["id",2950],["name",25],["error",25],["attempts",23],["failed_at",1184],["created_at",1184],["key",25],["payload",3802],["output",3802],["retry",16]],"rows":[["{{uuid:3:4}}","flaky","SMTP down for 3","1","{{now:6: :-:+00}}","{{now:5: :-:+00}}",null,"{\"n\": 3}","{\"name\": \"Error\", \"message\": \"SMTP down for 3\"}","f"]]}},
+      {"sql":"update \"jobs\".\"failed\" as t set \"retry\" = $1 where \"id\" = $2 returning \"id\" as \"id\", \"name\" as \"name\", \"error\" as \"error\", \"attempts\" as \"attempts\", \"failed_at\" as \"failed_at\", \"created_at\" as \"created_at\", \"key\" as \"key\", \"payload\" as \"payload\", \"output\" as \"output\", \"retry\" as \"retry\"","params":["true","{{uuid:3:4}}"],"result":{"command":"UPDATE","rowCount":1,"columns":[["id",2950],["name",25],["error",25],["attempts",23],["failed_at",1184],["created_at",1184],["key",25],["payload",3802],["output",3802],["retry",16]],"rows":[["{{uuid:3:4}}","flaky","SMTP down for 3","1","{{now:6: :-:+00}}","{{now:5: :-:+00}}",null,"{\"n\": 3}","{\"name\": \"Error\", \"message\": \"SMTP down for 3\"}","t"]]}},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select state, retry_limit from jobs.job where id = $1","params":["{{uuid:3:4}}"],"result":{"command":"SELECT","rowCount":1,"columns":[["state",649427],["retry_limit",23]],"rows":[["retry","3"]]}}
+    ]
+  },
+  "the failed jobs page > deletes a failed job": {
+    "(hooks)#0": [
+      {"sql":"select jobs.enqueue('flaky', $1::jsonb) as id","params":["{\"n\":4}"],"result":{"command":"SELECT","rowCount":1,"columns":[["id",2950]],"rows":[["{{uuid:4:4}}"]]}},
+      {"sql":"update jobs.job set state = 'failed', completed_on = now(), output = $1::jsonb where id = $2","params":["{\"name\":\"Error\",\"message\":\"SMTP down for 4\"}","{{uuid:4:4}}"],"result":{"command":"UPDATE","rowCount":1,"columns":[],"rows":[]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select \"id\" as \"id\", \"name\" as \"name\", \"error\" as \"error\", \"attempts\" as \"attempts\", \"failed_at\" as \"failed_at\", \"created_at\" as \"created_at\", \"key\" as \"key\", \"payload\" as \"payload\", \"output\" as \"output\", \"retry\" as \"retry\" from \"jobs\".\"failed\" as t where \"id\" = $1 limit 1","params":["{{uuid:4:4}}"],"result":{"command":"SELECT","rowCount":1,"columns":[["id",2950],["name",25],["error",25],["attempts",23],["failed_at",1184],["created_at",1184],["key",25],["payload",3802],["output",3802],["retry",16]],"rows":[["{{uuid:4:4}}","flaky","SMTP down for 4","1","{{now:8: :-:+00}}","{{now:7: :-:+00}}",null,"{\"n\": 4}","{\"name\": \"Error\", \"message\": \"SMTP down for 4\"}","f"]]}},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"select \"id\" as \"id\", \"name\" as \"name\", \"error\" as \"error\", \"attempts\" as \"attempts\", \"failed_at\" as \"failed_at\", \"created_at\" as \"created_at\", \"key\" as \"key\", \"payload\" as \"payload\", \"output\" as \"output\", \"retry\" as \"retry\" from \"jobs\".\"failed\" as t where \"id\" = $1 limit 1 for update","params":["{{uuid:4:4}}"],"result":{"command":"SELECT","rowCount":1,"columns":[["id",2950],["name",25],["error",25],["attempts",23],["failed_at",1184],["created_at",1184],["key",25],["payload",3802],["output",3802],["retry",16]],"rows":[["{{uuid:4:4}}","flaky","SMTP down for 4","1","{{now:8: :-:+00}}","{{now:7: :-:+00}}",null,"{\"n\": 4}","{\"name\": \"Error\", \"message\": \"SMTP down for 4\"}","f"]]}},
+      {"sql":"delete from \"jobs\".\"failed\" as t where \"id\" = $1 returning \"id\" as \"id\", \"name\" as \"name\", \"error\" as \"error\", \"attempts\" as \"attempts\", \"failed_at\" as \"failed_at\", \"created_at\" as \"created_at\", \"key\" as \"key\", \"payload\" as \"payload\", \"output\" as \"output\", \"retry\" as \"retry\"","params":["{{uuid:4:4}}"],"result":{"command":"DELETE","rowCount":1,"columns":[["id",2950],["name",25],["error",25],["attempts",23],["failed_at",1184],["created_at",1184],["key",25],["payload",3802],["output",3802],["retry",16]],"rows":[["{{uuid:4:4}}","flaky","SMTP down for 4","1","{{now:8: :-:+00}}","{{now:7: :-:+00}}",null,"{\"n\": 4}","{\"name\": \"Error\", \"message\": \"SMTP down for 4\"}","f"]]}},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select state, retry_limit from jobs.job where id = $1","params":["{{uuid:4:4}}"],"result":{"command":"SELECT","rowCount":0,"columns":[["state",649427],["retry_limit",23]],"rows":[]}}
+    ]
+  }
+}

@@ -1,0 +1,171 @@
+{
+  "(hooks)": {
+    "(hooks)#0": [
+      {"sql":"\n    create table people (id integer generated always as identity primary key, organization_id integer not null, name text not null, iban text not null, note text, updated_at timestamptz not null default now());\n    insert into people (organization_id, name, iban) values (1, 'Ada', 'NL91ABNA0417164300'), (1, 'Bert', 'NL20INGB0001234567'), (2, 'Cleo', 'DE89370400440532013000');\n    create index on people (organization_id, name);\n    create index on people using gin (name gin_trgm_ops);\n  ","result":[{"command":"CREATE","rowCount":null,"columns":[],"rows":[]},{"command":"INSERT","rowCount":3,"columns":[],"rows":[]},{"command":"CREATE","rowCount":null,"columns":[],"rows":[]},{"command":"CREATE","rowCount":null,"columns":[],"rows":[]}]}
+    ]
+  },
+  "a sensitive field > is never sent by lists, searches, seeks or records": {
+    "(hooks)#0": [
+      {"sql":"select relkind from pg_class where oid = to_regclass($1)","params":["\"people\""],"result":{"command":"SELECT","rowCount":1,"columns":[["relkind",18]],"rows":[["r"]]}},
+      {"sql":"\n    select ic.relname as name, am.amname as method, (i.indpred is not null) as partial, a.attname::text as column,\n      pg_get_indexdef(i.indexrelid, k.ord::int, true) as definition, oc.opcname::text as opclass\n    from pg_index i\n    join pg_class ic on ic.oid = i.indexrelid\n    join pg_am am on am.oid = ic.relam\n    cross join lateral unnest(i.indkey::int2[], i.indclass::oid[]) with ordinality k(attnum, opclass, ord)\n    left join pg_attribute a on a.attrelid = i.indrelid and a.attnum = k.attnum and k.attnum > 0\n    join pg_opclass oc on oc.oid = k.opclass\n    where i.indrelid = to_regclass($1) and i.indisvalid and i.indisready and k.ord <= i.indnkeyatts\n    order by ic.relname, k.ord\n  ","params":["\"people\""],"result":{"command":"SELECT","rowCount":4,"columns":[["name",19],["method",19],["partial",16],["column",25],["definition",25],["opclass",25]],"rows":[
+        ["people_name_idx","gin","f","name","name","gin_trgm_ops"],
+        ["people_organization_id_name_idx","btree","f","organization_id","organization_id","int4_ops"],
+        ["people_organization_id_name_idx","btree","f","name","name","text_ops"],
+        ["people_pkey","btree","f","id","id","int4_ops"]
+      ]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select \"t\".\"id\" as \"id\", \"t\".\"organization_id\" as \"organizationId\", \"t\".\"name\" as \"name\", \"t\".\"note\" as \"note\", \"t\".\"updated_at\" as \"updatedAt\", \"t\".\"updated_at\"::text as \"__pb_etag\", \"t\".\"id\"::text as \"__pb_key0\" from \"people\" as \"t\" where \"t\".\"organization_id\" = $1 order by \"t\".\"id\" asc limit $2","params":["1","51"],"result":{"command":"SELECT","rowCount":2,"columns":[["id",23],["organizationId",23],["name",25],["note",25],["updatedAt",1184],["__pb_etag",25],["__pb_key0",25]],"rows":[
+        ["1","1","Ada",null,"{{now:1: :-:+00}}","{{now:1: :-:+00}}","1"],
+        ["2","1","Bert",null,"{{now:1: :-:+00}}","{{now:1: :-:+00}}","2"]
+      ]}},
+      {"sql":"EXPLAIN (VERBOSE, FORMAT JSON) select 1 as \"one\" from \"people\" as \"t\" where \"t\".\"organization_id\" = $1","params":["1"],"result":{"command":"EXPLAIN","rowCount":null,"columns":[["QUERY PLAN",114]],"rows":[["[\n  {\n    \"Plan\": {\n      \"Node Type\": \"Seq Scan\",\n      \"Parallel Aware\": false,\n      \"Async Capable\": false,\n      \"Relation Name\": \"people\",\n      \"Schema\": \"public\",\n      \"Alias\": \"t\",\n      \"Startup Cost\": 0.00,\n      \"Total Cost\": 1.04,\n      \"Plan Rows\": 1,\n      \"Plan Width\": 4,\n      \"Disabled\": false,\n      \"Output\": [\"1\"],\n      \"Filter\": \"(t.organization_id = 1)\"\n    }\n  }\n]"]]}},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select \"t\".\"id\" as \"id\", \"t\".\"organization_id\" as \"organizationId\", \"t\".\"name\" as \"name\", \"t\".\"note\" as \"note\", \"t\".\"updated_at\" as \"updatedAt\", \"t\".\"updated_at\"::text as \"__pb_etag\", \"t\".\"id\"::text as \"__pb_key0\" from \"people\" as \"t\" where \"t\".\"organization_id\" = $1 order by \"t\".\"id\" asc limit $2","params":["1","51"],"result":{"command":"SELECT","rowCount":2,"columns":[["id",23],["organizationId",23],["name",25],["note",25],["updatedAt",1184],["__pb_etag",25],["__pb_key0",25]],"rows":[
+        ["1","1","Ada",null,"{{now:1: :-:+00}}","{{now:1: :-:+00}}","1"],
+        ["2","1","Bert",null,"{{now:1: :-:+00}}","{{now:1: :-:+00}}","2"]
+      ]}},
+      {"sql":"EXPLAIN (VERBOSE, FORMAT JSON) select 1 as \"one\" from \"people\" as \"t\" where \"t\".\"organization_id\" = $1","params":["1"],"result":{"command":"EXPLAIN","rowCount":null,"columns":[["QUERY PLAN",114]],"rows":[["[\n  {\n    \"Plan\": {\n      \"Node Type\": \"Seq Scan\",\n      \"Parallel Aware\": false,\n      \"Async Capable\": false,\n      \"Relation Name\": \"people\",\n      \"Schema\": \"public\",\n      \"Alias\": \"t\",\n      \"Startup Cost\": 0.00,\n      \"Total Cost\": 1.04,\n      \"Plan Rows\": 1,\n      \"Plan Width\": 4,\n      \"Disabled\": false,\n      \"Output\": [\"1\"],\n      \"Filter\": \"(t.organization_id = 1)\"\n    }\n  }\n]"]]}},
+      {"sql":"select count(*)::text as \"n\" from (select 1 as \"one\" from \"people\" as \"t\" where \"t\".\"organization_id\" = $1 limit $2) as \"found\"","params":["1","10001"],"result":{"command":"SELECT","rowCount":1,"columns":[["n",25]],"rows":[["2"]]}},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"EXPLAIN (VERBOSE, FORMAT JSON) select 1 as \"one\" from \"people\" as \"t\" where \"t\".\"organization_id\" = $1","params":["1"],"result":{"command":"EXPLAIN","rowCount":null,"columns":[["QUERY PLAN",114]],"rows":[["[\n  {\n    \"Plan\": {\n      \"Node Type\": \"Seq Scan\",\n      \"Parallel Aware\": false,\n      \"Async Capable\": false,\n      \"Relation Name\": \"people\",\n      \"Schema\": \"public\",\n      \"Alias\": \"t\",\n      \"Startup Cost\": 0.00,\n      \"Total Cost\": 1.04,\n      \"Plan Rows\": 1,\n      \"Plan Width\": 4,\n      \"Disabled\": false,\n      \"Output\": [\"1\"],\n      \"Filter\": \"(t.organization_id = 1)\"\n    }\n  }\n]"]]}},
+      {"sql":"select count(*)::text as \"n\" from \"people\" as \"t\" where \"t\".\"organization_id\" = $1","params":["1"],"result":{"command":"SELECT","rowCount":1,"columns":[["n",25]],"rows":[["2"]]}},
+      {"sql":"select r.k0 as \"value\", r.rn::text as \"rn\" from (select \"t\".\"id\"::text as \"k0\", row_number() over (order by \"t\".\"id\" asc) as \"rn\" from \"people\" as \"t\" where \"t\".\"organization_id\" = $1) as \"r\" where (r.rn - 1) % $2 = 0 order by r.rn","params":["1","1"],"result":{"command":"SELECT","rowCount":2,"columns":[["value",25],["rn",25]],"rows":[
+        ["1","1"],
+        ["2","2"]
+      ]}},
+      {"sql":"select \"t\".\"id\" as \"id\", \"t\".\"organization_id\" as \"organizationId\", \"t\".\"name\" as \"name\", \"t\".\"note\" as \"note\", \"t\".\"updated_at\" as \"updatedAt\", \"t\".\"updated_at\"::text as \"__pb_etag\", \"t\".\"id\"::text as \"__pb_key0\" from \"people\" as \"t\" where \"t\".\"organization_id\" = $1 order by \"t\".\"id\" asc limit $2","params":["1","51"],"result":{"command":"SELECT","rowCount":2,"columns":[["id",23],["organizationId",23],["name",25],["note",25],["updatedAt",1184],["__pb_etag",25],["__pb_key0",25]],"rows":[
+        ["1","1","Ada",null,"{{now:1: :-:+00}}","{{now:1: :-:+00}}","1"],
+        ["2","1","Bert",null,"{{now:1: :-:+00}}","{{now:1: :-:+00}}","2"]
+      ]}},
+      {"sql":"EXPLAIN (VERBOSE, FORMAT JSON) select 1 as \"one\" from \"people\" as \"t\" where \"t\".\"organization_id\" = $1","params":["1"],"result":{"command":"EXPLAIN","rowCount":null,"columns":[["QUERY PLAN",114]],"rows":[["[\n  {\n    \"Plan\": {\n      \"Node Type\": \"Seq Scan\",\n      \"Parallel Aware\": false,\n      \"Async Capable\": false,\n      \"Relation Name\": \"people\",\n      \"Schema\": \"public\",\n      \"Alias\": \"t\",\n      \"Startup Cost\": 0.00,\n      \"Total Cost\": 1.04,\n      \"Plan Rows\": 1,\n      \"Plan Width\": 4,\n      \"Disabled\": false,\n      \"Output\": [\"1\"],\n      \"Filter\": \"(t.organization_id = 1)\"\n    }\n  }\n]"]]}},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select \"id\" as \"id\", \"organization_id\" as \"organizationId\", \"name\" as \"name\", \"note\" as \"note\", \"updated_at\" as \"updatedAt\", \"updated_at\"::text as \"__pb_etag\" from \"people\" as t where \"organization_id\" = $1 and \"id\" = $2 limit 1","params":["1","1"],"result":{"command":"SELECT","rowCount":1,"columns":[["id",23],["organizationId",23],["name",25],["note",25],["updatedAt",1184],["__pb_etag",25]],"rows":[["1","1","Ada",null,"{{now:1: :-:+00}}","{{now:1: :-:+00}}"]]}},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select \"t\".\"id\" as \"id\", \"t\".\"organization_id\" as \"organizationId\", \"t\".\"name\" as \"name\", \"t\".\"note\" as \"note\", \"t\".\"updated_at\" as \"updatedAt\", \"t\".\"updated_at\"::text as \"__pb_etag\", \"t\".\"id\"::text as \"__pb_key0\" from \"people\" as \"t\" where \"t\".\"organization_id\" = $1 and (((\"t\".\"name\"::text is not null and \"t\".\"name\"::text ilike $2))) order by \"t\".\"id\" asc limit $3","params":["1","%Ada%","51"],"result":{"command":"SELECT","rowCount":1,"columns":[["id",23],["organizationId",23],["name",25],["note",25],["updatedAt",1184],["__pb_etag",25],["__pb_key0",25]],"rows":[["1","1","Ada",null,"{{now:1: :-:+00}}","{{now:1: :-:+00}}","1"]]}},
+      {"sql":"EXPLAIN (VERBOSE, FORMAT JSON) select 1 as \"one\" from \"people\" as \"t\" where \"t\".\"organization_id\" = $1 and (((\"t\".\"name\"::text is not null and \"t\".\"name\"::text ilike $2)))","params":["1","%Ada%"],"result":{"command":"EXPLAIN","rowCount":null,"columns":[["QUERY PLAN",114]],"rows":[["[\n  {\n    \"Plan\": {\n      \"Node Type\": \"Seq Scan\",\n      \"Parallel Aware\": false,\n      \"Async Capable\": false,\n      \"Relation Name\": \"people\",\n      \"Schema\": \"public\",\n      \"Alias\": \"t\",\n      \"Startup Cost\": 0.00,\n      \"Total Cost\": 1.04,\n      \"Plan Rows\": 1,\n      \"Plan Width\": 4,\n      \"Disabled\": false,\n      \"Output\": [\"1\"],\n      \"Filter\": \"((t.name ~~* '%Ada%'::text) AND (t.organization_id = 1))\"\n    }\n  }\n]"]]}},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select \"id\" as \"id\", \"organization_id\" as \"organizationId\", \"name\" as \"name\", \"note\" as \"note\", \"updated_at\" as \"updatedAt\", \"updated_at\"::text as \"__pb_etag\" from \"people\" as t where \"organization_id\" = $1 and \"id\" = $2 limit 1","params":["1","1"],"result":{"command":"SELECT","rowCount":1,"columns":[["id",23],["organizationId",23],["name",25],["note",25],["updatedAt",1184],["__pb_etag",25]],"rows":[["1","1","Ada",null,"{{now:1: :-:+00}}","{{now:1: :-:+00}}"]]}},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
+    ]
+  },
+  "a sensitive field > cannot be selected, filtered, sorted, searched or counted": {
+    "(hooks)#0": [
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select \"id\" as \"id\", \"organization_id\" as \"organizationId\", \"name\" as \"name\", \"note\" as \"note\", \"updated_at\" as \"updatedAt\", \"updated_at\"::text as \"__pb_etag\" from \"people\" as t where \"organization_id\" = $1 and \"id\" = $2 limit 1","params":["1","1"],"result":{"command":"SELECT","rowCount":1,"columns":[["id",23],["organizationId",23],["name",25],["note",25],["updatedAt",1184],["__pb_etag",25]],"rows":[["1","1","Ada",null,"{{now:1: :-:+00}}","{{now:1: :-:+00}}"]]}},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select \"t\".\"id\" as \"id\", \"t\".\"organization_id\" as \"organizationId\", \"t\".\"name\" as \"name\", \"t\".\"note\" as \"note\", \"t\".\"updated_at\" as \"updatedAt\", \"t\".\"updated_at\"::text as \"__pb_etag\", \"t\".\"id\"::text as \"__pb_key0\" from \"people\" as \"t\" where \"t\".\"organization_id\" = $1 and (((\"t\".\"name\"::text is not null and \"t\".\"name\"::text ilike $2))) order by \"t\".\"id\" asc limit $3","params":["1","%NL91ABNA0417164300%","51"],"result":{"command":"SELECT","rowCount":0,"columns":[["id",23],["organizationId",23],["name",25],["note",25],["updatedAt",1184],["__pb_etag",25],["__pb_key0",25]],"rows":[]}},
+      {"sql":"EXPLAIN (VERBOSE, FORMAT JSON) select 1 as \"one\" from \"people\" as \"t\" where \"t\".\"organization_id\" = $1 and (((\"t\".\"name\"::text is not null and \"t\".\"name\"::text ilike $2)))","params":["1","%NL91ABNA0417164300%"],"result":{"command":"EXPLAIN","rowCount":null,"columns":[["QUERY PLAN",114]],"rows":[["[\n  {\n    \"Plan\": {\n      \"Node Type\": \"Seq Scan\",\n      \"Parallel Aware\": false,\n      \"Async Capable\": false,\n      \"Relation Name\": \"people\",\n      \"Schema\": \"public\",\n      \"Alias\": \"t\",\n      \"Startup Cost\": 0.00,\n      \"Total Cost\": 1.04,\n      \"Plan Rows\": 1,\n      \"Plan Width\": 4,\n      \"Disabled\": false,\n      \"Output\": [\"1\"],\n      \"Filter\": \"((t.name ~~* '%NL91ABNA0417164300%'::text) AND (t.organization_id = 1))\"\n    }\n  }\n]"]]}},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
+    ]
+  },
+  "a sensitive field > is written like any other field but left out of write and batch responses": {
+    "(hooks)#0": [
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"insert into \"people\" (\"name\", \"iban\", \"organization_id\") values ($1, $2, $3) returning \"id\" as \"id\", \"organization_id\" as \"organizationId\", \"name\" as \"name\", \"iban\" as \"iban\", \"note\" as \"note\", \"updated_at\" as \"updatedAt\", \"updated_at\"::text as \"__pb_etag\"","params":["Dirk","NL02RABO0123456789","1"],"result":{"command":"INSERT","rowCount":1,"columns":[["id",23],["organizationId",23],["name",25],["iban",25],["note",25],["updatedAt",1184],["__pb_etag",25]],"rows":[["4","1","Dirk","NL02RABO0123456789",null,"{{now:2: :-:+00}}","{{now:2: :-:+00}}"]]}},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select \"id\" as \"id\", \"iban\" as \"iban\", \"updated_at\"::text as \"__pb_etag\" from \"people\" as t where \"organization_id\" = $1 and \"id\" = $2 limit 1","params":["1","4"],"result":{"command":"SELECT","rowCount":1,"columns":[["id",23],["iban",25],["__pb_etag",25]],"rows":[["4","NL02RABO0123456789","{{now:2: :-:+00}}"]]}},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"select \"id\" as \"id\", \"organization_id\" as \"organizationId\", \"name\" as \"name\", \"iban\" as \"iban\", \"note\" as \"note\", \"updated_at\" as \"updatedAt\", \"updated_at\"::text as \"__pb_etag\" from \"people\" as t where \"organization_id\" = $1 and \"id\" = $2 limit 1 for update","params":["1","4"],"result":{"command":"SELECT","rowCount":1,"columns":[["id",23],["organizationId",23],["name",25],["iban",25],["note",25],["updatedAt",1184],["__pb_etag",25]],"rows":[["4","1","Dirk","NL02RABO0123456789",null,"{{now:2: :-:+00}}","{{now:2: :-:+00}}"]]}},
+      {"sql":"update \"people\" as t set \"iban\" = $1, \"updated_at\" = clock_timestamp() where \"organization_id\" = $2 and \"id\" = $3 returning \"id\" as \"id\", \"organization_id\" as \"organizationId\", \"name\" as \"name\", \"iban\" as \"iban\", \"note\" as \"note\", \"updated_at\" as \"updatedAt\", \"updated_at\"::text as \"__pb_etag\"","params":["NL69INGB0123456789","1","4"],"result":{"command":"UPDATE","rowCount":1,"columns":[["id",23],["organizationId",23],["name",25],["iban",25],["note",25],["updatedAt",1184],["__pb_etag",25]],"rows":[["4","1","Dirk","NL69INGB0123456789",null,"{{now:3: :-:+00}}","{{now:3: :-:+00}}"]]}},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select \"id\" as \"id\", \"iban\" as \"iban\", \"updated_at\"::text as \"__pb_etag\" from \"people\" as t where \"organization_id\" = $1 and \"id\" = $2 limit 1","params":["1","4"],"result":{"command":"SELECT","rowCount":1,"columns":[["id",23],["iban",25],["__pb_etag",25]],"rows":[["4","NL69INGB0123456789","{{now:3: :-:+00}}"]]}},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"insert into \"people\" (\"name\", \"iban\", \"organization_id\") values ($1, $2, $3) returning \"id\" as \"id\", \"organization_id\" as \"organizationId\", \"name\" as \"name\", \"iban\" as \"iban\", \"note\" as \"note\", \"updated_at\" as \"updatedAt\", \"updated_at\"::text as \"__pb_etag\"","params":["Eva","NL44RABO0123456789","1"],"result":{"command":"INSERT","rowCount":1,"columns":[["id",23],["organizationId",23],["name",25],["iban",25],["note",25],["updatedAt",1184],["__pb_etag",25]],"rows":[["5","1","Eva","NL44RABO0123456789",null,"{{now:4: :-:+00}}","{{now:4: :-:+00}}"]]}},
+      {"sql":"select \"id\" as \"id\", \"organization_id\" as \"organizationId\", \"name\" as \"name\", \"iban\" as \"iban\", \"note\" as \"note\", \"updated_at\" as \"updatedAt\", \"updated_at\"::text as \"__pb_etag\" from \"people\" as t where \"organization_id\" = $1 and \"id\" = $2 limit 1 for update","params":["1","4"],"result":{"command":"SELECT","rowCount":1,"columns":[["id",23],["organizationId",23],["name",25],["iban",25],["note",25],["updatedAt",1184],["__pb_etag",25]],"rows":[["4","1","Dirk","NL69INGB0123456789",null,"{{now:3: :-:+00}}","{{now:3: :-:+00}}"]]}},
+      {"sql":"update \"people\" as t set \"iban\" = $1, \"note\" = $2, \"updated_at\" = clock_timestamp() where \"organization_id\" = $3 and \"id\" = $4 returning \"id\" as \"id\", \"organization_id\" as \"organizationId\", \"name\" as \"name\", \"iban\" as \"iban\", \"note\" as \"note\", \"updated_at\" as \"updatedAt\", \"updated_at\"::text as \"__pb_etag\"","params":["NL18RABO0123456789","moved","1","4"],"result":{"command":"UPDATE","rowCount":1,"columns":[["id",23],["organizationId",23],["name",25],["iban",25],["note",25],["updatedAt",1184],["__pb_etag",25]],"rows":[["4","1","Dirk","NL18RABO0123456789","moved","{{now:5: :-:+00}}","{{now:5: :-:+00}}"]]}},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
+    ]
+  },
+  "POST /{resource}/{key}:reveal > returns the value, uncached, and publishes exactly one event without it": {
+    "(hooks)#0": [
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select \"id\" as \"id\", \"iban\" as \"iban\", \"updated_at\"::text as \"__pb_etag\" from \"people\" as t where \"organization_id\" = $1 and \"id\" = $2 limit 1","params":["1","1"],"result":{"command":"SELECT","rowCount":1,"columns":[["id",23],["iban",25],["__pb_etag",25]],"rows":[["1","NL91ABNA0417164300","{{now:1: :-:+00}}"]]}},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
+    ]
+  },
+  "POST /{resource}/{key}:reveal > records the request origin from its headers": {
+    "(hooks)#0": [
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select \"id\" as \"id\", \"iban\" as \"iban\", \"updated_at\"::text as \"__pb_etag\" from \"people\" as t where \"organization_id\" = $1 and \"id\" = $2 limit 1","params":["1","2"],"result":{"command":"SELECT","rowCount":1,"columns":[["id",23],["iban",25],["__pb_etag",25]],"rows":[["2","NL20INGB0001234567","{{now:1: :-:+00}}"]]}},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
+    ]
+  },
+  "POST /{resource}/{key}:reveal > refuses records of another organization, unknown keys and callers who may not read the field or the record": {
+    "(hooks)#0": [
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select \"id\" as \"id\", \"iban\" as \"iban\", \"updated_at\"::text as \"__pb_etag\" from \"people\" as t where \"organization_id\" = $1 and \"id\" = $2 limit 1","params":["1","3"],"result":{"command":"SELECT","rowCount":0,"columns":[["id",23],["iban",25],["__pb_etag",25]],"rows":[]}},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select \"id\" as \"id\", \"iban\" as \"iban\", \"updated_at\"::text as \"__pb_etag\" from \"people\" as t where \"organization_id\" = $1 and \"id\" = $2 limit 1","params":["2","3"],"result":{"command":"SELECT","rowCount":1,"columns":[["id",23],["iban",25],["__pb_etag",25]],"rows":[["3","DE89370400440532013000","{{now:1: :-:+00}}"]]}},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select \"id\" as \"id\", \"iban\" as \"iban\", \"updated_at\"::text as \"__pb_etag\" from \"people\" as t where \"organization_id\" = $1 and \"id\" = $2 limit 1","params":["1","999"],"result":{"command":"SELECT","rowCount":0,"columns":[["id",23],["iban",25],["__pb_etag",25]],"rows":[]}},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
+    ]
+  },
+  "POST /{resource}/{key}:reveal > reveals nothing when the event cannot be published": {
+    "(hooks)#0": [
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select \"id\" as \"id\", \"iban\" as \"iban\", \"updated_at\"::text as \"__pb_etag\" from \"people\" as t where \"organization_id\" = $1 and \"id\" = $2 limit 1","params":["1","1"],"result":{"command":"SELECT","rowCount":1,"columns":[["id",23],["iban",25],["__pb_etag",25]],"rows":[["1","NL91ABNA0417164300","{{now:1: :-:+00}}"]]}},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
+    ]
+  },
+  "the console audit queue > is the default, printing every reveal to the console": {
+    "(hooks)#0": [
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select \"id\" as \"id\", \"iban\" as \"iban\", \"updated_at\"::text as \"__pb_etag\" from \"people\" as t where \"organization_id\" = $1 and \"id\" = $2 limit 1","params":["1","1"],"result":{"command":"SELECT","rowCount":1,"columns":[["id",23],["iban",25],["__pb_etag",25]],"rows":[["1","NL91ABNA0417164300","{{now:1: :-:+00}}"]]}},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
+    ]
+  }
+}

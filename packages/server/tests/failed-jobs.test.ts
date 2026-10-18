@@ -1,40 +1,32 @@
 import { Kysely, sql } from 'kysely'
-import { PGliteDialect } from 'kysely-pglite-dialect'
-import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
+import { beforeAll, describe, expect, it } from 'vitest'
 import { f, resource } from '@protobase/schema'
 import { createAdmin } from '../src/create-admin'
 import { defineJob } from '../src/jobs/define-job'
-import { startJobs, type JobsRuntime } from '../src/jobs/runtime'
 import { as, testAuthenticator } from '../../../test-support/server'
-import { createJobsPg } from '../../../test-support/jobs'
-
-// Workers poll and retry on real timers, which a busy machine stretches.
-vi.setConfig({ testTimeout: 30_000 })
+import { openSnapshotDb } from '../../../test-support/sql-snapshot'
 
 const notes = resource('notes').table('notes').fields({ id: f.integer().readOnly(), body: f.text() }).primaryKey((r) => r.id)
 
 let db: Kysely<any>
-let runtime: JobsRuntime
-let healthy = false
-const flaky = defineJob<{ n: number }>({ name: 'flaky', maxAttempts: 1, run: ({ n }) => { if (!healthy) throw new Error(`SMTP down for ${n}`) } })
+const flaky = defineJob<{ n: number }>({ name: 'flaky', maxAttempts: 1, run: () => {} })
 
 beforeAll(async () => {
-  const pg = await createJobsPg()
+  const pg = await openSnapshotDb('jobs')
   await pg.exec('create table notes (id integer generated always as identity primary key, body text not null)')
-  db = new Kysely<any>({ dialect: new PGliteDialect(pg) })
-  runtime = await startJobs({ db, jobs: [flaky], pollSeconds: 0.5, onError: (error) => { throw error } })
-})
-afterAll(async () => {
-  await runtime.stop()
+  db = new Kysely<any>({ dialect: pg.dialect })
 })
 
 const app = () => createAdmin({ resources: [notes], db, authenticate: testAuthenticator, jobs: [flaky] })
 
-const state = async (id: string) => (await sql<{ state: string }>`select state from jobs.job where id = ${id}`.execute(db)).rows[0]?.state
+const job = async (id: string) => (await sql<{ state: string; retry_limit: number }>`select state, retry_limit from jobs.job where id = ${id}`.execute(db)).rows[0]
+const state = async (id: string) => (await job(id))?.state
 
+/** A job whose one attempt failed, as pg-boss leaves it: failed now, with the error as its output. The page reads only these rows. */
 const failed = async (n: number) => {
-  const id = await flaky.enqueue(db, { n })
-  await vi.waitFor(async () => expect(await state(id)).toBe('failed'), { timeout: 15_000, interval: 20 })
+  const { rows } = await sql<{ id: string }>`select jobs.enqueue('flaky', ${JSON.stringify({ n })}::jsonb) as id`.execute(db)
+  const id = rows[0]!.id
+  await sql`update jobs.job set state = 'failed', completed_on = now(), output = ${JSON.stringify({ name: 'Error', message: `SMTP down for ${n}` })}::jsonb where id = ${id}`.execute(db)
   return id
 }
 
@@ -56,15 +48,15 @@ describe('the failed jobs page', () => {
     const id = await failed(3)
     const record = `/api/v1/failed_jobs/${id}`
     const read = await app().request(record, { headers: as(undefined, 'admin') })
-    healthy = true
+    const before = await job(id)
     const retried = await app().request(record, {
       method: 'PATCH',
       headers: as(undefined, 'admin', { 'content-type': 'application/json', 'if-match': read.headers.get('etag')! }),
       body: JSON.stringify({ retry: true }),
     })
     expect(retried.status).toBe(200)
-    await vi.waitFor(async () => expect(await state(id)).toBe('completed'), { timeout: 15_000, interval: 20 })
-    healthy = false
+    // Waiting for a worker again, as pg-boss's retry() leaves it; running it is the jobs runtime's own business.
+    expect(await job(id)).toEqual({ state: 'retry', retry_limit: before!.retry_limit + 1 })
   })
 
   it('deletes a failed job', async () => {

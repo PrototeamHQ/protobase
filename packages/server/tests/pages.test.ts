@@ -1,12 +1,11 @@
-import { PGlite } from '@electric-sql/pglite'
 import { Kysely } from 'kysely'
-import { PGliteDialect } from 'kysely-pglite-dialect'
-import { describe, expect, it } from 'vitest'
+import { beforeAll, describe, expect, it } from 'vitest'
 import { Action, Field, Page, RecordCard, Stat, Table, page } from '@protobase/layout'
 import { f, resource, userMenu, view } from '@protobase/schema'
 import { createAdmin } from '../src/create-admin'
 import { configExports } from '../src/resource-source'
 import { as, testAuthenticator } from '../../../test-support/server'
+import { openSnapshotDb, type SnapshotDb } from '../../../test-support/sql-snapshot'
 
 const isAdmin = (ctx: { user?: { roles?: readonly string[] } }) => ctx.user?.roles?.includes('admin') ?? false
 
@@ -40,9 +39,10 @@ const overview = page(
 
 const adminOnly = page('audit', Page({ title: 'Audit' }), { roles: ['admin'] })
 
-// One database for every app: none of these tests query it, and each PGlite costs a cold start.
-const pg = new PGlite()
-const db = () => new Kysely<any>({ dialect: new PGliteDialect(pg) })
+// One database for every app: none of these tests query it.
+let pg: SnapshotDb
+beforeAll(async () => { pg = await openSnapshotDb('empty') })
+const db = () => new Kysely<any>({ dialect: pg.dialect })
 
 const app = () => createAdmin({ resources: [ledger], views: [ledgerView], pages: [overview, adminOnly], db: db(), authenticate: testAuthenticator })
 

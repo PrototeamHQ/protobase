@@ -1,0 +1,59 @@
+{
+  "write pipeline hooks > run inside the write transaction with the statement timeout, the user and both row versions": {
+    "(hooks)#0": [
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","4321"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["4321ms"]]}},
+      {"sql":"insert into \"labels\" (\"name\", \"organization_id\") values ($1, $2) returning \"id\" as \"id\", \"organization_id\" as \"organizationId\", \"name\" as \"name\", \"color\" as \"color\", \"code\" as \"code\"","params":["hooked","1"],"result":{"command":"INSERT","rowCount":1,"columns":[["id",23],["organizationId",23],["name",25],["color",25],["code",25]],"rows":[["4","1","hooked",null,"a87ff679a2f3e71d9181a67b7542122c"]]}},
+      {"sql":"show statement_timeout","result":{"command":"SHOW","rowCount":null,"columns":[["statement_timeout",25]],"rows":[["4321ms"]]}},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","4321"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["4321ms"]]}},
+      {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select \"id\" as \"id\", \"organization_id\" as \"organizationId\", \"name\" as \"name\", \"color\" as \"color\", \"code\" as \"code\" from \"labels\" as t where \"organization_id\" = $1 and \"id\" = $2 limit 1","params":["1","4"],"result":{"command":"SELECT","rowCount":1,"columns":[["id",23],["organizationId",23],["name",25],["color",25],["code",25]],"rows":[["4","1","hooked",null,"a87ff679a2f3e71d9181a67b7542122c"]]}},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","4321"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["4321ms"]]}},
+      {"sql":"select \"id\" as \"id\", \"organization_id\" as \"organizationId\", \"name\" as \"name\", \"color\" as \"color\", \"code\" as \"code\" from \"labels\" as t where \"organization_id\" = $1 and \"id\" = $2 limit 1 for update","params":["1","4"],"result":{"command":"SELECT","rowCount":1,"columns":[["id",23],["organizationId",23],["name",25],["color",25],["code",25]],"rows":[["4","1","hooked",null,"a87ff679a2f3e71d9181a67b7542122c"]]}},
+      {"sql":"update \"labels\" as t set \"color\" = $1 where \"organization_id\" = $2 and \"id\" = $3 returning \"id\" as \"id\", \"organization_id\" as \"organizationId\", \"name\" as \"name\", \"color\" as \"color\", \"code\" as \"code\"","params":["red","1","4"],"result":{"command":"UPDATE","rowCount":1,"columns":[["id",23],["organizationId",23],["name",25],["color",25],["code",25]],"rows":[["4","1","hooked","red","a87ff679a2f3e71d9181a67b7542122c"]]}},
+      {"sql":"show statement_timeout","result":{"command":"SHOW","rowCount":null,"columns":[["statement_timeout",25]],"rows":[["4321ms"]]}},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","4321"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["4321ms"]]}},
+      {"sql":"select \"id\" as \"id\", \"organization_id\" as \"organizationId\", \"name\" as \"name\", \"color\" as \"color\", \"code\" as \"code\" from \"labels\" as t where \"organization_id\" = $1 and \"id\" = $2 limit 1 for update","params":["1","4"],"result":{"command":"SELECT","rowCount":1,"columns":[["id",23],["organizationId",23],["name",25],["color",25],["code",25]],"rows":[["4","1","hooked","red","a87ff679a2f3e71d9181a67b7542122c"]]}},
+      {"sql":"delete from \"labels\" as t where \"organization_id\" = $1 and \"id\" = $2 returning \"id\" as \"id\", \"organization_id\" as \"organizationId\", \"name\" as \"name\", \"color\" as \"color\", \"code\" as \"code\"","params":["1","4"],"result":{"command":"DELETE","rowCount":1,"columns":[["id",23],["organizationId",23],["name",25],["color",25],["code",25]],"rows":[["4","1","hooked","red","a87ff679a2f3e71d9181a67b7542122c"]]}},
+      {"sql":"show statement_timeout","result":{"command":"SHOW","rowCount":null,"columns":[["statement_timeout",25]],"rows":[["4321ms"]]}},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
+    ]
+  },
+  "write pipeline hooks > roll the write back when a hook throws": {
+    "(hooks)#0": [
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"insert into \"labels\" (\"name\", \"organization_id\") values ($1, $2) returning \"id\" as \"id\", \"organization_id\" as \"organizationId\", \"name\" as \"name\", \"color\" as \"color\", \"code\" as \"code\"","params":["rolled-back","1"],"result":{"command":"INSERT","rowCount":1,"columns":[["id",23],["organizationId",23],["name",25],["color",25],["code",25]],"rows":[["5","1","rolled-back",null,"e4da3b7fbbce2345d7772b0674a318d5"]]}},
+      {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select 1 from labels where name = 'rolled-back'","result":{"command":"SELECT","rowCount":0,"columns":[["?column?",23]],"rows":[]}}
+    ]
+  },
+  "write pipeline hooks > reports unexpected errors to onUnhandledError": {
+    "(hooks)#0": [
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"insert into \"labels\" (\"name\", \"organization_id\") values ($1, $2) returning \"id\" as \"id\", \"organization_id\" as \"organizationId\", \"name\" as \"name\", \"color\" as \"color\", \"code\" as \"code\"","params":["x","1"],"result":{"command":"INSERT","rowCount":1,"columns":[["id",23],["organizationId",23],["name",25],["color",25],["code",25]],"rows":[["6","1","x",null,"1679091c5a880faf6fb5e6087eb1b2dc"]]}},
+      {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}}
+    ]
+  },
+  "read transactions > are read-only and refuse writes": {
+    "(hooks)#0": [
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
+      {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"show transaction_read_only","result":{"command":"SHOW","rowCount":null,"columns":[["transaction_read_only",25]],"rows":[["on"]]}},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
+      {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"delete from labels","error":{"message":"cannot execute DELETE in a read-only transaction","severity":"ERROR","code":"25006"}},
+      {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}}
+    ]
+  }
+}

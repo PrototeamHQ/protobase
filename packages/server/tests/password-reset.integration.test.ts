@@ -1,13 +1,11 @@
-import { PGlite } from '@electric-sql/pglite'
 import { Kysely } from 'kysely'
-import { PGliteDialect } from 'kysely-pglite-dialect'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { betterAuthAuthenticator } from '../src/better-auth/authenticator'
 import { createAuth } from '../src/better-auth/create-auth'
 import { createUser } from '../src/better-auth/users'
 import { createAdmin } from '../src/create-admin'
-import { createAuthStore } from '../../../test-support/auth'
 import { bodyOf, relayCredential as credential, startFakeRelay } from './support/fake-relay'
+import { openSnapshotDb, type SnapshotDb } from '../../../test-support/sql-snapshot'
 
 const origin = 'http://localhost:5173'
 const oldPassword = 'correct horse battery'
@@ -15,7 +13,7 @@ const newPassword = 'a much longer new password'
 const sender = 'noreply@acme.example.com'
 
 let relay: Awaited<ReturnType<typeof startFakeRelay>>
-let store: PGlite
+let store: SnapshotDb
 let app: ReturnType<typeof createAdmin>
 
 beforeAll(async () => {
@@ -23,12 +21,12 @@ beforeAll(async () => {
   // As the platform passes them to a tenant's container.
   vi.stubEnv('PROTOBASE_SMTP_URL', relay.smtpUrl)
   vi.stubEnv('PROTOBASE_MAIL_FROM', sender)
-  store = await createAuthStore()
-  const auth = createAuth({ database: { dialect: new PGliteDialect(store), type: 'postgres' }, baseURL: origin, secret: 'test-secret-test-secret-test-secret-1234', signInPerMinute: 100 })
+  store = await openSnapshotDb('auth')
+  const auth = createAuth({ database: { dialect: store.dialect, type: 'postgres' }, baseURL: origin, secret: 'test-secret-test-secret-test-secret-1234', signInPerMinute: 100 })
   vi.unstubAllEnvs()
   await createUser(auth, { email: 'sanne@acme.example.com', password: oldPassword })
-  // The app has no resources and never queries its database, so it shares the store instead of a fresh PGlite.
-  app = createAdmin({ resources: [], db: new Kysely<any>({ dialect: new PGliteDialect(store) }), authenticate: betterAuthAuthenticator({ auth }), auth })
+  // The app has no resources and never queries its database, so it shares the store instead of a database of its own.
+  app = createAdmin({ resources: [], db: new Kysely<any>({ dialect: store.dialect }), authenticate: betterAuthAuthenticator({ auth }), auth })
 })
 afterAll(async () => { await relay.close() })
 

@@ -1,12 +1,11 @@
 import { Kysely } from 'kysely'
-import { PGliteDialect } from 'kysely-pglite-dialect'
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { f, l, resource, view } from '@protobase/schema'
 import type { AuditEvent, AuditQueue } from '../src/types'
 import { consoleAuditQueue } from '../src/audit/console-queue'
 import { createAdmin } from '../src/create-admin'
 import { as, testAuthenticator } from '../../../test-support/server'
-import { createTrigramPg } from '../../../test-support/pglite-snapshot'
+import { openSnapshotDb, type SnapshotDb } from '../../../test-support/sql-snapshot'
 
 const screener = (ctx: { user?: { roles?: readonly string[] } }) => ctx.user?.roles?.some((role) => role === 'admin' || role === 'screener') ?? false
 const reader = (ctx: { user?: { roles?: readonly string[] } }) => !(ctx.user?.roles?.includes('outsider') ?? false)
@@ -39,14 +38,14 @@ const events: AuditEvent[] = []
 const queue: AuditQueue = { publish: async (event) => void events.push(event) }
 let app: ReturnType<typeof createAdmin>
 beforeAll(async () => {
-  const pg = await createTrigramPg()
+  const pg = await openSnapshotDb('trigram')
   await pg.exec(`
     create table people (id integer generated always as identity primary key, organization_id integer not null, name text not null, iban text not null, note text, updated_at timestamptz not null default now());
     insert into people (organization_id, name, iban) values (1, 'Ada', '${ibans[0]}'), (1, 'Bert', '${ibans[1]}'), (2, 'Cleo', '${ibans[2]}');
     create index on people (organization_id, name);
     create index on people using gin (name gin_trgm_ops);
   `)
-  db = new Kysely({ dialect: new PGliteDialect(pg) })
+  db = new Kysely({ dialect: pg.dialect })
   app = createAdmin({ resources: [people], views: [peopleView], db, authenticate: testAuthenticator, options: { audit: queue } })
 })
 afterAll(async () => { await db.destroy() })

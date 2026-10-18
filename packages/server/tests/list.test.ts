@@ -28,13 +28,15 @@ describe('GET /{resource}', () => {
   it('pages without gaps or duplicates and ends with an empty token', async () => {
     const seen: number[] = []
     let token = ''
+    // Six pages of 300 companies, where creation days repeat, so pages end inside runs of equal values.
     do {
-      const body = await (await get(`/companies?page_size=500&order_by=createdAt%20desc&page_token=${encodeURIComponent(token)}`)).json()
+      const body = await (await get(`/companies?page_size=50&order_by=createdAt%20desc&fields=id&filter=${encodeURIComponent('id <= 300')}&page_token=${encodeURIComponent(token)}`)).json()
       seen.push(...body.items.map((item: { id: number }) => item.id))
       token = body.next_page_token
     } while (token)
     expect(new Set(seen).size).toBe(seen.length)
-    expect(seen).toHaveLength(2970)
+    // But for the three soft-deleted ones
+    expect(seen).toHaveLength(297)
   })
 
   it('returns an exact total on request', async () => {
@@ -80,7 +82,7 @@ describe('GET /{resource}', () => {
   })
 
   it('coerces a page size above the maximum', async () => {
-    const body = await (await get('/companies?page_size=100000')).json()
+    const body = await (await get('/companies?page_size=100000&fields=id')).json()
     expect(body.items).toHaveLength(500)
   })
 
@@ -90,7 +92,7 @@ describe('GET /{resource}', () => {
   })
 
   it('ANDs a filter returned by an access rule', async () => {
-    const body = await (await get('/companies?page_size=500', 1, 'sales')).json()
+    const body = await (await get('/companies?page_size=500&fields=id,status', 1, 'sales')).json()
     expect(body.items.length).toBeGreaterThan(0)
     expect(new Set(body.items.map((item: { status: string }) => item.status))).toEqual(new Set(['open']))
   })
@@ -98,12 +100,15 @@ describe('GET /{resource}', () => {
 
 describe('POST /{resource}:search', () => {
   it('takes a long in() list that would not fit a URL', async () => {
-    const ids = Array.from({ length: 20000 }, (_, i) => i + 1)
-    const response = await app.request('/api/v1/companies:search', json({ filter: `in(id, ${ids.join(", ")})`, page_size: 500, fields: ['id'], count: 'exact' }, as(1)))
+    // Past the 10,000 characters a filter in a query string may have, in few enough values to keep the recording small.
+    const filter = `in(name, ${Array.from({ length: 800 }, (_, i) => `"Company ${i + 1}"`).join(', ')})`
+    expect(filter.length).toBeGreaterThan(10_000)
+    const response = await app.request('/api/v1/companies:search', json({ filter, page_size: 5, fields: ['id'], count: 'exact' }, as(1)))
     const body = await response.json()
     expect(response.status).toBe(200)
-    expect(body.items).toHaveLength(500)
-    expect(body.total_size).toBe(2970)
+    expect(body.items).toHaveLength(5)
+    // Companies 1-800 are the first organization's, but for the eight soft-deleted ones
+    expect(body.total_size).toBe(792)
   })
 
   it('still caps filters in a query string', async () => {

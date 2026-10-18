@@ -49,9 +49,31 @@ const presets = ['packages/presets/tests/**/*.test.ts']
 // Snapshot tests: what PGlite ran before, now replaying SQL recorded from real Postgres (test-support/sql-snapshot.ts),
 // in `bun run test` without a database. `bun run test:record` runs them on Postgres instead and rewrites the recordings.
 const recordSnapshots = process.env.SQL_SNAPSHOT === 'record'
-const snapshot = ['packages/query/tests/**/*.test.ts']
-// Like `mocking` for unit tests: snapshot tests that replace a module or change a global run in a registry of their own.
-const snapshotMocking: string[] = []
+const snapshot = ['packages/query/tests/**/*.test.ts', 'packages/server/tests/!(jobs|drain-jobs|recurring-jobs).test.ts']
+// Like `mocking` for unit tests, snapshot tests that replace a module or change a global run in a registry of their own,
+// and so do those that create a Better Auth instance: its rate limits live in one map per module registry, which the
+// fixed clock never empties, so they would carry over from file to file.
+const snapshotIsolated = [
+  'packages/server/tests/app-tokens.test.ts',
+  'packages/server/tests/auth-snake-case.test.ts',
+  'packages/server/tests/better-auth.test.ts',
+  'packages/server/tests/cors.test.ts',
+  'packages/server/tests/meta.test.ts',
+  'packages/server/tests/organizations.test.ts',
+  'packages/server/tests/origins.test.ts',
+  'packages/server/tests/passkey-domains.test.ts',
+  'packages/server/tests/password-reset.integration.test.ts',
+  'packages/server/tests/password-reset.test.ts',
+  'packages/server/tests/platform-sign-in.integration.test.ts',
+  'packages/server/tests/plugins.test.ts',
+  'packages/server/tests/sign-in-codes.integration.test.ts',
+  'packages/server/tests/sign-in-policy.test.ts',
+  'packages/server/tests/sign-up.test.ts',
+  'packages/server/tests/social-sign-in.test.ts',
+  'packages/server/tests/sources.test.ts',
+  'packages/server/tests/staff-sign-in.integration.test.ts',
+  'packages/server/tests/webhook-table.test.ts',
+]
 const snapshotProject = (name: string, include: string[], exclude: string[], isolate: boolean) => ({
   extends: true,
   test: {
@@ -108,8 +130,8 @@ export default defineConfig({
           globalSetup: ['test-support/pglite-snapshots.global-setup.ts'],
         },
       },
-      snapshotProject('snapshot', snapshot, snapshotMocking, false),
-      snapshotProject('snapshot-isolated', snapshotMocking, [], true),
+      snapshotProject('snapshot', snapshot, snapshotIsolated, false),
+      snapshotProject('snapshot-isolated', snapshotIsolated, [], true),
       {
         extends: true,
         test: {

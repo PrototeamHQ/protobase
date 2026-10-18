@@ -1,0 +1,69 @@
+{
+  "ToolContext.records > reads a record as the user may see it, with its ETag, inside their tenant only": {
+    "(hooks)#0": [
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select \"id\" as \"id\", \"organization_id\" as \"organizationId\", \"name\" as \"name\", \"color\" as \"color\", \"code\" as \"code\" from \"labels\" as t where \"organization_id\" = $1 and \"id\" = $2 limit 1","params":["1","1"],"result":{"command":"SELECT","rowCount":1,"columns":[["id",23],["organizationId",23],["name",25],["color",25],["code",25]],"rows":[["1","1","urgent","red","c4ca4238a0b923820dcc509a6f75849b"]]}},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select \"label_id\" as \"labelId\", \"line_no\" as \"lineNo\", \"organization_id\" as \"organizationId\", \"quantity\" as \"quantity\" from \"line_items\" as t where \"organization_id\" = $1 and \"label_id\" = $2 and \"line_no\" = $3 limit 1","params":["1","1","2"],"result":{"command":"SELECT","rowCount":1,"columns":[["labelId",23],["lineNo",23],["organizationId",23],["quantity",23]],"rows":[["1","2","1","7"]]}},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select \"label_id\" as \"labelId\", \"line_no\" as \"lineNo\", \"organization_id\" as \"organizationId\", \"quantity\" as \"quantity\" from \"line_items\" as t where \"organization_id\" = $1 and \"label_id\" = $2 and \"line_no\" = $3 limit 1","params":["1","1","1"],"result":{"command":"SELECT","rowCount":1,"columns":[["labelId",23],["lineNo",23],["organizationId",23],["quantity",23]],"rows":[["1","1","1","5"]]}},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select \"id\" as \"id\", \"organization_id\" as \"organizationId\", \"name\" as \"name\", \"color\" as \"color\", \"code\" as \"code\" from \"labels\" as t where \"organization_id\" = $1 and \"id\" = $2 limit 1","params":["1","3"],"result":{"command":"SELECT","rowCount":0,"columns":[["id",23],["organizationId",23],["name",25],["color",25],["code",25]],"rows":[]}},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
+    ]
+  },
+  "ToolContext.records > creates and updates through the write pipeline: tenant, validation, hooks with the user, and ETags": {
+    "(hooks)#0": [
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"insert into \"companies\" (\"name\", \"status\", \"revenue\", \"organization_id\") values ($1, $2, $3, $4) returning \"id\" as \"id\", \"organization_id\" as \"organizationId\", \"name\" as \"name\", \"status\" as \"status\", \"revenue\" as \"revenue\", \"notes\" as \"notes\", \"meta\" as \"meta\", \"created_at\" as \"createdAt\", \"updated_at\" as \"updatedAt\", \"deleted_at\" as \"deletedAt\", \"updated_at\"::text as \"__pb_etag\"","params":["Initech","open","0","1"],"result":{"command":"INSERT","rowCount":1,"columns":[["id",23],["organizationId",23],["name",25],["status",25],["revenue",1700],["notes",25],["meta",3802],["createdAt",1184],["updatedAt",1184],["deletedAt",1184],["__pb_etag",25]],"rows":[["3501","1","Initech","open","0.00",null,null,"{{now:1: :-:+00}}","{{now:1: :-:+00}}",null,"{{now:1: :-:+00}}"]]}},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"select \"id\" as \"id\", \"organization_id\" as \"organizationId\", \"name\" as \"name\", \"status\" as \"status\", \"revenue\" as \"revenue\", \"notes\" as \"notes\", \"meta\" as \"meta\", \"created_at\" as \"createdAt\", \"updated_at\" as \"updatedAt\", \"deleted_at\" as \"deletedAt\", \"updated_at\"::text as \"__pb_etag\" from \"companies\" as t where \"deleted_at\" is null and \"organization_id\" = $1 and \"id\" = $2 limit 1 for update","params":["1","3501"],"result":{"command":"SELECT","rowCount":1,"columns":[["id",23],["organizationId",23],["name",25],["status",25],["revenue",1700],["notes",25],["meta",3802],["createdAt",1184],["updatedAt",1184],["deletedAt",1184],["__pb_etag",25]],"rows":[["3501","1","Initech","open","0.00",null,null,"{{now:1: :-:+00}}","{{now:1: :-:+00}}",null,"{{now:1: :-:+00}}"]]}},
+      {"sql":"update \"companies\" as t set \"status\" = $1, \"updated_at\" = clock_timestamp() where \"deleted_at\" is null and \"organization_id\" = $2 and \"id\" = $3 returning \"id\" as \"id\", \"organization_id\" as \"organizationId\", \"name\" as \"name\", \"status\" as \"status\", \"revenue\" as \"revenue\", \"notes\" as \"notes\", \"meta\" as \"meta\", \"created_at\" as \"createdAt\", \"updated_at\" as \"updatedAt\", \"deleted_at\" as \"deletedAt\", \"updated_at\"::text as \"__pb_etag\"","params":["won","1","3501"],"result":{"command":"UPDATE","rowCount":1,"columns":[["id",23],["organizationId",23],["name",25],["status",25],["revenue",1700],["notes",25],["meta",3802],["createdAt",1184],["updatedAt",1184],["deletedAt",1184],["__pb_etag",25]],"rows":[["3501","1","Initech","won","0.00",null,null,"{{now:1: :-:+00}}","{{now:2: :-:+00}}",null,"{{now:2: :-:+00}}"]]}},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"select \"id\" as \"id\", \"organization_id\" as \"organizationId\", \"name\" as \"name\", \"status\" as \"status\", \"revenue\" as \"revenue\", \"notes\" as \"notes\", \"meta\" as \"meta\", \"created_at\" as \"createdAt\", \"updated_at\" as \"updatedAt\", \"deleted_at\" as \"deletedAt\", \"updated_at\"::text as \"__pb_etag\" from \"companies\" as t where \"deleted_at\" is null and \"organization_id\" = $1 and \"id\" = $2 limit 1 for update","params":["1","3501"],"result":{"command":"SELECT","rowCount":1,"columns":[["id",23],["organizationId",23],["name",25],["status",25],["revenue",1700],["notes",25],["meta",3802],["createdAt",1184],["updatedAt",1184],["deletedAt",1184],["__pb_etag",25]],"rows":[["3501","1","Initech","won","0.00",null,null,"{{now:1: :-:+00}}","{{now:2: :-:+00}}",null,"{{now:2: :-:+00}}"]]}},
+      {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"select \"id\" as \"id\", \"organization_id\" as \"organizationId\", \"name\" as \"name\", \"status\" as \"status\", \"revenue\" as \"revenue\", \"notes\" as \"notes\", \"meta\" as \"meta\", \"created_at\" as \"createdAt\", \"updated_at\" as \"updatedAt\", \"deleted_at\" as \"deletedAt\", \"updated_at\"::text as \"__pb_etag\" from \"companies\" as t where \"deleted_at\" is null and \"organization_id\" = $1 and \"id\" = $2 limit 1 for update","params":["1","3501"],"result":{"command":"SELECT","rowCount":1,"columns":[["id",23],["organizationId",23],["name",25],["status",25],["revenue",1700],["notes",25],["meta",3802],["createdAt",1184],["updatedAt",1184],["deletedAt",1184],["__pb_etag",25]],"rows":[["3501","1","Initech","won","0.00",null,null,"{{now:1: :-:+00}}","{{now:2: :-:+00}}",null,"{{now:2: :-:+00}}"]]}},
+      {"sql":"update \"companies\" as t set \"status\" = $1, \"updated_at\" = clock_timestamp() where \"deleted_at\" is null and \"organization_id\" = $2 and \"id\" = $3 returning \"id\" as \"id\", \"organization_id\" as \"organizationId\", \"name\" as \"name\", \"status\" as \"status\", \"revenue\" as \"revenue\", \"notes\" as \"notes\", \"meta\" as \"meta\", \"created_at\" as \"createdAt\", \"updated_at\" as \"updatedAt\", \"deleted_at\" as \"deletedAt\", \"updated_at\"::text as \"__pb_etag\"","params":["lost","1","3501"],"result":{"command":"UPDATE","rowCount":1,"columns":[["id",23],["organizationId",23],["name",25],["status",25],["revenue",1700],["notes",25],["meta",3802],["createdAt",1184],["updatedAt",1184],["deletedAt",1184],["__pb_etag",25]],"rows":[["3501","1","Initech","lost","0.00",null,null,"{{now:1: :-:+00}}","{{now:3: :-:+00}}",null,"{{now:3: :-:+00}}"]]}},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}}
+    ]
+  },
+  "ToolContext.records > refuses what the user may not write, as the REST API does": {
+    "(hooks)#0": [
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"insert into \"labels\" (\"name\", \"organization_id\") values ($1, $2) returning \"id\" as \"id\", \"organization_id\" as \"organizationId\", \"name\" as \"name\", \"color\" as \"color\", \"code\" as \"code\"","params":["ok-allowed","1"],"result":{"command":"INSERT","rowCount":1,"columns":[["id",23],["organizationId",23],["name",25],["color",25],["code",25]],"rows":[["4","1","ok-allowed",null,"a87ff679a2f3e71d9181a67b7542122c"]]}},
+      {"sql":"select \"id\" as \"id\" from \"labels\" as t where \"organization_id\" = $1 and \"id\" = $2 and \"t\".\"name\" ~* $3 limit 1","params":["1","4","^ok-"],"result":{"command":"SELECT","rowCount":1,"columns":[["id",23]],"rows":[["4"]]}},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"insert into \"labels\" (\"name\", \"organization_id\") values ($1, $2) returning \"id\" as \"id\", \"organization_id\" as \"organizationId\", \"name\" as \"name\", \"color\" as \"color\", \"code\" as \"code\"","params":["not-allowed","1"],"result":{"command":"INSERT","rowCount":1,"columns":[["id",23],["organizationId",23],["name",25],["color",25],["code",25]],"rows":[["5","1","not-allowed",null,"e4da3b7fbbce2345d7772b0674a318d5"]]}},
+      {"sql":"select \"id\" as \"id\" from \"labels\" as t where \"organization_id\" = $1 and \"id\" = $2 and \"t\".\"name\" ~* $3 limit 1","params":["1","5","^ok-"],"result":{"command":"SELECT","rowCount":0,"columns":[["id",23]],"rows":[]}},
+      {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"select \"id\" as \"id\", \"organization_id\" as \"organizationId\", \"name\" as \"name\", \"color\" as \"color\", \"code\" as \"code\" from \"labels\" as t where \"organization_id\" = $1 and \"id\" = $2 and \"t\".\"name\" ~* $3 limit 1 for update","params":["1","1","^ok-"],"result":{"command":"SELECT","rowCount":0,"columns":[["id",23],["organizationId",23],["name",25],["color",25],["code",25]],"rows":[]}},
+      {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}}
+    ]
+  }
+}

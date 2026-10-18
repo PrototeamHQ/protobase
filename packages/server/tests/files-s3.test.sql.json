@@ -1,0 +1,45 @@
+{
+  "file fields in a bucket > store uploads in the bucket, and redirect a private download to a presigned link once the row is checked": {
+    "file fields in a bucket > store uploads in the bucket, and redirect a private download to a presigned link once the row is checked#0": [
+      {"sql":"\ncreate table products (\n  id integer generated always as identity primary key, organization_id integer not null, name text not null,\n  image text, image_placeholder text, image_width integer, image_ratio numeric(8,4), datasheet text, deleted_at timestamptz\n);\ncreate table avatars (id integer generated always as identity primary key, name text not null, picture text);\n","result":[{"command":"CREATE","rowCount":null,"columns":[],"rows":[]},{"command":"CREATE","rowCount":null,"columns":[],"rows":[]}]},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"insert into \"products\" (\"name\", \"image\", \"organization_id\") values ($1, $2, $3) returning \"id\" as \"id\", \"organization_id\" as \"organizationId\", \"name\" as \"name\", \"image\" as \"image\", \"image_placeholder\" as \"imagePlaceholder\", \"image_width\" as \"imageWidth\", \"image_ratio\" as \"imageRatio\", \"datasheet\" as \"datasheet\", \"deleted_at\" as \"deletedAt\"","params":["Bike","private:1/3226c6e2-1a7c-4d49-92a0-fa0a0d0cba31.jpg?name=photo.png&size=41","1"],"result":{"command":"INSERT","rowCount":1,"columns":[["id",23],["organizationId",23],["name",25],["image",25],["imagePlaceholder",25],["imageWidth",23],["imageRatio",1700],["datasheet",25],["deletedAt",1184]],"rows":[["1","1","Bike","private:1/3226c6e2-1a7c-4d49-92a0-fa0a0d0cba31.jpg?name=photo.png&size=41",null,null,null,null,null]]}},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select \"image\" as \"image\", \"organization_id\" as \"organizationId\" from \"products\" as t where \"id\" = $1 limit 1","params":["1"],"result":{"command":"SELECT","rowCount":1,"columns":[["image",25],["organizationId",23]],"rows":[["private:1/3226c6e2-1a7c-4d49-92a0-fa0a0d0cba31.jpg?name=photo.png&size=41","1"]]}},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select \"id\" as \"id\", \"organization_id\" as \"organizationId\", \"name\" as \"name\", \"image\" as \"image\", \"image_placeholder\" as \"imagePlaceholder\", \"image_width\" as \"imageWidth\", \"image_ratio\" as \"imageRatio\", \"datasheet\" as \"datasheet\", \"deleted_at\" as \"deletedAt\" from \"products\" as t where \"deleted_at\" is null and \"organization_id\" = $1 and \"id\" = $2 limit 1","params":["1","1"],"result":{"command":"SELECT","rowCount":1,"columns":[["id",23],["organizationId",23],["name",25],["image",25],["imagePlaceholder",25],["imageWidth",23],["imageRatio",1700],["datasheet",25],["deletedAt",1184]],"rows":[["1","1","Bike","private:1/3226c6e2-1a7c-4d49-92a0-fa0a0d0cba31.jpg?name=photo.png&size=41",null,null,null,null,null]]}},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"select \"id\" as \"id\", \"organization_id\" as \"organizationId\", \"name\" as \"name\", \"image\" as \"image\", \"image_placeholder\" as \"imagePlaceholder\", \"image_width\" as \"imageWidth\", \"image_ratio\" as \"imageRatio\", \"datasheet\" as \"datasheet\", \"deleted_at\" as \"deletedAt\" from \"products\" as t where \"deleted_at\" is null and \"organization_id\" = $1 and \"id\" = $2 limit 1 for update","params":["1","1"],"result":{"command":"SELECT","rowCount":1,"columns":[["id",23],["organizationId",23],["name",25],["image",25],["imagePlaceholder",25],["imageWidth",23],["imageRatio",1700],["datasheet",25],["deletedAt",1184]],"rows":[["1","1","Bike","private:1/3226c6e2-1a7c-4d49-92a0-fa0a0d0cba31.jpg?name=photo.png&size=41",null,null,null,null,null]]}},
+      {"sql":"update \"products\" as t set \"image\" = $1 where \"deleted_at\" is null and \"organization_id\" = $2 and \"id\" = $3 returning \"id\" as \"id\", \"organization_id\" as \"organizationId\", \"name\" as \"name\", \"image\" as \"image\", \"image_placeholder\" as \"imagePlaceholder\", \"image_width\" as \"imageWidth\", \"image_ratio\" as \"imageRatio\", \"datasheet\" as \"datasheet\", \"deleted_at\" as \"deletedAt\"","params":["private:1/a6f8e079-20d3-4561-8582-9793ea92e6ef.jpg?name=other.jpg&size=41","1","1"],"result":{"command":"UPDATE","rowCount":1,"columns":[["id",23],["organizationId",23],["name",25],["image",25],["imagePlaceholder",25],["imageWidth",23],["imageRatio",1700],["datasheet",25],["deletedAt",1184]],"rows":[["1","1","Bike","private:1/a6f8e079-20d3-4561-8582-9793ea92e6ef.jpg?name=other.jpg&size=41",null,null,null,null,null]]}},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select \"image\" as \"image\", \"organization_id\" as \"organizationId\" from \"products\" as t where \"id\" = $1 limit 1","params":["1"],"result":{"command":"SELECT","rowCount":1,"columns":[["image",25],["organizationId",23]],"rows":[["private:1/a6f8e079-20d3-4561-8582-9793ea92e6ef.jpg?name=other.jpg&size=41","1"]]}},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
+    ]
+  },
+  "file fields in a bucket > link public files from the bucket's own address": {
+    "file fields in a bucket > link public files from the bucket's own address#0": [
+      {"sql":"\ncreate table products (\n  id integer generated always as identity primary key, organization_id integer not null, name text not null,\n  image text, image_placeholder text, image_width integer, image_ratio numeric(8,4), datasheet text, deleted_at timestamptz\n);\ncreate table avatars (id integer generated always as identity primary key, name text not null, picture text);\n","result":[{"command":"CREATE","rowCount":null,"columns":[],"rows":[]},{"command":"CREATE","rowCount":null,"columns":[],"rows":[]}]},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"insert into \"avatars\" (\"name\", \"picture\") values ($1, $2) returning \"id\" as \"id\", \"name\" as \"name\", \"picture\" as \"picture\"","params":["me","public:_/6704ab30-3312-4535-957c-7bfd61d2e74a.png?name=me.png&size=70"],"result":{"command":"INSERT","rowCount":1,"columns":[["id",23],["name",25],["picture",25]],"rows":[["1","me","public:_/6704ab30-3312-4535-957c-7bfd61d2e74a.png?name=me.png&size=70"]]}},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
+    ]
+  },
+  "file fields in a bucket > answer an upload past the provider's limit with 507": {
+    "file fields in a bucket > answer an upload past the provider's limit with 507#0": [
+      {"sql":"\ncreate table products (\n  id integer generated always as identity primary key, organization_id integer not null, name text not null,\n  image text, image_placeholder text, image_width integer, image_ratio numeric(8,4), datasheet text, deleted_at timestamptz\n);\ncreate table avatars (id integer generated always as identity primary key, name text not null, picture text);\n","result":[{"command":"CREATE","rowCount":null,"columns":[],"rows":[]},{"command":"CREATE","rowCount":null,"columns":[],"rows":[]}]}
+    ]
+  }
+}

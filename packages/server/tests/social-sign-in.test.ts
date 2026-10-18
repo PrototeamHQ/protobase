@@ -1,13 +1,10 @@
-import { PGlite } from '@electric-sql/pglite'
 import { Kysely } from 'kysely'
-import { PGliteDialect } from 'kysely-pglite-dialect'
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { betterAuthAuthenticator } from '../src/better-auth/authenticator'
 import { createAuth, type CreateAuthOptions } from '../src/better-auth/create-auth'
 import { createUser } from '../src/better-auth/users'
 import { createAdmin } from '../src/create-admin'
-import { createAuthStore } from '../../../test-support/auth'
-import { cloneForTest } from '../../../test-support/pglite-snapshot'
+import { openSnapshotDb, type SnapshotDb } from '../../../test-support/sql-snapshot'
 
 const origin = 'http://localhost:5173'
 const secret = 'test-secret-test-secret-test-secret-1234'
@@ -36,19 +33,19 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 
-let shared: PGlite
+let shared: SnapshotDb
 let appDb: Kysely<any>
 beforeAll(async () => {
-  shared = await createAuthStore()
-  appDb = new Kysely<any>({ dialect: new PGliteDialect(shared) })
+  shared = await openSnapshotDb('auth')
+  appDb = new Kysely<any>({ dialect: shared.dialect })
 })
 
 // Better Auth's rate limits are per client address and kept in memory, so every app gets an address of its own.
 let client = 0
 
 const serve = async (options: Partial<CreateAuthOptions> = {}) => {
-  const store = await cloneForTest(shared)
-  const auth = createAuth({ database: { dialect: new PGliteDialect(store), type: 'postgres' }, baseURL: origin, secret, mailer: false, ...options })
+  const store = await shared.clone()
+  const auth = createAuth({ database: { dialect: store.dialect, type: 'postgres' }, baseURL: origin, secret, mailer: false, ...options })
   await createUser(auth, { email: 'root@example.com', password: 'correct horse battery' })
   const app = createAdmin({ resources: [], db: appDb, authenticate: betterAuthAuthenticator({ auth }), auth })
   const address = `203.0.113.${++client}`

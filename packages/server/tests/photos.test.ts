@@ -2,14 +2,13 @@ import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { Kysely } from 'kysely'
-import { PGliteDialect } from 'kysely-pglite-dialect'
 import sharp from 'sharp'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { defineRoles, f, resource } from '@protobase/schema'
 import { createAdmin } from '../src/create-admin'
 import { localFiles } from '../src/files/local-files'
 import { as, json, testAuthenticator } from '../../../test-support/server'
-import { createEmptyPg } from '../../../test-support/pglite-snapshot'
+import { openSnapshotDb, type SnapshotDb } from '../../../test-support/sql-snapshot'
 
 const listings = resource('listings')
   .table('listings')
@@ -60,7 +59,7 @@ const roles = defineRoles<'listings' | 'listing_photos'>({
 })
 
 const statements: string[] = []
-let pg: Awaited<ReturnType<typeof createEmptyPg>>
+let pg: SnapshotDb
 let db: Kysely<any>
 let app: ReturnType<typeof createAdmin>
 let dir: string
@@ -69,9 +68,9 @@ const createApp = (scanGuard?: { mode: 'warn' }) => {
   return createAdmin({ resources: [listings, listingPhotos], db, authenticate: testAuthenticator, files, options: { roles, ...(scanGuard && { scanGuard }) } })
 }
 beforeAll(async () => {
-  pg = await createEmptyPg()
+  pg = await openSnapshotDb('empty')
   await pg.exec(ddl)
-  db = new Kysely({ dialect: new PGliteDialect(pg), log: (event) => { statements.push(event.query.sql) } })
+  db = new Kysely({ dialect: pg.dialect, log: (event) => { statements.push(event.query.sql) } })
   dir = await mkdtemp(path.join(tmpdir(), 'protobase-photos-'))
   app = createApp()
 })

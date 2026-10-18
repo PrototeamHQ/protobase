@@ -1,7 +1,5 @@
-import { PGlite } from '@electric-sql/pglite'
 import { decodeJwt } from 'jose'
 import { Kysely } from 'kysely'
-import { PGliteDialect } from 'kysely-pglite-dialect'
 import { beforeAll, describe, expect, it, vi } from 'vitest'
 import { betterAuthAuthenticator } from '../src/better-auth/authenticator'
 import { createAuth, type CreateAuthOptions } from '../src/better-auth/create-auth'
@@ -9,10 +7,9 @@ import { defaultSignInPolicy } from '../src/better-auth/sign-in-policy'
 import { createUser } from '../src/better-auth/users'
 import { createAdmin } from '../src/create-admin'
 import type { MailMessage } from '../src/mail/smtp-mailer'
-import { createAuthStore } from '../../../test-support/auth'
-import { cloneForTest } from '../../../test-support/pglite-snapshot'
+import { openSnapshotDb, type SnapshotDb } from '../../../test-support/sql-snapshot'
 
-// Real scrypt hashing and PGlite queries run on this thread, CPU work a busy machine stretches past 5 s.
+// Real scrypt hashing runs on this thread, CPU work a busy machine stretches past 5 s.
 vi.setConfig({ testTimeout: 30_000 })
 
 const origin = 'http://localhost:5173'
@@ -20,20 +17,20 @@ const secret = 'test-secret-test-secret-test-secret-1234'
 const password = 'correct horse battery'
 const roles = ['admin', 'member', 'editor']
 
-const authOf = (store: PGlite, options: Partial<CreateAuthOptions> = {}) =>
-  createAuth({ database: { dialect: new PGliteDialect(store), type: 'postgres' }, baseURL: origin, secret, roles, defaultRole: 'member', mailer: false, ...options })
+const authOf = (store: SnapshotDb, options: Partial<CreateAuthOptions> = {}) =>
+  createAuth({ database: { dialect: store.dialect, type: 'postgres' }, baseURL: origin, secret, roles, defaultRole: 'member', mailer: false, ...options })
 
 // An empty store, and one with an admin and a member, made once: hashing their passwords is the slow part.
-let empty: PGlite
-let withUsers: PGlite
+let empty: SnapshotDb
+let withUsers: SnapshotDb
 let appDb: Kysely<any>
 beforeAll(async () => {
-  empty = await createAuthStore()
-  withUsers = (await empty.clone()) as PGlite
+  empty = await openSnapshotDb('auth')
+  withUsers = await empty.clone()
   const auth = authOf(withUsers)
   await createUser(auth, { email: 'root@example.com', password })
   await createUser(auth, { email: 'sanne@example.com', password, role: 'member' })
-  appDb = new Kysely<any>({ dialect: new PGliteDialect(empty) })
+  appDb = new Kysely<any>({ dialect: empty.dialect })
   // React Email and the templates load with the first auth email; render one here, so no test pays for that load.
   await (await import('../src/better-auth/auth-mail/auth-emails')).accountExistsEmail.render({ app: { name: 'Protobase', url: `${origin}/` } })
 }, 60_000)
@@ -43,7 +40,7 @@ let client = 0
 
 // Every app gets a copy of the store with an admin and a member, or of the empty one, and keeps the mail it sends.
 const serve = async (options: Partial<CreateAuthOptions> = {}, { users = true } = {}) => {
-  const store = await cloneForTest(users ? withUsers : empty)
+  const store = await (users ? withUsers : empty).clone()
   const sent: MailMessage[] = []
   const auth = authOf(store, { mailer: { send: async (message) => void sent.push(message) }, ...options })
   const app = createAdmin({ resources: [], db: appDb, authenticate: betterAuthAuthenticator({ auth }), auth })
@@ -104,7 +101,7 @@ describe('open sign-up, off by default', () => {
   })
 
   it('refuses a sign-up role that is admin or none of the roles, and organizations', () => {
-    const options = { database: { dialect: new PGliteDialect(new PGlite()), type: 'postgres' as const }, baseURL: origin, secret, roles, mailer: false as const }
+    const options = { database: { dialect: empty.dialect, type: 'postgres' as const }, baseURL: origin, secret, roles, mailer: false as const }
     expect(() => createAuth({ ...options, signUp: { role: 'admin' } })).toThrow('signUp.role cannot be admin')
     expect(() => createAuth({ ...options, signUp: { role: 'owner' } })).toThrow('signUp.role "owner" is not one of the roles')
     expect(() => createAuth({ ...options, signUp, organizations: {} })).toThrow('signUp is not available with organizations')

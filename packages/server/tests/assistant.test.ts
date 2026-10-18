@@ -2,7 +2,6 @@ import { mkdtemp, readdir, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { Kysely, sql } from 'kysely'
-import { PGliteDialect } from 'kysely-pglite-dialect'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { f, resource, type AssistantEvent, type AssistantState } from '@protobase/schema'
 import { applyAssistantEvent, emptyAssistantState, readEventStream } from '@protobase/schema/internal'
@@ -11,7 +10,7 @@ import { defineTool } from '../src/assistant/tools'
 import { widget } from '../src/assistant/widget'
 import type { AdminOptions } from '../src/admin-options'
 import { as, json, signTestToken, testAuthenticator } from '../../../test-support/server'
-import { createEmptyPg } from '../../../test-support/pglite-snapshot'
+import { openSnapshotDb, type SnapshotDb } from '../../../test-support/sql-snapshot'
 
 const tasks = resource('tasks')
   .table('tasks')
@@ -27,10 +26,10 @@ const proposals = resource('proposals')
 let db: Kysely<any>
 let chats: string
 beforeAll(async () => {
-  const pg = await createEmptyPg()
+  const pg = await openSnapshotDb('empty')
   await pg.exec('create table tasks (id integer generated always as identity primary key, title text not null, status text not null)')
   await pg.exec('create table proposals (id integer generated always as identity primary key, title text not null, status text not null, decided_by text)')
-  db = new Kysely({ dialect: new PGliteDialect(pg) })
+  db = new Kysely({ dialect: pg.dialect })
   chats = await mkdtemp(path.join(tmpdir(), 'protobase-assistant-'))
 })
 afterAll(async () => {

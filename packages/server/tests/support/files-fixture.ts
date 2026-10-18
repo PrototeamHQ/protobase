@@ -2,12 +2,11 @@ import { mkdtemp, readdir, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { Kysely } from 'kysely'
-import { PGliteDialect } from 'kysely-pglite-dialect'
 import sharp from 'sharp'
 import { f, resource, type FileProcessor, type ImageVariant } from '@protobase/schema'
 import { createAdmin, createFileCleanup, localFiles, type FileProvider, type FilesOptions } from '@protobase/server'
-import { createEmptyPg } from '../../../../test-support/pglite-snapshot'
 import { testAuthenticator } from '../../../../test-support/server'
+import { openSnapshotDb, type SnapshotDb } from '../../../../test-support/sql-snapshot'
 
 export type ProductOptions = {
   derive?: Record<string, FileProcessor>
@@ -59,12 +58,12 @@ create table products (
 create table avatars (id integer generated always as identity primary key, name text not null, picture text);
 `
 
-/** An admin with products and avatars over PGlite, keeping files in a fresh temp folder unless `providers` says otherwise. */
+/** An admin with products and avatars over a snapshot database, keeping files in a fresh temp folder unless `providers` says otherwise. */
 export const createFilesFixture = async (options: ProductOptions & { providers?: Record<string, FileProvider>; trustedHosts?: string[] } = {}) => {
   const dir = await mkdtemp(path.join(tmpdir(), 'protobase-files-'))
-  const pg = await createEmptyPg()
+  const pg = await openSnapshotDb('empty')
   await pg.exec(ddl)
-  const db = new Kysely<any>({ dialect: new PGliteDialect(pg) })
+  const db = new Kysely<any>({ dialect: pg.dialect })
   const files: FilesOptions = {
     providers: options.providers ?? { private: localFiles({ dir: path.join(dir, 'private') }), public: localFiles({ dir: path.join(dir, 'public'), public: true }) },
     secret: 'files-test-secret',

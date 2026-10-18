@@ -1,14 +1,11 @@
-import { PGlite } from '@electric-sql/pglite'
 import { Kysely } from 'kysely'
-import { PGliteDialect } from 'kysely-pglite-dialect'
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { betterAuthAuthenticator } from '../src/better-auth/authenticator'
 import { createAuth, type CreateAuthOptions } from '../src/better-auth/create-auth'
 import { createUser } from '../src/better-auth/users'
 import { createAdmin } from '../src/create-admin'
-import { createAuthStore } from '../../../test-support/auth'
-import { cloneForTest } from '../../../test-support/pglite-snapshot'
 import type { MailMessage } from '../src/mail/smtp-mailer'
+import { openSnapshotDb, type SnapshotDb } from '../../../test-support/sql-snapshot'
 
 const origin = 'http://localhost:5173'
 const secret = 'test-secret-test-secret-test-secret-1234'
@@ -19,16 +16,16 @@ afterEach(() => {
   vi.restoreAllMocks()
 })
 
-const authWith = (options: Partial<CreateAuthOptions>, store: PGlite) =>
-  createAuth({ database: { dialect: new PGliteDialect(store), type: 'postgres' }, baseURL: origin, secret, ...options })
+const authWith = (options: Partial<CreateAuthOptions>, store: SnapshotDb) =>
+  createAuth({ database: { dialect: store.dialect, type: 'postgres' }, baseURL: origin, secret, ...options })
 
 // One migrated store for the instances that are only created, so Better Auth's schema check stays quiet.
-let shared: PGlite
-// The apps have no resources and never query their database; a fresh PGlite would only cost a cold start.
+let shared: SnapshotDb
+// The apps have no resources and never query their database, so they share the store.
 let appDb: Kysely<any>
 beforeAll(async () => {
-  shared = await createAuthStore()
-  appDb = new Kysely<any>({ dialect: new PGliteDialect(shared) })
+  shared = await openSnapshotDb('auth')
+  appDb = new Kysely<any>({ dialect: shared.dialect })
 })
 
 // Better Auth's rate limits are per client address and kept in memory, so every app gets an address of its own.
@@ -36,7 +33,7 @@ let client = 0
 
 // Every app gets a copy of the migrated store, so no app sees another's users.
 const serve = async (options: Partial<CreateAuthOptions> = {}) => {
-  const auth = authWith(options, await cloneForTest(shared))
+  const auth = authWith(options, await shared.clone())
   const address = `203.0.113.${++client}`
   await createUser(auth, { email: 'root@example.com', password })
   const app = createAdmin({ resources: [], db: appDb, authenticate: betterAuthAuthenticator({ auth }), auth })

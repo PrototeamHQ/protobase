@@ -1,6 +1,4 @@
-import { PGlite } from '@electric-sql/pglite'
 import { getMigrations } from 'better-auth/db/migration'
-import { PGliteDialect } from 'kysely-pglite-dialect'
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { defineRoles } from '@protobase/schema'
 import { betterAuthAuthenticator } from '../src/better-auth/authenticator'
@@ -9,23 +7,22 @@ import { issueToken } from '../src/better-auth/tokens'
 import { normalizeRoles } from '../src/better-auth/create-auth'
 import { createUser, deleteUser, parseRoles, roleChoices, hasUsers, listUsers, setUserBanned, setUserRole } from '../src/better-auth/users'
 import { createAdmin } from '../src/create-admin'
-import { createEmptyPg } from '../../../test-support/pglite-snapshot'
-import { createAuthStore } from '../../../test-support/auth'
 import { allResources, createFixtureDb, signTestToken } from '../../../test-support/server'
+import { openSnapshotDb, type SnapshotDb } from '../../../test-support/sql-snapshot'
 
 const origin = 'http://localhost:5173'
 const password = 'correct horse battery'
 const secret = 'test-secret-test-secret-test-secret-1234'
 
 let fixture: Awaited<ReturnType<typeof createFixtureDb>>
-let store: PGlite
+let store: SnapshotDb
 let auth: ReturnType<typeof createAuth>
 let app: ReturnType<typeof createAdmin>
 
 beforeAll(async () => {
   fixture = await createFixtureDb()
-  store = await createAuthStore()
-  auth = createAuth({ database: { dialect: new PGliteDialect(store), type: 'postgres' }, baseURL: origin, secret, signInPerMinute: 100 })
+  store = await openSnapshotDb('auth')
+  auth = createAuth({ database: { dialect: store.dialect, type: 'postgres' }, baseURL: origin, secret, signInPerMinute: 100 })
   app = createAdmin({ resources: allResources, db: fixture.db, authenticate: betterAuthAuthenticator({ auth, tenant: 1 }), auth })
 })
 afterAll(async () => { await fixture.db.destroy() })
@@ -193,7 +190,7 @@ describe('the production path: Better Auth keys, published as JWKS', () => {
     const good = (await issueToken(auth, { email: 'root@example.com' })).token
     expect((await api('/companies', tamper(good))).status).toBe(401)
 
-    const foreign = createAuth({ database: { dialect: new PGliteDialect(await createAuthStore()), type: 'postgres' }, baseURL: origin, secret: 'another-secret-another-secret-12345678' })
+    const foreign = createAuth({ database: { dialect: (await openSnapshotDb('auth')).dialect, type: 'postgres' }, baseURL: origin, secret: 'another-secret-another-secret-12345678' })
     await createUser(foreign, { email: 'root@example.com', password })
     const forged = (await issueToken(foreign, { email: 'root@example.com' })).token
     expect((await api('/companies', forged)).status).toBe(401)
@@ -288,7 +285,7 @@ describe('configurable roles', () => {
 
   it('has an explicit default role, only when configured or unambiguous', async () => {
     // Only reads the configuration; the store is never queried.
-    const make = (extra: object) => createAuth({ database: { dialect: new PGliteDialect(store), type: 'postgres' }, baseURL: origin, secret, ...extra })
+    const make = (extra: object) => createAuth({ database: { dialect: store.dialect, type: 'postgres' }, baseURL: origin, secret, ...extra })
     expect(make({ roles: ['sales', 'editor'] }).defaultRole).toBeUndefined()
     expect(make({ roles: ['sales', 'editor'], defaultRole: 'editor' }).defaultRole).toBe('editor')
     expect(make({}).defaultRole).toBe('user')
@@ -297,8 +294,8 @@ describe('configurable roles', () => {
   })
 
   it('keeps the admin store in its own schema of a shared database', async () => {
-    const shared = await createEmptyPg()
-    const scoped = createAuth({ database: { dialect: new PGliteDialect(shared), type: 'postgres', schemaName: 'auth' }, baseURL: origin, secret })
+    const shared = await openSnapshotDb('empty')
+    const scoped = createAuth({ database: { dialect: shared.dialect, type: 'postgres', schemaName: 'auth' }, baseURL: origin, secret })
     await (await getMigrations(scoped.options)).runMigrations()
     await createUser(scoped, { email: 'boss@example.com', password })
     expect(await hasUsers(scoped)).toBe(true)
@@ -309,8 +306,8 @@ describe('configurable roles', () => {
   })
 
   it('validates users and role changes against the project roles, and passes them to access rules', async () => {
-    const roleStore = await createAuthStore()
-    const roled = createAuth({ database: { dialect: new PGliteDialect(roleStore), type: 'postgres' }, baseURL: origin, secret, roles: ['accountant', 'warehouse'], signInPerMinute: 100 })
+    const roleStore = await openSnapshotDb('auth')
+    const roled = createAuth({ database: { dialect: roleStore.dialect, type: 'postgres' }, baseURL: origin, secret, roles: ['accountant', 'warehouse'], signInPerMinute: 100 })
     const roleApp = createAdmin({ resources: allResources, db: fixture.db, authenticate: betterAuthAuthenticator({ auth: roled, tenant: 1 }), auth: roled })
     expect(roleChoices(roled)).toEqual(['admin', 'accountant', 'warehouse'])
 
@@ -346,7 +343,7 @@ describe('configurable roles', () => {
 
 describe('sign-in rate limit', () => {
   it('limits repeated sign-in attempts per client', async () => {
-    const strict = createAuth({ database: { dialect: new PGliteDialect(store), type: 'postgres' }, baseURL: origin, secret, signInPerMinute: 3 })
+    const strict = createAuth({ database: { dialect: store.dialect, type: 'postgres' }, baseURL: origin, secret, signInPerMinute: 3 })
     const limited = createAdmin({ resources: [], db: fixture.db, authenticate: betterAuthAuthenticator({ auth: strict }), auth: strict })
     const statuses: number[] = []
     for (let i = 0; i < 6; i++) {

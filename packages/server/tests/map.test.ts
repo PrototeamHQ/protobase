@@ -1,10 +1,9 @@
 import { Kysely } from 'kysely'
-import { PGliteDialect } from 'kysely-pglite-dialect'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { f, resource } from '@protobase/schema'
 import { createAdmin } from '../src/create-admin'
 import { as, testAuthenticator } from '../../../test-support/server'
-import { createEmptyPg } from '../../../test-support/pglite-snapshot'
+import { openSnapshotDb, type SnapshotDb } from '../../../test-support/sql-snapshot'
 
 const places = resource('places')
   .table('places')
@@ -32,9 +31,9 @@ create index on places (lng);
 let db: Kysely<any>
 let app: ReturnType<typeof createAdmin>
 beforeAll(async () => {
-  const pg = await createEmptyPg()
+  const pg = await openSnapshotDb('empty')
   await pg.exec(ddl)
-  db = new Kysely({ dialect: new PGliteDialect(pg) })
+  db = new Kysely({ dialect: pg.dialect })
   app = createAdmin({ resources: [places], db, authenticate: testAuthenticator })
 })
 afterAll(async () => { await db.destroy() })

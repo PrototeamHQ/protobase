@@ -1,18 +1,17 @@
 import { Kysely, sql } from 'kysely'
-import { PGliteDialect } from 'kysely-pglite-dialect'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { runReadOnlyQuery, runReadWriteQuery } from '../src/assistant/run-query'
-import { createEmptyPg } from '../../../test-support/pglite-snapshot'
+import { openSnapshotDb, type SnapshotDb } from '../../../test-support/sql-snapshot'
 
 let db: Kysely<any>
 beforeAll(async () => {
-  const pg = await createEmptyPg()
+  const pg = await openSnapshotDb('empty')
   await pg.exec(`
     create table notes (id integer generated always as identity primary key, body text not null);
     create sequence ticket_numbers;
     create function add_note(text) returns integer language sql as 'insert into notes (body) values ($1) returning id';
   `)
-  db = new Kysely({ dialect: new PGliteDialect(pg) })
+  db = new Kysely({ dialect: pg.dialect })
 })
 afterAll(async () => { await db.destroy() })
 beforeEach(async () => {

@@ -1,10 +1,9 @@
 import { Kysely } from 'kysely'
-import { PGliteDialect } from 'kysely-pglite-dialect'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { f, l, resource, view, type RelatedModel } from '@protobase/schema'
 import { createAdmin } from '../src/create-admin'
 import { as, testAuthenticator } from '../../../test-support/server'
-import { createEmptyPg } from '../../../test-support/pglite-snapshot'
+import { openSnapshotDb, type SnapshotDb } from '../../../test-support/sql-snapshot'
 
 const hasRole = (role: string) => (ctx: { user?: { roles?: readonly string[] } }) => ctx.user?.roles?.some((entry) => entry === 'admin' || entry === role) ?? false
 
@@ -35,9 +34,9 @@ const roomView = (item: RelatedModel) => view<typeof rooms>('rooms').layout((r) 
 
 let db: Kysely<any>
 beforeAll(async () => {
-  const pg = await createEmptyPg()
+  const pg = await openSnapshotDb('empty')
   await pg.exec('create table rooms (id integer primary key, name text not null)')
-  db = new Kysely({ dialect: new PGliteDialect(pg) })
+  db = new Kysely({ dialect: pg.dialect })
 })
 afterAll(async () => { await db.destroy() })
 

@@ -1,30 +1,27 @@
-import type { PGlite } from '@electric-sql/pglite'
 import { Kysely } from 'kysely'
-import { PGliteDialect } from 'kysely-pglite-dialect'
 import { beforeAll, describe, expect, it } from 'vitest'
 import { betterAuthAuthenticator } from '../src/better-auth/authenticator'
 import { createAuth, type CreateAuthOptions } from '../src/better-auth/create-auth'
 import { createUser } from '../src/better-auth/users'
 import { createAdmin } from '../src/create-admin'
-import { createAuthStore } from '../../../test-support/auth'
-import { cloneForTest } from '../../../test-support/pglite-snapshot'
 import { softwarePasskey, type SoftwarePasskey } from './support/software-passkey'
+import { openSnapshotDb, type SnapshotDb } from '../../../test-support/sql-snapshot'
 
 const label = 'https://erp-x1.protobase.net'
 const custom = 'https://admin.shop.com'
 const secret = 'test-secret-test-secret-test-secret-1234'
 
-let shared: PGlite
+let shared: SnapshotDb
 let appDb: Kysely<any>
 beforeAll(async () => {
-  shared = await createAuthStore()
-  appDb = new Kysely<any>({ dialect: new PGliteDialect(shared) })
+  shared = await openSnapshotDb('auth')
+  appDb = new Kysely<any>({ dialect: shared.dialect })
 })
 
 const cookiesOf = (response: Response) => response.headers.getSetCookie().map((line) => line.split(';')[0]!).join('; ')
 
 const serve = async (options: Partial<CreateAuthOptions> = {}) => {
-  const auth = createAuth({ database: { dialect: new PGliteDialect(await cloneForTest(shared)), type: 'postgres' }, baseURL: label, secret, mailer: false, ...options })
+  const auth = createAuth({ database: { dialect: (await shared.clone()).dialect, type: 'postgres' }, baseURL: label, secret, mailer: false, ...options })
   await createUser(auth, { email: 'root@example.com', password: 'correct horse battery' })
   const { adapter } = await auth.$context
   const [user] = await adapter.findMany<{ id: string }>({ model: 'user' })

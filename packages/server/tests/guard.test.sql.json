@@ -1,0 +1,336 @@
+{
+  "scan guard > rejects a filter on a column no index serves, naming the column and the index to add": {
+    "(hooks)#0": [
+      {"sql":"select relkind from pg_class where oid = to_regclass($1)","params":["\"events\""],"result":{"command":"SELECT","rowCount":1,"columns":[["relkind",18]],"rows":[["r"]]}},
+      {"sql":"\n    select ic.relname as name, am.amname as method, (i.indpred is not null) as partial, a.attname::text as column,\n      pg_get_indexdef(i.indexrelid, k.ord::int, true) as definition, oc.opcname::text as opclass\n    from pg_index i\n    join pg_class ic on ic.oid = i.indexrelid\n    join pg_am am on am.oid = ic.relam\n    cross join lateral unnest(i.indkey::int2[], i.indclass::oid[]) with ordinality k(attnum, opclass, ord)\n    left join pg_attribute a on a.attrelid = i.indrelid and a.attnum = k.attnum and k.attnum > 0\n    join pg_opclass oc on oc.oid = k.opclass\n    where i.indrelid = to_regclass($1) and i.indisvalid and i.indisready and k.ord <= i.indnkeyatts\n    order by ic.relname, k.ord\n  ","params":["\"events\""],"result":{"command":"SELECT","rowCount":1,"columns":[["name",19],["method",19],["partial",16],["column",25],["definition",25],["opclass",25]],"rows":[["events_pkey","btree","f","id","id","int4_ops"]]}}
+    ]
+  },
+  "scan guard > reads the indexes of a table once": {
+    "(hooks)#0": [
+      {"sql":"select relkind from pg_class where oid = to_regclass($1)","params":["\"events\""],"result":{"command":"SELECT","rowCount":1,"columns":[["relkind",18]],"rows":[["r"]]}},
+      {"sql":"\n    select ic.relname as name, am.amname as method, (i.indpred is not null) as partial, a.attname::text as column,\n      pg_get_indexdef(i.indexrelid, k.ord::int, true) as definition, oc.opcname::text as opclass\n    from pg_index i\n    join pg_class ic on ic.oid = i.indexrelid\n    join pg_am am on am.oid = ic.relam\n    cross join lateral unnest(i.indkey::int2[], i.indclass::oid[]) with ordinality k(attnum, opclass, ord)\n    left join pg_attribute a on a.attrelid = i.indrelid and a.attnum = k.attnum and k.attnum > 0\n    join pg_opclass oc on oc.oid = k.opclass\n    where i.indrelid = to_regclass($1) and i.indisvalid and i.indisready and k.ord <= i.indnkeyatts\n    order by ic.relname, k.ord\n  ","params":["\"events\""],"result":{"command":"SELECT","rowCount":1,"columns":[["name",19],["method",19],["partial",16],["column",25],["definition",25],["opclass",25]],"rows":[["events_pkey","btree","f","id","id","int4_ops"]]}},
+      {"sql":"create index events_kind_idx on events (kind)","result":{"command":"CREATE","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select relkind from pg_class where oid = to_regclass($1)","params":["\"events\""],"result":{"command":"SELECT","rowCount":1,"columns":[["relkind",18]],"rows":[["r"]]}},
+      {"sql":"\n    select ic.relname as name, am.amname as method, (i.indpred is not null) as partial, a.attname::text as column,\n      pg_get_indexdef(i.indexrelid, k.ord::int, true) as definition, oc.opcname::text as opclass\n    from pg_index i\n    join pg_class ic on ic.oid = i.indexrelid\n    join pg_am am on am.oid = ic.relam\n    cross join lateral unnest(i.indkey::int2[], i.indclass::oid[]) with ordinality k(attnum, opclass, ord)\n    left join pg_attribute a on a.attrelid = i.indrelid and a.attnum = k.attnum and k.attnum > 0\n    join pg_opclass oc on oc.oid = k.opclass\n    where i.indrelid = to_regclass($1) and i.indisvalid and i.indisready and k.ord <= i.indnkeyatts\n    order by ic.relname, k.ord\n  ","params":["\"events\""],"result":{"command":"SELECT","rowCount":2,"columns":[["name",19],["method",19],["partial",16],["column",25],["definition",25],["opclass",25]],"rows":[
+        ["events_kind_idx","btree","f","kind","kind","text_ops"],
+        ["events_pkey","btree","f","id","id","int4_ops"]
+      ]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select \"t\".\"id\" as \"id\", \"t\".\"kind\" as \"kind\", \"t\".\"at\" as \"at\", \"t\".\"id\"::text as \"__pb_key0\" from \"events\" as \"t\" where \"t\".\"kind\" = $1 order by \"t\".\"id\" asc limit $2","params":["k2","51"],"result":{"command":"SELECT","rowCount":51,"columns":[["id",23],["kind",25],["at",1184],["__pb_key0",25]],"rows":[
+        ["2","k2","2026-01-01 00:02:00+00","2"],
+        ["52","k2","2026-01-01 00:52:00+00","52"],
+        ["102","k2","2026-01-01 01:42:00+00","102"],
+        ["152","k2","2026-01-01 02:32:00+00","152"],
+        ["202","k2","2026-01-01 03:22:00+00","202"],
+        ["252","k2","2026-01-01 04:12:00+00","252"],
+        ["302","k2","2026-01-01 05:02:00+00","302"],
+        ["352","k2","2026-01-01 05:52:00+00","352"],
+        ["402","k2","2026-01-01 06:42:00+00","402"],
+        ["452","k2","2026-01-01 07:32:00+00","452"],
+        ["502","k2","2026-01-01 08:22:00+00","502"],
+        ["552","k2","2026-01-01 09:12:00+00","552"],
+        ["602","k2","2026-01-01 10:02:00+00","602"],
+        ["652","k2","2026-01-01 10:52:00+00","652"],
+        ["702","k2","2026-01-01 11:42:00+00","702"],
+        ["752","k2","2026-01-01 12:32:00+00","752"],
+        ["802","k2","2026-01-01 13:22:00+00","802"],
+        ["852","k2","2026-01-01 14:12:00+00","852"],
+        ["902","k2","2026-01-01 15:02:00+00","902"],
+        ["952","k2","2026-01-01 15:52:00+00","952"],
+        ["1002","k2","2026-01-01 16:42:00+00","1002"],
+        ["1052","k2","2026-01-01 17:32:00+00","1052"],
+        ["1102","k2","2026-01-01 18:22:00+00","1102"],
+        ["1152","k2","2026-01-01 19:12:00+00","1152"],
+        ["1202","k2","2026-01-01 20:02:00+00","1202"],
+        ["1252","k2","2026-01-01 20:52:00+00","1252"],
+        ["1302","k2","2026-01-01 21:42:00+00","1302"],
+        ["1352","k2","2026-01-01 22:32:00+00","1352"],
+        ["1402","k2","2026-01-01 23:22:00+00","1402"],
+        ["1452","k2","2026-01-02 00:12:00+00","1452"],
+        ["1502","k2","2026-01-02 01:02:00+00","1502"],
+        ["1552","k2","2026-01-02 01:52:00+00","1552"],
+        ["1602","k2","2026-01-02 02:42:00+00","1602"],
+        ["1652","k2","2026-01-02 03:32:00+00","1652"],
+        ["1702","k2","2026-01-02 04:22:00+00","1702"],
+        ["1752","k2","2026-01-02 05:12:00+00","1752"],
+        ["1802","k2","2026-01-02 06:02:00+00","1802"],
+        ["1852","k2","2026-01-02 06:52:00+00","1852"],
+        ["1902","k2","2026-01-02 07:42:00+00","1902"],
+        ["1952","k2","2026-01-02 08:32:00+00","1952"],
+        ["2002","k2","2026-01-02 09:22:00+00","2002"],
+        ["2052","k2","2026-01-02 10:12:00+00","2052"],
+        ["2102","k2","2026-01-02 11:02:00+00","2102"],
+        ["2152","k2","2026-01-02 11:52:00+00","2152"],
+        ["2202","k2","2026-01-02 12:42:00+00","2202"],
+        ["2252","k2","2026-01-02 13:32:00+00","2252"],
+        ["2302","k2","2026-01-02 14:22:00+00","2302"],
+        ["2352","k2","2026-01-02 15:12:00+00","2352"],
+        ["2402","k2","2026-01-02 16:02:00+00","2402"],
+        ["2452","k2","2026-01-02 16:52:00+00","2452"],
+        ["2502","k2","2026-01-02 17:42:00+00","2502"]
+      ]}},
+      {"sql":"EXPLAIN (VERBOSE, FORMAT JSON) select 1 as \"one\" from \"events\" as \"t\" where \"t\".\"kind\" = $1","params":["k2"],"result":{"command":"EXPLAIN","rowCount":null,"columns":[["QUERY PLAN",114]],"rows":[["[\n  {\n    \"Plan\": {\n      \"Node Type\": \"Index Only Scan\",\n      \"Parallel Aware\": false,\n      \"Async Capable\": false,\n      \"Scan Direction\": \"Forward\",\n      \"Index Name\": \"events_kind_idx\",\n      \"Relation Name\": \"events\",\n      \"Schema\": \"public\",\n      \"Alias\": \"t\",\n      \"Startup Cost\": 0.29,\n      \"Total Cost\": 14.79,\n      \"Plan Rows\": 600,\n      \"Plan Width\": 4,\n      \"Disabled\": false,\n      \"Output\": [\"1\"],\n      \"Index Cond\": \"(t.kind = 'k2'::text)\"\n    }\n  }\n]"]]}},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"drop index events_kind_idx","result":{"command":"DROP","rowCount":null,"columns":[],"rows":[]}}
+    ]
+  },
+  "scan guard > rejects an unindexed sort the same way": {
+    "(hooks)#0": [
+      {"sql":"select relkind from pg_class where oid = to_regclass($1)","params":["\"events\""],"result":{"command":"SELECT","rowCount":1,"columns":[["relkind",18]],"rows":[["r"]]}},
+      {"sql":"\n    select ic.relname as name, am.amname as method, (i.indpred is not null) as partial, a.attname::text as column,\n      pg_get_indexdef(i.indexrelid, k.ord::int, true) as definition, oc.opcname::text as opclass\n    from pg_index i\n    join pg_class ic on ic.oid = i.indexrelid\n    join pg_am am on am.oid = ic.relam\n    cross join lateral unnest(i.indkey::int2[], i.indclass::oid[]) with ordinality k(attnum, opclass, ord)\n    left join pg_attribute a on a.attrelid = i.indrelid and a.attnum = k.attnum and k.attnum > 0\n    join pg_opclass oc on oc.oid = k.opclass\n    where i.indrelid = to_regclass($1) and i.indisvalid and i.indisready and k.ord <= i.indnkeyatts\n    order by ic.relname, k.ord\n  ","params":["\"events\""],"result":{"command":"SELECT","rowCount":1,"columns":[["name",19],["method",19],["partial",16],["column",25],["definition",25],["opclass",25]],"rows":[["events_pkey","btree","f","id","id","int4_ops"]]}}
+    ]
+  },
+  "scan guard > passes an indexed shape": {
+    "(hooks)#0": [
+      {"sql":"select relkind from pg_class where oid = to_regclass($1)","params":["\"events\""],"result":{"command":"SELECT","rowCount":1,"columns":[["relkind",18]],"rows":[["r"]]}},
+      {"sql":"\n    select ic.relname as name, am.amname as method, (i.indpred is not null) as partial, a.attname::text as column,\n      pg_get_indexdef(i.indexrelid, k.ord::int, true) as definition, oc.opcname::text as opclass\n    from pg_index i\n    join pg_class ic on ic.oid = i.indexrelid\n    join pg_am am on am.oid = ic.relam\n    cross join lateral unnest(i.indkey::int2[], i.indclass::oid[]) with ordinality k(attnum, opclass, ord)\n    left join pg_attribute a on a.attrelid = i.indrelid and a.attnum = k.attnum and k.attnum > 0\n    join pg_opclass oc on oc.oid = k.opclass\n    where i.indrelid = to_regclass($1) and i.indisvalid and i.indisready and k.ord <= i.indnkeyatts\n    order by ic.relname, k.ord\n  ","params":["\"events\""],"result":{"command":"SELECT","rowCount":1,"columns":[["name",19],["method",19],["partial",16],["column",25],["definition",25],["opclass",25]],"rows":[["events_pkey","btree","f","id","id","int4_ops"]]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select \"t\".\"id\" as \"id\", \"t\".\"kind\" as \"kind\", \"t\".\"at\" as \"at\", \"t\".\"id\"::text as \"__pb_key0\" from \"events\" as \"t\" where \"t\".\"id\" > $1 order by \"t\".\"id\" asc limit $2","params":["29000","6"],"result":{"command":"SELECT","rowCount":6,"columns":[["id",23],["kind",25],["at",1184],["__pb_key0",25]],"rows":[
+        ["29001","k1","2026-01-21 03:21:00+00","29001"],
+        ["29002","k2","2026-01-21 03:22:00+00","29002"],
+        ["29003","k3","2026-01-21 03:23:00+00","29003"],
+        ["29004","k4","2026-01-21 03:24:00+00","29004"],
+        ["29005","k5","2026-01-21 03:25:00+00","29005"],
+        ["29006","k6","2026-01-21 03:26:00+00","29006"]
+      ]}},
+      {"sql":"EXPLAIN (VERBOSE, FORMAT JSON) select 1 as \"one\" from \"events\" as \"t\" where \"t\".\"id\" > $1","params":["29000"],"result":{"command":"EXPLAIN","rowCount":null,"columns":[["QUERY PLAN",114]],"rows":[["[\n  {\n    \"Plan\": {\n      \"Node Type\": \"Index Only Scan\",\n      \"Parallel Aware\": false,\n      \"Async Capable\": false,\n      \"Scan Direction\": \"Forward\",\n      \"Index Name\": \"events_pkey\",\n      \"Relation Name\": \"events\",\n      \"Schema\": \"public\",\n      \"Alias\": \"t\",\n      \"Startup Cost\": 0.29,\n      \"Total Cost\": 29.79,\n      \"Plan Rows\": 1000,\n      \"Plan Width\": 4,\n      \"Disabled\": false,\n      \"Output\": [\"1\"],\n      \"Index Cond\": \"(t.id > 29000)\"\n    }\n  }\n]"]]}},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
+    ]
+  },
+  "scan guard > only warns in warn mode": {
+    "(hooks)#0": [
+      {"sql":"select relkind from pg_class where oid = to_regclass($1)","params":["\"events\""],"result":{"command":"SELECT","rowCount":1,"columns":[["relkind",18]],"rows":[["r"]]}},
+      {"sql":"\n    select ic.relname as name, am.amname as method, (i.indpred is not null) as partial, a.attname::text as column,\n      pg_get_indexdef(i.indexrelid, k.ord::int, true) as definition, oc.opcname::text as opclass\n    from pg_index i\n    join pg_class ic on ic.oid = i.indexrelid\n    join pg_am am on am.oid = ic.relam\n    cross join lateral unnest(i.indkey::int2[], i.indclass::oid[]) with ordinality k(attnum, opclass, ord)\n    left join pg_attribute a on a.attrelid = i.indrelid and a.attnum = k.attnum and k.attnum > 0\n    join pg_opclass oc on oc.oid = k.opclass\n    where i.indrelid = to_regclass($1) and i.indisvalid and i.indisready and k.ord <= i.indnkeyatts\n    order by ic.relname, k.ord\n  ","params":["\"events\""],"result":{"command":"SELECT","rowCount":1,"columns":[["name",19],["method",19],["partial",16],["column",25],["definition",25],["opclass",25]],"rows":[["events_pkey","btree","f","id","id","int4_ops"]]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select \"t\".\"id\" as \"id\", \"t\".\"kind\" as \"kind\", \"t\".\"at\" as \"at\", \"t\".\"id\"::text as \"__pb_key0\" from \"events\" as \"t\" where \"t\".\"kind\" = $1 order by \"t\".\"id\" asc limit $2","params":["k1","3"],"result":{"command":"SELECT","rowCount":3,"columns":[["id",23],["kind",25],["at",1184],["__pb_key0",25]],"rows":[
+        ["1","k1","2026-01-01 00:01:00+00","1"],
+        ["51","k1","2026-01-01 00:51:00+00","51"],
+        ["101","k1","2026-01-01 01:41:00+00","101"]
+      ]}},
+      {"sql":"EXPLAIN (VERBOSE, FORMAT JSON) select 1 as \"one\" from \"events\" as \"t\" where \"t\".\"kind\" = $1","params":["k1"],"result":{"command":"EXPLAIN","rowCount":null,"columns":[["QUERY PLAN",114]],"rows":[["[\n  {\n    \"Plan\": {\n      \"Node Type\": \"Seq Scan\",\n      \"Parallel Aware\": false,\n      \"Async Capable\": false,\n      \"Relation Name\": \"events\",\n      \"Schema\": \"public\",\n      \"Alias\": \"t\",\n      \"Startup Cost\": 0.00,\n      \"Total Cost\": 538.00,\n      \"Plan Rows\": 600,\n      \"Plan Width\": 4,\n      \"Disabled\": false,\n      \"Output\": [\"1\"],\n      \"Filter\": \"(t.kind = 'k1'::text)\"\n    }\n  }\n]"]]}},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
+    ]
+  },
+  "scan guard > does nothing when off": {
+    "(hooks)#0": [
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select \"t\".\"id\" as \"id\", \"t\".\"kind\" as \"kind\", \"t\".\"at\" as \"at\", \"t\".\"id\"::text as \"__pb_key0\" from \"events\" as \"t\" where \"t\".\"kind\" = $1 order by \"t\".\"id\" asc limit $2","params":["k1","3"],"result":{"command":"SELECT","rowCount":3,"columns":[["id",23],["kind",25],["at",1184],["__pb_key0",25]],"rows":[
+        ["1","k1","2026-01-01 00:01:00+00","1"],
+        ["51","k1","2026-01-01 00:51:00+00","51"],
+        ["101","k1","2026-01-01 01:41:00+00","101"]
+      ]}},
+      {"sql":"EXPLAIN (VERBOSE, FORMAT JSON) select 1 as \"one\" from \"events\" as \"t\" where \"t\".\"kind\" = $1","params":["k1"],"result":{"command":"EXPLAIN","rowCount":null,"columns":[["QUERY PLAN",114]],"rows":[["[\n  {\n    \"Plan\": {\n      \"Node Type\": \"Seq Scan\",\n      \"Parallel Aware\": false,\n      \"Async Capable\": false,\n      \"Relation Name\": \"events\",\n      \"Schema\": \"public\",\n      \"Alias\": \"t\",\n      \"Startup Cost\": 0.00,\n      \"Total Cost\": 538.00,\n      \"Plan Rows\": 600,\n      \"Plan Width\": 4,\n      \"Disabled\": false,\n      \"Output\": [\"1\"],\n      \"Filter\": \"(t.kind = 'k1'::text)\"\n    }\n  }\n]"]]}},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
+    ]
+  },
+  "scan guard > judges a facet count by its field and the rest of the filter": {
+    "(hooks)#0": [
+      {"sql":"select relkind from pg_class where oid = to_regclass($1)","params":["\"events\""],"result":{"command":"SELECT","rowCount":1,"columns":[["relkind",18]],"rows":[["r"]]}},
+      {"sql":"\n    select ic.relname as name, am.amname as method, (i.indpred is not null) as partial, a.attname::text as column,\n      pg_get_indexdef(i.indexrelid, k.ord::int, true) as definition, oc.opcname::text as opclass\n    from pg_index i\n    join pg_class ic on ic.oid = i.indexrelid\n    join pg_am am on am.oid = ic.relam\n    cross join lateral unnest(i.indkey::int2[], i.indclass::oid[]) with ordinality k(attnum, opclass, ord)\n    left join pg_attribute a on a.attrelid = i.indrelid and a.attnum = k.attnum and k.attnum > 0\n    join pg_opclass oc on oc.oid = k.opclass\n    where i.indrelid = to_regclass($1) and i.indisvalid and i.indisready and k.ord <= i.indnkeyatts\n    order by ic.relname, k.ord\n  ","params":["\"events\""],"result":{"command":"SELECT","rowCount":1,"columns":[["name",19],["method",19],["partial",16],["column",25],["definition",25],["opclass",25]],"rows":[["events_pkey","btree","f","id","id","int4_ops"]]}},
+      {"sql":"select relkind from pg_class where oid = to_regclass($1)","params":["\"events\""],"result":{"command":"SELECT","rowCount":1,"columns":[["relkind",18]],"rows":[["r"]]}},
+      {"sql":"\n    select ic.relname as name, am.amname as method, (i.indpred is not null) as partial, a.attname::text as column,\n      pg_get_indexdef(i.indexrelid, k.ord::int, true) as definition, oc.opcname::text as opclass\n    from pg_index i\n    join pg_class ic on ic.oid = i.indexrelid\n    join pg_am am on am.oid = ic.relam\n    cross join lateral unnest(i.indkey::int2[], i.indclass::oid[]) with ordinality k(attnum, opclass, ord)\n    left join pg_attribute a on a.attrelid = i.indrelid and a.attnum = k.attnum and k.attnum > 0\n    join pg_opclass oc on oc.oid = k.opclass\n    where i.indrelid = to_regclass($1) and i.indisvalid and i.indisready and k.ord <= i.indnkeyatts\n    order by ic.relname, k.ord\n  ","params":["\"events\""],"result":{"command":"SELECT","rowCount":1,"columns":[["name",19],["method",19],["partial",16],["column",25],["definition",25],["opclass",25]],"rows":[["events_pkey","btree","f","id","id","int4_ops"]]}},
+      {"sql":"select relkind from pg_class where oid = to_regclass($1)","params":["\"events\""],"result":{"command":"SELECT","rowCount":1,"columns":[["relkind",18]],"rows":[["r"]]}},
+      {"sql":"\n    select ic.relname as name, am.amname as method, (i.indpred is not null) as partial, a.attname::text as column,\n      pg_get_indexdef(i.indexrelid, k.ord::int, true) as definition, oc.opcname::text as opclass\n    from pg_index i\n    join pg_class ic on ic.oid = i.indexrelid\n    join pg_am am on am.oid = ic.relam\n    cross join lateral unnest(i.indkey::int2[], i.indclass::oid[]) with ordinality k(attnum, opclass, ord)\n    left join pg_attribute a on a.attrelid = i.indrelid and a.attnum = k.attnum and k.attnum > 0\n    join pg_opclass oc on oc.oid = k.opclass\n    where i.indrelid = to_regclass($1) and i.indisvalid and i.indisready and k.ord <= i.indnkeyatts\n    order by ic.relname, k.ord\n  ","params":["\"events\""],"result":{"command":"SELECT","rowCount":1,"columns":[["name",19],["method",19],["partial",16],["column",25],["definition",25],["opclass",25]],"rows":[["events_pkey","btree","f","id","id","int4_ops"]]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select current_setting('statement_timeout') as value","result":{"command":"SELECT","rowCount":1,"columns":[["value",25]],"rows":[["15s"]]}},
+      {"sql":"select set_config('statement_timeout', $1, true)","params":["15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"select \"t\".\"id\" as \"value\", count(*)::text as \"n\" from \"events\" as \"t\" group by \"t\".\"id\" order by count(*) desc, \"t\".\"id\" asc limit $1","params":["100"],"result":{"command":"SELECT","rowCount":100,"columns":[["value",23],["n",25]],"rows":[
+        ["1","1"],
+        ["2","1"],
+        ["3","1"],
+        ["4","1"],
+        ["5","1"],
+        ["6","1"],
+        ["7","1"],
+        ["8","1"],
+        ["9","1"],
+        ["10","1"],
+        ["11","1"],
+        ["12","1"],
+        ["13","1"],
+        ["14","1"],
+        ["15","1"],
+        ["16","1"],
+        ["17","1"],
+        ["18","1"],
+        ["19","1"],
+        ["20","1"],
+        ["21","1"],
+        ["22","1"],
+        ["23","1"],
+        ["24","1"],
+        ["25","1"],
+        ["26","1"],
+        ["27","1"],
+        ["28","1"],
+        ["29","1"],
+        ["30","1"],
+        ["31","1"],
+        ["32","1"],
+        ["33","1"],
+        ["34","1"],
+        ["35","1"],
+        ["36","1"],
+        ["37","1"],
+        ["38","1"],
+        ["39","1"],
+        ["40","1"],
+        ["41","1"],
+        ["42","1"],
+        ["43","1"],
+        ["44","1"],
+        ["45","1"],
+        ["46","1"],
+        ["47","1"],
+        ["48","1"],
+        ["49","1"],
+        ["50","1"],
+        ["51","1"],
+        ["52","1"],
+        ["53","1"],
+        ["54","1"],
+        ["55","1"],
+        ["56","1"],
+        ["57","1"],
+        ["58","1"],
+        ["59","1"],
+        ["60","1"],
+        ["61","1"],
+        ["62","1"],
+        ["63","1"],
+        ["64","1"],
+        ["65","1"],
+        ["66","1"],
+        ["67","1"],
+        ["68","1"],
+        ["69","1"],
+        ["70","1"],
+        ["71","1"],
+        ["72","1"],
+        ["73","1"],
+        ["74","1"],
+        ["75","1"],
+        ["76","1"],
+        ["77","1"],
+        ["78","1"],
+        ["79","1"],
+        ["80","1"],
+        ["81","1"],
+        ["82","1"],
+        ["83","1"],
+        ["84","1"],
+        ["85","1"],
+        ["86","1"],
+        ["87","1"],
+        ["88","1"],
+        ["89","1"],
+        ["90","1"],
+        ["91","1"],
+        ["92","1"],
+        ["93","1"],
+        ["94","1"],
+        ["95","1"],
+        ["96","1"],
+        ["97","1"],
+        ["98","1"],
+        ["99","1"],
+        ["100","1"]
+      ]}},
+      {"sql":"select set_config('statement_timeout', $1, true)","params":["15s"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
+    ]
+  },
+  "scan guard > judges a grouped total by its grouped field, a date bucket too": {
+    "(hooks)#0": [
+      {"sql":"select relkind from pg_class where oid = to_regclass($1)","params":["\"events\""],"result":{"command":"SELECT","rowCount":1,"columns":[["relkind",18]],"rows":[["r"]]}},
+      {"sql":"\n    select ic.relname as name, am.amname as method, (i.indpred is not null) as partial, a.attname::text as column,\n      pg_get_indexdef(i.indexrelid, k.ord::int, true) as definition, oc.opcname::text as opclass\n    from pg_index i\n    join pg_class ic on ic.oid = i.indexrelid\n    join pg_am am on am.oid = ic.relam\n    cross join lateral unnest(i.indkey::int2[], i.indclass::oid[]) with ordinality k(attnum, opclass, ord)\n    left join pg_attribute a on a.attrelid = i.indrelid and a.attnum = k.attnum and k.attnum > 0\n    join pg_opclass oc on oc.oid = k.opclass\n    where i.indrelid = to_regclass($1) and i.indisvalid and i.indisready and k.ord <= i.indnkeyatts\n    order by ic.relname, k.ord\n  ","params":["\"events\""],"result":{"command":"SELECT","rowCount":1,"columns":[["name",19],["method",19],["partial",16],["column",25],["definition",25],["opclass",25]],"rows":[["events_pkey","btree","f","id","id","int4_ops"]]}},
+      {"sql":"select relkind from pg_class where oid = to_regclass($1)","params":["\"events\""],"result":{"command":"SELECT","rowCount":1,"columns":[["relkind",18]],"rows":[["r"]]}},
+      {"sql":"\n    select ic.relname as name, am.amname as method, (i.indpred is not null) as partial, a.attname::text as column,\n      pg_get_indexdef(i.indexrelid, k.ord::int, true) as definition, oc.opcname::text as opclass\n    from pg_index i\n    join pg_class ic on ic.oid = i.indexrelid\n    join pg_am am on am.oid = ic.relam\n    cross join lateral unnest(i.indkey::int2[], i.indclass::oid[]) with ordinality k(attnum, opclass, ord)\n    left join pg_attribute a on a.attrelid = i.indrelid and a.attnum = k.attnum and k.attnum > 0\n    join pg_opclass oc on oc.oid = k.opclass\n    where i.indrelid = to_regclass($1) and i.indisvalid and i.indisready and k.ord <= i.indnkeyatts\n    order by ic.relname, k.ord\n  ","params":["\"events\""],"result":{"command":"SELECT","rowCount":1,"columns":[["name",19],["method",19],["partial",16],["column",25],["definition",25],["opclass",25]],"rows":[["events_pkey","btree","f","id","id","int4_ops"]]}},
+      {"sql":"select relkind from pg_class where oid = to_regclass($1)","params":["\"events\""],"result":{"command":"SELECT","rowCount":1,"columns":[["relkind",18]],"rows":[["r"]]}},
+      {"sql":"\n    select ic.relname as name, am.amname as method, (i.indpred is not null) as partial, a.attname::text as column,\n      pg_get_indexdef(i.indexrelid, k.ord::int, true) as definition, oc.opcname::text as opclass\n    from pg_index i\n    join pg_class ic on ic.oid = i.indexrelid\n    join pg_am am on am.oid = ic.relam\n    cross join lateral unnest(i.indkey::int2[], i.indclass::oid[]) with ordinality k(attnum, opclass, ord)\n    left join pg_attribute a on a.attrelid = i.indrelid and a.attnum = k.attnum and k.attnum > 0\n    join pg_opclass oc on oc.oid = k.opclass\n    where i.indrelid = to_regclass($1) and i.indisvalid and i.indisready and k.ord <= i.indnkeyatts\n    order by ic.relname, k.ord\n  ","params":["\"events\""],"result":{"command":"SELECT","rowCount":1,"columns":[["name",19],["method",19],["partial",16],["column",25],["definition",25],["opclass",25]],"rows":[["events_pkey","btree","f","id","id","int4_ops"]]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select current_setting('statement_timeout') as value","result":{"command":"SELECT","rowCount":1,"columns":[["value",25]],"rows":[["15s"]]}},
+      {"sql":"select set_config('statement_timeout', $1, true)","params":["15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"select \"t\".\"id\" as \"value\", count(*)::text as \"n\" from \"events\" as \"t\" where \"t\".\"id\" > $1 group by \"t\".\"id\" order by count(*) desc, \"t\".\"id\" asc limit $2","params":["29990","100"],"result":{"command":"SELECT","rowCount":10,"columns":[["value",23],["n",25]],"rows":[
+        ["29991","1"],
+        ["29992","1"],
+        ["29993","1"],
+        ["29994","1"],
+        ["29995","1"],
+        ["29996","1"],
+        ["29997","1"],
+        ["29998","1"],
+        ["29999","1"],
+        ["30000","1"]
+      ]}},
+      {"sql":"select set_config('statement_timeout', $1, true)","params":["15s"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
+    ]
+  },
+  "(hooks)": {
+    "(hooks)#1": [
+      {"sql":"\n      create table listings (id integer primary key, for_sale boolean not null, for_rent boolean not null, status text not null, published_at timestamptz not null, city text not null);\n      insert into listings select i, i % 10 < 4, i % 10 between 4 and 5, (array['available', 'sold'])[1 + i % 2], timestamptz '2026-01-01+00' + i * interval '1 minute', 'city-' || i % 50\n        from generate_series(1, 15000) i;\n      create index listings_sale_idx on listings (for_sale, status, published_at desc);\n      create index listings_rent_idx on listings (for_rent, status, published_at desc);\n      analyze listings;\n    ","result":[{"command":"CREATE","rowCount":null,"columns":[],"rows":[]},{"command":"INSERT","rowCount":15000,"columns":[],"rows":[]},{"command":"CREATE","rowCount":null,"columns":[],"rows":[]},{"command":"CREATE","rowCount":null,"columns":[],"rows":[]},{"command":"ANALYZE","rowCount":null,"columns":[],"rows":[]}]}
+    ]
+  },
+  "scan guard on a broad filter that an index serves > lists them without raising any limit, with an exact count": {
+    "(hooks)#1": [
+      {"sql":"select relkind from pg_class where oid = to_regclass($1)","params":["\"listings\""],"result":{"command":"SELECT","rowCount":1,"columns":[["relkind",18]],"rows":[["r"]]}},
+      {"sql":"\n    select ic.relname as name, am.amname as method, (i.indpred is not null) as partial, a.attname::text as column,\n      pg_get_indexdef(i.indexrelid, k.ord::int, true) as definition, oc.opcname::text as opclass\n    from pg_index i\n    join pg_class ic on ic.oid = i.indexrelid\n    join pg_am am on am.oid = ic.relam\n    cross join lateral unnest(i.indkey::int2[], i.indclass::oid[]) with ordinality k(attnum, opclass, ord)\n    left join pg_attribute a on a.attrelid = i.indrelid and a.attnum = k.attnum and k.attnum > 0\n    join pg_opclass oc on oc.oid = k.opclass\n    where i.indrelid = to_regclass($1) and i.indisvalid and i.indisready and k.ord <= i.indnkeyatts\n    order by ic.relname, k.ord\n  ","params":["\"listings\""],"result":{"command":"SELECT","rowCount":7,"columns":[["name",19],["method",19],["partial",16],["column",25],["definition",25],["opclass",25]],"rows":[
+        ["listings_pkey","btree","f","id","id","int4_ops"],
+        ["listings_rent_idx","btree","f","for_rent","for_rent","bool_ops"],
+        ["listings_rent_idx","btree","f","status","status","text_ops"],
+        ["listings_rent_idx","btree","f","published_at","published_at","timestamptz_ops"],
+        ["listings_sale_idx","btree","f","for_sale","for_sale","bool_ops"],
+        ["listings_sale_idx","btree","f","status","status","text_ops"],
+        ["listings_sale_idx","btree","f","published_at","published_at","timestamptz_ops"]
+      ]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select \"t\".\"id\" as \"id\", \"t\".\"for_sale\" as \"for_sale\", \"t\".\"for_rent\" as \"for_rent\", \"t\".\"status\" as \"status\", \"t\".\"published_at\" as \"published_at\", \"t\".\"city\" as \"city\", \"t\".\"published_at\"::text as \"__pb_key0\", \"t\".\"id\"::text as \"__pb_key1\" from \"listings\" as \"t\" where (\"t\".\"for_sale\" = $1 and \"t\".\"status\" = $2) order by \"t\".\"published_at\" desc, \"t\".\"id\" desc limit $3","params":["true","available","13"],"result":{"command":"SELECT","rowCount":13,"columns":[["id",23],["for_sale",16],["for_rent",16],["status",25],["published_at",1184],["city",25],["__pb_key0",25],["__pb_key1",25]],"rows":[
+        ["15000","t","f","available","2026-01-11 10:00:00+00","city-0","2026-01-11 10:00:00+00","15000"],
+        ["14992","t","f","available","2026-01-11 09:52:00+00","city-42","2026-01-11 09:52:00+00","14992"],
+        ["14990","t","f","available","2026-01-11 09:50:00+00","city-40","2026-01-11 09:50:00+00","14990"],
+        ["14982","t","f","available","2026-01-11 09:42:00+00","city-32","2026-01-11 09:42:00+00","14982"],
+        ["14980","t","f","available","2026-01-11 09:40:00+00","city-30","2026-01-11 09:40:00+00","14980"],
+        ["14972","t","f","available","2026-01-11 09:32:00+00","city-22","2026-01-11 09:32:00+00","14972"],
+        ["14970","t","f","available","2026-01-11 09:30:00+00","city-20","2026-01-11 09:30:00+00","14970"],
+        ["14962","t","f","available","2026-01-11 09:22:00+00","city-12","2026-01-11 09:22:00+00","14962"],
+        ["14960","t","f","available","2026-01-11 09:20:00+00","city-10","2026-01-11 09:20:00+00","14960"],
+        ["14952","t","f","available","2026-01-11 09:12:00+00","city-2","2026-01-11 09:12:00+00","14952"],
+        ["14950","t","f","available","2026-01-11 09:10:00+00","city-0","2026-01-11 09:10:00+00","14950"],
+        ["14942","t","f","available","2026-01-11 09:02:00+00","city-42","2026-01-11 09:02:00+00","14942"],
+        ["14940","t","f","available","2026-01-11 09:00:00+00","city-40","2026-01-11 09:00:00+00","14940"]
+      ]}},
+      {"sql":"EXPLAIN (VERBOSE, FORMAT JSON) select 1 as \"one\" from \"listings\" as \"t\" where (\"t\".\"for_sale\" = $1 and \"t\".\"status\" = $2)","params":["true","available"],"result":{"command":"EXPLAIN","rowCount":null,"columns":[["QUERY PLAN",114]],"rows":[["[\n  {\n    \"Plan\": {\n      \"Node Type\": \"Bitmap Heap Scan\",\n      \"Parallel Aware\": false,\n      \"Async Capable\": false,\n      \"Relation Name\": \"listings\",\n      \"Schema\": \"public\",\n      \"Alias\": \"t\",\n      \"Startup Cost\": 87.03,\n      \"Total Cost\": 235.53,\n      \"Plan Rows\": 3000,\n      \"Plan Width\": 4,\n      \"Disabled\": false,\n      \"Output\": [\"1\"],\n      \"Recheck Cond\": \"(t.for_sale AND (t.status = 'available'::text))\",\n      \"Plans\": [\n        {\n          \"Node Type\": \"Bitmap Index Scan\",\n          \"Parent Relationship\": \"Outer\",\n          \"Parallel Aware\": false,\n          \"Async Capable\": false,\n          \"Index Name\": \"listings_sale_idx\",\n          \"Startup Cost\": 0.00,\n          \"Total Cost\": 86.28,\n          \"Plan Rows\": 3000,\n          \"Plan Width\": 0,\n          \"Disabled\": false,\n          \"Index Cond\": \"((t.for_sale = true) AND (t.status = 'available'::text))\"\n        }\n      ]\n    }\n  }\n]"]]}},
+      {"sql":"select count(*)::text as \"n\" from (select 1 as \"one\" from \"listings\" as \"t\" where (\"t\".\"for_sale\" = $1 and \"t\".\"status\" = $2) limit $3) as \"found\"","params":["true","available","10001"],"result":{"command":"SELECT","rowCount":1,"columns":[["n",25]],"rows":[["3000"]]}},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
+    ]
+  },
+  "scan guard on a broad filter that an index serves > counts no further than 10,000 matches, leaving the estimate above that": {
+    "(hooks)#1": [
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select \"t\".\"id\" as \"id\", \"t\".\"for_sale\" as \"for_sale\", \"t\".\"for_rent\" as \"for_rent\", \"t\".\"status\" as \"status\", \"t\".\"published_at\" as \"published_at\", \"t\".\"city\" as \"city\", \"t\".\"id\"::text as \"__pb_key0\" from \"listings\" as \"t\" where \"t\".\"id\" > $1 order by \"t\".\"id\" asc limit $2","params":["0","2"],"result":{"command":"SELECT","rowCount":2,"columns":[["id",23],["for_sale",16],["for_rent",16],["status",25],["published_at",1184],["city",25],["__pb_key0",25]],"rows":[
+        ["1","t","f","sold","2026-01-01 00:01:00+00","city-1","1"],
+        ["2","t","f","available","2026-01-01 00:02:00+00","city-2","2"]
+      ]}},
+      {"sql":"EXPLAIN (VERBOSE, FORMAT JSON) select 1 as \"one\" from \"listings\" as \"t\" where \"t\".\"id\" > $1","params":["0"],"result":{"command":"EXPLAIN","rowCount":null,"columns":[["QUERY PLAN",114]],"rows":[["[\n  {\n    \"Plan\": {\n      \"Node Type\": \"Seq Scan\",\n      \"Parallel Aware\": false,\n      \"Async Capable\": false,\n      \"Relation Name\": \"listings\",\n      \"Schema\": \"public\",\n      \"Alias\": \"t\",\n      \"Startup Cost\": 0.00,\n      \"Total Cost\": 298.50,\n      \"Plan Rows\": 15000,\n      \"Plan Width\": 4,\n      \"Disabled\": false,\n      \"Output\": [\"1\"],\n      \"Filter\": \"(t.id > 0)\"\n    }\n  }\n]"]]}},
+      {"sql":"select count(*)::text as \"n\" from (select 1 as \"one\" from \"listings\" as \"t\" where \"t\".\"id\" > $1 limit $2) as \"found\"","params":["0","10001"],"result":{"command":"SELECT","rowCount":1,"columns":[["n",25]],"rows":[["10001"]]}},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
+    ]
+  }
+}

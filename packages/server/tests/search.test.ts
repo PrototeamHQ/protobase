@@ -1,10 +1,9 @@
 import { Kysely } from 'kysely'
-import { PGliteDialect } from 'kysely-pglite-dialect'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { f, resource } from '@protobase/schema'
 import { createAdmin } from '../src/create-admin'
 import { as, json, testAuthenticator } from '../../../test-support/server'
-import { createTrigramPg } from '../../../test-support/pglite-snapshot'
+import { openSnapshotDb, type SnapshotDb } from '../../../test-support/sql-snapshot'
 
 const contacts = resource('contacts')
   .table('contacts')
@@ -23,7 +22,7 @@ const contacts = resource('contacts')
 let db: Kysely<any>
 let app: ReturnType<typeof createAdmin>
 beforeAll(async () => {
-  const pg = await createTrigramPg()
+  const pg = await openSnapshotDb('trigram')
   await pg.exec(`
     create table contacts (id integer primary key, organization_id integer not null, name text not null, phone text, status text not null);
     insert into contacts values
@@ -35,7 +34,7 @@ beforeAll(async () => {
     create index on contacts using gin (name gin_trgm_ops);
     create index on contacts using gin ((regexp_replace(phone, '[^0-9]', '', 'g')) gin_trgm_ops);
   `)
-  db = new Kysely({ dialect: new PGliteDialect(pg) })
+  db = new Kysely({ dialect: pg.dialect })
   app = createAdmin({ resources: [contacts], db, authenticate: testAuthenticator })
 })
 afterAll(async () => { await db.destroy() })

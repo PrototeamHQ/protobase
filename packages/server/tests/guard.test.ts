@@ -1,10 +1,9 @@
 import { Kysely } from 'kysely'
-import { PGliteDialect } from 'kysely-pglite-dialect'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { f, resource } from '@protobase/schema'
 import { createAdmin } from '../src/create-admin'
 import { as, createFixtureDb, createTestApp, testAuthenticator } from '../../../test-support/server'
-import { createEmptyPg } from '../../../test-support/pglite-snapshot'
+import { openSnapshotDb, type SnapshotDb } from '../../../test-support/sql-snapshot'
 
 let fixture: Awaited<ReturnType<typeof createFixtureDb>>
 beforeAll(async () => { fixture = await createFixtureDb() })
@@ -83,10 +82,10 @@ describe('scan guard on a broad filter that an index serves', () => {
     })
     .primaryKey((r) => r.id)
 
-  let pg: Awaited<ReturnType<typeof createEmptyPg>>
+  let pg: SnapshotDb
   let app: ReturnType<typeof createAdmin>
   beforeAll(async () => {
-    pg = await createEmptyPg()
+    pg = await openSnapshotDb('empty')
     await pg.exec(`
       create table listings (id integer primary key, for_sale boolean not null, for_rent boolean not null, status text not null, published_at timestamptz not null, city text not null);
       insert into listings select i, i % 10 < 4, i % 10 between 4 and 5, (array['available', 'sold'])[1 + i % 2], timestamptz '2026-01-01+00' + i * interval '1 minute', 'city-' || i % 50
@@ -95,7 +94,7 @@ describe('scan guard on a broad filter that an index serves', () => {
       create index listings_rent_idx on listings (for_rent, status, published_at desc);
       analyze listings;
     `)
-    app = createAdmin({ resources: [listings], db: new Kysely<any>({ dialect: new PGliteDialect(pg) }), authenticate: testAuthenticator })
+    app = createAdmin({ resources: [listings], db: new Kysely<any>({ dialect: pg.dialect }), authenticate: testAuthenticator })
   })
   afterAll(async () => { await pg.close() })
 

@@ -1,12 +1,10 @@
-import { PGlite } from '@electric-sql/pglite'
 import { Kysely } from 'kysely'
-import { PGliteDialect } from 'kysely-pglite-dialect'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { f, resource } from '@protobase/schema'
 import { createAdmin } from '../src/create-admin'
 import { as, testAuthenticator } from '../../../test-support/server'
 import type { WriteEvent } from '../src/types'
-import { createEmptyPg } from '../../../test-support/pglite-snapshot'
+import { openSnapshotDb, type SnapshotDb } from '../../../test-support/sql-snapshot'
 
 const isAdmin = (ctx: { user?: { roles?: readonly string[] } }) => ctx.user?.roles?.includes('admin') ?? false
 
@@ -40,13 +38,13 @@ const lines = line('lines', 'lines')
 const tightLines = line('tightLines', 'tight_lines')
 const guarded = line('guarded', 'guarded').access({ update: isAdmin })
 
-let pg: PGlite
+let pg: SnapshotDb
 let db: Kysely<any>
 let events: WriteEvent[]
 let app: ReturnType<typeof createAdmin>
 
 beforeAll(async () => {
-  pg = await createEmptyPg()
+  pg = await openSnapshotDb('empty')
   const child = (table: string, extra = '') => `
     create table ${table} (id integer generated always as identity primary key, folder_id integer not null references folders (id), organization_id integer not null,
       position integer not null ${extra}, body text not null, updated_at timestamptz not null default now(), unique (folder_id, position));`
@@ -54,7 +52,7 @@ beforeAll(async () => {
     create table folders (id integer generated always as identity primary key, organization_id integer not null, title text not null, updated_at timestamptz not null default now());
     ${child('lines')} ${child('tight_lines', 'check (position <= 3)')} ${child('guarded')}
   `)
-  db = new Kysely({ dialect: new PGliteDialect(pg) })
+  db = new Kysely({ dialect: pg.dialect })
   app = createAdmin({
     resources: [folders, lines, tightLines, guarded],
     db,
@@ -77,11 +75,17 @@ const get = async (path: string, roles = 'admin') => app.request(`/api/v1${path}
 const batch = (operations: unknown[], roles = 'admin', org: number | undefined = 1) =>
   app.request('/api/v1:batchWrite', { method: 'POST', headers: { ...as(org, roles), 'content-type': 'application/json' }, body: JSON.stringify({ ops: operations }) })
 const etagOf = async (path: string) => (await get(path)).headers.get('etag')!
+/** The ETags of `paths`, read one after another so they reach the database in the same order on every recording. */
+const etagsOf = async (paths: string[]) => {
+  const etags: string[] = []
+  for (const path of paths) etags.push(await etagOf(path))
+  return etags
+}
 const positions = async (table = 'lines') => (await pg.query<{ body: string; position: number }>(`select body, position from ${table} order by id`)).rows.map((row) => `${row.body}${row.position}`)
 
 describe('POST /api/v1:batchWrite', () => {
   it('updates a parent and its lines and swaps positions under a real unique index, in one transaction', async () => {
-    const [doc, one, two, three] = await Promise.all([etagOf('/folders/1'), etagOf('/lines/1'), etagOf('/lines/2'), etagOf('/lines/3')])
+    const [doc, one, two, three] = await etagsOf(['/folders/1', '/lines/1', '/lines/2', '/lines/3'])
     const response = await batch([
       { op: 'update', resource: 'folders', key: 1, etag: doc, data: { title: 'renamed' } },
       { op: 'update', resource: 'lines', key: 3, etag: three, data: { body: 'c2' } },
@@ -97,7 +101,7 @@ describe('POST /api/v1:batchWrite', () => {
   })
 
   it('writes only the rows whose position changes, each as an ordinary update with hooks', async () => {
-    const [one, two, three] = await Promise.all([etagOf('/lines/1'), etagOf('/lines/2'), etagOf('/lines/3')])
+    const [one, two, three] = await etagsOf(['/lines/1', '/lines/2', '/lines/3'])
     const response = await batch([{ op: 'reorder', resource: 'lines', field: 'position', keys: [2, 1, 3], etags: { 1: one, 2: two, 3: three } }])
     expect(response.status).toBe(200)
     expect(events.map((event) => [event.operation, (event.before as { id: number }).id, (event.before as { position: number }).position, (event.after as { position: number }).position])).toEqual([
@@ -109,14 +113,14 @@ describe('POST /api/v1:batchWrite', () => {
   })
 
   it('moves rows aside below the range when a check constraint refuses values above it', async () => {
-    const etags = Object.fromEntries(await Promise.all([1, 2, 3].map(async (id) => [id, await etagOf(`/tightLines/${id}`)])))
+    const etags = Object.fromEntries((await etagsOf([1, 2, 3].map((id) => `/tightLines/${id}`))).map((etag, i) => [i + 1, etag]))
     const response = await batch([{ op: 'reorder', resource: 'tightLines', field: 'position', keys: [3, 2, 1], etags }])
     expect(response.status, await response.clone().text()).toBe(200)
     expect(await positions('tight_lines')).toEqual(['a3', 'b2', 'c1'])
   })
 
   it('requires the ETag of each record that moves, and a stale one fails the batch with 412 and writes nothing', async () => {
-    const [one, two, three] = await Promise.all([etagOf('/lines/1'), etagOf('/lines/2'), etagOf('/lines/3')])
+    const [one, two, three] = await etagsOf(['/lines/1', '/lines/2', '/lines/3'])
     const missing = await batch([{ op: 'reorder', resource: 'lines', field: 'position', keys: [2, 1, 3], etags: { 1: one } }])
     expect(missing.status).toBe(428)
     await pg.exec("update lines set body = 'changed elsewhere', updated_at = clock_timestamp() where id = 2")

@@ -1,11 +1,10 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { Kysely } from 'kysely'
-import { PGliteDialect } from 'kysely-pglite-dialect'
 import { f, resource, view } from '@protobase/schema'
 import { companies } from '../../../test-support/server'
 import { as, createFixtureDb, createTestApp, testAuthenticator, type TestApp } from '../../../test-support/server'
 import { createAdmin } from '../src/create-admin'
-import { createEmptyPg } from '../../../test-support/pglite-snapshot'
+import { openSnapshotDb, type SnapshotDb } from '../../../test-support/sql-snapshot'
 
 let fixture: Awaited<ReturnType<typeof createFixtureDb>>
 let app: TestApp
@@ -97,9 +96,9 @@ describe('resource names and system endpoints', () => {
   it('keeps /api/v1 for resources only, so a table may be called meta or docs', async () => {
     const odd = resource('meta').table('meta_rows').fields({ id: f.integer().readOnly().filterable().sortable() }).primaryKey((r) => r.id)
     const docsTable = resource('docs').table('docs_rows').fields({ id: f.integer().readOnly().filterable().sortable() }).primaryKey((r) => r.id)
-    const pg = await createEmptyPg()
+    const pg = await openSnapshotDb('empty')
     await pg.exec('create table meta_rows (id integer primary key); create table docs_rows (id integer primary key); insert into meta_rows values (1); insert into docs_rows values (7)')
-    const odds = createAdmin({ resources: [odd, docsTable], db: new Kysely({ dialect: new PGliteDialect(pg) }), authenticate: testAuthenticator })
+    const odds = createAdmin({ resources: [odd, docsTable], db: new Kysely({ dialect: pg.dialect }), authenticate: testAuthenticator })
     expect((await (await odds.request('/api/v1/meta', { headers: as(1) })).json()).items).toEqual([expect.objectContaining({ id: 1 })])
     expect((await (await odds.request('/api/v1/docs/7', { headers: as(1) })).json()).id).toBe(7)
     const system = await (await odds.request('/api/meta', { headers: as(1) })).json()

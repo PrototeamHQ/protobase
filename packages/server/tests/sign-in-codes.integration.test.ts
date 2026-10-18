@@ -1,32 +1,30 @@
 import { createHmac } from 'node:crypto'
-import { PGlite } from '@electric-sql/pglite'
 import { Kysely } from 'kysely'
-import { PGliteDialect } from 'kysely-pglite-dialect'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { betterAuthAuthenticator } from '../src/better-auth/authenticator'
 import { createAuth } from '../src/better-auth/create-auth'
 import { createUser } from '../src/better-auth/users'
 import { createAdmin } from '../src/create-admin'
-import { createAuthStore } from '../../../test-support/auth'
 import { bodyOf, startFakeRelay } from './support/fake-relay'
+import { openSnapshotDb, type SnapshotDb } from '../../../test-support/sql-snapshot'
 
 const origin = 'http://localhost:5173'
 const password = 'correct horse battery'
 const sender = 'noreply@acme.example.com'
 
 let relay: Awaited<ReturnType<typeof startFakeRelay>>
-let store: PGlite
+let store: SnapshotDb
 let app: ReturnType<typeof createAdmin>
 
 beforeAll(async () => {
   relay = await startFakeRelay()
   vi.stubEnv('PROTOBASE_SMTP_URL', relay.smtpUrl)
   vi.stubEnv('PROTOBASE_MAIL_FROM', sender)
-  store = await createAuthStore()
-  const auth = createAuth({ database: { dialect: new PGliteDialect(store), type: 'postgres' }, baseURL: origin, secret: 'test-secret-test-secret-test-secret-1234', appName: 'Acme ERP' })
+  store = await openSnapshotDb('auth')
+  const auth = createAuth({ database: { dialect: store.dialect, type: 'postgres' }, baseURL: origin, secret: 'test-secret-test-secret-test-secret-1234', appName: 'Acme ERP' })
   vi.unstubAllEnvs()
   for (const email of ['ada@acme.example.com', 'bob@acme.example.com', 'cy@acme.example.com']) await createUser(auth, { email, password })
-  app = createAdmin({ resources: [], db: new Kysely<any>({ dialect: new PGliteDialect(store) }), authenticate: betterAuthAuthenticator({ auth }), auth })
+  app = createAdmin({ resources: [], db: new Kysely<any>({ dialect: store.dialect }), authenticate: betterAuthAuthenticator({ auth }), auth })
 })
 afterAll(async () => { await relay.close() })
 

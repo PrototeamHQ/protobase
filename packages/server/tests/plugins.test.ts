@@ -1,11 +1,10 @@
 import { Kysely } from 'kysely'
-import { PGliteDialect } from 'kysely-pglite-dialect'
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
 import { f, resource, view } from '@protobase/schema'
 import { createAdmin } from '../src/create-admin'
 import type { AdminOptions } from '../src/admin-options'
 import { as, testAuthenticator } from '../../../test-support/server'
-import { createEmptyPg } from '../../../test-support/pglite-snapshot'
+import { openSnapshotDb, type SnapshotDb } from '../../../test-support/sql-snapshot'
 
 const tasks = resource('tasks')
   .table('tasks')
@@ -14,9 +13,9 @@ const tasks = resource('tasks')
 
 let db: Kysely<any>
 beforeAll(async () => {
-  const pg = await createEmptyPg()
+  const pg = await openSnapshotDb('empty')
   await pg.exec('create table tasks (id integer generated always as identity primary key, title text not null)')
-  db = new Kysely({ dialect: new PGliteDialect(pg) })
+  db = new Kysely({ dialect: pg.dialect })
 })
 afterAll(async () => { await db.destroy() })
 afterEach(() => {

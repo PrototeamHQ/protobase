@@ -1,11 +1,10 @@
 import { Kysely } from 'kysely'
-import { PGliteDialect } from 'kysely-pglite-dialect'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { bottomBar, defineRoles, f, resource, userMenu, view, type NavRecentModel } from '@protobase/schema'
 import { createAdmin } from '../src/create-admin'
 import { configExports } from '../src/resource-source'
 import { as, testAuthenticator } from '../../../test-support/server'
-import { createEmptyPg } from '../../../test-support/pglite-snapshot'
+import { openSnapshotDb, type SnapshotDb } from '../../../test-support/sql-snapshot'
 
 const isAdmin = (ctx: { user?: { roles?: readonly string[] } }) => ctx.user?.roles?.includes('admin') ?? false
 
@@ -30,12 +29,12 @@ const menu = userMenu((m) => [m.resource('billing', { label: 'Billing', icon: 'c
 
 let db: Kysely<any>
 beforeAll(async () => {
-  const pg = await createEmptyPg()
+  const pg = await openSnapshotDb('empty')
   await pg.exec(`
     create table tasks (id integer generated always as identity primary key, title text not null, status text not null, priority integer not null);
     create table billing (id integer generated always as identity primary key, plan text not null);
   `)
-  db = new Kysely({ dialect: new PGliteDialect(pg) })
+  db = new Kysely({ dialect: pg.dialect })
 })
 afterAll(async () => { await db.destroy() })
 

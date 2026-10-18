@@ -1,10 +1,6 @@
-import { PGlite } from '@electric-sql/pglite'
-import { Kysely } from 'kysely'
-import { PGliteDialect } from 'kysely-pglite-dialect'
 import { f, resource } from '@protobase/schema'
 import { createHmac } from 'node:crypto'
-import { fromSnapshot } from './pglite-snapshot'
-import { serverDdl } from './fixtures/server-ddl'
+import { openSnapshotDb } from './sql-snapshot'
 import { createAdmin, jwtAuthenticator, type AdminOptions, type PipelineHook } from '@protobase/server'
 
 export const organizations = resource('organizations')
@@ -72,15 +68,10 @@ export const events = resource('events')
 
 export const allResources = [organizations, companies, labels, lineItems, events]
 
-export const buildFixturePg = async () => {
-  const pg = new PGlite()
-  await pg.exec(serverDdl)
-  return pg
-}
-
+/** A snapshot database of the fixture: two organizations, 3.5k companies, labels, line items and 30k events. */
 export const createFixtureDb = async () => {
-  const pg = await fromSnapshot('server', buildFixturePg)
-  return { pg, db: new Kysely<any>({ dialect: new PGliteDialect(pg) }) }
+  const pg = await openSnapshotDb('fixture')
+  return { pg, db: pg.db }
 }
 
 type Fixture = Awaited<ReturnType<typeof createFixtureDb>>

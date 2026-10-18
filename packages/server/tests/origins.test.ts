@@ -1,25 +1,22 @@
-import type { PGlite } from '@electric-sql/pglite'
 import { Kysely } from 'kysely'
-import { PGliteDialect } from 'kysely-pglite-dialect'
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { betterAuthAuthenticator } from '../src/better-auth/authenticator'
 import { createAuth, type CreateAuthOptions } from '../src/better-auth/create-auth'
 import { createUser } from '../src/better-auth/users'
 import { createAdmin } from '../src/create-admin'
 import type { MailMessage } from '../src/mail/smtp-mailer'
-import { createAuthStore } from '../../../test-support/auth'
-import { cloneForTest } from '../../../test-support/pglite-snapshot'
+import { openSnapshotDb, type SnapshotDb } from '../../../test-support/sql-snapshot'
 
 const label = 'https://erp-x1.protobase.net'
 const custom = 'https://admin.shop.com'
 const secret = 'test-secret-test-secret-test-secret-1234'
 const password = 'correct horse battery'
 
-let shared: PGlite
+let shared: SnapshotDb
 let appDb: Kysely<any>
 beforeAll(async () => {
-  shared = await createAuthStore()
-  appDb = new Kysely<any>({ dialect: new PGliteDialect(shared) })
+  shared = await openSnapshotDb('auth')
+  appDb = new Kysely<any>({ dialect: shared.dialect })
 })
 
 afterEach(() => {
@@ -32,7 +29,7 @@ let client = 0
 const serve = async (options: Partial<CreateAuthOptions> = {}) => {
   const sent: MailMessage[] = []
   const mailer = { send: async (message: MailMessage) => void sent.push(message) }
-  const auth = createAuth({ database: { dialect: new PGliteDialect(await cloneForTest(shared)), type: 'postgres' }, baseURL: label, secret, mailer, ...options })
+  const auth = createAuth({ database: { dialect: (await shared.clone()).dialect, type: 'postgres' }, baseURL: label, secret, mailer, ...options })
   await createUser(auth, { email: 'root@example.com', password })
   const app = createAdmin({ resources: [], db: appDb, authenticate: betterAuthAuthenticator({ auth }), auth })
   const address = `203.0.113.${++client}`

@@ -1,11 +1,9 @@
-import { PGlite } from '@electric-sql/pglite'
 import { Kysely } from 'kysely'
-import { PGliteDialect } from 'kysely-pglite-dialect'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { f, resource, view } from '@protobase/schema'
 import { createAdmin } from '../src/create-admin'
 import { as, json, testAuthenticator } from '../../../test-support/server'
-import { createTrigramPg } from '../../../test-support/pglite-snapshot'
+import { openSnapshotDb, type SnapshotDb } from '../../../test-support/sql-snapshot'
 
 const isAdmin = (ctx: { user?: { roles?: readonly string[] } }) => ctx.user?.roles?.includes('admin') ?? false
 
@@ -30,11 +28,11 @@ const ledger = resource('ledger')
 const ledgerView = view<typeof ledger>('ledger').list((r) => ({ columns: [r.title, r.secret], sort: [[r.secret, 'asc']], search: [r.secret, r.title] })).filters((r, w) => [w.facets(r.secret), w.facets(r.status)])
   .searchResult((r) => ({ title: [r.title, r.secret], subtitle: r.secret }))
 
-let pg: PGlite
+let pg: SnapshotDb
 let db: Kysely<any>
 let app: ReturnType<typeof createAdmin>
 beforeAll(async () => {
-  pg = await createTrigramPg()
+  pg = await openSnapshotDb('trigram')
   await pg.exec(`
     create table ledger (id integer generated always as identity primary key, organization_id integer not null, title text not null, secret text not null, status text not null default 'open');
     insert into ledger (organization_id, title, secret, status) values (1, 'visible one', 'alpha-secret', 'open'), (1, 'visible two', 'beta-secret', 'locked');
@@ -43,7 +41,7 @@ beforeAll(async () => {
     create index on ledger (organization_id, status);
     create index on ledger using gin (title gin_trgm_ops, secret gin_trgm_ops);
   `)
-  db = new Kysely({ dialect: new PGliteDialect(pg) })
+  db = new Kysely({ dialect: pg.dialect })
   app = createAdmin({ resources: [ledger], views: [ledgerView], db, authenticate: testAuthenticator })
 })
 afterAll(async () => { await db.destroy() })

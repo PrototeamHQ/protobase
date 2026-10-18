@@ -1,0 +1,394 @@
+{
+  "(repeated)": [
+    {"sql":"\n    select ic.relname as name, am.amname as method, (i.indpred is not null) as partial, a.attname::text as column,\n      pg_get_indexdef(i.indexrelid, k.ord::int, true) as definition, oc.opcname::text as opclass\n    from pg_index i\n    join pg_class ic on ic.oid = i.indexrelid\n    join pg_am am on am.oid = ic.relam\n    cross join lateral unnest(i.indkey::int2[], i.indclass::oid[]) with ordinality k(attnum, opclass, ord)\n    left join pg_attribute a on a.attrelid = i.indrelid and a.attnum = k.attnum and k.attnum > 0\n    join pg_opclass oc on oc.oid = k.opclass\n    where i.indrelid = to_regclass($1) and i.indisvalid and i.indisready and k.ord <= i.indnkeyatts\n    order by ic.relname, k.ord\n  ","params":["\"listings\""],"result":{"command":"SELECT","rowCount":3,"columns":[["name",19],["method",19],["partial",16],["column",25],["definition",25],["opclass",25]],"rows":[
+      ["listings_lat_idx","btree","f","lat","lat","numeric_ops"],
+      ["listings_lng_idx","btree","f","lng","lng","numeric_ops"],
+      ["listings_pkey","btree","f","id","id","int4_ops"]
+    ]}},
+    {"sql":"\n    select ic.relname as name, am.amname as method, (i.indpred is not null) as partial, a.attname::text as column,\n      pg_get_indexdef(i.indexrelid, k.ord::int, true) as definition, oc.opcname::text as opclass\n    from pg_index i\n    join pg_class ic on ic.oid = i.indexrelid\n    join pg_am am on am.oid = ic.relam\n    cross join lateral unnest(i.indkey::int2[], i.indclass::oid[]) with ordinality k(attnum, opclass, ord)\n    left join pg_attribute a on a.attrelid = i.indrelid and a.attnum = k.attnum and k.attnum > 0\n    join pg_opclass oc on oc.oid = k.opclass\n    where i.indrelid = to_regclass($1) and i.indisvalid and i.indisready and k.ord <= i.indnkeyatts\n    order by ic.relname, k.ord\n  ","params":["\"listing_photos\""],"result":{"command":"SELECT","rowCount":4,"columns":[["name",19],["method",19],["partial",16],["column",25],["definition",25],["opclass",25]],"rows":[
+      ["listing_photos_hidden_idx","btree","f","hidden","hidden","bool_ops"],
+      ["listing_photos_listing_id_position_key","btree","f","listing_id","listing_id","int4_ops"],
+      ["listing_photos_listing_id_position_key","btree","f","position","\"position\"","int4_ops"],
+      ["listing_photos_pkey","btree","f","id","id","int4_ops"]
+    ]}},
+    {"sql":"select \"r\".* from (select distinct \"t\".\"listing_id\" as \"__pb_owner\" from \"listing_photos\" as \"t\" where \"t\".\"removed_at\" is null and \"t\".\"listing_id\" in ($1, $2, $3)) as \"k\" inner join lateral (select \"t\".\"listing_id\" as \"listing_id\", \"t\".\"id\" as \"id\", \"t\".\"photo\" as \"photo\", \"t\".\"photo_placeholder\" as \"photo_placeholder\", row_number() over (order by \"t\".\"position\" asc, \"t\".\"id\" asc) as \"__pb_rank\" from \"listing_photos\" as \"t\" where \"t\".\"removed_at\" is null and \"t\".\"listing_id\" = \"k\".\"__pb_owner\" order by \"t\".\"position\" asc, \"t\".\"id\" asc limit $4) as \"r\" on true order by \"r\".\"__pb_rank\"","params":["1","2","3","10"],"result":{"command":"SELECT","rowCount":12,"columns":[["listing_id",23],["id",23],["photo",25],["photo_placeholder",25],["__pb_rank",20]],"rows":[
+      ["1","100","public:photos/a1.jpg?name=a.jpg","hash1","1"],
+      ["2","201","public:photos/b1.jpg?name=b1.jpg",null,"1"],
+      ["2","202","public:photos/b2.jpg?name=b2.jpg",null,"2"],
+      ["1","105","public:photos/a2.jpg?name=a.jpg","hash2","2"],
+      ["1","110","public:photos/a3.jpg?name=a.jpg","hash3","3"],
+      ["1","103","public:photos/a4.jpg?name=a.jpg","hash4","4"],
+      ["1","108","public:photos/a5.jpg?name=a.jpg","hash5","5"],
+      ["1","101","public:photos/a6.jpg?name=a.jpg","hash6","6"],
+      ["1","106","public:photos/a7.jpg?name=a.jpg","hash7","7"],
+      ["1","111","public:photos/a8.jpg?name=a.jpg","hash8","8"],
+      ["1","104","public:photos/a9.jpg?name=a.jpg","hash9","9"],
+      ["1","109","public:photos/a10.jpg?name=a.jpg","hash10","10"]
+    ]}},
+    {"sql":"select \"r\".* from (select distinct \"t\".\"listing_id\" as \"__pb_owner\" from \"listing_photos\" as \"t\" where \"t\".\"removed_at\" is null and \"t\".\"hidden\" = $1 and \"t\".\"listing_id\" in ($2, $3, $4)) as \"k\" inner join lateral (select \"t\".\"listing_id\" as \"listing_id\", \"t\".\"id\" as \"id\", \"t\".\"photo\" as \"photo\", \"t\".\"photo_placeholder\" as \"photo_placeholder\", row_number() over (order by \"t\".\"position\" asc, \"t\".\"id\" asc) as \"__pb_rank\" from \"listing_photos\" as \"t\" where \"t\".\"removed_at\" is null and \"t\".\"hidden\" = $5 and \"t\".\"listing_id\" = \"k\".\"__pb_owner\" order by \"t\".\"position\" asc, \"t\".\"id\" asc limit $6) as \"r\" on true order by \"r\".\"__pb_rank\"","params":["false","1","2","3","false","10"],"result":{"command":"SELECT","rowCount":11,"columns":[["listing_id",23],["id",23],["photo",25],["photo_placeholder",25],["__pb_rank",20]],"rows":[
+      ["1","100","public:photos/a1.jpg?name=a.jpg","hash1","1"],
+      ["2","201","public:photos/b1.jpg?name=b1.jpg",null,"1"],
+      ["1","105","public:photos/a2.jpg?name=a.jpg","hash2","2"],
+      ["1","110","public:photos/a3.jpg?name=a.jpg","hash3","3"],
+      ["1","103","public:photos/a4.jpg?name=a.jpg","hash4","4"],
+      ["1","108","public:photos/a5.jpg?name=a.jpg","hash5","5"],
+      ["1","101","public:photos/a6.jpg?name=a.jpg","hash6","6"],
+      ["1","106","public:photos/a7.jpg?name=a.jpg","hash7","7"],
+      ["1","111","public:photos/a8.jpg?name=a.jpg","hash8","8"],
+      ["1","104","public:photos/a9.jpg?name=a.jpg","hash9","9"],
+      ["1","109","public:photos/a10.jpg?name=a.jpg","hash10","10"]
+    ]}}
+  ],
+  "(hooks)": {
+    "(hooks)#0": [
+      {"sql":"\ncreate table listings (id integer primary key, address text not null, lat numeric(8, 6) not null, lng numeric(9, 6) not null);\ninsert into listings values (1, 'Damrak 1', 52.37, 4.89), (2, 'Grote Markt 2', 52.38, 4.63), (3, 'Gran Via 3', 40.42, -3.70);\ncreate table listing_photos (\n  id integer primary key, listing_id integer not null references listings (id), position integer not null, photo text not null,\n  photo_placeholder text, caption text, hidden boolean not null default false, removed_at timestamptz, unique (listing_id, position)\n);\ninsert into listing_photos (id, listing_id, position, photo, photo_placeholder)\n  select 100 + i, 1, (i * 5) % 12 + 1, 'public:photos/a' || ((i * 5) % 12 + 1) || '.jpg?name=a.jpg', 'hash' || ((i * 5) % 12 + 1) from generate_series(0, 11) i;\ninsert into listing_photos (id, listing_id, position, photo, hidden, removed_at) values\n  (201, 2, 1, 'public:photos/b1.jpg?name=b1.jpg', false, null), (202, 2, 2, 'public:photos/b2.jpg?name=b2.jpg', true, null),\n  (203, 2, 3, 'public:photos/b3.jpg?name=b3.jpg', false, now());\ncreate index on listings (lat);\ncreate index on listings (lng);\ncreate index on listing_photos (hidden);\n","result":[{"command":"CREATE","rowCount":null,"columns":[],"rows":[]},{"command":"INSERT","rowCount":3,"columns":[],"rows":[]},{"command":"CREATE","rowCount":null,"columns":[],"rows":[]},{"command":"INSERT","rowCount":12,"columns":[],"rows":[]},{"command":"INSERT","rowCount":3,"columns":[],"rows":[]},{"command":"CREATE","rowCount":null,"columns":[],"rows":[]},{"command":"CREATE","rowCount":null,"columns":[],"rows":[]},{"command":"CREATE","rowCount":null,"columns":[],"rows":[]}]}
+    ]
+  },
+  "photos on a list > brings each record's first photos in their order, at most ten, in the same answer": {
+    "(hooks)#0": [
+      {"sql":"select relkind from pg_class where oid = to_regclass($1)","params":["\"listings\""],"result":{"command":"SELECT","rowCount":1,"columns":[["relkind",18]],"rows":[["r"]]}},
+      {"repeated":0},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select \"t\".\"id\" as \"id\", \"t\".\"address\" as \"address\", \"t\".\"lat\" as \"lat\", \"t\".\"lng\" as \"lng\", \"t\".\"id\"::text as \"__pb_key0\" from \"listings\" as \"t\" order by \"t\".\"id\" asc limit $1","params":["51"],"result":{"command":"SELECT","rowCount":3,"columns":[["id",23],["address",25],["lat",1700],["lng",1700],["__pb_key0",25]],"rows":[
+        ["1","Damrak 1","52.370000","4.890000","1"],
+        ["2","Grote Markt 2","52.380000","4.630000","2"],
+        ["3","Gran Via 3","40.420000","-3.700000","3"]
+      ]}},
+      {"sql":"\n    select reltuples::float8 as reltuples from pg_class where oid = to_regclass($1)\n  ","params":["\"listings\""],"result":{"command":"SELECT","rowCount":1,"columns":[["reltuples",701]],"rows":[["3"]]}},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select relkind from pg_class where oid = to_regclass($1)","params":["\"listing_photos\""],"result":{"command":"SELECT","rowCount":1,"columns":[["relkind",18]],"rows":[["r"]]}},
+      {"repeated":1},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"repeated":2},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
+    ]
+  },
+  "photos on a list > orders them as asked, the key breaking ties": {
+    "(hooks)#0": [
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select \"t\".\"id\" as \"id\", \"t\".\"address\" as \"address\", \"t\".\"lat\" as \"lat\", \"t\".\"lng\" as \"lng\", \"t\".\"id\"::text as \"__pb_key0\" from \"listings\" as \"t\" order by \"t\".\"id\" asc limit $1","params":["51"],"result":{"command":"SELECT","rowCount":3,"columns":[["id",23],["address",25],["lat",1700],["lng",1700],["__pb_key0",25]],"rows":[
+        ["1","Damrak 1","52.370000","4.890000","1"],
+        ["2","Grote Markt 2","52.380000","4.630000","2"],
+        ["3","Gran Via 3","40.420000","-3.700000","3"]
+      ]}},
+      {"sql":"\n    select reltuples::float8 as reltuples from pg_class where oid = to_regclass($1)\n  ","params":["\"listings\""],"result":{"command":"SELECT","rowCount":1,"columns":[["reltuples",701]],"rows":[["3"]]}},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select \"r\".* from (select distinct \"t\".\"listing_id\" as \"__pb_owner\" from \"listing_photos\" as \"t\" where \"t\".\"removed_at\" is null and \"t\".\"listing_id\" in ($1, $2, $3)) as \"k\" inner join lateral (select \"t\".\"listing_id\" as \"listing_id\", \"t\".\"id\" as \"id\", \"t\".\"photo\" as \"photo\", \"t\".\"photo_placeholder\" as \"photo_placeholder\", row_number() over (order by \"t\".\"position\" desc, \"t\".\"id\" desc) as \"__pb_rank\" from \"listing_photos\" as \"t\" where \"t\".\"removed_at\" is null and \"t\".\"listing_id\" = \"k\".\"__pb_owner\" order by \"t\".\"position\" desc, \"t\".\"id\" desc limit $4) as \"r\" on true order by \"r\".\"__pb_rank\"","params":["1","2","3","10"],"result":{"command":"SELECT","rowCount":12,"columns":[["listing_id",23],["id",23],["photo",25],["photo_placeholder",25],["__pb_rank",20]],"rows":[
+        ["1","107","public:photos/a12.jpg?name=a.jpg","hash12","1"],
+        ["2","202","public:photos/b2.jpg?name=b2.jpg",null,"1"],
+        ["2","201","public:photos/b1.jpg?name=b1.jpg",null,"2"],
+        ["1","102","public:photos/a11.jpg?name=a.jpg","hash11","2"],
+        ["1","109","public:photos/a10.jpg?name=a.jpg","hash10","3"],
+        ["1","104","public:photos/a9.jpg?name=a.jpg","hash9","4"],
+        ["1","111","public:photos/a8.jpg?name=a.jpg","hash8","5"],
+        ["1","106","public:photos/a7.jpg?name=a.jpg","hash7","6"],
+        ["1","101","public:photos/a6.jpg?name=a.jpg","hash6","7"],
+        ["1","108","public:photos/a5.jpg?name=a.jpg","hash5","8"],
+        ["1","103","public:photos/a4.jpg?name=a.jpg","hash4","9"],
+        ["1","110","public:photos/a3.jpg?name=a.jpg","hash3","10"]
+      ]}},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select \"t\".\"id\" as \"id\", \"t\".\"address\" as \"address\", \"t\".\"lat\" as \"lat\", \"t\".\"lng\" as \"lng\", \"t\".\"id\"::text as \"__pb_key0\" from \"listings\" as \"t\" order by \"t\".\"id\" asc limit $1","params":["51"],"result":{"command":"SELECT","rowCount":3,"columns":[["id",23],["address",25],["lat",1700],["lng",1700],["__pb_key0",25]],"rows":[
+        ["1","Damrak 1","52.370000","4.890000","1"],
+        ["2","Grote Markt 2","52.380000","4.630000","2"],
+        ["3","Gran Via 3","40.420000","-3.700000","3"]
+      ]}},
+      {"sql":"\n    select reltuples::float8 as reltuples from pg_class where oid = to_regclass($1)\n  ","params":["\"listings\""],"result":{"command":"SELECT","rowCount":1,"columns":[["reltuples",701]],"rows":[["3"]]}},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select \"r\".* from (select distinct \"t\".\"listing_id\" as \"__pb_owner\" from \"listing_photos\" as \"t\" where \"t\".\"removed_at\" is null and \"t\".\"listing_id\" in ($1, $2, $3)) as \"k\" inner join lateral (select \"t\".\"listing_id\" as \"listing_id\", \"t\".\"id\" as \"id\", \"t\".\"photo\" as \"photo\", \"t\".\"photo_placeholder\" as \"photo_placeholder\", row_number() over (order by \"t\".\"id\" asc) as \"__pb_rank\" from \"listing_photos\" as \"t\" where \"t\".\"removed_at\" is null and \"t\".\"listing_id\" = \"k\".\"__pb_owner\" order by \"t\".\"id\" asc limit $4) as \"r\" on true order by \"r\".\"__pb_rank\"","params":["1","2","3","10"],"result":{"command":"SELECT","rowCount":12,"columns":[["listing_id",23],["id",23],["photo",25],["photo_placeholder",25],["__pb_rank",20]],"rows":[
+        ["1","100","public:photos/a1.jpg?name=a.jpg","hash1","1"],
+        ["2","201","public:photos/b1.jpg?name=b1.jpg",null,"1"],
+        ["2","202","public:photos/b2.jpg?name=b2.jpg",null,"2"],
+        ["1","101","public:photos/a6.jpg?name=a.jpg","hash6","2"],
+        ["1","102","public:photos/a11.jpg?name=a.jpg","hash11","3"],
+        ["1","103","public:photos/a4.jpg?name=a.jpg","hash4","4"],
+        ["1","104","public:photos/a9.jpg?name=a.jpg","hash9","5"],
+        ["1","105","public:photos/a2.jpg?name=a.jpg","hash2","6"],
+        ["1","106","public:photos/a7.jpg?name=a.jpg","hash7","7"],
+        ["1","107","public:photos/a12.jpg?name=a.jpg","hash12","8"],
+        ["1","108","public:photos/a5.jpg?name=a.jpg","hash5","9"],
+        ["1","109","public:photos/a10.jpg?name=a.jpg","hash10","10"]
+      ]}},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
+    ]
+  },
+  "photos on a list > reads every record's photos in one query": {
+    "(hooks)#0": [
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select \"t\".\"id\" as \"id\", \"t\".\"address\" as \"address\", \"t\".\"lat\" as \"lat\", \"t\".\"lng\" as \"lng\", \"t\".\"id\"::text as \"__pb_key0\" from \"listings\" as \"t\" order by \"t\".\"id\" asc limit $1","params":["51"],"result":{"command":"SELECT","rowCount":3,"columns":[["id",23],["address",25],["lat",1700],["lng",1700],["__pb_key0",25]],"rows":[
+        ["1","Damrak 1","52.370000","4.890000","1"],
+        ["2","Grote Markt 2","52.380000","4.630000","2"],
+        ["3","Gran Via 3","40.420000","-3.700000","3"]
+      ]}},
+      {"sql":"\n    select reltuples::float8 as reltuples from pg_class where oid = to_regclass($1)\n  ","params":["\"listings\""],"result":{"command":"SELECT","rowCount":1,"columns":[["reltuples",701]],"rows":[["3"]]}},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"repeated":2},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
+    ]
+  },
+  "photos on a list > brings the photos of the records on the page only, by the key, whatever fields are returned": {
+    "(hooks)#0": [
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select \"t\".\"id\" as \"id\", \"t\".\"address\" as \"address\", \"t\".\"lat\" as \"lat\", \"t\".\"lng\" as \"lng\", \"t\".\"id\"::text as \"__pb_key0\" from \"listings\" as \"t\" order by \"t\".\"id\" asc limit $1","params":["2"],"result":{"command":"SELECT","rowCount":2,"columns":[["id",23],["address",25],["lat",1700],["lng",1700],["__pb_key0",25]],"rows":[
+        ["1","Damrak 1","52.370000","4.890000","1"],
+        ["2","Grote Markt 2","52.380000","4.630000","2"]
+      ]}},
+      {"sql":"\n    select reltuples::float8 as reltuples from pg_class where oid = to_regclass($1)\n  ","params":["\"listings\""],"result":{"command":"SELECT","rowCount":1,"columns":[["reltuples",701]],"rows":[["3"]]}},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select \"r\".* from (select distinct \"t\".\"listing_id\" as \"__pb_owner\" from \"listing_photos\" as \"t\" where \"t\".\"removed_at\" is null and \"t\".\"listing_id\" in ($1)) as \"k\" inner join lateral (select \"t\".\"listing_id\" as \"listing_id\", \"t\".\"id\" as \"id\", \"t\".\"photo\" as \"photo\", \"t\".\"photo_placeholder\" as \"photo_placeholder\", row_number() over (order by \"t\".\"position\" asc, \"t\".\"id\" asc) as \"__pb_rank\" from \"listing_photos\" as \"t\" where \"t\".\"removed_at\" is null and \"t\".\"listing_id\" = \"k\".\"__pb_owner\" order by \"t\".\"position\" asc, \"t\".\"id\" asc limit $2) as \"r\" on true order by \"r\".\"__pb_rank\"","params":["1","10"],"result":{"command":"SELECT","rowCount":10,"columns":[["listing_id",23],["id",23],["photo",25],["photo_placeholder",25],["__pb_rank",20]],"rows":[
+        ["1","100","public:photos/a1.jpg?name=a.jpg","hash1","1"],
+        ["1","105","public:photos/a2.jpg?name=a.jpg","hash2","2"],
+        ["1","110","public:photos/a3.jpg?name=a.jpg","hash3","3"],
+        ["1","103","public:photos/a4.jpg?name=a.jpg","hash4","4"],
+        ["1","108","public:photos/a5.jpg?name=a.jpg","hash5","5"],
+        ["1","101","public:photos/a6.jpg?name=a.jpg","hash6","6"],
+        ["1","106","public:photos/a7.jpg?name=a.jpg","hash7","7"],
+        ["1","111","public:photos/a8.jpg?name=a.jpg","hash8","8"],
+        ["1","104","public:photos/a9.jpg?name=a.jpg","hash9","9"],
+        ["1","109","public:photos/a10.jpg?name=a.jpg","hash10","10"]
+      ]}},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
+    ]
+  },
+  "photos on a list > has the scan guard check that an index serves the lookup": {
+    "(hooks)#0": [
+      {"sql":"select relkind from pg_class where oid = to_regclass($1)","params":["\"listings\""],"result":{"command":"SELECT","rowCount":1,"columns":[["relkind",18]],"rows":[["r"]]}},
+      {"repeated":0},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select \"t\".\"id\" as \"id\", \"t\".\"address\" as \"address\", \"t\".\"lat\" as \"lat\", \"t\".\"lng\" as \"lng\", \"t\".\"id\"::text as \"__pb_key0\" from \"listings\" as \"t\" order by \"t\".\"id\" asc limit $1","params":["4"],"result":{"command":"SELECT","rowCount":3,"columns":[["id",23],["address",25],["lat",1700],["lng",1700],["__pb_key0",25]],"rows":[
+        ["1","Damrak 1","52.370000","4.890000","1"],
+        ["2","Grote Markt 2","52.380000","4.630000","2"],
+        ["3","Gran Via 3","40.420000","-3.700000","3"]
+      ]}},
+      {"sql":"\n    select reltuples::float8 as reltuples from pg_class where oid = to_regclass($1)\n  ","params":["\"listings\""],"result":{"command":"SELECT","rowCount":1,"columns":[["reltuples",701]],"rows":[["3"]]}},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select relkind from pg_class where oid = to_regclass($1)","params":["\"listing_photos\""],"result":{"command":"SELECT","rowCount":1,"columns":[["relkind",18]],"rows":[["r"]]}},
+      {"repeated":1},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"repeated":2},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"alter table listing_photos drop constraint listing_photos_listing_id_position_key","result":{"command":"ALTER","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select relkind from pg_class where oid = to_regclass($1)","params":["\"listings\""],"result":{"command":"SELECT","rowCount":1,"columns":[["relkind",18]],"rows":[["r"]]}},
+      {"repeated":0},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select \"t\".\"id\" as \"id\", \"t\".\"address\" as \"address\", \"t\".\"lat\" as \"lat\", \"t\".\"lng\" as \"lng\", \"t\".\"id\"::text as \"__pb_key0\" from \"listings\" as \"t\" order by \"t\".\"id\" asc limit $1","params":["4"],"result":{"command":"SELECT","rowCount":3,"columns":[["id",23],["address",25],["lat",1700],["lng",1700],["__pb_key0",25]],"rows":[
+        ["1","Damrak 1","52.370000","4.890000","1"],
+        ["2","Grote Markt 2","52.380000","4.630000","2"],
+        ["3","Gran Via 3","40.420000","-3.700000","3"]
+      ]}},
+      {"sql":"\n    select reltuples::float8 as reltuples from pg_class where oid = to_regclass($1)\n  ","params":["\"listings\""],"result":{"command":"SELECT","rowCount":1,"columns":[["reltuples",701]],"rows":[["3"]]}},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select relkind from pg_class where oid = to_regclass($1)","params":["\"listing_photos\""],"result":{"command":"SELECT","rowCount":1,"columns":[["relkind",18]],"rows":[["r"]]}},
+      {"sql":"\n    select ic.relname as name, am.amname as method, (i.indpred is not null) as partial, a.attname::text as column,\n      pg_get_indexdef(i.indexrelid, k.ord::int, true) as definition, oc.opcname::text as opclass\n    from pg_index i\n    join pg_class ic on ic.oid = i.indexrelid\n    join pg_am am on am.oid = ic.relam\n    cross join lateral unnest(i.indkey::int2[], i.indclass::oid[]) with ordinality k(attnum, opclass, ord)\n    left join pg_attribute a on a.attrelid = i.indrelid and a.attnum = k.attnum and k.attnum > 0\n    join pg_opclass oc on oc.oid = k.opclass\n    where i.indrelid = to_regclass($1) and i.indisvalid and i.indisready and k.ord <= i.indnkeyatts\n    order by ic.relname, k.ord\n  ","params":["\"listing_photos\""],"result":{"command":"SELECT","rowCount":2,"columns":[["name",19],["method",19],["partial",16],["column",25],["definition",25],["opclass",25]],"rows":[
+        ["listing_photos_hidden_idx","btree","f","hidden","hidden","bool_ops"],
+        ["listing_photos_pkey","btree","f","id","id","int4_ops"]
+      ]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"repeated":2},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"alter table listing_photos add unique (listing_id, position)","result":{"command":"ALTER","rowCount":null,"columns":[],"rows":[]}}
+    ]
+  },
+  "photos on a list > leaves photos out of an answer that does not ask for them": {
+    "(hooks)#0": [
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select \"t\".\"id\" as \"id\", \"t\".\"address\" as \"address\", \"t\".\"lat\" as \"lat\", \"t\".\"lng\" as \"lng\", \"t\".\"id\"::text as \"__pb_key0\" from \"listings\" as \"t\" order by \"t\".\"id\" asc limit $1","params":["51"],"result":{"command":"SELECT","rowCount":3,"columns":[["id",23],["address",25],["lat",1700],["lng",1700],["__pb_key0",25]],"rows":[
+        ["1","Damrak 1","52.370000","4.890000","1"],
+        ["2","Grote Markt 2","52.380000","4.630000","2"],
+        ["3","Gran Via 3","40.420000","-3.700000","3"]
+      ]}},
+      {"sql":"\n    select reltuples::float8 as reltuples from pg_class where oid = to_regclass($1)\n  ","params":["\"listings\""],"result":{"command":"SELECT","rowCount":1,"columns":[["reltuples",701]],"rows":[["3"]]}},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
+    ]
+  },
+  "photos on a list > brings only the photos the caller could list themselves": {
+    "(hooks)#0": [
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select \"t\".\"id\" as \"id\", \"t\".\"address\" as \"address\", \"t\".\"lat\" as \"lat\", \"t\".\"lng\" as \"lng\", \"t\".\"id\"::text as \"__pb_key0\" from \"listings\" as \"t\" order by \"t\".\"id\" asc limit $1","params":["51"],"result":{"command":"SELECT","rowCount":3,"columns":[["id",23],["address",25],["lat",1700],["lng",1700],["__pb_key0",25]],"rows":[
+        ["1","Damrak 1","52.370000","4.890000","1"],
+        ["2","Grote Markt 2","52.380000","4.630000","2"],
+        ["3","Gran Via 3","40.420000","-3.700000","3"]
+      ]}},
+      {"sql":"\n    select reltuples::float8 as reltuples from pg_class where oid = to_regclass($1)\n  ","params":["\"listings\""],"result":{"command":"SELECT","rowCount":1,"columns":[["reltuples",701]],"rows":[["3"]]}},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"repeated":3},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select \"t\".\"id\" as \"id\", \"t\".\"address\" as \"address\", \"t\".\"lat\" as \"lat\", \"t\".\"lng\" as \"lng\", \"t\".\"id\"::text as \"__pb_key0\" from \"listings\" as \"t\" order by \"t\".\"id\" asc limit $1","params":["51"],"result":{"command":"SELECT","rowCount":3,"columns":[["id",23],["address",25],["lat",1700],["lng",1700],["__pb_key0",25]],"rows":[
+        ["1","Damrak 1","52.370000","4.890000","1"],
+        ["2","Grote Markt 2","52.380000","4.630000","2"],
+        ["3","Gran Via 3","40.420000","-3.700000","3"]
+      ]}},
+      {"sql":"\n    select reltuples::float8 as reltuples from pg_class where oid = to_regclass($1)\n  ","params":["\"listings\""],"result":{"command":"SELECT","rowCount":1,"columns":[["reltuples",701]],"rows":[["3"]]}},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select \"r\".* from (select distinct \"t\".\"listing_id\" as \"__pb_owner\" from \"listing_photos\" as \"t\" where \"t\".\"removed_at\" is null and \"t\".\"listing_id\" in ($1, $2, $3)) as \"k\" inner join lateral (select \"t\".\"listing_id\" as \"listing_id\", \"t\".\"id\" as \"id\", \"t\".\"photo\" as \"photo\", row_number() over (order by \"t\".\"position\" asc, \"t\".\"id\" asc) as \"__pb_rank\" from \"listing_photos\" as \"t\" where \"t\".\"removed_at\" is null and \"t\".\"listing_id\" = \"k\".\"__pb_owner\" order by \"t\".\"position\" asc, \"t\".\"id\" asc limit $4) as \"r\" on true order by \"r\".\"__pb_rank\"","params":["1","2","3","10"],"result":{"command":"SELECT","rowCount":12,"columns":[["listing_id",23],["id",23],["photo",25],["__pb_rank",20]],"rows":[
+        ["1","100","public:photos/a1.jpg?name=a.jpg","1"],
+        ["2","201","public:photos/b1.jpg?name=b1.jpg","1"],
+        ["2","202","public:photos/b2.jpg?name=b2.jpg","2"],
+        ["1","105","public:photos/a2.jpg?name=a.jpg","2"],
+        ["1","110","public:photos/a3.jpg?name=a.jpg","3"],
+        ["1","103","public:photos/a4.jpg?name=a.jpg","4"],
+        ["1","108","public:photos/a5.jpg?name=a.jpg","5"],
+        ["1","101","public:photos/a6.jpg?name=a.jpg","6"],
+        ["1","106","public:photos/a7.jpg?name=a.jpg","7"],
+        ["1","111","public:photos/a8.jpg?name=a.jpg","8"],
+        ["1","104","public:photos/a9.jpg?name=a.jpg","9"],
+        ["1","109","public:photos/a10.jpg?name=a.jpg","10"]
+      ]}},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
+    ]
+  },
+  "photos on a list > brings none of a resource the caller cannot list, or whose image, relation or sorted fields they cannot read": {
+    "(hooks)#0": [
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select \"t\".\"id\" as \"id\", \"t\".\"address\" as \"address\", \"t\".\"lat\" as \"lat\", \"t\".\"lng\" as \"lng\", \"t\".\"id\"::text as \"__pb_key0\" from \"listings\" as \"t\" order by \"t\".\"id\" asc limit $1","params":["51"],"result":{"command":"SELECT","rowCount":3,"columns":[["id",23],["address",25],["lat",1700],["lng",1700],["__pb_key0",25]],"rows":[
+        ["1","Damrak 1","52.370000","4.890000","1"],
+        ["2","Grote Markt 2","52.380000","4.630000","2"],
+        ["3","Gran Via 3","40.420000","-3.700000","3"]
+      ]}},
+      {"sql":"\n    select reltuples::float8 as reltuples from pg_class where oid = to_regclass($1)\n  ","params":["\"listings\""],"result":{"command":"SELECT","rowCount":1,"columns":[["reltuples",701]],"rows":[["3"]]}},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select \"t\".\"id\" as \"id\", \"t\".\"address\" as \"address\", \"t\".\"lat\" as \"lat\", \"t\".\"lng\" as \"lng\", \"t\".\"id\"::text as \"__pb_key0\" from \"listings\" as \"t\" order by \"t\".\"id\" asc limit $1","params":["51"],"result":{"command":"SELECT","rowCount":3,"columns":[["id",23],["address",25],["lat",1700],["lng",1700],["__pb_key0",25]],"rows":[
+        ["1","Damrak 1","52.370000","4.890000","1"],
+        ["2","Grote Markt 2","52.380000","4.630000","2"],
+        ["3","Gran Via 3","40.420000","-3.700000","3"]
+      ]}},
+      {"sql":"\n    select reltuples::float8 as reltuples from pg_class where oid = to_regclass($1)\n  ","params":["\"listings\""],"result":{"command":"SELECT","rowCount":1,"columns":[["reltuples",701]],"rows":[["3"]]}},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select \"t\".\"id\" as \"id\", \"t\".\"address\" as \"address\", \"t\".\"lat\" as \"lat\", \"t\".\"lng\" as \"lng\", \"t\".\"id\"::text as \"__pb_key0\" from \"listings\" as \"t\" order by \"t\".\"id\" asc limit $1","params":["51"],"result":{"command":"SELECT","rowCount":3,"columns":[["id",23],["address",25],["lat",1700],["lng",1700],["__pb_key0",25]],"rows":[
+        ["1","Damrak 1","52.370000","4.890000","1"],
+        ["2","Grote Markt 2","52.380000","4.630000","2"],
+        ["3","Gran Via 3","40.420000","-3.700000","3"]
+      ]}},
+      {"sql":"\n    select reltuples::float8 as reltuples from pg_class where oid = to_regclass($1)\n  ","params":["\"listings\""],"result":{"command":"SELECT","rowCount":1,"columns":[["reltuples",701]],"rows":[["3"]]}},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select \"t\".\"id\" as \"id\", \"t\".\"address\" as \"address\", \"t\".\"lat\" as \"lat\", \"t\".\"lng\" as \"lng\", \"t\".\"id\"::text as \"__pb_key0\" from \"listings\" as \"t\" order by \"t\".\"id\" asc limit $1","params":["51"],"result":{"command":"SELECT","rowCount":3,"columns":[["id",23],["address",25],["lat",1700],["lng",1700],["__pb_key0",25]],"rows":[
+        ["1","Damrak 1","52.370000","4.890000","1"],
+        ["2","Grote Markt 2","52.380000","4.630000","2"],
+        ["3","Gran Via 3","40.420000","-3.700000","3"]
+      ]}},
+      {"sql":"\n    select reltuples::float8 as reltuples from pg_class where oid = to_regclass($1)\n  ","params":["\"listings\""],"result":{"command":"SELECT","rowCount":1,"columns":[["reltuples",701]],"rows":[["3"]]}},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select \"t\".\"id\" as \"id\", \"t\".\"address\" as \"address\", \"t\".\"lat\" as \"lat\", \"t\".\"lng\" as \"lng\", \"t\".\"id\"::text as \"__pb_key0\" from \"listings\" as \"t\" order by \"t\".\"id\" asc limit $1","params":["51"],"result":{"command":"SELECT","rowCount":3,"columns":[["id",23],["address",25],["lat",1700],["lng",1700],["__pb_key0",25]],"rows":[
+        ["1","Damrak 1","52.370000","4.890000","1"],
+        ["2","Grote Markt 2","52.380000","4.630000","2"],
+        ["3","Gran Via 3","40.420000","-3.700000","3"]
+      ]}},
+      {"sql":"\n    select reltuples::float8 as reltuples from pg_class where oid = to_regclass($1)\n  ","params":["\"listings\""],"result":{"command":"SELECT","rowCount":1,"columns":[["reltuples",701]],"rows":[["3"]]}},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
+    ]
+  },
+  "photos on a list > brings the photos of a :search page, from its body": {
+    "(hooks)#0": [
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select \"t\".\"id\" as \"id\", \"t\".\"address\" as \"address\", \"t\".\"lat\" as \"lat\", \"t\".\"lng\" as \"lng\", \"t\".\"id\"::text as \"__pb_key0\" from \"listings\" as \"t\" where \"t\".\"lat\" > $1 order by \"t\".\"id\" asc limit $2","params":["50","51"],"result":{"command":"SELECT","rowCount":2,"columns":[["id",23],["address",25],["lat",1700],["lng",1700],["__pb_key0",25]],"rows":[
+        ["1","Damrak 1","52.370000","4.890000","1"],
+        ["2","Grote Markt 2","52.380000","4.630000","2"]
+      ]}},
+      {"sql":"EXPLAIN (VERBOSE, FORMAT JSON) select 1 as \"one\" from \"listings\" as \"t\" where \"t\".\"lat\" > $1","params":["50"],"result":{"command":"EXPLAIN","rowCount":null,"columns":[["QUERY PLAN",114]],"rows":[["[\n  {\n    \"Plan\": {\n      \"Node Type\": \"Seq Scan\",\n      \"Parallel Aware\": false,\n      \"Async Capable\": false,\n      \"Relation Name\": \"listings\",\n      \"Schema\": \"public\",\n      \"Alias\": \"t\",\n      \"Startup Cost\": 0.00,\n      \"Total Cost\": 1.04,\n      \"Plan Rows\": 1,\n      \"Plan Width\": 4,\n      \"Disabled\": false,\n      \"Output\": [\"1\"],\n      \"Filter\": \"(t.lat > '50'::numeric)\"\n    }\n  }\n]"]]}},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select \"r\".* from (select distinct \"t\".\"listing_id\" as \"__pb_owner\" from \"listing_photos\" as \"t\" where \"t\".\"removed_at\" is null and \"t\".\"hidden\" = $1 and \"t\".\"listing_id\" in ($2, $3)) as \"k\" inner join lateral (select \"t\".\"listing_id\" as \"listing_id\", \"t\".\"id\" as \"id\", \"t\".\"photo\" as \"photo\", \"t\".\"photo_placeholder\" as \"photo_placeholder\", row_number() over (order by \"t\".\"position\" asc, \"t\".\"id\" asc) as \"__pb_rank\" from \"listing_photos\" as \"t\" where \"t\".\"removed_at\" is null and \"t\".\"hidden\" = $4 and \"t\".\"listing_id\" = \"k\".\"__pb_owner\" order by \"t\".\"position\" asc, \"t\".\"id\" asc limit $5) as \"r\" on true order by \"r\".\"__pb_rank\"","params":["false","1","2","false","10"],"result":{"command":"SELECT","rowCount":11,"columns":[["listing_id",23],["id",23],["photo",25],["photo_placeholder",25],["__pb_rank",20]],"rows":[
+        ["1","100","public:photos/a1.jpg?name=a.jpg","hash1","1"],
+        ["2","201","public:photos/b1.jpg?name=b1.jpg",null,"1"],
+        ["1","105","public:photos/a2.jpg?name=a.jpg","hash2","2"],
+        ["1","110","public:photos/a3.jpg?name=a.jpg","hash3","3"],
+        ["1","103","public:photos/a4.jpg?name=a.jpg","hash4","4"],
+        ["1","108","public:photos/a5.jpg?name=a.jpg","hash5","5"],
+        ["1","101","public:photos/a6.jpg?name=a.jpg","hash6","6"],
+        ["1","106","public:photos/a7.jpg?name=a.jpg","hash7","7"],
+        ["1","111","public:photos/a8.jpg?name=a.jpg","hash8","8"],
+        ["1","104","public:photos/a9.jpg?name=a.jpg","hash9","9"],
+        ["1","109","public:photos/a10.jpg?name=a.jpg","hash10","10"]
+      ]}},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
+    ]
+  },
+  "photos on a list > brings the photos of a map's records": {
+    "(hooks)#0": [
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select count(*)::text as \"n\" from (select 1 as \"one\" from \"listings\" as \"t\" limit $1) as \"found\"","params":["201"],"result":{"command":"SELECT","rowCount":1,"columns":[["n",25]],"rows":[["3"]]}},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select \"t\".\"id\" as \"id\", \"t\".\"address\" as \"address\", \"t\".\"lat\" as \"lat\", \"t\".\"lng\" as \"lng\", \"t\".\"id\"::text as \"__pb_key0\" from \"listings\" as \"t\" order by \"t\".\"id\" asc limit $1","params":["201"],"result":{"command":"SELECT","rowCount":3,"columns":[["id",23],["address",25],["lat",1700],["lng",1700],["__pb_key0",25]],"rows":[
+        ["1","Damrak 1","52.370000","4.890000","1"],
+        ["2","Grote Markt 2","52.380000","4.630000","2"],
+        ["3","Gran Via 3","40.420000","-3.700000","3"]
+      ]}},
+      {"sql":"\n    select reltuples::float8 as reltuples from pg_class where oid = to_regclass($1)\n  ","params":["\"listings\""],"result":{"command":"SELECT","rowCount":1,"columns":[["reltuples",701]],"rows":[["3"]]}},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"repeated":3},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
+    ]
+  }
+}

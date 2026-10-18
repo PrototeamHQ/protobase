@@ -1,19 +1,18 @@
 import { createLocalJWKSet } from 'jose'
-import { PGliteDialect } from 'kysely-pglite-dialect'
 import { beforeAll, describe, expect, it } from 'vitest'
 import { betterAuthAuthenticator } from '../src/better-auth/authenticator'
 import { createAuth, type AdminAuth } from '../src/better-auth/create-auth'
 import { issueToken } from '../src/better-auth/tokens'
 import { createUser } from '../src/better-auth/users'
 import type { Authenticator } from '../src/types'
-import { createAuthStore } from '../../../test-support/auth'
+import { openSnapshotDb, type SnapshotDb } from '../../../test-support/sql-snapshot'
 
 const shopUrl = 'https://shop.example.com'
 const deskUrl = 'https://desk.example.com'
 const password = 'correct horse battery'
 
 const authAt = async (baseURL: string, roles: string[]) =>
-  createAuth({ database: { dialect: new PGliteDialect(await createAuthStore()), type: 'postgres' }, baseURL, secret: `${baseURL}-secret-0123456789abcdef`, roles, mailer: false })
+  createAuth({ database: { dialect: (await openSnapshotDb('auth')).dialect, type: 'postgres' }, baseURL, secret: `${baseURL}-secret-0123456789abcdef`, roles, mailer: false })
 
 const bearer = (token: string) => new Request(`${deskUrl}/api/v1/tickets`, { headers: { authorization: `Bearer ${token}` } })
 

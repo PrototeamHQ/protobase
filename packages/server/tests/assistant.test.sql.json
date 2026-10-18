@@ -1,0 +1,68 @@
+{
+  "(hooks)": {
+    "(hooks)#0": [
+      {"sql":"create table tasks (id integer generated always as identity primary key, title text not null, status text not null)","result":{"command":"CREATE","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"create table proposals (id integer generated always as identity primary key, title text not null, status text not null, decided_by text)","result":{"command":"CREATE","rowCount":null,"columns":[],"rows":[]}}
+    ]
+  },
+  "the built-in assistant > runs a read-only query the model asks for, shows its rows and hands them back to the model": {
+    "(hooks)#0": [
+      {"sql":"insert into tasks (title, status) values ('Write docs', 'open')","result":{"command":"INSERT","rowCount":1,"columns":[],"rows":[]}},
+      {"sql":"begin transaction read only","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config('statement_timeout', $1, true)","params":["5000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["5s"]]}},
+      {"sql":"with result as (\nselect title, status from tasks\n) select * from result limit $1","params":["201"],"result":{"command":"SELECT","rowCount":1,"columns":[["title",25],["status",25]],"rows":[["Write docs","open"]]}},
+      {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"truncate tasks","result":{"command":"TRUNCATE","rowCount":null,"columns":[],"rows":[]}}
+    ]
+  },
+  "the built-in assistant > tells the model when Postgres refuses a query, and refuses writes in it": {
+    "(hooks)#0": [
+      {"sql":"begin transaction read only","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config('statement_timeout', $1, true)","params":["5000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["5s"]]}},
+      {"sql":"with result as (\ndelete from tasks returning id\n) select * from result limit $1","params":["201"],"error":{"message":"cannot execute SELECT in a read-only transaction","severity":"ERROR","code":"25006"}},
+      {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}}
+    ]
+  },
+  "the built-in assistant > runs a write only after the user approves it on the card": {
+    "(hooks)#0": [
+      {"sql":"select * from tasks","result":{"command":"SELECT","rowCount":0,"columns":[["id",23],["title",25],["status",25]],"rows":[]}},
+      {"sql":"begin transaction read write","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config('statement_timeout', $1, true)","params":["5000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["5s"]]}},
+      {"sql":"with result as (\ninsert into tasks (title, status) values ('Ship', 'open') returning title\n) select * from result limit $1","params":["201"],"result":{"command":"SELECT","rowCount":1,"columns":[["title",25]],"rows":[["Ship"]]}},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select title from tasks","result":{"command":"SELECT","rowCount":1,"columns":[["title",25]],"rows":[["Ship"]]}},
+      {"sql":"truncate tasks","result":{"command":"TRUNCATE","rowCount":null,"columns":[],"rows":[]}}
+    ]
+  },
+  "the built-in assistant > runs nothing when the user rejects the write": {
+    "(hooks)#0": [
+      {"sql":"insert into tasks (title, status) values ('Keep', 'open')","result":{"command":"INSERT","rowCount":1,"columns":[],"rows":[]}},
+      {"sql":"select * from tasks","result":{"command":"SELECT","rowCount":1,"columns":[["id",23],["title",25],["status",25]],"rows":[["3","Keep","open"]]}},
+      {"sql":"truncate tasks","result":{"command":"TRUNCATE","rowCount":null,"columns":[],"rows":[]}}
+    ]
+  },
+  "app tools in the built-in assistant > shows a widget with only the id, whose record another user declines later without the chat": {
+    "(hooks)#0": [
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"insert into \"proposals\" (\"title\", \"status\") values ($1, $2) returning \"id\" as \"id\", \"title\" as \"title\", \"status\" as \"status\", \"decided_by\" as \"decidedBy\"","params":["Ship the release","proposed"],"result":{"command":"INSERT","rowCount":1,"columns":[["id",23],["title",25],["status",25],["decidedBy",25]],"rows":[["1","Ship the release","proposed",null]]}},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select \"id\" as \"id\", \"title\" as \"title\", \"status\" as \"status\", \"decided_by\" as \"decidedBy\" from \"proposals\" as t where \"id\" = $1 limit 1","params":["1"],"result":{"command":"SELECT","rowCount":1,"columns":[["id",23],["title",25],["status",25],["decidedBy",25]],"rows":[["1","Ship the release","proposed",null]]}},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"select \"id\" as \"id\", \"title\" as \"title\", \"status\" as \"status\", \"decided_by\" as \"decidedBy\" from \"proposals\" as t where \"id\" = $1 limit 1 for update","params":["1"],"result":{"command":"SELECT","rowCount":1,"columns":[["id",23],["title",25],["status",25],["decidedBy",25]],"rows":[["1","Ship the release","proposed",null]]}},
+      {"sql":"update \"proposals\" as t set \"status\" = $1 where \"id\" = $2 returning \"id\" as \"id\", \"title\" as \"title\", \"status\" as \"status\", \"decided_by\" as \"decidedBy\"","params":["declined","1"],"result":{"command":"UPDATE","rowCount":1,"columns":[["id",23],["title",25],["status",25],["decidedBy",25]],"rows":[["1","Ship the release","declined",null]]}},
+      {"sql":"update proposals set decided_by = $1 where id = $2","params":["bob","1"],"result":{"command":"UPDATE","rowCount":1,"columns":[],"rows":[]}},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select \"id\" as \"id\", \"title\" as \"title\", \"status\" as \"status\", \"decided_by\" as \"decidedBy\" from \"proposals\" as t where \"id\" = $1 limit 1","params":["1"],"result":{"command":"SELECT","rowCount":1,"columns":[["id",23],["title",25],["status",25],["decidedBy",25]],"rows":[["1","Ship the release","declined","bob"]]}},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
+    ]
+  }
+}

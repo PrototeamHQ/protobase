@@ -1,0 +1,71 @@
+{
+  "filter-returning access rules on writes (a regex rule, checked in the database) > lets a create through when the new row matches": {
+    "(hooks)#0": [
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"insert into \"labels\" (\"name\", \"organization_id\") values ($1, $2) returning \"id\" as \"id\", \"organization_id\" as \"organizationId\", \"name\" as \"name\", \"color\" as \"color\", \"code\" as \"code\"","params":["ok-1","1"],"result":{"command":"INSERT","rowCount":1,"columns":[["id",23],["organizationId",23],["name",25],["color",25],["code",25]],"rows":[["4","1","ok-1",null,"a87ff679a2f3e71d9181a67b7542122c"]]}},
+      {"sql":"select \"id\" as \"id\" from \"labels\" as t where \"organization_id\" = $1 and \"id\" = $2 and \"t\".\"name\" ~* $3 limit 1","params":["1","4","^ok-"],"result":{"command":"SELECT","rowCount":1,"columns":[["id",23]],"rows":[["4"]]}},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
+    ]
+  },
+  "filter-returning access rules on writes (a regex rule, checked in the database) > refuses a create whose row does not match, and rolls it back": {
+    "(hooks)#0": [
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"insert into \"labels\" (\"name\", \"organization_id\") values ($1, $2) returning \"id\" as \"id\", \"organization_id\" as \"organizationId\", \"name\" as \"name\", \"color\" as \"color\", \"code\" as \"code\"","params":["bad","1"],"result":{"command":"INSERT","rowCount":1,"columns":[["id",23],["organizationId",23],["name",25],["color",25],["code",25]],"rows":[["5","1","bad",null,"e4da3b7fbbce2345d7772b0674a318d5"]]}},
+      {"sql":"select \"id\" as \"id\" from \"labels\" as t where \"organization_id\" = $1 and \"id\" = $2 and \"t\".\"name\" ~* $3 limit 1","params":["1","5","^ok-"],"result":{"command":"SELECT","rowCount":0,"columns":[["id",23]],"rows":[]}},
+      {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select name from labels order by id","result":{"command":"SELECT","rowCount":4,"columns":[["name",25]],"rows":[
+        ["urgent"],
+        ["later"],
+        ["other-org"],
+        ["ok-1"]
+      ]}}
+    ]
+  },
+  "filter-returning access rules on writes (a regex rule, checked in the database) > refuses an update into a forbidden state, keeping the old row": {
+    "(hooks)#0": [
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"insert into \"labels\" (\"name\", \"organization_id\") values ($1, $2) returning \"id\" as \"id\", \"organization_id\" as \"organizationId\", \"name\" as \"name\", \"color\" as \"color\", \"code\" as \"code\"","params":["ok-2","1"],"result":{"command":"INSERT","rowCount":1,"columns":[["id",23],["organizationId",23],["name",25],["color",25],["code",25]],"rows":[["6","1","ok-2",null,"1679091c5a880faf6fb5e6087eb1b2dc"]]}},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select \"id\" as \"id\", \"organization_id\" as \"organizationId\", \"name\" as \"name\", \"color\" as \"color\", \"code\" as \"code\" from \"labels\" as t where \"organization_id\" = $1 and \"id\" = $2 limit 1","params":["1","6"],"result":{"command":"SELECT","rowCount":1,"columns":[["id",23],["organizationId",23],["name",25],["color",25],["code",25]],"rows":[["6","1","ok-2",null,"1679091c5a880faf6fb5e6087eb1b2dc"]]}},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"select \"id\" as \"id\", \"organization_id\" as \"organizationId\", \"name\" as \"name\", \"color\" as \"color\", \"code\" as \"code\" from \"labels\" as t where \"organization_id\" = $1 and \"id\" = $2 and \"t\".\"name\" ~* $3 limit 1 for update","params":["1","6","^ok-"],"result":{"command":"SELECT","rowCount":1,"columns":[["id",23],["organizationId",23],["name",25],["color",25],["code",25]],"rows":[["6","1","ok-2",null,"1679091c5a880faf6fb5e6087eb1b2dc"]]}},
+      {"sql":"update \"labels\" as t set \"name\" = $1 where \"organization_id\" = $2 and \"id\" = $3 returning \"id\" as \"id\", \"organization_id\" as \"organizationId\", \"name\" as \"name\", \"color\" as \"color\", \"code\" as \"code\"","params":["bad-name","1","6"],"result":{"command":"UPDATE","rowCount":1,"columns":[["id",23],["organizationId",23],["name",25],["color",25],["code",25]],"rows":[["6","1","bad-name",null,"1679091c5a880faf6fb5e6087eb1b2dc"]]}},
+      {"sql":"select \"id\" as \"id\" from \"labels\" as t where \"organization_id\" = $1 and \"id\" = $2 and \"t\".\"name\" ~* $3 limit 1","params":["1","6","^ok-"],"result":{"command":"SELECT","rowCount":0,"columns":[["id",23]],"rows":[]}},
+      {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select name from labels order by id","result":{"command":"SELECT","rowCount":5,"columns":[["name",25]],"rows":[
+        ["urgent"],
+        ["later"],
+        ["other-org"],
+        ["ok-1"],
+        ["ok-2"]
+      ]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"select \"id\" as \"id\", \"organization_id\" as \"organizationId\", \"name\" as \"name\", \"color\" as \"color\", \"code\" as \"code\" from \"labels\" as t where \"organization_id\" = $1 and \"id\" = $2 and \"t\".\"name\" ~* $3 limit 1 for update","params":["1","6","^ok-"],"result":{"command":"SELECT","rowCount":1,"columns":[["id",23],["organizationId",23],["name",25],["color",25],["code",25]],"rows":[["6","1","ok-2",null,"1679091c5a880faf6fb5e6087eb1b2dc"]]}},
+      {"sql":"update \"labels\" as t set \"name\" = $1 where \"organization_id\" = $2 and \"id\" = $3 returning \"id\" as \"id\", \"organization_id\" as \"organizationId\", \"name\" as \"name\", \"color\" as \"color\", \"code\" as \"code\"","params":["ok-3","1","6"],"result":{"command":"UPDATE","rowCount":1,"columns":[["id",23],["organizationId",23],["name",25],["color",25],["code",25]],"rows":[["6","1","ok-3",null,"1679091c5a880faf6fb5e6087eb1b2dc"]]}},
+      {"sql":"select \"id\" as \"id\" from \"labels\" as t where \"organization_id\" = $1 and \"id\" = $2 and \"t\".\"name\" ~* $3 limit 1","params":["1","6","^ok-"],"result":{"command":"SELECT","rowCount":1,"columns":[["id",23]],"rows":[["6"]]}},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
+    ]
+  },
+  "filter-returning access rules on writes (a regex rule, checked in the database) > treats a row that does not match before the update as missing": {
+    "(hooks)#0": [
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select \"id\" as \"id\", \"organization_id\" as \"organizationId\", \"name\" as \"name\", \"color\" as \"color\", \"code\" as \"code\" from \"labels\" as t where \"organization_id\" = $1 and \"id\" = $2 limit 1","params":["1","1"],"result":{"command":"SELECT","rowCount":1,"columns":[["id",23],["organizationId",23],["name",25],["color",25],["code",25]],"rows":[["1","1","urgent","red","c4ca4238a0b923820dcc509a6f75849b"]]}},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"select \"id\" as \"id\", \"organization_id\" as \"organizationId\", \"name\" as \"name\", \"color\" as \"color\", \"code\" as \"code\" from \"labels\" as t where \"organization_id\" = $1 and \"id\" = $2 and \"t\".\"name\" ~* $3 limit 1 for update","params":["1","1","^ok-"],"result":{"command":"SELECT","rowCount":0,"columns":[["id",23],["organizationId",23],["name",25],["color",25],["code",25]],"rows":[]}},
+      {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}}
+    ]
+  }
+}

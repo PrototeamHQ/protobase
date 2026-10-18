@@ -1,0 +1,7 @@
+{
+  "(hooks)": {
+    "(hooks)#0": [
+      {"sql":"create table rooms (id integer primary key, name text not null)","result":{"command":"CREATE","rowCount":null,"columns":[],"rows":[]}}
+    ]
+  }
+}

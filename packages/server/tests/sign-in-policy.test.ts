@@ -1,25 +1,22 @@
-import { PGlite } from '@electric-sql/pglite'
 import { Kysely } from 'kysely'
-import { PGliteDialect } from 'kysely-pglite-dialect'
 import { beforeAll, describe, expect, it } from 'vitest'
 import { betterAuthAuthenticator } from '../src/better-auth/authenticator'
 import { createAuth, type CreateAuthOptions } from '../src/better-auth/create-auth'
 import { defaultSignInPolicy } from '../src/better-auth/sign-in-policy'
 import { createUser } from '../src/better-auth/users'
 import { createAdmin } from '../src/create-admin'
-import { createAuthStore } from '../../../test-support/auth'
-import { cloneForTest } from '../../../test-support/pglite-snapshot'
 import type { MailMessage } from '../src/mail/smtp-mailer'
+import { openSnapshotDb, type SnapshotDb } from '../../../test-support/sql-snapshot'
 
 const origin = 'http://localhost:5173'
 const secret = 'test-secret-test-secret-test-secret-1234'
 const password = 'correct horse battery'
 
-let shared: PGlite
+let shared: SnapshotDb
 let appDb: Kysely<any>
 beforeAll(async () => {
-  shared = await createAuthStore()
-  appDb = new Kysely<any>({ dialect: new PGliteDialect(shared) })
+  shared = await openSnapshotDb('auth')
+  appDb = new Kysely<any>({ dialect: shared.dialect })
 })
 
 // Better Auth's rate limits are per client address and kept in memory, so every app gets an address of its own.
@@ -27,9 +24,9 @@ let client = 0
 
 // Every app gets a copy of the migrated store, with an admin and a user, and keeps the mail it sends.
 const serve = async (options: Partial<CreateAuthOptions> = {}) => {
-  const store = await cloneForTest(shared)
+  const store = await shared.clone()
   const sent: MailMessage[] = []
-  const auth = createAuth({ database: { dialect: new PGliteDialect(store), type: 'postgres' }, baseURL: origin, secret, mailer: { send: async (message) => void sent.push(message) }, ...options })
+  const auth = createAuth({ database: { dialect: store.dialect, type: 'postgres' }, baseURL: origin, secret, mailer: { send: async (message) => void sent.push(message) }, ...options })
   await createUser(auth, { email: 'root@example.com', password })
   await createUser(auth, { email: 'sanne@example.com', password, role: 'user' })
   const app = createAdmin({ resources: [], db: appDb, authenticate: betterAuthAuthenticator({ auth }), auth })
@@ -95,7 +92,7 @@ describe('a way to sign in the policy turns off', () => {
   it('comes back for passwords when mail goes away, so emailed codes are not the only way left', async () => {
     const { auth, store, request, signIn } = await serve()
     await request('/policy/sign-in', { cookie: await signIn('root@example.com'), body: { ...defaultSignInPolicy, password: 'forbidden' } })
-    const withoutMail = createAuth({ database: { dialect: new PGliteDialect(store), type: 'postgres' }, baseURL: origin, secret, mailer: false })
+    const withoutMail = createAuth({ database: { dialect: store.dialect, type: 'postgres' }, baseURL: origin, secret, mailer: false })
     const app = createAdmin({ resources: [], db: appDb, authenticate: betterAuthAuthenticator({ auth: withoutMail }), auth: withoutMail })
     expect(await (await app.request(`${origin}/api/auth/status`)).json()).toMatchObject({ signInMethods: ['password', 'passkey'] })
     const signedIn = await app.request(`${origin}/api/auth/sign-in/email`, { method: 'POST', headers: { 'content-type': 'application/json', origin }, body: JSON.stringify({ email: 'sanne@example.com', password }) })

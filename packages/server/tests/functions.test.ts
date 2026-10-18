@@ -58,7 +58,8 @@ describe('API functions', () => {
 
   it('give the raw database to privileged work, past tenants and rules', async () => {
     const app = serve({ count: defineFunction(async (_request, { db }) => Response.json(await db.selectFrom('labels').select((eb) => eb.fn.countAll<number>().as('count')).executeTakeFirst())) })
-    expect((await call(app, '/api/functions/count', { headers: as(1) })).body).toEqual({ count: 3 })
+    // count(*) is a bigint, which node-postgres hands over as text.
+    expect((await call(app, '/api/functions/count', { headers: as(1) })).body).toEqual({ count: '3' })
   })
 
   it('serve a Hono app as the caller, and need a token unless public', async () => {
