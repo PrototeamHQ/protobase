@@ -15,7 +15,7 @@ import { toneFor } from '../live/columns-from-model'
 import { Button, buttonClass } from '../primitives/button'
 import { Skeleton } from '../primitives/skeleton'
 import { cn } from '../lib/cn'
-import { Field, KeyFacts, MetadataCard, RecordHeader, RelatedRecords, Section, SidebarCard, SpecTable } from '../record-view'
+import { Field, KeyFacts, MetadataCard, RecordHeader, Section, SpecTable } from '../record-view'
 import { ErrorBanner } from './error-banner'
 import { CustomSection } from './custom-section'
 import { MapSection } from './map/map-section'
@@ -35,7 +35,7 @@ import { draftStorageKey } from './draft-storage'
 import { useLines } from './use-lines'
 import { useLinesDraft } from './use-lines-draft'
 import { useDeleteFlow } from './delete/use-delete-flow'
-import { useNavigationGuard, useRouter } from './router'
+import { useNavigationGuard } from './router'
 import { AppLink, useAppAddress } from './use-app-address'
 import { FieldValue } from './pages/field-value'
 import { GallerySection } from './gallery/gallery-section'
@@ -48,6 +48,7 @@ import { useRecordEditor } from './use-record-editor'
 import { fieldMessage } from './field-errors'
 import { useFocusFirstInvalid } from './use-focus-first-invalid'
 import { useRelatedRecords } from './use-related-records'
+import { IncomingCard } from './incoming-card'
 import { isChosen, keyValue } from './create/create-values'
 import { RelatedSection } from './related-section'
 import { ValueBadge } from './value-badge'
@@ -92,8 +93,7 @@ type LoadedRecordProps = {
 
 const LoadedRecord = ({ model, recordKey, stored, preview }: LoadedRecordProps) => {
   const meta = useAdminMeta()
-  const { basePath } = useRouter()
-  const { address, go, open } = useAppAddress()
+  const { address, go } = useAppAddress()
   const view = meta.views[model.name]
   const title = recordTitle(model, view, stored.record, recordKey)
   const { state: auth } = useAuth()
@@ -133,7 +133,7 @@ const LoadedRecord = ({ model, recordKey, stored, preview }: LoadedRecordProps) 
     onDeleted: () => go({ kind: 'list', resource: model.name }, { replace: true }),
     onReview: () => void queryClient.invalidateQueries({ queryKey: keys.record(model.name, recordKey) }),
   })
-  const related = useRelatedRecords(model, view, meta.resources, meta.views, stored.record, basePath)
+  const related = useRelatedRecords(model, meta.resources, meta.views, stored.record)
   // A relation to a record of one key column is chosen on the form; the record's own key and its tenant are not
   const pickTarget = (name: string) => {
     const field = model.fields[name]
@@ -144,7 +144,7 @@ const LoadedRecord = ({ model, recordKey, stored, preview }: LoadedRecordProps) 
   const picked = Object.values(model.fields).filter((field) => pickTarget(field.name))
   // The form names and links the record each relation points at now, chosen or stored
   const drafted = { ...stored.record, ...Object.fromEntries(picked.map((field) => [field.name, fromDraft(field, editor.value(field.name))])) }
-  const chosen = useRelatedRecords(model, view, meta.resources, meta.views, drafted, basePath)
+  const chosen = useRelatedRecords(model, meta.resources, meta.views, drafted)
   const pick = (name: string, next: unknown) => {
     const target = pickTarget(name)
     if (!target || !isChosen(next)) return editor.change(name, next)
@@ -350,11 +350,7 @@ const LoadedRecord = ({ model, recordKey, stored, preview }: LoadedRecordProps) 
                   return [{ label: hint(name)?.label ?? humanize(name), value: known(name) ? <span title={valueTitle(field, stored.record[name])}>{displayValue(field, stored.record[name], hint(name))}</span> : <Skeleton className="h-4 w-24" /> }]
                 })}
               />
-              {related.records.length > 0 && (
-                <SidebarCard title="Related records">
-                  <RelatedRecords records={related.records} onNavigate={open} />
-                </SidebarCard>
-              )}
+              {!preview && <IncomingCard model={model} recordKey={recordKey} layout={layout} lines={linesModel} />}
             </aside>
           </div>
         </div>

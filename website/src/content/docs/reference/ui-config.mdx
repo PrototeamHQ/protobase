@@ -514,6 +514,8 @@ The browser fetches the tiles, so their host must answer the app's origins with 
 
 ### Related records
 
+Without any configuration, the record page's rail has a **Related records** card that counts the records pointing at this one: per resource, and per relation when one resource has two, such as Orders (Customer) and Orders (Supplier), how many there are, linking to its list filtered on this record (`/orders?filter=customer_id = "7"`). It counts each filterable relation to a resource with a one-field key, so an index serves the count, and leaves out a resource's tenant, a resource the user cannot list or whose relation they cannot read, the lines drawn on the page, and a relation an `l.related` section of the page already lists.
+
 `l.related(title, options)` lists the first records of `resource` that point at the record on the page, in the table or display the resource's list page uses (with its switch, and on a phone its cards in one sideways row, as a [`Table` block](/reference/blocks/#table) shows them), and links to all of them in that list. They point at it directly, through a relation field, or through a join resource (`through`), such as the leases a tenant signed through `lease_tenants`:
 
 | Option | |
