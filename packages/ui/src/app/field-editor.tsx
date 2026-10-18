@@ -18,6 +18,7 @@ import { humanize } from '../live/naming'
 import { Markdown } from '../markdown/markdown'
 import { MarkdownEditor } from '../markdown/markdown-editor'
 import { isMarkdown } from '../markdown/markdown-hint'
+import { numeric, numericInputProps } from './numeric-input'
 
 export type FieldEditorProps = {
   field: FieldModel
@@ -42,8 +43,6 @@ export type FieldEditorProps = {
   resource?: string
   onChange: (value: unknown) => void
 }
-
-const numeric = new Set(['integer', 'bigint', 'decimal'])
 
 const BuiltInEditor = ({ field, hints, value, stored, relationLabel, relationTo, relationPicker, invalid, locked, placeholder, reveal, resource, onChange }: FieldEditorProps) => {
   const control = useFieldControl()
@@ -100,6 +99,7 @@ const BuiltInEditor = ({ field, hints, value, stored, relationLabel, relationTo,
       trailing={hints?.suffix ? <span>{hints.suffix.trim()}</span> : undefined}
       placeholder={placeholder}
       className={cn(numeric.has(field.type) && 'text-right tabular-nums')}
+      {...numericInputProps(field.type)}
       value={String(value)}
       onChange={(event) => onChange(event.target.value)}
     />

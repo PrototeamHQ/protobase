@@ -403,6 +403,8 @@ view<typeof listings>('listings')
 
 The read view shows the gallery; the form shows the cover photo's field and the table of photos to manage instead. The create form still offers every field the user may set: one only in items or fields meant for reading lands in its last section. A gallery's photo details leave out what the photo's own view shows only while editing. Lists, cards and filters show a field either way.
 
+On a phone, an integer field brings up a number keyboard and a decimal field a decimal one.
+
 ### Galleries
 
 `l.gallery(title, { image?, photos? })` shows a record's photos as tiles in the main column: one large, the next four smaller beside it, the last counting the photos not drawn ("+12"). On a mobile screen it draws the large one with the number of photos. A tile opens a lightbox at its photo, at full size over the page, with a counter, arrows and the left and right keys to step through them all, stopping at the first and the last, a sideways swipe on a touch screen, and Escape or the close button to return. `image` is a file field of the record, shown first; `photos` names the records holding the further photos, as a cards display's [`photos`](#card-photos) does: those of `resource` whose relation `field` points at the record, in `sort` order, each shown by its file field `image`. A photo that is also the record's `image` is shown once, and files that are no image are left out. A record without photos has no gallery.
