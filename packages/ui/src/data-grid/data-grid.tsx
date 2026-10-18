@@ -8,6 +8,7 @@ import { RowMenu, availableActions, type RowAction } from './row-menu'
 import { compactGutter, desktopMinScale, gridMinWidth, gutterWidthFor, rowMenuWidth } from './grid-template'
 import { useHorizontalScroll } from './use-horizontal-scroll'
 import { usePinnedColumns } from './use-pinned-columns'
+import { defaultPins } from './default-pins'
 import { useFittedColumns } from './use-fitted-columns'
 import { useIsDesktop } from '../lib/use-media-query'
 import { GridHeader } from './grid-header'
@@ -65,7 +66,12 @@ const headerHeight = 32
 export const DataGrid = ({ columns: given, source, naturalSort, initialScrollIndex = 0, onScrollIndex, latencyMs = 150, sort: controlledSort, onSortChange, onOpenRow, rowActions, cellEditor, rowPatches, bulkActions, pinKey, defaultPinned, rowNumbers = true, compact = false, selectable: selecting = true, reorder, fit = false, scroll = 'own', className }: DataGridProps) => {
   const selectable = selecting && !reorder
   const rowHeight = compact ? 28 : 36
-  const [pinned, setPinned] = usePinnedColumns(pinKey, defaultPinned)
+  const narrow = !useIsDesktop()
+  // A phone keeps every column whole, so pinning there could leave nothing to scroll
+  const pinsByDefault = (defaultPinned ?? (narrow ? [] : defaultPins(given))).join(' ')
+  // Kept while the ids are the same: a new list of pins reorders the columns, which draws every cell anew
+  const initialPins = useMemo(() => (pinsByDefault ? pinsByDefault.split(' ') : []), [pinsByDefault])
+  const [pinned, setPinned] = usePinnedColumns(pinKey, initialPins)
   const columns = useMemo(() => {
     const first = pinned.flatMap((id) => given.find((spec) => spec.id === id) ?? [])
     return [...first, ...given.filter((spec) => !pinned.includes(spec.id))]
@@ -90,7 +96,6 @@ export const DataGrid = ({ columns: given, source, naturalSort, initialScrollInd
 
   const [startIndex] = useState(initialScrollIndex)
   const { ref, top, geometry, rows: virtualRows, first: firstIndex, last: lastIndex } = useVirtualRows<HTMLDivElement>({ total, rowHeight, initialIndex: startIndex, inset: headerHeight })
-  const narrow = !useIsDesktop()
   const gutter = narrow || !rowNumbers ? compactGutter : gutterWidthFor(total)
   const topIndex = Math.floor(Math.max(0, top) / rowHeight)
   useEffect(() => onScrollIndex?.(topIndex), [topIndex, onScrollIndex])

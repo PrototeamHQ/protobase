@@ -3,16 +3,16 @@ import { readPinned, writePinned } from './pinned-storage'
 
 /**
  * The ids of the columns pinned to the left, in pin order. With a `storageKey` the choice is kept in local storage
- * (per user and resource); `initial` applies until the user has chosen.
+ * (per user and resource); `initial` applies until the user has chosen, as it is on each render.
  */
 export const usePinnedColumns = (storageKey: string | undefined, initial: string[] = []) => {
-  const [pinned, setPinned] = useState(() => (storageKey ? readPinned(localStorage, storageKey) : undefined) ?? initial)
+  const [chosen, setChosen] = useState(() => (storageKey ? readPinned(localStorage, storageKey) : undefined))
   const update = useCallback(
     (next: string[]) => {
-      setPinned(next)
+      setChosen(next)
       if (storageKey) writePinned(localStorage, storageKey, next)
     },
     [storageKey],
   )
-  return [pinned, update] as const
+  return [chosen ?? initial, update] as const
 }

@@ -12,5 +12,5 @@ export const readPinned = (storage: Pick<Storage, 'getItem'>, key: string): stri
     return Array.isArray(parsed) && parsed.every((entry) => typeof entry === 'string') ? parsed : undefined
   }, undefined)
 
-export const writePinned = (storage: Pick<Storage, 'setItem' | 'removeItem'>, key: string, pinned: string[]) =>
-  guarded(() => (pinned.length === 0 ? storage.removeItem(key) : storage.setItem(key, JSON.stringify(pinned))), undefined)
+/** Keeps an empty list too, so a column pinned by default and then unpinned stays unpinned. */
+export const writePinned = (storage: Pick<Storage, 'setItem'>, key: string, pinned: string[]) => guarded(() => storage.setItem(key, JSON.stringify(pinned)), undefined)

@@ -17,11 +17,11 @@ describe('pinned columns in storage', () => {
     expect(readPinned(storage, 'k')).toEqual(['number', 'status'])
   })
 
-  it('forgets an empty pin list, so a default can apply again', () => {
+  it('keeps an empty pin list, so an unpinned default stays unpinned', () => {
     const storage = memory()
     writePinned(storage, 'k', ['number'])
     writePinned(storage, 'k', [])
-    expect(readPinned(storage, 'k')).toBeUndefined()
+    expect(readPinned(storage, 'k')).toEqual([])
   })
 
   it('ignores values it did not write', () => {
