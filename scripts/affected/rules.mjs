@@ -73,3 +73,19 @@ export const site = {
   loads: ['packages/*/src/**/*.stories.tsx', '.storybook/*', 'packages/schema/src/index.ts'],
   reads: ['packages/**/*.css', 'website/**', 'skills/**', 'docs-examples/**', 'examples/erp/config/**', 'scripts/dom-snapshots/**', 'scripts/lib/**', 'scripts/{play-tests,dom-snapshots,check-docs,static-server}.mjs'],
 }
+
+// The Postgres suite (`bun run test:postgres`, tests/postgres), which CI runs when a file it depends on changed: the SQL
+// the server and the query layer issue, the jobs and changes schemas and the auth store with them, the examples'
+// migrations and seeds, and the suite with what it runs. A file every test depends on, such as the Postgres service
+// image in ci.yml, docker-compose.yml or scripts/test-db/, runs it too.
+export const postgresSuite = [
+  'packages/server/src/**',
+  'packages/query/src/**',
+  'examples/*/db/migrations/**',
+  'examples/*/seed/**',
+  'tests/postgres/**',
+  'tests/jobs/**',
+  'tests/changes/{delivery-*,capture-scenarios}.ts',
+  'tests/changes/receiver.ts',
+  'tests/examples/erp/{erp-models,kysely-postgres-js,reachable}.ts',
+]

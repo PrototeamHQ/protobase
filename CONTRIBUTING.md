@@ -42,6 +42,7 @@ A pull request, and the `ci` workflow run by hand (`gh workflow run ci.yml --ref
 - A test runs when it, or a module it imports, changed (`scripts/affected-tests.mjs`, with Vitest's own selection of `vitest related`). The job log lists each test that runs with the change it imports, and the tests it skips. The rules in `scripts/affected/rules.mjs` add what the module graph cannot see: a test that starts the CLI as a process, and a module loaded or a file read by path. A change to a file every test depends on, such as a `package.json`, `bun.lock`, a tsconfig, `vitest.config.ts`, a workflow or `test-support/`, runs every test, and so does a change to a file that is no module and that no rule reads. The ERP smoke test runs on every push.
 - The site and Storybook steps (`docs:build`, the play tests, the layout snapshots and `docs:check`) run when a change reaches what they are built from (`scripts/affected-site.mjs`).
 - The typecheck, the dependency boundaries, the packing and the smoke test on Node run on every push.
+- The Postgres suite (`bun run test:postgres`, its own job) runs when a change reaches the SQL the server and query layer issue, the examples' migrations and seeds, or the Postgres setup (`postgresSuite` in `scripts/affected/rules.mjs`, applied by `scripts/affected-postgres.mjs`), and weekly on a schedule.
 
 A test that reads a file or starts a process by path needs a rule, or a change to that file skips it. `CHECK_BASE=main bun run check` runs what a push of the current branch, with its uncommitted changes, would.
 

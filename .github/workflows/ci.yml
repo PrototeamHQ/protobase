@@ -9,9 +9,13 @@ on:
   workflow_call:
   # Run by hand, every test and step runs, as on a pull request.
   workflow_dispatch:
+  # Weekly, the Postgres suite alone, to catch a moved postgres:18 tag when nothing in the repository changed.
+  schedule:
+    - cron: '17 4 * * 1'
 
 jobs:
   check:
+    if: github.event_name != 'schedule'
     # A second push of an fm/** branch replaces the run still queued or running for it, since the single runner queues.
     # Every other run gets a group of its own, so main, pull requests and the release workflow's call are never cancelled.
     concurrency:
@@ -64,7 +68,8 @@ jobs:
       # A push to main, which the release workflow checks, or to an fm/** branch runs only the tests and steps its
       # changes affect (scripts/affected-tests.mjs, see CONTRIBUTING.md): on main the changes since the last release, on
       # a branch those since it left main. Without CHECK_BASE, as on a pull request or a run by hand, everything runs.
-      - name: Find the commit the push's changes count from
+      - &check-base
+        name: Find the commit the push's changes count from
         if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/fm/'))
         env:
           BEFORE: ${{ github.event.before }}
@@ -96,3 +101,65 @@ jobs:
         run: bun scripts/dom-snapshots.mjs --no-screenshots
       - if: steps.site.outputs.run == 'true'
         run: bun run docs:check
+
+  # The real-Postgres tests beyond what every push needs (`bun run test:postgres`): the ERP at medium scale and the
+  # planner's statistics on it, and the jobs and event delivery through PgBouncer. A push runs it when it changes SQL or
+  # the Postgres setup (scripts/affected-postgres.mjs); a pull request, a run by hand and the weekly run always do.
+  postgres:
+    concurrency:
+      group: postgres-${{ github.event_name == 'push' && startsWith(github.ref, 'refs/heads/fm/') && github.ref || github.run_id }}
+      cancel-in-progress: true
+    runs-on: ${{ github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/fm/')) && vars.CHECK_RUNNER || 'ubuntu-latest' }}
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: protobase
+          POSTGRES_PASSWORD: protobase
+          POSTGRES_DB: protobase
+        ports:
+          - 5432
+        options: >-
+          --shm-size 1g
+          --health-cmd "pg_isready -U protobase -d protobase"
+          --health-interval 2s
+          --health-timeout 3s
+          --health-retries 30
+      # The cloud's pooler in front of the same server, as docker-compose.yml runs it.
+      pgbouncer:
+        image: edoburu/pgbouncer:v1.26.0-p0
+        env:
+          DB_HOST: postgres
+          DB_USER: protobase
+          DB_PASSWORD: protobase
+          AUTH_TYPE: scram-sha-256
+          POOL_MODE: transaction
+          MAX_PREPARED_STATEMENTS: 200
+          MAX_USER_CONNECTIONS: 3
+        ports:
+          - 5432
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.2
+      - *check-base
+      - name: Find whether the changes reach the Postgres suite
+        id: postgres
+        run: bun scripts/affected-postgres.mjs
+      - if: steps.postgres.outputs.run == 'true'
+        run: bun install --frozen-lockfile
+      - if: steps.postgres.outputs.run == 'true'
+        name: Point the tests at the services' Postgres and PgBouncer
+        env:
+          POSTGRES_PORT: ${{ job.services.postgres.ports['5432'] }}
+          PGBOUNCER_PORT: ${{ job.services.pgbouncer.ports['5432'] }}
+        run: |
+          echo "TEST_POSTGRES_URL=postgres://protobase:protobase@localhost:$POSTGRES_PORT/postgres" >> "$GITHUB_ENV"
+          echo "TEST_PGBOUNCER_URL=postgres://protobase:protobase@localhost:$PGBOUNCER_PORT/postgres" >> "$GITHUB_ENV"
+      - if: steps.postgres.outputs.run == 'true'
+        run: bun run test:db postgres
+      - if: steps.postgres.outputs.run == 'true'
+        run: bun run test:postgres
