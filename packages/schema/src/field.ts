@@ -59,8 +59,11 @@ export type FieldMeta = {
   }
   /** A file field's settings (`f.file()`). */
   file?: FileOptions
-  /** The prompt a job fills it from (`.ai()`). */
-  ai?: { prompt: string }
+  /** How a job fills it (`.ai()`). */
+  ai?: {
+    /** The prompt the job fills it from. */
+    prompt: string
+  }
 }
 
 /** A field type: its name, the constraints it takes and how it builds the schema that checks a value. */
