@@ -125,13 +125,12 @@ describe('refusals', () => {
     expect(() => compileFilter(items, check(items, 'qty = 1'), { similarityThreshold: 0.1 })).toThrowError(expect.objectContaining({ code: 'invalid_option' }))
   })
 
-  // Starting a second PGlite (WASM) takes seconds when the whole suite runs in parallel, so the default 5s is too tight.
   it('reports a missing pg_trgm clearly instead of a raw Postgres error', async () => {
     const bare = await createTestDb({ seed: false })
     const { listQuery } = await import('../src/list-query')
     await expect(listQuery(bare.db, items, { limit: 5, filter: check(items, 'similar(name, "item")') })).rejects.toMatchObject({ code: 'missing_extension' })
     await bare.db.destroy()
-  }, 30_000)
+  })
 })
 
 describe('injection', () => {

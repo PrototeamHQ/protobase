@@ -58,6 +58,8 @@ export const edges = [
   exampleDatabase('erp'),
   exampleDatabase('real-estate'),
   exampleDatabase('property-portal'),
+  // The snapshot tests replay the recording next to them.
+  { from: ['packages/*/tests/**/*.test.ts', 'tests/**/*.test.ts'], reads: ['**/*.sql.json'] },
   // The browser clients the e2e tests bundle.
   { from: ['tests/e2e/support/bundle-client.ts'], loads: ['tests/e2e/support/browser-client.ts', 'tests/e2e/support/sources-client.ts'] },
   // The release scripts the release tests run.

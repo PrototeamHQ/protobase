@@ -1,0 +1,374 @@
+{
+  "operators > text =": {
+    "(hooks)#0": [
+      {"sql":"select count(*) as \"n\" from \"items\" as \"t\" where \"t\".\"name\" = $1","params":["item-5"],"result":{"command":"SELECT","rowCount":1,"columns":[["n",20]],"rows":[["1"]]}},
+      {"sql":"select count(*)::text as n from items where name = 'item-5'","result":{"command":"SELECT","rowCount":1,"columns":[["n",25]],"rows":[["1"]]}}
+    ]
+  },
+  "operators > text !=": {
+    "(hooks)#0": [
+      {"sql":"select count(*) as \"n\" from \"items\" as \"t\" where \"t\".\"name\" <> $1","params":["item-5"],"result":{"command":"SELECT","rowCount":1,"columns":[["n",20]],"rows":[["9999"]]}},
+      {"sql":"select count(*)::text as n from items where name <> 'item-5'","result":{"command":"SELECT","rowCount":1,"columns":[["n",25]],"rows":[["9999"]]}}
+    ]
+  },
+  "operators > text in": {
+    "(hooks)#0": [
+      {"sql":"select count(*) as \"n\" from \"items\" as \"t\" where \"t\".\"name\" in ($1, $2, $3)","params":["item-1","item-2","nope"],"result":{"command":"SELECT","rowCount":1,"columns":[["n",20]],"rows":[["2"]]}},
+      {"sql":"select count(*)::text as n from items where name in ('item-1','item-2')","result":{"command":"SELECT","rowCount":1,"columns":[["n",25]],"rows":[["2"]]}}
+    ]
+  },
+  "operators > text wildcard both sides": {
+    "(hooks)#0": [
+      {"sql":"select count(*) as \"n\" from \"items\" as \"t\" where \"t\".\"name\" ilike $1","params":["%EM-10%"],"result":{"command":"SELECT","rowCount":1,"columns":[["n",20]],"rows":[["112"]]}},
+      {"sql":"select count(*)::text as n from items where name ilike '%em-10%'","result":{"command":"SELECT","rowCount":1,"columns":[["n",25]],"rows":[["112"]]}}
+    ]
+  },
+  "operators > text wildcard prefix": {
+    "(hooks)#0": [
+      {"sql":"select count(*) as \"n\" from \"items\" as \"t\" where \"t\".\"name\" ilike $1","params":["item-99%"],"result":{"command":"SELECT","rowCount":1,"columns":[["n",20]],"rows":[["111"]]}},
+      {"sql":"select count(*)::text as n from items where name ilike 'item-99%'","result":{"command":"SELECT","rowCount":1,"columns":[["n",25]],"rows":[["111"]]}}
+    ]
+  },
+  "operators > text wildcard negated": {
+    "(hooks)#0": [
+      {"sql":"select count(*) as \"n\" from \"items\" as \"t\" where \"t\".\"name\" not ilike $1","params":["item-1%"],"result":{"command":"SELECT","rowCount":1,"columns":[["n",20]],"rows":[["8888"]]}},
+      {"sql":"select count(*)::text as n from items where name not ilike 'item-1%'","result":{"command":"SELECT","rowCount":1,"columns":[["n",25]],"rows":[["8888"]]}}
+    ]
+  },
+  "operators > wildcard escapes %": {
+    "(hooks)#0": [
+      {"sql":"select count(*) as \"n\" from \"items\" as \"t\" where \"t\".\"note\" ilike $1","params":["%100\\%"],"result":{"command":"SELECT","rowCount":1,"columns":[["n",20]],"rows":[["3333"]]}},
+      {"sql":"select count(*)::text as n from items where note like '%100\\%'","result":{"command":"SELECT","rowCount":1,"columns":[["n",25]],"rows":[["3333"]]}}
+    ]
+  },
+  "operators > wildcard escapes _": {
+    "(hooks)#0": [
+      {"sql":"select count(*) as \"n\" from \"items\" as \"t\" where \"t\".\"note\" ilike $1","params":["under\\_score%"],"result":{"command":"SELECT","rowCount":1,"columns":[["n",20]],"rows":[["3333"]]}},
+      {"sql":"select count(*)::text as n from items where note like 'under\\_score%'","result":{"command":"SELECT","rowCount":1,"columns":[["n",25]],"rows":[["3333"]]}}
+    ]
+  },
+  "operators > wildcard with commas": {
+    "(hooks)#0": [
+      {"sql":"select count(*) as \"n\" from \"items\" as \"t\" where \"t\".\"note\" ilike $1","params":["alpha, beta%"],"result":{"command":"SELECT","rowCount":1,"columns":[["n",20]],"rows":[["3333"]]}},
+      {"sql":"select count(*)::text as n from items where note like 'alpha, beta%'","result":{"command":"SELECT","rowCount":1,"columns":[["n",25]],"rows":[["3333"]]}}
+    ]
+  },
+  "operators > text < >": {
+    "(hooks)#0": [
+      {"sql":"select count(*) as \"n\" from \"items\" as \"t\" where (\"t\".\"name\" > $1 and \"t\".\"name\" < $2)","params":["item-9","item-95"],"result":{"command":"SELECT","rowCount":1,"columns":[["n",20]],"rows":[["555"]]}},
+      {"sql":"select count(*)::text as n from items where name > 'item-9' and name < 'item-95'","result":{"command":"SELECT","rowCount":1,"columns":[["n",25]],"rows":[["555"]]}}
+    ]
+  },
+  "operators > regex": {
+    "(hooks)#0": [
+      {"sql":"select count(*) as \"n\" from \"items\" as \"t\" where \"t\".\"name\" ~* $1","params":["^item-[0-9]{2}$"],"result":{"command":"SELECT","rowCount":1,"columns":[["n",20]],"rows":[["90"]]}},
+      {"sql":"select count(*)::text as n from items where name ~* '^item-[0-9]{2}$'","result":{"command":"SELECT","rowCount":1,"columns":[["n",25]],"rows":[["90"]]}}
+    ]
+  },
+  "operators > search words": {
+    "(hooks)#0": [
+      {"sql":"select count(*) as \"n\" from \"items\" as \"t\" where (((\"t\".\"name\"::text is not null and \"t\".\"name\"::text ilike $1) or (\"t\".\"note\"::text is not null and \"t\".\"note\"::text ilike $2)) and ((\"t\".\"name\"::text is not null and \"t\".\"name\"::text ilike $3) or (\"t\".\"note\"::text is not null and \"t\".\"note\"::text ilike $4)))","params":["%quick%","%quick%","%fox%","%fox%"],"result":{"command":"SELECT","rowCount":1,"columns":[["n",20]],"rows":[["3334"]]}},
+      {"sql":"select count(*)::text as n from items where note = 'Quick brown fox'","result":{"command":"SELECT","rowCount":1,"columns":[["n",25]],"rows":[["3334"]]}}
+    ]
+  },
+  "operators > search prefix": {
+    "(hooks)#0": [
+      {"sql":"select count(*) as \"n\" from \"items\" as \"t\" where (((\"t\".\"name\"::text is not null and \"t\".\"name\"::text ilike $1) or (\"t\".\"note\"::text is not null and \"t\".\"note\"::text ilike $2)))","params":["%qui%","%qui%"],"result":{"command":"SELECT","rowCount":1,"columns":[["n",20]],"rows":[["3334"]]}},
+      {"sql":"select count(*)::text as n from items where note = 'Quick brown fox'","result":{"command":"SELECT","rowCount":1,"columns":[["n",25]],"rows":[["3334"]]}}
+    ]
+  },
+  "operators > search infix": {
+    "(hooks)#0": [
+      {"sql":"select count(*) as \"n\" from \"items\" as \"t\" where (((\"t\".\"name\"::text is not null and \"t\".\"name\"::text ilike $1) or (\"t\".\"note\"::text is not null and \"t\".\"note\"::text ilike $2)))","params":["%row%","%row%"],"result":{"command":"SELECT","rowCount":1,"columns":[["n",20]],"rows":[["3334"]]}},
+      {"sql":"select count(*)::text as n from items where note = 'Quick brown fox'","result":{"command":"SELECT","rowCount":1,"columns":[["n",25]],"rows":[["3334"]]}}
+    ]
+  },
+  "operators > search ignores case": {
+    "(hooks)#0": [
+      {"sql":"select count(*) as \"n\" from \"items\" as \"t\" where (((\"t\".\"name\"::text is not null and \"t\".\"name\"::text ilike $1) or (\"t\".\"note\"::text is not null and \"t\".\"note\"::text ilike $2)) and ((\"t\".\"name\"::text is not null and \"t\".\"name\"::text ilike $3) or (\"t\".\"note\"::text is not null and \"t\".\"note\"::text ilike $4)))","params":["%QUICK%","%QUICK%","%BROWN%","%BROWN%"],"result":{"command":"SELECT","rowCount":1,"columns":[["n",20]],"rows":[["3334"]]}},
+      {"sql":"select count(*)::text as n from items where note = 'Quick brown fox'","result":{"command":"SELECT","rowCount":1,"columns":[["n",25]],"rows":[["3334"]]}}
+    ]
+  },
+  "operators > search words across fields": {
+    "(hooks)#0": [
+      {"sql":"select count(*) as \"n\" from \"items\" as \"t\" where (((\"t\".\"name\"::text is not null and \"t\".\"name\"::text ilike $1) or (\"t\".\"note\"::text is not null and \"t\".\"note\"::text ilike $2)) and ((\"t\".\"name\"::text is not null and \"t\".\"name\"::text ilike $3) or (\"t\".\"note\"::text is not null and \"t\".\"note\"::text ilike $4)))","params":["%item-12%","%item-12%","%fox%","%fox%"],"result":{"command":"SELECT","rowCount":1,"columns":[["n",20]],"rows":[["36"]]}},
+      {"sql":"select count(*)::text as n from items where name like 'item-12%' and note = 'Quick brown fox'","result":{"command":"SELECT","rowCount":1,"columns":[["n",25]],"rows":[["36"]]}}
+    ]
+  },
+  "operators > search no match": {
+    "(hooks)#0": [
+      {"sql":"select count(*) as \"n\" from \"items\" as \"t\" where (((\"t\".\"name\"::text is not null and \"t\".\"name\"::text ilike $1) or (\"t\".\"note\"::text is not null and \"t\".\"note\"::text ilike $2)))","params":["%zebra%","%zebra%"],"result":{"command":"SELECT","rowCount":1,"columns":[["n",20]],"rows":[["0"]]}},
+      {"sql":"select count(*)::text as n from items where false","result":{"command":"SELECT","rowCount":1,"columns":[["n",25]],"rows":[["0"]]}}
+    ]
+  },
+  "operators > search minus is literal": {
+    "(hooks)#0": [
+      {"sql":"select count(*) as \"n\" from \"items\" as \"t\" where (((\"t\".\"name\"::text is not null and \"t\".\"name\"::text ilike $1) or (\"t\".\"note\"::text is not null and \"t\".\"note\"::text ilike $2)) and ((\"t\".\"name\"::text is not null and \"t\".\"name\"::text ilike $3) or (\"t\".\"note\"::text is not null and \"t\".\"note\"::text ilike $4)))","params":["%quick%","%quick%","%-fox%","%-fox%"],"result":{"command":"SELECT","rowCount":1,"columns":[["n",20]],"rows":[["0"]]}},
+      {"sql":"select count(*)::text as n from items where false","result":{"command":"SELECT","rowCount":1,"columns":[["n",25]],"rows":[["0"]]}}
+    ]
+  },
+  "operators > search escapes %": {
+    "(hooks)#0": [
+      {"sql":"select count(*) as \"n\" from \"items\" as \"t\" where (((\"t\".\"name\"::text is not null and \"t\".\"name\"::text ilike $1) or (\"t\".\"note\"::text is not null and \"t\".\"note\"::text ilike $2)))","params":["%100\\%%","%100\\%%"],"result":{"command":"SELECT","rowCount":1,"columns":[["n",20]],"rows":[["3333"]]}},
+      {"sql":"select count(*)::text as n from items where note like '%100\\%%'","result":{"command":"SELECT","rowCount":1,"columns":[["n",25]],"rows":[["3333"]]}}
+    ]
+  },
+  "operators > search escapes _": {
+    "(hooks)#0": [
+      {"sql":"select count(*) as \"n\" from \"items\" as \"t\" where (((\"t\".\"name\"::text is not null and \"t\".\"name\"::text ilike $1) or (\"t\".\"note\"::text is not null and \"t\".\"note\"::text ilike $2)))","params":["%item\\_1%","%item\\_1%"],"result":{"command":"SELECT","rowCount":1,"columns":[["n",20]],"rows":[["0"]]}},
+      {"sql":"select count(*)::text as n from items where false","result":{"command":"SELECT","rowCount":1,"columns":[["n",25]],"rows":[["0"]]}}
+    ]
+  },
+  "operators > search escapes backslash": {
+    "(hooks)#0": [
+      {"sql":"select count(*) as \"n\" from \"items\" as \"t\" where (((\"t\".\"name\"::text is not null and \"t\".\"name\"::text ilike $1) or (\"t\".\"note\"::text is not null and \"t\".\"note\"::text ilike $2)))","params":["%\\\\%","%\\\\%"],"result":{"command":"SELECT","rowCount":1,"columns":[["n",20]],"rows":[["0"]]}},
+      {"sql":"select count(*)::text as n from items where false","result":{"command":"SELECT","rowCount":1,"columns":[["n",25]],"rows":[["0"]]}}
+    ]
+  },
+  "operators > NOT search": {
+    "(hooks)#0": [
+      {"sql":"select count(*) as \"n\" from \"items\" as \"t\" where not (((\"t\".\"name\"::text is not null and \"t\".\"name\"::text ilike $1) or (\"t\".\"note\"::text is not null and \"t\".\"note\"::text ilike $2)))","params":["%fox%","%fox%"],"result":{"command":"SELECT","rowCount":1,"columns":[["n",20]],"rows":[["6666"]]}},
+      {"sql":"select count(*)::text as n from items where note <> 'Quick brown fox'","result":{"command":"SELECT","rowCount":1,"columns":[["n",25]],"rows":[["6666"]]}}
+    ]
+  },
+  "operators > bare word is search": {
+    "(hooks)#0": [
+      {"sql":"select count(*) as \"n\" from \"items\" as \"t\" where (((\"t\".\"name\"::text is not null and \"t\".\"name\"::text ilike $1) or (\"t\".\"note\"::text is not null and \"t\".\"note\"::text ilike $2)))","params":["%quick%","%quick%"],"result":{"command":"SELECT","rowCount":1,"columns":[["n",20]],"rows":[["3334"]]}},
+      {"sql":"select count(*)::text as n from items where note = 'Quick brown fox'","result":{"command":"SELECT","rowCount":1,"columns":[["n",25]],"rows":[["3334"]]}}
+    ]
+  },
+  "operators > isNull": {
+    "(hooks)#0": [
+      {"sql":"select count(*) as \"n\" from \"items\" as \"t\" where \"t\".\"note\" is null","result":{"command":"SELECT","rowCount":1,"columns":[["n",20]],"rows":[["0"]]}},
+      {"sql":"select count(*)::text as n from items where note is null","result":{"command":"SELECT","rowCount":1,"columns":[["n",25]],"rows":[["0"]]}}
+    ]
+  },
+  "operators > NOT isNull": {
+    "(hooks)#0": [
+      {"sql":"select count(*) as \"n\" from \"items\" as \"t\" where not \"t\".\"note\" is null","result":{"command":"SELECT","rowCount":1,"columns":[["n",20]],"rows":[["10000"]]}},
+      {"sql":"select count(*)::text as n from items where note is not null","result":{"command":"SELECT","rowCount":1,"columns":[["n",25]],"rows":[["10000"]]}}
+    ]
+  },
+  "operators > present": {
+    "(hooks)#0": [
+      {"sql":"select count(*) as \"n\" from \"items\" as \"t\" where \"t\".\"note\" is not null","result":{"command":"SELECT","rowCount":1,"columns":[["n",20]],"rows":[["10000"]]}},
+      {"sql":"select count(*)::text as n from items where note is not null","result":{"command":"SELECT","rowCount":1,"columns":[["n",25]],"rows":[["10000"]]}}
+    ]
+  },
+  "operators > int =": {
+    "(hooks)#0": [
+      {"sql":"select count(*) as \"n\" from \"items\" as \"t\" where \"t\".\"qty\" = $1","params":["5"],"result":{"command":"SELECT","rowCount":1,"columns":[["n",20]],"rows":[["100"]]}},
+      {"sql":"select count(*)::text as n from items where qty = 5","result":{"command":"SELECT","rowCount":1,"columns":[["n",25]],"rows":[["100"]]}}
+    ]
+  },
+  "operators > int <": {
+    "(hooks)#0": [
+      {"sql":"select count(*) as \"n\" from \"items\" as \"t\" where \"t\".\"qty\" < $1","params":["5"],"result":{"command":"SELECT","rowCount":1,"columns":[["n",20]],"rows":[["500"]]}},
+      {"sql":"select count(*)::text as n from items where qty < 5","result":{"command":"SELECT","rowCount":1,"columns":[["n",25]],"rows":[["500"]]}}
+    ]
+  },
+  "operators > int <=": {
+    "(hooks)#0": [
+      {"sql":"select count(*) as \"n\" from \"items\" as \"t\" where \"t\".\"qty\" <= $1","params":["5"],"result":{"command":"SELECT","rowCount":1,"columns":[["n",20]],"rows":[["600"]]}},
+      {"sql":"select count(*)::text as n from items where qty <= 5","result":{"command":"SELECT","rowCount":1,"columns":[["n",25]],"rows":[["600"]]}}
+    ]
+  },
+  "operators > int >": {
+    "(hooks)#0": [
+      {"sql":"select count(*) as \"n\" from \"items\" as \"t\" where \"t\".\"qty\" > $1","params":["95"],"result":{"command":"SELECT","rowCount":1,"columns":[["n",20]],"rows":[["400"]]}},
+      {"sql":"select count(*)::text as n from items where qty > 95","result":{"command":"SELECT","rowCount":1,"columns":[["n",25]],"rows":[["400"]]}}
+    ]
+  },
+  "operators > int >=": {
+    "(hooks)#0": [
+      {"sql":"select count(*) as \"n\" from \"items\" as \"t\" where \"t\".\"qty\" >= $1","params":["95"],"result":{"command":"SELECT","rowCount":1,"columns":[["n",20]],"rows":[["500"]]}},
+      {"sql":"select count(*)::text as n from items where qty >= 95","result":{"command":"SELECT","rowCount":1,"columns":[["n",25]],"rows":[["500"]]}}
+    ]
+  },
+  "operators > int range": {
+    "(hooks)#0": [
+      {"sql":"select count(*) as \"n\" from \"items\" as \"t\" where (\"t\".\"qty\" >= $1 and \"t\".\"qty\" <= $2)","params":["10","20"],"result":{"command":"SELECT","rowCount":1,"columns":[["n",20]],"rows":[["1100"]]}},
+      {"sql":"select count(*)::text as n from items where qty between 10 and 20","result":{"command":"SELECT","rowCount":1,"columns":[["n",25]],"rows":[["1100"]]}}
+    ]
+  },
+  "operators > int in": {
+    "(hooks)#0": [
+      {"sql":"select count(*) as \"n\" from \"items\" as \"t\" where \"t\".\"qty\" in ($1, $2, $3)","params":["1","2","3"],"result":{"command":"SELECT","rowCount":1,"columns":[["n",20]],"rows":[["300"]]}},
+      {"sql":"select count(*)::text as n from items where qty in (1,2,3)","result":{"command":"SELECT","rowCount":1,"columns":[["n",25]],"rows":[["300"]]}}
+    ]
+  },
+  "operators > bigint": {
+    "(hooks)#0": [
+      {"sql":"select count(*) as \"n\" from \"items\" as \"t\" where \"t\".\"big\" > $1","params":["9000000000000"],"result":{"command":"SELECT","rowCount":1,"columns":[["n",20]],"rows":[["1000"]]}},
+      {"sql":"select count(*)::text as n from items where big > 9000000000000","result":{"command":"SELECT","rowCount":1,"columns":[["n",25]],"rows":[["1000"]]}}
+    ]
+  },
+  "operators > bigint in (quoted)": {
+    "(hooks)#0": [
+      {"sql":"select count(*) as \"n\" from \"items\" as \"t\" where \"t\".\"big\" in ($1, $2)","params":["1000000000","2000000000"],"result":{"command":"SELECT","rowCount":1,"columns":[["n",20]],"rows":[["2"]]}},
+      {"sql":"select count(*)::text as n from items where big in (1000000000, 2000000000)","result":{"command":"SELECT","rowCount":1,"columns":[["n",25]],"rows":[["2"]]}}
+    ]
+  },
+  "operators > decimal range": {
+    "(hooks)#0": [
+      {"sql":"select count(*) as \"n\" from \"items\" as \"t\" where (\"t\".\"price\" >= $1 and \"t\".\"price\" <= $2)","params":["10.5","20"],"result":{"command":"SELECT","rowCount":1,"columns":[["n",20]],"rows":[["780"]]}},
+      {"sql":"select count(*)::text as n from items where price between 10.5 and 20","result":{"command":"SELECT","rowCount":1,"columns":[["n",25]],"rows":[["780"]]}}
+    ]
+  },
+  "operators > decimal =": {
+    "(hooks)#0": [
+      {"sql":"select count(*) as \"n\" from \"items\" as \"t\" where \"t\".\"price\" = $1","params":["0.25"],"result":{"command":"SELECT","rowCount":1,"columns":[["n",20]],"rows":[["20"]]}},
+      {"sql":"select count(*)::text as n from items where price = 0.25","result":{"command":"SELECT","rowCount":1,"columns":[["n",25]],"rows":[["20"]]}}
+    ]
+  },
+  "operators > date >=": {
+    "(hooks)#0": [
+      {"sql":"select count(*) as \"n\" from \"items\" as \"t\" where \"t\".\"born\" >= $1","params":["2024-12-01"],"result":{"command":"SELECT","rowCount":1,"columns":[["n",20]],"rows":[["1625"]]}},
+      {"sql":"select count(*)::text as n from items where born >= '2024-12-01'","result":{"command":"SELECT","rowCount":1,"columns":[["n",25]],"rows":[["1625"]]}}
+    ]
+  },
+  "operators > timestamp literal": {
+    "(hooks)#0": [
+      {"sql":"select count(*) as \"n\" from \"items\" as \"t\" where \"t\".\"created_at\" < $1","params":["2024-01-03T00:00:00Z"],"result":{"command":"SELECT","rowCount":1,"columns":[["n",20]],"rows":[["50"]]}},
+      {"sql":"select count(*)::text as n from items where created_at < '2024-01-03T00:00:00Z'","result":{"command":"SELECT","rowCount":1,"columns":[["n",25]],"rows":[["50"]]}}
+    ]
+  },
+  "operators > timestamp string": {
+    "(hooks)#0": [
+      {"sql":"select count(*) as \"n\" from \"items\" as \"t\" where (\"t\".\"created_at\" >= $1 and \"t\".\"created_at\" < $2)","params":["2024-02-01T00:00:00Z","2024-03-01T00:00:00Z"],"result":{"command":"SELECT","rowCount":1,"columns":[["n",20]],"rows":[["725"]]}},
+      {"sql":"select count(*)::text as n from items where created_at >= '2024-02-01T00:00:00Z' and created_at < '2024-03-01T00:00:00Z'","result":{"command":"SELECT","rowCount":1,"columns":[["n",25]],"rows":[["725"]]}}
+    ]
+  },
+  "operators > timestamp now offset": {
+    "(hooks)#0": [
+      {"sql":"select count(*) as \"n\" from \"items\" as \"t\" where \"t\".\"created_at\" < now() - $1::float8 * interval '1 second'","params":["2592000"],"result":{"command":"SELECT","rowCount":1,"columns":[["n",20]],"rows":[["10000"]]}},
+      {"sql":"select count(*)::text as n from items where created_at < now() - interval '30 days'","result":{"command":"SELECT","rowCount":1,"columns":[["n",25]],"rows":[["10000"]]}}
+    ]
+  },
+  "operators > timestamp now plus": {
+    "(hooks)#0": [
+      {"sql":"select count(*) as \"n\" from \"items\" as \"t\" where \"t\".\"created_at\" > now() + $1::float8 * interval '1 second'","params":["3600"],"result":{"command":"SELECT","rowCount":1,"columns":[["n",20]],"rows":[["0"]]}},
+      {"sql":"select count(*)::text as n from items where created_at > now() + interval '1 hour'","result":{"command":"SELECT","rowCount":1,"columns":[["n",25]],"rows":[["0"]]}}
+    ]
+  },
+  "operators > timestamp now": {
+    "(hooks)#0": [
+      {"sql":"select count(*) as \"n\" from \"items\" as \"t\" where \"t\".\"created_at\" <= now()","result":{"command":"SELECT","rowCount":1,"columns":[["n",20]],"rows":[["10000"]]}},
+      {"sql":"select count(*)::text as n from items where created_at <= now()","result":{"command":"SELECT","rowCount":1,"columns":[["n",25]],"rows":[["10000"]]}}
+    ]
+  },
+  "operators > date now offset": {
+    "(hooks)#0": [
+      {"sql":"select count(*) as \"n\" from \"items\" as \"t\" where \"t\".\"born\" >= (now() - $1::float8 * interval '1 second')::date","params":["7776000"],"result":{"command":"SELECT","rowCount":1,"columns":[["n",20]],"rows":[["0"]]}},
+      {"sql":"select count(*)::text as n from items where born >= (now() - interval '90 days')::date","result":{"command":"SELECT","rowCount":1,"columns":[["n",25]],"rows":[["0"]]}}
+    ]
+  },
+  "operators > enum in": {
+    "(hooks)#0": [
+      {"sql":"select count(*) as \"n\" from \"items\" as \"t\" where \"t\".\"category\" in ($1, $2)","params":["red","blue"],"result":{"command":"SELECT","rowCount":1,"columns":[["n",20]],"rows":[["6666"]]}},
+      {"sql":"select count(*)::text as n from items where category in ('red','blue')","result":{"command":"SELECT","rowCount":1,"columns":[["n",25]],"rows":[["6666"]]}}
+    ]
+  },
+  "operators > enum =": {
+    "(hooks)#0": [
+      {"sql":"select count(*) as \"n\" from \"items\" as \"t\" where \"t\".\"category\" = $1","params":["red"],"result":{"command":"SELECT","rowCount":1,"columns":[["n",20]],"rows":[["3333"]]}},
+      {"sql":"select count(*)::text as n from items where category = 'red'","result":{"command":"SELECT","rowCount":1,"columns":[["n",25]],"rows":[["3333"]]}}
+    ]
+  },
+  "operators > enum !=": {
+    "(hooks)#0": [
+      {"sql":"select count(*) as \"n\" from \"items\" as \"t\" where \"t\".\"category\" <> $1","params":["red"],"result":{"command":"SELECT","rowCount":1,"columns":[["n",20]],"rows":[["6667"]]}},
+      {"sql":"select count(*)::text as n from items where category <> 'red'","result":{"command":"SELECT","rowCount":1,"columns":[["n",25]],"rows":[["6667"]]}}
+    ]
+  },
+  "operators > boolean =": {
+    "(hooks)#0": [
+      {"sql":"select count(*) as \"n\" from \"items\" as \"t\" where \"t\".\"active\" = $1","params":["true"],"result":{"command":"SELECT","rowCount":1,"columns":[["n",20]],"rows":[["5000"]]}},
+      {"sql":"select count(*)::text as n from items where active = true","result":{"command":"SELECT","rowCount":1,"columns":[["n",25]],"rows":[["5000"]]}}
+    ]
+  },
+  "operators > uuid =": {
+    "(hooks)#0": [
+      {"sql":"select count(*) as \"n\" from \"items\" as \"t\" where \"t\".\"ref\" = $1","params":["00000000-0000-0000-0000-000000000000"],"result":{"command":"SELECT","rowCount":1,"columns":[["n",20]],"rows":[["0"]]}},
+      {"sql":"select count(*)::text as n from items where false","result":{"command":"SELECT","rowCount":1,"columns":[["n",25]],"rows":[["0"]]}}
+    ]
+  },
+  "operators > json key": {
+    "(hooks)#0": [
+      {"sql":"select count(*) as \"n\" from \"items\" as \"t\" where (jsonb_exists(\"t\".\"attrs\"::jsonb, $1) or \"t\".\"attrs\"::jsonb @> to_jsonb($2::text))","params":["tag","tag"],"result":{"command":"SELECT","rowCount":1,"columns":[["n",20]],"rows":[["2500"]]}},
+      {"sql":"select count(*)::text as n from items where attrs ? 'tag'","result":{"command":"SELECT","rowCount":1,"columns":[["n",25]],"rows":[["2500"]]}}
+    ]
+  },
+  "operators > json array element": {
+    "(hooks)#0": [
+      {"sql":"select count(*) as \"n\" from \"items\" as \"t\" where (jsonb_exists(\"t\".\"attrs\"::jsonb, $1) or \"t\".\"attrs\"::jsonb @> to_jsonb($2::text))","params":["x","x"],"result":{"command":"SELECT","rowCount":1,"columns":[["n",20]],"rows":[["2500"]]}},
+      {"sql":"select count(*)::text as n from items where attrs ? 'x'","result":{"command":"SELECT","rowCount":1,"columns":[["n",25]],"rows":[["2500"]]}}
+    ]
+  },
+  "operators > json present": {
+    "(hooks)#0": [
+      {"sql":"select count(*) as \"n\" from \"items\" as \"t\" where (\"t\".\"attrs\" is not null and \"t\".\"attrs\"::jsonb <> 'null'::jsonb)","result":{"command":"SELECT","rowCount":1,"columns":[["n",20]],"rows":[["5000"]]}},
+      {"sql":"select count(*)::text as n from items where attrs is not null and attrs <> 'null'::jsonb","result":{"command":"SELECT","rowCount":1,"columns":[["n",25]],"rows":[["5000"]]}}
+    ]
+  },
+  "operators > and/or/not": {
+    "(hooks)#0": [
+      {"sql":"select count(*) as \"n\" from \"items\" as \"t\" where ((\"t\".\"qty\" < $1 or \"t\".\"qty\" > $2) and not \"t\".\"active\" = $3)","params":["3","97","true"],"result":{"command":"SELECT","rowCount":1,"columns":[["n",20]],"rows":[["200"]]}},
+      {"sql":"select count(*)::text as n from items where (qty < 3 or qty > 97) and not active","result":{"command":"SELECT","rowCount":1,"columns":[["n",25]],"rows":[["200"]]}}
+    ]
+  },
+  "operators > implicit and": {
+    "(hooks)#0": [
+      {"sql":"select count(*) as \"n\" from \"items\" as \"t\" where (\"t\".\"qty\" = $1 and \"t\".\"active\" = $2)","params":["5","true"],"result":{"command":"SELECT","rowCount":1,"columns":[["n",20]],"rows":[["0"]]}},
+      {"sql":"select count(*)::text as n from items where qty = 5 and active = true","result":{"command":"SELECT","rowCount":1,"columns":[["n",25]],"rows":[["0"]]}}
+    ]
+  },
+  "operators > uuid = and in match a real row": {
+    "(hooks)#0": [
+      {"sql":"select ref from items where id = 7","result":{"command":"SELECT","rowCount":1,"columns":[["ref",2950]],"rows":[["8f14e45f-ceea-167a-5a36-dedd4bea2543"]]}},
+      {"sql":"select count(*) as \"n\" from \"items\" as \"t\" where \"t\".\"ref\" = $1","params":["8f14e45f-ceea-167a-5a36-dedd4bea2543"],"result":{"command":"SELECT","rowCount":1,"columns":[["n",20]],"rows":[["1"]]}},
+      {"sql":"select count(*) as \"n\" from \"items\" as \"t\" where \"t\".\"ref\" in ($1, $2)","params":["8f14e45f-ceea-167a-5a36-dedd4bea2543","8F14E45F-CEEA-167A-5A36-DEDD4BEA2543"],"result":{"command":"SELECT","rowCount":1,"columns":[["n",20]],"rows":[["1"]]}}
+    ]
+  },
+  "operators > search without words matches nothing": {
+    "(hooks)#0": [
+      {"sql":"select count(*) as \"n\" from \"items\" as \"t\" where false","result":{"command":"SELECT","rowCount":1,"columns":[["n",20]],"rows":[["0"]]}},
+      {"sql":"select count(*) as \"n\" from \"items\" as \"t\" where false","result":{"command":"SELECT","rowCount":1,"columns":[["n",20]],"rows":[["0"]]}}
+    ]
+  },
+  "operators > search matches the literal wildcard characters": {
+    "(hooks)#0": [
+      {"sql":"select count(*) as \"n\" from \"items\" as \"t\" where (((\"t\".\"name\"::text is not null and \"t\".\"name\"::text ilike $1) or (\"t\".\"note\"::text is not null and \"t\".\"note\"::text ilike $2)))","params":["%\\%%","%\\%%"],"result":{"command":"SELECT","rowCount":1,"columns":[["n",20]],"rows":[["3333"]]}},
+      {"sql":"select count(*)::text as n from items where note = 'under_score 100%'","result":{"command":"SELECT","rowCount":1,"columns":[["n",25]],"rows":[["3333"]]}},
+      {"sql":"select count(*) as \"n\" from \"items\" as \"t\" where (((\"t\".\"name\"::text is not null and \"t\".\"name\"::text ilike $1) or (\"t\".\"note\"::text is not null and \"t\".\"note\"::text ilike $2)))","params":["%r\\_s%","%r\\_s%"],"result":{"command":"SELECT","rowCount":1,"columns":[["n",20]],"rows":[["3333"]]}},
+      {"sql":"select count(*)::text as n from items where note = 'under_score 100%'","result":{"command":"SELECT","rowCount":1,"columns":[["n",25]],"rows":[["3333"]]}}
+    ]
+  },
+  "operators > similar finds near matches with pg_trgm": {
+    "(hooks)#0": [
+      {"sql":"select count(*) as \"n\" from \"items\" as \"t\" where (\"t\".\"name\" % $1 and similarity(\"t\".\"name\", $2) >= $3)","params":["item-1234","item-1234","0.3"],"result":{"command":"SELECT","rowCount":1,"columns":[["n",20]],"rows":[["10000"]]}},
+      {"sql":"select count(*) as \"n\" from \"items\" as \"t\" where (\"t\".\"name\" % $1 and similarity(\"t\".\"name\", $2) >= $3)","params":["zzzzzzzzzz","zzzzzzzzzz","0.3"],"result":{"command":"SELECT","rowCount":1,"columns":[["n",20]],"rows":[["0"]]}}
+    ]
+  },
+  "operators > applies the requested similarity threshold": {
+    "(hooks)#0": [
+      {"sql":"select count(*) as \"n\" from \"items\" as \"t\" where (\"t\".\"name\" % $1 and similarity(\"t\".\"name\", $2) >= $3)","params":["item-1234","item-1234","0.9"],"result":{"command":"SELECT","rowCount":1,"columns":[["n",20]],"rows":[["1"]]}},
+      {"sql":"select count(*) as \"n\" from \"items\" as \"t\" where (\"t\".\"name\" % $1 and similarity(\"t\".\"name\", $2) >= $3)","params":["item-1234","item-1234","0.3"],"result":{"command":"SELECT","rowCount":1,"columns":[["n",20]],"rows":[["10000"]]}}
+    ]
+  },
+  "refusals > reports a missing pg_trgm clearly instead of a raw Postgres error": {
+    "refusals > reports a missing pg_trgm clearly instead of a raw Postgres error#0": [
+      {"sql":"select count(*)::text as n from pg_extension where extname = 'pg_trgm'","result":{"command":"SELECT","rowCount":1,"columns":[["n",25]],"rows":[["0"]]}}
+    ]
+  },
+  "injection > binds every text-taking operator and survives execution": {
+    "(hooks)#0": [
+      {"sql":"select count(*) as \"n\" from \"items\" as \"t\" where \"t\".\"name\" in ($1, $2)","params":["'; drop table items; --","x' or '1'='1"],"result":{"command":"SELECT","rowCount":1,"columns":[["n",20]],"rows":[["0"]]}},
+      {"sql":"select count(*) as \"n\" from \"items\" as \"t\" where \"t\".\"name\" ~* $1","params":["'; drop table items; --"],"result":{"command":"SELECT","rowCount":1,"columns":[["n",20]],"rows":[["0"]]}},
+      {"sql":"select count(*) as \"n\" from \"items\" as \"t\" where (((\"t\".\"name\"::text is not null and \"t\".\"name\"::text ilike $1) or (\"t\".\"note\"::text is not null and \"t\".\"note\"::text ilike $2)) and ((\"t\".\"name\"::text is not null and \"t\".\"name\"::text ilike $3) or (\"t\".\"note\"::text is not null and \"t\".\"note\"::text ilike $4)) and ((\"t\".\"name\"::text is not null and \"t\".\"name\"::text ilike $5) or (\"t\".\"note\"::text is not null and \"t\".\"note\"::text ilike $6)) and ((\"t\".\"name\"::text is not null and \"t\".\"name\"::text ilike $7) or (\"t\".\"note\"::text is not null and \"t\".\"note\"::text ilike $8)) and ((\"t\".\"name\"::text is not null and \"t\".\"name\"::text ilike $9) or (\"t\".\"note\"::text is not null and \"t\".\"note\"::text ilike $10)))","params":["%';%","%';%","%drop%","%drop%","%table%","%table%","%items;%","%items;%","%--%","%--%"],"result":{"command":"SELECT","rowCount":1,"columns":[["n",20]],"rows":[["0"]]}},
+      {"sql":"select count(*) as \"n\" from \"items\" as \"t\" where (\"t\".\"name\" % $1 and similarity(\"t\".\"name\", $2) >= $3)","params":["'; drop table items; --","'; drop table items; --","0.3"],"result":{"command":"SELECT","rowCount":1,"columns":[["n",20]],"rows":[["0"]]}},
+      {"sql":"select count(*) as \"n\" from \"items\" as \"t\" where (jsonb_exists(\"t\".\"attrs\"::jsonb, $1) or \"t\".\"attrs\"::jsonb @> to_jsonb($2::text))","params":["'; drop table items; --","'; drop table items; --"],"result":{"command":"SELECT","rowCount":1,"columns":[["n",20]],"rows":[["0"]]}},
+      {"sql":"select count(*)::text as n from items where true","result":{"command":"SELECT","rowCount":1,"columns":[["n",25]],"rows":[["10000"]]}}
+    ]
+  }
+}

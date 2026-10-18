@@ -1,0 +1,120 @@
+{
+  "(hooks)": {
+    "(hooks)#0": [
+      {"sql":"\ncreate table places (id integer generated always as identity primary key, lat numeric(8, 6), lng numeric(9, 6), kind text not null, grid integer not null default 0, deleted_at timestamptz);\ninsert into places (lat, lng, kind) select 52.37 + i * 0.0001, 4.89 + i * 0.0001, case when i % 2 = 0 then 'flat' else 'house' end from generate_series(0, 29) i;\ninsert into places (lat, lng, kind) select 51.5 + i * 0.0001, -0.127 + i * 0.0001, 'flat' from generate_series(0, 19) i;\ninsert into places (lat, lng, kind) select -33.87 + i * 0.0001, 151.21, 'house' from generate_series(0, 4) i;\ninsert into places (lat, lng, kind) values (null, 4.9, 'flat'), (52.4, null, 'flat');\ninsert into places (lat, lng, kind, deleted_at) values (52.37, 4.89, 'flat', now());\n","result":[{"command":"CREATE","rowCount":null,"columns":[],"rows":[]},{"command":"INSERT","rowCount":30,"columns":[],"rows":[]},{"command":"INSERT","rowCount":20,"columns":[],"rows":[]},{"command":"INSERT","rowCount":5,"columns":[],"rows":[]},{"command":"INSERT","rowCount":2,"columns":[],"rows":[]},{"command":"INSERT","rowCount":1,"columns":[],"rows":[]}]}
+    ]
+  },
+  "mapBuckets > counts the records with a position per cell, with their mean position and the bounds around them": {
+    "(hooks)#0": [
+      {"sql":"select count(*)::text as \"n\", (sum(count(*)) over ())::text as \"total\", avg(\"t\".\"lat\"::float8)::text as \"latitude\", avg(\"t\".\"lng\"::float8)::text as \"longitude\", min(\"t\".\"lat\"::float8)::text as \"south\", min(\"t\".\"lng\"::float8)::text as \"west\", max(\"t\".\"lat\"::float8)::text as \"north\", max(\"t\".\"lng\"::float8)::text as \"east\" from \"places\" as \"t\" where \"t\".\"deleted_at\" is null and \"t\".\"lat\" is not null and \"t\".\"lng\" is not null group by least(floor((\"t\".\"lng\"::float8 + 180) / 360 * $1::float8), $2::float8), least(floor((1 - ln(tan(pi() / 4 + radians(least(greatest(\"t\".\"lat\"::float8, $3::float8), $4::float8)) / 2)) / pi()) / 2 * $5::float8), $6::float8) order by count(*) desc limit $7","params":["2048","2047","-85.051129","85.051129","2048","2047","1000"],"result":{"command":"SELECT","rowCount":3,"columns":[["n",25],["total",25],["latitude",25],["longitude",25],["south",25],["west",25],["north",25],["east",25]],"rows":[
+        ["30","55","52.371449999999996","4.891450000000001","52.37","4.89","52.3729","4.8929"],
+        ["20","55","51.50095","-0.12605","51.5","-0.127","51.5019","-0.1251"],
+        ["5","55","-33.8698","151.21","-33.87","151.21","-33.8696","151.21"]
+      ]}}
+    ]
+  },
+  "mapBuckets > puts more of the same records in cells of their own as the zoom grows": {
+    "(hooks)#0": [
+      {"sql":"select count(*)::text as \"n\", (sum(count(*)) over ())::text as \"total\", avg(\"t\".\"lat\"::float8)::text as \"latitude\", avg(\"t\".\"lng\"::float8)::text as \"longitude\", min(\"t\".\"lat\"::float8)::text as \"south\", min(\"t\".\"lng\"::float8)::text as \"west\", max(\"t\".\"lat\"::float8)::text as \"north\", max(\"t\".\"lng\"::float8)::text as \"east\" from \"places\" as \"t\" where \"t\".\"deleted_at\" is null and (\"t\".\"lat\" >= $1 and \"t\".\"lat\" <= $2 and \"t\".\"lng\" >= $3 and \"t\".\"lng\" <= $4) and \"t\".\"lat\" is not null and \"t\".\"lng\" is not null group by least(floor((\"t\".\"lng\"::float8 + 180) / 360 * $5::float8), $6::float8), least(floor((1 - ln(tan(pi() / 4 + radians(least(greatest(\"t\".\"lat\"::float8, $7::float8), $8::float8)) / 2)) / pi()) / 2 * $9::float8), $10::float8) order by count(*) desc limit $11","params":["52","53","4","5","8192","8191","-85.051129","85.051129","8192","8191","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["n",25],["total",25],["latitude",25],["longitude",25],["south",25],["west",25],["north",25],["east",25]],"rows":[["30","30","52.37145","4.891449999999998","52.37","4.89","52.3729","4.8929"]]}},
+      {"sql":"select count(*)::text as \"n\", (sum(count(*)) over ())::text as \"total\", avg(\"t\".\"lat\"::float8)::text as \"latitude\", avg(\"t\".\"lng\"::float8)::text as \"longitude\", min(\"t\".\"lat\"::float8)::text as \"south\", min(\"t\".\"lng\"::float8)::text as \"west\", max(\"t\".\"lat\"::float8)::text as \"north\", max(\"t\".\"lng\"::float8)::text as \"east\" from \"places\" as \"t\" where \"t\".\"deleted_at\" is null and (\"t\".\"lat\" >= $1 and \"t\".\"lat\" <= $2 and \"t\".\"lng\" >= $3 and \"t\".\"lng\" <= $4) and \"t\".\"lat\" is not null and \"t\".\"lng\" is not null group by least(floor((\"t\".\"lng\"::float8 + 180) / 360 * $5::float8), $6::float8), least(floor((1 - ln(tan(pi() / 4 + radians(least(greatest(\"t\".\"lat\"::float8, $7::float8), $8::float8)) / 2)) / pi()) / 2 * $9::float8), $10::float8) order by count(*) desc limit $11","params":["52","53","4","5","2097152","2097151","-85.051129","85.051129","2097152","2097151","1000"],"result":{"command":"SELECT","rowCount":29,"columns":[["n",25],["total",25],["latitude",25],["longitude",25],["south",25],["west",25],["north",25],["east",25]],"rows":[
+        ["2","30","52.37125","4.89125","52.3712","4.8912","52.3713","4.8913"],
+        ["1","30","52.37","4.89","52.37","4.89","52.37","4.89"],
+        ["1","30","52.3702","4.8902","52.3702","4.8902","52.3702","4.8902"],
+        ["1","30","52.3704","4.8904","52.3704","4.8904","52.3704","4.8904"],
+        ["1","30","52.3703","4.8903","52.3703","4.8903","52.3703","4.8903"],
+        ["1","30","52.3706","4.8906","52.3706","4.8906","52.3706","4.8906"],
+        ["1","30","52.3705","4.8905","52.3705","4.8905","52.3705","4.8905"],
+        ["1","30","52.3708","4.8908","52.3708","4.8908","52.3708","4.8908"],
+        ["1","30","52.3707","4.8907","52.3707","4.8907","52.3707","4.8907"],
+        ["1","30","52.3709","4.8909","52.3709","4.8909","52.3709","4.8909"],
+        ["1","30","52.3711","4.8911","52.3711","4.8911","52.3711","4.8911"],
+        ["1","30","52.371","4.891","52.371","4.891","52.371","4.891"],
+        ["1","30","52.3714","4.8914","52.3714","4.8914","52.3714","4.8914"],
+        ["1","30","52.3716","4.8916","52.3716","4.8916","52.3716","4.8916"],
+        ["1","30","52.3715","4.8915","52.3715","4.8915","52.3715","4.8915"],
+        ["1","30","52.3718","4.8918","52.3718","4.8918","52.3718","4.8918"],
+        ["1","30","52.3717","4.8917","52.3717","4.8917","52.3717","4.8917"],
+        ["1","30","52.372","4.892","52.372","4.892","52.372","4.892"],
+        ["1","30","52.3719","4.8919","52.3719","4.8919","52.3719","4.8919"],
+        ["1","30","52.3721","4.8921","52.3721","4.8921","52.3721","4.8921"],
+        ["1","30","52.3723","4.8923","52.3723","4.8923","52.3723","4.8923"],
+        ["1","30","52.3722","4.8922","52.3722","4.8922","52.3722","4.8922"],
+        ["1","30","52.3725","4.8925","52.3725","4.8925","52.3725","4.8925"],
+        ["1","30","52.3724","4.8924","52.3724","4.8924","52.3724","4.8924"],
+        ["1","30","52.3726","4.8926","52.3726","4.8926","52.3726","4.8926"],
+        ["1","30","52.3728","4.8928","52.3728","4.8928","52.3728","4.8928"],
+        ["1","30","52.3727","4.8927","52.3727","4.8927","52.3727","4.8927"],
+        ["1","30","52.3701","4.8901","52.3701","4.8901","52.3701","4.8901"],
+        ["1","30","52.3729","4.8929","52.3729","4.8929","52.3729","4.8929"]
+      ]}}
+    ]
+  },
+  "mapBuckets > keeps a cell where it is as the bounding box moves, so panning does not regroup the records": {
+    "(hooks)#0": [
+      {"sql":"select count(*)::text as \"n\", (sum(count(*)) over ())::text as \"total\", avg(\"t\".\"lat\"::float8)::text as \"latitude\", avg(\"t\".\"lng\"::float8)::text as \"longitude\", min(\"t\".\"lat\"::float8)::text as \"south\", min(\"t\".\"lng\"::float8)::text as \"west\", max(\"t\".\"lat\"::float8)::text as \"north\", max(\"t\".\"lng\"::float8)::text as \"east\" from \"places\" as \"t\" where \"t\".\"deleted_at\" is null and \"t\".\"lat\" is not null and \"t\".\"lng\" is not null group by least(floor((\"t\".\"lng\"::float8 + 180) / 360 * $1::float8), $2::float8), least(floor((1 - ln(tan(pi() / 4 + radians(least(greatest(\"t\".\"lat\"::float8, $3::float8), $4::float8)) / 2)) / pi()) / 2 * $5::float8), $6::float8) order by count(*) desc limit $7","params":["1048576","1048575","-85.051129","85.051129","1048576","1048575","1000"],"result":{"command":"SELECT","rowCount":32,"columns":[["n",25],["total",25],["latitude",25],["longitude",25],["south",25],["west",25],["north",25],["east",25]],"rows":[
+        ["3","55","-33.869699999999995","151.21","-33.8698","151.21","-33.8696","151.21"],
+        ["3","55","51.5018","-0.12519999999999998","51.5017","-0.1253","51.5019","-0.1251"],
+        ["2","55","51.500550000000004","-0.12645","51.5005","-0.1265","51.5006","-0.1264"],
+        ["2","55","51.50095","-0.12605","51.5009","-0.1261","51.501","-0.126"],
+        ["2","55","51.50075","-0.12625","51.5007","-0.1263","51.5008","-0.1262"],
+        ["2","55","51.501149999999996","-0.12585000000000002","51.5011","-0.1259","51.5012","-0.1258"],
+        ["2","55","51.50155","-0.12545","51.5015","-0.1255","51.5016","-0.1254"],
+        ["2","55","-33.86995","151.21","-33.87","151.21","-33.8699","151.21"],
+        ["2","55","51.50005","-0.12695","51.5","-0.127","51.5001","-0.1269"],
+        ["2","55","52.37045","4.8904499999999995","52.3704","4.8904","52.3705","4.8905"],
+        ["2","55","52.370850000000004","4.89085","52.3708","4.8908","52.3709","4.8909"],
+        ["2","55","52.37125","4.89125","52.3712","4.8912","52.3713","4.8913"],
+        ["2","55","52.37105","4.89105","52.371","4.891","52.3711","4.8911"],
+        ["2","55","52.37155","4.8915500000000005","52.3715","4.8915","52.3716","4.8916"],
+        ["2","55","52.37195","4.89195","52.3719","4.8919","52.372","4.892"],
+        ["2","55","52.37175","4.89175","52.3717","4.8917","52.3718","4.8918"],
+        ["2","55","52.372150000000005","4.89215","52.3721","4.8921","52.3722","4.8922"],
+        ["2","55","52.372550000000004","4.89255","52.3725","4.8925","52.3726","4.8926"],
+        ["2","55","52.372749999999996","4.8927499999999995","52.3727","4.8927","52.3728","4.8928"],
+        ["2","55","51.50025","-0.12675","51.5002","-0.1268","51.5003","-0.1267"],
+        ["2","55","52.37005","4.8900500000000005","52.37","4.89","52.3701","4.8901"],
+        ["1","55","51.5014","-0.1256","51.5014","-0.1256","51.5014","-0.1256"],
+        ["1","55","51.5013","-0.1257","51.5013","-0.1257","51.5013","-0.1257"],
+        ["1","55","52.3702","4.8902","52.3702","4.8902","52.3702","4.8902"],
+        ["1","55","52.3729","4.8929","52.3729","4.8929","52.3729","4.8929"],
+        ["1","55","52.3706","4.8906","52.3706","4.8906","52.3706","4.8906"],
+        ["1","55","52.3714","4.8914","52.3714","4.8914","52.3714","4.8914"],
+        ["1","55","52.3703","4.8903","52.3703","4.8903","52.3703","4.8903"],
+        ["1","55","51.5004","-0.1266","51.5004","-0.1266","51.5004","-0.1266"],
+        ["1","55","52.3707","4.8907","52.3707","4.8907","52.3707","4.8907"],
+        ["1","55","52.3724","4.8924","52.3724","4.8924","52.3724","4.8924"],
+        ["1","55","52.3723","4.8923","52.3723","4.8923","52.3723","4.8923"]
+      ]}},
+      {"sql":"select count(*)::text as \"n\", (sum(count(*)) over ())::text as \"total\", avg(\"t\".\"lat\"::float8)::text as \"latitude\", avg(\"t\".\"lng\"::float8)::text as \"longitude\", min(\"t\".\"lat\"::float8)::text as \"south\", min(\"t\".\"lng\"::float8)::text as \"west\", max(\"t\".\"lat\"::float8)::text as \"north\", max(\"t\".\"lng\"::float8)::text as \"east\" from \"places\" as \"t\" where \"t\".\"deleted_at\" is null and (\"t\".\"lat\" >= $1 and \"t\".\"lat\" <= $2 and \"t\".\"lng\" >= $3 and \"t\".\"lng\" <= $4) and \"t\".\"lat\" is not null and \"t\".\"lng\" is not null group by least(floor((\"t\".\"lng\"::float8 + 180) / 360 * $5::float8), $6::float8), least(floor((1 - ln(tan(pi() / 4 + radians(least(greatest(\"t\".\"lat\"::float8, $7::float8), $8::float8)) / 2)) / pi()) / 2 * $9::float8), $10::float8) order by count(*) desc limit $11","params":["52.371","53","4","5","1048576","1048575","-85.051129","85.051129","1048576","1048575","1000"],"result":{"command":"SELECT","rowCount":12,"columns":[["n",25],["total",25],["latitude",25],["longitude",25],["south",25],["west",25],["north",25],["east",25]],"rows":[
+        ["2","20","52.37125","4.89125","52.3712","4.8912","52.3713","4.8913"],
+        ["2","20","52.37105","4.89105","52.371","4.891","52.3711","4.8911"],
+        ["2","20","52.37155","4.8915500000000005","52.3715","4.8915","52.3716","4.8916"],
+        ["2","20","52.37175","4.89175","52.3717","4.8917","52.3718","4.8918"],
+        ["2","20","52.372150000000005","4.89215","52.3721","4.8921","52.3722","4.8922"],
+        ["2","20","52.372550000000004","4.89255","52.3725","4.8925","52.3726","4.8926"],
+        ["2","20","52.372749999999996","4.8927499999999995","52.3727","4.8927","52.3728","4.8928"],
+        ["2","20","52.37195","4.89195","52.3719","4.8919","52.372","4.892"],
+        ["1","20","52.3714","4.8914","52.3714","4.8914","52.3714","4.8914"],
+        ["1","20","52.3724","4.8924","52.3724","4.8924","52.3724","4.8924"],
+        ["1","20","52.3729","4.8929","52.3729","4.8929","52.3729","4.8929"],
+        ["1","20","52.3723","4.8923","52.3723","4.8923","52.3723","4.8923"]
+      ]}}
+    ]
+  },
+  "mapBuckets > applies the filter and leaves out deleted records": {
+    "(hooks)#0": [
+      {"sql":"select count(*)::text as \"n\", (sum(count(*)) over ())::text as \"total\", avg(\"t\".\"lat\"::float8)::text as \"latitude\", avg(\"t\".\"lng\"::float8)::text as \"longitude\", min(\"t\".\"lat\"::float8)::text as \"south\", min(\"t\".\"lng\"::float8)::text as \"west\", max(\"t\".\"lat\"::float8)::text as \"north\", max(\"t\".\"lng\"::float8)::text as \"east\" from \"places\" as \"t\" where \"t\".\"deleted_at\" is null and \"t\".\"kind\" = $1 and \"t\".\"lat\" is not null and \"t\".\"lng\" is not null group by least(floor((\"t\".\"lng\"::float8 + 180) / 360 * $2::float8), $3::float8), least(floor((1 - ln(tan(pi() / 4 + radians(least(greatest(\"t\".\"lat\"::float8, $4::float8), $5::float8)) / 2)) / pi()) / 2 * $6::float8), $7::float8) order by count(*) desc limit $8","params":["flat","64","63","-85.051129","85.051129","64","63","1000"],"result":{"command":"SELECT","rowCount":2,"columns":[["n",25],["total",25],["latitude",25],["longitude",25],["south",25],["west",25],["north",25],["east",25]],"rows":[
+        ["20","35","51.50095","-0.12605","51.5","-0.127","51.5019","-0.1251"],
+        ["15","35","52.3714","4.891400000000001","52.37","4.89","52.3728","4.8928"]
+      ]}},
+      {"sql":"select count(*)::text as \"n\", (sum(count(*)) over ())::text as \"total\", avg(\"t\".\"lat\"::float8)::text as \"latitude\", avg(\"t\".\"lng\"::float8)::text as \"longitude\", min(\"t\".\"lat\"::float8)::text as \"south\", min(\"t\".\"lng\"::float8)::text as \"west\", max(\"t\".\"lat\"::float8)::text as \"north\", max(\"t\".\"lng\"::float8)::text as \"east\" from \"places\" as \"t\" where \"t\".\"deleted_at\" is null and \"t\".\"kind\" = $1 and \"t\".\"lat\" is not null and \"t\".\"lng\" is not null group by least(floor((\"t\".\"lng\"::float8 + 180) / 360 * $2::float8), $3::float8), least(floor((1 - ln(tan(pi() / 4 + radians(least(greatest(\"t\".\"lat\"::float8, $4::float8), $5::float8)) / 2)) / pi()) / 2 * $6::float8), $7::float8) order by count(*) desc limit $8","params":["castle","64","63","-85.051129","85.051129","64","63","1000"],"result":{"command":"SELECT","rowCount":0,"columns":[["n",25],["total",25],["latitude",25],["longitude",25],["south",25],["west",25],["north",25],["east",25]],"rows":[]}}
+    ]
+  },
+  "countUpTo > counts the matching records, but no further than the limit": {
+    "(hooks)#0": [
+      {"sql":"select count(*)::text as \"n\" from (select 1 as \"one\" from \"places\" as \"t\" where \"t\".\"deleted_at\" is null limit $1) as \"found\"","params":["1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["n",25]],"rows":[["57"]]}},
+      {"sql":"select count(*)::text as \"n\" from (select 1 as \"one\" from \"places\" as \"t\" where \"t\".\"deleted_at\" is null limit $1) as \"found\"","params":["10"],"result":{"command":"SELECT","rowCount":1,"columns":[["n",25]],"rows":[["10"]]}},
+      {"sql":"select count(*)::text as \"n\" from (select 1 as \"one\" from \"places\" as \"t\" where \"t\".\"deleted_at\" is null and \"t\".\"kind\" = $1 limit $2) as \"found\"","params":["house","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["n",25]],"rows":[["20"]]}}
+    ]
+  }
+}

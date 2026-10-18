@@ -1,9 +1,5 @@
-import { PGlite } from '@electric-sql/pglite'
-import { Kysely } from 'kysely'
-import { PGliteDialect } from 'kysely-pglite-dialect'
-import { pg_trgm } from '@electric-sql/pglite/contrib/pg_trgm'
-import { fromSnapshot } from './pglite-snapshot'
-import { queryDdl } from './fixtures/query-ddl'
+import type { SnapshotTemplateKey } from '../scripts/test-db/snapshot-templates'
+import { openSnapshotDb } from './sql-snapshot'
 import { checkFilter, parseFilter, type CheckedFilter, type FieldModel, type FieldType, type ResourceModel } from '@protobase/schema'
 
 export const field = (name: string, type: FieldType, extra: Partial<FieldModel> = {}): FieldModel => ({
@@ -66,24 +62,10 @@ export const check = (target: ResourceModel, source: string): CheckedFilter => {
   return checked.filter
 }
 
-const pgOptions = (trigram: boolean) => (trigram ? { extensions: { pg_trgm } } : {})
+const template = ({ trigram = false, seed = true }): SnapshotTemplateKey => (seed ? (trigram ? 'queryTrigram' : 'query') : trigram ? 'trigram' : 'empty')
 
-export const buildTestPg = async ({ trigram = false, seed = true } = {}) => {
-  const pg = new PGlite(pgOptions(trigram))
-  if (trigram) await pg.exec('create extension pg_trgm')
-  if (seed) {
-    await pg.exec(queryDdl)
-    await pg.exec('analyze')
-  }
-  return pg
-}
-
-/** The global setup's name for the dump of `buildTestPg(options)`; without trigram or seed it is the empty database. */
-export const testDbSnapshot = ({ trigram = false, seed = true } = {}) => (!trigram && !seed ? 'empty' : `query${trigram ? '-trigram' : ''}${seed ? '' : '-empty'}`)
-
-/** `seed: false` skips the tables and 10k rows (about a second of start-up) for tests that only need a connection. */
+/** A snapshot database of the query tables, 10k rows each; `seed: false` leaves them out, `trigram` adds pg_trgm. */
 export const createTestDb = async ({ trigram = false, seed = true } = {}) => {
-  const pg = await fromSnapshot(testDbSnapshot({ trigram, seed }), () => buildTestPg({ trigram, seed }), pgOptions(trigram))
-  const db = new Kysely<any>({ dialect: new PGliteDialect(pg) })
-  return { pg, db }
+  const pg = await openSnapshotDb(template({ trigram, seed }))
+  return { pg, db: pg.db }
 }

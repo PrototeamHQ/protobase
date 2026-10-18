@@ -8,8 +8,11 @@ const wide = model('wide', ['id'], [field('id', 'integer'), field('val', 'intege
 let ctx: Awaited<ReturnType<typeof createTestDb>>
 beforeAll(async () => {
   ctx = await createTestDb()
+  // A statistics target whose sample (300 rows per unit) holds every row, and no autovacuum, so the statistics come out
+  // the same on every recording.
   await ctx.pg.exec(`
-    create table wide (id integer primary key, val integer not null);
+    create table wide (id integer primary key, val integer not null) with (autovacuum_enabled = off);
+    alter table wide alter column val set statistics 1000;
     insert into wide select i, (i::bigint * 7919 % 1000003)::int from generate_series(1, 150000) i;
     analyze wide;
   `)
@@ -83,7 +86,7 @@ describe('statistics mode', () => {
   })
 
   it('refuses tables without statistics', async () => {
-    await ctx.pg.exec(`create table fresh (id integer primary key, val integer not null); insert into fresh select i, i from generate_series(1, 150000) i;`)
+    await ctx.pg.exec(`create table fresh (id integer primary key, val integer not null) with (autovacuum_enabled = off); insert into fresh select i, i from generate_series(1, 150000) i;`)
     const fresh = model('fresh', ['id'], [field('id', 'integer'), field('val', 'integer')])
     await expect(scrollAnchors(ctx.db, fresh, 'val')).rejects.toMatchObject({ code: 'no_statistics' })
   })

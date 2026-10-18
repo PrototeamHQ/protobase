@@ -1,9 +1,8 @@
-import { Kysely } from 'kysely'
-import { PGliteDialect } from 'kysely-pglite-dialect'
+import type { Kysely } from 'kysely'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { countUpTo } from '../src/count-up-to'
 import { cellsAcross, mapBuckets, maxMapZoom } from '../src/map-buckets'
-import { createEmptyPg } from '../../../test-support/pglite-snapshot'
+import { openSnapshotDb } from '../../../test-support/sql-snapshot'
 import { check, field, model } from '../../../test-support/query'
 
 const places = model('places', ['id'], [
@@ -27,9 +26,9 @@ insert into places (lat, lng, kind, deleted_at) values (52.37, 4.89, 'flat', now
 
 let db: Kysely<any>
 beforeAll(async () => {
-  const pg = await createEmptyPg()
+  const pg = await openSnapshotDb('empty')
   await pg.exec(ddl)
-  db = new Kysely({ dialect: new PGliteDialect(pg) })
+  db = pg.db
 })
 afterAll(async () => { await db.destroy() })
 

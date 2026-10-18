@@ -1,0 +1,42 @@
+{
+  "lets fast statements finish and does not leak the setting": {
+    "(hooks)#0": [
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config('statement_timeout', $1, true)","params":["5000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["5s"]]}},
+      {"sql":"select current_setting('statement_timeout') as v","result":{"command":"SELECT","rowCount":1,"columns":[["v",25]],"rows":[["5s"]]}},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select current_setting('statement_timeout') as v","result":{"command":"SELECT","rowCount":1,"columns":[["v",25]],"rows":[["0"]]}}
+    ]
+  },
+  "runs inside an existing transaction and restores the previous timeout": {
+    "(hooks)#0": [
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select current_setting('statement_timeout') as value","result":{"command":"SELECT","rowCount":1,"columns":[["value",25]],"rows":[["0"]]}},
+      {"sql":"select set_config('statement_timeout', $1, true)","params":["7000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["7s"]]}},
+      {"sql":"select current_setting('statement_timeout') as v","result":{"command":"SELECT","rowCount":1,"columns":[["v",25]],"rows":[["7s"]]}},
+      {"sql":"select set_config('statement_timeout', $1, true)","params":["0"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["0"]]}},
+      {"sql":"select current_setting('statement_timeout') as v","result":{"command":"SELECT","rowCount":1,"columns":[["v",25]],"rows":[["0"]]}},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
+    ]
+  },
+  "reports the failing statement, not the aborted transaction, inside an existing transaction": {
+    "(hooks)#0": [
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select current_setting('statement_timeout') as value","result":{"command":"SELECT","rowCount":1,"columns":[["value",25]],"rows":[["0"]]}},
+      {"sql":"select set_config('statement_timeout', $1, true)","params":["7000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["7s"]]}},
+      {"sql":"select 'not a number'::integer","error":{"message":"invalid input syntax for type integer: \"not a number\"","severity":"ERROR","code":"22P02","position":"8"}},
+      {"sql":"select set_config('statement_timeout', $1, true)","params":["0"],"error":{"message":"current transaction is aborted, commands ignored until end of transaction block","severity":"ERROR","code":"25P02"}},
+      {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}}
+    ]
+  },
+  "restores the timeout after a non-SQL failure, leaving the transaction usable": {
+    "(hooks)#0": [
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select current_setting('statement_timeout') as value","result":{"command":"SELECT","rowCount":1,"columns":[["value",25]],"rows":[["0"]]}},
+      {"sql":"select set_config('statement_timeout', $1, true)","params":["7000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["7s"]]}},
+      {"sql":"select set_config('statement_timeout', $1, true)","params":["0"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["0"]]}},
+      {"sql":"select current_setting('statement_timeout') as v","result":{"command":"SELECT","rowCount":1,"columns":[["v",25]],"rows":[["0"]]}},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
+    ]
+  }
+}

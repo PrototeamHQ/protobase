@@ -49,7 +49,7 @@ const presets = ['packages/presets/tests/**/*.test.ts']
 // Snapshot tests: what PGlite ran before, now replaying SQL recorded from real Postgres (test-support/sql-snapshot.ts),
 // in `bun run test` without a database. `bun run test:record` runs them on Postgres instead and rewrites the recordings.
 const recordSnapshots = process.env.SQL_SNAPSHOT === 'record'
-const snapshot: string[] = []
+const snapshot = ['packages/query/tests/**/*.test.ts']
 // Like `mocking` for unit tests: snapshot tests that replace a module or change a global run in a registry of their own.
 const snapshotMocking: string[] = []
 const snapshotProject = (name: string, include: string[], exclude: string[], isolate: boolean) => ({

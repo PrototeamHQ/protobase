@@ -1,0 +1,247 @@
+{
+  "counts > unfiltered estimate reads reltuples": {
+    "(hooks)#0": [
+      {"sql":"\n    select reltuples::float8 as reltuples from pg_class where oid = to_regclass($1)\n  ","params":["\"order_lines\""],"result":{"command":"SELECT","rowCount":1,"columns":[["reltuples",701]],"rows":[["10000"]]}}
+    ]
+  },
+  "counts > filtered estimate comes from the planner": {
+    "(hooks)#0": [
+      {"sql":"EXPLAIN (VERBOSE, FORMAT JSON) select 1 as \"one\" from \"order_lines\" as \"t\" where \"t\".\"qty\" = $1","params":["3"],"result":{"command":"EXPLAIN","rowCount":null,"columns":[["QUERY PLAN",114]],"rows":[["[\n  {\n    \"Plan\": {\n      \"Node Type\": \"Seq Scan\",\n      \"Parallel Aware\": false,\n      \"Async Capable\": false,\n      \"Relation Name\": \"order_lines\",\n      \"Schema\": \"public\",\n      \"Alias\": \"t\",\n      \"Startup Cost\": 0.00,\n      \"Total Cost\": 189.00,\n      \"Plan Rows\": 588,\n      \"Plan Width\": 4,\n      \"Disabled\": false,\n      \"Output\": [\"1\"],\n      \"Filter\": \"(t.qty = 3)\"\n    }\n  }\n]"]]}},
+      {"sql":"select count(*)::text as \"n\" from \"order_lines\" as \"t\" where \"t\".\"qty\" = $1","params":["3"],"result":{"command":"SELECT","rowCount":1,"columns":[["n",25]],"rows":[["588"]]}},
+      {"sql":"select count(*)::text n from order_lines where qty = 3","result":{"command":"SELECT","rowCount":1,"columns":[["n",25]],"rows":[["588"]]}}
+    ]
+  },
+  "counts > estimates tables with soft delete through the planner": {
+    "(hooks)#0": [
+      {"sql":"EXPLAIN (VERBOSE, FORMAT JSON) select 1 as \"one\" from \"items\" as \"t\" where \"t\".\"deleted_at\" is null","result":{"command":"EXPLAIN","rowCount":null,"columns":[["QUERY PLAN",114]],"rows":[["[\n  {\n    \"Plan\": {\n      \"Node Type\": \"Seq Scan\",\n      \"Parallel Aware\": false,\n      \"Async Capable\": false,\n      \"Relation Name\": \"items\",\n      \"Schema\": \"public\",\n      \"Alias\": \"t\",\n      \"Startup Cost\": 0.00,\n      \"Total Cost\": 279.00,\n      \"Plan Rows\": 9800,\n      \"Plan Width\": 4,\n      \"Disabled\": false,\n      \"Output\": [\"1\"],\n      \"Filter\": \"(t.deleted_at IS NULL)\"\n    }\n  }\n]"]]}}
+    ]
+  },
+  "counts > exact count excludes soft-deleted rows": {
+    "(hooks)#0": [
+      {"sql":"select count(*)::text as \"n\" from \"items\" as \"t\" where \"t\".\"deleted_at\" is null","result":{"command":"SELECT","rowCount":1,"columns":[["n",25]],"rows":[["9800"]]}},
+      {"sql":"select count(*)::text as \"n\" from \"items\" as \"t\" where \"t\".\"deleted_at\" is null and \"t\".\"category\" = $1","params":["red"],"result":{"command":"SELECT","rowCount":1,"columns":[["n",25]],"rows":[["3267"]]}},
+      {"sql":"select count(*)::text n from items where category = 'red' and deleted_at is null","result":{"command":"SELECT","rowCount":1,"columns":[["n",25]],"rows":[["3267"]]}}
+    ]
+  },
+  "facetCounts > excludes the facet field own filter but keeps the others": {
+    "(hooks)#0": [
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config('statement_timeout', $1, true)","params":["5000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["5s"]]}},
+      {"sql":"select \"t\".\"category\" as \"value\", count(*)::text as \"n\" from \"items\" as \"t\" where \"t\".\"deleted_at\" is null and (\"t\".\"active\" = $1) group by \"t\".\"category\" order by count(*) desc, \"t\".\"category\" asc limit $2","params":["true","100"],"result":{"command":"SELECT","rowCount":3,"columns":[["value",25],["n",25]],"rows":[
+        ["blue","1600"],
+        ["green","1600"],
+        ["red","1600"]
+      ]}},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select category, count(*)::text n from items where active and deleted_at is null group by 1 order by count(*) desc, category","result":{"command":"SELECT","rowCount":3,"columns":[["category",25],["n",25]],"rows":[
+        ["blue","1600"],
+        ["green","1600"],
+        ["red","1600"]
+      ]}}
+    ]
+  },
+  "facetCounts > still applies the facet field filter to other facets": {
+    "(hooks)#0": [
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config('statement_timeout', $1, true)","params":["5000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["5s"]]}},
+      {"sql":"select \"t\".\"active\" as \"value\", count(*)::text as \"n\" from \"items\" as \"t\" where \"t\".\"deleted_at\" is null and (\"t\".\"category\" in ($1)) group by \"t\".\"active\" order by count(*) desc, \"t\".\"active\" asc limit $2","params":["red","100"],"result":{"command":"SELECT","rowCount":2,"columns":[["value",16],["n",25]],"rows":[
+        ["f","1667"],
+        ["t","1600"]
+      ]}},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select count(*)::text n from items where category = 'red' and deleted_at is null","result":{"command":"SELECT","rowCount":1,"columns":[["n",25]],"rows":[["3267"]]}}
+    ]
+  },
+  "facetCounts > limits groups and rejects bad options": {
+    "(hooks)#0": [
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config('statement_timeout', $1, true)","params":["5000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["5s"]]}},
+      {"sql":"select \"t\".\"qty\" as \"value\", count(*)::text as \"n\" from \"items\" as \"t\" where \"t\".\"deleted_at\" is null group by \"t\".\"qty\" order by count(*) desc, \"t\".\"qty\" asc limit $1","params":["5"],"result":{"command":"SELECT","rowCount":5,"columns":[["value",23],["n",25]],"rows":[
+        ["1","100"],
+        ["2","100"],
+        ["3","100"],
+        ["4","100"],
+        ["5","100"]
+      ]}},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
+    ]
+  },
+  "groupTotals > counts per value under the whole filter, its own terms on the field included": {
+    "(hooks)#0": [
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config('statement_timeout', $1, true)","params":["5000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["5s"]]}},
+      {"sql":"select \"t\".\"category\" as \"value\", count(*)::text as \"n\" from \"items\" as \"t\" where \"t\".\"deleted_at\" is null and (\"t\".\"category\" in ($1, $2) and \"t\".\"active\" = $3) group by \"t\".\"category\" order by count(*) desc, \"t\".\"category\" asc limit $4","params":["red","blue","true","100"],"result":{"command":"SELECT","rowCount":2,"columns":[["value",25],["n",25]],"rows":[
+        ["blue","1600"],
+        ["red","1600"]
+      ]}},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select category, count(*)::text n from items where category in ('red', 'blue') and active and deleted_at is null group by 1 order by count(*) desc, category","result":{"command":"SELECT","rowCount":2,"columns":[["category",25],["n",25]],"rows":[
+        ["blue","1600"],
+        ["red","1600"]
+      ]}}
+    ]
+  },
+  "groupTotals > adds up a numeric field per value, largest first": {
+    "(hooks)#0": [
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config('statement_timeout', $1, true)","params":["5000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["5s"]]}},
+      {"sql":"select \"t\".\"category\" as \"value\", count(*)::text as \"n\", sum(\"t\".\"price\")::text as \"m\" from \"items\" as \"t\" where \"t\".\"deleted_at\" is null group by \"t\".\"category\" order by sum(\"t\".\"price\") desc nulls last, \"t\".\"category\" asc limit $1","params":["100"],"result":{"command":"SELECT","rowCount":3,"columns":[["value",25],["n",25],["m",25]],"rows":[
+        ["green","3267","204204.25"],
+        ["red","3267","204170.75"],
+        ["blue","3266","204125.00"]
+      ]}},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select category, count(*)::text n, sum(price)::text m from items where deleted_at is null group by 1 order by sum(price) desc, category","result":{"command":"SELECT","rowCount":3,"columns":[["category",25],["n",25],["m",25]],"rows":[
+        ["green","3267","204204.25"],
+        ["red","3267","204170.75"],
+        ["blue","3266","204125.00"]
+      ]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config('statement_timeout', $1, true)","params":["5000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["5s"]]}},
+      {"sql":"select \"t\".\"active\" as \"value\", count(*)::text as \"n\", avg(\"t\".\"qty\")::text as \"m\" from \"items\" as \"t\" where \"t\".\"deleted_at\" is null group by \"t\".\"active\" order by avg(\"t\".\"qty\") desc nulls last, \"t\".\"active\" asc limit $1","params":["100"],"result":{"command":"SELECT","rowCount":2,"columns":[["value",16],["n",25],["m",25]],"rows":[
+        ["f","5000","50.0000000000000000"],
+        ["t","4800","50.0000000000000000"]
+      ]}},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select avg(qty)::text m from items where deleted_at is null group by active order by avg(qty) desc, active","result":{"command":"SELECT","rowCount":2,"columns":[["m",25]],"rows":[
+        ["50.0000000000000000"],
+        ["50.0000000000000000"]
+      ]}}
+    ]
+  },
+  "series > fills empty buckets with zero": {
+    "(hooks)#0": [
+      {"sql":"\n    with b as (\n      select generate_series(date_trunc('day', ($1::timestamptz at time zone $2::text)), date_trunc('day', ($3::timestamptz at time zone $4::text) - interval '1 microsecond'), '1 day'::interval) as bucket\n    ), c as ((select date_trunc('day', (\"t\".\"created_at\"::timestamptz at time zone $5::text)) as \"bucket\", count(*)::text as \"n\" from \"items\" as \"t\" where \"t\".\"deleted_at\" is null and \"t\".\"name\" = $6 and \"t\".\"created_at\" >= $7::timestamptz and \"t\".\"created_at\" < $8::timestamptz group by 1))\n    select to_char(b.bucket, 'YYYY-MM-DD\"T\"HH24:MI:SS') as bucket, coalesce(c.n, '0') as n\n    from b left join c on c.bucket = b.bucket\n    order by b.bucket\n  ","params":["2024-01-01T00:00:00Z","UTC","2024-01-06T00:00:00Z","UTC","UTC","item-1","2024-01-01T00:00:00Z","2024-01-06T00:00:00Z"],"result":{"command":"SELECT","rowCount":5,"columns":[["bucket",25],["n",25]],"rows":[
+        ["2024-01-01T00:00:00","0"],
+        ["2024-01-02T00:00:00","1"],
+        ["2024-01-03T00:00:00","0"],
+        ["2024-01-04T00:00:00","0"],
+        ["2024-01-05T00:00:00","0"]
+      ]}}
+    ]
+  },
+  "series > buckets in the requested time zone": {
+    "(hooks)#0": [
+      {"sql":"\n    with b as (\n      select generate_series(date_trunc('day', ($1::timestamptz at time zone $2::text)), date_trunc('day', ($3::timestamptz at time zone $4::text) - interval '1 microsecond'), '1 day'::interval) as bucket\n    ), c as ((select date_trunc('day', (\"t\".\"created_at\"::timestamptz at time zone $5::text)) as \"bucket\", count(*)::text as \"n\" from \"items\" as \"t\" where \"t\".\"deleted_at\" is null and \"t\".\"name\" = $6 and \"t\".\"created_at\" >= $7::timestamptz and \"t\".\"created_at\" < $8::timestamptz group by 1))\n    select to_char(b.bucket, 'YYYY-MM-DD\"T\"HH24:MI:SS') as bucket, coalesce(c.n, '0') as n\n    from b left join c on c.bucket = b.bucket\n    order by b.bucket\n  ","params":["2024-01-01T05:00:00Z","America/New_York","2024-01-06T05:00:00Z","America/New_York","America/New_York","item-1","2024-01-01T05:00:00Z","2024-01-06T05:00:00Z"],"result":{"command":"SELECT","rowCount":5,"columns":[["bucket",25],["n",25]],"rows":[
+        ["2024-01-01T00:00:00","1"],
+        ["2024-01-02T00:00:00","0"],
+        ["2024-01-03T00:00:00","0"],
+        ["2024-01-04T00:00:00","0"],
+        ["2024-01-05T00:00:00","0"]
+      ]}}
+    ]
+  },
+  "series > counts every row once across monthly buckets and spans hourly buckets": {
+    "(hooks)#0": [
+      {"sql":"\n    with b as (\n      select generate_series(date_trunc('month', ($1::timestamptz at time zone $2::text)), date_trunc('month', ($3::timestamptz at time zone $4::text) - interval '1 microsecond'), '1 month'::interval) as bucket\n    ), c as ((select date_trunc('month', (\"t\".\"created_at\"::timestamptz at time zone $5::text)) as \"bucket\", count(*)::text as \"n\" from \"items\" as \"t\" where \"t\".\"deleted_at\" is null and \"t\".\"created_at\" >= $6::timestamptz and \"t\".\"created_at\" < $7::timestamptz group by 1))\n    select to_char(b.bucket, 'YYYY-MM-DD\"T\"HH24:MI:SS') as bucket, coalesce(c.n, '0') as n\n    from b left join c on c.bucket = b.bucket\n    order by b.bucket\n  ","params":["2024-01-01T00:00:00Z","UTC","2025-03-01T00:00:00Z","UTC","UTC","2024-01-01T00:00:00Z","2025-03-01T00:00:00Z"],"result":{"command":"SELECT","rowCount":14,"columns":[["bucket",25],["n",25]],"rows":[
+        ["2024-01-01T00:00:00","750"],
+        ["2024-02-01T00:00:00","700"],
+        ["2024-03-01T00:00:00","775"],
+        ["2024-04-01T00:00:00","725"],
+        ["2024-05-01T00:00:00","750"],
+        ["2024-06-01T00:00:00","750"],
+        ["2024-07-01T00:00:00","750"],
+        ["2024-08-01T00:00:00","775"],
+        ["2024-09-01T00:00:00","725"],
+        ["2024-10-01T00:00:00","750"],
+        ["2024-11-01T00:00:00","750"],
+        ["2024-12-01T00:00:00","750"],
+        ["2025-01-01T00:00:00","775"],
+        ["2025-02-01T00:00:00","75"]
+      ]}},
+      {"sql":"\n    with b as (\n      select generate_series(date_trunc('hour', ($1::timestamptz at time zone $2::text)), date_trunc('hour', ($3::timestamptz at time zone $4::text) - interval '1 microsecond'), '1 hour'::interval) as bucket\n    ), c as ((select date_trunc('hour', (\"t\".\"created_at\"::timestamptz at time zone $5::text)) as \"bucket\", count(*)::text as \"n\" from \"items\" as \"t\" where \"t\".\"deleted_at\" is null and \"t\".\"name\" = $6 and \"t\".\"created_at\" >= $7::timestamptz and \"t\".\"created_at\" < $8::timestamptz group by 1))\n    select to_char(b.bucket, 'YYYY-MM-DD\"T\"HH24:MI:SS') as bucket, coalesce(c.n, '0') as n\n    from b left join c on c.bucket = b.bucket\n    order by b.bucket\n  ","params":["2024-01-01T00:00:00Z","UTC","2024-01-02T00:00:00Z","UTC","UTC","item-1","2024-01-01T00:00:00Z","2024-01-02T00:00:00Z"],"result":{"command":"SELECT","rowCount":24,"columns":[["bucket",25],["n",25]],"rows":[
+        ["2024-01-01T00:00:00","0"],
+        ["2024-01-01T01:00:00","0"],
+        ["2024-01-01T02:00:00","0"],
+        ["2024-01-01T03:00:00","0"],
+        ["2024-01-01T04:00:00","0"],
+        ["2024-01-01T05:00:00","0"],
+        ["2024-01-01T06:00:00","0"],
+        ["2024-01-01T07:00:00","0"],
+        ["2024-01-01T08:00:00","0"],
+        ["2024-01-01T09:00:00","0"],
+        ["2024-01-01T10:00:00","0"],
+        ["2024-01-01T11:00:00","0"],
+        ["2024-01-01T12:00:00","0"],
+        ["2024-01-01T13:00:00","0"],
+        ["2024-01-01T14:00:00","0"],
+        ["2024-01-01T15:00:00","0"],
+        ["2024-01-01T16:00:00","0"],
+        ["2024-01-01T17:00:00","0"],
+        ["2024-01-01T18:00:00","0"],
+        ["2024-01-01T19:00:00","0"],
+        ["2024-01-01T20:00:00","0"],
+        ["2024-01-01T21:00:00","0"],
+        ["2024-01-01T22:00:00","0"],
+        ["2024-01-01T23:00:00","0"]
+      ]}}
+    ]
+  },
+  "series > adds up a numeric field per bucket, null where no row has a value": {
+    "(hooks)#0": [
+      {"sql":"\n    with b as (\n      select generate_series(date_trunc('day', ($1::timestamptz at time zone $2::text)), date_trunc('day', ($3::timestamptz at time zone $4::text) - interval '1 microsecond'), '1 day'::interval) as bucket\n    ), c as ((select date_trunc('day', (\"t\".\"created_at\"::timestamptz at time zone $5::text)) as \"bucket\", count(*)::text as \"n\", sum(\"t\".\"qty\")::text as \"m\" from \"items\" as \"t\" where \"t\".\"deleted_at\" is null and \"t\".\"name\" = $6 and \"t\".\"created_at\" >= $7::timestamptz and \"t\".\"created_at\" < $8::timestamptz group by 1))\n    select to_char(b.bucket, 'YYYY-MM-DD\"T\"HH24:MI:SS') as bucket, coalesce(c.n, '0') as n, c.m\n    from b left join c on c.bucket = b.bucket\n    order by b.bucket\n  ","params":["2024-01-01T00:00:00Z","UTC","2024-01-06T00:00:00Z","UTC","UTC","item-1","2024-01-01T00:00:00Z","2024-01-06T00:00:00Z"],"result":{"command":"SELECT","rowCount":5,"columns":[["bucket",25],["n",25],["m",25]],"rows":[
+        ["2024-01-01T00:00:00","0",null],
+        ["2024-01-02T00:00:00","1","19"],
+        ["2024-01-03T00:00:00","0",null],
+        ["2024-01-04T00:00:00","0",null],
+        ["2024-01-05T00:00:00","0",null]
+      ]}},
+      {"sql":"select qty::text from items where name = 'item-1'","result":{"command":"SELECT","rowCount":1,"columns":[["qty",25]],"rows":[["19"]]}},
+      {"sql":"\n    with b as (\n      select generate_series(date_trunc('month', ($1::timestamptz at time zone $2::text)), date_trunc('month', ($3::timestamptz at time zone $4::text) - interval '1 microsecond'), '1 month'::interval) as bucket\n    ), c as ((select date_trunc('month', (\"t\".\"created_at\"::timestamptz at time zone $5::text)) as \"bucket\", count(*)::text as \"n\", avg(\"t\".\"price\")::text as \"m\" from \"items\" as \"t\" where \"t\".\"deleted_at\" is null and \"t\".\"created_at\" >= $6::timestamptz and \"t\".\"created_at\" < $7::timestamptz group by 1))\n    select to_char(b.bucket, 'YYYY-MM-DD\"T\"HH24:MI:SS') as bucket, coalesce(c.n, '0') as n, c.m\n    from b left join c on c.bucket = b.bucket\n    order by b.bucket\n  ","params":["2024-01-01T00:00:00Z","UTC","2024-02-01T00:00:00Z","UTC","UTC","2024-01-01T00:00:00Z","2024-02-01T00:00:00Z"],"result":{"command":"SELECT","rowCount":1,"columns":[["bucket",25],["n",25],["m",25]],"rows":[["2024-01-01T00:00:00","750","53.8750000000000000"]]}},
+      {"sql":"select avg(price)::text m from items where deleted_at is null and created_at < '2024-02-01T00:00:00Z'","result":{"command":"SELECT","rowCount":1,"columns":[["m",25]],"rows":[["53.8750000000000000"]]}}
+    ]
+  },
+  "series > works on date fields": {
+    "(hooks)#0": [
+      {"sql":"\n    with b as (\n      select generate_series(date_trunc('day', $1::timestamp), date_trunc('day', $2::timestamp - interval '1 microsecond'), '1 day'::interval) as bucket\n    ), c as ((select date_trunc('day', \"t\".\"born\"::timestamp) as \"bucket\", count(*)::text as \"n\" from \"items\" as \"t\" where \"t\".\"deleted_at\" is null and \"t\".\"born\" >= $3::date and \"t\".\"born\" < $4::date group by 1))\n    select to_char(b.bucket, 'YYYY-MM-DD\"T\"HH24:MI:SS') as bucket, coalesce(c.n, '0') as n\n    from b left join c on c.bucket = b.bucket\n    order by b.bucket\n  ","params":["2024-01-01","2024-01-04","2024-01-01","2024-01-04"],"result":{"command":"SELECT","rowCount":3,"columns":[["bucket",25],["n",25]],"rows":[
+        ["2024-01-01T00:00:00","0"],
+        ["2024-01-02T00:00:00","25"],
+        ["2024-01-03T00:00:00","25"]
+      ]}}
+    ]
+  },
+  "histogram > counts per bucket with min and max": {
+    "(hooks)#0": [
+      {"sql":"select min(\"t\".\"qty\")::float8::text as \"lo\", max(\"t\".\"qty\")::float8::text as \"hi\" from \"items\" as \"t\" where \"t\".\"deleted_at\" is null and \"t\".\"qty\" is not null","result":{"command":"SELECT","rowCount":1,"columns":[["lo",25],["hi",25]],"rows":[["1","99"]]}},
+      {"sql":"select least(width_bucket(\"t\".\"qty\"::float8, $1::float8, $2::float8, $3::int), $4::int) as \"bucket\", count(*)::text as \"n\" from \"items\" as \"t\" where \"t\".\"deleted_at\" is null and \"t\".\"qty\" is not null group by 1","params":["1","99","10","10"],"result":{"command":"SELECT","rowCount":10,"columns":[["bucket",23],["n",25]],"rows":[
+        ["4","1000"],
+        ["10","1000"],
+        ["6","900"],
+        ["2","1000"],
+        ["9","1000"],
+        ["7","1000"],
+        ["3","1000"],
+        ["1","1000"],
+        ["5","900"],
+        ["8","1000"]
+      ]}}
+    ]
+  },
+  "histogram > applies filters and handles empty and single-value results": {
+    "(hooks)#0": [
+      {"sql":"select min(\"t\".\"qty\")::float8::text as \"lo\", max(\"t\".\"qty\")::float8::text as \"hi\" from \"items\" as \"t\" where \"t\".\"deleted_at\" is null and (\"t\".\"qty\" >= $1 and \"t\".\"qty\" <= $2) and \"t\".\"qty\" is not null","params":["10","19"],"result":{"command":"SELECT","rowCount":1,"columns":[["lo",25],["hi",25]],"rows":[["10","19"]]}},
+      {"sql":"select least(width_bucket(\"t\".\"qty\"::float8, $1::float8, $2::float8, $3::int), $4::int) as \"bucket\", count(*)::text as \"n\" from \"items\" as \"t\" where \"t\".\"deleted_at\" is null and (\"t\".\"qty\" >= $5 and \"t\".\"qty\" <= $6) and \"t\".\"qty\" is not null group by 1","params":["10","19","5","5","10","19"],"result":{"command":"SELECT","rowCount":5,"columns":[["bucket",23],["n",25]],"rows":[
+        ["4","200"],
+        ["2","200"],
+        ["3","200"],
+        ["1","200"],
+        ["5","200"]
+      ]}},
+      {"sql":"select count(*)::text n from items where qty between 10 and 19 and deleted_at is null","result":{"command":"SELECT","rowCount":1,"columns":[["n",25]],"rows":[["1000"]]}},
+      {"sql":"select min(\"t\".\"qty\")::float8::text as \"lo\", max(\"t\".\"qty\")::float8::text as \"hi\" from \"items\" as \"t\" where \"t\".\"deleted_at\" is null and \"t\".\"qty\" > $1 and \"t\".\"qty\" is not null","params":["1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["lo",25],["hi",25]],"rows":[[null,null]]}},
+      {"sql":"select min(\"t\".\"qty\")::float8::text as \"lo\", max(\"t\".\"qty\")::float8::text as \"hi\" from \"items\" as \"t\" where \"t\".\"deleted_at\" is null and \"t\".\"qty\" = $1 and \"t\".\"qty\" is not null","params":["7"],"result":{"command":"SELECT","rowCount":1,"columns":[["lo",25],["hi",25]],"rows":[["7","7"]]}},
+      {"sql":"select count(*)::text as \"n\" from \"items\" as \"t\" where \"t\".\"deleted_at\" is null and \"t\".\"qty\" = $1 and \"t\".\"qty\" is not null","params":["7"],"result":{"command":"SELECT","rowCount":1,"columns":[["n",25]],"rows":[["100"]]}}
+    ]
+  },
+  "histogram > works on decimals and rejects non-numeric fields and bad bucket counts": {
+    "(hooks)#0": [
+      {"sql":"select min(\"t\".\"price\")::float8::text as \"lo\", max(\"t\".\"price\")::float8::text as \"hi\" from \"items\" as \"t\" where \"t\".\"deleted_at\" is null and \"t\".\"price\" is not null","result":{"command":"SELECT","rowCount":1,"columns":[["lo",25],["hi",25]],"rows":[["0.25","124.75"]]}},
+      {"sql":"select least(width_bucket(\"t\".\"price\"::float8, $1::float8, $2::float8, $3::int), $4::int) as \"bucket\", count(*)::text as \"n\" from \"items\" as \"t\" where \"t\".\"deleted_at\" is null and \"t\".\"price\" is not null group by 1","params":["0.25","124.75","4","4"],"result":{"command":"SELECT","rowCount":4,"columns":[["bucket",23],["n",25]],"rows":[
+        ["4","2460"],
+        ["2","2440"],
+        ["3","2440"],
+        ["1","2460"]
+      ]}}
+    ]
+  }
+}

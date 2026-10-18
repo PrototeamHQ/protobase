@@ -4,7 +4,6 @@ import path from 'node:path'
 import type { PGlite } from '@electric-sql/pglite'
 import type { TestProject } from 'vitest/node'
 import { buildEmptyPg, buildTrigramPg } from './pglite-snapshot'
-import { buildTestPg, testDbSnapshot } from './query'
 import { buildAuthPg } from './auth'
 import { buildFixturePg } from './server'
 import { buildJobsPg } from './jobs'
@@ -15,8 +14,6 @@ const builds: Record<string, () => Promise<PGlite>> = {
   server: buildFixturePg,
   auth: buildAuthPg,
   jobs: buildJobsPg,
-  [testDbSnapshot()]: () => buildTestPg(),
-  [testDbSnapshot({ trigram: true })]: () => buildTestPg({ trigram: true }),
 }
 
 // Builds each PGlite fixture once per run and dumps its data directory; test files start from the dump.

@@ -9,25 +9,29 @@ const sparse: ResourceModel = model('sparse', ['id'], [
   field('label', 'text', { nullable: true }),
 ])
 
+// 100 rows at 8 a page: about half as many pages as 4000 at 137, with runs of equal scores and labels cut by page boundaries,
+// and a recording that stays small.
+const rowCount = 100
+
 let ctx: Awaited<ReturnType<typeof createTestDb>>
 beforeAll(async () => {
-  ctx = await createTestDb()
+  ctx = await createTestDb({ seed: false })
   await ctx.pg.exec(`
     create table sparse (id integer primary key, score integer, label text);
     insert into sparse
     select i, case when i % 10 < 3 then null else (i * 37) % 50 end, case when i % 7 = 0 then null else 'l' || (i % 13) end
-    from generate_series(1, 4000) i;
+    from generate_series(1, ${rowCount}) i;
   `)
 })
 afterAll(async () => { await ctx.db.destroy() })
 
-const page = (query: Partial<ListQuery>) => listQuery(ctx.db, sparse, { limit: 137, ...query })
+const page = (query: Partial<ListQuery>) => listQuery(ctx.db, sparse, { limit: 8, ...query })
 
 const forward = async (sort: SortSpec) => {
   const seen: number[] = []
   let cursor: string | undefined
   do {
-    const result = await page({ sort, cursor })
+    const result = await page({ sort, cursor, columns: ['id'] })
     seen.push(...result.rows.map(row => Number(row.id)))
     cursor = result.nextCursor ?? undefined
   } while (cursor)
@@ -38,7 +42,7 @@ const backward = async (sort: SortSpec) => {
   const pages: number[][] = []
   let cursor: string | undefined
   do {
-    const result = await page({ sort, cursor, direction: 'before' })
+    const result = await page({ sort, cursor, direction: 'before', columns: ['id'] })
     pages.unshift(result.rows.map(row => Number(row.id)))
     cursor = result.prevCursor ?? undefined
   } while (cursor)
@@ -60,7 +64,7 @@ describe('keyset paging over nullable columns (30% NULL)', () => {
 
   it('has the expected share of NULLs', async () => {
     const { rows } = await ctx.pg.query<{ n: string }>('select count(*)::text n from sparse where score is null')
-    expect(Number(rows[0]!.n) / 4000).toBeGreaterThan(0.29)
+    expect(Number(rows[0]!.n) / rowCount).toBeGreaterThan(0.29)
   })
 
   it.each(sorts)('forward without gaps or duplicates: %s', async (_, sort, order) => {

@@ -19,8 +19,12 @@ const visible = 'org = 2 and level <= 3'
 let ctx: Awaited<ReturnType<typeof createTestDb>>
 beforeAll(async () => {
   ctx = await createTestDb({ seed: false })
+  // A statistics target whose sample (300 rows per unit) holds every row, and no autovacuum, so the statistics come out
+  // the same on every recording.
   await ctx.pg.exec(`
-    create table wide_docs (id integer primary key, val integer not null, label text not null, level integer not null, org integer not null);
+    create table wide_docs (id integer primary key, val integer not null, label text not null, level integer not null, org integer not null)
+      with (autovacuum_enabled = off);
+    alter table wide_docs alter column val set statistics 1000;
     insert into wide_docs select i, (i::bigint * 7919 % 1000003)::int, case when org = 2 then 'mine-' || i else 'SECRET-' || i end,
       (i / 7) % 5, org
     from (select i, case when i % 5 < 3 then 2 else 1 end as org from generate_series(1, 300000) i) s;

@@ -1,0 +1,99 @@
+{
+  "(hooks)": {
+    "(hooks)#0": [
+      {"sql":"create table contacts (id integer primary key, name text not null, phone text, mobile bigint)","result":{"command":"CREATE","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"insert into contacts values ($1, $2, $3, $4)","params":["1","Anouk de Vries","+31 6 47069623",null],"result":{"command":"INSERT","rowCount":1,"columns":[],"rows":[]}},
+      {"sql":"insert into contacts values ($1, $2, $3, $4)","params":["2","Bram 9623 Smit","+31-20-555-0101",null],"result":{"command":"INSERT","rowCount":1,"columns":[],"rows":[]}},
+      {"sql":"insert into contacts values ($1, $2, $3, $4)","params":["3","Chris Jansen",null,"31647069623"],"result":{"command":"INSERT","rowCount":1,"columns":[],"rows":[]}},
+      {"sql":"insert into contacts values ($1, $2, $3, $4)","params":["4","Dewi Bakker","(020) 555 9623",null],"result":{"command":"INSERT","rowCount":1,"columns":[],"rows":[]}}
+    ]
+  },
+  "search on digitsEnd fields > the last digits": {
+    "(hooks)#0": [
+      {"sql":"select \"id\" from \"contacts\" as \"t\" where (((\"t\".\"name\"::text is not null and \"t\".\"name\"::text ilike $1) or (\"t\".\"phone\"::text is not null and regexp_replace(\"t\".\"phone\"::text, '[^0-9]', '', 'g') like $2) or (\"t\".\"mobile\"::text is not null and regexp_replace(\"t\".\"mobile\"::text, '[^0-9]', '', 'g') like $3))) order by \"id\"","params":["%9623%","%9623","%9623"],"result":{"command":"SELECT","rowCount":4,"columns":[["id",23]],"rows":[
+        ["1"],
+        ["2"],
+        ["3"],
+        ["4"]
+      ]}}
+    ]
+  },
+  "search on digitsEnd fields > a longer end": {
+    "(hooks)#0": [
+      {"sql":"select \"id\" from \"contacts\" as \"t\" where (((\"t\".\"name\"::text is not null and \"t\".\"name\"::text ilike $1) or (\"t\".\"phone\"::text is not null and regexp_replace(\"t\".\"phone\"::text, '[^0-9]', '', 'g') like $2) or (\"t\".\"mobile\"::text is not null and regexp_replace(\"t\".\"mobile\"::text, '[^0-9]', '', 'g') like $3))) order by \"id\"","params":["%47069623%","%47069623","%47069623"],"result":{"command":"SELECT","rowCount":2,"columns":[["id",23]],"rows":[
+        ["1"],
+        ["3"]
+      ]}}
+    ]
+  },
+  "search on digitsEnd fields > the end written with spaces": {
+    "(hooks)#0": [
+      {"sql":"select \"id\" from \"contacts\" as \"t\" where (((\"t\".\"phone\"::text is not null and regexp_replace(\"t\".\"phone\"::text, '[^0-9]', '', 'g') like $1) or (\"t\".\"mobile\"::text is not null and regexp_replace(\"t\".\"mobile\"::text, '[^0-9]', '', 'g') like $2)) or (((\"t\".\"name\"::text is not null and \"t\".\"name\"::text ilike $3) or (\"t\".\"phone\"::text is not null and regexp_replace(\"t\".\"phone\"::text, '[^0-9]', '', 'g') like $4) or (\"t\".\"mobile\"::text is not null and regexp_replace(\"t\".\"mobile\"::text, '[^0-9]', '', 'g') like $5)) and ((\"t\".\"name\"::text is not null and \"t\".\"name\"::text ilike $6) or (\"t\".\"phone\"::text is not null and regexp_replace(\"t\".\"phone\"::text, '[^0-9]', '', 'g') like $7) or (\"t\".\"mobile\"::text is not null and regexp_replace(\"t\".\"mobile\"::text, '[^0-9]', '', 'g') like $8)) and ((\"t\".\"name\"::text is not null and \"t\".\"name\"::text ilike $9) or (\"t\".\"phone\"::text is not null and regexp_replace(\"t\".\"phone\"::text, '[^0-9]', '', 'g') like $10) or (\"t\".\"mobile\"::text is not null and regexp_replace(\"t\".\"mobile\"::text, '[^0-9]', '', 'g') like $11)))) order by \"id\"","params":["%31647069623","%31647069623","%+31%","%31","%31","%6%","%6","%6","%47069623%","%47069623","%47069623"],"result":{"command":"SELECT","rowCount":2,"columns":[["id",23]],"rows":[
+        ["1"],
+        ["3"]
+      ]}}
+    ]
+  },
+  "search on digitsEnd fields > the end written with dashes": {
+    "(hooks)#0": [
+      {"sql":"select \"id\" from \"contacts\" as \"t\" where (((\"t\".\"name\"::text is not null and \"t\".\"name\"::text ilike $1) or (\"t\".\"phone\"::text is not null and regexp_replace(\"t\".\"phone\"::text, '[^0-9]', '', 'g') like $2) or (\"t\".\"mobile\"::text is not null and regexp_replace(\"t\".\"mobile\"::text, '[^0-9]', '', 'g') like $3))) order by \"id\"","params":["%555-0101%","%5550101","%5550101"],"result":{"command":"SELECT","rowCount":1,"columns":[["id",23]],"rows":[["2"]]}}
+    ]
+  },
+  "search on digitsEnd fields > a non-text column": {
+    "(hooks)#0": [
+      {"sql":"select \"id\" from \"contacts\" as \"t\" where (((\"t\".\"name\"::text is not null and \"t\".\"name\"::text ilike $1) or (\"t\".\"phone\"::text is not null and regexp_replace(\"t\".\"phone\"::text, '[^0-9]', '', 'g') like $2) or (\"t\".\"mobile\"::text is not null and regexp_replace(\"t\".\"mobile\"::text, '[^0-9]', '', 'g') like $3))) order by \"id\"","params":["%31647069623%","%31647069623","%31647069623"],"result":{"command":"SELECT","rowCount":2,"columns":[["id",23]],"rows":[
+        ["1"],
+        ["3"]
+      ]}}
+    ]
+  },
+  "search on digitsEnd fields > not the start": {
+    "(hooks)#0": [
+      {"sql":"select \"id\" from \"contacts\" as \"t\" where (((\"t\".\"name\"::text is not null and \"t\".\"name\"::text ilike $1) or (\"t\".\"phone\"::text is not null and regexp_replace(\"t\".\"phone\"::text, '[^0-9]', '', 'g') like $2) or (\"t\".\"mobile\"::text is not null and regexp_replace(\"t\".\"mobile\"::text, '[^0-9]', '', 'g') like $3))) order by \"id\"","params":["%+316%","%316","%316"],"result":{"command":"SELECT","rowCount":0,"columns":[["id",23]],"rows":[]}}
+    ]
+  },
+  "search on digitsEnd fields > not the middle": {
+    "(hooks)#0": [
+      {"sql":"select \"id\" from \"contacts\" as \"t\" where (((\"t\".\"name\"::text is not null and \"t\".\"name\"::text ilike $1) or (\"t\".\"phone\"::text is not null and regexp_replace(\"t\".\"phone\"::text, '[^0-9]', '', 'g') like $2) or (\"t\".\"mobile\"::text is not null and regexp_replace(\"t\".\"mobile\"::text, '[^0-9]', '', 'g') like $3))) order by \"id\"","params":["%4706%","%4706","%4706"],"result":{"command":"SELECT","rowCount":0,"columns":[["id",23]],"rows":[]}}
+    ]
+  },
+  "search on digitsEnd fields > not a middle fragment with spaces": {
+    "(hooks)#0": [
+      {"sql":"select \"id\" from \"contacts\" as \"t\" where (((\"t\".\"phone\"::text is not null and regexp_replace(\"t\".\"phone\"::text, '[^0-9]', '', 'g') like $1) or (\"t\".\"mobile\"::text is not null and regexp_replace(\"t\".\"mobile\"::text, '[^0-9]', '', 'g') like $2)) or (((\"t\".\"name\"::text is not null and \"t\".\"name\"::text ilike $3) or (\"t\".\"phone\"::text is not null and regexp_replace(\"t\".\"phone\"::text, '[^0-9]', '', 'g') like $4) or (\"t\".\"mobile\"::text is not null and regexp_replace(\"t\".\"mobile\"::text, '[^0-9]', '', 'g') like $5)) and ((\"t\".\"name\"::text is not null and \"t\".\"name\"::text ilike $6) or (\"t\".\"phone\"::text is not null and regexp_replace(\"t\".\"phone\"::text, '[^0-9]', '', 'g') like $7) or (\"t\".\"mobile\"::text is not null and regexp_replace(\"t\".\"mobile\"::text, '[^0-9]', '', 'g') like $8)))) order by \"id\"","params":["%64706","%64706","%6%","%6","%6","%4706%","%4706","%4706"],"result":{"command":"SELECT","rowCount":0,"columns":[["id",23]],"rows":[]}}
+    ]
+  },
+  "search on digitsEnd fields > words still match plain fields": {
+    "(hooks)#0": [
+      {"sql":"select \"id\" from \"contacts\" as \"t\" where (((\"t\".\"name\"::text is not null and \"t\".\"name\"::text ilike $1))) order by \"id\"","params":["%anouk%"],"result":{"command":"SELECT","rowCount":1,"columns":[["id",23]],"rows":[["1"]]}}
+    ]
+  },
+  "search on digitsEnd fields > a word and a phone end together": {
+    "(hooks)#0": [
+      {"sql":"select \"id\" from \"contacts\" as \"t\" where (((\"t\".\"name\"::text is not null and \"t\".\"name\"::text ilike $1)) and ((\"t\".\"name\"::text is not null and \"t\".\"name\"::text ilike $2) or (\"t\".\"phone\"::text is not null and regexp_replace(\"t\".\"phone\"::text, '[^0-9]', '', 'g') like $3) or (\"t\".\"mobile\"::text is not null and regexp_replace(\"t\".\"mobile\"::text, '[^0-9]', '', 'g') like $4))) order by \"id\"","params":["%anouk%","%9623%","%9623","%9623"],"result":{"command":"SELECT","rowCount":1,"columns":[["id",23]],"rows":[["1"]]}}
+    ]
+  },
+  "search on digitsEnd fields > a phone end and a wrong name": {
+    "(hooks)#0": [
+      {"sql":"select \"id\" from \"contacts\" as \"t\" where (((\"t\".\"name\"::text is not null and \"t\".\"name\"::text ilike $1)) and ((\"t\".\"name\"::text is not null and \"t\".\"name\"::text ilike $2) or (\"t\".\"phone\"::text is not null and regexp_replace(\"t\".\"phone\"::text, '[^0-9]', '', 'g') like $3) or (\"t\".\"mobile\"::text is not null and regexp_replace(\"t\".\"mobile\"::text, '[^0-9]', '', 'g') like $4))) order by \"id\"","params":["%bakker%","%47069623%","%47069623","%47069623"],"result":{"command":"SELECT","rowCount":0,"columns":[["id",23]],"rows":[]}}
+    ]
+  },
+  "search on digitsEnd fields > letters never match digits": {
+    "(hooks)#0": [
+      {"sql":"select \"id\" from \"contacts\" as \"t\" where (((\"t\".\"name\"::text is not null and \"t\".\"name\"::text ilike $1))) order by \"id\"","params":["%a9623%"],"result":{"command":"SELECT","rowCount":0,"columns":[["id",23]],"rows":[]}}
+    ]
+  },
+  "search on digitsEnd fields > bare words": {
+    "(hooks)#0": [
+      {"sql":"select \"id\" from \"contacts\" as \"t\" where ((((\"t\".\"name\"::text is not null and \"t\".\"name\"::text ilike $1) or (\"t\".\"phone\"::text is not null and regexp_replace(\"t\".\"phone\"::text, '[^0-9]', '', 'g') like $2) or (\"t\".\"mobile\"::text is not null and regexp_replace(\"t\".\"mobile\"::text, '[^0-9]', '', 'g') like $3))) and (((\"t\".\"name\"::text is not null and \"t\".\"name\"::text ilike $4)))) order by \"id\"","params":["%9623%","%9623","%9623","%dewi%"],"result":{"command":"SELECT","rowCount":1,"columns":[["id",23]],"rows":[["4"]]}}
+    ]
+  },
+  "search on digitsEnd fields > NOT search keeps null phones": {
+    "(hooks)#0": [
+      {"sql":"select \"id\" from \"contacts\" as \"t\" where not (((\"t\".\"name\"::text is not null and \"t\".\"name\"::text ilike $1) or (\"t\".\"phone\"::text is not null and regexp_replace(\"t\".\"phone\"::text, '[^0-9]', '', 'g') like $2) or (\"t\".\"mobile\"::text is not null and regexp_replace(\"t\".\"mobile\"::text, '[^0-9]', '', 'g') like $3))) order by \"id\"","params":["%0101%","%0101","%0101"],"result":{"command":"SELECT","rowCount":3,"columns":[["id",23]],"rows":[
+        ["1"],
+        ["3"],
+        ["4"]
+      ]}}
+    ]
+  }
+}

@@ -9,10 +9,11 @@ afterAll(async () => { await ctx.db.destroy() })
 
 const page = (model: ResourceModel, query: Partial<ListQuery>, options?: ListOptions) => listQuery(ctx.db, model, { limit: 500, ...query }, undefined, options)
 
-// The walks cover 2k rows at 100 a page: as many pages as 10k rows at 500, with ties cut by page boundaries the same
-// way, at a fifth of the rows. Each condition reads the same in AIP-160 and SQL.
-const walkLimit = 100
-const walked = { items: 'id <= 2000', orderLines: 'order_id <= 400', bigItems: 'id <= 5000002000', uuidItems: 'grp < 8' }
+// The walks cover 40-60 rows at 7 a page, chosen so the first sort key repeats about 20 times and pages end inside runs
+// of equal values, as they do over 10k rows at 500; they read only the key, so the recording stays small. Each condition
+// reads the same in AIP-160 and SQL.
+const walkLimit = 7
+const walked = { items: 'qty < 3 AND id <= 2000', orderLines: 'order_id <= 10', bigItems: 'grp < 2 AND id <= 5000001000', uuidItems: "grp < 1 AND label < 'label 2'" }
 
 /** Pages through the rows matching `where`, returning the key of every row in the order received. */
 const walkForward = async (model: ResourceModel, where: string, sort: SortSpec | undefined, keyOf: (row: Record<string, unknown>) => string, limit = walkLimit) => {
@@ -21,7 +22,7 @@ const walkForward = async (model: ResourceModel, where: string, sort: SortSpec |
   let cursor: string | undefined
   let guard = 0
   do {
-    const result = await page(model, { filter, sort, cursor, limit })
+    const result = await page(model, { filter, sort, cursor, limit, columns: model.primaryKey })
     seen.push(...result.rows.map(keyOf))
     cursor = result.nextCursor ?? undefined
   } while (cursor && ++guard < 1000)
@@ -34,7 +35,7 @@ const walkBackward = async (model: ResourceModel, where: string, sort: SortSpec 
   let cursor: string | undefined
   let guard = 0
   do {
-    const result = await page(model, { filter, sort, cursor, direction: 'before', limit })
+    const result = await page(model, { filter, sort, cursor, direction: 'before', limit, columns: model.primaryKey })
     pages.unshift(result.rows.map(keyOf))
     cursor = result.prevCursor ?? undefined
   } while (cursor && ++guard < 1000)
@@ -86,15 +87,15 @@ describe('keyset paging', () => {
   })
 
   it('applies filters while paging', async () => {
-    const filter = check(items, 'in(category, "red")')
+    const filter = check(items, 'in(category, "red") AND id <= 450')
     const seen: string[] = []
     let cursor: string | undefined
     do {
-      const result = await page(items, { filter, cursor, sort: [['qty', 'desc']], limit: 300 })
+      const result = await page(items, { filter, cursor, sort: [['qty', 'desc']], limit: 30, columns: ['id'] })
       seen.push(...result.rows.map(id))
       cursor = result.nextCursor ?? undefined
     } while (cursor)
-    expect(seen).toEqual(await expected('id', `items where deleted_at is null and category = 'red'`, 'qty desc, id desc'))
+    expect(seen).toEqual(await expected('id', `items where deleted_at is null and category = 'red' and id <= 450`, 'qty desc, id desc'))
   })
 })
 
@@ -106,7 +107,7 @@ describe('key types', () => {
     const from = `order_lines where ${walked.orderLines}`
     expect(await walkForward(orderLines, walked.orderLines, sort, key)).toEqual(await expected(`order_id || '/' || line_no`, from, order))
     expect(await walkBackward(orderLines, walked.orderLines, sort, key)).toEqual(await expected(`order_id || '/' || line_no`, from, order))
-    expect(await walkForward(orderLines, walked.orderLines, undefined, key, 67)).toEqual(await expected(`order_id || '/' || line_no`, from, 'order_id, line_no'))
+    expect(await walkForward(orderLines, walked.orderLines, undefined, key, 5)).toEqual(await expected(`order_id || '/' || line_no`, from, 'order_id, line_no'))
   })
 
   it('composite key with mixed sort', async () => {
@@ -135,7 +136,7 @@ describe('key types', () => {
   it('text with commas survives the cursor', async () => {
     const sort: SortSpec = [['note', 'asc']]
     const key = (row: Record<string, unknown>) => `${row.order_id}/${row.line_no}`
-    expect(await walkForward(orderLines, walked.orderLines, sort, key, 50)).toEqual(
+    expect(await walkForward(orderLines, walked.orderLines, sort, key, 3)).toEqual(
       await expected(`order_id || '/' || line_no`, `order_lines where ${walked.orderLines}`, 'note asc, order_id asc, line_no asc'),
     )
   })
@@ -149,13 +150,13 @@ describe('columns and limits', () => {
 
   it('excludes soft-deleted rows', async () => {
     const seen = await walkForward(items, walked.items, undefined, id)
-    // Every 50th row is soft-deleted
-    expect(seen).toHaveLength(1960)
-    expect(seen).not.toContain('50')
+    // Every 50th row is soft-deleted: here the 20 with qty 0, of 60
+    expect(seen).toHaveLength(40)
+    expect(seen).not.toContain('100')
   })
 
   it('caps limit at 500', async () => {
-    expect((await page(items, { limit: 10_000 })).rows).toHaveLength(500)
+    expect((await page(items, { limit: 10_000, columns: ['id'] })).rows).toHaveLength(500)
   })
 
   it('rejects invalid limits, columns, sorts and cursors', async () => {
