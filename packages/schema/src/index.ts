@@ -43,6 +43,8 @@ export type {
   LayoutItemModel,
   SectionPresentation,
   RelatedModel,
+  GroupModel,
+  GroupItemModel,
   CustomSectionModel,
   MapSectionModel,
   GalleryModel,

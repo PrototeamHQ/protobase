@@ -19,3 +19,4 @@ export { applyAssistantEvent, emptyAssistantState } from './assistant/apply-even
 export { readEventStream } from './assistant/event-stream'
 export { actionInputErrors, shownInputs } from './action-inputs'
 export { chartFields, isGroupChart } from './view-chart'
+export { layoutItems } from './layout-items'

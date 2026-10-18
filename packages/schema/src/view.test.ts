@@ -385,6 +385,18 @@ describe('view builder', () => {
     ])
   })
 
+  it('puts sections and related tables in a group, refuses other items, and refuses two groups with one title', () => {
+    const home = resource('home').table('homes').fields({ id: f.integer(), title: f.text() }).primaryKey((r) => r.id)
+    const related = { resource: 'notes', field: 'home_id' }
+    const model = view<typeof home>('home').layout((r) => [l.group('More', [l.section('Details', [r.title]), l.related('Notes', related)], { collapsed: true })]).toModel(home.toModel())
+    expect(model.layout).toEqual([
+      { kind: 'group', title: 'More', collapsed: true, items: [{ kind: 'section', title: 'Details', fields: ['title'] }, { kind: 'related', title: 'Notes', ...related }] },
+    ])
+    expect(() => l.group('More', [l.sidebar([])])).toThrow('l.group "More" holds sections and related tables, not sidebar')
+    const twice = view<typeof home>('home').layout(() => [l.group('More', []), l.group('More', [])])
+    expect(() => twice.toModel(home.toModel())).toThrow('View "home": two groups are titled "More"')
+  })
+
   it('puts a gallery of the record and its photo records in the record layout, and refuses one without photos', () => {
     const home = resource('home').table('homes').fields({ id: f.integer(), title: f.text(), cover: f.file().accept(['image/*']) }).primaryKey((r) => r.id)
     const photos = { resource: 'home_photos', field: 'home_id', image: 'photo', sort: 'position' }

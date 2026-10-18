@@ -1,5 +1,5 @@
 import { markFieldRefs } from './field-ref'
-import type { CardPhotosModel, CommentsSectionModel, HelpWhen, HistorySectionModel, JsonValue, LayoutItemModel, RecordWhen, RelatedModel, SectionPresentation, ShowWhen } from './model'
+import type { CardPhotosModel, CommentsSectionModel, GroupItemModel, HelpWhen, HistorySectionModel, JsonValue, LayoutItemModel, RecordWhen, RelatedModel, SectionPresentation, ShowWhen } from './model'
 import type { Ref } from './refs'
 import { customComponent, type ComponentRef, type ViewProps } from './view-displays'
 
@@ -61,6 +61,22 @@ export const layout = {
     fields: fields.map((ref) => ref.name),
     ...(o.when !== undefined && { when: o.when }),
   }),
+  /**
+   * A heading over sections and related tables in the main column; `collapsed: true` keeps it closed until the person
+   * opens it, or a link to the record does (the address names the open groups by title). Throws on any other item. See
+   * [Groups](website/src/content/docs/reference/ui-config.mdx#groups).
+   */
+  group: (title: string, items: LayoutItemModel[], o: { collapsed?: boolean; when?: ShowWhen } = {}): LayoutItemModel => {
+    const wrong = items.find((item) => item.kind !== 'section' && item.kind !== 'related')
+    if (wrong) throw new Error(`l.group "${title}" holds sections and related tables, not ${wrong.kind}`)
+    return {
+      kind: 'group',
+      title,
+      items: items as GroupItemModel[],
+      ...(o.collapsed && { collapsed: true }),
+      ...(o.when !== undefined && { when: o.when }),
+    }
+  },
   /** A table of the records of another resource that point at this one, directly or through a join table. */
   related: (title: string, o: Omit<RelatedModel, 'kind' | 'title'>): LayoutItemModel => ({ kind: 'related', title, ...structuredClone(o) }),
   /**

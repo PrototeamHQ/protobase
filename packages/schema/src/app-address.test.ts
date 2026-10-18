@@ -66,6 +66,21 @@ describe('readAppPath', () => {
     for (const address of addresses) expect(readAppPath(appPath(address), pages)).toEqual(address)
   })
 
+  it('round trips the open groups by title, with and without the form', () => {
+    for (const open of [['More'], ['Fine print', 'A & B, C']]) {
+      for (const edit of [false, true]) {
+        const address: AppAddress = { kind: 'record', resource: 'listings', key: '42', ...(edit && { edit }), open }
+        expect(readAppPath(appPath(address), pages)).toEqual(address)
+      }
+    }
+    expect(appPath({ kind: 'record', resource: 'listings', key: 42, edit: true, open: ['More'] })).toBe('/listings/42?edit=true&open=More')
+    expect(appPath({ kind: 'record', resource: 'listings', key: 42, open: [] })).toBe('/listings/42')
+  })
+
+  it('ignores empty and repeated open groups', () => {
+    expect(readAppPath('/listings/42?open=&open=More&open=More', pages)).toEqual({ kind: 'record', resource: 'listings', key: '42', open: ['More'] })
+  })
+
   it('reads only edit=true as the form', () => {
     expect(readAppPath('/listings/42?edit=1', pages)).toEqual({ kind: 'record', resource: 'listings', key: '42' })
     expect(readAppPath('/listings/42?edit=false', pages)).toEqual({ kind: 'record', resource: 'listings', key: '42' })

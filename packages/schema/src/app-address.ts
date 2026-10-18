@@ -24,6 +24,8 @@ export const addressWords = {
   create: 'new',
   /** A record's form, `edit=true`, on a view whose record page opens as a read view or locked. */
   edit: 'edit',
+  /** A record page's open collapsed group, by title, once per group. */
+  open: 'open',
 } as const
 
 const listWords = ['display', 'filter', 'orderBy', 'filterLayout', 'savedSearch'] as const
@@ -72,6 +74,14 @@ const listQuery = (address: Extract<AppAddress, { kind: 'list' }>) => {
   return text ? `?${text}` : ''
 }
 
+const recordQuery = (address: Extract<AppAddress, { kind: 'record' }>) => {
+  const query = new URLSearchParams()
+  if (address.edit) query.set(addressWords.edit, 'true')
+  for (const title of address.open ?? []) query.append(addressWords.open, title)
+  const text = query.toString()
+  return text ? `?${text}` : ''
+}
+
 /** The path of `address` below `basePath` (such as `/admin`), every name and key encoded the one way the app reads them. */
 export const appPath = (address: AppAddress, basePath = ''): string => {
   switch (address.kind) {
@@ -80,7 +90,7 @@ export const appPath = (address: AppAddress, basePath = ''): string => {
     case 'create':
       return `${basePath}/${encodeURIComponent(address.resource)}/${addressWords.create}${valuesQuery(address.values)}`
     case 'record':
-      return `${basePath}/${encodeURIComponent(address.resource)}/${encodeURIComponent(encodeKey(address.key))}${address.edit ? `?${addressWords.edit}=true` : ''}`
+      return `${basePath}/${encodeURIComponent(address.resource)}/${encodeURIComponent(encodeKey(address.key))}${recordQuery(address)}`
     case 'list':
       return `${basePath}/${encodeURIComponent(address.resource)}${listQuery(address)}`
   }
@@ -118,7 +128,10 @@ export const readAppPath = (pathAndQuery: string, pages: ReadonlySet<string>): A
     const values = Object.fromEntries([...url.searchParams].filter(([, value]) => value !== ''))
     return { kind: 'create', resource: first, ...(Object.keys(values).length > 0 && { values }) }
   }
-  if (second !== undefined) return { kind: 'record', resource: first, key: second, ...(url.searchParams.get(addressWords.edit) === 'true' && { edit: true }) }
+  if (second !== undefined) {
+    const open = [...new Set(url.searchParams.getAll(addressWords.open).filter((title) => title !== ''))]
+    return { kind: 'record', resource: first, key: second, ...(url.searchParams.get(addressWords.edit) === 'true' && { edit: true }), ...(open.length > 0 && { open }) }
+  }
   const params = url.searchParams
   const display = params.get(addressWords.display) || undefined
   const filter = params.get(addressWords.filter) || undefined

@@ -236,6 +236,8 @@ export type AppAddress =
        * Edit opens. A view whose record page is always editable ignores it.
        */
       edit?: boolean
+      /** The titles of the record page's collapsed groups that are open. */
+      open?: readonly string[]
     }
   | {
       /** The form for a new record. */
@@ -799,11 +801,29 @@ export type LayoutItemModel =
       when?: RecordWhen
     }
   | RelatedModel
+  | GroupModel
   | CustomSectionModel
   | MapSectionModel
   | GalleryModel
   | HistorySectionModel
   | CommentsSectionModel
+
+/** A titled group of sections and related tables on the record page, closed until opened with `collapsed`; see [Groups](website/src/content/docs/reference/ui-config.mdx#groups). */
+export type GroupModel = {
+  /** A group of sections and related tables. */
+  kind: 'group'
+  /** Its heading, unique among the view's groups: the address names an open group by it. */
+  title: string
+  /** The sections and related tables it holds, in order. */
+  items: GroupItemModel[]
+  /** Closed until the person opens it, or a link does. */
+  collapsed?: boolean
+  /** Whether it shows on the form, the read view or both. */
+  when?: ShowWhen
+}
+
+/** An item a group may hold. */
+export type GroupItemModel = Extract<LayoutItemModel, { kind: 'section' }> | RelatedModel
 
 /**
  * A record's photos as tiles in the main column under `title`, one large and the next few smaller, opening a lightbox

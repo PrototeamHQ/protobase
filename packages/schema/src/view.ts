@@ -348,6 +348,12 @@ export class ViewBuilder<R extends {
     }
     const clash = resource ? list?.relatedColumns?.find((column) => Object.hasOwn(resource.fields, column.name)) : undefined
     if (clash) throw new Error(`View "${this.state.resource}": related column "${clash.name}" has the name of a field of the resource`)
+    const groupTitles = new Set<string>()
+    for (const item of this.state.layout) {
+      if (item.kind !== 'group') continue
+      if (groupTitles.has(item.title)) throw new Error(`View "${this.state.resource}": two groups are titled "${item.title}"`)
+      groupTitles.add(item.title)
+    }
     for (const item of resource ? this.state.layout : []) {
       if (item.kind !== 'gallery' || item.image === undefined) continue
       if (!Object.hasOwn(resource!.fields, item.image)) throw new Error(`View "${this.state.resource}": gallery "${item.title}" names field "${item.image}", which the resource does not have`)
