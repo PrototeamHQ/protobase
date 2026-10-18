@@ -54,7 +54,7 @@
   },
   "jobs from SQL > enqueues in the caller's transaction with the queue's retry settings": {
     "jobs from SQL > enqueues in the caller's transaction with the queue's retry settings#0": [
-      {"sql":"SELECT version()","result":{"command":"SELECT","rowCount":1,"columns":[["version",25]],"rows":[["PostgreSQL 18.6 (Debian 18.6-1.pgdg13+2) on aarch64-unknown-linux-gnu, compiled by gcc (Debian 14.2.0-19) 14.2.0, 64-bit"]]}},
+      {"sql":"SELECT version()","result":{"command":"SELECT","rowCount":1,"columns":[["version",25]],"rows":[["PostgreSQL 18.6 (Debian 18.6-1.pgdg13+2) on x86_64-pc-linux-gnu, compiled by gcc (Debian 14.2.0-19) 14.2.0, 64-bit"]]}},
       {"sql":"SELECT to_regclass('jobs.version') as name","result":{"command":"SELECT","rowCount":1,"columns":[["name",2205]],"rows":[["jobs.version"]]}},
       {"sql":"SELECT version from jobs.version","result":{"command":"SELECT","rowCount":1,"columns":[["version",23]],"rows":[["45"]]}},
       {"sql":"SELECT current_database() AS name","result":{"command":"SELECT","rowCount":1,"columns":[["name",19]],"rows":[["{{database:1}}"]]}},
@@ -77,7 +77,7 @@
   "jobs from SQL > creates the queue of a job no worker started yet, and checks the group of an ordered one": {
     "jobs from SQL > creates the queue of a job no worker started yet, and checks the group of an ordered one#0": [
       {"sql":"select jobs.enqueue('not-started', run_at => $1) as id","params":["2026-08-01T00:01:00.000+00:00"],"result":{"command":"SELECT","rowCount":1,"columns":[["id",2950]],"rows":[["{{uuid:2:4}}"]]}},
-      {"sql":"SELECT version()","result":{"command":"SELECT","rowCount":1,"columns":[["version",25]],"rows":[["PostgreSQL 18.6 (Debian 18.6-1.pgdg13+2) on aarch64-unknown-linux-gnu, compiled by gcc (Debian 14.2.0-19) 14.2.0, 64-bit"]]}},
+      {"sql":"SELECT version()","result":{"command":"SELECT","rowCount":1,"columns":[["version",25]],"rows":[["PostgreSQL 18.6 (Debian 18.6-1.pgdg13+2) on x86_64-pc-linux-gnu, compiled by gcc (Debian 14.2.0-19) 14.2.0, 64-bit"]]}},
       {"sql":"SELECT to_regclass('jobs.version') as name","result":{"command":"SELECT","rowCount":1,"columns":[["name",2205]],"rows":[["jobs.version"]]}},
       {"sql":"SELECT version from jobs.version","result":{"command":"SELECT","rowCount":1,"columns":[["version",23]],"rows":[["45"]]}},
       {"sql":"SELECT current_database() AS name","result":{"command":"SELECT","rowCount":1,"columns":[["name",19]],"rows":[["{{database:2}}"]]}},
