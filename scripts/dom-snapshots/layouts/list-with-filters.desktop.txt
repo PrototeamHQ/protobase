@@ -166,7 +166,8 @@ div | block
                       div .sticky left-0 z-10 flex h-full items-center gap-2 bg-inherit pl-3 cursor-default | flex row nowrap center normal sticky
                         button role=checkbox .relative inline-flex size-4 shrink-0 items-center justify-center rounded border transition-colors after:absolute after:-inset-1 after:content-[""] pointer-coarse:after:-inset-3.5 border-border-strong bg-background hover:border-faint-foreground | flex row nowrap center center relative
                       div role=cell .flex h-full min-w-0 items-center overflow-hidden whitespace-nowrap px-3 sticky z-10 bg-inherit | flex row nowrap center normal sticky
-                        span .truncate font-mono text-xs text-muted-foreground | block
+                        a .flex min-w-0 items-center hover:underline | flex row nowrap center normal
+                          span .truncate font-mono text-xs text-muted-foreground | block
                       div role=cell .flex h-full min-w-0 items-center overflow-hidden whitespace-nowrap px-3 | flex row nowrap center normal
                         span .truncate font-medium text-primary-text hover:underline | block
                       div role=cell .flex h-full min-w-0 items-center overflow-hidden whitespace-nowrap px-3 | flex row nowrap center normal
@@ -188,7 +189,8 @@ div | block
                       div .sticky left-0 z-10 flex h-full items-center gap-2 bg-inherit pl-3 cursor-default | flex row nowrap center normal sticky
                         button role=checkbox .relative inline-flex size-4 shrink-0 items-center justify-center rounded border transition-colors after:absolute after:-inset-1 after:content-[""] pointer-coarse:after:-inset-3.5 border-border-strong bg-background hover:border-faint-foreground | flex row nowrap center center relative
                       div role=cell .flex h-full min-w-0 items-center overflow-hidden whitespace-nowrap px-3 sticky z-10 bg-inherit | flex row nowrap center normal sticky
-                        span .truncate font-mono text-xs text-muted-foreground | block
+                        a .flex min-w-0 items-center hover:underline | flex row nowrap center normal
+                          span .truncate font-mono text-xs text-muted-foreground | block
                       div role=cell .flex h-full min-w-0 items-center overflow-hidden whitespace-nowrap px-3 | flex row nowrap center normal
                         span .truncate font-medium text-primary-text hover:underline | block
                       div role=cell .flex h-full min-w-0 items-center overflow-hidden whitespace-nowrap px-3 | flex row nowrap center normal
@@ -210,7 +212,8 @@ div | block
                       div .sticky left-0 z-10 flex h-full items-center gap-2 bg-inherit pl-3 cursor-default | flex row nowrap center normal sticky
                         button role=checkbox .relative inline-flex size-4 shrink-0 items-center justify-center rounded border transition-colors after:absolute after:-inset-1 after:content-[""] pointer-coarse:after:-inset-3.5 border-border-strong bg-background hover:border-faint-foreground | flex row nowrap center center relative
                       div role=cell .flex h-full min-w-0 items-center overflow-hidden whitespace-nowrap px-3 sticky z-10 bg-inherit | flex row nowrap center normal sticky
-                        span .truncate font-mono text-xs text-muted-foreground | block
+                        a .flex min-w-0 items-center hover:underline | flex row nowrap center normal
+                          span .truncate font-mono text-xs text-muted-foreground | block
                       div role=cell .flex h-full min-w-0 items-center overflow-hidden whitespace-nowrap px-3 | flex row nowrap center normal
                         span .truncate font-medium text-primary-text hover:underline | block
                       div role=cell .flex h-full min-w-0 items-center overflow-hidden whitespace-nowrap px-3 | flex row nowrap center normal
@@ -232,7 +235,8 @@ div | block
                       div .sticky left-0 z-10 flex h-full items-center gap-2 bg-inherit pl-3 cursor-default | flex row nowrap center normal sticky
                         button role=checkbox .relative inline-flex size-4 shrink-0 items-center justify-center rounded border transition-colors after:absolute after:-inset-1 after:content-[""] pointer-coarse:after:-inset-3.5 border-border-strong bg-background hover:border-faint-foreground | flex row nowrap center center relative
                       div role=cell .flex h-full min-w-0 items-center overflow-hidden whitespace-nowrap px-3 sticky z-10 bg-inherit | flex row nowrap center normal sticky
-                        span .truncate font-mono text-xs text-muted-foreground | block
+                        a .flex min-w-0 items-center hover:underline | flex row nowrap center normal
+                          span .truncate font-mono text-xs text-muted-foreground | block
                       div role=cell .flex h-full min-w-0 items-center overflow-hidden whitespace-nowrap px-3 | flex row nowrap center normal
                         span .truncate font-medium text-primary-text hover:underline | block
                       div role=cell .flex h-full min-w-0 items-center overflow-hidden whitespace-nowrap px-3 | flex row nowrap center normal
@@ -254,7 +258,8 @@ div | block
                       div .sticky left-0 z-10 flex h-full items-center gap-2 bg-inherit pl-3 cursor-default | flex row nowrap center normal sticky
                         button role=checkbox .relative inline-flex size-4 shrink-0 items-center justify-center rounded border transition-colors after:absolute after:-inset-1 after:content-[""] pointer-coarse:after:-inset-3.5 border-border-strong bg-background hover:border-faint-foreground | flex row nowrap center center relative
                       div role=cell .flex h-full min-w-0 items-center overflow-hidden whitespace-nowrap px-3 sticky z-10 bg-inherit | flex row nowrap center normal sticky
-                        span .truncate font-mono text-xs text-muted-foreground | block
+                        a .flex min-w-0 items-center hover:underline | flex row nowrap center normal
+                          span .truncate font-mono text-xs text-muted-foreground | block
                       div role=cell .flex h-full min-w-0 items-center overflow-hidden whitespace-nowrap px-3 | flex row nowrap center normal
                         span .truncate font-medium text-primary-text hover:underline | block
                       div role=cell .flex h-full min-w-0 items-center overflow-hidden whitespace-nowrap px-3 | flex row nowrap center normal
@@ -276,7 +281,8 @@ div | block
                       div .sticky left-0 z-10 flex h-full items-center gap-2 bg-inherit pl-3 cursor-default | flex row nowrap center normal sticky
                         button role=checkbox .relative inline-flex size-4 shrink-0 items-center justify-center rounded border transition-colors after:absolute after:-inset-1 after:content-[""] pointer-coarse:after:-inset-3.5 border-border-strong bg-background hover:border-faint-foreground | flex row nowrap center center relative
                       div role=cell .flex h-full min-w-0 items-center overflow-hidden whitespace-nowrap px-3 sticky z-10 bg-inherit | flex row nowrap center normal sticky
-                        span .truncate font-mono text-xs text-muted-foreground | block
+                        a .flex min-w-0 items-center hover:underline | flex row nowrap center normal
+                          span .truncate font-mono text-xs text-muted-foreground | block
                       div role=cell .flex h-full min-w-0 items-center overflow-hidden whitespace-nowrap px-3 | flex row nowrap center normal
                         span .truncate font-medium text-primary-text hover:underline | block
                       div role=cell .flex h-full min-w-0 items-center overflow-hidden whitespace-nowrap px-3 | flex row nowrap center normal
@@ -298,7 +304,8 @@ div | block
                       div .sticky left-0 z-10 flex h-full items-center gap-2 bg-inherit pl-3 cursor-default | flex row nowrap center normal sticky
                         button role=checkbox .relative inline-flex size-4 shrink-0 items-center justify-center rounded border transition-colors after:absolute after:-inset-1 after:content-[""] pointer-coarse:after:-inset-3.5 border-border-strong bg-background hover:border-faint-foreground | flex row nowrap center center relative
                       div role=cell .flex h-full min-w-0 items-center overflow-hidden whitespace-nowrap px-3 sticky z-10 bg-inherit | flex row nowrap center normal sticky
-                        span .truncate font-mono text-xs text-muted-foreground | block
+                        a .flex min-w-0 items-center hover:underline | flex row nowrap center normal
+                          span .truncate font-mono text-xs text-muted-foreground | block
                       div role=cell .flex h-full min-w-0 items-center overflow-hidden whitespace-nowrap px-3 | flex row nowrap center normal
                         span .truncate font-medium text-primary-text hover:underline | block
                       div role=cell .flex h-full min-w-0 items-center overflow-hidden whitespace-nowrap px-3 | flex row nowrap center normal
@@ -320,7 +327,8 @@ div | block
                       div .sticky left-0 z-10 flex h-full items-center gap-2 bg-inherit pl-3 cursor-default | flex row nowrap center normal sticky
                         button role=checkbox .relative inline-flex size-4 shrink-0 items-center justify-center rounded border transition-colors after:absolute after:-inset-1 after:content-[""] pointer-coarse:after:-inset-3.5 border-border-strong bg-background hover:border-faint-foreground | flex row nowrap center center relative
                       div role=cell .flex h-full min-w-0 items-center overflow-hidden whitespace-nowrap px-3 sticky z-10 bg-inherit | flex row nowrap center normal sticky
-                        span .truncate font-mono text-xs text-muted-foreground | block
+                        a .flex min-w-0 items-center hover:underline | flex row nowrap center normal
+                          span .truncate font-mono text-xs text-muted-foreground | block
                       div role=cell .flex h-full min-w-0 items-center overflow-hidden whitespace-nowrap px-3 | flex row nowrap center normal
                         span .truncate font-medium text-primary-text hover:underline | block
                       div role=cell .flex h-full min-w-0 items-center overflow-hidden whitespace-nowrap px-3 | flex row nowrap center normal
@@ -342,7 +350,8 @@ div | block
                       div .sticky left-0 z-10 flex h-full items-center gap-2 bg-inherit pl-3 cursor-default | flex row nowrap center normal sticky
                         button role=checkbox .relative inline-flex size-4 shrink-0 items-center justify-center rounded border transition-colors after:absolute after:-inset-1 after:content-[""] pointer-coarse:after:-inset-3.5 border-border-strong bg-background hover:border-faint-foreground | flex row nowrap center center relative
                       div role=cell .flex h-full min-w-0 items-center overflow-hidden whitespace-nowrap px-3 sticky z-10 bg-inherit | flex row nowrap center normal sticky
-                        span .truncate font-mono text-xs text-muted-foreground | block
+                        a .flex min-w-0 items-center hover:underline | flex row nowrap center normal
+                          span .truncate font-mono text-xs text-muted-foreground | block
                       div role=cell .flex h-full min-w-0 items-center overflow-hidden whitespace-nowrap px-3 | flex row nowrap center normal
                         span .truncate font-medium text-primary-text hover:underline | block
                       div role=cell .flex h-full min-w-0 items-center overflow-hidden whitespace-nowrap px-3 | flex row nowrap center normal
@@ -364,7 +373,8 @@ div | block
                       div .sticky left-0 z-10 flex h-full items-center gap-2 bg-inherit pl-3 cursor-default | flex row nowrap center normal sticky
                         button role=checkbox .relative inline-flex size-4 shrink-0 items-center justify-center rounded border transition-colors after:absolute after:-inset-1 after:content-[""] pointer-coarse:after:-inset-3.5 border-border-strong bg-background hover:border-faint-foreground | flex row nowrap center center relative
                       div role=cell .flex h-full min-w-0 items-center overflow-hidden whitespace-nowrap px-3 sticky z-10 bg-inherit | flex row nowrap center normal sticky
-                        span .truncate font-mono text-xs text-muted-foreground | block
+                        a .flex min-w-0 items-center hover:underline | flex row nowrap center normal
+                          span .truncate font-mono text-xs text-muted-foreground | block
                       div role=cell .flex h-full min-w-0 items-center overflow-hidden whitespace-nowrap px-3 | flex row nowrap center normal
                         span .truncate font-medium text-primary-text hover:underline | block
                       div role=cell .flex h-full min-w-0 items-center overflow-hidden whitespace-nowrap px-3 | flex row nowrap center normal
@@ -386,7 +396,8 @@ div | block
                       div .sticky left-0 z-10 flex h-full items-center gap-2 bg-inherit pl-3 cursor-default | flex row nowrap center normal sticky
                         button role=checkbox .relative inline-flex size-4 shrink-0 items-center justify-center rounded border transition-colors after:absolute after:-inset-1 after:content-[""] pointer-coarse:after:-inset-3.5 border-border-strong bg-background hover:border-faint-foreground | flex row nowrap center center relative
                       div role=cell .flex h-full min-w-0 items-center overflow-hidden whitespace-nowrap px-3 sticky z-10 bg-inherit | flex row nowrap center normal sticky
-                        span .truncate font-mono text-xs text-muted-foreground | block
+                        a .flex min-w-0 items-center hover:underline | flex row nowrap center normal
+                          span .truncate font-mono text-xs text-muted-foreground | block
                       div role=cell .flex h-full min-w-0 items-center overflow-hidden whitespace-nowrap px-3 | flex row nowrap center normal
                         span .truncate font-medium text-primary-text hover:underline | block
                       div role=cell .flex h-full min-w-0 items-center overflow-hidden whitespace-nowrap px-3 | flex row nowrap center normal
@@ -408,7 +419,8 @@ div | block
                       div .sticky left-0 z-10 flex h-full items-center gap-2 bg-inherit pl-3 cursor-default | flex row nowrap center normal sticky
                         button role=checkbox .relative inline-flex size-4 shrink-0 items-center justify-center rounded border transition-colors after:absolute after:-inset-1 after:content-[""] pointer-coarse:after:-inset-3.5 border-border-strong bg-background hover:border-faint-foreground | flex row nowrap center center relative
                       div role=cell .flex h-full min-w-0 items-center overflow-hidden whitespace-nowrap px-3 sticky z-10 bg-inherit | flex row nowrap center normal sticky
-                        span .truncate font-mono text-xs text-muted-foreground | block
+                        a .flex min-w-0 items-center hover:underline | flex row nowrap center normal
+                          span .truncate font-mono text-xs text-muted-foreground | block
                       div role=cell .flex h-full min-w-0 items-center overflow-hidden whitespace-nowrap px-3 | flex row nowrap center normal
                         span .truncate font-medium text-primary-text hover:underline | block
                       div role=cell .flex h-full min-w-0 items-center overflow-hidden whitespace-nowrap px-3 | flex row nowrap center normal
@@ -430,7 +442,8 @@ div | block
                       div .sticky left-0 z-10 flex h-full items-center gap-2 bg-inherit pl-3 cursor-default | flex row nowrap center normal sticky
                         button role=checkbox .relative inline-flex size-4 shrink-0 items-center justify-center rounded border transition-colors after:absolute after:-inset-1 after:content-[""] pointer-coarse:after:-inset-3.5 border-border-strong bg-background hover:border-faint-foreground | flex row nowrap center center relative
                       div role=cell .flex h-full min-w-0 items-center overflow-hidden whitespace-nowrap px-3 sticky z-10 bg-inherit | flex row nowrap center normal sticky
-                        span .truncate font-mono text-xs text-muted-foreground | block
+                        a .flex min-w-0 items-center hover:underline | flex row nowrap center normal
+                          span .truncate font-mono text-xs text-muted-foreground | block
                       div role=cell .flex h-full min-w-0 items-center overflow-hidden whitespace-nowrap px-3 | flex row nowrap center normal
                         span .truncate font-medium text-primary-text hover:underline | block
                       div role=cell .flex h-full min-w-0 items-center overflow-hidden whitespace-nowrap px-3 | flex row nowrap center normal
@@ -452,7 +465,8 @@ div | block
                       div .sticky left-0 z-10 flex h-full items-center gap-2 bg-inherit pl-3 cursor-default | flex row nowrap center normal sticky
                         button role=checkbox .relative inline-flex size-4 shrink-0 items-center justify-center rounded border transition-colors after:absolute after:-inset-1 after:content-[""] pointer-coarse:after:-inset-3.5 border-border-strong bg-background hover:border-faint-foreground | flex row nowrap center center relative
                       div role=cell .flex h-full min-w-0 items-center overflow-hidden whitespace-nowrap px-3 sticky z-10 bg-inherit | flex row nowrap center normal sticky
-                        span .truncate font-mono text-xs text-muted-foreground | block
+                        a .flex min-w-0 items-center hover:underline | flex row nowrap center normal
+                          span .truncate font-mono text-xs text-muted-foreground | block
                       div role=cell .flex h-full min-w-0 items-center overflow-hidden whitespace-nowrap px-3 | flex row nowrap center normal
                         span .truncate font-medium text-primary-text hover:underline | block
                       div role=cell .flex h-full min-w-0 items-center overflow-hidden whitespace-nowrap px-3 | flex row nowrap center normal
