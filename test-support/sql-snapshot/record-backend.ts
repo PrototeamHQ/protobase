@@ -22,7 +22,9 @@ let opened = 0
 const raw = (result: pg.QueryArrayResult): RawResult => ({
   command: result.command,
   rowCount: result.rowCount,
-  columns: result.fields.map((field) => [field.name, field.dataTypeID]),
+  // A type a schema made, such as the jobs' state enum, has an OID of the server's at the time; node-postgres parses none
+  // of them, so 0, which it does not parse either, keeps the recording the same.
+  columns: result.fields.map((field) => [field.name, field.dataTypeID >= 16384 ? 0 : field.dataTypeID]),
   rows: result.rows as (string | null)[][],
 })
 
@@ -40,7 +42,7 @@ export type Backend = {
 const connectBackend = async (database: string): Promise<Backend> => {
   const connect = () =>
     withRealRandomness(async () => {
-      const client = new pg.Client({ connectionString: databaseUrl(database), types: asText })
+      const client = new pg.Client({ connectionString: databaseUrl(database), types: asText, connectionTimeoutMillis: 15_000 })
       await client.connect()
       return client
     })

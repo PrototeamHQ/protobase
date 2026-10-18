@@ -7,7 +7,8 @@ import { serverDdl } from '../../test-support/fixtures/server-ddl'
 import type { Template } from './templates'
 
 // The databases `bun run test:record` records the snapshot tests on (test-support/sql-snapshot.ts): each recorded test
-// file clones the one it opens. `bun run test:db snapshots` builds them; each takes a second or two.
+// file clones the one it opens. `bun run test:db snapshots` builds them; each takes a second or two. Each is vacuumed
+// as it is built, so the planner sees the same visibility map whether autovacuum got to it or not.
 
 type Db = Kysely<any>
 
@@ -24,16 +25,19 @@ export const snapshotTemplates = {
   /** The query tests' tables, analyzed. */
   query: snapshot('snapshot_query_test_template', ['test-support/fixtures/query-ddl.ts'], async (db) => {
     await exec(db, queryDdl)
-    await exec(db, 'analyze')
+    await exec(db, 'vacuum analyze')
   }),
   /** The query tests' tables with pg_trgm, for trigram indexes. */
   queryTrigram: snapshot('snapshot_query_trigram_test_template', ['test-support/fixtures/query-ddl.ts'], async (db) => {
     await exec(db, 'create extension pg_trgm')
     await exec(db, queryDdl)
-    await exec(db, 'analyze')
+    await exec(db, 'vacuum analyze')
   }),
   /** The server tests' fixture (test-support/server.ts). */
-  fixture: snapshot('snapshot_fixture_test_template', ['test-support/fixtures/server-ddl.ts'], (db) => exec(db, serverDdl)),
+  fixture: snapshot('snapshot_fixture_test_template', ['test-support/fixtures/server-ddl.ts'], async (db) => {
+    await exec(db, serverDdl)
+    await exec(db, 'vacuum analyze')
+  }),
   /** A migrated Better Auth store with nothing in it: no users, no signing keys. */
   auth: snapshot('snapshot_auth_test_template', ['packages/server/src/auth', 'bun.lock'], async (_, url) => {
     const pool = new pg.Pool({ connectionString: url, max: 1 })

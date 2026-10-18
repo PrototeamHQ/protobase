@@ -96,9 +96,8 @@ const snapshotProject = (name: string, include: string[], exclude: string[], iso
     globalSetup: ['test-support/sql-snapshot/global-setup.ts'],
     isolate,
     env: { TZ: 'UTC' },
-    // Better Auth through Vitest, so the setup's node:crypto reaches the password hashing on Bun as well.
-    server: { deps: { inline: [/better-auth/] } },
-    ...(recordSnapshots && { maxWorkers: integrationWorkers }),
+    // Recording waits on Postgres, on a CI runner that shares its cores with others.
+    ...(recordSnapshots && { maxWorkers: integrationWorkers, testTimeout: 30_000, hookTimeout: 60_000 }),
   },
 })
 // Chromium against an app served over TLS on more than one hostname, on PGlite: `bun run test:e2e`.
@@ -112,6 +111,9 @@ export default defineConfig({
   test: {
     environment: 'node',
     passWithNoTests: true,
+    // Better Auth through Vitest, so the snapshot setup's node:crypto reaches its password hashing on Bun as well
+    // (test-support/sql-snapshot/setup.ts). A project's own setting goes unused when projects share a run.
+    server: { deps: { inline: [/better-auth/] } },
     projects: [
       {
         // `bun run test:unit` runs this and unit-isolated: only the tests next to the code; starting PGlite or a Postgres

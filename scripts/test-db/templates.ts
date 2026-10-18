@@ -53,17 +53,18 @@ export const runEnvironment = (key: TemplateKey, runId: string) => ({
   TEST_DATABASE_TEMPLATE: key,
 })
 
-export const connectServer = () => postgres(serverUrl, { max: 1, connect_timeout: 2, onnotice: () => {} })
+/** A connection to the server; a short timeout tells soon that none runs, a longer one waits out a busy server. */
+export const connectServer = (timeoutSeconds = 2) => postgres(serverUrl, { max: 1, connect_timeout: timeoutSeconds, onnotice: () => {} })
 
 /** Creates `database` as a copy of the template. */
 export const cloneTemplate = async (template: Pick<Template, 'database' | 'strategy'>, database: string) => {
-  const sql = connectServer()
+  const sql = connectServer(15)
   await sql.unsafe(`create database "${database}" template "${template.database}" strategy ${template.strategy}`)
   await sql.end()
 }
 
 export const dropDatabase = async (database: string) => {
-  const sql = connectServer()
+  const sql = connectServer(15)
   await sql.unsafe(`drop database if exists "${database}" with (force)`)
   await sql.end()
 }
