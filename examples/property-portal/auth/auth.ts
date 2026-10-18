@@ -1,6 +1,6 @@
 import { PostgresDialect } from 'kysely'
 import pg from 'pg'
-import { betterAuthAuthenticator, createAuth } from '@protobase/server'
+import { betterAuthAuthenticator, createAuth, handleDroppedConnections } from '@protobase/server'
 import { databaseUrl } from '../db/connection'
 import { accounts } from './accounts'
 
@@ -9,7 +9,7 @@ if (!secret) throw new Error('BETTER_AUTH_SECRET is not set; generate one with `
 
 // One pool across hot reloads of this module
 const store = globalThis as { __propertyPortalAdminPool?: pg.Pool }
-store.__propertyPortalAdminPool ??= new pg.Pool({ connectionString: databaseUrl, max: 5 })
+store.__propertyPortalAdminPool ??= handleDroppedConnections(new pg.Pool({ connectionString: databaseUrl, max: 5 }))
 
 export const auth = createAuth({
   database: { dialect: new PostgresDialect({ pool: store.__propertyPortalAdminPool }), type: 'postgres', schemaName: 'auth', transaction: true },

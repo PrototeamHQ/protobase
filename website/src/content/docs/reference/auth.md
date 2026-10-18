@@ -22,6 +22,8 @@ Users, sessions and signing keys stay apart from the application's tables. The E
 createAuth({ database: { dialect: new PostgresDialect({ pool }), type: 'postgres', schemaName: 'auth', transaction: true }, ... })
 ```
 
+Build that pool as `handleDroppedConnections(new pg.Pool(...))` (from `@protobase/server`) so a database restart is printed instead of stopping the app.
+
 ### Migrations
 
 The store's tables are part of the project's migrations, committed in the repository like the application's own: the examples carry them as `db/migrations/*_auth.sql`, and their `db:migrate` applies both. When an upgrade of Protobase (or another Better Auth plugin) needs more tables or columns, write the change as the project's next migration:

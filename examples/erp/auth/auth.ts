@@ -1,6 +1,6 @@
 import { PostgresDialect } from 'kysely'
 import pg from 'pg'
-import { betterAuthAuthenticator, createAuth } from '@protobase/server'
+import { betterAuthAuthenticator, createAuth, handleDroppedConnections } from '@protobase/server'
 import { databaseUrl } from '../db/connection'
 
 const secret = process.env.BETTER_AUTH_SECRET
@@ -8,7 +8,7 @@ if (!secret) throw new Error('BETTER_AUTH_SECRET is not set; generate one with `
 
 // One pool across hot reloads of this module
 const store = globalThis as { __erpAdminPool?: pg.Pool }
-store.__erpAdminPool ??= new pg.Pool({ connectionString: databaseUrl, max: 5 })
+store.__erpAdminPool ??= handleDroppedConnections(new pg.Pool({ connectionString: databaseUrl, max: 5 }))
 
 /** The admin store (Better Auth's users, sessions and signing keys) lives in this schema, next to the ERP's own schemas. */
 export const authSchema = 'auth'

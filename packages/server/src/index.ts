@@ -1,4 +1,5 @@
 export { createAdmin, type CreateAdminInput } from './create-admin'
+export { handleDroppedConnections } from './dropped-connections'
 export { configExports } from './resource-source'
 export { checkViewQueries } from './check-view-queries'
 export { defineConfig, mergeConfig, type ProjectConfig } from './project-config'
