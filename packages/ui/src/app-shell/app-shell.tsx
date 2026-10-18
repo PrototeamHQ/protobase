@@ -13,6 +13,7 @@ import type { SidebarMode } from './sidebar-mode'
 import type { GlobalSearchModel } from './global-search'
 import type { Crumb } from './breadcrumb'
 import type { ShellLogoProps } from './logo'
+import { TopBarSlotContext } from './top-bar-slot'
 import { TopBar } from './top-bar'
 
 export type AppShellProps = {
@@ -69,6 +70,7 @@ export const AppShell = ({ sidebarMode, activeItem, breadcrumb, user, workspace,
   const [chosen, setPageScroll] = useState<boolean>()
   const pageScroll = chosen ?? scrollsByDefault
   const topBarRef = useRef<HTMLElement>(null)
+  const [topBarSlot, setTopBarSlot] = useState<HTMLElement | null>(null)
   const bottomBarRef = useRef<HTMLElement>(null)
   usePageInsets(pageScroll, topBarRef, bottomBarRef, Boolean(tabs))
   usePageGutter(pageScroll)
@@ -85,8 +87,10 @@ export const AppShell = ({ sidebarMode, activeItem, breadcrumb, user, workspace,
           </Drawer>
         )}
         <div className="flex min-w-0 flex-1 flex-col">
-          <TopBar ref={topBarRef} sticky={pageScroll} breadcrumb={breadcrumb} onNavigate={onNavigate} actions={actions} onMenu={desktop || tabs ? undefined : () => setDrawerOpen(true)} menuOpen={drawerOpen} menuControls={drawerId} search={search} />
-          <main className={pageScroll ? 'flex flex-1 flex-col' : 'flex min-h-0 flex-1 flex-col'}>{children}</main>
+          <TopBar ref={topBarRef} slotRef={setTopBarSlot} sticky={pageScroll} breadcrumb={breadcrumb} onNavigate={onNavigate} actions={actions} onMenu={desktop || tabs ? undefined : () => setDrawerOpen(true)} menuOpen={drawerOpen} menuControls={drawerId} search={search} />
+          <main className={pageScroll ? 'flex flex-1 flex-col' : 'flex min-h-0 flex-1 flex-col'}>
+            <TopBarSlotContext.Provider value={topBarSlot}>{children}</TopBarSlotContext.Provider>
+          </main>
           {tabs && <BottomBar ref={bottomBarRef} sticky={pageScroll} tabs={tabs} onNavigate={onNavigate} onMore={() => setDrawerOpen(true)} moreOpen={drawerOpen} moreControls={drawerId} />}
         </div>
         {/* The same element either way, so that switching keeps the panel's state; it stays in view while the page scrolls */}

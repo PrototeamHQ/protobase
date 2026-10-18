@@ -12,8 +12,11 @@ export type RailAction = {
   running?: boolean
   /** `danger` draws an action that destroys something, such as Delete, in red. */
   tone?: 'danger'
-  /** Draws the action as the caller's own element, such as a link, given the rail's classes and content, instead of a button. */
-  render?: (item: { className: string; children: ReactNode }) => ReactNode
+  /**
+   * Draws the action as the caller's own element, such as a link, given the rail's classes and content, instead of a
+   * button; in a menu, with the `menuitem` role too.
+   */
+  render?: (item: { className: string; children: ReactNode; role?: 'menuitem' }) => ReactNode
 }
 
 const itemClass =

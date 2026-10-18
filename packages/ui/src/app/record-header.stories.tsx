@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { useState } from 'react'
-import { expect, within } from 'storybook/test'
+import { expect, userEvent, within } from 'storybook/test'
 import { createStaticSession, type ResourcePermissions } from '@protobase/client'
 import { App } from './app'
 import { fakeApi } from './testing/fake-api'
@@ -31,14 +31,13 @@ const Units = ({ path, views = rentalViews }: { path: string; views?: typeof ren
 const heading = (canvasElement: HTMLElement, title: string) => within(canvasElement).findByRole('heading', { level: 1, name: title })
 
 export const MissingStatus: StoryObj = {
-  name: 'No header for a missing status, the title for screen readers only (checks)',
+  name: 'The title as the heading, without a badge for a missing status (checks)',
   tags: ['play'],
   render: () => <Units path="/units/4" />,
   play: async ({ canvasElement }) => {
-    // The breadcrumb names the record and its collection, so nothing is left to show above the sections
     const title = await heading(canvasElement, 'Oudegracht 9')
-    expect(title).toHaveClass('sr-only')
-    expect(title.closest('header')).toBeNull()
+    expect(title).toBeVisible()
+    expect(title.closest('header')).not.toBeNull()
     expect(within(canvasElement).queryByText('null')).toBeNull()
   },
 }
@@ -61,7 +60,8 @@ export const SidebarStatus: StoryObj = {
   tags: ['play'],
   render: () => <Units path="/units/2" views={sidebarViews} />,
   play: async ({ canvasElement }) => {
-    expect((await heading(canvasElement, 'Keizersgracht 120 2.02')).closest('header')).toBeNull()
+    const top = (await heading(canvasElement, 'Keizersgracht 120 2.02')).closest('header')!
+    expect(within(top).queryByText('Vacant')).toBeNull()
     const summary = within(canvasElement).getByRole('heading', { name: 'Summary' }).parentElement!
     expect(within(summary).getByText('Vacant')).toBeVisible()
   },
@@ -82,5 +82,23 @@ export const SaveInSidebar: StoryObj = {
     expect(save).toBeVisible()
     expect(save.compareDocumentPosition(rail) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     expect(within(canvasElement).queryByRole('button', { name: 'Discard' })).toBeNull()
+  },
+}
+
+export const ActionsOnAPhone: StoryObj = {
+  name: "On a phone, the actions in the top bar's menu (checks)",
+  tags: ['play', 'phone'],
+  render: () => <Units path="/units/2" />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    await heading(canvasElement, 'Keizersgracht 120 2.02')
+    // The rail below the fields is left out, so the actions are at hand however long the record is
+    expect(canvas.queryByRole('heading', { name: 'Actions' })).toBeNull()
+    const banner = canvas.getAllByRole('banner').find((element) => within(element).queryByRole('button', { name: 'Record actions' }))!
+    await userEvent.click(within(banner).getByRole('button', { name: 'Record actions' }))
+    const menu = await within(document.body).findByRole('menu', { name: 'Record actions' })
+    expect(within(menu).getByRole('menuitem', { name: 'Delete' })).toBeVisible()
+    await userEvent.keyboard('{Escape}')
+    expect(within(document.body).queryByRole('menu', { name: 'Record actions' })).toBeNull()
   },
 }

@@ -70,9 +70,11 @@ export const OnAPhone: StoryObj = {
   render: () => <Tickets answer={async () => ({ priority: 'low' })} />,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
-    const button = await canvas.findByRole('button', { name: 'Suggest priority' })
-    expect(button.getBoundingClientRect().right).toBeLessThanOrEqual(document.documentElement.clientWidth)
-    await userEvent.click(button)
+    // On a phone the record's actions sit in the top bar's menu
+    await userEvent.click(await canvas.findByRole('button', { name: 'Record actions' }))
+    const item = await within(document.body).findByRole('menuitem', { name: 'Suggest priority' })
+    expect(item.getBoundingClientRect().right).toBeLessThanOrEqual(document.documentElement.clientWidth)
+    await userEvent.click(item)
     expect(await canvas.findByText('Suggest priority: done')).toBeInTheDocument()
     expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(document.documentElement.clientWidth)
   },

@@ -6,8 +6,6 @@ export type RecordHeaderProps = {
   /** A line above the title naming the collection; the record page leaves it to the breadcrumb. */
   collection?: string
   title: string
-  /** The breadcrumb names the record already, so the title is a heading for screen readers only. */
-  titleHidden?: boolean
   /** The badge beside the title; without it there is none. */
   status?: { label: string; tone: BadgeTone }
   /** A line under the title; without a name it reads "Last updated ...". The record page leaves it to its sidebar. */
@@ -16,15 +14,13 @@ export type RecordHeaderProps = {
   actions?: ReactNode
 }
 
-export const RecordHeader = ({ collection, title, titleHidden, status, lastEditedBy, presence = [], actions }: RecordHeaderProps) => {
-  // A hidden title with nothing beside it draws no header, rather than an empty bar
-  if (titleHidden && !collection && !status && !lastEditedBy && presence.length === 0 && !actions) return <h1 className="sr-only">{title}</h1>
+export const RecordHeader = ({ collection, title, status, lastEditedBy, presence = [], actions }: RecordHeaderProps) => {
   return (
     <header className="flex flex-col gap-4 border-b border-border pb-6 md:flex-row md:items-end md:justify-between md:gap-6">
       <div>
         {collection && <p className="mb-1 text-xs text-muted-foreground">{collection}</p>}
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-          <h1 className={titleHidden ? 'sr-only' : 'text-xl font-semibold tracking-tight text-foreground md:text-2xl'}>{title}</h1>
+          <h1 className="text-xl font-semibold tracking-tight text-foreground md:text-2xl">{title}</h1>
           {status && <Badge tone={status.tone}>{status.label}</Badge>}
         </div>
         {lastEditedBy && (
