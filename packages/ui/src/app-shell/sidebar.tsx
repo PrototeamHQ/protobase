@@ -16,6 +16,8 @@ export type SidebarProps = {
   /** The signed-in person; without one the footer links to `signIn`. */
   user?: ShellUser
   workspace?: string
+  /** The app's name, which the logo shows. */
+  appName?: string
   forceExpanded?: boolean
   profileMenuOpen?: boolean
   /** Resources to list; defaults to the sample ERP navigation. */
@@ -36,7 +38,7 @@ export type SidebarProps = {
   logo?: ComponentType<ShellLogoProps>
 }
 
-export const Sidebar = ({ mode, activeItem, user, workspace, forceExpanded, profileMenuOpen, groups = defaultGroups, userMenu, onNavigate, onSignOut, signIn, organizations, roles, theme, sticky, logo: SidebarLogo = Logo }: SidebarProps) => {
+export const Sidebar = ({ mode, activeItem, user, workspace, appName, forceExpanded, profileMenuOpen, groups = defaultGroups, userMenu, onNavigate, onSignOut, signIn, organizations, roles, theme, sticky, logo: SidebarLogo = Logo }: SidebarProps) => {
   const expanding = mode === 'icon-expand'
   const expanded = expanding && forceExpanded
   const inline = isTextMode(mode) || expanding
@@ -50,7 +52,7 @@ export const Sidebar = ({ mode, activeItem, user, workspace, forceExpanded, prof
         )}
       >
         <div className={cn('flex h-12 shrink-0 items-center px-3.5', mode === 'icon-label' && 'justify-center px-0')}>
-          <SidebarLogo compact={!inline} workspace={workspace} />
+          <SidebarLogo compact={!inline} workspace={workspace} appName={appName} />
         </div>
         <div className={cn('flex-1 overflow-y-auto overflow-x-hidden pb-2', mode === 'icon-label' ? 'px-2' : 'px-2')}>
           {groups.map((group, index) => (

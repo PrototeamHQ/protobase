@@ -21,16 +21,25 @@ export const Wordmark = ({ className }: { className?: string }) => (
   </svg>
 )
 
-/** What the logo at the top of the sidebar gets: `compact` when the sidebar shows only icons, and the workspace's name. */
-export type ShellLogoProps = { compact: boolean; workspace?: string }
+/**
+ * What the logo at the top of the sidebar gets: `compact` when the sidebar shows only icons, the workspace's name, and
+ * the app's name, such as `Property Finder` (`PROTOBASE_APP_NAME` or `createAuth`'s `appName`).
+ */
+export type ShellLogoProps = { compact: boolean; workspace?: string; appName?: string }
 
-/** Protobase's logo at the top of the sidebar, the workspace's name under the wordmark, or the mark alone when compact. */
-export const Logo = ({ compact, workspace }: ShellLogoProps) => (
+// The name an app goes by when it names itself nothing
+const brandName = 'Protobase'
+
+/**
+ * The logo at the top of the sidebar: Protobase's mark, then the app's name, as the brand's wordmark when the app goes by
+ * Protobase's name, with the workspace's name under it; the mark alone when compact.
+ */
+export const Logo = ({ compact, workspace, appName }: ShellLogoProps) => (
   <div className="flex items-center gap-2.5 overflow-hidden">
     <LogoMark />
     {!compact && (
       <div className="flex min-w-0 flex-col gap-0.5 leading-tight">
-        <Wordmark className="self-start" />
+        {appName && appName !== brandName ? <div className="truncate text-sm font-semibold text-foreground">{appName}</div> : <Wordmark className="self-start" />}
         {workspace && <div className="truncate text-[11px] text-muted-foreground">{workspace}</div>}
       </div>
     )}

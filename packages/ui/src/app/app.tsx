@@ -184,6 +184,7 @@ const Routes = ({ workspace, sidebarMode, assistant, runtime }: Pick<AppProps, '
       onSignOut={user && (() => void signOut())}
       signIn={user ? undefined : signIn.link()}
       workspace={current?.organization?.name ?? workspace}
+      appName={meta.appName}
       logo={ProjectLogo}
       navGroups={groups}
       bottomBar={bottomBarFromMeta(meta, basePath, place)}

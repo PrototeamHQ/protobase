@@ -24,6 +24,8 @@ export type AppShellProps = {
   /** The signed-in person, with their profile menu; without one the sidebar links to `signIn` instead. */
   user?: ShellUser
   workspace?: string
+  /** The app's name, which the sidebar's logo shows. */
+  appName?: string
   /** Drawn at the top of the sidebar in place of Protobase's logo. */
   logo?: ComponentType<ShellLogoProps>
   actions?: ReactNode
@@ -56,7 +58,7 @@ export type AppShellProps = {
 
 const drawerId = 'app-drawer'
 
-export const AppShell = ({ sidebarMode, activeItem, breadcrumb, user, workspace, logo, actions, rightPanel, forceExpanded, profileMenuOpen, navGroups, userMenu, bottomBar, onNavigate, onSignOut, signIn, organizations, roles, theme, search, pageScroll: scrollsByDefault = false, className, children }: AppShellProps) => {
+export const AppShell = ({ sidebarMode, activeItem, breadcrumb, user, workspace, appName, logo, actions, rightPanel, forceExpanded, profileMenuOpen, navGroups, userMenu, bottomBar, onNavigate, onSignOut, signIn, organizations, roles, theme, search, pageScroll: scrollsByDefault = false, className, children }: AppShellProps) => {
   const desktop = useIsDesktop()
   const [drawerOpen, setDrawerOpen] = useState(false)
   useEffect(() => {
@@ -71,7 +73,7 @@ export const AppShell = ({ sidebarMode, activeItem, breadcrumb, user, workspace,
   usePageInsets(pageScroll, topBarRef, bottomBarRef, Boolean(tabs))
   usePageGutter(pageScroll)
   const sidebar = (mode: SidebarMode, sticky = false) => (
-    <Sidebar mode={mode} sticky={sticky} activeItem={activeItem} user={user} workspace={workspace} forceExpanded={forceExpanded} profileMenuOpen={profileMenuOpen} groups={navGroups} userMenu={userMenu} onNavigate={onNavigate} onSignOut={onSignOut} signIn={signIn} organizations={organizations} roles={roles} theme={theme} logo={logo} />
+    <Sidebar mode={mode} sticky={sticky} activeItem={activeItem} user={user} workspace={workspace} appName={appName} forceExpanded={forceExpanded} profileMenuOpen={profileMenuOpen} groups={navGroups} userMenu={userMenu} onNavigate={onNavigate} onSignOut={onSignOut} signIn={signIn} organizations={organizations} roles={roles} theme={theme} logo={logo} />
   )
   return (
     <PageScrollContext.Provider value={setPageScroll}>
