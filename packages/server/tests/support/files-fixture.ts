@@ -1,12 +1,12 @@
 import { mkdtemp, readdir, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
-import { Kysely } from 'kysely'
+import { Kysely, type Dialect } from 'kysely'
 import sharp from 'sharp'
 import { f, resource, type FileProcessor, type ImageVariant } from '@protobase/schema'
 import { createAdmin, createFileCleanup, localFiles, type FileProvider, type FilesOptions } from '@protobase/server'
 import { testAuthenticator } from '../../../../test-support/server'
-import { openSnapshotDb, type SnapshotDb } from '../../../../test-support/sql-snapshot'
+import { openSnapshotDb } from '../../../../test-support/sql-snapshot'
 
 export type ProductOptions = {
   derive?: Record<string, FileProcessor>
@@ -58,10 +58,18 @@ create table products (
 create table avatars (id integer generated always as identity primary key, name text not null, picture text);
 `
 
-/** An admin with products and avatars over a snapshot database, keeping files in a fresh temp folder unless `providers` says otherwise. */
-export const createFilesFixture = async (options: ProductOptions & { providers?: Record<string, FileProvider>; trustedHosts?: string[] } = {}) => {
+/** A database for the fixture: a snapshot database unless a test passes another, as files-images.test.ts does. */
+export type FilesDatabase = { exec: (sql: string) => Promise<unknown>; dialect: Dialect }
+
+/**
+ * An admin with products and avatars over `database`, by default an empty snapshot database, keeping files in a fresh
+ * temp folder unless `providers` says otherwise.
+ */
+export const createFilesFixture = async (
+  options: ProductOptions & { providers?: Record<string, FileProvider>; trustedHosts?: string[]; database?: () => Promise<FilesDatabase> } = {},
+) => {
   const dir = await mkdtemp(path.join(tmpdir(), 'protobase-files-'))
-  const pg = await openSnapshotDb('empty')
+  const pg = await (options.database ?? (() => openSnapshotDb('empty')))()
   await pg.exec(ddl)
   const db = new Kysely<any>({ dialect: pg.dialect })
   const files: FilesOptions = {

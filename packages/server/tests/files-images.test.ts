@@ -1,8 +1,17 @@
+import { PGliteDialect } from 'kysely-pglite-dialect'
 import sharp from 'sharp'
 import { afterEach, describe, expect, it } from 'vitest'
+import { createEmptyPg } from '../../../test-support/pglite-snapshot'
 import { as, json } from '../../../test-support/server'
 import { pdf } from '../src/files/testing/samples'
 import { createFilesFixture, type ProductOptions } from './support/files-fixture'
+
+// On PGlite, not a recording: libvips computes the placeholder that goes into the database a little differently on
+// each CPU architecture, so a recording made on one fails replay on another.
+const database = async () => {
+  const pg = await createEmptyPg()
+  return { exec: (sql: string) => pg.exec(sql), dialect: new PGliteDialect(pg) }
+}
 
 let fixture: Awaited<ReturnType<typeof createFilesFixture>>
 afterEach(() => fixture.close())
@@ -32,7 +41,7 @@ const download = async (url: string) => {
 
 describe('image fields', () => {
   it('store the variants beside the upload, upright, and give the placeholder and each variant a link', async () => {
-    fixture = await createFilesFixture({ accept: ['image/*', 'application/pdf'], placeholder: true, variants })
+    fixture = await createFilesFixture({ database, accept: ['image/*', 'application/pdf'], placeholder: true, variants })
     const uploaded = await upload(photo, 'roof.jpg')
     expect(uploaded.status).toBe(201)
     expect(uploaded.body.value).toMatch(/^private:1\/[0-9a-f-]{36}\.jpg\?name=roof\.jpg&size=\d+&variants=card\.webp%2Cthumb\.avif&/)
@@ -60,7 +69,7 @@ describe('image fields', () => {
   })
 
   it('delete the variants with their file, and keep them while it is referenced', async () => {
-    fixture = await createFilesFixture({ placeholder: true, variants })
+    fixture = await createFilesFixture({ database, placeholder: true, variants })
     const first = (await upload(photo, 'a.jpg')).body.value
     const created = await call('/api/v1/products', json({ name: 'House', image: first }, as(1)))
     expect(await fixture.stored('private')).toHaveLength(3)
@@ -79,7 +88,7 @@ describe('image fields', () => {
   })
 
   it('store the original as declared instead of the upload', async () => {
-    fixture = await createFilesFixture({ variants: { card: { width: 60, format: 'webp' } }, original: { width: 150, format: 'webp', quality: 80 } })
+    fixture = await createFilesFixture({ database, variants: { card: { width: 60, format: 'webp' } }, original: { width: 150, format: 'webp', quality: 80 } })
     const uploaded = await upload(photo, 'roof.jpg')
     expect(uploaded.body.value).toMatch(/^private:1\/[0-9a-f-]{36}\.webp\?name=roof\.jpg&size=\d+&variants=card\.webp&/)
     expect(uploaded.body.file).toMatchObject({ name: 'roof.jpg', type: 'image/webp' })

@@ -52,9 +52,10 @@ const recordSnapshots = process.env.SQL_SNAPSHOT === 'record'
 const databaseTests = ['packages/*/tests/**/*.test.ts', glue]
 // The PGlite tests left: what a recording cannot replay, or what a real-Postgres test proves already. They move to real
 // Postgres or go. Replay cannot follow workers that poll and retry on real timers, nor a recording that holds the
-// server's transaction ids, as the changes outbox does, which differ on every recording.
+// server's transaction ids, as the changes outbox does, which differ on every recording, nor image placeholders, which
+// libvips computes a little differently on each CPU architecture.
 const pglite = [
-  'packages/server/tests/{jobs,drain-jobs,recurring-jobs}.test.ts',
+  'packages/server/tests/{jobs,drain-jobs,recurring-jobs,files-images}.test.ts',
   'packages/cli/tests/serve/lifecycle-jobs.test.ts',
   'packages/cli/tests/worker/start-worker.test.ts',
   'tests/changes/{capture,history,delivery,dispatch-guard,webhook-subscriptions}.test.ts',
