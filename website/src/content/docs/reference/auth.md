@@ -3,7 +3,7 @@ title: Login with Better Auth
 description: Sign-in with Better Auth, with the admin store, sign-in methods and policy, sign-in providers, staff sign-in, roles, tokens and the public endpoints.
 ---
 
-`@protobase/server` ships a [Better Auth](https://www.better-auth.com) setup (version 1.7): sign-in with a password, an [emailed code](#emailed-sign-in-codes) or a [passkey](#passkeys), [two-factor authentication](#two-factor-authentication), a [sign-in policy](#sign-in-policy) admins set in the app, [staff sign-in](#staff-sign-in) for the team that runs the app, roles, and short-lived JWTs that the API verifies against Better Auth's own JWKS, and, when turned on, [organizations](#organizations) people work in one at a time. All of it is Better Auth's own plugins (`emailOTP`, `twoFactor`, `@better-auth/passkey`), wired by `createAuth`.
+`@protobase/server` ships a [Better Auth](https://www.better-auth.com) setup (version 1.7): sign-in with a password, an [emailed code](#emailed-sign-in-codes) or a [passkey](#passkeys), [two-factor authentication](#two-factor-authentication), a [sign-in policy](#sign-in-policy) admins set in the app, [staff sign-in](#staff-sign-in) for the team that runs the app, [SAML single sign-on](#sign-in-with-saml), roles, and short-lived JWTs that the API verifies against Better Auth's own JWKS, and, when turned on, [organizations](#organizations) people work in one at a time. All of it is Better Auth's own plugins (`emailOTP`, `twoFactor`, `@better-auth/passkey`, `@better-auth/sso`), wired by `createAuth`.
 
 ```ts
 import { betterAuthAuthenticator, createAdmin, createAuth } from '@protobase/server'
@@ -258,6 +258,25 @@ These work for every provider, the project's own and the [platform's](#platform-
 - **Connected accounts:** the **Sign-in & security** page lists the providers and offers "Connect GitHub" for one the account is not linked to. Connecting signs in at the provider and links that account whatever its address (`accountLinking.allowDifferentEmails`, which applies only to this explicit link by someone signed in). A provider account linked to another person already is refused (`account_already_linked_to_different_user`); a [staff session](#staff-sign-in) cannot link.
 - **Linked up front:** `protobase users create <email> --github-id <id>`, or `createUser(auth, { ..., accounts: [{ providerId: 'github', accountId }] })`, links a new user to a GitHub user id, so GitHub finds them by it whatever address it reports.
 - Without a link, a provider finds someone by address only when it vouches for the address (`email_verified`) and the account's address is verified; accounts created by an admin or on the host are.
+
+## Sign-in with SAML
+
+`sso.saml` adds the app's SAML 2.0 identity providers, such as Okta, Entra ID or Google Workspace, through Better Auth's [SSO plugin](https://www.better-auth.com/docs/plugins/sso). The sign-in page shows "Continue with {name}" for each:
+
+```ts
+import { readFileSync } from 'node:fs'
+
+createAuth({ ..., sso: { saml: [{ id: 'okta', name: 'Okta', domains: ['example.com'], idp: { metadata: readFileSync('auth/okta-metadata.xml', 'utf8') } }] } })
+```
+
+Instead of the metadata XML, `idp` takes the provider's entity ID, sign-in URL and signing certificate: `{ entityId, ssoUrl, certificate }`, where `certificate` is a PEM, or a list of them while one rotates. The id is lowercase letters, digits or `-`, and differs from those of the other sign-in providers; `name` defaults to `SSO`.
+
+- **What the provider's admin needs:** the entity ID and metadata URL `<BETTER_AUTH_URL>/api/auth/sso/saml2/sp/metadata?providerId=okta`, which most providers import, and the ACS URL `<origin>/api/auth/sso/saml2/sp/acs/okta` for each of the app's [origins](#several-origins). The assertion carries the address as attribute `email` (or the NameID), and the name as `givenName` and `surname` or as `displayName`; `attributes: { email, name, firstName, lastName }` names other attributes. The NameID identifies the account, so a stable one is best: persistent, or the address.
+- **Who gets in:** someone at one of `domains` (subdomains count) signs in to the account with that address, linked on the first sign-in, or gets a new one with the [default role](#roles), as with GitHub; without a default role the sign-up is refused. An address outside `domains` is refused, whether or not an account has it (`EMAIL_DOMAIN_NOT_ALLOWED`, or `account_not_linked` for an existing account). With [organizations](#organizations), people still join one by invitation.
+- **Sign-in links** work as for the other providers: `https://<app>/?sign-in=okta` starts it at once. A SAML provider links an account by signing in, so the Sign-in & security page does not offer to connect it.
+- `GET /api/auth/status` lists the providers as `samlProviders: [{ id, name }]`. Like `socialProviders`, they have no row in the [sign-in policy](#sign-in-policy), and a required passkey or two-factor authentication still holds back the token until it is set up.
+- **No migration:** the providers live in config, so the store gets no table for them.
+- The plugin's defaults stay: the response must answer a request this app made, within 5 minutes of clock skew, once. Not supported yet: SCIM, single logout, sign-in started at the provider, providers kept per organization, and signed or encrypted requests.
 
 ## Platform sign-in provider
 
