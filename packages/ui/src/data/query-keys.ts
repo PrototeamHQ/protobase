@@ -32,4 +32,6 @@ export const keys = {
   exportCount: (resource: string, filter: string) => ['list', resource, filter, 'export-count'] as const,
   firstRecord: (resource: string, filter: string, orderBy: string) => ['first-record', resource, filter, orderBy] as const,
   pathValue: (resource: string, key: string, path: string) => ['path-value', resource, key, path] as const,
+  /** A public form, as `/-/forms/<name>` draws it. */
+  publicForm: (name: string) => ['public-form', name] as const,
 }

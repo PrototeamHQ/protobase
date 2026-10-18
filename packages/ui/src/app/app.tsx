@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import type { AssistantClient, AuthSession, Client, RuntimeClient } from '@protobase/client'
 import { accountMenuItems, accountSecurityPath, signInPolicyPath } from '../account/account-pages'
 import { AccountSecurityPage } from '../account/account-security-page'
@@ -8,6 +8,8 @@ import { ApiProvider } from '../data/api-provider'
 import { AuthGate, AuthProvider, isAdmin, userToShell, useAuth } from '../auth'
 import { useSignInAddress } from '../auth/use-sign-in-address'
 import { useOpenedRecord } from '../data/use-record'
+import { PublicFormPage } from '../forms/public-form-page'
+import { useFormAddress } from '../forms/use-form-address'
 import { recordTitle } from '../live/model-helpers'
 import { humanize } from '../live/naming'
 import { ThemeProvider, useTheme } from '../theme/theme-provider'
@@ -32,7 +34,7 @@ import { navFromMeta } from './nav-from-meta'
 import { ComposedPage } from './pages/composed-page'
 import { CustomBoundary } from './pages/custom-boundary'
 import { ProjectLogo } from './project-logo'
-import { useProjectUi, type ProjectUi } from './pages/project-ui'
+import { ProjectUiContext, useProjectUi, type ProjectUi } from './pages/project-ui'
 import type { PluginLoader } from '../plugins/load-plugin'
 import { PluginGate, usePluginsOff } from '../plugins/plugin-gate'
 import { PluginSourceProvider } from '../plugins/plugin-source'
@@ -232,19 +234,34 @@ const Authenticated = ({ baseUrl, client, sources, workspace, sidebarMode, ui, a
   )
 }
 
+// A public form needs no session: anyone opens it, signed in or not, and it sends without a token.
+const PublicFormGate = ({ baseUrl, client, ui, children }: Pick<AppProps, 'baseUrl' | 'client' | 'ui'> & { children: ReactNode }) => {
+  const address = useFormAddress()
+  if (!address) return children
+  return (
+    <ApiProvider baseUrl={baseUrl} client={client}>
+      <ProjectUiContext.Provider value={ui ?? {}}>
+        <PublicFormPage key={address.name} name={address.name} />
+      </ProjectUiContext.Provider>
+    </ApiProvider>
+  )
+}
+
 /**
- * The admin: the sign-in route first, `/-/sign-in`, or browsing as a visitor when the project has an anonymous role,
- * then a sidebar from `/meta`, `/:page` composed pages, `/:resource` lists and `/:resource/:key` records. Fills its
- * parent, in the theme this browser chose, light, dark or the system's.
+ * The admin: a public form at `/-/forms/<name>` for anyone, the sign-in route first, `/-/sign-in`, or browsing as a
+ * visitor when the project's anonymous role reads, then a sidebar from `/meta`, `/:page` composed pages, `/:resource`
+ * lists and `/:resource/:key` records. Fills its parent, in the theme this browser chose, light, dark or the system's.
  */
 export const App = ({ auth, workspace, basePath, initialUrl, pluginLoader, ...rest }: AppProps) => (
   <ThemeProvider>
     <AuthProvider session={auth}>
       <Router basePath={basePath} initialUrl={initialUrl}>
         <PluginSourceProvider {...(pluginLoader && { loader: pluginLoader })}>
-          <AuthGate workspace={workspace}>
-            <Authenticated workspace={workspace} {...rest} />
-          </AuthGate>
+          <PublicFormGate baseUrl={rest.baseUrl} client={rest.client} ui={rest.ui}>
+            <AuthGate workspace={workspace}>
+              <Authenticated workspace={workspace} {...rest} />
+            </AuthGate>
+          </PublicFormGate>
         </PluginSourceProvider>
       </Router>
     </AuthProvider>
