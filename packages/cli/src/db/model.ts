@@ -30,6 +30,8 @@ export type DbIndex = {
   primary: boolean
   partial: boolean
   method: string
+  // The operator class of each key column, in order, such as gin_trgm_ops for a pg_trgm index.
+  opclasses: string[]
 }
 
 export type DbCheck = {

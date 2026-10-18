@@ -21,6 +21,7 @@ export const renderDataFile = (plan: ResourcePlan) => {
     `  .primaryKey((r) => ${refs(plan.primaryKey)})`,
     plan.softDelete && `  .softDelete((r) => r.${plan.softDelete})`,
     plan.tenant && `  .tenant((r) => r.${plan.tenant})`,
+    plan.search && `  .search((r) => [r.${plan.search}])`,
   ].filter(Boolean)
   return [
     `import { f, resource } from '@protobase/schema'`,

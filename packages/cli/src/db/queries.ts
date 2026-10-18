@@ -83,6 +83,7 @@ export const selectIndexes = (sql: Sql, relations: Relations) => sql<
     primary: boolean
     partial: boolean
     method: string
+    opclasses: string[]
   }[]
 >`
   select n.nspname as schema, c.relname as table, ic.relname as name,
@@ -90,6 +91,10 @@ export const selectIndexes = (sql: Sql, relations: Relations) => sql<
       from unnest(i.indkey::int2[]) with ordinality k(attnum, ord)
       left join pg_attribute a on a.attrelid = i.indrelid and a.attnum = k.attnum
       where k.ord <= i.indnkeyatts) as columns,
+    (select array_agg(oc.opcname::text order by k.ord)
+      from unnest(i.indclass::oid[]) with ordinality k(opclass, ord)
+      join pg_opclass oc on oc.oid = k.opclass
+      where k.ord <= i.indnkeyatts) as opclasses,
     i.indisunique as unique, i.indisprimary as primary, (i.indpred is not null) as partial, am.amname as method
   from pg_index i
   join pg_class c on c.oid = i.indrelid

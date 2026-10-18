@@ -13,7 +13,7 @@ const table: DbTable = {
   ],
   foreignKeys: [],
   checks: [],
-  indexes: [{ name: 'items_pkey', columns: ['id'], unique: true, primary: true, partial: false, method: 'btree' }],
+  indexes: [{ name: 'items_pkey', columns: ['id'], unique: true, primary: true, partial: false, method: 'btree', opclasses: ['int4_ops'] }],
 }
 
 const model = (fields: Parameters<ReturnType<typeof resource>['fields']>[0], key = 'id') =>
@@ -69,7 +69,7 @@ describe('checkResource', () => {
   })
 
   it('checks a materialized view against its own indexes', () => {
-    const unique = { name: 'items_id', columns: ['id'], unique: true, primary: false, partial: false, method: 'btree' }
+    const unique = { name: 'items_id', columns: ['id'], unique: true, primary: false, partial: false, method: 'btree', opclasses: ['int4_ops'] }
     const columns = table.columns.map((c) => ({ ...c, notNull: false }))
     const matview: DbTable = { ...table, kind: 'materialized view', columns, indexes: [unique] }
     expect(checkResource(model({ id: f.integer(), title: f.text() }), [matview])).toEqual([])

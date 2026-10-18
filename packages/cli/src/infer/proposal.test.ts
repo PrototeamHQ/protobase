@@ -24,7 +24,7 @@ const table = (columns: DbColumn[]): DbTable => ({
   columns,
   foreignKeys: [],
   checks: [],
-  indexes: [{ name: 'orders_pkey', columns: ['id'], unique: true, primary: true, partial: false, method: 'btree' }],
+  indexes: [{ name: 'orders_pkey', columns: ['id'], unique: true, primary: true, partial: false, method: 'btree', opclasses: ['int4_ops'] }],
 })
 
 const render = (columns: DbColumn[], name: string) => {
