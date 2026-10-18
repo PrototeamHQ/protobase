@@ -90,7 +90,7 @@ export type {
 export { f } from './fields'
 export { resource, type ResourceBuilder, type SearchRef, type SearchRefs, type Validator } from './resource'
 export type { EventActor, EventContext, EventMatch, EventSpec, EventHelpers, CreatedOptions, UpdatedOptions, DeletedOptions, UndeletedOptions } from './events/event-helpers'
-export { isRecordCondition, showModes } from './record-when'
+export { isRecordCondition } from './record-when'
 export { view, type ViewBuilder, type FieldViews } from './view'
 export type { FieldView } from './view-field'
 export type { ComponentRef, ViewProps } from './view-displays'
