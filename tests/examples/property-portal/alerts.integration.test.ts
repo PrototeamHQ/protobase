@@ -52,6 +52,9 @@ const listing = async (address: string, prices: { purchase?: number; rent?: numb
     values (${agency}, ${utrecht}, 'apartment', ${address}, '3511 AB', 52.09, 5.12, ${prices.purchase ?? null}, ${prices.rent ?? null}, ${area}, 3, 2, 'A test home.', 'Test Agent', '+31 6 0000 0000', ${published ? sql`now()` : null})
     returning id::text as id`.execute(db)).rows[0]!.id
 
+// Runs every job that is due, those the runs enqueue too, so what a write set off is done instead of waited for.
+const drained = async () => expect(await runtime!.drain(20)).toMatchObject({ drained: true, remaining: 0 })
+
 const alertsOf = async (search: string) =>
   (await sql<{ listing_id: string; emailed_at: Date | null }>`select listing_id::text as listing_id, emailed_at from members.alerts where saved_search_id = ${search} order by id`.execute(db)).rows
 
@@ -70,13 +73,13 @@ describe.skipIf(!seeded)('alerts for newly published listings', () => {
 
   it('waits until a draft is published, and records it once however often it is saved', async () => {
     const draft = await listing('Teststraat 3', { purchase: 400_000 }, 90, false)
-    await new Promise((resolve) => setTimeout(resolve, 1500))
+    await drained()
     expect((await alertsOf(instant)).map((alert) => alert.listing_id)).not.toContain(draft)
     await sql`update market.listings set published_at = now() where id = ${draft}`.execute(db)
     await vi.waitFor(async () => expect((await alertsOf(instant)).map((alert) => alert.listing_id)).toContain(draft), { timeout: 20_000, interval: 200 })
     await sql`update market.listings set published_at = now() where id = ${draft}`.execute(db)
     await jobs.matchListing.enqueue(db, { listingId: Number(draft) })
-    await new Promise((resolve) => setTimeout(resolve, 1500))
+    await drained()
     expect((await alertsOf(instant)).filter((alert) => alert.listing_id === draft)).toHaveLength(1)
   })
 
@@ -95,7 +98,7 @@ describe.skipIf(!seeded)('alerts for newly published listings', () => {
     const home = await listing('Teststraat 7', { purchase: 900_000 }, 120, true)
     await vi.waitFor(async () => expect((await alertsOf(quiet)).map((alert) => alert.listing_id)).toContain(home), { timeout: 20_000, interval: 200 })
     await jobs.emailAlerts.enqueue(db, { userId: user, frequency: 'daily' })
-    await new Promise((resolve) => setTimeout(resolve, 1500))
+    await drained()
     expect((await alertsOf(quiet)).every((alert) => alert.emailed_at === null)).toBe(true)
     expect(sent.some((message) => message.text.includes('Teststraat 7'))).toBe(false)
   })
