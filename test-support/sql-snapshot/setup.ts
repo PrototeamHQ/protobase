@@ -10,6 +10,20 @@ import { seedRandomness, useSequence } from './random'
 
 process.env.TZ = 'UTC'
 
+// Bun binds `import { randomBytes } from 'node:crypto'` once, so patching node:crypto (random.ts) never reaches it, as
+// it does on Node. Better Auth hashes passwords that way, so the snapshot projects run it through Vitest (`inline`),
+// where these named exports call whatever node:crypto's own object holds when they run: the seeded sequence.
+vi.mock('node:crypto', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('node:crypto') & { default: typeof import('node:crypto') }>()
+  const live = actual.default
+  return {
+    ...actual,
+    randomBytes: ((...args: Parameters<typeof live.randomBytes>) => live.randomBytes(...args)) as typeof live.randomBytes,
+    randomUUID: (() => live.randomUUID()) as typeof live.randomUUID,
+    randomFillSync: ((...args: Parameters<typeof live.randomFillSync>) => live.randomFillSync(...args)) as typeof live.randomFillSync,
+  }
+})
+
 const unreadError = (left: ReturnType<ReturnType<typeof fileContext>['recording']['unread']>) =>
   staleSnapshot(`These recorded queries did not run: ${left.map(({ handle, left, first }) => `${left} on database ${handle}, from ${first.sql.slice(0, 200)}`).join('; ')}`)
 

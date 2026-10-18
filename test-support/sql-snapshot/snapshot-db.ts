@@ -8,6 +8,7 @@ import { createLock } from './lock'
 import { currentScope, recording } from './mode'
 import type { Entry } from './recording'
 import { openRecordBackend, type Backend, type Outcome } from './record-backend'
+import { readsCatalog, oidCandidates } from './server-oids'
 import { decodeServerValues } from './server-values'
 import { databaseError, parseResult, prepareParams, sendable, type ParsedResult, type RawError, type RawParam, type RawResult } from './values'
 
@@ -71,6 +72,7 @@ const openHandle = async (opening: Promise<Backend> | undefined): Promise<Snapsh
       entry.error = Object.fromEntries(Object.entries(outcome.error).map(([field, value]) => [field, typeof value === 'string' ? encode(value) : value])) as RawError
     } else {
       const results = Array.isArray(outcome.result) ? outcome.result : [outcome.result]
+      if (readsCatalog(sql)) context.values.learnOids(await backend!.existingOids(oidCandidates(results)))
       const encode = context.values.encodeResult(results.flatMap((result) => result.rows.flat().filter((value) => value !== null)))
       const kept = results.map((result) => ({ ...result, rows: result.rows.map((row) => row.map((value) => (value === null ? null : encode(value)))) }))
       entry.result = Array.isArray(outcome.result) ? kept : kept[0]

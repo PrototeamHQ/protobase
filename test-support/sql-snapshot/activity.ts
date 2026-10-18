@@ -19,14 +19,19 @@ export const track = async <T>(work: () => Promise<T>) => {
 }
 
 const turn = () => new Promise((resolve) => setImmediate(resolve))
+const pause = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 
-/** Waits until no query is in progress and none starts for a few turns of the event loop. */
+/**
+ * Waits until no query is in progress and none starts for a few turns of the event loop and then 10 ms: Better Auth
+ * starts its schema check once its context is set up, which takes a few event loop turns of crypto and imports.
+ */
 export const settle = async (seconds = 10) => {
   const deadline = performance.now() + seconds * 1000
   for (;;) {
     const before = started
     if (busy > 0) await new Promise<void>((resolve) => idle.push(resolve))
     for (let i = 0; i < 5; i++) await turn()
+    await pause(10)
     if (busy === 0 && started === before) return
     if (performance.now() > deadline) throw new Error(`Queries kept running in the background for ${seconds} s; a snapshot test cannot replay that`)
   }

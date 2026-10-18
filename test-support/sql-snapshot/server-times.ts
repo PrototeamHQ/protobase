@@ -46,9 +46,11 @@ export const decodeTimes = (text: string) =>
 export const createServerTimes = () => {
   const numbers = new Map<number, number>()
   const reals = new Map<number, number>()
-  // By the real clock, as the tests' Date is fake, with a minute's leeway for a server clock that is a little off.
+  // By the real clock, as the tests' Date is fake: from a minute before the run, for a server clock that is a little off,
+  // to 30 days after now, for what Postgres sets ahead, such as a job's keep_until. The tests' clock and what they
+  // count from it stay before the run.
   const start = (inject('snapshotRecordStart') ?? Infinity) - 60_000
-  const isServerTime = (micros: number) => micros > start * 1000 && micros < (performance.timeOrigin + performance.now() + 60_000) * 1000
+  const isServerTime = (micros: number) => micros > start * 1000 && micros < (performance.timeOrigin + performance.now() + 30 * 86_400_000) * 1000
 
   /** Postgres's text with its clock's times as tokens; new times are numbered in time order. */
   const encodeResult = (texts: string[]) => {

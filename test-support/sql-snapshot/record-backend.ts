@@ -31,6 +31,8 @@ const cloneName = () => `snapshot_${inject('snapshotRunId')}_${process.env.VITES
 /** One connection to a clone this run made, for `bun run test:record`. */
 export type Backend = {
   run: (sql: string, params: (string | Buffer | null)[] | undefined) => Promise<Outcome>
+  /** Which of `candidates` are the OIDs of objects in the database, by a query the recording leaves out. */
+  existingOids: (candidates: string[]) => Promise<string[]>
   clone: () => Promise<Backend>
   close: () => Promise<void>
 }
@@ -54,6 +56,18 @@ const connectBackend = async (database: string): Promise<Backend> => {
     }
   }
 
+  const existingOids: Backend['existingOids'] = async (candidates) => {
+    if (!candidates.length) return []
+    const { rows } = await client.query<{ oid: string }>({
+      text: `select oid::text from unnest($1::oid[]) as oid where exists (select from pg_class where pg_class.oid = oid)
+        or exists (select from pg_proc where pg_proc.oid = oid) or exists (select from pg_type where pg_type.oid = oid)
+        or exists (select from pg_trigger where pg_trigger.oid = oid) or exists (select from pg_namespace where pg_namespace.oid = oid)
+        or exists (select from pg_constraint where pg_constraint.oid = oid)`,
+      values: [`{${candidates.join(',')}}`],
+    })
+    return rows.map((row) => row.oid)
+  }
+
   /** A copy of the database as it is now; Postgres copies a database only while nothing is connected to it. */
   const clone = async () => {
     await client.end()
@@ -68,7 +82,7 @@ const connectBackend = async (database: string): Promise<Backend> => {
     await withRealRandomness(() => dropDatabase(database))
   }
 
-  return { run, clone, close }
+  return { run, existingOids, clone, close }
 }
 
 /** A clone of the template on the real Postgres server, with one connection, for `bun run test:record`. */

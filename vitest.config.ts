@@ -85,6 +85,8 @@ const snapshotProject = (name: string, include: string[], exclude: string[], iso
     globalSetup: ['test-support/sql-snapshot/global-setup.ts'],
     isolate,
     env: { TZ: 'UTC' },
+    // Better Auth through Vitest, so the setup's node:crypto reaches the password hashing on Bun as well.
+    server: { deps: { inline: [/better-auth/] } },
     ...(recordSnapshots && { maxWorkers: integrationWorkers }),
   },
 })
