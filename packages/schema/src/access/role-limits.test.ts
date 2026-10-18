@@ -72,10 +72,18 @@ describe('defining limited capabilities', () => {
 
   it('lets the anonymous role only read listed fields of named resources', () => {
     expect(() => defineRoles({ anonymous: ['products.read'] })).toThrow("must list the fields it reads: { 'products.read'")
-    expect(() => defineRoles({ anonymous: [{ 'products.update': ['stock'] }] })).toThrow('may only read, but it grants "products.update"')
+    expect(() => defineRoles({ anonymous: [{ 'products.update': ['stock'] }] })).toThrow('may only read, or create through a public form, but it grants "products.update"')
     expect(() => defineRoles({ anonymous: [{ 'products.read': { filter: 'published = true' } }] })).toThrow('must list the fields')
     expect(() => defineRoles({ anonymous: ['*.read'] })).toThrow('must name each resource')
     expect(() => defineRoles({ anonymous: [{ 'products.read.own': ['name'] }] })).toThrow('owns no rows')
+  })
+
+  it('lets the anonymous role create listed fields of named resources, for public forms', () => {
+    expect(defineRoles({ anonymous: [{ 'products.create': ['name', 'price'] }] }).limits).toEqual([{ role: 'anonymous', capability: 'products.create', fields: ['name', 'price'] }])
+    expect(() => defineRoles({ anonymous: ['products.create'] })).toThrow("must list the fields it creates: { 'products.create'")
+    expect(() => defineRoles({ anonymous: ['*.create'] })).toThrow('must name each resource it creates')
+    expect(() => defineRoles({ anonymous: [{ 'products.create.own': ['name'] }] })).toThrow('owns no rows')
+    expect(() => defineRoles({ anonymous: [{ 'products.update': ['stock'] }] })).toThrow('or create through a public form, but it grants "products.update"')
   })
 })
 

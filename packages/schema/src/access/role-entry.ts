@@ -51,14 +51,15 @@ const limited = (role: string, capability: string, limit: CapabilityLimit): Held
   return { capability, ...(fields !== undefined && { fields: [...fields] }), ...(filter !== undefined && { filter: parsedFilter(role, capability, filter) }) }
 }
 
-// Only reading, of fields named one by one: a public role never sees a column nobody chose to show.
+// Reading, or creating through a public form, of fields named one by one: a public role never sees or sets a column
+// nobody chose to expose.
 const checkAnonymous = (held: readonly HeldCapability[]) => {
   for (const { capability, fields } of held) {
     const { name, action, scope } = parseCapability(capability)
-    if (action !== 'read') throw new Error(`The anonymous role may only read, but it grants "${capability}"`)
-    if (name === '*') throw new Error(`The anonymous role must name each resource it reads, not "${capability}"`)
+    if (action !== 'read' && action !== 'create') throw new Error(`The anonymous role may only read, or create through a public form, but it grants "${capability}"`)
+    if (name === '*') throw new Error(`The anonymous role must name each resource it ${action}s, not "${capability}"`)
     if (scope !== undefined) throw new Error(`The anonymous role grants "${capability}", but an anonymous caller owns no rows`)
-    if (!fields) throw new Error(`The anonymous role must list the fields it reads: { '${capability}': ['name', ...] }`)
+    if (!fields) throw new Error(`The anonymous role must list the fields it ${action}s: { '${capability}': ['name', ...] }`)
   }
 }
 

@@ -13,7 +13,7 @@ export const checkRoleLimits = (registry: Registry, limits: readonly RoleLimit[]
     if (!model) throw new Error(`Role "${role}" limits "${capability}" but "${name}" is not a resource`)
     const unknown = fields?.find((field) => !Object.hasOwn(model.fields, field))
     if (unknown) throw new Error(`Role "${role}" lists the field "${unknown}" for "${capability}" but ${name} has no such field`)
-    if (role === anonymousRole && model.tenant) throw new Error(`The anonymous role reads ${name}, which is tenant-scoped, but an anonymous caller works in no organization`)
+    if (role === anonymousRole && model.tenant) throw new Error(`The anonymous role grants "${capability}" on ${name}, which is tenant-scoped, but an anonymous caller works in no organization`)
     if (!filter) continue
     // Like an access rule's filter, it may use columns that are not filterable.
     const trusted = { ...model, fields: Object.fromEntries(Object.entries(model.fields).map(([field, value]) => [field, { ...value, filterable: true }])) }
