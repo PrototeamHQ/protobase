@@ -171,6 +171,10 @@ jobs:
   # the new recordings are uploaded to commit. A push runs it when it changes what the recordings are made from
   # (scripts/affected-snapshots.mjs); a pull request, a run by hand and the weekly run, for a moved postgres:18, always do.
   record:
+    # After check, whatever it found, so the two do not share the runner's cores: recording hashes passwords for
+    # minutes, and check's integration tests then wait past their timeouts.
+    needs: check
+    if: ${{ !cancelled() }}
     concurrency:
       group: record-${{ github.event_name == 'push' && startsWith(github.ref, 'refs/heads/fm/') && github.ref || github.run_id }}
       cancel-in-progress: true
