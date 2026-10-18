@@ -1,10 +1,9 @@
 import { decodeJwt } from 'jose'
-import { PGliteDialect } from 'kysely-pglite-dialect'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { bottomBar } from '@protobase/schema'
 import { betterAuthAuthenticator, createAdmin, createAuth, createUser, setUserRole } from '@protobase/server'
-import { createAuthStore } from '../../test-support/auth'
 import { allResources, createFixtureDb } from '../../test-support/server'
+import { openSnapshotDb, type SnapshotDb } from '../../test-support/sql-snapshot'
 
 const origin = 'http://localhost:5173'
 const password = 'correct horse battery'
@@ -16,8 +15,8 @@ describe('switching the active role', () => {
 
   beforeAll(async () => {
     fixture = await createFixtureDb()
-    const store = await createAuthStore()
-    const auth = createAuth({ database: { dialect: new PGliteDialect(store), type: 'postgres' }, baseURL: origin, secret: 'test-secret-test-secret-test-secret-1234', roles: ['sales'], mailer: false, signInPerMinute: 100 })
+    const store = await openSnapshotDb('auth')
+    const auth = createAuth({ database: { dialect: store.dialect, type: 'postgres' }, baseURL: origin, secret: 'test-secret-test-secret-test-secret-1234', roles: ['sales'], mailer: false, signInPerMinute: 100 })
     const bars = [bottomBar({ label: 'Desk', roles: ['admin'] }, (m) => [m.resource('labels', { label: 'Labels' })]), bottomBar({ label: 'Field', roles: ['sales'] }, (m) => [m.resource('companies', { label: 'Companies' })])]
     app = createAdmin({ resources: allResources, bottomBars: bars, db: fixture.db, authenticate: betterAuthAuthenticator({ auth, tenant: 1 }), auth })
     await createUser(auth, { email: 'root@example.com', password })

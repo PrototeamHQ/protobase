@@ -1,9 +1,8 @@
 import { Kysely, sql } from 'kysely'
-import { PGliteDialect } from 'kysely-pglite-dialect'
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { f, resource, view, type AccessContext } from '@protobase/schema'
 import { createAdmin, startJobs, type JobsRuntime } from '@protobase/server'
-import { createJobsPg } from '../../test-support/jobs'
+import { openSnapshotDb, type SnapshotDb } from '../../test-support/sql-snapshot'
 
 // Agents read and write tickets; clerks too, but may not change the summary; viewers only read.
 const roles = (ctx: AccessContext) => ctx.user?.roles ?? []
@@ -46,8 +45,8 @@ let admin: ReturnType<typeof createAdmin>
 const reported: unknown[] = []
 
 beforeAll(async () => {
-  const pg = await createJobsPg()
-  db = new Kysely<any>({ dialect: new PGliteDialect(pg) })
+  const pg = await openSnapshotDb('jobs')
+  db = new Kysely<any>({ dialect: pg.dialect })
   close = () => db.destroy()
   await pg.exec('create table tickets (id integer generated always as identity primary key, title text not null, description text, summary text, priority text)')
   admin = createAdmin({

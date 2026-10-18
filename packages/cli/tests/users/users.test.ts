@@ -1,12 +1,11 @@
 import { Readable } from 'node:stream'
 import { getMigrations } from 'better-auth/db/migration'
-import { PGliteDialect } from 'kysely-pglite-dialect'
 import { beforeAll, describe, expect, it } from 'vitest'
-import { createEmptyPg } from '../../../../test-support/pglite-snapshot'
 import { createAuth, issueToken, type AdminAuth } from '@protobase/server'
 import { createUserCommand, listRolesCommand, listUsersCommand, type UsersApi } from '../../src/users/commands'
 import { deleteUserCommand, setDisabledCommand, setRoleCommand } from '../../src/users/manage'
 import { usersApi } from '../../src/users/register'
+import { openSnapshotDb, type SnapshotDb } from '../../../../test-support/sql-snapshot'
 
 // The users commands over a real Better Auth store, wired as the CLI wires them; the setup of dev.integration.test.ts
 // runs the binary itself once.
@@ -14,7 +13,7 @@ let auth: AdminAuth
 let api: UsersApi
 
 beforeAll(async () => {
-  auth = createAuth({ database: { dialect: new PGliteDialect(await createEmptyPg()), type: 'postgres' }, baseURL: 'http://localhost:1', secret: 'users-test-secret-users-test-secret-1234' })
+  auth = createAuth({ database: { dialect: (await openSnapshotDb('empty')).dialect, type: 'postgres' }, baseURL: 'http://localhost:1', secret: 'users-test-secret-users-test-secret-1234' })
   await (await getMigrations(auth.options)).runMigrations()
   api = usersApi(auth)
 })

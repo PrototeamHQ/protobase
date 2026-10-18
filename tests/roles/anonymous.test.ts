@@ -1,10 +1,9 @@
 import { Kysely } from 'kysely'
-import { PGliteDialect } from 'kysely-pglite-dialect'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { defineRoles, f, resource } from '@protobase/schema'
 import { createAdmin } from '@protobase/server'
-import { createTrigramPg } from '../../test-support/pglite-snapshot'
 import { as, testAuthenticator } from '../../test-support/server'
+import { openSnapshotDb, type SnapshotDb } from '../../test-support/sql-snapshot'
 
 const roles = defineRoles<'products' | 'orders'>({
   admin: ['*'],
@@ -36,7 +35,7 @@ describe('the anonymous role and field lists through the API', () => {
   let closed: ReturnType<typeof createAdmin>
 
   beforeAll(async () => {
-    const pg = await createTrigramPg()
+    const pg = await openSnapshotDb('trigram')
     await pg.exec(`
       create table products (id integer generated always as identity primary key, sku text not null, name text not null, price numeric(10,2) not null, cost_price numeric(10,2) not null, stock integer not null, published boolean not null);
       insert into products (sku, name, price, cost_price, stock, published) values ('B-1', 'Bell', 9.50, 4.00, 12, true), ('L-1', 'Lamp', 24.00, 11.00, 3, true), ('S-1', 'Saddle', 60.00, 30.00, 0, false);
@@ -48,7 +47,7 @@ describe('the anonymous role and field lists through the API', () => {
       create table orders (id integer generated always as identity primary key, total numeric(10,2) not null);
       insert into orders (total) values (10);
     `)
-    db = new Kysely({ dialect: new PGliteDialect(pg) })
+    db = new Kysely({ dialect: pg.dialect })
     app = createAdmin({ resources: [products, orders], db, authenticate: testAuthenticator, options: { roles } })
     closed = createAdmin({ resources: [products, orders], db, authenticate: testAuthenticator, options: { roles: defineRoles({ admin: ['*'] }) } })
   })

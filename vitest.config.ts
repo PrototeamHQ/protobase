@@ -49,7 +49,17 @@ const presets = ['packages/presets/tests/**/*.test.ts']
 // Snapshot tests: what PGlite ran before, now replaying SQL recorded from real Postgres (test-support/sql-snapshot.ts),
 // in `bun run test` without a database. `bun run test:record` runs them on Postgres instead and rewrites the recordings.
 const recordSnapshots = process.env.SQL_SNAPSHOT === 'record'
-const snapshot = ['packages/query/tests/**/*.test.ts', 'packages/server/tests/!(jobs|drain-jobs|recurring-jobs).test.ts']
+const databaseTests = ['packages/*/tests/**/*.test.ts', glue]
+// The PGlite tests left: what a recording cannot replay, or what a real-Postgres test proves already. They move to real
+// Postgres or go. Replay cannot follow workers that poll and retry on real timers, nor a recording that holds the
+// server's transaction ids, as the changes outbox does, which differ on every recording.
+const pglite = [
+  'packages/server/tests/{jobs,drain-jobs,recurring-jobs}.test.ts',
+  'packages/cli/tests/serve/lifecycle-jobs.test.ts',
+  'packages/cli/tests/worker/start-worker.test.ts',
+  'tests/changes/{capture,history,delivery,dispatch-guard,webhook-subscriptions}.test.ts',
+  'tests/roles/public-form.test.ts',
+]
 // Like `mocking` for unit tests, snapshot tests that replace a module or change a global run in a registry of their own,
 // and so do those that create a Better Auth instance: its rate limits live in one map per module registry, which the
 // fixed clock never empties, so they would carry over from file to file.
@@ -79,7 +89,7 @@ const snapshotProject = (name: string, include: string[], exclude: string[], iso
   test: {
     name,
     include,
-    exclude: [...configDefaults.exclude, ...exclude],
+    exclude: [...configDefaults.exclude, ...integration, ...presets, postgresGlue, ...pglite, ...exclude],
     // Replay connects to nothing, so a test that reaches for a database fails as a unit test does.
     setupFiles: [...(recordSnapshots ? [] : ['test-support/no-database.setup.ts']), 'test-support/sql-snapshot/setup.ts'],
     globalSetup: ['test-support/sql-snapshot/global-setup.ts'],
@@ -123,16 +133,15 @@ export default defineConfig({
         },
       },
       {
-        // `bun run test` runs this and unit: PGlite, but no Postgres server, subprocess or network.
+        // `bun run test` runs this, unit and the snapshot tests: PGlite, but no Postgres server, subprocess or network.
         extends: true,
         test: {
           name: 'pglite',
-          include: ['packages/*/tests/**/*.test.ts', glue],
-          exclude: [...configDefaults.exclude, ...integration, ...presets, postgresGlue, ...snapshot],
+          include: pglite,
           globalSetup: ['test-support/pglite-snapshots.global-setup.ts'],
         },
       },
-      snapshotProject('snapshot', snapshot, snapshotIsolated, false),
+      snapshotProject('snapshot', databaseTests, snapshotIsolated, false),
       snapshotProject('snapshot-isolated', snapshotIsolated, [], true),
       {
         extends: true,

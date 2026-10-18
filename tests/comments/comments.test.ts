@@ -1,16 +1,15 @@
 import { Kysely } from 'kysely'
-import { PGliteDialect } from 'kysely-pglite-dialect'
 import { describe, vi } from 'vitest'
-import { createJobsPg } from '../../test-support/jobs'
 import { commentsScenarios } from './comments-scenarios'
+import { openSnapshotDb, type SnapshotDb } from '../../test-support/sql-snapshot'
 
 // Workers poll on real timers, which a busy machine stretches.
 vi.setConfig({ testTimeout: 30_000, hookTimeout: 30_000 })
 
-describe('record comments on PGlite', () => {
+describe('record comments on SnapshotDb', () => {
   commentsScenarios(async () => {
-    const pg = await createJobsPg()
-    const db = new Kysely<any>({ dialect: new PGliteDialect(pg) })
+    const pg = await openSnapshotDb('jobs')
+    const db = new Kysely<any>({ dialect: pg.dialect })
     return { db, exec: async (text) => void (await pg.exec(text)), close: () => db.destroy() }
   })
 })

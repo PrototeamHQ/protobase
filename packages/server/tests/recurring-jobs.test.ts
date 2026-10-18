@@ -33,33 +33,9 @@ const waitingRuns = async (db: Kysely<any>) =>
 
 const until = (check: () => unknown, timeout = 15_000) => vi.waitFor(check, { timeout, interval: 20 })
 
+// The recurring runs that wait for a worker's poll, which a recording cannot replay; still on PGlite, and proven on real
+// Postgres by serve.integration's "runs the app's jobs". The rows a schedule writes are in recurring-schedules.test.ts.
 describe('recurring jobs', () => {
-  // A clock well before the next run, so it stays waiting while the test looks at it.
-  const now = () => new Date('2030-01-07T06:00:00Z')
-  const nightly = (schedule = '0 7 * * *') => defineJob({ name: 'nightly', schedule, run: () => {} })
-
-  it('wait as their next run, enqueued once however many workers start', async () => {
-    const db = await jobsDb()
-    await start(db, [nightly()], { now })
-    await restart(db, [nightly()], { now })
-    const at = new Date('2030-01-07T07:00:00Z')
-    expect(await waitingRuns(db)).toEqual([{ name: 'nightly', id: runId('nightly', at), start_after: at }])
-    expect(await runtime!.nextDue()).toEqual(at)
-  })
-
-  it('follow a changed schedule, and stop waiting once the schedule or the job is gone', async () => {
-    const db = await jobsDb()
-    const weekly = defineJob({ name: 'weekly', schedule: '0 6 * * 1', timezone: 'Europe/Amsterdam', run: () => {} })
-    await start(db, [nightly(), weekly], { now })
-    await restart(db, [nightly('0 8 * * *'), weekly], { now })
-    expect((await waitingRuns(db)).map(({ name, start_after }) => [name, start_after.toISOString()])).toEqual([
-      ['nightly', '2030-01-07T08:00:00.000Z'],
-      ['weekly', '2030-01-14T05:00:00.000Z'],
-    ])
-    await restart(db, [defineJob({ name: 'nightly', run: () => {} })], { now })
-    expect(await waitingRuns(db)).toEqual([])
-  })
-
   it('run at each time, and enqueue the next run as one starts', async () => {
     const db = await jobsDb()
     const ran: number[] = []

@@ -1,13 +1,13 @@
+import type { Kysely } from 'kysely'
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
-import pg from 'pg'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { unauthorized } from '@protobase/server'
-import { createPgDb } from '../../src/project/pg-db'
 import { projectAdmin } from '../../src/project/project-admin'
 import { createServeApp } from '../../src/serve/app'
 import type { ServedProject } from '../../src/serve/load-bundle'
+import { openSnapshotDb } from '../../../../test-support/sql-snapshot'
 
 const project: ServedProject = {
   config: {},
@@ -17,14 +17,15 @@ const project: ServedProject = {
   },
 }
 
-// A pool that never connects: an empty config's /meta reads no table.
-const db = createPgDb(pg, 'postgres://unused/app')
+// A database the app never queries: an empty config's /meta reads no table.
+let db: Kysely<any>
 const html = { headers: { accept: 'text/html' } }
 
 describe('createServeApp with a site', () => {
   let publicDir: string
   let app: ReturnType<typeof createServeApp>
   beforeAll(async () => {
+    db = (await openSnapshotDb('empty')).db
     publicDir = await mkdtemp(path.join(tmpdir(), 'protobase-public-'))
     await mkdir(path.join(publicDir, 'assets'))
     await writeFile(path.join(publicDir, 'index.html'), '<title>admin</title>')
@@ -32,7 +33,6 @@ describe('createServeApp with a site', () => {
     app = createServeApp({ admin: projectAdmin(project, project.config, db).admin, requestLog: false, site: { publicDir, spa: 'index.html', api: ['/api'] } })
   })
   afterAll(async () => {
-    await db.destroy()
     await rm(publicDir, { recursive: true, force: true })
   })
 

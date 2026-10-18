@@ -1,5 +1,4 @@
 import { Kysely } from 'kysely'
-import { PGliteDialect } from 'kysely-pglite-dialect'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { createClient, type Meta } from '@protobase/client'
 import { defineRoles, f, resource, view } from '@protobase/schema'
@@ -8,8 +7,8 @@ import { createInlinePort } from '../../packages/ui/src/app/export/builder-port'
 import { defaultExportColumns, exportableFields, exportColumns } from '../../packages/ui/src/app/export/export-options'
 import { runExport } from '../../packages/ui/src/app/export/run-export'
 import type { ExportSink } from '../../packages/ui/src/app/export/sink'
-import { createEmptyPg } from '../../test-support/pglite-snapshot'
 import { as, testAuthenticator } from '../../test-support/server'
+import { openSnapshotDb, type SnapshotDb } from '../../test-support/sql-snapshot'
 
 const roles = defineRoles<'customers' | 'invoices'>({
   admin: ['*'],
@@ -61,7 +60,7 @@ describe('exporting a list through the API', () => {
   let app: ReturnType<typeof createAdmin>
 
   beforeAll(async () => {
-    const pg = await createEmptyPg()
+    const pg = await openSnapshotDb('empty')
     await pg.exec(`
       create table customers (id integer generated always as identity primary key, name text not null);
       insert into customers (name) values ('Acme'), ('Globex');
@@ -74,7 +73,7 @@ describe('exporting a list through the API', () => {
         from generate_series(1, 1600) as n;
       create index on invoices (region);
     `)
-    db = new Kysely({ dialect: new PGliteDialect(pg) })
+    db = new Kysely({ dialect: pg.dialect })
     app = createAdmin({ resources: [customers, invoices], views: [invoicesView, customersView], db, authenticate: testAuthenticator, options: { roles } })
   })
   afterAll(async () => {

@@ -1,22 +1,20 @@
 import { Kysely, sql } from 'kysely'
-import { PGliteDialect } from 'kysely-pglite-dialect'
 import { describe, expect, it, vi } from 'vitest'
 import { f, resource, view } from '@protobase/schema'
 import { defineJob, unauthorized } from '@protobase/server'
-import { createJobsPg } from '../../../../test-support/jobs'
-import { createEmptyPg } from '../../../../test-support/pglite-snapshot'
 import { startServe } from '../../src/serve/lifecycle'
 import type { ServedProject } from '../../src/serve/load-bundle'
+import { openSnapshotDb } from '../../../../test-support/sql-snapshot'
 
-// From the empty snapshot: a `new PGlite()` runs initdb, which blocks the event loop for seconds on a busy machine.
-const pgliteDb = async () => {
-  const db = new Kysely<any>({ dialect: new PGliteDialect(await createEmptyPg()) })
+// An empty snapshot database, with a destroy the tests can count.
+const emptyDb = async () => {
+  const db = new Kysely<any>({ dialect: (await openSnapshotDb('empty')).dialect })
   return Object.assign(db, { destroy: vi.fn(() => Kysely.prototype.destroy.call(db)) })
 }
 
-// A createDb that hands out one db from the snapshot, created before the server starts.
+// A createDb that hands out one empty db, created before the server starts.
 const dbFactory = async () => {
-  const db = await pgliteDb()
+  const db = await emptyDb()
   return () => db
 }
 
@@ -55,7 +53,7 @@ describe('startServe', () => {
   })
 
   it('creates a pool from DATABASE_URL and drains it after the server stops', async () => {
-    const db = await pgliteDb()
+    const db = await emptyDb()
     const createDb = vi.fn(() => db)
     const server = await startServe({ project, env, createDb })
     expect(createDb).toHaveBeenCalledWith('postgres://unused/app')
@@ -65,7 +63,7 @@ describe('startServe', () => {
   })
 
   it('uses the db the project exports and leaves closing it to the project', async () => {
-    const db = await pgliteDb()
+    const db = await emptyDb()
     const createDb = vi.fn(() => db)
     const server = await startServe({ project: { ...project, db }, env: { ...env, databaseUrl: undefined }, createDb })
     await server.close()
@@ -80,14 +78,14 @@ describe('startServe', () => {
 
   it('drains its pool when the port is taken', async () => {
     const first = await startServe({ project, env, createDb: await dbFactory() })
-    const db = await pgliteDb()
+    const db = await emptyDb()
     await expect(startServe({ project, env: { ...env, port: first.port }, createDb: () => db })).rejects.toMatchObject({ code: 'EADDRINUSE' })
     expect(db.destroy).toHaveBeenCalledTimes(1)
     await first.close()
   })
 
   it('refuses to start while the jobs schema is missing, and drains its pool', async () => {
-    const db = new Kysely<any>({ dialect: new PGliteDialect(await createEmptyPg()) })
+    const db = new Kysely<any>({ dialect: (await openSnapshotDb('empty')).dialect })
     const destroy = vi.spyOn(db, 'destroy')
     const job = defineJob({ name: 'nightly', run: () => {} })
     await expect(startServe({ project: { ...project, jobs: { job } }, env, createDb: () => db })).rejects.toThrow('The jobs schema is missing')
@@ -105,28 +103,8 @@ describe('startServe', () => {
     vi.unstubAllEnvs()
   })
 
-  it("runs the project's jobs, and lets a running one finish when it closes", async () => {
-    const db = new Kysely<any>({ dialect: new PGliteDialect(await createJobsPg()) })
-    let finished = false
-    let started = false
-    const job = defineJob({ name: 'slow', run: async () => {
-      started = true
-      await new Promise((resolve) => setTimeout(resolve, 200))
-      finished = true
-    } })
-    const server = await startServe({ project: { ...project, db, jobs: { job } }, env: { ...env, databaseUrl: undefined } })
-    try {
-      await job.enqueue(db)
-      await vi.waitFor(() => expect(started).toBe(true), { timeout: 20_000, interval: 20 })
-    } finally {
-      await server.close()
-    }
-    expect(finished).toBe(true)
-    await expect(job.enqueue(db)).rejects.toThrow('Jobs are not running in this process')
-  }, 30_000)
-
   it('enqueues but runs no job with PROTOBASE_JOBS=false', async () => {
-    const db = new Kysely<any>({ dialect: new PGliteDialect(await createJobsPg()) })
+    const db = new Kysely<any>({ dialect: (await openSnapshotDb('jobs')).dialect })
     const run = vi.fn()
     const job = defineJob({ name: 'elsewhere', run })
     const server = await startServe({ project: { ...project, db, jobs: { job } }, env: { ...env, databaseUrl: undefined, runJobs: false } })
@@ -140,7 +118,7 @@ describe('startServe', () => {
   }, 30_000)
 
   it('drains due jobs for the operator, with POST /api/jobs/drain and the drain token', async () => {
-    const db = new Kysely<any>({ dialect: new PGliteDialect(await createJobsPg()) })
+    const db = new Kysely<any>({ dialect: (await openSnapshotDb('jobs')).dialect })
     const run = vi.fn()
     const job = defineJob({ name: 'drained', run })
     const server = await startServe({ project: { ...project, db, jobs: { job } }, env: { ...env, databaseUrl: undefined, drainToken: 'operator-token' } })
@@ -161,7 +139,7 @@ describe('startServe', () => {
   }, 30_000)
 
   it('has no drain endpoint without a drain token, and refuses to drain with PROTOBASE_JOBS=false', async () => {
-    const db = new Kysely<any>({ dialect: new PGliteDialect(await createJobsPg()) })
+    const db = new Kysely<any>({ dialect: (await openSnapshotDb('jobs')).dialect })
     const job = defineJob({ name: 'elsewhere', run: () => {} })
     const without = await startServe({ project: { ...project, db, jobs: { job } }, env: { ...env, databaseUrl: undefined } })
     try {

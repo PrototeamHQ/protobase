@@ -1,0 +1,83 @@
+{
+  "(hooks)": {
+    "(hooks)#0": [
+      {"sql":"\n      create table products (id integer generated always as identity primary key, sku text not null, name text not null, price numeric(10,2) not null, cost_price numeric(10,2) not null, stock integer not null, published boolean not null);\n      insert into products (sku, name, price, cost_price, stock, published) values ('B-1', 'Bell', 9.50, 4.00, 12, true), ('L-1', 'Lamp', 24.00, 11.00, 3, true), ('S-1', 'Saddle', 60.00, 30.00, 0, false);\n      create index on products (sku);\n      create index on products (name);\n      create index on products (price);\n      create index on products (published);\n      create index on products using gin (name gin_trgm_ops, sku gin_trgm_ops);\n      create table orders (id integer generated always as identity primary key, total numeric(10,2) not null);\n      insert into orders (total) values (10);\n    ","result":[{"command":"CREATE","rowCount":null,"columns":[],"rows":[]},{"command":"INSERT","rowCount":3,"columns":[],"rows":[]},{"command":"CREATE","rowCount":null,"columns":[],"rows":[]},{"command":"CREATE","rowCount":null,"columns":[],"rows":[]},{"command":"CREATE","rowCount":null,"columns":[],"rows":[]},{"command":"CREATE","rowCount":null,"columns":[],"rows":[]},{"command":"CREATE","rowCount":null,"columns":[],"rows":[]},{"command":"CREATE","rowCount":null,"columns":[],"rows":[]},{"command":"INSERT","rowCount":1,"columns":[],"rows":[]}]}
+    ]
+  },
+  "the anonymous role and field lists through the API > lists the listed fields of the filtered rows to a request without a token": {
+    "(hooks)#0": [
+      {"sql":"select relkind from pg_class where oid = to_regclass($1)","params":["\"products\""],"result":{"command":"SELECT","rowCount":1,"columns":[["relkind",18]],"rows":[["r"]]}},
+      {"sql":"\n    select ic.relname as name, am.amname as method, (i.indpred is not null) as partial, a.attname::text as column,\n      pg_get_indexdef(i.indexrelid, k.ord::int, true) as definition, oc.opcname::text as opclass\n    from pg_index i\n    join pg_class ic on ic.oid = i.indexrelid\n    join pg_am am on am.oid = ic.relam\n    cross join lateral unnest(i.indkey::int2[], i.indclass::oid[]) with ordinality k(attnum, opclass, ord)\n    left join pg_attribute a on a.attrelid = i.indrelid and a.attnum = k.attnum and k.attnum > 0\n    join pg_opclass oc on oc.oid = k.opclass\n    where i.indrelid = to_regclass($1) and i.indisvalid and i.indisready and k.ord <= i.indnkeyatts\n    order by ic.relname, k.ord\n  ","params":["\"products\""],"result":{"command":"SELECT","rowCount":7,"columns":[["name",19],["method",19],["partial",16],["column",25],["definition",25],["opclass",25]],"rows":[
+        ["products_name_idx","btree","f","name","name","text_ops"],
+        ["products_name_sku_idx","gin","f","name","name","gin_trgm_ops"],
+        ["products_name_sku_idx","gin","f","sku","sku","gin_trgm_ops"],
+        ["products_pkey","btree","f","id","id","int4_ops"],
+        ["products_price_idx","btree","f","price","price","numeric_ops"],
+        ["products_published_idx","btree","f","published","published","bool_ops"],
+        ["products_sku_idx","btree","f","sku","sku","text_ops"]
+      ]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select \"t\".\"id\" as \"id\", \"t\".\"name\" as \"name\", \"t\".\"price\" as \"price\", \"t\".\"name\"::text as \"__pb_key0\", \"t\".\"id\"::text as \"__pb_key1\" from \"products\" as \"t\" where \"t\".\"published\" = $1 order by \"t\".\"name\" asc, \"t\".\"id\" asc limit $2","params":["true","51"],"result":{"command":"SELECT","rowCount":2,"columns":[["id",23],["name",25],["price",1700],["__pb_key0",25],["__pb_key1",25]],"rows":[
+        ["1","Bell","9.50","Bell","1"],
+        ["2","Lamp","24.00","Lamp","2"]
+      ]}},
+      {"sql":"EXPLAIN (VERBOSE, FORMAT JSON) select 1 as \"one\" from \"products\" as \"t\" where \"t\".\"published\" = $1","params":["true"],"result":{"command":"EXPLAIN","rowCount":null,"columns":[["QUERY PLAN",114]],"rows":[["[\n  {\n    \"Plan\": {\n      \"Node Type\": \"Seq Scan\",\n      \"Parallel Aware\": false,\n      \"Async Capable\": false,\n      \"Relation Name\": \"products\",\n      \"Schema\": \"public\",\n      \"Alias\": \"t\",\n      \"Startup Cost\": 0.00,\n      \"Total Cost\": 1.03,\n      \"Plan Rows\": 2,\n      \"Plan Width\": 4,\n      \"Disabled\": false,\n      \"Output\": [\"1\"],\n      \"Filter\": \"t.published\"\n    }\n  }\n]"]]}},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select \"id\" as \"id\", \"name\" as \"name\", \"price\" as \"price\" from \"products\" as t where \"id\" = $1 and \"t\".\"published\" = $2 limit 1","params":["3","true"],"result":{"command":"SELECT","rowCount":0,"columns":[["id",23],["name",25],["price",1700]],"rows":[]}},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select \"id\" as \"id\", \"name\" as \"name\", \"price\" as \"price\" from \"products\" as t where \"id\" = $1 and \"t\".\"published\" = $2 limit 1","params":["1","true"],"result":{"command":"SELECT","rowCount":1,"columns":[["id",23],["name",25],["price",1700]],"rows":[["1","Bell","9.50"]]}},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
+    ]
+  },
+  "the anonymous role and field lists through the API > refuses unlisted fields in filters, sorts and field masks like unknown ones": {
+    "(hooks)#0": [
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select \"t\".\"id\" as \"id\", \"t\".\"name\" as \"name\", \"t\".\"price\" as \"price\", \"t\".\"id\"::text as \"__pb_key0\" from \"products\" as \"t\" where \"t\".\"published\" = $1 and (((\"t\".\"name\"::text is not null and \"t\".\"name\"::text ilike $2))) order by \"t\".\"id\" asc limit $3","params":["true","%B-1%","51"],"result":{"command":"SELECT","rowCount":0,"columns":[["id",23],["name",25],["price",1700],["__pb_key0",25]],"rows":[]}},
+      {"sql":"EXPLAIN (VERBOSE, FORMAT JSON) select 1 as \"one\" from \"products\" as \"t\" where \"t\".\"published\" = $1 and (((\"t\".\"name\"::text is not null and \"t\".\"name\"::text ilike $2)))","params":["true","%B-1%"],"result":{"command":"EXPLAIN","rowCount":null,"columns":[["QUERY PLAN",114]],"rows":[["[\n  {\n    \"Plan\": {\n      \"Node Type\": \"Seq Scan\",\n      \"Parallel Aware\": false,\n      \"Async Capable\": false,\n      \"Relation Name\": \"products\",\n      \"Schema\": \"public\",\n      \"Alias\": \"t\",\n      \"Startup Cost\": 0.00,\n      \"Total Cost\": 1.04,\n      \"Plan Rows\": 1,\n      \"Plan Width\": 4,\n      \"Disabled\": false,\n      \"Output\": [\"1\"],\n      \"Filter\": \"(t.published AND (t.name ~~* '%B-1%'::text))\"\n    }\n  }\n]"]]}},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
+    ]
+  },
+  "the anonymous role and field lists through the API > denies writes, other resources and the system endpoints without a token": {
+    "(hooks)#0": [
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select \"t\".\"id\" as \"id\", \"t\".\"name\" as \"name\", \"t\".\"price\" as \"price\", \"t\".\"id\"::text as \"__pb_key0\" from \"products\" as \"t\" where \"t\".\"published\" = $1 and \"t\".\"name\" = $2 order by \"t\".\"id\" asc limit $3","params":["true","Bike","51"],"result":{"command":"SELECT","rowCount":0,"columns":[["id",23],["name",25],["price",1700],["__pb_key0",25]],"rows":[]}},
+      {"sql":"EXPLAIN (VERBOSE, FORMAT JSON) select 1 as \"one\" from \"products\" as \"t\" where \"t\".\"published\" = $1 and \"t\".\"name\" = $2","params":["true","Bike"],"result":{"command":"EXPLAIN","rowCount":null,"columns":[["QUERY PLAN",114]],"rows":[["[\n  {\n    \"Plan\": {\n      \"Node Type\": \"Seq Scan\",\n      \"Parallel Aware\": false,\n      \"Async Capable\": false,\n      \"Relation Name\": \"products\",\n      \"Schema\": \"public\",\n      \"Alias\": \"t\",\n      \"Startup Cost\": 0.00,\n      \"Total Cost\": 1.04,\n      \"Plan Rows\": 1,\n      \"Plan Width\": 4,\n      \"Disabled\": false,\n      \"Output\": [\"1\"],\n      \"Filter\": \"(t.published AND (t.name = 'Bike'::text))\"\n    }\n  }\n]"]]}},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
+    ]
+  },
+  "the anonymous role and field lists through the API > gives an integration its listed columns and lets it write only the listed one": {
+    "(hooks)#0": [
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select \"t\".\"id\" as \"id\", \"t\".\"sku\" as \"sku\", \"t\".\"price\" as \"price\", \"t\".\"stock\" as \"stock\", \"t\".\"sku\"::text as \"__pb_key0\", \"t\".\"id\"::text as \"__pb_key1\" from \"products\" as \"t\" order by \"t\".\"sku\" asc, \"t\".\"id\" asc limit $1","params":["51"],"result":{"command":"SELECT","rowCount":3,"columns":[["id",23],["sku",25],["price",1700],["stock",23],["__pb_key0",25],["__pb_key1",25]],"rows":[
+        ["1","B-1","9.50","12","B-1","1"],
+        ["2","L-1","24.00","3","L-1","2"],
+        ["3","S-1","60.00","0","S-1","3"]
+      ]}},
+      {"sql":"\n    select reltuples::float8 as reltuples from pg_class where oid = to_regclass($1)\n  ","params":["\"products\""],"result":{"command":"SELECT","rowCount":1,"columns":[["reltuples",701]],"rows":[["3"]]}},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"select \"id\" as \"id\", \"sku\" as \"sku\", \"name\" as \"name\", \"price\" as \"price\", \"cost_price\" as \"cost_price\", \"stock\" as \"stock\", \"published\" as \"published\" from \"products\" as t where \"id\" = $1 limit 1 for update","params":["1"],"result":{"command":"SELECT","rowCount":1,"columns":[["id",23],["sku",25],["name",25],["price",1700],["cost_price",1700],["stock",23],["published",16]],"rows":[["1","B-1","Bell","9.50","4.00","12","t"]]}},
+      {"sql":"update \"products\" as t set \"stock\" = $1 where \"id\" = $2 returning \"id\" as \"id\", \"sku\" as \"sku\", \"name\" as \"name\", \"price\" as \"price\", \"cost_price\" as \"cost_price\", \"stock\" as \"stock\", \"published\" as \"published\"","params":["11","1"],"result":{"command":"UPDATE","rowCount":1,"columns":[["id",23],["sku",25],["name",25],["price",1700],["cost_price",1700],["stock",23],["published",16]],"rows":[["1","B-1","Bell","9.50","4.00","11","t"]]}},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"select \"id\" as \"id\", \"sku\" as \"sku\", \"name\" as \"name\", \"price\" as \"price\", \"cost_price\" as \"cost_price\", \"stock\" as \"stock\", \"published\" as \"published\" from \"products\" as t where \"id\" = $1 limit 1 for update","params":["1"],"result":{"command":"SELECT","rowCount":1,"columns":[["id",23],["sku",25],["name",25],["price",1700],["cost_price",1700],["stock",23],["published",16]],"rows":[["1","B-1","Bell","9.50","4.00","11","t"]]}},
+      {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}}
+    ]
+  }
+}

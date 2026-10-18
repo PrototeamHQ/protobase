@@ -1,16 +1,15 @@
 import { Kysely } from 'kysely'
-import { PGliteDialect } from 'kysely-pglite-dialect'
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { beforeAll, describe, expect, it } from 'vitest'
 import { tableIndexes } from '@protobase/query'
 import { createAdmin } from '@protobase/server'
 import { agencies } from '../../../../examples/property-portal/config/agencies/data'
 import { agenciesView } from '../../../../examples/property-portal/config/agencies/ui'
 import { places } from '../../../../examples/property-portal/config/places/data'
 import { placesView } from '../../../../examples/property-portal/config/places/ui'
-import { createTrigramPg } from '../../../../test-support/pglite-snapshot'
 import { as, testAuthenticator } from '../../../../test-support/server'
 import { indexIssues } from '../../src/doctor/index-issues'
 import { readShapes } from '../../src/doctor/read-shapes'
+import { openSnapshotDb, type SnapshotDb } from '../../../../test-support/sql-snapshot'
 
 // property-finder's places and agencies as they were when the scan guard came: their list pages sort by name and count
 // regions, which only pg_trgm indexes and a (country, region) index served, so the API refused both pages.
@@ -42,15 +41,13 @@ const fix = `
 const models = [places.toModel(), agencies.toModel()]
 const shapes = readShapes({ models, views: [placesView.toModel(), agenciesView.toModel()], pages: [] })
 
-let pg: Awaited<ReturnType<typeof createTrigramPg>>
+let pg: SnapshotDb
 let db: Kysely<any>
 beforeAll(async () => {
-  pg = await createTrigramPg()
+  pg = await openSnapshotDb('trigram')
   await pg.exec(schema)
-  db = new Kysely<any>({ dialect: new PGliteDialect(pg) })
+  db = new Kysely<any>({ dialect: pg.dialect })
 })
-// Destroying the Kysely instance closes the PGlite under it.
-afterAll(() => db.destroy())
 
 const issues = async () => (await Promise.all(models.map(async (model) => indexIssues(model, await tableIndexes(db, model), shapes)))).flat()
 const admin = () => createAdmin({ resources: [places, agencies], db, authenticate: testAuthenticator })

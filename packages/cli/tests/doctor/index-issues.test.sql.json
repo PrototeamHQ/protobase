@@ -1,0 +1,115 @@
+{
+  "(repeated)": [
+    {"sql":"\n    select ic.relname as name, am.amname as method, (i.indpred is not null) as partial, a.attname::text as column,\n      pg_get_indexdef(i.indexrelid, k.ord::int, true) as definition, oc.opcname::text as opclass\n    from pg_index i\n    join pg_class ic on ic.oid = i.indexrelid\n    join pg_am am on am.oid = ic.relam\n    cross join lateral unnest(i.indkey::int2[], i.indclass::oid[]) with ordinality k(attnum, opclass, ord)\n    left join pg_attribute a on a.attrelid = i.indrelid and a.attnum = k.attnum and k.attnum > 0\n    join pg_opclass oc on oc.oid = k.opclass\n    where i.indrelid = to_regclass($1) and i.indisvalid and i.indisready and k.ord <= i.indnkeyatts\n    order by ic.relname, k.ord\n  ","params":["\"market\".\"places\""],"result":{"command":"SELECT","rowCount":6,"columns":[["name",19],["method",19],["partial",16],["column",25],["definition",25],["opclass",25]],"rows":[
+      ["places_country_name_key","btree","f","country","country","text_ops"],
+      ["places_country_name_key","btree","f","name","name","text_ops"],
+      ["places_name_trgm_idx","gin","f","name","name","gin_trgm_ops"],
+      ["places_pkey","btree","f","id","id","int4_ops"],
+      ["places_region_idx","btree","f","country","country","text_ops"],
+      ["places_region_idx","btree","f","region","region","text_ops"]
+    ]}},
+    {"sql":"\n    select ic.relname as name, am.amname as method, (i.indpred is not null) as partial, a.attname::text as column,\n      pg_get_indexdef(i.indexrelid, k.ord::int, true) as definition, oc.opcname::text as opclass\n    from pg_index i\n    join pg_class ic on ic.oid = i.indexrelid\n    join pg_am am on am.oid = ic.relam\n    cross join lateral unnest(i.indkey::int2[], i.indclass::oid[]) with ordinality k(attnum, opclass, ord)\n    left join pg_attribute a on a.attrelid = i.indrelid and a.attnum = k.attnum and k.attnum > 0\n    join pg_opclass oc on oc.oid = k.opclass\n    where i.indrelid = to_regclass($1) and i.indisvalid and i.indisready and k.ord <= i.indnkeyatts\n    order by ic.relname, k.ord\n  ","params":["\"market\".\"agencies\""],"result":{"command":"SELECT","rowCount":3,"columns":[["name",19],["method",19],["partial",16],["column",25],["definition",25],["opclass",25]],"rows":[
+      ["agencies_name_trgm_idx","gin","f","name","name","gin_trgm_ops"],
+      ["agencies_pkey","btree","f","id","id","int4_ops"],
+      ["agencies_place_idx","btree","f","place_id","place_id","int4_ops"]
+    ]}},
+    {"sql":"\n    select ic.relname as name, am.amname as method, (i.indpred is not null) as partial, a.attname::text as column,\n      pg_get_indexdef(i.indexrelid, k.ord::int, true) as definition, oc.opcname::text as opclass\n    from pg_index i\n    join pg_class ic on ic.oid = i.indexrelid\n    join pg_am am on am.oid = ic.relam\n    cross join lateral unnest(i.indkey::int2[], i.indclass::oid[]) with ordinality k(attnum, opclass, ord)\n    left join pg_attribute a on a.attrelid = i.indrelid and a.attnum = k.attnum and k.attnum > 0\n    join pg_opclass oc on oc.oid = k.opclass\n    where i.indrelid = to_regclass($1) and i.indisvalid and i.indisready and k.ord <= i.indnkeyatts\n    order by ic.relname, k.ord\n  ","params":["\"market\".\"places\""],"result":{"command":"SELECT","rowCount":9,"columns":[["name",19],["method",19],["partial",16],["column",25],["definition",25],["opclass",25]],"rows":[
+      ["places_country_name_key","btree","f","country","country","text_ops"],
+      ["places_country_name_key","btree","f","name","name","text_ops"],
+      ["places_name_idx","btree","f","name","name","text_ops"],
+      ["places_name_trgm_idx","gin","f","name","name","gin_trgm_ops"],
+      ["places_pkey","btree","f","id","id","int4_ops"],
+      ["places_region_idx","btree","f","country","country","text_ops"],
+      ["places_region_idx","btree","f","region","region","text_ops"],
+      ["places_region_only_idx","btree","f","region","region","text_ops"],
+      ["places_region_trgm_idx","gin","f","region","region","gin_trgm_ops"]
+    ]}},
+    {"sql":"\n    select ic.relname as name, am.amname as method, (i.indpred is not null) as partial, a.attname::text as column,\n      pg_get_indexdef(i.indexrelid, k.ord::int, true) as definition, oc.opcname::text as opclass\n    from pg_index i\n    join pg_class ic on ic.oid = i.indexrelid\n    join pg_am am on am.oid = ic.relam\n    cross join lateral unnest(i.indkey::int2[], i.indclass::oid[]) with ordinality k(attnum, opclass, ord)\n    left join pg_attribute a on a.attrelid = i.indrelid and a.attnum = k.attnum and k.attnum > 0\n    join pg_opclass oc on oc.oid = k.opclass\n    where i.indrelid = to_regclass($1) and i.indisvalid and i.indisready and k.ord <= i.indnkeyatts\n    order by ic.relname, k.ord\n  ","params":["\"market\".\"agencies\""],"result":{"command":"SELECT","rowCount":5,"columns":[["name",19],["method",19],["partial",16],["column",25],["definition",25],["opclass",25]],"rows":[
+      ["agencies_created_at_idx","btree","f","created_at","created_at","timestamptz_ops"],
+      ["agencies_name_idx","btree","f","name","name","text_ops"],
+      ["agencies_name_trgm_idx","gin","f","name","name","gin_trgm_ops"],
+      ["agencies_pkey","btree","f","id","id","int4_ops"],
+      ["agencies_place_idx","btree","f","place_id","place_id","int4_ops"]
+    ]}}
+  ],
+  "(hooks)": {
+    "(hooks)#0": [
+      {"sql":"\n  create schema market;\n  create table market.places (\n    id integer generated by default as identity primary key, name text not null, region text not null,\n    country text not null, latitude numeric(8, 6) not null, longitude numeric(9, 6) not null, unique (country, name)\n  );\n  create index places_region_idx on market.places (country, region);\n  create index places_name_trgm_idx on market.places using gin (name gin_trgm_ops);\n  create table market.agencies (\n    id integer generated by default as identity primary key, name text not null, place_id integer not null references market.places (id),\n    phone text not null, email text not null, website text not null, created_at timestamptz not null default now(), updated_at timestamptz not null default now()\n  );\n  create index agencies_place_idx on market.agencies (place_id);\n  create index agencies_name_trgm_idx on market.agencies using gin (name gin_trgm_ops);\n","result":[{"command":"CREATE","rowCount":null,"columns":[],"rows":[]},{"command":"CREATE","rowCount":null,"columns":[],"rows":[]},{"command":"CREATE","rowCount":null,"columns":[],"rows":[]},{"command":"CREATE","rowCount":null,"columns":[],"rows":[]},{"command":"CREATE","rowCount":null,"columns":[],"rows":[]},{"command":"CREATE","rowCount":null,"columns":[],"rows":[]},{"command":"CREATE","rowCount":null,"columns":[],"rows":[]}]}
+    ]
+  },
+  "doctor on the places and agencies of property-finder > fails each index their list pages need, naming the reads and the index to add": {
+    "(hooks)#0": [
+      {"sql":"select relkind from pg_class where oid = to_regclass($1)","params":["\"market\".\"places\""],"result":{"command":"SELECT","rowCount":1,"columns":[["relkind",18]],"rows":[["r"]]}},
+      {"sql":"select relkind from pg_class where oid = to_regclass($1)","params":["\"market\".\"agencies\""],"result":{"command":"SELECT","rowCount":1,"columns":[["relkind",18]],"rows":[["r"]]}},
+      {"repeated":0},
+      {"repeated":1}
+    ]
+  },
+  "doctor on the places and agencies of property-finder > names what the scan guard refuses": {
+    "(hooks)#0": [
+      {"sql":"select relkind from pg_class where oid = to_regclass($1)","params":["\"market\".\"agencies\""],"result":{"command":"SELECT","rowCount":1,"columns":[["relkind",18]],"rows":[["r"]]}},
+      {"repeated":1},
+      {"sql":"select relkind from pg_class where oid = to_regclass($1)","params":["\"market\".\"places\""],"result":{"command":"SELECT","rowCount":1,"columns":[["relkind",18]],"rows":[["r"]]}},
+      {"repeated":0},
+      {"sql":"select relkind from pg_class where oid = to_regclass($1)","params":["\"market\".\"places\""],"result":{"command":"SELECT","rowCount":1,"columns":[["relkind",18]],"rows":[["r"]]}},
+      {"repeated":0},
+      {"sql":"select relkind from pg_class where oid = to_regclass($1)","params":["\"market\".\"places\""],"result":{"command":"SELECT","rowCount":1,"columns":[["relkind",18]],"rows":[["r"]]}},
+      {"repeated":0},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select current_setting('statement_timeout') as value","result":{"command":"SELECT","rowCount":1,"columns":[["value",25]],"rows":[["15s"]]}},
+      {"sql":"select set_config('statement_timeout', $1, true)","params":["15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"select \"t\".\"country\" as \"value\", count(*)::text as \"n\" from \"market\".\"places\" as \"t\" group by \"t\".\"country\" order by count(*) desc, \"t\".\"country\" asc limit $1","params":["100"],"result":{"command":"SELECT","rowCount":0,"columns":[["value",25],["n",25]],"rows":[]}},
+      {"sql":"select set_config('statement_timeout', $1, true)","params":["15s"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select relkind from pg_class where oid = to_regclass($1)","params":["\"market\".\"agencies\""],"result":{"command":"SELECT","rowCount":1,"columns":[["relkind",18]],"rows":[["r"]]}},
+      {"repeated":1},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select current_setting('statement_timeout') as value","result":{"command":"SELECT","rowCount":1,"columns":[["value",25]],"rows":[["15s"]]}},
+      {"sql":"select set_config('statement_timeout', $1, true)","params":["15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"select \"t\".\"place_id\" as \"value\", count(*)::text as \"n\" from \"market\".\"agencies\" as \"t\" group by \"t\".\"place_id\" order by count(*) desc, \"t\".\"place_id\" asc limit $1","params":["100"],"result":{"command":"SELECT","rowCount":0,"columns":[["value",23],["n",25]],"rows":[]}},
+      {"sql":"select set_config('statement_timeout', $1, true)","params":["15s"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
+    ]
+  },
+  "doctor on the places and agencies of property-finder > passes once the indexes are there, as the scan guard does": {
+    "(hooks)#0": [
+      {"sql":"\n  create index places_region_only_idx on market.places (region);\n  create index places_name_idx on market.places (name);\n  create index places_region_trgm_idx on market.places using gin (region gin_trgm_ops);\n  create index agencies_name_idx on market.agencies (name);\n  create index agencies_created_at_idx on market.agencies (created_at);\n","result":[{"command":"CREATE","rowCount":null,"columns":[],"rows":[]},{"command":"CREATE","rowCount":null,"columns":[],"rows":[]},{"command":"CREATE","rowCount":null,"columns":[],"rows":[]},{"command":"CREATE","rowCount":null,"columns":[],"rows":[]},{"command":"CREATE","rowCount":null,"columns":[],"rows":[]}]},
+      {"sql":"select relkind from pg_class where oid = to_regclass($1)","params":["\"market\".\"places\""],"result":{"command":"SELECT","rowCount":1,"columns":[["relkind",18]],"rows":[["r"]]}},
+      {"sql":"select relkind from pg_class where oid = to_regclass($1)","params":["\"market\".\"agencies\""],"result":{"command":"SELECT","rowCount":1,"columns":[["relkind",18]],"rows":[["r"]]}},
+      {"repeated":2},
+      {"repeated":3},
+      {"sql":"select relkind from pg_class where oid = to_regclass($1)","params":["\"market\".\"agencies\""],"result":{"command":"SELECT","rowCount":1,"columns":[["relkind",18]],"rows":[["r"]]}},
+      {"repeated":3},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select \"t\".\"id\" as \"id\", \"t\".\"name\" as \"name\", \"t\".\"place_id\" as \"place_id\", \"t\".\"phone\" as \"phone\", \"t\".\"email\" as \"email\", \"t\".\"website\" as \"website\", \"t\".\"created_at\" as \"created_at\", \"t\".\"updated_at\" as \"updated_at\", \"t\".\"updated_at\"::text as \"__pb_etag\", \"t\".\"name\"::text as \"__pb_key0\", \"t\".\"id\"::text as \"__pb_key1\" from \"market\".\"agencies\" as \"t\" order by \"t\".\"name\" asc, \"t\".\"id\" asc limit $1","params":["51"],"result":{"command":"SELECT","rowCount":0,"columns":[["id",23],["name",25],["place_id",23],["phone",25],["email",25],["website",25],["created_at",1184],["updated_at",1184],["__pb_etag",25],["__pb_key0",25],["__pb_key1",25]],"rows":[]}},
+      {"sql":"\n    select reltuples::float8 as reltuples from pg_class where oid = to_regclass($1)\n  ","params":["\"market\".\"agencies\""],"result":{"command":"SELECT","rowCount":1,"columns":[["reltuples",701]],"rows":[["-1"]]}},
+      {"sql":"EXPLAIN (VERBOSE, FORMAT JSON) select 1 as \"one\" from \"market\".\"agencies\" as \"t\"","result":{"command":"EXPLAIN","rowCount":null,"columns":[["QUERY PLAN",114]],"rows":[["[\n  {\n    \"Plan\": {\n      \"Node Type\": \"Seq Scan\",\n      \"Parallel Aware\": false,\n      \"Async Capable\": false,\n      \"Relation Name\": \"agencies\",\n      \"Schema\": \"market\",\n      \"Alias\": \"t\",\n      \"Startup Cost\": 0.00,\n      \"Total Cost\": 14.50,\n      \"Plan Rows\": 450,\n      \"Plan Width\": 4,\n      \"Disabled\": false,\n      \"Output\": [\"1\"]\n    }\n  }\n]"]]}},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select relkind from pg_class where oid = to_regclass($1)","params":["\"market\".\"places\""],"result":{"command":"SELECT","rowCount":1,"columns":[["relkind",18]],"rows":[["r"]]}},
+      {"repeated":2},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select \"t\".\"id\" as \"id\", \"t\".\"name\" as \"name\", \"t\".\"region\" as \"region\", \"t\".\"country\" as \"country\", \"t\".\"latitude\" as \"latitude\", \"t\".\"longitude\" as \"longitude\", \"t\".\"name\"::text as \"__pb_key0\", \"t\".\"id\"::text as \"__pb_key1\" from \"market\".\"places\" as \"t\" order by \"t\".\"name\" asc, \"t\".\"id\" asc limit $1","params":["51"],"result":{"command":"SELECT","rowCount":0,"columns":[["id",23],["name",25],["region",25],["country",25],["latitude",1700],["longitude",1700],["__pb_key0",25],["__pb_key1",25]],"rows":[]}},
+      {"sql":"\n    select reltuples::float8 as reltuples from pg_class where oid = to_regclass($1)\n  ","params":["\"market\".\"places\""],"result":{"command":"SELECT","rowCount":1,"columns":[["reltuples",701]],"rows":[["-1"]]}},
+      {"sql":"EXPLAIN (VERBOSE, FORMAT JSON) select 1 as \"one\" from \"market\".\"places\" as \"t\"","result":{"command":"EXPLAIN","rowCount":null,"columns":[["QUERY PLAN",114]],"rows":[["[\n  {\n    \"Plan\": {\n      \"Node Type\": \"Seq Scan\",\n      \"Parallel Aware\": false,\n      \"Async Capable\": false,\n      \"Relation Name\": \"places\",\n      \"Schema\": \"market\",\n      \"Alias\": \"t\",\n      \"Startup Cost\": 0.00,\n      \"Total Cost\": 15.20,\n      \"Plan Rows\": 520,\n      \"Plan Width\": 4,\n      \"Disabled\": false,\n      \"Output\": [\"1\"]\n    }\n  }\n]"]]}},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select relkind from pg_class where oid = to_regclass($1)","params":["\"market\".\"places\""],"result":{"command":"SELECT","rowCount":1,"columns":[["relkind",18]],"rows":[["r"]]}},
+      {"repeated":2},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select current_setting('statement_timeout') as value","result":{"command":"SELECT","rowCount":1,"columns":[["value",25]],"rows":[["15s"]]}},
+      {"sql":"select set_config('statement_timeout', $1, true)","params":["15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"select \"t\".\"region\" as \"value\", count(*)::text as \"n\" from \"market\".\"places\" as \"t\" group by \"t\".\"region\" order by count(*) desc, \"t\".\"region\" asc limit $1","params":["100"],"result":{"command":"SELECT","rowCount":0,"columns":[["value",25],["n",25]],"rows":[]}},
+      {"sql":"select set_config('statement_timeout', $1, true)","params":["15s"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
+    ]
+  }
+}
