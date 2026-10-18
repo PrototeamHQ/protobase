@@ -88,7 +88,7 @@ view<typeof objectives>('objectives').list((r, d, c) => ({
 
 Each dot is a link to its record. Hovering or focusing it shows the record's card: the first cards display of the resource's view, without photos or a favorite button, else its title with its status as the badge. On a touch screen the first tap on a dot shows the card, and the card opens the record. Each dot reads as its record's title and status to a screen reader, and the column says how many records have each status, such as "4 tasks: 2 To do, 1 Doing, 1 Done".
 
-The records load with each page of the list's rows, in two requests for the page through a join resource (one without), as the user may read them: at most 500 join records and 500 records a page. A user who cannot read the resources, `status` or a field the column filters or sorts on does not get the column. The column shows in the list page's table; an embedded list leaves it out.
+The records load with each page of the list's rows, in two requests for the page through a join resource (one without), as the user may read them. Each request reads all of the page's join records or records, page by page, so a row never misses a dot. A user who cannot read the resources, `status` or a field the column filters or sorts on does not get the column. The column shows in the list page's table; an embedded list leaves it out.
 
 <StoryFrame id="list-page-related-records-as-dots--mixed-states" title="Objectives with their tasks as dots" height={360} />
 
@@ -505,10 +505,10 @@ The browser fetches the tiles, so their host must answer the app's origins with 
 | --- | --- |
 | `resource` | The records listed. Required. |
 | `field` | Without `through`: the relation on `resource` that holds this record's key. With it: the field of `resource` matched against the keys the join records hold. Filterable. Required. |
-| `through` | `{ resource, field, key?, filter? }`: the join records whose `field` (a filterable relation) holds this record's key; their `key` values (default their primary key) pick the listed records. At most 500 join records are read. |
+| `through` | `{ resource, field, key?, filter? }`: the join records whose `field` (a filterable relation) holds this record's key; their `key` values (default their primary key) pick the listed records. All of them are read. |
 | `filter`, `sort` | AIP-160 and AIP-132 on `resource`, as in the list API. `filter` narrows the listed records, `through.filter` the join records. |
 | `columns` | Fields of `resource`, through relations too (`unit_id.property_id`); default the view's list columns without `field`. The first opens the record. |
-| `limit` | How many records it shows, 1 to 100; default 10. Before 0.13 this was `pageSize`, rows per page; rename it. |
+| `limit` | How many records it shows, 1 to 100; default 10. When there are more, the section says so beside View all, such as "The first 10 of 37.". Before 0.13 this was `pageSize`, rows per page; rename it. |
 | `display` | The display of `resource`'s list it opens in, such as `cards`; default the list's. |
 | `help`, `empty` | A line under the title, and the text when nothing matches (default "Nothing here yet."). |
 
