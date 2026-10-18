@@ -1,13 +1,10 @@
-import { PGlite } from '@electric-sql/pglite'
-import { Kysely } from 'kysely'
-import { PGliteDialect } from 'kysely-pglite-dialect'
-import { beforeAll, describe, expect, it } from 'vitest'
+import { sql } from 'kysely'
+import { describe, expect, it } from 'vitest'
 import { betterAuthAuthenticator } from '../src/better-auth/authenticator'
 import { createAuth, type CreateAuthOptions } from '../src/better-auth/create-auth'
 import { createUser } from '../src/better-auth/users'
 import { createAdmin } from '../src/create-admin'
-import { createAuthStore } from '../../../test-support/auth'
-import { cloneForTest } from '../../../test-support/pglite-snapshot'
+import { openPostgresDatabase, postgresTemplateReady } from '../../../test-support/postgres-database'
 import { fakeSamlIdp, type SamlPerson } from './support/fake-saml-idp'
 
 const origin = 'http://localhost:5173'
@@ -15,12 +12,8 @@ const secret = 'test-secret-test-secret-test-secret-1234'
 const password = 'correct horse battery'
 const idp = fakeSamlIdp()
 
-let shared: PGlite
-let appDb: Kysely<any>
-beforeAll(async () => {
-  shared = await createAuthStore()
-  appDb = new Kysely<any>({ dialect: new PGliteDialect(shared) })
-})
+// Real Postgres, as the IdP's signed assertions carry fresh ids and times that a recording cannot replay.
+const ready = await postgresTemplateReady('auth')
 
 // Better Auth's rate limits are per client address and kept in memory, so every app gets an address of its own.
 let address = 0
@@ -31,9 +24,9 @@ const sanne = (changes: Partial<SamlPerson> = {}): SamlPerson => ({ email: 'sann
 
 // Every app gets a copy of the migrated store with an admin, the Acme provider, and a client address of its own.
 const serve = async (options: Partial<CreateAuthOptions> = {}) => {
-  const store = await cloneForTest(shared)
+  const store = await openPostgresDatabase('auth')
   const auth = createAuth({
-    database: { dialect: new PGliteDialect(store), type: 'postgres' },
+    database: { dialect: store.dialect, type: 'postgres' },
     baseURL: origin,
     secret,
     mailer: false,
@@ -44,7 +37,7 @@ const serve = async (options: Partial<CreateAuthOptions> = {}) => {
     ...options,
   })
   await createUser(auth, { email: 'root@example.com', password })
-  const app = createAdmin({ resources: [], db: appDb, authenticate: betterAuthAuthenticator({ auth }), auth })
+  const app = createAdmin({ resources: [], db: store.db, authenticate: betterAuthAuthenticator({ auth }), auth })
   const from = `203.0.113.${++address}`
   const request = (path: string, init: { body?: unknown; cookie?: string } = {}) =>
     app.request(`${origin}/api/auth${path}`, {
@@ -72,12 +65,12 @@ const serve = async (options: Partial<CreateAuthOptions> = {}) => {
   }
 
   const accounts = async () =>
-    (await store.query<{ email: string; providerId: string; accountId: string }>(`select u.email, a.provider_id as "providerId", a.account_id as "accountId" from account a join "user" u on u.id = a.user_id where a.provider_id <> 'credential' order by u.email`)).rows
-  const user = async (email: string) => (await store.query<{ id: string; name: string; role: string; emailVerified: boolean }>(`select id, name, role, email_verified as "emailVerified" from "user" where email = $1`, [email])).rows[0]
+    (await sql<{ email: string; providerId: string; accountId: string }>`select u.email, a.provider_id as "providerId", a.account_id as "accountId" from account a join "user" u on u.id = a.user_id where a.provider_id <> 'credential' order by u.email`.execute(store.db)).rows
+  const user = async (email: string) => (await sql<{ id: string; name: string; role: string; emailVerified: boolean }>`select id, name, role, email_verified as "emailVerified" from "user" where email = ${email}`.execute(store.db)).rows[0]
   return { auth, store, request, samlSignIn, accounts, user }
 }
 
-describe('sign-in with a SAML identity provider', () => {
+describe.skipIf(!ready)('sign-in with a SAML identity provider', () => {
   it('is offered on the status with its id and name, and serves its metadata with the entity ID and the ACS of the origin', async () => {
     const { request } = await serve()
     expect(await (await request('/status')).json()).toMatchObject({ socialProviders: [], samlProviders: [{ id: 'acme', name: 'Acme' }] })
