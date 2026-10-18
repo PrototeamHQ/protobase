@@ -1,9 +1,11 @@
 import { enumLabel, type FieldModel, type ResourceModel, type ViewModel } from '@protobase/schema'
 import type { BadgeTone } from '../primitives/badge'
 import type { ColumnKind, ColumnSpec } from '../data-grid'
+import { badgeWidth, headerWidth } from '../data-grid/content-widths'
 import { humanize } from './naming'
 import { markdownExcerpt } from '../markdown/markdown-excerpt'
 import { isMarkdown } from '../markdown/markdown-hint'
+import { recordTitleField } from './model-helpers'
 
 const tones: Record<string, BadgeTone> = {
   draft: 'neutral',
@@ -42,12 +44,6 @@ const widths: Record<ColumnKind, number> = {
   file: 180,
 }
 
-/** Room for a header at 12px plus cell padding, the sort arrow and the column menu button. */
-export const headerWidth = (header: string, sortable: boolean) => Math.ceil(header.length * 7.2) + 24 + (sortable ? 16 : 0) + 28
-
-/** A status badge: dot, padding and the longest label. */
-const badgeWidth = (labels: string[]) => Math.ceil(Math.max(0, ...labels.map((label) => label.length)) * 7.2) + 56
-
 const fixedKinds = new Set<ColumnKind>(['datetime', 'date', 'boolean', 'percent'])
 
 const idLike = /^(number|sku|reference|code)$/
@@ -83,6 +79,7 @@ export const listColumnNames = (resource: ResourceModel, view: ViewModel | undef
 
 /** Grid columns for `names`, by default the view's list: kinds follow the field types and the view's format hints. */
 export const columnsFromModel = (resource: ResourceModel, view: ViewModel | undefined, highlight: string[] = [], names = listColumnNames(resource, view)): ColumnSpec[] => {
+  const title = recordTitleField(resource, view)
   return names.flatMap((name, index) => {
     const field = resource.fields[name]
     if (!field) return []
@@ -99,6 +96,7 @@ export const columnsFromModel = (resource: ResourceModel, view: ViewModel | unde
       sortable: field.sortable,
       minWidth: Math.max(kind === 'id' ? 150 : 0, headerWidth(viewField?.label ?? humanize(name), field.sortable), kind === 'status' ? badgeWidth(Object.values(labels)) : 0, suffixWidth > 0 ? widths[kind] + suffixWidth : 0),
       ...(fixedKinds.has(kind) && { fixed: true }),
+      ...(name === title && { title: true }),
       ...(highlight.includes(name) && { highlight: true }),
       ...(field.type === 'enum' && { tones: Object.fromEntries((field.enumValues ?? []).map((value) => [value, toneFor(value)])), labels }),
       ...(field.type === 'enum' && viewField?.valueColors && { colors: viewField.valueColors }),

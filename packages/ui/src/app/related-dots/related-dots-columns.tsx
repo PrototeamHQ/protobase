@@ -1,6 +1,7 @@
 import type { ResourceModel, ViewModel } from '@protobase/schema'
 import type { ColumnSpec } from '../../data-grid'
-import { headerWidth, listColumnNames } from '../../live/columns-from-model'
+import { headerWidth } from '../../data-grid/content-widths'
+import { listColumnNames } from '../../live/columns-from-model'
 import { humanize } from '../../live/naming'
 import { RecordCard } from '../displays/record-card'
 import { RelatedDots } from './related-dots'

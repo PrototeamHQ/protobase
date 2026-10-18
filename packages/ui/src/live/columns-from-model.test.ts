@@ -67,4 +67,10 @@ describe('columnsFromModel', () => {
     expect(byId.discountPercent?.value?.({ id: '1', discountPercent: '5.00' })).toBe(5)
     expect(byId.createdAt?.value?.({ id: '1', createdAt: '2026-10-06T09:41:00.000Z' })).toBe(Date.UTC(2026, 9, 6, 9, 41))
   })
+
+  it('marks the title column: the view\'s title, else the first text column of the list', () => {
+    expect(columns.filter((column) => column.title).map((column) => column.id)).toEqual(['number'])
+    const titled = columnsFromModel(model, { ...view, title: 'companyId' } as ViewModel)
+    expect(titled.filter((column) => column.title).map((column) => column.id)).toEqual(['companyId'])
+  })
 })

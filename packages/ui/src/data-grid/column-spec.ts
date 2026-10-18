@@ -18,6 +18,8 @@ export type ColumnSpec = {
   /** A fixed pixel width instead of a share of the leftover space, for values of known length such as timestamps. */
   fixed?: boolean
   sortable?: boolean
+  /** The record's title column: it gets the largest share of the width and is pinned by default. */
+  title?: boolean
   /** Tints the column to mark it as new. */
   highlight?: boolean
   currency?: string

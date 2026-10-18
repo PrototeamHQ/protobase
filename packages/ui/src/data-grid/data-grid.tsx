@@ -8,6 +8,7 @@ import { RowMenu, availableActions, type RowAction } from './row-menu'
 import { compactGutter, desktopMinScale, gridMinWidth, gutterWidthFor, rowMenuWidth } from './grid-template'
 import { useHorizontalScroll } from './use-horizontal-scroll'
 import { usePinnedColumns } from './use-pinned-columns'
+import { useFittedColumns } from './use-fitted-columns'
 import { useIsDesktop } from '../lib/use-media-query'
 import { GridHeader } from './grid-header'
 import { DataRow, SkeletonRow } from './grid-row'
@@ -102,6 +103,7 @@ export const DataGrid = ({ columns: given, source, naturalSort, initialScrollInd
   }, [getRow, rowPatches])
   const loaded = virtualRows.map(({ index, offset }) => ({ index, offset, row: patchedRow(index) }))
   const data = useMemo(() => loaded.flatMap(({ row }) => (row ? [row] : [])), [patchedRow, firstIndex, lastIndex])
+  const sized = useFittedColumns(columns, data)
   const table = useTable({
     features,
     columns: tableColumns,
@@ -154,17 +156,17 @@ export const DataGrid = ({ columns: given, source, naturalSort, initialScrollInd
   const columnIds = useMemo(() => columns.map((spec) => spec.id), [columns])
   const cellEditing = useCellEditing({ editor: cellEditor, columns: columnIds, total, rowAt: patchedRow, onOpenRow, container: gridRef })
 
-  const minWidth = gridMinWidth(columns, gutter, trailing, minScale)
+  const minWidth = gridMinWidth(sized, gutter, trailing, minScale)
   const own = scroll === 'own'
   const header = (
     <div ref={headerRef} className={cn('sticky z-20 shrink-0 overflow-hidden', own ? 'top-0' : 'top-[var(--pb-sticky-top,0px)]')}>
       <div style={{ minWidth }}>
-        <GridHeader cells={headerCells} specs={columns} gutter={gutter} trailing={trailing} minScale={minScale} pins={pins} lastPinned={lastPinned} scrolled={horizontal.scrolled} onTogglePin={togglePin} selectable={selectable} selectedCount={selectedCount} onClearSelection={() => setRowSelection({})} />
+        <GridHeader cells={headerCells} specs={sized} gutter={gutter} trailing={trailing} minScale={minScale} pins={pins} lastPinned={lastPinned} scrolled={horizontal.scrolled} onTogglePin={togglePin} selectable={selectable} selectedCount={selectedCount} onClearSelection={() => setRowSelection({})} />
       </div>
     </div>
   )
   const rowsInView = loaded.map(({ index, offset, row }) => {
-    const frame = { specs: columns, gutter, index, offset, height: rowHeight, selectable, trailing, minScale, scrolled: horizontal.scrolled, pins, lastPinned }
+    const frame = { specs: sized, gutter, index, offset, height: rowHeight, selectable, trailing, minScale, scrolled: horizontal.scrolled, pins, lastPinned }
     const tableRow = row ? tableRows.get(row.id) : undefined
     if (!tableRow || !row) return <SkeletonRow key={`skeleton-${index}`} {...frame} />
     const actions = trailing ? availableActions(rowActions!, row) : []

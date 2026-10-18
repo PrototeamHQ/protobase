@@ -1,8 +1,4 @@
 import { Check, Paperclip } from 'lucide-react'
-import { enumLabel } from '@protobase/schema'
-import { formatDate, formatDateTime } from '../format/date'
-import { formatInt, formatPercent, formatSigned } from '../format/number'
-import { formatMoney } from '../format/money'
 import { userById } from '../mocks'
 import { Avatar } from '../primitives/avatar'
 import { Badge } from '../primitives/badge'
@@ -11,38 +7,39 @@ import { FileImage } from '../live/file-image'
 import { fileShown, shownImage } from '../live/file-values'
 import { valueColor } from '../live/value-color'
 import type { ColumnSpec } from './column-spec'
+import { cellText } from './cell-text'
+import { TruncatedText } from './truncated-text'
 
 const muted = (text: string) => <span className="text-faint-foreground">{text}</span>
 
-const relationLabel = (value: unknown) => (typeof value === 'object' && value !== null && 'name' in value ? String(value.name) : String(value))
-
 export const renderCell = (spec: ColumnSpec, value: unknown) => {
   if (value === null || value === undefined) return muted('—')
+  const text = cellText(spec, value) ?? ''
   switch (spec.kind) {
     case 'text':
-      return <span className="truncate">{String(value)}</span>
+      return <TruncatedText text={text} />
     case 'id':
-      return <span className="truncate font-mono text-xs text-muted-foreground">{String(value)}</span>
+      return <TruncatedText text={text} className="font-mono text-xs text-muted-foreground" />
     case 'money':
-      return <span className="tabular-nums">{formatMoney(Number(value), spec.currency, spec.decimals)}{spec.suffix}</span>
+      return <span className="tabular-nums">{text}</span>
     case 'date':
-      return <span className="tabular-nums text-muted-foreground">{formatDate(Number(value))}</span>
+      return <span className="tabular-nums text-muted-foreground">{text}</span>
     case 'datetime':
-      return <span className="tabular-nums text-muted-foreground">{formatDateTime(Number(value))}</span>
+      return <span className="tabular-nums text-muted-foreground">{text}</span>
     case 'number':
-      return <span className="tabular-nums">{formatInt(Number(value))}{spec.suffix}</span>
+      return <span className="tabular-nums">{text}</span>
     case 'signed':
-      return <span className={cn('tabular-nums', Number(value) < 0 ? 'text-danger-text' : 'text-success-text')}>{formatSigned(Number(value))}{spec.suffix}</span>
+      return <span className={cn('tabular-nums', Number(value) < 0 ? 'text-danger-text' : 'text-success-text')}>{text}</span>
     case 'percent':
-      return Number(value) === 0 ? muted('—') : <span className="tabular-nums">{formatPercent(Number(value))}</span>
+      return Number(value) === 0 ? muted('—') : <span className="tabular-nums">{text}</span>
     case 'status':
       return (
         <Badge tone={spec.tones?.[String(value)] ?? 'neutral'} color={valueColor(spec.colors, value)} shape={spec.shape}>
-          {enumLabel(String(value), spec.labels)}
+          {text}
         </Badge>
       )
     case 'relation':
-      return <span className="truncate font-medium text-primary-text hover:underline">{relationLabel(value)}</span>
+      return <TruncatedText text={text} className="font-medium text-primary-text hover:underline" />
     case 'boolean':
       return value ? (
         <span className="inline-flex size-4 items-center justify-center rounded-full bg-success-soft text-success-text"><Check className="size-3" strokeWidth={3} /></span>
@@ -52,12 +49,12 @@ export const renderCell = (spec: ColumnSpec, value: unknown) => {
     case 'file': {
       const file = fileShown(value)
       if (!file) return muted('—')
-      if ('missing' in file) return <span className="truncate text-danger-text">{file.name}</span>
+      if ('missing' in file) return <TruncatedText text={file.name} className="text-danger-text" />
       const image = shownImage(value, { width: 20, height: 20 })
       return (
         <span className="inline-flex min-w-0 items-center gap-2">
           {image ? <FileImage image={image} className="size-5 shrink-0 rounded-sm object-cover" /> : <Paperclip className="size-3.5 shrink-0 text-muted-foreground" />}
-          <span className="truncate">{file.name}</span>
+          <TruncatedText text={file.name} />
         </span>
       )
     }
@@ -66,7 +63,7 @@ export const renderCell = (spec: ColumnSpec, value: unknown) => {
       return (
         <span className="inline-flex items-center gap-2 truncate">
           <Avatar initials={user.initials} hue={user.hue} size="xs" className="ring-0" />
-          <span className="truncate text-muted-foreground">{user.name}</span>
+          <TruncatedText text={user.name} className="text-muted-foreground" />
         </span>
       )
     }
