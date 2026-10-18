@@ -9,6 +9,28 @@ const testDatabase = 'scripts/test-db/global-setup.ts'
 // Unit tests sit next to the code; tests that start a database, a subprocess or the network live in each package's
 // tests/, and the examples' in tests/examples.
 const unit = ['packages/*/src/**/*.test.ts', 'scripts/release-speed/**/*.test.ts', 'docs-examples/**/*.test.ts', 'examples/*/{config,jobs,emails,seed,map}/**/*.test.ts']
+// Unit tests share one module registry per worker (`isolate: false`), which saves most of their time. These replace a
+// module with `vi.mock`, change a global, the environment or the console without always putting it back, or send the
+// process signals that a handler another file loaded would act on, so each runs in a registry of its own (project
+// `unit-isolated`); a new unit test that does any of these belongs here.
+const mocking = [
+  'docs-examples/email.test.ts',
+  'docs-examples/events/subscriptions.test.ts',
+  'docs-examples/forms/forms.test.ts',
+  'docs-examples/functions.test.ts',
+  'packages/cli/src/build/bun-build.test.ts',
+  'packages/cli/src/serve/crash-reports.test.ts',
+  'packages/cli/src/serve/signals.test.ts',
+  'packages/client/src/sign-in-flows.test.ts',
+  'packages/server/src/dropped-connections.test.ts',
+  'packages/server/src/files/providers.test.ts',
+  'packages/server/src/files/store-file.test.ts',
+  'packages/server/src/functions/require-env.test.ts',
+  'packages/server/src/mail/define-email.test.ts',
+  'packages/server/src/mail/smtp-mailer.test.ts',
+  'packages/ui/src/app/error-reporting.test.ts',
+  'packages/ui/src/app/pages/action-href.test.ts',
+]
 // Database, subprocess and build tests, and the release scripts': `bun run test:integration`.
 const integration = ['packages/cli/tests/**/*.integration.test.ts', 'packages/cli/tests/build/deploy-bundle.test.ts', 'tests/release/**/*.test.ts']
 // The glue between packages, on PGlite in `bun run test`, and on Postgres and PgBouncer (`*.postgres.test.ts`) with the
@@ -33,11 +55,22 @@ export default defineConfig({
     passWithNoTests: true,
     projects: [
       {
-        // `bun run test:unit`: only the tests next to the code; starting PGlite or a Postgres client there throws.
+        // `bun run test:unit` runs this and unit-isolated: only the tests next to the code; starting PGlite or a Postgres
+        // client there throws.
         extends: true,
         test: {
           name: 'unit',
           include: unit,
+          exclude: [...configDefaults.exclude, ...mocking],
+          setupFiles: ['test-support/no-database.setup.ts'],
+          isolate: false,
+        },
+      },
+      {
+        extends: true,
+        test: {
+          name: 'unit-isolated',
+          include: mocking,
           setupFiles: ['test-support/no-database.setup.ts'],
         },
       },

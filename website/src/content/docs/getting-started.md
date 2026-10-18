@@ -51,8 +51,8 @@ bun run --cwd examples/property-portal dev              # http://localhost:5173
 | Command | Purpose |
 | --- | --- |
 | `bun run db:up` / `bun run db:down` | start or stop the Postgres container; `db:up` also creates the examples' databases and `.env` files |
-| `bun run test` | the unit tests and the PGlite tests in `packages/*/tests/` (Vitest projects `unit` and `pglite`): no Postgres server, subprocess or network |
-| `bun run test:unit` | only the unit tests, next to the code (Vitest project `unit`), fully parallel; starting PGlite or a Postgres client there throws |
+| `bun run test` | the unit tests and the PGlite tests in `packages/*/tests/` (Vitest projects `unit*` and `pglite`): no Postgres server, subprocess or network |
+| `bun run test:unit` | only the unit tests, next to the code (Vitest projects `unit`, whose files share their modules, and `unit-isolated`, for those that mock a module or change a global), fully parallel; starting PGlite or a Postgres client there throws |
 | `bun run test:watch` | `bun run test` in watch mode |
 | `bun run test:integration` | the database, subprocess and build tests (projects `integration*`), against the Postgres container |
 | `bun run test:smoke` / `node --run test:smoke` | the CLI on Bun or on Node builds the ERP and serves its bundle, whose `€` must come back intact; part of `test:integration` on Bun |
