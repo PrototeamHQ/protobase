@@ -207,6 +207,15 @@ describe('pruneView', () => {
     expect(related(without({}, ['repairs']))).toEqual([{ kind: 'related', title: 'Repairs', resource: 'customer_repairs', field: 'customerId' }])
   })
 
+  it('keeps hideEmpty and a record condition, and leaves out an item whose condition names a field the caller cannot read', () => {
+    const written = view<typeof repairs>('repairs')
+      .layout((r) => [l.section('Paid', [r.status], { when: 'paid = true' }), l.sidebar([r.number], { when: 'paid = true' }), l.related('Photos', { resource: 'repair_photos', field: 'repairId', when: 'paid = true', hideEmpty: true })])
+      .toModel()
+    expect(pruneView(written, all.repairs, all).layout).toEqual(written.layout)
+    const hidden = without({ repairs: ['paid'] })
+    expect(pruneView(written, hidden.repairs!, hidden).layout).toEqual([])
+  })
+
   it('keeps when every layout item shows', () => {
     const photos = { resource: 'repair_photos', field: 'repairId', image: 'photo', sort: 'position' }
     const written = view<typeof repairs>('repairs')

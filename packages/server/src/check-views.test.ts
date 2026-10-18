@@ -11,6 +11,13 @@ const payments = resource('payments')
 const registry = { entries: [{ name: 'payments', model: payments.toModel() }] } as unknown as Registry
 
 describe('checkViews', () => {
+  it('takes a record condition on a section and refuses a syntax error or an unknown field', () => {
+    const conditioned = (when: string) => view<typeof payments>('payments').layout((r) => [l.section('Bank', [r.reference], { when })]).toModel()
+    expect(() => checkViews(registry, [conditioned('method = "ideal"')])).not.toThrow()
+    expect(() => checkViews(registry, [conditioned('method =')])).toThrow('View "payments": section "Bank": "when" is not a valid condition')
+    expect(() => checkViews(registry, [conditioned('nope = 1')])).toThrow('View "payments": section "Bank": unknown field "nope" on payments')
+  })
+
   it('takes labels for values of an enum', () => {
     const labelled = view<typeof payments>('payments').fields((r) => ({ method: r.method.valueLabels({ ideal: 'iDEAL' }) }))
     expect(() => checkViews(registry, [labelled.toModel()])).not.toThrow()

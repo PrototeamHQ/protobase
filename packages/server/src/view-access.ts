@@ -1,4 +1,5 @@
-import { resolveFieldPath } from '@protobase/layout'
+import { conditionReadable, resolveFieldPath } from '@protobase/layout'
+import { isRecordCondition } from '@protobase/schema'
 import type { ActionInputModel, ActionModel, ActionRun, CardFavoriteModel, CardPhotosModel, ChartModel, CommentsSectionModel, CustomSectionModel, FilterWidgetModel, FormModel, GalleryModel, HistorySectionModel, LayoutItemModel, ListDisplayModel, ListModel, MapSectionModel, NavModel, NavRecentModel, RelatedColumnModel, RelatedModel, ResourceModel, SaveSearchModel, SearchesOfModel, SearchResultModel, ViewModel } from '@protobase/schema'
 import { addressErrors, chartFields, hrefPlaceholders, promptFields, navRecentErrors, pruneByShape, shapes as s, tableDisplay } from '@protobase/schema/internal'
 import { cardFavoriteErrors } from './view-card-favorite'
@@ -12,12 +13,17 @@ type Of<U, K extends string> = Extract<U, { kind: K }>
 // Columns narrow to what the caller can read; a section whose resources, fields, filter or sort they cannot use goes.
 // An `open` the caller cannot use goes; the rows then open their own records.
 const pruneRelated = (item: RelatedModel, resource: string, models: Record<string, ResourceModel>): RelatedModel | undefined => {
+  if (isRecordCondition(item.when) && !conditionReadable(item.when, resource, models)) return undefined
   const { columns, open, ...rest } = item
   const visible = models[item.resource] ? columns?.filter((column) => resolveFieldPath(models, item.resource, column).ok) : undefined
   const narrowed: RelatedModel = visible && visible.length > 0 ? { ...rest, columns: visible } : rest
   const opened = open !== undefined && openErrors({ ...narrowed, open }, models).length === 0 ? { ...narrowed, open } : narrowed
   return relatedErrors(opened, resource, models).length === 0 ? opened : undefined
 }
+
+// A section, related table or sidebar whose record condition names what the caller cannot see goes, with its item.
+const recordWhenShape = (resource: string, models: Record<string, ResourceModel>) =>
+  s.map<string>((when) => (isRecordCondition(when) && !conditionReadable(when, resource, models) ? undefined : when))
 
 // A gallery keeps the record's image when the caller can read it, and the photos when they can load them, as a card does;
 // a gallery left with neither goes.
@@ -129,8 +135,8 @@ const widgetShape = s.oneOf<FilterWidgetModel>({
 
 const layoutShape = (resource: string, model: ResourceModel, models: Record<string, ResourceModel>) =>
   s.oneOf<LayoutItemModel>({
-    section: s.object<Of<LayoutItemModel, 'section'>>({ kind: s.data, title: s.data, help: s.data, helpWhen: s.data, presentation: s.data, when: s.data, fields: s.list(s.field, { nonEmpty: true }) }, { requires: ['fields'] }),
-    sidebar: s.object<Of<LayoutItemModel, 'sidebar'>>({ kind: s.data, fields: s.list(s.field, { nonEmpty: true }), when: s.data }, { requires: ['fields'] }),
+    section: s.object<Of<LayoutItemModel, 'section'>>({ kind: s.data, title: s.data, help: s.data, helpWhen: s.data, presentation: s.data, when: recordWhenShape(resource, models), fields: s.list(s.field, { nonEmpty: true }) }, { requires: ['fields', 'when'] }),
+    sidebar: s.object<Of<LayoutItemModel, 'sidebar'>>({ kind: s.data, fields: s.list(s.field, { nonEmpty: true }), when: recordWhenShape(resource, models) }, { requires: ['fields', 'when'] }),
     related: s.map<RelatedModel>((item) => pruneRelated(item, resource, models)),
     custom: s.object<CustomSectionModel>({ kind: s.data, component: s.data, title: s.data, sidebar: s.data, when: s.data, props: s.refs }, { requires: ['props'] }),
     map: s.object<MapSectionModel>({ kind: s.data, title: s.data, latitude: s.field, longitude: s.field, zoom: s.data, sidebar: s.data, when: s.data }, { requires: ['latitude', 'longitude'] }),
