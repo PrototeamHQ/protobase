@@ -3,9 +3,10 @@ import { useState } from 'react'
 import { expect, userEvent, waitFor, within } from 'storybook/test'
 import { ApiError, createStaticSession } from '@protobase/client'
 import { component } from '@protobase/layout'
-import type { ViewModel } from '@protobase/schema'
+import { enumLabel, type ViewModel } from '@protobase/schema'
 import { customers, repairs } from '../../../../../docs-examples/bike-shop/data'
 import { customerRows, repairRows } from '../../../../../docs-examples/bike-shop/rows'
+import { repairsView as tableOnlyRepairsView } from '../../../../../docs-examples/bike-shop/step-2'
 import { customersView } from '../../../../../docs-examples/bike-shop/step-5'
 import * as workshop from '../../../../../docs-examples/reference/workshop'
 import { App } from '../app'
@@ -295,5 +296,32 @@ export const CardsOnPhoneChecks: StoryObj = {
     await canvas.findByText('14 rows')
     expect(canvas.queryByRole('menu')).toBeNull()
     expect(canvas.getByRole('button', { name: 'Display: Table' })).toHaveFocus()
+  },
+}
+
+/** On a phone, a list without a cards display opens in a row per record: a link with its title and status badge, the table a pick away. */
+export const RowsOnPhoneChecks: StoryObj = {
+  name: 'A list without cards on a phone (checks)',
+  tags: ['play', 'phone', '!dev'],
+  parameters: { viewport: { options: { phone360 } } },
+  globals: { viewport: { value: 'phone360' } },
+  render: () => <Shop start="/repairs" repairsView={tableOnlyRepairsView} />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    const list = await canvas.findByRole('list', { name: 'Repairs' })
+    const first = await waitFor(() => within(list).getAllByRole('link')[0]!)
+    // Booked on, newest first
+    expect(first.getAttribute('href')).toMatch(/\/repairs\/12$/)
+    expect(first).toHaveTextContent('R-312')
+    expect(first).toHaveTextContent(enumLabel('booked'))
+    expect(first).toHaveTextContent('VanMoof S5')
+    expect(canvas.queryByRole('grid')).toBeNull()
+
+    await userEvent.click(canvas.getByRole('button', { name: 'Display: List' }))
+    const menu = canvas.getByRole('menu', { name: 'Display' })
+    expect(within(menu).getAllByRole('menuitemradio').map((item) => item.textContent)).toEqual(['Table', 'List'])
+    await userEvent.click(within(menu).getByRole('menuitemradio', { name: 'Table' }))
+    expect(await canvas.findByRole('grid')).toBeVisible()
+    expect(canvas.queryByRole('list', { name: 'Repairs' })).toBeNull()
   },
 }

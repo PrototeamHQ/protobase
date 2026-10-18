@@ -41,7 +41,7 @@ try {
     const page = await context.newPage()
     const shot = (name) => (label === 'phone-390' ? page.screenshot({ path: `${out}${name}.png` }) : undefined)
 
-    await page.goto(`${base}/orders`)
+    await page.goto(`${base}/orders${phone ? '?display=table' : ''}`)
     await page.locator('[role=row]').nth(1).waitFor()
     await page.waitForTimeout(800)
     check(`${label}: orders list does not scroll the page sideways`, await pageDoesNotScrollSideways(page))
@@ -73,7 +73,7 @@ try {
       await page.getByRole('heading', { name: 'Invoices' }).waitFor()
       check(`${label}: navigating closes the drawer`, (await page.getByRole('dialog', { name: 'Navigation' }).count()) === 0)
       check(`${label}: body scroll is released`, (await page.evaluate(() => document.body.style.overflow)) === '')
-      await page.goto(`${base}/orders`)
+      await page.goto(`${base}/orders${phone ? '?display=table' : ''}`)
       await page.locator('[role=row]').nth(1).waitFor()
       // search collapses to an icon
       await page.getByRole('button', { name: 'Search', exact: true }).click()
@@ -83,7 +83,7 @@ try {
       await page.getByRole('button', { name: 'Close search' }).click()
     }
 
-    // the grid scrolls inside itself; nothing is pinned until the user pins it
+    // the grid scrolls inside itself; from md up the title column (Number) is pinned by default, on a phone nothing is
     const scroller = page.locator('[role=grid] .overflow-x-auto').first()
     const scrollable = await scroller.evaluate((el) => el.scrollWidth > el.clientWidth + 1)
     check(`${label}: grid ${viewport.width < 1000 ? 'scrolls sideways' : 'fits'}`, scrollable === (viewport.width < 1000))
@@ -94,16 +94,22 @@ try {
       const checkboxBefore = (await checkbox.boundingBox()).x
       await scroller.evaluate((el) => (el.scrollLeft = 200))
       await page.waitForTimeout(200)
-      check(`${label}: by default the first column scrolls away but the checkbox stays`, (await firstCell().boundingBox()).x < before - 100 && Math.abs((await checkbox.boundingBox()).x - checkboxBefore) < 2)
-      await scroller.evaluate((el) => (el.scrollLeft = 0))
-      await page.getByRole('button', { name: 'Number column menu' }).click()
-      await page.getByRole('menuitem', { name: 'Pin to left' }).click()
+      const checkboxStays = Math.abs((await checkbox.boundingBox()).x - checkboxBefore) < 2
+      if (phone) {
+        check(`${label}: by default the first column scrolls away but the checkbox stays`, (await firstCell().boundingBox()).x < before - 100 && checkboxStays)
+        await scroller.evaluate((el) => (el.scrollLeft = 0))
+        await page.getByRole('button', { name: 'Number column menu' }).click()
+        await page.getByRole('menuitem', { name: 'Pin to left' }).click()
+      } else {
+        check(`${label}: by default the title column stays with the checkbox`, Math.abs((await firstCell().boundingBox()).x - before) < 2 && checkboxStays)
+        await scroller.evaluate((el) => (el.scrollLeft = 0))
+      }
       await scroller.evaluate((el) => (el.scrollLeft = 200))
       await page.waitForTimeout(250)
       const pinnedAt = (await firstCell().boundingBox()).x
       const gutterWidth = (await page.locator('[role=row]').nth(1).locator('[role=cell]').first().boundingBox()).x - (await checkbox.boundingBox()).x
       check(`${label}: a pinned column stays next to the checkbox while the grid scrolls (${Math.round(before)} -> ${Math.round(pinnedAt)})`, pinnedAt < before + 1 && pinnedAt > 0 && gutterWidth > 0)
-      check(`${label}: the pin is remembered per user and resource`, (await page.evaluate(() => Object.keys(localStorage).filter((key) => key.startsWith('protobase:pinned:') && key.endsWith(':orders')).length)) === 1)
+      if (phone) check(`${label}: the pin is remembered per user and resource`, (await page.evaluate(() => Object.keys(localStorage).filter((key) => key.startsWith('protobase:pinned:') && key.endsWith(':orders')).length)) === 1)
       await page.reload()
       await page.locator('[role=row]').nth(1).waitFor()
       await scroller.evaluate((el) => (el.scrollLeft = 200))
@@ -122,7 +128,7 @@ try {
       await scroller.evaluate((el) => (el.scrollLeft = 0))
       await page.getByRole('button', { name: 'Number column menu' }).click()
       await page.getByRole('menuitem', { name: 'Unpin' }).click()
-      check(`${label}: Unpin forgets the pin`, (await page.evaluate(() => Object.keys(localStorage).filter((key) => key.startsWith('protobase:pinned:')).length)) === 0)
+      check(`${label}: Unpin is remembered, so a default pin stays off`, (await page.evaluate(() => Object.entries(localStorage).filter(([key, value]) => key.startsWith('protobase:pinned:') && key.endsWith(':orders') && value === '[]').length)) === 1)
     }
 
     // filters and chart
