@@ -7,6 +7,7 @@ import { builtInAssistant } from './assistant/built-in-assistant'
 import { assistantRecords } from './assistant/records'
 import { consoleAuditQueue } from './audit/console-queue'
 import { apiCors, readCorsOrigins } from './api-cors'
+import { defaultAppName, readAppName } from './app-name'
 import { authBasePath, type AdminAuth } from './better-auth/create-auth'
 import { webauthnPath } from './better-auth/origins'
 import { organizationRoutes } from './better-auth/organizations/admin-routes'
@@ -163,7 +164,8 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], pag
     ...(withHistory && { history: { schema: changes, ...(auth && { actorNames: betterAuthActorNames(auth) }) } }),
   }
 
-  const meta = createMeta(deps)
+  // The tabs end in the name the app signs in and mails as.
+  const meta = createMeta(deps, auth?.appName ?? readAppName(globalThis.process?.env ?? {}) ?? defaultAppName)
   const onError = createErrorHandler(options.onUnhandledError)
   // Every response of the resources API and of the system endpoints names the models version; every request needs a
   // token, but one to the resources API or `/meta` when the project has an anonymous role.

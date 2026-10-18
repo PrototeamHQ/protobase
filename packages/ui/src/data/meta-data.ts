@@ -4,6 +4,8 @@ import type { BottomBarModel, ResourceModel, SignInViewModel, UserMenuModel, Vie
 
 export type MetaData = {
   etag: string
+  /** The app's name, which ends the tab titles. */
+  appName: string
   resources: Record<string, ResourceModel>
   views: Record<string, ViewModel>
   /** Composed pages by name. */

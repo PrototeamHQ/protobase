@@ -12,6 +12,7 @@ const cloud = { url: 'https://cloud.example.com/api/v1', label: 'Cloud', resourc
 
 const own: MetaData = {
   etag: '"own"',
+  appName: 'Protobase',
   resources: { orders: model('orders') },
   views: { orders: view('orders') },
   pages: {},

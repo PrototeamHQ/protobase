@@ -6,6 +6,7 @@ import { userMenuFromMeta, userMenuResources } from './user-menu-from-meta'
 
 const meta = {
   etag: '"x"',
+  appName: 'Protobase',
   permissions: {},
   resources: { users: { name: 'users' } as ResourceModel, organizations: { name: 'organizations' } as ResourceModel },
   views: { users: { resource: 'users', names: { singular: 'Member', plural: 'Team members' } } as ViewModel },

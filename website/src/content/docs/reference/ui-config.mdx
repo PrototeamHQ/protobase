@@ -31,8 +31,8 @@ export const repairsView = view<typeof repairs>('repairs')
 
 | Method | |
 | --- | --- |
-| `.names({ singular, plural })` | "New repair", "Repairs" in the sidebar and breadcrumbs. Default: the resource name in words. |
-| `.title((r) => r.number)` | The field that names a record: in breadcrumbs, the record page's heading, relation links and search results. |
+| `.names({ singular, plural })` | "New repair", "Repairs" in the sidebar, breadcrumbs and browser tabs. Default: the resource name in words. |
+| `.title((r) => r.number)` | The field that names a record: in breadcrumbs, browser tabs, the record page's heading, relation links and search results. |
 | `.searchResult((r) => ({ title?, subtitle? }))` | A record in the [global search](/reference/client/#global-search): `title` is one field or several joined by spaces (`[r.first_name, r.last_name]`, default: `.title`), `subtitle` the line under it (default: the first search field not in the title), replaced by the search field the text matched when neither line shows it. |
 | `.list((r, d, c) => ({ columns, sort?, search?, editable?, displays?, default? }))` | The list's columns in order, fields or [related records](#related-records-in-a-list) (`c.related`); its starting `sort` as `[[field, 'asc' \| 'desc'], ...]`, on `.sortable()` fields; the fields the search box suggests, among the resource's `.search` fields, which decide what search matches on the server; the columns [edited in their cell](#editing-in-the-list); other ways to show it, see [List displays](#list-displays). `protobase build` fails on a sort or search field outside those. |
 | `.fields((r) => ({ name: r.name.label(...) }))` | Hints per field, below. Calls add up. |
@@ -41,6 +41,8 @@ export const repairsView = view<typeof repairs>('repairs')
 | `.icon(name)` | Carried in `/meta` for apps that render their own shell; the admin picks sidebar icons by resource name. |
 | `.listOf((r) => r.listing_id)` | The list page shows the records this relation points at instead of the resource's own rows, such as the listings among a member's favorites. See [Favorites](#favorites). |
 | `.signIn({ title, description, benefits?, icon?, signUp? })` | What a visitor who is not signed in is told about the resource, in place of its list and by a card's favorite button. See [Sign-in prompts](#sign-in-prompts). |
+
+A browser tab names what it shows, then the app's name ([`appName`](/reference/auth/#configuration)): `Nordlicht GmbH · Companies · Protobase` on a record page, the plural on a list, `New company · Companies · Protobase` on the create form, and a composed page's title on that page.
 
 Field hints:
 

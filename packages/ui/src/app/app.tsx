@@ -15,6 +15,7 @@ import { ToastProvider } from '../toasts'
 import { AssistantButton, AssistantPanel } from './assistant-shell'
 import { bottomBarFromMeta } from './bottom-bar-from-meta'
 import { breadcrumbFor } from './breadcrumb-for'
+import { documentTitle, titleParts, useDocumentTitle } from './document-title'
 import { CreateRoute } from './create/create-route'
 import { ListPage } from './list-page'
 import { startErrorReporting } from './error-reporting'
@@ -142,7 +143,10 @@ const Routes = ({ workspace, sidebarMode, assistant, runtime }: Pick<AppProps, '
   const organizationPage = organizationSettings && user ? organizationPageTitles[path] : undefined
   // The account pages are the app's own, under `/-/`; everything else is a page or a resource.
   const accountPage = !user ? undefined : path === accountSecurityPath ? 'Sign-in & security' : path === signInPolicyPath ? 'Sign-in policy' : organizationPage
-  const breadcrumb = accountPage ? [accountPage] : breadcrumbFor({ basePath, address, group: group?.label, page, resourceLabel: view?.names?.plural ?? (resource && humanize(resource)), recordTitle: title, recordLoading: titleLoading })
+  const resourceLabel = view?.names?.plural ?? (resource && humanize(resource))
+  const breadcrumb = accountPage ? [accountPage] : breadcrumbFor({ basePath, address, group: group?.label, page, resourceLabel, recordTitle: title, recordLoading: titleLoading })
+  const singular = view?.names?.singular ?? (resource && humanize(resource))
+  useDocumentTitle(documentTitle(titleParts({ address, page, accountPage, resourceLabel, singular, recordTitle: title, recordLoading: titleLoading }), meta.appName))
   const content =
     user && path === accountSecurityPath ? (
       <AccountSecurityPage email={user.email} />

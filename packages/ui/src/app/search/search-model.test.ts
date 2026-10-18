@@ -8,6 +8,7 @@ const view = (resource: string, extra: Partial<ViewModel> = {}) => ({ resource, 
 
 const meta = (resources: ResourceModel[], views: ViewModel[], permissions: MetaData['permissions'] = {}): MetaData => ({
   etag: '"x"',
+  appName: 'Protobase',
   resources: Object.fromEntries(resources.map((entry) => [entry.name, entry])),
   views: Object.fromEntries(views.map((entry) => [entry.resource, entry])),
   pages: {},

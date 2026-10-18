@@ -38,6 +38,7 @@ export const fakeInvoiceClient = ({ failBatch }: { failBatch?: () => Error } = {
       status: 'modified' as const,
       etag: '"meta"',
       meta: {
+        appName: 'Protobase',
         resources: [invoices, invoiceLines],
         views: [
           view('invoices', { names: { singular: 'Invoice', plural: 'Invoices' }, fields: { status: { valueLabels: { draft: 'Draft', sent: 'Sent' } } }, list: { columns: ['number'] }, layout: [{ kind: 'section', title: 'Details', fields: ['number', 'status'] }] }),

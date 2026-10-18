@@ -29,6 +29,7 @@ const allowed = { read: true, create: true, update: true, delete: false, conditi
 
 // The desk serves customers, agents, tickets and notes; the shop draws only tickets and notes from it.
 const deskMeta: Meta = {
+  appName: 'Service desk',
   resources: [customers, agents, tickets, notes].map((entry) => entry.toModel()),
   views: [ticketsView.toModel()],
   permissions: { tickets: allowed, notes: allowed, customers: allowed },

@@ -9,6 +9,7 @@ const tree = { type: 'Page', props: { title: 'Overview' }, children: [] }
 
 const meta = {
   etag: '"x"',
+  appName: 'Protobase',
   permissions: {},
   resources: { orders: { name: 'orders' } as ResourceModel },
   views: {},

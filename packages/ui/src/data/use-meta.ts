@@ -27,6 +27,7 @@ export const useMeta = (): UseQueryResult<MetaData> => {
       }
       return {
         etag: result.etag,
+        appName: result.meta.appName,
         resources: Object.fromEntries(result.meta.resources.map((model) => [model.name, model])),
         views: Object.fromEntries(result.meta.views.map((model) => [model.resource, model])),
         pages: Object.fromEntries((result.meta.pages ?? []).map((model) => [model.name, model])),

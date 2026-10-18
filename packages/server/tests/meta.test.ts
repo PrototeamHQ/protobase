@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { Kysely } from 'kysely'
 import { PGliteDialect } from 'kysely-pglite-dialect'
 import { f, resource, view } from '@protobase/schema'
@@ -26,6 +26,14 @@ describe('GET /meta', () => {
     expect(response.headers.get('etag')).toMatch(/^"[0-9a-f]{32}"$/)
     expect(body.resources[2].fields.code.default).toEqual({ db: true })
     expect(body.resources[1].fields.status.default).toEqual({ value: 'open' })
+  })
+
+  it('names the app, Protobase unless the platform names it', async () => {
+    expect((await (await app.request('/api/meta', { headers: as(1) })).json()).appName).toBe('Protobase')
+    vi.stubEnv('PROTOBASE_APP_NAME', 'Shop')
+    const named = createAdmin({ resources: [companies], db: fixture.db, authenticate: testAuthenticator })
+    vi.unstubAllEnvs()
+    expect((await (await named.request('/api/meta', { headers: as(1) })).json()).appName).toBe('Shop')
   })
 
   it('answers 304 when If-None-Match matches, and still sends X-Meta-Version', async () => {

@@ -9,6 +9,7 @@ describe('navFromMeta', () => {
     const view = (resource: string, extra = {}) => ({ resource, fields: {}, filters: [], layout: [], actions: [], ...extra }) as unknown as ViewModel
     const meta = {
       etag: '"x"',
+      appName: 'Protobase',
       permissions: {},
       pages: {},
       resources: { orders: model('orders', 'sales'), orderLines: model('orderLines', 'sales'), audit: model('audit', 'core') },
@@ -23,6 +24,7 @@ describe('navFromMeta', () => {
     const cloud = { url: 'https://cloud.example.com/api/v1', label: 'Cloud', resources: ['tasks'] }
     const meta = {
       etag: '"x"',
+      appName: 'Protobase',
       permissions: {},
       pages: {},
       resources: { orders: model('orders', 'sales') },
@@ -42,6 +44,7 @@ describe('navFromMeta', () => {
     const prompt = { title: 'Sign in', description: 'To keep them.' }
     const meta = {
       etag: '"x"',
+      appName: 'Protobase',
       permissions: {},
       pages: {},
       resources: { listings: model('listings', 'market') },
@@ -62,6 +65,7 @@ describe('navFromMeta', () => {
     const view = (resource: string, nav: object) => ({ resource, fields: {}, filters: [], layout: [], actions: [], nav }) as unknown as ViewModel
     const meta = {
       etag: '"x"',
+      appName: 'Protobase',
       permissions: {},
       pages: {},
       resources: { orders: model('orders', 'sales'), invoices: model('invoices', 'sales') },
@@ -75,6 +79,7 @@ describe('navFromMeta', () => {
   it('groups resources by schema and prefers view names', () => {
     const meta = {
       etag: '"x"',
+      appName: 'Protobase',
       permissions: {},
       pages: {},
       resources: { orders: model('orders', 'sales'), invoices: model('invoices', 'sales'), companies: model('companies', 'crm') },
@@ -96,6 +101,7 @@ describe('navFromMeta', () => {
     const view = (resource: string) => ({ resource, fields: {}, filters: [], layout: [], actions: [] }) as unknown as ViewModel
     const meta = {
       etag: '"x"',
+      appName: 'Protobase',
       permissions: {},
       resources: { orders: model('orders', 'sales'), organizations: model('organizations', 'core') },
       views: { orders: view('orders'), organizations: view('organizations') },
@@ -111,6 +117,7 @@ describe('navFromMeta', () => {
     const page = (name: string, nav?: object) => ({ name, title: name.toUpperCase(), tree: { type: 'Page', props: { title: name }, children: [] }, ...(nav && { nav }) })
     const meta = {
       etag: '"x"',
+      appName: 'Protobase',
       permissions: {},
       resources: { companies: model('companies', 'crm'), orders: model('orders', 'sales') },
       views: { companies: view('companies'), orders: view('orders') },
@@ -123,7 +130,7 @@ describe('navFromMeta', () => {
 
   it('leaves pages in the user menu out of the sidebar', () => {
     const page = (name: string) => ({ name, title: name, tree: { type: 'Page', props: { title: name }, children: [] } })
-    const meta = { etag: '"x"', permissions: {}, resources: {}, views: {}, pages: { overview: page('overview'), billing: page('billing') }, userMenu: { items: [{ kind: 'page' as const, page: 'billing' }] } }
+    const meta = { etag: '"x"', appName: 'Protobase', permissions: {}, resources: {}, views: {}, pages: { overview: page('overview'), billing: page('billing') }, userMenu: { items: [{ kind: 'page' as const, page: 'billing' }] } }
     expect(navFromMeta(meta).flatMap((group) => group.items.map((item) => item.id))).toEqual(['overview'])
   })
 })

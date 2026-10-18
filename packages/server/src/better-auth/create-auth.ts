@@ -2,7 +2,7 @@ import { APIError } from 'better-auth/api'
 import { betterAuth, type BetterAuthOptions } from 'better-auth'
 import { admin, emailOTP, genericOAuth, jwt } from 'better-auth/plugins'
 import { adminAc, userAc } from 'better-auth/plugins/admin/access'
-import { readAppName } from '../app-name'
+import { defaultAppName, readAppName } from '../app-name'
 import { platformMailer } from '../mail/platform-mailer'
 import type { Mailer } from '../mail/smtp-mailer'
 import { readOperatorSettings, resolveOperator, type OperatorProvider, type ResolvedOperator } from './operator-provider'
@@ -132,8 +132,6 @@ const platformOrigins = () => readOrigins(globalThis.process?.env ?? {})
 const platformPasskeyDomain = () => readPasskeyDomain(globalThis.process?.env ?? {})
 
 const platformAppName = () => readAppName(globalThis.process?.env ?? {})
-
-const defaultAppName = 'Protobase'
 
 const tokenLifetime = '15m'
 
@@ -337,6 +335,8 @@ export const createAuth = (options: CreateAuthOptions) => {
     /** Open sign-up is on and offered: the app asks for it, and can mail the codes. */
     signUp: Boolean(signUpRole && mailer),
     socialProviders,
+    /** The app's name it signs in and mails as: `appName`, else `PROTOBASE_APP_NAME`, else `Protobase`. */
+    appName: appName ?? defaultAppName,
     operator: operator?.name,
     platformSignIn: platformSignIn && { provider: platformSignIn.provider, name: platformSignIn.name },
   })
