@@ -32,7 +32,7 @@ type Props = {
 export const HandSortedList = ({ model, view, field, filter, columns }: Props) => {
   const { resources, views } = useAdminMeta()
   const { fields: fieldTypes } = useProjectUi()
-  const { go } = useAppAddress()
+  const { go, href } = useAppAddress()
   // The order is the field's alone, so the headers do not sort
   const specs = useMemo(() => embeddedColumns(model, view, columns, { resources, views, fieldTypes }).map((spec) => ({ ...spec, sortable: false })), [model, view, columns.join(','), resources, views, fieldTypes])
   const fields = useMemo(() => loadedFields(model, view, specs.map((spec) => spec.id)), [model, view, specs])
@@ -47,6 +47,7 @@ export const HandSortedList = ({ model, view, field, filter, columns }: Props) =
   if (!source || source.total === 0) return <p className="text-muted-foreground">Nothing here yet.</p>
 
   const openRecord = (row: GridRow) => go({ kind: 'record', resource: model.name, key: recordKey(model, row) })
+  const recordLink = (row: GridRow) => ({ href: href({ kind: 'record', resource: model.name, key: recordKey(model, row) }), onFollow: () => openRecord(row) })
   return (
     <DataGrid
       fit
@@ -55,6 +56,7 @@ export const HandSortedList = ({ model, view, field, filter, columns }: Props) =
       source={source}
       latencyMs={0}
       onOpenRow={openRecord}
+      rowLink={recordLink}
       rowNumbers={false}
       reorder={{ label: (row) => recordTitle(model, view, row, row.id), onMove: order.move }}
     />

@@ -93,7 +93,7 @@ type LoadedListProps = {
 
 const LoadedList = ({ model, address, scope, heading }: LoadedListProps) => {
   const meta = useAdminMeta()
-  const { set, go } = useAppAddress()
+  const { set, go, href } = useAppAddress()
   const resource = model.name
   const view = meta.views[resource]
   const fields = useMemo(() => widgetFields(view, model), [view, model])
@@ -207,6 +207,7 @@ const LoadedList = ({ model, address, scope, heading }: LoadedListProps) => {
     seedRecord(displayRow(model, row).record)
     go({ kind: 'record', resource, key: recordKey(model, row) })
   }
+  const recordLink = (row: GridRow) => ({ href: href({ kind: 'record', resource, key: recordKey(model, row) }), onFollow: () => openRecord(row) })
 
   const table = rows.source ? (
     <DataGrid
@@ -215,6 +216,7 @@ const LoadedList = ({ model, address, scope, heading }: LoadedListProps) => {
       sort={parseSort(orderBy)}
       onSortChange={(sort) => set({ orderBy: sortToOrderBy(sort) })}
       onOpenRow={openRecord}
+      rowLink={recordLink}
       cellEditor={cellEditing.editor}
       rowPatches={cellEditing.patches}
       initialScrollIndex={scroll.initialIndex}

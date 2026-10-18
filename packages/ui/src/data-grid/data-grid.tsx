@@ -18,6 +18,7 @@ import { usePagedRows } from './use-paged-rows'
 import { useVirtualRows } from './use-virtual-rows'
 import { useCellEditing, type CellEditor } from './use-cell-editing'
 import { ReorderRows, SortableRow, type RowReorder } from './row-reorder'
+import { RouteLink, type RouteTarget } from '../primitives/route-link'
 
 export type DataGridProps = {
   columns: ColumnSpec[]
@@ -33,6 +34,11 @@ export type DataGridProps = {
   sort?: { columnId: string; direction: 'asc' | 'desc' }
   onSortChange?: (sort: { columnId: string; direction: 'asc' | 'desc' }) => void
   onOpenRow?: (row: GridRow) => void
+  /**
+   * Where a row's record is: its title cell (the `title` column, else the first) links there, so it opens in a new tab
+   * or is copied as any link is. A cell edited in place is no link, since a click there chooses it.
+   */
+  rowLink?: (row: GridRow) => RouteTarget
   /** Entries of the "..." menu at the end of each row; a row none apply to gets no menu, but keeps the column. */
   rowActions?: RowAction[]
   /** Cells edited in place, between which the arrow keys and Tab move. */
@@ -63,7 +69,7 @@ export type DataGridProps = {
 
 const headerHeight = 32
 
-export const DataGrid = ({ columns: given, source, naturalSort, initialScrollIndex = 0, onScrollIndex, latencyMs = 150, sort: controlledSort, onSortChange, onOpenRow, rowActions, cellEditor, rowPatches, bulkActions, pinKey, defaultPinned, rowNumbers = true, compact = false, selectable: selecting = true, reorder, fit = false, scroll = 'own', className }: DataGridProps) => {
+export const DataGrid = ({ columns: given, source, naturalSort, initialScrollIndex = 0, onScrollIndex, latencyMs = 150, sort: controlledSort, onSortChange, onOpenRow, rowLink, rowActions, cellEditor, rowPatches, bulkActions, pinKey, defaultPinned, rowNumbers = true, compact = false, selectable: selecting = true, reorder, fit = false, scroll = 'own', className }: DataGridProps) => {
   const selectable = selecting && !reorder
   const rowHeight = compact ? 28 : 36
   const narrow = !useIsDesktop()
@@ -160,6 +166,7 @@ export const DataGrid = ({ columns: given, source, naturalSort, initialScrollInd
   const gridRef = useRef<HTMLDivElement>(null)
   const columnIds = useMemo(() => columns.map((spec) => spec.id), [columns])
   const cellEditing = useCellEditing({ editor: cellEditor, columns: columnIds, total, rowAt: patchedRow, onOpenRow, container: gridRef })
+  const linkColumn = (columns.find((spec) => spec.title) ?? columns[0])?.id
 
   const minWidth = gridMinWidth(sized, gutter, trailing, minScale)
   const own = scroll === 'own'
@@ -183,7 +190,9 @@ export const DataGrid = ({ columns: given, source, naturalSort, initialScrollInd
       menu: actions.length > 0 ? <RowMenu row={row} actions={actions} /> : undefined,
       cells: tableRow.getAllCells().map((cell) => {
         const content = <table.FlexRender cell={cell} />
-        return { spec: columns.find((spec) => spec.id === cell.column.id)!, ...(cellEditing ? cellEditing.cell(index, row, cell.column.id, content) : { content }) }
+        const editable = Boolean(cellEditor?.editable(row, cell.column.id))
+        const linked = rowLink && cell.column.id === linkColumn && !editable ? <RouteLink to={rowLink(row)} className="flex min-w-0 items-center hover:underline">{content}</RouteLink> : content
+        return { spec: columns.find((spec) => spec.id === cell.column.id)!, ...(cellEditing ? cellEditing.cell(index, row, cell.column.id, linked) : { content: linked }) }
       }),
     }
     return reorder ? <SortableRow key={row.id} {...props} row={row} label={reorder.label(row)} /> : <DataRow key={row.id} {...props} />

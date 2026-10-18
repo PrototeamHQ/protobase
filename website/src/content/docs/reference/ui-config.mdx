@@ -44,6 +44,8 @@ export const repairsView = view<typeof repairs>('repairs')
 
 A browser tab names what it shows, then the app's name ([`appName`](/reference/auth/#configuration)): `Nordlicht GmbH · Companies · Protobase` on a record page, the plural on a list, `New company · Companies · Protobase` on the create form, and a composed page's title on that page.
 
+A click on a row of a list's table opens its record. Its title cell, the `.title` column or else the first, is a link to the record, so Cmd- or Ctrl-click, a middle click and the browser's link menu open it in a new tab or copy its address; embedded lists and the table of a list sorted by hand do the same.
+
 Field hints:
 
 | Hint | |
@@ -112,7 +114,7 @@ view<typeof products>('products').list((r) => ({
 }))
 ```
 
-A click on an editable cell chooses it instead of opening the record, and a second click, a double-click, Enter or F2 opens the field's editor in the cell: the one the record page uses, a [field type](/reference/plugins/#field-types)'s editor included. Enter, Tab or a click elsewhere saves the change, and Escape leaves the value as it was; a switch or a choice from a list saves as soon as it changes. The arrow keys move between the cells, Tab and Shift+Tab along the row, and Tab from an editor saves it and goes on to the row's next editable cell. Enter on a cell that is not editable opens its record.
+A click on an editable cell chooses it instead of opening the record, and a second click, a double-click, Enter or F2 opens the field's editor in the cell: the one the record page uses, a [field type](/reference/plugins/#field-types)'s editor included. Enter, Tab or a click elsewhere saves the change, and Escape leaves the value as it was; a switch or a choice from a list saves as soon as it changes. The arrow keys move between the cells, Tab and Shift+Tab along the row, and Tab from an editor saves it and goes on to the row's next editable cell. Enter on a cell that is not editable opens its record. An editable title cell is no link to the record; the row's other cells still open it.
 
 Each change is a `PATCH` of that one field with the row's ETag, so it is refused when someone else changed the record since the list loaded it. The cell shows the new value while it saves; when the server refuses, the cell gets its old value back, or the record's current one when someone else changed it, and a toast says why, such as the field's validation message.
 

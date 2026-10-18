@@ -77,6 +77,8 @@ export const EditInPlace: StoryObj = {
 
     // A click chooses an editable cell instead of opening the record; a second one edits it
     const name = await cellOf(canvasElement, 'LMP-01', 1)
+    // An editable title is no link to the record, since a click chooses it
+    expect(within(name).queryByRole('link')).toBeNull()
     await userEvent.click(name)
     expect(name).toHaveAttribute('aria-selected', 'true')
     expect(canvas.getByRole('heading', { name: 'Products' })).toBeInTheDocument()
@@ -156,6 +158,7 @@ export const WithoutUpdate: StoryObj = {
     await canvas.findByText('LMP-01')
     // A user who may not change the records gets the plain table, whose rows open their record
     expect(canvas.queryAllByRole('gridcell')).toHaveLength(0)
+    expect(canvas.getByRole('link', { name: 'Desk lamp' })).toHaveAttribute('href', '/products/1')
     await userEvent.click(await canvas.findByText('Desk lamp'))
     expect(await canvas.findByRole('heading', { name: 'Desk lamp', level: 1 })).toBeInTheDocument()
   },

@@ -60,7 +60,7 @@ const Loading = () => <div className="flex flex-col gap-2">{Array.from({ length:
 export const EmbeddedList = ({ model, view, filter, sort, columns, limit, display, empty, row = false, viewAll, link = true }: EmbeddedListProps) => {
   const { resources, views } = useAdminMeta()
   const { fields: fieldTypes } = useProjectUi()
-  const { go } = useAppAddress()
+  const { go, href } = useAppAddress()
   const xs = useIsXs()
   const [orderBy, setOrderBy] = useState(sort || defaultOrderBy(model, view))
   const names = columns ?? listColumnNames(model, view)
@@ -101,6 +101,7 @@ export const EmbeddedList = ({ model, view, filter, sort, columns, limit, displa
     loadMore: () => undefined,
   }
   const openRecord = (row: GridRow) => go({ kind: 'record', resource: model.name, key: recordKey(model, row) })
+  const recordLink = (row: GridRow) => ({ href: href({ kind: 'record', resource: model.name, key: recordKey(model, row) }), onFollow: () => openRecord(row) })
   const singular = view?.names?.singular ?? humanize(model.name)
   return (
     <div className="flex flex-col gap-3">
@@ -113,6 +114,7 @@ export const EmbeddedList = ({ model, view, filter, sort, columns, limit, displa
           sort={parseSort(orderBy)}
           onSortChange={(next) => setOrderBy(sortToOrderBy(next))}
           onOpenRow={openRecord}
+          rowLink={recordLink}
           rowActions={[{ label: `Open ${singular.toLowerCase()}`, onSelect: openRecord }]}
           rowNumbers={false}
           selectable={false}
