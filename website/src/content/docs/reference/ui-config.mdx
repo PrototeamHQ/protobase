@@ -521,7 +521,8 @@ The browser fetches the tiles, so their host must answer the app's origins with 
 | `field` | Without `through`: the relation on `resource` that holds this record's key. With it: the field of `resource` matched against the keys the join records hold. Filterable. Required. |
 | `through` | `{ resource, field, key?, filter? }`: the join records whose `field` (a filterable relation) holds this record's key; their `key` values (default their primary key) pick the listed records. All of them are read. |
 | `filter`, `sort` | AIP-160 and AIP-132 on `resource`, as in the list API. `filter` narrows the listed records, `through.filter` the join records. |
-| `columns` | Fields of `resource`, through relations too (`unit_id.property_id`); default the view's list columns without `field`. The first opens the record. |
+| `columns` | Fields of `resource`, through relations too (`unit_id.property_id`); default the view's list columns without `field`. The first links to the record a row opens. |
+| `open` | The relation of `resource` whose record a row opens, for rows that link this record to another. By default the one relation in `resource`'s primary key besides `field`, when there is exactly one (a join resource such as `task_dependencies` keyed on `[task_id, type, depends_on_id]`); otherwise rows open their own records. The row's menu then has **Open** for the other record and **Edit** for the link itself. |
 | `limit` | How many records it shows, 1 to 100; default 10. When there are more, the section says so beside View all, such as "The first 10 of 37.". Before 0.13 this was `pageSize`, rows per page; rename it. |
 | `display` | The display of `resource`'s list it opens in, such as `cards`; default the list's. |
 | `help`, `empty` | A line under the title, and the text when nothing matches (default "Nothing here yet."). |
