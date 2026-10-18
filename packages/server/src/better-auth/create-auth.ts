@@ -53,7 +53,7 @@ export type CreateAuthOptions = {
   appName?: string
   /** Signs cookies and encrypts the JWT private keys. Generate with `openssl rand -base64 32`. */
   secret: string
-  /** Extra origins that may call the auth endpoints. `baseURL` and `https://*.trycloudflare.com` are always trusted. */
+  /** Extra origins that may call the auth endpoints, such as the exact host of a dev tunnel. `baseURL` and `origins` are always trusted. */
   trustedOrigins?: string[]
   /**
    * The roles users can have, for example `['admin', 'accountant', 'warehouse']`. `admin` is always included; default
@@ -191,7 +191,7 @@ export const betterAuthOptions = (options: CreateAuthOptions, { origins = [], pa
     baseURL: multiHostBaseURL(options.baseURL, origins),
     basePath: authBasePath,
     secret: options.secret,
-    trustedOrigins: [options.baseURL, ...origins, 'https://*.trycloudflare.com', ...(options.trustedOrigins ?? [])],
+    trustedOrigins: [options.baseURL, ...origins, ...(options.trustedOrigins ?? [])],
     emailAndPassword: { enabled: true, disableSignUp: true, minPasswordLength: 12, ...(mail && passwordResetOptions(mail)) },
     ...(options.socialProviders && { socialProviders: options.socialProviders }),
     user: organizations ? { ...coreNames.user, additionalFields: lastOrganizationField } : coreNames.user,
