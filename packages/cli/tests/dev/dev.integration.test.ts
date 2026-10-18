@@ -48,6 +48,8 @@ describe.skipIf(!reachable || !hasApp)('protobase dev in a project with real aut
   let child: ChildProcess
   let cacheDir: string
   let project: Awaited<ReturnType<typeof createAuthProject>>
+  let created: Awaited<ReturnType<typeof run>>
+  let issued: Awaited<ReturnType<typeof run>>
   let token: string
   let port: number
 
@@ -59,9 +61,12 @@ describe.skipIf(!reachable || !hasApp)('protobase dev in a project with real aut
     await mkdir(path.join(projectDir, 'functions'))
     await writeFile(path.join(projectDir, 'protobase.theme.css'), ':root {\n  --primary: #0d9488;\n}\n')
     await writeFile(path.join(projectDir, 'functions/whoami.ts'), `import { defineFunction } from '@protobase/server'\nexport default defineFunction((request, { session }) => Response.json({ path: new URL(request.url).pathname, roles: session.user.roles }))\n`)
-    const created = await run([bin, 'users', 'create', 'dev@example.com', '--password-stdin'], projectDir, env, 'a-long-test-password\n')
+    // The users commands through the real binary: bin → Vite's module runner → the project's protobase.config.ts → a pg
+    // Pool. What they do is covered in process by users.test.ts.
+    created = await run([bin, 'users', 'create', 'dev@example.com', '--role', 'viewer', '--password-stdin'], projectDir, env, 'a-long-test-password\n')
     if (created.status !== 0) throw new Error(`users create failed:\n${created.stderr}`)
-    token = (await run([bin, 'token', 'dev@example.com'], projectDir, env)).stdout.trim()
+    issued = await run([bin, 'token', 'dev@example.com', '--ttl', '30m'], projectDir, env)
+    token = issued.stdout.trim()
     child = spawn(process.execPath, [bin, 'dev', '--port', String(port), '--cache-dir', cacheDir], {
       cwd: projectDir,
       env: { ...process.env, ...env, DATABASE_URL: url },
@@ -76,6 +81,16 @@ describe.skipIf(!reachable || !hasApp)('protobase dev in a project with real aut
     await rm(cacheDir, { recursive: true, force: true })
     await project?.dispose()
   }, 60_000)
+
+  it('has users create make the first admin from --password-stdin, whatever --role says', () => {
+    expect(created.stderr).toBe('')
+    expect(created.stdout).toBe('Created admin dev@example.com\n')
+  })
+
+  it('has token print only a JWT on stdout for an existing user', () => {
+    expect(issued.status).toBe(0)
+    expect(issued.stdout).toMatch(/^[\w-]+\.[\w-]+\.[\w-]+\n$/)
+  })
 
   it('serves /api/meta to a bearer token and refuses everyone else', async () => {
     const meta = `http://localhost:${port}/api/meta`

@@ -8,8 +8,8 @@ import { createUserCommand, listRolesCommand, listUsersCommand, type UsersApi } 
 import { deleteUserCommand, setDisabledCommand, setRoleCommand } from '../../src/users/manage'
 import { usersApi } from '../../src/users/register'
 
-// The users commands over a real Better Auth store, wired as the CLI wires them; cli.integration.test.ts runs the
-// binary itself once.
+// The users commands over a real Better Auth store, wired as the CLI wires them; the setup of dev.integration.test.ts
+// runs the binary itself once.
 let auth: AdminAuth
 let api: UsersApi
 
