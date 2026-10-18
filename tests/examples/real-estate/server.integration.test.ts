@@ -13,7 +13,7 @@ const db = createDb(4)
 afterAll(async () => { await db.destroy() })
 
 // The API as `protobase serve` builds it from this config, in process; the built bundle served for real is covered by
-// packages/cli/tests/serve/serve.integration.test.ts.
+// tests/smoke/erp-bundle.test.ts.
 const secret = new TextEncoder().encode('real-estate-server-test-secret-12345678')
 const token = await new SignJWT({ roles: ['admin'], tenant: 1 }).setProtectedHeader({ alg: 'HS256' }).setSubject('1').setExpirationTime('15m').sign(secret)
 const app = createAdmin({ ...configExports(config), db, authenticate: jwtAuthenticator({ keys: async () => secret, algorithms: ['HS256'] }), options: { roles } })

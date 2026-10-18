@@ -1,4 +1,3 @@
-import { spawnSync } from 'node:child_process'
 import { randomBytes } from 'node:crypto'
 import { existsSync } from 'node:fs'
 import { mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises'
@@ -187,17 +186,5 @@ describe('buildDeployBundle', () => {
     await expect(buildDeployBundle({ projectDir, outDir })).rejects.toThrow(
       "The config declares component('PlanCard'), but protobase.ui.tsx exports no component by that name. Export each from its own file and re-export it, such as: export { PlanCard } from './ui/PlanCard'",
     )
-  }, buildTimeout)
-
-  it('builds the ERP through the CLI without BETTER_AUTH_SECRET or a database', async () => {
-    projectDir = path.join(root, 'examples/erp', `.deploy-test-${randomBytes(4).toString('hex')}`)
-    const env = { PATH: process.env.PATH, HOME: process.env.HOME, DATABASE_URL: 'postgres://nobody@127.0.0.1:1/none' }
-    const built = spawnSync(process.execPath, [path.join(root, 'packages/cli/bin/protobase-source.mjs'), 'build', '--out', projectDir], { cwd: path.join(root, 'examples/erp'), env, encoding: 'utf8' })
-    expect(built.stderr).toBe('')
-    expect(built.status).toBe(0)
-    const manifest = JSON.parse(await readFile(path.join(projectDir, 'protobase.bundle.json'), 'utf8'))
-    expect(manifest.api).toEqual(['/api'])
-    expect(manifest.protobase).toBe(protobaseVersion)
-    expect(await readdir(path.join(projectDir, 'public/assets'))).not.toHaveLength(0)
   }, buildTimeout)
 })

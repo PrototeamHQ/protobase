@@ -1,46 +1,42 @@
 import { spawn, spawnSync, type ChildProcess } from 'node:child_process'
 import { existsSync } from 'node:fs'
-import { copyFile, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import { copyFile, cp, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { buildServeRuntime } from '../../src/build/serve-runtime'
-import { bin, root, run } from '../support/auth-project'
-import { databaseReachable, freePort, testDatabaseUrl } from '../support/database'
-import { createErpDatabase, sendPastDueInvoice, signIn, stopProcess, untilListening } from '../support/serve-process'
-import { protobaseVersion } from '../../src/version/version'
+import { buildServeRuntime } from '../../packages/cli/src/build/serve-runtime'
+import { protobaseVersion } from '../../packages/cli/src/version/version'
+import { sendPastDueInvoice, signIn, stopProcess, untilListening } from '../../packages/cli/tests/support/serve-process'
 
-const url = testDatabaseUrl()
-const erpDir = path.join(root, 'examples/erp')
-const hasBun = spawnSync('bun', ['--version']).status === 0
-const reachable = await databaseReachable(url)
+/** A plain ERP bundle `protobase build` wrote, and what serving it takes: its database's environment, a port, a user. */
+export type BuiltErp = { bundle: string; env: Record<string, string>; port: number; email: string; password: string }
 
-// Building the bundle and the runtime, migrating the auth store and starting Bun are slow under load.
+// Building the runtime and starting Bun are slow under load.
 const startupTimeout = 120_000
 const drainToken = 'the-operator-token'
 
-// The production path: the config module of the ERP bundle served by the runtime under `bun --no-install`, from a
-// folder without node_modules, with only the environment a platform would pass. The runtime serves the API alone.
-describe.skipIf(!reachable || !hasBun)('the ERP bundle served by protobase-serve.js under Bun', () => {
+/**
+ * The production path: the config module of the ERP bundle served by the runtime under `bun --no-install`, from a
+ * folder without node_modules, with only the environment a platform would pass. The runtime serves the API alone.
+ * `erp` is read once the file's own setup has built the bundle.
+ */
+export const serveRuntimeScenarios = (erp: () => BuiltErp) => describe('the ERP bundle served by protobase-serve.js under Bun', () => {
   let dir: string
   let child: ChildProcess
   let base: string
-  let store: Awaited<ReturnType<typeof createErpDatabase>>
   let output = ''
+  let token = ''
 
   beforeAll(async () => {
-    const port = await freePort()
+    const { bundle, env, port } = erp()
     base = `http://localhost:${port}`
-    store = await createErpDatabase({ url, erpDir, base, email: 'serve@example.com', password: 'a-long-test-password' })
-
     dir = await mkdtemp(path.join(tmpdir(), 'protobase-serve-'))
-    const built = await run([bin, 'build', '--out', path.join(dir, 'app')], erpDir, store.env)
-    if (built.status !== 0) throw new Error(`protobase build failed:\n${built.stderr}`)
+    await cp(bundle, path.join(dir, 'app'), { recursive: true })
     await buildServeRuntime({ outFile: path.join(dir, 'opt/protobase-serve.js'), bun: true })
 
     child = spawn('bun', ['--no-install', 'opt/protobase-serve.js', 'app/protobase.config.js'], {
       cwd: dir,
-      env: { PATH: process.env.PATH, ...store.env, PORT: String(port), PROTOBASE_JOBS_DRAIN_TOKEN: drainToken },
+      env: { PATH: process.env.PATH, ...env, PORT: String(port), PROTOBASE_JOBS_DRAIN_TOKEN: drainToken },
     })
     child.stdout?.on('data', (chunk) => (output += chunk))
     child.stderr?.on('data', (chunk) => (output += chunk))
@@ -50,10 +46,7 @@ describe.skipIf(!reachable || !hasBun)('the ERP bundle served by protobase-serve
   afterAll(async () => {
     await stopProcess(child)
     if (dir) await rm(dir, { recursive: true, force: true })
-    await store?.dispose()
   }, 60_000)
-
-  let token = ''
 
   it('runs from the config module of a complete bundle folder, built by its own Protobase version', async () => {
     expect(existsSync(path.join(dir, 'app/public/index.html'))).toBe(true)
@@ -70,7 +63,7 @@ describe.skipIf(!reachable || !hasBun)('the ERP bundle served by protobase-serve
 
     const refused = spawnSync('bun', ['--no-install', 'opt/protobase-serve.js', 'newer/protobase.config.js'], {
       cwd: dir,
-      env: { PATH: process.env.PATH, ...store.env, PORT: '0' },
+      env: { PATH: process.env.PATH, ...erp().env, PORT: '0' },
       encoding: 'utf8',
     })
     expect(refused.status).toBe(1)
@@ -92,11 +85,11 @@ describe.skipIf(!reachable || !hasBun)('the ERP bundle served by protobase-serve
   })
 
   it('signs in with Better Auth and hands out a bearer token', async () => {
-    token = await signIn(base, 'serve@example.com', 'a-long-test-password')
+    token = await signIn(base, erp().email, erp().password)
     expect(token).toBeTruthy()
   })
 
-  it('serves /api/meta to the token, naming the plugin of the bundle\'s own UI, and refuses everyone else', async () => {
+  it("serves /api/meta to the token, naming the plugin of the bundle's own UI, and refuses everyone else", async () => {
     const meta = await fetch(`${base}/api/meta`, { headers: { authorization: `Bearer ${token}` } })
     expect(meta.status).toBe(200)
     expect(meta.headers.get('x-meta-version')).toBeTruthy()
@@ -118,7 +111,7 @@ describe.skipIf(!reachable || !hasBun)('the ERP bundle served by protobase-serve
   })
 
   it("runs the app's jobs: a sent invoice past its due date turns overdue", async () => {
-    expect(await sendPastDueInvoice(base, token, store.env.DATABASE_URL)).toBe('overdue')
+    expect(await sendPastDueInvoice(base, token, erp().env.DATABASE_URL!)).toBe('overdue')
   })
 
   it('drains due jobs for the operator, and tells when the next one is due', async () => {
