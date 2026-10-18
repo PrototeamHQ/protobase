@@ -9,7 +9,8 @@ import { as, testAuthenticator } from '../../test-support/server'
 const roles = defineRoles<'products' | 'orders'>({
   admin: ['*'],
   erp_sync: [{ 'products.read': ['sku', 'price', 'stock'] }, { 'products.update': ['stock'] }],
-  anonymous: [{ 'products.read': { fields: ['name', 'price'], filter: 'published = true' } }],
+  // Its create is for public forms only, so the API below still refuses it.
+  anonymous: [{ 'products.read': { fields: ['name', 'price'], filter: 'published = true' } }, { 'products.create': ['name', 'sku'] }],
 })
 
 const products = resource('products')
@@ -79,10 +80,12 @@ describe('the anonymous role and field lists through the API', () => {
     const write = await patch('/products/1', { price: '1.00' })
     expect(write.status).toBe(401)
     expect(write.headers.get('www-authenticate')).toBe('Bearer')
-    expect((await app.request('/api/v1/products', { method: 'POST', body: '{}', headers: { 'content-type': 'application/json' } })).status).toBe(401)
+    expect((await app.request('/api/v1/products', { method: 'POST', body: JSON.stringify({ name: 'Bike', sku: 'K-1' }), headers: { 'content-type': 'application/json' } })).status).toBe(401)
     expect((await get('/orders')).status).toBe(404)
     for (const path of ['/api/openapi.json', '/api/docs']) expect((await app.request(path)).status, path).toBe(401)
-    expect((await app.request('/api/v1:batchWrite', { method: 'POST', body: JSON.stringify({ ops: [] }), headers: { 'content-type': 'application/json' } })).status).toBe(401)
+    const batch = { ops: [{ op: 'create', resource: 'products', data: { name: 'Bike', sku: 'K-1' } }] }
+    expect((await app.request('/api/v1:batchWrite', { method: 'POST', body: JSON.stringify(batch), headers: { 'content-type': 'application/json' } })).status).toBe(401)
+    expect((await (await get('/products?filter=name%20%3D%20%22Bike%22')).json()).items).toEqual([])
   })
 
   it('tells a request without a token what it may read, for the admin app visitors browse', async () => {

@@ -33,8 +33,14 @@ const withoutSensitive = (model: ResourceModel): ResourceModel => ({
   fields: Object.fromEntries(Object.entries(model.fields).filter(([, field]) => !field.sensitive)),
 })
 
+// A caller without a token creates only through a public form, which has the rate limit and the bot check: anywhere
+// else (the resources API, batches, uploads, `/meta`) the anonymous role's `create` does not exist.
+const withoutAnonymousCreate = (resolved: ResolvedAccess, session: Session): ResolvedAccess =>
+  session.anonymous ? { ...resolved, operations: { ...resolved.operations, create: false }, writableFields: { ...resolved.writableFields, create: [] } } : resolved
+
 export const requestAccess = async (deps: Deps, entry: Entry, session: Session): Promise<RequestAccess> => {
-  const resolved = await resolveAccess(entry.source, { user: { id: session.user.id, roles: session.user.roles }, ...organizationOf(session) }, deps.accessOptions)
+  const all = await resolveAccess(entry.source, { user: { id: session.user.id, roles: session.user.roles }, ...organizationOf(session) }, deps.accessOptions)
+  const resolved = withoutAnonymousCreate(all, session)
   checkOwnerId(entry, session.user, resolved)
   const readable = restrictModel(entry.model, resolved)
   return { entry, session, resolved, full: entry.model, readable, model: withoutSensitive(readable), deps }
