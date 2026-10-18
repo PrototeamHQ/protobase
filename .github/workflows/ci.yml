@@ -57,6 +57,13 @@ jobs:
         env:
           POSTGRES_PORT: ${{ job.services.postgres.ports['5432'] }}
         run: echo "TEST_POSTGRES_URL=postgres://protobase:protobase@localhost:$POSTGRES_PORT/postgres" >> "$GITHUB_ENV"
+      # A throwaway database needs no durability. Each `drop database` the tests' clones end with forces a checkpoint, and
+      # on a runner that shares its disk those queue behind each other until hooks time out; without fsync they are quick.
+      - name: Turn off the service Postgres' durability
+        run: >-
+          docker exec ${{ job.services.postgres.id }} psql -U protobase -d protobase -v ON_ERROR_STOP=1
+          -c "alter system set fsync = off" -c "alter system set synchronous_commit = off"
+          -c "alter system set full_page_writes = off" -c "select pg_reload_conf()"
       # bunfig.toml has `bun run` put a node that is Bun first on PATH, so the checks run on Bun. Bun skips that without a
       # word when another user owns its /tmp/bun-node-* directory, as on a shared server, and they would run on Node.
       - run: bun run sh -c 'node -e "process.versions.bun || (console.error(\"bun run starts Node, not Bun\"), process.exit(1))"'
