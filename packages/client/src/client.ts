@@ -4,7 +4,7 @@ import { labelEntries, listWire, photosWire, queryString, filterText, type Filte
 import { originOf, photosWithOrigin, withFileOrigin } from './file-urls'
 import { createTransport, type ClientOptions } from './transport'
 import { fetchWithProgress, type UploadProgress } from './upload-request'
-import type { Aggregate, AggregateParams, BatchOp, BatchResult, Facet, FormChallenge, FormProof, Histogram, HistoryChange, HistoryPage, ListPage, MapResult, Meta, MetaResult, PublicForm, RecordOf, ResourceRef, Series, SeriesParams, Stored } from './types'
+import type { Aggregate, AggregateParams, BatchOp, BatchResult, CommentPage, Facet, FormChallenge, FormProof, Histogram, HistoryChange, HistoryPage, ListPage, MapResult, MentionableUser, Meta, MetaResult, PublicForm, RecordComment, RecordOf, ResourceRef, Series, SeriesParams, Stored } from './types'
 
 type Json = Record<string, any>
 
@@ -50,6 +50,10 @@ export type UploadOptions = {
   onProgress?: UploadProgress
   signal?: AbortSignal
 }
+
+// A comment as the API sends it, its time in snake_case.
+type CommentWire = Omit<RecordComment, 'createdAt'> & { created_at: string }
+const commentOf = ({ created_at, ...comment }: CommentWire): RecordComment => ({ ...comment, createdAt: created_at })
 
 const etagOf = (response: Response) => response.headers.get('etag') ?? ''
 
@@ -133,6 +137,23 @@ export const createClient = (options: ClientOptions = {}) => {
     const query = queryString({ page_size: pageSize, page_token: pageToken || undefined })
     const body = (await (await send({ method: 'GET', path: `${keyPath(resource, key)}:history`, query })).json()) as { items: Array<Omit<HistoryChange, 'databaseRole'> & { database_role: string | null }>; next_page_token: string }
     return { items: body.items.map(({ database_role, ...change }) => ({ ...change, databaseRole: database_role })), nextPageToken: body.next_page_token }
+  }
+
+  /** A page of a record's comments, newest first, for a resource with `.comments()`; `pageToken` is the previous page's `nextPageToken`. */
+  const comments = async (resource: ResourceRef, key: KeyValue | readonly KeyValue[], { pageSize, pageToken }: { pageSize?: number; pageToken?: string } = {}): Promise<CommentPage> => {
+    const query = queryString({ page_size: pageSize, page_token: pageToken || undefined })
+    const body = (await (await send({ method: 'GET', path: `${keyPath(resource, key)}:comments`, query })).json()) as { items: CommentWire[]; next_page_token: string }
+    return { items: body.items.map(commentOf), nextPageToken: body.next_page_token }
+  }
+
+  /** Adds the caller's comment to a record, mentioning the users `mentions` names, who are emailed a link to it. */
+  const comment = async (resource: ResourceRef, key: KeyValue | readonly KeyValue[], { body, mentions = [] }: { body: string; mentions?: string[] }): Promise<RecordComment> =>
+    commentOf((await (await send({ method: 'POST', path: `${keyPath(resource, key)}:comments`, body: { body, mentions } })).json()) as CommentWire)
+
+  /** The users a comment on a record may mention whose name contains `query`, at most 8, by name. */
+  const mentionable = async (resource: ResourceRef, key: KeyValue | readonly KeyValue[], query: string): Promise<MentionableUser[]> => {
+    const body = (await (await send({ method: 'GET', path: `${keyPath(resource, key)}:mentionable`, query: queryString({ q: query }) })).json()) as { items: MentionableUser[] }
+    return body.items
   }
 
   /** Applies several writes atomically (`POST /api/v1:batchWrite`), for example a record and its lines on Save. */
@@ -305,7 +326,7 @@ export const createClient = (options: ClientOptions = {}) => {
     await send({ method: 'POST', path: formPath(name), body: { values, proof }, system: true })
   }
 
-  return { list, search, get, create, update, remove, undelete, reveal, history, batchWrite, facets, aggregate, series, histogram, map, seek, meta, invoke, upload, form, formChallenge, submitForm }
+  return { list, search, get, create, update, remove, undelete, reveal, history, comments, comment, mentionable, batchWrite, facets, aggregate, series, histogram, map, seek, meta, invoke, upload, form, formChallenge, submitForm }
 }
 
 export type Client = ReturnType<typeof createClient>

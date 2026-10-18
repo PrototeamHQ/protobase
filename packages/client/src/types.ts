@@ -67,6 +67,31 @@ export type FormChallenge = {
 /** A solved bot check, sent with the form: the challenge as it came, and the solver's answer. */
 export type FormProof = { challenge: FormChallenge; solution: { counter: number; derivedKey: string } }
 
+/** Someone a comment names: its author or a person it mentions, with their name when the server knows it. */
+export type CommentPerson = { id: string; name?: string }
+
+/** One comment on a record, as `comments` reads it. */
+export type RecordComment = {
+  id: string
+  /** When it was written, ISO 8601. */
+  createdAt: string
+  /** Plain text, as written. */
+  body: string
+  author: CommentPerson
+  /** The users it mentions, each once. */
+  mentions: CommentPerson[]
+}
+
+/** A page of a record's comments, newest first. */
+export type CommentPage = {
+  items: RecordComment[]
+  /** `""` on the last page. */
+  nextPageToken: string
+}
+
+/** Someone a comment on a record may mention: a user who may read the record. */
+export type MentionableUser = { id: string; name: string }
+
 /** A page of a record's history, newest first. */
 export type HistoryPage = {
   items: HistoryChange[]

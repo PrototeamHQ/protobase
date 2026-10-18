@@ -207,6 +207,30 @@ describe('undelete', () => {
   })
 })
 
+describe('comments', () => {
+  const wire = { id: '3', created_at: '2026-10-18T09:00:00.000Z', body: 'Hi @Bo', author: { id: 'ann', name: 'Ann' }, mentions: [{ id: 'bo' }] }
+
+  it('reads a page of a record\'s comments, its times in camelCase', async () => {
+    const { calls, fetch } = fakeFetch(() => json({ items: [wire], next_page_token: '3' }))
+    const page = await createClient({ fetch }).comments('tickets', 12, { pageSize: 5, pageToken: '9' })
+    expect(calls[0]!.url).toBe('/api/v1/tickets/12:comments?page_size=5&page_token=9')
+    expect(page).toEqual({ items: [{ id: '3', createdAt: '2026-10-18T09:00:00.000Z', body: 'Hi @Bo', author: { id: 'ann', name: 'Ann' }, mentions: [{ id: 'bo' }] }], nextPageToken: '3' })
+  })
+
+  it('posts a comment with the users it mentions', async () => {
+    const { calls, fetch } = fakeFetch(() => json(wire, { status: 201 }))
+    const posted = await createClient({ fetch }).comment('tickets', 12, { body: 'Hi @Bo', mentions: ['bo'] })
+    expect([calls[0]!.url, calls[0]!.init.method, JSON.parse(String(calls[0]!.init.body))]).toEqual(['/api/v1/tickets/12:comments', 'POST', { body: 'Hi @Bo', mentions: ['bo'] }])
+    expect(posted.createdAt).toBe('2026-10-18T09:00:00.000Z')
+  })
+
+  it('asks whom a comment may mention by part of a name', async () => {
+    const { calls, fetch } = fakeFetch(() => json({ items: [{ id: 'bo', name: 'Bo de Vries' }] }))
+    expect(await createClient({ fetch }).mentionable('tickets', 12, 'de v')).toEqual([{ id: 'bo', name: 'Bo de Vries' }])
+    expect(calls[0]!.url).toBe('/api/v1/tickets/12:mentionable?q=de+v')
+  })
+})
+
 describe('batchWrite', () => {
   it('posts every operation to :batchWrite with keys and resource names in wire form', async () => {
     const { calls, fetch } = fakeFetch(() => json({ results: [{ id: 'a' }, {}] }))

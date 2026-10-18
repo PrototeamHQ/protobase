@@ -21,6 +21,9 @@ export const routedClient = (own: Client, sourceOf: (resource: string) => Client
     undelete: (resource, key) => to(resource).undelete(resource, key),
     reveal: (resource, key, field) => to(resource).reveal(resource, key, field),
     history: (resource, key, options) => to(resource).history(resource, key, options),
+    comments: (resource, key, options) => to(resource).comments(resource, key, options),
+    comment: (resource, key, input) => to(resource).comment(resource, key, input),
+    mentionable: (resource, key, query) => to(resource).mentionable(resource, key, query),
     batchWrite: (ops) => {
       const apis = [...new Set(ops.map((op) => to(op.resource)))]
       if (apis.length > 1) return Promise.reject(new Error(`A batch writes to one API, but these writes are for ${[...new Set(ops.map((op) => nameOf(op.resource)))].join(', ')}, which different APIs serve`))
