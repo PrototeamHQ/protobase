@@ -179,6 +179,12 @@ describe('checkViews', () => {
     expect(() => checkViews(withScans, [shown('page desc').toModel()])).toThrow('View "payments": display "gallery" photos: the list\'s records load with one set of photos, so name those of display "cards"')
   })
 
+  it('checks the related tables inside a group', () => {
+    const written = view<typeof payments>('payments').toModel()
+    written.layout = [{ kind: 'group', title: 'More', items: [{ kind: 'related', title: 'Scans', resource: 'receipts', field: 'payment_id' }] }]
+    expect(() => checkViews(registry, [written])).toThrow('View "payments": related "Scans"')
+  })
+
   it("wants a gallery's image to be a file field and its photos to fit the resources", () => {
     const scans = resource('scans').table('scans').fields({ id: f.integer(), payment_id: f.relation('payments').filterable(), scan: f.file(), page: f.integer().sortable() }).primaryKey((r) => r.id)
     const withScans = { entries: [...registry.entries, { name: 'scans', model: scans.toModel() }] } as unknown as Registry

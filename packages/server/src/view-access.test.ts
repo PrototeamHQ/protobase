@@ -216,6 +216,15 @@ describe('pruneView', () => {
     expect(pruneView(written, hidden.repairs!, hidden).layout).toEqual([])
   })
 
+  it('prunes a group by what it holds, and drops one left empty', () => {
+    const written = view<typeof customers>('customers')
+      .layout(() => [l.group('More', [l.related('Repairs', { resource: 'customer_repairs', field: 'customerId' })], { collapsed: true })])
+      .toModel()
+    const layout = (models: Record<string, ResourceModel>) => pruneView(written, models.customers!, models).layout
+    expect(layout(all)).toEqual(written.layout)
+    expect(layout(without({}, ['customer_repairs']))).toEqual([])
+  })
+
   it('keeps when every layout item shows', () => {
     const photos = { resource: 'repair_photos', field: 'repairId', image: 'photo', sort: 'position' }
     const written = view<typeof repairs>('repairs')

@@ -1,5 +1,5 @@
 import { resolveFieldPath } from '@protobase/layout'
-import type { ActionModel, FieldModel, LayoutItemModel, ResourceModel, ViewModel } from '@protobase/schema'
+import type { ActionModel, FieldModel, GroupItemModel, LayoutItemModel, ResourceModel, ViewModel } from '@protobase/schema'
 import { addressErrors } from '@protobase/schema/internal'
 import type { Meta, ResourcePermissions, SourceRef } from './types'
 
@@ -21,6 +21,10 @@ const withinSource = (model: ResourceModel, drawn: Record<string, ResourceModel>
 
 // Related records of a resource the app does not draw go, and so do columns that go through a relation out of the source.
 const keptLayoutItem = (item: LayoutItemModel, models: Record<string, ResourceModel>): LayoutItemModel[] => {
+  if (item.kind === 'group') {
+    const items = item.items.flatMap((inner) => keptLayoutItem(inner, models)) as GroupItemModel[]
+    return items.length > 0 ? [{ ...item, items }] : []
+  }
   if (item.kind !== 'related') return [item]
   if (!Object.hasOwn(models, item.resource) || (item.through && !Object.hasOwn(models, item.through.resource))) return []
   const { columns, ...rest } = item

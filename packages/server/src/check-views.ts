@@ -1,6 +1,6 @@
 import { conditionProblems } from '@protobase/layout'
 import { isRecordCondition, type ActionRun, type CardPhotosModel, type GalleryModel, type ResourceModel, type ViewModel } from '@protobase/schema'
-import { actionInputErrors, addressErrors, addressPlaceholders, boardErrors, calendarErrors, chartFields, displayFields, fieldRefsIn, hrefField, hrefPlaceholders, linkActionError, promptError, promptFields } from '@protobase/schema/internal'
+import { actionInputErrors, addressErrors, addressPlaceholders, boardErrors, calendarErrors, chartFields, displayFields, fieldRefsIn, hrefField, hrefPlaceholders, layoutItems, linkActionError, promptError, promptFields } from '@protobase/schema/internal'
 import type { Registry } from './registry'
 import { cardFavoriteErrors, favoriteOwnerErrors } from './view-card-favorite'
 import { cardPhotosErrors } from './view-card-photos'
@@ -198,7 +198,7 @@ export const checkViews = (registry: Registry, views: ViewModel[], pages: readon
     const model = models[view.resource]
     if (!model) return []
     const related = [
-      ...view.layout.flatMap((item) => (item.kind === 'related' ? relatedErrors(item, view.resource, models).map((error) => `related "${item.title}": ${error}`) : [])),
+      ...layoutItems(view.layout).flatMap((item) => (item.kind === 'related' ? relatedErrors(item, view.resource, models).map((error) => `related "${item.title}": ${error}`) : [])),
       ...relatedColumnsErrors(view, model, models),
     ]
     const photos = [

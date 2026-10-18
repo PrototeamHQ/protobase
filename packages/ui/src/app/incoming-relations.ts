@@ -1,3 +1,4 @@
+import { layoutItems } from '@protobase/schema/internal'
 import { createWhere, printFilter, type AppAddress, type LayoutItemModel, type ResourceModel, type ViewModel } from '@protobase/schema'
 import { humanize } from '../live/naming'
 
@@ -14,7 +15,7 @@ export type IncomingRelation = { resource: string; field: string; label: string 
  */
 export const incomingRelations = (model: ResourceModel, resources: Record<string, ResourceModel>, views: Record<string, ViewModel>, layout: LayoutItemModel[], lines?: ResourceModel): IncomingRelation[] => {
   if (model.primaryKey.length !== 1) return []
-  const listed = new Set(layout.flatMap((item) => (item.kind === 'related' && !item.through ? [`${item.resource}.${item.field}`] : [])))
+  const listed = new Set(layoutItems(layout).flatMap((item) => (item.kind === 'related' && !item.through ? [`${item.resource}.${item.field}`] : [])))
   const found = Object.values(resources).flatMap((source) =>
     Object.values(source.fields)
       .filter((field) => field.type === 'relation' && field.relation?.resource === model.name && field.relation.columns.length === 1 && field.filterable)

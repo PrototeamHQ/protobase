@@ -819,7 +819,7 @@ export type GroupModel = {
   /** Closed until the person opens it, or a link does. */
   collapsed?: boolean
   /** Whether it shows on the form, the read view or both. */
-  when?: ShowWhen
+  when?: RecordWhen
 }
 
 /** An item a group may hold. */

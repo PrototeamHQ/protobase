@@ -1,6 +1,6 @@
 import { conditionReadable, resolveFieldPath } from '@protobase/layout'
 import { isRecordCondition } from '@protobase/schema'
-import type { ActionInputModel, ActionModel, ActionRun, CardFavoriteModel, CardPhotosModel, ChartModel, CommentsSectionModel, CustomSectionModel, FilterWidgetModel, FormModel, GalleryModel, HistorySectionModel, LayoutItemModel, ListDisplayModel, ListModel, MapSectionModel, NavModel, NavRecentModel, RelatedColumnModel, RelatedModel, ResourceModel, SaveSearchModel, SearchesOfModel, SearchResultModel, ViewModel } from '@protobase/schema'
+import type { ActionInputModel, ActionModel, ActionRun, CardFavoriteModel, CardPhotosModel, ChartModel, CommentsSectionModel, CustomSectionModel, FilterWidgetModel, FormModel, GalleryModel, GroupModel, HistorySectionModel, LayoutItemModel, ListDisplayModel, ListModel, MapSectionModel, NavModel, NavRecentModel, RelatedColumnModel, RelatedModel, ResourceModel, SaveSearchModel, SearchesOfModel, SearchResultModel, ViewModel } from '@protobase/schema'
 import { addressErrors, chartFields, hrefPlaceholders, promptFields, navRecentErrors, pruneByShape, shapes as s, tableDisplay } from '@protobase/schema/internal'
 import { cardFavoriteErrors } from './view-card-favorite'
 import { cardPhotosErrors } from './view-card-photos'
@@ -133,17 +133,22 @@ const widgetShape = s.oneOf<FilterWidgetModel>({
   flags: s.object<Of<FilterWidgetModel, 'flags'>>({ kind: s.data, fields: s.list(s.field, { nonEmpty: true }), label: s.data }, { requires: ['fields'] }),
 })
 
-const layoutShape = (resource: string, model: ResourceModel, models: Record<string, ResourceModel>) =>
-  s.oneOf<LayoutItemModel>({
-    section: s.object<Of<LayoutItemModel, 'section'>>({ kind: s.data, title: s.data, help: s.data, helpWhen: s.data, presentation: s.data, when: recordWhenShape(resource, models), fields: s.list(s.field, { nonEmpty: true }) }, { requires: ['fields', 'when'] }),
-    sidebar: s.object<Of<LayoutItemModel, 'sidebar'>>({ kind: s.data, fields: s.list(s.field, { nonEmpty: true }), when: recordWhenShape(resource, models) }, { requires: ['fields', 'when'] }),
-    related: s.map<RelatedModel>((item) => pruneRelated(item, resource, models)),
+const layoutShape = (resource: string, model: ResourceModel, models: Record<string, ResourceModel>) => {
+  const when = recordWhenShape(resource, models)
+  const section = s.object<Of<LayoutItemModel, 'section'>>({ kind: s.data, title: s.data, help: s.data, helpWhen: s.data, presentation: s.data, when, fields: s.list(s.field, { nonEmpty: true }) }, { requires: ['fields', 'when'] })
+  const related = s.map<RelatedModel>((item) => pruneRelated(item, resource, models))
+  return s.oneOf<LayoutItemModel>({
+    section,
+    sidebar: s.object<Of<LayoutItemModel, 'sidebar'>>({ kind: s.data, fields: s.list(s.field, { nonEmpty: true }), when }, { requires: ['fields', 'when'] }),
+    related,
+    group: s.object<GroupModel>({ kind: s.data, title: s.data, collapsed: s.data, when, items: s.list(s.oneOf({ section, related }), { nonEmpty: true }) }, { requires: ['items', 'when'] }),
     custom: s.object<CustomSectionModel>({ kind: s.data, component: s.data, title: s.data, sidebar: s.data, when: s.data, props: s.refs }, { requires: ['props'] }),
     map: s.object<MapSectionModel>({ kind: s.data, title: s.data, latitude: s.field, longitude: s.field, zoom: s.data, sidebar: s.data, when: s.data }, { requires: ['latitude', 'longitude'] }),
     gallery: s.map<GalleryModel>((item) => pruneGallery(item, resource, model, models)),
     history: s.object<HistorySectionModel>({ kind: s.data, title: s.data, limit: s.data, when: s.data }),
     comments: s.object<CommentsSectionModel>({ kind: s.data, title: s.data, when: s.data }),
   })
+}
 
 // A link goes when it reads a hidden field, or leads to a resource or field the caller cannot see.
 const linkShape = (model: ResourceModel, models: Record<string, ResourceModel>) =>

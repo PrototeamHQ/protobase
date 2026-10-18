@@ -1,4 +1,5 @@
 import type { ResourceModel, ViewModel } from '@protobase/schema'
+import { layoutItems } from '@protobase/schema/internal'
 import { whenShown } from '../record-mode/record-mode'
 
 /**
@@ -7,7 +8,7 @@ import { whenShown } from '../record-mode/record-mode'
  * field pointing at the gallery's record.
  */
 export const detailFields = (model: ResourceModel, view: ViewModel | undefined, omit: readonly string[]) => {
-  const sections = (view?.layout ?? []).flatMap((item) => (item.kind === 'section' && whenShown(item.when, false) ? item.fields : []))
+  const sections = layoutItems(view?.layout ?? []).flatMap((item) => (item.kind === 'section' && whenShown(item.when, false) ? item.fields : []))
   const names = sections.length > 0 ? [...new Set(sections)] : Object.keys(model.fields).filter((name) => name !== model.tenant && !model.primaryKey.includes(name))
   return names.filter((name) => model.fields[name] && !model.fields[name].sensitive && !omit.includes(name) && whenShown(view?.fields[name]?.when, false))
 }

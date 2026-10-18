@@ -1,5 +1,5 @@
 import type { FilterWidgetModel, GalleryModel, RelatedModel, ResourceModel, SortSpec, ViewModel } from '@protobase/schema'
-import { isGroupChart } from '@protobase/schema/internal'
+import { isGroupChart, layoutItems } from '@protobase/schema/internal'
 import type { ReadShape } from './read-shape'
 import { all, any, anyOf, compare, configFilter, configSort, isTrue, sortText } from './shape-filters'
 
@@ -65,7 +65,7 @@ const relatedShapes = (item: RelatedModel, owner: string, models: Models): ReadS
 const handOrderShapes = (model: ResourceModel, view: ViewModel, list: string, models: Models): ReadShape[] => {
   const own = model.position && model.position.within === undefined && model.fields[model.position.field]
   const listed: ReadShape[] = own ? [{ resource: model.name, request: request(model.name, undefined, [[own.name, 'asc']]), from: `${list} sorted by hand`, query: { sort: [[own.name, 'asc']] } }] : []
-  const related = view.layout.flatMap((item): ReadShape[] => {
+  const related = layoutItems(view.layout).flatMap((item): ReadShape[] => {
     if (item.kind !== 'related' || item.through || item.filter) return []
     const target = models[item.resource]
     const position = target?.position
@@ -162,7 +162,7 @@ export const viewShapes = (view: ViewModel, models: Models): ReadShape[] => {
     ...view.filters.flatMap((widget) => widgetShapes(model, widget, `${list}'s ${widget.kind === 'dateRange' ? 'date range' : widget.kind} filter`)),
     ...displayShapes(model, view, models),
     ...chartShapes(model, view, list),
-    ...view.layout.flatMap((item) => (item.kind === 'related' ? relatedShapes(item, model.name, models) : item.kind === 'gallery' ? galleryShapes(item, model.name, models) : [])),
+    ...layoutItems(view.layout).flatMap((item) => (item.kind === 'related' ? relatedShapes(item, model.name, models) : item.kind === 'gallery' ? galleryShapes(item, model.name, models) : [])),
     ...recentShapes(model, view),
     ...searchesShapes(view, models),
     ...handOrderShapes(model, view, list, models),

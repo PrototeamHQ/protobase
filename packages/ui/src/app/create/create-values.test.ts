@@ -45,6 +45,11 @@ describe('createSections', () => {
     expect(createSections(orders, view)[0]!.fields).toContain('total')
   })
 
+  it('shows the sections of a group as plain sections', () => {
+    const view = { fields: {}, layout: [{ kind: 'group', title: 'More', collapsed: true, items: [{ kind: 'section', title: 'Money', fields: ['total'] }] }] } as unknown as ViewModel
+    expect(createSections(orders, view).map((section) => section.title)).toEqual(['Money', 'Other fields'])
+  })
+
   it('keeps sections and fields meant only for reading out of their sections, so their fields land in the last one', () => {
     const view = {
       fields: { number: { when: 'reading' }, notes: { when: 'editing' } },

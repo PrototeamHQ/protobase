@@ -1,4 +1,5 @@
 import { isRecordCondition, type FieldModel, type ResourceModel, type ViewModel } from '@protobase/schema'
+import { layoutItems } from '@protobase/schema/internal'
 import { isEditable, toPatchValue } from '../../live/field-values'
 import { whenShown } from '../record-mode/record-mode'
 
@@ -23,7 +24,7 @@ export const isCreatable = (model: ResourceModel, field: FieldModel) =>
 export const createSections = (model: ResourceModel, view: ViewModel | undefined): CreateSection[] => {
   const creatable = Object.values(model.fields).filter((field) => isCreatable(model, field)).map((field) => field.name)
   const placed = new Set<string>()
-  const sections = (view?.layout ?? []).flatMap((item) => {
+  const sections = layoutItems(view?.layout ?? []).flatMap((item) => {
     if (item.kind !== 'section' || isRecordCondition(item.when) || !whenShown(item.when, true)) return []
     const fields = item.fields.filter((name) => creatable.includes(name) && !placed.has(name) && whenShown(view?.fields[name]?.when, true))
     fields.forEach((name) => placed.add(name))

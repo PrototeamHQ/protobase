@@ -66,7 +66,7 @@ export const layout = {
    * opens it, or a link to the record does (the address names the open groups by title). Throws on any other item. See
    * [Groups](website/src/content/docs/reference/ui-config.mdx#groups).
    */
-  group: (title: string, items: LayoutItemModel[], o: { collapsed?: boolean; when?: ShowWhen } = {}): LayoutItemModel => {
+  group: (title: string, items: LayoutItemModel[], o: { collapsed?: boolean; when?: RecordWhen } = {}): LayoutItemModel => {
     const wrong = items.find((item) => item.kind !== 'section' && item.kind !== 'related')
     if (wrong) throw new Error(`l.group "${title}" holds sections and related tables, not ${wrong.kind}`)
     return {
