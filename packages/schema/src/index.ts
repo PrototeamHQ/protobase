@@ -51,6 +51,7 @@ export type {
   ChartModel,
   GroupChartModel,
   PeriodChartModel,
+  FormModel,
   SaveFeedback,
   RecordMode,
   HelpWhen,
@@ -91,6 +92,7 @@ export type { FieldView } from './view-field'
 export type { ComponentRef, ViewProps } from './view-displays'
 export type { ListColumn } from './view-columns'
 export type { ChartInput, GroupChartInput, PeriodChartInput } from './view-chart'
+export type { FormInput } from './view-form'
 export { fieldRef, type FieldRefValue } from './field-ref'
 export { enumLabel } from './enum-label'
 export { userMenu, type UserMenuSource } from './user-menu'
@@ -99,6 +101,7 @@ export { bottomBarErrors, type BottomBarNames } from './bottom-bar-errors'
 export { layout as l } from './layout'
 export { fitsKeyType, keyTypes } from './keys'
 export { addressWords, appPath, readAppPath } from './app-address'
+export { formPath, formRoute, readFormAddress, type FormAddress } from './form-address'
 export { readSignInAddress, signInParams, signInPath, signInRoute, signInSteps, type SignInAddress, type SignInStep } from './sign-in-address'
 export type { KeyType } from './keys'
 export type { InferRecord, RecordKey, RecordOf, KeyOf, KeyRefs, Access, Issue } from './resource-types'

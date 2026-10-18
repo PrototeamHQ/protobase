@@ -1088,6 +1088,26 @@ export type ViewModel = {
   export?: false | ExportModel
   /** The page that creates the resource's records, in place of the create form. */
   create?: CreateModel
+  /** Public forms that create its records for people without an account, each at `/-/forms/<name>`. */
+  forms?: FormModel[]
+}
+
+/**
+ * A public form (`.form(...)`): anyone, signed in or not, opens it at `/-/forms/<name>` and creates a record with its
+ * fields, through the `anonymous` role's `create`, behind a rate limit and a bot check. See
+ * [Public forms](website/src/content/docs/reference/forms.mdx).
+ */
+export type FormModel = {
+  /** Its address in the app, `/-/forms/<name>`; unique across the app. */
+  name: string
+  /** The page's heading; the view's singular name when omitted. */
+  title?: string
+  /** The fields a visitor fills in, in order. */
+  fields: string[]
+  /** What the page shows once the record is created. */
+  thanks: string
+  /** How many submissions one client may send per minute. */
+  perMinute: number
 }
 
 /** How the resource's records are created (`.create(...)`): a page of the app's own. */

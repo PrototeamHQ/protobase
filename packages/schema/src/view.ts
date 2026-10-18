@@ -22,6 +22,7 @@ import { navRecentErrors } from './nav-recent'
 import { createRefs, ref, type FieldRefs, type Ref } from './refs'
 import { actions } from './view-actions'
 import { chartModel, type ChartInput } from './view-chart'
+import { formModel, type FormInput } from './view-form'
 import { columns as listColumns, isListColumn, type ListColumn } from './view-columns'
 import { boardErrors, displayErrors, displayFields, displays } from './view-displays'
 import { FieldView } from './view-field'
@@ -188,6 +189,17 @@ export class ViewBuilder<R extends {
   }
 
   /**
+   * A public form that creates a record of this resource for anyone, signed in or not, at `/-/forms/<name>`: the
+   * `fields` a visitor fills in, the `thanks` shown once it is sent, a `title` (the view's singular name by default) and
+   * how many submissions one client may send `perMinute` (default 5). The `anonymous` role must grant `create` of those
+   * fields; the form is the only way it creates. Each call adds a form. Throws on a name that does not fit an address, no
+   * or repeated fields, or an empty `thanks`. See [Public forms](website/src/content/docs/reference/forms.mdx).
+   */
+  form(build: (r: FieldRefs<FieldsOf<R>>) => FormInput) {
+    return this.next({ forms: [...(this.state.forms ?? []), formModel(build(this.refs()))] })
+  }
+
+  /**
    * How the record page opens to a user who may change the record: `edit`, the default, as its form; `read` as a read
    * view, its sections as tables of labels and values, with an Edit button to the form; `locked` as the form, locked
    * until Edit is pressed. A user who may not change it gets the read view in every mode. The form has its own address
@@ -313,7 +325,7 @@ export class ViewBuilder<R extends {
     return this.next({ searchesOf: searches })
   }
 
-  /** With the resource's model, also verifies the title, search result and list display fields, related column names, a gallery's image, `listOf`, `searchesOf` and the sidebar's `recent` group. */
+  /** With the resource's model, also verifies the title, search result and list display fields, related column names, a gallery's image, `listOf`, `searchesOf`, the sidebar's `recent` group and the forms' fields. */
   toModel(resource?: ResourceModel): ViewModel {
     const { title, nav, searchResult, list, listOf } = this.state
     if (resource && title !== undefined && !Object.hasOwn(resource.fields, title)) {
@@ -344,6 +356,10 @@ export class ViewBuilder<R extends {
     }
     const searchErrors = resource && this.state.searchesOf ? searchesOfErrors(this.state.searchesOf, resource) : []
     if (searchErrors.length > 0) throw new Error(`View "${this.state.resource}": searchesOf ${searchErrors.join('; ')}`)
+    for (const form of resource ? (this.state.forms ?? []) : []) {
+      const unknown = form.fields.find((name) => !Object.hasOwn(resource!.fields, name))
+      if (unknown !== undefined) throw new Error(`View "${this.state.resource}": form "${form.name}" names field "${unknown}", which the resource does not have`)
+    }
     const recentErrors = resource && nav?.recent ? navRecentErrors(nav.recent, resource) : []
     if (recentErrors.length > 0) throw new Error(`View "${this.state.resource}": nav.recent ${recentErrors.join('; ')}`)
     return structuredClone(this.state)

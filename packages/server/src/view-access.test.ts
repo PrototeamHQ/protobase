@@ -38,6 +38,11 @@ const without = (hidden: Record<string, string[]>, gone: string[] = []): Record<
   )
 
 describe('pruneView', () => {
+  it('leaves out public forms, which have a route of their own, even for a caller who reads every field', () => {
+    const repairsView = view<typeof repairs>('repairs').form((r) => ({ name: 'book', fields: [r.number], thanks: 'Booked.' })).toModel()
+    expect(pruneView(repairsView, all.repairs, all)).not.toHaveProperty('forms')
+  })
+
   it('narrows a flags filter to the fields the caller can read, and leaves it out with none', () => {
     const repairsView = view<typeof repairs>('repairs').filters((r, w) => [w.flags([r.paid, r.urgent], { label: 'Attention' })]).toModel()
     const filters = (hidden: string[]) => pruneView(repairsView, without({ repairs: hidden }).repairs!, without({ repairs: hidden })).filters
