@@ -27,6 +27,7 @@ export const reference = [
   'reference/webhooks',
   'reference/history',
   'reference/comments',
+  'reference/ai',
   'reference/forms',
   'reference/jobs',
   'reference/email',

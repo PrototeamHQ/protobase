@@ -72,6 +72,7 @@ Every option returns a new [field](/api/schema/interfaces/field/), so they chain
 | `.column('name')` | The column, when it is not the snake_case of the field name (`'EMP_NAME'`). |
 | `.access({ read, create, update })` | Role rules for this column. See [Access](#access). |
 | `.sensitive()` | Hidden like a password: no response carries it, and a caller who may read it reveals one record's value at a time. See [Sensitive fields](#sensitive-fields). |
+| `.ai({ prompt })` | A job fills the field from `prompt`, `{field}` replaced by the record's values, after a create and after an update of a field the prompt reads, as the user who wrote. Text or enum, optional. See [AI fields and actions](/reference/ai/). |
 
 The ERP's products show most of them, together with soft delete and a tenant:
 

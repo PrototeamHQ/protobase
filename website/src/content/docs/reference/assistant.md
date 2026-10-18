@@ -19,7 +19,7 @@ The built-in backend checks the role again on every request.
 | otherwise `PROTOBASE_ASSISTANT_API_KEY` | `/api/assistant`, the built-in backend |
 | neither | no assistant |
 
-Each variable can also be set in code, as `options.assistant` of `createAdmin` (in `protobase.config.ts`, `export default { ..., options: { assistant: { ... } } }`), which wins over the variable. `assistant: false` turns the assistant off whatever the environment says. A value that is no `http(s)` URL stops the server at startup.
+Each variable can also be set in code, as `options.assistant` of `createAdmin` (in `protobase.config.ts`, `export default { ..., options: { assistant: { ... } } }`), which wins over the variable. `assistant: false` turns the assistant off whatever the environment says. A value that is no `http(s)` URL stops the server at startup. The model settings also serve [AI fields and actions](/reference/ai/#the-model), even with a backend elsewhere or `assistant: false`.
 
 | Variable | Option | |
 | --- | --- | --- |

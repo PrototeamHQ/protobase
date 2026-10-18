@@ -42,6 +42,7 @@ Under `/api/v1`:
 | `POST /{resource}/{key}:reveal` | `{ "field": "iban" }` gives `{ field, value }` of one [sensitive field](#sensitive-fields-and-audit), with `Cache-Control: no-store`, and publishes an audit event |
 | `GET /{resource}/{key}:history` | the record's changes, newest first, for a resource with [history](/reference/history/): `page_size` (20, max 100), `page_token`; see [Record history](#record-history) |
 | `GET`, `POST /{resource}/{key}:comments`, `GET /{resource}/{key}:mentionable?q=` | the record's comments, newest first, adding one, and whom it may mention, for a resource with [comments](/reference/comments/); see [Record comments](#record-comments) |
+| `POST /{resource}/{key}:generate` | `{ "action": "<name>" }` runs an [AI action](/reference/ai/#ai-actions) of the caller's view: the model writes its field, with the ETag the record was read with, and it answers the record as an update does |
 | `POST /{resource}/{key}:undelete` | restores a soft-deleted record ([AIP-164](https://google.aip.dev/164)); `If-Match` optional; `409` when not deleted, `400` on hard-delete resources |
 | `POST /api/v1:batchWrite` | many writes in one transaction, see [Batch writes](#batch-writes) |
 | `GET /{resource}:facets?field=&filter=&limit=&label=` | `{ field, facets: [{ value, count }] }`, the `limit` most frequent values (100 by default, at most 1,000), never all of them; with `label`, a relation's facets carry the related record's name as `label`, as in [Related names](#related-names) |
