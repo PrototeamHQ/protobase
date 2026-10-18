@@ -3,18 +3,20 @@ import type { ActionInputModel, ActionModel, ActionRun, CardFavoriteModel, CardP
 import { addressErrors, chartFields, hrefPlaceholders, navRecentErrors, pruneByShape, shapes as s, tableDisplay } from '@protobase/schema/internal'
 import { cardFavoriteErrors } from './view-card-favorite'
 import { cardPhotosErrors } from './view-card-photos'
-import { relatedErrors } from './view-related'
+import { openErrors, relatedErrors } from './view-related'
 import { relatedColumnErrors } from './view-related-column'
 import { searchesOfFor } from './view-saved-search'
 
 type Of<U, K extends string> = Extract<U, { kind: K }>
 
 // Columns narrow to what the caller can read; a section whose resources, fields, filter or sort they cannot use goes.
+// An `open` the caller cannot use goes; the rows then open their own records.
 const pruneRelated = (item: RelatedModel, resource: string, models: Record<string, ResourceModel>): RelatedModel | undefined => {
-  const { columns, ...rest } = item
+  const { columns, open, ...rest } = item
   const visible = models[item.resource] ? columns?.filter((column) => resolveFieldPath(models, item.resource, column).ok) : undefined
-  const narrowed = visible && visible.length > 0 ? { ...rest, columns: visible } : rest
-  return relatedErrors(narrowed, resource, models).length === 0 ? narrowed : undefined
+  const narrowed: RelatedModel = visible && visible.length > 0 ? { ...rest, columns: visible } : rest
+  const opened = open !== undefined && openErrors({ ...narrowed, open }, models).length === 0 ? { ...narrowed, open } : narrowed
+  return relatedErrors(opened, resource, models).length === 0 ? opened : undefined
 }
 
 // A gallery keeps the record's image when the caller can read it, and the photos when they can load them, as a card does;

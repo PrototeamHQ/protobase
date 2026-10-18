@@ -669,6 +669,11 @@ export type RelatedModel = {
   sort?: string
   /** Fields of `resource`, through relations too (`unitId.propertyId`). */
   columns?: string[]
+  /**
+   * The relation field of `resource` whose record a row opens, for rows that are links between this record and another
+   * (a join resource); by default the one relation in `resource`'s primary key besides `field`, when there is exactly one.
+   */
+  open?: string
   /** How many records it shows, the first in `sort` order; with more, it says so ("The first 10 of 37.") beside "View all", which opens the rest in the list. */
   limit?: number
   /** The display of `resource`'s list it opens in, such as `cards`; the list's default when omitted. */

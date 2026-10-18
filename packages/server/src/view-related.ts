@@ -40,6 +40,19 @@ const throughErrors = (through: NonNullable<RelatedModel['through']>, resource: 
   ].map((error) => `through: ${error}`)
 }
 
+/** What is wrong with the relation a related section's rows open; empty without one. */
+export const openErrors = (item: RelatedModel, models: Record<string, ResourceModel>): string[] => {
+  const target = models[item.resource]
+  if (item.open === undefined || !target) return []
+  const field = Object.hasOwn(target.fields, item.open) ? target.fields[item.open]! : undefined
+  if (!field) return [`open: unknown field "${item.open}" on ${target.name}`]
+  if (field.type !== 'relation' || !field.relation) return [`open: "${item.open}" on ${target.name} is not a relation`]
+  if (item.open === item.field) return [`open: "${item.open}" is the field that matches this record`]
+  const far = models[field.relation.resource]
+  if (!far) return [`open: unknown resource "${field.relation.resource}"`]
+  return far.primaryKey.length === 1 ? [] : [`open: ${far.name} has a composite key, so its records cannot be opened from "${item.open}"`]
+}
+
 /**
  * What is wrong with a related section on the record page of `resource`, against these models; empty when it can be
  * shown. Against the full models it checks the config; against a caller's models, whether that caller can use it.
@@ -59,5 +72,6 @@ export const relatedErrors = (item: RelatedModel, resource: string, models: Reco
       return resolved.steps.at(-1)!.field.sensitive ? [`column: "${column}" is sensitive, so it cannot be listed`] : []
     }),
     ...(item.limit === undefined || (Number.isInteger(item.limit) && item.limit >= 1 && item.limit <= 100) ? [] : ['limit must be a whole number from 1 to 100']),
+    ...openErrors(item, models),
   ]
 }

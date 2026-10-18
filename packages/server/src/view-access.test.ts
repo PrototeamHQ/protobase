@@ -24,7 +24,12 @@ const repairPhotos = resource('repair_photos')
   .fields({ id: f.integer(), repairId: f.relation('repairs').filterable(), position: f.integer().sortable(), photo: f.file() })
   .primaryKey((r) => r.id)
 
-const all = { customers: customers.toModel(), repairs: repairs.toModel(), repair_photos: repairPhotos.toModel() }
+const customerRepairs = resource('customer_repairs')
+  .table('customer_repairs')
+  .fields({ id: f.integer(), customerId: f.relation('customers').filterable(), repairId: f.relation('repairs') })
+  .primaryKey((r) => r.id)
+
+const all = { customers: customers.toModel(), repairs: repairs.toModel(), repair_photos: repairPhotos.toModel(), customer_repairs: customerRepairs.toModel() }
 
 // The models as a caller who cannot read `hidden` and cannot see the `gone` resources gets them, as `/meta` does.
 const without = (hidden: Record<string, string[]>, gone: string[] = []): Record<string, ResourceModel> =>
@@ -180,6 +185,16 @@ describe('pruneView', () => {
     expect(galleries(without({ repairs: ['costPrice'] }))).toEqual([{ kind: 'gallery', title: 'Photos', photos }])
     expect(galleries(without({ repair_photos: ['photo'] }))).toEqual([{ kind: 'gallery', title: 'Photos', image: 'costPrice' }])
     expect(galleries(without({ repairs: ['costPrice'] }, ['repair_photos']))).toEqual([])
+  })
+
+  it('keeps a related section but drops the relation its rows open when the caller cannot read it', () => {
+    const written = view<typeof customers>('customers')
+      .layout(() => [l.related('Repairs', { resource: 'customer_repairs', field: 'customerId', open: 'repairId' })])
+      .toModel()
+    const related = (models: Record<string, ResourceModel>) => pruneView(written, models.customers!, models).layout
+    expect(related(all)).toEqual(written.layout)
+    expect(related(without({ customer_repairs: ['repairId'] }))).toEqual([{ kind: 'related', title: 'Repairs', resource: 'customer_repairs', field: 'customerId' }])
+    expect(related(without({}, ['repairs']))).toEqual([{ kind: 'related', title: 'Repairs', resource: 'customer_repairs', field: 'customerId' }])
   })
 
   it('keeps when every layout item shows', () => {
