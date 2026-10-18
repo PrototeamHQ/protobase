@@ -132,6 +132,13 @@ export const createClient = (options: ClientOptions = {}) => {
     return ((await response.json()) as { value: unknown }).value
   }
 
+  /**
+   * Runs the record's AI action `action` (`a.ai`): the model writes the action's field from its prompt, as the caller.
+   * Resolves to the record as written; a record changed while the model answered rejects with `PreconditionFailedError`.
+   */
+  const generate = async <R extends ResourceRef>(resource: R, key: KeyValue | readonly KeyValue[], action: string): Promise<Stored<RecordOf<R>>> =>
+    storedOf(await send({ method: 'POST', path: `${keyPath(resource, key)}:generate`, body: { action } }), origin)
+
   /** A page of a record's changes, newest first, for a resource with `.history()`; `pageToken` is the previous page's `nextPageToken`. */
   const history = async (resource: ResourceRef, key: KeyValue | readonly KeyValue[], { pageSize, pageToken }: { pageSize?: number; pageToken?: string } = {}): Promise<HistoryPage> => {
     const query = queryString({ page_size: pageSize, page_token: pageToken || undefined })
@@ -326,7 +333,7 @@ export const createClient = (options: ClientOptions = {}) => {
     await send({ method: 'POST', path: formPath(name), body: { values, proof }, system: true })
   }
 
-  return { list, search, get, create, update, remove, undelete, reveal, history, comments, comment, mentionable, batchWrite, facets, aggregate, series, histogram, map, seek, meta, invoke, upload, form, formChallenge, submitForm }
+  return { list, search, get, create, update, remove, undelete, generate, reveal, history, comments, comment, mentionable, batchWrite, facets, aggregate, series, histogram, map, seek, meta, invoke, upload, form, formChallenge, submitForm }
 }
 
 export type Client = ReturnType<typeof createClient>

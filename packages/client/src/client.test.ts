@@ -207,6 +207,15 @@ describe('undelete', () => {
   })
 })
 
+describe('generate', () => {
+  it("posts the AI action's name to the record's :generate method and resolves to the record as written", async () => {
+    const { calls, fetch } = fakeFetch(() => json({ id: 12, priority: 'high', etag: '"t4"' }, { headers: { etag: '"t4"' } }))
+    const written = await createClient({ fetch }).generate('tickets', 12, 'triage')
+    expect([calls[0]!.url, calls[0]!.init.method, JSON.parse(String(calls[0]!.init.body))]).toEqual(['/api/v1/tickets/12:generate', 'POST', { action: 'triage' }])
+    expect(written).toMatchObject({ record: { id: 12, priority: 'high' }, etag: '"t4"' })
+  })
+})
+
 describe('comments', () => {
   const wire = { id: '3', created_at: '2026-10-18T09:00:00.000Z', body: 'Hi @Bo', author: { id: 'ann', name: 'Ann' }, mentions: [{ id: 'bo' }] }
 

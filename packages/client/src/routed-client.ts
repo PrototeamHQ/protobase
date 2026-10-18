@@ -19,6 +19,7 @@ export const routedClient = (own: Client, sourceOf: (resource: string) => Client
     update: (resource, key, patch, etag) => to(resource).update(resource, key, patch, etag),
     remove: (resource, key, options) => to(resource).remove(resource, key, options),
     undelete: (resource, key) => to(resource).undelete(resource, key),
+    generate: (resource, key, action) => to(resource).generate(resource, key, action),
     reveal: (resource, key, field) => to(resource).reveal(resource, key, field),
     history: (resource, key, options) => to(resource).history(resource, key, options),
     comments: (resource, key, options) => to(resource).comments(resource, key, options),
