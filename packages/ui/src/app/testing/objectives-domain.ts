@@ -1,8 +1,8 @@
-import { f, resource, view } from '@protobase/schema'
+import { f, l, resource, view } from '@protobase/schema'
 
-// A backlog for the related-dots stories: objectives, the tasks that serve them through a link table (a task can serve
+// A backlog for the related-dots and related-section stories: objectives, the tasks that serve them through a link table (a task can serve
 // several), and the tasks' status coloured per value, so the dots of an objective turn green as its tasks get done,
-// in the table and on the objectives' cards.
+// in the table and on the objectives' cards. An objective's page lists its first three tasks.
 
 const objectives = resource('objectives')
   .table('objectives')
@@ -26,6 +26,10 @@ const objectivesView = view<typeof objectives>('objectives')
     const tasks = c.related('tasks', { resource: 'tasks', field: 'id', through: { resource: 'objective_tasks', field: 'objective_id', key: 'task_id' }, status: 'status', sort: 'position' })
     return { columns: [r.title, tasks, r.quarter], displays: [d.cards({ title: r.title, footer: [r.quarter], dots: [tasks] })] }
   })
+  .layout((r) => [
+    l.section('Objective', [r.title, r.quarter]),
+    l.related('Tasks', { resource: 'tasks', field: 'id', through: { resource: 'objective_tasks', field: 'objective_id', key: 'task_id' }, columns: ['title', 'status'], sort: 'position', limit: 3 }),
+  ])
 
 const tasksView = view<typeof tasks>('tasks')
   .title((r) => r.title)
