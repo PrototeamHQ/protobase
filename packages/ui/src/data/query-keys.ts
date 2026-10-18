@@ -18,6 +18,10 @@ export const keys = {
   recordPreview: (resource: string, key: string) => ['record-preview', resource, key] as const,
   /** A record's changes; starts with `record`, so refreshing the record refreshes them too. */
   history: (resource: string, key: string, pageSize: number) => ['record', resource, key, 'history', pageSize] as const,
+  /** A record's comments; starts with `record`, so refreshing the record refreshes them too. */
+  comments: (resource: string, key: string) => ['record', resource, key, 'comments'] as const,
+  /** The people a comment on a record may mention whose name contains `query`. */
+  mentionable: (resource: string, key: string, query: string) => ['record', resource, key, 'mentionable', query] as const,
   facets: (resource: string, field: string, filter: string) => ['facets', resource, field, filter] as const,
   series: (resource: string, field: string, range: string, granularity: string, filter: string) =>
     ['series', resource, field, range, granularity, filter] as const,

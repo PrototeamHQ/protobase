@@ -40,6 +40,7 @@ import { AppLink, useAppAddress } from './use-app-address'
 import { FieldValue } from './pages/field-value'
 import { GallerySection } from './gallery/gallery-section'
 import { HistorySection } from './history/history-section'
+import { CommentsSection } from './comments/comments-section'
 import { filledFields } from './filled-fields'
 import { namedIcon } from './named-icon'
 import { fieldHelp, helpShown, recordShown, whenShown } from './record-mode/record-mode'
@@ -58,15 +59,15 @@ const hidden = (model: ResourceModel, name: string) => name === model.tenant || 
 
 /**
  * The view's layout, or one section with the editable fields when the view has none, then History when the resource
- * keeps it. The read view, which is all a user who may only read the resource gets, shows every field: the record rather
- * than what can be changed.
+ * keeps it and Comments when it takes them. The read view, which is all a user who may only read the resource gets,
+ * shows every field: the record rather than what can be changed.
  */
 const layoutFor = (model: ResourceModel, view: ViewModel | undefined, read: boolean): LayoutItemModel[] => {
   if (view && view.layout.length > 0) return view.layout
   const shown = Object.values(model.fields).filter((field) => !hidden(model, field.name))
   const editable = shown.filter((field) => !field.readOnly)
   const fields = (editable.length > 0 && !read ? editable : shown).map((field) => field.name)
-  return [{ kind: 'section', title: 'Details', fields }, ...(model.history ? [{ kind: 'history' as const, title: 'History' }] : [])]
+  return [{ kind: 'section', title: 'Details', fields }, ...(model.history ? [{ kind: 'history' as const, title: 'History' }] : []), ...(model.comments ? [{ kind: 'comments' as const, title: 'Comments' }] : [])]
 }
 
 export const RecordPage = ({ resource, recordKey }: { resource: string; recordKey: string }) => {
@@ -311,6 +312,7 @@ const LoadedRecord = ({ model, recordKey, stored, preview }: LoadedRecordProps) 
                 if (item.kind === 'map') return item.sidebar ? [] : [<MapSection key={`map:${index}`} item={item} record={stored.record} />]
                 if (item.kind === 'gallery') return [<GallerySection key={`gallery:${index}`} item={item} record={stored.record} recordKey={recordKey} />]
                 if (item.kind === 'history') return [<HistorySection key={`history:${index}`} item={item} model={model} view={view} recordKey={recordKey} etag={stored.etag} />]
+                if (item.kind === 'comments') return [<CommentsSection key={`comments:${index}`} item={item} resource={model.name} recordKey={recordKey} canWrite={auth.kind !== 'visitor'} />]
                 if (item.kind !== 'section') return []
                 // A section whose fields are all hidden from this user would be a lone heading, as would key facts all empty
                 const visibleFields = item.fields.filter((name) => model.fields[name] && visible(name))

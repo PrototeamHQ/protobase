@@ -1,8 +1,8 @@
-import { useEffect, useLayoutEffect, useRef, type TextareaHTMLAttributes } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, type Ref, type TextareaHTMLAttributes } from 'react'
 import { cn } from '../lib/cn'
 import { useFieldControl } from './field-control'
 
-export type TextareaProps = Omit<TextareaHTMLAttributes<HTMLTextAreaElement>, 'value'> & { value: string; invalid?: boolean }
+export type TextareaProps = Omit<TextareaHTMLAttributes<HTMLTextAreaElement>, 'value'> & { value: string; invalid?: boolean; ref?: Ref<HTMLTextAreaElement> }
 
 // As tall as its text, at least its rows, borders included: the page scrolls, never the box.
 const fit = (box: HTMLTextAreaElement) => {
@@ -10,9 +10,17 @@ const fit = (box: HTMLTextAreaElement) => {
   box.style.height = `${box.scrollHeight + box.offsetHeight - box.clientHeight}px`
 }
 
-/** A text box of several lines that grows with its text instead of scrolling inside. */
-export const Textarea = ({ invalid, className, rows = 3, value, ...rest }: TextareaProps) => {
+/** A text box of several lines that grows with its text instead of scrolling inside; `ref` reaches the box too. */
+export const Textarea = ({ invalid, className, rows = 3, value, ref: given, ...rest }: TextareaProps) => {
   const ref = useRef<HTMLTextAreaElement>(null)
+  const setRef = useCallback(
+    (box: HTMLTextAreaElement | null) => {
+      ref.current = box
+      if (typeof given === 'function') given(box)
+      else if (given) given.current = box
+    },
+    [given],
+  )
   const control = useFieldControl()
   useLayoutEffect(() => {
     if (ref.current) fit(ref.current)
@@ -32,7 +40,7 @@ export const Textarea = ({ invalid, className, rows = 3, value, ...rest }: Texta
   }, [])
   return (
     <textarea
-      ref={ref}
+      ref={setRef}
       rows={rows}
       value={value}
       className={cn(

@@ -1,4 +1,4 @@
-import { ApiError, type Client, type HistoryChange, type MapLayerModel, type PluginRef, type PublicForm, type ResourcePermissions, type SourceRef, type StoredFile, type UploadOptions, type UploadResult } from '@protobase/client'
+import { ApiError, type Client, type HistoryChange, type MentionableUser, type RecordComment, type MapLayerModel, type PluginRef, type PublicForm, type ResourcePermissions, type SourceRef, type StoredFile, type UploadOptions, type UploadResult } from '@protobase/client'
 import { evaluateCondition, parseCondition, type PageModel } from '@protobase/layout'
 import { checkFilter, evaluateFilter, parseFilter, type BottomBarModel, type CardPhotosModel, type ResourceModel, type SignInViewModel, type ViewModel } from '@protobase/schema'
 import { cardPhotoLimit, encodeKey, matchesSearch } from '@protobase/schema/internal'
@@ -35,8 +35,12 @@ export type FakeApiInput = {
    * create and update adds one, made by `actor`.
    */
   history?: Record<string, HistoryChange[]>
-  /** Who the history says made the story's own writes. */
+  /** Who the history says made the story's own writes, and who writes the story's comments. */
   actor?: HistoryChange['actor']
+  /** The comments written before the story starts, oldest first, by `<resource>/<key>`, for resources with comments. */
+  comments?: Record<string, RecordComment[]>
+  /** The users a comment may mention, all of whom may read every record; the actor is never offered. */
+  users?: MentionableUser[]
   /** The public forms it serves; a submission with a solved check creates a row of the form's resource. */
   forms?: PublicForm[]
   /** Answers a public form's submission instead of creating the row, to refuse it. */
@@ -93,7 +97,7 @@ const matches = (filter: string | undefined, model: ResourceModel | undefined) =
  * An in-memory server for stories and docs: lists with filters (simple AIP-160), sorting, paging, exact counts,
  * related names and photos, and get, create, update and delete that change the rows and their ETags. Not a model of the real access rules.
  */
-export const fakeApi = ({ resources, views = [], pages = [], rows: initial, permissions = {}, plugins, sources, maps, files, bottomBar, signIn, afterWrite, reveal, upload, history: initialHistory = {}, actor = { id: 'story', name: 'Story User' }, forms = [], submitForm }: FakeApiInput) => {
+export const fakeApi = ({ resources, views = [], pages = [], rows: initial, permissions = {}, plugins, sources, maps, files, bottomBar, signIn, afterWrite, reveal, upload, history: initialHistory = {}, actor = { id: 'story', name: 'Story User' }, comments: initialComments = {}, users = [], forms = [], submitForm }: FakeApiInput) => {
   const rows: Record<string, Row[]> = structuredClone(initial)
   const models = Object.fromEntries(resources.map((model) => [model.name, model]))
   let version = 0
@@ -122,6 +126,8 @@ export const fakeApi = ({ resources, views = [], pages = [], rows: initial, perm
     const list = (history[`${resource}/${keyOf(model, after)}`] ??= [])
     list.push({ id: String(list.length + 1), at: new Date().toISOString(), operation, changed, ...(before && { before: values(before) }), after: values(after), actor, databaseRole: 'app' })
   }
+  // The posted comments, which a story reads back to see whom one mentioned
+  const comments: Record<string, RecordComment[]> = structuredClone(initialComments)
   const write = (resource: string, row: Row) => {
     afterWrite?.(resource, row, rows)
     for (const [name, list] of Object.entries(rows)) rows[name] = list.map((entry) => (entry === row || !entry.etag ? stamp(entry) : entry))
@@ -178,6 +184,28 @@ export const fakeApi = ({ resources, views = [], pages = [], rows: initial, perm
       const newest = [...(history[`${resource}/${key}`] ?? [])].reverse()
       const start = Number(pageToken || 0)
       return { items: newest.slice(start, start + pageSize), nextPageToken: start + pageSize < newest.length ? String(start + pageSize) : '' }
+    },
+    comments: async (resource: string, key: string, { pageSize = 20, pageToken = '' }: { pageSize?: number; pageToken?: string } = {}) => {
+      find(resource, key)
+      const newest = [...(comments[`${resource}/${key}`] ?? [])].reverse()
+      const start = Number(pageToken || 0)
+      return { items: newest.slice(start, start + pageSize), nextPageToken: start + pageSize < newest.length ? String(start + pageSize) : '' }
+    },
+    comment: async (resource: string, key: string, { body, mentions = [] }: { body: string; mentions?: string[] }) => {
+      find(resource, key)
+      const list = (comments[`${resource}/${key}`] ??= [])
+      const author = actor ?? { id: 'story' }
+      const named = mentions.map((id) => {
+        const user = users.find((entry) => entry.id === id)
+        return user ? { id, name: user.name } : { id }
+      })
+      const comment = { id: String(list.length + 1), createdAt: new Date().toISOString(), body: body.trim(), author, mentions: named }
+      list.push(comment)
+      return comment
+    },
+    mentionable: async (resource: string, key: string, query: string) => {
+      find(resource, key)
+      return users.filter((user) => user.id !== actor?.id && user.name.toLowerCase().includes(query.toLowerCase())).slice(0, 8)
     },
     upload: async (resource: string, field: string, file: File, options: UploadOptions = {}) => {
       const result = upload
@@ -296,5 +324,5 @@ export const fakeApi = ({ resources, views = [], pages = [], rows: initial, perm
       return { field: params.field, granularity: 'day', timeZone: 'UTC', points: days.map((day) => ({ bucket: `${day}T00:00:00`, count: counts.get(day) ?? 0 })) }
     },
   }
-  return { client: { ...client, ...fakeForms(forms, client.create, submitForm) } as unknown as Client, rows }
+  return { client: { ...client, ...fakeForms(forms, client.create, submitForm) } as unknown as Client, rows, comments }
 }
