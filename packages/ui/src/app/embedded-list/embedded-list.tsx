@@ -6,6 +6,7 @@ import { useIsDesktop, useIsXs } from '../../lib/use-media-query'
 import { listColumnNames } from '../../live/columns-from-model'
 import { recordKey } from '../../live/model-helpers'
 import { humanize } from '../../live/naming'
+import type { RouteTarget } from '../../primitives/route-link'
 import { Skeleton } from '../../primitives/skeleton'
 import { BoardDisplay } from '../displays/board-display'
 import { CalendarDisplay } from '../displays/calendar-display'
@@ -104,7 +105,7 @@ export const EmbeddedList = ({ model, view, filter, sort, columns, limit, displa
     loadMore: () => undefined,
   }
   const openRecord = (row: GridRow) => go({ kind: 'record', resource: model.name, key: recordKey(model, row) })
-  const recordLink = (row: GridRow) => ({ href: href({ kind: 'record', resource: model.name, key: recordKey(model, row) }), onFollow: () => openRecord(row) })
+  const recordLink = (row: GridRow): RouteTarget => ({ href: href({ kind: 'record', resource: model.name, key: recordKey(model, row) }), onFollow: () => openRecord(row) })
   const singular = view?.names?.singular ?? humanize(model.name)
   const note = cutOffNote(source.total, rows.data.total, rows.data.estimated)
   return (
@@ -119,7 +120,7 @@ export const EmbeddedList = ({ model, view, filter, sort, columns, limit, displa
           onSortChange={(next) => setOrderBy(sortToOrderBy(next))}
           onOpenRow={openRecord}
           rowLink={recordLink}
-          rowActions={[{ label: `Open ${singular.toLowerCase()}`, onSelect: openRecord }]}
+          rowActions={[{ label: `Open ${singular.toLowerCase()}`, link: recordLink }]}
           rowNumbers={false}
           selectable={false}
         />

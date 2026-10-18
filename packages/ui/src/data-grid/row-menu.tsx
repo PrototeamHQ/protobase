@@ -2,10 +2,13 @@ import { MoreHorizontal } from 'lucide-react'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { cn } from '../lib/cn'
+import { RouteLink, type RouteTarget } from '../primitives/route-link'
 import type { GridRow } from './column-spec'
 
 /** `available` hides the action for rows it does not apply to, for example a delete the server will refuse. */
-export type RowAction = { label: string; destructive?: boolean; available?: (row: GridRow) => boolean; onSelect: (row: GridRow) => void }
+type RowActionBase = { label: string; destructive?: boolean; available?: (row: GridRow) => boolean }
+/** `link` makes the item an ordinary link to where it goes, as every navigation is; `onSelect` runs anything else. */
+export type RowAction = RowActionBase & ({ onSelect: (row: GridRow) => void; link?: never } | { link: (row: GridRow) => RouteTarget; onSelect?: never })
 
 /** The actions that apply to a row; a row with none gets no menu at all. */
 export const availableActions = (actions: RowAction[], row: GridRow) => actions.filter((action) => action.available?.(row) ?? true)
@@ -68,17 +71,23 @@ export const RowMenu = ({ row, actions }: { row: GridRow; actions: RowAction[] }
           <ul ref={menu} role="menu" onClick={(event) => event.stopPropagation()} style={place ?? { visibility: 'hidden' }} className="fixed z-50 min-w-36 rounded-md border bg-background py-1 shadow-pop">
             {actions.map((action) => (
               <li key={action.label} role="none">
-                <button
-                  type="button"
-                  role="menuitem"
-                  className={cn('block w-full px-3 py-1.5 text-left hover:bg-muted', action.destructive && 'text-danger-text')}
-                  onClick={() => {
-                    setOpen(false)
-                    action.onSelect(row)
-                  }}
-                >
-                  {action.label}
-                </button>
+                {action.link ? (
+                  <RouteLink role="menuitem" to={action.link(row)} onClick={() => setOpen(false)} className={cn('block w-full px-3 py-1.5 text-left hover:bg-muted', action.destructive && 'text-danger-text')}>
+                    {action.label}
+                  </RouteLink>
+                ) : (
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className={cn('block w-full px-3 py-1.5 text-left hover:bg-muted', action.destructive && 'text-danger-text')}
+                    onClick={() => {
+                      setOpen(false)
+                      action.onSelect(row)
+                    }}
+                  >
+                    {action.label}
+                  </button>
+                )}
               </li>
             ))}
           </ul>,

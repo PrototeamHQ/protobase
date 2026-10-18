@@ -11,7 +11,7 @@ import { createRowSource } from './row-source'
 const orders = createRowSource(5, (index) => ({ ...orderAt(index), locked: index % 2 === 1 }))
 const unlocked = (row: GridRow) => !row.locked
 
-const open: RowAction = { label: 'Open order', onSelect: () => undefined }
+const open: RowAction = { label: 'Open order', link: (row) => ({ href: `#orders/${String(row.id)}`, onFollow: () => undefined }) }
 const remove: RowAction = { label: 'Delete', destructive: true, available: unlocked, onSelect: () => undefined }
 const archive: RowAction = { label: 'Archive', available: () => false, onSelect: () => undefined }
 
