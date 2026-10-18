@@ -27,7 +27,8 @@ const Shop = () => {
   )
 }
 
-const firstRow = async (canvasElement: HTMLElement) => (await within(canvasElement).findByRole('link', { name: 'R-312' })).closest<HTMLElement>('[role=row]')!
+// The sidebar links the repairs opened lately too, so the row is looked for in the grid
+const firstRow = async (canvasElement: HTMLElement) => (await within(await within(canvasElement).findByRole('grid')).findByRole('link', { name: 'R-312' })).closest<HTMLElement>('[role=row]')!
 
 export const RowLinks: StoryObj = { name: 'A row whose title links to its record', render: () => <Shop /> }
 
