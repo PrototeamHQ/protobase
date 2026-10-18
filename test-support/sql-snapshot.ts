@@ -3,3 +3,4 @@
 // scripts/test-db/snapshot-templates.ts for the databases recording starts from.
 export { openSnapshotDb, type SnapshotDb } from './sql-snapshot/snapshot-db'
 export { testClock } from './sql-snapshot/clock'
+export { settle as settled } from './sql-snapshot/activity'

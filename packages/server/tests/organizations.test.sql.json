@@ -256,8 +256,8 @@
   ],
   "(hooks)": {
     "(hooks)#2": [
-      {"repeated":0},
       {"sql":"\n\t\t\tSELECT pg_catalog.current_schemas(true)::text[] AS schemas\n\t\t","result":{"command":"SELECT","rowCount":1,"columns":[["schemas",1009]],"rows":[["{pg_catalog,public}"]]}},
+      {"repeated":0},
       {"repeated":0},
       {"sql":"\n\t\tSELECT pg_catalog.current_schema() AS schema\n\t","result":{"command":"SELECT","rowCount":1,"columns":[["schema",19]],"rows":[["public"]]}},
       {"sql":"select \"nspname\" from \"pg_catalog\".\"pg_namespace\"","result":{"command":"SELECT","rowCount":4,"columns":[["nspname",19]],"rows":[
@@ -315,8 +315,8 @@
   },
   "the auth schema with organizations > gets the organization tables and columns in snake_case, and the server starts once they exist": {
     "the auth schema with organizations > gets the organization tables and columns in snake_case, and the server starts once they exist#0": [
-      {"repeated":2},
       {"sql":"\n\t\t\tSELECT pg_catalog.current_schemas(true)::text[] AS schemas\n\t\t","result":{"command":"SELECT","rowCount":1,"columns":[["schemas",1009]],"rows":[["{pg_catalog,public}"]]}},
+      {"repeated":2},
       {"repeated":2},
       {"sql":"\n\t\tSELECT pg_catalog.current_schema() AS schema\n\t","result":{"command":"SELECT","rowCount":1,"columns":[["schema",19]],"rows":[["public"]]}},
       {"sql":"select \"nspname\" from \"pg_catalog\".\"pg_namespace\"","result":{"command":"SELECT","rowCount":4,"columns":[["nspname",19]],"rows":[
@@ -372,12 +372,12 @@
   },
   "organizations on the host > make the creator owner with every app role a member can hold, and keep members with the roles given": {
     "organizations on the host > make the creator owner with every app role a member can hold, and keep members with the roles given#0": [
+      {"sql":"\n\t\t\tSELECT pg_catalog.current_schemas(true)::text[] AS schemas\n\t\t","result":{"command":"SELECT","rowCount":1,"columns":[["schemas",1009]],"rows":[["{pg_catalog,public}"]]}},
+      {"repeated":2},
       {"sql":"select \"primary\".* from (select * from \"organization\" order by \"created_at\" asc limit $1) as \"primary\" order by \"created_at\" asc","params":["100000"],"result":{"command":"SELECT","rowCount":2,"columns":[["id",25],["name",25],["slug",25],["logo",25],["created_at",1184],["metadata",25]],"rows":[
         ["1","Acme","acme",null,"2026-08-01 00:00:00+00",null],
         ["2","Globex","globex",null,"2026-08-01 00:00:00+00",null]
       ]}},
-      {"sql":"\n\t\t\tSELECT pg_catalog.current_schemas(true)::text[] AS schemas\n\t\t","result":{"command":"SELECT","rowCount":1,"columns":[["schemas",1009]],"rows":[["{pg_catalog,public}"]]}},
-      {"repeated":2},
       {"sql":"select \"primary\".* from (select * from \"member\" where \"member\".\"organization_id\" = $1 limit $2) as \"primary\"","params":["1","100000"],"result":{"command":"SELECT","rowCount":2,"columns":[["id",25],["organization_id",25],["user_id",25],["role",25],["created_at",1184],["app_roles",3802]],"rows":[
         ["beQbVfhAHjoWnghnXOhP8KnRhXoxIWVf","1","2VQmUygWA0hHWON55YBp1xUrcl3b858X","owner","2026-08-01 00:00:00+00","[\"support\", \"manager\", \"sales\", \"accountant\"]"],
         ["SJVYqxEK8OKaf9CghgzztGBZB8D1yk9O","1","oxUw24Ub6Zh89RTQKYenfudK09hHshxu","member","2026-08-01 00:00:00+00","[\"sales\"]"]
@@ -396,9 +396,9 @@
   },
   "the first user > owns, with every app role, the organizations made before anyone, such as by a seed": {
     "the first user > owns, with every app role, the organizations made before anyone, such as by a seed#0": [
-      {"sql":"insert into organization (id, name, slug, created_at) values ('1', 'Seeded', 'seeded', now())","result":{"command":"INSERT","rowCount":1,"columns":[],"rows":[]}},
       {"sql":"\n\t\t\tSELECT pg_catalog.current_schemas(true)::text[] AS schemas\n\t\t","result":{"command":"SELECT","rowCount":1,"columns":[["schemas",1009]],"rows":[["{pg_catalog,public}"]]}},
       {"repeated":2},
+      {"sql":"insert into organization (id, name, slug, created_at) values ('1', 'Seeded', 'seeded', now())","result":{"command":"INSERT","rowCount":1,"columns":[],"rows":[]}},
       {"sql":"select count(\"id\") as \"count\" from \"user\"","result":{"command":"SELECT","rowCount":1,"columns":[["count",20]],"rows":[["0"]]}},
       {"sql":"select \"primary\".* from (select * from \"user\" where \"user\".\"email\" = $1) as \"primary\"","params":["root@example.com"],"result":{"command":"SELECT","rowCount":0,"columns":[["id",25],["name",25],["email",25],["email_verified",16],["image",25],["created_at",1184],["updated_at",1184],["role",25],["banned",16],["ban_reason",25],["ban_expires",1184],["two_factor_enabled",16],["last_role",25],["last_organization_id",25]],"rows":[]}},
       {"sql":"insert into \"user\" (\"name\", \"email\", \"email_verified\", \"created_at\", \"updated_at\", \"role\", \"banned\", \"two_factor_enabled\", \"id\") values ($1, $2, $3, $4, $5, $6, $7, $8, $9) returning *","params":["root","root@example.com","true","2026-08-01T00:00:00.000+00:00","2026-08-01T00:00:00.000+00:00","admin","false","false","EXvXRqJ7eDjrCKlcgR7hdFIC1Tj9Iw5J"],"result":{"command":"INSERT","rowCount":1,"columns":[["id",25],["name",25],["email",25],["email_verified",16],["image",25],["created_at",1184],["updated_at",1184],["role",25],["banned",16],["ban_reason",25],["ban_expires",1184],["two_factor_enabled",16],["last_role",25],["last_organization_id",25]],"rows":[["EXvXRqJ7eDjrCKlcgR7hdFIC1Tj9Iw5J","root","root@example.com","t",null,"2026-08-01 00:00:00+00","2026-08-01 00:00:00+00","admin","f",null,null,"f",null,null]]}},
@@ -1168,9 +1168,9 @@
   },
   "inviting people > refuses app roles the inviter neither holds nor is granted by a role they hold": {
     "inviting people > refuses app roles the inviter neither holds nor is granted by a role they hold#0": [
-      {"sql":"select \"primary\".* from (select * from \"organization\" where \"organization\".\"id\" = $1) as \"primary\"","params":["acme"],"result":{"command":"SELECT","rowCount":0,"columns":[["id",25],["name",25],["slug",25],["logo",25],["created_at",1184],["metadata",25]],"rows":[]}},
       {"sql":"\n\t\t\tSELECT pg_catalog.current_schemas(true)::text[] AS schemas\n\t\t","result":{"command":"SELECT","rowCount":1,"columns":[["schemas",1009]],"rows":[["{pg_catalog,public}"]]}},
       {"repeated":2},
+      {"sql":"select \"primary\".* from (select * from \"organization\" where \"organization\".\"id\" = $1) as \"primary\"","params":["acme"],"result":{"command":"SELECT","rowCount":0,"columns":[["id",25],["name",25],["slug",25],["logo",25],["created_at",1184],["metadata",25]],"rows":[]}},
       {"sql":"select \"primary\".* from (select * from \"organization\" where \"organization\".\"slug\" = $1) as \"primary\"","params":["acme"],"result":{"command":"SELECT","rowCount":1,"columns":[["id",25],["name",25],["slug",25],["logo",25],["created_at",1184],["metadata",25]],"rows":[["1","Acme","acme",null,"2026-08-01 00:00:00+00",null]]}},
       {"sql":"select \"primary\".* from (select * from \"user\" where \"user\".\"email\" = $1) as \"primary\"","params":["sanne@example.com"],"result":{"command":"SELECT","rowCount":1,"columns":[["id",25],["name",25],["email",25],["email_verified",16],["image",25],["created_at",1184],["updated_at",1184],["role",25],["banned",16],["ban_reason",25],["ban_expires",1184],["two_factor_enabled",16],["last_role",25],["last_organization_id",25]],"rows":[["oxUw24Ub6Zh89RTQKYenfudK09hHshxu","sanne","sanne@example.com","t",null,"2026-08-01 00:00:00+00","2026-08-01 00:00:00+00","user","f",null,null,"f",null,null]]}},
       {"sql":"select \"primary\".* from (select * from \"member\" where (\"member\".\"organization_id\" = $1 and \"member\".\"user_id\" = $2)) as \"primary\"","params":["1","oxUw24Ub6Zh89RTQKYenfudK09hHshxu"],"result":{"command":"SELECT","rowCount":1,"columns":[["id",25],["organization_id",25],["user_id",25],["role",25],["created_at",1184],["app_roles",3802]],"rows":[["SJVYqxEK8OKaf9CghgzztGBZB8D1yk9O","1","oxUw24Ub6Zh89RTQKYenfudK09hHshxu","member","2026-08-01 00:00:00+00","[\"sales\"]"]]}},

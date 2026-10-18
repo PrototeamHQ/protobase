@@ -8,7 +8,7 @@ import { createUser } from '../src/better-auth/users'
 import { createAdmin } from '../src/create-admin'
 import type { AuditEvent } from '../src/types'
 import { allResources, createFixtureDb } from '../../../test-support/server'
-import { openSnapshotDb, type SnapshotDb } from '../../../test-support/sql-snapshot'
+import { openSnapshotDb, settled, type SnapshotDb } from '../../../test-support/sql-snapshot'
 
 // Real scrypt hashing runs on this thread, CPU work a busy machine stretches past 5 s.
 vi.setConfig({ testTimeout: 30_000 })
@@ -31,8 +31,9 @@ let migrated: SnapshotDb
 let peopled: SnapshotDb
 let migration: string
 
-const authOn = (store: SnapshotDb, ids: string[], options: Partial<CreateAuthOptions> = {}) =>
-  createAuth({
+// Made, then given the time to check its schema in the background, so its queries come before the test's.
+const authOn = async (store: SnapshotDb, ids: string[], options: Partial<CreateAuthOptions> = {}) => {
+  const auth = createAuth({
     database: { dialect: store.dialect, type: 'postgres' },
     baseURL: origin,
     secret,
@@ -42,6 +43,9 @@ const authOn = (store: SnapshotDb, ids: string[], options: Partial<CreateAuthOpt
     organizations: { generateId: () => ids.shift()!, create: 'everyone' },
     ...options,
   })
+  await settled()
+  return auth
+}
 
 // The auth store brought up to date the way a project's migration does, and a copy of it with the people below, made
 // once: hashing their passwords and making their organizations is most of what these tests would repeat. Better Auth
@@ -51,10 +55,10 @@ beforeAll(async () => {
   fixture = await createFixtureDb()
   base = await openSnapshotDb('auth')
   migrated = await base.clone()
-  migration = (await authSchemaMigration(authOn(migrated, [])))!
+  migration = (await authSchemaMigration(await authOn(migrated, [])))!
   await migrated.exec(migration)
   peopled = await migrated.clone()
-  await people(authOn(peopled, ['1', '2']))
+  await people(await authOn(peopled, ['1', '2']))
 })
 afterAll(async () => { await fixture.db.destroy() })
 
@@ -63,7 +67,7 @@ let client = 0
 /** An app with organizations on a copy of the migrated auth store, with the people below in it when `people` says so. */
 const serve = async (options: Partial<CreateAuthOptions> = {}, { people = false } = {}) => {
   const store = await (people ? peopled : migrated).clone()
-  const auth = authOn(store, people ? ['3'] : ['1', '2', '3'], options)
+  const auth = await authOn(store, people ? ['3'] : ['1', '2', '3'], options)
   const audited: AuditEvent[] = []
   const audit = { publish: async (event: AuditEvent) => void audited.push(event) }
   const app = createAdmin({ resources: allResources, db: fixture.db, authenticate: betterAuthAuthenticator({ auth }), auth, options: { audit } })

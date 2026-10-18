@@ -23,7 +23,9 @@ const pause = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 
 /**
  * Waits until no query is in progress and none starts for a few turns of the event loop and then 10 ms: Better Auth
- * starts its schema check once its context is set up, which takes a few event loop turns of crypto and imports.
+ * starts its schema check once its context is set up, which takes a few event loop turns of crypto and imports. Tests
+ * call it as `settled()` after `createAuth`, so that check does not run beside their own first queries, in an order
+ * that depends on timing.
  */
 export const settle = async (seconds = 10) => {
   const deadline = performance.now() + seconds * 1000

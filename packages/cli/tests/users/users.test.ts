@@ -5,7 +5,7 @@ import { createAuth, issueToken, type AdminAuth } from '@protobase/server'
 import { createUserCommand, listRolesCommand, listUsersCommand, type UsersApi } from '../../src/users/commands'
 import { deleteUserCommand, setDisabledCommand, setRoleCommand } from '../../src/users/manage'
 import { usersApi } from '../../src/users/register'
-import { openSnapshotDb, type SnapshotDb } from '../../../../test-support/sql-snapshot'
+import { openSnapshotDb, settled, type SnapshotDb } from '../../../../test-support/sql-snapshot'
 
 // The users commands over a real Better Auth store, wired as the CLI wires them; the setup of dev.integration.test.ts
 // runs the binary itself once.
@@ -14,6 +14,8 @@ let api: UsersApi
 
 beforeAll(async () => {
   auth = createAuth({ database: { dialect: (await openSnapshotDb('empty')).dialect, type: 'postgres' }, baseURL: 'http://localhost:1', secret: 'users-test-secret-users-test-secret-1234' })
+  // Its schema check runs in the background; let it finish before the migration's queries.
+  await settled()
   await (await getMigrations(auth.options)).runMigrations()
   api = usersApi(auth)
 })
