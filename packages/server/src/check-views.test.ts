@@ -77,6 +77,25 @@ describe('checkViews', () => {
     expect(() => checkViews(registry, [written])).toThrow('action "paid": input "x" is declared twice')
   })
 
+  it('wants an AI action to write a text or enum field the API writes, from a prompt that reads fields the resource has', () => {
+    const tickets = resource('tickets').table('tickets').fields({ id: f.integer().readOnly(), title: f.text(), priority: f.enum(['low', 'high']), secret: f.text().sensitive() }).primaryKey((r) => r.id)
+    const ticketRegistry = { entries: [{ name: 'tickets', model: tickets.toModel() }] } as unknown as Registry
+    const ai = (prompt: string, writes: string) => {
+      const written = view<typeof tickets>('tickets').toModel()
+      written.actions = [{ name: 'triage', label: 'Triage', bulk: false, run: { kind: 'ai', prompt, writes } }]
+      return () => checkViews(ticketRegistry, [written])
+    }
+    expect(ai('How urgent is {title}?', 'priority')).not.toThrow()
+    expect(ai('Translate {title}', 'title')).not.toThrow()
+    expect(ai('How urgent?', 'priority')).toThrow('View "tickets": action "triage": its prompt must name at least one {field} of the record')
+    expect(ai('{body}', 'priority')).toThrow('action "triage": its prompt names field "body", which tickets does not have')
+    expect(ai('{title}', 'summary')).toThrow('action "triage": it writes field "summary", which tickets does not have')
+    expect(ai('{title}', 'id')).toThrow('action "triage": it writes "id", which is integer, not text or an enum')
+    expect(ai('{title}', 'id')).toThrow('action "triage": it writes "id", which is readOnly()')
+    expect(ai('{secret}', 'title')).toThrow('sensitive field "secret" cannot be in an action')
+    expect(ai('{title}', 'secret')).toThrow('sensitive field "secret" cannot be in an action')
+  })
+
   it('wants a create page to be a page of the app', () => {
     const created = view<typeof payments>('payments').create({ page: 'new-payment' }).toModel()
     expect(() => checkViews(registry, [created], ['new-payment'])).not.toThrow()

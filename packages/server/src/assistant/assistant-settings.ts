@@ -1,5 +1,6 @@
 import { checkedUrl } from '../checked-url'
 import type { ModelSettings } from './chat-completions'
+import { modelSettings, modelVariables } from './model-settings'
 import type { AssistantTool } from './tools'
 
 /**
@@ -15,17 +16,12 @@ export type AssistantSettings = { kind: 'external'; url: string } | { kind: 'bui
 
 export const assistantVariables = {
   url: 'PROTOBASE_ASSISTANT_URL',
-  apiKey: 'PROTOBASE_ASSISTANT_API_KEY',
-  model: 'PROTOBASE_ASSISTANT_MODEL',
-  baseUrl: 'PROTOBASE_ASSISTANT_BASE_URL',
+  ...modelVariables,
   chats: 'PROTOBASE_ASSISTANT_CHATS',
 } as const
 
 /** Where the built-in assistant keeps conversations without `chats`: relative to the working directory. */
 export const defaultChatsDirectory = '.protobase/chats'
-
-export const openRouterUrl = 'https://openrouter.ai/api/v1'
-export const openRouterModel = 'openrouter/auto'
 
 /** The roles that see the assistant: `/meta` names it, and the built-in one answers, only for a caller with one of them. */
 export const assistantRoles = ['admin', 'ai'] as const
@@ -40,18 +36,11 @@ export const seesAssistant = (roles: readonly string[]) => assistantRoles.some((
  */
 export const assistantSettings = (option: AssistantOptions | false | undefined, env: Record<string, string | undefined>): AssistantSettings | undefined => {
   if (option === false) return undefined
-  const value = (key: keyof typeof assistantVariables) => {
-    const given = option?.[key] ?? env[assistantVariables[key]]
-    return given?.trim() || undefined
-  }
-  const source = (key: keyof typeof assistantVariables) => (option?.[key] === undefined ? assistantVariables[key] : `options.assistant.${key}`)
+  const value = (key: 'url' | 'chats') => (option?.[key] ?? env[assistantVariables[key]])?.trim() || undefined
+  const source = (key: 'url') => (option?.[key] === undefined ? assistantVariables[key] : `options.assistant.${key}`)
 
   const url = value('url')
   if (url) return { kind: 'external', url: checkedUrl(url, source('url')) }
-  const apiKey = value('apiKey')
-  if (!apiKey) return undefined
-  const baseUrl = checkedUrl(value('baseUrl') ?? openRouterUrl, source('baseUrl'))
-  const model = value('model') ?? (baseUrl === openRouterUrl ? openRouterModel : undefined)
-  if (!model) throw new Error(`${assistantVariables.model} (or options.assistant.model) is required with an endpoint other than OpenRouter's`)
-  return { kind: 'built-in', model: { baseUrl, apiKey, model, ...(option && option.fetch && { fetch: option.fetch }) }, chats: value('chats') ?? defaultChatsDirectory }
+  const model = modelSettings(option, env)
+  return model && { kind: 'built-in', model, chats: value('chats') ?? defaultChatsDirectory }
 }

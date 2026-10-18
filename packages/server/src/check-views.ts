@@ -1,5 +1,5 @@
 import type { ActionRun, CardPhotosModel, GalleryModel, ResourceModel, ViewModel } from '@protobase/schema'
-import { actionInputErrors, addressErrors, addressPlaceholders, boardErrors, calendarErrors, chartFields, displayFields, fieldRefsIn, hrefField, hrefPlaceholders, linkActionError } from '@protobase/schema/internal'
+import { actionInputErrors, addressErrors, addressPlaceholders, boardErrors, calendarErrors, chartFields, displayFields, fieldRefsIn, hrefField, hrefPlaceholders, linkActionError, promptError, promptFields } from '@protobase/schema/internal'
 import type { Registry } from './registry'
 import { cardFavoriteErrors, favoriteOwnerErrors } from './view-card-favorite'
 import { cardPhotosErrors } from './view-card-photos'
@@ -12,6 +12,13 @@ import { editableErrors } from './view-editable'
 
 // The fields a link action takes from the record.
 const linkFields = (run: ActionRun | undefined) => (run?.kind !== 'link' ? [] : 'to' in run ? addressPlaceholders(run.to) : hrefPlaceholders(run.href))
+
+// The fields an action sets or reads.
+const actionFields = (run: ActionRun | undefined) => {
+  if (run?.kind === 'update') return Object.keys(run.values)
+  if (run?.kind === 'ai') return [run.writes, ...promptFields(run.prompt ?? '')]
+  return linkFields(run)
+}
 
 // A sensitive value never comes with a record, so only a record page section may name it, where it is revealed.
 const sensitiveErrors = (view: ViewModel, model: ResourceModel) => {
@@ -27,7 +34,7 @@ const sensitiveErrors = (view: ViewModel, model: ResourceModel) => {
     ['a map', view.layout.flatMap((item) => (item.kind === 'map' ? [item.latitude, item.longitude] : []))],
     ['a gallery', view.layout.flatMap((item) => (item.kind === 'gallery' && item.image !== undefined ? [item.image] : []))],
     ['the recent records', view.nav?.recent ? [view.nav.recent.status] : []],
-    ['an action', view.actions.flatMap((action) => (action.run?.kind === 'update' ? Object.keys(action.run.values) : linkFields(action.run)))],
+    ['an action', view.actions.flatMap((action) => actionFields(action.run))],
   ]
   return uses.flatMap(([place, names]) => [...new Set(names.filter(sensitive))].map((name) => `sensitive field "${name}" cannot be in ${place}`))
 }
@@ -71,13 +78,29 @@ const linkErrors = (view: ViewModel, model: ResourceModel, models: Record<string
     return 'to' in run ? addressErrors(run.to, { models, pages, source: model }).map((error) => `action "${name}": ${error}`) : []
   })
 
+// An AI action writes, through the API, a text or enum field of the record, from a prompt that reads fields it has.
+const aiActionErrors = (view: ViewModel, model: ResourceModel) =>
+  view.actions.flatMap(({ name, run }) => {
+    if (run?.kind !== 'ai') return []
+    const prompt = promptError(run.prompt ?? '')
+    const written = Object.hasOwn(model.fields, run.writes) ? model.fields[run.writes]! : undefined
+    const errors = [
+      ...(prompt ? [prompt] : []),
+      ...promptFields(run.prompt ?? '').filter((field) => !Object.hasOwn(model.fields, field)).map((field) => `its prompt names field "${field}", which ${model.name} does not have`),
+      ...(!written ? [`it writes field "${run.writes}", which ${model.name} does not have`] : []),
+      ...(written && written.type !== 'text' && written.type !== 'enum' ? [`it writes "${run.writes}", which is ${written.type}, not text or an enum`] : []),
+      ...(written?.readOnly ? [`it writes "${run.writes}", which is readOnly()`] : []),
+    ]
+    return errors.map((error) => `action "${name}": ${error}`)
+  })
+
 // Inputs are answers a handler gets, checked as the builder checks them for a view written as data; a choice of records
 // picks one of a resource the app has.
 const inputErrors = (view: ViewModel, models: Record<string, ResourceModel>) =>
   view.actions.flatMap(({ name, run, inputs }) => {
     if (!inputs) return []
     const errors = [
-      ...(run ? [`inputs need a handler, and a${run.kind === 'update' ? 'n' : ''} ${run.kind} action has none`] : []),
+      ...(run ? [`inputs need a handler, and a${run.kind === 'update' || run.kind === 'ai' ? 'n' : ''} ${run.kind} action has none`] : []),
       ...actionInputErrors(inputs),
       ...inputs.flatMap((input) => (input.resource !== undefined && !models[input.resource] ? [`input "${input.name}" picks from resource "${input.resource}", which the app does not have`] : [])),
     ]
@@ -153,7 +176,7 @@ const listOfErrors = (model: ResourceModel, name: string, models: Record<string,
  * has a related section or related list column, a cards display's or gallery's photos or a cards display's favorite button, a `listOf`, a "Save search" button or a
  * `searchesOf` that do not fit the resources, cards
  * displays of one list that name different photos, a chart per value that cannot group or add up its fields, a map that cannot show the
- * record's position or a map display that cannot find the records in its view, a board whose columns are no filterable enum, a calendar whose dates are no filterable date or timestamp fields, a link to an address the app does not have, action inputs that do not fit, or a create page that is not one of `pages`.
+ * record's position or a map display that cannot find the records in its view, a board whose columns are no filterable enum, a calendar whose dates are no filterable date or timestamp fields, a link to an address the app does not have, an AI action that cannot write its field, action inputs that do not fit, or a create page that is not one of `pages`.
  */
 export const checkViews = (registry: Registry, views: ViewModel[], pages: readonly string[] = [], fieldTypes: Readonly<Record<string, readonly string[]>> = {}) => {
   const models = Object.fromEntries(registry.entries.map((entry) => [entry.name, entry.model]))
@@ -191,7 +214,7 @@ export const checkViews = (registry: Registry, views: ViewModel[], pages: readon
     const chart = view.chart ? chartErrors(view.chart, model).map((error) => `chart: ${error}`) : []
     const history = model.history ? [] : view.layout.flatMap((item) => (item.kind === 'history' ? [`history "${item.title}" needs .history() on resource "${view.resource}"`] : []))
     const comments = model.comments ? [] : view.layout.flatMap((item) => (item.kind === 'comments' ? [`comments "${item.title}" needs .comments() on resource "${view.resource}"`] : []))
-    return [...sensitiveErrors(view, model), ...unknownFieldErrors(view, model), ...valueLabelErrors(view, model), ...valueColorErrors(view, model), ...textHintErrors(view, model), ...listEditErrors(view, model), ...widgetErrors(view, model, fieldTypes), ...related, ...photos, ...favorites, ...listOf, ...searches, ...maps, ...history, ...comments, ...boards, ...calendars, ...chart, ...linkErrors(view, model, models, pageNames), ...inputErrors(view, models), ...createErrors(view, pageNames)].map((problem) => `View "${view.resource}": ${problem}`)
+    return [...sensitiveErrors(view, model), ...unknownFieldErrors(view, model), ...valueLabelErrors(view, model), ...valueColorErrors(view, model), ...textHintErrors(view, model), ...listEditErrors(view, model), ...widgetErrors(view, model, fieldTypes), ...related, ...photos, ...favorites, ...listOf, ...searches, ...maps, ...history, ...comments, ...boards, ...calendars, ...chart, ...linkErrors(view, model, models, pageNames), ...aiActionErrors(view, model), ...inputErrors(view, models), ...createErrors(view, pageNames)].map((problem) => `View "${view.resource}": ${problem}`)
   })
   if (problems.length > 0) throw new Error(`The views do not match the resources:\n${problems.map((problem) => `  - ${problem}`).join('\n')}`)
 }

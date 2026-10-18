@@ -1,4 +1,5 @@
 import { mapCellPixels, maxMapBuckets, maxMapZoom } from '@protobase/query'
+import { pickView } from '@protobase/schema'
 import type { Entry } from '../registry'
 import { mapRecordsLimit, mapRecordsZoom } from '../map-service'
 import { writableFields, type RequestAccess } from '../request-access'
@@ -72,7 +73,7 @@ const mapResult = (name: string) => json({
 // The operation each documented method needs; methods the caller may not use are left out of their document.
 const needs: Record<string, 'list' | 'read' | 'create' | 'update' | 'delete'> = {
   list: 'list', search: 'list', facets: 'list', aggregate: 'list', series: 'list', histogram: 'list', map: 'list', seek: 'list',
-  get: 'read', reveal: 'read', create: 'create', update: 'update', undelete: 'update', delete: 'delete',
+  get: 'read', reveal: 'read', create: 'create', update: 'update', undelete: 'update', generate: 'update', delete: 'delete',
 }
 
 const withoutDenied = (paths: Record<string, Record<string, any>>, access: RequestAccess) =>
@@ -94,6 +95,7 @@ export const resourcePaths = (access: RequestAccess) => {
   const softNote = entry.model.softDelete ? ' Soft-deleted rows are hidden.' : ''
   const keyErrors = { 400: error('BadRequest'), ...auth, 404: error('NotFound') }
   const sensitive = Object.values(access.readable.fields).filter((field) => field.sensitive).map((field) => field.name)
+  const aiActions = (pickView(access.deps.views, access.session.user.roles, entry.name)?.actions ?? []).filter((action) => action.run?.kind === 'ai').map((action) => action.name)
 
   const paths = {
     [`/${entry.name}`]: {
@@ -177,6 +179,19 @@ export const resourcePaths = (access: RequestAccess) => {
           parameters: [param('key')],
           requestBody: { required: true, content: json({ type: 'object', required: ['field'], properties: { field: { type: 'string', enum: sensitive } }, additionalProperties: false }) },
           responses: { 200: { description: 'The value; never cached', content: json({ type: 'object', required: ['field', 'value'], properties: { field: { type: 'string' }, value: {} } }) }, ...keyErrors },
+        },
+      },
+    }),
+    ...(aiActions.length > 0 && {
+      [`/${entry.name}/{key}:generate`]: {
+        post: {
+          operationId: `generate_${entry.name}`,
+          tags: tag,
+          summary: `Run an AI action on a ${entry.name} record`,
+          description: 'The model writes the action\'s field from its prompt, as the caller, who must be signed in, may read the fields the prompt names and may update the field. An edit made while the model answers is a 412; empty inputs or an empty answer are a 422, and nothing is written.',
+          parameters: [param('key')],
+          requestBody: { required: true, content: json({ type: 'object', required: ['action'], properties: { action: { type: 'string', enum: aiActions } }, additionalProperties: false }) },
+          responses: { 200: record(name, entry), ...keyErrors, 403: error('Forbidden'), 412: error('PreconditionFailed') },
         },
       },
     }),

@@ -13,7 +13,7 @@ const unit = ['packages/*/src/**/*.test.ts', 'scripts/release-speed/**/*.test.ts
 const integration = ['packages/cli/tests/**/*.integration.test.ts', 'packages/cli/tests/build/deploy-bundle.test.ts', 'tests/release/**/*.test.ts']
 // The glue between packages, on PGlite in `bun run test`, and on Postgres and PgBouncer (`*.postgres.test.ts`) with the
 // integration tests.
-const glue = 'tests/{changes,comments,import,jobs,roles}/**/*.test.ts'
+const glue = 'tests/{ai,changes,comments,import,jobs,roles}/**/*.test.ts'
 const postgresGlue = 'tests/{changes,jobs}/**/*.postgres.test.ts'
 // The CLI building and serving the ERP on the runtime that runs Vitest, Bun or Node: `bun run test:smoke` and
 // `node --run test:smoke`.

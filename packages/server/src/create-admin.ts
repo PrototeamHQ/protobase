@@ -2,6 +2,10 @@ import { Hono } from 'hono'
 import { checkPages } from '@protobase/layout'
 import type { Db } from '@protobase/query'
 import type { BottomBarSource, UserMenuSource } from '@protobase/schema'
+import { aiModel } from './ai/ai-model'
+import { hasAiActions, hasAiFields } from './ai/ai-fields'
+import { fillHook } from './ai/fill-hook'
+import { fillJob } from './ai/fill-job'
 import { assistantSettings } from './assistant/assistant-settings'
 import { builtInAssistant } from './assistant/built-in-assistant'
 import { assistantRecords } from './assistant/records'
@@ -57,6 +61,7 @@ import { pluginOptions, pluginsBeforeSignIn } from './plugins/plugin-settings'
 import { checkSourceNames, sourceOptions } from './sources/source-settings'
 import { createScanGuard } from './scan-guard'
 import type { AdminOptions } from './admin-options'
+import type { Deps } from './deps'
 import type { Admin, AdminEnv, Authenticator, PageSource, Session, ViewSource } from './types'
 import { failedJobs, failedJobsView } from './jobs/failed-jobs'
 import type { JobDefinition } from './jobs/job-types'
@@ -116,11 +121,12 @@ const declaredRoles = (auth: AdminAuth | undefined, roles: AdminOptions['roles']
 /** The admin REST API as a Hono app. It uses only Web APIs, so it runs on Node, Workers and anywhere else Hono does. */
 export const createAdmin = ({ resources: appResources, views: appViews = [], pages = [], userMenu, bottomBars = [], db, authenticate, auth, functions = {}, files: filesOptions, events, history: historyOptions, jobs = [], subscriptions = [], webhooks: webhooksOptions, bundlePlugins = [], fieldTypes = {}, options = {}, formsDifficulty, commentUsers: givenCommentUsers }: CreateAdminInput): Admin => {
   const basePath = options.basePath ?? '/api/v1'
-  // Events are delivered, history kept and mentions mailed by jobs, whose failures the page lists too. Admins list the
-  // history as Activity and every comment as Comments.
+  // Events are delivered, history kept, mentions mailed and AI fields filled by jobs, whose failures the page lists too.
+  // Admins list the history as Activity and every comment as Comments.
   const appModels = appResources.map((resource) => resource.toModel())
   const withComments = appModels.some((model) => model.comments)
-  const withJobs = jobs.length > 0 || appModels.some(isCaptured) || withComments
+  const withAiFields = hasAiFields(appModels)
+  const withJobs = jobs.length > 0 || appModels.some(isCaptured) || withComments || withAiFields
   const withHistory = appModels.some((model) => model.history)
   const changes = changesSchema(events)
   const days = historyDays(historyOptions)
@@ -159,7 +165,11 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], pag
   checkSourceNames(sources, { resources: registry.entries.map((entry) => entry.name), pages: pageModels.map((entry) => entry.name) })
   const files = createFilesRuntime({ ...(filesOptions && { options: filesOptions }), env: globalThis.process?.env ?? {}, models: registry.entries.map((entry) => entry.model), systemPath })
   const table = webhooksOptions && webhookTable(webhooksOptions, auth)
-  const deps = {
+  // AI fields and actions call the assistant's model; without a key they fail when used, and dev and serve stop at startup (see `checkAi`)
+  const withAi = withAiFields || hasAiActions(viewModels)
+  const model = withAi ? aiModel(options.assistant, globalThis.process?.env ?? {}) : undefined
+  const fill = withAiFields ? fillJob(() => deps) : undefined
+  const deps: Deps = {
     db,
     registry,
     views: viewModels,
@@ -170,7 +180,7 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], pag
     systemPath,
     statementTimeoutMs: options.statementTimeoutMs ?? 15_000,
     guard: createScanGuard(db, options.scanGuard),
-    hooks: [...(options.writeHooks ?? []), ...(table ? [subscriptionWriteCheck(registry.entries.map((entry) => entry.model), table.checkUrl)] : [])],
+    hooks: [...(options.writeHooks ?? []), ...(table ? [subscriptionWriteCheck(registry.entries.map((entry) => entry.model), table.checkUrl)] : []), ...(fill ? [fillHook(() => deps, fill)] : [])],
     audit: options.audit ?? consoleAuditQueue(),
     accessOptions: { ...(options.roles && { roles: options.roles }), ...(options.defaultAccess && { defaultAccess: options.defaultAccess }) },
     rowPermissions: (resource: string) => (typeof options.rowPermissions === 'object' ? !options.rowPermissions.except.includes(resource) : options.rowPermissions !== false),
@@ -184,6 +194,7 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], pag
     ...(appModels.some(isCaptured) && { actorSetting: `${changes}.actor` }),
     ...(withHistory && { history: { schema: changes, ...(auth && { actorNames: betterAuthActorNames(auth) }) } }),
     ...(mentions && { comments: { ...(commentUsers && { users: commentUsers }), mentionJob: mentions, appOrigin: appOrigin(auth?.origins ?? []) } }),
+    ...(withAi && { ai: { ...(model && { model }), ...(options.onUnhandledError && { report: options.onUnhandledError }) } }),
   }
 
   // The tabs end in the name the app signs in and mails as.
@@ -249,5 +260,5 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], pag
   app.route(`${deps.systemPath}/meta`, metaApp)
   app.route(deps.systemPath || '/', system)
   const webhooks = createWebhooks({ deps, subscriptions, functions: apiFunctions, schema: changes, log: (line) => console.log(line), ...(table && { table }) })
-  return Object.assign(app, { jobs: [...webhooks.jobs, ...(withHistory && days !== undefined ? [pruneHistoryJob(changes, days)] : []), ...(mentions ? [mentions] : [])] })
+  return Object.assign(app, { jobs: [...webhooks.jobs, ...(withHistory && days !== undefined ? [pruneHistoryJob(changes, days)] : []), ...(mentions ? [mentions] : []), ...(fill ? [fill] : [])] })
 }

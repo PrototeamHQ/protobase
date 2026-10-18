@@ -16,6 +16,7 @@ import { readHistory } from '../history/read-history'
 import { mentionable } from '../comments/mentionable'
 import { postComment } from '../comments/post-comment'
 import { readComments } from '../comments/read-comments'
+import { generateField } from '../ai/generate-route'
 
 export const recordRoutes = (deps: Deps) => {
   const app = new Hono<AdminEnv>()
@@ -53,6 +54,11 @@ export const recordRoutes = (deps: Deps) => {
     if (c.req.param('key').endsWith(':comments')) {
       const body: unknown = await c.req.json()
       return c.json(await postComment(deps, entry, c.get('session'), keyFromPath(c, entry, ':comments'), body, c.req.url), 201)
+    }
+    // POST /{resource}/{key}:generate with `{ "action": "<name>" }`: the model writes the AI action's field
+    if (c.req.param('key').endsWith(':generate')) {
+      const generated = await generateField(deps, entry, c.get('session'), keyFromPath(c, entry, ':generate'), await c.req.json(), c.req.raw.signal)
+      return c.json({ ...generated.record, etag: generated.etag }, 200, { ETag: generated.etag })
     }
     if (!c.req.param('key').endsWith(':undelete')) throw notFound('There is no such method')
     const restored = await runWrite(deps, entry, c.get('session'), {

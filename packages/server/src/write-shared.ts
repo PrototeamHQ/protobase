@@ -61,6 +61,7 @@ export const notifier = (deps: Deps, access: RequestAccess) => async (trx: Db, k
     resource: access.full,
     user: session.user,
     ...(session.tenant !== undefined && { tenant: session.tenant }),
+    ...(session.anonymous && { anonymous: true as const }),
     ...(before && { before }),
     ...(after && { after }),
   }

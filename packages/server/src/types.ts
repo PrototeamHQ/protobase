@@ -29,6 +29,8 @@ export type WriteEvent = {
   resource: ResourceModel
   user: User
   tenant?: TenantValue
+  /** The writer is a visitor without a token, through a public form. */
+  anonymous?: true
   before?: Row
   after?: Row
 }
