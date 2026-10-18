@@ -54,14 +54,14 @@ const serve = async (options: Partial<CreateAuthOptions> = {}) => {
     })
 
   // The person's browser: start at the app, sign in at the IdP, and post its response to the ACS from the IdP's page.
-  const samlSignIn = async (person: SamlPerson, tamper: (xml: string) => string = (xml) => xml) => {
-    const start = await request('/sign-in/sso', { body: { providerId: 'acme', callbackURL: `${origin}/`, errorCallbackURL: `${origin}/` } })
+  const samlSignIn = async (person: SamlPerson, tamper: (xml: string) => string = (xml) => xml, providerId = 'acme') => {
+    const start = await request('/sign-in/sso', { body: { providerId, callbackURL: `${origin}/`, errorCallbackURL: `${origin}/` } })
     expect(start.status).toBe(200)
     const { url } = (await start.json()) as { url: string }
-    const metadata = await (await request('/sso/saml2/sp/metadata?providerId=acme')).text()
+    const metadata = await (await request(`/sso/saml2/sp/metadata?providerId=${providerId}`)).text()
     const form = await idp.approve(metadata, url, person)
     const SAMLResponse = Buffer.from(tamper(Buffer.from(form.SAMLResponse, 'base64').toString('utf8'))).toString('base64')
-    const acs = await app.request(`${origin}/api/auth/sso/saml2/sp/acs/acme`, {
+    const acs = await app.request(`${origin}/api/auth/sso/saml2/sp/acs/${providerId}`, {
       method: 'POST',
       headers: { 'content-type': 'application/x-www-form-urlencoded', origin: new URL(idp.ssoUrl).origin, 'x-forwarded-for': from },
       body: new URLSearchParams({ SAMLResponse, RelayState: form.RelayState }).toString(),
@@ -73,7 +73,7 @@ const serve = async (options: Partial<CreateAuthOptions> = {}) => {
 
   const accounts = async () =>
     (await store.query<{ email: string; providerId: string; accountId: string }>(`select u.email, a.provider_id as "providerId", a.account_id as "accountId" from account a join "user" u on u.id = a.user_id where a.provider_id <> 'credential' order by u.email`)).rows
-  const user = async (email: string) => (await store.query<{ id: string; name: string; role: string }>(`select id, name, role from "user" where email = $1`, [email])).rows[0]
+  const user = async (email: string) => (await store.query<{ id: string; name: string; role: string; emailVerified: boolean }>(`select id, name, role, email_verified as "emailVerified" from "user" where email = $1`, [email])).rows[0]
   return { auth, store, request, samlSignIn, accounts, user }
 }
 
@@ -94,7 +94,8 @@ describe('sign-in with a SAML identity provider', () => {
     expect(url.startsWith(`${idp.ssoUrl}?SAMLRequest=`)).toBe(true)
     expect(location).toBe(`${origin}/`)
     expect(session.user.email).toBe('sanne@acme.test')
-    expect(await user('sanne@acme.test')).toMatchObject({ name: 'Sanne de Vries', role: 'user' })
+    // The provider vouches for the addresses at its domains.
+    expect(await user('sanne@acme.test')).toMatchObject({ name: 'Sanne de Vries', role: 'user', emailVerified: true })
     expect(await accounts()).toEqual([{ email: 'sanne@acme.test', providerId: 'acme', accountId: 'sanne@acme.test' }])
   })
 
@@ -104,6 +105,23 @@ describe('sign-in with a SAML identity provider', () => {
     const { session } = await samlSignIn(sanne())
     expect(session.user.id).toBe(id)
     expect(await accounts()).toEqual([{ email: 'sanne@acme.test', providerId: 'acme', accountId: 'sanne@acme.test' }])
+  })
+
+  it('keeps signing in a person it signed up when it changes their NameID', async () => {
+    const { samlSignIn } = await serve()
+    const first = await samlSignIn(sanne({ nameId: 'okta-user-1' }))
+    const second = await samlSignIn(sanne({ nameId: 'sanne@acme.test' }))
+    expect(second.location).toBe(`${origin}/`)
+    expect(second.session.user.id).toBe(first.session.user.id)
+  })
+
+  it('lets people the old provider signed up sign in with a new provider for the same domain', async () => {
+    const both = { saml: [{ id: 'acme', domains: ['acme.test'], idp: { metadata: idp.metadata } }, { id: 'acme-new', domains: ['acme.test'], idp: { metadata: idp.metadata } }] }
+    const { samlSignIn } = await serve({ sso: both })
+    const first = await samlSignIn(sanne())
+    const second = await samlSignIn(sanne(), undefined, 'acme-new')
+    expect(second.location).toBe(`${origin}/`)
+    expect(second.session.user.id).toBe(first.session.user.id)
   })
 
   it('signs up nobody outside its domains, and links no account there', async () => {

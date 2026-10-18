@@ -269,8 +269,8 @@ export const betterAuthOptions = (options: CreateAuthOptions, { origins = [], pa
               throw new APIError('FORBIDDEN', { code: 'EMAIL_DOMAIN_NOT_ALLOWED', message: 'This address is not one the identity provider may sign up.' })
             }
             const withId = options.generateUserId ? { ...user, id: await options.generateUserId() } : user
-            // An admin, or the host, creates the account for an address they vouch for.
-            return { data: context?.path === '/admin/create-user' ? { ...withId, emailVerified: true } : withId }
+            // An admin, or the host, creates the account for an address they vouch for; so does a SAML provider, at its domains.
+            return { data: context?.path === '/admin/create-user' || samlProvider ? { ...withId, emailVerified: true } : withId }
           },
           ...(options.onUserCreated && { after: options.onUserCreated }),
         },
