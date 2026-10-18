@@ -21,13 +21,14 @@ const resources = { objectives, tasks, objective_tasks: links }
 
 const through: RelatedColumnModel = { name: 'tasks', resource: 'tasks', field: 'id', through: { resource: 'objective_tasks', field: 'objective_id', key: 'task_id' }, status: 'status', sort: 'id' }
 
-// A search over the join records and the tasks, answering the pairs and tasks given, whatever the filter
+// A search over the join records and the tasks, answering the pairs and tasks given, whatever the filter, page by page
 const fakeClient = (pairs: Array<[number, number]>, rows: Array<Record<string, unknown>>) => {
-  const search = vi.fn(async (resource: string, _params: object) => ({
-    items: resource === 'objective_tasks' ? pairs.map(([objective_id, task_id]) => ({ objective_id, task_id })) : rows,
-    nextPageToken: '',
-    totalSizeEstimate: 0,
-  }))
+  const search = vi.fn(async (resource: string, params: { pageSize?: number; pageToken?: string }) => {
+    const all = resource === 'objective_tasks' ? pairs.map(([objective_id, task_id]) => ({ objective_id, task_id })) : rows
+    const start = Number(params.pageToken ?? 0)
+    const end = start + (params.pageSize ?? all.length)
+    return { items: all.slice(start, end), nextPageToken: end < all.length ? String(end) : '', totalSizeEstimate: all.length }
+  })
   return { search, client: { search } as unknown as Client }
 }
 
@@ -63,6 +64,14 @@ describe('loadRelatedColumn', () => {
     expect(search).toHaveBeenCalledTimes(1)
     expect(search.mock.calls[0]![1]).toMatchObject({ filter: '(in(objective_id, "2")) AND (status != "dropped")' })
     expect(grouped.get('2')).toEqual([{ id: 1, status: 'done', objective_id: { id: 2, name: '2' } }])
+  })
+
+  it('gives every owner all its records when the join records and the records fill more than one page', async () => {
+    const owners = Array.from({ length: 40 }, (_, owner) => owner + 1)
+    const pairs = owners.flatMap((owner) => Array.from({ length: 15 }, (_, index) => [owner, owner * 100 + index] as [number, number]))
+    const { client } = fakeClient(pairs, pairs.map(([, id]) => ({ id, title: `Task ${id}`, status: 'todo' })))
+    const grouped = await loadRelatedColumn({ client, resources, views: {}, load: { column: through, fields: ['title'] }, owners: owners.map(String) })
+    expect(owners.map((owner) => grouped.get(String(owner))?.length)).toEqual(owners.map(() => 15))
   })
 
   it('reads nothing more when no join record points at the owners', async () => {
