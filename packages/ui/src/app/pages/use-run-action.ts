@@ -15,10 +15,10 @@ const message = (error: unknown) => (error instanceof Error ? error.message : 'S
 
 /**
  * The named actions of `resource`'s view, ready to run on `scope` (the record they act on): built-in behaviour first
- * (`update`, `delete`, `link`), else the handler the project registered under the action's name. An update whose values
- * the record holds already is left out, and so is a link to a URL the record holds while it holds none. `blocked` says
- * why one cannot run; `afterRun` hears about every action that succeeded. `submit` runs one with the answers to its
- * inputs and throws its failure, for the dialog to show.
+ * (`update`, `delete`, `link`, and `ai`, which the server runs), else the handler the project registered under the
+ * action's name. An update whose values the record holds already is left out, and so is a link to a URL the record
+ * holds while it holds none. `blocked` says why one cannot run; `afterRun` hears about every action that succeeded.
+ * `submit` runs one with the answers to its inputs and throws its failure, for the dialog to show.
  */
 export const useActionRunner = (resource: string, scope: LayoutRecord | undefined, afterRun?: (action: ActionModel) => void) => {
   const { views } = useAdminMeta()
@@ -36,8 +36,9 @@ export const useActionRunner = (resource: string, scope: LayoutRecord | undefine
 
   const blocked = (action: ActionModel) => {
     const kind = action.run?.kind
-    if ((kind === 'update' || kind === 'delete') && !scope) return 'Needs a record'
-    if (kind === 'update' && (!can(permissions, 'update') || scope?.permissions?.update === false)) return 'You cannot change this record'
+    if ((kind === 'update' || kind === 'delete' || kind === 'ai') && !scope) return 'Needs a record'
+    if ((kind === 'update' || kind === 'ai') && (!can(permissions, 'update') || scope?.permissions?.update === false)) return 'You cannot change this record'
+    if (action.run?.kind === 'ai' && scope?.permissions?.fields?.[action.run.writes] === 'read') return 'You cannot change this record'
     if (kind === 'delete' && (!can(permissions, 'delete') || scope?.permissions?.delete === false)) return 'You cannot delete this record'
     if (!action.run && !handlers?.[action.name]) return `The app has no handler for "${action.name}"`
     const custom = action.inputs?.find((input) => input.kind === 'custom' && !components?.[input.component ?? ''])
@@ -54,6 +55,7 @@ export const useActionRunner = (resource: string, scope: LayoutRecord | undefine
     }
     if (run?.kind === 'update') await client.update(resource, scope!.key, run.values as Record<string, unknown>, scope!.etag ?? '*')
     else if (run?.kind === 'delete') await client.remove(resource, scope!.key, { etag: scope!.etag })
+    else if (run?.kind === 'ai') await client.generate(resource, scope!.key, action.name)
     else await handlers![action.name]!({ resource, record: scope?.record, recordKey: scope?.key, etag: scope?.etag, client: handlerClient, navigate: go, ...(values && { values }) })
     await refresh(resource)
     toast.show({ state: 'success', title: `${action.label}: done` })

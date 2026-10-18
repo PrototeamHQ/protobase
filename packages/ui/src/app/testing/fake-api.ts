@@ -45,6 +45,8 @@ export type FakeApiInput = {
   forms?: PublicForm[]
   /** Answers a public form's submission instead of creating the row, to refuse it. */
   submitForm?: (name: string, values: Row) => Promise<void>
+  /** What the model writes when an AI action (`a.ai`) runs, as the fields it sets; rejects to answer a failure. */
+  generate?: (resource: string, key: string, action: string) => Promise<Row>
 }
 
 const keyOf = (model: ResourceModel, row: Row) => encodeKey(model.primaryKey.map((name) => row[name] as string | number))
@@ -97,7 +99,7 @@ const matches = (filter: string | undefined, model: ResourceModel | undefined) =
  * An in-memory server for stories and docs: lists with filters (simple AIP-160), sorting, paging, exact counts,
  * related names and photos, and get, create, update and delete that change the rows and their ETags. Not a model of the real access rules.
  */
-export const fakeApi = ({ resources, views = [], pages = [], rows: initial, permissions = {}, plugins, sources, maps, files, bottomBar, signIn, afterWrite, reveal, upload, history: initialHistory = {}, actor = { id: 'story', name: 'Story User' }, comments: initialComments = {}, users = [], forms = [], submitForm }: FakeApiInput) => {
+export const fakeApi = ({ resources, views = [], pages = [], rows: initial, permissions = {}, plugins, sources, maps, files, bottomBar, signIn, afterWrite, reveal, upload, history: initialHistory = {}, actor = { id: 'story', name: 'Story User' }, comments: initialComments = {}, users = [], forms = [], submitForm, generate }: FakeApiInput) => {
   const rows: Record<string, Row[]> = structuredClone(initial)
   const models = Object.fromEntries(resources.map((model) => [model.name, model]))
   let version = 0
@@ -233,6 +235,10 @@ export const fakeApi = ({ resources, views = [], pages = [], rows: initial, perm
       keep(resource, 'update', before, row)
       write(resource, row)
       return stored(resource, find(resource, key))
+    },
+    generate: async (resource: string, key: string, action: string) => {
+      if (!generate) throw new Error(`Not implemented: the fake API has no model to run the AI action "${action}"`)
+      return client.update(resource, key, await generate(resource, key, action))
     },
     // Only `reorder`, as sorting by hand sends it: the records numbered 1, 2, 3, ... in the order of their keys, those
     // whose number changes each refused when its ETag is stale
