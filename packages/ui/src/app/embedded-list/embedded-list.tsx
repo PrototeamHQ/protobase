@@ -21,6 +21,7 @@ import { useAdminMeta } from '../meta-gate'
 import { AppLink, useAppAddress } from '../use-app-address'
 import { embeddedColumns } from './embedded-columns'
 import { viewAllAddress } from './embedded-display'
+import { cutOffNote } from './cut-off-note'
 import { useEmbeddedRows } from './use-embedded-rows'
 
 export type EmbeddedListProps = {
@@ -55,7 +56,8 @@ const Loading = () => <div className="flex flex-col gap-2">{Array.from({ length:
 
 /**
  * The first `limit` records of a list, drawn by the list page's own table (sized to its rows) or display, and a link
- * to the whole list with the same filter, order and display. On a phone a cards display is one row that scrolls sideways.
+ * to the whole list with the same filter, order and display, beside a note such as "The first 10 of 37." when there are
+ * more. On a phone a cards display is one row that scrolls sideways.
  */
 export const EmbeddedList = ({ model, view, filter, sort, columns, limit, display, empty, row = false, viewAll, link = true }: EmbeddedListProps) => {
   const { resources, views } = useAdminMeta()
@@ -67,7 +69,7 @@ export const EmbeddedList = ({ model, view, filter, sort, columns, limit, displa
   const specs = useMemo(() => embeddedColumns(model, view, names, { resources, views, fieldTypes }), [model, view, names.join(','), resources, views, fieldTypes])
   const fields = useMemo(() => loadedFields(model, view, specs.map((spec) => spec.id)), [model, view, specs])
   const rows = useEmbeddedRows({ model, filter, orderBy, limit, fields })
-  const loaded = rows.data
+  const loaded = rows.data?.rows
   const source = useMemo(() => loaded && { total: loaded.length, rowAt: (index: number) => loaded[index]! }, [loaded])
   const shown = shownDisplay(view, display)
 
@@ -93,8 +95,8 @@ export const EmbeddedList = ({ model, view, filter, sort, columns, limit, displa
 
   const list: ListDisplay = {
     resource: model.name,
-    rows: rows.data.map((row) => displayRow(model, row)),
-    total: rows.data.length,
+    rows: rows.data.rows.map((row) => displayRow(model, row)),
+    total: rows.data.total,
     loading: false,
     error: null,
     more: false,
@@ -103,6 +105,7 @@ export const EmbeddedList = ({ model, view, filter, sort, columns, limit, displa
   const openRecord = (row: GridRow) => go({ kind: 'record', resource: model.name, key: recordKey(model, row) })
   const recordLink = (row: GridRow) => ({ href: href({ kind: 'record', resource: model.name, key: recordKey(model, row) }), onFollow: () => openRecord(row) })
   const singular = view?.names?.singular ?? humanize(model.name)
+  const note = cutOffNote(source.total, rows.data.total, rows.data.estimated)
   return (
     <div className="flex flex-col gap-3">
       {!shown ? (
@@ -128,7 +131,14 @@ export const EmbeddedList = ({ model, view, filter, sort, columns, limit, displa
       ) : (
         <CustomDisplay display={shown} list={list} />
       )}
-      {allLink}
+      {note && link ? (
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="text-xs text-muted-foreground">{note}</p>
+          {allLink}
+        </div>
+      ) : (
+        allLink
+      )}
     </div>
   )
 }
