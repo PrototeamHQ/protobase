@@ -44,6 +44,7 @@ div | block
                     kbd .inline-flex h-5 items-center rounded border border-border-strong bg-background px-1.5 font-sans text-[11px] font-medium text-muted-foreground | flex row nowrap center normal
             button .inline-flex size-11 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted md:hidden | none
               svg .lucide lucide-search size-5 | block
+            div .contents md:hidden | none
         main .flex flex-1 flex-col | flex column nowrap normal normal
           div .flex min-h-0 flex-1 flex-col gap-3 px-5 py-4 | flex column nowrap normal normal
             div .flex flex-wrap items-end justify-between gap-x-4 gap-y-2 | flex row wrap flex-end space-between
@@ -121,7 +122,7 @@ div | block
                             button .relative inline-flex size-5 items-center justify-center rounded text-faint-foreground hover:bg-muted hover:text-foreground focus-visible:opacity-100 after:absolute after:-inset-2 after:content-[''] md:opacity-0 md:group-hover/cell:opacity-100 aria-expanded:opacity-100 | inline-flex row nowrap center center relative
                               svg .lucide lucide-ellipsis lucide-more-horizontal size-3.5 | block
                       div .group/cell flex h-full min-w-0 items-center | flex row nowrap center normal
-                        button .group/head flex h-full min-w-0 flex-1 items-center gap-1 pl-3 pr-1 text-left | flex row nowrap center normal
+                        div .flex h-full min-w-0 flex-1 items-center gap-1 pl-3 pr-1 text-left | flex row nowrap center normal
                           span .truncate | block
                         div .pr-1.5 | block
                           div .relative ml-auto shrink-0 | block relative
