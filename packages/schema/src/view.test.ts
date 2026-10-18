@@ -167,6 +167,30 @@ describe('view builder', () => {
     expect(() => board('title')).toThrow('View "task": display "board": "title" on task is text, not an enum, whose values are the board\'s columns')
   })
 
+  it('adds a calendar by a filterable date, and refuses one by another type, an unfilterable field or an end of another type', () => {
+    const task = resource('task')
+      .table('tasks')
+      .fields({
+        id: f.integer(),
+        title: f.text(),
+        stage: f.enum(['todo', 'doing', 'done']).filterable(),
+        due: f.date().filterable(),
+        ends: f.date().filterable(),
+        planned: f.date(),
+        at: f.timestamp().filterable(),
+      })
+      .primaryKey((r) => r.id)
+    const calendar = (start: 'due' | 'stage' | 'planned', end?: 'ends' | 'at' | 'planned') =>
+      view<typeof task>('task')
+        .list((r, d) => ({ columns: [r.title], displays: [d.calendar({ start: r[start], ...(end && { end: r[end] }), title: r.title }, { label: 'Due' })] }))
+        .toModel(task.toModel())
+    expect(calendar('due', 'ends').list?.displays).toEqual([{ kind: 'calendar', name: 'calendar', label: 'Due', start: 'due', end: 'ends', title: 'title' }])
+    expect(() => calendar('stage')).toThrow('View "task": display "calendar": start "stage" on task is enum, not a date or timestamp')
+    expect(() => calendar('planned')).toThrow('View "task": display "calendar": start "planned" on task is not filterable, and the calendar filters by it for the days it shows')
+    expect(() => calendar('due', 'planned')).toThrow('View "task": display "calendar": end "planned" on task is not filterable, and the calendar filters by it for the days it shows')
+    expect(() => calendar('due', 'at')).toThrow('View "task": display "calendar": end "at" on task is timestamp, not date like start "due"')
+  })
+
   it("puts a card's amount fields and footer fields in the model, and checks them like its other fields", () => {
     const model = view<typeof article>('article')
       .list((r, d) => ({ columns: [r.title], displays: [d.cards({ amount: [r.price], footer: [r.status, r.createdAt] })] }))

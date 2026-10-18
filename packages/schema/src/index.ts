@@ -20,6 +20,7 @@ export type {
   AppAddress,
   FilterLayout,
   MapView,
+  CalendarView,
   ListQuery,
   FieldFormat,
   FieldViewModel,

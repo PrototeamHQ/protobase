@@ -179,11 +179,19 @@ export type MapView = {
   zoom: number
 }
 
+/** Which month or week a list's calendar display shows: the grid's `scale`, and a UTC day (`YYYY-MM-DD`) in it. */
+export type CalendarView = {
+  /** A month of whole weeks, or one week. */
+  scale: 'month' | 'week'
+  /** A day in the month or week, as `YYYY-MM-DD`. */
+  day: string
+}
+
 /**
  * A place in the app: a resource's list, one of its records, its create form, or a composed page. A record's `key` is
  * its one value or its parts, as the record API takes them; `readAppPath` gives it back as the API's text form. A create
  * form's `values` fill in fields of the new record by name, as text (`{ listing_id: '42' }`). A list's `map` is where its
- * map display looks. See [Addresses](website/src/content/docs/reference/layouts.md#addresses).
+ * map display looks, and its `calendar` the month or week its calendar display shows. See [Addresses](website/src/content/docs/reference/layouts.md#addresses).
  */
 export type AppAddress =
   | {
@@ -201,6 +209,8 @@ export type AppAddress =
       filterLayout?: FilterLayout
       /** Where its map display looks. */
       map?: MapView
+      /** The month or week its calendar display shows. */
+      calendar?: CalendarView
       /**
        * The saved search the list was opened from, by its key in the text form the record API takes: while the list's
        * filter differs from the search's, the list offers to update the search.
@@ -394,6 +404,22 @@ export type ListDisplayModel =
       badge?: string
       /** A few small fields, such as dates, each shown when it has a value. */
       meta?: string[]
+    }
+  | {
+      /** The records on the days they cover, in a month grid or a week grid, moved to another day by dragging. */
+      kind: 'calendar'
+      /** What the address names (`?display=calendar`). */
+      name: string
+      /** The display's name in the switch. */
+      label?: string
+      /** The display's icon in the switch. */
+      icon?: string
+      /** The filterable date or timestamp field a record starts on. */
+      start: string
+      /** The filterable field of `start`'s type a record ends on; a record is on its start day alone when omitted. */
+      end?: string
+      /** The event's text; the view's title when omitted. */
+      title?: string
     }
   | {
       /** The rows drawn by a project component. */

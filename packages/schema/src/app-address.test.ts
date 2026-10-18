@@ -28,6 +28,10 @@ describe('appPath', () => {
     expect(appPath({ kind: 'list', resource: 'listings', display: 'map', map: { latitude: 52.370216, longitude: 4.895168, zoom: 12.456 } })).toBe('/listings?display=map&map=52.37022%2C4.89517%2C12.46')
   })
 
+  it("writes the month or week a list's calendar shows as its scale and day", () => {
+    expect(appPath({ kind: 'list', resource: 'repairs', display: 'calendar', calendar: { scale: 'month', day: '2026-10-01' } })).toBe('/repairs?display=calendar&calendar=month%2C2026-10-01')
+  })
+
   it('writes the saved search a list was opened from last', () => {
     expect(appPath({ kind: 'list', resource: 'listings', filter: 'garden = true', savedSearch: '12' })).toBe('/listings?filter=garden+%3D+true&saved_search=12')
   })
@@ -50,6 +54,8 @@ describe('readAppPath', () => {
       { kind: 'list', resource: 'repairs', display: 'board', filter: 'status = "ready" AND bike : "e"', orderBy: 'bookedOn desc', filterLayout: 'panel' },
       { kind: 'list', resource: 'listings', display: 'map', map: { latitude: -33.87, longitude: 151.21, zoom: 9.5 } },
       { kind: 'list', resource: 'listings', filter: 'garden = true', savedSearch: '3,7' },
+      { kind: 'list', resource: 'repairs', display: 'calendar', calendar: { scale: 'month', day: '2026-10-01' } },
+      { kind: 'list', resource: 'repairs', calendar: { scale: 'week', day: '2026-10-12' } },
       { kind: 'record', resource: 'files', key: 'a/b' },
       { kind: 'record', resource: 'leaseTenants', key: '3,7' },
       { kind: 'record', resource: 'listings', key: '42', edit: true },
@@ -76,6 +82,12 @@ describe('readAppPath', () => {
   it('ignores a map view it cannot read or that lies off the map', () => {
     for (const map of ['52,4', '52,4,9,1', 'a,4,9', '52,,9', '91,4,9', '52,181,9', '52,4,23', '52,4,-1']) {
       expect(readAppPath(`/listings?map=${map}`, pages)).toEqual({ kind: 'list', resource: 'listings' })
+    }
+  })
+
+  it('ignores a calendar view it cannot read or whose day does not exist', () => {
+    for (const calendar of ['day,2026-10-01', 'month,2026-13-01', 'month,2026-02-30', 'month,2026-1-01', 'month', 'month,2026-10-01,x']) {
+      expect(readAppPath(`/repairs?calendar=${calendar}`, pages)).toEqual({ kind: 'list', resource: 'repairs' })
     }
   })
 
