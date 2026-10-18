@@ -2,6 +2,7 @@ import pg from 'pg'
 import { inject } from 'vitest'
 import { snapshotTemplates, type SnapshotTemplateKey } from '../../scripts/test-db/snapshot-templates'
 import { cloneTemplate, databaseUrl, dropDatabase } from '../../scripts/test-db/templates'
+import { withRealRandomness } from './random'
 import { isDatabaseError, rawError, type RawError, type RawResult } from './values'
 
 declare module 'vitest' {
@@ -25,15 +26,25 @@ const raw = (result: pg.QueryArrayResult): RawResult => ({
   rows: result.rows as (string | null)[][],
 })
 
-/** A clone of the template on the real Postgres server, with one connection, for `bun run test:record`. */
-export const openRecordBackend = async (key: SnapshotTemplateKey) => {
-  const template = snapshotTemplates[key]
-  const database = `snapshot_${inject('snapshotRunId')}_${process.env.VITEST_POOL_ID ?? 0}_${process.pid}_${++opened}`
-  await cloneTemplate(template, database)
-  const client = new pg.Client({ connectionString: databaseUrl(database), types: asText })
-  await client.connect()
+const cloneName = () => `snapshot_${inject('snapshotRunId')}_${process.env.VITEST_POOL_ID ?? 0}_${process.pid}_${++opened}`
 
-  const run = async (sql: string, params: (string | Buffer | null)[] | undefined): Promise<Outcome> => {
+/** One connection to a clone this run made, for `bun run test:record`. */
+export type Backend = {
+  run: (sql: string, params: (string | Buffer | null)[] | undefined) => Promise<Outcome>
+  clone: () => Promise<Backend>
+  close: () => Promise<void>
+}
+
+const connectBackend = async (database: string): Promise<Backend> => {
+  const connect = () =>
+    withRealRandomness(async () => {
+      const client = new pg.Client({ connectionString: databaseUrl(database), types: asText })
+      await client.connect()
+      return client
+    })
+  let client = await connect()
+
+  const run: Backend['run'] = async (sql, params) => {
     try {
       const result = (await client.query({ text: sql, values: params, rowMode: 'array' })) as pg.QueryArrayResult | pg.QueryArrayResult[]
       return { result: Array.isArray(result) ? result.map(raw) : raw(result) }
@@ -43,10 +54,26 @@ export const openRecordBackend = async (key: SnapshotTemplateKey) => {
     }
   }
 
-  const close = async () => {
+  /** A copy of the database as it is now; Postgres copies a database only while nothing is connected to it. */
+  const clone = async () => {
     await client.end()
-    await dropDatabase(database)
+    const copy = cloneName()
+    await withRealRandomness(() => cloneTemplate({ database, strategy: 'wal_log' }, copy))
+    client = await connect()
+    return connectBackend(copy)
   }
 
-  return { run, close }
+  const close = async () => {
+    await client.end()
+    await withRealRandomness(() => dropDatabase(database))
+  }
+
+  return { run, clone, close }
+}
+
+/** A clone of the template on the real Postgres server, with one connection, for `bun run test:record`. */
+export const openRecordBackend = async (key: SnapshotTemplateKey) => {
+  const database = cloneName()
+  await withRealRandomness(() => cloneTemplate(snapshotTemplates[key], database))
+  return connectBackend(database)
 }

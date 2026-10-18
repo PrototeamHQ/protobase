@@ -2682,7 +2682,7 @@
       {"sql":"select \"t\".\"id\" as \"id\", \"t\".\"grp\"::text as \"__pb_key0\", \"t\".\"label\"::text as \"__pb_key1\", \"t\".\"id\"::text as \"__pb_key2\" from \"uuid_items\" as \"t\" where (\"t\".\"grp\" < $1 and \"t\".\"label\" < $2) and ((\"t\".\"grp\" > $3) or (\"t\".\"grp\" = $4 and \"t\".\"label\" < $5) or (\"t\".\"grp\" = $6 and \"t\".\"label\" = $7 and \"t\".\"id\" > $8)) order by \"t\".\"grp\" asc, \"t\".\"label\" desc, \"t\".\"id\" asc limit $9","params":["1","label 2","0","0","label 1200","0","label 1200","daaf9d3d-770a-32ab-b987-f2bec51a2e8a","8"],"result":{"command":"SELECT","rowCount":7,"columns":[["id",2950],["__pb_key0",25],["__pb_key1",25],["__pb_key2",25]],"rows":[
         ["a6f47be3-dd56-7191-c6d8-77be0c1edb2d","0","label 120","a6f47be3-dd56-7191-c6d8-77be0c1edb2d"],
         ["5e6f7e34-c99c-755f-4216-2b16d3206d7d","0","label 1160","5e6f7e34-c99c-755f-4216-2b16d3206d7d"],
-        ["a90a42a1-e437-7b14-b3f9-bd6d71342bb4","0","label 1120","a90a42a1-e437-7b14-b3f9-bd6d71342bb4"],
+        ["{{uuid:1:7}}","0","label 1120","{{uuid:1:7}}"],
         ["e03c4937-4378-985c-da25-2d1d602766d4","0","label 1080","e03c4937-4378-985c-da25-2d1d602766d4"],
         ["61d2d9ab-b321-3a03-98ba-3b1bf7719c7b","0","label 1040","61d2d9ab-b321-3a03-98ba-3b1bf7719c7b"],
         ["ee4ea066-4bc6-dd19-f054-86c571e59e11","0","label 10000","ee4ea066-4bc6-dd19-f054-86c571e59e11"],
@@ -2712,7 +2712,7 @@
         ["daaf9d3d-770a-32ab-b987-f2bec51a2e8a"],
         ["a6f47be3-dd56-7191-c6d8-77be0c1edb2d"],
         ["5e6f7e34-c99c-755f-4216-2b16d3206d7d"],
-        ["a90a42a1-e437-7b14-b3f9-bd6d71342bb4"],
+        ["{{uuid:1:7}}"],
         ["e03c4937-4378-985c-da25-2d1d602766d4"],
         ["61d2d9ab-b321-3a03-98ba-3b1bf7719c7b"],
         ["ee4ea066-4bc6-dd19-f054-86c571e59e11"],
@@ -2723,7 +2723,7 @@
         ["ee4ea066-4bc6-dd19-f054-86c571e59e11","0","label 10000","ee4ea066-4bc6-dd19-f054-86c571e59e11"],
         ["61d2d9ab-b321-3a03-98ba-3b1bf7719c7b","0","label 1040","61d2d9ab-b321-3a03-98ba-3b1bf7719c7b"],
         ["e03c4937-4378-985c-da25-2d1d602766d4","0","label 1080","e03c4937-4378-985c-da25-2d1d602766d4"],
-        ["a90a42a1-e437-7b14-b3f9-bd6d71342bb4","0","label 1120","a90a42a1-e437-7b14-b3f9-bd6d71342bb4"],
+        ["{{uuid:1:7}}","0","label 1120","{{uuid:1:7}}"],
         ["5e6f7e34-c99c-755f-4216-2b16d3206d7d","0","label 1160","5e6f7e34-c99c-755f-4216-2b16d3206d7d"],
         ["a6f47be3-dd56-7191-c6d8-77be0c1edb2d","0","label 120","a6f47be3-dd56-7191-c6d8-77be0c1edb2d"],
         ["daaf9d3d-770a-32ab-b987-f2bec51a2e8a","0","label 1200","daaf9d3d-770a-32ab-b987-f2bec51a2e8a"]

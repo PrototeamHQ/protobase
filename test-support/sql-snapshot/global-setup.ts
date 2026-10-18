@@ -14,6 +14,7 @@ export default async function setup(project: TestProject) {
   }
   const runId = randomBytes(4).toString('hex')
   project.provide('snapshotRunId', runId)
+  project.provide('snapshotRecordStart', Date.now())
   return async () => {
     const sql = connectServer()
     const left = await sql<{ datname: string }[]>`select datname from pg_database where datname like ${`snapshot\\_${runId}\\_%`}`

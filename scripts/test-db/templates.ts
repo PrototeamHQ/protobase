@@ -56,7 +56,7 @@ export const runEnvironment = (key: TemplateKey, runId: string) => ({
 export const connectServer = () => postgres(serverUrl, { max: 1, connect_timeout: 2, onnotice: () => {} })
 
 /** Creates `database` as a copy of the template. */
-export const cloneTemplate = async (template: Template, database: string) => {
+export const cloneTemplate = async (template: Pick<Template, 'database' | 'strategy'>, database: string) => {
   const sql = connectServer()
   await sql.unsafe(`create database "${database}" template "${template.database}" strategy ${template.strategy}`)
   await sql.end()

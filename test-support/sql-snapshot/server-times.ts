@@ -1,11 +1,20 @@
+import { inject } from 'vitest'
+import { testClock } from './clock'
+
 // Times the Postgres clock made (now(), clock_timestamp(), a default) differ on every recording. A recording keeps
 // them as tokens, numbered in the order they first came back, and the test sees each as a fixed time instead: the
-// fake time `fakeServerTime(n)`, a day before the tests' clock (see clock.ts), n milliseconds apart. A param the test
-// sends with one of those fake times goes to Postgres as the real time it stands for, so the database still finds it.
+// fake time `fakeServerTime(n)`, a day before the tests' clock, n milliseconds apart. A param the test sends with one
+// of those fake times goes to Postgres as the real time it stands for, so the database still finds it. A time Postgres
+// returns counts as its clock's when it falls in the recording run, so the templates must hold no such time.
 
-/** Times after this, in what Postgres returns, are the Postgres clock's; fixture data must stay before it. */
-const serverTimesAfter = Date.UTC(2026, 7, 1)
-const fakeBase = Date.UTC(2026, 0, 14, 0, 0, 0)
+declare module 'vitest' {
+  export interface ProvidedContext {
+    /** When this `bun run test:record` run started, by the real clock, in milliseconds. */
+    snapshotRecordStart?: number
+  }
+}
+
+const fakeBase = testClock.getTime() - 86_400_000
 
 const timestamp = /(\d{4})-(\d{2})-(\d{2})([ T])(\d{2}):(\d{2}):(\d{2})(?:\.(\d{1,6}))?(Z|[+-]\d{2}(?::\d{2})?)?/g
 const token = /\{\{now:(\d+):([ T]):(-|\d):([^}]*)\}\}/g
@@ -37,8 +46,9 @@ export const decodeTimes = (text: string) =>
 export const createServerTimes = () => {
   const numbers = new Map<number, number>()
   const reals = new Map<number, number>()
-  // The real clock: the tests' Date is fake.
-  const isServerTime = (micros: number) => micros > serverTimesAfter * 1000 && micros < (performance.timeOrigin + performance.now() + 86_400_000) * 1000
+  // By the real clock, as the tests' Date is fake, with a minute's leeway for a server clock that is a little off.
+  const start = (inject('snapshotRecordStart') ?? Infinity) - 60_000
+  const isServerTime = (micros: number) => micros > start * 1000 && micros < (performance.timeOrigin + performance.now() + 60_000) * 1000
 
   /** Postgres's text with its clock's times as tokens; new times are numbered in time order. */
   const encodeResult = (texts: string[]) => {
@@ -57,23 +67,20 @@ export const createServerTimes = () => {
     return (text: string) => text.replace(timestamp, (...match) => {
       const parts = parse(match as unknown as RegExpExecArray)
       const n = numbers.get(parts.micros)
-      return n === undefined || !isServerTime(parts.micros) ? match[0] : `{{now:${n}:${parts.sep}:${parts.digits}:${parts.zone}}}`
+      // Postgres leaves trailing zeros off the fraction, so the token keeps no digit count.
+      return n === undefined || !isServerTime(parts.micros) ? match[0] : `{{now:${n}:${parts.sep}:-:${parts.zone}}}`
     })
   }
 
-  /** A param the test sent, as Postgres must get it (`real`) and as the file keeps it (`kept`). */
-  const encodeParam = (text: string) => {
-    let real = text
-    let kept = text
-    for (const match of text.matchAll(timestamp)) {
-      const parts = parse(match)
+  // A param the test sent, with each fake time in it as the real one Postgres must get, or as the file's token.
+  const replaceFakes = (text: string, by: (micros: number, parts: Parts) => string) =>
+    text.replace(timestamp, (...match) => {
+      const parts = parse(match as unknown as RegExpExecArray)
       const micros = reals.get(parts.micros)
-      if (micros === undefined) continue
-      real = real.replace(match[0], format(micros, { ...parts, digits: '6' }))
-      kept = kept.replace(match[0], `{{now:${numbers.get(micros)}:${parts.sep}:${parts.digits}:${parts.zone}}}`)
-    }
-    return { real, kept }
-  }
+      return micros === undefined ? match[0] : by(micros, parts)
+    })
+  const toReal = (text: string) => replaceFakes(text, (micros, parts) => format(micros, { ...parts, digits: '6' }))
+  const toKept = (text: string) => replaceFakes(text, (micros, parts) => `{{now:${numbers.get(micros)}:${parts.sep}:${parts.digits}:${parts.zone}}}`)
 
-  return { encodeResult, encodeParam }
+  return { encodeResult, toReal, toKept }
 }

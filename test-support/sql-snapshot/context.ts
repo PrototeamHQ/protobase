@@ -1,20 +1,30 @@
-import { hooksScope, recording } from './mode'
+import { hooksScope, recording, staleSnapshot } from './mode'
 import { openRecording, type Recording } from './recording'
-import { createServerTimes } from './server-times'
+import { createServerValues } from './server-values'
 
-// What the snapshot databases of the running test file share: its recording, the Postgres clock's times seen so far,
+// What the snapshot databases of the running test file share: its recording, the values Postgres made up so far,
 // and the databases opened outside a test, closed when the file ends.
 type FileContext = {
   recording: Recording
-  times: ReturnType<typeof createServerTimes>
+  values: ReturnType<typeof createServerValues>
   opened: Map<string, number>
   closeAtEnd: (() => Promise<void>)[]
+  /** Makes a stale-snapshot error and keeps it, so the test fails with it even when the app turns it into a 500. */
+  stale: (why: string) => Error
+  /** The stale-snapshot errors so far, taken. */
+  takeStale: () => Error[]
 }
 
 let current: FileContext | undefined
 
 export const startFile = (testFile: string) => {
-  current = { recording: openRecording(testFile), times: createServerTimes(), opened: new Map(), closeAtEnd: [] }
+  const errors: Error[] = []
+  const stale = (why: string) => {
+    const error = staleSnapshot(why)
+    errors.push(error)
+    return error
+  }
+  current = { recording: openRecording(testFile), values: createServerValues(), opened: new Map(), closeAtEnd: [], stale, takeStale: () => errors.splice(0) }
 }
 
 export const fileContext = () => {

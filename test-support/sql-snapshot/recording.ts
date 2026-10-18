@@ -1,13 +1,7 @@
 import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { recording } from './mode'
-import type { RawError, RawParam, RawResult } from './values'
-
-/** One query and what Postgres answered: one result, one per statement of a multi-statement text, or an error. */
-export type Entry = { sql: string; params?: RawParam[]; result?: RawResult | RawResult[]; error?: RawError }
-
-// The queries of a test file, by the test that ran them (or `(hooks)`) and then by the database they went to.
-type Streams = Record<string, Record<string, Entry[]>>
+import { formatStreams, parseStreams, type Entry, type Streams } from './recording-file'
 
 /** `<test file without .ts>.sql.json`, next to the test. */
 export const recordingPath = (testFile: string) => testFile.replace(/\.[cm]?[jt]s$/, '.sql.json')
@@ -17,20 +11,33 @@ export const openRecording = (testFile: string) => {
   const file = recordingPath(testFile)
   const exists = existsSync(file)
   // Recording starts afresh; replay reads what the last recording wrote.
-  const streams: Streams = exists && !recording ? JSON.parse(readFileSync(file, 'utf8')) : {}
-  const read = new Map<string, number>()
+  const streams: Streams = exists && !recording ? parseStreams(readFileSync(file, 'utf8')) : {}
+  // The positions replay has answered from, by scope and handle.
+  const read = new Map<string, Set<number>>()
   const key = (scope: string, handle: string) => `${scope}\u0000${handle}`
+  const readOf = (scope: string, handle: string) => {
+    const k = key(scope, handle)
+    if (!read.has(k)) read.set(k, new Set())
+    return read.get(k)!
+  }
 
   return {
     file,
     /** The file as the messages name it, from the working directory. */
     name: path.relative(process.cwd(), file),
     exists,
-    /** The next recorded query of `scope` on `handle`, or undefined after the last. */
-    next: (scope: string, handle: string) => {
-      const at = read.get(key(scope, handle)) ?? 0
-      read.set(key(scope, handle), at + 1)
-      return { entry: streams[scope]?.[handle]?.[at], at }
+    /**
+     * The first recorded query of `scope` on `handle` not answered yet that `fits`, marked as answered; requests that
+     * run at the same time may reach the connection in another order than they did when recording. Without one that
+     * fits, `entry` is undefined and `expected` the first one not answered yet.
+     */
+    take: (scope: string, handle: string, fits: (entry: Entry) => boolean) => {
+      const entries = streams[scope]?.[handle] ?? []
+      const taken = readOf(scope, handle)
+      const open = entries.map((entry, at) => ({ entry, at })).filter(({ at }) => !taken.has(at))
+      const found = open.find(({ entry }) => fits(entry))
+      if (found) taken.add(found.at)
+      return { entry: found?.entry, at: found?.at ?? open[0]?.at ?? entries.length, expected: open[0]?.entry }
     },
     append: (scope: string, handle: string, entry: Entry) => {
       const handles = (streams[scope] ??= {})
@@ -44,8 +51,9 @@ export const openRecording = (testFile: string) => {
     /** The handles of `scope` whose recording the test did not get through, with how many queries it left. */
     unread: (scope: string) =>
       Object.entries(streams[scope] ?? {}).flatMap(([handle, entries]) => {
-        const left = entries.length - (read.get(key(scope, handle)) ?? 0)
-        return left > 0 ? [{ handle, left, first: entries[entries.length - left]! }] : []
+        const taken = readOf(scope, handle)
+        const left = entries.filter((_, at) => !taken.has(at))
+        return left.length ? [{ handle, left: left.length, first: left[0]! }] : []
       }),
     /** Writes what was recorded; a file that queried nothing keeps no recording. */
     write: () => {
@@ -57,26 +65,4 @@ export const openRecording = (testFile: string) => {
 
 export type Recording = ReturnType<typeof openRecording>
 
-// One entry per line, and a long result one row per line, so a change to the SQL or the data shows as a small diff.
-const formatResult = (result: RawResult, indent: string) => {
-  const { rows, ...rest } = result
-  const head = JSON.stringify(rest).slice(0, -1)
-  if (rows.length <= 1) return `${head},"rows":${JSON.stringify(rows)}}`
-  return `${head},"rows":[\n${rows.map((row) => `${indent}  ${JSON.stringify(row)}`).join(',\n')}\n${indent}]}`
-}
-
-const formatEntry = (entry: Entry, indent: string) => {
-  const { result, ...rest } = entry
-  if (!result) return JSON.stringify(rest)
-  const head = JSON.stringify(rest).slice(0, -1)
-  const shown = Array.isArray(result) ? `[${result.map((one) => formatResult(one, indent)).join(',')}]` : formatResult(result, indent)
-  return `${head},"result":${shown}}`
-}
-
-const formatStreams = (streams: Streams) => {
-  const scopes = Object.entries(streams).map(([scope, handles]) => {
-    const shown = Object.entries(handles).map(([handle, entries]) => `    ${JSON.stringify(handle)}: [\n${entries.map((entry) => `      ${formatEntry(entry, '      ')}`).join(',\n')}\n    ]`)
-    return `  ${JSON.stringify(scope)}: {\n${shown.join(',\n')}\n  }`
-  })
-  return `{\n${scopes.join(',\n')}\n}\n`
-}
+export type { Entry } from './recording-file'

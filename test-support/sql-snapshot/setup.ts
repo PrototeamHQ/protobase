@@ -1,7 +1,8 @@
 import { afterAll, afterEach, beforeAll, beforeEach, vi } from 'vitest'
-import { fixClock } from './clock'
+import { fixClock, unfixClock } from './clock'
 import { endFile, fileContext, startFile } from './context'
-import { hooksScope, recording, staleSnapshot } from './mode'
+import { settle } from './activity'
+import { hooksScope, inScope, recording, staleSnapshot } from './mode'
 import { seedRandomness, useSequence } from './random'
 
 // Setup for the snapshot tests, in record and replay alike: a fixed clock, seeded randomness and UTC, so both issue
@@ -20,22 +21,32 @@ beforeAll(({}, suite) => {
   useSequence(hooksScope, true)
 })
 
-beforeEach(({ task }) => {
+// Again before each test, which may have put crypto back (vi.restoreAllMocks) or used fake timers of its own. What the
+// hooks or the test before left running counts as the hooks' work, and ends before this test begins.
+beforeEach(async ({ task }) => {
+  await inScope(hooksScope, () => settle())
   fixClock()
+  seedRandomness()
   useSequence(task.fullTestName, true)
   fileContext().recording.restart(task.fullTestName)
 })
 
-afterEach(({ task }) => {
+afterEach(async ({ task }) => {
+  await settle()
   useSequence(hooksScope)
+  const [stale] = fileContext().takeStale()
+  if (stale) throw stale
   if (recording || task.result?.errors?.length) return
   const left = fileContext().recording.unread(task.fullTestName)
   if (left.length) throw unreadError(left)
 })
 
 afterAll(async () => {
+  await settle()
+  const [stale] = fileContext().takeStale()
   const left = await endFile()
-  vi.useRealTimers()
+  unfixClock()
   vi.restoreAllMocks()
+  if (stale) throw stale
   if (left?.length) throw unreadError(left)
 })

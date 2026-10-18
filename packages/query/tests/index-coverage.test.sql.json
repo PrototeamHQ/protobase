@@ -1,4 +1,20 @@
 {
+  "(repeated)": [
+    {"sql":"\n    select ic.relname as name, am.amname as method, (i.indpred is not null) as partial, a.attname::text as column,\n      pg_get_indexdef(i.indexrelid, k.ord::int, true) as definition, oc.opcname::text as opclass\n    from pg_index i\n    join pg_class ic on ic.oid = i.indexrelid\n    join pg_am am on am.oid = ic.relam\n    cross join lateral unnest(i.indkey::int2[], i.indclass::oid[]) with ordinality k(attnum, opclass, ord)\n    left join pg_attribute a on a.attrelid = i.indrelid and a.attnum = k.attnum and k.attnum > 0\n    join pg_opclass oc on oc.oid = k.opclass\n    where i.indrelid = to_regclass($1) and i.indisvalid and i.indisready and k.ord <= i.indnkeyatts\n    order by ic.relname, k.ord\n  ","params":["\"listings\""],"result":{"command":"SELECT","rowCount":12,"columns":[["name",19],["method",19],["partial",16],["column",25],["definition",25],["opclass",25]],"rows":[
+      ["listings_attrs_idx","gin","f","attrs","attrs","jsonb_ops"],
+      ["listings_city_idx","btree","t","city","city","text_ops"],
+      ["listings_org_price_idx","btree","f","org","org","int4_ops"],
+      ["listings_org_price_idx","btree","f","price","price","int4_ops"],
+      ["listings_pkey","btree","f","id","id","int4_ops"],
+      ["listings_rent_idx","btree","f","for_rent","for_rent","bool_ops"],
+      ["listings_rent_idx","btree","f","status","status","text_ops"],
+      ["listings_rent_idx","btree","f","published_at","published_at","timestamptz_ops"],
+      ["listings_sale_idx","btree","f","for_sale","for_sale","bool_ops"],
+      ["listings_sale_idx","btree","f","status","status","text_ops"],
+      ["listings_sale_idx","btree","f","published_at","published_at","timestamptz_ops"],
+      ["listings_title_trgm_idx","gin","f","title","title","gin_trgm_ops"]
+    ]}}
+  ],
   "(hooks)": {
     "(hooks)#0": [
       {"sql":"\n    create table listings (\n      id integer primary key, org integer not null, for_sale boolean not null, for_rent boolean not null,\n      status text not null, published_at timestamptz not null, city text not null, title text not null,\n      phone text not null, price integer not null, attrs jsonb\n    );\n    insert into listings\n    select i, i % 3, i % 10 < 4, i % 10 between 4 and 5, (array['available', 'sold'])[1 + i % 2],\n      timestamptz '2026-01-01+00' + i * interval '1 minute', 'city-' || i % 50, 'listing ' || i, '+31 6 ' || i, i % 900, null\n    from generate_series(1, 15000) i;\n    create index listings_sale_idx on listings (for_sale, status, published_at desc);\n    create index listings_rent_idx on listings (for_rent, status, published_at desc);\n    create index listings_org_price_idx on listings (org, price);\n    create index listings_city_idx on listings (city) where status = 'available';\n    create index listings_title_trgm_idx on listings using gin (title gin_trgm_ops);\n    create index listings_attrs_idx on listings using gin (attrs);\n    create view listing_titles as select id, title from listings;\n    analyze listings;\n  ","result":[{"command":"CREATE","rowCount":null,"columns":[],"rows":[]},{"command":"INSERT","rowCount":15000,"columns":[],"rows":[]},{"command":"CREATE","rowCount":null,"columns":[],"rows":[]},{"command":"CREATE","rowCount":null,"columns":[],"rows":[]},{"command":"CREATE","rowCount":null,"columns":[],"rows":[]},{"command":"CREATE","rowCount":null,"columns":[],"rows":[]},{"command":"CREATE","rowCount":null,"columns":[],"rows":[]},{"command":"CREATE","rowCount":null,"columns":[],"rows":[]},{"command":"CREATE","rowCount":null,"columns":[],"rows":[]},{"command":"ANALYZE","rowCount":null,"columns":[],"rows":[]}]}
@@ -7,20 +23,7 @@
   "uncoveredColumns > passes a broad filter on an indexed boolean and status, sorted by the indexed date after them": {
     "(hooks)#0": [
       {"sql":"select relkind from pg_class where oid = to_regclass($1)","params":["\"listings\""],"result":{"command":"SELECT","rowCount":1,"columns":[["relkind",18]],"rows":[["r"]]}},
-      {"sql":"\n    select ic.relname as name, am.amname as method, (i.indpred is not null) as partial, a.attname::text as column,\n      pg_get_indexdef(i.indexrelid, k.ord::int, true) as definition, oc.opcname::text as opclass\n    from pg_index i\n    join pg_class ic on ic.oid = i.indexrelid\n    join pg_am am on am.oid = ic.relam\n    cross join lateral unnest(i.indkey::int2[], i.indclass::oid[]) with ordinality k(attnum, opclass, ord)\n    left join pg_attribute a on a.attrelid = i.indrelid and a.attnum = k.attnum and k.attnum > 0\n    join pg_opclass oc on oc.oid = k.opclass\n    where i.indrelid = to_regclass($1) and i.indisvalid and i.indisready and k.ord <= i.indnkeyatts\n    order by ic.relname, k.ord\n  ","params":["\"listings\""],"result":{"command":"SELECT","rowCount":12,"columns":[["name",19],["method",19],["partial",16],["column",25],["definition",25],["opclass",25]],"rows":[
-        ["listings_attrs_idx","gin","f","attrs","attrs","jsonb_ops"],
-        ["listings_city_idx","btree","t","city","city","text_ops"],
-        ["listings_org_price_idx","btree","f","org","org","int4_ops"],
-        ["listings_org_price_idx","btree","f","price","price","int4_ops"],
-        ["listings_pkey","btree","f","id","id","int4_ops"],
-        ["listings_rent_idx","btree","f","for_rent","for_rent","bool_ops"],
-        ["listings_rent_idx","btree","f","status","status","text_ops"],
-        ["listings_rent_idx","btree","f","published_at","published_at","timestamptz_ops"],
-        ["listings_sale_idx","btree","f","for_sale","for_sale","bool_ops"],
-        ["listings_sale_idx","btree","f","status","status","text_ops"],
-        ["listings_sale_idx","btree","f","published_at","published_at","timestamptz_ops"],
-        ["listings_title_trgm_idx","gin","f","title","title","gin_trgm_ops"]
-      ]}}
+      {"repeated":0}
     ]
   },
   "uncoveredColumns > reads that page through the index with its LIMIT, without a sequential scan": {
@@ -58,295 +61,61 @@
   "uncoveredColumns > refuses the same filter on an unindexed column, naming it and the index to add": {
     "(hooks)#0": [
       {"sql":"select relkind from pg_class where oid = to_regclass($1)","params":["\"listings\""],"result":{"command":"SELECT","rowCount":1,"columns":[["relkind",18]],"rows":[["r"]]}},
-      {"sql":"\n    select ic.relname as name, am.amname as method, (i.indpred is not null) as partial, a.attname::text as column,\n      pg_get_indexdef(i.indexrelid, k.ord::int, true) as definition, oc.opcname::text as opclass\n    from pg_index i\n    join pg_class ic on ic.oid = i.indexrelid\n    join pg_am am on am.oid = ic.relam\n    cross join lateral unnest(i.indkey::int2[], i.indclass::oid[]) with ordinality k(attnum, opclass, ord)\n    left join pg_attribute a on a.attrelid = i.indrelid and a.attnum = k.attnum and k.attnum > 0\n    join pg_opclass oc on oc.oid = k.opclass\n    where i.indrelid = to_regclass($1) and i.indisvalid and i.indisready and k.ord <= i.indnkeyatts\n    order by ic.relname, k.ord\n  ","params":["\"listings\""],"result":{"command":"SELECT","rowCount":12,"columns":[["name",19],["method",19],["partial",16],["column",25],["definition",25],["opclass",25]],"rows":[
-        ["listings_attrs_idx","gin","f","attrs","attrs","jsonb_ops"],
-        ["listings_city_idx","btree","t","city","city","text_ops"],
-        ["listings_org_price_idx","btree","f","org","org","int4_ops"],
-        ["listings_org_price_idx","btree","f","price","price","int4_ops"],
-        ["listings_pkey","btree","f","id","id","int4_ops"],
-        ["listings_rent_idx","btree","f","for_rent","for_rent","bool_ops"],
-        ["listings_rent_idx","btree","f","status","status","text_ops"],
-        ["listings_rent_idx","btree","f","published_at","published_at","timestamptz_ops"],
-        ["listings_sale_idx","btree","f","for_sale","for_sale","bool_ops"],
-        ["listings_sale_idx","btree","f","status","status","text_ops"],
-        ["listings_sale_idx","btree","f","published_at","published_at","timestamptz_ops"],
-        ["listings_title_trgm_idx","gin","f","title","title","gin_trgm_ops"]
-      ]}}
+      {"repeated":0}
     ]
   },
   "uncoveredColumns > needs every key before a column to be pinned by = or in": {
     "(hooks)#0": [
       {"sql":"select relkind from pg_class where oid = to_regclass($1)","params":["\"listings\""],"result":{"command":"SELECT","rowCount":1,"columns":[["relkind",18]],"rows":[["r"]]}},
-      {"sql":"\n    select ic.relname as name, am.amname as method, (i.indpred is not null) as partial, a.attname::text as column,\n      pg_get_indexdef(i.indexrelid, k.ord::int, true) as definition, oc.opcname::text as opclass\n    from pg_index i\n    join pg_class ic on ic.oid = i.indexrelid\n    join pg_am am on am.oid = ic.relam\n    cross join lateral unnest(i.indkey::int2[], i.indclass::oid[]) with ordinality k(attnum, opclass, ord)\n    left join pg_attribute a on a.attrelid = i.indrelid and a.attnum = k.attnum and k.attnum > 0\n    join pg_opclass oc on oc.oid = k.opclass\n    where i.indrelid = to_regclass($1) and i.indisvalid and i.indisready and k.ord <= i.indnkeyatts\n    order by ic.relname, k.ord\n  ","params":["\"listings\""],"result":{"command":"SELECT","rowCount":12,"columns":[["name",19],["method",19],["partial",16],["column",25],["definition",25],["opclass",25]],"rows":[
-        ["listings_attrs_idx","gin","f","attrs","attrs","jsonb_ops"],
-        ["listings_city_idx","btree","t","city","city","text_ops"],
-        ["listings_org_price_idx","btree","f","org","org","int4_ops"],
-        ["listings_org_price_idx","btree","f","price","price","int4_ops"],
-        ["listings_pkey","btree","f","id","id","int4_ops"],
-        ["listings_rent_idx","btree","f","for_rent","for_rent","bool_ops"],
-        ["listings_rent_idx","btree","f","status","status","text_ops"],
-        ["listings_rent_idx","btree","f","published_at","published_at","timestamptz_ops"],
-        ["listings_sale_idx","btree","f","for_sale","for_sale","bool_ops"],
-        ["listings_sale_idx","btree","f","status","status","text_ops"],
-        ["listings_sale_idx","btree","f","published_at","published_at","timestamptz_ops"],
-        ["listings_title_trgm_idx","gin","f","title","title","gin_trgm_ops"]
-      ]}},
+      {"repeated":0},
       {"sql":"select relkind from pg_class where oid = to_regclass($1)","params":["\"listings\""],"result":{"command":"SELECT","rowCount":1,"columns":[["relkind",18]],"rows":[["r"]]}},
-      {"sql":"\n    select ic.relname as name, am.amname as method, (i.indpred is not null) as partial, a.attname::text as column,\n      pg_get_indexdef(i.indexrelid, k.ord::int, true) as definition, oc.opcname::text as opclass\n    from pg_index i\n    join pg_class ic on ic.oid = i.indexrelid\n    join pg_am am on am.oid = ic.relam\n    cross join lateral unnest(i.indkey::int2[], i.indclass::oid[]) with ordinality k(attnum, opclass, ord)\n    left join pg_attribute a on a.attrelid = i.indrelid and a.attnum = k.attnum and k.attnum > 0\n    join pg_opclass oc on oc.oid = k.opclass\n    where i.indrelid = to_regclass($1) and i.indisvalid and i.indisready and k.ord <= i.indnkeyatts\n    order by ic.relname, k.ord\n  ","params":["\"listings\""],"result":{"command":"SELECT","rowCount":12,"columns":[["name",19],["method",19],["partial",16],["column",25],["definition",25],["opclass",25]],"rows":[
-        ["listings_attrs_idx","gin","f","attrs","attrs","jsonb_ops"],
-        ["listings_city_idx","btree","t","city","city","text_ops"],
-        ["listings_org_price_idx","btree","f","org","org","int4_ops"],
-        ["listings_org_price_idx","btree","f","price","price","int4_ops"],
-        ["listings_pkey","btree","f","id","id","int4_ops"],
-        ["listings_rent_idx","btree","f","for_rent","for_rent","bool_ops"],
-        ["listings_rent_idx","btree","f","status","status","text_ops"],
-        ["listings_rent_idx","btree","f","published_at","published_at","timestamptz_ops"],
-        ["listings_sale_idx","btree","f","for_sale","for_sale","bool_ops"],
-        ["listings_sale_idx","btree","f","status","status","text_ops"],
-        ["listings_sale_idx","btree","f","published_at","published_at","timestamptz_ops"],
-        ["listings_title_trgm_idx","gin","f","title","title","gin_trgm_ops"]
-      ]}},
+      {"repeated":0},
       {"sql":"select relkind from pg_class where oid = to_regclass($1)","params":["\"listings\""],"result":{"command":"SELECT","rowCount":1,"columns":[["relkind",18]],"rows":[["r"]]}},
-      {"sql":"\n    select ic.relname as name, am.amname as method, (i.indpred is not null) as partial, a.attname::text as column,\n      pg_get_indexdef(i.indexrelid, k.ord::int, true) as definition, oc.opcname::text as opclass\n    from pg_index i\n    join pg_class ic on ic.oid = i.indexrelid\n    join pg_am am on am.oid = ic.relam\n    cross join lateral unnest(i.indkey::int2[], i.indclass::oid[]) with ordinality k(attnum, opclass, ord)\n    left join pg_attribute a on a.attrelid = i.indrelid and a.attnum = k.attnum and k.attnum > 0\n    join pg_opclass oc on oc.oid = k.opclass\n    where i.indrelid = to_regclass($1) and i.indisvalid and i.indisready and k.ord <= i.indnkeyatts\n    order by ic.relname, k.ord\n  ","params":["\"listings\""],"result":{"command":"SELECT","rowCount":12,"columns":[["name",19],["method",19],["partial",16],["column",25],["definition",25],["opclass",25]],"rows":[
-        ["listings_attrs_idx","gin","f","attrs","attrs","jsonb_ops"],
-        ["listings_city_idx","btree","t","city","city","text_ops"],
-        ["listings_org_price_idx","btree","f","org","org","int4_ops"],
-        ["listings_org_price_idx","btree","f","price","price","int4_ops"],
-        ["listings_pkey","btree","f","id","id","int4_ops"],
-        ["listings_rent_idx","btree","f","for_rent","for_rent","bool_ops"],
-        ["listings_rent_idx","btree","f","status","status","text_ops"],
-        ["listings_rent_idx","btree","f","published_at","published_at","timestamptz_ops"],
-        ["listings_sale_idx","btree","f","for_sale","for_sale","bool_ops"],
-        ["listings_sale_idx","btree","f","status","status","text_ops"],
-        ["listings_sale_idx","btree","f","published_at","published_at","timestamptz_ops"],
-        ["listings_title_trgm_idx","gin","f","title","title","gin_trgm_ops"]
-      ]}},
+      {"repeated":0},
       {"sql":"select relkind from pg_class where oid = to_regclass($1)","params":["\"listings\""],"result":{"command":"SELECT","rowCount":1,"columns":[["relkind",18]],"rows":[["r"]]}},
-      {"sql":"\n    select ic.relname as name, am.amname as method, (i.indpred is not null) as partial, a.attname::text as column,\n      pg_get_indexdef(i.indexrelid, k.ord::int, true) as definition, oc.opcname::text as opclass\n    from pg_index i\n    join pg_class ic on ic.oid = i.indexrelid\n    join pg_am am on am.oid = ic.relam\n    cross join lateral unnest(i.indkey::int2[], i.indclass::oid[]) with ordinality k(attnum, opclass, ord)\n    left join pg_attribute a on a.attrelid = i.indrelid and a.attnum = k.attnum and k.attnum > 0\n    join pg_opclass oc on oc.oid = k.opclass\n    where i.indrelid = to_regclass($1) and i.indisvalid and i.indisready and k.ord <= i.indnkeyatts\n    order by ic.relname, k.ord\n  ","params":["\"listings\""],"result":{"command":"SELECT","rowCount":12,"columns":[["name",19],["method",19],["partial",16],["column",25],["definition",25],["opclass",25]],"rows":[
-        ["listings_attrs_idx","gin","f","attrs","attrs","jsonb_ops"],
-        ["listings_city_idx","btree","t","city","city","text_ops"],
-        ["listings_org_price_idx","btree","f","org","org","int4_ops"],
-        ["listings_org_price_idx","btree","f","price","price","int4_ops"],
-        ["listings_pkey","btree","f","id","id","int4_ops"],
-        ["listings_rent_idx","btree","f","for_rent","for_rent","bool_ops"],
-        ["listings_rent_idx","btree","f","status","status","text_ops"],
-        ["listings_rent_idx","btree","f","published_at","published_at","timestamptz_ops"],
-        ["listings_sale_idx","btree","f","for_sale","for_sale","bool_ops"],
-        ["listings_sale_idx","btree","f","status","status","text_ops"],
-        ["listings_sale_idx","btree","f","published_at","published_at","timestamptz_ops"],
-        ["listings_title_trgm_idx","gin","f","title","title","gin_trgm_ops"]
-      ]}},
+      {"repeated":0},
       {"sql":"select relkind from pg_class where oid = to_regclass($1)","params":["\"listings\""],"result":{"command":"SELECT","rowCount":1,"columns":[["relkind",18]],"rows":[["r"]]}},
-      {"sql":"\n    select ic.relname as name, am.amname as method, (i.indpred is not null) as partial, a.attname::text as column,\n      pg_get_indexdef(i.indexrelid, k.ord::int, true) as definition, oc.opcname::text as opclass\n    from pg_index i\n    join pg_class ic on ic.oid = i.indexrelid\n    join pg_am am on am.oid = ic.relam\n    cross join lateral unnest(i.indkey::int2[], i.indclass::oid[]) with ordinality k(attnum, opclass, ord)\n    left join pg_attribute a on a.attrelid = i.indrelid and a.attnum = k.attnum and k.attnum > 0\n    join pg_opclass oc on oc.oid = k.opclass\n    where i.indrelid = to_regclass($1) and i.indisvalid and i.indisready and k.ord <= i.indnkeyatts\n    order by ic.relname, k.ord\n  ","params":["\"listings\""],"result":{"command":"SELECT","rowCount":12,"columns":[["name",19],["method",19],["partial",16],["column",25],["definition",25],["opclass",25]],"rows":[
-        ["listings_attrs_idx","gin","f","attrs","attrs","jsonb_ops"],
-        ["listings_city_idx","btree","t","city","city","text_ops"],
-        ["listings_org_price_idx","btree","f","org","org","int4_ops"],
-        ["listings_org_price_idx","btree","f","price","price","int4_ops"],
-        ["listings_pkey","btree","f","id","id","int4_ops"],
-        ["listings_rent_idx","btree","f","for_rent","for_rent","bool_ops"],
-        ["listings_rent_idx","btree","f","status","status","text_ops"],
-        ["listings_rent_idx","btree","f","published_at","published_at","timestamptz_ops"],
-        ["listings_sale_idx","btree","f","for_sale","for_sale","bool_ops"],
-        ["listings_sale_idx","btree","f","status","status","text_ops"],
-        ["listings_sale_idx","btree","f","published_at","published_at","timestamptz_ops"],
-        ["listings_title_trgm_idx","gin","f","title","title","gin_trgm_ops"]
-      ]}}
+      {"repeated":0}
     ]
   },
   "uncoveredColumns > pins nothing across OR branches or under NOT": {
     "(hooks)#0": [
       {"sql":"select relkind from pg_class where oid = to_regclass($1)","params":["\"listings\""],"result":{"command":"SELECT","rowCount":1,"columns":[["relkind",18]],"rows":[["r"]]}},
-      {"sql":"\n    select ic.relname as name, am.amname as method, (i.indpred is not null) as partial, a.attname::text as column,\n      pg_get_indexdef(i.indexrelid, k.ord::int, true) as definition, oc.opcname::text as opclass\n    from pg_index i\n    join pg_class ic on ic.oid = i.indexrelid\n    join pg_am am on am.oid = ic.relam\n    cross join lateral unnest(i.indkey::int2[], i.indclass::oid[]) with ordinality k(attnum, opclass, ord)\n    left join pg_attribute a on a.attrelid = i.indrelid and a.attnum = k.attnum and k.attnum > 0\n    join pg_opclass oc on oc.oid = k.opclass\n    where i.indrelid = to_regclass($1) and i.indisvalid and i.indisready and k.ord <= i.indnkeyatts\n    order by ic.relname, k.ord\n  ","params":["\"listings\""],"result":{"command":"SELECT","rowCount":12,"columns":[["name",19],["method",19],["partial",16],["column",25],["definition",25],["opclass",25]],"rows":[
-        ["listings_attrs_idx","gin","f","attrs","attrs","jsonb_ops"],
-        ["listings_city_idx","btree","t","city","city","text_ops"],
-        ["listings_org_price_idx","btree","f","org","org","int4_ops"],
-        ["listings_org_price_idx","btree","f","price","price","int4_ops"],
-        ["listings_pkey","btree","f","id","id","int4_ops"],
-        ["listings_rent_idx","btree","f","for_rent","for_rent","bool_ops"],
-        ["listings_rent_idx","btree","f","status","status","text_ops"],
-        ["listings_rent_idx","btree","f","published_at","published_at","timestamptz_ops"],
-        ["listings_sale_idx","btree","f","for_sale","for_sale","bool_ops"],
-        ["listings_sale_idx","btree","f","status","status","text_ops"],
-        ["listings_sale_idx","btree","f","published_at","published_at","timestamptz_ops"],
-        ["listings_title_trgm_idx","gin","f","title","title","gin_trgm_ops"]
-      ]}},
+      {"repeated":0},
       {"sql":"select relkind from pg_class where oid = to_regclass($1)","params":["\"listings\""],"result":{"command":"SELECT","rowCount":1,"columns":[["relkind",18]],"rows":[["r"]]}},
-      {"sql":"\n    select ic.relname as name, am.amname as method, (i.indpred is not null) as partial, a.attname::text as column,\n      pg_get_indexdef(i.indexrelid, k.ord::int, true) as definition, oc.opcname::text as opclass\n    from pg_index i\n    join pg_class ic on ic.oid = i.indexrelid\n    join pg_am am on am.oid = ic.relam\n    cross join lateral unnest(i.indkey::int2[], i.indclass::oid[]) with ordinality k(attnum, opclass, ord)\n    left join pg_attribute a on a.attrelid = i.indrelid and a.attnum = k.attnum and k.attnum > 0\n    join pg_opclass oc on oc.oid = k.opclass\n    where i.indrelid = to_regclass($1) and i.indisvalid and i.indisready and k.ord <= i.indnkeyatts\n    order by ic.relname, k.ord\n  ","params":["\"listings\""],"result":{"command":"SELECT","rowCount":12,"columns":[["name",19],["method",19],["partial",16],["column",25],["definition",25],["opclass",25]],"rows":[
-        ["listings_attrs_idx","gin","f","attrs","attrs","jsonb_ops"],
-        ["listings_city_idx","btree","t","city","city","text_ops"],
-        ["listings_org_price_idx","btree","f","org","org","int4_ops"],
-        ["listings_org_price_idx","btree","f","price","price","int4_ops"],
-        ["listings_pkey","btree","f","id","id","int4_ops"],
-        ["listings_rent_idx","btree","f","for_rent","for_rent","bool_ops"],
-        ["listings_rent_idx","btree","f","status","status","text_ops"],
-        ["listings_rent_idx","btree","f","published_at","published_at","timestamptz_ops"],
-        ["listings_sale_idx","btree","f","for_sale","for_sale","bool_ops"],
-        ["listings_sale_idx","btree","f","status","status","text_ops"],
-        ["listings_sale_idx","btree","f","published_at","published_at","timestamptz_ops"],
-        ["listings_title_trgm_idx","gin","f","title","title","gin_trgm_ops"]
-      ]}},
+      {"repeated":0},
       {"sql":"select relkind from pg_class where oid = to_regclass($1)","params":["\"listings\""],"result":{"command":"SELECT","rowCount":1,"columns":[["relkind",18]],"rows":[["r"]]}},
-      {"sql":"\n    select ic.relname as name, am.amname as method, (i.indpred is not null) as partial, a.attname::text as column,\n      pg_get_indexdef(i.indexrelid, k.ord::int, true) as definition, oc.opcname::text as opclass\n    from pg_index i\n    join pg_class ic on ic.oid = i.indexrelid\n    join pg_am am on am.oid = ic.relam\n    cross join lateral unnest(i.indkey::int2[], i.indclass::oid[]) with ordinality k(attnum, opclass, ord)\n    left join pg_attribute a on a.attrelid = i.indrelid and a.attnum = k.attnum and k.attnum > 0\n    join pg_opclass oc on oc.oid = k.opclass\n    where i.indrelid = to_regclass($1) and i.indisvalid and i.indisready and k.ord <= i.indnkeyatts\n    order by ic.relname, k.ord\n  ","params":["\"listings\""],"result":{"command":"SELECT","rowCount":12,"columns":[["name",19],["method",19],["partial",16],["column",25],["definition",25],["opclass",25]],"rows":[
-        ["listings_attrs_idx","gin","f","attrs","attrs","jsonb_ops"],
-        ["listings_city_idx","btree","t","city","city","text_ops"],
-        ["listings_org_price_idx","btree","f","org","org","int4_ops"],
-        ["listings_org_price_idx","btree","f","price","price","int4_ops"],
-        ["listings_pkey","btree","f","id","id","int4_ops"],
-        ["listings_rent_idx","btree","f","for_rent","for_rent","bool_ops"],
-        ["listings_rent_idx","btree","f","status","status","text_ops"],
-        ["listings_rent_idx","btree","f","published_at","published_at","timestamptz_ops"],
-        ["listings_sale_idx","btree","f","for_sale","for_sale","bool_ops"],
-        ["listings_sale_idx","btree","f","status","status","text_ops"],
-        ["listings_sale_idx","btree","f","published_at","published_at","timestamptz_ops"],
-        ["listings_title_trgm_idx","gin","f","title","title","gin_trgm_ops"]
-      ]}},
+      {"repeated":0},
       {"sql":"select relkind from pg_class where oid = to_regclass($1)","params":["\"listings\""],"result":{"command":"SELECT","rowCount":1,"columns":[["relkind",18]],"rows":[["r"]]}},
-      {"sql":"\n    select ic.relname as name, am.amname as method, (i.indpred is not null) as partial, a.attname::text as column,\n      pg_get_indexdef(i.indexrelid, k.ord::int, true) as definition, oc.opcname::text as opclass\n    from pg_index i\n    join pg_class ic on ic.oid = i.indexrelid\n    join pg_am am on am.oid = ic.relam\n    cross join lateral unnest(i.indkey::int2[], i.indclass::oid[]) with ordinality k(attnum, opclass, ord)\n    left join pg_attribute a on a.attrelid = i.indrelid and a.attnum = k.attnum and k.attnum > 0\n    join pg_opclass oc on oc.oid = k.opclass\n    where i.indrelid = to_regclass($1) and i.indisvalid and i.indisready and k.ord <= i.indnkeyatts\n    order by ic.relname, k.ord\n  ","params":["\"listings\""],"result":{"command":"SELECT","rowCount":12,"columns":[["name",19],["method",19],["partial",16],["column",25],["definition",25],["opclass",25]],"rows":[
-        ["listings_attrs_idx","gin","f","attrs","attrs","jsonb_ops"],
-        ["listings_city_idx","btree","t","city","city","text_ops"],
-        ["listings_org_price_idx","btree","f","org","org","int4_ops"],
-        ["listings_org_price_idx","btree","f","price","price","int4_ops"],
-        ["listings_pkey","btree","f","id","id","int4_ops"],
-        ["listings_rent_idx","btree","f","for_rent","for_rent","bool_ops"],
-        ["listings_rent_idx","btree","f","status","status","text_ops"],
-        ["listings_rent_idx","btree","f","published_at","published_at","timestamptz_ops"],
-        ["listings_sale_idx","btree","f","for_sale","for_sale","bool_ops"],
-        ["listings_sale_idx","btree","f","status","status","text_ops"],
-        ["listings_sale_idx","btree","f","published_at","published_at","timestamptz_ops"],
-        ["listings_title_trgm_idx","gin","f","title","title","gin_trgm_ops"]
-      ]}}
+      {"repeated":0}
     ]
   },
   "uncoveredColumns > counts the tenant column as pinned": {
     "(hooks)#0": [
       {"sql":"select relkind from pg_class where oid = to_regclass($1)","params":["\"listings\""],"result":{"command":"SELECT","rowCount":1,"columns":[["relkind",18]],"rows":[["r"]]}},
-      {"sql":"\n    select ic.relname as name, am.amname as method, (i.indpred is not null) as partial, a.attname::text as column,\n      pg_get_indexdef(i.indexrelid, k.ord::int, true) as definition, oc.opcname::text as opclass\n    from pg_index i\n    join pg_class ic on ic.oid = i.indexrelid\n    join pg_am am on am.oid = ic.relam\n    cross join lateral unnest(i.indkey::int2[], i.indclass::oid[]) with ordinality k(attnum, opclass, ord)\n    left join pg_attribute a on a.attrelid = i.indrelid and a.attnum = k.attnum and k.attnum > 0\n    join pg_opclass oc on oc.oid = k.opclass\n    where i.indrelid = to_regclass($1) and i.indisvalid and i.indisready and k.ord <= i.indnkeyatts\n    order by ic.relname, k.ord\n  ","params":["\"listings\""],"result":{"command":"SELECT","rowCount":12,"columns":[["name",19],["method",19],["partial",16],["column",25],["definition",25],["opclass",25]],"rows":[
-        ["listings_attrs_idx","gin","f","attrs","attrs","jsonb_ops"],
-        ["listings_city_idx","btree","t","city","city","text_ops"],
-        ["listings_org_price_idx","btree","f","org","org","int4_ops"],
-        ["listings_org_price_idx","btree","f","price","price","int4_ops"],
-        ["listings_pkey","btree","f","id","id","int4_ops"],
-        ["listings_rent_idx","btree","f","for_rent","for_rent","bool_ops"],
-        ["listings_rent_idx","btree","f","status","status","text_ops"],
-        ["listings_rent_idx","btree","f","published_at","published_at","timestamptz_ops"],
-        ["listings_sale_idx","btree","f","for_sale","for_sale","bool_ops"],
-        ["listings_sale_idx","btree","f","status","status","text_ops"],
-        ["listings_sale_idx","btree","f","published_at","published_at","timestamptz_ops"],
-        ["listings_title_trgm_idx","gin","f","title","title","gin_trgm_ops"]
-      ]}},
+      {"repeated":0},
       {"sql":"select relkind from pg_class where oid = to_regclass($1)","params":["\"listings\""],"result":{"command":"SELECT","rowCount":1,"columns":[["relkind",18]],"rows":[["r"]]}},
-      {"sql":"\n    select ic.relname as name, am.amname as method, (i.indpred is not null) as partial, a.attname::text as column,\n      pg_get_indexdef(i.indexrelid, k.ord::int, true) as definition, oc.opcname::text as opclass\n    from pg_index i\n    join pg_class ic on ic.oid = i.indexrelid\n    join pg_am am on am.oid = ic.relam\n    cross join lateral unnest(i.indkey::int2[], i.indclass::oid[]) with ordinality k(attnum, opclass, ord)\n    left join pg_attribute a on a.attrelid = i.indrelid and a.attnum = k.attnum and k.attnum > 0\n    join pg_opclass oc on oc.oid = k.opclass\n    where i.indrelid = to_regclass($1) and i.indisvalid and i.indisready and k.ord <= i.indnkeyatts\n    order by ic.relname, k.ord\n  ","params":["\"listings\""],"result":{"command":"SELECT","rowCount":12,"columns":[["name",19],["method",19],["partial",16],["column",25],["definition",25],["opclass",25]],"rows":[
-        ["listings_attrs_idx","gin","f","attrs","attrs","jsonb_ops"],
-        ["listings_city_idx","btree","t","city","city","text_ops"],
-        ["listings_org_price_idx","btree","f","org","org","int4_ops"],
-        ["listings_org_price_idx","btree","f","price","price","int4_ops"],
-        ["listings_pkey","btree","f","id","id","int4_ops"],
-        ["listings_rent_idx","btree","f","for_rent","for_rent","bool_ops"],
-        ["listings_rent_idx","btree","f","status","status","text_ops"],
-        ["listings_rent_idx","btree","f","published_at","published_at","timestamptz_ops"],
-        ["listings_sale_idx","btree","f","for_sale","for_sale","bool_ops"],
-        ["listings_sale_idx","btree","f","status","status","text_ops"],
-        ["listings_sale_idx","btree","f","published_at","published_at","timestamptz_ops"],
-        ["listings_title_trgm_idx","gin","f","title","title","gin_trgm_ops"]
-      ]}}
+      {"repeated":0}
     ]
   },
   "uncoveredColumns > does not count a partial index": {
     "(hooks)#0": [
       {"sql":"select relkind from pg_class where oid = to_regclass($1)","params":["\"listings\""],"result":{"command":"SELECT","rowCount":1,"columns":[["relkind",18]],"rows":[["r"]]}},
-      {"sql":"\n    select ic.relname as name, am.amname as method, (i.indpred is not null) as partial, a.attname::text as column,\n      pg_get_indexdef(i.indexrelid, k.ord::int, true) as definition, oc.opcname::text as opclass\n    from pg_index i\n    join pg_class ic on ic.oid = i.indexrelid\n    join pg_am am on am.oid = ic.relam\n    cross join lateral unnest(i.indkey::int2[], i.indclass::oid[]) with ordinality k(attnum, opclass, ord)\n    left join pg_attribute a on a.attrelid = i.indrelid and a.attnum = k.attnum and k.attnum > 0\n    join pg_opclass oc on oc.oid = k.opclass\n    where i.indrelid = to_regclass($1) and i.indisvalid and i.indisready and k.ord <= i.indnkeyatts\n    order by ic.relname, k.ord\n  ","params":["\"listings\""],"result":{"command":"SELECT","rowCount":12,"columns":[["name",19],["method",19],["partial",16],["column",25],["definition",25],["opclass",25]],"rows":[
-        ["listings_attrs_idx","gin","f","attrs","attrs","jsonb_ops"],
-        ["listings_city_idx","btree","t","city","city","text_ops"],
-        ["listings_org_price_idx","btree","f","org","org","int4_ops"],
-        ["listings_org_price_idx","btree","f","price","price","int4_ops"],
-        ["listings_pkey","btree","f","id","id","int4_ops"],
-        ["listings_rent_idx","btree","f","for_rent","for_rent","bool_ops"],
-        ["listings_rent_idx","btree","f","status","status","text_ops"],
-        ["listings_rent_idx","btree","f","published_at","published_at","timestamptz_ops"],
-        ["listings_sale_idx","btree","f","for_sale","for_sale","bool_ops"],
-        ["listings_sale_idx","btree","f","status","status","text_ops"],
-        ["listings_sale_idx","btree","f","published_at","published_at","timestamptz_ops"],
-        ["listings_title_trgm_idx","gin","f","title","title","gin_trgm_ops"]
-      ]}}
+      {"repeated":0}
     ]
   },
   "uncoveredColumns > needs a trigram index for patterns, regex and search, and a GIN index for JSON": {
     "(hooks)#0": [
       {"sql":"select relkind from pg_class where oid = to_regclass($1)","params":["\"listings\""],"result":{"command":"SELECT","rowCount":1,"columns":[["relkind",18]],"rows":[["r"]]}},
-      {"sql":"\n    select ic.relname as name, am.amname as method, (i.indpred is not null) as partial, a.attname::text as column,\n      pg_get_indexdef(i.indexrelid, k.ord::int, true) as definition, oc.opcname::text as opclass\n    from pg_index i\n    join pg_class ic on ic.oid = i.indexrelid\n    join pg_am am on am.oid = ic.relam\n    cross join lateral unnest(i.indkey::int2[], i.indclass::oid[]) with ordinality k(attnum, opclass, ord)\n    left join pg_attribute a on a.attrelid = i.indrelid and a.attnum = k.attnum and k.attnum > 0\n    join pg_opclass oc on oc.oid = k.opclass\n    where i.indrelid = to_regclass($1) and i.indisvalid and i.indisready and k.ord <= i.indnkeyatts\n    order by ic.relname, k.ord\n  ","params":["\"listings\""],"result":{"command":"SELECT","rowCount":12,"columns":[["name",19],["method",19],["partial",16],["column",25],["definition",25],["opclass",25]],"rows":[
-        ["listings_attrs_idx","gin","f","attrs","attrs","jsonb_ops"],
-        ["listings_city_idx","btree","t","city","city","text_ops"],
-        ["listings_org_price_idx","btree","f","org","org","int4_ops"],
-        ["listings_org_price_idx","btree","f","price","price","int4_ops"],
-        ["listings_pkey","btree","f","id","id","int4_ops"],
-        ["listings_rent_idx","btree","f","for_rent","for_rent","bool_ops"],
-        ["listings_rent_idx","btree","f","status","status","text_ops"],
-        ["listings_rent_idx","btree","f","published_at","published_at","timestamptz_ops"],
-        ["listings_sale_idx","btree","f","for_sale","for_sale","bool_ops"],
-        ["listings_sale_idx","btree","f","status","status","text_ops"],
-        ["listings_sale_idx","btree","f","published_at","published_at","timestamptz_ops"],
-        ["listings_title_trgm_idx","gin","f","title","title","gin_trgm_ops"]
-      ]}},
+      {"repeated":0},
       {"sql":"select relkind from pg_class where oid = to_regclass($1)","params":["\"listings\""],"result":{"command":"SELECT","rowCount":1,"columns":[["relkind",18]],"rows":[["r"]]}},
-      {"sql":"\n    select ic.relname as name, am.amname as method, (i.indpred is not null) as partial, a.attname::text as column,\n      pg_get_indexdef(i.indexrelid, k.ord::int, true) as definition, oc.opcname::text as opclass\n    from pg_index i\n    join pg_class ic on ic.oid = i.indexrelid\n    join pg_am am on am.oid = ic.relam\n    cross join lateral unnest(i.indkey::int2[], i.indclass::oid[]) with ordinality k(attnum, opclass, ord)\n    left join pg_attribute a on a.attrelid = i.indrelid and a.attnum = k.attnum and k.attnum > 0\n    join pg_opclass oc on oc.oid = k.opclass\n    where i.indrelid = to_regclass($1) and i.indisvalid and i.indisready and k.ord <= i.indnkeyatts\n    order by ic.relname, k.ord\n  ","params":["\"listings\""],"result":{"command":"SELECT","rowCount":12,"columns":[["name",19],["method",19],["partial",16],["column",25],["definition",25],["opclass",25]],"rows":[
-        ["listings_attrs_idx","gin","f","attrs","attrs","jsonb_ops"],
-        ["listings_city_idx","btree","t","city","city","text_ops"],
-        ["listings_org_price_idx","btree","f","org","org","int4_ops"],
-        ["listings_org_price_idx","btree","f","price","price","int4_ops"],
-        ["listings_pkey","btree","f","id","id","int4_ops"],
-        ["listings_rent_idx","btree","f","for_rent","for_rent","bool_ops"],
-        ["listings_rent_idx","btree","f","status","status","text_ops"],
-        ["listings_rent_idx","btree","f","published_at","published_at","timestamptz_ops"],
-        ["listings_sale_idx","btree","f","for_sale","for_sale","bool_ops"],
-        ["listings_sale_idx","btree","f","status","status","text_ops"],
-        ["listings_sale_idx","btree","f","published_at","published_at","timestamptz_ops"],
-        ["listings_title_trgm_idx","gin","f","title","title","gin_trgm_ops"]
-      ]}},
+      {"repeated":0},
       {"sql":"select relkind from pg_class where oid = to_regclass($1)","params":["\"listings\""],"result":{"command":"SELECT","rowCount":1,"columns":[["relkind",18]],"rows":[["r"]]}},
-      {"sql":"\n    select ic.relname as name, am.amname as method, (i.indpred is not null) as partial, a.attname::text as column,\n      pg_get_indexdef(i.indexrelid, k.ord::int, true) as definition, oc.opcname::text as opclass\n    from pg_index i\n    join pg_class ic on ic.oid = i.indexrelid\n    join pg_am am on am.oid = ic.relam\n    cross join lateral unnest(i.indkey::int2[], i.indclass::oid[]) with ordinality k(attnum, opclass, ord)\n    left join pg_attribute a on a.attrelid = i.indrelid and a.attnum = k.attnum and k.attnum > 0\n    join pg_opclass oc on oc.oid = k.opclass\n    where i.indrelid = to_regclass($1) and i.indisvalid and i.indisready and k.ord <= i.indnkeyatts\n    order by ic.relname, k.ord\n  ","params":["\"listings\""],"result":{"command":"SELECT","rowCount":12,"columns":[["name",19],["method",19],["partial",16],["column",25],["definition",25],["opclass",25]],"rows":[
-        ["listings_attrs_idx","gin","f","attrs","attrs","jsonb_ops"],
-        ["listings_city_idx","btree","t","city","city","text_ops"],
-        ["listings_org_price_idx","btree","f","org","org","int4_ops"],
-        ["listings_org_price_idx","btree","f","price","price","int4_ops"],
-        ["listings_pkey","btree","f","id","id","int4_ops"],
-        ["listings_rent_idx","btree","f","for_rent","for_rent","bool_ops"],
-        ["listings_rent_idx","btree","f","status","status","text_ops"],
-        ["listings_rent_idx","btree","f","published_at","published_at","timestamptz_ops"],
-        ["listings_sale_idx","btree","f","for_sale","for_sale","bool_ops"],
-        ["listings_sale_idx","btree","f","status","status","text_ops"],
-        ["listings_sale_idx","btree","f","published_at","published_at","timestamptz_ops"],
-        ["listings_title_trgm_idx","gin","f","title","title","gin_trgm_ops"]
-      ]}},
+      {"repeated":0},
       {"sql":"select relkind from pg_class where oid = to_regclass($1)","params":["\"listings\""],"result":{"command":"SELECT","rowCount":1,"columns":[["relkind",18]],"rows":[["r"]]}},
-      {"sql":"\n    select ic.relname as name, am.amname as method, (i.indpred is not null) as partial, a.attname::text as column,\n      pg_get_indexdef(i.indexrelid, k.ord::int, true) as definition, oc.opcname::text as opclass\n    from pg_index i\n    join pg_class ic on ic.oid = i.indexrelid\n    join pg_am am on am.oid = ic.relam\n    cross join lateral unnest(i.indkey::int2[], i.indclass::oid[]) with ordinality k(attnum, opclass, ord)\n    left join pg_attribute a on a.attrelid = i.indrelid and a.attnum = k.attnum and k.attnum > 0\n    join pg_opclass oc on oc.oid = k.opclass\n    where i.indrelid = to_regclass($1) and i.indisvalid and i.indisready and k.ord <= i.indnkeyatts\n    order by ic.relname, k.ord\n  ","params":["\"listings\""],"result":{"command":"SELECT","rowCount":12,"columns":[["name",19],["method",19],["partial",16],["column",25],["definition",25],["opclass",25]],"rows":[
-        ["listings_attrs_idx","gin","f","attrs","attrs","jsonb_ops"],
-        ["listings_city_idx","btree","t","city","city","text_ops"],
-        ["listings_org_price_idx","btree","f","org","org","int4_ops"],
-        ["listings_org_price_idx","btree","f","price","price","int4_ops"],
-        ["listings_pkey","btree","f","id","id","int4_ops"],
-        ["listings_rent_idx","btree","f","for_rent","for_rent","bool_ops"],
-        ["listings_rent_idx","btree","f","status","status","text_ops"],
-        ["listings_rent_idx","btree","f","published_at","published_at","timestamptz_ops"],
-        ["listings_sale_idx","btree","f","for_sale","for_sale","bool_ops"],
-        ["listings_sale_idx","btree","f","status","status","text_ops"],
-        ["listings_sale_idx","btree","f","published_at","published_at","timestamptz_ops"],
-        ["listings_title_trgm_idx","gin","f","title","title","gin_trgm_ops"]
-      ]}},
+      {"repeated":0},
       {"sql":"select relkind from pg_class where oid = to_regclass($1)","params":["\"listings\""],"result":{"command":"SELECT","rowCount":1,"columns":[["relkind",18]],"rows":[["r"]]}},
-      {"sql":"\n    select ic.relname as name, am.amname as method, (i.indpred is not null) as partial, a.attname::text as column,\n      pg_get_indexdef(i.indexrelid, k.ord::int, true) as definition, oc.opcname::text as opclass\n    from pg_index i\n    join pg_class ic on ic.oid = i.indexrelid\n    join pg_am am on am.oid = ic.relam\n    cross join lateral unnest(i.indkey::int2[], i.indclass::oid[]) with ordinality k(attnum, opclass, ord)\n    left join pg_attribute a on a.attrelid = i.indrelid and a.attnum = k.attnum and k.attnum > 0\n    join pg_opclass oc on oc.oid = k.opclass\n    where i.indrelid = to_regclass($1) and i.indisvalid and i.indisready and k.ord <= i.indnkeyatts\n    order by ic.relname, k.ord\n  ","params":["\"listings\""],"result":{"command":"SELECT","rowCount":12,"columns":[["name",19],["method",19],["partial",16],["column",25],["definition",25],["opclass",25]],"rows":[
-        ["listings_attrs_idx","gin","f","attrs","attrs","jsonb_ops"],
-        ["listings_city_idx","btree","t","city","city","text_ops"],
-        ["listings_org_price_idx","btree","f","org","org","int4_ops"],
-        ["listings_org_price_idx","btree","f","price","price","int4_ops"],
-        ["listings_pkey","btree","f","id","id","int4_ops"],
-        ["listings_rent_idx","btree","f","for_rent","for_rent","bool_ops"],
-        ["listings_rent_idx","btree","f","status","status","text_ops"],
-        ["listings_rent_idx","btree","f","published_at","published_at","timestamptz_ops"],
-        ["listings_sale_idx","btree","f","for_sale","for_sale","bool_ops"],
-        ["listings_sale_idx","btree","f","status","status","text_ops"],
-        ["listings_sale_idx","btree","f","published_at","published_at","timestamptz_ops"],
-        ["listings_title_trgm_idx","gin","f","title","title","gin_trgm_ops"]
-      ]}},
+      {"repeated":0},
       {"sql":"create index listings_phone_idx on listings using gin ((regexp_replace(phone, '[^0-9]', '', 'g')) gin_trgm_ops)","result":{"command":"CREATE","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select relkind from pg_class where oid = to_regclass($1)","params":["\"listings\""],"result":{"command":"SELECT","rowCount":1,"columns":[["relkind",18]],"rows":[["r"]]}},
       {"sql":"\n    select ic.relname as name, am.amname as method, (i.indpred is not null) as partial, a.attname::text as column,\n      pg_get_indexdef(i.indexrelid, k.ord::int, true) as definition, oc.opcname::text as opclass\n    from pg_index i\n    join pg_class ic on ic.oid = i.indexrelid\n    join pg_am am on am.oid = ic.relam\n    cross join lateral unnest(i.indkey::int2[], i.indclass::oid[]) with ordinality k(attnum, opclass, ord)\n    left join pg_attribute a on a.attrelid = i.indrelid and a.attnum = k.attnum and k.attnum > 0\n    join pg_opclass oc on oc.oid = k.opclass\n    where i.indrelid = to_regclass($1) and i.indisvalid and i.indisready and k.ord <= i.indnkeyatts\n    order by ic.relname, k.ord\n  ","params":["\"listings\""],"result":{"command":"SELECT","rowCount":13,"columns":[["name",19],["method",19],["partial",16],["column",25],["definition",25],["opclass",25]],"rows":[
@@ -370,39 +139,13 @@
   "uncoveredColumns > judges the access row filter as well": {
     "(hooks)#0": [
       {"sql":"select relkind from pg_class where oid = to_regclass($1)","params":["\"listings\""],"result":{"command":"SELECT","rowCount":1,"columns":[["relkind",18]],"rows":[["r"]]}},
-      {"sql":"\n    select ic.relname as name, am.amname as method, (i.indpred is not null) as partial, a.attname::text as column,\n      pg_get_indexdef(i.indexrelid, k.ord::int, true) as definition, oc.opcname::text as opclass\n    from pg_index i\n    join pg_class ic on ic.oid = i.indexrelid\n    join pg_am am on am.oid = ic.relam\n    cross join lateral unnest(i.indkey::int2[], i.indclass::oid[]) with ordinality k(attnum, opclass, ord)\n    left join pg_attribute a on a.attrelid = i.indrelid and a.attnum = k.attnum and k.attnum > 0\n    join pg_opclass oc on oc.oid = k.opclass\n    where i.indrelid = to_regclass($1) and i.indisvalid and i.indisready and k.ord <= i.indnkeyatts\n    order by ic.relname, k.ord\n  ","params":["\"listings\""],"result":{"command":"SELECT","rowCount":12,"columns":[["name",19],["method",19],["partial",16],["column",25],["definition",25],["opclass",25]],"rows":[
-        ["listings_attrs_idx","gin","f","attrs","attrs","jsonb_ops"],
-        ["listings_city_idx","btree","t","city","city","text_ops"],
-        ["listings_org_price_idx","btree","f","org","org","int4_ops"],
-        ["listings_org_price_idx","btree","f","price","price","int4_ops"],
-        ["listings_pkey","btree","f","id","id","int4_ops"],
-        ["listings_rent_idx","btree","f","for_rent","for_rent","bool_ops"],
-        ["listings_rent_idx","btree","f","status","status","text_ops"],
-        ["listings_rent_idx","btree","f","published_at","published_at","timestamptz_ops"],
-        ["listings_sale_idx","btree","f","for_sale","for_sale","bool_ops"],
-        ["listings_sale_idx","btree","f","status","status","text_ops"],
-        ["listings_sale_idx","btree","f","published_at","published_at","timestamptz_ops"],
-        ["listings_title_trgm_idx","gin","f","title","title","gin_trgm_ops"]
-      ]}}
+      {"repeated":0}
     ]
   },
   "uncoveredColumns > needs a btree index on a grouped field": {
     "(hooks)#0": [
       {"sql":"select relkind from pg_class where oid = to_regclass($1)","params":["\"listings\""],"result":{"command":"SELECT","rowCount":1,"columns":[["relkind",18]],"rows":[["r"]]}},
-      {"sql":"\n    select ic.relname as name, am.amname as method, (i.indpred is not null) as partial, a.attname::text as column,\n      pg_get_indexdef(i.indexrelid, k.ord::int, true) as definition, oc.opcname::text as opclass\n    from pg_index i\n    join pg_class ic on ic.oid = i.indexrelid\n    join pg_am am on am.oid = ic.relam\n    cross join lateral unnest(i.indkey::int2[], i.indclass::oid[]) with ordinality k(attnum, opclass, ord)\n    left join pg_attribute a on a.attrelid = i.indrelid and a.attnum = k.attnum and k.attnum > 0\n    join pg_opclass oc on oc.oid = k.opclass\n    where i.indrelid = to_regclass($1) and i.indisvalid and i.indisready and k.ord <= i.indnkeyatts\n    order by ic.relname, k.ord\n  ","params":["\"listings\""],"result":{"command":"SELECT","rowCount":12,"columns":[["name",19],["method",19],["partial",16],["column",25],["definition",25],["opclass",25]],"rows":[
-        ["listings_attrs_idx","gin","f","attrs","attrs","jsonb_ops"],
-        ["listings_city_idx","btree","t","city","city","text_ops"],
-        ["listings_org_price_idx","btree","f","org","org","int4_ops"],
-        ["listings_org_price_idx","btree","f","price","price","int4_ops"],
-        ["listings_pkey","btree","f","id","id","int4_ops"],
-        ["listings_rent_idx","btree","f","for_rent","for_rent","bool_ops"],
-        ["listings_rent_idx","btree","f","status","status","text_ops"],
-        ["listings_rent_idx","btree","f","published_at","published_at","timestamptz_ops"],
-        ["listings_sale_idx","btree","f","for_sale","for_sale","bool_ops"],
-        ["listings_sale_idx","btree","f","status","status","text_ops"],
-        ["listings_sale_idx","btree","f","published_at","published_at","timestamptz_ops"],
-        ["listings_title_trgm_idx","gin","f","title","title","gin_trgm_ops"]
-      ]}}
+      {"repeated":0}
     ]
   },
   "uncoveredColumns > does not judge a plain view, which has no indexes of its own": {

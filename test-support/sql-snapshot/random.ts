@@ -3,9 +3,29 @@ import nodeCrypto from 'node:crypto'
 import { syncBuiltinESMExports } from 'node:module'
 import { vi } from 'vitest'
 
-// Better Auth's ids, tokens and password salts, and anything else drawn from crypto, go into SQL params, so record and
-// replay must draw the same values: each test draws from a sequence of its own, seeded with its name, and the hooks of
-// a file from another that runs on across them.
+// Better Auth's ids, tokens, password salts and signing keys, and anything else drawn from crypto, go into SQL params,
+// so record and replay must draw the same values: each test draws from a sequence of its own, seeded with its name, and
+// the hooks of a file from another that runs on across them. What only recording does, such as logging in to Postgres,
+// draws real randomness instead (`withRealRandomness`), so the sequences stay the same in both.
+
+const real = {
+  getRandomValues: globalThis.crypto.getRandomValues.bind(globalThis.crypto),
+  randomUUID: globalThis.crypto.randomUUID.bind(globalThis.crypto),
+  randomBytes: nodeCrypto.randomBytes,
+  randomFillSync: nodeCrypto.randomFillSync,
+  generateKey: globalThis.crypto.subtle.generateKey.bind(globalThis.crypto.subtle),
+}
+let realDepth = 0
+
+/** Runs `work` on real randomness: work that recording does and replay does not. */
+export const withRealRandomness = async <T>(work: () => Promise<T>) => {
+  realDepth++
+  try {
+    return await work()
+  } finally {
+    realDepth--
+  }
+}
 
 const sequence = (seed: string) => {
   let counter = 0
@@ -21,11 +41,13 @@ const sequence = (seed: string) => {
 let draw = sequence('')
 
 const fill = <T extends ArrayBufferView | null>(array: T) => {
+  if (realDepth) return real.getRandomValues(array as never) as T
   if (array) new Uint8Array(array.buffer, array.byteOffset, array.byteLength).set(draw(array.byteLength))
   return array
 }
 
 const uuid = () => {
+  if (realDepth) return real.randomUUID()
   const bytes = draw(16)
   bytes[6] = (bytes[6]! & 0x0f) | 0x40
   bytes[8] = (bytes[8]! & 0x3f) | 0x80
@@ -34,10 +56,30 @@ const uuid = () => {
 }
 
 const randomBytes = ((size: number, callback?: (error: Error | null, bytes: Buffer) => void) => {
+  if (realDepth) return real.randomBytes(size, callback as never)
   const bytes = draw(size)
   if (!callback) return bytes
   queueMicrotask(() => callback(null, bytes))
 }) as typeof nodeCrypto.randomBytes
+
+// An Ed25519 private key in PKCS #8 is this prefix and its 32-byte seed.
+const ed25519Prefix = Buffer.from('302e020100300506032b657004220420', 'hex')
+
+/**
+ * Ed25519 key pairs, the kind Better Auth signs its tokens with and stores, made from the sequence's bytes. Other kinds
+ * stay random, as their signatures are anyway: one that reached SQL would fail replay as a stale snapshot.
+ */
+const generateKey = (async (algorithm: AlgorithmIdentifier, extractable: boolean, usages: KeyUsage[]) => {
+  const name = typeof algorithm === 'string' ? algorithm : algorithm.name
+  if (realDepth || name !== 'Ed25519') return real.generateKey(algorithm as never, extractable, usages)
+  const pkcs8 = Buffer.concat([ed25519Prefix, draw(32)])
+  const spki = nodeCrypto.createPublicKey(nodeCrypto.createPrivateKey({ key: pkcs8, format: 'der', type: 'pkcs8' })).export({ format: 'der', type: 'spki' })
+  const { subtle } = globalThis.crypto
+  return {
+    privateKey: await subtle.importKey('pkcs8', pkcs8, 'Ed25519', extractable, usages.filter((usage) => usage === 'sign')),
+    publicKey: await subtle.importKey('spki', spki, 'Ed25519', true, usages.filter((usage) => usage === 'verify')),
+  }
+}) as typeof globalThis.crypto.subtle.generateKey
 
 /** Replaces crypto's random sources, the Web Crypto ones and node:crypto's, with seeded sequences. */
 export const seedRandomness = () => {
@@ -45,7 +87,8 @@ export const seedRandomness = () => {
   vi.spyOn(globalThis.crypto, 'randomUUID').mockImplementation(uuid)
   vi.spyOn(nodeCrypto, 'randomBytes').mockImplementation(randomBytes)
   vi.spyOn(nodeCrypto, 'randomUUID').mockImplementation(uuid)
-  vi.spyOn(nodeCrypto, 'randomFillSync').mockImplementation(fill as never)
+  vi.spyOn(nodeCrypto, 'randomFillSync').mockImplementation(((array: NodeJS.ArrayBufferView) => (realDepth ? real.randomFillSync(array) : fill(array))) as never)
+  vi.spyOn(globalThis.crypto.subtle, 'generateKey').mockImplementation(generateKey)
   if (nodeCrypto.webcrypto !== globalThis.crypto) vi.spyOn(nodeCrypto.webcrypto, 'getRandomValues').mockImplementation(fill as never)
   syncBuiltinESMExports()
 }

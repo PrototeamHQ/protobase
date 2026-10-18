@@ -15,13 +15,16 @@ create index on companies (organization_id, name);
 create index on companies (organization_id, status);
 create index on companies (organization_id, revenue);
 create index on companies (organization_id, created_at);
-insert into companies (organization_id, name, status, revenue, created_at)
+-- Fixed times, before the snapshot tests' clock (test-support/sql-snapshot/clock.ts), so no row holds the time it was made.
+insert into companies (organization_id, name, status, revenue, created_at, updated_at)
 select case when i <= 3000 then 1 else 2 end, 'Company ' || i, (array['open','won','lost'])[1 + i % 3], i % 1000,
-  timestamptz '2026-01-01 00:00:00+00' + (i % 200) * interval '1 day'
+  timestamptz '2026-01-01 00:00:00+00' + (i % 200) * interval '1 day', timestamptz '2026-07-25 00:00:00+00'
 from generate_series(1, 3500) i;
-update companies set deleted_at = now() where id % 100 = 0;
+update companies set deleted_at = timestamptz '2026-07-26 00:00:00+00' where id % 100 = 0;
 
-create table labels (id integer generated always as identity primary key, organization_id integer not null, name text not null, color text, code text not null default md5(random()::text));
+-- A database default that is the same on every recording: an md5 of a counter, not of random().
+create sequence label_codes;
+create table labels (id integer generated always as identity primary key, organization_id integer not null, name text not null, color text, code text not null default md5(nextval('label_codes')::text));
 insert into labels (organization_id, name, color) values (1, 'urgent', 'red'), (1, 'later', null), (2, 'other-org', 'blue');
 
 create table line_items (
