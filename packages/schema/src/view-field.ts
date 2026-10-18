@@ -33,7 +33,10 @@ export class FieldView<N extends string = string, V = unknown> {
     return this.with({ when })
   }
 
-  /** How the value shows: `badge` for statuses, `code` in monospace, `percent` with a % sign. */
+  /**
+   * How the value shows: `badge` for statuses, `code` in monospace, `percent` with a % sign; for a text field, `email`,
+   * `phone` and `url` as a mail, call or open link, edited with an email, phone or address keyboard on a mobile screen.
+   */
   format(format: FieldFormat) {
     return this.with({ format })
   }

@@ -253,10 +253,11 @@ export type AppAddress =
     }
 
 /**
- * How a value is shown: `badge` as a coloured badge, `code` in monospace, `percent` with a % sign. `relative`,
+ * How a value is shown: `badge` as a coloured badge, `code` in monospace, `percent` with a % sign; a text field's
+ * `email`, `phone` and `url` as a link that writes, calls or opens it, edited with the keyboard for it. `relative`,
  * `absolute` and `compact` are carried in `/meta` for apps that render their own lists.
  */
-export type FieldFormat = 'relative' | 'absolute' | 'compact' | 'percent' | 'badge' | 'code'
+export type FieldFormat = 'relative' | 'absolute' | 'compact' | 'percent' | 'badge' | 'code' | 'email' | 'phone' | 'url'
 
 /** A view's hints for one field (`.fields((r) => ...)`); see [Names and columns](website/src/content/docs/reference/ui-config.mdx#names-and-columns). */
 export type FieldViewModel = {

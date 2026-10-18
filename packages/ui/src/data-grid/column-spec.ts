@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import type { BadgeTone } from '../primitives/badge'
+import type { ContactFormat } from '../live/contact-links'
 
 export type ColumnKind =
   | 'text' | 'id' | 'money' | 'date' | 'datetime' | 'status' | 'relation'
@@ -35,6 +36,8 @@ export type ColumnSpec = {
   shape?: 'arrow'
   /** Badge text per value, for `status` columns; a value without one reads as itself in words. */
   labels?: Record<string, string>
+  /** For a `text` column of addresses: each value a link that writes to, calls or opens it. */
+  link?: ContactFormat
   /** Reads the cell value; defaults to `row[id]`. */
   value?: (row: GridRow) => unknown
   /** Draws the cell instead of its kind, such as a field type's cell. */

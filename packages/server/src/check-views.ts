@@ -57,13 +57,16 @@ const valueColorErrors = (view: ViewModel, model: ResourceModel) =>
     return Object.keys(hints.valueColors).filter((value) => !field.enumValues?.includes(value)).map((value) => `value colour "${value}" is not a value of "${name}"`)
   })
 
-// Only text runs over several lines or holds markdown, so a box that grows with it fits no other field.
+// Only text runs over several lines, holds markdown or is an address to write, call or open, so a box that grows with
+// it or a link to it fits no other field.
 const textHints = ['multiline', 'markdown'] as const
+const textFormats = new Set(['email', 'phone', 'url'])
 const textHintErrors = (view: ViewModel, model: ResourceModel) =>
   Object.entries(view.fields).flatMap(([name, hints]) => {
     const field = model.fields[name]
     if (!field || field.type === 'text') return []
-    return textHints.filter((hint) => hints[hint]).map((hint) => `${hint} "${name}" needs a text field, not ${field.type}`)
+    const format = hints.format !== undefined && textFormats.has(hints.format) ? [`format('${hints.format}') of "${name}" needs a text field, not ${field.type}`] : []
+    return [...textHints.filter((hint) => hints[hint]).map((hint) => `${hint} "${name}" needs a text field, not ${field.type}`), ...format]
   })
 
 // A link goes to an address the app has, or leaves the app; a path in the app is written as an address, and a link

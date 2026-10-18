@@ -6,6 +6,7 @@ import { humanize } from './naming'
 import { markdownExcerpt } from '../markdown/markdown-excerpt'
 import { isMarkdown } from '../markdown/markdown-hint'
 import { recordTitleField } from './model-helpers'
+import { contactFormat } from './contact-links'
 
 const tones: Record<string, BadgeTone> = {
   draft: 'neutral',
@@ -97,6 +98,8 @@ export const columnsFromModel = (resource: ResourceModel, view: ViewModel | unde
       minWidth: Math.max(kind === 'id' ? 150 : 0, headerWidth(viewField?.label ?? humanize(name), field.sortable), kind === 'status' ? badgeWidth(Object.values(labels)) : 0, suffixWidth > 0 ? widths[kind] + suffixWidth : 0),
       ...(fixedKinds.has(kind) && { fixed: true }),
       ...(name === title && { title: true }),
+      // The title cell links to the record, so an address there stays text
+      ...(kind === 'text' && name !== title && contactFormat(viewField) && { link: contactFormat(viewField) }),
       ...(highlight.includes(name) && { highlight: true }),
       ...(field.type === 'enum' && { tones: Object.fromEntries((field.enumValues ?? []).map((value) => [value, toneFor(value)])), labels }),
       ...(field.type === 'enum' && viewField?.valueColors && { colors: viewField.valueColors }),

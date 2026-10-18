@@ -19,6 +19,8 @@ import { Markdown } from '../markdown/markdown'
 import { MarkdownEditor } from '../markdown/markdown-editor'
 import { isMarkdown } from '../markdown/markdown-hint'
 import { numeric, numericInputProps } from './numeric-input'
+import { ContactLink } from '../live/contact-link'
+import { contactFormat, contactInputProps } from '../live/contact-links'
 
 export type FieldEditorProps = {
   field: FieldModel
@@ -69,6 +71,8 @@ const BuiltInEditor = ({ field, hints, value, stored, relationLabel, relationTo,
   const multiline = Boolean(hints?.multiline) && field.type === 'text'
   const markdown = isMarkdown(field, hints)
   if ((!isEditable(field) || locked) && markdown && typeof stored === 'string' && stored !== '') return <Markdown source={stored} className="py-1.5" />
+  const contact = field.type === 'text' ? contactFormat(hints) : undefined
+  if ((!isEditable(field) || locked) && contact && typeof stored === 'string' && stored !== '') return <div className="min-w-0 break-words py-1.5"><ContactLink format={contact} value={stored} /></div>
   if (!isEditable(field) || locked) {
     return <div title={valueTitle(field, stored)} className={cn('py-1.5 tabular-nums', field.type === 'decimal' || field.type === 'integer' ? 'font-medium' : 'text-muted-foreground', multiline && 'whitespace-pre-line break-words')}>{displayValue(field, stored, hints)}</div>
   }
@@ -100,6 +104,7 @@ const BuiltInEditor = ({ field, hints, value, stored, relationLabel, relationTo,
       placeholder={placeholder}
       className={cn(numeric.has(field.type) && 'text-right tabular-nums')}
       {...numericInputProps(field.type)}
+      {...contactInputProps(contact)}
       value={String(value)}
       onChange={(event) => onChange(event.target.value)}
     />

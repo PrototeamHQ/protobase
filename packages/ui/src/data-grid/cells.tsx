@@ -10,6 +10,7 @@ import type { ColumnSpec } from './column-spec'
 import { cellText } from './cell-text'
 import { viewerZone, zoneLabel } from '../format/zone'
 import { TruncatedText } from './truncated-text'
+import { ContactLink } from '../live/contact-link'
 
 const muted = (text: string) => <span className="text-faint-foreground">{text}</span>
 
@@ -18,7 +19,7 @@ export const renderCell = (spec: ColumnSpec, value: unknown) => {
   const text = cellText(spec, value) ?? ''
   switch (spec.kind) {
     case 'text':
-      return <TruncatedText text={text} />
+      return spec.link ? <ContactLink format={spec.link} value={text} className="block min-w-0 truncate" /> : <TruncatedText text={text} />
     case 'id':
       return <TruncatedText text={text} className="font-mono text-xs text-muted-foreground" />
     case 'money':

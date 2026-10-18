@@ -55,6 +55,8 @@ import { ValueBadge } from './value-badge'
 import { useClient } from '../data/api-provider'
 import { Markdown } from '../markdown/markdown'
 import { isMarkdown } from '../markdown/markdown-hint'
+import { ContactLink } from '../live/contact-link'
+import { contactFormat } from '../live/contact-links'
 
 const hidden = (model: ResourceModel, name: string) => name === model.tenant || model.primaryKey.includes(name)
 
@@ -236,7 +238,8 @@ const LoadedRecord = ({ model, recordKey, stored, preview }: LoadedRecordProps) 
         const text = displayValue(field, stored.record[name], hint(name))
         const value = stored.record[name]
         const markdown = isMarkdown(field, hint(name)) && typeof value === 'string' && value !== ''
-        const builtIn = field.type === 'enum' ? <ValueBadge value={value} hints={hint(name)}>{text}</ValueBadge> : markdown ? <Markdown source={value} /> : <strong title={valueTitle(field, value)} className={hint(name)?.multiline ? 'whitespace-pre-line break-words' : undefined}>{text}</strong>
+        const contact = field.type === 'text' && typeof value === 'string' && value !== '' ? contactFormat(hint(name)) : undefined
+        const builtIn = field.type === 'enum' ? <ValueBadge value={value} hints={hint(name)}>{text}</ValueBadge> : markdown ? <Markdown source={value} /> : contact ? <ContactLink format={contact} value={text} /> : <strong title={valueTitle(field, value)} className={hint(name)?.multiline ? 'whitespace-pre-line break-words' : undefined}>{text}</strong>
         const shown = shownWidget(fieldTypes, field, hint(name))
         return [{ label: hint(name)?.label ?? humanize(name), value: shown ? <WidgetPart shown={shown} part="display" field={field} value={stored.record[name]} fallback={builtIn} /> : builtIn }]
       })}

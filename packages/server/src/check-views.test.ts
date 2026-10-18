@@ -40,6 +40,14 @@ describe('checkViews', () => {
     expect(() => checkViews(registry, [written])).toThrow('View "payments": multiline "method" needs a text field, not enum')
   })
 
+  it('takes an email, phone or url format on a text field only', () => {
+    const linked = view<typeof payments>('payments').fields((r) => ({ reference: r.reference.format('url') }))
+    expect(() => checkViews(registry, [linked.toModel()])).not.toThrow()
+    const written = view<typeof payments>('payments').toModel()
+    written.fields = { method: { format: 'phone' } }
+    expect(() => checkViews(registry, [written])).toThrow(`View "payments": format('phone') of "method" needs a text field, not enum`)
+  })
+
   it('takes markdown on a text field only', () => {
     const markdown = view<typeof payments>('payments').fields((r) => ({ reference: r.reference.markdown() }))
     expect(() => checkViews(registry, [markdown.toModel()])).not.toThrow()

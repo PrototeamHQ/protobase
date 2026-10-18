@@ -42,6 +42,12 @@ describe('columnsFromModel', () => {
     expect(byId.createdAt?.kind).toBe('datetime')
   })
 
+  it("links a text column of addresses, but not the title's, which links to the record", () => {
+    const people = { ...model, fields: { name: field('name', 'text'), email: field('email', 'text'), phone: field('phone', 'text') } } as unknown as ResourceModel
+    const hinted = { resource: 'orders', fields: { name: { format: 'url' }, email: { format: 'email' }, phone: { format: 'code' } }, list: { columns: ['name', 'email', 'phone'] } } as unknown as ViewModel
+    expect(columnsFromModel(people, hinted).map((column) => column.link)).toEqual([undefined, 'email', undefined])
+  })
+
   it("carries a field's suffix, value colours and badge shape to its column", () => {
     const area = { ...model, fields: { ...model.fields, area: field('area', 'integer') } } as ResourceModel
     const hinted = { ...view, fields: { area: { suffix: ' m²' }, status: { valueColors: { draft: '#cccccc' }, badgeShape: 'arrow' } }, list: { columns: ['area', 'status', 'total'] } } as unknown as ViewModel

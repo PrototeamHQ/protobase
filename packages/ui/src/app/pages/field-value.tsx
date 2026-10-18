@@ -14,6 +14,8 @@ import { WidgetPart } from '../field-types/widget-part'
 import { ValueBadge } from '../value-badge'
 import { Markdown } from '../../markdown/markdown'
 import { isMarkdown } from '../../markdown/markdown-hint'
+import { ContactLink } from '../../live/contact-link'
+import { contactFormat } from '../../live/contact-links'
 
 const RelationValue = ({ field, value, known }: { field: FieldModel; value: unknown; known?: string }) => {
   const { resources, views } = useAdminMeta()
@@ -53,6 +55,8 @@ const BuiltInValue = ({ model, field, value, format, relationLabel }: FieldValue
   }
   if (isMarkdown(field, hints)) return <Markdown source={String(value)} />
   const text = displayValue(field, value, hints)
+  const contact = field.type === 'text' ? contactFormat(hints) : undefined
+  if (contact) return <ContactLink format={contact} value={text} />
   if (field.type === 'enum' || hints.format === 'badge') return <ValueBadge value={value} hints={hints}>{text}</ValueBadge>
   return <span title={valueTitle(field, value)} className={cn(hints.format === 'code' && 'font-mono text-xs', (field.type === 'decimal' || field.type === 'integer') && 'tabular-nums', hints.multiline && 'whitespace-pre-line break-words')}>{text}</span>
 }
