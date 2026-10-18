@@ -201,6 +201,104 @@ export const BoardRefusedChecks: StoryObj = {
   },
 }
 
+export const Calendar: StoryObj = { name: 'A calendar', render: () => <Shop start="/repairs?display=calendar&calendar=month,2026-10-01" /> }
+
+export const CalendarWeek: StoryObj = { name: 'A calendar, a week', render: () => <Shop start="/repairs?display=calendar&calendar=week,2026-10-05" /> }
+
+// A day of the calendar, by its date as the toasts and announcements write it
+const day = (canvas: ReturnType<typeof within>, date: string) => canvas.findByRole('region', { name: new RegExp(`, ${date}, \\d+$`) })
+const eventNumbers = (region: HTMLElement) => within(region).queryAllByRole('link').map((link) => link.textContent)
+
+export const CalendarChecks: StoryObj = {
+  ...Calendar,
+  name: 'A calendar (checks)',
+  tags: ['play', '!dev'],
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    expect(await pressed(canvas)).toBe('Calendar')
+    expect(await canvas.findByRole('heading', { name: 'October 2026' })).toBeInTheDocument()
+    // Whole weeks, from Monday 28 September to Sunday 1 November
+    await waitFor(() => expect(canvas.getAllByRole('region')).toHaveLength(35))
+    const seventh = await day(canvas, '7 Oct 2026')
+    await waitFor(() => expect(eventNumbers(seventh)).toEqual(['R-301', 'R-302']))
+    expect(within(seventh).getAllByRole('link').map((link) => link.getAttribute('href'))).toEqual(['/repairs/1', '/repairs/2'])
+    // Only the days shown are loaded: September's repairs are not on the calendar
+    expect(canvas.queryByRole('link', { name: 'R-307' })).toBeNull()
+    // A calendar has a fixed order
+    expect(canvas.queryByRole('combobox', { name: 'Sort' })).toBeNull()
+    expect(canvas.getByRole('link', { name: 'Next month' })).toHaveAttribute('href', '/repairs?display=calendar&calendar=month%2C2026-11-01')
+    expect(canvas.getByRole('link', { name: 'Month' })).toHaveAttribute('aria-current', 'page')
+    await userEvent.click(within(seventh).getByRole('link', { name: 'R-301' }))
+    await canvas.findByRole('heading', { name: 'R-301' })
+  },
+}
+
+export const CalendarWeekChecks: StoryObj = {
+  ...CalendarWeek,
+  name: 'A calendar, a week (checks)',
+  tags: ['play', '!dev'],
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    expect(await canvas.findByRole('heading', { name: /^5\s?–\s?11 Oct 2026$/ })).toBeInTheDocument()
+    await waitFor(() => expect(canvas.getAllByRole('region')).toHaveLength(7))
+    await waitFor(async () => expect(eventNumbers(await day(canvas, '6 Oct 2026'))).toEqual(['R-303', 'R-306']))
+    expect(eventNumbers(await day(canvas, '5 Oct 2026'))).toEqual(['R-305'])
+    expect(eventNumbers(await day(canvas, '8 Oct 2026'))).toEqual(['R-312'])
+    expect(eventNumbers(await day(canvas, '11 Oct 2026'))).toEqual([])
+    // The week before holds 4 October
+    await userEvent.click(canvas.getByRole('link', { name: 'Previous week' }))
+    await waitFor(async () => expect(eventNumbers(await day(canvas, '4 Oct 2026'))).toEqual(['R-311']))
+  },
+}
+
+export const CalendarFilteredChecks: StoryObj = {
+  name: 'A calendar, filtered (checks)',
+  tags: ['play', '!dev'],
+  render: () => <Shop start={`/repairs?display=calendar&calendar=month,2026-10-01&filter=${encodeURIComponent('mechanic = "Sem"')}`} />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    await waitFor(async () => expect(eventNumbers(await day(canvas, '6 Oct 2026'))).toEqual(['R-303']))
+    expect(eventNumbers(await day(canvas, '1 Oct 2026'))).toEqual(['R-314'])
+    expect(eventNumbers(await day(canvas, '7 Oct 2026'))).toEqual([])
+  },
+}
+
+export const CalendarMoveChecks: StoryObj = {
+  ...Calendar,
+  name: 'A calendar, an event moved with the keyboard (checks)',
+  tags: ['play', '!dev'],
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    const eighth = await day(canvas, '8 Oct 2026')
+    await waitFor(() => expect(eventNumbers(eighth)).toEqual(['R-312']))
+    await moveByKeyboard(within(eighth).getByRole('link', { name: 'R-312' }), '{ArrowRight}', '9 Oct 2026')
+    const ninth = await day(canvas, '9 Oct 2026')
+    await waitFor(() => expect(eventNumbers(ninth)).toEqual(['R-312']))
+    await waitFor(() => expect(eventNumbers(eighth)).toEqual([]))
+    // Saved: the repair's page says so
+    await userEvent.click(within(ninth).getByRole('link', { name: 'R-312' }))
+    await canvas.findByRole('heading', { name: 'R-312' })
+    expect(await canvas.findAllByText('9 Oct 2026')).not.toHaveLength(0)
+  },
+}
+
+export const CalendarRefusedChecks: StoryObj = {
+  name: 'A calendar, a move the server refuses (checks)',
+  tags: ['play', '!dev'],
+  render: () => <Shop start="/repairs?display=calendar&calendar=month,2026-10-01" refuse="The workshop is closed that day" />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    const eighth = await day(canvas, '8 Oct 2026')
+    await waitFor(() => expect(eventNumbers(eighth)).toEqual(['R-312']))
+    await moveByKeyboard(within(eighth).getByRole('link', { name: 'R-312' }), '{ArrowRight}', '9 Oct 2026')
+    // Put back, with the reason
+    expect(await within(document.body).findByText('The workshop is closed that day')).toBeInTheDocument()
+    expect(within(document.body).getByText('Could not move it to 9 Oct 2026')).toBeInTheDocument()
+    await waitFor(() => expect(eventNumbers(eighth)).toEqual(['R-312']))
+    expect(eventNumbers(await day(canvas, '9 Oct 2026'))).toEqual([])
+  },
+}
+
 export const CustomBoardChecks: StoryObj = {
   ...CustomBoard,
   name: 'A board drawn by a component (checks)',
@@ -287,7 +385,7 @@ export const CardsOnPhoneChecks: StoryObj = {
 
     await userEvent.click(display)
     const menu = canvas.getByRole('menu', { name: 'Display' })
-    expect(within(menu).getAllByRole('menuitemradio').map((item) => item.textContent)).toEqual(['Table', 'Cards', 'Board'])
+    expect(within(menu).getAllByRole('menuitemradio').map((item) => item.textContent)).toEqual(['Table', 'Cards', 'Board', 'Calendar'])
     expect(within(menu).getByRole('menuitemradio', { name: 'Cards' })).toHaveAttribute('aria-checked', 'true')
     expect(within(menu).getByRole('menuitemradio', { name: 'Cards' })).toHaveFocus()
     await userEvent.keyboard('{ArrowUp}')

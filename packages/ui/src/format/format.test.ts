@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { formatAgo, formatRelativeTime, formatApproxRows, formatDate, formatDateTime, formatInt, formatMoney, formatSigned } from './index'
+import { formatAgo, formatRelativeTime, formatApproxRows, formatDate, formatDateTime, formatDayRange, formatInt, formatMonth, formatTime, formatWeekday, formatWeekdayDate, formatMoney, formatSigned } from './index'
 
 describe('formatMoney', () => {
   it('formats cents as EUR by default', () => {
@@ -35,6 +35,15 @@ describe('dates', () => {
   it('formats in UTC', () => {
     expect(formatDate(ms)).toBe('6 Oct 2026')
     expect(formatDateTime(ms)).toBe('6 Oct 2026, 14:32')
+  })
+  it("formats a calendar's month, week, days and times in UTC", () => {
+    expect(formatMonth(ms)).toBe('October 2026')
+    expect(formatWeekday(ms)).toBe('Tue')
+    expect(formatWeekdayDate(ms)).toBe('Tuesday, 6 Oct 2026')
+    expect(formatTime(Date.UTC(2026, 9, 6, 23, 5))).toBe('23:05')
+    // ICU versions space the dash differently
+    expect(formatDayRange(Date.UTC(2026, 9, 12), Date.UTC(2026, 9, 18))).toMatch(/^12\s?–\s?18 Oct 2026$/)
+    expect(formatDayRange(Date.UTC(2026, 11, 28), Date.UTC(2027, 0, 3))).toMatch(/^28 Dec 2026\s–\s3 Jan 2027$/)
   })
   it('formats natural relative time', () => {
     expect(formatRelativeTime(10)).toBe('just now')

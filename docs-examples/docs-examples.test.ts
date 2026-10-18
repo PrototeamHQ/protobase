@@ -90,9 +90,10 @@ describe('keys', () => {
 describe('the workshop', () => {
   it('shows the repairs as a board by default, beside cards and the table', () => {
     const list = workshop.repairsView.toModel(models.repairs).list!
-    expect(list.displays!.map((display) => display.name)).toEqual(['cards', 'board'])
+    expect(list.displays!.map((display) => display.name)).toEqual(['cards', 'board', 'calendar'])
     expect(list.default).toBe('board')
     expect(list.displays![1]).toEqual({ kind: 'board', name: 'board', by: 'status', title: 'number', subtitle: 'bike', meta: ['mechanic'] })
+    expect(list.displays![2]).toEqual({ kind: 'calendar', name: 'calendar', start: 'booked_on', title: 'number' })
   })
 
   it("puts the customer's earlier repairs on a repair's page", () => {

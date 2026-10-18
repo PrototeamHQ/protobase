@@ -28,6 +28,7 @@ import { listEmptyState } from './list-empty-state'
 import { ListCards } from './displays/list-cards'
 import { MapDisplay } from './displays/map-display'
 import { BoardDisplay } from './displays/board-display'
+import { CalendarDisplay } from './displays/calendar-display'
 import { CustomDisplay } from './displays/custom-display'
 import { DisplaySwitch, SortMenu } from './displays/display-controls'
 import { displayRow, listDisplayChoices, loadedFields, shownListDisplay } from './displays/list-displays'
@@ -95,7 +96,7 @@ type LoadedListProps = {
 
 const LoadedList = ({ model, address, scope, heading }: LoadedListProps) => {
   const meta = useAdminMeta()
-  const { set, go, href } = useAppAddress()
+  const { set, listTo, go, href } = useAppAddress()
   const resource = model.name
   const view = meta.views[resource]
   const fields = useMemo(() => widgetFields(view, model), [view, model])
@@ -124,7 +125,7 @@ const LoadedList = ({ model, address, scope, heading }: LoadedListProps) => {
   const handOrder = scope ? undefined : listHandOrder(model, permissions)
   const [sorting, setSorting] = useState(false)
   const handSorting = sorting && handOrder !== undefined
-  // The table, the cards, a board, a custom display and the records sorted by hand are as tall as all their rows and
+  // The table, the cards, a board, a calendar, a custom display and the records sorted by hand are as tall as all their rows and
   // scroll with the page; the map fills the screen
   const pageScroll = handSorting || display?.kind !== 'map'
   usePageScroll(pageScroll)
@@ -153,7 +154,9 @@ const LoadedList = ({ model, address, scope, heading }: LoadedListProps) => {
     setFilter(state, text ? [...others, where.search(text)] : others)
   }
   const plural = view?.names?.plural ?? humanize(resource)
-  const sortMenu = display && <SortMenu model={model} view={view} display={display} orderBy={orderBy} onChange={(next) => set({ orderBy: next })} />
+  // A calendar is in time order, so it has no sort
+  const sorted = display?.kind === 'calendar' ? undefined : display
+  const sortMenu = sorted && <SortMenu model={model} view={view} display={sorted} orderBy={orderBy} onChange={(next) => set({ orderBy: next })} />
   const searchBox = model.search?.length ? <ListSearch value={search?.kind === 'search' ? search.text : ''} onCommit={commitSearch} placeholder={`Search ${plural.toLowerCase()}`} className={desktop ? undefined : 'min-h-11'} /> : null
   // On a desktop the sort, the filters and the search share one row below the title; a phone has the filters button
   // beside the search, and the sort in the filters sheet
@@ -162,9 +165,9 @@ const LoadedList = ({ model, address, scope, heading }: LoadedListProps) => {
   const desktopToolbar = layout === 'bar' ? panel : <ToolbarRow groups={[sortMenu ? [sortMenu] : []]} trailing={searchBox} />
   const chips = activeChips(config, state)
   const chipsRow = <ActiveFilterChips scroll chips={chips} onRemove={(key) => setFilter(removeChip(state, key))} onClear={() => setFilter(emptyFilterState)} />
-  const phoneSort = display && (
+  const phoneSort = sorted && (
     <FilterSection title="Sort">
-      <SortMenu model={model} view={view} display={display} orderBy={orderBy} onChange={(next) => set({ orderBy: next })} className="min-h-11 w-full" />
+      <SortMenu model={model} view={view} display={sorted} orderBy={orderBy} onChange={(next) => set({ orderBy: next })} className="min-h-11 w-full" />
     </FilterSection>
   )
   const phoneFilters = (
@@ -257,6 +260,7 @@ const LoadedList = ({ model, address, scope, heading }: LoadedListProps) => {
       return <MapDisplay model={model} view={view} display={display} filter={loadFilter} orderBy={orderBy} fields={loaded} at={address.map} onMove={(map) => set({ map })} flush />
     }
     if (display.kind === 'board') return <BoardDisplay model={model} view={view} display={display} fields={loaded} filter={loadFilter} orderBy={orderBy} />
+    if (display.kind === 'calendar') return <CalendarDisplay model={model} view={view} display={display} fields={loaded} filter={loadFilter} at={address.calendar} linkTo={(calendar) => listTo({ calendar })} />
     return <CustomDisplay display={display} list={displayRows} />
   }
   const shown = handSorting ? (

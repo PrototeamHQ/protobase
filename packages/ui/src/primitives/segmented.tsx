@@ -11,8 +11,15 @@ export type SegmentedProps<T extends string> = { value: T; options: Array<Segmen
 
 const sizes = { sm: { group: 'h-7', option: 'px-2.5 text-xs' }, md: { group: 'h-8', option: 'px-3 text-body' } }
 
+/** A segmented switch's classes, for a row of links that looks like one: the group, and each option, `active` the chosen. */
+export const segmentedClass = {
+  group: (size: 'sm' | 'md' = 'sm') => cn('inline-flex', sizes[size].group, 'rounded-md bg-muted p-0.5'),
+  option: (active: boolean, size: 'sm' | 'md' = 'sm') =>
+    cn('inline-flex items-center gap-1.5 rounded', sizes[size].option, 'font-medium transition-colors', active ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'),
+}
+
 export const Segmented = <T extends string>({ value, options, onChange, label, size = 'sm', iconOnly = false }: SegmentedProps<T>) => (
-  <span role="group" aria-label={label} className={cn('inline-flex', sizes[size].group, 'rounded-md bg-muted p-0.5')}>
+  <span role="group" aria-label={label} className={segmentedClass.group(size)}>
     {options.map((option) => (
       <button
         key={option.value}
@@ -20,12 +27,7 @@ export const Segmented = <T extends string>({ value, options, onChange, label, s
         aria-pressed={option.value === value}
         {...(iconOnly && { 'aria-label': option.label, title: option.label })}
         onClick={() => onChange(option.value)}
-        className={cn(
-          'inline-flex items-center gap-1.5 rounded',
-          sizes[size].option,
-          'font-medium transition-colors',
-          option.value === value ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground',
-        )}
+        className={segmentedClass.option(option.value === value, size)}
       >
         {option.icon && <option.icon className="size-3.5" />}
         {!iconOnly && option.label}

@@ -1,12 +1,30 @@
 const day = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })
 const dayShort = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' })
 const time = new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'UTC' })
+const month = new Intl.DateTimeFormat('en-GB', { month: 'long', year: 'numeric', timeZone: 'UTC' })
+const weekday = new Intl.DateTimeFormat('en-GB', { weekday: 'short', timeZone: 'UTC' })
+const weekdayDate = new Intl.DateTimeFormat('en-GB', { weekday: 'long', day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })
 
 export const formatDate = (ms: number) => day.format(ms)
 
 export const formatDayShort = (ms: number) => dayShort.format(ms)
 
 export const formatDateTime = (ms: number) => `${day.format(ms)}, ${time.format(ms)}`
+
+/** "October 2026". */
+export const formatMonth = (ms: number) => month.format(ms)
+
+/** "Mon". */
+export const formatWeekday = (ms: number) => weekday.format(ms)
+
+/** "Monday, 12 Oct 2026". */
+export const formatWeekdayDate = (ms: number) => weekdayDate.format(ms)
+
+/** "12–18 Oct 2026", "28 Dec 2026 – 3 Jan 2027": the days from `from` to `to`, both included. */
+export const formatDayRange = (from: number, to: number) => day.formatRange(from, to)
+
+/** "09:30". */
+export const formatTime = (ms: number) => time.format(ms)
 
 export const formatAgo = (seconds: number) => {
   if (seconds < 60) return `${seconds} s ago`
