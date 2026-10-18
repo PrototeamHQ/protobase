@@ -1,6 +1,6 @@
 import type { AppAddress, FilterLayout, MapView, ResourceModel, ViewModel } from '@protobase/schema'
 import { encodeKey } from '@protobase/schema/internal'
-import { defaultDisplay } from './displays/list-displays'
+import { defaultDisplay, listDefaultDisplay } from './displays/list-displays'
 import { defaultOrderBy } from './list-order'
 
 /**
@@ -34,7 +34,7 @@ export const listedResource = (resources: Record<string, ResourceModel>, views: 
 
 /** What a list shows when its address names nothing: its default display for the screen, the list's sort, the filters in a bar. */
 export const listDefaults = (model: ResourceModel | undefined, view: ViewModel | undefined, xs = false): ListDefaults => ({
-  display: defaultDisplay(view, xs),
+  display: model ? listDefaultDisplay(model, view, xs) : defaultDisplay(view, xs),
   orderBy: model ? defaultOrderBy(model, view) : '',
   filterLayout: 'bar',
 })

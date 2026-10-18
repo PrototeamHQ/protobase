@@ -69,6 +69,12 @@ describe('listDefaults', () => {
     expect(listDefaults(repairs.toModel(), tabled, true).display).toBe('cards')
   })
 
+  it("opens a list without a cards display in the phone's rows below sm", () => {
+    const repairs = resource('repairs').table('repairs').fields({ id: f.integer(), number: f.text() }).primaryKey((r) => r.id)
+    expect(listDefaults(repairs.toModel(), undefined, true).display).toBe('rows')
+    expect(listDefaults(repairs.toModel(), undefined, false).display).toBe('table')
+  })
+
   it("lists the records a view's listOf points at, with their view, when the caller can see them", () => {
     const homes = resource('homes').table('homes').fields({ id: f.integer(), address: f.text() }).primaryKey((r) => r.id)
     const saved = resource('saved').table('saved').fields({ id: f.integer(), home_id: f.relation('homes') }).primaryKey((r) => r.id)

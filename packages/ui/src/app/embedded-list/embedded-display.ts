@@ -24,7 +24,8 @@ export const embeddedDisplay = (view: ViewModel | undefined, xs: boolean, { pick
 }
 
 /**
- * The resource's list with the embedded list's filter, order and display, leaving out what the list does by default, and
+ * The resource's list with the embedded list's filter, order and display, leaving out what the list does by default (an
+ * embedded list's own default display among it, so a phone opens the list in its rows rather than the table), and
  * the saved search whose results it shows, if any. `resource` names another list of the same records, such as the
  * favorites that list a user's saved listings.
  */
@@ -33,4 +34,4 @@ export const viewAllAddress = (
   view: ViewModel | undefined,
   xs: boolean,
   { resource = model.name, ...list }: { filter: string; orderBy: string; display: string; savedSearch?: string; resource?: string },
-) => changedList({ kind: 'list', resource }, list, listDefaults(model, view, xs))
+) => changedList({ kind: 'list', resource }, list, { ...listDefaults(model, view, xs), display: defaultDisplay(view, xs) })

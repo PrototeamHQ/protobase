@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { f, resource, view, type FieldModel, type ListDisplayModel } from '@protobase/schema'
-import { amountParts, defaultDisplay, displayChoices, displayRow, filledAmount, filledMeta, loadedFields, mapCards, shownDisplay, shownFields, sortFields } from './list-displays'
+import { amountParts, defaultDisplay, displayChoices, displayRow, filledAmount, filledMeta, listDefaultDisplay, listDisplayChoices, loadedFields, mapCards, phoneRows, shownDisplay, shownFields, shownListDisplay, sortFields } from './list-displays'
 
 const repairs = resource('repairs')
   .table('repairs')
@@ -49,6 +49,62 @@ describe('defaultDisplay', () => {
     expect(defaultDisplay(boardView, false, 'table')).toBe('table')
     expect(defaultDisplay(boardView, true, 'table')).toBe('cards')
     expect(defaultDisplay(undefined, false, 'table')).toBe('table')
+  })
+})
+
+const tasks = resource('tasks')
+  .table('tasks')
+  .fields({ id: f.integer().sortable(), title: f.text().sortable(), blocked: f.boolean(), state: f.enum(['open', 'done']), kind: f.text().sortable(), ownerId: f.relation('users'), dueOn: f.date() })
+  .primaryKey((r) => r.id)
+const tasksModel = tasks.toModel()
+const tableOnly = view<typeof tasks>('tasks')
+  .title((r) => r.title)
+  .list((r) => ({ columns: [r.id, r.blocked, r.state, r.kind, r.ownerId, r.dueOn] }))
+  .toModel()
+
+describe('phoneRows', () => {
+  it('shows the title, the first enum as a badge and the next two columns that are not booleans', () => {
+    expect(phoneRows(tasksModel, tableOnly)).toEqual({ kind: 'cards', name: 'rows', label: 'List', icon: 'list', title: 'title', badge: 'state', footer: ['id', 'kind'] })
+  })
+
+  it('leaves the badge out for a list without an enum column', () => {
+    const plain = view<typeof tasks>('tasks').list((r) => ({ columns: [r.title, r.kind] })).toModel()
+    expect(phoneRows(tasksModel, plain)).toEqual({ kind: 'cards', name: 'rows', label: 'List', icon: 'list', title: 'title', footer: ['kind'] })
+  })
+
+  it('is not there for a view with a cards display', () => {
+    expect(phoneRows(model, boardView)).toBeUndefined()
+  })
+})
+
+describe('listDefaultDisplay and shownListDisplay', () => {
+  it("opens a table-only list in the phone's rows below sm, and in the table from sm up", () => {
+    expect(listDefaultDisplay(tasksModel, tableOnly, true)).toBe('rows')
+    expect(listDefaultDisplay(tasksModel, tableOnly, false)).toBe('table')
+  })
+
+  it('keeps a cards display below sm, and a default other than the table', () => {
+    expect(listDefaultDisplay(model, boardView, true)).toBe('cards')
+    const mapped = resource('tasks').table('tasks').fields({ id: f.integer(), title: f.text(), lat: f.decimal({ precision: 8, scale: 6 }).filterable(), lng: f.decimal({ precision: 9, scale: 6 }).filterable() }).primaryKey((r) => r.id)
+    const mapView = view<typeof mapped>('tasks').list((r, d) => ({ columns: [r.title], displays: [d.map({ latitude: r.lat, longitude: r.lng })], default: 'map' })).toModel(mapped.toModel())
+    expect(listDefaultDisplay(mapped.toModel(), mapView, true)).toBe('map')
+  })
+
+  it("shows the phone's rows when the address names them, on any screen", () => {
+    expect(shownListDisplay(tasksModel, tableOnly, 'rows')).toMatchObject({ kind: 'cards', name: 'rows' })
+    expect(shownListDisplay(tasksModel, tableOnly, 'table')).toBeUndefined()
+    expect(shownListDisplay(model, boardView, 'cards')).toMatchObject({ kind: 'cards', name: 'cards' })
+  })
+
+  it('offers the List next to the table below sm only', () => {
+    expect(listDisplayChoices(tasksModel, tableOnly, true).map((choice) => choice.name)).toEqual(['table', 'rows'])
+    expect(listDisplayChoices(tasksModel, tableOnly, false).map((choice) => choice.name)).toEqual(['table'])
+    expect(listDisplayChoices(model, boardView, true)).toEqual(displayChoices(boardView))
+  })
+
+  it("loads the title with the table's columns, and sorts the rows by the table's sortable columns", () => {
+    expect(loadedFields(tasksModel, tableOnly, ['id', 'state'])).toContain('title')
+    expect(sortFields(tasksModel, tableOnly, phoneRows(tasksModel, tableOnly)!)).toEqual(['title', 'id', 'kind'])
   })
 })
 

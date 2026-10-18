@@ -1,5 +1,6 @@
 import type { FieldModel, FieldViewModel, ListDisplayModel, ResourceModel, ViewModel } from '@protobase/schema'
 import { encodeKey, tableDisplay } from '@protobase/schema/internal'
+import { listColumnNames } from '../../live/columns-from-model'
 import { displayValue } from '../../live/display-value'
 import { recordKey, recordTitleField } from '../../live/model-helpers'
 import { humanize } from '../../live/naming'
@@ -40,6 +41,38 @@ export const defaultDisplay = (view: ViewModel | undefined, xs: boolean, preferr
   return cards.find((display) => display.name === fallback)?.name ?? cards[0]?.name ?? fallback
 }
 
+/** The name of the list a phone shows for a list without a cards display. */
+export const rowsDisplay = 'rows'
+
+/**
+ * The list a phone shows for a list without a cards display, as a cards display of a row per record: the title, the
+ * first enum column as a badge on the right, and the next two columns, booleans left out, on a muted line below.
+ * `undefined` for a view with a cards display, or a display of its own named `rows`.
+ */
+export const phoneRows = (model: ResourceModel, view: ViewModel | undefined): CardsDisplayModel | undefined => {
+  if (displaysOf(view).some((display) => display.kind === 'cards' || display.name === rowsDisplay)) return undefined
+  const title = recordTitleField(model, view)
+  const candidates = listColumnNames(model, view).filter((name) => name !== title && model.fields[name] !== undefined)
+  const badge = candidates.find((name) => model.fields[name]!.type === 'enum')
+  const footer = candidates.filter((name) => name !== badge && model.fields[name]!.type !== 'boolean').slice(0, 2)
+  return { kind: 'cards', name: rowsDisplay, label: 'List', icon: 'list', title, ...(badge !== undefined && { badge }), footer }
+}
+
+const isPhoneRows = (view: ViewModel | undefined, display: ListDisplayModel) => display.name === rowsDisplay && !displaysOf(view).some((other) => other.name === rowsDisplay)
+
+/**
+ * The display a list page opens in when its address names none: `defaultDisplay`, but below the `sm` breakpoint the
+ * phone's rows (`phoneRows`) in place of the table.
+ */
+export const listDefaultDisplay = (model: ResourceModel, view: ViewModel | undefined, xs: boolean) => {
+  const display = defaultDisplay(view, xs)
+  return xs && display === tableDisplay && phoneRows(model, view) ? rowsDisplay : display
+}
+
+/** The display a list page shows for the address's `name`: `shownDisplay`, or the phone's rows when it names them, on any screen. */
+export const shownListDisplay = (model: ResourceModel, view: ViewModel | undefined, name: string): ListDisplayModel | undefined =>
+  (name === rowsDisplay ? phoneRows(model, view) : undefined) ?? shownDisplay(view, name)
+
 /** The display a list shows for the address's `name`: `undefined` for the table, and the view's default for a name it does not have. */
 export const shownDisplay = (view: ViewModel | undefined, name: string): ListDisplayModel | undefined => {
   if (name === tableDisplay) return undefined
@@ -53,6 +86,12 @@ export const displayChoices = (view: ViewModel | undefined): DisplayChoice[] => 
   { name: tableDisplay, label: 'Table', icon: 'table' },
   ...displaysOf(view).map((display) => ({ name: display.name, label: display.label ?? humanize(display.name), icon: display.icon ?? defaultIcons[display.kind] })),
 ]
+
+/** The list page's display switch: `displayChoices`, and below the `sm` breakpoint the phone's rows when it has them. */
+export const listDisplayChoices = (model: ResourceModel, view: ViewModel | undefined, xs: boolean): DisplayChoice[] => {
+  const choices = displayChoices(view)
+  return xs && phoneRows(model, view) ? [...choices, { name: rowsDisplay, label: 'List', icon: 'list' }] : choices
+}
 
 /** The fields a cards display shows, its title the view's title field when it names none. */
 export const cardFields = (model: ResourceModel, view: ViewModel | undefined, display: CardsDisplayModel) => ({
@@ -100,13 +139,20 @@ export const shownFields = (model: ResourceModel, view: ViewModel | undefined, d
 }
 
 /** The fields to label the list's rows for: the table's columns and every display's, so one load serves them all. */
-export const loadedFields = (model: ResourceModel, view: ViewModel | undefined, columns: string[]) => [
-  ...new Set([...columns, ...displaysOf(view).flatMap((display) => shownFields(model, view, display))]),
-]
+export const loadedFields = (model: ResourceModel, view: ViewModel | undefined, columns: string[]) => {
+  const rows = phoneRows(model, view)
+  const displays = rows ? [...displaysOf(view), rows] : displaysOf(view)
+  return [...new Set([...columns, ...displays.flatMap((display) => shownFields(model, view, display))])]
+}
 
-/** The sortable fields a display shows, for the sort menu that stands in for column headers. */
-export const sortFields = (model: ResourceModel, view: ViewModel | undefined, display: ListDisplayModel) =>
-  [...new Set(shownFields(model, view, display))].filter((name) => model.fields[name]?.sortable)
+/**
+ * The sortable fields a display shows, for the sort menu that stands in for column headers; for the phone's rows, those
+ * of the table's columns and the title, as the table's headers sort by.
+ */
+export const sortFields = (model: ResourceModel, view: ViewModel | undefined, display: ListDisplayModel) => {
+  const shown = isPhoneRows(view, display) ? [recordTitleField(model, view), ...listColumnNames(model, view)] : shownFields(model, view, display)
+  return [...new Set(shown)].filter((name) => model.fields[name]?.sortable)
+}
 
 const isLabelled = (value: unknown): value is { id: unknown; name: string } => typeof value === 'object' && value !== null && 'id' in value && 'name' in value
 

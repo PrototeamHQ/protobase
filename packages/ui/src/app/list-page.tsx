@@ -6,7 +6,7 @@ import { PageHeader, usePageScroll } from '../app-shell'
 import { useAuth } from '../auth'
 import { DataGrid, pinnedStorageKey, type GridRow } from '../data-grid'
 import { ActiveFilterChips, FilterPanel, FilterSection, ToolbarRow, activeChips, emptyFilterState, removeChip, type FilterState } from '../filter-panel'
-import { useIsDesktop } from '../lib/use-media-query'
+import { useIsDesktop, useIsXs } from '../lib/use-media-query'
 import { columnsFromModel } from '../live/columns-from-model'
 import { stateToText, textToState } from '../live/filter-string'
 import { recordKey, recordTitleField } from '../live/model-helpers'
@@ -28,7 +28,7 @@ import { MapDisplay } from './displays/map-display'
 import { BoardDisplay } from './displays/board-display'
 import { CustomDisplay } from './displays/custom-display'
 import { DisplaySwitch, SortMenu } from './displays/display-controls'
-import { displayRow, loadedFields, shownDisplay } from './displays/list-displays'
+import { displayRow, listDisplayChoices, loadedFields, shownListDisplay } from './displays/list-displays'
 import { useSeedRecord } from './record-preview'
 import { useDisplayRows } from './displays/use-display-rows'
 import { useListScroll } from './list-scroll'
@@ -106,6 +106,7 @@ const LoadedList = ({ model, address, scope, heading }: LoadedListProps) => {
   const extras = parsed.ok ? parsed.extras : []
   const { orderBy, filterLayout: layout } = address
   const desktop = useIsDesktop()
+  const xs = useIsXs()
   const [sheetOpen, setSheetOpen] = useState(false)
 
   const scoped = scope ? [...extras, scope] : extras
@@ -115,7 +116,7 @@ const LoadedList = ({ model, address, scope, heading }: LoadedListProps) => {
   const loaded = useMemo(() => loadedFields(model, view, columns.map((column) => column.id)), [model, view, columns])
   const related = useMemo(() => relatedColumnLoads(view, meta.resources, meta.views, loaded), [view, meta.resources, meta.views, loaded])
   const rows = useLiveRows({ resources: meta.resources, views: meta.views, model, columns: loaded, filter: loadFilter, orderBy, related })
-  const display = shownDisplay(view, address.display)
+  const display = shownListDisplay(model, view, address.display)
   const permissions = usePermissions(resource)
   // Sorting by hand shows every record in their order, so neither a saved list's scope nor the filters apply
   const handOrder = scope ? undefined : listHandOrder(model, permissions)
@@ -199,7 +200,7 @@ const LoadedList = ({ model, address, scope, heading }: LoadedListProps) => {
     </Button>
   )
   const sortButton = handOrder && <SortButton sorting={handSorting} onChange={setSorting} iconOnly={!desktop} />
-  const displaySwitch = (menu: boolean) => !handSorting && <DisplaySwitch view={view} value={display?.name ?? tableDisplay} onChange={(name) => set({ display: name })} menu={menu} />
+  const displaySwitch = (menu: boolean) => !handSorting && <DisplaySwitch view={view} choices={listDisplayChoices(model, view, xs)} value={display?.name ?? tableDisplay} onChange={(name) => set({ display: name })} menu={menu} />
 
   const seedRecord = useSeedRecord(model)
   const openRecord = (row: GridRow) => {

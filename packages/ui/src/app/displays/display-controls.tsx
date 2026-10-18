@@ -5,17 +5,16 @@ import { humanize } from '../../live/naming'
 import { MenuSelect } from '../../primitives/menu-select'
 import { Segmented } from '../../primitives/segmented'
 import { parseSort } from '../list-order'
-import { displayChoices, sortFields } from './list-displays'
+import { displayChoices, sortFields, type DisplayChoice } from './list-displays'
 
 /** The icons a display's `icon` may name; another name shows the label alone. */
 const icons: Record<string, LucideIcon> = { table: Table2, cards: LayoutGrid, kanban: SquareKanban, board: Columns3, list: List, calendar: Calendar, map: MapIcon }
 
 /**
- * The list page's switch between the table and the view's displays, as buttons or, on a phone, as a menu; nothing for a
- * list with only its table.
+ * The list page's switch between the table and the view's displays, or `choices`, as buttons or, on a phone, as a menu;
+ * nothing for a list with only its table.
  */
-export const DisplaySwitch = ({ view, value, onChange, menu = false }: { view: ViewModel | undefined; value: string; onChange: (display: string) => void; menu?: boolean }) => {
-  const choices = displayChoices(view)
+export const DisplaySwitch = ({ view, value, onChange, menu = false, choices = displayChoices(view) }: { view: ViewModel | undefined; value: string; onChange: (display: string) => void; menu?: boolean; choices?: DisplayChoice[] }) => {
   if (choices.length < 2) return null
   const options = choices.map((choice) => ({ value: choice.name, label: choice.label, icon: choice.icon === undefined ? undefined : icons[choice.icon] }))
   if (menu) return <MenuSelect label="Display" value={value} onChange={onChange} options={options} />
