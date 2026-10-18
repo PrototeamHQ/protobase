@@ -16,7 +16,7 @@ afterAll(async () => {
 
 const scope = { tenantValue: 1 }
 
-// What PGlite cannot show: a real statement_timeout and the indexes of a real catalog. Paging and AIP-160 filters are
+// What only a real database shows: a statement_timeout firing and the indexes of a real catalog. Paging and AIP-160 filters are
 // @protobase/query's tests; statistics on a million rows are the Postgres suite's (tests/postgres/erp-statistics.test.ts).
 describe.skipIf(!reachable)('query layer against the seeded erp database', () => {
   it('cancels a slow facet count with statement_timeout', async () => {

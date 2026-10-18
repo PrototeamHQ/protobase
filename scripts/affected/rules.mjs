@@ -12,7 +12,7 @@ export const runEverything = [
   '.nvmrc',
   '.github/**',
   'docker-compose.yml',
-  // The databases, PGlite snapshots, snapshot recording and setup files the tests run with.
+  // The databases, snapshot recording and setup files the tests run with.
   'test-support/**',
   'scripts/test-db/**',
   // These rules and the scripts that apply them.

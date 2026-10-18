@@ -1,20 +1,11 @@
 import { vi } from 'vitest'
 
-// Setup for the unit tests and the snapshot tests' replay: a unit test that starts PGlite or opens a Postgres connection
-// belongs in tests/, and a snapshot test replays its recording instead, so doing either here throws. Importing a driver
-// stays allowed: shared test support and bundled configs import one without using it.
+// Setup for the unit tests and the snapshot tests' replay: a unit test that opens a Postgres connection belongs in
+// tests/, and a snapshot test replays its recording instead, so doing either here throws. Importing a driver stays
+// allowed: shared test support and bundled configs import one without using it.
 const refuse = (what: string) => {
   throw new Error(`${what} started in a test that runs without a database; tests that start one belong in tests/, and snapshot tests replay their recording (bun run test:record)`)
 }
-
-vi.mock('@electric-sql/pglite', async (importOriginal) => {
-  const original = await importOriginal<typeof import('@electric-sql/pglite')>()
-  class PGlite {
-    constructor() { refuse('PGlite') }
-    static create() { refuse('PGlite') }
-  }
-  return { ...original, PGlite }
-})
 
 vi.mock('pg', async (importOriginal) => {
   const original = await importOriginal<{ default: object }>()

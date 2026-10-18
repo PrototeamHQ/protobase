@@ -23,7 +23,7 @@ const answer = (outcome: Outcome) => {
 }
 
 /**
- * A database for one test file's snapshot tests, with one connection like PGlite's. Under `bun run test:record` it is a
+ * A database for one test file's snapshot tests, with one connection. Under `bun run test:record` it is a
  * clone of the template on real Postgres, and each query and its answer are appended to the file's recording; in a
  * normal run it connects to nothing and answers each query from the recording, failing on any query that differs.
  */
@@ -31,7 +31,7 @@ export const openSnapshotDb = (template: SnapshotTemplateKey) => openHandle(reco
 
 type Fields = ParsedResult['fields']
 
-/** A snapshot database: Kysely over it, and PGlite's `query`, `exec` and `clone` for the tests' own SQL. */
+/** A snapshot database: Kysely over it, and `query`, `exec` and `clone` for the tests' own SQL. */
 export type SnapshotDb = {
   db: Kysely<any>
   dialect: PostgresDialect
@@ -117,14 +117,14 @@ const openHandle = async (opening: Promise<Backend> | undefined): Promise<Snapsh
   }
   const dialect = new PostgresDialect({ pool: pool as never })
 
-  /** PGlite's `query`: one statement, with params. */
+  /** One statement, with params. */
   const query: SnapshotDb['query'] = <T,>(sql: string, params?: readonly unknown[]) =>
     held(async () => {
       const result = (await run(sql, params ?? [])) as ParsedResult
       return { rows: result.rows as T[], fields: result.fields, affectedRows: result.rowCount ?? 0 }
     })
 
-  /** PGlite's `exec`: any number of statements, without params. */
+  /** Any number of statements, without params. */
   const exec = (sql: string) =>
     held(async () => {
       const result = await run(sql)
@@ -140,7 +140,7 @@ const openHandle = async (opening: Promise<Backend> | undefined): Promise<Snapsh
   if (TestRunner.getCurrentTest()) onTestFinished(close)
   else context.closeAtEnd.push(close)
 
-  /** A copy of this database as it is now, as PGlite's `clone` makes one; closed with the test that made it, if any. */
+  /** A copy of this database as it is now; closed with the test that made it, if any. */
   const clone = () => held(() => openHandle(backend?.clone()))
 
   return { db: new Kysely<any>({ dialect }), dialect, query, exec, clone, close }
