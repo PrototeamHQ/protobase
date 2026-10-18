@@ -1,5 +1,5 @@
 import { Hono } from 'hono'
-import { checkAuthSchema, checkChanges, checkComments, checkWebhooksSchema, configExports, hasUsers } from '@protobase/server'
+import { checkAi, checkAuthSchema, checkChanges, checkComments, checkWebhooksSchema, configExports, hasUsers } from '@protobase/server'
 import { projectErrorReporter } from '../project/error-reporter'
 import { projectAdmin } from '../project/project-admin'
 import { devJobs } from './dev-jobs'
@@ -10,7 +10,7 @@ import { loadProject, projectDb } from './project'
 const projectDir = process.env.PROTOBASE_PROJECT!
 const project = await loadProject(projectDir, JSON.parse(process.env.PROTOBASE_EXTENSIONS ?? '[]'))
 const db = projectDb(project, projectDir)
-const { resources } = configExports(project.exports)
+const { resources, views } = configExports(project.exports)
 
 if (!project.authenticate) {
   throw new Error('No authenticator: export `authenticate` (and `auth`) from protobase.config.ts; see https://docs.protobase.net/reference/auth/')
@@ -27,6 +27,8 @@ if (project.auth && !store.__protobaseAuthSchemaChecked) {
 // comments whose table it lacks.
 await checkChanges(db, resources.map((resource) => resource.toModel()), project.events)
 await checkComments(db, resources.map((resource) => resource.toModel()))
+// AI fields and actions call the model of PROTOBASE_ASSISTANT_API_KEY, which other commands need not have.
+checkAi({ models: resources.map((resource) => resource.toModel()), views: views.map((source) => source.toModel()), assistant: project.options?.assistant, env: process.env })
 if (project.webhooks) await checkWebhooksSchema(db, project.webhooks)
 
 // With a DSN set, the API's 500s go to the error tracker too; a crash is the terminal's to show.

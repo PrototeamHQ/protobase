@@ -3,7 +3,7 @@ import type { AddressInfo } from 'node:net'
 import { createAdaptorServer } from '@hono/node-server'
 import pg from 'pg'
 import type { Db } from '@protobase/query'
-import { checkAuthSchema, checkChanges, checkComments, checkJobsSchema, checkWebhooksSchema, configExports, createFileCleanup, startJobs, type ErrorReporter } from '@protobase/server'
+import { checkAi, checkAuthSchema, checkChanges, checkComments, checkJobsSchema, checkWebhooksSchema, configExports, createFileCleanup, startJobs, type ErrorReporter } from '@protobase/server'
 import { projectAdmin } from '../project/project-admin'
 import { createPgDb } from '../project/pg-db'
 import { createServeApp, type ServedSite } from './app'
@@ -50,10 +50,11 @@ export const startServe = async ({ project, env, createDb = (url) => createPgDb(
   if (env.startupChecks && project.auth) await checkAuthSchema(project.auth)
   const ownDb = project.db ? undefined : createDb(env.databaseUrl!)
   const db = project.db ?? ownDb!
-  const { resources } = configExports(project.config)
+  const { resources, views } = configExports(project.config)
   const startJobsAndListen = async () => {
     if (env.startupChecks) await checkChanges(db, resources.map((resource) => resource.toModel()), project.events)
     if (env.startupChecks) await checkComments(db, resources.map((resource) => resource.toModel()))
+    if (env.startupChecks) checkAi({ models: resources.map((resource) => resource.toModel()), views: views.map((source) => source.toModel()), assistant: project.options?.assistant, env: process.env })
     if (env.startupChecks && project.webhooks) await checkWebhooksSchema(db, project.webhooks)
     const { admin, jobs: definitions } = projectAdmin(project, project.config, db, ui, reporter)
     if (env.startupChecks && definitions.length > 0) await checkJobsSchema(db)

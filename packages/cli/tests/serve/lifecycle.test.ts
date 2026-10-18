@@ -1,6 +1,7 @@
 import { Kysely, sql } from 'kysely'
 import { PGliteDialect } from 'kysely-pglite-dialect'
 import { describe, expect, it, vi } from 'vitest'
+import { f, resource, view } from '@protobase/schema'
 import { defineJob, unauthorized } from '@protobase/server'
 import { createJobsPg } from '../../../../test-support/jobs'
 import { createEmptyPg } from '../../../../test-support/pglite-snapshot'
@@ -92,6 +93,17 @@ describe('startServe', () => {
     await expect(startServe({ project: { ...project, jobs: { job } }, env, createDb: () => db })).rejects.toThrow('The jobs schema is missing')
     expect(destroy).toHaveBeenCalledTimes(1)
   }, 30_000)
+
+  it('refuses to start with an AI action and no model to run it, unless startup checks are off', async () => {
+    vi.stubEnv('PROTOBASE_ASSISTANT_API_KEY', '')
+    const tickets = resource('tickets').table('tickets').fields({ id: f.integer(), title: f.text(), priority: f.text().optional() }).primaryKey((r) => r.id)
+    const ticketsView = view<typeof tickets>('tickets').actions((a) => [a.ai('triage', { label: 'Triage', prompt: '{title}', writes: 'priority' })])
+    const withAi = { ...project, config: { tickets, ticketsView } }
+    await expect(startServe({ project: withAi, env, createDb: await dbFactory() })).rejects.toThrow('AI fields and actions need a model: set PROTOBASE_ASSISTANT_API_KEY')
+    const server = await startServe({ project: withAi, env: { ...env, startupChecks: false }, createDb: await dbFactory() })
+    await server.close()
+    vi.unstubAllEnvs()
+  })
 
   it("runs the project's jobs, and lets a running one finish when it closes", async () => {
     const db = new Kysely<any>({ dialect: new PGliteDialect(await createJobsPg()) })
