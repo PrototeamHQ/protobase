@@ -317,6 +317,31 @@ describe('invoke', () => {
   })
 })
 
+describe('public forms', () => {
+  it('reads a form and its bot check beside the API, and sends it with the solved check', async () => {
+    const challenge = { parameters: { algorithm: 'SHA-256', nonce: 'aa', salt: 'bb', cost: 1, keyLength: 32, keyPrefix: 'cc' }, signature: 'dd' }
+    const answers = [json({ name: 'contact', fields: ['name'], thanks: 'Thanks!' }), json(challenge), new Response(null, { status: 204 })]
+    const { calls, fetch } = fakeFetch(() => answers.shift()!)
+    const client = createClient({ fetch })
+    expect(await client.form('contact')).toMatchObject({ name: 'contact', thanks: 'Thanks!' })
+    expect(await client.formChallenge('contact')).toEqual(challenge)
+    const proof = { challenge, solution: { counter: 7, derivedKey: 'ee' } }
+    expect(await client.submitForm('contact', { name: 'Ada' }, proof)).toBeUndefined()
+    expect(calls.map(({ url, init }) => [init.method, url, init.body])).toEqual([
+      ['GET', '/api/forms/contact', undefined],
+      ['GET', '/api/forms/contact:challenge', undefined],
+      ['POST', '/api/forms/contact', JSON.stringify({ values: { name: 'Ada' }, proof })],
+    ])
+  })
+
+  it('rejects a refused submission with its field problems, as a create does', async () => {
+    const { fetch } = fakeFetch(() => problem({ status: 400, title: 'Bad Request', type: 'urn:protobase:problem:invalid-record', detail: 'email', errors: [{ field: 'email', code: 'required', message: '"email" is required' }] }))
+    const refused = await createClient({ fetch }).submitForm('contact', {}, { challenge: { parameters: {} as never }, solution: { counter: 0, derivedKey: '' } }).catch((error: unknown) => error)
+    expect(refused).toBeInstanceOf(ApiError)
+    expect((refused as ApiError).errors).toEqual([{ field: 'email', code: 'required', message: '"email" is required' }])
+  })
+})
+
 describe('meta', () => {
   it('sends If-None-Match and understands 304', async () => {
     const { calls, fetch } = fakeFetch(({ init }) => (init.headers && 'if-none-match' in init.headers ? new Response(null, { status: 304 }) : json({ resources: [], views: [] }, { headers: { etag: '"m1"' } })))

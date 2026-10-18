@@ -20,19 +20,21 @@ const apis = () => {
 }
 
 describe('routedClient', () => {
-  it("sends a call about a resource to the API that serves it, and meta and functions to the app's own", async () => {
+  it("sends a call about a resource to the API that serves it, and meta, functions and forms to the app's own", async () => {
     const { urls, client } = apis()
     await client.list('tickets', { pageSize: 5 })
     await client.get('notes', 3)
     await client.list('orders')
     await client.meta()
     await client.invoke('ping')
+    await client.form('contact')
     expect(urls).toEqual([
       'https://desk.example.com/api/v1/tickets?page_size=5',
       'https://desk.example.com/api/v1/notes/3',
       '/api/v1/orders',
       '/api/meta',
       '/api/functions/ping',
+      '/api/forms/contact',
     ])
   })
 

@@ -4,7 +4,7 @@ import { labelEntries, listWire, photosWire, queryString, filterText, type Filte
 import { originOf, photosWithOrigin, withFileOrigin } from './file-urls'
 import { createTransport, type ClientOptions } from './transport'
 import { fetchWithProgress, type UploadProgress } from './upload-request'
-import type { Aggregate, AggregateParams, BatchOp, BatchResult, Facet, Histogram, HistoryChange, HistoryPage, ListPage, MapResult, Meta, MetaResult, RecordOf, ResourceRef, Series, SeriesParams, Stored } from './types'
+import type { Aggregate, AggregateParams, BatchOp, BatchResult, Facet, FormChallenge, FormProof, Histogram, HistoryChange, HistoryPage, ListPage, MapResult, Meta, MetaResult, PublicForm, RecordOf, ResourceRef, Series, SeriesParams, Stored } from './types'
 
 type Json = Record<string, any>
 
@@ -288,7 +288,24 @@ export const createClient = (options: ClientOptions = {}) => {
     return result
   }
 
-  return { list, search, get, create, update, remove, undelete, reveal, history, batchWrite, facets, aggregate, series, histogram, map, seek, meta, invoke, upload }
+  // Public forms live beside the API and need no token: anyone may send one.
+  const formPath = (name: string) => `/forms/${encodeURIComponent(name)}`
+
+  /** The public form `name` (`GET /api/forms/<name>`): its fields as `/meta` would give them, its title and thanks text. */
+  const form = async (name: string): Promise<PublicForm> => (await send({ method: 'GET', path: formPath(name), system: true })).json()
+
+  /** A fresh bot check for the public form `name`, to solve with `altcha-lib`'s `solveChallenge` before sending it. */
+  const formChallenge = async (name: string): Promise<FormChallenge> => (await send({ method: 'GET', path: `${formPath(name)}:challenge`, system: true })).json()
+
+  /**
+   * Sends the public form `name`: creates its record from `values`, with the solved bot check. Rejects with `ApiError`
+   * as a create does, a refused check as `bot-check-failed` and too many submissions as `too-many-submissions`.
+   */
+  const submitForm = async (name: string, values: Record<string, unknown>, proof: FormProof): Promise<void> => {
+    await send({ method: 'POST', path: formPath(name), body: { values, proof }, system: true })
+  }
+
+  return { list, search, get, create, update, remove, undelete, reveal, history, batchWrite, facets, aggregate, series, histogram, map, seek, meta, invoke, upload, form, formChallenge, submitForm }
 }
 
 export type Client = ReturnType<typeof createClient>

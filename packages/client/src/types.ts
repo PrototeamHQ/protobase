@@ -33,6 +33,40 @@ export type HistoryChange = {
   databaseRole: string | null
 }
 
+/** A public form as `/-/forms/<name>` draws it: its fields as `/meta` would give them, with their hints, and no more. */
+export type PublicForm = {
+  name: string
+  /** The page's heading, when the form gives one; else the view's singular name. */
+  title?: string
+  /** The fields a visitor fills in, in order. */
+  fields: string[]
+  /** What the page shows once the form is sent. */
+  thanks: string
+  /** The resource restricted to the form's fields (and its key). */
+  resource: ResourceModel
+  /** The view's names and the form fields' hints. */
+  view: ViewModel
+}
+
+/** A public form's bot check as the server hands it out: an ALTCHA proof-of-work challenge, solved with `altcha-lib`. */
+export type FormChallenge = {
+  parameters: {
+    algorithm: string
+    nonce: string
+    salt: string
+    cost: number
+    keyLength: number
+    keyPrefix: string
+    keySignature?: string
+    expiresAt?: number
+    data?: Record<string, string | number | boolean | null>
+  }
+  signature?: string
+}
+
+/** A solved bot check, sent with the form: the challenge as it came, and the solver's answer. */
+export type FormProof = { challenge: FormChallenge; solution: { counter: number; derivedKey: string } }
+
 /** A page of a record's history, newest first. */
 export type HistoryPage = {
   items: HistoryChange[]
