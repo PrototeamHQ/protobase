@@ -420,6 +420,16 @@ describe('view builder', () => {
     ])
   })
 
+  it('keeps a record condition and hideEmpty as given', () => {
+    const model = view<typeof article>('article')
+      .layout((r) => [l.section('Done', [r.title], { when: 'status = "done"' }), l.related('Notes', { resource: 'notes', field: 'article_id', hideEmpty: true })])
+      .toModel()
+    expect(model.layout).toEqual([
+      { kind: 'section', title: 'Done', fields: ['title'], when: 'status = "done"' },
+      { kind: 'related', title: 'Notes', resource: 'notes', field: 'article_id', hideEmpty: true },
+    ])
+  })
+
   it('opens the record page as a read view or locked, and shows help only while editing', () => {
     const model = view<typeof article>('article')
       .recordMode('read')

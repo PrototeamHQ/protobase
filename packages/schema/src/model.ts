@@ -313,6 +313,9 @@ export type HelpWhen = 'always' | 'editing'
  */
 export type ShowWhen = 'always' | 'editing' | 'reading'
 
+/** `ShowWhen`, or an AIP-160 condition over the saved record, as `<Show when>` takes: the item shows while it holds. See "Form and read view" in the UI reference. */
+export type RecordWhen = ShowWhen | (string & {})
+
 /** How a field's badges are drawn: `arrow` points them right, as on a rating scale. */
 export type BadgeShape = 'arrow'
 
@@ -688,8 +691,10 @@ export type RelatedModel = {
   display?: string
   /** The text when nothing matches. */
   empty?: string
-  /** Whether it shows on the form, the read view or both. */
-  when?: ShowWhen
+  /** Leave the section off the page while it has no records. */
+  hideEmpty?: boolean
+  /** Whether it shows on the form, the read view or both, or a condition on the saved record that it shows while it holds. */
+  when?: RecordWhen
 }
 
 /**
@@ -782,16 +787,16 @@ export type LayoutItemModel =
        * label/value rows; the form edits them as any section's.
        */
       presentation?: SectionPresentation
-      /** Whether it shows on the form, the read view or both. */
-      when?: ShowWhen
+      /** Whether it shows on the form, the read view or both, or a condition on the saved record that it shows while it holds. */
+      when?: RecordWhen
     }
   | {
       /** A read-only summary card beside the main column. */
       kind: 'sidebar'
       /** The fields it shows, in order. */
       fields: string[]
-      /** Whether it shows on the form, the read view or both. */
-      when?: ShowWhen
+      /** Whether it shows on the form, the read view or both, or a condition on the saved record that it shows while it holds. */
+      when?: RecordWhen
     }
   | RelatedModel
   | CustomSectionModel

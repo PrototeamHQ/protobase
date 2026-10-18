@@ -1,5 +1,5 @@
 import { markFieldRefs } from './field-ref'
-import type { CardPhotosModel, CommentsSectionModel, HelpWhen, HistorySectionModel, JsonValue, LayoutItemModel, RelatedModel, SectionPresentation, ShowWhen } from './model'
+import type { CardPhotosModel, CommentsSectionModel, HelpWhen, HistorySectionModel, JsonValue, LayoutItemModel, RecordWhen, RelatedModel, SectionPresentation, ShowWhen } from './model'
 import type { Ref } from './refs'
 import { customComponent, type ComponentRef, type ViewProps } from './view-displays'
 
@@ -28,7 +28,7 @@ export const layout = {
    * each value under its field's `.icon(...)`, or under its label without one, leaving out the empty ones. See
    * [Key facts](website/src/content/docs/reference/ui-config.mdx#key-facts).
    */
-  section: (title: string, fields: Ref[], o: { help?: string; helpWhen?: HelpWhen; presentation?: SectionPresentation; when?: ShowWhen } = {}): LayoutItemModel => ({
+  section: (title: string, fields: Ref[], o: { help?: string; helpWhen?: HelpWhen; presentation?: SectionPresentation; when?: RecordWhen } = {}): LayoutItemModel => ({
     kind: 'section',
     title,
     fields: fields.map((ref) => ref.name),
@@ -56,7 +56,7 @@ export const layout = {
     }
   },
   /** A read-only summary card of fields beside the main column. */
-  sidebar: (fields: Ref[], o: { when?: ShowWhen } = {}): LayoutItemModel => ({
+  sidebar: (fields: Ref[], o: { when?: RecordWhen } = {}): LayoutItemModel => ({
     kind: 'sidebar',
     fields: fields.map((ref) => ref.name),
     ...(o.when !== undefined && { when: o.when }),
