@@ -335,7 +335,7 @@ Only a caller without a token gets the prompts, in `/api/meta` as `signIn`, for 
 | Item | |
 | --- | --- |
 | `l.section(title, fields, { help?, helpWhen?, presentation?, when? })` | A titled group of fields in the main column, editable where the user may write. `presentation: 'facts'` shows them on the read view as a row of [key facts](#key-facts). |
-| `l.sidebar(fields, { when? })` | A summary card beside it, read-only. |
+| `l.sidebar(fields, { when? })` | A summary card beside it, read-only. `when` also takes a [condition](#form-and-read-view). |
 | `l.related(title, { ... })` | A table of the records of another resource that point at this one, in the main column. See [Related records](#related-records). |
 | `l.custom(Component, { title?, props?, sidebar?, when? })` | A [custom component](/reference/custom-components/#record-sections) where it is listed: in the main column under `title`, or with `sidebar: true` as a sidebar card. |
 | `l.map(title, { latitude, longitude, zoom?, sidebar?, when? })` | A map with a pin at the record's position, in the main column or with `sidebar: true` as a sidebar card. See [Maps](#maps). |
@@ -410,6 +410,7 @@ The read view and the form share the layout, so every item and field shows on bo
 | `'always'` | On both, as without the setting. The default. |
 | `'editing'` | Only while the record is edited: on its form and the create form, not on the read view or a locked form. |
 | `'reading'` | Only while it is not: on the read view and the locked form, and in a gallery's photo details. |
+| a condition, such as `'status = "done"'` | Only `l.section`, `l.related` and `l.sidebar` take it: they show while the condition holds for the saved record, as [`<Show when>`](/reference/layouts/#conditions) reads it, and change once the record is saved, not while the user types. They stay off the create form, which has no saved record, so a conditional section's fields go under "Other fields" there. A condition that does not parse, or names a field the record does not have, stops startup. |
 
 ```ts
 view<typeof listings>('listings')
@@ -529,6 +530,7 @@ Without any configuration, the record page's rail has a **Related records** card
 | `limit` | How many records it shows, 1 to 100; default 10. When there are more, the section says so beside View all, such as "The first 10 of 37.". Before 0.13 this was `pageSize`, rows per page; rename it. |
 | `display` | The display of `resource`'s list it opens in, such as `cards`; default the list's. |
 | `help`, `empty` | A line under the title, and the text when nothing matches (default "Nothing here yet."). |
+| `hideEmpty` | `true` leaves the section off the page while it has no records. |
 
 The real estate example lists who a unit is let to (the primary tenant and co-signers of the lease that runs today) and that lease:
 

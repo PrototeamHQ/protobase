@@ -17,8 +17,8 @@ const allowed = (update: boolean): Record<string, ResourcePermissions> => ({
   home_photos: { read: true, create: false, update: false, delete: false, conditional: [] },
 })
 
-const Home = ({ path = '/homes/1', mode = 'read', update = true, split = false }: { path?: string; mode?: RecordMode; update?: boolean; split?: boolean }) => {
-  const [client] = useState(() => fakeApi({ resources: homeResources, views: homeViews(mode, { split }), rows: homeRows(), permissions: allowed(update) }).client)
+const Home = ({ path = '/homes/1', mode = 'read', update = true, split = false, conditional = false }: { path?: string; mode?: RecordMode; update?: boolean; split?: boolean; conditional?: boolean }) => {
+  const [client] = useState(() => fakeApi({ resources: homeResources, views: homeViews(mode, { split, conditional }), rows: homeRows(), permissions: allowed(update) }).client)
   return (
     <div className="h-screen">
       <App client={client} auth={session} initialUrl={path} />
@@ -58,6 +58,36 @@ export const ReadViewChecks: StoryObj = {
     expect(edit.getAttribute('href')).toBe('/homes/1?edit=true')
     expect(edit.closest('header')).toBeNull()
     expect(within(edit.closest('ul')!.parentElement!).getByRole('heading', { name: 'Actions' })).toBeInTheDocument()
+  },
+}
+
+export const RecordConditions: StoryObj = {
+  name: 'Items that show by a condition on the record (checks)',
+  tags: ['play', '!dev'],
+  render: () => <Home conditional />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    // The home has a garden, so the section for homes with one shows and the one for homes without goes, with its sidebar
+    await section(canvasElement, 'Garden notes')
+    expect(canvas.queryByRole('heading', { name: 'No garden notes' })).toBeNull()
+    expect(canvas.queryByRole('heading', { name: 'Summary' })).toBeNull()
+    // A related table with rows stays on the page
+    await section(canvasElement, 'Photos kept')
+  },
+}
+
+export const HiddenWhenEmpty: StoryObj = {
+  name: 'Related table without records (checks)',
+  tags: ['play', '!dev'],
+  render: () => <Home path="/homes/2" conditional />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    // This home has no garden: the other side of the conditions
+    await section(canvasElement, 'No garden notes')
+    await canvas.findByRole('heading', { name: 'Summary' })
+    expect(canvas.queryByRole('heading', { name: 'Garden notes' })).toBeNull()
+    // A table that hides while empty leaves its title off the page
+    await waitFor(() => expect(canvas.queryByRole('heading', { name: 'Photos kept' })).toBeNull())
   },
 }
 

@@ -39,6 +39,12 @@ describe('createSections', () => {
     ])
   })
 
+  it('leaves a section with a record condition off the create form, so its fields land in the last section', () => {
+    const view = { fields: {}, layout: [{ kind: 'section', title: 'Money', fields: ['total'], when: 'status = "paid"' }] } as unknown as ViewModel
+    expect(createSections(orders, view).map((section) => section.title)).toEqual(['Details'])
+    expect(createSections(orders, view)[0]!.fields).toContain('total')
+  })
+
   it('keeps sections and fields meant only for reading out of their sections, so their fields land in the last one', () => {
     const view = {
       fields: { number: { when: 'reading' }, notes: { when: 'editing' } },

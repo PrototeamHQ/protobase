@@ -70,6 +70,8 @@ A `RecordCard` (its first match) and each card of a `CardRow` hold a **record**.
 
 Comparisons, `AND`, `OR`, `NOT` and parentheses work; functions such as `now()` do not. A field that is missing or that the user cannot read makes the comparison false, and a `Show` that names a resource or field the user cannot see is left out of their page.
 
+Record pages take the same conditions in the `when` of `l.section`, `l.related` and `l.sidebar`; see [Form and read view](/reference/ui-config/#form-and-read-view).
+
 ## Named actions
 
 `<Action name="..." />` is a button for an action of the resource's view (the record's resource, or `resource="..."` outside a record). The view declares what it does:

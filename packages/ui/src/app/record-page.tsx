@@ -44,6 +44,7 @@ import { CommentsSection } from './comments/comments-section'
 import { filledFields } from './filled-fields'
 import { namedIcon } from './named-icon'
 import { fieldHelp, helpShown, recordShown, whenShown } from './record-mode/record-mode'
+import { useShownLayout } from './record-mode/use-shown-layout'
 import { useRecordEditor } from './use-record-editor'
 import { fieldMessage } from './field-errors'
 import { useFocusFirstInvalid } from './use-focus-first-invalid'
@@ -156,7 +157,8 @@ const LoadedRecord = ({ model, recordKey, stored, preview }: LoadedRecordProps) 
   }
   const { fields: fieldTypes } = useProjectUi()
   // The items and fields meant only for the form, or only for reading the record, show only there
-  const layout = layoutFor(model, view, shown === 'read').filter((item) => whenShown(item.when, editing))
+  const scope: LayoutRecord = { model, record: stored.record, key: recordKey, etag: stored.etag, permissions: stored.permissions }
+  const layout = useShownLayout(layoutFor(model, view, shown === 'read'), scope, editing, preview)
   const sidebarFields = layout.flatMap((item) => (item.kind === 'sidebar' ? item.fields : []))
   // An enum status shows as the badge, unless it is missing or the sidebar shows it already
   const hasStatus = model.fields.status?.type === 'enum'
@@ -245,7 +247,6 @@ const LoadedRecord = ({ model, recordKey, stored, preview }: LoadedRecordProps) 
       })}
     />
   )
-  const scope: LayoutRecord = { model, record: stored.record, key: recordKey, etag: stored.etag, permissions: stored.permissions }
 
   const save = async () => {
     if ((await editor.save()) && leavesForm) go(readAddress, { replace: true })

@@ -7,6 +7,7 @@ import { listColumnNames } from '../live/columns-from-model'
 import { searchAll } from '../live/search-all'
 import { Skeleton } from '../primitives/skeleton'
 import { Section } from '../record-view'
+import { countQuery } from './pages/use-layout-data'
 import { EmbeddedDisplaySwitch, EmbeddedList } from './embedded-list/embedded-list'
 import { useEmbeddedDisplay } from './embedded-list/use-embedded-display'
 import { ErrorBanner } from './error-banner'
@@ -67,7 +68,12 @@ export const RelatedSection = ({ item, recordKey, owner }: { item: RelatedModel;
   const [display, pick] = useEmbeddedDisplay(view, `related:${owner}:${item.title}`, item.display)
   const permissions = usePermissions(item.resource)
   const [sorting, setSorting] = useState(false)
+  // Only a section that hides while empty counts its records
+  const client = useClient()
+  const counting = Boolean(item.hideEmpty && model && match.filter)
+  const count = useQuery({ queryKey: keys.count(item.resource, match.filter ?? ''), enabled: counting, queryFn: () => countQuery(client, model!, match.filter ?? '').queryFn() })
   if (!model) return null
+  if (item.hideEmpty && (match.isPending || match.filter === null || (counting && (count.isPending || count.data === 0)))) return null
   const opens = relatedOpens(item, model, resources)
   // The relation names this record on every row, so it is left out of the default columns
   const columns = item.columns ?? listColumnNames(model, view).filter((name) => name !== item.field)
