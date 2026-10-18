@@ -3,6 +3,7 @@ import type { EventSpec } from './events/event-helpers'
 import type { AnyField } from './field'
 import type { FileOptions } from './files/file-options'
 import type { FieldModel, ResourceModel, SearchMatch } from './model'
+import { promptFields } from './ai-prompt'
 import { snakeCase } from './naming'
 import type { FieldsInput } from './refs'
 
@@ -63,6 +64,7 @@ const fieldModel = (name: string, field: AnyField): FieldModel => {
         ...(meta.file.external && { external: true as const }),
       },
     }),
+    ...(meta.ai && { ai: { prompt: meta.ai.prompt } }),
   }
 }
 
@@ -152,10 +154,29 @@ const positionProblems = (model: ResourceModel) => {
   ]
 }
 
+// A job writes an AI field through the API, after the write, from fields the model may see: text or an enum, empty until
+// it is filled, and read from plain fields only, so that no fill feeds another or itself.
+const aiProblems = (model: ResourceModel) =>
+  Object.values(model.fields)
+    .filter((field) => field.ai)
+    .flatMap((field) => [
+      ...(field.type === 'text' || field.type === 'enum' ? [] : [`is ${field.type}, not text or an enum`]),
+      ...(field.nullable ? [] : ['must be optional(), empty until the job fills it']),
+      ...(field.readOnly ? ['cannot be readOnly(), as the job writes it through the API'] : []),
+      ...(field.sensitive ? ['cannot be sensitive'] : []),
+      ...promptFields(field.ai!.prompt).flatMap((name) => {
+        const read = Object.hasOwn(model.fields, name) ? model.fields[name]! : undefined
+        if (!read) return [`reads "${name}", which is not a field`]
+        if (name === field.name) return [`reads "${name}", itself`]
+        if (read.ai) return [`reads "${name}", which is an AI field too`]
+        return read.sensitive ? [`reads "${name}", which is sensitive`] : []
+      }),
+    ].map((problem) => `AI field "${field.name}" ${problem}`))
+
 export const buildResourceModel = (state: ResourceState): ResourceModel => {
   const model = assembleModel(state)
   const events = state.events && buildEventModels(model, state.events)
-  const problems = [...sensitiveProblems(model), ...fileProblems(model), ...positionProblems(model), ...(events?.problems ?? [])]
+  const problems = [...sensitiveProblems(model), ...fileProblems(model), ...positionProblems(model), ...aiProblems(model), ...(events?.problems ?? [])]
   if (problems.length > 0) throw new Error(`Resource "${model.name}": ${problems.join('; ')}`)
   return events && events.events.length > 0 ? { ...model, events: events.events } : model
 }

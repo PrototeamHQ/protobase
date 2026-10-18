@@ -450,6 +450,19 @@ describe('view builder', () => {
     expect(() => titled.toModel(pictured.toModel())).toThrow('View "article": display "cards" shows "title" as its image, which is not a file field')
   })
 
+  it('describes an AI action and refuses one without a field to read or write', () => {
+    const model = view<typeof article>('article')
+      .actions((a) => [a.ai('summarise', { label: 'Summarise', icon: 'file-text', prompt: 'Sum up {title}', writes: 'title', confirm: 'Replace it?' })])
+      .toModel()
+    expect(model.actions).toEqual([
+      { name: 'summarise', label: 'Summarise', bulk: false, icon: 'file-text', confirm: 'Replace it?', run: { kind: 'ai', prompt: 'Sum up {title}', writes: 'title' } },
+    ])
+    expect(() => view<typeof article>('article').actions((a) => [a.ai('x', { label: 'X', prompt: 'Sum up', writes: 'title' })])).toThrow(
+      'Action "x": its prompt must name at least one {field} of the record',
+    )
+    expect(() => view<typeof article>('article').actions((a) => [a.ai('x', { label: 'X', prompt: '{title}', writes: '' })])).toThrow('Action "x": it writes no field')
+  })
+
   it('refuses a path in the app as a link href, pointing at to', () => {
     expect(() => view<typeof article>('article').actions((a) => [a.link('mine', { label: 'Mine', href: '/article?filter=owner%20%3D%20me' })])).toThrow(
       'Action "mine": href "/article?filter=owner%20%3D%20me" points inside the app; give the link `to` instead',

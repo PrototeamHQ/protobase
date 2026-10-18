@@ -49,6 +49,11 @@ export type FieldModel = {
       }
   /** A file field's allowed types (empty: any), largest upload in bytes, provider, and what each upload writes. */
   file?: FileFieldModel
+  /** A job fills it from the prompt after a create or an update of a field the prompt names (`.ai()`). */
+  ai?: {
+    /** The prompt, with `{field}` placeholders. */
+    prompt: string
+  }
 }
 
 /** A file field's settings, as `/meta` gives them; see [Files](website/src/content/docs/reference/files.mdx). */
@@ -857,8 +862,8 @@ export type SaveFeedback = 'toast' | 'button'
 
 /**
  * What a named action does in the app: set fields of the record (`update`), delete it (`delete`), go to an address in
- * the app (`link` with `to`) or open a link that leaves it (`link` with `href`), `{field}` replaced by the record's
- * values. Without it the app runs a handler it registered by name.
+ * the app (`link` with `to`), open a link that leaves it (`link` with `href`), `{field}` replaced by the record's
+ * values, or have the model write a field (`ai`). Without it the app runs a handler it registered by name.
  */
 export type ActionRun =
   | {
@@ -885,6 +890,14 @@ export type ActionRun =
        * the `https:` or `http:` URL the record holds, without which the action does not show.
        */
       href: string
+    }
+  | {
+      /** Has the model write one field of the record from `prompt`, `{field}` replaced by the record's values, as the user. */
+      kind: 'ai'
+      /** The prompt, with `{field}` placeholders; `/meta` leaves it out. */
+      prompt?: string
+      /** The field it writes. */
+      writes: string
     }
 
 /** A named action of a view (`.actions((a) => ...)`); see [Named actions](website/src/content/docs/reference/layouts.md#named-actions). */

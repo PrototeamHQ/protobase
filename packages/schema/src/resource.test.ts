@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import type { AnyField } from './field'
 import { f } from './fields'
 import type { ResourceModel } from './model'
 import { where } from './filter'
@@ -118,6 +119,24 @@ describe('resource builder', () => {
     expect(notes.toModel()).not.toHaveProperty('comments')
     expect(notes.comments().toModel().comments).toBe(true)
     expect(notes.history().comments().toModel()).toMatchObject({ history: true, comments: true })
+  })
+
+  it('carries an AI field\'s prompt and refuses one a job could not fill', () => {
+    const tickets = (summary: AnyField, extra: Record<string, AnyField> = {}) =>
+      resource('tickets').table('tickets').fields({ id: f.integer(), title: f.text(), secret: f.text().sensitive(), summary, ...extra }).primaryKey((r) => r.id).toModel()
+    expect(tickets(f.text().optional().ai({ prompt: 'Sum up {title}' })).fields.summary!.ai).toEqual({ prompt: 'Sum up {title}' })
+    expect(tickets(f.text().optional()).fields.summary).not.toHaveProperty('ai')
+    expect(() => f.text().ai({ prompt: 'Sum up' })).toThrow('.ai(): its prompt must name at least one {field} of the record')
+    expect(() => tickets(f.integer().optional().ai({ prompt: '{title}' }))).toThrow('AI field "summary" is integer, not text or an enum')
+    expect(() => tickets(f.text().ai({ prompt: '{title}' }))).toThrow('AI field "summary" must be optional()')
+    expect(() => tickets(f.text().optional().readOnly().ai({ prompt: '{title}' }))).toThrow('AI field "summary" cannot be readOnly()')
+    expect(() => tickets(f.text().optional().sensitive().ai({ prompt: '{title}' }))).toThrow('AI field "summary" cannot be sensitive')
+    expect(() => tickets(f.text().optional().ai({ prompt: '{nope}' }))).toThrow('AI field "summary" reads "nope", which is not a field')
+    expect(() => tickets(f.text().optional().ai({ prompt: '{summary}' }))).toThrow('AI field "summary" reads "summary", itself')
+    expect(() => tickets(f.text().optional().ai({ prompt: '{secret}' }))).toThrow('AI field "summary" reads "secret", which is sensitive')
+    expect(() => tickets(f.text().optional().ai({ prompt: '{title}' }), { tags: f.text().optional().ai({ prompt: '{summary}' }) })).toThrow(
+      'AI field "tags" reads "summary", which is an AI field too',
+    )
   })
 
   it('fails fast on incomplete resources', () => {

@@ -71,6 +71,16 @@ describe('pruneView', () => {
     expect(names(without({ repairs: ['customerId'] }))).toEqual(['quote'])
   })
 
+  it('sends an AI action without its prompt, and leaves it out when the caller cannot read a field it reads or writes', () => {
+    const repairsView = view<typeof repairs>('repairs')
+      .actions((a) => [a.ai('triage', { label: 'Triage', prompt: 'How urgent is {number}? Cost {estimate}', writes: 'status' })])
+      .toModel()
+    const actions = (models: Record<string, ResourceModel>) => pruneView(repairsView, models.repairs!, models).actions
+    expect(actions(all)).toEqual([{ name: 'triage', label: 'Triage', bulk: false, run: { kind: 'ai', writes: 'status' } }])
+    expect(actions(without({ repairs: ['estimate'] }))).toEqual([])
+    expect(actions(without({ repairs: ['status'] }))).toEqual([])
+  })
+
   it('keeps an action with inputs whole, and leaves it out when a choice picks records the caller cannot see', () => {
     const repairsView = view<typeof repairs>('repairs')
       .actions((a) => [

@@ -1,6 +1,6 @@
 import { resolveFieldPath } from '@protobase/layout'
 import type { ActionInputModel, ActionModel, ActionRun, CardFavoriteModel, CardPhotosModel, ChartModel, CommentsSectionModel, CustomSectionModel, FilterWidgetModel, FormModel, GalleryModel, HistorySectionModel, LayoutItemModel, ListDisplayModel, ListModel, MapSectionModel, NavModel, NavRecentModel, RelatedColumnModel, RelatedModel, ResourceModel, SaveSearchModel, SearchesOfModel, SearchResultModel, ViewModel } from '@protobase/schema'
-import { addressErrors, chartFields, hrefPlaceholders, navRecentErrors, pruneByShape, shapes as s, tableDisplay } from '@protobase/schema/internal'
+import { addressErrors, chartFields, hrefPlaceholders, promptFields, navRecentErrors, pruneByShape, shapes as s, tableDisplay } from '@protobase/schema/internal'
 import { cardFavoriteErrors } from './view-card-favorite'
 import { cardPhotosErrors } from './view-card-photos'
 import { openErrors, relatedErrors } from './view-related'
@@ -146,6 +146,14 @@ const linkShape = (model: ResourceModel, models: Record<string, ResourceModel>) 
     return followable ? run : undefined
   })
 
+// An AI action goes when the caller cannot read the field it writes or one its prompt reads. The prompt stays on the
+// server, which runs the action; the app only needs to know which field it writes.
+const aiShape = (model: ResourceModel) =>
+  s.map<Of<ActionRun, 'ai'>>((run) => {
+    const readable = [run.writes, ...promptFields(run.prompt ?? '')].every((name) => Object.hasOwn(model.fields, name))
+    return readable ? { kind: 'ai', writes: run.writes } : undefined
+  })
+
 // Inputs name no field of the record; an action whose choice picks records of a resource the caller cannot read goes.
 const inputsShape = (models: Record<string, ResourceModel>) =>
   s.map<ActionInputModel[]>((inputs) => (inputs.every((input) => input.resource === undefined || Object.hasOwn(models, input.resource)) ? inputs : undefined))
@@ -162,6 +170,7 @@ const actionShape = (model: ResourceModel, models: Record<string, ResourceModel>
         update: s.object<Of<ActionRun, 'update'>>({ kind: s.data, values: s.keys({ all: true }) }, { requires: ['values'] }),
         delete: s.data,
         link: linkShape(model, models),
+        ai: aiShape(model),
       }),
       inputs: inputsShape(models),
     },

@@ -1,5 +1,6 @@
 import { actionInputErrors, inputs } from './action-inputs'
 import { linkActionError } from './address-template'
+import { promptError } from './ai-prompt'
 import type { ActionInputModel, ActionModel, AppAddress } from './model'
 
 /** @inline */
@@ -45,5 +46,14 @@ export const actions = {
     if (error) throw new Error(`Action "${name}": ${error}`)
     if ('to' in o) return { ...named(name, o), run: { kind: 'link', to: structuredClone(o.to) } }
     return { ...named(name, o), run: { kind: 'link', href: o.href } }
+  },  /**
+   * Has the model write the `writes` field of the record from `prompt`, `{field}` replaced by the record's values, as the
+   * user who clicks; see [AI fields and actions](website/src/content/docs/reference/ai.mdx). The prompt may name the
+   * field it writes, to rewrite or translate it in place.
+   */
+  ai: (name: string, o: ActionOptions & { prompt: string; writes: string }): ActionModel => {
+    const error = promptError(o.prompt) ?? (o.writes === '' ? 'it writes no field' : undefined)
+    if (error) throw new Error(`Action "${name}": ${error}`)
+    return { ...named(name, o), run: { kind: 'ai', prompt: o.prompt, writes: o.writes } }
   },
 }

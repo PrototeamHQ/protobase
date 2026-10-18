@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import type { FieldAccess } from './access/types'
+import { promptError } from './ai-prompt'
 import type { FieldType } from './model'
 import type { FileOptions } from './files/file-options'
 
@@ -58,6 +59,8 @@ export type FieldMeta = {
   }
   /** A file field's settings (`f.file()`). */
   file?: FileOptions
+  /** The prompt a job fills it from (`.ai()`). */
+  ai?: { prompt: string }
 }
 
 /** A field type: its name, the constraints it takes and how it builds the schema that checks a value. */
@@ -162,6 +165,16 @@ export class Field<V> {
   /** The greatest value of an integer, or the longest length of a text. Only `f.integer()` and `f.text()` take it. */
   max(value: number) {
     return this.constrain('max', { max: value })
+  }
+
+  /**
+   * A job fills the field from `prompt`, `{field}` replaced by the record's values, after a create, and after an update
+   * that changes a field the prompt names, as the user who wrote; see [AI fields and actions](website/src/content/docs/reference/ai.mdx).
+   */
+  ai(o: { prompt: string }) {
+    const error = promptError(o.prompt)
+    if (error) throw new Error(`.ai(): ${error}`)
+    return this.with({ ai: { prompt: o.prompt } })
   }
 
   /** A copy of the field with `patch` applied, which every option returns. */
