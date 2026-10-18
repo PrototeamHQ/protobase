@@ -1,13 +1,15 @@
 import { Kysely, sql } from 'kysely'
-import { PGliteDialect } from 'kysely-pglite-dialect'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { defineJob } from '../src/jobs/define-job'
 import type { JobDefinition } from '../src/jobs/job-types'
 import { startJobs, type JobsRuntime, type StartJobsOptions } from '../src/jobs/runtime'
-import { createJobsPg } from '../../../test-support/jobs'
+import { openPostgresDatabase, postgresTemplateReady } from '../../../test-support/postgres-database'
 
-// Workers poll and retry on real timers, which a busy machine stretches.
+// Workers poll and retry on real timers, which a busy machine stretches. Draining with a deadline is proven by the ERP
+// smoke's "drains due jobs for the operator" (tests/smoke/serve-runtime-scenarios.ts).
 vi.setConfig({ testTimeout: 30_000 })
+
+const ready = await postgresTemplateReady('jobs')
 
 let runtime: JobsRuntime | undefined
 afterEach(async () => {
@@ -15,7 +17,7 @@ afterEach(async () => {
   runtime = undefined
 })
 
-const jobsDb = async () => new Kysely<any>({ dialect: new PGliteDialect(await createJobsPg()) })
+const jobsDb = async () => (await openPostgresDatabase('jobs')).db
 
 // A poll far away, so only a drain or an enqueue in this process starts a job.
 const start = async (db: Kysely<any>, jobs: JobDefinition[], options: Partial<StartJobsOptions> = {}) => {
@@ -26,7 +28,7 @@ const fromSql = (db: Kysely<any>, name: string, extra = sql``) => sql`select job
 
 const nextDue = async (db: Kysely<any>) => (await sql<{ due: Date | null }>`select jobs.next_due() as due`.execute(db)).rows[0]!.due
 
-describe('jobs.next_due()', () => {
+describe.skipIf(!ready)('jobs.next_due()', () => {
   it('is null with nothing waiting, then the first start of a waiting job', async () => {
     const db = await jobsDb()
     expect(await nextDue(db)).toBeNull()
@@ -50,7 +52,7 @@ describe('jobs.next_due()', () => {
   })
 })
 
-describe('drain', () => {
+describe.skipIf(!ready)('drain', () => {
   it('runs every due job, from any source, and says when the next one is due', async () => {
     const db = await jobsDb()
     const ran: number[] = []
@@ -61,15 +63,6 @@ describe('drain', () => {
     await fromSql(db, 'count', sql`, '{"n": 6}', run_at => ${later}`)
     expect(await runtime!.drain(20)).toEqual({ drained: true, remaining: 0, nextDue: later })
     expect(ran.sort()).toEqual([1, 2, 3, 4, 5])
-  })
-
-  it('stops when its time is up, with what is left', async () => {
-    const db = await jobsDb()
-    const job = defineJob({ name: 'slow', run: () => new Promise((resolve) => setTimeout(resolve, 3_000)) })
-    await start(db, [job])
-    await fromSql(db, 'slow')
-    const result = await runtime!.drain(0.5)
-    expect(result).toMatchObject({ drained: false, remaining: 1 })
   })
 
   it('needs a process that runs jobs', async () => {

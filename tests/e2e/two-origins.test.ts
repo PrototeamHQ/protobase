@@ -1,9 +1,7 @@
-import { Kysely } from 'kysely'
-import { PGliteDialect } from 'kysely-pglite-dialect'
 import { chromium, type Browser, type Page } from 'playwright'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { betterAuthAuthenticator, createAdmin, createAuth, createUser, type AdminAuth } from '@protobase/server'
-import { createAuthStore } from '../../test-support/auth'
+import { openPostgresDatabase, postgresTemplateReady, type PostgresDatabase } from '../../test-support/postgres-database'
 import { bundleBrowserClient } from './support/bundle-client'
 import { startHttpsServer } from './support/https-server'
 import { selfSignedCertificate } from './support/tls'
@@ -14,7 +12,8 @@ const secret = 'e2e-secret-e2e-secret-e2e-secret-123456'
 
 // One app on two hostnames over TLS, both resolved to a loopback port by Chromium; tokens are issued by the first,
 // passkeys are made for the first host and used on the second through its /.well-known/webauthn.
-describe('an app on two origins in a browser', () => {
+describe.skipIf(!(await postgresTemplateReady('auth')))('an app on two origins in a browser', () => {
+  let store: PostgresDatabase
   let server: Awaited<ReturnType<typeof startHttpsServer>>
   let first: string
   let second: string
@@ -29,10 +28,10 @@ describe('an app on two origins in a browser', () => {
     first = `https://first.test:${server.port}`
     second = `https://second.test:${server.port}`
 
-    const store = await createAuthStore()
-    auth = createAuth({ database: { dialect: new PGliteDialect(store), type: 'postgres' }, baseURL: first, origins: [second], secret, mailer: { send: async (message) => void sent.push(message) } })
+    store = await openPostgresDatabase('auth')
+    auth = createAuth({ database: { dialect: store.dialect, type: 'postgres' }, baseURL: first, origins: [second], secret, mailer: { send: async (message) => void sent.push(message) } })
     await createUser(auth, { email, password })
-    const app = createAdmin({ resources: [], db: new Kysely<any>({ dialect: new PGliteDialect(store) }), authenticate: betterAuthAuthenticator({ auth }), auth })
+    const app = createAdmin({ resources: [], db: store.db, authenticate: betterAuthAuthenticator({ auth }), auth })
     const html = '<!doctype html><title>Protobase</title><script type="module" src="/client.js"></script>'
     server.use((request) => {
       const { pathname } = new URL(request.url)
@@ -55,6 +54,7 @@ describe('an app on two origins in a browser', () => {
   afterAll(async () => {
     await browser?.close()
     await server?.close()
+    await store?.close()
   })
 
   const open = async (origin: string) => {

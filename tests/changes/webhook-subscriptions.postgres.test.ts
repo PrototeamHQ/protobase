@@ -1,5 +1,4 @@
 import { Kysely, sql } from 'kysely'
-import { PGliteDialect } from 'kysely-pglite-dialect'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { f, resource } from '@protobase/schema'
 import {
@@ -13,7 +12,7 @@ import {
   type JobsRuntime,
   type SubscriptionEvent,
 } from '@protobase/server'
-import { createJobsPg } from '../../test-support/jobs'
+import { openPostgresDatabase, postgresTemplateReady, type PostgresDatabase } from '../../test-support/postgres-database'
 import { startReceiver } from './receiver'
 
 // Workers poll and retry on real timers, which a busy machine stretches.
@@ -38,7 +37,8 @@ const people: Record<string, { tenant: number; roles: string[] }> = { lotte: { t
 
 const plugin = webhooks({ allowPrivateAddresses: true, ownerRoles: async ({ id }) => people[id]?.roles ?? [] })
 
-describe('webhook subscriptions made in the admin app', () => {
+describe.skipIf(!(await postgresTemplateReady('jobs')))('webhook subscriptions made in the admin app', () => {
+  let pg: PostgresDatabase
   let db: Kysely<any>
   let runtime: JobsRuntime
   let receiver: Awaited<ReturnType<typeof startReceiver>>
@@ -47,8 +47,8 @@ describe('webhook subscriptions made in the admin app', () => {
   const errors: unknown[] = []
 
   beforeAll(async () => {
-    const pg = await createJobsPg()
-    db = new Kysely<any>({ dialect: new PGliteDialect(pg) })
+    pg = await openPostgresDatabase('jobs')
+    db = pg.db
     await pg.exec('create table orders (id integer generated always as identity primary key, organization_id integer not null, status text not null default \'open\', total numeric(12, 2) not null, cost numeric(12, 2) not null default 0)')
     await pg.exec('create index on orders (organization_id, status)')
     await pg.exec((await changesMigration(db, [orders.toModel()]))!)
@@ -74,7 +74,7 @@ describe('webhook subscriptions made in the admin app', () => {
     await runtime?.stop()
     vi.restoreAllMocks()
     await receiver?.close()
-    await db?.destroy()
+    await pg?.close()
     expect(errors).toEqual([])
   })
 

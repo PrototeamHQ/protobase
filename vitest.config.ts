@@ -33,10 +33,13 @@ const mocking = [
 ]
 // Database, subprocess and build tests, and the release scripts': `bun run test:integration`.
 const integration = ['packages/cli/tests/**/*.integration.test.ts', 'packages/cli/tests/build/deploy-bundle.test.ts', 'tests/release/**/*.test.ts']
-// The glue between packages, on PGlite in `bun run test`, and on Postgres and PgBouncer (`*.postgres.test.ts`) with the
-// integration tests.
+// The glue between packages: snapshot tests in `bun run test`, and real-Postgres tests with the integration tests.
 const glue = 'tests/{ai,changes,comments,import,jobs,roles}/**/*.test.ts'
-const postgresGlue = 'tests/{changes,jobs}/**/*.postgres.test.ts'
+// The real-Postgres tests (`*.postgres.test.ts`), each on a clone of a test template (test-support/postgres-database.ts):
+// what a recording cannot replay, such as workers that poll and retry on real timers, the server's transaction ids that
+// the changes outbox holds, which differ on every recording, and image placeholders, which libvips computes a little
+// differently on each CPU architecture.
+const realPostgres = ['packages/*/tests/**/*.postgres.test.ts', 'tests/{changes,jobs,roles}/**/*.postgres.test.ts']
 // The CLI building and serving the ERP on the runtime that runs Vitest, Bun or Node: `bun run test:smoke` and
 // `node --run test:smoke`.
 const smoke = ['tests/smoke/**/*.test.ts']
@@ -46,21 +49,10 @@ const smoke = ['tests/smoke/**/*.test.ts']
 const postgresSuite = ['tests/postgres/**/*.test.ts']
 // The presets written out and installed with bun from npm, migrated on a tenant-style role: `bun run test:presets`.
 const presets = ['packages/presets/tests/**/*.test.ts']
-// Snapshot tests: what PGlite ran before, now replaying SQL recorded from real Postgres (test-support/sql-snapshot.ts),
-// in `bun run test` without a database. `bun run test:record` runs them on Postgres instead and rewrites the recordings.
+// Snapshot tests: replaying SQL recorded from real Postgres (test-support/sql-snapshot.ts), in `bun run test` without a
+// database. `bun run test:record` runs them on Postgres instead and rewrites the recordings.
 const recordSnapshots = process.env.SQL_SNAPSHOT === 'record'
 const databaseTests = ['packages/*/tests/**/*.test.ts', glue]
-// The PGlite tests left: what a recording cannot replay, or what a real-Postgres test proves already. They move to real
-// Postgres or go. Replay cannot follow workers that poll and retry on real timers, nor a recording that holds the
-// server's transaction ids, as the changes outbox does, which differ on every recording, nor image placeholders, which
-// libvips computes a little differently on each CPU architecture.
-const pglite = [
-  'packages/server/tests/{jobs,drain-jobs,recurring-jobs,files-images}.test.ts',
-  'packages/cli/tests/serve/lifecycle-jobs.test.ts',
-  'packages/cli/tests/worker/start-worker.test.ts',
-  'tests/changes/{capture,history,delivery,dispatch-guard,webhook-subscriptions}.test.ts',
-  'tests/roles/public-form.test.ts',
-]
 // Like `mocking` for unit tests, snapshot tests that replace a module or change a global run in a registry of their own,
 // and so do those that create a Better Auth instance: its rate limits live in one map per module registry, which the
 // fixed clock never empties, so they would carry over from file to file.
@@ -90,7 +82,7 @@ const snapshotProject = (name: string, include: string[], exclude: string[], iso
   test: {
     name,
     include,
-    exclude: [...configDefaults.exclude, ...integration, ...presets, postgresGlue, ...pglite, ...exclude],
+    exclude: [...configDefaults.exclude, ...integration, ...presets, ...realPostgres, ...exclude],
     // Replay connects to nothing, so a test that reaches for a database fails as a unit test does.
     setupFiles: [...(recordSnapshots ? [] : ['test-support/no-database.setup.ts']), 'test-support/sql-snapshot/setup.ts'],
     globalSetup: ['test-support/sql-snapshot/global-setup.ts'],
@@ -100,7 +92,8 @@ const snapshotProject = (name: string, include: string[], exclude: string[], iso
     ...(recordSnapshots && { maxWorkers: integrationWorkers, testTimeout: 30_000, hookTimeout: 60_000 }),
   },
 })
-// Chromium against an app served over TLS on more than one hostname, on PGlite: `bun run test:e2e`.
+// Chromium against an app served over TLS on more than one hostname, on clones of the test templates:
+// `bun run test:e2e`.
 const e2e = ['tests/e2e/**/*.test.ts']
 // Subprocesses and Postgres connections, so fewer files at once than the default. With other projects in the same run
 // (an example's `bun run test`), they go after them: Vitest runs projects of different maxWorkers in separate groups.
@@ -116,8 +109,8 @@ export default defineConfig({
     server: { deps: { inline: [/better-auth/] } },
     projects: [
       {
-        // `bun run test:unit` runs this and unit-isolated: only the tests next to the code; starting PGlite or a Postgres
-        // client there throws.
+        // `bun run test:unit` runs this and unit-isolated: only the tests next to the code; starting a Postgres client
+        // there throws.
         extends: true,
         test: {
           name: 'unit',
@@ -135,22 +128,13 @@ export default defineConfig({
           setupFiles: ['test-support/no-database.setup.ts'],
         },
       },
-      {
-        // `bun run test` runs this, unit and the snapshot tests: PGlite, but no Postgres server, subprocess or network.
-        extends: true,
-        test: {
-          name: 'pglite',
-          include: pglite,
-          globalSetup: ['test-support/pglite-snapshots.global-setup.ts'],
-        },
-      },
       snapshotProject('snapshot', databaseTests, snapshotIsolated, false),
       snapshotProject('snapshot-isolated', snapshotIsolated, [], true),
       {
         extends: true,
         test: {
           name: 'integration',
-          include: ['tests/examples/erp/**/*.test.ts', ...integration, ...smoke, postgresGlue],
+          include: ['tests/examples/erp/**/*.test.ts', ...integration, ...smoke, ...realPostgres],
           globalSetup: [testDatabase],
           env: runEnvironment('erp', runId),
           maxWorkers: integrationWorkers,

@@ -58,7 +58,7 @@ create table products (
 create table avatars (id integer generated always as identity primary key, name text not null, picture text);
 `
 
-/** A database for the fixture: a snapshot database unless a test passes another, as files-images.test.ts does. */
+/** A database for the fixture: a snapshot database unless a test passes another, as files-images.postgres.test.ts does. */
 export type FilesDatabase = { exec: (sql: string) => Promise<unknown>; dialect: Dialect }
 
 /**

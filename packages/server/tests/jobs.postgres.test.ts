@@ -1,16 +1,18 @@
 import { Kysely, sql } from 'kysely'
-import { PGliteDialect } from 'kysely-pglite-dialect'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { z } from 'zod'
 import { defineJob } from '../src/jobs/define-job'
 import type { JobDefinition } from '../src/jobs/job-types'
 import { FatalJobError } from '../src/jobs/run-job'
 import { startJobs, type JobsRuntime, type StartJobsOptions } from '../src/jobs/runtime'
-import { createJobsPg } from '../../../test-support/jobs'
+import { openPostgresDatabase, postgresTemplateReady } from '../../../test-support/postgres-database'
 
-// The jobs runtime, whose workers poll and retry on real timers, which a recording cannot replay and a busy machine
-// stretches; still on PGlite. The schema and enqueueing from SQL are in jobs-schema.test.ts.
+// The jobs runtime on real Postgres, whose workers poll and retry on real timers, which a recording cannot replay and a
+// busy machine stretches. The schema and enqueueing from SQL are in jobs-schema.test.ts; committing with the caller's
+// transaction, retries, group order and a graceful stop in tests/jobs/jobs-scenarios.ts.
 vi.setConfig({ testTimeout: 30_000 })
+
+const ready = await postgresTemplateReady('jobs')
 
 let runtime: JobsRuntime | undefined
 afterEach(async () => {
@@ -18,7 +20,7 @@ afterEach(async () => {
   runtime = undefined
 })
 
-const jobsDb = async () => new Kysely<any>({ dialect: new PGliteDialect(await createJobsPg()) })
+const jobsDb = async () => (await openPostgresDatabase('jobs')).db
 
 const start = async (db: Kysely<any>, jobs: JobDefinition[], options: Partial<StartJobsOptions> = {}) => {
   const errors: unknown[] = []
@@ -37,7 +39,7 @@ const row = async (db: Kysely<any>, id: string) => (await sql<Row>`select * from
 
 const until = (check: () => unknown, timeout = 10_000) => vi.waitFor(check, { timeout, interval: 20 })
 
-describe('enqueue and run', () => {
+describe.skipIf(!ready)('enqueue and run', () => {
   it('runs a job enqueued outside a transaction at once, with its payload checked', async () => {
     const db = await jobsDb()
     const seen: unknown[] = []
@@ -48,21 +50,6 @@ describe('enqueue and run', () => {
     await until(() => expect(seen).toEqual([{ payload: { invoiceId: 1 }, attempt: 1 }]), 10_000)
     await until(async () => expect((await row(db, id))!.state).toBe('completed'))
     await expect(job.enqueue(db, { invoiceId: 'x' } as never)).rejects.toThrow('Job "send-invoice" has an invalid payload: invoiceId:')
-  })
-
-  it("commits a job with the caller's transaction, or not at all", async () => {
-    const db = await jobsDb()
-    const seen: number[] = []
-    const job = defineJob({ name: 'count', payload: z.object({ n: z.number() }), run: ({ n }) => { seen.push(n) } })
-    await start(db, [job])
-    await db.transaction().execute((trx) => job.enqueue(trx, { n: 1 }))
-    let rolledBack: string | undefined
-    await expect(db.transaction().execute(async (trx) => {
-      rolledBack = await job.enqueue(trx, { n: 2 })
-      throw new Error('the write failed')
-    })).rejects.toThrow('the write failed')
-    await until(() => expect(seen).toEqual([1]))
-    expect(await row(db, rolledBack!)).toBeUndefined()
   })
 
   it("sends a job's mail with the mailer the jobs started with", async () => {
@@ -81,7 +68,7 @@ describe('enqueue and run', () => {
   })
 })
 
-describe('keys', () => {
+describe.skipIf(!ready)('keys', () => {
   it('keeps one waiting job per key: dedupe keeps it, replace takes the new payload', async () => {
     const db = await jobsDb()
     const job = defineJob({ name: 'refresh', payload: z.object({ v: z.number() }), run: () => {} })
@@ -112,21 +99,7 @@ describe('keys', () => {
   })
 })
 
-describe('failures', () => {
-  it('retries a failed try after a backoff, then completes', async () => {
-    const db = await jobsDb()
-    const tries: number[] = []
-    const job = defineJob({ name: 'flaky', retryDelay: '1s', run: (_, { job }) => {
-      tries.push(Date.now())
-      if (job.attempt === 1) throw new Error('SMTP down')
-    } })
-    await start(db, [job])
-    const id = await job.enqueue(db)
-    await until(async () => expect((await row(db, id))!.state).toBe('completed'), 8_000)
-    expect(tries).toHaveLength(2)
-    expect(tries[1]! - tries[0]!).toBeGreaterThanOrEqual(900)
-  })
-
+describe.skipIf(!ready)('failures', () => {
   it('keeps a job as failed with its last error once its attempts run out', async () => {
     const db = await jobsDb()
     let tries = 0
@@ -148,7 +121,7 @@ describe('failures', () => {
   })
 })
 
-describe('order', () => {
+describe.skipIf(!ready)('order', () => {
   it('runs higher priorities first', async () => {
     const db = await jobsDb()
     const order: string[] = []
@@ -161,32 +134,6 @@ describe('order', () => {
     await stop()
     await start(db, [job])
     await until(() => expect(order).toEqual(['urgent', 'normal', 'normal too', 'low']))
-  })
-
-  it('runs the jobs of one group one at a time, in order, beside other groups', async () => {
-    const db = await jobsDb()
-    const done: Record<string, number[]> = {}
-    const running = new Set<string>()
-    let overlaps = 0
-    const job = defineJob({
-      name: 'ordered',
-      ordered: true,
-      concurrency: 3,
-      payload: z.object({ group: z.string(), index: z.number() }),
-      run: async ({ group, index }) => {
-        if (running.has(group)) overlaps += 1
-        running.add(group)
-        await new Promise((resolve) => setTimeout(resolve, 5 + ((index * 7) % 20)))
-        running.delete(group)
-        ;(done[group] ??= []).push(index)
-      },
-    })
-    await start(db, [job], { work: false })
-    for (let index = 0; index < 4; index++) for (const group of ['a', 'b', 'c']) await job.enqueue(db, { group, index }, { group })
-    await stop()
-    await start(db, [job], { pollSeconds: 0.5 })
-    await until(() => expect(done).toEqual({ a: [0, 1, 2, 3], b: [0, 1, 2, 3], c: [0, 1, 2, 3] }), 10_000)
-    expect(overlaps).toBe(0)
   })
 
   it('holds a group back behind a job that is retrying', async () => {
@@ -207,35 +154,9 @@ describe('order', () => {
     await job.enqueue(db, { index: 1 }, { group: 'g' })
     await until(() => expect(done).toEqual([0, 1]), 8_000)
   })
-
-  it('runs the jobs of one group enqueued in one transaction in that order, from the app and from SQL', async () => {
-    const db = await jobsDb()
-    const done: number[] = []
-    const job = defineJob({ name: 'ordered', ordered: true, payload: z.object({ index: z.number() }), run: ({ index }) => { done.push(index) } })
-    await start(db, [job])
-    const indexes = Array.from({ length: 12 }, (_, index) => index)
-    await db.transaction().execute(async (trx) => {
-      for (const index of indexes) {
-        if (index % 3 === 0) await sql`select jobs.enqueue('ordered', ${JSON.stringify({ index })}::jsonb, group_key => 'g')`.execute(trx)
-        else await job.enqueue(trx, { index }, { group: 'g' })
-      }
-    })
-    await until(() => expect(done).toEqual(indexes), 10_000)
-  })
 })
 
-describe('the runtime', () => {
-  it('lets a running job finish when it stops', async () => {
-    const db = await jobsDb()
-    let started = false
-    const job = defineJob({ name: 'slow', run: async () => { started = true; await new Promise((resolve) => setTimeout(resolve, 300)) } })
-    await start(db, [job])
-    const id = await job.enqueue(db)
-    await until(() => expect(started).toBe(true))
-    await stop()
-    expect((await row(db, id))!.state).toBe('completed')
-  })
-
+describe.skipIf(!ready)('the runtime', () => {
   it('fails a job still running when the grace period ends, to be retried', async () => {
     const db = await jobsDb()
     let started = false

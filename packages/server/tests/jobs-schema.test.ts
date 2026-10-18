@@ -6,7 +6,8 @@ import { startJobs, type JobsRuntime, type StartJobsOptions } from '../src/jobs/
 import { checkJobsSchema, jobsSchemaMigration } from '../src/jobs/schema'
 import { openSnapshotDb } from '../../../test-support/sql-snapshot'
 
-// The jobs schema and enqueueing from SQL, with no worker running: what the runtime does with the jobs is in jobs.test.ts.
+// The jobs schema and enqueueing from SQL, with no worker running: what the runtime does with the jobs is in
+// jobs.postgres.test.ts.
 
 let runtime: JobsRuntime | undefined
 afterEach(async () => {
@@ -56,7 +57,7 @@ describe('jobs from SQL', () => {
     const job = defineJob({ name: 'from-sql', maxAttempts: 4, run: () => {} })
     await start(db, [job], { work: false })
     const { rows } = await db.transaction().execute((trx) => sql<{ id: string }>`select jobs.enqueue('from-sql', '{"invoiceId": 1}') as id`.execute(trx))
-    // Waiting for a worker, which the runtime's tests run (jobs.test.ts).
+    // Waiting for a worker, which the runtime's tests run (jobs.postgres.test.ts).
     expect(await row(db, rows[0]!.id)).toMatchObject({ state: 'created', data: { invoiceId: 1 } })
     expect((await sql<{ retry_limit: number }>`select retry_limit from jobs.job where id = ${rows[0]!.id}`.execute(db)).rows[0]!.retry_limit).toBe(3)
   })

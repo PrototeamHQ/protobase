@@ -1,11 +1,10 @@
 import { sql, Kysely } from 'kysely'
-import { PGliteDialect } from 'kysely-pglite-dialect'
 import { solveChallenge, type Challenge } from 'altcha-lib'
 import { deriveKey } from 'altcha-lib/algorithms/web/sha'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { defineRoles, f, resource, view } from '@protobase/schema'
 import { changesMigration, createAdmin, jobsSchemaMigration, startJobs, type JobsRuntime } from '@protobase/server'
-import { createJobsPg } from '../../test-support/jobs'
+import { openPostgresDatabase, postgresTemplateReady, type PostgresDatabase } from '../../test-support/postgres-database'
 import { as, testAuthenticator } from '../../test-support/server'
 
 // Workers poll on real timers, which a busy machine stretches.
@@ -36,7 +35,8 @@ const requestsView = view<typeof requests>('contact_requests')
   .form((r) => ({ name: 'contact', title: 'Contact us', fields: [r.name, r.email, r.message], thanks: 'Thanks, we will reply within a day.' }))
 
 // A shop's contact form: visitors send requests they cannot read back, behind a rate limit and a bot check.
-describe('a public form through the API', () => {
+describe.skipIf(!(await postgresTemplateReady('jobs')))('a public form through the API', () => {
+  let pg: PostgresDatabase
   let db: Kysely<any>
   let app: ReturnType<typeof createAdmin>
   let runtime: JobsRuntime
@@ -44,8 +44,8 @@ describe('a public form through the API', () => {
 
   beforeAll(async () => {
     vi.stubEnv('PROTOBASE_FORMS_SECRET', 'forms secret')
-    const pg = await createJobsPg()
-    db = new Kysely({ dialect: new PGliteDialect(pg) })
+    pg = await openPostgresDatabase('jobs')
+    db = pg.db
     const jobs = await jobsSchemaMigration(db)
     if (jobs) await pg.exec(jobs)
     await pg.exec(`
@@ -58,7 +58,7 @@ describe('a public form through the API', () => {
   })
   afterAll(async () => {
     await runtime?.stop()
-    await db.destroy()
+    await pg?.close()
     vi.unstubAllEnvs()
     expect(errors).toEqual([])
   })

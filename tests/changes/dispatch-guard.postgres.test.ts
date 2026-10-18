@@ -1,9 +1,8 @@
 import { sql, Kysely } from 'kysely'
-import { PGliteDialect } from 'kysely-pglite-dialect'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { f, resource } from '@protobase/schema'
 import { changesMigration, createAdmin, startJobs, subscription, type JobsRuntime, type SubscriptionEvent } from '@protobase/server'
-import { createJobsPg } from '../../test-support/jobs'
+import { openPostgresDatabase, postgresTemplateReady, type PostgresDatabase } from '../../test-support/postgres-database'
 
 // Workers poll and retry on real timers, which a busy machine stretches.
 vi.setConfig({ testTimeout: 30_000, hookTimeout: 30_000 })
@@ -20,7 +19,8 @@ const orders = resource('orders')
     e.created('rush', { match: ({ after }) => (fixed ? String(after?.notes ?? '') : (after!.notes as string)).includes('RUSH') }),
   ])
 
-describe('dispatch when event code throws', () => {
+describe.skipIf(!(await postgresTemplateReady('jobs')))('dispatch when event code throws', () => {
+  let pg: PostgresDatabase
   let db: Kysely<any>
   let runtime: JobsRuntime
   const logged: string[] = []
@@ -28,8 +28,8 @@ describe('dispatch when event code throws', () => {
   const delivered: SubscriptionEvent[] = []
 
   beforeAll(async () => {
-    const pg = await createJobsPg()
-    db = new Kysely<any>({ dialect: new PGliteDialect(pg) })
+    pg = await openPostgresDatabase('jobs')
+    db = pg.db
     await pg.exec('create table orders (id integer generated always as identity primary key, notes text)')
     await pg.exec((await changesMigration(db, [orders.toModel()]))!)
     vi.spyOn(console, 'log').mockImplementation((line: string) => void logged.push(line))
@@ -45,7 +45,7 @@ describe('dispatch when event code throws', () => {
   afterAll(async () => {
     await runtime?.stop()
     vi.restoreAllMocks()
-    await db?.destroy()
+    await pg?.close()
     expect(errors).toEqual([])
   })
 

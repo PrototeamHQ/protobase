@@ -1,11 +1,9 @@
 import { Kysely } from 'kysely'
-import { PGliteDialect } from 'kysely-pglite-dialect'
 import { chromium, type Browser, type Page } from 'playwright'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { f, resource, view } from '@protobase/schema'
 import { betterAuthAuthenticator, createAdmin, createAuth, createUser } from '@protobase/server'
-import { createAuthStore } from '../../test-support/auth'
-import { createEmptyPg } from '../../test-support/pglite-snapshot'
+import { openPostgresDatabase, postgresTemplateReady, type PostgresDatabase } from '../../test-support/postgres-database'
 import { bundleBrowserClient } from './support/bundle-client'
 import { startHttpServer } from './support/https-server'
 
@@ -22,7 +20,7 @@ const agents = resource('agents').table('agents').fields({ id: f.integer().readO
 const ticketsView = view<typeof tickets>('tickets').title((r) => r.title).names({ singular: 'Ticket', plural: 'Tickets' }).nav({ group: 'Support' })
 
 // Two apps on two origins: the shop draws the desk's tickets, the desk admits the shop's admins with its own tokens.
-describe("an app that draws another API's resources, in a browser", () => {
+describe.skipIf(!(await postgresTemplateReady('auth')))("an app that draws another API's resources, in a browser", () => {
   let shopServer: Awaited<ReturnType<typeof startHttpServer>>
   let deskServer: Awaited<ReturnType<typeof startHttpServer>>
   let shop: string
@@ -30,20 +28,27 @@ describe("an app that draws another API's resources, in a browser", () => {
   let deskDb: Kysely<any>
   let browser: Browser
   let page: Page
+  // Each app's databases, dropped after the file.
+  const databases: PostgresDatabase[] = []
+  const openDatabase = async (key: 'empty' | 'auth') => {
+    const database = await openPostgresDatabase(key)
+    databases.push(database)
+    return database
+  }
 
   beforeAll(async () => {
     ;[shopServer, deskServer] = await Promise.all([startHttpServer(), startHttpServer()])
     shop = `http://127.0.0.1:${shopServer.port}`
     desk = `http://127.0.0.1:${deskServer.port}`
 
-    const deskPg = await createEmptyPg()
+    const deskPg = await openDatabase('empty')
     await deskPg.exec(`
       create table tickets (id integer generated always as identity primary key, title text not null, status text not null);
       insert into tickets (title, status) values ('Wrong size delivered', 'closed'), ('Parcel never arrived', 'open');
       create table agents (id integer generated always as identity primary key, name text not null);
     `)
-    deskDb = new Kysely({ dialect: new PGliteDialect(deskPg) })
-    const deskAuth = createAuth({ database: { dialect: new PGliteDialect(await createAuthStore()), type: 'postgres' }, baseURL: desk, secret: 'desk-secret-desk-secret-desk-secret-12', roles: ['admin', 'shop'], mailer: false })
+    deskDb = deskPg.db
+    const deskAuth = createAuth({ database: { dialect: (await openDatabase('auth')).dialect, type: 'postgres' }, baseURL: desk, secret: 'desk-secret-desk-secret-desk-secret-12', roles: ['admin', 'shop'], mailer: false })
     // The desk reads the shop's keys from the shop's own /api/auth/jwks.
     const deskApp = createAdmin({
       resources: [tickets, agents],
@@ -55,12 +60,12 @@ describe("an app that draws another API's resources, in a browser", () => {
     })
     deskServer.use((request) => deskApp.fetch(request))
 
-    const shopStore = await createAuthStore()
-    const shopAuth = createAuth({ database: { dialect: new PGliteDialect(shopStore), type: 'postgres' }, baseURL: shop, secret: 'shop-secret-shop-secret-shop-secret-12', mailer: false })
+    const shopStore = await openDatabase('auth')
+    const shopAuth = createAuth({ database: { dialect: shopStore.dialect, type: 'postgres' }, baseURL: shop, secret: 'shop-secret-shop-secret-shop-secret-12', mailer: false })
     await createUser(shopAuth, { email, password })
     const shopApp = createAdmin({
       resources: [],
-      db: new Kysely<any>({ dialect: new PGliteDialect(shopStore) }),
+      db: shopStore.db,
       auth: shopAuth,
       authenticate: betterAuthAuthenticator({ auth: shopAuth }),
       options: { sources: [{ url: `${desk}/api/v1`, label: 'Service desk', resources: ['tickets', 'agents'] }] },
@@ -84,6 +89,7 @@ describe("an app that draws another API's resources, in a browser", () => {
   afterAll(async () => {
     await browser?.close()
     await Promise.all([shopServer?.close(), deskServer?.close()])
+    await Promise.all(databases.map((database) => database.close()))
   })
 
   it("reads the desk's /meta with the shop's token, scoped to what the shop draws and what its admins may do there", async () => {

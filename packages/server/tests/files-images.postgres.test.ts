@@ -1,17 +1,13 @@
-import { PGliteDialect } from 'kysely-pglite-dialect'
 import sharp from 'sharp'
 import { afterEach, describe, expect, it } from 'vitest'
-import { createEmptyPg } from '../../../test-support/pglite-snapshot'
+import { openPostgresDatabase, postgresTemplateReady } from '../../../test-support/postgres-database'
 import { as, json } from '../../../test-support/server'
 import { pdf } from '../src/files/testing/samples'
 import { createFilesFixture, type ProductOptions } from './support/files-fixture'
 
-// On PGlite, not a recording: libvips computes the placeholder that goes into the database a little differently on
-// each CPU architecture, so a recording made on one fails replay on another.
-const database = async () => {
-  const pg = await createEmptyPg()
-  return { exec: (sql: string) => pg.exec(sql), dialect: new PGliteDialect(pg) }
-}
+// On real Postgres, not a recording: libvips computes the placeholder that goes into the database a little differently
+// on each CPU architecture, so a recording made on one fails replay on another.
+const database = () => openPostgresDatabase('empty')
 
 let fixture: Awaited<ReturnType<typeof createFilesFixture>>
 afterEach(() => fixture.close())
@@ -39,7 +35,7 @@ const download = async (url: string) => {
   return { status: response.status, type: response.headers.get('content-type'), width, height, format }
 }
 
-describe('image fields', () => {
+describe.skipIf(!(await postgresTemplateReady('empty')))('image fields', () => {
   it('store the variants beside the upload, upright, and give the placeholder and each variant a link', async () => {
     fixture = await createFilesFixture({ database, accept: ['image/*', 'application/pdf'], placeholder: true, variants })
     const uploaded = await upload(photo, 'roof.jpg')
