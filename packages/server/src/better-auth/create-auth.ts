@@ -3,6 +3,7 @@ import { betterAuth, type BetterAuthOptions } from 'better-auth'
 import { admin, emailOTP, genericOAuth, jwt } from 'better-auth/plugins'
 import { adminAc, userAc } from 'better-auth/plugins/admin/access'
 import { defaultAppName, readAppName } from '../app-name'
+import { authBasePath } from './auth-base-path'
 import { platformMailer } from '../mail/platform-mailer'
 import type { Mailer } from '../mail/smtp-mailer'
 import { readOperatorSettings, resolveOperator, type OperatorProvider, type ResolvedOperator } from './operator-provider'
@@ -21,6 +22,7 @@ import { rolesPlugin } from './roles/roles-plugin'
 import type { RoleSession, RoleUser } from './roles/session-role'
 import { platformSignInFor, platformSignInProvider, readPlatformSignIn, resolvePlatformSignIn, type PlatformSignIn, type ResolvedPlatformSignIn } from './platform-sign-in'
 import { signInPolicyPlugin } from './policy-plugin'
+import { emailInDomains, resolveSamlProviders, samlDisabledPaths, samlGuardPlugin, samlPlugin, type ResolvedSamlProvider, type SsoOptions } from './saml-sign-in'
 import { emailCodeOptions, twoFactorCodeOptions, unusedEmailCodePaths } from './sign-in-mail'
 import { signUpPaths, signUpPlugin } from './sign-up/sign-up-plugin'
 import { coreNames, pluginNames } from './snake-case-names'
@@ -112,6 +114,13 @@ export type CreateAuthOptions = {
    */
   signInProvider?: PlatformSignIn | false
   /**
+   * Single sign-on with the app's SAML 2.0 identity providers, for example `{ saml: [{ id: 'okta', name: 'Okta',
+   * domains: ['example.com'], idp: { metadata } }] }` (see `SamlProvider`). Like `socialProviders`, a provider signs up
+   * people without an account, with the default role, but only at its `domains`, where it also links to the account
+   * with the same address. Default none.
+   */
+  sso?: SsoOptions
+  /**
    * Turns on organizations: people work in one at a time, records of `.tenant` resources are scoped to it, and roles
    * are held globally (on the user) or per membership. Off by default: the app works as one organization.
    */
@@ -135,7 +144,7 @@ const platformAppName = () => readAppName(globalThis.process?.env ?? {})
 
 const tokenLifetime = '15m'
 
-export const authBasePath = '/api/auth'
+export { authBasePath }
 
 /**
  * Better Auth for a single-tenant admin: sign-in with a password, an emailed code or a passkey, two-factor
@@ -165,6 +174,8 @@ type Resolved = {
   signUpRole?: string
   operator?: ResolvedOperator
   platformSignIn?: ResolvedPlatformSignIn
+  /** The SAML providers, from `resolveSamlProviders`. */
+  saml?: ResolvedSamlProvider[]
   organizations?: ResolvedOrganizations
   /** The auth context once the instance exists, for the organization hooks and claims. */
   context?: () => Promise<AuthContext>
@@ -180,11 +191,12 @@ const organizationPaths = ['/organization/set-active', '/organization/accept-inv
  * The options `createAuth` gives Better Auth, with the roles, default role, mailer, operator provider and platform
  * sign-in provider already resolved.
  */
-export const betterAuthOptions = (options: CreateAuthOptions, { origins = [], passkeyDomain, roles, definitions, defaultRole, appName = defaultAppName, mailer, signUpRole, operator, platformSignIn, organizations, context = noContext }: Resolved) => {
+export const betterAuthOptions = (options: CreateAuthOptions, { origins = [], passkeyDomain, roles, definitions, defaultRole, appName = defaultAppName, mailer, signUpRole, operator, platformSignIn, saml = [], organizations, context = noContext }: Resolved) => {
   const secure = options.baseURL.startsWith('https://')
   const signIn = platformSignInFor(platformSignIn, Object.keys(options.socialProviders ?? {}))
   const hosts = passkeyHosts([options.baseURL, ...origins])
   const mail = mailer && { mailer, appName, baseURL: options.baseURL }
+  const samlIds = saml.map((provider) => provider.id)
   return {
     appName,
     database: options.database,
@@ -228,9 +240,10 @@ export const betterAuthOptions = (options: CreateAuthOptions, { origins = [], pa
       ...(mail ? [emailOTP(emailCodeOptions(mail))] : []),
       ...(mail && signUpRole ? [signUpPlugin({ role: signUpRole, mail })] : []),
       ...(signIn ? [genericOAuth({ config: [platformSignInProvider(signIn)] })] : []),
+      ...(saml.length > 0 ? [samlPlugin(saml, options.baseURL), samlGuardPlugin(samlIds)] : []),
       signInPolicyPlugin({
         mail: Boolean(mailer),
-        socialProviders: Object.keys(options.socialProviders ?? {}),
+        socialProviders: [...Object.keys(options.socialProviders ?? {}), ...samlIds],
         ...(operator && { operator: operator.name }),
         ...(signIn && { platformSignIn: { provider: signIn.provider, name: signIn.name } }),
       }),
@@ -240,7 +253,7 @@ export const betterAuthOptions = (options: CreateAuthOptions, { origins = [], pa
         ? [organizationPlugin({ resolved: organizations, secret: options.secret, ...(mail && { mail }), context }), protobaseOrganizationPlugin({ resolved: organizations, mail: Boolean(mailer) })]
         : []),
     ],
-    disabledPaths: [...unusedEmailCodePaths, ...adminImpersonationPaths, ...(organizations ? organizationPaths : [])],
+    disabledPaths: [...unusedEmailCodePaths, ...adminImpersonationPaths, ...(organizations ? organizationPaths : []), ...(saml.length > 0 ? samlDisabledPaths : [])],
     databaseHooks: {
       user: {
         create: {
@@ -249,6 +262,11 @@ export const betterAuthOptions = (options: CreateAuthOptions, { origins = [], pa
             const unknown = given.find((name) => !roles.includes(name))
             if (given.length === 0 || unknown !== undefined) {
               throw new APIError('BAD_REQUEST', { message: `Choose a role for the new user: ${roles.join(', ')}` })
+            }
+            // A SAML provider vouches for the addresses at its own domains only.
+            const samlProvider = context?.path === '/sso/saml2/sp/acs/:providerId' ? saml.find((provider) => provider.id === context.params?.providerId) : undefined
+            if (samlProvider && !emailInDomains(user.email, samlProvider.domains)) {
+              throw new APIError('FORBIDDEN', { code: 'EMAIL_DOMAIN_NOT_ALLOWED', message: 'This address is not one the identity provider may sign up.' })
             }
             const withId = options.generateUserId ? { ...user, id: await options.generateUserId() } : user
             // An admin, or the host, creates the account for an address they vouch for.
@@ -309,13 +327,14 @@ export const createAuth = (options: CreateAuthOptions) => {
   const signInSettings = options.signInProvider === undefined ? platformSignInSettings() : options.signInProvider || undefined
   const socialProviders = Object.keys(options.socialProviders ?? {})
   const platformSignIn = platformSignInFor(signInSettings && resolvePlatformSignIn(signInSettings), socialProviders)
+  const saml = resolveSamlProviders(options.sso?.saml ?? [], [...socialProviders, ...(platformSignIn ? [platformSignIn.provider] : [])])
   const origins = resolveOrigins(options.baseURL, options.origins ?? platformOrigins())
   const passkeyDomain = resolvePasskeyDomain(options.passkeyDomain ?? platformPasskeyDomain(), [options.baseURL, ...origins])
   const organizations = options.organizations && resolveOrganizations(options.organizations, definitions, options.baseURL)
   // The organization hooks read the store through the instance made below; they run only once it exists.
   let instance: { $context: Promise<AuthContext> } | undefined
   const context = () => instance?.$context ?? Promise.reject(new Error('The auth instance is not made yet'))
-  const auth = betterAuth(betterAuthOptions(options, { origins, passkeyDomain, roles, definitions, defaultRole, ...(appName && { appName }), mailer, signUpRole, operator, platformSignIn, ...(organizations && { organizations, context }) }))
+  const auth = betterAuth(betterAuthOptions(options, { origins, passkeyDomain, roles, definitions, defaultRole, ...(appName && { appName }), mailer, signUpRole, operator, platformSignIn, saml, ...(organizations && { organizations, context }) }))
   instance = auth as unknown as { $context: Promise<AuthContext> }
   return Object.assign(auth, {
     /** Issuer and audience of the tokens: `baseURL`, on every origin. */
@@ -339,6 +358,8 @@ export const createAuth = (options: CreateAuthOptions) => {
     appName: appName ?? defaultAppName,
     operator: operator?.name,
     platformSignIn: platformSignIn && { provider: platformSignIn.provider, name: platformSignIn.name },
+    /** The id and name of each SAML provider, for the sign-in page. */
+    samlProviders: saml.map(({ id, name }) => ({ id, name })),
   })
 }
 

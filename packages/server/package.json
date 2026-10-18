@@ -34,6 +34,7 @@
   },
   "dependencies": {
     "@better-auth/passkey": "^1.7.7",
+    "@better-auth/sso": "^1.7.7",
     "@protobase/layout": "workspace:*",
     "@protobase/query": "workspace:*",
     "@protobase/schema": "workspace:*",
@@ -64,5 +65,8 @@
     "sharp": {
       "optional": true
     }
+  },
+  "devDependencies": {
+    "samlify": "^2.13.1"
   }
 }

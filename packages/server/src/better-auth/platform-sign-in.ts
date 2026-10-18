@@ -44,13 +44,14 @@ export const readPlatformSignIn = (env: Record<string, string | undefined>): Pla
   return { issuer, clientId, clientSecret, ...(provider && { provider }), ...(name && { name }) }
 }
 
-const providerId = /^[a-z][a-z0-9-]*$/
+/** What a sign-in provider id may be: lowercase letters, digits or "-", starting with a letter. */
+export const providerIdPattern = /^[a-z][a-z0-9-]*$/
 
 /** The provider with its defaults filled in; an issuer that is not a URL or a malformed id is an error. */
 export const resolvePlatformSignIn = (signIn: PlatformSignIn) => {
   if (!URL.canParse(signIn.issuer)) throw new Error(`The platform sign-in provider's issuer must be a URL, not "${signIn.issuer}"`)
   const provider = signIn.provider ?? 'oidc'
-  if (!providerId.test(provider)) throw new Error(`Invalid sign-in provider id "${provider}": use lowercase letters, digits or "-"`)
+  if (!providerIdPattern.test(provider)) throw new Error(`Invalid sign-in provider id "${provider}": use lowercase letters, digits or "-"`)
   return { ...signIn, provider, name: signIn.name ?? (provider === 'github' ? 'GitHub' : 'SSO'), scopes: signIn.scopes ?? [] }
 }
 

@@ -5,10 +5,12 @@ import { resolveOperator } from './operator-provider'
 import { resolveOrganizations } from './organizations/options'
 import { roleDefinitions } from './organizations/role-definitions'
 import { resolvePlatformSignIn } from './platform-sign-in'
+import { resolveSamlProviders } from './saml-sign-in'
 
 const snakeCase = /^[a-z][a-z0-9]*(_[a-z0-9]+)*$/
 
 describe('the auth store names', () => {
+  // With SAML providers too, which live in config: the SSO plugin adds no table.
   it('are snake_case for every table, column and index, with every plugin on', () => {
     const options = betterAuthOptions(
       { database: undefined, baseURL: 'https://admin.example.com', secret: 'test-secret-test-secret-test-secret-1234' },
@@ -18,11 +20,12 @@ describe('the auth store names', () => {
         mailer: { send: async () => {} },
         operator: resolveOperator({ issuer: 'https://id.operator.example', clientId: 'app', clientSecret: 'secret' }),
         platformSignIn: resolvePlatformSignIn({ issuer: 'https://auth.example.com', clientId: 'app', clientSecret: 'secret' }),
+        saml: resolveSamlProviders([{ id: 'okta', domains: ['example.com'], idp: { metadata: '<EntityDescriptor entityID="https://idp.example.com"/>' } }], []),
         organizations: resolveOrganizations({}, roleDefinitions({ sales: 'Sales' }, { organizations: true }), 'https://admin.example.com'),
       },
     )
     expect(options.plugins.map((plugin) => plugin.id)).toEqual(
-      expect.arrayContaining(['admin', 'jwt', 'two-factor', 'passkey', 'email-otp', 'generic-oauth', 'protobase-sign-in-policy', 'protobase-staff-sign-in', 'organization']),
+      expect.arrayContaining(['admin', 'jwt', 'two-factor', 'passkey', 'email-otp', 'generic-oauth', 'protobase-sign-in-policy', 'protobase-staff-sign-in', 'sso', 'organization']),
     )
 
     const schema = getSchema(options)

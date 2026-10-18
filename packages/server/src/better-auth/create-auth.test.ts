@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import { betterAuthOptions, type CreateAuthOptions } from './create-auth'
+import { betterAuthOptions, createAuth, type CreateAuthOptions } from './create-auth'
 import { roleDefinitions } from './organizations/role-definitions'
 import { resolvePlatformSignIn } from './platform-sign-in'
+import { resolveSamlProviders, samlDisabledPaths } from './saml-sign-in'
 import { coreNames } from './snake-case-names'
 
 const base: CreateAuthOptions = { database: undefined, baseURL: 'https://admin.example.com', secret: 'test-secret-test-secret-test-secret-1234' }
@@ -89,5 +90,25 @@ describe('betterAuthOptions', () => {
     expect(plugins(base)).toContain('generic-oauth')
     expect(plugins({ ...base, socialProviders: github })).not.toContain('generic-oauth')
     expect(betterAuthOptions(base, resolved).plugins.map((plugin) => plugin.id)).not.toContain('generic-oauth')
+  })
+
+  it('adds the SSO plugin without its provider table, and turns off its management paths, only with SAML providers', () => {
+    const saml = resolveSamlProviders([{ id: 'okta', domains: ['example.com'], idp: { metadata: '<EntityDescriptor entityID="https://idp.example.com"/>' } }], [])
+    const without = betterAuthOptions(base, resolved)
+    expect(without.plugins.map((plugin) => plugin.id)).not.toContain('sso')
+    expect(without.disabledPaths).not.toContain('/sso/register')
+    const options = betterAuthOptions(base, { ...resolved, saml })
+    const plugin = options.plugins.find((plugin) => plugin.id === 'sso')
+    expect(plugin).toBeDefined()
+    expect(plugin).not.toHaveProperty('schema')
+    expect(options.plugins.map((plugin) => plugin.id)).toContain('protobase-saml-guard')
+    expect(options.disabledPaths).toEqual([...without.disabledPaths, ...samlDisabledPaths])
+  })
+})
+
+describe('createAuth', () => {
+  it('refuses a SAML provider with the id of a social provider', () => {
+    const sso = { saml: [{ id: 'github', domains: ['example.com'], idp: { metadata: '<EntityDescriptor/>' } }] }
+    expect(() => createAuth({ ...base, socialProviders: github, sso })).toThrow(/"github" is already the id of another sign-in provider/)
   })
 })
