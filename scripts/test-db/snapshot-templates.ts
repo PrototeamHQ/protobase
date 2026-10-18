@@ -8,7 +8,8 @@ import type { Template } from './templates'
 
 // The databases `bun run test:record` records the snapshot tests on (test-support/sql-snapshot.ts): each recorded test
 // file clones the one it opens. `bun run test:db snapshots` builds them; each takes a second or two. Each is vacuumed
-// as it is built, so the planner sees the same visibility map whether autovacuum got to it or not.
+// as it is built, so the planner sees the same visibility map whether autovacuum got to it or not. The real-Postgres
+// tests clone some of them too (test-support/postgres-database.ts), which `bun run test:db` builds beside the examples'.
 
 type Db = Kysely<any>
 
@@ -50,6 +51,9 @@ export const snapshotTemplates = {
 }
 
 export type SnapshotTemplateKey = keyof typeof snapshotTemplates
+
+/** The templates the real-Postgres tests clone. */
+export const realPostgresTemplates = ['empty', 'auth', 'jobs'] as const satisfies readonly SnapshotTemplateKey[]
 
 /** Fills the template database at `url`. */
 export const fillSnapshotTemplate = async (key: SnapshotTemplateKey, url: string) => {

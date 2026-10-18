@@ -1,11 +1,12 @@
 import { spawnSync } from 'node:child_process'
 import path from 'node:path'
-import { fillSnapshotTemplate, snapshotTemplates, type SnapshotTemplateKey } from './snapshot-templates'
+import { fillSnapshotTemplate, realPostgresTemplates, snapshotTemplates, type SnapshotTemplateKey } from './snapshot-templates'
 import { connectServer, databaseUrl, sourceHash, suites, templates, templateState, type Template } from './templates'
 
 // `bun run test:db [suite] [--force]`: builds the suite's test templates (the integration tests' when no suite is named)
 // that are missing or older than what they are built from, every one with --force. Test runs clone these; they never
-// write to the developer databases. The `snapshots` suite is what `bun run test:record` records on.
+// write to the developer databases. The integration suite includes the templates the real-Postgres tests clone; the
+// `snapshots` suite is what `bun run test:record` records on.
 
 const root = path.join(import.meta.dirname, '..', '..')
 const force = process.argv.includes('--force')
@@ -37,6 +38,7 @@ const snapshot = (key: SnapshotTemplateKey): Buildable => ({
 
 const buildables: Record<string, Buildable[]> = {
   ...Object.fromEntries(Object.entries(suites).map(([name, keys]) => [name, keys.map((key) => example(templates[key]))])),
+  integration: [...suites.integration.map((key) => example(templates[key])), ...realPostgresTemplates.map(snapshot)],
   snapshots: (Object.keys(snapshotTemplates) as SnapshotTemplateKey[]).map(snapshot),
 }
 if (!buildables[suite]) throw new Error(`No test suite ${suite}: name one of ${Object.keys(buildables).join(', ')}`)
