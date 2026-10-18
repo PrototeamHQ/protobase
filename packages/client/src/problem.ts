@@ -22,6 +22,8 @@ export type ProblemDetails = {
   errors?: ProblemError[]
   /** The index of the operation that failed, when the request was a batch. */
   operation?: number
+  /** For a delete other records still point at: their resource, and its field pointing at the record, as far as the caller may know. */
+  blockedBy?: { resource: string; field?: string }
 }
 
 /** A non-2xx response, parsed from `application/problem+json`. */
@@ -43,6 +45,11 @@ export class ApiError extends Error {
   /** For a batch: the index of the operation that failed, so the UI can name it. */
   get operation() {
     return this.problem.operation ?? this.errors.find((entry) => entry.operation !== undefined)?.operation
+  }
+
+  /** For a delete other records still point at: their resource, and the field to filter its list by. */
+  get blockedBy() {
+    return this.problem.blockedBy
   }
 
   get errors() {

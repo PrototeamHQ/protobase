@@ -19,9 +19,10 @@ const queryProblem = (error: QueryError) => {
   return new HttpProblem(status, error.code.replaceAll('_', '-'), titles[status] ?? 'Not Implemented', error.message)
 }
 
-type DatabaseError = { code: string }
+/** An error from the database driver, pg's or PGlite's: its SQLSTATE, and the table it names, when it names one. */
+type DatabaseError = { code: string; table?: string; schema?: string }
 
-const isDatabaseError = (error: unknown): error is DatabaseError =>
+export const isDatabaseError = (error: unknown): error is DatabaseError =>
   error instanceof Error && /^[0-9A-Z]{5}$/.test(String((error as unknown as { code?: unknown }).code))
 
 // Constraint and column names are left out: they can name a column the caller may not see.

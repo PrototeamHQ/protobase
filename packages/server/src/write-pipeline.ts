@@ -1,5 +1,7 @@
 import type { Db } from '@protobase/query'
 import type { Deps } from './deps'
+import { blockedDelete } from './blocked-delete'
+import { isDatabaseError } from './error-handler'
 import { attachFiles } from './files/attach'
 import { badRequest, HttpProblem } from './problem'
 import { deleteRecord, fetchRecord, insertRecord, restoreRecord } from './records'
@@ -77,7 +79,11 @@ const removeOrRestore = async (trx: Db, deps: Deps, access: RequestAccess, reque
     await notify(trx, 'undelete', current.record, restored.record)
     return shown(access, restored)
   }
-  const removed = await deleteRecord(trx, entry, request.key, scope?.tenantValue, shape)
+  const removed = await deleteRecord(trx, entry, request.key, scope?.tenantValue, shape).catch(async (error: unknown) => {
+    // Other records still point at it: say which, as far as the caller may know
+    if (isDatabaseError(error) && error.code === '23503') throw await blockedDelete(deps, access, error)
+    throw error
+  })
   await notify(trx, 'delete', current.record, undefined)
   return shown(access, removed)
 }

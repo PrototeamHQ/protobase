@@ -1,10 +1,13 @@
 import { useQueryClient } from '@tanstack/react-query'
 import { useState, type ReactNode } from 'react'
-import { PreconditionFailedError, isApiError } from '@protobase/client'
+import { PreconditionFailedError, isApiError, type ApiError } from '@protobase/client'
 import type { ResourceModel, ViewModel } from '@protobase/schema'
 import { useClient } from '../../data/api-provider'
 import { humanize } from '../../live/naming'
 import { useToast } from '../../toasts'
+import { useAdminMeta } from '../meta-gate'
+import { useAppAddress } from '../use-app-address'
+import { blockedDelete } from './blocked-delete'
 import { BulkDeleteDialog, ConfirmDeleteDialog, ConflictDialog, type BulkFailure } from './dialogs'
 import { diffRecords, type FieldChange } from './record-diff'
 
@@ -42,6 +45,12 @@ export const useDeleteFlow = ({ model, view, onDeleted, onReview, restore }: Del
   const [busy, setBusy] = useState(false)
   const noun = view?.names?.singular ?? humanize(model.name)
   const plural = view?.names?.plural ?? humanize(model.name)
+  const { resources, views } = useAdminMeta()
+  const { href, open } = useAppAddress()
+
+  // A delete other records still point at names them, and links to them when it can filter their list by this record
+  const blocked = (error: ApiError, target: DeleteTarget) =>
+    error.blockedBy && blockedDelete({ blockedBy: error.blockedBy, resources, views, noun, ...(model.primaryKey.length === 1 && { key: target.key }) })
 
   const refresh = () => {
     for (const prefix of ['page', 'list', 'first-page', 'map']) void queryClient.invalidateQueries({ queryKey: [prefix, model.name] })
@@ -98,7 +107,13 @@ export const useDeleteFlow = ({ model, view, onDeleted, onReview, restore }: Del
     } catch (error) {
       if (!isApiError(error)) throw error
       setFlow(undefined)
-      toast.show({ state: 'error', title: `Could not delete ${target.title}`, description: error.message })
+      const why = blocked(error, target)
+      toast.show({
+        state: 'error',
+        title: `Could not delete ${target.title}`,
+        description: why?.text ?? error.message,
+        ...(why?.link && { action: { label: why.link.label, href: href(why.link.to), onNavigate: open } }),
+      })
     } finally {
       setBusy(false)
     }
@@ -110,7 +125,7 @@ export const useDeleteFlow = ({ model, view, onDeleted, onReview, restore }: Del
       return stale ? { title: target.title, message: 'Changed since the list loaded, so it was kept.' } : undefined
     } catch (error) {
       if (!isApiError(error)) throw error
-      return { title: target.title, message: error.message }
+      return { title: target.title, message: blocked(error, target)?.text ?? error.message }
     }
   }
 

@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { as, createFixtureDb, createTestApp, json, type TestApp } from '../../../test-support/server'
+import { as, companies, createFixtureDb, createTestApp, json, organizations, testAuthenticator, type TestApp } from '../../../test-support/server'
+import { createAdmin } from '../src/create-admin'
 
 let fixture: Awaited<ReturnType<typeof createFixtureDb>>
 let app: TestApp
@@ -105,6 +106,31 @@ describe('POST /{resource}', () => {
     const problem = await response.json()
     expect(response.status).toBe(409)
     expect(problem.detail).not.toMatch(/duplicate key/)
+  })
+})
+
+describe('a delete other records point at', () => {
+  it('answers 409 naming the resource that points at it, and the field to filter its list by', async () => {
+    const response = await request('/organizations/2', { method: 'DELETE' })
+    const problem = await response.json()
+    expect(response.status).toBe(409)
+    expect(problem).toMatchObject({ type: 'urn:protobase:problem:conflict', blockedBy: { resource: 'companies', field: 'organizationId' } })
+    expect(problem.detail).not.toMatch(/companies|organization_id|fkey/)
+  })
+
+  it('names nothing to a caller who may not list that resource', async () => {
+    const admins = (ctx: { user: { roles: string[] } }) => ctx.user.roles.includes('admin')
+    const hidden = createAdmin({ resources: [organizations, companies.access({ read: admins, list: admins } as never)], db: fixture.db, authenticate: testAuthenticator })
+    const response = await hidden.request('/api/v1/organizations/2', { method: 'DELETE', headers: as(1, 'viewer') })
+    const problem = await response.json()
+    expect(response.status).toBe(409)
+    expect(problem.blockedBy).toBeUndefined()
+  })
+
+  it('names it in a batch too', async () => {
+    const response = await app.request('/api/v1:batchWrite', { method: 'POST', headers: { ...as(1, 'admin'), 'content-type': 'application/json' }, body: JSON.stringify({ ops: [{ op: 'delete', resource: 'organizations', key: 2 }] }) })
+    expect(response.status).toBe(409)
+    expect(await response.json()).toMatchObject({ blockedBy: { resource: 'companies', field: 'organizationId' }, op: 'delete', resource: 'organizations' })
   })
 })
 

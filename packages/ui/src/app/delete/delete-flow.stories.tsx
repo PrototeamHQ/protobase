@@ -1,8 +1,11 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { expect, fn, userEvent, waitFor, within } from 'storybook/test'
-import { PreconditionFailedError, type Client } from '@protobase/client'
-import type { ResourceModel, ViewModel } from '@protobase/schema'
+import { ApiError, PreconditionFailedError, type Client } from '@protobase/client'
+import { appPath, type ResourceModel, type ViewModel } from '@protobase/schema'
 import { ApiProvider } from '../../data/api-provider'
+import { MetaContext } from '../../data/meta-context'
+import type { MetaData } from '../../data/meta-data'
+import { Router } from '../router'
 import { Button } from '../../primitives/button'
 import { ToastProvider } from '../../toasts'
 import { useDeleteFlow, type DeleteTarget } from './use-delete-flow'
@@ -17,6 +20,12 @@ const model = {
 } as unknown as ResourceModel
 
 const view = { resource: 'orders', names: { singular: 'Order', plural: 'Orders' }, fields: { status: { valueLabels: { draft: 'Draft', confirmed: 'Confirmed' } } }, filters: [], layout: [], actions: [] } as unknown as ViewModel
+
+const lines = { name: 'order_lines', table: { schema: 'sales', name: 'order_lines' }, primaryKey: ['id'], fields: { id: field('id', 'uuid'), order_id: field('order_id', 'relation', { filterable: true, relation: { resource: 'orders', columns: ['order_id'] } }) } } as unknown as ResourceModel
+const linesView = { resource: 'order_lines', names: { singular: 'Order line', plural: 'Order lines' }, fields: {}, filters: [], layout: [], actions: [] } as unknown as ViewModel
+
+// The app's `/meta`, which names the order lines that may keep an order from being deleted.
+const adminMeta: MetaData = { etag: '"meta"', appName: 'Protobase', resources: { orders: model, order_lines: lines }, views: { orders: view, order_lines: linesView }, pages: {}, permissions: {} }
 
 const opened = { id: 'o1', number: 'SO-2026-000001', status: 'draft', notes: null }
 const changed = { ...opened, status: 'confirmed', notes: 'Call the customer first' }
@@ -58,11 +67,15 @@ const meta = {
   render: ({ remove, get, onDeleted, onReview }) => {
     const client = { remove: staleVersion(remove), get } as unknown as Client
     return (
-      <ApiProvider client={client}>
-        <ToastProvider>
-          <Harness onDeleted={onDeleted} onReview={onReview} />
-        </ToastProvider>
-      </ApiProvider>
+      <Router initialUrl="/orders">
+        <MetaContext.Provider value={adminMeta}>
+          <ApiProvider client={client}>
+            <ToastProvider>
+              <Harness onDeleted={onDeleted} onReview={onReview} />
+            </ToastProvider>
+          </ApiProvider>
+        </MetaContext.Provider>
+      </Router>
     )
   },
 } satisfies Meta<HarnessProps>
@@ -112,5 +125,21 @@ export const CancelKeepsTheRecord: Story = {
     await waitFor(() => expect(within(canvasElement).queryByRole('dialog')).toBeNull())
     expect(args.remove).not.toHaveBeenCalled()
     expect(args.onDeleted).not.toHaveBeenCalled()
+  },
+}
+
+export const BlockedDeleteNamesWhatPointsAtIt: Story = {
+  args: {
+    remove: fn(async () => {
+      throw new ApiError({ type: 'urn:protobase:problem:conflict', title: 'Conflict', status: 409, detail: 'Other records still point at this record', blockedBy: { resource: 'order_lines', field: 'order_id' } })
+    }),
+  },
+  play: async ({ canvasElement }) => {
+    const conflict = await openConflictDialog(canvasElement)
+    await userEvent.click(within(conflict).getByRole('button', { name: 'Delete anyway' }))
+    const canvas = within(canvasElement)
+    expect(await canvas.findByText('Order lines still point at this order.')).toBeInTheDocument()
+    expect(canvas.getByText('Could not delete SO-2026-000001')).toBeInTheDocument()
+    expect(canvas.getByRole('link', { name: 'Show order lines' })).toHaveAttribute('href', appPath({ kind: 'list', resource: 'order_lines', filter: 'order_id = "o1"' }))
   },
 }
