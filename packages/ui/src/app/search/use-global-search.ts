@@ -5,10 +5,12 @@ import { useClient } from '../../data/api-provider'
 import { useRouter } from '../router'
 import { useDebounced } from '../../lib/use-debounced'
 import { useAdminMeta } from '../meta-gate'
+import { navigationHits } from './navigation-hits'
 import { hitsPerResource, minimumQuery, searchFields, searchFilter, searchPlaceholder, searchTargets, toHit } from './search-model'
 
 /**
- * The top bar's search: the typed text, searched in every resource the user can read that has search fields, through
+ * The top bar's search: the typed text, matched against the sidebar's pages and lists and the records the user may
+ * create ("New order"), then searched in every resource the user can read that has search fields, through
  * the list API with the user's token, so row filters and hidden fields apply exactly as on the lists. The results stay
  * while the text does, so opening the box again asks nothing; other texts' results are dropped, so changed text asks again.
  */
@@ -31,16 +33,18 @@ export const useGlobalSearch = () => {
       queryFn: () => client.list(target.model.name, { filter: searchFilter(query), pageSize: hitsPerResource, fields: searchFields(target) }),
     })),
   })
-  const groups = targets.flatMap((target, index): SearchResultGroup[] => {
+  const navigation = useMemo(() => (searching ? navigationHits(meta, query, basePath) : []), [searching, meta, query, basePath])
+  const records = targets.flatMap((target, index): SearchResultGroup[] => {
     const result = results[index]
     if (!searching || !result) return []
     if (result.error) return [{ id: target.model.name, label: target.label, hits: [], failed: true }]
     const hits = (result.data?.items ?? []).map((row) => toHit(target, row, query, basePath))
     return hits.length > 0 ? [{ id: target.model.name, label: target.label, hits }] : []
   })
+  const groups = [...navigation, ...records]
   return {
-    /** False when no resource can be searched; the top bar then shows no search box. */
-    available: targets.length > 0,
+    /** False when there is nothing to find, no page, list or resource; the top bar then shows no search box. */
+    available: Object.keys(meta.pages).length > 0 || Object.keys(meta.resources).length > 0,
     placeholder: searchPlaceholder(targets),
     text,
     setText,

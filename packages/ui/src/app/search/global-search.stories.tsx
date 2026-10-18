@@ -134,3 +134,20 @@ export const ContextualSubtitle: StoryObj = {
     await results(canvas, [['R-305', 'Hinge clamp loose']])
   },
 }
+
+/** The search jumps to a list by its name, and to a new record's form, before the records it finds. */
+export const GoesToListsAndNew: StoryObj = {
+  tags: ['play'],
+  render: () => <Shop />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    const box = await canvas.findByRole('combobox', { name: 'Global search' })
+    await userEvent.type(box, 'repair')
+    const list = await canvas.findByRole('listbox', { name: 'Search results' })
+    await waitFor(() => expect(within(list).getByRole('group', { name: 'Go to' })).toBeVisible())
+    expect(within(within(list).getByRole('group', { name: 'Go to' })).getByRole('option', { name: 'Repairs' })).toHaveAttribute('href', '/repairs')
+    expect(within(within(list).getByRole('group', { name: 'Create' })).getByRole('option', { name: 'New repair' })).toHaveAttribute('href', '/repairs/new')
+    await userEvent.keyboard('{Enter}')
+    await waitFor(() => expect(canvas.getByRole('heading', { level: 1, name: 'Repairs' })).toBeVisible())
+  },
+}
