@@ -1,4 +1,4 @@
-import { checkFilter, restrictModel, resolveAccess, type AccessAction, type CheckedFilter, type FieldModel, type FilterExpr, type ResolvedAccess, type ResourceModel } from '@protobase/schema'
+import { checkFilter, restrictModel, resolveAccess, type AccessAction, type CheckedFilter, type FieldModel, type FilterExpr, type FormModel, type ResolvedAccess, type ResourceModel } from '@protobase/schema'
 import type { Deps } from './deps'
 import { checkedFilter } from './filter-input'
 import { checkOwnerId } from './owner-id'
@@ -38,9 +38,17 @@ const withoutSensitive = (model: ResourceModel): ResourceModel => ({
 const withoutAnonymousCreate = (resolved: ResolvedAccess, session: Session): ResolvedAccess =>
   session.anonymous ? { ...resolved, operations: { ...resolved.operations, create: false }, writableFields: { ...resolved.writableFields, create: [] } } : resolved
 
-export const requestAccess = async (deps: Deps, entry: Entry, session: Session): Promise<RequestAccess> => {
+// Through a public form a visitor creates the form's fields, which they need not read: the one write made blind, since
+// the visitor never sees the record it makes. They count as readable so the write can name them; nothing is read back.
+const throughForm = (resolved: ResolvedAccess, form: FormModel): ResolvedAccess => {
+  const create = resolved.writableFields.create.filter((name) => form.fields.includes(name))
+  return { ...resolved, readableFields: [...new Set([...resolved.readableFields, ...create])], writableFields: { create, update: [] } }
+}
+
+/** `form` is the public form a visitor sends, the only way a caller without a token creates. */
+export const requestAccess = async (deps: Deps, entry: Entry, session: Session, form?: FormModel): Promise<RequestAccess> => {
   const all = await resolveAccess(entry.source, { user: { id: session.user.id, roles: session.user.roles }, ...organizationOf(session) }, deps.accessOptions)
-  const resolved = withoutAnonymousCreate(all, session)
+  const resolved = form ? throughForm(all, form) : withoutAnonymousCreate(all, session)
   checkOwnerId(entry, session.user, resolved)
   const readable = restrictModel(entry.model, resolved)
   return { entry, session, resolved, full: entry.model, readable, model: withoutSensitive(readable), deps }

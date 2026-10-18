@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { defineRoles } from '@protobase/schema'
-import { withAnonymous } from './anonymous'
+import { visitorsBrowse, withAnonymous } from './anonymous'
 import { MissingCredentials, unauthorized } from './problem'
 import type { Authenticator } from './types'
 
@@ -22,5 +22,14 @@ describe('withAnonymous', () => {
     await expect(withRole(request('Bearer bad'))).rejects.toThrow('The token is invalid')
     expect(withAnonymous(signedIn, defineRoles({ admin: ['*'] }))).toBe(signedIn)
     expect(withAnonymous(signedIn, undefined)).toBe(signedIn)
+  })
+})
+
+describe('visitorsBrowse', () => {
+  it('opens the admin app to visitors when the anonymous role reads, not when it only creates through forms', () => {
+    expect(visitorsBrowse(defineRoles<'products' | 'leads'>({ anonymous: [{ 'products.read': ['name'] }, { 'leads.create': ['email'] }] }))).toBe(true)
+    expect(visitorsBrowse(defineRoles<'products' | 'leads'>({ anonymous: [{ 'leads.create': ['email'] }], reader: ['products.read'] }))).toBe(false)
+    expect(visitorsBrowse(defineRoles({ admin: ['*'] }))).toBe(false)
+    expect(visitorsBrowse(undefined)).toBe(false)
   })
 })

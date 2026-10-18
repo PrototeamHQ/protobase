@@ -3,8 +3,11 @@ import type { AdminOptions } from './admin-options'
 import { MissingCredentials } from './problem'
 import type { Authenticator, Session } from './types'
 
-// No tenant, and an id no signed-in user has: every verified token names a subject.
-const anonymousSession = (): Session => ({ user: { id: '', roles: [anonymousRole] }, anonymous: true })
+/** The user id of a caller without a token: one no signed-in user has, since every verified token names a subject. */
+export const anonymousUserId = ''
+
+/** A caller without a token, acting as the `anonymous` role, with no tenant. */
+export const anonymousSession = (): Session => ({ user: { id: anonymousUserId, roles: [anonymousRole] }, anonymous: true })
 
 /**
  * With an `anonymous` role in `roles`, a request that carries no credential at all (`MissingCredentials`) is served as
@@ -21,3 +24,10 @@ export const withAnonymous = (authenticate: Authenticator, roles: AdminOptions['
     }
   }
 }
+
+/**
+ * Whether visitors browse the admin app without signing in: the anonymous role reads a resource. One that only creates,
+ * through public forms, leaves the app behind sign-in.
+ */
+export const visitorsBrowse = (roles: AdminOptions['roles']) =>
+  (roles?.limits ?? []).some(({ role, capability }) => role === anonymousRole && capability.endsWith('.read'))

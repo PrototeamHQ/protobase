@@ -1,7 +1,7 @@
 import { Hono } from 'hono'
 import { checkPages } from '@protobase/layout'
 import type { Db } from '@protobase/query'
-import { anonymousRole, type BottomBarSource, type UserMenuSource } from '@protobase/schema'
+import type { BottomBarSource, UserMenuSource } from '@protobase/schema'
 import { assistantSettings } from './assistant/assistant-settings'
 import { builtInAssistant } from './assistant/built-in-assistant'
 import { assistantRecords } from './assistant/records'
@@ -23,7 +23,7 @@ import { webhookTable } from './webhooks/table/webhook-table'
 import { subscriptionWriteCheck } from './webhooks/table/validate-hook'
 import type { WebhooksOptions } from './webhooks/table/options'
 import type { SubscriptionDefinition } from './webhooks/subscription'
-import { withAnonymous } from './anonymous'
+import { visitorsBrowse, withAnonymous } from './anonymous'
 import { checkBottomBars, checkShell } from './check-shell'
 import { checkOwnerFields } from './check-owners'
 import { checkRoleLimits } from './check-roles'
@@ -32,6 +32,9 @@ import { createErrorHandler } from './error-handler'
 import { errorReportingSettings } from './error-reporting/error-reporting-settings'
 import type { FilesOptions } from './files/options'
 import { fileRoutes } from './files/routes'
+import type { Difficulty } from './forms/challenge'
+import { formRoutes } from './forms/routes'
+import { createFormsRuntime } from './forms/runtime'
 import { createFilesRuntime } from './files/runtime'
 import { toApiFunction, type FunctionSource } from './functions/define-function'
 import { callerRecords } from './functions/records'
@@ -94,6 +97,8 @@ export type CreateAdminInput = {
    */
   fieldTypes?: Record<string, string[]>
   options?: AdminOptions
+  /** @internal The proof-of-work range of public forms' bot checks, which tests make tiny. */
+  formsDifficulty?: Difficulty
 }
 
 // The roles a user can hold, from the auth instance and `defineRoles`; unknown when the app declares neither.
@@ -103,7 +108,7 @@ const declaredRoles = (auth: AdminAuth | undefined, roles: AdminOptions['roles']
 }
 
 /** The admin REST API as a Hono app. It uses only Web APIs, so it runs on Node, Workers and anywhere else Hono does. */
-export const createAdmin = ({ resources: appResources, views: appViews = [], pages = [], userMenu, bottomBars = [], db, authenticate, auth, functions = {}, files: filesOptions, events, history: historyOptions, jobs = [], subscriptions = [], webhooks: webhooksOptions, bundlePlugins = [], fieldTypes = {}, options = {} }: CreateAdminInput): Admin => {
+export const createAdmin = ({ resources: appResources, views: appViews = [], pages = [], userMenu, bottomBars = [], db, authenticate, auth, functions = {}, files: filesOptions, events, history: historyOptions, jobs = [], subscriptions = [], webhooks: webhooksOptions, bundlePlugins = [], fieldTypes = {}, options = {}, formsDifficulty }: CreateAdminInput): Admin => {
   const basePath = options.basePath ?? '/api/v1'
   // Events are delivered and history kept by jobs, whose failures the page lists too. Admins list the history as Activity.
   const appModels = appResources.map((resource) => resource.toModel())
@@ -128,6 +133,7 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], pag
     models: Object.fromEntries(registry.entries.map((entry) => [entry.name, entry.model])),
     actions: (resource) => new Set(viewModels.filter((view) => view.resource === resource).flatMap((view) => view.actions.map((action) => action.name))),
   })
+  const forms = createFormsRuntime({ registry, views: viewModels, limits: options.roles?.limits ?? [], env: globalThis.process?.env ?? {}, ...(formsDifficulty && { difficulty: formsDifficulty }) })
   const systemPath = basePath.slice(0, basePath.lastIndexOf('/'))
   const assistant = assistantSettings(options.assistant, globalThis.process?.env ?? {})
   const runtime = runtimeUrl(options.runtime, globalThis.process?.env ?? {})
@@ -207,7 +213,7 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], pag
     app.use(`${systemPath}/*`, apiCors({ own: ownOrigins, allowed: corsOrigins ?? [], skip }))
   }
   if (auth) {
-    app.route(authBasePath, statusRoute(auth, { anonymous: Object.hasOwn(options.roles?.definitions ?? {}, anonymousRole), plugins: pluginsBeforeSignIn(plugins) }))
+    app.route(authBasePath, statusRoute(auth, { anonymous: visitorsBrowse(options.roles), plugins: pluginsBeforeSignIn(plugins) }))
     if (auth.organizations) app.route(authBasePath, organizationRoutes({ auth, audit: deps.audit, registry, db }))
     app.on(['GET', 'POST'], `${authBasePath}/*`, (c) => auth.handler(c.req.raw))
     // On several origins, each says which origins may use the app's passkeys: all of them (Related Origin Requests).
@@ -221,6 +227,8 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], pag
   app.route('/', functionRoutes({ basePath: `${systemPath}/functions`, functions: apiFunctions, authenticate, db, records: (session) => callerRecords(deps, session), onError }))
   app.route('/', batchRoute(deps, authenticate, meta))
   app.route('/', fileRoutes(deps, authenticate))
+  // Before the system endpoints, which want a token for everything under them
+  if (forms) app.route(`${systemPath}/forms`, formRoutes(deps, forms))
   app.route(basePath, api)
   app.route(`${deps.systemPath}/meta`, metaApp)
   app.route(deps.systemPath || '/', system)

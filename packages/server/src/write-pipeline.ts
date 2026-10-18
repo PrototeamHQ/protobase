@@ -1,4 +1,5 @@
 import type { Db } from '@protobase/query'
+import type { FormModel } from '@protobase/schema'
 import type { Deps } from './deps'
 import { blockedDelete } from './blocked-delete'
 import { isDatabaseError } from './error-handler'
@@ -100,9 +101,12 @@ export const writeIn = async (trx: Db, deps: Deps, access: RequestAccess, reques
   return removeOrRestore(trx, deps, access, request)
 }
 
-/** The path every single write takes: resolve access once, then `writeIn` in its own transaction with a statement timeout. The caller has already authenticated `session`. */
-export const runWrite = async (deps: Deps, entry: Entry, session: Session, request: WriteRequest): Promise<WriteResult> => {
-  const access = await requestAccess(deps, entry, session)
+/**
+ * The path every single write takes: resolve access once, then `writeIn` in its own transaction with a statement timeout.
+ * The caller has already authenticated `session`; `form` is the public form a visitor creates through.
+ */
+export const runWrite = async (deps: Deps, entry: Entry, session: Session, request: WriteRequest, form?: FormModel): Promise<WriteResult> => {
+  const access = await requestAccess(deps, entry, session, form)
   requireOperation(access, request.operation === 'undelete' ? 'update' : request.operation)
   const result = await writeTransaction(deps.db, deps.statementTimeoutMs, (trx) => writeIn(trx, deps, access, request), actorSettings(deps, session))
   wakeDispatch(deps)

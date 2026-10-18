@@ -16,7 +16,7 @@ import { hasUsers } from './users'
  * operator provider's name, when staff can sign in as people; `passkeyDomains`, when people have passkeys for more than
  * one of the app's hosts, the RP IDs a passkey sign-in can ask for, the passkey domain first; with organizations, who may create them and the roles
  * with their labels, `membership` for those a member can hold, and the roles each one's holders may also give; and
- * `anonymous` when the project has an anonymous role, so the admin app opens for visitors before anyone signs in; and
+ * `anonymous` when the project's anonymous role reads a resource, so the admin app opens for visitors before anyone signs in; and
  * `plugins`, those the app loads before sign-in (see `PluginOption`).
  */
 export const statusRoute = (auth: AdminAuth, { anonymous = false, plugins = [] }: { anonymous?: boolean; plugins?: PluginRef[] } = {}) => {

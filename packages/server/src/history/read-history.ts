@@ -2,6 +2,7 @@ import { sql } from 'kysely'
 import { z } from 'zod'
 import type { ResourceModel } from '@protobase/schema'
 import { encodeKey } from '@protobase/schema/internal'
+import { anonymousUserId } from '../anonymous'
 import { quoteIdent } from '../changes/capture-sql'
 import type { Deps } from '../deps'
 import { parseParams } from '../params'
@@ -38,6 +39,9 @@ const params = z.object({
 
 const defaultPageSize = 20
 
+// Who a caller without a token is in a history, such as someone who sent a public form.
+const visitorName = 'Visitor'
+
 const picked = (row: Row | null, names: ReadonlySet<string>) => (row ? Object.fromEntries(Object.entries(row).filter(([name]) => names.has(name))) : undefined)
 
 // What the reader may see of a change; an update of only fields they may not read is none of theirs.
@@ -47,7 +51,7 @@ const shown = (row: HistoryRow, readable: ResourceModel, names: Record<string, s
   if (row.operation === 'update' && changed.length === 0) return []
   const before = picked(row.before, values)
   const after = picked(row.after, values)
-  const name = row.actor_id === null ? undefined : names[row.actor_id]
+  const name = row.actor_id === null ? undefined : row.actor_id === anonymousUserId ? visitorName : names[row.actor_id]
   return [{
     id: row.id,
     at: row.at,
@@ -86,7 +90,7 @@ export const readHistory = async (deps: Deps, entry: Entry, session: Session, ke
   })
   if (!rows) throw notFound(`No ${entry.name} with this key`)
   const page = rows.slice(0, size)
-  const ids = [...new Set(page.flatMap((row) => (row.actor_id === null ? [] : [row.actor_id])))]
+  const ids = [...new Set(page.flatMap((row) => (row.actor_id === null || row.actor_id === anonymousUserId ? [] : [row.actor_id])))]
   const names = ids.length > 0 && actorNames ? await actorNames(ids) : {}
   return {
     items: page.flatMap((row) => shown(row, access.readable, names)),

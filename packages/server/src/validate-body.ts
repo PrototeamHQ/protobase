@@ -30,6 +30,12 @@ const reserved = ['etag', 'permissions']
 const isEmptyText = (field: FieldModel, value: unknown) => field.type === 'text' && !field.nullable && value === ''
 
 /**
+ * Whether a create must give the field, as `validateBody` decides when it is missing: the database supplies no value,
+ * it may not be null, and its schema has no default of its own (`.default()`).
+ */
+export const requiredOnCreate = (field: FieldModel, schema: z.ZodType) => !(field.default && 'db' in field.default) && !field.nullable && !schema.safeParse(undefined).success
+
+/**
  * Checks a create or update body for this caller. A field the caller cannot read is an unknown field, one they can read
  * but not write is read-only (the tenant column and the API's own `etag` and `permissions` keys are always read-only);
  * every provided value goes through its field's zod schema, then `.validate()` rules run on the result. An empty text
