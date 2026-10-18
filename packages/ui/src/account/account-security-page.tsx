@@ -20,7 +20,9 @@ const takeLinkError = () => {
 
 /** The signed-in person's passkeys, two-factor authentication and connected accounts, within what the sign-in policy allows. */
 export const AccountSecurityPage = ({ email }: { email: string }) => {
-  const { session, signInProviders, linkProvider } = useAuth()
+  const { session, signInProviders, socialProviders, linkProvider } = useAuth()
+  // An account links to an OAuth provider from here; a SAML identity provider links it by signing in.
+  const linkable = signInProviders.filter((provider) => socialProviders.includes(provider.id))
   const { account } = session
   const [loaded, setLoaded] = useState<Loaded>()
   const [error, setError] = useState<string>()
@@ -62,12 +64,12 @@ export const AccountSecurityPage = ({ email }: { email: string }) => {
             onNewBackupCodes={(password) => account.newBackupCodes(password)}
             onChanged={reload}
           />
-          {signInProviders.length > 0 && (
+          {linkable.length > 0 && (
             <SignInProvidersSection
-              providers={signInProviders}
+              providers={linkable}
               linked={loaded.linked}
               onConnect={linkProvider}
-              error={linkError && providerMessage(linkError, signInProviders.length === 1 ? signInProviders[0]!.name : 'the provider')}
+              error={linkError && providerMessage(linkError, linkable.length === 1 ? linkable[0]!.name : 'the provider')}
             />
           )}
         </>

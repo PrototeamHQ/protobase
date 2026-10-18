@@ -72,15 +72,17 @@ describe('auth session sign-in', () => {
 
   it('reads the setup status, with passwords only from a server that does not list sign-in methods', async () => {
     const open = createAuthSession({ origin: 'http://localhost', fetch: (async () => json({ needsAdmin: true })) as typeof fetch })
-    expect(await open.status()).toEqual({ needsAdmin: true, signInMethods: ['password'], passwordReset: false, socialProviders: [] })
+    expect(await open.status()).toEqual({ needsAdmin: true, signInMethods: ['password'], passwordReset: false, socialProviders: [], samlProviders: [] })
     const resettable = createAuthSession({ origin: 'http://localhost', fetch: (async () => json({ needsAdmin: false, signInMethods: ['emailCode', 'passkey'], passwordReset: true, socialProviders: ['github'] })) as typeof fetch })
-    expect(await resettable.status()).toEqual({ needsAdmin: false, signInMethods: ['emailCode', 'passkey'], passwordReset: true, socialProviders: ['github'] })
+    expect(await resettable.status()).toEqual({ needsAdmin: false, signInMethods: ['emailCode', 'passkey'], passwordReset: true, socialProviders: ['github'], samlProviders: [] })
     const browsable = createAuthSession({ origin: 'http://localhost', fetch: (async () => json({ needsAdmin: false, signInMethods: ['password'], socialProviders: [], anonymous: true })) as typeof fetch })
     expect(await browsable.status()).toMatchObject({ anonymous: true })
     const signUp = createAuthSession({ origin: 'http://localhost', fetch: (async () => json({ needsAdmin: false, signInMethods: ['password'], socialProviders: [], signUp: true })) as typeof fetch })
     expect(await signUp.status()).toMatchObject({ signUp: true })
     const platform = createAuthSession({ origin: 'http://localhost', fetch: (async () => json({ needsAdmin: false, signInMethods: ['password'], socialProviders: ['github'], platformSignIn: { provider: 'github', name: 'GitHub' } })) as typeof fetch })
     expect(await platform.status()).toMatchObject({ socialProviders: ['github'], platformSignIn: { provider: 'github', name: 'GitHub' } })
+    const saml = createAuthSession({ origin: 'http://localhost', fetch: (async () => json({ needsAdmin: false, signInMethods: ['password'], socialProviders: [], samlProviders: [{ id: 'okta', name: 'Okta' }] })) as typeof fetch })
+    expect((await saml.status()).samlProviders).toEqual([{ id: 'okta', name: 'Okta' }])
     const early = createAuthSession({ origin: 'http://localhost', fetch: (async () => json({ needsAdmin: false, signInMethods: ['password'], socialProviders: [], plugins: [{ url: 'https://cloud.example.com/plugin.json' }] })) as typeof fetch })
     expect(await early.status()).toMatchObject({ plugins: [{ url: 'https://cloud.example.com/plugin.json' }] })
   })
@@ -102,6 +104,20 @@ describe('auth session sign-in with a provider', () => {
     const session = createAuthSession({ origin: 'http://localhost', fetch })
     expect(await session.signInSocial('github', 'http://localhost/orders')).toBe('https://github.com/login/oauth/authorize?client_id=Iv1.client')
     expect(requests).toEqual([{ path: '/api/auth/sign-in/social', body: { provider: 'github', callbackURL: 'http://localhost/orders', errorCallbackURL: 'http://localhost/orders', disableRedirect: true } }])
+  })
+
+  it('asks a SAML provider for its sign-in URL by its id, coming back to the page either way', async () => {
+    const requests: Array<{ path: string; body: unknown }> = []
+    const fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+      const request = new Request(input, init)
+      requests.push({ path: new URL(request.url).pathname, body: await request.json() })
+      return json({ url: 'https://idp.example.com/sso?SAMLRequest=request', redirect: true })
+    }) as typeof globalThis.fetch
+    const session = createAuthSession({ origin: 'http://localhost', fetch })
+    expect(await session.signInSaml('okta', 'http://localhost/orders')).toBe('https://idp.example.com/sso?SAMLRequest=request')
+    expect(requests).toEqual([{ path: '/api/auth/sign-in/sso', body: { providerId: 'okta', callbackURL: 'http://localhost/orders', errorCallbackURL: 'http://localhost/orders' } }])
+    const missing = createAuthSession({ origin: 'http://localhost', fetch: (async () => json({ message: 'No SAML provider okta' }, { status: 404 })) as typeof fetch })
+    await expect(missing.signInSaml('okta', 'http://localhost/')).rejects.toMatchObject({ name: 'AuthError', status: 404 })
   })
 
   it('reports a provider the server does not have as AuthError', async () => {

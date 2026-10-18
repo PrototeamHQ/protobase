@@ -27,5 +27,6 @@ describe('auth messages', () => {
     expect(providerMessage('signup_disabled', 'GitHub')).toBe('No account here belongs to this GitHub account. Ask an admin to add you, or sign in another way.')
     expect(providerMessage('account_already_linked_to_different_user', 'GitHub')).toBe('This GitHub account is linked to someone else here already.')
     expect(providerMessage('invalid_code', 'Acme SSO')).toBe('Signing in with Acme SSO did not go through. Try again.')
+    expect(providerMessage('EMAIL_DOMAIN_NOT_ALLOWED', 'Okta')).toBe('Okta signed you in with an address this app does not accept from it. Sign in another way.')
   })
 })

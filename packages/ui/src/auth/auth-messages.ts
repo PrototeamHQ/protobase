@@ -61,6 +61,8 @@ const providerMessages: Record<string, (name: string) => string> = {
   account_already_linked_to_different_user: (name) => `This ${name} account is linked to someone else here already.`,
   unable_to_link_account: (name) => `Your ${name} account could not be linked. Try again.`,
   access_denied: (name) => `${name} did not let you in, or you cancelled.`,
+  // A SAML identity provider's, for an address outside its domains: the server's own code, as it sends it.
+  EMAIL_DOMAIN_NOT_ALLOWED: (name) => `${name} signed you in with an address this app does not accept from it. Sign in another way.`,
 }
 
 /** Why signing in or linking with the provider `name` did not go through, from the code it came back with. */

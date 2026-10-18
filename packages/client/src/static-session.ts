@@ -13,7 +13,7 @@ const unsupported = (what: string) => async (): Promise<never> => {
  */
 export const createStaticSession = (token: string, user: AuthUser = { id: 'token', email: 'token', name: 'API token', role: null }): AuthSession => ({
   token: async () => token,
-  status: async () => ({ needsAdmin: false, signInMethods: ['password'], passwordReset: false, socialProviders: [] }),
+  status: async () => ({ needsAdmin: false, signInMethods: ['password'], passwordReset: false, socialProviders: [], samlProviders: [] }),
   session: async () => user,
   signIn: async () => ({ kind: 'signed-in', user }),
   sendSignInCode: async () => undefined,
@@ -25,6 +25,7 @@ export const createStaticSession = (token: string, user: AuthUser = { id: 'token
   sendTwoFactorCode: async () => undefined,
   verifyTwoFactor: async () => user,
   signInSocial: unsupported('sign in with a provider'),
+  signInSaml: unsupported('sign in with a provider'),
   signOut: async () => undefined,
   requestPasswordReset: async () => undefined,
   resetPassword: async () => undefined,

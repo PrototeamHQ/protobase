@@ -95,6 +95,7 @@ export const createAuthSession = (options: AuthSessionOptions = {}) => {
         ...(body.signUp && { signUp: true }),
         socialProviders: body.socialProviders ?? [],
         ...(body.platformSignIn && { platformSignIn: body.platformSignIn }),
+        samlProviders: body.samlProviders ?? [],
         ...(body.staffSignIn && { staffSignIn: body.staffSignIn }),
         ...(body.passkeyDomains && { passkeyDomains: body.passkeyDomains }),
         ...(body.organizations && { organizations: body.organizations }),
@@ -118,6 +119,17 @@ export const createAuthSession = (options: AuthSessionOptions = {}) => {
      */
     signInSocial: async (provider: string, callbackURL: string) => {
       const { data, error } = await client.signIn.social({ provider, callbackURL, errorCallbackURL: callbackURL, disableRedirect: true })
+      if (error || !data?.url) throw authError(error, 'Sign-in failed')
+      return data.url
+    },
+
+    /**
+     * Starts sign-in with one of the app's SAML identity providers by its id: resolves with the provider's sign-in URL,
+     * for the page to go to. The provider sends the browser back to `callbackURL` signed in, or with `?error=<code>`,
+     * for example `EMAIL_DOMAIN_NOT_ALLOWED` for an address outside the provider's domains, or `account_not_linked`.
+     */
+    signInSaml: async (providerId: string, callbackURL: string) => {
+      const { data, error } = await client.$fetch<{ url: string }>('/sign-in/sso', { method: 'POST', body: { providerId, callbackURL, errorCallbackURL: callbackURL } })
       if (error || !data?.url) throw authError(error, 'Sign-in failed')
       return data.url
     },
