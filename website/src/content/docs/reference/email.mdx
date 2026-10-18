@@ -9,7 +9,7 @@ import jobs from '../../../../../docs-examples/email/jobs.ts?raw'
 import config from '../../../../../docs-examples/email/protobase.config.ts?raw'
 import resend from '../../../../../docs-examples/email/resend-repair-ready.ts?raw'
 
-An app sends mail through one SMTP server: Protobase's own mail ([password reset](/reference/auth/#password-reset), [emailed sign-in codes](/reference/auth/#emailed-sign-in-codes), [invitations](/reference/auth/#organizations) and staff sign-in notices) and the emails the app defines itself. Both are React components, rendered to HTML with a plain-text part beside it.
+An app sends mail through one SMTP server: Protobase's own mail ([password reset](/reference/auth/#password-reset), [emailed sign-in codes](/reference/auth/#emailed-sign-in-codes), [invitations](/reference/auth/#organizations), staff sign-in notices and [mentions in comments](/reference/comments/#mentions)) and the emails the app defines itself. Both are React components, rendered to HTML with a plain-text part beside it.
 
 ## Configuration
 
@@ -35,7 +35,7 @@ A project that delivers mail another way passes a `mailer`, `{ send({ to, subjec
 
 ## Protobase's own mail
 
-The auth emails (sign-in, two-factor and sign-up codes, the note to an address that asked to sign up while it has an account, password reset, invitations and staff sign-in notices) are built with React Email's components: a heading, the message, one code or button, and a footer naming the app.
+The auth emails (sign-in, two-factor and sign-up codes, the note to an address that asked to sign up while it has an account, password reset, invitations and staff sign-in notices) and the email to someone a [comment mentions](/reference/comments/#mentions) are built with React Email's components: a heading, the message, one code or button, and a footer naming the app.
 
 - They name the app by [`appName`](/reference/auth/#configuration), and link it on the origin the request came to: the footer links its home page, and the note to an address that has an account links its sign-in page.
 - The plain-text part has each code on a line of its own and each link in full.

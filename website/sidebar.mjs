@@ -26,6 +26,7 @@ export const reference = [
   'reference/events',
   'reference/webhooks',
   'reference/history',
+  'reference/comments',
   'reference/forms',
   'reference/jobs',
   'reference/email',

@@ -1,0 +1,59 @@
+---
+title: Record comments
+description: Comments on a resource's records by anyone who may read them, with @mentions that email the people named, shown on the record page and listed for admins.
+---
+
+import { Code } from '@astrojs/starlight/components'
+import StoryFrame from '../../../components/StoryFrame.astro'
+import tickets from '../../../../../docs-examples/comments/tickets.ts?raw'
+import config from '../../../../../docs-examples/comments/protobase.config.ts?raw'
+
+A resource with [`.comments()`](/api/schema/interfaces/resourcebuilder/#comments) takes comments on its records: plain text, each with its author and time. Typing `@` in a comment mentions someone, who gets an email with a link to the record. Comments cannot be edited, and there are no replies or reactions.
+
+<Code code={tickets} lang="ts" title="config/tickets.ts" />
+
+<Code code={config} lang="ts" title="protobase.config.ts" />
+
+## On the record page
+
+[`l.comments(title?, { when })`](/api/schema/variables/l/#comments) shows the record's comments oldest first, the newest just above the box to write one; Show earlier comments loads those before. ⌘/Ctrl+Enter or the Comment button posts. A view without a layout shows Comments last by itself. A view that names `l.comments()` for a resource without `.comments()` stops startup. A visitor who is not signed in sees the comments but no box.
+
+<StoryFrame id="record-page-comments--thread" title="A ticket's comments, one mentioning a colleague" height={620} />
+
+## Mentions
+
+Typing `@` and part of a name lists up to 8 people to mention: the arrows move, Enter, Tab or a click picks, Escape closes. Only people who may read the record themselves are listed, and the server refuses a mention of anyone else, so a mention email never shows a record to someone who cannot open it. The comment keeps `@Name` as written, and the record page picks it out.
+
+Each person mentioned gets one email from the app's own mail: who mentioned them on which record, the comment, and a button that opens the record. The emails are sent by the job `comments.mention`, enqueued with the comment, so mentions need:
+
+- the project's [Better Auth](/reference/auth/), whose users are the people listed; without it, comments work and nobody can be mentioned;
+- [mail](/reference/email/#configuration); without it, the job sends nothing;
+- the [`jobs` schema](/reference/jobs/#the-jobs-schema) and the app's workers.
+
+A person banned or deleted since the comment gets no email, and neither does anyone when an admin has deleted the comment.
+
+## Who may comment
+
+Whoever may read the record may read its comments and add one: the same tenant, row filter and record-level rule as a get. Everyone else gets a `404`, as for the record itself. Writing one, or looking for someone to mention, needs a signed-in user. A soft-deleted record keeps its comments, which can still be read, and takes no new ones.
+
+## The endpoints
+
+`GET /api/v1/{resource}/{key}:comments` reads them newest first, `POST` to the same path adds one, and `GET /api/v1/{resource}/{key}:mentionable?q=` lists whom a comment may mention. See [REST API](/reference/api/#record-comments).
+
+## Moderation
+
+Once a resource takes comments, admins get **Comments** (the built-in resource `record_comments`): every comment of every resource, newest first, filterable by resource, record, author and time. Only the `admin` role reads it, whatever the project's roles say; deleting a comment there is how a wrong or abusive one goes. When a resource with comments has a [tenant](/reference/data-config/#resource), the list is scoped to the caller's tenant.
+
+## The table
+
+[`protobase migration`](/reference/cli/#migration) adds the schema `comments` with the table `comments.comments`; apply it with the project's other migrations. `protobase dev` and `protobase serve` do not start while a resource has comments and the table is missing. A deleted record's comments stay in the table.
+
+| Column | |
+| --- | --- |
+| `id` | Grows with every comment. |
+| `resource`, `record_key` | The resource and the record's key as its URL has it. |
+| `tenant_id` | The record's tenant, as text. |
+| `author_id` | The user who wrote it. |
+| `body` | The text, trimmed, at most 10,000 characters. |
+| `mentions` | The ids of the users it mentions, as a JSON array; `[]` for none. |
+| `created_at` | When it was written. |

@@ -41,6 +41,7 @@ Under `/api/v1`:
 | `POST /{resource}:upload?field=&name=` | one file for a [file field](/reference/files/#uploading), as the raw body or one multipart file part; `201 { value, file, derived, corrected? }`, where `value` is the ticket a write sends as the field's value; `413` over the field's `maxSize`, `415` for a type it does not take |
 | `POST /{resource}/{key}:reveal` | `{ "field": "iban" }` gives `{ field, value }` of one [sensitive field](#sensitive-fields-and-audit), with `Cache-Control: no-store`, and publishes an audit event |
 | `GET /{resource}/{key}:history` | the record's changes, newest first, for a resource with [history](/reference/history/): `page_size` (20, max 100), `page_token`; see [Record history](#record-history) |
+| `GET`, `POST /{resource}/{key}:comments`, `GET /{resource}/{key}:mentionable?q=` | the record's comments, newest first, adding one, and whom it may mention, for a resource with [comments](/reference/comments/); see [Record comments](#record-comments) |
 | `POST /{resource}/{key}:undelete` | restores a soft-deleted record ([AIP-164](https://google.aip.dev/164)); `If-Match` optional; `409` when not deleted, `400` on hard-delete resources |
 | `POST /api/v1:batchWrite` | many writes in one transaction, see [Batch writes](#batch-writes) |
 | `GET /{resource}:facets?field=&filter=&limit=&label=` | `{ field, facets: [{ value, count }] }`, the `limit` most frequent values (100 by default, at most 1,000), never all of them; with `label`, a relation's facets carry the related record's name as `label`, as in [Related names](#related-names) |
@@ -62,6 +63,10 @@ A list returns `{ items, next_page_token, total_size_estimate }`, the estimate b
 ### Record history
 
 `GET /{resource}/{key}:history` answers `{ items, next_page_token }` for a resource with `.history()`, and `404` for one without. It needs what a get needs, a soft-deleted record included. Each item is `{ id, at, operation, changed, before?, after?, actor, database_role }`: `before` and `after` hold only the fields the caller may read, never a sensitive or file field, `changed` names the changed fields the caller may read, and an update of only other fields is left out. `actor` is `{ id, name? }` for a write through the API, the name when the project's Better Auth knows the user, and `null` otherwise; `database_role` is the role that wrote. See [Record history](/reference/history/).
+
+### Record comments
+
+For a resource with `.comments()`, and `404` for one without; each needs what a get needs. `GET /{resource}/{key}:comments` answers `{ items, next_page_token }`, newest first, a soft-deleted record included, with `page_size` (20, max 100) and `page_token`. Each item is `{ id, created_at, body, author, mentions }`, where `author` and each of `mentions` is `{ id, name? }`, the name when the project's Better Auth knows the user. `POST` with `{ "body": "...", "mentions": ["<user id>"] }` adds the caller's comment to a record that is not deleted and answers `201` with it: `body` is trimmed, `mentions` names at most 20 users, the caller dropped, and each is emailed. `GET /{resource}/{key}:mentionable?q=` answers `{ items: [{ id, name }] }`: at most 8 users whose name contains `q`, by name, who may read the record, without the caller. Its problems: `403 comment-needs-user` to a caller who is not signed in, on the `POST` and on `:mentionable`; `400 invalid-comment` for an empty body or one over 10,000 characters; `400 invalid-mention` for a mention of someone who may not read the record, which keeps nothing. See [Record comments](/reference/comments/).
 
 ### Related names
 
