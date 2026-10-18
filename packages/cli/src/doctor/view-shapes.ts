@@ -104,6 +104,17 @@ const displayShapes = (model: ResourceModel, view: ViewModel, models: Models): R
       const sort = listSort(model, view)
       return [{ resource: model.name, request: request(model.name, `${by.name} = …`, sort), from: `the board display "${display.name}"`, query: { filter: compare(by), sort } }]
     }
+    // A calendar is the list on the days it shows: records starting in them, or starting before and ending in them
+    if (display.kind === 'calendar') {
+      const start = model.fields[display.start]
+      if (!start) return []
+      const end = display.end === undefined ? undefined : model.fields[display.end]
+      const sort: SortSpec = [[start.name, 'asc']]
+      const within = all([compare(start, '>='), compare(start, '<')])!
+      const filter = end ? any([within, all([compare(start, '<'), compare(end, '>=')])!]) : within
+      const text = end ? `(${start.name} >= … AND ${start.name} < …) OR (${start.name} < … AND ${end.name} >= …)` : `${start.name} >= … AND ${start.name} < …`
+      return [{ resource: model.name, request: request(model.name, text, sort), from: `the calendar display "${display.name}"`, query: { filter, sort } }]
+    }
     const photos = display.kind === 'cards' ? display.photos : undefined
     const holder = photos && models[photos.resource]
     const field = holder?.fields[photos!.field]

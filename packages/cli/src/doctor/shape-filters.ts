@@ -6,7 +6,7 @@ import { checkFilter, checkOrderBy, parseFilter, parseOrderBy, type CheckedFilte
 const span = { start: 0, end: 0 }
 const number: Literal = { kind: 'number', value: 0, raw: '0', span }
 
-type Op = '=' | '>' | '>=' | '<='
+type Op = '=' | '>' | '>=' | '<' | '<='
 
 export const compare = (field: FieldModel, op: Op = '='): CheckedFilter => ({ kind: 'compare', op, field, value: number, span })
 

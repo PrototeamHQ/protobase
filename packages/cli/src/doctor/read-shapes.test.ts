@@ -13,6 +13,8 @@ const places = resource('places')
     population: f.integer().filterable(),
     coastal: f.boolean().filterable(),
     capital: f.boolean().filterable(),
+    founded_on: f.date().filterable(),
+    dissolved_on: f.date().filterable(),
   })
   .primaryKey((r) => r.id)
   .search((r) => [r.name])
@@ -30,7 +32,7 @@ const agencies = resource('agencies')
   .owner((r) => r.owner_id)
 
 const placesView = view<typeof places>('places')
-  .list((r, d) => ({ columns: [r.name], sort: [[r.name, 'asc']], displays: [d.board({ by: r.country })] }))
+  .list((r, d) => ({ columns: [r.name], sort: [[r.name, 'asc']], displays: [d.board({ by: r.country }), d.calendar({ start: r.founded_on }), d.calendar({ start: r.founded_on, end: r.dissolved_on }, { name: 'spans' })] }))
   .filters((r, w) => [w.facets(r.region), w.facets(r.population), w.toggle(r.coastal), w.flags([r.coastal, r.capital], { label: 'Kind' })])
   .chart((r) => ({ groupBy: r.country, type: 'donut' }))
   .layout(() => [
@@ -96,6 +98,15 @@ describe('readShapes', () => {
     const board = shapes.find((shape) => shape.from === 'the board display "board"')
     expect(board).toMatchObject({ resource: 'places', request: 'GET /places?filter=country = …&order_by=name asc', query: { sort: [['name', 'asc']] } })
     expect(board?.query.filter).toMatchObject({ kind: 'compare', field: { name: 'country' } })
+  })
+
+  it('reads the days a calendar shows by its start, and by its end too when it has one, in start order', () => {
+    const calendar = shapes.find((shape) => shape.from === 'the calendar display "calendar"')
+    expect(calendar).toMatchObject({ resource: 'places', request: 'GET /places?filter=founded_on >= … AND founded_on < …&order_by=founded_on asc', query: { sort: [['founded_on', 'asc']] } })
+    expect(calendar?.query.filter).toMatchObject({ kind: 'and', args: [{ op: '>=', field: { name: 'founded_on' } }, { op: '<', field: { name: 'founded_on' } }] })
+    const spans = shapes.find((shape) => shape.from === 'the calendar display "spans"')
+    expect(spans?.request).toBe('GET /places?filter=(founded_on >= … AND founded_on < …) OR (founded_on < … AND dissolved_on >= …)&order_by=founded_on asc')
+    expect(spans?.query.filter).toMatchObject({ kind: 'or', args: [{ kind: 'and' }, { kind: 'and', args: [{ field: { name: 'founded_on' } }, { op: '>=', field: { name: 'dissolved_on' } }] }] })
   })
 
   it("reads a gallery's photos by this record's key, in their order", () => {
