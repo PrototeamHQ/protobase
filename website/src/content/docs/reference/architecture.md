@@ -36,7 +36,7 @@ In this repository, entry points export TypeScript source directly and the CLI r
 ## Tests and stories
 
 - Unit tests: `*.test.ts` next to the code, run by Vitest in a node environment.
-- Tests that start a database (PGlite or Postgres), a subprocess or the network: `packages/<name>/tests/`, mirroring the source path, and the examples' in `tests/examples/`. The PGlite fixtures and setup they share are in `test-support/` at the root.
+- Tests that use a database, a subprocess or the network: `packages/<name>/tests/`, mirroring the source path, and the examples' in `tests/examples/`. Most database tests are snapshot tests, which replay SQL recorded from Postgres (`<test>.sql.json`); the fixtures, the recording and replay, and the setup they share are in `test-support/` at the root.
 - Stories: `*.stories.tsx` next to the component in `packages/ui/src`; Storybook config lives in `.storybook/`.
 - Packing leaves tests, stories and their fixtures out of a package (`files` in its `package.json`).
 

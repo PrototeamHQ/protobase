@@ -46,6 +46,26 @@ const smoke = ['tests/smoke/**/*.test.ts']
 const postgresSuite = ['tests/postgres/**/*.test.ts']
 // The presets written out and installed with bun from npm, migrated on a tenant-style role: `bun run test:presets`.
 const presets = ['packages/presets/tests/**/*.test.ts']
+// Snapshot tests: what PGlite ran before, now replaying SQL recorded from real Postgres (test-support/sql-snapshot.ts),
+// in `bun run test` without a database. `bun run test:record` runs them on Postgres instead and rewrites the recordings.
+const recordSnapshots = process.env.SQL_SNAPSHOT === 'record'
+const snapshot: string[] = []
+// Like `mocking` for unit tests: snapshot tests that replace a module or change a global run in a registry of their own.
+const snapshotMocking: string[] = []
+const snapshotProject = (name: string, include: string[], exclude: string[], isolate: boolean) => ({
+  extends: true,
+  test: {
+    name,
+    include,
+    exclude: [...configDefaults.exclude, ...exclude],
+    // Replay connects to nothing, so a test that reaches for a database fails as a unit test does.
+    setupFiles: [...(recordSnapshots ? [] : ['test-support/no-database.setup.ts']), 'test-support/sql-snapshot/setup.ts'],
+    globalSetup: ['test-support/sql-snapshot/global-setup.ts'],
+    isolate,
+    env: { TZ: 'UTC' },
+    ...(recordSnapshots && { maxWorkers: integrationWorkers }),
+  },
+})
 // Chromium against an app served over TLS on more than one hostname, on PGlite: `bun run test:e2e`.
 const e2e = ['tests/e2e/**/*.test.ts']
 // Subprocesses and Postgres connections, so fewer files at once than the default. With other projects in the same run
@@ -84,10 +104,12 @@ export default defineConfig({
         test: {
           name: 'pglite',
           include: ['packages/*/tests/**/*.test.ts', glue],
-          exclude: [...configDefaults.exclude, ...integration, ...presets, postgresGlue],
+          exclude: [...configDefaults.exclude, ...integration, ...presets, postgresGlue, ...snapshot],
           globalSetup: ['test-support/pglite-snapshots.global-setup.ts'],
         },
       },
+      snapshotProject('snapshot', snapshot, snapshotMocking, false),
+      snapshotProject('snapshot-isolated', snapshotMocking, [], true),
       {
         extends: true,
         test: {

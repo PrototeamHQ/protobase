@@ -12,7 +12,7 @@ export const runEverything = [
   '.nvmrc',
   '.github/**',
   'docker-compose.yml',
-  // The databases, PGlite snapshots and setup files the tests run with.
+  // The databases, PGlite snapshots, snapshot recording and setup files the tests run with.
   'test-support/**',
   'scripts/test-db/**',
   // These rules and the scripts that apply them.
@@ -88,4 +88,17 @@ export const postgresSuite = [
   'tests/changes/{delivery-*,capture-scenarios}.ts',
   'tests/changes/receiver.ts',
   'tests/examples/erp/{erp-models,kysely-postgres-js,reachable}.ts',
+]
+
+// What the snapshot tests' recordings (`bun run test:record`, `*.sql.json`) are made from, which CI records again when a
+// file of it changed: the SQL the server and the query layer issue, with the jobs, changes and auth schemas in it, the
+// tests with their recordings, and the Postgres setup. A file every test depends on, such as test-support/, the
+// Postgres service image in ci.yml, docker-compose.yml or scripts/test-db/, records them too.
+export const snapshotRecording = [
+  'packages/server/src/**',
+  'packages/query/src/**',
+  'packages/*/tests/**',
+  'tests/{ai,changes,comments,import,roles}/**',
+  'examples/*/db/migrations/**',
+  'examples/*/seed/**',
 ]

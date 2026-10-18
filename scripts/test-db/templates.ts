@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto'
-import { readdir, readFile } from 'node:fs/promises'
+import { readdir, readFile, stat } from 'node:fs/promises'
 import path from 'node:path'
 import postgres from 'postgres'
 
@@ -17,15 +17,21 @@ export const poolerUrl = process.env.TEST_PGBOUNCER_URL ?? 'postgres://protobase
  * Small seeds clone fastest with `wal_log`, which needs no checkpoint. The ERP at medium scale, which the planner and
  * seek cases need, is the Postgres suite's alone (`bun run test:db postgres`); `file_copy` clones it in a third of the time.
  */
+const example = (database: string, dir: string, scale: 'small' | 'medium', strategy: Strategy) =>
+  ({ database, dir, scale, strategy, sources: [`${dir}/db/migrations`, `${dir}/seed`] }) as const
+
+type Strategy = 'wal_log' | 'file_copy'
+
 export const templates = {
-  erp: { database: 'protobase_test_template', dir: 'examples/erp', scale: 'small', strategy: 'wal_log' },
-  realEstate: { database: 'real_estate_test_template', dir: 'examples/real-estate', scale: 'small', strategy: 'wal_log' },
-  propertyPortal: { database: 'property_portal_test_template', dir: 'examples/property-portal', scale: 'small', strategy: 'wal_log' },
-  erpMedium: { database: 'protobase_medium_test_template', dir: 'examples/erp', scale: 'medium', strategy: 'file_copy' },
-} as const
+  erp: example('protobase_test_template', 'examples/erp', 'small', 'wal_log'),
+  realEstate: example('real_estate_test_template', 'examples/real-estate', 'small', 'wal_log'),
+  propertyPortal: example('property_portal_test_template', 'examples/property-portal', 'small', 'wal_log'),
+  erpMedium: example('protobase_medium_test_template', 'examples/erp', 'medium', 'file_copy'),
+}
 
 export type TemplateKey = keyof typeof templates
-export type Template = (typeof templates)[TemplateKey]
+/** A template database: what it is built from (files and directories, hashed into its comment) and how it is cloned. */
+export type Template = { database: string; strategy: Strategy; sources: readonly string[]; scale?: string }
 
 /** The templates each suite's runs clone: the integration tests on every push, the Postgres suite when SQL changes. */
 export const suites = {
@@ -49,16 +55,32 @@ export const runEnvironment = (key: TemplateKey, runId: string) => ({
 
 export const connectServer = () => postgres(serverUrl, { max: 1, connect_timeout: 2, onnotice: () => {} })
 
+/** Creates `database` as a copy of the template. */
+export const cloneTemplate = async (template: Template, database: string) => {
+  const sql = connectServer()
+  await sql.unsafe(`create database "${database}" template "${template.database}" strategy ${template.strategy}`)
+  await sql.end()
+}
+
+export const dropDatabase = async (database: string) => {
+  const sql = connectServer()
+  await sql.unsafe(`drop database if exists "${database}" with (force)`)
+  await sql.end()
+}
+
 const filesUnder = async (dir: string): Promise<string[]> => {
   const entries = await readdir(dir, { withFileTypes: true })
   const nested = await Promise.all(entries.map((entry) => (entry.isDirectory() ? filesUnder(path.join(dir, entry.name)) : [path.join(dir, entry.name)])))
   return nested.flat()
 }
 
-/** A hash of what a template is built from (its migrations, seed and scale), kept as the database's comment. */
+/** A hash of what a template is built from (its sources and scale), kept as the database's comment. */
 export const sourceHash = async (template: Template) => {
-  const files = (await Promise.all(['db/migrations', 'seed'].map((part) => filesUnder(path.join(root, template.dir, part))))).flat().sort()
-  const hash = createHash('sha256').update(template.scale)
+  const files = (await Promise.all(template.sources.map(async (source) => {
+    const full = path.join(root, source)
+    return (await stat(full)).isDirectory() ? filesUnder(full) : [full]
+  }))).flat().sort()
+  const hash = createHash('sha256').update(template.scale ?? '')
   for (const file of files) hash.update(path.relative(root, file)).update(await readFile(file))
   return hash.digest('hex').slice(0, 16)
 }

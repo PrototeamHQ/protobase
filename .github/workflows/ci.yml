@@ -9,7 +9,8 @@ on:
   workflow_call:
   # Run by hand, every test and step runs, as on a pull request.
   workflow_dispatch:
-  # Weekly, the Postgres suite alone, to catch a moved postgres:18 tag when nothing in the repository changed.
+  # Weekly, the Postgres suite and the snapshot recording alone, to catch a moved postgres:18 tag when nothing in the
+  # repository changed.
   schedule:
     - cron: '17 4 * * 1'
 
@@ -163,3 +164,60 @@ jobs:
         run: bun run test:db postgres
       - if: steps.postgres.outputs.run == 'true'
         run: bun run test:postgres
+
+  # The snapshot tests' recordings (`bun run test:record`): every snapshot test run again on real Postgres, its SQL and
+  # answers written to its `*.sql.json`. A recording that differs from the committed one means Postgres now answers the
+  # same queries differently (a schema, fixture or Postgres change), which replay alone cannot see, and fails the job;
+  # the new recordings are uploaded to commit. A push runs it when it changes what the recordings are made from
+  # (scripts/affected-snapshots.mjs); a pull request, a run by hand and the weekly run, for a moved postgres:18, always do.
+  record:
+    concurrency:
+      group: record-${{ github.event_name == 'push' && startsWith(github.ref, 'refs/heads/fm/') && github.ref || github.run_id }}
+      cancel-in-progress: true
+    runs-on: ${{ github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/fm/')) && vars.CHECK_RUNNER || 'ubuntu-latest' }}
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: protobase
+          POSTGRES_PASSWORD: protobase
+          POSTGRES_DB: protobase
+        ports:
+          - 5432
+        options: >-
+          --shm-size 1g
+          --health-cmd "pg_isready -U protobase -d protobase"
+          --health-interval 2s
+          --health-timeout 3s
+          --health-retries 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.2
+      - *check-base
+      - name: Find whether the changes reach the snapshot recordings
+        id: snapshots
+        run: bun scripts/affected-snapshots.mjs
+      - if: steps.snapshots.outputs.run == 'true'
+        run: bun install --frozen-lockfile
+      - if: steps.snapshots.outputs.run == 'true'
+        name: Point the recording at the service's Postgres
+        env:
+          POSTGRES_PORT: ${{ job.services.postgres.ports['5432'] }}
+        run: echo "TEST_POSTGRES_URL=postgres://protobase:protobase@localhost:$POSTGRES_PORT/postgres" >> "$GITHUB_ENV"
+      - if: steps.snapshots.outputs.run == 'true'
+        run: bun run test:record
+      - if: always() && steps.snapshots.outputs.run == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: sql-snapshots
+          path: |
+            **/*.sql.json
+            !**/node_modules/**
+      # New recordings count as changes too.
+      - if: steps.snapshots.outputs.run == 'true'
+        name: Fail when a recording differs from the committed one
+        run: git add --intent-to-add -- '*.sql.json' && git diff --exit-code --stat -- '*.sql.json'

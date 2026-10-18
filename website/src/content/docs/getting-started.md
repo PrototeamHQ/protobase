@@ -51,7 +51,8 @@ bun run --cwd examples/property-portal dev              # http://localhost:5173
 | Command | Purpose |
 | --- | --- |
 | `bun run db:up` / `bun run db:down` | start or stop the Postgres container; `db:up` also creates the examples' databases and `.env` files |
-| `bun run test` | the unit tests and the PGlite tests in `packages/*/tests/` (Vitest projects `unit*` and `pglite`): no Postgres server, subprocess or network |
+| `bun run test` | the unit tests, the snapshot tests and the PGlite tests in `packages/*/tests/` and `tests/` (Vitest projects `unit*`, `snapshot*` and `pglite`): no Postgres server, subprocess or network. A snapshot test replays the SQL recorded for it from Postgres in `<test>.sql.json` |
+| `bun run test:record` | runs the snapshot tests on the Postgres container instead and writes their recordings, after building their templates (`bun run test:db snapshots`); run it when a change makes a snapshot test fail with `stale snapshot` |
 | `bun run test:unit` | only the unit tests, next to the code (Vitest projects `unit`, whose files share their modules, and `unit-isolated`, for those that mock a module or change a global), fully parallel; starting PGlite or a Postgres client there throws |
 | `bun run test:watch` | `bun run test` in watch mode |
 | `bun run test:integration` | the database, subprocess and build tests (projects `integration*`), against the Postgres container |
@@ -60,7 +61,7 @@ bun run --cwd examples/property-portal dev              # http://localhost:5173
 | `bun run images:context` | the build contexts of the `protobase` and `protobase-dev` images in `dist/images`, at the version in `package.json` (see [Deploy](/guides/deploy/#images)) |
 | `bun run test:presets` | writes each preset as `bun run presets:write` does it and installs it with Bun from npm (so at a published version), then migrates, seeds, checks, tests and builds it on a database of its own, as a role without superuser rights; needs the Postgres container |
 | `bun run test:postgres` | the Postgres suite in `tests/postgres/` (Vitest project `postgres`): the ERP's medium seed and the planner's statistics on it, and the jobs and event delivery through PgBouncer; needs the Postgres and PgBouncer containers and `bun run test:db postgres` |
-| `bun run test:db` | builds the template databases the database tests clone for each run (`protobase_test_template`, `real_estate_test_template`, `property_portal_test_template`, all at small scale), when missing or older than the examples' migrations and seed; without them those tests skip. `bun run test:db postgres` builds the Postgres suite's (`protobase_medium_test_template`, the ERP at medium scale). Tests never use the `protobase`, `real_estate` or `property_portal` databases |
+| `bun run test:db` | builds the template databases the database tests clone for each run (`protobase_test_template`, `real_estate_test_template`, `property_portal_test_template`, all at small scale), when missing or older than the examples' migrations and seed; without them those tests skip. `bun run test:db postgres` builds the Postgres suite's (`protobase_medium_test_template`, the ERP at medium scale), `bun run test:db snapshots` the ones `test:record` records on (`snapshot_*_test_template`). Tests never use the `protobase`, `real_estate` or `property_portal` databases |
 | `bun run typecheck` | `tsc --noEmit` |
 | `bun run check:boundaries` | dependency-cruiser package rules |
 | `bun run check` | typecheck + test + test:integration + check:boundaries |
