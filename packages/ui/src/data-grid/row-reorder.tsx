@@ -47,7 +47,7 @@ export const ReorderRows = ({ ids, rowAt, reorder, children }: { ids: string[]; 
 }
 
 /** A row moved by its handle, which takes the checkbox's place; it follows the pointer up and down only. */
-export const SortableRow = ({ row, label, ...props }: Omit<DataRowProps, 'handle' | 'rowRef' | 'transition' | 'dragging'> & { row: GridRow; label: string }) => {
+export const SortableRow = ({ row, label, ...props }: Omit<DataRowProps, 'handle' | 'rowRef' | 'dragY' | 'transition' | 'dragging'> & { row: GridRow; label: string }) => {
   const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({ id: row.id })
   const handle = (
     <button
@@ -64,5 +64,5 @@ export const SortableRow = ({ row, label, ...props }: Omit<DataRowProps, 'handle
       <GripVertical className="size-4" />
     </button>
   )
-  return <DataRow {...props} offset={props.offset + (transform?.y ?? 0)} rowRef={setNodeRef} handle={handle} transition={transition} dragging={isDragging} />
+  return <DataRow {...props} rowRef={setNodeRef} handle={handle} dragY={transform?.y ?? 0} transition={transition} dragging={isDragging} />
 }

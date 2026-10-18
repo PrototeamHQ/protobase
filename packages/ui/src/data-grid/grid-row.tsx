@@ -53,20 +53,32 @@ export type DataRowProps = RowFrame & {
   onToggle: () => void
   onOpen?: () => void
   menu?: ReactNode
-  /** A drag handle in the checkbox's place, for a row moved by hand, with the row's element and its move back. */
+  /**
+   * A drag handle in the checkbox's place, for a row moved by hand, with the row's element, how far it is dragged and
+   * its move back. Such a row is placed by `top`, since the drag library measures rows without their transforms.
+   */
   handle?: ReactNode
   rowRef?: Ref<HTMLDivElement>
+  dragY?: number
   transition?: string
   dragging?: boolean
 }
 
-export const DataRow = ({ cells, selected, onToggle, onOpen, menu, handle, rowRef, transition, dragging, ...frame }: DataRowProps) => (
+const dragStyle = (frame: RowFrame, dragY: number, transition: string | undefined) => ({
+  gridTemplateColumns: gridTemplate(frame.specs, frame.gutter, frame.trailing, frame.minScale),
+  height: frame.height,
+  top: frame.offset,
+  transform: dragY === 0 ? undefined : `translateY(${dragY}px)`,
+  transition,
+})
+
+export const DataRow = ({ cells, selected, onToggle, onOpen, menu, handle, rowRef, dragY, transition, dragging, ...frame }: DataRowProps) => (
   <div
     ref={rowRef}
     role="row"
     onClick={onOpen}
     className={cn('absolute inset-x-0 top-0 grid items-center border-b', selected ? 'bg-primary-soft' : 'bg-background hover:bg-surface', onOpen && 'cursor-pointer', dragging && 'z-30 bg-surface shadow-pop')}
-    style={{ ...frameStyle(frame), transition }}
+    style={dragY === undefined ? frameStyle(frame) : dragStyle(frame, dragY, transition)}
   >
     {handle ? (
       <div className={cn('sticky left-0 z-10 flex h-full items-center bg-inherit pl-1.5', frame.scrolled && !frame.lastPinned && 'shadow-[1px_0_0_var(--border),4px_0_6px_-2px_rgb(0_0_0/0.12)]')} style={{ width: frame.gutter }}>
