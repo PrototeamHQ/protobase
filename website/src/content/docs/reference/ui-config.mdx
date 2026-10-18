@@ -335,6 +335,7 @@ Only a caller without a token gets the prompts, in `/api/meta` as `signIn`, for 
 | Item | |
 | --- | --- |
 | `l.section(title, fields, { help?, helpWhen?, presentation?, when? })` | A titled group of fields in the main column, editable where the user may write. `presentation: 'facts'` shows them on the read view as a row of [key facts](#key-facts). |
+| `l.group(title, items, { collapsed?, when? })` | A heading over sections and related tables, closed until opened with `collapsed: true`. `when` also takes a [condition](#form-and-read-view). See [Groups](#groups). |
 | `l.sidebar(fields, { when? })` | A summary card beside it, read-only. `when` also takes a [condition](#form-and-read-view). |
 | `l.related(title, { ... })` | A table of the records of another resource that point at this one, in the main column. See [Related records](#related-records). |
 | `l.custom(Component, { title?, props?, sidebar?, when? })` | A [custom component](/reference/custom-components/#record-sections) where it is listed: in the main column under `title`, or with `sidebar: true` as a sidebar card. |
@@ -368,6 +369,14 @@ view<typeof listings>('listings').recordMode('read')
 ```
 
 <StoryFrame id="record-page-read-view-and-edit--read-view" title="A home's read view, with Edit" height={760} />
+
+### Groups
+
+`l.group(title, items, { collapsed?, when? })` puts a heading over sections and related tables, so a long record page shows what matters first and tucks rarely needed parts away. A group holds only `l.section` and `l.related` items, and not another group. With `collapsed: true` it shows only its heading until the person clicks it; clicking again closes it. A closed group draws nothing, so its related tables load nothing until it opens. Without `collapsed` it is a plain heading over its items.
+
+The open groups are in the address, as `?open=<title>` once per group, so a link, a copied URL or a new tab opens the page with the group open. Titles are unique among a view's groups, as the address names a group by its title. The page scrolls as a whole; opening a group adds no scroll box. On the form, a group that holds a field with an error or a conflict opens by itself. The create form shows the sections of a group as plain sections.
+
+<StoryFrame id="record-page-groups--collapsed" title="A collapsed group on the record page" height={520} />
 
 ### Key facts
 

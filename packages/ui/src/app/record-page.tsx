@@ -1,6 +1,6 @@
 import { Check } from 'lucide-react'
 import { useQueryClient } from '@tanstack/react-query'
-import { Fragment, useMemo } from 'react'
+import { Fragment, useMemo, type ReactElement } from 'react'
 import { isApiError } from '@protobase/client'
 import { enumLabel, type LayoutItemModel, type ResourceModel, type ViewModel } from '@protobase/schema'
 import { usePauseFocusRefresh } from '../data/focus-refresh'
@@ -15,13 +15,14 @@ import { toneFor } from '../live/columns-from-model'
 import { Button, buttonClass } from '../primitives/button'
 import { Skeleton } from '../primitives/skeleton'
 import { cn } from '../lib/cn'
-import { Field, KeyFacts, MetadataCard, RecordHeader, Section, SpecTable } from '../record-view'
+import { Field, GroupSection, KeyFacts, MetadataCard, RecordHeader, Section, SpecTable } from '../record-view'
 import { ErrorBanner } from './error-banner'
 import { CustomSection } from './custom-section'
 import { MapSection } from './map/map-section'
 import { RecordActions } from './pages/record-actions'
 import type { LayoutRecord } from './pages/record-scope'
 import { FieldEditor } from './field-editor'
+import { groupOpen, toggledOpen } from './group-open'
 import { shownWidget } from './field-types/shown-widget'
 import { WidgetPart } from './field-types/widget-part'
 import { useProjectUi } from './pages/project-ui'
@@ -124,8 +125,12 @@ const LoadedRecord = ({ model, recordKey, stored, preview }: LoadedRecordProps) 
   useNavigationGuard(editor.dirty && shown === 'form')
   // Unsaved changes keep the version of the record they were made to, wherever the draft shows
   usePauseFocusRefresh(editor.dirty)
-  const readAddress = { kind: 'record' as const, resource: model.name, key: recordKey }
-  const editAddress = { ...readAddress, edit: true }
+  const openGroups = address?.kind === 'record' ? address.open : undefined
+  const atEdit = address?.kind === 'record' && address.edit === true
+  const recordAt = (open: readonly string[] = [], edit = false) => ({ kind: 'record' as const, resource: model.name, key: recordKey, ...(edit && { edit }), ...(open.length > 0 && { open }) })
+  // Edit, Cancel and the save keep the groups the person opened
+  const readAddress = recordAt(openGroups)
+  const editAddress = recordAt(openGroups, true)
   // A form that Edit opened goes back to the record once saved, or when its changes are dropped
   const leavesForm = shown === 'form' && view?.recordMode !== undefined && view.recordMode !== 'edit'
   const canDelete = can(permissions, 'delete') && stored.permissions?.delete !== false
@@ -270,6 +275,42 @@ const LoadedRecord = ({ model, recordKey, stored, preview }: LoadedRecordProps) 
     </>
   )
 
+  // The main column's items; a group renders its sections and related tables through the same code
+  const mainItem = (item: LayoutItemModel, index: number): ReactElement[] => {
+    if (item.kind === 'group') {
+      const children = item.items.filter((inner) => whenShown(inner.when, editing)).flatMap(mainItem)
+      if (children.length === 0) return []
+      const open = groupOpen(item, openGroups, (name) => editing && (editor.errors[name] !== undefined || editor.conflicts[name] !== undefined))
+      const toggle = item.collapsed ? recordAt(toggledOpen(openGroups, item.title), atEdit) : undefined
+      return [<GroupSection key={`group:${item.title}`} title={item.title} open={open} toggle={toggle}>{children}</GroupSection>]
+    }
+    if (item.kind === 'related') return [<RelatedSection key={`related:${item.title}`} item={item} recordKey={recordKey} owner={model.name} />]
+    // Project components, maps and photos read fields a list row may not have, so they wait for the record
+    if (preview && (item.kind === 'custom' || item.kind === 'map' || item.kind === 'gallery')) return []
+    if (item.kind === 'custom') return item.sidebar ? [] : [<CustomSection key={`custom:${index}`} item={item} scope={scope} />]
+    if (item.kind === 'map') return item.sidebar ? [] : [<MapSection key={`map:${index}`} item={item} record={stored.record} />]
+    if (item.kind === 'gallery') return [<GallerySection key={`gallery:${index}`} item={item} record={stored.record} recordKey={recordKey} />]
+    if (item.kind === 'history') return [<HistorySection key={`history:${index}`} item={item} model={model} view={view} recordKey={recordKey} etag={stored.etag} />]
+    if (item.kind === 'comments') return [<CommentsSection key={`comments:${index}`} item={item} resource={model.name} recordKey={recordKey} canWrite={auth.kind !== 'visitor'} />]
+    if (item.kind !== 'section') return []
+    // A section whose fields are all hidden from this user would be a lone heading, as would key facts all empty
+    const visibleFields = item.fields.filter((name) => model.fields[name] && visible(name))
+    const facts = shown === 'read' && item.presentation === 'facts'
+    const fields = facts ? filledFields(stored.record, visibleFields) : visibleFields
+    if (fields.length === 0) return []
+    return [
+      <Section key={item.title} title={item.title} help={helpShown(item.helpWhen, view, editing) ? item.help : undefined}>
+        {facts ? (
+          <KeyFacts facts={fields.map((name) => ({ label: readRow(name).label, value: readRow(name).value, icon: namedIcon(hint(name)?.icon) }))} />
+        ) : shown === 'read' ? (
+          <SpecTable rows={fields.map(readRow)} />
+        ) : (
+          <div className="grid grid-cols-1 gap-x-6 gap-y-5 sm:grid-cols-2">{fields.map(fieldView)}</div>
+        )}
+      </Section>,
+    ]
+  }
+
   return (
     // The preview looks as the loaded form will, but takes no input: typing there would be lost when the record loads
     <div ref={fieldsRef} className="flex flex-1 flex-col" inert={preview}>
@@ -306,33 +347,7 @@ const LoadedRecord = ({ model, recordKey, stored, preview }: LoadedRecordProps) 
           )}
           <div className="grid grid-cols-1 gap-8 md:grid-cols-[minmax(0,1fr)_300px] md:gap-12">
             <main className="divide-y divide-border">
-              {layout.flatMap((item, index) => {
-                if (item.kind === 'related') return [<RelatedSection key={`related:${item.title}`} item={item} recordKey={recordKey} owner={model.name} />]
-                // Project components, maps and photos read fields a list row may not have, so they wait for the record
-                if (preview && (item.kind === 'custom' || item.kind === 'map' || item.kind === 'gallery')) return []
-                if (item.kind === 'custom') return item.sidebar ? [] : [<CustomSection key={`custom:${index}`} item={item} scope={scope} />]
-                if (item.kind === 'map') return item.sidebar ? [] : [<MapSection key={`map:${index}`} item={item} record={stored.record} />]
-                if (item.kind === 'gallery') return [<GallerySection key={`gallery:${index}`} item={item} record={stored.record} recordKey={recordKey} />]
-                if (item.kind === 'history') return [<HistorySection key={`history:${index}`} item={item} model={model} view={view} recordKey={recordKey} etag={stored.etag} />]
-                if (item.kind === 'comments') return [<CommentsSection key={`comments:${index}`} item={item} resource={model.name} recordKey={recordKey} canWrite={auth.kind !== 'visitor'} />]
-                if (item.kind !== 'section') return []
-                // A section whose fields are all hidden from this user would be a lone heading, as would key facts all empty
-                const visibleFields = item.fields.filter((name) => model.fields[name] && visible(name))
-                const facts = shown === 'read' && item.presentation === 'facts'
-                const fields = facts ? filledFields(stored.record, visibleFields) : visibleFields
-                if (fields.length === 0) return []
-                return [
-                  <Section key={item.title} title={item.title} help={helpShown(item.helpWhen, view, editing) ? item.help : undefined}>
-                    {facts ? (
-                      <KeyFacts facts={fields.map((name) => ({ label: readRow(name).label, value: readRow(name).value, icon: namedIcon(hint(name)?.icon) }))} />
-                    ) : shown === 'read' ? (
-                      <SpecTable rows={fields.map(readRow)} />
-                    ) : (
-                      <div className="grid grid-cols-1 gap-x-6 gap-y-5 sm:grid-cols-2">{fields.map(fieldView)}</div>
-                    )}
-                  </Section>,
-                ]
-              })}
+              {layout.flatMap(mainItem)}
               {linesModel && !preview && <RecordLines lines={linesModel} draft={linesDraft} vatRate={Number(stored.record.vatRate ?? 21) / 100} saving={editor.saving} locked={shown !== 'form'} />}
             </main>
             <aside className="space-y-4 md:pt-8">

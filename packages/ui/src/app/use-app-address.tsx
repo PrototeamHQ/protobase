@@ -50,4 +50,4 @@ export const useAppAddress = () => {
 }
 
 /** A link to an address in the app: an ordinary anchor that the router follows without reloading the page. */
-export const AppLink = ({ to, ...rest }: AnchorHTMLAttributes<HTMLAnchorElement> & { to: AppAddress }) => <Link to={appPath(to)} {...rest} />
+export const AppLink = ({ to, ...rest }: AnchorHTMLAttributes<HTMLAnchorElement> & { to: AppAddress; replace?: boolean }) => <Link to={appPath(to)} {...rest} />
