@@ -57,6 +57,8 @@ div | block
                     svg .lucide lucide-layout-grid size-3.5 | block
                   button .inline-flex items-center gap-1.5 rounded px-3 text-body font-medium transition-colors text-muted-foreground hover:text-foreground | flex row nowrap center normal
                     svg .lucide lucide-square-kanban lucide-kanban-square size-3.5 | block
+                  button .inline-flex items-center gap-1.5 rounded px-3 text-body font-medium transition-colors text-muted-foreground hover:text-foreground | flex row nowrap center normal
+                    svg .lucide lucide-calendar size-3.5 | block
                 button .inline-flex shrink-0 items-center justify-center rounded-md font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:opacity-60 disabled:cursor-default bg-background text-foreground border border-border-strong hover:bg-muted shadow-sm h-8 px-3 text-body gap-2 | flex row nowrap center center
                   svg .lucide lucide-upload size-3.5 | block
                 button .inline-flex shrink-0 items-center justify-center rounded-md font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:opacity-60 disabled:cursor-default bg-background text-foreground border border-border-strong hover:bg-muted shadow-sm h-8 px-3 text-body gap-2 | flex row nowrap center center
