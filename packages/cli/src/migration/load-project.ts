@@ -22,8 +22,14 @@ export const loadMigrationProject = async (dir: string, extensions: Extension[] 
   if (!custom.config && !existsSync(index)) throw new Error(`No config/index.ts or protobase.config.ts in ${dir}; run this inside a project`)
   const own = { ...custom, config: custom.config ?? (await importProjectFile(index)) }
   const extended = await Promise.all(extensions.flatMap((extension) => (extension.config ? [configOf(extension.config)] : [])))
-  const project = mergeConfig(...extended, own)
-  const url = process.env.DATABASE_URL
+  return migrationProject(mergeConfig(...extended, own), process.env.DATABASE_URL)
+}
+
+/**
+ * A merged project config, for what its database needs: its resources' models, its database (the one it exports, or a
+ * pool on `url`) and the features that write migrations. `close` ends the pool it opened.
+ */
+export const migrationProject = (project: ProjectConfig, url: string | undefined) => {
   if (!project.db && !url) throw new Error('No database: set DATABASE_URL or export `db` from protobase.config.ts')
   const ownDb = project.db ? undefined : createPgDb(pg, url!)
   return {
@@ -39,4 +45,4 @@ export const loadMigrationProject = async (dir: string, extensions: Extension[] 
   }
 }
 
-export type MigrationProject = Awaited<ReturnType<typeof loadMigrationProject>>
+export type MigrationProject = ReturnType<typeof migrationProject>
