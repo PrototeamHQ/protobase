@@ -35,12 +35,14 @@ const Rentals = ({ path, update = true, reveal }: { path: string; update?: boole
   )
 }
 
-const rowTexts = async (canvasElement: HTMLElement, section: string) => {
+const sectionRows = async (canvasElement: HTMLElement, section: string) => {
   const heading = await within(canvasElement).findByRole('heading', { name: section })
   const region = heading.closest('section')!
   await within(region).findAllByRole('row')
-  return within(region).getAllByRole('row').slice(1).map((row) => row.textContent ?? '')
+  return within(region).getAllByRole('row').slice(1)
 }
+
+const rowTexts = async (canvasElement: HTMLElement, section: string) => (await sectionRows(canvasElement, section)).map((row) => row.textContent ?? '')
 
 export const TenantHomes: StoryObj = {
   tags: ['play'],
@@ -126,6 +128,40 @@ export const UnitLetTo: StoryObj = {
       expect(coSigner).toContain('Co-signer')
     })
     expect((await rowTexts(canvasElement, 'Running lease'))[0]).toContain('L-2023-017')
+  },
+}
+
+const ada = rentalRows.tenants.find((tenant) => tenant.name === 'Ada de Vries')!
+
+/** A "Let to" row is a link between the lease and a tenant: it opens the tenant, and its menu edits the link itself. */
+export const UnitLetToOpensTenant: StoryObj = {
+  tags: ['play'],
+  render: () => <Rentals path="/units/1" />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    await waitFor(async () => expect((await rowTexts(canvasElement, 'Let to'))[0]).toContain('Ada de Vries'))
+    const [primary] = await sectionRows(canvasElement, 'Let to')
+    expect(within(primary!).getAllByRole('link')[0]!.getAttribute('href')).toMatch(new RegExp(`/tenants/${ada.id}$`))
+    await userEvent.click(within(primary!).getByRole('button', { name: 'Row actions' }))
+    const menu = await within(canvasElement.ownerDocument.body).findByRole('menu')
+    const items = within(menu).getAllByRole('menuitem')
+    expect(items.map((item) => item.textContent)).toEqual(['Open tenant', 'Edit lease tenant'])
+    expect(items[0]!.getAttribute('href')).toMatch(new RegExp(`/tenants/${ada.id}$`))
+    expect(items[1]!.getAttribute('href')).toMatch(/\/lease_tenants\/[^?]+\?edit=true$/)
+    await userEvent.keyboard('{Escape}')
+    await userEvent.click(within(primary!).getByText('Primary'))
+    expect(await canvas.findByRole('heading', { name: 'Homes' })).toBeVisible()
+  },
+}
+
+/** A tenant's homes are the leases themselves, so a row opens its lease. */
+export const TenantHomesOpenLeases: StoryObj = {
+  tags: ['play'],
+  render: () => <Rentals path={`/tenants/${ada.id}`} />,
+  play: async ({ canvasElement }) => {
+    await waitFor(async () => expect(await rowTexts(canvasElement, 'Homes')).toHaveLength(2))
+    const [current] = await sectionRows(canvasElement, 'Homes')
+    expect(within(current!).getAllByRole('link')[0]!.getAttribute('href')).toMatch(/\/leases\/\d+$/)
   },
 }
 

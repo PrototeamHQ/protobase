@@ -61,7 +61,7 @@ const tenantsView = view<typeof tenants>('tenants')
 
 const leasesView = view<typeof leases>('leases').title((r) => r.number).names({ singular: 'Lease', plural: 'Leases' }).fields((r) => ({ unit_id: r.unit_id.label('Unit'), start_date: r.start_date.label('Start'), end_date: r.end_date.label('End') }))
 
-const leaseTenantsView = view<typeof leaseTenants>('lease_tenants').nav({ hidden: true }).fields((r) => ({ tenant_id: r.tenant_id.label('Tenant'), role: r.role.format('badge').valueLabels({ primary: 'Primary', co_signer: 'Co-signer' }) }))
+const leaseTenantsView = view<typeof leaseTenants>('lease_tenants').nav({ hidden: true }).names({ singular: 'Lease tenant', plural: 'Lease tenants' }).fields((r) => ({ tenant_id: r.tenant_id.label('Tenant'), role: r.role.format('badge').valueLabels({ primary: 'Primary', co_signer: 'Co-signer' }) }))
 
 export const rentalResources = [properties, units, tenants, leases, leaseTenants].map((entry) => entry.toModel())
 

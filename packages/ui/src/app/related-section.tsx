@@ -10,6 +10,7 @@ import { Section } from '../record-view'
 import { EmbeddedDisplaySwitch, EmbeddedList } from './embedded-list/embedded-list'
 import { useEmbeddedDisplay } from './embedded-list/use-embedded-display'
 import { ErrorBanner } from './error-banner'
+import { relatedOpens } from './related-opens'
 import { relatedHandOrder } from './hand-order/hand-order'
 import { HandSortedList } from './hand-order/hand-sorted-list'
 import { SortButton } from './hand-order/sort-button'
@@ -67,6 +68,7 @@ export const RelatedSection = ({ item, recordKey, owner }: { item: RelatedModel;
   const permissions = usePermissions(item.resource)
   const [sorting, setSorting] = useState(false)
   if (!model) return null
+  const opens = relatedOpens(item, model, resources)
   // The relation names this record on every row, so it is left out of the default columns
   const columns = item.columns ?? listColumnNames(model, view).filter((name) => name !== item.field)
   const handOrder = relatedHandOrder(item, model, permissions)
@@ -95,7 +97,7 @@ export const RelatedSection = ({ item, recordKey, owner }: { item: RelatedModel;
       ) : match.filter === null || match.filter === undefined ? (
         <Empty text={item.empty} />
       ) : (
-        <EmbeddedList key={match.filter} model={model} view={view} filter={match.filter} sort={item.sort ?? ''} columns={columns} limit={item.limit ?? 10} display={display} empty={item.empty} />
+        <EmbeddedList key={match.filter} model={model} view={view} filter={match.filter} sort={item.sort ?? ''} columns={columns} limit={item.limit ?? 10} display={display} empty={item.empty} opens={opens} />
       )}
     </Section>
   )

@@ -1,10 +1,9 @@
 import { ArrowRight } from 'lucide-react'
 import { useMemo, useState } from 'react'
-import type { ResourceModel, ViewModel } from '@protobase/schema'
-import { DataGrid, type GridRow } from '../../data-grid'
+import type { AppAddress, ResourceModel, ViewModel } from '@protobase/schema'
+import { DataGrid } from '../../data-grid'
 import { useIsDesktop, useIsXs } from '../../lib/use-media-query'
 import { listColumnNames } from '../../live/columns-from-model'
-import { recordKey } from '../../live/model-helpers'
 import { humanize } from '../../live/naming'
 import type { RouteTarget } from '../../primitives/route-link'
 import { Skeleton } from '../../primitives/skeleton'
@@ -19,11 +18,13 @@ import { displayRow, loadedFields, shownDisplay } from '../displays/list-display
 import { ErrorBanner } from '../error-banner'
 import { useProjectUi } from '../pages/project-ui'
 import { defaultOrderBy, parseSort, sortToOrderBy } from '../list-order'
-import { useAdminMeta } from '../meta-gate'
+import { useAdminMeta, usePermissions } from '../meta-gate'
+import { can } from '../permissions'
 import { AppLink, useAppAddress } from '../use-app-address'
 import { embeddedColumns } from './embedded-columns'
 import { viewAllAddress } from './embedded-display'
 import { cutOffNote } from './cut-off-note'
+import { embeddedRowTargets } from './embedded-row-targets'
 import { useEmbeddedRows } from './use-embedded-rows'
 
 export type EmbeddedListProps = {
@@ -47,6 +48,8 @@ export type EmbeddedListProps = {
   viewAll?: { filter: string; label: string; savedSearch?: string; onOpen?: () => void }
   /** Whether it ends with the link to the whole list. */
   link?: boolean
+  /** The relation whose record a table row opens instead of its own, for rows that link this record to another; the row's menu then also opens or edits the row's own record. */
+  opens?: string
 }
 
 /** The switch between the table and the view's displays, for an embedded list's heading; nothing with only a table. */
@@ -61,8 +64,9 @@ const Loading = () => <div className="flex flex-col gap-2">{Array.from({ length:
  * to the whole list with the same filter, order and display, beside a note such as "The first 10 of 37." when there are
  * more. On a phone a cards display is one row that scrolls sideways.
  */
-export const EmbeddedList = ({ model, view, filter, sort, columns, limit, display, empty, row = false, viewAll, link = true }: EmbeddedListProps) => {
+export const EmbeddedList = ({ model, view, filter, sort, columns, limit, display, empty, row = false, viewAll, link = true, opens }: EmbeddedListProps) => {
   const { resources, views } = useAdminMeta()
+  const canUpdate = can(usePermissions(model.name), 'update')
   const { fields: fieldTypes } = useProjectUi()
   const { go, href } = useAppAddress()
   const xs = useIsXs()
@@ -104,9 +108,8 @@ export const EmbeddedList = ({ model, view, filter, sort, columns, limit, displa
     more: false,
     loadMore: () => undefined,
   }
-  const openRecord = (row: GridRow) => go({ kind: 'record', resource: model.name, key: recordKey(model, row) })
-  const recordLink = (row: GridRow): RouteTarget => ({ href: href({ kind: 'record', resource: model.name, key: recordKey(model, row) }), onFollow: () => openRecord(row) })
-  const singular = view?.names?.singular ?? humanize(model.name)
+  const targets = embeddedRowTargets({ model, view, opens, resources, views, canUpdate })
+  const linkTo = (to: AppAddress): RouteTarget => ({ href: href(to), onFollow: () => go(to) })
   const note = cutOffNote(source.total, rows.data.total, rows.data.estimated)
   return (
     <div className="flex flex-col gap-3">
@@ -118,9 +121,9 @@ export const EmbeddedList = ({ model, view, filter, sort, columns, limit, displa
           latencyMs={0}
           sort={parseSort(orderBy)}
           onSortChange={(next) => setOrderBy(sortToOrderBy(next))}
-          onOpenRow={openRecord}
-          rowLink={recordLink}
-          rowActions={[{ label: `Open ${singular.toLowerCase()}`, link: recordLink }]}
+          onOpenRow={(row) => go(targets.address(row))}
+          rowLink={(row) => linkTo(targets.address(row))}
+          rowActions={targets.actions(linkTo)}
           rowNumbers={false}
           selectable={false}
         />
