@@ -1,7 +1,7 @@
 import { afterAll, describe, expect, it } from 'vitest'
-import { connect } from '../../../examples/erp/db/connection'
-import { scales, type ScaleName } from '../../../examples/erp/seed/scales'
-import { databaseReachable } from './reachable'
+import { connect } from '../../examples/erp/db/connection'
+import { scales, type ScaleName } from '../../examples/erp/seed/scales'
+import { databaseReachable } from '../examples/erp/reachable'
 
 const reachable = await databaseReachable()
 const sql = connect({ max: 2 })
@@ -12,6 +12,7 @@ const scalar = async (query: PromiseLike<readonly object[]>) => Number(Object.va
 
 const count = (table: string) => scalar(sql.unsafe(`select count(*) from ${table}`))
 
+// The ERP's seed at the medium scale the Postgres suite's template has: counts, totals and keys that hold at any scale.
 describe.skipIf(!reachable)('seeded erp database', async () => {
   const [{ scale }] = reachable ? await sql`select scale from public.seed_info order by seeded_at desc limit 1` : [{ scale: 'small' }]
   const expected = scales[scale as ScaleName]

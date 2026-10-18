@@ -14,16 +14,26 @@ export const poolerUrl = process.env.TEST_PGBOUNCER_URL ?? 'postgres://protobase
 /**
  * One template database per example, migrated and seeded by `bun run test:db`. Every test run clones its own database
  * from these and drops it afterwards, so tests never touch the developer databases (`protobase`, `real_estate`, `property_portal`).
- * The ERP is seeded at medium scale, which the planner and seek cases need; `file_copy` clones it in a third of the time.
+ * Small seeds clone fastest with `wal_log`, which needs no checkpoint. The ERP at medium scale, which the planner and
+ * seek cases need, is the Postgres suite's alone (`bun run test:db postgres`); `file_copy` clones it in a third of the time.
  */
 export const templates = {
-  erp: { database: 'protobase_test_template', dir: 'examples/erp', scale: 'medium', strategy: 'file_copy' },
+  erp: { database: 'protobase_test_template', dir: 'examples/erp', scale: 'small', strategy: 'wal_log' },
   realEstate: { database: 'real_estate_test_template', dir: 'examples/real-estate', scale: 'small', strategy: 'wal_log' },
   propertyPortal: { database: 'property_portal_test_template', dir: 'examples/property-portal', scale: 'small', strategy: 'wal_log' },
+  erpMedium: { database: 'protobase_medium_test_template', dir: 'examples/erp', scale: 'medium', strategy: 'file_copy' },
 } as const
 
 export type TemplateKey = keyof typeof templates
 export type Template = (typeof templates)[TemplateKey]
+
+/** The templates each suite's runs clone: the integration tests on every push, the Postgres suite when SQL changes. */
+export const suites = {
+  integration: ['erp', 'realEstate', 'propertyPortal'],
+  postgres: ['erpMedium'],
+} as const satisfies Record<string, readonly TemplateKey[]>
+
+export type SuiteName = keyof typeof suites
 
 export const databaseUrl = (database: string, server = serverUrl) => {
   const url = new URL(server)
@@ -55,9 +65,8 @@ export const sourceHash = async (template: Template) => {
 
 const unreachable = ['ECONNREFUSED', 'ENOTFOUND', 'CONNECT_TIMEOUT', 'ETIMEDOUT']
 
-/** Whether the Postgres server answers at all. */
-export const serverReachable = async () => {
-  const sql = connectServer()
+const answers = async (url: string) => {
+  const sql = postgres(url, { max: 1, connect_timeout: 2, onnotice: () => {} })
   try {
     await sql`select 1`
     return true
@@ -67,6 +76,19 @@ export const serverReachable = async () => {
   } finally {
     await sql.end()
   }
+}
+
+/** Whether the Postgres server answers at all. */
+export const serverReachable = () => answers(serverUrl)
+
+/**
+ * Whether PgBouncer answers in front of the server, so the tests through it run. In CI it must: the Postgres suite
+ * runs them, and a missing pooler fails the run instead of skipping them.
+ */
+export const poolerReachable = async () => {
+  const reachable = await answers(databaseUrl('postgres', poolerUrl))
+  if (!reachable && process.env.CI) throw new Error('No PgBouncer at TEST_PGBOUNCER_URL: CI must run the PgBouncer tests against a pooler service')
+  return reachable
 }
 
 /** Whether the template exists and matches the current migrations and seed; `unreachable` without a server. */

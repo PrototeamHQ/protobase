@@ -40,6 +40,10 @@ const postgresGlue = 'tests/{changes,jobs}/**/*.postgres.test.ts'
 // The CLI building and serving the ERP on the runtime that runs Vitest, Bun or Node: `bun run test:smoke` and
 // `node --run test:smoke`.
 const smoke = ['tests/smoke/**/*.test.ts']
+// Real Postgres beyond what every push needs: the ERP's medium seed and the planner's statistics on its million rows,
+// and the job queue and event delivery through PgBouncer. `bun run test:postgres`, after `bun run test:db postgres`; CI
+// runs it when SQL or the Postgres setup changes, and weekly.
+const postgresSuite = ['tests/postgres/**/*.test.ts']
 // The presets written out and installed with bun from npm, migrated on a tenant-style role: `bun run test:presets`.
 const presets = ['packages/presets/tests/**/*.test.ts']
 // Chromium against an app served over TLS on more than one hostname, on PGlite: `bun run test:e2e`.
@@ -113,6 +117,17 @@ export default defineConfig({
           include: ['tests/examples/property-portal/**/*.test.ts'],
           globalSetup: [testDatabase],
           env: runEnvironment('propertyPortal', runId),
+          maxWorkers: integrationWorkers,
+          sequence: integrationGroup,
+        },
+      },
+      {
+        extends: true,
+        test: {
+          name: 'postgres',
+          include: postgresSuite,
+          globalSetup: [testDatabase],
+          env: runEnvironment('erpMedium', runId),
           maxWorkers: integrationWorkers,
           sequence: integrationGroup,
         },

@@ -103,7 +103,7 @@ describe.skipIf(!reachable)('the ERP with two organizations', () => {
       expect(row).toEqual({ name: 'Zuidwind Trading', slug: 'zuidwind', country_code: 'NL' })
       expect((await listOrganizations(auth)).map((entry) => entry.slug)).toEqual(['rijnland', 'nordlicht', 'zuidwind'])
     } finally {
-      // The run's database is shared with the other ERP tests, and the smoke test counts the seeded organizations.
+      // The run's database is shared with the other ERP tests.
       await db.deleteFrom('auth.organization').where('id', '=', organization.id).execute()
       await db.deleteFrom('core.organizations').where('id', '=', Number(organization.id)).execute()
     }

@@ -51,7 +51,7 @@ Seed consistency: an invoice's subtotal equals the sum of its lines and an order
 - `db/migrations/NNN_name.sql`: plain SQL, applied in order and recorded in `public.schema_migrations` by `db/migrate.ts`.
 - `seed/`: `world.ts` allocates ids per organization, `builders/` rebuild a company, product or order from its ordinal alone, `steps/` stream one module each. `base.ts` is the base seed.
 - `AGENTS.md`: the rules for the assistant that changes an app made from this example, which is also the ERP preset (`packages/presets`; the preset leaves this README out).
-- `tests/examples/erp/smoke.test.ts` (in the repository root): checks counts, invoice totals, stock levels, composite keys and `pg_stats`.
+- `tests/postgres/erp-seed.test.ts` (in the repository root, in the Postgres suite): checks the medium seed's counts, invoice totals, stock levels, composite keys and `pg_stats`.
 
 ## Login
 

@@ -1,12 +1,15 @@
 import { spawnSync } from 'node:child_process'
 import path from 'node:path'
-import { connectServer, databaseUrl, sourceHash, templates, templateState, type Template } from './templates'
+import { connectServer, databaseUrl, sourceHash, suites, templates, templateState, type SuiteName, type Template } from './templates'
 
-// `bun run test:db [--force]`: builds the test templates that are missing or older than their migrations and seed
-// (every one with --force). Test runs clone these; they never write to the developer databases.
+// `bun run test:db [suite] [--force]`: builds the suite's test templates (the integration tests' when no suite is named)
+// that are missing or older than their migrations and seed, every one with --force. Test runs clone these; they never
+// write to the developer databases.
 
 const root = path.join(import.meta.dirname, '..', '..')
 const force = process.argv.includes('--force')
+const suite = (process.argv.slice(2).find((arg) => !arg.startsWith('--')) ?? 'integration') as SuiteName
+if (!suites[suite]) throw new Error(`No test suite ${suite}: name one of ${Object.keys(suites).join(', ')}`)
 
 const run = (template: Template, script: string, ...args: string[]) => {
   const result = spawnSync('bun', [script, ...args], {
@@ -34,7 +37,7 @@ const build = async (template: Template) => {
   await sql.end()
 }
 
-for (const template of Object.values(templates)) {
+for (const template of suites[suite].map((key) => templates[key])) {
   const state = await templateState(template)
   if (state === 'unreachable') throw new Error('No Postgres server: start it with `bun run db:up`, or set TEST_POSTGRES_URL')
   if (state === 'ready' && !force) {
