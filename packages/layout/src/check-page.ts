@@ -1,7 +1,7 @@
 import { checkFilter, checkOrderBy, parseFilter, parseOrderBy, type AppAddress, type ResourceModel } from '@protobase/schema'
 import { addressErrors, fieldRefsIn } from '@protobase/schema/internal'
 import { chartProblems } from './check-chart'
-import { countedResource, parseCondition } from './condition'
+import { conditionProblems } from './check-condition'
 import { resolveFieldPath } from './field-path'
 import { dataProps, type LayoutNode } from './node'
 import type { PageModel } from './page'
@@ -94,22 +94,9 @@ const nodeProblems = (node: LayoutNode, scope: Scope, { models, actions, pages }
     case 'Link':
       if (node.props.to !== undefined) problems.push(...addressErrors(node.props.to as AppAddress, { models, pages, source: linkSource(models, scope) }).map((error) => `to: ${error}`))
       break
-    case 'Show': {
-      const parsed = parseCondition(String(node.props.when))
-      if (!parsed.ok) break
-      const record = scope.record && scope.resource !== undefined ? models[scope.resource] : undefined
-      for (const name of parsed.paths) {
-        const counted = countedResource(name, (first) => Boolean(record && Object.hasOwn(record.fields, first)))
-        if (counted !== undefined) {
-          if (!models[counted]) problems.push(`"when" counts "${counted}", which is not a resource`)
-        } else if (record) {
-          path(name)
-        } else {
-          problems.push(`"when" names "${name}", but outside a record it can only count records, as "<resource>.count"`)
-        }
-      }
+    case 'Show':
+      problems.push(...conditionProblems(String(node.props.when), scope.record ? scope.resource : undefined, models))
       break
-    }
   }
   return problems
 }

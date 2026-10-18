@@ -44,6 +44,7 @@ export type {
 export { component, type ComponentOptions } from './component'
 export { page, isPageDefinition, type PageDefinition, type PageModel, type PageOptions } from './page'
 export { checkPages } from './check-page'
+export { conditionProblems, conditionReadable } from './check-condition'
 export { prunePage } from './prune-page'
 export { parseCondition, evaluateCondition, countedResource } from './condition'
 export { resolveFieldPath, type PathStep } from './field-path'
