@@ -28,7 +28,8 @@ const rolesOf = (user: AccessUser) => user.roles ?? []
  *
  * An entry may limit capabilities to fields (an allowlist) and rows (an AIP-160 filter):
  * `{ 'products.read': ['sku', 'price'] }`, `{ 'products.read': { fields: ['name'], filter: 'published = true' } }`.
- * The role `anonymous`, when defined, is what requests without a token act as; it may only read listed fields.
+ * The role `anonymous`, when defined, is what requests without a token act as; it may only read listed fields, and
+ * create listed fields through a public form.
  * See [Access](website/src/content/docs/reference/access.mdx#capabilities).
  *
  * @example

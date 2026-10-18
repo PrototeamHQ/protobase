@@ -411,7 +411,7 @@ createAuth({ ..., baseURL: 'https://erp-x1.protobase.net', origins: ['https://ad
 
 ## Public endpoints
 
-Only the Better Auth routes under `/api/auth/*` (sign-in, password reset, [open sign-up](#open-sign-up), the start and callback of a [staff sign-in](#staff-sign-in) and the like), `GET /api/auth/status` and, with [several origins](#several-origins), `GET /.well-known/webauthn` are reachable without a token; the account, policy and staff session endpoints there need a session. The API (`/api/v1/*`) and the system endpoints (`/api/meta`, `/api/openapi.json`, `/api/docs`) all answer `401` without one, but for what an [anonymous role](/reference/access/#anonymous-access) reads in `/api/v1` and `/api/meta`, when the project defines one.
+Only the Better Auth routes under `/api/auth/*` (sign-in, password reset, [open sign-up](#open-sign-up), the start and callback of a [staff sign-in](#staff-sign-in) and the like), `GET /api/auth/status` and, with [several origins](#several-origins), `GET /.well-known/webauthn` are reachable without a token; the account, policy and staff session endpoints there need a session. The API (`/api/v1/*`) and the system endpoints (`/api/meta`, `/api/openapi.json`, `/api/docs`) all answer `401` without one, but for what an [anonymous role](/reference/access/#anonymous-access) reads in `/api/v1` and `/api/meta`, when the project defines one. [Public forms](/reference/forms/#routes) (`/api/forms/*`) need no token either.
 
 ## Roles and access in the API
 

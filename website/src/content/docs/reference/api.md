@@ -26,7 +26,7 @@ Run the ERP example with `bun run --cwd examples/erp serve` (port 8787, Better A
 
 ## Routes
 
-`/api/v1/*` is resources only, so a table may be called `meta` or `docs`. The system endpoints (`/api/meta`, `/api/openapi.json`, `/api/docs`), the app's own [API functions](/guides/api-functions/) (`/api/functions/<name>`), [file downloads](/reference/files/#downloads) (`/api/files/<provider>/<path>`) and login (`/api/auth/*`) live beside it; the parent of `options.basePath` is where the system endpoints go.
+`/api/v1/*` is resources only, so a table may be called `meta` or `docs`. The system endpoints (`/api/meta`, `/api/openapi.json`, `/api/docs`), the app's own [API functions](/guides/api-functions/) (`/api/functions/<name>`), [file downloads](/reference/files/#downloads) (`/api/files/<provider>/<path>`), [public forms](/reference/forms/#routes) (`/api/forms/<name>`) and login (`/api/auth/*`) live beside it; the parent of `options.basePath` is where the system endpoints go.
 
 Under `/api/v1`:
 

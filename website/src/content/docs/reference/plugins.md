@@ -231,7 +231,7 @@ The components a [remote resource](/reference/remote-resources/#custom-component
 
 ## Before sign-in
 
-Plugins load once someone has signed in, or for a visitor of a project with an anonymous role, so no plugin code runs for someone signed out: they get the sign-in page. A plugin listed with `beforeSignIn: true`, or in `PROTOBASE_PLUGINS_BEFORE_SIGN_IN`, loads before that. The sign-in status (`GET /api/auth/status`) names it to everyone, as `plugins`, and the app loads it first and waits for it, as it waits for the others. Its `beforeSignIn` component is drawn around what someone signed out sees: the sign-in page, or the app a visitor browses. Once they are in, it is no longer drawn, and the plugin stays loaded: `/api/meta` names it to everyone, and the app merges its other parts as any plugin's, without loading it again.
+Plugins load once someone has signed in, or for a visitor of a project whose anonymous role reads a resource, so no plugin code runs for someone signed out: they get the sign-in page. A plugin listed with `beforeSignIn: true`, or in `PROTOBASE_PLUGINS_BEFORE_SIGN_IN`, loads before that. The sign-in status (`GET /api/auth/status`) names it to everyone, as `plugins`, and the app loads it first and waits for it, as it waits for the others. Its `beforeSignIn` component is drawn around what someone signed out sees: the sign-in page, or the app a visitor browses. Once they are in, it is no longer drawn, and the plugin stays loaded: `/api/meta` names it to everyone, and the app merges its other parts as any plugin's, without loading it again.
 
 So a plugin can sign someone in from a link, such as one a platform hands out with a one-time code:
 
