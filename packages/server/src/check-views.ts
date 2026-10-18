@@ -1,5 +1,5 @@
 import type { ActionRun, CardPhotosModel, GalleryModel, ResourceModel, ViewModel } from '@protobase/schema'
-import { actionInputErrors, addressErrors, addressPlaceholders, boardErrors, chartFields, displayFields, fieldRefsIn, hrefField, hrefPlaceholders, linkActionError } from '@protobase/schema/internal'
+import { actionInputErrors, addressErrors, addressPlaceholders, boardErrors, calendarErrors, chartFields, displayFields, fieldRefsIn, hrefField, hrefPlaceholders, linkActionError } from '@protobase/schema/internal'
 import type { Registry } from './registry'
 import { cardFavoriteErrors, favoriteOwnerErrors } from './view-card-favorite'
 import { cardPhotosErrors } from './view-card-photos'
@@ -153,7 +153,7 @@ const listOfErrors = (model: ResourceModel, name: string, models: Record<string,
  * has a related section or related list column, a cards display's or gallery's photos or a cards display's favorite button, a `listOf`, a "Save search" button or a
  * `searchesOf` that do not fit the resources, cards
  * displays of one list that name different photos, a chart per value that cannot group or add up its fields, a map that cannot show the
- * record's position or a map display that cannot find the records in its view, a board whose columns are no filterable enum, a link to an address the app does not have, action inputs that do not fit, or a create page that is not one of `pages`.
+ * record's position or a map display that cannot find the records in its view, a board whose columns are no filterable enum, a calendar whose dates are no filterable date or timestamp fields, a link to an address the app does not have, action inputs that do not fit, or a create page that is not one of `pages`.
  */
 export const checkViews = (registry: Registry, views: ViewModel[], pages: readonly string[] = [], fieldTypes: Readonly<Record<string, readonly string[]>> = {}) => {
   const models = Object.fromEntries(registry.entries.map((entry) => [entry.name, entry.model]))
@@ -187,9 +187,10 @@ export const checkViews = (registry: Registry, views: ViewModel[], pages: readon
       ...(view.list?.displays ?? []).flatMap((display) => (display.kind === 'map' ? mapDisplayErrors(display, model).map((error) => `display "${display.name}": ${error}`) : [])),
     ]
     const boards = (view.list?.displays ?? []).flatMap((display) => (display.kind === 'board' ? boardErrors(display, model).map((error) => `display "${display.name}": ${error}`) : []))
+    const calendars = (view.list?.displays ?? []).flatMap((display) => (display.kind === 'calendar' ? calendarErrors(display, model).map((error) => `display "${display.name}": ${error}`) : []))
     const chart = view.chart ? chartErrors(view.chart, model).map((error) => `chart: ${error}`) : []
     const history = model.history ? [] : view.layout.flatMap((item) => (item.kind === 'history' ? [`history "${item.title}" needs .history() on resource "${view.resource}"`] : []))
-    return [...sensitiveErrors(view, model), ...unknownFieldErrors(view, model), ...valueLabelErrors(view, model), ...valueColorErrors(view, model), ...textHintErrors(view, model), ...listEditErrors(view, model), ...widgetErrors(view, model, fieldTypes), ...related, ...photos, ...favorites, ...listOf, ...searches, ...maps, ...history, ...boards, ...chart, ...linkErrors(view, model, models, pageNames), ...inputErrors(view, models), ...createErrors(view, pageNames)].map((problem) => `View "${view.resource}": ${problem}`)
+    return [...sensitiveErrors(view, model), ...unknownFieldErrors(view, model), ...valueLabelErrors(view, model), ...valueColorErrors(view, model), ...textHintErrors(view, model), ...listEditErrors(view, model), ...widgetErrors(view, model, fieldTypes), ...related, ...photos, ...favorites, ...listOf, ...searches, ...maps, ...history, ...boards, ...calendars, ...chart, ...linkErrors(view, model, models, pageNames), ...inputErrors(view, models), ...createErrors(view, pageNames)].map((problem) => `View "${view.resource}": ${problem}`)
   })
   if (problems.length > 0) throw new Error(`The views do not match the resources:\n${problems.map((problem) => `  - ${problem}`).join('\n')}`)
 }

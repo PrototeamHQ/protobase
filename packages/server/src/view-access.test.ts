@@ -221,4 +221,13 @@ describe('pruneView', () => {
     expect(list(without({ repairs: ['costPrice'] }))).toEqual({ columns: ['number'], displays: [{ kind: 'board', name: 'board', by: 'status', title: 'number', meta: ['bookedOn'] }], default: 'board' })
     expect(list(without({ repairs: ['status'] }))).toEqual({ columns: ['number'] })
   })
+
+  it('keeps a calendar for a caller who can read its start, its event without a title they cannot read, and opens the table without it', () => {
+    const calendar = view<typeof repairs>('repairs')
+      .list((r, d) => ({ columns: [r.number], displays: [d.calendar({ start: r.bookedOn, title: r.costPrice })], default: 'calendar' }))
+      .toModel()
+    const list = (models: Record<string, ResourceModel>) => pruneView(calendar, models.repairs!, models).list
+    expect(list(without({ repairs: ['costPrice'] }))).toEqual({ columns: ['number'], displays: [{ kind: 'calendar', name: 'calendar', start: 'bookedOn' }], default: 'calendar' })
+    expect(list(without({ repairs: ['bookedOn'] }))).toEqual({ columns: ['number'] })
+  })
 })
