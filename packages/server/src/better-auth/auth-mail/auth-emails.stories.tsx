@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { expect, waitFor } from 'storybook/test'
+import { mentionEmail } from '../../comments/mention-email'
 import type { RenderedEmail } from '../../mail/define-email'
 import { accountExistsEmail, invitationEmail, resetPasswordEmail, signInCodeEmail, signUpCodeEmail, staffSignInEmail, twoFactorCodeEmail } from './auth-emails'
 
@@ -65,4 +66,10 @@ export const StaffSignIn = story(() =>
 
 export const Invitation = story(() =>
   invitationEmail.render({ app, inviter: 'Ada Lovelace', organization: 'Utrecht Rentals', url: 'https://homes.example.com/-/invitation?token=abc', expiresAt }),
+)
+
+export const Mention = story(
+  () =>
+    mentionEmail.render({ app, author: 'Ann de Vries', record: 'Listing: Keizersgracht 12', body: 'Can you call the owner, @Bo Jansen?\nThey asked about the viewing.', url: 'https://homes.example.com/listings/12' }),
+  (body) => expect(body.querySelector('a[href="https://homes.example.com/listings/12"]')?.textContent).toBe('Open Listing: Keizersgracht 12'),
 )

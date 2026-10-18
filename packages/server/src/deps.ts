@@ -2,6 +2,8 @@ import type { PageModel } from '@protobase/layout'
 import type { Db } from '@protobase/query'
 import type { BottomBarModel, ResolveOptions, UserMenuModel, ViewModel } from '@protobase/schema'
 import type { ErrorReportingSettings } from './error-reporting/error-reporting-settings'
+import type { CommentUsers } from './comments/comment-users'
+import type { mentionJob } from './comments/mention-job'
 import type { FilesRuntime } from './files/runtime'
 import type { MapSettings } from './maps/map-settings'
 import type { PluginOption } from './plugins/plugin-settings'
@@ -48,4 +50,9 @@ export type Deps = {
   actorSetting?: string
   /** Where record history is kept, when a resource has `.history()`, and the names of the users who made changes. */
   history?: { schema: string; actorNames?: (ids: readonly string[]) => Promise<Record<string, string>> }
+  /**
+   * When a resource has `.comments()`: with the project's auth, its users and the job that mails a mention; and the
+   * origin of the app for a request's URL, which the mailed links go to.
+   */
+  comments?: { users?: CommentUsers; mentionJob?: ReturnType<typeof mentionJob>; appOrigin: (requestURL: string) => string }
 }

@@ -1,5 +1,5 @@
 import { Hono } from 'hono'
-import { checkAuthSchema, checkChanges, checkWebhooksSchema, configExports, hasUsers } from '@protobase/server'
+import { checkAuthSchema, checkChanges, checkComments, checkWebhooksSchema, configExports, hasUsers } from '@protobase/server'
 import { projectErrorReporter } from '../project/error-reporter'
 import { projectAdmin } from '../project/project-admin'
 import { devJobs } from './dev-jobs'
@@ -23,8 +23,10 @@ if (project.auth && !store.__protobaseAuthSchemaChecked) {
   store.__protobaseAuthSchemaChecked = true
 }
 
-// On every load, since editing the config can give a resource events or history whose triggers the database lacks.
+// On every load, since editing the config can give a resource events or history whose triggers the database lacks, or
+// comments whose table it lacks.
 await checkChanges(db, resources.map((resource) => resource.toModel()), project.events)
+await checkComments(db, resources.map((resource) => resource.toModel()))
 if (project.webhooks) await checkWebhooksSchema(db, project.webhooks)
 
 // With a DSN set, the API's 500s go to the error tracker too; a crash is the terminal's to show.

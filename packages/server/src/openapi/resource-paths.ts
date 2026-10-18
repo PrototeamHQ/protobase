@@ -48,6 +48,13 @@ const page = (name: string, seek = false) => json({
   },
 })
 
+const person = { type: 'object', required: ['id'], properties: { id: { type: 'string' }, name: { type: 'string' } } }
+const comment = {
+  type: 'object',
+  required: ['id', 'created_at', 'body', 'author', 'mentions'],
+  properties: { id: { type: 'string' }, created_at: { type: 'string', format: 'date-time' }, body: { type: 'string' }, author: person, mentions: { type: 'array', items: person } },
+}
+
 const bounds = { type: 'object', properties: { south: { type: 'number' }, west: { type: 'number' }, north: { type: 'number' }, east: { type: 'number' } } }
 
 const mapResult = (name: string) => json({
@@ -210,6 +217,44 @@ export const resourcePaths = (access: RequestAccess) => {
               }),
             },
             ...keyErrors,
+          },
+        },
+      },
+    }),
+    ...(entry.model.comments && {
+      [`/${entry.name}/{key}:comments`]: {
+        get: {
+          operationId: `comments_${entry.name}`,
+          tags: tag,
+          summary: `The comments on a ${entry.name} record`,
+          description: 'Newest first, with the same access as a get, a deleted record included.',
+          parameters: [param('key'), query('page_size', 'Comments per page, at most 100 (default 20)', { type: 'integer' }), query('page_token', 'The next_page_token of the previous page')],
+          responses: {
+            200: { description: 'A page of comments', content: json({ type: 'object', required: ['items', 'next_page_token'], properties: { items: { type: 'array', items: comment }, next_page_token: { type: 'string', description: 'Empty on the last page' } } }) },
+            ...keyErrors,
+          },
+        },
+        post: {
+          operationId: `comment_${entry.name}`,
+          tags: tag,
+          summary: `Comment on a ${entry.name} record`,
+          description: 'For a signed-in caller who may read the record, not deleted. Each mentioned user must be able to read the record too, and is emailed a link to it.',
+          parameters: [param('key')],
+          requestBody: { required: true, content: json({ type: 'object', required: ['body'], properties: { body: { type: 'string', maxLength: 10_000 }, mentions: { type: 'array', items: { type: 'string' }, maxItems: 20, description: 'The user ids it mentions' } }, additionalProperties: false }) },
+          responses: { 201: { description: 'The comment', content: json(comment) }, ...keyErrors, 403: error('Forbidden') },
+        },
+      },
+      [`/${entry.name}/{key}:mentionable`]: {
+        get: {
+          operationId: `mentionable_${entry.name}`,
+          tags: tag,
+          summary: `The users a comment on a ${entry.name} record may mention`,
+          description: 'At most 8, by name: users whose name contains q who may read the record, without the caller.',
+          parameters: [param('key'), query('q', 'Part of the name')],
+          responses: {
+            200: { description: 'The users', content: json({ type: 'object', required: ['items'], properties: { items: { type: 'array', items: person } } }) },
+            ...keyErrors,
+            403: error('Forbidden'),
           },
         },
       },

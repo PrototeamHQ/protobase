@@ -13,6 +13,9 @@ import { resolveTarget } from './target'
 import { returnPreference } from './preferences'
 import { auditOrigin } from '../audit/origin'
 import { readHistory } from '../history/read-history'
+import { mentionable } from '../comments/mentionable'
+import { postComment } from '../comments/post-comment'
+import { readComments } from '../comments/read-comments'
 
 export const recordRoutes = (deps: Deps) => {
   const app = new Hono<AdminEnv>()
@@ -21,6 +24,9 @@ export const recordRoutes = (deps: Deps) => {
     const { entry } = resolveTarget(deps, c.req.param('resource'))
     // GET /{resource}/{key}:history: the record's changes, newest first
     if (c.req.param('key').endsWith(':history')) return c.json(await readHistory(deps, entry, c.get('session'), keyFromPath(c, entry, ':history'), c.req.query()))
+    // GET /{resource}/{key}:comments: the record's comments, newest first; :mentionable?q=: whom a comment may mention
+    if (c.req.param('key').endsWith(':comments')) return c.json(await readComments(deps, entry, c.get('session'), keyFromPath(c, entry, ':comments'), c.req.query()))
+    if (c.req.param('key').endsWith(':mentionable')) return c.json(await mentionable(deps, entry, c.get('session'), keyFromPath(c, entry, ':mentionable'), c.req.query()))
     const deleted = deletedRows(entry.model, c.req.query('show_deleted') === 'true')
     const found = await readRecord(deps, entry, c.get('session'), keyFromPath(c, entry), deleted)
     // `fields` is checked against the caller's own readable fields
@@ -43,6 +49,11 @@ export const recordRoutes = (deps: Deps) => {
   app.post('/:resource/:key', async (c) => {
     const { entry } = resolveTarget(deps, c.req.param('resource'))
     if (c.req.param('key').endsWith(':reveal')) return reveal(c, entry)
+    // POST /{resource}/{key}:comments with `{ "body": "...", "mentions": ["<user id>"] }`
+    if (c.req.param('key').endsWith(':comments')) {
+      const body: unknown = await c.req.json()
+      return c.json(await postComment(deps, entry, c.get('session'), keyFromPath(c, entry, ':comments'), body, c.req.url), 201)
+    }
     if (!c.req.param('key').endsWith(':undelete')) throw notFound('There is no such method')
     const restored = await runWrite(deps, entry, c.get('session'), {
       operation: 'undelete',

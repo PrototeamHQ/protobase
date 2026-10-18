@@ -14,6 +14,10 @@ import { organizationRoutes } from './better-auth/organizations/admin-routes'
 import { statusRoute } from './better-auth/status-route'
 import { isCaptured } from './changes/capture-sql'
 import { changesSchema, type EventsOptions } from './changes/events-options'
+import { appOrigin } from './comments/app-origin'
+import { betterAuthCommentUsers, type CommentUsers } from './comments/comment-users'
+import { mentionJob } from './comments/mention-job'
+import { commentsResource, commentsView } from './comments/record-comments'
 import { activityResource, activityView } from './history/activity'
 import { betterAuthActorNames } from './history/actor-names'
 import { historyDays, type HistoryOptions } from './history/options'
@@ -78,7 +82,7 @@ export type CreateAdminInput = {
   events?: EventsOptions
   /** How long the history of resources with `.history()` is kept (see `HistoryOptions`). */
   history?: HistoryOptions
-  /** The app's jobs (see `defineJob`): with any, or a resource with events or history, admins get the failed jobs page (`failed_jobs`). */
+  /** The app's jobs (see `defineJob`): with any, or a resource with events, history or comments, admins get the failed jobs page (`failed_jobs`). */
   jobs?: JobDefinition[]
   /** Where the resources' events are delivered (`subscription(...)` exports of the config module). */
   subscriptions?: SubscriptionDefinition[]
@@ -99,6 +103,8 @@ export type CreateAdminInput = {
   options?: AdminOptions
   /** @internal The proof-of-work range of public forms' bot checks, which tests make tiny. */
   formsDifficulty?: Difficulty
+  /** @internal The users comments name, mention and mail, which tests fake; from `auth` otherwise. */
+  commentUsers?: CommentUsers
 }
 
 // The roles a user can hold, from the auth instance and `defineRoles`; unknown when the app declares neither.
@@ -108,16 +114,25 @@ const declaredRoles = (auth: AdminAuth | undefined, roles: AdminOptions['roles']
 }
 
 /** The admin REST API as a Hono app. It uses only Web APIs, so it runs on Node, Workers and anywhere else Hono does. */
-export const createAdmin = ({ resources: appResources, views: appViews = [], pages = [], userMenu, bottomBars = [], db, authenticate, auth, functions = {}, files: filesOptions, events, history: historyOptions, jobs = [], subscriptions = [], webhooks: webhooksOptions, bundlePlugins = [], fieldTypes = {}, options = {}, formsDifficulty }: CreateAdminInput): Admin => {
+export const createAdmin = ({ resources: appResources, views: appViews = [], pages = [], userMenu, bottomBars = [], db, authenticate, auth, functions = {}, files: filesOptions, events, history: historyOptions, jobs = [], subscriptions = [], webhooks: webhooksOptions, bundlePlugins = [], fieldTypes = {}, options = {}, formsDifficulty, commentUsers: givenCommentUsers }: CreateAdminInput): Admin => {
   const basePath = options.basePath ?? '/api/v1'
-  // Events are delivered and history kept by jobs, whose failures the page lists too. Admins list the history as Activity.
+  // Events are delivered, history kept and mentions mailed by jobs, whose failures the page lists too. Admins list the
+  // history as Activity and every comment as Comments.
   const appModels = appResources.map((resource) => resource.toModel())
-  const withJobs = jobs.length > 0 || appModels.some(isCaptured)
+  const withComments = appModels.some((model) => model.comments)
+  const withJobs = jobs.length > 0 || appModels.some(isCaptured) || withComments
   const withHistory = appModels.some((model) => model.history)
   const changes = changesSchema(events)
   const days = historyDays(historyOptions)
-  const resources = [...appResources, ...(withJobs ? [failedJobs] : []), ...(withHistory ? [activityResource(changes, { tenant: appModels.some((model) => model.history && model.tenant) })] : [])]
-  const views = [...appViews, ...(withJobs ? [failedJobsView] : []), ...(withHistory ? [activityView] : [])]
+  const resources = [
+    ...appResources,
+    ...(withJobs ? [failedJobs] : []),
+    ...(withHistory ? [activityResource(changes, { tenant: appModels.some((model) => model.history && model.tenant) })] : []),
+    ...(withComments ? [commentsResource({ tenant: appModels.some((model) => model.comments && model.tenant) })] : []),
+  ]
+  const views = [...appViews, ...(withJobs ? [failedJobsView] : []), ...(withHistory ? [activityView] : []), ...(withComments ? [commentsView] : [])]
+  const commentUsers = withComments ? (givenCommentUsers ?? (auth && betterAuthCommentUsers(auth))) : undefined
+  const mentions = withComments ? mentionJob(commentUsers, auth?.appName ?? readAppName(globalThis.process?.env ?? {}) ?? defaultAppName) : undefined
   const registry = buildRegistry(resources)
   const apiFunctions = Object.fromEntries(Object.entries(functions).map(([name, source]) => [name, toApiFunction(name, source)]))
   const viewModels = views.map((view) => view.toModel())
@@ -168,6 +183,7 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], pag
     ...(files && { files }),
     ...(appModels.some(isCaptured) && { actorSetting: `${changes}.actor` }),
     ...(withHistory && { history: { schema: changes, ...(auth && { actorNames: betterAuthActorNames(auth) }) } }),
+    ...(mentions && { comments: { ...(commentUsers && { users: commentUsers }), mentionJob: mentions, appOrigin: appOrigin(auth?.origins ?? []) } }),
   }
 
   // The tabs end in the name the app signs in and mails as.
@@ -233,5 +249,5 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], pag
   app.route(`${deps.systemPath}/meta`, metaApp)
   app.route(deps.systemPath || '/', system)
   const webhooks = createWebhooks({ deps, subscriptions, functions: apiFunctions, schema: changes, log: (line) => console.log(line), ...(table && { table }) })
-  return Object.assign(app, { jobs: [...webhooks.jobs, ...(withHistory && days !== undefined ? [pruneHistoryJob(changes, days)] : [])] })
+  return Object.assign(app, { jobs: [...webhooks.jobs, ...(withHistory && days !== undefined ? [pruneHistoryJob(changes, days)] : []), ...(mentions ? [mentions] : [])] })
 }

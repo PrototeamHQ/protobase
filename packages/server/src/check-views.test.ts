@@ -190,6 +190,13 @@ describe('checkViews', () => {
     expect(() => checkViews(all, [view<typeof saved>('saved').listOf((r) => r.visit_id).toModel()])).toThrow('View "saved": listOf: visits has a composite key, so its records cannot be listed by key')
   })
 
+  it('wants comments, like history, only on a resource that keeps them', () => {
+    const thread = view<typeof payments>('payments').layout(() => [l.comments('Notes')]).toModel()
+    expect(() => checkViews(registry, [thread])).toThrow('View "payments": comments "Notes" needs .comments() on resource "payments"')
+    const commented = { entries: [{ name: 'payments', model: payments.comments().toModel() }] } as unknown as Registry
+    expect(() => checkViews(commented, [thread])).not.toThrow()
+  })
+
   it('wants a custom section to name fields the resource has', () => {
     const stale = view<typeof payments>('payments').toModel()
     stale.layout = [{ kind: 'custom', component: 'Receipt', props: { amount: { $field: 'amount' }, currency: 'EUR' } }]
