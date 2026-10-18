@@ -23,6 +23,8 @@ import { ErrorBanner } from './error-banner'
 import { ImportButton } from './import/import-button'
 import { exportOffered, exportsSelection } from './export/export-options'
 import { useExportFlow } from './export/use-export-flow'
+import { ListEmpty } from './list-empty'
+import { listEmptyState } from './list-empty-state'
 import { ListCards } from './displays/list-cards'
 import { MapDisplay } from './displays/map-display'
 import { BoardDisplay } from './displays/board-display'
@@ -238,10 +240,19 @@ const LoadedList = ({ model, address, scope, heading }: LoadedListProps) => {
     <div className="flex-1 rounded-lg border bg-surface" />
   )
   const cardsList = { ...rows, initialIndex: scroll.initialIndex, onScrollIndex: scroll.remember }
+  // A list without rows says why, and offers to clear what narrows it or to create the first record
+  const emptyState = listEmptyState({
+    plural,
+    search: search?.kind === 'search' ? search.text : '',
+    filtered: chips.length > 0,
+    scoped: Boolean(scope) || extras.some((clause) => clause.kind !== 'search'),
+    canCreate: Boolean(createButton),
+  })
+  const empty = <ListEmpty state={emptyState} onClearSearch={() => commitSearch('')} onClearFilters={() => setFilter(emptyFilterState)} create={createButton} />
   const drawDisplay = () => {
-    if (!display) return table
+    if (!display) return rows.source?.total === 0 && !rows.error ? empty : table
     // A change of filter or sort starts the cards again at the top
-    if (display.kind === 'cards') return <ListCards key={rows.key.join(' ')} model={model} view={view} display={display} list={cardsList} />
+    if (display.kind === 'cards') return <ListCards key={rows.key.join(' ')} model={model} view={view} display={display} list={cardsList} empty={empty} />
     if (display.kind === 'map') {
       return <MapDisplay model={model} view={view} display={display} filter={loadFilter} orderBy={orderBy} fields={loaded} at={address.map} onMove={(map) => set({ map })} flush />
     }
