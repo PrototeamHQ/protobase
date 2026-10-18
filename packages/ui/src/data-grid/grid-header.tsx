@@ -2,7 +2,7 @@ import { ArrowDown, ArrowUp, ChevronsUpDown } from 'lucide-react'
 import { Checkbox } from '../primitives/checkbox'
 import { cn } from '../lib/cn'
 import { isRightAligned, type ColumnSpec } from './column-spec'
-import { HeaderMenu } from './header-menu'
+import { HeaderMenu, unsortableText } from './header-menu'
 import { compactGutter, gridTemplate } from './grid-template'
 
 export type HeaderCell = { spec: ColumnSpec; sorted: 'asc' | 'desc' | false; onSort: (event: unknown) => void }
@@ -30,6 +30,13 @@ const SortIcon = ({ sorted }: { sorted: HeaderCell['sorted'] }) => {
   return <ChevronsUpDown className="size-3 opacity-0 group-hover/head:opacity-100" />
 }
 
+const HeaderLabel = ({ spec }: { spec: ColumnSpec }) => (
+  <>
+    <span className="truncate">{spec.header}</span>
+    {spec.highlight && <span className="rounded bg-primary px-1 text-[10px] font-semibold uppercase leading-4 text-primary-foreground">New</span>}
+  </>
+)
+
 export const GridHeader = ({ cells, specs, gutter, selectedCount, selectable, trailing, minScale, pins = {}, lastPinned, scrolled, onTogglePin, onClearSelection }: GridHeaderProps) => (
   <div className="grid h-8 shrink-0 items-center border-b bg-surface text-xs font-medium text-muted-foreground" style={{ gridTemplateColumns: gridTemplate(specs, gutter, trailing, minScale) }} role="row">
     <div className={cn('sticky left-0 z-10 flex h-full items-center gap-2 bg-inherit pl-3', scrolled && !lastPinned && 'shadow-[1px_0_0_var(--border),4px_0_6px_-2px_rgb(0_0_0/0.12)]')} style={{ width: gutter }}>
@@ -51,18 +58,23 @@ export const GridHeader = ({ cells, specs, gutter, selectedCount, selectable, tr
             spec.highlight && 'bg-primary-soft text-primary-text',
           )}
         >
-          <button
-            type="button"
-            onClick={onSort}
-            disabled={!spec.sortable}
-            className={cn('group/head flex h-full min-w-0 flex-1 items-center gap-1 pl-3 pr-1 text-left', isRightAligned(spec.kind) && 'justify-end', spec.sortable && 'hover:text-foreground', sorted && 'text-foreground')}
-          >
-            <span className="truncate">{spec.header}</span>
-            {spec.highlight && <span className="rounded bg-primary px-1 text-[10px] font-semibold uppercase leading-4 text-primary-foreground">New</span>}
-            {spec.sortable && <SortIcon sorted={sorted} />}
-          </button>
+          {spec.sortable ? (
+            <button
+              type="button"
+              onClick={onSort}
+              className={cn('group/head flex h-full min-w-0 flex-1 items-center gap-1 pl-3 pr-1 text-left', isRightAligned(spec.kind) && 'justify-end', 'hover:text-foreground', sorted && 'text-foreground')}
+            >
+              <HeaderLabel spec={spec} />
+              <SortIcon sorted={sorted} />
+            </button>
+          ) : (
+            // Not a button: nothing happens on a press, and a disabled button would not show its tooltip
+            <div title={unsortableText} className={cn('flex h-full min-w-0 flex-1 items-center gap-1 pl-3 pr-1 text-left', isRightAligned(spec.kind) && 'justify-end')}>
+              <HeaderLabel spec={spec} />
+            </div>
+          )}
           <div className="pr-1.5">
-            <HeaderMenu header={spec.header} pinned={pinned} onTogglePin={() => onTogglePin(spec.id)} />
+            <HeaderMenu header={spec.header} pinned={pinned} sortable={Boolean(spec.sortable)} onTogglePin={() => onTogglePin(spec.id)} />
           </div>
         </div>
       )

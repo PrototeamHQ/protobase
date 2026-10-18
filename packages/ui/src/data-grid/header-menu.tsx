@@ -1,10 +1,13 @@
 import { MoreHorizontal } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 
-export type HeaderMenuProps = { header: string; pinned: boolean; onTogglePin: () => void }
+export type HeaderMenuProps = { header: string; pinned: boolean; sortable: boolean; onTogglePin: () => void }
 
-/** The "..." in a column header: for now, pinning the column to the left edge. */
-export const HeaderMenu = ({ header, pinned, onTogglePin }: HeaderMenuProps) => {
+/** Why a column header does nothing when pressed: a list sorts only on the columns its view makes sortable. */
+export const unsortableText = "This column can't be sorted"
+
+/** The "..." in a column header: pinning the column to the left edge, and saying so when the list can't sort by it. */
+export const HeaderMenu = ({ header, pinned, sortable, onTogglePin }: HeaderMenuProps) => {
   const [open, setOpen] = useState(false)
   const root = useRef<HTMLDivElement>(null)
 
@@ -35,6 +38,13 @@ export const HeaderMenu = ({ header, pinned, onTogglePin }: HeaderMenuProps) => 
       </button>
       {open && (
         <ul role="menu" className="absolute right-0 top-full z-30 mt-1 min-w-32 rounded-md border bg-background py-1 text-body font-normal text-foreground shadow-pop">
+          {!sortable && (
+            <li role="none">
+              <span role="menuitem" aria-disabled="true" className="block min-h-9 whitespace-nowrap px-3 py-1.5 text-muted-foreground">
+                {unsortableText}
+              </span>
+            </li>
+          )}
           <li role="none">
             <button
               type="button"
