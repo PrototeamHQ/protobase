@@ -1,8 +1,10 @@
 import type { CalendarView, FilterValue, ListDisplayModel, ResourceModel } from '@protobase/schema'
 import { printFilter, where } from '@protobase/schema'
+import { dayIn, instantAt, startOfDayIn, viewerZone, zoneOffset } from '../../format/zone'
 import type { ListDisplayRow } from './list-displays'
 
-// The days a calendar shows and the records on them, all in UTC days as `YYYY-MM-DD`, weeks from Monday.
+// The days a calendar shows and the records on them, as `YYYY-MM-DD` days, weeks from Monday. A date is on its own day;
+// a timestamp, and today, on the viewer's day, in `zone`.
 
 export type CalendarDisplayModel = Extract<ListDisplayModel, { kind: 'calendar' }>
 
@@ -27,10 +29,10 @@ const monthOf = (day: string, step = 0) => {
 const normalised = ({ scale, day }: CalendarView): CalendarView => ({ scale, day: scale === 'month' ? monthOf(day) : monday(day) })
 
 /** The month or week a calendar shows: the address's, starting on the month's 1st or the week's Monday, else the month of `now`. */
-export const calendarView = (at: CalendarView | undefined, now: number): CalendarView => normalised(at ?? { scale: 'month', day: dayOf(now) })
+export const calendarView = (at: CalendarView | undefined, now: number, zone = viewerZone()): CalendarView => normalised(at ?? { scale: 'month', day: dayIn(now, zone) })
 
 /** The month or week of `scale` that holds `now`. */
-export const todayView = (scale: CalendarView['scale'], now: number): CalendarView => normalised({ scale, day: dayOf(now) })
+export const todayView = (scale: CalendarView['scale'], now: number, zone = viewerZone()): CalendarView => normalised({ scale, day: dayIn(now, zone) })
 
 /** The month or week before (-1) or after (1) `view`. */
 export const stepView = (view: CalendarView, step: -1 | 1): CalendarView =>
@@ -57,9 +59,10 @@ const isTimestamp = (display: CalendarDisplayModel, model: ResourceModel) => mod
  * it and ending in or after its first day. A timestamp's `end` is the instant it is over, so one ending at midnight is
  * not on the day it starts. Each branch reads one indexed field.
  */
-export const rangeFilter = (display: CalendarDisplayModel, model: ResourceModel, range: CalendarRange) => {
+export const rangeFilter = (display: CalendarDisplayModel, model: ResourceModel, range: CalendarRange, zone = viewerZone()) => {
   const timestamp = isTimestamp(display, model)
-  const bound = (day: string): FilterValue => (timestamp ? { kind: 'timestamp', value: `${day}T00:00:00Z`, span: { start: 0, end: 0 } } : { kind: 'string', value: day, span: { start: 0, end: 0 } })
+  const instant = (day: string) => new Date(startOfDayIn(day, zone)).toISOString().replace('.000Z', 'Z')
+  const bound = (day: string): FilterValue => (timestamp ? { kind: 'timestamp', value: instant(day), span: { start: 0, end: 0 } } : { kind: 'string', value: day, span: { start: 0, end: 0 } })
   const within = where.and(where.gte(display.start, bound(range.from)), where.lt(display.start, bound(range.to)))
   if (display.end === undefined) return printFilter(within)
   const ending = timestamp ? where.gt(display.end, bound(range.from)) : where.gte(display.end, bound(range.from))
@@ -80,35 +83,37 @@ const instantOf = (value: unknown) => {
  * The days of `days` a record is on: from its start's day through its end's, both included, where a timestamp `end`
  * at midnight is over before that day starts; its start day alone without an end or with one before its start.
  */
-export const eventDays = (record: Record<string, unknown>, display: CalendarDisplayModel, model: ResourceModel, days: string[]): string[] => {
+export const eventDays = (record: Record<string, unknown>, display: CalendarDisplayModel, model: ResourceModel, days: string[], zone = viewerZone()): string[] => {
   const start = instantOf(record[display.start])
   if (start === undefined) return []
-  const first = dayOf(start)
+  const timestamp = isTimestamp(display, model)
+  const day = (ms: number) => (timestamp ? dayIn(ms, zone) : dayOf(ms))
+  const first = day(start)
   const end = display.end === undefined ? undefined : instantOf(record[display.end])
-  const ending = end === undefined ? first : dayOf(isTimestamp(display, model) ? end - 1 : end)
+  const ending = end === undefined ? first : day(timestamp ? end - 1 : end)
   const last = ending < first ? first : ending
   return days.filter((day) => day >= first && day <= last)
 }
 
 /** The rows on each day of `days`, each day's in start order. */
-export const byDay = (rows: ListDisplayRow[], display: CalendarDisplayModel, model: ResourceModel, days: string[]): Map<string, ListDisplayRow[]> => {
+export const byDay = (rows: ListDisplayRow[], display: CalendarDisplayModel, model: ResourceModel, days: string[], zone = viewerZone()): Map<string, ListDisplayRow[]> => {
   const placed = new Map(days.map((day) => [day, [] as ListDisplayRow[]]))
   const ordered = rows.toSorted((a, b) => (instantOf(a.record[display.start]) ?? 0) - (instantOf(b.record[display.start]) ?? 0))
-  for (const row of ordered) for (const day of eventDays(row.record, display, model, days)) placed.get(day)!.push(row)
+  for (const row of ordered) for (const day of eventDays(row.record, display, model, days, zone)) placed.get(day)!.push(row)
   return placed
 }
 
 /**
  * The update that moves a record shown on `from` to `to`: its `start`, and its `end` when it has one, moved by the same
- * number of days, a timestamp keeping its time of day.
+ * number of days, a timestamp keeping its time of day on the clock of `zone`.
  */
-export const movedPatch = (record: Record<string, unknown>, display: CalendarDisplayModel, model: ResourceModel, from: string, to: string): Record<string, string> => {
+export const movedPatch = (record: Record<string, unknown>, display: CalendarDisplayModel, model: ResourceModel, from: string, to: string, zone = viewerZone()): Record<string, string> => {
   const days = (startOf(to) - startOf(from)) / dayMs
   const timestamp = isTimestamp(display, model)
   const moved = (value: unknown) => {
     const ms = instantOf(value)
     if (ms === undefined) return undefined
-    return timestamp ? new Date(ms + days * dayMs).toISOString() : addDays(dayOf(ms), days)
+    return timestamp ? new Date(instantAt(ms + zoneOffset(ms, zone) + days * dayMs, zone)).toISOString() : addDays(dayOf(ms), days)
   }
   const start = moved(record[display.start])
   const end = display.end === undefined ? undefined : moved(record[display.end])

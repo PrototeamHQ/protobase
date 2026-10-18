@@ -2,6 +2,7 @@ import type { FieldModel, FieldViewModel } from '@protobase/schema'
 import type { RelatedLabels } from '@protobase/client'
 import { displayValue } from '../../live/display-value'
 import { fileShown, isStoredFile } from '../../live/file-values'
+import { viewerZone, zoneOffset } from '../../format/zone'
 
 /** `shown` exports values as the list shows them (labels, formatted dates and numbers), `raw` as the API stores them. */
 export type ExportMode = 'shown' | 'raw'
@@ -36,7 +37,8 @@ export const csvText = (column: ExportColumn, value: unknown, labels: RelatedLab
   return String(value)
 }
 
-// Excel counts days from 30 December 1899; the API's dates and times are UTC, as the list shows them.
+// Excel counts days from 30 December 1899 and has no time zones: a shown time is on the viewer's clock, as the list shows
+// it, and a raw one in UTC, as the API sends it.
 const excelEpochDays = 25_569
 const msPerDay = 86_400_000
 const excelSerial = (ms: number) => ms / msPerDay + excelEpochDays
@@ -63,14 +65,15 @@ const numberCell = (column: ExportColumn, value: unknown, mode: ExportMode): Cel
   return format ? { kind: 'number', value: number, format } : { kind: 'number', value: number }
 }
 
-const dateCell = (type: 'date' | 'timestamp', value: unknown, mode: ExportMode): Cell => {
+const dateCell = (type: 'date' | 'timestamp', value: unknown, mode: ExportMode, zone: string): Cell => {
   const ms = Date.parse(String(value))
   if (Number.isNaN(ms)) return text(String(value))
-  return { kind: 'number', value: excelSerial(ms), format: dateFormats[mode][type] }
+  const clock = type === 'timestamp' && mode === 'shown' ? ms + zoneOffset(ms, zone) : ms
+  return { kind: 'number', value: excelSerial(clock), format: dateFormats[mode][type] }
 }
 
 /** A value as one typed Excel cell: numbers, dates and booleans as such, labels or stored values as text. */
-export const xlsxCell = (column: ExportColumn, value: unknown, labels: RelatedLabels, mode: ExportMode): Cell => {
+export const xlsxCell = (column: ExportColumn, value: unknown, labels: RelatedLabels, mode: ExportMode, zone = viewerZone()): Cell => {
   if (isEmpty(value)) return empty
   const { field } = column
   switch (field.type) {
@@ -82,7 +85,7 @@ export const xlsxCell = (column: ExportColumn, value: unknown, labels: RelatedLa
       return numberCell(column, value, mode)
     case 'date':
     case 'timestamp':
-      return dateCell(field.type, value, mode)
+      return dateCell(field.type, value, mode, zone)
     case 'relation':
       if (mode === 'shown') return text(relationLabel(column, value, labels))
       return typeof value === 'number' ? { kind: 'number', value } : text(String(value))

@@ -2,6 +2,7 @@ import { useState } from 'react'
 import type { PeriodChartModel } from '@protobase/schema'
 import { useSeries } from '../data/use-aggregates'
 import { ActivityChart } from '../activity-chart'
+import { viewerZone } from '../format/zone'
 
 const periods = { '7d': 'last 7 days', '30d': 'last 30 days', '90d': 'last 90 days', '1y': 'last year', all: 'all time' }
 
@@ -9,7 +10,7 @@ const periods = { '7d': 'last 7 days', '30d': 'last 30 days', '90d': 'last 90 da
 export const ListChart = ({ resource, chart, title, noun, filter }: { resource: string; chart: PeriodChartModel; title: string; noun: string; filter: string }) => {
   const [granularity, setGranularity] = useState<'day' | 'week'>(chart.granularity === 'week' ? 'week' : 'day')
   const range = granularity === 'week' ? '90d' : chart.range
-  const series = useSeries(resource, { field: chart.field, range, granularity, filter })
+  const series = useSeries(resource, { field: chart.field, range, granularity, filter, timeZone: viewerZone() })
   const data = series.data?.points.map((point) => ({ at: Date.parse(`${point.bucket}Z`), count: point.count })) ?? []
   return (
     <ActivityChart

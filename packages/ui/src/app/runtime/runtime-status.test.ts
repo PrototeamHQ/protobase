@@ -18,7 +18,8 @@ it('reads the status every few seconds while an update runs, every half hour oth
 
 describe('nextUpdateText', () => {
   it('names the policy and when it applies the latest version', () => {
-    expect(nextUpdateText(status)).toBe('Updates at a set time every week: next on 12 Oct 2026, 03:00 UTC')
+    expect(nextUpdateText(status, Date.now(), 'UTC')).toBe('Updates at a set time every week: next on 12 Oct 2026, 03:00')
+    expect(nextUpdateText(status, Date.now(), 'Europe/Amsterdam')).toBe('Updates at a set time every week: next on 12 Oct 2026, 05:00')
     expect(nextUpdateText({ ...status, policy: 'manual', nextUpdateAt: null })).toBe('Updates only when asked to')
   })
 
@@ -34,10 +35,10 @@ describe('nextUpdateText', () => {
 
 it("lastUpdateText: the outcome, the version and the endpoint's message", () => {
   const last: RuntimeLastUpdate = { toVersion: '0.19.1', outcome: 'failed', errorCode: 'doctor_failed', message: "The app's config does not pass protobase doctor with the release", finishedAt: '2026-10-12T03:07:00.000Z' }
-  expect(lastUpdateText(last)).toBe("The update to 0.19.1 failed on 12 Oct 2026, 03:07 UTC: The app's config does not pass protobase doctor with the release")
-  expect(lastUpdateText({ ...last, message: null })).toBe('The update to 0.19.1 failed on 12 Oct 2026, 03:07 UTC.')
-  expect(lastUpdateText({ ...last, outcome: 'succeeded', errorCode: null, message: null })).toBe('Updated to 0.19.1 on 12 Oct 2026, 03:07 UTC.')
-  expect(lastUpdateText({ ...last, outcome: 'unchanged', errorCode: null, message: null })).toBe('The update to 0.19.1 on 12 Oct 2026, 03:07 UTC changed nothing.')
+  expect(lastUpdateText(last, 'UTC')).toBe("The update to 0.19.1 failed on 12 Oct 2026, 03:07: The app's config does not pass protobase doctor with the release")
+  expect(lastUpdateText({ ...last, message: null }, 'UTC')).toBe('The update to 0.19.1 failed on 12 Oct 2026, 03:07.')
+  expect(lastUpdateText({ ...last, outcome: 'succeeded', errorCode: null, message: null }, 'Europe/Amsterdam')).toBe('Updated to 0.19.1 on 12 Oct 2026, 05:07.')
+  expect(lastUpdateText({ ...last, outcome: 'unchanged', errorCode: null, message: null }, 'UTC')).toBe('The update to 0.19.1 on 12 Oct 2026, 03:07 changed nothing.')
 })
 
 it("updateErrorText: the endpoint's message, else a conflict, a refusal, anything else", () => {

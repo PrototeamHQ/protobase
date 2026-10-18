@@ -1,5 +1,6 @@
 import { isApiError, type RuntimeLastUpdate, type RuntimePolicy, type RuntimeStatus, type RuntimeUpdateStage } from '@protobase/client'
 import { formatAgo, formatDateTime } from '../../format/date'
+import { viewerZone } from '../../format/zone'
 
 /** The top bar shows the update button only when there is an update and the endpoint wants it shown. */
 export const showsUpdateButton = (status: RuntimeStatus | undefined) => Boolean(status?.updateAvailable && status.indicator)
@@ -29,15 +30,15 @@ const runningText = (status: RuntimeStatus, now: number) => {
 }
 
 /** How far the running update is, or when the latest version will be applied on its own, in words; `now` in ms. */
-export const nextUpdateText = (status: RuntimeStatus, now = Date.now()) => {
+export const nextUpdateText = (status: RuntimeStatus, now = Date.now(), zone = viewerZone()) => {
   if (status.updating) return runningText(status, now)
-  if (status.nextUpdateAt) return `${policyLabels[status.policy]}: next on ${formatDateTime(Date.parse(status.nextUpdateAt))} UTC`
+  if (status.nextUpdateAt) return `${policyLabels[status.policy]}: next on ${formatDateTime(Date.parse(status.nextUpdateAt), zone)}`
   return policyLabels[status.policy]
 }
 
 /** How the last update ended, in words, with the endpoint's message for the owner when it has one. */
-export const lastUpdateText = (last: RuntimeLastUpdate) => {
-  const when = `${formatDateTime(Date.parse(last.finishedAt))} UTC`
+export const lastUpdateText = (last: RuntimeLastUpdate, zone = viewerZone()) => {
+  const when = formatDateTime(Date.parse(last.finishedAt), zone)
   const headline = {
     succeeded: `Updated to ${last.toVersion} on ${when}`,
     unchanged: `The update to ${last.toVersion} on ${when} changed nothing`,

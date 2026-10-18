@@ -6,7 +6,7 @@ import { enumLabel, type LayoutItemModel, type ResourceModel, type ViewModel } f
 import { usePauseFocusRefresh } from '../data/focus-refresh'
 import { keys } from '../data/query-keys'
 import { useOpenedRecord, type LiveRecord } from '../data/use-record'
-import { displayValue } from '../live/display-value'
+import { displayValue, valueTitle } from '../live/display-value'
 import { fromDraft, isRequiredOnEdit, toDraft } from '../live/field-values'
 import { auditField } from '../live/audit-fields'
 import { humanize } from '../live/naming'
@@ -236,7 +236,7 @@ const LoadedRecord = ({ model, recordKey, stored, preview }: LoadedRecordProps) 
         const text = displayValue(field, stored.record[name], hint(name))
         const value = stored.record[name]
         const markdown = isMarkdown(field, hint(name)) && typeof value === 'string' && value !== ''
-        const builtIn = field.type === 'enum' ? <ValueBadge value={value} hints={hint(name)}>{text}</ValueBadge> : markdown ? <Markdown source={value} /> : <strong className={hint(name)?.multiline ? 'whitespace-pre-line break-words' : undefined}>{text}</strong>
+        const builtIn = field.type === 'enum' ? <ValueBadge value={value} hints={hint(name)}>{text}</ValueBadge> : markdown ? <Markdown source={value} /> : <strong title={valueTitle(field, value)} className={hint(name)?.multiline ? 'whitespace-pre-line break-words' : undefined}>{text}</strong>
         const shown = shownWidget(fieldTypes, field, hint(name))
         return [{ label: hint(name)?.label ?? humanize(name), value: shown ? <WidgetPart shown={shown} part="display" field={field} value={stored.record[name]} fallback={builtIn} /> : builtIn }]
       })}
@@ -347,7 +347,7 @@ const LoadedRecord = ({ model, recordKey, stored, preview }: LoadedRecordProps) 
                 rows={[auditField(model, 'created'), updatedAt].flatMap((name) => {
                   const field = name ? model.fields[name] : undefined
                   if (!name || !field || !visible(name)) return []
-                  return [{ label: hint(name)?.label ?? humanize(name), value: known(name) ? displayValue(field, stored.record[name], hint(name)) : <Skeleton className="h-4 w-24" /> }]
+                  return [{ label: hint(name)?.label ?? humanize(name), value: known(name) ? <span title={valueTitle(field, stored.record[name])}>{displayValue(field, stored.record[name], hint(name))}</span> : <Skeleton className="h-4 w-24" /> }]
                 })}
               />
               {related.records.length > 0 && (

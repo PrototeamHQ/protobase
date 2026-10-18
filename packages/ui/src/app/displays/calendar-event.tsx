@@ -1,6 +1,7 @@
 import { useDraggable } from '@dnd-kit/core'
 import type { ResourceModel, ViewModel } from '@protobase/schema'
 import { formatTime } from '../../format/date'
+import { dayIn, viewerZone } from '../../format/zone'
 import { cn } from '../../lib/cn'
 import { displayValue } from '../../live/display-value'
 import { recordTitleField } from '../../live/model-helpers'
@@ -27,12 +28,12 @@ export const eventTitle = (model: ResourceModel, view: ViewModel | undefined, di
   return text === '' ? row.key : text
 }
 
-// A timestamp event's time on the day it starts
+// A timestamp event's time on the day it starts, both on the viewer's clock
 const startTime = (model: ResourceModel, display: CalendarDisplayModel, row: ListDisplayRow, day: string) => {
   const value = row.record[display.start]
   if (model.fields[display.start]?.type !== 'timestamp' || typeof value !== 'string') return undefined
   const ms = Date.parse(value)
-  return new Date(ms).toISOString().startsWith(day) ? formatTime(ms) : undefined
+  return dayIn(ms, viewerZone()) === day ? formatTime(ms) : undefined
 }
 
 /** An event as a one-line link to its record, its time first for a timestamp, styled as a small record card. */

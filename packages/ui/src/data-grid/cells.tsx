@@ -8,6 +8,7 @@ import { fileShown, shownImage } from '../live/file-values'
 import { valueColor } from '../live/value-color'
 import type { ColumnSpec } from './column-spec'
 import { cellText } from './cell-text'
+import { viewerZone, zoneLabel } from '../format/zone'
 import { TruncatedText } from './truncated-text'
 
 const muted = (text: string) => <span className="text-faint-foreground">{text}</span>
@@ -25,7 +26,7 @@ export const renderCell = (spec: ColumnSpec, value: unknown) => {
     case 'date':
       return <span className="tabular-nums text-muted-foreground">{text}</span>
     case 'datetime':
-      return <span className="tabular-nums text-muted-foreground">{text}</span>
+      return <span className="tabular-nums text-muted-foreground" title={`Shown in ${zoneLabel(Number(value), viewerZone())}`}>{text}</span>
     case 'number':
       return <span className="tabular-nums">{text}</span>
     case 'signed':

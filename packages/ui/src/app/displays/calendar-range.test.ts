@@ -14,14 +14,15 @@ const now = Date.parse('2026-10-14T15:00:00Z')
 
 describe('calendarView', () => {
   it("shows the month of now without an address, and the address's month from its 1st or week from its Monday", () => {
-    expect(calendarView(undefined, now)).toEqual({ scale: 'month', day: '2026-10-01' })
+    expect(calendarView(undefined, now, 'UTC')).toEqual({ scale: 'month', day: '2026-10-01' })
     expect(calendarView({ scale: 'month', day: '2026-10-20' }, now)).toEqual({ scale: 'month', day: '2026-10-01' })
     expect(calendarView({ scale: 'week', day: '2026-10-14' }, now)).toEqual({ scale: 'week', day: '2026-10-12' })
     expect(calendarView({ scale: 'week', day: '2026-10-18' }, now)).toEqual({ scale: 'week', day: '2026-10-12' })
   })
 
   it('goes to the month or week of now, and steps a month or week across a year', () => {
-    expect(todayView('week', now)).toEqual({ scale: 'week', day: '2026-10-12' })
+    expect(todayView('week', now, 'UTC')).toEqual({ scale: 'week', day: '2026-10-12' })
+    expect(todayView('week', Date.parse('2026-10-18T22:30:00Z'), 'Europe/Amsterdam')).toEqual({ scale: 'week', day: '2026-10-19' })
     expect(stepView({ scale: 'month', day: '2026-12-01' }, 1)).toEqual({ scale: 'month', day: '2027-01-01' })
     expect(stepView({ scale: 'month', day: '2026-01-01' }, -1)).toEqual({ scale: 'month', day: '2025-12-01' })
     expect(stepView({ scale: 'week', day: '2026-12-28' }, 1)).toEqual({ scale: 'week', day: '2027-01-04' })
@@ -52,8 +53,11 @@ describe('rangeFilter', () => {
 
   it('finds those starting before it and ending in it too, a timestamp end being over at its instant', () => {
     expect(rangeFilter(spanning, model, range)).toBe('(on >= "2026-09-28" AND on < "2026-11-02") OR (on < "2026-09-28" AND until >= "2026-09-28")')
-    expect(rangeFilter(timed, model, range)).toBe(
+    expect(rangeFilter(timed, model, range, 'UTC')).toBe(
       '(starts_at >= 2026-09-28T00:00:00Z AND starts_at < 2026-11-02T00:00:00Z) OR (starts_at < 2026-09-28T00:00:00Z AND ends_at > 2026-09-28T00:00:00Z)',
+    )
+    expect(rangeFilter(timed, model, range, 'Europe/Amsterdam')).toBe(
+      '(starts_at >= 2026-09-27T22:00:00Z AND starts_at < 2026-11-01T23:00:00Z) OR (starts_at < 2026-09-27T22:00:00Z AND ends_at > 2026-09-27T22:00:00Z)',
     )
   })
 
@@ -74,8 +78,15 @@ describe('eventDays', () => {
   })
 
   it('leaves out the day a timestamp ends on at midnight, and keeps a day it ends in', () => {
-    expect(eventDays({ starts_at: '2026-10-14T22:00:00Z', ends_at: '2026-10-15T00:00:00Z' }, timed, model, week)).toEqual(['2026-10-14'])
-    expect(eventDays({ starts_at: '2026-10-14T22:00:00Z', ends_at: '2026-10-15T01:00:00Z' }, timed, model, week)).toEqual(['2026-10-14', '2026-10-15'])
+    expect(eventDays({ starts_at: '2026-10-14T22:00:00Z', ends_at: '2026-10-15T00:00:00Z' }, timed, model, week, 'UTC')).toEqual(['2026-10-14'])
+    expect(eventDays({ starts_at: '2026-10-14T22:00:00Z', ends_at: '2026-10-15T01:00:00Z' }, timed, model, week, 'UTC')).toEqual(['2026-10-14', '2026-10-15'])
+    expect(eventDays({ starts_at: '2026-10-14T22:00:00Z', ends_at: '2026-10-15T22:00:00Z' }, timed, model, week, 'Europe/Amsterdam')).toEqual(['2026-10-15'])
+  })
+
+  it("puts a timestamp on the viewer's day and a date on its own day", () => {
+    expect(eventDays({ starts_at: '2026-10-14T23:30:00Z' }, timed, model, week, 'Europe/Amsterdam')).toEqual(['2026-10-15'])
+    expect(eventDays({ starts_at: '2026-10-14T23:30:00Z' }, timed, model, week, 'UTC')).toEqual(['2026-10-14'])
+    expect(eventDays({ on: '2026-10-14' }, onDay, model, week, 'America/New_York')).toEqual(['2026-10-14'])
   })
 
   it('takes the start day alone without an end or with an earlier one, and no day without a start', () => {
@@ -86,7 +97,7 @@ describe('eventDays', () => {
 
   it("orders each day's records by their start", () => {
     const row = (key: string, starts_at: string) => ({ key, record: { starts_at }, labels: {} })
-    const days = byDay([row('late', '2026-10-14T16:00:00Z'), row('early', '2026-10-14T08:00:00Z')], timed, model, week)
+    const days = byDay([row('late', '2026-10-14T16:00:00Z'), row('early', '2026-10-14T08:00:00Z')], timed, model, week, 'UTC')
     expect(days.get('2026-10-14')!.map((entry) => entry.key)).toEqual(['early', 'late'])
     expect(days.get('2026-10-15')).toEqual([])
   })
@@ -100,9 +111,13 @@ describe('movedPatch', () => {
   })
 
   it('moves a timestamp keeping its time of day', () => {
-    expect(movedPatch({ starts_at: '2026-10-08T09:30:00Z', ends_at: '2026-10-08T11:00:00Z' }, timed, model, '2026-10-08', '2026-10-15')).toEqual({
+    expect(movedPatch({ starts_at: '2026-10-08T09:30:00Z', ends_at: '2026-10-08T11:00:00Z' }, timed, model, '2026-10-08', '2026-10-15', 'UTC')).toEqual({
       starts_at: '2026-10-15T09:30:00.000Z',
       ends_at: '2026-10-15T11:00:00.000Z',
     })
+  })
+
+  it("keeps a timestamp's time on the viewer's clock across a change to winter time", () => {
+    expect(movedPatch({ starts_at: '2026-10-22T07:30:00Z' }, timed, model, '2026-10-22', '2026-10-29', 'Europe/Amsterdam')).toEqual({ starts_at: '2026-10-29T08:30:00.000Z' })
   })
 })

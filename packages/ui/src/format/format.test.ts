@@ -32,15 +32,18 @@ describe('numbers', () => {
 
 describe('dates', () => {
   const ms = Date.UTC(2026, 9, 6, 14, 32)
-  it('formats in UTC', () => {
+  it('formats a date as it is and a time on the clock of the zone given', () => {
     expect(formatDate(ms)).toBe('6 Oct 2026')
-    expect(formatDateTime(ms)).toBe('6 Oct 2026, 14:32')
+    expect(formatDateTime(ms, 'UTC')).toBe('6 Oct 2026, 14:32')
+    expect(formatDateTime(ms, 'Europe/Amsterdam')).toBe('6 Oct 2026, 16:32')
+    expect(formatDateTime(Date.UTC(2026, 9, 6, 23, 5), 'Europe/Amsterdam')).toBe('7 Oct 2026, 01:05')
   })
-  it("formats a calendar's month, week, days and times in UTC", () => {
+  it("formats a calendar's month, week and days as they are, and times in the zone given", () => {
     expect(formatMonth(ms)).toBe('October 2026')
     expect(formatWeekday(ms)).toBe('Tue')
     expect(formatWeekdayDate(ms)).toBe('Tuesday, 6 Oct 2026')
-    expect(formatTime(Date.UTC(2026, 9, 6, 23, 5))).toBe('23:05')
+    expect(formatTime(Date.UTC(2026, 9, 6, 23, 5), 'UTC')).toBe('23:05')
+    expect(formatTime(Date.UTC(2026, 9, 6, 23, 5), 'Asia/Kolkata')).toBe('04:35')
     // ICU versions space the dash differently
     expect(formatDayRange(Date.UTC(2026, 9, 12), Date.UTC(2026, 9, 18))).toMatch(/^12\s?–\s?18 Oct 2026$/)
     expect(formatDayRange(Date.UTC(2026, 11, 28), Date.UTC(2027, 0, 3))).toMatch(/^28 Dec 2026\s–\s3 Jan 2027$/)

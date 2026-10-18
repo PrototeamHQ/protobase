@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { FieldModel } from '@protobase/schema'
-import { displayValue } from './display-value'
+import { displayValue, valueTitle } from './display-value'
 
 const field = (type: FieldModel['type']) => ({ name: 'x', column: 'x', type, nullable: false, readOnly: false, filterable: false, sortable: false, aliases: [] }) as FieldModel
 
@@ -23,9 +23,15 @@ describe('displayValue', () => {
     expect(displayValue(field('enum'), 'ideal', { valueLabels: { ideal: 'iDEAL' } })).toBe('iDEAL')
     expect(displayValue(field('enum'), 'bank_transfer', { valueLabels: { ideal: 'iDEAL' } })).toBe('bank_transfer')
   })
-  it('formats dates in UTC and shows a dash for nothing', () => {
-    expect(displayValue(field('timestamp'), '2026-10-06T09:41:00.000Z')).toBe('6 Oct 2026, 09:41')
-    expect(displayValue(field('date'), '2026-10-06')).toBe('6 Oct 2026')
+  it("formats times on the viewer's clock, dates as they are, and shows a dash for nothing", () => {
+    expect(displayValue(field('timestamp'), '2026-10-06T09:41:00.000Z', {}, 'UTC')).toBe('6 Oct 2026, 09:41')
+    expect(displayValue(field('timestamp'), '2026-10-06T22:41:00.000Z', {}, 'Europe/Amsterdam')).toBe('7 Oct 2026, 00:41')
+    expect(displayValue(field('date'), '2026-10-06', {}, 'America/New_York')).toBe('6 Oct 2026')
     expect(displayValue(field('text'), null)).toBe('—')
+  })
+  it('labels a timestamp with the zone it is shown in, and nothing else', () => {
+    expect(valueTitle(field('timestamp'), '2026-10-06T09:41:00.000Z', 'Europe/Amsterdam')).toBe('Shown in Europe/Amsterdam (GMT+2)')
+    expect(valueTitle(field('timestamp'), '2026-10-06T09:41:00.000Z', 'UTC')).toBe('Shown in UTC')
+    expect(valueTitle(field('date'), '2026-10-06', 'Europe/Amsterdam')).toBeUndefined()
   })
 })

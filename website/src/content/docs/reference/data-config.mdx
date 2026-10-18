@@ -44,8 +44,8 @@ Field and resource names are snake_case by convention, like the columns: they ar
 | `f.bigint()` | `int8` | string (all 64 bits) | |
 | `f.decimal({ precision, scale })` | `numeric` | string (exact) | |
 | `f.boolean()` | `bool` | boolean | |
-| `f.date()` | `date` | `2026-10-08` | |
-| `f.timestamp()` | `timestamp`, `timestamptz` | ISO 8601 with offset | |
+| `f.date()` | `date` | `2026-10-08` | a day with no time zone, shown as it is |
+| `f.timestamp()` | `timestamp`, `timestamptz` | ISO 8601 with offset | an instant, shown on the viewer's clock, in their browser's time zone, which hovering over it names |
 | `f.uuid()` | `uuid` | string | |
 | `f.enum(['a', 'b'])` | Postgres enum, or text with a `CHECK (... IN ...)` | one of the values | |
 | `f.json()` | `json`, `jsonb` | any JSON | |

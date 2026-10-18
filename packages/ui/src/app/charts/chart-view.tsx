@@ -8,6 +8,7 @@ import { periodPoints, valueSlices, type ChartMeasure } from './chart-groups'
 import { GroupBars } from './group-bars'
 import { GroupDonut } from './group-donut'
 import { PeriodChart } from './period-chart'
+import { viewerZone } from '../../format/zone'
 
 /** What a chart shows: the records of `model` matching `filter`, grouped by `groupBy` and added up. */
 export type ChartRequest = {
@@ -41,7 +42,8 @@ export const ChartView = ({ model, view, groupBy, type = 'bar', sum, average, fi
   const dated = field?.type === 'date' || field?.type === 'timestamp'
   const target = field?.type === 'relation' && field.relation ? resources[field.relation.resource] : undefined
   const label = target && target.primaryKey.length === 1 ? labelFieldOf(target, views[target.name]) : undefined
-  const params = dated ? { granularity, range } : { limit, ...(label && { label }) }
+  // A timestamp's buckets are the viewer's days, hours and months; a date's are its own
+  const params = dated ? { granularity, range, timeZone: viewerZone() } : { limit, ...(label && { label }) }
   const result = useAggregate(model.name, { groupBy, filter, ...(sum && { sum }), ...(average && { average }), ...params }, Boolean(field))
   const measure = measureOf(model, view, sum, average)
   if (!field) return null

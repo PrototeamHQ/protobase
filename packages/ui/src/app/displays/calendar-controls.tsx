@@ -6,6 +6,7 @@ import { buttonClass } from '../../primitives/button'
 import { segmentedClass } from '../../primitives/segmented'
 import { AppLink } from '../use-app-address'
 import { calendarView, gridDays, stepView, todayView } from './calendar-range'
+import { dayIn, viewerZone } from '../../format/zone'
 
 type ControlsProps = {
   view: CalendarView
@@ -39,7 +40,7 @@ export const CalendarControls = ({ view, now, linkTo, onView }: ControlsProps) =
       </button>
     )
   // A month opens the week holding today when it holds today, else its first week; a week opens its month
-  const holdsToday = view.scale === 'month' && new Date(now).toISOString().startsWith(view.day.slice(0, 7))
+  const holdsToday = view.scale === 'month' && dayIn(now, viewerZone()).startsWith(view.day.slice(0, 7))
   const scaled = (to: CalendarView['scale']) => (to === 'week' && holdsToday ? todayView('week', now) : calendarView({ scale: to, day: view.day }, now))
   const scale = (to: CalendarView['scale'], label: string) => control(scaled(to), segmentedClass.option(view.scale === to), label, label, view.scale === to)
   const unit = view.scale === 'month' ? 'month' : 'week'

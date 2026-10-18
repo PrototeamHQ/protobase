@@ -2,7 +2,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import type { FieldFormat, FieldModel, ResourceModel } from '@protobase/schema'
 import { useClient } from '../../data/api-provider'
 import { keys } from '../../data/query-keys'
-import { displayValue } from '../../live/display-value'
+import { displayValue, valueTitle } from '../../live/display-value'
 import { FileImage } from '../../live/file-image'
 import { fileShown, shownImage } from '../../live/file-values'
 import { fetchLabels } from '../../live/relation-labels'
@@ -54,7 +54,7 @@ const BuiltInValue = ({ model, field, value, format, relationLabel }: FieldValue
   if (isMarkdown(field, hints)) return <Markdown source={String(value)} />
   const text = displayValue(field, value, hints)
   if (field.type === 'enum' || hints.format === 'badge') return <ValueBadge value={value} hints={hints}>{text}</ValueBadge>
-  return <span className={cn(hints.format === 'code' && 'font-mono text-xs', (field.type === 'decimal' || field.type === 'integer') && 'tabular-nums', hints.multiline && 'whitespace-pre-line break-words')}>{text}</span>
+  return <span title={valueTitle(field, value)} className={cn(hints.format === 'code' && 'font-mono text-xs', (field.type === 'decimal' || field.type === 'integer') && 'tabular-nums', hints.multiline && 'whitespace-pre-line break-words')}>{text}</span>
 }
 
 /**

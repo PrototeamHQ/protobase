@@ -57,7 +57,12 @@ describe('xlsxCell', () => {
     expect(xlsxCell(column('decimal', { prefix: '€', decimals: 2 }), '9.95', {}, 'shown')).toEqual({ kind: 'number', value: 9.95, format: '\\€#,##0.00' })
     expect(xlsxCell(column('boolean'), true, {}, 'shown')).toEqual({ kind: 'boolean', value: true })
     expect(xlsxCell(column('date'), '2026-10-16', {}, 'shown')).toEqual({ kind: 'number', value: 46311, format: 'd mmm yyyy' })
-    expect(xlsxCell(column('timestamp'), '2026-10-16T12:00:00.000Z', {}, 'raw')).toEqual({ kind: 'number', value: 46311.5, format: 'yyyy-mm-dd hh:mm:ss' })
+    expect(xlsxCell(column('timestamp'), '2026-10-16T12:00:00.000Z', {}, 'raw', 'Europe/Amsterdam')).toEqual({ kind: 'number', value: 46311.5, format: 'yyyy-mm-dd hh:mm:ss' })
+  })
+
+  it("shows a time on the viewer's clock and keeps a raw one in UTC", () => {
+    expect(xlsxCell(column('timestamp'), '2026-10-16T12:00:00.000Z', {}, 'shown', 'Europe/Amsterdam')).toEqual({ kind: 'number', value: expect.closeTo(46311.5 + 2 / 24, 9), format: 'd mmm yyyy, hh:mm' })
+    expect(xlsxCell(column('date'), '2026-10-16', {}, 'shown', 'America/New_York')).toEqual({ kind: 'number', value: 46311, format: 'd mmm yyyy' })
   })
 
   it('keeps a bigint past 2^53 as text, so no digit is lost', () => {

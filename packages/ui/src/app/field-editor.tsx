@@ -10,7 +10,7 @@ import { enumLabel, type AppAddress, type FieldModel, type FieldViewModel, type 
 import { RelationPicker } from './relation-picker'
 import { SensitiveField } from './sensitive-field'
 import { FileField } from './file-field'
-import { displayValue } from '../live/display-value'
+import { displayValue, valueTitle } from '../live/display-value'
 import { fromDraft, isEditable, toFieldDraft } from '../live/field-values'
 import { useShownWidget } from './field-types/shown-widget'
 import { WidgetPart } from './field-types/widget-part'
@@ -70,7 +70,7 @@ const BuiltInEditor = ({ field, hints, value, stored, relationLabel, relationTo,
   const markdown = isMarkdown(field, hints)
   if ((!isEditable(field) || locked) && markdown && typeof stored === 'string' && stored !== '') return <Markdown source={stored} className="py-1.5" />
   if (!isEditable(field) || locked) {
-    return <div className={cn('py-1.5 tabular-nums', field.type === 'decimal' || field.type === 'integer' ? 'font-medium' : 'text-muted-foreground', multiline && 'whitespace-pre-line break-words')}>{displayValue(field, stored, hints)}</div>
+    return <div title={valueTitle(field, stored)} className={cn('py-1.5 tabular-nums', field.type === 'decimal' || field.type === 'integer' ? 'font-medium' : 'text-muted-foreground', multiline && 'whitespace-pre-line break-words')}>{displayValue(field, stored, hints)}</div>
   }
   if (field.type === 'enum') {
     return (

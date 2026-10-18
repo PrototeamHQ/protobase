@@ -18,9 +18,9 @@ const config = {
 const now = new Date(Date.UTC(2026, 9, 6))
 
 const roundTrip = (text: string) => {
-  const parsed = textToState(config, text, now)
+  const parsed = textToState(config, text, now, 'UTC')
   if (!parsed.ok) throw new Error('parse failed')
-  return stateToText(config, parsed.state, parsed.extras, now)
+  return stateToText(config, parsed.state, parsed.extras, now, 'UTC')
 }
 
 describe('stateToText', () => {
@@ -45,7 +45,7 @@ describe('stateToText', () => {
   })
 
   it('prints this year as the first instant of the year', () => {
-    expect(stateToText(config, { facets: {}, date: 'year', toggles: [] }, [], now)).toContain('2026-01-01T00:00:00Z')
+    expect(stateToText(config, { facets: {}, date: 'year', toggles: [] }, [], now, 'UTC')).toContain('2026-01-01T00:00:00Z')
   })
 
   it('always produces text the parser accepts', () => {
@@ -89,7 +89,7 @@ describe('textToState', () => {
 
 describe('date presets', () => {
   const november = new Date(Date.UTC(2026, 10, 15))
-  const text = (date: 'today' | 'yesterday' | '90d' | 'month' | 'quarter') => stateToText(config, { facets: {}, date, toggles: [] }, [], november)
+  const text = (date: 'today' | 'yesterday' | '90d' | 'month' | 'quarter', zone = 'UTC') => stateToText(config, { facets: {}, date, toggles: [] }, [], november, zone)
 
   it('prints relative and calendar presets', () => {
     expect(text('90d')).toBe('createdAt >= now() - 90d')
@@ -99,9 +99,15 @@ describe('date presets', () => {
     expect(text('yesterday')).toBe('createdAt >= 2026-11-14T00:00:00Z AND createdAt < 2026-11-15T00:00:00Z')
   })
 
+  it("starts a calendar preset at midnight on the viewer's clock", () => {
+    expect(text('today', 'Europe/Amsterdam')).toBe('createdAt >= 2026-11-14T23:00:00Z')
+    expect(text('month', 'Europe/Amsterdam')).toBe('createdAt >= 2026-10-31T23:00:00Z')
+    expect(text('yesterday', 'America/New_York')).toBe('createdAt >= 2026-11-13T05:00:00Z AND createdAt < 2026-11-14T05:00:00Z')
+  })
+
   it.each(['90d', 'month', 'quarter', 'today', 'yesterday'] as const)('reads %s back', (preset) => {
-    const parsed = textToState(config, text(preset), november)
-    expect(parsed).toMatchObject({ ok: true, state: { date: preset }, extras: [] })
+    expect(textToState(config, text(preset), november, 'UTC')).toMatchObject({ ok: true, state: { date: preset }, extras: [] })
+    expect(textToState(config, text(preset, 'Europe/Amsterdam'), november, 'Europe/Amsterdam')).toMatchObject({ ok: true, state: { date: preset }, extras: [] })
   })
 
   it('keeps a lone upper bound as an extra', () => {
@@ -116,14 +122,18 @@ describe('date fields', () => {
   const november = new Date(Date.UTC(2026, 10, 15))
 
   it('prints calendar presets as plain dates', () => {
-    expect(stateToText(dates, { facets: {}, date: 'quarter', toggles: [] }, [], november)).toBe('createdAt >= "2026-10-01"')
-    expect(stateToText(dates, { facets: {}, date: 'yesterday', toggles: [] }, [], november)).toBe('createdAt >= "2026-11-14" AND createdAt < "2026-11-15"')
+    expect(stateToText(dates, { facets: {}, date: 'quarter', toggles: [] }, [], november, 'UTC')).toBe('createdAt >= "2026-10-01"')
+    expect(stateToText(dates, { facets: {}, date: 'yesterday', toggles: [] }, [], november, 'UTC')).toBe('createdAt >= "2026-11-14" AND createdAt < "2026-11-15"')
+  })
+
+  it("takes today as the viewer's day", () => {
+    expect(stateToText(dates, { facets: {}, date: 'today', toggles: [] }, [], november, 'America/New_York')).toBe('createdAt >= "2026-11-14"')
   })
 
   it('reads them back', () => {
-    const parsed = textToState(dates, 'createdAt >= "2026-10-01"', november)
+    const parsed = textToState(dates, 'createdAt >= "2026-10-01"', november, 'UTC')
     expect(parsed).toMatchObject({ ok: true, state: { date: 'quarter' }, extras: [] })
-    expect(textToState(dates, 'createdAt >= "2026-11-14" AND createdAt < "2026-11-15"', november)).toMatchObject({ ok: true, state: { date: 'yesterday' }, extras: [] })
+    expect(textToState(dates, 'createdAt >= "2026-11-14" AND createdAt < "2026-11-15"', november, 'UTC')).toMatchObject({ ok: true, state: { date: 'yesterday' }, extras: [] })
   })
 })
 

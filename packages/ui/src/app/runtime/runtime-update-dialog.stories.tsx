@@ -33,7 +33,7 @@ export const Failed: StoryObj = {
   }),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
-    await expect(canvas.getByText(/^The update to 0\.19\.1 failed on 12 Oct 2026, 03:07 UTC: The app's config/)).toBeVisible()
+    await expect(canvas.getByText(/^The update to 0\.19\.1 failed on 12 Oct 2026, 05:07: The app's config/)).toBeVisible()
     await expect(canvas.getByRole('button', { name: 'Update now' })).toBeEnabled()
   },
 }

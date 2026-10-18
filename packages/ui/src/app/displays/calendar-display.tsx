@@ -14,6 +14,7 @@ import { CalendarDay } from './calendar-day'
 import { dayCoordinates, dayId } from './calendar-dnd'
 import { CalendarEvent, EventChip, eventTitle } from './calendar-event'
 import { byDay, calendarView, gridDays, rangeOf, type CalendarDisplayModel } from './calendar-range'
+import { dayIn, viewerZone } from '../../format/zone'
 import type { ListDisplayRow } from './list-displays'
 import { calendarLimit, useCalendarRows } from './use-calendar-rows'
 import { movedRows, useCalendarMove } from './use-calendar-move'
@@ -63,7 +64,7 @@ export const CalendarDisplay = ({ model, view, display, fields, filter, at, link
     useSensor(KeyboardSensor, { keyboardCodes: { start: ['Space'], cancel: ['Escape'], end: ['Space', 'Enter'] }, coordinateGetter: dayCoordinates }),
   )
 
-  const today = new Date(now).toISOString().slice(0, 10)
+  const today = dayIn(now, viewerZone())
   const week = shown.scale === 'week'
   const dayText = (id: unknown) => formatDate(Date.parse(`${String(id).slice(dayId('').length)}T00:00:00Z`))
   const title = (picked: Picked) => eventTitle(model, view, display, picked.row)
