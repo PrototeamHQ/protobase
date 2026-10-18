@@ -424,7 +424,7 @@ view<typeof listings>('listings')
 
 The read view shows the gallery; the form shows the cover photo's field and the table of photos to manage instead. The create form still offers every field the user may set: one only in items or fields meant for reading lands in its last section. A gallery's photo details leave out what the photo's own view shows only while editing. Lists, cards and filters show a field either way.
 
-On a phone, an integer field brings up a number keyboard and a decimal field a decimal one.
+On a phone, an integer field brings up a number keyboard and a decimal field a decimal one. A number field reads a number as the browser's language writes it: in Dutch or German `12,50` is 12.50 and `1.234` is 1234, with the point taken as a decimal one too when the number cannot be grouped (`12.50`); in English `1,234.5` is 1234.5.
 
 ### Galleries
 

@@ -1,33 +1,18 @@
 import { enumLabel, type FieldModel, type FieldViewModel } from '@protobase/schema'
+import { parseNumberText, type DecimalSeparator } from '../../format/number-text'
 import { cellText, isEmptyCell, isSheetDate, type SheetCell } from './sheet-cell'
 
 /**
  * How the file writes what is ambiguous in text: the decimal separator of numbers (`1,234.5` or `1.234,5`), and whether
  * a date such as 03/04/2026 starts with the day or the month. ISO dates (2026-04-03) read the same either way.
  */
-export type ConvertOptions = { decimal: '.' | ','; dateOrder: 'dmy' | 'mdy' }
+export type ConvertOptions = { decimal: DecimalSeparator; dateOrder: 'dmy' | 'mdy' }
 
 export type Converted = { ok: true; value: unknown } | { ok: false; problem: string }
 
 const ok = (value: unknown): Converted => ({ ok: true, value })
 const problem = (text: string): Converted => ({ ok: false, problem: text })
 const quoted = (cell: SheetCell) => `“${cellText(cell)}”`
-
-const escapeRegExp = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-
-/**
- * A number written as text, as a plain decimal (`-1234.5`): digits grouped by thousands with the other separator or
- * spaces, and the `decimal` separator before the fraction. Undefined when the text is no such number.
- */
-export const parseNumberText = (text: string, decimal: ConvertOptions['decimal']) => {
-  const group = `[${escapeRegExp(decimal === '.' ? ',' : '.')}\\s\\u00a0\\u202f']`
-  const pattern = new RegExp(`^([-+]?)(\\d{1,3}(?:${group}\\d{3})+|\\d+)(?:${escapeRegExp(decimal)}(\\d+))?$`)
-  const match = pattern.exec(text.trim())
-  if (match) return `${match[1] === '-' ? '-' : ''}${match[2]!.replace(/\D/g, '')}${match[3] ? `.${match[3]}` : ''}`
-  // Scientific notation, as programs write very large or small numbers
-  if (decimal === '.' && /^[-+]?\d+(\.\d+)?e[-+]?\d+$/i.test(text.trim())) return String(Number(text.trim()))
-  return undefined
-}
 
 const toNumberText = (cell: SheetCell, options: ConvertOptions) => {
   if (typeof cell === 'number') return String(cell)

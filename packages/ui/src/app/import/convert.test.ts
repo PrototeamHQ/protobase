@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { FieldModel } from '@protobase/schema'
-import { convertCell, parseNumberText, type ConvertOptions } from './convert'
+import { parseNumberText } from '../../format/number-text'
+import { convertCell, type ConvertOptions } from './convert'
 
 const field = (type: string, extra: Partial<FieldModel> = {}) => ({ name: 'x', column: 'x', type, nullable: true, readOnly: false, filterable: false, sortable: false, aliases: [], ...extra }) as FieldModel
 const european: ConvertOptions = { decimal: ',', dateOrder: 'dmy' }

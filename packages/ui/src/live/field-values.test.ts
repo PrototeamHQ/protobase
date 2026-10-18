@@ -18,6 +18,23 @@ describe('field values', () => {
     expect(toPatchValue(field('boolean'), true)).toBe(true)
   })
 
+  it("reads a number as typed in the browser's language, and leaves other text for the server to refuse", () => {
+    expect(toPatchValue(field('decimal'), '12,50', ',')).toBe('12.50')
+    expect(toPatchValue(field('decimal'), '1.234,5', ',')).toBe('1234.5')
+    expect(toPatchValue(field('decimal'), '12.50', ',')).toBe('12.50')
+    expect(toPatchValue(field('integer'), '1.234', ',')).toBe(1234)
+    expect(toPatchValue(field('decimal'), '1,234.5', '.')).toBe('1234.5')
+    expect(toPatchValue(field('decimal'), '12,50', '.')).toBe('12,50')
+    expect(toPatchValue(field('decimal'), '12,50 abc', ',')).toBe('12,50 abc')
+    expect(toPatchValue(field('text'), '12,50', ',')).toBe('12,50')
+    expect(fromDraft(field('decimal'), '0,5', ',')).toBe('0.5')
+  })
+
+  it('compares a number typed with a comma by its value', () => {
+    expect(differs(field('decimal'), '12,50', '12.50', ',')).toBe(false)
+    expect(differs(field('decimal'), '12,75', '12.50', ',')).toBe(true)
+  })
+
   it("sends a relation's chosen key as it was chosen, a number or text", () => {
     expect(toPatchValue(field('relation'), 7)).toBe(7)
     expect(toPatchValue(field('relation'), 'task-7')).toBe('task-7')

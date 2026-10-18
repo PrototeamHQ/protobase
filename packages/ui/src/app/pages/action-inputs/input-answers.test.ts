@@ -41,7 +41,7 @@ describe('action input answers', () => {
   })
 
   it('refuses an empty required answer, a number that is none, a malformed date and a text too long, among those that show', () => {
-    const draft = { ...startingAnswers(inputs), name: 'Adaline', seats: '2.5', budget: '1,5', starts_on: '17-10-2026' }
+    const draft = { ...startingAnswers(inputs), name: 'Adaline', seats: '2.5', budget: 'twelve', starts_on: '17-10-2026' }
     expect(refusedAnswers(inputs, answeredValues(inputs, draft).values)).toEqual({ name: 'At most 5 characters', seats: 'A whole number', budget: 'A number', starts_on: 'A date as YYYY-MM-DD' })
     const pro = { ...startingAnswers(inputs), name: 'Ada', plan: 'pro', budget: '12.50', starts_on: '2026-10-17' }
     expect(refusedAnswers(inputs, answeredValues(inputs, pro).values)).toEqual({ vat: 'Required' })
