@@ -47,6 +47,7 @@ export type {
   MapSectionModel,
   GalleryModel,
   HistorySectionModel,
+  CommentsSectionModel,
   ChartRange,
   ChartGranularity,
   ChartModel,

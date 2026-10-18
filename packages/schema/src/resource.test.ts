@@ -113,6 +113,13 @@ describe('resource builder', () => {
     expect(() => items(f.integer().sortable()).position((r) => r.position, { within: (r) => r.note }).toModel()).toThrow('"note", which is text, not a relation')
   })
 
+  it('keeps history and takes comments only when asked', () => {
+    const notes = resource('notes').table('notes').fields({ id: f.integer(), body: f.text() }).primaryKey((r) => r.id)
+    expect(notes.toModel()).not.toHaveProperty('comments')
+    expect(notes.comments().toModel().comments).toBe(true)
+    expect(notes.history().comments().toModel()).toMatchObject({ history: true, comments: true })
+  })
+
   it('fails fast on incomplete resources', () => {
     expect(() => resource('a').toModel()).toThrow('no table')
     expect(() => resource('a').table('a').toModel()).toThrow('no fields')

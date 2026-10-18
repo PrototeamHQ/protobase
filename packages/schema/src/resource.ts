@@ -143,6 +143,15 @@ export class ResourceBuilder<F extends FieldsInput = {}, K = never> {
     return this.next({ history: true })
   }
 
+  /**
+   * Lets the people who may read a record comment on it, and mention others who may read it too, who get an email. The
+   * record page shows the thread with `l.comments()`, and admins list every comment as Comments. See
+   * [Record comments](website/src/content/docs/reference/comments.mdx).
+   */
+  comments() {
+    return this.next({ comments: true })
+  }
+
   /** The code predicates (`match`) of its events, by event name. */
   eventMatches() {
     return eventMatches(this.toModel(), this.state.events ?? [])

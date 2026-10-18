@@ -113,6 +113,8 @@ export type ResourceModel = {
   events?: EventModel[]
   /** Whether every change of its records is kept, with who made it (`.history()`). */
   history?: true
+  /** Whether people who may read its records comment on them (`.comments()`). */
+  comments?: true
 }
 
 /** What happened to a record: `delete` and `undelete` include setting and clearing a soft delete field. */
@@ -740,6 +742,19 @@ export type HistorySectionModel = {
   when?: ShowWhen
 }
 
+/**
+ * The record's comments, oldest first, each with its author and time, and a box to write a new one that mentions people
+ * with `@`. Needs `.comments()` on the resource. See [Record comments](website/src/content/docs/reference/comments.mdx).
+ */
+export type CommentsSectionModel = {
+  /** A comments section. */
+  kind: 'comments'
+  /** The section's title. */
+  title: string
+  /** Whether it shows on the form, the read view or both. */
+  when?: ShowWhen
+}
+
 /** How a section shows its fields on the read view: `facts` as a row of key facts; label/value rows when omitted. */
 export type SectionPresentation = 'facts'
 
@@ -777,6 +792,7 @@ export type LayoutItemModel =
   | MapSectionModel
   | GalleryModel
   | HistorySectionModel
+  | CommentsSectionModel
 
 /**
  * A record's photos as tiles in the main column under `title`, one large and the next few smaller, opening a lightbox

@@ -1,5 +1,5 @@
 import { markFieldRefs } from './field-ref'
-import type { CardPhotosModel, HelpWhen, HistorySectionModel, JsonValue, LayoutItemModel, RelatedModel, SectionPresentation, ShowWhen } from './model'
+import type { CardPhotosModel, CommentsSectionModel, HelpWhen, HistorySectionModel, JsonValue, LayoutItemModel, RelatedModel, SectionPresentation, ShowWhen } from './model'
 import type { Ref } from './refs'
 import { customComponent, type ComponentRef, type ViewProps } from './view-displays'
 
@@ -91,6 +91,17 @@ export const layout = {
       ...(o.when !== undefined && { when: o.when }),
     } satisfies HistorySectionModel
   },
+  /**
+   * The record's comments, oldest first, with who wrote each and when, and a box to write one; `@` mentions someone who
+   * may read the record. Needs `.comments()` on the resource; a view without a layout shows it last by itself. See
+   * [Record comments](website/src/content/docs/reference/comments.mdx).
+   */
+  comments: (title = 'Comments', o: { when?: ShowWhen } = {}): LayoutItemModel =>
+    ({
+      kind: 'comments',
+      title,
+      ...(o.when !== undefined && { when: o.when }),
+    }) satisfies CommentsSectionModel,
   /**
    * A component of the project, registered in `protobase.ui.tsx` under its name, drawn where it is listed: in the main
    * column, or in the sidebar with `sidebar: true`. The record page stays around it, with its title, breadcrumbs,

@@ -335,6 +335,17 @@ describe('view builder', () => {
     expect(() => view<typeof article>('article').layout(() => [l.custom(Card)])).toThrow('l.custom takes a component declared with component(...), not the built-in block Card')
   })
 
+  it('puts the record history and the comments in the record layout, under titles of their own', () => {
+    const model = view<typeof article>('article')
+      .layout((r) => [l.section('Content', [r.title]), l.history(), l.comments(), l.comments('Notes', { when: 'reading' })])
+      .toModel()
+    expect(model.layout.slice(1)).toEqual([
+      { kind: 'history', title: 'History' },
+      { kind: 'comments', title: 'Comments' },
+      { kind: 'comments', title: 'Notes', when: 'reading' },
+    ])
+  })
+
   it('carries a suffix, an icon, value colours and a badge shape as field hints', () => {
     const hinted = view<typeof article>('article')
       .fields((r) => ({ price: r.price.suffix(' per month').icon('ruler'), status: r.status.valueColors({ draft: '#999' }).valueColors({ live: '#00a651' }).badgeShape('arrow') }))

@@ -19,6 +19,7 @@ export type ResourceState = {
   position?: { field: string; within?: string }
   events?: EventSpec[]
   history?: boolean
+  comments?: boolean
 }
 
 const parseTable = (table: string) => {
@@ -85,6 +86,7 @@ const assembleModel = (state: ResourceState): ResourceModel => {
     ...(state.searchMatch && Object.keys(state.searchMatch).length > 0 && { searchMatch: { ...state.searchMatch } }),
     ...(state.owner && { owner: state.owner }),
     ...(state.history && { history: true as const }),
+    ...(state.comments && { comments: true as const }),
     ...(state.position && { position: { ...state.position } }),
   }
 }
