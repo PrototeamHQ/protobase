@@ -473,10 +473,10 @@ curl -H "Authorization: Bearer $(protobase token me@x)" http://localhost:5173/ap
 ## `skill`
 
 ```sh
-protobase skill install
+protobase skill install [name]
 ```
 
-Copies the protobase agent skill of this CLI's version into the current project, to `.agents/skills/protobase/` (read by Codex, Cursor, OpenCode and Amp) and `.claude/skills/protobase/` (read by Claude Code): a short `SKILL.md` with the everyday workflow and the checks before calling a change done, and the guides and reference of this version as files it points to. It replaces an earlier copy, and refuses to touch a folder of that name that holds another skill. Commit the folders, and run the command again after upgrading the `@protobase` packages. The skill also ships in `node_modules/@protobase/cli/skills`, where the `skills` CLI's `experimental_sync` finds it.
+Copies the agent skills of this CLI's version into the current project, or only the one `name` names. `protobase`, the protobase agent skill, goes to `.agents/skills/protobase/` (read by Codex, Cursor, OpenCode and Amp) and `.claude/skills/protobase/` (read by Claude Code): a short `SKILL.md` with the everyday workflow and the checks before calling a change done, and the guides and reference of this version as files it points to. `protobase-cloud` goes to `.agents/skills/protobase-cloud/` and `.claude/skills/protobase-cloud/`: how an app hosted on protobase-cloud deploys from GitHub, how to check that a change went live, and why a deploy failed. Each replaces an earlier copy, and refuses to touch a folder of its name that holds another skill. Commit the folders, and run the command again after upgrading the `@protobase` packages. The skills also ship in `node_modules/@protobase/cli/skills`, where the `skills` CLI's `experimental_sync` finds it.
 
 ## ERP example
 

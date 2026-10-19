@@ -25,6 +25,8 @@ Run the CLI as the project does: `npx protobase <command>`, or `bun run protobas
 
 `protobase build` writes the bundle (`dist/`); the host runs the serve runtime around it, after the project's migrations and with no other writes while they run. Check a bundle locally with `protobase serve dist`. Details: [references/guides/deploy.md](references/guides/deploy.md).
 
+An app hosted on protobase-cloud deploys from a push to its GitHub branch instead: the `protobase-cloud` skill, which `protobase skill install` writes next to this one, covers it.
+
 ## Rules of thumb
 
 - Records live at the framework's standard addresses and API; give a resource another look through its views, layouts or a plugin, not a page with routes of its own.
