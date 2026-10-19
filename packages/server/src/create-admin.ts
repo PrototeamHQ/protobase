@@ -59,6 +59,7 @@ import { batchRoute } from './routes/batch'
 import { collectionRoutes } from './routes/collection'
 import { docsRoutes } from './routes/docs'
 import { metaRoutes } from './routes/meta'
+import { webManifestRoute } from './web-app/web-manifest-route'
 import { recordRoutes } from './routes/record'
 import { runtimeUrl } from './runtime/runtime-settings'
 import { pluginOptions, pluginsBeforeSignIn } from './plugins/plugin-settings'
@@ -204,8 +205,9 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], pag
     ...(withAi && { ai: { ...(model && { model }), ...(options.onUnhandledError && { report: options.onUnhandledError }) } }),
   }
 
-  // The tabs end in the name the app signs in and mails as.
-  const meta = createMeta(deps, auth?.appName ?? readAppName(globalThis.process?.env ?? {}) ?? defaultAppName)
+  // The tabs end in the name the app signs in and mails as, which the installed app is called too.
+  const appName = auth?.appName ?? readAppName(globalThis.process?.env ?? {}) ?? defaultAppName
+  const meta = createMeta(deps, appName)
   const onError = createErrorHandler(options.onUnhandledError)
   // Every response of the resources API and of the system endpoints names the models version; every request needs a
   // token, but one to the resources API or `/meta` when the project has an anonymous role.
@@ -270,6 +272,8 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], pag
   }
   app.route(basePath, api)
   app.route(`${deps.systemPath}/meta`, metaApp)
+  // Before the system endpoints, which want a token for everything under them
+  app.route(systemPath || '/', webManifestRoute(appName))
   app.route(deps.systemPath || '/', system)
   const webhooks = createWebhooks({ deps, subscriptions, functions: apiFunctions, schema: changes, log: (line) => console.log(line), ...(table && { table }) })
   return Object.assign(app, { jobs: [...webhooks.jobs, ...(withHistory && days !== undefined ? [pruneHistoryJob(changes, days)] : []), ...(mentions ? [mentions] : []), ...(fill ? [fill] : [])] })
