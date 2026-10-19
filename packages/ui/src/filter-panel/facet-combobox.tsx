@@ -1,7 +1,8 @@
-import { Check, Search, X } from 'lucide-react'
+import { Check, Search } from 'lucide-react'
 import { useEffect, useId, useRef, useState, type KeyboardEvent } from 'react'
 import { formatInt } from '../format/number'
 import { cn } from '../lib/cn'
+import { Token } from '../primitives/token'
 import type { FacetGroupConfig } from './filter-config'
 import { comboboxOptions, moveActive } from './combobox-options'
 import { facetLabel } from './filter-state'
@@ -64,18 +65,7 @@ export const FacetCombobox = ({ config, selected, onToggle, inline = false }: Fa
       >
         <Search className="size-3.5 shrink-0 text-muted-foreground" />
         {selected.map((value) => (
-          <span key={value} className="inline-flex h-5 max-w-full items-center gap-0.5 rounded bg-primary-soft pl-1.5 pr-0.5 text-xs font-medium text-primary-text">
-            <span className="truncate">{facetLabel(config, value)}</span>
-            <button
-              type="button"
-              aria-label={`Remove ${facetLabel(config, value)}`}
-              className="rounded p-0.5 hover:bg-primary-border/60"
-              onMouseDown={(event) => event.preventDefault()}
-              onClick={() => onToggle(value)}
-            >
-              <X className="size-3" />
-            </button>
-          </span>
+          <Token key={value} label={facetLabel(config, value)} onRemove={() => onToggle(value)} />
         ))}
         <input
           ref={input}
