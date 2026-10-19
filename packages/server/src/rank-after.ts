@@ -1,12 +1,12 @@
 import { sql } from 'kysely'
 import type { Db } from '@protobase/query'
 import { encodeKey } from '@protobase/schema/internal'
-import type { Deps } from '../deps'
-import { checkedFilter } from '../filter-input'
-import { HttpProblem } from '../problem'
-import type { RequestAccess } from '../request-access'
-import { columnId, filterCondition, scopeConditions, tableId, whereClause } from '../sql-parts'
-import { tenantScope } from '../tenant'
+import type { Deps } from './deps'
+import { checkedFilter } from './filter-input'
+import { HttpProblem } from './problem'
+import type { RequestAccess } from './request-access'
+import { columnId, filterCondition, scopeConditions, tableId, whereClause } from './sql-parts'
+import { tenantScope } from './tenant'
 import { newlyAbove, type RankPair } from './rank-pairs'
 
 /** A record a reorder changed, with the rank it had before. */

@@ -10,7 +10,7 @@ import { tenantScope } from '../tenant'
 import { validateBody } from '../validate-body'
 import { missing, shown, type WriteResult } from '../write-shared'
 import { applyUpdate, planUpdate, type UpdatePlan } from '../write-update'
-import { checkRankAfter } from './rank-after'
+import { checkRankAfter } from '../rank-after'
 
 type Key = (string | number)[]
 
