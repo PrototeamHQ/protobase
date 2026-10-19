@@ -1,4 +1,4 @@
-import { Fragment, type ReactNode } from 'react'
+import { Fragment, useEffect, useState, type ReactNode } from 'react'
 import type { FilterConfig, FilterState, RangeConfig } from './filter-config'
 import { ActiveFilterChips } from './active-filter-chips'
 import { DatePresets } from './date-presets'
@@ -7,7 +7,9 @@ import { FacetGroup } from './facet-group'
 import { FilterMenu } from './filter-menu'
 import { FilterSection } from './filter-section'
 import { activeChips, emptyFilterState, removeChip, setRange, toggleFacetValue, toggleFlag } from './filter-state'
+import { MoreFiltersMenu } from './more-filters-menu'
 import { RangeFilter } from './range-filter'
+import { activeFilterKeys, barFilters, mergeKeys } from './secondary-filters'
 import { ToggleRow } from './toggle-row'
 import { ToolbarRow, toolbarShows } from './toolbar-row'
 import { useFilterState } from './use-filter-state'
@@ -33,6 +35,11 @@ export type FilterPanelProps = {
 export const FilterPanel = ({ config, layout, value, defaultValue, onChange, lockedLabels, defaultOpenMenu, fullWidth, leading, trailing }: FilterPanelProps) => {
   const [state, setState] = useFilterState(value, defaultValue, onChange)
   const chips = activeChips(config, state)
+  const activeKeys = activeFilterKeys(chips)
+  // Secondary filters in the bar: those set or picked, which stay for the life of the page
+  const [revealed, setRevealed] = useState(() => activeKeys)
+  const [justPicked, setJustPicked] = useState<string>()
+  useEffect(() => setRevealed((current) => mergeKeys(current, activeKeys)), [activeKeys.join(',')])
   const chipsView = (
     <ActiveFilterChips chips={chips} lockedLabels={lockedLabels} onRemove={(key) => setState(removeChip(state, key))} onClear={() => setState(emptyFilterState)} />
   )
@@ -73,25 +80,36 @@ export const FilterPanel = ({ config, layout, value, defaultValue, onChange, loc
     )
   }
 
+  const { shown, more } = barFilters(config, revealed)
+  const onPick = (key: string) => {
+    setRevealed((current) => mergeKeys(current, [key]))
+    setJustPicked(key)
+  }
   const menus = [
-    ...config.facets.map((group) => (
-      <FilterMenu key={group.id} label={group.label} activeCount={(state.facets[group.id] ?? []).length} width={group.combobox ? 280 : undefined} defaultOpen={defaultOpenMenu === group.id}>
-        {facetView(group, true)}
-      </FilterMenu>
-    )),
-    ...ranges.map((range) => (
-      <FilterMenu key={`range:${range.id}`} label={range.label} activeCount={state.ranges?.[range.id] ? 1 : 0} width={280} defaultOpen={defaultOpenMenu === range.id}>
-        {rangeView(range)}
-      </FilterMenu>
-    )),
-    ...(dateView ? [<Fragment key="date">{dateView}</Fragment>] : []),
+    ...config.facets
+      .filter((group) => shown.has(`facet:${group.id}`))
+      .map((group) => (
+        <FilterMenu key={group.id} label={group.label} activeCount={(state.facets[group.id] ?? []).length} width={group.combobox ? 280 : undefined} defaultOpen={defaultOpenMenu === group.id || justPicked === `facet:${group.id}`}>
+          {facetView(group, true)}
+        </FilterMenu>
+      )),
+    ...ranges
+      .filter((range) => shown.has(`range:${range.id}`))
+      .map((range) => (
+        <FilterMenu key={`range:${range.id}`} label={range.label} activeCount={state.ranges?.[range.id] ? 1 : 0} width={280} defaultOpen={defaultOpenMenu === range.id || justPicked === `range:${range.id}`}>
+          {rangeView(range)}
+        </FilterMenu>
+      )),
+    ...(dateView && shown.has('date') ? [<Fragment key="date">{dateView}</Fragment>] : []),
   ]
-  const toggles = (config.toggles ?? []).map((toggle) => (
-    <div key={toggle.id} className="flex items-center gap-2 text-muted-foreground">
-      <ToggleRow label={toggle.label} checked={state.toggles.includes(toggle.id)} onChange={() => setState(toggleFlag(state, toggle.id))} />
-    </div>
-  ))
-  const groups = [leading ? [<Fragment key="leading">{leading}</Fragment>] : [], menus, toggles]
+  const toggles = (config.toggles ?? [])
+    .filter((toggle) => shown.has(`toggle:${toggle.id}`))
+    .map((toggle) => (
+      <div key={toggle.id} className="flex items-center gap-2 text-muted-foreground">
+        <ToggleRow label={toggle.label} checked={state.toggles.includes(toggle.id)} onChange={() => setState(toggleFlag(state, toggle.id))} />
+      </div>
+    ))
+  const groups = [leading ? [<Fragment key="leading">{leading}</Fragment>] : [], menus, toggles, more.length > 0 ? [<MoreFiltersMenu key="more" items={more} onPick={onPick} />] : []]
   if (!toolbarShows(groups, trailing) && chips.length === 0 && !lockedLabels?.length) return null
 
   return (

@@ -2,7 +2,7 @@ import { ChevronDown } from 'lucide-react'
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { cn } from '../lib/cn'
 
-export type FilterMenuProps = { label: string; activeCount: number; width?: number; defaultOpen?: boolean; children: ReactNode }
+export type FilterMenuProps = { label: string; activeCount: number; width?: number; defaultOpen?: boolean; children: ReactNode | ((close: () => void) => ReactNode) }
 
 export const FilterMenu = ({ label, activeCount, width = 240, defaultOpen = false, children }: FilterMenuProps) => {
   const [open, setOpen] = useState(defaultOpen)
@@ -41,7 +41,7 @@ export const FilterMenu = ({ label, activeCount, width = 240, defaultOpen = fals
       </button>
       {open && (
         <div className={cn('absolute top-full z-30 mt-1.5 rounded-lg border bg-background p-3 shadow-pop', alignEnd ? 'right-0' : 'left-0')} style={{ width }}>
-          {children}
+          {typeof children === 'function' ? children(() => setOpen(false)) : children}
         </div>
       )}
     </div>

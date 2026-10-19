@@ -1,10 +1,9 @@
 import { MoreVertical } from 'lucide-react'
 import { createPortal } from 'react-dom'
 import { cn } from '../lib/cn'
+import { menuItemClass } from '../primitives/menu-item'
 import { usePopoverMenu } from '../primitives/popover-menu'
 import type { RailAction } from './action-rail'
-
-const itemClass = 'flex w-full items-center gap-2 px-3 py-2.5 text-left hover:bg-muted disabled:cursor-default disabled:opacity-60'
 
 /**
  * The actions of an action rail as a menu behind a "..." button, as a mobile screen's top bar holds them: each item the
@@ -31,9 +30,9 @@ export const ActionMenu = ({ actions, label = 'Actions', className }: { actions:
               return (
                 <li key={name} role="none" onClick={() => setOpen(false)}>
                   {render ? (
-                    render({ className: itemClass, children, role: 'menuitem' })
+                    render({ className: menuItemClass, children, role: 'menuitem' })
                   ) : (
-                    <button type="button" role="menuitem" onClick={onRun} disabled={Boolean(blocked) || running} title={blocked} className={itemClass}>
+                    <button type="button" role="menuitem" onClick={onRun} disabled={Boolean(blocked) || running} title={blocked} className={menuItemClass}>
                       {children}
                     </button>
                   )}

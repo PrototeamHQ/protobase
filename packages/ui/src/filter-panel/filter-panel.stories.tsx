@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { expect, fireEvent, userEvent, waitFor, within } from 'storybook/test'
 import { FilterPanel } from './filter-panel'
@@ -126,4 +127,57 @@ export const BarWithOpenCombobox: Story = {
   args: { config: listingFilters, layout: 'bar', defaultOpenMenu: 'place_id', defaultValue: { facets: { place_id: ['7', '23'] }, toggles: [] } },
   parameters: { layout: 'padded' },
   decorators: [(Story) => <div className="h-96 w-[900px]"><Story /></div>],
+}
+
+const secondaryOrders = {
+  ...ordersFilters,
+  facets: ordersFilters.facets.map((group) => (group.id === 'status' ? group : { ...group, secondary: true })),
+}
+const barCanvas = [(Story: () => ReactNode) => <div className="h-96 w-[900px]"><Story /></div>]
+
+export const BarWithMoreFilters: Story = {
+  tags: ['play'],
+  args: { config: secondaryOrders, layout: 'bar' },
+  parameters: { layout: 'padded' },
+  decorators: barCanvas,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    expect(canvas.queryByRole('button', { name: /^Country/ })).toBeNull()
+    await userEvent.click(canvas.getByRole('button', { name: /More filters/ }))
+    const items = canvas.getAllByRole('menuitem')
+    await waitFor(() => expect(items[0]).toHaveFocus())
+    await userEvent.keyboard('{ArrowDown}')
+    expect(items[1]).toHaveFocus()
+    await userEvent.keyboard('{Escape}')
+    expect(canvas.queryByRole('menu')).toBeNull()
+
+    await userEvent.click(canvas.getByRole('button', { name: /More filters/ }))
+    await userEvent.click(canvas.getByRole('menuitem', { name: 'Country' }))
+    expect(canvas.queryByRole('menu', { name: 'More filters' })).toBeNull()
+    expect(canvas.getByRole('button', { name: /^Country/ })).toHaveAttribute('aria-expanded', 'true')
+
+    await userEvent.click(canvas.getByRole('button', { name: /More filters/ }))
+    expect(canvas.queryByRole('menuitem', { name: 'Country' })).toBeNull()
+    await userEvent.click(canvas.getByRole('menuitem', { name: 'Owner' }))
+    expect(canvas.queryByRole('button', { name: /More filters/ })).toBeNull()
+  },
+}
+
+export const BarWithActiveSecondaryFilter: Story = {
+  tags: ['play'],
+  args: { config: secondaryOrders, layout: 'bar', defaultValue: { facets: { country: ['NL'] }, toggles: [] } },
+  parameters: { layout: 'padded' },
+  decorators: barCanvas,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    expect(canvas.getByRole('button', { name: /^Country/ })).toBeInTheDocument()
+    await userEvent.click(canvas.getByRole('button', { name: /More filters/ }))
+    expect(canvas.queryByRole('menuitem', { name: 'Country' })).toBeNull()
+    await userEvent.keyboard('{Escape}')
+
+    await userEvent.click(canvas.getByRole('button', { name: /^Remove Country/ }))
+    expect(canvas.getByRole('button', { name: /^Country/ })).toBeInTheDocument()
+    await userEvent.click(canvas.getByRole('button', { name: /More filters/ }))
+    expect(canvas.queryByRole('menuitem', { name: 'Country' })).toBeNull()
+  },
 }
