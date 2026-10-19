@@ -316,6 +316,90 @@ export const CalendarRefusedChecks: StoryObj = {
   },
 }
 
+const withTimeline = workshop.repairsView.list((r, d) => ({
+  columns: [r.number, r.bike, r.mechanic, r.booked_on],
+  displays: [d.timeline({ start: r.booked_on, group: r.mechanic, title: r.number })],
+  default: 'timeline',
+}))
+
+export const Timeline: StoryObj = { name: 'A timeline, in lanes by mechanic', render: () => <Shop start="/repairs?timeline=week,2026-10-05" repairsView={withTimeline} /> }
+
+export const TimelineQuarter: StoryObj = { name: 'A timeline, a quarter', render: () => <Shop start="/repairs?timeline=quarter,2026-10-01" repairsView={withTimeline} /> }
+
+// The bars of a timeline's lane, by the lane's heading
+const lane = (canvas: ReturnType<typeof within>, name: string) => canvas.findByRole('region', { name })
+const bars = (region: HTMLElement) => within(region).queryAllByRole('link').map((link) => link.textContent)
+
+export const TimelineChecks: StoryObj = {
+  ...Timeline,
+  name: 'A timeline (checks)',
+  tags: ['play', '!dev'],
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    expect(await pressed(canvas)).toBe('Timeline')
+    expect(await canvas.findByRole('heading', { name: /^5\s?–\s?11 Oct 2026$/ })).toBeInTheDocument()
+    // A lane per mechanic, by name, and last the repairs nobody took yet, each in booking order
+    await waitFor(async () => expect(bars(await lane(canvas, 'No mechanic'))).toEqual(['R-301', 'R-302', 'R-312']))
+    expect(bars(await lane(canvas, 'Sem'))).toEqual(['R-305', 'R-303'])
+    expect(bars(await lane(canvas, 'Lotte'))).toEqual(['R-306'])
+    expect(canvas.getAllByRole('region').map((region) => region.getAttribute('aria-label'))).toEqual(['Lotte', 'Sem', 'No mechanic'])
+    // Only the days shown are loaded: 4 October is the week before
+    expect(canvas.queryByRole('link', { name: 'R-311' })).toBeNull()
+    expect(canvas.queryByRole('combobox', { name: 'Sort' })).toBeNull()
+    expect(canvas.getByRole('link', { name: 'Next week' })).toHaveAttribute('href', '/repairs?timeline=week%2C2026-10-12')
+    expect(canvas.getByRole('link', { name: 'Quarter' })).toHaveAttribute('href', '/repairs?timeline=quarter%2C2026-10-01')
+    expect(canvas.getByRole('link', { name: 'Week' })).toHaveAttribute('aria-current', 'page')
+    await userEvent.click(canvas.getByRole('link', { name: 'Month' }))
+    await waitFor(async () => expect(bars(await lane(canvas, 'Lotte'))).toEqual(['R-304', 'R-311', 'R-306']))
+    await userEvent.click(within(await lane(canvas, 'Lotte')).getByRole('link', { name: 'R-306' }))
+    await canvas.findByRole('heading', { name: 'R-306' })
+  },
+}
+
+// Space picks the focused bar up, the arrow keys move it a day and Space drops it; each key waits for what the
+// timeline tells a screen reader, so the next one lands once it listens for it.
+const moveBarByKeyboard = async (bar: HTMLElement, steps: string, to: string) => {
+  const announced = (text: string) => waitFor(() => expect(within(document.body).getByText(text, { exact: false, ignore: 'a, a *' })).toBeInTheDocument())
+  bar.focus()
+  await userEvent.keyboard(' ')
+  await announced('Picked up ')
+  await userEvent.keyboard(steps)
+  await announced(`starts on ${to}.`)
+  await userEvent.keyboard(' ')
+}
+
+export const TimelineMoveChecks: StoryObj = {
+  ...Timeline,
+  name: 'A timeline, a bar moved with the keyboard (checks)',
+  tags: ['play', '!dev'],
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    const unassigned = await lane(canvas, 'No mechanic')
+    await waitFor(() => expect(bars(unassigned)).toEqual(['R-301', 'R-302', 'R-312']))
+    await moveBarByKeyboard(within(unassigned).getByRole('link', { name: 'R-301' }), '{ArrowRight}{ArrowRight}', '9 Oct 2026')
+    // Moved after R-312, which starts on the 8th
+    await waitFor(async () => expect(bars(await lane(canvas, 'No mechanic'))).toEqual(['R-302', 'R-312', 'R-301']))
+    await userEvent.click(within(await lane(canvas, 'No mechanic')).getByRole('link', { name: 'R-301' }))
+    await canvas.findByRole('heading', { name: 'R-301' })
+    expect(await canvas.findAllByText('9 Oct 2026')).not.toHaveLength(0)
+  },
+}
+
+export const TimelineRefusedChecks: StoryObj = {
+  name: 'A timeline, a move the server refuses (checks)',
+  tags: ['play', '!dev'],
+  render: () => <Shop start="/repairs?timeline=week,2026-10-05" repairsView={withTimeline} refuse="The workshop is closed that day" />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    const sem = await lane(canvas, 'Sem')
+    await waitFor(() => expect(bars(sem)).toEqual(['R-305', 'R-303']))
+    await moveBarByKeyboard(within(sem).getByRole('link', { name: 'R-305' }), '{ArrowRight}{ArrowRight}', '7 Oct 2026')
+    expect(await within(document.body).findByText('The workshop is closed that day')).toBeInTheDocument()
+    expect(within(document.body).getByText('Could not move it to 7 Oct 2026')).toBeInTheDocument()
+    await waitFor(async () => expect(bars(await lane(canvas, 'Sem'))).toEqual(['R-305', 'R-303']))
+  },
+}
+
 export const CustomBoardChecks: StoryObj = {
   ...CustomBoard,
   name: 'A board drawn by a component (checks)',

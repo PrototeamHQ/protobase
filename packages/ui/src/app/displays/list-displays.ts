@@ -80,7 +80,7 @@ export const shownDisplay = (view: ViewModel | undefined, name: string): ListDis
   return named(name) ?? named(view?.list?.default)
 }
 
-const defaultIcons: Partial<Record<ListDisplayModel['kind'], string>> = { cards: 'cards', map: 'map', board: 'kanban', calendar: 'calendar' }
+const defaultIcons: Partial<Record<ListDisplayModel['kind'], string>> = { cards: 'cards', map: 'map', board: 'kanban', calendar: 'calendar', timeline: 'timeline' }
 
 export const displayChoices = (view: ViewModel | undefined): DisplayChoice[] => [
   { name: tableDisplay, label: 'Table', icon: 'table' },
@@ -135,6 +135,7 @@ export const shownFields = (model: ResourceModel, view: ViewModel | undefined, d
     return [display.by, card.title, card.subtitle, card.badge, ...(card.meta ?? [])].filter((name): name is string => name !== undefined)
   }
   if (display.kind === 'calendar') return [display.start, display.end, display.title ?? recordTitleField(model, view)].filter((name): name is string => name !== undefined)
+  if (display.kind === 'timeline') return [display.start, display.end, display.group, display.title ?? recordTitleField(model, view)].filter((name): name is string => name !== undefined)
   const { image, title, subtitle, amount, badge, meta, footer, flags } = cardFields(model, view, display)
   return [image, title, subtitle, ...amount, badge, ...meta, ...footer, ...flags].filter((name): name is string => name !== undefined)
 }

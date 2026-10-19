@@ -7,7 +7,7 @@ import { recordKey } from '../../live/model-helpers'
 import { useToast } from '../../toasts'
 import { useRefreshResource } from '../pages/use-layout-data'
 import { refusalReason } from './board-columns'
-import { movedPatch, type CalendarDisplayModel } from './calendar-range'
+import { movedPatch, type DatedDisplay } from './calendar-range'
 import type { ListDisplayRow } from './list-displays'
 
 /** An event on its way to another day: the fields the update sets, shown until the calendar has reloaded. */
@@ -25,7 +25,7 @@ export const movedRows = (rows: ListDisplayRow[], moves: CalendarMove[]) => {
  * decide. The event shows on its new day at once; a refusal puts it back and says why, and either way every list of
  * the resource reloads.
  */
-export const useCalendarMove = (model: ResourceModel, display: CalendarDisplayModel) => {
+export const useCalendarMove = (model: ResourceModel, display: DatedDisplay) => {
   const client = useClient()
   const toast = useToast()
   const refresh = useRefreshResource()

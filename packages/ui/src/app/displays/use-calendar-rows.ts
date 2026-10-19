@@ -2,7 +2,7 @@ import { useEffect } from 'react'
 import type { ResourceModel } from '@protobase/schema'
 import { useLiveRows } from '../../live/use-live-rows'
 import { useAdminMeta } from '../meta-gate'
-import { rangeFilter, withRange, type CalendarDisplayModel, type CalendarRange } from './calendar-range'
+import { rangeFilter, withRange, type DatedDisplay, type CalendarRange } from './calendar-range'
 import { useDisplayRows } from './use-display-rows'
 
 /** The most records a calendar loads for the days it shows, the most the list API gives in one page. */
@@ -10,7 +10,7 @@ export const calendarLimit = 500
 
 export type CalendarRowsParams = {
   model: ResourceModel
-  display: CalendarDisplayModel
+  display: DatedDisplay
   range: CalendarRange
   /** The fields the events show, which the records' relations are labelled for. */
   fields: string[]

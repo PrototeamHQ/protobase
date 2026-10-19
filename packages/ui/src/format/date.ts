@@ -7,6 +7,7 @@ const dateFormat = (name: string, options: Intl.DateTimeFormatOptions) => () => 
 const day = dateFormat('day', { day: 'numeric', month: 'short', year: 'numeric' })
 const dayShort = dateFormat('dayShort', { day: 'numeric', month: 'short' })
 const month = dateFormat('month', { month: 'long', year: 'numeric' })
+const monthName = dateFormat('monthName', { month: 'long' })
 const weekday = dateFormat('weekday', { weekday: 'short' })
 const weekdayDate = dateFormat('weekdayDate', { weekday: 'long', day: 'numeric', month: 'short', year: 'numeric' })
 
@@ -28,6 +29,12 @@ export const formatDateTime = (ms: number, zone = viewerZone()) => {
 
 /** "October 2026". */
 export const formatMonth = (ms: number) => month().format(ms)
+
+/** "October". */
+export const formatMonthName = (ms: number) => monthName().format(ms)
+
+/** "October – December 2026": the months from `from` to `to`, both included. */
+export const formatMonthRange = (from: number, to: number) => month().formatRange(from, to)
 
 /** "Mon". */
 export const formatWeekday = (ms: number) => weekday().format(ms)

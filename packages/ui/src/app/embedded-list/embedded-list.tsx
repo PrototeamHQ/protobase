@@ -9,6 +9,7 @@ import type { RouteTarget } from '../../primitives/route-link'
 import { Skeleton } from '../../primitives/skeleton'
 import { BoardDisplay } from '../displays/board-display'
 import { CalendarDisplay } from '../displays/calendar-display'
+import { TimelineDisplay } from '../displays/timeline-display'
 import { CardsDisplay } from '../displays/cards-display'
 import { CustomDisplay } from '../displays/custom-display'
 import { MapDisplay } from '../displays/map-display'
@@ -135,6 +136,8 @@ export const EmbeddedList = ({ model, view, filter, sort, columns, limit, displa
         <BoardDisplay model={model} view={view} display={shown} fields={fields} filter={filter} orderBy={orderBy} limit={limit} />
       ) : shown.kind === 'calendar' ? (
         <CalendarDisplay model={model} view={view} display={shown} fields={fields} filter={filter} />
+      ) : shown.kind === 'timeline' ? (
+        <TimelineDisplay model={model} view={view} display={shown} fields={fields} filter={filter} />
       ) : (
         <CustomDisplay display={shown} list={list} />
       )}

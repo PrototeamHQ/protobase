@@ -30,6 +30,7 @@ import { MapDisplay } from './displays/map-display'
 import { BoardDisplay } from './displays/board-display'
 import { boardRank } from './displays/board-columns'
 import { CalendarDisplay } from './displays/calendar-display'
+import { TimelineDisplay } from './displays/timeline-display'
 import { CustomDisplay } from './displays/custom-display'
 import { DisplaySwitch, SortMenu } from './displays/display-controls'
 import { displayRow, listDisplayChoices, loadedFields, shownListDisplay } from './displays/list-displays'
@@ -128,7 +129,7 @@ const LoadedList = ({ model, address, scope, heading }: LoadedListProps) => {
   const handOrder = scope ? undefined : listHandOrder(model, permissions)
   const [sorting, setSorting] = useState(false)
   const handSorting = sorting && handOrder !== undefined
-  // The table, the cards, a board, a calendar, a custom display and the records sorted by hand are as tall as all their rows and
+  // The table, the cards, a board, a calendar, a timeline, a custom display and the records sorted by hand are as tall as all their rows and
   // scroll with the page; the map fills the screen
   const pageScroll = handSorting || display?.kind !== 'map'
   usePageScroll(pageScroll)
@@ -157,8 +158,8 @@ const LoadedList = ({ model, address, scope, heading }: LoadedListProps) => {
     setFilter(state, text ? [...others, where.search(text)] : others)
   }
   const plural = view?.names?.plural ?? humanize(resource)
-  // A calendar is in time order, and a board of ranked records in their rank, so neither has a sort
-  const sorted = display?.kind === 'calendar' || (display?.kind === 'board' && boardRank(model)) ? undefined : display
+  // A calendar and a timeline are in time order, and a board of ranked records in their rank, so none has a sort
+  const sorted = display?.kind === 'calendar' || display?.kind === 'timeline' || (display?.kind === 'board' && boardRank(model)) ? undefined : display
   const sortMenu = sorted && <SortMenu model={model} view={view} display={sorted} orderBy={orderBy} onChange={(next) => set({ orderBy: next })} />
   const searchBox = model.search?.length ? <ListSearch value={search?.kind === 'search' ? search.text : ''} onCommit={commitSearch} placeholder={`Search ${plural.toLowerCase()}`} className={desktop ? undefined : 'min-h-11'} /> : null
   // On a desktop the sort, the filters and the search share one row below the title; a phone has the filters button
@@ -264,6 +265,7 @@ const LoadedList = ({ model, address, scope, heading }: LoadedListProps) => {
     }
     if (display.kind === 'board') return <BoardDisplay model={model} view={view} display={display} fields={loaded} filter={loadFilter} orderBy={orderBy} />
     if (display.kind === 'calendar') return <CalendarDisplay model={model} view={view} display={display} fields={loaded} filter={loadFilter} at={address.calendar} linkTo={(calendar) => listTo({ calendar })} />
+    if (display.kind === 'timeline') return <TimelineDisplay model={model} view={view} display={display} fields={loaded} filter={loadFilter} at={address.timeline} linkTo={(timeline) => listTo({ timeline })} />
     return <CustomDisplay display={display} list={displayRows} />
   }
   const shown = handSorting ? (

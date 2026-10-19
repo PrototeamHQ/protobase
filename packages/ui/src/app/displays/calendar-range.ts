@@ -8,6 +8,9 @@ import type { ListDisplayRow } from './list-displays'
 
 export type CalendarDisplayModel = Extract<ListDisplayModel, { kind: 'calendar' }>
 
+/** A display that places records on days by their `start` and `end`, with a `title` on each: a calendar, or a timeline. */
+export type DatedDisplay = Pick<CalendarDisplayModel, 'start' | 'end' | 'title'>
+
 /** The days a calendar shows, as the half-open interval from the first day to the day after the last. */
 export type CalendarRange = { from: string; to: string }
 
@@ -19,9 +22,11 @@ const startOf = (day: string) => Date.parse(`${day}T00:00:00Z`)
 /** The day `count` days after `day`, or before it for a negative count. */
 export const addDays = (day: string, count: number) => dayOf(startOf(day) + count * dayMs)
 
-const monday = (day: string) => addDays(day, -((new Date(startOf(day)).getUTCDay() + 6) % 7))
+/** The Monday on or before `day`. */
+export const monday = (day: string) => addDays(day, -((new Date(startOf(day)).getUTCDay() + 6) % 7))
 
-const monthOf = (day: string, step = 0) => {
+/** The 1st of the month of `day`, or of the month `step` months on. */
+export const monthOf = (day: string, step = 0) => {
   const date = new Date(startOf(day))
   return dayOf(Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + step, 1))
 }
@@ -52,14 +57,14 @@ export const rangeOf = (view: CalendarView): CalendarRange => {
   return { from: days[0]!, to: addDays(days.at(-1)!, 1) }
 }
 
-const isTimestamp = (display: CalendarDisplayModel, model: ResourceModel) => model.fields[display.start]?.type === 'timestamp'
+const isTimestamp = (display: DatedDisplay, model: ResourceModel) => model.fields[display.start]?.type === 'timestamp'
 
 /**
  * The records on the days of `range`, as a list filter: those starting in it, and with an `end` those starting before
  * it and ending in or after its first day. A timestamp's `end` is the instant it is over, so one ending at midnight is
  * not on the day it starts. Each branch reads one indexed field.
  */
-export const rangeFilter = (display: CalendarDisplayModel, model: ResourceModel, range: CalendarRange, zone = viewerZone()) => {
+export const rangeFilter = (display: DatedDisplay, model: ResourceModel, range: CalendarRange, zone = viewerZone()) => {
   const timestamp = isTimestamp(display, model)
   const instant = (day: string) => new Date(startOfDayIn(day, zone)).toISOString().replace('.000Z', 'Z')
   const bound = (day: string): FilterValue => (timestamp ? { kind: 'timestamp', value: instant(day), span: { start: 0, end: 0 } } : { kind: 'string', value: day, span: { start: 0, end: 0 } })
@@ -80,26 +85,33 @@ const instantOf = (value: unknown) => {
 }
 
 /**
- * The days of `days` a record is on: from its start's day through its end's, both included, where a timestamp `end`
- * at midnight is over before that day starts; its start day alone without an end or with one before its start.
+ * The first and last day a record is on: its start's day and its end's, where a timestamp `end` at midnight is over
+ * before that day starts; its start day alone without an end or with one before its start, and none without a start.
  */
-export const eventDays = (record: Record<string, unknown>, display: CalendarDisplayModel, model: ResourceModel, days: string[], zone = viewerZone()): string[] => {
+export const recordDays = (record: Record<string, unknown>, display: DatedDisplay, model: ResourceModel, zone = viewerZone()): { first: string; last: string } | undefined => {
   const start = instantOf(record[display.start])
-  if (start === undefined) return []
+  if (start === undefined) return undefined
   const timestamp = isTimestamp(display, model)
   const day = (ms: number) => (timestamp ? dayIn(ms, zone) : dayOf(ms))
   const first = day(start)
   const end = display.end === undefined ? undefined : instantOf(record[display.end])
   const ending = end === undefined ? first : day(timestamp ? end - 1 : end)
-  const last = ending < first ? first : ending
-  return days.filter((day) => day >= first && day <= last)
+  return { first, last: ending < first ? first : ending }
 }
 
+/** The days of `days` a record is on, from its first through its last (`recordDays`). */
+export const eventDays = (record: Record<string, unknown>, display: DatedDisplay, model: ResourceModel, days: string[], zone = viewerZone()): string[] => {
+  const span = recordDays(record, display, model, zone)
+  return span ? days.filter((day) => day >= span.first && day <= span.last) : []
+}
+
+/** The rows in the order they start, those without a start first. */
+export const inStartOrder = (rows: ListDisplayRow[], display: DatedDisplay) => rows.toSorted((a, b) => (instantOf(a.record[display.start]) ?? 0) - (instantOf(b.record[display.start]) ?? 0))
+
 /** The rows on each day of `days`, each day's in start order. */
-export const byDay = (rows: ListDisplayRow[], display: CalendarDisplayModel, model: ResourceModel, days: string[], zone = viewerZone()): Map<string, ListDisplayRow[]> => {
+export const byDay = (rows: ListDisplayRow[], display: DatedDisplay, model: ResourceModel, days: string[], zone = viewerZone()): Map<string, ListDisplayRow[]> => {
   const placed = new Map(days.map((day) => [day, [] as ListDisplayRow[]]))
-  const ordered = rows.toSorted((a, b) => (instantOf(a.record[display.start]) ?? 0) - (instantOf(b.record[display.start]) ?? 0))
-  for (const row of ordered) for (const day of eventDays(row.record, display, model, days, zone)) placed.get(day)!.push(row)
+  for (const row of inStartOrder(rows, display)) for (const day of eventDays(row.record, display, model, days, zone)) placed.get(day)!.push(row)
   return placed
 }
 
@@ -107,7 +119,7 @@ export const byDay = (rows: ListDisplayRow[], display: CalendarDisplayModel, mod
  * The update that moves a record shown on `from` to `to`: its `start`, and its `end` when it has one, moved by the same
  * number of days, a timestamp keeping its time of day on the clock of `zone`.
  */
-export const movedPatch = (record: Record<string, unknown>, display: CalendarDisplayModel, model: ResourceModel, from: string, to: string, zone = viewerZone()): Record<string, string> => {
+export const movedPatch = (record: Record<string, unknown>, display: DatedDisplay, model: ResourceModel, from: string, to: string, zone = viewerZone()): Record<string, string> => {
   const days = (startOf(to) - startOf(from)) / dayMs
   const timestamp = isTimestamp(display, model)
   const moved = (value: unknown) => {

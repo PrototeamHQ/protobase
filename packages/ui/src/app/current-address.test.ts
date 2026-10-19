@@ -56,6 +56,11 @@ describe('changedList', () => {
     expect(changedList(read, { calendar: { scale: 'week', day: '2026-10-05' } }, defaults)).toEqual({ ...read, calendar: { scale: 'week', day: '2026-10-05' } })
   })
 
+  it('keeps the period a timeline shows while the filter changes', () => {
+    const read = { kind: 'list', resource: 'repairs', display: 'timeline', timeline: { scale: 'quarter', day: '2026-10-01' } } as const
+    expect(changedList(read, { filter: 'mechanic = "Sem"' }, defaults)).toEqual({ ...read, filter: 'mechanic = "Sem"' })
+  })
+
   it('keeps the saved search the list was opened from while its filters change, until a change leaves it out', () => {
     const read = { kind: 'list', resource: 'listings', filter: 'garden = true', savedSearch: '12' } as const
     expect(changedList(read, { filter: 'garden = true AND rooms >= 3' }, defaults)).toEqual({ ...read, filter: 'garden = true AND rooms >= 3' })

@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import { setAppLocale } from '../locale/active-locale'
-import { formatAgo, formatRelativeTime, formatApproxRows, formatDate, formatDateTime, formatDayRange, formatInt, formatMonth, formatTime, formatWeekday, formatWeekdayDate, formatMoney, formatSigned } from './index'
+import { formatAgo, formatRelativeTime, formatApproxRows, formatDate, formatDateTime, formatDayRange, formatInt, formatMonth, formatMonthName, formatMonthRange, formatTime, formatWeekday, formatWeekdayDate, formatMoney, formatSigned } from './index'
 
 describe('formatMoney', () => {
   it('formats cents as EUR by default', () => {
@@ -48,6 +48,10 @@ describe('dates', () => {
     // ICU versions space the dash differently
     expect(formatDayRange(Date.UTC(2026, 9, 12), Date.UTC(2026, 9, 18))).toMatch(/^12\s?–\s?18 Oct 2026$/)
     expect(formatDayRange(Date.UTC(2026, 11, 28), Date.UTC(2027, 0, 3))).toMatch(/^28 Dec 2026\s–\s3 Jan 2027$/)
+  })
+  it("formats a timeline's quarter and its months", () => {
+    expect(formatMonthName(ms)).toBe('October')
+    expect(formatMonthRange(Date.UTC(2026, 9, 1), Date.UTC(2026, 11, 1))).toMatch(/^October\s?–\s?December 2026$/)
   })
   it('formats natural relative time', () => {
     expect(formatRelativeTime(10)).toBe('just now')
