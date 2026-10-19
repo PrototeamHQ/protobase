@@ -2,6 +2,7 @@ import type { StatProps } from '@protobase/layout'
 import type { ResourceModel } from '@protobase/schema'
 import { Skeleton } from '../../../primitives/skeleton'
 import { useAdminMeta } from '../../meta-gate'
+import { filteredListAddress } from '../../list-link'
 import { AppLink } from '../../use-app-address'
 import { FieldValue } from '../field-value'
 import { useLayoutRecord } from '../record-scope'
@@ -13,11 +14,12 @@ import { CardFrame } from './card-frame'
 const big = 'text-2xl font-semibold tracking-tight tabular-nums'
 
 const Count = ({ model, filter }: { model: ResourceModel; filter?: string }) => {
+  const { views } = useAdminMeta()
   const count = useCount(model, filter)
   if (count.isPending) return <Skeleton className="h-8 w-16" />
   if (count.error) return <span className="text-danger-text">Could not count</span>
   return (
-    <AppLink to={{ kind: 'list', resource: model.name, filter }} className={`${big} hover:text-primary-text after:absolute after:inset-0 after:content-['']`}>
+    <AppLink to={filteredListAddress(views[model.name], model.name, filter)} className={`${big} hover:text-primary-text after:absolute after:inset-0 after:content-['']`}>
       {count.data.toLocaleString('en-IE')}
     </AppLink>
   )

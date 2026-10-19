@@ -148,6 +148,14 @@ const recentShapes = (model: ResourceModel, view: ViewModel): ReadShape[] => {
   return [{ resource: model.name, request: request(model.name, recent.filter, sort), from: 'the recent records in the sidebar', query: { ...(filter && { filter }), sort } }]
 }
 
+// The list's first read: in its order, and with the filter it opens with, if any
+const openingShape = (model: ResourceModel, view: ViewModel, list: string, sort: SortSpec): ReadShape => {
+  const source = view.list?.filter
+  if (!source) return { resource: model.name, request: request(model.name, undefined, sort), from: `${list}'s order`, query: { sort } }
+  const filter = configFilter(model, source)
+  return { resource: model.name, request: request(model.name, source, sort), from: `${list} as it opens`, query: { ...(filter && { filter }), sort } }
+}
+
 /**
  * The reads a view's pages make: its list in its order, the filter widgets and their counts, its chart per value, its displays' maps,
  * board columns and photos, the records of its related sections and the photos of its galleries, the recent records in the sidebar, a saved search's new records and the records sorted by hand.
@@ -158,7 +166,7 @@ export const viewShapes = (view: ViewModel, models: Models): ReadShape[] => {
   const sort = listSort(model, view)
   const list = view.roles ? `the ${model.name} list for ${view.roles.join(', ')}` : `the ${model.name} list`
   return [
-    { resource: model.name, request: request(model.name, undefined, sort), from: `${list}'s order`, query: { sort } },
+    openingShape(model, view, list, sort),
     ...view.filters.flatMap((widget) => widgetShapes(model, widget, `${list}'s ${widget.kind === 'dateRange' ? 'date range' : widget.kind} filter`)),
     ...displayShapes(model, view, models),
     ...chartShapes(model, view, list),

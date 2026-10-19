@@ -34,7 +34,7 @@ export const repairsView = view<typeof repairs>('repairs')
 | `.names({ singular, plural })` | "New repair", "Repairs" in the sidebar, breadcrumbs and browser tabs. Default: the resource name in words. |
 | `.title((r) => r.number)` | The field that names a record: in breadcrumbs, browser tabs, the record page's heading, relation links and search results. |
 | `.searchResult((r) => ({ title?, subtitle? }))` | A record in the [global search](/reference/client/#global-search): `title` is one field or several joined by spaces (`[r.first_name, r.last_name]`, default: `.title`), `subtitle` the line under it (default: the first search field not in the title), replaced by the search field the text matched when neither line shows it. |
-| `.list((r, d, c) => ({ columns, sort?, search?, editable?, displays?, default? }))` | The list's columns in order, fields or [related records](#related-records-in-a-list) (`c.related`); its starting `sort` as `[[field, 'asc' \| 'desc'], ...]`, on `.sortable()` fields; the fields the search box suggests, among the resource's `.search` fields, which decide what search matches on the server; the columns [edited in their cell](#editing-in-the-list); other ways to show it, see [List displays](#list-displays). `protobase build` fails on a sort or search field outside those. |
+| `.list((r, d, c) => ({ columns, sort?, search?, filter?, editable?, displays?, default? }))` | The list's columns in order, fields or [related records](#related-records-in-a-list) (`c.related`); the `filter` it [opens with](#a-filter-the-list-opens-with); its starting `sort` as `[[field, 'asc' \| 'desc'], ...]`, on `.sortable()` fields; the fields the search box suggests, among the resource's `.search` fields, which decide what search matches on the server; the columns [edited in their cell](#editing-in-the-list); other ways to show it, see [List displays](#list-displays). `protobase build` fails on a sort or search field outside those. |
 | `.fields((r) => ({ name: r.name.label(...) }))` | Hints per field, below. Calls add up. |
 | `.help(text)` | A line under the list's title. |
 | `.nav({ group, order, hidden, recent })` | Where the resource sits in the sidebar, and its [recent-record group](/reference/sidebar/#recent-records). |
@@ -138,6 +138,17 @@ Each drop shows at once and is saved straight away: one [batch `reorder`](/refer
 A user who may not update the resource or write the field gets no **Sort**, and `/api/meta` leaves out `position` for one who cannot read its field or its `within`. A related section offers it only when it lists all of the parent's records: its `field` is the `within` relation, without a `filter` or `through`. The list page does not offer it for a resource ordered within a parent, since its list mixes the parents. At most 500 records are sorted at once, the list API's largest page; with more, **Sort** says so instead. The field must be `.sortable()` and `within` a `.filterable()` relation, checked when the config loads, and [`protobase doctor`](/reference/cli/#doctor) checks that an index serves each read in the field's order, such as `(invoice_id, position)`. Records created later are not numbered for you: give them a position, or the next drop numbers them, after the others when the field is empty.
 
 <StoryFrame id="list-page-sorting-by-hand--invoice-items" title="An invoice's items sorted by hand" height={480} />
+
+## A filter the list opens with
+
+```ts
+view('repairs').list((r) => ({
+  columns: [r.number, r.status],
+  filter: 'in(status, "todo", "doing")',
+})).filters((r, w) => [w.facets(r.status)])
+```
+
+`filter` is an AIP-160 filter the list opens with when its address names none, whichever display it shows. Written in the form the widgets read (`status = "todo"` or `in(status, "todo", "doing")` on a facets field), it shows as the widgets' chips, which the person can clear or change; the change is kept in the page's address (an empty `?filter=` is a list cleared of it), and opening the list from the menu starts from the default again. A link's own filter replaces it, and so do "View all", a stat or a chart slice, which open on exactly what they counted. A board leaves out the columns a top-level `=` or `in(...)` clause on its field rules out. `protobase build` checks the filter against the resource, and [`protobase doctor`](/reference/cli/#doctor) checks that an index serves it.
 
 ## Filters and the chart
 

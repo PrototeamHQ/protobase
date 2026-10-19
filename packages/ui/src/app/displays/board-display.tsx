@@ -4,6 +4,7 @@ import type { ResourceModel, ViewModel } from '@protobase/schema'
 import { usePermissions } from '../meta-gate'
 import { can } from '../permissions'
 import { BoardColumnView } from './board-column'
+import { columnsAllowed } from './board-allowed'
 import { boardCard, boardColumns, type BoardDisplayModel } from './board-columns'
 import { collision, columnCoordinates, columnId } from './board-dnd'
 import type { ListDisplayRow } from './list-displays'
@@ -28,7 +29,7 @@ type BoardProps = {
  * a card dragged, or moved with the keyboard, to another column saves the record with that column's value.
  */
 export const BoardDisplay = ({ model, view, display, fields, filter, orderBy, limit }: BoardProps) => {
-  const columns = boardColumns(model, view, display)
+  const columns = columnsAllowed(filter, display.by, boardColumns(model, view, display))
   const card = boardCard(model, view, display)
   const permissions = usePermissions(model.name)
   const movable = can(permissions, 'update') && !model.fields[display.by]?.readOnly

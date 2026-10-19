@@ -544,4 +544,9 @@ describe('view builder', () => {
     const other = resource('other').table('o').fields({ id: f.integer(), title: f.text() }).primaryKey((r) => r.id).toModel()
     expect(() => build().toModel(other)).toThrow('search result field "status" does not exist')
   })
+
+  it('keeps the filter a list opens with, and leaves out an empty one', () => {
+    expect(view<typeof article>('article').list((r) => ({ columns: [r.id], filter: 'id > 1' })).toModel().list?.filter).toBe('id > 1')
+    expect(view<typeof article>('article').list((r) => ({ columns: [r.id], filter: '' })).toModel().list).not.toHaveProperty('filter')
+  })
 })

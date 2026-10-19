@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { f, resource, view } from '@protobase/schema'
 import { changedList, currentAddress, listDefaults, listedResource, type ListDefaults } from './current-address'
 
-const defaults: ListDefaults = { display: 'table', orderBy: 'bookedOn desc', filterLayout: 'bar' }
+const defaults: ListDefaults = { display: 'table', orderBy: 'bookedOn desc', filterLayout: 'bar', filter: '' }
 
 describe('currentAddress', () => {
   it('fills a list in with its defaults, where the address names none', () => {
@@ -68,8 +68,8 @@ describe('listDefaults', () => {
   it("opens a list in its view's default display and sort, else the table and the first key", () => {
     const repairs = resource('repairs').table('repairs').fields({ id: f.integer(), bookedOn: f.date().sortable() }).primaryKey((r) => r.id)
     const shown = view<typeof repairs>('repairs').list((r, d) => ({ columns: [r.id], sort: [[r.bookedOn, 'desc']], displays: [d.cards({})], default: 'cards' })).toModel()
-    expect(listDefaults(repairs.toModel(), shown)).toEqual({ display: 'cards', orderBy: 'bookedOn desc', filterLayout: 'bar' })
-    expect(listDefaults(repairs.toModel(), undefined)).toEqual({ display: 'table', orderBy: 'id asc', filterLayout: 'bar' })
+    expect(listDefaults(repairs.toModel(), shown)).toEqual({ display: 'cards', orderBy: 'bookedOn desc', filterLayout: 'bar', filter: '' })
+    expect(listDefaults(repairs.toModel(), undefined)).toEqual({ display: 'table', orderBy: 'id asc', filterLayout: 'bar', filter: '' })
     const tabled = view<typeof repairs>('repairs').list((r, d) => ({ columns: [r.id], displays: [d.cards({})] })).toModel()
     expect(listDefaults(repairs.toModel(), tabled).display).toBe('table')
     expect(listDefaults(repairs.toModel(), tabled, true).display).toBe('cards')
@@ -90,5 +90,25 @@ describe('listDefaults', () => {
     expect(listedResource(resources, { homes: homesView, saved: savedView }, 'saved')).toEqual({ model: resources.homes, view: homesView, listOf: true })
     expect(listedResource(resources, { homes: homesView, saved: savedView }, 'homes')).toEqual({ model: resources.homes, view: homesView, listOf: false })
     expect(listedResource({ saved: resources.saved }, { saved: savedView }, 'saved')).toEqual({ model: resources.saved, view: savedView, listOf: false })
+  })
+})
+
+describe('a list that opens on a filter', () => {
+  const opening = { ...defaults, filter: 'status = "todo"' }
+  const read = { kind: 'list', resource: 'repairs' } as const
+  it('shows the default, an empty filter as none, and a link filter as it is', () => {
+    expect(currentAddress(read, () => opening)).toMatchObject({ filter: 'status = "todo"' })
+    expect(currentAddress({ ...read, filter: '' }, () => opening)).toMatchObject({ filter: '' })
+    expect(currentAddress({ ...read, filter: 'x = 1' }, () => opening)).toMatchObject({ filter: 'x = 1' })
+  })
+  it('writes a cleared filter as an empty one, and the default as nothing', () => {
+    expect(changedList(read, { filter: '' }, opening)).toEqual({ ...read, filter: '' })
+    expect(changedList({ ...read, filter: '' }, { filter: 'status = "todo"' }, opening)).toEqual(read)
+    expect(changedList({ ...read, filter: '' }, { filter: undefined }, opening)).toEqual(read)
+  })
+  it('reads the default from the view', () => {
+    const repairs = resource('repairs').table('repairs').fields({ id: f.integer(), status: f.text().filterable() }).primaryKey((r) => r.id)
+    const shown = view<typeof repairs>('repairs').list((r) => ({ columns: [r.id], filter: 'status = "ready"' }))
+    expect(listDefaults(repairs.toModel(), shown.toModel()).filter).toBe('status = "ready"')
   })
 })

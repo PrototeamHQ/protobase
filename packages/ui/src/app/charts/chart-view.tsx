@@ -53,5 +53,5 @@ export const ChartView = ({ model, view, groupBy, type = 'bar', sum, average, fi
   if (groups.every((group) => group.count === 0)) return <p className="text-muted-foreground">{empty}</p>
   if (dated) return <PeriodChart points={periodPoints(groups, measure)} measure={measure} bucket={granularity} type={type === 'line' ? 'line' : 'bar'} />
   const slices = valueSlices(groups, field, view?.fields[groupBy], measure, filter)
-  return type === 'donut' ? <GroupDonut resource={model.name} slices={slices} measure={measure} /> : <GroupBars resource={model.name} slices={slices} measure={measure} />
+  return type === 'donut' ? <GroupDonut resource={model.name} view={view} slices={slices} measure={measure} /> : <GroupBars resource={model.name} view={view} slices={slices} measure={measure} />
 }

@@ -63,4 +63,10 @@ describe('viewAllAddress', () => {
   it("names the saved search whose results it opens, so the list can offer to update it", () => {
     expect(appPath(viewAllAddress(model, withCards, true, { filter: 'price > 100', orderBy: 'publishedAt desc', display: 'cards', savedSearch: '4' }))).toBe('/listings?filter=price+%3E+100&saved_search=4')
   })
+
+  it('opens on what an embedded list showed when the list page opens on a filter', () => {
+    const opening = view<typeof listings>('listings').list((r) => ({ columns: [r.address], filter: 'price > 5' })).toModel()
+    expect(appPath(viewAllAddress(model, opening, false, { filter: '', orderBy: 'id asc', display: 'table' }))).toBe('/listings?filter=')
+    expect(appPath(viewAllAddress(model, opening, false, { filter: 'price > 5', orderBy: 'id asc', display: 'table' }))).toBe('/listings')
+  })
 })

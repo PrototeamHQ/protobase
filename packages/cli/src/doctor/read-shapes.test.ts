@@ -144,4 +144,10 @@ describe('readShapes', () => {
     expect(shapes.find((shape) => shape.from === 'the names agencies.place_id shows')).toMatchObject({ resource: 'places', request: 'GET /places?filter=id in (…)' })
     expect(shapes.find((shape) => shape.from === '"owner_id" is the owner')).toMatchObject({ resource: 'agencies', query: {}, scope: { rowFilter: { kind: 'compare', field: { name: 'owner_id' } } } })
   })
+
+  it('reads a list that opens on a filter with that filter', () => {
+    const opening = view<typeof places>('places').list((r) => ({ columns: [r.name], filter: 'country = "NL"' }))
+    const found = readShapes({ models: [places.toModel()], views: [opening.toModel()], pages: [] })
+    expect(found.find((shape) => shape.from === 'the places list as it opens')).toMatchObject({ request: 'GET /places?filter=country = "NL"&order_by=id asc', query: { filter: { kind: 'compare' } } })
+  })
 })

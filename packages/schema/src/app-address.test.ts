@@ -21,7 +21,8 @@ describe('appPath', () => {
     expect(appPath({ kind: 'list', resource: 'repairs', filterLayout: 'panel', orderBy: 'bookedOn desc', filter: 'status = "ready"', display: 'cards' })).toBe(
       '/repairs?display=cards&filter=status+%3D+%22ready%22&order_by=bookedOn+desc&layout=panel',
     )
-    expect(appPath({ kind: 'list', resource: 'repairs', filter: '', display: undefined })).toBe('/repairs')
+    expect(appPath({ kind: 'list', resource: 'repairs', display: undefined })).toBe('/repairs')
+    expect(appPath({ kind: 'list', resource: 'repairs', filter: '' })).toBe('/repairs?filter=')
   })
 
   it("writes where a list's map looks as its centre and zoom, to about a metre", () => {

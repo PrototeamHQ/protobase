@@ -6,7 +6,7 @@ import type { AppAddress, CalendarView, FilterLayout, MapView } from './model'
  * changes in this module alone.
  */
 export const addressWords = {
-  /** A list's filter (AIP-160), as the list API takes it. */
+  /** A list's filter (AIP-160), as the list API takes it. An empty `filter=` means no filter, in place of the view's default. */
   filter: 'filter',
   /** A list's order (AIP-132). */
   orderBy: 'order_by',
@@ -66,7 +66,8 @@ const listQuery = (address: Extract<AppAddress, { kind: 'list' }>) => {
   const query = new URLSearchParams()
   for (const name of listWords) {
     const value = address[name]
-    if (value !== undefined && value !== '') query.set(addressWords[name], value)
+    if (value === undefined || (value === '' && name !== 'filter')) continue
+    query.set(addressWords[name], value)
   }
   if (address.map) query.set(addressWords.map, mapText(address.map))
   if (address.calendar) query.set(addressWords.calendar, calendarText(address.calendar))
@@ -134,7 +135,7 @@ export const readAppPath = (pathAndQuery: string, pages: ReadonlySet<string>): A
   }
   const params = url.searchParams
   const display = params.get(addressWords.display) || undefined
-  const filter = params.get(addressWords.filter) || undefined
+  const filter = params.get(addressWords.filter) ?? undefined
   const orderBy = params.get(addressWords.orderBy) || undefined
   const layout = filterLayout(params.get(addressWords.filterLayout))
   const map = readMap(params.get(addressWords.map))
@@ -144,7 +145,7 @@ export const readAppPath = (pathAndQuery: string, pages: ReadonlySet<string>): A
     kind: 'list',
     resource: first,
     ...(display && { display }),
-    ...(filter && { filter }),
+    ...(filter !== undefined && { filter }),
     ...(orderBy && { orderBy }),
     ...(layout && { filterLayout: layout }),
     ...(map && { map }),

@@ -19,7 +19,7 @@ export type CurrentAddress =
 /** What can change about the list the app shows; `undefined` returns a value to its default. */
 export type ListChange = Partial<Omit<ListAddress, 'kind' | 'resource'>>
 
-export type ListDefaults = Pick<ListAddress, 'display' | 'orderBy' | 'filterLayout'>
+export type ListDefaults = Pick<ListAddress, 'display' | 'orderBy' | 'filterLayout' | 'filter'>
 
 /**
  * The resource whose records a list shows, with its view: the list's own, or, when its view has `listOf`, the resource
@@ -37,23 +37,24 @@ export const listDefaults = (model: ResourceModel | undefined, view: ViewModel |
   display: model ? listDefaultDisplay(model, view, xs) : defaultDisplay(view, xs),
   orderBy: model ? defaultOrderBy(model, view) : '',
   filterLayout: 'bar',
+  filter: view?.list?.filter ?? '',
 })
 
 /** The address as read from the location, with a list's defaults filled in and a record's key as text. */
 export const currentAddress = (read: AppAddress | undefined, defaults: (resource: string) => ListDefaults): CurrentAddress | undefined => {
   if (read?.kind === 'record') return { kind: 'record', resource: read.resource, key: encodeKey(read.key), ...(read.edit && { edit: true as const }), ...(read.open && { open: read.open }) }
   if (read?.kind !== 'list') return read
-  return { ...defaults(read.resource), filter: '', ...read }
+  return { ...defaults(read.resource), ...read }
 }
 
-/** The list address after `change`, leaving out every value that is empty or its default, so `/<resource>` stays clean. */
+/** The list address after `change`, leaving out every value that is empty or its default (a cleared filter is written as an empty `filter=` when the default is not empty), so `/<resource>` stays clean. */
 export const changedList = (read: Extract<AppAddress, { kind: 'list' }>, change: ListChange, defaults: ListDefaults): AppAddress => {
   const next = { ...read, ...change }
   const differs = (name: keyof ListDefaults) => next[name] !== undefined && next[name] !== defaults[name]
   return {
     kind: 'list',
     resource: read.resource,
-    ...(next.filter && { filter: next.filter }),
+    ...(differs('filter') && { filter: next.filter }),
     ...(differs('display') && { display: next.display }),
     ...(differs('orderBy') && { orderBy: next.orderBy }),
     ...(differs('filterLayout') && { filterLayout: next.filterLayout }),

@@ -48,4 +48,13 @@ describe('checkViewQueries', () => {
     const other = view<typeof listings>('listings').filters((r, w) => [w.facets(r.district)]).toModel()
     expect(() => checkViewQueries([], [other])).not.toThrow()
   })
+
+  it('takes a list filter on filterable fields and refuses one that is not filterable or does not parse', () => {
+    const ok = view<typeof listings>('listings').list((r) => ({ columns: [r.address], filter: 'price > 10 AND garden = true' }))
+    expect(() => checkViewQueries(models, [ok.toModel()])).not.toThrow()
+    const open = view<typeof listings>('listings').list((r) => ({ columns: [r.address], filter: 'district = "x"' }))
+    expect(() => checkViewQueries(models, [open.toModel()])).toThrow(/the list's filter: /)
+    const broken = view<typeof listings>('listings').list((r) => ({ columns: [r.address], filter: 'price >' }))
+    expect(() => checkViewQueries(models, [broken.toModel()])).toThrow(/the list's filter: /)
+  })
 })

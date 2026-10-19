@@ -1,4 +1,6 @@
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts'
+import type { ViewModel } from '@protobase/schema'
+import { filteredListAddress } from '../list-link'
 import { AppLink } from '../use-app-address'
 import { measureText, type ChartMeasure, type ChartSlice } from './chart-groups'
 
@@ -19,7 +21,7 @@ const SliceTooltip = ({ active, payload, measure }: { active?: boolean; payload?
  * A donut of how a total shares out over a field's values, with a legend that names each, gives its number and share,
  * and links to its records: the legend, not the colour, says which slice is which.
  */
-export const GroupDonut = ({ resource, slices, measure }: { resource: string; slices: ChartSlice[]; measure: ChartMeasure }) => {
+export const GroupDonut = ({ resource, view, slices, measure }: { resource: string; view: ViewModel | undefined; slices: ChartSlice[]; measure: ChartMeasure }) => {
   const drawn = slices.filter((slice) => slice.value !== null && slice.value > 0)
   const whole = drawn.reduce((sum, slice) => sum + slice.value!, 0)
   return (
@@ -39,7 +41,7 @@ export const GroupDonut = ({ resource, slices, measure }: { resource: string; sl
       <ul className="flex w-full min-w-0 flex-col gap-0.5">
         {slices.map((slice) => (
           <li key={slice.key}>
-            <AppLink to={{ kind: 'list', resource, filter: slice.filter }} className="group flex items-center gap-2 rounded-md px-1 py-0.5 hover:bg-muted">
+            <AppLink to={filteredListAddress(view, resource, slice.filter)} className="group flex items-center gap-2 rounded-md px-1 py-0.5 hover:bg-muted">
               <span className="size-2.5 shrink-0 rounded-full" style={{ background: slice.color }} aria-hidden />
               <span className="min-w-0 flex-1 truncate group-hover:text-primary-text">{slice.label}</span>
               <span className="font-medium tabular-nums">{measureText(slice.value, measure)}</span>

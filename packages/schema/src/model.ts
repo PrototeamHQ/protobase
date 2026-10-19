@@ -563,6 +563,8 @@ export type ListModel = {
   columns: string[]
   /** The order the list starts in. */
   sort?: SortSpec
+  /** An AIP-160 filter the list opens with when its address names none; the person can clear or change it, and a link's own filter replaces it. */
+  filter?: string
   /** Defaults for the UI's search box. `ResourceModel.search` is authoritative for what `search(...)` matches on the server. */
   search?: string[]
   /** Other ways to show the list besides its table, in the order the switch shows them after it. */
