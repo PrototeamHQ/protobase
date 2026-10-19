@@ -75,6 +75,7 @@ const rows = () => ({
     { id: 1, task_id: 1, reason: 'Plan review', plan, state: 'waiting', changes: null },
     { id: 2, task_id: 1, reason: 'Short plan', plan: 'Rename the **option**.', state: 'waiting', changes: null },
     { id: 3, task_id: 1, reason: 'Done before', plan: 'Old plan', state: 'approved', changes: null },
+    { id: 4, task_id: 1, reason: 'Landing', plan: null, state: 'waiting', changes: null },
   ],
   task_questions: [{ id: 1, task_id: 1, question: 'Which name?', answer: null, answered: true }],
 })
@@ -100,7 +101,8 @@ export const Cards: StoryObj = { name: 'Preconditions waiting on the captain', r
 export const Phone: StoryObj = { ...Cards, name: 'Preconditions waiting on the captain, on a phone', globals: { viewport: { value: 'mobile360' } } }
 
 /**
- * Each card links to its record and shows its plan as markdown, a long one cut short with Show more; Approve asks its
+ * Each card links to its record and shows its plan as markdown, a long one cut short with Show more, and one without a
+ * plan leaves the field off; Approve asks its
  * confirmation first, Request changes its inputs, and a section with no records is left off.
  */
 export const Checks: StoryObj = {
@@ -120,6 +122,13 @@ export const Checks: StoryObj = {
     expect(section.getAllByRole('button', { name: 'Show more' })).toHaveLength(1)
     await userEvent.click(more)
     expect(await section.findByRole('button', { name: 'Show less' })).toHaveAttribute('aria-expanded', 'true')
+
+    const landing = within((await section.findByRole('link', { name: 'Landing' })).closest('li')!)
+    expect(landing.queryByText('Plan')).toBeNull()
+    expect(landing.queryByText('—')).toBeNull()
+    await userEvent.click(landing.getByRole('button', { name: 'Approve' }))
+    await userEvent.click(within(await within(document.body).findByRole('dialog', { name: 'Approve?' })).getByRole('button', { name: 'Approve' }))
+    await waitFor(() => expect(stored.task_preconditions!.find((row) => row.id === 4)?.state).toBe('approved'))
 
     const card = within(link.closest('li')!)
     await userEvent.click(card.getByRole('button', { name: 'Approve' }))

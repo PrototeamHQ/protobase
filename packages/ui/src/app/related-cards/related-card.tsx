@@ -10,11 +10,15 @@ import { usePathValue } from '../pages/use-path-value'
 import { AppLink } from '../use-app-address'
 import { Clamped } from './clamped'
 
-// A field of the card's record, through relations too, under its label; a long value shows its first lines
+const isEmpty = (value: unknown) => value === null || value === undefined || value === ''
+
+// A field of the card's record, through relations too, under its label; a long value shows its first lines, and a field
+// without a value is left off so the card shows only what the record says
 const CardField = ({ scope, path }: { scope: LayoutRecord; path: string }) => {
   const { views } = useAdminMeta()
   const value = usePathValue(scope, path)
   if (value.state === 'missing') return null
+  if (value.state === 'ready' && isEmpty(value.value)) return null
   const label = fieldLabel(path, value.state === 'ready' ? views[value.model.name]?.fields[value.field.name]?.label : undefined)
   return (
     <div className="min-w-0">
