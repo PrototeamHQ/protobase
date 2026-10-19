@@ -1,6 +1,6 @@
 import { Check } from 'lucide-react'
 import { useQueryClient } from '@tanstack/react-query'
-import { Fragment, useMemo, type ReactElement } from 'react'
+import { Fragment, useEffect, useMemo, type ReactElement } from 'react'
 import { isApiError } from '@protobase/client'
 import { enumLabel, type LayoutItemModel, type ResourceModel, type ViewModel } from '@protobase/schema'
 import { usePauseFocusRefresh } from '../data/focus-refresh'
@@ -15,7 +15,7 @@ import { toneFor } from '../live/columns-from-model'
 import { Button, buttonClass } from '../primitives/button'
 import { Skeleton } from '../primitives/skeleton'
 import { cn } from '../lib/cn'
-import { Field, GroupSection, KeyFacts, MetadataCard, RecordHeader, Section, SpecTable } from '../record-view'
+import { Field, GroupSection, KeyFacts, MetadataCard, RecordHeader, RecordTabs, Section, SpecTable } from '../record-view'
 import { ErrorBanner } from './error-banner'
 import { CustomSection } from './custom-section'
 import { MapSection } from './map/map-section'
@@ -23,6 +23,7 @@ import { RecordActions } from './pages/record-actions'
 import type { LayoutRecord } from './pages/record-scope'
 import { FieldEditor } from './field-editor'
 import { groupOpen, toggledOpen } from './group-open'
+import { attentionTab, shownTab, splitTabs } from './record-tabs'
 import { shownWidget } from './field-types/shown-widget'
 import { WidgetPart } from './field-types/widget-part'
 import { useProjectUi } from './pages/project-ui'
@@ -128,10 +129,12 @@ const LoadedRecord = ({ model, recordKey, stored, preview }: LoadedRecordProps) 
   usePauseFocusRefresh(editor.dirty)
   const openGroups = address?.kind === 'record' ? address.open : undefined
   const atEdit = address?.kind === 'record' && address.edit === true
-  const recordAt = (open: readonly string[] = [], edit = false) => ({ kind: 'record' as const, resource: model.name, key: recordKey, ...(edit && { edit }), ...(open.length > 0 && { open }) })
-  // Edit, Cancel and the save keep the groups the person opened
-  const readAddress = recordAt(openGroups)
-  const editAddress = recordAt(openGroups, true)
+  const addressedTab = address?.kind === 'record' ? address.tab : undefined
+  const recordAt = (open: readonly string[] = [], edit = false, tab?: string) =>
+    ({ kind: 'record' as const, resource: model.name, key: recordKey, ...(edit && { edit }), ...(open.length > 0 && { open }), ...(tab && { tab }) })
+  // Edit, Cancel and the save keep the groups the person opened and the tab they are on
+  const readAddress = recordAt(openGroups, false, addressedTab)
+  const editAddress = recordAt(openGroups, true, addressedTab)
   // A form that Edit opened goes back to the record once saved, or when its changes are dropped
   const leavesForm = shown === 'form' && view?.recordMode !== undefined && view.recordMode !== 'edit'
   const canDelete = can(permissions, 'delete') && stored.permissions?.delete !== false
@@ -165,6 +168,15 @@ const LoadedRecord = ({ model, recordKey, stored, preview }: LoadedRecordProps) 
   // The items and fields meant only for the form, or only for reading the record, show only there
   const scope: LayoutRecord = { model, record: stored.record, key: recordKey, etag: stored.etag, permissions: stored.permissions }
   const layout = useShownLayout(layoutFor(model, view, shown === 'read'), scope, editing, preview)
+  const { before, tabs, after } = splitTabs(layout)
+  const tab = shownTab(tabs, addressedTab)
+  const needsAttention = (name: string) => editing && (editor.errors[name] !== undefined || editor.conflicts[name] !== undefined)
+  // A turned-down save moves to the first tab that holds a field to put right, where the form then focuses it
+  useEffect(() => {
+    if (editor.rejections === 0) return
+    const target = attentionTab(tabs, tab, needsAttention)
+    if (target) go(recordAt(openGroups, atEdit, target === tabs[0] ? undefined : target.title), { replace: true })
+  }, [editor.rejections])
   const sidebarFields = layout.flatMap((item) => (item.kind === 'sidebar' ? item.fields : []))
   // An enum status shows as the badge, unless it is missing or the sidebar shows it already
   const hasStatus = model.fields.status?.type === 'enum'
@@ -281,8 +293,8 @@ const LoadedRecord = ({ model, recordKey, stored, preview }: LoadedRecordProps) 
     if (item.kind === 'group') {
       const children = item.items.flatMap(mainItem)
       if (children.length === 0) return []
-      const open = groupOpen(item, openGroups, (name) => editing && (editor.errors[name] !== undefined || editor.conflicts[name] !== undefined))
-      const toggle = item.collapsed ? recordAt(toggledOpen(openGroups, item.title), atEdit) : undefined
+      const open = groupOpen(item, openGroups, needsAttention)
+      const toggle = item.collapsed ? recordAt(toggledOpen(openGroups, item.title), atEdit, addressedTab) : undefined
       return [<GroupSection key={`group:${item.title}`} title={item.title} open={open} toggle={toggle}>{children}</GroupSection>]
     }
     if (item.kind === 'related') {
@@ -351,7 +363,16 @@ const LoadedRecord = ({ model, recordKey, stored, preview }: LoadedRecordProps) 
           )}
           <div className="grid grid-cols-1 gap-8 md:grid-cols-[minmax(0,1fr)_300px] md:gap-12">
             <main className="divide-y divide-border">
-              {layout.flatMap(mainItem)}
+              {before.flatMap(mainItem)}
+              {tab && (
+                <RecordTabs tabs={tabs.map((each, index) => ({ title: each.title, to: recordAt(openGroups, atEdit, index === 0 ? undefined : each.title), current: each === tab }))} />
+              )}
+              {tab && (
+                <div key={`tab:${tab.title}`} className="divide-y divide-border">
+                  {tab.items.flatMap(mainItem)}
+                </div>
+              )}
+              {after.flatMap(mainItem)}
               {linesModel && !preview && <RecordLines lines={linesModel} draft={linesDraft} vatRate={Number(stored.record.vatRate ?? 21) / 100} saving={editor.saving} locked={shown !== 'form'} />}
             </main>
             <aside className="space-y-4 md:pt-8">

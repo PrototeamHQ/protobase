@@ -2,6 +2,7 @@ export { InvoiceRecordView, type InvoiceRecordViewProps } from './invoice-record
 export { RecordHeader, type RecordHeaderProps } from './record-header'
 export { Section } from './section'
 export { GroupSection } from './group-section'
+export { RecordTabs } from './record-tabs'
 export { Field, type FieldProps, type FieldConflict } from './field'
 export { SpecTable, type SpecRow } from './spec-table'
 export { KeyFacts, type KeyFact } from './key-facts'

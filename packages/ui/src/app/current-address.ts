@@ -12,7 +12,7 @@ export type ListAddress = { kind: 'list'; resource: string; list?: string; displ
 /** The address the app shows, as logical values. A record's key is in the text form the record API takes. */
 export type CurrentAddress =
   | ListAddress
-  | { kind: 'record'; resource: string; key: string; edit?: true; open?: readonly string[] }
+  | { kind: 'record'; resource: string; key: string; edit?: true; open?: readonly string[]; tab?: string }
   | { kind: 'create'; resource: string; values?: Readonly<Record<string, string>> }
   | { kind: 'page'; page: string }
 
@@ -43,7 +43,7 @@ export const listDefaults = (model: ResourceModel | undefined, view: ViewModel |
 
 /** The address as read from the location, with a list's defaults filled in and a record's key as text. */
 export const currentAddress = (read: AppAddress | undefined, defaults: (resource: string, list?: string) => ListDefaults): CurrentAddress | undefined => {
-  if (read?.kind === 'record') return { kind: 'record', resource: read.resource, key: encodeKey(read.key), ...(read.edit && { edit: true as const }), ...(read.open && { open: read.open }) }
+  if (read?.kind === 'record') return { kind: 'record', resource: read.resource, key: encodeKey(read.key), ...(read.edit && { edit: true as const }), ...(read.open && { open: read.open }), ...(read.tab && { tab: read.tab }) }
   if (read?.kind !== 'list') return read
   return { ...defaults(read.resource, read.list), ...read }
 }

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { LayoutItemModel } from '@protobase/schema'
-import { conditionalItems, shownLayout } from './shown-layout'
+import { conditionalItems, shownLayout, whenOf } from './shown-layout'
 
 const items: LayoutItemModel[] = [
   { kind: 'section', title: 'Always', fields: ['a'] },
@@ -34,10 +34,25 @@ describe('shownLayout', () => {
         ],
       },
     ]
-    expect(conditionalItems(grouped).map((item) => item.when)).toEqual(['status = "open"', 'status = "done"'])
+    expect(conditionalItems(grouped).map(whenOf)).toEqual(['status = "open"', 'status = "done"'])
     const inner = (shown: LayoutItemModel[]) => shown.flatMap((item) => (item.kind === 'group' ? item.items.map((entry) => (entry as { title: string }).title) : []))
     expect(inner(shownLayout(grouped, [true, true], false, false))).toEqual(['Done'])
     expect(shownLayout(grouped, [false, true], false, false)).toEqual([])
     expect(shownLayout(grouped, [true, false], false, false)).toEqual([])
+  })
+
+  it('drops a tab whose items all hide, and reads the conditions inside a group inside a tab', () => {
+    const tabbed: LayoutItemModel[] = [
+      { kind: 'tab', title: 'Form', items: [{ kind: 'section', title: 'Editing', fields: ['b'], when: 'editing' }] },
+      {
+        kind: 'tab',
+        title: 'More',
+        items: [{ kind: 'group', title: 'Deep', when: 'always', items: [{ kind: 'section', title: 'Done', fields: ['c'], when: 'status = "done"' }] }],
+      },
+    ]
+    expect(conditionalItems(tabbed).map((item) => (item as { title: string }).title)).toEqual(['Done'])
+    expect(shownLayout(tabbed, [false], false, false)).toEqual([])
+    expect(shownLayout(tabbed, [true], false, false).map((item) => (item as { title: string }).title)).toEqual(['More'])
+    expect(shownLayout(tabbed, [], true, false).map((item) => (item as { title: string }).title)).toEqual(['Form'])
   })
 })
