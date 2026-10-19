@@ -22,7 +22,8 @@
   },
   "files": [
     "bin/protobase.mjs",
-    "dist"
+    "dist",
+    "skills"
   ],
   "scripts": {
     "build": "tsdown",

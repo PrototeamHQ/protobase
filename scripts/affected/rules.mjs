@@ -71,11 +71,10 @@ export const edges = [
 
 // The documentation site and Storybook, which `bun run docs:build` builds and the play tests, layout snapshots and
 // `bun run docs:check` check: the stories and what they import, the stylesheets, whose own imports the module graph
-// does not show, the schema API reference, the site's pages and the example code they show, the protobase skill it
-// serves, and the scripts that check them.
+// does not show, the schema API reference, the site's pages and the example code they show, and the scripts that check them.
 export const site = {
   loads: ['packages/*/src/**/*.stories.tsx', '.storybook/*', 'packages/schema/src/index.ts'],
-  reads: ['packages/**/*.css', 'website/**', 'skills/**', 'docs-examples/**', 'examples/erp/config/**', 'scripts/dom-snapshots/**', 'scripts/lib/**', 'scripts/{play-tests,dom-snapshots,check-docs,static-server}.mjs'],
+  reads: ['packages/**/*.css', 'website/**', 'docs-examples/**', 'examples/erp/config/**', 'scripts/dom-snapshots/**', 'scripts/lib/**', 'scripts/{play-tests,dom-snapshots,check-docs,static-server}.mjs'],
 }
 
 // What the Postgres suite (`bun run test:postgres`, tests/postgres) checks that the snapshot recordings cannot show, so
