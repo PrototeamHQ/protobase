@@ -9,6 +9,8 @@ export const createFocusRefresh = () => {
   let paused = 0
   return {
     refetchOnWindowFocus: () => (paused > 0 ? false : ('always' as const)),
+    /** Whether a form on screen holds unsaved changes, so its record must not be read again under it. */
+    paused: () => paused > 0,
     /** Holds the refetches until the returned function is called. */
     pause: () => {
       paused += 1

@@ -7,6 +7,7 @@ import { AppShell, type SidebarMode } from '../app-shell'
 import { ApiProvider } from '../data/api-provider'
 import { AuthGate, AuthProvider, isAdmin, userToShell, useAuth } from '../auth'
 import { useSignInAddress } from '../auth/use-sign-in-address'
+import { useLiveUpdates } from '../data/use-live-updates'
 import { useOpenedRecord } from '../data/use-record'
 import { PublicFormPage } from '../forms/public-form-page'
 import { useFormAddress } from '../forms/use-form-address'
@@ -99,6 +100,7 @@ const Routes = ({ workspace, sidebarMode, assistant, runtime }: Pick<AppProps, '
   const search = useGlobalSearch()
   const theme = useTheme()
   const recent = useNavRecent(meta, basePath, { resource: shown?.resource, key: shown?.key })
+  useLiveUpdates(meta)
   const groups = navFromMeta(meta, basePath, recent)
   const firstPage = Object.keys(meta.pages)[0]
   const firstResource = Object.keys(meta.resources)[0]

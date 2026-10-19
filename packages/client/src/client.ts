@@ -4,6 +4,7 @@ import { labelEntries, listWire, photosWire, queryString, filterText, type Filte
 import { originOf, photosWithOrigin, withFileOrigin } from './file-urls'
 import { createTransport, type ClientOptions } from './transport'
 import { fetchWithProgress, type UploadProgress } from './upload-request'
+import { followLive, type LiveHandlers } from './live'
 import type { Aggregate, AggregateParams, BatchOp, BatchResult, CommentPage, Facet, FormChallenge, FormProof, Histogram, HistoryChange, HistoryPage, ListPage, MapResult, MentionableUser, Meta, MetaResult, PublicForm, RecordComment, RecordOf, ResourceRef, Series, SeriesParams, Stored } from './types'
 
 type Json = Record<string, any>
@@ -342,7 +343,13 @@ export const createClient = (options: ClientOptions = {}) => {
     await send({ method: 'POST', path: formPath(name), body: { values, proof }, system: true })
   }
 
-  return { list, search, get, create, update, remove, undelete, generate, reveal, history, comments, comment, mentionable, batchWrite, facets, aggregate, series, histogram, map, seek, meta, invoke, upload, form, formChallenge, submitForm }
+  /**
+   * Hears which records of the `.live()` resources the caller may read change, as they do, until the returned function
+   * is called (`GET /api/live`); it connects again by itself.
+   */
+  const live = (handlers: LiveHandlers) => followLive(send, handlers)
+
+  return { list, search, get, create, update, remove, undelete, generate, reveal, history, comments, comment, mentionable, batchWrite, facets, aggregate, series, histogram, map, seek, meta, invoke, upload, form, formChallenge, submitForm, live }
 }
 
 export type Client = ReturnType<typeof createClient>
