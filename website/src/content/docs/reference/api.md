@@ -211,6 +211,7 @@ Every error is `application/problem+json` (RFC 9457) with `type` (`urn:protobase
 | 404 | `not-found` |
 | 409 | `conflict` |
 | 412 / 428 | `precondition-failed` / `precondition-required` |
+| 503 | `read-only`: the database refuses writes, as during a deploy's write freeze; send the write again after `Retry-After` |
 | 504 | `statement-timeout` |
 
 ### Error reporting
