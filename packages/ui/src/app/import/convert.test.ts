@@ -1,6 +1,7 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it } from 'vitest'
 import type { FieldModel } from '@protobase/schema'
 import { parseNumberText } from '../../format/number-text'
+import { setFallbackLocale } from '../../locale/active-locale'
 import { convertCell, type ConvertOptions } from './convert'
 
 const field = (type: string, extra: Partial<FieldModel> = {}) => ({ name: 'x', column: 'x', type, nullable: true, readOnly: false, filterable: false, sortable: false, aliases: [], ...extra }) as FieldModel
@@ -78,5 +79,14 @@ describe('convertCell', () => {
     expect(convert('text', ' Acme ')).toEqual({ ok: true, value: ' Acme ' })
     expect(convert('text', 612345678)).toEqual({ ok: true, value: '612345678' })
     expect(convert('text', true).ok).toBe(false)
+  })
+})
+
+describe('convertCell in Dutch', () => {
+  afterEach(() => setFallbackLocale('en'))
+
+  it('words a problem in the language the screens are in', () => {
+    setFallbackLocale('nl')
+    expect(convert('decimal', 'n/a')).toEqual({ ok: false, problem: '“n/a” is geen getal' })
   })
 })

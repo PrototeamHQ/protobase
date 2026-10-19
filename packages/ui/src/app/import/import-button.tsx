@@ -5,6 +5,7 @@ import { Button } from '../../primitives/button'
 import { useAdminMeta, usePermissions } from '../meta-gate'
 import { can } from '../permissions'
 import { ImportDialog } from './import-dialog'
+import { text } from './messages'
 
 /**
  * The list page's Import button, for a user who may create records of a resource whose view does not turn it off
@@ -19,7 +20,7 @@ export const ImportButton = ({ model }: { model: ResourceModel }) => {
     <>
       <Button onClick={() => setOpen(true)} aria-haspopup="dialog">
         <Upload className="size-3.5" />
-        Import
+        {text('import')}
       </Button>
       {open && <ImportDialog model={model} resources={resources} views={views} canUpdate={can(permissions, 'update')} onClose={() => setOpen(false)} />}
     </>

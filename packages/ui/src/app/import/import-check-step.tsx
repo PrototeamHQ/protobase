@@ -9,30 +9,31 @@ import { ImportCounts } from './import-counts'
 import { fieldLabel, relationModel, type ColumnMapping } from './mapping'
 import { batchRows, type FailedRow, type ImportCheck } from './run-import'
 import { formatTag } from '../../locale/active-locale'
+import { text } from './messages'
 
 /** How many rows with problems the check lists; the file of them holds every one. */
 const listedProblems = 50
 
 /** Saves the rows with their problems as a CSV named after the imported file. */
 export const downloadRows = (fileName: string | undefined, headers: string[], rows: FailedRow[]) =>
-  saveFile(failedRowsCsv(headers, rows), `${(fileName ?? 'import').replace(/\.[^.]+$/, '')} - not imported.csv`, 'text/csv')
+  saveFile(failedRowsCsv(headers, rows), text('notImportedFile', (fileName ?? 'import').replace(/\.[^.]+$/, '')), 'text/csv')
 
 /** The rows with what keeps each from being imported, at most `listedProblems` of them. */
 export const ProblemList = ({ rows }: { rows: FailedRow[] }) => (
-  <ul aria-label="Rows not imported" className="flex flex-col gap-1 text-xs">
+  <ul aria-label={text('rowsNotImported')} className="flex flex-col gap-1 text-xs">
     {rows.slice(0, listedProblems).map((row) => (
       <li key={row.line}>
-        <span className="font-medium">Row {row.line}:</span> {row.problems.join('; ')}
+        <span className="font-medium">{text('rowProblems', row.line)}</span> {row.problems.join('; ')}
       </li>
     ))}
-    {rows.length > listedProblems && <li className="text-muted-foreground">And {(rows.length - listedProblems).toLocaleString(formatTag())} more rows, all in the file.</li>}
+    {rows.length > listedProblems && <li className="text-muted-foreground">{text('andMore', (rows.length - listedProblems).toLocaleString(formatTag()))}</li>}
   </ul>
 )
 
 export const ImportChecking = ({ rows }: { rows: number }) => (
   <p className="flex items-center gap-2 text-muted-foreground" role="status">
     <Spinner className="size-3.5" />
-    Checking rows… {rows.toLocaleString(formatTag())} read
+    {text('checkingRows', rows.toLocaleString(formatTag()))}
   </p>
 )
 
@@ -56,21 +57,21 @@ export const ImportCheckStep = ({ check, model, resources, views, columns, heade
   return (
     <div className="flex flex-col gap-4">
       <ImportCounts
-        label="Check"
+        label={text('check')}
         counts={[
-          ['Rows', check.rows],
-          ['To create', check.creates],
-          ['To update', check.updates],
-          ['With problems', check.problems.length],
+          [text('rows'), check.rows],
+          [text('toCreate'), check.creates],
+          [text('toUpdate'), check.updates],
+          [text('withProblems'), check.problems.length],
         ]}
       />
       {check.preview.length > 0 && (
         // A table as wide as its columns scrolls sideways inside the dialog, which scrolls down as a whole
         <div className="overflow-x-auto rounded-lg border">
-          <table aria-label="First rows" className="w-full text-left text-xs">
+          <table aria-label={text('firstRows')} className="w-full text-left text-xs">
             <thead className="bg-muted text-muted-foreground">
               <tr>
-                <th className="px-2 py-1.5 font-medium">Row</th>
+                <th className="px-2 py-1.5 font-medium">{text('row')}</th>
                 {shown.map((field) => (
                   <th key={field.name} className="whitespace-nowrap px-2 py-1.5 font-medium">
                     {fieldLabel(view, field.name)}
@@ -96,16 +97,16 @@ export const ImportCheckStep = ({ check, model, resources, views, columns, heade
       {check.problems.length > 0 && (
         <div className="flex flex-col gap-2">
           <div className="flex items-center justify-between gap-2">
-            <h3 className="font-medium">Rows with problems, which are skipped</h3>
+            <h3 className="font-medium">{text('problemRows')}</h3>
             <Button size="sm" onClick={() => downloadRows(fileName, headers, check.problems)}>
               <Download className="size-3.5" />
-              Download
+              {text('download')}
             </Button>
           </div>
           <ProblemList rows={check.problems} />
         </div>
       )}
-      <p className="text-xs text-muted-foreground">Rows are saved in batches of {batchRows}. Cancelling, or an error, keeps the batches already saved; a row the server refuses is listed and the others are saved.</p>
+      <p className="text-xs text-muted-foreground">{text('batches', batchRows)}</p>
     </div>
   )
 }

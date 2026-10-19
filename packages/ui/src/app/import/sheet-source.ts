@@ -1,5 +1,7 @@
 import type { ParseReply, ParseRequest } from './parse-messages'
 import type { SheetRow } from './sheet-cell'
+import { activeLocale } from '../../locale/active-locale'
+import { text } from './messages'
 
 /** A chosen file as an import reads it: its sheet names, and its rows (the header first) in chunks. */
 export type SheetSource = {
@@ -24,7 +26,7 @@ const startWorker = () => {
   }
   worker.onerror = (event) => {
     event.preventDefault()
-    const failed: ParseReply = { type: 'error', message: 'The file could not be read' }
+    const failed: ParseReply = { type: 'error', message: text('unreadable') }
     if (waiting) waiting(failed)
     else replies.push(failed)
   }
@@ -38,7 +40,7 @@ export const workerSheetSource = (file: File): SheetSource => ({
   sheets: async () => {
     const worker = startWorker()
     try {
-      worker.send({ type: 'sheets', file })
+      worker.send({ type: 'sheets', file, locale: activeLocale() })
       const reply = await worker.receive()
       if (reply.type === 'error') throw new Error(reply.message)
       if (reply.type !== 'sheets') throw new Error(`The parse worker answered ${reply.type} to a request for sheets`)
@@ -50,7 +52,7 @@ export const workerSheetSource = (file: File): SheetSource => ({
   rows: async function* (sheet) {
     const worker = startWorker()
     try {
-      worker.send({ type: 'read', file, sheet, chunk: chunkRows })
+      worker.send({ type: 'read', file, sheet, chunk: chunkRows, locale: activeLocale() })
       for (;;) {
         const reply = await worker.receive()
         if (reply.type === 'error') throw new Error(reply.message)

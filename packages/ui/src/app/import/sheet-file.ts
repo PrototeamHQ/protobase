@@ -1,6 +1,7 @@
 import { createCsvParser } from './csv-parser'
 import type { SheetRow } from './sheet-cell'
 import { openWorkbook } from './xlsx-reader'
+import { text } from './messages'
 
 /** The file kinds an import reads. */
 export type SheetFormat = 'xlsx' | 'csv'
@@ -22,7 +23,7 @@ export const sheetFormat = async (file: File): Promise<SheetFormat> => {
 /** The workbook's sheet names, in order; a CSV has none. */
 export const sheetNames = async (file: File) => ((await sheetFormat(file)) === 'xlsx' ? (await openWorkbook(file)).sheets : [])
 
-const notText = () => new Error('The file is not UTF-8 text. Save it as "CSV UTF-8" and choose it again.')
+const notText = () => new Error(text('fileNotUtf8'))
 
 async function* csvRows(file: Blob): AsyncGenerator<SheetRow> {
   const parser = createCsvParser()
@@ -59,6 +60,6 @@ export async function* sheetRows(file: File, sheet?: string): AsyncGenerator<She
   if ((await sheetFormat(file)) === 'csv') return yield* csvRows(file)
   const workbook = await openWorkbook(file)
   const name = sheet ?? workbook.sheets[0]
-  if (name === undefined) throw new Error('The workbook has no sheets')
+  if (name === undefined) throw new Error(text('noSheets'))
   yield* workbook.rows(name)
 }

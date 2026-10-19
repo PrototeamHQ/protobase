@@ -1,6 +1,7 @@
 import { enumLabel, type FieldModel, type FieldViewModel } from '@protobase/schema'
 import { parseNumberText, type DecimalSeparator } from '../../format/number-text'
 import { cellText, isEmptyCell, isSheetDate, type SheetCell } from './sheet-cell'
+import { text as message } from './messages'
 
 /**
  * How the file writes what is ambiguous in text: the decimal separator of numbers (`1,234.5` or `1.234,5`), and whether
@@ -22,17 +23,17 @@ const toNumberText = (cell: SheetCell, options: ConvertOptions) => {
 
 const integerValue = (field: FieldModel, cell: SheetCell, options: ConvertOptions): Converted => {
   const text = toNumberText(cell, options)
-  if (text === undefined) return problem(`${quoted(cell)} is not a number`)
+  if (text === undefined) return problem(message('notNumber', quoted(cell)))
   const [whole, fraction = ''] = text.split('.')
-  if (/[1-9]/.test(fraction) || /e/i.test(text)) return problem(`${quoted(cell)} is not a whole number`)
+  if (/[1-9]/.test(fraction) || /e/i.test(text)) return problem(message('notWholeNumber', quoted(cell)))
   if (field.type === 'bigint') return ok(String(BigInt(whole!)))
   const value = Number(whole)
-  return Number.isSafeInteger(value) ? ok(value) : problem(`${quoted(cell)} is too large`)
+  return Number.isSafeInteger(value) ? ok(value) : problem(message('tooLarge', quoted(cell)))
 }
 
 const decimalValue = (cell: SheetCell, options: ConvertOptions): Converted => {
   const text = toNumberText(cell, options)
-  return text === undefined ? problem(`${quoted(cell)} is not a number`) : ok(text)
+  return text === undefined ? problem(message('notNumber', quoted(cell))) : ok(text)
 }
 
 const trueWords = new Set(['true', 'yes', '1'])
@@ -43,7 +44,7 @@ const booleanValue = (cell: SheetCell): Converted => {
   const text = typeof cell === 'string' || typeof cell === 'number' ? String(cell).trim().toLowerCase() : ''
   if (trueWords.has(text)) return ok(true)
   if (falseWords.has(text)) return ok(false)
-  return problem(`${quoted(cell)} is not true or false (true, false, yes, no, 1 or 0)`)
+  return problem(message('notBoolean', quoted(cell)))
 }
 
 const pad = (value: number) => String(value).padStart(2, '0')
@@ -83,12 +84,12 @@ const wallTimeOf = (cell: SheetCell, options: ConvertOptions): WallTime | undefi
 }
 
 const notDate = (cell: SheetCell, options: ConvertOptions) =>
-  problem(`${quoted(cell)} is not a date (2026-04-03 or ${options.dateOrder === 'dmy' ? 'day/month/year' : 'month/day/year'})`)
+  problem(message('notDate', quoted(cell), options.dateOrder === 'dmy'))
 
 const dateValue = (cell: SheetCell, options: ConvertOptions): Converted => {
   const at = wallTimeOf(cell, options)
   if (!at) return notDate(cell, options)
-  if (at.time && at.time !== '00:00:00') return problem(`${quoted(cell)} has a time of day; the field holds a date`)
+  if (at.time && at.time !== '00:00:00') return problem(message('hasTime', quoted(cell)))
   return ok(at.date)
 }
 
@@ -109,11 +110,11 @@ const enumValue = (field: FieldModel, hints: FieldViewModel | undefined, cell: S
   const text = normalized(cellText(cell))
   const matches = values.filter((value) => normalized(value) === text || normalized(enumLabel(value, hints?.valueLabels)) === text)
   if (matches.length === 1) return ok(matches[0])
-  if (matches.length > 1) return problem(`${quoted(cell)} matches more than one value: ${matches.map((value) => enumLabel(value, hints?.valueLabels)).join(', ')}`)
-  return problem(`${quoted(cell)} is not one of ${values.map((value) => enumLabel(value, hints?.valueLabels)).join(', ')}`)
+  if (matches.length > 1) return problem(message('severalValues', quoted(cell), matches.map((value) => enumLabel(value, hints?.valueLabels)).join(', ')))
+  return problem(message('notOneOf', quoted(cell), values.map((value) => enumLabel(value, hints?.valueLabels)).join(', ')))
 }
 
-const textValue = (cell: SheetCell): Converted => (typeof cell === 'boolean' ? problem(`${quoted(cell)} is true or false, not text`) : ok(cellText(cell)))
+const textValue = (cell: SheetCell): Converted => (typeof cell === 'boolean' ? problem(message('notText', quoted(cell))) : ok(cellText(cell)))
 
 /**
  * The value a cell gives a field, as the API takes it, or the problem that keeps it from being one: never a guess, and an
@@ -121,7 +122,7 @@ const textValue = (cell: SheetCell): Converted => (typeof cell === 'boolean' ? p
  * converts as that field (`convertCell(targetField, ...)`).
  */
 export const convertCell = (field: FieldModel, hints: FieldViewModel | undefined, cell: SheetCell, options: ConvertOptions): Converted => {
-  if (isEmptyCell(cell)) return field.nullable ? ok(null) : problem('is empty, and it is required')
+  if (isEmptyCell(cell)) return field.nullable ? ok(null) : problem(message('emptyRequired'))
   switch (field.type) {
     case 'integer':
     case 'bigint':

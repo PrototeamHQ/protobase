@@ -11,6 +11,7 @@ import { unmappedRequired } from './mapping'
 import type { SheetSource } from './sheet-source'
 import { useImportFlow, type ImportFlow } from './use-import-flow'
 import { formatTag } from '../../locale/active-locale'
+import { text } from './messages'
 
 export type ImportDialogProps = {
   model: ResourceModel
@@ -23,7 +24,7 @@ export type ImportDialogProps = {
   sourceFor?: (file: File) => SheetSource
 }
 
-const errorTitle = (flow: ImportFlow) => (flow.step.kind === 'file' ? 'Could not read the file' : 'Could not check the rows')
+const errorTitle = (flow: ImportFlow) => (flow.step.kind === 'file' ? text('couldNotReadFile') : text('couldNotCheck'))
 
 // Whether the mapping is complete enough to check: a column to import, the fields new records need, and the column
 // that finds the records to update
@@ -50,7 +51,7 @@ export const ImportDialog = ({ model, resources, views, canUpdate, onClose, sour
     flow.stop()
     onClose()
   }
-  const cancelButton = <Button onClick={close}>Cancel</Button>
+  const cancelButton = <Button onClick={close}>{text('cancel')}</Button>
 
   const actions = () => {
     switch (step.kind) {
@@ -60,7 +61,7 @@ export const ImportDialog = ({ model, resources, views, canUpdate, onClose, sour
             {cancelButton}
             {flow.sheets.length > 1 && (
               <Button variant="primary" loading={step.reading} onClick={flow.openSheet}>
-                Next
+                {text('next')}
               </Button>
             )}
           </>
@@ -70,16 +71,16 @@ export const ImportDialog = ({ model, resources, views, canUpdate, onClose, sour
           <>
             {cancelButton}
             <Button variant="primary" disabled={!readyToCheck(flow)} onClick={flow.check}>
-              Check rows
+              {text('checkRows')}
             </Button>
           </>
         )
       case 'checking':
         return (
           <>
-            <Button onClick={flow.back}>Back</Button>
+            <Button onClick={flow.back}>{text('back')}</Button>
             <Button variant="primary" loading>
-              Checking
+              {text('checking')}
             </Button>
           </>
         )
@@ -87,9 +88,9 @@ export const ImportDialog = ({ model, resources, views, canUpdate, onClose, sour
         const rows = step.check.creates + step.check.updates
         return (
           <>
-            <Button onClick={flow.back}>Back</Button>
+            <Button onClick={flow.back}>{text('back')}</Button>
             <Button variant="primary" disabled={rows === 0} onClick={() => flow.start(rows)}>
-              Import {rows.toLocaleString(formatTag())} {rows === 1 ? 'row' : 'rows'}
+              {text('importRows', rows.toLocaleString(formatTag()), rows)}
             </Button>
           </>
         )
@@ -97,13 +98,13 @@ export const ImportDialog = ({ model, resources, views, canUpdate, onClose, sour
       case 'importing':
         return (
           <Button variant="danger" disabled={step.cancelling} onClick={flow.cancel}>
-            Cancel import
+            {text('cancelImport')}
           </Button>
         )
       case 'done':
         return (
           <Button variant="primary" onClick={onClose}>
-            Done
+            {text('done')}
           </Button>
         )
     }
@@ -127,7 +128,7 @@ export const ImportDialog = ({ model, resources, views, canUpdate, onClose, sour
   }
 
   return (
-    <ResponsiveDialog open wide title={`Import ${plural.toLowerCase()}`} description={flow.file && step.kind !== 'file' ? flow.file.name : undefined} onClose={close} actions={actions()}>
+    <ResponsiveDialog open wide title={text('importPlural', plural)} description={flow.file && step.kind !== 'file' ? flow.file.name : undefined} onClose={close} actions={actions()}>
       <div className="flex flex-col gap-4">
         {flow.error !== undefined && <ErrorBanner title={errorTitle(flow)} error={flow.error} />}
         {body()}

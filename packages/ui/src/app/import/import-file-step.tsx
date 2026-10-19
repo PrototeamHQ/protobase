@@ -2,6 +2,7 @@ import { FileSpreadsheet } from 'lucide-react'
 import { useId } from 'react'
 import { Spinner } from '../../primitives/spinner'
 import { ImportSelect } from './import-select'
+import { text } from './messages'
 
 type ImportFileStepProps = {
   file?: File
@@ -19,7 +20,7 @@ export const ImportFileStep = ({ file, sheets, sheet, reading, onChoose, onSheet
     <div className="flex flex-col gap-4">
       <div className="flex flex-col gap-1.5">
         <label htmlFor={id} className="font-medium">
-          File
+          {text('file')}
         </label>
         <input
           id={id}
@@ -32,18 +33,18 @@ export const ImportFileStep = ({ file, sheets, sheet, reading, onChoose, onSheet
           }}
           className="file:mr-3 file:h-8 file:rounded-md file:border file:border-border-strong file:bg-background file:px-3 file:font-medium file:text-foreground max-sm:file:min-h-11"
         />
-        <p className="text-xs text-muted-foreground">An Excel workbook (.xlsx) or a CSV file saved as UTF-8. Its first row names the columns.</p>
+        <p className="text-xs text-muted-foreground">{text('fileHint')}</p>
       </div>
       {reading && (
         <p className="flex items-center gap-2 text-muted-foreground" role="status">
           <Spinner className="size-3.5" />
-          Reading {file?.name ?? 'the file'}…
+          {text('reading', file?.name ?? text('theFile'))}
         </p>
       )}
       {!reading && sheets.length > 1 && (
         <div className="flex items-end gap-3">
           <FileSpreadsheet className="mb-2 size-4 shrink-0 text-muted-foreground" />
-          <ImportSelect className="flex-1" label="Sheet" value={sheet ?? ''} options={sheets.map((name) => ({ value: name, label: name }))} onChange={onSheet} />
+          <ImportSelect className="flex-1" label={text('sheet')} value={sheet ?? ''} options={sheets.map((name) => ({ value: name, label: name }))} onChange={onSheet} />
         </div>
       )}
     </div>

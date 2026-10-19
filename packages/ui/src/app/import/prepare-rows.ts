@@ -5,6 +5,7 @@ import { convertCell, type ConvertOptions } from './convert'
 import type { Lookups } from './lookups'
 import { fieldLabel, relationModel, type ColumnMapping, type ImportMode } from './mapping'
 import { cellText, isEmptyCell, type SheetCell, type SheetRow } from './sheet-cell'
+import { text } from './messages'
 
 /** What an import does: its mode, which column fills which field, the column records are found by, and how the file writes numbers and dates. */
 export type ImportPlan = {
@@ -75,8 +76,8 @@ const foundOne = (context: ImportContext, finding: Finding) => {
   const keys = context.lookups.keysOf(finding.model.name, finding.field, finding.value)
   const named = `${fieldLabel(context.views[finding.model.name], finding.field).toLowerCase()} “${String(finding.value)}”`
   if (keys.length === 1) return { key: keys[0] }
-  if (keys.length === 0) return { none: `no ${singularOf(context.views, finding.model.name).toLowerCase()} has ${named}` }
-  return { several: `${keys.length} ${pluralOf(context.views, finding.model.name).toLowerCase()} have ${named}` }
+  if (keys.length === 0) return { none: text('noneHas', singularOf(context.views, finding.model.name), named) }
+  return { several: text('severalHave', keys.length, pluralOf(context.views, finding.model.name), named) }
 }
 
 const isBlank = (row: SheetRow) => row.cells.every(isEmptyCell)
@@ -107,8 +108,8 @@ export const prepareRows = async (rows: SheetRow[], plan: ImportPlan, context: I
     }
     // An update needs its record; a create-or-update creates one when none matches
     const existing = match && foundOne(context, match)
-    if (existing?.several) problems.push(`Not one record: ${existing.several}`)
-    if (existing?.none && plan.mode === 'update') problems.push(`Nothing to update: ${existing.none}`)
+    if (existing?.several) problems.push(text('notOneRecord', existing.several))
+    if (existing?.none && plan.mode === 'update') problems.push(text('nothingToUpdate', existing.none))
     const prepared = { line: row.line, cells: row.cells, values, problems }
     if (problems.length > 0) return prepared
     if (existing && 'key' in existing) return { ...prepared, op: { op: 'update', resource: model.name, key: existing.key as string | number, etag: '*', data: written } satisfies BatchOp }

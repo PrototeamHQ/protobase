@@ -1,5 +1,6 @@
 import type { FailedRow } from './run-import'
 import { cellText } from './sheet-cell'
+import { text as message } from './messages'
 
 // A CSV field, quoted when it holds a delimiter, a quote or a line break
 const csvField = (text: string) => (/[",\r\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text)
@@ -12,5 +13,5 @@ export const failedRowsCsv = (headers: string[], rows: FailedRow[]) => {
   const lines = [...rows]
     .sort((a, b) => a.line - b.line)
     .map((row) => [...headers.map((_, column) => cellText(row.cells[column] ?? null)), String(row.line), row.problems.join('; ')])
-  return `﻿${[[...headers, 'Line', 'Problems'], ...lines].map((fields) => fields.map(csvField).join(',')).join('\r\n')}\r\n`
+  return `﻿${[[...headers, message('line'), message('problems')], ...lines].map((fields) => fields.map(csvField).join(',')).join('\r\n')}\r\n`
 }

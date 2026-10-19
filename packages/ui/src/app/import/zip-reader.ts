@@ -1,3 +1,6 @@
+
+import { text as message } from './messages'
+
 // A reader of ZIP archives (an .xlsx is one) that reads the parts of the file it needs, so a large workbook is never
 // held whole: the central directory at the end, then each entry's bytes, inflated as they stream with the platform's
 // DecompressionStream.
@@ -12,7 +15,7 @@ const endSearch = 22 + 0xffff
 
 const bytesOf = async (blob: Blob, start: number, end: number) => new DataView(await blob.slice(start, end).arrayBuffer())
 
-const notZip = () => new Error('The file is not an Excel workbook (.xlsx): it is no ZIP archive')
+const notZip = () => new Error(message('notZip'))
 
 // The offset of the end of central directory record in `view`, searching back from the end.
 const endRecordAt = (view: DataView) => {
@@ -29,7 +32,7 @@ export const zipEntries = async (blob: Blob) => {
   const count = tail.getUint16(end + 10, true)
   const size = tail.getUint32(end + 12, true)
   const start = tail.getUint32(end + 16, true)
-  if (count === 0xffff || size === 0xffffffff || start === 0xffffffff) throw new Error('The workbook is too large to read: it is a ZIP64 archive')
+  if (count === 0xffff || size === 0xffffffff || start === 0xffffffff) throw new Error(message('zip64'))
   const directory = await bytesOf(blob, start, start + size)
   const decoder = new TextDecoder()
   const entries = new Map<string, ZipEntry>()
@@ -54,7 +57,7 @@ export const zipEntryStream = async (blob: Blob, entry: ZipEntry): Promise<Reada
   const raw = blob.slice(dataStart, dataStart + entry.size).stream()
   if (entry.method === 0) return raw
   if (entry.method === 8) return raw.pipeThrough(new DecompressionStream('deflate-raw'))
-  throw new Error(`The workbook's part ${entry.name} is compressed in a way that cannot be read (method ${entry.method})`)
+  throw new Error(message('compression', entry.name, entry.method))
 }
 
 /** The entry's content as text, decoded as UTF-8 a chunk at a time. */

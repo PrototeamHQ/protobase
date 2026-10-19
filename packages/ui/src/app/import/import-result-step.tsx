@@ -5,6 +5,7 @@ import { downloadRows, ProblemList } from './import-check-step'
 import { ImportCounts } from './import-counts'
 import type { ImportProgress } from './run-import'
 import { formatTag } from '../../locale/active-locale'
+import { text } from './messages'
 
 const count = (value: number) => value.toLocaleString(formatTag())
 
@@ -14,12 +15,12 @@ export const ImportProgressStep = ({ progress, total, cancelling }: { progress: 
   return (
     <div className="flex flex-col gap-2">
       <div className="flex items-baseline justify-between gap-2 text-xs">
-        <span className="text-muted-foreground">{cancelling ? 'Stopping after this batch…' : 'Saving rows…'}</span>
+        <span className="text-muted-foreground">{cancelling ? text('stopping') : text('saving')}</span>
         <span className="tabular-nums">
           {count(done)} / {count(total)}
         </span>
       </div>
-      <div role="progressbar" aria-label="Rows saved" aria-valuenow={done} aria-valuemin={0} aria-valuemax={total} className="h-2 overflow-hidden rounded-full bg-muted">
+      <div role="progressbar" aria-label={text('rowsSaved')} aria-valuenow={done} aria-valuemin={0} aria-valuemax={total} className="h-2 overflow-hidden rounded-full bg-muted">
         <div className="h-full rounded-full bg-primary transition-[width]" style={{ width: `${total > 0 ? Math.min(100, (done / total) * 100) : 0}%` }} />
       </div>
     </div>
@@ -37,27 +38,27 @@ type ImportSummaryProps = {
 /** What the import did: created, updated, skipped and failed rows, and the rows it did not write with the reasons, to download. */
 export const ImportSummary = ({ result, stopped, headers, fileName }: ImportSummaryProps) => (
   <div className="flex flex-col gap-4">
-    {stopped !== undefined && <ErrorBanner title="The import stopped. The rows counted below were saved." error={stopped} />}
-    {result.cancelled && <p role="status">Cancelled. The rows counted below were saved.</p>}
+    {stopped !== undefined && <ErrorBanner title={text('stopped')} error={stopped} />}
+    {result.cancelled && <p role="status">{text('cancelled')}</p>}
     <ImportCounts
-      label="Import summary"
+      label={text('summary')}
       counts={[
-        ['Created', result.created],
-        ['Updated', result.updated],
-        ['Skipped', result.skipped],
-        ['Failed', result.failed],
+        [text('created'), result.created],
+        [text('updated'), result.updated],
+        [text('skipped'), result.skipped],
+        [text('failed'), result.failed],
       ]}
     />
     {result.notWritten.length > 0 && (
       <div className="flex flex-col gap-2">
         <div className="flex items-center justify-between gap-2">
-          <h3 className="font-medium">Rows not imported</h3>
+          <h3 className="font-medium">{text('rowsNotImported')}</h3>
           <Button size="sm" onClick={() => downloadRows(fileName, headers, result.notWritten)}>
             <Download className="size-3.5" />
-            Download
+            {text('download')}
           </Button>
         </div>
-        <p className="text-xs text-muted-foreground">Skipped rows had problems in the file; the server refused the failed ones. The file holds each with the reason, to fix and import again.</p>
+        <p className="text-xs text-muted-foreground">{text('notWrittenHint')}</p>
         <ProblemList rows={[...result.notWritten].sort((a, b) => a.line - b.line)} />
       </div>
     )}

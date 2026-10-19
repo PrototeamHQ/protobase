@@ -1,5 +1,6 @@
 /// <reference lib="webworker" />
 import type { ParseReply, ParseRequest } from './parse-messages'
+import { setFallbackLocale } from '../../locale/active-locale'
 import { sheetNames, sheetRows } from './sheet-file'
 
 // Reads a chosen file off the main thread: its sheet names, or its rows a chunk at a time, the next chunk once the
@@ -25,6 +26,7 @@ const read = async (request: Extract<ParseRequest, { type: 'read' }>) => {
 
 const handle = async (request: ParseRequest) => {
   if (request.type === 'next') return next?.()
+  setFallbackLocale(request.locale)
   if (request.type === 'sheets') return reply({ type: 'sheets', sheets: await sheetNames(request.file) })
   await read(request)
 }

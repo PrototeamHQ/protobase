@@ -1,4 +1,5 @@
 import type { SheetCell, SheetRow } from './sheet-cell'
+import { text as message } from './messages'
 
 // The parts of an .xlsx's XML that an import reads: the sheets' names and files, the shared strings, which cell styles
 // are dates, and the rows of a sheet, read with patterns over the text since a Web Worker has no DOMParser.
@@ -49,7 +50,7 @@ export const workbookSheets = (workbookXml: string, relsXml: string) => {
   const sheets: WorkbookSheet[] = [...workbookXml.matchAll(/<sheet\b([^>]*)>/g)].map((match) => {
     const { name, id } = attributes(match[1]!)
     const path = targets.get(id)
-    if (!name || !path) throw new Error('The workbook names a sheet it does not hold')
+    if (!name || !path) throw new Error(message('missingSheetPart'))
     return { name, path }
   })
   const pr = /<workbookPr\b([^>]*)>/.exec(workbookXml)

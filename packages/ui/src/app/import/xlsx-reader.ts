@@ -1,10 +1,11 @@
 import type { SheetRow } from './sheet-cell'
 import { createRowScanner, dateStyles, parseRow, sharedStrings, workbookSheets, type SheetContext } from './xlsx-xml'
 import { zipEntries, zipText, zipTextChunks, type ZipEntry } from './zip-reader'
+import { text } from './messages'
 
 const part = (entries: Map<string, ZipEntry>, name: string) => {
   const entry = entries.get(name)
-  if (!entry) throw new Error(`The file is not an Excel workbook (.xlsx): it has no ${name}`)
+  if (!entry) throw new Error(text('notWorkbook', name))
   return entry
 }
 
@@ -25,12 +26,12 @@ export const openWorkbook = async (blob: Blob) => {
 
   async function* rows(name: string): AsyncGenerator<SheetRow> {
     const sheet = sheets.find((candidate) => candidate.name === name)
-    if (!sheet) throw new Error(`The workbook has no sheet called ${name}`)
+    if (!sheet) throw new Error(text('noSheetCalled', name))
     const shared = context ?? (await sheetContext())
     const scan = createRowScanner()
     let line = 0
-    for await (const text of zipTextChunks(blob, part(entries, sheet.path))) {
-      for (const xml of scan(text)) {
+    for await (const chunk of zipTextChunks(blob, part(entries, sheet.path))) {
+      for (const xml of scan(chunk)) {
         const row = parseRow(xml, shared, line)
         line = row.line
         yield row
