@@ -2,7 +2,7 @@
 
 # CLI
 
-Every protobase command, from scaffold, doctor, dev, build, build-plugin, build-serve and serve to users, organizations and token.
+Every protobase command, from scaffold, doctor, dev, build, build-plugin, build-serve and serve to users, organizations, token and skill.
 
 The `protobase` command comes with `@protobase/cli`. Install it in a project next to the packages its config imports:
 
@@ -469,6 +469,14 @@ Prints a bearer token (JWT, signed with the project's Better Auth keys, same cla
 ```sh
 curl -H "Authorization: Bearer $(protobase token me@x)" http://localhost:5173/api/v1/orders?page_size=1
 ```
+
+## `skill`
+
+```sh
+protobase skill install
+```
+
+Copies the protobase agent skill of this CLI's version into the current project, to `.agents/skills/protobase/` (read by Codex, Cursor, OpenCode and Amp) and `.claude/skills/protobase/` (read by Claude Code): a short `SKILL.md` with the everyday workflow and the checks before calling a change done, and the guides and reference of this version as files it points to. It replaces an earlier copy, and refuses to touch a folder of that name that holds another skill. Commit the folders, and run the command again after upgrading the `@protobase` packages. The skill also ships in `node_modules/@protobase/cli/skills`, where the `skills` CLI's `experimental_sync` finds it.
 
 ## ERP example
 

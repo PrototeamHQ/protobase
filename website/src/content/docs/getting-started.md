@@ -3,7 +3,7 @@ title: Getting started
 description: Install the repository, run the ERP, real estate and property portal examples and learn the development commands.
 ---
 
-Protobase is a config-driven admin panel framework for existing Postgres databases. Data config lives in `data.ts`, UI config in `ui.ts`; a Hono server serves the API and a React app renders the admin.
+Protobase is a config-driven admin panel framework for existing Postgres databases. Data config lives in `data.ts`, UI config in `ui.ts`; a Hono server serves the API and a React app renders the admin. Coding agents get the guides and reference of the installed version with [`protobase skill install`](/reference/cli/#skill).
 
 An app's own React code, its components, field types and actions, is a [plugin](/reference/plugins/): built on its own against a plugin API that Protobase's releases keep, and loaded by the admin app when it starts. Protobase maintains the admin app, the API and the server, and a plugin keeps working as the app moves to newer releases, with their fixes and features, without changes of its own. Below 1.0 a new minor version may still change the config, and the bundle is built again for it; the plugins' code stays as it is (see [Who maintains what](/reference/plugins/#who-maintains-what)).
 
