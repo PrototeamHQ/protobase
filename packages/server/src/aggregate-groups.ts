@@ -81,7 +81,7 @@ export const aggregate = async (deps: Deps, entry: Entry, session: Session, inpu
   if (dated) {
     const granularity = params.granularity ?? 'day'
     const timeZone = params.time_zone ?? 'UTC'
-    const range = await seriesRange(deps, access, params.group_by, params, scope)
+    const range = await seriesRange(deps, access, params.group_by, params, timeZone, scope)
     if (params.split_by !== undefined) {
       const split = { by: params.split_by, ...(params.split_limit !== undefined && { limit: params.split_limit }), ...(params.split_label !== undefined && { label: params.split_label }) }
       const parts = range

@@ -9,6 +9,7 @@ import { badRequest } from './problem'
 import { parseParams } from './params'
 import { labelRequests, relatedLabels } from './related-labels'
 import type { Entry } from './registry'
+import { rangeEnd, rangeStart } from './range-ends'
 import { readScope, requestAccess, requireOperation, type RequestAccess } from './request-access'
 import { columnId, filterCondition, scopeConditions, tableId, whereClause } from './sql-parts'
 import { readTransaction } from './transactions'
@@ -78,16 +79,18 @@ const bound = (model: ResourceModel, fieldName: string, value: string) =>
 
 export type RangeParams = { range?: keyof typeof rangeDays | 'all'; from?: string; to?: string }
 
-/** The span a series of `field` covers: `from` and `to`, else the `range` up to now, `all` from the earliest row. */
-export const seriesRange = async (deps: Deps, access: RequestAccess, field: string, params: RangeParams, scope: ReturnType<typeof readScope>) => {
-  const to = params.to ?? new Date().toISOString()
+/**
+ * The span a series of `field` covers: `from` and `to`, else the `range` up to now, `all` from the earliest row. A
+ * relative range of a date field runs over the days of `timeZone`, the viewer's today included.
+ */
+export const seriesRange = async (deps: Deps, access: RequestAccess, field: string, params: RangeParams, timeZone: string, scope: ReturnType<typeof readScope>) => {
   const { model } = access
+  const type = model.fields[field]?.type
+  const now = Date.now()
+  const to = params.to ?? rangeEnd(type, now, timeZone)
   if (params.from) return { from: bound(model, field, params.from), to: bound(model, field, to) }
   const range = params.range ?? '30d'
-  if (range !== 'all') {
-    const from = new Date(Date.now() - rangeDays[range] * 86_400_000).toISOString()
-    return { from: bound(model, field, from), to: bound(model, field, to) }
-  }
+  if (range !== 'all') return { from: rangeStart(type, now - rangeDays[range] * 86_400_000, timeZone), to: bound(model, field, to) }
   const lowest = await earliest(deps, access, field, scope)
   return lowest ? { from: bound(model, field, lowest), to: bound(model, field, to) } : undefined
 }
@@ -98,8 +101,8 @@ export const timeSeries = async (deps: Deps, entry: Entry, session: Session, inp
   const { access, model, filter: checked, scope } = await scoped(deps, entry, session, params.filter)
   // A hidden field is refused exactly like an unknown one
   if (!model.fields[params.field]) throw badRequest('invalid-parameter', `Unknown field "${params.field}"`, { errors: [{ parameter: 'field', message: 'Unknown field' }] })
-  const range = await seriesRange(deps, access, params.field, params, scope)
   const timeZone = params.time_zone ?? 'UTC'
+  const range = await seriesRange(deps, access, params.field, params, timeZone, scope)
   const points = range
     ? await readTransaction(deps.db, deps.statementTimeoutMs, (trx) =>
         series(trx, model, params.field, { range, granularity: params.granularity as Granularity, timeZone, ...(checked && { filter: checked }), scope }))
