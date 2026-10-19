@@ -1,7 +1,6 @@
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts'
 import type { ViewModel } from '@protobase/schema'
-import { filteredListAddress } from '../list-link'
-import { AppLink } from '../use-app-address'
+import { LegendItem } from './legend-item'
 import { measureText, type ChartMeasure, type ChartSlice } from './chart-groups'
 
 const percent = (part: number, whole: number) => (whole > 0 ? `${Math.round((part / whole) * 100)}%` : '')
@@ -40,14 +39,10 @@ export const GroupDonut = ({ resource, view, slices, measure }: { resource: stri
       </div>
       <ul className="flex w-full min-w-0 flex-col gap-0.5">
         {slices.map((slice) => (
-          <li key={slice.key}>
-            <AppLink to={filteredListAddress(view, resource, slice.filter)} className="group flex items-center gap-2 rounded-md px-1 py-0.5 hover:bg-muted">
-              <span className="size-2.5 shrink-0 rounded-full" style={{ background: slice.color }} aria-hidden />
-              <span className="min-w-0 flex-1 truncate group-hover:text-primary-text">{slice.label}</span>
-              <span className="font-medium tabular-nums">{measureText(slice.value, measure)}</span>
-              <span className="w-9 text-right text-xs text-muted-foreground tabular-nums">{percent(slice.value ?? 0, whole)}</span>
-            </AppLink>
-          </li>
+          <LegendItem key={slice.key} resource={resource} view={view} filter={slice.filter} color={slice.color} label={slice.label}>
+            <span className="font-medium tabular-nums">{measureText(slice.value, measure)}</span>
+            <span className="w-9 text-right text-xs text-muted-foreground tabular-nums">{percent(slice.value ?? 0, whole)}</span>
+          </LegendItem>
         ))}
       </ul>
     </div>

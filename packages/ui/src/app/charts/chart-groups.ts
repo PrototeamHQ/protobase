@@ -16,7 +16,7 @@ const slot = (index: number) => (index >= 0 && index < seriesColors ? `var(--cha
 
 // A colour follows its value, never its rank: an enum's by its place among the values, a boolean's by true and false.
 // Other values have no fixed order, so they take the colours in the order the groups come.
-const colorOf = (field: FieldModel, hints: FieldViewModel | undefined, value: AggregateGroup['value'], index: number) => {
+export const colorOf = (field: FieldModel, hints: FieldViewModel | undefined, value: AggregateGroup['value'], index: number) => {
   const key = String(value)
   if (value === null) return 'var(--faint-foreground)'
   if (hints?.valueColors && Object.hasOwn(hints.valueColors, key)) return hints.valueColors[key]!
@@ -25,7 +25,7 @@ const colorOf = (field: FieldModel, hints: FieldViewModel | undefined, value: Ag
   return slot(index)
 }
 
-const labelOf = (field: FieldModel, hints: FieldViewModel | undefined, group: AggregateGroup) => {
+export const labelOf = (field: FieldModel, hints: FieldViewModel | undefined, group: Pick<AggregateGroup, 'value' | 'label'>) => {
   if (group.value === null) return 'Not set'
   if (field.type === 'enum') return enumLabel(String(group.value), hints?.valueLabels)
   if (field.type === 'boolean') return group.value ? 'Yes' : 'No'

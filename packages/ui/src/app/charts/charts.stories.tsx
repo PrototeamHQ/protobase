@@ -23,6 +23,7 @@ const charts = page(
         Chart({ title: 'Orders by status', resource: 'orders', groupBy: 'status', type: 'donut' }),
         Chart({ title: 'Revenue by customer', resource: 'orders', groupBy: 'company_id', sum: 'total', filter: 'status != "cancelled"' }),
         Chart({ title: 'Invoiced per month', resource: 'invoices', groupBy: 'issued_at', granularity: 'month', range: '1y', type: 'line', sum: 'total', span: 2 }),
+        Chart({ title: 'Invoiced per month by status', resource: 'invoices', groupBy: 'issued_at', splitBy: 'status', sum: 'total', granularity: 'month', range: '1y', span: 2 }),
       ],
     }),
   }),
@@ -62,6 +63,9 @@ export const ChartBlocksChecks: StoryObj = {
     const invoiced = await canvas.findByRole('region', { name: 'Invoiced per month' })
     await within(invoiced).findByText('Jul 26')
     expect(invoiced.querySelector('.recharts-line')).not.toBeNull()
+    const split = within(await canvas.findByRole('region', { name: 'Invoiced per month by status' }))
+    const paid = await split.findByRole('link', { name: 'Paid' })
+    expect(paid).toHaveAttribute('href', `/invoices?${new URLSearchParams({ filter: 'status = "paid"' })}`)
   },
 }
 

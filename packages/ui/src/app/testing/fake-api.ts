@@ -283,7 +283,7 @@ export const fakeApi = ({ resources, views = [], pages = [], rows: initial, perm
     },
     // Like the real `:aggregate`, except that a date field's buckets run from its earliest to its latest record and
     // ignore the range, so a story shows the same chart whatever day it runs.
-    aggregate: async (resource: string, params: { groupBy: string; filter?: string; sum?: string; average?: string; limit?: number; label?: string; granularity?: string }) => {
+    aggregate: async (resource: string, params: { groupBy: string; filter?: string; sum?: string; average?: string; limit?: number; label?: string; granularity?: string; splitBy?: string; splitLimit?: number; splitLabel?: string }) => {
       const measured = params.sum ?? params.average
       const kind = params.sum !== undefined ? 'sum' : 'average'
       const type = models[resource]?.fields[params.groupBy]?.type
@@ -310,7 +310,23 @@ export const fakeApi = ({ resources, views = [], pages = [], rows: initial, perm
       const totals = [...groups].map(([value, rows]) => ({ value, count: rows.length, ...total(rows) }))
       if (dated) {
         const sorted = totals.filter((group) => group.value !== null).sort((a, b) => String(a.value).localeCompare(String(b.value)))
-        return { groupBy: params.groupBy, granularity, timeZone: 'UTC', groups: sorted }
+        const { splitBy } = params
+        if (splitBy === undefined) return { groupBy: params.groupBy, granularity, timeZone: 'UTC', groups: sorted }
+        // The split values rank over all the selected rows, by the sum, else by count; each group keeps those it holds
+        const parts = (rows: Row[]) => {
+          const byValue = new Map<unknown, Row[]>()
+          for (const row of rows) byValue.set(row[splitBy] ?? null, [...(byValue.get(row[splitBy] ?? null) ?? []), row])
+          return byValue
+        }
+        const rank = (rows: Row[]) => (kind === 'sum' && measured !== undefined ? Number(total(rows).sum ?? -Infinity) : rows.length)
+        const kept = [...parts([...groups.values()].flat())].sort(([, a], [, b]) => rank(b) - rank(a)).slice(0, params.splitLimit ?? 8).map(([value]) => value)
+        const names: Record<string, string> = params.splitLabel ? (namesOf(resource, kept.map((value) => ({ [splitBy]: value })), { [splitBy]: params.splitLabel })[splitBy] ?? {}) : {}
+        const splits = kept.map((value) => (value !== null && names[String(value)] !== undefined ? { value, label: names[String(value)] } : { value }))
+        const withSplits = sorted.map((group) => {
+          const held = parts(groups.get(group.value) ?? [])
+          return { ...group, splits: kept.filter((value) => held.has(value)).map((value) => ({ value, count: held.get(value)!.length, ...total(held.get(value)!) })) }
+        })
+        return { groupBy: params.groupBy, granularity, timeZone: 'UTC', groups: withSplits, splitBy, splits }
       }
       const size = (group: Row) => Number(measured === undefined ? group.count : (group[kind] ?? -Infinity))
       const ranked = totals.sort((a, b) => size(b) - size(a)).slice(0, params.limit ?? 100)
