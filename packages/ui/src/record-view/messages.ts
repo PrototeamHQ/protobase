@@ -1,0 +1,36 @@
+import { defineMessages } from '../locale/messages'
+
+export const text = defineMessages({
+  en: {
+    savedDifferent: (name: string) => `${name} saved a different value`,
+    example: 'Example:',
+    savedThis: (ago: string) => `saved this ${ago}:`,
+    keepMine: 'Keep mine',
+    useTheirs: 'Use theirs',
+    actions: 'Actions',
+    saving: 'Saving...',
+    savedAgo: (ago: string) => `Saved ${ago}`,
+    notSavedRetrying: 'Not saved, retrying',
+    lastEditedBy: 'Last edited by',
+    lastUpdated: (ago: string) => `Last updated ${ago}`,
+    viewing: (count: number) => `${count} viewing`,
+    savingSubject: (subject: string) => `Saving ${subject}...`,
+    subjectSaved: (subject: string) => `${subject} saved`,
+  },
+  nl: {
+    savedDifferent: (name: string) => `${name} bewaarde een andere waarde`,
+    example: 'Voorbeeld:',
+    savedThis: (ago: string) => `bewaarde dit ${ago}:`,
+    keepMine: 'Mijn waarde houden',
+    useTheirs: 'Hun waarde gebruiken',
+    actions: 'Acties',
+    saving: 'Bewaren...',
+    savedAgo: (ago: string) => `Bewaard ${ago}`,
+    notSavedRetrying: 'Niet bewaard, opnieuw proberen',
+    lastEditedBy: 'Laatst bewerkt door',
+    lastUpdated: (ago: string) => `Laatst bijgewerkt ${ago}`,
+    viewing: (count: number) => `${count} kijken mee`,
+    savingSubject: (subject: string) => `${subject} bewaren...`,
+    subjectSaved: (subject: string) => `${subject} bewaard`,
+  },
+})

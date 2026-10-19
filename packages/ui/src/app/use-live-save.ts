@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { isApiError } from '@protobase/client'
 import { useToast } from '../toasts'
 import { saveFailureDescription } from './field-errors'
+import { text } from './record-messages'
 
 export type SaveMode = 'toast' | 'button'
 export type SavePhase = 'idle' | 'saving' | 'saved'
@@ -21,12 +22,12 @@ export const useLiveSave = (mode: SaveMode, subject: string) => {
   useEffect(() => () => clearTimeout(timer.current), [])
 
   const run = async (action: () => Promise<unknown>) => {
-    const id = mode === 'toast' ? toast.show({ state: 'loading', title: `Saving ${subject}...` }) : undefined
+    const id = mode === 'toast' ? toast.show({ state: 'loading', title: text('savingSubject', subject) }) : undefined
     setMessage(undefined)
     if (mode === 'button') setPhase('saving')
     try {
       await action()
-      if (id !== undefined) toast.update(id, { state: 'success', title: `${subject} saved` })
+      if (id !== undefined) toast.update(id, { state: 'success', title: text('subjectSaved', subject) })
       if (mode === 'button') {
         setPhase('saved')
         timer.current = setTimeout(() => setPhase('idle'), savedForMs)
@@ -34,7 +35,7 @@ export const useLiveSave = (mode: SaveMode, subject: string) => {
       return true
     } catch (error) {
       if (!isApiError(error)) throw error
-      const title = error.status === 412 ? 'Changed by someone else' : 'Could not save'
+      const title = error.status === 412 ? text('changedBySomeoneElse') : text('couldNotSave')
       const description = saveFailureDescription(error)
       if (id !== undefined) toast.update(id, { state: 'error', title, description })
       if (mode === 'button') {

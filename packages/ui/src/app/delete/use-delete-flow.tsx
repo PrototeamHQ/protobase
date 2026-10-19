@@ -9,6 +9,7 @@ import { useAdminMeta } from '../meta-gate'
 import { useAppAddress } from '../use-app-address'
 import { blockedDelete } from './blocked-delete'
 import { BulkDeleteDialog, ConfirmDeleteDialog, ConflictDialog, type BulkFailure } from './dialogs'
+import { text } from './messages'
 import { diffRecords, type FieldChange } from './record-diff'
 
 /** A record to delete: `key` is its URL key, `etag` the version the user saw (when known). */
@@ -75,20 +76,20 @@ export const useDeleteFlow = ({ model, view, onDeleted, onReview, restore }: Del
     onDeleted?.(target)
     toast.show({
       state: 'success',
-      title: `${target.title} deleted`,
+      title: text('deletedToast', target.title),
       ...(model.softDelete && restore && {
         action: {
-          label: 'Undo',
+          label: text('undo'),
           onClick: () => {
             void restore(target).then(
               () => {
                 refresh()
-                toast.show({ state: 'success', title: `${target.title} restored` })
+                toast.show({ state: 'success', title: text('restored', target.title) })
               },
               (error: unknown) => {
                 if (!isApiError(error)) throw error
                 refresh()
-                toast.show({ state: error.status === 409 ? 'success' : 'error', title: error.status === 409 ? `${target.title} is already back` : `Could not restore ${target.title}`, description: error.status === 409 ? undefined : error.message })
+                toast.show({ state: error.status === 409 ? 'success' : 'error', title: error.status === 409 ? text('alreadyBack', target.title) : text('couldNotRestore', target.title), description: error.status === 409 ? undefined : error.message })
               },
             )
           },
@@ -110,7 +111,7 @@ export const useDeleteFlow = ({ model, view, onDeleted, onReview, restore }: Del
       const why = blocked(error, target)
       toast.show({
         state: 'error',
-        title: `Could not delete ${target.title}`,
+        title: text('couldNotDelete', target.title),
         description: why?.text ?? error.message,
         ...(why?.link && { action: { label: why.link.label, href: href(why.link.to), onNavigate: open } }),
       })
@@ -122,7 +123,7 @@ export const useDeleteFlow = ({ model, view, onDeleted, onReview, restore }: Del
   const deleteQuietly = async (target: DeleteTarget): Promise<BulkFailure | undefined> => {
     try {
       const stale = await remove(target, target.etag)
-      return stale ? { title: target.title, message: 'Changed since the list loaded, so it was kept.' } : undefined
+      return stale ? { title: target.title, message: text('changedSinceLoaded') } : undefined
     } catch (error) {
       if (!isApiError(error)) throw error
       return { title: target.title, message: blocked(error, target)?.text ?? error.message }

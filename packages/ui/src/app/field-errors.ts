@@ -1,18 +1,17 @@
 import { isApiError, type ProblemError } from '@protobase/client'
 import type { FieldModel } from '@protobase/schema'
 import { formatInt } from '../format'
+import { text } from './field-messages'
 
 type Params = ProblemError['params']
 
 const numberIn = (params: Params, key: string) => (typeof params?.[key] === 'number' ? params[key] : undefined)
 
-const characters = (count: number) => `${formatInt(count)} character${count === 1 ? '' : 's'}`
-
 const textMessage = (label: string, params: Params) => {
   const min = numberIn(params, 'min')
   const max = numberIn(params, 'max')
-  if (min !== undefined) return `${label} needs at least ${characters(min)}`
-  if (max !== undefined) return `${label} can have at most ${characters(max)}`
+  if (min !== undefined) return text('atLeastCharacters', label, formatInt(min), min)
+  if (max !== undefined) return text('atMostCharacters', label, formatInt(max), max)
   // A pattern's message is the project's own
   return undefined
 }
@@ -20,33 +19,33 @@ const textMessage = (label: string, params: Params) => {
 const wholeNumber = (params: Params) => {
   const min = numberIn(params, 'min')
   const max = numberIn(params, 'max')
-  if (min !== undefined) return `Enter a whole number of at least ${formatInt(min)}`
-  if (max !== undefined) return `Enter a whole number of at most ${formatInt(max)}`
-  return 'Enter a whole number'
+  if (min !== undefined) return text('wholeNumberAtLeast', formatInt(min))
+  if (max !== undefined) return text('wholeNumberAtMost', formatInt(max))
+  return text('wholeNumber')
 }
 
 const decimalMessage = (params: Params) => {
   const precision = numberIn(params, 'precision')
   const scale = numberIn(params, 'scale')
-  if (precision === undefined || scale === undefined) return 'Enter a number'
+  if (precision === undefined || scale === undefined) return text('number')
   const below = formatInt(10 ** (precision - scale))
-  return scale === 0 ? `Enter a whole number below ${below}` : `Enter a number with at most ${scale} decimal${scale === 1 ? '' : 's'}, below ${below}`
+  return scale === 0 ? text('wholeNumberBelow', below) : text('decimalsBelow', scale, below)
 }
 
 /** What to say about a value of each field type the server turned down; without an entry, the server's message shows. */
 const invalidValue: Record<string, (label: string, params: Params) => string | undefined> = {
   text: textMessage,
   integer: (_, params) => wholeNumber(params),
-  bigint: () => 'Enter a whole number',
+  bigint: () => text('wholeNumber'),
   decimal: (_, params) => decimalMessage(params),
-  date: () => 'Enter a date',
-  timestamp: () => 'Enter a date and time',
-  country: () => 'Enter a two-letter country code, such as NL',
-  currency: () => 'Enter a three-letter currency code, such as EUR',
-  uuid: () => 'Enter a valid ID',
-  enum: () => 'Choose one of the options',
-  relation: () => 'Choose a record',
-  json: () => 'Enter valid JSON',
+  date: () => text('date'),
+  timestamp: () => text('timestamp'),
+  country: () => text('country'),
+  currency: () => text('currency'),
+  uuid: () => text('uuid'),
+  enum: () => text('enum'),
+  relation: () => text('relation'),
+  json: () => text('json'),
 }
 
 /**
@@ -55,7 +54,7 @@ const invalidValue: Record<string, (label: string, params: Params) => string | u
  * server words them.
  */
 export const fieldMessage = (field: FieldModel | undefined, label: string, error: ProblemError) => {
-  if (error.code === 'required') return `${label} is required`
+  if (error.code === 'required') return text('required', label)
   if (error.code !== 'invalid-value' || !field) return error.message
   return invalidValue[field.type]?.(label, error.params) ?? error.message
 }
@@ -77,6 +76,6 @@ export const saveFailureDescription = (error: { message: string; errors: Problem
   const fields = new Set(error.errors.flatMap((entry) => (entry.field && entry.field !== '_record' ? [entry.field] : [])))
   const record = error.errors.flatMap((entry) => (entry.field === '_record' ? [entry.message] : []))
   if (fields.size === 0 && record.length === 0) return error.message
-  const check = fields.size === 0 ? [] : [`Check ${fields.size === 1 ? 'the marked field' : `${fields.size} fields`}.`]
+  const check = fields.size === 0 ? [] : [fields.size === 1 ? text('checkField') : text('checkFields', fields.size)]
   return [...check, ...record].join(' ')
 }

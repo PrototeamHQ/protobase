@@ -1,10 +1,11 @@
 import { TriangleAlert } from 'lucide-react'
 import { isApiError } from '@protobase/client'
+import { text } from './messages'
 
 type Detail = { message: string; hint?: string }
 
 const describe = (error: unknown): Detail[] => {
-  if (!isApiError(error)) return [{ message: error instanceof Error ? error.message : 'Something went wrong' }]
+  if (!isApiError(error)) return [{ message: error instanceof Error ? error.message : text('somethingWentWrong') }]
   const detailed = error.errors.map((entry) => ({ message: entry.message, hint: entry.hint }))
   return detailed.length > 0 ? detailed : [{ message: error.message }]
 }

@@ -4,12 +4,13 @@ import { cn } from '../lib/cn'
 import { menuItemClass } from '../primitives/menu-item'
 import { usePopoverMenu } from '../primitives/popover-menu'
 import type { RailAction } from './action-rail'
+import { text } from './messages'
 
 /**
  * The actions of an action rail as a menu behind a "..." button, as a mobile screen's top bar holds them: each item the
  * rail's, a link where the rail draws one, disabled with its reason when it cannot run. `className` styles the button.
  */
-export const ActionMenu = ({ actions, label = 'Actions', className }: { actions: RailAction[]; label?: string; className?: string }) => {
+export const ActionMenu = ({ actions, label = text('actions'), className }: { actions: RailAction[]; label?: string; className?: string }) => {
   const { open, setOpen, place, button, menu } = usePopoverMenu()
   if (actions.length === 0) return null
   return (

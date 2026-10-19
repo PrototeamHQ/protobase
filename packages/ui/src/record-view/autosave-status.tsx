@@ -1,6 +1,7 @@
 import { AlertCircle, Check } from 'lucide-react'
 import { formatAgo } from '../format'
 import { Spinner } from '../primitives/spinner'
+import { text } from './messages'
 
 export type AutosaveStatusProps = { state: 'saving' | 'saved' | 'error'; agoSeconds: number }
 
@@ -9,19 +10,19 @@ export const AutosaveStatus = ({ state, agoSeconds }: AutosaveStatusProps) => (
     {state === 'saving' && (
       <>
         <Spinner className="size-3.5" />
-        Saving...
+        {text('saving')}
       </>
     )}
     {state === 'saved' && (
       <>
         <Check className="size-3.5 text-success" />
-        Saved {formatAgo(agoSeconds)}
+        {text('savedAgo', formatAgo(agoSeconds))}
       </>
     )}
     {state === 'error' && (
       <>
         <AlertCircle className="size-3.5 text-danger" />
-        <span className="text-danger-text">Not saved, retrying</span>
+        <span className="text-danger-text">{text('notSavedRetrying')}</span>
       </>
     )}
   </span>

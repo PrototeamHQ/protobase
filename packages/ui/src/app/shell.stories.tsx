@@ -56,7 +56,7 @@ export const RecentAndUserMenu: StoryObj = {
   },
 }
 
-/** An app whose `/meta` sets Dutch: the shell's own texts, numbers and dates are in Dutch, the app's names as it writes them. */
+/** An app whose `/meta` sets Dutch: the shell's and the list's own texts, numbers and dates are in Dutch, the app's names as it writes them. */
 export const InDutch: StoryObj = {
   tags: ['play'],
   beforeEach: () => localStorage.removeItem(navOpenStorageKey('orders')),
@@ -70,6 +70,7 @@ export const InDutch: StoryObj = {
     const list = await canvas.findByRole('list', { name: 'Recente orders' })
     await within(list).findByRole('link', { name: 'Alles bekijken' })
     expect(document.documentElement.lang).toBe('nl')
+    expect(await canvas.findByRole('link', { name: /toevoegen$/ })).toBeVisible()
     await userEvent.click(canvas.getByRole('button', { name: 'Profielmenu' }))
     const menu = await canvas.findByRole('menu')
     expect(within(menu).getByRole('menuitem', { name: 'Uitloggen' })).toBeVisible()

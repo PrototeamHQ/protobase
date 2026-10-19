@@ -1,17 +1,18 @@
 import { Button } from '../../primitives/button'
 import { Dialog } from '../../primitives/dialog'
 import type { FieldChange } from './record-diff'
+import { text } from './messages'
 
 export const ConfirmDeleteDialog = ({ title, noun, busy, onConfirm, onCancel }: { title: string; noun: string; busy?: boolean; onConfirm: () => void; onCancel: () => void }) => (
   <Dialog
-    title={`Delete ${title}?`}
-    description={`This ${noun.toLowerCase()} will be removed. This cannot be undone.`}
+    title={text('confirmTitle', title)}
+    description={text('confirmDescription', noun, title)}
     onClose={onCancel}
     actions={
       <>
-        <Button onClick={onCancel}>Cancel</Button>
+        <Button onClick={onCancel}>{text('cancel')}</Button>
         <Button variant="primary" className="bg-danger hover:bg-danger/90" loading={busy} onClick={onConfirm}>
-          Delete
+          {text('delete')}
         </Button>
       </>
     }
@@ -20,20 +21,20 @@ export const ConfirmDeleteDialog = ({ title, noun, busy, onConfirm, onCancel }: 
 
 export const ConflictDialog = ({ title, changes, busy, onReview, onDeleteAnyway, onCancel }: { title: string; changes: FieldChange[]; busy?: boolean; onReview: () => void; onDeleteAnyway: () => void; onCancel: () => void }) => (
   <Dialog
-    title={`${title} was changed since you opened it`}
-    description="Someone saved this record in the meantime. Review what changed before you delete it."
+    title={text('changedTitle', title)}
+    description={text('changedDescription')}
     onClose={onCancel}
     actions={
       <>
-        <Button onClick={onReview}>Review changes</Button>
+        <Button onClick={onReview}>{text('reviewChanges')}</Button>
         <Button variant="primary" className="bg-danger hover:bg-danger/90" loading={busy} onClick={onDeleteAnyway}>
-          Delete anyway
+          {text('deleteAnyway')}
         </Button>
       </>
     }
   >
     {changes.length === 0 ? (
-      <p className="text-muted-foreground">No visible fields differ; the record was saved again with the same values.</p>
+      <p className="text-muted-foreground">{text('noVisibleChanges')}</p>
     ) : (
       <ul className="divide-y rounded-md border">
         {changes.map((change) => (
@@ -60,28 +61,28 @@ export const BulkDeleteDialog = (
   if (props.stage === 'confirm') {
     return (
       <Dialog
-        title={`Delete ${props.count} ${props.count === 1 ? props.plural.replace(/s$/, '') : props.plural.toLowerCase()}?`}
-        description="This cannot be undone. Each record is deleted only if it has not changed since the list loaded; anything that changed is reported and kept."
+        title={text('bulkConfirmTitle', props.count, props.plural)}
+        description={text('bulkConfirmDescription')}
         onClose={props.onCancel}
         actions={
           <>
-            <Button onClick={props.onCancel}>Cancel</Button>
+            <Button onClick={props.onCancel}>{text('cancel')}</Button>
             <Button variant="primary" className="bg-danger hover:bg-danger/90" onClick={props.onConfirm}>
-              Delete {props.count}
+              {text('deleteCount', props.count)}
             </Button>
           </>
         }
       />
     )
   }
-  if (props.stage === 'running') return <Dialog title="Deleting" description={`${props.done} of ${props.total} done`} onClose={() => undefined} actions={<Button loading disabled>Working</Button>} />
+  if (props.stage === 'running') return <Dialog title={text('deleting')} description={text('progress', props.done, props.total)} onClose={() => undefined} actions={<Button loading disabled>{text('working')}</Button>} />
   const deleted = props.total - props.failures.length
   return (
     <Dialog
-      title={props.failures.length === 0 ? `Deleted ${deleted}` : `Deleted ${deleted} of ${props.total}`}
-      description={props.failures.length === 0 ? undefined : `${props.failures.length} could not be deleted and were kept.`}
+      title={props.failures.length === 0 ? text('deleted', deleted) : text('deletedOf', deleted, props.total)}
+      description={props.failures.length === 0 ? undefined : text('kept', props.failures.length)}
       onClose={props.onClose}
-      actions={<Button variant="primary" onClick={props.onClose}>Done</Button>}
+      actions={<Button variant="primary" onClick={props.onClose}>{text('done')}</Button>}
     >
       {props.failures.length > 0 && (
         <ul className="max-h-48 divide-y overflow-y-auto rounded-md border">

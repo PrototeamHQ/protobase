@@ -1,6 +1,7 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it } from 'vitest'
 import { ApiError, type ProblemError } from '@protobase/client'
 import type { FieldModel } from '@protobase/schema'
+import { setAppLocale } from '../locale/active-locale'
 import { fieldErrors, fieldMessage, saveFailureDescription } from './field-errors'
 
 const field = (type: FieldModel['type']): FieldModel => ({ name: 'x', column: 'x', type, nullable: false, readOnly: false, filterable: false, sortable: false, aliases: [] })
@@ -10,7 +11,15 @@ const invalid = (params?: Record<string, unknown>) => ({ field: 'x', code: 'inva
 const problem = (errors: ProblemError[], operation?: number) =>
   new ApiError({ type: 'urn:protobase:problem:invalid-record', title: 'Bad Request', status: 400, detail: 'The request body is invalid: x: Expected something', errors, ...(operation !== undefined && { operation }) })
 
+afterEach(() => setAppLocale(undefined))
+
 describe('fieldMessage', () => {
+  it('words it in Dutch in a Dutch app, with Dutch numbers', () => {
+    setAppLocale('nl')
+    expect(fieldMessage(field('decimal'), 'Prijs', invalid({ precision: 12, scale: 2 }))).toBe('Vul een getal in met hoogstens 2 decimalen, onder 10.000.000.000')
+    expect(fieldMessage(field('text'), 'Code', invalid({ min: 1 }))).toBe('Code moet minstens 1 teken hebben')
+  })
+
   it('names the label of a field left empty', () => {
     expect(fieldMessage(field('country'), 'Country', { field: 'country_code', code: 'required', message: '"country_code" is required' })).toBe('Country is required')
   })

@@ -5,6 +5,7 @@ import { Section } from '../record-view'
 import { usePermissions } from './meta-gate'
 import { can } from './permissions'
 import type { LinesDraft } from './use-lines-draft'
+import { text } from './record-messages'
 
 /** A resource that holds numbered lines of this one: it points at the parent and has `position` and `quantity`. */
 export const findLinesResource = (resources: Record<string, ResourceModel>, parent: ResourceModel) =>
@@ -28,7 +29,7 @@ const toLine = (record: Record<string, unknown>): InvoiceLine => ({
 export const RecordLines = ({ lines, draft, vatRate, saving, locked = false }: { lines: ResourceModel; draft: LinesDraft; vatRate: number; saving: boolean; locked?: boolean }) => {
   const canReorder = can(usePermissions(lines.name), 'update')
   return (
-    <Section title="Lines" help="What the document bills for. Drag the handle, or use the menu, to change the order; Save applies it.">
+    <Section title={text('lines')} help={text('linesHelp')}>
       <div className="-mx-4 overflow-x-auto px-4 [-webkit-overflow-scrolling:touch] md:mx-0 md:px-0">
         <div className="min-w-[560px]">
           <InlineChildTable

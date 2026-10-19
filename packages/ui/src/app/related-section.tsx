@@ -16,6 +16,7 @@ import { relatedHandOrder } from './hand-order/hand-order'
 import { HandSortedList } from './hand-order/hand-sorted-list'
 import { SortButton } from './hand-order/sort-button'
 import { useAdminMeta, usePermissions } from './meta-gate'
+import { text } from './record-messages'
 
 const where = createWhere()
 
@@ -54,7 +55,7 @@ const useMatch = (item: RelatedModel, value: string | number | boolean | null) =
 
 const Loading = () => <div className="flex flex-col gap-2">{Array.from({ length: 3 }, (_, index) => <Skeleton key={index} className="h-4 w-full" />)}</div>
 
-const Empty = ({ text }: { text: string | undefined }) => <p className="text-muted-foreground">{text ?? 'Nothing here yet.'}</p>
+const Empty = ({ empty }: { empty: string | undefined }) => <p className="text-muted-foreground">{empty ?? text('nothingYet')}</p>
 
 /**
  * A record page section listing the first records of another resource that point at this record, directly or through
@@ -100,9 +101,9 @@ export const RelatedSection = ({ item, value, owner }: { item: RelatedModel; val
       {match.isPending ? (
         <Loading />
       ) : match.error ? (
-        <ErrorBanner title="Could not load" error={match.error} />
+        <ErrorBanner title={text('couldNotLoadRelated')} error={match.error} />
       ) : match.filter === null || match.filter === undefined ? (
-        <Empty text={item.empty} />
+        <Empty empty={item.empty} />
       ) : (
         <EmbeddedList key={match.filter} model={model} view={view} filter={match.filter} sort={item.sort ?? ''} columns={columns} limit={item.limit ?? 10} display={display} empty={item.empty} opens={opens} />
       )}

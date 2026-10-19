@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import { Badge, type BadgeTone } from '../primitives/badge'
 import { AvatarStack } from '../primitives/avatar'
+import { text } from './messages'
 
 export type RecordHeaderProps = {
   /** A line above the title naming the collection; the record page leaves it to the breadcrumb. */
@@ -27,10 +28,10 @@ export const RecordHeader = ({ collection, title, status, lastEditedBy, presence
           <p className="mt-1.5 text-xs text-muted-foreground">
             {lastEditedBy.name ? (
               <>
-                Last edited by <span className="font-medium text-foreground">{lastEditedBy.name}</span> {lastEditedBy.ago}
+                {text('lastEditedBy')} <span className="font-medium text-foreground">{lastEditedBy.name}</span> {lastEditedBy.ago}
               </>
             ) : (
-              <>Last updated {lastEditedBy.ago}</>
+              <>{text('lastUpdated', lastEditedBy.ago)}</>
             )}
           </p>
         )}
@@ -39,7 +40,7 @@ export const RecordHeader = ({ collection, title, status, lastEditedBy, presence
         {presence.length > 0 && (
           <span className="flex items-center gap-2 text-xs text-muted-foreground">
             <AvatarStack people={presence} size="md" />
-            {presence.length} viewing
+            {text('viewing', presence.length)}
           </span>
         )}
         {actions}

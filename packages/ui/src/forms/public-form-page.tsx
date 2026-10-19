@@ -15,6 +15,8 @@ import { FieldEditor } from '../app/field-editor'
 import { fieldErrors, fieldMessage } from '../app/field-errors'
 import { Notice } from '../app/meta-gate'
 import { useFocusFirstInvalid } from '../app/use-focus-first-invalid'
+import { text as metaText } from '../app/meta-gate-messages'
+import { text } from './messages'
 import { proveHuman } from './prove-human'
 
 /**
@@ -27,13 +29,13 @@ export const PublicFormPage = ({ name }: { name: string }) => {
   if (form.isPending) {
     return (
       <div className="flex h-full min-h-48 items-center justify-center gap-2 text-muted-foreground">
-        <Spinner /> Loading
+        <Spinner /> {text('loading')}
       </div>
     )
   }
   if (form.error) {
-    if (isApiError(form.error) && form.error.status === 404) return <Notice title="Not found">There is no form at this address.</Notice>
-    return <Notice title="Cannot reach the API">{isApiError(form.error) ? form.error.message : 'The server did not answer. Is it running?'}</Notice>
+    if (isApiError(form.error) && form.error.status === 404) return <Notice title={text('notFound')}>{text('noForm')}</Notice>
+    return <Notice title={metaText('cannotReach')}>{isApiError(form.error) ? form.error.message : metaText('noAnswer')}</Notice>
   }
   return <LoadedForm form={form.data} />
 }
@@ -106,16 +108,16 @@ const LoadedForm = ({ form }: { form: PublicForm }) => {
                 hints={hints}
                 value={draft[name] ?? (field.type === 'boolean' ? false : '')}
                 stored={undefined}
-                placeholder={hasDatabaseDefault(field) ? 'Set by the database' : undefined}
+                placeholder={hasDatabaseDefault(field) ? text('setByDatabase') : undefined}
                 invalid={Boolean(problem)}
                 onChange={(next) => change(name, next)}
               />
             </Field>
           )
         })}
-        {failure !== undefined && <ErrorBanner title="Not sent" error={failure} />}
+        {failure !== undefined && <ErrorBanner title={text('notSent')} error={failure} />}
         <Button variant="primary" type="submit" loading={sending} className="min-h-10">
-          Send
+          {text('send')}
         </Button>
       </form>
     </AuthLayout>

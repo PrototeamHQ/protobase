@@ -2,6 +2,7 @@ import { Search } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { cn } from '../lib/cn'
 import { Input } from '../primitives/input'
+import { text as listText } from './list-messages'
 
 /** A search box that commits after a short pause or on Enter; `className` goes on its frame. */
 export const ListSearch = ({ value, onCommit, placeholder, className }: { value: string; onCommit: (text: string) => void; placeholder: string; className?: string }) => {
@@ -17,7 +18,7 @@ export const ListSearch = ({ value, onCommit, placeholder, className }: { value:
       wrapperClassName={cn('min-w-0 flex-1 sm:w-72 sm:flex-initial', className)}
       leading={<Search className="size-4" />}
       placeholder={placeholder}
-      aria-label="Search"
+      aria-label={listText('search')}
       value={text}
       onChange={(event) => setText(event.target.value)}
       onKeyDown={(event) => event.key === 'Enter' && onCommit(text)}

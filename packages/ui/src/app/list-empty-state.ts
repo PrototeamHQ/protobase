@@ -1,3 +1,5 @@
+import { text } from './list-messages'
+
 export type ListEmptyInput = {
   /** The list's plural name, for example "Companies". */
   plural: string
@@ -13,11 +15,10 @@ export type ListEmptyInput = {
 
 /** Why a list has no rows, and the buttons that help: clear the search, clear the filters, or create the first record. */
 export const listEmptyState = ({ plural, search, filtered, scoped, canCreate }: ListEmptyInput) => {
-  const noun = plural.toLowerCase()
-  if (search) return { message: `No ${noun} match “${search}”.`, clearSearch: true, clearFilters: filtered, create: false }
-  if (filtered) return { message: `No ${noun} match these filters.`, clearSearch: false, clearFilters: true, create: false }
-  if (scoped) return { message: `No ${noun} match.`, clearSearch: false, clearFilters: false, create: false }
-  return { message: `No ${noun} yet.`, clearSearch: false, clearFilters: false, create: canCreate }
+  if (search) return { message: text('noMatchSearch', plural, search), clearSearch: true, clearFilters: filtered, create: false }
+  if (filtered) return { message: text('noMatchFilters', plural), clearSearch: false, clearFilters: true, create: false }
+  if (scoped) return { message: text('noMatch', plural), clearSearch: false, clearFilters: false, create: false }
+  return { message: text('noneYet', plural), clearSearch: false, clearFilters: false, create: canCreate }
 }
 
 export type ListEmptyState = ReturnType<typeof listEmptyState>

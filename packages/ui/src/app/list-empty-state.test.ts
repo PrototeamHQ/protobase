@@ -1,7 +1,10 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it } from 'vitest'
+import { setAppLocale } from '../locale/active-locale'
 import { listEmptyState } from './list-empty-state'
 
 const none = { plural: 'Companies', search: '', filtered: false, scoped: false, canCreate: true }
+
+afterEach(() => setAppLocale(undefined))
 
 describe('listEmptyState', () => {
   it('names the search, offering to clear it', () => {
@@ -23,5 +26,10 @@ describe('listEmptyState', () => {
   it('says there are none yet, offering New to a user who may create', () => {
     expect(listEmptyState(none)).toEqual({ message: 'No companies yet.', clearSearch: false, clearFilters: false, create: true })
     expect(listEmptyState({ ...none, canCreate: false }).create).toBe(false)
+  })
+
+  it('says it in Dutch in a Dutch app', () => {
+    setAppLocale('nl')
+    expect(listEmptyState({ ...none, plural: 'Bedrijven' }).message).toBe('Nog geen bedrijven.')
   })
 })

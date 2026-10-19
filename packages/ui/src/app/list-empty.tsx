@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import { Button } from '../primitives/button'
 import type { ListEmptyState } from './list-empty-state'
+import { text } from './list-messages'
 
 type ListEmptyProps = { state: ListEmptyState; onClearSearch: () => void; onClearFilters: () => void; create: ReactNode }
 
@@ -10,8 +11,8 @@ export const ListEmpty = ({ state, onClearSearch, onClearFilters, create }: List
     <p>{state.message}</p>
     {(state.clearSearch || state.clearFilters || (state.create && create)) && (
       <div className="flex flex-wrap justify-center gap-2">
-        {state.clearSearch && <Button onClick={onClearSearch}>Clear search</Button>}
-        {state.clearFilters && <Button onClick={onClearFilters}>Clear filters</Button>}
+        {state.clearSearch && <Button onClick={onClearSearch}>{text('clearSearch')}</Button>}
+        {state.clearFilters && <Button onClick={onClearFilters}>{text('clearFilters')}</Button>}
         {state.create && create}
       </div>
     )}

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useToast } from '../toasts'
+import { text } from './messages'
 
 export type SaveFeedback = 'toast' | 'button'
 export type SavePhase = 'idle' | 'saving' | 'saved'
@@ -15,8 +16,8 @@ export const useSaveFeedback = (mode: SaveFeedback, subject: string) => {
 
   const save = () => {
     if (mode === 'toast') {
-      const id = toast.show({ state: 'loading', title: `Saving ${subject}...` })
-      timers.current.push(setTimeout(() => toast.update(id, { state: 'success', title: `${subject} saved` }), roundTripMs))
+      const id = toast.show({ state: 'loading', title: text('savingSubject', subject) })
+      timers.current.push(setTimeout(() => toast.update(id, { state: 'success', title: text('subjectSaved', subject) }), roundTripMs))
       return
     }
     setPhase('saving')

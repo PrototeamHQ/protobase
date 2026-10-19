@@ -1,6 +1,7 @@
 import type { LucideIcon } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { cn } from '../lib/cn'
+import { text } from './messages'
 
 export type RailAction = {
   name: string
@@ -25,7 +26,7 @@ const itemClass =
 /** Named actions with one-line descriptions; on phones a row of buttons, from `md` a list. */
 export const ActionRail = ({ actions }: { actions: RailAction[] }) => (
   <div className="overflow-hidden rounded-lg border border-border bg-background">
-    <h3 className="hidden border-b border-border px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground md:block">Actions</h3>
+    <h3 className="hidden border-b border-border px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground md:block">{text('actions')}</h3>
     <ul className="flex flex-wrap gap-2 p-2 md:block md:divide-y md:divide-border md:p-0">
       {actions.map(({ name, description, icon: Icon, onRun, blocked, running, tone, render }) => {
         const children = (

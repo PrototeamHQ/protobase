@@ -7,6 +7,7 @@ import type { ActionModel, AppAddress, ResourceModel } from '@protobase/schema'
 import { ActionMenu, ActionRail, type RailAction } from '../../record-view'
 import { actionIcon } from '../action-icon'
 import { AppLink, useAppAddress } from '../use-app-address'
+import { text } from '../record-messages'
 import { ActionPrompt, asksFirst } from './action-prompt'
 import { useActionRunner } from './use-run-action'
 
@@ -32,9 +33,9 @@ export const RecordActions = ({ model, stored, recordKey, edit, onDelete }: { mo
   }))
   const deletes = runner.actions.some((action) => action.run?.kind === 'delete')
   const actions: RailAction[] = [
-    ...(edit ? [{ name: 'Edit', icon: Pencil, render: ({ className, children, role }) => <AppLink to={edit} role={role} className={className}>{children}</AppLink> } satisfies RailAction] : []),
+    ...(edit ? [{ name: text('edit'), icon: Pencil, render: ({ className, children, role }) => <AppLink to={edit} role={role} className={className}>{children}</AppLink> } satisfies RailAction] : []),
     ...named,
-    ...(onDelete && !deletes ? [{ name: 'Delete', icon: Trash2, tone: 'danger' as const, onRun: onDelete }] : []),
+    ...(onDelete && !deletes ? [{ name: text('delete'), icon: Trash2, tone: 'danger' as const, onRun: onDelete }] : []),
   ]
   if (actions.length === 0) return null
   return (
@@ -42,7 +43,7 @@ export const RecordActions = ({ model, stored, recordKey, edit, onDelete }: { mo
       <div className={slot ? 'max-md:hidden' : undefined}>
         <ActionRail actions={actions} />
       </div>
-      {slot && createPortal(<ActionMenu actions={actions} label="Record actions" className={topBarButton} />, slot)}
+      {slot && createPortal(<ActionMenu actions={actions} label={text('recordActions')} className={topBarButton} />, slot)}
       {asking && (
         <ActionPrompt
           action={asking}

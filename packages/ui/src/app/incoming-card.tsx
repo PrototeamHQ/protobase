@@ -7,6 +7,7 @@ import { incomingAddress, incomingRelations } from './incoming-relations'
 import { useAdminMeta } from './meta-gate'
 import { AppLink } from './use-app-address'
 import { useIncomingCounts } from './use-incoming-counts'
+import { text } from './record-messages'
 
 type IncomingCardProps = { model: ResourceModel; recordKey: string; layout: LayoutItemModel[]; lines?: ResourceModel }
 
@@ -16,7 +17,7 @@ export const IncomingCard = ({ model, recordKey, layout, lines }: IncomingCardPr
   const counts = useIncomingCounts(incomingRelations(model, resources, views, layout, lines), resources, recordKey)
   if (counts.length === 0) return null
   return (
-    <SidebarCard title="Related records">
+    <SidebarCard title={text('relatedRecords')}>
       <ul className="-mx-2">
         {counts.map(({ relation, count }) => (
           <li key={`${relation.resource}.${relation.field}`}>

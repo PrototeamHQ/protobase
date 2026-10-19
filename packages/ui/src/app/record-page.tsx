@@ -61,6 +61,8 @@ import { markdownExcerpt } from '../markdown/markdown-excerpt'
 import { isMarkdown } from '../markdown/markdown-hint'
 import { ContactLink } from '../live/contact-link'
 import { contactFormat } from '../live/contact-links'
+import { text as appText } from './messages'
+import { text } from './record-messages'
 
 const hidden = (model: ResourceModel, name: string) => name === model.tenant || model.primaryKey.includes(name)
 
@@ -74,16 +76,16 @@ const layoutFor = (model: ResourceModel, view: ViewModel | undefined, read: bool
   const shown = Object.values(model.fields).filter((field) => !hidden(model, field.name))
   const editable = shown.filter((field) => !field.readOnly)
   const fields = (editable.length > 0 && !read ? editable : shown).map((field) => field.name)
-  return [{ kind: 'section', title: 'Details', fields }, ...(model.history ? [{ kind: 'history' as const, title: 'History' }] : []), ...(model.comments ? [{ kind: 'comments' as const, title: 'Comments' }] : [])]
+  return [{ kind: 'section', title: text('details'), fields }, ...(model.history ? [{ kind: 'history' as const, title: text('history') }] : []), ...(model.comments ? [{ kind: 'comments' as const, title: text('comments') }] : [])]
 }
 
 export const RecordPage = ({ resource, recordKey }: { resource: string; recordKey: string }) => {
   const { resources } = useAdminMeta()
   const model = resources[resource]
   const record = useOpenedRecord(resource, recordKey)
-  if (!model) return <Notice title="Not found">There is no resource called {resource}.</Notice>
-  if (record.isPending) return <Notice title="Loading">Fetching the record.</Notice>
-  if (record.error) return <div className="p-8">{isApiError(record.error) && record.error.status === 404 ? <Notice title="Not found">This record does not exist, or you cannot see it.</Notice> : <ErrorBanner title="Could not load the record" error={record.error} />}</div>
+  if (!model) return <Notice title={appText('notFound')}>{appText('noResource', resource)}</Notice>
+  if (record.isPending) return <Notice title={text('loading')}>{text('fetching')}</Notice>
+  if (record.error) return <div className="p-8">{isApiError(record.error) && record.error.status === 404 ? <Notice title={appText('notFound')}>{text('noRecord')}</Notice> : <ErrorBanner title={text('couldNotLoad')} error={record.error} />}</div>
   // A record opened from a list shows that row's fields until it has loaded; the loaded record draws the page anew, so
   // its form starts from the whole record
   return <LoadedRecord key={record.isPlaceholderData ? 'preview' : 'loaded'} model={model} recordKey={recordKey} stored={record.data} preview={record.isPlaceholderData} />
@@ -208,7 +210,7 @@ const LoadedRecord = ({ model, recordKey, stored, preview }: LoadedRecordProps) 
         conflict={
           conflict === undefined
             ? undefined
-            : { user: { name: 'Someone else', initials: '?', hue: 40 }, ago: 'just now', theirValue: conflict || '—', onKeepMine: () => editor.keepMine(name), onUseTheirs: () => editor.useTheirs(name) }
+            : { user: { name: text('someoneElse'), initials: '?', hue: 40 }, ago: text('justNow'), theirValue: conflict || '—', onKeepMine: () => editor.keepMine(name), onUseTheirs: () => editor.useTheirs(name) }
         }
       >
         {known(name) ? (
@@ -250,7 +252,7 @@ const LoadedRecord = ({ model, recordKey, stored, preview }: LoadedRecordProps) 
   const firstSidebar = layout.findIndex((item) => item.kind === 'sidebar')
   const summary = (
     <MetadataCard
-      title="Summary"
+      title={text('summary')}
       rows={sidebarFields.flatMap((name) => {
         const field = model.fields[name]
         if (!field || !visible(name)) return []
@@ -277,15 +279,15 @@ const LoadedRecord = ({ model, recordKey, stored, preview }: LoadedRecordProps) 
     <>
       <Button variant="primary" className="max-md:min-h-11 max-md:flex-1 md:w-full" loading={editor.saving} disabled={!editor.dirty && editor.phase !== 'saved'} onClick={() => void save()}>
         {editor.phase === 'saved' && <Check className="size-4" />}
-        {editor.phase === 'saved' ? 'Saved' : 'Save'}
+        {editor.phase === 'saved' ? text('saved') : text('save')}
       </Button>
       {leavesForm && (
         // Cancel drops the changes when it leaves the form here, not when it opens the record in another tab
         <AppLink to={readAddress} className={cn(buttonClass(), 'max-md:min-h-11 md:w-full')} onClick={(event) => inApp(event) && editor.discard()}>
-          Cancel
+          {text('cancel')}
         </AppLink>
       )}
-      {editor.dirty && <span className="text-xs text-muted-foreground max-md:order-first">Unsaved changes</span>}
+      {editor.dirty && <span className="text-xs text-muted-foreground max-md:order-first">{text('unsavedChanges')}</span>}
     </>
   )
 
@@ -338,27 +340,27 @@ const LoadedRecord = ({ model, recordKey, stored, preview }: LoadedRecordProps) 
             title={title}
             status={status ? { label: enumLabel(status, hint('status')?.valueLabels), tone: toneFor(status) } : undefined}
           />
-          {editor.message && <div className="mt-4"><ErrorBanner title="Not saved" error={new Error(editor.message)} /></div>}
+          {editor.message && <div className="mt-4"><ErrorBanner title={text('notSaved')} error={new Error(editor.message)} /></div>}
           {editor.linesConflict && (
             <div className="mt-4">
-              <ErrorBanner title="The lines were changed by someone else" error={new Error('The lines were reloaded. Your new order is kept: Save again to apply it.')} />
+              <ErrorBanner title={text('linesChanged')} error={new Error(text('linesReloaded'))} />
             </div>
           )}
           {shown !== 'form' && offersEdit && editor.dirty && (
             <div className="mt-4 flex items-center justify-between gap-3 rounded-lg border bg-surface px-3 py-2" role="status">
-              <span>You have unsaved changes to this record.</span>
+              <span>{text('unsavedKept')}</span>
               <span className="flex gap-2">
-                <AppLink to={editAddress} className={buttonClass({ size: 'sm' })}>Continue editing</AppLink>
-                <Button size="sm" onClick={editor.discard}>Discard</Button>
+                <AppLink to={editAddress} className={buttonClass({ size: 'sm' })}>{text('continueEditing')}</AppLink>
+                <Button size="sm" onClick={editor.discard}>{text('discard')}</Button>
               </span>
             </div>
           )}
           {shown === 'form' && editor.restored && (
             <div className="mt-4 flex items-center justify-between gap-3 rounded-lg border bg-surface px-3 py-2" role="status">
-              <span>Your unsaved changes were restored.</span>
+              <span>{text('unsavedRestored')}</span>
               <span className="flex gap-2">
-                <Button size="sm" onClick={editor.dismissRestored}>Keep</Button>
-                <Button size="sm" onClick={editor.discard}>Discard</Button>
+                <Button size="sm" onClick={editor.dismissRestored}>{text('keep')}</Button>
+                <Button size="sm" onClick={editor.discard}>{text('discard')}</Button>
               </span>
             </div>
           )}
@@ -386,7 +388,7 @@ const LoadedRecord = ({ model, recordKey, stored, preview }: LoadedRecordProps) 
                 return index === firstSidebar ? <Fragment key="summary">{summary}</Fragment> : null
               })}
               <MetadataCard
-                title="Details"
+                title={text('details')}
                 rows={[auditField(model, 'created'), updatedAt].flatMap((name) => {
                   const field = name ? model.fields[name] : undefined
                   if (!name || !field || !visible(name)) return []
