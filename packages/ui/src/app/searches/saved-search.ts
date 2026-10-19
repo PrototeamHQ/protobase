@@ -3,6 +3,7 @@ import { activeChips, type FilterChip, type FilterConfig } from '../../filter-pa
 import { textToState } from '../../live/filter-string'
 import { humanize } from '../../live/naming'
 import { rangeFormat, widgetFields } from '../../live/view-fields'
+import { text as message } from './messages'
 
 const where = createWhere()
 const span = { start: 0, end: 0 }
@@ -44,7 +45,7 @@ const namedConfig = (model: ResourceModel, view: ViewModel | undefined, names: V
 export const filterChips = (model: ResourceModel, view: ViewModel | undefined, text: string, names: ValueNames = {}): FilterChip[] => {
   const config = namedConfig(model, view, names)
   const parsed = textToState(config, text)
-  if (!parsed.ok) return [{ key: 'unreadable', label: 'A filter that cannot be read' }]
+  if (!parsed.ok) return [{ key: 'unreadable', label: message('unreadableFilter') }]
   const extras = parsed.extras.map((clause, index) => ({ key: `extra:${index}`, label: clause.kind === 'search' ? `"${clause.text}"` : printFilter(clause) }))
   return [...activeChips(config, parsed.state), ...extras]
 }

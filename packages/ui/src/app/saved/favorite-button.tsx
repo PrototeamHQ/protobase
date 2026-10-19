@@ -4,6 +4,7 @@ import type { CardFavoriteModel, KeyValue } from '@protobase/schema'
 import { SignInPrompt } from '../../auth/sign-in-prompt'
 import { cn } from '../../lib/cn'
 import { useFavorite } from './use-favorite'
+import { text } from './messages'
 
 type FavoriteButtonProps = {
   favorite: CardFavoriteModel
@@ -23,7 +24,7 @@ export const FavoriteButton = ({ favorite, recordKey, target, className }: Favor
   const state = useFavorite(favorite, recordKey, target)
   const [prompting, setPrompting] = useState(false)
   if (!state.mode) return null
-  const label = favorite.label ?? 'Favorite'
+  const label = favorite.label ?? text('favorite')
   const base = cn(
     'absolute right-2 top-2 flex size-8 items-center justify-center rounded-full bg-background/85 text-foreground shadow-sm transition-colors hover:bg-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30',
     className,

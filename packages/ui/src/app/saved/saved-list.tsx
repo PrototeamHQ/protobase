@@ -6,6 +6,7 @@ import { Skeleton } from '../../primitives/skeleton'
 import { ErrorBanner } from '../error-banner'
 import { savedScope } from './saved-records'
 import { useSavedRecords } from './use-saved-records'
+import { text } from './messages'
 
 type SavedListProps = {
   /** The resource of the saved records, such as favorites. */
@@ -31,9 +32,9 @@ export const SavedList = ({ model, view, target, children }: SavedListProps) => 
       {body}
     </div>
   )
-  if (saved.error) return frame(<ErrorBanner title={`Could not load your ${plural.toLowerCase()}`} error={saved.error} />)
+  if (saved.error) return frame(<ErrorBanner title={text('couldNotLoadYour', plural.toLowerCase())} error={saved.error} />)
   if (!saved.data) return frame(<div className="grid grid-cols-[repeat(auto-fill,minmax(15rem,1fr))] gap-3">{Array.from({ length: 3 }, (_, index) => <Skeleton key={index} className="h-24" />)}</div>)
   const scope = savedScope(target, saved.data)
-  if (!scope) return frame(<p className="py-8 text-center text-muted-foreground">No {plural.toLowerCase()} yet.</p>)
+  if (!scope) return frame(<p className="py-8 text-center text-muted-foreground">{text('noneYet', plural.toLowerCase())}</p>)
   return children(scope)
 }

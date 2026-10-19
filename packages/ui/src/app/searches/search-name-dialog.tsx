@@ -4,6 +4,7 @@ import { Button } from '../../primitives/button'
 import { Input } from '../../primitives/input'
 import { ResponsiveDialog } from '../../primitives/responsive-dialog'
 import { FilterChipList } from './filter-chip-list'
+import { text } from './messages'
 
 type SearchNameDialogProps = {
   /** What the dialog does, such as "Save search" or "Rename Gardens". */
@@ -33,9 +34,9 @@ export const SearchNameDialog = ({ title, chips, label, required, initial = '', 
       onClose={onClose}
       actions={
         <>
-          <Button onClick={onClose}>Cancel</Button>
+          <Button onClick={onClose}>{text('cancel')}</Button>
           <Button type="submit" form={formId} variant="primary" loading={busy}>
-            Save
+            {text('save')}
           </Button>
         </>
       }
@@ -56,7 +57,7 @@ export const SearchNameDialog = ({ title, chips, label, required, initial = '', 
             </label>
             {!required && (
               <span id={`${id}-hint`} className="text-xs text-muted-foreground">
-                Optional
+                {text('optional')}
               </span>
             )}
           </div>

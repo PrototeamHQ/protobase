@@ -7,6 +7,7 @@ import { Button } from '../../primitives/button'
 import { SearchNameDialog } from './search-name-dialog'
 import { UpdateSearchDialog } from './update-search-dialog'
 import { useSaveSearch } from './use-save-search'
+import { text } from './messages'
 
 type SaveSearchButtonProps = {
   /** The list's resource and view. */
@@ -32,7 +33,7 @@ export const SaveSearchButton = ({ model, view, search, filter, chips, className
   const [confirming, setConfirming] = useState(false)
   const [naming, setNaming] = useState<string>()
   if (!state.mode) return null
-  const label = search.label ?? 'Save search'
+  const label = search.label ?? text('saveSearch')
   if (state.mode === 'sign-in') {
     return (
       <>
@@ -65,12 +66,12 @@ export const SaveSearchButton = ({ model, view, search, filter, chips, className
 
   const opened = state.opened
   if (opened) {
-    const saveNewLabel = `Save as new ${state.noun}`
+    const saveNewLabel = text('saveAsNew', state.noun)
     return (
       <>
         <Button className={className} aria-haspopup="dialog" aria-disabled={!state.ready} onClick={() => state.ready && setConfirming(true)}>
           <RefreshCw className="size-3.5" aria-hidden />
-          <span className="max-w-60 truncate">{opened.name ? `Update ${opened.name}` : `Update ${state.noun}`}</span>
+          <span className="max-w-60 truncate">{text('updateName', opened.name ?? state.noun)}</span>
         </Button>
         <Button className={className} aria-haspopup={state.naming ? 'dialog' : undefined} aria-disabled={!state.ready} onClick={() => state.ready && saveNew(saveNewLabel)}>
           <BookmarkPlus className="size-3.5" aria-hidden />
@@ -80,7 +81,7 @@ export const SaveSearchButton = ({ model, view, search, filter, chips, className
           <UpdateSearchDialog
             model={model}
             view={view}
-            title={opened.name ? `Update ${opened.name}?` : `Update this ${state.noun}?`}
+            title={opened.name ? text('updateNameQuestion', opened.name) : text('updateNounQuestion', state.noun)}
             before={opened.filter}
             after={filter}
             saveNewLabel={saveNewLabel}

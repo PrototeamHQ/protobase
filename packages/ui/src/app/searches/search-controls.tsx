@@ -7,8 +7,9 @@ import { Switch } from '../../primitives/switch'
 import { useToast } from '../../toasts'
 import { useRefreshResource } from '../pages/use-layout-data'
 import type { SavedSearchRow } from './use-saved-searches'
+import { text } from './messages'
 
-const message = (error: unknown) => (error instanceof Error ? error.message : 'Something went wrong')
+const message = (error: unknown) => (error instanceof Error ? error.message : text('somethingWrong'))
 
 type SearchControlsProps = {
   model: ResourceModel
@@ -52,7 +53,7 @@ const changed = (model: ResourceModel, view: ViewModel, patch: Record<string, un
   Object.entries(patch)
     .map(([name, value]) => {
       const label = view.fields[name]?.label ?? humanize(name)
-      const shown = model.fields[name]?.type === 'boolean' ? (value === true ? 'On' : 'Off') : enumLabel(String(value), view.fields[name]?.valueLabels)
+      const shown = model.fields[name]?.type === 'boolean' ? (value === true ? text('on') : text('off')) : enumLabel(String(value), view.fields[name]?.valueLabels)
       return `${label}: ${shown}`
     })
     .join(', ')
@@ -67,8 +68,8 @@ export const SearchControls = ({ model, view, recordKey, title, row, fields }: S
   const refresh = useRefreshResource()
   const change = useMutation({
     mutationFn: (patch: Record<string, unknown>) => client.update(model.name, recordKey, patch, row.etag ?? '*'),
-    onSuccess: (_, patch) => toast.show({ state: 'success', title: `${title} saved`, description: changed(model, view, patch) }),
-    onError: (error) => toast.show({ state: 'error', title: 'Could not change the search', description: message(error) }),
+    onSuccess: (_, patch) => toast.show({ state: 'success', title: text('saved', title), description: changed(model, view, patch) }),
+    onError: (error) => toast.show({ state: 'error', title: text('couldNotChange'), description: message(error) }),
     onSettled: () => refresh(model.name),
   })
   return (

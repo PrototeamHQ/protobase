@@ -11,8 +11,9 @@ import { can } from '../permissions'
 import { useAppAddress } from '../use-app-address'
 import { useOpenedSearch } from './use-opened-search'
 import { useSavedSearches, type SavedSearchRow } from './use-saved-searches'
+import { text } from './messages'
 
-const message = (error: unknown) => (error instanceof Error ? error.message : 'Something went wrong')
+const message = (error: unknown) => (error instanceof Error ? error.message : text('somethingWrong'))
 
 /**
  * A list page's "Save search" button for its `filter`: `save` for someone who can list, create and delete the saved
@@ -47,20 +48,20 @@ export const useSaveSearch = (search: SaveSearchModel, filter: string) => {
     mutationFn: (name: string | null) => client.create(resource, { [of!.filter]: filter, ...(of!.name && { [of!.name]: name }) }),
     onSuccess: (created) => {
       opened.open(keyOf(created.record))
-      toast.show({ state: 'success', title: 'Search saved', action: { label: `Open ${plural.toLowerCase()}`, href: href({ kind: 'list', resource }), onNavigate: open } })
+      toast.show({ state: 'success', title: text('searchSaved'), action: { label: text('openPlural', plural), href: href({ kind: 'list', resource }), onNavigate: open } })
     },
-    onError: (error) => toast.show({ state: 'error', title: 'Could not save the search', description: message(error) }),
+    onError: (error) => toast.show({ state: 'error', title: text('couldNotSave'), description: message(error) }),
     onSettled: () => refresh(resource),
   })
   const remove = useMutation({
     mutationFn: (row: SavedSearchRow) => client.remove(resource, keyOf(row)),
-    onError: (error) => toast.show({ state: 'error', title: 'Could not take the search off', description: message(error) }),
+    onError: (error) => toast.show({ state: 'error', title: text('couldNotTakeOff'), description: message(error) }),
     onSettled: () => refresh(resource),
   })
   const update = useMutation({
     mutationFn: (row: SavedSearchRow) => client.update(resource, keyOf(row), { [of!.filter]: filter }, row.etag ?? '*'),
-    onSuccess: () => toast.show({ state: 'success', title: 'Search updated' }),
-    onError: (error) => toast.show({ state: 'error', title: 'Could not update the search', description: message(error) }),
+    onSuccess: () => toast.show({ state: 'success', title: text('searchUpdated') }),
+    onError: (error) => toast.show({ state: 'error', title: text('couldNotUpdate'), description: message(error) }),
     onSettled: () => refresh(resource),
   })
   const pending = create.isPending || remove.isPending || update.isPending

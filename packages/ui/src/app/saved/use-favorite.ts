@@ -7,8 +7,9 @@ import { useRefreshResource } from '../pages/use-layout-data'
 import { can } from '../permissions'
 import { savedFor, withoutSaved, withSaved, type SavedRecord } from './saved-records'
 import { savedRecordsKey, useSavedRecords } from './use-saved-records'
+import { text } from './messages'
 
-const message = (error: unknown) => (error instanceof Error ? error.message : 'Something went wrong')
+const message = (error: unknown) => (error instanceof Error ? error.message : text('somethingWrong'))
 
 /**
  * A card's favorite button: `save` for someone who can list, create and delete the saved records, `sign-in` for a
@@ -42,7 +43,7 @@ export const useFavorite = (favorite: CardFavoriteModel, key: string, target: Ke
     },
     onError: (error, existing, context) => {
       queryClient.setQueryData(cacheKey, context?.before)
-      toast.show({ state: 'error', title: existing ? 'Could not take it off' : 'Could not save it', description: message(error) })
+      toast.show({ state: 'error', title: existing ? text('couldNotTakeOff') : text('couldNotSave'), description: message(error) })
     },
     onSettled: () => refresh(resource),
   })

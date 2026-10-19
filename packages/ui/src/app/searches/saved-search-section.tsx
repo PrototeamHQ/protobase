@@ -14,8 +14,9 @@ import { SearchControls } from './search-controls'
 import { SearchNameDialog } from './search-name-dialog'
 import { useSearchRow } from './use-search-row'
 import type { SavedSearchRow } from './use-saved-searches'
+import { text } from './messages'
 
-const message = (error: unknown) => (error instanceof Error ? error.message : 'Something went wrong')
+const message = (error: unknown) => (error instanceof Error ? error.message : text('somethingWrong'))
 
 type SavedSearchSectionProps = {
   /** The saved searches' resource and its view, whose `searchesOf` is `of`. */
@@ -48,7 +49,7 @@ export const SavedSearchSection = ({ model, view, of, target, targetView, row, r
   const rename = useMutation({
     mutationFn: (next: string | null) => client.update(model.name, recordKey, { [of.name!]: next }, row.etag ?? '*'),
     onSuccess: () => setRenaming(false),
-    onError: (error) => toast.show({ state: 'error', title: 'Could not rename the search', description: message(error) }),
+    onError: (error) => toast.show({ state: 'error', title: text('couldNotRename'), description: message(error) }),
     onSettled: () => refresh(model.name),
   })
   const nameField = of.name === undefined ? undefined : model.fields[of.name]
@@ -66,12 +67,12 @@ export const SavedSearchSection = ({ model, view, of, target, targetView, row, r
         <div className="flex flex-wrap items-center gap-2">
           {of.controls && <SearchControls model={model} view={view} recordKey={recordKey} title={title} row={row} fields={of.controls} />}
           {canRename && nameField && (
-            <Button variant="ghost" aria-label={`Rename ${title}`} aria-haspopup="dialog" onClick={() => setRenaming(true)}>
+            <Button variant="ghost" aria-label={text('renameTitle', title)} aria-haspopup="dialog" onClick={() => setRenaming(true)}>
               <Pencil className="size-3.5" aria-hidden />
             </Button>
           )}
           {onDelete && (
-            <Button variant="ghost" aria-label={`Delete ${title}`} onClick={() => onDelete(title)}>
+            <Button variant="ghost" aria-label={text('deleteTitle', title)} onClick={() => onDelete(title)}>
               <Trash2 className="size-3.5" aria-hidden />
             </Button>
           )}
@@ -79,7 +80,7 @@ export const SavedSearchSection = ({ model, view, of, target, targetView, row, r
       </div>
       {renaming && nameField && (
         <SearchNameDialog
-          title={`Rename ${title}`}
+          title={text('renameTitle', title)}
           chips={chips}
           label={view.fields[nameField.name]?.label ?? humanize(nameField.name)}
           required={!nameField.nullable}

@@ -8,6 +8,7 @@ import { chipsText } from './filter-chip-list'
 import { isUnseen, unseenFilter } from './saved-search'
 import { useFilterChips } from './use-filter-chips'
 import type { SavedSearchRow } from './use-saved-searches'
+import { text } from './messages'
 
 type SearchRowInput = {
   /** The saved searches' resource, whose view's `searchesOf` is `of`. */
@@ -49,10 +50,10 @@ export const useSearchRow = ({ model, of, target, targetView, row, recordKey }: 
     sort: unseen ? `${unseen.field} desc` : undefined,
     limit: of.limit,
     chips: name !== undefined,
-    empty: `No ${plural} match.`,
-    note: unseen && newCount.data === 0 && `No new ${plural} since you last looked.`,
+    empty: text('noneMatch', plural),
+    note: unseen && newCount.data === 0 && text('noNew', plural),
     isNew: unseen && ((record) => isUnseen(record.record[unseen.field], row[unseen.seenAt])),
-    viewAll: { label: 'View all results', savedSearch: recordKey, ...(unseen && { onOpen: () => markSeen.mutate(new Date().toISOString()) }) },
+    viewAll: { label: text('viewAll'), savedSearch: recordKey, ...(unseen && { onOpen: () => markSeen.mutate(new Date().toISOString()) }) },
   }
   return { name, chips, title: name ?? chipsText(chips), body }
 }

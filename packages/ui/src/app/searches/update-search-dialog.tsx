@@ -12,21 +12,22 @@ import { defaultOrderBy } from '../list-order'
 import { countQuery } from '../pages/use-layout-data'
 import { addedFilter, filterChanges, netChange, removedFilter, type FilterChange } from './search-diff'
 import { useFilterChips } from './use-filter-chips'
+import { text } from './messages'
 
 /** How many records each side of the diff shows; its count says how many there are in all. */
 const shownLimit = 12
 
-const changeStyle: Record<FilterChange['kind'], { word: string; className: string }> = {
-  added: { word: 'Added', className: 'text-success-text' },
-  removed: { word: 'Removed', className: 'text-danger-text' },
-  changed: { word: 'Changed', className: 'text-primary-text' },
-}
+const changeStyle = {
+  added: { word: 'added', className: 'text-success-text' },
+  removed: { word: 'removed', className: 'text-danger-text' },
+  changed: { word: 'changed', className: 'text-primary-text' },
+} as const satisfies Record<FilterChange['kind'], { word: string; className: string }>
 
 const FilterChanges = ({ changes }: { changes: FilterChange[] }) => (
-  <ul aria-label="Filter changes" className="divide-y rounded-md border">
+  <ul aria-label={text('filterChanges')} className="divide-y rounded-md border">
     {changes.map((change) => (
       <li key={`${change.kind}:${change.label}`} className="grid grid-cols-[72px_1fr] gap-3 px-3 py-2">
-        <span className={`font-medium ${changeStyle[change.kind].className}`}>{changeStyle[change.kind].word}</span>
+        <span className={`font-medium ${changeStyle[change.kind].className}`}>{text(changeStyle[change.kind].word)}</span>
         {change.kind === 'changed' ? (
           <span>
             <span className="text-muted-foreground line-through">{change.before}</span> <span className="font-medium">{change.label}</span>
@@ -64,9 +65,9 @@ const RecordsSide = ({ model, view, title, filter, total, plural }: RecordsSideP
       <h3 className="font-semibold">
         {title} <span className="font-normal text-muted-foreground">({total ?? '…'})</span>
       </h3>
-      {total !== undefined && total > shownLimit && <p className="text-xs text-muted-foreground">The first {shownLimit} of {total}.</p>}
+      {total !== undefined && total > shownLimit && <p className="text-xs text-muted-foreground">{text('firstOf', shownLimit, total)}</p>}
       {filter === null || total === 0 ? (
-        <p className="text-muted-foreground">No {plural}.</p>
+        <p className="text-muted-foreground">{text('noPlural', plural)}</p>
       ) : (
         <EmbeddedList model={model} view={view} filter={filter} sort={defaultOrderBy(model, view)} limit={shownLimit} display={cards?.name ?? tableDisplay} row link={false} empty={`No ${plural}.`} />
       )}
@@ -114,12 +115,12 @@ export const UpdateSearchDialog = ({ model, view, title, before, after, saveNewL
       onClose={onCancel}
       actions={
         <>
-          <Button onClick={onCancel}>Cancel</Button>
+          <Button onClick={onCancel}>{text('cancel')}</Button>
           <Button loading={creating} disabled={updating} onClick={onSaveNew}>
             {saveNewLabel}
           </Button>
           <Button variant="primary" loading={updating} disabled={creating} onClick={onUpdate}>
-            Update
+            {text('update')}
           </Button>
         </>
       }
@@ -130,14 +131,14 @@ export const UpdateSearchDialog = ({ model, view, title, before, after, saveNewL
           <p>
             <span className="font-semibold">{netChange(addedCount, removedCount, singular, plural)}</span>
             <span className="text-muted-foreground">
-              : {count(addedCount, singular, plural)} added, {removedCount} removed
+              : {text('addedRemoved', count(addedCount, singular, plural), removedCount)}
             </span>
           </p>
         ) : (
           <Skeleton className="h-4 w-48" />
         )}
-        <RecordsSide model={model} view={view} title="Added" filter={added} total={addedCount} plural={plural} />
-        <RecordsSide model={model} view={view} title="Removed" filter={removed} total={removedCount} plural={plural} />
+        <RecordsSide model={model} view={view} title={text('added')} filter={added} total={addedCount} plural={plural} />
+        <RecordsSide model={model} view={view} title={text('removed')} filter={removed} total={removedCount} plural={plural} />
       </div>
     </ResponsiveDialog>
   )

@@ -10,6 +10,7 @@ import { AppLink } from '../use-app-address'
 import { InlineFilterChips } from './filter-chip-list'
 import { useSavedSearches, type SavedSearchRow } from './use-saved-searches'
 import { useSearchRow } from './use-search-row'
+import { text } from './messages'
 
 type SearchRowItemProps = { model: ResourceModel; view: ViewModel; target: ResourceModel; targetView: ViewModel | undefined; row: SavedSearchRow }
 
@@ -39,9 +40,9 @@ export const SavedSearchRows = ({ model, view, empty }: { model: ResourceModel; 
   const saved = useSavedSearches(model.name, true)
   const plural = (view.names?.plural ?? humanize(model.name)).toLowerCase()
   if (!target) return null
-  if (saved.error) return <ErrorBanner title={`Could not load your ${plural}`} error={saved.error} />
+  if (saved.error) return <ErrorBanner title={text('couldNotLoadYour', plural)} error={saved.error} />
   if (!saved.data) return <Skeleton className="h-40" />
-  if (saved.data.length === 0) return <p className="text-muted-foreground">{empty ?? `No ${plural} yet.`}</p>
+  if (saved.data.length === 0) return <p className="text-muted-foreground">{empty ?? text('noneYet', plural)}</p>
   return (
     <div className="flex flex-col divide-y">
       {saved.data.map((row) => (
