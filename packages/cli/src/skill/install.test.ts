@@ -58,7 +58,7 @@ describe('installSkill', () => {
     await installSkill(source, project)
     const written = await installSkill(cloudSource, project)
     expect(written).toEqual([join(project, '.agents/skills/protobase-cloud'), join(project, '.claude/skills/protobase-cloud')])
-    expect(await readdir(join(project, '.claude/skills'))).toEqual(['protobase', 'protobase-cloud'])
+    expect((await readdir(join(project, '.claude/skills'))).sort()).toEqual(['protobase', 'protobase-cloud'])
     expect(await readFile(join(project, '.claude/skills/protobase/SKILL.md'), 'utf8')).toBe(skillText('one'))
   })
 
