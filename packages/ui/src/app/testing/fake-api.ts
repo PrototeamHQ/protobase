@@ -168,9 +168,9 @@ export const fakeApi = ({ resources, views = [], pages = [], rows: initial, perm
   }
 
   // A batch write's `update`, as a ranked board's drop sends it, or `reorder`, as sorting by hand does: the records
-  // numbered 1, 2, 3, ... in the order of their keys. A record is refused when its ETag is stale; unlike the server, the
+  // numbered `start`, `start` + 1, ... (1, 2, 3, ... by default) in the order of their keys. A record is refused when its ETag is stale; unlike the server, the
   // fake keeps the operations before a refused one
-  type BatchOp = { op: string; resource: string; key?: string | number; data?: Row; etag?: string; field?: string; keys?: Array<string | number>; etags?: Record<string, string> }
+  type BatchOp = { op: string; resource: string; key?: string | number; data?: Row; etag?: string; field?: string; keys?: Array<string | number>; start?: number; etags?: Record<string, string> }
   const batchOp = async (op: BatchOp) => {
     if (op.op === 'update') {
       const key = String(op.key)
@@ -180,11 +180,12 @@ export const fakeApi = ({ resources, views = [], pages = [], rows: initial, perm
     if (op.op !== 'reorder') throw new Error(`Not implemented: the fake API's batch writes only update and reorder, not ${op.op}`)
     const { resource, field } = op as { resource: string; field: string }
     const keys = op.keys!.map(String)
-    const changing = keys.filter((key, index) => find(resource, key)[field] !== index + 1)
+    const start = op.start ?? 1
+    const changing = keys.filter((key, index) => find(resource, key)[field] !== start + index)
     if (changing.some((key) => ![undefined, '*', find(resource, key).etag].includes(op.etags?.[key]))) throw stale()
     for (const key of changing) {
       const row = find(resource, key)
-      row[field] = keys.indexOf(key) + 1
+      row[field] = start + keys.indexOf(key)
       write(resource, row)
     }
     const records = keys.map((key) => stored(resource, find(resource, key)))

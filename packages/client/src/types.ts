@@ -259,7 +259,7 @@ export type BatchOp =
   | { op: 'update'; resource: ResourceRef; key: Key; data: Record<string, unknown>; etag?: string }
   | { op: 'delete'; resource: ResourceRef; key: Key; etag?: string }
   /** Renumbers `field` of the records so they sort in the order of `keys`; `etags` maps each key (as URL text) to its ETag. */
-  | { op: 'reorder'; resource: ResourceRef; field: string; keys: Key[]; etags?: Record<string, string> }
+  | { op: 'reorder'; resource: ResourceRef; field: string; keys: Key[]; start?: number; etags?: Record<string, string> }
 
 /** One entry per operation, in order. A `reorder` lists every key in its final order with its new ETag. */
 export type BatchOpResult =

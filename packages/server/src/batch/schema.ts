@@ -13,7 +13,7 @@ const operations = z.array(z.discriminatedUnion('op', [
     z.object({ op: z.literal('create'), resource, data, ref: z.string().min(1).optional() }),
     z.object({ op: z.literal('update'), resource, key, etag: z.string().optional(), data }),
     z.object({ op: z.literal('delete'), resource, key, etag: z.string().optional() }),
-    z.object({ op: z.literal('reorder'), resource, field: z.string().min(1), keys: z.array(key).min(1), etags: z.record(z.string(), z.string()).optional() }),
+    z.object({ op: z.literal('reorder'), resource, field: z.string().min(1), keys: z.array(key).min(1), start: z.number().int().optional(), etags: z.record(z.string(), z.string()).optional() }),
   ])).min(1).max(maxOperations)
 
 /** `{ ops: [...] }`; `{ operations: [...] }` is accepted too, for clients written against that name. */

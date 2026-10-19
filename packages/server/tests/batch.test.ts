@@ -112,6 +112,13 @@ describe('POST /api/v1:batchWrite', () => {
     expect(results[2].etag).toBe(three)
   })
 
+  it('numbers from `start`, so only the stretch that moved is sent', async () => {
+    const [two, three] = await etagsOf(['/lines/2', '/lines/3'])
+    const response = await batch([{ op: 'reorder', resource: 'lines', field: 'position', keys: [3, 2], start: 2, etags: { 2: two, 3: three } }])
+    expect(response.status, await response.clone().text()).toBe(200)
+    expect(await positions()).toEqual(['a1', 'b3', 'c2'])
+  })
+
   it('moves rows aside below the range when a check constraint refuses values above it', async () => {
     const etags = Object.fromEntries((await etagsOf([1, 2, 3].map((id) => `/tightLines/${id}`))).map((etag, i) => [i + 1, etag]))
     const response = await batch([{ op: 'reorder', resource: 'tightLines', field: 'position', keys: [3, 2, 1], etags }])

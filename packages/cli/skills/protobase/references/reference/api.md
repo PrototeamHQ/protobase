@@ -168,11 +168,11 @@ The rules behind these steps are described under [Access](#access).
 | `create` | `resource`, `data`, `ref?` |
 | `update` | `resource`, `key`, `etag` (required, `*` allowed), `data` |
 | `delete` | `resource`, `key`, `etag?` |
-| `reorder` | `resource`, `field`, `keys` (in final order), `etags` (per key text) |
+| `reorder` | `resource`, `field`, `keys` (in final order), `start` (optional, 1 by default), `etags` (per key text) |
 
 - **Keys** are the URL text (`a,b` when composite), a number, a list of parts, or a reference.
 - **`$ref`**: `ref: 'invoice'` on a create names the record; later operations use `{ "$ref": "invoice" }` as a key, a key part, or a value in `data` (it stands for that record's key, or with `{ "$ref": "invoice", "field": "number" }` a readable field's value). A ref must come after its create.
-- **`reorder`** sets `field` to 1, 2, 3, ... in the order of `keys`, and writes only the records whose value changes, each as an ordinary update (so each needs its `etags` entry, and hooks see each). To work with a non-deferrable unique index such as `(invoice_id, position)`, the changing records are first moved out of the range in use, in the same transaction and without touching their ETags: above the highest value of the column, or, when a check constraint refuses that (checked with a savepoint), below the lowest one. Then they get their final values, which collide with nothing. The field must be an integer the caller may write; the keys must all exist and be visible to the caller.
+- **`reorder`** sets `field` to `start`, `start` + 1, ... in the order of `keys`, so a long list sends only the stretch that moved, and writes only the records whose value changes, each as an ordinary update (so each needs its `etags` entry, and hooks see each). To work with a non-deferrable unique index such as `(invoice_id, position)`, the changing records are first moved out of the range in use, in the same transaction and without touching their ETags: above the highest value of the column, or, when a check constraint refuses that (checked with a savepoint), below the lowest one. Then they get their final values, which collide with nothing. The field must be an integer the caller may write; the keys must all exist and be visible to the caller.
 - **Result**: `{ results: [...] }`, one entry per operation in order: `create` and `update` give `record` and `etag`, `delete` gives `deleted: true`, `reorder` gives `records` (every key in order, with its etag).
 - **Failure**: nothing is written. The problem is the failing operation's own (`400`, `403`, `404`, `409`, `412`, `428`, ...) with `operation` (its index), `op` and `resource` added. A stale ETag anywhere is a `412` for the whole batch.
 

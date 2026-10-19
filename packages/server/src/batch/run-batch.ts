@@ -66,7 +66,7 @@ export const runBatch = async (deps: Deps, session: Session, operations: BatchOp
           results.push({ op: 'delete', resource: entry.name, deleted: true })
         } else {
           const keys = operation.keys.map((key) => resolveKey(created, entry, key))
-          const records = await reorderIn(trx, deps, access, { field: operation.field, keys, etags: operation.etags ?? {} })
+          const records = await reorderIn(trx, deps, access, { field: operation.field, keys, etags: operation.etags ?? {}, start: operation.start ?? 1 })
           results.push({ op: 'reorder', resource: entry.name, records })
         }
       } catch (error) {

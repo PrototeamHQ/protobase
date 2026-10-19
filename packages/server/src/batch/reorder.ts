@@ -46,11 +46,12 @@ const moveAside = async (trx: Db, access: RequestAccess, field: string, keys: Ke
 }
 
 /**
- * `reorder`: the listed records end up with `field` = 1, 2, 3, ... in the given order. Only records whose value changes
+ * `reorder`: the listed records end up with `field` = `start`, `start` + 1, ... in the given order, `start` 1 unless
+ * given, so a client sends only the stretch of a long list that moved. Only records whose value changes
  * are written, each as an ordinary update (validation, access, ETag, hooks); they are first moved aside (see `moveAside`)
  * so that a unique index such as (invoice_id, position) is never violated half way. Everything checks out before any row moves.
  */
-export const reorderIn = async (trx: Db, deps: Deps, access: RequestAccess, input: { field: string; keys: Key[]; etags: Record<string, string> }): Promise<WriteResult[]> => {
+export const reorderIn = async (trx: Db, deps: Deps, access: RequestAccess, input: { field: string; keys: Key[]; etags: Record<string, string>; start: number }): Promise<WriteResult[]> => {
   const { entry, full } = access
   requireOperation(access, 'update')
   const field = full.fields[input.field]
@@ -69,10 +70,10 @@ export const reorderIn = async (trx: Db, deps: Deps, access: RequestAccess, inpu
     return found
   }))
 
-  const changing = input.keys.flatMap((key, i) => (Number(current[i]!.record[input.field]) === i + 1 ? [] : [i]))
+  const changing = input.keys.flatMap((key, i) => (Number(current[i]!.record[input.field]) === input.start + i ? [] : [i]))
   const plans = new Map<number, UpdatePlan>()
   for (const i of changing) {
-    plans.set(i, await planUpdate(trx, access, input.keys[i]!, { [input.field]: i + 1 }, input.etags[names[i]!] ?? null))
+    plans.set(i, await planUpdate(trx, access, input.keys[i]!, { [input.field]: input.start + i }, input.etags[names[i]!] ?? null))
   }
   if (changing.length > 0) await moveAside(trx, access, input.field, changing.map((i) => input.keys[i]!))
 
