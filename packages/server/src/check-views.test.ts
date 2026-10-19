@@ -201,6 +201,12 @@ describe('checkViews', () => {
     expect(() => checkViews(registry, [written])).toThrow('View "payments": related "Scans"')
   })
 
+  it('checks the items inside a tab', () => {
+    const written = view<typeof payments>('payments').toModel()
+    written.layout = [{ kind: 'tab', title: 'Log', items: [{ kind: 'history', title: 'Changes' }] }]
+    expect(() => checkViews(registry, [written])).toThrow('history "Changes" needs .history()')
+  })
+
   it("wants a gallery's image to be a file field and its photos to fit the resources", () => {
     const scans = resource('scans').table('scans').fields({ id: f.integer(), payment_id: f.relation('payments').filterable(), scan: f.file(), page: f.integer().sortable() }).primaryKey((r) => r.id)
     const withScans = { entries: [...registry.entries, { name: 'scans', model: scans.toModel() }] } as unknown as Registry

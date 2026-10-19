@@ -1,5 +1,5 @@
 import { resolveFieldPath } from '@protobase/layout'
-import type { ActionModel, FieldModel, GroupItemModel, LayoutItemModel, ResourceModel, ViewModel } from '@protobase/schema'
+import type { ActionModel, FieldModel, GroupItemModel, LayoutItemModel, ResourceModel, TabItemModel, ViewModel } from '@protobase/schema'
 import { addressErrors } from '@protobase/schema/internal'
 import type { Meta, ResourcePermissions, SourceRef } from './types'
 
@@ -23,6 +23,10 @@ const withinSource = (model: ResourceModel, drawn: Record<string, ResourceModel>
 const keptLayoutItem = (item: LayoutItemModel, models: Record<string, ResourceModel>): LayoutItemModel[] => {
   if (item.kind === 'group') {
     const items = item.items.flatMap((inner) => keptLayoutItem(inner, models)) as GroupItemModel[]
+    return items.length > 0 ? [{ ...item, items }] : []
+  }
+  if (item.kind === 'tab') {
+    const items = item.items.flatMap((inner) => keptLayoutItem(inner, models)) as TabItemModel[]
     return items.length > 0 ? [{ ...item, items }] : []
   }
   if (item.kind !== 'related') return [item]

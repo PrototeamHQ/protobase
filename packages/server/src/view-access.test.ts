@@ -249,6 +249,15 @@ describe('pruneView', () => {
     expect(layout(without({}, ['customer_repairs']))).toEqual([])
   })
 
+  it('prunes a tab by what it holds, and drops one left empty', () => {
+    const written = view<typeof customers>('customers')
+      .layout(() => [l.tab('Work', [l.related('Repairs', { resource: 'customer_repairs', field: 'customerId' })])])
+      .toModel()
+    const layout = (models: Record<string, ResourceModel>) => pruneView(written, models.customers!, models).layout
+    expect(layout(all)).toEqual(written.layout)
+    expect(layout(without({}, ['customer_repairs']))).toEqual([])
+  })
+
   it('keeps when every layout item shows', () => {
     const photos = { resource: 'repair_photos', field: 'repairId', image: 'photo', sort: 'position' }
     const written = view<typeof repairs>('repairs')

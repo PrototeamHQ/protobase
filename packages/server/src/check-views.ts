@@ -31,9 +31,9 @@ const sensitiveErrors = (view: ViewModel, model: ResourceModel) => {
     ['a list display', (view.list?.displays ?? []).flatMap(displayFields)],
     ['a filter', view.filters.flatMap((widget) => (widget.kind === 'flags' ? widget.fields : [widget.field]))],
     ['the chart', view.chart ? chartFields(view.chart) : []],
-    ['the sidebar', view.layout.flatMap((item) => (item.kind === 'sidebar' ? item.fields : []))],
-    ['a map', view.layout.flatMap((item) => (item.kind === 'map' ? [item.latitude, item.longitude] : []))],
-    ['a gallery', view.layout.flatMap((item) => (item.kind === 'gallery' && item.image !== undefined ? [item.image] : []))],
+    ['the sidebar', layoutItems(view.layout).flatMap((item) => (item.kind === 'sidebar' ? item.fields : []))],
+    ['a map', layoutItems(view.layout).flatMap((item) => (item.kind === 'map' ? [item.latitude, item.longitude] : []))],
+    ['a gallery', layoutItems(view.layout).flatMap((item) => (item.kind === 'gallery' && item.image !== undefined ? [item.image] : []))],
     ['the recent records', view.nav?.recent ? [view.nav.recent.status] : []],
     ['an action', view.actions.flatMap((action) => actionFields(action.run))],
   ]
@@ -121,8 +121,8 @@ const unknownFieldErrors = (view: ViewModel, model: ResourceModel) => {
   const unknown = (names: string[], what: string) => names.filter((name) => !Object.hasOwn(model.fields, name)).map((name) => `${what} names field "${name}", which ${model.name} does not have`)
   return [
     ...(view.list?.displays ?? []).flatMap((display) => unknown(displayFields(display), `display "${display.name}"`)),
-    ...view.layout.flatMap((item) => (item.kind === 'custom' ? unknown(fieldRefsIn(item.props), `custom section ${item.component}`) : [])),
-    ...view.layout.flatMap((item) => (item.kind === 'gallery' && item.image !== undefined ? unknown([item.image], `gallery "${item.title}"`) : [])),
+    ...layoutItems(view.layout).flatMap((item) => (item.kind === 'custom' ? unknown(fieldRefsIn(item.props), `custom section ${item.component}`) : [])),
+    ...layoutItems(view.layout).flatMap((item) => (item.kind === 'gallery' && item.image !== undefined ? unknown([item.image], `gallery "${item.title}"`) : [])),
   ]
 }
 
@@ -169,7 +169,7 @@ const galleryErrors = (item: GalleryModel, resource: string, model: ResourceMode
 
 // A record condition on a section, related table or sidebar names fields the record has and resources the app has.
 const conditionErrors = (view: ViewModel, models: Record<string, ResourceModel>) =>
-  view.layout.flatMap((item) => {
+  layoutItems(view.layout).flatMap((item) => {
     if (item.kind !== 'section' && item.kind !== 'sidebar' && item.kind !== 'related') return []
     if (!isRecordCondition(item.when)) return []
     const place = item.kind === 'sidebar' ? 'sidebar' : `${item.kind} "${item.title}"`
@@ -206,7 +206,7 @@ export const checkViews = (registry: Registry, views: ViewModel[], pages: readon
         display.kind === 'cards' && display.photos ? cardPhotosErrors(display.photos, view.resource, models).map((error) => `display "${display.name}" photos: ${error}`) : [],
       ),
       ...sharedPhotosErrors(view),
-      ...view.layout.flatMap((item) => (item.kind === 'gallery' ? galleryErrors(item, view.resource, model, models).map((error) => `gallery "${item.title}": ${error}`) : [])),
+      ...layoutItems(view.layout).flatMap((item) => (item.kind === 'gallery' ? galleryErrors(item, view.resource, model, models).map((error) => `gallery "${item.title}": ${error}`) : [])),
     ]
     const favorites = (view.list?.displays ?? []).flatMap((display) =>
       display.kind === 'cards' && display.favorite
@@ -219,14 +219,14 @@ export const checkViews = (registry: Registry, views: ViewModel[], pages: readon
       ...(view.searchesOf ? searchesOfErrors(view.searchesOf, view.resource, models).map((error) => `searchesOf: ${error}`) : []),
     ]
     const maps = [
-      ...view.layout.flatMap((item) => (item.kind === 'map' ? mapErrors(item, model).map((error) => `map "${item.title}": ${error}`) : [])),
+      ...layoutItems(view.layout).flatMap((item) => (item.kind === 'map' ? mapErrors(item, model).map((error) => `map "${item.title}": ${error}`) : [])),
       ...(view.list?.displays ?? []).flatMap((display) => (display.kind === 'map' ? mapDisplayErrors(display, model).map((error) => `display "${display.name}": ${error}`) : [])),
     ]
     const boards = (view.list?.displays ?? []).flatMap((display) => (display.kind === 'board' ? boardErrors(display, model).map((error) => `display "${display.name}": ${error}`) : []))
     const calendars = (view.list?.displays ?? []).flatMap((display) => (display.kind === 'calendar' ? calendarErrors(display, model).map((error) => `display "${display.name}": ${error}`) : []))
     const chart = view.chart ? chartErrors(view.chart, model).map((error) => `chart: ${error}`) : []
-    const history = model.history ? [] : view.layout.flatMap((item) => (item.kind === 'history' ? [`history "${item.title}" needs .history() on resource "${view.resource}"`] : []))
-    const comments = model.comments ? [] : view.layout.flatMap((item) => (item.kind === 'comments' ? [`comments "${item.title}" needs .comments() on resource "${view.resource}"`] : []))
+    const history = model.history ? [] : layoutItems(view.layout).flatMap((item) => (item.kind === 'history' ? [`history "${item.title}" needs .history() on resource "${view.resource}"`] : []))
+    const comments = model.comments ? [] : layoutItems(view.layout).flatMap((item) => (item.kind === 'comments' ? [`comments "${item.title}" needs .comments() on resource "${view.resource}"`] : []))
     return [...sensitiveErrors(view, model), ...unknownFieldErrors(view, model), ...valueLabelErrors(view, model), ...valueColorErrors(view, model), ...textHintErrors(view, model), ...listEditErrors(view, model), ...widgetErrors(view, model, fieldTypes), ...related, ...conditionErrors(view, models), ...photos, ...favorites, ...listOf, ...searches, ...maps, ...history, ...comments, ...boards, ...calendars, ...chart, ...linkErrors(view, model, models, pageNames), ...aiActionErrors(view, model), ...inputErrors(view, models), ...createErrors(view, pageNames)]
   }
   // A named list is checked as a view of its own, without the record page, which the view's own check covers

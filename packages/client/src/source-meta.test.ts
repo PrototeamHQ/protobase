@@ -18,6 +18,8 @@ const ticketsView = view<typeof tickets>('tickets')
     l.related('Same customer', { resource: 'customers', field: 'id' }),
     l.group('More', [l.related('Elsewhere', { resource: 'customers', field: 'id' })], { collapsed: true }),
     l.group('Notes again', [l.related('Notes too', { resource: 'notes', field: 'ticket_id' })]),
+    l.tab('Gone', [l.related('Elsewhere too', { resource: 'customers', field: 'id' })]),
+    l.tab('Kept', [l.related('Notes in a tab', { resource: 'notes', field: 'ticket_id' }), l.related('Elsewhere in a tab', { resource: 'customers', field: 'id' })]),
   ])
   .actions((a) => [
     a.link('notes', { label: 'Notes', to: { kind: 'list', resource: 'notes', filter: 'ticket_id = {id}' } }),
@@ -60,6 +62,7 @@ describe('sourceMeta', () => {
       { kind: 'section', title: 'Ticket', fields: ['title', 'customer_id'] },
       { kind: 'related', title: 'Notes', resource: 'notes', field: 'ticket_id', columns: ['body'] },
       { kind: 'group', title: 'Notes again', items: [{ kind: 'related', title: 'Notes too', resource: 'notes', field: 'ticket_id' }] },
+      { kind: 'tab', title: 'Kept', items: [{ kind: 'related', title: 'Notes in a tab', resource: 'notes', field: 'ticket_id' }] },
     ])
     expect(ticketsView!.actions.map((action) => action.name)).toEqual(['notes', 'web', 'close'])
   })
