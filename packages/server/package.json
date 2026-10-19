@@ -15,7 +15,8 @@
     "node": ">=22.12.0"
   },
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./email": "./src/email.ts"
   },
   "types": "./src/index.ts",
   "files": [
@@ -28,7 +29,8 @@
   "publishConfig": {
     "access": "public",
     "exports": {
-      ".": "./dist/index.js"
+      ".": "./dist/index.js",
+      "./email": "./dist/email.js"
     },
     "types": "./dist/index.d.ts"
   },

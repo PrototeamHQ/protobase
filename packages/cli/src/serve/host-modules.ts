@@ -1,3 +1,4 @@
+import { createRequire } from 'node:module'
 import * as nodeServer from '@hono/node-server'
 import * as reactEmailRender from '@react-email/render'
 import * as apiReference from '@scalar/hono-api-reference'
@@ -19,9 +20,11 @@ import * as layout from '@protobase/layout'
 import * as query from '@protobase/query'
 import * as schema from '@protobase/schema'
 import * as server from '@protobase/server'
-import type { HostModuleId } from './host-module-ids'
+import type { HostModuleId, LazyHostModuleId } from './host-module-ids'
 
-const hostModules: Record<HostModuleId, Record<string, unknown>> = {
+const require = createRequire(import.meta.url)
+
+const hostModules: Record<Exclude<HostModuleId, LazyHostModuleId>, Record<string, unknown>> = {
   '@protobase/schema': schema,
   '@protobase/layout': layout,
   '@protobase/layout/jsx-runtime': layout.jsxRuntime,
@@ -46,6 +49,12 @@ const hostModules: Record<HostModuleId, Record<string, unknown>> = {
   '@react-email/render': reactEmailRender,
 }
 
+// The email layout loads React Email's components, a fifth of a second, so only for a bundle that imports it. Each is
+// required by its file, resolved before the plugin takes its name, which would otherwise resolve to the module itself.
+const lazyHostModules: Record<LazyHostModuleId, string> = {
+  '@protobase/server/email': require.resolve('@protobase/server/email'),
+}
+
 type ModuleLoader = () => { exports: Record<string, unknown>; loader: 'object' }
 type BunRuntime = { plugin(plugin: { name: string; setup(build: { module(id: string, load: ModuleLoader): void }): void }): void }
 
@@ -58,6 +67,7 @@ export const provideHostModules = () => {
     name: 'protobase-host-modules',
     setup: (build) => {
       for (const [id, exports] of Object.entries(hostModules)) build.module(id, () => ({ exports, loader: 'object' }))
+      for (const [id, file] of Object.entries(lazyHostModules)) build.module(id, () => ({ exports: require(file), loader: 'object' }))
     },
   })
 }

@@ -134,7 +134,7 @@ export const thingsView = view('things').names({ singular: 'Thing 😀', plural:
       'protobase.config.ts': `import { DataGrid } from '@protobase/ui'\nexport default { config: { DataGrid } }\n`,
     })
     await expect(buildConfigBundle({ projectDir, outFile: path.join(projectDir, 'dist/out.js') })).rejects.toThrow(
-      '@protobase/ui is not available to a served config; of the @protobase packages and their dependencies it may import @protobase/schema, @protobase/layout, @protobase/layout/jsx-runtime, @protobase/query, @protobase/server, kysely,',
+      '@protobase/ui is not available to a served config; of the @protobase packages and their dependencies it may import @protobase/schema, @protobase/layout, @protobase/layout/jsx-runtime, @protobase/query, @protobase/server, @protobase/server/email, kysely,',
     )
   })
 

@@ -65,6 +65,37 @@ The template that comes back has two methods, both typed by the component's prop
 
 React and React Email's renderer are loaded on the first email rendered, not when the app starts.
 
+### The look of Protobase's own mail
+
+`@protobase/server/email` exports the components Protobase's own mail is built from, so an app's emails can look the same: a white card on grey with a teal action.
+
+| Component | |
+| --- | --- |
+| `EmailLayout` | The whole email: `preview`, the line inboxes show after the subject; `heading`; the message as its children; and a footer naming `app`, linked to its home page. `app` is `{ name, url }`. |
+| `EmailButton` | The email's one action: a button to `href`, and the label with the link in the plain-text part. |
+| `EmailCode` | A code to type in, on a line of its own. |
+| `EmailNote` | A remark below the message, such as why the recipient gets the email. |
+
+```tsx
+import { defineEmail } from '@protobase/server'
+import { EmailButton, EmailLayout, EmailNote, type MailingApp } from '@protobase/server/email'
+import { Text } from 'react-email'
+
+type RepairReady = { app: MailingApp; customer: string; bike: string; url: string }
+
+const RepairReadyEmail = ({ app, customer, bike, url }: RepairReady) => (
+  <EmailLayout app={app} preview={`Your ${bike} is ready for pickup`} heading="Ready for pickup">
+    <Text>Hi {customer}, your {bike} is ready.</Text>
+    <EmailButton href={url}>See the repair</EmailButton>
+    <EmailNote>You get this email because you brought your bike in for repair.</EmailNote>
+  </EmailLayout>
+)
+
+export const repairReady = defineEmail({ name: 'repair-ready', subject: 'Your bike is ready', component: RepairReadyEmail })
+```
+
+They are apart from `@protobase/server` itself, so an app that imports none never loads React Email's components.
+
 ## Sending
 
 A **job** is the usual place: it runs after the write that asked for it has committed, and a message the server refuses fails the try, which is retried. Pass the job's `mail`, so a job runtime started with a mailer of its own sends through it:
@@ -83,4 +114,4 @@ A message is sent once per call, so a job try that sends and then fails sends ag
 
 ## In a bundle
 
-A [bundle](/reference/cli/#the-config-module) gets React and React Email's renderer from the serve runtime, as it gets `@protobase/server`, so an email's component and the renderer share one React and hooks such as `useContext` work. React Email's other components are inlined, though `@protobase/server` uses them too: it loads them only to send its own mail, so the runtime does not supply them. Its `<Tailwind>` component needs `tailwindcss`, which the runtime does not supply, so a served config cannot use it: style with `style` props instead.
+A [bundle](/reference/cli/#the-config-module) gets React and React Email's renderer from the serve runtime, as it gets `@protobase/server` and `@protobase/server/email`, so an email's component and the renderer share one React and hooks such as `useContext` work. React Email's other components are inlined, though `@protobase/server` uses them too: it loads them only to send its own mail, so the runtime does not supply them. Its `<Tailwind>` component needs `tailwindcss`, which the runtime does not supply, so a served config cannot use it: style with `style` props instead.
