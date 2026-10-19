@@ -60,6 +60,7 @@ describe('readAppPath', () => {
       { kind: 'list', resource: 'listings', filter: 'garden = true', savedSearch: '3,7' },
       { kind: 'list', resource: 'repairs', display: 'calendar', calendar: { scale: 'month', day: '2026-10-01' } },
       { kind: 'list', resource: 'repairs', calendar: { scale: 'week', day: '2026-10-12' } },
+      { kind: 'list', resource: 'repairs', display: 'timeline', timeline: { scale: 'quarter', day: '2026-10-01' } },
       { kind: 'record', resource: 'files', key: 'a/b' },
       { kind: 'record', resource: 'leaseTenants', key: '3,7' },
       { kind: 'record', resource: 'listings', key: '42', edit: true },
@@ -110,6 +111,15 @@ describe('readAppPath', () => {
     for (const map of ['52,4', '52,4,9,1', 'a,4,9', '52,,9', '91,4,9', '52,181,9', '52,4,23', '52,4,-1']) {
       expect(readAppPath(`/listings?map=${map}`, pages)).toEqual({ kind: 'list', resource: 'listings' })
     }
+  })
+
+  it("writes the period a list's timeline shows as its scale and day", () => {
+    expect(appPath({ kind: 'list', resource: 'repairs', display: 'timeline', timeline: { scale: 'quarter', day: '2026-10-01' } })).toBe('/repairs?display=timeline&timeline=quarter%2C2026-10-01')
+  })
+
+  it('ignores a timeline period of a scale it does not have, and a calendar scale of the timeline', () => {
+    expect(readAppPath('/repairs?timeline=day,2026-10-01', pages)).toEqual({ kind: 'list', resource: 'repairs' })
+    expect(readAppPath('/repairs?calendar=quarter,2026-10-01', pages)).toEqual({ kind: 'list', resource: 'repairs' })
   })
 
   it('ignores a calendar view it cannot read or whose day does not exist', () => {

@@ -1,5 +1,5 @@
 import { encodeKey } from './keys'
-import type { AppAddress, CalendarView, FilterLayout, MapView } from './model'
+import type { AppAddress, CalendarView, FilterLayout, MapView, TimelineView } from './model'
 
 /**
  * The words of the app's addresses. Only `appPath` and `readAppPath` write and read them, so the shape of an address
@@ -20,6 +20,8 @@ export const addressWords = {
   map: 'map',
   /** The month or week a list's calendar display shows: `month,YYYY-MM-DD` or `week,YYYY-MM-DD`. */
   calendar: 'calendar',
+  /** The period a list's timeline display shows: `week,YYYY-MM-DD`, `month,YYYY-MM-DD` or `quarter,YYYY-MM-DD`. */
+  timeline: 'timeline',
   /** The saved search a list was opened from, by its key. */
   savedSearch: 'saved_search',
   /** The second path segment that opens a resource's create form instead of a record. */
@@ -47,7 +49,7 @@ const readMap = (text: string | null): MapView | undefined => {
   return inRange(latitude, 90) && inRange(longitude, 180) && inRange(zoom, 22, 0) ? { latitude, longitude, zoom } : undefined
 }
 
-const calendarText = (view: CalendarView) => `${view.scale},${view.day}`
+const periodText = (view: CalendarView | TimelineView) => `${view.scale},${view.day}`
 
 // A real day as `YYYY-MM-DD`: one whose parts come back from `Date.UTC`, so 2026-02-30 is none
 const isDay = (text: string) => {
@@ -58,12 +60,12 @@ const isDay = (text: string) => {
   return date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day
 }
 
-// A calendar view as `calendarText` writes it, or none for anything else
-const readCalendar = (text: string | null): CalendarView | undefined => {
+// A period of one of `scales` as `periodText` writes it, or none for anything else
+const readPeriod = <S extends string>(text: string | null, scales: readonly S[]): { scale: S; day: string } | undefined => {
   const parts = text?.split(',')
   if (parts?.length !== 2) return undefined
-  const [scale, day] = parts as [string, string]
-  return (scale === 'month' || scale === 'week') && isDay(day) ? { scale, day } : undefined
+  const [scale, day] = parts as [S, string]
+  return scales.includes(scale) && isDay(day) ? { scale, day } : undefined
 }
 
 const listQuery = (address: Extract<AppAddress, { kind: 'list' }>) => {
@@ -74,7 +76,8 @@ const listQuery = (address: Extract<AppAddress, { kind: 'list' }>) => {
     query.set(addressWords[name], value)
   }
   if (address.map) query.set(addressWords.map, mapText(address.map))
-  if (address.calendar) query.set(addressWords.calendar, calendarText(address.calendar))
+  if (address.calendar) query.set(addressWords.calendar, periodText(address.calendar))
+  if (address.timeline) query.set(addressWords.timeline, periodText(address.timeline))
   const text = query.toString()
   return text ? `?${text}` : ''
 }
@@ -146,7 +149,8 @@ export const readAppPath = (pathAndQuery: string, pages: ReadonlySet<string>): A
   const orderBy = params.get(addressWords.orderBy) || undefined
   const layout = filterLayout(params.get(addressWords.filterLayout))
   const map = readMap(params.get(addressWords.map))
-  const calendar = readCalendar(params.get(addressWords.calendar))
+  const calendar = readPeriod(params.get(addressWords.calendar), ['month', 'week'] as const)
+  const timeline = readPeriod(params.get(addressWords.timeline), ['week', 'month', 'quarter'] as const)
   const savedSearch = params.get(addressWords.savedSearch) || undefined
   return {
     kind: 'list',
@@ -158,6 +162,7 @@ export const readAppPath = (pathAndQuery: string, pages: ReadonlySet<string>): A
     ...(layout && { filterLayout: layout }),
     ...(map && { map }),
     ...(calendar && { calendar }),
+    ...(timeline && { timeline }),
     ...(savedSearch && { savedSearch }),
   }
 }

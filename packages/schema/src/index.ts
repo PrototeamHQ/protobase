@@ -21,6 +21,7 @@ export type {
   FilterLayout,
   MapView,
   CalendarView,
+  TimelineView,
   ListQuery,
   FieldFormat,
   FieldViewModel,

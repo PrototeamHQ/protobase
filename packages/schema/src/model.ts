@@ -208,11 +208,19 @@ export type CalendarView = {
   day: string
 }
 
+/** Which week, month or quarter a list's timeline display shows: its `scale`, and a day (`YYYY-MM-DD`) in it. */
+export type TimelineView = {
+  /** A week from Monday, a month, or a quarter from January, April, July or October. */
+  scale: 'week' | 'month' | 'quarter'
+  /** A day in the week, month or quarter, as `YYYY-MM-DD`. */
+  day: string
+}
+
 /**
  * A place in the app: a resource's list, one of its records, its create form, or a composed page. A record's `key` is
  * its one value or its parts, as the record API takes them; `readAppPath` gives it back as the API's text form. A create
  * form's `values` fill in fields of the new record by name, as text (`{ listing_id: '42' }`). A list's `map` is where its
- * map display looks, and its `calendar` the month or week its calendar display shows. See [Addresses](website/src/content/docs/reference/layouts.md#addresses).
+ * map display looks, its `calendar` the month or week its calendar display shows, and its `timeline` the period its timeline display shows. See [Addresses](website/src/content/docs/reference/layouts.md#addresses).
  */
 export type AppAddress =
   | {
@@ -234,6 +242,8 @@ export type AppAddress =
       map?: MapView
       /** The month or week its calendar display shows. */
       calendar?: CalendarView
+      /** The week, month or quarter its timeline display shows. */
+      timeline?: TimelineView
       /**
        * The saved search the list was opened from, by its key in the text form the record API takes: while the list's
        * filter differs from the search's, the list offers to update the search.
@@ -450,6 +460,24 @@ export type ListDisplayModel =
       /** The filterable field of `start`'s type a record ends on; a record is on its start day alone when omitted. */
       end?: string
       /** The event's text; the view's title when omitted. */
+      title?: string
+    }
+  | {
+      /** The records as bars from their start day to their end day over a week, month or quarter, in lanes by a field, moved by dragging. */
+      kind: 'timeline'
+      /** What the address names (`?display=timeline`). */
+      name: string
+      /** The display's name in the switch. */
+      label?: string
+      /** The display's icon in the switch. */
+      icon?: string
+      /** The filterable date or timestamp field a record starts on. */
+      start: string
+      /** The filterable field of `start`'s type a record ends on; a record's bar is its start day alone when omitted. */
+      end?: string
+      /** The field whose values are the lanes; one lane when omitted. */
+      group?: string
+      /** The bar's text; the view's title when omitted. */
       title?: string
     }
   | {

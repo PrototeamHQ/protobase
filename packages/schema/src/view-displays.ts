@@ -134,6 +134,25 @@ export const displays = {
     ...(fields.title && { title: fields.title.name }),
   }),
   /**
+   * The records as bars from the day of `start` to the day of `end` (or their start day alone), one row each, over a
+   * week, a month or a quarter, in lanes by the values of `group`, with weeks from Monday. It loads only the days shown
+   * through the list API, with the list's filter and search, in start order, as a calendar does. A bar shows `title`
+   * (default: the view's title) and opens the record. Dragging a bar along its row, or picking it up with Space and
+   * moving it with the arrow keys, saves the record with `start` and `end` moved by the same days, as one update with
+   * its ETag, so the resource's access rules and `validate` decide, and a refusal puts the bar back and says why.
+   * `start` must be a filterable date or timestamp field and `end` a filterable field of the same type. Named
+   * `timeline` unless `name` says otherwise. See [Timelines](website/src/content/docs/reference/ui-config.mdx#timelines).
+   */
+  timeline: (fields: { start: Ref; end?: Ref; group?: Ref; title?: Ref }, o: Naming = {}): ListDisplayModel => ({
+    kind: 'timeline',
+    name: o.name ?? 'timeline',
+    ...naming(o),
+    start: fields.start.name,
+    ...(fields.end && { end: fields.end.name }),
+    ...(fields.group && { group: fields.group.name }),
+    ...(fields.title && { title: fields.title.name }),
+  }),
+  /**
    * The list drawn by a component of the project, registered in `protobase.ui.tsx` under its name. It gets `props` and
    * reads the rows with `useListDisplay()`; `fields` are the fields it shows, fetched with relation names.
    */
@@ -192,15 +211,15 @@ export const boardErrors = (display: Extract<ListDisplayModel, { kind: 'board' }
   return field.filterable ? [] : [`"${display.by}" on ${model.name} is not filterable, and each column of the board filters by its value`]
 }
 
-/** What makes a calendar unable to place the records on days: a `start` that is no filterable date or timestamp, or an `end` that is no filterable field of its type. */
-export const calendarErrors = (display: Extract<ListDisplayModel, { kind: 'calendar' }>, model: ResourceModel): string[] => {
+/** What makes a calendar or a timeline unable to place the records on days: a `start` that is no filterable date or timestamp, or an `end` that is no filterable field of its type. */
+export const datesErrors = (display: Extract<ListDisplayModel, { kind: 'calendar' | 'timeline' }>, model: ResourceModel): string[] => {
   const known = (name: string) => (Object.hasOwn(model.fields, name) ? model.fields[name]! : undefined)
   const start = known(display.start)
   const end = display.end === undefined ? undefined : known(display.end)
   // An unknown field is reported with every display's fields
   if (!start) return []
   if (start.type !== 'date' && start.type !== 'timestamp') return [`start "${display.start}" on ${model.name} is ${start.type}, not a date or timestamp`]
-  const unfilterable = (name: string) => `${name === display.start ? 'start' : 'end'} "${name}" on ${model.name} is not filterable, and the calendar filters by it for the days it shows`
+  const unfilterable = (name: string) => `${name === display.start ? 'start' : 'end'} "${name}" on ${model.name} is not filterable, and the ${display.kind} filters by it for the days it shows`
   return [
     ...(start.filterable ? [] : [unfilterable(display.start)]),
     ...(end && end.type !== start.type ? [`end "${display.end}" on ${model.name} is ${end.type}, not ${start.type} like start "${display.start}"`] : []),
@@ -208,11 +227,12 @@ export const calendarErrors = (display: Extract<ListDisplayModel, { kind: 'calen
   ]
 }
 
-/** Every field a display names: what it shows, a map's position and the fields saying how exact it is, a board's columns, a calendar's dates, and the field references in a custom display's props. */
+/** Every field a display names: what it shows, a map's position and the fields saying how exact it is, a board's columns, a calendar's dates, a timeline's dates and lanes, and the field references in a custom display's props. */
 export const displayFields = (display: ListDisplayModel): string[] => {
   if (display.kind === 'map') return [display.latitude, display.longitude, display.approximate, display.exact, display.radius, display.area].filter((name): name is string => name !== undefined)
   if (display.kind === 'custom') return [...display.fields, ...fieldRefsIn(display.props)]
   if (display.kind === 'board') return [display.by, display.title, display.subtitle, display.badge, ...(display.meta ?? [])].filter((name): name is string => name !== undefined)
   if (display.kind === 'calendar') return [display.start, display.end, display.title].filter((name): name is string => name !== undefined)
+  if (display.kind === 'timeline') return [display.start, display.end, display.group, display.title].filter((name): name is string => name !== undefined)
   return [display.image, display.title, display.subtitle, ...(display.amount ?? []), display.badge, ...(display.meta ?? []), ...(display.footer ?? []), ...(display.flags ?? [])].filter((name): name is string => name !== undefined)
 }

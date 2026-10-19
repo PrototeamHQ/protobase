@@ -202,6 +202,21 @@ describe('view builder', () => {
     expect(() => calendar('due', 'at')).toThrow('View "task": display "calendar": end "at" on task is timestamp, not date like start "due"')
   })
 
+  it('adds a timeline by filterable dates in lanes of a field, and refuses one by an unfilterable or other date', () => {
+    const task = resource('task')
+      .table('tasks')
+      .fields({ id: f.integer(), title: f.text(), stage: f.enum(['todo', 'doing', 'done']), starts: f.date().filterable(), ends: f.date().filterable(), planned: f.date(), at: f.timestamp().filterable() })
+      .primaryKey((r) => r.id)
+    const timeline = (start: 'starts' | 'planned' | 'stage', end?: 'ends' | 'at') =>
+      view<typeof task>('task')
+        .list((r, d) => ({ columns: [r.title], displays: [d.timeline({ start: r[start], ...(end && { end: r[end] }), group: r.stage }, { name: 'plan' })] }))
+        .toModel(task.toModel())
+    expect(timeline('starts', 'ends').list?.displays).toEqual([{ kind: 'timeline', name: 'plan', start: 'starts', end: 'ends', group: 'stage' }])
+    expect(() => timeline('stage')).toThrow('View "task": display "plan": start "stage" on task is enum, not a date or timestamp')
+    expect(() => timeline('planned')).toThrow('View "task": display "plan": start "planned" on task is not filterable, and the timeline filters by it for the days it shows')
+    expect(() => timeline('starts', 'at')).toThrow('View "task": display "plan": end "at" on task is timestamp, not date like start "starts"')
+  })
+
   it("puts a card's amount fields and footer fields in the model, and checks them like its other fields", () => {
     const model = view<typeof article>('article')
       .list((r, d) => ({ columns: [r.title], displays: [d.cards({ amount: [r.price], footer: [r.status, r.createdAt] })] }))
