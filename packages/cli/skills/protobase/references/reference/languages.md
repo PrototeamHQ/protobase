@@ -22,4 +22,8 @@ Numbers, amounts and dates use the conventions of the language: English as writt
 
 ## What is translated
 
-The shell is translated: the sidebar, the top bar, search, the profile menu and the bottom bar. So are the counts, relative times ("5 minutes ago") and the notices shown while the app loads. The list and record pages, forms, filters, imports, and the account and organization pages with their menu items are still in English. Their texts are being translated to Dutch one area at a time.
+The shell is translated: the sidebar, the top bar, search, the profile menu and the bottom bar. So are the counts, relative times ("5 minutes ago") and the notices shown while the app loads.
+
+So are the list page with its table, filters, search, sort, display switch and sorting by hand; the record page with its actions, related lists, saving, conflicts and deleting; the create page; the messages under a field the server turned down; yes, no and other values the app writes itself; and public forms. A public form comes before `/meta`, so like the sign-in screens it follows the browser.
+
+Imports, exports, charts, history, comments, the other list displays (cards, board, calendar, timeline, map), composed pages, and the sign-in, account and organization screens are still in English. Their texts are being translated to Dutch one area at a time.
