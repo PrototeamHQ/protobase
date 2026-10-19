@@ -133,6 +133,13 @@ describe('readShapes', () => {
     expect(board?.query.filter).toMatchObject({ kind: 'compare', field: { name: 'country' } })
   })
 
+  it('reads each column of a board of ranked records in their rank', () => {
+    const tasks = resource('tasks').table('tasks').fields({ id: f.integer().filterable().sortable(), status: f.enum(['todo', 'done']).filterable(), rank: f.integer().sortable() }).primaryKey((r) => r.id).position((r) => r.rank)
+    const tasksView = view<typeof tasks>('tasks').list((r, d) => ({ columns: [r.status], displays: [d.board({ by: r.status })] }))
+    const board = readShapes({ models: [tasks.toModel()], views: [tasksView.toModel()], pages: [] }).find((shape) => shape.from === 'the board display "board"')
+    expect(board).toMatchObject({ request: 'GET /tasks?filter=status = …&order_by=rank asc', query: { sort: [['rank', 'asc']] } })
+  })
+
   it('reads the days a calendar shows by its start, and by its end too when it has one, in start order', () => {
     const calendar = shapes.find((shape) => shape.from === 'the calendar display "calendar"')
     expect(calendar).toMatchObject({ resource: 'places', request: 'GET /places?filter=founded_on >= … AND founded_on < …&order_by=founded_on asc', query: { sort: [['founded_on', 'asc']] } })

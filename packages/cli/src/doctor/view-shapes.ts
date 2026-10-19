@@ -97,11 +97,12 @@ const displayShapes = (model: ResourceModel, view: ViewModel, models: Models): R
       const filter = all([compare(latitude, '>='), compare(latitude, '<='), compare(longitude, '>='), compare(longitude, '<=')])
       return [{ resource: model.name, request: `GET /${model.name}:map?filter=${latitude.name} >= … AND ${latitude.name} <= … AND ${longitude.name} >= … AND ${longitude.name} <= …`, from: `the map display "${display.name}"`, query: { filter } }]
     }
-    // Each column of a board is the list with its value added, in the list's order
+    // Each column of a board is the list with its value added, in the list's order, or its rank's: the position of records ordered as one
     if (display.kind === 'board') {
       const by = model.fields[display.by]
       if (!by) return []
-      const sort = listSort(model, view)
+      const rank = model.position && model.position.within === undefined ? model.fields[model.position.field] : undefined
+      const sort: SortSpec = rank ? [[rank.name, 'asc']] : listSort(model, view)
       return [{ resource: model.name, request: request(model.name, `${by.name} = …`, sort), from: `the board display "${display.name}"`, query: { filter: compare(by), sort } }]
     }
     // A calendar is the list on the days it shows: records starting in them, or starting before and ending in them
