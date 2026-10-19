@@ -1,5 +1,5 @@
 // Waits until npm serves every published @protobase package (packages/*, but the private ones) at the version in
-// package.json, as `bun install` asks for it, then exits; after 10 minutes it fails, naming the packages still missing.
+// package.json, metadata and tarball, as `bun install` asks for them, then exits; after 10 minutes it fails, naming the packages still missing.
 // npm's CDN caches each package's metadata for up to 5 minutes per Accept header, so a version can be on npm for one
 // package and one request and not yet for another: the image contexts, which bun installs from npm, need them all
 // as `bun install` sees them. The release workflow runs it after publishing, before `bun run images:context`.
@@ -25,7 +25,13 @@ const served = async (name) => {
   if (response.status === 404) return false
   if (!response.ok) throw new Error(`npm answered ${response.status} for ${name}`)
   const { versions } = await response.json()
-  return version in versions
+  if (!(version in versions)) return false
+  // The tarball can 404 for a while after the metadata lists the version (seen in release run 39183830934); bun GETs it.
+  const tarball = await fetch(versions[version].dist.tarball, { headers })
+  await tarball.body?.cancel()
+  if (tarball.status === 404) return false
+  if (!tarball.ok) throw new Error(`npm answered ${tarball.status} for the tarball of ${name}@${version}`)
+  return true
 }
 
 const deadline = Date.now() + timeoutMs
