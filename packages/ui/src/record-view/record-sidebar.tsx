@@ -3,14 +3,18 @@ import type { ReactNode } from 'react'
 
 export type RelatedRecord = { kind: string; label: string; meta?: string; href?: string }
 
-export type MetadataRow = { label: string; value: ReactNode }
+/** A label/value row; `title` is the whole value, shown on hover when the value is cut off. */
+export type MetadataRow = { label: string; value: ReactNode; title?: string }
 
+// Each value stays on one line and ends in an ellipsis when it does not fit, so a long value never changes the layout
 export const MetadataList = ({ rows }: { rows: MetadataRow[] }) => (
-  <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2">
+  <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-2">
     {rows.map((row) => (
       <div key={row.label} className="contents">
         <dt className="text-muted-foreground">{row.label}</dt>
-        <dd className="text-right tabular-nums text-foreground">{row.value}</dd>
+        <dd title={row.title} className="truncate text-right tabular-nums text-foreground">
+          {row.value}
+        </dd>
       </div>
     ))}
   </dl>

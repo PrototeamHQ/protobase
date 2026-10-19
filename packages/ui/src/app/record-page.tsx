@@ -57,7 +57,7 @@ import { RelatedSection } from './related-section'
 import { relatedValue } from './related-value'
 import { ValueBadge } from './value-badge'
 import { useClient } from '../data/api-provider'
-import { Markdown } from '../markdown/markdown'
+import { markdownExcerpt } from '../markdown/markdown-excerpt'
 import { isMarkdown } from '../markdown/markdown-hint'
 import { ContactLink } from '../live/contact-link'
 import { contactFormat } from '../live/contact-links'
@@ -255,13 +255,14 @@ const LoadedRecord = ({ model, recordKey, stored, preview }: LoadedRecordProps) 
         const field = model.fields[name]
         if (!field || !visible(name)) return []
         if (!known(name)) return [{ label: hint(name)?.label ?? humanize(name), value: <Skeleton className="h-4 w-24" /> }]
-        const text = displayValue(field, stored.record[name], hint(name))
         const value = stored.record[name]
         const markdown = isMarkdown(field, hint(name)) && typeof value === 'string' && value !== ''
+        // A sidebar value stays on one line, so markdown shows as its plain-text excerpt, like a list cell
+        const text = markdown ? markdownExcerpt(value) : displayValue(field, value, hint(name))
         const contact = field.type === 'text' && typeof value === 'string' && value !== '' ? contactFormat(hint(name)) : undefined
-        const builtIn = field.type === 'enum' ? <ValueBadge value={value} hints={hint(name)}>{text}</ValueBadge> : markdown ? <Markdown source={value} /> : contact ? <ContactLink format={contact} value={text} /> : <strong title={valueTitle(field, value, undefined, hint(name))} className={hint(name)?.multiline ? 'whitespace-pre-line break-words' : undefined}>{text}</strong>
+        const builtIn = field.type === 'enum' ? <ValueBadge value={value} hints={hint(name)}>{text}</ValueBadge> : contact ? <ContactLink format={contact} value={text} /> : <strong title={valueTitle(field, value, undefined, hint(name))}>{text}</strong>
         const shown = shownWidget(fieldTypes, field, hint(name))
-        return [{ label: hint(name)?.label ?? humanize(name), value: shown ? <WidgetPart shown={shown} part="display" field={field} value={stored.record[name]} fallback={builtIn} /> : builtIn }]
+        return [{ label: hint(name)?.label ?? humanize(name), title: text, value: shown ? <WidgetPart shown={shown} part="display" field={field} value={stored.record[name]} fallback={builtIn} /> : builtIn }]
       })}
     />
   )

@@ -169,26 +169,26 @@ div | block
                                 span .block font-medium text-danger-text | block
                     div .rounded-lg border border-border bg-background p-4 | block
                       h3 .mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground | block
-                      dl .grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 | grid row nowrap normal normal
+                      dl .grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-2 | grid row nowrap normal normal
                         div .contents | contents
                           dt .text-muted-foreground | block
-                          dd .text-right tabular-nums text-foreground | block
+                          dd .truncate text-right tabular-nums text-foreground | block
                             span .inline-flex h-5 items-center gap-1.5 rounded-full px-2 text-xs font-medium whitespace-nowrap bg-muted text-muted-foreground | inline-flex row nowrap center normal
                               span .size-1.5 rounded-full bg-faint-foreground | block
                         div .contents | contents
                           dt .text-muted-foreground | block
-                          dd .text-right tabular-nums text-foreground | block
+                          dd .truncate text-right tabular-nums text-foreground | block
                             strong | inline
                         div .contents | contents
                           dt .text-muted-foreground | block
-                          dd .text-right tabular-nums text-foreground | block
+                          dd .truncate text-right tabular-nums text-foreground | block
                             strong | inline
                     div .rounded-lg border border-border bg-background p-4 | block
                       h3 .mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground | block
-                      dl .grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 | grid row nowrap normal normal
+                      dl .grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-2 | grid row nowrap normal normal
                         div .contents | contents
                           dt .text-muted-foreground | block
-                          dd .text-right tabular-nums text-foreground | block
+                          dd .truncate text-right tabular-nums text-foreground | block
                             span | inline
             div .sticky bottom-[var(--pb-sticky-bottom,0px)] z-20 flex shrink-0 items-center gap-2 border-t bg-background p-3 md:hidden | none sticky
               button .inline-flex shrink-0 items-center justify-center rounded-md font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:opacity-60 disabled:cursor-default bg-primary text-primary-foreground hover:bg-primary-hover shadow-sm h-8 px-3 text-body gap-2 max-md:min-h-11 max-md:flex-1 md:w-full | inline-flex row nowrap center center
