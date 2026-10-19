@@ -11,7 +11,7 @@ import { tableSubscriptions } from '../src/webhooks/table/table-subscriptions'
 import { subscriptionWriteCheck } from '../src/webhooks/table/validate-hook'
 import { checkWebhookUrl } from '../src/webhooks/table/address-check'
 import type { WriteEvent } from '../src/types'
-import { openSnapshotDb, type SnapshotDb } from '../../../test-support/sql-snapshot'
+import { openSnapshotDb, settled, type SnapshotDb } from '../../../test-support/sql-snapshot'
 
 // Real scrypt hashing runs on this thread, CPU work a busy machine stretches past 5 s.
 vi.setConfig({ testTimeout: 30_000 })
@@ -88,8 +88,9 @@ describe('subscriptionWriteCheck', () => {
 describe('betterAuthOwnerRoles', () => {
   it('reads the role someone acts with now, of their global ones and app roles in the organization they are a member of', async () => {
     const store = await (await openSnapshotDb('auth')).clone()
-    const make = () =>
-      createAuth({
+    // Each instance's schema check starts once its context is made; let it finish before the next queries.
+    const make = async () => {
+      const auth = createAuth({
         database: { dialect: store.dialect, type: 'postgres' },
         baseURL: 'http://localhost',
         secret: 'test-secret-test-secret-test-secret-1234',
@@ -97,8 +98,12 @@ describe('betterAuthOwnerRoles', () => {
         roles: { sales: 'Sales', support: 'Support' },
         organizations: { create: 'everyone' },
       })
-    await store.exec((await authSchemaMigration(make()))!)
-    const auth = make()
+      await auth.$context
+      await settled()
+      return auth
+    }
+    await store.exec((await authSchemaMigration(await make()))!)
+    const auth = await make()
     const password = 'correct horse battery'
     const root = await createUser(auth, { email: 'root@example.com', password })
     const bo = await createUser(auth, { email: 'bo@example.com', password })

@@ -187,8 +187,8 @@
   },
   "betterAuthOwnerRoles > reads the role someone acts with now, of their global ones and app roles in the organization they are a member of": {
     "betterAuthOwnerRoles > reads the role someone acts with now, of their global ones and app roles in the organization they are a member of#1": [
-      {"repeated":0},
       {"sql":"\n\t\t\tSELECT pg_catalog.current_schemas(true)::text[] AS schemas\n\t\t","result":{"command":"SELECT","rowCount":1,"columns":[["schemas",1009]],"rows":[["{pg_catalog,public}"]]}},
+      {"repeated":0},
       {"repeated":0},
       {"sql":"\n\t\tSELECT pg_catalog.current_schema() AS schema\n\t","result":{"command":"SELECT","rowCount":1,"columns":[["schema",19]],"rows":[["public"]]}},
       {"sql":"select \"nspname\" from \"pg_catalog\".\"pg_namespace\"","result":{"command":"SELECT","rowCount":4,"columns":[["nspname",19]],"rows":[
