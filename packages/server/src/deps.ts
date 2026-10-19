@@ -1,6 +1,7 @@
 import type { PageModel } from '@protobase/layout'
 import type { Db } from '@protobase/query'
 import type { BottomBarModel, ResolveOptions, UserMenuModel, ViewModel } from '@protobase/schema'
+import type { Locale } from '@protobase/schema/internal'
 import type { ErrorReportingSettings } from './error-reporting/error-reporting-settings'
 import type { CommentUsers } from './comments/comment-users'
 import type { mentionJob } from './comments/mention-job'
@@ -41,6 +42,8 @@ export type Deps = {
   errorReporting?: ErrorReportingSettings
   /** The map style the admin app draws maps with and the layers they may switch to, which `/meta` names to everyone. */
   maps?: MapSettings
+  /** The language the admin app's screens are in for everyone, which `/meta` names to everyone. */
+  locale?: Locale
   /** The plugins `/meta` names to the callers they are for. */
   plugins: PluginOption[]
   /** The other APIs whose resources `/meta` names to the callers they are for. */

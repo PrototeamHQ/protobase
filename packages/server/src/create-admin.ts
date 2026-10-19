@@ -50,6 +50,7 @@ import { createFilesRuntime } from './files/runtime'
 import { toApiFunction, type FunctionSource } from './functions/define-function'
 import { callerRecords } from './functions/records'
 import { functionRoutes } from './functions/routes'
+import { localeSetting } from './locale/locale-option'
 import { mapSettings } from './maps/map-settings'
 import { createMeta } from './meta'
 import { buildRegistry } from './registry'
@@ -164,6 +165,7 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], pag
   const runtime = runtimeUrl(options.runtime, globalThis.process?.env ?? {})
   const errorReporting = errorReportingSettings(options.errorReporting, globalThis.process?.env ?? {})
   const maps = mapSettings(options.maps, globalThis.process?.env ?? {})
+  const locale = localeSetting(options.locale)
   const plugins = pluginOptions(options.plugins, globalThis.process?.env ?? {}, bundlePlugins)
   const sources = sourceOptions(options.sources, globalThis.process?.env ?? {})
   checkSourceNames(sources, { resources: registry.entries.map((entry) => entry.name), pages: pageModels.map((entry) => entry.name) })
@@ -192,6 +194,7 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], pag
     ...(runtime && { runtime }),
     ...(errorReporting && { errorReporting }),
     ...(maps && { maps }),
+    ...(locale && { locale }),
     plugins,
     sources,
     ...(files && { files }),

@@ -2,6 +2,7 @@ import type { ResolveOptions, RoleLimit } from '@protobase/schema'
 import type { CorsOrigins } from './api-cors'
 import type { AssistantOptions } from './assistant/assistant-settings'
 import type { ErrorReportingOptions } from './error-reporting/error-reporting-settings'
+import type { LocaleOption } from './locale/locale-option'
 import type { MapOptions } from './maps/map-settings'
 import type { PluginOption } from './plugins/plugin-settings'
 import type { RuntimeOptions } from './runtime/runtime-settings'
@@ -53,6 +54,11 @@ export type AdminOptions = {
    * with `false`, the app draws no maps.
    */
   maps?: MapOptions | false
+  /**
+   * The language of the admin app's built-in screens and of its numbers and dates, for every user: `'en'` or `'nl'`.
+   * Unset, each user sees their browser's language when the screens come in it, and English otherwise.
+   */
+  locale?: LocaleOption
   /**
    * The plugins the admin app loads (see `PluginOption`), before the ones the platform lists in `PROTOBASE_PLUGINS`
    * and, for those that load before sign-in, `PROTOBASE_PLUGINS_BEFORE_SIGN_IN`; `false` turns all of them off.

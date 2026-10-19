@@ -1,6 +1,6 @@
 import { prunePage, type PageModel } from '@protobase/layout'
 import { pickView, type BottomBarItemModel, type ResourceModel, type SignInViewModel, type UserMenuItemModel, type UserMenuModel, type ViewModel } from '@protobase/schema'
-import { bottomBarFor } from '@protobase/schema/internal'
+import { bottomBarFor, type Locale } from '@protobase/schema/internal'
 import { activeRole } from './active-role'
 import { seesAssistant } from './assistant/assistant-settings'
 import type { Deps } from './deps'
@@ -45,6 +45,8 @@ export type CallerMeta = {
   errorReporting?: ErrorReportingSettings
   /** The map style the admin app draws its maps with, and the layers they may switch to, when the app has one: public, as the tiles are. */
   maps?: MapSettings
+  /** The language the admin app's screens are in, when the app sets one for everyone. */
+  locale?: Locale
   /** The hosts besides the app's own whose images the admin app draws with the page's referrer, when there are any. */
   files?: { trustedHosts: string[] }
   /** The plugins the admin app loads for the caller: those for everyone, and those for one of their roles. */
@@ -119,6 +121,7 @@ export const createMeta = (deps: Deps, appName: string) => {
       ...(deps.runtime && seesRuntime(session.user.roles) && { runtime: { url: deps.runtime } }),
       ...(deps.errorReporting && { errorReporting: deps.errorReporting }),
       ...(deps.maps && { maps: deps.maps }),
+      ...(deps.locale && { locale: deps.locale }),
       ...(deps.files && deps.files.trustedHosts.length > 0 && { files: { trustedHosts: deps.files.trustedHosts } }),
       ...(plugins.length > 0 && { plugins }),
       ...(sources.length > 0 && { sources }),
