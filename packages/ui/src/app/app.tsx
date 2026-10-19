@@ -14,7 +14,7 @@ import { useFormAddress } from '../forms/use-form-address'
 import { recordTitle } from '../live/model-helpers'
 import { humanize } from '../live/naming'
 import { ThemeProvider, useTheme } from '../theme/theme-provider'
-import { browserLocale, setFallbackLocale } from '../locale/active-locale'
+import { setFallbackLocale } from '../locale/active-locale'
 import type { Locale } from '@protobase/schema/internal'
 import { ToastProvider } from '../toasts'
 import { AssistantButton, AssistantPanel } from './assistant-shell'
@@ -77,7 +77,7 @@ export type AppProps = {
   runtime?: RuntimeClient
   /** How the plugins are loaded, for stories and tests; the page's `fetch` and `import()` by default. */
   pluginLoader?: PluginLoader
-  /** The language the screens are in when the app's `/meta` sets none: the browser's by default, when they come in it. */
+  /** The language the screens are in when the app's `/meta` sets none, such as the browser's (`browserLocale()`); English by default. */
   locale?: Locale
 }
 
@@ -266,7 +266,7 @@ const PublicFormGate = ({ baseUrl, client, ui, children }: Pick<AppProps, 'baseU
  */
 export const App = ({ auth, workspace, basePath, initialUrl, pluginLoader, locale, ...rest }: AppProps) => {
   // Before `/meta` names the app's language, and when it names none, the screens are in this one
-  setFallbackLocale(locale ?? browserLocale())
+  setFallbackLocale(locale ?? 'en')
   return (
     <ThemeProvider>
       <AuthProvider session={auth}>

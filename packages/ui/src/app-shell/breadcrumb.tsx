@@ -2,6 +2,7 @@ import { ChevronRight } from 'lucide-react'
 import type { MouseEvent } from 'react'
 import { cn } from '../lib/cn'
 import { Skeleton } from '../primitives/skeleton'
+import { text } from './messages'
 
 /** One step of the top bar's trail: plain text, or a link when it has a page of its own. A loading crumb shows a skeleton, with its label for screen readers. */
 export type Crumb = string | { label: string; href?: string; loading?: boolean }
@@ -17,7 +18,7 @@ export const inApp = (event: MouseEvent) => event.button === 0 && !event.metaKey
 
 /** The trail of where you are; the last crumb, the current page, shows on phones too. */
 export const Breadcrumb = ({ parts, onNavigate }: BreadcrumbProps) => (
-  <nav aria-label="Breadcrumb" className="flex min-w-0 items-center gap-1.5">
+  <nav aria-label={text('breadcrumb')} className="flex min-w-0 items-center gap-1.5">
     {parts.map((part, index) => {
       const last = index === parts.length - 1
       const { label, href, loading } = typeof part === 'string' ? { label: part, href: undefined, loading: false } : part

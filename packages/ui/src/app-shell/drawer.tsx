@@ -1,5 +1,6 @@
 import { useRef, type ReactNode } from 'react'
 import { useFocusTrap } from '../lib/use-focus-trap'
+import { text } from './messages'
 
 export type DrawerProps = { id: string; open: boolean; onClose: () => void; children: ReactNode }
 
@@ -16,7 +17,7 @@ export const Drawer = ({ id, open, onClose, children }: DrawerProps) => {
         id={id}
         role="dialog"
         aria-modal="true"
-        aria-label="Navigation"
+        aria-label={text('navigation')}
         tabIndex={-1}
         className="absolute inset-y-0 left-0 flex w-60 max-w-[85vw] bg-sidebar shadow-pop outline-none"
         onClick={(event) => (event.target as Element).closest('a') && onClose()}

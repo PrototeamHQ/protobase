@@ -4,6 +4,7 @@ import { cn } from '../lib/cn'
 import { Input } from '../primitives/input'
 import { Kbd } from '../primitives/kbd'
 import { Spinner } from '../primitives/spinner'
+import { text } from './messages'
 
 export type SearchResultGroup = {
   id: string
@@ -94,7 +95,7 @@ export const GlobalSearch = ({ search, className = 'w-96', autoFocus, showShortc
         leading={search.loading ? <Spinner className="size-4" /> : <Search className="size-4" />}
         trailing={
           search.text ? (
-            <button type="button" aria-label="Clear search" className="-mr-1 inline-flex size-6 shrink-0 items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-foreground" onMouseDown={(event) => event.preventDefault()} onClick={clear}>
+            <button type="button" aria-label={text('clearSearch')} className="-mr-1 inline-flex size-6 shrink-0 items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-foreground" onMouseDown={(event) => event.preventDefault()} onClick={clear}>
               <X className="size-3.5" />
             </button>
           ) : showShortcut ? (
@@ -104,7 +105,7 @@ export const GlobalSearch = ({ search, className = 'w-96', autoFocus, showShortc
           ) : undefined
         }
         placeholder={search.placeholder}
-        aria-label="Global search"
+        aria-label={text('globalSearch')}
         role="combobox"
         aria-autocomplete="list"
         aria-expanded={open}
@@ -121,8 +122,8 @@ export const GlobalSearch = ({ search, className = 'w-96', autoFocus, showShortc
         onKeyDown={onKeyDown}
       />
       {open && (
-        <div id={listId} role="listbox" aria-label="Search results" className="absolute right-0 top-full z-40 mt-1 max-h-96 w-full min-w-72 overflow-y-auto rounded-lg border bg-background py-1 shadow-pop">
-          {search.groups.length === 0 && <p className="px-3 py-2 text-muted-foreground">{search.loading ? 'Searching' : `No matches for “${search.query}”`}</p>}
+        <div id={listId} role="listbox" aria-label={text('searchResults')} className="absolute right-0 top-full z-40 mt-1 max-h-96 w-full min-w-72 overflow-y-auto rounded-lg border bg-background py-1 shadow-pop">
+          {search.groups.length === 0 && <p className="px-3 py-2 text-muted-foreground">{search.loading ? text('searching') : text('noMatches', search.query)}</p>}
           {search.groups.map((group) => (
             <div key={group.id} role="group" aria-label={group.label}>
               <div className="px-3 pb-1 pt-2 text-[11px] font-medium uppercase tracking-wide text-faint-foreground">{group.label}</div>

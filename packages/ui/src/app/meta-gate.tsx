@@ -8,6 +8,7 @@ import { useSourceMetas } from '../data/use-source-metas'
 import { withSources } from '../data/with-sources'
 import { AppLocale } from '../locale/app-locale'
 import { Spinner } from '../primitives/spinner'
+import { text } from './meta-gate-messages'
 
 export const useAdminMeta = () => {
   const meta = useContext(MetaContext)
@@ -61,12 +62,12 @@ export const MetaGate = ({ children }: { children: ReactNode }) => {
   if (meta.isPending) {
     return (
       <div className="flex h-full min-h-48 items-center justify-center gap-2 text-muted-foreground">
-        <Spinner /> Loading
+        <Spinner /> {text('loading')}
       </div>
     )
   }
   if (meta.error) {
-    return <Notice title="Cannot reach the API">{isApiError(meta.error) ? meta.error.message : 'The server did not answer. Is it running?'}</Notice>
+    return <Notice title={text('cannotReach')}>{isApiError(meta.error) ? meta.error.message : text('noAnswer')}</Notice>
   }
   return <WithSources meta={meta.data}>{children}</WithSources>
 }

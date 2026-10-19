@@ -5,6 +5,7 @@ import { Avatar } from '../primitives/avatar'
 import { Badge, type BadgeTone } from '../primitives/badge'
 import { SwitchGroup } from './switch-group'
 import { ThemeSwitch, type ProfileTheme } from './theme-switch'
+import { text } from './messages'
 
 export type ShellUser = { name: string; email: string; initials: string; hue: number; role: string; roleTone: BadgeTone }
 
@@ -67,7 +68,7 @@ export const ProfileMenu = ({ user, compact, open: controlled, items = [], onNav
 
   return (
     <div ref={root} className="relative">
-      <button type="button" className="flex min-h-11 w-full items-center gap-2.5 rounded-md p-1 text-left hover:bg-muted md:min-h-0" aria-label="Profile menu" aria-haspopup="menu" aria-expanded={open} onClick={toggle}>
+      <button type="button" className="flex min-h-11 w-full items-center gap-2.5 rounded-md p-1 text-left hover:bg-muted md:min-h-0" aria-label={text('profileMenu')} aria-haspopup="menu" aria-expanded={open} onClick={toggle}>
         <Avatar initials={user.initials} hue={user.hue} size="md" className="ring-0" />
         {!compact && (
           <>
@@ -89,7 +90,7 @@ export const ProfileMenu = ({ user, compact, open: controlled, items = [], onNav
           </div>
           {organizations && (organizations.current || organizations.others.length > 0) && (
             <SwitchGroup
-              label="Organizations"
+              label={text('organizations')}
               {...(organizations.current && { current: { id: organizations.current.id, label: organizations.current.name } })}
               others={organizations.others.map(({ id, name }) => ({ id, label: name }))}
               rowClassName={menuRow}
@@ -101,7 +102,7 @@ export const ProfileMenu = ({ user, compact, open: controlled, items = [], onNav
           )}
           {roles && roles.roles.length > 1 && (
             <SwitchGroup
-              label="Roles"
+              label={text('roles')}
               {...(activeRole && { current: { id: activeRole.name, label: activeRole.label } })}
               others={roles.roles.filter((role) => role !== activeRole).map(({ name, label }) => ({ id: name, label }))}
               rowClassName={menuRow}
@@ -145,7 +146,7 @@ export const ProfileMenu = ({ user, compact, open: controlled, items = [], onNav
           {onSignOut && (
             <button type="button" role="menuitem" onClick={onSignOut} className={menuRow}>
               <LogOut className="size-4" />
-              Sign out
+              {text('signOut')}
             </button>
           )}
         </div>

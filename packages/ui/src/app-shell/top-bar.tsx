@@ -4,6 +4,7 @@ import { cn } from '../lib/cn'
 import { backTarget } from './back-target'
 import { Breadcrumb, inApp, type Crumb } from './breadcrumb'
 import { GlobalSearch, type GlobalSearchModel } from './global-search'
+import { text } from './messages'
 
 export type TopBarProps = {
   breadcrumb: Crumb[]
@@ -47,14 +48,14 @@ export const TopBar = ({ breadcrumb, onNavigate, actions, onMenu, menuOpen, menu
   return (
     <header ref={ref} className={cn(sticky ? 'sticky top-0 z-30' : 'relative', 'flex h-12 shrink-0 items-center gap-1 border-b bg-background pl-4 pr-2 md:gap-4 md:px-5')}>
       {onMenu && (
-        <button type="button" aria-label="Open navigation" aria-expanded={Boolean(menuOpen)} aria-controls={menuControls} onClick={onMenu} className={cn(topBarButton, '-ml-3')}>
+        <button type="button" aria-label={text('openNavigation')} aria-expanded={Boolean(menuOpen)} aria-controls={menuControls} onClick={onMenu} className={cn(topBarButton, '-ml-3')}>
           <Menu className="size-5" />
         </button>
       )}
       {back && (
         <a
           href={back.href}
-          aria-label={`Back to ${back.label}`}
+          aria-label={text('backTo', back.label)}
           onClick={(event) => {
             if (!onNavigate || !inApp(event)) return
             event.preventDefault()
@@ -72,7 +73,7 @@ export const TopBar = ({ breadcrumb, onNavigate, actions, onMenu, menuOpen, menu
             <div className="hidden md:block">
               <GlobalSearch ref={desktopSearch} search={search} />
             </div>
-            <button type="button" aria-label="Search" aria-expanded={searchOpen} onClick={() => setSearchOpen(true)} className={topBarButton}>
+            <button type="button" aria-label={text('search')} aria-expanded={searchOpen} onClick={() => setSearchOpen(true)} className={topBarButton}>
               <Search className="size-5" />
             </button>
           </>
@@ -83,7 +84,7 @@ export const TopBar = ({ breadcrumb, onNavigate, actions, onMenu, menuOpen, menu
       {search && searchOpen && (
         <div className="absolute inset-0 z-20 flex items-center gap-1 bg-background px-3 md:hidden">
           <GlobalSearch className="min-w-0 flex-1" autoFocus showShortcut={false} search={{ ...search, onSelect: (href) => { search.onSelect(href); setSearchOpen(false) } }} />
-          <button type="button" aria-label="Close search" onClick={() => setSearchOpen(false)} className={topBarButton}>
+          <button type="button" aria-label={text('closeSearch')} onClick={() => setSearchOpen(false)} className={topBarButton}>
             <X className="size-5" />
           </button>
         </div>

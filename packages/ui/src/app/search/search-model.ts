@@ -4,6 +4,7 @@ import type { SearchResultGroup } from '../../app-shell'
 import type { MetaData } from '../../data/meta-data'
 import { recordKey, recordTitleField } from '../../live/model-helpers'
 import { humanize } from '../../live/naming'
+import { text } from './messages'
 
 const where = createWhere()
 
@@ -28,10 +29,10 @@ export const searchTargets = (meta: MetaData): SearchTarget[] =>
 /** "Search organizations and services", or "Search organizations, services and more" when it looks in more. */
 export const searchPlaceholder = (targets: SearchTarget[]) => {
   const names = targets.map((target) => target.label.toLowerCase())
-  if (names.length === 0) return 'Search'
-  if (names.length === 1) return `Search ${names[0]}`
-  if (names.length === 2) return `Search ${names[0]} and ${names[1]}`
-  return `Search ${names[0]}, ${names[1]} and more`
+  if (names.length === 0) return text('search')
+  if (names.length === 1) return text('searchOne', names[0]!)
+  if (names.length === 2) return text('searchTwo', names[0]!, names[1]!)
+  return text('searchMore', names[0]!, names[1]!)
 }
 
 /** The list filter for the text: the server's partial-word `search(...)` over the resource's search fields. */

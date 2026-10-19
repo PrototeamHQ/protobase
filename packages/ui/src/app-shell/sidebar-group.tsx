@@ -5,6 +5,7 @@ import type { NavItem, NavRecent } from './nav'
 import { navOpenStorageKey, readNavOpen, writeNavOpen } from './nav-open-storage'
 import { SidebarItem } from './sidebar-item'
 import { StatusDot } from './status-dot'
+import { text } from './messages'
 
 export type SidebarGroupProps = {
   item: NavItem
@@ -45,7 +46,7 @@ export const SidebarGroup = ({ item, recent, mode, active, onNavigate }: Sidebar
           type="button"
           aria-expanded={open}
           aria-controls={listId}
-          aria-label={`Recent ${item.label.toLowerCase()}`}
+          aria-label={text('recent', item.label.toLowerCase())}
           onClick={toggle}
           className="absolute right-1 top-1/2 inline-flex size-6 -translate-y-1/2 items-center justify-center rounded text-faint-foreground hover:bg-muted hover:text-foreground"
         >
@@ -53,12 +54,12 @@ export const SidebarGroup = ({ item, recent, mode, active, onNavigate }: Sidebar
         </button>
       </div>
       {open && (
-        <ul id={listId} aria-label={`Recent ${item.label.toLowerCase()}`} className={cn('flex flex-col gap-0.5 border-l pl-1.5', indent[mode])}>
+        <ul id={listId} aria-label={text('recent', item.label.toLowerCase())} className={cn('flex flex-col gap-0.5 border-l pl-1.5', indent[mode])}>
           {recent.state === 'loading' && (
-            <li className={cn('flex items-center text-faint-foreground', row[mode])}>Loading...</li>
+            <li className={cn('flex items-center text-faint-foreground', row[mode])}>{text('loading')}</li>
           )}
           {recent.state === 'error' && (
-            <li className={cn('flex items-center text-faint-foreground', row[mode])}>Could not load</li>
+            <li className={cn('flex items-center text-faint-foreground', row[mode])}>{text('couldNotLoad')}</li>
           )}
           {recent.state === 'ready' &&
             recent.records.map((record) => (
@@ -77,7 +78,7 @@ export const SidebarGroup = ({ item, recent, mode, active, onNavigate }: Sidebar
             ))}
           <li>
             <a {...link(href)} className={cn('flex items-center rounded-md text-faint-foreground transition-colors hover:bg-muted hover:text-foreground', row[mode])}>
-              View all
+              {text('viewAll')}
             </a>
           </li>
         </ul>

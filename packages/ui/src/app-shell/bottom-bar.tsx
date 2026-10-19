@@ -1,6 +1,7 @@
 import { Ellipsis, type LucideIcon } from 'lucide-react'
 import type { MouseEvent, Ref } from 'react'
 import { cn } from '../lib/cn'
+import { text } from './messages'
 
 /** A tab: inside the admin it navigates, `external` opens a new tab. */
 export type BottomBarTab = { id: string; label: string; icon: LucideIcon; href: string; external?: boolean; active?: boolean }
@@ -30,7 +31,7 @@ const tab = 'flex min-h-[49px] min-w-0 flex-1 flex-col items-center justify-cent
 export const BottomBar = ({ tabs, onNavigate, onMore, moreOpen, moreControls, sticky, ref }: BottomBarProps) => {
   const moreCurrent = !tabs.some((item) => item.active)
   return (
-    <nav ref={ref} aria-label="Tabs" className={cn('flex shrink-0 border-t bg-background pb-[env(safe-area-inset-bottom)] md:hidden', sticky && 'sticky bottom-0 z-30')}>
+    <nav ref={ref} aria-label={text('tabs')} className={cn('flex shrink-0 border-t bg-background pb-[env(safe-area-inset-bottom)] md:hidden', sticky && 'sticky bottom-0 z-30')}>
       {tabs.map((item) => {
         const Icon = item.icon
         return (
@@ -53,7 +54,7 @@ export const BottomBar = ({ tabs, onNavigate, onMore, moreOpen, moreControls, st
       })}
       <button type="button" aria-expanded={moreOpen} aria-controls={moreControls} data-current={moreCurrent || undefined} onClick={onMore} className={cn(tab, moreCurrent ? 'text-primary-text' : 'text-muted-foreground')}>
         <Ellipsis className="size-6" strokeWidth={moreCurrent ? 2.2 : 1.9} aria-hidden />
-        More
+        {text('more')}
       </button>
     </nav>
   )

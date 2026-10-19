@@ -9,6 +9,7 @@ import { ThemeSwitch, type ProfileTheme } from './theme-switch'
 import { SidebarGroup } from './sidebar-group'
 import { SidebarItem } from './sidebar-item'
 import { isTextMode, sidebarWidth, type SidebarMode } from './sidebar-mode'
+import { text } from './messages'
 
 export type SidebarProps = {
   mode: SidebarMode
@@ -43,7 +44,7 @@ export const Sidebar = ({ mode, activeItem, user, workspace, appName, forceExpan
   const expanded = expanding && forceExpanded
   const inline = isTextMode(mode) || expanding
   return (
-    <nav aria-label="Resources" className={cn(sticky ? 'sticky top-0 h-dvh self-start' : 'relative', 'z-30 shrink-0', sidebarWidth[mode])}>
+    <nav aria-label={text('resources')} className={cn(sticky ? 'sticky top-0 h-dvh self-start' : 'relative', 'z-30 shrink-0', sidebarWidth[mode])}>
       <div
         className={cn(
           'group/side absolute inset-y-0 left-0 flex flex-col overflow-hidden border-r bg-sidebar',
@@ -88,9 +89,9 @@ export const Sidebar = ({ mode, activeItem, user, workspace, appName, forceExpan
               {/* An icon-only sidebar has no room for the switch; the page still follows the system or a stored choice. */}
               {theme && inline && <ThemeSwitch theme={theme} className="flex min-h-11 w-full items-center gap-2.5 whitespace-nowrap p-1.5 text-muted-foreground md:min-h-0" />}
               {signIn && (
-                <RouteLink to={signIn} aria-label="Sign in" className="flex min-h-11 w-full items-center gap-2.5 rounded-md p-1.5 text-left font-medium text-muted-foreground hover:bg-muted hover:text-foreground md:min-h-0">
+                <RouteLink to={signIn} aria-label={text('signIn')} className="flex min-h-11 w-full items-center gap-2.5 rounded-md p-1.5 text-left font-medium text-muted-foreground hover:bg-muted hover:text-foreground md:min-h-0">
                   <LogIn className="size-4 shrink-0" />
-                  {inline && <span className="whitespace-nowrap">Sign in</span>}
+                  {inline && <span className="whitespace-nowrap">{text('signIn')}</span>}
                 </RouteLink>
               )}
             </>

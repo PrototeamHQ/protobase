@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { ResourceModel, ViewModel } from '@protobase/schema'
 import type { MetaData } from '../../data/meta-data'
+import { setAppLocale } from '../../locale/active-locale'
 import { searchFields, searchFilter, searchPlaceholder, searchTargets, subtitleField, titleFields, toHit } from './search-model'
 
 const model = (name: string, extra: Partial<ResourceModel> = {}) => ({ name, table: { name }, primaryKey: ['id'], fields: {}, search: ['name'], ...extra }) as ResourceModel
@@ -33,6 +34,13 @@ describe('searchPlaceholder', () => {
     expect(searchPlaceholder(targets(['orders']))).toBe('Search orders')
     expect(searchPlaceholder(targets(['orders', 'companies']))).toBe('Search orders and companies')
     expect(searchPlaceholder(targets(['orders', 'companies', 'products', 'invoices']))).toBe('Search orders, companies and more')
+  })
+
+  it('reads in the language the app sets', () => {
+    const targets = (names: string[]) => searchTargets(meta(names.map((name) => model(name)), names.map((name) => view(name))))
+    setAppLocale('nl')
+    expect(searchPlaceholder(targets(['orders', 'companies']))).toBe('Zoek in orders en companies')
+    setAppLocale(undefined)
   })
 })
 

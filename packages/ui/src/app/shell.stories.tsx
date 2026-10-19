@@ -56,6 +56,27 @@ export const RecentAndUserMenu: StoryObj = {
   },
 }
 
+/** An app whose `/meta` sets Dutch: the shell's own texts, numbers and dates are in Dutch, the app's names as it writes them. */
+export const InDutch: StoryObj = {
+  tags: ['play'],
+  beforeEach: () => localStorage.removeItem(navOpenStorageKey('orders')),
+  render: () => (
+    <div className="h-screen">
+      <App client={fakeClient({ permissions: allowed, nav: { recent: { status: 'status', tones: { draft: 'neutral', shipped: 'success' } } }, locale: 'nl' })} auth={session} initialUrl="/orders" />
+    </div>
+  ),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    const list = await canvas.findByRole('list', { name: 'Recente orders' })
+    await within(list).findByRole('link', { name: 'Alles bekijken' })
+    expect(document.documentElement.lang).toBe('nl')
+    await userEvent.click(canvas.getByRole('button', { name: 'Profielmenu' }))
+    const menu = await canvas.findByRole('menu')
+    expect(within(menu).getByRole('menuitem', { name: 'Uitloggen' })).toBeVisible()
+    expect(within(menu).getByText('Thema')).toBeVisible()
+  },
+}
+
 /** The caller's bottom bar from `/meta`, on a phone: its tabs under their own labels, then "More". */
 export const BottomBarFromMeta: StoryObj = {
   tags: ['play', 'phone'],
