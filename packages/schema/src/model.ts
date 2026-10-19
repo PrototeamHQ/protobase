@@ -1059,7 +1059,7 @@ export type ActionModel = {
   /** The button's label. */
   label: string
   /**
-   * The button's icon: `bath`, `bed`, `bell`, `bookmark`, `calendar`, `door-open`, `external-link`, `file-text`, `heart`,
+   * The button's icon: `ban`, `bath`, `bed`, `bell`, `bookmark`, `calendar`, `door-open`, `external-link`, `file-text`, `heart`,
    * `house`, `key`, `land-plot`, `leaf`, `ruler`, `send`, `tag` or `wallet`; another name shows a lightning bolt.
    */
   icon?: string

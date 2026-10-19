@@ -1,4 +1,4 @@
-import { Bath, Bed, Bell, Bookmark, Calendar, DoorOpen, ExternalLink, FileText, Heart, House, KeyRound, LandPlot, Leaf, RulerDimensionLine, Send, Tag, Wallet, type LucideIcon } from 'lucide-react'
+import { Ban, Bath, Bed, Bell, Bookmark, Calendar, DoorOpen, ExternalLink, FileText, Heart, House, KeyRound, LandPlot, Leaf, RulerDimensionLine, Send, Tag, Wallet, type LucideIcon } from 'lucide-react'
 
 /** The icons an action's, a field's or a sign-in prompt's `icon` may name. */
 const byName: Record<string, LucideIcon> = {
@@ -19,6 +19,7 @@ const byName: Record<string, LucideIcon> = {
   bell: Bell,
   bookmark: Bookmark,
   'external-link': ExternalLink,
+  ban: Ban,
 }
 
 /** The icon a name stands for, or nothing for a name the app does not know. */
