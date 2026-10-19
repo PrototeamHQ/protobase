@@ -591,7 +591,7 @@ describe('view builder', () => {
     })
 
     it('throws on recent records', () => {
-      expect(() => base().namedList('updates', (v) => updates(v).nav({ recent: { status: 'status' } }))).toThrow('recent records')
+      expect(() => base().namedList('updates', (v) => updates(v).nav({ recent: { status: 'status', tones: {} } }))).toThrow('recent records')
     })
 
     it('throws on a part that is not a list part', () => {

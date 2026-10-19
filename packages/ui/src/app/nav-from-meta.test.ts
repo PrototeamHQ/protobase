@@ -18,6 +18,19 @@ describe('navFromMeta', () => {
     expect(navFromMeta(meta).flatMap((group) => group.items.map((item) => item.id))).toEqual(['orders'])
   })
 
+  it('gives each named list an entry of its own, placed by its own nav', () => {
+    const named = (name: string, extra = {}) => ({ name, names: { singular: name, plural: `The ${name}` }, filters: [], ...extra })
+    const view = (extra = {}) =>
+      ({ resource: 'changelog', fields: {}, filters: [], layout: [], actions: [], lists: [named('updates', { nav: { group: 'History', order: 1 } }), named('hidden', { nav: { hidden: true } })], ...extra }) as unknown as ViewModel
+    const meta = (extra = {}) => ({ etag: '"x"', appName: 'Protobase', permissions: {}, pages: {}, resources: { changelog: model('changelog', 'core') }, views: { changelog: view(extra) } })
+    const items = (groups: ReturnType<typeof navFromMeta>) => groups.flatMap((group) => group.items.map((item) => [group.label, item.id, item.label, item.href]))
+    expect(items(navFromMeta(meta(), '/admin'))).toEqual([
+      ['Admin', 'changelog', 'Changelog', '/admin/changelog'],
+      ['History', 'changelog/updates', 'The updates', '/admin/changelog?list=updates'],
+    ])
+    expect(items(navFromMeta(meta({ nav: { hidden: true } }), '/admin'))).toEqual([['History', 'changelog/updates', 'The updates', '/admin/changelog?list=updates']])
+  })
+
   it("lists the resources of a source that cannot be read under its label, each with the problem, and none while it loads", () => {
     const view = (resource: string) => ({ resource, fields: {}, filters: [], layout: [], actions: [] }) as unknown as ViewModel
     const desk = { url: 'https://desk.example.com/api/v1', label: 'Service desk', resources: ['tickets', 'ticket_notes'] }

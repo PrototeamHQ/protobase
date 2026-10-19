@@ -130,6 +130,23 @@ describe('pruneView', () => {
     expect(pruneView(footed, hidden.repairs!, hidden).list?.displays).toEqual([{ kind: 'cards', name: 'cards', amount: ['number'], footer: ['status'] }])
   })
 
+  it("prunes a named list's columns, widgets and chart as the view's own", () => {
+    const named = view<typeof repairs>('repairs')
+      .namedList('costs', (v) =>
+        v
+          .names({ singular: 'Cost', plural: 'Costs' })
+          .list((r) => ({ columns: [r.number, r.costPrice], sort: [[r.costPrice, 'desc']] }))
+          .filters((r, w) => [w.range(r.costPrice), w.facets(r.status)])
+          .chart((r) => ({ field: r.costPrice, range: '30d', granularity: 'day' })),
+      )
+      .toModel()
+    const hidden = without({ repairs: ['costPrice'] })
+    const [pruned] = pruneView(named, hidden.repairs!, hidden).lists!
+    expect(JSON.stringify(pruned)).not.toContain('costPrice')
+    expect(pruned).toMatchObject({ name: 'costs', list: { columns: ['number'] }, filters: [{ kind: 'facets', field: 'status' }] })
+    expect(pruneView(named, all.repairs, all)).toEqual(named)
+  })
+
   it('never sends a hidden field, wherever a view names it: lists, displays, sections and custom props', () => {
     const Board = Object.assign((props: { by: string; size: number }) => props, { blockName: 'Board', custom: true })
     const Margin = Object.assign((props: { cost: string }) => props, { blockName: 'Margin', custom: true })

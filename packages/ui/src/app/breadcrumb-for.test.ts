@@ -17,6 +17,10 @@ describe('breadcrumbFor', () => {
     expect(breadcrumbFor({ basePath: '', address: { ...list('tenants'), filter: 'city = "Utrecht"' }, group: 'Leasing', resourceLabel: 'Tenants' })).toEqual(['Leasing', { label: 'Tenants', href: '/tenants' }])
   })
 
+  it('keeps a named list in the link to the list', () => {
+    expect(breadcrumbFor({ basePath: '', address: { ...list('changelog'), list: 'updates' }, resourceLabel: 'Updates' })).toEqual([{ label: 'Updates', href: '/changelog?list=updates' }])
+  })
+
   it('names the create page "New"', () => {
     expect(breadcrumbFor({ basePath: '', address: { kind: 'create', resource: 'tenants' }, resourceLabel: 'Tenants' })).toEqual([{ label: 'Tenants', href: '/tenants' }, { label: 'New', href: '/tenants/new' }])
   })

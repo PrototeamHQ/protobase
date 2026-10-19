@@ -56,7 +56,7 @@ export const MapDisplay = ({ model, view, display, filter, orderBy, fields, at, 
   const settled = useDebounced(area, settleMs)
   // Without a view, the whole world is asked for, and the map fits what it holds
   const [fitting, setFitting] = useState(at === undefined)
-  const records = useMapRecords({ model, display, fields, filter, orderBy, area: fitting ? worldArea : settled })
+  const records = useMapRecords({ model, view, display, fields, filter, orderBy, area: fitting ? worldArea : settled })
   const loaded = records.isPlaceholderData ? undefined : records.data
   const rows = records.data?.rows ?? []
   const buckets = records.data?.buckets ?? []

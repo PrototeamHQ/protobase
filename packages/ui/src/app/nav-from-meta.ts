@@ -7,6 +7,9 @@ import { iconFor } from './icons'
 import { menuIcon } from './menu-icons'
 import { userMenuResources } from './user-menu-from-meta'
 
+/** The sidebar item of a resource's list, or of one of its named lists. */
+export const navItemId = (resource: string, list?: string) => (list === undefined ? resource : `${resource}/${list}`)
+
 const groupLabels: Record<string, string> = { sales: 'Sales', crm: 'CRM', catalog: 'Catalog', inventory: 'Inventory', core: 'Admin', hr: 'HR' }
 
 /**
@@ -14,7 +17,8 @@ const groupLabels: Record<string, string> = { sales: 'Sales', crm: 'CRM', catalo
  * the user menu leave an entry out, `nav.order` sorts within a group, and `recent` (from `useNavRecent`) makes an entry
  * collapsible. Groups with pages come first, so a dashboard leads the sidebar. The resources of a source that cannot be
  * read are listed under its label, each with the problem. A visitor also gets the resources whose views ask them to sign
- * in, where those views place them, under "Account" without a group.
+ * in, where those views place them, under "Account" without a group. Each named list of a view is an entry of its
+ * own, placed by its own `nav`.
  */
 export const navFromMeta = (meta: MetaData, basePath = '', recent: Record<string, NavRecent> = {}): NavGroup[] => {
   const groups = new Map<string, NavGroup>()
@@ -30,19 +34,41 @@ export const navFromMeta = (meta: MetaData, basePath = '', recent: Record<string
   }
   for (const model of Object.values(meta.resources)) {
     const view = meta.views[model.name]
-    if (!view || view.nav?.hidden || inMenu.has(model.name)) continue
+    if (!view || inMenu.has(model.name)) continue
     const schema = model.table.schema ?? 'public'
-    const groupName = view.nav?.group ?? groupLabels[schema] ?? humanize(schema)
-    const group = groups.get(groupName) ?? { label: groupName, items: [] }
-    group.items.push({
-      id: model.name,
-      label: view.names?.plural ?? humanize(model.name),
-      icon: iconFor(model.name),
-      href: appPath({ kind: 'list', resource: model.name }, basePath),
-      ...(recent[model.name] && { recent: recent[model.name] }),
-    })
-    groups.set(groupName, group)
-    orders.set(model.name, view.nav?.order ?? Number.MAX_SAFE_INTEGER)
+    const defaultGroup = view.nav?.group ?? groupLabels[schema] ?? humanize(schema)
+    const add = (groupName: string, item: NavGroup['items'][number], order: number | undefined) => {
+      const group = groups.get(groupName) ?? { label: groupName, items: [] }
+      group.items.push(item)
+      groups.set(groupName, group)
+      orders.set(item.id, order ?? Number.MAX_SAFE_INTEGER)
+    }
+    if (!view.nav?.hidden) {
+      add(
+        defaultGroup,
+        {
+          id: navItemId(model.name),
+          label: view.names?.plural ?? humanize(model.name),
+          icon: iconFor(model.name),
+          href: appPath({ kind: 'list', resource: model.name }, basePath),
+          ...(recent[model.name] && { recent: recent[model.name] }),
+        },
+        view.nav?.order,
+      )
+    }
+    for (const named of view.lists ?? []) {
+      if (named.nav?.hidden) continue
+      add(
+        named.nav?.group ?? defaultGroup,
+        {
+          id: navItemId(model.name, named.name),
+          label: named.names.plural,
+          icon: iconFor(model.name),
+          href: appPath({ kind: 'list', resource: model.name, list: named.name }, basePath),
+        },
+        named.nav?.order,
+      )
+    }
   }
   // A visitor finds what signing in gives where a signed-in user finds the resource
   for (const entry of Object.values(meta.signIn ?? {})) {

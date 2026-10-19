@@ -1,6 +1,6 @@
 import { conditionReadable, resolveFieldPath } from '@protobase/layout'
 import { isRecordCondition } from '@protobase/schema'
-import type { ActionInputModel, ActionModel, ActionRun, CardFavoriteModel, CardPhotosModel, ChartModel, CommentsSectionModel, CustomSectionModel, FilterWidgetModel, FormModel, GalleryModel, GroupModel, HistorySectionModel, LayoutItemModel, ListDisplayModel, ListModel, MapSectionModel, NavModel, NavRecentModel, RelatedColumnModel, RelatedModel, ResourceModel, SaveSearchModel, SearchesOfModel, SearchResultModel, ViewModel } from '@protobase/schema'
+import type { ActionInputModel, ActionModel, ActionRun, CardFavoriteModel, CardPhotosModel, ChartModel, CommentsSectionModel, CustomSectionModel, FilterWidgetModel, FormModel, GalleryModel, GroupModel, HistorySectionModel, LayoutItemModel, ListDisplayModel, ListModel, MapSectionModel, NamedListModel, NavModel, NavRecentModel, RelatedColumnModel, RelatedModel, ResourceModel, SaveSearchModel, SearchesOfModel, SearchResultModel, ViewModel } from '@protobase/schema'
 import { addressErrors, chartFields, hrefPlaceholders, promptFields, navRecentErrors, pruneByShape, shapes as s, tableDisplay } from '@protobase/schema/internal'
 import { cardFavoriteErrors } from './view-card-favorite'
 import { cardPhotosErrors } from './view-card-photos'
@@ -191,13 +191,16 @@ const actionShape = (model: ResourceModel, models: Record<string, ResourceModel>
 
 // Every part of a view, and what a field the caller cannot read does to it. The compiler wants a shape for each part,
 // so a part added to ViewModel is named here before it reaches anyone.
-const viewShape = (resource: string, model: ResourceModel, models: Record<string, ResourceModel>, prompted: ReadonlySet<string>) =>
-  s.object<ViewModel>({
+const viewShape = (resource: string, model: ResourceModel, models: Record<string, ResourceModel>, prompted: ReadonlySet<string>) => {
+  const nav = s.object<NavModel>({ hidden: s.data, group: s.data, order: s.data, recent: s.map<NavRecentModel>((recent) => (navRecentErrors(recent, model).length === 0 ? recent : undefined)) })
+  // A chart goes when the caller cannot read a field it groups, counts over or adds up
+  const chart = s.map<ChartModel>((chart) => (chartFields(chart).every((name) => Object.hasOwn(model.fields, name)) ? chart : undefined))
+  return s.object<ViewModel>({
     resource: s.data,
     roles: s.data,
     title: s.field,
     searchResult: s.object<SearchResultModel>({ title: s.list(s.field, { nonEmpty: true }), subtitle: s.field }),
-    nav: s.object<NavModel>({ hidden: s.data, group: s.data, order: s.data, recent: s.map<NavRecentModel>((recent) => (navRecentErrors(recent, model).length === 0 ? recent : undefined)) }),
+    nav,
     names: s.data,
     icon: s.data,
     help: s.data,
@@ -205,8 +208,7 @@ const viewShape = (resource: string, model: ResourceModel, models: Record<string
     list: listShape(resource, model, models, prompted),
     filters: s.list(widgetShape),
     layout: s.list(layoutShape(resource, model, models)),
-    // A chart goes when the caller cannot read a field it groups, counts over or adds up
-    chart: s.map<ChartModel>((chart) => (chartFields(chart).every((name) => Object.hasOwn(model.fields, name)) ? chart : undefined)),
+    chart,
     recordMode: s.data,
     helpWhen: s.data,
     saveFeedback: s.data,
@@ -221,7 +223,9 @@ const viewShape = (resource: string, model: ResourceModel, models: Record<string
     create: s.data,
     // Public forms have a route of their own, which serves each to anyone; `/meta` never carries them
     forms: s.map<FormModel[]>(() => undefined),
+    lists: s.list(s.object<NamedListModel>({ name: s.data, names: s.data, nav, help: s.data, list: listShape(resource, model, models, prompted), filters: s.list(widgetShape), chart })),
   })
+}
 
 /**
  * The view with every reference to a field the caller cannot read removed: list columns, sort, search and displays,

@@ -30,7 +30,8 @@ import { OrganizationsPage } from '../organizations/organizations-page'
 import { reopenIn, useOrganizations } from '../organizations/use-organizations'
 import { actingUser } from '../roles/acting-user'
 import { useActiveRole } from '../roles/use-active-role'
-import { navFromMeta } from './nav-from-meta'
+import { viewOfList } from '@protobase/schema/internal'
+import { navFromMeta, navItemId } from './nav-from-meta'
 import { ComposedPage } from './pages/composed-page'
 import { CustomBoundary } from './pages/custom-boundary'
 import { ProjectLogo } from './project-logo'
@@ -76,7 +77,11 @@ export type AppProps = {
 }
 
 // The resource or page an address is about, which the sidebar marks; a record's key, which its recent records mark.
-const placeOf = (address: CurrentAddress | undefined) => (address?.kind === 'page' ? address.page : address?.resource)
+const placeOf = (address: CurrentAddress | undefined) => {
+  if (address?.kind === 'page') return address.page
+  if (address?.kind === 'list') return navItemId(address.resource, address.list)
+  return address?.resource
+}
 const recordOf = (address: CurrentAddress | undefined) => (address?.kind === 'record' ? address : undefined)
 
 const Routes = ({ workspace, sidebarMode, assistant, runtime }: Pick<AppProps, 'workspace' | 'sidebarMode' | 'assistant' | 'runtime'>) => {
@@ -93,7 +98,7 @@ const Routes = ({ workspace, sidebarMode, assistant, runtime }: Pick<AppProps, '
   const shown = recordOf(address)
   const search = useGlobalSearch()
   const theme = useTheme()
-  const recent = useNavRecent(meta, basePath, { resource: place, key: shown?.key })
+  const recent = useNavRecent(meta, basePath, { resource: shown?.resource, key: shown?.key })
   const groups = navFromMeta(meta, basePath, recent)
   const firstPage = Object.keys(meta.pages)[0]
   const firstResource = Object.keys(meta.resources)[0]
@@ -109,7 +114,7 @@ const Routes = ({ workspace, sidebarMode, assistant, runtime }: Pick<AppProps, '
   const resource = address?.kind === 'page' ? undefined : address?.resource
   // A resource drawn from another API waits for that API's `/meta`, and says so when it cannot be read.
   const drawnFrom = resource ? sourceStatusOf(meta, resource) : undefined
-  const view = resource ? meta.views[resource] : undefined
+  const view = resource ? viewOfList(meta.views[resource], address?.kind === 'list' ? address.list : undefined) : undefined
   const group = groups.find((entry) => entry.items.some((item) => item.id === place))
   const model = resource ? meta.resources[resource] : undefined
   const record = useOpenedRecord(shown?.resource ?? '', shown?.key ?? '', Boolean(model && shown))
@@ -171,7 +176,7 @@ const Routes = ({ workspace, sidebarMode, assistant, runtime }: Pick<AppProps, '
     ) : address.kind === 'record' ? (
       <RecordPage key={`${address.resource}/${address.key}`} resource={address.resource} recordKey={address.key} />
     ) : (
-      <ListPage key={address.resource} address={address} />
+      <ListPage key={navItemId(address.resource, address.list)} address={address} />
     )
 
   const appShell = (

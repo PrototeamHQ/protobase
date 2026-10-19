@@ -5,6 +5,7 @@ import { viewOfList } from './named-list'
 const base: ViewModel = {
   resource: 'changelog',
   title: 'title',
+  fields: {},
   names: { singular: 'Entry', plural: 'Entries' },
   nav: { order: 1 },
   help: 'All entries',

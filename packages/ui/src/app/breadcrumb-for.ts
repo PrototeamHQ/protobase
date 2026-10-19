@@ -23,7 +23,7 @@ export const breadcrumbFor = ({ basePath, address, group, page, resourceLabel, r
   const groupCrumb = group ? [group] : []
   if (page) return [...groupCrumb, { label: page.title, href: appPath({ kind: 'page', page: page.name }, basePath) }]
   if (!address || address.kind === 'page') return ['Admin']
-  const resource = resourceLabel ? [{ label: resourceLabel, href: appPath({ kind: 'list', resource: address.resource }, basePath) }] : []
+  const resource = resourceLabel ? [{ label: resourceLabel, href: appPath({ kind: 'list', resource: address.resource, ...(address.kind === 'list' && address.list && { list: address.list }) }, basePath) }] : []
   if (address.kind === 'list') return [...groupCrumb, ...resource]
   const href = appPath(address, basePath)
   const record = address.kind === 'create' ? { label: 'New', href } : recordTitle === undefined && recordLoading ? { label: 'Loading record', href, loading: true } : { label: recordTitle ?? address.key, href }

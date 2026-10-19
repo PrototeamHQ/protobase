@@ -1,7 +1,7 @@
 import { Download, Plus, SlidersHorizontal } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { createWhere, type FilterExpr, type ResourceModel } from '@protobase/schema'
-import { isGroupChart, tableDisplay } from '@protobase/schema/internal'
+import { isGroupChart, tableDisplay, viewOfList } from '@protobase/schema/internal'
 import { PageHeader, usePageScroll } from '../app-shell'
 import { useAuth } from '../auth'
 import { DataGrid, pinnedStorageKey, type GridRow } from '../data-grid'
@@ -42,6 +42,7 @@ import { ListSearch } from './list-search'
 import { Notice, useAdminMeta, usePermissions } from './meta-gate'
 import { can, rowAllows } from './permissions'
 import { listedResource } from './current-address'
+import { navItemId } from './nav-from-meta'
 import { AppLink, useAppAddress, type ListAddress } from './use-app-address'
 import { withFieldTypeCells } from './field-types/field-type-cells'
 import { relatedColumnLoads } from './related-dots/dot-card'
@@ -71,9 +72,10 @@ export const ListPage = ({ address }: { address: ListAddress }) => {
   const model = resources[address.resource]
   const prompt = signIn?.[address.resource]
   if (!model) return prompt ? <SignInPrompt as="page" prompt={prompt.signIn} /> : <Notice title="Not found">There is no resource called {address.resource}.</Notice>
-  const view = views[address.resource]
+  const view = viewOfList(views[address.resource], address.list)
+  if (address.list !== undefined && !view) return <Notice title="Not found">There is no list called {address.list}.</Notice>
   if (view?.searchesOf) return <SavedSearches model={model} view={view} />
-  const listed = listedResource(resources, views, address.resource)
+  const listed = listedResource(resources, views, address.resource, address.list)
   if (view && listed.listOf) {
     const target = listed.model!
     return (
@@ -98,7 +100,7 @@ const LoadedList = ({ model, address, scope, heading }: LoadedListProps) => {
   const meta = useAdminMeta()
   const { set, listTo, go, href } = useAppAddress()
   const resource = model.name
-  const view = meta.views[resource]
+  const view = viewOfList(meta.views[resource], address.list)
   const fields = useMemo(() => widgetFields(view, model), [view, model])
   const { fields: fieldTypes } = useProjectUi()
   const columns = useMemo(() => withRelatedDotsColumns(withFieldTypeCells(columnsFromModel(model, view), model, view, fieldTypes), model, view, meta.resources, meta.views), [model, view, fieldTypes, meta.resources, meta.views])
@@ -235,7 +237,7 @@ const LoadedList = ({ model, address, scope, heading }: LoadedListProps) => {
         ...(can(permissions, 'delete') ? [{ label: (count: number) => `Delete ${count}`, destructive: true, onRun: (rows: GridRow[]) => remove.startBulk(rows.map(target)) }] : []),
       ]}
       rowNumbers={false}
-      pinKey={auth.kind === 'signed-in' ? pinnedStorageKey(auth.user.id, resource) : undefined}
+      pinKey={auth.kind === 'signed-in' ? pinnedStorageKey(auth.user.id, navItemId(resource, address.list)) : undefined}
       scroll="parent"
       className="flex-1"
     />

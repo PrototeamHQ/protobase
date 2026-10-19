@@ -1,5 +1,5 @@
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
-import type { ListDisplayModel, ResourceModel } from '@protobase/schema'
+import type { ListDisplayModel, ResourceModel, ViewModel } from '@protobase/schema'
 import { useClient } from '../../data/api-provider'
 import { keys } from '../../data/query-keys'
 import { listLabels, withLabels } from '../../live/relation-labels'
@@ -10,6 +10,8 @@ import { displayRow } from './list-displays'
 
 export type MapRecordsParams = {
   model: ResourceModel
+  /** The view whose list shows the map; its displays say which photos the records carry. */
+  view: ViewModel | undefined
   display: Extract<ListDisplayModel, { kind: 'map' }>
   /** The fields the records' relations are labelled for, those the card shows among them. */
   fields: string[]
@@ -25,7 +27,7 @@ export type MapRecordsParams = {
  * many. A new area or filter keeps the previous answer until its own arrives, and an answer for an area the map has
  * left is never shown.
  */
-export const useMapRecords = ({ model, display, fields, filter, orderBy, area }: MapRecordsParams) => {
+export const useMapRecords = ({ model, view, display, fields, filter, orderBy, area }: MapRecordsParams) => {
   const client = useClient()
   const { resources, views } = useAdminMeta()
   const position = { latitude: display.latitude, longitude: display.longitude }
@@ -36,7 +38,7 @@ export const useMapRecords = ({ model, display, fields, filter, orderBy, area }:
     enabled: area !== undefined,
     placeholderData: keepPreviousData,
     queryFn: async () => {
-      const result = await client.map(model.name, { ...position, zoom, filter: inside, orderBy, labels: listLabels(resources, views, model, fields), photos: listPhotos(views[model.name]) })
+      const result = await client.map(model.name, { ...position, zoom, filter: inside, orderBy, labels: listLabels(resources, views, model, fields), photos: listPhotos(view) })
       const labelled = withLabels(resources, model, fields, withPhotos(model, result.items, result.photos), result.labels)
       return { rows: labelled.map((record) => displayRow(model, record)), buckets: result.buckets, total: result.totalSize }
     },
