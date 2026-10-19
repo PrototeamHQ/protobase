@@ -1,10 +1,11 @@
 import { MoreHorizontal } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
+import { text } from './messages'
 
 export type HeaderMenuProps = { header: string; pinned: boolean; sortable: boolean; onTogglePin: () => void }
 
 /** Why a column header does nothing when pressed: a list sorts only on the columns its view makes sortable. */
-export const unsortableText = "This column can't be sorted"
+export const unsortableText = () => text('unsortable')
 
 /** The "..." in a column header: pinning the column to the left edge, and saying so when the list can't sort by it. */
 export const HeaderMenu = ({ header, pinned, sortable, onTogglePin }: HeaderMenuProps) => {
@@ -28,7 +29,7 @@ export const HeaderMenu = ({ header, pinned, sortable, onTogglePin }: HeaderMenu
     <div ref={root} className="relative ml-auto shrink-0">
       <button
         type="button"
-        aria-label={`${header} column menu`}
+        aria-label={text('columnMenu', header)}
         aria-haspopup="menu"
         aria-expanded={open}
         onClick={() => setOpen(!open)}
@@ -41,7 +42,7 @@ export const HeaderMenu = ({ header, pinned, sortable, onTogglePin }: HeaderMenu
           {!sortable && (
             <li role="none">
               <span role="menuitem" aria-disabled="true" className="block min-h-9 whitespace-nowrap px-3 py-1.5 text-muted-foreground">
-                {unsortableText}
+                {unsortableText()}
               </span>
             </li>
           )}
@@ -55,7 +56,7 @@ export const HeaderMenu = ({ header, pinned, sortable, onTogglePin }: HeaderMenu
                 onTogglePin()
               }}
             >
-              {pinned ? 'Unpin' : 'Pin to left'}
+              {pinned ? text('unpin') : text('pinToLeft')}
             </button>
           </li>
         </ul>

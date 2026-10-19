@@ -5,6 +5,7 @@ import { formatMoney } from '../format/money'
 import { userById } from '../mocks'
 import { fileShown } from '../live/file-values'
 import type { ColumnSpec } from './column-spec'
+import { text } from './messages'
 
 /** A relation cell's text: the related record's name when the row carries it, else its key. */
 export const relationLabel = (value: unknown) => (typeof value === 'object' && value !== null && 'name' in value ? String(value.name) : String(value))
@@ -33,7 +34,7 @@ export const cellText = (spec: ColumnSpec, value: unknown): string | undefined =
     case 'relation':
       return relationLabel(value)
     case 'boolean':
-      return value ? undefined : 'No'
+      return value ? undefined : text('no')
     case 'file':
       return fileShown(value)?.name ?? '—'
     case 'user':

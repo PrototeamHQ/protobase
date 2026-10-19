@@ -12,6 +12,7 @@ import { formatDateTime } from '../format/date'
 import { viewerZone, zoneLabel } from '../format/zone'
 import { TruncatedText } from './truncated-text'
 import { ContactLink } from '../live/contact-link'
+import { text as message } from './messages'
 
 const muted = (text: string) => <span className="text-faint-foreground">{text}</span>
 
@@ -28,7 +29,7 @@ export const renderCell = (spec: ColumnSpec, value: unknown) => {
     case 'date':
       return <span className="tabular-nums text-muted-foreground">{text}</span>
     case 'datetime':
-      return <span className="tabular-nums text-muted-foreground" title={spec.relative ? formatDateTime(Number(value)) : `Shown in ${zoneLabel(Number(value), viewerZone())}`}>{text}</span>
+      return <span className="tabular-nums text-muted-foreground" title={spec.relative ? formatDateTime(Number(value)) : message('shownIn', zoneLabel(Number(value), viewerZone()))}>{text}</span>
     case 'number':
       return <span className="tabular-nums">{text}</span>
     case 'signed':
@@ -47,7 +48,7 @@ export const renderCell = (spec: ColumnSpec, value: unknown) => {
       return value ? (
         <span className="inline-flex size-4 items-center justify-center rounded-full bg-success-soft text-success-text"><Check className="size-3" strokeWidth={3} /></span>
       ) : (
-        muted('No')
+        muted(message('no'))
       )
     case 'file': {
       const file = fileShown(value)

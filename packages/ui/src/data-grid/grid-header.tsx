@@ -4,6 +4,7 @@ import { cn } from '../lib/cn'
 import { isRightAligned, type ColumnSpec } from './column-spec'
 import { HeaderMenu, unsortableText } from './header-menu'
 import { compactGutter, gridTemplate } from './grid-template'
+import { text } from './messages'
 
 export type HeaderCell = { spec: ColumnSpec; sorted: 'asc' | 'desc' | false; onSort: (event: unknown) => void }
 
@@ -33,7 +34,7 @@ const SortIcon = ({ sorted }: { sorted: HeaderCell['sorted'] }) => {
 const HeaderLabel = ({ spec }: { spec: ColumnSpec }) => (
   <>
     <span className="truncate">{spec.header}</span>
-    {spec.highlight && <span className="rounded bg-primary px-1 text-[10px] font-semibold uppercase leading-4 text-primary-foreground">New</span>}
+    {spec.highlight && <span className="rounded bg-primary px-1 text-[10px] font-semibold uppercase leading-4 text-primary-foreground">{text('new')}</span>}
   </>
 )
 
@@ -41,7 +42,7 @@ export const GridHeader = ({ cells, specs, gutter, selectedCount, selectable, tr
   <div className="grid h-8 shrink-0 items-center border-b bg-surface text-xs font-medium text-muted-foreground" style={{ gridTemplateColumns: gridTemplate(specs, gutter, trailing, minScale) }} role="row">
     <div className={cn('sticky left-0 z-10 flex h-full items-center gap-2 bg-inherit pl-3', scrolled && !lastPinned && 'shadow-[1px_0_0_var(--border),4px_0_6px_-2px_rgb(0_0_0/0.12)]')} style={{ width: gutter }}>
       {/* It only clears a selection, so with none it says so and cannot be pressed */}
-      {selectable && <Checkbox checked={false} indeterminate={selectedCount > 0} label={selectedCount > 0 ? 'Clear selection' : 'No rows selected'} disabled={selectedCount === 0} onChange={onClearSelection} className={cn(selectedCount === 0 && 'opacity-60')} />}
+      {selectable && <Checkbox checked={false} indeterminate={selectedCount > 0} label={selectedCount > 0 ? text('clearSelection') : text('noRowsSelected')} disabled={selectedCount === 0} onChange={onClearSelection} className={cn(selectedCount === 0 && 'opacity-60')} />}
       {gutter > compactGutter && <span className="w-6 text-right text-faint-foreground">#</span>}
     </div>
     {cells.map(({ spec, sorted, onSort }) => {
@@ -69,7 +70,7 @@ export const GridHeader = ({ cells, specs, gutter, selectedCount, selectable, tr
             </button>
           ) : (
             // Not a button: nothing happens on a press, and a disabled button would not show its tooltip
-            <div title={unsortableText} className={cn('flex h-full min-w-0 flex-1 items-center gap-1 pl-3 pr-1 text-left', isRightAligned(spec.kind) && 'justify-end')}>
+            <div title={unsortableText()} className={cn('flex h-full min-w-0 flex-1 items-center gap-1 pl-3 pr-1 text-left', isRightAligned(spec.kind) && 'justify-end')}>
               <HeaderLabel spec={spec} />
             </div>
           )}

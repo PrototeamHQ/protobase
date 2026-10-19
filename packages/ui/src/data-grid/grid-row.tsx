@@ -5,6 +5,7 @@ import { Skeleton } from '../primitives/skeleton'
 import { cn } from '../lib/cn'
 import { isRightAligned, type ColumnSpec } from './column-spec'
 import { compactGutter, gridTemplate } from './grid-template'
+import { text } from './messages'
 
 type RowFrame = { specs: ColumnSpec[]; gutter: number; index: number; offset: number; height: number; selectable: boolean; trailing?: number; minScale?: number; scrolled?: boolean; pins?: Record<string, number>; lastPinned?: string }
 
@@ -36,7 +37,7 @@ const Gutter = ({ width, index, selectable, selected, onToggle, edge }: { width:
     className={cn('sticky left-0 z-10 flex h-full items-center gap-2 bg-inherit pl-3', selectable && 'cursor-default', edge && 'shadow-[1px_0_0_var(--border),4px_0_6px_-2px_rgb(0_0_0/0.12)]')}
     style={{ width }}
   >
-    {selectable && <Checkbox checked={Boolean(selected)} label={`Select row ${index + 1}`} />}
+    {selectable && <Checkbox checked={Boolean(selected)} label={text('selectRow', index + 1)} />}
     {width > compactGutter && <span className="min-w-6 text-right text-[11px] tabular-nums text-faint-foreground">{formatInt(index + 1)}</span>}
   </div>
 )

@@ -4,6 +4,7 @@ import { cn } from '../lib/cn'
 import { usePopoverMenu } from '../primitives/popover-menu'
 import { RouteLink, type RouteTarget } from '../primitives/route-link'
 import type { GridRow } from './column-spec'
+import { text } from './messages'
 
 /** `available` hides the action for rows it does not apply to, for example a delete the server will refuse. */
 type RowActionBase = { label: string; destructive?: boolean; available?: (row: GridRow) => boolean }
@@ -23,7 +24,7 @@ export const RowMenu = ({ row, actions }: { row: GridRow; actions: RowAction[] }
 
   return (
     <div className="relative flex justify-center bg-inherit" onClick={(event) => event.stopPropagation()}>
-      <button ref={button} type="button" aria-label="Row actions" aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen(!open)} className="inline-flex items-center justify-center rounded p-1 text-faint-foreground hover:bg-muted hover:text-foreground pointer-coarse:size-11">
+      <button ref={button} type="button" aria-label={text('rowActions')} aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen(!open)} className="inline-flex items-center justify-center rounded p-1 text-faint-foreground hover:bg-muted hover:text-foreground pointer-coarse:size-11">
         <MoreHorizontal className="size-4" />
       </button>
       {open &&

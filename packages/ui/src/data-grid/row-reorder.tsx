@@ -4,6 +4,7 @@ import { GripVertical } from 'lucide-react'
 import type { ReactNode } from 'react'
 import type { GridRow } from './column-spec'
 import { DataRow, type DataRowProps } from './grid-row'
+import { text } from './messages'
 
 /** Rows moved by a drag handle in place of their checkbox: `onMove` gets the row's index and the index it is dropped at. */
 export type RowReorder = {
@@ -11,8 +12,6 @@ export type RowReorder = {
   /** How a row reads to a screen reader, such as its title. */
   label: (row: GridRow) => string
 }
-
-const instructions = 'To move a row, press Space on its handle, move it with the up and down arrow keys, and press Space again to drop it there. Escape puts it back.'
 
 /** The rows of a grid that are moved by hand, `ids` in their order, each loaded or not, so the drop's index is the row's place in the whole list. */
 export const ReorderRows = ({ ids, rowAt, reorder, children }: { ids: string[]; rowAt: (index: number) => GridRow | undefined; reorder: RowReorder; children: ReactNode }) => {
@@ -25,20 +24,20 @@ export const ReorderRows = ({ ids, rowAt, reorder, children }: { ids: string[]; 
   const place = (id: string | number | undefined) => ids.indexOf(String(id))
   const name = (id: string | number) => {
     const row = rowAt(place(id))
-    return row ? reorder.label(row) : 'row'
+    return row ? reorder.label(row) : text('row')
   }
   const announcements: Announcements = {
-    onDragStart: ({ active }) => `Picked up ${name(active.id)}, row ${place(active.id) + 1} of ${ids.length}.`,
-    onDragOver: ({ active, over }) => (over ? `${name(active.id)} is over row ${place(over.id) + 1} of ${ids.length}.` : undefined),
-    onDragEnd: ({ active, over }) => (over ? `${name(active.id)} was dropped at row ${place(over.id) + 1} of ${ids.length}.` : `${name(active.id)} was put back.`),
-    onDragCancel: ({ active }) => `Moving ${name(active.id)} was cancelled. It is back at row ${place(active.id) + 1}.`,
+    onDragStart: ({ active }) => text('pickedUp', name(active.id), place(active.id) + 1, ids.length),
+    onDragOver: ({ active, over }) => (over ? text('isOver', name(active.id), place(over.id) + 1, ids.length) : undefined),
+    onDragEnd: ({ active, over }) => (over ? text('droppedAt', name(active.id), place(over.id) + 1, ids.length) : text('putBack', name(active.id))),
+    onDragCancel: ({ active }) => text('cancelled', name(active.id), place(active.id) + 1),
   }
   const end = ({ active, over }: DragEndEvent) => {
     if (!over || active.id === over.id) return
     reorder.onMove(place(active.id), place(over.id))
   }
   return (
-    <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={end} accessibility={{ announcements, screenReaderInstructions: { draggable: instructions } }}>
+    <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={end} accessibility={{ announcements, screenReaderInstructions: { draggable: text('reorderInstructions') } }}>
       <SortableContext items={ids} strategy={verticalListSortingStrategy}>
         {children}
       </SortableContext>
@@ -53,7 +52,7 @@ export const SortableRow = ({ row, label, ...props }: Omit<DataRowProps, 'handle
     <button
       ref={setActivatorNodeRef}
       type="button"
-      aria-label={`Move ${label}`}
+      aria-label={text('move', label)}
       {...attributes}
       {...listeners}
       // The row opens its record on a click, which the handle is not
