@@ -493,7 +493,7 @@ const phone360 = { name: 'Phone 360', styles: { width: '360px', height: '740px' 
 const box = (element: Element) => element.getBoundingClientRect()
 const middle = (element: Element) => (box(element).top + box(element).bottom) / 2
 
-/** On a phone the display switch is a menu beside the title, the filters button sits left of the search, and the sort is in the filters sheet. */
+/** On a phone the display switch is a menu below the title, the filters button sits left of the search, and the sort is in the filters sheet. */
 export const CardsOnPhoneChecks: StoryObj = {
   name: 'Cards on a phone (checks)',
   tags: ['play', 'phone', '!dev'],
@@ -504,8 +504,7 @@ export const CardsOnPhoneChecks: StoryObj = {
     const canvas = within(canvasElement)
     const heading = await canvas.findByRole('heading', { name: 'Repairs' })
     const display = canvas.getByRole('button', { name: 'Display: Cards' })
-    expect(box(display).left).toBeGreaterThan(box(heading).right)
-    expect(Math.abs(middle(display) - middle(heading))).toBeLessThan(2)
+    expect(box(display).top).toBeGreaterThanOrEqual(box(heading).bottom)
     expect(canvas.queryByRole('group', { name: 'Display' })).toBeNull()
     const filters = canvas.getByRole('button', { name: 'Filters' })
     const search = canvas.getByRole('textbox', { name: 'Search' })
