@@ -29,6 +29,17 @@ describe('displayValue', () => {
     expect(displayValue(field('date'), '2026-10-06', {}, 'America/New_York')).toBe('6 Oct 2026')
     expect(displayValue(field('text'), null)).toBe('—')
   })
+  it('shows a relative timestamp as how long ago or to come', () => {
+    const now = Date.parse('2026-10-06T10:00:00.000Z')
+    const relative = { format: 'relative' } as const
+    expect(displayValue(field('timestamp'), '2026-10-06T09:55:00.000Z', relative, 'UTC', now)).toBe('5 minutes ago')
+    expect(displayValue(field('timestamp'), '2026-10-06T12:00:00.000Z', relative, 'UTC', now)).toBe('in 2 hours')
+    expect(displayValue(field('timestamp'), '2026-10-06T09:59:50.000Z', relative, 'UTC', now)).toBe('just now')
+    expect(displayValue(field('date'), '2026-10-06', relative, 'UTC', now)).toBe('6 Oct 2026')
+  })
+  it('gives a relative timestamp its exact time on hover', () => {
+    expect(valueTitle(field('timestamp'), '2026-10-06T09:41:00.000Z', 'UTC', { format: 'relative' })).toBe('6 Oct 2026, 09:41')
+  })
   it('labels a timestamp with the zone it is shown in, and nothing else', () => {
     expect(valueTitle(field('timestamp'), '2026-10-06T09:41:00.000Z', 'Europe/Amsterdam')).toBe('Shown in Europe/Amsterdam (GMT+2)')
     expect(valueTitle(field('timestamp'), '2026-10-06T09:41:00.000Z', 'UTC')).toBe('Shown in UTC')

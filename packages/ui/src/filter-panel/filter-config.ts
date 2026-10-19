@@ -53,11 +53,12 @@ export type FilterState = {
   toggles: string[]
 }
 
-export const defaultDatePresets: DatePresetId[] = ['7d', '30d', 'year']
+export const defaultDatePresets: DatePresetId[] = ['today', '7d', '30d', 'year']
 
 export const datePresetLabels: Record<DatePresetId, string> = {
   today: 'Today',
   yesterday: 'Yesterday',
+  '24h': 'Last 24 hours',
   '7d': 'Last 7 days',
   '30d': 'Last 30 days',
   '90d': 'Last 90 days',

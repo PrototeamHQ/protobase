@@ -58,7 +58,7 @@ const BuiltInValue = ({ model, field, value, format, relationLabel }: FieldValue
   const contact = field.type === 'text' ? contactFormat(hints) : undefined
   if (contact) return <ContactLink format={contact} value={text} />
   if (field.type === 'enum' || hints.format === 'badge') return <ValueBadge value={value} hints={hints}>{text}</ValueBadge>
-  return <span title={valueTitle(field, value)} className={cn(hints.format === 'code' && 'font-mono text-xs', (field.type === 'decimal' || field.type === 'integer') && 'tabular-nums', hints.multiline && 'whitespace-pre-line break-words')}>{text}</span>
+  return <span title={valueTitle(field, value, undefined, hints)} className={cn(hints.format === 'code' && 'font-mono text-xs', (field.type === 'decimal' || field.type === 'integer') && 'tabular-nums', hints.multiline && 'whitespace-pre-line break-words')}>{text}</span>
 }
 
 /**

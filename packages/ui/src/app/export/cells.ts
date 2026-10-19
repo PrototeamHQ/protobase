@@ -32,7 +32,7 @@ export const csvText = (column: ExportColumn, value: unknown, labels: RelatedLab
   const { field, hints } = column
   if (field.type === 'file') return fileText(value, mode)
   if (field.type === 'relation') return mode === 'shown' ? relationLabel(column, value, labels) : String(value)
-  if (mode === 'shown') return displayValue(field, value, hints)
+  if (mode === 'shown') return displayValue(field, value, { ...hints, format: undefined })
   if (typeof value === 'object') return JSON.stringify(value)
   return String(value)
 }

@@ -247,7 +247,7 @@ const LoadedRecord = ({ model, recordKey, stored, preview }: LoadedRecordProps) 
         const value = stored.record[name]
         const markdown = isMarkdown(field, hint(name)) && typeof value === 'string' && value !== ''
         const contact = field.type === 'text' && typeof value === 'string' && value !== '' ? contactFormat(hint(name)) : undefined
-        const builtIn = field.type === 'enum' ? <ValueBadge value={value} hints={hint(name)}>{text}</ValueBadge> : markdown ? <Markdown source={value} /> : contact ? <ContactLink format={contact} value={text} /> : <strong title={valueTitle(field, value)} className={hint(name)?.multiline ? 'whitespace-pre-line break-words' : undefined}>{text}</strong>
+        const builtIn = field.type === 'enum' ? <ValueBadge value={value} hints={hint(name)}>{text}</ValueBadge> : markdown ? <Markdown source={value} /> : contact ? <ContactLink format={contact} value={text} /> : <strong title={valueTitle(field, value, undefined, hint(name))} className={hint(name)?.multiline ? 'whitespace-pre-line break-words' : undefined}>{text}</strong>
         const shown = shownWidget(fieldTypes, field, hint(name))
         return [{ label: hint(name)?.label ?? humanize(name), value: shown ? <WidgetPart shown={shown} part="display" field={field} value={stored.record[name]} fallback={builtIn} /> : builtIn }]
       })}
@@ -368,7 +368,7 @@ const LoadedRecord = ({ model, recordKey, stored, preview }: LoadedRecordProps) 
                 rows={[auditField(model, 'created'), updatedAt].flatMap((name) => {
                   const field = name ? model.fields[name] : undefined
                   if (!name || !field || !visible(name)) return []
-                  return [{ label: hint(name)?.label ?? humanize(name), value: known(name) ? <span title={valueTitle(field, stored.record[name])}>{displayValue(field, stored.record[name], hint(name))}</span> : <Skeleton className="h-4 w-24" /> }]
+                  return [{ label: hint(name)?.label ?? humanize(name), value: known(name) ? <span title={valueTitle(field, stored.record[name], undefined, hint(name))}>{displayValue(field, stored.record[name], hint(name))}</span> : <Skeleton className="h-4 w-24" /> }]
                 })}
               />
               {!preview && <IncomingCard model={model} recordKey={recordKey} layout={layout} lines={linesModel} />}

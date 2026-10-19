@@ -1,5 +1,5 @@
 import { enumLabel } from '@protobase/schema'
-import { formatDate, formatDateTime } from '../format/date'
+import { formatDate, formatDateTime, formatRelativeTime } from '../format/date'
 import { formatInt, formatPercent, formatSigned } from '../format/number'
 import { formatMoney } from '../format/money'
 import { userById } from '../mocks'
@@ -21,7 +21,7 @@ export const cellText = (spec: ColumnSpec, value: unknown): string | undefined =
     case 'date':
       return formatDate(Number(value))
     case 'datetime':
-      return formatDateTime(Number(value))
+      return spec.relative ? formatRelativeTime(Math.round((Date.now() - Number(value)) / 1000)) : formatDateTime(Number(value))
     case 'number':
       return `${formatInt(Number(value))}${spec.suffix ?? ''}`
     case 'signed':

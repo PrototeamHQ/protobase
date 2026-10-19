@@ -89,10 +89,11 @@ describe('textToState', () => {
 
 describe('date presets', () => {
   const november = new Date(Date.UTC(2026, 10, 15))
-  const text = (date: 'today' | 'yesterday' | '90d' | 'month' | 'quarter', zone = 'UTC') => stateToText(config, { facets: {}, date, toggles: [] }, [], november, zone)
+  const text = (date: 'today' | 'yesterday' | '24h' | '90d' | 'month' | 'quarter', zone = 'UTC') => stateToText(config, { facets: {}, date, toggles: [] }, [], november, zone)
 
   it('prints relative and calendar presets', () => {
     expect(text('90d')).toBe('createdAt >= now() - 90d')
+    expect(text('24h')).toBe('createdAt >= now() - 24h')
     expect(text('quarter')).toBe('createdAt >= 2026-10-01T00:00:00Z')
     expect(text('month')).toBe('createdAt >= 2026-11-01T00:00:00Z')
     expect(text('today')).toBe('createdAt >= 2026-11-15T00:00:00Z')
@@ -105,7 +106,7 @@ describe('date presets', () => {
     expect(text('yesterday', 'America/New_York')).toBe('createdAt >= 2026-11-13T05:00:00Z AND createdAt < 2026-11-14T05:00:00Z')
   })
 
-  it.each(['90d', 'month', 'quarter', 'today', 'yesterday'] as const)('reads %s back', (preset) => {
+  it.each(['24h', '90d', 'month', 'quarter', 'today', 'yesterday'] as const)('reads %s back', (preset) => {
     expect(textToState(config, text(preset), november, 'UTC')).toMatchObject({ ok: true, state: { date: preset }, extras: [] })
     expect(textToState(config, text(preset, 'Europe/Amsterdam'), november, 'Europe/Amsterdam')).toMatchObject({ ok: true, state: { date: preset }, extras: [] })
   })

@@ -51,6 +51,8 @@ describe('dates', () => {
   it('formats natural relative time', () => {
     expect(formatRelativeTime(10)).toBe('just now')
     expect(formatRelativeTime(300)).toBe('5 minutes ago')
+    expect(formatRelativeTime(-7200)).toBe('in 2 hours')
+    expect(formatRelativeTime(-10)).toBe('just now')
     expect(formatRelativeTime(7200)).toBe('2 hours ago')
     expect(formatRelativeTime(86_400)).toBe('yesterday')
     expect(formatRelativeTime(3 * 31_536_000 + 5)).toBe('3 years ago')

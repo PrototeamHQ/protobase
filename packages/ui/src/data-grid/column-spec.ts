@@ -23,6 +23,8 @@ export type ColumnSpec = {
   title?: boolean
   /** Tints the column to mark it as new. */
   highlight?: boolean
+  /** For a `datetime` column: shows how long ago each value is, its exact time on hover. */
+  relative?: boolean
   currency?: string
   /** Decimals a `money` column shows instead of the currency's usual ones. */
   decimals?: number

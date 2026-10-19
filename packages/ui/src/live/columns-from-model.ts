@@ -105,6 +105,7 @@ export const columnsFromModel = (resource: ResourceModel, view: ViewModel | unde
       ...(field.type === 'enum' && viewField?.valueColors && { colors: viewField.valueColors }),
       ...(field.type === 'enum' && viewField?.badgeShape && { shape: viewField.badgeShape }),
       ...(viewField?.suffix !== undefined && { suffix: viewField.suffix }),
+      ...(kind === 'datetime' && viewField?.format === 'relative' && { relative: true }),
       ...(kind === 'money' && viewField?.decimals !== undefined && { decimals: viewField.decimals }),
       ...(kind === 'money' && { currency: 'EUR', value: (row: { [key: string]: unknown }) => (row[name] == null ? null : currencyCents(row[name])) }),
       ...((kind === 'datetime' || kind === 'date') && { value: (row: { [key: string]: unknown }) => (row[name] == null ? null : Date.parse(String(row[name]))) }),

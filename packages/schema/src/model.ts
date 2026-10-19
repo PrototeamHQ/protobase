@@ -602,8 +602,8 @@ export type RelatedColumnModel = {
   status: string
 }
 
-/** A button of a date range filter: today, yesterday, the last 7, 30 or 90 days, or this month, quarter or year. */
-export type DatePreset = 'today' | 'yesterday' | '7d' | '30d' | '90d' | 'month' | 'quarter' | 'year'
+/** A button of a date range filter: today, yesterday, the last 24 hours, 7, 30 or 90 days, or this month, quarter or year. */
+export type DatePreset = 'today' | 'yesterday' | '24h' | '7d' | '30d' | '90d' | 'month' | 'quarter' | 'year'
 
 /**
  * A filter widget above a list (`.filters((r, w) => ...)`), on a filterable field; see

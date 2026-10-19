@@ -17,6 +17,7 @@ describe('csvText', () => {
     expect(csvText(column('decimal', { prefix: '€', decimals: 2 }), '1234.5', {}, 'shown')).toBe('€1,234.50')
     expect(csvText(column('date'), '2026-10-06', {}, 'shown')).toBe('6 Oct 2026')
     expect(csvText(column('boolean'), false, {}, 'shown')).toBe('No')
+    expect(csvText(column('timestamp', { format: 'relative' }), '2026-10-06T09:41:00.000Z', {}, 'shown')).toMatch(/^6 Oct 2026, /)
   })
 
   it('names a related record by its label, and by its key without one', () => {

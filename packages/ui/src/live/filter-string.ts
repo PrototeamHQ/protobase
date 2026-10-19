@@ -8,7 +8,7 @@ const span = { start: 0, end: 0 }
 /** The widgets a `FilterConfig` talks to, by field name. */
 type Fields = Pick<FilterConfig, 'facets' | 'ranges' | 'dateField' | 'dateKind' | 'toggles'>
 
-const relative = { '7d': { amount: 7, unit: 'd' }, '30d': { amount: 30, unit: 'd' }, '90d': { amount: 90, unit: 'd' } } as const
+const relative = { '24h': { amount: 24, unit: 'h' }, '7d': { amount: 7, unit: 'd' }, '30d': { amount: 30, unit: 'd' }, '90d': { amount: 90, unit: 'd' } } as const
 
 const iso = (ms: number) => new Date(ms).toISOString().replace('.000Z', 'Z')
 

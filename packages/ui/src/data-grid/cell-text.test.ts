@@ -17,6 +17,10 @@ describe('cellText', () => {
     expect(cellText(spec('money', { currency: 'EUR', suffix: ' /month' }), 123456)).toBe('€1,234.56 /month')
   })
 
+  it('shows a relative datetime as how long ago', () => {
+    expect(cellText(spec('datetime', { relative: true }), Date.now() - 300_000)).toBe('5 minutes ago')
+  })
+
   it('shows a missing value as a dash', () => {
     expect(cellText(spec('text'), null)).toBe('—')
     expect(cellText(spec('money'), undefined)).toBe('—')

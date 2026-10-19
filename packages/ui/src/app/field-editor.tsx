@@ -74,7 +74,7 @@ const BuiltInEditor = ({ field, hints, value, stored, relationLabel, relationTo,
   const contact = field.type === 'text' ? contactFormat(hints) : undefined
   if ((!isEditable(field) || locked) && contact && typeof stored === 'string' && stored !== '') return <div className="min-w-0 break-words py-1.5"><ContactLink format={contact} value={stored} /></div>
   if (!isEditable(field) || locked) {
-    return <div title={valueTitle(field, stored)} className={cn('py-1.5 tabular-nums', field.type === 'decimal' || field.type === 'integer' ? 'font-medium' : 'text-muted-foreground', multiline && 'whitespace-pre-line break-words')}>{displayValue(field, stored, hints)}</div>
+    return <div title={valueTitle(field, stored, undefined, hints)} className={cn('py-1.5 tabular-nums', field.type === 'decimal' || field.type === 'integer' ? 'font-medium' : 'text-muted-foreground', multiline && 'whitespace-pre-line break-words')}>{displayValue(field, stored, hints)}</div>
   }
   if (field.type === 'enum') {
     return (

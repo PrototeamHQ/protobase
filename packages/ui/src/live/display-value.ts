@@ -1,5 +1,5 @@
 import { enumLabel, type FieldModel, type FieldViewModel } from '@protobase/schema'
-import { formatDate, formatDateTime } from '../format/date'
+import { formatDate, formatDateTime, formatRelativeTime } from '../format/date'
 import { viewerZone, zoneLabel } from '../format/zone'
 import { fileShown } from './file-values'
 
@@ -10,7 +10,7 @@ const affixed = (text: string, hints: FieldViewModel) => `${hints.prefix ?? ''}$
  * A read-only rendering of a stored value, following the view's prefix, suffix, decimals, format and value label hints; a
  * timestamp on the clock of `zone`, the viewer's unless given.
  */
-export const displayValue = (field: FieldModel, value: unknown, hints: FieldViewModel = {}, zone = viewerZone()) => {
+export const displayValue = (field: FieldModel, value: unknown, hints: FieldViewModel = {}, zone = viewerZone(), now = Date.now()) => {
   if (value === null || value === undefined || value === '') return '—'
   switch (field.type) {
     case 'boolean':
@@ -19,8 +19,10 @@ export const displayValue = (field: FieldModel, value: unknown, hints: FieldView
       return fileShown(value)?.name ?? '—'
     case 'enum':
       return enumLabel(String(value), hints.valueLabels)
-    case 'timestamp':
-      return formatDateTime(Date.parse(String(value)), zone)
+    case 'timestamp': {
+      const ms = Date.parse(String(value))
+      return hints.format === 'relative' ? formatRelativeTime(Math.round((now - ms) / 1000)) : formatDateTime(ms, zone)
+    }
     case 'date':
       return formatDate(Date.parse(String(value)))
     case 'decimal': {
@@ -36,9 +38,11 @@ export const displayValue = (field: FieldModel, value: unknown, hints: FieldView
   }
 }
 
-/** The hover label of a shown value: the time zone a timestamp is shown in, nothing for other values. */
-export const valueTitle = (field: FieldModel, value: unknown, zone = viewerZone()) => {
+/** The hover label of a shown value: the time zone a timestamp is shown in, or its exact time when shown relative; nothing for other values. */
+export const valueTitle = (field: FieldModel, value: unknown, zone = viewerZone(), hints: FieldViewModel = {}) => {
   if (field.type !== 'timestamp' || typeof value !== 'string') return undefined
   const ms = Date.parse(value)
-  return Number.isNaN(ms) ? undefined : `Shown in ${zoneLabel(ms, zone)}`
+  if (Number.isNaN(ms)) return undefined
+  if (hints.format === 'relative') return formatDateTime(ms, zone)
+  return `Shown in ${zoneLabel(ms, zone)}`
 }

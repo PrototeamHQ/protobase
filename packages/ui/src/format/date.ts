@@ -62,9 +62,10 @@ const units: Array<[Intl.RelativeTimeFormatUnit, number]> = [
   ['minute', 60],
 ]
 
-/** "5 minutes ago", "yesterday", "3 years ago"; `seconds` is how long ago it was. */
+/** "5 minutes ago", "yesterday", "in 3 hours"; `seconds` is how long ago it was, negative for a time to come. */
 export const formatRelativeTime = (seconds: number) => {
-  const [unit, size] = units.find(([, size]) => seconds >= size) ?? ['second', 1]
-  if (unit === 'second' && seconds < 45) return 'just now'
-  return relative.format(-Math.floor(seconds / size), unit)
+  const away = Math.abs(seconds)
+  const [unit, size] = units.find(([, size]) => away >= size) ?? ['second', 1]
+  if (unit === 'second' && away < 45) return 'just now'
+  return relative.format(-Math.sign(seconds) * Math.floor(away / size), unit)
 }
