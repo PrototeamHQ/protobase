@@ -15,6 +15,18 @@ describe('Chart', () => {
     expect(problems({ resource: 'invoices', groupBy: 'issuedOn', type: 'line', average: 'total', granularity: 'month', range: '1y' })).toEqual([])
   })
 
+  it('splits a chart over time by a field of values', () => {
+    expect(problems({ resource: 'invoices', groupBy: 'issuedOn', splitBy: 'status', sum: 'total' })).toEqual([])
+    expect(problems({ resource: 'invoices', groupBy: 'issuedOn', splitBy: 'status', type: 'line', average: 'total' })).toEqual([])
+    expect(problems({ resource: 'invoices', groupBy: 'status', splitBy: 'status' })).toEqual(['"splitBy" is for a date or timestamp groupBy'])
+    expect(problems({ resource: 'invoices', groupBy: 'issuedOn', splitBy: 'nope' })).toEqual(['splitBy: unknown field "nope" on invoices'])
+    expect(problems({ resource: 'invoices', groupBy: 'issuedOn', splitBy: 'memo' })).toEqual(['splitBy: "memo" is not filterable, so the API refuses to group by it: mark "memo" .filterable()'])
+    expect(problems({ resource: 'invoices', groupBy: 'issuedOn', splitBy: 'issuedOn' })).toEqual(['splitBy: "issuedOn" is a date field; split by a field of values'])
+    expect(problems({ resource: 'invoices', groupBy: 'issuedOn', splitBy: 'status', average: 'total' })).toEqual([
+      'a split bar stacks its parts, and averages add up to none: use a line, or count or sum',
+    ])
+  })
+
   it('names a groupBy or a measure the resource cannot group or add up', () => {
     expect(problems({ resource: 'invoices', groupBy: 'nope' })).toEqual(['groupBy: unknown field "nope" on invoices'])
     expect(problems({ resource: 'invoices', groupBy: 'memo' })).toEqual(['groupBy: "memo" is not filterable, so the API refuses to group by it: mark "memo" .filterable()'])
@@ -40,5 +52,6 @@ describe('Chart', () => {
       '<Page> › <Chart resource="invoices">: "granularity" must be hour, day, week, month, year',
       '<Page> › <Chart resource="invoices">: takes "sum" or "average", not both',
     ])
+    expect(structureProblems(Page({ title: 'x', children: [Chart({ resource: 'invoices', groupBy: 'issuedOn', splitBy: 'status' })] }))).toEqual([])
   })
 })

@@ -72,6 +72,8 @@ export type ChartProps = Heading & {
   groupBy: string
   /** Default `bar`; `line` is for a date `groupBy`, `donut` for one of values. */
   type?: ChartType
+  /** With a date `groupBy`: a filterable field of values that splits each bucket, as stacked bars or a line per value, its 8 largest values and the rest as Other; an index must serve it. */
+  splitBy?: string
   /** A numeric field each group adds up, instead of counting its records. */
   sum?: string
   /** A numeric field each group averages, instead of counting its records. */

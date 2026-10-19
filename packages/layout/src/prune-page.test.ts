@@ -39,11 +39,12 @@ describe('prunePage', () => {
     const page: PageModel = {
       name: 'charts',
       title: 'Charts',
-      tree: Page({ title: 'Charts', children: [Chart({ resource: 'invoices', groupBy: 'status' }), Chart({ resource: 'invoices', groupBy: 'issuedOn', type: 'line', sum: 'total' })] }),
+      tree: Page({ title: 'Charts', children: [Chart({ resource: 'invoices', groupBy: 'status' }), Chart({ resource: 'invoices', groupBy: 'issuedOn', type: 'line', sum: 'total' }), Chart({ resource: 'invoices', groupBy: 'issuedOn', splitBy: 'status' })] }),
     }
     const charts = (hide: string[]) => types(prunePage(page, [], access({ models: restricted({ invoices: hide }) }))).filter((type) => type === 'Chart').length
-    expect(charts([])).toBe(2)
-    expect(charts(['total'])).toBe(1)
+    expect(charts([])).toBe(3)
+    expect(charts(['total'])).toBe(2)
+    expect(charts(['status'])).toBe(1)
     expect(charts(['status', 'issuedOn'])).toBe(0)
   })
 

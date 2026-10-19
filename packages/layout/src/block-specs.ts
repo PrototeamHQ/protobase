@@ -36,6 +36,7 @@ export const blockSpecs: Record<string, BlockSpec> = {
       resource: required('text'),
       filter: optional('text'),
       groupBy: required('text'),
+      splitBy: optional('text'),
       type: optional('chartType'),
       sum: optional('text'),
       average: optional('text'),
