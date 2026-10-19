@@ -373,6 +373,7 @@ Only a caller without a token gets the prompts, in `/api/meta` as `signIn`, for 
 | --- | --- |
 | `l.section(title, fields, { help?, helpWhen?, presentation?, when? })` | A titled group of fields in the main column, editable where the user may write. `presentation: 'facts'` shows them on the read view as a row of [key facts](#key-facts). |
 | `l.group(title, items, { collapsed?, when? })` | A heading over sections and related tables, closed until opened with `collapsed: true`. `when` also takes a [condition](#form-and-read-view). See [Groups](#groups). |
+| `l.tab(title, items)` | A tab holding main-column items; a view's tabs show as one strip on the read view and the form. See [Tabs](#tabs). |
 | `l.sidebar(fields, { when? })` | A summary card beside it, read-only. `when` also takes a [condition](#form-and-read-view). |
 | `l.related(title, { ... })` | A table of the records of another resource that point at this one, in the main column. See [Related records](#related-records). |
 | `l.custom(Component, { title?, props?, sidebar?, when? })` | A [custom component](/reference/custom-components/#record-sections) where it is listed: in the main column under `title`, or with `sidebar: true` as a sidebar card. |
@@ -414,6 +415,24 @@ view<typeof listings>('listings').recordMode('read')
 The open groups are in the address, as `?open=<title>` once per group, so a link, a copied URL or a new tab opens the page with the group open. Titles are unique among a view's groups, as the address names a group by its title. The page scrolls as a whole; opening a group adds no scroll box. On the form, a group that holds a field with an error or a conflict opens by itself. The create form shows the sections of a group as plain sections.
 
 <StoryFrame id="record-page-groups--collapsed" title="A collapsed group on the record page" height={520} />
+
+### Tabs
+
+`l.tab(title, items)` splits the record page into tabs. A tab holds any main-column item: sections, groups, related tables, custom components, maps, galleries, history and comments. It refuses a sidebar item, another tab, and a custom component or map with `sidebar: true`, since the sidebar stays beside the tabs on every tab.
+
+A view's tabs stand together in the layout and show as one strip; items before them show above the strip and items after them below it, on every tab. Tab titles are unique among a view's tabs, and group titles are unique across the whole layout, groups inside tabs too. The read view and the form show the same tabs.
+
+The shown tab is in the address, as `?tab=<title>`, so a link, a copied URL or a new tab opens the record on that tab. The first tab is the default and its link has no `tab`. An unknown title shows the first tab. Edit, Cancel and Save keep the tab. Only the shown tab's items are drawn, so its related tables load when it opens; the form keeps the values of the fields on the other tabs. When a save is turned down for a field on another tab, the form moves to that tab and focuses the field. The create form shows the sections of a tab as plain sections.
+
+```ts
+view<typeof listings>('listings').layout((r) => [
+  l.sidebar([r.status]),
+  l.tab('Details', [l.section('Home', [r.title, r.price])]),
+  l.tab('History', [l.history('Changes'), l.comments('Comments')]),
+])
+```
+
+<StoryFrame id="record-page-tabs--reading" title="A record page with tabs" height={520} />
 
 ### Key facts
 
