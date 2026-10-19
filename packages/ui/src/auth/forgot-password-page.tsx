@@ -4,6 +4,7 @@ import type { RouteTarget } from '../primitives/route-link'
 import { useAuth } from './auth-provider'
 import { ForgotPasswordForm } from './forgot-password-form'
 import { resetLinkTarget } from './reset-link'
+import { text } from './messages'
 
 /** Asks the server to email a reset link that leads back to this page. */
 export const ForgotPasswordPage = ({ back }: { back: RouteTarget }) => {
@@ -20,7 +21,7 @@ export const ForgotPasswordPage = ({ back }: { back: RouteTarget }) => {
       setSentTo(email)
     } catch (failure) {
       if (!(failure instanceof AuthError)) throw failure
-      setError(failure.status === 429 ? 'Too many requests. Wait a minute and try again.' : failure.message)
+      setError(failure.status === 429 ? text('tooManyRequests') : failure.message)
     }
     setBusy(false)
   }

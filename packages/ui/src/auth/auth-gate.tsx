@@ -22,6 +22,7 @@ import { useSignInAddress } from './use-sign-in-address'
 import { readInvitationLink, withoutInvitationLink } from '../organizations/invitation-link'
 import { InvitationPage } from '../organizations/invitation-page'
 import { BeforeSignIn } from '../plugins/before-sign-in'
+import { text } from './messages'
 
 type AuthPage =
   /**
@@ -119,7 +120,7 @@ const useAuthPage = (workspace: string | undefined, children: ReactNode): ReactN
   // The reset ended every session, so the app forgets its own as well.
   const passwordChanged = async () => {
     if (state.kind === 'signed-in') await signOut()
-    leaveResetPage({ kind: 'sign-in', notice: 'Your password is changed. Sign in with the new one.' })
+    leaveResetPage({ kind: 'sign-in', notice: text('passwordChanged') })
   }
   const backToSignIn = () => {
     setPage({ kind: 'sign-in' })
@@ -130,14 +131,14 @@ const useAuthPage = (workspace: string | undefined, children: ReactNode): ReactN
     case 'loading':
       return (
         <div className="flex h-full min-h-48 items-center justify-center gap-2 text-muted-foreground">
-          <Spinner /> Loading
+          <Spinner /> {text('loading')}
         </div>
       )
     case 'error':
       return (
         <div className="flex h-full min-h-48 flex-col items-center justify-center gap-3 p-8 text-center">
-          <p className="text-muted-foreground">Cannot reach the server: {state.message}</p>
-          <Button onClick={recheck}>Try again</Button>
+          <p className="text-muted-foreground">{text('cannotReach', state.message)}</p>
+          <Button onClick={recheck}>{text('tryAgain')}</Button>
         </div>
       )
     case 'needs-admin':

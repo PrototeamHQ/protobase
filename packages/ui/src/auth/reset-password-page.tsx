@@ -2,12 +2,13 @@ import { useState } from 'react'
 import { AuthError } from '@protobase/client'
 import { useAuth } from './auth-provider'
 import { minPasswordLength, ResetPasswordForm } from './reset-password-form'
+import { text } from './messages'
 
 /** Better Auth's answers to a new password, in words for the person at the keyboard. */
 export const resetPasswordMessage = (error: AuthError) => {
-  if (error.status === 429) return 'Too many attempts. Wait a minute and try again.'
-  if (error.code === 'PASSWORD_TOO_SHORT') return `Use at least ${minPasswordLength} characters.`
-  if (error.code === 'PASSWORD_TOO_LONG') return 'That password is too long.'
+  if (error.status === 429) return text('tooManyAttempts')
+  if (error.code === 'PASSWORD_TOO_SHORT') return text('useAtLeast', minPasswordLength)
+  if (error.code === 'PASSWORD_TOO_LONG') return text('passwordTooLong')
   return error.message
 }
 

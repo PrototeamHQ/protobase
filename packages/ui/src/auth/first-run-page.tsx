@@ -2,6 +2,7 @@ import { Check, Copy } from 'lucide-react'
 import { useState } from 'react'
 import { Button } from '../primitives/button'
 import { AuthLayout } from './auth-layout'
+import { text } from './messages'
 
 export const createAdminCommand = 'protobase users create you@example.com'
 
@@ -14,13 +15,13 @@ export type FirstRunPageProps = { command?: string; onCheckAgain: () => void; bu
 export const FirstRunPage = ({ command = createAdminCommand, onCheckAgain, busy }: FirstRunPageProps) => {
   const [copied, setCopied] = useState(false)
   return (
-    <AuthLayout title="No admin yet" description="This Protobase has no users to sign in with.">
-      <p className="text-muted-foreground">Run this in the terminal where Protobase runs, then reload. The first admin is created on the server, not in the browser, so nobody else can claim a fresh URL.</p>
+    <AuthLayout title={text('noAdminTitle')} description={text('noAdminDescription')}>
+      <p className="text-muted-foreground">{text('noAdminExplanation')}</p>
       <div className="mt-4 flex items-center gap-2 rounded-md border bg-surface py-1.5 pl-3 pr-1.5">
         <code className="min-w-0 flex-1 break-all font-mono text-xs">{command}</code>
         <button
           type="button"
-          aria-label="Copy command"
+          aria-label={text('copyCommand')}
           onClick={() => {
             void navigator.clipboard.writeText(command).then(() => {
               setCopied(true)
@@ -33,7 +34,7 @@ export const FirstRunPage = ({ command = createAdminCommand, onCheckAgain, busy 
         </button>
       </div>
       <Button variant="primary" className="mt-4 min-h-10 w-full" loading={busy} onClick={onCheckAgain}>
-        Reload
+        {text('reload')}
       </Button>
     </AuthLayout>
   )

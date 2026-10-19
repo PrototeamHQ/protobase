@@ -5,6 +5,7 @@ import { useAuth } from './auth-provider'
 import { SignUpCodeForm } from './sign-up-code-form'
 import { SignUpDetailsForm } from './sign-up-details-form'
 import { SignUpEmailForm } from './sign-up-email-form'
+import { text } from './messages'
 
 export type SignUpPageProps = {
   workspace?: string
@@ -73,7 +74,7 @@ export const SignUpPage = ({ workspace, email, ticket, onCodeSent, onVerified, o
         onSubmit={(code) => void attempt(async () => onVerified(await verifySignUpCode(email, code)))}
         onResend={() => void attempt(async () => {
           await sendSignUpCode(email)
-          setNotice('A new code is on its way. Only the newest one works.')
+          setNotice(text('newCodeSent'))
         })}
       />
     )

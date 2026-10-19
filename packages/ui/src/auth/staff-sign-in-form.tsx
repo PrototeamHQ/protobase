@@ -3,6 +3,7 @@ import { cn } from '../lib/cn'
 import { Button } from '../primitives/button'
 import { Input } from '../primitives/input'
 import { AuthLayout } from './auth-layout'
+import { text } from './messages'
 
 export type StaffSignInFormProps = {
   /** The operator provider's name; `undefined` when this app does not let staff sign in. */
@@ -25,20 +26,20 @@ export const StaffSignInForm = ({ operator, email: givenEmail = '', reason: give
   const [reason, setReason] = useState(givenReason)
   if (!operator) {
     return (
-      <AuthLayout title="Staff sign-in" description="Staff of the team that runs this app cannot sign in as people here.">
+      <AuthLayout title={text('staffTitle')} description={text('staffUnavailable')}>
         {error && (
           <p role="alert" className="mb-4 text-xs font-medium text-danger-text">
             {error}
           </p>
         )}
         <Button variant="primary" className="min-h-10 w-full" onClick={onBack}>
-          Back to sign in
+          {text('backToSignIn')}
         </Button>
       </AuthLayout>
     )
   }
   return (
-    <AuthLayout title="Sign in as a person" description={`For staff of ${operator}, to help someone with this app.`}>
+    <AuthLayout title={text('signInAsPerson')} description={text('forStaffOf', operator)}>
       <form
         className="flex flex-col gap-4"
         onSubmit={(event) => {
@@ -47,18 +48,18 @@ export const StaffSignInForm = ({ operator, email: givenEmail = '', reason: give
         }}
       >
         <label className="flex flex-col gap-1.5 font-medium">
-          Their email
+          {text('theirEmail')}
           <Input type="email" name="email" required autoFocus={!givenEmail} value={email} onChange={(event) => setEmail(event.target.value)} className="min-h-6" />
         </label>
         <label className="flex flex-col gap-1.5 font-medium">
-          Reason
+          {text('reason')}
           <textarea
             name="reason"
             required
             minLength={minimumReason}
             rows={3}
             value={reason}
-            placeholder="Ticket 4211: the invoice totals look wrong"
+            placeholder={text('reasonExample')}
             onChange={(event) => setReason(event.target.value)}
             className={cn(
               'resize-y rounded-md border bg-background px-2.5 py-1.5 font-normal shadow-sm outline-none placeholder:text-faint-foreground focus:border-primary focus:ring-2 focus:ring-primary/20',
@@ -67,7 +68,7 @@ export const StaffSignInForm = ({ operator, email: givenEmail = '', reason: give
           />
         </label>
         <p className="text-xs text-muted-foreground">
-          You sign in at {operator} with a passkey or a second step. The session is short, shows a banner, and cannot change their sign-in. The app's admins see who signed in as whom, and why.
+          {text('staffExplanation', operator)}
         </p>
         {error && (
           <p role="alert" className="text-xs font-medium text-danger-text">
@@ -75,10 +76,10 @@ export const StaffSignInForm = ({ operator, email: givenEmail = '', reason: give
           </p>
         )}
         <Button variant="primary" type="submit" loading={busy} className="min-h-10">
-          Continue with {operator}
+          {text('continueWith', operator)}
         </Button>
         <Button variant="ghost" onClick={onBack} className="min-h-10">
-          Back to sign in
+          {text('backToSignIn')}
         </Button>
       </form>
     </AuthLayout>

@@ -4,6 +4,8 @@ import { Button } from '../primitives/button'
 import { Input } from '../primitives/input'
 import { AuthLayout } from './auth-layout'
 import { minPasswordLength } from './reset-password-form'
+import { slotted } from '../locale/slotted'
+import { text } from './messages'
 
 export type SignUpDetails = { name: string; password?: string }
 
@@ -28,9 +30,9 @@ export const SignUpDetailsForm = ({ email, onSubmit, onBack, methods, busy, erro
   const withPassword = methods.includes('password')
   const passwordOptional = methods.includes('emailCode')
   return (
-    <AuthLayout title="Your details" description="One last step to create your account.">
+    <AuthLayout title={text('detailsTitle')} description={text('detailsDescription')}>
       <p className="mb-4 text-muted-foreground">
-        The code was right: the account is for <span className="font-medium text-foreground">{email}</span>.
+        {slotted(text('codeWasRight'), <span className="font-medium text-foreground">{email}</span>)}
       </p>
       <form
         className="flex flex-col gap-4"
@@ -40,13 +42,13 @@ export const SignUpDetailsForm = ({ email, onSubmit, onBack, methods, busy, erro
         }}
       >
         <label className="flex flex-col gap-1.5 font-medium">
-          Your name
+          {text('yourName')}
           <Input name="name" autoComplete="name" required autoFocus maxLength={200} value={name} onChange={(event) => setName(event.target.value)} className="min-h-6" />
         </label>
         {withPassword && (
           <div className="flex flex-col gap-1.5">
             <label className="flex flex-col gap-1.5 font-medium">
-              {passwordOptional ? 'Password (optional)' : 'Password'}
+              {passwordOptional ? text('passwordOptional') : text('password')}
               <Input
                 type="password"
                 name="password"
@@ -61,7 +63,8 @@ export const SignUpDetailsForm = ({ email, onSubmit, onBack, methods, busy, erro
               />
             </label>
             <p id={passwordHint} className="text-xs text-muted-foreground">
-              At least {minPasswordLength} characters.{passwordOptional && ' Without one, you sign in with a code we email you.'}
+              {text('atLeast', minPasswordLength)}
+              {passwordOptional && text('withoutPassword')}
             </p>
           </div>
         )}
@@ -71,10 +74,10 @@ export const SignUpDetailsForm = ({ email, onSubmit, onBack, methods, busy, erro
           </p>
         )}
         <Button variant="primary" type="submit" loading={busy} className="min-h-10">
-          Create account
+          {text('createAccount')}
         </Button>
         <Button variant="ghost" onClick={onBack} className="min-h-10">
-          Use another address
+          {text('useAnotherAddress')}
         </Button>
       </form>
     </AuthLayout>

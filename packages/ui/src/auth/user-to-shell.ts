@@ -1,5 +1,6 @@
 import type { AuthUser } from '@protobase/client'
 import type { ShellUser } from '../app-shell'
+import { text } from './messages'
 
 /** The hue of someone's avatar, the same for the same id. */
 export const hueOf = (text: string) => [...text].reduce((sum, char) => (sum * 31 + char.charCodeAt(0)) % 360, 7)
@@ -27,7 +28,7 @@ export const userToShell = (user: AuthUser): ShellUser => {
     email: user.email,
     initials: initialsOf(user.name || user.email) || '?',
     hue: hueOf(user.id || user.email),
-    role: admin ? 'Admin' : (roles[0] ?? 'user').replace(/^./, (char) => char.toUpperCase()),
+    role: admin ? text('admin') : (roles[0] ?? 'user').replace(/^./, (char) => char.toUpperCase()),
     roleTone: admin ? 'violet' : 'blue',
   }
 }

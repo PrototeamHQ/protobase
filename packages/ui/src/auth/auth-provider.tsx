@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { createAuthSession, type AuthSession, type AuthUser, type PlatformSignIn, type PluginRef, type SamlSignIn, type RequiredSetup, type SetupStatus, type SignInMethod, type SignInResult, type StaffSignIn, type TwoFactorMethod } from '@protobase/client'
 import { providerName, withoutSignInLink } from './provider-link'
+import { text } from './messages'
 
 export type AuthState =
   | { kind: 'loading' }
@@ -132,7 +133,7 @@ export const AuthProvider = ({ session: given, children }: { session?: AuthSessi
       if (status.needsAdmin) return setState({ kind: 'needs-admin' })
       const user = await session.session()
       return user ? enter(user) : setState({ kind: status.anonymous ? 'visitor' : 'signed-out' })
-    }).catch((error: unknown) => setState({ kind: 'error', message: error instanceof Error ? error.message : 'The server did not answer' }))
+    }).catch((error: unknown) => setState({ kind: 'error', message: error instanceof Error ? error.message : text('noAnswer') }))
   }, [session, enter])
 
   useEffect(recheck, [recheck])

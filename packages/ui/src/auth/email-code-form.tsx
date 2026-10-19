@@ -1,4 +1,6 @@
 import { CodeForm } from './code-form'
+import { slotted } from '../locale/slotted'
+import { text } from './messages'
 
 export type EmailCodeFormProps = {
   /** The address the code went to. */
@@ -19,16 +21,16 @@ export type EmailCodeFormProps = {
 /** The second half of signing in with an emailed code: the code from the email. */
 export const EmailCodeForm = ({ email, onBack, ...rest }: EmailCodeFormProps) => (
   <CodeForm
-    title="Check your email"
-    description="Enter the code we sent to sign in."
+    title={text('checkEmail')}
+    description={text('signInCodeDescription')}
     explanation={
       <>
-        If <span className="font-medium text-foreground">{email}</span> has an account, a 6-digit code is on its way. It works for 5 minutes, once.
+        {slotted(text('signInCodeSent'), <span className="font-medium text-foreground">{email}</span>)}
       </>
     }
-    submitLabel="Sign in"
+    submitLabel={text('signIn')}
     onChangeAddress={onBack}
-    changeAddressLabel="Back to sign in"
+    changeAddressLabel={text('backToSignIn')}
     {...rest}
   />
 )

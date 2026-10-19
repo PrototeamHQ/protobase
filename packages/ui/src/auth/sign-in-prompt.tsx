@@ -7,6 +7,7 @@ import { RouteLink } from '../primitives/route-link'
 import { ResponsiveDialog } from '../primitives/responsive-dialog'
 import { useAuth } from './auth-provider'
 import { useSignInAddress } from './use-sign-in-address'
+import { text } from './messages'
 
 export type SignInPromptProps = { prompt: SignInPromptModel } & (
   /** A page section, in place of what the visitor cannot use yet. */
@@ -42,14 +43,14 @@ const Actions = ({ prompt }: { prompt: SignInPromptModel }) => {
   ) : (
     canSignUp && (
       <RouteLink to={link('sign-up')} className={primary}>
-        Create an account
+        {text('createAnAccount')}
       </RouteLink>
     )
   )
   return (
     <>
       <RouteLink to={link()} className={signUp ? buttonClass() : primary}>
-        Sign in
+        {text('signIn')}
       </RouteLink>
       {signUp}
     </>
@@ -74,7 +75,7 @@ export const SignInPrompt = (props: SignInPromptProps) => {
         onClose={props.onClose}
         actions={
           <>
-            <Button onClick={props.onClose}>Not now</Button>
+            <Button onClick={props.onClose}>{text('notNow')}</Button>
             <Actions prompt={prompt} />
           </>
         }

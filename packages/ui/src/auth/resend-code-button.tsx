@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Button } from '../primitives/button'
+import { text } from './messages'
 
 export type ResendCodeButtonProps = {
   /** Sends a new code; the button waits `cooldown` seconds again after it. */
@@ -33,7 +34,7 @@ export const ResendCodeButton = ({ onResend, cooldown = 30, disabled }: ResendCo
       }}
       className="min-h-10"
     >
-      {left > 0 ? `Send a new code in ${left}s` : 'Send a new code'}
+      {left > 0 ? text('sendNewCodeIn', left) : text('sendNewCode')}
     </Button>
   )
 }

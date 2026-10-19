@@ -4,6 +4,7 @@ import { Spinner } from '../primitives/spinner'
 import { authMessage } from './auth-messages'
 import { useAuth } from './auth-provider'
 import { SetupRequiredForm } from './setup-required-form'
+import { text } from './messages'
 
 /** Sets up what the sign-in policy requires, one thing at a time, then reads the account again to open the app. */
 export const SetupRequiredPage = ({ missing }: { missing: RequiredSetup[] }) => {
@@ -13,7 +14,7 @@ export const SetupRequiredPage = ({ missing }: { missing: RequiredSetup[] }) => 
   const [error, setError] = useState<string>()
 
   useEffect(() => {
-    void session.account.signInMethods().then(setMethods, (failure: unknown) => setError(failure instanceof AuthError ? authMessage(failure) : 'Could not read your account'))
+    void session.account.signInMethods().then(setMethods, (failure: unknown) => setError(failure instanceof AuthError ? authMessage(failure) : text('couldNotReadAccount')))
   }, [session])
 
   const addPasskey = async () => {
@@ -32,7 +33,7 @@ export const SetupRequiredPage = ({ missing }: { missing: RequiredSetup[] }) => 
   if (!methods && !error) {
     return (
       <div className="flex h-full min-h-48 items-center justify-center gap-2 text-muted-foreground">
-        <Spinner /> Loading
+        <Spinner /> {text('loading')}
       </div>
     )
   }

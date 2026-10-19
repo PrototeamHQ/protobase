@@ -1,5 +1,6 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it } from 'vitest'
 import { AuthError } from '@protobase/client'
+import { setFallbackLocale } from '../locale/active-locale'
 import { authMessage, providerMessage, signInMessage, staffSignInMessage } from './auth-messages'
 
 describe('auth messages', () => {
@@ -28,5 +29,15 @@ describe('auth messages', () => {
     expect(providerMessage('account_already_linked_to_different_user', 'GitHub')).toBe('This GitHub account is linked to someone else here already.')
     expect(providerMessage('invalid_code', 'Acme SSO')).toBe('Signing in with Acme SSO did not go through. Try again.')
     expect(providerMessage('EMAIL_DOMAIN_NOT_ALLOWED', 'Okta')).toBe('Okta signed you in with an address this app does not accept from it. Sign in another way.')
+  })
+
+  describe('in Dutch', () => {
+    afterEach(() => setFallbackLocale('en'))
+
+    it('words the codes and the provider failures in the active language', () => {
+      setFallbackLocale('nl')
+      expect(authMessage(new AuthError('Invalid code', 401, 'INVALID_CODE'))).toBe('De code klopt niet.')
+      expect(providerMessage('invalid_code', 'GitHub')).toBe('Inloggen met GitHub lukte niet. Probeer het opnieuw.')
+    })
   })
 })

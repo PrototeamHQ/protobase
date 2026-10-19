@@ -3,6 +3,7 @@ import { Button } from '../primitives/button'
 import { OtpInput } from '../primitives/otp-input'
 import { AuthLayout } from './auth-layout'
 import { ResendCodeButton } from './resend-code-button'
+import { text } from './messages'
 
 export type CodeFormProps = {
   title: string
@@ -48,7 +49,7 @@ export const CodeForm = ({ title, description, explanation, submitLabel, onSubmi
         }}
       >
         <label className="flex flex-col gap-1.5 font-medium">
-          Code
+          {text('code')}
           <OtpInput name="code" required autoFocus value={code} invalid={Boolean(error)} onChange={setCode} onComplete={(complete) => !busy && onSubmit(complete)} />
         </label>
         {error && (

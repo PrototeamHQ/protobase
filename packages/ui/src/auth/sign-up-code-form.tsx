@@ -1,4 +1,6 @@
 import { CodeForm } from './code-form'
+import { slotted } from '../locale/slotted'
+import { text } from './messages'
 
 export type SignUpCodeFormProps = {
   /** The address the code went to. */
@@ -20,16 +22,16 @@ export type SignUpCodeFormProps = {
 /** The second step of making an account: the emailed code on its own, before the name and password. */
 export const SignUpCodeForm = ({ email, onBack, ...rest }: SignUpCodeFormProps) => (
   <CodeForm
-    title="Check your email"
-    description="Enter the code we sent to create your account."
+    title={text('checkEmail')}
+    description={text('signUpCodeDescription')}
     explanation={
       <>
-        A 6-digit code is on its way to <span className="font-medium text-foreground">{email}</span>. It works for 5 minutes, once. If the address has an account already, the email says so instead.
+        {slotted(text('signUpCodeSent'), <span className="font-medium text-foreground">{email}</span>)}
       </>
     }
-    submitLabel="Continue"
+    submitLabel={text('continue')}
     onChangeAddress={onBack}
-    changeAddressLabel="Use another address"
+    changeAddressLabel={text('useAnotherAddress')}
     {...rest}
   />
 )

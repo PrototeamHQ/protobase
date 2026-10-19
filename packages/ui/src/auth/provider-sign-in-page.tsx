@@ -4,13 +4,14 @@ import { Spinner } from '../primitives/spinner'
 import { signInMessage } from './auth-messages'
 import { AuthLayout } from './auth-layout'
 import { useAuth } from './auth-provider'
+import { text } from './messages'
 import { providerName } from './provider-link'
 
 /** What the page shows while the browser leaves for the provider `name`. */
 export const ProviderRedirect = ({ name, workspace }: { name: string; workspace?: string }) => (
-  <AuthLayout title={`Signing in with ${name}`} description={workspace}>
+  <AuthLayout title={text('signingInWith', name)} description={workspace}>
     <p role="status" className="flex items-center justify-center gap-2 text-muted-foreground">
-      <Spinner /> Taking you to {name}…
+      <Spinner /> {text('takingYouTo', name)}
     </p>
   </AuthLayout>
 )
@@ -28,7 +29,7 @@ export const ProviderSignInPage = ({ provider, workspace, onFailed }: { provider
   useEffect(() => {
     if (started.current) return
     started.current = true
-    if (!offered) return onFailed(`Signing in with ${name} is not offered here. Sign in another way.`)
+    if (!offered) return onFailed(text('providerNotOffered', name))
     signInSocial(provider).catch((failure: unknown) => {
       if (!(failure instanceof AuthError)) throw failure
       onFailed(signInMessage(failure))

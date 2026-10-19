@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { Button } from '../primitives/button'
 import { Input } from '../primitives/input'
 import { AuthLayout } from './auth-layout'
+import { text } from './messages'
 
 export type SignUpEmailFormProps = {
   /** Called with the address to email a code to; the page shows `error` when it fails. */
@@ -20,7 +21,7 @@ export type SignUpEmailFormProps = {
 export const SignUpEmailForm = ({ onSubmit, onSignIn, onBrowse, busy, error, workspace }: SignUpEmailFormProps) => {
   const [email, setEmail] = useState('')
   return (
-    <AuthLayout title="Create an account" description={workspace}>
+    <AuthLayout title={text('createAnAccount')} description={workspace}>
       <form
         className="flex flex-col gap-4"
         onSubmit={(event) => {
@@ -29,10 +30,10 @@ export const SignUpEmailForm = ({ onSubmit, onSignIn, onBrowse, busy, error, wor
         }}
       >
         <label className="flex flex-col gap-1.5 font-medium">
-          Email
+          {text('email')}
           <Input type="email" name="email" autoComplete="email" required autoFocus value={email} invalid={Boolean(error)} onChange={(event) => setEmail(event.target.value)} className="min-h-6" />
         </label>
-        <p className="text-muted-foreground">We email you a code to make sure the address is yours.</p>
+        <p className="text-muted-foreground">{text('codeToConfirm')}</p>
         {error && (
           <p role="alert" className="text-xs font-medium text-danger-text">
             {error}
@@ -40,18 +41,18 @@ export const SignUpEmailForm = ({ onSubmit, onSignIn, onBrowse, busy, error, wor
         )}
         <Button variant="primary" type="submit" loading={busy} className="min-h-10">
           <Mail className="size-4" />
-          Email me a code
+          {text('emailCode')}
         </Button>
         <p className="text-center text-muted-foreground">
-          Have an account?{' '}
+          {text('haveAccount')}{' '}
           <button type="button" onClick={onSignIn} className="font-medium text-primary-text hover:underline">
-            Sign in
+            {text('signIn')}
           </button>
         </p>
       </form>
       {onBrowse && (
         <button type="button" onClick={onBrowse} className="mt-4 w-full text-center font-medium text-muted-foreground hover:text-foreground hover:underline">
-          Continue without an account
+          {text('browseWithoutAccount')}
         </button>
       )}
     </AuthLayout>

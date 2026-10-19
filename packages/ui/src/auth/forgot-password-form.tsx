@@ -4,6 +4,8 @@ import { Button, buttonClass } from '../primitives/button'
 import { Input } from '../primitives/input'
 import { RouteLink, type RouteTarget } from '../primitives/route-link'
 import { AuthLayout } from './auth-layout'
+import { slotted } from '../locale/slotted'
+import { text } from './messages'
 
 export type ForgotPasswordFormProps = {
   /** Called with the email; the page shows `error` when the request fails. */
@@ -20,18 +22,18 @@ export const ForgotPasswordForm = ({ onSubmit, back, busy, error, sentTo }: Forg
   const [email, setEmail] = useState('')
   if (sentTo) {
     return (
-      <AuthLayout title="Check your email">
+      <AuthLayout title={text('checkEmail')}>
         <p className="text-muted-foreground">
-          If <span className="font-medium text-foreground">{sentTo}</span> has an account, an email with a link to choose a new password is on its way. The link works once, for a limited time.
+          {slotted(text('resetSent'), <span className="font-medium text-foreground">{sentTo}</span>)}
         </p>
         <RouteLink to={back} className={cn(buttonClass({ variant: 'primary' }), 'mt-4 min-h-10 w-full')}>
-          Back to sign in
+          {text('backToSignIn')}
         </RouteLink>
       </AuthLayout>
     )
   }
   return (
-    <AuthLayout title="Reset your password" description="We email you a link to choose a new one.">
+    <AuthLayout title={text('resetTitle')} description={text('resetDescription')}>
       <form
         className="flex flex-col gap-4"
         onSubmit={(event) => {
@@ -40,7 +42,7 @@ export const ForgotPasswordForm = ({ onSubmit, back, busy, error, sentTo }: Forg
         }}
       >
         <label className="flex flex-col gap-1.5 font-medium">
-          Email
+          {text('email')}
           <Input type="email" name="email" autoComplete="username" required autoFocus value={email} invalid={Boolean(error)} onChange={(event) => setEmail(event.target.value)} className="min-h-6" />
         </label>
         {error && (
@@ -49,10 +51,10 @@ export const ForgotPasswordForm = ({ onSubmit, back, busy, error, sentTo }: Forg
           </p>
         )}
         <Button variant="primary" type="submit" loading={busy} className="min-h-10">
-          Send reset link
+          {text('sendResetLink')}
         </Button>
         <RouteLink to={back} className={cn(buttonClass({ variant: 'ghost' }), 'min-h-10')}>
-          Back to sign in
+          {text('backToSignIn')}
         </RouteLink>
       </form>
     </AuthLayout>

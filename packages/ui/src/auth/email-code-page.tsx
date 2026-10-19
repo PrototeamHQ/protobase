@@ -3,6 +3,7 @@ import { AuthError } from '@protobase/client'
 import { authMessage } from './auth-messages'
 import { useAuth } from './auth-provider'
 import { EmailCodeForm } from './email-code-form'
+import { text } from './messages'
 
 /** Signs in with the code emailed to `email`; the account's second step follows when it has one. */
 export const EmailCodePage = ({ email, onBack }: { email: string; onBack: () => void }) => {
@@ -34,7 +35,7 @@ export const EmailCodePage = ({ email, onBack }: { email: string; onBack: () => 
       onSubmit={(code) => void attempt(() => signInWithCode(email, code))}
       onResend={() => void attempt(async () => {
         await sendSignInCode(email)
-        setNotice('A new code is on its way. Only the newest one works.')
+        setNotice(text('newCodeSent'))
       })}
     />
   )

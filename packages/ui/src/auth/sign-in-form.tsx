@@ -6,6 +6,7 @@ import { Input } from '../primitives/input'
 import { RouteLink, type RouteTarget } from '../primitives/route-link'
 import { AuthLayout } from './auth-layout'
 import { ProviderIcon } from './provider-icon'
+import { text } from './messages'
 
 export type SignInFormProps = {
   /** Called with the email and password; the page shows `error` when it fails. */
@@ -41,7 +42,7 @@ export type SignInFormProps = {
 const Divider = () => (
   <div className="my-4 flex items-center gap-3 text-xs text-muted-foreground">
     <span className="h-px flex-1 bg-border" />
-    or
+    {text('or')}
     <span className="h-px flex-1 bg-border" />
   </div>
 )
@@ -62,7 +63,7 @@ export const SignInForm = ({ onSubmit, busy, error, workspace, notice, methods =
   }
 
   return (
-    <AuthLayout title="Sign in to Protobase" description={workspace}>
+    <AuthLayout title={text('signInTitle')} description={workspace}>
       {notice && (
         <p role="status" className="mb-4 rounded-md bg-success-soft px-3 py-2 text-xs font-medium text-success-text">
           {notice}
@@ -74,19 +75,19 @@ export const SignInForm = ({ onSubmit, busy, error, workspace, notice, methods =
             {offered.map((provider) => (
               <Button key={provider.id} onClick={() => onContinueWith?.(provider.id)} disabled={busy} className="min-h-10 w-full">
                 <ProviderIcon id={provider.id} />
-                Continue with {provider.name}
+                {text('continueWith', provider.name)}
               </Button>
             ))}
             {withPasskey && (
               <Button onClick={() => onPasskey?.()} disabled={busy} className="min-h-10 w-full">
                 <KeyRound className="size-4" />
-                Sign in with a passkey
+                {text('signInWithPasskey')}
               </Button>
             )}
             {withPasskey &&
               passkeyDomains.slice(1).map((domain) => (
                 <Button key={domain} variant="ghost" size="sm" onClick={() => onPasskey?.(domain)} disabled={busy} className="w-full">
-                  Use a passkey made for {domain}
+                  {text('passkeyFor', domain)}
                 </Button>
               ))}
           </div>
@@ -111,12 +112,12 @@ export const SignInForm = ({ onSubmit, busy, error, workspace, notice, methods =
           }}
         >
           <label className="flex flex-col gap-1.5 font-medium">
-            Email
+            {text('email')}
             <Input ref={emailInput} type="email" name="email" autoComplete="username webauthn" required autoFocus value={email} invalid={Boolean(error)} onChange={(event) => setEmail(event.target.value)} className="min-h-6" />
           </label>
           {withPassword && (
             <label className="flex flex-col gap-1.5 font-medium">
-              Password
+              {text('password')}
               <Input type="password" name="password" autoComplete="current-password" required value={password} invalid={Boolean(error)} onChange={(event) => setPassword(event.target.value)} className="min-h-6" />
             </label>
           )}
@@ -127,33 +128,33 @@ export const SignInForm = ({ onSubmit, busy, error, workspace, notice, methods =
           )}
           {withPassword && (
             <Button variant="primary" type="submit" loading={busy} className="min-h-10">
-              Sign in
+              {text('signIn')}
             </Button>
           )}
           {withCode && (
             <Button variant={withPassword ? 'secondary' : 'primary'} type={withPassword ? 'button' : 'submit'} onClick={withPassword ? sendCode : undefined} loading={busy && !withPassword} disabled={busy} className="min-h-10">
               <Mail className="size-4" />
-              Email me a sign-in code
+              {text('emailSignInCode')}
             </Button>
           )}
           {withPassword && forgotPassword && (
             <RouteLink to={forgotPassword} className="self-center font-medium text-primary-text hover:underline">
-              Forgot password?
+              {text('forgotPassword')}
             </RouteLink>
           )}
         </form>
       )}
       {signUp && (
         <p className="mt-4 text-center text-muted-foreground">
-          New here?{' '}
+          {text('newHere')}{' '}
           <RouteLink to={signUp} className="font-medium text-primary-text hover:underline">
-            Create an account
+            {text('createAnAccount')}
           </RouteLink>
         </p>
       )}
       {onBrowse && (
         <button type="button" onClick={onBrowse} className="mt-4 w-full text-center font-medium text-muted-foreground hover:text-foreground hover:underline">
-          Continue without signing in
+          {text('browse')}
         </button>
       )}
     </AuthLayout>
