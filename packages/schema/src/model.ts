@@ -206,6 +206,8 @@ export type AppAddress =
       kind: 'list'
       /** The resource listed. */
       resource: string
+      /** A named list of the resource's view (`.namedList(...)`); its own list when omitted. */
+      list?: string
       /** An AIP-160 filter on the list. */
       filter?: string
       /** An AIP-132 order of the list. */
@@ -1188,6 +1190,29 @@ export type ViewModel = {
   create?: CreateModel
   /** Public forms that create its records for people without an account, each at `/-/forms/<name>`. */
   forms?: FormModel[]
+  /** Other lists of the resource, each with its own sidebar entry and address. */
+  lists?: NamedListModel[]
+}
+
+/**
+ * Another list of a view's resource (`.namedList(...)`), with its own sidebar entry at `/<resource>?list=<name>`: its
+ * own names, list, filter widgets and chart in place of the view's. Its records open at the resource's own address.
+ */
+export type NamedListModel = {
+  /** Its address, `?list=<name>`: lowercase letters, digits, `-` and `_`, unique in its view. */
+  name: string
+  /** What its records are called; `plural` is its sidebar entry and title. */
+  names: { singular: string; plural: string }
+  /** Where it sits in the sidebar; without `recent`. */
+  nav?: NavModel
+  /** A line under its title. */
+  help?: string
+  /** Its list; the resource's first six fields as columns when omitted. */
+  list?: ListModel
+  /** Its filter widgets, in order. */
+  filters: FilterWidgetModel[]
+  /** Its chart. */
+  chart?: ChartModel
 }
 
 /**

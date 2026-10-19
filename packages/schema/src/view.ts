@@ -8,6 +8,7 @@ import type {
   RecordMode,
   SaveFeedback,
   SortSpec,
+  NamedListModel,
   NavModel,
   NavRecentModel,
   ListDisplayModel,
@@ -17,7 +18,9 @@ import type {
   SignInPromptModel,
   ViewModel,
 } from './model'
+import { formNamePattern } from './form-address'
 import { isMenuHref } from './menu-href'
+import { viewOfList } from './named-list'
 import { navRecentErrors } from './nav-recent'
 import { createRefs, ref, type FieldRefs, type Ref } from './refs'
 import { actions } from './view-actions'
@@ -27,6 +30,9 @@ import { columns as listColumns, isListColumn, type ListColumn } from './view-co
 import { boardErrors, calendarErrors, displayErrors, displayFields, displays } from './view-displays'
 import { FieldView } from './view-field'
 import { widgets } from './view-widgets'
+
+// What a named list's builder may set; anything else would be silently ignored.
+const namedListParts = new Set(['resource', 'names', 'nav', 'help', 'list', 'filters', 'chart'])
 
 type FieldsOf<R extends { readonly $fields: unknown }> = R['$fields']
 
@@ -171,6 +177,35 @@ export class ViewBuilder<R extends {
    */
   filters(build: (r: FieldRefs<FieldsOf<R>>, w: typeof widgets) => FilterWidgetModel[]) {
     return this.next({ filters: build(this.refs(), widgets) })
+  }
+
+  /**
+   * Another list of this resource, with its own sidebar entry and address (`/<resource>?list=<name>`). `build` gets a
+   * fresh view and sets its `names` (the sidebar entry, required), `nav`, `help`, `list`, `filters` and `chart`, none of
+   * which come from the view's own list. Its records open at the resource's own address. Throws on a name that does not
+   * fit an address or repeats, on anything else set, on `nav.recent`, and in `toModel` when the view has `listOf` or
+   * `searchesOf`. See [More than one list](website/src/content/docs/reference/ui-config.mdx#more-than-one-list).
+   */
+  namedList(name: string, build: (v: ViewBuilder<R>) => ViewBuilder<R>) {
+    const where = `View "${this.state.resource}": named list "${name}"`
+    if (!formNamePattern.test(name)) throw new Error(`${where}: its name goes in its address, so it takes lowercase letters, digits, - and _`)
+    if (this.state.lists?.some((entry) => entry.name === name)) throw new Error(`${where} is declared twice`)
+    const start = view<R>(this.state.resource)
+    const { state } = build(start)
+    const extra = Object.keys(state).filter((key) => !namedListParts.has(key) && state[key as keyof ViewModel] !== start.state[key as keyof ViewModel])
+    if (extra.length > 0) throw new Error(`${where} sets ${extra.join(', ')}; a named list takes names, nav, help, list, filters and chart`)
+    if (!state.names) throw new Error(`${where} needs .names(...), its sidebar entry`)
+    if (state.nav?.recent) throw new Error(`${where}: recent records are the view's own, not a named list's`)
+    const named: NamedListModel = {
+      name,
+      names: state.names,
+      filters: state.filters,
+      ...(state.nav && { nav: state.nav }),
+      ...(state.help !== undefined && { help: state.help }),
+      ...(state.list && { list: state.list }),
+      ...(state.chart && { chart: state.chart }),
+    }
+    return this.next({ lists: [...(this.state.lists ?? []), named] })
   }
 
   /**
@@ -372,6 +407,10 @@ export class ViewBuilder<R extends {
     }
     const recentErrors = resource && nav?.recent ? navRecentErrors(nav.recent, resource) : []
     if (recentErrors.length > 0) throw new Error(`View "${this.state.resource}": nav.recent ${recentErrors.join('; ')}`)
+    if (this.state.lists?.length && (listOf !== undefined || this.state.searchesOf)) {
+      throw new Error(`View "${this.state.resource}": named lists cannot go with listOf or searchesOf, which replace the list page`)
+    }
+    for (const named of this.state.lists ?? []) new ViewBuilder<R>(viewOfList(this.state, named.name)!).toModel(resource)
     return structuredClone(this.state)
   }
 

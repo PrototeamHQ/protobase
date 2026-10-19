@@ -549,4 +549,62 @@ describe('view builder', () => {
     expect(view<typeof article>('article').list((r) => ({ columns: [r.id], filter: 'id > 1' })).toModel().list?.filter).toBe('id > 1')
     expect(view<typeof article>('article').list((r) => ({ columns: [r.id], filter: '' })).toModel().list).not.toHaveProperty('filter')
   })
+
+  describe('named lists', () => {
+    const base = () => view<typeof article>('article').names({ singular: 'Article', plural: 'Articles' })
+    const updates = (v: ReturnType<typeof base>) => v.names({ singular: 'Update', plural: 'Updates' })
+
+    it('carries the named list with its parts', () => {
+      const model = base()
+        .namedList('updates', (v) =>
+          updates(v)
+            .nav({ order: 2 })
+            .help('Recent')
+            .list((r) => ({ columns: [r.title] }))
+            .filters((r, w) => [w.toggle(r.featured)])
+            .chart((r) => ({ field: r.createdAt, range: '30d', granularity: 'day' })),
+        )
+        .toModel()
+      expect(model.lists).toEqual([
+        {
+          name: 'updates',
+          names: { singular: 'Update', plural: 'Updates' },
+          nav: { order: 2 },
+          help: 'Recent',
+          list: { columns: ['title'] },
+          filters: [{ kind: 'toggle', field: 'featured' }],
+          chart: { field: 'createdAt', range: '30d', granularity: 'day' },
+        },
+      ])
+    })
+
+    it('throws on a name that does not fit an address', () => {
+      expect(() => base().namedList('Up dates', updates)).toThrow('lowercase letters')
+    })
+
+    it('throws on a repeated name', () => {
+      expect(() => base().namedList('updates', updates).namedList('updates', updates)).toThrow('declared twice')
+    })
+
+    it('throws without names', () => {
+      expect(() => base().namedList('updates', (v) => v)).toThrow('needs .names')
+    })
+
+    it('throws on recent records', () => {
+      expect(() => base().namedList('updates', (v) => updates(v).nav({ recent: { status: 'status' } }))).toThrow('recent records')
+    })
+
+    it('throws on a part that is not a list part', () => {
+      expect(() => base().namedList('updates', (v) => updates(v).layout((r) => [l.section('A', [r.title])]))).toThrow('sets layout')
+    })
+
+    it('throws with listOf', () => {
+      expect(() => base().namedList('updates', updates).listOf((r) => r.id).toModel()).toThrow('named lists cannot go with listOf')
+    })
+
+    it('checks a named list display against the resource', () => {
+      const stale = base().namedList('updates', (v) => updates(v).list((r, d) => ({ columns: [r.title], displays: [d.cards({ badge: { name: 'state' } })] })))
+      expect(() => stale.toModel(article.toModel())).toThrow('display "cards" names field "state"')
+    })
+  })
 })
