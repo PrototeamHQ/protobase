@@ -7,6 +7,7 @@ import { roles, workOrders } from './reference/access'
 import * as catalog from './reference/catalog'
 import * as workshop from './reference/workshop'
 import * as invoiceItems from './reference/invoice-items'
+import * as rankedBoard from './reference/ranked-board'
 import { partOrders, stock } from './reference/keys'
 
 // The documentation shows these files; this keeps what it says about them true.
@@ -105,6 +106,11 @@ describe('sorting by hand', () => {
   it('orders the products as one, and the items of each invoice on their own', () => {
     expect(invoiceItems.products.toModel().position).toEqual({ field: 'rank' })
     expect(invoiceItems.invoiceItems.toModel().position).toEqual({ field: 'position', within: 'invoice_id' })
+  })
+
+  it("orders a board's tasks by their rank", () => {
+    expect(rankedBoard.tasks.toModel().position).toEqual({ field: 'rank' })
+    expect(rankedBoard.tasksView.toModel(rankedBoard.tasks.toModel()).list?.displays?.[0]).toMatchObject({ kind: 'board', by: 'status' })
   })
 
   it("lists an invoice's items on its page by the relation they are ordered within, so they can be sorted there", () => {

@@ -28,6 +28,7 @@ import { listEmptyState } from './list-empty-state'
 import { ListCards } from './displays/list-cards'
 import { MapDisplay } from './displays/map-display'
 import { BoardDisplay } from './displays/board-display'
+import { boardRank } from './displays/board-columns'
 import { CalendarDisplay } from './displays/calendar-display'
 import { CustomDisplay } from './displays/custom-display'
 import { DisplaySwitch, SortMenu } from './displays/display-controls'
@@ -156,8 +157,8 @@ const LoadedList = ({ model, address, scope, heading }: LoadedListProps) => {
     setFilter(state, text ? [...others, where.search(text)] : others)
   }
   const plural = view?.names?.plural ?? humanize(resource)
-  // A calendar is in time order, so it has no sort
-  const sorted = display?.kind === 'calendar' ? undefined : display
+  // A calendar is in time order, and a board of ranked records in their rank, so neither has a sort
+  const sorted = display?.kind === 'calendar' || (display?.kind === 'board' && boardRank(model)) ? undefined : display
   const sortMenu = sorted && <SortMenu model={model} view={view} display={sorted} orderBy={orderBy} onChange={(next) => set({ orderBy: next })} />
   const searchBox = model.search?.length ? <ListSearch value={search?.kind === 'search' ? search.text : ''} onCommit={commitSearch} placeholder={`Search ${plural.toLowerCase()}`} className={desktop ? undefined : 'min-h-11'} /> : null
   // On a desktop the sort, the filters and the search share one row below the title; a phone has the filters button
