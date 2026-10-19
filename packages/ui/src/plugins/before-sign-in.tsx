@@ -6,6 +6,7 @@ import { Spinner } from '../primitives/spinner'
 import { mergePlugins } from './merge-plugins'
 import { usePluginSource } from './plugin-source'
 import { usePluginLoads } from './use-plugin-loads'
+import { text } from './messages'
 
 /**
  * Loads the plugins the setup status names to everyone, from the app's plugin source, and draws their `beforeSignIn`
@@ -31,7 +32,7 @@ export const BeforeSignIn = ({ children }: { children: ReactNode }) => {
   if (!settled) {
     return (
       <div className="flex h-full min-h-48 items-center justify-center gap-2 text-muted-foreground">
-        <Spinner /> Loading
+        <Spinner /> {text('loading')}
       </div>
     )
   }

@@ -5,6 +5,7 @@ import type { PluginInfo } from './plugin-context'
 import { parseManifest } from './plugin-manifest'
 import { pluginUi } from './plugin-ui'
 import { pluginApi, protobaseVersion } from './plugin-api'
+import { text } from './messages'
 
 /** A plugin the app loaded, with its UI config, or one it did not load and why. */
 export type PluginLoad = { kind: 'loaded'; plugin: PluginInfo; ui: ProjectUi } | { kind: 'off'; url: string; name?: string; reason: string }
@@ -48,7 +49,7 @@ export const loadPlugin = async (ref: PluginRef, loader: PluginLoader, base: str
   let name: string | undefined
   try {
     const read = await loader.readJson(url)
-    if ('status' in read) return off(`its plugin.json answered ${read.status}`)
+    if ('status' in read) return off(text('answered', read.status))
     const parsed = parseManifest(read.json)
     if ('problem' in parsed) return off(parsed.problem)
     const { manifest } = parsed
@@ -62,6 +63,6 @@ export const loadPlugin = async (ref: PluginRef, loader: PluginLoader, base: str
   } catch (error) {
     // The loader is the one place a plugin's failures end, from an unreachable file to a module that does not link
     // against this app's @protobase/ui: each turns that plugin off and tells the app's admins why.
-    return off(`it could not be loaded: ${describe(error)}`, name)
+    return off(text('couldNotLoad', describe(error)), name)
   }
 }

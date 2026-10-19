@@ -2,12 +2,13 @@ import { useState } from 'react'
 import { Segmented } from '../primitives/segmented'
 import { Textarea } from '../primitives/textarea'
 import { Markdown } from './markdown'
+import { text } from './messages'
 
 type Mode = 'write' | 'preview'
 
-const modes = [
-  { value: 'write' as const, label: 'Write' },
-  { value: 'preview' as const, label: 'Preview' },
+const modes = () => [
+  { value: 'write' as const, label: text('write') },
+  { value: 'preview' as const, label: text('preview') },
 ]
 
 export type MarkdownEditorProps = {
@@ -28,13 +29,13 @@ export const MarkdownEditor = ({ value, onChange, label, invalid, placeholder }:
   return (
     <div className="flex flex-col gap-1.5">
       <span className="self-start">
-        <Segmented value={mode} options={modes} onChange={setMode} label={label} />
+        <Segmented value={mode} options={modes()} onChange={setMode} label={label} />
       </span>
       {mode === 'write' ? (
         <Textarea rows={5} invalid={invalid} placeholder={placeholder} value={value} onChange={(event) => onChange(event.target.value)} />
       ) : (
         <div className="min-h-[7.5rem] rounded-md border border-border px-2.5 py-1.5">
-          {value.trim() === '' ? <span className="text-faint-foreground">Nothing to preview</span> : <Markdown source={value} />}
+          {value.trim() === '' ? <span className="text-faint-foreground">{text('nothingToPreview')}</span> : <Markdown source={value} />}
         </div>
       )}
     </div>

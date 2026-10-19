@@ -1,5 +1,6 @@
 import { cn } from '../lib/cn'
 import { formatCell } from './format-cell'
+import { text } from './messages'
 
 export type CompactTableProps = {
   columns: string[]
@@ -13,10 +14,10 @@ export type CompactTableProps = {
 
 /** A small read-only table of raw values with a row count, for narrow places such as a side panel. */
 export const CompactTable = ({ columns, rows, caption, truncated, className }: CompactTableProps) => (
-  <section aria-label={caption ?? 'Table'} className={cn('shrink-0 overflow-hidden rounded-lg border border-border-strong bg-background shadow-sm', className)}>
+  <section aria-label={caption ?? text('table')} className={cn('shrink-0 overflow-hidden rounded-lg border border-border-strong bg-background shadow-sm', className)}>
     {caption && <code className="block whitespace-pre-wrap break-words bg-surface px-3 py-2 font-mono text-[11px] text-foreground">{caption}</code>}
     {rows.length === 0 ? (
-      <p className="px-3 py-2 text-xs text-muted-foreground">No rows.</p>
+      <p className="px-3 py-2 text-xs text-muted-foreground">{text('noRows')}</p>
     ) : (
       <div className="max-h-64 overflow-auto">
         <table className="w-full border-collapse text-left text-[11px]">
@@ -34,7 +35,8 @@ export const CompactTable = ({ columns, rows, caption, truncated, className }: C
       </div>
     )}
     <footer className="border-t border-border px-3 py-1.5 text-[11px] text-muted-foreground">
-      {rows.length} {rows.length === 1 ? 'row' : 'rows'}{truncated && ', cut off at the limit'}
+      {text('rows', rows.length)}
+      {truncated && text('cutOff')}
     </footer>
   </section>
 )

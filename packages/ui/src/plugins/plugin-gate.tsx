@@ -5,6 +5,7 @@ import { Spinner } from '../primitives/spinner'
 import { mergePlugins, type PluginOff } from './merge-plugins'
 import { usePluginSource } from './plugin-source'
 import { usePluginLoads } from './use-plugin-loads'
+import { text } from './messages'
 
 const PluginsOffContext = createContext<readonly PluginOff[]>([])
 
@@ -29,7 +30,7 @@ export const PluginGate = ({ ui, children }: PluginGateProps) => {
   if (!settled) {
     return (
       <div className="flex h-full min-h-48 items-center justify-center gap-2 text-muted-foreground">
-        <Spinner /> Loading
+        <Spinner /> {text('loading')}
       </div>
     )
   }

@@ -8,6 +8,7 @@ import { cn } from '../lib/cn'
 import { useMediaQuery } from '../lib/use-media-query'
 import { halfOverHalfDelta, totalCount } from './activity-math'
 import { ActivityTooltip } from './activity-tooltip'
+import { text } from './messages'
 
 export type ActivityChartProps = {
   title?: string
@@ -49,7 +50,7 @@ export const ActivityChart = ({ title = 'Orders created', noun = 'orders', defau
         <Segmented
           value={granularity}
           onChange={setGranularity}
-          options={[{ value: 'day', label: 'Day' }, { value: 'week', label: 'Week' }]}
+          options={[{ value: 'day', label: text('day') }, { value: 'week', label: text('week') }]}
         />
       </header>
       <div className="mt-2 h-24">

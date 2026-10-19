@@ -2,6 +2,7 @@ import { useState, type ReactNode } from 'react'
 import { cn } from '../lib/cn'
 import { Button } from '../primitives/button'
 import { Dialog } from '../primitives/dialog'
+import { text } from './messages'
 
 export type CardTone = 'neutral' | 'info' | 'success' | 'warning' | 'danger'
 
@@ -66,7 +67,7 @@ export const ActionCard = ({ title, tone = 'neutral', badge, note, actions = [],
           onClose={() => setConfirming(undefined)}
           actions={
             <>
-              <Button onClick={() => setConfirming(undefined)}>Cancel</Button>
+              <Button onClick={() => setConfirming(undefined)}>{text('cancel')}</Button>
               <Button
                 variant={confirming.style === 'danger' ? 'danger' : 'primary'}
                 onClick={() => {

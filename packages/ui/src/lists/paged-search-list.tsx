@@ -4,6 +4,7 @@ import { AccountSection, SectionError } from '../account/account-section'
 import { Button } from '../primitives/button'
 import { Input } from '../primitives/input'
 import type { PagedSearch } from './use-paged-search'
+import { text } from './messages'
 
 export type PagedSearchListProps<Item> = {
   title: string
@@ -26,6 +27,6 @@ export const PagedSearchList = <Item,>({ title, description, searchLabel, placeh
     <Input aria-label={searchLabel} placeholder={placeholder} value={query} onChange={(event) => onQuery(event.target.value)} leading={<Search className="size-3.5" />} wrapperClassName="mb-2" />
     <p className="mb-3 text-xs text-muted-foreground">{list.found.length} of {list.total}</p>
     {list.found.length > 0 && <ul className="divide-y rounded-md border">{list.found.map(renderRow)}</ul>}
-    {list.found.length < list.total && <Button className="mt-3" loading={list.loading} onClick={() => void list.more()}>Show more</Button>}
+    {list.found.length < list.total && <Button className="mt-3" loading={list.loading} onClick={() => void list.more()}>{text('showMore')}</Button>}
   </AccountSection>
 )

@@ -3,6 +3,7 @@ import type { ReactNode } from 'react'
 import { useIsDesktop } from '../lib/use-media-query'
 import { useVisualViewport } from '../lib/use-visual-viewport'
 import { Button } from '../primitives/button'
+import { text } from './messages'
 
 export type SidePanelProps = {
   /** The heading, and the panel's accessible name. */
@@ -35,7 +36,7 @@ export const SidePanel = ({ title, icon, status, onClose, footer, children }: Si
         <h2 className="flex-1 font-semibold">{title}</h2>
         {status && <span className="truncate text-xs font-medium text-muted-foreground">{status}</span>}
         {onClose && (
-          <Button variant="ghost" size="sm" className="w-7 px-0" aria-label="Close" onClick={onClose}>
+          <Button variant="ghost" size="sm" className="w-7 px-0" aria-label={text('close')} onClick={onClose}>
             <X className="size-4" />
           </Button>
         )}

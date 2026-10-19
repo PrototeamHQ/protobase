@@ -29,6 +29,7 @@ export const text = defineMessages({
     loading: 'Loading...',
     couldNotLoad: 'Could not load',
     viewAll: 'View all',
+    couldNotSearch: (label: string) => `Could not search ${label.toLowerCase()}`,
   },
   nl: {
     navigation: 'Navigatie',
@@ -58,5 +59,6 @@ export const text = defineMessages({
     loading: 'Laden...',
     couldNotLoad: 'Kon niet laden',
     viewAll: 'Alles bekijken',
+    couldNotSearch: (label: string) => `Kon niet zoeken in ${label.toLowerCase()}`,
   },
 })

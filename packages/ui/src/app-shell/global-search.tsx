@@ -127,7 +127,7 @@ export const GlobalSearch = ({ search, className = 'w-96', autoFocus, showShortc
           {search.groups.map((group) => (
             <div key={group.id} role="group" aria-label={group.label}>
               <div className="px-3 pb-1 pt-2 text-[11px] font-medium uppercase tracking-wide text-faint-foreground">{group.label}</div>
-              {group.failed && <p className="px-3 py-1.5 text-danger-text">Could not search {group.label.toLowerCase()}</p>}
+              {group.failed && <p className="px-3 py-1.5 text-danger-text">{text('couldNotSearch', group.label)}</p>}
               {group.hits.map((hit) => {
                 position += 1
                 const index = position
