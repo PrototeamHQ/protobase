@@ -22,7 +22,8 @@ const get = async (path: string) => {
 const map = (zoom: number, filter: string) => get(`/listings:map?${new URLSearchParams({ latitude: 'latitude', longitude: 'longitude', zoom: String(zoom), filter })}`)
 const total = async (filter: string) => (await get(`/listings?${new URLSearchParams({ filter, page_size: '1', count: 'exact' })}`)).json.total_size as number
 
-const world = 'latitude >= -90 AND latitude <= 90'
+// Listings published since the seed are left out: the alerts tests publish theirs while this file runs.
+const world = 'latitude >= -90 AND latitude <= 90 AND published_at <= 2026-10-12T09:00:00.000Z'
 const amsterdam = 'latitude >= 52.33 AND latitude <= 52.42 AND longitude >= 4.82 AND longitude <= 4.97'
 
 describe.skipIf(!seeded)('the listings map through the API', () => {
