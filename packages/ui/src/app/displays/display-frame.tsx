@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 import { Button } from '../../primitives/button'
 import { ErrorBanner } from '../error-banner'
 import type { ListDisplay } from './display-context'
+import { formatTag } from '../../locale/active-locale'
 
 /** A display's scrolling area: while loading, on an error or with no rows it says so instead of drawing them. */
 export const DisplayState = ({ list, empty, loading, children }: { list: ListDisplay; empty: string; loading: ReactNode; children: ReactNode }) => (
@@ -14,7 +15,7 @@ export const DisplayState = ({ list, empty, loading, children }: { list: ListDis
 export const DisplayFooter = ({ list }: { list: ListDisplay }) => (
   <div className="flex items-center justify-between gap-3 py-3 text-xs text-muted-foreground">
     <span>
-      {list.rows.length.toLocaleString('en-IE')} of {list.total.toLocaleString('en-IE')}
+      {list.rows.length.toLocaleString(formatTag())} of {list.total.toLocaleString(formatTag())}
     </span>
     {list.more && (
       <Button size="sm" onClick={list.loadMore}>

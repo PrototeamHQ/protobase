@@ -4,8 +4,9 @@ import { ErrorBanner } from '../error-banner'
 import { downloadRows, ProblemList } from './import-check-step'
 import { ImportCounts } from './import-counts'
 import type { ImportProgress } from './run-import'
+import { formatTag } from '../../locale/active-locale'
 
-const count = (value: number) => value.toLocaleString('en-IE')
+const count = (value: number) => value.toLocaleString(formatTag())
 
 /** The rows written so far out of those to write, as a bar. */
 export const ImportProgressStep = ({ progress, total, cancelling }: { progress: ImportProgress; total: number; cancelling: boolean }) => {

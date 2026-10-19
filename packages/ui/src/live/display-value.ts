@@ -2,6 +2,7 @@ import { enumLabel, type FieldModel, type FieldViewModel } from '@protobase/sche
 import { formatDate, formatDateTime, formatRelativeTime } from '../format/date'
 import { viewerZone, zoneLabel } from '../format/zone'
 import { fileShown } from './file-values'
+import { formatTag } from '../locale/active-locale'
 
 // A number with the view's prefix before it and suffix after it, such as `€1,200` or `120 m²`.
 const affixed = (text: string, hints: FieldViewModel) => `${hints.prefix ?? ''}${text}${hints.suffix ?? ''}`
@@ -28,7 +29,7 @@ export const displayValue = (field: FieldModel, value: unknown, hints: FieldView
     case 'decimal': {
       const text = hints.decimals === undefined ? String(value) : Number(value).toFixed(hints.decimals)
       if (hints.format === 'percent') return `${Number(value)}%`
-      return affixed(Number(text).toLocaleString('en-IE', { minimumFractionDigits: hints.decimals ?? 0, maximumFractionDigits: hints.decimals ?? 20 }), hints)
+      return affixed(Number(text).toLocaleString(formatTag(), { minimumFractionDigits: hints.decimals ?? 0, maximumFractionDigits: hints.decimals ?? 20 }), hints)
     }
     case 'integer':
     case 'bigint':

@@ -1,6 +1,7 @@
 import type { MapLayerModel, PluginRef, ResourcePermissions, SourceRef } from '@protobase/client'
 import type { PageModel } from '@protobase/layout'
 import type { BottomBarModel, ResourceModel, SignInViewModel, UserMenuModel, ViewModel } from '@protobase/schema'
+import type { Locale } from '@protobase/schema/internal'
 
 export type MetaData = {
   etag: string
@@ -24,6 +25,8 @@ export type MetaData = {
   errorReporting?: { dsn: string; environment?: string }
   /** The map style the app's maps are drawn with, and the layers they may switch to, when the app has one (see `MapSection`). */
   maps?: { style: string; layers?: MapLayerModel[] }
+  /** The language the app's screens are in for everyone, when it sets one (see `AppLocale`). */
+  locale?: Locale
   /** The hosts besides the app's own whose images are drawn with the page's referrer (see `FileImage`). */
   files?: { trustedHosts: string[] }
   /** The plugins the app loads for the user (see `PluginGate`). */

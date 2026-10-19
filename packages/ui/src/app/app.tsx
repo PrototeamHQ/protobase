@@ -14,6 +14,8 @@ import { useFormAddress } from '../forms/use-form-address'
 import { recordTitle } from '../live/model-helpers'
 import { humanize } from '../live/naming'
 import { ThemeProvider, useTheme } from '../theme/theme-provider'
+import { browserLocale, setFallbackLocale } from '../locale/active-locale'
+import type { Locale } from '@protobase/schema/internal'
 import { ToastProvider } from '../toasts'
 import { AssistantButton, AssistantPanel } from './assistant-shell'
 import { bottomBarFromMeta } from './bottom-bar-from-meta'
@@ -75,6 +77,8 @@ export type AppProps = {
   runtime?: RuntimeClient
   /** How the plugins are loaded, for stories and tests; the page's `fetch` and `import()` by default. */
   pluginLoader?: PluginLoader
+  /** The language the screens are in when the app's `/meta` sets none: the browser's by default, when they come in it. */
+  locale?: Locale
 }
 
 // The resource or page an address is about, which the sidebar marks; a record's key, which its recent records mark.
@@ -260,18 +264,22 @@ const PublicFormGate = ({ baseUrl, client, ui, children }: Pick<AppProps, 'baseU
  * visitor when the project's anonymous role reads, then a sidebar from `/meta`, `/:page` composed pages, `/:resource`
  * lists and `/:resource/:key` records. Fills its parent, in the theme this browser chose, light, dark or the system's.
  */
-export const App = ({ auth, workspace, basePath, initialUrl, pluginLoader, ...rest }: AppProps) => (
-  <ThemeProvider>
-    <AuthProvider session={auth}>
-      <Router basePath={basePath} initialUrl={initialUrl}>
-        <PluginSourceProvider {...(pluginLoader && { loader: pluginLoader })}>
-          <PublicFormGate baseUrl={rest.baseUrl} client={rest.client} ui={rest.ui}>
-            <AuthGate workspace={workspace}>
-              <Authenticated workspace={workspace} {...rest} />
-            </AuthGate>
-          </PublicFormGate>
-        </PluginSourceProvider>
-      </Router>
-    </AuthProvider>
-  </ThemeProvider>
-)
+export const App = ({ auth, workspace, basePath, initialUrl, pluginLoader, locale, ...rest }: AppProps) => {
+  // Before `/meta` names the app's language, and when it names none, the screens are in this one
+  setFallbackLocale(locale ?? browserLocale())
+  return (
+    <ThemeProvider>
+      <AuthProvider session={auth}>
+        <Router basePath={basePath} initialUrl={initialUrl}>
+          <PluginSourceProvider {...(pluginLoader && { loader: pluginLoader })}>
+            <PublicFormGate baseUrl={rest.baseUrl} client={rest.client} ui={rest.ui}>
+              <AuthGate workspace={workspace}>
+                <Authenticated workspace={workspace} {...rest} />
+              </AuthGate>
+            </PublicFormGate>
+          </PluginSourceProvider>
+        </Router>
+      </AuthProvider>
+    </ThemeProvider>
+  )
+}

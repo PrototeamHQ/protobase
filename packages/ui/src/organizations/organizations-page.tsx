@@ -11,6 +11,7 @@ import { OrganizationRow } from './organization-row'
 import { roleLabel } from './organization-paths'
 import { useAction } from './use-action'
 import { reopenIn, type OrganizationsState } from './use-organizations'
+import { formatTag } from '../locale/active-locale'
 
 /** A slug from a name: lowercase ASCII words joined by dashes, as the server accepts them. */
 export const slugOf = (name: string) =>
@@ -57,7 +58,7 @@ const YourInvitations = () => {
         {invitations.map((invitation) => (
           <li key={invitation.id} className="px-3 py-2.5">
             <span className="font-medium">{invitation.organizationName ?? 'An organization'}</span>: {invitation.appRoles.map((name) => roleLabel(roles, name)).join(', ') || 'no app roles'}
-            <span className="block text-xs text-muted-foreground">Until {new Date(invitation.expiresAt).toLocaleDateString()}</span>
+            <span className="block text-xs text-muted-foreground">Until {new Date(invitation.expiresAt).toLocaleDateString(formatTag())}</span>
           </li>
         ))}
       </ul>

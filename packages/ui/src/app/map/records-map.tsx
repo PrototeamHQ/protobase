@@ -10,6 +10,7 @@ import { MapLayerSwitch } from './map-layer-switch'
 import { mapLib } from './maplibre'
 import { areaLayerId, PositionAreas, type AreaColors } from './position-areas'
 import { themeColor } from './theme-color'
+import { cachedFormat } from '../../format/intl-cache'
 
 // How close, in pixels, records are drawn under one marker, about a marker's width.
 const groupRadius = 28
@@ -17,7 +18,7 @@ const fitOptions = { padding: 48, maxZoom: 15, duration: 0 }
 // A bucket opens far enough in for the server to send its records: it does from zoom 16 on.
 const bucketOptions = { padding: 48, maxZoom: 16, duration: 300 }
 const markerHeight = 32
-const compact = new Intl.NumberFormat('en-IE', { notation: 'compact', maximumFractionDigits: 1 })
+const compact = () => cachedFormat('compact', (tag) => new Intl.NumberFormat(tag, { notation: 'compact', maximumFractionDigits: 1 }))
 
 const corners = (bounds: MapBounds): [[number, number], [number, number]] => [
   [bounds.west, bounds.south],
@@ -142,7 +143,7 @@ export const RecordsMap = ({ style, layers, initial, points, buckets, fit, onFit
               ref.current?.getMap().fitBounds(corners(bucket.bounds), bucketOptions)
             }}
           >
-            {compact.format(bucket.count)}
+            {compact().format(bucket.count)}
           </button>
         </Marker>
       ))}

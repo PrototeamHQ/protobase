@@ -1,4 +1,5 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it } from 'vitest'
+import { setAppLocale } from '../locale/active-locale'
 import { formatAgo, formatRelativeTime, formatApproxRows, formatDate, formatDateTime, formatDayRange, formatInt, formatMonth, formatTime, formatWeekday, formatWeekdayDate, formatMoney, formatSigned } from './index'
 
 describe('formatMoney', () => {
@@ -61,5 +62,34 @@ describe('dates', () => {
     expect(formatAgo(3)).toBe('3 s ago')
     expect(formatAgo(180)).toBe('3 min ago')
     expect(formatAgo(7200)).toBe('2 h ago')
+  })
+})
+
+describe('in Dutch', () => {
+  const ms = Date.UTC(2026, 9, 6, 14, 32)
+  afterEach(() => setAppLocale(undefined))
+
+  it('writes numbers, money and dates as in the Netherlands', () => {
+    setAppLocale('nl')
+    expect(formatInt(10240000)).toBe('10.240.000')
+    expect(formatMoney(123456)).toBe('€\u00a01.234,56')
+    expect(formatDate(ms)).toBe('6 okt 2026')
+    expect(formatDateTime(ms, 'Europe/Amsterdam')).toBe('6 okt 2026, 16:32')
+    expect(formatMonth(ms)).toBe('oktober 2026')
+  })
+
+  it('says how long ago in Dutch', () => {
+    setAppLocale('nl')
+    expect(formatApproxRows(48_213)).toBe('ongeveer 48.210 rijen')
+    expect(formatRelativeTime(10)).toBe('zojuist')
+    expect(formatRelativeTime(86_400)).toBe('gisteren')
+    expect(formatAgo(180)).toBe('3 min geleden')
+  })
+
+  it('goes back to English once the app sets no language', () => {
+    setAppLocale('nl')
+    formatInt(1000)
+    setAppLocale(undefined)
+    expect(formatInt(1000)).toBe('1,000')
   })
 })

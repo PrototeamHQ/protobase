@@ -3,6 +3,7 @@ import { Skeleton } from '../../../primitives/skeleton'
 import { useLayoutRecord } from '../record-scope'
 import { usePathValue } from '../use-path-value'
 import { propsOf, type BlockProps } from './block-props'
+import { formatTag } from '../../../locale/active-locale'
 
 /** A number as given, or the number in a field of the record around it. */
 const useAmount = (amount: number | string | undefined, fallback: number) => {
@@ -27,7 +28,7 @@ export const ProgressBlock = ({ node }: BlockProps) => {
       <div className="flex items-baseline justify-between gap-2 text-xs">
         <span className="text-muted-foreground">{label}</span>
         <span className="tabular-nums">
-          {current.toLocaleString('en-IE')} / {total.toLocaleString('en-IE')}
+          {current.toLocaleString(formatTag())} / {total.toLocaleString(formatTag())}
         </span>
       </div>
       <div role="progressbar" aria-label={label} aria-valuenow={current} aria-valuemin={0} aria-valuemax={total} className="mt-1.5 h-2 overflow-hidden rounded-full bg-muted">

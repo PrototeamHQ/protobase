@@ -1,5 +1,6 @@
 import type { AggregateGroup } from '@protobase/client'
 import { createWhere, enumLabel, printFilter, type FieldModel, type FieldViewModel } from '@protobase/schema'
+import { formatTag } from '../../locale/active-locale'
 
 const where = createWhere()
 
@@ -58,8 +59,8 @@ export const periodPoints = (groups: AggregateGroup[], measure: ChartMeasure) =>
 /** A measured number as text: a count whole, a sum or average with the field's decimals, prefix and suffix. */
 export const measureText = (value: number | null, measure: ChartMeasure) => {
   if (value === null) return '—'
-  if (measure.kind === 'count') return value.toLocaleString('en-IE')
+  if (measure.kind === 'count') return value.toLocaleString(formatTag())
   const decimals = measure.hints?.decimals ?? (Number.isInteger(value) ? 0 : 2)
-  const text = value.toLocaleString('en-IE', { minimumFractionDigits: decimals, maximumFractionDigits: decimals })
+  const text = value.toLocaleString(formatTag(), { minimumFractionDigits: decimals, maximumFractionDigits: decimals })
   return `${measure.hints?.prefix ?? ''}${text}${measure.hints?.suffix ?? ''}`
 }

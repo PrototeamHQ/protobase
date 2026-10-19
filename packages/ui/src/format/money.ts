@@ -1,13 +1,7 @@
-const formatters = new Map<string, Intl.NumberFormat>()
+import { cachedFormat } from './intl-cache'
 
-const formatterFor = (currency: string, decimals: number | undefined) => {
-  const key = `${currency}:${decimals ?? ''}`
-  const cached = formatters.get(key)
-  if (cached) return cached
-  const created = new Intl.NumberFormat('en-IE', { style: 'currency', currency, ...(decimals !== undefined && { minimumFractionDigits: decimals, maximumFractionDigits: decimals }) })
-  formatters.set(key, created)
-  return created
-}
+const formatterFor = (currency: string, decimals: number | undefined) =>
+  cachedFormat(`money:${currency}:${decimals ?? ''}`, (tag) => new Intl.NumberFormat(tag, { style: 'currency', currency, ...(decimals !== undefined && { minimumFractionDigits: decimals, maximumFractionDigits: decimals }) }))
 
 /** An amount in cents in the currency, with its usual decimals or `decimals` of them. */
 export const formatMoney = (cents: number, currency = 'EUR', decimals?: number) => formatterFor(currency, decimals).format(cents / 100)

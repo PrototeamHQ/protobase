@@ -12,6 +12,7 @@ import { useProjectUi } from '../pages/project-ui'
 import { useAppAddress } from '../use-app-address'
 import { handOrderLimit } from './hand-order'
 import { useHandOrder } from './use-hand-order'
+import { formatTag } from '../../locale/active-locale'
 
 type Props = {
   model: ResourceModel
@@ -43,7 +44,7 @@ export const HandSortedList = ({ model, view, field, filter, columns }: Props) =
   const plural = (view?.names?.plural ?? humanize(model.name)).toLowerCase()
   if (order.loading) return <div className="flex flex-col gap-2">{Array.from({ length: 3 }, (_, index) => <Skeleton key={index} className="h-4 w-full" />)}</div>
   if (order.error) return <ErrorBanner title="Could not load" error={order.error} />
-  if (order.more) return <p className="text-muted-foreground">There are more than {handOrderLimit.toLocaleString('en-IE')} {plural}, too many to sort by hand.</p>
+  if (order.more) return <p className="text-muted-foreground">There are more than {handOrderLimit.toLocaleString(formatTag())} {plural}, too many to sort by hand.</p>
   if (!source || source.total === 0) return <p className="text-muted-foreground">Nothing here yet.</p>
 
   const openRecord = (row: GridRow) => go({ kind: 'record', resource: model.name, key: recordKey(model, row) })

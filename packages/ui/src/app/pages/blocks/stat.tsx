@@ -10,6 +10,7 @@ import { useCount } from '../use-layout-data'
 import { usePathValue } from '../use-path-value'
 import { propsOf, type BlockProps } from './block-props'
 import { CardFrame } from './card-frame'
+import { formatTag } from '../../../locale/active-locale'
 
 const big = 'text-2xl font-semibold tracking-tight tabular-nums'
 
@@ -20,7 +21,7 @@ const Count = ({ model, filter }: { model: ResourceModel; filter?: string }) => 
   if (count.error) return <span className="text-danger-text">Could not count</span>
   return (
     <AppLink to={filteredListAddress(views[model.name], model.name, filter)} className={`${big} hover:text-primary-text after:absolute after:inset-0 after:content-['']`}>
-      {count.data.toLocaleString('en-IE')}
+      {count.data.toLocaleString(formatTag())}
     </AppLink>
   )
 }

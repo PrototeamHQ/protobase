@@ -10,6 +10,7 @@ import { ImportProgressStep, ImportSummary } from './import-result-step'
 import { unmappedRequired } from './mapping'
 import type { SheetSource } from './sheet-source'
 import { useImportFlow, type ImportFlow } from './use-import-flow'
+import { formatTag } from '../../locale/active-locale'
 
 export type ImportDialogProps = {
   model: ResourceModel
@@ -88,7 +89,7 @@ export const ImportDialog = ({ model, resources, views, canUpdate, onClose, sour
           <>
             <Button onClick={flow.back}>Back</Button>
             <Button variant="primary" disabled={rows === 0} onClick={() => flow.start(rows)}>
-              Import {rows.toLocaleString('en-IE')} {rows === 1 ? 'row' : 'rows'}
+              Import {rows.toLocaleString(formatTag())} {rows === 1 ? 'row' : 'rows'}
             </Button>
           </>
         )

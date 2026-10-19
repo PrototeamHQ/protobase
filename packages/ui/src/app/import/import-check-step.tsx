@@ -8,6 +8,7 @@ import { failedRowsCsv } from './failed-rows'
 import { ImportCounts } from './import-counts'
 import { fieldLabel, relationModel, type ColumnMapping } from './mapping'
 import { batchRows, type FailedRow, type ImportCheck } from './run-import'
+import { formatTag } from '../../locale/active-locale'
 
 /** How many rows with problems the check lists; the file of them holds every one. */
 const listedProblems = 50
@@ -24,14 +25,14 @@ export const ProblemList = ({ rows }: { rows: FailedRow[] }) => (
         <span className="font-medium">Row {row.line}:</span> {row.problems.join('; ')}
       </li>
     ))}
-    {rows.length > listedProblems && <li className="text-muted-foreground">And {(rows.length - listedProblems).toLocaleString('en-IE')} more rows, all in the file.</li>}
+    {rows.length > listedProblems && <li className="text-muted-foreground">And {(rows.length - listedProblems).toLocaleString(formatTag())} more rows, all in the file.</li>}
   </ul>
 )
 
 export const ImportChecking = ({ rows }: { rows: number }) => (
   <p className="flex items-center gap-2 text-muted-foreground" role="status">
     <Spinner className="size-3.5" />
-    Checking rows… {rows.toLocaleString('en-IE')} read
+    Checking rows… {rows.toLocaleString(formatTag())} read
   </p>
 )
 

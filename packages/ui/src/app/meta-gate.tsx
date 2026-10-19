@@ -6,6 +6,7 @@ import { allowEverything, type MetaData } from '../data/meta-data'
 import { useMeta } from '../data/use-meta'
 import { useSourceMetas } from '../data/use-source-metas'
 import { withSources } from '../data/with-sources'
+import { AppLocale } from '../locale/app-locale'
 import { Spinner } from '../primitives/spinner'
 
 export const useAdminMeta = () => {
@@ -44,7 +45,9 @@ const WithSources = ({ meta, children }: { meta: MetaData; children: ReactNode }
   }, [declared, own, clientOf])
   return (
     <ClientProvider client={routing.client} resourceClient={routing.resourceClient}>
-      <MetaContext.Provider value={merged}>{children}</MetaContext.Provider>
+      <MetaContext.Provider value={merged}>
+        <AppLocale locale={meta.locale}>{children}</AppLocale>
+      </MetaContext.Provider>
     </ClientProvider>
   )
 }

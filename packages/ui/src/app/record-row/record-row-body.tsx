@@ -14,6 +14,7 @@ import { FilterChipList } from '../searches/filter-chip-list'
 import { useFilterChips } from '../searches/use-filter-chips'
 import { AppLink } from '../use-app-address'
 import { RecordRow } from './record-row'
+import { formatTag } from '../../locale/active-locale'
 
 type CardsDisplayModel = Extract<ListDisplayModel, { kind: 'cards' }>
 
@@ -91,7 +92,7 @@ export const RecordRowBody = ({ model, view, filter, sort = '', display: named, 
           {showChips && chips.length > 0 ? <FilterChipList chips={chips} /> : <span />}
           <p className="flex flex-wrap gap-x-3 text-muted-foreground">
             {note && <span>{note}</span>}
-            {total !== undefined && <span className="tabular-nums">{`${total.toLocaleString('en-GB')} ${total === 1 ? singular : plural.toLowerCase()}`}</span>}
+            {total !== undefined && <span className="tabular-nums">{`${total.toLocaleString(formatTag())} ${total === 1 ? singular : plural.toLowerCase()}`}</span>}
           </p>
         </div>
       ) : null}

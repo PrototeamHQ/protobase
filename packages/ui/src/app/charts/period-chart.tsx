@@ -5,6 +5,7 @@ import type { ViewModel } from '@protobase/schema'
 import { measureText, type ChartMeasure } from './chart-groups'
 import { LegendItem } from './legend-item'
 import type { ChartSeries } from './split-points'
+import { formatTag } from '../../locale/active-locale'
 
 type Point = { at: number; value: number | null; count: number } & Record<string, number | null>
 
@@ -25,7 +26,7 @@ const tooltipFormats: Record<ChartBucket, Intl.DateTimeFormatOptions> = {
 }
 
 const formatterOf = (options: Intl.DateTimeFormatOptions) => {
-  const format = new Intl.DateTimeFormat('en-GB', { ...options, timeZone: 'UTC' })
+  const format = new Intl.DateTimeFormat(formatTag(), { ...options, timeZone: 'UTC' })
   return (ms: number) => format.format(ms)
 }
 
@@ -56,7 +57,7 @@ export const PeriodChart = ({ points, measure, bucket, type, series, resource, v
   const tick = formatterOf(formats[bucket])
   const grid = <CartesianGrid vertical={false} stroke="var(--border)" />
   const x = <XAxis dataKey="at" tickFormatter={tick} tick={axisTick} axisLine={false} tickLine={false} minTickGap={wide ? 24 : 40} height={18} />
-  const y = <YAxis width={wide ? 48 : 36} tick={axisTick} axisLine={false} tickLine={false} tickCount={3} tickFormatter={(value: number) => value.toLocaleString('en-IE', { notation: 'compact' })} />
+  const y = <YAxis width={wide ? 48 : 36} tick={axisTick} axisLine={false} tickLine={false} tickCount={3} tickFormatter={(value: number) => value.toLocaleString(formatTag(), { notation: 'compact' })} />
   const tooltip = <Tooltip cursor={type === 'bar' ? { fill: 'var(--muted)' } : { stroke: 'var(--border-strong)' }} content={<PointTooltip measure={measure} bucket={bucket} {...(series && { series })} />} isAnimationActive={false} />
   const parts = series ?? [{ key: 'value', label: '', color: 'var(--chart-1)' }]
   const chart = (

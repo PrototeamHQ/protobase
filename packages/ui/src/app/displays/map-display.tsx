@@ -13,6 +13,7 @@ import { mapCards } from './list-displays'
 import { keptSelection, mapPoints, stepSelection, type MapSelection } from './map-groups'
 import { RecordCard } from './record-card'
 import { useMapRecords } from './use-map-records'
+import { formatTag } from '../../locale/active-locale'
 
 // MapLibre loads with the first map drawn, so a list that never shows one never loads it.
 const RecordsMap = lazy(() => import('../map/records-map').then((module) => ({ default: module.RecordsMap })))
@@ -75,7 +76,7 @@ export const MapDisplay = ({ model, view, display, filter, orderBy, fields, at, 
     if (near === 0) return `Show ${keys.length} ${plural}`
     return near === keys.length ? `Show ${keys.length} ${plural}, at approximate positions` : `Show ${keys.length} ${plural}, ${near} at approximate positions`
   }
-  const bucketLabel = (count: number) => `Zoom in on ${count.toLocaleString('en-IE')} ${count === 1 ? singular : plural}`
+  const bucketLabel = (count: number) => `Zoom in on ${count.toLocaleString(formatTag())} ${count === 1 ? singular : plural}`
   // How much of the map's bottom the card and its arrows cover, so the map keeps the chosen marker above them
   const overlay = useRef<HTMLDivElement>(null)
   const [covered, setCovered] = useState(0)
@@ -166,7 +167,7 @@ export const MapDisplay = ({ model, view, display, filter, orderBy, fields, at, 
 /** How many of the matching records are in view, and how many the map shows when it cannot show them all. */
 const inView = (data: { rows: unknown[]; buckets: unknown[]; total: number } | undefined, plural: string) => {
   if (!data) return ' '
-  const total = data.total.toLocaleString('en-IE')
-  if (data.buckets.length === 0 && data.rows.length < data.total) return `${data.rows.length.toLocaleString('en-IE')} of ${total} ${plural} in view`
+  const total = data.total.toLocaleString(formatTag())
+  if (data.buckets.length === 0 && data.rows.length < data.total) return `${data.rows.length.toLocaleString(formatTag())} of ${total} ${plural} in view`
   return `${total} ${plural} in view`
 }

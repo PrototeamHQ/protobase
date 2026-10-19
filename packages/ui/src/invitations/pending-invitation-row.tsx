@@ -3,6 +3,7 @@ import { SectionError } from '../account/account-section'
 import { useAction } from '../organizations/use-action'
 import { Button } from '../primitives/button'
 import { LinkNotice } from './link-notice'
+import { formatTag } from '../locale/active-locale'
 
 export type PendingInvitationRowProps = {
   email: string
@@ -25,7 +26,7 @@ export const PendingInvitationRow = ({ email, gives, expiresAt, onResend, onRevo
         <span className="min-w-0 flex-1">
           <span className="block truncate font-medium">{email}</span>
           <span className="block text-xs text-muted-foreground">
-            {gives} · {expired ? 'Expired' : `Until ${new Date(expiresAt).toLocaleDateString()}`}
+            {gives} · {expired ? 'Expired' : `Until ${new Date(expiresAt).toLocaleDateString(formatTag())}`}
           </span>
         </span>
         <Button size="sm" loading={busy} onClick={() => void run(async () => setLink((await onResend()).link))}>Send again</Button>

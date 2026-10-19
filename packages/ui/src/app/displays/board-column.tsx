@@ -14,6 +14,7 @@ import type { ListDisplayRow } from './list-displays'
 import { RecordCard } from './record-card'
 import { useBoardColumn } from './use-board-column'
 import type { BoardMove } from './use-board-move'
+import { formatTag } from '../../locale/active-locale'
 
 type ColumnProps = {
   model: ResourceModel
@@ -76,7 +77,7 @@ export const BoardColumnView = ({ model, view, display, column, fields, filter, 
             </ValueBadge>
           )}
         </h2>
-        {!list.loading && <span className="text-xs tabular-nums text-muted-foreground">{count.toLocaleString('en-IE')}</span>}
+        {!list.loading && <span className="text-xs tabular-nums text-muted-foreground">{count.toLocaleString(formatTag())}</span>}
       </header>
       {list.loading ? (
         Array.from({ length: 3 }, (_, index) => <Skeleton key={index} className="h-20" />)

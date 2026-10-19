@@ -1,3 +1,5 @@
+import { cachedFormat } from './intl-cache'
+
 // Times show in the viewer's time zone, the browser's; dates (`YYYY-MM-DD`, no time) have no zone and never shift.
 
 /** The viewer's IANA time zone, such as `Europe/Amsterdam`. */
@@ -44,12 +46,9 @@ export const instantAt = (wall: number, zone: string) => {
 /** The instant `day` (`YYYY-MM-DD`) starts in `zone`: its local midnight. */
 export const startOfDayIn = (day: string, zone: string) => instantAt(Date.parse(`${day}T00:00:00Z`), zone)
 
-const zoneNames = new Map<string, Intl.DateTimeFormat>()
-
 /** The zone a time is shown in, as its hover label says: "Europe/Amsterdam (GMT+2)", or "UTC". */
 export const zoneLabel = (ms: number, zone: string) => {
-  const known = zoneNames.get(zone) ?? new Intl.DateTimeFormat('en-GB', { timeZone: zone, timeZoneName: 'shortOffset' })
-  zoneNames.set(zone, known)
-  const name = known.formatToParts(ms).find((part) => part.type === 'timeZoneName')?.value ?? zone
+  const named = cachedFormat(`zoneName:${zone}`, (tag) => new Intl.DateTimeFormat(tag, { timeZone: zone, timeZoneName: 'shortOffset' }))
+  const name = named.formatToParts(ms).find((part) => part.type === 'timeZoneName')?.value ?? zone
   return zone === 'UTC' || zone === 'Etc/UTC' ? 'UTC' : `${zone} (${name})`
 }

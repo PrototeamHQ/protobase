@@ -1,8 +1,10 @@
+import { formatTag } from '../locale/active-locale'
+
 /** The mark between a number's whole part and its fraction. */
 export type DecimalSeparator = '.' | ','
 
-/** The decimal separator `locale` writes, the browser's language unless given: `,` for nl-NL and de-DE, `.` for en-GB. */
-export const localeDecimal = (locale?: string): DecimalSeparator =>
+/** The decimal separator `locale` writes, the screens' unless given: `,` for nl-NL and de-DE, `.` for en-GB. */
+export const localeDecimal = (locale = formatTag()): DecimalSeparator =>
   new Intl.NumberFormat(locale).formatToParts(1.5).find((part) => part.type === 'decimal')?.value === ',' ? ',' : '.'
 
 const escapeRegExp = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
