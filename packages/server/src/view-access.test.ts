@@ -71,6 +71,14 @@ describe('pruneView', () => {
     expect(names(without({ repairs: ['customerId'] }))).toEqual(['quote'])
   })
 
+  it('keeps a create link with values beyond the fields only when the resource opens a create page', () => {
+    const customersView = view<typeof customers>('customers')
+      .actions((a) => [a.link('book', { label: 'Book a repair', to: { kind: 'create', resource: 'repairs', values: { owner_id: '{id}' } } })])
+      .toModel()
+    expect(pruneView(customersView, all.customers, all).actions).toEqual([])
+    expect(pruneView(customersView, all.customers, all, new Set(), new Set(['repairs'])).actions.map((action) => action.name)).toEqual(['book'])
+  })
+
   it('sends an AI action without its prompt, and leaves it out when the caller cannot read a field it reads or writes', () => {
     const repairsView = view<typeof repairs>('repairs')
       .actions((a) => [a.ai('triage', { label: 'Triage', prompt: 'How urgent is {number}? Cost {estimate}', writes: 'status' })])

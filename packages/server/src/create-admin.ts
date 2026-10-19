@@ -153,6 +153,7 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], pag
   checkPages(pageModels, {
     models: Object.fromEntries(registry.entries.map((entry) => [entry.name, entry.model])),
     actions: (resource) => new Set(viewModels.filter((view) => view.resource === resource).flatMap((view) => view.actions.map((action) => action.name))),
+    createPages: new Set(viewModels.filter((view) => view.create).map((view) => view.resource)),
   })
   const forms = createFormsRuntime({ registry, views: viewModels, limits: options.roles?.limits ?? [], env: globalThis.process?.env ?? {}, ...(formsDifficulty && { difficulty: formsDifficulty }) })
   const systemPath = basePath.slice(0, basePath.lastIndexOf('/'))

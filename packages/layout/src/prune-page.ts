@@ -14,6 +14,8 @@ export type CallerAccess = {
   permissions: Record<string, { create: boolean; update: boolean }>
   /** The named actions in the caller's view of a resource. */
   actions: (resource: string) => ReadonlySet<string>
+  /** The resources whose view for the caller opens a create page, which a create link may give values of any name. */
+  createPages?: ReadonlySet<string>
 }
 
 const text = (value: unknown) => (typeof value === 'string' ? value : undefined)
@@ -79,7 +81,7 @@ const prune = (node: LayoutNode, scope: Scope, access: CallerAccess): LayoutNode
     case 'Action':
       return resource !== undefined && model && access.actions(resource).has(String(node.props.name)) ? node : null
     case 'Link':
-      return node.props.to === undefined || addressErrors(node.props.to as AppAddress, { models, source: linkSource(models, scope) }).length === 0 ? node : null
+      return node.props.to === undefined || addressErrors(node.props.to as AppAddress, { models, source: linkSource(models, scope), createPages: access.createPages }).length === 0 ? node : null
     case 'Show': {
       const parsed = parseCondition(String(node.props.when))
       if (!parsed.ok) return null

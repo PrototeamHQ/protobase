@@ -125,6 +125,12 @@ describe('checkViews', () => {
     expect(() => checkViews(registry, [created])).toThrow('View "payments": create: unknown page "new-payment"')
   })
 
+  it('lets a create link give values beyond the fields to a resource whose view opens a create page', () => {
+    const linked = view<typeof payments>('payments').actions((a) => [a.link('again', { label: 'Again', to: { kind: 'create', resource: 'payments', values: { invoice_id: '{id}' } } })])
+    expect(() => checkViews(registry, [linked.toModel()])).toThrow('action "again": values: unknown field "invoice_id" on payments')
+    expect(() => checkViews(registry, [linked.create({ page: 'new-payment' }).toModel()], ['new-payment'])).not.toThrow()
+  })
+
   it("wants a link to a record's URL to name a field the resource has, and {host} only in the label of an href", () => {
     const written = view<typeof payments>('payments').toModel()
     written.actions = [{ name: 'bank', label: 'View on {host}', bulk: false, run: { kind: 'link', href: '{reference}' } }]

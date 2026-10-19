@@ -72,14 +72,14 @@ const textHintErrors = (view: ViewModel, model: ResourceModel) =>
 
 // A link goes to an address the app has, or leaves the app; a path in the app is written as an address, and a link
 // that is only a field's URL names a field the resource has.
-const linkErrors = (view: ViewModel, model: ResourceModel, models: Record<string, ResourceModel>, pages: ReadonlySet<string>) =>
+const linkErrors = (view: ViewModel, model: ResourceModel, models: Record<string, ResourceModel>, pages: ReadonlySet<string>, createPages: ReadonlySet<string>) =>
   view.actions.flatMap(({ name, label, run }) => {
     if (run?.kind !== 'link') return []
     const error = linkActionError(label, run)
     if (error) return [`action "${name}": ${error}`]
     const field = 'href' in run ? hrefField(run.href) : undefined
     if (field !== undefined && !Object.hasOwn(model.fields, field)) return [`action "${name}": href names field "${field}", which ${model.name} does not have`]
-    return 'to' in run ? addressErrors(run.to, { models, pages, source: model }).map((error) => `action "${name}": ${error}`) : []
+    return 'to' in run ? addressErrors(run.to, { models, pages, source: model, createPages }).map((error) => `action "${name}": ${error}`) : []
   })
 
 // An AI action writes, through the API, a text or enum field of the record, from a prompt that reads fields it has.
@@ -196,6 +196,7 @@ const listOfErrors = (model: ResourceModel, name: string, models: Record<string,
 export const checkViews = (registry: Registry, views: ViewModel[], pages: readonly string[] = [], fieldTypes: Readonly<Record<string, readonly string[]>> = {}) => {
   const models = Object.fromEntries(registry.entries.map((entry) => [entry.name, entry.model]))
   const pageNames = new Set(pages)
+  const createPages = new Set(views.filter((view) => view.create).map((view) => view.resource))
   const viewProblems = (view: ViewModel, model: ResourceModel) => {
     const related = [
       ...layoutItems(view.layout).flatMap((item) => (item.kind === 'related' ? relatedErrors(item, view.resource, models).map((error) => `related "${item.title}": ${error}`) : [])),
@@ -227,7 +228,7 @@ export const checkViews = (registry: Registry, views: ViewModel[], pages: readon
     const chart = view.chart ? chartErrors(view.chart, model).map((error) => `chart: ${error}`) : []
     const history = model.history ? [] : layoutItems(view.layout).flatMap((item) => (item.kind === 'history' ? [`history "${item.title}" needs .history() on resource "${view.resource}"`] : []))
     const comments = model.comments ? [] : layoutItems(view.layout).flatMap((item) => (item.kind === 'comments' ? [`comments "${item.title}" needs .comments() on resource "${view.resource}"`] : []))
-    return [...sensitiveErrors(view, model), ...unknownFieldErrors(view, model), ...valueLabelErrors(view, model), ...valueColorErrors(view, model), ...textHintErrors(view, model), ...listEditErrors(view, model), ...widgetErrors(view, model, fieldTypes), ...related, ...conditionErrors(view, models), ...photos, ...favorites, ...listOf, ...searches, ...maps, ...history, ...comments, ...boards, ...calendars, ...chart, ...linkErrors(view, model, models, pageNames), ...aiActionErrors(view, model), ...inputErrors(view, models), ...createErrors(view, pageNames)]
+    return [...sensitiveErrors(view, model), ...unknownFieldErrors(view, model), ...valueLabelErrors(view, model), ...valueColorErrors(view, model), ...textHintErrors(view, model), ...listEditErrors(view, model), ...widgetErrors(view, model, fieldTypes), ...related, ...conditionErrors(view, models), ...photos, ...favorites, ...listOf, ...searches, ...maps, ...history, ...comments, ...boards, ...calendars, ...chart, ...linkErrors(view, model, models, pageNames, createPages), ...aiActionErrors(view, model), ...inputErrors(view, models), ...createErrors(view, pageNames)]
   }
   // A named list is checked as a view of its own, without the record page, which the view's own check covers
   const problems = views.flatMap((view) => {

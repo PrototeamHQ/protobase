@@ -9,6 +9,8 @@ export type AddressCheck = {
   pages?: ReadonlySet<string>
   /** The resource of the record the link sits on, whose fields its `{field}` placeholders name. */
   source?: ResourceModel
+  /** The resources whose view opens a create page of the app's own, which reads a create address's values whatever their names. */
+  createPages?: ReadonlySet<string>
 }
 
 // Errors about names, not values: a placeholder's value is only known when the link is followed.
@@ -36,9 +38,9 @@ const orderErrors = (model: ResourceModel, orderBy: string) => {
 /**
  * What is wrong with a link's address against these models: an unknown resource or page, a `{field}` the record it sits
  * on does not have, a filter or order naming fields the resource does not have, or create values for fields it does not
- * have. Empty when it can be followed.
+ * have, unless its view opens a create page, which reads them. Empty when it can be followed.
  */
-export const addressErrors = (to: AppAddress, { models, pages, source }: AddressCheck): string[] => {
+export const addressErrors = (to: AppAddress, { models, pages, source, createPages }: AddressCheck): string[] => {
   const placeholders = addressPlaceholders(to).flatMap((name) => {
     if (!source) return [`"{${name}}" takes a value from the record, but the link sits on none`]
     return Object.hasOwn(source.fields, name) ? [] : [`"{${name}}" is not a field of ${source.name}`]
@@ -51,6 +53,7 @@ export const addressErrors = (to: AppAddress, { models, pages, source }: Address
     case 'create': {
       const target = Object.hasOwn(models, to.resource) ? models[to.resource] : undefined
       if (!target) return [`unknown resource "${to.resource}"`]
+      if (to.kind === 'create' && createPages?.has(to.resource)) return placeholders
       if (to.kind === 'create') return [...placeholders, ...Object.keys(to.values ?? {}).filter((name) => !Object.hasOwn(target.fields, name)).map((name) => `values: unknown field "${name}" on ${to.resource}`)]
       if (to.kind !== 'list') return placeholders
       return [...placeholders, ...(to.filter ? filterErrors(target, to.filter) : []), ...(to.orderBy ? orderErrors(target, to.orderBy) : [])]

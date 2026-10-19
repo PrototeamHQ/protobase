@@ -81,11 +81,14 @@ export const createMeta = (deps: Deps, appName: string) => {
     // A visitor is told what signing in gives about the resources they cannot see whose view says (`.signIn(...)`)
     const signIn = session.anonymous ? accesses.filter((access) => !visible.includes(access)).flatMap((access) => signInView(pickView(deps.views, session.user.roles, access.entry.name))) : []
     const prompted = new Set(signIn.map((entry) => entry.resource))
-    const views = visible.flatMap((access) => {
+    const picked = visible.flatMap((access) => {
       const view = pickView(deps.views, session.user.roles, access.entry.name)
-      return view ? [pruneView(view, access.readable, listed, prompted)] : []
+      return view ? [{ access, view }] : []
     })
+    const createPages = new Set(picked.filter(({ view }) => view.create).map(({ view }) => view.resource))
+    const views = picked.map(({ access, view }) => pruneView(view, access.readable, listed, prompted, createPages))
     const callerAccess = {
+      createPages,
       models: listed,
       permissions: Object.fromEntries(visible.map(({ entry, resolved }) => [entry.name, { create: resolved.operations.create, update: resolved.operations.update }])),
       actions: (resource: string) => new Set(views.find((view) => view.resource === resource)?.actions.map((action) => action.name) ?? []),

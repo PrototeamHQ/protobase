@@ -37,6 +37,13 @@ describe('addressErrors', () => {
     ])
   })
 
+  it('accepts create values of any name for a resource with a create page, still checking placeholders', () => {
+    const createPages = new Set(['repairs'])
+    expect(addressErrors({ kind: 'create', resource: 'repairs', values: { colour: 'red', customerId: '{id}' } }, { models, source: customers, createPages })).toEqual([])
+    expect(addressErrors({ kind: 'create', resource: 'repairs', values: { colour: '{ownerId}' } }, { models, source: customers, createPages })).toEqual(['"{ownerId}" is not a field of customers'])
+    expect(addressErrors({ kind: 'create', resource: 'customers', values: { colour: 'red' } }, { models, createPages })).toEqual(['values: unknown field "colour" on customers'])
+  })
+
   it('names fields the filter or order does not find, whatever the placeholders hold', () => {
     expect(addressErrors({ kind: 'list', resource: 'repairs', filter: 'owner = {id}' }, { models, source: customers })).toEqual([expect.stringContaining('filter:')])
     expect(addressErrors({ kind: 'list', resource: 'repairs', orderBy: 'colour asc' }, { models })).toEqual([expect.stringContaining('orderBy:')])

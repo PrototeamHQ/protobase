@@ -13,6 +13,8 @@ export type PageCheckInput = {
   actions: (resource: string) => ReadonlySet<string>
   /** The composed pages' names, which links may go to; `checkPages` fills them in. */
   pages?: ReadonlySet<string>
+  /** The resources whose view opens a create page, which a create link may give values of any name. */
+  createPages?: ReadonlySet<string>
 }
 
 const filterProblem = (model: ResourceModel, source: string) => {
@@ -38,7 +40,7 @@ export const elementResource = (node: LayoutNode, scope: Scope) => text(node.pro
 /** The record a link's `{field}` placeholders read: the one around it, when there is one. */
 export const linkSource = (models: Record<string, ResourceModel>, scope: Scope) => (scope.record && scope.resource !== undefined ? models[scope.resource] : undefined)
 
-const nodeProblems = (node: LayoutNode, scope: Scope, { models, actions, pages }: PageCheckInput): string[] => {
+const nodeProblems = (node: LayoutNode, scope: Scope, { models, actions, pages, createPages }: PageCheckInput): string[] => {
   const problems: string[] = []
   const resource = elementResource(node, scope)
   const own = text(node.props.resource)
@@ -92,7 +94,7 @@ const nodeProblems = (node: LayoutNode, scope: Scope, { models, actions, pages }
       }
       break
     case 'Link':
-      if (node.props.to !== undefined) problems.push(...addressErrors(node.props.to as AppAddress, { models, pages, source: linkSource(models, scope) }).map((error) => `to: ${error}`))
+      if (node.props.to !== undefined) problems.push(...addressErrors(node.props.to as AppAddress, { models, pages, source: linkSource(models, scope), createPages }).map((error) => `to: ${error}`))
       break
     case 'Show':
       problems.push(...conditionProblems(String(node.props.when), scope.record ? scope.resource : undefined, models))

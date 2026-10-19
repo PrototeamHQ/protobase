@@ -157,9 +157,9 @@ const layoutShape = (resource: string, model: ResourceModel, models: Record<stri
 }
 
 // A link goes when it reads a hidden field, or leads to a resource or field the caller cannot see.
-const linkShape = (model: ResourceModel, models: Record<string, ResourceModel>) =>
+const linkShape = (model: ResourceModel, models: Record<string, ResourceModel>, createPages: ReadonlySet<string>) =>
   s.map<Of<ActionRun, 'link'>>((run) => {
-    const followable = 'to' in run ? addressErrors(run.to, { models, source: model }).length === 0 : hrefPlaceholders(run.href).every((name) => Object.hasOwn(model.fields, name))
+    const followable = 'to' in run ? addressErrors(run.to, { models, source: model, createPages }).length === 0 : hrefPlaceholders(run.href).every((name) => Object.hasOwn(model.fields, name))
     return followable ? run : undefined
   })
 
@@ -175,7 +175,7 @@ const aiShape = (model: ResourceModel) =>
 const inputsShape = (models: Record<string, ResourceModel>) =>
   s.map<ActionInputModel[]>((inputs) => (inputs.every((input) => input.resource === undefined || Object.hasOwn(models, input.resource)) ? inputs : undefined))
 
-const actionShape = (model: ResourceModel, models: Record<string, ResourceModel>) =>
+const actionShape = (model: ResourceModel, models: Record<string, ResourceModel>, createPages: ReadonlySet<string>) =>
   s.object<ActionModel>(
     {
       name: s.data,
@@ -186,7 +186,7 @@ const actionShape = (model: ResourceModel, models: Record<string, ResourceModel>
       run: s.oneOf<ActionRun>({
         update: s.object<Of<ActionRun, 'update'>>({ kind: s.data, values: s.keys({ all: true }) }, { requires: ['values'] }),
         delete: s.data,
-        link: linkShape(model, models),
+        link: linkShape(model, models, createPages),
         ai: aiShape(model),
       }),
       inputs: inputsShape(models),
@@ -196,7 +196,7 @@ const actionShape = (model: ResourceModel, models: Record<string, ResourceModel>
 
 // Every part of a view, and what a field the caller cannot read does to it. The compiler wants a shape for each part,
 // so a part added to ViewModel is named here before it reaches anyone.
-const viewShape = (resource: string, model: ResourceModel, models: Record<string, ResourceModel>, prompted: ReadonlySet<string>) => {
+const viewShape = (resource: string, model: ResourceModel, models: Record<string, ResourceModel>, prompted: ReadonlySet<string>, createPages: ReadonlySet<string>) => {
   const nav = s.object<NavModel>({ hidden: s.data, group: s.data, order: s.data, recent: s.map<NavRecentModel>((recent) => (navRecentErrors(recent, model).length === 0 ? recent : undefined)) })
   // A chart goes when the caller cannot read a field it groups, counts over or adds up
   const chart = s.map<ChartModel>((chart) => (chartFields(chart).every((name) => Object.hasOwn(model.fields, name)) ? chart : undefined))
@@ -217,7 +217,7 @@ const viewShape = (resource: string, model: ResourceModel, models: Record<string
     recordMode: s.data,
     helpWhen: s.data,
     saveFeedback: s.data,
-    actions: s.list(actionShape(model, models)),
+    actions: s.list(actionShape(model, models, createPages)),
     listOf: s.field,
     signIn: s.data,
     // The button stays for a caller who can see the searches' resource, or a visitor it asks to sign in
@@ -238,10 +238,11 @@ const viewShape = (resource: string, model: ResourceModel, models: Record<string
  * actions that set or read one, and the sidebar's `recent` group. Nothing in it may name a hidden field. Related sections, related list columns
  * and links are checked against `models`, the caller's view of every resource, and so are `searchesOf`, cards' favorite
  * buttons and the "Save search" button; the buttons stay for a visitor when their resource is one of `prompted`, those
- * that ask the visitor to sign in.
+ * that ask the visitor to sign in. A create link may give values of any name to a resource of `createPages`, whose view
+ * for the caller opens a create page.
  */
-export const pruneView = (view: ViewModel, model: ResourceModel, models: Record<string, ResourceModel>, prompted: ReadonlySet<string> = new Set()): ViewModel => {
-  const pruned = pruneByShape(view, viewShape(view.resource, model, models, prompted), (name) => Object.hasOwn(model.fields, name))
+export const pruneView = (view: ViewModel, model: ResourceModel, models: Record<string, ResourceModel>, prompted: ReadonlySet<string> = new Set(), createPages: ReadonlySet<string> = new Set()): ViewModel => {
+  const pruned = pruneByShape(view, viewShape(view.resource, model, models, prompted, createPages), (name) => Object.hasOwn(model.fields, name))
   if (!pruned) throw new Error(`The view of ${view.resource} is not an object`)
   return pruned
 }
