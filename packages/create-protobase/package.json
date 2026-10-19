@@ -1,0 +1,31 @@
+{
+  "name": "create-protobase",
+  "version": "0.14.2",
+  "private": true,
+  "description": "npm create protobase: starts a new Protobase project from scratch.",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/PrototeamHQ/protobase.git",
+    "directory": "packages/create-protobase"
+  },
+  "homepage": "https://docs.protobase.net",
+  "type": "module",
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "bin": {
+    "create-protobase": "./bin/create-protobase.mjs"
+  },
+  "files": [
+    "bin",
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsdown && bun ../presets/src/write-template.ts",
+    "prepack": "tsdown && bun ../presets/src/write-template.ts"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}
