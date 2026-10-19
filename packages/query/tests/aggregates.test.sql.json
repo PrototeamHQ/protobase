@@ -1,4 +1,17 @@
 {
+  "(repeated)": [
+    {"sql":"\n    with c as ((select to_char(date_trunc('month', (\"t\".\"created_at\"::timestamptz at time zone $1::text)), 'YYYY-MM-DD\"T\"HH24:MI:SS') as \"bucket\", \"t\".\"category\" as \"split\", count(*) as \"n\", sum(\"t\".\"qty\") as \"m\" from \"items\" as \"t\" where \"t\".\"deleted_at\" is null and \"t\".\"created_at\" >= $2::timestamptz and \"t\".\"created_at\" < $3::timestamptz group by 1, 2)), r as (\n      select split, row_number() over (order by sum(m::numeric) desc nulls last, split asc) as rank\n      from c group by split order by rank limit 8\n    )\n    select c.bucket, c.split, r.rank::text as rank, c.n::text as n, c.m::text as m\n    from c join r on c.split is not distinct from r.split\n    order by c.bucket, r.rank\n  ","params":["UTC","2024-01-01T00:00:00Z","2024-04-01T00:00:00Z"],"result":{"command":"SELECT","rowCount":9,"columns":[["bucket",25],["split",25],["rank",25],["n",25],["m",25]],"rows":[
+      ["2024-01-01T00:00:00","red","1","250","12815"],
+      ["2024-01-01T00:00:00","blue","2","250","12825"],
+      ["2024-01-01T00:00:00","green","3","250","12735"],
+      ["2024-02-01T00:00:00","red","1","233","11255"],
+      ["2024-02-01T00:00:00","blue","2","233","11155"],
+      ["2024-02-01T00:00:00","green","3","234","11215"],
+      ["2024-03-01T00:00:00","red","1","259","13175"],
+      ["2024-03-01T00:00:00","blue","2","258","13145"],
+      ["2024-03-01T00:00:00","green","3","258","13055"]
+    ]}}
+  ],
   "counts > unfiltered estimate reads reltuples": {
     "(hooks)#0": [
       {"sql":"\n    select reltuples::float8 as reltuples from pg_class where oid = to_regclass($1)\n  ","params":["\"order_lines\""],"result":{"command":"SELECT","rowCount":1,"columns":[["reltuples",701]],"rows":[["10000"]]}}
@@ -197,6 +210,50 @@
         ["2024-01-01T00:00:00","0"],
         ["2024-01-02T00:00:00","25"],
         ["2024-01-03T00:00:00","25"]
+      ]}}
+    ]
+  },
+  "splitSeries > splits each bucket and ranks the values by their sum": {
+    "(hooks)#0": [
+      {"repeated":0},
+      {"sql":"select to_char(date_trunc('month', created_at), 'YYYY-MM-DD\"T\"HH24:MI:SS') bucket, category, count(*)::text n, sum(qty)::text m\n       from items where deleted_at is null and created_at >= '2024-01-01T00:00:00Z' and created_at < '2024-04-01T00:00:00Z'\n       group by 1, 2 order by 1, 2","result":{"command":"SELECT","rowCount":9,"columns":[["bucket",25],["category",25],["n",25],["m",25]],"rows":[
+        ["2024-01-01T00:00:00","blue","250","12825"],
+        ["2024-01-01T00:00:00","green","250","12735"],
+        ["2024-01-01T00:00:00","red","250","12815"],
+        ["2024-02-01T00:00:00","blue","233","11155"],
+        ["2024-02-01T00:00:00","green","234","11215"],
+        ["2024-02-01T00:00:00","red","233","11255"],
+        ["2024-03-01T00:00:00","blue","258","13145"],
+        ["2024-03-01T00:00:00","green","258","13055"],
+        ["2024-03-01T00:00:00","red","259","13175"]
+      ]}}
+    ]
+  },
+  "splitSeries > keeps only the largest values": {
+    "(hooks)#0": [
+      {"repeated":0},
+      {"sql":"\n    with c as ((select to_char(date_trunc('month', (\"t\".\"created_at\"::timestamptz at time zone $1::text)), 'YYYY-MM-DD\"T\"HH24:MI:SS') as \"bucket\", \"t\".\"category\" as \"split\", count(*) as \"n\", sum(\"t\".\"qty\") as \"m\" from \"items\" as \"t\" where \"t\".\"deleted_at\" is null and \"t\".\"created_at\" >= $2::timestamptz and \"t\".\"created_at\" < $3::timestamptz group by 1, 2)), r as (\n      select split, row_number() over (order by sum(m::numeric) desc nulls last, split asc) as rank\n      from c group by split order by rank limit 2\n    )\n    select c.bucket, c.split, r.rank::text as rank, c.n::text as n, c.m::text as m\n    from c join r on c.split is not distinct from r.split\n    order by c.bucket, r.rank\n  ","params":["UTC","2024-01-01T00:00:00Z","2024-04-01T00:00:00Z"],"result":{"command":"SELECT","rowCount":6,"columns":[["bucket",25],["split",25],["rank",25],["n",25],["m",25]],"rows":[
+        ["2024-01-01T00:00:00","red","1","250","12815"],
+        ["2024-01-01T00:00:00","blue","2","250","12825"],
+        ["2024-02-01T00:00:00","red","1","233","11255"],
+        ["2024-02-01T00:00:00","blue","2","233","11155"],
+        ["2024-03-01T00:00:00","red","1","259","13175"],
+        ["2024-03-01T00:00:00","blue","2","258","13145"]
+      ]}}
+    ]
+  },
+  "splitSeries > ranks by row count without a sum": {
+    "(hooks)#0": [
+      {"sql":"\n    with c as ((select to_char(date_trunc('month', (\"t\".\"created_at\"::timestamptz at time zone $1::text)), 'YYYY-MM-DD\"T\"HH24:MI:SS') as \"bucket\", \"t\".\"category\" as \"split\", count(*) as \"n\" from \"items\" as \"t\" where \"t\".\"deleted_at\" is null and \"t\".\"created_at\" >= $2::timestamptz and \"t\".\"created_at\" < $3::timestamptz group by 1, 2)), r as (\n      select split, row_number() over (order by sum(n::bigint) desc, split asc) as rank\n      from c group by split order by rank limit 8\n    )\n    select c.bucket, c.split, r.rank::text as rank, c.n::text as n\n    from c join r on c.split is not distinct from r.split\n    order by c.bucket, r.rank\n  ","params":["UTC","2024-01-01T00:00:00Z","2024-04-01T00:00:00Z"],"result":{"command":"SELECT","rowCount":9,"columns":[["bucket",25],["split",25],["rank",25],["n",25]],"rows":[
+        ["2024-01-01T00:00:00","green","1","250"],
+        ["2024-01-01T00:00:00","red","2","250"],
+        ["2024-01-01T00:00:00","blue","3","250"],
+        ["2024-02-01T00:00:00","green","1","234"],
+        ["2024-02-01T00:00:00","red","2","233"],
+        ["2024-02-01T00:00:00","blue","3","233"],
+        ["2024-03-01T00:00:00","green","1","258"],
+        ["2024-03-01T00:00:00","red","2","259"],
+        ["2024-03-01T00:00:00","blue","3","258"]
       ]}}
     ]
   },

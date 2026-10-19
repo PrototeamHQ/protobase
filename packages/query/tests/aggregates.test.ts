@@ -6,6 +6,7 @@ import { facetCounts } from '../src/facet-counts'
 import { groupTotals } from '../src/group-totals'
 import { histogram } from '../src/histogram'
 import { series } from '../src/series'
+import { splitSeries } from '../src/split-series'
 import { check, createTestDb, items, orderLines } from '../../../test-support/query'
 
 let ctx: Awaited<ReturnType<typeof createTestDb>>
@@ -155,6 +156,48 @@ describe('series', () => {
     expect(await code('created_at', { timeZone: 'Mars/Base' })).toBe('invalid_option')
     expect(await code('created_at', { range: { from: range.to, to: range.from } })).toBe('invalid_option')
     expect(await code('created_at', { range: { from: '2000-01-01', to: '2030-01-01' }, granularity: 'hour' })).toBe('invalid_option')
+  })
+})
+
+describe('splitSeries', () => {
+  const range = { from: '2024-01-01T00:00:00Z', to: '2024-04-01T00:00:00Z' }
+  const sum = { kind: 'sum', field: 'qty' } as const
+
+  it('splits each bucket and ranks the values by their sum', async () => {
+    const { splits, points } = await splitSeries(ctx.db, items, 'created_at', 'category', { range, granularity: 'month', measure: sum })
+    const expected = await sqlRows<{ bucket: string; category: string; n: string; m: string }>(
+      `select to_char(date_trunc('month', created_at), 'YYYY-MM-DD"T"HH24:MI:SS') bucket, category, count(*)::text n, sum(qty)::text m
+       from items where deleted_at is null and created_at >= '2024-01-01T00:00:00Z' and created_at < '2024-04-01T00:00:00Z'
+       group by 1, 2 order by 1, 2`,
+    )
+    expect(points.map(({ bucket, split, count, sum }) => ({ bucket, category: split, n: String(count), m: String(sum) }))
+      .sort((a, b) => a.bucket.localeCompare(b.bucket) || a.category.localeCompare(b.category))).toEqual(expected)
+    const totals = (value: unknown) => points.filter(p => p.split === value).reduce((all, p) => all + (p.sum ?? 0), 0)
+    expect(splits.map(totals)).toEqual(splits.map(totals).sort((a, b) => b - a))
+    expect([...splits].sort()).toEqual(['blue', 'green', 'red'])
+  })
+
+  it('keeps only the largest values', async () => {
+    const all = await splitSeries(ctx.db, items, 'created_at', 'category', { range, granularity: 'month', measure: sum })
+    const two = await splitSeries(ctx.db, items, 'created_at', 'category', { range, granularity: 'month', measure: sum, limit: 2 })
+    expect(two.splits).toEqual(all.splits.slice(0, 2))
+    expect(two.points.every(p => two.splits.includes(p.split))).toBe(true)
+  })
+
+  it('ranks by row count without a sum', async () => {
+    const { splits, points } = await splitSeries(ctx.db, items, 'created_at', 'category', { range, granularity: 'month' })
+    const counts = splits.map(value => points.filter(p => p.split === value).reduce((all, p) => all + p.count, 0))
+    expect(counts).toEqual([...counts].sort((a, b) => b - a))
+  })
+
+  it('rejects bad input', async () => {
+    const code = (split: string, options: Partial<Parameters<typeof splitSeries>[4]> = {}) =>
+      splitSeries(ctx.db, items, 'created_at', split, { range, granularity: 'month', ...options }).catch(error => error.code)
+    expect(await code('attrs')).toMatch(/^(unsupported_field_type|not_filterable)$/)
+    expect(await code('born')).toBe('unsupported_field_type')
+    expect(await code('created_at')).toBe('unsupported_field_type')
+    expect(await code('category', { limit: 0 })).toBe('invalid_option')
+    expect(await code('category', { limit: 101 })).toBe('invalid_option')
   })
 })
 
