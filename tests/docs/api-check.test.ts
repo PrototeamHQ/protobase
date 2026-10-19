@@ -10,7 +10,8 @@ const website = path.join(root, 'website')
 const run = (cwd: string, ...args: string[]) => spawnSync('bun', ['run', ...args], { cwd, encoding: 'utf8' })
 
 // `bun run docs:api-check`: TypeDoc's validation of the API reference with website/typedoc.json, as docs:build runs it.
-describe('docs:api-check', () => {
+// A TypeDoc run takes seconds, longer on a runner whose cores the jobs beside it share.
+describe('docs:api-check', { timeout: 30_000 }, () => {
   it('passes on the schema package', () => {
     const result = run(root, 'docs:api-check')
     expect(result.stderr + result.stdout).not.toMatch(/\[(warning|error)\]/)
