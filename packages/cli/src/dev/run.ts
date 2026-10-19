@@ -90,7 +90,10 @@ export const runDev = async (options: DevOptions, out: (text: string) => void) =
     root: appDir,
     configFile: false,
     ...(options.cacheDir && { cacheDir: options.cacheDir }),
-    optimizeDeps: { include: appDependencies },
+    // @protobase/ui is the admin app itself, served from its files: a project's or extension's import of it
+    // reaches the same modules instead of a pre-bundled copy, which would hold its own React contexts and
+    // cannot load MapLibre's `?worker&url` worker import.
+    optimizeDeps: { include: appDependencies, exclude: ['@protobase/ui'] },
     server: {
       port: options.port,
       strictPort: true,
