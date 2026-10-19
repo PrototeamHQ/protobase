@@ -8,6 +8,7 @@ import { refusalReason } from '../displays/board-columns'
 import { activeMention, insertMention, mentionedIds, type PickedUser } from './mention-text'
 import { useMentionable } from './use-mentionable'
 import { usePostComment } from './use-post-comment'
+import { text } from './messages'
 
 /** The most people the list offers; few enough that it never needs a scrollbar of its own. */
 const shownPeople = 8
@@ -17,7 +18,7 @@ const shownPeople = 8
  * the arrows move, Enter or Tab picks, Escape closes. ⌘/Ctrl+Enter or the button posts.
  */
 export const CommentComposer = ({ resource, recordKey }: { resource: string; recordKey: string }) => {
-  const [text, setText] = useState('')
+  const [draft, setDraft] = useState('')
   const [caret, setCaret] = useState(0)
   const [focused, setFocused] = useState(false)
   const [picked, setPicked] = useState<PickedUser[]>([])
@@ -30,7 +31,7 @@ export const CommentComposer = ({ resource, recordKey }: { resource: string; rec
   const toast = useToast()
   const post = usePostComment(resource, recordKey)
 
-  const mention = activeMention(text, caret)
+  const mention = activeMention(draft, caret)
   const open = focused && mention !== undefined && mention.start !== closed
   const people = useMentionable(resource, recordKey, open ? mention.query : undefined)
   const options = open ? (people.data ?? []).slice(0, shownPeople) : []
@@ -49,26 +50,26 @@ export const CommentComposer = ({ resource, recordKey }: { resource: string; rec
     box.current.setSelectionRange(nextCaret.current, nextCaret.current)
     setCaret(nextCaret.current)
     nextCaret.current = undefined
-  }, [text])
+  }, [draft])
 
   const pick = (user: PickedUser) => {
     if (!mention) return
-    const next = insertMention(text, mention, user.name)
+    const next = insertMention(draft, mention, user.name)
     nextCaret.current = next.caret
-    setText(next.text)
+    setDraft(next.text)
     setPicked((current) => [...current, user])
   }
 
   const submit = () => {
-    if (text.trim() === '' || post.isPending) return
+    if (draft.trim() === '' || post.isPending) return
     post.mutate(
-      { body: text, mentions: mentionedIds(text, picked) },
+      { body: draft, mentions: mentionedIds(draft, picked) },
       {
         onSuccess: () => {
-          setText('')
+          setDraft('')
           setPicked([])
         },
-        onError: (error) => toast.show({ state: 'error', title: 'Could not post the comment', description: refusalReason(error) }),
+        onError: (error) => toast.show({ state: 'error', title: text('couldNotPost'), description: refusalReason(error) }),
       },
     )
   }
@@ -105,16 +106,16 @@ export const CommentComposer = ({ resource, recordKey }: { resource: string; rec
         <Textarea
           ref={box}
           role="combobox"
-          aria-label="Comment"
+          aria-label={text('comment')}
           aria-multiline
           aria-autocomplete="list"
           aria-expanded={listed}
           aria-controls={listId}
           aria-activedescendant={listed && options[active] ? optionId(active) : undefined}
-          placeholder="Write a comment, @ to mention someone"
-          value={text}
+          placeholder={text('placeholder')}
+          value={draft}
           onChange={(event) => {
-            setText(event.target.value)
+            setDraft(event.target.value)
             setCaret(event.target.selectionStart)
           }}
           onSelect={(event) => setCaret(event.currentTarget.selectionStart)}
@@ -123,7 +124,7 @@ export const CommentComposer = ({ resource, recordKey }: { resource: string; rec
           onKeyDown={onKeyDown}
         />
         {listed && (
-          <ul id={listId} role="listbox" aria-label="People to mention" className="absolute z-30 mt-1 w-full max-w-sm rounded-md border bg-background py-1 shadow-pop" onMouseDown={(event) => event.preventDefault()}>
+          <ul id={listId} role="listbox" aria-label={text('peopleToMention')} className="absolute z-30 mt-1 w-full max-w-sm rounded-md border bg-background py-1 shadow-pop" onMouseDown={(event) => event.preventDefault()}>
             {options.map((user, index) => (
               <li
                 key={user.id}
@@ -137,13 +138,13 @@ export const CommentComposer = ({ resource, recordKey }: { resource: string; rec
                 {user.name}
               </li>
             ))}
-            {options.length === 0 && <li className="px-3 py-1.5 text-muted-foreground">No one found</li>}
+            {options.length === 0 && <li className="px-3 py-1.5 text-muted-foreground">{text('noOneFound')}</li>}
           </ul>
         )}
       </div>
       <div>
-        <Button variant="primary" size="sm" disabled={text.trim() === ''} loading={post.isPending} onClick={submit}>
-          Comment
+        <Button variant="primary" size="sm" disabled={draft.trim() === ''} loading={post.isPending} onClick={submit}>
+          {text('comment')}
         </Button>
       </div>
     </div>

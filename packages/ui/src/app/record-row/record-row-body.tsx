@@ -15,6 +15,7 @@ import { useFilterChips } from '../searches/use-filter-chips'
 import { AppLink } from '../use-app-address'
 import { RecordRow } from './record-row'
 import { formatTag } from '../../locale/active-locale'
+import { text } from './messages'
 
 type CardsDisplayModel = Extract<ListDisplayModel, { kind: 'cards' }>
 
@@ -99,9 +100,9 @@ export const RecordRowBody = ({ model, view, filter, sort = '', display: named, 
       {rows.isLoading ? (
         <Loading />
       ) : rows.error ? (
-        <ErrorBanner title="Could not load" error={rows.error} />
+        <ErrorBanner title={text('couldNotLoad')} error={rows.error} />
       ) : !source || source.total === 0 ? (
-        <p className="text-muted-foreground">{empty ?? `No ${plural.toLowerCase()} match.`}</p>
+        <p className="text-muted-foreground">{empty ?? text('noneMatch', plural.toLowerCase())}</p>
       ) : (
         <RecordRow model={model} view={view} display={display} source={source} label={plural} isNew={isNew} />
       )}
@@ -110,7 +111,7 @@ export const RecordRowBody = ({ model, view, filter, sort = '', display: named, 
         onClick={viewAll?.onOpen}
         className="flex items-center gap-1 self-end font-medium text-primary-text hover:underline"
       >
-        {viewAll?.label ?? <>View all <span className="sr-only">{plural.toLowerCase()}</span></>}
+        {viewAll?.label ?? <>{text('viewAll')} <span className="sr-only">{plural.toLowerCase()}</span></>}
         <ArrowRight className="size-3.5" aria-hidden />
       </AppLink>
     </div>

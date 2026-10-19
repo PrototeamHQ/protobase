@@ -3,6 +3,7 @@ import { Button } from '../../primitives/button'
 import { Dialog } from '../../primitives/dialog'
 import { Spinner } from '../../primitives/spinner'
 import { lastUpdateText, nextUpdateText, updateErrorText } from './runtime-status'
+import { text } from './messages'
 
 const Row = ({ label, value }: { label: string; value: string }) => (
   <div className="flex justify-between gap-4 py-1">
@@ -30,7 +31,7 @@ export const RuntimeUpdateDialog = ({ status, requesting, error, checkError, onU
   const last = status.updating ? undefined : status.lastUpdate
   return (
     <Dialog
-      title="Runtime update"
+      title={text('runtimeUpdate')}
       description={
         status.updating ? (
           <span className="inline-flex items-center gap-1.5">
@@ -44,18 +45,18 @@ export const RuntimeUpdateDialog = ({ status, requesting, error, checkError, onU
       onClose={onClose}
       actions={
         <>
-          <Button onClick={onClose}>Close</Button>
+          <Button onClick={onClose}>{text('close')}</Button>
           <Button variant="primary" loading={requesting} disabled={status.updating || !status.updateAvailable} onClick={onUpdate}>
-            {status.updating ? 'Updating…' : 'Update now'}
+            {status.updating ? text('updating') : text('updateNow')}
           </Button>
         </>
       }
     >
-      <Row label="Current version" value={status.version} />
-      <Row label="Latest version" value={status.latest} />
+      <Row label={text('currentVersion')} value={status.version} />
+      <Row label={text('latestVersion')} value={status.latest} />
       {last && <p className={last.outcome === 'failed' ? 'mt-3 text-danger-text' : 'mt-3 text-muted-foreground'}>{lastUpdateText(last)}</p>}
       {error !== undefined && <p role="alert" className="mt-3 text-danger-text">{updateErrorText(error)}</p>}
-      {checkError !== undefined && <p className="mt-3 text-muted-foreground">The status could not be checked again; this is the last one read.</p>}
+      {checkError !== undefined && <p className="mt-3 text-muted-foreground">{text('checkFailed')}</p>}
     </Dialog>
   )
 }

@@ -12,6 +12,7 @@ export const text = defineMessages({
     couldNotUndo: 'Could not undo',
     movedToPlace: (place: number) => `Moved to place ${place}`,
     notMoved: 'Left in its place',
+    noRule: 'No drop rule is registered as {}. Give it in dropRules in protobase.ui.tsx, or load the plugin that provides it.',
   },
   nl: {
     done: 'Klaar',
@@ -24,5 +25,6 @@ export const text = defineMessages({
     couldNotUndo: 'Kon niet ongedaan maken',
     movedToPlace: (place: number) => `Verplaatst naar plaats ${place}`,
     notMoved: 'Op zijn plaats gelaten',
+    noRule: 'Er is geen sleepregel geregistreerd als {}. Geef die in dropRules in protobase.ui.tsx, of laad de plug-in die haar levert.',
   },
 })

@@ -1,3 +1,4 @@
+import { text } from './messages'
 type SummaryOptions = {
   /** The status field's values, in the order the summary counts them. */
   values: readonly string[]
@@ -13,7 +14,7 @@ type SummaryOptions = {
  * of the status's values, such as "4 tasks: 1 To do, 3 Done". "No tasks" without any.
  */
 export const dotsSummary = (statuses: readonly unknown[], { values, label, singular, plural }: SummaryOptions) => {
-  if (statuses.length === 0) return `No ${plural}`
+  if (statuses.length === 0) return text('none', plural)
   const counts = new Map<string, number>()
   for (const status of statuses) if (status !== null && status !== undefined) counts.set(String(status), (counts.get(String(status)) ?? 0) + 1)
   const order = [...values, ...[...counts.keys()].filter((value) => !values.includes(value))]

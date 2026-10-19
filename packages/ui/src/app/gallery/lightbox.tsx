@@ -8,6 +8,7 @@ import { shownImage } from '../../live/file-values'
 import { Sheet } from '../../primitives/sheet'
 import { readDetailsOpen, writeDetailsOpen } from './details-open-storage'
 import { keyStep, steppedPhoto, swipeStep, togglesDetails } from './gallery-layout'
+import { text } from './messages'
 
 export type LightboxProps = {
   /** The dialog's accessible name, such as the gallery's title. */
@@ -37,7 +38,7 @@ const control =
  * lower part of a mobile screen; this browser remembers whether they were left shown. The page does not scroll behind
  * it, and focus returns to what opened it.
  */
-export const Lightbox = ({ title, photos, index, onIndex, onClose, details, detailsTitle = 'Details' }: LightboxProps) => {
+export const Lightbox = ({ title, photos, index, onIndex, onClose, details, detailsTitle = text('details') }: LightboxProps) => {
   const panel = useRef<HTMLDivElement>(null)
   const start = useRef<{ x: number; y: number }>(undefined)
   const sidebarId = useId()
@@ -102,7 +103,7 @@ export const Lightbox = ({ title, photos, index, onIndex, onClose, details, deta
                 <Info className="size-4" aria-hidden />
               </button>
             )}
-            <button type="button" className={control} aria-label="Close" onClick={onClose}>
+            <button type="button" className={control} aria-label={text('close')} onClick={onClose}>
               <X className="size-4" aria-hidden />
             </button>
           </div>
@@ -111,10 +112,10 @@ export const Lightbox = ({ title, photos, index, onIndex, onClose, details, deta
           {image && <FileImage key={image.url} image={image} className="max-h-full max-w-full select-none object-contain" />}
           {count > 1 && (
             <>
-              <button type="button" className={cn(control, 'absolute left-3 top-1/2 -translate-y-1/2 aria-disabled:cursor-default aria-disabled:opacity-40')} aria-label="Previous photo" aria-disabled={index === 0} onClick={() => step(-1)}>
+              <button type="button" className={cn(control, 'absolute left-3 top-1/2 -translate-y-1/2 aria-disabled:cursor-default aria-disabled:opacity-40')} aria-label={text('previousPhoto')} aria-disabled={index === 0} onClick={() => step(-1)}>
                 <ChevronLeft className="size-5" aria-hidden />
               </button>
-              <button type="button" className={cn(control, 'absolute right-3 top-1/2 -translate-y-1/2 aria-disabled:cursor-default aria-disabled:opacity-40')} aria-label="Next photo" aria-disabled={index === count - 1} onClick={() => step(1)}>
+              <button type="button" className={cn(control, 'absolute right-3 top-1/2 -translate-y-1/2 aria-disabled:cursor-default aria-disabled:opacity-40')} aria-label={text('nextPhoto')} aria-disabled={index === count - 1} onClick={() => step(1)}>
                 <ChevronRight className="size-5" aria-hidden />
               </button>
             </>

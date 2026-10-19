@@ -6,6 +6,7 @@ import { measureText, type ChartMeasure } from './chart-groups'
 import { LegendItem } from './legend-item'
 import type { ChartSeries } from './split-points'
 import { formatTag } from '../../locale/active-locale'
+import { text } from './messages'
 
 type Point = { at: number; value: number | null; count: number } & Record<string, number | null>
 
@@ -37,7 +38,7 @@ const PointTooltip = ({ active, payload, measure, bucket, series }: { active?: b
   if (!active || !point) return null
   return (
     <div className="rounded-md border bg-background px-2.5 py-1.5 text-xs shadow-pop">
-      <div className="text-muted-foreground">{(bucket === 'week' ? 'Week of ' : '') + formatterOf(tooltipFormats[bucket])(point.at)}</div>
+      <div className="text-muted-foreground">{bucket === 'week' ? text('weekOf', formatterOf(tooltipFormats[bucket])(point.at)) : formatterOf(tooltipFormats[bucket])(point.at)}</div>
       {series?.map((part) => (
         <div key={part.key} className="flex items-center gap-2">
           <span className="size-2 shrink-0 rounded-full" style={{ background: part.color }} aria-hidden />

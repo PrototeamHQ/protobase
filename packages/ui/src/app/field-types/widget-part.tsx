@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 import type { FieldModel } from '@protobase/schema'
 import { CustomBoundary } from '../pages/custom-boundary'
 import type { ShownWidget } from './shown-widget'
+import { text } from './messages'
 
 type WidgetPartProps = {
   shown: ShownWidget
@@ -31,7 +32,7 @@ export const WidgetPart = ({ fallback, ...rest }: WidgetPartProps) => {
   const element = partOf(rest)
   if (!element) return fallback
   return (
-    <CustomBoundary name={`The field type ${rest.shown.name}`} fallback={fallback}>
+    <CustomBoundary name={text('fieldType', rest.shown.name)} fallback={fallback}>
       {element}
     </CustomBoundary>
   )

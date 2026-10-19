@@ -3,6 +3,7 @@ import { Layer, Source, useMap } from 'react-map-gl/maplibre'
 import type { MapLayerModel } from '@protobase/client'
 import { Segmented } from '../../primitives/segmented'
 import { chosenMapLayer, readMapLayer, writeMapLayer } from './map-layer-choice'
+import { text } from './messages'
 
 // The default map's value in the switch: no layer id can be empty.
 const styleValue = ''
@@ -32,7 +33,7 @@ export const MapLayerSwitch = ({ layers, below }: { layers: MapLayerModel[] | un
         </Source>
       )}
       <div className="absolute left-2.5 top-2.5 z-10 rounded-md shadow">
-        <Segmented label="Map layer" value={chosen?.id ?? styleValue} onChange={choose} options={[{ value: styleValue, label: 'Map' }, ...layers.map((layer) => ({ value: layer.id, label: layer.label }))]} />
+        <Segmented label={text('mapLayer')} value={chosen?.id ?? styleValue} onChange={choose} options={[{ value: styleValue, label: text('map') }, ...layers.map((layer) => ({ value: layer.id, label: layer.label }))]} />
       </div>
     </>
   )

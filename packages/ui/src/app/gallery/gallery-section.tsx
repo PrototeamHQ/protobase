@@ -14,6 +14,7 @@ import { Lightbox } from './lightbox'
 import { detailFields } from './detail-fields'
 import { PhotoDetails } from './photo-details'
 import { useGalleryPhotos } from './use-gallery-photos'
+import { text } from './messages'
 
 // Where each tile sits from md up, by how many are drawn: the first large over two rows, the rest beside it. On a mobile
 // screen only the first is drawn, across the whole gallery.
@@ -41,7 +42,7 @@ export const GallerySection = ({ item, record, recordKey }: { item: GalleryModel
   const photoPermissions = usePermissions(photos.holder?.name ?? '')
   const [open, setOpen] = useState<number>()
   if (photos.isPending) return <Section title={item.title}><Skeleton className="aspect-[4/3] w-full rounded-lg md:aspect-[2/1]" /></Section>
-  if (photos.error) return <Section title={item.title}><ErrorBanner title="Could not load the photos" error={photos.error} /></Section>
+  if (photos.error) return <Section title={item.title}><ErrorBanner title={text('couldNotLoad')} error={photos.error} /></Section>
   const count = photos.items.length
   if (count === 0) return null
   const { shown, more } = galleryTiles(count)
@@ -65,7 +66,7 @@ export const GallerySection = ({ item, record, recordKey }: { item: GalleryModel
             <button
               key={index}
               type="button"
-              aria-label={last ? `Show all ${count} photos` : `Show photo ${index + 1} of ${count}`}
+              aria-label={last ? text('showAll', count) : text('showPhoto', index + 1, count)}
               onClick={() => setOpen(index)}
               className={cn(
                 'group/tile relative overflow-hidden bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary',
@@ -93,7 +94,7 @@ export const GallerySection = ({ item, record, recordKey }: { item: GalleryModel
           onIndex={setOpen}
           onClose={() => setOpen(undefined)}
           details={details}
-          detailsTitle={holder && `${holderView?.names?.singular ?? humanize(holder.name)} details`}
+          detailsTitle={holder && text('holderDetails', holderView?.names?.singular ?? humanize(holder.name))}
         />
       )}
     </Section>

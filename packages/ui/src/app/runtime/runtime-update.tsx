@@ -5,6 +5,7 @@ import { Button } from '../../primitives/button'
 import { showsUpdateButton } from './runtime-status'
 import { RuntimeUpdateDialog } from './runtime-update-dialog'
 import { useRuntimeClient, useRuntimeStatus } from './use-runtime-status'
+import { text } from './messages'
 
 /**
  * The top bar's runtime update button, shown while the endpoint reports an update and wants it shown, and the dialog
@@ -17,9 +18,9 @@ const RuntimeUpdate = ({ client }: { client: RuntimeClient | undefined }) => {
 
   return (
     <>
-      <Button size="sm" variant="ghost" aria-label="Update available" title="Update available" onClick={() => setOpen(true)} className="max-md:size-9 max-md:p-0">
+      <Button size="sm" variant="ghost" aria-label={text('updateAvailable')} title={text('updateAvailable')} onClick={() => setOpen(true)} className="max-md:size-9 max-md:p-0">
         <ArrowUpCircle className="size-3.5 text-primary" />
-        <span className="max-md:sr-only">Update</span>
+        <span className="max-md:sr-only">{text('update')}</span>
       </Button>
       {open && <RuntimeUpdateDialog status={status} requesting={requesting} error={error} checkError={checkError} onUpdate={() => void update()} onClose={() => setOpen(false)} />}
     </>

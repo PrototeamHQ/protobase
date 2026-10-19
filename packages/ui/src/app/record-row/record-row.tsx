@@ -7,6 +7,7 @@ import { displayRow, type ListDisplayRow } from '../displays/list-displays'
 import { RecordCard } from '../displays/record-card'
 import { rowCardGap, rowCardWidth, rowOffset } from './row-window'
 import { useRowScroll } from './use-row-scroll'
+import { text } from './messages'
 
 type CardsDisplayModel = Extract<ListDisplayModel, { kind: 'cards' }>
 
@@ -53,19 +54,19 @@ export const RecordRow = ({ model, view, display, source, label, isNew }: Record
           const row = displayRow(model, loaded)
           return (
             <li key={row.key} aria-posinset={index + 1} aria-setsize={total} className="grid shrink-0 snap-start grid-cols-[minmax(0,1fr)]" style={{ width: rowCardWidth }}>
-              <RecordCard model={model} view={view} display={display} row={row} swipe={false} mark={isNew?.(row) ? 'New' : undefined} />
+              <RecordCard model={model} view={view} display={display} row={row} swipe={false} mark={isNew?.(row) ? text('new') : undefined} />
             </li>
           )
         })}
         <Spacer cards={total - scroll.end} />
       </ul>
       {scroll.back && (
-        <button type="button" aria-label={`Previous ${label.toLowerCase()}`} onClick={() => scroll.page(-1)} className={`${arrowClass} -left-3`}>
+        <button type="button" aria-label={text('previous', label.toLowerCase())} onClick={() => scroll.page(-1)} className={`${arrowClass} -left-3`}>
           <ChevronLeft className="size-4" aria-hidden />
         </button>
       )}
       {scroll.on && (
-        <button type="button" aria-label={`Next ${label.toLowerCase()}`} onClick={() => scroll.page(1)} className={`${arrowClass} -right-3`}>
+        <button type="button" aria-label={text('next', label.toLowerCase())} onClick={() => scroll.page(1)} className={`${arrowClass} -right-3`}>
           <ChevronRight className="size-4" aria-hidden />
         </button>
       )}

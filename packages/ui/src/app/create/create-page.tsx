@@ -14,6 +14,7 @@ import { useFocusFirstInvalid } from '../use-focus-first-invalid'
 import { useLiveSave } from '../use-live-save'
 import { CreateRecordForm } from './create-record-form'
 import { createBody, createSections, hasDatabaseDefault, initialDraft, isChosen, isRequired, type Draft } from './create-values'
+import { text as appText } from '../messages'
 import { text } from './messages'
 
 const without = <V,>(source: Record<string, V>, name: string): Record<string, V> => Object.fromEntries(Object.entries(source).filter(([key]) => key !== name))
@@ -25,8 +26,8 @@ export const CreatePage = ({ resource, values }: CreatePageProps) => {
   const meta = useAdminMeta()
   const model = meta.resources[resource]
   const permissions = usePermissions(resource)
-  if (!model) return <Notice title="Not found">There is no resource called {resource}.</Notice>
-  if (!can(permissions, 'create')) return <Notice title="Not allowed">You cannot create {meta.views[resource]?.names?.plural.toLowerCase() ?? resource}.</Notice>
+  if (!model) return <Notice title={appText('notFound')}>{appText('noResource', resource)}</Notice>
+  if (!can(permissions, 'create')) return <Notice title={text('notAllowed')}>{text('cannotCreate', meta.views[resource]?.names?.plural.toLowerCase() ?? resource)}</Notice>
   return <LoadedCreate resource={resource} values={values} />
 }
 

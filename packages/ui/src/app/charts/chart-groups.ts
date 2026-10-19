@@ -1,6 +1,7 @@
 import type { AggregateGroup } from '@protobase/client'
 import { createWhere, enumLabel, printFilter, type FieldModel, type FieldViewModel } from '@protobase/schema'
 import { formatTag } from '../../locale/active-locale'
+import { text as message } from './messages'
 
 const where = createWhere()
 
@@ -27,9 +28,9 @@ export const colorOf = (field: FieldModel, hints: FieldViewModel | undefined, va
 }
 
 export const labelOf = (field: FieldModel, hints: FieldViewModel | undefined, group: Pick<AggregateGroup, 'value' | 'label'>) => {
-  if (group.value === null) return 'Not set'
+  if (group.value === null) return message('notSet')
   if (field.type === 'enum') return enumLabel(String(group.value), hints?.valueLabels)
-  if (field.type === 'boolean') return group.value ? 'Yes' : 'No'
+  if (field.type === 'boolean') return group.value ? message('yes') : message('no')
   return group.label ?? String(group.value)
 }
 

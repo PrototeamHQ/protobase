@@ -1,6 +1,7 @@
 import type { Aggregate, AggregateGroup } from '@protobase/client'
 import type { FieldModel, FieldViewModel } from '@protobase/schema'
 import { colorOf, groupFilter, labelOf, periodPoints, type ChartMeasure } from './chart-groups'
+import { text } from './messages'
 
 /** One part of a split bucket as a chart draws it: the key of its number in a point, its name and colour, and its records. */
 export type ChartSeries = { key: string; label: string; color: string; filter?: string }
@@ -46,5 +47,5 @@ export const splitPoints = (
   })
   const hasOther = measure.kind !== 'average' && points.some((point) => (point.other ?? 0) > 0)
   if (!hasOther) return { series, points: points.map(({ other, ...point }) => point as SplitPoint) }
-  return { series: [...series, { key: 'other', label: 'Other', color: 'var(--border-strong)' }], points }
+  return { series: [...series, { key: 'other', label: text('other'), color: 'var(--border-strong)' }], points }
 }

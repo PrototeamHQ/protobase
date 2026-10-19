@@ -3,7 +3,9 @@ import type { SearchResultGroup } from '../../app-shell'
 import { allowEverything, type MetaData } from '../../data/meta-data'
 import { humanize } from '../../live/naming'
 import { createOffered } from '../create/create-offered'
+import { text as createText } from '../create/messages'
 import { navFromMeta } from '../nav-from-meta'
+import { text as searchText } from './messages'
 
 /** At most this many pages and lists, and this many "New ..." entries, match one text. */
 export const navigationHitsPerGroup = 5
@@ -23,12 +25,12 @@ export const navigationHits = (meta: MetaData, text: string, basePath = ''): Sea
     const view = meta.views[model.name]
     if (!view || view.nav?.hidden || !createOffered(view, meta.pages, meta.permissions[model.name] ?? allowEverything)) return []
     const singular = view.names?.singular ?? humanize(model.name)
-    const label = `New ${singular.toLowerCase()}`
+    const label = createText('title', singular)
     if (!matches(label, text) && !matches(singular, asked) && !matches(view.names?.plural ?? humanize(model.name), asked)) return []
     return [{ id: `new:${model.name}`, title: label, href: appPath({ kind: 'create', resource: model.name }, basePath) }]
   })
   return [
-    ...(pages.length > 0 ? [{ id: 'go-to', label: 'Go to', hits: pages.map((item) => ({ id: `go-to:${item.id}`, title: item.label, href: item.href })) }] : []),
-    ...(creates.length > 0 ? [{ id: 'create', label: 'Create', hits: creates.slice(0, navigationHitsPerGroup) }] : []),
+    ...(pages.length > 0 ? [{ id: 'go-to', label: searchText('goTo'), hits: pages.map((item) => ({ id: `go-to:${item.id}`, title: item.label, href: item.href })) }] : []),
+    ...(creates.length > 0 ? [{ id: 'create', label: searchText('create'), hits: creates.slice(0, navigationHitsPerGroup) }] : []),
   ]
 }

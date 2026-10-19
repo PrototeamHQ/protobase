@@ -10,6 +10,7 @@ import { ErrorBanner } from '../error-banner'
 import { CommentBody } from './comment-body'
 import { CommentComposer } from './comment-composer'
 import { useRecordComments } from './use-record-comments'
+import { text } from './messages'
 
 const Loading = () => <div className="flex flex-col gap-2">{Array.from({ length: 3 }, (_, index) => <Skeleton key={index} className="h-4 w-full" />)}</div>
 
@@ -43,16 +44,16 @@ export const CommentsSection = ({ item, resource, recordKey, canWrite }: { item:
       {comments.isPending ? (
         <Loading />
       ) : comments.error ? (
-        <ErrorBanner title="Could not load the comments" error={comments.error} />
+        <ErrorBanner title={text('couldNotLoad')} error={comments.error} />
       ) : (
         <>
           {comments.hasNextPage && (
             <Button size="sm" className="mb-4" disabled={comments.isFetchingNextPage} onClick={() => void comments.fetchNextPage()}>
-              Show earlier comments
+              {text('showEarlier')}
             </Button>
           )}
           {comments.items.length === 0 ? (
-            <p className="text-muted-foreground">No comments yet.</p>
+            <p className="text-muted-foreground">{text('noComments')}</p>
           ) : (
             <ol className="divide-y divide-border">
               {comments.items.map((comment) => <Comment key={comment.id} comment={comment} />)}
