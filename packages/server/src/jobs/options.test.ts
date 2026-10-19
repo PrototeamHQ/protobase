@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { queueOptions, queueSettingsDiffer, sendOptions } from './options'
+import { queueOptions, queueSettingsDiffer, sendOptions, workOptions } from './options'
 
 const job = { name: 'send-invoice', run: () => {} }
 const ordered = { ...job, ordered: true }
@@ -42,6 +42,12 @@ describe('queueSettingsDiffer', () => {
     expect(queueSettingsDiffer(wanted, { ...wanted, name: 'send-invoice', queuedCount: 3 })).toBe(false)
     expect(queueSettingsDiffer(wanted, { ...wanted, retryLimit: 2 })).toBe(true)
     expect(queueSettingsDiffer(wanted, { ...wanted, policy: 'key_strict_fifo' })).toBe(false)
+  })
+})
+
+describe('workOptions', () => {
+  it('takes one job per fetch, and fetches again at once while more are ready than the workers take in one poll', () => {
+    expect(workOptions(5, 2)).toMatchObject({ batchSize: 1, localConcurrency: 5, pollingIntervalSeconds: 2, burstWhenReadyExceeds: 5 })
   })
 })
 

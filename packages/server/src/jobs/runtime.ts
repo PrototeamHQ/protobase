@@ -7,7 +7,7 @@ import type { Mailer } from '../mail/smtp-mailer'
 import { clearCurrentJobs, setCurrentJobs, type JobsEnqueuer } from './current'
 import { jobsDatabase } from './database'
 import type { EnqueueOptions, JobDefinition } from './job-types'
-import { queueOptions, queueSettingsDiffer, sendOptions } from './options'
+import { queueOptions, queueSettingsDiffer, sendOptions, workOptions } from './options'
 import { runJob, validatePayload } from './run-job'
 import { scheduleKey } from './schedule'
 import { createSchedules } from './schedules'
@@ -106,7 +106,7 @@ export const startJobs = async ({ db, jobs, work = true, pollSeconds = 2, shutdo
     if (running) await boss.offWork(definition.name)
     const id = await boss.work(
       definition.name,
-      { batchSize: 1, localConcurrency: concurrency, pollingIntervalSeconds: pollSeconds, includeMetadata: true, perJobResults: true },
+      workOptions(concurrency, pollSeconds),
       // The definition as it is now, so a dev server's reloaded `run` takes the next job.
       // As background work, so jobs that hold the database for long leave a connection to page requests.
       async ([job]) => runInBackground(async () => {

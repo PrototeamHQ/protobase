@@ -29,6 +29,21 @@ export const queueSettingsDiffer = (wanted: ReturnType<typeof queueOptions>, sto
   (Object.keys(wanted) as Array<keyof typeof wanted>).some((key) => key !== 'policy' && (stored as Record<string, unknown>)[key] !== wanted[key])
 
 /**
+ * The pg-boss worker options of a job: one job per fetch, `concurrency` at once. A worker fetches again at once after a
+ * fetch that found a job while more are ready than its workers take in one poll, by the queue's ready count that the
+ * queue maintenance refreshes about every minute, so a backlog drains as fast as its jobs run rather than one job per
+ * worker each poll.
+ */
+export const workOptions = (concurrency: number, pollSeconds: number) => ({
+  batchSize: 1,
+  localConcurrency: concurrency,
+  pollingIntervalSeconds: pollSeconds,
+  burstWhenReadyExceeds: concurrency,
+  includeMetadata: true as const,
+  perJobResults: true as const,
+})
+
+/**
  * The pg-boss send options of one enqueue: when, how urgent, and the key a waiting job is found by. An ordered job's
  * group is its key in pg-boss, which keeps one group's jobs in order.
  */
