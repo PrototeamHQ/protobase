@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { Button } from '../primitives/button'
 import { Dialog } from '../primitives/dialog'
 import { RouteLink } from '../primitives/route-link'
+import { text as appText } from './messages'
 
 type RouterValue = {
   /** Path below the base path, always starting with `/`. */
@@ -135,14 +136,14 @@ export const Router = ({ basePath = '', initialUrl, children }: RouterProps) => 
       {children}
       {pending && (
         <Dialog
-          title="Leave without saving?"
-          description="You have unsaved changes on this page. They stay in this browser, and come back when you open the record again."
+          title={appText('leaveTitle')}
+          description={appText('leaveDescription')}
           onClose={() => setPending(undefined)}
           actions={
             <>
-              <Button onClick={() => setPending(undefined)}>Stay</Button>
+              <Button onClick={() => setPending(undefined)}>{appText('stay')}</Button>
               <Button variant="primary" onClick={leave}>
-                Leave
+                {appText('leave')}
               </Button>
             </>
           }

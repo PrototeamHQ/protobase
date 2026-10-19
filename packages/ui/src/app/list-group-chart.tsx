@@ -1,12 +1,13 @@
 import type { GroupChartModel, ResourceModel, ViewModel } from '@protobase/schema'
 import { humanize } from '../live/naming'
 import { ChartView } from './charts/chart-view'
+import { text as appText } from './messages'
 
 const measureTitle = (chart: GroupChartModel, view: ViewModel | undefined, plural: string) => {
   const name = chart.sum ?? chart.average
   if (name === undefined) return plural
   const label = view?.fields[name]?.label ?? humanize(name)
-  return chart.sum !== undefined ? `${label}` : `Average ${label.toLowerCase()}`
+  return chart.sum !== undefined ? `${label}` : appText('average', label)
 }
 
 /** The view's chart per value of a field, above the list and following its filter. */

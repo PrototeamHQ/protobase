@@ -21,6 +21,7 @@ import { isMarkdown } from '../markdown/markdown-hint'
 import { numeric, numericInputProps } from './numeric-input'
 import { ContactLink } from '../live/contact-link'
 import { contactFormat, contactInputProps } from '../live/contact-links'
+import { text as appText } from './messages'
 
 export type FieldEditorProps = {
   field: FieldModel
@@ -85,7 +86,7 @@ const BuiltInEditor = ({ field, hints, value, stored, relationLabel, relationTo,
         onChange={(event) => onChange(event.target.value)}
         className="h-8 w-full rounded-md border border-border-strong bg-background px-2 shadow-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
       >
-        {value === '' && <option value="">Choose...</option>}
+        {value === '' && <option value="">{appText('choose')}</option>}
         {(field.enumValues ?? []).map((option) => (
           <option key={option} value={option}>
             {enumLabel(option, hints?.valueLabels)}

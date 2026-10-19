@@ -53,6 +53,8 @@ import { StaffBanner } from './staff-banner'
 import { useNavRecent } from './use-nav-recent'
 import { useAppAddress, type CurrentAddress } from './use-app-address'
 import { userMenuFromMeta } from './user-menu-from-meta'
+import { slotted } from '../locale/slotted'
+import { text as appText } from './messages'
 
 export type AppProps = {
   /** Where `/api/v1` lives. Defaults to the current origin. */
@@ -155,7 +157,7 @@ const Routes = ({ workspace, sidebarMode, assistant, runtime }: Pick<AppProps, '
   const outsideOrganizations = Boolean(organizationSettings) && current !== undefined && !current.organization
   const organizationPage = organizationSettings && user ? organizationPageTitle(path) : undefined
   // The account pages are the app's own, under `/-/`; everything else is a page or a resource.
-  const accountPage = !user ? undefined : path === accountSecurityPath ? 'Sign-in & security' : path === signInPolicyPath ? 'Sign-in policy' : organizationPage
+  const accountPage = !user ? undefined : path === accountSecurityPath ? appText('signInSecurity') : path === signInPolicyPath ? appText('signInPolicy') : organizationPage
   const resourceLabel = view?.names?.plural ?? (resource && humanize(resource))
   const breadcrumb = accountPage ? [accountPage] : breadcrumbFor({ basePath, address, group: group?.label, page, resourceLabel, recordTitle: title, recordLoading: titleLoading })
   const singular = view?.names?.singular ?? (resource && humanize(resource))
@@ -164,17 +166,17 @@ const Routes = ({ workspace, sidebarMode, assistant, runtime }: Pick<AppProps, '
     user && path === accountSecurityPath ? (
       <AccountSecurityPage email={user.email} />
     ) : user && path === signInPolicyPath ? (
-      admin ? <SignInPolicyPage /> : <Notice title="Admins only">Only an admin can change how people sign in.</Notice>
+      admin ? <SignInPolicyPage /> : <Notice title={appText('adminsOnly')}>{appText('onlyAdminPolicy')}</Notice>
     ) : organizationPage && path === organizationPath ? (
       <OrganizationPage current={current} basePath={basePath} onChanged={organizations.reload} />
     ) : organizationPage && (path === membersPath || path === invitationsPath) ? (
-      !managesOrganization(current) ? <Notice title="Owners and admins only">Only the organization's owners and admins manage its members.</Notice> : path === membersPath ? <MembersPage current={current} /> : <InvitationsPage current={current} />
+      !managesOrganization(current) ? <Notice title={appText('ownersOnly')}>{appText('onlyOwners')}</Notice> : path === membersPath ? <MembersPage current={current} /> : <InvitationsPage current={current} />
     ) : (organizationPage && path === organizationsPath) || outsideOrganizations ? (
       <OrganizationsPage state={organizations} basePath={basePath} />
     ) : !address ? (
-      path === '/' ? <Notice title="Choose a resource">Pick one from the sidebar.</Notice> : <Notice title="Not found">There is nothing at this address.</Notice>
+      path === '/' ? <Notice title={appText('chooseResource')}>{appText('pickFromSidebar')}</Notice> : <Notice title={appText('notFound')}>{appText('nothingHere')}</Notice>
     ) : address.kind === 'page' ? (
-      page ? <ComposedPage key={page.name} name={page.name} /> : <Notice title="Not found">There is no page called {address.page}.</Notice>
+      page ? <ComposedPage key={page.name} name={page.name} /> : <Notice title={appText('notFound')}>{slotted(appText('noPage'), address.page)}</Notice>
     ) : drawnFrom && drawnFrom.state !== 'ready' ? (
       <SourceNotice status={drawnFrom} />
     ) : address.kind === 'create' ? (

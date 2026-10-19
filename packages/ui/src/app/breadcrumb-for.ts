@@ -1,6 +1,7 @@
 import { appPath } from '@protobase/schema'
 import type { Crumb } from '../app-shell'
 import type { CurrentAddress } from './current-address'
+import { text as appText } from './messages'
 
 export type BreadcrumbInput = {
   basePath: string
@@ -22,10 +23,10 @@ export type BreadcrumbInput = {
 export const breadcrumbFor = ({ basePath, address, group, page, resourceLabel, recordTitle, recordLoading }: BreadcrumbInput): Crumb[] => {
   const groupCrumb = group ? [group] : []
   if (page) return [...groupCrumb, { label: page.title, href: appPath({ kind: 'page', page: page.name }, basePath) }]
-  if (!address || address.kind === 'page') return ['Admin']
+  if (!address || address.kind === 'page') return [appText('admin')]
   const resource = resourceLabel ? [{ label: resourceLabel, href: appPath({ kind: 'list', resource: address.resource, ...(address.kind === 'list' && address.list && { list: address.list }) }, basePath) }] : []
   if (address.kind === 'list') return [...groupCrumb, ...resource]
   const href = appPath(address, basePath)
-  const record = address.kind === 'create' ? { label: 'New', href } : recordTitle === undefined && recordLoading ? { label: 'Loading record', href, loading: true } : { label: recordTitle ?? address.key, href }
+  const record = address.kind === 'create' ? { label: appText('new'), href } : recordTitle === undefined && recordLoading ? { label: appText('loadingRecord'), href, loading: true } : { label: recordTitle ?? address.key, href }
   return [...groupCrumb, ...resource, record]
 }

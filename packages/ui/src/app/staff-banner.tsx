@@ -4,6 +4,8 @@ import { AuthError, type StaffSignIn } from '@protobase/client'
 import { authMessage } from '../auth/auth-messages'
 import { formatDateTime } from '../format'
 import { Button } from '../primitives/button'
+import { slotted } from '../locale/slotted'
+import { text as appText } from './messages'
 
 export type StaffBannerProps = {
   signIn: StaffSignIn
@@ -27,11 +29,10 @@ export const StaffBanner = ({ signIn, onStop }: StaffBannerProps) => {
     }
   }
   return (
-    <div role="region" aria-label="Staff session" className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-warning/40 bg-warning-soft px-4 py-2 text-warning-text">
+    <div role="region" aria-label={appText('staffSession')} className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-warning/40 bg-warning-soft px-4 py-2 text-warning-text">
       <UserRoundCog aria-hidden className="size-4 shrink-0" />
       <p className="min-w-64 flex-1 break-words">
-        <span className="font-semibold">{signIn.staffName ?? signIn.staff}</span> is signed in as <span className="font-semibold">{signIn.user}</span> until{' '}
-        {formatDateTime(Date.parse(signIn.expiresAt))}. Reason: {signIn.reason}
+        {slotted(appText('staffSignedIn'), <span className="font-semibold">{signIn.staffName ?? signIn.staff}</span>, <span className="font-semibold">{signIn.user}</span>, formatDateTime(Date.parse(signIn.expiresAt)), signIn.reason)}
       </p>
       {error && (
         <p role="alert" className="text-xs font-medium text-danger-text">
@@ -39,7 +40,7 @@ export const StaffBanner = ({ signIn, onStop }: StaffBannerProps) => {
         </p>
       )}
       <Button size="sm" loading={stopping} onClick={() => void stop()}>
-        Stop staff session
+        {appText('stopStaffSession')}
       </Button>
     </div>
   )

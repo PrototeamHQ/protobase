@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
 import type { CurrentAddress } from './current-address'
+import { text as createText } from './create/messages'
 
 export type TitleInput = {
   /** The address the app shows; none at the root. */
@@ -25,7 +26,7 @@ export const titleParts = ({ address, page, accountPage, resourceLabel, singular
   if (!address || address.kind === 'page') return []
   const list = resourceLabel ? [resourceLabel] : []
   if (address.kind === 'list') return list
-  if (address.kind === 'create') return [...(singular ? [`New ${singular.toLowerCase()}`] : []), ...list]
+  if (address.kind === 'create') return [...(singular ? [createText('title', singular)] : []), ...list]
   const record = recordTitle ?? (recordLoading ? undefined : address.key)
   return [...(record ? [record] : []), ...list]
 }

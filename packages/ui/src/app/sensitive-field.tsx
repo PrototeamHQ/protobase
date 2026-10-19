@@ -9,6 +9,7 @@ import { humanize } from '../live/naming'
 import { Button } from '../primitives/button'
 import { Input } from '../primitives/input'
 import { ErrorBanner } from './error-banner'
+import { text as appText } from './messages'
 
 const mask = '••••••••••'
 
@@ -36,11 +37,11 @@ export const SensitiveField = ({ field, hints, value, reveal, locked, invalid, p
     else stored.mutate()
   }
   const eye = (
-    <Button variant="ghost" size="sm" className="-mr-1.5 px-1.5" aria-label={`${shown ? 'Hide' : 'Show'} ${label}`} aria-pressed={shown} loading={stored.isPending} onClick={toggle}>
+    <Button variant="ghost" size="sm" className="-mr-1.5 px-1.5" aria-label={shown ? appText('hide', label) : appText('show', label)} aria-pressed={shown} loading={stored.isPending} onClick={toggle}>
       {!stored.isPending && (shown ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />)}
     </Button>
   )
-  const error = stored.error && <div className="mt-2"><ErrorBanner title={`Could not show the ${label}`} error={stored.error} /></div>
+  const error = stored.error && <div className="mt-2"><ErrorBanner title={appText('couldNotShow', label)} error={stored.error} /></div>
 
   if (locked) {
     return (

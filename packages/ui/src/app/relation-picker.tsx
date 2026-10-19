@@ -7,6 +7,7 @@ import { Input } from '../primitives/input'
 import { labelFieldOf } from '../live/model-helpers'
 import { humanize } from '../live/naming'
 import { relationOptionsQuery, titleMatches } from './relation-options'
+import { text as appText } from './messages'
 
 export type RelationPickerProps = {
   target: ResourceModel
@@ -115,7 +116,7 @@ export const RelationPicker = ({ target, view, value, label, chosen = [value], s
         aria-controls={listId}
         aria-activedescendant={open && items[active] ? optionId(active) : undefined}
         invalid={invalid}
-        placeholder={`Search ${(view?.names?.plural ?? humanize(target.name)).toLowerCase()}`}
+        placeholder={appText('searchPlural', (view?.names?.plural ?? humanize(target.name)).toLowerCase())}
         value={open ? text : (label ?? value)}
         onFocus={() => setOpen(true)}
         onBlur={close}
@@ -149,9 +150,9 @@ export const RelationPicker = ({ target, view, value, label, chosen = [value], s
             </li>
           ))}
           {more && <li ref={setSentinel} aria-hidden className="h-px" />}
-          {rows.error && !expensive && <li className="px-3 py-1.5 text-muted-foreground">Could not load the options</li>}
-          {!more && !loading && !rows.error && items.length === 0 && <li className="px-3 py-1.5 text-muted-foreground">No matches</li>}
-          {loading && <li className="px-3 py-1.5 text-muted-foreground">Loading</li>}
+          {rows.error && !expensive && <li className="px-3 py-1.5 text-muted-foreground">{appText('couldNotLoadOptions')}</li>}
+          {!more && !loading && !rows.error && items.length === 0 && <li className="px-3 py-1.5 text-muted-foreground">{appText('noMatches')}</li>}
+          {loading && <li className="px-3 py-1.5 text-muted-foreground">{appText('loading')}</li>}
         </ul>
       )}
     </div>

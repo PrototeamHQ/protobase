@@ -9,6 +9,7 @@ import { acceptOf, fileShown, formatSize, isPreviewable, shownImage, type FileDr
 import { humanize } from '../live/naming'
 import { Button } from '../primitives/button'
 import { ErrorBanner } from './error-banner'
+import { text as appText } from './messages'
 
 export type FileFieldProps = {
   field: FieldModel
@@ -37,7 +38,7 @@ const Thumbnail = ({ value }: { value: unknown }) => {
 const FileSummary = ({ value }: { value: unknown }) => {
   const shown = fileShown(value)
   if (!shown) return <div className="py-1.5 text-muted-foreground">—</div>
-  if ('missing' in shown) return <div className="py-1.5 text-danger-text">The file is missing from storage</div>
+  if ('missing' in shown) return <div className="py-1.5 text-danger-text">{appText('fileMissing')}</div>
   const url = 'url' in shown ? shown.url : undefined
   const corrected = 'corrected' in shown ? shown.corrected : undefined
   return (
@@ -90,16 +91,16 @@ export const FileField = ({ field, hints, resource, value, locked, invalid, onCh
     setDragging(false)
     choose(event.dataTransfer.files)
   }
-  const picker = <input ref={input} type="file" hidden accept={acceptOf(field)} aria-label={`Choose a file for ${label}`} onChange={(event) => choose(event.target.files)} />
-  const error = upload.error && <div className="mt-2"><ErrorBanner title="Not uploaded" error={upload.error} /></div>
+  const picker = <input ref={input} type="file" hidden accept={acceptOf(field)} aria-label={appText('chooseFileFor', label)} onChange={(event) => choose(event.target.files)} />
+  const error = upload.error && <div className="mt-2"><ErrorBanner title={appText('notUploaded')} error={upload.error} /></div>
 
   if (upload.isPending) {
     return (
-      <div className="py-1.5" role="status" aria-label={`Uploading ${label}`}>
+      <div className="py-1.5" role="status" aria-label={appText('uploadingLabel', label)}>
         <div className="h-1.5 overflow-hidden rounded-full bg-muted">
           <div className="h-full rounded-full bg-primary transition-[width]" style={{ width: `${Math.round((progress ?? 0) * 100)}%` }} />
         </div>
-        <span className="text-xs text-muted-foreground">Uploading… {Math.round((progress ?? 0) * 100)}%</span>
+        <span className="text-xs text-muted-foreground">{appText('uploading', Math.round((progress ?? 0) * 100))}</span>
       </div>
     )
   }
@@ -109,8 +110,8 @@ export const FileField = ({ field, hints, resource, value, locked, invalid, onCh
       <div>
         <div className="flex items-center gap-2">
           <div className="min-w-0 flex-1"><FileSummary value={value} /></div>
-          <Button size="sm" onClick={() => input.current?.click()}>Replace</Button>
-          {field.nullable && <Button size="sm" variant="ghost" onClick={() => onChange(null)}>Remove</Button>}
+          <Button size="sm" onClick={() => input.current?.click()}>{appText('replace')}</Button>
+          {field.nullable && <Button size="sm" variant="ghost" onClick={() => onChange(null)}>{appText('remove')}</Button>}
         </div>
         {picker}
         {error}
@@ -133,10 +134,10 @@ export const FileField = ({ field, hints, resource, value, locked, invalid, onCh
         )}
       >
         <Upload className="size-4 shrink-0" />
-        <span className="flex-1">Drop a file here or</span>
+        <span className="flex-1">{appText('dropFile')}</span>
         <Button size="sm" onClick={() => input.current?.click()}>
           <Paperclip className="size-3.5" />
-          Choose a file
+          {appText('chooseFile')}
         </Button>
       </div>
       {picker}

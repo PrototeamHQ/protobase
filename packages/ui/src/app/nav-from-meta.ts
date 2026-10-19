@@ -6,11 +6,12 @@ import { LayoutDashboard } from 'lucide-react'
 import { iconFor } from './icons'
 import { menuIcon } from './menu-icons'
 import { userMenuResources } from './user-menu-from-meta'
+import { text as appText } from './messages'
 
 /** The sidebar item of a resource's list, or of one of its named lists. */
 export const navItemId = (resource: string, list?: string) => (list === undefined ? resource : `${resource}/${list}`)
 
-const groupLabels: Record<string, string> = { sales: 'Sales', crm: 'CRM', catalog: 'Catalog', inventory: 'Inventory', core: 'Admin', hr: 'HR' }
+const groupLabels: Record<string, 'sales' | 'crm' | 'catalog' | 'inventory' | 'admin' | 'hr'> = { sales: 'sales', crm: 'crm', catalog: 'catalog', inventory: 'inventory', core: 'admin', hr: 'hr' }
 
 /**
  * One sidebar group per `nav.group` (default: the database schema, and "Pages" for pages); `nav.hidden` and a place in
@@ -26,7 +27,7 @@ export const navFromMeta = (meta: MetaData, basePath = '', recent: Record<string
   const inMenu = userMenuResources(meta)
   for (const page of Object.values(meta.pages)) {
     if (page.nav?.hidden || inMenu.has(page.name)) continue
-    const groupName = page.nav?.group ?? 'Pages'
+    const groupName = page.nav?.group ?? appText('pages')
     const group = groups.get(groupName) ?? { label: groupName, items: [] }
     group.items.push({ id: page.name, label: page.title, icon: menuIcon(page.icon, LayoutDashboard), href: appPath({ kind: 'page', page: page.name }, basePath) })
     groups.set(groupName, group)
@@ -36,7 +37,7 @@ export const navFromMeta = (meta: MetaData, basePath = '', recent: Record<string
     const view = meta.views[model.name]
     if (!view || inMenu.has(model.name)) continue
     const schema = model.table.schema ?? 'public'
-    const defaultGroup = view.nav?.group ?? groupLabels[schema] ?? humanize(schema)
+    const defaultGroup = view.nav?.group ?? (groupLabels[schema] ? appText(groupLabels[schema]) : humanize(schema))
     const add = (groupName: string, item: NavGroup['items'][number], order: number | undefined) => {
       const group = groups.get(groupName) ?? { label: groupName, items: [] }
       group.items.push(item)
@@ -73,7 +74,7 @@ export const navFromMeta = (meta: MetaData, basePath = '', recent: Record<string
   // A visitor finds what signing in gives where a signed-in user finds the resource
   for (const entry of Object.values(meta.signIn ?? {})) {
     if (entry.nav?.hidden || inMenu.has(entry.resource)) continue
-    const groupName = entry.nav?.group ?? 'Account'
+    const groupName = entry.nav?.group ?? appText('account')
     const group = groups.get(groupName) ?? { label: groupName, items: [] }
     group.items.push({ id: entry.resource, label: entry.names?.plural ?? humanize(entry.resource), icon: iconFor(entry.resource), href: appPath({ kind: 'list', resource: entry.resource }, basePath) })
     groups.set(groupName, group)
@@ -85,7 +86,7 @@ export const navFromMeta = (meta: MetaData, basePath = '', recent: Record<string
     if (status.state !== 'error') continue
     const group = groups.get(status.source.label) ?? { label: status.source.label, items: [] }
     for (const resource of status.source.resources) {
-      group.items.push({ id: resource, label: humanize(resource), icon: iconFor(resource), href: appPath({ kind: 'list', resource }, basePath), problem: `Cannot reach ${status.source.label}` })
+      group.items.push({ id: resource, label: humanize(resource), icon: iconFor(resource), href: appPath({ kind: 'list', resource }, basePath), problem: appText('cannotReach', status.source.label) })
     }
     groups.set(status.source.label, group)
   }
