@@ -13,12 +13,15 @@ const exampleFiles = (sourceDir: string) =>
     .split('\0')
     .filter(Boolean)
 
-/**
- * Writes one preset to `outDir`: a standalone copy of its example with the @protobase packages in `version`'s major
- * range (see majorRange), so the app takes updates within that major, and its own bun.lock, which bun resolves from the
- * registry at exactly `version`, so those packages must be published at that version.
- */
-export const writePreset = (preset: Preset, version: string, outDir: string) => {
+const writePackage = (sourceDir: string, range: string, outDir: string) => {
+  const source = JSON.parse(readFileSync(path.join(sourceDir, 'package.json'), 'utf8'))
+  writeFileSync(path.join(outDir, 'package.json'), `${JSON.stringify(presetPackage(source, range), null, 2)}\n`)
+}
+
+const lock = (outDir: string) => execFileSync('bun', ['install', '--lockfile-only'], { cwd: outDir, stdio: 'inherit' })
+
+/** Writes one preset's files to `outDir`, without a lockfile: a standalone copy of its example with the @protobase packages in `range`. */
+export const writePresetFiles = (preset: Preset, range: string, outDir: string) => {
   const sourceDir = path.join(root, preset.source)
   rmSync(outDir, { recursive: true, force: true })
   for (const file of exampleFiles(sourceDir)) {
@@ -27,10 +30,18 @@ export const writePreset = (preset: Preset, version: string, outDir: string) => 
     mkdirSync(path.dirname(path.join(outDir, target)), { recursive: true })
     copyFileSync(path.join(sourceDir, file), path.join(outDir, target))
   }
-  const source = JSON.parse(readFileSync(path.join(sourceDir, 'package.json'), 'utf8'))
+  writePackage(sourceDir, range, outDir)
+}
+
+/**
+ * Writes one preset to `outDir`: its files in `version`'s major range (see majorRange), so the app takes updates within
+ * that major, and its own bun.lock, which bun resolves from the registry at exactly `version`, so those packages must be
+ * published at that version.
+ */
+export const writePreset = (preset: Preset, version: string, outDir: string) => {
   // Locked at exactly `version` first; bun keeps that locked version when the range then widens around it.
-  for (const range of [version, majorRange(version)]) {
-    writeFileSync(path.join(outDir, 'package.json'), `${JSON.stringify(presetPackage(source, range), null, 2)}\n`)
-    execFileSync('bun', ['install', '--lockfile-only'], { cwd: outDir, stdio: 'inherit' })
-  }
+  writePresetFiles(preset, version, outDir)
+  lock(outDir)
+  writePackage(path.join(root, preset.source), majorRange(version), outDir)
+  lock(outDir)
 }
