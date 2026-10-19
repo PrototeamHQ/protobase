@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { createAuthSession, type AuthSession, type AuthUser, type PlatformSignIn, type PluginRef, type SamlSignIn, type RequiredSetup, type SetupStatus, type SignInMethod, type SignInResult, type StaffSignIn, type TwoFactorMethod } from '@protobase/client'
+import type { Locale } from '@protobase/schema/internal'
 import { providerName, withoutSignInLink } from './provider-link'
 import { text } from './messages'
 
@@ -65,6 +66,8 @@ export type AuthApi = {
   recheck: () => void
   /** The plugins the app loads before anyone signs in, as the setup status names them. */
   beforeSignIn: PluginRef[]
+  /** The language the app sets for everyone, as the setup status names it, for the screens before `/meta`. */
+  locale?: Locale
   /**
    * Reads the session again after something other than the sign-in page started one, such as a plugin that traded a
    * one-time code for the session cookie, and enters the app with it. Resolves `false` when there is none.
@@ -98,6 +101,7 @@ export const AuthProvider = ({ session: given, children }: { session?: AuthSessi
   // Whether visitors may browse without signing in; signing out then goes back to browsing.
   const [anonymous, setAnonymous] = useState(false)
   const [beforeSignIn, setBeforeSignIn] = useState<PluginRef[]>([])
+  const [locale, setLocale] = useState<Locale>()
   const signedOutState = useCallback((): AuthState => (anonymous ? { kind: 'visitor' } : { kind: 'signed-out' }), [anonymous])
   const markSignedOut = useCallback(() => setState((current) => (current.kind === 'signed-in' ? { kind: 'signed-out' } : current)), [])
   const signedOut = useRef(markSignedOut)
@@ -130,6 +134,7 @@ export const AuthProvider = ({ session: given, children }: { session?: AuthSessi
       setOrganizations(status.organizations)
       setAnonymous(Boolean(status.anonymous))
       setBeforeSignIn(status.plugins ?? [])
+      setLocale(status.locale)
       if (status.needsAdmin) return setState({ kind: 'needs-admin' })
       const user = await session.session()
       return user ? enter(user) : setState({ kind: status.anonymous ? 'visitor' : 'signed-out' })
@@ -153,6 +158,7 @@ export const AuthProvider = ({ session: given, children }: { session?: AuthSessi
       markSignedOut,
       recheck,
       beforeSignIn,
+      locale,
       adoptSession: async () => {
         const user = await session.session()
         if (!user) return false
@@ -190,7 +196,7 @@ export const AuthProvider = ({ session: given, children }: { session?: AuthSessi
         setState(signedOutState())
       },
     }),
-    [state, session, signInMethods, passwordReset, canSignUp, passkeyDomains, socialProviders, platformSignIn, samlProviders, staffSignIn, organizations, anonymous, beforeSignIn, signedOutState, markSignedOut, recheck, finish, enter],
+    [state, session, signInMethods, passwordReset, canSignUp, passkeyDomains, socialProviders, platformSignIn, samlProviders, staffSignIn, organizations, anonymous, beforeSignIn, locale, signedOutState, markSignedOut, recheck, finish, enter],
   )
   return <AuthContext.Provider value={api}>{children}</AuthContext.Provider>
 }

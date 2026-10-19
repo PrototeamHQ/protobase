@@ -1,4 +1,5 @@
 import { Hono } from 'hono'
+import type { Locale } from '@protobase/schema/internal'
 import type { PluginRef } from '../plugins/plugin-settings'
 import type { AdminAuth } from './create-auth'
 import { signInPasskeyDomains } from './passkey-domain'
@@ -17,9 +18,10 @@ import { hasUsers } from './users'
  * one of the app's hosts, the RP IDs a passkey sign-in can ask for, the passkey domain first; with organizations, who may create them and the roles
  * with their labels, `membership` for those a member can hold, and the roles each one's holders may also give; and
  * `anonymous` when the project's anonymous role reads a resource, so the admin app opens for visitors before anyone signs in; and
- * `plugins`, those the app loads before sign-in (see `PluginOption`).
+ * `plugins`, those the app loads before sign-in (see `PluginOption`); and `locale`, the language `options.locale` puts
+ * the screens in, so the sign-in screens and public forms, which come before `/meta`, are in it too.
  */
-export const statusRoute = (auth: AdminAuth, { anonymous = false, plugins = [] }: { anonymous?: boolean; plugins?: PluginRef[] } = {}) => {
+export const statusRoute = (auth: AdminAuth, { anonymous = false, plugins = [], locale }: { anonymous?: boolean; plugins?: PluginRef[]; locale?: Locale } = {}) => {
   const app = new Hono()
   app.get('/status', async (c) => {
     const context = await auth.$context
@@ -43,6 +45,7 @@ export const statusRoute = (auth: AdminAuth, { anonymous = false, plugins = [] }
       ...(passkeyDomains.length > 1 && { passkeyDomains }),
       ...(anonymous && { anonymous }),
       ...(plugins.length > 0 && { plugins }),
+      ...(locale && { locale }),
       ...(auth.organizations && {
         organizations: {
           create: auth.organizations.create,

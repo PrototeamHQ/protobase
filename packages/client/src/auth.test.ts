@@ -85,6 +85,10 @@ describe('auth session sign-in', () => {
     expect((await saml.status()).samlProviders).toEqual([{ id: 'okta', name: 'Okta' }])
     const early = createAuthSession({ origin: 'http://localhost', fetch: (async () => json({ needsAdmin: false, signInMethods: ['password'], socialProviders: [], plugins: [{ url: 'https://cloud.example.com/plugin.json' }] })) as typeof fetch })
     expect(await early.status()).toMatchObject({ plugins: [{ url: 'https://cloud.example.com/plugin.json' }] })
+    const dutch = createAuthSession({ origin: 'http://localhost', fetch: (async () => json({ needsAdmin: false, signInMethods: ['password'], socialProviders: [], locale: 'nl' })) as typeof fetch })
+    expect(await dutch.status()).toMatchObject({ locale: 'nl' })
+    const unknown = createAuthSession({ origin: 'http://localhost', fetch: (async () => json({ needsAdmin: false, signInMethods: ['password'], socialProviders: [], locale: 'xx' })) as typeof fetch })
+    expect(await unknown.status()).not.toHaveProperty('locale')
   })
 
   it('says so when the URL is not a Protobase server', async () => {

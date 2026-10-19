@@ -249,7 +249,7 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], pag
     app.use(`${systemPath}/*`, apiCors({ own: ownOrigins, allowed: corsOrigins ?? [], skip }))
   }
   if (auth) {
-    app.route(authBasePath, statusRoute(auth, { anonymous: visitorsBrowse(options.roles), plugins: pluginsBeforeSignIn(plugins) }))
+    app.route(authBasePath, statusRoute(auth, { anonymous: visitorsBrowse(options.roles), plugins: pluginsBeforeSignIn(plugins), ...(locale && { locale }) }))
     if (auth.organizations) app.route(authBasePath, organizationRoutes({ auth, audit: deps.audit, registry, db }))
     app.on(['GET', 'POST'], `${authBasePath}/*`, (c) => auth.handler(c.req.raw))
     // On several origins, each says which origins may use the app's passkeys: all of them (Related Origin Requests).

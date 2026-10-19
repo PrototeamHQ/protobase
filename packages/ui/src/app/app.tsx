@@ -6,6 +6,7 @@ import { SignInPolicyPage } from '../account/sign-in-policy-page'
 import { AppShell, type SidebarMode } from '../app-shell'
 import { ApiProvider } from '../data/api-provider'
 import { AuthGate, AuthProvider, isAdmin, userToShell, useAuth } from '../auth'
+import { AuthLocale } from '../auth/auth-locale'
 import { useSignInAddress } from '../auth/use-sign-in-address'
 import { useLiveUpdates } from '../data/use-live-updates'
 import { useOpenedRecord } from '../data/use-record'
@@ -274,11 +275,13 @@ export const App = ({ auth, workspace, basePath, initialUrl, pluginLoader, local
       <AuthProvider session={auth}>
         <Router basePath={basePath} initialUrl={initialUrl}>
           <PluginSourceProvider {...(pluginLoader && { loader: pluginLoader })}>
-            <PublicFormGate baseUrl={rest.baseUrl} client={rest.client} ui={rest.ui}>
-              <AuthGate workspace={workspace}>
-                <Authenticated workspace={workspace} {...rest} />
-              </AuthGate>
-            </PublicFormGate>
+            <AuthLocale>
+              <PublicFormGate baseUrl={rest.baseUrl} client={rest.client} ui={rest.ui}>
+                <AuthGate workspace={workspace}>
+                  <Authenticated workspace={workspace} {...rest} />
+                </AuthGate>
+              </PublicFormGate>
+            </AuthLocale>
           </PluginSourceProvider>
         </Router>
       </AuthProvider>

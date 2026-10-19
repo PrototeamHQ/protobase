@@ -1,3 +1,4 @@
+import type { Locale } from '@protobase/schema/internal'
 import type { PluginRef } from './types'
 
 export type AuthUser = { id: string; email: string; name: string; role?: string | null }
@@ -23,7 +24,8 @@ export type SamlSignIn = { id: string; name: string }
  * `sendSignUpCode`); `socialProviders` the ids of the sign-in providers, for example
  * `github`; `platformSignIn` the one of them the platform adds; `samlProviders` the app's SAML identity providers; `staffSignIn` the operator provider's name when its staff
  * can sign in as people; `organizations` when the app has them; `anonymous` when visitors may browse what the project's
- * anonymous role reads without signing in; `plugins` those the app loads before anyone signs in.
+ * anonymous role reads without signing in; `plugins` those the app loads before anyone signs in; `locale` the language
+ * the app sets for everyone, which the screens before `/meta` are in.
  */
 export type SetupStatus = {
   needsAdmin: boolean
@@ -43,6 +45,7 @@ export type SetupStatus = {
   organizations?: { create: 'admins' | 'everyone'; roles: RoleLabel[] }
   anonymous?: boolean
   plugins?: PluginRef[]
+  locale?: Locale
 }
 
 /** A role with its label; `membership` when a member can hold it, `grants` the other roles its holders may give. */

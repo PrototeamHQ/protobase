@@ -1,3 +1,4 @@
+import { isLocale } from '@protobase/schema/internal'
 import { accountSecurity } from './account-security'
 import { AuthError, authError } from './auth-error'
 import type { AuthUser, PlatformSignIn, SetupStatus, SignInMethod } from './auth-types'
@@ -102,6 +103,7 @@ export const createAuthSession = (options: AuthSessionOptions = {}) => {
         ...(body.organizations && { organizations: body.organizations }),
         ...(body.anonymous && { anonymous: true }),
         ...(body.plugins && body.plugins.length > 0 && { plugins: body.plugins }),
+        ...(isLocale(body.locale) && { locale: body.locale }),
       }
     },
 
