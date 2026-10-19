@@ -36,6 +36,18 @@ describe('defineEmail', () => {
     expect(sent).toEqual([{ to: 'ada@example.com', subject: 'Welcome, Ada', html: expect.stringContaining('Hi Ada,'), text: expect.stringContaining('Hi Ada,') }])
   })
 
+  it('sends the header fields it makes from the data', async () => {
+    const { sent, mailer } = recording()
+    const digest = defineEmail({
+      name: 'digest',
+      subject: 'Your digest',
+      component: Body,
+      headers: ({ url }: Welcome) => ({ 'List-Unsubscribe': `<${url}/unsubscribe>`, 'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click' }),
+    })
+    await digest.send('ada@example.com', { name: 'Ada', url: 'https://app.example.com' }, mailer)
+    expect(sent[0]!.headers).toEqual({ 'List-Unsubscribe': '<https://app.example.com/unsubscribe>', 'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click' })
+  })
+
   it('refuses to send while mail is off', async () => {
     vi.stubEnv('PROTOBASE_SMTP_URL', '')
     vi.stubEnv('PROTOBASE_MAIL_FROM', '')

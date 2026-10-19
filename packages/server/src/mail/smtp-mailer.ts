@@ -7,6 +7,11 @@ export type MailMessage = {
   text: string
   /** The HTML body, sent beside `text` as the alternative clients show when they can. */
   html?: string
+  /**
+   * More header fields by name, such as `List-Unsubscribe` and `List-Unsubscribe-Post`, which mailbox providers expect
+   * of bulk mail. A value is one line.
+   */
+  headers?: Record<string, string>
 }
 
 /** Sends one message; rejects when the server refuses it. */
@@ -24,6 +29,7 @@ export const smtpMailer = (settings: MailSettings): Mailer => {
   let transport: Promise<import('nodemailer').Mail> | undefined
   return {
     send: async (message) => {
+      checkHeaders(message.headers)
       transport ??= import('nodemailer').then(({ createTransport }) => createTransport({ url: settings.smtpUrl, name: senderDomain(settings.from) }))
       await (await transport).sendMail({ from: sender(settings), ...message })
     },
@@ -35,3 +41,12 @@ const sender = ({ from, name }: MailSettings) => (name ? { name, address: from }
 
 /** The domain of a sender address `readMailSettings` accepted, so always a dotted hostname. */
 const senderDomain = (from: string) => from.slice(from.lastIndexOf('@') + 1)
+
+// A line break in a value would start another header or the body; a name is the printable characters but a colon, as
+// RFC 5322 allows.
+const checkHeaders = (headers: Record<string, string> = {}) => {
+  for (const [name, value] of Object.entries(headers)) {
+    if (!/^[!-9;-~]+$/.test(name)) throw new Error(`Mail header name "${name}" is not a valid header field name`)
+    if (/[\r\n]/.test(value)) throw new Error(`Mail header ${name} has a line break; a header value is one line`)
+  }
+}

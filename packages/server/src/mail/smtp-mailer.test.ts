@@ -28,4 +28,13 @@ describe('smtpMailer', () => {
     await mailer.send({ to: 'ada@example.com', subject: 'Hello', text: 'Hello' })
     expect(sendMail).toHaveBeenLastCalledWith({ from: { name: 'Shop "North"', address: 'noreply@shop.example.com' }, to: 'ada@example.com', subject: 'Hello', text: 'Hello' })
   })
+
+  it('sends header fields of the message, and refuses one that would break the header', async () => {
+    const mailer = smtpMailer({ smtpUrl: 'smtp://relay.example.net:587', from: 'noreply@shop.example.com' })
+    const headers = { 'List-Unsubscribe': '<https://shop.example.com/unsubscribe/7>', 'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click' }
+    await mailer.send({ to: 'ada@example.com', subject: 'Hello', text: 'Hello', headers })
+    expect(sendMail).toHaveBeenLastCalledWith({ from: 'noreply@shop.example.com', to: 'ada@example.com', subject: 'Hello', text: 'Hello', headers })
+    await expect(mailer.send({ to: 'ada@example.com', subject: 'Hello', text: 'Hello', headers: { 'X-Note': 'a\r\nBcc: eve@example.com' } })).rejects.toThrow('Mail header X-Note has a line break')
+    await expect(mailer.send({ to: 'ada@example.com', subject: 'Hello', text: 'Hello', headers: { 'X Note': 'a' } })).rejects.toThrow('Mail header name "X Note" is not a valid header field name')
+  })
 })

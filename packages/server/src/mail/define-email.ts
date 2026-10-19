@@ -13,13 +13,18 @@ export type EmailOptions<Data extends object> = {
    * It is rendered to the HTML part, and the plain-text part is made from that HTML.
    */
   component: EmailComponent<Data>
+  /**
+   * More header fields, or how to make them from the email's data: such as `List-Unsubscribe` with the recipient's own
+   * unsubscribe link, and `List-Unsubscribe-Post: List-Unsubscribe=One-Click`, which mailbox providers expect of bulk mail.
+   */
+  headers?: Record<string, string> | ((data: Data) => Record<string, string>)
 }
 
 /** A function component of the email's data, as JSX writes one; typed here so the server's own types need no React. */
 export type EmailComponent<Data> = (props: Data) => unknown
 
-/** An email as `render` gives it: the subject and both parts of the body. */
-export type RenderedEmail = { subject: string; html: string; text: string }
+/** An email as `render` gives it: the subject, both parts of the body, and its header fields when it has any. */
+export type RenderedEmail = { subject: string; html: string; text: string; headers?: Record<string, string> }
 
 export type EmailTemplate<Data extends object> = {
   readonly name: string
@@ -49,7 +54,8 @@ export const defineEmail = <Data extends object>(options: EmailOptions<Data>): E
     const renderer = await loadRenderer()
     const html = await renderer.render(renderer.createElement(options.component as FunctionComponent<Data>, data))
     const subject = typeof options.subject === 'function' ? options.subject(data) : options.subject
-    return { subject, html, text: renderer.toPlainText(html) }
+    const headers = typeof options.headers === 'function' ? options.headers(data) : options.headers
+    return { subject, html, text: renderer.toPlainText(html), ...(headers && { headers }) }
   }
 
   const send = async (to: string, data: Data, mailer = platformMailer()) => {
