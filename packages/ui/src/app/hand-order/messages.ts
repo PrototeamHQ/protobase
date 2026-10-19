@@ -10,6 +10,8 @@ export const text = defineMessages({
     orderChanged: 'Order changed',
     undo: 'Undo',
     couldNotUndo: 'Could not undo',
+    movedToPlace: (place: number) => `Moved to place ${place}`,
+    notMoved: 'Left in its place',
   },
   nl: {
     done: 'Klaar',
@@ -20,5 +22,7 @@ export const text = defineMessages({
     orderChanged: 'Volgorde gewijzigd',
     undo: 'Ongedaan maken',
     couldNotUndo: 'Kon niet ongedaan maken',
+    movedToPlace: (place: number) => `Verplaatst naar plaats ${place}`,
+    notMoved: 'Op zijn plaats gelaten',
   },
 })

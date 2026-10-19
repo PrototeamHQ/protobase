@@ -2,8 +2,11 @@ import type { Meta, StoryObj } from '@storybook/react-vite'
 import { useState } from 'react'
 import { expect, userEvent, waitFor, within } from 'storybook/test'
 import { ApiError, createStaticSession } from '@protobase/client'
+import { view, type ViewModel } from '@protobase/schema'
 import { tasks, tasksView } from '../../../../../docs-examples/reference/ranked-board'
 import { App } from '../app'
+import type { DropRule } from '../hand-order/drop-rule'
+import { defineUi, type ProjectUi } from '../pages/project-ui'
 import { fakeApi } from '../testing/fake-api'
 
 const meta = { title: 'List page/Ranked board', parameters: { layout: 'fullscreen' } } satisfies Meta
@@ -24,8 +27,8 @@ const rows = () => ({
 })
 
 // With `refuse`, the server refuses every drop, as it does when someone else changed a task since it loaded.
-const Team = ({ refuse, start = '/tasks' }: { refuse?: boolean; start?: string }) => {
-  const [api] = useState(() => fakeApi({ resources: [tasks.toModel()], views: [tasksView.toModel()], rows: rows() }))
+const Team = ({ refuse, start = '/tasks', teamView = tasksView, ui }: { refuse?: boolean; start?: string; teamView?: { toModel(): ViewModel }; ui?: ProjectUi }) => {
+  const [api] = useState(() => fakeApi({ resources: [tasks.toModel()], views: [teamView.toModel()], rows: rows() }))
   const client = refuse
     ? {
         ...api.client,
@@ -36,7 +39,7 @@ const Team = ({ refuse, start = '/tasks' }: { refuse?: boolean; start?: string }
     : api.client
   return (
     <div className="h-screen">
-      <App client={client} auth={session} initialUrl={start} workspace="Pip's bike shop" />
+      <App client={client} auth={session} initialUrl={start} {...(ui && { ui })} workspace="Pip's bike shop" />
     </div>
   )
 }
@@ -152,5 +155,38 @@ export const TableDragChecks: StoryObj = {
     await userEvent.click(within(grid).getByRole('button', { name: 'Status' }))
     expect(await canvas.findByRole('button', { name: 'Reorder' })).toBeInTheDocument()
     expect(within(canvas.getByRole('grid')).queryAllByRole('button', { name: /^Move / })).toHaveLength(0)
+  },
+}
+
+// A task that waits for another may not be ranked above it
+const waitsFor: Record<string, string> = { 'Order brake pads': 'Fix the stand clamp' }
+const afterWhatItWaitsFor: DropRule = ({ record, order, index }) => {
+  const waited = waitsFor[record.title as string]
+  if (waited === undefined || order.slice(0, index).some((task) => task.title === waited)) return undefined
+  return `${String(record.title)} waits for ${waited}.`
+}
+const ruledView = view<typeof tasks>('tasks')
+  .title((r) => r.title)
+  .list((r) => ({ columns: [r.title, r.status], sort: [[r.rank, 'asc']], drag: { rank: true, rule: 'afterWhatItWaitsFor' } }))
+
+export const TableRuleChecks: StoryObj = {
+  name: 'The table in rank order, a drop its rule moves down (checks)',
+  tags: ['play', '!dev'],
+  render: () => <Team teamView={ruledView} ui={defineUi({ dropRules: { afterWhatItWaitsFor } })} />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    const grid = await canvas.findByRole('grid')
+    await waitFor(() => expect(handles(grid).slice(0, 4)).toEqual(['Call Emma back', 'Fix the stand clamp', 'Clean the workshop', 'Order brake pads']))
+    within(grid).getByRole('button', { name: 'Move Order brake pads' }).focus()
+    await userEvent.keyboard(' ')
+    await waitFor(() => expect(within(document.body).getByText('is over row ', { exact: false })).toBeInTheDocument())
+    await userEvent.keyboard('{ArrowUp}{ArrowUp}{ArrowUp}')
+    await waitFor(() => expect(within(document.body).getByText('is over row 1 of 7.', { exact: false })).toBeInTheDocument())
+    await userEvent.keyboard(' ')
+    // Dropped first, it lands below the task it waits for, and the warning says why
+    expect(await within(document.body).findByText('Moved to place 3')).toBeInTheDocument()
+    expect(within(document.body).getByText('Order brake pads waits for Fix the stand clamp.')).toBeInTheDocument()
+    await waitFor(() => expect(handles(grid).slice(0, 4)).toEqual(['Call Emma back', 'Fix the stand clamp', 'Order brake pads', 'Clean the workshop']))
+    expect(await within(document.body).findByText('Order changed')).toBeInTheDocument()
   },
 }

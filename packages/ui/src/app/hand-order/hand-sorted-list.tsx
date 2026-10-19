@@ -7,6 +7,7 @@ import { embeddedColumns } from '../embedded-list/embedded-columns'
 import { loadedFields } from '../displays/list-displays'
 import { ErrorBanner } from '../error-banner'
 import { useAdminMeta } from '../meta-gate'
+import { Problem } from '../pages/problem'
 import { useProjectUi } from '../pages/project-ui'
 import { useAppAddress } from '../use-app-address'
 import { useHandOrder } from './use-hand-order'
@@ -28,21 +29,24 @@ type Props = {
 
 /**
  * The records in their order by hand, in the list's table with a drag handle in each row's checkbox place: dragging a
- * row, or moving it with the keyboard from its handle, renumbers them all. The page scrolls them, and a row still opens
- * its record.
+ * row, or moving it with the keyboard from its handle, renumbers them all, landing where the list's `drag.rule` allows.
+ * The page scrolls them, and a row still opens its record.
  */
 export const HandSortedList = ({ model, view, field, filter, columns, sort }: Props) => {
   const { resources, views } = useAdminMeta()
-  const { fields: fieldTypes } = useProjectUi()
+  const { fields: fieldTypes, dropRules } = useProjectUi()
   const { go, href } = useAppAddress()
   // The order is the field's, so the headers sort only when they leave it for another
   const sorts = sort !== undefined
   const specs = useMemo(() => embeddedColumns(model, view, columns, { resources, views, fieldTypes }).map((spec) => (sorts ? spec : { ...spec, sortable: false })), [model, view, columns.join(','), resources, views, fieldTypes, sorts])
   const fields = useMemo(() => loadedFields(model, view, specs.map((spec) => spec.id)), [model, view, specs])
-  const order = useHandOrder({ model, field, filter, fields })
+  const ruleName = view?.list?.drag?.rule
+  const rule = ruleName === undefined ? undefined : dropRules?.[ruleName]
+  const order = useHandOrder({ model, field, filter, fields, ...(rule && { rule }) })
   const rows = order.rows
   const source = useMemo(() => rows && { total: rows.length, rowAt: (index: number) => rows[index]! }, [rows])
 
+  if (ruleName !== undefined && !rule) return <Problem>No drop rule is registered as {ruleName}. Give it in dropRules in protobase.ui.tsx, or load the plugin that provides it.</Problem>
   if (order.loading) return <div className="flex flex-col gap-2">{Array.from({ length: 3 }, (_, index) => <Skeleton key={index} className="h-4 w-full" />)}</div>
   if (order.error) return <ErrorBanner title={text('couldNotLoad')} error={order.error} />
   if (!source || source.total === 0) return <p className="text-muted-foreground">{text('nothingYet')}</p>

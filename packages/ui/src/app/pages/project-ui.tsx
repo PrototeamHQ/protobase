@@ -3,6 +3,7 @@ import type { Client } from '@protobase/client'
 import type { AppAddress } from '@protobase/schema'
 import type { ShellLogoProps } from '../../app-shell/logo'
 import type { FieldWidget } from '../field-types/field-widget'
+import type { DropRule } from '../hand-order/drop-rule'
 
 /**
  * What a named action's handler gets: the record it runs on (inside a RecordCard or CardRow), the API, and a way to move.
@@ -46,9 +47,9 @@ export type BeforeSignInProps = {
 /**
  * The project's own React code for composed pages: custom components by the name their layout declares
  * (`component('UsageChart')`) or a widget part names, handlers for named actions that have no built-in behaviour,
- * field types by the name a view's `.widget(name)` chooses, and the shell's slots. `extends` lists UI configs merged in
- * before it (see `mergeUi`), or whole `protobase.ui.tsx` modules (`import * as tasksUi from '...'`), their exported
- * components included; `name` names it in their errors.
+ * field types by the name a view's `.widget(name)` chooses, drop rules by the name a list's `drag.rule` gives, and the
+ * shell's slots. `extends` lists UI configs merged in before it (see `mergeUi`), or whole `protobase.ui.tsx` modules
+ * (`import * as tasksUi from '...'`), their exported components included; `name` names it in their errors.
  */
 export type ProjectUi = {
   name?: string
@@ -57,6 +58,8 @@ export type ProjectUi = {
   actions?: Record<string, ActionHandler>
   /** Field types by name, each with the storage types it shows and its components (see `FieldWidget`). */
   fields?: Record<string, FieldWidget>
+  /** Where re-ranked records may land, by the name a view's `drag.rule` gives (see `DropRule`). */
+  dropRules?: Record<string, DropRule>
   /**
    * Rendered in the shell on every page: `actions` at the end of the top bar, `rightPanel` beside the page, and `logo`
    * at the top of the sidebar in place of Protobase's (see `ShellLogoProps`).

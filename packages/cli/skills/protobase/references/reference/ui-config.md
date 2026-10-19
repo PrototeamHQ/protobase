@@ -207,6 +207,7 @@ Nothing in a list moves by dragging unless its `.list(...)` says so with `drag`,
 | --- | --- |
 | `rank: true` | The records of a resource with a [`.position(...)`](#reordering-by-hand) and no `within`, at any time: the table's rows by their handles while the list shows every record in the position's order, ascending, without a filter or search, instead of after **Reorder**; and a [board's](#boards) cards to their place in a column. |
 | `board: true` | A board's card to another column, which saves the record with that column's value. |
+| `rule: 'name'` | Where the table's rows may land when re-ranked, by **Reorder** or `rank`: the drop rule of that name in the UI config's `dropRules`. See [Drop rules](#drop-rules). |
 
 ```ts
 .list((r, d) => ({ columns: [r.title, r.status], sort: [[r.rank, 'asc']], displays: [d.board({ by: r.status })], drag: { rank: true, board: true } }))
@@ -215,6 +216,24 @@ Nothing in a list moves by dragging unless its `.list(...)` says so with `drag`,
 A board may let cards move between columns without re-ranking (`board` alone), or be re-ranked within its columns without moving cards between them (`rank` alone). A list sorted another way, filtered or searched shows its own table, and **Reorder** stays for it. A named list has its own `drag`. Either part needs the right to update the field it writes, as **Reorder** does: a user without it drags nothing.
 
 On a touch screen a card or a row's handle lifts only after a short hold, a quarter of a second, so a swipe across the board scrolls it instead of moving a card; a mouse or trackpad drags it straight away. Every saved drag says so in a toast with **Undo**, which puts back what it changed, the column and every position it renumbered, with the ETags the save gave the records, so a record changed again since is refused rather than overwritten. Only the latest drag can be undone: a new one replaces the toast.
+
+#### Drop rules
+
+Some orders must hold, such as a task never ranked above one it waits for. A drop rule, a function in `protobase.ui.tsx` under `dropRules`, gets the dropped record, the records in the order the drop would leave them and the record's place among them, 0 the first, as the API gives them, every field the user may read; it returns why the record may not be there, or nothing when it may:
+
+```tsx
+export default defineUi({
+  dropRules: {
+    afterWhatItWaitsFor: ({ record, order, index }) => {
+      const waited = order.find((task) => task.id === record.waits_for_id)
+      if (!waited || order.indexOf(waited) < index) return undefined
+      return `${record.title} waits for ${waited.title}.`
+    },
+  },
+})
+```
+
+The list names it with `drag: { rank: true, rule: 'afterWhatItWaitsFor' }`. A drop the rule refuses lands in the first place below that it allows, and a warning says where with the rule's reason; with no such place the row stays where it was, with the same warning. The rule only guides the drag: the server's access rules and `validate` still decide what is saved. A list naming a rule the UI config does not register says so in place of its rows.
 
 ## A filter the list opens with
 

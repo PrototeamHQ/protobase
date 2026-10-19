@@ -11,23 +11,26 @@ import { recordId, recordKey } from '../../live/model-helpers'
 import { listLabels, withLabels } from '../../live/relation-labels'
 import { useToast } from '../../toasts'
 import { refusalReason } from '../displays/board-columns'
+import { displayRow } from '../displays/list-displays'
 import { useAdminMeta } from '../meta-gate'
 import { useRefreshResource } from '../pages/use-layout-data'
+import { allowedDrop, type DropRule } from './drop-rule'
 import { handOrderPage } from './hand-order'
 import { text } from './messages'
 import { reorderSpan } from './reorder-span'
 import { undoOps } from './undo-ops'
 
-type Request = { model: ResourceModel; field: string; filter: string; fields: string[] }
+type Request = { model: ResourceModel; field: string; filter: string; fields: string[]; rule?: DropRule }
 
 /**
  * The records of `filter` in the order of `field`, all of them, a page of `handOrderPage` at a time, and `move` to put
  * one elsewhere. A move shows at once and saves only the records whose place changed (see `reorderSpan`) in one batch
  * `reorder` with their ETags; moves made while one saves are saved after it, with the values and ETags it gave back.
  * Each save says so with **Undo**, which puts back the values it changed. A refusal puts them back as the server has
- * them and says why; either way every list of the resource reloads.
+ * them and says why; either way every list of the resource reloads. A drop `rule` refuses moves to the first place below
+ * that it allows, with a warning giving its reason.
  */
-export const useHandOrder = ({ model, field, filter, fields }: Request) => {
+export const useHandOrder = ({ model, field, filter, fields, rule }: Request) => {
   const client = useClient()
   const toast = useToast()
   const refresh = useRefreshResource()
@@ -99,9 +102,11 @@ export const useHandOrder = ({ model, field, filter, fields }: Request) => {
     setMoved(undefined)
   }
 
-  const move = (from: number, to: number) => {
+  const move = (from: number, dropped: number) => {
     const rows = latest.current ?? loaded.data
-    if (!rows || from === to) return
+    if (!rows || from === dropped) return
+    const to = rule ? placeAllowed(rows, from, dropped, rule) : dropped
+    if (from === to) return
     latest.current = arrayMove(rows, from, to)
     const first = Math.min(from, to)
     const last = Math.max(from, to)
@@ -109,6 +114,13 @@ export const useHandOrder = ({ model, field, filter, fields }: Request) => {
     setMoved(latest.current)
     waiting.current += 1
     saving.current = saving.current.then(save).catch(refused(text('couldNotChange'))).then(settle)
+  }
+
+  // Where the rule lets the row land, warning when that is not where it was dropped
+  const placeAllowed = (rows: GridRow[], from: number, dropped: number, rule: DropRule) => {
+    const allowed = allowedDrop(rows.map((row) => displayRow(model, row).record), from, dropped, rule)
+    if (allowed.reason !== undefined) toast.show({ state: 'warning', title: allowed.to === from ? text('notMoved') : text('movedToPlace', allowed.to + 1), description: allowed.reason })
+    return allowed.to
   }
 
   // After the saves before it, so a move saved since makes its ETags stale and it is refused

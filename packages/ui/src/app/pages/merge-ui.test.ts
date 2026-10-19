@@ -32,6 +32,14 @@ describe('mergeUi', () => {
     expect(() => mergeUi(defineUi({ name: 'a', fields: { rating } }), defineUi({ name: 'b', fields: { rating: slug } }))).toThrow('The field type "rating" is defined twice, by a and by b; rename one of them')
   })
 
+  it('keeps the drop rules of every config, and refuses one two configs define', () => {
+    const first = () => undefined
+    const last = () => 'Not here'
+    expect(mergeUi(defineUi({ extends: [defineUi({ dropRules: { first } })], dropRules: { last } })).dropRules).toEqual({ first, last })
+    expect(mergeUi(defineUi({ components: {} }))).not.toHaveProperty('dropRules')
+    expect(() => mergeUi(defineUi({ name: 'a', dropRules: { first } }), defineUi({ name: 'b', dropRules: { first: last } }))).toThrow('The drop rule "first" is defined twice, by a and by b; rename one of them')
+  })
+
   it('extends a whole protobase.ui.tsx module, its components exported by name included', () => {
     const Board = text('board')
     const merged = mergeUi(defineUi({ name: 'app', extends: [{ Board, default: cloud }] }))

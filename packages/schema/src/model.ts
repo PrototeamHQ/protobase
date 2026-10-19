@@ -640,6 +640,11 @@ export type ListDragModel = {
   rank?: boolean
   /** Moving a board's card to another column, which saves its record with that column's value. */
   board?: boolean
+  /**
+   * Where the table's rows may land when re-ranked: the name of a drop rule in the UI config's `dropRules`. A drop where
+   * it refuses lands in the first place below that it allows, with a warning saying why.
+   */
+  rule?: string
 }
 
 /**
