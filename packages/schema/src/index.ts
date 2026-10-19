@@ -94,6 +94,7 @@ export type {
   OrderByItem,
 } from './model'
 export { f } from './fields'
+export type { Rollup, RollupCount, RollupFn, RollupSource, RollupValue } from './computed/rollup'
 export { resource, type ResourceBuilder, type SearchRef, type SearchRefs, type Validator } from './resource'
 export type { EventActor, EventContext, EventMatch, EventSpec, EventHelpers, CreatedOptions, UpdatedOptions, DeletedOptions, UndeletedOptions } from './events/event-helpers'
 export { isRecordCondition } from './record-when'

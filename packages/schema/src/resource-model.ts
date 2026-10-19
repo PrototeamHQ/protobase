@@ -4,6 +4,7 @@ import type { AnyField } from './field'
 import type { FileOptions } from './files/file-options'
 import type { FieldModel, ResourceModel, SearchMatch } from './model'
 import { promptFields } from './ai-prompt'
+import { computedProblems } from './computed/computed-problems'
 import { snakeCase } from './naming'
 import type { FieldsInput } from './refs'
 
@@ -66,6 +67,9 @@ const fieldModel = (name: string, field: AnyField): FieldModel => {
       },
     }),
     ...(meta.ai && { ai: { prompt: meta.ai.prompt } }),
+    ...(meta.rollup && { rollup: { ...meta.rollup } }),
+    ...(meta.formula !== undefined && { formula: meta.formula }),
+    ...((meta.rollup || meta.formula !== undefined) && meta.precision !== undefined && { decimal: { precision: meta.precision, scale: meta.scale! } }),
   }
 }
 
@@ -178,7 +182,7 @@ const aiProblems = (model: ResourceModel) =>
 export const buildResourceModel = (state: ResourceState): ResourceModel => {
   const model = assembleModel(state)
   const events = state.events && buildEventModels(model, state.events)
-  const problems = [...sensitiveProblems(model), ...fileProblems(model), ...positionProblems(model), ...aiProblems(model), ...(events?.problems ?? [])]
+  const problems = [...sensitiveProblems(model), ...fileProblems(model), ...positionProblems(model), ...aiProblems(model), ...computedProblems(model), ...(events?.problems ?? [])]
   if (problems.length > 0) throw new Error(`Resource "${model.name}": ${problems.join('; ')}`)
   return events && events.events.length > 0 ? { ...model, events: events.events } : model
 }

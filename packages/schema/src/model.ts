@@ -1,3 +1,4 @@
+import type { Rollup } from './computed/rollup'
 import type { ImageVariant } from './files/file-options'
 
 /** A field's storage type, as `f.*` declares it; see [Field types](website/src/content/docs/reference/data-config.mdx#field-types). */
@@ -53,6 +54,17 @@ export type FieldModel = {
   ai?: {
     /** The prompt, with `{field}` placeholders. */
     prompt: string
+  }
+  /** The database keeps it from the records of another resource (`.rollup()`). */
+  rollup?: Rollup
+  /** The database computes it from the record's other fields (`.formula()`). */
+  formula?: string
+  /** A rollup's or formula's decimal, for the column `protobase migration` adds. */
+  decimal?: {
+    /** Its number of digits. */
+    precision: number
+    /** Its number of digits after the point. */
+    scale: number
   }
 }
 

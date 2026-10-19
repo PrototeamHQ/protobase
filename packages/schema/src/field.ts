@@ -3,6 +3,8 @@ import type { FieldAccess } from './access/types'
 import { promptError } from './ai-prompt'
 import type { FieldType } from './model'
 import type { FileOptions } from './files/file-options'
+import { parseFormula } from './computed/formula'
+import type { Rollup } from './computed/rollup'
 
 /** A check on the value that only some field types take: `.min()`, `.max()` and `.regex()`. */
 export type Constraint = 'min' | 'max' | 'regex'
@@ -64,6 +66,10 @@ export type FieldMeta = {
     /** The prompt the job fills it from. */
     prompt: string
   }
+  /** What the database keeps it from: the records of another resource (`.rollup()`). */
+  rollup?: Rollup
+  /** The expression the database computes it from, over the record's other fields (`.formula()`). */
+  formula?: string
 }
 
 /** A field type: its name, the constraints it takes and how it builds the schema that checks a value. */
@@ -178,6 +184,37 @@ export class Field<V> {
     const error = promptError(o.prompt)
     if (error) throw new Error(`.ai(): ${error}`)
     return this.with({ ai: { prompt: o.prompt } })
+  }
+
+  /**
+   * The database keeps the field: a column a trigger on `from`'s table sets to `fn` of the records whose `via` points at
+   * this record, in the transaction that writes them. `count` and `sum` are 0 without records; `avg`, `min` and `max`
+   * are empty, so their fields are `.optional()`. Empty values are left out, as in SQL. Read-only; `protobase migration`
+   * writes the column and its trigger. See [Rollups and formulas](website/src/content/docs/reference/data-config.mdx#rollups-and-formulas).
+   *
+   * @example
+   * ```ts
+   * total: f.decimal({ precision: 12, scale: 2 }).rollup({ from: 'order_lines', via: 'order_id', fn: 'sum', field: 'amount' }),
+   * ```
+   */
+  rollup(o: Rollup) {
+    return this.with({ rollup: { ...o }, readOnly: true })
+  }
+
+  /**
+   * The database computes the field from the record's other number fields: a generated column. `expression` takes
+   * numbers, fields, `+ - * /`, parentheses, `coalesce(a, b, ...)` and `round(x, digits)`, computed exactly as decimals and
+   * stored as the field's type. Read-only; `protobase migration` writes the column. See
+   * [Rollups and formulas](website/src/content/docs/reference/data-config.mdx#rollups-and-formulas).
+   *
+   * @example
+   * ```ts
+   * amount: f.decimal({ precision: 12, scale: 2 }).formula('round(quantity * unit_price, 2)'),
+   * ```
+   */
+  formula(expression: string) {
+    parseFormula(expression)
+    return this.with({ formula: expression, readOnly: true })
   }
 
   /** A copy of the field with `patch` applied, which every option returns. */
