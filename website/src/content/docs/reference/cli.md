@@ -177,6 +177,7 @@ dist/
   node_modules/             the packages it loads from disk, only when it imports native add-ons
   public/
     index.html, assets/     the admin app: the shell, the same for every project
+    protobase.sw.js         the shell's service worker (see Installable app)
     plugins/app/            the project's protobase.ui.tsx, built as a plugin
     plugins/<extension>/    each --extend folder's protobase.ui.tsx, built as a plugin
     protobase.theme.css     the project's theme, checked and minified; empty without one
@@ -214,7 +215,7 @@ By default the bundle runs on Node and on Bun. `--bun` makes it a bundle for Bun
   "plugins": [
     { "name": "app", "path": "plugins/app/plugin.json", "api": 1, "protobase": ">=0.12.0", "fields": { "steps": ["enum"] } }
   ],
-  "shell": { "protobase": "0.12.0", "pluginApi": 1, "paths": ["/index.html", "/assets"] },
+  "shell": { "protobase": "0.12.0", "pluginApi": 1, "paths": ["/index.html", "/assets", "/protobase.sw.js"] },
   "nodeModules": "node_modules"
 }
 ```
@@ -234,7 +235,7 @@ By default the bundle runs on Node and on Bun. `--bun` makes it a bundle for Bun
 
 `public/` holds two parts that are built apart.
 
-- **The shell**, `index.html` and `assets/`: the admin app, a production build of `@protobase/ui`'s `src/app` with no project code in it, the same for every project on a release. `@protobase/ui`'s package ships it prebuilt in `dist/shell/` and the [protobase image](/guides/deploy/#images) at `/opt/protobase/shell/`; the build copies it. It calls the API on its own origin under `/api`, so the same bundle works under any hostname, and reads everything else at runtime: the resources, views, pages and roles from `/api/meta`, sign-in from `/api/auth`, the project's UI from its plugins and its look from `/protobase.theme.css`, which it links after its own stylesheets, and its tab icon from `/protobase.favicon.svg`.
+- **The shell**, `index.html`, `assets/` and `protobase.sw.js`: the admin app, a production build of `@protobase/ui`'s `src/app` with no project code in it, the same for every project on a release. `@protobase/ui`'s package ships it prebuilt in `dist/shell/` and the [protobase image](/guides/deploy/#images) at `/opt/protobase/shell/`; the build copies it. It calls the API on its own origin under `/api`, so the same bundle works under any hostname, and reads everything else at runtime: the resources, views, pages and roles from `/api/meta`, sign-in from `/api/auth`, the project's UI from its plugins and its look from `/protobase.theme.css`, which it links after its own stylesheets, its tab icon from `/protobase.favicon.svg`, and its [web app manifest](/reference/installable-app/) from `/api/manifest.webmanifest`.
 - **The plugins**, `plugins/<name>/`: the project's `protobase.ui.tsx` as the plugin `app`, and each [extension](#extensions)'s, each built as [`build-plugin`](#build-plugin) builds one, against the `@protobase/ui` installed in the project. `/api/meta` names them, and the shell loads them as it loads any [plugin](/reference/plugins/). A component or field type the config declares but no `protobase.ui.tsx` exports fails the build (see [Components](/reference/custom-components/#components)).
 
 The modules the app shares with plugins, `react`, `react/jsx-runtime`, `react-dom` and `@protobase/ui`, are entries of their own, `/assets/shared-<name>-<hash>.js`, each exporting every name of its module. `index.html` maps the four names to them with an import map, ahead of every script, so a plugin's imports of them run on the app's copies.
@@ -358,7 +359,7 @@ Serves the API of a bundle from `protobase build` and owns the process around it
 | `REQUEST_LOG` | `true` logs every request; default `false` |
 | `PROTOBASE_SMTP_URL` | the SMTP server for password-reset mail, emailed sign-in and two-factor codes and the app's own [email](/reference/email/), credential included: `smtp://user:password@host:587` (STARTTLS when offered) or `smtps://...:465`; without it they are off ([Password reset](/reference/auth/#password-reset), [Emailed sign-in codes](/reference/auth/#emailed-sign-in-codes)) |
 | `PROTOBASE_MAIL_FROM` | the sender of that mail, a plain address such as `noreply@admin.example.com`; set with `PROTOBASE_SMTP_URL` or not at all |
-| `PROTOBASE_APP_NAME` | the app's name, such as `Property Finder`: what its auth emails, its sidebar and its browser tabs call it, and the sender's display name of its mail ([`appName`](/reference/auth/#configuration)) |
+| `PROTOBASE_APP_NAME` | the app's name, such as `Property Finder`: what its auth emails, its sidebar, its browser tabs and the [installed app](/reference/installable-app/) call it, and the sender's display name of its mail ([`appName`](/reference/auth/#configuration)) |
 | `PROTOBASE_SIGN_IN_ISSUER`, `PROTOBASE_SIGN_IN_CLIENT_ID`, `PROTOBASE_SIGN_IN_CLIENT_SECRET` | an OpenID Connect provider people who have an account can sign in with; all three or none. `PROTOBASE_SIGN_IN_PROVIDER` and `PROTOBASE_SIGN_IN_NAME` are optional ([Platform sign-in provider](/reference/auth/#platform-sign-in-provider)) |
 | `PROTOBASE_OPERATOR_ISSUER`, `PROTOBASE_OPERATOR_CLIENT_ID`, `PROTOBASE_OPERATOR_CLIENT_SECRET` | the OpenID Connect provider of the operator's staff, for [staff sign-in](/reference/auth/#staff-sign-in) as people of the app; all three or none. `PROTOBASE_OPERATOR_NAME` and `PROTOBASE_OPERATOR_GROUP` are optional ([Operator provider](/reference/auth/#operator-provider)) |
 | `PROTOBASE_ORIGINS`, `PROTOBASE_PASSKEY_DOMAIN` | the other origins the app is served on, comma separated, and the host new passkeys are made for ([Several origins](/reference/auth/#several-origins)) |

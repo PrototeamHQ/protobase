@@ -62,7 +62,7 @@ Upgrading from 0.5 or earlier, where `auth:migrate` created the tables, goes thr
 - Cookies are `SameSite=Lax`, and `Secure` when `BETTER_AUTH_URL` is https.
 - Sign-in is rate limited (5 password attempts per minute and client by default, `signInPerMinute`, which also limits [sign-up](#open-sign-up) requests; 3 per minute for emailed codes); the limiter keys on `x-forwarded-for`, so run behind a proxy that sets it.
 - Passwords need at least 12 characters.
-- `appName` is the app's name: authenticator apps and passkey prompts show it, the admin app's sidebar shows it at the top beside Protobase's mark (Protobase's wordmark when it is `Protobase`), every browser tab of the admin app ends its title with it, the [auth emails](/reference/email/#protobases-own-mail) name the app with it, and the platform's mailer sends them as it (the sender's display name). Default `PROTOBASE_APP_NAME`, when set, and `Protobase` otherwise, then without a display name.
+- `appName` is the app's name: authenticator apps and passkey prompts show it, the admin app's sidebar shows it at the top beside Protobase's mark (Protobase's wordmark when it is `Protobase`), every browser tab of the admin app ends its title with it, the [installed app](/reference/installable-app/) is called by it, the [auth emails](/reference/email/#protobases-own-mail) name the app with it, and the platform's mailer sends them as it (the sender's display name). Default `PROTOBASE_APP_NAME`, when set, and `Protobase` otherwise, then without a display name.
 
 ## First run
 

@@ -80,6 +80,7 @@ Reference:
 - When using resources another Protobase API serves → read [Remote resources](references/reference/remote-resources.md)
 - When setting the app's tokens, colors and fonts → read [Theme](references/reference/theme.md)
 - When showing the app's screens in Dutch → read [Languages](references/reference/languages.md)
+- When installing the app on a phone or computer, or asking what it does offline → read [Installable app](references/reference/installable-app.md)
 - When grouping sidebar entries or listing recent records → read [Sidebar](references/reference/sidebar.md)
 - When changing the user menu → read [User menu](references/reference/user-menu.md)
 - When adding tabs along the bottom of a phone → read [Bottom bar](references/reference/bottom-bar.md)
