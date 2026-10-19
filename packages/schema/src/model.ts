@@ -1202,7 +1202,12 @@ export type NamedListModel = {
   /** Its address, `?list=<name>`: lowercase letters, digits, `-` and `_`, unique in its view. */
   name: string
   /** What its records are called; `plural` is its sidebar entry and title. */
-  names: { singular: string; plural: string }
+  names: {
+    /** One record's name, as in "New repair". */
+    singular: string
+    /** The records' name, as its sidebar entry and title. */
+    plural: string
+  }
   /** Where it sits in the sidebar; without `recent`. */
   nav?: NavModel
   /** A line under its title. */
