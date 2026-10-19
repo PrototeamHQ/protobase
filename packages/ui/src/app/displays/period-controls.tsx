@@ -4,6 +4,7 @@ import type { AppAddress } from '@protobase/schema'
 import { buttonClass } from '../../primitives/button'
 import { segmentedClass } from '../../primitives/segmented'
 import { AppLink } from '../use-app-address'
+import { text } from './messages'
 
 /** One choice of the scale switch: the period it opens, and whether it is the scale shown. */
 export type ScaleChoice<V> = { view: V; label: string; current: boolean }
@@ -11,8 +12,8 @@ export type ScaleChoice<V> = { view: V; label: string; current: boolean }
 type PeriodControlsProps<V> = {
   /** The period shown, as its heading says it. */
   heading: string
-  /** What one step is, for the step buttons' labels: `month`, `week`. */
-  unit: string
+  /** What one step is, for the step buttons' labels. */
+  unit: 'week' | 'month' | 'quarter'
   previous: V
   today: V
   next: V
@@ -46,9 +47,9 @@ export const PeriodControls = <V,>({ heading, unit, previous, today, next, scale
       <h2 className="text-sm font-medium">{heading}</h2>
       <div className="flex items-center gap-2">
         <div className="flex items-center gap-1">
-          {control(previous, square, `Previous ${unit}`, <ChevronLeft className="size-3.5" />)}
-          {control(today, square, 'Today', 'Today')}
-          {control(next, square, `Next ${unit}`, <ChevronRight className="size-3.5" />)}
+          {control(previous, square, text('previousPeriod', unit), <ChevronLeft className="size-3.5" />)}
+          {control(today, square, text('today'), text('today'))}
+          {control(next, square, text('nextPeriod', unit), <ChevronRight className="size-3.5" />)}
         </div>
         <span role="group" aria-label={scalesLabel} className={segmentedClass.group()}>
           {scales.map((scale) => (

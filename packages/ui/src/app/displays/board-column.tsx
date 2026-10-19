@@ -15,6 +15,7 @@ import { RecordCard } from './record-card'
 import { useBoardColumn } from './use-board-column'
 import type { BoardMove } from './use-board-move'
 import { formatTag } from '../../locale/active-locale'
+import { text } from './messages'
 
 type ColumnProps = {
   model: ResourceModel
@@ -82,9 +83,9 @@ export const BoardColumnView = ({ model, view, display, column, fields, filter, 
       {list.loading ? (
         Array.from({ length: 3 }, (_, index) => <Skeleton key={index} className="h-20" />)
       ) : list.error ? (
-        <ErrorBanner title="Could not load rows" error={list.error} />
+        <ErrorBanner title={text('couldNotLoadRows')} error={list.error} />
       ) : rows.length === 0 ? (
-        <p className="px-1 py-4 text-center text-xs text-muted-foreground">No {plural}</p>
+        <p className="px-1 py-4 text-center text-xs text-muted-foreground">{text('noPlural', plural)}</p>
       ) : (
         // Cards tile without gaps, so a pointer in the column is over a card or below the last one
         <SortableContext id={columnId(column.value)} items={rows.map((row) => row.key)} strategy={verticalListSortingStrategy}>
@@ -108,7 +109,7 @@ export const BoardColumnView = ({ model, view, display, column, fields, filter, 
       )}
       {limit === undefined && list.more && (
         <Button size="sm" variant="ghost" onClick={list.loadMore}>
-          Show more
+          {text('showMore')}
         </Button>
       )}
     </section>

@@ -56,7 +56,7 @@ export const phoneRows = (model: ResourceModel, view: ViewModel | undefined): Ca
   const candidates = listColumnNames(model, view).filter((name) => name !== title && model.fields[name] !== undefined)
   const badge = candidates.find((name) => model.fields[name]!.type === 'enum')
   const footer = candidates.filter((name) => name !== badge && model.fields[name]!.type !== 'boolean').slice(0, 2)
-  return { kind: 'cards', name: rowsDisplay, label: 'List', icon: 'list', title, ...(badge !== undefined && { badge }), footer }
+  return { kind: 'cards', name: rowsDisplay, label: text('list'), icon: 'list', title, ...(badge !== undefined && { badge }), footer }
 }
 
 const isPhoneRows = (view: ViewModel | undefined, display: ListDisplayModel) => display.name === rowsDisplay && !displaysOf(view).some((other) => other.name === rowsDisplay)
@@ -91,7 +91,7 @@ export const displayChoices = (view: ViewModel | undefined): DisplayChoice[] => 
 /** The list page's display switch: `displayChoices`, and below the `sm` breakpoint the phone's rows when it has them. */
 export const listDisplayChoices = (model: ResourceModel, view: ViewModel | undefined, xs: boolean): DisplayChoice[] => {
   const choices = displayChoices(view)
-  return xs && phoneRows(model, view) ? [...choices, { name: rowsDisplay, label: 'List', icon: 'list' }] : choices
+  return xs && phoneRows(model, view) ? [...choices, { name: rowsDisplay, label: text('list'), icon: 'list' }] : choices
 }
 
 /** The fields a cards display shows, its title the view's title field when it names none. */

@@ -3,11 +3,12 @@ import { Button } from '../../primitives/button'
 import { ErrorBanner } from '../error-banner'
 import type { ListDisplay } from './display-context'
 import { formatTag } from '../../locale/active-locale'
+import { text } from './messages'
 
 /** A display's scrolling area: while loading, on an error or with no rows it says so instead of drawing them. */
 export const DisplayState = ({ list, empty, loading, children }: { list: ListDisplay; empty: string; loading: ReactNode; children: ReactNode }) => (
   <div className="min-h-0 flex-1 overflow-y-auto">
-    {list.loading ? loading : list.error ? <ErrorBanner title="Could not load rows" error={list.error} /> : list.rows.length === 0 ? <p className="py-8 text-center text-muted-foreground">{empty}</p> : children}
+    {list.loading ? loading : list.error ? <ErrorBanner title={text('couldNotLoadRows')} error={list.error} /> : list.rows.length === 0 ? <p className="py-8 text-center text-muted-foreground">{empty}</p> : children}
   </div>
 )
 
@@ -19,7 +20,7 @@ export const DisplayFooter = ({ list }: { list: ListDisplay }) => (
     </span>
     {list.more && (
       <Button size="sm" onClick={list.loadMore}>
-        Show more
+        {text('showMore')}
       </Button>
     )}
   </div>

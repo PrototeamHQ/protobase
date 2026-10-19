@@ -5,6 +5,7 @@ import { displayValue } from '../../live/display-value'
 import { humanize } from '../../live/naming'
 import { addDays, monday, monthOf, recordDays, type CalendarRange } from './calendar-range'
 import type { ListDisplayRow } from './list-displays'
+import { text } from './messages'
 
 // The days a timeline shows, as `YYYY-MM-DD` days, weeks from Monday and quarters from January, April, July and
 // October; where each record's bar lies on them, and the lanes of its `group`.
@@ -111,7 +112,7 @@ export const timelineLanes = (rows: ListDisplayRow[], model: ResourceModel, view
     const value = row.record[group]
     const empty = value === null || value === undefined || value === ''
     const key = empty ? noValue : `value:${String(value)}`
-    const label = empty ? `No ${(hints?.label ?? humanize(group)).toLowerCase()}` : (row.labels[group] ?? displayValue(field, value, hints))
+    const label = empty ? text('noValue', hints?.label ?? humanize(group)) : (row.labels[group] ?? displayValue(field, value, hints))
     const known = lanes.get(key) ?? { value: empty ? undefined : value, lane: { key, label, rows: [] } }
     known.lane.rows.push(row)
     lanes.set(key, known)

@@ -17,6 +17,7 @@ import { TimelineRow } from './timeline-row'
 import { TimelineLines, TimelineScale } from './timeline-scale'
 import { calendarLimit, useCalendarRows } from './use-calendar-rows'
 import { movedRows, useCalendarMove } from './use-calendar-move'
+import { text } from './messages'
 
 type TimelineProps = {
   model: ResourceModel
@@ -34,10 +35,10 @@ type TimelineProps = {
   now?: number
 }
 
-const scales: Array<{ scale: TimelineView['scale']; label: string }> = [
-  { scale: 'week', label: 'Week' },
-  { scale: 'month', label: 'Month' },
-  { scale: 'quarter', label: 'Quarter' },
+const scales = (): Array<{ scale: TimelineView['scale']; label: string }> => [
+  { scale: 'week', label: text('week') },
+  { scale: 'month', label: text('month') },
+  { scale: 'quarter', label: text('quarter') },
 ]
 
 // What a bar being moved is: the record, and the day it starts on
@@ -88,11 +89,11 @@ export const TimelineDisplay = ({ model, view, display, fields, filter, at, link
   const title = (picked: Picked) => eventTitle(model, view, display, picked.row)
   const startText = (picked: Picked) => formatDate(Date.parse(`${addDays(picked.day, shift.current)}T00:00:00Z`))
   const announcements: Announcements = {
-    onDragStart: ({ active: picked }) => `Picked up ${title(picked.data.current as Picked)}.`,
-    onDragMove: ({ active: picked }) => `${title(picked.data.current as Picked)} starts on ${startText(picked.data.current as Picked)}.`,
+    onDragStart: ({ active: picked }) => text('pickedUp', title(picked.data.current as Picked)),
+    onDragMove: ({ active: picked }) => text('startsOn', title(picked.data.current as Picked), startText(picked.data.current as Picked)),
     onDragOver: () => undefined,
-    onDragEnd: ({ active: picked }) => (shift.current === 0 ? `${title(picked.data.current as Picked)} was put back.` : `${title(picked.data.current as Picked)} was moved to ${startText(picked.data.current as Picked)}.`),
-    onDragCancel: ({ active: picked }) => `Moving ${title(picked.data.current as Picked)} was cancelled.`,
+    onDragEnd: ({ active: picked }) => (shift.current === 0 ? text('putBack', title(picked.data.current as Picked)) : text('wasMovedTo', title(picked.data.current as Picked), startText(picked.data.current as Picked))),
+    onDragCancel: ({ active: picked }) => text('cancelled', title(picked.data.current as Picked)),
   }
   const release = () => {
     setActive(undefined)
@@ -122,15 +123,15 @@ export const TimelineDisplay = ({ model, view, display, fields, filter, at, link
         previous={stepTimeline(shown, -1)}
         today={timelineView({ scale: shown.scale, day: today }, now)}
         next={stepTimeline(shown, 1)}
-        scales={scales.map(({ scale, label }) => ({ view: scaledTimeline(shown, scale, now), label, current: shown.scale === scale }))}
-        scalesLabel="Timeline scale"
+        scales={scales().map(({ scale, label }) => ({ view: scaledTimeline(shown, scale, now), label, current: shown.scale === scale }))}
+        scalesLabel={text('timelineScale')}
         linkTo={linkTo}
         onView={setLocal}
       />
-      {list.error && <ErrorBanner title="Could not load rows" error={list.error} />}
+      {list.error && <ErrorBanner title={text('couldNotLoadRows')} error={list.error} />}
       {list.capped && (
         <p className="text-xs text-muted-foreground">
-          Showing the first {calendarLimit} records of this {shown.scale}. Narrow the filter to see the rest.
+          {text('capped', calendarLimit, shown.scale)}
         </p>
       )}
       <DndContext
@@ -143,7 +144,7 @@ export const TimelineDisplay = ({ model, view, display, fields, filter, at, link
         accessibility={{
           announcements,
           screenReaderInstructions: {
-            draggable: 'To move a bar to other days, press Space, move it a day with the left and right arrow keys, and press Space again to drop it there. Escape puts it back.',
+            draggable: text('timelineInstructions'),
           },
         }}
       >
@@ -158,7 +159,7 @@ export const TimelineDisplay = ({ model, view, display, fields, filter, at, link
                 <Skeleton className="h-4" />
               </div>
             )}
-            {empty && <p className="relative px-2 py-3 text-xs text-muted-foreground">Nothing in this {shown.scale}.</p>}
+            {empty && <p className="relative px-2 py-3 text-xs text-muted-foreground">{text('nothingIn', shown.scale)}</p>}
             {!list.loading &&
               lanes.map((lane) => (
                 <section key={lane.key} aria-label={lane.label} className="relative border-b border-border last:border-b-0">

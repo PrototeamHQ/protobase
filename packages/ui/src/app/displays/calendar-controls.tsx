@@ -3,6 +3,7 @@ import { formatDayRange, formatMonth } from '../../format/date'
 import { calendarView, gridDays, stepView, todayView } from './calendar-range'
 import { dayIn, viewerZone } from '../../format/zone'
 import { PeriodControls } from './period-controls'
+import { text } from './messages'
 
 type ControlsProps = {
   view: CalendarView
@@ -33,8 +34,8 @@ export const CalendarControls = ({ view, now, linkTo, onView }: ControlsProps) =
       previous={stepView(view, -1)}
       today={todayView(view.scale, now)}
       next={stepView(view, 1)}
-      scales={[scale('month', 'Month'), scale('week', 'Week')]}
-      scalesLabel="Calendar scale"
+      scales={[scale('month', text('month')), scale('week', text('week'))]}
+      scalesLabel={text('calendarScale')}
       linkTo={linkTo}
       onView={onView}
     />

@@ -14,6 +14,7 @@ import { keptSelection, mapPoints, stepSelection, type MapSelection } from './ma
 import { RecordCard } from './record-card'
 import { useMapRecords } from './use-map-records'
 import { formatTag } from '../../locale/active-locale'
+import { text } from './messages'
 
 // MapLibre loads with the first map drawn, so a list that never shows one never loads it.
 const RecordsMap = lazy(() => import('../map/records-map').then((module) => ({ default: module.RecordsMap })))
@@ -72,17 +73,17 @@ export const MapDisplay = ({ model, view, display, filter, orderBy, fields, at, 
   const approximate = new Set(points.filter((point) => point.approximate).map((point) => point.key))
   const markerLabel = (keys: string[]) => {
     const near = keys.filter((key) => approximate.has(key)).length
-    if (keys.length === 1) return near === 1 ? `Show the ${singular}, at an approximate position` : `Show the ${singular}`
-    if (near === 0) return `Show ${keys.length} ${plural}`
-    return near === keys.length ? `Show ${keys.length} ${plural}, at approximate positions` : `Show ${keys.length} ${plural}, ${near} at approximate positions`
+    if (keys.length === 1) return near === 1 ? text('showOneApproximate', singular) : text('showOne', singular)
+    if (near === 0) return text('showMany', keys.length, plural)
+    return near === keys.length ? text('showManyApproximate', keys.length, plural) : text('showManySomeApproximate', keys.length, plural, near)
   }
-  const bucketLabel = (count: number) => `Zoom in on ${count.toLocaleString(formatTag())} ${count === 1 ? singular : plural}`
+  const bucketLabel = (count: number) => text('zoomIn', count.toLocaleString(formatTag()), count === 1 ? singular : plural)
   // How much of the map's bottom the card and its arrows cover, so the map keeps the chosen marker above them
   const overlay = useRef<HTMLDivElement>(null)
   const [covered, setCovered] = useState(0)
   useLayoutEffect(() => setCovered(overlay.current?.offsetHeight ?? 0), [row?.key])
 
-  if (!style) return <Problem>The map display needs a map style: set PROTOBASE_MAP_STYLE_URL.</Problem>
+  if (!style) return <Problem>{text('needsStyle')}</Problem>
   const empty = loaded?.total === 0
   return (
     <div className={cn('flex h-full min-h-[36rem] flex-1 flex-col sm:min-h-[28rem]', flush && 'max-md:-mx-5 max-md:-mb-4 max-md:min-h-0')}>
@@ -110,16 +111,16 @@ export const MapDisplay = ({ model, view, display, filter, orderBy, fields, at, 
         </Suspense>
         {records.error && (
           <div className="absolute inset-x-3 top-3 z-10">
-            <ErrorBanner title="Could not load rows" error={records.error} />
+            <ErrorBanner title={text('couldNotLoadRows')} error={records.error} />
           </div>
         )}
         {empty && (
           <div className="pointer-events-none absolute inset-x-3 top-3 z-10 flex justify-center">
             <p className="pointer-events-auto flex items-center gap-3 rounded-full border border-border bg-background px-4 py-1.5 text-muted-foreground shadow" role="status">
-              {fitting ? `No ${plural} match.` : `No ${plural} in this part of the map.`}
+              {fitting ? text('noneMatch', plural) : text('noneHere', plural)}
               {!fitting && (
                 <Button size="sm" onClick={() => setFitting(true)}>
-                  Show all
+                  {text('showAll')}
                 </Button>
               )}
             </p>
@@ -127,28 +128,28 @@ export const MapDisplay = ({ model, view, display, filter, orderBy, fields, at, 
         )}
         {selection && row && (
           <div ref={overlay} className="pointer-events-none absolute inset-x-3 bottom-3 z-10 flex justify-center">
-            <div className="pointer-events-auto flex w-full max-w-[16rem] flex-col gap-2 sm:max-w-xs" role="group" aria-label={`Chosen ${singular}`}>
+            <div className="pointer-events-auto flex w-full max-w-[16rem] flex-col gap-2 sm:max-w-xs" role="group" aria-label={text('chosen', singular)}>
               <div className="flex items-center justify-end gap-1.5">
                 {approximate.has(row.key) && (
                   <span className="mr-auto flex items-center gap-1 rounded-full border border-border bg-background px-2 py-1 text-xs">
                     <CircleDashed className="size-3.5" aria-hidden />
-                    Approximate position
+                    {text('approximatePosition')}
                   </span>
                 )}
                 {selection.keys.length > 1 && (
                   <>
-                    <button type="button" aria-label="Previous" className={arrow} onClick={() => setChosen(stepSelection(selection, -1))}>
+                    <button type="button" aria-label={text('previous')} className={arrow} onClick={() => setChosen(stepSelection(selection, -1))}>
                       <ChevronLeft className="size-4" aria-hidden />
                     </button>
                     <span className="rounded-full border border-border bg-background px-2 py-1 text-xs tabular-nums" aria-live="polite">
                       {selection.index + 1} / {selection.keys.length}
                     </span>
-                    <button type="button" aria-label="Next" className={arrow} onClick={() => setChosen(stepSelection(selection, 1))}>
+                    <button type="button" aria-label={text('next')} className={arrow} onClick={() => setChosen(stepSelection(selection, 1))}>
                       <ChevronRight className="size-4" aria-hidden />
                     </button>
                   </>
                 )}
-                <button type="button" aria-label="Close" className={arrow} onClick={() => setChosen(undefined)}>
+                <button type="button" aria-label={text('close')} className={arrow} onClick={() => setChosen(undefined)}>
                   <X className="size-4" aria-hidden />
                 </button>
               </div>

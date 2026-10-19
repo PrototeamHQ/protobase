@@ -21,6 +21,7 @@ import { Markdown } from '../../markdown/markdown'
 import { markdownExcerpt } from '../../markdown/markdown-excerpt'
 import { isMarkdown } from '../../markdown/markdown-hint'
 import { amountParts, cardFields, filledAmount, filledMeta, type ListDisplayRow } from './list-displays'
+import { text as message } from './messages'
 
 type RecordCardProps = {
   model: ResourceModel
@@ -142,7 +143,7 @@ export const RecordCard = ({ model, view, display, row, swipe = true, mark }: Re
         </dl>
       )}
       {raised.length > 0 && (
-        <ul className="flex flex-wrap gap-1" aria-label="Features">
+        <ul className="flex flex-wrap gap-1" aria-label={message('features')}>
           {raised.map((name) => (
             <li key={name}>
               <Badge dot={false}>{label(name)}</Badge>

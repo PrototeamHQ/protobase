@@ -9,6 +9,7 @@ import { useRefreshResource } from '../pages/use-layout-data'
 import { refusalReason } from './board-columns'
 import { movedPatch, type DatedDisplay } from './calendar-range'
 import type { ListDisplayRow } from './list-displays'
+import { text } from './messages'
 
 /** An event on its way to another day: the fields the update sets, shown until the calendar has reloaded. */
 export type CalendarMove = { key: string; patch: Record<string, string> }
@@ -40,7 +41,7 @@ export const useCalendarMove = (model: ResourceModel, display: DatedDisplay) => 
     onMutate: ({ row, patch }) => setMoves((current) => [...current.filter((move) => move.key !== row.key), { key: row.key, patch }]),
     onError: (error, { row, to }) => {
       settle(row.key)
-      toast.show({ state: 'error', title: `Could not move it to ${formatDate(Date.parse(`${to}T00:00:00Z`))}`, description: refusalReason(error) })
+      toast.show({ state: 'error', title: text('couldNotMoveTo', formatDate(Date.parse(`${to}T00:00:00Z`))), description: refusalReason(error) })
     },
     onSettled: async (_result, _error, { row }) => {
       await refresh(model.name)

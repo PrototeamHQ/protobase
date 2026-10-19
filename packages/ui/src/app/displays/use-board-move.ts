@@ -115,7 +115,7 @@ export const useBoardMove = ({ model, by, rank, drop, labelOf }: Options) => {
     },
     onError: (error, { row, to }) => {
       settle(row.key)
-      const title = (row.record[by] ?? null) === to.value ? 'Could not change the order' : `Could not move it to ${to.label}`
+      const title = (row.record[by] ?? null) === to.value ? text('couldNotReorder') : text('couldNotMoveTo', to.label)
       toast.show({ state: 'error', title, description: refusalReason(error) })
     },
     onSettled: async (_result, _error, { row }) => {

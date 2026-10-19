@@ -15,6 +15,8 @@ import { placedRows, type BoardPlace } from './board-place'
 import type { ListDisplayRow } from './list-displays'
 import { RecordCard } from './record-card'
 import { useBoardMove } from './use-board-move'
+import { text } from './messages'
+import { slotted } from '../../locale/slotted'
 
 type BoardProps = {
   model: ResourceModel
@@ -74,18 +76,18 @@ export const BoardDisplay = ({ model, view, display, fields, filter, orderBy, li
     // Enter opens the card's record, so only Space picks a card up
     useSensor(KeyboardSensor, { keyboardCodes: { start: ['Space'], cancel: ['Escape'], end: ['Space', 'Enter'] }, coordinateGetter: cardCoordinates }),
   )
-  if (dropName !== undefined && !drop) return <Problem>No board drop is registered as {dropName}. Give it in boardDrops in protobase.ui.tsx, or load the plugin that provides it.</Problem>
+  if (dropName !== undefined && !drop) return <Problem>{slotted(text('noDrop'), dropName)}</Problem>
 
   const title = (row: ListDisplayRow) => String(row.labels[card.title!] ?? row.record[card.title!] ?? row.key)
   const columnOf = (id: unknown) => columns.find((column) => columnId(column.value) === id)
   const valueOf = (row: ListDisplayRow) => (row.record[display.by] ?? null) as string | null
   const crosses = (row: ListDisplayRow, to: BoardColumn) => takes(valueOf(row)) && takes(to.value)
   const announced = (row: ListDisplayRow, over: Over | null) => {
-    if (!over) return { over: 'no column' }
+    if (!over) return { over: text('noColumn') }
     const place = placeable ? placeOver(over, row) : undefined
-    if (!place) return { over: columnOf(over.id)?.label ?? 'no column' }
+    if (!place) return { over: columnOf(over.id)?.label ?? text('noColumn') }
     const count = place.rows.some((entry) => entry.key === row.key) ? place.rows.length : place.rows.length + 1
-    return { over: `${place.column.label}, place ${place.index + 1} of ${count}`, place: `${place.column.label}, place ${place.index + 1}` }
+    return { over: text('placeOf', place.column.label, place.index + 1, count), place: text('place', place.column.label, place.index + 1) }
   }
   // Whether a drop on `over` takes the card to a column it may not move to
   const refused = (row: ListDisplayRow, over: Over) => {
@@ -93,15 +95,15 @@ export const BoardDisplay = ({ model, view, display, fields, filter, orderBy, li
     return target !== undefined && target.value !== valueOf(row) && !crosses(row, target)
   }
   const announcements: Announcements = {
-    onDragStart: ({ active: picked }) => `Picked up ${title(picked.data.current!.row)}.`,
-    onDragOver: ({ active: picked, over }) => `${title(picked.data.current!.row)} is over ${announced(picked.data.current!.row, over).over}.`,
+    onDragStart: ({ active: picked }) => text('pickedUp', title(picked.data.current!.row)),
+    onDragOver: ({ active: picked, over }) => text('isOver', title(picked.data.current!.row), announced(picked.data.current!.row, over).over),
     onDragEnd: ({ active: picked, over }) => {
       const row = picked.data.current!.row as ListDisplayRow
-      if (!over || refused(row, over)) return `${title(row)} was put back.`
+      if (!over || refused(row, over)) return text('putBack', title(row))
       const said = announced(row, over)
-      return `${title(row)} was moved to ${said.place ?? said.over}.`
+      return text('wasMovedTo', title(row), said.place ?? said.over)
     },
-    onDragCancel: ({ active: picked }) => `Moving ${title(picked.data.current!.row)} was cancelled.`,
+    onDragCancel: ({ active: picked }) => text('cancelled', title(picked.data.current!.row)),
   }
 
   const start = ({ active: picked }: DragStartEvent) => {
@@ -143,10 +145,10 @@ export const BoardDisplay = ({ model, view, display, fields, filter, orderBy, li
         announcements,
         screenReaderInstructions: {
           draggable: !placeable
-            ? 'To move a card to another column, press Space, move it with the left and right arrow keys, and press Space again to drop it there. Escape puts it back.'
+            ? text('boardAcross')
             : movable
-              ? 'To move a card, press Space, move it with the up and down arrow keys within its column and the left and right arrow keys to another column, and press Space again to drop it there. Escape puts it back.'
-              : 'To move a card, press Space, move it with the up and down arrow keys within its column, and press Space again to drop it there. Escape puts it back.',
+              ? text('boardAnywhere')
+              : text('boardWithin'),
         },
       }}
     >

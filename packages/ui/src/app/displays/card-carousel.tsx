@@ -3,6 +3,7 @@ import { useRef, useState, type ReactNode } from 'react'
 import { cn } from '../../lib/cn'
 import { CardImageFrame, CardPhoto } from './card-image'
 import { cardPhotoList, scrolledPhoto, shownPhoto } from './card-photos'
+import { text } from './messages'
 
 type CardCarouselProps = {
   /** The record's photos, as its list loaded them. */
@@ -78,14 +79,14 @@ export const CardCarousel = ({ photos, cover, swipe = true, children }: CardCaro
       {children(picture)}
       {list.length > 1 && (
         <div className="group/arrows pointer-events-none absolute inset-x-px top-px aspect-[4/3]">
-          <button type="button" aria-label="Previous photo" className={cn(arrow, !swipe && touchArrow, 'left-2')} onClick={() => press(-1)}>
+          <button type="button" aria-label={text('previousPhoto')} className={cn(arrow, !swipe && touchArrow, 'left-2')} onClick={() => press(-1)}>
             <ChevronLeft className="size-4" aria-hidden />
           </button>
-          <button type="button" aria-label="Next photo" className={cn(arrow, !swipe && touchArrow, 'right-2')} onClick={() => press(1)}>
+          <button type="button" aria-label={text('nextPhoto')} className={cn(arrow, !swipe && touchArrow, 'right-2')} onClick={() => press(1)}>
             <ChevronRight className="size-4" aria-hidden />
           </button>
           <span className="absolute inset-x-0 bottom-2 flex justify-center" aria-live="polite">
-            <span className="sr-only">{`Photo ${index + 1} of ${list.length}`}</span>
+            <span className="sr-only">{text('photoOf', index + 1, list.length)}</span>
             <span className="flex items-center gap-1 rounded-full bg-background/70 px-1.5 py-1 leading-none" aria-hidden>
               {list.map((_, dot) => (
                 <span key={dot} className={cn('size-1.5 rounded-full', dot === index ? 'bg-foreground' : 'bg-foreground/35')} />

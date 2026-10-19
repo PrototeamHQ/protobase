@@ -3,6 +3,7 @@ import { enumLabel, printFilter, where } from '@protobase/schema'
 import { isApiError } from '@protobase/client'
 import { recordTitleField } from '../../live/model-helpers'
 import { humanize } from '../../live/naming'
+import { text } from './messages'
 
 export type BoardDisplayModel = Extract<ListDisplayModel, { kind: 'board' }>
 type CardsDisplayModel = Extract<ListDisplayModel, { kind: 'cards' }>
@@ -20,7 +21,7 @@ export const boardColumns = (model: ResourceModel, view: ViewModel | undefined, 
   const hints = view?.fields[display.by]
   const values = (field.enumValues ?? []).map((value) => ({ value, label: enumLabel(value, hints?.valueLabels) }))
   if (!field.nullable) return values
-  return [...values, { value: null, label: `No ${(hints?.label ?? humanize(display.by)).toLowerCase()}` }]
+  return [...values, { value: null, label: text('noValue', hints?.label ?? humanize(display.by)) }]
 }
 
 /** The field a board orders each column by: the resource's `.position()`, when its records are ordered as one rather than within a parent. */
@@ -44,7 +45,7 @@ export const boardCard = (model: ResourceModel, view: ViewModel | undefined, dis
 
 /** Why the server refused a move: the reasons it gives per field, such as a `validate` message, else its detail. */
 export const refusalReason = (error: unknown) => {
-  if (!isApiError(error)) return error instanceof Error ? error.message : 'Something went wrong'
+  if (!isApiError(error)) return error instanceof Error ? error.message : text('somethingWrong')
   const reasons = error.errors.map((entry) => entry.message)
   return reasons.length > 0 ? reasons.join('; ') : error.message
 }
