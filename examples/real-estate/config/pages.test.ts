@@ -8,7 +8,7 @@ describe('real estate pages', () => {
     const { resources, views, pages } = configExports(config)
     const models = Object.fromEntries(resources.map((source) => [source.toModel().name, source.toModel()]))
     const actions = (resource: string) => new Set(views.map((view) => view.toModel()).filter((view) => view.resource === resource).flatMap((view) => view.actions.map((action) => action.name)))
-    expect(pages.map((entry) => entry.name)).toEqual(['overview'])
+    expect(pages.map((entry) => entry.name)).toEqual(['accounts', 'overview'])
     expect(() => checkPages(pages.map((entry) => entry.toModel()), { models, actions })).not.toThrow()
   })
 
