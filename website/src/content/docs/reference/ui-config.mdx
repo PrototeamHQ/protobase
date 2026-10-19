@@ -150,6 +150,21 @@ view('repairs').list((r) => ({
 
 `filter` is an AIP-160 filter the list opens with when its address names none, whichever display it shows. Written in the form the widgets read (`status = "todo"` or `in(status, "todo", "doing")` on a facets field), it shows as the widgets' chips, which the person can clear or change; the change is kept in the page's address (an empty `?filter=` is a list cleared of it), and opening the list from the menu starts from the default again. A link's own filter replaces it, and so do "View all", a stat or a chart slice, which open on exactly what they counted. A board leaves out the columns a top-level `=` or `in(...)` clause on its field rules out. `protobase build` checks the filter against the resource, and [`protobase doctor`](/reference/cli/#doctor) checks that an index serves it.
 
+## More than one list
+
+```ts
+view<typeof changelog>('changelog')
+  .names({ singular: 'Changelog entry', plural: 'Changelog' })
+  .list(...)
+  .namedList('updates', (v) => v
+    .names({ singular: 'Update', plural: 'Updates' })
+    .nav({ group: historyNav, order: 1 })
+    .list((r) => ({ columns: [r.closed_on, r.title], sort: [[r.closed_on, 'desc']] }))
+    .filters((r, w) => [w.dateRange(r.closed_on)]))
+```
+
+`namedList(name, build)` adds another list of the same resource, with a sidebar entry of its own at `/<resource>?list=<name>`. The callback gets a fresh view and sets its `names` (the entry's label, required), `nav`, `help`, `list`, `filters` and `chart`; none of them come from the view's own list, so it has its own columns, opening filter and displays. Everything else stays the view's: field hints, title, actions, the record page, export, import, create and saved searches. A record opened from a named list lives at the resource's one address, `/<resource>/<key>`, and the sidebar marks the resource's main entry there. `protobase build` and [`protobase doctor`](/reference/cli/#doctor) check a named list like the view's own list, and `/meta` prunes it the same way. The builder throws on a name that does not fit an address, a repeated name, a missing `names`, anything else set in the callback and `nav.recent`; a view with `listOf` or `searchesOf` cannot have named lists. A named list is not offered in the bottom bar, the user menu or a page's blocks.
+
 ## Filters and the chart
 
 <Code code={step3} lang="ts" title="docs-examples/bike-shop/step-3.ts" />
