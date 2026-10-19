@@ -6,6 +6,7 @@ import type { SignInProvider } from '../auth/auth-provider'
 import { Badge } from '../primitives/badge'
 import { Button } from '../primitives/button'
 import { AccountSection, SectionError } from './account-section'
+import { text } from './messages'
 
 export type SignInProvidersSectionProps = {
   /** The sign-in providers the app offers. */
@@ -36,7 +37,7 @@ export const SignInProvidersSection = ({ providers, linked, onConnect, error: re
   }
 
   return (
-    <AccountSection title="Connected accounts" description="Sign in with these instead of your password. Connecting one asks you to sign in there; its address may differ from yours here.">
+    <AccountSection title={text('connectedAccounts')} description={text('connectedAccountsDescription')}>
       <SectionError message={error} />
       <ul className="divide-y rounded-md border">
         {providers.map((provider) => (
@@ -44,10 +45,10 @@ export const SignInProvidersSection = ({ providers, linked, onConnect, error: re
             <Link2 className="size-4 shrink-0 text-muted-foreground" />
             <span className="min-w-0 flex-1 truncate font-medium">{provider.name}</span>
             {linked.includes(provider.id) ? (
-              <Badge tone="green">Connected</Badge>
+              <Badge tone="green">{text('connected')}</Badge>
             ) : (
               <Button size="sm" loading={busy === provider.id} disabled={busy !== undefined} onClick={() => void connect(provider.id)}>
-                Connect {provider.name}
+                {text('connect', provider.name)}
               </Button>
             )}
           </li>

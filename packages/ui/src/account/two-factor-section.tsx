@@ -7,6 +7,7 @@ import { AccountSection } from './account-section'
 import { BackupCodes } from './backup-codes'
 import { PasswordDialog } from './password-dialog'
 import { TwoFactorSetup } from './two-factor-setup'
+import { text } from './messages'
 
 export type TwoFactorSectionProps = {
   /** What the sign-in policy says about two-factor authentication. */
@@ -28,11 +29,7 @@ export type TwoFactorSectionProps = {
   onChanged: () => void
 }
 
-const offDescriptions: Record<SignInRule, string> = {
-  allowed: 'Ask for a second step after your password or an emailed sign-in code: a code from an authenticator app, or one emailed to you. A passkey needs no second step.',
-  required: 'This app requires two-factor authentication for every account. Turn it on to keep using the app.',
-  forbidden: 'Your admin turned two-factor authentication off for this app.',
-}
+const offDescriptions = { allowed: 'twoFactorAllowed', required: 'twoFactorRequired', forbidden: 'twoFactorForbidden' } as const satisfies Record<SignInRule, string>
 
 type Open = { kind: 'setup'; appOnly: boolean } | { kind: 'turn-off' } | { kind: 'new-codes' } | { kind: 'codes'; codes: string[] }
 
@@ -41,16 +38,16 @@ export const TwoFactorSection = (props: TwoFactorSectionProps) => {
   const [open, setOpen] = useState<Open>()
   const close = () => setOpen(undefined)
 
-  const status = enabled ? <Badge tone="green">On</Badge> : rule === 'required' ? <Badge tone="amber">Required</Badge> : <Badge>Off</Badge>
+  const status = enabled ? <Badge tone="green">{text('on')}</Badge> : rule === 'required' ? <Badge tone="amber">{text('required')}</Badge> : <Badge>{text('off')}</Badge>
   const description = !enabled
-    ? offDescriptions[rule]
+    ? text(offDescriptions[rule])
     : authenticatorApp
-      ? `Signing in with a password or an emailed sign-in code also asks for a code from your authenticator app${mail ? ', or one emailed to you' : ''}. Backup codes work when you do not have the app.`
-      : 'Signing in with a password or an emailed sign-in code also asks for a code emailed to you.'
+      ? text(mail ? 'twoFactorOnWithAppOrMail' : 'twoFactorOnWithApp')
+      : text('twoFactorOnWithMail')
 
   if (open?.kind === 'setup') {
     return (
-      <AccountSection title="Two-factor authentication" status={status} description={description}>
+      <AccountSection title={text('twoFactor')} status={status} description={description}>
         <div className="max-w-sm">
           <TwoFactorSetup
             offerEmailedCodes={mail && !open.appOnly}
@@ -70,26 +67,26 @@ export const TwoFactorSection = (props: TwoFactorSectionProps) => {
   }
 
   return (
-    <AccountSection title="Two-factor authentication" status={status} description={description}>
+    <AccountSection title={text('twoFactor')} status={status} description={description}>
       <div className="flex flex-wrap gap-2">
         {!enabled && rule !== 'forbidden' && (
           <Button variant="primary" onClick={() => setOpen({ kind: 'setup', appOnly: false })}>
-            Turn on
+            {text('turnOn')}
           </Button>
         )}
-        {enabled && !authenticatorApp && rule !== 'forbidden' && <Button onClick={() => setOpen({ kind: 'setup', appOnly: true })}>Add an authenticator app</Button>}
-        {enabled && authenticatorApp && <Button onClick={() => setOpen({ kind: 'new-codes' })}>New backup codes</Button>}
+        {enabled && !authenticatorApp && rule !== 'forbidden' && <Button onClick={() => setOpen({ kind: 'setup', appOnly: true })}>{text('addAuthenticator')}</Button>}
+        {enabled && authenticatorApp && <Button onClick={() => setOpen({ kind: 'new-codes' })}>{text('newBackupCodes')}</Button>}
         {enabled && (
-          <Button variant="danger" disabled={rule === 'required'} title={rule === 'required' ? 'This app requires two-factor authentication.' : undefined} onClick={() => setOpen({ kind: 'turn-off' })}>
-            Turn off
+          <Button variant="danger" disabled={rule === 'required'} title={rule === 'required' ? text('twoFactorIsRequired') : undefined} onClick={() => setOpen({ kind: 'turn-off' })}>
+            {text('turnOff')}
           </Button>
         )}
       </div>
       {open?.kind === 'turn-off' && (
         <PasswordDialog
-          title="Turn off two-factor authentication?"
-          description="Signing in then needs only your password or an emailed code. Your backup codes stop working."
-          confirmLabel="Turn off"
+          title={text('turnOffTitle')}
+          description={text('turnOffDescription')}
+          confirmLabel={text('turnOff')}
           danger
           needsPassword={needsPassword}
           onClose={close}
@@ -102,9 +99,9 @@ export const TwoFactorSection = (props: TwoFactorSectionProps) => {
       )}
       {open?.kind === 'new-codes' && (
         <PasswordDialog
-          title="Make new backup codes?"
-          description="Your current backup codes stop working, and you get ten new ones."
-          confirmLabel="Make new codes"
+          title={text('newCodesTitle')}
+          description={text('newCodesDescription')}
+          confirmLabel={text('makeNewCodes')}
           needsPassword={needsPassword}
           onClose={close}
           onConfirm={async (password) => setOpen({ kind: 'codes', codes: await onNewBackupCodes(password) })}
@@ -112,12 +109,12 @@ export const TwoFactorSection = (props: TwoFactorSectionProps) => {
       )}
       {open?.kind === 'codes' && (
         <Dialog
-          title="Your new backup codes"
-          description="Keep them somewhere safe: each one signs you in once if you lose your phone. They are not shown again."
+          title={text('yourNewCodes')}
+          description={text('keepCodesSafe')}
           onClose={close}
           actions={
             <Button variant="primary" onClick={close}>
-              I saved my backup codes
+              {text('savedCodes')}
             </Button>
           }
         >

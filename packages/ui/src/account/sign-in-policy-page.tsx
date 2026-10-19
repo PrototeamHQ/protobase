@@ -6,13 +6,14 @@ import { useAuth } from '../auth/auth-provider'
 import { Spinner } from '../primitives/spinner'
 import { SignInPolicyForm } from './sign-in-policy-form'
 import { StaffSignInLog } from './staff-sign-in-log'
+import { text } from './messages'
 
 const StaffSignIns = ({ operator }: { operator: string }) => {
   const { session } = useAuth()
   const [signIns, setSignIns] = useState<StaffSignIn[]>()
   const [error, setError] = useState<string>()
   useEffect(() => {
-    void session.staff.log().then(setSignIns, (failure: unknown) => setError(failure instanceof AuthError ? authMessage(failure) : 'Could not read the staff sign-ins'))
+    void session.staff.log().then(setSignIns, (failure: unknown) => setError(failure instanceof AuthError ? authMessage(failure) : text('couldNotReadStaffSignIns')))
   }, [session])
   return <StaffSignInLog operator={operator} signIns={signIns} error={error} />
 }
@@ -29,7 +30,7 @@ export const SignInPolicyPage = () => {
   const [notice, setNotice] = useState<string>()
 
   useEffect(() => {
-    void session.signInPolicy.read().then(setState, (failure: unknown) => setError(failure instanceof AuthError ? authMessage(failure) : 'Could not read the sign-in policy'))
+    void session.signInPolicy.read().then(setState, (failure: unknown) => setError(failure instanceof AuthError ? authMessage(failure) : text('couldNotReadPolicy')))
   }, [session])
 
   const save = async (policy: SignInPolicy) => {
@@ -38,7 +39,7 @@ export const SignInPolicyPage = () => {
     setNotice(undefined)
     try {
       setState(await session.signInPolicy.save(policy))
-      setNotice('Saved. It applies to every sign-in from now on.')
+      setNotice(text('policySaved'))
     } catch (failure) {
       if (!(failure instanceof AuthError)) throw failure
       setError(authMessage(failure))
@@ -48,7 +49,7 @@ export const SignInPolicyPage = () => {
 
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-4 px-4 py-6 md:px-6">
-      <PageHeader title="Sign-in policy" subtitle="How people sign in to this app. Signed-in people keep their session, and are asked for what is newly required within 15 minutes." />
+      <PageHeader title={text('signInPolicy')} subtitle={text('policySubtitle')} />
       {state ? (
         <>
           <SignInPolicyForm key={state.savedAt ?? 'default'} state={state} busy={busy} error={error} notice={notice} onSave={(policy) => void save(policy)} />
@@ -60,7 +61,7 @@ export const SignInPolicyPage = () => {
         </p>
       ) : (
         <div className="flex items-center gap-2 text-muted-foreground">
-          <Spinner /> Loading
+          <Spinner /> {text('loading')}
         </div>
       )}
     </div>

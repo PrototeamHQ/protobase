@@ -8,6 +8,7 @@ import { Button } from '../primitives/button'
 import { Dialog } from '../primitives/dialog'
 import { Input } from '../primitives/input'
 import { AccountSection, SectionError } from './account-section'
+import { text } from './messages'
 
 export type PasskeysSectionProps = {
   /** What the sign-in policy says about passkeys. */
@@ -19,11 +20,7 @@ export type PasskeysSectionProps = {
   onRemove: (id: string) => Promise<void>
 }
 
-const descriptions: Record<SignInRule, string> = {
-  allowed: 'Sign in with Face ID, Touch ID, Windows Hello, your phone or a security key instead of a password.',
-  required: 'This app requires a passkey for every account. Sign in with Face ID, Touch ID, Windows Hello, your phone or a security key.',
-  forbidden: 'Your admin turned passkeys off for this app, so they cannot be used to sign in.',
-}
+const descriptions = { allowed: 'passkeysAllowed', required: 'passkeysRequired', forbidden: 'passkeysForbidden' } as const satisfies Record<SignInRule, string>
 
 type Editing = { kind: 'rename'; passkey: Passkey } | { kind: 'remove'; passkey: Passkey }
 
@@ -48,7 +45,7 @@ export const PasskeysSection = ({ rule, passkeys, onAdd, onRename, onRemove }: P
   }
 
   return (
-    <AccountSection title="Passkeys" status={rule === 'required' && <Badge tone="blue">Required</Badge>} description={descriptions[rule]}>
+    <AccountSection title={text('passkeys')} status={rule === 'required' && <Badge tone="blue">{text('required')}</Badge>} description={text(descriptions[rule])}>
       <SectionError message={editing ? undefined : error} />
       {passkeys.length > 0 && (
         <ul className="mb-3 divide-y rounded-md border">
@@ -56,9 +53,9 @@ export const PasskeysSection = ({ rule, passkeys, onAdd, onRename, onRemove }: P
             <li key={passkey.id} className="flex flex-wrap items-center gap-3 px-3 py-2.5">
               <KeyRound className="size-4 shrink-0 text-muted-foreground" />
               <span className="min-w-0 flex-1">
-                <span className="block truncate font-medium">{passkey.name ?? 'Passkey'}</span>
+                <span className="block truncate font-medium">{passkey.name ?? text('passkey')}</span>
                 <span className="block text-xs text-muted-foreground">
-                  {passkey.createdAt ? `Added ${formatDate(Date.parse(passkey.createdAt))}` : 'Added earlier'} · {passkey.backedUp ? 'Synced across your devices' : 'On one device'}
+                  {passkey.createdAt ? text('addedOn', formatDate(Date.parse(passkey.createdAt))) : text('addedEarlier')} · {passkey.backedUp ? text('synced') : text('oneDevice')}
                 </span>
               </span>
               <span className="flex gap-1">
@@ -70,10 +67,10 @@ export const PasskeysSection = ({ rule, passkeys, onAdd, onRename, onRemove }: P
                     setEditing({ kind: 'rename', passkey })
                   }}
                 >
-                  Rename
+                  {text('rename')}
                 </Button>
-                <Button size="sm" variant="ghost" disabled={keepLast} title={keepLast ? 'Passkeys are required: add another one before removing this one.' : undefined} onClick={() => setEditing({ kind: 'remove', passkey })}>
-                  Remove
+                <Button size="sm" variant="ghost" disabled={keepLast} title={keepLast ? text('keepLastPasskey') : undefined} onClick={() => setEditing({ kind: 'remove', passkey })}>
+                  {text('remove')}
                 </Button>
               </span>
             </li>
@@ -83,25 +80,25 @@ export const PasskeysSection = ({ rule, passkeys, onAdd, onRename, onRemove }: P
       {rule !== 'forbidden' && (
         <Button loading={busy && !editing} onClick={() => void attempt(onAdd)}>
           <Plus className="size-3.5" />
-          Add a passkey
+          {text('addPasskey')}
         </Button>
       )}
       {editing?.kind === 'rename' && (
         <Dialog
-          title="Rename passkey"
-          description="A name that tells you where this passkey lives, such as the device or password manager."
+          title={text('renamePasskey')}
+          description={text('renamePasskeyDescription')}
           onClose={() => setEditing(undefined)}
           actions={
             <>
-              <Button onClick={() => setEditing(undefined)}>Cancel</Button>
+              <Button onClick={() => setEditing(undefined)}>{text('cancel')}</Button>
               <Button variant="primary" loading={busy} disabled={!name.trim()} onClick={() => void attempt(() => onRename(editing.passkey.id, name.trim()))}>
-                Save
+                {text('save')}
               </Button>
             </>
           }
         >
           <label className="flex flex-col gap-1.5 font-medium">
-            Name
+            {text('name')}
             <Input autoFocus value={name} maxLength={60} onChange={(event) => setName(event.target.value)} />
           </label>
           <SectionError message={error} />
@@ -109,14 +106,14 @@ export const PasskeysSection = ({ rule, passkeys, onAdd, onRename, onRemove }: P
       )}
       {editing?.kind === 'remove' && (
         <Dialog
-          title="Remove passkey?"
-          description={`${editing.passkey.name ?? 'This passkey'} will no longer sign you in here. It stays on the device until you delete it there.`}
+          title={text('removePasskey')}
+          description={text('removePasskeyDescription', editing.passkey.name ?? text('thisPasskey'))}
           onClose={() => setEditing(undefined)}
           actions={
             <>
-              <Button onClick={() => setEditing(undefined)}>Cancel</Button>
+              <Button onClick={() => setEditing(undefined)}>{text('cancel')}</Button>
               <Button variant="danger" loading={busy} onClick={() => void attempt(() => onRemove(editing.passkey.id))}>
-                Remove
+                {text('remove')}
               </Button>
             </>
           }

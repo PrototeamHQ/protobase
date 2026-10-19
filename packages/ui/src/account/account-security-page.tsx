@@ -8,6 +8,7 @@ import { Spinner } from '../primitives/spinner'
 import { PasskeysSection } from './passkeys-section'
 import { SignInProvidersSection } from './sign-in-providers-section'
 import { TwoFactorSection } from './two-factor-section'
+import { text } from './messages'
 
 type Loaded = { methods: AccountSignIn; passkeys: Passkey[]; linked: string[] }
 
@@ -31,7 +32,7 @@ export const AccountSecurityPage = ({ email }: { email: string }) => {
   const reload = useCallback(() => {
     void Promise.all([account.signInMethods(), account.passkeys(), account.linkedProviders()]).then(
       ([methods, passkeys, linked]) => setLoaded({ methods, passkeys, linked }),
-      (failure: unknown) => setError(failure instanceof AuthError ? authMessage(failure) : 'Could not read your sign-in methods'),
+      (failure: unknown) => setError(failure instanceof AuthError ? authMessage(failure) : text('couldNotReadMethods')),
     )
   }, [account])
   useEffect(reload, [reload])
@@ -41,7 +42,7 @@ export const AccountSecurityPage = ({ email }: { email: string }) => {
 
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-4 px-4 py-6 md:px-6">
-      <PageHeader title="Sign-in & security" subtitle={email} />
+      <PageHeader title={text('signInSecurity')} subtitle={email} />
       {loaded ? (
         <>
           <PasskeysSection
@@ -69,7 +70,7 @@ export const AccountSecurityPage = ({ email }: { email: string }) => {
               providers={linkable}
               linked={loaded.linked}
               onConnect={linkProvider}
-              error={linkError && providerMessage(linkError, linkable.length === 1 ? linkable[0]!.name : 'the provider')}
+              error={linkError && providerMessage(linkError, linkable.length === 1 ? linkable[0]!.name : text('theProvider'))}
             />
           )}
         </>
@@ -79,7 +80,7 @@ export const AccountSecurityPage = ({ email }: { email: string }) => {
         </p>
       ) : (
         <div className="flex items-center gap-2 text-muted-foreground">
-          <Spinner /> Loading
+          <Spinner /> {text('loading')}
         </div>
       )}
     </div>

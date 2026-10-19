@@ -4,6 +4,7 @@ import { formatDateTime } from '../format'
 import { cn } from '../lib/cn'
 import { Button } from '../primitives/button'
 import { policyRows, ruleLabel, type PolicyRow, type PolicyRule } from './sign-in-policy-labels'
+import { text } from './messages'
 
 export type SignInPolicyFormProps = {
   /** The saved policy, how it applies, and whether mail is on. */
@@ -35,21 +36,21 @@ const RuleChoice = ({ row, value, onChange }: { row: PolicyRow; value: PolicyRul
 
 // What the row says when the policy applies differently than it reads, or needs something the server lacks.
 const rowNote = ({ method }: PolicyRow, draft: SignInPolicy, { mail, effective, policy }: SignInPolicyState) => {
-  if (method === 'emailCode' && !mail) return 'Needs mail settings (PROTOBASE_SMTP_URL and PROTOBASE_MAIL_FROM): off until they are set.'
-  if (method === 'password' && !mail && draft.password === 'forbidden') return 'Without mail settings, password sign-in stays on so nobody is locked out.'
-  if (method === 'staffAccess' && !mail && draft.staffAccess === 'notify') return 'Needs mail settings (PROTOBASE_SMTP_URL and PROTOBASE_MAIL_FROM): staff cannot sign in until they are set.'
+  if (method === 'emailCode' && !mail) return text('codeNeedsMail')
+  if (method === 'password' && !mail && draft.password === 'forbidden') return text('passwordStaysOn')
+  if (method === 'staffAccess' && !mail && draft.staffAccess === 'notify') return text('staffNeedsMail')
   if (method === 'platformSignIn' && draft.platformSignIn === 'allowed' && (draft.passkey === 'required' || draft.twoFactor === 'required')) {
-    return 'Off while passkeys or two-factor authentication are required: it skips the second step.'
+    return text('platformOff')
   }
-  if (draft[method] === policy[method] && effective[method] !== policy[method]) return `Applies as ${ruleLabel(method, effective[method])} for now.`
+  if (draft[method] === policy[method] && effective[method] !== policy[method]) return text('appliesAs', ruleLabel(method, effective[method]))
   return undefined
 }
 
 // The rows that apply to this app: staff access with an operator provider, sign-in through the platform with its provider.
 const rowsFor = ({ operator, platformSignIn }: SignInPolicyState) =>
-  policyRows.flatMap((row) => {
+  policyRows().flatMap((row) => {
     if (row.method === 'staffAccess' && !operator) return []
-    if (row.method === 'platformSignIn') return platformSignIn ? [{ ...row, label: `Sign in with ${platformSignIn} through the platform` }] : []
+    if (row.method === 'platformSignIn') return platformSignIn ? [{ ...row, label: text('platformSignInWith', platformSignIn) }] : []
     return [row]
   })
 
@@ -97,11 +98,11 @@ export const SignInPolicyForm = ({ state, onSave, busy, error, notice }: SignInP
         </p>
       )}
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-xs text-muted-foreground">{state.savedAt ? `Last saved${state.savedBy ? ` by ${state.savedBy}` : ''} on ${formatDateTime(Date.parse(state.savedAt))}.` : 'Never changed: everything is on, nothing is required.'}</p>
+        <p className="text-xs text-muted-foreground">{state.savedAt ? (state.savedBy ? text('lastSavedBy', state.savedBy, formatDateTime(Date.parse(state.savedAt))) : text('lastSaved', formatDateTime(Date.parse(state.savedAt)))) : text('neverChanged')}</p>
         <div className="flex gap-2">
-          {changed && <Button onClick={() => setDraft(state.policy)}>Reset</Button>}
+          {changed && <Button onClick={() => setDraft(state.policy)}>{text('reset')}</Button>}
           <Button variant="primary" type="submit" loading={busy} disabled={!changed}>
-            Save
+            {text('save')}
           </Button>
         </div>
       </div>

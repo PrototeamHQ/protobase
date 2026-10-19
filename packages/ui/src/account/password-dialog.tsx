@@ -4,6 +4,7 @@ import { authMessage } from '../auth/auth-messages'
 import { Button } from '../primitives/button'
 import { Dialog } from '../primitives/dialog'
 import { Input } from '../primitives/input'
+import { text } from './messages'
 
 export type PasswordDialogProps = {
   title: string
@@ -43,7 +44,7 @@ export const PasswordDialog = ({ title, description, confirmLabel, danger, needs
       onClose={onClose}
       actions={
         <>
-          <Button onClick={onClose}>Cancel</Button>
+          <Button onClick={onClose}>{text('cancel')}</Button>
           <Button variant={danger ? 'danger' : 'primary'} loading={busy} disabled={needsPassword && !password} onClick={() => void confirm()}>
             {confirmLabel}
           </Button>
@@ -52,7 +53,7 @@ export const PasswordDialog = ({ title, description, confirmLabel, danger, needs
     >
       {needsPassword && (
         <label className="flex flex-col gap-1.5 font-medium">
-          Your password
+          {text('yourPassword')}
           <Input type="password" autoComplete="current-password" autoFocus value={password} invalid={Boolean(error)} onChange={(event) => setPassword(event.target.value)} onKeyDown={(event) => event.key === 'Enter' && password && void confirm()} />
         </label>
       )}

@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
 import { encode } from 'uqr'
+import { text } from './messages'
 
 /** The `otpauth://` URI as a QR code for an authenticator app to scan: one square per dark module, with a quiet border. */
 export const TotpQr = ({ uri, className }: { uri: string; className?: string }) => {
@@ -9,7 +10,7 @@ export const TotpQr = ({ uri, className }: { uri: string; className?: string }) 
     return { size: qr.size, path: squares.join('') }
   }, [uri])
   return (
-    <svg viewBox={`0 0 ${size} ${size}`} role="img" aria-label="QR code for your authenticator app" shapeRendering="crispEdges" className={className}>
+    <svg viewBox={`0 0 ${size} ${size}`} role="img" aria-label={text('qrCode')} shapeRendering="crispEdges" className={className}>
       <rect width={size} height={size} fill="#fff" />
       <path d={path} fill="#000" />
     </svg>
