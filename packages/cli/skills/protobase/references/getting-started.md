@@ -2,11 +2,21 @@
 
 # Getting started
 
-Install the repository, run the ERP, real estate and property portal examples and learn the development commands.
+Start an app with npm create protobase, install the repository, run the ERP, real estate and property portal examples and learn the development commands.
 
 Protobase is a config-driven admin panel framework for existing Postgres databases. Data config lives in `data.ts`, UI config in `ui.ts`; a Hono server serves the API and a React app renders the admin. Coding agents get the guides and reference of the installed version with [`protobase skill install`](reference/cli.md#skill)).
 
 An app's own React code, its components, field types and actions, is a [plugin](reference/plugins.md)): built on its own against a plugin API that Protobase's releases keep, and loaded by the admin app when it starts. Protobase maintains the admin app, the API and the server, and a plugin keeps working as the app moves to newer releases, with their fixes and features, without changes of its own. Below 1.0 a new minor version may still change the config, and the bundle is built again for it; the plugins' code stays as it is (see [Who maintains what](reference/plugins.md#who-maintains-what))).
+
+## Start an app
+
+`npm create protobase my-app` writes a new project from scratch into `my-app`, with the `@protobase` packages in the range of the latest release's major, and prints the next steps: install it with Bun, point `.env` at a Postgres database, migrate it, create a user and run `bun run dev`. It needs Node 22.12 or later.
+
+```sh
+npm create protobase my-app
+```
+
+The rest of this page works in a clone of this repository, on its examples.
 
 ## Setup
 
@@ -75,4 +85,4 @@ bun run --cwd examples/property-portal dev              # http://localhost:5173
 | `bun run release --dry-run` | the next version and its changelog, from the commits since the last release (see [Versioning](reference/versioning.md))) |
 | `bun run docs:check` | opens every page of the built site in Chromium and fails on console errors and failed requests; `BASE=https://docs.protobase.net` checks the live site |
 
-Each public import is a package in `packages/` (`@protobase/schema`, `layout`, `query`, `client`, `ui`, `server`, and `cli` for the `protobase` command); `packages/presets` writes the projects a new app starts from and is not published. See [Architecture](reference/architecture.md)) for the layout and import rules.
+Each public import is a package in `packages/` (`@protobase/schema`, `layout`, `query`, `client`, `ui`, `server`, and `cli` for the `protobase` command); `packages/presets` writes the projects a new app starts from and is not published; `packages/create-protobase` is `npm create protobase`, with the from-scratch preset. See [Architecture](reference/architecture.md)) for the layout and import rules.

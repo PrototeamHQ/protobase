@@ -18,11 +18,13 @@ npm packages under the `@protobase` scope, all at one version, built from `packa
 - `@protobase/ui`: the admin app, and the hooks and components for `protobase.ui.tsx`
 - `@protobase/cli`: the `protobase` command (scaffold, doctor, dev, build, serve)
 
+Beside them, `create-protobase` starts a new app from scratch, then prints the next steps:
+
 ```sh
-bun add @protobase/cli @protobase/schema @protobase/layout @protobase/server @protobase/ui
+npm create protobase my-app
 ```
 
-The projects a new app starts from (ERP, real estate, from scratch) are not on npm: `bun run presets:write <version> <dir>`
+The other projects a new app can start from (ERP, real estate) are not on npm: `bun run presets:write <version> <dir>`
 writes them from a clone of this repository, each with the `@protobase` packages in the range of `<version>`'s major
 (`>=0.y.z <1` below 1.0, `^x.y.z` from 1.0) and its own `bun.lock` at exactly `<version>`.
 
