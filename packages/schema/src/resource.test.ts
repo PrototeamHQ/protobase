@@ -121,6 +121,12 @@ describe('resource builder', () => {
     expect(notes.history().comments().toModel()).toMatchObject({ history: true, comments: true })
   })
 
+  it('refreshes open pages only when asked', () => {
+    const notes = resource('notes').table('notes').fields({ id: f.integer(), body: f.text() }).primaryKey((r) => r.id)
+    expect(notes.toModel()).not.toHaveProperty('live')
+    expect(notes.live().toModel().live).toBe(true)
+  })
+
   it('carries an AI field\'s prompt and refuses one a job could not fill', () => {
     const tickets = (summary: AnyField, extra: Record<string, AnyField> = {}) =>
       resource('tickets').table('tickets').fields({ id: f.integer(), title: f.text(), secret: f.text().sensitive(), summary, ...extra }).primaryKey((r) => r.id).toModel()

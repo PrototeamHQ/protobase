@@ -152,6 +152,15 @@ export class ResourceBuilder<F extends FieldsInput = {}, K = never> {
     return this.next({ comments: true })
   }
 
+  /**
+   * Refreshes the pages open on its records and lists as soon as they change, from the API or elsewhere: the server
+   * tells each open app which records changed, never their values, and the app reads them again as its user. See
+   * [Live updates](website/src/content/docs/reference/live.mdx).
+   */
+  live() {
+    return this.next({ live: true })
+  }
+
   /** The code predicates (`match`) of its events, by event name. */
   eventMatches() {
     return eventMatches(this.toModel(), this.state.events ?? [])

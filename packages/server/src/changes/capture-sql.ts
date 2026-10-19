@@ -24,8 +24,8 @@ const identifier = (name: string) => {
 /** The table as SQL names it, qualified when the resource names a schema. */
 export const tableSql = (model: ResourceModel) => qualified(model.table)
 
-/** Whether the triggers capture a resource's changes: for its events, its history, or both. */
-export const isCaptured = (model: ResourceModel) => (model.events ?? []).length > 0 || model.history === true
+/** Whether the triggers capture a resource's changes: for its events, its history, its live updates, or several. */
+export const isCaptured = (model: ResourceModel) => (model.events ?? []).length > 0 || model.history === true || model.live === true
 
 /**
  * The outbox: one row per changed row, written in the writer's transaction. `transaction` is the writer's transaction

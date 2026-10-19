@@ -120,6 +120,8 @@ export type ResourceModel = {
   history?: true
   /** Whether people who may read its records comment on them (`.comments()`). */
   comments?: true
+  /** Whether open pages refresh as soon as its records change (`.live()`). */
+  live?: true
 }
 
 /** What happened to a record: `delete` and `undelete` include setting and clearing a soft delete field. */

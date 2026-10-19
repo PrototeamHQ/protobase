@@ -1,14 +1,19 @@
 import type { ResourceModel } from '@protobase/schema'
 import { historyTableSql } from '../history/history-sql'
+import { noticesTableSql } from '../live/notices-sql'
 import { captureBody, captureFunctionSql, createTriggerSql, dropTriggerSql, isCaptured, outboxSql, quoteIdent, resourceTriggers, tableSql, type TriggerSpec } from './capture-sql'
 
 /** A trigger the database has: on a table it names by its oid, calling a function it names by its oid. */
 export type FoundTrigger = { table: string; tableSql: string; name: string; function: string; type: number; args: string[] }
 
-/** What the database has of the capture: the outbox, the history table, `capture()`, the triggers involved and each resource's table. */
+/**
+ * What the database has of the capture: the outbox, the history and notices tables, `capture()`, the triggers involved
+ * and each resource's table.
+ */
 export type CaptureState = {
   outbox: boolean
   history: boolean
+  notices: boolean
   capture?: { oid: string; source: string; definer: boolean }
   /** Triggers calling `capture()`, and every trigger on a resource's table. */
   triggers: FoundTrigger[]
@@ -17,12 +22,13 @@ export type CaptureState = {
 }
 
 /**
- * What brings the database to what the config needs: the schema's setup, the history table, triggers to (re)create,
- * and triggers to drop.
+ * What brings the database to what the config needs: the schema's setup, the history and notices tables, triggers to
+ * (re)create, and triggers to drop.
  */
 export type CapturePlan = {
   setup: boolean
   history: boolean
+  notices: boolean
   create: Array<{ model: ResourceModel; trigger: TriggerSpec }>
   drop: Array<{ name: string; tableSql: string }>
 }
@@ -37,7 +43,7 @@ const tableOf = (state: CaptureState, model: ResourceModel) => {
 }
 
 /**
- * Compares the database with the resources that declare events or history. Fails on what it cannot change safely: a
+ * Compares the database with the resources that declare events, history or live updates. Fails on what it cannot change safely: a
  * missing table, two captured resources on one table, or a trigger of the same name that calls another function.
  */
 export const capturePlan = (schema: string, models: readonly ResourceModel[], state: CaptureState): CapturePlan => {
@@ -62,6 +68,7 @@ export const capturePlan = (schema: string, models: readonly ResourceModel[], st
   return {
     setup: captured.length > 0 && (!state.outbox || !current),
     history: models.some((model) => model.history) && !state.history,
+    notices: models.some((model) => model.live) && !state.notices,
     create: create.map(({ model, trigger }) => ({ model, trigger })),
     drop: drop.map(({ name, tableSql }) => ({ name, tableSql })),
   }
@@ -72,6 +79,7 @@ export const planSql = (schema: string, plan: CapturePlan) => {
   const statements = [
     ...(plan.setup ? [`create schema if not exists ${quoteIdent(schema)}`, outboxSql(schema), captureFunctionSql(schema)] : []),
     ...(plan.history ? [`create schema if not exists ${quoteIdent(schema)}`, historyTableSql(schema)] : []),
+    ...(plan.notices ? [`create schema if not exists ${quoteIdent(schema)}`, noticesTableSql(schema)] : []),
     ...plan.drop.map(({ name, tableSql }) => dropTriggerSql(name, tableSql)),
     ...plan.create.flatMap(({ model, trigger }) => [dropTriggerSql(trigger.name, tableSql(model)), createTriggerSql(schema, trigger, tableSql(model))]),
   ]
@@ -83,5 +91,6 @@ export const uncaptured = (plan: CapturePlan, models: readonly ResourceModel[]) 
   ...new Set([
     ...(plan.setup ? models.filter(isCaptured) : plan.create.map(({ model }) => model)),
     ...(plan.history ? models.filter((model) => model.history) : []),
+    ...(plan.notices ? models.filter((model) => model.live) : []),
   ].map((model) => model.name)),
 ]

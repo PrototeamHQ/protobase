@@ -14,7 +14,7 @@ describe('startServe with resource events', () => {
     const pg = await openSnapshotDb('jobs')
     await pg.exec('create table notes (id integer primary key, body text not null)')
     const db = Object.assign(new Kysely<any>({ dialect: pg.dialect }), { destroy: vi.fn(async () => {}) })
-    await expect(startServe({ project, env, createDb: () => db })).rejects.toThrow('The changes of notes are not captured as their events or history need')
+    await expect(startServe({ project, env, createDb: () => db })).rejects.toThrow('The changes of notes are not captured as their events, history or live updates need')
     expect(db.destroy).toHaveBeenCalledTimes(1)
     await pg.exec((await changesMigration(db, [notes.toModel()]))!)
     const server = await startServe({ project, env, createDb: () => db })

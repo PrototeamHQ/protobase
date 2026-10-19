@@ -21,6 +21,7 @@ export type ResourceState = {
   events?: EventSpec[]
   history?: boolean
   comments?: boolean
+  live?: boolean
 }
 
 const parseTable = (table: string) => {
@@ -89,6 +90,7 @@ const assembleModel = (state: ResourceState): ResourceModel => {
     ...(state.owner && { owner: state.owner }),
     ...(state.history && { history: true as const }),
     ...(state.comments && { comments: true as const }),
+    ...(state.live && { live: true as const }),
     ...(state.position && { position: { ...state.position } }),
   }
 }

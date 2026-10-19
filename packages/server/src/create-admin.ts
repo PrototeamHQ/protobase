@@ -36,6 +36,9 @@ import { checkBottomBars, checkShell } from './check-shell'
 import { checkOwnerFields } from './check-owners'
 import { checkRoleLimits } from './check-roles'
 import { checkViews } from './check-views'
+import { liveRoutes } from './live/live-route'
+import { tableFeed } from './live/notice-feed'
+import { visibleNotices } from './live/visible-notices'
 import { createErrorHandler } from './error-handler'
 import { errorReportingSettings } from './error-reporting/error-reporting-settings'
 import type { FilesOptions } from './files/options'
@@ -257,6 +260,11 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], pag
   app.route('/', fileRoutes(deps, authenticate))
   // Before the system endpoints, which want a token for everything under them
   if (forms) app.route(`${systemPath}/forms`, formRoutes(deps, forms))
+  // Anyone who may read a live resource hears of its changes, a visitor of what the anonymous role reads too.
+  if (appModels.some((model) => model.live)) {
+    const feed = tableFeed({ db, schema: changes, report: options.onUnhandledError ?? ((error) => console.error(error)) })
+    app.route(systemPath || '/', guarded((live) => void live.route('/', liveRoutes(feed, (session) => visibleNotices(deps, session))), withAnonymous(authenticate, options.roles)))
+  }
   app.route(basePath, api)
   app.route(`${deps.systemPath}/meta`, metaApp)
   app.route(deps.systemPath || '/', system)

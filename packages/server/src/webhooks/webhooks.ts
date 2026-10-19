@@ -10,6 +10,7 @@ import type { ApiFunction } from '../functions/define-function'
 import { callerRecords } from '../functions/records'
 import { writeHistory } from '../history/write-history'
 import { defineJob } from '../jobs/define-job'
+import { writeNotices } from '../live/notices-sql'
 import { FatalJobError } from '../jobs/run-job'
 import { attemptDelivery, type AttemptResult } from './attempt'
 import { maxTries, nextRetryDelay } from './retry-schedule'
@@ -255,6 +256,7 @@ export const createWebhooks = ({ deps, subscriptions, functions, schema, log, ta
       await queueOrdered(trx, deliveries)
       for (const { change } of failures) await dispatchChange.enqueue(trx, { change })
       await writeHistory(trx, schema, changes.filter((change) => deps.registry.find(change.resource)?.model.history))
+      await writeNotices(trx, schema, changes.filter((change) => deps.registry.find(change.resource)?.model.live))
       await deleteOutbox(trx, schema, rows.map((row) => row.id))
     })
     for (const [index, { subscription, event }] of now.entries()) report(subscription.name, event, 1, results[index]!)

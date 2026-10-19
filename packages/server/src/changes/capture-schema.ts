@@ -39,6 +39,7 @@ const readCaptureState = async (db: Db, schema: string, models: readonly Resourc
   return {
     outbox: await exists('outbox'),
     history: await exists('history'),
+    notices: await exists('notices'),
     ...(capture && { capture }),
     triggers: triggers.map((trigger) => ({ ...trigger, args: triggerArgs(trigger.args) })),
     tables,
@@ -51,9 +52,9 @@ const plan = async (db: Db, models: readonly ResourceModel[], options?: EventsOp
 }
 
 /**
- * The SQL that brings the database to the capture the resources' events and history need: the schema with the outbox
- * and `capture()`, the history table, and a trigger pair per resource with either, recreated when its fields changed;
- * triggers of resources without either any more are dropped. `undefined` when the database is current. Tables are
+ * The SQL that brings the database to the capture the resources' events, history and live updates need: the schema
+ * with the outbox and `capture()`, the history and notices tables, and a trigger pair per resource with any of them, recreated when its fields changed;
+ * triggers of resources without any of them any more are dropped. `undefined` when the database is current. Tables are
  * never dropped.
  */
 export const changesMigration = async (db: Db, models: readonly ResourceModel[], options?: EventsOptions) => {
@@ -62,8 +63,8 @@ export const changesMigration = async (db: Db, models: readonly ResourceModel[],
 }
 
 /**
- * Refuses to go on while a resource's events or history would not be captured as declared: a missing or out-of-date
- * schema, history table or trigger. The server never changes the schema itself: the project's migrations do, before the
+ * Refuses to go on while a resource's events, history or live updates would not be captured as declared: a missing or
+ * out-of-date schema, history or notices table, or trigger. The server never changes the schema itself: the project's migrations do, before the
  * new version serves.
  */
 export const checkChanges = async (db: Db, models: readonly ResourceModel[], options?: EventsOptions) => {
@@ -72,6 +73,6 @@ export const checkChanges = async (db: Db, models: readonly ResourceModel[], opt
   const missing = uncaptured(found, models)
   if (missing.length === 0) return
   throw new Error(
-    `The changes of ${missing.join(', ')} are not captured as their events or history need: their triggers, the history table or the changes schema are missing or out of date. Write the change as a migration with \`${migrationCommand}\`, apply it with the project's migrations, then start again.`,
+    `The changes of ${missing.join(', ')} are not captured as their events, history or live updates need: their triggers, the history or notices table or the changes schema are missing or out of date. Write the change as a migration with \`${migrationCommand}\`, apply it with the project's migrations, then start again.`,
   )
 }

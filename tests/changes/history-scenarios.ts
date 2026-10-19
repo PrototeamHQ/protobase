@@ -45,7 +45,7 @@ export const historyScenarios = (connect: () => Promise<TestDatabase>, { roles =
     const jobs = await jobsSchemaMigration(db)
     if (jobs) await database.exec(jobs)
     await database.exec(ddl)
-    await expect(checkChanges(db, [orders.toModel()])).rejects.toThrow('The changes of orders are not captured as their events or history need')
+    await expect(checkChanges(db, [orders.toModel()])).rejects.toThrow('The changes of orders are not captured as their events, history or live updates need')
     await database.exec((await changesMigration(db, [orders.toModel()]))!)
     await checkChanges(db, [orders.toModel()])
     admin = createAdmin({
