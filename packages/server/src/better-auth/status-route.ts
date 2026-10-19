@@ -2,8 +2,8 @@ import { Hono } from 'hono'
 import type { PluginRef } from '../plugins/plugin-settings'
 import type { AdminAuth } from './create-auth'
 import { signInPasskeyDomains } from './passkey-domain'
-import { membershipRoles } from './organizations/role-definitions'
 import { readSignInPolicy } from './policy-store'
+import { roleLabels } from './roles/role-labels'
 import { effectiveSignInPolicy } from './sign-in-policy'
 import { hasUsers } from './users'
 
@@ -46,7 +46,7 @@ export const statusRoute = (auth: AdminAuth, { anonymous = false, plugins = [] }
       ...(auth.organizations && {
         organizations: {
           create: auth.organizations.create,
-          roles: auth.roleDefinitions.names.map((name) => ({ name, label: auth.roleDefinitions.labels[name] ?? name, membership: membershipRoles(auth.roleDefinitions).includes(name), grants: auth.roleDefinitions.grants[name] ?? [] })),
+          roles: roleLabels(auth.roleDefinitions),
         },
       }),
     })

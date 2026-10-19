@@ -22,7 +22,8 @@ export const noGlobalRole = 'user'
 // Better Auth's organization roles; an app role with one of these names would read as one.
 const organizationRoleNames = ['owner', 'member']
 
-const builtInLabels: Record<string, string> = { [superuserRole]: 'Superuser', [noGlobalRole]: 'No global role' }
+// Without organizations, `user` is an ordinary role rather than the placeholder of an account without a global one.
+const builtInLabels = (organizations: boolean): Record<string, string> => ({ [superuserRole]: 'Superuser', [noGlobalRole]: organizations ? 'No global role' : 'User' })
 
 const entriesOf = (input: RolesInput): [string, RoleDefinition | undefined][] =>
   Array.isArray(input) ? input.map((name) => [name, undefined]) : Object.entries(input)
@@ -39,10 +40,11 @@ export const roleDefinitions = (input: RolesInput = ['admin', 'user'], { organiz
   const given = new Map(entries)
   const names = [superuserRole, ...new Set(entries.map(([name]) => name).filter((name) => name !== superuserRole)), ...(organizations && !given.has(noGlobalRole) ? [noGlobalRole] : [])]
   const labels: Record<string, string> = {}
+  const builtIn = builtInLabels(organizations)
   const grants: Record<string, string[]> = {}
   for (const name of names) {
     const definition = given.get(name)
-    const label = typeof definition === 'string' ? definition : (definition?.label ?? builtInLabels[name])
+    const label = typeof definition === 'string' ? definition : (definition?.label ?? builtIn[name])
     if (label !== undefined) labels[name] = label
     grants[name] = typeof definition === 'object' ? (definition.grants ?? []) : []
     const unknown = grants[name].find((granted) => !names.includes(granted))

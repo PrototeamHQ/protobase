@@ -3,7 +3,7 @@ import { membershipRoles, roleDefinitions } from './role-definitions'
 
 describe('roleDefinitions', () => {
   it('reads names only as today: admin first, no labels needed without organizations', () => {
-    expect(roleDefinitions()).toEqual({ names: ['admin', 'user'], labels: { admin: 'Superuser', user: 'No global role' }, grants: { admin: [], user: [] } })
+    expect(roleDefinitions()).toEqual({ names: ['admin', 'user'], labels: { admin: 'Superuser', user: 'User' }, grants: { admin: [], user: [] } })
     expect(roleDefinitions(['sales', 'admin', 'sales']).names).toEqual(['admin', 'sales'])
   })
 

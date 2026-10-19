@@ -68,6 +68,8 @@ export const Invitation = story(() =>
   invitationEmail.render({ app, inviter: 'Ada Lovelace', organization: 'Utrecht Rentals', url: 'https://homes.example.com/-/invitation?token=abc', expiresAt }),
 )
 
+export const AppInvitation = story(() => invitationEmail.render({ app, inviter: 'Ada Lovelace', url: 'https://homes.example.com/-/invitation?token=abc', expiresAt }))
+
 export const Mention = story(
   () =>
     mentionEmail.render({ app, author: 'Ann de Vries', record: 'Listing: Keizersgracht 12', body: 'Can you call the owner, @Bo Jansen?\nThey asked about the viewing.', url: 'https://homes.example.com/listings/12' }),

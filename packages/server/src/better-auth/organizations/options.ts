@@ -1,4 +1,5 @@
 import type { OrganizationOptions } from 'better-auth/plugins/organization'
+import { defaultInvitationUrl } from '../invitations/invitation-link-hook'
 import { membershipRoles, type RoleDefinitions } from './role-definitions'
 import type { StoredMember, StoredOrganization } from './store'
 
@@ -60,7 +61,7 @@ export const resolveOrganizations = (options: OrganizationsOptions, definitions:
     membershipLimit: options.membershipLimit ?? 1000,
     generateId: options.generateId ?? (() => crypto.randomUUID()),
     deleteRecords: options.deleteRecords ?? 'refuse',
-    invitationUrl: options.invitationUrl ?? `${baseURL.replace(/\/$/, '')}/-/invitation`,
+    invitationUrl: options.invitationUrl ?? defaultInvitationUrl(baseURL),
     options,
   }
 }

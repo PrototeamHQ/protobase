@@ -7,6 +7,8 @@ import { authBasePath } from './auth-base-path'
 import { platformMailer } from '../mail/platform-mailer'
 import type { Mailer } from '../mail/smtp-mailer'
 import { readOperatorSettings, resolveOperator, type OperatorProvider, type ResolvedOperator } from './operator-provider'
+import { defaultInvitationSeconds, defaultInvitationUrl } from './invitations/invitation-link-hook'
+import { lastAdminGuardPlugin } from './last-admin-guard'
 import { organizationClaims, lastOrganizationField, sessionOrganizationHooks } from './organizations/session-organization'
 import { organizationPlugin } from './organizations/organization-plugin'
 import { protobaseOrganizationPlugin } from './organizations/protobase-plugin'
@@ -23,12 +25,12 @@ import type { RoleSession, RoleUser } from './roles/session-role'
 import { platformSignInFor, platformSignInProvider, readPlatformSignIn, resolvePlatformSignIn, type PlatformSignIn, type ResolvedPlatformSignIn } from './platform-sign-in'
 import { signInPolicyPlugin } from './policy-plugin'
 import { emailInDomains, resolveSamlProviders, samlDisabledPaths, samlGuardPlugin, samlPlugin, type ResolvedSamlProvider, type SsoOptions } from './saml-sign-in'
-import { lastAdminGuardPlugin } from './last-admin-guard'
 import { emailCodeOptions, twoFactorCodeOptions, unusedEmailCodePaths } from './sign-in-mail'
 import { signUpPaths, signUpPlugin } from './sign-up/sign-up-plugin'
 import { coreNames, pluginNames } from './snake-case-names'
 import { staffSignInPlugin } from './staff-plugin'
 import { twoFactorAfterPasswordOrCode } from './two-factor-challenge'
+import { usersPlugin } from './users/users-plugin'
 
 export type CreateAuthOptions = {
   /** A `pg` Pool, or `{ dialect, type: 'postgres', schemaName? }` for a Kysely dialect: the admin store, apart from the application's tables (its own schema or database). */
@@ -254,6 +256,14 @@ export const betterAuthOptions = (options: CreateAuthOptions, { origins = [], pa
       ...(organizations
         ? [organizationPlugin({ resolved: organizations, secret: options.secret, ...(mail && { mail }), context }), protobaseOrganizationPlugin({ resolved: organizations, mail: Boolean(mailer) })]
         : []),
+      // After the organization plugin, whose endpoints of the same names (`getInvitation`) the invitation links' replace.
+      usersPlugin({
+        definitions,
+        ...(mail && { mail }),
+        invitationUrl: organizations?.invitationUrl ?? defaultInvitationUrl(options.baseURL),
+        invitationSeconds: organizations?.invitationExpiresIn ?? defaultInvitationSeconds,
+        ...(organizations && { organizations }),
+      }),
     ],
     disabledPaths: [...unusedEmailCodePaths, ...adminImpersonationPaths, ...(organizations ? organizationPaths : []), ...(saml.length > 0 ? samlDisabledPaths : [])],
     databaseHooks: {

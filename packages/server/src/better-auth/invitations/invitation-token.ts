@@ -1,6 +1,6 @@
-// The token of an emailed invitation link: the invitation's id with a signature over the id and its expiry, keyed by the
-// auth secret. Members read invitation ids (Better Auth's `list-invitations`), so the id alone must not accept an
-// invitation; with the signature it can only come from the email. Resending moves the expiry, which voids the old link;
+// The token of an emailed invitation link, to the app or to an organization: the invitation's id with a signature over
+// the id and its expiry, keyed by the auth secret. Members read invitation ids (Better Auth's `list-invitations`), so the
+// id alone must not accept an invitation; with the signature it can only come from the email. Resending moves the expiry, which voids the old link;
 // revoking cancels the invitation, which the endpoints check. Web Crypto only, like the rest of the server.
 
 const encoder = new TextEncoder()
@@ -31,3 +31,6 @@ export const verifyInvitationToken = async (secret: string, token: string, invit
 
 /** The link in the email: the app's invitation page with the token. */
 export const invitationLink = (pageUrl: string, token: string) => `${pageUrl}?token=${encodeURIComponent(token)}`
+
+/** Why a link's token finds no pending invitation, of either kind: the body of its 400. */
+export const invalidInvitation = { code: 'INVITATION_INVALID', message: 'This invitation link is not valid any more: it was used, revoked, replaced by a newer one, or it expired.' }

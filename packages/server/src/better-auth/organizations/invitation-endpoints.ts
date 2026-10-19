@@ -1,90 +1,19 @@
-import { APIError, createAuthEndpoint, createAuthMiddleware, sessionMiddleware } from 'better-auth/api'
-import { setSessionCookie } from 'better-auth/cookies'
+import { createAuthEndpoint, sessionMiddleware } from 'better-auth/api'
 import * as z from 'zod'
-import { checkNewAccountPassword } from '../new-account-password'
-import { readSignInPolicy } from '../policy-store'
-import { effectiveSignInPolicy } from '../sign-in-policy'
 import { acceptInvitation, invitationOfToken } from './accept-invitation'
-import { invitationLink, invitationToken } from './invitation-token'
 import type { ResolvedOrganizations } from './options'
-import { noGlobalRole } from './role-definitions'
-import { findOrganization, type AuthContext } from './store'
-
-const tokenBody = z.object({ token: z.string().min(1) })
-
-const startIn = (context: AuthContext, sessionToken: string, organizationId: string) => context.internalAdapter.updateSession(sessionToken, { activeOrganizationId: organizationId })
 
 /**
- * The endpoints an emailed invitation link uses: what it is for, accepting it signed in, and creating an account from it
- * for someone who has none. Open sign-up stays off; an invitation is an address someone vouched for, and the link in
- * the mail proves the person reads it.
+ * Accepting an organization's emailed invitation signed in. What a link is for, and making an account from it, are the
+ * shared invitation endpoints (`invitations/invitation-endpoints.ts`), which serve invitations to the app as well.
  */
-export const invitationEndpoints = ({ resolved, mail }: { resolved: ResolvedOrganizations; mail: boolean }) => ({
-  /** `GET /invitation?token=`: the organization, who invites, the address and roles, until when, and whether the address has an account. */
-  getInvitation: createAuthEndpoint('/invitation', { method: 'GET', query: tokenBody }, async (ctx) => {
-    const invitation = await invitationOfToken(ctx.context, ctx.query.token)
-    const organization = await findOrganization(ctx.context.adapter, invitation.organizationId)
-    const inviter = await ctx.context.internalAdapter.findUserById(invitation.inviterId)
-    const account = await ctx.context.internalAdapter.findUserByEmail(invitation.email.toLowerCase())
-    return ctx.json({
-      organization: { id: invitation.organizationId, name: organization?.name ?? '' },
-      inviter: { name: inviter?.name || inviter?.email || '' },
-      email: invitation.email,
-      role: invitation.role,
-      appRoles: invitation.appRoles,
-      expiresAt: new Date(invitation.expiresAt).toISOString(),
-      hasAccount: Boolean(account),
-    })
-  }),
-
+export const invitationEndpoints = ({ resolved }: { resolved: ResolvedOrganizations }) => ({
   /** `POST /invitation/accept` with `{ token }`, signed in as the invited address: becomes a member, and works there. */
-  acceptInvitation: createAuthEndpoint('/invitation/accept', { method: 'POST', body: tokenBody, use: [sessionMiddleware] }, async (ctx) => {
+  acceptInvitation: createAuthEndpoint('/invitation/accept', { method: 'POST', body: z.object({ token: z.string().min(1) }), use: [sessionMiddleware] }, async (ctx) => {
     const invitation = await invitationOfToken(ctx.context, ctx.body.token)
     const { user, session } = ctx.context.session
     const member = await acceptInvitation(ctx.context, invitation, user, resolved.membershipLimit)
-    await startIn(ctx.context, session.token, invitation.organizationId)
+    await ctx.context.internalAdapter.updateSession(session.token, { activeOrganizationId: invitation.organizationId })
     return ctx.json({ member })
-  }),
-
-  /**
-   * `POST /invitation/sign-up` with `{ token, name, password? }`, for an address without an account: creates it, as
-   * verified and with no global role, accepts the invitation and signs the person in there. A password is needed unless
-   * the sign-in policy offers emailed codes; the policy's required methods are then set up as after any sign-in.
-   */
-  signUpFromInvitation: createAuthEndpoint(
-    '/invitation/sign-up',
-    { method: 'POST', body: z.object({ token: z.string().min(1), name: z.string().trim().min(1).max(200), password: z.string().optional() }) },
-    async (ctx) => {
-      const invitation = await invitationOfToken(ctx.context, ctx.body.token)
-      const { internalAdapter } = ctx.context
-      if (await internalAdapter.findUserByEmail(invitation.email.toLowerCase())) {
-        throw new APIError('BAD_REQUEST', { code: 'ACCOUNT_EXISTS', message: 'This address has an account already: sign in to accept the invitation.' })
-      }
-      const { password } = ctx.body
-      checkNewAccountPassword(effectiveSignInPolicy((await readSignInPolicy(ctx.context.adapter)).policy, { mail }), password)
-      const user = await internalAdapter.createUser({ email: invitation.email.toLowerCase(), name: ctx.body.name, emailVerified: true, role: noGlobalRole }, { method: 'invitation' })
-      if (password !== undefined) {
-        await internalAdapter.linkAccount({ userId: user.id, providerId: 'credential', accountId: user.id, password: await ctx.context.password.hash(password) })
-      }
-      const member = await acceptInvitation(ctx.context, invitation, user, resolved.membershipLimit)
-      const session = await internalAdapter.createSession(user.id, false)
-      await startIn(ctx.context, session.token, invitation.organizationId)
-      await setSessionCookie(ctx, { session: { ...session, activeOrganizationId: invitation.organizationId } as typeof session, user })
-      return ctx.json({ member })
-    },
-  ),
-})
-
-/**
- * Without a mailer the invitation cannot be emailed, so whoever invites gets its link in the answer, once, to pass on.
- * Resending gives a new link, since it moves the expiry.
- */
-export const invitationLinkHook = (resolved: ResolvedOrganizations) => ({
-  matcher: (context: { path?: string }) => context.path === '/organization/invite-member',
-  handler: createAuthMiddleware(async (ctx) => {
-    const returned = ctx.context.returned as { id?: string; expiresAt?: Date | string } | undefined
-    if (!returned || returned instanceof Response || returned instanceof Error || !returned.id || !returned.expiresAt) return
-    const token = await invitationToken(ctx.context.secret, { id: returned.id, expiresAt: new Date(returned.expiresAt) })
-    ctx.context.returned = { ...returned, link: invitationLink(resolved.invitationUrl, token) }
   }),
 })

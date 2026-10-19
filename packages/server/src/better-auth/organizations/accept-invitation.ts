@@ -1,6 +1,6 @@
 import { APIError } from 'better-auth/api'
 import { parseAppRoles } from './app-roles'
-import { invitationIdOf, verifyInvitationToken } from './invitation-token'
+import { invalidInvitation, invitationIdOf, verifyInvitationToken } from '../invitations/invitation-token'
 import { findMember, membersOf, type AuthContext, type StoredMember } from './store'
 
 export type StoredInvitation = {
@@ -14,14 +14,12 @@ export type StoredInvitation = {
   inviterId: string
 }
 
-const invalid = { code: 'INVITATION_INVALID', message: 'This invitation link is not valid any more: it was used, revoked, replaced by a newer one, or it expired.' }
-
 /** The pending invitation an emailed link's token names, or a 400 `INVITATION_INVALID`. */
 export const invitationOfToken = async (context: AuthContext, token: string): Promise<StoredInvitation> => {
   const id = invitationIdOf(token)
   const row = id && (await context.adapter.findOne<Omit<StoredInvitation, 'appRoles'> & { appRoles?: unknown }>({ model: 'invitation', where: [{ field: 'id', value: id }] }))
-  if (!row || !(await verifyInvitationToken(context.secret, token, row))) throw new APIError('BAD_REQUEST', invalid)
-  if (row.status !== 'pending' || new Date(row.expiresAt).getTime() < Date.now()) throw new APIError('BAD_REQUEST', invalid)
+  if (!row || !(await verifyInvitationToken(context.secret, token, row))) throw new APIError('BAD_REQUEST', invalidInvitation)
+  if (row.status !== 'pending' || new Date(row.expiresAt).getTime() < Date.now()) throw new APIError('BAD_REQUEST', invalidInvitation)
   return { ...row, appRoles: parseAppRoles(row.appRoles) }
 }
 
@@ -43,7 +41,7 @@ export const acceptInvitation = async (context: AuthContext, invitation: StoredI
   }
   return context.adapter.transaction(async (trx) => {
     const accepted = await trx.update({ model: 'invitation', where: [{ field: 'id', value: invitation.id }, { field: 'status', value: 'pending' }], update: { status: 'accepted' } })
-    if (!accepted) throw new APIError('BAD_REQUEST', invalid)
+    if (!accepted) throw new APIError('BAD_REQUEST', invalidInvitation)
     const member = await trx.create<Record<string, unknown>, Omit<StoredMember, 'appRoles'>>({
       model: 'member',
       data: { organizationId: invitation.organizationId, userId: user.id, role: invitation.role, appRoles: invitation.appRoles, createdAt: new Date() },

@@ -68,4 +68,10 @@ describe('the auth emails', () => {
     expect(email.text).toContain('Ada invites you to join Acme on Property Finder.')
     expect(/https:\/\/\S+/.exec(email.text)![0]).toBe('https://homes.example.com/-/invitation?token=t')
   })
+
+  it('invite to the app itself without an organization', async () => {
+    const email = await invitationEmail.render({ app, inviter: 'Ada', url: 'https://homes.example.com/-/invitation?token=t', expiresAt })
+    expect(email.subject).toBe('Join Property Finder')
+    expect(email.text).toContain('Ada invites you to join Property Finder.')
+  })
 })
