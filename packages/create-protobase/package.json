@@ -1,7 +1,7 @@
 {
   "name": "create-protobase",
   "version": "0.14.2",
-  "description": "npm create protobase: starts a new Protobase project from scratch.",
+  "description": "npm create protobase: starts a new Protobase project from one of its presets.",
   "license": "Apache-2.0",
   "repository": {
     "type": "git",

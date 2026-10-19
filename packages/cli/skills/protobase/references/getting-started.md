@@ -10,10 +10,11 @@ An app's own React code, its components, field types and actions, is a [plugin](
 
 ## Start an app
 
-`npm create protobase my-app` writes a new project from scratch into `my-app`, with the `@protobase` packages in the range of the latest release's major, and prints the next steps: install it with Bun, point `.env` at a Postgres database, migrate it, create a user and run `bun run dev`. It needs Node 22.12 or later.
+`npm create protobase my-app` asks which preset to start from, scratch (the default), the ERP or real estate, writes the project into `my-app`, with the `@protobase` packages in the range of the latest release's major, and prints the next steps: install it with Bun, point `.env` at a Postgres database, migrate it, load the preset's base data, if it has any, create a user and run `bun run dev`. `--preset <name>` picks one without asking; without a terminal it takes scratch. It needs Node 22.12 or later.
 
 ```sh
 npm create protobase my-app
+npm create protobase my-app -- --preset real-estate
 ```
 
 The rest of this page works in a clone of this repository, on its examples.
@@ -85,4 +86,4 @@ bun run --cwd examples/property-portal dev              # http://localhost:5173
 | `bun run release --dry-run` | the next version and its changelog, from the commits since the last release (see [Versioning](reference/versioning.md))) |
 | `bun run docs:check` | opens every page of the built site in Chromium and fails on console errors and failed requests; `BASE=https://docs.protobase.net` checks the live site |
 
-Each public import is a package in `packages/` (`@protobase/schema`, `layout`, `query`, `client`, `ui`, `server`, and `cli` for the `protobase` command); `packages/presets` writes the projects a new app starts from and is not published; `packages/create-protobase` is `npm create protobase`, with the from-scratch preset. See [Architecture](reference/architecture.md)) for the layout and import rules.
+Each public import is a package in `packages/` (`@protobase/schema`, `layout`, `query`, `client`, `ui`, `server`, and `cli` for the `protobase` command); `packages/presets` writes the projects a new app starts from and is not published; `packages/create-protobase` is `npm create protobase`, with every preset. See [Architecture](reference/architecture.md)) for the layout and import rules.

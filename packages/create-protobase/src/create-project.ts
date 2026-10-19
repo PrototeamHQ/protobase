@@ -2,8 +2,8 @@ import { cpSync, existsSync, readdirSync, readFileSync, renameSync, writeFileSyn
 import path from 'node:path'
 
 /**
- * Writes a new project to `targetDir` from `templateDir`, which the build writes from the scratch preset, with its
- * package.json named after the folder. The folder may exist only when it is empty.
+ * Writes a new project to `targetDir` from `templateDir`, which the build writes from a preset, with its package.json
+ * named after the folder, and returns that package.json. The folder may exist only when it is empty.
  */
 export const createProject = (templateDir: string, targetDir: string) => {
   if (existsSync(targetDir) && readdirSync(targetDir).length > 0) throw new Error(`${targetDir} is not empty`)
@@ -13,6 +13,7 @@ export const createProject = (templateDir: string, targetDir: string) => {
     renameSync(path.join(targetDir, file), path.join(targetDir, file.slice(1)))
   }
   const packageFile = path.join(targetDir, 'package.json')
-  const manifest = JSON.parse(readFileSync(packageFile, 'utf8'))
-  writeFileSync(packageFile, `${JSON.stringify({ ...manifest, name: path.basename(targetDir) }, null, 2)}\n`)
+  const manifest = { ...JSON.parse(readFileSync(packageFile, 'utf8')), name: path.basename(targetDir) }
+  writeFileSync(packageFile, `${JSON.stringify(manifest, null, 2)}\n`)
+  return manifest
 }

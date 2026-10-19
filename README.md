@@ -18,15 +18,17 @@ npm packages under the `@protobase` scope, all at one version, built from `packa
 - `@protobase/ui`: the admin app, and the hooks and components for `protobase.ui.tsx`
 - `@protobase/cli`: the `protobase` command (scaffold, doctor, dev, build, serve)
 
-Beside them, `create-protobase` starts a new app from scratch, then prints the next steps:
+Beside them, `create-protobase` starts a new app from a preset (scratch, the default, ERP or real estate), asking
+which in a terminal, then prints the next steps:
 
 ```sh
 npm create protobase my-app
+npm create protobase my-app -- --preset erp   # without asking
 ```
 
-The other projects a new app can start from (ERP, real estate) are not on npm: `bun run presets:write <version> <dir>`
-writes them from a clone of this repository, each with the `@protobase` packages in the range of `<version>`'s major
-(`>=0.y.z <1` below 1.0, `^x.y.z` from 1.0) and its own `bun.lock` at exactly `<version>`.
+`bun run presets:write <version> <dir>` writes every preset from a clone of this repository, each with the
+`@protobase` packages in the range of `<version>`'s major (`>=0.y.z <1` below 1.0, `^x.y.z` from 1.0) and its own
+`bun.lock` at exactly `<version>`.
 
 Every release also pushes two images to GitHub's registry: `ghcr.io/prototeamhq/protobase:<version>`, the serve
 runtime, and `ghcr.io/prototeamhq/protobase-dev:<version>`, Bun and the presets with their dependencies
