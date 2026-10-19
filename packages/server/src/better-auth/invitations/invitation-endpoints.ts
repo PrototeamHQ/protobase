@@ -19,7 +19,7 @@ const tokenQuery = z.object({ token: z.string().min(1) })
 export const invitationEndpoints = ({ mail, organizations }: { mail: boolean; organizations?: ResolvedOrganizations }) => ({
   /**
    * `GET /invitation?token=`: who invites, the address and roles, until when, and whether the address has an account;
-   * for an organization's invitation also the organization and the role there.
+   * for an invitation to the app also the app's name, and for an organization's the organization and the role there.
    */
   getInvitation: createAuthEndpoint('/invitation', { method: 'GET', query: tokenQuery }, async (ctx) => {
     const found = await invitationOfToken(ctx.context, ctx.query.token, { organizations: Boolean(organizations) })
@@ -27,7 +27,7 @@ export const invitationEndpoints = ({ mail, organizations }: { mail: boolean; or
     const inviter = await ctx.context.internalAdapter.findUserById(invitation.inviterId)
     const account = await ctx.context.internalAdapter.findUserByEmail(invitation.email.toLowerCase())
     const common = { inviter: { name: inviter?.name || inviter?.email || '' }, email: invitation.email, expiresAt: new Date(invitation.expiresAt).toISOString(), hasAccount: Boolean(account) }
-    if (found.kind === 'app') return ctx.json({ ...common, appRoles: found.invitation.roles })
+    if (found.kind === 'app') return ctx.json({ app: { name: ctx.context.appName }, ...common, appRoles: found.invitation.roles })
     const organization = await findOrganization(ctx.context.adapter, found.invitation.organizationId)
     return ctx.json({ organization: { id: found.invitation.organizationId, name: organization?.name ?? '' }, ...common, role: found.invitation.role, appRoles: found.invitation.appRoles })
   }),

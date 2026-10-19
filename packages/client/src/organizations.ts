@@ -27,12 +27,16 @@ export type OrganizationMember = { id: string; userId: string; name: string; ema
 /** `organizationName` comes with the person's own invitations, which span organizations. */
 export type OrganizationInvitation = { id: string; email: string; role: OrganizationRole; appRoles: string[]; status: string; expiresAt: string; organizationName?: string }
 
-/** An invitation as its link shows it, before it is accepted. */
+/**
+ * An invitation as its link shows it, before it is accepted. One to the app itself, rather than to an organization, has
+ * `app` in place of `organization` and `role`, and `appRoles` are the roles its account gets.
+ */
 export type InvitationPreview = {
-  organization: { id: string; name: string }
+  app?: { name: string }
+  organization?: { id: string; name: string }
   inviter: { name: string }
   email: string
-  role: OrganizationRole
+  role?: OrganizationRole
   appRoles: string[]
   expiresAt: string
   hasAccount: boolean
@@ -147,13 +151,13 @@ export const organizationsClient = (client: BetterAuthClient, refreshToken: () =
     /** The pending invitations for the person's own address. */
     myInvitations: async () => ((await call<RawInvitation[]>('/organization/list-user-invitations', 'Could not read your invitations')) ?? []).map(invitation),
 
-    /** What an invitation link is for; works signed out. */
+    /** What an invitation link is for, to an organization or to the app; works signed out. */
     invitation: (token: string) => call<InvitationPreview>('/invitation', 'This invitation link is not valid', { query: { token } }),
 
     /** Accepts an invitation signed in as its address, and works in its organization. */
     accept: async (token: string) => thenRefresh(await call<unknown>('/invitation/accept', 'Could not accept the invitation', { body: { token } })),
 
-    /** Creates an account for an invited address without one, accepts the invitation and signs in. */
+    /** Creates an account for an invited address without one, accepts the invitation and signs in; for either kind of invitation. */
     signUpFromInvitation: async (token: string, input: { name: string; password?: string }) =>
       thenRefresh(await call<unknown>('/invitation/sign-up', 'Could not create your account', { body: { token, ...input } })),
   }

@@ -83,7 +83,7 @@ describe('inviting people to an app without organizations', () => {
     const token = new URL(answer.link).searchParams.get('token')!
 
     const preview = await (await request(`/invitation?token=${encodeURIComponent(token)}`)).json()
-    expect(preview).toEqual({ inviter: { name: 'root' }, email: 'jan@ledger.example', appRoles: ['user'], expiresAt: expect.any(String), hasAccount: false })
+    expect(preview).toEqual({ app: { name: 'Protobase' }, inviter: { name: 'root' }, email: 'jan@ledger.example', appRoles: ['user'], expiresAt: expect.any(String), hasAccount: false })
     const signedUp = await request('/invitation/sign-up', { body: { token, name: 'Jan', password } })
     expect(signedUp.status).toBe(200)
     const jan = signedUp.headers.getSetCookie().map((line) => line.split(';')[0]).join('; ')

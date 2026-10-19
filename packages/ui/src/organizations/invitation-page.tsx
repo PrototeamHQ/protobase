@@ -20,7 +20,7 @@ export type InvitationPageProps = {
   signIn: RouteTarget
 }
 
-const SignUp = ({ token, preview, onDone }: { token: string; preview: InvitationPreview; onDone: () => void }) => {
+const SignUp = ({ token, preview, joins, onDone }: { token: string; preview: InvitationPreview; joins: boolean; onDone: () => void }) => {
   const { session, signInMethods, recheck } = useAuth()
   const [name, setName] = useState('')
   const [password, setPassword] = useState('')
@@ -35,7 +35,7 @@ const SignUp = ({ token, preview, onDone }: { token: string; preview: Invitation
     })
   return (
     <form className="flex flex-col gap-3" onSubmit={(event) => { event.preventDefault(); void submit() }}>
-      <p className="text-muted-foreground">Make your account for {preview.email} to join.</p>
+      <p className="text-muted-foreground">{joins ? `Make your account for ${preview.email} to join.` : `Make your account for ${preview.email}.`}</p>
       {error && <p role="alert" className="text-xs font-medium text-danger-text">{error}</p>}
       <Input aria-label="Your name" placeholder="Your name" autoComplete="name" value={name} onChange={(event) => setName(event.target.value)} />
       {withPassword && (
@@ -49,7 +49,7 @@ const SignUp = ({ token, preview, onDone }: { token: string; preview: Invitation
         />
       )}
       <Button type="submit" variant="primary" loading={busy} disabled={!name.trim() || (withPassword && !passwordOptional && password.length < minPasswordLength)}>
-        Create account and join
+        {joins ? 'Create account and join' : 'Create your account'}
       </Button>
     </form>
   )
@@ -57,7 +57,8 @@ const SignUp = ({ token, preview, onDone }: { token: string; preview: Invitation
 
 /**
  * Where an emailed invitation link leads: what it is for, then accepting it signed in as the invited address, signing
- * in first, or making an account for an address without one.
+ * in first, or making an account for an address without one. An invitation to the app itself, rather than to an
+ * organization, only makes the account: someone with one just signs in.
  */
 export const InvitationPage = ({ token, onDone, signIn }: InvitationPageProps) => {
   const { session, state, signOut, organizations } = useAuth()
@@ -82,31 +83,58 @@ export const InvitationPage = ({ token, onDone, signIn }: InvitationPageProps) =
       </AuthLayout>
     )
   }
-  const roles = preview.appRoles.map((name) => roleLabel(organizations?.roles ?? [], name))
-  const description = `${preview.inviter.name} invites you to ${preview.organization.name} as ${organizationRoleLabels[preview.role].toLowerCase()}${roles.length > 0 ? `, with ${roles.join(', ')}` : ''}.`
   const user = state.kind === 'signed-in' ? state.user : undefined
-
-  if (user && user.email.toLowerCase() !== preview.email.toLowerCase()) {
+  const sameAddress = user?.email.toLowerCase() === preview.email.toLowerCase()
+  if (!preview.organization) {
+    const app = preview.app?.name ?? ''
+    const description = `${preview.inviter.name} invites you to join ${app}.`
     return (
-      <AuthLayout title={`Join ${preview.organization.name}`} description={description}>
+      <AuthLayout title={`Join ${app}`} description={description}>
+        {preview.hasAccount ? (
+          user && sameAddress ? (
+            <Button variant="primary" className="w-full" onClick={onDone}>Go to the app</Button>
+          ) : (
+            <>
+              <p className="mb-3 text-muted-foreground">{preview.email} has an account already: sign in with it.</p>
+              {user ? <Button className="w-full" onClick={() => void signOut()}>Sign out</Button> : <RouteLink to={signIn} className={cn(buttonClass({ variant: 'primary' }), 'w-full')}>Sign in as {preview.email}</RouteLink>}
+            </>
+          )
+        ) : user ? (
+          <>
+            <p className="mb-3 text-muted-foreground">This invitation is for {preview.email}, and you are signed in as {user.email}.</p>
+            <Button className="w-full" onClick={() => void signOut()}>Sign out to accept it</Button>
+          </>
+        ) : (
+          <SignUp token={token} preview={preview} joins={false} onDone={onDone} />
+        )}
+      </AuthLayout>
+    )
+  }
+  const organization = preview.organization
+  const roles = preview.appRoles.map((name) => roleLabel(organizations?.roles ?? [], name))
+  const description = `${preview.inviter.name} invites you to ${organization.name} as ${organizationRoleLabels[preview.role!].toLowerCase()}${roles.length > 0 ? `, with ${roles.join(', ')}` : ''}.`
+
+  if (user && !sameAddress) {
+    return (
+      <AuthLayout title={`Join ${organization.name}`} description={description}>
         <p className="mb-3 text-muted-foreground">This invitation is for {preview.email}, and you are signed in as {user.email}.</p>
         <Button className="w-full" onClick={() => void signOut()}>Sign out to accept it</Button>
       </AuthLayout>
     )
   }
   return (
-    <AuthLayout title={`Join ${preview.organization.name}`} description={description}>
+    <AuthLayout title={`Join ${organization.name}`} description={description}>
       {user ? (
         <div className="flex flex-col gap-3">
           {error && <p role="alert" className="text-xs font-medium text-danger-text">{error}</p>}
           <Button variant="primary" className="w-full" loading={busy} onClick={() => void run(async () => { await session.organizations.accept(token); onDone() })}>
-            Join {preview.organization.name}
+            Join {organization.name}
           </Button>
         </div>
       ) : preview.hasAccount ? (
         <RouteLink to={signIn} className={cn(buttonClass({ variant: 'primary' }), 'w-full')}>Sign in as {preview.email} to join</RouteLink>
       ) : (
-        <SignUp token={token} preview={preview} onDone={onDone} />
+        <SignUp token={token} preview={preview} joins onDone={onDone} />
       )}
     </AuthLayout>
   )

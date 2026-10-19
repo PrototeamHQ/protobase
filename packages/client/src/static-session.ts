@@ -51,6 +51,17 @@ export const createStaticSession = (token: string, user: AuthUser = { id: 'token
   signInPolicy: { read: unsupported('read the sign-in policy'), save: unsupported('save the sign-in policy') },
   staff: { start: unsupported('start a staff sign-in'), current: async () => undefined, stop: unsupported('end a staff session'), log: unsupported('read the staff sign-ins') },
   roles: { current: async () => ({ active: null, roles: [] }), switchTo: unsupported('switch roles') },
+  users: {
+    search: async () => ({ users: [], total: 0 }),
+    create: unsupported('create an account'),
+    setRoles: unsupported('change roles'),
+    block: unsupported('block an account'),
+    unblock: unsupported('unblock an account'),
+    invite: unsupported('invite people'),
+    invitations: async () => [],
+    revoke: unsupported('revoke an invitation'),
+    roles: async () => [],
+  },
   organizations: {
     list: async () => [],
     current: async () => ({ organization: null, globalRoles: [] }),
