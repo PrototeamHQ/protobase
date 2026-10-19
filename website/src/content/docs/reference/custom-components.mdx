@@ -101,6 +101,8 @@ export const CustomerRepairs = ({ limit }: { limit: number }) => {
 }
 ```
 
+A list that should stay live polls: `useList('repairs', { refetchInterval: 5000 })` refetches every 5 seconds. It is TanStack Query's `refetchInterval`, so it also takes `false` to stop, or a function of the query, and pauses while the tab is in the background.
+
 ## Record cards
 
 A cards display can draw each card's content with a component, declared in the view with `d.cards(fields, { card })`. The card stays a link to the record, with the display's frame; the component draws what is inside it from `row`, the record with the fields the display names, so name every field the card shows:

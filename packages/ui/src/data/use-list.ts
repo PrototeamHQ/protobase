@@ -1,4 +1,4 @@
-import { useInfiniteQuery } from '@tanstack/react-query'
+import { useInfiniteQuery, type InfiniteData, type QueryKey, type UseInfiniteQueryOptions } from '@tanstack/react-query'
 import { filterText, type FilterInput, type ListPage } from '@protobase/client'
 import { useClient } from './api-provider'
 import { keys } from './query-keys'
@@ -11,17 +11,20 @@ export type UseListParams = {
   /** Start at this page token instead of the first page, for example one from `useAnchors`. */
   startToken?: string
   enabled?: boolean
+  /** TanStack Query's `refetchInterval`: refetch every so many milliseconds, `false` to stop, or a function of the query. */
+  refetchInterval?: UseInfiniteQueryOptions<ListPage<Row>, Error, InfiniteData<ListPage<Row>>, QueryKey, string>['refetchInterval']
 }
 
 type Row = Record<string, unknown>
 
 /** Infinite pages of a resource, following `next_page_token`. */
-export const useList = (resource: string, { filter, orderBy, pageSize = 50, fields, startToken = '', enabled = true }: UseListParams = {}) => {
+export const useList = (resource: string, { filter, orderBy, pageSize = 50, fields, startToken = '', enabled = true, refetchInterval }: UseListParams = {}) => {
   const client = useClient()
   const text = filterText(filter) ?? ''
   const query = useInfiniteQuery({
     queryKey: [...keys.list(resource, text, orderBy ?? '', pageSize, startToken), fields?.join(',') ?? ''],
     enabled,
+    refetchInterval,
     initialPageParam: startToken,
     queryFn: ({ pageParam }): Promise<ListPage<Row>> => client.list(resource, { filter: text, orderBy, pageSize, fields, pageToken: pageParam }),
     getNextPageParam: (last) => last.nextPageToken || undefined,
