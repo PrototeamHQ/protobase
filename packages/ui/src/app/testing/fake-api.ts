@@ -51,6 +51,7 @@ export type FakeApiInput = {
 
 const keyOf = (model: ResourceModel, row: Row) => encodeKey(model.primaryKey.map((name) => row[name] as string | number))
 
+const stale = () => new ApiError({ type: 'urn:protobase:problem:precondition-failed', title: 'Precondition Failed', status: 412, detail: 'The record changed since it was read; fetch it again' })
 const notFound = () => new ApiError({ type: 'urn:protobase:problem:not-found', title: 'Not Found', status: 404, detail: 'No such record' })
 
 // A null sorts as Postgres sorts it: after every value, so first in descending order. A value never written sorts as
@@ -166,6 +167,30 @@ export const fakeApi = ({ resources, views = [], pages = [], rows: initial, perm
     }
   }
 
+  // A batch write's `update`, as a ranked board's drop sends it, or `reorder`, as sorting by hand does: the records
+  // numbered 1, 2, 3, ... in the order of their keys. A record is refused when its ETag is stale; unlike the server, the
+  // fake keeps the operations before a refused one
+  type BatchOp = { op: string; resource: string; key?: string | number; data?: Row; etag?: string; field?: string; keys?: Array<string | number>; etags?: Record<string, string> }
+  const batchOp = async (op: BatchOp) => {
+    if (op.op === 'update') {
+      const key = String(op.key)
+      if (![undefined, '*', find(op.resource, key).etag].includes(op.etag)) throw stale()
+      return { op: 'update', resource: op.resource, ...(await client.update(op.resource, key, op.data!)) }
+    }
+    if (op.op !== 'reorder') throw new Error(`Not implemented: the fake API's batch writes only update and reorder, not ${op.op}`)
+    const { resource, field } = op as { resource: string; field: string }
+    const keys = op.keys!.map(String)
+    const changing = keys.filter((key, index) => find(resource, key)[field] !== index + 1)
+    if (changing.some((key) => ![undefined, '*', find(resource, key).etag].includes(op.etags?.[key]))) throw stale()
+    for (const key of changing) {
+      const row = find(resource, key)
+      row[field] = keys.indexOf(key) + 1
+      write(resource, row)
+    }
+    const records = keys.map((key) => stored(resource, find(resource, key)))
+    return { op: 'reorder', resource, records }
+  }
+
   const client = {
     meta: async () => ({ status: 'modified' as const, etag: '"fake-meta"', meta: { appName: 'Protobase', resources, views, pages, permissions, ...(plugins && { plugins }), ...(sources && { sources }), ...(maps && { maps }), ...(files && { files }), ...(bottomBar && { bottomBar }), ...(signIn && { signIn }) } }),
     list: async (resource: string, params: ListParams = {}) => pageAt(resource, select(resource, params), Number(params.pageToken || 0), params.pageSize ?? 50, params),
@@ -240,25 +265,11 @@ export const fakeApi = ({ resources, views = [], pages = [], rows: initial, perm
       if (!generate) throw new Error(`Not implemented: the fake API has no model to run the AI action "${action}"`)
       return client.update(resource, key, await generate(resource, key, action))
     },
-    // Only `reorder`, as sorting by hand sends it: the records numbered 1, 2, 3, ... in the order of their keys, those
-    // whose number changes each refused when its ETag is stale
-    batchWrite: async (ops: Array<{ op: string; resource: string; field?: string; keys?: Array<string | number>; etags?: Record<string, string> }>) => ({
-      results: ops.map((op) => {
-        if (op.op !== 'reorder') throw new Error(`Not implemented: the fake API's batch writes only reorder, not ${op.op}`)
-        const { resource, field } = op as { resource: string; field: string }
-        const keys = op.keys!.map(String)
-        const changing = keys.filter((key, index) => find(resource, key)[field] !== index + 1)
-        const stale = changing.some((key) => ![undefined, '*', find(resource, key).etag].includes(op.etags?.[key]))
-        if (stale) throw new ApiError({ type: 'urn:protobase:problem:precondition-failed', title: 'Precondition Failed', status: 412, detail: 'The record changed since it was read; fetch it again' })
-        for (const key of changing) {
-          const row = find(resource, key)
-          row[field] = keys.indexOf(key) + 1
-          write(resource, row)
-        }
-        const records = keys.map((key) => stored(resource, find(resource, key)))
-        return { op: 'reorder', resource, records }
-      }),
-    }),
+    batchWrite: async (ops: BatchOp[]) => {
+      const results = []
+      for (const op of ops) results.push(await batchOp(op))
+      return { results }
+    },
     remove: async (resource: string, key: string) => {
       const row = find(resource, key)
       rows[resource] = table(resource).filter((entry) => entry !== row)
