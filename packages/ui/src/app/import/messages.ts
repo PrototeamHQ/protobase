@@ -96,6 +96,7 @@ export const text = defineMessages({
     notWorkbook: (part: string) => `The file is not an Excel workbook (.xlsx): it has no ${part}`,
     noSheetCalled: (name: string) => `The workbook has no sheet called ${name}`,
     unreadable: 'The file could not be read',
+    column: (letters: string) => `Column ${letters}`,
   },
   nl: {
     import: 'Importeren',
@@ -192,5 +193,6 @@ export const text = defineMessages({
     notWorkbook: (part: string) => `Het bestand is geen Excel-werkmap (.xlsx): het heeft geen ${part}`,
     noSheetCalled: (name: string) => `De werkmap heeft geen werkblad met de naam ${name}`,
     unreadable: 'Het bestand kon niet worden gelezen',
+    column: (letters: string) => `Kolom ${letters}`,
   },
 })

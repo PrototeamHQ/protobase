@@ -1,3 +1,4 @@
+import { text } from './messages'
 /**
  * A cell as a file holds it: text (every CSV cell), a number, a boolean, a date or time a workbook stores as one, or
  * `null` for an empty cell. A date is its wall-clock time without a zone: `2026-03-01` or `2026-03-01T14:30:00`.
@@ -26,4 +27,4 @@ export const cellText = (cell: SheetCell) => {
 export const columnLetters = (index: number): string => (index < 26 ? String.fromCharCode(65 + index) : columnLetters(Math.floor(index / 26) - 1) + columnLetters(index % 26))
 
 /** How the import names a column: its header, or "Column C" when the header cell is empty. */
-export const columnName = (headers: string[], index: number) => (headers[index]?.trim() ? headers[index]! : `Column ${columnLetters(index)}`)
+export const columnName = (headers: string[], index: number) => (headers[index]?.trim() ? headers[index]! : text('column', columnLetters(index)))

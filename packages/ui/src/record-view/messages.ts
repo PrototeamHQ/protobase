@@ -16,6 +16,7 @@ export const text = defineMessages({
     viewing: (count: number) => `${count} viewing`,
     savingSubject: (subject: string) => `Saving ${subject}...`,
     subjectSaved: (subject: string) => `${subject} saved`,
+    tabs: 'Tabs',
   },
   nl: {
     savedDifferent: (name: string) => `${name} bewaarde een andere waarde`,
@@ -32,5 +33,6 @@ export const text = defineMessages({
     viewing: (count: number) => `${count} kijken mee`,
     savingSubject: (subject: string) => `${subject} bewaren...`,
     subjectSaved: (subject: string) => `${subject} bewaard`,
+    tabs: 'Tabbladen',
   },
 })

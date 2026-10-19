@@ -44,6 +44,7 @@ export const text = defineMessages({
     noneMatch: (plural: string) => `No ${plural} match.`,
     noNew: (plural: string) => `No new ${plural} since you last looked.`,
     viewAll: 'View all results',
+    filters: 'Filters',
   },
   nl: {
     saveSearch: 'Zoekopdracht bewaren',
@@ -88,5 +89,6 @@ export const text = defineMessages({
     noneMatch: (plural: string) => `Geen ${plural} gevonden.`,
     noNew: (plural: string) => `Geen nieuwe ${plural} sinds je laatst keek.`,
     viewAll: 'Alle resultaten bekijken',
+    filters: 'Filters',
   },
 })

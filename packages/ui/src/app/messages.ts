@@ -61,6 +61,8 @@ export const text = defineMessages({
     staffSession: 'Staff session',
     staffSignedIn: '{} is signed in as {} until {}. Reason: {}',
     stopStaffSession: 'Stop staff session',
+    open: 'Open',
+    openLabel: (label: string) => `Open ${label}`,
   },
   nl: {
     notFound: 'Niet gevonden',
@@ -121,5 +123,7 @@ export const text = defineMessages({
     staffSession: 'Sessie van een medewerker',
     staffSignedIn: '{} is ingelogd als {} tot {}. Reden: {}',
     stopStaffSession: 'Sessie van medewerker stoppen',
+    open: 'Openen',
+    openLabel: (label: string) => `${label} openen`,
   },
 })
