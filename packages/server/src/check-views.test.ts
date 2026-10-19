@@ -165,6 +165,12 @@ describe('checkViews', () => {
     expect(() => checkViews(registry, [written])).toThrow('View "payments": display "calendar": start "reference" on payments is text, not a date or timestamp')
   })
 
+  it('wants a timeline by a filterable date or timestamp', () => {
+    const written = view<typeof payments>('payments').toModel()
+    written.list = { columns: ['reference'], displays: [{ kind: 'timeline', name: 'timeline', start: 'reference' }] }
+    expect(() => checkViews(registry, [written])).toThrow('View "payments": display "timeline": start "reference" on payments is text, not a date or timestamp')
+  })
+
   it('wants list displays to show fields the resource has, none of them sensitive', () => {
     const Board = Object.assign((props: { by: string }) => props, { blockName: 'Board', custom: true })
     const shown = view<typeof payments>('payments').list((r, d) => ({ columns: [r.reference], displays: [d.cards({ badge: r.method }), d.custom(Board, { name: 'board', label: 'Board', fields: [r.reference], props: { by: r.iban } })] }))

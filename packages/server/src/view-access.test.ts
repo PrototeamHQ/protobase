@@ -314,4 +314,13 @@ describe('pruneView', () => {
     expect(list(without({ repairs: ['costPrice'] }))).toEqual({ columns: ['number'], displays: [{ kind: 'calendar', name: 'calendar', start: 'bookedOn' }], default: 'calendar' })
     expect(list(without({ repairs: ['bookedOn'] }))).toEqual({ columns: ['number'] })
   })
+
+  it('keeps a timeline for a caller who can read its start, in one lane when they cannot read its group', () => {
+    const timeline = view<typeof repairs>('repairs')
+      .list((r, d) => ({ columns: [r.number], displays: [d.timeline({ start: r.bookedOn, group: r.status })] }))
+      .toModel()
+    const list = (models: Record<string, ResourceModel>) => pruneView(timeline, models.repairs!, models).list
+    expect(list(without({ repairs: ['status'] }))).toEqual({ columns: ['number'], displays: [{ kind: 'timeline', name: 'timeline', start: 'bookedOn' }] })
+    expect(list(without({ repairs: ['bookedOn'] }))).toEqual({ columns: ['number'] })
+  })
 })

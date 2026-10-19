@@ -114,6 +114,7 @@ const listShape = (resource: string, model: ResourceModel, models: Record<string
             { requires: ['by'] },
           ),
           calendar: s.object<Of<ListDisplayModel, 'calendar'>>({ kind: s.data, name: s.data, label: s.data, icon: s.data, start: s.field, end: s.field, title: s.field }, { requires: ['start'] }),
+          timeline: s.object<Of<ListDisplayModel, 'timeline'>>({ kind: s.data, name: s.data, label: s.data, icon: s.data, start: s.field, end: s.field, group: s.field, title: s.field }, { requires: ['start'] }),
           custom: s.object<Of<ListDisplayModel, 'custom'>>(
             { kind: s.data, name: s.data, label: s.data, icon: s.data, component: s.data, fields: s.list(s.field), props: s.refs },
             { requires: ['props'] },
