@@ -1,4 +1,4 @@
-/** The app an auth email comes from: its name, and its home page on the origin the request came to. */
+/** The app an email comes from: its name, and its home page on the origin the request came to. */
 export type MailingApp = { name: string; url: string }
 
 /**

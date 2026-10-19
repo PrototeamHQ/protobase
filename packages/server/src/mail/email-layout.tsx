@@ -15,7 +15,7 @@ const styles = {
   button: { backgroundColor: '#0f766e', color: '#ffffff', padding: '12px 20px', borderRadius: '6px', fontWeight: 600 },
 }
 
-export type AuthEmailLayoutProps = {
+export type EmailLayoutProps = {
   app: MailingApp
   /** The line inboxes show after the subject. */
   preview: string
@@ -23,8 +23,8 @@ export type AuthEmailLayoutProps = {
   children: ReactNode
 }
 
-/** An auth email: its heading and body on a card, and a footer naming the app, linked to its home page. */
-export const AuthEmailLayout = ({ app, preview, heading, children }: AuthEmailLayoutProps) => (
+/** An email: its heading and body on a card, and a footer naming the app, linked to its home page. */
+export const EmailLayout = ({ app, preview, heading, children }: EmailLayoutProps) => (
   <Html lang="en">
     <Head />
     <Preview>{preview}</Preview>

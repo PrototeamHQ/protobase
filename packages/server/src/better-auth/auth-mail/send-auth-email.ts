@@ -1,7 +1,7 @@
 import type { EmailTemplate } from '../../mail/define-email'
 import type { Mailer } from '../../mail/smtp-mailer'
 import type * as authEmails from './auth-emails'
-import { mailingApp } from './mailing-app'
+import { mailingApp } from '../../mail/mailing-app'
 
 /** How auth emails go out: through `mailer`, naming the app `appName` and linking it on `baseURL` or the request's origin. */
 export type AuthMail = { mailer: Mailer; appName: string; baseURL: string }

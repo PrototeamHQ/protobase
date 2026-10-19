@@ -1,7 +1,7 @@
 import { Text } from 'react-email'
 import { defineEmail } from '../../mail/define-email'
-import { AuthEmailLayout, EmailButton, EmailNote } from './auth-email-layout'
-import type { MailingApp } from './mailing-app'
+import { EmailButton, EmailLayout, EmailNote } from '../../mail/email-layout'
+import type { MailingApp } from '../../mail/mailing-app'
 
 /** Without `organization`, the invitation is to the app itself. */
 export type InvitationData = { app: MailingApp; inviter: string; organization?: string; url: string; expiresAt: Date }
@@ -9,14 +9,14 @@ export type InvitationData = { app: MailingApp; inviter: string; organization?: 
 const InvitationEmail = ({ app, inviter, organization, url, expiresAt }: InvitationData) => {
   const target = organization ?? app.name
   return (
-    <AuthEmailLayout app={app} preview={`${inviter} invites you to join ${target}`} heading={`Join ${target}`}>
+    <EmailLayout app={app} preview={`${inviter} invites you to join ${target}`} heading={`Join ${target}`}>
       <Text>
         {organization ? `${inviter} invites you to join ${organization} on ${app.name}.` : `${inviter} invites you to join ${app.name}.`} To accept, open this link:
       </Text>
       <EmailButton href={url}>Accept the invitation</EmailButton>
       <Text>The link works until {expiresAt.toUTCString()}.</Text>
       <EmailNote>If you do not want to join, ignore this email: nothing happens without you.</EmailNote>
-    </AuthEmailLayout>
+    </EmailLayout>
   )
 }
 
