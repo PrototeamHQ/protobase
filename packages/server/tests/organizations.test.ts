@@ -43,6 +43,8 @@ const authOn = async (store: SnapshotDb, ids: string[], options: Partial<CreateA
     organizations: { generateId: () => ids.shift()!, create: 'everyone' },
     ...options,
   })
+  // The check starts once its context is made, which a busy machine can take longer for than settled() waits.
+  await auth.$context
   await settled()
   return auth
 }

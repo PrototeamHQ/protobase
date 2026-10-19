@@ -23,6 +23,8 @@ let client = 0
 const serve = async () => {
   const store = await openSnapshotDb('auth')
   const auth = createAuth({ database: { dialect: store.dialect, type: 'postgres' }, baseURL: origin, secret, mailer: false, signInPerMinute: 100 })
+  // Its schema check, which starts once its context is made, finishes before the test's queries.
+  await auth.$context
   await settled()
   const root = await createUser(auth, { email: 'root@example.com', password })
   const plain = await createUser(auth, { email: 'plain@example.com', password, role: 'user' })

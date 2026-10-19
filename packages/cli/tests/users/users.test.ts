@@ -14,7 +14,9 @@ let api: UsersApi
 
 beforeAll(async () => {
   auth = createAuth({ database: { dialect: (await openSnapshotDb('empty')).dialect, type: 'postgres' }, baseURL: 'http://localhost:1', secret: 'users-test-secret-users-test-secret-1234' })
-  // Its schema check runs in the background; let it finish before the migration's queries.
+  // Its schema check runs in the background once its context is made, which a busy machine can take longer for than
+  // settled() waits; let it finish before the migration's queries.
+  await auth.$context
   await settled()
   await (await getMigrations(auth.options)).runMigrations()
   api = usersApi(auth)
