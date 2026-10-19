@@ -2,8 +2,8 @@ import type { ResourcePermissions } from '@protobase/client'
 import type { RelatedModel, ResourceModel } from '@protobase/schema'
 import { can } from '../permissions'
 
-/** The most records sorted by hand at once: every one is renumbered in one batch `reorder`, the list API's largest page. */
-export const handOrderLimit = 500
+/** The records loaded per request to reorder them by hand, the list API's largest page; all pages load. */
+export const handOrderPage = 500
 
 /** The field a user may sort `model`'s records by hand in: its `position`, when they may update it. */
 const writablePosition = (model: ResourceModel, permissions: ResourcePermissions) => {

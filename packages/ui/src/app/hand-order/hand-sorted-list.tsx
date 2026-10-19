@@ -2,7 +2,6 @@ import { useMemo } from 'react'
 import type { ResourceModel, ViewModel } from '@protobase/schema'
 import { DataGrid, type GridRow } from '../../data-grid'
 import { recordKey, recordTitle } from '../../live/model-helpers'
-import { humanize } from '../../live/naming'
 import { Skeleton } from '../../primitives/skeleton'
 import { embeddedColumns } from '../embedded-list/embedded-columns'
 import { loadedFields } from '../displays/list-displays'
@@ -10,9 +9,7 @@ import { ErrorBanner } from '../error-banner'
 import { useAdminMeta } from '../meta-gate'
 import { useProjectUi } from '../pages/project-ui'
 import { useAppAddress } from '../use-app-address'
-import { handOrderLimit } from './hand-order'
 import { useHandOrder } from './use-hand-order'
-import { formatTag } from '../../locale/active-locale'
 import { text } from './messages'
 
 type Props = {
@@ -42,10 +39,8 @@ export const HandSortedList = ({ model, view, field, filter, columns }: Props) =
   const rows = order.rows
   const source = useMemo(() => rows && { total: rows.length, rowAt: (index: number) => rows[index]! }, [rows])
 
-  const plural = (view?.names?.plural ?? humanize(model.name)).toLowerCase()
   if (order.loading) return <div className="flex flex-col gap-2">{Array.from({ length: 3 }, (_, index) => <Skeleton key={index} className="h-4 w-full" />)}</div>
   if (order.error) return <ErrorBanner title={text('couldNotLoad')} error={order.error} />
-  if (order.more) return <p className="text-muted-foreground">{text('tooMany', handOrderLimit.toLocaleString(formatTag()), plural)}</p>
   if (!source || source.total === 0) return <p className="text-muted-foreground">{text('nothingYet')}</p>
 
   const openRecord = (row: GridRow) => go({ kind: 'record', resource: model.name, key: recordKey(model, row) })

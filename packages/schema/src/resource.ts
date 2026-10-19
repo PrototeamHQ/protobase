@@ -101,10 +101,10 @@ export class ResourceBuilder<F extends FieldsInput = {}, K = never> {
   }
 
   /**
-   * The integer field holding the records' order, 1 the first, which a list's **Sort** button changes by dragging the
+   * The integer field holding the records' order, 1 the first, which a list's **Reorder** button changes by dragging the
    * records; a move renumbers them 1, 2, 3, ... in one batch `reorder`. With `within`, a relation, each parent's records
    * have an order of their own, as an invoice's items do, sorted in the parent's related section. The field must be
-   * sortable and `within` filterable. See [Sorting by hand](website/src/content/docs/reference/ui-config.mdx#sorting-by-hand).
+   * sortable and `within` filterable. See [Reordering by hand](website/src/content/docs/reference/ui-config.mdx#reordering-by-hand).
    *
    * @example
    * ```ts

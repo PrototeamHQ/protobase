@@ -6,7 +6,7 @@ import { invoiceItems, invoiceItemsView, invoices, invoicesView, products, produ
 import { App } from '../app'
 import { fakeApi } from '../testing/fake-api'
 
-const meta = { title: 'List page/Sorting by hand', parameters: { layout: 'fullscreen' } } satisfies Meta
+const meta = { title: 'List page/Reordering by hand', parameters: { layout: 'fullscreen' } } satisfies Meta
 export default meta
 
 const session = createStaticSession('story-token', { id: 'pip', email: 'pip@bikeshop.example', name: 'Pip', role: 'admin' })
@@ -30,23 +30,29 @@ const rows = () => ({
   ],
 })
 
+// More products than the list API gives in one page
+const manyProducts = () => Array.from({ length: 600 }, (_, index) => ({ id: index + 1, name: `Product ${index + 1}`, rank: index + 1 }))
+
+// The keys of every reorder saved, in the order they were sent
+const sent: Array<Array<string | number>> = []
+
 // With `refuse`, the server refuses every reorder, as it does when someone else changed a record since it loaded.
-const Shop = ({ start, refuse }: { start: string; refuse?: boolean }) => {
+const Shop = ({ start, refuse, many }: { start: string; refuse?: boolean; many?: boolean }) => {
   const [api] = useState(() =>
     fakeApi({
       resources: [products.toModel(), invoices.toModel(), invoiceItems.toModel()],
       views: [productsView.toModel(), invoicesView.toModel(), invoiceItemsView.toModel()],
-      rows: rows(),
+      rows: { ...rows(), ...(many && { products: manyProducts() }) },
     }),
   )
-  const client = refuse
-    ? {
-        ...api.client,
-        batchWrite: async () => {
-          throw new ApiError({ type: 'urn:protobase:problem:precondition-failed', title: 'Precondition Failed', status: 412, detail: 'The record changed since it was read; fetch it again' })
-        },
-      }
-    : api.client
+  const client = {
+    ...api.client,
+    batchWrite: async (ops: Parameters<typeof api.client.batchWrite>[0]) => {
+      if (refuse) throw new ApiError({ type: 'urn:protobase:problem:precondition-failed', title: 'Precondition Failed', status: 412, detail: 'The record changed since it was read; fetch it again' })
+      for (const op of ops) if (op.op === 'reorder') sent.push(op.keys as Array<string | number>)
+      return api.client.batchWrite(ops)
+    },
+  }
   return (
     <div className="h-screen">
       <App client={client} auth={session} initialUrl={start} workspace="Pip's bike shop" />
@@ -54,9 +60,11 @@ const Shop = ({ start, refuse }: { start: string; refuse?: boolean }) => {
   )
 }
 
-export const Products: StoryObj = { name: 'A list sorted by hand', render: () => <Shop start="/products" /> }
+export const Products: StoryObj = { name: 'A list reordered by hand', render: () => <Shop start="/products" /> }
 
-export const InvoiceItems: StoryObj = { name: "An invoice's items sorted by hand", render: () => <Shop start="/invoices/1" /> }
+export const ManyProducts: StoryObj = { name: 'A long list reordered by hand', render: () => <Shop start="/products" many /> }
+
+export const InvoiceItems: StoryObj = { name: "An invoice's items reordered by hand", render: () => <Shop start="/invoices/1" /> }
 
 const handles = (region: HTMLElement) => within(region).getAllByRole('button', { name: /^Move / }).map((handle) => handle.getAttribute('aria-label')!.slice('Move '.length))
 
@@ -75,11 +83,11 @@ const moveByKeyboard = async (handle: HTMLElement, steps: string, to: string) =>
 
 export const ProductsChecks: StoryObj = {
   ...Products,
-  name: 'A list sorted by hand (checks)',
+  name: 'A list reordered by hand (checks)',
   tags: ['play', '!dev'],
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
-    await userEvent.click(await canvas.findByRole('button', { name: 'Sort' }))
+    await userEvent.click(await canvas.findByRole('button', { name: 'Reorder' }))
     // Every product in its order, a handle where the checkbox was
     const grid = await canvas.findByRole('grid')
     await waitFor(() => expect(handles(grid)).toEqual(['Gazelle Ultimate', 'Brompton C Line', 'VanMoof S5', 'Cortina Common']))
@@ -94,11 +102,11 @@ export const ProductsChecks: StoryObj = {
 
 export const InvoiceItemsChecks: StoryObj = {
   ...InvoiceItems,
-  name: "An invoice's items sorted by hand (checks)",
+  name: "An invoice's items reordered by hand (checks)",
   tags: ['play', '!dev'],
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
-    await userEvent.click(await canvas.findByRole('button', { name: 'Sort' }))
+    await userEvent.click(await canvas.findByRole('button', { name: 'Reorder' }))
     // This invoice's items only
     const grid = await canvas.findByRole('grid')
     await waitFor(() => expect(handles(grid)).toEqual(['New chain', 'Brake pads', 'Labour, one hour']))
@@ -115,12 +123,29 @@ export const RefusedChecks: StoryObj = {
   render: () => <Shop start="/products" refuse />,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
-    await userEvent.click(await canvas.findByRole('button', { name: 'Sort' }))
+    await userEvent.click(await canvas.findByRole('button', { name: 'Reorder' }))
     const grid = await canvas.findByRole('grid')
     await waitFor(() => expect(handles(grid)).toEqual(['Gazelle Ultimate', 'Brompton C Line', 'VanMoof S5', 'Cortina Common']))
     await moveByKeyboard(within(grid).getByRole('button', { name: 'Move Gazelle Ultimate' }), '{ArrowDown}', 'row 2 of 4')
     // Put back, with the reason
     expect(await within(document.body).findByText('Could not change the order')).toBeInTheDocument()
     await waitFor(() => expect(handles(grid)).toEqual(['Gazelle Ultimate', 'Brompton C Line', 'VanMoof S5', 'Cortina Common']))
+  },
+}
+
+export const ManyProductsChecks: StoryObj = {
+  ...ManyProducts,
+  name: 'A long list reordered by hand (checks)',
+  tags: ['play', '!dev'],
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    sent.length = 0
+    await userEvent.click(await canvas.findByRole('button', { name: 'Reorder' }))
+    const grid = await canvas.findByRole('grid')
+    await waitFor(() => expect(handles(grid).slice(0, 3)).toEqual(['Product 1', 'Product 2', 'Product 3']))
+    await moveByKeyboard(within(grid).getByRole('button', { name: 'Move Product 1' }), '{ArrowDown}{ArrowDown}', 'row 3 of 600')
+    await waitFor(() => expect(handles(grid).slice(0, 3)).toEqual(['Product 2', 'Product 3', 'Product 1']))
+    // Only the three that moved are saved, not all 600
+    await waitFor(() => expect(sent).toEqual([['2', '3', '1']]))
   },
 }

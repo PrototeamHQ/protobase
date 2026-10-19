@@ -15,8 +15,8 @@ import type { ListDisplayRow } from './list-displays'
  */
 export type BoardMove = { row: ListDisplayRow; to: string | null; order?: string[] }
 
-/** Where in its column a card on a ranked board is dropped: the column's cards in their new order, and the last place that changed. */
-export type BoardPlacing = { order: ListDisplayRow[]; changed: number }
+/** Where in its column a card on a ranked board is dropped: the column's cards in their new order, and the first and last place that changed. */
+export type BoardPlacing = { order: ListDisplayRow[]; first: number; last: number }
 
 type Move = { row: ListDisplayRow; to: BoardColumn; place?: BoardPlacing }
 
@@ -37,7 +37,7 @@ export const useBoardMove = (model: ResourceModel, by: string, rank?: string) =>
   const mutation = useMutation({
     mutationFn: async ({ row, to, place }: Move): Promise<unknown> => {
       if (place && !rank) throw new Error('A board places a card only by its rank')
-      if (place) return client.batchWrite(placeOps(model, by, rank!, row, to, place.order, place.changed))
+      if (place) return client.batchWrite(placeOps(model, by, rank!, row, to, place.order, place.first, place.last))
       const etag = typeof row.record.etag === 'string' ? row.record.etag : '*'
       return client.update(model.name, recordKey(model, row.record) as KeyValue, { [by]: to.value }, etag)
     },

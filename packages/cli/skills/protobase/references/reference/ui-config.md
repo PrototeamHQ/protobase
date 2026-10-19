@@ -135,7 +135,7 @@ Access needs nothing more: `/meta` keeps `editable` to the fields the user may w
 
 An editable column is a field of the resource with an editor of one line that the API may write: text that is neither `.multiline()` nor `.markdown()`, a number, a date, an enum, a boolean, a currency or a country. A relation is chosen and a file uploaded on the record page. The server refuses at startup an editable field outside the columns, a read-only one, or one of another type, and `.list(...)` throws on one that is not among its columns. Cards, maps and embedded lists show the values without editing them.
 
-### Sorting by hand
+### Reordering by hand
 
 Records with an order of their own, such as the products in the order a shop lists them or an invoice's items in the order it prints them, are put in order by dragging them. The resource names the integer field that holds the order with [`.position(...)`](data-config.md#resource)), 1 the first; with `within`, a relation, each parent's records have an order of their own:
 
@@ -193,11 +193,11 @@ export const invoiceItemsView = view<typeof invoiceItems>('invoice_items')
   .list((r) => ({ columns: [r.description, r.amount], sort: [[r.position, 'asc']] }))
 ```
 
-The list of a resource ordered as one, such as the products, has a **Sort** button beside its other buttons; a related section of records ordered within the page's record, such as the invoice's items, has one at the end of its title's line. **Sort** shows every record in its order in the list's table, without the filters, search, chart and display switch, with a drag handle in each row where its checkbox was, and the page scrolls them; **Done** goes back. A row moves by dragging its handle, by a long press and drag on a touch screen, or from the keyboard: Space on a handle picks the row up, the up and down arrow keys move it, Space or Enter drops it and Escape puts it back, and a screen reader is told each step. The rest of the row still opens its record.
+The list of a resource ordered as one, such as the products, has a **Reorder** button beside its other buttons; a related section of records ordered within the page's record, such as the invoice's items, has one at the end of its title's line. **Reorder** shows every record in its order in the list's table, without the filters, search, chart and display switch, with a drag handle in each row where its checkbox was, and the page scrolls them; **Done** goes back. A row moves by dragging its handle, by a long press and drag on a touch screen, or from the keyboard: Space on a handle picks the row up, the up and down arrow keys move it, Space or Enter drops it and Escape puts it back, and a screen reader is told each step. The rest of the row still opens its record.
 
-Each drop shows at once and is saved straight away: one [batch `reorder`](api.md#batch-writes)) numbers the records 1, 2, 3, ... in their new order, writing those whose number changes with the ETags they were listed with, so a gap or a tie left by an earlier write is closed too. Drops made while one saves are saved after it. A refusal, such as a record someone else changed since, puts the rows back as the server has them, with the reason. Every list of the resource reloads afterwards.
+Each drop shows at once and is saved straight away: one [batch `reorder`](api.md#batch-writes)) sends only the stretch of records whose place changed, with the ETags they were listed with, and numbers them on from the record before them; it reaches further only where a gap or a tie left by an earlier write needs it, so a list of thousands saves a short move as a few records. Drops made while one saves are saved after it. A refusal, such as a record someone else changed since, puts the rows back as the server has them, with the reason. Every list of the resource reloads afterwards.
 
-A user who may not update the resource or write the field gets no **Sort**, and `/api/meta` leaves out `position` for one who cannot read its field or its `within`. A related section offers it only when it lists all of the parent's records: its `field` is the `within` relation, without a `filter` or `through`. The list page does not offer it for a resource ordered within a parent, since its list mixes the parents. At most 500 records are sorted at once, the list API's largest page; with more, **Sort** says so instead. The field must be `.sortable()` and `within` a `.filterable()` relation, checked when the config loads, and [`protobase doctor`](cli.md#doctor)) checks that an index serves each read in the field's order, such as `(invoice_id, position)`. Records created later are not numbered for you: give them a position, or the next drop numbers them, after the others when the field is empty.
+A user who may not update the resource or write the field gets no **Reorder**, and `/api/meta` leaves out `position` for one who cannot read its field or its `within`. A related section offers it only when it lists all of the parent's records: its `field` is the `within` relation, without a `filter` or `through`. The list page does not offer it for a resource ordered within a parent, since its list mixes the parents. The field must be `.sortable()` and `within` a `.filterable()` relation, checked when the config loads, and [`protobase doctor`](cli.md#doctor)) checks that an index serves each read in the field's order, such as `(invoice_id, position)`. Records created later are not numbered for you: give them a position, or the next drop numbers them, after the others when the field is empty.
 
 ## A filter the list opens with
 
@@ -772,7 +772,7 @@ export const unitsView = view<typeof units>('units')
   ])
 ```
 
-When `resource` is ordered by hand within the record on the page (`.position(..., { within })` names `field`), the section has a **Sort** button that puts its records in order by dragging them; see [Sorting by hand](#sorting-by-hand).
+When `resource` is ordered by hand within the record on the page (`.position(..., { within })` names `field`), the section has a **Reorder** button that puts its records in order by dragging them; see [Reordering by hand](#reordering-by-hand).
 
 Every name is checked when the config loads. In `/meta` a caller who cannot read a resource the section names, or a field its filter or sort uses, does not get the section, and columns they cannot read are left out; the rows come from the list API with the caller's token, so row filters apply as everywhere else.
 

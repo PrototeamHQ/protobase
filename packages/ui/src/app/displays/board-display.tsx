@@ -103,7 +103,7 @@ export const BoardDisplay = ({ model, view, display, fields, filter, orderBy, li
     if (from === -1 && !movable) return
     if (from === place.index) return
     const order = placedRows(place.rows, row, place.index)
-    move(row, place.column, { order, changed: from === -1 ? place.index : Math.max(from, place.index) })
+    move(row, place.column, { order, first: from === -1 ? place.index : Math.min(from, place.index), last: from === -1 ? place.index : Math.max(from, place.index) })
   }
 
   return (

@@ -58,7 +58,7 @@ import { SignInPrompt } from '../auth/sign-in-prompt'
 import { useListCellEditor } from './list-edit/use-list-cell-editor'
 import { listHandOrder } from './hand-order/hand-order'
 import { HandSortedList } from './hand-order/hand-sorted-list'
-import { SortButton } from './hand-order/sort-button'
+import { ReorderButton } from './hand-order/reorder-button'
 import { listColumnNames } from '../live/columns-from-model'
 import { text as appText } from './messages'
 import { text } from './list-messages'
@@ -127,7 +127,7 @@ const LoadedList = ({ model, address, scope, heading }: LoadedListProps) => {
   const rows = useLiveRows({ resources: meta.resources, views: meta.views, model, columns: loaded, filter: loadFilter, orderBy, related })
   const display = shownListDisplay(model, view, address.display)
   const permissions = usePermissions(resource)
-  // Sorting by hand shows every record in their order, so neither a saved list's scope nor the filters apply
+  // Reordering by hand shows every record in their order, so neither a saved list's scope nor the filters apply
   const handOrder = scope ? undefined : listHandOrder(model, permissions)
   const [sorting, setSorting] = useState(false)
   const handSorting = sorting && handOrder !== undefined
@@ -210,7 +210,7 @@ const LoadedList = ({ model, address, scope, heading }: LoadedListProps) => {
       {desktop && text('export')}
     </Button>
   )
-  const sortButton = handOrder && <SortButton sorting={handSorting} onChange={setSorting} iconOnly={!desktop} />
+  const sortButton = handOrder && <ReorderButton sorting={handSorting} onChange={setSorting} iconOnly={!desktop} />
   const displaySwitch = (menu: boolean) => !handSorting && <DisplaySwitch view={view} choices={listDisplayChoices(model, view, xs)} value={display?.name ?? tableDisplay} onChange={(name) => set({ display: name })} menu={menu} />
 
   const seedRecord = useSeedRecord(model)

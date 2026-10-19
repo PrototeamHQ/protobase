@@ -14,7 +14,7 @@ import { ErrorBanner } from './error-banner'
 import { relatedOpens } from './related-opens'
 import { relatedHandOrder } from './hand-order/hand-order'
 import { HandSortedList } from './hand-order/hand-sorted-list'
-import { SortButton } from './hand-order/sort-button'
+import { ReorderButton } from './hand-order/reorder-button'
 import { useAdminMeta, usePermissions } from './meta-gate'
 import { text } from './record-messages'
 
@@ -60,7 +60,7 @@ const Empty = ({ empty }: { empty: string | undefined }) => <p className="text-m
 /**
  * A record page section listing the first records of another resource that point at this record, directly or through
  * a join resource, in the list page's table or display, with a link to them all in the list. When they are ordered by
- * hand within this record, **Sort** shows them all in their order, to be moved by their drag handles.
+ * hand within this record, **Reorder** shows them all in their order, to be moved by their drag handles.
  */
 export const RelatedSection = ({ item, value, owner }: { item: RelatedModel; value: string | number | boolean | null; owner: string }) => {
   const { resources, views } = useAdminMeta()
@@ -84,7 +84,7 @@ export const RelatedSection = ({ item, value, owner }: { item: RelatedModel; val
   const actions = handOrder ? (
     <div className="flex items-center gap-2">
       {!sorting && displaySwitch}
-      <SortButton size="sm" sorting={sorting} onChange={setSorting} />
+      <ReorderButton size="sm" sorting={sorting} onChange={setSorting} />
     </div>
   ) : (
     displaySwitch
