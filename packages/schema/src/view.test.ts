@@ -117,6 +117,17 @@ describe('view builder', () => {
     expect(model.actions).toEqual([{ name: 'x', label: 'X', bulk: false }])
   })
 
+  it('lets an update ask for inputs and write the answers, and refuses a placeholder naming none', () => {
+    const [answer] = view<typeof article>('article')
+      .actions((a) => [a.update('answer', { label: 'Answer', inputs: (i) => [i.text('answer', { label: 'Answer', multiline: true })], set: { status: 'answered', title: '{answer}' } })])
+      .toModel().actions
+    expect(answer!.inputs).toHaveLength(1)
+    expect(answer!.run).toEqual({ kind: 'update', values: { status: 'answered', title: '{answer}' } })
+    const build = (set: Record<string, unknown>, twice = false) => () => view<typeof article>('article').actions((a) => [a.update('answer', { label: 'Answer', inputs: (i) => [i.text('answer', { label: 'Answer' }), ...(twice ? [i.text('answer', { label: 'Answer' })] : [])], set })])
+    expect(build({ title: '{answer}' }, true)).toThrow('Action "answer": ')
+    expect(build({ title: '{nope}' })).toThrow('Action "answer": set "title" names input "nope", which it does not ask for')
+  })
+
   it('describes what update, remove and link actions do', () => {
     const model = view<typeof article>('article')
       .actions((a) => [

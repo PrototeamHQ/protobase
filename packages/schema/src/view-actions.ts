@@ -1,6 +1,7 @@
 import { actionInputErrors, inputs } from './action-inputs'
 import { linkActionError } from './address-template'
 import { promptError } from './ai-prompt'
+import { updateSetErrors } from './update-set'
 import type { ActionInputModel, ActionModel, AppAddress } from './model'
 
 /** @inline */
@@ -14,24 +15,36 @@ const named = (name: string, o: ActionOptions & { bulk?: boolean }): ActionModel
   ...(o.confirm !== undefined && { confirm: o.confirm }),
 })
 
+type InputsOption = { inputs?: (i: typeof inputs) => ActionInputModel[] }
+
+// The inputs an action asks for, built and checked once for every action that takes them.
+const builtInputs = (name: string, option: InputsOption['inputs']) => {
+  if (!option) return {}
+  const built = option(inputs)
+  const errors = actionInputErrors(built)
+  if (errors.length > 0) throw new Error(`Action "${name}": ${errors.join('; ')}`)
+  return { inputs: built }
+}
+
 export const actions = {
   /**
    * An action the app implements: it runs the handler registered under `name`. With `inputs`, such as
    * `(i) => [i.text('reason', { label: 'Reason' })]`, the button first asks for them in a dialog, and the handler gets the
    * answers as `values`.
    */
-  action: (name: string, o: ActionOptions & { bulk?: boolean; inputs?: (i: typeof inputs) => ActionInputModel[] }): ActionModel => {
-    if (!o.inputs) return named(name, o)
-    const built = o.inputs(inputs)
-    const errors = actionInputErrors(built)
-    if (errors.length > 0) throw new Error(`Action "${name}": ${errors.join('; ')}`)
-    return { ...named(name, o), inputs: built }
-  },
+  action: (name: string, o: ActionOptions & InputsOption & { bulk?: boolean }): ActionModel => ({ ...named(name, o), ...builtInputs(name, o.inputs) }),
   /**
    * Sets fields of the record, as one update with its ETag, for example `{ status: 'paid' }`. It is not offered on a
-   * record that holds these values already.
+   * record that holds these values already. With `inputs`, the button first asks for them in a dialog, and a `set` value
+   * that is exactly `'{name}'` is written as that input's answer, with no handler code:
+   * `a.update('answer', { label: 'Answer', inputs: (i) => [i.text('answer', { label: 'Answer', multiline: true })], set: { answer: '{answer}' } })`.
    */
-  update: (name: string, o: ActionOptions & { set: Record<string, unknown> }): ActionModel => ({ ...named(name, o), run: { kind: 'update', values: o.set } }),
+  update: (name: string, o: ActionOptions & InputsOption & { set: Record<string, unknown> }): ActionModel => {
+    const built = builtInputs(name, o.inputs)
+    const errors = updateSetErrors(o.set, built.inputs)
+    if (errors.length > 0) throw new Error(`Action "${name}": ${errors.join('; ')}`)
+    return { ...named(name, o), ...built, run: { kind: 'update', values: o.set } }
+  },
   /** Deletes the record (soft delete when the resource has one). */
   remove: (name: string, o: ActionOptions): ActionModel => ({ ...named(name, o), run: { kind: 'delete' } }),
   /**

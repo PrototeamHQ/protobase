@@ -898,7 +898,7 @@ export type ActionRun =
   | {
       /** Updates the record. */
       kind: 'update'
-      /** The fields it sets, by name. */
+      /** The fields it sets, by name; a value that is exactly `{input}` is that input's answer. */
       values: Record<string, unknown>
     }
   | {
@@ -946,7 +946,7 @@ export type ActionModel = {
   bulk: boolean
   /** What it does; without it the app runs the handler registered under `name`. */
   run?: ActionRun
-  /** What the button asks for in a dialog before the handler runs, which gets the answers as `values` (`a.action`'s `inputs`). */
+  /** What the button asks for in a dialog before the action runs: a handler gets the answers as `values`, an update writes them through `set`. */
   inputs?: ActionInputModel[]
 }
 

@@ -92,6 +92,14 @@ describe('checkViews', () => {
     expect(() => checkViews(registry, [written])).toThrow('action "paid": input "x" is declared twice')
   })
 
+  it('lets an update ask for inputs, and wants each {input} it sets to be one of them', () => {
+    const asked = view<typeof payments>('payments').actions((a) => [a.update('note', { label: 'Note', inputs: (i) => [i.text('note', { label: 'Note' })], set: { id: '{note}' } })]).toModel()
+    expect(() => checkViews(registry, [asked])).not.toThrow()
+    const written = structuredClone(asked)
+    written.actions = [{ name: 'note', label: 'Note', bulk: false, run: { kind: 'update', values: { id: '{nope}' } } }]
+    expect(() => checkViews(registry, [written])).toThrow('action "note": set "id" names input "nope", which it does not ask for')
+  })
+
   it('wants an AI action to write a text or enum field the API writes, from a prompt that reads fields the resource has', () => {
     const tickets = resource('tickets').table('tickets').fields({ id: f.integer().readOnly(), title: f.text(), priority: f.enum(['low', 'high']), secret: f.text().sensitive() }).primaryKey((r) => r.id)
     const ticketRegistry = { entries: [{ name: 'tickets', model: tickets.toModel() }] } as unknown as Registry

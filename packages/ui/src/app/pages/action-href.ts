@@ -41,7 +41,7 @@ const holdsAll = (record: Record<string, unknown>, values: Record<string, unknow
  */
 export const actionFor = (action: ActionModel, record: Record<string, unknown> | undefined): ActionModel | undefined => {
   const run = action.run
-  if (run?.kind === 'update') return record && holdsAll(record, run.values as Record<string, unknown>) ? undefined : action
+  if (run?.kind === 'update') return record && !action.inputs?.length && holdsAll(record, run.values as Record<string, unknown>) ? undefined : action
   if (run?.kind !== 'link' || !('href' in run)) return action
   const target = linkTarget(run.href, record)
   if (target === undefined) return undefined

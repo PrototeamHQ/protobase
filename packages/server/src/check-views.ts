@@ -1,6 +1,6 @@
 import { conditionProblems } from '@protobase/layout'
 import { isRecordCondition, type ActionRun, type CardPhotosModel, type GalleryModel, type ResourceModel, type ViewModel } from '@protobase/schema'
-import { actionInputErrors, addressErrors, addressPlaceholders, boardErrors, calendarErrors, chartFields, displayFields, fieldRefsIn, hrefField, hrefPlaceholders, layoutItems, linkActionError, promptError, promptFields } from '@protobase/schema/internal'
+import { actionInputErrors, addressErrors, addressPlaceholders, boardErrors, calendarErrors, chartFields, displayFields, fieldRefsIn, hrefField, hrefPlaceholders, layoutItems, linkActionError, promptError, promptFields, updateSetErrors } from '@protobase/schema/internal'
 import type { Registry } from './registry'
 import { cardFavoriteErrors, favoriteOwnerErrors } from './view-card-favorite'
 import { cardPhotosErrors } from './view-card-photos'
@@ -98,13 +98,15 @@ const aiActionErrors = (view: ViewModel, model: ResourceModel) =>
     return errors.map((error) => `action "${name}": ${error}`)
   })
 
-// Inputs are answers a handler gets, checked as the builder checks them for a view written as data; a choice of records
+// Inputs are answers a handler gets or an update writes, checked as the builder checks them for a view written as data; a choice of records
 // picks one of a resource the app has.
 const inputErrors = (view: ViewModel, models: Record<string, ResourceModel>) =>
   view.actions.flatMap(({ name, run, inputs }) => {
-    if (!inputs) return []
+    const update = run?.kind === 'update' ? updateSetErrors(run.values, inputs) : []
+    if (!inputs) return update.map((error) => `action "${name}": ${error}`)
     const errors = [
-      ...(run ? [`inputs need a handler, and a${run.kind === 'update' || run.kind === 'ai' ? 'n' : ''} ${run.kind} action has none`] : []),
+      ...update,
+      ...(run && run.kind !== 'update' ? [`inputs need a handler, and a${run.kind === 'ai' ? 'n' : ''} ${run.kind} action has none`] : []),
       ...actionInputErrors(inputs),
       ...inputs.flatMap((input) => (input.resource !== undefined && !models[input.resource] ? [`input "${input.name}" picks from resource "${input.resource}", which the app does not have`] : [])),
     ]

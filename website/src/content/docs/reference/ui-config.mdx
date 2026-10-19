@@ -553,7 +553,7 @@ Every name is checked when the config loads. In `/meta` a caller who cannot read
 
 <Code code={step5} lang="ts" title="docs-examples/bike-shop/step-5.ts" />
 
-`.actions((a) => [...])` names the moves a record page offers in its action rail, between **Edit**, when the record opens as a read view or locked, and **Delete**, for a user who may delete it, unless an `a.remove` deletes already; composed pages can put the same actions on buttons. On the form, **Save** leads the sidebar, above the rail, with **Cancel** under it when Edit opened the form; on a mobile screen they sit in a bar under the form instead. On a mobile screen, below `md` (768px), the rail's actions, Edit and Delete among them, sit in the top bar's **Record actions** menu (the ⋮ button), at hand however long the record is. `a.update`, `a.remove`, `a.link` and [`a.ai`](/reference/ai/#ai-actions), which has the model write a field, work without code; `a.action` runs a handler the app registers, after asking for its [inputs](#actions-that-ask-for-input) when it has some. They are described with [named actions](/reference/layouts/#named-actions).
+`.actions((a) => [...])` names the moves a record page offers in its action rail, between **Edit**, when the record opens as a read view or locked, and **Delete**, for a user who may delete it, unless an `a.remove` deletes already; composed pages can put the same actions on buttons. On the form, **Save** leads the sidebar, above the rail, with **Cancel** under it when Edit opened the form; on a mobile screen they sit in a bar under the form instead. On a mobile screen, below `md` (768px), the rail's actions, Edit and Delete among them, sit in the top bar's **Record actions** menu (the ⋮ button), at hand however long the record is. `a.update`, `a.remove`, `a.link` and [`a.ai`](/reference/ai/#ai-actions), which has the model write a field, work without code; `a.action` runs a handler the app registers; it and `a.update` ask for their [inputs](#actions-that-ask-for-input) first when they have some. They are described with [named actions](/reference/layouts/#named-actions).
 
 `.forRoles([...])` makes a view for users with one of those roles: each user gets the first such view that matches their roles, and the view without roles otherwise. A per-role view is a whole view, so build it from another (`laidOut.forRoles(...)` above) and change what differs.
 
@@ -563,7 +563,7 @@ The ERP's orders view uses most of this page at once, with a recent-record group
 
 ### Actions that ask for input
 
-`inputs` on an `a.action` makes its button open a dialog that asks for them first, each edited as the create form edits a field, with the action's `confirm` text above them and its label on the button that runs it. The handler gets the answers as `values`, by input name:
+`inputs` on an `a.action` or an `a.update` makes its button open a dialog that asks for them first, each edited as the create form edits a field, with the action's `confirm` text above them and its label on the button that runs it. An `a.action`'s handler gets the answers as `values`, by input name:
 
 ```ts
 .actions((a) => [
@@ -576,6 +576,12 @@ The ERP's orders view uses most of this page at once, with a recent-record group
     ],
   }),
 ])
+```
+
+An `a.update` writes the answers with no code: a `set` value that is exactly `'{name}'` is the answer of the input called `name`. An empty answer writes `null`, an input that is hidden by `when` leaves its field as it is, and a `'{name}'` that names no input stops the config from loading. An update that asks for input is always offered, since the answer can always change the record. This button works the same on a composed page, so a dashboard can answer in place:
+
+```ts
+a.update('answer', { label: 'Answer', inputs: (i) => [i.text('answer', { label: 'Answer', multiline: true })], set: { answer: '{answer}' } })
 ```
 
 | Input | Asks for |

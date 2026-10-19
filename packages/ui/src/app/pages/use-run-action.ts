@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { ActionModel } from '@protobase/schema'
-import { fillAddress } from '@protobase/schema/internal'
+import { fillAddress, updateValues } from '@protobase/schema/internal'
 import { useClient, useResourceClient } from '../../data/api-provider'
 import { useToast } from '../../toasts'
 import { useAdminMeta, usePermissions } from '../meta-gate'
@@ -18,7 +18,7 @@ const message = (error: unknown) => (error instanceof Error ? error.message : 'S
  * (`update`, `delete`, `link`, and `ai`, which the server runs), else the handler the project registered under the
  * action's name. An update whose values the record holds already is left out, and so is a link to a URL the record
  * holds while it holds none. `blocked` says why one cannot run; `afterRun` hears about every action that succeeded.
- * `submit` runs one with the answers to its inputs and throws its failure, for the dialog to show.
+ * `submit` runs one with the answers to its inputs (a handler gets them, an update writes them) and throws its failure, for the dialog to show.
  */
 export const useActionRunner = (resource: string, scope: LayoutRecord | undefined, afterRun?: (action: ActionModel) => void) => {
   const { views } = useAdminMeta()
@@ -53,7 +53,7 @@ export const useActionRunner = (resource: string, scope: LayoutRecord | undefine
       else openLink(linkTarget(run.href, scope?.record))
       return
     }
-    if (run?.kind === 'update') await client.update(resource, scope!.key, run.values as Record<string, unknown>, scope!.etag ?? '*')
+    if (run?.kind === 'update') await client.update(resource, scope!.key, updateValues(run.values as Record<string, unknown>, values ?? {}), scope!.etag ?? '*')
     else if (run?.kind === 'delete') await client.remove(resource, scope!.key, { etag: scope!.etag })
     else if (run?.kind === 'ai') await client.generate(resource, scope!.key, action.name)
     else await handlers![action.name]!({ resource, record: scope?.record, recordKey: scope?.key, etag: scope?.etag, client: handlerClient, navigate: go, ...(values && { values }) })

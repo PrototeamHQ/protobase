@@ -47,6 +47,11 @@ describe('actionFor', () => {
     expect(actionFor(markPaid, {})).toBe(markPaid)
   })
 
+  it('shows an update that asks for input even when the record holds its values already', () => {
+    const answer: ActionModel = { name: 'answer', label: 'Answer', bulk: false, inputs: [{ name: 'a', kind: 'text', label: 'A', required: true }], run: { kind: 'update', values: { paid: true } } }
+    expect(actionFor(answer, { paid: true })).toBe(answer)
+  })
+
   it('leaves every other action as it is', () => {
     const update: ActionModel = { name: 'ship', label: 'Ship to {host}', bulk: false, run: { kind: 'update', values: { status: 'shipped' } } }
     const mail: ActionModel = { name: 'mail', label: 'Mail', bulk: false, run: { kind: 'link', href: 'mailto:{email}' } }

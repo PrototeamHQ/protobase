@@ -93,6 +93,13 @@ describe('pruneView', () => {
     expect(actions(without({}, ['customers'])).map((action) => action.name)).toEqual(['note'])
   })
 
+  it('keeps an update with inputs whole', () => {
+    const repairsView = view<typeof repairs>('repairs')
+      .actions((a) => [a.update('renumber', { label: 'Renumber', inputs: (i) => [i.text('number', { label: 'Number' })], set: { number: '{number}' } })])
+      .toModel()
+    expect(pruneView(repairsView, all.repairs, all).actions).toEqual(repairsView.actions)
+  })
+
   it("keeps a link to a record's URL for any caller the view grants the field, and leaves it out for one it hides it from", () => {
     const repairsView = view<typeof repairs>('repairs')
       .actions((a) => [a.link('source', { label: 'View on {host}', href: '{number}' })])
