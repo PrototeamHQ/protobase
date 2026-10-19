@@ -53,7 +53,7 @@ export const Closed: StoryObj = {
     const canvas = within(canvasElement)
     const heading = await canvas.findByRole('link', { name: title })
     expect(heading).toHaveAttribute('aria-expanded', 'false')
-    expect(heading.getAttribute('href')).toMatch(new RegExp(`\\?open=${encoded}$`))
+    expect(heading.getAttribute('href')?.endsWith(`?open=${encoded}`)).toBe(true)
     expect(canvas.queryByRole('heading', { name: 'Planning' })).toBeNull()
     expect(canvas.queryByRole('heading', { name: 'Tasks' })).toBeNull()
 

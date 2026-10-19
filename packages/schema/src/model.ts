@@ -771,27 +771,30 @@ export type CommentsSectionModel = {
 /** How a section shows its fields on the read view: `facts` as a row of key facts; label/value rows when omitted. */
 export type SectionPresentation = 'facts'
 
+/** A titled group of fields on the record page; see [The record page](website/src/content/docs/reference/ui-config.mdx#the-record-page). */
+export type SectionModel = {
+  /** A titled group of fields in the main column, editable where the user may write. */
+  kind: 'section'
+  /** The section's title. */
+  title: string
+  /** The fields it shows, in order. */
+  fields: string[]
+  /** A line under the title. */
+  help?: string
+  /** When `help` shows: always, or only while the record is edited; the view's `helpWhen` when omitted. */
+  helpWhen?: HelpWhen
+  /**
+   * `facts` shows the read view's fields as a row of key facts, each value under its field's `icon`, instead of
+   * label/value rows; the form edits them as any section's.
+   */
+  presentation?: SectionPresentation
+  /** Whether it shows on the form, the read view or both, or a condition on the saved record that it shows while it holds. */
+  when?: RecordWhen
+}
+
 /** An item of the record page (`.layout((r) => ...)` with `l`); see [The record page](website/src/content/docs/reference/ui-config.mdx#the-record-page). */
 export type LayoutItemModel =
-  | {
-      /** A titled group of fields in the main column, editable where the user may write. */
-      kind: 'section'
-      /** The section's title. */
-      title: string
-      /** The fields it shows, in order. */
-      fields: string[]
-      /** A line under the title. */
-      help?: string
-      /** When `help` shows: always, or only while the record is edited; the view's `helpWhen` when omitted. */
-      helpWhen?: HelpWhen
-      /**
-       * `facts` shows the read view's fields as a row of key facts, each value under its field's `icon`, instead of
-       * label/value rows; the form edits them as any section's.
-       */
-      presentation?: SectionPresentation
-      /** Whether it shows on the form, the read view or both, or a condition on the saved record that it shows while it holds. */
-      when?: RecordWhen
-    }
+  | SectionModel
   | {
       /** A read-only summary card beside the main column. */
       kind: 'sidebar'
@@ -823,7 +826,7 @@ export type GroupModel = {
 }
 
 /** An item a group may hold. */
-export type GroupItemModel = Extract<LayoutItemModel, { kind: 'section' }> | RelatedModel
+export type GroupItemModel = SectionModel | RelatedModel
 
 /**
  * A record's photos as tiles in the main column under `title`, one large and the next few smaller, opening a lightbox
