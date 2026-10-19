@@ -1,0 +1,158 @@
+{
+  "(hooks)": {
+    "(hooks)#0": [
+      {"sql":"\n    create table tasks (id integer generated always as identity primary key, title text not null, status text not null, position integer not null);\n    create table task_dependencies (task_id integer not null references tasks (id), type text not null, depends_on_id integer not null references tasks (id), primary key (task_id, type, depends_on_id));\n  ","result":[{"command":"CREATE","rowCount":null,"columns":[],"rows":[]},{"command":"CREATE","rowCount":null,"columns":[],"rows":[]}]}
+    ]
+  },
+  "reorder by a position with `after` > refuses to rank a task above an open task it waits for, and writes nothing": {
+    "(hooks)#0": [
+      {"sql":"truncate task_dependencies, tasks restart identity cascade;\n    insert into tasks (title, status, position) values ('a', 'open', 1), ('b', 'open', 2), ('c', 'done', 3), ('d', 'open', 4);\n    insert into task_dependencies values (4, 'blocked-by', 2), (4, 'blocked-by', 3), (4, 'parent', 1), (1, 'blocked-by', 2);","result":[{"command":"TRUNCATE","rowCount":null,"columns":[],"rows":[]},{"command":"INSERT","rowCount":4,"columns":[],"rows":[]},{"command":"INSERT","rowCount":4,"columns":[],"rows":[]}]},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select \"id\" as \"id\", \"title\" as \"title\", \"status\" as \"status\", \"position\" as \"position\" from \"tasks\" as t where \"id\" = $1 limit 1","params":["4"],"result":{"command":"SELECT","rowCount":1,"columns":[["id",23],["title",25],["status",25],["position",23]],"rows":[["4","d","open","4"]]}},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select \"id\" as \"id\", \"title\" as \"title\", \"status\" as \"status\", \"position\" as \"position\" from \"tasks\" as t where \"id\" = $1 limit 1","params":["2"],"result":{"command":"SELECT","rowCount":1,"columns":[["id",23],["title",25],["status",25],["position",23]],"rows":[["2","b","open","2"]]}},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"select \"id\" as \"id\", \"title\" as \"title\", \"status\" as \"status\", \"position\" as \"position\" from \"tasks\" as t where \"id\" = $1 limit 1 for update","params":["4"],"result":{"command":"SELECT","rowCount":1,"columns":[["id",23],["title",25],["status",25],["position",23]],"rows":[["4","d","open","4"]]}},
+      {"sql":"select \"id\" as \"id\", \"title\" as \"title\", \"status\" as \"status\", \"position\" as \"position\" from \"tasks\" as t where \"id\" = $1 limit 1 for update","params":["2"],"result":{"command":"SELECT","rowCount":1,"columns":[["id",23],["title",25],["status",25],["position",23]],"rows":[["2","b","open","2"]]}},
+      {"sql":"select \"id\" as \"id\", \"title\" as \"title\", \"status\" as \"status\", \"position\" as \"position\" from \"tasks\" as t where \"id\" = $1 limit 1 for update","params":["4"],"result":{"command":"SELECT","rowCount":1,"columns":[["id",23],["title",25],["status",25],["position",23]],"rows":[["4","d","open","4"]]}},
+      {"sql":"select \"id\" as \"id\", \"title\" as \"title\", \"status\" as \"status\", \"position\" as \"position\" from \"tasks\" as t where \"id\" = $1 limit 1 for update","params":["2"],"result":{"command":"SELECT","rowCount":1,"columns":[["id",23],["title",25],["status",25],["position",23]],"rows":[["2","b","open","2"]]}},
+      {"sql":"select max(\"position\") as high, min(\"position\") as low from \"tasks\" as t","result":{"command":"SELECT","rowCount":1,"columns":[["high",23],["low",23]],"rows":[["4","1"]]}},
+      {"sql":"savepoint reorder_aside","result":{"command":"SAVEPOINT","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"update \"tasks\" as t set \"position\" = $1 where \"id\" = $2","params":["5","4"],"result":{"command":"UPDATE","rowCount":1,"columns":[],"rows":[]}},
+      {"sql":"update \"tasks\" as t set \"position\" = $1 where \"id\" = $2","params":["6","2"],"result":{"command":"UPDATE","rowCount":1,"columns":[],"rows":[]}},
+      {"sql":"release savepoint reorder_aside","result":{"command":"RELEASE","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"update \"tasks\" as t set \"position\" = $1 where \"id\" = $2 returning \"id\" as \"id\", \"title\" as \"title\", \"status\" as \"status\", \"position\" as \"position\"","params":["2","4"],"result":{"command":"UPDATE","rowCount":1,"columns":[["id",23],["title",25],["status",25],["position",23]],"rows":[["4","d","open","2"]]}},
+      {"sql":"update \"tasks\" as t set \"position\" = $1 where \"id\" = $2 returning \"id\" as \"id\", \"title\" as \"title\", \"status\" as \"status\", \"position\" as \"position\"","params":["3","2"],"result":{"command":"UPDATE","rowCount":1,"columns":[["id",23],["title",25],["status",25],["position",23]],"rows":[["2","b","open","3"]]}},
+      {"sql":"select l.dependent, l.depended, d.rank as dependent_rank, p.rank as depended_rank\n    from (select \"task_id\" as dependent, \"depends_on_id\" as depended from \"task_dependencies\" as t where \"t\".\"type\" = $1 and (\"task_id\" in ($2, $3) or \"depends_on_id\" in ($4, $5))) as l\n    join (select \"id\" as id, \"position\" as rank from \"tasks\" as t) as d on d.id = l.dependent\n    join (select \"id\" as id, \"position\" as rank from \"tasks\" as t where \"t\".\"status\" <> $6) as p on p.id = l.depended","params":["blocked-by","4","2","4","2","done"],"result":{"command":"SELECT","rowCount":2,"columns":[["dependent",23],["depended",23],["dependent_rank",23],["depended_rank",23]],"rows":[
+        ["4","2","2","3"],
+        ["1","2","1","3"]
+      ]}},
+      {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select title, position from tasks order by id","result":{"command":"SELECT","rowCount":4,"columns":[["title",25],["position",23]],"rows":[
+        ["a","1"],
+        ["b","2"],
+        ["c","3"],
+        ["d","4"]
+      ]}}
+    ]
+  },
+  "reorder by a position with `after` > refuses to rank a task below one that waits for it": {
+    "(hooks)#0": [
+      {"sql":"truncate task_dependencies, tasks restart identity cascade;\n    insert into tasks (title, status, position) values ('a', 'open', 1), ('b', 'open', 2), ('c', 'done', 3), ('d', 'open', 4);\n    insert into task_dependencies values (4, 'blocked-by', 2), (4, 'blocked-by', 3), (4, 'parent', 1), (1, 'blocked-by', 2);","result":[{"command":"TRUNCATE","rowCount":null,"columns":[],"rows":[]},{"command":"INSERT","rowCount":4,"columns":[],"rows":[]},{"command":"INSERT","rowCount":4,"columns":[],"rows":[]}]},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select \"id\" as \"id\", \"title\" as \"title\", \"status\" as \"status\", \"position\" as \"position\" from \"tasks\" as t where \"id\" = $1 limit 1","params":["2"],"result":{"command":"SELECT","rowCount":1,"columns":[["id",23],["title",25],["status",25],["position",23]],"rows":[["2","b","open","2"]]}},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"select \"id\" as \"id\", \"title\" as \"title\", \"status\" as \"status\", \"position\" as \"position\" from \"tasks\" as t where \"id\" = $1 limit 1 for update","params":["2"],"result":{"command":"SELECT","rowCount":1,"columns":[["id",23],["title",25],["status",25],["position",23]],"rows":[["2","b","open","2"]]}},
+      {"sql":"select \"id\" as \"id\", \"title\" as \"title\", \"status\" as \"status\", \"position\" as \"position\" from \"tasks\" as t where \"id\" = $1 limit 1 for update","params":["2"],"result":{"command":"SELECT","rowCount":1,"columns":[["id",23],["title",25],["status",25],["position",23]],"rows":[["2","b","open","2"]]}},
+      {"sql":"select max(\"position\") as high, min(\"position\") as low from \"tasks\" as t","result":{"command":"SELECT","rowCount":1,"columns":[["high",23],["low",23]],"rows":[["4","1"]]}},
+      {"sql":"savepoint reorder_aside","result":{"command":"SAVEPOINT","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"update \"tasks\" as t set \"position\" = $1 where \"id\" = $2","params":["5","2"],"result":{"command":"UPDATE","rowCount":1,"columns":[],"rows":[]}},
+      {"sql":"release savepoint reorder_aside","result":{"command":"RELEASE","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"update \"tasks\" as t set \"position\" = $1 where \"id\" = $2 returning \"id\" as \"id\", \"title\" as \"title\", \"status\" as \"status\", \"position\" as \"position\"","params":["5","2"],"result":{"command":"UPDATE","rowCount":1,"columns":[["id",23],["title",25],["status",25],["position",23]],"rows":[["2","b","open","5"]]}},
+      {"sql":"select l.dependent, l.depended, d.rank as dependent_rank, p.rank as depended_rank\n    from (select \"task_id\" as dependent, \"depends_on_id\" as depended from \"task_dependencies\" as t where \"t\".\"type\" = $1 and (\"task_id\" in ($2) or \"depends_on_id\" in ($3))) as l\n    join (select \"id\" as id, \"position\" as rank from \"tasks\" as t) as d on d.id = l.dependent\n    join (select \"id\" as id, \"position\" as rank from \"tasks\" as t where \"t\".\"status\" <> $4) as p on p.id = l.depended","params":["blocked-by","2","2","done"],"result":{"command":"SELECT","rowCount":2,"columns":[["dependent",23],["depended",23],["dependent_rank",23],["depended_rank",23]],"rows":[
+        ["4","2","4","5"],
+        ["1","2","1","5"]
+      ]}},
+      {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}}
+    ]
+  },
+  "reorder by a position with `after` > lets a task rank above a done one it waits for": {
+    "(hooks)#0": [
+      {"sql":"truncate task_dependencies, tasks restart identity cascade;\n    insert into tasks (title, status, position) values ('a', 'open', 1), ('b', 'open', 2), ('c', 'done', 3), ('d', 'open', 4);\n    insert into task_dependencies values (4, 'blocked-by', 2), (4, 'blocked-by', 3), (4, 'parent', 1), (1, 'blocked-by', 2);","result":[{"command":"TRUNCATE","rowCount":null,"columns":[],"rows":[]},{"command":"INSERT","rowCount":4,"columns":[],"rows":[]},{"command":"INSERT","rowCount":4,"columns":[],"rows":[]}]},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select \"id\" as \"id\", \"title\" as \"title\", \"status\" as \"status\", \"position\" as \"position\" from \"tasks\" as t where \"id\" = $1 limit 1","params":["4"],"result":{"command":"SELECT","rowCount":1,"columns":[["id",23],["title",25],["status",25],["position",23]],"rows":[["4","d","open","4"]]}},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select \"id\" as \"id\", \"title\" as \"title\", \"status\" as \"status\", \"position\" as \"position\" from \"tasks\" as t where \"id\" = $1 limit 1","params":["3"],"result":{"command":"SELECT","rowCount":1,"columns":[["id",23],["title",25],["status",25],["position",23]],"rows":[["3","c","done","3"]]}},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"select \"id\" as \"id\", \"title\" as \"title\", \"status\" as \"status\", \"position\" as \"position\" from \"tasks\" as t where \"id\" = $1 limit 1 for update","params":["4"],"result":{"command":"SELECT","rowCount":1,"columns":[["id",23],["title",25],["status",25],["position",23]],"rows":[["4","d","open","4"]]}},
+      {"sql":"select \"id\" as \"id\", \"title\" as \"title\", \"status\" as \"status\", \"position\" as \"position\" from \"tasks\" as t where \"id\" = $1 limit 1 for update","params":["3"],"result":{"command":"SELECT","rowCount":1,"columns":[["id",23],["title",25],["status",25],["position",23]],"rows":[["3","c","done","3"]]}},
+      {"sql":"select \"id\" as \"id\", \"title\" as \"title\", \"status\" as \"status\", \"position\" as \"position\" from \"tasks\" as t where \"id\" = $1 limit 1 for update","params":["4"],"result":{"command":"SELECT","rowCount":1,"columns":[["id",23],["title",25],["status",25],["position",23]],"rows":[["4","d","open","4"]]}},
+      {"sql":"select \"id\" as \"id\", \"title\" as \"title\", \"status\" as \"status\", \"position\" as \"position\" from \"tasks\" as t where \"id\" = $1 limit 1 for update","params":["3"],"result":{"command":"SELECT","rowCount":1,"columns":[["id",23],["title",25],["status",25],["position",23]],"rows":[["3","c","done","3"]]}},
+      {"sql":"select max(\"position\") as high, min(\"position\") as low from \"tasks\" as t","result":{"command":"SELECT","rowCount":1,"columns":[["high",23],["low",23]],"rows":[["4","1"]]}},
+      {"sql":"savepoint reorder_aside","result":{"command":"SAVEPOINT","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"update \"tasks\" as t set \"position\" = $1 where \"id\" = $2","params":["5","4"],"result":{"command":"UPDATE","rowCount":1,"columns":[],"rows":[]}},
+      {"sql":"update \"tasks\" as t set \"position\" = $1 where \"id\" = $2","params":["6","3"],"result":{"command":"UPDATE","rowCount":1,"columns":[],"rows":[]}},
+      {"sql":"release savepoint reorder_aside","result":{"command":"RELEASE","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"update \"tasks\" as t set \"position\" = $1 where \"id\" = $2 returning \"id\" as \"id\", \"title\" as \"title\", \"status\" as \"status\", \"position\" as \"position\"","params":["3","4"],"result":{"command":"UPDATE","rowCount":1,"columns":[["id",23],["title",25],["status",25],["position",23]],"rows":[["4","d","open","3"]]}},
+      {"sql":"update \"tasks\" as t set \"position\" = $1 where \"id\" = $2 returning \"id\" as \"id\", \"title\" as \"title\", \"status\" as \"status\", \"position\" as \"position\"","params":["4","3"],"result":{"command":"UPDATE","rowCount":1,"columns":[["id",23],["title",25],["status",25],["position",23]],"rows":[["3","c","done","4"]]}},
+      {"sql":"select l.dependent, l.depended, d.rank as dependent_rank, p.rank as depended_rank\n    from (select \"task_id\" as dependent, \"depends_on_id\" as depended from \"task_dependencies\" as t where \"t\".\"type\" = $1 and (\"task_id\" in ($2, $3) or \"depends_on_id\" in ($4, $5))) as l\n    join (select \"id\" as id, \"position\" as rank from \"tasks\" as t) as d on d.id = l.dependent\n    join (select \"id\" as id, \"position\" as rank from \"tasks\" as t where \"t\".\"status\" <> $6) as p on p.id = l.depended","params":["blocked-by","4","3","4","3","done"],"result":{"command":"SELECT","rowCount":1,"columns":[["dependent",23],["depended",23],["dependent_rank",23],["depended_rank",23]],"rows":[["4","2","3","2"]]}},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select title, position from tasks order by id","result":{"command":"SELECT","rowCount":4,"columns":[["title",25],["position",23]],"rows":[
+        ["a","1"],
+        ["b","2"],
+        ["c","4"],
+        ["d","3"]
+      ]}}
+    ]
+  },
+  "reorder by a position with `after` > keeps an order it did not break, and orders nothing by a parent": {
+    "(hooks)#0": [
+      {"sql":"truncate task_dependencies, tasks restart identity cascade;\n    insert into tasks (title, status, position) values ('a', 'open', 1), ('b', 'open', 2), ('c', 'done', 3), ('d', 'open', 4);\n    insert into task_dependencies values (4, 'blocked-by', 2), (4, 'blocked-by', 3), (4, 'parent', 1), (1, 'blocked-by', 2);","result":[{"command":"TRUNCATE","rowCount":null,"columns":[],"rows":[]},{"command":"INSERT","rowCount":4,"columns":[],"rows":[]},{"command":"INSERT","rowCount":4,"columns":[],"rows":[]}]},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select \"id\" as \"id\", \"title\" as \"title\", \"status\" as \"status\", \"position\" as \"position\" from \"tasks\" as t where \"id\" = $1 limit 1","params":["3"],"result":{"command":"SELECT","rowCount":1,"columns":[["id",23],["title",25],["status",25],["position",23]],"rows":[["3","c","done","3"]]}},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select \"id\" as \"id\", \"title\" as \"title\", \"status\" as \"status\", \"position\" as \"position\" from \"tasks\" as t where \"id\" = $1 limit 1","params":["1"],"result":{"command":"SELECT","rowCount":1,"columns":[["id",23],["title",25],["status",25],["position",23]],"rows":[["1","a","open","1"]]}},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"select \"id\" as \"id\", \"title\" as \"title\", \"status\" as \"status\", \"position\" as \"position\" from \"tasks\" as t where \"id\" = $1 limit 1 for update","params":["3"],"result":{"command":"SELECT","rowCount":1,"columns":[["id",23],["title",25],["status",25],["position",23]],"rows":[["3","c","done","3"]]}},
+      {"sql":"select \"id\" as \"id\", \"title\" as \"title\", \"status\" as \"status\", \"position\" as \"position\" from \"tasks\" as t where \"id\" = $1 limit 1 for update","params":["1"],"result":{"command":"SELECT","rowCount":1,"columns":[["id",23],["title",25],["status",25],["position",23]],"rows":[["1","a","open","1"]]}},
+      {"sql":"select \"id\" as \"id\", \"title\" as \"title\", \"status\" as \"status\", \"position\" as \"position\" from \"tasks\" as t where \"id\" = $1 limit 1 for update","params":["3"],"result":{"command":"SELECT","rowCount":1,"columns":[["id",23],["title",25],["status",25],["position",23]],"rows":[["3","c","done","3"]]}},
+      {"sql":"select \"id\" as \"id\", \"title\" as \"title\", \"status\" as \"status\", \"position\" as \"position\" from \"tasks\" as t where \"id\" = $1 limit 1 for update","params":["1"],"result":{"command":"SELECT","rowCount":1,"columns":[["id",23],["title",25],["status",25],["position",23]],"rows":[["1","a","open","1"]]}},
+      {"sql":"select max(\"position\") as high, min(\"position\") as low from \"tasks\" as t","result":{"command":"SELECT","rowCount":1,"columns":[["high",23],["low",23]],"rows":[["4","1"]]}},
+      {"sql":"savepoint reorder_aside","result":{"command":"SAVEPOINT","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"update \"tasks\" as t set \"position\" = $1 where \"id\" = $2","params":["5","3"],"result":{"command":"UPDATE","rowCount":1,"columns":[],"rows":[]}},
+      {"sql":"update \"tasks\" as t set \"position\" = $1 where \"id\" = $2","params":["6","1"],"result":{"command":"UPDATE","rowCount":1,"columns":[],"rows":[]}},
+      {"sql":"release savepoint reorder_aside","result":{"command":"RELEASE","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"update \"tasks\" as t set \"position\" = $1 where \"id\" = $2 returning \"id\" as \"id\", \"title\" as \"title\", \"status\" as \"status\", \"position\" as \"position\"","params":["1","3"],"result":{"command":"UPDATE","rowCount":1,"columns":[["id",23],["title",25],["status",25],["position",23]],"rows":[["3","c","done","1"]]}},
+      {"sql":"update \"tasks\" as t set \"position\" = $1 where \"id\" = $2 returning \"id\" as \"id\", \"title\" as \"title\", \"status\" as \"status\", \"position\" as \"position\"","params":["2","1"],"result":{"command":"UPDATE","rowCount":1,"columns":[["id",23],["title",25],["status",25],["position",23]],"rows":[["1","a","open","2"]]}},
+      {"sql":"select l.dependent, l.depended, d.rank as dependent_rank, p.rank as depended_rank\n    from (select \"task_id\" as dependent, \"depends_on_id\" as depended from \"task_dependencies\" as t where \"t\".\"type\" = $1 and (\"task_id\" in ($2, $3) or \"depends_on_id\" in ($4, $5))) as l\n    join (select \"id\" as id, \"position\" as rank from \"tasks\" as t) as d on d.id = l.dependent\n    join (select \"id\" as id, \"position\" as rank from \"tasks\" as t where \"t\".\"status\" <> $6) as p on p.id = l.depended","params":["blocked-by","3","1","3","1","done"],"result":{"command":"SELECT","rowCount":1,"columns":[["dependent",23],["depended",23],["dependent_rank",23],["depended_rank",23]],"rows":[["1","2","2","2"]]}},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select \"id\" as \"id\", \"title\" as \"title\", \"status\" as \"status\", \"position\" as \"position\" from \"tasks\" as t where \"id\" = $1 limit 1","params":["1"],"result":{"command":"SELECT","rowCount":1,"columns":[["id",23],["title",25],["status",25],["position",23]],"rows":[["1","a","open","2"]]}},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"select \"id\" as \"id\", \"title\" as \"title\", \"status\" as \"status\", \"position\" as \"position\" from \"tasks\" as t where \"id\" = $1 limit 1 for update","params":["1"],"result":{"command":"SELECT","rowCount":1,"columns":[["id",23],["title",25],["status",25],["position",23]],"rows":[["1","a","open","2"]]}},
+      {"sql":"select \"id\" as \"id\", \"title\" as \"title\", \"status\" as \"status\", \"position\" as \"position\" from \"tasks\" as t where \"id\" = $1 limit 1 for update","params":["1"],"result":{"command":"SELECT","rowCount":1,"columns":[["id",23],["title",25],["status",25],["position",23]],"rows":[["1","a","open","2"]]}},
+      {"sql":"select max(\"position\") as high, min(\"position\") as low from \"tasks\" as t","result":{"command":"SELECT","rowCount":1,"columns":[["high",23],["low",23]],"rows":[["4","1"]]}},
+      {"sql":"savepoint reorder_aside","result":{"command":"SAVEPOINT","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"update \"tasks\" as t set \"position\" = $1 where \"id\" = $2","params":["5","1"],"result":{"command":"UPDATE","rowCount":1,"columns":[],"rows":[]}},
+      {"sql":"release savepoint reorder_aside","result":{"command":"RELEASE","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"update \"tasks\" as t set \"position\" = $1 where \"id\" = $2 returning \"id\" as \"id\", \"title\" as \"title\", \"status\" as \"status\", \"position\" as \"position\"","params":["5","1"],"result":{"command":"UPDATE","rowCount":1,"columns":[["id",23],["title",25],["status",25],["position",23]],"rows":[["1","a","open","5"]]}},
+      {"sql":"select l.dependent, l.depended, d.rank as dependent_rank, p.rank as depended_rank\n    from (select \"task_id\" as dependent, \"depends_on_id\" as depended from \"task_dependencies\" as t where \"t\".\"type\" = $1 and (\"task_id\" in ($2) or \"depends_on_id\" in ($3))) as l\n    join (select \"id\" as id, \"position\" as rank from \"tasks\" as t) as d on d.id = l.dependent\n    join (select \"id\" as id, \"position\" as rank from \"tasks\" as t where \"t\".\"status\" <> $4) as p on p.id = l.depended","params":["blocked-by","1","1","done"],"result":{"command":"SELECT","rowCount":1,"columns":[["dependent",23],["depended",23],["dependent_rank",23],["depended_rank",23]],"rows":[["1","2","5","2"]]}},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select title, position from tasks order by id","result":{"command":"SELECT","rowCount":4,"columns":[["title",25],["position",23]],"rows":[
+        ["a","5"],
+        ["b","2"],
+        ["c","1"],
+        ["d","4"]
+      ]}}
+    ]
+  }
+}

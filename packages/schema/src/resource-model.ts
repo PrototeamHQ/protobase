@@ -2,7 +2,7 @@ import { buildEventModels } from './events/event-models'
 import type { EventSpec } from './events/event-helpers'
 import type { AnyField } from './field'
 import type { FileOptions } from './files/file-options'
-import type { FieldModel, ResourceModel, SearchMatch } from './model'
+import type { FieldModel, PositionAfterModel, ResourceModel, SearchMatch } from './model'
 import { promptFields } from './ai-prompt'
 import { computedProblems } from './computed/computed-problems'
 import { snakeCase } from './naming'
@@ -18,7 +18,7 @@ export type ResourceState = {
   search?: string[]
   searchMatch?: Record<string, SearchMatch>
   owner?: string
-  position?: { field: string; within?: string }
+  position?: { field: string; within?: string; after?: PositionAfterModel }
   events?: EventSpec[]
   history?: boolean
   comments?: boolean
@@ -157,6 +157,7 @@ const positionProblems = (model: ResourceModel) => {
     ...(within === name ? [`position "${name}" cannot be within itself`] : []),
     ...(parent && parent.type !== 'relation' ? [`position "${name}" is within "${within}", which is ${parent.type}, not a relation`] : []),
     ...(parent && !parent.filterable ? [`position "${name}" is within "${within}", which is not filterable, and each parent's records are found by it`] : []),
+    ...(model.position.after && model.primaryKey.length !== 1 ? [`position "${name}" ranks after other records, which needs a key of one field`] : []),
   ]
 }
 

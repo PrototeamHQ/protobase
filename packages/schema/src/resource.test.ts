@@ -112,6 +112,10 @@ describe('resource builder', () => {
     expect(() => items(f.integer()).position((r) => r.position).toModel()).toThrow('position "position" is not sortable')
     expect(() => items(f.integer().sortable(), f.relation('invoices')).position((r) => r.position, { within: (r) => r.invoice_id }).toModel()).toThrow('"invoice_id", which is not filterable')
     expect(() => items(f.integer().sortable()).position((r) => r.position, { within: (r) => r.note }).toModel()).toThrow('"note", which is text, not a relation')
+    const after = { resource: 'item_links', field: 'item_id', key: 'needs_id', while: 'note != ""' }
+    expect(items(f.integer().sortable()).position((r) => r.position, { after }).toModel().position).toEqual({ field: 'position', after })
+    const paired = resource('pairs').table('pairs').fields({ a: f.integer(), b: f.integer(), position: f.integer().sortable() }).primaryKey((r) => [r.a, r.b])
+    expect(() => paired.position((r) => r.position, { after }).toModel()).toThrow('ranks after other records, which needs a key of one field')
   })
 
   it('keeps history and takes comments only when asked', () => {

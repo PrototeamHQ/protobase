@@ -1,7 +1,7 @@
 import { resolveFieldPath } from '@protobase/layout'
 import { checkFilter, checkOrderBy, parseFilter, parseOrderBy, type RelatedModel, type ResourceModel } from '@protobase/schema'
 
-const filterErrors = (model: ResourceModel, source: string | undefined) => {
+export const filterErrors = (model: ResourceModel, source: string | undefined) => {
   if (source === undefined) return []
   const parsed = parseFilter(source)
   if (!parsed.ok) return parsed.errors.map((error) => error.message)

@@ -2,7 +2,7 @@ import { z } from 'zod'
 import type { FieldAccess } from './access/types'
 import { eventHelpers, type EventHelpers, type EventSpec } from './events/event-helpers'
 import { eventMatches } from './events/event-models'
-import type { ResourceModel, SearchMatch } from './model'
+import type { PositionAfterModel, ResourceModel, SearchMatch } from './model'
 import { buildResourceModel, ignoredColumns, type ResourceState } from './resource-model'
 import type { Access, Issue, KeyRefs, RecordOf } from './resource-types'
 import { createRefs, type FieldRefs, type FieldsInput, type Ref } from './refs'
@@ -104,16 +104,19 @@ export class ResourceBuilder<F extends FieldsInput = {}, K = never> {
    * The integer field holding the records' order, 1 the first, which a list's **Reorder** button changes by dragging the
    * records; a move renumbers them 1, 2, 3, ... in one batch `reorder`. With `within`, a relation, each parent's records
    * have an order of their own, as an invoice's items do, sorted in the parent's related section. The field must be
-   * sortable and `within` filterable. See [Reordering by hand](website/src/content/docs/reference/ui-config.mdx#reordering-by-hand).
+   * sortable and `within` filterable. With `after`, a record never ranks above the records it depends on through a join
+   * resource (see {@link PositionAfterModel}), which `reorder` checks. See
+   * [Reordering by hand](website/src/content/docs/reference/ui-config.mdx#reordering-by-hand).
    *
    * @example
    * ```ts
    * .position((r) => r.position, { within: (r) => r.invoice_id })
+   * .position((r) => r.position, { after: { resource: 'task_dependencies', field: 'task_id', key: 'depends_on_id', while: 'status != "done"' } })
    * ```
    */
-  position(pick: (r: FieldRefs<F>) => Ref, o: { within?: (r: FieldRefs<F>) => Ref } = {}) {
+  position(pick: (r: FieldRefs<F>) => Ref, o: { within?: (r: FieldRefs<F>) => Ref; after?: PositionAfterModel } = {}) {
     const within = o.within?.(this.refs()).name
-    return this.next({ position: { field: pick(this.refs()).name, ...(within !== undefined && { within }) } })
+    return this.next({ position: { field: pick(this.refs()).name, ...(within !== undefined && { within }), ...(o.after && { after: { ...o.after } }) } })
   }
 
   /**

@@ -125,6 +125,8 @@ export type ResourceModel = {
     field: string
     /** The relation whose records each have an order of their own, as an invoice's items do; one order for all records when omitted. */
     within?: string
+    /** The records each record ranks after while they are pending, such as the tasks it waits for (`.position(..., { after })`). */
+    after?: PositionAfterModel
   }
   /** The events its changes raise (`.events()`), the catalogue subscriptions pick from. */
   events?: EventModel[]
@@ -601,6 +603,25 @@ export type SearchesOfModel = {
   }
   /** How many records each search shows at most; default every one it finds, loaded as its row scrolls. */
   limit?: number
+}
+
+/**
+ * The records a record of a ranked resource may never rank above: the `key` values of the `resource` records whose
+ * `field` holds its key, such as the tasks a task depends on, as long as they match `while`. A `reorder` that would put
+ * a record at or above one of them, or one of them at or below it, is refused, and a ranked list or board drops it at
+ * the first place below that keeps the order.
+ */
+export type PositionAfterModel = {
+  /** The join resource, such as `task_dependencies`. */
+  resource: string
+  /** Its filterable relation that holds the dependent record's key. */
+  field: string
+  /** Its filterable relation that holds the key of the record depended on. */
+  key: string
+  /** An AIP-160 filter on the join records, such as `type = "blocked-by"`. */
+  filter?: string
+  /** An AIP-160 filter on the records depended on, which they keep the order only while they match, such as `status != "done"`. */
+  while?: string
 }
 
 /** A view's list page (`.list(...)`). */

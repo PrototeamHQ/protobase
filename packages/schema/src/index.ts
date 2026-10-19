@@ -29,6 +29,7 @@ export type {
   BadgeShape,
   ListModel,
   ListDragModel,
+  PositionAfterModel,
   RelatedColumnModel,
   ListDisplayModel,
   CardPhotosModel,

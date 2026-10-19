@@ -10,6 +10,7 @@ import { tenantScope } from '../tenant'
 import { validateBody } from '../validate-body'
 import { missing, shown, type WriteResult } from '../write-shared'
 import { applyUpdate, planUpdate, type UpdatePlan } from '../write-update'
+import { checkRankAfter } from './rank-after'
 
 type Key = (string | number)[]
 
@@ -49,7 +50,8 @@ const moveAside = async (trx: Db, access: RequestAccess, field: string, keys: Ke
  * `reorder`: the listed records end up with `field` = `start`, `start` + 1, ... in the given order, `start` 1 unless
  * given, so a client sends only the stretch of a long list that moved. Only records whose value changes
  * are written, each as an ordinary update (validation, access, ETag, hooks); they are first moved aside (see `moveAside`)
- * so that a unique index such as (invoice_id, position) is never violated half way. Everything checks out before any row moves.
+ * so that a unique index such as (invoice_id, position) is never violated half way. Everything checks out before any row moves,
+ * and with the position's `after` the new order must keep each record below the records it depends on (see `checkRankAfter`).
  */
 export const reorderIn = async (trx: Db, deps: Deps, access: RequestAccess, input: { field: string; keys: Key[]; etags: Record<string, string>; start: number }): Promise<WriteResult[]> => {
   const { entry, full } = access
@@ -82,5 +84,6 @@ export const reorderIn = async (trx: Db, deps: Deps, access: RequestAccess, inpu
     const plan = plans.get(i)
     results.push(await shown(access, plan ? await applyUpdate(trx, deps, access, key, plan) : current[i]!))
   }
+  await checkRankAfter(trx, deps, access, input.field, changing.map((i) => ({ key: input.keys[i]!, before: current[i]!.record[input.field] })))
   return results
 }
