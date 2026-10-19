@@ -23,6 +23,7 @@ import type { RoleSession, RoleUser } from './roles/session-role'
 import { platformSignInFor, platformSignInProvider, readPlatformSignIn, resolvePlatformSignIn, type PlatformSignIn, type ResolvedPlatformSignIn } from './platform-sign-in'
 import { signInPolicyPlugin } from './policy-plugin'
 import { emailInDomains, resolveSamlProviders, samlDisabledPaths, samlGuardPlugin, samlPlugin, type ResolvedSamlProvider, type SsoOptions } from './saml-sign-in'
+import { lastAdminGuardPlugin } from './last-admin-guard'
 import { emailCodeOptions, twoFactorCodeOptions, unusedEmailCodePaths } from './sign-in-mail'
 import { signUpPaths, signUpPlugin } from './sign-up/sign-up-plugin'
 import { coreNames, pluginNames } from './snake-case-names'
@@ -249,6 +250,7 @@ export const betterAuthOptions = (options: CreateAuthOptions, { origins = [], pa
       }),
       staffSignInPlugin({ ...(operator && { operator }), ...(mail && { mail }) }),
       rolesPlugin({ definitions }),
+      lastAdminGuardPlugin(),
       ...(organizations
         ? [organizationPlugin({ resolved: organizations, secret: options.secret, ...(mail && { mail }), context }), protobaseOrganizationPlugin({ resolved: organizations, mail: Boolean(mailer) })]
         : []),

@@ -57,6 +57,7 @@ const databaseTests = ['packages/*/tests/**/*.test.ts', glue]
 // and so do those that create a Better Auth instance: its rate limits live in one map per module registry, which the
 // fixed clock never empties, so they would carry over from file to file.
 const snapshotIsolated = [
+  'packages/server/tests/admin-users.test.ts',
   'packages/server/tests/app-tokens.test.ts',
   'packages/server/tests/auth-snake-case.test.ts',
   'packages/server/tests/better-auth.test.ts',

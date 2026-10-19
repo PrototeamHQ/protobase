@@ -1,4 +1,5 @@
 import type { AdminAuth } from './create-auth'
+import { isActiveAdmin } from './last-admin'
 import { ownOrganizationsWithoutMembers } from './organizations/host'
 import { parseRoles } from './parse-roles'
 
@@ -69,8 +70,6 @@ const allUsers = async (auth: AdminAuth) => {
 }
 
 const rolesOf = (user: Row) => parseRoles(user.role)
-const isAdmin = (user: Row) => rolesOf(user).includes('admin')
-const isActiveAdmin = (user: Row) => isAdmin(user) && !user.banned
 
 const findUser = async (auth: AdminAuth, email: string) => {
   const user = (await allUsers(auth)).find((candidate) => candidate.email.toLowerCase() === email.toLowerCase())
@@ -78,7 +77,8 @@ const findUser = async (auth: AdminAuth, email: string) => {
   return user
 }
 
-// Every caller goes through here, so the last admin can never be removed, demoted or banned by accident.
+// Every host caller goes through here, and HTTP callers through `lastAdminGuardPlugin`, so the last admin can never be
+// removed, demoted or banned by accident.
 const refuseLastAdmin = async (auth: AdminAuth, user: Row, action: string) => {
   if (!isActiveAdmin(user)) return
   const admins = (await allUsers(auth)).filter(isActiveAdmin)
