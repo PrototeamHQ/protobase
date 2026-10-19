@@ -95,6 +95,8 @@ await sendInvoice.enqueue(db, { invoiceId: 7 }, { delay: '5 minutes', key: 'invo
 
 A job enqueued outside a transaction starts at once when this process runs its jobs. One enqueued in a transaction, or by another process, is picked up within the poll interval, 2 seconds.
 
+Each worker takes one job per poll, so a queue that fills faster drains one job per worker every 2 seconds at first. Once the queue maintenance, about every minute, counts more jobs ready than the job's `concurrency`, a worker that found a job fetches the next one at once, until a fetch finds none: a backlog then drains as fast as its jobs run.
+
 ### From SQL
 
 A trigger or a migration can enqueue in its own transaction:

@@ -26,7 +26,7 @@ PROTOBASE_SMTP_URL=smtp://localhost:1025
 PROTOBASE_MAIL_FROM=noreply@shop.example.com
 ```
 
-A project that delivers mail another way passes a `mailer`, `{ send({ to, subject, text, html }) }`, to [`createAuth`](auth.md#password-reset)) and `startJobs`, or `mailer: false` to turn mail off whatever the environment says. A template's `send` takes one too, see [Templates](#templates).
+A project that delivers mail another way passes a `mailer`, `{ send({ to, subject, text, html, headers }) }`, to [`createAuth`](auth.md#password-reset)) and `startJobs`, or `mailer: false` to turn mail off whatever the environment says. A template's `send` takes one too, see [Templates](#templates).
 
 ## Protobase's own mail
 
@@ -80,13 +80,51 @@ export const repairReady = defineEmail({
 | `name` | Names the email in errors. |
 | `subject` | The subject line, or a function of the data that makes it. |
 | `component` | The body, a React component of the data. It is rendered with React Email's `render` to the HTML part; the plain-text part is made from that HTML, leaving out what React Email marks to skip, such as `<Preview>`. |
+| `headers` | Optional: more header fields, or a function of the data that makes them. A value is one line. |
 
 The template that comes back has two methods, both typed by the component's props:
 
-- `render(data)` gives `{ subject, html, text }` without sending anything: for a test, or to look at the result.
+- `render(data)` gives `{ subject, html, text, headers }` without sending anything: for a test, or to look at the result.
 - `send(to, data, mailer?)` renders and sends it, through `mailer` when given (a job's `mail`), otherwise through `PROTOBASE_SMTP_URL`. It rejects when mail is off or the server refuses the message.
 
 React and React Email's renderer are loaded on the first email rendered, not when the app starts.
+
+Mail an app sends in bulk, such as alerts or newsletters, should carry a one-click unsubscribe link, which Gmail and Yahoo expect of bulk senders ([RFC 8058](https://www.rfc-editor.org/rfc/rfc8058)): a `List-Unsubscribe` header with the recipient's own link, and `List-Unsubscribe-Post`. The link must stop the mail on a `POST` without a sign-in, such as an [API function](../guides/api-functions.md)) that takes a token of the recipient's in its address:
+
+```ts
+headers: ({ unsubscribeUrl }: Digest) => ({ 'List-Unsubscribe': `<${unsubscribeUrl}>`, 'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click' }),
+```
+
+### The look of Protobase's own mail
+
+`@protobase/server/email` exports the components Protobase's own mail is built from, so an app's emails can look the same: a white card on grey with a teal action.
+
+| Component | |
+| --- | --- |
+| `EmailLayout` | The whole email: `preview`, the line inboxes show after the subject; `heading`; the message as its children; and a footer naming `app`, linked to its home page. `app` is `{ name, url }`. |
+| `EmailButton` | The email's one action: a button to `href`, and the label with the link in the plain-text part. |
+| `EmailCode` | A code to type in, on a line of its own. |
+| `EmailNote` | A remark below the message, such as why the recipient gets the email. |
+
+```tsx
+import { defineEmail } from '@protobase/server'
+import { EmailButton, EmailLayout, EmailNote, type MailingApp } from '@protobase/server/email'
+import { Text } from 'react-email'
+
+type RepairReady = { app: MailingApp; customer: string; bike: string; url: string }
+
+const RepairReadyEmail = ({ app, customer, bike, url }: RepairReady) => (
+  <EmailLayout app={app} preview={`Your ${bike} is ready for pickup`} heading="Ready for pickup">
+    <Text>Hi {customer}, your {bike} is ready.</Text>
+    <EmailButton href={url}>See the repair</EmailButton>
+    <EmailNote>You get this email because you brought your bike in for repair.</EmailNote>
+  </EmailLayout>
+)
+
+export const repairReady = defineEmail({ name: 'repair-ready', subject: 'Your bike is ready', component: RepairReadyEmail })
+```
+
+They are apart from `@protobase/server` itself, so an app that imports none never loads React Email's components.
 
 ## Sending
 
@@ -163,4 +201,4 @@ A message is sent once per call, so a job try that sends and then fails sends ag
 
 ## In a bundle
 
-A [bundle](cli.md#the-config-module)) gets React and React Email's renderer from the serve runtime, as it gets `@protobase/server`, so an email's component and the renderer share one React and hooks such as `useContext` work. React Email's other components are inlined, though `@protobase/server` uses them too: it loads them only to send its own mail, so the runtime does not supply them. Its `<Tailwind>` component needs `tailwindcss`, which the runtime does not supply, so a served config cannot use it: style with `style` props instead.
+A [bundle](cli.md#the-config-module)) gets React and React Email's renderer from the serve runtime, as it gets `@protobase/server` and `@protobase/server/email`, so an email's component and the renderer share one React and hooks such as `useContext` work. React Email's other components are inlined, though `@protobase/server` uses them too: it loads them only to send its own mail, so the runtime does not supply them. Its `<Tailwind>` component needs `tailwindcss`, which the runtime does not supply, so a served config cannot use it: style with `style` props instead.
