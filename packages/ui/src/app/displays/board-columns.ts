@@ -23,6 +23,9 @@ export const boardColumns = (model: ResourceModel, view: ViewModel | undefined, 
   return [...values, { value: null, label: `No ${(hints?.label ?? humanize(display.by)).toLowerCase()}` }]
 }
 
+/** The field a board orders each column by: the resource's `.position()`, when its records are ordered as one rather than within a parent. */
+export const boardRank = (model: ResourceModel) => (model.position && model.position.within === undefined ? model.position.field : undefined)
+
 /** The list's filter, its search included, narrowed to the records of one column. */
 export const columnFilter = (filter: string, by: string, value: string | null) => {
   const column = printFilter(value === null ? where.isNull(by) : where.eq(by, value))
