@@ -81,6 +81,14 @@ describe('readAppPath', () => {
     expect(appPath({ kind: 'record', resource: 'listings', key: 42, open: [] })).toBe('/listings/42')
   })
 
+  it('round trips the shown tab, alone and with the form and open groups, and reads an empty one as none', () => {
+    const address: AppAddress = { kind: 'record', resource: 'listings', key: '42', tab: 'Money' }
+    expect(readAppPath(appPath(address), pages)).toEqual(address)
+    expect(appPath({ ...address, edit: true, open: ['More'] })).toBe('/listings/42?edit=true&open=More&tab=Money')
+    expect(readAppPath('/listings/42?edit=true&open=More&tab=Money', pages)).toEqual({ ...address, edit: true, open: ['More'] })
+    expect(readAppPath('/listings/42?tab=', pages)).toEqual({ kind: 'record', resource: 'listings', key: '42' })
+  })
+
   it('ignores empty and repeated open groups', () => {
     expect(readAppPath('/listings/42?open=&open=More&open=More', pages)).toEqual({ kind: 'record', resource: 'listings', key: '42', open: ['More'] })
   })
