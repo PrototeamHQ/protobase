@@ -109,6 +109,8 @@ Every option returns a new [field](https://docs.protobase.net/api/schema/interfa
 | `.access({ read, create, update })` | Role rules for this column. See [Access](#access). |
 | `.sensitive()` | Hidden like a password: no response carries it, and a caller who may read it reveals one record's value at a time. See [Sensitive fields](#sensitive-fields). |
 | `.ai({ prompt })` | A job fills the field from `prompt`, `{field}` replaced by the record's values, after a create and after an update of a field the prompt reads, as the user who wrote. Text or enum, optional. See [AI fields and actions](ai.md)). |
+| `.rollup({ from, via, fn, field })` | The database keeps the field from the records of another resource: their count, sum, average, least or greatest value. Read-only. See [Rollups and formulas](#rollups-and-formulas). |
+| `.formula(expression)` | The database computes the field from the record's other number fields, as a generated column. Read-only. See [Rollups and formulas](#rollups-and-formulas). |
 
 The ERP's products show most of them, together with soft delete and a tenant:
 
@@ -139,6 +141,58 @@ export const products = resource('products')
   .tenant((r) => r.organization_id)
   .access(erpAccess('products'))
 ```
+
+## Rollups and formulas
+
+A **rollup** is a value of the other records that point at a record, such as an order's total of its lines. A **formula** is a value computed from the record's own fields, such as a line's amount. Neither needs SQL: you declare the field, and [`protobase migration`](cli.md#migration)) writes its column into the project's next migration (`NNN_computed.sql`). Both are real columns, kept by the database in the transaction that writes, so they are right for writes from psql or other services too, and they filter and sort like any column once they have an index.
+
+```ts title="docs-examples/reference/rollups.ts"
+import { f, resource } from '@protobase/schema'
+
+// An order's total and line count kept from its lines, and each line's amount computed from its own fields.
+
+/** shop.orders: one row per order. */
+export const orders = resource('orders')
+  .table('shop.orders')
+  .fields({
+    id: f.integer().readOnly().filterable().sortable().dbDefault(),
+    customer: f.text(),
+    // The sum of its lines' amounts; 0 for an order without lines.
+    total: f.decimal({ precision: 12, scale: 2 }).rollup({ from: 'order_lines', via: 'order_id', fn: 'sum', field: 'amount' }).filterable().sortable(),
+    line_count: f.integer().rollup({ from: 'order_lines', via: 'order_id', fn: 'count' }),
+    // The largest line; empty for an order without lines.
+    largest_line: f.decimal({ precision: 12, scale: 2 }).optional().rollup({ from: 'order_lines', via: 'order_id', fn: 'max', field: 'amount' }),
+  })
+  .primaryKey((r) => r.id)
+
+/** shop.order_lines: what each order is for. */
+export const orderLines = resource('order_lines')
+  .table('shop.order_lines')
+  .fields({
+    id: f.integer().readOnly().filterable().dbDefault(),
+    order_id: f.relation('orders').filterable(),
+    quantity: f.integer().min(1),
+    unit_price: f.decimal({ precision: 10, scale: 2 }),
+    discount: f.decimal({ precision: 10, scale: 2 }).optional(),
+    amount: f.decimal({ precision: 12, scale: 2 }).formula('round(quantity * unit_price - coalesce(discount, 0), 2)'),
+  })
+  .primaryKey((r) => r.id)
+```
+
+`.rollup({ from, via, fn, field })` reads the records of resource `from` whose relation field `via` points at the record. They are the records that are not soft deleted, when `from` has soft delete.
+
+| `fn` | Value | Field |
+| --- | --- | --- |
+| `count` | How many records there are; with `field`, how many have a value for it. 0 without records. | `f.integer()` or `f.bigint()` |
+| `sum` | The sum of `field`. 0 without records. | a number field |
+| `avg` | The average of `field`. Empty without records. | `f.decimal()`, `.optional()` |
+| `min`, `max` | The least or greatest value of `field`. Empty without records. | a number field, `.optional()` |
+
+Empty values of `field` are left out, as in SQL. The migration adds the column, a function in the `rollups` schema and a trigger on `from`'s table that sets the value after every insert, delete and update of the columns it reads, and then sets every record's value once. A rollup over its own table, a resource with a key of several columns, or a relation of several columns is not supported yet.
+
+`.formula(expression)` is a Postgres generated column. The expression reads the record's number fields, and takes numbers, `+ - * /`, parentheses, `coalesce(a, b, ...)` and `round(x)` or `round(x, digits)`. It is computed exactly as decimals, so `7 / 2` is 3.5, and is stored as the field's type, so an integer field rounds the result. A formula that reads an optional field is `.optional()` too, unless `coalesce()` gives that field a value. A formula cannot read another formula. When the expression changes, the migration drops the column and adds it again, so an index on it must be created again in the same migration.
+
+Neither field can be written through the API, have a default, or be sensitive. The server does not start while a declared column, function or trigger is missing or out of date, with a message that names the fields; the migration fixes that. It stops with an error, without writing anything, when the column already exists as the project's own: a plain column where a formula is declared, a generated column it did not write, or a rollup column of another type.
 
 ## Sensitive fields
 

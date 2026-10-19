@@ -56,7 +56,7 @@ Guides:
 
 Reference:
 
-- When defining resources, fields, keys, relations and validation → read [Data config](references/reference/data-config.md)
+- When defining resources, fields, keys, relations, rollups, formulas and validation → read [Data config](references/reference/data-config.md)
 - When defining views, columns, filters, charts, related records and actions → read [UI config](references/reference/ui-config.md)
 - When asking how the packages fit together → read [Architecture](references/reference/architecture.md)
 - When calling or changing the REST API, its filters, writes and errors → read [REST API](references/reference/api.md)
