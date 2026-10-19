@@ -4,6 +4,7 @@ import { AccountSection, SectionError } from '../account/account-section'
 import { PageHeader } from '../app-shell'
 import { authMessage } from '../auth/auth-messages'
 import { useAuth } from '../auth/auth-provider'
+import { PersonRow } from '../people/person-row'
 import { Button } from '../primitives/button'
 import { Spinner } from '../primitives/spinner'
 import { AppRolesPicker } from './app-roles-picker'
@@ -22,31 +23,34 @@ const MemberRow = ({ member, current, onChanged }: { member: OrganizationMember;
   const organizationRoles = assignableOrganizationRoles(current)
   // Only an owner changes an owner, as the server checks too.
   const roleLocked = member.role === 'owner' && current.role !== 'owner'
+  const membershipRoles = roles.filter((role) => role.membership)
   return (
-    <li className="flex flex-col gap-2 px-3 py-3">
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="min-w-0 flex-1">
-          <span className="block truncate font-medium">{member.name}{self &&' (you)'}</span>
-          <span className="block truncate text-xs text-muted-foreground">{member.email}</span>
-        </span>
-        <select
-          aria-label={`Organization role of ${member.name}`}
-          value={member.role}
-          disabled={busy || roleLocked}
-          onChange={(event) => void run(async () => { await session.organizations.setRole(organizationId, member.id, event.target.value as OrganizationRole); onChanged() })}
-          className="h-7 rounded-md border border-border-strong bg-background px-2 text-xs"
-        >
-          {(roleLocked ? [member.role] : organizationRoles).map((role) => <option key={role} value={role}>{organizationRoleLabels[role]}</option>)}
-        </select>
-        {!self && (
-          <Button size="sm" variant="danger" loading={busy} disabled={roleLocked} onClick={() => void run(async () => { await session.organizations.removeMember(organizationId, member.id); onChanged() })}>
-            Remove
-          </Button>
-        )}
-      </div>
-      <AppRolesPicker roles={roles} selected={member.appRoles} grantable={grantableRoles(roles, current)} disabled={busy} onChange={(selected) => void run(async () => { await session.organizations.setAppRoles(member.id, selected); onChanged() })} />
-      <SectionError message={error} />
-    </li>
+    <PersonRow
+      name={member.name}
+      email={member.email}
+      self={self}
+      error={error}
+      actions={
+        <>
+          <select
+            aria-label={`Organization role of ${member.name}`}
+            value={member.role}
+            disabled={busy || roleLocked}
+            onChange={(event) => void run(async () => { await session.organizations.setRole(organizationId, member.id, event.target.value as OrganizationRole); onChanged() })}
+            className="h-7 rounded-md border border-border-strong bg-background px-2 text-xs"
+          >
+            {(roleLocked ? [member.role] : organizationRoles).map((role) => <option key={role} value={role}>{organizationRoleLabels[role]}</option>)}
+          </select>
+          {!self && (
+            <Button size="sm" variant="danger" loading={busy} disabled={roleLocked} onClick={() => void run(async () => { await session.organizations.removeMember(organizationId, member.id); onChanged() })}>
+              Remove
+            </Button>
+          )}
+        </>
+      }
+    >
+      <AppRolesPicker roles={membershipRoles} selected={member.appRoles} grantable={grantableRoles(roles, current)} disabled={busy} onChange={(selected) => void run(async () => { await session.organizations.setAppRoles(member.id, selected); onChanged() })} />
+    </PersonRow>
   )
 }
 

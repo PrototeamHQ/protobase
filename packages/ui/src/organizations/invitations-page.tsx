@@ -1,77 +1,59 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { CurrentOrganization, OrganizationInvitation, OrganizationRole } from '@protobase/client'
-import { AccountSection, SectionError } from '../account/account-section'
+import { AccountSection } from '../account/account-section'
 import { PageHeader } from '../app-shell'
 import { useAuth } from '../auth/auth-provider'
-import { Button } from '../primitives/button'
-import { Input } from '../primitives/input'
+import { InviteForm } from '../invitations/invite-form'
+import { PendingInvitationRow } from '../invitations/pending-invitation-row'
 import { AppRolesPicker } from './app-roles-picker'
 import { assignableOrganizationRoles } from './members-page'
 import { grantableRoles, organizationRoleLabels, roleLabel } from './organization-paths'
-import { useAction } from './use-action'
 
-const LinkNotice = ({ link }: { link?: string }) =>
-  link ? (
-    <p className="mt-3 break-all rounded-md border bg-muted px-3 py-2 text-xs">
-      This app cannot send email, so pass this link on yourself. It works once, until the invitation expires: <span className="font-mono">{link}</span>
-    </p>
-  ) : null
-
-const InviteForm = ({ current, onSent }: { current: CurrentOrganization; onSent: () => void }) => {
+const InviteToOrganization = ({ current, onSent }: { current: CurrentOrganization; onSent: () => void }) => {
   const { session, organizations } = useAuth()
   const roles = organizations?.roles ?? []
-  const [email, setEmail] = useState('')
   const [role, setRole] = useState<OrganizationRole>('member')
   const [appRoles, setAppRoles] = useState<string[]>([])
-  const [link, setLink] = useState<string>()
-  const { busy, error, run } = useAction()
-  const invite = () =>
-    run(async () => {
-      const sent = await session.organizations.invite(current.organization!.id, { email: email.trim(), role, appRoles })
-      setLink(sent.link)
-      setEmail('')
-      setAppRoles([])
-      onSent()
-    })
+  const invite = async (email: string) => {
+    const sent = await session.organizations.invite(current.organization!.id, { email, role, appRoles })
+    setAppRoles([])
+    onSent()
+    return sent
+  }
   return (
-    <AccountSection title="Invite someone" description="They get an email with a link to join, or to make an account first. You can give the app roles you hold, and those your roles grant.">
-      <SectionError message={error} />
-      <form className="flex flex-col gap-3" onSubmit={(event) => { event.preventDefault(); void invite() }}>
-        <div className="flex flex-col gap-2 sm:flex-row">
-          <Input aria-label="Email" type="email" placeholder="name@example.com" value={email} onChange={(event) => setEmail(event.target.value)} wrapperClassName="flex-1" />
-          <select aria-label="Organization role" value={role} onChange={(event) => setRole(event.target.value as OrganizationRole)} className="h-8 rounded-md border border-border-strong bg-background px-2">
-            {assignableOrganizationRoles(current).map((option) => <option key={option} value={option}>{organizationRoleLabels[option]}</option>)}
-          </select>
-          <Button type="submit" variant="primary" loading={busy} disabled={!email.trim()}>Invite</Button>
-        </div>
-        <AppRolesPicker roles={roles} selected={appRoles} grantable={grantableRoles(roles, current)} onChange={setAppRoles} />
-      </form>
-      <LinkNotice link={link} />
-    </AccountSection>
+    <InviteForm
+      title="Invite someone"
+      description="They get an email with a link to join, or to make an account first. You can give the app roles you hold, and those your roles grant."
+      onInvite={invite}
+      beside={
+        <select aria-label="Organization role" value={role} onChange={(event) => setRole(event.target.value as OrganizationRole)} className="h-8 rounded-md border border-border-strong bg-background px-2">
+          {assignableOrganizationRoles(current).map((option) => <option key={option} value={option}>{organizationRoleLabels[option]}</option>)}
+        </select>
+      }
+    >
+      <AppRolesPicker roles={roles.filter((candidate) => candidate.membership)} selected={appRoles} grantable={grantableRoles(roles, current)} onChange={setAppRoles} />
+    </InviteForm>
   )
 }
 
 const PendingRow = ({ invitation, organizationId, onChanged }: { invitation: OrganizationInvitation; organizationId: string; onChanged: () => void }) => {
   const { session, organizations } = useAuth()
-  const [link, setLink] = useState<string>()
-  const { busy, error, run } = useAction()
-  const expired = new Date(invitation.expiresAt).getTime() < Date.now()
+  const appRoles = invitation.appRoles.map((name) => roleLabel(organizations?.roles ?? [], name))
   return (
-    <li className="px-3 py-2.5">
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="min-w-0 flex-1">
-          <span className="block truncate font-medium">{invitation.email}</span>
-          <span className="block text-xs text-muted-foreground">
-            {organizationRoleLabels[invitation.role]}
-            {invitation.appRoles.length > 0 && ` · ${invitation.appRoles.map((name) => roleLabel(organizations?.roles ?? [], name)).join(', ')}`} · {expired ? 'Expired' : `Until ${new Date(invitation.expiresAt).toLocaleDateString()}`}
-          </span>
-        </span>
-        <Button size="sm" loading={busy} onClick={() => void run(async () => { setLink((await session.organizations.resend(organizationId, invitation)).link); onChanged() })}>Send again</Button>
-        <Button size="sm" variant="danger" loading={busy} onClick={() => void run(async () => { await session.organizations.revoke(invitation.id); onChanged() })}>Revoke</Button>
-      </div>
-      <SectionError message={error} />
-      <LinkNotice link={link} />
-    </li>
+    <PendingInvitationRow
+      email={invitation.email}
+      gives={`${organizationRoleLabels[invitation.role]}${appRoles.length > 0 ? ` · ${appRoles.join(', ')}` : ''}`}
+      expiresAt={invitation.expiresAt}
+      onResend={async () => {
+        const sent = await session.organizations.resend(organizationId, invitation)
+        onChanged()
+        return sent
+      }}
+      onRevoke={async () => {
+        await session.organizations.revoke(invitation.id)
+        onChanged()
+      }}
+    />
   )
 }
 
@@ -88,7 +70,7 @@ export const InvitationsPage = ({ current }: { current?: CurrentOrganization }) 
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-4 px-4 py-6 md:px-6">
       <PageHeader title="Invitations" subtitle={`People invited to ${current.organization.name}.`} />
-      <InviteForm current={current} onSent={load} />
+      <InviteToOrganization current={current} onSent={load} />
       <AccountSection title="Not accepted yet" description={invitations.length > 0 ? 'Sending again gives a new link, which replaces the earlier one.' : 'Nobody is waiting.'}>
         {invitations.length > 0 && (
           <ul className="divide-y rounded-md border">
