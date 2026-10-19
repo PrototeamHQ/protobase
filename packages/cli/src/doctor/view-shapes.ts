@@ -1,5 +1,5 @@
 import type { FilterWidgetModel, GalleryModel, RelatedModel, ResourceModel, SortSpec, ViewModel } from '@protobase/schema'
-import { isGroupChart, layoutItems } from '@protobase/schema/internal'
+import { isGroupChart, layoutItems, viewOfList } from '@protobase/schema/internal'
 import type { ReadShape } from './read-shape'
 import { all, any, anyOf, compare, configFilter, configSort, isTrue, sortText } from './shape-filters'
 
@@ -156,6 +156,14 @@ const openingShape = (model: ResourceModel, view: ViewModel, list: string, sort:
   return { resource: model.name, request: request(model.name, source, sort), from: `${list} as it opens`, query: { ...(filter && { filter }), sort } }
 }
 
+// What a list page reads: its list in its order, its filter widgets and their counts, its displays and its chart
+const listShapes = (model: ResourceModel, view: ViewModel, list: string, models: Models): ReadShape[] => [
+  openingShape(model, view, list, listSort(model, view)),
+  ...view.filters.flatMap((widget) => widgetShapes(model, widget, `${list}'s ${widget.kind === 'dateRange' ? 'date range' : widget.kind} filter`)),
+  ...displayShapes(model, view, models),
+  ...chartShapes(model, view, list),
+]
+
 /**
  * The reads a view's pages make: its list in its order, the filter widgets and their counts, its chart per value, its displays' maps,
  * board columns and photos, the records of its related sections and the photos of its galleries, the recent records in the sidebar, a saved search's new records and the records sorted by hand.
@@ -163,13 +171,10 @@ const openingShape = (model: ResourceModel, view: ViewModel, list: string, sort:
 export const viewShapes = (view: ViewModel, models: Models): ReadShape[] => {
   const model = models[view.resource]
   if (!model) return []
-  const sort = listSort(model, view)
   const list = view.roles ? `the ${model.name} list for ${view.roles.join(', ')}` : `the ${model.name} list`
   return [
-    openingShape(model, view, list, sort),
-    ...view.filters.flatMap((widget) => widgetShapes(model, widget, `${list}'s ${widget.kind === 'dateRange' ? 'date range' : widget.kind} filter`)),
-    ...displayShapes(model, view, models),
-    ...chartShapes(model, view, list),
+    ...listShapes(model, view, list, models),
+    ...(view.lists ?? []).flatMap((named) => listShapes(model, viewOfList(view, named.name)!, `${list} "${named.name}"`, models)),
     ...layoutItems(view.layout).flatMap((item) => (item.kind === 'related' ? relatedShapes(item, model.name, models) : item.kind === 'gallery' ? galleryShapes(item, model.name, models) : [])),
     ...recentShapes(model, view),
     ...searchesShapes(view, models),

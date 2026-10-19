@@ -26,6 +26,11 @@ describe('checkViewQueries', () => {
     expect(() => checkViewQueries(models, [fits.toModel()])).not.toThrow()
   })
 
+  it("refuses a named list's sort by a field that is not sortable, naming the list", () => {
+    const named = view<typeof listings>('listings').namedList('recent', (v) => v.names({ singular: 'Listing', plural: 'Recent' }).list((r) => ({ columns: [r.address], sort: [[r.price, 'asc']] })))
+    expect(() => checkViewQueries(models, [named.toModel()])).toThrow('View "listings" list "recent": the list sorts by "price", which is not sortable')
+  })
+
   // property-finder's listings offered a district filter on a field that was not filterable, refused once used.
   it('refuses a filter widget on a field that is not filterable, naming the view, the field and the fix', () => {
     const district = view<typeof listings>('listings').filters((r, w) => [w.facets(r.district)])

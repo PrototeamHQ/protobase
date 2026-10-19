@@ -1,5 +1,5 @@
 import { checkFilter, parseFilter, type FilterWidgetModel, type ResourceModel, type ViewModel } from '@protobase/schema'
-import { isGroupChart } from '@protobase/schema/internal'
+import { isGroupChart, viewOfList } from '@protobase/schema/internal'
 
 const widgetName: Record<FilterWidgetModel['kind'], string> = { facets: 'facets filter', range: 'range filter', dateRange: 'date range filter', toggle: 'toggle', flags: 'flags filter' }
 
@@ -53,7 +53,11 @@ export const checkViewQueries = (models: ResourceModel[], views: ViewModel[]) =>
   const byName = new Map(models.map((model) => [model.name, model]))
   const problems = views.flatMap((view) => {
     const model = byName.get(view.resource)
-    return model ? viewQueryErrors(view, model).map((problem) => `View "${view.resource}": ${problem}`) : []
+    if (!model) return []
+    return [
+      ...viewQueryErrors(view, model).map((problem) => `View "${view.resource}": ${problem}`),
+      ...(view.lists ?? []).flatMap((named) => viewQueryErrors(viewOfList(view, named.name)!, model).map((problem) => `View "${view.resource}" list "${named.name}": ${problem}`)),
+    ]
   })
   if (problems.length > 0) throw new Error(`The views ask for what their resources do not allow:\n${problems.map((problem) => `  - ${problem}`).join('\n')}`)
 }

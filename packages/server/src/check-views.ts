@@ -1,6 +1,6 @@
 import { conditionProblems } from '@protobase/layout'
 import { isRecordCondition, type ActionRun, type CardPhotosModel, type GalleryModel, type ResourceModel, type ViewModel } from '@protobase/schema'
-import { actionInputErrors, addressErrors, addressPlaceholders, boardErrors, calendarErrors, chartFields, displayFields, fieldRefsIn, hrefField, hrefPlaceholders, layoutItems, linkActionError, promptError, promptFields, updateSetErrors } from '@protobase/schema/internal'
+import { actionInputErrors, addressErrors, addressPlaceholders, boardErrors, calendarErrors, chartFields, displayFields, fieldRefsIn, hrefField, hrefPlaceholders, layoutItems, linkActionError, promptError, promptFields, updateSetErrors, viewOfList } from '@protobase/schema/internal'
 import type { Registry } from './registry'
 import { cardFavoriteErrors, favoriteOwnerErrors } from './view-card-favorite'
 import { cardPhotosErrors } from './view-card-photos'
@@ -196,9 +196,7 @@ const listOfErrors = (model: ResourceModel, name: string, models: Record<string,
 export const checkViews = (registry: Registry, views: ViewModel[], pages: readonly string[] = [], fieldTypes: Readonly<Record<string, readonly string[]>> = {}) => {
   const models = Object.fromEntries(registry.entries.map((entry) => [entry.name, entry.model]))
   const pageNames = new Set(pages)
-  const problems = views.flatMap((view) => {
-    const model = models[view.resource]
-    if (!model) return []
+  const viewProblems = (view: ViewModel, model: ResourceModel) => {
     const related = [
       ...layoutItems(view.layout).flatMap((item) => (item.kind === 'related' ? relatedErrors(item, view.resource, models).map((error) => `related "${item.title}": ${error}`) : [])),
       ...relatedColumnsErrors(view, model, models),
@@ -229,7 +227,16 @@ export const checkViews = (registry: Registry, views: ViewModel[], pages: readon
     const chart = view.chart ? chartErrors(view.chart, model).map((error) => `chart: ${error}`) : []
     const history = model.history ? [] : view.layout.flatMap((item) => (item.kind === 'history' ? [`history "${item.title}" needs .history() on resource "${view.resource}"`] : []))
     const comments = model.comments ? [] : view.layout.flatMap((item) => (item.kind === 'comments' ? [`comments "${item.title}" needs .comments() on resource "${view.resource}"`] : []))
-    return [...sensitiveErrors(view, model), ...unknownFieldErrors(view, model), ...valueLabelErrors(view, model), ...valueColorErrors(view, model), ...textHintErrors(view, model), ...listEditErrors(view, model), ...widgetErrors(view, model, fieldTypes), ...related, ...conditionErrors(view, models), ...photos, ...favorites, ...listOf, ...searches, ...maps, ...history, ...comments, ...boards, ...calendars, ...chart, ...linkErrors(view, model, models, pageNames), ...aiActionErrors(view, model), ...inputErrors(view, models), ...createErrors(view, pageNames)].map((problem) => `View "${view.resource}": ${problem}`)
+    return [...sensitiveErrors(view, model), ...unknownFieldErrors(view, model), ...valueLabelErrors(view, model), ...valueColorErrors(view, model), ...textHintErrors(view, model), ...listEditErrors(view, model), ...widgetErrors(view, model, fieldTypes), ...related, ...conditionErrors(view, models), ...photos, ...favorites, ...listOf, ...searches, ...maps, ...history, ...comments, ...boards, ...calendars, ...chart, ...linkErrors(view, model, models, pageNames), ...aiActionErrors(view, model), ...inputErrors(view, models), ...createErrors(view, pageNames)]
+  }
+  // A named list is checked as a view of its own, without the record page, which the view's own check covers
+  const problems = views.flatMap((view) => {
+    const model = models[view.resource]
+    if (!model) return []
+    return [
+      ...viewProblems(view, model).map((problem) => `View "${view.resource}": ${problem}`),
+      ...(view.lists ?? []).flatMap((named) => viewProblems({ ...viewOfList(view, named.name)!, layout: [], actions: [] }, model).map((problem) => `View "${view.resource}" list "${named.name}": ${problem}`)),
+    ]
   })
   if (problems.length > 0) throw new Error(`The views do not match the resources:\n${problems.map((problem) => `  - ${problem}`).join('\n')}`)
 }

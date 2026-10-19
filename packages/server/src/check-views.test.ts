@@ -137,6 +137,14 @@ describe('checkViews', () => {
     expect(() => checkViews(registry, [written])).toThrow('View "payments": action "list": the label names {host}, which only a link with an href has')
   })
 
+  it("checks a named list's displays like the view's, naming the list", () => {
+    const named = view<typeof payments>('payments').namedList('updates', (v) => v.names({ singular: 'Update', plural: 'Updates' }).list((r, d) => ({ columns: [r.reference], displays: [d.board({ by: r.method, title: r.reference })] })))
+    expect(() => checkViews(registry, [named.toModel()])).not.toThrow()
+    const written = named.toModel()
+    written.lists![0]!.list = { columns: ['reference'], displays: [{ kind: 'board', name: 'board', by: 'reference' }] }
+    expect(() => checkViews(registry, [written])).toThrow('View "payments" list "updates": display "board": "reference" on payments is text, not an enum')
+  })
+
   it('wants a board in columns of a filterable enum', () => {
     const board = view<typeof payments>('payments').list((r, d) => ({ columns: [r.reference], displays: [d.board({ by: r.method, title: r.reference })] }))
     expect(() => checkViews(registry, [board.toModel()])).not.toThrow()

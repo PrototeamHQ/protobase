@@ -95,6 +95,18 @@ describe('readShapes', () => {
     expect(of.find((shape) => shape.from === "the places list's chart")).toMatchObject({ request: 'GET /places:aggregate?group_by=country', query: { groupBy: 'country' } })
   })
 
+  it("reads a named list's opening filter and widgets as its own", () => {
+    const named = view<typeof places>('places').namedList('coastal', (v) =>
+      v
+        .names({ singular: 'Coastal place', plural: 'Coastal places' })
+        .list((r) => ({ columns: [r.name], sort: [[r.name, 'asc']], filter: 'coastal = true' }))
+        .filters((r, w) => [w.facets(r.country)]),
+    )
+    const of = readShapes({ models: [places.toModel()], views: [named.toModel()], pages: [] }).filter((shape) => shape.resource === 'places')
+    expect(of.find((shape) => shape.from === 'the places list "coastal" as it opens')).toMatchObject({ request: 'GET /places?filter=coastal = true&order_by=name asc' })
+    expect(of.find((shape) => shape.request === 'GET /places:facets?field=country')).toMatchObject({ from: 'the places list "coastal"\'s facets filter' })
+  })
+
   it('reads a facets widget on a number as a range, a toggle as true and flags each counted and ORed', () => {
     expect(requests('places')).toEqual(
       expect.arrayContaining([
