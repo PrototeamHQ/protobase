@@ -2,8 +2,9 @@ import { f, resource } from '@protobase/schema'
 
 /**
  * members.alerts: a published listing that fits one of a member's saved searches, recorded by the match-listing job.
- * `emailed_at` is when it went out by mail, at once or in the daily digest. Theirs alone (`.own` on `user_id`), which
- * Postgres keeps equal to the search's owner. Unique: (saved_search_id, listing_id).
+ * `emailed_at` is when it went out by mail, at once or in the daily digest; one found while its search sent no email is
+ * never mailed (db/migrations/013_alert_mail.sql). Theirs alone (`.own` on `user_id`), which Postgres keeps equal to the
+ * search's owner. Unique: (saved_search_id, listing_id).
  */
 export const alerts = resource('alerts')
   .table('members.alerts')

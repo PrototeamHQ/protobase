@@ -10,7 +10,7 @@ export const alertsView = view<typeof alerts>('alerts')
     listing_id: r.listing_id.label('Listing'),
     saved_search_id: r.saved_search_id.label('Search'),
     matched_at: r.matched_at.label('Found'),
-    emailed_at: r.emailed_at.label('Mailed').help('Empty until it is mailed, or while the app sends no mail, or the search sends none.'),
+    emailed_at: r.emailed_at.label('Mailed').help('Empty until it is mailed, while the app sends no mail, or when the search sent no email as the listing was found.'),
   }))
   .list((r) => ({ columns: [r.listing_id, r.saved_search_id, r.matched_at, r.emailed_at], sort: [[r.matched_at, 'desc']] }))
   .filters((r, w) => [w.facets(r.saved_search_id), w.dateRange(r.matched_at, { presets: ['7d', '30d', '90d'] })])

@@ -1,15 +1,18 @@
+import { EmailNote } from '@protobase/server/email'
 import { Hr, Link, Section, Text } from 'react-email'
 
-/** A new listing as an alert mails it: a price empty when it is not offered that way, and its page on the portal. */
+/** A search of the member's that a listing fits: its name, `null` for one saved without a name, and its page. */
+export type FittingSearch = { name: string | null; url: string }
+
+/** A new listing as an alert mails it: a price empty when it is not offered that way, its page, and the searches it fits. */
 export type AlertedListing = {
   address: string
   place: string
   purchasePrice: string | null
   rentPrice: string | null
   livingArea: number
-  /** The name of the saved search it fits, `null` for one saved without a name. */
-  search: string | null
   url: string
+  searches: FittingSearch[]
 }
 
 const euros = (amount: string) => `€${Math.round(Number(amount)).toLocaleString('en-GB')}`
@@ -23,7 +26,22 @@ export const prices = (listing: Pick<AlertedListing, 'purchasePrice' | 'rentPric
   return offers.charAt(0).toUpperCase() + offers.slice(1)
 }
 
-/** One listing of an alert: where it is, what it costs, its size, the search it fits and a link to its page. */
+const searchLabel = (search: FittingSearch) => (search.name === null ? 'one of your searches' : `"${search.name}"`)
+
+/** The searches a listing fits, each linked to its page: Fits "Canal flat" and "Under 700k". */
+const Fits = ({ searches }: { searches: FittingSearch[] }) => (
+  <Text style={{ margin: '4px 0', color: '#71717a' }}>
+    Fits{' '}
+    {searches.map((search, index) => (
+      <span key={search.url}>
+        {index === 0 ? '' : index === searches.length - 1 ? ' and ' : ', '}
+        <Link href={search.url}>{searchLabel(search)}</Link>
+      </span>
+    ))}
+  </Text>
+)
+
+/** One listing of an alert: where it is, what it costs, its size, the searches it fits and a link to its page. */
 export const ListingBlock = ({ listing }: { listing: AlertedListing }) => (
   <Section>
     <Hr style={{ borderColor: '#e4e4e7' }} />
@@ -33,13 +51,13 @@ export const ListingBlock = ({ listing }: { listing: AlertedListing }) => (
     <Text style={{ margin: '4px 0' }}>
       {prices(listing)}, {listing.livingArea} m²
     </Text>
-    <Text style={{ margin: '4px 0', color: '#71717a' }}>{listing.search === null ? 'Fits one of your searches' : `Fits "${listing.search}"`}</Text>
+    <Fits searches={listing.searches} />
   </Section>
 )
 
 /** The mail's footer: where the member changes what they hear about. */
 export const SearchesFooter = ({ searchesUrl }: { searchesUrl: string }) => (
-  <Text style={{ color: '#71717a', fontSize: '13px' }}>
-    Change how often you hear of a search, or stop, under <Link href={searchesUrl}>Searches</Link>.
-  </Text>
+  <EmailNote>
+    You get this mail for your saved searches. Change how often you hear of one, or stop, under <Link href={searchesUrl}>Searches</Link>.
+  </EmailNote>
 )

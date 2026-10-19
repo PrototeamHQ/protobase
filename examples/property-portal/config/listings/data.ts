@@ -4,6 +4,7 @@ import { listingIssues } from './rules'
 
 export const energyLabels = ['a_plus_4', 'a_plus_3', 'a_plus_2', 'a_plus', 'a', 'b', 'c', 'd', 'e', 'f', 'g'] as const
 export const propertyTypes = ['apartment', 'house', 'townhouse', 'villa', 'studio', 'penthouse'] as const
+export const listingStatuses = ['available', 'under_offer', 'sold', 'let'] as const
 
 /**
  * market.listings: a home for sale, for rent, or both, as a Dutch home for sale is often let in the meantime
@@ -19,7 +20,7 @@ export const listings = resource('listings')
     agency_id: f.relation('agencies').filterable().sortable(),
     place_id: f.relation('places').filterable().sortable(),
     property_type: f.enum(propertyTypes).filterable().sortable(),
-    status: f.enum(['available', 'under_offer', 'sold', 'let']).default('available').filterable().sortable(),
+    status: f.enum(listingStatuses).default('available').filterable().sortable(),
     address: f.text().filterable().sortable(),
     postal_code: f.text().filterable(),
     latitude: f.decimal({ precision: 8, scale: 6 }).filterable(),

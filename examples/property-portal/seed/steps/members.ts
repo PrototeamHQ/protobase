@@ -20,7 +20,7 @@ function* searchRows(world: World) {
 }
 
 function* alertRows(world: World) {
-  for (const alert of world.alerts) yield row(alert.search.userId, alert.search.id, alert.listing.id, iso(alert.matchedAt), alert.emailedAt === null ? null : iso(alert.emailedAt))
+  for (const alert of world.alerts) yield row(alert.search.userId, alert.search.id, alert.listing.id, iso(alert.matchedAt), alert.emailedAt === null ? null : iso(alert.emailedAt), alert.search.alertFrequency !== 'none')
 }
 
 function* favoriteRows(world: World) {
@@ -35,7 +35,7 @@ export const seedMembers = async (sql: Db, world: World) => {
   await copyRows(sql, 'auth."user" (id, name, email, email_verified, created_at, updated_at, role, banned, two_factor_enabled)', userRows(world))
   await copyRows(sql, 'auth.account (id, account_id, provider_id, user_id, password, created_at, updated_at)', await accountRows(world))
   await copyRows(sql, 'members.saved_searches (id, user_id, name, filter, alert_frequency, seen_at, created_at)', searchRows(world))
-  await copyRows(sql, 'members.alerts (user_id, saved_search_id, listing_id, matched_at, emailed_at)', alertRows(world))
+  await copyRows(sql, 'members.alerts (user_id, saved_search_id, listing_id, matched_at, emailed_at, mail_due)', alertRows(world))
   await copyRows(sql, 'members.favorites (user_id, listing_id, created_at)', favoriteRows(world))
   await copyRows(sql, 'members.notes (user_id, listing_id, body, created_at, updated_at)', noteRows(world))
 }

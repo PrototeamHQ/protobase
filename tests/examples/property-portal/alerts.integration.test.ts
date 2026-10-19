@@ -112,4 +112,25 @@ describe.skipIf(!seeded)('alerts for newly published listings', () => {
     // The buyer hears of it at once, with both prices.
     await vi.waitFor(() => expect(sent.find((message) => message.text.includes('Teststraat 5'))?.text).toContain('For sale: €480,000 or for rent: €1,900 a month, 80 m²'), { timeout: 20_000, interval: 200 })
   })
+
+  it('records nothing for a home published as sold', async () => {
+    const sold = await listing('Teststraat 9', { purchase: 300_000 }, 80, false)
+    await sql`update market.listings set status = 'sold', published_at = now() where id = ${sold}`.execute(db)
+    await drained()
+    expect((await alertsOf(instant)).map((alert) => alert.listing_id)).not.toContain(sold)
+  })
+
+  it('mails a daily search\'s waiting homes at once when it switches to instant, and never what a search found without email', async () => {
+    const rental = await listing('Teststraat 8', { rent: 1_600 }, 75, true)
+    await vi.waitFor(async () => expect((await alertsOf(daily)).map((alert) => alert.listing_id)).toContain(rental), { timeout: 20_000, interval: 200 })
+    await vi.waitFor(async () => expect((await alertsOf(quiet)).map((alert) => alert.listing_id)).toContain(rental), { timeout: 20_000, interval: 200 })
+    const before = sent.length
+    await sql`update members.saved_searches set alert_frequency = 'instant' where id = ${daily}`.execute(db)
+    await vi.waitFor(async () => expect((await alertsOf(daily)).find((alert) => alert.listing_id === rental)?.emailed_at).toBeInstanceOf(Date), { timeout: 20_000, interval: 200 })
+    expect(sent.slice(before).filter((message) => message.text.includes('Teststraat 8'))).toHaveLength(1)
+    await sql`update members.saved_searches set alert_frequency = 'instant' where id = ${quiet}`.execute(db)
+    await drained()
+    expect((await alertsOf(quiet)).every((alert) => alert.emailed_at === null)).toBe(true)
+    expect(sent.some((message) => message.text.includes('Teststraat 7'))).toBe(false)
+  })
 })
