@@ -31,6 +31,8 @@ export const keys = {
   map: (resource: string, position: string, zoom: number, filter: string, orderBy: string) => ['map', resource, position, zoom, filter, orderBy] as const,
   relatedLabel: (resource: string, id: string) => ['related-label', resource, id] as const,
   labels: (resource: string, ids: string) => ['labels', resource, ids] as const,
+  /** The names of the records a `RecordPicker` holds. */
+  pickedLabels: (resource: string, ids: string) => ['picked-labels', resource, ids] as const,
   count: (resource: string, filter: string) => ['count', resource, filter] as const,
   /** How many rows an export of the list would hold, exactly up to 10,000; starts with `list`, so it refreshes with the list. */
   exportCount: (resource: string, filter: string) => ['list', resource, filter, 'export-count'] as const,

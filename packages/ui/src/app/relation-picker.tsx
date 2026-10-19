@@ -15,6 +15,10 @@ export type RelationPickerProps = {
   value: string
   /** What to show for `value` while the box is closed. */
   label?: string
+  /** The keys the list marks as chosen; `value` alone by default. */
+  chosen?: string[]
+  /** A choice keeps the list open and starts a new search, for picking several records. */
+  several?: boolean
   invalid?: boolean
   onChange: (value: string, label: string) => void
 }
@@ -33,7 +37,7 @@ const useLoadMoreInView = (list: HTMLElement | null, sentinel: HTMLElement | nul
  * Picks a record of another resource: type to narrow the records by their search fields or title, scroll for more, and
  * choose with the mouse or with the arrow keys and Enter; Escape closes the list.
  */
-export const RelationPicker = ({ target, view, value, label, invalid, onChange }: RelationPickerProps) => {
+export const RelationPicker = ({ target, view, value, label, chosen = [value], several = false, invalid, onChange }: RelationPickerProps) => {
   const [text, setText] = useState('')
   const [open, setOpen] = useState(false)
   const [active, setActive] = useState(-1)
@@ -75,7 +79,9 @@ export const RelationPicker = ({ target, view, value, label, invalid, onChange }
   }
   const choose = (item: Record<string, unknown>) => {
     onChange(String(item[keyField]), String(item[labelField]))
-    close()
+    if (!several) return close()
+    setText('')
+    setActive(-1)
   }
 
   const onKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
@@ -125,6 +131,7 @@ export const RelationPicker = ({ target, view, value, label, invalid, onChange }
           ref={setList}
           id={listId}
           role="listbox"
+          aria-multiselectable={several || undefined}
           className="absolute z-30 mt-1 max-h-60 w-full overflow-y-auto rounded-md border bg-background py-1 shadow-pop"
           onMouseDown={(event) => event.preventDefault()}
         >
@@ -134,7 +141,7 @@ export const RelationPicker = ({ target, view, value, label, invalid, onChange }
               id={optionId(index)}
               role="option"
               aria-selected={index === active}
-              className={cn('cursor-pointer truncate px-3 py-1.5', index === active && 'bg-muted', String(item[keyField]) === value && 'font-medium')}
+              className={cn('cursor-pointer truncate px-3 py-1.5', index === active && 'bg-muted', chosen.includes(String(item[keyField])) && 'font-medium')}
               onMouseMove={() => index !== active && setActive(index)}
               onClick={() => choose(item)}
             >

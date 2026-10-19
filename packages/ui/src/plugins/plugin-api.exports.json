@@ -26,6 +26,7 @@
     "OtpInput",
     "PartView",
     "RecordLink",
+    "RecordPicker",
     "ResendCodeButton",
     "ResponsiveDialog",
     "Section",
