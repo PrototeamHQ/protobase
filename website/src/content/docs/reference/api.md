@@ -52,6 +52,7 @@ Under `/api/v1`:
 | `GET /{resource}:map?latitude=&longitude=&zoom=&filter=&order_by=&fields=&labels=&photos=&photos_order_by=` | the records in a map's view, the bounding box being in `filter` (`lat >= 51.9 AND lat <= 52.1 AND lng >= 4.2 AND lng <= 4.5`), as `{ items, buckets, total_size }`; see [Maps](#maps) |
 | `GET /{resource}:seek?position=&order_by=&filter=&page_size=&fields=&labels=&photos=&photos_order_by=` | the page at a row position (scrollbar jumps), with `next_page_token` and `prev_page_token`; same items as a list |
 | `GET /api/meta` | resource, view and page models (fields carry `default`: `{ value }` or `{ db: true }`) and the caller's `permissions`; the `ETag` hashes both, so it differs per user; `If-None-Match` gives `304` |
+| `GET /api/live?after=` | a `text/event-stream` of which records of the [live](/reference/live/) resources the caller may read change, keys only; see [The stream](/reference/live/#the-stream) |
 | `POST /api/files:cleanup` | runs the [scheduled file deletes](/reference/files/#deleting-files) that are due, for an admin; `{ deleted, kept }` |
 | `GET /api/openapi.json`, `GET /api/docs` | OpenAPI 3.1 for the caller (only the resources, fields and operations their roles allow), and the Scalar reference |
 

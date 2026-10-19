@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { f, resource } from '@protobase/schema'
+import { f, resource, type AccessContext } from '@protobase/schema'
 import type { Deps } from '../deps'
 import { buildRegistry } from '../registry'
 import type { Session } from '../types'
 import type { Notice } from './notices-sql'
 import { visibleNotices } from './visible-notices'
 
-const sales = (ctx: { user?: { roles?: string[] } }) => Boolean(ctx.user?.roles?.includes('sales'))
+const sales = (ctx: AccessContext) => Boolean(ctx.user?.roles?.includes('sales'))
 const fields = { id: f.integer(), org_id: f.text() }
 const orders = resource('orders').table('orders').fields(fields).primaryKey((r) => r.id).access({ list: sales, read: sales }).live()
 const notes = resource('notes').table('notes').fields(fields).primaryKey((r) => r.id).tenant((r) => r.org_id).live()
