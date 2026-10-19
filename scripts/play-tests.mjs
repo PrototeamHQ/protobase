@@ -28,11 +28,17 @@ const playStory = async (story) => {
       for (const name of ['storyRendered', 'playFunctionThrewException', 'storyThrewException', 'storyErrored', 'storyMissing']) channel.on(name, (payload) => window.__sbEvents.push({ name, payload }))
     }, 5)
   })
+  // A story whose file fails to load sends storyMissing with only its id; the cause goes to the console, so a failure
+  // without a message reports the page's console errors and failed requests instead.
+  const logged = []
+  page.on('console', (message) => message.type() === 'error' && logged.push(message.text()))
+  page.on('requestfailed', (request) => logged.push(`${request.failure()?.errorText} ${request.url()}`))
   await page.goto(`${base}/iframe.html?id=${story.id}&viewMode=story`)
   await page.waitForFunction(() => window.__sbEvents?.length > 0, null, { timeout: 30_000 })
   const events = await page.evaluate(() => window.__sbEvents.map((event) => ({ name: event.name, message: String(event.payload?.message ?? event.payload?.description ?? '') })))
   await page.close()
-  return events.find((event) => event.name !== 'storyRendered')
+  const error = events.find((event) => event.name !== 'storyRendered')
+  return error && !error.message ? { ...error, message: logged.join('\n  ') } : error
 }
 
 // Four pages at a time: a story mostly waits on rendering. Results print in story order.
