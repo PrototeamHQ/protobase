@@ -15,6 +15,7 @@ const named = (name: string, o: ActionOptions & { bulk?: boolean }): ActionModel
   ...(o.confirm !== undefined && { confirm: o.confirm }),
 })
 
+/** @inline */
 type InputsOption = { inputs?: (i: typeof inputs) => ActionInputModel[] }
 
 // The inputs an action asks for, built and checked once for every action that takes them.
