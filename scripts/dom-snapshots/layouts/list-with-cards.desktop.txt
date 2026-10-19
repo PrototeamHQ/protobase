@@ -47,10 +47,10 @@ div | block
             div .contents md:hidden | none
         main .flex flex-1 flex-col | flex column nowrap normal normal
           div .flex min-h-0 flex-1 flex-col gap-3 px-5 py-4 | flex column nowrap normal normal
-            div .flex flex-wrap items-end justify-between gap-x-4 gap-y-2 | flex row wrap flex-end space-between
-              div | block
+            div .flex flex-col gap-x-4 gap-y-2 md:flex-row md:items-end md:justify-between | flex row nowrap flex-end space-between
+              div .min-w-0 break-words md:flex-1 | block
                 h1 .text-xl font-semibold tracking-tight | block
-              div .flex w-full flex-wrap items-center gap-2 sm:w-auto | flex row wrap center normal
+              div .flex flex-wrap items-center gap-2 md:justify-end | flex row wrap center flex-end
                 span role=group .inline-flex h-8 rounded-md bg-muted p-0.5 | flex row nowrap normal normal
                   button .inline-flex items-center gap-1.5 rounded px-3 text-body font-medium transition-colors text-muted-foreground hover:text-foreground | flex row nowrap center normal
                     svg .lucide lucide-table-2 size-3.5 | block
