@@ -1,7 +1,6 @@
 {
   "name": "create-protobase",
   "version": "0.14.2",
-  "private": true,
   "description": "npm create protobase: starts a new Protobase project from scratch.",
   "license": "Apache-2.0",
   "repository": {

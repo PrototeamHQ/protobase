@@ -1,5 +1,5 @@
-// Waits until npm serves every published @protobase package (packages/*, but the private ones) at the version in
-// package.json, metadata and tarball, as `bun install` asks for them, then exits; after 30 minutes it fails, naming the packages still missing.
+// Waits until npm serves every published package (the @protobase packages and
+// create-protobase, packages/* but the private ones) at the version in package.json, metadata and tarball, as `bun install` asks for them, then exits; after 30 minutes it fails, naming the packages still missing.
 // npm's CDN caches each package's metadata for up to 5 minutes per Accept header, so a version can be on npm for one
 // package and one request and not yet for another, and npm itself can take minutes to register a version it accepted
 // (17 for 0.23.0 in release run 39261718830): the image contexts, which bun installs from npm, need them all
