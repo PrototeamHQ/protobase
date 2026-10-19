@@ -21,22 +21,39 @@ export const placedRows = (rows: ListDisplayRow[], row: ListDisplayRow, index: n
   return [...rows.slice(0, index), row, ...rows.slice(index)]
 }
 
+/** The column's cards once `row` is dropped at `index`, with the first and last place that changed. */
+export const placing = (rows: ListDisplayRow[], row: ListDisplayRow, index: number) => {
+  const from = rows.findIndex((entry) => entry.key === row.key)
+  return { order: placedRows(rows, row, index), first: from === -1 ? index : Math.min(from, index), last: from === -1 ? index : Math.max(from, index) }
+}
+
 const etagOf = (row: ListDisplayRow) => (typeof row.record.etag === 'string' ? row.record.etag : '*')
 
 /**
  * The batch that saves a drop on a ranked board: in another column first the update of `by` with the card's ETag, then
  * a `reorder` of the column's cards whose place changed, `first` to `last`, reaching only as far as their ranks need
- * (see `reorderSpan`). The cards after it already rank higher, so they keep their place unwritten, loaded or not.
+ * (see `reorderSpan`). The cards after it already rank higher, so they keep their place unwritten, loaded or not. With
+ * `bump`, the card, last in the column, takes that rank in a `reorder` of its own before the others are numbered, so
+ * it ranks above a record it depends on (see `rankedPlace`).
  */
-export const placeOps = (model: ResourceModel, by: string, rank: string, row: ListDisplayRow, column: BoardColumn, order: ListDisplayRow[], first: number, last: number): BatchOp[] => {
+export const placeOps = (model: ResourceModel, by: string, rank: string, row: ListDisplayRow, column: BoardColumn, order: ListDisplayRow[], first: number, last: number, bump?: number): BatchOp[] => {
   const moving = (row.record[by] ?? null) !== column.value
   const span = reorderSpan(order.map((entry) => entry.record[rank]), first, last)
   const sent = order.slice(span.first, span.last + 1)
   // The update before it checked the moved card's ETag, which it changed
-  const etags = Object.fromEntries(sent.map((entry) => [encodeKey(recordKey(model, entry.record)), moving && entry.key === row.key ? '*' : etagOf(entry)]))
-  const reorder: BatchOp = { op: 'reorder', resource: model.name, field: rank, keys: sent.map((entry) => recordKey(model, entry.record)), start: span.start, etags }
-  if (!moving) return [reorder]
-  return [{ op: 'update', resource: model.name, key: recordKey(model, row.record), data: { [by]: column.value }, etag: etagOf(row) }, reorder]
+  const etagFor = (entry: ListDisplayRow) => (moving && entry.key === row.key ? '*' : etagOf(entry))
+  const reorder = (entries: ListDisplayRow[], start: number): BatchOp => ({
+    op: 'reorder',
+    resource: model.name,
+    field: rank,
+    keys: entries.map((entry) => recordKey(model, entry.record)),
+    start,
+    etags: Object.fromEntries(entries.map((entry) => [encodeKey(recordKey(model, entry.record)), etagFor(entry)])),
+  })
+  const others = sent.filter((entry) => entry.key !== row.key)
+  const reorders = bump === undefined ? [reorder(sent, span.start)] : [reorder([row], bump), ...(others.length > 0 ? [reorder(others, span.start)] : [])]
+  if (!moving) return reorders
+  return [{ op: 'update', resource: model.name, key: recordKey(model, row.record), data: { [by]: column.value }, etag: etagOf(row) }, ...reorders]
 }
 
 /**

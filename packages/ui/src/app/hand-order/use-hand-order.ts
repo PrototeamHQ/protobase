@@ -2,25 +2,27 @@ import { arrayMove } from '@dnd-kit/sortable'
 import { useQuery } from '@tanstack/react-query'
 import type { BatchOp } from '@protobase/client'
 import { useRef, useState } from 'react'
-import type { ResourceModel } from '@protobase/schema'
+import type { ResourceModel, ViewModel } from '@protobase/schema'
 import { encodeKey } from '@protobase/schema/internal'
 import { useClient } from '../../data/api-provider'
 import { keys } from '../../data/query-keys'
 import type { GridRow } from '../../data-grid'
-import { recordId, recordKey } from '../../live/model-helpers'
+import { recordId, recordKey, recordTitle } from '../../live/model-helpers'
 import { listLabels, withLabels } from '../../live/relation-labels'
 import { useToast } from '../../toasts'
 import { refusalReason } from '../displays/board-columns'
 import { displayRow } from '../displays/list-displays'
 import { useAdminMeta } from '../meta-gate'
 import { useRefreshResource } from '../pages/use-layout-data'
+import { dependencyRule } from '../rank-after/dependency-rule'
+import { rankBounds } from '../rank-after/rank-bounds'
 import { allowedDrop, type DropRule } from './drop-rule'
 import { handOrderPage } from './hand-order'
 import { text } from './messages'
 import { reorderSpan } from './reorder-span'
 import { undoOps } from './undo-ops'
 
-type Request = { model: ResourceModel; field: string; filter: string; fields: string[]; rule?: DropRule }
+type Request = { model: ResourceModel; view: ViewModel | undefined; field: string; filter: string; fields: string[]; rule?: DropRule }
 
 /**
  * The records of `filter` in the order of `field`, all of them, a page of `handOrderPage` at a time, and `move` to put
@@ -28,9 +30,10 @@ type Request = { model: ResourceModel; field: string; filter: string; fields: st
  * `reorder` with their ETags; moves made while one saves are saved after it, with the values and ETags it gave back.
  * Each save says so with **Undo**, which puts back the values it changed. A refusal puts them back as the server has
  * them and says why; either way every list of the resource reloads. A drop `rule` refuses moves to the first place below
- * that it allows, with a warning giving its reason.
+ * that it allows, with a warning giving its reason; with the position's `after`, so do the records the moved one
+ * depends on, read first (see `rankBounds`).
  */
-export const useHandOrder = ({ model, field, filter, fields, rule }: Request) => {
+export const useHandOrder = ({ model, view, field, filter, fields, rule }: Request) => {
   const client = useClient()
   const toast = useToast()
   const refresh = useRefreshResource()
@@ -105,6 +108,19 @@ export const useHandOrder = ({ model, field, filter, fields, rule }: Request) =>
   const move = (from: number, dropped: number) => {
     const rows = latest.current ?? loaded.data
     if (!rows || from === dropped) return
+    if (!model.position?.after) return place(rows, from, dropped, rule)
+    const record = displayRow(model, rows[from]!).record
+    const id = rows[from]!.id
+    rankBounds(client, model, view, record).then((bounds) => {
+      // Moves saved meanwhile may have moved the row
+      const now = latest.current ?? loaded.data!
+      const dependencies = dependencyRule(model, bounds, recordTitle(model, view, record, id))
+      place(now, now.findIndex((row) => row.id === id), dropped, (drop) => dependencies(drop) ?? rule?.(drop))
+    }, refused(text('couldNotChange')))
+  }
+
+  const place = (rows: GridRow[], from: number, dropped: number, rule: DropRule | undefined) => {
+    if (from === -1 || from === dropped) return
     const to = rule ? placeAllowed(rows, from, dropped, rule) : dropped
     if (from === to) return
     latest.current = arrayMove(rows, from, to)

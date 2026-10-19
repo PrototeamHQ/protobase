@@ -63,6 +63,18 @@ describe('placeOps', () => {
     ])
   })
 
+  it('gives a card bumped above what it depends on its rank first, then numbers the others', () => {
+    const order = placedRows(todo, todo[0]!, 3)
+    expect(placeOps(model, 'status', 'rank', todo[0]!, { value: 'todo', label: 'todo' }, order, 0, 3, 9)).toEqual([
+      { op: 'reorder', resource: 'tasks', field: 'rank', keys: [1], start: 9, etags: { '1': 'e1' } },
+      { op: 'reorder', resource: 'tasks', field: 'rank', keys: [2, 3, 4], start: 1, etags: { '2': 'e2', '3': 'e3', '4': 'e4' } },
+    ])
+    expect(placeOps(model, 'status', 'rank', todo[0]!, { value: 'doing', label: 'doing' }, placedRows(doing, todo[0]!, 2), 2, 2, 9)).toEqual([
+      { op: 'update', resource: 'tasks', key: 1, data: { status: 'doing' }, etag: 'e1' },
+      { op: 'reorder', resource: 'tasks', field: 'rank', keys: [1], start: 9, etags: { '1': '*' } },
+    ])
+  })
+
   it('sends a record listed without an ETag as any', () => {
     const rows = [card(1, 'todo', 1), card(2, 'todo', 2)]
     expect(placeOps(model, 'status', 'rank', rows[1]!, { value: 'todo', label: 'todo' }, placedRows(rows, rows[1]!, 0), 0, 1)).toEqual([

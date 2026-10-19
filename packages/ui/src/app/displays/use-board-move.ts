@@ -1,14 +1,17 @@
 import { useMutation } from '@tanstack/react-query'
 import { useRef, useState } from 'react'
-import type { KeyValue, ResourceModel } from '@protobase/schema'
+import type { KeyValue, ResourceModel, ViewModel } from '@protobase/schema'
 import { useClient } from '../../data/api-provider'
 import { recordKey } from '../../live/model-helpers'
 import { useToast } from '../../toasts'
+import { text as orderText } from '../hand-order/messages'
 import { undoOps, type DragWrite } from '../hand-order/undo-ops'
 import { useRefreshResource } from '../pages/use-layout-data'
+import { rankBounds } from '../rank-after/rank-bounds'
+import { rankedPlace, type RankedPlace } from '../rank-after/ranked-place'
 import { refusalReason, type BoardColumn } from './board-columns'
 import { dropWrite, type BoardDrop } from './board-drop'
-import { boardWrites, placeOps } from './board-place'
+import { boardWrites, placeOps, placing, type BoardPlace } from './board-place'
 import type { ListDisplayRow } from './list-displays'
 import { text } from './messages'
 
@@ -18,22 +21,22 @@ import { text } from './messages'
  */
 export type BoardMove = { row: ListDisplayRow; to: string | null; order?: string[] }
 
-/** Where in its column a card on a ranked board is dropped: the column's cards in their new order, and the first and last place that changed. */
-export type BoardPlacing = { order: ListDisplayRow[]; first: number; last: number }
+type Move = { row: ListDisplayRow; to: BoardColumn; place?: Omit<BoardPlace, 'column'> }
 
-type Move = { row: ListDisplayRow; to: BoardColumn; place?: BoardPlacing }
-
-// What a move saved: the column its record is in now, and what undoes it, when it can be undone
-type Saved = { landed: string | null; undo?: () => Promise<unknown> }
+// What a move saved: the column its record is in now, and what undoes it, when it can be undone; nothing when it stayed put
+type Saved = { landed: string | null; undo?: () => Promise<unknown> } | undefined
 
 type Options = {
   model: ResourceModel
+  view: ViewModel | undefined
   by: string
   rank?: string | undefined
   /** The board's own writes for a card dropped on another column, in place of saving `by`. */
   drop?: BoardDrop | undefined
   /** The heading of the column of a value. */
   labelOf: (value: string | null) => string
+  /** The title a card shows. */
+  titleOf: (row: ListDisplayRow) => string
 }
 
 /**
@@ -43,9 +46,11 @@ type Options = {
  * With the board's `drop`, a card dropped on another column runs that column's write instead, and then reads the record
  * again to say which column it is in now. The card shows in its new place at once; a saved move says so with **Undo**,
  * which puts back the values it changed or runs the undo the drop's write gave, and a refusal puts it back and says why.
+ * With the position's `after`, a card dropped above a record it depends on lands at the first place below that keeps
+ * the order, or stays where it was, with a warning saying why (see `rankedPlace`).
  * Either way every list of the resource reloads, which puts the card where its record now is.
  */
-export const useBoardMove = ({ model, by, rank, drop, labelOf }: Options) => {
+export const useBoardMove = ({ model, view, by, rank, drop, labelOf, titleOf }: Options) => {
   const client = useClient()
   const toast = useToast()
   const refresh = useRefreshResource()
@@ -75,22 +80,48 @@ export const useBoardMove = ({ model, by, rank, drop, labelOf }: Options) => {
   // The values a move or placing saved, which its undo puts back
   const saved = (writes: DragWrite[], to: BoardColumn): Saved => ({ landed: to.value, undo: () => client.batchWrite(undoOps(model, writes, fields)) })
 
+  // The card shown in its column, in `order` when it has a place there
+  const show = (row: ListDisplayRow, to: BoardColumn, order?: ListDisplayRow[]) => {
+    const moved = { ...row, record: { ...row.record, [by]: to.value } }
+    const keys = order?.map((entry) => entry.key)
+    setMoves((current) => [...current.filter((move) => move.row.key !== row.key), { row: moved, to: to.value, ...(keys && { order: keys }) }])
+  }
+
+  // Where the card lands by what its record depends on, saying so when that is not where it was dropped
+  const allowed = async (row: ListDisplayRow, to: BoardColumn, place: NonNullable<Move['place']>): Promise<RankedPlace | undefined> => {
+    if (!model.position?.after) return { index: place.index }
+    const bounds = await rankBounds(client, model, view, row.record)
+    const ranked = rankedPlace({ model, rank: rank!, rows: place.rows, row, index: place.index, bounds, title: titleOf(row) })
+    // Back in its own place it stays as it was, unwritten
+    const stays = !ranked.place || (ranked.place.bump === undefined && ranked.place.index === place.rows.findIndex((entry) => entry.key === row.key))
+    if (ranked.reason !== undefined) toast.show({ state: 'warning', title: stays ? orderText('notMoved') : orderText('movedToPlace', ranked.place!.index + 1), description: ranked.reason })
+    if (stays) return undefined
+    if (ranked.place!.index !== place.index) show(row, to, placing(place.rows, row, ranked.place!.index).order)
+    return ranked.place
+  }
+
+  // A drop at a place: the column's cards renumbered, with the card's update first when it changes column
+  const placed = async (row: ListDisplayRow, to: BoardColumn, place: NonNullable<Move['place']>): Promise<Saved> => {
+    const landing = await allowed(row, to, place)
+    if (!landing) return undefined
+    const { order, first, last } = placing(place.rows, row, landing.index)
+    return saved(boardWrites(model, order, await client.batchWrite(placeOps(model, by, rank!, row, to, order, first, last, landing.bump))), to)
+  }
+
   const mutation = useMutation({
     mutationFn: async ({ row, to, place }: Move): Promise<Saved> => {
       if (place && !rank) throw new Error('A board places a card only by its rank')
       const from = (row.record[by] ?? null) as string | null
       if (drop && to.value !== from) return dropped(row, to)
-      if (place) return saved(boardWrites(model, place.order, await client.batchWrite(placeOps(model, by, rank!, row, to, place.order, place.first, place.last))), to)
+      if (place) return placed(row, to, place)
       const etag = typeof row.record.etag === 'string' ? row.record.etag : '*'
       const stored = await client.update(model.name, recordKey(model, row.record) as KeyValue, { [by]: to.value }, etag)
       return saved([{ before: row.record, record: stored.record, etag: stored.etag }], to)
     },
-    onMutate: ({ row, to, place }) => {
-      const moved = { ...row, record: { ...row.record, [by]: to.value } }
-      const order = place?.order.map((entry) => entry.key)
-      setMoves((current) => [...current.filter((move) => move.row.key !== row.key), { row: moved, to: to.value, ...(order && { order }) }])
-    },
-    onSuccess: ({ landed, undo: undoing }, { row, to }) => {
+    onMutate: ({ row, to, place }) => show(row, to, place && placing(place.rows, row, place.index).order),
+    onSuccess: (result, { row, to }) => {
+      if (!result) return
+      const { landed, undo: undoing } = result
       if (undoToast.current !== undefined) toast.dismiss(undoToast.current)
       undoToast.current = undefined
       const from = row.record[by] ?? null
@@ -124,5 +155,5 @@ export const useBoardMove = ({ model, by, rank, drop, labelOf }: Options) => {
     },
   })
 
-  return { moves, move: (row: ListDisplayRow, to: BoardColumn, place?: BoardPlacing) => mutation.mutate({ row, to, ...(place && { place }) }) }
+  return { moves, move: (row: ListDisplayRow, to: BoardColumn, place?: NonNullable<Move['place']>) => mutation.mutate({ row, to, ...(place && { place }) }) }
 }

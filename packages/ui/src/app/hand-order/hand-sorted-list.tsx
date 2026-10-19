@@ -43,7 +43,7 @@ export const HandSortedList = ({ model, view, field, filter, columns, sort }: Pr
   const fields = useMemo(() => loadedFields(model, view, specs.map((spec) => spec.id)), [model, view, specs])
   const ruleName = view?.list?.drag?.rule
   const rule = ruleName === undefined ? undefined : dropRules?.[ruleName]
-  const order = useHandOrder({ model, field, filter, fields, ...(rule && { rule }) })
+  const order = useHandOrder({ model, view, field, filter, fields, ...(rule && { rule }) })
   const rows = order.rows
   const source = useMemo(() => rows && { total: rows.length, rowAt: (index: number) => rows[index]! }, [rows])
 

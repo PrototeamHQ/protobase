@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from '@storybook/react-vite'
 import { useState } from 'react'
 import { expect, userEvent, waitFor, within } from 'storybook/test'
 import { ApiError, createStaticSession } from '@protobase/client'
-import { view, type ViewModel } from '@protobase/schema'
+import { f, resource, view, type ResourceModel, type ViewModel } from '@protobase/schema'
 import { tasks, tasksView } from '../../../../../docs-examples/reference/ranked-board'
 import { App } from '../app'
 import type { DropRule } from '../hand-order/drop-rule'
@@ -27,8 +27,9 @@ const rows = () => ({
 })
 
 // With `refuse`, the server refuses every drop, as it does when someone else changed a task since it loaded.
-const Team = ({ refuse, start = '/tasks', teamView = tasksView, ui }: { refuse?: boolean; start?: string; teamView?: { toModel(): ViewModel }; ui?: ProjectUi }) => {
-  const [api] = useState(() => fakeApi({ resources: [tasks.toModel()], views: [teamView.toModel()], rows: rows() }))
+type TeamProps = { refuse?: boolean; start?: string; teamView?: { toModel(): ViewModel }; ui?: ProjectUi; models?: ResourceModel[]; data?: Record<string, Record<string, unknown>[]> }
+const Team = ({ refuse, start = '/tasks', teamView = tasksView, ui, models = [tasks.toModel()], data = rows() }: TeamProps) => {
+  const [api] = useState(() => fakeApi({ resources: models, views: [teamView.toModel()], rows: data }))
   const client = refuse
     ? {
         ...api.client,
@@ -187,6 +188,31 @@ export const TableRuleChecks: StoryObj = {
     expect(await within(document.body).findByText('Moved to place 3')).toBeInTheDocument()
     expect(within(document.body).getByText('Order brake pads waits for Fix the stand clamp.')).toBeInTheDocument()
     await waitFor(() => expect(handles(grid).slice(0, 4)).toEqual(['Call Emma back', 'Fix the stand clamp', 'Order brake pads', 'Clean the workshop']))
+    expect(await within(document.body).findByText('Order changed')).toBeInTheDocument()
+  },
+}
+
+// A task never ranks above an open task it is blocked by
+const waitingTasks = tasks.position((r) => r.rank, { after: { resource: 'task_dependencies', field: 'task_id', key: 'depends_on_id', filter: 'type = "blocked-by"', while: 'status != "done"' } })
+const taskDependencies = resource('task_dependencies')
+  .table('task_dependencies')
+  .fields({ task_id: f.relation('tasks').filterable(), type: f.text().filterable(), depends_on_id: f.relation('tasks').filterable() })
+  .primaryKey((r) => [r.task_id, r.type, r.depends_on_id])
+const waiting = () => ({ ...rows(), task_dependencies: [{ task_id: 3, type: 'blocked-by', depends_on_id: 2 }] })
+
+export const DependenciesChecks: StoryObj = {
+  name: 'A board in rank order, a card dropped above a task it depends on (checks)',
+  tags: ['play', '!dev'],
+  render: () => <Team models={[waitingTasks.toModel(), taskDependencies.toModel()]} data={waiting()} />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    const todo = await column(canvas, 'todo')
+    await waitFor(() => expect(titles(todo)).toEqual(['Call Emma back', 'Order brake pads', 'Price the winter service']))
+    await moveByKeyboard(within(todo).getAllByRole('link')[2]!, [['{ArrowUp}', 'todo, place 2 of 3'], ['{ArrowUp}', 'todo, place 1 of 3']])
+    // Dropped first, it lands below the task it waits for, and the warning says why
+    expect(await within(document.body).findByText('Moved to place 2')).toBeInTheDocument()
+    expect(within(document.body).getByText('Price the winter service depends on Call Emma back.')).toBeInTheDocument()
+    await waitFor(() => expect(titles(todo)).toEqual(['Call Emma back', 'Price the winter service', 'Order brake pads']))
     expect(await within(document.body).findByText('Order changed')).toBeInTheDocument()
   },
 }

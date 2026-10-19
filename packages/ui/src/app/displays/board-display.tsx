@@ -11,7 +11,7 @@ import { useProjectUi } from '../pages/project-ui'
 import { boardCard, boardColumns, boardRank, type BoardColumn, type BoardDisplayModel } from './board-columns'
 import { cardCoordinates, collision, columnId } from './board-dnd'
 import { dropWrite } from './board-drop'
-import { placedRows, type BoardPlace } from './board-place'
+import type { BoardPlace } from './board-place'
 import type { ListDisplayRow } from './list-displays'
 import { RecordCard } from './record-card'
 import { useBoardMove } from './use-board-move'
@@ -66,7 +66,8 @@ export const BoardDisplay = ({ model, view, display, fields, filter, orderBy, li
   const placeable = drag?.rank === true && rank !== undefined && listHandOrder(model, permissions) !== undefined
   const columnOrder = rank ? `${rank} asc` : orderBy
   const labelOf = (value: string | null) => every.find((column) => column.value === value)?.label ?? String(value)
-  const { moves, move } = useBoardMove({ model, by: display.by, rank, drop, labelOf })
+  const title = (row: ListDisplayRow) => String(row.labels[card.title!] ?? row.record[card.title!] ?? row.key)
+  const { moves, move } = useBoardMove({ model, view, by: display.by, rank, drop, labelOf, titleOf: title })
   const [active, setActive] = useState<ListDisplayRow | undefined>()
   // The click that ends a drag with a mouse lands on the card's link, which must not open the record
   const dragged = useRef(false)
@@ -78,7 +79,6 @@ export const BoardDisplay = ({ model, view, display, fields, filter, orderBy, li
   )
   if (dropName !== undefined && !drop) return <Problem>{slotted(text('noDrop'), dropName)}</Problem>
 
-  const title = (row: ListDisplayRow) => String(row.labels[card.title!] ?? row.record[card.title!] ?? row.key)
   const columnOf = (id: unknown) => columns.find((column) => columnId(column.value) === id)
   const valueOf = (row: ListDisplayRow) => (row.record[display.by] ?? null) as string | null
   const crosses = (row: ListDisplayRow, to: BoardColumn) => takes(valueOf(row)) && takes(to.value)
@@ -127,8 +127,7 @@ export const BoardDisplay = ({ model, view, display, fields, filter, orderBy, li
     // A board drop's write decides where the card lands in another column, so it has no place there
     if (from === -1 && drop) return move(row, place.column)
     if (from === place.index) return
-    const order = placedRows(place.rows, row, place.index)
-    move(row, place.column, { order, first: from === -1 ? place.index : Math.min(from, place.index), last: from === -1 ? place.index : Math.max(from, place.index) })
+    move(row, place.column, { rows: place.rows, index: place.index })
   }
 
   return (
