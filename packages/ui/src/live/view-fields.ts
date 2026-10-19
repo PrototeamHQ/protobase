@@ -13,26 +13,37 @@ const isNumber = (model: ResourceModel | undefined, field: string) => {
 const rangeOf = (widget: FilterWidgetModel, model: ResourceModel | undefined) =>
   widget.kind === 'range' || (widget.kind === 'facets' && isNumber(model, widget.field))
 
-const emptyRange = (field: string): RangeConfig => ({ id: field, label: field, min: 0, max: 0, step: 1, histogram: [], format: String })
+const secondaryOf = (widget: FilterWidgetModel) => (widget.secondary ? { secondary: true } : {})
+
+const emptyRange = (widget: FilterWidgetModel & { field: string }): RangeConfig => ({
+  id: widget.field,
+  label: widget.field,
+  min: 0,
+  max: 0,
+  step: 1,
+  histogram: [],
+  format: String,
+  ...secondaryOf(widget),
+})
 
 /**
  * The widgets of a view in the shape `filter-string` talks to; options and counts are filled in later. Facets on a
  * reference to another resource's records are a combobox, which searches those records.
  */
-export const widgetFields = (view: ViewModel | undefined, model?: ResourceModel): Pick<FilterConfig, 'facets' | 'ranges' | 'dateField' | 'dateKind' | 'datePresets' | 'toggles'> => {
+export const widgetFields = (view: ViewModel | undefined, model?: ResourceModel): Pick<FilterConfig, 'facets' | 'ranges' | 'dateField' | 'dateKind' | 'dateSecondary' | 'datePresets' | 'toggles'> => {
   const widgets = view?.filters ?? []
   const date = widgets.find((widget) => widget.kind === 'dateRange')
   return {
     facets: widgets.flatMap((widget): FacetGroupConfig[] => {
       if (widget.kind === 'facets' && !rangeOf(widget, model)) {
-        return [{ id: widget.field, label: widget.field, options: [], searchable: widget.search, ...(model?.fields[widget.field]?.type === 'relation' && { combobox: true }) }]
+        return [{ id: widget.field, label: widget.field, options: [], searchable: widget.search, ...(model?.fields[widget.field]?.type === 'relation' && { combobox: true }), ...secondaryOf(widget) }]
       }
-      if (widget.kind === 'flags') return [{ id: widget.fields.join('|'), label: widget.label, options: widget.fields.map((field) => ({ value: field, label: field, count: 0 })), flags: true }]
+      if (widget.kind === 'flags') return [{ id: widget.fields.join('|'), label: widget.label, options: widget.fields.map((field) => ({ value: field, label: field, count: 0 })), flags: true, ...secondaryOf(widget) }]
       return []
     }),
-    ranges: widgets.flatMap((widget) => (widget.kind !== 'flags' && rangeOf(widget, model) ? [emptyRange(widget.field)] : [])),
-    ...(date && { dateField: date.field, dateKind: model?.fields[date.field]?.type === 'date' ? ('date' as const) : ('timestamp' as const), ...(date.presets.length > 0 && { datePresets: date.presets }) }),
-    toggles: widgets.flatMap((widget) => (widget.kind === 'toggle' ? [{ id: widget.field, label: widget.field }] : [])),
+    ranges: widgets.flatMap((widget) => (widget.kind !== 'flags' && rangeOf(widget, model) ? [emptyRange(widget)] : [])),
+    ...(date && { dateField: date.field, ...(date.secondary && { dateSecondary: true }), dateKind: model?.fields[date.field]?.type === 'date' ? ('date' as const) : ('timestamp' as const), ...(date.presets.length > 0 && { datePresets: date.presets }) }),
+    toggles: widgets.flatMap((widget) => (widget.kind === 'toggle' ? [{ id: widget.field, label: widget.field, ...secondaryOf(widget) }] : [])),
   }
 }
 

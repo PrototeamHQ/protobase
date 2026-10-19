@@ -70,3 +70,26 @@ describe('flags', () => {
     expect(fields.toggles).toEqual([{ id: 'garden', label: 'garden' }])
   })
 })
+
+describe('widgetFields secondary', () => {
+  const secondary = view<typeof listings>('listings')
+    .filters((r, w) => [
+      w.facets(r.offer_type, { secondary: true }),
+      w.facets(r.place_id),
+      w.facets(r.bedrooms, { secondary: true }),
+      w.range(r.price),
+      w.toggle(r.garden, { secondary: true }),
+      w.flags([r.for_sale, r.for_rent], { label: 'Offer', secondary: true }),
+      w.dateRange(r.id, { secondary: true }),
+    ])
+    .toModel(model)
+
+  it('marks the secondary widgets of every kind and only those', () => {
+    const fields = widgetFields(secondary, model)
+    expect(fields.facets.map((group) => group.secondary)).toEqual([true, undefined, true])
+    expect(fields.ranges?.map((range) => range.secondary)).toEqual([true, undefined])
+    expect(fields.toggles?.map((toggle) => toggle.secondary)).toEqual([true])
+    expect(fields.dateSecondary).toBe(true)
+    expect('secondary' in fields.facets[1]!).toBe(false)
+  })
+})

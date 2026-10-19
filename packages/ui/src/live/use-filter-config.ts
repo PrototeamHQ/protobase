@@ -118,7 +118,7 @@ export const useFilterConfig = ({ model, resources, views, view, state, extras }
   return {
     facets: skeleton.facets.map(facetGroup),
     ranges: ranges.flatMap(rangeConfig),
-    ...(skeleton.dateField && { datePresets: skeleton.datePresets ?? true, dateField: skeleton.dateField, dateKind: skeleton.dateKind }),
+    ...(skeleton.dateField && { datePresets: skeleton.datePresets ?? true, dateField: skeleton.dateField, dateKind: skeleton.dateKind, ...(skeleton.dateSecondary && { dateSecondary: true }) }),
     toggles: skeleton.toggles?.map((toggle) => ({ ...toggle, label: label(toggle.id) })),
   }
 }

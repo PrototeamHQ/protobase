@@ -16,6 +16,8 @@ export type FacetGroupConfig = {
   onSearch?: (text: string) => void
   /** The options are boolean fields by name, and a record shows when any chosen one is true. */
   flags?: boolean
+  /** Behind the bar's "More filters" menu until picked there or set. */
+  secondary?: boolean
 }
 
 export type RangeConfig = {
@@ -27,11 +29,18 @@ export type RangeConfig = {
   /** Bar heights (counts) of the histogram drawn behind the slider. */
   histogram: number[]
   format: (value: number) => string
+  /** Behind the bar's "More filters" menu until picked there or set. */
+  secondary?: boolean
 }
 
 export type DatePresetId = DatePreset
 
-export type ToggleConfig = { id: string; label: string }
+export type ToggleConfig = {
+  id: string
+  label: string
+  /** Behind the bar's "More filters" menu until picked there or set. */
+  secondary?: boolean
+}
 
 export type FilterConfig = {
   facets: FacetGroupConfig[]
@@ -42,6 +51,8 @@ export type FilterConfig = {
   dateField?: string
   /** Whether `dateField` holds dates or timestamps; calendar presets are printed as that literal. */
   dateKind?: 'date' | 'timestamp'
+  /** The date presets are behind the bar's "More filters" menu until picked there or set. */
+  dateSecondary?: boolean
   toggles?: ToggleConfig[]
 }
 
