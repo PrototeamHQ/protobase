@@ -1,5 +1,5 @@
 import { resolveFieldPath } from '@protobase/layout'
-import { checkFilter, checkOrderBy, parseFilter, parseOrderBy, type RelatedModel, type ResourceModel } from '@protobase/schema'
+import { checkFilter, checkOrderBy, parseFilter, parseOrderBy, type RelatedModel, type ResourceModel, type ViewModel } from '@protobase/schema'
 
 export const filterErrors = (model: ResourceModel, source: string | undefined) => {
   if (source === undefined) return []
@@ -89,5 +89,13 @@ export const relatedErrors = (item: RelatedModel, resource: string, models: Reco
     }),
     ...(item.limit === undefined || (Number.isInteger(item.limit) && item.limit >= 1 && item.limit <= 100) ? [] : ['limit must be a whole number from 1 to 100']),
     ...openErrors(item, models),
+    ...(item.presentation === undefined || item.presentation === 'cards' ? [] : [`presentation must be "cards", not "${String(item.presentation)}"`]),
+    ...(item.actions === undefined || item.presentation === 'cards' ? [] : ['actions need presentation "cards"']),
   ]
+}
+
+/** The `actions` of a related section that are no named action of its resource's view, among `views`. */
+export const relatedActionErrors = (item: RelatedModel, views: readonly ViewModel[]) => {
+  const named = new Set(views.find((view) => view.resource === item.resource)?.actions.map((action) => action.name))
+  return (item.actions ?? []).flatMap((name) => (named.has(name) ? [] : [`actions: "${name}" is no named action of the ${item.resource} view`]))
 }

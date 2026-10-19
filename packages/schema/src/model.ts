@@ -747,6 +747,9 @@ export type FilterWidgetModel = (
   secondary?: boolean
 }
 
+/** How a related section shows its records: `cards` as cards stacked full width; the list's table or display when omitted. */
+export type RelatedPresentation = 'cards'
+
 /**
  * Records of another resource on the record page: those whose `field` holds this record's key or, with `through`,
  * those whose `field` holds one of the `key` values of the `through` records that point at this record (a join table).
@@ -781,8 +784,12 @@ export type RelatedModel = {
   filter?: string
   /** An AIP-132 order of the listed records. */
   sort?: string
-  /** Fields of `resource`, through relations too (`unitId.propertyId`). */
+  /** Fields of `resource`, through relations too (`unitId.propertyId`): the table's columns, or the fields each card shows. */
   columns?: string[]
+  /** `cards` shows each record as a card stacked full width, its `columns` and `actions` on it; the list's table or display when omitted. */
+  presentation?: RelatedPresentation
+  /** Named actions of `resource`'s view, by name, as buttons on each card; only with `presentation: 'cards'`. */
+  actions?: string[]
   /**
    * The relation field of `resource` whose record a row opens, for rows that are links between this record and another
    * (a join resource); by default the one relation in `resource`'s primary key besides `field`, when there is exactly one.

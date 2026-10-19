@@ -7,7 +7,7 @@ import { cardPhotosErrors } from './view-card-photos'
 import { saveSearchErrors, searchesOfErrors } from './view-saved-search'
 import { chartErrors } from './view-chart'
 import { mapDisplayErrors, mapErrors } from './view-map'
-import { relatedErrors } from './view-related'
+import { relatedActionErrors, relatedErrors } from './view-related'
 import { relatedColumnErrors } from './view-related-column'
 import { editableErrors } from './view-editable'
 
@@ -199,7 +199,7 @@ export const checkViews = (registry: Registry, views: ViewModel[], pages: readon
   const createPages = new Set(views.filter((view) => view.create).map((view) => view.resource))
   const viewProblems = (view: ViewModel, model: ResourceModel) => {
     const related = [
-      ...layoutItems(view.layout).flatMap((item) => (item.kind === 'related' ? relatedErrors(item, view.resource, models).map((error) => `related "${item.title}": ${error}`) : [])),
+      ...layoutItems(view.layout).flatMap((item) => (item.kind === 'related' ? [...relatedErrors(item, view.resource, models), ...relatedActionErrors(item, views)].map((error) => `related "${item.title}": ${error}`) : [])),
       ...relatedColumnsErrors(view, model, models),
     ]
     const photos = [

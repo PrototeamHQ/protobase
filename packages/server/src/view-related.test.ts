@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { f, resource, type RelatedModel, type ResourceModel } from '@protobase/schema'
-import { openErrors, relatedErrors } from './view-related'
+import { f, resource, view, type RelatedModel, type ResourceModel } from '@protobase/schema'
+import { openErrors, relatedActionErrors, relatedErrors } from './view-related'
 
 const tasks = resource('tasks').table('tasks').fields({ id: f.integer(), title: f.text() }).primaryKey((r) => r.id)
 const versions = resource('versions').table('versions').fields({ taskId: f.relation('tasks'), number: f.integer() }).primaryKey((r) => [r.taskId, r.number])
@@ -60,5 +60,21 @@ describe('from', () => {
     expect(relatedErrors(pr({ from: 'year' }), 'questions', all)).toEqual(['from: "year" on questions and "task_id" on task_links do not hold the same kind of value'])
     expect(relatedErrors(pr({ from: 'other_id' }), 'questions', all)).toEqual(['from: "other_id" on questions and "task_id" on task_links do not hold the same kind of value'])
     expect(relatedErrors(pr({ through: { resource: 'task_dependencies', field: 'taskId' } }), 'questions', all)).toEqual(['from and through cannot be combined'])
+  })
+})
+
+describe('cards', () => {
+  const cards = (o: Partial<RelatedModel>): RelatedModel => ({ kind: 'related', title: 'Depends on', resource: 'task_dependencies', field: 'taskId', ...o })
+  const views = [view<typeof dependencies>('task_dependencies').actions((a) => [a.update('resolve', { label: 'Resolve', set: { reason: 'done' } })]).toModel()]
+
+  it('accepts actions on cards when the view names them', () => {
+    expect(relatedErrors(cards({ presentation: 'cards', actions: ['resolve'] }), 'tasks', models)).toEqual([])
+    expect(relatedActionErrors(cards({ presentation: 'cards', actions: ['resolve'] }), views)).toEqual([])
+  })
+
+  it('refuses actions without cards, an unknown presentation and an action the view does not name', () => {
+    expect(relatedErrors(cards({ actions: ['resolve'] }), 'tasks', models)).toEqual(['actions need presentation "cards"'])
+    expect(relatedErrors(cards({ presentation: 'grid' as never }), 'tasks', models)).toEqual(['presentation must be "cards", not "grid"'])
+    expect(relatedActionErrors(cards({ presentation: 'cards', actions: ['approve'] }), views)).toEqual(['actions: "approve" is no named action of the task_dependencies view'])
   })
 })

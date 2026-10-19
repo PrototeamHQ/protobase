@@ -45,6 +45,7 @@ export type {
   FilterWidgetModel,
   LayoutItemModel,
   SectionPresentation,
+  RelatedPresentation,
   RelatedModel,
   SectionModel,
   GroupModel,
