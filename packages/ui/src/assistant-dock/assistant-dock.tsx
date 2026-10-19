@@ -39,7 +39,7 @@ export const AssistantDock = ({ state, offline, error, onSend, onAction, onClose
       onClose={onClose}
       footer={
         <>
-          {error && <p role="alert" className="text-xs text-danger-text">{error}</p>}
+          {error && <p role="alert" className="text-body text-danger-text">{error}</p>}
           <Composer inputRef={input} onSend={onSend} busy={state.replying} placeholder={state.placeholder ?? text('askQuestion')} />
         </>
       }

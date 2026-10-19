@@ -16,7 +16,7 @@ export const ErrorBanner = ({ error, title }: { error: unknown; title: string })
     <div>
       <p className="font-medium">{title}</p>
       {describe(error).map((detail) => (
-        <p key={detail.message} className="text-xs">
+        <p key={detail.message} className="text-body">
           {detail.message}
           {detail.hint && <span className="text-muted-foreground"> {detail.hint}</span>}
         </p>

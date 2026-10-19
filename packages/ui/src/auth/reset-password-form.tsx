@@ -60,7 +60,7 @@ export const ResetPasswordForm = ({ onSubmit, invalidLink, onRequestNewLink, onB
           <Input type="password" name="repeat-password" autoComplete="new-password" required minLength={minPasswordLength} value={repeat} invalid={Boolean(shown)} onChange={(event) => setRepeat(event.target.value)} className="min-h-6" />
         </label>
         {shown && (
-          <p role="alert" className="text-xs font-medium text-danger-text">
+          <p role="alert" className="text-body font-medium text-danger-text">
             {shown}
           </p>
         )}

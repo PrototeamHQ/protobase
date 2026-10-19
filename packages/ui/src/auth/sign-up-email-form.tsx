@@ -35,7 +35,7 @@ export const SignUpEmailForm = ({ onSubmit, onSignIn, onBrowse, busy, error, wor
         </label>
         <p className="text-muted-foreground">{text('codeToConfirm')}</p>
         {error && (
-          <p role="alert" className="text-xs font-medium text-danger-text">
+          <p role="alert" className="text-body font-medium text-danger-text">
             {error}
           </p>
         )}

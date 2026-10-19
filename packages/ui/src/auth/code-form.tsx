@@ -37,7 +37,7 @@ export const CodeForm = ({ title, description, explanation, submitLabel, onSubmi
     <AuthLayout title={title} description={description}>
       <p className="mb-4 text-muted-foreground">{explanation}</p>
       {notice && (
-        <p role="status" className="mb-4 rounded-md bg-success-soft px-3 py-2 text-xs font-medium text-success-text">
+        <p role="status" className="mb-4 rounded-md bg-success-soft px-3 py-2 text-body font-medium text-success-text">
           {notice}
         </p>
       )}
@@ -53,7 +53,7 @@ export const CodeForm = ({ title, description, explanation, submitLabel, onSubmi
           <OtpInput name="code" required autoFocus value={code} invalid={Boolean(error)} onChange={setCode} onComplete={(complete) => !busy && onSubmit(complete)} />
         </label>
         {error && (
-          <p role="alert" className="text-xs font-medium text-danger-text">
+          <p role="alert" className="text-body font-medium text-danger-text">
             {error}
           </p>
         )}

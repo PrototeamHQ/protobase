@@ -28,7 +28,7 @@ export const SetupRequiredForm = ({ step, twoFactor, onAddPasskey, busy, error, 
       <div className="flex flex-col gap-4">
         <p className="text-muted-foreground">{text('passkeyExplanation')}</p>
         {error && (
-          <p role="alert" className="text-xs font-medium text-danger-text">
+          <p role="alert" className="text-body font-medium text-danger-text">
             {error}
           </p>
         )}

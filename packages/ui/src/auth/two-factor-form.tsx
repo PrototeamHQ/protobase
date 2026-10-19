@@ -46,7 +46,7 @@ export const TwoFactorForm = ({ methods, onVerify, onSendCode, onBack, busy, err
         <div className="flex flex-col gap-4">
           <p className="text-muted-foreground">{text('codeToFinish')}</p>
           {error && (
-            <p role="alert" className="text-xs font-medium text-danger-text">
+            <p role="alert" className="text-body font-medium text-danger-text">
               {error}
             </p>
           )}
@@ -76,7 +76,7 @@ export const TwoFactorForm = ({ methods, onVerify, onSendCode, onBack, busy, err
             {text('trustBrowserFor')}
           </label>
           {error && (
-            <p role="alert" className="text-xs font-medium text-danger-text">
+            <p role="alert" className="text-body font-medium text-danger-text">
               {error}
             </p>
           )}

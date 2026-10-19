@@ -57,7 +57,7 @@ const LoadedForm = ({ form }: { form: PublicForm }) => {
   if (sent) {
     return (
       <AuthLayout title={title} size="md">
-        <p role="status" className="rounded-md bg-success-soft px-3 py-2 text-xs font-medium text-success-text">
+        <p role="status" className="rounded-md bg-success-soft px-3 py-2 text-body font-medium text-success-text">
           {form.thanks}
         </p>
       </AuthLayout>

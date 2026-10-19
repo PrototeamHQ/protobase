@@ -25,7 +25,7 @@ export const ProgressBlock = ({ node }: BlockProps) => {
   const share = total > 0 ? Math.min(1, Math.max(0, current / total)) : 0
   return (
     <div className="min-w-0">
-      <div className="flex items-baseline justify-between gap-2 text-xs">
+      <div className="flex items-baseline justify-between gap-2 text-body">
         <span className="text-muted-foreground">{label}</span>
         <span className="tabular-nums">
           {current.toLocaleString(formatTag())} / {total.toLocaleString(formatTag())}

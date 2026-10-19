@@ -20,7 +20,7 @@ export const downloadRows = (fileName: string | undefined, headers: string[], ro
 
 /** The rows with what keeps each from being imported, at most `listedProblems` of them. */
 export const ProblemList = ({ rows }: { rows: FailedRow[] }) => (
-  <ul aria-label={text('rowsNotImported')} className="flex flex-col gap-1 text-xs">
+  <ul aria-label={text('rowsNotImported')} className="flex flex-col gap-1 text-body">
     {rows.slice(0, listedProblems).map((row) => (
       <li key={row.line}>
         <span className="font-medium">{text('rowProblems', row.line)}</span> {row.problems.join('; ')}
@@ -68,7 +68,7 @@ export const ImportCheckStep = ({ check, model, resources, views, columns, heade
       {check.preview.length > 0 && (
         // A table as wide as its columns scrolls sideways inside the dialog, which scrolls down as a whole
         <div className="overflow-x-auto rounded-lg border">
-          <table aria-label={text('firstRows')} className="w-full text-left text-xs">
+          <table aria-label={text('firstRows')} className="w-full text-left text-body">
             <thead className="bg-muted text-muted-foreground">
               <tr>
                 <th className="px-2 py-1.5 font-medium">{text('row')}</th>

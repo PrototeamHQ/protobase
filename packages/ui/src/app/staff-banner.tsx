@@ -35,7 +35,7 @@ export const StaffBanner = ({ signIn, onStop }: StaffBannerProps) => {
         {slotted(appText('staffSignedIn'), <span className="font-semibold">{signIn.staffName ?? signIn.staff}</span>, <span className="font-semibold">{signIn.user}</span>, formatDateTime(Date.parse(signIn.expiresAt)), signIn.reason)}
       </p>
       {error && (
-        <p role="alert" className="text-xs font-medium text-danger-text">
+        <p role="alert" className="text-body font-medium text-danger-text">
           {error}
         </p>
       )}

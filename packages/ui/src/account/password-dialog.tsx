@@ -58,7 +58,7 @@ export const PasswordDialog = ({ title, description, confirmLabel, danger, needs
         </label>
       )}
       {error && (
-        <p role="alert" className="mt-2 text-xs font-medium text-danger-text">
+        <p role="alert" className="mt-2 text-body font-medium text-danger-text">
           {error}
         </p>
       )}

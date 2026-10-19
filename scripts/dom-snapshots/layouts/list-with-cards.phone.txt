@@ -46,8 +46,8 @@ div | block
                   span .text-xs font-medium tabular-nums text-success-text | block
                   span .hidden text-xs text-muted-foreground sm:inline | none
                 span role=group .inline-flex h-7 rounded-md bg-muted p-0.5 | flex row nowrap normal normal
-                  button .inline-flex items-center gap-1.5 rounded px-2.5 text-xs font-medium transition-colors bg-background text-foreground shadow-sm | flex row nowrap center normal
-                  button .inline-flex items-center gap-1.5 rounded px-2.5 text-xs font-medium transition-colors text-muted-foreground hover:text-foreground | flex row nowrap center normal
+                  button .inline-flex items-center gap-1.5 rounded px-2.5 text-body font-medium transition-colors bg-background text-foreground shadow-sm | flex row nowrap center normal
+                  button .inline-flex items-center gap-1.5 rounded px-2.5 text-body font-medium transition-colors text-muted-foreground hover:text-foreground | flex row nowrap center normal
               div .mt-2 h-24 | block
                 div .recharts-responsive-container | block
                   div | block

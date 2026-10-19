@@ -26,7 +26,7 @@ const RuleChoice = ({ row, value, onChange }: { row: PolicyRow; value: PolicyRul
         role="radio"
         aria-checked={option.value === value}
         onClick={() => onChange(option.value)}
-        className={cn('rounded px-3 text-xs font-medium transition-colors', option.value === value ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground')}
+        className={cn('rounded px-3 text-body font-medium transition-colors', option.value === value ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground')}
       >
         {option.label}
       </button>
@@ -88,12 +88,12 @@ export const SignInPolicyForm = ({ state, onSave, busy, error, notice }: SignInP
         })}
       </ul>
       {error && (
-        <p role="alert" className="rounded-md bg-danger-soft px-3 py-2 text-xs font-medium text-danger-text">
+        <p role="alert" className="rounded-md bg-danger-soft px-3 py-2 text-body font-medium text-danger-text">
           {error}
         </p>
       )}
       {notice && !changed && (
-        <p role="status" className="rounded-md bg-success-soft px-3 py-2 text-xs font-medium text-success-text">
+        <p role="status" className="rounded-md bg-success-soft px-3 py-2 text-body font-medium text-success-text">
           {notice}
         </p>
       )}

@@ -25,7 +25,7 @@ export const FieldBlock = ({ node }: BlockProps) => {
   const text = label ?? fieldLabel(name, value.state === 'ready' ? views[value.model.name]?.fields[value.field.name]?.label : undefined)
   return (
     <div className="min-w-0">
-      <div className="text-xs text-muted-foreground">{text}</div>
+      <div className="text-body text-muted-foreground">{text}</div>
       <div className="mt-0.5 truncate">{shown}</div>
     </div>
   )

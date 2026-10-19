@@ -8,7 +8,7 @@ export type SidebarItemProps = { item: NavItem; mode: SidebarMode; active: boole
 
 const layout = {
   'text-large': 'h-9 gap-3 px-3 text-sm',
-  'text-small': 'h-7 gap-2.5 px-2.5 text-xs',
+  'text-small': 'h-7 gap-2.5 px-2.5 text-body',
   icon: 'size-9 justify-center',
   'icon-label': 'w-full flex-col gap-0.5 py-1.5 text-[10px]',
   'icon-tooltip': 'size-9 justify-center',

@@ -46,7 +46,7 @@ export const ForgotPasswordForm = ({ onSubmit, back, busy, error, sentTo }: Forg
           <Input type="email" name="email" autoComplete="username" required autoFocus value={email} invalid={Boolean(error)} onChange={(event) => setEmail(event.target.value)} className="min-h-6" />
         </label>
         {error && (
-          <p role="alert" className="text-xs font-medium text-danger-text">
+          <p role="alert" className="text-body font-medium text-danger-text">
             {error}
           </p>
         )}

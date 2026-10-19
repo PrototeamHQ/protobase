@@ -61,7 +61,7 @@ export const Sidebar = ({ mode, activeItem, user, workspace, appName, forceExpan
               {inline ? (
                 <div
                   className={cn(
-                    'px-3 pb-1 pt-1 text-[11px] font-medium uppercase tracking-wide text-faint-foreground',
+                    'px-3 pb-1 pt-1 text-xs font-medium uppercase tracking-wide text-faint-foreground',
                     expanding && 'h-4 whitespace-nowrap py-0 opacity-0 transition-opacity group-hover/side:opacity-100 group-focus-within/side:opacity-100',
                     expanded && 'opacity-100',
                   )}

@@ -11,11 +11,11 @@ div | block
                 div .truncate text-[11px] text-muted-foreground | block
           div .flex-1 overflow-y-auto overflow-x-hidden pb-2 px-2 | block
             div .flex flex-col gap-0.5 | flex column nowrap normal normal
-              div .px-3 pb-1 pt-1 text-[11px] font-medium uppercase tracking-wide text-faint-foreground | block
-              a .flex shrink-0 items-center rounded-md font-medium transition-colors h-7 gap-2.5 px-2.5 text-xs text-muted-foreground hover:bg-muted hover:text-foreground | flex row nowrap center normal
+              div .px-3 pb-1 pt-1 text-xs font-medium uppercase tracking-wide text-faint-foreground | block
+              a .flex shrink-0 items-center rounded-md font-medium transition-colors h-7 gap-2.5 px-2.5 text-body text-muted-foreground hover:bg-muted hover:text-foreground | flex row nowrap center normal
                 svg .lucide lucide-table-2 shrink-0 size-4 | block
                 span .whitespace-nowrap | block
-              a .flex shrink-0 items-center rounded-md font-medium transition-colors h-7 gap-2.5 px-2.5 text-xs bg-primary-soft text-primary-text | flex row nowrap center normal
+              a .flex shrink-0 items-center rounded-md font-medium transition-colors h-7 gap-2.5 px-2.5 text-body bg-primary-soft text-primary-text | flex row nowrap center normal
                 svg .lucide lucide-table-2 shrink-0 size-4 | block
                 span .whitespace-nowrap | block
           div .shrink-0 border-t p-2 | block

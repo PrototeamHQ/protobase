@@ -65,7 +65,7 @@ export const SignInForm = ({ onSubmit, busy, error, workspace, notice, methods =
   return (
     <AuthLayout title={text('signInTitle')} description={workspace}>
       {notice && (
-        <p role="status" className="mb-4 rounded-md bg-success-soft px-3 py-2 text-xs font-medium text-success-text">
+        <p role="status" className="mb-4 rounded-md bg-success-soft px-3 py-2 text-body font-medium text-success-text">
           {notice}
         </p>
       )}
@@ -95,7 +95,7 @@ export const SignInForm = ({ onSubmit, busy, error, workspace, notice, methods =
             <Divider />
           ) : (
             error && (
-              <p role="alert" className="mt-4 text-xs font-medium text-danger-text">
+              <p role="alert" className="mt-4 text-body font-medium text-danger-text">
                 {error}
               </p>
             )
@@ -122,7 +122,7 @@ export const SignInForm = ({ onSubmit, busy, error, workspace, notice, methods =
             </label>
           )}
           {error && (
-            <p role="alert" className="text-xs font-medium text-danger-text">
+            <p role="alert" className="text-body font-medium text-danger-text">
               {error}
             </p>
           )}

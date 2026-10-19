@@ -46,9 +46,9 @@ export const Field = ({ name, label, required, help, example, error, conflict, w
       <FieldControlContext value={{ id, name, describedBy, invalid: Boolean(error), required: Boolean(required) }}>{children}</FieldControlContext>
       {help && <p id={`${id}-help`} className="mt-1.5 text-xs text-muted-foreground">{help}</p>}
       {example && <p id={`${id}-example`} className="mt-0.5 text-xs text-faint-foreground">{text('example')} {example}</p>}
-      {error && <p id={`${id}-error`} className="mt-1.5 text-xs font-medium text-danger-text">{error}</p>}
+      {error && <p id={`${id}-error`} className="mt-1.5 text-body font-medium text-danger-text">{error}</p>}
       {conflict && (
-        <div className="mt-2 flex items-center justify-between gap-3 rounded-md border border-warning/30 bg-warning-soft px-3 py-2 text-xs text-warning-text">
+        <div className="mt-2 flex items-center justify-between gap-3 rounded-md border border-warning/30 bg-warning-soft px-3 py-2 text-body text-warning-text">
           <span>
             <strong>{conflict.user.name}</strong> {text('savedThis', conflict.ago)} <strong>{conflict.theirValue}</strong>
           </span>

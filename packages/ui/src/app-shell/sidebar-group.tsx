@@ -17,7 +17,7 @@ export type SidebarGroupProps = {
 
 const row = {
   'text-large': 'h-8 gap-2.5 px-2.5',
-  'text-small': 'h-7 gap-2 px-2 text-xs',
+  'text-small': 'h-7 gap-2 px-2 text-body',
 }
 
 /** Lines the records up under the entry's icon. */

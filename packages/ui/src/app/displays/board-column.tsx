@@ -69,7 +69,7 @@ export const BoardColumnView = ({ model, view, display, column, fields, filter, 
       className={cn('flex w-72 shrink-0 snap-start flex-col gap-2 rounded-lg bg-surface p-2', isOver && 'ring-2 ring-primary/30')}
     >
       <header className="flex items-center justify-between gap-2 px-1 pt-0.5">
-        <h2 className="min-w-0 truncate text-xs font-medium">
+        <h2 className="min-w-0 truncate text-body font-medium">
           {column.value === null ? (
             <span className="text-muted-foreground">{column.label}</span>
           ) : (

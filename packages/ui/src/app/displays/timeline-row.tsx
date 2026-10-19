@@ -24,7 +24,7 @@ export const TimelineRow = ({ model, view, display, row, days, movable, dragged 
   return (
     <div className={cn(timelineGrid, 'relative border-b border-border last:border-b-0')}>
       {/* The bar's link says the title to assistive technology */}
-      <span aria-hidden className="truncate px-2 pt-1 text-xs sm:py-1.5">
+      <span aria-hidden className="truncate px-2 pt-1 text-body sm:py-1.5">
         {eventTitle(model, view, display, row)}
       </span>
       <div className="relative h-7">

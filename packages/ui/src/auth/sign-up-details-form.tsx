@@ -69,7 +69,7 @@ export const SignUpDetailsForm = ({ email, onSubmit, onBack, methods, busy, erro
           </div>
         )}
         {error && (
-          <p role="alert" className="text-xs font-medium text-danger-text">
+          <p role="alert" className="text-body font-medium text-danger-text">
             {error}
           </p>
         )}

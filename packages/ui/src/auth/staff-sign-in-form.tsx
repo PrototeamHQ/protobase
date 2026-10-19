@@ -28,7 +28,7 @@ export const StaffSignInForm = ({ operator, email: givenEmail = '', reason: give
     return (
       <AuthLayout title={text('staffTitle')} description={text('staffUnavailable')}>
         {error && (
-          <p role="alert" className="mb-4 text-xs font-medium text-danger-text">
+          <p role="alert" className="mb-4 text-body font-medium text-danger-text">
             {error}
           </p>
         )}
@@ -71,7 +71,7 @@ export const StaffSignInForm = ({ operator, email: givenEmail = '', reason: give
           {text('staffExplanation', operator)}
         </p>
         {error && (
-          <p role="alert" className="text-xs font-medium text-danger-text">
+          <p role="alert" className="text-body font-medium text-danger-text">
             {error}
           </p>
         )}

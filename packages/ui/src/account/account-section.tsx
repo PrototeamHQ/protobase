@@ -14,7 +14,7 @@ export const AccountSection = ({ title, status, description, children }: { title
 
 export const SectionError = ({ message }: { message?: string }) =>
   message ? (
-    <p role="alert" className="mb-3 text-xs font-medium text-danger-text">
+    <p role="alert" className="mb-3 text-body font-medium text-danger-text">
       {message}
     </p>
   ) : null

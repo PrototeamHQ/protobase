@@ -58,7 +58,7 @@ export const countedRows = (count: RowCount) => {
 
 const Setting = ({ label, help, children }: { label: string; help?: string; children: ReactNode }) => (
   <div className="flex flex-col items-start gap-1.5">
-    <span className="text-[13px] font-medium">{label}</span>
+    <span className="text-body font-medium">{label}</span>
     {children}
     {help && <span className="text-xs text-muted-foreground">{help}</span>}
   </div>
@@ -139,7 +139,7 @@ export const ExportDialog = ({ plural, view, fields, initialColumns, count, sele
         </>
       }
     >
-      <div className="flex flex-col gap-4 text-[13px]">
+      <div className="flex flex-col gap-4 text-body">
         <Setting label={text('format')}>
           <Segmented size="md" label={text('format')} value={format} options={formatOptions()} onChange={setFormat} />
         </Setting>
@@ -168,7 +168,7 @@ export const ExportProgressDialog = ({ plural, done, total, onCancel }: { plural
   const share = total ? Math.min(1, done / total) : undefined
   return (
     <ResponsiveDialog title={text('exporting', plural)} open onClose={onCancel} actions={<Button onClick={onCancel}>{text('cancel')}</Button>}>
-      <div className="flex flex-col gap-2 text-[13px]">
+      <div className="flex flex-col gap-2 text-body">
         <div role="progressbar" aria-label={text('rowsExported')} aria-valuemin={0} aria-valuemax={total} aria-valuenow={done} className="h-1.5 overflow-hidden rounded-full bg-muted">
           <div className="h-full rounded-full bg-primary transition-[width]" style={{ width: `${(share ?? 0) * 100}%` }} />
         </div>

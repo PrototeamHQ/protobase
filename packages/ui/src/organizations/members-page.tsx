@@ -38,7 +38,7 @@ const MemberRow = ({ member, current, onChanged }: { member: OrganizationMember;
             value={member.role}
             disabled={busy || roleLocked}
             onChange={(event) => void run(async () => { await session.organizations.setRole(organizationId, member.id, event.target.value as OrganizationRole); onChanged() })}
-            className="h-7 rounded-md border border-border-strong bg-background px-2 text-xs"
+            className="h-7 rounded-md border border-border-strong bg-background px-2 text-body"
           >
             {(roleLocked ? [member.role] : organizationRoles).map((role) => <option key={role} value={role}>{organizationRoleLabel(role)}</option>)}
           </select>

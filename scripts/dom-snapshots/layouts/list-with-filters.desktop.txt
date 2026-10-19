@@ -11,11 +11,11 @@ div | block
                 div .truncate text-[11px] text-muted-foreground | block
           div .flex-1 overflow-y-auto overflow-x-hidden pb-2 px-2 | block
             div .flex flex-col gap-0.5 | flex column nowrap normal normal
-              div .px-3 pb-1 pt-1 text-[11px] font-medium uppercase tracking-wide text-faint-foreground | block
-              a .flex shrink-0 items-center rounded-md font-medium transition-colors h-7 gap-2.5 px-2.5 text-xs text-muted-foreground hover:bg-muted hover:text-foreground | flex row nowrap center normal
+              div .px-3 pb-1 pt-1 text-xs font-medium uppercase tracking-wide text-faint-foreground | block
+              a .flex shrink-0 items-center rounded-md font-medium transition-colors h-7 gap-2.5 px-2.5 text-body text-muted-foreground hover:bg-muted hover:text-foreground | flex row nowrap center normal
                 svg .lucide lucide-table-2 shrink-0 size-4 | block
                 span .whitespace-nowrap | block
-              a .flex shrink-0 items-center rounded-md font-medium transition-colors h-7 gap-2.5 px-2.5 text-xs bg-primary-soft text-primary-text | flex row nowrap center normal
+              a .flex shrink-0 items-center rounded-md font-medium transition-colors h-7 gap-2.5 px-2.5 text-body bg-primary-soft text-primary-text | flex row nowrap center normal
                 svg .lucide lucide-table-2 shrink-0 size-4 | block
                 span .whitespace-nowrap | block
           div .shrink-0 border-t p-2 | block
@@ -65,8 +65,8 @@ div | block
                   span .text-xs font-medium tabular-nums text-success-text | block
                   span .hidden text-xs text-muted-foreground sm:inline | block
                 span role=group .inline-flex h-7 rounded-md bg-muted p-0.5 | flex row nowrap normal normal
-                  button .inline-flex items-center gap-1.5 rounded px-2.5 text-xs font-medium transition-colors bg-background text-foreground shadow-sm | flex row nowrap center normal
-                  button .inline-flex items-center gap-1.5 rounded px-2.5 text-xs font-medium transition-colors text-muted-foreground hover:text-foreground | flex row nowrap center normal
+                  button .inline-flex items-center gap-1.5 rounded px-2.5 text-body font-medium transition-colors bg-background text-foreground shadow-sm | flex row nowrap center normal
+                  button .inline-flex items-center gap-1.5 rounded px-2.5 text-body font-medium transition-colors text-muted-foreground hover:text-foreground | flex row nowrap center normal
               div .mt-2 h-24 | block
                 div .recharts-responsive-container | block
                   div | block
@@ -85,9 +85,9 @@ div | block
                   button .inline-flex h-8 items-center gap-1.5 rounded-md border bg-background px-2.5 font-medium shadow-sm transition-colors hover:bg-muted border-border-strong text-foreground | inline-flex row nowrap center normal
                     svg .lucide lucide-chevron-down size-3.5 text-muted-foreground | block
                 div .flex flex-wrap gap-1.5 | flex row wrap normal normal
-                  button .h-7 rounded-md border px-2.5 text-xs font-medium transition-colors border-border-strong bg-background text-muted-foreground hover:bg-muted | block
-                  button .h-7 rounded-md border px-2.5 text-xs font-medium transition-colors border-border-strong bg-background text-muted-foreground hover:bg-muted | block
-                  button .h-7 rounded-md border px-2.5 text-xs font-medium transition-colors border-border-strong bg-background text-muted-foreground hover:bg-muted | block
+                  button .h-7 rounded-md border px-2.5 text-body font-medium transition-colors border-border-strong bg-background text-muted-foreground hover:bg-muted | block
+                  button .h-7 rounded-md border px-2.5 text-body font-medium transition-colors border-border-strong bg-background text-muted-foreground hover:bg-muted | block
+                  button .h-7 rounded-md border px-2.5 text-body font-medium transition-colors border-border-strong bg-background text-muted-foreground hover:bg-muted | block
                 span .mx-1 h-5 w-px bg-border | block
                 div .flex items-center gap-2 text-muted-foreground | flex row nowrap center normal
                   label .flex cursor-pointer items-center justify-between gap-3 py-1 | flex row nowrap center space-between
@@ -102,7 +102,7 @@ div | block
               div .relative | block relative
                 div .sticky z-20 shrink-0 overflow-hidden top-[var(--pb-sticky-top,0px)] | block sticky
                   div | block
-                    div role=row .grid h-8 shrink-0 items-center border-b bg-surface text-xs font-medium text-muted-foreground | grid row nowrap center normal
+                    div role=row .grid h-8 shrink-0 items-center border-b bg-surface text-body font-medium text-muted-foreground | grid row nowrap center normal
                       div .sticky left-0 z-10 flex h-full items-center gap-2 bg-inherit pl-3 | flex row nowrap center normal sticky
                         button role=checkbox .relative inline-flex size-4 shrink-0 items-center justify-center rounded border transition-colors after:absolute after:-inset-1 after:content-[""] pointer-coarse:after:-inset-3.5 border-border-strong bg-background hover:border-faint-foreground opacity-60 | flex row nowrap center center relative
                       div .group/cell flex h-full min-w-0 items-center sticky z-10 bg-inherit | flex row nowrap center normal sticky

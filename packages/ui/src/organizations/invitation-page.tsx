@@ -37,7 +37,7 @@ const SignUp = ({ token, preview, joins, onDone }: { token: string; preview: Inv
   return (
     <form className="flex flex-col gap-3" onSubmit={(event) => { event.preventDefault(); void submit() }}>
       <p className="text-muted-foreground">{joins ? text('makeAccountToJoin', preview.email) : text('makeAccount', preview.email)}</p>
-      {error && <p role="alert" className="text-xs font-medium text-danger-text">{error}</p>}
+      {error && <p role="alert" className="text-body font-medium text-danger-text">{error}</p>}
       <Input aria-label={text('yourName')} placeholder={text('yourName')} autoComplete="name" value={name} onChange={(event) => setName(event.target.value)} />
       {withPassword && (
         <Input
@@ -128,7 +128,7 @@ export const InvitationPage = ({ token, onDone, signIn }: InvitationPageProps) =
     <AuthLayout title={text('join', organization.name)} description={description}>
       {user ? (
         <div className="flex flex-col gap-3">
-          {error && <p role="alert" className="text-xs font-medium text-danger-text">{error}</p>}
+          {error && <p role="alert" className="text-body font-medium text-danger-text">{error}</p>}
           <Button variant="primary" className="w-full" loading={busy} onClick={() => void run(async () => { await session.organizations.accept(token); onDone() })}>
             {text('join', organization.name)}
           </Button>
