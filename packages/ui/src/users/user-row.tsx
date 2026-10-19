@@ -6,6 +6,7 @@ import { useAction } from '../organizations/use-action'
 import { PersonRow } from '../people/person-row'
 import { Badge } from '../primitives/badge'
 import { Button } from '../primitives/button'
+import { text } from './messages'
 
 /** Someone who can sign in, with Block or Unblock, and their roles to tick; an admin may give every role. */
 export const UserRow = ({ user: initial, roles, self }: { user: AppUser; roles: readonly RoleLabel[]; self: boolean }) => {
@@ -13,7 +14,7 @@ export const UserRow = ({ user: initial, roles, self }: { user: AppUser; roles: 
   const [user, setUser] = useState(initial)
   const { busy, error, run, setError } = useAction()
   const setRoles = (selected: string[]) => {
-    if (selected.length === 0) return setError('Keep at least one role.')
+    if (selected.length === 0) return setError(text('keepOneRole'))
     void run(async () => {
       await session.users.setRoles(user.id, selected)
       setUser({ ...user, roles: selected })
@@ -32,8 +33,8 @@ export const UserRow = ({ user: initial, roles, self }: { user: AppUser; roles: 
       error={error}
       actions={
         <>
-          {user.blocked && <Badge tone="red">Blocked</Badge>}
-          {!self && (user.blocked ? <Button size="sm" loading={busy} onClick={() => setBlocked(false)}>Unblock</Button> : <Button size="sm" variant="danger" loading={busy} onClick={() => setBlocked(true)}>Block</Button>)}
+          {user.blocked && <Badge tone="red">{text('blocked')}</Badge>}
+          {!self && (user.blocked ? <Button size="sm" loading={busy} onClick={() => setBlocked(false)}>{text('unblock')}</Button> : <Button size="sm" variant="danger" loading={busy} onClick={() => setBlocked(true)}>{text('block')}</Button>)}
         </>
       }
     >

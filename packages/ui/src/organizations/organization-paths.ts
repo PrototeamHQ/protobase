@@ -1,6 +1,7 @@
 import { Building2, Mail, Network, Users } from 'lucide-react'
 import type { CurrentOrganization, OrganizationRole, RoleLabel } from '@protobase/client'
 import type { ProfileMenuItem } from '../app-shell'
+import { text } from './messages'
 
 // Under `/-/`, like the account pages: page names start with a letter, and a resource would need a table named `-`.
 export const organizationsPath = '/-/organizations'
@@ -8,14 +9,21 @@ export const organizationPath = '/-/organization'
 export const membersPath = '/-/organization/members'
 export const invitationsPath = '/-/organization/invitations'
 
-export const organizationPageTitles: Record<string, string> = {
-  [organizationsPath]: 'Organizations',
-  [organizationPath]: 'Organization',
-  [membersPath]: 'Members',
-  [invitationsPath]: 'Invitations',
+const pageTitles: Record<string, 'organizations' | 'organization' | 'members' | 'invitations'> = {
+  [organizationsPath]: 'organizations',
+  [organizationPath]: 'organization',
+  [membersPath]: 'members',
+  [invitationsPath]: 'invitations',
 }
 
-export const organizationRoleLabels: Record<OrganizationRole, string> = { owner: 'Owner', admin: 'Admin', member: 'Member' }
+/** The title of the organization page at `path`; undefined for any other path. */
+export const organizationPageTitle = (path: string) => {
+  const id = pageTitles[path]
+  return id && text(id)
+}
+
+/** The word for an organization role. */
+export const organizationRoleLabel = (role: OrganizationRole) => text(role)
 
 /** The label of an app role, as the server names it. */
 export const roleLabel = (roles: readonly RoleLabel[], name: string) => roles.find((role) => role.name === name)?.label ?? name
@@ -30,9 +38,9 @@ export const managesOrganization = (current?: CurrentOrganization) => current?.r
 export const organizationMenuItems = (basePath: string, path: string, current?: CurrentOrganization): ProfileMenuItem[] => {
   const item = (id: string, label: string, icon: ProfileMenuItem['icon'], target: string) => ({ id, label, icon, href: `${basePath}${target}`, active: path === target })
   return [
-    item('organizations', 'Organizations', Network, organizationsPath),
-    ...(current?.organization ? [item('organization', 'Organization', Building2, organizationPath)] : []),
-    ...(managesOrganization(current) ? [item('members', 'Members', Users, membersPath), item('invitations', 'Invitations', Mail, invitationsPath)] : []),
+    item('organizations', text('organizations'), Network, organizationsPath),
+    ...(current?.organization ? [item('organization', text('organization'), Building2, organizationPath)] : []),
+    ...(managesOrganization(current) ? [item('members', text('members'), Users, membersPath), item('invitations', text('invitations'), Mail, invitationsPath)] : []),
   ]
 }
 

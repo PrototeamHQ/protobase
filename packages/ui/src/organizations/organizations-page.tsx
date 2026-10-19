@@ -12,6 +12,7 @@ import { roleLabel } from './organization-paths'
 import { useAction } from './use-action'
 import { reopenIn, type OrganizationsState } from './use-organizations'
 import { formatTag } from '../locale/active-locale'
+import { text } from './messages'
 
 /** A slug from a name: lowercase ASCII words joined by dashes, as the server accepts them. */
 export const slugOf = (name: string) =>
@@ -33,12 +34,12 @@ const NewOrganization = ({ basePath }: { basePath: string }) => {
     reopenIn(basePath)
   })
   return (
-    <AccountSection title="New organization" description="You become its owner, with every role, and work in it once it is made.">
+    <AccountSection title={text('newOrganization')} description={text('newOrganizationDescription')}>
       <SectionError message={error} />
       <form className="flex flex-col gap-2 sm:flex-row" onSubmit={(event) => { event.preventDefault(); void create() }}>
-        <Input aria-label="Name" placeholder="Name" value={name} onChange={(event) => setName(event.target.value)} wrapperClassName="flex-1" />
-        <Input aria-label="Slug" placeholder="slug" value={slug ?? slugOf(name)} onChange={(event) => setSlug(event.target.value)} wrapperClassName="sm:w-48" />
-        <Button type="submit" variant="primary" loading={busy} disabled={!name.trim()}>Create</Button>
+        <Input aria-label={text('name')} placeholder={text('name')} value={name} onChange={(event) => setName(event.target.value)} wrapperClassName="flex-1" />
+        <Input aria-label={text('slug')} placeholder="slug" value={slug ?? slugOf(name)} onChange={(event) => setSlug(event.target.value)} wrapperClassName="sm:w-48" />
+        <Button type="submit" variant="primary" loading={busy} disabled={!name.trim()}>{text('create')}</Button>
       </form>
     </AccountSection>
   )
@@ -53,12 +54,12 @@ const YourInvitations = () => {
   if (invitations.length === 0) return null
   const roles = organizations?.roles ?? []
   return (
-    <AccountSection title="Invitations for you" description="Open the link in the invitation email to accept one.">
+    <AccountSection title={text('invitationsForYou')} description={text('invitationsForYouDescription')}>
       <ul className="divide-y rounded-md border">
         {invitations.map((invitation) => (
           <li key={invitation.id} className="px-3 py-2.5">
-            <span className="font-medium">{invitation.organizationName ?? 'An organization'}</span>: {invitation.appRoles.map((name) => roleLabel(roles, name)).join(', ') || 'no app roles'}
-            <span className="block text-xs text-muted-foreground">Until {new Date(invitation.expiresAt).toLocaleDateString(formatTag())}</span>
+            <span className="font-medium">{invitation.organizationName ?? text('anOrganization')}</span>: {invitation.appRoles.map((name) => roleLabel(roles, name)).join(', ') || text('noAppRoles')}
+            <span className="block text-xs text-muted-foreground">{text('until', new Date(invitation.expiresAt).toLocaleDateString(formatTag()))}</span>
           </li>
         ))}
       </ul>
@@ -78,8 +79,8 @@ export const OrganizationsPage = ({ state, basePath }: { state: OrganizationsSta
   const currentId = state.current?.organization?.id
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-4 px-4 py-6 md:px-6">
-      <PageHeader title="Organizations" subtitle="You work in one organization at a time; what you see follows from your roles there." />
-      <AccountSection title="Your organizations" description={state.organizations.length > 0 ? 'The organizations you are a member of.' : 'You are not a member of an organization yet.'}>
+      <PageHeader title={text('organizations')} subtitle={text('organizationsSubtitle')} />
+      <AccountSection title={text('yourOrganizations')} description={state.organizations.length > 0 ? text('memberOf') : text('notMember')}>
         <SectionError message={error ?? state.error} />
         {state.organizations.length > 0 && (
           <ul className="divide-y rounded-md border">

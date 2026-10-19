@@ -3,6 +3,7 @@ import { AuthError, type ActiveRole } from '@protobase/client'
 import { authMessage } from '../auth/auth-messages'
 import { useAuth } from '../auth/auth-provider'
 import { useToast } from '../toasts'
+import { text } from './messages'
 
 export type ActiveRoleState = {
   /** The role the session acts with and the roles to switch to, `undefined` while they load. */
@@ -20,10 +21,10 @@ export const useActiveRole = (reopen: () => void, enabled = true): ActiveRoleSta
   const [current, setCurrent] = useState<ActiveRole>()
   useEffect(() => {
     if (!enabled) return
-    void session.roles.current().then(setCurrent, (failure: unknown) => toast.show({ state: 'error', title: failureMessage(failure, 'Could not read your roles') }))
+    void session.roles.current().then(setCurrent, (failure: unknown) => toast.show({ state: 'error', title: failureMessage(failure, text('couldNotReadRoles')) }))
   }, [session, toast, enabled])
   const switchTo = useCallback(
-    (name: string) => void session.roles.switchTo(name).then(reopen, (failure: unknown) => toast.show({ state: 'error', title: failureMessage(failure, 'Could not switch the role') })),
+    (name: string) => void session.roles.switchTo(name).then(reopen, (failure: unknown) => toast.show({ state: 'error', title: failureMessage(failure, text('couldNotSwitch')) })),
     [session, toast, reopen],
   )
   return { ...(current && { current }), switchTo }

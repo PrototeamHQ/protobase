@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { AuthError, type CurrentOrganization, type Organization } from '@protobase/client'
 import { authMessage } from '../auth/auth-messages'
 import { useAuth } from '../auth/auth-provider'
+import { text } from './messages'
 
 export type OrganizationsState = {
   /** The organization the session works in, `undefined` while it loads. */
@@ -27,7 +28,7 @@ export const useOrganizations = (enabled: boolean): OrganizationsState => {
         setCurrent(currentOrganization)
         setOrganizations(list)
       },
-      (failure: unknown) => setError(failure instanceof AuthError ? authMessage(failure) : 'Could not read your organizations'),
+      (failure: unknown) => setError(failure instanceof AuthError ? authMessage(failure) : text('couldNotReadOrganizations')),
     )
   }, [enabled, session, round])
   return { current, organizations, ...(error && { error }), reload }

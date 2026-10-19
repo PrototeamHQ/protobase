@@ -28,7 +28,7 @@ import { MetaGate, Notice, useAdminMeta } from './meta-gate'
 import { InvitationsPage } from '../organizations/invitations-page'
 import { MembersPage } from '../organizations/members-page'
 import { OrganizationPage } from '../organizations/organization-page'
-import { invitationsPath, managesOrganization, membersPath, organizationMenuItems, organizationPageTitles, organizationPath, organizationsPath } from '../organizations/organization-paths'
+import { invitationsPath, managesOrganization, membersPath, organizationMenuItems, organizationPageTitle, organizationPath, organizationsPath } from '../organizations/organization-paths'
 import { OrganizationsPage } from '../organizations/organizations-page'
 import { reopenIn, useOrganizations } from '../organizations/use-organizations'
 import { actingUser } from '../roles/acting-user'
@@ -153,7 +153,7 @@ const Routes = ({ workspace, sidebarMode, assistant, runtime }: Pick<AppProps, '
   const organizations = useOrganizations(Boolean(organizationSettings && user))
   const current = organizations.current
   const outsideOrganizations = Boolean(organizationSettings) && current !== undefined && !current.organization
-  const organizationPage = organizationSettings && user ? organizationPageTitles[path] : undefined
+  const organizationPage = organizationSettings && user ? organizationPageTitle(path) : undefined
   // The account pages are the app's own, under `/-/`; everything else is a page or a resource.
   const accountPage = !user ? undefined : path === accountSecurityPath ? 'Sign-in & security' : path === signInPolicyPath ? 'Sign-in policy' : organizationPage
   const resourceLabel = view?.names?.plural ?? (resource && humanize(resource))

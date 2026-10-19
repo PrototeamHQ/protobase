@@ -6,6 +6,7 @@ import { InviteForm } from '../invitations/invite-form'
 import { PendingInvitationRow } from '../invitations/pending-invitation-row'
 import { AppRolesPicker } from '../organizations/app-roles-picker'
 import { roleNames } from './role-names'
+import { text } from './messages'
 
 /** Inviting someone to the app with the roles their account gets, and the invitations not accepted yet. */
 export const AppInvitations = ({ roles }: { roles: readonly RoleLabel[] }) => {
@@ -22,10 +23,10 @@ export const AppInvitations = ({ roles }: { roles: readonly RoleLabel[] }) => {
   }
   return (
     <>
-      <InviteForm title="Invite someone" description="They get an email with a link to make their account, with the roles you tick." onInvite={invite} incomplete={selected.length === 0}>
+      <InviteForm title={text('inviteSomeone')} description={text('inviteDescription')} onInvite={invite} incomplete={selected.length === 0}>
         <AppRolesPicker roles={roles} selected={selected} grantable={new Set(roles.map((role) => role.name))} onChange={setSelected} />
       </InviteForm>
-      <AccountSection title="Not accepted yet" description={invitations.length > 0 ? 'Sending again gives a new link, which replaces the earlier one.' : 'Nobody is waiting.'}>
+      <AccountSection title={text('notAcceptedYet')} description={invitations.length > 0 ? text('sendingAgain') : text('nobodyWaiting')}>
         {invitations.length > 0 && (
           <ul className="divide-y rounded-md border">
             {invitations.map((invitation) => (

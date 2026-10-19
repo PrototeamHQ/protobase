@@ -7,7 +7,8 @@ import { InviteForm } from '../invitations/invite-form'
 import { PendingInvitationRow } from '../invitations/pending-invitation-row'
 import { AppRolesPicker } from './app-roles-picker'
 import { assignableOrganizationRoles } from './members-page'
-import { grantableRoles, organizationRoleLabels, roleLabel } from './organization-paths'
+import { grantableRoles, organizationRoleLabel, roleLabel } from './organization-paths'
+import { text } from './messages'
 
 const InviteToOrganization = ({ current, onSent }: { current: CurrentOrganization; onSent: () => void }) => {
   const { session, organizations } = useAuth()
@@ -22,12 +23,12 @@ const InviteToOrganization = ({ current, onSent }: { current: CurrentOrganizatio
   }
   return (
     <InviteForm
-      title="Invite someone"
-      description="They get an email with a link to join, or to make an account first. You can give the app roles you hold, and those your roles grant."
+      title={text('inviteSomeone')}
+      description={text('inviteDescription')}
       onInvite={invite}
       beside={
-        <select aria-label="Organization role" value={role} onChange={(event) => setRole(event.target.value as OrganizationRole)} className="h-8 rounded-md border border-border-strong bg-background px-2">
-          {assignableOrganizationRoles(current).map((option) => <option key={option} value={option}>{organizationRoleLabels[option]}</option>)}
+        <select aria-label={text('organizationRole')} value={role} onChange={(event) => setRole(event.target.value as OrganizationRole)} className="h-8 rounded-md border border-border-strong bg-background px-2">
+          {assignableOrganizationRoles(current).map((option) => <option key={option} value={option}>{organizationRoleLabel(option)}</option>)}
         </select>
       }
     >
@@ -42,7 +43,7 @@ const PendingRow = ({ invitation, organizationId, onChanged }: { invitation: Org
   return (
     <PendingInvitationRow
       email={invitation.email}
-      gives={`${organizationRoleLabels[invitation.role]}${appRoles.length > 0 ? ` · ${appRoles.join(', ')}` : ''}`}
+      gives={`${organizationRoleLabel(invitation.role)}${appRoles.length > 0 ? ` · ${appRoles.join(', ')}` : ''}`}
       expiresAt={invitation.expiresAt}
       onResend={async () => {
         const sent = await session.organizations.resend(organizationId, invitation)
@@ -69,9 +70,9 @@ export const InvitationsPage = ({ current }: { current?: CurrentOrganization }) 
   if (!current?.organization || !organizationId) return null
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-4 px-4 py-6 md:px-6">
-      <PageHeader title="Invitations" subtitle={`People invited to ${current.organization.name}.`} />
+      <PageHeader title={text('invitations')} subtitle={text('peopleInvited', current.organization.name)} />
       <InviteToOrganization current={current} onSent={load} />
-      <AccountSection title="Not accepted yet" description={invitations.length > 0 ? 'Sending again gives a new link, which replaces the earlier one.' : 'Nobody is waiting.'}>
+      <AccountSection title={text('notAcceptedYet')} description={invitations.length > 0 ? text('sendingAgain') : text('nobodyWaiting')}>
         {invitations.length > 0 && (
           <ul className="divide-y rounded-md border">
             {invitations.map((invitation) => <PendingRow key={invitation.id} invitation={invitation} organizationId={organizationId} onChanged={load} />)}

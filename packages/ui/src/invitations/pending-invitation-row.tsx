@@ -4,6 +4,7 @@ import { useAction } from '../organizations/use-action'
 import { Button } from '../primitives/button'
 import { LinkNotice } from './link-notice'
 import { formatTag } from '../locale/active-locale'
+import { text } from './messages'
 
 export type PendingInvitationRowProps = {
   email: string
@@ -26,11 +27,11 @@ export const PendingInvitationRow = ({ email, gives, expiresAt, onResend, onRevo
         <span className="min-w-0 flex-1">
           <span className="block truncate font-medium">{email}</span>
           <span className="block text-xs text-muted-foreground">
-            {gives} · {expired ? 'Expired' : `Until ${new Date(expiresAt).toLocaleDateString(formatTag())}`}
+            {gives} · {expired ? text('expired') : text('until', new Date(expiresAt).toLocaleDateString(formatTag()))}
           </span>
         </span>
-        <Button size="sm" loading={busy} onClick={() => void run(async () => setLink((await onResend()).link))}>Send again</Button>
-        <Button size="sm" variant="danger" loading={busy} onClick={() => void run(onRevoke)}>Revoke</Button>
+        <Button size="sm" loading={busy} onClick={() => void run(async () => setLink((await onResend()).link))}>{text('sendAgain')}</Button>
+        <Button size="sm" variant="danger" loading={busy} onClick={() => void run(onRevoke)}>{text('revoke')}</Button>
       </div>
       <SectionError message={error} />
       <LinkNotice link={link} />

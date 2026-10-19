@@ -4,6 +4,7 @@ import { useAction } from '../organizations/use-action'
 import { Button } from '../primitives/button'
 import { Input } from '../primitives/input'
 import { LinkNotice } from './link-notice'
+import { text } from './messages'
 
 export type InviteFormProps = {
   title: string
@@ -33,9 +34,9 @@ export const InviteForm = ({ title, description, onInvite, beside, children, inc
       <SectionError message={error} />
       <form className="flex flex-col gap-3" onSubmit={(event) => { event.preventDefault(); void invite() }}>
         <div className="flex flex-col gap-2 sm:flex-row">
-          <Input aria-label="Email" type="email" placeholder="name@example.com" value={email} onChange={(event) => setEmail(event.target.value)} wrapperClassName="flex-1" />
+          <Input aria-label={text('email')} type="email" placeholder="name@example.com" value={email} onChange={(event) => setEmail(event.target.value)} wrapperClassName="flex-1" />
           {beside}
-          <Button type="submit" variant="primary" loading={busy} disabled={!email.trim() || incomplete}>Invite</Button>
+          <Button type="submit" variant="primary" loading={busy} disabled={!email.trim() || incomplete}>{text('invite')}</Button>
         </div>
         {children}
       </form>

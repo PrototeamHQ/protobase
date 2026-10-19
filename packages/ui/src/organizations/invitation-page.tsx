@@ -9,8 +9,9 @@ import { Button, buttonClass } from '../primitives/button'
 import { Input } from '../primitives/input'
 import { RouteLink, type RouteTarget } from '../primitives/route-link'
 import { Spinner } from '../primitives/spinner'
-import { organizationRoleLabels, roleLabel } from './organization-paths'
+import { organizationRoleLabel, roleLabel } from './organization-paths'
 import { useAction } from './use-action'
+import { text } from './messages'
 
 export type InvitationPageProps = {
   token: string
@@ -35,21 +36,21 @@ const SignUp = ({ token, preview, joins, onDone }: { token: string; preview: Inv
     })
   return (
     <form className="flex flex-col gap-3" onSubmit={(event) => { event.preventDefault(); void submit() }}>
-      <p className="text-muted-foreground">{joins ? `Make your account for ${preview.email} to join.` : `Make your account for ${preview.email}.`}</p>
+      <p className="text-muted-foreground">{joins ? text('makeAccountToJoin', preview.email) : text('makeAccount', preview.email)}</p>
       {error && <p role="alert" className="text-xs font-medium text-danger-text">{error}</p>}
-      <Input aria-label="Your name" placeholder="Your name" autoComplete="name" value={name} onChange={(event) => setName(event.target.value)} />
+      <Input aria-label={text('yourName')} placeholder={text('yourName')} autoComplete="name" value={name} onChange={(event) => setName(event.target.value)} />
       {withPassword && (
         <Input
-          aria-label="Password"
+          aria-label={text('password')}
           type="password"
           autoComplete="new-password"
-          placeholder={passwordOptional ? `Password (optional, ${minPasswordLength}+ characters)` : `Password (${minPasswordLength}+ characters)`}
+          placeholder={passwordOptional ? text('passwordOptional', minPasswordLength) : text('passwordRequired', minPasswordLength)}
           value={password}
           onChange={(event) => setPassword(event.target.value)}
         />
       )}
       <Button type="submit" variant="primary" loading={busy} disabled={!name.trim() || (withPassword && !passwordOptional && password.length < minPasswordLength)}>
-        {joins ? 'Create account and join' : 'Create your account'}
+        {joins ? text('createAndJoin') : text('createYourAccount')}
       </Button>
     </form>
   )
@@ -66,20 +67,20 @@ export const InvitationPage = ({ token, onDone, signIn }: InvitationPageProps) =
   const [invalid, setInvalid] = useState<string>()
   const { busy, error, run } = useAction()
   useEffect(() => {
-    void session.organizations.invitation(token).then(setPreview, (failure: unknown) => setInvalid(failure instanceof AuthError ? authMessage(failure) : 'This invitation link is not valid'))
+    void session.organizations.invitation(token).then(setPreview, (failure: unknown) => setInvalid(failure instanceof AuthError ? authMessage(failure) : text('invalidLink')))
   }, [session, token])
 
   if (invalid) {
     return (
-      <AuthLayout title="Invitation" description={invalid}>
-        <Button className="w-full" onClick={onDone}>Go to the app</Button>
+      <AuthLayout title={text('invitation')} description={invalid}>
+        <Button className="w-full" onClick={onDone}>{text('goToApp')}</Button>
       </AuthLayout>
     )
   }
   if (!preview) {
     return (
-      <AuthLayout title="Invitation">
-        <div className="flex items-center justify-center gap-2 text-muted-foreground"><Spinner /> Loading</div>
+      <AuthLayout title={text('invitation')}>
+        <div className="flex items-center justify-center gap-2 text-muted-foreground"><Spinner /> {text('loading')}</div>
       </AuthLayout>
     )
   }
@@ -87,22 +88,22 @@ export const InvitationPage = ({ token, onDone, signIn }: InvitationPageProps) =
   const sameAddress = user?.email.toLowerCase() === preview.email.toLowerCase()
   if (!preview.organization) {
     const app = preview.app?.name ?? ''
-    const description = `${preview.inviter.name} invites you to join ${app}.`
+    const description = text('invitesToApp', preview.inviter.name, app)
     return (
-      <AuthLayout title={`Join ${app}`} description={description}>
+      <AuthLayout title={text('join', app)} description={description}>
         {preview.hasAccount ? (
           user && sameAddress ? (
-            <Button variant="primary" className="w-full" onClick={onDone}>Go to the app</Button>
+            <Button variant="primary" className="w-full" onClick={onDone}>{text('goToApp')}</Button>
           ) : (
             <>
-              <p className="mb-3 text-muted-foreground">{preview.email} has an account already: sign in with it.</p>
-              {user ? <Button className="w-full" onClick={() => void signOut()}>Sign out</Button> : <RouteLink to={signIn} className={cn(buttonClass({ variant: 'primary' }), 'w-full')}>Sign in as {preview.email}</RouteLink>}
+              <p className="mb-3 text-muted-foreground">{text('hasAccount', preview.email)}</p>
+              {user ? <Button className="w-full" onClick={() => void signOut()}>{text('signOut')}</Button> : <RouteLink to={signIn} className={cn(buttonClass({ variant: 'primary' }), 'w-full')}>{text('signInAs', preview.email)}</RouteLink>}
             </>
           )
         ) : user ? (
           <>
-            <p className="mb-3 text-muted-foreground">This invitation is for {preview.email}, and you are signed in as {user.email}.</p>
-            <Button className="w-full" onClick={() => void signOut()}>Sign out to accept it</Button>
+            <p className="mb-3 text-muted-foreground">{text('otherAddress', preview.email, user.email)}</p>
+            <Button className="w-full" onClick={() => void signOut()}>{text('signOutToAccept')}</Button>
           </>
         ) : (
           <SignUp token={token} preview={preview} joins={false} onDone={onDone} />
@@ -112,27 +113,28 @@ export const InvitationPage = ({ token, onDone, signIn }: InvitationPageProps) =
   }
   const organization = preview.organization
   const roles = preview.appRoles.map((name) => roleLabel(organizations?.roles ?? [], name))
-  const description = `${preview.inviter.name} invites you to ${organization.name} as ${organizationRoleLabels[preview.role!].toLowerCase()}${roles.length > 0 ? `, with ${roles.join(', ')}` : ''}.`
+  const role = organizationRoleLabel(preview.role!).toLowerCase()
+  const description = roles.length > 0 ? text('invitesToWith', preview.inviter.name, organization.name, role, roles.join(', ')) : text('invitesTo', preview.inviter.name, organization.name, role)
 
   if (user && !sameAddress) {
     return (
-      <AuthLayout title={`Join ${organization.name}`} description={description}>
-        <p className="mb-3 text-muted-foreground">This invitation is for {preview.email}, and you are signed in as {user.email}.</p>
-        <Button className="w-full" onClick={() => void signOut()}>Sign out to accept it</Button>
+      <AuthLayout title={text('join', organization.name)} description={description}>
+        <p className="mb-3 text-muted-foreground">{text('otherAddress', preview.email, user.email)}</p>
+        <Button className="w-full" onClick={() => void signOut()}>{text('signOutToAccept')}</Button>
       </AuthLayout>
     )
   }
   return (
-    <AuthLayout title={`Join ${organization.name}`} description={description}>
+    <AuthLayout title={text('join', organization.name)} description={description}>
       {user ? (
         <div className="flex flex-col gap-3">
           {error && <p role="alert" className="text-xs font-medium text-danger-text">{error}</p>}
           <Button variant="primary" className="w-full" loading={busy} onClick={() => void run(async () => { await session.organizations.accept(token); onDone() })}>
-            Join {organization.name}
+            {text('join', organization.name)}
           </Button>
         </div>
       ) : preview.hasAccount ? (
-        <RouteLink to={signIn} className={cn(buttonClass({ variant: 'primary' }), 'w-full')}>Sign in as {preview.email} to join</RouteLink>
+        <RouteLink to={signIn} className={cn(buttonClass({ variant: 'primary' }), 'w-full')}>{text('signInAsToJoin', preview.email)}</RouteLink>
       ) : (
         <SignUp token={token} preview={preview} joins onDone={onDone} />
       )}
