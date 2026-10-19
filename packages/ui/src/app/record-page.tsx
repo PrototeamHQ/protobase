@@ -278,7 +278,7 @@ const LoadedRecord = ({ model, recordKey, stored, preview }: LoadedRecordProps) 
   // The main column's items; a group renders its sections and related tables through the same code
   const mainItem = (item: LayoutItemModel, index: number): ReactElement[] => {
     if (item.kind === 'group') {
-      const children = item.items.filter((inner) => whenShown(inner.when, editing)).flatMap(mainItem)
+      const children = item.items.flatMap(mainItem)
       if (children.length === 0) return []
       const open = groupOpen(item, openGroups, (name) => editing && (editor.errors[name] !== undefined || editor.conflicts[name] !== undefined))
       const toggle = item.collapsed ? recordAt(toggledOpen(openGroups, item.title), atEdit) : undefined
