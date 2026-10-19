@@ -82,7 +82,8 @@ export const commentsScenarios = (connect: () => Promise<TestDatabase>) => {
       },
       commentUsers: users,
     })
-    runtime = await startJobs({ db, jobs: admin.jobs, pollSeconds: 0.5, shutdownSeconds: 5, onError: (error) => errors.push(error), mailer: { send: async (message) => void sent.push(message) } })
+    // The worker fetches at start and when woken, never on its timer while the file runs, so a busy machine records the same queries.
+    runtime = await startJobs({ db, jobs: admin.jobs, pollSeconds: 3600, shutdownSeconds: 5, onError: (error) => errors.push(error), mailer: { send: async (message) => void sent.push(message) } })
   })
 
   afterAll(async () => {
@@ -185,6 +186,7 @@ export const commentsScenarios = (connect: () => Promise<TestDatabase>) => {
       const posted = await post('1', { body: 'Can you look, @Bo Jansen?', mentions: ['bo', 'bo', 'ann'] })
       expect(posted.body.mentions).toEqual([{ id: 'bo', name: 'Bo Jansen' }])
       expect((await read('1')).body.items[0]!.mentions).toEqual([{ id: 'bo', name: 'Bo Jansen' }])
+      runtime.wake('comments.mention')
       await until(() => expect(sent).toHaveLength(1))
       expect(sent[0]).toMatchObject({ to: 'bo@acme.example', subject: 'Ann de Vries mentioned you on Ticket: Printer on fire' })
       expect(sent[0]!.text).toContain('Can you look, @Bo Jansen?')

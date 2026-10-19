@@ -3,7 +3,7 @@ import { describe, vi } from 'vitest'
 import { commentsScenarios } from './comments-scenarios'
 import { openSnapshotDb, type SnapshotDb } from '../../test-support/sql-snapshot'
 
-// Workers poll on real timers, which a busy machine stretches.
+// Recording on real Postgres is slow on a busy machine.
 vi.setConfig({ testTimeout: 30_000, hookTimeout: 30_000 })
 
 describe('record comments on SnapshotDb', () => {
