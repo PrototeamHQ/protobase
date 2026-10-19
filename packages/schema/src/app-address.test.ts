@@ -22,6 +22,9 @@ describe('appPath', () => {
       '/repairs?display=cards&filter=status+%3D+%22ready%22&order_by=bookedOn+desc&layout=panel',
     )
     expect(appPath({ kind: 'list', resource: 'repairs', display: undefined })).toBe('/repairs')
+    expect(appPath({ kind: 'list', resource: 'changelog', list: 'updates', filter: 'x = 1' })).toBe('/changelog?list=updates&filter=x+%3D+1')
+    const named = { kind: 'list', resource: 'changelog', list: 'updates', filter: 'x = 1' } as const
+    expect(readAppPath(appPath(named), new Set())).toEqual(named)
     expect(appPath({ kind: 'list', resource: 'repairs', filter: '' })).toBe('/repairs?filter=')
   })
 

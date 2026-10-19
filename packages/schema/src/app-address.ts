@@ -6,6 +6,8 @@ import type { AppAddress, CalendarView, FilterLayout, MapView } from './model'
  * changes in this module alone.
  */
 export const addressWords = {
+  /** A named list of the resource (`.namedList(...)`), in place of its own list. */
+  list: 'list',
   /** A list's filter (AIP-160), as the list API takes it. An empty `filter=` means no filter, in place of the view's default. */
   filter: 'filter',
   /** A list's order (AIP-132). */
@@ -28,7 +30,7 @@ export const addressWords = {
   open: 'open',
 } as const
 
-const listWords = ['display', 'filter', 'orderBy', 'filterLayout', 'savedSearch'] as const
+const listWords = ['list', 'display', 'filter', 'orderBy', 'filterLayout', 'savedSearch'] as const
 
 // Five decimals of a degree are about a metre; two of a zoom are less than a pixel's difference.
 const mapText = (view: MapView) => `${view.latitude.toFixed(5)},${view.longitude.toFixed(5)},${view.zoom.toFixed(2)}`
@@ -134,6 +136,7 @@ export const readAppPath = (pathAndQuery: string, pages: ReadonlySet<string>): A
     return { kind: 'record', resource: first, key: second, ...(url.searchParams.get(addressWords.edit) === 'true' && { edit: true }), ...(open.length > 0 && { open }) }
   }
   const params = url.searchParams
+  const list = params.get(addressWords.list) || undefined
   const display = params.get(addressWords.display) || undefined
   const filter = params.get(addressWords.filter) ?? undefined
   const orderBy = params.get(addressWords.orderBy) || undefined
@@ -144,6 +147,7 @@ export const readAppPath = (pathAndQuery: string, pages: ReadonlySet<string>): A
   return {
     kind: 'list',
     resource: first,
+    ...(list && { list }),
     ...(display && { display }),
     ...(filter !== undefined && { filter }),
     ...(orderBy && { orderBy }),

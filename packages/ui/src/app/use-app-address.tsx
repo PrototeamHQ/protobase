@@ -21,8 +21,8 @@ export const useAppAddress = () => {
   const query = params.toString()
   const read = useMemo(() => readAppPath(query ? `${path}?${query}` : path, pageNames), [path, query, pageNames])
   const defaults = useCallback(
-    (resource: string) => {
-      const listed = listedResource(resources, views, resource)
+    (resource: string, list?: string) => {
+      const listed = listedResource(resources, views, resource, list)
       return listDefaults(listed.model, listed.view, xs)
     },
     [resources, views, xs],
@@ -34,7 +34,7 @@ export const useAppAddress = () => {
   const listTo = useCallback(
     (change: ListChange) => {
       if (read?.kind !== 'list') throw new Error('listTo and set change the list the app shows; use go to move to another address')
-      return changedList(read, change, defaults(read.resource))
+      return changedList(read, change, defaults(read.resource, read.list))
     },
     [read, defaults],
   )

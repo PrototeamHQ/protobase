@@ -112,3 +112,23 @@ describe('a list that opens on a filter', () => {
     expect(listDefaults(repairs.toModel(), shown.toModel()).filter).toBe('status = "ready"')
   })
 })
+
+describe('a named list', () => {
+  const repairs = resource('repairs').table('repairs').fields({ id: f.integer(), status: f.text().filterable() }).primaryKey((r) => r.id)
+  const shown = view<typeof repairs>('repairs')
+    .list((r) => ({ columns: [r.id] }))
+    .namedList('open', (v) => v.names({ singular: 'Open', plural: 'Open' }).list((r) => ({ columns: [r.id], sort: [[r.id, 'desc']], filter: 'status = "open"' })))
+    .toModel()
+  const models = { repairs: repairs.toModel() }
+
+  it('takes its defaults from its own list', () => {
+    const listed = listedResource(models, { repairs: shown }, 'repairs', 'open')
+    expect(listDefaults(listed.model, listed.view)).toMatchObject({ orderBy: 'id desc', filter: 'status = "open"' })
+    expect(listDefaults(models.repairs, listedResource(models, { repairs: shown }, 'repairs').view).filter).toBe('')
+  })
+
+  it('stays on its list through a change', () => {
+    const read = { kind: 'list', resource: 'repairs', list: 'open' } as const
+    expect(changedList(read, { display: 'cards' }, defaults)).toEqual({ ...read, display: 'cards' })
+  })
+})
