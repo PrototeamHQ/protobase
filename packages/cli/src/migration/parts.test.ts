@@ -9,11 +9,11 @@ const names = (parts: MigrationPart[]) => parts.map((part) => part.name)
 
 describe('the migration parts', () => {
   it('add the jobs schema and the comments table once a resource takes comments', () => {
-    expect(names(migrationParts(project([tickets.toModel()])))).toEqual(['changes'])
-    expect(names(migrationParts(project([tickets.comments().toModel()])))).toEqual(['jobs', 'changes', 'comments'])
+    expect(names(migrationParts(project([tickets.toModel()])))).toEqual(['changes', 'computed'])
+    expect(names(migrationParts(project([tickets.comments().toModel()])))).toEqual(['jobs', 'changes', 'computed', 'comments'])
   })
   it('add the jobs schema once a resource has an AI field, which a job fills', () => {
     const summarised = resource('tickets').table('tickets').fields({ id: f.integer(), title: f.text(), summary: f.text().optional().ai({ prompt: 'Sum up {title}' }) }).primaryKey((r) => r.id)
-    expect(names(migrationParts(project([summarised.toModel()])))).toEqual(['jobs', 'changes'])
+    expect(names(migrationParts(project([summarised.toModel()])))).toEqual(['jobs', 'changes', 'computed'])
   })
 })

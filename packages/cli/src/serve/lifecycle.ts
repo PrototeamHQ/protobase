@@ -3,7 +3,7 @@ import type { AddressInfo } from 'node:net'
 import { createAdaptorServer } from '@hono/node-server'
 import pg from 'pg'
 import type { Db } from '@protobase/query'
-import { checkAi, checkAuthSchema, checkChanges, checkComments, checkJobsSchema, checkWebhooksSchema, configExports, createFileCleanup, startJobs, type ErrorReporter } from '@protobase/server'
+import { checkAi, checkAuthSchema, checkChanges, checkComments, checkComputed, checkJobsSchema, checkWebhooksSchema, configExports, createFileCleanup, startJobs, type ErrorReporter } from '@protobase/server'
 import { projectAdmin } from '../project/project-admin'
 import { createPgDb } from '../project/pg-db'
 import { createServeApp, type ServedSite } from './app'
@@ -41,7 +41,7 @@ const closeServer = (server: Server) =>
 
 // Serves the project until `close`, which stops accepting connections, lets open requests finish, lets running jobs
 // finish and then drains the pool it created. A `db` exported by the project stays the project's to close. It does not
-// start while the auth schema, the change capture of resources with events or the jobs schema is behind, which it only
+// start while the auth schema, the change capture of resources with events, the rollup and formula columns or the jobs schema is behind, which it only
 // reads: the project's migrations change them, before the new version serves. `startupChecks` false skips those reads,
 // for a restart of a bundle that already started on this database. With jobs it runs them too, unless
 // `runJobs` is off; with file fields it runs their scheduled deletes every `filesCleanupMinutes`.
@@ -54,6 +54,7 @@ export const startServe = async ({ project, env, createDb = (url) => createPgDb(
   const startJobsAndListen = async () => {
     if (env.startupChecks) await checkChanges(db, resources.map((resource) => resource.toModel()), project.events)
     if (env.startupChecks) await checkComments(db, resources.map((resource) => resource.toModel()))
+    if (env.startupChecks) await checkComputed(db, resources.map((resource) => resource.toModel()))
     if (env.startupChecks) checkAi({ models: resources.map((resource) => resource.toModel()), views: views.map((source) => source.toModel()), assistant: project.options?.assistant, env: process.env })
     if (env.startupChecks && project.webhooks) await checkWebhooksSchema(db, project.webhooks)
     const { admin, jobs: definitions } = projectAdmin(project, project.config, db, ui, reporter)

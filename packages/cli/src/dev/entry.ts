@@ -1,5 +1,5 @@
 import { Hono } from 'hono'
-import { checkAi, checkAuthSchema, checkChanges, checkComments, checkWebhooksSchema, configExports, hasUsers } from '@protobase/server'
+import { checkAi, checkAuthSchema, checkChanges, checkComments, checkComputed, checkWebhooksSchema, configExports, hasUsers } from '@protobase/server'
 import { projectErrorReporter } from '../project/error-reporter'
 import { projectAdmin } from '../project/project-admin'
 import { devJobs } from './dev-jobs'
@@ -24,9 +24,10 @@ if (project.auth && !store.__protobaseAuthSchemaChecked) {
 }
 
 // On every load, since editing the config can give a resource events or history whose triggers the database lacks, or
-// comments whose table it lacks.
+// comments whose table it lacks, or rollups and formulas whose columns it lacks.
 await checkChanges(db, resources.map((resource) => resource.toModel()), project.events)
 await checkComments(db, resources.map((resource) => resource.toModel()))
+await checkComputed(db, resources.map((resource) => resource.toModel()))
 // AI fields and actions call the model of PROTOBASE_ASSISTANT_API_KEY, which other commands need not have.
 checkAi({ models: resources.map((resource) => resource.toModel()), views: views.map((source) => source.toModel()), assistant: project.options?.assistant, env: process.env })
 if (project.webhooks) await checkWebhooksSchema(db, project.webhooks)

@@ -1,4 +1,4 @@
-import { authSchemaMigration, changesMigration, commentsMigration, isCaptured, jobsSchemaMigration, webhooksMigration } from '@protobase/server'
+import { authSchemaMigration, changesMigration, commentsMigration, computedMigration, isCaptured, jobsSchemaMigration, webhooksMigration } from '@protobase/server'
 import type { MigrationProject } from './load-project'
 
 /** What one feature still needs of the database, written as a migration file of its own. */
@@ -21,6 +21,8 @@ export const migrationParts = (project: MigrationProject): MigrationPart[] => {
     // whose waiting and failed ones webhooks() lists.
     ...(project.jobs.length > 0 || project.models.some(isCaptured) || comments || aiFields || project.webhooks ? [{ name: 'jobs', title: 'The jobs schema this version of Protobase needs', sql: () => jobsSchemaMigration(project.db) }] : []),
     { name: 'changes', title: "The change capture the resources' events and history need", sql: () => changesMigration(project.db, project.models, project.events) },
+    // Always compared, so that the function and trigger of a rollup the config no longer has are dropped.
+    { name: 'computed', title: "The columns of the resources' rollup and formula fields, and the triggers that keep the rollups", sql: () => computedMigration(project.db, project.models) },
     ...(comments ? [{ name: 'comments', title: 'The comments table of the resources with comments', sql: () => commentsMigration(project.db) }] : []),
     ...(project.webhooks ? [{ name: 'webhooks', title: 'The webhook subscriptions of webhooks()', sql: () => webhooksMigration(project.db, project.webhooks, project.events) }] : []),
   ]
