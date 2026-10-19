@@ -177,6 +177,20 @@ export default defineUi({
 
 The list names it with `drag: { rank: true, rule: 'afterWhatItWaitsFor' }`. A drop the rule refuses lands in the first place below that it allows, and a warning says where with the rule's reason; with no such place the row stays where it was, with the same warning. The rule only guides the drag: the server's access rules and `validate` still decide what is saved. A list naming a rule the UI config does not register says so in place of its rows.
 
+#### Ranked after what they depend on
+
+Some records wait for others, such as a task blocked by another task. With `after`, the resource's position keeps each record below the records it depends on, through a join resource, for as long as they match `while`:
+
+```ts
+.position((r) => r.position, {
+  after: { resource: 'task_dependencies', field: 'task_id', key: 'depends_on_id', filter: 'type = "blocked-by"', while: 'status != "done"' },
+})
+```
+
+`field` and `key` are filterable relations of the join resource to the ranked one: `field` holds the record that waits, `key` the record it waits for. `filter` narrows the join records and `while` the records waited for, both optional. The ranked resource needs a key of one field; the config is checked when it loads.
+
+The server's [`reorder`](/reference/api/#batch-writes) refuses an order that puts a record at or above a pending record it depends on, or one of those at or below it. Pairs already out of order, such as a dependency added after the ranking, do not block other moves. The list's `drag: { rank: true }` follows it on the table and the board without another option. Before it saves a drop, it reads the record's dependencies through the list API, so the join resource's `field` and `key` need an index. A card or row dropped above a record it depends on lands in the first place below that keeps the order, and a warning names that record by its title. On a board the ranks are those of every column, so a card whose dependency in another column ranks above its whole column takes the last place, with a rank just above that dependency. With no such place, it stays where it was, with the same warning.
+
 #### Board drops
 
 Some boards are by a field that cannot be written, such as a status the database computes from other records. A board drop, in `protobase.ui.tsx` under `boardDrops`, says which columns take a card and what a drop on each writes instead: by the column's value, a function that gets the card's record as listed, its key and ETag, the column's value as `to`, and the API `client`. It resolves a function that undoes the write, or nothing when it cannot be undone:
