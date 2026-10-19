@@ -49,6 +49,8 @@ export const Router = ({ basePath = '', initialUrl, children }: RouterProps) => 
   const position = useRef(memory ? 0 : historyIndex())
   const undoing = useRef(false)
   const proceeding = useRef(false)
+  // A Leave pressed before the step back has landed: the browser drops a traversal asked for while another is under way.
+  const leaveAfterUndo = useRef<number | undefined>(undefined)
   const [pending, setPending] = useState<Pending>()
 
   useEffect(() => {
@@ -59,6 +61,8 @@ export const Router = ({ basePath = '', initialUrl, children }: RouterProps) => 
       if (undoing.current) {
         undoing.current = false
         position.current = next
+        if (leaveAfterUndo.current !== undefined) window.history.go(leaveAfterUndo.current)
+        leaveAfterUndo.current = undefined
         return
       }
       const delta = next - position.current
@@ -109,7 +113,8 @@ export const Router = ({ basePath = '', initialUrl, children }: RouterProps) => 
     setPending(undefined)
     if (pending.kind === 'link') return go(pending.full, pending.replace)
     proceeding.current = true
-    window.history.go(pending.delta)
+    if (undoing.current) leaveAfterUndo.current = pending.delta
+    else window.history.go(pending.delta)
   }
 
   const value = useMemo<RouterValue>(() => {
