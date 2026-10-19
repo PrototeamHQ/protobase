@@ -115,6 +115,9 @@ export type ShowProps = { when: string; children?: LayoutChildren }
  */
 export type LinkProps = ({ to: AppAddress; href?: never } | { href: string; to?: never }) & { children?: LayoutChildren }
 
+/** Everyone who can sign in, for admins: inviting by email, adding accounts, changing roles and blocking. Takes no props. */
+export type UsersProps = Record<string, never>
+
 export const Page = defineBlock<PageProps>('Page', false)
 export const Grid = defineBlock<GridProps>('Grid', false)
 export const Card = defineBlock<CardProps>('Card', false)
@@ -130,3 +133,4 @@ export const ModalForm = defineBlock<ModalFormProps>('ModalForm', false)
 export const Action = defineBlock<ActionProps>('Action', false)
 export const Show = defineBlock<ShowProps>('Show', false)
 export const Link = defineBlock<LinkProps>('Link', false)
+export const Users = defineBlock<UsersProps>('Users', false)

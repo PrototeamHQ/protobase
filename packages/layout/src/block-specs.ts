@@ -54,6 +54,7 @@ export const blockSpecs: Record<string, BlockSpec> = {
   Action: { children: false, props: { name: required('text'), resource: optional('text'), label: optional('text'), variant: optional('variant') } },
   Show: { children: true, props: { when: required('text') } },
   Link: { children: true, props: { href: optional('text'), to: optional('address') } },
+  Users: { children: false, props: {} },
 }
 
 const formats = ['relative', 'absolute', 'compact', 'percent', 'badge', 'code']

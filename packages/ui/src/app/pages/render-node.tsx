@@ -17,6 +17,7 @@ import { RecordRowBlock } from './blocks/record-row'
 import { ShowBlock } from './blocks/show'
 import { StatBlock } from './blocks/stat'
 import { TableBlock } from './blocks/table'
+import { UsersBlock } from '../../users/users-block'
 import { CustomBoundary } from './custom-boundary'
 import { Problem } from './problem'
 import { useProjectUi } from './project-ui'
@@ -37,6 +38,7 @@ const blocks: Record<string, ComponentType<BlockProps>> = {
   Action: ActionBlock,
   Show: ShowBlock,
   Link: LinkBlock,
+  Users: UsersBlock,
 }
 
 const isInline = (child: LayoutChild) => typeof child === 'string' || (!child.custom && child.type === 'Link')
