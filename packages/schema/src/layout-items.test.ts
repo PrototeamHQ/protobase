@@ -10,4 +10,10 @@ describe('layoutItems', () => {
     const group: LayoutItemModel = { kind: 'group', title: 'More', items: [section('B') as never, related('C') as never] }
     expect(layoutItems([section('A'), group, section('D')]).map((item) => (item as { title: string }).title)).toEqual(['A', 'B', 'C', 'D'])
   })
+
+  it('looks inside tabs and the groups in them', () => {
+    const group: LayoutItemModel = { kind: 'group', title: 'More', items: [related('C') as never] }
+    const tab: LayoutItemModel = { kind: 'tab', title: 'T', items: [section('B') as never, group as never] }
+    expect(layoutItems([section('A'), tab, section('D')]).map((item) => (item as { title: string }).title)).toEqual(['A', 'B', 'C', 'D'])
+  })
 })

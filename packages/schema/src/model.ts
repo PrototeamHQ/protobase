@@ -240,6 +240,8 @@ export type AppAddress =
       edit?: boolean
       /** The titles of the record page's collapsed groups that are open. */
       open?: readonly string[]
+      /** The title of the record page's tab shown; the first tab when omitted. */
+      tab?: string
     }
   | {
       /** The form for a new record. */
@@ -821,6 +823,7 @@ export type LayoutItemModel =
   | GalleryModel
   | HistorySectionModel
   | CommentsSectionModel
+  | TabModel
 
 /** A titled group of sections and related tables on the record page, closed until opened with `collapsed`; see [Groups](website/src/content/docs/reference/ui-config.mdx#groups). */
 export type GroupModel = {
@@ -838,6 +841,27 @@ export type GroupModel = {
 
 /** An item a group may hold. */
 export type GroupItemModel = SectionModel | RelatedModel
+
+/** A tab of the record page, holding main-column items; a view's tabs stand together as one strip. See [Tabs](website/src/content/docs/reference/ui-config.mdx#tabs). */
+export type TabModel = {
+  /** A tab of the record page. */
+  kind: 'tab'
+  /** Its label, unique among the view's tabs: the address names the open tab by it. */
+  title: string
+  /** The main-column items it shows, in order. */
+  items: TabItemModel[]
+}
+
+/** An item a tab may hold: any of the main column. */
+export type TabItemModel =
+  | SectionModel
+  | RelatedModel
+  | GroupModel
+  | CustomSectionModel
+  | MapSectionModel
+  | GalleryModel
+  | HistorySectionModel
+  | CommentsSectionModel
 
 /**
  * A record's photos as tiles in the main column under `title`, one large and the next few smaller, opening a lightbox

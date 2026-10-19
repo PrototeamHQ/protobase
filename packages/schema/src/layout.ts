@@ -1,5 +1,5 @@
 import { markFieldRefs } from './field-ref'
-import type { CardPhotosModel, CommentsSectionModel, GroupItemModel, HelpWhen, HistorySectionModel, JsonValue, LayoutItemModel, RecordWhen, RelatedModel, SectionPresentation, ShowWhen } from './model'
+import type { CardPhotosModel, CommentsSectionModel, GroupItemModel, HelpWhen, HistorySectionModel, JsonValue, LayoutItemModel, RecordWhen, RelatedModel, SectionPresentation, ShowWhen, TabItemModel } from './model'
 import type { Ref } from './refs'
 import { customComponent, type ComponentRef, type ViewProps } from './view-displays'
 
@@ -76,6 +76,17 @@ export const layout = {
       ...(o.collapsed && { collapsed: true }),
       ...(o.when !== undefined && { when: o.when }),
     }
+  },
+  /**
+   * A tab of the record page holding main-column items: sections, groups, related tables, custom components, maps,
+   * galleries, history and comments. A view's tabs stand together and show as one strip, the first tab open unless the
+   * address names another; items before and after them show on every tab. Throws on a sidebar item or another tab. See
+   * [Tabs](website/src/content/docs/reference/ui-config.mdx#tabs).
+   */
+  tab: (title: string, items: LayoutItemModel[]): LayoutItemModel => {
+    const wrong = items.find((item) => item.kind === 'sidebar' || item.kind === 'tab' || ((item.kind === 'custom' || item.kind === 'map') && item.sidebar))
+    if (wrong) throw new Error(`l.tab "${title}" holds main-column items, not ${wrong.kind === 'sidebar' || wrong.kind === 'tab' ? wrong.kind : `a sidebar ${wrong.kind}`}`)
+    return { kind: 'tab', title, items: items as TabItemModel[] }
   },
   /** A table of the records of another resource that point at this one, directly or through a join table. */
   related: (title: string, o: Omit<RelatedModel, 'kind' | 'title'>): LayoutItemModel => ({ kind: 'related', title, ...structuredClone(o) }),

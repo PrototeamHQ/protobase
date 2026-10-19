@@ -19,6 +19,7 @@ import type {
   ViewModel,
 } from './model'
 import { formNamePattern } from './form-address'
+import { layoutItems } from './layout-items'
 import { isMenuHref } from './menu-href'
 import { viewOfList } from './named-list'
 import { navRecentErrors } from './nav-recent'
@@ -386,12 +387,20 @@ export class ViewBuilder<R extends {
     const clash = resource ? list?.relatedColumns?.find((column) => Object.hasOwn(resource.fields, column.name)) : undefined
     if (clash) throw new Error(`View "${this.state.resource}": related column "${clash.name}" has the name of a field of the resource`)
     const groupTitles = new Set<string>()
-    for (const item of this.state.layout) {
+    const tabs = this.state.layout.flatMap((item, index) => (item.kind === 'tab' ? [{ item, index }] : []))
+    const apart = tabs.find((tab, at) => at > 0 && tab.index !== tabs[at - 1]!.index + 1)
+    if (apart) throw new Error(`View "${this.state.resource}": tabs stand together, and "${apart.item.title}" is apart from the others`)
+    const tabTitles = new Set<string>()
+    for (const { item } of tabs) {
+      if (tabTitles.has(item.title)) throw new Error(`View "${this.state.resource}": two tabs are titled "${item.title}"`)
+      tabTitles.add(item.title)
+    }
+    for (const item of this.state.layout.flatMap((item) => (item.kind === 'tab' ? item.items : [item]))) {
       if (item.kind !== 'group') continue
       if (groupTitles.has(item.title)) throw new Error(`View "${this.state.resource}": two groups are titled "${item.title}"`)
       groupTitles.add(item.title)
     }
-    for (const item of resource ? this.state.layout : []) {
+    for (const item of resource ? layoutItems(this.state.layout) : []) {
       if (item.kind !== 'gallery' || item.image === undefined) continue
       if (!Object.hasOwn(resource!.fields, item.image)) throw new Error(`View "${this.state.resource}": gallery "${item.title}" names field "${item.image}", which the resource does not have`)
       if (resource!.fields[item.image]!.type !== 'file') throw new Error(`View "${this.state.resource}": gallery "${item.title}" shows "${item.image}" as its image, which is not a file field`)

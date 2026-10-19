@@ -408,6 +408,34 @@ describe('view builder', () => {
     expect(() => twice.toModel(home.toModel())).toThrow('View "home": two groups are titled "More"')
   })
 
+  it('puts main-column items in a tab, refuses sidebar items and nested tabs, and refuses tabs apart, one title twice, and one group title twice', () => {
+    const home = resource('home').table('homes').fields({ id: f.integer(), title: f.text() }).primaryKey((r) => r.id)
+    const related = { resource: 'notes', field: 'home_id' }
+    const model = view<typeof home>('home')
+      .layout((r) => [l.tab('Main', [l.section('Details', [r.title]), l.group('More', [l.related('Notes', related)]), l.history('Changes')])])
+      .toModel(home.toModel())
+    expect(model.layout).toEqual([
+      {
+        kind: 'tab',
+        title: 'Main',
+        items: [
+          { kind: 'section', title: 'Details', fields: ['title'] },
+          { kind: 'group', title: 'More', items: [{ kind: 'related', title: 'Notes', ...related }] },
+          { kind: 'history', title: 'Changes' },
+        ],
+      },
+    ])
+    expect(() => l.tab('A', [l.sidebar([])])).toThrow('l.tab "A" holds main-column items, not sidebar')
+    expect(() => l.tab('A', [l.tab('B', [])])).toThrow('l.tab "A" holds main-column items, not tab')
+    expect(() => l.tab('A', [l.map('Where', { latitude: {} as never, longitude: {} as never, sidebar: true })])).toThrow('not a sidebar map')
+    const apart = view<typeof home>('home').layout(() => [l.tab('A', []), l.section('S', []), l.tab('B', [])])
+    expect(() => apart.toModel(home.toModel())).toThrow('View "home": tabs stand together, and "B" is apart from the others')
+    const twice = view<typeof home>('home').layout(() => [l.tab('A', []), l.tab('A', [])])
+    expect(() => twice.toModel(home.toModel())).toThrow('View "home": two tabs are titled "A"')
+    const groups = view<typeof home>('home').layout(() => [l.tab('A', [l.group('More', [])]), l.tab('B', [l.group('More', [])])])
+    expect(() => groups.toModel(home.toModel())).toThrow('View "home": two groups are titled "More"')
+  })
+
   it('puts a gallery of the record and its photo records in the record layout, and refuses one without photos', () => {
     const home = resource('home').table('homes').fields({ id: f.integer(), title: f.text(), cover: f.file().accept(['image/*']) }).primaryKey((r) => r.id)
     const photos = { resource: 'home_photos', field: 'home_id', image: 'photo', sort: 'position' }

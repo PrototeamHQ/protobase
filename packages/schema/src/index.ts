@@ -45,6 +45,8 @@ export type {
   RelatedModel,
   SectionModel,
   GroupModel,
+  TabModel,
+  TabItemModel,
   GroupItemModel,
   CustomSectionModel,
   MapSectionModel,
