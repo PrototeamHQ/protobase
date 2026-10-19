@@ -66,7 +66,7 @@ const handOrderShapes = (model: ResourceModel, view: ViewModel, list: string, mo
   const own = model.position && model.position.within === undefined && model.fields[model.position.field]
   const listed: ReadShape[] = own ? [{ resource: model.name, request: request(model.name, undefined, [[own.name, 'asc']]), from: `${list} sorted by hand`, query: { sort: [[own.name, 'asc']] } }] : []
   const related = layoutItems(view.layout).flatMap((item): ReadShape[] => {
-    if (item.kind !== 'related' || item.through || item.filter) return []
+    if (item.kind !== 'related' || item.through || item.from || item.filter) return []
     const target = models[item.resource]
     const position = target?.position
     if (!target || position?.within !== item.field) return []

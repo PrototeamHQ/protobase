@@ -25,4 +25,4 @@ export const listHandOrder = (model: ResourceModel, permissions: ResourcePermiss
  * whose `within` relation points at the page's record, no filter or join resource leaving some out.
  */
 export const relatedHandOrder = (item: RelatedModel, model: ResourceModel, permissions: ResourcePermissions) =>
-  model.position?.within !== undefined && item.field === model.position.within && !item.through && !item.filter ? writablePosition(model, permissions) : undefined
+  model.position?.within !== undefined && item.field === model.position.within && !item.through && !item.from && !item.filter ? writablePosition(model, permissions) : undefined

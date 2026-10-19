@@ -652,6 +652,7 @@ export type FilterWidgetModel =
 /**
  * Records of another resource on the record page: those whose `field` holds this record's key or, with `through`,
  * those whose `field` holds one of the `key` values of the `through` records that point at this record (a join table).
+ * With `from`, those whose `field` holds the value of that field of this record.
  * See [Related records](website/src/content/docs/reference/ui-config.mdx#related-records).
  */
 export type RelatedModel = {
@@ -663,8 +664,10 @@ export type RelatedModel = {
   help?: string
   /** The resource whose records it lists. */
   resource: string
-  /** The filterable field of `resource` matched against this record's key, or with `through` against the join records' keys. */
+  /** The filterable field of `resource` matched against this record's key, or with `through` against the join records' keys, or with `from` against that field's value. */
   field: string
+  /** A field of this record whose value `field` is matched against instead of its key; not with `through`. */
+  from?: string
   /** The join records between this record and the listed ones. */
   through?: {
     /** The join resource. */

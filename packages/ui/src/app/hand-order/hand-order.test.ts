@@ -26,6 +26,7 @@ describe('sorting by hand', () => {
     expect(relatedHandOrder(related(), model, all)).toBe('position')
     expect(relatedHandOrder(related({ filter: 'shown = true' }), model, all)).toBeUndefined()
     expect(relatedHandOrder(related({ field: 'id', through: { resource: 'links', field: 'invoice_id' } }), model, all)).toBeUndefined()
+    expect(relatedHandOrder(related({ from: 'invoice_id' }), model, all)).toBeUndefined()
     expect(relatedHandOrder(related(), model, { ...all, update: false })).toBeUndefined()
   })
 })

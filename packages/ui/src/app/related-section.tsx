@@ -30,13 +30,13 @@ const and = (...parts: Array<string | undefined>) => {
  * all the join records that point at this record hold, read page by page. `null` when no join record does, so nothing
  * can match.
  */
-const useMatch = (item: RelatedModel, recordKey: string) => {
+const useMatch = (item: RelatedModel, value: string | number | boolean | null) => {
   const client = useClient()
   const { resources } = useAdminMeta()
   const through = item.through
   const via = through ? resources[through.resource] : undefined
   const key = through?.key ?? via?.primaryKey[0]
-  const viaFilter = through ? and(printFilter(where.eq(through.field, recordKey)), through.filter) : ''
+  const viaFilter = through ? and(printFilter(where.eq(through.field, value!)), through.filter) : ''
   const collected = useQuery({
     queryKey: keys.list(via?.name ?? '', viaFilter, '', 0, `related:${key}`),
     enabled: Boolean(via && key),
@@ -45,7 +45,8 @@ const useMatch = (item: RelatedModel, recordKey: string) => {
       return [...new Set(joined.items.flatMap((row) => (row[key!] === null || row[key!] === undefined ? [] : [String(row[key!])])))]
     },
   })
-  if (!through) return { filter: and(printFilter(where.eq(item.field, recordKey)), item.filter), isPending: false, error: null }
+  if (value === null) return { filter: null, isPending: false, error: null }
+  if (!through) return { filter: and(printFilter(where.eq(item.field, value)), item.filter), isPending: false, error: null }
   if (!collected.data) return { filter: undefined, isPending: collected.isPending, error: collected.error }
   const filter = collected.data.length === 0 ? null : and(printFilter(where.in(item.field, collected.data)), item.filter)
   return { filter, isPending: false, error: null }
@@ -60,11 +61,11 @@ const Empty = ({ text }: { text: string | undefined }) => <p className="text-mut
  * a join resource, in the list page's table or display, with a link to them all in the list. When they are ordered by
  * hand within this record, **Sort** shows them all in their order, to be moved by their drag handles.
  */
-export const RelatedSection = ({ item, recordKey, owner }: { item: RelatedModel; recordKey: string; owner: string }) => {
+export const RelatedSection = ({ item, value, owner }: { item: RelatedModel; value: string | number | boolean | null; owner: string }) => {
   const { resources, views } = useAdminMeta()
   const model = resources[item.resource]
   const view = model && views[model.name]
-  const match = useMatch(item, recordKey)
+  const match = useMatch(item, value)
   const [display, pick] = useEmbeddedDisplay(view, `related:${owner}:${item.title}`, item.display)
   const permissions = usePermissions(item.resource)
   const [sorting, setSorting] = useState(false)
@@ -90,7 +91,7 @@ export const RelatedSection = ({ item, recordKey, owner }: { item: RelatedModel;
   if (sorting && handOrder) {
     return (
       <Section title={item.title} help={item.help} actions={actions}>
-        <HandSortedList model={model} view={view} field={handOrder} filter={printFilter(where.eq(item.field, recordKey))} columns={columns} />
+        <HandSortedList model={model} view={view} field={handOrder} filter={printFilter(where.eq(item.field, value!))} columns={columns} />
       </Section>
     )
   }

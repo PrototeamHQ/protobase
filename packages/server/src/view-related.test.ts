@@ -33,3 +33,32 @@ describe('openErrors', () => {
     expect(relatedErrors(section('reason'), 'tasks', models)).toEqual(['open: "reason" on task_dependencies is not a relation'])
   })
 })
+
+describe('from', () => {
+  const owner = resource('questions')
+    .table('questions')
+    .fields({ id: f.integer(), task_id: f.relation('tasks'), other_id: f.relation('versions'), secret: f.text().sensitive(), year: f.integer(), label: f.text() })
+    .primaryKey((r) => r.id)
+  const links = resource('task_links')
+    .table('task_links')
+    .fields({ id: f.integer(), task_id: f.relation('tasks').filterable(), kind: f.text().filterable() })
+    .primaryKey((r) => r.id)
+  const all: Record<string, ResourceModel> = { ...models, questions: owner.toModel(), task_links: links.toModel() }
+  const pr = (o: Partial<RelatedModel>): RelatedModel => ({ kind: 'related', title: 'Pull requests', resource: 'task_links', field: 'task_id', from: 'task_id', filter: 'kind = "pr"', ...o })
+
+  it("accepts a section listing the records sharing the record's task", () => {
+    expect(relatedErrors(pr({}), 'questions', all)).toEqual([])
+  })
+
+  it('refuses the same section without from', () => {
+    expect(relatedErrors(pr({ from: undefined }), 'questions', all)).toEqual(['"task_id" on task_links is not a relation to questions'])
+  })
+
+  it('names what is wrong with from', () => {
+    expect(relatedErrors(pr({ from: 'nope' }), 'questions', all)).toEqual(['from: unknown field "nope" on questions'])
+    expect(relatedErrors(pr({ from: 'secret' }), 'questions', all)).toEqual(['from: "secret" on questions is sensitive'])
+    expect(relatedErrors(pr({ from: 'year' }), 'questions', all)).toEqual(['from: "year" on questions and "task_id" on task_links do not hold the same kind of value'])
+    expect(relatedErrors(pr({ from: 'other_id' }), 'questions', all)).toEqual(['from: "other_id" on questions and "task_id" on task_links do not hold the same kind of value'])
+    expect(relatedErrors(pr({ through: { resource: 'task_dependencies', field: 'taskId' } }), 'questions', all)).toEqual(['from and through cannot be combined'])
+  })
+})

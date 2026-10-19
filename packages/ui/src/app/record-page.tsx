@@ -53,6 +53,7 @@ import { useRelatedRecords } from './use-related-records'
 import { IncomingCard } from './incoming-card'
 import { isChosen, keyValue } from './create/create-values'
 import { RelatedSection } from './related-section'
+import { relatedValue } from './related-value'
 import { ValueBadge } from './value-badge'
 import { useClient } from '../data/api-provider'
 import { Markdown } from '../markdown/markdown'
@@ -284,7 +285,10 @@ const LoadedRecord = ({ model, recordKey, stored, preview }: LoadedRecordProps) 
       const toggle = item.collapsed ? recordAt(toggledOpen(openGroups, item.title), atEdit) : undefined
       return [<GroupSection key={`group:${item.title}`} title={item.title} open={open} toggle={toggle}>{children}</GroupSection>]
     }
-    if (item.kind === 'related') return [<RelatedSection key={`related:${item.title}`} item={item} recordKey={recordKey} owner={model.name} />]
+    if (item.kind === 'related') {
+      if (item.from !== undefined && !known(item.from)) return []
+      return [<RelatedSection key={`related:${item.title}`} item={item} value={relatedValue(item, stored.record, recordKey)} owner={model.name} />]
+    }
     // Project components, maps and photos read fields a list row may not have, so they wait for the record
     if (preview && (item.kind === 'custom' || item.kind === 'map' || item.kind === 'gallery')) return []
     if (item.kind === 'custom') return item.sidebar ? [] : [<CustomSection key={`custom:${index}`} item={item} scope={scope} />]

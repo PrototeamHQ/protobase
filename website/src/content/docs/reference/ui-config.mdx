@@ -531,7 +531,8 @@ Without any configuration, the record page's rail has a **Related records** card
 | Option | |
 | --- | --- |
 | `resource` | The records listed. Required. |
-| `field` | Without `through`: the relation on `resource` that holds this record's key. With it: the field of `resource` matched against the keys the join records hold. Filterable. Required. |
+| `field` | Without `through` or `from`: the relation on `resource` that holds this record's key. With `from`: the field of `resource` that holds that value. With `through`: the field of `resource` matched against the keys the join records hold. Filterable. Required. |
+| `from` | A field of this record whose value `field` must hold, instead of this record's key, such as the task of a question, to list the task's links: `{ resource: 'task_links', field: 'task_id', from: 'task_id' }`. Same type as `field` (a relation to the same resource), not sensitive, and not with `through`. A record with no value lists nothing. |
 | `through` | `{ resource, field, key?, filter? }`: the join records whose `field` (a filterable relation) holds this record's key; their `key` values (default their primary key) pick the listed records. All of them are read. |
 | `filter`, `sort` | AIP-160 and AIP-132 on `resource`, as in the list API. `filter` narrows the listed records, `through.filter` the join records. |
 | `columns` | Fields of `resource`, through relations too (`unit_id.property_id`); default the view's list columns without `field`. The first links to the record a row opens. |

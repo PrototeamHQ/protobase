@@ -31,6 +31,12 @@ describe('incomingRelations', () => {
     expect(found.map((relation) => `${relation.resource}.${relation.field}`)).toEqual(['orders.customer_id', 'orders.supplier_id'])
   })
 
+  it('keeps what a related section matching a field of the record lists, since its rows do not point here', () => {
+    const layout = [l.related('Contacts', { resource: 'people', field: 'company_id', from: 'id' })]
+    const found = incomingRelations(company, resources, views, layout, resources.order_lines)
+    expect(found.map((relation) => `${relation.resource}.${relation.field}`)).toContain('people.company_id')
+  })
+
   it('leaves out what a related table inside a group lists', () => {
     const layout = [l.group('More', [l.related('Contacts', { resource: 'people', field: 'company_id' })], { collapsed: true })]
     const found = incomingRelations(company, resources, views, layout, resources.order_lines)

@@ -63,6 +63,19 @@ describe('readShapes', () => {
     expect(sorted[1]!.query).toMatchObject({ filter: { kind: 'compare', field: { name: 'list_id' } }, sort: [['position', 'asc']] })
   })
 
+  it('reads the filter of a related section matching a field of the record, and no hand order', () => {
+    const lists = resource('lists').table('lists').fields({ id: f.integer().filterable().sortable() }).primaryKey((r) => r.id)
+    const entries = resource('entries')
+      .table('entries')
+      .fields({ id: f.integer().filterable().sortable(), list_id: f.relation('lists').filterable(), position: f.integer().sortable() })
+      .primaryKey((r) => r.id)
+      .position((r) => r.position, { within: (r) => r.list_id })
+    const listsView = view<typeof lists>('lists').layout(() => [l.related('Entries', { resource: 'entries', field: 'list_id', from: 'id' })])
+    const found = readShapes({ models: [lists.toModel(), entries.toModel()], views: [listsView.toModel(), view<typeof entries>('entries').toModel()], pages: [] })
+    expect(found.some((shape) => shape.from.endsWith('sorted by hand') && shape.resource === 'entries')).toBe(false)
+    expect(found.some((shape) => shape.resource === 'entries' && shape.request.includes('list_id = …'))).toBe(true)
+  })
+
   it('takes a sort by each sortable field, a filter on each filterable one and the search', () => {
     expect(requests('places')).toEqual(
       expect.arrayContaining([
