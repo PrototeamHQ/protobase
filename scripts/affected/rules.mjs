@@ -65,6 +65,8 @@ export const edges = [
   // The release scripts the release tests run.
   { from: ['tests/release/release.test.ts'], starts: ['scripts/release.mjs'], reads: ['.versionrc.json'] },
   { from: ['tests/release/publish-pack.test.ts'], starts: ['scripts/publish.mjs'] },
+  // The API reference check, TypeDoc on the schema's entry point with the website's options and link plugin.
+  { from: ['tests/docs/api-check.test.ts'], loads: ['packages/schema/src/index.ts', 'website/typedoc-doc-pages.mjs'], reads: ['website/typedoc*.json'] },
 ]
 
 // The documentation site and Storybook, which `bun run docs:build` builds and the play tests, layout snapshots and

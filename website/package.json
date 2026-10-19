@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "astro dev",
     "build": "astro build",
-    "preview": "astro preview"
+    "preview": "astro preview",
+    "api-check": "typedoc --emit none"
   },
   "dependencies": {
     "@astrojs/starlight": "^0.42.6",

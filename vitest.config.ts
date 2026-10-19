@@ -31,8 +31,8 @@ const mocking = [
   'packages/ui/src/app/error-reporting.test.ts',
   'packages/ui/src/app/pages/action-href.test.ts',
 ]
-// Database, subprocess and build tests, and the release scripts': `bun run test:integration`.
-const integration = ['packages/cli/tests/**/*.integration.test.ts', 'packages/cli/tests/build/deploy-bundle.test.ts', 'tests/release/**/*.test.ts']
+// Database, subprocess and build tests, and the release and docs scripts': `bun run test:integration`.
+const integration = ['packages/cli/tests/**/*.integration.test.ts', 'packages/cli/tests/build/deploy-bundle.test.ts', 'tests/release/**/*.test.ts', 'tests/docs/**/*.test.ts']
 // The glue between packages: snapshot tests in `bun run test`, and real-Postgres tests with the integration tests.
 const glue = 'tests/{ai,changes,comments,import,jobs,roles}/**/*.test.ts'
 // The real-Postgres tests (`*.postgres.test.ts`), each on a clone of a test template (test-support/postgres-database.ts):

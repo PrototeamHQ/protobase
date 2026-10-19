@@ -11,7 +11,8 @@ import { Application, Converter } from 'typedoc'
  *
  * starlight-typedoc renders without TypeDoc's validation, so this runs it, as the `typedoc` command does, and fails the
  * build on any error, or on a warning with `treatValidationWarningsAsErrors`: an item without a doc comment, a broken
- * `{@link}`, a link to a missing file.
+ * `{@link}`, a link to a missing file. `bun run docs:api-check` runs the same validation, with the same options from
+ * typedoc.json, without building the site.
  */
 const root = fileURLToPath(new URL('..', import.meta.url))
 const pages = fileURLToPath(new URL('src/content/docs/', import.meta.url))
