@@ -289,26 +289,15 @@ const LoadedList = ({ model, address, scope, heading }: LoadedListProps) => {
       <PageHeader
         title={heading?.title ?? plural}
         subtitle={heading ? heading.subtitle : view?.help}
-        aside={!desktop && displaySwitch(true)}
         actions={
-          desktop ? (
-            <>
-              {displaySwitch(false)}
-              {sortButton}
-              {saveSearch}
-              {importButton}
-              {exportButton}
-              {createButton}
-            </>
-          ) : (
-            <>
-              {sortButton}
-              {saveSearch}
-              {importButton}
-              {exportButton}
-              {createButton}
-            </>
-          )
+          <>
+            {displaySwitch(!desktop)}
+            {sortButton}
+            {saveSearch}
+            {importButton}
+            {exportButton}
+            {createButton}
+          </>
         }
       />
       {!parsed.ok && <ErrorBanner title={text('unreadableFilter')} error={new Error(parsed.errors.map((error) => error.message).join('; '))} />}
