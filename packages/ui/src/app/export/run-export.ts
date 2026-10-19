@@ -2,6 +2,8 @@ import type { Client } from '@protobase/client'
 import type { ExportPlan } from './builder'
 import type { BuilderPort } from './builder-port'
 import type { ExportSink } from './sink'
+import { activeLocale } from '../../locale/active-locale'
+import { text } from './messages'
 
 /** The most rows one list call answers, so an export makes as few calls as it can. */
 export const exportPageSize = 500
@@ -26,7 +28,7 @@ export type ExportRun = {
 /** What an export wrote: its rows, and whether more matched than its limit let in. */
 export type ExportResult = { rows: number; truncated: boolean }
 
-const aborted = () => new DOMException('The export was cancelled', 'AbortError')
+const aborted = () => new DOMException(text('cancelled'), 'AbortError')
 
 /**
  * Reads the rows through the list API, page by page with its page tokens, and has the port build the file from each;
@@ -37,7 +39,7 @@ export const runExport = async ({ client, resource, filters, orderBy, plan, labe
   const fields = plan.columns.map((column) => column.name)
   let rows = 0
   try {
-    await sink.write(await port.send({ kind: 'start', plan }))
+    await sink.write(await port.send({ kind: 'start', plan, locale: activeLocale() }))
     for (const [index, filter] of filters.entries()) {
       let pageToken = ''
       do {

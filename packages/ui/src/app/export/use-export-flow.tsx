@@ -14,6 +14,7 @@ import { countedRows, ExportDialog, ExportProgressDialog, type RowCount } from '
 import { defaultExportColumns, exportableFields, exportColumns, exportHeaders, exportLimit, exportsSelection, selectionFilters, type ExportSettings } from './export-options'
 import { runExport } from './run-export'
 import { canSaveAsBuilt, createDownloadSink, exportFileName, pickFileSink, type ExportSink } from './sink'
+import { text } from './messages'
 
 export type ExportFlowOptions = {
   model: ResourceModel
@@ -92,13 +93,13 @@ export const useExportFlow = ({ model, view, resources, views, plural, filter, o
       })
       toast.show({
         state: 'success',
-        title: `Exported ${formatInt(result.rows)} ${plural.toLowerCase()}`,
-        description: result.truncated ? `${name}: the first ${formatInt(result.rows)} rows, as many as a file holds.` : name,
+        title: text('exported', formatInt(result.rows), plural),
+        description: result.truncated ? text('truncated', name, formatInt(result.rows)) : name,
       })
     } catch (error) {
       if (error instanceof DOMException && error.name === 'AbortError') return
       if (!isApiError(error)) throw error
-      toast.show({ state: 'error', title: `Could not export ${plural.toLowerCase()}`, description: error.message })
+      toast.show({ state: 'error', title: text('couldNotExport', plural), description: error.message })
     } finally {
       abort.current = undefined
       setStage((current) => (current.kind === 'running' ? { kind: 'closed' } : current))

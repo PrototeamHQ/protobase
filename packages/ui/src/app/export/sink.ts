@@ -1,12 +1,13 @@
 import type { ExportFormat } from './builder'
+import { text } from './messages'
 
 /** Where an export's bytes go as they are built: `close` keeps the file, `abort` discards it. */
 export type ExportSink = { write: (bytes: Uint8Array) => Promise<void>; close: () => Promise<void>; abort: () => Promise<void> }
 
-const types: Record<ExportFormat, { mime: string; extension: string; description: string }> = {
-  xlsx: { mime: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', extension: '.xlsx', description: 'Excel workbook' },
-  csv: { mime: 'text/csv', extension: '.csv', description: 'CSV file' },
-}
+const types = {
+  xlsx: { mime: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', extension: '.xlsx', description: 'workbook' },
+  csv: { mime: 'text/csv', extension: '.csv', description: 'csvFile' },
+} as const satisfies Record<ExportFormat, { mime: string; extension: string; description: string }>
 
 // Characters a file name cannot hold on Windows or macOS.
 const unsafeName = /[\\/:*?"<>|\u0000-\u001f]/g
@@ -71,7 +72,7 @@ export const pickFileSink = async (name: string, format: ExportFormat): Promise<
   const type = types[format]
   let handle: FileSystemFileHandle
   try {
-    handle = await pick({ suggestedName: name, types: [{ description: type.description, accept: { [type.mime]: [type.extension] } }] })
+    handle = await pick({ suggestedName: name, types: [{ description: text(type.description), accept: { [type.mime]: [type.extension] } }] })
   } catch (error) {
     if (error instanceof DOMException && error.name === 'AbortError') return undefined
     throw error

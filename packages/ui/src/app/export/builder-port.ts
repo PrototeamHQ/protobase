@@ -1,8 +1,10 @@
 import type { RelatedLabels } from '@protobase/client'
+import type { Locale } from '@protobase/schema/internal'
 import { createExportBuilder, type ExportPlan, type ExportRecord } from './builder'
+import { text } from './messages'
 
 /** What the page sends the worker that builds a file, one message after the other. */
-export type ToBuilder = { kind: 'start'; plan: ExportPlan } | { kind: 'page'; records: ExportRecord[]; labels: RelatedLabels } | { kind: 'finish' }
+export type ToBuilder = { kind: 'start'; plan: ExportPlan; locale: Locale } | { kind: 'page'; records: ExportRecord[]; labels: RelatedLabels } | { kind: 'finish' }
 
 /** The worker's answer to each message: the bytes of the file it made from it, which may be none. */
 export type FromBuilder = { bytes: Uint8Array }
@@ -51,7 +53,7 @@ export const createWorkerPort = (): BuilderPort => {
   worker.onmessage = (event: MessageEvent<FromBuilder>) => waiting.shift()?.resolve(event.data.bytes)
   worker.onerror = (event) => {
     event.preventDefault()
-    const error = new Error(`The export could not be built: ${event.message}`)
+    const error = new Error(text('couldNotBuild', event.message))
     for (const entry of waiting.splice(0)) entry.reject(error)
   }
   return {

@@ -9,6 +9,7 @@ import type { ExportFormat } from './builder'
 import type { ExportMode } from './cells'
 import { exportLimit, type ExportScope, type ExportSettings } from './export-options'
 import type { ViewModel } from '@protobase/schema'
+import { text } from './messages'
 
 /** How many rows the list finds: exact up to 10,000, the planner's estimate above, or still being counted. */
 export type RowCount = { kind: 'counting' } | { kind: 'exact'; rows: number } | { kind: 'estimate'; rows: number }
@@ -30,26 +31,23 @@ export type ExportDialogProps = {
   onClose: () => void
 }
 
-const formatOptions: Array<{ value: ExportFormat; label: string }> = [
-  { value: 'xlsx', label: 'Excel (.xlsx)' },
-  { value: 'csv', label: 'CSV' },
+const formatOptions = (): Array<{ value: ExportFormat; label: string }> => [
+  { value: 'xlsx', label: text('excel') },
+  { value: 'csv', label: text('csv') },
 ]
 
-const modeOptions: Array<{ value: ExportMode; label: string }> = [
-  { value: 'shown', label: 'As shown' },
-  { value: 'raw', label: 'Raw values' },
+const modeOptions = (): Array<{ value: ExportMode; label: string }> => [
+  { value: 'shown', label: text('asShown') },
+  { value: 'raw', label: text('rawValues') },
 ]
 
-const modeHelp: Record<ExportMode, string> = {
-  shown: 'Labels, dates and numbers as the list shows them.',
-  raw: 'Values as they are stored, such as keys and codes.',
-}
+const modeHelp = { shown: 'shownHint', raw: 'rawHint' } as const satisfies Record<ExportMode, string>
 
 // Up to 10,000 rows are counted exactly; above that the count is the planner's estimate.
 const countText = (count: RowCount) => {
-  if (count.kind === 'counting') return 'Counting rows…'
+  if (count.kind === 'counting') return text('counting')
   if (count.kind === 'exact') return formatApproxRows(count.rows)
-  return count.rows > 10_000 ? formatApproxRows(count.rows) : 'more than 10,000 rows'
+  return count.rows > 10_000 ? formatApproxRows(count.rows) : text('moreThan')
 }
 
 /** The fewest rows the list finds, as far as the count tells: an estimate stands only above 10,000. */
@@ -82,7 +80,7 @@ const ColumnPicker = ({ fields, columns, onChange }: { fields: ExportDialogProps
   const labels = Object.fromEntries(fields.map((field) => [field.name, field.label]))
   const ordered = [...columns, ...fields.map((field) => field.name).filter((name) => !columns.includes(name))]
   return (
-    <ul className="divide-y self-stretch rounded-md border" aria-label="Columns">
+    <ul className="divide-y self-stretch rounded-md border" aria-label={text('columns')}>
       {ordered.map((name) => {
         const chosen = columns.includes(name)
         const index = columns.indexOf(name)
@@ -94,10 +92,10 @@ const ColumnPicker = ({ fields, columns, onChange }: { fields: ExportDialogProps
             </label>
             {chosen && (
               <span className="flex shrink-0 gap-1">
-                <Button size="sm" variant="ghost" className="min-h-8 px-2" aria-label={`Move ${labels[name]} up`} disabled={index === 0} onClick={() => onChange(move(columns, name, -1))}>
+                <Button size="sm" variant="ghost" className="min-h-8 px-2" aria-label={text('moveUp', labels[name]!)} disabled={index === 0} onClick={() => onChange(move(columns, name, -1))}>
                   <ArrowUp className="size-3.5" />
                 </Button>
-                <Button size="sm" variant="ghost" className="min-h-8 px-2" aria-label={`Move ${labels[name]} down`} disabled={index === columns.length - 1} onClick={() => onChange(move(columns, name, 1))}>
+                <Button size="sm" variant="ghost" className="min-h-8 px-2" aria-label={text('moveDown', labels[name]!)} disabled={index === columns.length - 1} onClick={() => onChange(move(columns, name, 1))}>
                   <ArrowDown className="size-3.5" />
                 </Button>
               </span>
@@ -120,44 +118,45 @@ export const ExportDialog = ({ plural, view, fields, initialColumns, count, sele
   const [mode, setMode] = useState<ExportMode>('shown')
 
   const limit = exportLimit(view, format)
-  const rows = scope === 'selected' ? `${formatInt(selected ?? 0)} selected ${selected === 1 ? 'row' : 'rows'}` : countText(count)
+  const rows = scope === 'selected' ? text('selectedRows', formatInt(selected ?? 0), selected ?? 0) : countText(count)
   const overLimit = (scope === 'selected' ? (selected ?? 0) : (countedRows(count) ?? 0)) > limit
   const scopeOptions: Array<{ value: ExportScope; label: string }> = [
-    { value: 'list', label: 'Rows in the list' },
-    { value: 'selected', label: `Selected (${formatInt(selected ?? 0)})` },
+    { value: 'list', label: text('rowsInList') },
+    { value: 'selected', label: text('selected', formatInt(selected ?? 0)) },
   ]
 
   return (
     <ResponsiveDialog
-      title={`Export ${plural.toLowerCase()}`}
+      title={text('exportPlural', plural)}
       open={open}
       onClose={onClose}
       actions={
         <>
-          <Button onClick={onClose}>Cancel</Button>
+          <Button onClick={onClose}>{text('cancel')}</Button>
           <Button variant="primary" disabled={columns.length === 0} onClick={() => onExport({ format, scope, columns, mode })}>
-            Export
+            {text('export')}
           </Button>
         </>
       }
     >
       <div className="flex flex-col gap-4 text-[13px]">
-        <Setting label="Format">
-          <Segmented size="md" label="Format" value={format} options={formatOptions} onChange={setFormat} />
+        <Setting label={text('format')}>
+          <Segmented size="md" label={text('format')} value={format} options={formatOptions()} onChange={setFormat} />
         </Setting>
         {selected !== undefined && selected > 0 && (
-          <Setting label="Rows" help={scope === 'list' ? 'With the list’s filters, search and sort.' : undefined}>
-            <Segmented size="md" label="Rows" value={scope} options={scopeOptions} onChange={setScope} />
+          <Setting label={text('rows')} help={scope === 'list' ? text('listHint') : undefined}>
+            <Segmented size="md" label={text('rows')} value={scope} options={scopeOptions} onChange={setScope} />
           </Setting>
         )}
-        <Setting label="Values" help={modeHelp[mode]}>
-          <Segmented size="md" label="Values" value={mode} options={modeOptions} onChange={setMode} />
+        <Setting label={text('values')} help={text(modeHelp[mode])}>
+          <Segmented size="md" label={text('values')} value={mode} options={modeOptions()} onChange={setMode} />
         </Setting>
-        <Setting label="Columns">
+        <Setting label={text('columns')}>
           <ColumnPicker fields={fields} columns={columns} onChange={setColumns} />
         </Setting>
         <p role="status" className="text-muted-foreground">
-          Exports {rows}.{overLimit && ` A file holds at most ${formatInt(limit)} rows; the rest are left out.`}
+          {text('exports', rows)}
+          {overLimit && text('overLimit', formatInt(limit))}
         </p>
       </div>
     </ResponsiveDialog>
@@ -168,12 +167,12 @@ export const ExportDialog = ({ plural, view, fields, initialColumns, count, sele
 export const ExportProgressDialog = ({ plural, done, total, onCancel }: { plural: string; done: number; total?: number; onCancel: () => void }) => {
   const share = total ? Math.min(1, done / total) : undefined
   return (
-    <ResponsiveDialog title={`Exporting ${plural.toLowerCase()}`} open onClose={onCancel} actions={<Button onClick={onCancel}>Cancel</Button>}>
+    <ResponsiveDialog title={text('exporting', plural)} open onClose={onCancel} actions={<Button onClick={onCancel}>{text('cancel')}</Button>}>
       <div className="flex flex-col gap-2 text-[13px]">
-        <div role="progressbar" aria-label="Rows exported" aria-valuemin={0} aria-valuemax={total} aria-valuenow={done} className="h-1.5 overflow-hidden rounded-full bg-muted">
+        <div role="progressbar" aria-label={text('rowsExported')} aria-valuemin={0} aria-valuemax={total} aria-valuenow={done} className="h-1.5 overflow-hidden rounded-full bg-muted">
           <div className="h-full rounded-full bg-primary transition-[width]" style={{ width: `${(share ?? 0) * 100}%` }} />
         </div>
-        <p className="text-muted-foreground">{total ? `${formatInt(done)} of ${formatInt(total)} rows` : `${formatInt(done)} rows`}</p>
+        <p className="text-muted-foreground">{total ? text('doneOf', formatInt(done), formatInt(total)) : text('done', formatInt(done))}</p>
       </div>
     </ResponsiveDialog>
   )
