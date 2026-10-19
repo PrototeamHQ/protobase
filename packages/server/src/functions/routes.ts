@@ -1,6 +1,7 @@
 import { Hono, type ErrorHandler } from 'hono'
 import { cors } from 'hono/cors'
 import type { Db } from '@protobase/query'
+import { runInBackground } from '../background-work'
 import { forbidden, notFound } from '../problem'
 import type { Authenticator, Session } from '../types'
 import { invokeFunction, type ApiFunction, type FunctionCaller, type FunctionContext, type PublicFunctionContext } from './define-function'
@@ -30,7 +31,8 @@ const requireRoles = (name: string, session: Session, roles?: string[]) => {
 
 /**
  * Every function at `<basePath>/<name>` and below, any method. A protected function authenticates the request first, so
- * a call without a valid token is the authenticator's 401 problem; a public one gets the caller only when it asks.
+ * a call without a valid token is the authenticator's 401 problem; a public one gets the caller only when it asks. Each
+ * call runs as background work, so calls that hold the database for long leave a connection to page requests.
  */
 export const functionRoutes = ({ basePath, functions, authenticate, db, records, onError }: FunctionRoutesInput) => {
   const app = new Hono().basePath(basePath)
@@ -44,7 +46,7 @@ export const functionRoutes = ({ basePath, functions, authenticate, db, records,
     const prefix = `${basePath}/${name}`
     const { options } = fn
     if (options.cors) app.use(`/${name}/*`, cors(options.cors))
-    app.all(`/${name}/*`, async (c) => {
+    app.all(`/${name}/*`, (c) => runInBackground(async () => {
       const request = relativeRequest(c.req.raw, prefix)
       if (options.public) {
         let caller: Promise<FunctionCaller> | undefined
@@ -55,7 +57,7 @@ export const functionRoutes = ({ basePath, functions, authenticate, db, records,
       requireRoles(name, caller.session, options.roles)
       const context: FunctionContext = { name, db, ...caller, caller: async () => caller }
       return invokeFunction(name, fn, request, context)
-    })
+    }))
   }
   app.all('/*', (c) => {
     throw notFound(`There is no function at ${c.req.path}`)

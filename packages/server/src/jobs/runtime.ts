@@ -1,6 +1,7 @@
 import { sql } from 'kysely'
 import { PgBoss } from 'pg-boss'
 import type { Db } from '@protobase/query'
+import { runInBackground } from '../background-work'
 import { platformMailer } from '../mail/platform-mailer'
 import type { Mailer } from '../mail/smtp-mailer'
 import { clearCurrentJobs, setCurrentJobs, type JobsEnqueuer } from './current'
@@ -107,11 +108,12 @@ export const startJobs = async ({ db, jobs, work = true, pollSeconds = 2, shutdo
       definition.name,
       { batchSize: 1, localConcurrency: concurrency, pollingIntervalSeconds: pollSeconds, includeMetadata: true, perJobResults: true },
       // The definition as it is now, so a dev server's reloaded `run` takes the next job.
-      async ([job]) => {
+      // As background work, so jobs that hold the database for long leave a connection to page requests.
+      async ([job]) => runInBackground(async () => {
         const current = definitions.get(definition.name) ?? definition
         if (current.options.schedule !== undefined && job!.singletonKey === scheduleKey) await schedules.following(current, job!.startAfter)
         return [await runJob(current, job!, db, mail)]
-      },
+      }),
     )
     workers.set(definition.name, { id, concurrency })
   }
