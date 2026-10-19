@@ -6,8 +6,11 @@ import { usePermissions } from '../meta-gate'
 import { can } from '../permissions'
 import { BoardColumnView } from './board-column'
 import { columnsAllowed } from './board-allowed'
-import { boardCard, boardColumns, boardRank, type BoardDisplayModel } from './board-columns'
+import { Problem } from '../pages/problem'
+import { useProjectUi } from '../pages/project-ui'
+import { boardCard, boardColumns, boardRank, type BoardColumn, type BoardDisplayModel } from './board-columns'
 import { cardCoordinates, collision, columnId } from './board-dnd'
+import { dropWrite } from './board-drop'
 import { placedRows, type BoardPlace } from './board-place'
 import type { ListDisplayRow } from './list-displays'
 import { RecordCard } from './record-card'
@@ -38,21 +41,30 @@ const placeOver = (over: Over, row: ListDisplayRow): BoardPlace | undefined => {
 /**
  * A column per value of the board's enum field, each loading its own records through the list API, with their count.
  * When the list's `drag.board` is on, a card dragged, or moved with the keyboard, to another column saves the record
- * with that column's value. When the resource has a position, its records ordered as one, the columns are in its order,
+ * with that column's value; when it names a board drop of the UI config, only between the columns it names, each
+ * running its own write. When the resource has a position, its records ordered as one, the columns are in its order,
  * and when `drag.rank` is on a card is dropped at a place: the up and down arrow keys move it within its column, and
  * the drop renumbers the cards before it. Each change says so with **Undo**.
  */
 export const BoardDisplay = ({ model, view, display, fields, filter, orderBy, limit }: BoardProps) => {
-  const columns = columnsAllowed(filter, display.by, boardColumns(model, view, display))
+  const every = boardColumns(model, view, display)
+  const columns = columnsAllowed(filter, display.by, every)
   const card = boardCard(model, view, display)
   const permissions = usePermissions(model.name)
+  const { boardDrops } = useProjectUi()
   const drag = view?.list?.drag
-  const movable = drag?.board === true && can(permissions, 'update') && !model.fields[display.by]?.readOnly
+  const dropName = typeof drag?.board === 'string' ? drag.board : undefined
+  const drop = dropName === undefined ? undefined : boardDrops?.[dropName]
+  // Whether a card moves in or out of a column: any with `board: true`, else those the named board drop lists
+  const takes = (value: string | null) =>
+    can(permissions, 'update') && (drag?.board === true ? !model.fields[display.by]?.readOnly : drop !== undefined && dropWrite(drop, value) !== undefined)
+  const movable = columns.some((column) => takes(column.value))
   const rank = boardRank(model)
   // Changing the order takes the same right as sorting the list by hand
   const placeable = drag?.rank === true && rank !== undefined && listHandOrder(model, permissions) !== undefined
   const columnOrder = rank ? `${rank} asc` : orderBy
-  const { moves, move } = useBoardMove(model, display.by, rank)
+  const labelOf = (value: string | null) => every.find((column) => column.value === value)?.label ?? String(value)
+  const { moves, move } = useBoardMove({ model, by: display.by, rank, drop, labelOf })
   const [active, setActive] = useState<ListDisplayRow | undefined>()
   // The click that ends a drag with a mouse lands on the card's link, which must not open the record
   const dragged = useRef(false)
@@ -62,10 +74,12 @@ export const BoardDisplay = ({ model, view, display, fields, filter, orderBy, li
     // Enter opens the card's record, so only Space picks a card up
     useSensor(KeyboardSensor, { keyboardCodes: { start: ['Space'], cancel: ['Escape'], end: ['Space', 'Enter'] }, coordinateGetter: cardCoordinates }),
   )
+  if (dropName !== undefined && !drop) return <Problem>No board drop is registered as {dropName}. Give it in boardDrops in protobase.ui.tsx, or load the plugin that provides it.</Problem>
 
   const title = (row: ListDisplayRow) => String(row.labels[card.title!] ?? row.record[card.title!] ?? row.key)
   const columnOf = (id: unknown) => columns.find((column) => columnId(column.value) === id)
   const valueOf = (row: ListDisplayRow) => (row.record[display.by] ?? null) as string | null
+  const crosses = (row: ListDisplayRow, to: BoardColumn) => takes(valueOf(row)) && takes(to.value)
   const announced = (row: ListDisplayRow, over: Over | null) => {
     if (!over) return { over: 'no column' }
     const place = placeable ? placeOver(over, row) : undefined
@@ -73,12 +87,17 @@ export const BoardDisplay = ({ model, view, display, fields, filter, orderBy, li
     const count = place.rows.some((entry) => entry.key === row.key) ? place.rows.length : place.rows.length + 1
     return { over: `${place.column.label}, place ${place.index + 1} of ${count}`, place: `${place.column.label}, place ${place.index + 1}` }
   }
+  // Whether a drop on `over` takes the card to a column it may not move to
+  const refused = (row: ListDisplayRow, over: Over) => {
+    const target = (placeable ? placeOver(over, row)?.column : undefined) ?? columnOf(over.id)
+    return target !== undefined && target.value !== valueOf(row) && !crosses(row, target)
+  }
   const announcements: Announcements = {
     onDragStart: ({ active: picked }) => `Picked up ${title(picked.data.current!.row)}.`,
     onDragOver: ({ active: picked, over }) => `${title(picked.data.current!.row)} is over ${announced(picked.data.current!.row, over).over}.`,
     onDragEnd: ({ active: picked, over }) => {
       const row = picked.data.current!.row as ListDisplayRow
-      if (!over) return `${title(row)} was put back.`
+      if (!over || refused(row, over)) return `${title(row)} was put back.`
       const said = announced(row, over)
       return `${title(row)} was moved to ${said.place ?? said.over}.`
     },
@@ -97,12 +116,14 @@ export const BoardDisplay = ({ model, view, display, fields, filter, orderBy, li
     const place = placeable ? placeOver(over, row) : undefined
     if (!place) {
       const target = columnOf(over.id)
-      if (target && target.value !== valueOf(row) && movable) move(row, target)
+      if (target && target.value !== valueOf(row) && crosses(row, target)) move(row, target)
       return
     }
     const from = place.rows.findIndex((entry) => entry.key === row.key)
     // A card the user may not move to another column goes back
-    if (from === -1 && !movable) return
+    if (from === -1 && !crosses(row, place.column)) return
+    // A board drop's write decides where the card lands in another column, so it has no place there
+    if (from === -1 && drop) return move(row, place.column)
     if (from === place.index) return
     const order = placedRows(place.rows, row, place.index)
     move(row, place.column, { order, first: from === -1 ? place.index : Math.min(from, place.index), last: from === -1 ? place.index : Math.max(from, place.index) })
@@ -144,7 +165,7 @@ export const BoardDisplay = ({ model, view, display, fields, filter, orderBy, li
               orderBy={columnOrder}
               limit={limit}
               moves={moves}
-              movable={movable}
+              movable={takes(column.value)}
               placeable={placeable}
               dragged={() => dragged.current}
             />

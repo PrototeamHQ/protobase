@@ -26,7 +26,7 @@ type ColumnProps = {
   limit?: number
   column: BoardColumn
   moves: BoardMove[]
-  /** Whether the user may move a card to another column, and whether to another place: that of the card it is dropped on. */
+  /** Whether the user may move a card of this column to another, and whether to another place: that of the card it is dropped on. */
   movable: boolean
   placeable: boolean
   dragged: () => boolean

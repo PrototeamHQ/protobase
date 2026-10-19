@@ -638,8 +638,12 @@ export type ListDragModel = {
    * move by dragging them, at any time, rather than after **Reorder**.
    */
   rank?: boolean
-  /** Moving a board's card to another column, which saves its record with that column's value. */
-  board?: boolean
+  /**
+   * Moving a board's card to another column: `true` saves its record with that column's value; the name of a board drop
+   * in the UI config's `boardDrops` lets cards move only between the columns it names, each drop running its write, which
+   * works when the board's field is read-only, such as one the database computes.
+   */
+  board?: boolean | string
   /**
    * Where the table's rows may land when re-ranked: the name of a drop rule in the UI config's `dropRules`. A drop where
    * it refuses lands in the first place below that it allows, with a warning saying why.

@@ -48,7 +48,7 @@ const around = (wrappers: ComponentType<BeforeSignInProps>[]): ComponentType<Bef
 
 /**
  * One UI config from several, each after the ones it `extends`, the last being the app's own: components, action
- * handlers, field types and drop rules are all kept, and one name defined by two configs is an error naming both; every shell slot
+ * handlers, field types, drop rules and board drops are all kept, and one name defined by two configs is an error naming both; every shell slot
  * and `beforeSignIn` component is drawn, the extended configs' first, except the logo, the last config's to set one.
  */
 export const mergeUi = (...uis: ProjectUi[]): ProjectUi => {
@@ -57,6 +57,7 @@ export const mergeUi = (...uis: ProjectUi[]): ProjectUi => {
   const actions = union('The action handler', named, (ui) => ui.actions)
   const fields = union('The field type', named, (ui) => ui.fields)
   const dropRules = union('The drop rule', named, (ui) => ui.dropRules)
+  const boardDrops = union('The board drop', named, (ui) => ui.boardDrops)
   const actionSlot = slot(named.flatMap(({ ui }) => (ui.shell?.actions ? [ui.shell.actions] : [])))
   const rightPanel = slot(named.flatMap(({ ui }) => (ui.shell?.rightPanel ? [ui.shell.rightPanel] : [])))
   const logo = named.findLast(({ ui }) => ui.shell?.logo)?.ui.shell?.logo
@@ -68,6 +69,7 @@ export const mergeUi = (...uis: ProjectUi[]): ProjectUi => {
     actions,
     ...(Object.keys(fields).length > 0 && { fields }),
     ...(Object.keys(dropRules).length > 0 && { dropRules }),
+    ...(Object.keys(boardDrops).length > 0 && { boardDrops }),
     ...((actionSlot || rightPanel || logo) && { shell: { ...(actionSlot && { actions: actionSlot }), ...(rightPanel && { rightPanel }), ...(logo && { logo }) } }),
     ...(beforeSignIn && { beforeSignIn }),
   }

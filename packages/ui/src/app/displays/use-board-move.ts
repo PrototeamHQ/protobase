@@ -7,6 +7,7 @@ import { useToast } from '../../toasts'
 import { undoOps, type DragWrite } from '../hand-order/undo-ops'
 import { useRefreshResource } from '../pages/use-layout-data'
 import { refusalReason, type BoardColumn } from './board-columns'
+import { dropWrite, type BoardDrop } from './board-drop'
 import { boardWrites, placeOps } from './board-place'
 import type { ListDisplayRow } from './list-displays'
 import { text } from './messages'
@@ -22,14 +23,29 @@ export type BoardPlacing = { order: ListDisplayRow[]; first: number; last: numbe
 
 type Move = { row: ListDisplayRow; to: BoardColumn; place?: BoardPlacing }
 
+// What a move saved: the column its record is in now, and what undoes it, when it can be undone
+type Saved = { landed: string | null; undo?: () => Promise<unknown> }
+
+type Options = {
+  model: ResourceModel
+  by: string
+  rank?: string | undefined
+  /** The board's own writes for a card dropped on another column, in place of saving `by`. */
+  drop?: BoardDrop | undefined
+  /** The heading of the column of a value. */
+  labelOf: (value: string | null) => string
+}
+
 /**
  * Moving a board's card to another column: one update of the record with the column's value and the ETag it was listed
  * with, as a named update action sends, so the resource's access rules and `validate` decide. On a ranked board a drop
  * at a place is one batch instead, that update when the column changes and a `reorder` by `rank` of the column's cards.
- * The card shows in its new place at once; a saved move says so with **Undo**, which puts back the values it changed,
- * and a refusal puts it back and says why. Either way every list of the resource reloads.
+ * With the board's `drop`, a card dropped on another column runs that column's write instead, and then reads the record
+ * again to say which column it is in now. The card shows in its new place at once; a saved move says so with **Undo**,
+ * which puts back the values it changed or runs the undo the drop's write gave, and a refusal puts it back and says why.
+ * Either way every list of the resource reloads, which puts the card where its record now is.
  */
-export const useBoardMove = (model: ResourceModel, by: string, rank?: string) => {
+export const useBoardMove = ({ model, by, rank, drop, labelOf }: Options) => {
   const client = useClient()
   const toast = useToast()
   const refresh = useRefreshResource()
@@ -40,27 +56,49 @@ export const useBoardMove = (model: ResourceModel, by: string, rank?: string) =>
   const fields = rank ? [by, rank] : [by]
 
   const undo = useMutation({
-    mutationFn: (writes: DragWrite[]) => client.batchWrite(undoOps(model, writes, fields)),
+    mutationFn: (undoing: () => Promise<unknown>) => undoing(),
     onError: (error) => toast.show({ state: 'error', title: text('couldNotUndo'), description: refusalReason(error) }),
     onSettled: () => refresh(model.name),
   })
 
+  // A drop on a column of the board's `drop`: its write, then the record read again for the column it is in now
+  const dropped = async (row: ListDisplayRow, to: BoardColumn): Promise<Saved> => {
+    const write = drop && dropWrite(drop, to.value)
+    if (!write) throw new Error(`The column ${to.label} takes no cards`)
+    const key = recordKey(model, row.record) as KeyValue
+    const etag = typeof row.record.etag === 'string' ? row.record.etag : '*'
+    const undoing = await write({ resource: model.name, record: row.record, recordKey: key, etag, to: to.value!, client })
+    const stored = await client.get(model.name, key)
+    return { landed: (stored.record[by] ?? null) as string | null, ...(undoing && { undo: undoing }) }
+  }
+
+  // The values a move or placing saved, which its undo puts back
+  const saved = (writes: DragWrite[], to: BoardColumn): Saved => ({ landed: to.value, undo: () => client.batchWrite(undoOps(model, writes, fields)) })
+
   const mutation = useMutation({
-    mutationFn: async ({ row, to, place }: Move): Promise<DragWrite[]> => {
+    mutationFn: async ({ row, to, place }: Move): Promise<Saved> => {
       if (place && !rank) throw new Error('A board places a card only by its rank')
-      if (place) return boardWrites(model, place.order, await client.batchWrite(placeOps(model, by, rank!, row, to, place.order, place.first, place.last)))
+      const from = (row.record[by] ?? null) as string | null
+      if (drop && to.value !== from) return dropped(row, to)
+      if (place) return saved(boardWrites(model, place.order, await client.batchWrite(placeOps(model, by, rank!, row, to, place.order, place.first, place.last))), to)
       const etag = typeof row.record.etag === 'string' ? row.record.etag : '*'
       const stored = await client.update(model.name, recordKey(model, row.record) as KeyValue, { [by]: to.value }, etag)
-      return [{ before: row.record, record: stored.record, etag: stored.etag }]
+      return saved([{ before: row.record, record: stored.record, etag: stored.etag }], to)
     },
     onMutate: ({ row, to, place }) => {
       const moved = { ...row, record: { ...row.record, [by]: to.value } }
       const order = place?.order.map((entry) => entry.key)
       setMoves((current) => [...current.filter((move) => move.row.key !== row.key), { row: moved, to: to.value, ...(order && { order }) }])
     },
-    onSuccess: (writes, { row, to }) => {
+    onSuccess: ({ landed, undo: undoing }, { row, to }) => {
       if (undoToast.current !== undefined) toast.dismiss(undoToast.current)
-      const title = (row.record[by] ?? null) === to.value ? text('orderChanged') : text('movedTo', to.label)
+      undoToast.current = undefined
+      const from = row.record[by] ?? null
+      const title = landed !== from ? text('movedTo', labelOf(landed)) : from === to.value ? text('orderChanged') : text('stayedIn', labelOf(landed))
+      if (!undoing) {
+        toast.show({ state: 'success', title })
+        return
+      }
       const id = toast.show({
         state: 'success',
         title,
@@ -69,7 +107,7 @@ export const useBoardMove = (model: ResourceModel, by: string, rank?: string) =>
           onClick: () => {
             toast.dismiss(id)
             undoToast.current = undefined
-            undo.mutate(writes)
+            undo.mutate(undoing)
           },
         },
       })

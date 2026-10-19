@@ -207,6 +207,7 @@ Nothing in a list moves by dragging unless its `.list(...)` says so with `drag`,
 | --- | --- |
 | `rank: true` | The records of a resource with a [`.position(...)`](#reordering-by-hand) and no `within`, at any time: the table's rows by their handles while the list shows every record in the position's order, ascending, without a filter or search, instead of after **Reorder**; and a [board's](#boards) cards to their place in a column. |
 | `board: true` | A board's card to another column, which saves the record with that column's value. |
+| `board: 'name'` | A board's card between the columns the board drop of that name in the UI config's `boardDrops` lists, each running its own write. See [Board drops](#board-drops). |
 | `rule: 'name'` | Where the table's rows may land when re-ranked, by **Reorder** or `rank`: the drop rule of that name in the UI config's `dropRules`. See [Drop rules](#drop-rules). |
 
 ```ts
@@ -234,6 +235,27 @@ export default defineUi({
 ```
 
 The list names it with `drag: { rank: true, rule: 'afterWhatItWaitsFor' }`. A drop the rule refuses lands in the first place below that it allows, and a warning says where with the rule's reason; with no such place the row stays where it was, with the same warning. The rule only guides the drag: the server's access rules and `validate` still decide what is saved. A list naming a rule the UI config does not register says so in place of its rows.
+
+#### Board drops
+
+Some boards are by a field that cannot be written, such as a status the database computes from other records. A board drop, in `protobase.ui.tsx` under `boardDrops`, says which columns take a card and what a drop on each writes instead: by the column's value, a function that gets the card's record as listed, its key and ETag, the column's value as `to`, and the API `client`. It resolves a function that undoes the write, or nothing when it cannot be undone:
+
+```tsx
+export default defineUi({
+  boardDrops: {
+    decide: {
+      approved: async ({ record, client }) => {
+        const created = await client.create('decisions', { quote_id: record.id, verdict: 'approve' })
+        return async () => {
+          await client.remove('decisions', created.record.id as number)
+        }
+      },
+    },
+  },
+})
+```
+
+The list names it with `drag: { board: 'decide' }`, which works when `by` is read-only. A card moves only from and to the columns the board drop lists: one in another column stays in it, as does a card dropped on another column, or on the column of records without a value. After the write the record is read again, and the card lands in the column its value now puts it in, which may not be the one it was dropped on; the toast says which, with **Undo** when the write gave an undo. A refused write puts the card back with the reason. Moving a card still takes the right to update the resource and the record, and on a ranked board a card dropped in another column lands where its rank puts it. A list naming a board drop the UI config does not register says so in place of its board.
 
 ## A filter the list opens with
 
@@ -342,7 +364,7 @@ export const repairsView = daily
 | --- | --- |
 | `d.cards({ image?, title?, subtitle?, amount?, badge?, meta?, footer?, flags?, dots? }, { name?, label?, icon?, card?, photos?, favorite? })` | A card per record, opening it: `image`, a [file field](files.md)), as a picture across the card's top (a raster image; anything else leaves the frame empty), then `title` (default: the view's `.title`) over `subtitle`, `badge` drawn as a badge with its value labels, `amount` the first of its fields with a value in bold (its suffix, such as ` /month`, not), such as a purchase price or else a rent, and a few small `meta` fields such as dates, each only when it has a value, after its field's `.icon` and as a badge when its field's format is `badge`. `footer` is a line at the card's bottom of its fields with a value, joined by bullets, such as a place and an agent. `flags` are boolean fields shown as small badges of their labels when true, such as a garden or parking. `dots` are [related columns](#related-records-in-a-list) of the list, each a line of its dots at the card's bottom. A relation shows the name of the record it points at. With `card`, a component declared with `component('RepairCard')` draws each card's content from the row of those fields instead (see [Record cards](custom-components.md#record-cards))). With `photos`, the picture steps through more photos, by swipe or arrows (see [Card photos](#card-photos)). With `favorite`, a heart in the card's top right corner saves the record (see [Favorites](#favorites)). Named `cards` unless `name` says otherwise. |
 | `d.map({ latitude, longitude, approximate?, exact?, radius?, area? }, { name?, label?, icon?, cards?, defaultRadius? })` | The matching records in the map's view, with how many there are below it; it asks again as it pans and zooms, through the list API's [`:map`](api.md#maps)). From far out it shows a count for each part of the map, which zooms in when chosen; close in, or with few records in view, the records themselves. Nearby records share a marker with their count; choosing one shows the record's card at the map's bottom, with arrows through the marker's records, and choosing the map elsewhere or closing the card clears it. The card is the one of the cards display `cards` names, else the list's first cards display, else the record's title. A record at an approximate position has a hollow marker and the area around it; see [Approximate positions](#approximate-positions). Named `map` unless `name` says otherwise. See [Maps](#maps). |
-| `d.board({ by, title?, subtitle?, badge?, meta? }, { name?, label?, icon? })` | A column per value of the enum field `by`, each with how many records have it, and a card per record that opens it: `title` (default: the view's `.title`) over `subtitle`, with `badge` and a few small `meta` fields, as the built-in card of `d.cards` draws them. With the list's `drag: { board: true }`, dragging a card to another column, or moving it with the keyboard, saves the record with that column's value; with `drag: { rank: true }`, cards are reordered within a column when the resource has a `.position()`. Named `board` unless `name` says otherwise. See [Boards](#boards). |
+| `d.board({ by, title?, subtitle?, badge?, meta? }, { name?, label?, icon? })` | A column per value of the enum field `by`, each with how many records have it, and a card per record that opens it: `title` (default: the view's `.title`) over `subtitle`, with `badge` and a few small `meta` fields, as the built-in card of `d.cards` draws them. With the list's `drag: { board: true }`, dragging a card to another column, or moving it with the keyboard, saves the record with that column's value, or with `drag: { board: 'name' }` runs that [board drop](#board-drops)'s write; with `drag: { rank: true }`, cards are reordered within a column when the resource has a `.position()`. Named `board` unless `name` says otherwise. See [Boards](#boards). |
 | `d.calendar({ start, end?, title? }, { name?, label?, icon? })` | The records on the days from their date or timestamp field `start` to `end`, or on their start day alone, in a month grid or a week grid, each event a link to its record showing `title` (default: the view's `.title`). Dragging an event to another day, or moving it with the keyboard, saves the record with `start` and `end` moved by the same days. Named `calendar` unless `name` says otherwise. See [Calendars](#calendars). |
 | `d.timeline({ start, end?, group?, title? }, { name?, label?, icon? })` | A Gantt-style timeline: each record a row with a bar from its date or timestamp field `start` to `end`, or on its start day alone, over a week, a month or a quarter, in lanes by the values of `group`. Each bar is a link to its record showing `title` (default: the view's `.title`). Dragging a bar along its row, or moving it with the keyboard, saves the record with `start` and `end` moved by the same days. Named `timeline` unless `name` says otherwise. See [Timelines](#timelines). |
 | `d.custom(Component, { name, label, fields, props?, icon? })` | The rows drawn by a [custom component](custom-components.md#list-displays)). `fields` are the fields it shows, loaded with the names of the records relations point at; `props` are plain data, with `r.field` where it takes a field. |

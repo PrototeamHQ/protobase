@@ -40,6 +40,14 @@ describe('mergeUi', () => {
     expect(() => mergeUi(defineUi({ name: 'a', dropRules: { first } }), defineUi({ name: 'b', dropRules: { first: last } }))).toThrow('The drop rule "first" is defined twice, by a and by b; rename one of them')
   })
 
+  it('keeps every board drop, refusing a name defined twice', () => {
+    const lanes = { doing: async () => undefined }
+    const stages = { done: async () => undefined }
+    expect(mergeUi(defineUi({ extends: [defineUi({ boardDrops: { lanes } })], boardDrops: { stages } })).boardDrops).toEqual({ lanes, stages })
+    expect(mergeUi(defineUi({ components: {} }))).not.toHaveProperty('boardDrops')
+    expect(() => mergeUi(defineUi({ name: 'a', boardDrops: { lanes } }), defineUi({ name: 'b', boardDrops: { lanes: stages } }))).toThrow('The board drop "lanes" is defined twice, by a and by b; rename one of them')
+  })
+
   it('extends a whole protobase.ui.tsx module, its components exported by name included', () => {
     const Board = text('board')
     const merged = mergeUi(defineUi({ name: 'app', extends: [{ Board, default: cloud }] }))
