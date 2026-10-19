@@ -80,9 +80,31 @@ await setUserBanned(auth, { email, banned })                 // banning ends the
 await deleteUser(auth, email)                                // with sessions and accounts
 ```
 
-The last active admin cannot be deleted, demoted or banned: those functions throw instead, so every caller is protected. An account created by `createUser` or an admin counts as having a verified address, since whoever created it vouches for it; that lets it sign in with an [emailed code](#emailed-sign-in-codes).
+The last active admin cannot be deleted, demoted or banned: those functions throw instead, and Better Auth's admin endpoints answer `400 LAST_ADMIN`, so every caller is protected. An account created by `createUser` or an admin counts as having a verified address, since whoever created it vouches for it; that lets it sign in with an [emailed code](#emailed-sign-in-codes).
 
-Until a user exists sign-in fails, and `GET /api/auth/status` (public) answers `{ "needsAdmin": true, "signInMethods": ["password", "passkey"], "passwordReset": false, "socialProviders": [] }` so a login page can say what to do. `signInMethods` lists the ways to sign in the [sign-in policy](#sign-in-policy) leaves on (`password`, `emailCode`, `passkey`), `passwordReset` is whether [reset mail](#password-reset) can be sent and passwords are on, `signUp`, when there, says anyone can [make an account](#open-sign-up), and `staffSignIn`, when there, names the provider of [staff sign-in](#staff-sign-in). Further users are created by an admin with Better Auth's `POST /api/auth/admin/create-user`, or with `createUser` on the host. The auth store holds a connection pool; scripts that call these functions end the process themselves.
+Until a user exists sign-in fails, and `GET /api/auth/status` (public) answers `{ "needsAdmin": true, "signInMethods": ["password", "passkey"], "passwordReset": false, "socialProviders": [] }` so a login page can say what to do. `signInMethods` lists the ways to sign in the [sign-in policy](#sign-in-policy) leaves on (`password`, `emailCode`, `passkey`), `passwordReset` is whether [reset mail](#password-reset) can be sent and passwords are on, `signUp`, when there, says anyone can [make an account](#open-sign-up), and `staffSignIn`, when there, names the provider of [staff sign-in](#staff-sign-in). Further users are created by an admin on the [Users page](#users-page), or with `createUser` on the host. The auth store holds a connection pool; scripts that call these functions end the process themselves.
+
+## Users page
+
+Admins manage accounts without the command line on the Users page, an ordinary [composed page](layouts.md)) the config imports: everyone who can sign in, found by address, with their roles to tick, Block and Unblock, inviting someone by email, and adding an account directly.
+
+```ts
+// config/index.ts
+export { usersPage } from '@protobase/layout'      // at /accounts, for admins
+// config/user-menu.ts
+export const accountMenu = userMenu((m) => [m.page('accounts', { label: 'Users', icon: 'users' })])
+```
+
+New apps have it already. Leave the export out to drop it, or make a page of your own around the [`Users` block](blocks.md#users)). It works with or without [organizations](#organizations): an invitation to the app makes an account with the roles the admin ticked, from the same link page and sign-up as an organization's invitation, and someone with an account just signs in. Listing, creating, roles and blocking are Better Auth's admin endpoints (`/api/auth/admin/list-users`, `create-user`, `set-role`, `ban-user`, `unban-user`), whose roles go as a list; the rest are Protobase's, for admins only:
+
+| Endpoint | Does |
+| --- | --- |
+| `POST /api/auth/users/invite` | `{ email, roles }`: invites an address without an account, for 7 days (`invitationDays` with organizations). Inviting it again replaces the invitation. Without a mailer the answer carries the `link` to pass on. |
+| `GET /api/auth/users/invitations` | The pending invitations to the app: `{ invitations: [{ id, email, roles, expiresAt }] }`. |
+| `POST /api/auth/users/invitations/cancel` | `{ id }`: revokes one, so its link stops working. |
+| `GET /api/auth/users/roles` | Every role with its label, to choose from. |
+
+An invitation to the app is a row of Better Auth's `verification` table, so it needs no table of its own. The client has these as `session.users`.
 
 ## Password reset
 
@@ -122,7 +144,7 @@ With mail configured, the sign-in page offers "Email me a sign-in code": the per
 
 ## Open sign-up
 
-Off by default: accounts come from the host, an admin, an [invitation](#organizations) or a [sign-in provider](#sign-in-with-github). An app where anyone may make an account, such as a public portal whose visitors save searches, turns it on with the role new accounts get:
+Off by default: accounts come from the host, an admin, an [invitation](#users-page) to the app or to an [organization](#organizations), or a [sign-in provider](#sign-in-with-github). An app where anyone may make an account, such as a public portal whose visitors save searches, turns it on with the role new accounts get:
 
 ```ts
 createAuth({ ..., roles: ['admin', 'member'], signUp: { role: 'member' } })
@@ -372,9 +394,9 @@ It is Better Auth's organization plugin, with its tables named in snake_case (`o
 
 **Who gives which role.** Someone may give or take away a member's app role only if they hold it, in that organization or globally, or hold a role whose `grants` list it (`manager` above gives `accountant` without holding it); grants do not chain, and a superuser may give any. Only a superuser changes global roles. The creator of an organization becomes its owner with every app role (`creatorAppRoles`, default `'all'`), so they can give them on; for a role added later, list it in a role owners hold, or run `protobase organizations add-app-role <role> --to owners`.
 
-**The organization in the token.** A new session starts in the organization the person last worked in, else their oldest membership. `/api/auth/token` adds `org` (the organization), `org_role` and `app_roles` (the membership's, narrowed to the active role), read when the token is issued, so a removed member or a changed role shows within its 15 minutes. `betterAuthAuthenticator` makes `org` the tenant and `ctx.organization.id`, and adds `app_roles` to the global roles. `POST /api/auth/organization/switch` with `{ organizationId }` moves the session; the next token names the new organization, without signing in again. Someone with a global role may switch into any organization, without being a member, and sees there what those roles allow; each such entry is an `organization.entered` [audit event](api.md#audit-events)). `GET /api/auth/organization/search?query=` finds organizations for them. A list across organizations stays a resource without `.tenant`, readable by the global role.
+**The organization in the token.** A new session starts in the organization the person last worked in, else their oldest membership. `/api/auth/token` adds `org` (the organization), `org_role` and `app_roles` (the membership's, narrowed to the active role), read when the token is issued, so a removed member or a changed role shows within its 15 minutes. `betterAuthAuthenticator` makes `org` the tenant and `ctx.organization.id`, and adds `app_roles` to the global roles. `POST /api/auth/organization/switch` with `{ organizationId }` moves the session; the next token names the new organization, without signing in again. Someone with a global role may switch into any organization, without being a member, and sees there what those roles allow; each such entry is an `organization.entered` [audit event](api.md#audit-events)). `GET /api/auth/organization/search?query=&offset=` lists every organization for them, ordered by slug, 20 at a time with the `total`, narrowed by text in the name or slug; the Organizations page shows it as All organizations. A list across organizations stays a resource without `.tenant`, readable by the global role.
 
-**Invitations.** Better Auth's `POST /api/auth/organization/invite-member` with `{ organizationId, email, role, appRoles }`; inviting again replaces the earlier invitation, and it works for `invitationDays` (default 7). The email links to `{baseURL}/-/invitation?token=…` (`invitationUrl`), with a token signed with `secret`, since members can read invitation ids; without a mailer, the answer carries the `link` to pass on. The link page shows `GET /api/auth/invitation?token=`, accepts with `POST /api/auth/invitation/accept` for someone signed in as the invited address, and makes an account with `POST /api/auth/invitation/sign-up` (`{ token, name, password? }`) for an address without one. [Open sign-up](#open-sign-up) is not available with organizations: an invitation is the address someone vouched for.
+**Invitations.** Better Auth's `POST /api/auth/organization/invite-member` with `{ organizationId, email, role, appRoles }`; inviting again replaces the earlier invitation, and it works for `invitationDays` (default 7). The email links to `{baseURL}/-/invitation?token=…` (`invitationUrl`), with a token signed with `secret`, since members can read invitation ids; without a mailer, the answer carries the `link` to pass on. The link page shows `GET /api/auth/invitation?token=`, accepts with `POST /api/auth/invitation/accept` for someone signed in as the invited address, and makes an account with `POST /api/auth/invitation/sign-up` (`{ token, name, password? }`) for an address without one. The link page and its sign-up serve [invitations to the app](#users-page) too. [Open sign-up](#open-sign-up) is not available with organizations: an invitation is the address someone vouched for.
 
 **Members.** Better Auth's `list-members`, `update-member-role`, `remove-member` and `leave`; `POST /api/auth/organization/set-app-roles` (`{ memberId, appRoles }`); `POST /api/auth/organization/transfer-ownership` (`{ memberId, keepAs? }`) makes a member owner and the caller an admin in one step. `GET /api/auth/organization/current` answers the organization a session works in with the caller's roles there.
 

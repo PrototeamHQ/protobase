@@ -79,7 +79,7 @@ Record pages take the same conditions in the `when` of `l.section`, `l.related` 
 
 | Builder | Does |
 | --- | --- |
-| `a.update(name, { label, set, confirm?, icon? })` | Updates the record with `set`, with its ETag; not offered on a record that holds those values already. |
+| `a.update(name, { label, set, confirm?, icon?, inputs? })` | Updates the record with `set`, with its ETag; not offered on a record that holds those values already, unless it asks for `inputs`, whose answers it writes where `set` says `'{name}'`. |
 | `a.remove(name, { label, confirm?, icon? })` | Deletes the record (soft delete when the resource has one). |
 | `a.link(name, { label, to, icon? })` | Goes `to` an [address](#addresses) in the app, with `{field}` in its key, filter, order or create values replaced by the record's value. |
 | `a.link(name, { label, href, icon? })` | Opens an `href` that leaves the app (`https:`, `mailto:`), with `{field}` replaced by the record's value (percent-encoded); an `https:` or `http:` link opens in a new tab without the referrer. An `href` that is only a field, `'{website}'`, opens the URL the record holds, as it is: see [links to a record's URL](#links-to-a-records-url). A path in the app is refused when the config loads: give it as `to`. |
@@ -105,7 +105,7 @@ Every place in the app has an address, and the app writes and reads them in one 
 | Address | Is |
 | --- | --- |
 | `{ kind: 'list', resource, filter?, orderBy?, display? }` | A resource's list, with the filter, order and [display](ui-config.md#list-displays)) the list page would show. |
-| `{ kind: 'record', resource, key, edit? }` | One record; `key` is its value, or its parts for a composite key. `edit: true` is its form (`?edit=true`), on a view whose record page opens as a [read view or locked](ui-config.md#read-view-and-edit)). |
+| `{ kind: 'record', resource, key, edit?, open? }` | One record; `key` is its value, or its parts for a composite key. `edit: true` is its form (`?edit=true`), on a view whose record page opens as a [read view or locked](ui-config.md#read-view-and-edit)). `open` lists the titles of the record page's collapsed [groups](ui-config.md#groups)) that are open (`?open=<title>`, once per group). |
 | `{ kind: 'create', resource, values? }` | The form for a new record, with `values` filled in by field name, as text: `{ kind: 'create', resource: 'notes', values: { listing_id: '{id}' } }` on a listing's page starts a note about that listing. A relation shows the name of the record it points at. The values are a start the person can change, not a rule: what they may write is still up to the access rules. A view with a [create page](ui-config.md#create-pages)) shows that page here instead, with the values in the address. |
 | `{ kind: 'page', page }` | A composed page. |
 

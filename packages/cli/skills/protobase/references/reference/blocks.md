@@ -4,7 +4,7 @@
 
 Every built-in layout block, its props and what it does, with examples from the ERP's sales overview.
 
-Blocks are imported from `@protobase/layout`. "Record" below means the record of the `RecordCard` or `CardRow` card around a block (see [Data](layouts.md#data))); `filter` is AIP-160 and `sort` AIP-132, as in the list API. Every block below but `RecordRow`, which the property portal's home uses, appears in the ERP example's sales overview:
+Blocks are imported from `@protobase/layout`. "Record" below means the record of the `RecordCard` or `CardRow` card around a block (see [Data](layouts.md#data))); `filter` is AIP-160 and `sort` AIP-132, as in the list API. Every block below but `RecordRow`, which the property portal's home uses, and `Users`, which the [Users page](auth.md#users-page)) uses, appears in the ERP example's sales overview:
 
 ```tsx title="examples/erp/config/overview/page.tsx"
 /** @jsxImportSource @protobase/layout */
@@ -266,6 +266,7 @@ Counts, sums or averages of the records that match `filter`, per value of a fiel
 | --- | --- |
 | `resource`, `filter` | The records it counts. `resource` is required. |
 | `groupBy` | A filterable field. Values, such as an enum, a boolean or a relation (named by the related record), are ranked bars or a donut, each linking to its records; a date or timestamp field is a bar or line per bucket, empty ones included. Required. |
+| `splitBy` | With a date `groupBy`: a field of values that splits each bucket, as stacked bars or a line per value; its 8 largest values over the range, the rest as Other for a count or sum. An index must serve it. A stacked bar takes no average. |
 | `type` | `bar` (the default), `line` for a date `groupBy`, `donut` for one of values. |
 | `sum`, `average` | A numeric field each group adds up or averages, with its prefix, suffix and decimals, instead of counting. One of the two; a donut takes no average. |
 | `granularity`, `range` | A date `groupBy`'s bucket, `hour` to `year` (default `day`), and how far back it reaches: `7d`, `30d` (the default), `90d`, `1y` or `all`. |
@@ -276,6 +277,7 @@ Counts, sums or averages of the records that match `filter`, per value of a fiel
 <Chart title="Orders by status" resource="orders" groupBy="status" type="donut" />
 <Chart title="Revenue by customer" resource="orders" groupBy="company_id" sum="total" filter="status != 'cancelled'" limit={5} />
 <Chart title="Invoiced per month" resource="invoices" groupBy="issued_at" granularity="month" range="1y" type="line" sum="total" />
+<Chart title="Revenue per day by status" resource="orders" groupBy="created_at" splitBy="status" sum="total" />
 ```
 
 Each value takes its colour from the view's `valueColors`, else an enum value's place among its values, from the [chart tokens](theme.md#tokens)). A chart whose field the user cannot read is left out of their page, and a field it cannot group or add up stops the server at startup.
@@ -324,4 +326,16 @@ Its children while [`when`](layouts.md#conditions)) holds.
 <Show when="orders.count = 0">
   <Card title="No orders yet">...</Card>
 </Show>
+```
+
+## Accounts
+
+### Users
+
+Everyone who can sign in, for admins: find them by address, tick their roles, block or unblock them, invite someone by email and add an account. It takes no props or children. The [Users page](auth.md#users-page)) is a `Page` with it alone; a page of your own can put it beside other blocks, with `roles: ['admin']`, since the server refuses everyone else.
+
+```tsx
+<Page title="People">
+  <Users />
+</Page>
 ```

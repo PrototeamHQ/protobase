@@ -50,7 +50,7 @@ export const repairsView = view<typeof repairs>('repairs')
 | `.names({ singular, plural })` | "New repair", "Repairs" in the sidebar, breadcrumbs and browser tabs. Default: the resource name in words. |
 | `.title((r) => r.number)` | The field that names a record: in breadcrumbs, browser tabs, the record page's heading, relation links and search results. |
 | `.searchResult((r) => ({ title?, subtitle? }))` | A record in the [global search](client.md#global-search)): `title` is one field or several joined by spaces (`[r.first_name, r.last_name]`, default: `.title`), `subtitle` the line under it (default: the first search field not in the title), replaced by the search field the text matched when neither line shows it. |
-| `.list((r, d, c) => ({ columns, sort?, search?, editable?, displays?, default? }))` | The list's columns in order, fields or [related records](#related-records-in-a-list) (`c.related`); its starting `sort` as `[[field, 'asc' \| 'desc'], ...]`, on `.sortable()` fields; the fields the search box suggests, among the resource's `.search` fields, which decide what search matches on the server; the columns [edited in their cell](#editing-in-the-list); other ways to show it, see [List displays](#list-displays). `protobase build` fails on a sort or search field outside those. |
+| `.list((r, d, c) => ({ columns, sort?, search?, filter?, editable?, displays?, default? }))` | The list's columns in order, fields or [related records](#related-records-in-a-list) (`c.related`); the `filter` it [opens with](#a-filter-the-list-opens-with); its starting `sort` as `[[field, 'asc' \| 'desc'], ...]`, on `.sortable()` fields; the fields the search box suggests, among the resource's `.search` fields, which decide what search matches on the server; the columns [edited in their cell](#editing-in-the-list); other ways to show it, see [List displays](#list-displays). `protobase build` fails on a sort or search field outside those. |
 | `.fields((r) => ({ name: r.name.label(...) }))` | Hints per field, below. Calls add up. |
 | `.help(text)` | A line under the list's title. |
 | `.nav({ group, order, hidden, recent })` | Where the resource sits in the sidebar, and its [recent-record group](sidebar.md#recent-records)). |
@@ -69,7 +69,7 @@ Field hints:
 | --- | --- |
 | `.label(text)` | Instead of the name in words (`customer_id` would be "Customer" anyway). |
 | `.help(text, { when? })` | A line under the field on the record page and in forms. `when: 'editing'` shows it only while the record is edited; see [Help while editing](#help-while-editing). |
-| `.format(format)` | `badge` shows statuses as coloured badges, `code` sets identifiers in monospace, `percent` adds a % sign. On a text field, `email`, `phone` and `url` show the value as a link that writes to it (`mailto:`), calls it (`tel:`, its digits and a leading +) or opens it in a new tab (only an `http` or `https` address; anything else stays text), on the record page, in its sidebar and in the list's cells but the title's, which links to the record; forms edit it in an email, phone or web address input, which brings up the keyboard for it on a mobile screen and offers the browser's autofill. Another field type with one of them stops the server at startup. `relative`, `absolute` and `compact` are accepted and carried in `/meta` for apps that render their own lists; the admin does not use them yet. |
+| `.format(format)` | `badge` shows statuses as coloured badges, `code` sets identifiers in monospace, `percent` adds a % sign. On a text field, `email`, `phone` and `url` show the value as a link that writes to it (`mailto:`), calls it (`tel:`, its digits and a leading +) or opens it in a new tab (only an `http` or `https` address; anything else stays text), on the record page, in its sidebar and in the list's cells but the title's, which links to the record; forms edit it in an email, phone or web address input, which brings up the keyboard for it on a mobile screen and offers the browser's autofill. Another field type with one of them stops the server at startup. `relative` on a timestamp shows it as "5 minutes ago" or "in 2 hours" in lists and on the record page, with the exact time on hover; `absolute` and `compact` are accepted and carried in `/meta` for apps that render their own lists, and the admin does not use them yet. |
 | `.multiline()` | A text of several lines, such as a description: forms edit it in a box that grows with the text, so the page scrolls rather than the box, and the record page, a page's field blocks and a card's subtitle keep its line breaks (a card shows the first three lines). On the record page and the create form it takes the whole width of its section. Only a text field takes it; the list's table shows the text on one line. |
 | `.markdown()` | Markdown, such as a task's notes: forms edit its source in a box that grows with it, with a Write and Preview switch above it, and store it exactly as typed. The record page, a page's field blocks and the sidebar show it rendered as GitHub does, line breaks kept; raw HTML shows as text, links and images keep only http(s), mailto, tel and relative addresses, and links open in a new tab. A card's subtitle shows its first three lines rendered, its links as text; the list's table and a card's other lines show its text on one line without the marks. On the record page and the create form it takes the whole width of its section. Only a text field takes it, and the renderer loads with the first markdown shown. |
 | `.prefix(text)`, `.suffix(text)`, `.decimals(n)` | Money and measures: `€` and `2` show `€1,234.50`, `.suffix(' m²')` shows `120 m²`. They show wherever the number does: records, cards, table cells, forms and the range filter. |
@@ -199,6 +199,32 @@ Each drop shows at once and is saved straight away: one [batch `reorder`](api.md
 
 A user who may not update the resource or write the field gets no **Sort**, and `/api/meta` leaves out `position` for one who cannot read its field or its `within`. A related section offers it only when it lists all of the parent's records: its `field` is the `within` relation, without a `filter` or `through`. The list page does not offer it for a resource ordered within a parent, since its list mixes the parents. At most 500 records are sorted at once, the list API's largest page; with more, **Sort** says so instead. The field must be `.sortable()` and `within` a `.filterable()` relation, checked when the config loads, and [`protobase doctor`](cli.md#doctor)) checks that an index serves each read in the field's order, such as `(invoice_id, position)`. Records created later are not numbered for you: give them a position, or the next drop numbers them, after the others when the field is empty.
 
+## A filter the list opens with
+
+```ts
+view('repairs').list((r) => ({
+  columns: [r.number, r.status],
+  filter: 'in(status, "todo", "doing")',
+})).filters((r, w) => [w.facets(r.status)])
+```
+
+`filter` is an AIP-160 filter the list opens with when its address names none, whichever display it shows. Written in the form the widgets read (`status = "todo"` or `in(status, "todo", "doing")` on a facets field), it shows as the widgets' chips, which the person can clear or change; the change is kept in the page's address (an empty `?filter=` is a list cleared of it), and opening the list from the menu starts from the default again. A link's own filter replaces it, and so do "View all", a stat or a chart slice, which open on exactly what they counted. A board leaves out the columns a top-level `=` or `in(...)` clause on its field rules out. `protobase build` checks the filter against the resource, and [`protobase doctor`](cli.md#doctor)) checks that an index serves it.
+
+## More than one list
+
+```ts
+view<typeof changelog>('changelog')
+  .names({ singular: 'Changelog entry', plural: 'Changelog' })
+  .list(...)
+  .namedList('updates', (v) => v
+    .names({ singular: 'Update', plural: 'Updates' })
+    .nav({ group: historyNav, order: 1 })
+    .list((r) => ({ columns: [r.closed_on, r.title], sort: [[r.closed_on, 'desc']] }))
+    .filters((r, w) => [w.dateRange(r.closed_on)]))
+```
+
+`namedList(name, build)` adds another list of the same resource, with a sidebar entry of its own at `/<resource>?list=<name>`. The callback gets a fresh view and sets its `names` (the entry's label, required), `nav`, `help`, `list`, `filters` and `chart`; none of them come from the view's own list, so it has its own columns, opening filter and displays. Everything else stays the view's: field hints, title, actions, the record page, export, import, create and saved searches. A record opened from a named list lives at the resource's one address, `/<resource>/<key>`, and the sidebar marks the resource's main entry there. `protobase build` and [`protobase doctor`](cli.md#doctor)) check a named list like the view's own list, and `/meta` prunes it the same way. The builder throws on a name that does not fit an address, a repeated name, a missing `names`, anything else set in the callback and `nav.recent`; a view with `listOf` or `searchesOf` cannot have named lists. A named list is not offered in the bottom bar, the user menu or a page's blocks.
+
 ## Filters and the chart
 
 ```ts title="docs-examples/bike-shop/step-3.ts"
@@ -224,12 +250,14 @@ export const repairsView = named
 | Widget | |
 | --- | --- |
 | `w.facets(r.status, { search? })` | A menu of the field's 50 most frequent values with counts, never all of them; `search` adds a search box that narrows those. On a relation it is a dropdown that shows the 50 most frequent too and searches the referenced records as you type, the first 20 matches, through the related resource's `search` fields (without any, the box narrows the 50 by name); on a number field, a range slider. |
-| `w.dateRange(r.booked_on, { presets? })` | Buttons for `today`, `yesterday`, `7d`, `30d`, `90d`, `month`, `quarter`, `year`. |
+| `w.dateRange(r.booked_on, { presets? })` | Buttons for `today`, `yesterday`, `24h` (the last 24 hours, rolling), `7d`, `30d`, `90d`, `month`, `quarter`, `year`. Without `presets`: `today`, `7d`, `30d`, `year`. |
 | `w.range(r.estimate, { histogram? })` | A slider between the lowest and highest value; `histogram` draws the values' histogram behind it. The list filters when a thumb is let go of, or has rested a second. |
 | `w.toggle(r.paid)` | A switch for a boolean field. |
 | `w.flags([r.for_sale, r.for_rent], { label })` | A menu of boolean fields under one label, with how many records have each: a record shows when any chosen field is true, so one that is both shows under each. |
 
 A list without rows says why, in the table, the cards and the phone's List alike: `No repairs match “zzzqqq”.` with **Clear search** after a search, and **Clear filters** too while filters are set; `No repairs match these filters.` with **Clear filters**; and `No repairs yet.` with the **New** button for a user who may create one. Clear filters keeps the search.
+
+Every widget takes `secondary: true` (e.g. `w.facets(r.agent, { secondary: true })`): it waits behind the bar's **More filters** menu until it is picked there, and shows in the bar whenever it is set, such as from the address. The panel layout and the phone's filter sheet show every filter.
 
 ### Charts (graphs): records per day, week or month, or per value, above a list
 
@@ -276,7 +304,7 @@ export const repairsView = daily
 | --- | --- |
 | `d.cards({ image?, title?, subtitle?, amount?, badge?, meta?, footer?, flags?, dots? }, { name?, label?, icon?, card?, photos?, favorite? })` | A card per record, opening it: `image`, a [file field](files.md)), as a picture across the card's top (a raster image; anything else leaves the frame empty), then `title` (default: the view's `.title`) over `subtitle`, `badge` drawn as a badge with its value labels, `amount` the first of its fields with a value in bold (its suffix, such as ` /month`, not), such as a purchase price or else a rent, and a few small `meta` fields such as dates, each only when it has a value, after its field's `.icon` and as a badge when its field's format is `badge`. `footer` is a line at the card's bottom of its fields with a value, joined by bullets, such as a place and an agent. `flags` are boolean fields shown as small badges of their labels when true, such as a garden or parking. `dots` are [related columns](#related-records-in-a-list) of the list, each a line of its dots at the card's bottom. A relation shows the name of the record it points at. With `card`, a component declared with `component('RepairCard')` draws each card's content from the row of those fields instead (see [Record cards](custom-components.md#record-cards))). With `photos`, the picture steps through more photos, by swipe or arrows (see [Card photos](#card-photos)). With `favorite`, a heart in the card's top right corner saves the record (see [Favorites](#favorites)). Named `cards` unless `name` says otherwise. |
 | `d.map({ latitude, longitude, approximate?, exact?, radius?, area? }, { name?, label?, icon?, cards?, defaultRadius? })` | The matching records in the map's view, with how many there are below it; it asks again as it pans and zooms, through the list API's [`:map`](api.md#maps)). From far out it shows a count for each part of the map, which zooms in when chosen; close in, or with few records in view, the records themselves. Nearby records share a marker with their count; choosing one shows the record's card at the map's bottom, with arrows through the marker's records, and choosing the map elsewhere or closing the card clears it. The card is the one of the cards display `cards` names, else the list's first cards display, else the record's title. A record at an approximate position has a hollow marker and the area around it; see [Approximate positions](#approximate-positions). Named `map` unless `name` says otherwise. See [Maps](#maps). |
-| `d.board({ by, title?, subtitle?, badge?, meta? }, { name?, label?, icon? })` | A column per value of the enum field `by`, each with how many records have it, and a card per record that opens it: `title` (default: the view's `.title`) over `subtitle`, with `badge` and a few small `meta` fields, as the built-in card of `d.cards` draws them. Dragging a card to another column, or moving it with the keyboard, saves the record with that column's value. Named `board` unless `name` says otherwise. See [Boards](#boards). |
+| `d.board({ by, title?, subtitle?, badge?, meta? }, { name?, label?, icon? })` | A column per value of the enum field `by`, each with how many records have it, and a card per record that opens it: `title` (default: the view's `.title`) over `subtitle`, with `badge` and a few small `meta` fields, as the built-in card of `d.cards` draws them. Dragging a card to another column, or moving it with the keyboard, saves the record with that column's value. Within a column, cards are reordered when the resource has a `.position()`. Named `board` unless `name` says otherwise. See [Boards](#boards). |
 | `d.calendar({ start, end?, title? }, { name?, label?, icon? })` | The records on the days from their date or timestamp field `start` to `end`, or on their start day alone, in a month grid or a week grid, each event a link to its record showing `title` (default: the view's `.title`). Dragging an event to another day, or moving it with the keyboard, saves the record with `start` and `end` moved by the same days. Named `calendar` unless `name` says otherwise. See [Calendars](#calendars). |
 | `d.custom(Component, { name, label, fields, props?, icon? })` | The rows drawn by a [custom component](custom-components.md#list-displays)). `fields` are the fields it shows, loaded with the names of the records relations point at; `props` are plain data, with `r.field` where it takes a field. |
 
@@ -290,11 +318,36 @@ Display names are checked when the config loads: unique, not `table`, and `defau
 
 `d.board({ by: r.status })` shows the list as columns, one per value of the enum field `by`, in the order the field lists its values. Each column is headed by its value, as a badge with the view's `valueLabels` and `valueColors`, and by how many of the list's records have it. When `by` may be empty (`.optional()`), a last column holds the records without a value, while there are any. `default: 'board'` opens the list in it, as the workshop above does.
 
-Each column reads its own records through the list API, with the list's filter, search and order and its value added, such as `(search("brompton")) AND status = "ready"`, page by page with **Show more** at its bottom. A filter on `by` itself leaves the other columns empty. The sort menu orders the cards in every column. In an embedded list each column shows its first records, up to the list's limit, and **View all** opens the whole board.
+Each column reads its own records through the list API, with the list's filter, search and order and its value added, such as `(search("brompton")) AND status = "ready"`, page by page with **Show more** at its bottom. A filter on `by` itself leaves the other columns empty. The sort menu orders the cards in every column, unless the resource has a position. In an embedded list each column shows its first records, up to the list's limit, and **View all** opens the whole board.
 
 A card moves to another column by dragging it, by a long press and drag on a touch screen, or from the keyboard: Space on a card picks it up, the left and right arrow keys move it between columns, Space or Enter drops it and Escape puts it back; a screen reader is told each step. A move is one update of the record, `by` set to the column's value with the ETag the card was listed with, the same request a named [`a.update`](layouts.md#named-actions)) sends. So the resource's [access rules](access.md)) and `validate` decide: the card shows in its new column at once, a refused move puts it back with the server's reason, such as `validate`'s message, and a record changed by someone else since it was listed is refused too, as a stale ETag is. Every list of the resource reloads afterwards. A user who may not update the resource, or the `by` field, or a record its [row filters](access.md#restricted-model-and-row-filters)) keep them from updating, can open its card but not move it.
 
-`by` must be a filterable enum field, checked when the config loads and when the server starts, since each column filters by it. [`protobase doctor`](cli.md#doctor)) checks that an index serves each column's filter in the list's order, as it does the list's. In `/api/meta`, a user who cannot read `by` gets the list without the board, opening in the table when it was the default, and a card loses the fields they cannot read.
+A resource with a [`.position(...)`](data-config.md#resource)) and no `within` has its board's columns in that order instead of the list's, so the board has no sort menu:
+
+```ts title="docs-examples/reference/ranked-board.ts"
+import { f, resource, view } from '@protobase/schema'
+
+// A team's tasks on a board in the order of their rank, each column sorted by dragging its cards.
+
+export const tasks = resource('tasks')
+  .table('tasks')
+  .fields({
+    id: f.integer().readOnly().filterable().sortable().dbDefault(),
+    title: f.text(),
+    status: f.enum(['todo', 'doing', 'done']).filterable().sortable(),
+    rank: f.integer().sortable(),
+  })
+  .primaryKey((r) => r.id)
+  .position((r) => r.rank)
+
+export const tasksView = view<typeof tasks>('tasks')
+  .title((r) => r.title)
+  .list((r, d) => ({ columns: [r.title, r.status], displays: [d.board({ by: r.status })], default: 'board' }))
+```
+
+A card then moves within its column by dragging it, or from the keyboard: Space, the up and down arrow keys, and Space again. In another column it lands where it is dropped, before the card under it or after the last one; the left and right arrow keys put it at the top. A screen reader is told the column and the place. A drop is one [batch write](api.md#batch-writes)): in another column first the update of `by` with the card's ETag, then a `reorder` numbering the column's cards 1, 2, 3, ... down to the last one that moved, each with its ETag. So access, `validate` and a stale ETag refuse it as they do a column move, and a refusal puts the cards back with the reason. The numbers are per column after a drop, so a unique index on the position alone would clash, while one that includes `by` is fine. Changing the order takes the right to update the position field, as **Sort** does; a user without it moves cards between columns only, as on a board without a position. A resource without a position, or with `within`, keeps the list's order.
+
+`by` must be a filterable enum field, checked when the config loads and when the server starts, since each column filters by it. [`protobase doctor`](cli.md#doctor)) checks that an index serves each column's filter in the list's order, or the position's, as it does the list's. In `/api/meta`, a user who cannot read `by` gets the list without the board, opening in the table when it was the default, and a card loses the fields they cannot read.
 
 ### Calendars
 
@@ -451,6 +504,8 @@ export const repairsView = filtered
 | Item | |
 | --- | --- |
 | `l.section(title, fields, { help?, helpWhen?, presentation?, when? })` | A titled group of fields in the main column, editable where the user may write. `presentation: 'facts'` shows them on the read view as a row of [key facts](#key-facts). |
+| `l.group(title, items, { collapsed?, when? })` | A heading over sections and related tables, closed until opened with `collapsed: true`. `when` also takes a [condition](#form-and-read-view). See [Groups](#groups). |
+| `l.tab(title, items)` | A tab holding main-column items; a view's tabs show as one strip on the read view and the form. See [Tabs](#tabs). |
 | `l.sidebar(fields, { when? })` | A summary card beside it, read-only. `when` also takes a [condition](#form-and-read-view). |
 | `l.related(title, { ... })` | A table of the records of another resource that point at this one, in the main column. See [Related records](#related-records). |
 | `l.custom(Component, { title?, props?, sidebar?, when? })` | A [custom component](custom-components.md#record-sections)) where it is listed: in the main column under `title`, or with `sidebar: true` as a sidebar card. |
@@ -479,6 +534,28 @@ The form that **Edit** opens has its own address, the record's with `?edit=true`
 
 ```ts
 view<typeof listings>('listings').recordMode('read')
+```
+
+### Groups
+
+`l.group(title, items, { collapsed?, when? })` puts a heading over sections and related tables, so a long record page shows what matters first and tucks rarely needed parts away. A group holds only `l.section` and `l.related` items, and not another group. With `collapsed: true` it shows only its heading until the person clicks it; clicking again closes it. A closed group draws nothing, so its related tables load nothing until it opens. Without `collapsed` it is a plain heading over its items.
+
+The open groups are in the address, as `?open=<title>` once per group, so a link, a copied URL or a new tab opens the page with the group open. Titles are unique among a view's groups, as the address names a group by its title. The page scrolls as a whole; opening a group adds no scroll box. On the form, a group that holds a field with an error or a conflict opens by itself. The create form shows the sections of a group as plain sections.
+
+### Tabs
+
+`l.tab(title, items)` splits the record page into tabs. A tab holds any main-column item: sections, groups, related tables, custom components, maps, galleries, history and comments. It refuses a sidebar item, another tab, and a custom component or map with `sidebar: true`, since the sidebar stays beside the tabs on every tab.
+
+A view's tabs stand together in the layout and show as one strip; items before them show above the strip and items after them below it, on every tab. Tab titles are unique among a view's tabs, and group titles are unique across the whole layout, groups inside tabs too. The read view and the form show the same tabs.
+
+The shown tab is in the address, as `?tab=<title>`, so a link, a copied URL or a new tab opens the record on that tab. The first tab is the default and its link has no `tab`. An unknown title shows the first tab. Edit, Cancel and Save keep the tab. Only the shown tab's items are drawn, so its related tables load when it opens; the form keeps the values of the fields on the other tabs. When a save is turned down for a field on another tab, the form moves to that tab and focuses the field. The create form shows the sections of a tab as plain sections.
+
+```ts
+view<typeof listings>('listings').layout((r) => [
+  l.sidebar([r.status]),
+  l.tab('Details', [l.section('Home', [r.title, r.price])]),
+  l.tab('History', [l.history('Changes'), l.comments('Comments')]),
+])
 ```
 
 ### Key facts
@@ -626,7 +703,8 @@ Without any configuration, the record page's rail has a **Related records** card
 | Option | |
 | --- | --- |
 | `resource` | The records listed. Required. |
-| `field` | Without `through`: the relation on `resource` that holds this record's key. With it: the field of `resource` matched against the keys the join records hold. Filterable. Required. |
+| `field` | Without `through` or `from`: the relation on `resource` that holds this record's key. With `from`: the field of `resource` that holds that value. With `through`: the field of `resource` matched against the keys the join records hold. Filterable. Required. |
+| `from` | A field of this record whose value `field` must hold, instead of this record's key, such as the task of a question, to list the task's links: `{ resource: 'task_links', field: 'task_id', from: 'task_id' }`. Same type as `field` (a relation to the same resource), not sensitive, and not with `through`. A record with no value lists nothing. |
 | `through` | `{ resource, field, key?, filter? }`: the join records whose `field` (a filterable relation) holds this record's key; their `key` values (default their primary key) pick the listed records. All of them are read. |
 | `filter`, `sort` | AIP-160 and AIP-132 on `resource`, as in the list API. `filter` narrows the listed records, `through.filter` the join records. |
 | `columns` | Fields of `resource`, through relations too (`unit_id.property_id`); default the view's list columns without `field`. The first links to the record a row opens. |
@@ -711,7 +789,7 @@ export const workshopRepairsView = laidOut
   .actions((a) => [a.update('ready', { label: 'Ready for pickup', icon: 'send', set: { status: 'ready' } })])
 ```
 
-`.actions((a) => [...])` names the moves a record page offers in its action rail, between **Edit**, when the record opens as a read view or locked, and **Delete**, for a user who may delete it, unless an `a.remove` deletes already; composed pages can put the same actions on buttons. On the form, **Save** leads the sidebar, above the rail, with **Cancel** under it when Edit opened the form; on a mobile screen they sit in a bar under the form instead. On a mobile screen, below `md` (768px), the rail's actions, Edit and Delete among them, sit in the top bar's **Record actions** menu (the ⋮ button), at hand however long the record is. `a.update`, `a.remove`, `a.link` and [`a.ai`](ai.md#ai-actions)), which has the model write a field, work without code; `a.action` runs a handler the app registers, after asking for its [inputs](#actions-that-ask-for-input) when it has some. They are described with [named actions](layouts.md#named-actions)).
+`.actions((a) => [...])` names the moves a record page offers in its action rail, between **Edit**, when the record opens as a read view or locked, and **Delete**, for a user who may delete it, unless an `a.remove` deletes already; composed pages can put the same actions on buttons. On the form, **Save** leads the sidebar, above the rail, with **Cancel** under it when Edit opened the form; on a mobile screen they sit in a bar under the form instead. On a mobile screen, below `md` (768px), the rail's actions, Edit and Delete among them, sit in the top bar's **Record actions** menu (the ⋮ button), at hand however long the record is. `a.update`, `a.remove`, `a.link` and [`a.ai`](ai.md#ai-actions)), which has the model write a field, work without code; `a.action` runs a handler the app registers; it and `a.update` ask for their [inputs](#actions-that-ask-for-input) first when they have some. They are described with [named actions](layouts.md#named-actions)).
 
 `.forRoles([...])` makes a view for users with one of those roles: each user gets the first such view that matches their roles, and the view without roles otherwise. A per-role view is a whole view, so build it from another (`laidOut.forRoles(...)` above) and change what differs.
 
@@ -763,7 +841,7 @@ export const ordersView = view<typeof orders>('orders')
 
 ### Actions that ask for input
 
-`inputs` on an `a.action` makes its button open a dialog that asks for them first, each edited as the create form edits a field, with the action's `confirm` text above them and its label on the button that runs it. The handler gets the answers as `values`, by input name:
+`inputs` on an `a.action` or an `a.update` makes its button open a dialog that asks for them first, each edited as the create form edits a field, with the action's `confirm` text above them and its label on the button that runs it. An `a.action`'s handler gets the answers as `values`, by input name:
 
 ```ts
 .actions((a) => [
@@ -776,6 +854,12 @@ export const ordersView = view<typeof orders>('orders')
     ],
   }),
 ])
+```
+
+An `a.update` writes the answers with no code: a `set` value that is exactly `'{name}'` is the answer of the input called `name`. An empty answer writes `null`, an input that is hidden by `when` leaves its field as it is, and a `'{name}'` that names no input stops the config from loading. An update that asks for input is always offered, since the answer can always change the record. This button works the same on a composed page, so a dashboard can answer in place:
+
+```ts
+a.update('answer', { label: 'Answer', inputs: (i) => [i.text('answer', { label: 'Answer', multiline: true })], set: { answer: '{answer}' } })
 ```
 
 | Input | Asks for |
