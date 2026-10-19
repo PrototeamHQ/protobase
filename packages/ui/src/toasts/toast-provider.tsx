@@ -10,7 +10,7 @@ export type ToastApi = {
   dismiss: (id: number) => void
 }
 
-const dismissAfterMs = { loading: Infinity, success: 3500, error: 8000 }
+const dismissAfterMs = { loading: Infinity, success: 3500, warning: 8000, error: 8000 }
 const undoWindowMs = 8000
 
 const ToastContext = createContext<ToastApi | null>(null)

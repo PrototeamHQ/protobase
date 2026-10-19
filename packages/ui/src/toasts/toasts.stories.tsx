@@ -38,6 +38,7 @@ export const WithButton: Story = {
     expect(textTop(canvas.getByRole('button', { name: 'Undo' }))).toBe(textTop(canvas.getByText('Invoice deleted')))
   },
 }
+export const Warning: Story = { args: { state: 'warning', title: 'Moved to place 4', description: 'Write the tests comes after Design the schema, which it depends on.' } }
 export const Failed: Story = { args: { state: 'error', title: 'Could not save invoice', description: 'Quantity must be at least 1 on line 2.' } }
 
 const Demo = () => {

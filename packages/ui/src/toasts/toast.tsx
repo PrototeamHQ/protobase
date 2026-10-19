@@ -1,9 +1,10 @@
-import { CheckCircle2, X, XCircle } from 'lucide-react'
+import { CheckCircle2, TriangleAlert, X, XCircle } from 'lucide-react'
 import { inApp } from '../app-shell/breadcrumb'
 import { cn } from '../lib/cn'
 import { Spinner } from '../primitives/spinner'
 
-export type ToastState = 'loading' | 'success' | 'error'
+/** `warning`: done, but not as asked, such as a drop moved to the first place a rule allows. */
+export type ToastState = 'loading' | 'success' | 'warning' | 'error'
 
 /**
  * A button, or a link when the action goes somewhere: an `<a href>`, which `onNavigate` follows in the app on a plain
@@ -43,6 +44,7 @@ const Action = ({ action }: { action: ToastAction }) => {
 const icons = {
   loading: <Spinner className="text-primary" />,
   success: <CheckCircle2 className="size-4 text-success" />,
+  warning: <TriangleAlert className="size-4 text-warning" />,
   error: <XCircle className="size-4 text-danger" />,
 }
 
@@ -51,6 +53,7 @@ export const Toast = ({ state, title, description, action, onDismiss }: ToastPro
     role={state === 'error' ? 'alert' : 'status'}
     className={cn(
       'flex w-full max-w-80 items-start gap-3 rounded-lg border bg-background p-3 shadow-pop [animation:pb-slide-in_160ms_ease-out]',
+      state === 'warning' && 'border-warning/40',
       state === 'error' && 'border-danger/40',
     )}
   >
