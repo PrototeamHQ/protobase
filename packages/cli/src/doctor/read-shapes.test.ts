@@ -43,7 +43,7 @@ const placesView = view<typeof places>('places')
 
 const home = page(
   'home',
-  Page({ title: 'Home', children: [RecordRow({ title: 'Big places', resource: 'places', filter: 'population > 100000' }), Stat({ label: 'Agencies', resource: 'agencies', filter: 'place_id = 1' }), Chart({ title: 'By country', resource: 'places', groupBy: 'country', filter: 'coastal = true' })] }),
+  Page({ title: 'Home', children: [RecordRow({ title: 'Big places', resource: 'places', filter: 'population > 100000' }), Stat({ label: 'Agencies', resource: 'agencies', filter: 'place_id = 1' }), Chart({ title: 'By country', resource: 'places', groupBy: 'country', filter: 'coastal = true' }), Chart({ title: 'Founded by country', resource: 'places', groupBy: 'founded_on', splitBy: 'country' })] }),
 )
 
 const shapes = readShapes({ models: [places.toModel(), agencies.toModel()], views: [placesView.toModel()], pages: [home.toModel()] })
@@ -93,6 +93,14 @@ describe('readShapes', () => {
     expect(of.find((shape) => shape.request === 'GET /places:facets?field=region')).toMatchObject({ from: "the places list's facets filter", query: { groupBy: 'region' } })
     expect(of.find((shape) => shape.request === 'GET /places?filter=region in (…)')?.query.filter).toMatchObject({ kind: 'in', field: { name: 'region' } })
     expect(of.find((shape) => shape.from === "the places list's chart")).toMatchObject({ request: 'GET /places:aggregate?group_by=country', query: { groupBy: 'country' } })
+  })
+
+  it('reads both columns of a split chart', () => {
+    const split = shapes.filter((shape) => shape.from === 'page "home", <Chart "Founded by country">')
+    expect(split).toMatchObject([
+      { request: 'GET /places:aggregate?group_by=founded_on', query: { groupBy: 'founded_on' } },
+      { request: 'GET /places:aggregate?group_by=founded_on&split_by=country', query: { groupBy: 'country' } },
+    ])
   })
 
   it("reads a named list's opening filter and widgets as its own", () => {

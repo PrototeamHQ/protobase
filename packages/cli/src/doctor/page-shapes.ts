@@ -18,18 +18,20 @@ const blockSort = (node: LayoutNode, model: ResourceModel, view: ViewModel | und
 
 const title = (node: LayoutNode) => text(node.props.title) ?? text(node.props.label)
 
-// A chart groups the records its filter finds by its `groupBy` field.
-const chartShape = (page: PageModel, node: LayoutNode, model: ResourceModel): ReadShape => {
+// A chart groups the records its filter finds by its `groupBy` field, and splits them by its `splitBy` field: the scan
+// guard judges each grouped column, so each is a read of its own.
+const chartShapes = (page: PageModel, node: LayoutNode, model: ResourceModel): ReadShape[] => {
   const source = text(node.props.filter)
   const filter = configFilter(model, source)
   const groupBy = String(node.props.groupBy)
   const named = title(node)
-  return {
-    resource: model.name,
-    request: `GET /${model.name}:aggregate?group_by=${groupBy}${source?.trim() ? `&filter=${source}` : ''}`,
-    from: `page "${page.name}", <Chart${named ? ` "${named}"` : ''}>`,
-    query: { ...(filter && { filter }), groupBy },
-  }
+  const splitBy = text(node.props.splitBy)
+  const request = `GET /${model.name}:aggregate?group_by=${groupBy}${source?.trim() ? `&filter=${source}` : ''}`
+  const from = `page "${page.name}", <Chart${named ? ` "${named}"` : ''}>`
+  return [
+    { resource: model.name, request, from, query: { ...(filter && { filter }), groupBy } },
+    ...(splitBy === undefined ? [] : [{ resource: model.name, request: `${request}&split_by=${splitBy}`, from, query: { ...(filter && { filter }), groupBy: splitBy } }]),
+  ]
 }
 
 /** The reads of a composed page: each block that lists records, with its filter and sort, and each chart's grouping. */
@@ -38,7 +40,7 @@ export const pageShapes = (page: PageModel, models: Record<string, ResourceModel
   walkTree(page.tree, (node) => {
     const model = node.custom ? undefined : models[text(node.props.resource) ?? '']
     if (model && node.type === 'Chart') {
-      shapes.push(chartShape(page, node, model))
+      shapes.push(...chartShapes(page, node, model))
       return
     }
     if (!model || !listing.includes(node.type) || (node.type === 'RecordCard' && node.props.recordKey !== undefined)) return
