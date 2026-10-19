@@ -1,7 +1,8 @@
 // Waits until npm serves every published @protobase package (packages/*, but the private ones) at the version in
-// package.json, metadata and tarball, as `bun install` asks for them, then exits; after 10 minutes it fails, naming the packages still missing.
+// package.json, metadata and tarball, as `bun install` asks for them, then exits; after 30 minutes it fails, naming the packages still missing.
 // npm's CDN caches each package's metadata for up to 5 minutes per Accept header, so a version can be on npm for one
-// package and one request and not yet for another: the image contexts, which bun installs from npm, need them all
+// package and one request and not yet for another, and npm itself can take minutes to register a version it accepted
+// (17 for 0.23.0 in release run 39261718830): the image contexts, which bun installs from npm, need them all
 // as `bun install` sees them. The release workflow runs it after publishing, before `bun run images:context`.
 import { readdirSync, readFileSync } from 'node:fs'
 import path from 'node:path'
@@ -11,7 +12,7 @@ const headers = {
   accept: 'application/vnd.npm.install-v1+json; q=1.0, application/json; q=0.8, */*',
   'accept-encoding': 'gzip, deflate, br, zstd',
 }
-const timeoutMs = 10 * 60 * 1000
+const timeoutMs = 30 * 60 * 1000
 const intervalMs = 10 * 1000
 
 const { version } = JSON.parse(readFileSync('package.json', 'utf8'))
@@ -40,7 +41,7 @@ while (true) {
   const results = await Promise.all(missing.map(served))
   missing = missing.filter((_, index) => !results[index])
   if (missing.length === 0) break
-  if (Date.now() >= deadline) throw new Error(`npm does not serve ${missing.map((name) => `${name}@${version}`).join(', ')} after 10 minutes`)
+  if (Date.now() >= deadline) throw new Error(`npm does not serve ${missing.map((name) => `${name}@${version}`).join(', ')} after 30 minutes`)
   await new Promise((resolve) => setTimeout(resolve, intervalMs))
 }
 console.log(`npm serves ${names.map((name) => `${name}@${version}`).join(', ')}`)
