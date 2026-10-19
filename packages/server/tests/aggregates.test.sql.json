@@ -114,6 +114,31 @@
       {"sql":"select count(*)::text n from companies where organization_id = 1 and deleted_at is null and true","result":{"command":"SELECT","rowCount":1,"columns":[["n",25]],"rows":[["2970"]]}}
     ]
   },
+  ":aggregate > splits each bucket of a date field by the values of another field": {
+    "(hooks)#0": [
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"\n    with b as (\n      select generate_series(date_trunc('day', ($1::timestamptz at time zone $2::text)), date_trunc('day', ($3::timestamptz at time zone $4::text) - interval '1 microsecond'), '1 day'::interval) as bucket\n    ), c as ((select date_trunc('day', (\"t\".\"created_at\"::timestamptz at time zone $5::text)) as \"bucket\", count(*)::text as \"n\", sum(\"t\".\"revenue\")::text as \"m\" from \"companies\" as \"t\" where \"t\".\"deleted_at\" is null and \"t\".\"organization_id\" = $6 and \"t\".\"created_at\" >= $7::timestamptz and \"t\".\"created_at\" < $8::timestamptz group by 1))\n    select to_char(b.bucket, 'YYYY-MM-DD\"T\"HH24:MI:SS') as bucket, coalesce(c.n, '0') as n, c.m\n    from b left join c on c.bucket = b.bucket\n    order by b.bucket\n  ","params":["2026-01-02T00:00:00Z","UTC","2026-01-04T00:00:00Z","UTC","UTC","1","2026-01-02T00:00:00Z","2026-01-04T00:00:00Z"],"result":{"command":"SELECT","rowCount":2,"columns":[["bucket",25],["n",25],["m",25]],"rows":[
+        ["2026-01-02T00:00:00","15","6015.00"],
+        ["2026-01-03T00:00:00","15","6030.00"]
+      ]}},
+      {"sql":"\n    with c as ((select to_char(date_trunc('day', (\"t\".\"created_at\"::timestamptz at time zone $1::text)), 'YYYY-MM-DD\"T\"HH24:MI:SS') as \"bucket\", \"t\".\"status\" as \"split\", count(*) as \"n\", sum(\"t\".\"revenue\") as \"m\" from \"companies\" as \"t\" where \"t\".\"deleted_at\" is null and \"t\".\"organization_id\" = $2 and \"t\".\"created_at\" >= $3::timestamptz and \"t\".\"created_at\" < $4::timestamptz group by 1, 2)), r as (\n      select split, row_number() over (order by sum(m::numeric) desc nulls last, split asc) as rank\n      from c group by split order by rank limit 8\n    )\n    select c.bucket, c.split, r.rank::text as rank, c.n::text as n, c.m::text as m\n    from c join r on c.split is not distinct from r.split\n    order by c.bucket, r.rank\n  ","params":["UTC","1","2026-01-02T00:00:00Z","2026-01-04T00:00:00Z"],"result":{"command":"SELECT","rowCount":6,"columns":[["bucket",25],["split",25],["rank",25],["n",25],["m",25]],"rows":[
+        ["2026-01-02T00:00:00","lost","1","5","2005.00"],
+        ["2026-01-02T00:00:00","open","2","5","2005.00"],
+        ["2026-01-02T00:00:00","won","3","5","2005.00"],
+        ["2026-01-03T00:00:00","lost","1","5","2010.00"],
+        ["2026-01-03T00:00:00","open","2","5","2010.00"],
+        ["2026-01-03T00:00:00","won","3","5","2010.00"]
+      ]}},
+      {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select distinct status from companies where organization_id = 1 and deleted_at is null and created_at >= '2026-01-02' and created_at < '2026-01-04'","result":{"command":"SELECT","rowCount":3,"columns":[["status",25]],"rows":[
+        ["open"],
+        ["lost"],
+        ["won"]
+      ]}}
+    ]
+  },
   ":aggregate > refuses what it cannot group, add up or apply": {
     "(hooks)#0": [
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},

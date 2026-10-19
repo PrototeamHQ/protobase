@@ -57,6 +57,17 @@ describe(':aggregate', () => {
     expect(months.groups).toEqual([{ value: '2026-01-01T00:00:00', count: await countWhere('true') }])
   })
 
+  it('splits each bucket of a date field by the values of another field', async () => {
+    const body = await (await get('/companies:aggregate?group_by=createdAt&split_by=status&sum=revenue&from=2026-01-02T00:00:00Z&to=2026-01-04T00:00:00Z&granularity=day')).json()
+    expect(body).toMatchObject({ group_by: 'createdAt', split_by: 'status', granularity: 'day' })
+    const statuses = (await fixture.pg.query<{ status: string }>(`select distinct status from companies where organization_id = 1 and deleted_at is null and created_at >= '2026-01-02' and created_at < '2026-01-04'`)).rows.map((row) => row.status)
+    expect(body.splits.map((split: { value: string }) => split.value).sort()).toEqual(statuses.sort())
+    for (const group of body.groups) {
+      expect(group.splits.reduce((all: number, part: { sum: number }) => all + part.sum, 0)).toBe(group.sum ?? 0)
+      expect(group.splits.reduce((all: number, part: { count: number }) => all + part.count, 0)).toBe(group.count)
+    }
+  })
+
   it('refuses what it cannot group, add up or apply', async () => {
     const status = async (query: string) => (await get(`/companies:aggregate?${query}`)).status
     expect(await status('')).toBe(400)
@@ -65,6 +76,9 @@ describe(':aggregate', () => {
     expect(await status('group_by=status&sum=revenue&average=revenue')).toBe(400)
     expect(await status('group_by=status&granularity=day')).toBe(400)
     expect(await status('group_by=createdAt&limit=5')).toBe(400)
+    expect(await status('group_by=status&split_by=name')).toBe(400)
+    expect(await status('group_by=createdAt&split_by=notes')).toBe(400)
+    expect(await status('group_by=createdAt&split_limit=3')).toBe(400)
   })
 })
 

@@ -150,12 +150,37 @@ export type AggregateParams = {
   from?: string
   to?: string
   timeZone?: string
+  /** Date groups only: a filterable field of values that splits each bucket into parts, the largest `splitLimit` values. */
+  splitBy?: string
+  /** Date groups only, with `splitBy`: the most values to keep, default 8, at most 100. */
+  splitLimit?: number
+  /** Date groups only, with `splitBy`: for a relation, the field of the related record that names each value. */
+  splitLabel?: string
 }
 
 /** One group: its value (a date group's bucket in local ISO time), how many records it holds and its sum or average. */
-export type AggregateGroup = { value: string | number | boolean | null; label?: string; count: number; sum?: number | null; average?: number | null }
+export type AggregateGroup = {
+  value: string | number | boolean | null
+  label?: string
+  count: number
+  sum?: number | null
+  average?: number | null
+  /** With `splitBy`: the kept split values that have records in this date group, largest first. */
+  splits?: AggregateSplitTotal[]
+}
 
-export type Aggregate = { groupBy: string; granularity?: string; timeZone?: string; groups: AggregateGroup[] }
+/** What one split value holds of a date group. */
+export type AggregateSplitTotal = { value: AggregateGroup['value']; count: number; sum?: number | null; average?: number | null }
+
+export type Aggregate = {
+  groupBy: string
+  granularity?: string
+  timeZone?: string
+  groups: AggregateGroup[]
+  /** With `splitBy`: the field and its kept values, largest over the range first. */
+  splitBy?: string
+  splits?: Array<{ value: AggregateGroup['value']; label?: string }>
+}
 
 export type HistogramBucket = { from: number; to: number; count: number }
 

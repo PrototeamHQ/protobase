@@ -295,7 +295,7 @@ export const resourcePaths = (access: RequestAccess) => {
         operationId: `aggregate_${entry.name}`,
         tags: tag,
         summary: `Totals per group of ${entry.name} records`,
-        description: 'Groups the records the filter finds, its own terms on `group_by` included, by the value of a field, or by the hour, day, week, month or year of a date or timestamp field with the empty ones included. Each group has its count and, with `sum` or `average`, that of a numeric field, `null` when no record of the group has a value. Value groups come largest first. An index must serve the grouped field.',
+        description: 'Groups the records the filter finds, its own terms on `group_by` included, by the value of a field, or by the hour, day, week, month or year of a date or timestamp field with the empty ones included. Each group has its count and, with `sum` or `average`, that of a numeric field, `null` when no record of the group has a value. Value groups come largest first. An index must serve the grouped field. A date group can be split: see `split_by`.',
         parameters: [
           query('group_by', 'A filterable field', { type: 'string' }, true), param('filter'),
           query('sum', 'A numeric field to add up per group'), query('average', 'A numeric field to average per group, instead of `sum`'),
@@ -305,6 +305,9 @@ export const resourcePaths = (access: RequestAccess) => {
           query('range', 'For a date group_by: the relative range ending now (default 30d); `all` starts at the earliest row', { type: 'string', enum: ['7d', '30d', '90d', '1y', 'all'] }),
           query('from', 'For a date group_by: the explicit start (ISO 8601); with `to`, replaces range'), query('to', 'For a date group_by: the exclusive end (ISO 8601), default now'),
           query('time_zone', 'For a date group_by: the IANA time zone of the buckets, default UTC'),
+          query('split_by', 'For a date group_by: a filterable field of values that splits each bucket into parts; an index must serve it'),
+          query('split_limit', 'For a date group_by: how many values of `split_by` to keep, the largest over the range (by the sum, else by count), default 8, at most 100', { type: 'integer' }),
+          query('split_label', 'For a date group_by with a relation `split_by`: the field of the related resource whose value each split carries as `label`'),
         ],
         responses: {
           200: {
@@ -315,7 +318,9 @@ export const resourcePaths = (access: RequestAccess) => {
                 group_by: { type: 'string' },
                 granularity: { type: 'string' },
                 time_zone: { type: 'string' },
-                groups: { type: 'array', items: { type: 'object', properties: { value: {}, label: { type: 'string' }, count: { type: 'integer' }, sum: { type: ['number', 'null'] }, average: { type: ['number', 'null'] } } } },
+                split_by: { type: 'string', description: 'Only with `split_by`' },
+                splits: { type: 'array', description: 'Only with `split_by`: the kept values, largest first', items: { type: 'object', properties: { value: {}, label: { type: 'string' } } } },
+                groups: { type: 'array', items: { type: 'object', properties: { value: {}, label: { type: 'string' }, count: { type: 'integer' }, sum: { type: ['number', 'null'] }, average: { type: ['number', 'null'] }, splits: { type: 'array', description: 'Only with `split_by`: the kept values that have rows in the group, in rank order', items: { type: 'object', properties: { value: {}, count: { type: 'integer' }, sum: { type: ['number', 'null'] }, average: { type: ['number', 'null'] } } } } } } },
               },
             }),
           },

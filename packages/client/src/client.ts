@@ -203,10 +203,19 @@ export const createClient = (options: ClientOptions = {}) => {
         from: params.from,
         to: params.to,
         time_zone: params.timeZone,
+        split_by: params.splitBy,
+        split_limit: params.splitLimit,
+        split_label: params.splitLabel,
       }),
     })
     const body = await response.json()
-    return { groupBy: body.group_by, granularity: body.granularity, timeZone: body.time_zone, groups: body.groups }
+    return {
+      groupBy: body.group_by,
+      granularity: body.granularity,
+      timeZone: body.time_zone,
+      groups: body.groups,
+      ...(body.split_by !== undefined && { splitBy: body.split_by, splits: body.splits }),
+    }
   }
 
   const series = async (resource: ResourceRef, params: SeriesParams & { filter?: FilterInput }): Promise<Series> => {

@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { groupTotals, series, type Measure } from '@protobase/query'
 import type { ResourceModel } from '@protobase/schema'
+import { splitGroups } from './aggregate-splits'
 import { scoped, seriesRange } from './aggregate-service'
 import type { Deps } from './deps'
 import { badRequest } from './problem'
@@ -24,6 +25,9 @@ const aggregateParams = z.object({
   to: z.string().optional(),
   granularity: z.enum(['hour', 'day', 'week', 'month', 'year']).optional(),
   time_zone: z.string().optional(),
+  split_by: name.optional(),
+  split_limit: z.coerce.number().int().optional(),
+  split_label: name.optional(),
 })
 
 type AggregateParams = z.output<typeof aggregateParams>
@@ -40,8 +44,14 @@ const measureOf = (params: AggregateParams): Measure | undefined => {
 // The options that only bucket a date apply only to a date, and the ones that only name or cut values only to values.
 const optionErrors = (params: AggregateParams, dated: boolean) => {
   const given = (names: Array<keyof AggregateParams>) => names.filter((option) => params[option] !== undefined)
-  if (dated) return given(['limit', 'label']).map((option) => invalid(option, `Not for a date or timestamp group_by`))
-  return given(['range', 'from', 'to', 'granularity', 'time_zone']).map((option) => invalid(option, 'Only for a date or timestamp group_by'))
+  if (dated) {
+    const errors = given(['limit', 'label']).map((option) => invalid(option, `Not for a date or timestamp group_by`))
+    if (params.split_by === undefined && given(['split_limit', 'split_label']).length > 0) {
+      errors.push(invalid('split_by', 'split_limit and split_label need split_by'))
+    }
+    return errors
+  }
+  return given(['range', 'from', 'to', 'granularity', 'time_zone', 'split_by', 'split_limit', 'split_label']).map((option) => invalid(option, 'Only for a date or timestamp group_by'))
 }
 
 const isDated = (model: ResourceModel, field: string) => {
@@ -63,12 +73,22 @@ export const aggregate = async (deps: Deps, entry: Entry, session: Session, inpu
   const dated = isDated(model, params.group_by)
   const [problem] = optionErrors(params, dated)
   if (problem) throw problem
+  // A hidden field is refused exactly like an unknown one
+  if (params.split_by !== undefined && !Object.hasOwn(model.fields, params.split_by)) throw invalid('split_by', `Unknown field "${params.split_by}"`)
   const warning = await deps.guard(entry, { ...(filter && { filter }), groupBy: params.group_by }, { model, scope })
+  const splitWarning = params.split_by === undefined ? undefined : await deps.guard(entry, { ...(filter && { filter }), groupBy: params.split_by }, { model, scope })
 
   if (dated) {
     const granularity = params.granularity ?? 'day'
     const timeZone = params.time_zone ?? 'UTC'
     const range = await seriesRange(deps, access, params.group_by, params, scope)
+    if (params.split_by !== undefined) {
+      const split = { by: params.split_by, ...(params.split_limit !== undefined && { limit: params.split_limit }), ...(params.split_label !== undefined && { label: params.split_label }) }
+      const parts = range
+        ? await splitGroups(deps, session, model, params.group_by, split, { range, granularity, timeZone, ...(filter && { filter }), ...(measure && { measure }), scope })
+        : { splits: [], groups: [] }
+      return { body: { group_by: params.group_by, split_by: params.split_by, granularity, time_zone: timeZone, ...parts }, warning: warning ?? splitWarning }
+    }
     const points = range
       ? await readTransaction(deps.db, deps.statementTimeoutMs, (trx) =>
           series(trx, model, params.group_by, { range, granularity, timeZone, ...(filter && { filter }), ...(measure && { measure }), scope }))

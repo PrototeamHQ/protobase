@@ -24,6 +24,7 @@ export type {
   Facet,
   Aggregate,
   AggregateGroup,
+  AggregateSplitTotal,
   AggregateParams,
   Series,
   SeriesPoint,
