@@ -55,7 +55,7 @@ export const createStaticSession = (token: string, user: AuthUser = { id: 'token
     list: async () => [],
     current: async () => ({ organization: null, globalRoles: [] }),
     switchTo: unsupported('switch organizations'),
-    search: async () => [],
+    search: async () => ({ organizations: [], total: 0 }),
     create: unsupported('create an organization'),
     rename: unsupported('change an organization'),
     remove: unsupported('delete an organization'),

@@ -128,21 +128,52 @@ export const InvitationForANewAccount: StoryObj<InvitationArgs> = {
   },
 }
 
-/** Someone with a global role finds any organization to work in. */
-export const FindAnyOrganization: StoryObj<{ search: Organizations['search'] }> = {
+const everyOrganization = Array.from({ length: 25 }, (_, index) => ({ id: `org-${index}`, name: index === 7 ? 'Globex' : `Customer ${String(index).padStart(2, '0')}`, slug: index === 7 ? 'globex' : `customer-${String(index).padStart(2, '0')}` }))
+
+/** A page of the stub's organizations, as the server answers: filtered by text, 20 from the offset. */
+const searchEvery = async (query: string, offset = 0) => {
+  const matching = everyOrganization.filter((organization) => organization.name.toLowerCase().includes(query.toLowerCase()))
+  return { organizations: matching.slice(offset, offset + 20), total: matching.length }
+}
+
+/** Someone with a global role sees every organization, a page at a time, and narrows them by text. */
+export const AllOrganizations: StoryObj<{ search: Organizations['search'] }> = {
   tags: ['play'],
-  args: { search: fn(async (query: string) => [{ id: 'org-globex', name: 'Globex', slug: 'globex' }].filter((organization) => organization.name.toLowerCase().includes(query.toLowerCase()))) },
+  args: { search: fn(searchEvery) },
   render: (args) => (
     <WithSession session={sessionWith({ search: args.search })}>
       <OrganizationsPage basePath="" state={{ organizations: [], current: { organization: null, globalRoles: ['support'] }, reload: fn() }} />
     </WithSession>
   ),
-  play: async ({ canvasElement, args }) => {
+  play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
     expect(await canvas.findByText('You are not a member of an organization yet.')).toBeVisible()
+    expect(await canvas.findByText('Customer 00')).toBeVisible()
+    expect(await canvas.findByText('20 of 25')).toBeVisible()
+    await userEvent.click(canvas.getByRole('button', { name: 'Show more' }))
+    expect(await canvas.findByText('Customer 24')).toBeVisible()
+    expect(canvas.getByText('25 of 25')).toBeVisible()
+    expect(canvas.queryByRole('button', { name: 'Show more' })).toBeNull()
     await userEvent.type(canvas.getByRole('textbox', { name: 'Find an organization' }), 'glo')
-    await waitFor(() => expect(args.search).toHaveBeenLastCalledWith('glo'))
-    expect(await canvas.findByText('Globex')).toBeVisible()
+    expect(await canvas.findByText('1 of 1')).toBeVisible()
+    expect(canvas.getByText('Globex')).toBeVisible()
+    expect(canvas.queryByText('Customer 00')).toBeNull()
+  },
+}
+
+/** Someone without a global role sees only the organizations they belong to. */
+export const NotAnAdmin: StoryObj = {
+  tags: ['play'],
+  render: () => (
+    <WithSession session={sessionWith({})}>
+      <OrganizationsPage basePath="" state={{ organizations: [acme], current: { organization: acme, role: 'member', appRoles: [], memberId: 'm-sanne', globalRoles: [] }, reload: fn() }} />
+    </WithSession>
+  ),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    expect(await canvas.findByText('Acme')).toBeVisible()
+    expect(canvas.queryByText('All organizations')).toBeNull()
+    expect(canvas.queryByRole('textbox', { name: 'Find an organization' })).toBeNull()
   },
 }
 

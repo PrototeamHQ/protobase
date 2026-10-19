@@ -50,7 +50,7 @@ export type {
 export { createAuthSession, AuthError, tokenExpiry, type AuthSession, type AuthSessionOptions } from './auth'
 export { createStaticSession } from './static-session'
 export type { AuthUser, PlatformSignIn, RoleLabel, SamlSignIn, SetupStatus, SignInMethod, SignInResult, TwoFactorMethod } from './auth-types'
-export type { CurrentOrganization, InvitationPreview, InvitationSent, Organization, OrganizationInvitation, OrganizationMember, OrganizationRole, OrganizationsClient } from './organizations'
+export type { CurrentOrganization, InvitationPreview, InvitationSent, Organization, OrganizationInvitation, OrganizationMember, OrganizationRole, OrganizationsClient, OrganizationsFound } from './organizations'
 export type { ActiveRole, RoleOption, RolesClient } from './roles'
 export type { AccountSecurity, AccountSignIn, AuthenticatorSetup, Passkey, RequiredSetup } from './account-security'
 export type { SignInPolicy, SignInPolicyClient, SignInPolicyState, SignInRule, StaffAccessRule } from './sign-in-policy'

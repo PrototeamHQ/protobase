@@ -40,6 +40,17 @@ describe('the organizations client', () => {
     expect(JSON.parse(atob((await session.token())!.split('.')[1]!.replace(/-/g, '+').replace(/_/g, '/')))).toMatchObject({ org: '2' })
   })
 
+  it('searches the organizations a page at a time', async () => {
+    const found = { organizations: [{ id: '2', name: 'Globex', slug: 'globex' }], total: 21 }
+    const { calls, session } = setup(() => json(found))
+    expect(await session.organizations.search('glo', 20)).toEqual(found)
+    expect(calls[0]).toMatchObject({ path: '/organization/search', method: 'GET' })
+    expect(calls[0]!.query).toContain('query=glo')
+    expect(calls[0]!.query).toContain('offset=20')
+    await session.organizations.search('')
+    expect(calls[1]!.query).not.toContain('offset')
+  })
+
   it('reads members with their organization role and app roles', async () => {
     const { calls, session } = setup(() =>
       json({ members: [{ id: 'm1', userId: 'u1', role: 'owner', appRoles: ['manager'], createdAt: '2026-10-01T00:00:00Z', user: { name: '', email: 'bo@example.com' } }] }),

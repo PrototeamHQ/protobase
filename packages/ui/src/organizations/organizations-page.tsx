@@ -1,13 +1,13 @@
-import { Search } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import type { Organization, OrganizationInvitation } from '@protobase/client'
 import { AccountSection, SectionError } from '../account/account-section'
 import { PageHeader } from '../app-shell'
 import { useAuth } from '../auth/auth-provider'
 import { isAdmin } from '../auth/user-to-shell'
-import { Badge } from '../primitives/badge'
 import { Button } from '../primitives/button'
 import { Input } from '../primitives/input'
+import { AllOrganizations } from './all-organizations'
+import { OrganizationRow } from './organization-row'
 import { roleLabel } from './organization-paths'
 import { useAction } from './use-action'
 import { reopenIn, type OrganizationsState } from './use-organizations'
@@ -21,16 +21,6 @@ export const slugOf = (name: string) =>
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '')
     .slice(0, 63)
-
-const OrganizationRow = ({ organization, current, busy, onOpen }: { organization: Organization; current: boolean; busy: boolean; onOpen: () => void }) => (
-  <li className="flex items-center gap-3 px-3 py-2.5">
-    <span className="min-w-0 flex-1">
-      <span className="block truncate font-medium">{organization.name}</span>
-      <span className="block text-xs text-muted-foreground">{organization.slug}</span>
-    </span>
-    {current ? <Badge tone="green">Current</Badge> : <Button size="sm" loading={busy} onClick={onOpen}>Open</Button>}
-  </li>
-)
 
 const NewOrganization = ({ basePath }: { basePath: string }) => {
   const { session } = useAuth()
@@ -49,30 +39,6 @@ const NewOrganization = ({ basePath }: { basePath: string }) => {
         <Input aria-label="Slug" placeholder="slug" value={slug ?? slugOf(name)} onChange={(event) => setSlug(event.target.value)} wrapperClassName="sm:w-48" />
         <Button type="submit" variant="primary" loading={busy} disabled={!name.trim()}>Create</Button>
       </form>
-    </AccountSection>
-  )
-}
-
-const FindOrganization = ({ basePath, currentId }: { basePath: string; currentId?: string }) => {
-  const { session } = useAuth()
-  const [query, setQuery] = useState('')
-  const [found, setFound] = useState<Organization[]>([])
-  const { busy, error, run } = useAction()
-  useEffect(() => {
-    const timer = setTimeout(() => void session.organizations.search(query).then(setFound, () => setFound([])), 200)
-    return () => clearTimeout(timer)
-  }, [session, query])
-  return (
-    <AccountSection title="Find an organization" description="Your global roles let you work in any organization, with what those roles allow there. Opening one you are not a member of is written to the audit log.">
-      <SectionError message={error} />
-      <Input aria-label="Find an organization" placeholder="Name or slug" value={query} onChange={(event) => setQuery(event.target.value)} leading={<Search className="size-3.5" />} wrapperClassName="mb-3" />
-      {found.length > 0 && (
-        <ul className="divide-y rounded-md border">
-          {found.map((organization) => (
-            <OrganizationRow key={organization.id} organization={organization} current={organization.id === currentId} busy={busy} onOpen={() => void run(async () => { await session.organizations.switchTo(organization.id); reopenIn(basePath) })} />
-          ))}
-        </ul>
-      )}
     </AccountSection>
   )
 }
@@ -101,7 +67,7 @@ const YourInvitations = () => {
 
 /**
  * The person's organizations: switching between them, making a new one when the app allows it, and for people with a
- * global role finding any organization. Someone in none sees their invitations here.
+ * global role every organization. Someone in none sees their invitations here.
  */
 export const OrganizationsPage = ({ state, basePath }: { state: OrganizationsState; basePath: string }) => {
   const { session, organizations: settings, state: auth } = useAuth()
@@ -124,7 +90,7 @@ export const OrganizationsPage = ({ state, basePath }: { state: OrganizationsSta
       </AccountSection>
       <YourInvitations />
       {mayCreate && <NewOrganization basePath={basePath} />}
-      {(state.current?.globalRoles.length ?? 0) > 0 && <FindOrganization basePath={basePath} currentId={currentId} />}
+      {(state.current?.globalRoles.length ?? 0) > 0 && <AllOrganizations basePath={basePath} currentId={currentId} />}
     </div>
   )
 }

@@ -7,7 +7,7 @@ import { findMember, findMemberById, findOrganization, organizationRoleOf, setAp
 
 const memberNotFound = { code: 'MEMBER_NOT_FOUND', message: 'There is no such member.' }
 
-const searchLimit = 20
+const pageSize = 20
 
 /**
  * Protobase's member endpoints beside Better Auth's: changing a member's app roles, handing ownership over in one step,
@@ -77,23 +77,23 @@ export const memberEndpoints = ({ resolved }: { resolved: ResolvedOrganizations 
   }),
 
   /**
-   * `GET /organization/search?query=`, for someone with a global role, who may work in any organization: the first
-   * organizations whose name or slug contains the text, by name.
+   * `GET /organization/search?query=&offset=`, for someone with a global role, who may work in any organization: every
+   * organization by slug, a page at a time, narrowed by the text in its name or slug, with the total.
    */
-  searchOrganizations: createAuthEndpoint('/organization/search', { method: 'GET', use: [sessionMiddleware], query: z.object({ query: z.string().default('') }) }, async (ctx) => {
+  searchOrganizations: createAuthEndpoint('/organization/search', { method: 'GET', use: [sessionMiddleware], query: z.object({ query: z.string().default(''), offset: z.coerce.number().int().min(0).default(0) }) }, async (ctx) => {
     if (globalRoles(ctx.context.session.user.role as string | null | undefined).length === 0) {
       throw new APIError('FORBIDDEN', { code: 'GLOBAL_ROLE_REQUIRED', message: 'Only people with a global role can open organizations they are not a member of.' })
     }
     const text = ctx.query.query.trim()
-    const find = (field: 'name' | 'slug') =>
-      ctx.context.adapter.findMany<StoredOrganization>({
-        model: 'organization',
-        ...(text && { where: [{ field, value: text, operator: 'contains' as const }] }),
-        sortBy: { field: 'name', direction: 'asc' },
-        limit: searchLimit,
-      })
-    const found = new Map([...(await find('name')), ...(text ? await find('slug') : [])].map((organization) => [organization.id, organization]))
-    const organizations = [...found.values()].sort((a, b) => a.name.localeCompare(b.name)).slice(0, searchLimit)
-    return ctx.json({ organizations: organizations.map(({ id, name, slug }) => ({ id, name, slug })) })
+    const where = text
+      ? [
+          { field: 'name', operator: 'contains' as const, value: text, connector: 'OR' as const },
+          { field: 'slug', operator: 'contains' as const, value: text, connector: 'OR' as const },
+        ]
+      : undefined
+    // Slugs are unique, so pages never skip or repeat organizations that share a name
+    const organizations = await ctx.context.adapter.findMany<StoredOrganization>({ model: 'organization', where, sortBy: { field: 'slug', direction: 'asc' }, limit: pageSize, offset: ctx.query.offset })
+    const total = await ctx.context.adapter.count({ model: 'organization', where })
+    return ctx.json({ organizations: organizations.map(({ id, name, slug }) => ({ id, name, slug })), total })
   }),
 })

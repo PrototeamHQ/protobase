@@ -6,6 +6,9 @@ export type OrganizationRole = 'owner' | 'admin' | 'member'
 
 export type Organization = { id: string; name: string; slug: string; logo?: string | null }
 
+/** A page of organizations and how many there are in all. */
+export type OrganizationsFound = { organizations: Organization[]; total: number }
+
 /**
  * The organization the session works in: for a member with their organization role, app roles there and membership
  * id; for someone with a global role who entered it without being a member, without them. `globalRoles` are the
@@ -94,8 +97,9 @@ export const organizationsClient = (client: BetterAuthClient, refreshToken: () =
     switchTo: async (organizationId: string | null) =>
       thenRefresh(await call<{ organizationId: string | null }>('/organization/switch', 'Could not switch the organization', { body: { organizationId } })),
 
-    /** Every organization whose name or slug contains `query`, for people with a global role. */
-    search: async (query: string) => (await call<{ organizations: Organization[] }>('/organization/search', 'Could not search the organizations', { query: { query } })).organizations,
+    /** For people with a global role, 20 organizations by slug from `offset` whose name or slug contains `query`, and the total. */
+    search: (query: string, offset = 0) =>
+      call<OrganizationsFound>('/organization/search', 'Could not search the organizations', { query: { query, ...(offset > 0 && { offset: String(offset) }) } }),
 
     /** Creates an organization, owned by the person with every app role, and works in it. */
     create: async (input: { name: string; slug: string }) => thenRefresh(await call<Organization>('/organization/create', 'Could not create the organization', { body: input })),
