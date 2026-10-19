@@ -73,3 +73,44 @@ describe('reorder by a position with `after`', () => {
     expect(await positions()).toEqual(['a5', 'b2', 'c1', 'd4'])
   })
 })
+
+const update = (key: number, data: Record<string, unknown>) => app.request(`/api/v1/tasks/${key}`, {
+  method: 'PATCH',
+  headers: { ...as(undefined), 'content-type': 'application/json', 'if-match': '*' },
+  body: JSON.stringify(data),
+})
+const batch = (ops: unknown[]) => app.request('/api/v1:batchWrite', {
+  method: 'POST',
+  headers: { ...as(undefined), 'content-type': 'application/json' },
+  body: JSON.stringify({ ops }),
+})
+
+describe('create and update of a position with `after`', () => {
+  it('refuses an update that ranks a task above an open task it waits for, and writes nothing', async () => {
+    const response = await update(4, { position: 1 })
+    expect(response.status).toBe(409)
+    expect(await response.json()).toMatchObject({ type: 'urn:protobase:problem:ranks-above-dependency', record: 4, dependsOn: 2 })
+    expect(await positions()).toEqual(['a1', 'b2', 'c3', 'd4'])
+  })
+
+  it('refuses an update that ranks a task below one that waits for it', async () => {
+    expect((await update(2, { position: 5 })).status).toBe(409)
+  })
+
+  it('keeps an order it did not break, and checks nothing when the position is not written', async () => {
+    expect((await update(1, { position: 0 })).status).toBe(200)
+    expect((await update(4, { title: 'd!' })).status).toBe(200)
+    expect(await positions()).toEqual(['a0', 'b2', 'c3', 'd!4'])
+  })
+
+  it('refuses the batch update op the same way', async () => {
+    const response = await batch([{ op: 'update', resource: 'tasks', key: 4, data: { position: 0 }, etag: '*' }])
+    expect(response.status).toBe(409)
+    expect(await response.json()).toMatchObject({ type: 'urn:protobase:problem:ranks-above-dependency', operation: 0, record: 4, dependsOn: 2 })
+  })
+
+  it('lets a batch create a task at any rank, as nothing depends on it yet', async () => {
+    const response = await batch([{ op: 'create', resource: 'tasks', data: { title: 'e', status: 'open', position: 0 } }])
+    expect(response.status, await response.clone().text()).toBe(200)
+  })
+})

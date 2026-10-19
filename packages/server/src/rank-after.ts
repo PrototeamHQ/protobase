@@ -9,13 +9,14 @@ import { columnId, filterCondition, scopeConditions, tableId, whereClause } from
 import { tenantScope } from './tenant'
 import { newlyAbove, type RankPair } from './rank-pairs'
 
-/** A record a reorder changed, with the rank it had before. */
+/** A record a write changed, with the rank it had before (`null` for a new one). */
 export type Moved = { key: (string | number)[]; before: unknown }
 
 /**
- * Refuses a reorder by the resource's position that puts a record at or above a record it depends on, or one of those
- * at or below it (see `PositionAfterModel`), in one query of the pairs that involve the changed records. Pairs out of
- * order before the reorder do not count, so existing data never blocks a move that did not break it.
+ * Refuses a write of the resource's position (a create, an update or a reorder) that puts a record at or above a record
+ * it depends on, or one of those at or below it (see `PositionAfterModel`), in one query of the pairs that involve the
+ * changed records. Pairs out of order before the write do not count, so existing data never blocks a move that did not
+ * break it.
  */
 export const checkRankAfter = async (trx: Db, deps: Deps, access: RequestAccess, field: string, moved: Moved[]) => {
   const { full, entry, session } = access

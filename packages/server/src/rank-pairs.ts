@@ -7,8 +7,8 @@ const atOrAbove = (dependent: unknown, depended: unknown) => dependent !== null 
 
 /**
  * The first pair whose record now ranks at or above the record it depends on but did not before: `before` holds the
- * ranks the records a reorder changed had, by their encoded key. A pair out of order already stays as it is, so a
- * reorder never fails on an order it did not break.
+ * ranks the records a write changed had, by their encoded key, `null` for a new one. A pair out of order already stays
+ * as it is, so a write never fails on an order it did not break.
  */
 export const newlyAbove = (pairs: readonly RankPair[], before: ReadonlyMap<string, unknown>) => {
   const was = (key: string | number, now: unknown) => {

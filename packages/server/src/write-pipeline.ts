@@ -13,7 +13,8 @@ import { writeTransaction } from './transactions'
 import type { Row, Session } from './types'
 import { validateBody } from './validate-body'
 import { applyUpdate, planUpdate } from './write-update'
-import { assertWritten, checkPrecondition, decide, denied, firstKeyField, missing, notifier, shown, type WriteResult } from './write-shared'
+import { assertWritten, checkPrecondition, decide, denied, firstKeyField, keyOf, missing, notifier, shown, type WriteResult } from './write-shared'
+import { checkRankAfter } from './rank-after'
 import type { Entry } from './registry'
 
 export type { WriteResult }
@@ -44,6 +45,8 @@ const create = async (trx: Db, deps: Deps, access: RequestAccess, body: unknown)
   const filter = await decide(access, 'create', undefined, row)
   const created = await insertRecord(trx, entry, row, { etagFields: Object.keys(access.model.fields) })
   await assertWritten(trx, access, created, 'create', access.resolved.rowFilter.create, filter)
+  // A new record had no rank before, so any pair it ranks out of order counts
+  if (full.position) await checkRankAfter(trx, deps, access, full.position.field, [{ key: keyOf(access, created.record), before: null }])
   await notifier(deps, access)(trx, 'create', undefined, created.record)
   return shown(access, created)
 }
@@ -51,7 +54,10 @@ const create = async (trx: Db, deps: Deps, access: RequestAccess, body: unknown)
 const update = async (trx: Db, deps: Deps, access: RequestAccess, request: Extract<WriteRequest, { operation: 'update' }>): Promise<WriteResult> => {
   const plan = await planUpdate(trx, access, request.key, request.body, request.ifMatch)
   if (Object.keys(plan.values).length === 0) return shown(access, plan.current)
-  return shown(access, await applyUpdate(trx, deps, access, request.key, plan))
+  const updated = await applyUpdate(trx, deps, access, request.key, plan)
+  const rank = access.full.position?.field
+  if (rank && rank in plan.values) await checkRankAfter(trx, deps, access, rank, [{ key: keyOf(access, updated.record), before: plan.current.record[rank] }])
+  return shown(access, updated)
 }
 
 const removeOrRestore = async (trx: Db, deps: Deps, access: RequestAccess, request: Extract<WriteRequest, { operation: 'delete' | 'undelete' }>): Promise<WriteResult> => {
@@ -92,7 +98,8 @@ const removeOrRestore = async (trx: Db, deps: Deps, access: RequestAccess, reque
 /**
  * One write inside an open transaction, for a caller whose access is already resolved: operations and field access,
  * tenant scope, validation against the fields they may write, optimistic concurrency, row filters and record-level
- * rules checked in the database, then the hooks. Batches run many of these in one transaction.
+ * rules checked in the database, then the hooks; a rank written by the resource's position with `after` must keep the
+ * record below what it depends on (see `checkRankAfter`). Batches run many of these in one transaction.
  */
 export const writeIn = async (trx: Db, deps: Deps, access: RequestAccess, request: WriteRequest): Promise<WriteResult> => {
   requireOperation(access, request.operation === 'undelete' ? 'update' : request.operation)
