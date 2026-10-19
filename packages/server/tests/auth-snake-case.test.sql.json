@@ -988,8 +988,8 @@
     "the rename of a Protobase 0.6 auth store in an auth schema > is the migration written for it, after which people sign in as before and admins read the saved policy#0": [
       {"repeated":0},
       {"sql":"\n      insert into \"auth\".\"user\" (id, name, email, \"emailVerified\", role) values ('u1', 'Root', 'root@example.com', true, 'admin');\n      insert into \"auth\".account (id, \"accountId\", \"providerId\", \"userId\", password, \"updatedAt\") values ('a1', 'u1', 'credential', 'u1', '52d344bf5a85fd83da9f9f853bed9116:b9dd884d0151241a4b963b643429c8b173f9fe241d250b0715407170316a65fdb6b1356432ac2a4bde81f49f5655d0429e405c33f1c81d1ec824aacf42dd2358', now());\n      -- Made before the tests' clock, so it is older than the session the sign-in below makes.\n      insert into \"auth\".session (id, token, \"expiresAt\", \"createdAt\", \"updatedAt\", \"userId\") values ('s1', 'token-from-0.6', now() + interval '1 day', '2026-07-01', now(), 'u1');\n      insert into \"auth\".\"signInPolicy\" (id, password, \"emailCode\", passkey, \"twoFactor\", \"staffAccess\", \"platformSignIn\", \"createdAt\", \"createdBy\")\n        values ('p1', 'allowed', 'forbidden', 'allowed', 'allowed', 'notify', 'forbidden', now(), 'u1');\n    ","result":[{"command":"INSERT","rowCount":1,"columns":[],"rows":[]},{"command":"INSERT","rowCount":1,"columns":[],"rows":[]},{"command":"INSERT","rowCount":1,"columns":[],"rows":[]},{"command":"INSERT","rowCount":1,"columns":[],"rows":[]}]},
-      {"repeated":1},
       {"sql":"\n\t\t\tSELECT pg_catalog.current_schemas(true)::text[] AS schemas\n\t\t","result":{"command":"SELECT","rowCount":1,"columns":[["schemas",1009]],"rows":[["{pg_catalog,public}"]]}},
+      {"repeated":1},
       {"repeated":1},
       {"sql":"select \"nspname\" from \"pg_catalog\".\"pg_namespace\"","result":{"command":"SELECT","rowCount":5,"columns":[["nspname",19]],"rows":[
         ["pg_toast"],
@@ -1090,8 +1090,8 @@
     "the rename of a Protobase 0.6 auth store in an auth schema > leaves the store as one set up with the snake_case names, and such a store as it is#0": [
       {"repeated":0},
       {"repeated":3},
-      {"repeated":4},
       {"sql":"\n\t\t\tSELECT pg_catalog.current_schemas(true)::text[] AS schemas\n\t\t","result":{"command":"SELECT","rowCount":1,"columns":[["schemas",1009]],"rows":[["{pg_catalog,public}"]]}},
+      {"repeated":4},
       {"repeated":4},
       {"sql":"select \"nspname\" from \"pg_catalog\".\"pg_namespace\"","result":{"command":"SELECT","rowCount":5,"columns":[["nspname",19]],"rows":[
         ["pg_toast"],
@@ -1114,8 +1114,8 @@
       {"repeated":7}
     ],
     "the rename of a Protobase 0.6 auth store in an auth schema > leaves the store as one set up with the snake_case names, and such a store as it is#1": [
-      {"repeated":8},
       {"sql":"\n\t\t\tSELECT pg_catalog.current_schemas(true)::text[] AS schemas\n\t\t","result":{"command":"SELECT","rowCount":1,"columns":[["schemas",1009]],"rows":[["{pg_catalog,public}"]]}},
+      {"repeated":8},
       {"repeated":8},
       {"sql":"select \"nspname\" from \"pg_catalog\".\"pg_namespace\"","result":{"command":"SELECT","rowCount":4,"columns":[["nspname",19]],"rows":[
         ["pg_toast"],
@@ -1142,8 +1142,8 @@
     "the rename of a Protobase 0.6 auth store in the current schema > is the migration written for it, after which people sign in as before and admins read the saved policy#0": [
       {"repeated":10},
       {"sql":"\n      insert into \"user\" (id, name, email, \"emailVerified\", role) values ('u1', 'Root', 'root@example.com', true, 'admin');\n      insert into account (id, \"accountId\", \"providerId\", \"userId\", password, \"updatedAt\") values ('a1', 'u1', 'credential', 'u1', '7e679afc624207a934945b46dd3c7b26:7bccceb706e0859cf0e0ac287b036ab4568c7127ae3b8b9603a8e3ea5f7c0718694595d152bb6105b6a3d82e3b717bd1a0f851018cb9ae17262346fe43c26509', now());\n      -- Made before the tests' clock, so it is older than the session the sign-in below makes.\n      insert into session (id, token, \"expiresAt\", \"createdAt\", \"updatedAt\", \"userId\") values ('s1', 'token-from-0.6', now() + interval '1 day', '2026-07-01', now(), 'u1');\n      insert into \"signInPolicy\" (id, password, \"emailCode\", passkey, \"twoFactor\", \"staffAccess\", \"platformSignIn\", \"createdAt\", \"createdBy\")\n        values ('p1', 'allowed', 'forbidden', 'allowed', 'allowed', 'notify', 'forbidden', now(), 'u1');\n    ","result":[{"command":"INSERT","rowCount":1,"columns":[],"rows":[]},{"command":"INSERT","rowCount":1,"columns":[],"rows":[]},{"command":"INSERT","rowCount":1,"columns":[],"rows":[]},{"command":"INSERT","rowCount":1,"columns":[],"rows":[]}]},
-      {"repeated":11},
       {"sql":"\n\t\t\tSELECT pg_catalog.current_schemas(true)::text[] AS schemas\n\t\t","result":{"command":"SELECT","rowCount":1,"columns":[["schemas",1009]],"rows":[["{pg_catalog,public}"]]}},
+      {"repeated":11},
       {"repeated":11},
       {"sql":"\n\t\tSELECT pg_catalog.current_schema() AS schema\n\t","result":{"command":"SELECT","rowCount":1,"columns":[["schema",19]],"rows":[["public"]]}},
       {"sql":"select \"nspname\" from \"pg_catalog\".\"pg_namespace\"","result":{"command":"SELECT","rowCount":5,"columns":[["nspname",19]],"rows":[
@@ -1251,8 +1251,8 @@
     "the rename of a Protobase 0.6 auth store in the current schema > leaves the store as one set up with the snake_case names, and such a store as it is#0": [
       {"repeated":10},
       {"repeated":13},
-      {"repeated":14},
       {"sql":"\n\t\t\tSELECT pg_catalog.current_schemas(true)::text[] AS schemas\n\t\t","result":{"command":"SELECT","rowCount":1,"columns":[["schemas",1009]],"rows":[["{pg_catalog,public}"]]}},
+      {"repeated":14},
       {"repeated":14},
       {"sql":"\n\t\tSELECT pg_catalog.current_schema() AS schema\n\t","result":{"command":"SELECT","rowCount":1,"columns":[["schema",19]],"rows":[["public"]]}},
       {"sql":"select \"nspname\" from \"pg_catalog\".\"pg_namespace\"","result":{"command":"SELECT","rowCount":5,"columns":[["nspname",19]],"rows":[
@@ -1277,8 +1277,8 @@
       {"repeated":17}
     ],
     "the rename of a Protobase 0.6 auth store in the current schema > leaves the store as one set up with the snake_case names, and such a store as it is#1": [
-      {"repeated":8},
       {"sql":"\n\t\t\tSELECT pg_catalog.current_schemas(true)::text[] AS schemas\n\t\t","result":{"command":"SELECT","rowCount":1,"columns":[["schemas",1009]],"rows":[["{pg_catalog,public}"]]}},
+      {"repeated":8},
       {"repeated":8},
       {"sql":"\n\t\tSELECT pg_catalog.current_schema() AS schema\n\t","result":{"command":"SELECT","rowCount":1,"columns":[["schema",19]],"rows":[["public"]]}},
       {"sql":"select \"nspname\" from \"pg_catalog\".\"pg_namespace\"","result":{"command":"SELECT","rowCount":4,"columns":[["nspname",19]],"rows":[

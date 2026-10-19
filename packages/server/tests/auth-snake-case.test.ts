@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest'
 import { authSchemaMigration, checkAuthSchema } from '../src/better-auth/auth-schema'
 import { createAuth } from '../src/better-auth/create-auth'
 import { snakeCaseMigration } from '../src/better-auth/snake-case-migration'
-import { openSnapshotDb, type SnapshotDb } from '../../../test-support/sql-snapshot'
+import { openSnapshotDb, settled, type SnapshotDb } from '../../../test-support/sql-snapshot'
 
 const origin = 'http://localhost:5173'
 const secret = 'test-secret-test-secret-test-secret-1234'
@@ -14,8 +14,13 @@ const policy = { password: 'allowed', emailCode: 'forbidden', passkey: 'allowed'
 
 const schemaOf060 = await readFile(new URL('./support/auth-0.6.0.sql', import.meta.url), 'utf8')
 
-const authOn = (pg: SnapshotDb, schema: string | undefined) =>
-  createAuth({ database: { dialect: pg.dialect, type: 'postgres', ...(schema && { schemaName: schema }) }, baseURL: origin, secret, mailer: false, operator: false, signInProvider: false })
+// Its schema check starts once its context is made; let it finish before the test's next queries.
+const authOn = async (pg: SnapshotDb, schema: string | undefined) => {
+  const auth = createAuth({ database: { dialect: pg.dialect, type: 'postgres', ...(schema && { schemaName: schema }) }, baseURL: origin, secret, mailer: false, operator: false, signInProvider: false })
+  await auth.$context
+  await settled()
+  return auth
+}
 
 // Every column with its type, nullability and default, every constraint and every index of the store's schema.
 const catalog = async (pg: SnapshotDb, schema: string) =>
@@ -51,7 +56,7 @@ describe.each([
       insert into ${t}"signInPolicy" (id, password, "emailCode", passkey, "twoFactor", "staffAccess", "platformSignIn", "createdAt", "createdBy")
         values ('p1', 'allowed', 'forbidden', 'allowed', 'allowed', 'notify', 'forbidden', now(), 'u1');
     `)
-    const auth = authOn(pg, schema)
+    const auth = await authOn(pg, schema)
     await expect(checkAuthSchema(auth)).rejects.toThrow(/still has the camelCase names of Protobase 0\.6.*`protobase auth migration`/)
 
     const migration = await authSchemaMigration(auth)
@@ -66,7 +71,7 @@ describe.each([
     expect(await authSchemaMigration(auth)).toBeUndefined()
 
     // Served by a new start, as after the project's migrations: Better Auth checks the schema once per start.
-    const served = authOn(pg, schema)
+    const served = await authOn(pg, schema)
     const request = (path: string, init: RequestInit = {}) => served.handler(new Request(`${origin}/api/auth${path}`, { ...init, headers: { 'content-type': 'application/json', origin, ...init.headers } }))
     const signIn = await request('/sign-in/email', { method: 'POST', body: JSON.stringify({ email: 'root@example.com', password }) })
     expect(signIn.status).toBe(200)
@@ -79,9 +84,9 @@ describe.each([
   it('leaves the store as one set up with the snake_case names, and such a store as it is', async () => {
     const renamed = await store060()
     await renamed.exec(snakeCaseMigration(schema))
-    await renamed.exec((await authSchemaMigration(authOn(renamed, schema)))!)
+    await renamed.exec((await authSchemaMigration(await authOn(renamed, schema)))!)
     const fresh = await openSnapshotDb('empty')
-    await fresh.exec((await authSchemaMigration(authOn(fresh, schema)))!)
+    await fresh.exec((await authSchemaMigration(await authOn(fresh, schema)))!)
     const before = await catalog(fresh, tables)
     await fresh.exec(snakeCaseMigration(schema))
 
