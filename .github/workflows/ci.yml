@@ -142,19 +142,6 @@ jobs:
           --health-interval 2s
           --health-timeout 3s
           --health-retries 30
-      # The cloud's pooler in front of the same server, as docker-compose.yml runs it.
-      pgbouncer:
-        image: edoburu/pgbouncer:v1.26.0-p0
-        env:
-          DB_HOST: postgres
-          DB_USER: protobase
-          DB_PASSWORD: protobase
-          AUTH_TYPE: scram-sha-256
-          POOL_MODE: transaction
-          MAX_PREPARED_STATEMENTS: 200
-          MAX_USER_CONNECTIONS: 3
-        ports:
-          - 5432
     steps:
       - uses: actions/checkout@v4
         with:
@@ -172,17 +159,36 @@ jobs:
       - if: steps.postgres.outputs.run == 'true'
         run: bun install --frozen-lockfile
       - if: steps.postgres.outputs.run == 'true'
-        name: Point the tests at the services' Postgres and PgBouncer
+        name: Point the tests at the service's Postgres
         env:
           POSTGRES_PORT: ${{ job.services.postgres.ports['5432'] }}
-          PGBOUNCER_PORT: ${{ job.services.pgbouncer.ports['5432'] }}
+        run: echo "TEST_POSTGRES_URL=postgres://protobase:protobase@localhost:$POSTGRES_PORT/postgres" >> "$GITHUB_ENV"
+      # The cloud's pooler in front of the same server, as docker-compose.yml runs it. It is started here rather than as a
+      # service so it reaches Postgres by address: on the shared self-hosted runner, looking up the service name now and
+      # then stalls while other jobs create and remove their networks, and the PgBouncer tests then find no pooler.
+      - if: steps.postgres.outputs.run == 'true'
+        name: Start PgBouncer in front of that Postgres and point the tests at it
+        env:
+          POSTGRES_ID: ${{ job.services.postgres.id }}
+          NETWORK: ${{ job.services.postgres.network }}
+          PGBOUNCER: pgbouncer-${{ github.run_id }}-${{ github.run_attempt }}
         run: |
-          echo "TEST_POSTGRES_URL=postgres://protobase:protobase@localhost:$POSTGRES_PORT/postgres" >> "$GITHUB_ENV"
-          echo "TEST_PGBOUNCER_URL=postgres://protobase:protobase@localhost:$PGBOUNCER_PORT/postgres" >> "$GITHUB_ENV"
+          address=$(docker inspect --format "{{(index .NetworkSettings.Networks \"$NETWORK\").IPAddress}}" "$POSTGRES_ID")
+          docker run --detach --rm --name "$PGBOUNCER" --network "$NETWORK" --publish 5432 \
+            -e DB_HOST="$address" -e DB_USER=protobase -e DB_PASSWORD=protobase -e AUTH_TYPE=scram-sha-256 \
+            -e POOL_MODE=transaction -e MAX_PREPARED_STATEMENTS=200 -e MAX_USER_CONNECTIONS=3 \
+            edoburu/pgbouncer:v1.26.0-p0
+          port=$(docker port "$PGBOUNCER" 5432/tcp | head -n1 | sed 's/.*://')
+          echo "TEST_PGBOUNCER_URL=postgres://protobase:protobase@localhost:$port/postgres" >> "$GITHUB_ENV"
       - if: steps.postgres.outputs.run == 'true'
         run: bun run test:db postgres
       - if: steps.postgres.outputs.run == 'true'
         run: bun run test:postgres
+      - if: always() && steps.postgres.outputs.run == 'true'
+        name: Remove PgBouncer
+        env:
+          PGBOUNCER: pgbouncer-${{ github.run_id }}-${{ github.run_attempt }}
+        run: docker rm --force "$PGBOUNCER" || true
 
   # The snapshot tests' recordings (`bun run test:record`): every snapshot test run again on real Postgres, its SQL and
   # answers written to its `*.sql.json`. A recording that differs from the committed one means Postgres now answers the
