@@ -624,6 +624,22 @@ export type ListModel = {
    * [Editing in the list](website/src/content/docs/reference/ui-config.mdx#editing-in-the-list).
    */
   editable?: string[]
+  /** What dragging changes, each off unless the list turns it on; see `ListDragModel`. */
+  drag?: ListDragModel
+}
+
+/**
+ * What a user may change by dragging in a list, each for a user who may update the field it writes. See
+ * [Dragging in the list](website/src/content/docs/reference/ui-config.mdx#dragging-in-the-list).
+ */
+export type ListDragModel = {
+  /**
+   * Re-ranking: in the resource's `.position()` order, without a parent's `within`, the table's rows and a board's cards
+   * move by dragging them, at any time, rather than after **Reorder**.
+   */
+  rank?: boolean
+  /** Moving a board's card to another column, which saves its record with that column's value. */
+  board?: boolean
 }
 
 /**

@@ -1,9 +1,10 @@
 import { arrayMove } from '@dnd-kit/sortable'
-import type { BatchOp } from '@protobase/client'
+import type { BatchOp, BatchResult } from '@protobase/client'
 import type { ResourceModel } from '@protobase/schema'
 import { encodeKey } from '@protobase/schema/internal'
 import { recordKey } from '../../live/model-helpers'
 import { reorderSpan } from '../hand-order/reorder-span'
+import type { DragWrite } from '../hand-order/undo-ops'
 import type { BoardColumn } from './board-columns'
 import type { ListDisplayRow } from './list-displays'
 
@@ -36,4 +37,21 @@ export const placeOps = (model: ResourceModel, by: string, rank: string, row: Li
   const reorder: BatchOp = { op: 'reorder', resource: model.name, field: rank, keys: sent.map((entry) => recordKey(model, entry.record)), start: span.start, etags }
   if (!moving) return [reorder]
   return [{ op: 'update', resource: model.name, key: recordKey(model, row.record), data: { [by]: column.value }, etag: etagOf(row) }, reorder]
+}
+
+/**
+ * What the batch of a drop saved: each record it wrote, as it stored it last, with its values in `rows`, the column's
+ * cards as listed before the drop, so the drop can be undone.
+ */
+export const boardWrites = (model: ResourceModel, rows: ListDisplayRow[], result: BatchResult): DragWrite[] => {
+  const before = new Map(rows.map((row) => [encodeKey(recordKey(model, row.record)), row.record]))
+  const stored = new Map<string, { record: Record<string, unknown>; etag: string }>()
+  for (const entry of result.results) {
+    const written = entry.op === 'reorder' ? entry.records : entry.op === 'update' ? [entry] : []
+    for (const { record, etag } of written) stored.set(encodeKey(recordKey(model, record)), { record, etag })
+  }
+  return [...stored].flatMap(([key, written]) => {
+    const was = before.get(key)
+    return was ? [{ before: was, ...written }] : []
+  })
 }

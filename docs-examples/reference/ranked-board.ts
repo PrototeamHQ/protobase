@@ -1,6 +1,7 @@
 import { f, resource, view } from '@protobase/schema'
 
-// A team's tasks on a board in the order of their rank, each column sorted by dragging its cards.
+// A team's tasks on a board in the order of their rank, each card dragged to its place in a column or to another
+// column, and the table in the same order, its rows dragged too.
 
 export const tasks = resource('tasks')
   .table('tasks')
@@ -15,4 +16,10 @@ export const tasks = resource('tasks')
 
 export const tasksView = view<typeof tasks>('tasks')
   .title((r) => r.title)
-  .list((r, d) => ({ columns: [r.title, r.status], displays: [d.board({ by: r.status })], default: 'board' }))
+  .list((r, d) => ({
+    columns: [r.title, r.status],
+    sort: [[r.rank, 'asc']],
+    displays: [d.board({ by: r.status })],
+    default: 'board',
+    drag: { rank: true, board: true },
+  }))

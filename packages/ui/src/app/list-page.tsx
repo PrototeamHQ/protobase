@@ -56,7 +56,7 @@ import { SaveSearchButton } from './searches/save-search-button'
 import { SavedSearches } from './searches/saved-searches'
 import { SignInPrompt } from '../auth/sign-in-prompt'
 import { useListCellEditor } from './list-edit/use-list-cell-editor'
-import { listHandOrder } from './hand-order/hand-order'
+import { dragsRank, listHandOrder } from './hand-order/hand-order'
 import { HandSortedList } from './hand-order/hand-sorted-list'
 import { ReorderButton } from './hand-order/reorder-button'
 import { listColumnNames } from '../live/columns-from-model'
@@ -131,6 +131,8 @@ const LoadedList = ({ model, address, scope, heading }: LoadedListProps) => {
   const handOrder = scope ? undefined : listHandOrder(model, permissions)
   const [sorting, setSorting] = useState(false)
   const handSorting = sorting && handOrder !== undefined
+  // A list that turns `drag.rank` on drags its table's rows while it shows them all in their order, without Reorder
+  const dragging = !display && !handSorting && dragsRank(view, handOrder, orderBy, loadFilter)
   // The table, the cards, a board, a calendar, a timeline, a custom display and the records sorted by hand are as tall as all their rows and
   // scroll with the page; the map fills the screen
   const pageScroll = handSorting || display?.kind !== 'map'
@@ -210,7 +212,7 @@ const LoadedList = ({ model, address, scope, heading }: LoadedListProps) => {
       {desktop && text('export')}
     </Button>
   )
-  const sortButton = handOrder && <ReorderButton sorting={handSorting} onChange={setSorting} iconOnly={!desktop} />
+  const sortButton = handOrder && !dragging && <ReorderButton sorting={handSorting} onChange={setSorting} iconOnly={!desktop} />
   const displaySwitch = (menu: boolean) => !handSorting && <DisplaySwitch view={view} choices={listDisplayChoices(model, view, xs)} value={display?.name ?? tableDisplay} onChange={(name) => set({ display: name })} menu={menu} />
 
   const seedRecord = useSeedRecord(model)
@@ -259,6 +261,7 @@ const LoadedList = ({ model, address, scope, heading }: LoadedListProps) => {
   })
   const empty = <ListEmpty state={emptyState} onClearSearch={() => commitSearch('')} onClearFilters={() => setFilter(emptyFilterState)} create={createButton} />
   const drawDisplay = () => {
+    if (dragging) return <HandSortedList model={model} view={view} field={handOrder!} filter="" columns={listColumnNames(model, view)} sort={{ value: parseSort(orderBy), onChange: (sort) => set({ orderBy: sortToOrderBy(sort) }) }} />
     if (!display) return rows.source?.total === 0 && !rows.error ? empty : table
     // A change of filter or sort starts the cards again at the top
     if (display.kind === 'cards') return <ListCards key={rows.key.join(' ')} model={model} view={view} display={display} list={cardsList} empty={empty} />

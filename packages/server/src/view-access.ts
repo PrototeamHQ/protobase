@@ -123,6 +123,7 @@ const listShape = (resource: string, model: ResourceModel, models: Record<string
       ),
       filter: s.data,
       default: s.data,
+      drag: s.data,
     },
     { after: tidyList(model) },
   )

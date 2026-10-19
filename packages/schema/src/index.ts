@@ -28,6 +28,7 @@ export type {
   FieldWidgetModel,
   BadgeShape,
   ListModel,
+  ListDragModel,
   RelatedColumnModel,
   ListDisplayModel,
   CardPhotosModel,

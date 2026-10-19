@@ -1,5 +1,6 @@
 import type { ResourcePermissions } from '@protobase/client'
-import type { RelatedModel, ResourceModel } from '@protobase/schema'
+import type { RelatedModel, ResourceModel, ViewModel } from '@protobase/schema'
+import { parseSort } from '../list-order'
 import { can } from '../permissions'
 
 /** The records loaded per request to reorder them by hand, the list API's largest page; all pages load. */
@@ -26,3 +27,13 @@ export const listHandOrder = (model: ResourceModel, permissions: ResourcePermiss
  */
 export const relatedHandOrder = (item: RelatedModel, model: ResourceModel, permissions: ResourcePermissions) =>
   model.position?.within !== undefined && item.field === model.position.within && !item.through && !item.from && !item.filter ? writablePosition(model, permissions) : undefined
+
+/**
+ * Whether the list page's table moves its rows by dragging at any time, without **Reorder**: its list turns
+ * `drag.rank` on, and it shows every record in the order of `field`, from `listHandOrder`, without a filter or search.
+ */
+export const dragsRank = (view: ViewModel | undefined, field: string | undefined, orderBy: string, filter: string) => {
+  if (field === undefined || view?.list?.drag?.rank !== true || filter !== '') return false
+  const sort = parseSort(orderBy)
+  return sort.columnId === field && sort.direction === 'asc'
+}

@@ -36,19 +36,21 @@ const placeOver = (over: Over, row: ListDisplayRow): BoardPlace | undefined => {
 }
 
 /**
- * A column per value of the board's enum field, each loading its own records through the list API, with their count;
- * a card dragged, or moved with the keyboard, to another column saves the record with that column's value. When the
- * resource has a position, its records ordered as one, the columns are in its order and a card is dropped at a place:
- * the up and down arrow keys move it within its column, and the drop renumbers the cards before it.
+ * A column per value of the board's enum field, each loading its own records through the list API, with their count.
+ * When the list's `drag.board` is on, a card dragged, or moved with the keyboard, to another column saves the record
+ * with that column's value. When the resource has a position, its records ordered as one, the columns are in its order,
+ * and when `drag.rank` is on a card is dropped at a place: the up and down arrow keys move it within its column, and
+ * the drop renumbers the cards before it. Each change says so with **Undo**.
  */
 export const BoardDisplay = ({ model, view, display, fields, filter, orderBy, limit }: BoardProps) => {
   const columns = columnsAllowed(filter, display.by, boardColumns(model, view, display))
   const card = boardCard(model, view, display)
   const permissions = usePermissions(model.name)
-  const movable = can(permissions, 'update') && !model.fields[display.by]?.readOnly
+  const drag = view?.list?.drag
+  const movable = drag?.board === true && can(permissions, 'update') && !model.fields[display.by]?.readOnly
   const rank = boardRank(model)
   // Changing the order takes the same right as sorting the list by hand
-  const placeable = rank !== undefined && listHandOrder(model, permissions) !== undefined
+  const placeable = drag?.rank === true && rank !== undefined && listHandOrder(model, permissions) !== undefined
   const columnOrder = rank ? `${rank} asc` : orderBy
   const { moves, move } = useBoardMove(model, display.by, rank)
   const [active, setActive] = useState<ListDisplayRow | undefined>()
@@ -119,9 +121,11 @@ export const BoardDisplay = ({ model, view, display, fields, filter, orderBy, li
       accessibility={{
         announcements,
         screenReaderInstructions: {
-          draggable: placeable
-            ? 'To move a card, press Space, move it with the up and down arrow keys within its column and the left and right arrow keys to another column, and press Space again to drop it there. Escape puts it back.'
-            : 'To move a card to another column, press Space, move it with the left and right arrow keys, and press Space again to drop it there. Escape puts it back.',
+          draggable: !placeable
+            ? 'To move a card to another column, press Space, move it with the left and right arrow keys, and press Space again to drop it there. Escape puts it back.'
+            : movable
+              ? 'To move a card, press Space, move it with the up and down arrow keys within its column and the left and right arrow keys to another column, and press Space again to drop it there. Escape puts it back.'
+              : 'To move a card, press Space, move it with the up and down arrow keys within its column, and press Space again to drop it there. Escape puts it back.',
         },
       }}
     >

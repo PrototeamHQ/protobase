@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { f, resource, type RelatedModel } from '@protobase/schema'
-import { listHandOrder, relatedHandOrder } from './hand-order'
+import { f, resource, type RelatedModel, type ViewModel } from '@protobase/schema'
+import { dragsRank, listHandOrder, relatedHandOrder } from './hand-order'
 
 const items = resource('items')
   .table('items')
@@ -28,5 +28,23 @@ describe('sorting by hand', () => {
     expect(relatedHandOrder(related({ field: 'id', through: { resource: 'links', field: 'invoice_id' } }), model, all)).toBeUndefined()
     expect(relatedHandOrder(related({ from: 'invoice_id' }), model, all)).toBeUndefined()
     expect(relatedHandOrder(related(), model, { ...all, update: false })).toBeUndefined()
+  })
+})
+
+describe('dragsRank', () => {
+  const ranked = { resource: 'items', fields: {}, list: { columns: ['id'], drag: { rank: true } } } as unknown as ViewModel
+
+  it('drags the rows of an unfiltered list in the order of its position, when its list turns it on', () => {
+    expect(dragsRank(ranked, 'position', 'position asc', '')).toBe(true)
+    expect(dragsRank(ranked, 'position', 'position', '')).toBe(true)
+  })
+
+  it('does not in another order, with a filter, without the position or when the list leaves it off', () => {
+    expect(dragsRank(ranked, 'position', 'position desc', '')).toBe(false)
+    expect(dragsRank(ranked, 'position', 'id asc', '')).toBe(false)
+    expect(dragsRank(ranked, 'position', 'position asc', 'shown = true')).toBe(false)
+    expect(dragsRank(ranked, undefined, 'position asc', '')).toBe(false)
+    expect(dragsRank({ ...ranked, list: { columns: ['id'] } }, 'position', 'position asc', '')).toBe(false)
+    expect(dragsRank(undefined, 'position', 'position asc', '')).toBe(false)
   })
 })

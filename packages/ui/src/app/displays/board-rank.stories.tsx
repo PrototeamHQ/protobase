@@ -24,7 +24,7 @@ const rows = () => ({
 })
 
 // With `refuse`, the server refuses every drop, as it does when someone else changed a task since it loaded.
-const Team = ({ refuse }: { refuse?: boolean }) => {
+const Team = ({ refuse, start = '/tasks' }: { refuse?: boolean; start?: string }) => {
   const [api] = useState(() => fakeApi({ resources: [tasks.toModel()], views: [tasksView.toModel()], rows: rows() }))
   const client = refuse
     ? {
@@ -36,7 +36,7 @@ const Team = ({ refuse }: { refuse?: boolean }) => {
     : api.client
   return (
     <div className="h-screen">
-      <App client={client} auth={session} initialUrl="/tasks" workspace="Pip's bike shop" />
+      <App client={client} auth={session} initialUrl={start} workspace="Pip's bike shop" />
     </div>
   )
 }
@@ -101,5 +101,56 @@ export const TasksRefusedChecks: StoryObj = {
     expect(await within(document.body).findByText('Could not change the order')).toBeInTheDocument()
     expect(within(document.body).getByText('The record changed since it was read; fetch it again')).toBeInTheDocument()
     await waitFor(() => expect(titles(todo)).toEqual(['Call Emma back', 'Order brake pads', 'Price the winter service']))
+  },
+}
+
+export const TasksUndoChecks: StoryObj = {
+  ...Tasks,
+  name: 'A board in rank order, a drop undone (checks)',
+  tags: ['play', '!dev'],
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    const todo = await column(canvas, 'todo')
+    await waitFor(() => expect(titles(todo)).toEqual(['Call Emma back', 'Order brake pads', 'Price the winter service']))
+    await moveByKeyboard(within(todo).getAllByRole('link')[0]!, [
+      ['{ArrowRight}', 'doing, place 1 of 3'],
+      ['{ArrowDown}', 'doing, place 2 of 3'],
+    ])
+    const doing = await column(canvas, 'doing')
+    await waitFor(() => expect(titles(doing)).toEqual(['Fix the stand clamp', 'Call Emma back', 'Restock inner tubes']))
+    // Undo puts back its column and every rank the drop changed
+    expect(await within(document.body).findByText('Moved to doing')).toBeInTheDocument()
+    await userEvent.click(within(document.body).getByRole('button', { name: 'Undo' }))
+    await waitFor(() => expect(titles(todo)).toEqual(['Call Emma back', 'Order brake pads', 'Price the winter service']))
+    await waitFor(() => expect(titles(doing)).toEqual(['Fix the stand clamp', 'Restock inner tubes']))
+  },
+}
+
+const handles = (grid: HTMLElement) => within(grid).getAllByRole('button', { name: /^Move / }).map((handle) => handle.getAttribute('aria-label')!.slice('Move '.length))
+
+export const TableDragChecks: StoryObj = {
+  name: 'The table in rank order, its rows dragged without Reorder (checks)',
+  tags: ['play', '!dev'],
+  render: () => <Team start="/tasks?display=table" />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    const grid = await canvas.findByRole('grid')
+    await waitFor(() => expect(handles(grid).slice(0, 3)).toEqual(['Call Emma back', 'Fix the stand clamp', 'Clean the workshop']))
+    expect(canvas.queryByRole('button', { name: 'Reorder' })).toBeNull()
+    const handle = within(grid).getByRole('button', { name: 'Move Clean the workshop' })
+    handle.focus()
+    await userEvent.keyboard(' ')
+    await waitFor(() => expect(within(document.body).getByText('is over row ', { exact: false })).toBeInTheDocument())
+    await userEvent.keyboard('{ArrowUp}{ArrowUp}')
+    await waitFor(() => expect(within(document.body).getByText('is over row 1 of 7.', { exact: false })).toBeInTheDocument())
+    await userEvent.keyboard(' ')
+    await waitFor(() => expect(handles(grid).slice(0, 3)).toEqual(['Clean the workshop', 'Call Emma back', 'Fix the stand clamp']))
+    expect(await within(document.body).findByText('Order changed')).toBeInTheDocument()
+    await userEvent.click(within(document.body).getByRole('button', { name: 'Undo' }))
+    await waitFor(() => expect(handles(grid).slice(0, 3)).toEqual(['Call Emma back', 'Fix the stand clamp', 'Clean the workshop']))
+    // Sorted another way, it is the list's own table again
+    await userEvent.click(within(grid).getByRole('button', { name: 'Status' }))
+    expect(await canvas.findByRole('button', { name: 'Reorder' })).toBeInTheDocument()
+    expect(within(canvas.getByRole('grid')).queryAllByRole('button', { name: /^Move / })).toHaveLength(0)
   },
 }

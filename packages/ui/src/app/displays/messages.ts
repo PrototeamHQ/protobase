@@ -7,6 +7,10 @@ export const text = defineMessages({
     sort: 'Sort',
     ascending: 'ascending',
     descending: 'descending',
+    movedTo: (column: string) => `Moved to ${column}`,
+    orderChanged: 'Order changed',
+    undo: 'Undo',
+    couldNotUndo: 'Could not undo',
   },
   nl: {
     table: 'Tabel',
@@ -14,5 +18,9 @@ export const text = defineMessages({
     sort: 'Sorteren',
     ascending: 'oplopend',
     descending: 'aflopend',
+    movedTo: (column: string) => `Verplaatst naar ${column}`,
+    orderChanged: 'Volgorde gewijzigd',
+    undo: 'Ongedaan maken',
+    couldNotUndo: 'Kon niet ongedaan maken',
   },
 })

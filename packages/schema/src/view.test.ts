@@ -593,6 +593,11 @@ describe('view builder', () => {
     expect(view<typeof article>('article').list((r) => ({ columns: [r.id], filter: '' })).toModel().list).not.toHaveProperty('filter')
   })
 
+  it('lets a list drag only what its drag turns on', () => {
+    expect(view<typeof article>('article').list((r) => ({ columns: [r.id], drag: { board: true } })).toModel().list?.drag).toEqual({ board: true })
+    expect(view<typeof article>('article').list((r) => ({ columns: [r.id] })).toModel().list).not.toHaveProperty('drag')
+  })
+
   describe('named lists', () => {
     const base = () => view<typeof article>('article').names({ singular: 'Article', plural: 'Articles' })
     const updates = (v: ReturnType<typeof base>) => v.names({ singular: 'Update', plural: 'Updates' })

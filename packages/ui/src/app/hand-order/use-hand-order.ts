@@ -1,5 +1,6 @@
 import { arrayMove } from '@dnd-kit/sortable'
 import { useQuery } from '@tanstack/react-query'
+import type { BatchOp } from '@protobase/client'
 import { useRef, useState } from 'react'
 import type { ResourceModel } from '@protobase/schema'
 import { encodeKey } from '@protobase/schema/internal'
@@ -15,6 +16,7 @@ import { useRefreshResource } from '../pages/use-layout-data'
 import { handOrderPage } from './hand-order'
 import { text } from './messages'
 import { reorderSpan } from './reorder-span'
+import { undoOps } from './undo-ops'
 
 type Request = { model: ResourceModel; field: string; filter: string; fields: string[] }
 
@@ -22,7 +24,8 @@ type Request = { model: ResourceModel; field: string; filter: string; fields: st
  * The records of `filter` in the order of `field`, all of them, a page of `handOrderPage` at a time, and `move` to put
  * one elsewhere. A move shows at once and saves only the records whose place changed (see `reorderSpan`) in one batch
  * `reorder` with their ETags; moves made while one saves are saved after it, with the values and ETags it gave back.
- * A refusal puts them back as the server has them and says why; either way every list of the resource reloads.
+ * Each save says so with **Undo**, which puts back the values it changed. A refusal puts them back as the server has
+ * them and says why; either way every list of the resource reloads.
  */
 export const useHandOrder = ({ model, field, filter, fields }: Request) => {
   const client = useClient()
@@ -51,6 +54,8 @@ export const useHandOrder = ({ model, field, filter, fields }: Request) => {
   const pending = useRef<{ first: number; last: number }>(undefined)
   const saving = useRef(Promise.resolve())
   const waiting = useRef(0)
+  // Only the latest save can be undone, so its toast replaces the one before
+  const undoToast = useRef<number>(undefined)
 
   const save = async () => {
     const rows = latest.current
@@ -63,7 +68,12 @@ export const useHandOrder = ({ model, field, filter, fields }: Request) => {
     const etags = Object.fromEntries(sent.flatMap((row) => (typeof row.etag === 'string' ? [[encodeKey(recordKey(model, row)), row.etag]] : [])))
     const result = await client.batchWrite([{ op: 'reorder', resource: model.name, field, keys: sent.map((row) => recordKey(model, row)), start: span.start, etags }])
     const written = result.results[0]
-    if (written?.op !== 'reorder' || !latest.current) return
+    if (written?.op !== 'reorder') return
+    const before = new Map(sent.map((row) => [row.id, { [field]: row[field] }]))
+    const undo = undoOps(model, written.records.map((entry) => ({ ...entry, before: before.get(recordId(model, entry.record)) ?? {} })), [field])
+    if (undoToast.current !== undefined) toast.dismiss(undoToast.current)
+    undoToast.current = toast.show({ state: 'success', title: text('orderChanged'), action: { label: text('undo'), onClick: () => undoSave(undo) } })
+    if (!latest.current) return
     const stored = new Map(written.records.map((entry) => [recordId(model, entry.record), entry]))
     // Moves made since keep their order, each record with the ETag and position the server gave it
     latest.current = latest.current.map((row) => {
@@ -72,11 +82,11 @@ export const useHandOrder = ({ model, field, filter, fields }: Request) => {
     })
   }
 
-  const refused = (error: unknown) => {
+  const refused = (title: string) => (error: unknown) => {
     latest.current = undefined
     pending.current = undefined
     setMoved(undefined)
-    toast.show({ state: 'error', title: text('couldNotChange'), description: refusalReason(error) })
+    toast.show({ state: 'error', title, description: refusalReason(error) })
   }
 
   // The server's order again once no move waits to be saved
@@ -98,7 +108,24 @@ export const useHandOrder = ({ model, field, filter, fields }: Request) => {
     pending.current = pending.current ? { first: Math.min(pending.current.first, first), last: Math.max(pending.current.last, last) } : { first, last }
     setMoved(latest.current)
     waiting.current += 1
-    saving.current = saving.current.then(save).catch(refused).then(settle)
+    saving.current = saving.current.then(save).catch(refused(text('couldNotChange'))).then(settle)
+  }
+
+  // After the saves before it, so a move saved since makes its ETags stale and it is refused
+  const undoSave = (ops: BatchOp[]) => {
+    if (undoToast.current !== undefined) toast.dismiss(undoToast.current)
+    undoToast.current = undefined
+    waiting.current += 1
+    saving.current = saving.current
+      .then(async () => {
+        await client.batchWrite(ops)
+        // The order is the server's again, which the lists show once they reload
+        latest.current = undefined
+        pending.current = undefined
+        setMoved(undefined)
+      })
+      .catch(refused(text('couldNotUndo')))
+      .then(settle)
   }
 
   return { rows: moved ?? loaded.data, loading: loaded.isPending, error: loaded.error, move }

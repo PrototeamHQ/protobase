@@ -11,6 +11,7 @@ import { useProjectUi } from '../pages/project-ui'
 import { useAppAddress } from '../use-app-address'
 import { useHandOrder } from './use-hand-order'
 import { text } from './messages'
+import type { Sort } from '../list-order'
 
 type Props = {
   model: ResourceModel
@@ -21,6 +22,8 @@ type Props = {
   filter: string
   /** The table's columns, the list's by default. */
   columns: string[]
+  /** The list's order, which the headers change, sorting the records another way; without it the headers do not sort. */
+  sort?: { value: Sort; onChange: (sort: Sort) => void }
 }
 
 /**
@@ -28,12 +31,13 @@ type Props = {
  * row, or moving it with the keyboard from its handle, renumbers them all. The page scrolls them, and a row still opens
  * its record.
  */
-export const HandSortedList = ({ model, view, field, filter, columns }: Props) => {
+export const HandSortedList = ({ model, view, field, filter, columns, sort }: Props) => {
   const { resources, views } = useAdminMeta()
   const { fields: fieldTypes } = useProjectUi()
   const { go, href } = useAppAddress()
-  // The order is the field's alone, so the headers do not sort
-  const specs = useMemo(() => embeddedColumns(model, view, columns, { resources, views, fieldTypes }).map((spec) => ({ ...spec, sortable: false })), [model, view, columns.join(','), resources, views, fieldTypes])
+  // The order is the field's, so the headers sort only when they leave it for another
+  const sorts = sort !== undefined
+  const specs = useMemo(() => embeddedColumns(model, view, columns, { resources, views, fieldTypes }).map((spec) => (sorts ? spec : { ...spec, sortable: false })), [model, view, columns.join(','), resources, views, fieldTypes, sorts])
   const fields = useMemo(() => loadedFields(model, view, specs.map((spec) => spec.id)), [model, view, specs])
   const order = useHandOrder({ model, field, filter, fields })
   const rows = order.rows
@@ -54,6 +58,7 @@ export const HandSortedList = ({ model, view, field, filter, columns }: Props) =
       latencyMs={0}
       onOpenRow={openRecord}
       rowLink={recordLink}
+      {...(sort && { sort: sort.value, onSortChange: sort.onChange })}
       rowNumbers={false}
       reorder={{ label: (row) => recordTitle(model, view, row, row.id), onMove: order.move }}
     />

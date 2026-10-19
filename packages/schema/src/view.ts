@@ -12,6 +12,7 @@ import type {
   NavModel,
   NavRecentModel,
   ListDisplayModel,
+  ListDragModel,
   ResourceModel,
   SaveSearchModel,
   SearchesOfModel,
@@ -131,8 +132,8 @@ export class ViewBuilder<R extends {
   /**
    * The list: its table's `columns`, fields or columns of related records (`c.related`), `sort`, `search` and a `filter` it opens with, the
    * columns that are `editable` in their cell, and other `displays` to switch to (`d.cards`, `d.map`, `d.board`, `d.calendar`, `d.timeline`, `d.custom`), one of which
-   * may be the `default` the list opens in. Throws when display or column names collide, `default` names none or an
-   * editable field is not among the columns. See
+   * may be the `default` the list opens in, and what `drag` lets a user change by dragging, nothing unless it says.
+   * Throws when display or column names collide, `default` names none or an editable field is not among the columns. See
    * [Editing in the list](website/src/content/docs/reference/ui-config.mdx#editing-in-the-list).
    */
   list(
@@ -148,9 +149,10 @@ export class ViewBuilder<R extends {
       editable?: Ref[]
       displays?: ListDisplayModel[]
       default?: string
+      drag?: ListDragModel
     },
   ) {
-    const { columns, sort, search, filter, editable, displays: shown = [], default: opens } = build(this.refs(), displays, listColumns)
+    const { columns, sort, search, filter, editable, displays: shown = [], default: opens, drag } = build(this.refs(), displays, listColumns)
     const related = columns.filter(isListColumn).map(({ kind: _, ...column }) => column)
     const names = columns.map((column) => column.name)
     const repeated = names.find((name, index) => names.indexOf(name) !== index)
@@ -166,6 +168,7 @@ export class ViewBuilder<R extends {
       ...(editable && editable.length > 0 && { editable: editable.map((ref) => ref.name) }),
       ...(shown.length > 0 && { displays: shown }),
       ...(opens !== undefined && { default: opens }),
+      ...(drag && { drag: { ...drag } }),
     }
     const errors = displayErrors(list)
     if (errors.length > 0) throw new Error(`View "${this.state.resource}": ${errors.join('; ')}`)

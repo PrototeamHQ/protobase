@@ -19,6 +19,8 @@ export const repairsView = daily
       d.calendar({ start: r.booked_on, title: r.number }),
     ],
     default: 'board',
+    // A repair moves to another column of the board by dragging it
+    drag: { board: true },
   }))
   .layout((r) => [
     l.section('The bike', [r.customer_id, r.bike, r.problem]),

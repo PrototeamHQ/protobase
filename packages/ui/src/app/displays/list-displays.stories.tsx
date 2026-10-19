@@ -201,6 +201,42 @@ export const BoardMoveChecks: StoryObj = {
   },
 }
 
+export const BoardUndoChecks: StoryObj = {
+  ...Board,
+  name: 'A board, a move undone (checks)',
+  tags: ['play', '!dev'],
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    const ready = await column(canvas, 'ready')
+    await waitFor(() => expect(cardNumbers(ready)).toEqual(['R-305', 'R-311']))
+    await moveByKeyboard(within(ready).getAllByRole('link')[0]!, '{ArrowRight}', 'collected')
+    expect(await within(document.body).findByText('Moved to collected')).toBeInTheDocument()
+    await userEvent.click(within(document.body).getByRole('button', { name: 'Undo' }))
+    await waitFor(() => expect(cardNumbers(ready)).toEqual(['R-305', 'R-311']))
+    expect(cardNumbers(await column(canvas, 'collected'))).not.toContain('R-305')
+  },
+}
+
+// The workshop's board without `drag`, whose cards stay in their columns
+const fixedBoard = workshop.repairsView.list((r, d) => ({ columns: [r.number, r.status], displays: [d.board({ by: r.status, title: r.number })], default: 'board' }))
+
+export const BoardFixedChecks: StoryObj = {
+  name: 'A board its list does not let drag (checks)',
+  tags: ['play', '!dev'],
+  render: () => <Shop start="/repairs" repairsView={fixedBoard} />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    const ready = await column(canvas, 'ready')
+    await waitFor(() => expect(cardNumbers(ready)).toEqual(['R-305', 'R-311']))
+    // Space on a card picks nothing up, and a card is no grab handle
+    within(ready).getAllByRole('link')[0]!.focus()
+    await userEvent.keyboard(' ')
+    await new Promise((resolve) => setTimeout(resolve, 200))
+    expect(within(document.body).queryByText('Picked up', { exact: false, ignore: 'a, a *' })).toBeNull()
+    expect(within(ready).getAllByRole('listitem')[0]!.className).not.toContain('cursor-grab')
+  },
+}
+
 export const BoardRefusedChecks: StoryObj = {
   name: 'A board, a move the server refuses (checks)',
   tags: ['play', '!dev'],

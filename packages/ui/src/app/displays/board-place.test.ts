@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { f, resource } from '@protobase/schema'
 import { boardRank } from './board-columns'
-import { placedRows, placeOps } from './board-place'
+import { boardWrites, placedRows, placeOps } from './board-place'
 import type { ListDisplayRow } from './list-displays'
 
 const fields = {
@@ -67,6 +67,22 @@ describe('placeOps', () => {
     const rows = [card(1, 'todo', 1), card(2, 'todo', 2)]
     expect(placeOps(model, 'status', 'rank', rows[1]!, { value: 'todo', label: 'todo' }, placedRows(rows, rows[1]!, 0), 0, 1)).toEqual([
       { op: 'reorder', resource: 'tasks', field: 'rank', keys: [2, 1], start: 1, etags: { '2': '*', '1': '*' } },
+    ])
+  })
+})
+
+describe('boardWrites', () => {
+  it('is each record the batch wrote as it stored it last, with its values before the drop', () => {
+    const moved = { ...todo[0]!.record, status: 'doing' }
+    const result = {
+      results: [
+        { op: 'update' as const, resource: 'tasks', record: { ...moved, rank: 1 }, etag: 'u1' },
+        { op: 'reorder' as const, resource: 'tasks', records: [{ record: { ...doing[0]!.record, rank: 1 }, etag: 'r5' }, { record: { ...moved, rank: 2 }, etag: 'r1' }] },
+      ],
+    }
+    expect(boardWrites(model, [doing[0]!, todo[0]!, doing[1]!], result)).toEqual([
+      { before: todo[0]!.record, record: { ...moved, rank: 2 }, etag: 'r1' },
+      { before: doing[0]!.record, record: { ...doing[0]!.record, rank: 1 }, etag: 'r5' },
     ])
   })
 })

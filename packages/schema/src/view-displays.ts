@@ -99,9 +99,10 @@ export const displays = {
    * many of the list's records have it; with a column for records without a value when the field may be empty. Each
    * column pages through the list API with the list's filter and search, its value added, in the list's order. A card
    * shows `title` (default: the view's title) over `subtitle`, with `badge` and a few small `meta` fields, as the built-in
-   * card of `d.cards` does, and opens the record. Dragging a card to another column, or picking it up with Space and
-   * moving it with the arrow keys, saves the record with `by` set to that column's value, as one update with its ETag,
-   * so the resource's access rules and `validate` decide, and a refusal puts the card back and says why. `by` must be
+   * card of `d.cards` does, and opens the record. With the list's `drag: { board: true }`, dragging a card to another
+   * column, or picking it up with Space and moving it with the arrow keys, saves the record with `by` set to that
+   * column's value, as one update with its ETag, so the resource's access rules and `validate` decide, and a refusal
+   * puts the card back and says why; with `drag: { rank: true }` a card moves within its column too. `by` must be
    * a filterable enum field. Named `board` unless `name` says otherwise. See
    * [Boards](website/src/content/docs/reference/ui-config.mdx#boards).
    */
