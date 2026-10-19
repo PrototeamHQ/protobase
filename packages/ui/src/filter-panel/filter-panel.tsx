@@ -13,6 +13,7 @@ import { activeFilterKeys, barFilters, mergeKeys } from './secondary-filters'
 import { ToggleRow } from './toggle-row'
 import { ToolbarRow, toolbarShows } from './toolbar-row'
 import { useFilterState } from './use-filter-state'
+import { text } from './messages'
 
 export type FilterPanelProps = {
   config: FilterConfig
@@ -60,7 +61,7 @@ export const FilterPanel = ({ config, layout, value, defaultValue, onChange, loc
     return (
       <aside className={fullWidth ? 'flex w-full flex-col gap-1' : 'flex w-64 shrink-0 flex-col gap-1 overflow-y-auto rounded-lg border bg-background px-4 py-3'}>
         <div className="flex items-center justify-between pb-1">
-          <h2 className="font-semibold">Filters</h2>
+          <h2 className="font-semibold">{text('filters')}</h2>
         </div>
         {(chips.length > 0 || (lockedLabels?.length ?? 0) > 0) && <div className="border-b pb-3">{chipsView}</div>}
         {leading}
@@ -74,8 +75,8 @@ export const FilterPanel = ({ config, layout, value, defaultValue, onChange, loc
             {rangeView(range)}
           </FilterSection>
         ))}
-        {dateView && <FilterSection title="Date">{dateView}</FilterSection>}
-        {toggleViews.length > 0 && <FilterSection title="Show only">{toggleViews}</FilterSection>}
+        {dateView && <FilterSection title={text('date')}>{dateView}</FilterSection>}
+        {toggleViews.length > 0 && <FilterSection title={text('showOnly')}>{toggleViews}</FilterSection>}
       </aside>
     )
   }

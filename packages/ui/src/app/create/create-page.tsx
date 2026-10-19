@@ -14,6 +14,7 @@ import { useFocusFirstInvalid } from '../use-focus-first-invalid'
 import { useLiveSave } from '../use-live-save'
 import { CreateRecordForm } from './create-record-form'
 import { createBody, createSections, hasDatabaseDefault, initialDraft, isChosen, isRequired, type Draft } from './create-values'
+import { text } from './messages'
 
 const without = <V,>(source: Record<string, V>, name: string): Record<string, V> => Object.fromEntries(Object.entries(source).filter(([key]) => key !== name))
 
@@ -37,7 +38,7 @@ const LoadedCreate = ({ resource, values }: CreatePageProps) => {
   const queryClient = useQueryClient()
   const { go } = useAppAddress()
   const noun = view?.names?.singular ?? humanize(resource)
-  const feedback = useLiveSave(view?.saveFeedback ?? 'toast', `New ${noun.toLowerCase()}`)
+  const feedback = useLiveSave(view?.saveFeedback ?? 'toast', text('subject', noun))
   const sections = createSections(model, view)
   const [draft, setDraft] = useState<Draft>(() => initialDraft(model, sections, values))
   const [errors, setErrors] = useState<Record<string, ProblemError>>({})
@@ -100,7 +101,7 @@ const LoadedCreate = ({ resource, values }: CreatePageProps) => {
             value={isChosen(value) ? value.key : (value ?? (field.type === 'boolean' ? false : ''))}
             stored={undefined}
             relationLabel={isChosen(value) ? value.label : undefined}
-            placeholder={hasDatabaseDefault(field) ? 'Set by the database' : undefined}
+            placeholder={hasDatabaseDefault(field) ? text('setByDatabase') : undefined}
             relationPicker={target ? { target, view: meta.views[target.name] } : undefined}
             invalid={Boolean(errors[name])}
             resource={model.name}

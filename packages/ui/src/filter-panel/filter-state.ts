@@ -1,4 +1,4 @@
-import { datePresetLabels, type FacetGroupConfig, type FilterConfig, type FilterState } from './filter-config'
+import { datePresetLabel, type FacetGroupConfig, type FilterConfig, type FilterState } from './filter-config'
 
 export const emptyFilterState: FilterState = { facets: {}, toggles: [] }
 
@@ -33,7 +33,7 @@ export const activeChips = (config: FilterConfig, state: FilterState): FilterChi
     const span = state.ranges?.[range.id]
     return span ? [{ key: `range:${range.id}`, label: `${range.label}: ${range.format(span[0])} – ${range.format(span[1])}` }] : []
   })
-  const dateChips = state.date ? [{ key: 'date', label: datePresetLabels[state.date] ?? state.date }] : []
+  const dateChips = state.date ? [{ key: 'date', label: datePresetLabel(state.date) ?? state.date }] : []
   const toggleChips = state.toggles.map((id) => ({ key: `toggle:${id}`, label: config.toggles?.find((toggle) => toggle.id === id)?.label ?? id }))
   return [...facetChips, ...rangeChips, ...dateChips, ...toggleChips]
 }

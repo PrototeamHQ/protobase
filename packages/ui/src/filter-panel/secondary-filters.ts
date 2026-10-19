@@ -1,5 +1,6 @@
 import type { FilterConfig } from './filter-config'
 import type { FilterChip } from './filter-state'
+import { text } from './messages'
 
 export type MoreItem = { key: string; label: string }
 
@@ -17,7 +18,7 @@ export const barFilters = (config: FilterConfig, revealed: string[]) => {
   const all: Array<MoreItem & { secondary?: boolean }> = [
     ...config.facets.map((group) => ({ key: `facet:${group.id}`, label: group.label, secondary: group.secondary })),
     ...(config.ranges ?? []).map((range) => ({ key: `range:${range.id}`, label: range.label, secondary: range.secondary })),
-    ...(config.datePresets ? [{ key: 'date', label: 'Date', secondary: config.dateSecondary }] : []),
+    ...(config.datePresets ? [{ key: 'date', label: text('date'), secondary: config.dateSecondary }] : []),
     ...(config.toggles ?? []).map((toggle) => ({ key: `toggle:${toggle.id}`, label: toggle.label, secondary: toggle.secondary })),
   ]
   const shown = new Set<string>()

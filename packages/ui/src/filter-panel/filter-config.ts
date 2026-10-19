@@ -1,4 +1,5 @@
 import type { DatePreset } from '@protobase/schema'
+import { text } from './messages'
 
 /** `count` is left out when it is not known, such as for a record found by a search. */
 export type FacetOption = { value: string; label: string; count?: number }
@@ -66,14 +67,7 @@ export type FilterState = {
 
 export const defaultDatePresets: DatePresetId[] = ['today', '7d', '30d', 'year']
 
-export const datePresetLabels: Record<DatePresetId, string> = {
-  today: 'Today',
-  yesterday: 'Yesterday',
-  '24h': 'Last 24 hours',
-  '7d': 'Last 7 days',
-  '30d': 'Last 30 days',
-  '90d': 'Last 90 days',
-  month: 'This month',
-  quarter: 'This quarter',
-  year: 'This year',
-}
+const knownPresets = new Set<string>(['today', 'yesterday', '24h', '7d', '30d', '90d', 'month', 'quarter', 'year'] satisfies DatePresetId[])
+
+/** A date preset's label in the screens' language; undefined for one the server offers that this UI does not know. */
+export const datePresetLabel = (id: DatePresetId) => (knownPresets.has(id) ? text(id) : undefined)

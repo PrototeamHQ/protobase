@@ -1,6 +1,7 @@
 import type { ReactNode, Ref } from 'react'
 import { Field, Section } from '../../record-view'
 import { Form } from './form'
+import { text } from './messages'
 
 export type CreateFormField = { name: string; label: string; help?: string; required?: boolean; error?: string; wide?: boolean; editor: ReactNode }
 
@@ -22,12 +23,12 @@ export type CreateRecordFormProps = {
 export const CreateRecordForm = ({ noun, collection, sections, saving, message, onSubmit, onCancel, ref }: CreateRecordFormProps) => (
   <Form
     ref={ref}
-    title={`New ${noun.toLowerCase()}`}
+    title={text('title', noun)}
     eyebrow={collection}
-    submit={`Create ${noun.toLowerCase()}`}
+    submit={text('submit', noun)}
     saving={saving}
     error={message ? new Error(message) : undefined}
-    errorTitle="Not created"
+    errorTitle={text('notCreated')}
     onSubmit={onSubmit}
     onCancel={onCancel}
   >

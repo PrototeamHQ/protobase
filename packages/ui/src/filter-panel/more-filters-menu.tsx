@@ -3,6 +3,7 @@ import { menuItemClass } from '../primitives/menu-item'
 import { menuKeyTarget } from '../primitives/menu-keys'
 import { FilterMenu } from './filter-menu'
 import type { MoreItem } from './secondary-filters'
+import { text } from './messages'
 
 type ItemsProps = { items: MoreItem[]; onPick: (key: string) => void; close: () => void }
 
@@ -19,7 +20,7 @@ const Items = ({ items, onPick, close }: ItemsProps) => {
   }
 
   return (
-    <ul role="menu" aria-label="More filters" onKeyDown={onKeyDown} className="-mx-3 -my-3">
+    <ul role="menu" aria-label={text('moreFilters')} onKeyDown={onKeyDown} className="-mx-3 -my-3">
       {items.map((item, index) => (
         <li key={item.key} role="none">
           <button
@@ -46,7 +47,7 @@ const Items = ({ items, onPick, close }: ItemsProps) => {
 export const MoreFiltersMenu = ({ items, onPick }: { items: MoreItem[]; onPick: (key: string) => void }) => {
   if (items.length === 0) return null
   return (
-    <FilterMenu label="More filters" activeCount={0}>
+    <FilterMenu label={text('moreFilters')} activeCount={0}>
       {(close) => <Items items={items} onPick={onPick} close={close} />}
     </FilterMenu>
   )

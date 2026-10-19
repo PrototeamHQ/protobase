@@ -2,6 +2,7 @@ import { isRecordCondition, type FieldModel, type ResourceModel, type ViewModel 
 import { layoutItems } from '@protobase/schema/internal'
 import { isEditable, toPatchValue } from '../../live/field-values'
 import { whenShown } from '../record-mode/record-mode'
+import { text } from './messages'
 
 export type CreateSection = { title: string; help?: string; fields: string[] }
 
@@ -32,7 +33,7 @@ export const createSections = (model: ResourceModel, view: ViewModel | undefined
   })
   const rest = creatable.filter((name) => !placed.has(name))
   if (rest.length === 0) return sections
-  return [...sections, { title: sections.length === 0 ? 'Details' : 'Other fields', fields: rest }]
+  return [...sections, { title: sections.length === 0 ? text('details') : text('otherFields'), fields: rest }]
 }
 
 /** A chosen record's key as the API takes it: a number when the target's key is an integer. */

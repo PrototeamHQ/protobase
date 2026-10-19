@@ -4,6 +4,7 @@ import { useDebounced } from '../lib/use-debounced'
 import type { RangeConfig } from './filter-config'
 import { barInRange, fraction, moveThumb } from './range-math'
 import './range-slider.css'
+import { text } from './messages'
 
 export type RangeFilterProps = { config: RangeConfig; value?: [number, number]; onChange: (value: [number, number] | undefined) => void }
 
@@ -54,7 +55,7 @@ export const RangeFilter = ({ config, value, onChange }: RangeFilterProps) => {
             key={thumb}
             type="range"
             className="pb-range"
-            aria-label={`${config.label} ${thumb === 0 ? 'minimum' : 'maximum'}`}
+            aria-label={thumb === 0 ? text('minimum', config.label) : text('maximum', config.label)}
             min={min}
             max={max}
             step={step}

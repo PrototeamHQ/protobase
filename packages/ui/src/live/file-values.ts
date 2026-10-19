@@ -1,5 +1,6 @@
 import type { StoredFile, UploadResult } from '@protobase/client'
 import type { FieldModel } from '@protobase/schema'
+import { text } from './messages'
 
 /** A file uploaded in the form and not yet saved: the ticket the save sends, and a local preview while there is one. */
 export type FileDraft = { uploaded: UploadResult; preview?: string }
@@ -14,7 +15,7 @@ export const isFileDraft = (value: unknown): value is FileDraft =>
 export const fileShown = (value: unknown) => {
   if (isFileDraft(value)) return { ...value.uploaded.file, ...(value.preview && { url: value.preview }), corrected: value.uploaded.corrected }
   if (!isStoredFile(value)) return undefined
-  if ('missing' in value) return { name: 'File missing', type: '', missing: true as const }
+  if ('missing' in value) return { name: text('fileMissing'), type: '', missing: true as const }
   return value
 }
 

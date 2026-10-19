@@ -1,6 +1,7 @@
 import type { FormEvent, ReactNode, Ref } from 'react'
 import { Button } from '../../primitives/button'
 import { ErrorBanner } from '../error-banner'
+import { text } from './messages'
 
 export type FormProps = {
   /**
@@ -30,10 +31,10 @@ export type FormProps = {
 }
 
 /** The frame of the app's forms: Cancel and the submit button, a failure that belongs to no field, and the sections. */
-export const Form = ({ title, eyebrow, submit, saving, disabled, error, errorTitle = 'Not saved', onSubmit, onCancel, children, ref }: FormProps) => {
+export const Form = ({ title, eyebrow, submit, saving, disabled, error, errorTitle = text('notSaved'), onSubmit, onCancel, children, ref }: FormProps) => {
   const buttons = (
     <div className="flex items-center gap-2">
-      {onCancel && <Button className="max-sm:min-h-11" onClick={onCancel}>Cancel</Button>}
+      {onCancel && <Button className="max-sm:min-h-11" onClick={onCancel}>{text('cancel')}</Button>}
       <Button variant="primary" type="submit" className="max-sm:min-h-11 max-sm:flex-1" loading={saving} disabled={disabled}>
         {submit}
       </Button>

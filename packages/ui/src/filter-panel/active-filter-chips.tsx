@@ -1,5 +1,6 @@
 import { Lock, X } from 'lucide-react'
 import type { FilterChip } from './filter-state'
+import { text } from './messages'
 
 export type ActiveFilterChipsProps = {
   chips: FilterChip[]
@@ -26,14 +27,14 @@ export const ActiveFilterChips = ({ chips, lockedLabels = [], onRemove, onClear,
       {chips.map((chip) => (
         <span key={chip.key} className={chipClass}>
           {chip.label}
-          <button type="button" aria-label={`Remove ${chip.label}`} onClick={() => onRemove(chip.key)} className="rounded-full p-0.5 hover:bg-primary-border/60">
+          <button type="button" aria-label={text('remove', chip.label)} onClick={() => onRemove(chip.key)} className="rounded-full p-0.5 hover:bg-primary-border/60">
             <X className="size-3" />
           </button>
         </span>
       ))}
       {chips.length > 0 && (
         <button type="button" onClick={onClear} className="ml-1 text-xs font-medium text-muted-foreground hover:text-foreground">
-          Clear all
+          {text('clearAll')}
         </button>
       )}
     </div>

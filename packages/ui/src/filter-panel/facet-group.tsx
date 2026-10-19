@@ -5,6 +5,7 @@ import { Checkbox } from '../primitives/checkbox'
 import { Input } from '../primitives/input'
 import type { FacetGroupConfig } from './filter-config'
 import { matchesSearch } from './filter-state'
+import { text } from './messages'
 
 export type FacetGroupProps = { config: FacetGroupConfig; selected: string[]; onToggle: (value: string) => void }
 
@@ -17,7 +18,7 @@ export const FacetGroup = ({ config, selected, onToggle }: FacetGroupProps) => {
         <Input
           wrapperClassName="mb-1 h-7"
           leading={<Search className="size-3.5" />}
-          placeholder={`Search ${config.label.toLowerCase()}`}
+          placeholder={text('searchIn', config.label)}
           value={query}
           onChange={(event) => setQuery(event.target.value)}
         />
@@ -29,7 +30,7 @@ export const FacetGroup = ({ config, selected, onToggle }: FacetGroupProps) => {
           {option.count !== undefined && <span className="text-xs tabular-nums text-faint-foreground">{formatInt(option.count)}</span>}
         </label>
       ))}
-      {options.length === 0 && <span className="px-1 py-1 text-xs text-faint-foreground">No matches</span>}
+      {options.length === 0 && <span className="px-1 py-1 text-xs text-faint-foreground">{text('noMatches')}</span>}
     </div>
   )
 }

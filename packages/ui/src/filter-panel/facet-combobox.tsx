@@ -6,6 +6,7 @@ import { Token } from '../primitives/token'
 import type { FacetGroupConfig } from './filter-config'
 import { comboboxOptions, moveActive } from './combobox-options'
 import { facetLabel } from './filter-state'
+import { text } from './messages'
 
 export type FacetComboboxProps = {
   config: FacetGroupConfig
@@ -76,7 +77,7 @@ export const FacetCombobox = ({ config, selected, onToggle, inline = false }: Fa
           aria-controls={`${id}-options`}
           aria-autocomplete="list"
           aria-activedescendant={options[active] ? `${id}-${active}` : undefined}
-          placeholder={selected.length > 0 ? '' : `Search ${config.label.toLowerCase()}`}
+          placeholder={selected.length > 0 ? '' : text('searchIn', config.label)}
           className="h-6 min-w-16 flex-1 bg-transparent text-foreground outline-none placeholder:text-faint-foreground"
           value={query}
           onChange={(event) => search(event.target.value)}
@@ -123,7 +124,7 @@ export const FacetCombobox = ({ config, selected, onToggle, inline = false }: Fa
               </li>
             )
           })}
-          {options.length === 0 && <li className="px-1.5 py-1 text-xs text-faint-foreground">No matches</li>}
+          {options.length === 0 && <li className="px-1.5 py-1 text-xs text-faint-foreground">{text('noMatches')}</li>}
         </ul>
       )}
     </div>

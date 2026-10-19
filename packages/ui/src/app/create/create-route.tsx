@@ -2,6 +2,7 @@ import { humanize } from '../../live/naming'
 import { Notice, useAdminMeta } from '../meta-gate'
 import { ComposedPage } from '../pages/composed-page'
 import { CreatePage } from './create-page'
+import { text } from './messages'
 
 type CreateRouteProps = { resource: string; values?: Readonly<Record<string, string>> }
 
@@ -13,6 +14,6 @@ export const CreateRoute = ({ resource, values }: CreateRouteProps) => {
   const meta = useAdminMeta()
   const view = meta.views[resource]
   if (!view?.create) return <CreatePage key={new URLSearchParams(values).toString()} resource={resource} values={values} />
-  if (!meta.pages[view.create.page]) return <Notice title="Not allowed">You cannot create {view.names?.plural.toLowerCase() ?? humanize(resource)}.</Notice>
+  if (!meta.pages[view.create.page]) return <Notice title={text('notAllowed')}>{text('cannotCreate', view.names?.plural.toLowerCase() ?? humanize(resource))}</Notice>
   return <ComposedPage name={view.create.page} />
 }

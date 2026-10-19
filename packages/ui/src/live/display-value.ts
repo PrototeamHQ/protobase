@@ -3,6 +3,7 @@ import { formatDate, formatDateTime, formatRelativeTime } from '../format/date'
 import { viewerZone, zoneLabel } from '../format/zone'
 import { fileShown } from './file-values'
 import { formatTag } from '../locale/active-locale'
+import { text as message } from './messages'
 
 // A number with the view's prefix before it and suffix after it, such as `€1,200` or `120 m²`.
 const affixed = (text: string, hints: FieldViewModel) => `${hints.prefix ?? ''}${text}${hints.suffix ?? ''}`
@@ -15,7 +16,7 @@ export const displayValue = (field: FieldModel, value: unknown, hints: FieldView
   if (value === null || value === undefined || value === '') return '—'
   switch (field.type) {
     case 'boolean':
-      return value ? 'Yes' : 'No'
+      return value ? message('yes') : message('no')
     case 'file':
       return fileShown(value)?.name ?? '—'
     case 'enum':
@@ -45,5 +46,5 @@ export const valueTitle = (field: FieldModel, value: unknown, zone = viewerZone(
   const ms = Date.parse(value)
   if (Number.isNaN(ms)) return undefined
   if (hints.format === 'relative') return formatDateTime(ms, zone)
-  return `Shown in ${zoneLabel(ms, zone)}`
+  return message('shownIn', zoneLabel(ms, zone))
 }
