@@ -8,6 +8,7 @@ import { RecordScope } from '../record-scope'
 import { useFirstRecord } from '../use-layout-data'
 import { propsOf, type BlockProps } from './block-props'
 import { CardFrame, Quiet } from './card-frame'
+import { text } from '../messages'
 
 type LoadedProps = Omit<RecordCardProps, 'resource' | 'actions' | 'children'> & { model: ResourceModel; actions: ReactNode; children: ReactNode[] }
 
@@ -20,11 +21,11 @@ const LoadedRecordCard = ({ model, filter, sort, recordKey, title, description, 
       <Skeleton className="h-4 w-1/3" />
     </div>
   ) : record.error ? (
-    <ErrorBanner title="Could not load" error={record.error} />
+    <ErrorBanner title={text('couldNotLoad')} error={record.error} />
   ) : record.data ? (
     scoped(<div className="flex flex-col gap-3">{children}</div>)
   ) : (
-    <Quiet>{empty ?? 'Nothing here yet.'}</Quiet>
+    <Quiet>{empty ?? text('nothingYet')}</Quiet>
   )
   return (
     <CardFrame title={title} description={description} actions={actions ? scoped(actions) : undefined} className="h-full">

@@ -19,6 +19,7 @@ import { can } from '../../permissions'
 import { useLayoutRecord, type LayoutRecord } from '../record-scope'
 import { useFirstRecord, useRefreshResource } from '../use-layout-data'
 import { propsOf, type BlockProps } from './block-props'
+import { text } from '../messages'
 
 type FormProps = Omit<ModalFormProps, 'resource' | 'recordKey'> & { model: ResourceModel; record: LayoutRecord | undefined; onClose: () => void }
 
@@ -68,7 +69,7 @@ const ModalFormDialog = ({ model, record, mode, label, title, fields, values, on
     await saved.then(
       async () => {
         await refresh(model.name)
-        toast.show({ state: 'success', title: `${title ?? label}: saved` })
+        toast.show({ state: 'success', title: text('saved', title ?? label) })
         onClose()
       },
       (error: unknown) => {
@@ -87,9 +88,9 @@ const ModalFormDialog = ({ model, record, mode, label, title, fields, values, on
       onClose={onClose}
       actions={
         <>
-          <Button onClick={onClose}>Cancel</Button>
+          <Button onClick={onClose}>{text('cancel')}</Button>
           <Button variant="primary" loading={saving} onClick={() => void submit()}>
-            {mode === 'create' ? 'Create' : 'Save'}
+            {mode === 'create' ? text('create') : text('save')}
           </Button>
         </>
       }
@@ -102,7 +103,7 @@ const ModalFormDialog = ({ model, record, mode, label, title, fields, values, on
           void submit()
         }}
       >
-        {failure !== undefined && Object.keys(errors).length === 0 && <ErrorBanner title="Not saved" error={failure} />}
+        {failure !== undefined && Object.keys(errors).length === 0 && <ErrorBanner title={text('notSaved')} error={failure} />}
         {fields.map((name) => {
           const field = model.fields[name]!
           const value = draft[name]

@@ -10,8 +10,9 @@ import { actionFor, linkTarget, openLink } from './action-href'
 import { useProjectUi } from './project-ui'
 import type { LayoutRecord } from './record-scope'
 import { useRefreshResource } from './use-layout-data'
+import { text } from './messages'
 
-const message = (error: unknown) => (error instanceof Error ? error.message : 'Something went wrong')
+const message = (error: unknown) => (error instanceof Error ? error.message : text('somethingWrong'))
 
 /**
  * The named actions of `resource`'s view, ready to run on `scope` (the record they act on): built-in behaviour first
@@ -36,13 +37,13 @@ export const useActionRunner = (resource: string, scope: LayoutRecord | undefine
 
   const blocked = (action: ActionModel) => {
     const kind = action.run?.kind
-    if ((kind === 'update' || kind === 'delete' || kind === 'ai') && !scope) return 'Needs a record'
-    if ((kind === 'update' || kind === 'ai') && (!can(permissions, 'update') || scope?.permissions?.update === false)) return 'You cannot change this record'
-    if (action.run?.kind === 'ai' && scope?.permissions?.fields?.[action.run.writes] === 'read') return 'You cannot change this record'
-    if (kind === 'delete' && (!can(permissions, 'delete') || scope?.permissions?.delete === false)) return 'You cannot delete this record'
-    if (!action.run && !handlers?.[action.name]) return `The app has no handler for "${action.name}"`
+    if ((kind === 'update' || kind === 'delete' || kind === 'ai') && !scope) return text('needsRecord')
+    if ((kind === 'update' || kind === 'ai') && (!can(permissions, 'update') || scope?.permissions?.update === false)) return text('cannotChange')
+    if (action.run?.kind === 'ai' && scope?.permissions?.fields?.[action.run.writes] === 'read') return text('cannotChange')
+    if (kind === 'delete' && (!can(permissions, 'delete') || scope?.permissions?.delete === false)) return text('cannotDelete')
+    if (!action.run && !handlers?.[action.name]) return text('noHandler', action.name)
     const custom = action.inputs?.find((input) => input.kind === 'custom' && !components?.[input.component ?? ''])
-    if (custom) return `The app has no component "${custom.component}" for input "${custom.name}"`
+    if (custom) return text('noInputComponent', String(custom.component), custom.name)
     return undefined
   }
 
@@ -58,14 +59,14 @@ export const useActionRunner = (resource: string, scope: LayoutRecord | undefine
     else if (run?.kind === 'ai') await client.generate(resource, scope!.key, action.name)
     else await handlers![action.name]!({ resource, record: scope?.record, recordKey: scope?.key, etag: scope?.etag, client: handlerClient, navigate: go, ...(values && { values }) })
     await refresh(resource)
-    toast.show({ state: 'success', title: `${action.label}: done` })
+    toast.show({ state: 'success', title: text('done', action.label) })
     afterRun?.(action)
   }
 
   const run = async (action: ActionModel) => {
     if (blocked(action)) return
     setRunning(action.name)
-    await perform(action).catch((error: unknown) => toast.show({ state: 'error', title: `${action.label} failed`, description: message(error) }))
+    await perform(action).catch((error: unknown) => toast.show({ state: 'error', title: text('failed', action.label), description: message(error) }))
     setRunning(undefined)
   }
 
@@ -85,7 +86,7 @@ export const useRunAction = (resource: string, name: string, scope: LayoutRecord
   const action = runner.actions.find((entry) => entry.name === name)
   return {
     action,
-    blocked: action ? runner.blocked(action) : `No action "${name}"`,
+    blocked: action ? runner.blocked(action) : text('noAction', name),
     running: runner.running === name,
     run: () => (action ? runner.run(action) : Promise.resolve()),
     submit: (values: Record<string, unknown>) => (action ? runner.submit(action, values) : Promise.resolve()),

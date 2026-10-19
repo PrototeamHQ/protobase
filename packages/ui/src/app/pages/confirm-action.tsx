@@ -1,6 +1,7 @@
 import type { ActionModel } from '@protobase/schema'
 import { Button } from '../../primitives/button'
 import { Dialog } from '../../primitives/dialog'
+import { text } from './messages'
 
 /** The question an action with `confirm` asks before it runs. */
 export const ConfirmAction = ({ action, label, danger, onCancel, onConfirm }: { action: ActionModel; label: string; danger?: boolean; onCancel: () => void; onConfirm: () => void }) => (
@@ -10,7 +11,7 @@ export const ConfirmAction = ({ action, label, danger, onCancel, onConfirm }: { 
     onClose={onCancel}
     actions={
       <>
-        <Button onClick={onCancel}>Cancel</Button>
+        <Button onClick={onCancel}>{text('cancel')}</Button>
         <Button variant={danger ? 'danger' : 'primary'} onClick={onConfirm}>
           {label}
         </Button>

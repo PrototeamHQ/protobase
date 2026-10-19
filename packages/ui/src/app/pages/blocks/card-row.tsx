@@ -8,6 +8,7 @@ import { RecordScope } from '../record-scope'
 import { scopeOf, useListPage } from '../use-layout-data'
 import { propsOf, type BlockProps } from './block-props'
 import { CardFrame, Quiet } from './card-frame'
+import { text } from '../messages'
 
 type LoadedProps = Omit<CardRowProps, 'resource' | 'actions' | 'children'> & { model: ResourceModel; actions: ReactNode; children: ReactNode[] }
 
@@ -19,9 +20,9 @@ const LoadedCardRow = ({ model, filter, sort, limit = 12, title, description, em
       {page.isPending ? (
         <div className="flex gap-3">{Array.from({ length: 3 }, (_, index) => <Skeleton key={index} className="h-24 w-56" />)}</div>
       ) : page.error ? (
-        <ErrorBanner title="Could not load" error={page.error} />
+        <ErrorBanner title={text('couldNotLoad')} error={page.error} />
       ) : rows.length === 0 ? (
-        <Quiet>{empty ?? 'Nothing here yet.'}</Quiet>
+        <Quiet>{empty ?? text('nothingYet')}</Quiet>
       ) : (
         <ul className="relative -mx-4 flex snap-x gap-3 overflow-x-auto px-4 pb-1">
           {rows.map((row) => {

@@ -2,6 +2,7 @@ import { shownInputs } from '@protobase/schema/internal'
 import type { ActionInputModel, FieldModel, FieldType, FieldViewModel } from '@protobase/schema'
 import { toDraft, toPatchValue } from '../../../live/field-values'
 import { isChosen, type Draft } from '../../create/create-values'
+import { text } from '../messages'
 
 const fieldTypes: Record<Exclude<ActionInputModel['kind'], 'choice' | 'custom'>, FieldType> = { text: 'text', integer: 'integer', decimal: 'decimal', boolean: 'boolean', date: 'date' }
 
@@ -52,11 +53,11 @@ const date = /^\d{4}-\d{2}-\d{2}$/
 
 // Why an answer is refused before the action runs, if it is.
 const refusal = (input: ActionInputModel, value: unknown) => {
-  if (value === null || value === '') return input.required ? 'Required' : undefined
-  if (input.kind === 'integer' && !Number.isInteger(value)) return 'A whole number'
-  if (input.kind === 'decimal' && !decimal.test(String(value))) return 'A number'
-  if (input.kind === 'date' && !date.test(String(value))) return 'A date as YYYY-MM-DD'
-  if (input.max !== undefined && String(value).length > input.max) return `At most ${input.max} characters`
+  if (value === null || value === '') return input.required ? text('required') : undefined
+  if (input.kind === 'integer' && !Number.isInteger(value)) return text('wholeNumber')
+  if (input.kind === 'decimal' && !decimal.test(String(value))) return text('number')
+  if (input.kind === 'date' && !date.test(String(value))) return text('dateFormat')
+  if (input.max !== undefined && String(value).length > input.max) return text('atMost', input.max)
   return undefined
 }
 

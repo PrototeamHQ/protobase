@@ -11,6 +11,7 @@ import { usePathValue } from '../use-path-value'
 import { propsOf, type BlockProps } from './block-props'
 import { CardFrame } from './card-frame'
 import { formatTag } from '../../../locale/active-locale'
+import { text } from '../messages'
 
 const big = 'text-2xl font-semibold tracking-tight tabular-nums'
 
@@ -18,7 +19,7 @@ const Count = ({ model, filter }: { model: ResourceModel; filter?: string }) => 
   const { views } = useAdminMeta()
   const count = useCount(model, filter)
   if (count.isPending) return <Skeleton className="h-8 w-16" />
-  if (count.error) return <span className="text-danger-text">Could not count</span>
+  if (count.error) return <span className="text-danger-text">{text('couldNotCount')}</span>
   return (
     <AppLink to={filteredListAddress(views[model.name], model.name, filter)} className={`${big} hover:text-primary-text after:absolute after:inset-0 after:content-['']`}>
       {count.data.toLocaleString(formatTag())}

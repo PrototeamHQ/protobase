@@ -21,6 +21,8 @@ import { UsersBlock } from '../../users/users-block'
 import { CustomBoundary } from './custom-boundary'
 import { Problem } from './problem'
 import { useProjectUi } from './project-ui'
+import { slotted } from '../../locale/slotted'
+import { text } from './messages'
 
 const blocks: Record<string, ComponentType<BlockProps>> = {
   Page: PageBlock,
@@ -73,7 +75,7 @@ export const RenderNode = ({ node }: { node: LayoutNode }) => {
   const { components } = useProjectUi()
   if (node.custom) {
     const Custom = components?.[node.type]
-    if (!Custom) return <Problem>No component is registered as {node.type}. Export it from protobase.ui.tsx, or load the plugin that provides it.</Problem>
+    if (!Custom) return <Problem>{slotted(text('noComponent'), node.type)}</Problem>
     // Field references reach the component as the names they reference
     return (
       <CustomBoundary name={node.type}>
@@ -82,7 +84,7 @@ export const RenderNode = ({ node }: { node: LayoutNode }) => {
     )
   }
   const Block = blocks[node.type]
-  if (!Block) return <Problem>{node.type} is not a block this version of the app knows.</Problem>
+  if (!Block) return <Problem>{slotted(text('unknownBlock'), node.type)}</Problem>
   return (
     <Block node={node} slots={renderSlots(node)}>
       {renderChildren(node.children)}

@@ -10,6 +10,7 @@ import { useAdminMeta } from '../../meta-gate'
 import { useProjectUi } from '../project-ui'
 import { answeredValues, inputField, inputHints, refusedAnswers, startingAnswers } from './input-answers'
 import { inputErrors } from './input-errors'
+import { text } from '../messages'
 
 /** What a custom input's component gets, as a field type's editor does: the answer, a way to set it, whether it is refused, and `props`. */
 export type ActionInputProps<V = unknown, P = Record<string, JsonValue>> = {
@@ -91,7 +92,7 @@ export const ActionInputsDialog = ({ action, label, danger, onCancel, onSubmit }
       onClose={onCancel}
       actions={
         <>
-          <Button onClick={onCancel}>Cancel</Button>
+          <Button onClick={onCancel}>{text('cancel')}</Button>
           <Button variant={danger ? 'danger' : 'primary'} type="submit" form={formId} loading={running}>
             {label}
           </Button>
@@ -106,7 +107,7 @@ export const ActionInputsDialog = ({ action, label, danger, onCancel, onSubmit }
           void submit()
         }}
       >
-        {failure !== undefined && Object.keys(errors).length === 0 && <ErrorBanner title={`${label} failed`} error={failure} />}
+        {failure !== undefined && Object.keys(errors).length === 0 && <ErrorBanner title={text('failed', label)} error={failure} />}
         {action.inputs
           .filter((input) => shown.has(input.name))
           .map((input) => (
