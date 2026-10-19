@@ -11,13 +11,15 @@ import { projectUiPlugin } from '../project/project-ui'
 import { sharedModulesPlugin } from '../project/shared-modules'
 import { faviconLink } from '../project/favicon-link'
 import { themeLink } from '../project/theme-link'
+import { serviceWorker } from '../project/service-worker'
+import { serviceWorkerFile } from './service-worker-code'
 import { readPackageJson, type PackageJson } from './packages/package-dir'
 
 /** What a shell folder holds beside its files: the `BundleShell` a bundle's manifest copies. */
 export const shellManifestFile = 'protobase.shell.json'
 
-/** The shell's files, as URL paths: its page and its content-hashed assets. */
-export const shellPaths = ['/index.html', '/assets']
+/** The shell's files, as URL paths: its page, its content-hashed assets and its service worker. */
+export const shellPaths = ['/index.html', '/assets', `/${serviceWorkerFile}`]
 
 /** Where @protobase/ui's package ships its prebuilt shell, which `protobase build` copies and `protobase serve` serves. */
 export const prebuiltShellDir = path.join(uiPackageDir, 'dist', 'shell')
@@ -35,7 +37,7 @@ const shellIdentity = async (): Promise<BundleShell> => {
  * The admin app as a production build, the same for every project: index.html and content-hashed files under assets/,
  * with protobase.shell.json saying which version it is. Asset URLs are absolute, so index.html works as the answer to
  * any deep link. It calls /api on its own origin and loads the project's UI, like every plugin, from what `/meta`
- * names, and links the project's theme at /protobase.theme.css and its favicon at /protobase.favicon.svg. The modules plugins share with it have entries of
+ * names, and links the project's theme at /protobase.theme.css and its favicon at /protobase.favicon.svg, and registers its service worker. The modules plugins share with it have entries of
  * their own, which index.html's import map names.
  */
 export const buildShell = async (outDir: string) => {
@@ -50,7 +52,7 @@ export const buildShell = async (outDir: string) => {
     mode: 'production',
     publicDir: false,
     logLevel: 'warn',
-    plugins: [sharedModulesPlugin(), projectUiPlugin(undefined), themeLink(), faviconLink(), react(), tailwindcss()],
+    plugins: [sharedModulesPlugin(), projectUiPlugin(undefined), themeLink(), faviconLink(), serviceWorker(), react(), tailwindcss()],
     build: { outDir, emptyOutDir: true, chunkSizeWarningLimit: 4096 },
   }).finally(() => {
     if (nodeEnv === undefined) delete process.env.NODE_ENV

@@ -35,7 +35,7 @@ describe('buildDeployBundle', () => {
     const outDir = path.join(projectDir, 'dist')
     const manifest = await buildDeployBundle({ projectDir, outDir })
 
-    const shell = { protobase: protobaseVersion, pluginApi: 1, paths: ['/index.html', '/assets'] }
+    const shell = { protobase: protobaseVersion, pluginApi: 1, paths: ['/index.html', '/assets', '/protobase.sw.js'] }
     const expected = { version: 3, protobase: protobaseVersion, server: 'protobase.config.js', public: 'public', spa: 'index.html', api: ['/api'], plugins: [], theme: 'protobase.theme.css', shell }
     expect(manifest).toEqual(expected)
     expect(JSON.parse(await readFile(path.join(outDir, 'protobase.bundle.json'), 'utf8'))).toEqual(expected)
@@ -52,6 +52,13 @@ describe('buildDeployBundle', () => {
     expect(code).not.toContain('@vite/client')
     expect(code).not.toContain('react-refresh')
     expect(code).not.toContain('jsxDEV')
+
+    // The page registers the shell's service worker, which caches the page and what it loads first.
+    expect(index).toContain(`navigator.serviceWorker.register('/protobase.sw.js')`)
+    expect(index).toContain('<link rel="manifest" href="/api/manifest.webmanifest"')
+    const worker = await readFile(path.join(outDir, 'public/protobase.sw.js'), 'utf8')
+    const precache = JSON.parse(/const precache = (.*)/.exec(worker)![1]!) as string[]
+    expect(precache).toEqual(expect.arrayContaining(['/index.html', `/assets/${script}`, `/assets/${style}`, '/protobase.theme.css', '/protobase.favicon.svg']))
   }, buildTimeout)
 
   it('names the modules it shares with plugins in an import map, ahead of every module, each an entry exporting its names', async () => {
