@@ -23,7 +23,7 @@ const LoadedCardRow = ({ model, filter, sort, limit = 12, title, description, em
       ) : rows.length === 0 ? (
         <Quiet>{empty ?? 'Nothing here yet.'}</Quiet>
       ) : (
-        <ul className="-mx-4 flex snap-x gap-3 overflow-x-auto px-4 pb-1">
+        <ul className="relative -mx-4 flex snap-x gap-3 overflow-x-auto px-4 pb-1">
           {rows.map((row) => {
             const scope = scopeOf(model, row)
             return (

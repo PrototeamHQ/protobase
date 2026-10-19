@@ -15,8 +15,8 @@ export const CustomDisplay = ({ display, list }: { display: Extract<ListDisplayM
   if (!Component) return <Problem>No component is registered as {display.component}. Export it from protobase.ui.tsx, or load the plugin that provides it.</Problem>
   return (
     <ListDisplayProvider value={list}>
-      {/* As tall as what it draws, scrolling with the page; a wide one, such as a board, scrolls sideways */}
-      <div className="min-w-0 flex-1 overflow-x-auto">
+      {/* As tall as what it draws, scrolling with the page; a wide one, such as a board, scrolls sideways; positioned, so what it places absolutely scrolls inside it instead of widening the page */}
+      <div className="relative min-w-0 flex-1 overflow-x-auto">
         <CustomBoundary name={display.component}>
           <Component {...unmarkFieldRefs(display.props ?? {})} />
         </CustomBoundary>

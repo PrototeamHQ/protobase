@@ -39,7 +39,7 @@ export const RecordRow = ({ model, view, display, source, label, isNew }: Record
 
   return (
     <div className="relative min-w-0">
-      <ul ref={scroll.ref} aria-label={label} className="flex snap-x gap-3 overflow-x-auto overflow-y-hidden pb-1" style={{ scrollbarWidth: 'thin' }}>
+      <ul ref={scroll.ref} aria-label={label} className="relative flex snap-x gap-3 overflow-x-auto overflow-y-hidden pb-1" style={{ scrollbarWidth: 'thin' }}>
         <Spacer cards={scroll.start} />
         {indexes.map((index) => {
           const loaded = getRow(index)

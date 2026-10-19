@@ -81,8 +81,8 @@ export const BoardDisplay = ({ model, view, display, fields, filter, orderBy, li
         screenReaderInstructions: { draggable: 'To move a card to another column, press Space, move it with the left and right arrow keys, and press Space again to drop it there. Escape puts it back.' },
       }}
     >
-      {/* As tall as its longest column, scrolling with the page, and sideways when its columns are wider than the page */}
-      <div className="min-w-0 flex-1 overflow-x-auto">
+      {/* As tall as its longest column, scrolling with the page, and sideways when its columns are wider than the page; positioned, so what its cards place absolutely, such as their screen-reader labels, scrolls inside it instead of widening the page */}
+      <div className="relative min-w-0 flex-1 overflow-x-auto">
         <div className="flex snap-x items-start gap-3 pb-2">
           {columns.map((column) => (
             <BoardColumnView

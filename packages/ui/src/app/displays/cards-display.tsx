@@ -18,7 +18,8 @@ type CardsProps = {
 }
 
 const grid = 'grid grid-cols-[repeat(auto-fill,minmax(15rem,1fr))] gap-3'
-const scroller = 'flex snap-x snap-mandatory gap-3 overflow-x-auto pb-1'
+// Positioned, so the cards' screen-reader labels scroll inside it instead of widening the page
+const scroller = 'relative flex snap-x snap-mandatory gap-3 overflow-x-auto pb-1'
 
 /** A card per record (see `RecordCard`), in a grid or a row, with how many match and a button for more below. */
 export const CardsDisplay = ({ model, view, display, list, row = false, footer = true }: CardsProps) => {

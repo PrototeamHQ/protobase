@@ -138,6 +138,23 @@ export const BoardChecks: StoryObj = {
   },
 }
 
+export const BoardWideChecks: StoryObj = {
+  ...Board,
+  name: 'A board wider than the page (checks)',
+  tags: ['play', '!dev'],
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    // Once the last column's cards are in, the board is wider than the page
+    const collected = await column(canvas, 'collected')
+    await waitFor(() => expect(cardNumbers(collected)).toHaveLength(5))
+    const board = collected.parentElement!.parentElement!
+    expect(board.scrollWidth).toBeGreaterThan(board.clientWidth)
+    // It scrolls sideways in place; the page does not
+    const page = document.scrollingElement!
+    expect(page.scrollWidth).toBeLessThanOrEqual(page.clientWidth)
+  },
+}
+
 export const BoardFilteredChecks: StoryObj = {
   name: 'A board, filtered (checks)',
   tags: ['play', '!dev'],
