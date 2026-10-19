@@ -45,7 +45,7 @@ const closeServer = (server: Server) =>
 // reads: the project's migrations change them, before the new version serves. `startupChecks` false skips those reads,
 // for a restart of a bundle that already started on this database. With jobs it runs them too, unless
 // `runJobs` is off; with file fields it runs their scheduled deletes every `filesCleanupMinutes`.
-export const startServe = async ({ project, env, createDb = (url) => createPgDb(pg, url), site, ui, reporter }: ServeOptions): Promise<RunningServer> => {
+export const startServe = async ({ project, env, createDb = (url) => createPgDb(pg, url, env.dbConnections), site, ui, reporter }: ServeOptions): Promise<RunningServer> => {
   if (!project.db && !env.databaseUrl) throw new Error('No database: set DATABASE_URL or export `db` from protobase.config.ts')
   if (env.startupChecks && project.auth) await checkAuthSchema(project.auth)
   const ownDb = project.db ? undefined : createDb(env.databaseUrl!)

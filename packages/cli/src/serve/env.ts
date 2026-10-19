@@ -3,6 +3,9 @@ export type ServeEnv = {
   port: number
   // Not needed when protobase.config.ts exports `db`.
   databaseUrl?: string
+  // How many connections the pool opens to DATABASE_URL (PROTOBASE_DB_CONNECTIONS), such as the plan's limit; function
+  // calls and jobs hold one less. Unset, the pool's own 10.
+  dbConnections?: number
   // Whether every request is logged (REQUEST_LOG=true).
   requestLog: boolean
   // Minutes between runs of the scheduled file deletes; 0 leaves them to `protobase files cleanup` or the platform.
@@ -31,9 +34,12 @@ export const readServeEnv = (env: Record<string, string | undefined>): ServeEnv 
   if (!Number.isInteger(port) || port < 0 || port > 65_535) throw new Error(`PORT must be a port number, not "${env.PORT}"`)
   const minutes = env.PROTOBASE_FILES_CLEANUP_MINUTES ? Number(env.PROTOBASE_FILES_CLEANUP_MINUTES) : 60
   if (!Number.isInteger(minutes) || minutes < 0) throw new Error(`PROTOBASE_FILES_CLEANUP_MINUTES must be a whole number of minutes, not "${env.PROTOBASE_FILES_CLEANUP_MINUTES}"`)
+  const connections = env.PROTOBASE_DB_CONNECTIONS ? Number(env.PROTOBASE_DB_CONNECTIONS) : undefined
+  if (connections !== undefined && (!Number.isInteger(connections) || connections < 1)) throw new Error(`PROTOBASE_DB_CONNECTIONS must be a whole number of connections, at least 1, not "${env.PROTOBASE_DB_CONNECTIONS}"`)
   return {
     port,
     databaseUrl: env.DATABASE_URL || undefined,
+    ...(connections && { dbConnections: connections }),
     requestLog: readBoolean(env, 'REQUEST_LOG', false),
     filesCleanupMinutes: minutes,
     runJobs: readBoolean(env, 'PROTOBASE_JOBS', true),
