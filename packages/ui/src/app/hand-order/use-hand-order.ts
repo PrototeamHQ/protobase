@@ -13,6 +13,7 @@ import { refusalReason } from '../displays/board-columns'
 import { useAdminMeta } from '../meta-gate'
 import { useRefreshResource } from '../pages/use-layout-data'
 import { handOrderLimit } from './hand-order'
+import { text } from './messages'
 
 type Request = { model: ResourceModel; field: string; filter: string; fields: string[] }
 
@@ -62,7 +63,7 @@ export const useHandOrder = ({ model, field, filter, fields }: Request) => {
   const refused = (error: unknown) => {
     latest.current = undefined
     setMoved(undefined)
-    toast.show({ state: 'error', title: 'Could not change the order', description: refusalReason(error) })
+    toast.show({ state: 'error', title: text('couldNotChange'), description: refusalReason(error) })
   }
 
   // The server's order again once no move waits to be saved

@@ -7,6 +7,7 @@ import { humanize } from '../../live/naming'
 import { photosKey } from '../../live/row-photos'
 import { filledFields } from '../filled-fields'
 import { boardCard } from './board-columns'
+import { text } from './messages'
 
 /** A row as a list display gets it: its key, the record as the list API gives it, and names of the records its relations point at. */
 export type ListDisplayRow = {
@@ -83,7 +84,7 @@ export const shownDisplay = (view: ViewModel | undefined, name: string): ListDis
 const defaultIcons: Partial<Record<ListDisplayModel['kind'], string>> = { cards: 'cards', map: 'map', board: 'kanban', calendar: 'calendar', timeline: 'timeline' }
 
 export const displayChoices = (view: ViewModel | undefined): DisplayChoice[] => [
-  { name: tableDisplay, label: 'Table', icon: 'table' },
+  { name: tableDisplay, label: text('table'), icon: 'table' },
   ...displaysOf(view).map((display) => ({ name: display.name, label: display.label ?? humanize(display.name), icon: display.icon ?? defaultIcons[display.kind] })),
 ]
 

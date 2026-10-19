@@ -27,6 +27,7 @@ import { viewAllAddress } from './embedded-display'
 import { cutOffNote } from './cut-off-note'
 import { embeddedRowTargets } from './embedded-row-targets'
 import { useEmbeddedRows } from './use-embedded-rows'
+import { text } from './messages'
 
 export type EmbeddedListProps = {
   model: ResourceModel
@@ -87,16 +88,16 @@ export const EmbeddedList = ({ model, view, filter, sort, columns, limit, displa
       onClick={viewAll?.onOpen}
       className="flex items-center gap-1 self-end font-medium text-primary-text hover:underline"
     >
-      {viewAll ? viewAll.label : <>View all <span className="sr-only">{plural.toLowerCase()}</span></>}
+      {viewAll ? viewAll.label : <>{text('viewAll')} <span className="sr-only">{plural.toLowerCase()}</span></>}
       <ArrowRight className="size-3.5" aria-hidden />
     </AppLink>
   )
 
   if (rows.isPending) return <Loading />
-  if (rows.error) return <ErrorBanner title="Could not load" error={rows.error} />
+  if (rows.error) return <ErrorBanner title={text('couldNotLoad')} error={rows.error} />
   // A link of its own still leads somewhere when nothing here matches
   if (!source || source.total === 0) {
-    const nothing = <p className="text-muted-foreground">{empty ?? 'Nothing here yet.'}</p>
+    const nothing = <p className="text-muted-foreground">{empty ?? text('nothingYet')}</p>
     return viewAll && link ? <div className="flex flex-col gap-3">{nothing}{allLink}</div> : nothing
   }
 

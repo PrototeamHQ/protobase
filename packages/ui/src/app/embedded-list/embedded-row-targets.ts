@@ -5,6 +5,7 @@ import { humanize } from '../../live/naming'
 import type { RouteTarget } from '../../primitives/route-link'
 import { rowAllows } from '../permissions'
 import { relationTarget } from '../related-opens'
+import { text } from './messages'
 
 type Targets = {
   model: ResourceModel
@@ -36,12 +37,12 @@ export const embeddedRowTargets = ({ model, view, opens, resources, views, canUp
   const singular = singularOf(model, view)
 
   const actions = (linkTo: (to: AppAddress) => RouteTarget): RowAction[] => {
-    const openOwn: RowAction = { label: `Open ${singular}`, link: (row) => linkTo(own(row)) }
+    const openOwn: RowAction = { label: text('open', singular), link: (row) => linkTo(own(row)) }
     if (!far) return [openOwn]
     const editable = (row: GridRow) => canUpdate && rowAllows(row, 'update')
     return [
-      { label: `Open ${singularOf(far, views[far.name])}`, available: (row) => other(row) !== undefined, link: (row) => linkTo(other(row)!) },
-      { label: `Edit ${singular}`, available: editable, link: (row) => linkTo({ kind: 'record', resource: model.name, key: recordKey(model, row), edit: true }) },
+      { label: text('open', singularOf(far, views[far.name])), available: (row) => other(row) !== undefined, link: (row) => linkTo(other(row)!) },
+      { label: text('edit', singular), available: editable, link: (row) => linkTo({ kind: 'record', resource: model.name, key: recordKey(model, row), edit: true }) },
       { ...openOwn, available: (row) => !editable(row) },
     ]
   }

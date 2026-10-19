@@ -8,6 +8,7 @@ import { keys } from '../../data/query-keys'
 import type { GridRow } from '../../data-grid'
 import { recordKey } from '../../live/model-helpers'
 import { useToast } from '../../toasts'
+import { text } from './messages'
 
 type Patches = ReadonlyMap<string, Partial<GridRow>>
 
@@ -49,7 +50,7 @@ export const useListEdits = (model: ResourceModel) => {
       const latest = changed ? await client.get(model.name, key) : undefined
       patch(row.id, latest ? { [name]: latest.record[name], etag: latest.etag } : { [name]: row[name] })
       const reason = error.errors.find((entry) => entry.field === name)?.message ?? error.message
-      toast.show({ state: 'error', title: changed ? 'Changed by someone else' : 'Could not save', description: reason })
+      toast.show({ state: 'error', title: changed ? text('changedBySomeoneElse') : text('couldNotSave'), description: reason })
     }
   }
 

@@ -6,6 +6,7 @@ import { MenuSelect } from '../../primitives/menu-select'
 import { Segmented } from '../../primitives/segmented'
 import { parseSort } from '../list-order'
 import { displayChoices, sortFields, type DisplayChoice } from './list-displays'
+import { text } from './messages'
 
 /** The icons a display's `icon` may name; another name shows the label alone. */
 const icons: Record<string, LucideIcon> = { table: Table2, cards: LayoutGrid, kanban: SquareKanban, board: Columns3, list: List, calendar: Calendar, timeline: ChartGantt, map: MapIcon }
@@ -17,8 +18,8 @@ const icons: Record<string, LucideIcon> = { table: Table2, cards: LayoutGrid, ka
 export const DisplaySwitch = ({ view, value, onChange, menu = false, choices = displayChoices(view) }: { view: ViewModel | undefined; value: string; onChange: (display: string) => void; menu?: boolean; choices?: DisplayChoice[] }) => {
   if (choices.length < 2) return null
   const options = choices.map((choice) => ({ value: choice.name, label: choice.label, icon: choice.icon === undefined ? undefined : icons[choice.icon] }))
-  if (menu) return <MenuSelect label="Display" value={value} onChange={onChange} options={options} />
-  return <Segmented label="Display" size="md" value={value} onChange={onChange} options={options} />
+  if (menu) return <MenuSelect label={text('display')} value={value} onChange={onChange} options={options} />
+  return <Segmented label={text('display')} size="md" value={value} onChange={onChange} options={options} />
 }
 
 const directions = [
@@ -34,7 +35,7 @@ export const SortMenu = ({ model, view, display, orderBy, onChange, className }:
   const label = (name: string) => view?.fields[name]?.label ?? humanize(name)
   return (
     <select
-      aria-label="Sort"
+      aria-label={text('sort')}
       value={`${current.columnId} ${current.direction}`}
       onChange={(event) => onChange(event.target.value)}
       className={cn('h-8 rounded-md border border-border-strong bg-background px-2.5 shadow-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20', className)}
@@ -42,7 +43,7 @@ export const SortMenu = ({ model, view, display, orderBy, onChange, className }:
       {names.flatMap((name) =>
         directions.map(([direction, word]) => (
           <option key={`${name} ${direction}`} value={`${name} ${direction}`}>
-            {label(name)}, {word}
+            {label(name)}, {text(word)}
           </option>
         )),
       )}
