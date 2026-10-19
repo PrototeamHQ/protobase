@@ -13,7 +13,7 @@ Without a setting, each user sees the app in their browser's language when it is
 export default { config, auth, authenticate, options: { locale: 'nl' } }
 ```
 
-The value is `'en'` or `'nl'`, and the server refuses to start with any other value. `/meta` names the language as `locale`. The sign-in screens come before `/meta`, so they follow the browser.
+The value is `'en'` or `'nl'`, and the server refuses to start with any other value. `/meta` names the language as `locale`, and so does the sign-in status (`GET /api/auth/status`), which the sign-in screens and public forms read before `/meta`, so they are in the same language.
 
 ## Numbers and dates
 
@@ -21,8 +21,6 @@ Numbers, amounts and dates use the conventions of the language: English as writt
 
 ## What is translated
 
-The shell is translated: the sidebar, the top bar, search, the profile menu and the bottom bar. So are the counts, relative times ("5 minutes ago") and the notices shown while the app loads.
+Every built-in screen is translated: the shell with its sidebar, top bar, search, profile menu and bottom bar; the list page with all its displays (table, cards, board, calendar, timeline and map), filters, search, sort, imports and exports; the record page with its actions, related lists, history, comments, gallery, saving, conflicts and deleting; the create page and composed pages; saved searches and favorites; the sign-in, sign-up and two-factor screens, the account and sign-in policy pages, and the organization, people and invitation pages; public forms; and the messages, toasts and confirmations around them. So are counts, relative times ("5 minutes ago"), yes, no and the other values the app writes itself, and the notices shown while the app loads.
 
-So are the list page with its table, filters, search, sort, display switch and sorting by hand; the record page with its actions, related lists, saving, conflicts and deleting; the create page; the messages under a field the server turned down; yes, no and other values the app writes itself; and public forms. A public form comes before `/meta`, so like the sign-in screens it follows the browser.
-
-Imports, exports, charts, history, comments, the other list displays (cards, board, calendar, timeline, map), composed pages, and the sign-in, account and organization screens are still in English. Their texts are being translated to Dutch one area at a time.
+The texts a plugin or the server writes itself, such as an error message the API sends back or why a plugin could not be loaded, show as they are written.
