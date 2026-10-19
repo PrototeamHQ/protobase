@@ -13,7 +13,7 @@ import { userMenu } from '@protobase/schema'
 
 export const accountMenu = userMenu((m) => [
   m.resource('organizations', { label: 'Organization', icon: 'building' }),
-  m.resource('users', { label: 'Users', icon: 'users' }),
+  m.page('accounts', { label: 'Users', icon: 'users' }),
   m.link('Documentation', 'https://docs.protobase.net', { icon: 'book-open' }),
   m.link('Support', 'mailto:support@example.com', { icon: 'life-buoy' }),
 ])
@@ -25,7 +25,7 @@ export const accountMenu = userMenu((m) => [
 | `m.page(name, { label?, icon? })` | Opens a [composed page](/reference/layouts/). The page leaves the sidebar. The label defaults to its title. |
 | `m.link(label, href, { icon? })` | Opens `href` in a new tab. Only `https://`, `http://` and `mailto:` are accepted. |
 
-Items keep their order. After them come the app's own account pages: "Sign-in & security" for everyone (their [passkeys](/reference/auth/#passkeys) and [two-factor authentication](/reference/auth/#two-factor-authentication)) and "Sign-in policy" for admins (the [sign-in policy](/reference/auth/#sign-in-policy), and the log of [staff sign-ins](/reference/auth/#staff-sign-in)); then the [theme switch](/reference/theme/#light-dark-or-the-system), and "Sign out" always comes last. `icon` is one of `bell`, `book-open`, `bookmark`, `building`, `credit-card`, `external-link`, `file-text`, `heart`, `key`, `layout-dashboard`, `life-buoy`, `mail`, `receipt`, `settings`, `shield`, `users`. A resource item without one uses the resource's sidebar icon, and a link item uses `external-link`.
+`accounts` is the built-in [Users page](/reference/auth/#users-page), which the config exports as `usersPage` from `@protobase/layout`; without the export, `createAdmin` refuses the item. Items keep their order. After them come the app's own account pages: "Sign-in & security" for everyone (their [passkeys](/reference/auth/#passkeys) and [two-factor authentication](/reference/auth/#two-factor-authentication)) and "Sign-in policy" for admins (the [sign-in policy](/reference/auth/#sign-in-policy), and the log of [staff sign-ins](/reference/auth/#staff-sign-in)); then the [theme switch](/reference/theme/#light-dark-or-the-system), and "Sign out" always comes last. `icon` is one of `bell`, `book-open`, `bookmark`, `building`, `credit-card`, `external-link`, `file-text`, `heart`, `key`, `layout-dashboard`, `life-buoy`, `mail`, `receipt`, `settings`, `shield`, `users`. A resource item without one uses the resource's sidebar icon, and a link item uses `external-link`.
 
 Every caller gets the menu through `/meta`, without the resources and pages they cannot see, so a user who cannot read `organizations` has no "Organization" item. Links are shown to everyone. `createAdmin` refuses to start when an item names a resource or page that does not exist, and `configExports` refuses a config module that exports two menus.
 
