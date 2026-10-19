@@ -127,11 +127,11 @@ const listShape = (resource: string, model: ResourceModel, models: Record<string
   )
 
 const widgetShape = s.oneOf<FilterWidgetModel>({
-  range: s.object<Of<FilterWidgetModel, 'range'>>({ kind: s.data, field: s.field, histogram: s.data }, { requires: ['field'] }),
-  facets: s.object<Of<FilterWidgetModel, 'facets'>>({ kind: s.data, field: s.field, search: s.data }, { requires: ['field'] }),
-  dateRange: s.object<Of<FilterWidgetModel, 'dateRange'>>({ kind: s.data, field: s.field, presets: s.data }, { requires: ['field'] }),
-  toggle: s.object<Of<FilterWidgetModel, 'toggle'>>({ kind: s.data, field: s.field }, { requires: ['field'] }),
-  flags: s.object<Of<FilterWidgetModel, 'flags'>>({ kind: s.data, fields: s.list(s.field, { nonEmpty: true }), label: s.data }, { requires: ['fields'] }),
+  range: s.object<Of<FilterWidgetModel, 'range'>>({ kind: s.data, field: s.field, histogram: s.data, secondary: s.data }, { requires: ['field'] }),
+  facets: s.object<Of<FilterWidgetModel, 'facets'>>({ kind: s.data, field: s.field, search: s.data, secondary: s.data }, { requires: ['field'] }),
+  dateRange: s.object<Of<FilterWidgetModel, 'dateRange'>>({ kind: s.data, field: s.field, presets: s.data, secondary: s.data }, { requires: ['field'] }),
+  toggle: s.object<Of<FilterWidgetModel, 'toggle'>>({ kind: s.data, field: s.field, secondary: s.data }, { requires: ['field'] }),
+  flags: s.object<Of<FilterWidgetModel, 'flags'>>({ kind: s.data, fields: s.list(s.field, { nonEmpty: true }), label: s.data, secondary: s.data }, { requires: ['fields'] }),
 })
 
 const layoutShape = (resource: string, model: ResourceModel, models: Record<string, ResourceModel>) => {

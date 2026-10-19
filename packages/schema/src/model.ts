@@ -611,7 +611,7 @@ export type DatePreset = 'today' | 'yesterday' | '24h' | '7d' | '30d' | '90d' | 
  * A filter widget above a list (`.filters((r, w) => ...)`), on a filterable field; see
  * [Filters and the chart](website/src/content/docs/reference/ui-config.mdx#filters-and-the-chart).
  */
-export type FilterWidgetModel =
+export type FilterWidgetModel = (
   | {
       /** A slider between the lowest and highest value. */
       kind: 'range'
@@ -650,6 +650,10 @@ export type FilterWidgetModel =
       /** The menu's label. */
       label: string
     }
+) & {
+  /** Shown behind the bar's "More filters" menu until it is picked there or set. */
+  secondary?: boolean
+}
 
 /**
  * Records of another resource on the record page: those whose `field` holds this record's key or, with `through`,
