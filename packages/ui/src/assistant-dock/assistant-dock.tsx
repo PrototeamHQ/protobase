@@ -6,6 +6,7 @@ import { ChatMessage, ChatThread, Composer } from '../chat'
 import { SidePanel } from '../side-panel'
 import { PartView } from './part-view'
 import { AssistantBackendContext } from './use-backend-data'
+import { text } from './messages'
 
 export type AssistantDockProps = {
   state: AssistantState
@@ -20,8 +21,6 @@ export type AssistantDockProps = {
   client?: AssistantClient
 }
 
-const defaultPlaceholder = 'Ask a question...'
-
 /**
  * The assistant beside the app: renders a backend's chat, its cards, the app's widgets and status line, and sends
  * messages and clicks back.
@@ -34,19 +33,19 @@ export const AssistantDock = ({ state, offline, error, onSend, onAction, onClose
 
   return (
     <SidePanel
-      title="Assistant"
+      title={text('assistant')}
       icon={<Sparkles className="size-4 text-primary" />}
-      status={offline ? 'Reconnecting...' : state.status}
+      status={offline ? text('reconnecting') : state.status}
       onClose={onClose}
       footer={
         <>
           {error && <p role="alert" className="text-xs text-danger-text">{error}</p>}
-          <Composer inputRef={input} onSend={onSend} busy={state.replying} placeholder={state.placeholder ?? defaultPlaceholder} />
+          <Composer inputRef={input} onSend={onSend} busy={state.replying} placeholder={state.placeholder ?? text('askQuestion')} />
         </>
       }
     >
       <AssistantBackendContext.Provider value={client}>
-        <ChatThread length={state.messages.reduce((sum, message) => sum + message.parts.length, 0)} empty="Ask a question about this app or its data.">
+        <ChatThread length={state.messages.reduce((sum, message) => sum + message.parts.length, 0)} empty={text('empty')}>
           {state.messages.map((message) => (
             <ChatMessage key={message.id} from={message.from}>
               {message.parts.map((part) => <PartView key={part.id} part={part} onAction={onAction} />)}

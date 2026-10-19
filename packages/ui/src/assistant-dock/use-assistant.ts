@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react'
 import { applyAssistantEvent, emptyAssistantState } from '@protobase/schema/internal'
 import type { AssistantClient } from '@protobase/client'
+import { text } from './messages'
 
-const messageOf = (error: unknown) => (error instanceof Error ? error.message : 'The assistant did not answer')
+const messageOf = (error: unknown) => (error instanceof Error ? error.message : text('noAnswer'))
 
 /** Follows an assistant backend's event stream into state, with its two requests; `undefined` client means not yet. */
 export const useAssistant = (client: AssistantClient | undefined) => {

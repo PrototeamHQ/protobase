@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useRef, useState } from 'react'
 import type { AssistantClient } from '@protobase/client'
+import { text } from './messages'
 
 /** The assistant backend the dock talks to, for the widgets it draws; `AssistantDock` provides it from its `client`. */
 export const AssistantBackendContext = createContext<AssistantClient | undefined>(undefined)
@@ -18,7 +19,7 @@ export type BackendData<T> = {
   post: (path: string, body?: unknown) => Promise<void>
 }
 
-const asError = (reason: unknown) => (reason instanceof Error ? reason : new Error('The assistant backend did not answer'))
+const asError = (reason: unknown) => (reason instanceof Error ? reason : new Error(text('backendNoAnswer')))
 
 const refreshOf = <T>(refresh: BackendRefresh<T>, data: T | undefined) => (typeof refresh === 'function' ? refresh(data) : refresh)
 

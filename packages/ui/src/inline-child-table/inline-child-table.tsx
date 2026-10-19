@@ -7,6 +7,7 @@ import { lineGrid } from './columns'
 import { LineRow } from './line-row'
 import { reorder } from './reorder'
 import { TotalsFooter } from './totals-footer'
+import { text } from './messages'
 
 export type LineMove = { id: string; from: number; to: number }
 
@@ -24,17 +25,14 @@ export type InlineChildTableProps = {
 
 const headerCell = 'px-2 text-[11px] font-medium uppercase tracking-wide text-muted-foreground'
 
-const instructions =
-  'To pick up a line, press space or enter on its drag handle. Use the up and down arrow keys to move it, space or enter to drop it, and escape to cancel. The row menu also has Move up and Move down.'
-
 const announcementsFor = (lines: InvoiceLine[]): Announcements => {
-  const name = (id: string | number) => lines.find((line) => line.id === id)?.description ?? 'line'
+  const name = (id: string | number) => lines.find((line) => line.id === id)?.description ?? text('line')
   const place = (id: string | number | undefined) => lines.findIndex((line) => line.id === id) + 1
   return {
-    onDragStart: ({ active }) => `Picked up ${name(active.id)}, line ${place(active.id)} of ${lines.length}.`,
-    onDragOver: ({ active, over }) => (over ? `${name(active.id)} is over line ${place(over.id)} of ${lines.length}.` : undefined),
-    onDragEnd: ({ active, over }) => (over ? `${name(active.id)} was dropped at line ${place(over.id)} of ${lines.length}.` : `${name(active.id)} was dropped where it started.`),
-    onDragCancel: ({ active }) => `Moving ${name(active.id)} was cancelled. It is back at line ${place(active.id)}.`,
+    onDragStart: ({ active }) => text('pickedUp', name(active.id), place(active.id), lines.length),
+    onDragOver: ({ active, over }) => (over ? text('over', name(active.id), place(over.id), lines.length) : undefined),
+    onDragEnd: ({ active, over }) => (over ? text('dropped', name(active.id), place(over.id), lines.length) : text('droppedAtStart', name(active.id))),
+    onDragCancel: ({ active }) => text('cancelled', name(active.id), place(active.id)),
   }
 }
 
@@ -66,17 +64,17 @@ export const InlineChildTable = ({ lines, onChange, onReorder, vatRate = 0.21, r
       <div className="overflow-hidden rounded-lg border border-border bg-background">
         <div className={`${lineGrid} border-b border-border bg-surface px-2 py-2`}>
           <span />
-          <span className={headerCell}>Item</span>
-          <span className={`${headerCell} text-right`}>Qty</span>
-          <span className={`${headerCell} text-right`}>Unit price</span>
-          <span className={`${headerCell} text-right`}>Line total</span>
+          <span className={headerCell}>{text('item')}</span>
+          <span className={`${headerCell} text-right`}>{text('qty')}</span>
+          <span className={`${headerCell} text-right`}>{text('unitPrice')}</span>
+          <span className={`${headerCell} text-right`}>{text('lineTotal')}</span>
           <span />
         </div>
         <DndContext
           sensors={sensors}
           collisionDetection={closestCenter}
           onDragEnd={onDragEnd}
-          accessibility={{ announcements: announcementsFor(lines), screenReaderInstructions: { draggable: instructions } }}
+          accessibility={{ announcements: announcementsFor(lines), screenReaderInstructions: { draggable: text('instructions') } }}
         >
           <SortableContext items={lines.map((line) => line.id)} strategy={verticalListSortingStrategy}>
             {lines.map((line, index) => (
@@ -98,7 +96,7 @@ export const InlineChildTable = ({ lines, onChange, onReorder, vatRate = 0.21, r
           <div className="border-t border-border bg-surface px-2 py-1.5">
             <Button variant="ghost" size="sm" onClick={addLine}>
               <Plus className="size-3.5" />
-              Add line
+              {text('addLine')}
             </Button>
           </div>
         )}

@@ -3,6 +3,7 @@ import type { AssistantWidgetPart } from '@protobase/schema'
 import { ActionCard } from '../action-card'
 import { reportRenderError } from '../app/error-reporting'
 import { useProjectUi } from '../app/pages/project-ui'
+import { text } from './messages'
 
 /** The part's fallback as a plain card with `note`, or a muted line naming the component when it has none. */
 const Fallback = ({ part, note }: { part: AssistantWidgetPart; note: string }) =>
@@ -27,7 +28,7 @@ class WidgetBoundary extends Component<{ part: AssistantWidgetPart; children: Re
   }
 
   override render() {
-    return this.state.failed ? <Fallback part={this.props.part} note="It could not be drawn." /> : this.props.children
+    return this.state.failed ? <Fallback part={this.props.part} note={text('couldNotDraw')} /> : this.props.children
   }
 }
 
@@ -35,7 +36,7 @@ class WidgetBoundary extends Component<{ part: AssistantWidgetPart; children: Re
 export const WidgetView = ({ part }: { part: AssistantWidgetPart }) => {
   const { components = {} } = useProjectUi()
   const Widget = Object.hasOwn(components, part.name) ? components[part.name] : undefined
-  if (!Widget) return <Fallback part={part} note="This version of the app cannot show it live." />
+  if (!Widget) return <Fallback part={part} note={text('cannotShowLive')} />
   return (
     <WidgetBoundary part={part}>
       <Widget {...part.props} />
