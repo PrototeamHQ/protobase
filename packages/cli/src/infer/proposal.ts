@@ -1,5 +1,6 @@
 import type { DbColumn, DbTable } from '../db/model'
-import { leadingIndex } from '../db/keys'
+import { indexServes } from '@protobase/query'
+import { coverageIndexes } from '../db/keys'
 import { isTenantColumn } from './tenant'
 import { checkEnumValues } from './check-values'
 import { defaultColumn } from './default-column'
@@ -33,10 +34,15 @@ export type ProposalContext = {
   resourceNameOf: (schema: string, table: string) => string
 }
 
-const columnIndexing = (table: DbTable, column: string) => {
+// The server's scan guard decides, with the tenant column pinned as every query pins it: comparisons and sorts need a
+// btree index, and a pg_trgm index serves patterns on a text column, so it alone makes the field filterable.
+const columnIndexing = (table: DbTable, column: string, type: BaseType) => {
   const tenant = table.columns.find((c) => isTenantColumn(c.name))?.name
-  const index = leadingIndex(table, column, tenant)
-  return { filterable: Boolean(index), sortable: index?.method === 'btree' }
+  const pinned = new Set(tenant ? [tenant] : [])
+  const indexes = coverageIndexes(table)
+  const sortable = indexes.some((index) => indexServes(index, column, 'btree', pinned))
+  const trigram = type === 'text' && indexes.some((index) => indexServes(index, column, 'trigram', pinned))
+  return { filterable: sortable || trigram, sortable }
 }
 
 // A composite foreign key becomes one relation on its first column, listing all columns.
@@ -79,7 +85,7 @@ export const proposeField = (table: DbTable, column: DbColumn, context: Proposal
     optional: !column.notNull,
     ...defaults,
     readOnly: defaults.readOnly || Boolean(kind.unsupported),
-    ...(kind.type === 'json' ? { filterable: false, sortable: false } : columnIndexing(table, column.name)),
+    ...(kind.type === 'json' ? { filterable: false, sortable: false } : columnIndexing(table, column.name, kind.type)),
   }
 }
 

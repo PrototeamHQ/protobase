@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { DbColumn, DbTable } from '../db/model'
+import type { DbColumn, DbIndex, DbTable } from '../db/model'
 import { proposeField } from './proposal'
 import { renderField } from './render-field'
 
@@ -56,5 +56,36 @@ describe('database defaults', () => {
     ['ref', 'f.integer().readOnly()'],
   ])('%s -> %s', (name, expected) => {
     expect(render(columns, name)).toBe(expected)
+  })
+})
+
+describe('indexing', () => {
+  const index = (columns: string[], method: string, opclasses: string[], partial = false): DbIndex => ({
+    name: `orders_${columns.join('_')}_idx`,
+    columns,
+    unique: false,
+    primary: false,
+    partial,
+    method,
+    opclasses,
+  })
+  const indexed = (name: string, typeName: string, indexes: DbIndex[]) => {
+    const t: DbTable = { ...table([column('id', 'uuid'), column('tenant_id', 'uuid'), column(name, typeName)]), indexes }
+    const { filterable, sortable } = proposeField(t, t.columns.find((c) => c.name === name)!, { table: t, resourceNameOf: (_s, n) => n })
+    return { filterable, sortable }
+  }
+
+  it.each<[string, string, DbIndex[], boolean, boolean]>([
+    ['a btree index leading with it', 'int4', [index(['code'], 'btree', ['int4_ops'])], true, true],
+    ['a btree index right after the tenant column', 'int4', [index(['tenant_id', 'code'], 'btree', ['uuid_ops', 'int4_ops'])], true, true],
+    ['a btree index after another column', 'int4', [index(['id', 'code'], 'btree', ['uuid_ops', 'int4_ops'])], false, false],
+    ['a partial btree index', 'int4', [index(['code'], 'btree', ['int4_ops'], true)], false, false],
+    ['a hash index', 'int4', [index(['code'], 'hash', ['int4_ops'])], false, false],
+    ['a BRIN index', 'int4', [index(['code'], 'brin', ['int4_minmax_ops'])], false, false],
+    ['a GiST index without pg_trgm', 'text', [index(['code'], 'gist', ['range_ops'])], false, false],
+    ['a pg_trgm GIN index on text', 'text', [index(['code'], 'gin', ['gin_trgm_ops'])], true, false],
+    ['a pg_trgm GiST index on text', 'text', [index(['code'], 'gist', ['gist_trgm_ops'])], true, false],
+  ])('a column with %s: filterable %s, sortable %s', (_case, typeName, indexes, filterable, sortable) => {
+    expect(indexed('code', typeName, indexes)).toEqual({ filterable, sortable })
   })
 })

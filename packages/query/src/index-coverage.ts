@@ -47,7 +47,7 @@ const pinnedColumns = (filter?: CheckedFilter): string[] => {
 // A btree index serves a column that is one of its keys when every key before it is pinned by the query, so the
 // planner walks one stretch of the index: (for_sale, status, published_at) serves `published_at` under
 // `for_sale = true AND status = "available"`. A partial index serves only queries implying its WHERE, so none counts.
-const btreeServes = (index: TableIndex, column: string, pinned: Set<string>) => {
+const btreeServes = (index: TableIndex, column: string, pinned: ReadonlySet<string>) => {
   if (index.method !== 'btree' || index.partial) return false
   const position = index.keys.findIndex((key) => key.column === column)
   return position >= 0 && index.keys.slice(0, position).every((key) => key.column !== null && pinned.has(key.column))
@@ -58,7 +58,8 @@ const mentions = (definition: string, column: string) => {
   return new RegExp(`(^|[^\\w"])("${name}"|${name})([^\\w"]|$)`).test(definition)
 }
 
-const serves = (index: TableIndex, column: string, need: IndexNeed, pinned: Set<string>) => {
+/** Whether the index serves reading the column with the given need, while the query pins the `pinned` columns. */
+export const indexServes = (index: TableIndex, column: string, need: IndexNeed, pinned: ReadonlySet<string>) => {
   if (index.partial) return false
   switch (need) {
     case 'btree':
@@ -74,7 +75,7 @@ const serves = (index: TableIndex, column: string, need: IndexNeed, pinned: Set<
 
 // `also` is a kind of index that serves as well: a pg_trgm index answers `=` on text as a btree index does
 const need = (ctx: Context, field: FieldModel, kind: IndexNeed, pinned: Set<string>, also?: IndexNeed): UncoveredColumn[] =>
-  ctx.indexes.some((index) => serves(index, field.column, kind, pinned) || (also !== undefined && serves(index, field.column, also, pinned)))
+  ctx.indexes.some((index) => indexServes(index, field.column, kind, pinned) || (also !== undefined && indexServes(index, field.column, also, pinned)))
     ? []
     : [{ field: field.name, column: field.column, use: ctx.use, need: kind, suggestion: suggestion(ctx.model, field.column, kind) }]
 

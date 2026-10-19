@@ -14,7 +14,7 @@ export { mapBuckets, checkMapPosition, cellsAcross, maxMapZoom, mapCellPixels, m
 export { withoutField } from './prune-filter'
 export { scrollMode, type ScrollMode } from './scroll-mode'
 export { tableIndexes, type IndexKey, type TableIndex, type TableIndexes } from './table-indexes'
-export { uncoveredColumns, type ColumnUse, type CoverageQuery, type IndexNeed, type UncoveredColumn } from './index-coverage'
+export { uncoveredColumns, indexServes, type ColumnUse, type CoverageQuery, type IndexNeed, type UncoveredColumn } from './index-coverage'
 export { QueryError, type QueryErrorCode } from './errors'
 export type { Db } from './db'
 export type { Scope } from './scope'

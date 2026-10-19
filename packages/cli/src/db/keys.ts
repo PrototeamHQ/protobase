@@ -1,3 +1,4 @@
+import type { TableIndex } from '@protobase/query'
 import type { DbTable } from './model'
 
 const plainColumns = (columns: (string | null)[]) =>
@@ -21,11 +22,12 @@ export const isUniqueSet = (table: DbTable, columns: readonly string[]) =>
     return index.unique && !index.partial && indexed && indexed.every((column) => columns.includes(column))
   })
 
-// A column counts as indexed when it leads a valid, non-partial index, or directly follows the tenant
-// column in one: every query is tenant-scoped, so the planner can use such an index.
-export const leadingIndex = (table: DbTable, column: string, tenantColumn?: string) =>
-  table.indexes.find(
-    (index) =>
-      !index.partial &&
-      (index.columns[0] === column || (tenantColumn !== undefined && index.columns[0] === tenantColumn && index.columns[1] === column)),
-  )
+// The table's indexes in the shape @protobase/query judges coverage on. Introspection keeps no expression text, so an
+// expression key's definition is empty: only the `digits` need reads it.
+export const coverageIndexes = (table: DbTable): TableIndex[] =>
+  table.indexes.map((index) => ({
+    name: index.name,
+    method: index.method,
+    partial: index.partial,
+    keys: index.columns.map((column, position) => ({ column, definition: '', opclass: index.opclasses[position] ?? '' })),
+  }))
