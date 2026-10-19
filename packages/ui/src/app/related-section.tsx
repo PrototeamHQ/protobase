@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { createWhere, printFilter, type RelatedModel } from '@protobase/schema'
 import { useClient } from '../data/api-provider'
 import { keys } from '../data/query-keys'
@@ -11,6 +11,7 @@ import { countQuery } from './pages/use-layout-data'
 import { EmbeddedDisplaySwitch, EmbeddedList } from './embedded-list/embedded-list'
 import { useEmbeddedDisplay } from './embedded-list/use-embedded-display'
 import { ErrorBanner } from './error-banner'
+import { RelatedCards } from './related-cards/related-cards'
 import { relatedOpens } from './related-opens'
 import { relatedHandOrder } from './hand-order/hand-order'
 import { HandSortedList } from './hand-order/hand-sorted-list'
@@ -59,7 +60,7 @@ const Empty = ({ empty }: { empty: string | undefined }) => <p className="text-m
 
 /**
  * A record page section listing the first records of another resource that point at this record, directly or through
- * a join resource, in the list page's table or display, with a link to them all in the list. When they are ordered by
+ * a join resource, in the list page's table or display, or as cards with their actions, with a link to them all in the list. When they are ordered by
  * hand within this record, **Reorder** shows them all in their order, to be moved by their drag handles.
  */
 export const RelatedSection = ({ item, value, owner }: { item: RelatedModel; value: string | number | boolean | null; owner: string }) => {
@@ -79,6 +80,24 @@ export const RelatedSection = ({ item, value, owner }: { item: RelatedModel; val
   const opens = relatedOpens(item, model, resources)
   // The relation names this record on every row, so it is left out of the default columns
   const columns = item.columns ?? listColumnNames(model, view).filter((name) => name !== item.field)
+  // What it lists once the records it matches are known
+  const listed = (list: (filter: string) => ReactNode) =>
+    match.isPending ? (
+      <Loading />
+    ) : match.error ? (
+      <ErrorBanner title={text('couldNotLoadRelated')} error={match.error} />
+    ) : match.filter === null || match.filter === undefined ? (
+      <Empty empty={item.empty} />
+    ) : (
+      list(match.filter)
+    )
+  if (item.presentation === 'cards') {
+    return (
+      <Section title={item.title} help={item.help}>
+        {listed((filter) => <RelatedCards model={model} view={view} filter={filter} sort={item.sort ?? ''} fields={columns} actions={item.actions ?? []} limit={item.limit ?? 10} display={item.display} empty={item.empty} />)}
+      </Section>
+    )
+  }
   const handOrder = relatedHandOrder(item, model, permissions)
   const displaySwitch = <EmbeddedDisplaySwitch view={view} value={display} onChange={pick} />
   const actions = handOrder ? (
@@ -98,15 +117,7 @@ export const RelatedSection = ({ item, value, owner }: { item: RelatedModel; val
   }
   return (
     <Section title={item.title} help={item.help} actions={actions}>
-      {match.isPending ? (
-        <Loading />
-      ) : match.error ? (
-        <ErrorBanner title={text('couldNotLoadRelated')} error={match.error} />
-      ) : match.filter === null || match.filter === undefined ? (
-        <Empty empty={item.empty} />
-      ) : (
-        <EmbeddedList key={match.filter} model={model} view={view} filter={match.filter} sort={item.sort ?? ''} columns={columns} limit={item.limit ?? 10} display={display} empty={item.empty} opens={opens} />
-      )}
+      {listed((filter) => <EmbeddedList key={filter} model={model} view={view} filter={filter} sort={item.sort ?? ''} columns={columns} limit={item.limit ?? 10} display={display} empty={item.empty} opens={opens} />)}
     </Section>
   )
 }
