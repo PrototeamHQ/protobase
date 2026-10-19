@@ -41,6 +41,7 @@ export const reference = [
   'reference/plugins',
   'reference/remote-resources',
   'reference/theme',
+  'reference/languages',
   'reference/sidebar',
   'reference/user-menu',
   'reference/bottom-bar',
