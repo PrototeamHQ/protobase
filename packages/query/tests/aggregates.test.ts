@@ -170,7 +170,7 @@ describe('splitSeries', () => {
        from items where deleted_at is null and created_at >= '2024-01-01T00:00:00Z' and created_at < '2024-04-01T00:00:00Z'
        group by 1, 2 order by 1, 2`,
     )
-    expect(points.map(({ bucket, split, count, sum }) => ({ bucket, category: split, n: String(count), m: String(sum) }))
+    expect(points.map(({ bucket, split, count, sum }) => ({ bucket, category: String(split), n: String(count), m: String(sum) }))
       .sort((a, b) => a.bucket.localeCompare(b.bucket) || a.category.localeCompare(b.category))).toEqual(expected)
     const totals = (value: unknown) => points.filter(p => p.split === value).reduce((all, p) => all + (p.sum ?? 0), 0)
     expect(splits.map(totals)).toEqual(splits.map(totals).sort((a, b) => b - a))
