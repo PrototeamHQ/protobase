@@ -6,9 +6,11 @@ import { useLayoutRecord } from '../record-scope'
 import { useRunAction } from '../use-run-action'
 import { propsOf, type BlockProps } from './block-props'
 
-/** A button for a named action of the resource's view, asking first when the action has `confirm` or `inputs`. */
-export const ActionBlock = ({ node }: BlockProps) => {
-  const { name, resource, label, variant } = propsOf<ActionProps>(node)
+/**
+ * A button for a named action of `resource`'s view, by default of the record around it, on that record, asking first
+ * when the action has `confirm` or `inputs`; nothing when the view has no such action for the user.
+ */
+export const ActionButton = ({ name, resource, label, variant }: ActionProps) => {
   const scope = useLayoutRecord()
   const action = useRunAction(resource ?? scope?.model.name ?? '', name, resource === undefined || resource === scope?.model.name ? scope : undefined)
   const [asking, setAsking] = useState(false)
@@ -39,3 +41,6 @@ export const ActionBlock = ({ node }: BlockProps) => {
     </>
   )
 }
+
+/** An Action block: its button. */
+export const ActionBlock = ({ node }: BlockProps) => <ActionButton {...propsOf<ActionProps>(node)} />
