@@ -2,6 +2,7 @@ import { X } from 'lucide-react'
 import { useRef, type PointerEvent, type ReactNode } from 'react'
 import { useFocusTrap } from '../lib/use-focus-trap'
 import { closesSheet } from './sheet-swipe'
+import { text } from './messages'
 
 export type SheetProps = { title: string; open: boolean; onClose: () => void; children: ReactNode }
 
@@ -31,7 +32,7 @@ export const Sheet = ({ title, open, onClose, children }: SheetProps) => {
         <header className="relative flex shrink-0 touch-none items-center justify-between border-b px-4" onPointerDown={down} onPointerUp={up} onPointerCancel={() => (start.current = undefined)}>
           <span className="absolute left-1/2 top-1.5 h-1 w-9 -translate-x-1/2 rounded-full bg-border-strong" aria-hidden />
           <h2 className="text-[16px] font-semibold">{title}</h2>
-          <button type="button" aria-label="Close" onClick={onClose} className="-mr-2 inline-flex size-11 items-center justify-center rounded-md text-muted-foreground hover:bg-muted">
+          <button type="button" aria-label={text('close')} onClick={onClose} className="-mr-2 inline-flex size-11 items-center justify-center rounded-md text-muted-foreground hover:bg-muted">
             <X className="size-5" />
           </button>
         </header>

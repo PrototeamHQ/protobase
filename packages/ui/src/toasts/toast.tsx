@@ -2,6 +2,7 @@ import { CheckCircle2, TriangleAlert, X, XCircle } from 'lucide-react'
 import { inApp } from '../app-shell/breadcrumb'
 import { cn } from '../lib/cn'
 import { Spinner } from '../primitives/spinner'
+import { text } from './messages'
 
 /** `warning`: done, but not as asked, such as a drop moved to the first place a rule allows. */
 export type ToastState = 'loading' | 'success' | 'warning' | 'error'
@@ -64,7 +65,7 @@ export const Toast = ({ state, title, description, action, onDismiss }: ToastPro
     </div>
     {action && <Action action={action} />}
     {onDismiss && (
-      <button type="button" aria-label="Dismiss" onClick={onDismiss} className="inline-flex items-center justify-center rounded p-0.5 text-faint-foreground hover:bg-muted hover:text-foreground pointer-coarse:size-9">
+      <button type="button" aria-label={text('dismiss')} onClick={onDismiss} className="inline-flex items-center justify-center rounded p-0.5 text-faint-foreground hover:bg-muted hover:text-foreground pointer-coarse:size-9">
         <X className="size-3.5" />
       </button>
     )}
