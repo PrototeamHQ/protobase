@@ -78,15 +78,20 @@ export const site = {
   reads: ['packages/**/*.css', 'website/**', 'skills/**', 'docs-examples/**', 'examples/erp/config/**', 'scripts/dom-snapshots/**', 'scripts/lib/**', 'scripts/{play-tests,dom-snapshots,check-docs,static-server}.mjs'],
 }
 
-// The Postgres suite (`bun run test:postgres`, tests/postgres), which CI runs when a file it depends on changed: the SQL
-// the server and the query layer issue, the jobs and changes schemas and the auth store with them, the examples'
-// migrations and seeds, and the suite with what it runs. A file every test depends on, such as the Postgres service
-// image in ci.yml, docker-compose.yml or scripts/test-db/, runs it too.
+// What the Postgres suite (`bun run test:postgres`, tests/postgres) checks that the snapshot recordings cannot show, so
+// a change to it runs the suite even when the recordings come out unchanged: migrations and seeds (the examples' and the
+// schemas the server migrates), the jobs runner, change delivery (capture, outbox, webhooks), and the suite with what
+// it runs. The database and pooler setup (the service images in ci.yml, docker-compose.yml, scripts/test-db/) is in
+// `runEverything`, which runs it too. Any other change runs it only when its recordings differ
+// (scripts/affected-postgres.mjs).
 export const postgresSuite = [
-  'packages/server/src/**',
-  'packages/query/src/**',
-  'examples/*/db/migrations/**',
+  'examples/*/db/**',
   'examples/*/seed/**',
+  'packages/server/src/jobs/**',
+  'packages/server/src/changes/**',
+  'packages/server/src/webhooks/**',
+  'packages/server/src/better-auth/{auth-schema,snake-case-migration}.ts',
+  'packages/server/src/comments/comments-sql.ts',
   'tests/postgres/**',
   'tests/jobs/**',
   'tests/changes/{delivery-*,capture-scenarios}.ts',

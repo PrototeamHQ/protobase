@@ -5,7 +5,7 @@ name: release
 # tag is pushed with a GitHub release, and the packages are published to npm and the images to GitHub's registry at the
 # tag's version, which scripts/stamp-version.mjs writes into the package.json files in the runner. Run by hand, it
 # publishes the packages at an existing tag, skipping versions npm already has, and the images, to repeat a missed
-# publish. See website/src/content/docs/reference/versioning.md.
+# publish. The checks run the Postgres suite in full when the push cuts a release. See website/src/content/docs/reference/versioning.md.
 on:
   push:
     branches: [main]
@@ -21,9 +21,33 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # Whether this push cuts a release (scripts/release.mjs --dry-run prints the tag it would cut), so the checks run the
+  # Postgres suite in full before one, as the last fail-safe.
+  plan:
+    if: ${{ github.event_name == 'push' }}
+    runs-on: ubuntu-latest
+    outputs:
+      release: ${{ steps.plan.outputs.release }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.2
+      - run: bun install --frozen-lockfile
+      - name: Find whether the push cuts a release
+        id: plan
+        run: |
+          tag=$(bun run release --dry-run)
+          if [ -n "$tag" ]; then echo "release=true" >> "$GITHUB_OUTPUT"; else echo "release=false" >> "$GITHUB_OUTPUT"; fi
+
   check:
+    needs: plan
     if: ${{ github.event_name == 'push' }}
     uses: ./.github/workflows/ci.yml
+    with:
+      postgres: ${{ needs.plan.outputs.release == 'true' }}
 
   commits:
     if: ${{ github.event_name == 'push' }}

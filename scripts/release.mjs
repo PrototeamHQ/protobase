@@ -7,7 +7,7 @@
 // with no way around it, since it needs the branch's history cleaned up. Nothing to release (only docs,
 // tests, chores, ...), or a HEAD that is a release already, tags nothing and prints nothing. No package.json is
 // bumped: the workflow writes the tag's version into them in its runner (scripts/stamp-version.mjs). `--dry-run`
-// prints the version and notes instead of tagging.
+// prints the tag, as a real run does, with its notes on stderr, and tags nothing.
 import { spawnSync } from 'node:child_process'
 import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -85,6 +85,7 @@ const notes = `${section.slice(section.indexOf('\n') + 1).trim()}\n`
 if (maintenance) console.error(`${newestTag} is above ${lastTag}, so this maintenance release is a patch: ${tag}`)
 if (dryRun) {
   console.error(`Would tag ${tag} with the notes:\n\n${notes}`)
+  console.log(tag)
   process.exit(0)
 }
 git('tag', '--annotate', tag, '--message', tag)

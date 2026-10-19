@@ -38,6 +38,12 @@ describe('scripts/release.mjs', () => {
     return { tag: tagged, notes: tagged ? await readFile(notesFile, 'utf8') : '' }
   }
 
+  const dryRun = () => {
+    const result = spawnSync('bun', [path.join(root, 'scripts/release.mjs'), '--dry-run'], { cwd: repo, encoding: 'utf8' })
+    if (result.status !== 0) throw new Error(`dry run failed: ${result.stderr}`)
+    return result.stdout.trim()
+  }
+
   it('tags the first release 0.1.0 without a commit', async () => {
     commit('feat: the first feature')
     const head = git('rev-parse', 'HEAD')
@@ -109,5 +115,17 @@ describe('scripts/release.mjs', () => {
     commit('docs: only docs')
     expect((await release()).tag).toBe('')
     expect(git('tag', '--points-at', 'HEAD')).toBe('')
+  })
+
+  it('prints the tag it would cut on a dry run, and tags nothing', () => {
+    commit('feat: the first feature')
+    tag('v0.1.0')
+    commit('fix: a fix')
+    expect(dryRun()).toBe('v0.1.1')
+    expect(git('tag', '--points-at', 'HEAD')).toBe('')
+
+    tag('v0.1.1')
+    commit('docs: only docs')
+    expect(dryRun()).toBe('')
   })
 })

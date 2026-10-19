@@ -5,8 +5,13 @@ on:
   push:
     # fm/** are the task branches that workers push to have the checks run on CHECK_RUNNER's runner.
     branches: [production, 'fm/**']
-  # The release workflow runs these checks before it releases.
+  # The release workflow runs these checks before it releases, the Postgres suite in full when it will cut a release.
   workflow_call:
+    inputs:
+      postgres:
+        description: Run the Postgres suite whatever changed
+        type: boolean
+        default: false
   # Run by hand, every test and step runs, as on a pull request.
   workflow_dispatch:
   # Weekly, the Postgres suite and the snapshot recording alone, to catch a moved postgres:18 tag when nothing in the
@@ -111,9 +116,13 @@ jobs:
         run: bun run docs:check
 
   # The real-Postgres tests beyond what every push needs (`bun run test:postgres`): the ERP at medium scale and the
-  # planner's statistics on it, and the jobs and event delivery through PgBouncer. A push runs it when it changes SQL or
-  # the Postgres setup (scripts/affected-postgres.mjs); a pull request, a run by hand and the weekly run always do.
+  # planner's statistics on it, and the jobs and event delivery through PgBouncer. A push runs it when its snapshot
+  # recordings differ from those at CHECK_BASE, or when it changes what recordings cannot show (`postgresSuite`,
+  # scripts/affected-postgres.mjs); a release that cuts a tag runs it in full; a pull request, a run by hand and the
+  # weekly run always do. It runs after `record`, whose answer it needs.
   postgres:
+    needs: record
+    if: ${{ !cancelled() }}
     concurrency:
       group: postgres-${{ github.event_name == 'push' && startsWith(github.ref, 'refs/heads/fm/') && github.ref || github.run_id }}
       cancel-in-progress: true
@@ -156,6 +165,9 @@ jobs:
       - *check-base
       - name: Find whether the changes reach the Postgres suite
         id: postgres
+        env:
+          POSTGRES_FULL: ${{ inputs.postgres && 'true' || 'false' }}
+          RECORDINGS: ${{ needs.record.outputs.recordings }}
         run: bun scripts/affected-postgres.mjs
       - if: steps.postgres.outputs.run == 'true'
         run: bun install --frozen-lockfile
@@ -177,7 +189,10 @@ jobs:
   # same queries differently (a schema, fixture or Postgres change), which replay alone cannot see, and fails the job;
   # the new recordings are uploaded to commit. A push runs it when it changes what the recordings are made from
   # (scripts/affected-snapshots.mjs); a pull request, a run by hand and the weekly run, for a moved postgres:18, always do.
+  # It tells the Postgres job whether the recordings changed.
   record:
+    outputs:
+      recordings: ${{ steps.recordings.outputs.recordings }}
     # After check, whatever it found, so the two do not share the runner's cores: recording hashes passwords for
     # minutes, and check's integration tests then wait past their timeouts.
     needs: check
@@ -228,6 +243,10 @@ jobs:
           path: |
             **/*.sql.json
             !**/node_modules/**
+      # For the Postgres job, which skips its suite when no recording differs from those at CHECK_BASE.
+      - name: Find whether the recordings differ from those the push's changes count from
+        id: recordings
+        run: bun scripts/affected-recordings.mjs
       # New recordings count as changes too.
       - if: steps.snapshots.outputs.run == 'true'
         name: Fail when a recording differs from the committed one

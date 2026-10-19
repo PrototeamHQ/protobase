@@ -4,9 +4,10 @@ import { runEverything } from './rules.mjs'
 
 // Says whether a CI job that runs one suite must run: with CHECK_BASE set to a commit, when a file changed since then
 // is one the suite depends on (`dependsOn`, globs) or one every test depends on; without CHECK_BASE, as on a pull
-// request or the weekly run, always. It prints why, and writes run=true or run=false to $GITHUB_OUTPUT.
-export const gateSuite = (suite, dependsOn) => {
+// request or the weekly run, always; or when `forced` gives a reason it must run whatever changed. It prints why, and writes run=true or run=false to $GITHUB_OUTPUT.
+export const gateSuite = (suite, dependsOn, forced) => {
   const reason = () => {
+    if (forced) return forced
     const base = checkBase()
     if (!base) return 'CHECK_BASE is not set'
     const changed = changedSince(base)
