@@ -25,6 +25,23 @@ services:
       timeout: 3s
       retries: 30
 
+  # Supabase's Postgres image, initialised as a dedicated Protobase Cloud instance is (test-support/supabase-postgres/),
+  # for the snapshot tests of the Supabase import that need Supabase's extensions; `bun run test:record` records on it.
+  supabase-postgres:
+    image: supabase/postgres:17.11.0.006
+    ports:
+      - '${SUPABASE_POSTGRES_PORT:-55433}:5432'
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - ./test-support/supabase-postgres:/docker-entrypoint-initdb.d:ro
+      - supabase-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U supabase_admin -d postgres -h 127.0.0.1']
+      interval: 2s
+      timeout: 3s
+      retries: 60
+
   # The cloud's pooler in front of the same server, with its settings (protobase-cloud pooler/pgbouncer.ini): transaction
   # pooling, prepared statements tracked, three server connections per role. The jobs integration tests run through it.
   pgbouncer:
@@ -45,3 +62,4 @@ services:
 
 volumes:
   pgdata:
+  supabase-pgdata:

@@ -1,7 +1,7 @@
 import pg from 'pg'
 import { inject } from 'vitest'
 import { snapshotTemplates, type SnapshotTemplateKey } from '../../scripts/test-db/snapshot-templates'
-import { cloneTemplate, databaseUrl, dropDatabase } from '../../scripts/test-db/templates'
+import { cloneTemplate, databaseUrl, dropDatabase, templateServer, type Template } from '../../scripts/test-db/templates'
 import { withRealRandomness } from './random'
 import { isDatabaseError, rawError, type RawError, type RawResult } from './values'
 
@@ -39,10 +39,10 @@ export type Backend = {
   close: () => Promise<void>
 }
 
-const connectBackend = async (database: string): Promise<Backend> => {
+const connectBackend = async (database: string, server: Template['server']): Promise<Backend> => {
   const connect = () =>
     withRealRandomness(async () => {
-      const client = new pg.Client({ connectionString: databaseUrl(database), types: asText, connectionTimeoutMillis: 15_000 })
+      const client = new pg.Client({ connectionString: databaseUrl(database, templateServer({ server })), types: asText, connectionTimeoutMillis: 15_000 })
       await client.connect()
       return client
     })
@@ -74,14 +74,14 @@ const connectBackend = async (database: string): Promise<Backend> => {
   const clone = async () => {
     await client.end()
     const copy = cloneName()
-    await withRealRandomness(() => cloneTemplate({ database, strategy: 'wal_log' }, copy))
+    await withRealRandomness(() => cloneTemplate({ database, strategy: 'wal_log', server }, copy))
     client = await connect()
-    return connectBackend(copy)
+    return connectBackend(copy, server)
   }
 
   const close = async () => {
     await client.end()
-    await withRealRandomness(() => dropDatabase(database))
+    await withRealRandomness(() => dropDatabase(database, templateServer({ server })))
   }
 
   return { run, existingOids, clone, close }
@@ -91,5 +91,5 @@ const connectBackend = async (database: string): Promise<Backend> => {
 export const openRecordBackend = async (key: SnapshotTemplateKey) => {
   const database = cloneName()
   await withRealRandomness(() => cloneTemplate(snapshotTemplates[key], database))
-  return connectBackend(database)
+  return connectBackend(database, snapshotTemplates[key].server)
 }

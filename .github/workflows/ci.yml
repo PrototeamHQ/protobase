@@ -257,8 +257,29 @@ jobs:
         env:
           POSTGRES_PORT: ${{ job.services.postgres.ports['5432'] }}
         run: echo "TEST_POSTGRES_URL=postgres://protobase:protobase@localhost:$POSTGRES_PORT/postgres" >> "$GITHUB_ENV"
+      # Supabase's Postgres image, for the Supabase import's snapshot tests, initialised as a dedicated Protobase Cloud
+      # instance is: without Supabase's own init, which an empty /docker-entrypoint-initdb.d leaves out, and with
+      # test-support/supabase-postgres/ run on it once it is up, as docker-compose.yml mounts it.
+      - if: steps.snapshots.outputs.run == 'true'
+        name: Start Supabase's Postgres and point the recording at it
+        env:
+          SUPABASE_POSTGRES: supabase-postgres-${{ github.run_id }}-${{ github.run_attempt }}
+        run: |
+          docker run --detach --rm --name "$SUPABASE_POSTGRES" --publish 5432 --tmpfs /docker-entrypoint-initdb.d \
+            -e POSTGRES_PASSWORD=protobase supabase/postgres:17.11.0.006
+          until docker exec "$SUPABASE_POSTGRES" pg_isready -U supabase_admin -d postgres -h 127.0.0.1 -q; do sleep 2; done
+          for file in test-support/supabase-postgres/*.sql; do
+            docker exec -i "$SUPABASE_POSTGRES" psql -U supabase_admin -d postgres -v ON_ERROR_STOP=1 -q < "$file"
+          done
+          port=$(docker port "$SUPABASE_POSTGRES" 5432/tcp | head -n1 | sed 's/.*://')
+          echo "TEST_SUPABASE_POSTGRES_URL=postgres://supabase_admin:protobase@localhost:$port/postgres" >> "$GITHUB_ENV"
       - if: steps.snapshots.outputs.run == 'true'
         run: bun run test:record
+      - if: always() && steps.snapshots.outputs.run == 'true'
+        name: Remove Supabase's Postgres
+        env:
+          SUPABASE_POSTGRES: supabase-postgres-${{ github.run_id }}-${{ github.run_attempt }}
+        run: docker rm --force "$SUPABASE_POSTGRES" || true
       # For the Postgres job, which skips its suite when no recording differs from those at CHECK_BASE.
       - name: Find whether the recordings differ from those the push's changes count from
         id: recordings

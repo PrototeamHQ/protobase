@@ -1,7 +1,7 @@
 import { spawnSync } from 'node:child_process'
 import path from 'node:path'
 import { fillSnapshotTemplate, realPostgresTemplates, snapshotTemplates, type SnapshotTemplateKey } from './snapshot-templates'
-import { connectServer, databaseUrl, sourceHash, suites, templates, templateState, type Template } from './templates'
+import { connectServer, databaseUrl, serverVariable, sourceHash, suites, templates, templateServer, templateState, type Template } from './templates'
 
 // `bun run test:db [suite] [--force]`: builds the suite's test templates (the integration tests' when no suite is named)
 // that are missing or older than what they are built from, every one with --force. Test runs clone these; they never
@@ -33,7 +33,7 @@ const example = (template: (typeof templates)[keyof typeof templates]): Buildabl
 
 const snapshot = (key: SnapshotTemplateKey): Buildable => ({
   template: snapshotTemplates[key],
-  fill: () => fillSnapshotTemplate(key, databaseUrl(snapshotTemplates[key].database)),
+  fill: () => fillSnapshotTemplate(key, databaseUrl(snapshotTemplates[key].database, templateServer(snapshotTemplates[key]))),
 })
 
 const buildables: Record<string, Buildable[]> = {
@@ -44,7 +44,7 @@ const buildables: Record<string, Buildable[]> = {
 if (!buildables[suite]) throw new Error(`No test suite ${suite}: name one of ${Object.keys(buildables).join(', ')}`)
 
 const build = async ({ template, fill }: Buildable) => {
-  const sql = connectServer()
+  const sql = connectServer(2, templateServer(template))
   const [existing] = await sql`select 1 from pg_database where datname = ${template.database}`
   if (existing) {
     // A template database cannot be dropped until it is an ordinary one again.
@@ -62,7 +62,7 @@ const build = async ({ template, fill }: Buildable) => {
 for (const buildable of buildables[suite]) {
   const { template } = buildable
   const state = await templateState(template)
-  if (state === 'unreachable') throw new Error('No Postgres server: start it with `bun run db:up`, or set TEST_POSTGRES_URL')
+  if (state === 'unreachable') throw new Error(`No Postgres server for ${template.database}: start it with \`bun run db:up\`, or set ${serverVariable(template)}`)
   if (state === 'ready' && !force) {
     console.log(`${template.database} is up to date`)
     continue

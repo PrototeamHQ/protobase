@@ -15,8 +15,8 @@ type Db = Kysely<any>
 
 const exec = (db: Db, text: string) => sql.raw(text).execute(db)
 
-const snapshot = (database: string, sources: string[], fill: (db: Db, url: string) => Promise<unknown>) =>
-  ({ database, strategy: 'wal_log', sources: ['scripts/test-db/snapshot-templates.ts', ...sources], fill }) as const satisfies Template & { fill: unknown }
+const snapshot = (database: string, sources: string[], fill: (db: Db, url: string) => Promise<unknown>, server?: Template['server']) =>
+  ({ database, strategy: 'wal_log', sources: ['scripts/test-db/snapshot-templates.ts', ...sources], fill, server }) as const satisfies Template & { fill: unknown }
 
 export const snapshotTemplates = {
   /** An empty database. */
@@ -48,6 +48,23 @@ export const snapshotTemplates = {
   }),
   /** The jobs schema, as `protobase migration` writes it. */
   jobs: snapshot('snapshot_jobs_test_template', ['packages/server/src/jobs'], async (db) => exec(db, (await jobsSchemaMigration(db))!)),
+  /**
+   * On Supabase's Postgres image, a database as a dedicated Protobase Cloud instance has it, with the schema
+   * `extensions` the tenant `postgres`'s own. A clone belongs to whoever made it, so a test makes the tenant its owner
+   * and switches to it itself.
+   */
+  supabaseTenant: snapshot(
+    'snapshot_supabase_tenant_test_template',
+    ['test-support/supabase-postgres'],
+    (db) =>
+      exec(
+        db,
+        `create schema extensions authorization postgres;
+        grant usage on schema extensions to anon, authenticated, service_role;
+        grant usage on schema public to anon, authenticated, service_role;`,
+      ),
+    'supabase',
+  ),
 }
 
 export type SnapshotTemplateKey = keyof typeof snapshotTemplates

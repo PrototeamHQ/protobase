@@ -8,6 +8,13 @@ const root = path.join(import.meta.dirname, '..', '..')
 /** The Postgres server the tests use: the docker-compose container, unless TEST_POSTGRES_URL names another. */
 export const serverUrl = process.env.TEST_POSTGRES_URL ?? 'postgres://protobase:protobase@localhost:55432/postgres'
 
+/**
+ * Supabase's Postgres image initialised as a dedicated Protobase Cloud instance (test-support/supabase-postgres/), for
+ * the snapshot tests that need Supabase's extensions: the docker-compose container, unless TEST_SUPABASE_POSTGRES_URL
+ * names another. Its superuser is supabase_admin.
+ */
+export const supabaseServerUrl = process.env.TEST_SUPABASE_POSTGRES_URL ?? 'postgres://supabase_admin:protobase@localhost:55433/postgres'
+
 /** PgBouncer in transaction mode in front of that server: the docker-compose service, unless TEST_PGBOUNCER_URL names another. */
 export const poolerUrl = process.env.TEST_PGBOUNCER_URL ?? 'postgres://protobase:protobase@localhost:55442/postgres'
 
@@ -30,8 +37,17 @@ export const templates = {
 }
 
 export type TemplateKey = keyof typeof templates
-/** A template database: what it is built from (files and directories, hashed into its comment) and how it is cloned. */
-export type Template = { database: string; strategy: Strategy; sources: readonly string[]; scale?: string }
+/**
+ * A template database: what it is built from (files and directories, hashed into its comment), how it is cloned, and
+ * the server it lives on, `serverUrl` unless it names Supabase's (`supabaseServerUrl`).
+ */
+export type Template = { database: string; strategy: Strategy; sources: readonly string[]; scale?: string; server?: 'supabase' }
+
+/** The URL of the server `template` lives on. */
+export const templateServer = (template: Pick<Template, 'server'>) => (template.server === 'supabase' ? supabaseServerUrl : serverUrl)
+
+/** The environment variable that points the tests at the server `template` lives on. */
+export const serverVariable = (template: Pick<Template, 'server'>) => (template.server === 'supabase' ? 'TEST_SUPABASE_POSTGRES_URL' : 'TEST_POSTGRES_URL')
 
 /** The templates each suite's runs clone: the integration tests on every push, the Postgres suite when SQL changes. */
 export const suites = {
@@ -54,17 +70,17 @@ export const runEnvironment = (key: TemplateKey, runId: string) => ({
 })
 
 /** A connection to the server; a short timeout tells soon that none runs, a longer one waits out a busy server. */
-export const connectServer = (timeoutSeconds = 2) => postgres(serverUrl, { max: 1, connect_timeout: timeoutSeconds, onnotice: () => {} })
+export const connectServer = (timeoutSeconds = 2, server = serverUrl) => postgres(server, { max: 1, connect_timeout: timeoutSeconds, onnotice: () => {} })
 
 /** Creates `database` as a copy of the template. */
-export const cloneTemplate = async (template: Pick<Template, 'database' | 'strategy'>, database: string) => {
-  const sql = connectServer(15)
+export const cloneTemplate = async (template: Pick<Template, 'database' | 'strategy' | 'server'>, database: string) => {
+  const sql = connectServer(15, templateServer(template))
   await sql.unsafe(`create database "${database}" template "${template.database}" strategy ${template.strategy}`)
   await sql.end()
 }
 
-export const dropDatabase = async (database: string) => {
-  const sql = connectServer(15)
+export const dropDatabase = async (database: string, server = serverUrl) => {
+  const sql = connectServer(15, server)
   await sql.unsafe(`drop database if exists "${database}" with (force)`)
   await sql.end()
 }
@@ -116,7 +132,7 @@ export const poolerReachable = async () => {
 
 /** Whether the template exists and matches the current migrations and seed; `unreachable` without a server. */
 export const templateState = async (template: Template) => {
-  const sql = connectServer()
+  const sql = connectServer(2, templateServer(template))
   try {
     const [row] = await sql<{ hash: string | null }[]>`select shobj_description(oid, 'pg_database') as hash from pg_database where datname = ${template.database}`
     if (!row) return 'missing'
