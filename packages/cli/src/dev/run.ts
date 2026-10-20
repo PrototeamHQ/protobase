@@ -15,6 +15,8 @@ import { layoutCheck } from '../build/layout-check'
 import { checkDatabase } from './check-database'
 import { stopDevJobs } from './dev-jobs'
 import { loadNearestEnvFile } from './env'
+import { apiWebSockets } from './api-websockets'
+import { isProjectFile } from './project-files'
 
 export type DevOptions = {
   port: number
@@ -44,7 +46,7 @@ const requireAppFiles = (appDir: string) => {
 const reloadOnProjectChange = (dirs: string[]): Plugin => ({
   name: 'protobase-project-reload',
   handleHotUpdate: ({ file, server }) => {
-    if (dirs.some((dir) => file.startsWith(`${dir}${path.sep}`)) && !file.includes(`${path.sep}node_modules${path.sep}`)) {
+    if (isProjectFile(dirs, file)) {
       server.environments.ssr.moduleGraph.invalidateAll()
     }
     return undefined
@@ -83,6 +85,7 @@ export const runDev = async (options: DevOptions, out: (text: string) => void) =
   await checkDatabase(url, options.projectDir)
 
   const extensions = options.extensions ?? []
+  const projectDirs = [options.projectDir, ...extensions.map((extension) => extension.dir)]
   process.env.PROTOBASE_PROJECT = options.projectDir
   process.env.PROTOBASE_EXTENSIONS = JSON.stringify(extensions)
   process.env.PROTOBASE_DATABASE_URL = url
@@ -101,7 +104,8 @@ export const runDev = async (options: DevOptions, out: (text: string) => void) =
       fs: { allow: [searchForWorkspaceRoot(options.projectDir), uiPackageDir, options.projectDir, ...extensions.map((extension) => extension.dir)] },
     },
     plugins: [
-      reloadOnProjectChange([options.projectDir, ...extensions.map((extension) => extension.dir)]),
+      reloadOnProjectChange(projectDirs),
+      apiWebSockets(entry, projectDirs),
       stopJobsOnClose,
       sharedModulesPlugin(),
       themeLink(options.projectDir),
@@ -114,8 +118,8 @@ export const runDev = async (options: DevOptions, out: (text: string) => void) =
       tailwindcss(),
       devServer({
         entry,
-        // Vite serves everything that is not under /api, or the passkey origins at /.well-known/webauthn.
-        exclude: [/^(?!\/api(\/|\?|$)|\/\.well-known\/webauthn(\?|$)).*/],
+        // Vite serves everything that is not under /api, /auth/v1 or /realtime/v1, or the passkey origins at /.well-known/webauthn.
+        exclude: [/^(?!\/(api|auth\/v1|realtime\/v1)(\/|\?|$)|\/\.well-known\/webauthn(\?|$)).*/],
         injectClientScript: false,
       }),
     ],

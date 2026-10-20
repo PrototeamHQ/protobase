@@ -1,3 +1,4 @@
+import { upgradeWebSocket } from '@hono/node-server'
 import { Hono } from 'hono'
 import { checkAi, checkAuthSchema, checkChanges, checkComments, checkComputed, checkWebhooksSchema, configExports, hasUsers } from '@protobase/server'
 import { projectErrorReporter } from '../project/error-reporter'
@@ -32,9 +33,10 @@ await checkComputed(db, resources.map((resource) => resource.toModel()))
 checkAi({ models: resources.map((resource) => resource.toModel()), views: views.map((source) => source.toModel()), assistant: project.options?.assistant, env: process.env })
 if (project.webhooks) await checkWebhooksSchema(db, project.webhooks)
 
-// With a DSN set, the API's 500s go to the error tracker too; a crash is the terminal's to show.
+// With a DSN set, the API's 500s go to the error tracker too; a crash is the terminal's to show. Its `/realtime/v1`
+// sockets are upgraded by run.ts's `apiWebSockets`.
 const reporter = await projectErrorReporter(project, process.env)
-const { admin, jobs } = projectAdmin({ ...project, authenticate: project.authenticate }, project.exports, db, undefined, reporter)
+const { admin, jobs } = projectAdmin({ ...project, authenticate: project.authenticate }, project.exports, db, undefined, reporter, upgradeWebSocket)
 
 // The project's jobs and the delivery of its events, run in this server; a behind jobs schema stops startup with the
 // command that writes its migration.
