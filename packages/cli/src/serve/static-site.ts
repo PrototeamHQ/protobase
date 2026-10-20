@@ -47,9 +47,15 @@ const fileFor = async (publicDir: string, pathname: string) => {
 const cacheControl = (root: string, file: string) =>
   path.relative(root, file).split(path.sep).slice(0, -1).includes('assets') ? 'public, max-age=31536000, immutable' : 'no-cache'
 
+/**
+ * Headers that keep every page of the UI out of other sites' frames, so none can put a click on a page of the app,
+ * such as Allow on the connect page, under its own. A host that serves `public/` itself should send them too.
+ */
+export const frameHeaders = { 'x-frame-options': 'DENY', 'content-security-policy': "frame-ancestors 'none'" } as const
+
 const fileResponse = async (root: string, file: string) =>
   new Response(await readFile(file), {
-    headers: { 'content-type': getMimeType(file) ?? 'application/octet-stream', 'cache-control': cacheControl(root, file) },
+    headers: { 'content-type': getMimeType(file) ?? 'application/octet-stream', 'cache-control': cacheControl(root, file), ...frameHeaders },
   })
 
 const isNavigation = (request: Request) => (request.headers.get('accept') ?? '').includes('text/html')

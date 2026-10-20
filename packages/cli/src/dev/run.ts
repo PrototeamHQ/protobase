@@ -17,6 +17,7 @@ import { stopDevJobs } from './dev-jobs'
 import { loadNearestEnvFile } from './env'
 import { apiWebSockets } from './api-websockets'
 import { isProjectFile } from './project-files'
+import { frameHeaders } from '../serve/static-site'
 
 export type DevOptions = {
   port: number
@@ -98,6 +99,8 @@ export const runDev = async (options: DevOptions, out: (text: string) => void) =
     // cannot load MapLibre's `?worker&url` worker import.
     optimizeDeps: { include: appDependencies, exclude: ['@protobase/ui'] },
     server: {
+      // Vite sends these with the page of every navigation, as `protobase serve` does: no other site frames the app.
+      headers: frameHeaders,
       port: options.port,
       strictPort: true,
       ...(options.allowedHosts.length > 0 && { allowedHosts: options.allowedHosts }),
