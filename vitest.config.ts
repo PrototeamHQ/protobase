@@ -64,6 +64,7 @@ const snapshotIsolated = [
   'packages/server/tests/better-auth.test.ts',
   'packages/server/tests/cors.test.ts',
   'packages/server/tests/gotrue-clients.test.ts',
+  'packages/server/tests/gotrue-provider-sign-in.test.ts',
   'packages/server/tests/meta.test.ts',
   'packages/server/tests/organizations.test.ts',
   'packages/server/tests/origins.test.ts',
