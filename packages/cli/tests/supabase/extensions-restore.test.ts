@@ -61,7 +61,7 @@ it("restores a Supabase database's Vault secrets, pgmq queues and Database Webho
 
   await database.exec('begin')
   await database.exec(migration.text)
-  await database.exec(replayScript({ secrets, queues }))
+  await database.exec(replayScript({ secrets, queues, cronJobs: [] }))
   // An order placed through the API fires the webhook and queues its receipt.
   await database.exec("set local role anon; insert into public.orders (email, total) values ('carol@example.com', 9.75); set local role postgres")
   const [key] = await database.exec('select public.payment_key() as key')

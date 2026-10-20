@@ -4,6 +4,8 @@ import path from 'node:path'
 import { connect } from '../db/connect'
 import { runDoctor } from '../doctor/run'
 import { runScaffold } from '../scaffold/run'
+import { cronJobFilesInTheWay, writeCronJobs } from './cron-jobs-write'
+import { convertedCronJobs } from './cron-plan'
 import { importState, type ImportManifest } from './import-state'
 import { loadScript, qualified } from './load-script'
 import { runPgTool } from './pg-tools'
@@ -15,8 +17,13 @@ export type LoadOptions = { targetUrl: string; projectDir: string; migrationsDir
 /** Schemas the import restores that scaffolding leaves alone: Supabase Auth's and Storage's own tables are no resources. */
 const platformSchemas = ['auth', 'storage']
 
-/** Fails unless every dumped table exists on the target, created by the applied migration, and holds no rows yet. */
-const checkReady = async (url: string, manifest: ImportManifest) => {
+/**
+ * Fails unless every dumped table exists on the target, created by the applied migration, and holds no rows yet, and
+ * the project has none of the files the converted pg_cron jobs go to.
+ */
+const checkReady = async (url: string, projectDir: string, manifest: ImportManifest) => {
+  const inTheWay = cronJobFilesInTheWay(projectDir, convertedCronJobs(manifest.cronJobs))
+  if (inTheWay.length > 0) throw new Error(`The project has ${inTheWay.map((file) => path.relative(projectDir, file)).join(', ')} already, where the import writes pg_cron's jobs; move them away first`)
   const sql = connect(url)
   try {
     const existing = new Set(await existingTables(sql, manifest.tables))
@@ -41,14 +48,15 @@ const doctorOutput = async (url: string, configDir: string) => {
 
 /**
  * The import's second run, once the schema migration is applied: loads the data dump, with the replay of Vault's
- * secrets and pgmq's queues when the dump made one, in one transaction, deletes both, scaffolds the config from the
- * imported tables of the app's schemas, leaving the project's own alone, and writes the report.
+ * secrets, pgmq's queues and pg_cron's jobs when the dump made one, in one transaction, deletes both, scaffolds the
+ * config from the imported tables of the app's schemas, leaving the project's own alone, writes the pg_cron jobs it
+ * converts as the project's recurring jobs, and writes the report.
  */
 export const runLoadPhase = async (options: LoadOptions, out: (text: string) => void) => {
   const state = importState(options.projectDir)
   const manifest = await state.readManifest()
   if (!existsSync(path.join(options.migrationsDir, manifest.migration))) throw new Error(`The import's migration ${manifest.migration} is not in ${options.migrationsDir}; remove supabase-import/ and import again`)
-  await checkReady(options.targetUrl, manifest)
+  await checkReady(options.targetUrl, options.projectDir, manifest)
 
   const replay = state.hasReplay() ? state.replay : undefined
   await writeFile(state.load, loadScript(state.data, manifest.tables, replay), { mode: 0o600 })
@@ -64,6 +72,9 @@ export const runLoadPhase = async (options: LoadOptions, out: (text: string) => 
   for (const schema of schemas) {
     await runScaffold({ url: options.targetUrl, target: schema, configDir: options.configDir, yes: true, dryRun: false, ui: [], excludes }, out)
   }
-  await writeFile(state.report, importReport(manifest, await doctorOutput(options.targetUrl, options.configDir)), { mode: 0o600 })
+  const cron = convertedCronJobs(manifest.cronJobs)
+  const jobsWired = await writeCronJobs(options.projectDir, cron)
+  if (cron.length > 0) out(`wrote ${cron.length} of pg_cron's jobs as recurring jobs in jobs/\n`)
+  await writeFile(state.report, importReport(manifest, await doctorOutput(options.targetUrl, options.configDir), jobsWired), { mode: 0o600 })
   out(`wrote ${path.relative(options.projectDir, state.report)}: what the import could not carry over\n`)
 }

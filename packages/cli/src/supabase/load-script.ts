@@ -14,8 +14,8 @@ const checkRows = (table: DumpedTable) =>
 /**
  * The psql script that loads the data dump at `dataFile` into `tables`, for `psql --single-transaction`: the app's
  * triggers are off while it loads, so a sign-up trigger on auth.users does not run again for users who already have
- * their rows, then back on; the replay at `replayFile`, when there is one, makes Vault's secrets and pgmq's queues
- * again; every table's rows are counted against the source's before the transaction commits.
+ * their rows, then back on; the replay at `replayFile`, when there is one, makes Vault's secrets, pgmq's queues and
+ * pg_cron's jobs again; every table's rows are counted against the source's before the transaction commits.
  */
 export const loadScript = (dataFile: string, tables: DumpedTable[], replayFile: string | undefined) =>
   [

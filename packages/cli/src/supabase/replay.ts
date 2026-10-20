@@ -1,4 +1,4 @@
-import type { Queue, VaultSecret } from './source-facts'
+import type { CronJob, Queue, VaultSecret } from './source-facts'
 
 const literal = (text: string | null) => (text === null ? 'NULL' : `'${text.replaceAll("'", "''")}'`)
 
@@ -16,8 +16,18 @@ const queueScript = (queue: Queue) =>
   ].join('')
 
 /**
- * The psql script that makes again, through each extension's own API, what a dump cannot carry over: Vault's secrets,
- * whose ciphertext only Supabase's key opens, and pgmq's queues, whose tables belong to the extension. It holds the
- * secrets' values, so it lives only in `supabase-import/`, readable by its owner, until the load deletes it.
+ * A pg_cron job, scheduled again as it was, by the importing role, which runs it as Supabase's `postgres` did; an
+ * inactive one stays inactive.
  */
-export const replayScript = (input: { secrets: VaultSecret[]; queues: Queue[] }) => secretsScript(input.secrets) + input.queues.map(queueScript).join('')
+const cronScript = (job: CronJob) => {
+  const schedule = `cron.schedule(${job.name === null ? '' : `${literal(job.name)}, `}${literal(job.schedule)}, ${literal(job.command)})`
+  return `SELECT ${job.active ? schedule : `cron.alter_job(${schedule}, active => false)`};\n`
+}
+
+/**
+ * The psql script that makes again, through each extension's own API, what a dump cannot carry over: Vault's secrets,
+ * whose ciphertext only Supabase's key opens, pgmq's queues, whose tables belong to the extension, and pg_cron's jobs,
+ * which live in its own schema. It holds the secrets' values, so it lives only in `supabase-import/`, readable by its owner, until the load deletes it.
+ */
+export const replayScript = (input: { secrets: VaultSecret[]; queues: Queue[]; cronJobs: CronJob[] }) =>
+  secretsScript(input.secrets) + input.queues.map(queueScript).join('') + input.cronJobs.map(cronScript).join('')

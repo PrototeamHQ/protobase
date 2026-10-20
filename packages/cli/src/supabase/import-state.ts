@@ -3,7 +3,8 @@ import { appendFile, mkdir, readFile, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import type { SourceExtension } from './extensions'
 import type { DumpedTable } from './load-script'
-import type { CronJob, HttpTrigger } from './source-facts'
+import type { PlannedCronJob } from './cron-plan'
+import type { HttpTrigger } from './source-facts'
 
 /** What the dump found in the source, for the load and the report. */
 export type ImportManifest = {
@@ -17,8 +18,8 @@ export type ImportManifest = {
   leftOut: number
   checkout: string[]
   functions: string[]
-  /** `undefined` where the importing role could not read them. */
-  cronJobs: CronJob[] | undefined
+  /** pg_cron's jobs, with what the import does with each; `undefined` where the importing role could not read them. */
+  cronJobs: PlannedCronJob[] | undefined
   vaultSecrets: Array<{ name: string | null; description: string }> | undefined
   /** Whether the project's database has Vault, so the load makes the secrets again with their values. */
   vaultReplayed: boolean
@@ -39,8 +40,8 @@ export type ImportManifest = {
 
 /**
  * The project's folder for an import in progress, kept out of git: the data dump, which holds the users' password
- * hashes and every row, and the replay of Vault's secrets and pgmq's queues, which holds the secrets' values, each
- * readable by its owner only until the load deletes it; the manifest; and the report.
+ * hashes and every row, and the replay of Vault's secrets, pgmq's queues and pg_cron's jobs, which holds the secrets'
+ * values, each readable by its owner only until the load deletes it; the manifest; and the report.
  */
 export const importState = (projectDir: string) => {
   const dir = path.join(projectDir, 'supabase-import')

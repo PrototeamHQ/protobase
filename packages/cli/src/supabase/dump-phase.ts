@@ -3,13 +3,15 @@ import path from 'node:path'
 import postgres from 'postgres'
 import { nextMigrationName } from '../auth/migration-file'
 import { connect, type Sql } from '../db/connect'
+import { isSchedule } from '@protobase/server'
 import { checkoutMarkers, edgeFunctions } from './checkout'
+import { cronPlan } from './cron-plan'
 import { importPlan, probedExtensions } from './import-plan'
 import { importState, type ImportManifest } from './import-state'
 import { runPgTool } from './pg-tools'
 import { replayScript } from './replay'
 import { schemaMigration } from './schema-migration'
-import { appSchemas, cronJobs, databaseMarkers, dumpedTables, extensions, httpTriggers, hypertables, pgmqQueues, platformMigrationTables, realtimeTables, routinesIn, tablesSize, vaultSecretValues, vaultSecrets } from './source-facts'
+import { appSchemas, cronJobs, cronTimezone, databaseMarkers, dumpedTables, extensions, httpTriggers, hypertables, pgmqQueues, platformMigrationTables, realtimeTables, routinesIn, tablesSize, vaultSecretValues, vaultSecrets } from './source-facts'
 import { ensureApiRoles, existingTables } from './target-checks'
 import { creatableExtensions } from './target-extensions'
 
@@ -46,11 +48,15 @@ const readSource = async (sql: Sql, targetUrl: string) => {
   const secrets = plan.vault ? await vaultSecretValues(sql) : undefined
   const queues = await pgmqQueues(sql)
   const replayed = plan.queues ? (queues ?? []).filter((queue) => !queue.partitioned) : []
+  const jobs = await cronJobs(sql)
+  const pgCron = plan.extensions.some((extension) => extension.name === 'pg_cron')
+  const cron = jobs && cronPlan(jobs, { pgCron, target: plan, timezone: await cronTimezone(sql), isSchedule })
+  const rescheduled = (cron ?? []).filter((job) => job.outcome.kind === 'rescheduled')
   const manifest = {
     schemas,
     tables,
     bytes: await tablesSize(sql, tables),
-    cronJobs: await cronJobs(sql),
+    cronJobs: cron,
     vaultSecrets: await vaultSecrets(sql),
     vaultReplayed: secrets !== undefined,
     queues: queues?.map((queue) => ({ name: queue.name, partitioned: queue.partitioned, messages: queue.messages.length })),
@@ -62,7 +68,7 @@ const readSource = async (sql: Sql, targetUrl: string) => {
     hypertables: await hypertables(sql, schemas),
     routinesLeftOut: await routinesIn(sql, schemas, plan.missing.languages),
   } satisfies Partial<ImportManifest>
-  return { manifest, plan, replay: replayScript({ secrets: secrets ?? [], queues: replayed }) }
+  return { manifest, plan, replay: replayScript({ secrets: secrets ?? [], queues: replayed, cronJobs: rescheduled }) }
 }
 
 /** Fails unless the target can take the schema migration: makes the API roles it lacks, and finds no table in the way. */
@@ -84,7 +90,7 @@ const pattern = (name: string) => `"${name.replaceAll('"', '""')}"`
 /**
  * The import's first run: dumps the Supabase database's schemas and data as of one snapshot, writes the schema as
  * the project's next migration, with the extensions the project's database can create, and keeps the data dump, the
- * replay of Vault's secrets and pgmq's queues and what the report needs in `supabase-import/` for the run that loads
+ * replay of Vault's secrets, pgmq's queues and pg_cron's jobs and what the report needs in `supabase-import/` for the run that loads
  * it, once the project's migrations are applied.
  */
 export const runDumpPhase = async (options: DumpOptions, out: (text: string) => void) => {
@@ -118,7 +124,7 @@ export const runDumpPhase = async (options: DumpOptions, out: (text: string) => 
     await state.writeManifest({ migration: file, leftOut: migration.leftOut, checkout, functions: await edgeFunctions(options.projectDir), ...source })
     out(`wrote ${path.relative(options.projectDir, path.join(options.migrationsDir, file))}, the schemas ${source.schemas.join(', ')}\n`)
     out(`dumped ${source.tables.length} tables' data into ${path.relative(options.projectDir, state.data)}, which git ignores\n`)
-    if (replay) out(`kept Vault's secrets and pgmq's queues to make again in ${path.relative(options.projectDir, state.replay)}, which git ignores\n`)
+    if (replay) out(`kept Vault's secrets, pgmq's queues and pg_cron's jobs to make again in ${path.relative(options.projectDir, state.replay)}, which git ignores\n`)
     out("next: apply the migration with the project's migrations, then run `protobase import supabase` again to load the data\n")
   } finally {
     reserved.release()

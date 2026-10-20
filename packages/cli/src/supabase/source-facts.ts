@@ -73,14 +73,26 @@ const readable = async (sql: Sql, table: string) => {
   return row!.readable
 }
 
-export type CronJob = { name: string | null; schedule: string; command: string }
+export type CronJob = { id: number; name: string | null; schedule: string; command: string; active: boolean; database: string; local: boolean }
 
-/** pg_cron's jobs, which the cron schema holds and the dump leaves out; `undefined` when the role may not read them. */
+/**
+ * pg_cron's jobs, which the cron schema holds and the dump leaves out, each `local` when it runs in this database;
+ * `undefined` when the role may not read them.
+ */
 export const cronJobs = async (sql: Sql) => {
   const [row] = await sql<{ exists: boolean }[]>`select to_regclass('cron.job') is not null as exists`
   if (!row!.exists) return []
   if (!(await readable(sql, 'cron.job'))) return undefined
-  return sql<CronJob[]>`select jobname as name, schedule, command from cron.job order by jobid`
+  const jobs = await sql<CronJob[]>`
+    select jobid::int as id, jobname as name, schedule, command, active, database, database = current_database() as local from cron.job order by jobid
+  `
+  return [...jobs]
+}
+
+/** The time zone pg_cron reads its schedules in, its `cron.timezone` setting: GMT unless the project set another. */
+export const cronTimezone = async (sql: Sql) => {
+  const [row] = await sql<{ timezone: string | null }[]>`select current_setting('cron.timezone', true) as timezone`
+  return row!.timezone ?? 'GMT'
 }
 
 /** Vault's secrets by name, for the report. */
