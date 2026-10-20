@@ -33,6 +33,8 @@ export { issueToken, maxTokenTtlSeconds, type IssueTokenOptions } from './better
 export { defaultSignInPolicy, signInPolicyMethods, type SignInPolicy, type SignInRule, type StaffAccessRule } from './better-auth/sign-in-policy'
 export { readOperatorSettings, type OperatorProvider } from './better-auth/operator-provider'
 export { webauthnPath } from './better-auth/origins'
+export { goTruePath } from './gotrue/keys'
+export { supabasePath } from './supabase-paths'
 export type { CorsOrigins } from './api-cors'
 export type { MobileConfig } from './mobile-config'
 export { defaultAppName } from './app-name'

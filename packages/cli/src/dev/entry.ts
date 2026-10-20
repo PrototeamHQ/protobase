@@ -1,11 +1,12 @@
 import { upgradeWebSocket } from '@hono/node-server'
 import { Hono } from 'hono'
-import { checkAi, checkAuthSchema, checkChanges, checkComments, checkComputed, checkWebhooksSchema, configExports, hasUsers } from '@protobase/server'
+import { apiKeySettings, checkAi, checkAuthSchema, checkChanges, checkComments, checkComputed, checkWebhooksSchema, configExports, hasUsers } from '@protobase/server'
 import { projectIcons } from '../build/app-icons'
 import { projectErrorReporter } from '../project/error-reporter'
 import { projectAdmin } from '../project/project-admin'
 import { devJobs } from './dev-jobs'
 import { loadProject, projectDb } from './project'
+import { setMissing, supabaseEnv } from './supabase-env'
 
 // Loaded by Vite's SSR module graph (see run.ts). Editing any file it imports re-evaluates this module
 // on the next request, which rebuilds the API; `/meta` then reports a new X-Meta-Version.
@@ -33,6 +34,14 @@ await checkComputed(db, resources.map((resource) => resource.toModel()))
 // AI fields and actions call the model of PROTOBASE_ASSISTANT_API_KEY, which other commands need not have.
 checkAi({ models: resources.map((resource) => resource.toModel()), views: views.map((source) => source.toModel()), assistant: project.options?.assistant, env: process.env })
 if (project.webhooks) await checkWebhooksSchema(db, project.webhooks)
+
+// Functions moved from Supabase read Supabase's variables, of this app, unless .env sets them.
+setMissing(process.env, supabaseEnv({
+  url: process.env.PROTOBASE_DEV_URL!,
+  databaseUrl: process.env.PROTOBASE_DATABASE_URL!,
+  keys: apiKeySettings(project.options?.apiKeys, process.env),
+  withAuth: Boolean(project.auth),
+}))
 
 // With a DSN set, the API's 500s go to the error tracker too; a crash is the terminal's to show. Its `/api/sb/realtime/v1`
 // sockets are upgraded by run.ts's `apiWebSockets`.

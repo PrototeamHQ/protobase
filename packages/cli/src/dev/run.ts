@@ -125,13 +125,15 @@ export const runDev = async (options: DevOptions, out: (text: string) => void) =
     ],
   })
   await server.listen()
+  const address = server.httpServer?.address()
+  const port = typeof address === 'object' && address ? address.port : options.port
+  // The app's own origin, whose /api/sb its functions call as SUPABASE_URL.
+  process.env.PROTOBASE_DEV_URL = `http://localhost:${port}`
   // Load the API once now so a missing authenticator or a broken config stops startup instead of failing requests.
   await server.ssrLoadModule(entry).catch(async (error: Error) => {
     await server.close()
     throw error
   })
-  const address = server.httpServer?.address()
-  const port = typeof address === 'object' && address ? address.port : options.port
   out(`protobase dev ready at http://localhost:${port}\n`)
   out(`  project  ${options.projectDir}\n  api      http://localhost:${port}/api/v1 (docs at /api/docs)\n`)
   out('  login    sign in with a user created by `protobase users create`\n')
