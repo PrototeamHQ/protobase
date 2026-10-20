@@ -40,9 +40,9 @@ const doctorOutput = async (url: string, configDir: string) => {
 }
 
 /**
- * The import's second run, once the schema migration is applied: loads the data dump in one transaction, deletes it,
- * scaffolds the config from the imported tables of the app's schemas, leaving the project's own alone, and writes the
- * report.
+ * The import's second run, once the schema migration is applied: loads the data dump, with the replay of Vault's
+ * secrets and pgmq's queues when the dump made one, in one transaction, deletes both, scaffolds the config from the
+ * imported tables of the app's schemas, leaving the project's own alone, and writes the report.
  */
 export const runLoadPhase = async (options: LoadOptions, out: (text: string) => void) => {
   const state = importState(options.projectDir)
@@ -50,10 +50,12 @@ export const runLoadPhase = async (options: LoadOptions, out: (text: string) => 
   if (!existsSync(path.join(options.migrationsDir, manifest.migration))) throw new Error(`The import's migration ${manifest.migration} is not in ${options.migrationsDir}; remove supabase-import/ and import again`)
   await checkReady(options.targetUrl, manifest)
 
-  await writeFile(state.load, loadScript(state.data, manifest.tables), { mode: 0o600 })
+  const replay = state.hasReplay() ? state.replay : undefined
+  await writeFile(state.load, loadScript(state.data, manifest.tables, replay), { mode: 0o600 })
   await runPgTool('psql', options.targetUrl, ['--no-psqlrc', '--quiet', '--single-transaction', '--set=ON_ERROR_STOP=1', `--file=${state.load}`])
   await rm(state.load)
   await rm(state.data)
+  if (replay) await rm(replay)
   out(`loaded ${manifest.tables.reduce((sum, table) => sum + table.rows, 0)} rows into ${manifest.tables.length} tables; each count matches the source\n`)
 
   const schemas = manifest.schemas.filter((schema) => !platformSchemas.includes(schema))

@@ -10,11 +10,13 @@ import { schemaMigration } from '../../src/supabase/schema-migration'
 // postgres.
 
 const dump = readFileSync(new URL('fixtures/supabase-schema.sql', import.meta.url), 'utf8')
-const extensions = ['pg_trgm', 'pgcrypto', 'uuid-ossp'].map((name) => ({ name, schema: 'extensions', trusted: true }))
+const extensions = ['pg_trgm', 'pgcrypto', 'uuid-ossp'].map((name) => ({ name, schema: 'extensions' }))
+// Postgres alone: no pg_net for the webhooks shim, no extension languages.
+const missing = { triggerSchemas: ['supabase_functions'], languages: [] }
 
 it('restores the dump of a Supabase database as a tenant that is no superuser and has none of its roles', async () => {
   const database = await openSnapshotDb('empty')
-  const migration = schemaMigration(dump, { schemas: ['auth', 'billing', 'public', 'storage'], extensions })
+  const migration = schemaMigration(dump, { schemas: ['auth', 'billing', 'public', 'storage'], extensions, webhooks: false, missing })
   expect(migration.leftOut).toBe(100)
 
   // A cloud-style tenant: it owns its database and has the API roles' names to grant to, and nothing else.

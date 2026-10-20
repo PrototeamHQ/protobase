@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { isSupabaseRole, rewriteSchemaDump } from './rewrite'
+import { isSupabaseRole, rewriteSchemaDump, type Missing } from './rewrite'
 
-const rewrite = (statement: string) => rewriteSchemaDump(statement).sql
+/** A database with no webhooks shim and no extension languages, as Postgres alone is. */
+const plain: Missing = { triggerSchemas: ['supabase_functions'], languages: [] }
+
+const rewrite = (statement: string, missing = plain) => rewriteSchemaDump(statement, missing).sql
 
 describe('isSupabaseRole', () => {
   it("names Supabase's own roles and not the API's", () => {
@@ -12,7 +15,7 @@ describe('isSupabaseRole', () => {
 
 describe('rewriteSchemaDump', () => {
   it("leaves out grants that name only Supabase's roles, as comments", () => {
-    expect(rewriteSchemaDump('GRANT ALL ON TABLE auth.users TO dashboard_user;\nGRANT SELECT ON TABLE auth.users TO postgres WITH GRANT OPTION;\n')).toEqual({
+    expect(rewriteSchemaDump('GRANT ALL ON TABLE auth.users TO dashboard_user;\nGRANT SELECT ON TABLE auth.users TO postgres WITH GRANT OPTION;\n', plain)).toEqual({
       sql: "-- Left out by protobase import supabase: it names only Supabase's own roles.\n-- GRANT ALL ON TABLE auth.users TO dashboard_user;\n-- Left out by protobase import supabase: it names only Supabase's own roles.\n-- GRANT SELECT ON TABLE auth.users TO postgres WITH GRANT OPTION;\n",
       leftOut: 2,
     })
@@ -48,6 +51,35 @@ describe('rewriteSchemaDump', () => {
     }
     expect(rewrite('CREATE SCHEMA billing;')).toBe('CREATE SCHEMA billing;')
     expect(rewrite('CREATE TRIGGER on_done AFTER UPDATE ON public.todos FOR EACH ROW EXECUTE FUNCTION public.notify_done();')).toMatch(/^CREATE TRIGGER/)
+  })
+
+  it('keeps database webhooks where the shim they call is made', () => {
+    const hook = "CREATE TRIGGER hook AFTER INSERT ON public.todos FOR EACH ROW EXECUTE FUNCTION supabase_functions.http_request('https://example.com', 'POST', '{}', '{}', '1000');"
+    expect(rewrite(hook, { triggerSchemas: [], languages: [] })).toBe(hook)
+  })
+
+  it("leaves out a hypertable's insert blocker, which timescaledb's own schema holds", () => {
+    const blocker = 'CREATE TRIGGER ts_insert_blocker BEFORE INSERT ON public.metrics FOR EACH ROW EXECUTE FUNCTION _timescaledb_functions.insert_blocker();'
+    expect(rewrite(blocker, { triggerSchemas: ['_timescaledb_functions'], languages: [] })).toMatch(/^-- Left out by protobase import supabase: it calls _timescaledb_functions\.insert_blocker, /)
+  })
+
+  it('leaves out functions in a missing language, with the statements and triggers naming them', () => {
+    const dump = [
+      'CREATE FUNCTION public.js_add(a integer, b integer) RETURNS integer\n    LANGUAGE plv8 IMMUTABLE\n    AS $$ return a + b $$;',
+      "COMMENT ON FUNCTION public.js_add(a integer, b integer) IS 'adds';",
+      'GRANT ALL ON FUNCTION public.js_add(a integer, b integer) TO anon;',
+      'CREATE FUNCTION public.js_trigger() RETURNS trigger LANGUAGE plv8 AS $$ return NEW $$;',
+      'CREATE TRIGGER on_insert BEFORE INSERT ON public.t FOR EACH ROW EXECUTE FUNCTION public.js_trigger();',
+      'CREATE FUNCTION public.js_add(a text, b text) RETURNS text LANGUAGE sql AS $$ select a || b $$;',
+      'GRANT ALL ON FUNCTION public.js_add(a text, b text) TO anon;',
+      '',
+    ].join('\n')
+    const rewritten = rewriteSchemaDump(dump, { triggerSchemas: [], languages: ['plv8'] })
+    expect(rewritten.leftOut).toBe(5)
+    expect(rewritten.sql).toContain("-- Left out by protobase import supabase: it is written in plv8, which the project's database does not have; the report lists it for conversion.")
+    expect(rewritten.sql).toContain('\nCREATE FUNCTION public.js_add(a text, b text)')
+    expect(rewritten.sql).toContain('\nGRANT ALL ON FUNCTION public.js_add(a text, b text) TO anon;')
+    expect(rewrite(dump)).not.toContain('-- Left out')
   })
 
   it('drops psql meta-commands and keeps everything else as it was', () => {

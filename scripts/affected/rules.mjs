@@ -99,12 +99,14 @@ export const postgresSuite = [
 ]
 
 // What the snapshot tests' recordings (`bun run test:record`, `*.sql.json`) are made from, which CI records again when a
-// file of it changed: the SQL the server and the query layer issue, with the jobs, changes and auth schemas in it, the
-// tests with their recordings, and the Postgres setup. A file every test depends on, such as test-support/, the
-// Postgres service image in ci.yml, docker-compose.yml or scripts/test-db/, records them too.
+// file of it changed: the SQL the server and the query layer issue, with the jobs, changes and auth schemas in it, and
+// the migrations the Supabase import writes, the tests with their recordings, and the Postgres setup. A file every test
+// depends on, such as test-support/, the Postgres service image in ci.yml, docker-compose.yml or scripts/test-db/,
+// records them too.
 export const snapshotRecording = [
   'packages/server/src/**',
   'packages/query/src/**',
+  'packages/cli/src/supabase/**',
   'packages/*/tests/**',
   'tests/{ai,changes,comments,import,roles}/**',
   'examples/*/db/migrations/**',

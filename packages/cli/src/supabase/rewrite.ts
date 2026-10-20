@@ -8,8 +8,13 @@ import { tokenize, wordsAt, type Token } from './tokens'
  */
 export const isSupabaseRole = (role: string) => role === 'dashboard_user' || role === 'authenticator' || role === 'postgres' || role.startsWith('supabase_')
 
-/** Schemas whose functions a trigger may call that the import does not carry over: database webhooks call these. */
-const webhookSchemas = ['supabase_functions']
+/**
+ * What the project's database lacks that the dump may use, so its statements are left out: the schemas of functions
+ * no trigger may call there (`supabase_functions` without the webhooks shim, and timescaledb's own, since a hypertable
+ * restores as a plain table), and the languages whose extension it cannot create (plv8), whose functions it leaves
+ * out with every statement naming them.
+ */
+export type Missing = { triggerSchemas: string[]; languages: string[] }
 
 type Verdict = { keep: string } | { drop: string }
 
@@ -48,10 +53,40 @@ const defaultPrivileges = (statement: string, tokens: Token[]): Verdict => {
   return defaultPrivileges(rewritten, tokenize(rewritten))
 }
 
+/** A routine's qualified name at token `at` (`schema.name`), and its name with the signature after it, as the dump writes both. */
+const routineAt = (statement: string, tokens: Token[], at: number) => {
+  if (statement[tokens[at + 1]?.start ?? 0] !== '.' || statement[tokens[at + 3]?.start ?? 0] !== '(') return undefined
+  const close = tokens.findIndex((token, i) => i > at + 3 && token.depth === tokens[at + 3]!.depth && statement[token.start] === ')')
+  return { name: `${tokens[at]!.word}.${tokens[at + 2]!.word}`, signature: statement.slice(tokens[at]!.start, tokens[close]!.end) }
+}
+
+/** The routines a rewrite left out, by name for the triggers calling them and by signature for statements naming them. */
+type LeftOutRoutines = { names: Set<string>; signatures: Set<string> }
+
+/** A CREATE FUNCTION or PROCEDURE in a missing language, left out, or a statement naming one left out before. */
+const routineVerdict = (statement: string, tokens: Token[], missing: Missing, routines: LeftOutRoutines): Verdict | undefined => {
+  const at = (...words: string[]) => wordsAt(statement, tokens, 0, words)
+  const create = at('create', 'function') || at('create', 'procedure') ? 2 : at('create', 'or', 'replace', 'function') || at('create', 'or', 'replace', 'procedure') ? 4 : -1
+  if (create !== -1) {
+    const language = tokens.findIndex((token, i) => i > create && token.depth === 0 && wordsAt(statement, tokens, i, ['language']))
+    const name = tokens[language + 1]?.word
+    const routine = routineAt(statement, tokens, create)
+    if (!name || !routine || !missing.languages.includes(name)) return undefined
+    routines.names.add(routine.name)
+    routines.signatures.add(routine.signature)
+    return { drop: `it is written in ${name}, which the project's database does not have; the report lists it for conversion` }
+  }
+  if (routines.signatures.size === 0) return undefined
+  const named = tokens.some((token, i) => (token.word === 'function' || token.word === 'procedure') && routines.signatures.has(routineAt(statement, tokens, i + 1)?.signature ?? ''))
+  return named ? { drop: 'it names a function left out above' } : undefined
+}
+
 /** A statement as it should restore on a Protobase database, or why it is left out. */
-const rewriteStatement = (statement: string): Verdict => {
+const rewriteStatement = (statement: string, missing: Missing, routines: LeftOutRoutines): Verdict => {
   const tokens = tokenize(statement)
   const at = (...words: string[]) => wordsAt(statement, tokens, 0, words)
+  const routine = routineVerdict(statement, tokens, missing, routines)
+  if (routine) return routine
   if (at('grant') || at('revoke')) return withoutSupabaseGrantees(statement, tokens, 0)
   if (at('alter', 'default', 'privileges')) return defaultPrivileges(statement, tokens)
   // The public schema belongs to the database's owner, which already made it.
@@ -60,8 +95,9 @@ const rewriteStatement = (statement: string): Verdict => {
   if (at('alter', 'publication') || at('create', 'publication')) return { drop: "publications are Supabase Realtime's; the report lists their tables" }
   if (at('create', 'trigger') || at('create', 'constraint', 'trigger') || at('create', 'or', 'replace', 'trigger')) {
     const call = tokens.findIndex((_, i) => wordsAt(statement, tokens, i, ['execute', 'function']) || wordsAt(statement, tokens, i, ['execute', 'procedure']))
-    const schema = tokens[call + 2]?.word
-    if (call !== -1 && schema && webhookSchemas.includes(schema) && statement[tokens[call + 3]?.start ?? 0] === '.') return { drop: 'it calls a Supabase database webhook; the report lists it' }
+    const called = call === -1 ? undefined : routineAt(statement, tokens, call + 2)
+    if (called && missing.triggerSchemas.includes(called.name.split('.')[0]!)) return { drop: `it calls ${called.name}, which the import does not carry over; the report lists it` }
+    if (called && routines.names.has(called.name)) return { drop: 'it calls a function left out above' }
   }
   return keep(statement)
 }
@@ -71,17 +107,18 @@ const leftOut = (statement: string, reason: string) => `-- Left out by protobase
 
 /**
  * A `pg_dump --schema-only` of a Supabase database, rewritten to restore without errors as a role that is not a
- * superuser and has none of Supabase's own roles, and how many statements it leaves out. Statements are parsed, so a
- * rule never touches a function body or a string.
+ * superuser and has none of Supabase's own roles, on a database lacking what `missing` names, and how many statements
+ * it leaves out. Statements are parsed, so a rule never touches a function body or a string.
  */
-export const rewriteSchemaDump = (dump: string) => {
+export const rewriteSchemaDump = (dump: string, missing: Missing) => {
   let leftOutCount = 0
+  const routines: LeftOutRoutines = { names: new Set(), signatures: new Set() }
   const sql = splitDump(dump)
     .map((piece) => {
       // psql's meta-commands (`\restrict`, `\unrestrict`) are not SQL; the project's migrations run through a driver.
       if (piece.kind === 'meta') return ''
       if (piece.kind === 'gap') return piece.text
-      const verdict = rewriteStatement(piece.text)
+      const verdict = rewriteStatement(piece.text, missing, routines)
       if ('keep' in verdict) return verdict.keep
       leftOutCount++
       return leftOut(piece.text, verdict.drop)

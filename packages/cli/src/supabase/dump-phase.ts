@@ -4,12 +4,14 @@ import postgres from 'postgres'
 import { nextMigrationName } from '../auth/migration-file'
 import { connect, type Sql } from '../db/connect'
 import { checkoutMarkers, edgeFunctions } from './checkout'
-import { appExtensions } from './extensions'
+import { importPlan, probedExtensions } from './import-plan'
 import { importState, type ImportManifest } from './import-state'
 import { runPgTool } from './pg-tools'
+import { replayScript } from './replay'
 import { schemaMigration } from './schema-migration'
-import { appSchemas, cronJobs, databaseMarkers, dumpedTables, extensions, httpTriggers, platformMigrationTables, realtimeTables, tablesSize, vaultSecrets } from './source-facts'
+import { appSchemas, cronJobs, databaseMarkers, dumpedTables, extensions, httpTriggers, hypertables, pgmqQueues, platformMigrationTables, realtimeTables, routinesIn, tablesSize, vaultSecretValues, vaultSecrets } from './source-facts'
 import { ensureApiRoles, existingTables } from './target-checks'
+import { creatableExtensions } from './target-extensions'
 
 export type DumpOptions = { sourceUrl: string; targetUrl: string; projectDir: string; migrationsDir: string }
 
@@ -21,22 +23,46 @@ const checkSupabase = async (sql: Sql) => {
   return markers
 }
 
-/** What the source holds, read in the transaction whose snapshot the dumps take, so all of it is of one moment. */
-const readSource = async (sql: Sql) => {
+/** Which of `names` the project's database lets the importing role create. */
+const targetExtensions = async (url: string, names: string[]) => {
+  const sql = postgres(url, { max: 1, onnotice: () => {} })
+  try {
+    return await creatableExtensions(sql, names)
+  } finally {
+    await sql.end()
+  }
+}
+
+/**
+ * What the source holds, read in the transaction whose snapshot the dumps take, so all of it is of one moment, with
+ * what the import does with it on the project's database at `targetUrl`; and the replay of what the dump cannot carry.
+ */
+const readSource = async (sql: Sql, targetUrl: string) => {
   const schemas = await appSchemas(sql)
   const tables = await dumpedTables(sql, schemas)
-  const sourceExtensions = appExtensions(await extensions(sql))
-  return {
+  const sourceExtensions = await extensions(sql)
+  const triggers = await httpTriggers(sql, schemas)
+  const plan = importPlan({ extensions: sourceExtensions, httpTriggers: triggers }, await targetExtensions(targetUrl, probedExtensions(sourceExtensions)))
+  const secrets = plan.vault ? await vaultSecretValues(sql) : undefined
+  const queues = await pgmqQueues(sql)
+  const replayed = plan.queues ? (queues ?? []).filter((queue) => !queue.partitioned) : []
+  const manifest = {
     schemas,
     tables,
     bytes: await tablesSize(sql, tables),
-    trusted: sourceExtensions.trusted,
-    untrustedExtensions: sourceExtensions.untrusted,
     cronJobs: await cronJobs(sql),
     vaultSecrets: await vaultSecrets(sql),
+    vaultReplayed: secrets !== undefined,
+    queues: queues?.map((queue) => ({ name: queue.name, partitioned: queue.partitioned, messages: queue.messages.length })),
+    queuesReplayed: plan.queues && queues !== undefined,
     realtimeTables: await realtimeTables(sql),
-    httpTriggers: await httpTriggers(sql, schemas),
-  }
+    extensionsLeftOut: plan.leftOut,
+    httpTriggers: triggers,
+    httpSent: plan.httpSent,
+    hypertables: await hypertables(sql, schemas),
+    routinesLeftOut: await routinesIn(sql, schemas, plan.missing.languages),
+  } satisfies Partial<ImportManifest>
+  return { manifest, plan, replay: replayScript({ secrets: secrets ?? [], queues: replayed }) }
 }
 
 /** Fails unless the target can take the schema migration: makes the API roles it lacks, and finds no table in the way. */
@@ -57,8 +83,9 @@ const pattern = (name: string) => `"${name.replaceAll('"', '""')}"`
 
 /**
  * The import's first run: dumps the Supabase database's schemas and data as of one snapshot, writes the schema as
- * the project's next migration, and keeps the data dump and what the report needs in `supabase-import/` for the run
- * that loads it, once the project's migrations are applied.
+ * the project's next migration, with the extensions the project's database can create, and keeps the data dump, the
+ * replay of Vault's secrets and pgmq's queues and what the report needs in `supabase-import/` for the run that loads
+ * it, once the project's migrations are applied.
  */
 export const runDumpPhase = async (options: DumpOptions, out: (text: string) => void) => {
   const checkout = checkoutMarkers(options.projectDir)
@@ -71,7 +98,7 @@ export const runDumpPhase = async (options: DumpOptions, out: (text: string) => 
     await reserved`begin isolation level repeatable read read only`
     const [exported] = await reserved<{ snapshot: string }[]>`select pg_export_snapshot() as snapshot`
     const snapshot = exported!.snapshot
-    const source = await readSource(reserved)
+    const { manifest: source, plan, replay } = await readSource(reserved, options.targetUrl)
     const created = await checkTarget(options.targetUrl, source.tables)
     if (created.length > 0) out(`created the roles ${created.join(', ')} in the project's database\n`)
 
@@ -81,16 +108,17 @@ export const runDumpPhase = async (options: DumpOptions, out: (text: string) => 
     await runPgTool('pg_dump', options.sourceUrl, ['--schema-only', '--no-owner', `--snapshot=${snapshot}`, ...tableArgs, `--file=${schemaFile}`])
     await runPgTool('pg_dump', options.sourceUrl, ['--data-only', `--snapshot=${snapshot}`, ...tableArgs, `--file=${state.data}`])
     await reserved`commit`
+    if (replay) await state.writeReplay(replay)
 
-    const migration = schemaMigration(await readFile(schemaFile, 'utf8'), { schemas: source.schemas, extensions: source.trusted })
+    const migration = schemaMigration(await readFile(schemaFile, 'utf8'), { schemas: source.schemas, extensions: plan.extensions, webhooks: plan.webhooks, missing: plan.missing })
     await rm(schemaFile)
     await mkdir(options.migrationsDir, { recursive: true })
     const file = nextMigrationName(await readdir(options.migrationsDir), 'supabase_schema')
     await writeFile(path.join(options.migrationsDir, file), migration.text, { flag: 'wx' })
-    const { trusted, ...facts } = source
-    await state.writeManifest({ migration: file, leftOut: migration.leftOut, checkout, functions: await edgeFunctions(options.projectDir), ...facts })
+    await state.writeManifest({ migration: file, leftOut: migration.leftOut, checkout, functions: await edgeFunctions(options.projectDir), ...source })
     out(`wrote ${path.relative(options.projectDir, path.join(options.migrationsDir, file))}, the schemas ${source.schemas.join(', ')}\n`)
     out(`dumped ${source.tables.length} tables' data into ${path.relative(options.projectDir, state.data)}, which git ignores\n`)
+    if (replay) out(`kept Vault's secrets and pgmq's queues to make again in ${path.relative(options.projectDir, state.replay)}, which git ignores\n`)
     out("next: apply the migration with the project's migrations, then run `protobase import supabase` again to load the data\n")
   } finally {
     reserved.release()

@@ -3,7 +3,7 @@ import { loadScript } from './load-script'
 
 describe('loadScript', () => {
   it("turns the app's triggers off around the data, then counts every table against the source", () => {
-    expect(loadScript("/app/supabase-import/it's data.sql", [{ schema: 'auth', table: 'users', rows: 2 }, { schema: 'public', table: 'odd"name', rows: 0 }])).toBe(
+    expect(loadScript("/app/supabase-import/it's data.sql", [{ schema: 'auth', table: 'users', rows: 2 }, { schema: 'public', table: 'odd"name', rows: 0 }], undefined)).toBe(
       [
         'ALTER TABLE "auth"."users" DISABLE TRIGGER USER;',
         'ALTER TABLE "public"."odd""name" DISABLE TRIGGER USER;',
@@ -15,5 +15,12 @@ describe('loadScript', () => {
         '',
       ].join('\n'),
     )
+  })
+
+  it('replays Vault and pgmq after the data, before the counts', () => {
+    expect(loadScript('/app/data.sql', [{ schema: 'public', table: 't', rows: 1 }], '/app/replay.sql').split('\n').slice(2, 4)).toEqual([
+      'ALTER TABLE "public"."t" ENABLE TRIGGER USER;',
+      "\\i '/app/replay.sql'",
+    ])
   })
 })

@@ -1,15 +1,27 @@
 import { describe, expect, it } from 'vitest'
-import { appExtensions, createExtensions } from './extensions'
+import { appExtensions, createExtensions, sortExtensions } from './extensions'
 
 describe('appExtensions', () => {
-  it("sorts the app's extensions by whether a database owner may create them, leaving out the platform's", () => {
-    const found = appExtensions([
-      { name: 'plpgsql', schema: 'pg_catalog', trusted: false },
-      { name: 'pg_graphql', schema: 'graphql', trusted: false },
-      { name: 'pg_trgm', schema: 'extensions', trusted: true },
-      { name: 'pg_cron', schema: 'pg_catalog', trusted: false },
+  it("leaves out the platform's own", () => {
+    expect(
+      appExtensions([
+        { name: 'plpgsql', schema: 'pg_catalog' },
+        { name: 'pg_graphql', schema: 'graphql' },
+        { name: 'supabase_vault', schema: 'vault' },
+        { name: 'pg_trgm', schema: 'extensions' },
+        { name: 'pg_cron', schema: 'pg_catalog' },
+      ]),
+    ).toEqual([
+      { name: 'pg_trgm', schema: 'extensions' },
+      { name: 'pg_cron', schema: 'pg_catalog' },
     ])
-    expect(found).toEqual({ trusted: [{ name: 'pg_trgm', schema: 'extensions', trusted: true }], untrusted: [{ name: 'pg_cron', schema: 'pg_catalog', trusted: false }] })
+  })
+})
+
+describe('sortExtensions', () => {
+  it("sorts them by whether the project's database may create them", () => {
+    const found = sortExtensions([{ name: 'pg_trgm', schema: 'extensions' }, { name: 'pg_cron', schema: 'pg_catalog' }], new Set(['pg_trgm']))
+    expect(found).toEqual({ created: [{ name: 'pg_trgm', schema: 'extensions' }], leftOut: [{ name: 'pg_cron', schema: 'pg_catalog' }] })
   })
 })
 
@@ -17,9 +29,13 @@ describe('createExtensions', () => {
   it('creates each in the schema it had', () => {
     expect(
       createExtensions([
-        { name: 'uuid-ossp', schema: 'extensions', trusted: true },
-        { name: 'citext', schema: 'public', trusted: true },
+        { name: 'uuid-ossp', schema: 'extensions' },
+        { name: 'citext', schema: 'public' },
       ]),
     ).toBe('CREATE SCHEMA IF NOT EXISTS "extensions";\nCREATE EXTENSION IF NOT EXISTS "uuid-ossp" WITH SCHEMA "extensions";\nCREATE EXTENSION IF NOT EXISTS "citext" WITH SCHEMA "public";\n')
+  })
+
+  it('makes no system schema', () => {
+    expect(createExtensions([{ name: 'pg_cron', schema: 'pg_catalog' }])).toBe('CREATE EXTENSION IF NOT EXISTS "pg_cron" WITH SCHEMA "pg_catalog";\n')
   })
 })
