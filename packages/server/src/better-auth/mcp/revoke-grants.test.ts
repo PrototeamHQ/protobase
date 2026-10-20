@@ -78,3 +78,13 @@ describe('disconnecting MCP clients', () => {
     expect(ids(tables)).toEqual({ oauthConsent: ['c2', 'c3'], oauthAccessToken: ['a2'], oauthRefreshToken: ['r2', 'r3'] })
   })
 })
+
+describe('disconnecting, when the store fails on the way', () => {
+  it('has forgotten the consent first, so a refresh token left behind is refused', async () => {
+    const { tables, adapter } = fakeAdapter(rows())
+    const failing = { deleteMany: async (input: { model: string }) => (input.model === 'oauthRefreshToken' ? Promise.reject(new Error('connection lost')) : adapter.deleteMany(input as never)) }
+    await expect(revokeMcpGrants(failing as never, 'ana')).rejects.toThrow('connection lost')
+    expect(ids(tables).oauthConsent).toEqual(['c3'])
+    expect(ids(tables).oauthRefreshToken).toEqual(['r1', 'r2', 'r3'])
+  })
+})

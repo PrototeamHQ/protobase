@@ -1,0 +1,732 @@
+import { base64url, calculateJwkThumbprint, decodeJwt, decodeProtectedHeader, importJWK, SignJWT } from 'jose'
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
+import { authSchemaMigration, checkAuthSchema } from '../src/better-auth/auth-schema'
+import { betterAuthAuthenticator } from '../src/better-auth/authenticator'
+import { createAuth, type CreateAuthOptions } from '../src/better-auth/create-auth'
+import { createUser, setUserBanned, setUserRole } from '../src/better-auth/users'
+import { createAdmin } from '../src/create-admin'
+import type { MailMessage } from '../src/mail/smtp-mailer'
+import { allResources, createFixtureDb } from '../../../test-support/server'
+import { openSnapshotDb, settled, type SnapshotDb } from '../../../test-support/sql-snapshot'
+
+// Real scrypt hashing runs on this thread, CPU work a busy machine stretches past 5 s.
+vi.setConfig({ testTimeout: 30_000 })
+
+const origin = 'http://localhost:5173'
+const resource = `${origin}/api/mcp`
+const secret = 'test-secret-test-secret-test-secret-1234'
+const password = 'correct horse battery'
+const redirectUri = 'http://127.0.0.1:33418/callback'
+
+// A client metadata document (CIMD) the stub serves instead of the network.
+const cimdClientId = 'https://client.example.com/oauth/client.json'
+const cimdDocument = { client_id: cimdClientId, client_name: 'Example Client', redirect_uris: [redirectUri], token_endpoint_auth_method: 'none' }
+const fetchClientMetadata = async (url: string | URL) =>
+  String(url) === cimdClientId ? new Response(JSON.stringify(cimdDocument), { headers: { 'content-type': 'application/json' } }) : new Response('not found', { status: 404 })
+
+let fixture: Awaited<ReturnType<typeof createFixtureDb>>
+let base: SnapshotDb
+let migrated: SnapshotDb
+let migration: string
+
+// Made, then given the time to check its schema in the background, so its queries come before the test's.
+const authOn = async (store: SnapshotDb, options: Partial<CreateAuthOptions> = {}) => {
+  const auth = createAuth({
+    database: { dialect: store.dialect, type: 'postgres' },
+    baseURL: origin,
+    secret,
+    mailer: false,
+    signInPerMinute: 100,
+    roles: ['admin', 'sales', 'accountant'],
+    defaultRole: 'sales',
+    mcp: { fetchClientMetadata: fetchClientMetadata as never },
+    ...options,
+  })
+  await auth.$context
+  await settled()
+  return auth
+}
+
+beforeAll(async () => {
+  fixture = await createFixtureDb()
+  base = await openSnapshotDb('auth')
+  migrated = await base.clone()
+  migration = (await authSchemaMigration(await authOn(migrated)))!
+  await migrated.exec(migration)
+})
+afterAll(async () => { await fixture.db.destroy() })
+
+let client = 0
+
+const cookieOf = (response: Response) => response.headers.getSetCookie().map((line) => line.split(';')[0]).join('; ')
+
+const pkce = async () => {
+  const verifier = base64url.encode(crypto.getRandomValues(new Uint8Array(32)))
+  const challenge = base64url.encode(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(verifier))))
+  return { verifier, challenge }
+}
+
+type Tokens = { access_token: string; refresh_token?: string; token_type: string; scope: string; expires_in: number }
+
+/** An app with MCP on, on a copy of the migrated store, with Ana (sales and accountant) and Root (admin). */
+const serve = async (options: Partial<CreateAuthOptions> = {}) => {
+  const store = await migrated.clone()
+  const auth = await authOn(store, options)
+  await createUser(auth, { email: 'root@example.com', password })
+  await createUser(auth, { email: 'ana@example.com', password, role: 'sales' })
+  await setUserRole(auth, { email: 'ana@example.com', role: 'sales,accountant' })
+  await createUser(auth, { email: 'bo@example.com', password, role: 'sales' })
+  const authenticate = betterAuthAuthenticator({ auth })
+  const app = createAdmin({ resources: allResources, db: fixture.db, authenticate, auth })
+  const address = `198.51.100.${++client}`
+
+  type Init = { body?: unknown; form?: Record<string, string>; cookie?: string; headers?: Record<string, string>; method?: string; from?: string | null }
+  const request = (path: string, init: Init = {}) => {
+    const { body, form, cookie, headers = {}, from = origin } = init
+    const method = init.method ?? (body === undefined && form === undefined ? 'GET' : 'POST')
+    return app.request(path.startsWith('http') ? path : `${origin}${path}`, {
+      method,
+      redirect: 'manual',
+      headers: {
+        'x-forwarded-for': address,
+        ...(body !== undefined && { 'content-type': 'application/json' }),
+        ...(form !== undefined && { 'content-type': 'application/x-www-form-urlencoded' }),
+        ...(from !== null && { origin: from }),
+        ...(cookie && { cookie }),
+        ...headers,
+      },
+      ...(body !== undefined && { body: JSON.stringify(body) }),
+      ...(form !== undefined && { body: new URLSearchParams(form).toString() }),
+    })
+  }
+
+  const signIn = async (email: string) => {
+    const response = await request('/api/auth/sign-in/email', { body: { email, password } })
+    expect(response.status).toBe(200)
+    return cookieOf(response)
+  }
+
+  const register = async (metadata: Record<string, unknown> = {}) => {
+    const response = await request('/api/auth/oauth2/register', { body: { redirect_uris: [redirectUri], client_name: 'Test Client', token_endpoint_auth_method: 'none', ...metadata }, from: null })
+    expect(response.status, await response.clone().text()).toBe(201)
+    return ((await response.json()) as { client_id: string }).client_id
+  }
+
+  /** `GET /oauth2/authorize` for `clientId` as the browser sends it, with PKCE; `params` adds or replaces parameters. */
+  const authorize = async (cookie: string | undefined, clientId: string, params: Record<string, string | undefined> = {}) => {
+    const { verifier, challenge } = await pkce()
+    const query = new URLSearchParams({ response_type: 'code', client_id: clientId, redirect_uri: redirectUri, code_challenge: challenge, code_challenge_method: 'S256', state: 'st4te' })
+    for (const [name, value] of Object.entries(params)) {
+      if (value === undefined) query.delete(name)
+      else query.set(name, value)
+    }
+    const response = await request(`/api/auth/oauth2/authorize?${query}`, { ...(cookie && { cookie }), headers: { 'sec-fetch-mode': 'navigate', accept: 'text/html' }, from: null })
+    return { response, verifier, location: response.headers.get('location') ?? '' }
+  }
+
+  // The connect page's calls: resuming the signed request, and answering it.
+  const resume = (cookie: string, oauthQuery: string) => request('/api/auth/oauth2/continue', { cookie, body: { postLogin: true, oauth_query: oauthQuery } })
+  const answer = (cookie: string, oauthQuery: string, accept = true) => request('/api/auth/oauth2/consent', { cookie, body: { accept, oauth_query: oauthQuery } })
+
+  const queryOf = (url: string) => new URL(url, origin).search.slice(1)
+
+  const codeOf = (url: string) => {
+    const redirect = new URL(url)
+    expect(`${redirect.origin}${redirect.pathname}`).toBe(redirectUri)
+    return redirect.searchParams.get('code')!
+  }
+
+  /**
+   * The code the client gets after the person allows it on the connect page, and the PKCE verifier it goes with; at
+   * once, without the page, when the person allowed it before.
+   */
+  const connect = async (cookie: string, clientId: string, params: Record<string, string | undefined> = {}) => {
+    const { response, verifier, location } = await authorize(cookie, clientId, params)
+    expect(response.status, await response.clone().text()).toBe(302)
+    if (location.startsWith(redirectUri)) return { code: codeOf(location), verifier }
+    expect(location.startsWith('/-/connect?')).toBe(true)
+    const resumed = await resume(cookie, queryOf(location))
+    expect(resumed.status, await resumed.clone().text()).toBe(200)
+    const { url } = (await resumed.json()) as { url: string }
+    expect(url.startsWith('/-/connect?')).toBe(true)
+    const allowed = await answer(cookie, queryOf(url))
+    expect(allowed.status, await allowed.clone().text()).toBe(200)
+    return { code: codeOf(((await allowed.json()) as { url: string }).url), verifier }
+  }
+
+  const token = (form: Record<string, string>, headers: Record<string, string> = {}) => request('/api/auth/oauth2/token', { form, headers, from: null })
+
+  const exchange = async (clientId: string, { code, verifier }: { code: string; verifier: string }, headers: Record<string, string> = {}, extra: Record<string, string> = {}) =>
+    token({ grant_type: 'authorization_code', code, redirect_uri: redirectUri, client_id: clientId, code_verifier: verifier, ...extra }, headers)
+
+  const refresh = (clientId: string, refreshToken: string, headers: Record<string, string> = {}, extra: Record<string, string> = {}) =>
+    token({ grant_type: 'refresh_token', refresh_token: refreshToken, client_id: clientId, ...extra }, headers)
+
+  /** Registers a client, signs `email` in, allows the client and exchanges the code: the tokens and the client's id. */
+  const grant = async (email = 'ana@example.com', cookie?: string) => {
+    const clientId = await register()
+    const session = cookie ?? (await signIn(email))
+    const response = await exchange(clientId, await connect(session, clientId))
+    expect(response.status, await response.clone().text()).toBe(200)
+    return { clientId, cookie: session, tokens: (await response.json()) as Tokens }
+  }
+
+  const refused = async (response: Response) => {
+    expect(response.status).toBe(400)
+    expect(await response.json()).toMatchObject({ error: 'invalid_grant' })
+  }
+
+  const userId = async (email: string) => (await store.query<{ id: string }>(`select id from "user" where email = $1`, [email])).rows[0]!.id
+  const consents = async (email: string) => (await store.query<{ client_id: string }>(`select client_id from oauth_consent where user_id = $1`, [await userId(email)])).rows
+
+  /** Whether the person's browser, signed in, is sent to the connect page again rather than back to the client with a code. */
+  const asksAgain = async (cookie: string, clientId: string) => {
+    const { location } = await authorize(cookie, clientId)
+    expect(location.startsWith('/-/connect?')).toBe(true)
+    const silent = new URL((await authorize(cookie, clientId, { prompt: 'none' })).location)
+    expect(silent.searchParams.get('error')).toBe('consent_required')
+    expect(silent.searchParams.has('code')).toBe(false)
+  }
+
+  /** Whether `prompt=none` gives the client a code at once, as for a consent that is remembered. */
+  const givesCodeSilently = async (cookie: string, clientId: string) => new URL((await authorize(cookie, clientId, { prompt: 'none' })).location).searchParams.has('code')
+
+  return { auth, store, app, authenticate, request, signIn, register, authorize, resume, answer, connect, exchange, refresh, grant, queryOf, refused, userId, consents, asksAgain, givesCodeSilently }
+}
+
+const recordingMailer = () => {
+  const sent: MailMessage[] = []
+  const last = async (to: string) => {
+    await expect.poll(() => sent.some((message) => message.to === to), { timeout: 10_000 }).toBe(true)
+    return sent.findLast((message) => message.to === to)!.text
+  }
+  return { sent, last, mailer: { send: async (message: MailMessage) => void sent.push(message) } }
+}
+
+const resourceRequest = (token: string, scheme = 'Bearer', dpop?: string) =>
+  new Request(resource, { method: 'POST', headers: { authorization: `${scheme} ${token}`, ...(dpop && { dpop }) } })
+
+// A DPoP proof (RFC 9449) for `htu`, and for an access token when given. The provider keeps each proof's hash, so the
+// key is fixed and Ed25519, whose signatures, unlike ECDSA's, are the same in the recording and every replay.
+const dpopJwk = { kty: 'OKP', crv: 'Ed25519', x: 'zENySdtsCGMof7cw-f0U5aL39dT5cLxNWVb9ndTN1cU' }
+const dpopKey = await importJWK({ ...dpopJwk, d: 'h8lLaHGzX6-_iGD2Ve8SYxhm2jhcr1wPpq5RC-bmzQ0' }, 'EdDSA')
+let proofs = 0
+const dpopProof = async (htu: string, accessToken?: string) => {
+  const ath = accessToken && base64url.encode(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(accessToken))))
+  return new SignJWT({ htm: 'POST', htu, jti: `proof-${++proofs}`, ...(ath && { ath }) }).setProtectedHeader({ alg: 'EdDSA', typ: 'dpop+jwt', jwk: dpopJwk }).setIssuedAt().sign(dpopKey)
+}
+
+describe('the auth schema with MCP', () => {
+  it('gets the OAuth tables in snake_case, and the server starts once they exist', async () => {
+    expect(migration).toMatch(/create table if not exists "oauth_client"/)
+    expect(migration).toMatch(/create table if not exists "oauth_consent" \("id" text not null primary key, "client_id" text not null/)
+    await expect(checkAuthSchema(await authOn(await base.clone()))).rejects.toThrow(/missing oauth_client/)
+    const auth = await authOn(await migrated.clone())
+    await expect(checkAuthSchema(auth)).resolves.toBeUndefined()
+  })
+})
+
+describe('connecting an MCP client', () => {
+  it('registers it, signs the person in, asks on the connect page and gives a token for the MCP resource only', async () => {
+    const { grant, authenticate } = await serve()
+    const { tokens } = await grant()
+    expect(tokens.token_type).toBe('Bearer')
+    expect(tokens.scope).toBe('mcp offline_access')
+    expect(tokens.refresh_token).toBeTruthy()
+    expect(decodeProtectedHeader(tokens.access_token).typ).toBe('at+jwt')
+    const claims = decodeJwt(tokens.access_token)
+    expect(claims).toMatchObject({ aud: resource, iss: origin, scope: 'mcp offline_access', email: 'ana@example.com', role: 'sales' })
+    expect(claims.exp! - claims.iat!).toBe(900)
+    const request = (token: string) => new Request(resource, { method: 'POST', headers: { authorization: `Bearer ${token}` } })
+    expect(await authenticate.forAudience(resource)(request(tokens.access_token))).toMatchObject({ user: { roles: ['sales'] }, client: { scopes: ['mcp', 'offline_access'] } })
+  })
+})
+
+describe('the grant', () => {
+  it('keeps the role it was allowed with when the client refreshes, whatever the session switches to', async () => {
+    const { grant, request, refresh } = await serve()
+    const { clientId, cookie, tokens } = await grant()
+    expect((await request('/api/auth/role/switch', { cookie, body: { role: 'accountant' } })).status).toBe(200)
+    const refreshed = await refresh(clientId, tokens.refresh_token!)
+    expect(refreshed.status).toBe(200)
+    expect(decodeJwt(((await refreshed.json()) as Tokens).access_token)).toMatchObject({ role: 'sales' })
+  })
+
+  it('is refused at refresh once the person no longer holds its role', async () => {
+    const { grant, refresh, auth, refused } = await serve()
+    const { clientId, tokens } = await grant()
+    await setUserRole(auth, { email: 'ana@example.com', role: 'accountant' })
+    await refused(await refresh(clientId, tokens.refresh_token!))
+  })
+
+  it('freezes the role chosen last when the session never switched', async () => {
+    const { grant, store } = await serve()
+    await store.query(`update "user" set last_role = 'accountant' where email = 'ana@example.com'`)
+    const { tokens } = await grant()
+    expect(decodeJwt(tokens.access_token)).toMatchObject({ role: 'accountant' })
+  })
+
+  it("gets a refresh token for a client registered with scope mcp alone and no grant types, asking for mcp alone", async () => {
+    const { register, signIn, connect, exchange } = await serve()
+    const clientId = await register({ scope: 'mcp' })
+    const response = await exchange(clientId, await connect(await signIn('ana@example.com'), clientId, { scope: 'mcp' }))
+    const tokens = (await response.json()) as Tokens
+    expect(tokens.scope).toBe('mcp offline_access')
+    expect(tokens.refresh_token).toBeTruthy()
+  })
+
+  it('is for the MCP resource when the client names none, at authorize or at the token endpoint', async () => {
+    const { grant } = await serve()
+    const { tokens } = await grant()
+    expect(decodeJwt(tokens.access_token).aud).toBe(resource)
+  })
+
+  it('is never for the app itself, in any form of its address, at authorize, the code exchange or refresh', async () => {
+    const { register, signIn, authorize, connect, exchange, refresh } = await serve()
+    const clientId = await register()
+    const cookie = await signIn('ana@example.com')
+    const targets = [origin, `${origin}/`, 'HTTP://LOCALHOST:5173', `${origin}/api/v1`]
+    for (const target of targets) {
+      const { location } = await authorize(cookie, clientId, { resource: target })
+      expect(new URL(location, origin).searchParams.get('error'), target).toBe('invalid_target')
+    }
+    for (const target of targets) {
+      const exchanged = await exchange(clientId, await connect(cookie, clientId), {}, { resource: target })
+      expect(exchanged.status, target).toBe(400)
+      expect(await exchanged.json()).toMatchObject({ error: 'invalid_target' })
+    }
+    const tokens = (await (await exchange(clientId, await connect(cookie, clientId))).json()) as Tokens
+    for (const target of targets) {
+      const refreshed = await refresh(clientId, tokens.refresh_token!, {}, { resource: target })
+      expect(refreshed.status, target).toBe(400)
+      expect(await refreshed.json()).toMatchObject({ error: 'invalid_target' })
+    }
+  })
+})
+
+// The newest sign-in policy row wins; this one requires two-factor authentication of everyone.
+const requireTwoFactor = (store: SnapshotDb) =>
+  store.query(`insert into sign_in_policy (id, password, email_code, passkey, two_factor, staff_access, platform_sign_in, created_at) values ('mcp-policy', 'allowed', 'allowed', 'allowed', 'required', 'allowed', 'allowed', now() + interval '1 day')`)
+
+describe('who cannot allow a client', () => {
+  it('someone without the setup the sign-in policy requires: sent to the connect page, refused there, and refused at refresh', async () => {
+    const { grant, store, signIn, register, authorize, resume, answer, refresh, refused, queryOf } = await serve()
+    const { clientId: before, tokens } = await grant()
+    await requireTwoFactor(store)
+    await refused(await refresh(before, tokens.refresh_token!))
+
+    const clientId = await register()
+    const cookie = await signIn('ana@example.com')
+    const { location } = await authorize(cookie, clientId)
+    expect(location).toBe('/-/connect')
+    const signed = queryOf((await authorize(undefined, clientId)).location)
+    for (const response of [await resume(cookie, signed), await answer(cookie, signed)]) {
+      expect(response.status).toBe(403)
+      expect(await response.json()).toMatchObject({ code: 'SIGN_IN_SETUP_REQUIRED' })
+    }
+  })
+
+  it('someone whose address is not verified, now or since the grant', async () => {
+    const { grant, store, signIn, register, authorize, resume, answer, refresh, refused, queryOf } = await serve()
+    const { clientId: before, tokens } = await grant()
+    await store.query(`update "user" set email_verified = false where email = 'ana@example.com'`)
+    await refused(await refresh(before, tokens.refresh_token!))
+
+    const clientId = await register()
+    const cookie = await signIn('ana@example.com')
+    const { location } = await authorize(cookie, clientId)
+    expect(location.startsWith('/-/connect?')).toBe(true)
+    for (const response of [await resume(cookie, queryOf(location)), await answer(cookie, queryOf(location))]) {
+      expect(response.status).toBe(403)
+      expect(await response.json()).toMatchObject({ code: 'ADDRESS_NOT_VERIFIED' })
+    }
+  })
+
+  it('staff signed in as the person, on every OAuth path, even for a client the person allowed', async () => {
+    const { grant, store, request, authorize, resume, answer, queryOf } = await serve()
+    const { clientId, cookie } = await grant()
+    await store.query(`update session set impersonated_by = 'alex@operator.example' where user_id = (select id from "user" where email = 'ana@example.com')`)
+    const signed = queryOf((await authorize(undefined, clientId)).location)
+    const responses = [
+      (await authorize(cookie, clientId)).response,
+      (await authorize(cookie, clientId, { prompt: 'none' })).response,
+      await resume(cookie, signed),
+      await answer(cookie, signed),
+      await request(`/api/auth/oauth2/public-client?client_id=${clientId}`, { cookie }),
+    ]
+    for (const response of responses) {
+      expect(response.status).toBe(403)
+      expect(response.headers.get('location')).toBeNull()
+      expect(await response.json()).toMatchObject({ code: 'STAFF_CANNOT_CONNECT' })
+    }
+    // Staff may see what the person connected, and not disconnect it.
+    expect(((await (await request('/api/auth/account/connected-apps', { cookie })).json()) as { apps: unknown[] }).apps).toHaveLength(1)
+    const disconnect = await request('/api/auth/account/connected-apps/disconnect', { cookie, body: { clientId } })
+    expect(disconnect.status).toBe(403)
+    expect(await disconnect.json()).toMatchObject({ code: 'STAFF_CANNOT_CHANGE_SIGN_IN' })
+  })
+})
+
+describe('the signed request', () => {
+  it('never resumes from a sign-in: the person goes on from the connect page', async () => {
+    const { register, authorize, request, queryOf } = await serve()
+    const clientId = await register()
+    const signed = queryOf((await authorize(undefined, clientId)).location)
+    const response = await request('/api/auth/sign-in/email', { body: { email: 'ana@example.com', password, oauth_query: signed } })
+    expect(response.status).toBe(400)
+    expect(await response.json()).toMatchObject({ code: 'OAUTH_QUERY_REFUSED' })
+    expect(response.headers.getSetCookie()).toEqual([])
+  })
+
+  it('still resumes when the session cookie is refreshed on the way', async () => {
+    const { register, signIn, authorize, resume, store, queryOf } = await serve()
+    const clientId = await register()
+    const cookie = await signIn('ana@example.com')
+    // Older than a day, the session is extended, and its cookie set again, by the request that reads it: it expires in
+    // 5 days of the 7 a new one gets (the test clock stands at 2026-08-01).
+    await store.query(`update session set expires_at = '2026-08-06T00:00:00Z' where user_id = (select id from "user" where email = 'ana@example.com')`)
+    const resumed = await resume(cookie, queryOf((await authorize(cookie, clientId)).location))
+    expect(resumed.status, await resumed.clone().text()).toBe(200)
+    const { rows } = await store.query<{ expires_at: Date }>(`select expires_at from session where user_id = (select id from "user" where email = 'ana@example.com')`)
+    expect(rows.map((row) => new Date(row.expires_at).toISOString())).toEqual(['2026-08-08T00:00:00.000Z'])
+    expect(((await resumed.json()) as { url: string }).url.startsWith('/-/connect?')).toBe(true)
+  })
+
+  it("is another app's only: one signed with another secret is refused", async () => {
+    const { register, authorize, queryOf } = await serve()
+    const other = await serve({ secret: 'another-secret-another-secret-another-1234' })
+    const signed = queryOf((await authorize(undefined, await register())).location)
+    const response = await other.resume(await other.signIn('ana@example.com'), signed)
+    expect(response.status).toBe(400)
+    expect(await response.json()).toMatchObject({ error: 'invalid_signature' })
+  })
+})
+
+describe('discovery', () => {
+  it('answers both documents to anyone, naming the app and its MCP resource whatever host is asked', async () => {
+    const { request } = await serve()
+    const asked: Record<string, string>[] = [{}, { 'x-forwarded-host': 'evil.example' }, { forwarded: 'host=evil.example' }]
+    for (const headers of asked) {
+      const server = await request('http://evil.example/.well-known/oauth-authorization-server', { from: 'https://claude.ai', headers })
+      expect(server.status).toBe(200)
+      expect(server.headers.get('access-control-allow-origin')).toBe('*')
+      const metadata = (await server.json()) as Record<string, unknown>
+      expect(metadata.issuer).toBe(origin)
+      for (const key of ['authorization_endpoint', 'token_endpoint', 'registration_endpoint']) expect(String(metadata[key])).toMatch(/^http:\/\/localhost:5173\/api\/auth\/oauth2\//)
+      for (const path of ['/.well-known/oauth-protected-resource', '/.well-known/oauth-protected-resource/api/mcp']) {
+        const protectedResource = await request(`http://evil.example${path}`, { from: 'https://claude.ai', headers })
+        expect(protectedResource.headers.get('access-control-allow-origin')).toBe('*')
+        expect(await protectedResource.json()).toMatchObject({ resource, authorization_servers: [origin], scopes_supported: ['mcp'] })
+      }
+    }
+  })
+
+  it('lets clients register and fetch tokens from anywhere, preflight included, and keeps CORS off authorize', async () => {
+    const { request, register } = await serve()
+    for (const path of ['/api/auth/oauth2/register', '/api/auth/oauth2/token']) {
+      const preflight = await request(path, { method: 'OPTIONS', from: 'https://claude.ai', headers: { 'access-control-request-method': 'POST', 'access-control-request-headers': 'content-type, dpop' } })
+      expect(preflight.status).toBe(204)
+      expect(preflight.headers.get('access-control-allow-origin')).toBe('*')
+    }
+    const registered = await request('/api/auth/oauth2/register', { from: 'https://claude.ai', body: { redirect_uris: [redirectUri], client_name: 'From afar', token_endpoint_auth_method: 'none' } })
+    expect(registered.status).toBe(201)
+    expect(registered.headers.get('access-control-allow-origin')).toBe('*')
+    const authorized = await request(`/api/auth/oauth2/authorize?client_id=${await register()}`, { from: 'https://claude.ai' })
+    expect(authorized.headers.get('access-control-allow-origin')).toBeNull()
+  })
+
+  it('serves none of it without MCP', async () => {
+    const auth = await authOn(await migrated.clone(), { mcp: undefined })
+    const app = createAdmin({ resources: [], db: fixture.db, authenticate: betterAuthAuthenticator({ auth }), auth })
+    expect((await app.request(`${origin}/.well-known/oauth-authorization-server`)).status).toBe(404)
+    expect((await app.request(`${origin}/api/auth/oauth2/register`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' })).status).toBe(404)
+    expect(auth.mcp).toBeUndefined()
+  })
+})
+
+describe('registration', () => {
+  it('refuses back-channel logout and a key set to fetch', async () => {
+    const { request } = await serve()
+    for (const extra of [{ backchannel_logout_uri: 'https://client.example.com/logout' }, { jwks_uri: `${origin}/jwks.json`, token_endpoint_auth_method: 'private_key_jwt' }]) {
+      const response = await request('/api/auth/oauth2/register', { from: null, body: { redirect_uris: [redirectUri], client_name: 'Test', ...extra } })
+      expect(response.status).toBe(400)
+      expect(await response.json()).toMatchObject({ error: 'invalid_client_metadata' })
+    }
+  })
+
+  it('chooses the client id itself, so a client cannot pass for a published one', async () => {
+    const { register } = await serve()
+    expect(await register({ client_id: 'https://claude.ai/oauth/client.json' })).not.toBe('https://claude.ai/oauth/client.json')
+  })
+
+  it('needs none for a client that publishes its metadata at its id', async () => {
+    const { signIn, connect, exchange } = await serve()
+    const response = await exchange(cimdClientId, await connect(await signIn('ana@example.com'), cimdClientId))
+    expect(response.status, await response.clone().text()).toBe(200)
+  })
+
+  it('never fetches the metadata of a client whose id names a private address', async () => {
+    const { signIn, authorize, request } = await serve({ mcp: true })
+    const cookie = await signIn('ana@example.com')
+    for (const host of ['127.0.0.1', '10.0.0.1', '169.254.169.254', '[::1]']) {
+      const clientId = `https://${host}/client.json`
+      const { location, response } = await authorize(cookie, clientId)
+      expect(location.startsWith('/-/connect'), host).toBe(false)
+      expect(response.status === 302 ? new URL(location, origin).searchParams.has('code') : false).toBe(false)
+      expect((await request(`/api/auth/oauth2/public-client?client_id=${encodeURIComponent(clientId)}`, { cookie })).status, host).not.toBe(200)
+    }
+  })
+})
+
+describe('the endpoints MCP does not use', () => {
+  it('are closed, however the path is written', async () => {
+    const { request, signIn } = await serve()
+    const cookie = await signIn('ana@example.com')
+    const paths = [
+      ['POST', '/api/auth/oauth2/create-client'],
+      ['GET', '/api/auth/oauth2/userinfo'],
+      ['GET', '/api/auth/oauth2/get-consents'],
+      ['POST', '/api/auth/oauth2/delete-consent'],
+    ] as const
+    for (const [method, path] of paths) {
+      for (const variant of [path, `${path}/`, path.replace('/oauth2/', '//oauth2/'), path.replace('/oauth2/', '/oauth2%2F'), path.toUpperCase()]) {
+        const response = await request(variant, { cookie, method, ...(method === 'POST' && { body: { client_name: 'x', redirect_uris: [redirectUri], client_id: 'x' } }) })
+        expect([403, 404], `${method} ${variant}`).toContain(response.status)
+      }
+    }
+  })
+})
+
+describe('audiences', () => {
+  it("keeps MCP tokens out of the app's API, and the app's tokens out of MCP", async () => {
+    const { grant, request, authenticate } = await serve()
+    const { cookie, tokens } = await grant()
+    expect((await request('/api/v1/companies', { headers: { authorization: `Bearer ${tokens.access_token}` } })).status).toBe(401)
+    const own = ((await (await request('/api/auth/token', { cookie })).json()) as { token: string }).token
+    // Taken, if not allowed to read companies as sales.
+    expect((await request('/api/v1/companies?page_size=1', { headers: { authorization: `Bearer ${own}` } })).status).toBe(403)
+    await expect(Promise.resolve().then(() => authenticate.forAudience(resource)(resourceRequest(own)))).rejects.toMatchObject({ status: 401 })
+  })
+
+  it("gives an MCP token no session on the app's own endpoints, as Bearer or DPoP", async () => {
+    const { grant, request } = await serve()
+    const { clientId, tokens } = await grant()
+    for (const scheme of ['Bearer', 'DPoP']) {
+      const headers = { authorization: `${scheme} ${tokens.access_token}` }
+      expect(await (await request('/api/auth/get-session', { headers })).json()).toBeNull()
+      expect((await request('/api/auth/token', { headers })).status).toBe(401)
+      expect((await request('/api/auth/account/connected-apps', { headers })).status).toBe(401)
+      expect((await request('/api/auth/account/connected-apps/disconnect', { headers, body: { clientId } })).status).toBe(401)
+    }
+  })
+})
+
+describe('DPoP', () => {
+  it('binds the token to the key of a proof at the token endpoint, and takes it only with a proof from that key', async () => {
+    const { register, signIn, connect, exchange, refresh, authenticate } = await serve()
+    const clientId = await register()
+    const tokenEndpoint = `${origin}/api/auth/oauth2/token`
+    const response = await exchange(clientId, await connect(await signIn('ana@example.com'), clientId), { dpop: await dpopProof(tokenEndpoint) })
+    expect(response.status, await response.clone().text()).toBe(200)
+    const tokens = (await response.json()) as Tokens
+    expect(tokens.token_type).toBe('DPoP')
+    expect(decodeJwt(tokens.access_token).cnf).toEqual({ jkt: await calculateJwkThumbprint(dpopJwk) })
+    const verify = authenticate.forAudience(resource)
+    expect(await verify(resourceRequest(tokens.access_token, 'DPoP', await dpopProof(resource, tokens.access_token)))).toMatchObject({ client: { id: clientId } })
+    await expect(Promise.resolve().then(() => verify(resourceRequest(tokens.access_token)))).rejects.toMatchObject({ status: 401 })
+    const refreshed = await refresh(clientId, tokens.refresh_token!, { dpop: await dpopProof(tokenEndpoint) })
+    expect(refreshed.status, await refreshed.clone().text()).toBe(200)
+    expect(((await refreshed.json()) as Tokens).token_type).toBe('DPoP')
+  })
+})
+
+describe('securing the account', () => {
+  type Served = Awaited<ReturnType<typeof serve>>
+  type Secured = { app: Served; clientId: string; refreshToken: string; cookie: string }
+
+  // A grant of Ana's, one of Bo's, and a route that secures Ana's account; then Ana's client is disconnected and
+  // forgotten, and Bo's keeps working.
+  const securing = async (secure: (served: Secured) => Promise<void>, options: Partial<CreateAuthOptions> = {}) => {
+    const app = await serve(options)
+    const ana = await app.grant('ana@example.com')
+    const bo = await app.grant('bo@example.com')
+    expect(await app.givesCodeSilently(ana.cookie, ana.clientId)).toBe(true)
+    await secure({ app, clientId: ana.clientId, refreshToken: ana.tokens.refresh_token!, cookie: ana.cookie })
+    await app.refused(await app.refresh(ana.clientId, ana.tokens.refresh_token!))
+    expect(await app.consents('ana@example.com')).toEqual([])
+    await app.asksAgain(await app.signIn('ana@example.com'), ana.clientId)
+    expect((await app.refresh(bo.clientId, bo.tokens.refresh_token!)).status).toBe(200)
+    return app
+  }
+
+  const ok = (response: Response) => expect(response.status, `${response.url}`).toBe(200)
+
+  it('by signing out everywhere', async () => {
+    await securing(async ({ app, cookie }) => ok(await app.request('/api/auth/revoke-sessions', { cookie, body: {} })))
+  })
+
+  it('by signing out the other devices', async () => {
+    await securing(async ({ app }) => ok(await app.request('/api/auth/revoke-other-sessions', { cookie: await app.signIn('ana@example.com'), body: {} })))
+  })
+
+  it('by changing the password and signing out the other devices', async () => {
+    await securing(async ({ app, cookie }) => ok(await app.request('/api/auth/change-password', { cookie, body: { currentPassword: password, newPassword: password, revokeOtherSessions: true } })))
+  })
+
+  it('by resetting the password with an emailed link', async () => {
+    const { mailer, last } = recordingMailer()
+    await securing(async ({ app }) => {
+      ok(await app.request('/api/auth/request-password-reset', { body: { email: 'ana@example.com', redirectTo: `${origin}/` } }))
+      const token = /reset-password\/([^?\s"]+)/.exec(await last('ana@example.com'))![1]!
+      ok(await app.request('/api/auth/reset-password', { body: { newPassword: password, token } }))
+    }, { mailer })
+  })
+
+  it('by an admin ending the sessions, banning, setting the password, or marking the address unverified', async () => {
+    const actions = [
+      (userId: string) => ['/api/auth/admin/revoke-user-sessions', { userId }] as const,
+      (userId: string) => ['/api/auth/admin/ban-user', { userId }] as const,
+      (userId: string) => ['/api/auth/admin/set-user-password', { userId, newPassword: password }] as const,
+      (userId: string) => ['/api/auth/admin/update-user', { userId, data: { banned: true } }] as const,
+      (userId: string) => ['/api/auth/admin/update-user', { userId, data: { banned: 'true' } }] as const,
+      (userId: string) => ['/api/auth/admin/update-user', { userId, data: { emailVerified: false } }] as const,
+    ]
+    for (const action of actions) {
+      const app = await securing(async ({ app }) => {
+        const [path, body] = action(await app.userId('ana@example.com'))
+        ok(await app.request(path, { cookie: await app.signIn('root@example.com'), body }))
+        // Lifting the ban, or verifying the address again, brings no client back.
+        await app.store.query(`update "user" set banned = false, email_verified = true where email = 'ana@example.com'`)
+      })
+      expect(app).toBeDefined()
+    }
+  })
+
+  it('by the CLI disabling the user; enabling them again brings no client back', async () => {
+    await securing(async ({ app }) => {
+      await setUserBanned(app.auth, { email: 'ana@example.com', banned: true })
+      await setUserBanned(app.auth, { email: 'ana@example.com', banned: false })
+    })
+  })
+
+  it('but not by an admin refused, or by someone who is not one', async () => {
+    const { grant, request, signIn, userId, refresh, consents } = await serve()
+    const ana = await grant('ana@example.com')
+    const bo = await signIn('bo@example.com')
+    for (const [path, body] of [
+      ['/api/auth/admin/revoke-user-sessions', { userId: await userId('ana@example.com') }],
+      ['/api/auth/admin/ban-user', { userId: await userId('ana@example.com') }],
+      ['/api/auth/admin/update-user', { userId: await userId('ana@example.com'), data: { banned: true } }],
+    ] as const) {
+      expect((await request(path, { cookie: bo, body })).status, path).toBe(403)
+    }
+    expect((await refresh(ana.clientId, ana.tokens.refresh_token!)).status).toBe(200)
+    expect(await consents('ana@example.com')).toHaveLength(1)
+  })
+
+  it('but not by signing out of one browser', async () => {
+    const { grant, request, refresh, consents } = await serve()
+    const { clientId, cookie, tokens } = await grant()
+    expect((await request('/api/auth/sign-out', { cookie, body: {} })).status).toBe(200)
+    expect((await refresh(clientId, tokens.refresh_token!)).status).toBe(200)
+    expect(await consents('ana@example.com')).toHaveLength(1)
+  })
+
+  // Signing out the other devices keeps the session the code came from: the consent check refuses it (`invalid_grant`).
+  // A password change gives the browser a new session, so the code's ended with the others (`invalid_request`).
+  it('also refuses a code issued just before', async () => {
+    const { register, signIn, connect, exchange, request } = await serve()
+    const clientId = await register()
+    const cookie = await signIn('ana@example.com')
+    await exchange(clientId, await connect(cookie, clientId))
+    for (const secure of [
+      () => request('/api/auth/revoke-other-sessions', { cookie, body: {} }),
+      () => request('/api/auth/change-password', { cookie, body: { currentPassword: password, newPassword: password, revokeOtherSessions: true } }),
+    ]) {
+      const code = await connect(cookie, clientId)
+      expect((await secure()).status).toBe(200)
+      const exchanged = await exchange(clientId, code)
+      expect(exchanged.status).toBe(400)
+      expect(await exchanged.json()).not.toHaveProperty('access_token')
+    }
+  })
+})
+
+describe('a grant whose account changed', () => {
+  it('gives no token, nor a refresh token, under prompt=none', async () => {
+    const changes = [
+      `update "user" set email_verified = false where email = 'ana@example.com'`,
+      `update "user" set role = 'accountant' where email = 'ana@example.com'`,
+    ]
+    for (const change of changes) {
+      const { grant, store, authorize, exchange, refused } = await serve()
+      const { clientId, cookie } = await grant()
+      await store.query(change)
+      const { location, verifier } = await authorize(cookie, clientId, { prompt: 'none' })
+      const answered = new URL(location)
+      const code = answered.searchParams.get('code')
+      if (code === null) expect(answered.searchParams.get('error')).toBe('consent_required')
+      else await refused(await exchange(clientId, { code, verifier }))
+      expect((await store.query(`select count(*)::int as count from oauth_refresh_token`)).rows).toEqual([{ count: 1 }])
+    }
+  })
+})
+
+describe('connected apps', () => {
+  type App = { clientId: string; name?: string; allowedAt: string; access: { role: string; organization?: string }[] }
+  const list = async (request: Awaited<ReturnType<typeof serve>>['request'], cookie: string, query = '') =>
+    ((await (await request(`/api/auth/account/connected-apps${query}`, { cookie })).json()) as { apps: App[] }).apps
+
+  it('lists the clients the person allowed, and disconnects one of them', async () => {
+    const { grant, request, signIn, refresh, refused, asksAgain, connect, exchange } = await serve()
+    const first = await grant()
+    const second = await grant('ana@example.com', first.cookie)
+    const apps = await list(request, first.cookie)
+    expect(apps.map((app) => app.clientId).toSorted()).toEqual([first.clientId, second.clientId].toSorted())
+    expect(apps[0]).toMatchObject({ name: 'Test Client', allowedAt: '2026-08-01T00:00:00.000Z', access: [{ role: 'sales' }] })
+    expect(await list(request, await signIn('bo@example.com'))).toEqual([])
+
+    // A code the client got just before is refused after.
+    const code = await connect(first.cookie, first.clientId)
+    expect(await (await request('/api/auth/account/connected-apps/disconnect', { cookie: first.cookie, body: { clientId: first.clientId } })).json()).toEqual({ disconnected: true })
+    await refused(await exchange(first.clientId, code))
+    await refused(await refresh(first.clientId, first.tokens.refresh_token!))
+    await asksAgain(first.cookie, first.clientId)
+    expect((await refresh(second.clientId, second.tokens.refresh_token!)).status).toBe(200)
+    expect((await list(request, first.cookie)).map((app) => app.clientId)).toEqual([second.clientId])
+  })
+
+  it("acts on the person's own grants only, whatever the request names", async () => {
+    const { request, signIn, refresh, userId, connect, exchange } = await serve()
+    // Ana and Bo both allowed the same published client.
+    const allow = async (email: string) => {
+      const cookie = await signIn(email)
+      const tokens = (await (await exchange(cimdClientId, await connect(cookie, cimdClientId))).json()) as Tokens
+      return { cookie, tokens }
+    }
+    const ana = await allow('ana@example.com')
+    const bo = await allow('bo@example.com')
+    expect(await list(request, ana.cookie, `?userId=${await userId('bo@example.com')}`)).toHaveLength(1)
+    const disconnected = await request('/api/auth/account/connected-apps/disconnect', { cookie: ana.cookie, body: { clientId: cimdClientId, userId: await userId('bo@example.com') } })
+    expect([200, 400]).toContain(disconnected.status)
+    expect((await refresh(cimdClientId, bo.tokens.refresh_token!)).status).toBe(200)
+    expect(await list(request, bo.cookie)).toMatchObject([{ clientId: cimdClientId, name: 'Example Client' }])
+  })
+
+  it('disconnects a client never allowed as nothing at all', async () => {
+    const { grant, request } = await serve()
+    const { cookie, clientId, tokens } = await grant()
+    expect(await (await request('/api/auth/account/connected-apps/disconnect', { cookie, body: { clientId: 'never-allowed' } })).json()).toEqual({ disconnected: true })
+    expect((await list(request, cookie)).map((app) => app.clientId)).toEqual([clientId])
+    expect(tokens.refresh_token).toBeTruthy()
+  })
+
+  it('takes no disconnect by GET, and gives no CORS', async () => {
+    const { grant, request } = await serve()
+    const { cookie, clientId } = await grant()
+    expect([404, 405]).toContain((await request(`/api/auth/account/connected-apps/disconnect?clientId=${clientId}`, { cookie })).status)
+    const listed = await request('/api/auth/account/connected-apps', { cookie, from: 'https://evil.example' })
+    expect(listed.headers.get('access-control-allow-origin')).toBeNull()
+    expect((await list(request, cookie)).map((app) => app.clientId)).toEqual([clientId])
+  })
+})
