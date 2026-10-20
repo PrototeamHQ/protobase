@@ -11,6 +11,17 @@ export const scheduleKey = 'protobase.schedule'
 export const nextRun = (schedule: string, timezone: string, after: Date) =>
   CronExpressionParser.parse(schedule, { currentDate: after, tz: timezone }).next().toDate()
 
+/** Whether a recurring job may take `schedule` in `timezone`: whether cron-parser reads it there. */
+export const isSchedule = (schedule: string, timezone: string) => {
+  try {
+    nextRun(schedule, timezone, new Date())
+    return true
+  } catch (error) {
+    if (!(error instanceof Error)) throw error
+    return false
+  }
+}
+
 /** Whether `at` is a run of `schedule`, so a run left from an earlier schedule can be told apart. */
 export const isRun = (schedule: string, timezone: string, at: Date) => nextRun(schedule, timezone, new Date(at.getTime() - 1)).getTime() === at.getTime()
 

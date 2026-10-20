@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { defineJob } from './define-job'
-import { isRun, nextRun, runId } from './schedule'
+import { isRun, isSchedule, nextRun, runId } from './schedule'
 
 const at = (iso: string) => new Date(iso)
 
@@ -12,6 +12,15 @@ describe('nextRun', () => {
     // The night clocks go back in Amsterdam: 07:00 is an hour later in UTC from then on.
     expect(nextRun('0 7 * * *', 'Europe/Amsterdam', at('2026-10-25T00:00:00Z'))).toEqual(at('2026-10-25T06:00:00Z'))
     expect(nextRun('*/30 * * * * *', 'UTC', at('2026-10-11T07:00:10Z'))).toEqual(at('2026-10-11T07:00:30Z'))
+  })
+})
+
+describe('isSchedule', () => {
+  it('takes cron schedules of five or six fields, in a zone cron-parser knows', () => {
+    expect(isSchedule('0 3 * * *', 'UTC')).toBe(true)
+    expect(isSchedule('*/30 * * * * *', 'Europe/Amsterdam')).toBe(true)
+    expect(isSchedule('30 seconds', 'UTC')).toBe(false)
+    expect(isSchedule('0 3 * * *', 'Mars/Olympus')).toBe(false)
   })
 })
 

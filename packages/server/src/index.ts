@@ -116,6 +116,7 @@ export { aspectRatio, fileSize, fileType, imageSize, processor } from './files/p
 export { defineJob, jobDefinitions, isJobDefinition } from './jobs/define-job'
 export type { EnqueueOptions, JobContext, JobDefinition, JobOptions } from './jobs/job-types'
 export { FatalJobError } from './jobs/run-job'
+export { isSchedule } from './jobs/schedule'
 export type { Mailer, MailMessage } from './mail/smtp-mailer'
 export { defineEmail, type EmailComponent, type EmailOptions, type EmailTemplate, type RenderedEmail } from './mail/define-email'
 export { startJobs, type DrainResult, type JobsRuntime, type StartJobsOptions } from './jobs/runtime'
