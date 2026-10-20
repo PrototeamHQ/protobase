@@ -7,6 +7,7 @@ import { cardPhotosErrors } from './view-card-photos'
 import { openErrors, relatedErrors } from './view-related'
 import { relatedColumnErrors } from './view-related-column'
 import { searchesOfFor } from './view-saved-search'
+import { actionWhenFields } from './view-action-when'
 
 type Of<U, K extends string> = Extract<U, { kind: K }>
 
@@ -177,6 +178,9 @@ const aiShape = (model: ResourceModel) =>
 const inputsShape = (models: Record<string, ResourceModel>) =>
   s.map<ActionInputModel[]>((inputs) => (inputs.every((input) => input.resource === undefined || Object.hasOwn(models, input.resource)) ? inputs : undefined))
 
+// An action whose condition reads a field the caller cannot read goes: the app could not tell where it applies.
+const actionWhenShape = (model: ResourceModel) => s.map<string>((when) => (actionWhenFields(when).every((name) => Object.hasOwn(model.fields, name)) ? when : undefined))
+
 const actionShape = (model: ResourceModel, models: Record<string, ResourceModel>, createPages: ReadonlySet<string>) =>
   s.object<ActionModel>(
     {
@@ -185,6 +189,10 @@ const actionShape = (model: ResourceModel, models: Record<string, ResourceModel>
       icon: s.data,
       confirm: s.data,
       bulk: s.data,
+      when: actionWhenShape(model),
+      otherwise: s.data,
+      reason: s.data,
+      variant: s.data,
       run: s.oneOf<ActionRun>({
         update: s.object<Of<ActionRun, 'update'>>({ kind: s.data, values: s.keys({ all: true }) }, { requires: ['values'] }),
         delete: s.data,
@@ -193,7 +201,7 @@ const actionShape = (model: ResourceModel, models: Record<string, ResourceModel>
       }),
       inputs: inputsShape(models),
     },
-    { requires: ['run', 'inputs'] },
+    { requires: ['run', 'inputs', 'when'] },
   )
 
 // Every part of a view, and what a field the caller cannot read does to it. The compiler wants a shape for each part,

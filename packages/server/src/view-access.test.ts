@@ -89,6 +89,15 @@ describe('pruneView', () => {
     expect(actions(without({ repairs: ['status'] }))).toEqual([])
   })
 
+  it("keeps an action's condition, and leaves the action out when the caller cannot read a field it reads", () => {
+    const repairsView = view<typeof repairs>('repairs')
+      .actions((a) => [a.update('ready', { label: 'Ready', when: "status = 'booked' AND urgent", otherwise: 'disable', reason: 'Not booked', variant: 'danger', set: { status: 'ready' } })])
+      .toModel()
+    const actions = (models: Record<string, ResourceModel>) => pruneView(repairsView, models.repairs!, models).actions
+    expect(actions(all)).toEqual(repairsView.actions)
+    expect(actions(without({ repairs: ['urgent'] }))).toEqual([])
+  })
+
   it('keeps an action with inputs whole, and leaves it out when a choice picks records the caller cannot see', () => {
     const repairsView = view<typeof repairs>('repairs')
       .actions((a) => [

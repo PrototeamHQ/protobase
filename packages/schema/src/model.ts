@@ -1066,14 +1066,27 @@ export type ActionModel = {
   /** The button's label. */
   label: string
   /**
-   * The button's icon: `ban`, `bath`, `bed`, `bell`, `bookmark`, `calendar`, `door-open`, `external-link`, `file-text`, `heart`,
-   * `house`, `key`, `land-plot`, `leaf`, `ruler`, `send`, `tag` or `wallet`; another name shows a lightning bolt.
+   * The button's icon: `archive`, `arrow-right-left`, `ban`, `bath`, `bed`, `bell`, `bookmark`, `calendar`, `camera`, `copy`, `cpu`,
+   * `door-open`, `download`, `external-link`, `file-text`, `hard-drive`, `heart`, `house`, `key`, `land-plot`, `leaf`, `memory`,
+   * `network`, `play`, `plug`, `power`, `restart`, `ruler`, `send`, `server`, `stop`, `tag`, `terminal`, `upload`, `wallet` or
+   * `wrench`; another name shows a lightning bolt.
    */
   icon?: string
   /** The question the button asks before it runs the action. */
   confirm?: string
-  /** Whether the action is meant for several records at once (`a.action`'s `bulk`). */
+  /** Whether the action is offered for the rows selected in the list, running on each it applies to (`bulk`). */
   bulk: boolean
+  /**
+   * An AIP-160 condition over the record's own fields, as `status = 'running'`, for the records the action applies to.
+   * It only decides what the buttons show; the API's access rules decide what may run.
+   */
+  when?: string
+  /** What the button does on a record `when` does not hold for: it is left out, or shown disabled with `reason`. */
+  otherwise?: 'hide' | 'disable'
+  /** Why the button is disabled on a record `when` does not hold for, shown to the user. */
+  reason?: string
+  /** `danger` draws an action that destroys or interrupts something, such as Force off, in red. */
+  variant?: 'danger'
   /** What it does; without it the app runs the handler registered under `name`. */
   run?: ActionRun
   /** What the button asks for in a dialog before the action runs: a handler gets the answers as `values`, an update writes them through `set`. */

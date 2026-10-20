@@ -10,6 +10,7 @@ import { mapDisplayErrors, mapErrors } from './view-map'
 import { relatedActionErrors, relatedErrors } from './view-related'
 import { relatedColumnErrors } from './view-related-column'
 import { editableErrors } from './view-editable'
+import { actionWhenErrors, actionWhenFields } from './view-action-when'
 
 // The fields a link action takes from the record.
 const linkFields = (run: ActionRun | undefined) => (run?.kind !== 'link' ? [] : 'to' in run ? addressPlaceholders(run.to) : hrefPlaceholders(run.href))
@@ -35,7 +36,7 @@ const sensitiveErrors = (view: ViewModel, model: ResourceModel) => {
     ['a map', layoutItems(view.layout).flatMap((item) => (item.kind === 'map' ? [item.latitude, item.longitude] : []))],
     ['a gallery', layoutItems(view.layout).flatMap((item) => (item.kind === 'gallery' && item.image !== undefined ? [item.image] : []))],
     ['the recent records', view.nav?.recent ? [view.nav.recent.status] : []],
-    ['an action', view.actions.flatMap((action) => actionFields(action.run))],
+    ['an action', view.actions.flatMap((action) => [...actionFields(action.run), ...actionWhenFields(action.when)])],
   ]
   return uses.flatMap(([place, names]) => [...new Set(names.filter(sensitive))].map((name) => `sensitive field "${name}" cannot be in ${place}`))
 }
@@ -191,7 +192,7 @@ const listOfErrors = (model: ResourceModel, name: string, models: Record<string,
  * has a section, related section or sidebar whose `when` condition names what the app does not have, a related section or related list column, a cards display's or gallery's photos or a cards display's favorite button, a `listOf`, a "Save search" button or a
  * `searchesOf` that do not fit the resources, cards
  * displays of one list that name different photos, a chart per value that cannot group or add up its fields, a map that cannot show the
- * record's position or a map display that cannot find the records in its view, a board whose columns are no filterable enum, a calendar or timeline whose dates are no filterable date or timestamp fields, a link to an address the app does not have, an AI action that cannot write its field, action inputs that do not fit, or a create page that is not one of `pages`.
+ * record's position or a map display that cannot find the records in its view, a board whose columns are no filterable enum, a calendar or timeline whose dates are no filterable date or timestamp fields, a link to an address the app does not have, an action whose `when` reads what the record does not have, an AI action that cannot write its field, action inputs that do not fit, or a create page that is not one of `pages`.
  */
 export const checkViews = (registry: Registry, views: ViewModel[], pages: readonly string[] = [], fieldTypes: Readonly<Record<string, readonly string[]>> = {}) => {
   const models = Object.fromEntries(registry.entries.map((entry) => [entry.name, entry.model]))
@@ -228,7 +229,7 @@ export const checkViews = (registry: Registry, views: ViewModel[], pages: readon
     const chart = view.chart ? chartErrors(view.chart, model).map((error) => `chart: ${error}`) : []
     const history = model.history ? [] : layoutItems(view.layout).flatMap((item) => (item.kind === 'history' ? [`history "${item.title}" needs .history() on resource "${view.resource}"`] : []))
     const comments = model.comments ? [] : layoutItems(view.layout).flatMap((item) => (item.kind === 'comments' ? [`comments "${item.title}" needs .comments() on resource "${view.resource}"`] : []))
-    return [...sensitiveErrors(view, model), ...unknownFieldErrors(view, model), ...valueLabelErrors(view, model), ...valueColorErrors(view, model), ...textHintErrors(view, model), ...listEditErrors(view, model), ...widgetErrors(view, model, fieldTypes), ...related, ...conditionErrors(view, models), ...photos, ...favorites, ...listOf, ...searches, ...maps, ...history, ...comments, ...boards, ...calendars, ...chart, ...linkErrors(view, model, models, pageNames, createPages), ...aiActionErrors(view, model), ...inputErrors(view, models), ...createErrors(view, pageNames)]
+    return [...sensitiveErrors(view, model), ...unknownFieldErrors(view, model), ...valueLabelErrors(view, model), ...valueColorErrors(view, model), ...textHintErrors(view, model), ...listEditErrors(view, model), ...widgetErrors(view, model, fieldTypes), ...related, ...conditionErrors(view, models), ...photos, ...favorites, ...listOf, ...searches, ...maps, ...history, ...comments, ...boards, ...calendars, ...chart, ...linkErrors(view, model, models, pageNames, createPages), ...aiActionErrors(view, model), ...actionWhenErrors(view, model), ...inputErrors(view, models), ...createErrors(view, pageNames)]
   }
   // A named list is checked as a view of its own, without the record page, which the view's own check covers
   const problems = views.flatMap((view) => {
