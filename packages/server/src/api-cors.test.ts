@@ -51,10 +51,21 @@ describe('apiCors', () => {
     expect(response.status).toBe(204)
     expect(Object.fromEntries(response.headers)).toMatchObject({
       'access-control-allow-origin': own,
-      'access-control-allow-headers': 'authorization,content-type,if-match,if-none-match',
+      'access-control-allow-headers': 'authorization,content-type,if-match,if-none-match,apikey,x-client-info,x-supabase-api-version',
       'access-control-allow-methods': 'GET,HEAD,POST,PUT,PATCH,DELETE',
       'access-control-max-age': '600',
     })
+  })
+
+  it('answers supabase-js\'s preflight of a sign-in at `/auth/v1`', async () => {
+    const hono = new Hono()
+    hono.use('/auth/v1/*', apiCors({ own: [own], allowed: ['https://shop.vercel.app'], skip: () => false }))
+    hono.post('/auth/v1/token', (c) => c.json({ access_token: 'token' }))
+    const headers = { 'access-control-request-method': 'POST', 'access-control-request-headers': 'apikey,authorization,content-type,x-client-info,x-supabase-api-version' }
+    const response = await hono.request('/auth/v1/token?grant_type=password', from('https://shop.vercel.app', { method: 'OPTIONS', headers }))
+    expect(response.status).toBe(204)
+    expect(response.headers.get('access-control-allow-origin')).toBe('https://shop.vercel.app')
+    expect(response.headers.get('access-control-allow-headers')?.split(',')).toEqual(expect.arrayContaining(headers['access-control-request-headers'].split(',')))
   })
 
   it('leaves the paths it skips alone', async () => {

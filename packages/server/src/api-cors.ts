@@ -18,8 +18,9 @@ export const readCorsOrigins = (env: Record<string, string | undefined>): CorsOr
   })
 }
 
-// Bearer tokens, not cookies, so no credentials. A write sends its ETag back in `If-Match`, `/meta` in `If-None-Match`.
-const allowHeaders = ['authorization', 'content-type', 'if-match', 'if-none-match']
+// Bearer tokens, not cookies, so no credentials. A write sends its ETag back in `If-Match`, `/meta` in `If-None-Match`;
+// supabase-js sends the app's key in `apikey` and names itself in `x-client-info` and `x-supabase-api-version`.
+const allowHeaders = ['authorization', 'content-type', 'if-match', 'if-none-match', 'apikey', 'x-client-info', 'x-supabase-api-version']
 const exposeHeaders = ['location', 'etag', 'x-meta-version', 'x-protobase-warning']
 
 export type ApiCorsInput = {

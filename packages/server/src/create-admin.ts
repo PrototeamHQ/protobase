@@ -266,7 +266,10 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], pag
     // Better Auth checks origins itself, and a function with its own `cors` answers for itself.
     const answering = [authBasePath, ...Object.entries(apiFunctions).filter(([, fn]) => fn.options.cors).map(([name]) => `${systemPath}/functions/${name}`)]
     const skip = (path: string) => answering.some((prefix) => path === prefix || path.startsWith(`${prefix}/`))
-    app.use(`${systemPath}/*`, apiCors({ own: ownOrigins, allowed: corsOrigins ?? [], skip }))
+    const cors = apiCors({ own: ownOrigins, allowed: corsOrigins ?? [], skip })
+    app.use(`${systemPath}/*`, cors)
+    // supabase-js on the app's other origins, or another website, signs in at `/auth/v1` too.
+    if (auth && !goTruePath.startsWith(`${systemPath}/`)) app.use(`${goTruePath}/*`, cors)
   }
   if (auth) {
     app.route(authBasePath, statusRoute(auth, { anonymous: visitorsBrowse(options.roles), plugins: pluginsBeforeSignIn(plugins), ...(locale && { locale }) }))
