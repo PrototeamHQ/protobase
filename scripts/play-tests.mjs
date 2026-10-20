@@ -40,21 +40,25 @@ const playStory = async (story) => {
     if (error instanceof playwrightErrors.TimeoutError) return undefined
     throw error
   })
+  // A story whose own message hides the cause, such as a module import that failed, still says whether the network
+  // changed under it.
+  const networkChanged = () => logged.some((line) => line.includes('net::ERR_NETWORK_CHANGED'))
   if (!settled) {
     await page.close()
-    return { name: 'noStoryEvent', message: logged.join('\n  ') || 'Storybook sent no event within 30 s' }
+    return { name: 'noStoryEvent', message: logged.join('\n  ') || 'Storybook sent no event within 30 s', networkChanged: networkChanged() }
   }
   const events = await page.evaluate(() => window.__sbEvents.map((event) => ({ name: event.name, message: String(event.payload?.message ?? event.payload?.description ?? '') })))
   await page.close()
   const error = events.find((event) => event.name !== 'storyRendered')
-  return error && !error.message ? { ...error, message: logged.join('\n  ') } : error
+  if (!error) return undefined
+  return { ...error, message: error.message || logged.join('\n  '), networkChanged: networkChanged() }
 }
 
 // Chromium aborts every request in flight when the host's network changes, such as another job on the CI host starting a
 // container network; a story whose files were aborted that way plays once more, any other failure stands.
 const playStoryWithRetry = async (story) => {
   const error = await playStory(story)
-  return error?.message.includes('net::ERR_NETWORK_CHANGED') ? playStory(story) : error
+  return error?.networkChanged ? playStory(story) : error
 }
 
 // Four pages at a time: a story mostly waits on rendering. Results print in story order.
