@@ -62,6 +62,21 @@ describe('betterAuthOptions', () => {
     expect((await before(base)(user, null)).data).toEqual(user)
   })
 
+  it("makes a random UUID for a new user's id with generateUserId 'uuid'", async () => {
+    const before = betterAuthOptions({ ...base, generateUserId: 'uuid' }, resolved).databaseHooks.user.create.before as (user: object, context: null) => Promise<{ data: { id: string } }>
+    const { data } = await before({ email: 'rep@example.com', name: 'Rep', role: 'user' }, null)
+    expect(data.id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/)
+  })
+
+  it('accepts the extra password hashes, and rehashes them on sign-in, only when asked', () => {
+    const options = betterAuthOptions({ ...base, passwordHashes: ['bcrypt'] }, resolved)
+    expect(options.emailAndPassword).toMatchObject({ minPasswordLength: 12, password: { verify: expect.any(Function) } })
+    expect(options.plugins.map((plugin) => plugin.id)).toContain('protobase-rehash-passwords')
+    const plain = betterAuthOptions(base, resolved)
+    expect(plain.emailAndPassword).not.toHaveProperty('password')
+    expect(plain.plugins.map((plugin) => plugin.id)).not.toContain('protobase-rehash-passwords')
+  })
+
   it('answers each of several origins for its own host, with baseURL as issuer and passkeys on its host', () => {
     const options = betterAuthOptions(base, { ...resolved, origins: ['https://admin.shop.com'] })
     expect(options.baseURL).toEqual({ allowedHosts: ['admin.example.com', 'admin.shop.com'], fallback: 'https://admin.example.com', protocol: 'https' })

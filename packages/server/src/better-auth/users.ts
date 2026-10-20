@@ -23,7 +23,8 @@ const checkRoles = (auth: AdminAuth, role: string) => {
 /** An account at a sign-in provider, as Better Auth keys it: `{ providerId: 'github', accountId: '<GitHub user id>' }`. */
 export type LinkedAccount = { providerId: string; accountId: string }
 
-export type NewUser = { email: string; password: string; name?: string; role?: string; accounts?: LinkedAccount[] }
+/** `metadata` lands in the user metadata column, which `createAuth`'s `users.metadata` names; it needs one. */
+export type NewUser = { email: string; password: string; name?: string; role?: string; accounts?: LinkedAccount[]; metadata?: Record<string, unknown> }
 export type StoredUser = { id: string; email: string; role: string; banned: boolean; createdAt: string }
 
 /** Whether the admin store has any user yet. */
@@ -53,7 +54,7 @@ export const createUser = async (auth: AdminAuth, input: NewUser) => {
   const accounts = input.accounts ?? []
   await checkAccounts(auth, accounts)
   const { user } = await auth.api.createUser({
-    body: { email: input.email, password: input.password, name: input.name ?? input.email.split('@')[0]!, role: role as 'user' | 'admin' },
+    body: { email: input.email, password: input.password, name: input.name ?? input.email.split('@')[0]!, role: role as 'user' | 'admin', ...(input.metadata && { data: { metadata: input.metadata } }) },
   })
   const { internalAdapter } = await auth.$context
   for (const account of accounts) await internalAdapter.linkAccount({ userId: user.id, ...account })

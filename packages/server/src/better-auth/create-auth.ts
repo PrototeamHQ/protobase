@@ -28,8 +28,10 @@ import { emailInDomains, resolveSamlProviders, samlDisabledPaths, samlGuardPlugi
 import { emailCodeOptions, twoFactorCodeOptions, unusedEmailCodePaths } from './sign-in-mail'
 import { signUpPaths, signUpPlugin } from './sign-up/sign-up-plugin'
 import { coreNames, pluginNames } from './snake-case-names'
+import { rehashPasswordsPlugin, verifyAcceptedHash, type PasswordHash } from './password-hashes'
 import { staffSignInPlugin } from './staff-plugin'
 import { twoFactorAfterPasswordOrCode } from './two-factor-challenge'
+import { metadataField, userFieldsNamed, userModel, userTable, withUserColumns, type UserTableOptions } from './user-table'
 import { usersPlugin } from './users/users-plugin'
 
 export type CreateAuthOptions = {
@@ -99,9 +101,22 @@ export type CreateAuthOptions = {
   onUserCreated?: UserCreatedHook
   /**
    * The id of a new user, by any route. Default Better Auth's random 32-character text. `.owner()` fields hold it: a
-   * `text` column for the default, or an integer column when this takes the next value of the app's own users sequence.
+   * `text` column for the default, an integer column when this takes the next value of the app's own users sequence,
+   * or a `uuid` column with `'uuid'`, which makes a random UUID.
    */
-  generateUserId?: () => string | Promise<string>
+  generateUserId?: (() => string | Promise<string>) | 'uuid'
+  /**
+   * The user table, when it is one another system made, such as Supabase's `auth.users`: its name, the columns named
+   * otherwise than Protobase names them, and a JSON column for each user's metadata, for example `{ table: 'users',
+   * columns: { role: 'app_role' }, metadata: 'raw_user_meta_data' }`. The other tables keep their names. Default the
+   * table `protobase auth migration` makes.
+   */
+  users?: UserTableOptions
+  /**
+   * Password hashes another system wrote that sign-in accepts besides Better Auth's own, such as `['bcrypt']` for
+   * Supabase Auth's. The first sign-in with one stores the password again as Better Auth hashes it. Default none.
+   */
+  passwordHashes?: PasswordHash[]
   /**
    * The identity provider the operator's staff sign in with to sign in as people of this app, for support. Defaults
    * to the one the platform passes in `PROTOBASE_OPERATOR_ISSUER`, `PROTOBASE_OPERATOR_CLIENT_ID` and
@@ -184,6 +199,9 @@ type Resolved = {
   context?: () => Promise<AuthContext>
 }
 
+// Made in code, since a table another system made, such as Supabase's `auth.users`, may have no default for its ids.
+const newUserId = (generate: NonNullable<CreateAuthOptions['generateUserId']>) => (generate === 'uuid' ? crypto.randomUUID() : generate())
+
 const noContext = () => Promise.reject(new Error('The auth context is read only once createAuth has made the instance'))
 
 // With organizations, the active organization starts as the last one and a member's token carries it; the
@@ -200,6 +218,9 @@ export const betterAuthOptions = (options: CreateAuthOptions, { origins = [], pa
   const hosts = passkeyHosts([options.baseURL, ...origins])
   const mail = mailer && { mailer, appName, baseURL: options.baseURL }
   const samlIds = saml.map((provider) => provider.id)
+  const users = userTable(options.users)
+  const passwordHashes = options.passwordHashes ?? []
+  const userFields = { ...(organizations && userFieldsNamed(lastOrganizationField, users)), ...metadataField(users) }
   return {
     appName,
     database: options.database,
@@ -207,9 +228,16 @@ export const betterAuthOptions = (options: CreateAuthOptions, { origins = [], pa
     basePath: authBasePath,
     secret: options.secret,
     trustedOrigins: [options.baseURL, ...origins, ...(options.trustedOrigins ?? [])],
-    emailAndPassword: { enabled: true, disableSignUp: true, minPasswordLength: 12, ...(mail && passwordResetOptions(mail)) },
+    // The minimum length holds for new passwords only: one another system accepted signs in as it is.
+    emailAndPassword: {
+      enabled: true,
+      disableSignUp: true,
+      minPasswordLength: 12,
+      ...(passwordHashes.length > 0 && { password: { verify: verifyAcceptedHash(passwordHashes) } }),
+      ...(mail && passwordResetOptions(mail)),
+    },
     ...(options.socialProviders && { socialProviders: options.socialProviders }),
-    user: organizations ? { ...coreNames.user, additionalFields: lastOrganizationField } : coreNames.user,
+    user: Object.keys(userFields).length > 0 ? { ...userModel(users), additionalFields: userFields } : userModel(users),
     session: coreNames.session,
     verification: coreNames.verification,
     account: {
@@ -264,7 +292,8 @@ export const betterAuthOptions = (options: CreateAuthOptions, { origins = [], pa
         invitationSeconds: organizations?.invitationExpiresIn ?? defaultInvitationSeconds,
         ...(organizations && { organizations }),
       }),
-    ],
+      ...(passwordHashes.length > 0 ? [rehashPasswordsPlugin(passwordHashes)] : []),
+    ].map((plugin) => withUserColumns(plugin, users)),
     disabledPaths: [...unusedEmailCodePaths, ...adminImpersonationPaths, ...(organizations ? organizationPaths : []), ...(saml.length > 0 ? samlDisabledPaths : [])],
     databaseHooks: {
       user: {
@@ -280,7 +309,7 @@ export const betterAuthOptions = (options: CreateAuthOptions, { origins = [], pa
             if (samlProvider && !emailInDomains(user.email, samlProvider.domains)) {
               throw new APIError('FORBIDDEN', { code: 'EMAIL_DOMAIN_NOT_ALLOWED', message: 'This address is not one the identity provider may sign up.' })
             }
-            const withId = options.generateUserId ? { ...user, id: await options.generateUserId() } : user
+            const withId = options.generateUserId ? { ...user, id: await newUserId(options.generateUserId) } : user
             // An admin, or the host, creates the account for an address they vouch for; so does a SAML provider, at its domains.
             return { data: context?.path === '/admin/create-user' || samlProvider ? { ...withId, emailVerified: true } : withId }
           },

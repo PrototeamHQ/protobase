@@ -2,9 +2,8 @@
 // keep Better Auth's camelCase names; only the store's tables and columns are named here. A name missing from these
 // maps keeps Better Auth's, which is lowercase already (`user`, `token`, `scope`, ...).
 
-/** Better Auth's own tables, as its `user`, `session`, `account` and `verification` options name them. */
+/** Better Auth's own tables, as its `session`, `account` and `verification` options name them; the user table's are in `user-table.ts`. */
 export const coreNames = {
-  user: { fields: { emailVerified: 'email_verified', createdAt: 'created_at', updatedAt: 'updated_at' } },
   session: {
     fields: { expiresAt: 'expires_at', createdAt: 'created_at', updatedAt: 'updated_at', ipAddress: 'ip_address', userAgent: 'user_agent', userId: 'user_id' },
   },
