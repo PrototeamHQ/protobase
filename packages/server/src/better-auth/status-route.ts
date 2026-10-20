@@ -17,7 +17,7 @@ import { hasUsers } from './users'
  * operator provider's name, when staff can sign in as people; `passkeyDomains`, when people have passkeys for more than
  * one of the app's hosts, the RP IDs a passkey sign-in can ask for, the passkey domain first; with organizations, who may create them and the roles
  * with their labels, `membership` for those a member can hold, and the roles each one's holders may also give; and
- * `anonymous` when the project's anonymous role reads a resource, so the admin app opens for visitors before anyone signs in; and
+ * `anonymous` when the project's anonymous role reads a resource, so the admin app opens for visitors before anyone signs in; `mcp` when MCP clients can connect, so the account page lists the connected ones; and
  * `plugins`, those the app loads before sign-in (see `PluginOption`); and `locale`, the language `options.locale` puts
  * the screens in, so the sign-in screens and public forms, which come before `/meta`, are in it too.
  */
@@ -44,6 +44,7 @@ export const statusRoute = (auth: AdminAuth, { anonymous = false, plugins = [], 
       ...(staffSignIn && { staffSignIn }),
       ...(passkeyDomains.length > 1 && { passkeyDomains }),
       ...(anonymous && { anonymous }),
+      ...(auth.mcp && { mcp: true }),
       ...(plugins.length > 0 && { plugins }),
       ...(locale && { locale }),
       ...(auth.organizations && {

@@ -3,10 +3,12 @@ import { fetchClientMetadataResource } from '@better-auth/cimd/node'
 import { mcp } from '@better-auth/mcp'
 import type { ClientMetadataResourceFetch } from '@better-auth/oauth-provider'
 import { connectRoute } from '@protobase/schema'
+import type { RoleDefinitions } from '../organizations/role-definitions'
 import type { AuthContext } from '../organizations/store'
 import type { RoleSession } from '../roles/session-role'
 import { pluginNames } from '../snake-case-names'
 import { mcpConsentCheck } from './consent-check'
+import { mcpConnectedApps } from './connected-apps'
 import { consentReference } from './consent-reference'
 import { mcpTokenClaims } from './mcp-token-claims'
 import { mcpRequestDefaults } from './request-defaults'
@@ -78,6 +80,8 @@ export type McpAuthPluginsOptions = {
   organizations: boolean
   /** Mail can be sent, as the sign-in policy reads it. */
   mail: boolean
+  /** The roles with their labels, for the list of connected apps. */
+  definitions: RoleDefinitions
   /** The auth context once the instance exists. */
   context: () => Promise<AuthContext>
 }
@@ -85,11 +89,12 @@ export type McpAuthPluginsOptions = {
 /**
  * The Better Auth plugins of an OAuth provider for MCP clients, after the `jwt` plugin, in this order: the guard on
  * signed queries, the request defaults, the setup gate, the provider (`mcp()`), and client metadata documents
- * (`cimd()`), then the revocation when the account is secured (`mcpGrantRevocation`). A client registers itself, the person signs in on the app's own pages and allows it on the connect
+ * (`cimd()`), the revocation when the account is secured (`mcpGrantRevocation`), and the person's list of connected
+ * apps, where they disconnect one (`mcpConnectedApps`). A client registers itself, the person signs in on the app's own pages and allows it on the connect
  * page, and the client gets 15-minute access tokens for the MCP resource only, with refresh tokens, carrying the role
  * and organization the person worked in when they allowed it.
  */
-export const mcpAuthPlugins = ({ mcp: resolved, organizations, mail, context }: McpAuthPluginsOptions) => [
+export const mcpAuthPlugins = ({ mcp: resolved, organizations, mail, definitions, context }: McpAuthPluginsOptions) => [
   mcpSignedQueryGuard(),
   mcpRequestDefaults(resolved.resource),
   mcpSetupGate({ mail, connectPage: resolved.connectPage }),
@@ -117,4 +122,5 @@ export const mcpAuthPlugins = ({ mcp: resolved, organizations, mail, context }: 
   }),
   cimd({ fetchClientMetadataResource: resolved.fetchClientMetadata, metadataProfile: 'mcp-2026-07-28' }),
   mcpGrantRevocation(),
+  mcpConnectedApps({ definitions }),
 ]

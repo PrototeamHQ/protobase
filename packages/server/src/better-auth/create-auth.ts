@@ -326,7 +326,7 @@ export const betterAuthOptions = (options: CreateAuthOptions, { origins = [], pa
       }),
       ...(passwordHashes.length > 0 ? [rehashPasswordsPlugin(passwordHashes)] : []),
       // Last, so the staff plugin refuses staff sessions on the provider's paths before its own hooks run.
-      ...(mcp ? mcpAuthPlugins({ mcp, organizations: Boolean(organizations), mail: Boolean(mailer), context }) : []),
+      ...(mcp ? mcpAuthPlugins({ mcp, organizations: Boolean(organizations), mail: Boolean(mailer), definitions, context }) : []),
     ].map((plugin) => withUserColumns(plugin, users)),
     disabledPaths: [...unusedEmailCodePaths, ...adminImpersonationPaths, ...(organizations ? organizationPaths : []), ...(saml.length > 0 ? samlDisabledPaths : []), ...(mcp ? mcpUnusedPaths : [])],
     databaseHooks: {
