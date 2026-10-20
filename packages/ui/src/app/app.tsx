@@ -2,6 +2,9 @@ import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import type { AssistantClient, AuthSession, Client, RuntimeClient } from '@protobase/client'
 import { accountMenuItems, accountSecurityPath, signInPolicyPath } from '../account/account-pages'
 import { AccountSecurityPage } from '../account/account-security-page'
+import { connectRoute, type SignInPromptModel } from '@protobase/schema'
+import { SignInPrompt } from '../auth/sign-in-prompt'
+import { ConnectPage } from '../connect/connect-page'
 import { SignInPolicyPage } from '../account/sign-in-policy-page'
 import { AppShell, type SidebarMode } from '../app-shell'
 import { ApiProvider } from '../data/api-provider'
@@ -92,6 +95,9 @@ const placeOf = (address: CurrentAddress | undefined) => {
 }
 const recordOf = (address: CurrentAddress | undefined) => (address?.kind === 'record' ? address : undefined)
 
+// A visitor who opens the connect page signs in first; signing in comes back to it, request and all.
+const connectPrompt: SignInPromptModel = { title: 'Sign in to connect an app', description: 'An app asks to act as you here. Sign in, then choose whether to allow it.' }
+
 const Routes = ({ workspace, sidebarMode, assistant, runtime }: Pick<AppProps, 'workspace' | 'sidebarMode' | 'assistant' | 'runtime'>) => {
   const meta = useAdminMeta()
   const { state, session, signOut, stopStaffSession, organizations: organizationSettings } = useAuth()
@@ -158,13 +164,15 @@ const Routes = ({ workspace, sidebarMode, assistant, runtime }: Pick<AppProps, '
   const outsideOrganizations = Boolean(organizationSettings) && current !== undefined && !current.organization
   const organizationPage = organizationSettings && user ? organizationPageTitle(path) : undefined
   // The account pages are the app's own, under `/-/`; everything else is a page or a resource.
-  const accountPage = !user ? undefined : path === accountSecurityPath ? appText('signInSecurity') : path === signInPolicyPath ? appText('signInPolicy') : organizationPage
+  const accountPage = path === connectRoute ? 'Connect an app' : !user ? undefined : path === accountSecurityPath ? appText('signInSecurity') : path === signInPolicyPath ? appText('signInPolicy') : organizationPage
   const resourceLabel = view?.names?.plural ?? (resource && humanize(resource))
   const breadcrumb = accountPage ? [accountPage] : breadcrumbFor({ basePath, address, group: group?.label, page, resourceLabel, recordTitle: title, recordLoading: titleLoading })
   const singular = view?.names?.singular ?? (resource && humanize(resource))
   useDocumentTitle(documentTitle(titleParts({ address, page, accountPage, resourceLabel, singular, recordTitle: title, recordLoading: titleLoading }), meta.appName))
   const content =
-    user && path === accountSecurityPath ? (
+    path === connectRoute ? (
+      user ? <ConnectPage email={user.email} appName={meta.appName ?? 'this app'} /> : <SignInPrompt as="page" prompt={connectPrompt} />
+    ) : user && path === accountSecurityPath ? (
       <AccountSecurityPage email={user.email} />
     ) : user && path === signInPolicyPath ? (
       admin ? <SignInPolicyPage /> : <Notice title={appText('adminsOnly')}>{appText('onlyAdminPolicy')}</Notice>

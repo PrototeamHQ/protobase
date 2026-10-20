@@ -1,0 +1,154 @@
+import type { Meta, StoryObj } from '@storybook/react-vite'
+import { expect, fn, userEvent, waitFor, within } from 'storybook/test'
+import { AuthError, createStaticSession, type AuthSession, type ConnectingClient } from '@protobase/client'
+import { AuthProvider } from '../auth/auth-provider'
+import { Router } from '../app/router'
+import { ConnectPage, type ConnectPageProps } from './connect-page'
+
+const meta = { title: 'Connect an app', decorators: [(Story) => <div className="min-h-[480px] bg-surface"><Story /></div>] } satisfies Meta
+export default meta
+
+// What the server signs: the authorization request, its expiry and signature.
+const signed = (clientId: string, redirectUri: string) =>
+  new URLSearchParams({ response_type: 'code', client_id: clientId, redirect_uri: redirectUri, scope: 'mcp offline_access', state: 'st4te', exp: '1790000000', sig: 'c2lnbmF0dXJl' }).toString()
+
+type Args = { client: ConnectingClient; redirectUri: string; refusal?: AuthError; assign: (url: string) => void; isFramed?: () => boolean }
+
+/** Sanne, signed in, on the connect page with the request a client's authorize sent there. */
+const ConnectStory = ({ client, redirectUri, refusal, assign, isFramed }: Args) => {
+  const query = signed(client.client_id, redirectUri)
+  const base = createStaticSession('story-token', { id: 'u-sanne', email: 'sanne@veldhuis-supply.example', name: 'Sanne Veldhuis', role: 'user' })
+  const session: AuthSession = {
+    ...base,
+    connect: {
+      resume: async () => (refusal ? Promise.reject(refusal) : { url: `/-/connect?${query}` }),
+      client: async () => client,
+      answer: async (accept) => ({ url: `${redirectUri}?${accept ? 'code=c0de' : 'error=access_denied'}&state=st4te` }),
+    },
+  }
+  const props: ConnectPageProps = { email: 'sanne@veldhuis-supply.example', appName: 'Veldhuis Supply', assign, ...(isFramed && { isFramed }) }
+  return (
+    <AuthProvider session={session}>
+      <Router initialUrl={`/-/connect?${query}`}>
+        <ConnectPage {...props} />
+      </Router>
+    </AuthProvider>
+  )
+}
+
+const claudeCode = { client_id: 'Wm2Rbc8Hn4kPqZ9vTzA', client_name: 'Claude Code' }
+
+export const AsksForAnAppOnThisComputer: StoryObj<Args> = {
+  tags: ['play'],
+  args: { client: claudeCode, redirectUri: 'http://127.0.0.1:33418/callback', assign: fn() },
+  render: (args) => <ConnectStory {...args} />,
+  play: async ({ canvasElement, args }) => {
+    const canvas = within(canvasElement)
+    await canvas.findByText(/“Claude Code”/)
+    expect(canvas.getByText(/an app on this computer \(port 33418\)/)).toBeVisible()
+    expect(canvas.queryByText(/Published by/)).toBeNull()
+    expect(canvas.getByText(/sanne@veldhuis-supply.example/)).toBeVisible()
+    // Allow takes a click only once the page has been in front for a moment.
+    const allow = canvas.getByRole('button', { name: 'Allow' })
+    expect(allow).toBeDisabled()
+    await waitFor(() => expect(allow).toBeEnabled(), { timeout: 2000 })
+    await userEvent.click(allow)
+    await waitFor(() => expect(args.assign).toHaveBeenCalledWith('http://127.0.0.1:33418/callback?code=c0de&state=st4te'))
+  },
+}
+
+export const AsksForAWebsite: StoryObj<Args> = {
+  tags: ['play'],
+  args: { client: { client_id: 'qHOTkMUfJCgEtTJsgSLXIyAsDNzDZgrf', client_name: 'ChatGPT' }, redirectUri: 'https://chatgpt.com/connector_platform_oauth_redirect', assign: fn() },
+  render: (args) => <ConnectStory {...args} />,
+  play: async ({ canvasElement, args }) => {
+    const canvas = within(canvasElement)
+    expect(await canvas.findByText('chatgpt.com')).toBeVisible()
+    await userEvent.click(canvas.getByRole('button', { name: 'Deny' }))
+    await waitFor(() => expect(args.assign).toHaveBeenCalledWith('https://chatgpt.com/connector_platform_oauth_redirect?error=access_denied&state=st4te'))
+  },
+}
+
+// A custom scheme's "host" is whatever the client chose, so the page shows the whole address, never claude.ai alone.
+export const AsksForAnAppOnThisDevice: StoryObj<Args> = {
+  tags: ['play'],
+  args: { client: { client_id: 'x9Lk2mQ7', client_name: 'Claude' }, redirectUri: 'x-any://claude.ai/cb', assign: fn() },
+  render: (args) => <ConnectStory {...args} />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    expect(await canvas.findByText('x-any://claude.ai/cb')).toBeVisible()
+    expect(canvas.queryByText('claude.ai')).toBeNull()
+  },
+}
+
+export const AsksForAPublishedClient: StoryObj<Args> = {
+  tags: ['play'],
+  args: { client: { client_id: 'https://claude.ai/oauth/mcp-oauth-client-metadata', client_name: 'Claude' }, redirectUri: 'https://claude.ai/api/mcp/auth_callback', assign: fn() },
+  render: (args) => <ConnectStory {...args} />,
+  play: async ({ canvasElement }) => {
+    expect(await within(canvasElement).findByText('Published by claude.ai.')).toBeVisible()
+  },
+}
+
+// A name is the client's own claim: one line of text, its tricks taken out, and no "published by" of its own.
+export const ClientWithAStrangeName: StoryObj<Args> = {
+  tags: ['play'],
+  args: { client: { client_id: 'r4nd0m', client_name: `<b>Claude</b>\nPublished by claude.ai ‮evil${'x'.repeat(5000)}` }, redirectUri: 'http://127.0.0.1:5000/cb', assign: fn() },
+  render: (args) => <ConnectStory {...args} />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    await canvas.findByText(/an app on this computer/)
+    expect(canvas.getByText(/<b>Claude<\/b> Published by claude.ai evil/)).toBeVisible()
+    expect(canvas.queryByText(/^Published by/)).toBeNull()
+    expect(canvas.getByRole('button', { name: 'Allow' })).toBeVisible()
+  },
+}
+
+export const Expired: StoryObj<Args> = {
+  tags: ['play'],
+  args: { client: claudeCode, redirectUri: 'http://127.0.0.1:33418/callback', refusal: new AuthError('invalid signature', 400, 'invalid_signature'), assign: fn() },
+  render: (args) => <ConnectStory {...args} />,
+  play: async ({ canvasElement }) => {
+    expect(await within(canvasElement).findByText('This request has expired: connect again from your app.')).toBeVisible()
+  },
+}
+
+export const StaffRefused: StoryObj<Args> = {
+  tags: ['play'],
+  args: { client: claudeCode, redirectUri: 'http://127.0.0.1:33418/callback', refusal: new AuthError('Staff cannot allow apps to act for a person.', 403, 'STAFF_CANNOT_CONNECT'), assign: fn() },
+  render: (args) => <ConnectStory {...args} />,
+  play: async ({ canvasElement }) => {
+    expect(await within(canvasElement).findByText(/Staff signed in as someone cannot allow apps/)).toBeVisible()
+  },
+}
+
+export const SetupRefused: StoryObj<Args> = {
+  tags: ['play'],
+  args: { client: claudeCode, redirectUri: 'http://127.0.0.1:33418/callback', refusal: new AuthError('Set up what this app requires for signing in first.', 403, 'SIGN_IN_SETUP_REQUIRED'), assign: fn() },
+  render: (args) => <ConnectStory {...args} />,
+  play: async ({ canvasElement }) => {
+    expect(await within(canvasElement).findByText(/Set up what this app requires for signing in first/)).toBeVisible()
+  },
+}
+
+export const AddressNotVerified: StoryObj<Args> = {
+  tags: ['play'],
+  args: { client: claudeCode, redirectUri: 'http://127.0.0.1:33418/callback', refusal: new AuthError('Confirm your address first.', 403, 'ADDRESS_NOT_VERIFIED'), assign: fn() },
+  render: (args) => <ConnectStory {...args} />,
+  play: async ({ canvasElement }) => {
+    expect(await within(canvasElement).findByText(/sign in with a code emailed to you/)).toBeVisible()
+  },
+}
+
+// Inside another site's frame the page asks nothing of the server and offers no Allow.
+export const Framed: StoryObj<Args> = {
+  tags: ['play'],
+  args: { client: claudeCode, redirectUri: 'http://127.0.0.1:33418/callback', assign: fn(), isFramed: () => true },
+  render: (args) => <ConnectStory {...args} />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    expect(canvas.getByText('This page cannot be used inside another site')).toBeVisible()
+    expect(canvas.getByRole('link', { name: 'Open it on its own' })).toHaveAttribute('target', '_blank')
+    expect(canvas.queryByRole('button', { name: 'Allow' })).toBeNull()
+  },
+}
