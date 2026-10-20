@@ -73,7 +73,7 @@ Field hints:
 | `.multiline()` | A text of several lines, such as a description: forms edit it in a box that grows with the text, so the page scrolls rather than the box, and the record page, a page's field blocks and a card's subtitle keep its line breaks (a card shows the first three lines). On the record page and the create form it takes the whole width of its section. Only a text field takes it; the list's table shows the text on one line. |
 | `.markdown()` | Markdown, such as a task's notes: forms edit its source in a box that grows with it, with a Write and Preview switch above it, and store it exactly as typed. The record page, a page's field blocks and the sidebar show it rendered as GitHub does, line breaks kept; raw HTML shows as text, links and images keep only http(s), mailto, tel and relative addresses, and links open in a new tab. A card's subtitle shows its first three lines rendered, its links as text; the list's table and a card's other lines show its text on one line without the marks. On the record page and the create form it takes the whole width of its section. Only a text field takes it, and the renderer loads with the first markdown shown. |
 | `.prefix(text)`, `.suffix(text)`, `.decimals(n)` | Money and measures: `€` and `2` show `€1,234.50`, `.suffix(' m²')` shows `120 m²`. They show wherever the number does: records, cards, table cells, forms and the range filter. |
-| `.icon(name)` | An icon before the value on a card's meta row: `ban`, `bath`, `bed`, `bell`, `bookmark`, `calendar`, `door-open`, `external-link`, `file-text`, `heart`, `house`, `key`, `land-plot`, `leaf`, `ruler`, `send`, `tag` or `wallet`, as for [actions](layouts.md#named-actions)), and above the value in a section of [key facts](#key-facts). Nowhere else shows it. |
+| `.icon(name)` | An icon before the value on a card's meta row: one of the names [actions](layouts.md#named-actions)) take, such as `bed`, `calendar` or `cpu`, and above the value in a section of [key facts](#key-facts). Nowhere else shows it. |
 | `.valueLabels({ value: text })` | How an enum's values read: `r.method.valueLabels({ ideal: 'iDEAL' })`. Only the enum's values are accepted. A value without a label shows as stored (`direct_debit`), so label every value that should read as words. |
 | `.valueColors({ value: '#hex' })`, `.badgeShape('arrow')` | An enum's badges filled with a colour per value (the text turns white or black, whichever reads), and drawn as arrows pointing right, as on a rating scale. The property portal's energy label: `r.energy_label.format('badge').valueColors({ a: '#00a651', g: '#ed1c24' }).badgeShape('arrow')`. Only the enum's values are accepted. |
 | `.widget(name, props?)` | Shows and edits the field with a [field type](plugins.md#field-types)) of the project or a plugin, such as `r.status.widget('steps')` or `r.score.widget('rating', { max: 5 })`; `props` are plain data. Without it, or on a storage type it does not show, the field shows as it would without the hint. |
@@ -991,3 +991,27 @@ Each takes `label`, and optionally `help`, a `default`, `optional: true` to allo
 An empty answer is `null`. Before the handler runs, the dialog refuses a required answer left empty, a number that is none, a date that is not `YYYY-MM-DD` and a text longer than `max`, each under its input. When the handler throws an `ActionInputError` from `@protobase/ui`, such as `new ActionInputError({ email: 'No user has this address' })`, or an API error, such as a [function's](../guides/api-functions.md)) answer, whose errors name an input as their `field`, each message shows under its input and the dialog stays open; another error shows above the inputs. When it resolves, the dialog closes and the action ends as any other: everything shown of the resource reloads and a toast says it is done.
 
 A custom input's component gets the answer as `value` (`null` when empty), `onChange`, `invalid` while its answer is refused, the input's `props` and the `input` itself (`ActionInputProps`), as a [field type's](custom-components.md#field-types)) editor does. Without that component the button is disabled, with the reason as its tooltip. In `/api/meta`, a user who cannot read the resource of a choice does not get the action.
+
+### Where an action applies
+
+`when` limits an action to the records it applies to, with the same [AIP-160](https://google.aip.dev/160) conditions a section's [`when`](#form-and-read-view) takes, over the record's own fields: `status = 'running'`, `status != 'stopped' AND locked = false`. On a record it does not hold for, the button is left out, or, with `otherwise: 'disable'`, shown disabled with `reason` as its tooltip. `variant: 'danger'` draws the button in red, as Delete is, and its question's button too:
+
+```ts
+.actions((a) => [
+  a.update('start', { label: 'Start', icon: 'play', when: "status = 'stopped'", set: { status: 'starting' }, bulk: true }),
+  a.action('reboot', { label: 'Reboot', icon: 'restart', when: "status = 'running'", bulk: true }),
+  a.action('force_off', {
+    label: 'Force off',
+    icon: 'power',
+    when: "status = 'running'",
+    otherwise: 'disable',
+    reason: 'The VM is not running',
+    variant: 'danger',
+    confirm: 'The VM loses what it has not saved.',
+  }),
+])
+```
+
+Besides the record page, the list's row menu offers each named action without `inputs` on the rows it applies to, disabled where it is disabled on the record page, and in red when it is a delete or a danger action; a link is a link there, and is left out where `when` does not hold. An `a.update` or `a.action` with `bulk` and no `inputs` is also offered for the selected rows, as **Start (2)**, while one of them applies: it asks its `confirm` once, runs on each row it applies to, one after another, and its toast says how many it ran on, skipped and failed on. An `a.action`'s handler is called once per row.
+
+A condition reads only the record's own fields, so the list decides it for each row from the row itself: `protobase build` refuses one that names a relation's field (`host_id.name`), counts records (`hosts.count`) or names a field the resource does not have, a disabled button without a `reason`, and a `reason` or `otherwise` without `when`. In `/api/meta`, a user who cannot read a field the condition reads does not get the action. The condition only decides what the buttons show: the resource's [access rules](access.md)) decide what the API lets the user do.
