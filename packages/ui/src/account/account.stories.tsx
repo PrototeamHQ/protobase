@@ -1,7 +1,8 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { expect, fn, userEvent, within } from 'storybook/test'
-import type { SignInPolicyState, StaffSignIn } from '@protobase/client'
+import { AuthError, type SignInPolicyState, type StaffSignIn } from '@protobase/client'
 import { BackupCodes } from './backup-codes'
+import { ConnectedAppsSection, type ConnectedAppsSectionProps } from './connected-apps-section'
 import { PasskeysSection, type PasskeysSectionProps } from './passkeys-section'
 import { SignInProvidersSection, type SignInProvidersSectionProps } from './sign-in-providers-section'
 import { SignInPolicyForm, type SignInPolicyFormProps } from './sign-in-policy-form'
@@ -241,4 +242,52 @@ export const ConnectedAccounts: StoryObj<SignInProvidersSectionProps> = {
 export const ConnectedAccountsLinkRefused: StoryObj<SignInProvidersSectionProps> = {
   args: { providers: [{ id: 'github', name: 'GitHub' }], linked: [], onConnect: fn(async () => undefined), error: 'This GitHub account is linked to someone else here already.' },
   render: (args) => <SignInProvidersSection {...args} />,
+}
+
+const connectedApps: ConnectedAppsSectionProps['apps'] = [
+  { clientId: 'https://claude.ai/oauth/mcp-oauth-client-metadata', name: 'Claude', allowedAt: '2026-10-18T09:30:00.000Z', access: [{ role: 'Sales', organization: 'Acme' }, { role: 'Accountant', organization: 'Acme' }] },
+  { clientId: 'Wm2Rbc8Hn4kPqZ9vTzA', name: 'Claude Code', allowedAt: '2026-10-02T15:40:00.000Z', access: [{ role: 'Sales' }] },
+  { clientId: 'r4nd0m', allowedAt: '2026-09-21T11:00:00.000Z', access: [{ role: 'Sales' }] },
+]
+
+export const ConnectedApps: StoryObj<ConnectedAppsSectionProps> = {
+  tags: ['play'],
+  args: { apps: connectedApps, onDisconnect: fn(async () => undefined) },
+  render: (args) => <ConnectedAppsSection {...args} />,
+  play: async ({ canvasElement, args }) => {
+    const canvas = within(canvasElement)
+    expect(canvas.getByText(/Published by claude.ai/)).toBeVisible()
+    expect(canvas.getByText(/as Sales in Acme, as Accountant in Acme/)).toBeVisible()
+    expect(canvas.getByText('An unnamed app')).toBeVisible()
+    await userEvent.click(canvas.getAllByRole('button', { name: 'Disconnect' })[1]!)
+    const dialog = within(within(document.body).getByRole('dialog', { name: 'Disconnect Claude Code?' }))
+    await userEvent.click(dialog.getByRole('button', { name: 'Disconnect' }))
+    expect(args.onDisconnect).toHaveBeenCalledWith('Wm2Rbc8Hn4kPqZ9vTzA')
+  },
+}
+
+export const NoConnectedApps: StoryObj<ConnectedAppsSectionProps> = {
+  tags: ['play'],
+  args: { apps: [], onDisconnect: fn(async () => undefined) },
+  render: (args) => <ConnectedAppsSection {...args} />,
+  play: async ({ canvasElement }) => {
+    expect(within(canvasElement).getByText(/No apps are connected/)).toBeVisible()
+  },
+}
+
+export const DisconnectRefused: StoryObj<ConnectedAppsSectionProps> = {
+  tags: ['play'],
+  args: {
+    apps: connectedApps.slice(1, 2),
+    onDisconnect: fn(async () => {
+      throw new AuthError("Staff cannot change a person's sign-in or the sign-in policy.", 403, 'STAFF_CANNOT_CHANGE_SIGN_IN')
+    }),
+  },
+  render: (args) => <ConnectedAppsSection {...args} />,
+  play: async ({ canvasElement }) => {
+    await userEvent.click(within(canvasElement).getByRole('button', { name: 'Disconnect' }))
+    const dialog = within(within(document.body).getByRole('dialog'))
+    await userEvent.click(dialog.getByRole('button', { name: 'Disconnect' }))
+    expect(await dialog.findByText(/Staff cannot change/)).toBeVisible()
+  },
 }

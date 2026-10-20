@@ -1,16 +1,17 @@
 import { useCallback, useEffect, useState } from 'react'
-import { AuthError, type AccountSignIn, type Passkey } from '@protobase/client'
+import { AuthError, type AccountSignIn, type ConnectedApp, type Passkey } from '@protobase/client'
 import { PageHeader } from '../app-shell'
 import { authMessage, providerMessage } from '../auth/auth-messages'
 import { useAuth } from '../auth/auth-provider'
 import { readProviderError, withoutSignInLink } from '../auth/provider-link'
 import { Spinner } from '../primitives/spinner'
+import { ConnectedAppsSection } from './connected-apps-section'
 import { PasskeysSection } from './passkeys-section'
 import { SignInProvidersSection } from './sign-in-providers-section'
 import { TwoFactorSection } from './two-factor-section'
 import { text } from './messages'
 
-type Loaded = { methods: AccountSignIn; passkeys: Passkey[]; linked: string[] }
+type Loaded = { methods: AccountSignIn; passkeys: Passkey[]; linked: string[]; apps: ConnectedApp[] }
 
 // A link to a provider that did not go through comes back here with the provider's code, shown once.
 const takeLinkError = () => {
@@ -19,9 +20,12 @@ const takeLinkError = () => {
   return code
 }
 
-/** The signed-in person's passkeys, two-factor authentication and connected accounts, within what the sign-in policy allows. */
+/**
+ * The signed-in person's passkeys, two-factor authentication and connected accounts, within what the sign-in policy
+ * allows, and with MCP on the apps they allowed to act as them.
+ */
 export const AccountSecurityPage = ({ email }: { email: string }) => {
-  const { session, signInProviders, socialProviders, linkProvider } = useAuth()
+  const { session, signInProviders, socialProviders, linkProvider, mcp } = useAuth()
   // An account links to an OAuth provider from here; a SAML identity provider links it by signing in.
   const linkable = signInProviders.filter((provider) => socialProviders.includes(provider.id))
   const { account } = session
@@ -30,11 +34,11 @@ export const AccountSecurityPage = ({ email }: { email: string }) => {
   const [linkError] = useState(takeLinkError)
 
   const reload = useCallback(() => {
-    void Promise.all([account.signInMethods(), account.passkeys(), account.linkedProviders()]).then(
-      ([methods, passkeys, linked]) => setLoaded({ methods, passkeys, linked }),
+    void Promise.all([account.signInMethods(), account.passkeys(), account.linkedProviders(), mcp ? account.connectedApps() : []]).then(
+      ([methods, passkeys, linked, apps]) => setLoaded({ methods, passkeys, linked, apps }),
       (failure: unknown) => setError(failure instanceof AuthError ? authMessage(failure) : text('couldNotReadMethods')),
     )
-  }, [account])
+  }, [account, mcp])
   useEffect(reload, [reload])
 
   // Each change reads the account again, so the page shows what the server now has.
@@ -73,6 +77,7 @@ export const AccountSecurityPage = ({ email }: { email: string }) => {
               error={linkError && providerMessage(linkError, linkable.length === 1 ? linkable[0]!.name : text('theProvider'))}
             />
           )}
+          {mcp && <ConnectedAppsSection apps={loaded.apps} onDisconnect={(clientId) => thenReload(account.disconnectApp(clientId))} />}
         </>
       ) : error ? (
         <p role="alert" className="text-danger-text">
