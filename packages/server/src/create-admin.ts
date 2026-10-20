@@ -30,7 +30,7 @@ import { organizationRoutes } from './better-auth/organizations/admin-routes'
 import { statusRoute } from './better-auth/status-route'
 import { goTrueTokens } from './gotrue/access-tokens'
 import { goTruePath } from './gotrue/keys'
-import { realtimePath, restPath, storagePath, supabasePath } from './supabase-paths'
+import { realtimePath, restPath, storagePath, supabaseFunctionsPath, supabasePath } from './supabase-paths'
 import { goTrueRoutes } from './gotrue/routes'
 import { wakeDispatch } from './changes/actor'
 import { isCaptured } from './changes/capture-sql'
@@ -69,6 +69,7 @@ import { createFilesRuntime } from './files/runtime'
 import { toApiFunction, type FunctionSource } from './functions/define-function'
 import { callerRecords } from './functions/records'
 import { functionRoutes } from './functions/routes'
+import { supabaseFunctionRoutes } from './functions/supabase-routes'
 import { localeSetting } from './locale/locale-option'
 import { mapSettings } from './maps/map-settings'
 import { createMeta } from './meta'
@@ -284,7 +285,7 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], pag
   const ownOrigins = auth?.origins ?? []
   if (corsOrigins !== undefined || ownOrigins.length > 1) {
     // Better Auth checks origins itself, and a function with its own `cors` answers for itself.
-    const answering = [authBasePath, ...Object.entries(apiFunctions).filter(([, fn]) => fn.options.cors).map(([name]) => `${systemPath}/functions/${name}`)]
+    const answering = [authBasePath, ...Object.entries(apiFunctions).filter(([, fn]) => fn.options.cors).flatMap(([name]) => [`${systemPath}/functions/${name}`, `${supabaseFunctionsPath}/${name}`])]
     const skip = (path: string) => answering.some((prefix) => path === prefix || path.startsWith(`${prefix}/`))
     const cors = apiCors({ own: ownOrigins, allowed: corsOrigins ?? [], skip })
     app.use(`${systemPath}/*`, cors)
@@ -306,6 +307,9 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], pag
     app.route(`${systemPath}/assistant`, builtInAssistant({ model: assistant.model, chats: assistant.chats, db, meta, authenticate, tools, records, report: options.onUnhandledError }))
   }
   app.route('/', functionRoutes({ basePath: `${systemPath}/functions`, functions: apiFunctions, authenticate, access: deps.accessOptions, db, records: (session) => callerRecords(deps, session), onError, wake: () => wakeDispatch(deps) }))
+  // supabase-js's `functions.invoke`, admitted by the app's keys and the tokens of `/api/sb/auth/v1`.
+  const verifyGoTrue = auth ? jwtVerifier(goTrueTokens({ auth })) : () => Promise.reject(unauthorized('This app signs no user tokens'))
+  app.route('/', supabaseFunctionRoutes({ functions: apiFunctions, db, keys: apiKeys, caller: apiKeyCaller({ keys: apiKeys, verify: verifyGoTrue }), onError }))
   app.route('/', batchRoute(deps, authenticate, meta))
   app.route('/', fileRoutes(deps, authenticate))
   // Before the system endpoints, which want a token for everything under them

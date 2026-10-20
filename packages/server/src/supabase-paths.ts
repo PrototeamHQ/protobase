@@ -9,3 +9,6 @@ export const realtimePath = `${supabasePath}/realtime/v1`
 
 /** The Storage-compatible API of `storage`. */
 export const storagePath = `${supabasePath}/storage/v1`
+
+/** Where `functions.invoke` calls a function: `<origin>/api/sb/functions/v1/<name>`. */
+export const supabaseFunctionsPath = `${supabasePath}/functions/v1`

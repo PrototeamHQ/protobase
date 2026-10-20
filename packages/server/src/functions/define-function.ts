@@ -1,5 +1,6 @@
 import type { Db } from '@protobase/query'
 import type { Capability } from '@protobase/schema'
+import type { Caller } from '../api-keys/resolve-caller'
 import type { Session } from '../types'
 import type { FunctionRecords } from './records'
 
@@ -22,6 +23,14 @@ export type FunctionCaller = {
 
 /** What a function that needs a signed-in caller gets: the caller resolved before it runs. */
 export type FunctionContext = PublicFunctionContext & FunctionCaller
+
+/** What a function gets at `/api/sb/functions/v1/<name>`, where supabase-js calls it: the caller its keys and token make. */
+export type KeyFunctionContext = {
+  name: string
+  db: Db
+  /** The caller of the `apikey` header and bearer token: rejects with a 401 problem when they admit nobody. */
+  caller: () => Promise<Caller>
+}
 
 /** A Web-standard handler. Its request's path is the part after `/api/functions/<name>`: `/` or `/more/parts`. */
 export type FunctionHandler = (request: Request, context: FunctionContext) => Response | Promise<Response>
@@ -102,7 +111,7 @@ export const toApiFunction = (name: string, source: unknown): ApiFunction => {
 }
 
 /** Calls a function's handler or app with its request and context; anything but a Response is an error. */
-export const invokeFunction = async (name: string, fn: ApiFunction, request: Request, context: PublicFunctionContext | FunctionContext) => {
+export const invokeFunction = async (name: string, fn: ApiFunction, request: Request, context: PublicFunctionContext | FunctionContext | KeyFunctionContext) => {
   const { handler } = fn
   const response: unknown = isApp(handler) ? await handler.fetch(request, context as FunctionContext) : await (handler as FunctionHandler)(request, context as FunctionContext)
   if (!(response instanceof Response)) throw new Error(`The function "${name}" returned no Response`)

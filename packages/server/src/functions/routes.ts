@@ -24,7 +24,7 @@ export type FunctionRoutesInput = {
 }
 
 // The request as the function sees it: the same request, its path relative to the function.
-const relativeRequest = (request: Request, prefix: string) => {
+export const relativeRequest = (request: Request, prefix: string) => {
   const url = new URL(request.url)
   url.pathname = url.pathname.slice(prefix.length) || '/'
   return new Request(url, request)

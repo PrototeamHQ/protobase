@@ -94,6 +94,7 @@ export {
   type FunctionHandler,
   type FunctionOptions,
   type FunctionSource,
+  type KeyFunctionContext,
   type ProtectedFunctionOptions,
   type PublicFunctionContext,
   type PublicFunctionHandler,
