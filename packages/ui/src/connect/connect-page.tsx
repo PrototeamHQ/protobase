@@ -10,6 +10,7 @@ import { clientName } from './client-name'
 import { clientPublisher } from './client-publisher'
 import { allowDelayMs, isFramed as isFramedWindow, useArmedAfterFocus, useGuardedPress } from './interaction-guard'
 import { isSafeTarget, redirectTarget, type RedirectTarget } from './redirect-target'
+import { signedRequestFor } from './signed-request'
 import { useConnectAddress } from './use-connect-address'
 
 // Why the request cannot go on, by the code the server answers with, in words for the person at the keyboard.
@@ -107,8 +108,8 @@ const Connecting = ({ oauthQuery, appName, email, assign }: ConnectingProps) => 
   const { session, signOut } = useAuth()
   const { path, basePath } = useRouter()
   const go = goWith(assign)
-  // Whether the server sends the browser back to this page, with a new signed request.
-  const isThisPage = (url: string) => new URL(url, 'http://local').pathname === `${basePath}${path}`
+  // The new signed request when the server sends the browser back to this page, on this origin only.
+  const signedRequest = (url: string) => signedRequestFor(url, { origin: window.location.origin, pathname: `${basePath}${path}` })
   const [state, setState] = useState<State>({ kind: 'loading' })
   const fail = (failure: unknown) => setState({ kind: 'failed', message: refusalOf(failure) })
 
@@ -117,8 +118,8 @@ const Connecting = ({ oauthQuery, appName, email, assign }: ConnectingProps) => 
     let current = true
     const ask = async () => {
       const { url } = await session.connect.resume(oauthQuery)
-      if (!isThisPage(url)) return go(url)
-      const query = new URL(url, window.location.href).search.slice(1)
+      const query = signedRequest(url)
+      if (query === undefined) return go(url)
       const params = new URLSearchParams(query)
       const client = await session.connect.client(params.get('client_id') ?? '')
       if (current) setState({ kind: 'asking', asking: { oauthQuery: query, client, target: redirectTarget(params.get('redirect_uri') ?? '') } })
@@ -127,14 +128,14 @@ const Connecting = ({ oauthQuery, appName, email, assign }: ConnectingProps) => 
     return () => {
       current = false
     }
-    // Picked up once per signed request: `go` and `isThisPage` are made anew each render, from the same values.
+    // Picked up once per signed request: `go` and `signedRequest` are made anew each render, from the same values.
   }, [session, oauthQuery])
 
   const answer = async (accept: boolean, asking: Asking) => {
     try {
       const { url } = await session.connect.answer(accept, asking.oauthQuery)
       // The app asked for a fresh sign-in: sign out, and sign in again on the same request.
-      if (isThisPage(url)) await signOut()
+      if (signedRequest(url) !== undefined) await signOut()
       go(url)
     } catch (failure) {
       fail(failure)
