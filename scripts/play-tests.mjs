@@ -41,6 +41,13 @@ const playStory = async (story) => {
   return error && !error.message ? { ...error, message: logged.join('\n  ') } : error
 }
 
+// Chromium aborts every request in flight when the host's network changes, such as another job on the CI host starting a
+// container network; a story whose files were aborted that way plays once more, any other failure stands.
+const playStoryWithRetry = async (story) => {
+  const error = await playStory(story)
+  return error?.message.includes('net::ERR_NETWORK_CHANGED') ? playStory(story) : error
+}
+
 // Four pages at a time: a story mostly waits on rendering. Results print in story order.
 const pages = 4
 const errors = new Array(stories.length)
@@ -48,7 +55,7 @@ let next = 0
 await Promise.all(Array.from({ length: pages }, async () => {
   while (next < stories.length) {
     const i = next++
-    errors[i] = await playStory(stories[i])
+    errors[i] = await playStoryWithRetry(stories[i])
   }
 }))
 await browser.close()
