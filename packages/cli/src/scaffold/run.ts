@@ -17,6 +17,7 @@ export type ScaffoldOptions = {
   dryRun: boolean
   ui: UiSection[]
   excludes: string[]
+  live?: string[]
 }
 
 const readText = (file: string) =>
@@ -44,6 +45,7 @@ export const runScaffold = async (options: ScaffoldOptions, out: (text: string) 
         configDir: options.configDir,
         target: parseTarget(options.target),
         excludes: options.excludes,
+        live: options.live,
         decide: prompter?.decide ?? acceptAll,
         ui: options.ui,
         readText,

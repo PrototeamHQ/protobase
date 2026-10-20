@@ -2,7 +2,7 @@ import { tableKey } from '../db/model'
 import { camelCase } from '../infer/names'
 import { renderField } from '../infer/render-field'
 import { parseSource } from './project'
-import { fieldsObject, resourceChain } from './existing-config'
+import { fieldsObject, methodCalls, resourceChain } from './existing-config'
 import type { Decision, ResourcePlan } from './resource-plan'
 
 const propertyText = ({ proposal, ignored }: Decision) =>
@@ -22,6 +22,7 @@ export const renderDataFile = (plan: ResourcePlan) => {
     plan.softDelete && `  .softDelete((r) => r.${plan.softDelete})`,
     plan.tenant && `  .tenant((r) => r.${plan.tenant})`,
     plan.search && `  .search((r) => [r.${plan.search}])`,
+    plan.live && '  .live()',
   ].filter(Boolean)
   return [
     `import { f, resource } from '@protobase/schema'`,
@@ -49,5 +50,15 @@ export const addFieldsToDataFile = (text: string, decisions: Decision[]) => {
       initializer: decision.ignored ? 'null' : renderField(decision.proposal),
     })
   }
+  return source.getFullText()
+}
+
+// Ends the resource's builder chain with `.live()`, unless it has one already.
+export const makeLiveInDataFile = (text: string) => {
+  const source = parseSource(text)
+  const chain = resourceChain(source)
+  if (!chain) throw new Error('data.ts has no resource(...) builder chain to make live')
+  if (methodCalls(chain.chainTop, 'live').length > 0) return text
+  chain.chainTop.replaceWithText(`${chain.chainTop.getText()}\n  .live()`)
   return source.getFullText()
 }

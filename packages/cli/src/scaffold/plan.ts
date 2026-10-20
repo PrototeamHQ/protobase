@@ -3,7 +3,7 @@ import { keyColumns } from '../db/keys'
 import { tableKey, type DbTable } from '../db/model'
 import { camelCase } from '../infer/names'
 import { proposeField, type ProposalContext } from '../infer/proposal'
-import { addFieldsToDataFile, renderDataFile } from './data-file'
+import { addFieldsToDataFile, makeLiveInDataFile, renderDataFile } from './data-file'
 import { detectDrift, type Drift } from './drift'
 import { findField, type ExistingResource } from './existing-config'
 import { ensureExports, type Registration } from './index-file'
@@ -24,6 +24,8 @@ export type ScaffoldInput = {
   excludes: string[]
   decide: Decide
   ui: UiSection[]
+  // "schema.table" of the tables whose resources get `.live()`.
+  live?: string[]
   // Current file content, or undefined when the file does not exist.
   readText: (file: string) => Promise<string | undefined>
 }
@@ -32,6 +34,8 @@ export type ScaffoldPlan = {
   changes: FileChange[]
   drift: Drift[]
   warnings: string[]
+  // "schema.table" of the `live` tables whose resource has `.live()` now.
+  live: string[]
 }
 
 const decideAll = async (table: DbTable, columns: DbTable['columns'], context: ProposalContext, input: ScaffoldInput) => {
@@ -64,6 +68,8 @@ export const planScaffold = async (input: ScaffoldInput): Promise<ScaffoldPlan> 
   const drift: Drift[] = []
   const warnings: string[] = []
   const registrations: Registration[] = []
+  const live: string[] = []
+  const isLive = (key: string) => input.live?.includes(key) ?? false
 
   const writeUi = async (dir: string, resource: string, identifier: string, table: DbTable, current: ExistingResource | undefined, decisions: Decision[]) => {
     if (ui.length === 0) return
@@ -85,7 +91,9 @@ export const planScaffold = async (input: ScaffoldInput): Promise<ScaffoldPlan> 
       const clash = decisions.find((d) => current.fields.some((f) => f.name === d.proposal.name))
       if (clash) throw new Error(`${key}: field "${clash.proposal.name}" already exists, edit the name`)
       const file = path.join(configDir, current.dir, 'data.ts')
-      changes.push(...change(file, current.text, addFieldsToDataFile(current.text, decisions)))
+      const fielded = addFieldsToDataFile(current.text, decisions)
+      changes.push(...change(file, current.text, isLive(key) ? makeLiveInDataFile(fielded) : fielded))
+      if (isLive(key)) live.push(key)
       drift.push(...detectDrift(current, table, context(table)))
       await writeUi(current.dir, current.name, current.identifier, table, current, decisions)
       continue
@@ -101,8 +109,9 @@ export const planScaffold = async (input: ScaffoldInput): Promise<ScaffoldPlan> 
       throw new Error(`${file} exists but does not declare a resource for ${key}`)
     }
     const decisions = await decideAll(table, table.columns, context(table), input)
-    const plan = planResource(name, table, decisions)!
+    const plan = { ...planResource(name, table, decisions)!, live: isLive(key) }
     changes.push({ path: file, after: renderDataFile(plan) })
+    if (plan.live) live.push(key)
     registrations.push({ from: `./${name}/data`, names: [camelCase(name)] })
     await writeUi(name, name, camelCase(name), table, undefined, decisions)
   }
@@ -114,7 +123,7 @@ export const planScaffold = async (input: ScaffoldInput): Promise<ScaffoldPlan> 
   if (wanted.length > 0 || indexBefore === undefined) {
     changes.push(...change(indexFile, indexBefore, ensureExports(indexBefore ?? '', wanted)))
   }
-  return { changes, drift, warnings }
+  return { changes, drift, warnings, live }
 }
 
 // With no config/index.ts yet, every resource already on disk is registered too.

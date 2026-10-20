@@ -20,6 +20,8 @@ export type ResourcePlan = {
   unique: string[][]
   // The field that names a record, when a pg_trgm index serves it, so the search finds records by it.
   search?: string
+  // Whether open pages and Realtime subscribers hear of its changes (`.live()`).
+  live?: boolean
 }
 
 const softDeleteColumn = /^(deleted|removed|archived)_(at|on)$/

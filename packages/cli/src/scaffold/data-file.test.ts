@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { DbColumn, DbIndex, DbTable } from '../db/model'
-import { renderDataFile } from './data-file'
+import { makeLiveInDataFile, renderDataFile } from './data-file'
 import { planResource, proposeAll } from './resource-plan'
 
 const column = (name: string, typeName: string): DbColumn => ({
@@ -29,9 +29,9 @@ const table = (indexes: DbIndex[], columns = [column('id', 'int4'), column('emai
   indexes: [primary, ...indexes],
 })
 
-const rendered = (db: DbTable) => {
+const rendered = (db: DbTable, live = false) => {
   const decisions = proposeAll(db, { table: db, resourceNameOf: (_, name) => name }).map((proposal) => ({ proposal, ignored: false }))
-  return renderDataFile(planResource('people', db, decisions)!)
+  return renderDataFile({ ...planResource('people', db, decisions)!, live })
 }
 
 describe('renderDataFile', () => {
@@ -46,5 +46,19 @@ describe('renderDataFile', () => {
     expect(rendered(table([{ ...trigram('name'), method: 'btree', opclasses: ['text_ops'] }]))).not.toContain('.search(')
     // An index on another text field does not make the title searchable
     expect(rendered(table([trigram('email')]))).not.toContain('.search(')
+  })
+})
+
+describe('live resources', () => {
+  it('ends a new resource with .live() when asked', () => {
+    expect(rendered(table([]), true)).toMatch(/\.primaryKey\(\(r\) => r\.id\)\n {2}\.live\(\)\n$/)
+    expect(rendered(table([]))).not.toContain('.live()')
+  })
+
+  it('adds .live() to an existing resource once', () => {
+    const text = rendered(table([]))
+    const live = makeLiveInDataFile(text)
+    expect(live).toBe(`${text.trimEnd()}\n  .live()\n`)
+    expect(makeLiveInDataFile(live)).toBe(live)
   })
 })
