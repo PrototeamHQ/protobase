@@ -54,4 +54,7 @@ export const policyRefusal = (policy: SignInPolicy, request: PolicedRequest): Si
 /** The answer of `/token` to someone who has not set up what the policy requires. */
 export const setupRequired: SignInRefusal = { code: 'SIGN_IN_SETUP_REQUIRED', message: 'Set up what this app requires for signing in first.' }
 
+/** The answer to someone whose address is not verified who asks to allow an app (an MCP client) to act as them. */
+export const addressNotVerified: SignInRefusal = { code: 'ADDRESS_NOT_VERIFIED', message: 'Confirm your address first: sign out, then sign in with a code emailed to you.' }
+
 export const lastPasskeyRequired: SignInRefusal = { code: 'PASSKEY_REQUIRED', message: 'Passkeys are required for every account, so the last one cannot be removed.' }

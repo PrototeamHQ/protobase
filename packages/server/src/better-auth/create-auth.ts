@@ -11,6 +11,7 @@ import type { Mailer } from '../mail/smtp-mailer'
 import { readOperatorSettings, resolveOperator, type OperatorProvider, type ResolvedOperator } from './operator-provider'
 import { defaultInvitationSeconds, defaultInvitationUrl } from './invitations/invitation-link-hook'
 import { lastAdminGuardPlugin } from './last-admin-guard'
+import { mcpAuthPlugins, mcpScope, mcpUnusedPaths, resolveMcp, type McpAuthOptions, type ResolvedMcp } from './mcp/mcp-plugins'
 import { lastOrganizationField, sessionOrganizationHooks } from './organizations/session-organization'
 import { organizationPlugin } from './organizations/organization-plugin'
 import { protobaseOrganizationPlugin } from './organizations/protobase-plugin'
@@ -155,6 +156,14 @@ export type CreateAuthOptions = {
    * are held globally (on the user) or per membership. Off by default: the app works as one organization.
    */
   organizations?: OrganizationsOptions
+  /**
+   * Turns on an OAuth provider for MCP clients: a client such as Claude, ChatGPT, Cursor or Claude Code registers
+   * itself, the person signs in on the app's own pages and allows it on the connect page, and the client gets tokens
+   * for the MCP endpoint only, with the role and organization the person worked in when they allowed it. `true` for the
+   * defaults, or the endpoint's `path` (default `/api/mcp`) and the `connectPage` (default `/-/connect`). Needs an
+   * https `baseURL`, or localhost, and the OAuth tables from `protobase auth migration`. Off by default.
+   */
+  mcp?: true | McpAuthOptions
 }
 
 type UserCreateHooks = NonNullable<NonNullable<NonNullable<BetterAuthOptions['databaseHooks']>['user']>['create']>
@@ -205,7 +214,9 @@ type Resolved = {
   /** The SAML providers, from `resolveSamlProviders`. */
   saml?: ResolvedSamlProvider[]
   organizations?: ResolvedOrganizations
-  /** The auth context once the instance exists, for the organization hooks and claims. */
+  /** The MCP provider's options, resolved (`resolveMcp`), when it is on. */
+  mcp?: ResolvedMcp
+  /** The auth context once the instance exists, for the organization hooks and claims and the MCP provider. */
   context?: () => Promise<AuthContext>
   /** The policy until an admin saves one, from `appSignInPolicy`; default everything allowed. */
   signInPolicy?: SignInPolicy
@@ -223,7 +234,7 @@ const organizationPaths = ['/organization/set-active', '/organization/accept-inv
  * The options `createAuth` gives Better Auth, with the roles, default role, mailer, operator provider and platform
  * sign-in provider already resolved.
  */
-export const betterAuthOptions = (options: CreateAuthOptions, { origins = [], passkeyDomain, roles, definitions, defaultRole, appName = defaultAppName, mailer, signUpRole, operator, platformSignIn, saml = [], organizations, context = noContext, signInPolicy = defaultSignInPolicy }: Resolved) => {
+export const betterAuthOptions = (options: CreateAuthOptions, { origins = [], passkeyDomain, roles, definitions, defaultRole, appName = defaultAppName, mailer, signUpRole, operator, platformSignIn, saml = [], organizations, mcp, context = noContext, signInPolicy = defaultSignInPolicy }: Resolved) => {
   const secure = options.baseURL.startsWith('https://')
   const signIn = platformSignInFor(platformSignIn, Object.keys(options.socialProviders ?? {}))
   const hosts = passkeyHosts([options.baseURL, ...origins])
@@ -313,8 +324,10 @@ export const betterAuthOptions = (options: CreateAuthOptions, { origins = [], pa
         ...(organizations && { organizations }),
       }),
       ...(passwordHashes.length > 0 ? [rehashPasswordsPlugin(passwordHashes)] : []),
+      // Last, so the staff plugin refuses staff sessions on the provider's paths before its own hooks run.
+      ...(mcp ? mcpAuthPlugins({ mcp, organizations: Boolean(organizations), mail: Boolean(mailer), context }) : []),
     ].map((plugin) => withUserColumns(plugin, users)),
-    disabledPaths: [...unusedEmailCodePaths, ...adminImpersonationPaths, ...(organizations ? organizationPaths : []), ...(saml.length > 0 ? samlDisabledPaths : [])],
+    disabledPaths: [...unusedEmailCodePaths, ...adminImpersonationPaths, ...(organizations ? organizationPaths : []), ...(saml.length > 0 ? samlDisabledPaths : []), ...(mcp ? mcpUnusedPaths : [])],
     databaseHooks: {
       user: {
         create: {
@@ -397,10 +410,11 @@ export const createAuth = (options: CreateAuthOptions) => {
   const origins = resolveOrigins(options.baseURL, options.origins ?? platformOrigins())
   const passkeyDomain = resolvePasskeyDomain(options.passkeyDomain ?? platformPasskeyDomain(), [options.baseURL, ...origins])
   const organizations = options.organizations && resolveOrganizations(options.organizations, definitions, options.baseURL)
-  // The organization hooks read the store through the instance made below; they run only once it exists.
+  const mcp = options.mcp && resolveMcp(options.baseURL, options.mcp)
+  // The organization hooks and the MCP provider read the store through the instance made below; they run only once it exists.
   let instance: { $context: Promise<AuthContext> } | undefined
   const context = () => instance?.$context ?? Promise.reject(new Error('The auth instance is not made yet'))
-  const auth = betterAuth(betterAuthOptions(options, { origins, passkeyDomain, roles, definitions, defaultRole, ...(appName && { appName }), mailer, signUpRole, operator, platformSignIn, saml, signInPolicy, ...(organizations && { organizations, context }) }))
+  const auth = betterAuth(betterAuthOptions(options, { origins, passkeyDomain, roles, definitions, defaultRole, ...(appName && { appName }), mailer, signUpRole, operator, platformSignIn, saml, signInPolicy, ...(organizations && { organizations }), ...(mcp && { mcp }), ...((organizations || mcp) && { context }) }))
   instance = auth as unknown as { $context: Promise<AuthContext> }
   return Object.assign(auth, {
     /** Issuer and audience of the tokens: `baseURL`, on every origin. */
@@ -432,6 +446,8 @@ export const createAuth = (options: CreateAuthOptions) => {
     platformSignIn: platformSignIn && { provider: platformSignIn.provider, name: platformSignIn.name },
     /** The id and name of each SAML provider, for the sign-in page. */
     samlProviders: saml.map(({ id, name }) => ({ id, name })),
+    /** The OAuth provider for MCP clients, when on: the endpoint's resource (its URL) and path, and the scope its tokens carry. */
+    mcp: mcp && { resource: mcp.resource, path: mcp.path, scope: mcpScope },
   })
 }
 

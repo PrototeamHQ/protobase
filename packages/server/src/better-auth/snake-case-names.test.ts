@@ -1,6 +1,7 @@
 import { getSchema } from 'better-auth/db'
 import { describe, expect, it } from 'vitest'
 import { betterAuthOptions } from './create-auth'
+import { resolveMcp } from './mcp/mcp-plugins'
 import { resolveOperator } from './operator-provider'
 import { resolveOrganizations } from './organizations/options'
 import { roleDefinitions } from './organizations/role-definitions'
@@ -15,6 +16,7 @@ describe('the auth store names', () => {
     const options = betterAuthOptions(
       { database: undefined, baseURL: 'https://admin.example.com', secret: 'test-secret-test-secret-test-secret-1234' },
       {
+        mcp: resolveMcp('https://admin.example.com', true),
         roles: ['admin', 'user'],
         definitions: roleDefinitions(),
         mailer: { send: async () => {} },
@@ -25,7 +27,7 @@ describe('the auth store names', () => {
       },
     )
     expect(options.plugins.map((plugin) => plugin.id)).toEqual(
-      expect.arrayContaining(['admin', 'jwt', 'two-factor', 'passkey', 'email-otp', 'generic-oauth', 'protobase-sign-in-policy', 'protobase-staff-sign-in', 'sso', 'organization']),
+      expect.arrayContaining(['admin', 'jwt', 'two-factor', 'passkey', 'email-otp', 'generic-oauth', 'protobase-sign-in-policy', 'protobase-staff-sign-in', 'sso', 'organization', 'oauth-provider', 'cimd']),
     )
 
     const schema = getSchema(options)
@@ -34,7 +36,7 @@ describe('the auth store names', () => {
       ...Object.keys(fields).map((column) => `${table}.${column}`),
       ...(indexes ?? []).flatMap((index) => [index.name, ...index.columns]),
     ])
-    expect(Object.keys(schema)).toEqual(['user', 'session', 'account', 'verification', 'jwks', 'two_factor', 'passkey', 'sign_in_policy', 'staff_sign_in', 'organization', 'member', 'invitation'])
+    expect(Object.keys(schema)).toEqual(['user', 'session', 'account', 'verification', 'jwks', 'two_factor', 'passkey', 'sign_in_policy', 'staff_sign_in', 'organization', 'member', 'invitation', 'oauth_client', 'oauth_resource', 'oauth_client_resource', 'oauth_refresh_token', 'oauth_access_token', 'oauth_consent', 'oauth_client_assertion'])
     expect(Object.keys(schema.member!.fields)).toEqual(expect.arrayContaining(['organization_id', 'user_id', 'app_roles']))
     expect(Object.keys(schema.user!.fields)).toContain('last_organization_id')
     expect(Object.keys(schema.session!.fields)).toContain('active_organization_id')
