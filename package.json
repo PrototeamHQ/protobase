@@ -63,7 +63,7 @@
     "@types/smtp-server": "^3.5.13",
     "@vitejs/plugin-react": "^6.1.2",
     "altcha-lib": "^2.6.0",
-    "better-auth": "^1.7.7",
+    "better-auth": "^1.7.12",
     "commit-and-tag-version": "^13.2.1",
     "dependency-cruiser": "^18.5.0",
     "jose": "^6.2.12",

@@ -21,7 +21,7 @@
     "@protobase/schema": "workspace:*",
     "@protobase/server": "workspace:*",
     "@protobase/ui": "workspace:*",
-    "better-auth": "^1.7.7",
+    "better-auth": "^1.7.12",
     "kysely": "^0.29.6",
     "pg": "^8.23.1",
     "postgres": "^3.4.9",
