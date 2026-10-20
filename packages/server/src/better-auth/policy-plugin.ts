@@ -3,7 +3,8 @@ import { APIError, createAuthEndpoint, createAuthMiddleware, getSessionFromCtx, 
 import * as z from 'zod'
 import { readSignInPolicy, saveSignInPolicy, signInPolicySchema } from './policy-store'
 import { isPoliced, lastPasskeyRequired, policyRefusal, setupRequired } from './sign-in-enforcement'
-import { effectiveSignInPolicy, missingRequiredMethods, parseSignInPolicy, signInPolicyProblem, type AccountMethods, type SignInPolicy } from './sign-in-policy'
+import { accountMethods } from './sign-in-setup'
+import { effectiveSignInPolicy, missingRequiredMethods, parseSignInPolicy, signInPolicyProblem, type SignInPolicy } from './sign-in-policy'
 import { adminOnly } from './admin-only'
 import { isStaffSession } from './staff-checks'
 
@@ -21,20 +22,6 @@ export type SignInPolicyPluginOptions = {
   operator?: string
   /** The id and name of the sign-in provider the platform adds, when one is configured. */
   platformSignIn?: { provider: string; name: string }
-}
-
-const accountMethods = async (context: Context, user: SessionUser, socialProviders: string[]): Promise<AccountMethods> => {
-  const accounts = await context.internalAdapter.findAccounts(user.id)
-  const passkeys = await context.adapter.count({ model: 'passkey', where: [{ field: 'userId', value: user.id }] })
-  // The two-factor plugin keeps an app's secret in its table, unverified until the app's first code.
-  const app = await context.adapter.findOne<{ verified?: boolean | null }>({ model: 'twoFactor', where: [{ field: 'userId', value: user.id }] })
-  return {
-    password: accounts.some((account) => account.providerId === 'credential'),
-    passkeys,
-    twoFactor: Boolean(user.twoFactorEnabled),
-    authenticatorApp: Boolean(user.twoFactorEnabled) && app !== null && app.verified !== false,
-    socialSignIn: accounts.some((account) => socialProviders.includes(account.providerId)),
-  }
 }
 
 const refuse = (status: 'FORBIDDEN' | 'BAD_REQUEST', refusal: { code: string; message: string }) => new APIError(status, refusal)

@@ -26,3 +26,20 @@ export const fakeAdapter = (tables: Record<string, Row[]> = {}) => {
   }
   return { tables, adapter: adapter as unknown as AuthContext['adapter'] }
 }
+
+/**
+ * An auth context over `fakeAdapter`: its `adapter`, the part of the `internalAdapter` the auth code reads (a user's
+ * accounts and the user), and `hasPlugin`, true for the plugins named.
+ */
+export const fakeContext = (tables: Record<string, Row[]> = {}, plugins: string[] = []) => {
+  const store = fakeAdapter(tables)
+  const context = {
+    adapter: store.adapter,
+    internalAdapter: {
+      findAccounts: async (userId: string) => (store.tables.account ?? []).filter((row) => row.userId === userId),
+      findUserById: async (id: string) => (store.tables.user ?? []).find((row) => row.id === id) ?? null,
+    },
+    hasPlugin: (id: string) => plugins.includes(id),
+  }
+  return { tables: store.tables, context: context as unknown as AuthContext }
+}
