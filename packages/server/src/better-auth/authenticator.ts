@@ -1,4 +1,5 @@
-import { jwtSessions, type JwtVerifyOptions } from '../auth/jwt'
+import { createDpopReplayStore, createInMemoryDpopReplayStore, type DpopReplayStore } from 'better-auth/oauth2'
+import { jwtSessions, type JwtOptions, type JwtVerifyOptions } from '../auth/jwt'
 import type { Authenticator, TenantValue } from '../types'
 import { withTrustedApps, type TrustedApp } from './app-tokens'
 import type { AdminAuth } from './create-auth'
@@ -22,6 +23,22 @@ export type BetterAuthAuthenticatorOptions = {
   cache?: JwksCacheOptions
   /** Other Protobase apps whose users this API admits with their own tokens, so their admin apps can draw its resources (see `TrustedApp`). */
   apps?: TrustedApp[]
+  /** The audience the tokens must name; default `issuer`, the app's own tokens. */
+  audience?: string
+}
+
+/**
+ * Verifies the app's tokens, and with `forAudience` the OAuth access tokens it issues for another audience, such as
+ * its MCP endpoint (`auth.mcp.resource`).
+ */
+export type BetterAuthAuthenticator = Authenticator & {
+  /**
+   * An authenticator for the OAuth access tokens issued for `audience` alone: the app's keys, a `typ` of `at+jwt`, and
+   * proof of the key for a DPoP-bound token, checked against `audience` as the URL it guards (the endpoint must answer
+   * at exactly that URL). The app's own tokens and trusted apps' are refused; the session keeps the token's `client`.
+   * With `jwksUrl` instead of `auth`, a DPoP proof's single use holds in this process only.
+   */
+  forAudience: (audience: string) => Authenticator
 }
 
 /** How the tokens of this Better Auth instance verify: its key set, and its issuer as both issuer and audience. */
@@ -41,28 +58,44 @@ export const betterAuthTokens = (options: Pick<BetterAuthAuthenticatorOptions, '
  * a token works until it expires. With `apps`, the tokens of those apps are admitted too, with the roles each gives
  * its users here.
  */
-export const betterAuthAuthenticator = (options: BetterAuthAuthenticatorOptions): Authenticator => {
+export const betterAuthAuthenticator = (options: BetterAuthAuthenticatorOptions): BetterAuthAuthenticator => {
   const tokens = betterAuthTokens(options)
   const { issuer } = tokens
   const organizations = options.organizations ?? Boolean(options.auth?.organizations)
-  const sessions = jwtSessions({
-    ...tokens,
-    rolesClaim: 'role',
-    ...(organizations && { tenantClaim: 'org', extraRolesClaim: 'app_roles' }),
-    ...(options.tenant !== undefined && { tenant: options.tenant }),
-  })
   const { auth } = options
-  const verify: Authenticator = async (request) => {
-    const { payload, session } = await sessions(request)
-    if (auth) await checkTokenStanding((await auth.$context) as unknown as AuthContext, tokenClaims(payload, session.user.roles, organizations ? session.tenant : undefined), organizations)
-    return session
+
+  // The app's claims as a session, for its own tokens and those of another audience alike; with `standing`, also
+  // whether the token still stands (`checkTokenStanding`).
+  const sessionOf = (verifyOptions: Partial<JwtOptions>, standing: boolean): Authenticator => {
+    const sessions = jwtSessions({
+      ...tokens,
+      rolesClaim: 'role',
+      ...(organizations && { tenantClaim: 'org', extraRolesClaim: 'app_roles' }),
+      ...(options.tenant !== undefined && { tenant: options.tenant }),
+      ...verifyOptions,
+    })
+    const verify: Authenticator = async (request) => {
+      const { payload, session } = await sessions(request)
+      if (auth && standing) await checkTokenStanding((await auth.$context) as unknown as AuthContext, tokenClaims(payload, session.user.roles, organizations ? session.tenant : undefined), organizations)
+      return session
+    }
+    if (!organizations) return verify
+    return async (request) => {
+      const session = await verify(request)
+      const user = { ...session.user, roles: session.user.roles.filter((role) => role !== noGlobalRole) }
+      return { ...session, user, ...(session.tenant !== undefined && { organization: { id: session.tenant } }) }
+    }
   }
-  const own: Authenticator = !organizations
-    ? verify
-    : async (request) => {
-        const session = await verify(request)
-        const user = { ...session.user, roles: session.user.roles.filter((role) => role !== noGlobalRole) }
-        return { ...session, user, ...(session.tenant !== undefined && { organization: { id: session.tenant } }) }
-      }
-  return withTrustedApps(own, issuer, options.apps ?? [])
+
+  // Each DPoP proof is reserved once: in the auth store, shared by every instance, or with only a JWKS URL in this process.
+  let replayStore: Promise<DpopReplayStore> | undefined
+  const dpopReplayStore = () =>
+    (replayStore ??= options.auth ? options.auth.$context.then(({ internalAdapter }) => createDpopReplayStore(internalAdapter)) : Promise.resolve(createInMemoryDpopReplayStore()))
+
+  const own = sessionOf({ audience: options.audience ?? issuer }, true)
+  // An access token's `sid` names the browser session that allowed the client, which may end long before the grant
+  // does; revoking the grant ends its tokens instead (`revokeMcpGrants`).
+  return Object.assign(withTrustedApps(own, issuer, options.apps ?? []), {
+    forAudience: (audience: string) => sessionOf({ audience, typ: 'at+jwt', dpop: { url: audience, replayStore: dpopReplayStore }, oauthClient: true }, false),
+  })
 }
