@@ -1,8 +1,10 @@
 import { APIError } from 'better-auth/api'
 import { betterAuth, type BetterAuthOptions } from 'better-auth'
-import { admin, emailOTP, genericOAuth, jwt } from 'better-auth/plugins'
+import { admin, emailOTP, genericOAuth, jwt, type JwtOptions } from 'better-auth/plugins'
 import { adminAc, userAc } from 'better-auth/plugins/admin/access'
 import { defaultAppName, readAppName } from '../app-name'
+import { goTrueIssuer, goTrueKeyPair } from '../gotrue/keys'
+import { goTrueSessionsPlugin } from '../gotrue/sessions-plugin'
 import { authBasePath } from './auth-base-path'
 import { platformMailer } from '../mail/platform-mailer'
 import type { Mailer } from '../mail/smtp-mailer'
@@ -220,6 +222,30 @@ export const betterAuthOptions = (options: CreateAuthOptions, { origins = [], pa
   const samlIds = saml.map((provider) => provider.id)
   const users = userTable(options.users)
   const passwordHashes = options.passwordHashes ?? []
+  const policy = {
+    mail: Boolean(mailer),
+    socialProviders: [...Object.keys(options.socialProviders ?? {}), ...samlIds],
+    ...(operator && { operator: operator.name }),
+    ...(signIn && { platformSignIn: { provider: signIn.provider, name: signIn.name } }),
+  }
+  const jwtOptions = {
+    schema: pluginNames.jwt,
+    // Protobase's tokens are EdDSA; the GoTrue-compatible endpoints' are ES256, with a key of their own.
+    jwks: { keyPairConfigs: [goTrueKeyPair] },
+    jwt: {
+      expirationTime: tokenLifetime,
+      issuer: options.baseURL,
+      audience: options.baseURL,
+      // The token carries the session's active role alone; see `narrowClaims`.
+      definePayload: async ({ user, session }) => {
+        const { activeRole, activeOrganizationId } = session as RoleSession
+        const claims = { role: user.role, ...(organizations && (await organizationClaims((await context()).adapter, user, activeOrganizationId))) }
+        return { email: user.email, ...narrowClaims(claims, [activeRole, (user as RoleUser).lastRole], Boolean(organizations)) }
+      },
+    },
+    // Tokens come from `/token` only, which the sign-in policy holds back until required methods are set up.
+    disableSettingJwtHeader: true,
+  } satisfies JwtOptions
   const userFields = { ...userFieldsNamed(emailConfirmedField, users), ...(organizations && userFieldsNamed(lastOrganizationField, users)), ...metadataField(users) }
   return {
     appName,
@@ -249,22 +275,7 @@ export const betterAuthOptions = (options: CreateAuthOptions, { origins = [], pa
     plugins: [
       // Without a default role the plugin's own default is a name outside the list, which the hook below refuses.
       admin({ schema: pluginNames.admin, defaultRole: defaultRole ?? 'unassigned', roles: Object.fromEntries(roles.map((role) => [role, role === 'admin' ? adminAc : userAc])) }),
-      jwt({
-        schema: pluginNames.jwt,
-        jwt: {
-          expirationTime: tokenLifetime,
-          issuer: options.baseURL,
-          audience: options.baseURL,
-          // The token carries the session's active role alone; see `narrowClaims`.
-          definePayload: async ({ user, session }) => {
-            const { activeRole, activeOrganizationId } = session as RoleSession
-            const claims = { role: user.role, ...(organizations && (await organizationClaims((await context()).adapter, user, activeOrganizationId))) }
-            return { email: user.email, ...narrowClaims(claims, [activeRole, (user as RoleUser).lastRole], Boolean(organizations)) }
-          },
-        },
-        // Tokens come from `/token` only, which the sign-in policy holds back until required methods are set up.
-        disableSettingJwtHeader: true,
-      }),
+      jwt(jwtOptions),
       // Without a password, as for someone who signs in with a provider only, two-factor authentication is turned on without one.
       twoFactorAfterPasswordOrCode({ schema: pluginNames.twoFactor, allowPasswordless: true, ...(mail && { otpOptions: twoFactorCodeOptions(mail) }) }),
       passkeyPlugin({ domain: passkeyDomain ?? hosts[0]!, hosts, formerDomain: hosts[0]! }),
@@ -272,12 +283,8 @@ export const betterAuthOptions = (options: CreateAuthOptions, { origins = [], pa
       ...(mail && signUpRole ? [signUpPlugin({ role: signUpRole, mail })] : []),
       ...(signIn ? [genericOAuth({ config: [platformSignInProvider(signIn)] })] : []),
       ...(saml.length > 0 ? [samlPlugin(saml, options.baseURL), samlGuardPlugin(samlIds)] : []),
-      signInPolicyPlugin({
-        mail: Boolean(mailer),
-        socialProviders: [...Object.keys(options.socialProviders ?? {}), ...samlIds],
-        ...(operator && { operator: operator.name }),
-        ...(signIn && { platformSignIn: { provider: signIn.provider, name: signIn.name } }),
-      }),
+      signInPolicyPlugin(policy),
+      goTrueSessionsPlugin({ issuer: goTrueIssuer(options.baseURL), jwt: jwtOptions, policy }),
       staffSignInPlugin({ ...(operator && { operator }), ...(mail && { mail }) }),
       rolesPlugin({ definitions }),
       lastAdminGuardPlugin(),
@@ -398,6 +405,10 @@ export const createAuth = (options: CreateAuthOptions) => {
     passwordReset: Boolean(mailer),
     /** Open sign-up is on and offered: the app asks for it, and can mail the codes. */
     signUp: Boolean(signUpRole && mailer),
+    /** The role of accounts made by open sign-up, while it is offered. */
+    signUpRole: mailer ? signUpRole : undefined,
+    /** The app keeps each user's metadata, in the column `users.metadata` names. */
+    userMetadata: Boolean(options.users?.metadata),
     socialProviders,
     /** The app's name it signs in and mails as: `appName`, else `PROTOBASE_APP_NAME`, else `Protobase`. */
     appName: appName ?? defaultAppName,

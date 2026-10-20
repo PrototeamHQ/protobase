@@ -16,6 +16,8 @@ import { authBasePath, type AdminAuth } from './better-auth/create-auth'
 import { webauthnPath } from './better-auth/origins'
 import { organizationRoutes } from './better-auth/organizations/admin-routes'
 import { statusRoute } from './better-auth/status-route'
+import { goTruePath } from './gotrue/keys'
+import { goTrueRoutes } from './gotrue/routes'
 import { isCaptured } from './changes/capture-sql'
 import { changesSchema, type EventsOptions } from './changes/events-options'
 import { appOrigin } from './comments/app-origin'
@@ -254,6 +256,8 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], pag
     app.route(authBasePath, statusRoute(auth, { anonymous: visitorsBrowse(options.roles), plugins: pluginsBeforeSignIn(plugins), ...(locale && { locale }) }))
     if (auth.organizations) app.route(authBasePath, organizationRoutes({ auth, audit: deps.audit, registry, db }))
     app.on(['GET', 'POST'], `${authBasePath}/*`, (c) => auth.handler(c.req.raw))
+    // The same sign-in for supabase-js and @supabase/ssr, at the address and in the shape of Supabase's.
+    app.route(goTruePath, goTrueRoutes(auth))
     // On several origins, each says which origins may use the app's passkeys: all of them (Related Origin Requests).
     if (auth.origins.length > 1) app.get(webauthnPath, (c) => c.json({ origins: auth.origins }))
   }
