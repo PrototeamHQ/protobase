@@ -4,6 +4,7 @@ import { onTestFinished, TestRunner } from 'vitest'
 import type { SnapshotTemplateKey } from '../../scripts/test-db/snapshot-templates'
 import { fileContext, nextHandle } from './context'
 import { track } from './activity'
+import { readsIndexesUnordered, sortedRows } from './catalog-rows'
 import { createLock } from './lock'
 import { currentScope, recording } from './mode'
 import type { Entry } from './recording'
@@ -71,7 +72,8 @@ const openHandle = async (opening: Promise<Backend> | undefined): Promise<Snapsh
       const encode = context.values.encodeResult(texts)
       entry.error = Object.fromEntries(Object.entries(outcome.error).map(([field, value]) => [field, typeof value === 'string' ? encode(value) : value])) as RawError
     } else {
-      const results = Array.isArray(outcome.result) ? outcome.result : [outcome.result]
+      const answered = Array.isArray(outcome.result) ? outcome.result : [outcome.result]
+      const results = readsIndexesUnordered(sql) ? answered.map(sortedRows) : answered
       if (readsCatalog(sql)) context.values.learnOids(await backend!.existingOids(oidCandidates(results)))
       const encode = context.values.encodeResult(results.flatMap((result) => result.rows.flat().filter((value) => value !== null)))
       const kept = results.map((result) => ({ ...result, rows: result.rows.map((row) => row.map((value) => (value === null ? null : encode(value)))) }))

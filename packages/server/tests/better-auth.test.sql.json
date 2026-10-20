@@ -837,24 +837,24 @@
         ["auth"]
       ]}},
       {"sql":"\n\t\t\t\tSELECT\n\t\t\t\t\ttable_class.relname AS \"tableName\",\n\t\t\t\t\tindex_class.relname AS \"indexName\",\n\t\t\t\t\tindex_attribute.attname AS \"columnName\",\n\t\t\t\t\tindex_data.indisunique AS \"isUnique\",\n\t\t\t\t\tindex_data.indisvalid AS \"isValid\",\n\t\t\t\t\t(index_data.indpred IS NOT NULL) AS \"isPartial\",\n\t\t\t\t\tindex_column.ordinality AS \"columnPosition\"\n\t\t\t\tFROM pg_class AS table_class\n\t\t\t\tINNER JOIN pg_namespace AS table_namespace\n\t\t\t\t\tON table_namespace.oid = table_class.relnamespace\n\t\t\t\tINNER JOIN pg_index AS index_data\n\t\t\t\t\tON index_data.indrelid = table_class.oid\n\t\t\t\tINNER JOIN pg_class AS index_class\n\t\t\t\t\tON index_class.oid = index_data.indexrelid\n\t\t\t\tINNER JOIN LATERAL unnest(index_data.indkey)\n\t\t\t\t\tWITH ORDINALITY AS index_column(attribute_number, ordinality)\n\t\t\t\t\tON TRUE\n\t\t\t\tLEFT JOIN pg_attribute AS index_attribute\n\t\t\t\t\tON index_attribute.attrelid = table_class.oid\n\t\t\t\t\tAND index_attribute.attnum = index_column.attribute_number\n\t\t\t\tWHERE table_namespace.nspname = $1\n\t\t\t\t\tAND table_class.relkind = 'r'\n\t\t\t\t\tAND index_column.ordinality <= index_data.indnkeyatts\n\t\t\t","params":["auth"],"result":{"command":"SELECT","rowCount":18,"columns":[["tableName",19],["indexName",19],["columnName",19],["isUnique",16],["isValid",16],["isPartial",16],["columnPosition",20]],"rows":[
-        ["user","user_pkey","id","t","t","f","1"],
-        ["user","user_email_key","email","t","t","f","1"],
+        ["account","account_pkey","id","t","t","f","1"],
+        ["account","account_user_id_idx","user_id","f","t","f","1"],
+        ["jwks","jwks_pkey","id","t","t","f","1"],
+        ["passkey","passkey_credential_id_idx","credential_id","f","t","f","1"],
+        ["passkey","passkey_pkey","id","t","t","f","1"],
+        ["passkey","passkey_user_id_idx","user_id","f","t","f","1"],
         ["session","session_pkey","id","t","t","f","1"],
         ["session","session_token_key","token","t","t","f","1"],
-        ["account","account_pkey","id","t","t","f","1"],
-        ["verification","verification_pkey","id","t","t","f","1"],
-        ["jwks","jwks_pkey","id","t","t","f","1"],
-        ["two_factor","two_factor_pkey","id","t","t","f","1"],
-        ["passkey","passkey_pkey","id","t","t","f","1"],
+        ["session","session_user_id_idx","user_id","f","t","f","1"],
         ["sign_in_policy","sign_in_policy_pkey","id","t","t","f","1"],
         ["staff_sign_in","staff_sign_in_pkey","id","t","t","f","1"],
-        ["session","session_user_id_idx","user_id","f","t","f","1"],
-        ["account","account_user_id_idx","user_id","f","t","f","1"],
-        ["verification","verification_identifier_idx","identifier","f","t","f","1"],
+        ["two_factor","two_factor_pkey","id","t","t","f","1"],
         ["two_factor","two_factor_secret_idx","secret","f","t","f","1"],
         ["two_factor","two_factor_user_id_idx","user_id","f","t","f","1"],
-        ["passkey","passkey_user_id_idx","user_id","f","t","f","1"],
-        ["passkey","passkey_credential_id_idx","credential_id","f","t","f","1"]
+        ["user","user_email_key","email","t","t","f","1"],
+        ["user","user_pkey","id","t","t","f","1"],
+        ["verification","verification_identifier_idx","identifier","f","t","f","1"],
+        ["verification","verification_pkey","id","t","t","f","1"]
       ]}}
     ]
   },
