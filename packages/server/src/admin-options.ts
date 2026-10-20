@@ -1,5 +1,6 @@
 import type { ResolveOptions, RoleLimit } from '@protobase/schema'
 import type { CorsOrigins } from './api-cors'
+import type { ApiKeysOptions } from './api-keys/api-key-settings'
 import type { AssistantOptions } from './assistant/assistant-settings'
 import type { ErrorReportingOptions } from './error-reporting/error-reporting-settings'
 import type { LocaleOption } from './locale/locale-option'
@@ -12,6 +13,12 @@ import type { AuditQueue, PipelineHook, ScanGuardMode } from './types'
 export type AdminOptions = {
   /** Default `/api/v1`. */
   basePath?: string
+  /**
+   * The app's publishable and secret keys, with which supabase-js calls the Realtime-compatible `/realtime/v1` (see
+   * `ApiKeysOptions`); default `PROTOBASE_PUBLISHABLE_KEY` and `PROTOBASE_SECRET_KEY`. Without either, or with
+   * `false`, the app serves no `/realtime/v1`.
+   */
+  apiKeys?: ApiKeysOptions | false
   /** Applied to every request's transaction with SET LOCAL. Default 15000. */
   statementTimeoutMs?: number
   /** Reads that filter, sort or count values by a column no index serves. Default mode `reject`. */

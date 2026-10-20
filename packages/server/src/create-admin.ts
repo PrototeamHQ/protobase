@@ -1,4 +1,6 @@
 import { Hono } from 'hono'
+import type { UpgradeWebSocket } from 'hono/ws'
+import type { JWTPayload } from 'jose'
 import { checkPages } from '@protobase/layout'
 import type { Db } from '@protobase/query'
 import type { BottomBarSource, UserMenuSource } from '@protobase/schema'
@@ -11,6 +13,12 @@ import { builtInAssistant } from './assistant/built-in-assistant'
 import { assistantRecords } from './assistant/records'
 import { consoleAuditQueue } from './audit/console-queue'
 import { apiCors, readCorsOrigins } from './api-cors'
+import { apiKeySettings } from './api-keys/api-key-settings'
+import { apiKeyCaller } from './api-keys/resolve-caller'
+import { jwtVerifier } from './auth/jwt'
+import { betterAuthTokens } from './better-auth/authenticator'
+import { unauthorized } from './problem'
+import { realtimeApp } from './realtime/realtime-app'
 import { defaultAppName, readAppName } from './app-name'
 import { authBasePath, type AdminAuth } from './better-auth/create-auth'
 import { webauthnPath } from './better-auth/origins'
@@ -118,6 +126,13 @@ export type CreateAdminInput = {
   formsDifficulty?: Difficulty
   /** @internal The users comments name, mention and mail, which tests fake; from `auth` otherwise. */
   commentUsers?: CommentUsers
+  /** @internal Verifies a user's token on `/realtime/v1` and gives its claims, which tests fake; `auth`'s tokens otherwise. */
+  verifyToken?: (token: string) => Promise<JWTPayload>
+  /**
+   * The host's WebSocket upgrade, such as `@hono/node-server`'s, with which an app with keys and live resources serves
+   * supabase-js's Realtime at `/realtime/v1/websocket`; without it, the app serves none.
+   */
+  upgradeWebSocket?: UpgradeWebSocket
 }
 
 // The roles a user can hold, from the auth instance and `defineRoles`; unknown when the app declares neither.
@@ -127,7 +142,7 @@ const declaredRoles = (auth: AdminAuth | undefined, roles: AdminOptions['roles']
 }
 
 /** The admin REST API as a Hono app. It uses only Web APIs, so it runs on Node, Workers and anywhere else Hono does. */
-export const createAdmin = ({ resources: appResources, views: appViews = [], pages = [], userMenu, bottomBars = [], db, authenticate, auth, functions = {}, files: filesOptions, events, history: historyOptions, jobs = [], subscriptions = [], webhooks: webhooksOptions, bundlePlugins = [], fieldTypes = {}, options = {}, formsDifficulty, commentUsers: givenCommentUsers }: CreateAdminInput): Admin => {
+export const createAdmin = ({ resources: appResources, views: appViews = [], pages = [], userMenu, bottomBars = [], db, authenticate, auth, functions = {}, files: filesOptions, events, history: historyOptions, jobs = [], subscriptions = [], webhooks: webhooksOptions, bundlePlugins = [], fieldTypes = {}, options = {}, formsDifficulty, commentUsers: givenCommentUsers, verifyToken, upgradeWebSocket }: CreateAdminInput): Admin => {
   const basePath = options.basePath ?? '/api/v1'
   // Events are delivered, history kept, mentions mailed and AI fields filled by jobs, whose failures the page lists too.
   // Admins list the history as Activity and every comment as Comments.
@@ -174,6 +189,7 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], pag
   const plugins = pluginOptions(options.plugins, globalThis.process?.env ?? {}, bundlePlugins)
   const sources = sourceOptions(options.sources, globalThis.process?.env ?? {})
   checkSourceNames(sources, { resources: registry.entries.map((entry) => entry.name), pages: pageModels.map((entry) => entry.name) })
+  const apiKeys = apiKeySettings(options.apiKeys, globalThis.process?.env ?? {})
   const files = createFilesRuntime({ ...(filesOptions && { options: filesOptions }), env: globalThis.process?.env ?? {}, models: registry.entries.map((entry) => entry.model), systemPath })
   const table = webhooksOptions && webhookTable(webhooksOptions, auth)
   // AI fields and actions call the assistant's model; without a key they fail when used, and dev and serve stop at startup (see `checkAi`)
@@ -273,8 +289,14 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], pag
   if (forms) app.route(`${systemPath}/forms`, formRoutes(deps, forms))
   // Anyone who may read a live resource hears of its changes, a visitor of what the anonymous role reads too.
   if (appModels.some((model) => model.live)) {
-    const feed = tableFeed({ db, schema: changes, report: options.onUnhandledError ?? ((error) => console.error(error)) })
+    const report = options.onUnhandledError ?? ((error: unknown) => console.error(error))
+    const feed = tableFeed({ db, schema: changes, report })
     app.route(systemPath || '/', guarded((live) => void live.route('/', liveRoutes(feed, (session) => visibleNotices(deps, session))), withAnonymous(authenticate, options.roles)))
+    // supabase-js's `channel().on('postgres_changes')`, admitted by the app's keys, under the tables' RLS.
+    if (upgradeWebSocket && (apiKeys.publishable || apiKeys.secret)) {
+      const verify = verifyToken ?? (auth ? jwtVerifier(betterAuthTokens({ auth })) : () => Promise.reject(unauthorized('This app signs no user tokens')))
+      app.route('/realtime/v1', realtimeApp({ deps, feed, upgradeWebSocket, caller: apiKeyCaller({ keys: apiKeys, verify }), report }))
+    }
   }
   app.route(basePath, api)
   app.route(`${deps.systemPath}/meta`, metaApp)
