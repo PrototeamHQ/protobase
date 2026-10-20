@@ -1,4 +1,5 @@
 import { join } from 'node:path'
+import { setTimeout as sleep } from 'node:timers/promises'
 import { chromium, errors as playwrightErrors } from 'playwright'
 import { serveStatic } from './static-server.mjs'
 
@@ -55,10 +56,15 @@ const playStory = async (story) => {
 }
 
 // Chromium aborts every request in flight when the host's network changes, such as another job on the CI host starting a
-// container network; a story whose files were aborted that way plays once more, any other failure stands.
+// container network, which changes it several times in a row; a story whose files were aborted that way plays again, up
+// to three times in all, a second apart so the changes can settle; any other failure stands.
 const playStoryWithRetry = async (story) => {
-  const error = await playStory(story)
-  return error?.networkChanged ? playStory(story) : error
+  let error = await playStory(story)
+  for (let tries = 1; error?.networkChanged && tries < 3; tries += 1) {
+    await sleep(1_000)
+    error = await playStory(story)
+  }
+  return error
 }
 
 // Four pages at a time: a story mostly waits on rendering. Results print in story order.
