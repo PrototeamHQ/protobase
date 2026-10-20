@@ -14,6 +14,11 @@ export type PasskeyPluginOptions = {
   hosts: string[]
   /** The RP ID of a passkey made before passkeys kept theirs: the host of `baseURL`, which they all had then. */
   formerDomain: string
+  /**
+   * The only origins a passkey's answer may name, exactly (`appOrigins`): never the request's `Origin` header, which
+   * may be any trusted origin, such as a dev tunnel in `trustedOrigins`.
+   */
+  origins: string[]
 }
 
 type StoredPasskey = { id: string; userId: string; credentialID: string; publicKey: string; counter: number; transports?: string | null; rpID?: string | null }
@@ -31,9 +36,10 @@ const decodeBase64 = (value: string) => Uint8Array.from(atob(value), (char) => c
  * RP ID it was made with, so changing the passkey domain breaks none. A sign-in asks the browser for passkeys of one RP
  * ID, `?rpId=` or the passkey domain, and checks the passkey it gets against its own. On an app with several origins,
  * browsers let each origin use the passkeys of the others through `/.well-known/webauthn` (Related Origin Requests).
+ * Adding a passkey and signing in with one both accept only an answer that names one of the app's own origins.
  */
-export const passkeyPlugin = ({ domain, hosts, formerDomain }: PasskeyPluginOptions) => {
-  const base = passkey({ schema: pluginNames.passkey, rpID: domain })
+export const passkeyPlugin = ({ domain, hosts, formerDomain, origins }: PasskeyPluginOptions) => {
+  const base = passkey({ schema: pluginNames.passkey, rpID: domain, origin: origins })
   const rpIDOf = (stored: StoredPasskey) => stored.rpID ?? formerDomain
 
   /** `GET /passkey/generate-authenticate-options?rpId=`: what the browser needs to ask for a passkey of that RP ID. */
@@ -68,8 +74,6 @@ export const passkeyPlugin = ({ domain, hosts, formerDomain }: PasskeyPluginOpti
     '/passkey/verify-authentication',
     { method: 'POST', body: z.object({ response: z.record(z.any(), z.any()) }) },
     async (ctx) => {
-      const origin = ctx.headers?.get('origin')
-      if (!origin) throw new APIError('BAD_REQUEST', { message: 'origin missing' })
       const response = ctx.body.response as unknown as AuthenticationResponseJSON
       const cookie = ctx.context.createAuthCookie(challengeCookie)
       const token = await ctx.getSignedCookie(cookie.name, ctx.context.secret)
@@ -84,7 +88,7 @@ export const passkeyPlugin = ({ domain, hosts, formerDomain }: PasskeyPluginOpti
       const verification = await verifyAuthenticationResponse({
         response,
         expectedChallenge,
-        expectedOrigin: origin,
+        expectedOrigin: origins,
         expectedRPID: rpIDOf(stored),
         credential: { id: stored.credentialID, publicKey: decodeBase64(stored.publicKey), counter: stored.counter, ...(stored.transports && { transports: stored.transports.split(',') as never }) },
         requireUserVerification: false,

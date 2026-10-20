@@ -17,7 +17,7 @@ import { protobaseOrganizationPlugin } from './organizations/protobase-plugin'
 import { resolveOrganizations, type OrganizationsOptions, type ResolvedOrganizations } from './organizations/options'
 import { noGlobalRole, roleDefinitions, type RoleDefinitions, type RolesInput } from './organizations/role-definitions'
 import type { AuthContext } from './organizations/store'
-import { multiHostBaseURL, readOrigins, resolveOrigins } from './origins'
+import { appOrigins, multiHostBaseURL, readOrigins, resolveOrigins } from './origins'
 import { passkeyHosts, readPasskeyDomain, resolvePasskeyDomain } from './passkey-domain'
 import { passkeyPlugin } from './passkey-plugin'
 import { passwordResetOptions } from './password-reset'
@@ -278,7 +278,7 @@ export const betterAuthOptions = (options: CreateAuthOptions, { origins = [], pa
       jwt(jwtOptions),
       // Without a password, as for someone who signs in with a provider only, two-factor authentication is turned on without one.
       twoFactorAfterPasswordOrCode({ schema: pluginNames.twoFactor, allowPasswordless: true, ...(mail && { otpOptions: twoFactorCodeOptions(mail) }) }),
-      passkeyPlugin({ domain: passkeyDomain ?? hosts[0]!, hosts, formerDomain: hosts[0]! }),
+      passkeyPlugin({ domain: passkeyDomain ?? hosts[0]!, hosts, formerDomain: hosts[0]!, origins: appOrigins(options.baseURL, origins) }),
       ...(mail ? [emailOTP(emailCodeOptions(mail))] : []),
       ...(mail && signUpRole ? [signUpPlugin({ role: signUpRole, mail })] : []),
       ...(signIn ? [genericOAuth({ config: [platformSignInProvider(signIn)] })] : []),
@@ -392,7 +392,7 @@ export const createAuth = (options: CreateAuthOptions) => {
     /** Issuer and audience of the tokens: `baseURL`, on every origin. */
     issuer: options.baseURL,
     /** Every origin the app is served on, `baseURL`'s first. */
-    origins: [new URL(options.baseURL).origin, ...origins],
+    origins: appOrigins(options.baseURL, origins),
     /** The RP ID of new passkeys. */
     passkeyDomain,
     roles,

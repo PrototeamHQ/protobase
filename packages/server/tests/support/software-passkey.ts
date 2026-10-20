@@ -16,7 +16,8 @@ const p256KeyPair = () => {
 
 /**
  * A passkey held in memory, as an authenticator would: its credential id, the COSE public key Better Auth stores
- * (base64), and answers to sign-in challenges for the RP ID and origin the browser would name.
+ * (base64), and answers to registration and sign-in challenges for the RP ID and origin the browser would name; an
+ * origin left out is missing from the answer.
  */
 export const softwarePasskey = () => {
   const { privateKey, publicKey } = p256KeyPair()
@@ -30,16 +31,33 @@ export const softwarePasskey = () => {
       [-3, Buffer.from(jwk.y!, 'base64url')],
     ]),
   )
-  const id = base64url(randomBytes(16))
+  const rawId = randomBytes(16)
+  const id = base64url(rawId)
   let counter = 0
+  const clientData = (type: string, challenge: string, origin: string | undefined) => Buffer.from(JSON.stringify({ type, challenge, ...(origin !== undefined && { origin }), crossOrigin: false }))
   return {
     id,
     publicKey: Buffer.from(cose).toString('base64'),
-    /** The browser's answer to `challenge`, signed for `rpId` on `origin`. */
-    answer: ({ challenge, rpId, origin }: { challenge: string; rpId: string; origin: string }) => {
+    /** The browser's answer to a registration's `challenge`, for `rpId` on `origin`, without attestation (`none`). */
+    register: ({ challenge, rpId, origin }: { challenge: string; rpId: string; origin?: string }) => {
+      const length = Buffer.alloc(2)
+      length.writeUInt16BE(rawId.length)
+      // Flags: user present, user verified, attested credential data.
+      const authData = Buffer.concat([sha256(rpId), Buffer.from([0x45]), Buffer.alloc(4), Buffer.alloc(16), length, rawId, Buffer.from(cose)])
+      const attestationObject = isoCBOR.encode(new Map<string, string | Map<string, string> | Uint8Array>([['fmt', 'none'], ['attStmt', new Map<string, string>()], ['authData', authData]]))
+      return {
+        id,
+        rawId: id,
+        type: 'public-key',
+        clientExtensionResults: {},
+        response: { attestationObject: base64url(attestationObject), clientDataJSON: base64url(clientData('webauthn.create', challenge, origin)), transports: ['internal'] },
+      }
+    },
+    /** The browser's answer to a sign-in's `challenge`, signed for `rpId` on `origin`. */
+    answer: ({ challenge, rpId, origin }: { challenge: string; rpId: string; origin?: string }) => {
       counter += 1
       const authenticatorData = Buffer.concat([sha256(rpId), Buffer.from([0x05]), Buffer.from([0, 0, 0, counter])])
-      const clientDataJSON = Buffer.from(JSON.stringify({ type: 'webauthn.get', challenge, origin, crossOrigin: false }))
+      const clientDataJSON = clientData('webauthn.get', challenge, origin)
       const signature = sign('sha256', Buffer.concat([authenticatorData, sha256(clientDataJSON)]), privateKey)
       return {
         id,

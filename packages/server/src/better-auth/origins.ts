@@ -32,6 +32,12 @@ export const resolveOrigins = (baseURL: string, origins: string[]) => {
 }
 
 /**
+ * Every origin the app is served on: `baseURL`'s, then the others from `resolveOrigins`. The only origins a passkey's
+ * answer may name, and the list `/.well-known/webauthn` serves; never empty.
+ */
+export const appOrigins = (baseURL: string, origins: string[]) => [new URL(baseURL).origin, ...origins]
+
+/**
  * Better Auth's `baseURL` for an app on several origins: each request is answered for its own host when that is one of
  * them (its links, such as a password reset, and its passkey and sign-in callbacks then stay on that host), and for
  * `baseURL` otherwise. With no other origins it is `baseURL` itself.

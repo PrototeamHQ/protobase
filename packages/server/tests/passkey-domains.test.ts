@@ -36,20 +36,38 @@ const serve = async (options: Partial<CreateAuthOptions> = {}) => {
   }
 
   // The browser on `at`: asks for options of `rpId` (the passkey domain when left out), then answers with `key` for
-  // the RP ID the options name, or for `answerFor` when given.
-  const signIn = async ({ at, key, rpId, answerFor }: { at: string; key: SoftwarePasskey; rpId?: string; answerFor?: string }) => {
+  // the RP ID the options name, or for `answerFor` when given. The request's `Origin` header is `header` and the answer
+  // names `named`, both `at` when left out; a `null` one names none.
+  const signIn = async ({ at, key, rpId, answerFor, header = at, named = at }: { at: string; key: SoftwarePasskey; rpId?: string; answerFor?: string; header?: string; named?: string | null }) => {
     const options = await app.request(`${at}/api/auth/passkey/generate-authenticate-options${rpId ? `?rpId=${rpId}` : ''}`)
     if (options.status !== 200) return options
-    const { challenge, rpId: named } = (await options.json()) as { challenge: string; rpId: string }
-    const response = key.answer({ challenge, rpId: answerFor ?? named, origin: at })
+    const { challenge, rpId: asked } = (await options.json()) as { challenge: string; rpId: string }
+    const response = key.answer({ challenge, rpId: answerFor ?? asked, origin: named ?? undefined })
     return app.request(`${at}/api/auth/passkey/verify-authentication`, {
       method: 'POST',
-      headers: { 'content-type': 'application/json', origin: at, cookie: cookiesOf(options) },
+      headers: { 'content-type': 'application/json', origin: header, cookie: cookiesOf(options) },
       body: JSON.stringify({ response }),
     })
   }
+
+  // Root, signed in with the password on `label`, adds `key` there: the request's `Origin` header is `header` and the
+  // answer names `named`, both `label` when left out; a `null` one names none.
+  const register = async ({ key, header = label, named = label }: { key: SoftwarePasskey; header?: string; named?: string | null }) => {
+    const signedIn = await app.request(`${label}/api/auth/sign-in/email`, { method: 'POST', headers: { 'content-type': 'application/json', origin: label }, body: JSON.stringify({ email: 'root@example.com', password: 'correct horse battery' }) })
+    expect(signedIn.status).toBe(200)
+    const session = cookiesOf(signedIn)
+    const options = await app.request(`${label}/api/auth/passkey/generate-register-options`, { headers: { cookie: session } })
+    expect(options.status).toBe(200)
+    const { challenge, rp } = (await options.json()) as { challenge: string; rp: { id: string } }
+    return app.request(`${label}/api/auth/passkey/verify-registration`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', origin: header, cookie: `${session}; ${cookiesOf(options)}` },
+      body: JSON.stringify({ response: key.register({ challenge, rpId: rp.id, origin: named ?? undefined }) }),
+    })
+  }
+  const passkeyOf = (key: SoftwarePasskey) => adapter.findOne({ model: 'passkey', where: [{ field: 'credentialID', value: key.id }] })
   const status = async () => (await app.request(`${label}/api/auth/status`)).json()
-  return { auth, app, addPasskey, signIn, status }
+  return { auth, app, addPasskey, signIn, register, passkeyOf, status }
 }
 
 describe('passkeys on an app with several origins', () => {
@@ -101,5 +119,51 @@ describe('passkeys on an app with several origins', () => {
     expect(await addPasskey(key)).toBe('erp-x1.protobase.net')
     expect((await signIn({ at: custom, key })).status).toBe(200)
     await expect(serve({ origins: [custom], passkeyDomain: 'shop.com' })).rejects.toThrow('must be the host of one of the app\'s origins')
+  })
+})
+
+describe('the origins a passkey\'s answer may name', () => {
+  const tunnel = 'https://tunnel.example.net'
+  const serveWithTunnel = () => serve({ origins: [custom], trustedOrigins: [tunnel] })
+  // Answers that name an origin that is not the app's own, though the first is trusted and sent as the header too.
+  const strangers = [
+    { what: 'a trusted origin that is not the app\'s', header: tunnel, named: tunnel },
+    { what: 'another origin', header: label, named: 'https://example.org' },
+    { what: 'no origin', header: label, named: null },
+  ]
+
+  it('signs in with an answer that names one of the origins /.well-known/webauthn lists', async () => {
+    const { app, addPasskey, signIn } = await serveWithTunnel()
+    expect(await (await app.request(`${label}/.well-known/webauthn`)).json()).toEqual({ origins: [label, custom] })
+    const key = softwarePasskey()
+    await addPasskey(key)
+    for (const at of [label, custom]) expect((await signIn({ at, key })).status).toBe(200)
+  })
+
+  it.each(strangers)('refuses a sign-in whose answer names $what', async ({ header, named }) => {
+    const { addPasskey, signIn } = await serveWithTunnel()
+    const key = softwarePasskey()
+    await addPasskey(key)
+    const response = await signIn({ at: label, key, header, named })
+    expect(response.status).toBe(401)
+    expect(await response.json()).toMatchObject({ code: 'AUTHENTICATION_FAILED' })
+  })
+
+  it('adds a passkey with an answer that names the app\'s origin', async () => {
+    const { register, passkeyOf } = await serveWithTunnel()
+    const key = softwarePasskey()
+    expect((await register({ key })).status).toBe(200)
+    expect(await passkeyOf(key)).toBeTruthy()
+  })
+
+  // The passkey plugin answers every failed verification of a registration with a 500 (@better-auth/passkey 1.7.7,
+  // dist/index.mjs:424-428), so the refusal shows in its code; the case above differs only in the origin.
+  it.each(strangers)('adds no passkey with an answer that names $what', async ({ header, named }) => {
+    const { register, passkeyOf } = await serveWithTunnel()
+    const key = softwarePasskey()
+    const response = await register({ key, header, named })
+    expect(response.status).toBe(500)
+    expect(await response.json()).toMatchObject({ code: 'FAILED_TO_VERIFY_REGISTRATION' })
+    expect(await passkeyOf(key)).toBeNull()
   })
 })
