@@ -18,6 +18,7 @@ import { apiKeyCaller } from './api-keys/resolve-caller'
 import { jwtVerifier } from './auth/jwt'
 import { unauthorized } from './problem'
 import { realtimeApp } from './realtime/realtime-app'
+import { restRoutes } from './rest/rest-routes'
 import { defaultAppName, readAppName } from './app-name'
 import { authBasePath, type AdminAuth } from './better-auth/create-auth'
 import { webauthnPath } from './better-auth/origins'
@@ -126,7 +127,7 @@ export type CreateAdminInput = {
   formsDifficulty?: Difficulty
   /** @internal The users comments name, mention and mail, which tests fake; from `auth` otherwise. */
   commentUsers?: CommentUsers
-  /** @internal Verifies a user's token on `/realtime/v1` and gives its claims, which tests fake; those `/auth/v1` signs otherwise. */
+  /** @internal Verifies a user's token on `/rest/v1` and `/realtime/v1` and gives its claims, which tests fake; those `/auth/v1` signs otherwise. */
   verifyToken?: (token: string) => Promise<JWTPayload>
   /**
    * The host's WebSocket upgrade, such as `@hono/node-server`'s, with which an app with keys and live resources serves
@@ -297,11 +298,14 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], pag
   if (appModels.some((model) => model.live)) {
     app.route(systemPath || '/', guarded((live) => void live.route('/', liveRoutes(feed, (session) => visibleNotices(deps, session))), withAnonymous(authenticate, options.roles)))
   }
-  // supabase-js's `channel()`, admitted by the app's keys and the tokens `/auth/v1` signs: `postgres_changes` of the
-  // live resources under the tables' RLS, broadcasts and presence.
-  if (upgradeWebSocket && (apiKeys.publishable || apiKeys.secret)) {
+  // supabase-js's `from()`, `rpc()` and `channel()`, admitted by the app's keys and the tokens `/auth/v1` signs.
+  if (apiKeys.publishable || apiKeys.secret) {
     const verify = verifyToken ?? (auth ? jwtVerifier(goTrueTokens({ auth })) : () => Promise.reject(unauthorized('This app signs no user tokens')))
-    app.route('/realtime/v1', realtimeApp({ deps, feed, upgradeWebSocket, caller: apiKeyCaller({ keys: apiKeys, verify }), report }))
+    const caller = apiKeyCaller({ keys: apiKeys, verify })
+    // `from()` and `rpc()` under the tables' RLS.
+    app.route('/rest/v1', restRoutes({ deps, caller, report }))
+    // `postgres_changes` of the live resources under the tables' RLS, broadcasts and presence.
+    if (upgradeWebSocket) app.route('/realtime/v1', realtimeApp({ deps, feed, upgradeWebSocket, caller, report }))
   }
   app.route(basePath, api)
   app.route(`${deps.systemPath}/meta`, metaApp)
