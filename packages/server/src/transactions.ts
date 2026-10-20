@@ -13,8 +13,8 @@ export const writeTransaction = <T>(db: Db, timeoutMs: number, run: (trx: Db) =>
   })
 
 /** Same, and Postgres refuses any write inside it. */
-export const readTransaction = <T>(db: Db, timeoutMs: number, run: (trx: Db) => Promise<T>) =>
+export const readTransaction = <T>(db: Db, timeoutMs: number, run: (trx: Db) => Promise<T>, settings: Record<string, string> = {}) =>
   writeTransaction(db, timeoutMs, async (trx) => {
     await sql`set transaction read only`.execute(trx)
     return run(trx)
-  })
+  }, settings)

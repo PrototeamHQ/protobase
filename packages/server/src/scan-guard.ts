@@ -42,7 +42,7 @@ export const createScanGuard = (db: Db, options: { mode?: ScanGuardMode } = {}) 
   }
 
   /** Throws a 400 problem for a column no index serves in `reject` mode; in `warn` mode returns the warning text. */
-  return async (entry: Entry, query: CoverageQuery, context: GuardContext) => {
+  const check = async (entry: Entry, query: CoverageQuery, context: GuardContext) => {
     if (mode === 'off') return undefined
     const columns = uncoveredColumns(context.model, await indexesOf(entry), query, context.scope)
     const first = columns[0]
@@ -51,6 +51,8 @@ export const createScanGuard = (db: Db, options: { mode?: ScanGuardMode } = {}) 
     if (mode === 'warn') return detail
     throw new HttpProblem(400, 'expensive-query', 'Bad Request', detail, { columns, suggestion: first.suggestion })
   }
+  // `/rest/v1` judges its own filters against the same indexes, in the same mode.
+  return Object.assign(check, { mode, indexesOf })
 }
 
 export type ScanGuard = ReturnType<typeof createScanGuard>
