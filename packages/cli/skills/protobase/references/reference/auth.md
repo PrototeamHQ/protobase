@@ -59,7 +59,7 @@ createAuth({
 })
 ```
 
-- `users.table` names the table, default `user`. `users.columns` maps a column, by the name Protobase gives it (`name`, `email`, `email_verified`, `image`, `created_at`, `updated_at`, `role`, `banned`, `ban_reason`, `ban_expires`, `two_factor_enabled`, `last_role`, `last_organization_id`), to the table's own; here the app's roles go to `app_role`, since Supabase's `role` holds the Postgres role. The other tables keep their names and point at this one.
+- `users.table` names the table, default `user`. `users.columns` maps a column, by the name Protobase gives it (`name`, `email`, `email_verified`, `email_confirmed_at`, `image`, `created_at`, `updated_at`, `role`, `banned`, `ban_reason`, `ban_expires`, `two_factor_enabled`, `last_role`, `last_organization_id`), to the table's own; here the app's roles go to `app_role`, since Supabase's `role` holds the Postgres role. The other tables keep their names and point at this one.
 - `users.metadata` names a JSON column for each user's metadata: `createUser(auth, { ..., metadata: { full_name: 'Carol' } })` writes it, so a trigger that reads `raw_user_meta_data->>'full_name'` sees it.
 - `passwordHashes: ['bcrypt']` also verifies bcrypt hashes (`$2a$`, `$2b$`, `$2y$`), and stores the password again as Better Auth's own scrypt after its first sign-in. The 12-character minimum holds for new passwords only, so a shorter existing one still signs in.
 - `generateUserId: 'uuid'` makes each new user's id a random UUID in the server, for a table whose `id` is a `uuid` without a default, and makes every id column of the other tables a `uuid` too.
@@ -444,6 +444,17 @@ betterAuthAuthenticator({ auth, apps: [{ issuer: 'https://shop.example.com', rol
 ```
 
 Their tokens are verified against that app's keys at `<issuer>/api/auth/jwks`; a role it does not map is dropped, a role held in one of its organizations never counts, and a user left with none gets `403`; their id here is `<sub>@<that app's host>`. See [Signing in at the source](remote-resources.md#signing-in-at-the-source)).
+
+## supabase-js and @supabase/ssr
+
+An app moving from Supabase keeps its `supabase.auth` calls and its `@supabase/ssr` session checks: the app serves GoTrue's endpoints at `/auth/v1`, over the same Better Auth sign-in, so `createClient(<the app's origin>, <publishable key>)` signs in, refreshes, reads the user and signs out as on Supabase.
+
+- `signInWithPassword`, `signInWithOtp` then `verifyOtp({ email, token, type: 'email' })`, `signInWithOAuth` with one of the app's [sign-in providers](#sign-in-with-github) (PKCE, as `@supabase/ssr` uses, or the implicit flow), `refreshSession`, `getUser`, `getClaims`, `updateUser({ password, data })` and `signOut` work. Each goes through Better Auth's own endpoint, with its rate limits and the [sign-in policy](#sign-in-policy).
+- Addresses are proved with the emailed 6-digit code, never a link. `signUp({ email, password, options: { data } })` needs [open sign-up](#open-sign-up) and mails a sign-up code; `verifyOtp({ email, token, type: 'signup' })` makes the account, with `data` in the [user metadata column](#an-existing-users-table), and signs in. Until then there is no account and `signUp` answers no user. `resetPasswordForEmail` mails a sign-in code; `verifyOtp` with `type: 'recovery'` signs in, and `updateUser({ password })` sets the new password.
+- The access token is ES256, valid for an hour, with Supabase's claims: `sub`, `role: authenticated`, `aud: authenticated`, `email`, `app_metadata`, `user_metadata`, `aal`, `session_id`, issued by `<baseURL>/auth/v1`. Its keys are at `/auth/v1/.well-known/jwks.json`. It is apart from the EdDSA token of [Tokens and roles](#tokens-and-roles): neither is accepted for the other.
+- The refresh token is the Better Auth session's token. Each refresh gives the session a new one, so a refresh token works once, and signing out, a ban or a revoked session ends it.
+- `email_confirmed_at` is the time the address was confirmed, in the user table's `email_confirmed_at` column. An account verified before that column existed has none.
+- Not offered: MFA, passkeys, SSO, phone sign-in, anonymous sign-in, the admin API and changing the address.
 
 ## Tokens for scripts and curl
 
