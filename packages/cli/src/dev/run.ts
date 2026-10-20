@@ -118,8 +118,9 @@ export const runDev = async (options: DevOptions, out: (text: string) => void) =
       tailwindcss(),
       devServer({
         entry,
-        // Vite serves everything that is not under /api, or the passkey origins at /.well-known/webauthn.
-        exclude: [/^(?!\/api(\/|\?|$)|\/\.well-known\/webauthn(\?|$)).*/],
+        // Vite serves everything that is not under /api, the passkey origins at /.well-known/webauthn, or the OAuth
+        // discovery documents MCP clients read (`oauthWellKnownPaths`), below which a resource's own one is.
+        exclude: [/^(?!\/api(\/|\?|$)|\/\.well-known\/webauthn(\?|$)|\/\.well-known\/oauth-(authorization-server|protected-resource)(\/|\?|$)).*/],
         injectClientScript: false,
       }),
     ],

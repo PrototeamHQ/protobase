@@ -2,6 +2,7 @@ import { randomBytes } from 'node:crypto'
 import { existsSync } from 'node:fs'
 import { mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises'
 import path from 'node:path'
+import { oauthWellKnownPaths } from '@protobase/server'
 import { afterEach, describe, expect, it } from 'vitest'
 import { prebuildifyFiles, writePackage } from '../support/packages'
 import { protobaseVersion } from '../../src/version/version'
@@ -38,7 +39,7 @@ describe('buildDeployBundle', () => {
     const manifest = await buildDeployBundle({ projectDir, outDir })
 
     const shell = { protobase: protobaseVersion, pluginApi: 1, paths: ['/index.html', '/assets', '/protobase.sw.js'] }
-    const expected = { version: 3, protobase: protobaseVersion, server: 'protobase.config.js', public: 'public', spa: 'index.html', api: ['/api'], plugins: [], theme: 'protobase.theme.css', shell, icons: { favicon: false, png: [] } }
+    const expected = { version: 3, protobase: protobaseVersion, server: 'protobase.config.js', public: 'public', spa: 'index.html', api: ['/api', ...oauthWellKnownPaths], plugins: [], theme: 'protobase.theme.css', shell, icons: { favicon: false, png: [] } }
     expect(manifest).toEqual(expected)
     expect(JSON.parse(await readFile(path.join(outDir, 'protobase.bundle.json'), 'utf8'))).toEqual(expected)
     expect(await readFile(path.join(outDir, 'protobase.config.js'), 'utf8')).not.toContain('// @bun')
@@ -165,7 +166,7 @@ describe('buildDeployBundle', () => {
       'resources.ts': things,
     })
     const manifest = await buildDeployBundle({ projectDir, outDir: path.join(projectDir, 'dist') })
-    expect(manifest.api).toEqual(['/api'])
+    expect(manifest.api).toEqual(['/api', ...oauthWellKnownPaths])
   }, buildTimeout)
 
   // property-finder's listings offered a district filter on a field that was not filterable, which the API refused.

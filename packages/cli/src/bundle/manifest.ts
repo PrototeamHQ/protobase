@@ -1,6 +1,6 @@
 import { readFile } from 'node:fs/promises'
 import path from 'node:path'
-import { pngIcons, type AppIcons } from '@protobase/server'
+import { oauthWellKnownPaths, pngIcons, type AppIcons } from '@protobase/server'
 
 // The deploy bundle's table of contents, read by `protobase serve <dir>` and by any host that serves a bundle.
 export const manifestFile = 'protobase.bundle.json'
@@ -53,8 +53,9 @@ export const isApiPath = (api: readonly string[], pathname: string) =>
 // Better Auth under /api/auth. The UI calls those paths and the serve runtime refuses another basePath.
 export const bundleBasePath = '/api/v1'
 
-// Where `protobase build` puts each part, and the paths that go to the server.
-export const bundleLayout = { server: 'protobase.config.js', public: 'public', spa: 'index.html', api: ['/api'], theme: 'protobase.theme.css' } as const
+// Where `protobase build` puts each part, and the paths that go to the server: the API, and the documents MCP clients
+// discover its sign-in by, which answer 404 without MCP rather than the SPA's page.
+export const bundleLayout = { server: 'protobase.config.js', public: 'public', spa: 'index.html', api: ['/api', ...oauthWellKnownPaths], theme: 'protobase.theme.css' } as const
 
 // Where `protobase build` puts the packages the config module loads from disk, when there are any.
 export const bundleNodeModules = 'node_modules'

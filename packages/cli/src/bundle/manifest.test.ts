@@ -2,7 +2,7 @@ import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { isApiPath, manifestFile, parseManifest, readManifest } from './manifest'
+import { bundleLayout, isApiPath, manifestFile, parseManifest, readManifest } from './manifest'
 
 describe('isApiPath', () => {
   it('matches a prefix and the paths below it, not a longer segment', () => {
@@ -12,6 +12,12 @@ describe('isApiPath', () => {
     expect(isApiPath(api, '/api/v1:batchWrite')).toBe(true)
     expect(isApiPath(api, '/apiary')).toBe(false)
     expect(isApiPath(api, '/orders/api')).toBe(false)
+  })
+
+  it("sends a bundle's OAuth discovery documents to the API, the resource's own below its prefix too", () => {
+    expect(isApiPath(bundleLayout.api, '/.well-known/oauth-authorization-server')).toBe(true)
+    expect(isApiPath(bundleLayout.api, '/.well-known/oauth-protected-resource/api/mcp')).toBe(true)
+    expect(isApiPath(bundleLayout.api, '/.well-known/openid-configuration')).toBe(false)
   })
 })
 
