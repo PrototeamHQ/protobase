@@ -4,7 +4,7 @@ import { createAdaptorServer, upgradeWebSocket } from '@hono/node-server'
 import pg from 'pg'
 import { WebSocketServer } from 'ws'
 import type { Db } from '@protobase/query'
-import { checkAi, checkAuthSchema, checkChanges, checkComments, checkComputed, checkJobsSchema, checkWebhooksSchema, configExports, createFileCleanup, startJobs, type ErrorReporter } from '@protobase/server'
+import { backgroundSettled, checkAi, checkAuthSchema, checkChanges, checkComments, checkComputed, checkJobsSchema, checkWebhooksSchema, configExports, createFileCleanup, startJobs, type ErrorReporter } from '@protobase/server'
 import { projectAdmin } from '../project/project-admin'
 import { createPgDb } from '../project/pg-db'
 import { createServeApp, type ServedSite } from './app'
@@ -41,8 +41,8 @@ const listen = (server: Server, port: number) =>
 const closeServer = (server: Server) =>
   new Promise<void>((resolve, reject) => server.close((error) => (error ? reject(error) : resolve())))
 
-// Serves the project until `close`, which stops accepting connections, lets open requests finish, lets running jobs
-// finish and then drains the pool it created. A `db` exported by the project stays the project's to close. It does not
+// Serves the project until `close`, which stops accepting connections, lets open requests finish, then the work their
+// functions left to `waitUntil` and running jobs, and then drains the pool it created. A `db` exported by the project stays the project's to close. It does not
 // start while the auth schema, the change capture of resources with events, the rollup and formula columns or the jobs schema is behind, which it only
 // reads: the project's migrations change them, before the new version serves. `startupChecks` false skips those reads,
 // for a restart of a bundle that already started on this database. With jobs it runs them too, unless
@@ -79,6 +79,7 @@ export const startServe = async ({ project, env, createDb = (url) => createPgDb(
   const timer = cleanup && env.filesCleanupMinutes > 0 ? startCleanupTimer(cleanup.run, env.filesCleanupMinutes, (error) => console.error(error)) : undefined
   const close = async () => {
     await closeServer(server)
+    await backgroundSettled()
     await timer?.stop()
     await jobs?.stop()
     await ownDb?.destroy()

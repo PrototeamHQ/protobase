@@ -104,6 +104,7 @@ export { functionApp, type FunctionEnv, type PublicFunctionEnv } from './functio
 export { readJson, type StandardSchema } from './functions/read-json'
 export { verifySignature, verifyStandardWebhook, type SignatureOptions, type StandardWebhookOptions } from './functions/verify-signature'
 export { requireEnv } from './functions/require-env'
+export { backgroundSettled, waitUntil } from './functions/wait-until'
 export type { FilesOptions } from './files/options'
 export type { FileProvider, FileStore, StoredObject } from './files/store'
 export { localFiles, localFileStore, type LocalFilesOptions } from './files/local-files'
