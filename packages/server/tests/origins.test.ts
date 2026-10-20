@@ -5,6 +5,7 @@ import { createAuth, type CreateAuthOptions } from '../src/better-auth/create-au
 import { createUser } from '../src/better-auth/users'
 import { createAdmin } from '../src/create-admin'
 import type { MailMessage } from '../src/mail/smtp-mailer'
+import type { MobileConfig } from '../src/mobile-config'
 import { openSnapshotDb, type SnapshotDb } from '../../../test-support/sql-snapshot'
 
 const label = 'https://erp-x1.protobase.net'
@@ -26,16 +27,16 @@ afterEach(() => {
 // Better Auth's rate limits are per client address, so every app gets an address of its own.
 let client = 0
 
-const serve = async (options: Partial<CreateAuthOptions> = {}) => {
+const serve = async (options: Partial<CreateAuthOptions> = {}, mobile?: MobileConfig) => {
   const sent: MailMessage[] = []
   const mailer = { send: async (message: MailMessage) => void sent.push(message) }
   const auth = createAuth({ database: { dialect: (await shared.clone()).dialect, type: 'postgres' }, baseURL: label, secret, mailer, ...options })
   await createUser(auth, { email: 'root@example.com', password })
-  const app = createAdmin({ resources: [], db: appDb, authenticate: betterAuthAuthenticator({ auth }), auth })
+  const app = createAdmin({ resources: [], db: appDb, authenticate: betterAuthAuthenticator({ auth }), auth, ...(mobile && { mobile }) })
   const address = `203.0.113.${++client}`
   const post = (origin: string, path: string, body: object, headers: Record<string, string> = {}) =>
     app.request(`${origin}/api/auth${path}`, { method: 'POST', headers: { 'content-type': 'application/json', origin, 'x-forwarded-for': address, ...headers }, body: JSON.stringify(body) })
-  return { auth, app, sent, post }
+  return { auth, app, sent, post, address }
 }
 
 describe('an app on several origins', () => {
@@ -91,5 +92,60 @@ describe('an app on several origins', () => {
     const claims = JSON.parse(Buffer.from(token.split('.')[1], 'base64url').toString())
     expect(claims).toMatchObject({ iss: label, aud: label })
     expect((await app.request(`${custom}/api/meta`, { headers: { authorization: `Bearer ${token}` } })).status).toBe(200)
+  })
+})
+
+describe('a mobile app', () => {
+  const mobile = { appId: 'com.example.shop' }
+  const capacitor = ['capacitor://localhost', 'https://localhost']
+  const corsHeaders = (response: Response) => [...response.headers.keys()].filter((name) => name.startsWith('access-control-'))
+
+  it('leaves sign-in to Better Auth, which answers the Capacitor origins as it does without a mobile section', async () => {
+    vi.stubEnv('PROTOBASE_CORS_ORIGINS', '')
+    const answers = async (withMobile?: MobileConfig) => {
+      const { app, address } = await serve({}, withMobile)
+      const statuses: number[] = []
+      for (const origin of capacitor) {
+        for (const path of ['/api/auth/sign-in/email', '/api/auth/get-session', '/api/auth', '/api/auth/status']) {
+          const headers = { origin, 'x-forwarded-for': address }
+          const preflight = await app.request(`${label}${path}`, { method: 'OPTIONS', headers: { ...headers, 'access-control-request-method': 'POST' } })
+          const method = path === '/api/auth/sign-in/email' ? 'POST' : 'GET'
+          const body = method === 'POST' ? JSON.stringify({ email: 'root@example.com', password }) : undefined
+          const request = await app.request(`${label}${path}`, { method, headers: { ...headers, 'content-type': 'application/json' }, body })
+          expect(corsHeaders(preflight), `${origin} ${path}`).toEqual([])
+          expect(corsHeaders(request), `${origin} ${path}`).toEqual([])
+          statuses.push(preflight.status, request.status)
+        }
+      }
+      return statuses
+    }
+    expect(await answers(mobile)).toEqual(await answers())
+  })
+
+  it('answers the Capacitor origins and the app\'s own on /api and /auth/v1', async () => {
+    vi.stubEnv('PROTOBASE_CORS_ORIGINS', '')
+    const { app } = await serve({ origins: [custom] }, mobile)
+    for (const origin of [...capacitor, custom]) {
+      for (const path of ['/api/meta', '/auth/v1/user']) {
+        const preflight = await app.request(`${label}${path}`, { method: 'OPTIONS', headers: { origin, 'access-control-request-method': 'GET', 'access-control-request-headers': 'authorization' } })
+        expect(preflight.headers.get('access-control-allow-origin'), `${origin} ${path}`).toBe(origin)
+        const response = await app.request(`${label}${path}`, { headers: { origin } })
+        expect(response.headers.get('access-control-allow-origin'), `${origin} ${path}`).toBe(origin)
+        expect(response.headers.get('access-control-allow-credentials')).toBeNull()
+      }
+    }
+  })
+
+  it('takes no session cookie from a Capacitor origin: only a bearer token signs the caller in', async () => {
+    vi.stubEnv('PROTOBASE_CORS_ORIGINS', '')
+    const { app, post } = await serve({}, mobile)
+    const signIn = await post(label, '/sign-in/email', { email: 'root@example.com', password })
+    const cookie = signIn.headers.getSetCookie().map((header) => header.split(';')[0]).join('; ')
+    expect(cookie).toContain('session_token')
+    const origin = 'https://localhost'
+    expect((await app.request(`${label}/api/meta`, { headers: { origin, cookie } })).status).toBe(401)
+    expect((await app.request(`${label}/auth/v1/user`, { headers: { origin, cookie } })).status).toBe(401)
+    const put = await app.request(`${label}/auth/v1/user`, { method: 'PUT', headers: { origin, cookie, 'content-type': 'text/plain' }, body: JSON.stringify({ data: { name: 'Mallory' } }) })
+    expect(put.status).toBe(401)
   })
 })

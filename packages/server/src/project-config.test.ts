@@ -48,6 +48,13 @@ describe('mergeConfig', () => {
     )
   })
 
+  it('keeps the last mobile section', () => {
+    const mobile = { appId: 'com.example.shop' }
+    expect(mergeConfig({ name: 'cloud', mobile: { appId: 'net.protobase.cloud' } }, { name: 'app', mobile }).mobile).toBe(mobile)
+    expect(mergeConfig({ name: 'cloud', mobile }, { name: 'app' }).mobile).toBe(mobile)
+    expect(mergeConfig({ name: 'app' })).not.toHaveProperty('mobile')
+  })
+
   it('keeps the functions of every config, and refuses a function name two configs use, naming both', () => {
     const [usage, hello] = [() => new Response('usage'), () => new Response('hello')]
     expect(mergeConfig({ name: 'cloud', functions: { usage } }, { name: 'app', functions: { hello } }).functions).toEqual({ usage, hello })

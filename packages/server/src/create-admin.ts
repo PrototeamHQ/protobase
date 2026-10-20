@@ -12,7 +12,8 @@ import { assistantSettings } from './assistant/assistant-settings'
 import { builtInAssistant } from './assistant/built-in-assistant'
 import { assistantRecords } from './assistant/records'
 import { consoleAuditQueue } from './audit/console-queue'
-import { apiCors, readCorsOrigins } from './api-cors'
+import { apiCors, readCorsOrigins, withMobileOrigins } from './api-cors'
+import type { MobileConfig } from './mobile-config'
 import { apiKeySettings } from './api-keys/api-key-settings'
 import { apiKeyCaller } from './api-keys/resolve-caller'
 import { jwtVerifier } from './auth/jwt'
@@ -110,6 +111,8 @@ export type CreateAdminInput = {
   subscriptions?: SubscriptionDefinition[]
   /** Webhook subscriptions made in the admin app, from `extends: [webhooks()]` (see `WebhooksOptions`). */
   webhooks?: WebhooksOptions
+  /** The app's iOS and Android build (see `MobileConfig`): the API answers its Capacitor origins through CORS. */
+  mobile?: MobileConfig
   /**
    * The plugins the app's bundle carries, as `protobase build` writes them: its protobase.ui.tsx and its extensions'
    * UI configs, each a plugin.json path on the app's origin. `/meta` names them to everyone, before any other plugin,
@@ -143,7 +146,7 @@ const declaredRoles = (auth: AdminAuth | undefined, roles: AdminOptions['roles']
 }
 
 /** The admin REST API as a Hono app. It uses only Web APIs, so it runs on Node, Workers and anywhere else Hono does. */
-export const createAdmin = ({ resources: appResources, views: appViews = [], pages = [], userMenu, bottomBars = [], db, authenticate, auth, functions = {}, files: filesOptions, events, history: historyOptions, jobs = [], subscriptions = [], webhooks: webhooksOptions, bundlePlugins = [], fieldTypes = {}, options = {}, formsDifficulty, commentUsers: givenCommentUsers, verifyToken, upgradeWebSocket }: CreateAdminInput): Admin => {
+export const createAdmin = ({ resources: appResources, views: appViews = [], pages = [], userMenu, bottomBars = [], db, authenticate, auth, functions = {}, files: filesOptions, events, history: historyOptions, jobs = [], subscriptions = [], webhooks: webhooksOptions, mobile, bundlePlugins = [], fieldTypes = {}, options = {}, formsDifficulty, commentUsers: givenCommentUsers, verifyToken, upgradeWebSocket }: CreateAdminInput): Admin => {
   const basePath = options.basePath ?? '/api/v1'
   // Events are delivered, history kept, mentions mailed and AI fields filled by jobs, whose failures the page lists too.
   // Admins list the history as Activity and every comment as Comments.
@@ -261,7 +264,7 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], pag
 
   const app = new Hono<AdminEnv>()
   app.onError(onError)
-  const corsOrigins = options.cors ?? readCorsOrigins(globalThis.process?.env ?? {})
+  const corsOrigins = withMobileOrigins(options.cors ?? readCorsOrigins(globalThis.process?.env ?? {}), Boolean(mobile))
   const ownOrigins = auth?.origins ?? []
   if (corsOrigins !== undefined || ownOrigins.length > 1) {
     // Better Auth checks origins itself, and a function with its own `cors` answers for itself.

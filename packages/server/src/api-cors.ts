@@ -1,6 +1,7 @@
 import type { MiddlewareHandler } from 'hono'
 import { cors } from 'hono/cors'
 import { readList } from './better-auth/origins'
+import { capacitorOrigins } from './mobile-config'
 
 export const corsOriginsVariable = 'PROTOBASE_CORS_ORIGINS'
 
@@ -23,6 +24,12 @@ export const readCorsOrigins = (env: Record<string, string | undefined>): CorsOr
     }
     return url.origin
   })
+}
+
+/** The allowed origins plus the Capacitor ones when the app has a mobile section; `*` stays `*`. */
+export const withMobileOrigins = (allowed: CorsOrigins | undefined, mobile: boolean): CorsOrigins | undefined => {
+  if (!mobile || allowed === '*') return allowed
+  return [...new Set([...(allowed ?? []), ...capacitorOrigins])]
 }
 
 // Bearer tokens, not cookies, so no credentials. A write sends its ETag back in `If-Match`, `/meta` in `If-None-Match`;

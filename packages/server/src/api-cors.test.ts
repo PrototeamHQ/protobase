@@ -1,6 +1,6 @@
 import { Hono } from 'hono'
 import { describe, expect, it } from 'vitest'
-import { apiCors, readCorsOrigins } from './api-cors'
+import { apiCors, readCorsOrigins, withMobileOrigins } from './api-cors'
 
 describe('readCorsOrigins', () => {
   it('reads `*`, or the origins of a comma-separated list', () => {
@@ -18,6 +18,16 @@ describe('readCorsOrigins', () => {
     for (const origin of ['capacitor://localhost', 'file:///x', 'ws://a.com', 'blob:https://a.com/x', 'data:text/html;base64', 'javascript:x']) {
       expect(() => readCorsOrigins({ PROTOBASE_CORS_ORIGINS: `https://a.com,${origin}` })).toThrow(`"${origin}", but it takes http and https origins only`)
     }
+  })
+})
+
+describe('withMobileOrigins', () => {
+  it('adds the Capacitor origins once, only for a mobile app, and keeps `*`', () => {
+    expect(withMobileOrigins(['https://shop.com'], false)).toEqual(['https://shop.com'])
+    expect(withMobileOrigins(undefined, false)).toBeUndefined()
+    expect(withMobileOrigins(['https://shop.com', 'https://localhost'], true)).toEqual(['https://shop.com', 'https://localhost', 'capacitor://localhost'])
+    expect(withMobileOrigins(undefined, true)).toEqual(['capacitor://localhost', 'https://localhost'])
+    expect(withMobileOrigins('*', true)).toBe('*')
   })
 })
 

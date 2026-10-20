@@ -34,6 +34,8 @@ export { defaultSignInPolicy, signInPolicyMethods, type SignInPolicy, type SignI
 export { readOperatorSettings, type OperatorProvider } from './better-auth/operator-provider'
 export { webauthnPath } from './better-auth/origins'
 export type { CorsOrigins } from './api-cors'
+export type { MobileConfig } from './mobile-config'
+export { defaultAppName } from './app-name'
 export { readPlatformSignIn, type PlatformSignIn } from './better-auth/platform-sign-in'
 export { authSchemaMigration, checkAuthSchema } from './better-auth/auth-schema'
 export { changesMigration, checkChanges, migrationCommand } from './changes/capture-schema'

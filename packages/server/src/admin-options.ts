@@ -49,8 +49,8 @@ export type AdminOptions = {
   /**
    * The websites whose browser code may call the API (`/api/*` but `/api/auth/*`) besides the app's own origins (see
    * `createAuth`'s `origins`): a list of origins, or `*` for any. Defaults to the one the platform passes in
-   * `PROTOBASE_CORS_ORIGINS` (`*` or comma separated), when set. With neither this nor other origins, the API sends no
-   * CORS headers.
+   * `PROTOBASE_CORS_ORIGINS` (`*` or comma separated), when set. A `mobile` section adds the app's Capacitor origins
+   * (`capacitor://localhost`, `https://localhost`). With none of these nor other origins, the API sends no CORS headers.
    */
   cors?: CorsOrigins
   /** The runtime updates endpoint behind the top bar's update button (see `RuntimeOptions`); `false` turns it off. */
