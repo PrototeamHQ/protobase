@@ -1,0 +1,1913 @@
+{
+  "server": "PostgREST 14.18",
+  "answers": [
+    {
+      "name": "anon reads every profile",
+      "status": 200,
+      "headers": {
+        "content-range": "0-2/*",
+        "content-type": "application/json; charset=utf-8"
+      },
+      "body": [
+        {
+          "id": "1a1a1a1a-0000-0000-0000-000000000001",
+          "username": "alice",
+          "full_name": "Alice Adams",
+          "website": "https://alice.example.com"
+        },
+        {
+          "id": "1a1a1a1a-0000-0000-0000-000000000002",
+          "username": "bob",
+          "full_name": "Bob Brown",
+          "website": null
+        },
+        {
+          "id": "1a1a1a1a-0000-0000-0000-000000000003",
+          "username": "carol",
+          "full_name": null,
+          "website": null
+        }
+      ]
+    },
+    {
+      "name": "anon reads no todo under RLS",
+      "status": 200,
+      "headers": {
+        "content-range": "*/*",
+        "content-type": "application/json; charset=utf-8"
+      },
+      "body": []
+    },
+    {
+      "name": "alice reads her own todos only",
+      "status": 200,
+      "headers": {
+        "content-range": "0-6/*",
+        "content-type": "application/json; charset=utf-8"
+      },
+      "body": [
+        {
+          "id": 1,
+          "user_id": "1a1a1a1a-0000-0000-0000-000000000001",
+          "title": "Buy milk",
+          "done": false,
+          "priority": 1,
+          "tags": [
+            "home",
+            "shopping"
+          ],
+          "meta": {
+            "cost": 3,
+            "kind": "errand"
+          },
+          "due": "2026-03-01",
+          "during": "[\"2026-03-01 08:00:00+00\",\"2026-03-01 09:00:00+00\")",
+          "notes": "semi-skimmed",
+          "search": "'buy':1 'milk':2"
+        },
+        {
+          "id": 2,
+          "user_id": "1a1a1a1a-0000-0000-0000-000000000001",
+          "title": "Write report",
+          "done": false,
+          "priority": 3,
+          "tags": [
+            "work"
+          ],
+          "meta": {
+            "kind": "work",
+            "pages": 12
+          },
+          "due": "2026-03-05",
+          "during": "[\"2026-03-02 09:00:00+00\",\"2026-03-05 17:00:00+00\")",
+          "notes": null,
+          "search": "'report':2 'write':1"
+        },
+        {
+          "id": 3,
+          "user_id": "1a1a1a1a-0000-0000-0000-000000000001",
+          "title": "Call the plumber",
+          "done": true,
+          "priority": 2,
+          "tags": [
+            "home"
+          ],
+          "meta": {
+            "kind": "errand"
+          },
+          "due": null,
+          "during": null,
+          "notes": "about the leaking tap",
+          "search": "'call':1 'plumber':3"
+        },
+        {
+          "id": 4,
+          "user_id": "1a1a1a1a-0000-0000-0000-000000000001",
+          "title": "Plan the holiday",
+          "done": false,
+          "priority": null,
+          "tags": [],
+          "meta": null,
+          "due": "2026-06-30",
+          "during": null,
+          "notes": null,
+          "search": "'holiday':3 'plan':1"
+        },
+        {
+          "id": 5,
+          "user_id": "1a1a1a1a-0000-0000-0000-000000000001",
+          "title": "Buy bread and milk",
+          "done": true,
+          "priority": 1,
+          "tags": [
+            "shopping"
+          ],
+          "meta": {
+            "cost": 4,
+            "kind": "errand"
+          },
+          "due": "2026-03-01",
+          "during": null,
+          "notes": null,
+          "search": "'bread':2 'buy':1 'milk':4"
+        },
+        {
+          "id": 6,
+          "user_id": "1a1a1a1a-0000-0000-0000-000000000001",
+          "title": "Review pull requests",
+          "done": false,
+          "priority": 2,
+          "tags": [
+            "work",
+            "code"
+          ],
+          "meta": {
+            "kind": "work"
+          },
+          "due": "2026-03-03",
+          "during": "[\"2026-03-03 10:00:00+00\",\"2026-03-03 12:00:00+00\")",
+          "notes": null,
+          "search": "'pull':2 'request':3 'review':1"
+        },
+        {
+          "id": 7,
+          "user_id": "1a1a1a1a-0000-0000-0000-000000000001",
+          "title": "Water the plants",
+          "done": false,
+          "priority": 1,
+          "tags": [
+            "home"
+          ],
+          "meta": null,
+          "due": null,
+          "during": null,
+          "notes": "twice a week",
+          "search": "'plant':3 'water':1"
+        }
+      ]
+    },
+    {
+      "name": "eq",
+      "status": 200,
+      "headers": {
+        "content-range": "0-2/*",
+        "content-type": "application/json; charset=utf-8"
+      },
+      "body": [
+        {
+          "id": 1,
+          "title": "Buy milk",
+          "done": false,
+          "priority": 1
+        },
+        {
+          "id": 5,
+          "title": "Buy bread and milk",
+          "done": true,
+          "priority": 1
+        },
+        {
+          "id": 7,
+          "title": "Water the plants",
+          "done": false,
+          "priority": 1
+        }
+      ]
+    },
+    {
+      "name": "neq",
+      "status": 200,
+      "headers": {
+        "content-range": "0-2/*",
+        "content-type": "application/json; charset=utf-8"
+      },
+      "body": [
+        {
+          "id": 2,
+          "title": "Write report",
+          "done": false,
+          "priority": 3
+        },
+        {
+          "id": 3,
+          "title": "Call the plumber",
+          "done": true,
+          "priority": 2
+        },
+        {
+          "id": 6,
+          "title": "Review pull requests",
+          "done": false,
+          "priority": 2
+        }
+      ]
+    },
+    {
+      "name": "gt and lte",
+      "status": 200,
+      "headers": {
+        "content-range": "0-1/*",
+        "content-type": "application/json; charset=utf-8"
+      },
+      "body": [
+        {
+          "id": 3,
+          "title": "Call the plumber",
+          "done": true,
+          "priority": 2
+        },
+        {
+          "id": 6,
+          "title": "Review pull requests",
+          "done": false,
+          "priority": 2
+        }
+      ]
+    },
+    {
+      "name": "gte and lt on a date",
+      "status": 200,
+      "headers": {
+        "content-range": "0-1/*",
+        "content-type": "application/json; charset=utf-8"
+      },
+      "body": [
+        {
+          "id": 2,
+          "due": "2026-03-05"
+        },
+        {
+          "id": 6,
+          "due": "2026-03-03"
+        }
+      ]
+    },
+    {
+      "name": "like with stars",
+      "status": 200,
+      "headers": {
+        "content-range": "0-1/*",
+        "content-type": "application/json; charset=utf-8"
+      },
+      "body": [
+        {
+          "id": 1,
+          "title": "Buy milk"
+        },
+        {
+          "id": 5,
+          "title": "Buy bread and milk"
+        }
+      ]
+    },
+    {
+      "name": "ilike",
+      "status": 200,
+      "headers": {
+        "content-range": "0-1/*",
+        "content-type": "application/json; charset=utf-8"
+      },
+      "body": [
+        {
+          "id": 1,
+          "title": "Buy milk"
+        },
+        {
+          "id": 5,
+          "title": "Buy bread and milk"
+        }
+      ]
+    },
+    {
+      "name": "match and imatch",
+      "status": 200,
+      "headers": {
+        "content-range": "0-2/*",
+        "content-type": "application/json; charset=utf-8"
+      },
+      "body": [
+        {
+          "id": 3,
+          "title": "Call the plumber"
+        },
+        {
+          "id": 4,
+          "title": "Plan the holiday"
+        },
+        {
+          "id": 7,
+          "title": "Water the plants"
+        }
+      ]
+    },
+    {
+      "name": "in with a quoted value",
+      "status": 200,
+      "headers": {
+        "content-range": "0-1/*",
+        "content-type": "application/json; charset=utf-8"
+      },
+      "body": [
+        {
+          "id": 1,
+          "title": "Buy milk"
+        },
+        {
+          "id": 2,
+          "title": "Write report"
+        }
+      ]
+    },
+    {
+      "name": "in with nothing",
+      "status": 200,
+      "headers": {
+        "content-range": "*/*",
+        "content-type": "application/json; charset=utf-8"
+      },
+      "body": []
+    },
+    {
+      "name": "is null",
+      "status": 200,
+      "headers": {
+        "content-range": "0-0/*",
+        "content-type": "application/json; charset=utf-8"
+      },
+      "body": [
+        {
+          "id": 4
+        }
+      ]
+    },
+    {
+      "name": "is true and is false",
+      "status": 200,
+      "headers": {
+        "content-range": "0-1/*",
+        "content-type": "application/json; charset=utf-8"
+      },
+      "body": [
+        {
+          "id": 3
+        },
+        {
+          "id": 5
+        }
+      ]
+    },
+    {
+      "name": "not.is.null",
+      "status": 200,
+      "headers": {
+        "content-range": "0-4/*",
+        "content-type": "application/json; charset=utf-8"
+      },
+      "body": [
+        {
+          "id": 1
+        },
+        {
+          "id": 2
+        },
+        {
+          "id": 4
+        },
+        {
+          "id": 5
+        },
+        {
+          "id": 6
+        }
+      ]
+    },
+    {
+      "name": "isdistinct",
+      "status": 200,
+      "headers": {
+        "content-range": "0-3/*",
+        "content-type": "application/json; charset=utf-8"
+      },
+      "body": [
+        {
+          "id": 2
+        },
+        {
+          "id": 3
+        },
+        {
+          "id": 4
+        },
+        {
+          "id": 6
+        }
+      ]
+    },
+    {
+      "name": "not.eq",
+      "status": 200,
+      "headers": {
+        "content-range": "0-4/*",
+        "content-type": "application/json; charset=utf-8"
+      },
+      "body": [
+        {
+          "id": 1
+        },
+        {
+          "id": 2
+        },
+        {
+          "id": 4
+        },
+        {
+          "id": 6
+        },
+        {
+          "id": 7
+        }
+      ]
+    },
+    {
+      "name": "fts with a language",
+      "status": 200,
+      "headers": {
+        "content-range": "0-1/*",
+        "content-type": "application/json; charset=utf-8"
+      },
+      "body": [
+        {
+          "id": 1,
+          "title": "Buy milk"
+        },
+        {
+          "id": 5,
+          "title": "Buy bread and milk"
+        }
+      ]
+    },
+    {
+      "name": "plfts",
+      "status": 200,
+      "headers": {
+        "content-range": "0-0/*",
+        "content-type": "application/json; charset=utf-8"
+      },
+      "body": [
+        {
+          "id": 5
+        }
+      ]
+    },
+    {
+      "name": "phfts",
+      "status": 200,
+      "headers": {
+        "content-range": "0-0/*",
+        "content-type": "application/json; charset=utf-8"
+      },
+      "body": [
+        {
+          "id": 3
+        }
+      ]
+    },
+    {
+      "name": "wfts",
+      "status": 200,
+      "headers": {
+        "content-range": "0-0/*",
+        "content-type": "application/json; charset=utf-8"
+      },
+      "body": [
+        {
+          "id": 1
+        }
+      ]
+    },
+    {
+      "name": "cs on an array",
+      "status": 200,
+      "headers": {
+        "content-range": "0-2/*",
+        "content-type": "application/json; charset=utf-8"
+      },
+      "body": [
+        {
+          "id": 1,
+          "tags": [
+            "home",
+            "shopping"
+          ]
+        },
+        {
+          "id": 3,
+          "tags": [
+            "home"
+          ]
+        },
+        {
+          "id": 7,
+          "tags": [
+            "home"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "cd on an array",
+      "status": 200,
+      "headers": {
+        "content-range": "0-4/*",
+        "content-type": "application/json; charset=utf-8"
+      },
+      "body": [
+        {
+          "id": 1,
+          "tags": [
+            "home",
+            "shopping"
+          ]
+        },
+        {
+          "id": 3,
+          "tags": [
+            "home"
+          ]
+        },
+        {
+          "id": 4,
+          "tags": []
+        },
+        {
+          "id": 5,
+          "tags": [
+            "shopping"
+          ]
+        },
+        {
+          "id": 7,
+          "tags": [
+            "home"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "ov on an array",
+      "status": 200,
+      "headers": {
+        "content-range": "0-2/*",
+        "content-type": "application/json; charset=utf-8"
+      },
+      "body": [
+        {
+          "id": 1
+        },
+        {
+          "id": 5
+        },
+        {
+          "id": 6
+        }
+      ]
+    },
+    {
+      "name": "cs on JSON",
+      "status": 200,
+      "headers": {
+        "content-range": "0-2/*",
+        "content-type": "application/json; charset=utf-8"
+      },
+      "body": [
+        {
+          "id": 1,
+          "meta": {
+            "cost": 3,
+            "kind": "errand"
+          }
+        },
+        {
+          "id": 3,
+          "meta": {
+            "kind": "errand"
+          }
+        },
+        {
+          "id": 5,
+          "meta": {
+            "cost": 4,
+            "kind": "errand"
+          }
+        }
+      ]
+    },
+    {
+      "name": "range operators",
+      "status": 200,
+      "headers": {
+        "content-range": "0-1/*",
+        "content-type": "application/json; charset=utf-8"
+      },
+      "body": [
+        {
+          "id": 1
+        },
+        {
+          "id": 6
+        }
+      ]
+    },
+    {
+      "name": "adj",
+      "status": 200,
+      "headers": {
+        "content-range": "0-0/*",
+        "content-type": "application/json; charset=utf-8"
+      },
+      "body": [
+        {
+          "id": 1
+        }
+      ]
+    },
+    {
+      "name": "nxr and nxl",
+      "status": 200,
+      "headers": {
+        "content-range": "0-1/*",
+        "content-type": "application/json; charset=utf-8"
+      },
+      "body": [
+        {
+          "id": 1
+        },
+        {
+          "id": 6
+        }
+      ]
+    },
+    {
+      "name": "a filter on a JSON path",
+      "status": 200,
+      "headers": {
+        "content-range": "0-1/*",
+        "content-type": "application/json; charset=utf-8"
+      },
+      "body": [
+        {
+          "id": 2
+        },
+        {
+          "id": 6
+        }
+      ]
+    },
+    {
+      "name": "eq(any)",
+      "status": 200,
+      "headers": {
+        "content-range": "0-3/*",
+        "content-type": "application/json; charset=utf-8"
+      },
+      "body": [
+        {
+          "id": 1
+        },
+        {
+          "id": 2
+        },
+        {
+          "id": 5
+        },
+        {
+          "id": 7
+        }
+      ]
+    },
+    {
+      "name": "like(all)",
+      "status": 200,
+      "headers": {
+        "content-range": "0-1/*",
+        "content-type": "application/json; charset=utf-8"
+      },
+      "body": [
+        {
+          "id": 1
+        },
+        {
+          "id": 5
+        }
+      ]
+    },
+    {
+      "name": "or",
+      "status": 200,
+      "headers": {
+        "content-range": "0-2/*",
+        "content-type": "application/json; charset=utf-8"
+      },
+      "body": [
+        {
+          "id": 2
+        },
+        {
+          "id": 3
+        },
+        {
+          "id": 5
+        }
+      ]
+    },
+    {
+      "name": "or with nested and, not and quoted values",
+      "status": 200,
+      "headers": {
+        "content-range": "0-5/*",
+        "content-type": "application/json; charset=utf-8"
+      },
+      "body": [
+        {
+          "id": 1
+        },
+        {
+          "id": 2
+        },
+        {
+          "id": 3
+        },
+        {
+          "id": 4
+        },
+        {
+          "id": 5
+        },
+        {
+          "id": 7
+        }
+      ]
+    },
+    {
+      "name": "not.or beside a filter",
+      "status": 200,
+      "headers": {
+        "content-range": "0-1/*",
+        "content-type": "application/json; charset=utf-8"
+      },
+      "body": [
+        {
+          "id": 2
+        },
+        {
+          "id": 6
+        }
+      ]
+    },
+    {
+      "name": "and with in",
+      "status": 200,
+      "headers": {
+        "content-range": "0-1/*",
+        "content-type": "application/json; charset=utf-8"
+      },
+      "body": [
+        {
+          "id": 3
+        },
+        {
+          "id": 7
+        }
+      ]
+    },
+    {
+      "name": "aliases and casts",
+      "status": 200,
+      "headers": {
+        "content-range": "0-1/*",
+        "content-type": "application/json; charset=utf-8"
+      },
+      "body": [
+        {
+          "key": 1,
+          "title": "Buy milk",
+          "priority": "1",
+          "label": "Buy milk"
+        },
+        {
+          "key": 2,
+          "title": "Write report",
+          "priority": "3",
+          "label": "Write report"
+        }
+      ]
+    },
+    {
+      "name": "JSON paths in select",
+      "status": 200,
+      "headers": {
+        "content-range": "0-2/*",
+        "content-type": "application/json; charset=utf-8"
+      },
+      "body": [
+        {
+          "id": 1,
+          "kind": "errand",
+          "cost": "3",
+          "pages": null
+        },
+        {
+          "id": 2,
+          "kind": "work",
+          "cost": null,
+          "pages": "12"
+        },
+        {
+          "id": 3,
+          "kind": "errand",
+          "cost": null,
+          "pages": null
+        }
+      ]
+    },
+    {
+      "name": "spaces in select",
+      "status": 200,
+      "headers": {
+        "content-range": "0-0/*",
+        "content-type": "application/json; charset=utf-8"
+      },
+      "body": [
+        {
+          "id": 1,
+          "title": "Buy milk"
+        }
+      ]
+    },
+    {
+      "name": "an unknown column",
+      "status": 400,
+      "headers": {
+        "content-type": "application/json; charset=utf-8"
+      },
+      "body": {
+        "code": "42703",
+        "details": null,
+        "hint": null,
+        "message": "column todos.colour does not exist"
+      }
+    },
+    {
+      "name": "order desc nulls last and a second column",
+      "status": 200,
+      "headers": {
+        "content-range": "0-6/*",
+        "content-type": "application/json; charset=utf-8"
+      },
+      "body": [
+        {
+          "id": 2,
+          "priority": 3
+        },
+        {
+          "id": 3,
+          "priority": 2
+        },
+        {
+          "id": 6,
+          "priority": 2
+        },
+        {
+          "id": 1,
+          "priority": 1
+        },
+        {
+          "id": 5,
+          "priority": 1
+        },
+        {
+          "id": 7,
+          "priority": 1
+        },
+        {
+          "id": 4,
+          "priority": null
+        }
+      ]
+    },
+    {
+      "name": "order nulls first",
+      "status": 200,
+      "headers": {
+        "content-range": "0-6/*",
+        "content-type": "application/json; charset=utf-8"
+      },
+      "body": [
+        {
+          "id": 4,
+          "priority": null
+        },
+        {
+          "id": 1,
+          "priority": 1
+        },
+        {
+          "id": 5,
+          "priority": 1
+        },
+        {
+          "id": 7,
+          "priority": 1
+        },
+        {
+          "id": 3,
+          "priority": 2
+        },
+        {
+          "id": 6,
+          "priority": 2
+        },
+        {
+          "id": 2,
+          "priority": 3
+        }
+      ]
+    },
+    {
+      "name": "limit and offset",
+      "status": 200,
+      "headers": {
+        "content-range": "1-2/*",
+        "content-type": "application/json; charset=utf-8"
+      },
+      "body": [
+        {
+          "id": 2
+        },
+        {
+          "id": 3
+        }
+      ]
+    },
+    {
+      "name": "a Range header",
+      "status": 200,
+      "headers": {
+        "content-range": "2-4/*",
+        "content-type": "application/json; charset=utf-8"
+      },
+      "body": [
+        {
+          "id": 3
+        },
+        {
+          "id": 4
+        },
+        {
+          "id": 5
+        }
+      ]
+    },
+    {
+      "name": "an open Range header",
+      "status": 200,
+      "headers": {
+        "content-range": "5-6/*",
+        "content-type": "application/json; charset=utf-8"
+      },
+      "body": [
+        {
+          "id": 6
+        },
+        {
+          "id": 7
+        }
+      ]
+    },
+    {
+      "name": "count=exact over a page",
+      "status": 206,
+      "headers": {
+        "content-range": "0-1/7",
+        "content-type": "application/json; charset=utf-8"
+      },
+      "body": [
+        {
+          "id": 1
+        },
+        {
+          "id": 2
+        }
+      ]
+    },
+    {
+      "name": "count=exact over all rows",
+      "status": 200,
+      "headers": {
+        "content-range": "0-0/1",
+        "content-type": "application/json; charset=utf-8"
+      },
+      "body": [
+        {
+          "id": 2
+        }
+      ]
+    },
+    {
+      "name": "count=exact past the end",
+      "status": 416,
+      "headers": {
+        "content-range": "*/7",
+        "content-type": "application/json; charset=utf-8"
+      },
+      "body": {
+        "code": "PGRST103",
+        "details": "An offset of 20 was requested, but there are only 7 rows.",
+        "hint": null,
+        "message": "Requested range not satisfiable"
+      }
+    },
+    {
+      "name": "count=exact with HEAD",
+      "status": 200,
+      "headers": {
+        "content-range": "0-6/7",
+        "content-type": "application/json; charset=utf-8"
+      },
+      "body": null
+    },
+    {
+      "name": "count=planned",
+      "status": 206,
+      "headers": {
+        "content-range": "0-0/10",
+        "content-type": "application/json; charset=utf-8"
+      },
+      "body": [
+        {
+          "id": 1
+        }
+      ]
+    },
+    {
+      "name": "count=estimated",
+      "status": 206,
+      "headers": {
+        "content-range": "0-0/10",
+        "content-type": "application/json; charset=utf-8"
+      },
+      "body": [
+        {
+          "id": 1
+        }
+      ]
+    },
+    {
+      "name": "one row as an object",
+      "status": 200,
+      "headers": {
+        "content-range": "0-0/*",
+        "content-type": "application/vnd.pgrst.object+json; charset=utf-8"
+      },
+      "body": {
+        "id": 1,
+        "title": "Buy milk",
+        "done": false,
+        "priority": 1
+      }
+    },
+    {
+      "name": "no row as an object",
+      "status": 406,
+      "headers": {
+        "content-type": "application/json; charset=utf-8"
+      },
+      "body": {
+        "code": "PGRST116",
+        "details": "The result contains 0 rows",
+        "hint": null,
+        "message": "Cannot coerce the result to a single JSON object"
+      }
+    },
+    {
+      "name": "several rows as an object",
+      "status": 406,
+      "headers": {
+        "content-type": "application/json; charset=utf-8"
+      },
+      "body": {
+        "code": "PGRST116",
+        "details": "The result contains 3 rows",
+        "hint": null,
+        "message": "Cannot coerce the result to a single JSON object"
+      }
+    },
+    {
+      "name": "an unknown table",
+      "status": 404,
+      "headers": {
+        "content-type": "application/json; charset=utf-8"
+      },
+      "body": {
+        "code": "PGRST205",
+        "details": null,
+        "hint": null,
+        "message": "Could not find the table 'public.xyzzy' in the schema cache"
+      }
+    },
+    {
+      "name": "an unknown operator",
+      "status": 400,
+      "headers": {
+        "content-type": "application/json; charset=utf-8"
+      },
+      "body": {
+        "code": "PGRST100",
+        "details": "unexpected \"e\" expecting \"not\" or operator (eq, gt, ...)",
+        "hint": null,
+        "message": "\"failed to parse filter (near.1)\" (line 1, column 1)"
+      }
+    },
+    {
+      "name": "a value of the wrong type",
+      "status": 400,
+      "headers": {
+        "content-type": "application/json; charset=utf-8"
+      },
+      "body": {
+        "code": "22P02",
+        "details": null,
+        "hint": null,
+        "message": "invalid input syntax for type integer: \"high\""
+      }
+    },
+    {
+      "name": "insert one and return it",
+      "status": 201,
+      "headers": {
+        "content-range": "*/*",
+        "content-type": "application/json; charset=utf-8"
+      },
+      "body": [
+        {
+          "id": 101,
+          "user_id": "1a1a1a1a-0000-0000-0000-000000000001",
+          "title": "Pay rent",
+          "done": false,
+          "priority": 2,
+          "tags": []
+        }
+      ]
+    },
+    {
+      "name": "insert several, missing columns null",
+      "status": 201,
+      "headers": {
+        "content-range": "*/*",
+        "content-type": "application/json; charset=utf-8"
+      },
+      "body": [
+        {
+          "id": 102,
+          "title": "Read a book",
+          "priority": 1,
+          "done": false
+        },
+        {
+          "id": 103,
+          "title": "Go running",
+          "priority": null,
+          "done": false
+        }
+      ]
+    },
+    {
+      "name": "insert several, a missing column null against its constraint",
+      "status": 400,
+      "headers": {
+        "content-type": "application/json; charset=utf-8"
+      },
+      "body": {
+        "code": "23502",
+        "details": null,
+        "hint": null,
+        "message": "null value in column \"done\" of relation \"todos\" violates not-null constraint"
+      }
+    },
+    {
+      "name": "insert several with other keys and no columns",
+      "status": 400,
+      "headers": {
+        "content-type": "application/json; charset=utf-8"
+      },
+      "body": {
+        "code": "PGRST102",
+        "details": null,
+        "hint": null,
+        "message": "All object keys must match"
+      }
+    },
+    {
+      "name": "insert several, missing columns default",
+      "status": 201,
+      "headers": {
+        "content-range": "*/*",
+        "content-type": "application/json; charset=utf-8"
+      },
+      "body": [
+        {
+          "id": 106,
+          "title": "Bake a cake",
+          "done": true,
+          "tags": []
+        },
+        {
+          "id": 107,
+          "title": "Phone mum",
+          "done": false,
+          "tags": [
+            "family"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "insert with missing=default and an explicit null",
+      "status": 400,
+      "headers": {
+        "content-type": "application/json; charset=utf-8"
+      },
+      "body": {
+        "code": "23502",
+        "details": null,
+        "hint": null,
+        "message": "null value in column \"tags\" of relation \"todos\" violates not-null constraint"
+      }
+    },
+    {
+      "name": "insert minimal",
+      "status": 201,
+      "headers": {
+        "content-range": "*/*"
+      },
+      "body": null
+    },
+    {
+      "name": "insert minimal with a count",
+      "status": 201,
+      "headers": {
+        "content-range": "*/2"
+      },
+      "body": null
+    },
+    {
+      "name": "insert as an object",
+      "status": 201,
+      "headers": {
+        "content-range": "*/*",
+        "content-type": "application/vnd.pgrst.object+json; charset=utf-8"
+      },
+      "body": {
+        "id": 112,
+        "title": "Feed the cat"
+      }
+    },
+    {
+      "name": "insert another user's row",
+      "status": 403,
+      "headers": {
+        "content-type": "application/json; charset=utf-8"
+      },
+      "body": {
+        "code": "42501",
+        "details": null,
+        "hint": null,
+        "message": "new row violates row-level security policy for table \"todos\""
+      }
+    },
+    {
+      "name": "insert as anon",
+      "status": 401,
+      "headers": {
+        "content-type": "application/json; charset=utf-8"
+      },
+      "body": {
+        "code": "42501",
+        "details": null,
+        "hint": null,
+        "message": "new row violates row-level security policy for table \"todos\""
+      }
+    },
+    {
+      "name": "insert without a required column",
+      "status": 400,
+      "headers": {
+        "content-type": "application/json; charset=utf-8"
+      },
+      "body": {
+        "code": "23502",
+        "details": null,
+        "hint": null,
+        "message": "null value in column \"title\" of relation \"todos\" violates not-null constraint"
+      }
+    },
+    {
+      "name": "insert a duplicate",
+      "status": 409,
+      "headers": {
+        "content-type": "application/json; charset=utf-8"
+      },
+      "body": {
+        "code": "23505",
+        "details": "Key (username)=(alice) already exists.",
+        "hint": null,
+        "message": "duplicate key value violates unique constraint \"profiles_username_key\""
+      }
+    },
+    {
+      "name": "alice reads her todos after inserting",
+      "status": 200,
+      "headers": {
+        "content-range": "0-8/*",
+        "content-type": "application/json; charset=utf-8"
+      },
+      "body": [
+        {
+          "id": 101,
+          "title": "Pay rent",
+          "done": false,
+          "priority": 2,
+          "tags": [],
+          "meta": null
+        },
+        {
+          "id": 102,
+          "title": "Read a book",
+          "done": false,
+          "priority": 1,
+          "tags": [],
+          "meta": null
+        },
+        {
+          "id": 103,
+          "title": "Go running",
+          "done": false,
+          "priority": null,
+          "tags": [],
+          "meta": null
+        },
+        {
+          "id": 106,
+          "title": "Bake a cake",
+          "done": true,
+          "priority": null,
+          "tags": [],
+          "meta": null
+        },
+        {
+          "id": 107,
+          "title": "Phone mum",
+          "done": false,
+          "priority": null,
+          "tags": [
+            "family"
+          ],
+          "meta": null
+        },
+        {
+          "id": 109,
+          "title": "Wash the car",
+          "done": false,
+          "priority": null,
+          "tags": [],
+          "meta": null
+        },
+        {
+          "id": 110,
+          "title": "Tidy up",
+          "done": false,
+          "priority": null,
+          "tags": [],
+          "meta": null
+        },
+        {
+          "id": 111,
+          "title": "Sleep",
+          "done": false,
+          "priority": null,
+          "tags": [],
+          "meta": null
+        },
+        {
+          "id": 112,
+          "title": "Feed the cat",
+          "done": false,
+          "priority": null,
+          "tags": [],
+          "meta": {
+            "kind": "pet"
+          }
+        }
+      ]
+    },
+    {
+      "name": "upsert merging on a unique column",
+      "status": 201,
+      "headers": {
+        "content-range": "*/*",
+        "content-type": "application/json; charset=utf-8"
+      },
+      "body": [
+        {
+          "username": "carol",
+          "full_name": "Carol Clark",
+          "website": null
+        },
+        {
+          "username": "dave",
+          "full_name": "Dave Davis",
+          "website": null
+        }
+      ]
+    },
+    {
+      "name": "upsert ignoring duplicates",
+      "status": 201,
+      "headers": {
+        "content-range": "*/*",
+        "content-type": "application/json; charset=utf-8"
+      },
+      "body": [
+        {
+          "id": "1a1a1a1a-0000-0000-0000-000000000005",
+          "username": "erin",
+          "full_name": null,
+          "website": null
+        }
+      ]
+    },
+    {
+      "name": "upsert on the primary key",
+      "status": 200,
+      "headers": {
+        "content-range": "*/*",
+        "content-type": "application/json; charset=utf-8"
+      },
+      "body": [
+        {
+          "id": 4,
+          "title": "Plan the summer holiday",
+          "done": false
+        }
+      ]
+    },
+    {
+      "name": "upsert minimal",
+      "status": 200,
+      "headers": {
+        "content-range": "*/*"
+      },
+      "body": null
+    },
+    {
+      "name": "upsert of another user's row",
+      "status": 403,
+      "headers": {
+        "content-type": "application/json; charset=utf-8"
+      },
+      "body": {
+        "code": "42501",
+        "details": null,
+        "hint": null,
+        "message": "new row violates row-level security policy (USING expression) for table \"todos\""
+      }
+    },
+    {
+      "name": "update and return",
+      "status": 200,
+      "headers": {
+        "content-range": "0-0/*",
+        "content-type": "application/json; charset=utf-8"
+      },
+      "body": [
+        {
+          "id": 1,
+          "title": "Buy milk",
+          "done": true,
+          "priority": 2
+        }
+      ]
+    },
+    {
+      "name": "update minimal",
+      "status": 204,
+      "headers": {
+        "content-range": "0-1/*"
+      },
+      "body": null
+    },
+    {
+      "name": "update minimal with a count",
+      "status": 204,
+      "headers": {
+        "content-range": "0-2/3"
+      },
+      "body": null
+    },
+    {
+      "name": "update another user's row",
+      "status": 200,
+      "headers": {
+        "content-range": "*/*",
+        "content-type": "application/json; charset=utf-8"
+      },
+      "body": []
+    },
+    {
+      "name": "update several rows as an object",
+      "status": 406,
+      "headers": {
+        "content-type": "application/json; charset=utf-8"
+      },
+      "body": {
+        "code": "PGRST116",
+        "details": "The result contains 4 rows",
+        "hint": null,
+        "message": "Cannot coerce the result to a single JSON object"
+      }
+    },
+    {
+      "name": "the object update rolled back",
+      "status": 200,
+      "headers": {
+        "content-range": "0-6/*",
+        "content-type": "application/json; charset=utf-8"
+      },
+      "body": [
+        {
+          "id": 1,
+          "title": "Buy milk",
+          "done": true,
+          "priority": 2,
+          "tags": [
+            "home",
+            "shopping"
+          ],
+          "notes": "semi-skimmed"
+        },
+        {
+          "id": 2,
+          "title": "Write report",
+          "done": false,
+          "priority": 3,
+          "tags": [
+            "work",
+            "urgent"
+          ],
+          "notes": null
+        },
+        {
+          "id": 3,
+          "title": "Call the plumber",
+          "done": true,
+          "priority": 2,
+          "tags": [
+            "home"
+          ],
+          "notes": "about the leaking tap"
+        },
+        {
+          "id": 4,
+          "title": "Plan the summer holiday",
+          "done": false,
+          "priority": null,
+          "tags": [],
+          "notes": null
+        },
+        {
+          "id": 5,
+          "title": "Buy bread and milk",
+          "done": true,
+          "priority": 1,
+          "tags": [
+            "shopping"
+          ],
+          "notes": "soon"
+        },
+        {
+          "id": 6,
+          "title": "Review pull requests",
+          "done": false,
+          "priority": 2,
+          "tags": [
+            "work",
+            "urgent"
+          ],
+          "notes": null
+        },
+        {
+          "id": 7,
+          "title": "Water the plants",
+          "done": false,
+          "priority": 1,
+          "tags": [
+            "home"
+          ],
+          "notes": "soon"
+        }
+      ]
+    },
+    {
+      "name": "delete and return",
+      "status": 200,
+      "headers": {
+        "content-range": "*/*",
+        "content-type": "application/json; charset=utf-8"
+      },
+      "body": [
+        {
+          "id": 7,
+          "title": "Water the plants"
+        }
+      ]
+    },
+    {
+      "name": "delete minimal",
+      "status": 204,
+      "headers": {
+        "content-range": "*/*"
+      },
+      "body": null
+    },
+    {
+      "name": "delete another user's row",
+      "status": 200,
+      "headers": {
+        "content-range": "*/0",
+        "content-type": "application/json; charset=utf-8"
+      },
+      "body": []
+    },
+    {
+      "name": "bob still has his todos",
+      "status": 200,
+      "headers": {
+        "content-range": "0-2/*",
+        "content-type": "application/json; charset=utf-8"
+      },
+      "body": [
+        {
+          "id": 8,
+          "title": "Fix the bike"
+        },
+        {
+          "id": 9,
+          "title": "Buy milk"
+        },
+        {
+          "id": 10,
+          "title": "Prepare the talk"
+        }
+      ]
+    },
+    {
+      "name": "rpc by POST",
+      "status": 200,
+      "headers": {
+        "content-range": "0-0/*",
+        "content-type": "application/json; charset=utf-8"
+      },
+      "body": 3
+    },
+    {
+      "name": "rpc by GET",
+      "status": 200,
+      "headers": {
+        "content-range": "0-0/*",
+        "content-type": "application/json; charset=utf-8"
+      },
+      "body": 42
+    },
+    {
+      "name": "rpc under RLS",
+      "status": 200,
+      "headers": {
+        "content-range": "0-0/*",
+        "content-type": "application/json; charset=utf-8"
+      },
+      "body": 14
+    },
+    {
+      "name": "rpc under RLS as anon",
+      "status": 200,
+      "headers": {
+        "content-range": "0-0/*",
+        "content-type": "application/json; charset=utf-8"
+      },
+      "body": 0
+    },
+    {
+      "name": "rpc returning rows, shaped",
+      "status": 200,
+      "headers": {
+        "content-range": "0-1/*",
+        "content-type": "application/json; charset=utf-8"
+      },
+      "body": [
+        {
+          "id": 101,
+          "title": "Pay rent"
+        },
+        {
+          "id": 6,
+          "title": "Review pull requests"
+        }
+      ]
+    },
+    {
+      "name": "rpc returning rows, filtered",
+      "status": 200,
+      "headers": {
+        "content-range": "0-2/*",
+        "content-type": "application/json; charset=utf-8"
+      },
+      "body": [
+        {
+          "id": 2
+        },
+        {
+          "id": 4
+        },
+        {
+          "id": 6
+        }
+      ]
+    },
+    {
+      "name": "rpc returning rows with a count",
+      "status": 206,
+      "headers": {
+        "content-range": "0-0/10",
+        "content-type": "application/json; charset=utf-8"
+      },
+      "body": [
+        {
+          "id": 2
+        }
+      ]
+    },
+    {
+      "name": "rpc returning a table",
+      "status": 200,
+      "headers": {
+        "content-range": "0-0/*",
+        "content-type": "application/json; charset=utf-8"
+      },
+      "body": [
+        {
+          "id": "1a1a1a1a-0000-0000-0000-000000000003",
+          "username": "carol"
+        }
+      ]
+    },
+    {
+      "name": "rpc returning one row",
+      "status": 200,
+      "headers": {
+        "content-range": "0-0/*",
+        "content-type": "application/json; charset=utf-8"
+      },
+      "body": {
+        "id": 1,
+        "title": "Buy milk"
+      }
+    },
+    {
+      "name": "rpc returning scalars",
+      "status": 200,
+      "headers": {
+        "content-range": "0-2/*",
+        "content-type": "application/json; charset=utf-8"
+      },
+      "body": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "name": "rpc returning rows as an object",
+      "status": 200,
+      "headers": {
+        "content-range": "0-0/*",
+        "content-type": "application/vnd.pgrst.object+json; charset=utf-8"
+      },
+      "body": {
+        "id": 2
+      }
+    },
+    {
+      "name": "rpc returning void",
+      "status": 204,
+      "headers": {
+        "content-range": "0-0/*"
+      },
+      "body": null
+    },
+    {
+      "name": "rpc that writes, by GET",
+      "status": 405,
+      "headers": {
+        "content-type": "application/json; charset=utf-8"
+      },
+      "body": {
+        "code": "25006",
+        "details": null,
+        "hint": null,
+        "message": "cannot execute UPDATE in a read-only transaction"
+      }
+    },
+    {
+      "name": "rpc reading the claims as alice",
+      "status": 200,
+      "headers": {
+        "content-range": "0-0/*",
+        "content-type": "application/json; charset=utf-8"
+      },
+      "body": {
+        "uid": "1a1a1a1a-0000-0000-0000-000000000001",
+        "role": "authenticated"
+      }
+    },
+    {
+      "name": "rpc reading the claims as anon",
+      "status": 200,
+      "headers": {
+        "content-range": "0-0/*",
+        "content-type": "application/json; charset=utf-8"
+      },
+      "body": {
+        "uid": null,
+        "role": "anon"
+      }
+    },
+    {
+      "name": "rpc reading the claims with the secret key",
+      "status": 200,
+      "headers": {
+        "content-range": "0-0/*",
+        "content-type": "application/json; charset=utf-8"
+      },
+      "body": {
+        "uid": null,
+        "role": "service_role"
+      }
+    },
+    {
+      "name": "an unknown function",
+      "status": 404,
+      "headers": {
+        "content-type": "application/json; charset=utf-8"
+      },
+      "body": {
+        "code": "PGRST202",
+        "details": "Searched for the function public.nothing_here without parameters or with a single unnamed json/jsonb parameter, but no matches were found in the schema cache.",
+        "hint": null,
+        "message": "Could not find the function public.nothing_here without parameters in the schema cache"
+      }
+    },
+    {
+      "name": "a function called with other arguments",
+      "status": 404,
+      "headers": {
+        "content-type": "application/json; charset=utf-8"
+      },
+      "body": {
+        "code": "PGRST202",
+        "details": "Searched for the function public.add with parameters a, c or with a single unnamed json/jsonb parameter, but no matches were found in the schema cache.",
+        "hint": "Perhaps you meant to call the function public.add(a, b)",
+        "message": "Could not find the function public.add(a, c) in the schema cache"
+      }
+    }
+  ]
+}

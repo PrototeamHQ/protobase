@@ -3,6 +3,7 @@ import { Kysely, PostgresDialect, sql } from 'kysely'
 import pg from 'pg'
 import { createAuth, jobsSchemaMigration } from '@protobase/server'
 import { queryDdl } from '../../test-support/fixtures/query-ddl'
+import { restDdl } from '../../test-support/fixtures/rest-ddl'
 import { serverDdl } from '../../test-support/fixtures/server-ddl'
 import type { Template } from './templates'
 
@@ -37,6 +38,11 @@ export const snapshotTemplates = {
   /** The server tests' fixture (test-support/server.ts). */
   fixture: snapshot('snapshot_fixture_test_template', ['test-support/fixtures/server-ddl.ts'], async (db) => {
     await exec(db, serverDdl)
+    await exec(db, 'vacuum analyze')
+  }),
+  /** An app moved from Supabase, for `/rest/v1`: Supabase's roles and `auth` functions, tables under RLS, functions to call. */
+  rest: snapshot('snapshot_rest_test_template', ['test-support/fixtures/rest-ddl.ts'], async (db) => {
+    await exec(db, restDdl)
     await exec(db, 'vacuum analyze')
   }),
   /** A migrated Better Auth store with nothing in it: no users, no signing keys. */
