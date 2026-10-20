@@ -2,7 +2,7 @@ import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { serveStaticSite, type StaticSite } from './static-site'
+import { frameHeaders, serveStaticSite, type StaticSite } from './static-site'
 
 const page = (pathname: string, init: RequestInit = {}) => new Request(`http://local${pathname}`, init)
 const navigation = (pathname: string) => page(pathname, { headers: { accept: 'text/html,application/xhtml+xml' } })
@@ -39,6 +39,15 @@ describe('serveStaticSite', () => {
     expect(await deep.text()).toContain('<title>app</title>')
   })
 
+  it('keeps every file and page out of other sites\' frames', async () => {
+    for (const request of [page('/assets/index-abc123.js'), page('/'), navigation('/-/connect')]) {
+      const response = await serveStaticSite(site, request)
+      expect(response.headers.get('x-frame-options')).toBe('DENY')
+      expect(response.headers.get('content-security-policy')).toBe("frame-ancestors 'none'")
+    }
+    expect(frameHeaders).toEqual({ 'x-frame-options': 'DENY', 'content-security-policy': "frame-ancestors 'none'" })
+  })
+
   it('answers 404 for a missing file that is not a navigation', async () => {
     expect((await serveStaticSite(site, page('/assets/gone.js'))).status).toBe(404)
   })
@@ -73,6 +82,9 @@ describe('serveStaticSite', () => {
     // The bundle's copy is not served beside the shell's.
     expect((await serveStaticSite(withShell, page('/assets/index-abc123.js'))).status).toBe(404)
     expect(await (await serveStaticSite(withShell, page('/plugins/app/plugin.json'))).text()).toBe('{"name":"app"}')
+    for (const request of [page('/'), navigation('/-/connect'), page('/plugins/app/plugin.json')]) {
+      expect((await serveStaticSite(withShell, request)).headers.get('content-security-policy')).toBe("frame-ancestors 'none'")
+    }
   })
 
   it('refuses methods other than GET and HEAD', async () => {
