@@ -25,6 +25,7 @@ import { restRoutes } from './rest/rest-routes'
 import { storageRoutes } from './storage/storage-routes'
 import { defaultAppName, readAppName } from './app-name'
 import { authBasePath, type AdminAuth } from './better-auth/create-auth'
+import { mcpDiscovery } from './better-auth/mcp/discovery-routes'
 import { withoutSessionTokens } from './better-auth/without-session-tokens'
 import { webauthnPath } from './better-auth/origins'
 import { organizationRoutes } from './better-auth/organizations/admin-routes'
@@ -298,6 +299,7 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], pag
   if (auth) {
     app.route(authBasePath, statusRoute(auth, { anonymous: visitorsBrowse(options.roles), plugins: pluginsBeforeSignIn(plugins), ...(locale && { locale }) }))
     if (auth.organizations) app.route(authBasePath, organizationRoutes({ auth, audit: deps.audit, registry, db }))
+    if (auth.mcp) mcpDiscovery(app, auth)
     app.on(['GET', 'POST'], `${authBasePath}/*`, async (c) => withoutSessionTokens(c.req.raw, await auth.handler(c.req.raw)))
     // The same sign-in for supabase-js and @supabase/ssr, at the address and in the shape of Supabase's.
     app.route(goTruePath, goTrueRoutes(auth))
