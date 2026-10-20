@@ -14,6 +14,7 @@ import { writeMigration } from './migration-files'
 import { runPgTool } from './pg-tools'
 import { replayScript } from './replay'
 import { schemaMigration } from './schema-migration'
+import { refuseSsoUsers, ssoUserCount } from './sso-users'
 import { appSchemas, cronJobs, cronTimezone, databaseMarkers, dumpedTables, extensions, httpTriggers, hypertables, pgmqQueues, pgsodiumColumns, platformMigrationTables, realtimeTables, routinesIn, tablesSize, vaultSecretValues, vaultSecrets } from './source-facts'
 import { authStoreMigrations } from './store-migrations'
 import { ensureApiRoles, existingSchemas, existingTables } from './target-checks'
@@ -121,6 +122,7 @@ export const runDumpPhase = async (options: DumpOptions, out: (text: string) => 
     await reserved`begin isolation level repeatable read read only`
     const [exported] = await reserved<{ snapshot: string }[]>`select pg_export_snapshot() as snapshot`
     const snapshot = exported!.snapshot
+    refuseSsoUsers(await ssoUserCount((text) => reserved.unsafe(text)))
     const { manifest: source, plan, replay } = await readSource(reserved, options.targetUrl)
     const created = await checkTarget(options.targetUrl, source.schemas, source.tables)
     if (created.length > 0) out(`created the roles ${created.join(', ')} in the project's database\n`)
