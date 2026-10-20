@@ -12,16 +12,16 @@ export default meta
 const signed = (clientId: string, redirectUri: string) =>
   new URLSearchParams({ response_type: 'code', client_id: clientId, redirect_uri: redirectUri, scope: 'mcp offline_access', state: 'st4te', exp: '1790000000', sig: 'c2lnbmF0dXJl' }).toString()
 
-type Args = { client: ConnectingClient; redirectUri: string; refusal?: AuthError; assign: (url: string) => void; isFramed?: () => boolean }
+type Args = { client: ConnectingClient; redirectUri: string; refusal?: AuthError; assign: (url: string) => void; isFramed?: () => boolean; resumed?: string }
 
 /** Sanne, signed in, on the connect page with the request a client's authorize sent there. */
-const ConnectStory = ({ client, redirectUri, refusal, assign, isFramed }: Args) => {
+const ConnectStory = ({ client, redirectUri, refusal, assign, isFramed, resumed }: Args) => {
   const query = signed(client.client_id, redirectUri)
   const base = createStaticSession('story-token', { id: 'u-sanne', email: 'sanne@veldhuis-supply.example', name: 'Sanne Veldhuis', role: 'user' })
   const session: AuthSession = {
     ...base,
     connect: {
-      resume: async () => (refusal ? Promise.reject(refusal) : { url: `/-/connect?${query}` }),
+      resume: async () => (refusal ? Promise.reject(refusal) : { url: resumed ?? `/-/connect?${query}` }),
       client: async () => client,
       answer: async (accept) => ({ url: `${redirectUri}?${accept ? 'code=c0de' : 'error=access_denied'}&state=st4te` }),
     },
@@ -150,5 +150,20 @@ export const Framed: StoryObj<Args> = {
     expect(canvas.getByText('This page cannot be used inside another site')).toBeVisible()
     expect(canvas.getByRole('link', { name: 'Open it on its own' })).toHaveAttribute('target', '_blank')
     expect(canvas.queryByRole('button', { name: 'Allow' })).toBeNull()
+  },
+}
+
+// A client allowed before is sent its code at once. Its redirect may have this page's path and a query of its choosing,
+// on its own host: the page goes there, and never shows that query as a request.
+const lookalike = `http://127.0.0.1:4000/-/connect?${signed('https://claude.ai/oauth/client.json', 'https://claude.ai/cb')}&code=c0de`
+
+export const AllowedBeforeWithALookalikeRedirect: StoryObj<Args> = {
+  tags: ['play'],
+  args: { client: { client_id: 'https://claude.ai/oauth/client.json', client_name: 'Claude' }, redirectUri: 'http://127.0.0.1:4000/-/connect', resumed: lookalike, assign: fn() },
+  render: (args) => <ConnectStory {...args} />,
+  play: async ({ canvasElement, args }) => {
+    await waitFor(() => expect(args.assign).toHaveBeenCalledWith(lookalike))
+    expect(within(canvasElement).queryByText(/Published by/)).toBeNull()
+    expect(within(canvasElement).queryByRole('button', { name: 'Allow' })).toBeNull()
   },
 }
