@@ -1,0 +1,32 @@
+{
+  "name": "@protobase/mobile",
+  "version": "0.14.2",
+  "private": true,
+  "description": "The Capacitor that protobase mobile builds a Protobase app's iOS and Android projects with, at fixed versions; installed by the CLI on first use.",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/PrototeamHQ/protobase.git",
+    "directory": "packages/mobile"
+  },
+  "homepage": "https://docs.protobase.net",
+  "type": "module",
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "files": [
+    "LICENSE"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "dependencies": {
+    "@capacitor/android": "8.5.3",
+    "@capacitor/app": "8.1.2",
+    "@capacitor/cli": "8.5.3",
+    "@capacitor/core": "8.5.3",
+    "@capacitor/ios": "8.5.3",
+    "@capacitor/splash-screen": "8.0.2",
+    "@capawesome/capacitor-live-update": "8.7.1"
+  }
+}

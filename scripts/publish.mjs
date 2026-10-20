@@ -43,7 +43,7 @@ const readPackages = () =>
     const manifest = JSON.parse(readFileSync(path.join(packageDir, 'package.json'), 'utf8'))
     if (manifest.private) return []
     const dependencies = Object.keys({ ...manifest.dependencies, ...manifest.peerDependencies })
-    return [{ dir: packageDir, name: manifest.name, version: manifest.version, dependencies }]
+    return [{ dir: packageDir, name: manifest.name, version: manifest.version, dependencies, build: Boolean(manifest.scripts?.build) }]
   })
 
 // Groups the packages into layers, each depending only on packages in the layers before it.
@@ -97,8 +97,9 @@ const packages = readPackages()
 const pending = packOnly ? packages : await unpublished(packages)
 
 // Every package is built before any package.json is rewritten for packing, since a build resolves its dependencies'
-// sources through their workspace exports, and before any is published, so a failing build publishes nothing.
-await Promise.all(pending.map(({ dir }) => run('bun', ['run', 'build'], dir)))
+// sources through their workspace exports, and before any is published, so a failing build publishes nothing. A package
+// without a build script, such as @protobase/mobile, which only pins dependencies, is packed as it is.
+await Promise.all(pending.filter(({ build }) => build).map(({ dir }) => run('bun', ['run', 'build'], dir)))
 // One pack at a time: `bun pm pack` reads every workspace's package.json to pin the workspace:* dependencies, and one
 // rewritten or restored for another pack meanwhile can be read half-written, failing the pack with `Failed to resolve
 // workspace version`.
