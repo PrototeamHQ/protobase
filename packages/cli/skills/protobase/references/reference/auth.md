@@ -64,7 +64,7 @@ createAuth({
 - `passwordHashes: ['bcrypt']` also verifies bcrypt hashes (`$2a$`, `$2b$`, `$2y$`), and stores the password again as Better Auth's own scrypt after its first sign-in. The 12-character minimum holds for new passwords only, so a shorter existing one still signs in.
 - `generateUserId: 'uuid'` makes each new user's id a random UUID in the server, for a table whose `id` is a `uuid` without a default, and makes every id column of the other tables a `uuid` too.
 
-The columns Better Auth needs that the table lacks, filled from what the other system recorded, and each password's `credential` row in `account`, come first, from a migration of the project's own; `protobase auth migration` then writes the other tables next to it.
+The columns Better Auth needs that the table lacks come first, from a migration of the project's own; `protobase auth migration` then writes the other tables next to it, and another migration fills the columns from what the other system recorded and gives each password its `credential` row in `account`. For Supabase, [`protobase import supabase`](cli.md#import-supabase)) writes all three and these options.
 
 ## Configuration
 
