@@ -22,6 +22,7 @@ import { jwtVerifier } from './auth/jwt'
 import { unauthorized } from './problem'
 import { realtimeApp } from './realtime/realtime-app'
 import { restRoutes } from './rest/rest-routes'
+import { storageRoutes } from './storage/storage-routes'
 import { defaultAppName, readAppName } from './app-name'
 import { authBasePath, type AdminAuth } from './better-auth/create-auth'
 import { webauthnPath } from './better-auth/origins'
@@ -142,7 +143,7 @@ export type CreateAdminInput = {
   formsDifficulty?: Difficulty
   /** @internal The users comments name, mention and mail, which tests fake; from `auth` otherwise. */
   commentUsers?: CommentUsers
-  /** @internal Verifies a user's token on `/rest/v1` and `/realtime/v1` and gives its claims, which tests fake; those `/auth/v1` signs otherwise. */
+  /** @internal Verifies a user's token on `/rest/v1`, `/realtime/v1` and `/storage/v1` and gives its claims, which tests fake; those `/auth/v1` signs otherwise. */
   verifyToken?: (token: string) => Promise<JWTPayload>
   /**
    * The host's WebSocket upgrade, such as `@hono/node-server`'s, with which an app with keys and live resources serves
@@ -207,7 +208,8 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], pag
   const sources = sourceOptions(options.sources, globalThis.process?.env ?? {})
   checkSourceNames(sources, { resources: registry.entries.map((entry) => entry.name), pages: pageModels.map((entry) => entry.name) })
   const apiKeys = apiKeySettings(options.apiKeys, globalThis.process?.env ?? {})
-  const files = createFilesRuntime({ ...(filesOptions && { options: filesOptions }), env: globalThis.process?.env ?? {}, models: registry.entries.map((entry) => entry.model), systemPath })
+  const servesKeys = Boolean(apiKeys.publishable || apiKeys.secret)
+  const files = createFilesRuntime({ ...(filesOptions && { options: filesOptions }), env: globalThis.process?.env ?? {}, models: registry.entries.map((entry) => entry.model), systemPath, storage: servesKeys })
   const table = webhooksOptions && webhookTable(webhooksOptions, auth)
   // AI fields and actions call the assistant's model; without a key they fail when used, and dev and serve stop at startup (see `checkAi`)
   const withAi = withAiFields || hasAiActions(viewModels)
@@ -314,14 +316,19 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], pag
   if (appModels.some((model) => model.live)) {
     app.route(systemPath || '/', guarded((live) => void live.route('/', liveRoutes(feed, (session) => visibleNotices(deps, session))), withAnonymous(authenticate, options.roles)))
   }
-  // supabase-js's `from()`, `rpc()` and `channel()`, admitted by the app's keys and the tokens `/auth/v1` signs.
-  if (apiKeys.publishable || apiKeys.secret) {
+  // supabase-js's `from()`, `rpc()`, `channel()` and `storage`, admitted by the app's keys and the tokens `/auth/v1` signs.
+  if (servesKeys) {
     const verify = verifyToken ?? (auth ? jwtVerifier(goTrueTokens({ auth })) : () => Promise.reject(unauthorized('This app signs no user tokens')))
     const caller = apiKeyCaller({ keys: apiKeys, verify })
     // `from()` and `rpc()` under the tables' RLS.
     app.route('/rest/v1', restRoutes({ deps, caller, report }))
     // `postgres_changes` of the live resources under the tables' RLS, broadcasts and presence.
     if (upgradeWebSocket) app.route('/realtime/v1', realtimeApp({ deps, feed, upgradeWebSocket, caller, report }))
+    // `storage` under the storage schema's RLS.
+    if (files?.storage) {
+      const storage = { db, statementTimeoutMs: deps.statementTimeoutMs, ...(deps.actorSetting && { actorSetting: deps.actorSetting }), store: files.providers[files.storage.provider]!.store, signer: files.signer, maxBytes: files.storage.maxBytes, caller }
+      app.route('/storage/v1', storageRoutes({ deps: storage, report }))
+    }
   }
   app.route(basePath, api)
   app.route(`${deps.systemPath}/meta`, metaApp)

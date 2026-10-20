@@ -1,5 +1,6 @@
 import type { Db } from '@protobase/query'
 import type { ResourceModel } from '@protobase/schema'
+import { parseSize } from '@protobase/schema/internal'
 import { fileColumns, runCleanup, type FileColumn } from './cleanup-runner'
 import { storageCleanupSchedule, type CleanupSchedule } from './cleanup-schedule'
 import type { Sharp } from './images'
@@ -23,12 +24,21 @@ export type FilesRuntime = {
   sharp?: Sharp
   /** The hosts whose images are drawn with the page's referrer, besides the app's own (see `trustedImageHosts`). */
   trustedHosts: string[]
+  /** The provider `/storage/v1` keeps object bytes in and the largest object it takes, when the app serves it. */
+  storage?: { provider: string; maxBytes: number }
 }
 
 /** How long an upload ticket stays usable, so a form left open still saves. */
 export const ticketSeconds = 24 * 60 * 60
 
-export type FilesRuntimeInput = { options?: FilesOptions; env: Record<string, string | undefined>; models: ResourceModel[]; systemPath: string }
+export type FilesRuntimeInput = {
+  options?: FilesOptions
+  env: Record<string, string | undefined>
+  models: ResourceModel[]
+  systemPath: string
+  /** Whether the app serves `/storage/v1`, which it does when it has an API key, unless `files.storage` is `false`. */
+  storage?: boolean
+}
 
 // The image fields that need sharp, as `resource.field`: those with variants, an original or a placeholder.
 const imageFields = (models: ResourceModel[]) =>
@@ -37,14 +47,16 @@ const imageFields = (models: ResourceModel[]) =>
   )
 
 /**
- * The runtime, when a resource has a file field or the config names providers. It fails at startup when a field's
+ * The runtime, when a resource has a file field, the config names providers or the app serves `/storage/v1`. It fails at startup when a field's
  * provider is not configured, nothing signs uploads, or a field makes image variants or placeholders without sharp.
  */
-export const createFilesRuntime = ({ options = {}, env, models, systemPath }: FilesRuntimeInput): FilesRuntime | undefined => {
-  const used = [...new Set(models.flatMap((model) => Object.values(model.fields).flatMap((field) => (field.file ? [field.file.provider] : []))))]
+export const createFilesRuntime = ({ options = {}, env, models, systemPath, storage: servesStorage = false }: FilesRuntimeInput): FilesRuntime | undefined => {
+  const storage = servesStorage && options.storage !== false ? { provider: options.storage?.provider ?? 'private', maxBytes: parseSize(options.storage?.maxFileSize ?? '50 MB') } : undefined
+  const fieldProviders = models.flatMap((model) => Object.values(model.fields).flatMap((field) => (field.file ? [field.file.provider] : [])))
+  const used = [...new Set([...fieldProviders, ...(storage ? [storage.provider] : [])])]
   if (used.length === 0 && !options.providers) return undefined
   const secret = options.secret ?? env.PROTOBASE_FILES_SECRET ?? env.BETTER_AUTH_SECRET
-  if (!secret) throw new Error('File fields need a secret to sign uploads: set BETTER_AUTH_SECRET, PROTOBASE_FILES_SECRET or files.secret')
+  if (!secret) throw new Error('File fields and /storage/v1 need a secret to sign uploads: set BETTER_AUTH_SECRET, PROTOBASE_FILES_SECRET or files.secret')
   const images = imageFields(models)
   if (images.length > 0 && !options.sharp) {
     throw new Error(`${images.join(', ')} make image variants or placeholders, which need sharp: add it to the project (bun add sharp), then import sharp from 'sharp' in the config and pass files: { sharp }`)
@@ -60,6 +72,7 @@ export const createFilesRuntime = ({ options = {}, env, models, systemPath }: Fi
     columns: fileColumns(models),
     trustedHosts: trustedImageHosts(providers, options.trustedHosts),
     ...(options.sharp && { sharp: options.sharp }),
+    ...(storage && { storage }),
   }
 }
 

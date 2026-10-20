@@ -10,8 +10,8 @@ import { isFilePath, parseUri, tenantSegment, variantPaths } from './uri'
 
 const gone = () => notFound('There is no such file')
 
-// One `bytes=start-end` range, inclusive; `undefined` for none, `false` for one that cannot be served.
-const rangeOf = (header: string | null, size: number) => {
+/** One `bytes=start-end` range, inclusive; `undefined` for none, `false` for one that cannot be served. */
+export const rangeOf = (header: string | null, size: number) => {
   if (!header) return undefined
   const match = /^bytes=(\d*)-(\d*)$/.exec(header.trim())
   if (!match || (match[1] === '' && match[2] === '')) return false
