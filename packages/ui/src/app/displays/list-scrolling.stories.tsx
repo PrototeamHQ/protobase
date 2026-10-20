@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { useState } from 'react'
-import { expect, waitFor, within } from 'storybook/test'
+import { expect, userEvent, waitFor, within } from 'storybook/test'
 import { createStaticSession } from '@protobase/client'
 import { customers, repairs } from '../../../../../docs-examples/bike-shop/data'
 import { customerRows, repairRows } from '../../../../../docs-examples/bike-shop/rows'
@@ -98,5 +98,70 @@ export const TableChecks: StoryObj = {
     // The header stays below the top bar
     const header = grid.querySelector<HTMLElement>('[role=row]')!
     expect(header.getBoundingClientRect().top).toBeCloseTo(canvasElement.querySelector('header')!.getBoundingClientRect().bottom, 0)
+  },
+}
+
+
+// The repairs open on `display` when the address names none, as the breadcrumb's link to them does
+const opening = (display: string) => {
+  const view = repairsView.toModel()
+  return { ...view, list: { ...view.list!, default: display } }
+}
+
+const OnHistory = ({ display }: { display: string }) => {
+  const [api] = useState(() => fakeApi({ resources: [customers.toModel(), repairs.toModel()], views: [customersView.toModel(), opening(display)], rows: { customers: customerRows, repairs: manyRepairs } }))
+  return (
+    <div className="h-screen">
+      <App client={api.client} auth={session} workspace="Pip's bike shop" />
+    </div>
+  )
+}
+
+/** Uses the real browser history, on the repairs shown as `display`. */
+const renderOnHistory = (display: string) => () => {
+  window.history.replaceState({ protobaseIndex: 0 }, '', '/repairs')
+  return <OnHistory display={display} />
+}
+
+// The first item whose top is in view below the top bar, and how far below it
+const firstInView = (canvasElement: HTMLElement, items: () => HTMLElement[]) => {
+  const below = canvasElement.querySelector('header')!.getBoundingClientRect().bottom
+  const item = items().find((each) => each.getBoundingClientRect().top >= below - 1)
+  return item && { text: item.textContent, below: Math.round(item.getBoundingClientRect().top - below) }
+}
+
+/**
+ * Scrolled far down, the list opens the record in view, comes back through `back`, and shows the same item at the same
+ * height.
+ */
+const checkComingBack = async (canvasElement: HTMLElement, items: () => HTMLElement[], back: () => Promise<void>) => {
+  const canvas = within(canvasElement)
+  await waitFor(() => expect(items().length).toBeGreaterThan(0))
+  page().scrollTop = 20_000
+  await waitFor(() => expect(firstInView(canvasElement, items)?.text).toMatch(/R-\d+/))
+  const left = firstInView(canvasElement, items)!
+  const opened = items().find((item) => item.textContent === left.text)!
+  await userEvent.click(opened.querySelector('a[href]')!)
+  await canvas.findByRole('heading', { level: 1, name: /^R-/ })
+  await back()
+  await waitFor(() => expect(firstInView(canvasElement, items)).toEqual(left))
+}
+
+export const CardsComeBackChecks: StoryObj = {
+  name: 'Cards come back to where they were left on Back (checks)',
+  tags: ['play', '!dev'],
+  render: renderOnHistory('cards'),
+  play: async ({ canvasElement }) => {
+    await checkComingBack(canvasElement, () => [...canvasElement.querySelectorAll<HTMLElement>('li[aria-posinset]')], async () => window.history.back())
+  },
+}
+
+export const TableComesBackChecks: StoryObj = {
+  name: 'The table comes back to where it was left by a link (checks)',
+  tags: ['play', '!dev'],
+  render: renderOnHistory('table'),
+  play: async ({ canvasElement }) => {
+    const breadcrumb = () => within(within(canvasElement).getByRole('navigation', { name: 'Breadcrumb' }))
+    await checkComingBack(canvasElement, () => [...canvasElement.querySelectorAll<HTMLElement>('[role=grid] [role=row]')].slice(1), async () => userEvent.click(breadcrumb().getByRole('link', { name: 'Repairs' })))
   },
 }

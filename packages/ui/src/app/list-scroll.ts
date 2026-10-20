@@ -1,18 +1,34 @@
-import { useCallback } from 'react'
+import { useCallback, useEffect } from 'react'
+import { guarded } from '../lib/guarded'
+import { createListPlaces, type ListPlace, type ListPlaces } from './list-places'
 import { useRouter } from './router'
 
-/** The first record in view of the list each history entry last showed, for this tab; a page load starts empty. */
-const remembered = new Map<number, { url: string; index: number }>()
+const noStorage = { getItem: () => null, setItem: () => {} }
+
+/** The places of this tab's lists, read from its session storage on first use. */
+let places: ListPlaces | undefined
+const tabPlaces = () => (places ??= createListPlaces(guarded(() => window.sessionStorage, undefined) ?? noStorage))
 
 /**
- * Where a list starts and how it remembers where it is, so going back to it shows the same records. Only the list the
- * history entry showed last comes back: after a change of sort or filter, which replaces the entry, the list starts at
- * the top again.
+ * Where a list starts and how it remembers where it is, so going back to it, or following a link to it, shows the same
+ * records at the same height. After a change of sort or filter, a list of another URL, it starts at the top. The places
+ * are stored when the list goes and when the page is hidden or left, so a reload or a discarded tab keeps them.
  */
 export const useListScroll = () => {
   const { entry, path, params } = useRouter()
   const url = `${path}?${params.toString()}`
-  const last = remembered.get(entry)
-  const remember = useCallback((index: number) => void remembered.set(entry, { url, index }), [entry, url])
-  return { initialIndex: last?.url === url ? last.index : 0, remember }
+  const tab = tabPlaces()
+  useEffect(() => {
+    const persist = () => tab.persist()
+    const hidden = () => document.visibilityState === 'hidden' && tab.persist()
+    window.addEventListener('pagehide', persist)
+    document.addEventListener('visibilitychange', hidden)
+    return () => {
+      window.removeEventListener('pagehide', persist)
+      document.removeEventListener('visibilitychange', hidden)
+      tab.persist()
+    }
+  }, [tab])
+  const remember = useCallback((place: ListPlace) => tab.save(entry, url, place), [tab, entry, url])
+  return { initialIndex: tab.placeOf(entry, url), remember }
 }

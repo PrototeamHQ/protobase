@@ -26,3 +26,15 @@ export const anchoredTop = (top: number, before: CardLayout, after: CardLayout) 
   if (before.columns === after.columns) return row * after.rowHeight
   return Math.floor((Math.floor(row) * before.columns) / after.columns) * after.rowHeight
 }
+
+/**
+ * Where the cards are at the offset `top`, as a list remembers it: the first record of the row at the top, plus how far
+ * into that row as a fraction of its height, so it comes back to the same records whatever the columns then.
+ */
+export const cardPlace = (top: number, layout: CardLayout) => {
+  const row = top / layout.rowHeight
+  return Math.floor(row) * layout.columns + (row % 1)
+}
+
+/** The row, with how far into it, that a place `cardPlace` gave falls in with `columns` cards a row. */
+export const placeRow = (place: number, columns: number) => Math.floor(Math.floor(place) / columns) + (place % 1)

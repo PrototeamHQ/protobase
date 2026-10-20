@@ -9,8 +9,8 @@ type RouterValue = {
   path: string
   params: URLSearchParams
   basePath: string
-  /** The place of this page in the tab's history; Back and Forward return to the same number. 0 in memory. */
-  entry: number
+  /** The id of this page's entry in the tab's history: Back and Forward return to the same id, a reload keeps it. */
+  entry: string
   /** Moves to a path below the base path, as `appPath` writes it. */
   navigate: (to: string, options?: { replace?: boolean }) => void
   /** Asks to be told before the page changes; returns how to stop asking. Used by `useNavigationGuard`. */
@@ -38,15 +38,29 @@ type Pending = { kind: 'link'; full: string; replace: boolean } | { kind: 'histo
 
 const pathOf = (url: string) => new URL(url, 'http://local').pathname
 
+type HistoryState = { protobaseIndex?: number; protobaseEntry?: string }
+const historyState = () => (window.history.state as HistoryState | null) ?? {}
+
 /** Our place in the browser history, so a back or forward press can be told apart and, if needed, undone. */
-const historyIndex = () => (window.history.state as { protobaseIndex?: number } | null)?.protobaseIndex ?? 0
+const historyIndex = () => historyState().protobaseIndex ?? 0
+
+const newEntry = () => Math.random().toString(36).slice(2)
+
+/** The id of the current history entry, given one if it has none yet, as an entry pushed before the app started. */
+const historyEntry = () => {
+  const state = historyState()
+  if (state.protobaseEntry) return state.protobaseEntry
+  const entry = newEntry()
+  window.history.replaceState({ ...state, protobaseEntry: entry }, '')
+  return entry
+}
 
 export const Router = ({ basePath = '', initialUrl, children }: RouterProps) => {
   const memory = initialUrl !== undefined
-  const [url, setUrl] = useState(initialUrl ?? browserUrl())
+  const [page, setPage] = useState(() => ({ url: initialUrl ?? browserUrl(), entry: memory ? newEntry() : historyEntry() }))
   const guards = useRef(new Set<symbol>())
-  const urlRef = useRef(url)
-  urlRef.current = url
+  const current = useRef(page)
+  current.current = page
   const position = useRef(memory ? 0 : historyIndex())
   const undoing = useRef(false)
   const proceeding = useRef(false)
@@ -56,7 +70,7 @@ export const Router = ({ basePath = '', initialUrl, children }: RouterProps) => 
 
   useEffect(() => {
     if (memory) return
-    window.history.replaceState({ protobaseIndex: position.current }, '')
+    window.history.replaceState({ protobaseIndex: position.current, protobaseEntry: current.current.entry }, '')
     const onPop = () => {
       const next = historyIndex()
       if (undoing.current) {
@@ -67,7 +81,7 @@ export const Router = ({ basePath = '', initialUrl, children }: RouterProps) => 
         return
       }
       const delta = next - position.current
-      const leaving = pathOf(browserUrl()) !== pathOf(urlRef.current)
+      const leaving = pathOf(browserUrl()) !== pathOf(current.current.url)
       if (!proceeding.current && guards.current.size > 0 && leaving) {
         // The browser has already moved; step back to where the person was and ask.
         undoing.current = true
@@ -77,7 +91,7 @@ export const Router = ({ basePath = '', initialUrl, children }: RouterProps) => 
       }
       proceeding.current = false
       position.current = next
-      setUrl(browserUrl())
+      setPage({ url: browserUrl(), entry: historyEntry() })
     }
     window.addEventListener('popstate', onPop)
     return () => window.removeEventListener('popstate', onPop)
@@ -85,11 +99,12 @@ export const Router = ({ basePath = '', initialUrl, children }: RouterProps) => 
 
   const go = useCallback(
     (full: string, replace: boolean) => {
+      const entry = replace ? current.current.entry : newEntry()
       if (!memory) {
         position.current += replace ? 0 : 1
-        window.history[replace ? 'replaceState' : 'pushState']({ protobaseIndex: position.current }, '', full)
+        window.history[replace ? 'replaceState' : 'pushState']({ protobaseIndex: position.current, protobaseEntry: entry }, '', full)
       }
-      setUrl(full)
+      setPage({ url: full, entry })
     },
     [memory],
   )
@@ -97,7 +112,7 @@ export const Router = ({ basePath = '', initialUrl, children }: RouterProps) => 
   const navigate = useCallback(
     (to: string, { replace = false }: { replace?: boolean } = {}) => {
       const full = `${basePath}${to}`
-      if (pathOf(full) !== pathOf(urlRef.current) && guards.current.size > 0) return setPending({ kind: 'link', full, replace })
+      if (pathOf(full) !== pathOf(current.current.url) && guards.current.size > 0) return setPending({ kind: 'link', full, replace })
       go(full, replace)
     },
     [basePath, go],
@@ -119,17 +134,17 @@ export const Router = ({ basePath = '', initialUrl, children }: RouterProps) => 
   }
 
   const value = useMemo<RouterValue>(() => {
-    const parsed = new URL(url, 'http://local')
+    const parsed = new URL(page.url, 'http://local')
     const path = parsed.pathname.slice(basePath.length) || '/'
     return {
       path,
       params: parsed.searchParams,
       basePath,
-      entry: position.current,
+      entry: page.entry,
       navigate,
       registerGuard,
     }
-  }, [url, basePath, navigate, registerGuard])
+  }, [page, basePath, navigate, registerGuard])
 
   return (
     <RouterContext.Provider value={value}>

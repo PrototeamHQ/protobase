@@ -1,5 +1,5 @@
 import { useTable, type SortingState } from '@tanstack/react-table'
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { cn } from '../lib/cn'
 import type { ColumnSpec, GridRow } from './column-spec'
 import { buildColumns, features } from './columns'
@@ -26,8 +26,9 @@ export type DataGridProps = {
   source: RowSource
   /** The order in which `source` yields rows; sorting the other way flips the index mapping. */
   naturalSort?: { columnId: string; direction: 'asc' | 'desc' }
+  /** The row to start at; a fraction starts that far into the row. */
   initialScrollIndex?: number
-  /** Called with the first row in view as it changes, to come back to it with `initialScrollIndex`. */
+  /** Called with the row at the top of the view, and how far into it, as the view moves, to come back to it with `initialScrollIndex`. */
   onScrollIndex?: (index: number) => void
   /** Simulated page load time for mock sources. 0 loads synchronously. */
   latencyMs?: number
@@ -102,10 +103,9 @@ export const DataGrid = ({ columns: given, source, naturalSort, initialScrollInd
   const rowAt = useCallback((index: number) => sourceRowAt!(reverse ? total - 1 - index : index), [sourceRowAt, reverse, total])
 
   const [startIndex] = useState(initialScrollIndex)
-  const { ref, top, geometry, rows: virtualRows, first: firstIndex, last: lastIndex } = useVirtualRows<HTMLDivElement>({ total, rowHeight, initialIndex: startIndex, inset: headerHeight })
+  const onScroll = onScrollIndex && ((offset: number) => onScrollIndex(offset / rowHeight))
+  const { ref, geometry, rows: virtualRows, first: firstIndex, last: lastIndex } = useVirtualRows<HTMLDivElement>({ total, rowHeight, initialIndex: startIndex, inset: headerHeight, onScroll })
   const gutter = narrow || !rowNumbers ? compactGutter : gutterWidthFor(total)
-  const topIndex = Math.floor(Math.max(0, top) / rowHeight)
-  useEffect(() => onScrollIndex?.(topIndex), [topIndex, onScrollIndex])
   const getRow = usePagedRows({ total, rowAt: sourceRowAt ? rowAt : undefined, loadRows: source.loadRows, revision: source.revision, latencyMs }, firstIndex, lastIndex)
 
   const patchedRow = useCallback((index: number) => {

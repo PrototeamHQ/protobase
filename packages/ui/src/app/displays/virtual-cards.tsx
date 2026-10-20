@@ -4,15 +4,15 @@ import { usePagedRows } from '../../data-grid/use-paged-rows'
 import { useVirtualRows } from '../../data-grid/use-virtual-rows'
 import { createFlipGuard } from '../../lib/flip-guard'
 import { Skeleton } from '../../primitives/skeleton'
-import { anchoredTop, cardColumns, cardGap, cardWidth, recordRange, type CardLayout } from './card-layout'
+import { anchoredTop, cardColumns, cardGap, cardPlace, cardWidth, placeRow, recordRange, type CardLayout } from './card-layout'
 import { withMeasuredHeight, type MeasuredHeights } from './measured-heights'
 
 type VirtualCardsProps = {
   source: RowSource
   label: string
-  /** The record to start at. */
+  /** The record to start at, the first of its row; a fraction starts that far into the row. */
   initialIndex: number
-  /** Called with the first record in view as it changes. */
+  /** Called with the first record of the row at the top of the view, and how far into the row, as the view moves. */
   onScrollIndex: (index: number) => void
   /** The least height of a card of this width, used until the drawn cards are measured. */
   minHeight: (width: number) => number
@@ -37,18 +37,18 @@ export const VirtualCards = ({ source, label, initialIndex, onScrollIndex, minHe
   const rowHeight = itemHeight + cardGap
 
   // Keep the same records in view across a change of columns or card height, once the list has reached the top of the
-  // view, and remember the first of them
+  // view
   const layout: CardLayout = { columns, rowHeight }
   const anchor = useRef({ layout, top: 0 })
   const changed = anchor.current.top > 0 && (anchor.current.layout.columns !== columns || anchor.current.layout.rowHeight !== rowHeight)
   const settle = (top: number) => (changed ? anchoredTop(anchor.current.top, anchor.current.layout, layout) : top)
   // Until a card of this width is measured, its height is a guess, and the list waits for it to start at `initialIndex`
   const ready = itemWidth > 0 && measured.has(itemWidth)
-  const scroll = useVirtualRows<HTMLUListElement>({ total: Math.ceil(total / columns), rowHeight, initialIndex: Math.floor(startIndex / columns), settle, ready })
+  const onScroll = (top: number) => onScrollIndex(cardPlace(top, layout))
+  const scroll = useVirtualRows<HTMLUListElement>({ total: Math.ceil(total / columns), rowHeight, initialIndex: placeRow(startIndex, columns), settle, ready, onScroll })
   useLayoutEffect(() => {
     if (changed) scroll.scrollTo(scroll.top)
     anchor.current = { layout, top: scroll.top }
-    if (!changed) onScrollIndex(Math.floor(Math.max(0, scroll.top) / rowHeight) * columns)
   })
   const range = recordRange(scroll.first, scroll.last, columns, total)
   const getRow = usePagedRows({ total, rowAt: source.rowAt, loadRows: source.loadRows, revision: source.revision, latencyMs: 0 }, range.start, range.end)

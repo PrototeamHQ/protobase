@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { anchoredTop, cardColumns, cardWidth, recordRange } from './card-layout'
+import { anchoredTop, cardColumns, cardPlace, cardWidth, placeRow, recordRange } from './card-layout'
 
 describe('card layout', () => {
   it('fits as many 15rem cards with their gaps as the width holds, at least one', () => {
@@ -26,5 +26,16 @@ describe('card layout', () => {
 
   it('keeps the place within the row when only the row height changes', () => {
     expect(anchoredTop(10.5 * 300, { columns: 4, rowHeight: 300 }, { columns: 4, rowHeight: 320 })).toBe(10.5 * 320)
+  })
+
+  it('remembers the first record of the top row and how far into it, and comes back to that row', () => {
+    expect(cardPlace(175.25 * 200, { columns: 4, rowHeight: 200 })).toBe(700.25)
+    expect(placeRow(700.25, 4)).toBe(175.25)
+    expect(cardPlace(0, { columns: 4, rowHeight: 200 })).toBe(0)
+  })
+
+  it('comes back to the row holding the remembered record when the columns changed', () => {
+    expect(placeRow(700.5, 3)).toBe(233.5)
+    expect(placeRow(0, 3)).toBe(0)
   })
 })
