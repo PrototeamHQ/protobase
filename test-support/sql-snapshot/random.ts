@@ -65,12 +65,38 @@ const randomBytes = ((size: number, callback?: (error: Error | null, bytes: Buff
 // An Ed25519 private key in PKCS #8 is this prefix and its 32-byte seed.
 const ed25519Prefix = Buffer.from('302e020100300506032b657004220420', 'hex')
 
+const base64url = (bytes: Buffer) => bytes.toString('base64url')
+
+// A P-256 key pair whose private scalar is 32 of the sequence's bytes; a draw that is no valid scalar is drawn again.
+const p256KeyPair = async (algorithm: EcKeyGenParams, extractable: boolean, usages: KeyUsage[]) => {
+  const ecdh = nodeCrypto.createECDH('prime256v1')
+  for (;;) {
+    const d = draw(32)
+    try {
+      ecdh.setPrivateKey(d)
+    } catch (error) {
+      if (error instanceof Error && 'code' in error && error.code === 'ERR_CRYPTO_INVALID_KEYTYPE') continue
+      throw error
+    }
+    const point = ecdh.getPublicKey()
+    const jwk = { kty: 'EC', crv: 'P-256', x: base64url(point.subarray(1, 33)), y: base64url(point.subarray(33, 65)) }
+    const { subtle } = globalThis.crypto
+    return {
+      privateKey: await subtle.importKey('jwk', { ...jwk, d: base64url(d) }, algorithm, extractable, usages.filter((usage) => usage === 'sign')),
+      publicKey: await subtle.importKey('jwk', jwk, algorithm, true, usages.filter((usage) => usage === 'verify')),
+    }
+  }
+}
+
 /**
- * Ed25519 key pairs, the kind Better Auth signs its tokens with and stores, made from the sequence's bytes. Other kinds
- * stay random, as their signatures are anyway: one that reached SQL would fail replay as a stale snapshot.
+ * Ed25519 and P-256 ECDSA key pairs, the kinds Better Auth signs its tokens with (EdDSA, and ES256 for the
+ * GoTrue-compatible endpoints) and stores, made from the sequence's bytes. Other kinds stay random, as signatures are
+ * anyway: one that reached SQL would fail replay as a stale snapshot.
  */
 const generateKey = (async (algorithm: AlgorithmIdentifier, extractable: boolean, usages: KeyUsage[]) => {
   const name = typeof algorithm === 'string' ? algorithm : algorithm.name
+  const ecdsaP256 = name === 'ECDSA' && (algorithm as EcKeyGenParams).namedCurve === 'P-256'
+  if (!realDepth && ecdsaP256) return p256KeyPair(algorithm as EcKeyGenParams, extractable, usages)
   if (realDepth || name !== 'Ed25519') return real.generateKey(algorithm as never, extractable, usages)
   const pkcs8 = Buffer.concat([ed25519Prefix, draw(32)])
   const spki = nodeCrypto.createPublicKey(nodeCrypto.createPrivateKey({ key: pkcs8, format: 'der', type: 'pkcs8' })).export({ format: 'der', type: 'spki' })

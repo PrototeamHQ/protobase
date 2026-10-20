@@ -70,6 +70,8 @@
     }
   },
   "devDependencies": {
+    "@supabase/ssr": "^0.12.7",
+    "@supabase/supabase-js": "^2.118.0",
     "samlify": "^2.13.1"
   }
 }
