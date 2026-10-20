@@ -235,6 +235,15 @@ Preflight requests are answered before authentication, because a browser sends t
 - **Problems:** throw an `HttpProblem` (or `badRequest`, `unauthorized`, `forbidden`, `notFound` from `@protobase/server`) to answer with an [RFC 9457 problem](../reference/api.md#errors)). Hono's `HTTPException` works too.
 - **Everything else:** any other error, or a handler that returns something other than a `Response`, becomes a `500 internal-error` problem without its message. The error goes to `options.onUnhandledError`, which `protobase dev` and `serve` print.
 
+## Functions moved from Supabase
+
+[`protobase import supabase`](../reference/cli.md#import-supabase)) converts `supabase/functions` into `functions/`. A converted function keeps Supabase's shape, a default export with a `fetch` method, and keeps working with `@supabase/server` and supabase-js:
+
+- **At `/api/sb/functions/v1/<name>` too,** so `supabase.functions.invoke` callers do not change. There a protected function lets in a request with the app's publishable or secret key in the `apikey` header, and a user token of [`/api/sb/auth/v1`](../reference/auth.md#supabase-js-and-supabasessr)) as the bearer, if any, as Supabase's `verify_jwt` does. A public function lets in anyone. The keys are those of [supabase-js's Realtime](../reference/supabase-realtime.md)): without them, only public functions answer there. As on Supabase, the request's path starts at the function's name (`/<name>/more/parts`), and a CORS preflight reaches the function, which answers it.
+- **Its context there** is `{ name, db, caller() }`, where `caller()` resolves to who the key and token make the request: `{ role: 'anon' }` for the publishable key alone, `{ role: 'app' }` for the secret key, or `{ role: 'authenticated', claims }`. There is no `session` and no `records`. A function with `roles` answers at `/api/functions/<name>` only, and so should one that reads `session`.
+- **Supabase's variables:** `protobase dev` sets `SUPABASE_URL` to the app's address with `/api/sb`, where supabase-js finds it, `SUPABASE_ANON_KEY`, `SUPABASE_PUBLISHABLE_KEY` and `SUPABASE_PUBLISHABLE_KEYS` to the publishable key, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_SECRET_KEY` and `SUPABASE_SECRET_KEYS` to the secret key, `SUPABASE_JWKS_URL` to the key set of `/api/sb/auth/v1`, and `SUPABASE_DB_URL` to the database. A variable set in `.env` wins. Under `protobase serve`, set them where the host keeps its settings.
+- **`waitUntil(promise)`** from `@protobase/server` takes the place of `EdgeRuntime.waitUntil`. The response goes out at once, and the process waits for the work when it shuts down gracefully. Work still running when the host kills the process is lost. On Protobase Cloud's Starter plan an app stops 30 seconds after its last request, with 10 seconds to finish, so move longer work into a [job](../reference/jobs.md)).
+
 ## What functions are not
 
 - **Not under `/api/v1`,** which stays resources only. Functions live beside the system endpoints, like `/api/meta`.
