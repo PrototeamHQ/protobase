@@ -44,6 +44,27 @@ Upgrading from 0.5 or earlier, where `auth:migrate` created the tables, goes thr
 
 `createAuth` takes a `pg` Pool or `{ dialect, type: 'postgres', schemaName? }` as `database`; without `schemaName` the tables go to the connection's `search_path` (usually `public`). The examples keep the store in the `auth` schema of `DATABASE_URL`'s database, so their migrations cover both.
 
+### An existing users table
+
+The store can use a users table another system made, such as Supabase's `auth.users`, so its rows keep signing in and every foreign key, trigger and function that names the table keeps working:
+
+```ts
+createAuth({
+  database: { dialect, type: 'postgres', schemaName: 'auth' },
+  users: { table: 'users', columns: { role: 'app_role' }, metadata: 'raw_user_meta_data' },
+  passwordHashes: ['bcrypt'],
+  generateUserId: 'uuid',
+  ...
+})
+```
+
+- `users.table` names the table, default `user`. `users.columns` maps a column, by the name Protobase gives it (`name`, `email`, `email_verified`, `image`, `created_at`, `updated_at`, `role`, `banned`, `ban_reason`, `ban_expires`, `two_factor_enabled`, `last_role`, `last_organization_id`), to the table's own; here the app's roles go to `app_role`, since Supabase's `role` holds the Postgres role. The other tables keep their names and point at this one.
+- `users.metadata` names a JSON column for each user's metadata: `createUser(auth, { ..., metadata: { full_name: 'Carol' } })` writes it, so a trigger that reads `raw_user_meta_data->>'full_name'` sees it.
+- `passwordHashes: ['bcrypt']` also verifies bcrypt hashes (`$2a$`, `$2b$`, `$2y$`), and stores the password again as Better Auth's own scrypt after its first sign-in. The 12-character minimum holds for new passwords only, so a shorter existing one still signs in.
+- `generateUserId: 'uuid'` makes each new user's id a random UUID in the server, for a table whose `id` is a `uuid` without a default, and makes every id column of the other tables a `uuid` too.
+
+The columns Better Auth needs that the table lacks, filled from what the other system recorded, and each password's `credential` row in `account`, come first, from a migration of the project's own; `protobase auth migration` then writes the other tables next to it.
+
 ## Configuration
 
 | Variable | |
@@ -61,7 +82,7 @@ Upgrading from 0.5 or earlier, where `auth:migrate` created the tables, goes thr
 
 - Cookies are `SameSite=Lax`, and `Secure` when `BETTER_AUTH_URL` is https.
 - Sign-in is rate limited (5 password attempts per minute and client by default, `signInPerMinute`, which also limits [sign-up](#open-sign-up) requests; 3 per minute for emailed codes); the limiter keys on `x-forwarded-for`, so run behind a proxy that sets it.
-- Passwords need at least 12 characters.
+- New passwords need at least 12 characters.
 - `appName` is the app's name: authenticator apps and passkey prompts show it, the admin app's sidebar shows it at the top beside Protobase's mark (Protobase's wordmark when it is `Protobase`), every browser tab of the admin app ends its title with it, the [installed app](/reference/installable-app/) is called by it, the [auth emails](/reference/email/#protobases-own-mail) name the app with it, and the platform's mailer sends them as it (the sender's display name). Default `PROTOBASE_APP_NAME`, when set, and `Protobase` otherwise, then without a display name.
 
 ## First run
@@ -458,4 +479,4 @@ Only the Better Auth routes under `/api/auth/*` (sign-in, password reset, [open 
 
 Roles are bundles of capabilities (`defineRoles` in `@protobase/schema`: `orders.read.own`, `costs.read`, `*.read`, ...). Pass the result as `options.roles` to `createAdmin`, and every operation without an explicit rule needs the matching capability; a capability may be limited to [fields and rows](/reference/access/#capabilities). The token's `roles` become `ctx.user.roles` in rules; the user id (`sub`) is what `.own` compares with the resource's `.owner(...)` field, so it must be the id that field stores. How the API enforces them (hidden fields, row filters, record permissions) is in [the REST API reference](/reference/api/#access).
 
-**User ids.** Better Auth gives a new user a random 32-character text id, so an `.owner(...)` field holds `text`: the server refuses to start (`protobase dev`, `serve`) when one holds integers or UUIDs, naming the field. An app whose owner columns are integers, such as a relation to its own users table, gives `createAuth` a `generateUserId` that takes the next value of that table's sequence, and adds the user's row there, as the ERP example does (`examples/erp/auth/auth.ts`, with the row added by `db/migrations/019_auth_users.sql` when someone joins an organization). A request by a user whose id the owner field cannot hold, such as one made before `generateUserId`, fails with an `owner-id-mismatch` problem that names the field.
+**User ids.** Better Auth gives a new user a random 32-character text id, so an `.owner(...)` field holds `text`: the server refuses to start (`protobase dev`, `serve`) when one holds integers or UUIDs, naming the field. An app whose owner columns are integers, such as a relation to its own users table, gives `createAuth` a `generateUserId` that takes the next value of that table's sequence, and adds the user's row there, as the ERP example does (`examples/erp/auth/auth.ts`, with the row added by `db/migrations/019_auth_users.sql` when someone joins an organization). One whose owner columns are UUIDs gives it `generateUserId: 'uuid'` (see [An existing users table](#an-existing-users-table)). A request by a user whose id the owner field cannot hold, such as one made before `generateUserId`, fails with an `owner-id-mismatch` problem that names the field.
