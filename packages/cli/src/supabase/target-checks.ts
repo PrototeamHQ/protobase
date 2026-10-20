@@ -37,6 +37,12 @@ export const existingTables = async (sql: postgres.Sql, tables: DumpedTable[]) =
   return rows.map((row) => row.name)
 }
 
+/** The schemas of `schemas` that `sql`'s database has already, which the schema migration would fail to create. */
+export const existingSchemas = async (sql: postgres.Sql, schemas: string[]) => {
+  const rows = await sql<{ name: string }[]>`select nspname as name from pg_namespace where nspname = any(${schemas}) order by 1`
+  return rows.map((row) => row.name)
+}
+
 /** The dumped tables that hold rows on the target, which a load would add to. */
 export const filledTables = async (sql: postgres.Sql, tables: DumpedTable[]) => {
   const filled: string[] = []

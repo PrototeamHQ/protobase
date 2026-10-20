@@ -56,19 +56,26 @@ const withExtensions: ImportManifest = {
   ],
 }
 
+const providers = [
+  { provider: 'azure', identities: 3, unkeyed: 1 },
+  { provider: 'email', identities: 4, unkeyed: 0 },
+  { provider: 'github', identities: 1, unkeyed: 0 },
+  { provider: 'keycloak', identities: 2, unkeyed: 0 },
+]
+
 describe('importReport', () => {
   it('lists the Realtime tables the scaffold made live apart from those left for a person', () => {
     const realtime = { ...manifest, realtimeTables: [{ schema: 'public', table: 'logs' }, { schema: 'public', table: 'todos' }] }
-    const report = importReport(realtime, undefined, true, ['public.todos'])
+    const report = importReport(realtime, undefined, true, ['public.todos'], [])
     expect(report).toContain("## Live tables\n\nThe `supabase_realtime` publication sent these tables' changes")
     expect(report).toContain('run `protobase migration` and apply it.\n\n- public.todos\n')
     expect(report).toMatch(/## Realtime tables\n\n[^\n]+\n\n- public\.logs\n\n/)
-    expect(importReport(manifest, undefined, true, [])).not.toContain('## Live tables')
-    expect(importReport(manifest, undefined, true, ['public.todos'])).toContain('## Realtime tables\n\nNone.')
+    expect(importReport(manifest, undefined, true, [], [])).not.toContain('## Live tables')
+    expect(importReport(manifest, undefined, true, ['public.todos'], [])).toContain('## Realtime tables\n\nNone.')
   })
 
   it('lists the rows loaded and what needs a person, with the size against the Starter plan', () => {
-    const report = importReport(manifest, 'Checked 1 resources: 0 errors, 0 warnings.\n', true, [])
+    const report = importReport(manifest, 'Checked 1 resources: 0 errors, 0 warnings.\n', true, [], providers)
     expect(report).toContain('The imported tables take 600.0 MB in the source database, more than the 500.0 MB of the Starter plan: pick a larger plan.')
     expect(report).toContain('The migration leaves out 1 statement of the dump')
     expect(report).toContain('| auth.users | 2 |\n| public.todos | 3 |')
@@ -86,7 +93,7 @@ describe('importReport', () => {
   })
 
   it('lists what the load made again, leaving for a person only what the database cannot run', () => {
-    const report = importReport(withExtensions, undefined, true, [])
+    const report = importReport(withExtensions, undefined, true, [], providers)
     expect(report).toContain('- pg_cron job purge, `0 3 * * *`\n- pg_cron job unnamed, `0 3 * * *`, inactive\n- Vault secret stripe_key: Stripe key\n- pgmq queue emails, with 2 messages\n- HTTP trigger on_done on public.todos, calling public.notify_done\n')
     expect(report).toContain('## Vault secrets\n\nNone.')
     expect(report).toContain('## pgmq queues\n\npgmq owns')
@@ -100,20 +107,29 @@ describe('importReport', () => {
     expect(report).not.toContain('sk_')
   })
 
+  it("says what became of each provider's identities", () => {
+    const report = importReport(manifest, undefined, true, [], providers)
+    expect(report).toContain("- `azure`, 3 identities: accounts of Better Auth's `microsoft`; 1 lacks the claim Better Auth keys `microsoft` accounts on and is not carried over")
+    expect(report).toContain('- `email`, 4 identities: not carried over, email sign-in lives on the user, not in an account')
+    expect(report).toContain("- `github`, 1 identity: accounts of Better Auth's `github`\n")
+    expect(report).toContain("- `keycloak`, 2 identities: accounts named `keycloak`, a provider Better Auth has not built in: set it up with Better Auth's generic OAuth plugin under that id")
+    expect(importReport(manifest, undefined, true, [], [])).toContain('auth.identities is empty.')
+  })
+
   it('lists the columns pgsodium encrypts, to export decrypted and declare encrypted', () => {
     const encrypted = { ...manifest, pgsodiumColumns: [{ schema: 'public', table: 'profiles', column: 'iban' }] }
-    const report = importReport(encrypted, undefined, true, [])
+    const report = importReport(encrypted, undefined, true, [], [])
     expect(report).toMatch(/## pgsodium encrypted columns\n\n[^\n]+`protobase encryption apply`[^\n]+\n\n- public\.profiles\.iban\n\n/)
-    expect(importReport(manifest, undefined, true, [])).toContain('## pgsodium encrypted columns\n\nNone.')
+    expect(importReport(manifest, undefined, true, [], [])).toContain('## pgsodium encrypted columns\n\nNone.')
   })
 
   it('says when there was no config for doctor to check', () => {
-    expect(importReport({ ...manifest, bytes: 1024 * 1024 }, undefined, true, [])).toContain('within the 500.0 MB of the Starter plan')
-    expect(importReport(manifest, undefined, true, [])).toContain('No resources were scaffolded')
+    expect(importReport({ ...manifest, bytes: 1024 * 1024 }, undefined, true, [], [])).toContain('within the 500.0 MB of the Starter plan')
+    expect(importReport(manifest, undefined, true, [], [])).toContain('No resources were scaffolded')
   })
 
   it("says to add the jobs to a config with jobs of its own, and that the role could not read pg_cron's", () => {
-    expect(importReport(manifest, undefined, false, [])).toContain('`protobase.config.ts` has a `jobs` of its own: add the exports of `jobs/index.ts` to it.')
-    expect(importReport({ ...manifest, cronJobs: undefined }, undefined, true, [])).toContain('## Cron jobs\n\nThe importing role could not read them')
+    expect(importReport(manifest, undefined, false, [], [])).toContain('`protobase.config.ts` has a `jobs` of its own: add the exports of `jobs/index.ts` to it.')
+    expect(importReport({ ...manifest, cronJobs: undefined }, undefined, true, [], [])).toContain('## Cron jobs\n\nThe importing role could not read them')
   })
 })

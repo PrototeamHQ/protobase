@@ -1,21 +1,24 @@
-import { mkdir, readdir, readFile, rm, writeFile } from 'node:fs/promises'
+import { mkdir, readFile, rm } from 'node:fs/promises'
 import path from 'node:path'
 import postgres from 'postgres'
-import { nextMigrationName } from '../auth/migration-file'
 import { connect, type Sql } from '../db/connect'
 import { isSchedule } from '@protobase/server'
+import { planAuthConfig } from './auth-config'
 import { checkoutMarkers } from './checkout'
 import { cronPlan } from './cron-plan'
 import { planFunctions } from './functions/plan-functions'
 import { writeFunctions } from './functions/write-functions'
 import { importPlan, probedExtensions } from './import-plan'
 import { importState, type ImportManifest } from './import-state'
+import { writeMigration } from './migration-files'
 import { runPgTool } from './pg-tools'
 import { replayScript } from './replay'
 import { schemaMigration } from './schema-migration'
 import { appSchemas, cronJobs, cronTimezone, databaseMarkers, dumpedTables, extensions, httpTriggers, hypertables, pgmqQueues, pgsodiumColumns, platformMigrationTables, realtimeTables, routinesIn, tablesSize, vaultSecretValues, vaultSecrets } from './source-facts'
-import { ensureApiRoles, existingTables } from './target-checks'
+import { authStoreMigrations } from './store-migrations'
+import { ensureApiRoles, existingSchemas, existingTables } from './target-checks'
 import { creatableExtensions } from './target-extensions'
+import { usersColumnsMigration } from './users-migrations'
 
 export type DumpOptions = { sourceUrl: string; targetUrl: string; projectDir: string; migrationsDir: string }
 
@@ -74,10 +77,15 @@ const readSource = async (sql: Sql, targetUrl: string) => {
   return { manifest, plan, replay: replayScript({ secrets: secrets ?? [], queues: replayed, cronJobs: rescheduled }) }
 }
 
-/** Fails unless the target can take the schema migration: makes the API roles it lacks, and finds no table in the way. */
-const checkTarget = async (url: string, tables: ImportManifest['tables']) => {
+/**
+ * Fails unless the target can take the schema migration: makes the API roles it lacks, and finds no schema or table in
+ * the way, such as the auth schema of Protobase's own user table, made by the project's auth migrations.
+ */
+const checkTarget = async (url: string, schemas: string[], tables: ImportManifest['tables']) => {
   const sql = postgres(url, { max: 1, onnotice: () => {} })
   try {
+    const schemasThere = await existingSchemas(sql, schemas.filter((schema) => schema !== 'public'))
+    if (schemasThere.length > 0) throw new Error(`The project's database already has the schemas ${schemasThere.join(', ')}, which the import creates; import into a database without them, such as a new one`)
     const created = await ensureApiRoles(sql)
     const existing = await existingTables(sql, tables)
     if (existing.length > 0) throw new Error(`The project's database already has ${existing.length} of the tables to import, such as ${existing.slice(0, 5).join(', ')}; import into a database without them`)
@@ -92,11 +100,15 @@ const pattern = (name: string) => `"${name.replaceAll('"', '""')}"`
 
 /**
  * The import's first run: dumps the Supabase database's schemas and data as of one snapshot, writes the schema as
- * the project's next migration, with the extensions the project's database can create, and keeps the data dump, the
- * replay of Vault's secrets, pgmq's queues and pg_cron's jobs and what the report needs in `supabase-import/` for the run that loads
- * it, once the project's migrations are applied.
+ * the project's next migration, with the extensions the project's database can create, and the columns Better Auth
+ * needs on auth.users as the one after, points the app's Better Auth setup at auth.users in place of the user table
+ * the project's auth migrations make, removing them, and keeps the data dump, the replay of Vault's secrets, pgmq's
+ * queues and pg_cron's jobs and what the report needs in `supabase-import/` for the run that loads it, once the
+ * project's migrations are applied.
  */
 export const runDumpPhase = async (options: DumpOptions, out: (text: string) => void) => {
+  const authConfig = await planAuthConfig(options.projectDir)
+  const storeMigrations = await authStoreMigrations(options.migrationsDir)
   const checkout = checkoutMarkers(options.projectDir)
   if (checkout.length > 0) out(`found the Supabase project's ${checkout.join(', ')}\n`)
   // Before the dump, so a function in the way stops the import before it starts.
@@ -110,7 +122,7 @@ export const runDumpPhase = async (options: DumpOptions, out: (text: string) => 
     const [exported] = await reserved<{ snapshot: string }[]>`select pg_export_snapshot() as snapshot`
     const snapshot = exported!.snapshot
     const { manifest: source, plan, replay } = await readSource(reserved, options.targetUrl)
-    const created = await checkTarget(options.targetUrl, source.tables)
+    const created = await checkTarget(options.targetUrl, source.schemas, source.tables)
     if (created.length > 0) out(`created the roles ${created.join(', ')} in the project's database\n`)
 
     await state.prepare()
@@ -124,11 +136,16 @@ export const runDumpPhase = async (options: DumpOptions, out: (text: string) => 
     const migration = schemaMigration(await readFile(schemaFile, 'utf8'), { schemas: source.schemas, extensions: plan.extensions, webhooks: plan.webhooks, missing: plan.missing, encryptedColumns: source.pgsodiumColumns })
     await rm(schemaFile)
     await mkdir(options.migrationsDir, { recursive: true })
-    const file = nextMigrationName(await readdir(options.migrationsDir), 'supabase_schema')
-    await writeFile(path.join(options.migrationsDir, file), migration.text, { flag: 'wx' })
+    const file = await writeMigration(options.migrationsDir, 'supabase_schema', migration.text)
+    const usersFile = await writeMigration(options.migrationsDir, 'supabase_users', usersColumnsMigration())
+    await authConfig.write()
+    for (const store of storeMigrations) await rm(path.join(options.migrationsDir, store))
     const packages = await writeFunctions(options.projectDir, functions)
     await state.writeManifest({ migration: file, leftOut: migration.leftOut, checkout, functions: { converted: functions.functions, packages, left: functions.left }, ...source })
-    out(`wrote ${path.relative(options.projectDir, path.join(options.migrationsDir, file))}, the schemas ${source.schemas.join(', ')}\n`)
+    const relative = (to: string) => path.relative(options.projectDir, to)
+    out(`wrote ${relative(path.join(options.migrationsDir, file))}, the schemas ${source.schemas.join(', ')}\n`)
+    out(`wrote ${relative(path.join(options.migrationsDir, usersFile))}, the columns Better Auth needs on auth.users, and pointed ${relative(authConfig.file)} at it\n`)
+    for (const store of storeMigrations) out(`removed ${relative(path.join(options.migrationsDir, store))}: auth.users replaces Protobase's own user table it made\n`)
     if (functions.functions.length > 0) out(`converted ${functions.functions.length} Edge Functions into functions/${packages.length > 0 ? `, adding ${packages.length} packages to package.json: install them` : ''}\n`)
     out(`dumped ${source.tables.length} tables' data into ${path.relative(options.projectDir, state.data)}, which git ignores\n`)
     if (replay) out(`kept Vault's secrets, pgmq's queues and pg_cron's jobs to make again in ${path.relative(options.projectDir, state.replay)}, which git ignores\n`)

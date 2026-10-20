@@ -1,16 +1,21 @@
 import { existsSync } from 'node:fs'
 import { rm, writeFile } from 'node:fs/promises'
 import path from 'node:path'
+import { writeAuthMigration } from '../auth/write-migration'
 import { connect } from '../db/connect'
 import { runDoctor } from '../doctor/run'
 import { runScaffold } from '../scaffold/run'
+import { loadProjectAuth } from '../users/load-auth'
 import { cronJobFilesInTheWay, writeCronJobs } from './cron-jobs-write'
 import { convertedCronJobs } from './cron-plan'
+import { providerCounts } from './identity-providers'
 import { importState, type ImportManifest } from './import-state'
 import { loadScript, qualified } from './load-script'
+import { writeMigration } from './migration-files'
 import { runPgTool } from './pg-tools'
 import { importReport } from './report'
 import { existingTables, filledTables, otherTables } from './target-checks'
+import { accountsMigration } from './users-migrations'
 
 export type LoadOptions = { targetUrl: string; projectDir: string; migrationsDir: string; configDir: string }
 
@@ -50,14 +55,18 @@ const doctorOutput = async (url: string, configDir: string) => {
  * The import's second run, once the schema migration is applied: loads the data dump, with the replay of Vault's
  * secrets, pgmq's queues and pg_cron's jobs when the dump made one, in one transaction, deletes both, scaffolds the
  * config from the imported tables of the app's schemas, leaving the project's own alone and making those of the
- * `supabase_realtime` publication live, writes the pg_cron jobs it converts as the project's recurring jobs, and writes
- * the report.
+ * `supabase_realtime` publication live, writes the pg_cron jobs it converts as the project's recurring jobs, writes
+ * the migrations that let Supabase's users sign in with Better Auth (its own tables, as `protobase auth migration`
+ * plans them on the loaded auth.users, then the users' columns and accounts), and writes the report. The project's
+ * auth keeps a connection pool open, so the process must end itself.
  */
 export const runLoadPhase = async (options: LoadOptions, out: (text: string) => void) => {
   const state = importState(options.projectDir)
   const manifest = await state.readManifest()
   if (!existsSync(path.join(options.migrationsDir, manifest.migration))) throw new Error(`The import's migration ${manifest.migration} is not in ${options.migrationsDir}; remove supabase-import/ and import again`)
   await checkReady(options.targetUrl, options.projectDir, manifest)
+  // Loaded before the data, so a project whose auth does not load fails while the import can still run again.
+  const auth = await loadProjectAuth(options.projectDir)
 
   const replay = state.hasReplay() ? state.replay : undefined
   await writeFile(state.load, loadScript(state.data, manifest.tables, replay), { mode: 0o600 })
@@ -79,6 +88,15 @@ export const runLoadPhase = async (options: LoadOptions, out: (text: string) => 
   const cron = convertedCronJobs(manifest.cronJobs)
   const jobsWired = await writeCronJobs(options.projectDir, cron)
   if (cron.length > 0) out(`wrote ${cron.length} of pg_cron's jobs as recurring jobs in jobs/\n`)
-  await writeFile(state.report, importReport(manifest, await doctorOutput(options.targetUrl, options.configDir), jobsWired, live), { mode: 0o600 })
+
+  const authFile = await writeAuthMigration({ auth, dir: options.migrationsDir, name: 'auth' })
+  if (authFile) out(`wrote ${path.relative(options.projectDir, authFile)}, Better Auth's tables next to auth.users\n`)
+  const accountsFile = await writeMigration(options.migrationsDir, 'supabase_accounts', accountsMigration())
+  out(`wrote ${path.relative(options.projectDir, path.join(options.migrationsDir, accountsFile))}, the users' accounts with their Supabase passwords and social providers\n`)
+
+  const target = connect(options.targetUrl)
+  const providers = await providerCounts(target).finally(() => target.end())
+  await writeFile(state.report, importReport(manifest, await doctorOutput(options.targetUrl, options.configDir), jobsWired, live, providers), { mode: 0o600 })
   out(`wrote ${path.relative(options.projectDir, state.report)}: what the import could not carry over\n`)
+  out("next: apply the migrations with the project's migrations; Supabase's users then sign in with their own passwords\n")
 }

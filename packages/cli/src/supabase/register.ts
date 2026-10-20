@@ -25,7 +25,7 @@ export const registerImport = (program: Command) => {
   imports
     .command('supabase')
     .description(
-      "Import a Supabase database into the project in the current directory. The first run dumps it and writes its schemas as the project's next migration; once the project's migrations are applied, the second run loads the data, scaffolds the config and writes supabase-import/report.md. With --storage-url, the second run, or any later one, copies Storage's files into the app's file provider",
+      "Import a Supabase database into the project in the current directory. The first run dumps it and writes its schemas as the project's next migration; once the project's migrations are applied, the second run loads the data, scaffolds the config, writes the migrations that sign its users in with Better Auth and writes supabase-import/report.md. With --storage-url, the second run, or any later one, copies Storage's files into the app's file provider",
     )
     .argument('[source]', "the Supabase database's connection string, for the first run")
     .option('--source-env <variable>', 'read the Supabase connection string from this environment variable')
@@ -51,5 +51,7 @@ export const registerImport = (program: Command) => {
         },
         out,
       )
+      // The load's run opened the project's auth, which keeps a connection pool open.
+      process.exit(0)
     })
 }

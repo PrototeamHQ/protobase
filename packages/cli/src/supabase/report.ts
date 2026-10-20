@@ -1,4 +1,5 @@
 import { convertedCronJobs, type PlannedCronJob } from './cron-plan'
+import { providerFate, type ProviderCount } from './identity-providers'
 import type { ImportManifest } from './import-state'
 
 /** Protobase Cloud's Starter plan holds this much data; the import reports a larger database, it does not refuse it. */
@@ -75,13 +76,35 @@ const conversions = (manifest: ImportManifest) => [
   ...manifest.routinesLeftOut.map((routine) => `function ${routine.name}, written in ${routine.language}: rewrite it in plpgsql or as a Protobase function`),
 ]
 
+/** What became of one provider's identities. */
+const providerLine = ({ provider, identities, unkeyed }: ProviderCount) => {
+  const fate = providerFate(provider)
+  const counted = `${code(provider)}, ${identities} identit${identities === 1 ? 'y' : 'ies'}`
+  if (fate.kind === 'none') return `${counted}: not carried over, ${fate.reason}`
+  const name = code(fate.providerId)
+  const missing = unkeyed > 0 ? `; ${unkeyed} lack${unkeyed === 1 ? 's' : ''} the claim Better Auth keys ${name} accounts on and ${unkeyed === 1 ? 'is' : 'are'} not carried over` : ''
+  return fate.builtIn
+    ? `${counted}: accounts of Better Auth's ${name}${missing}`
+    : `${counted}: accounts named ${name}, a provider Better Auth has not built in: set it up with Better Auth's generic OAuth plugin under that id${missing}`
+}
+
+const signInSection = (providers: ProviderCount[]) =>
+  [
+    '## Sign-in\n',
+    "Supabase's users sign in with their own passwords once the migrations the import wrote are applied. Sessions do not carry over, so everyone signs in once; MFA factors and passkeys are set up again. No imported user has a role in the app yet: give the admins theirs with `protobase users set-role <email> admin`.\n",
+    providers.length === 0
+      ? 'auth.identities is empty.\n'
+      : `Each identity of a social provider became an account, which signs in once the provider is in \`createAuth\`'s \`socialProviders\`, with the client id and secret the Supabase project used. By provider:\n\n${providers.map((provider) => `- ${providerLine(provider)}`).join('\n')}\n`,
+  ].join('\n')
+
 /**
  * The import's report: what it loaded, and what it could not carry over, for a person or their AI assistant to finish.
  * `doctor` is `protobase doctor`'s output on the scaffolded config, or `undefined` when there was no config to check;
  * `jobsWired` whether protobase.config.ts passes the pg_cron jobs the load wrote as its `jobs`; `live` the tables, as
- * `schema.table`, whose resources the scaffold gave `.live()`.
+ * `schema.table`, whose resources the scaffold gave `.live()`; `providers` counts the loaded auth.identities by
+ * provider.
  */
-export const importReport = (manifest: ImportManifest, doctor: string | undefined, jobsWired: boolean, live: string[]) =>
+export const importReport = (manifest: ImportManifest, doctor: string | undefined, jobsWired: boolean, live: string[], providers: ProviderCount[]) =>
   [
     '# Supabase import\n',
     `Schemas ${manifest.schemas.join(', ')}, restored by the migration \`${manifest.migration}\`, and their data, loaded in one transaction.\n`,
@@ -90,6 +113,7 @@ export const importReport = (manifest: ImportManifest, doctor: string | undefine
     '## Rows loaded\n\nEach count matched the source before the load committed.\n\n| Table | Rows |\n| --- | --- |\n' +
       manifest.tables.map((table) => `| ${table.schema}.${table.table} | ${table.rows} |`).join('\n') +
       '\n',
+    signInSection(providers),
     section(
       'Made again',
       "A dump cannot carry these. The load made Vault's secrets and pgmq's queues again through each extension's own API, in the same transaction, and scheduled pg_cron's jobs again with `cron.schedule` where the project's database has pg_cron; elsewhere the import made them the app's recurring jobs, on the same schedule. pg_net sends the HTTP triggers' calls from the project's database, Database Webhooks' through the `supabase_functions.http_request` the migration creates.",
