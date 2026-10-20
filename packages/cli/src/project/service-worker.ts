@@ -16,7 +16,8 @@ export const serviceWorker = (): Plugin => ({
   apply: 'build',
   transformIndexHtml: {
     order: 'post',
-    handler: () => [{ tag: 'script', children: `if ('serviceWorker' in navigator) navigator.serviceWorker.register('/${serviceWorkerFile}')`, injectTo: 'body' }],
+    // Inside a mobile app (Capacitor defines `window.Capacitor` before the page's scripts) the files are on the device.
+    handler: () => [{ tag: 'script', children: `if ('serviceWorker' in navigator && !window.Capacitor) navigator.serviceWorker.register('/${serviceWorkerFile}')`, injectTo: 'body' }],
   },
   generateBundle: {
     order: 'post',

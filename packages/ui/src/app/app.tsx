@@ -64,7 +64,7 @@ export type AppProps = {
   client?: Client
   /** Ready-made clients of the sources `/meta` names, by their URL, for stories and tests. */
   sources?: Record<string, Client>
-  /** Sign-in state for the app; made from the page's origin when omitted. */
+  /** Sign-in state for the app; made from `baseUrl`'s origin when omitted. */
   auth?: AuthSession
   /** Path prefix the app is mounted under, for example `/admin`. */
   basePath?: string
@@ -272,7 +272,7 @@ export const App = ({ auth, workspace, basePath, initialUrl, pluginLoader, local
   setFallbackLocale(locale ?? 'en')
   return (
     <ThemeProvider>
-      <AuthProvider session={auth}>
+      <AuthProvider session={auth} {...(rest.baseUrl && { origin: new URL(rest.baseUrl, window.location.href).origin })}>
         <Router basePath={basePath} initialUrl={initialUrl}>
           <PluginSourceProvider {...(pluginLoader && { loader: pluginLoader })}>
             <AuthLocale>

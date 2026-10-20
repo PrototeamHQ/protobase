@@ -54,7 +54,7 @@ describe('buildDeployBundle', () => {
     expect(code).not.toContain('jsxDEV')
 
     // The page registers the shell's service worker, which caches the page and what it loads first.
-    expect(index).toContain(`navigator.serviceWorker.register('/protobase.sw.js')`)
+    expect(index).toContain(`'serviceWorker' in navigator && !window.Capacitor) navigator.serviceWorker.register('/protobase.sw.js')`)
     expect(index).toContain('<link rel="manifest" href="/api/manifest.webmanifest"')
     const worker = await readFile(path.join(outDir, 'public/protobase.sw.js'), 'utf8')
     const precache = JSON.parse(/const precache = (.*)/.exec(worker)![1]!) as string[]

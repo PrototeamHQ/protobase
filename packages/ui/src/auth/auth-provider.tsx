@@ -86,8 +86,11 @@ export const useAuth = () => {
   return api
 }
 
-/** Finds out whether the server has a login and who is signed in, and keeps that state for the app. */
-export const AuthProvider = ({ session: given, children }: { session?: AuthSession; children: ReactNode }) => {
+/**
+ * Finds out whether the server has a login and who is signed in, and keeps that state for the app. Without a `session`,
+ * it makes one on `origin`, the page's own by default.
+ */
+export const AuthProvider = ({ session: given, origin, children }: { session?: AuthSession; origin?: string; children: ReactNode }) => {
   const [state, setState] = useState<AuthState>({ kind: 'loading' })
   const [signInMethods, setSignInMethods] = useState<SignInMethod[]>(['password'])
   const [passwordReset, setPasswordReset] = useState(false)
@@ -106,7 +109,7 @@ export const AuthProvider = ({ session: given, children }: { session?: AuthSessi
   const markSignedOut = useCallback(() => setState((current) => (current.kind === 'signed-in' ? { kind: 'signed-out' } : current)), [])
   const signedOut = useRef(markSignedOut)
   signedOut.current = markSignedOut
-  const session = useMemo(() => given ?? createAuthSession({ onSignedOut: () => signedOut.current() }), [given])
+  const session = useMemo(() => given ?? createAuthSession({ ...(origin && { origin }), onSignedOut: () => signedOut.current() }), [given, origin])
 
   // Signed in: the app opens unless the policy requires something the account lacks, which it never does for staff.
   // Signing out later shows the sign-in page again.
