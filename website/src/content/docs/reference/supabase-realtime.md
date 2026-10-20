@@ -1,9 +1,9 @@
 ---
 title: Supabase Realtime
-description: The Realtime-compatible /realtime/v1 that supabase-js's channel().on('postgres_changes') listens to, each change checked under the subscriber's RLS policies.
+description: The Realtime-compatible /realtime/v1 that supabase-js's channel() joins, for postgres_changes checked under the subscriber's RLS policies, broadcasts and presence.
 ---
 
-An app with API keys and [live resources](/reference/live/) also serves `/realtime/v1/websocket`, the socket that supabase-js's `channel()` joins. An app moved from Supabase keeps its `postgres_changes` listeners: point the client at the app and give it the publishable key.
+An app with API keys also serves `/realtime/v1/websocket`, the socket that supabase-js's `channel()` joins. An app moved from Supabase keeps its `postgres_changes` listeners, broadcasts and presence: point the client at the app and give it the publishable key.
 
 ```ts
 import { createClient } from '@supabase/supabase-js'
@@ -23,7 +23,27 @@ The server serves the socket when the host gives `createAdmin` its WebSocket upg
 
 ## Which tables
 
-A channel may listen to the tables of the resources with [`.live()`](/reference/live/), by `schema` (`*` for any), `table` (every live table of the schema when left out), `event` (`INSERT`, `UPDATE`, `DELETE` or `*`) and `filter`. A table that is not live is refused when the channel joins, with Supabase's message. A filter is Supabase's: `column=operator.value`, with `eq`, `neq`, `lt`, `lte`, `gt`, `gte`, `in.(a,b)`, `like`, `ilike`, `match`, `imatch`, `is` and `isdistinct`, `not.` before the operator, and several conditions joined by commas, all of which must hold. Postgres compares each value as the column's type. `select` of columns is not supported yet; broadcast, presence and private channels neither.
+A channel may listen to the tables of the resources with [`.live()`](/reference/live/), by `schema` (`*` for any), `table` (every live table of the schema when left out), `event` (`INSERT`, `UPDATE`, `DELETE` or `*`) and `filter`. A table that is not live is refused when the channel joins, with Supabase's message. A filter is Supabase's: `column=operator.value`, with `eq`, `neq`, `lt`, `lte`, `gt`, `gte`, `in.(a,b)`, `like`, `ilike`, `match`, `imatch`, `is` and `isdistinct`, `not.` before the operator, and several conditions joined by commas, all of which must hold. Postgres compares each value as the column's type. `select` of columns is not supported yet; private channels neither.
+
+## Broadcast and presence
+
+Channels on the same topic exchange broadcasts and see each other's presence, as on Supabase:
+
+```ts
+const room = supabase.channel('room', { config: { broadcast: { self: false, ack: true }, presence: { key: 'alice' } } })
+room
+  .on('broadcast', { event: 'cursor' }, ({ payload }) => console.log(payload))
+  .on('presence', { event: 'sync' }, () => console.log(room.presenceState()))
+  .subscribe(async (status) => {
+    if (status !== 'SUBSCRIBED') return
+    await room.track({ online_at: new Date().toISOString() })
+    await room.send({ type: 'broadcast', event: 'cursor', payload: { x: 1, y: 2 } })
+  })
+```
+
+A broadcast reaches the topic's other channels, and the sender's own with `self`; with `ack`, `send` resolves once the server has it. Binary payloads go to clients on the default serializer (`vsn` 2.0.0) only. Presence follows Phoenix Presence: a channel tracks one presence under its `presence.key` (a random one when it names none), tracking again replaces it, and channels with presence enabled get the state when they join and each join and leave after, their own included. A channel that leaves, closes or whose token expires leaves the presence it tracked.
+
+Broadcasts and presence go between the channels of one serving process, which is how a cloud app runs; several processes behind one address do not reach each other's channels. Sending without a joined channel, which supabase-js does over `POST /realtime/v1/api/broadcast`, is not supported.
 
 ## What a subscriber receives
 
