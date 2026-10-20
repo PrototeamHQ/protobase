@@ -13,6 +13,9 @@ export const nextMigrationName = (files: string[], name: string) => {
   return `${String(next).padStart(width, '0')}_${name}.sql`
 }
 
+/** What an auth schema migration holds, its first line, whichever command wrote it. */
+export const authMigrationTitle = 'The auth schema changes this version of Protobase needs'
+
 /** The file's contents: what wrote it and why, then Better Auth's statements, one per paragraph. */
 export const migrationText = (sql: string) =>
-  `-- The auth schema changes this version of Protobase needs, written by \`protobase auth migration\`.\n-- Applied with the project's other migrations; edit or remove statements the project handles differently.\n\n${sql}\n`
+  `-- ${authMigrationTitle}, written by \`protobase auth migration\`.\n-- Applied with the project's other migrations; edit or remove statements the project handles differently.\n\n${sql}\n`

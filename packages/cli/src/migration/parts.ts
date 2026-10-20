@@ -1,4 +1,5 @@
 import { authSchemaMigration, changesMigration, commentsMigration, computedMigration, isCaptured, jobsSchemaMigration, queryRunnerMigration, webhooksMigration } from '@protobase/server'
+import { authMigrationTitle } from '../auth/migration-file'
 import type { MigrationProject } from './load-project'
 
 /** What one feature still needs of the database, written as a migration file of its own. */
@@ -16,7 +17,7 @@ export const migrationParts = (project: MigrationProject): MigrationPart[] => {
   const comments = project.models.some((model) => model.comments)
   const aiFields = project.models.some((model) => Object.values(model.fields).some((field) => field.ai))
   return [
-    ...(project.auth ? [{ name: 'auth', title: 'The auth schema changes this version of Protobase needs', sql: () => authSchemaMigration(project.auth!) }] : []),
+    ...(project.auth ? [{ name: 'auth', title: authMigrationTitle, sql: () => authSchemaMigration(project.auth!) }] : []),
     // Events and history are captured with a dispatch job, events delivered, mentions mailed and AI fields filled by jobs,
     // whose waiting and failed ones webhooks() lists.
     ...(project.jobs.length > 0 || project.models.some(isCaptured) || comments || aiFields || project.webhooks ? [{ name: 'jobs', title: 'The jobs schema this version of Protobase needs', sql: () => jobsSchemaMigration(project.db) }] : []),
