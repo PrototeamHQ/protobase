@@ -27,6 +27,7 @@ import { signInPolicyPlugin } from './policy-plugin'
 import { emailInDomains, resolveSamlProviders, samlDisabledPaths, samlGuardPlugin, samlPlugin, type ResolvedSamlProvider, type SsoOptions } from './saml-sign-in'
 import { emailCodeOptions, twoFactorCodeOptions, unusedEmailCodePaths } from './sign-in-mail'
 import { signUpPaths, signUpPlugin } from './sign-up/sign-up-plugin'
+import { confirmedOnCreate, confirmedOnUpdate, emailConfirmedField } from './email-confirmed'
 import { coreNames, pluginNames } from './snake-case-names'
 import { rehashPasswordsPlugin, verifyAcceptedHash, type PasswordHash } from './password-hashes'
 import { staffSignInPlugin } from './staff-plugin'
@@ -219,7 +220,7 @@ export const betterAuthOptions = (options: CreateAuthOptions, { origins = [], pa
   const samlIds = saml.map((provider) => provider.id)
   const users = userTable(options.users)
   const passwordHashes = options.passwordHashes ?? []
-  const userFields = { ...(organizations && userFieldsNamed(lastOrganizationField, users)), ...metadataField(users) }
+  const userFields = { ...userFieldsNamed(emailConfirmedField, users), ...(organizations && userFieldsNamed(lastOrganizationField, users)), ...metadataField(users) }
   return {
     appName,
     database: options.database,
@@ -310,10 +311,11 @@ export const betterAuthOptions = (options: CreateAuthOptions, { origins = [], pa
             }
             const withId = options.generateUserId ? { ...user, id: await newUserId(options.generateUserId) } : user
             // An admin, or the host, creates the account for an address they vouch for; so does a SAML provider, at its domains.
-            return { data: context?.path === '/admin/create-user' || samlProvider ? { ...withId, emailVerified: true } : withId }
+            return { data: confirmedOnCreate(context?.path === '/admin/create-user' || samlProvider ? { ...withId, emailVerified: true } : withId, new Date()) }
           },
           ...(options.onUserCreated && { after: options.onUserCreated }),
         },
+        update: { before: async (user) => ({ data: confirmedOnUpdate(user, new Date()) }) },
       },
       ...(organizations && { session: sessionOrganizationHooks(context) }),
     },

@@ -21,7 +21,7 @@ const schemaWith = (users?: CreateAuthOptions['users']) =>
     ),
   )
 
-const userColumns = ['name', 'email', 'email_verified', 'image', 'created_at', 'updated_at', 'role', 'banned', 'ban_reason', 'ban_expires', 'two_factor_enabled', 'last_role', 'last_organization_id']
+const userColumns = ['name', 'email', 'email_verified', 'email_confirmed_at', 'image', 'created_at', 'updated_at', 'role', 'banned', 'ban_reason', 'ban_expires', 'two_factor_enabled', 'last_role', 'last_organization_id']
 
 describe('the user table', () => {
   it('is `user` with the columns Protobase names by default', () => {

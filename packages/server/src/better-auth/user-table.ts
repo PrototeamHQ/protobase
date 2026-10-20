@@ -9,6 +9,7 @@ const userFields = {
   name: 'name',
   email: 'email',
   email_verified: 'emailVerified',
+  email_confirmed_at: 'emailConfirmedAt',
   image: 'image',
   created_at: 'createdAt',
   updated_at: 'updatedAt',
