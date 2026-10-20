@@ -28,6 +28,7 @@ export const reference = [
   'reference/history',
   'reference/comments',
   'reference/live',
+  'reference/supabase-realtime',
   'reference/ai',
   'reference/forms',
   'reference/jobs',

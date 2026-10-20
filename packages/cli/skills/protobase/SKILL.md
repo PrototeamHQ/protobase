@@ -66,6 +66,7 @@ Reference:
 - When keeping or showing the changes of records → read [Record history](references/reference/history.md)
 - When adding comments to records → read [Record comments](references/reference/comments.md)
 - When open pages should refresh as records change → read [Live updates](references/reference/live.md)
+- When an app listens to `postgres_changes` with supabase-js under RLS → read [Supabase Realtime](references/reference/supabase-realtime.md)
 - When filling fields with a model → read [AI fields and actions](references/reference/ai.md)
 - When letting people without an account create records → read [Public forms](references/reference/forms.md)
 - When running background jobs → read [Jobs](references/reference/jobs.md)
