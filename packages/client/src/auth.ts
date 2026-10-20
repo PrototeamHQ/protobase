@@ -1,5 +1,6 @@
 import { isLocale } from '@protobase/schema/internal'
 import { accountSecurity } from './account-security'
+import { connectClient } from './connect'
 import { AuthError, authError } from './auth-error'
 import type { AuthUser, PlatformSignIn, SetupStatus, SignInMethod } from './auth-types'
 import { betterAuthClient } from './better-auth-client'
@@ -37,7 +38,7 @@ export const tokenExpiry = (token: string) => {
  * The browser side of Better Auth: sign in with a password, an emailed code or a passkey (with a second step for an
  * account with two-factor authentication), the account's passkeys and two-factor authentication (`account`), the
  * sign-in policy for admins (`signInPolicy`), the people who can sign in for admins (`users`), staff of the operator
- * signing in as people (`staff`), organizations (`organizations`), the role the session acts with (`roles`), and a short-lived
+ * signing in as people (`staff`), organizations (`organizations`), the role the session acts with (`roles`), allowing an outside app such as an MCP client (`connect`), and a short-lived
  * JWT held in memory only (never in storage), fetched with the session cookie and refreshed before it expires.
  */
 export const createAuthSession = (options: AuthSessionOptions = {}) => {
@@ -102,6 +103,7 @@ export const createAuthSession = (options: AuthSessionOptions = {}) => {
         ...(body.passkeyDomains && { passkeyDomains: body.passkeyDomains }),
         ...(body.organizations && { organizations: body.organizations }),
         ...(body.anonymous && { anonymous: true }),
+        ...(body.mcp && { mcp: true }),
         ...(body.plugins && body.plugins.length > 0 && { plugins: body.plugins }),
         ...(isLocale(body.locale) && { locale: body.locale }),
       }
@@ -158,6 +160,7 @@ export const createAuthSession = (options: AuthSessionOptions = {}) => {
     },
 
     account: accountSecurity(client),
+    connect: connectClient(client),
     organizations: organizationsClient(client, () => token({ refresh: true })),
     roles: rolesClient(client, () => token({ refresh: true })),
     signInPolicy: signInPolicyClient(client),

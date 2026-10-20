@@ -89,6 +89,9 @@ describe('auth session sign-in', () => {
     expect(await dutch.status()).toMatchObject({ locale: 'nl' })
     const unknown = createAuthSession({ origin: 'http://localhost', fetch: (async () => json({ needsAdmin: false, signInMethods: ['password'], socialProviders: [], locale: 'xx' })) as typeof fetch })
     expect(await unknown.status()).not.toHaveProperty('locale')
+    const mcp = createAuthSession({ origin: 'http://localhost', fetch: (async () => json({ needsAdmin: false, signInMethods: ['password'], socialProviders: [], mcp: true })) as typeof fetch })
+    expect(await mcp.status()).toMatchObject({ mcp: true })
+    expect(await early.status()).not.toHaveProperty('mcp')
   })
 
   it('says so when the URL is not a Protobase server', async () => {
@@ -197,5 +200,22 @@ describe('bearer tokens on API calls', () => {
     const fetch = vi.fn(async () => problem(401)) as unknown as typeof globalThis.fetch
     await createClient({ fetch }).list('orders').catch(() => undefined)
     expect(fetch).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('the connect page calls', () => {
+  const answering = (body: unknown, status = 200) => createAuthSession({ origin: 'http://localhost', fetch: (async () => json(body, { status })) as typeof fetch })
+
+  it('resolve with where to go next', async () => {
+    expect(await answering({ redirect: true, url: '/-/connect?sig=x' }).connect.resume('sig=x')).toEqual({ url: '/-/connect?sig=x' })
+    expect(await answering({ redirect: true, url: 'http://127.0.0.1:3000/cb?code=c' }).connect.answer(true, 'sig=x')).toEqual({ url: 'http://127.0.0.1:3000/cb?code=c' })
+  })
+
+  it("reject with the provider's OAuth error as the code, and Protobase's own refusals as theirs", async () => {
+    const expired = await answering({ error: 'invalid_signature', error_description: 'invalid signature' }, 400).connect.resume('sig=x').catch((error: unknown) => error)
+    expect(expired).toBeInstanceOf(AuthError)
+    expect(expired).toMatchObject({ status: 400, code: 'invalid_signature', message: 'invalid signature' })
+    const staff = await answering({ code: 'STAFF_CANNOT_CONNECT', message: 'Staff cannot allow apps to act for a person.' }, 403).connect.answer(true, 'sig=x').catch((error: unknown) => error)
+    expect(staff).toMatchObject({ status: 403, code: 'STAFF_CANNOT_CONNECT' })
   })
 })
