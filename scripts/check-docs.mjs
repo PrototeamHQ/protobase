@@ -23,24 +23,35 @@ const report = (label, found) => {
 }
 
 // Four pages at a time, in one context so they share its cache: a page mostly waits for the network to go idle. Each
-// url gets the problems its page met and what `inspect` returns once the network is idle, in the order of `urls`.
+// url gets the problems its page met and what `inspect` returns once the network is idle, in the order of `urls`. A
+// visit during which the host's network changed (other jobs on a shared runner add and drop Docker networks, and
+// Chromium then aborts every request in flight, even to localhost) says nothing about the site, so it is made again.
 const pages = 4
+const visitsPerUrl = 3
 const visitAll = async (context, urls, inspect) => {
   const visits = new Array(urls.length)
   let next = 0
   await Promise.all(Array.from({ length: pages }, async () => {
     const page = await context.newPage()
     const problems = []
+    let networkChanged = false
     page.on('console', (message) => message.type() === 'error' && problems.push(`console: ${message.text()}`))
     page.on('pageerror', (error) => problems.push(`exception: ${error.message}`))
-    page.on('requestfailed', (request) => problems.push(`request failed: ${request.url()}`))
+    page.on('requestfailed', (request) => {
+      if (request.failure()?.errorText === 'net::ERR_NETWORK_CHANGED') networkChanged = true
+      problems.push(`request failed: ${request.url()}`)
+    })
     page.on('response', (response) => response.status() >= 400 && problems.push(`${response.status()}: ${response.url()}`))
     while (next < urls.length) {
       const i = next++
-      problems.length = 0
-      await page.goto(new URL(urls[i], base).href, { waitUntil: 'networkidle' })
-      const found = await inspect(page, problems)
-      visits[i] = { problems: [...problems], found }
+      for (let visit = 1; visit <= visitsPerUrl; visit++) {
+        problems.length = 0
+        networkChanged = false
+        await page.goto(new URL(urls[i], base).href, { waitUntil: 'networkidle' })
+        const found = await inspect(page, problems)
+        visits[i] = { problems: [...problems], found }
+        if (!networkChanged) break
+      }
     }
     await page.close()
   }))
