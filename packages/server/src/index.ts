@@ -32,7 +32,7 @@ export { roleChoices, parseRoles, hasUsers, createUser, listUsers, deleteUser, s
 export { issueToken, maxTokenTtlSeconds, type IssueTokenOptions } from './better-auth/tokens'
 export { defaultSignInPolicy, signInPolicyMethods, type SignInPolicy, type SignInRule, type StaffAccessRule } from './better-auth/sign-in-policy'
 export { readOperatorSettings, type OperatorProvider } from './better-auth/operator-provider'
-export { webauthnPath } from './better-auth/origins'
+export { isOAuthWellKnownPath, oauthWellKnownPaths, webauthnPath } from './better-auth/origins'
 export { goTruePath } from './gotrue/keys'
 export { supabasePath } from './supabase-paths'
 export type { CorsOrigins } from './api-cors'
