@@ -8,7 +8,9 @@ export type { ResourceSource } from './resource-source'
 export type { AuditEvent, AuditQueue } from './types'
 export type { AdminOptions } from './admin-options'
 export { consoleAuditQueue } from './audit/console-queue'
-export { jwtAuthenticator, type JwtOptions } from './auth/jwt'
+export { jwtAuthenticator, jwtVerifier, type JwtOptions, type JwtVerifyOptions } from './auth/jwt'
+export { apiKeySettings, apiKeyVariables, type ApiKeys, type ApiKeysOptions } from './api-keys/api-key-settings'
+export { apiKeyCaller, type Caller, type CallerOptions } from './api-keys/resolve-caller'
 export { HttpProblem, MissingCredentials, unauthorized, forbidden, notFound, badRequest } from './problem'
 export type {
   SessionOrganization,
@@ -24,7 +26,7 @@ export type {
   WriteOperation,
 } from './types'
 export { createAuth, normalizeRoles, type AdminAuth, type CreateAuthOptions, type UserCreatedHook } from './better-auth/create-auth'
-export { betterAuthAuthenticator, type BetterAuthAuthenticatorOptions } from './better-auth/authenticator'
+export { betterAuthAuthenticator, betterAuthTokens, type BetterAuthAuthenticatorOptions } from './better-auth/authenticator'
 export { withTrustedApps, type TrustedApp } from './better-auth/app-tokens'
 export { roleChoices, parseRoles, hasUsers, createUser, listUsers, deleteUser, setUserRole, setUserBanned, type LinkedAccount, type NewUser, type StoredUser } from './better-auth/users'
 export { issueToken, maxTokenTtlSeconds, type IssueTokenOptions } from './better-auth/tokens'
