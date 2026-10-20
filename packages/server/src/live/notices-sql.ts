@@ -20,12 +20,12 @@ export const noticesTableSql = (schema: string) => {
 create index if not exists "notices_at" on ${table} ("at")`
 }
 
-/** One change an open page hears of. */
-export type Notice = { id: string; resource: string; key: string; operation: ResourceChange['operation']; tenant: string | null }
+/** One change an open page hears of; `at` is when it was written as a notice, ISO 8601. */
+export type Notice = { id: string; resource: string; key: string; operation: ResourceChange['operation']; tenant: string | null; at: string }
 
-type NoticeRow = { id: string; resource: string; record_key: string; tenant_id: string | null; operation: Notice['operation'] }
+type NoticeRow = { id: string; resource: string; record_key: string; tenant_id: string | null; operation: Notice['operation']; at: string }
 
-const noticeOf = (row: NoticeRow): Notice => ({ id: row.id, resource: row.resource, key: row.record_key, operation: row.operation, tenant: row.tenant_id })
+const noticeOf = (row: NoticeRow): Notice => ({ id: row.id, resource: row.resource, key: row.record_key, operation: row.operation, tenant: row.tenant_id, at: row.at })
 
 const tableOf = (schema: string) => sql.raw(`${quoteIdent(schema)}."notices"`)
 
@@ -52,7 +52,8 @@ export const lastNotice = async (db: Db, schema: string) =>
 
 /** At most `limit` notices after `after`, in order. */
 export const noticesAfter = async (db: Db, schema: string, after: string, limit: number) => {
-  const { rows } = await sql<NoticeRow>`select "id"::text as id, "resource", "record_key", "tenant_id", "operation" from ${tableOf(schema)}
+  const { rows } = await sql<NoticeRow>`select "id"::text as id, "resource", "record_key", "tenant_id", "operation",
+      to_char("at" at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') as at from ${tableOf(schema)}
     where "id" > ${after}::bigint order by "id" limit ${limit}`.execute(db)
   return rows.map(noticeOf)
 }

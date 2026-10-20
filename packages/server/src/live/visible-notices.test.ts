@@ -14,7 +14,7 @@ const plain = resource('plain').table('plain').fields(fields).primaryKey((r) => 
 
 const deps = { registry: buildRegistry([orders, notes, plain]), accessOptions: {} } as unknown as Deps
 
-const notice = (resource: string, tenant: string | null = null): Notice => ({ id: '1', resource, key: '1', operation: 'update', tenant })
+const notice = (resource: string, tenant: string | null = null): Notice => ({ id: '1', resource, key: '1', operation: 'update', tenant, at: '2026-08-01T00:00:00.000Z' })
 
 const heard = async (session: Session) => {
   const visible = await visibleNotices(deps, session)

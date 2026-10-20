@@ -7,7 +7,7 @@ import { liveRoutes, type LiveEvent } from './live-route'
 import type { NoticeFeed } from './notice-feed'
 import type { Notice } from './notices-sql'
 
-const notice = (id: string, resource = 'orders', tenant: string | null = null): Notice => ({ id, resource, key: id, operation: 'update', tenant })
+const notice = (id: string, resource = 'orders', tenant: string | null = null): Notice => ({ id, resource, key: id, operation: 'update', tenant, at: '2026-08-01T00:00:00.000Z' })
 
 // A feed at `cursor` that keeps `kept` for replays and hands out what `push` sends.
 const fakeFeed = (cursor: string, kept: Notice[] = []) => {
