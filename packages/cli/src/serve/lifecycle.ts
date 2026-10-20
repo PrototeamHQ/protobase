@@ -1,7 +1,8 @@
 import type { Server } from 'node:http'
 import type { AddressInfo } from 'node:net'
-import { createAdaptorServer } from '@hono/node-server'
+import { createAdaptorServer, upgradeWebSocket } from '@hono/node-server'
 import pg from 'pg'
+import { WebSocketServer } from 'ws'
 import type { Db } from '@protobase/query'
 import { checkAi, checkAuthSchema, checkChanges, checkComments, checkComputed, checkJobsSchema, checkWebhooksSchema, configExports, createFileCleanup, startJobs, type ErrorReporter } from '@protobase/server'
 import { projectAdmin } from '../project/project-admin'
@@ -57,11 +58,12 @@ export const startServe = async ({ project, env, createDb = (url) => createPgDb(
     if (env.startupChecks) await checkComputed(db, resources.map((resource) => resource.toModel()))
     if (env.startupChecks) checkAi({ models: resources.map((resource) => resource.toModel()), views: views.map((source) => source.toModel()), assistant: project.options?.assistant, env: process.env })
     if (env.startupChecks && project.webhooks) await checkWebhooksSchema(db, project.webhooks)
-    const { admin, jobs: definitions } = projectAdmin(project, project.config, db, ui, reporter)
+    const { admin, jobs: definitions } = projectAdmin(project, project.config, db, ui, reporter, upgradeWebSocket)
     if (env.startupChecks && definitions.length > 0) await checkJobsSchema(db)
     const jobs = definitions.length > 0 ? await startJobs({ db, jobs: definitions, work: env.runJobs, onError: (error) => console.error(error) }) : undefined
     const app = createServeApp({ admin, requestLog: env.requestLog, site, ...(jobs && { jobs }), ...(env.drainToken && { drainToken: env.drainToken }) })
-    const server = createAdaptorServer({ fetch: app.fetch, overrideGlobalObjects: false }) as Server
+    // WebSockets for `/realtime/v1`, upgraded by the app's own route.
+    const server = createAdaptorServer({ fetch: app.fetch, overrideGlobalObjects: false, websocket: { server: new WebSocketServer({ noServer: true }) } }) as Server
     await listen(server, env.port).catch(async (error: Error) => {
       await jobs?.stop()
       throw error
