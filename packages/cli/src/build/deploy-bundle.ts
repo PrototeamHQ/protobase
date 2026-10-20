@@ -12,6 +12,7 @@ import { buildFavicon, faviconFile } from './favicon'
 import { checkUi } from './ui-check'
 import { checkViews } from './view-check'
 import type { Extension } from '../project/extensions'
+import { protobaseFolder } from '../project/protobase-folder'
 
 export type DeployBundleInput = {
   projectDir: string
@@ -60,7 +61,8 @@ export const buildDeployBundle = async ({ projectDir, outDir, bun, extensions = 
   const packages = native.length > 0 ? await copyPackages(native, path.join(outDir, bundleNodeModules)) : []
   const publicDir = path.join(outDir, bundleLayout.public)
   const shell = await copyShell(publicDir)
-  const plugins = await buildBundlePlugins({ projectDir, publicDir, extensions, ignore: [outDir] })
+  // What Protobase generates in the project, such as the mobile workspace's packages and native projects, is no source of styles.
+  const plugins = await buildBundlePlugins({ projectDir, publicDir, extensions, ignore: [outDir, path.join(projectDir, protobaseFolder)] })
   for (const warning of await buildTheme({ projectDir, outFile: path.join(publicDir, bundleLayout.theme) })) onWarning?.(warning)
   await buildFavicon({ projectDir, outFile: path.join(publicDir, faviconFile) })
   const manifest: BundleManifest = {
