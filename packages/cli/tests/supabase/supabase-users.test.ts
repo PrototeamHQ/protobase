@@ -86,7 +86,6 @@ it("signs Supabase's users in with their own passwords and GitHub, and adds new 
   expect(accounts!.rows).toEqual([
     { email: 'alice@example.com', provider_id: 'credential', own_id: true, account_id: expect.any(String), hash: '$2a$' },
     { email: 'bob@example.com', provider_id: 'credential', own_id: true, account_id: expect.any(String), hash: '$2a$' },
-    { email: 'dave@example.com', provider_id: 'credential', own_id: true, account_id: expect.any(String), hash: '$2a$' },
     { email: 'erin@example.com', provider_id: 'credential', own_id: true, account_id: expect.any(String), hash: '$2a$' },
     { email: 'grace@example.com', provider_id: 'github', own_id: false, account_id: '4207001', hash: null },
   ])
@@ -99,6 +98,8 @@ it("signs Supabase's users in with their own passwords and GitHub, and adds new 
   expect((await signIn('alice@example.com', 'short-pw1')).status).toBe(200)
   expect((await signIn('bob@example.com', 'bob-longer-password')).status).toBe(200)
   expect((await signIn('erin@example.com', 'erin-password-1')).status).toBe(403)
+  // Dave never confirmed his address, so GoTrue refused his password and so does Protobase: he has no password account.
+  expect((await signIn('dave@example.com', 'dave-password-1')).status).toBe(401)
 
   // Grace signed up with GitHub on Supabase: signing in with it finds her user by the account the import made.
   mockGitHub()

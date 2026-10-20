@@ -34,9 +34,11 @@ update auth.users set
   ban_expires = banned_until;
 
 -- Each password, as Supabase hashed it: Better Auth verifies the bcrypt hash and stores it again as its own on sign-in.
+-- Only for confirmed addresses: GoTrue refuses a password sign-in to an unconfirmed one and Better Auth would not, so
+-- whoever signed up with someone else's address could sign in as them. Those users sign in by code or reset a password.
 insert into auth.account (account_id, provider_id, user_id, password, created_at, updated_at)
 select id::text, 'credential', id, encrypted_password, coalesce(created_at, now()), coalesce(updated_at, now())
-from auth.users where encrypted_password is not null and encrypted_password <> '';
+from auth.users where encrypted_password is not null and encrypted_password <> '' and email_confirmed_at is not null;
 
 -- Each identity of a social provider, by Better Auth's name for it and the claim it keys the account on. Sessions and
 -- provider tokens stay behind: everyone signs in once.

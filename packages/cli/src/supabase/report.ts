@@ -91,7 +91,7 @@ const providerLine = ({ provider, identities, unkeyed }: ProviderCount) => {
 const signInSection = (providers: ProviderCount[]) =>
   [
     '## Sign-in\n',
-    "Supabase's users sign in with their own passwords once the migrations the import wrote are applied. Sessions do not carry over, so everyone signs in once; MFA factors and passkeys are set up again. No imported user has a role in the app yet: give the admins theirs with `protobase users set-role <email> admin`.\n",
+    "Supabase's users sign in with their own passwords once the migrations the import wrote are applied; those who never confirmed their address sign in by code instead. Sessions do not carry over, so everyone signs in once; MFA factors and passkeys are set up again. No imported user has a role in the app yet: give the admins theirs with `protobase users set-role <email> admin`.\n",
     providers.length === 0
       ? 'auth.identities is empty.\n'
       : `Each identity of a social provider became an account, which signs in once the provider is in \`createAuth\`'s \`socialProviders\`, with the client id and secret the Supabase project used. By provider:\n\n${providers.map((provider) => `- ${providerLine(provider)}`).join('\n')}\n`,
