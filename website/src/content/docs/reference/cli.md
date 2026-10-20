@@ -460,6 +460,20 @@ protobase auth migration [--dir db/migrations] [--name auth]
 
 Run inside a project whose `protobase.config.ts` exports `auth`, against its database with the project's migrations applied. It compares the database with the tables, columns and indexes Better Auth needs (with Protobase's plugins and the project's own) and writes what is missing as the next migration in `--dir`: `009_auth.sql` after `008_...`. Nothing is written when the schema is current. The file only adds, never drops; apply it with the project's other migrations. For a store with the camelCase names of Protobase 0.6 it writes their rename to snake_case instead, and the startup check asks for that. See [migrations](/reference/auth/#migrations).
 
+## `import supabase`
+
+```sh
+protobase import supabase [<connection> | --source-env <variable>] [--env DATABASE_URL] [--dir db/migrations] [--config config]
+```
+
+Turns a Supabase project's database into the project in the current directory, in two runs with the project's migrations between them. It needs PostgreSQL's `pg_dump` and `psql` on `PATH`, of the Supabase database's major version or newer, and reads the `.env` nearest the current directory for the project's database (`--env`).
+
+1. **The first run** takes the Supabase database's connection string, for its `postgres` role (the session pooler's or the direct one; the transaction pooler cannot hold the snapshot the dumps share). It fails unless the database has Supabase's `auth` and `storage` schemas and its `supabase_admin` role, and notes the Supabase CLI's `supabase/config.toml`, `supabase/migrations/` and `supabase/functions/` when the checkout has them. It dumps `auth`, `storage` and every schema the app made, schema and data apart, as of one snapshot, leaving out the platform's own migration tables, and writes the schemas as the project's next migration, `NNN_supabase_schema.sql`: the trusted extensions they use first, then the dump without what fails on a database without Supabase's own roles, as comments (grants and default privileges for `dashboard_user`, `supabase_*`, `authenticator` and `postgres`, statements about the `public` schema, Realtime's publication and database webhooks). The project's database needs the roles `anon`, `authenticated` and `service_role` that the dump's grants and policies name; the command makes them when its role may, and otherwise stops, naming them. The data dump goes to `supabase-import/`, which it adds to `.gitignore`, since it holds every row and the users' password hashes.
+2. **Apply the migration** with the project's other migrations, such as `bun run db:migrate`.
+3. **The second run**, without a connection string, loads the data in one transaction, with the app's triggers off so a sign-up trigger on `auth.users` does not run again for users who already have their rows, and fails the transaction unless every table holds the source's number of rows. It loads only into empty tables, deletes the data dump, runs [`scaffold`](#scaffold) on the imported tables of the app's schemas (not `auth` or `storage`), and writes `supabase-import/report.md`: the rows loaded, the imported tables' size against the Starter plan's 500 MB, and what needs a person: pg_cron jobs, Realtime tables, Vault secrets by name, untrusted extensions, triggers that call out over HTTP, Edge Functions, and the indexes [`doctor`](#doctor) finds missing.
+
+Remove `supabase-import/` to import again. Signing in Supabase's users with Protobase's auth is not part of this command yet.
+
 ## `token`
 
 ```sh
