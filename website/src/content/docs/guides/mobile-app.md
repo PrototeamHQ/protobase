@@ -1,0 +1,63 @@
+---
+title: A mobile app
+description: Run a Protobase app on iOS and Android from a mobile section in its config, without setting up Capacitor yourself.
+---
+
+A Protobase app runs as an iOS or Android app with nothing more than a `mobile` section in its `protobase.config.ts`. `protobase mobile` wraps the app in [Capacitor](https://capacitorjs.com): the app's shell, its UI plugins, theme and favicon open from files on the device, and the app calls your server's API.
+
+Signing in from the app is not supported yet: until then the app shows that it cannot reach the server's sign-in, while its API calls go through.
+
+## 1. Install the tools
+
+- **iOS**, on a Mac: Xcode, with a simulator.
+- **Android**: the Android SDK, with an emulator, and JDK 21.
+
+Set their variables, such as `ANDROID_HOME` and `JAVA_HOME`, in your shell, not in the project's `.env`: the commands hand npm and Capacitor no variable named in any of the project's `.env*` files, even when the shell sets a variable of the same name, since those files hold the app's secrets.
+
+## 2. Add a mobile section
+
+```ts
+// protobase.config.ts
+export default defineConfig({
+  // ...
+  mobile: {
+    appId: 'com.example.shop',
+    plugins: { '@capacitor/camera': '^8.0.0' },
+  },
+})
+```
+
+- `appId` is the app's id in reverse-DNS form: at least two parts separated by dots, each starting with a letter and holding only letters, digits and underscores.
+- `plugins`, optional, are extra native [Capacitor plugins](https://capacitorjs.com/docs/plugins), npm name to version. Capacitor itself, `@capacitor/app`, `@capacitor/splash-screen` and `@capawesome/capacitor-live-update` come with Protobase at fixed versions and cannot be listed. A plugin runs native code with the app's rights, and one that writes files, such as `@capacitor/filesystem`, lets a script that got into the page point the app at files it wrote (with Capacitor's own `WebView.setServerBasePath`), so list only plugins the app needs.
+
+With a mobile section, the API answers the app's origins, `capacitor://localhost` on iOS and `https://localhost` on Android, through [CORS](/reference/api/#cors). Apps without one get no new dependency, and `protobase build` and `protobase dev` work as before.
+
+## 3. Run it
+
+```sh
+protobase mobile run android
+protobase mobile run ios
+```
+
+The first run installs Capacitor into `.protobase/mobile/`, which ignores itself in git. Every run builds the app's files as [`protobase build`](/reference/cli/#build) does and generates the native project from your config again, so never edit the projects in `.protobase/mobile/` by hand. Your own package.json gains nothing.
+
+The app calls the server at the project's auth `baseURL`; pass `--api https://shop.example.com` for another one. Plain http is only for a server on this machine (`localhost`) or, on the Android emulator, its host `10.0.2.2`; any other server needs https. An Android phone on USB reaches a server on `localhost` through a forwarded port; an iPhone needs an https server. The app's UI plugins load from the device only when the server serves a built bundle (`protobase serve dist`): against `protobase dev`, use `--live`.
+
+`--target <id>` picks the simulator, emulator or device; without it Capacitor asks.
+
+## 4. Live reload
+
+```sh
+protobase dev
+protobase mobile run android --live
+```
+
+With `--live` the app opens the running `protobase dev` instead of its own files, so it reloads as you save. `--port` names the dev server's port, 5173 by default.
+
+## 5. Open the native project
+
+```sh
+protobase mobile open ios
+```
+
+opens the generated project in Xcode, or Android Studio for `android`. To run on an iPhone, pick a signing team in Xcode's Signing & Capabilities.

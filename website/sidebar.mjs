@@ -15,6 +15,7 @@ export const guides = [
   'guides/export-a-list',
   'guides/import-records',
   'guides/create-page',
+  'guides/mobile-app',
 ]
 
 export const reference = [

@@ -23,6 +23,7 @@ import { loadWorkerBundle, startWorker } from './worker/start-worker'
 import { registerOrganizations } from './organizations/register'
 import { registerFiles } from './files/register'
 import { registerMigration } from './migration/register'
+import { registerMobile } from './mobile/register'
 import { registerSkill } from './skill/register'
 import { registerImport } from './supabase/register'
 import { registerToken, registerUsers } from './users/register'
@@ -189,6 +190,7 @@ registerMigration(program)
 registerFiles(program)
 registerSkill(program)
 registerImport(program)
+registerMobile(program)
 
 // Central error handler: commands throw, the user sees one line.
 export const run = (argv: string[]) =>

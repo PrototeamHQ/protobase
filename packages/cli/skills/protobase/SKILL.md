@@ -53,6 +53,7 @@ Guides:
 - When letting users save a list as Excel or CSV → read [Exporting a list](references/guides/export-a-list.md)
 - When importing records from a spreadsheet → read [Importing records from a spreadsheet](references/guides/import-records.md)
 - When replacing a resource's create form with a page of your own → read [A create page of your own](references/guides/create-page.md)
+- When running the app on iOS or Android → read [A mobile app](references/guides/mobile-app.md)
 
 Reference:
 

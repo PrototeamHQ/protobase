@@ -1,5 +1,8 @@
 // Tests, stories and their fixtures, which may use the workspace's dev dependencies.
 const testCode = ['\\.test\\.tsx?$', '\\.stories\\.tsx$', '^packages/[^/]+/tests/', '^packages/layout/src/testing/', '^packages/ui/src/app/testing/']
+// The CLI refuses mobile.plugins that @protobase/mobile pins, read from its package.json at build time: a manifest, not
+// source, and inlined, so installing the CLI never installs Capacitor (packages/cli/src/mobile/pinned-packages.ts).
+const mobilePins = '^packages/mobile/package\\.json$'
 
 /** @type {import('dependency-cruiser').IConfiguration} */
 module.exports = {
@@ -48,17 +51,17 @@ module.exports = {
     },
     {
       name: 'cli-imports',
-      comment: '@protobase/cli imports only schema, layout, query, server and ui.',
+      comment: '@protobase/cli imports only schema, layout, query, server and ui, and the pins in @protobase/mobile\'s package.json, which its build inlines.',
       severity: 'error',
       from: { path: '^packages/cli/' },
-      to: { path: '^packages/', pathNot: '^packages/(cli|schema|layout|query|server|ui)/' },
+      to: { path: '^packages/', pathNot: ['^packages/(cli|schema|layout|query|server|ui)/', mobilePins] },
     },
     {
       name: 'packages-through-entry-points',
       comment: 'A package imports another only by its @protobase name, never by a path into its source.',
       severity: 'error',
       from: { path: '^packages/([^/]+)/' },
-      to: { path: '^packages/', pathNot: '^packages/$1/', dependencyTypes: ['local'] },
+      to: { path: '^packages/', pathNot: ['^packages/$1/', mobilePins], dependencyTypes: ['local'] },
     },
     {
       name: 'declared-dependencies',

@@ -74,7 +74,7 @@ The columns Better Auth needs that the table lacks, filled from what the other s
 | `TRUSTED_ORIGINS` | extra comma separated origins; a dev tunnel needs its exact host here, such as `https://my-tunnel.trycloudflare.com`, since no wildcard is trusted |
 | `PROTOBASE_ORIGINS` | the other origins the app is served on, comma separated, passed by the platform; see [Several origins](#several-origins) |
 | `PROTOBASE_PASSKEY_DOMAIN` | the host new [passkeys](#passkeys) are made for, passed by the platform; default the host of `BETTER_AUTH_URL` |
-| `PROTOBASE_CORS_ORIGINS` | other websites whose browser code may call the API, `*` or comma separated origins, passed by the platform; see [CORS](/reference/api/#cors) |
+| `PROTOBASE_CORS_ORIGINS` | other websites whose browser code may call the API, `*` or comma separated http and https origins, passed by the platform; see [CORS](/reference/api/#cors) |
 | `PROTOBASE_SMTP_URL`, `PROTOBASE_MAIL_FROM` | the mail server and sender for [password reset](#password-reset), [emailed sign-in codes](#emailed-sign-in-codes), emailed [two-factor](#two-factor-authentication) codes and [open sign-up](#open-sign-up), passed by the platform; all four are off without them |
 | `PROTOBASE_APP_NAME` | the app's name, passed by the platform: the default of `appName` |
 | `PROTOBASE_SIGN_IN_ISSUER`, `PROTOBASE_SIGN_IN_CLIENT_ID`, `PROTOBASE_SIGN_IN_CLIENT_SECRET` | the [platform sign-in provider](#platform-sign-in-provider) for people who have an account, passed by the platform; off without them. `PROTOBASE_SIGN_IN_PROVIDER` and `PROTOBASE_SIGN_IN_NAME` are optional |
