@@ -24,6 +24,7 @@ export const reference = [
   'reference/architecture',
   'reference/api',
   'reference/supabase-rest',
+  'reference/supabase-storage',
   'reference/files',
   'reference/events',
   'reference/webhooks',

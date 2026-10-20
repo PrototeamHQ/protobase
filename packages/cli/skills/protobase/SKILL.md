@@ -62,6 +62,7 @@ Reference:
 - When asking how the packages fit together → read [Architecture](references/reference/architecture.md)
 - When calling or changing the REST API, its filters, writes and errors → read [REST API](references/reference/api.md)
 - When an app calls it with supabase-js, `from()` and `rpc()` under RLS → read [Supabase client API](references/reference/supabase-rest.md)
+- When an app calls `storage` with supabase-js, under the storage policies → read [Supabase Storage API](references/reference/supabase-storage.md)
 - When working with file fields and uploads → read [Files](references/reference/files.md)
 - When reacting to changes of records → read [Events](references/reference/events.md)
 - When delivering events to URLs → read [Webhooks](references/reference/webhooks.md)
