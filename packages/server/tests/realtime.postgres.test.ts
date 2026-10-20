@@ -1,7 +1,7 @@
 import type { Server } from 'node:http'
 import type { AddressInfo } from 'node:net'
 import { createAdaptorServer, upgradeWebSocket } from '@hono/node-server'
-import { createClient, type RealtimePostgresInsertPayload, type SupabaseClient } from '@supabase/supabase-js'
+import { createClient, type RealtimeChannel, type RealtimePostgresInsertPayload, type SupabaseClient } from '@supabase/supabase-js'
 import { createLocalJWKSet, exportJWK, generateKeyPair, SignJWT } from 'jose'
 import { sql } from 'kysely'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
@@ -39,7 +39,7 @@ grant select on todos to anon, authenticated;
 
 type Insert = RealtimePostgresInsertPayload<{ id: number; user_id: string; title: string }>
 
-describe.skipIf(!(await postgresTemplateReady('jobs')))('Realtime postgres_changes with supabase-js', () => {
+describe.skipIf(!(await postgresTemplateReady('jobs')))('Realtime with supabase-js', () => {
   let pg: PostgresDatabase
   let runtime: JobsRuntime
   let server: Server
@@ -77,24 +77,43 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('Realtime postgres_chang
     expect(errors).toEqual([])
   })
 
-  // A client signed in as `sub`, listening to inserts into todos, with what it heard.
-  const listen = async (sub: string) => {
+  // A client signed in as `sub`.
+  const signIn = async (sub: string) => {
     const token = await tokenOf(sub)
     const client = createClient(url, publishable, { accessToken: async () => token })
     clients.push(client)
     // Signed in before it subscribes: a channel joined in the same tick as createClient goes without the token.
     await client.realtime.setAuth(token)
-    const heard: Insert[] = []
-    await new Promise<void>((resolve, reject) => {
-      client
-        .channel(`todos-${sub}`)
-        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'todos' }, (payload: Insert) => heard.push(payload))
-        .subscribe((status, error) => {
-          if (status === 'SUBSCRIBED') resolve()
-          else if (status !== 'CLOSED') reject(error ?? new Error(status))
-        })
+    return client
+  }
+
+  const subscribed = (channel: RealtimeChannel) =>
+    new Promise<void>((resolve, reject) => {
+      channel.subscribe((status, error) => {
+        if (status === 'SUBSCRIBED') resolve()
+        else if (status !== 'CLOSED') reject(error ?? new Error(status))
+      })
     })
+
+  // A client signed in as `sub`, listening to inserts into todos, with what it heard.
+  const listen = async (sub: string) => {
+    const client = await signIn(sub)
+    const heard: Insert[] = []
+    await subscribed(client.channel(`todos-${sub}`).on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'todos' }, (payload: Insert) => heard.push(payload)))
     return heard
+  }
+
+  // A client signed in as `sub` on the chat room, tracked under its name, with the broadcasts it heard.
+  const enter = async (sub: string) => {
+    const client = await signIn(sub)
+    const heard: unknown[] = []
+    const channel = client
+      .channel('chat', { config: { broadcast: { ack: true }, presence: { key: sub } } })
+      .on('broadcast', { event: 'message' }, ({ payload }) => heard.push(payload))
+      .on('presence', { event: 'sync' }, () => {})
+    await subscribed(channel)
+    expect(await channel.track({ name: sub })).toBe('ok')
+    return { channel, heard }
   }
 
   it('sends alice the insert of her row and not that of bob\'s, as her RLS policy says', async () => {
@@ -106,5 +125,20 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('Realtime postgres_chang
     await vi.waitFor(() => expect(bob).toHaveLength(1), { timeout: 20_000, interval: 50 })
     expect(alice[0]).toMatchObject({ schema: 'public', table: 'todos', eventType: 'INSERT', new: { id: 2, user_id: 'alice', title: 'Alice\'s todo' } })
     expect(bob[0]).toMatchObject({ eventType: 'INSERT', new: { id: 1, user_id: 'bob' } })
+  })
+
+  it('lets alice and bob exchange broadcasts and see each other\'s presence', async () => {
+    const alice = await enter('alice')
+    const bob = await enter('bob')
+    const names = (channel: RealtimeChannel) => Object.entries(channel.presenceState<{ name: string }>()).map(([key, presences]) => [key, presences.map(({ name }) => name)])
+    await vi.waitFor(() => expect(names(alice.channel)).toEqual([['alice', ['alice']], ['bob', ['bob']]]), { timeout: 5_000, interval: 50 })
+    await vi.waitFor(() => expect(names(bob.channel)).toEqual([['alice', ['alice']], ['bob', ['bob']]]), { timeout: 5_000, interval: 50 })
+
+    expect(await alice.channel.send({ type: 'broadcast', event: 'message', payload: { text: 'Hi Bob' } })).toBe('ok')
+    await vi.waitFor(() => expect(bob.heard).toEqual([{ text: 'Hi Bob' }]), { timeout: 5_000, interval: 50 })
+    expect(alice.heard).toEqual([])
+
+    expect(await bob.channel.untrack()).toBe('ok')
+    await vi.waitFor(() => expect(names(alice.channel)).toEqual([['alice', ['alice']]]), { timeout: 5_000, interval: 50 })
   })
 })
