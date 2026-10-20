@@ -24,7 +24,7 @@ The server serves the socket when the host gives `createAdmin` its WebSocket upg
 
 ## Which tables
 
-A channel may listen to the tables of the resources with [`.live()`](live.md)), by `schema` (`*` for any), `table` (every live table of the schema when left out), `event` (`INSERT`, `UPDATE`, `DELETE` or `*`) and `filter`. A table that is not live is refused when the channel joins, with Supabase's message. A filter is Supabase's: `column=operator.value`, with `eq`, `neq`, `lt`, `lte`, `gt`, `gte`, `in.(a,b)`, `like`, `ilike`, `match`, `imatch`, `is` and `isdistinct`, `not.` before the operator, and several conditions joined by commas, all of which must hold. Postgres compares each value as the column's type. `select` of columns is not supported yet; private channels neither.
+A channel may listen to the tables of the resources with [`.live()`](live.md)), by `schema` (`*` for any), `table` (every live table of the schema when left out), `event` (`INSERT`, `UPDATE`, `DELETE` or `*`) and `filter`. A table that is not live is refused when the channel joins, with Supabase's message; [`import supabase`](cli.md#import-supabase)) makes the tables of the project's `supabase_realtime` publication live. A filter is Supabase's: `column=operator.value`, with `eq`, `neq`, `lt`, `lte`, `gt`, `gte`, `in.(a,b)`, `like`, `ilike`, `match`, `imatch`, `is` and `isdistinct`, `not.` before the operator, and several conditions joined by commas, all of which must hold. Postgres compares each value as the column's type. `select` of columns is not supported yet; private channels neither.
 
 ## Broadcast and presence
 
