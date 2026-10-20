@@ -7,14 +7,21 @@ export const corsOriginsVariable = 'PROTOBASE_CORS_ORIGINS'
 /** The websites whose browser code may call the API: `*` for any, or a list of origins such as `https://shop.com`. */
 export type CorsOrigins = '*' | string[]
 
-/** The origins in `PROTOBASE_CORS_ORIGINS`, `*` or comma separated; `undefined` when it is unset. One that is not a URL stops the server at startup. */
+/**
+ * The origins in `PROTOBASE_CORS_ORIGINS`, `*` or comma separated; `undefined` when it is unset. One that is not an
+ * http or https URL stops the server at startup: another scheme, such as `capacitor:`, has the origin `null`.
+ */
 export const readCorsOrigins = (env: Record<string, string | undefined>): CorsOrigins | undefined => {
   const value = env[corsOriginsVariable]?.trim()
   if (!value) return undefined
   if (value === '*') return '*'
   return readList(value).map((origin) => {
     if (!URL.canParse(origin)) throw new Error(`${corsOriginsVariable} lists "${origin}", which is not a URL such as https://shop.com`)
-    return new URL(origin).origin
+    const url = new URL(origin)
+    if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+      throw new Error(`${corsOriginsVariable} lists "${origin}", but it takes http and https origins only; a mobile section in protobase.config.ts allows the app's Capacitor origins`)
+    }
+    return url.origin
   })
 }
 

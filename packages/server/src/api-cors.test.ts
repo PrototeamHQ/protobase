@@ -13,6 +13,12 @@ describe('readCorsOrigins', () => {
   it('refuses what is not a URL', () => {
     expect(() => readCorsOrigins({ PROTOBASE_CORS_ORIGINS: 'shop.com' })).toThrow('"shop.com", which is not a URL')
   })
+
+  it('refuses origins that are not http or https, whose origin would be `null`', () => {
+    for (const origin of ['capacitor://localhost', 'file:///x', 'ws://a.com', 'blob:https://a.com/x', 'data:text/html;base64', 'javascript:x']) {
+      expect(() => readCorsOrigins({ PROTOBASE_CORS_ORIGINS: `https://a.com,${origin}` })).toThrow(`"${origin}", but it takes http and https origins only`)
+    }
+  })
 })
 
 const own = 'https://admin.shop.com'
