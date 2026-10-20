@@ -87,7 +87,7 @@ describe.skipIf(!reachable)(`the ERP built and served by the CLI on ${runtime}`,
   it("serves a plain bundle, built without a secret or a database, with the config's € intact", async () => {
     expect(plainBuild.stderr).toBe('')
     const manifest = JSON.parse(await readFile(path.join(outDir, 'plain', 'protobase.bundle.json'), 'utf8'))
-    expect(manifest.api).toEqual(['/api'])
+    expect(manifest.api).toEqual(['/api', '/.well-known/oauth-authorization-server', '/.well-known/oauth-protected-resource'])
     expect(manifest.protobase).toBe(protobaseVersion)
     expect(await readdir(path.join(outDir, 'plain', 'public/assets'))).not.toHaveLength(0)
     expect(plainCode).not.toContain('// @bun')
