@@ -14,6 +14,7 @@ import {
   type SubscriptionEvent,
 } from '@protobase/server'
 import type { TestDatabase } from './capture-scenarios'
+import { reportingDelivery } from './delivery-report'
 import { startReceiver } from './receiver'
 
 const ddl = `
@@ -154,8 +155,9 @@ export const deliveryScenarios = (connect: () => Promise<TestDatabase>) => {
       end $$;
       create trigger fail_once before delete on changes.outbox for each statement execute function fail_once();`)
     const before = receiver.at('/hook').length
+    const logStart = logged.length
     await sql`insert into orders (total) values (8)`.execute(db)
-    await until(() => expect(receiver.at('/hook').length).toBe(before + 2), 20_000)
+    await reportingDelivery(until(() => expect(receiver.at('/hook').length).toBe(before + 2), 20_000), db, logged, logStart)
     const [first, again] = receiver.at('/hook').slice(before)
     expect([first!.headers['webhook-id'], first!.body]).toEqual([again!.headers['webhook-id'], again!.body])
     await until(async () => expect(await outboxSize()).toBe(0))
