@@ -31,18 +31,19 @@ The transaction sets the role with `SET LOCAL ROLE` and the token's claims in `r
 
 - Filters: `eq`, `neq`, `gt`, `gte`, `lt`, `lte`, `like`, `ilike`, `match`, `imatch`, `in`, `is`, `isdistinct`, `fts`, `plfts`, `phfts`, `wfts` with a language, `cs`, `cd`, `ov`, `sl`, `sr`, `nxr`, `nxl`, `adj`, `any` and `all` modifiers, `not.`, and `or`, `and`, `not.or` and `not.and` trees, on columns and JSON paths (`meta->>kind`).
 - `select` with columns, aliases (`key:id`), casts (`priority::text`) and JSON paths.
+- Embedded rows of related tables, through their foreign keys: `select('*, author:profiles(name), comments(*)')`. A many-to-one or one-to-one embed is an object or `null`, a one-to-many one an array. A hint picks the foreign key when several relate the tables, by its name or column (`profiles!sender_id(name)`), and `!inner` keeps only the rows with a related row. Filters, `order`, `limit` and `offset` take the embed's name or alias as a prefix (`comments.likes=gte.2`, `comments.order=id.desc`), as supabase-js's `referencedTable` option sends them. The embedded tables' RLS policies apply too. Only tables `/rest/v1` serves are embedded.
 - `order`, `limit`, `offset` and the `Range` header. A read returns at most 1000 rows, Supabase's default.
 - `Prefer: count=exact|planned|estimated`, with the count in `Content-Range` and `206` for part of the rows.
 - `Prefer: return=minimal|representation`, `resolution=merge-duplicates|ignore-duplicates`, `missing=default`, and `on_conflict` and `columns`.
 - `.single()` and `.maybeSingle()`, through `Accept: application/vnd.pgrst.object+json`.
 - `rpc/<function>` by POST and by GET, which runs read-only. A function returning rows takes `select`, filters, `order`, a range and a count.
 
-Not yet: embedding other tables through foreign keys, CSV, other schemas, aggregates and `tx=rollback`.
+Not yet: many-to-many embeds through a junction table, spreads (`...profiles(name)`), computed relationships, embeds in a function's rows, ordering by an embedded column, CSV, other schemas, aggregates and `tx=rollback`.
 
 ## Scan guard
 
-As on the [REST API](api.md#safety)), a filter or a sort reads only columns an index serves: a btree index for comparisons, `in`, `is` and sorts, a pg_trgm index for patterns and regular expressions, a GIN index for text search and `cs`, `cd` and `ov` (or GiST), and a GiST index for the range operators. A JSON path needs an index on that expression. Any other read is `400` with code `expensive-query` and the statement that adds the index as its `hint`. Functions are not judged.
+As on the [REST API](api.md#safety)), a filter or a sort reads only columns an index serves: a btree index for comparisons, `in`, `is` and sorts, a pg_trgm index for patterns and regular expressions, a GIN index for text search and `cs`, `cd` and `ov` (or GiST), and a GiST index for the range operators. A JSON path needs an index on that expression. An embed's filters and order are judged on the embedded table, and so are the columns it joins on, so a one-to-many embed needs an index on the foreign key's columns. Any other read is `400` with code `expensive-query` and the statement that adds the index as its `hint`. Functions are not judged.
 
 ## Errors
 
-Errors come back as PostgREST sends them, `{ code, details, hint, message }`. A database error keeps its Postgres code, message, detail and hint, with PostgREST's status: an RLS refusal (`42501`) is `401` for `anon` and `403` for others, a duplicate (`23505`) `409`, a function that writes called by GET (`25006`) `405`. `.single()` on no or several rows is `406` `PGRST116`, an unknown table `404` `PGRST205`, an unknown function `404` `PGRST202`, and a missing or wrong key or token `401` `PGRST301`.
+Errors come back as PostgREST sends them, `{ code, details, hint, message }`. A database error keeps its Postgres code, message, detail and hint, with PostgREST's status: an RLS refusal (`42501`) is `401` for `anon` and `403` for others, a duplicate (`23505`) `409`, a function that writes called by GET (`25006`) `405`. `.single()` on no or several rows is `406` `PGRST116`, an unknown table `404` `PGRST205`, an unknown function `404` `PGRST202`, an embed without a relationship `400` `PGRST200` and one with several `300` `PGRST201`, and a missing or wrong key or token `401` `PGRST301`.
