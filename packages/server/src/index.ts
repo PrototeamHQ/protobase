@@ -26,7 +26,7 @@ export type {
   WriteOperation,
 } from './types'
 export { createAuth, normalizeRoles, type AdminAuth, type CreateAuthOptions, type UserCreatedHook } from './better-auth/create-auth'
-export { betterAuthAuthenticator, betterAuthTokens, type BetterAuthAuthenticatorOptions } from './better-auth/authenticator'
+export { betterAuthAuthenticator, betterAuthTokens, type BetterAuthAuthenticator, type BetterAuthAuthenticatorOptions } from './better-auth/authenticator'
 export { withTrustedApps, type TrustedApp } from './better-auth/app-tokens'
 export { roleChoices, parseRoles, hasUsers, createUser, listUsers, deleteUser, setUserRole, setUserBanned, type LinkedAccount, type NewUser, type StoredUser } from './better-auth/users'
 export { issueToken, maxTokenTtlSeconds, type IssueTokenOptions } from './better-auth/tokens'
