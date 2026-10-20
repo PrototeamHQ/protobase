@@ -1162,6 +1162,602 @@
       }
     },
     {
+      "name": "many-to-one",
+      "status": 200,
+      "headers": {
+        "content-range": "0-2/*",
+        "content-type": "application/json; charset=utf-8"
+      },
+      "body": [
+        {
+          "id": 1,
+          "title": "Buy milk",
+          "profiles": {
+            "username": "alice"
+          }
+        },
+        {
+          "id": 2,
+          "title": "Write report",
+          "profiles": {
+            "username": "alice"
+          }
+        },
+        {
+          "id": 3,
+          "title": "Call the plumber",
+          "profiles": {
+            "username": "alice"
+          }
+        }
+      ]
+    },
+    {
+      "name": "many-to-one with an alias and every column",
+      "status": 200,
+      "headers": {
+        "content-range": "0-0/*",
+        "content-type": "application/json; charset=utf-8"
+      },
+      "body": [
+        {
+          "id": 1,
+          "owner": {
+            "id": "1a1a1a1a-0000-0000-0000-000000000001",
+            "website": "https://alice.example.com",
+            "username": "alice",
+            "full_name": "Alice Adams"
+          }
+        }
+      ]
+    },
+    {
+      "name": "one-to-many under RLS",
+      "status": 200,
+      "headers": {
+        "content-range": "0-2/*",
+        "content-type": "application/json; charset=utf-8"
+      },
+      "body": [
+        {
+          "username": "alice",
+          "todos": [
+            {
+              "id": 1,
+              "title": "Buy milk"
+            },
+            {
+              "id": 2,
+              "title": "Write report"
+            },
+            {
+              "id": 3,
+              "title": "Call the plumber"
+            },
+            {
+              "id": 4,
+              "title": "Plan the holiday"
+            },
+            {
+              "id": 5,
+              "title": "Buy bread and milk"
+            },
+            {
+              "id": 6,
+              "title": "Review pull requests"
+            },
+            {
+              "id": 7,
+              "title": "Water the plants"
+            }
+          ]
+        },
+        {
+          "username": "bob",
+          "todos": []
+        },
+        {
+          "username": "carol",
+          "todos": []
+        }
+      ]
+    },
+    {
+      "name": "one-to-many as anon",
+      "status": 200,
+      "headers": {
+        "content-range": "0-2/*",
+        "content-type": "application/json; charset=utf-8"
+      },
+      "body": [
+        {
+          "username": "alice",
+          "todos": []
+        },
+        {
+          "username": "bob",
+          "todos": []
+        },
+        {
+          "username": "carol",
+          "todos": []
+        }
+      ]
+    },
+    {
+      "name": "nested embeds",
+      "status": 200,
+      "headers": {
+        "content-range": "0-2/*",
+        "content-type": "application/json; charset=utf-8"
+      },
+      "body": [
+        {
+          "id": 1,
+          "comments": [
+            {
+              "body": "Get oat milk too",
+              "author": {
+                "username": "alice"
+              }
+            },
+            {
+              "body": "Skimmed please",
+              "author": {
+                "username": "bob"
+              }
+            }
+          ]
+        },
+        {
+          "id": 2,
+          "comments": [
+            {
+              "body": "Due Friday",
+              "author": {
+                "username": "bob"
+              }
+            }
+          ]
+        },
+        {
+          "id": 3,
+          "comments": [
+            {
+              "body": "Called twice",
+              "author": {
+                "username": "alice"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "one-to-one from the referenced table",
+      "status": 200,
+      "headers": {
+        "content-range": "0-2/*",
+        "content-type": "application/json; charset=utf-8"
+      },
+      "body": [
+        {
+          "username": "alice",
+          "profile_settings": {
+            "theme": "dark"
+          }
+        },
+        {
+          "username": "bob",
+          "profile_settings": {
+            "theme": "light"
+          }
+        },
+        {
+          "username": "carol",
+          "profile_settings": null
+        }
+      ]
+    },
+    {
+      "name": "one-to-one from the referencing table",
+      "status": 200,
+      "headers": {
+        "content-range": "0-1/*",
+        "content-type": "application/json; charset=utf-8"
+      },
+      "body": [
+        {
+          "theme": "dark",
+          "profiles": {
+            "username": "alice"
+          }
+        },
+        {
+          "theme": "light",
+          "profiles": {
+            "username": "bob"
+          }
+        }
+      ]
+    },
+    {
+      "name": "a filter on an embedded table",
+      "status": 200,
+      "headers": {
+        "content-range": "0-2/*",
+        "content-type": "application/json; charset=utf-8"
+      },
+      "body": [
+        {
+          "id": 1,
+          "comments": [
+            {
+              "id": 1,
+              "likes": 3
+            }
+          ]
+        },
+        {
+          "id": 2,
+          "comments": [
+            {
+              "id": 3,
+              "likes": 5
+            }
+          ]
+        },
+        {
+          "id": 3,
+          "comments": []
+        }
+      ]
+    },
+    {
+      "name": "or on an embedded table",
+      "status": 200,
+      "headers": {
+        "content-range": "0-2/*",
+        "content-type": "application/json; charset=utf-8"
+      },
+      "body": [
+        {
+          "id": 1,
+          "comments": [
+            {
+              "id": 2
+            }
+          ]
+        },
+        {
+          "id": 2,
+          "comments": [
+            {
+              "id": 3
+            }
+          ]
+        },
+        {
+          "id": 3,
+          "comments": []
+        }
+      ]
+    },
+    {
+      "name": "order, limit and offset on an embedded table",
+      "status": 200,
+      "headers": {
+        "content-range": "0-2/*",
+        "content-type": "application/json; charset=utf-8"
+      },
+      "body": [
+        {
+          "id": 1,
+          "comments": [
+            {
+              "id": 1
+            }
+          ]
+        },
+        {
+          "id": 2,
+          "comments": []
+        },
+        {
+          "id": 3,
+          "comments": []
+        }
+      ]
+    },
+    {
+      "name": "an inner embed",
+      "status": 200,
+      "headers": {
+        "content-range": "0-1/*",
+        "content-type": "application/json; charset=utf-8"
+      },
+      "body": [
+        {
+          "id": 1,
+          "comments": [
+            {
+              "id": 1
+            }
+          ]
+        },
+        {
+          "id": 2,
+          "comments": [
+            {
+              "id": 3
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "an inner many-to-one filtered through its alias",
+      "status": 200,
+      "headers": {
+        "content-range": "0-1/*",
+        "content-type": "application/json; charset=utf-8"
+      },
+      "body": [
+        {
+          "id": 2,
+          "author": {
+            "username": "bob"
+          }
+        },
+        {
+          "id": 3,
+          "author": {
+            "username": "bob"
+          }
+        }
+      ]
+    },
+    {
+      "name": "a many-to-one filtered to nothing",
+      "status": 200,
+      "headers": {
+        "content-range": "0-3/*",
+        "content-type": "application/json; charset=utf-8"
+      },
+      "body": [
+        {
+          "id": 1,
+          "profiles": null
+        },
+        {
+          "id": 2,
+          "profiles": {
+            "username": "bob"
+          }
+        },
+        {
+          "id": 3,
+          "profiles": {
+            "username": "bob"
+          }
+        },
+        {
+          "id": 4,
+          "profiles": null
+        }
+      ]
+    },
+    {
+      "name": "an empty embed",
+      "status": 200,
+      "headers": {
+        "content-range": "0-0/*",
+        "content-type": "application/json; charset=utf-8"
+      },
+      "body": [
+        {
+          "id": 1
+        }
+      ]
+    },
+    {
+      "name": "an embed as an object",
+      "status": 200,
+      "headers": {
+        "content-range": "0-0/*",
+        "content-type": "application/vnd.pgrst.object+json; charset=utf-8"
+      },
+      "body": {
+        "id": 1,
+        "comments": [
+          {
+            "id": 1
+          },
+          {
+            "id": 2
+          }
+        ],
+        "profiles": {
+          "username": "alice"
+        }
+      }
+    },
+    {
+      "name": "an ambiguous embed",
+      "status": 300,
+      "headers": {
+        "content-type": "application/json; charset=utf-8"
+      },
+      "body": {
+        "code": "PGRST201",
+        "details": [
+          {
+            "cardinality": "many-to-one",
+            "embedding": "messages with profiles",
+            "relationship": "messages_receiver_id_fkey using messages(receiver_id) and profiles(id)"
+          },
+          {
+            "cardinality": "many-to-one",
+            "embedding": "messages with profiles",
+            "relationship": "messages_sender_id_fkey using messages(sender_id) and profiles(id)"
+          }
+        ],
+        "hint": "Try changing 'profiles' to one of the following: 'profiles!messages_receiver_id_fkey', 'profiles!messages_sender_id_fkey'. Find the desired relationship in the 'details' key.",
+        "message": "Could not embed because more than one relationship was found for 'messages' and 'profiles'"
+      }
+    },
+    {
+      "name": "hints by foreign key name",
+      "status": 200,
+      "headers": {
+        "content-range": "0-2/*",
+        "content-type": "application/json; charset=utf-8"
+      },
+      "body": [
+        {
+          "id": 1,
+          "from": {
+            "username": "alice"
+          },
+          "to": {
+            "username": "bob"
+          }
+        },
+        {
+          "id": 2,
+          "from": {
+            "username": "bob"
+          },
+          "to": {
+            "username": "alice"
+          }
+        },
+        {
+          "id": 3,
+          "from": {
+            "username": "carol"
+          },
+          "to": {
+            "username": "alice"
+          }
+        }
+      ]
+    },
+    {
+      "name": "a hint by column",
+      "status": 200,
+      "headers": {
+        "content-range": "0-2/*",
+        "content-type": "application/json; charset=utf-8"
+      },
+      "body": [
+        {
+          "id": 1,
+          "profiles": {
+            "username": "bob"
+          }
+        },
+        {
+          "id": 2,
+          "profiles": {
+            "username": "alice"
+          }
+        },
+        {
+          "id": 3,
+          "profiles": {
+            "username": "alice"
+          }
+        }
+      ]
+    },
+    {
+      "name": "a hint on a one-to-many",
+      "status": 200,
+      "headers": {
+        "content-range": "0-2/*",
+        "content-type": "application/json; charset=utf-8"
+      },
+      "body": [
+        {
+          "username": "alice",
+          "sent": [
+            {
+              "body": "Hi Bob"
+            }
+          ]
+        },
+        {
+          "username": "bob",
+          "sent": [
+            {
+              "body": "Hi Alice"
+            }
+          ]
+        },
+        {
+          "username": "carol",
+          "sent": [
+            {
+              "body": "Lunch?"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "no relationship",
+      "status": 400,
+      "headers": {
+        "content-type": "application/json; charset=utf-8"
+      },
+      "body": {
+        "code": "PGRST200",
+        "details": "Searched for a foreign key relationship between 'todos' and 'messages' in the schema 'public', but no matches were found.",
+        "hint": null,
+        "message": "Could not find a relationship between 'todos' and 'messages' in the schema cache"
+      }
+    },
+    {
+      "name": "an unknown embedded table",
+      "status": 400,
+      "headers": {
+        "content-type": "application/json; charset=utf-8"
+      },
+      "body": {
+        "code": "PGRST200",
+        "details": "Searched for a foreign key relationship between 'todos' and 'xyzzy' in the schema 'public', but no matches were found.",
+        "hint": null,
+        "message": "Could not find a relationship between 'todos' and 'xyzzy' in the schema cache"
+      }
+    },
+    {
+      "name": "a filter on a resource not embedded",
+      "status": 400,
+      "headers": {
+        "content-type": "application/json; charset=utf-8"
+      },
+      "body": {
+        "code": "PGRST108",
+        "details": null,
+        "hint": "Verify that 'comments' is included in the 'select' query parameter.",
+        "message": "'comments' is not an embedded resource in this request"
+      }
+    },
+    {
+      "name": "an unknown column in an embed",
+      "status": 400,
+      "headers": {
+        "content-type": "application/json; charset=utf-8"
+      },
+      "body": {
+        "code": "42703",
+        "details": null,
+        "hint": null,
+        "message": "column profiles_1.colour does not exist"
+      }
+    },
+    {
       "name": "insert one and return it",
       "status": 201,
       "headers": {
@@ -1265,6 +1861,22 @@
       }
     },
     {
+      "name": "insert returning an embed",
+      "status": 201,
+      "headers": {
+        "content-range": "*/*",
+        "content-type": "application/json; charset=utf-8"
+      },
+      "body": [
+        {
+          "title": "Pay the bills",
+          "profiles": {
+            "username": "alice"
+          }
+        }
+      ]
+    },
+    {
       "name": "insert minimal",
       "status": 201,
       "headers": {
@@ -1288,7 +1900,7 @@
         "content-type": "application/vnd.pgrst.object+json; charset=utf-8"
       },
       "body": {
-        "id": 112,
+        "id": 113,
         "title": "Feed the cat"
       }
     },
@@ -1348,7 +1960,7 @@
       "name": "alice reads her todos after inserting",
       "status": 200,
       "headers": {
-        "content-range": "0-8/*",
+        "content-range": "0-9/*",
         "content-type": "application/json; charset=utf-8"
       },
       "body": [
@@ -1396,7 +2008,7 @@
         },
         {
           "id": 109,
-          "title": "Wash the car",
+          "title": "Pay the bills",
           "done": false,
           "priority": null,
           "tags": [],
@@ -1404,7 +2016,7 @@
         },
         {
           "id": 110,
-          "title": "Tidy up",
+          "title": "Wash the car",
           "done": false,
           "priority": null,
           "tags": [],
@@ -1412,7 +2024,7 @@
         },
         {
           "id": 111,
-          "title": "Sleep",
+          "title": "Tidy up",
           "done": false,
           "priority": null,
           "tags": [],
@@ -1420,6 +2032,14 @@
         },
         {
           "id": 112,
+          "title": "Sleep",
+          "done": false,
+          "priority": null,
+          "tags": [],
+          "meta": null
+        },
+        {
+          "id": 113,
           "title": "Feed the cat",
           "done": false,
           "priority": null,
@@ -1715,7 +2335,7 @@
         "content-range": "0-0/*",
         "content-type": "application/json; charset=utf-8"
       },
-      "body": 14
+      "body": 15
     },
     {
       "name": "rpc under RLS as anon",
@@ -1767,7 +2387,7 @@
       "name": "rpc returning rows with a count",
       "status": 206,
       "headers": {
-        "content-range": "0-0/10",
+        "content-range": "0-0/11",
         "content-type": "application/json; charset=utf-8"
       },
       "body": [

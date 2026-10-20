@@ -19,6 +19,13 @@ const todos = resource('todos')
   .table('todos')
   .fields({ id: f.bigint().readOnly(), user_id: f.uuid().dbDefault(), title: f.text(), done: f.boolean().dbDefault(), priority: f.integer().optional(), notes: f.text().optional() })
   .primaryKey((r) => r.id)
+const profileSettings = resource('profile_settings').table('profile_settings').fields({ profile_id: f.uuid(), theme: f.text() }).primaryKey((r) => r.profile_id)
+const comments = resource('comments')
+  .table('comments')
+  .fields({ id: f.bigint(), todo_id: f.bigint(), author_id: f.uuid(), body: f.text(), likes: f.integer() })
+  .primaryKey((r) => r.id)
+const messages = resource('messages').table('messages').fields({ id: f.bigint(), sender_id: f.uuid(), receiver_id: f.uuid(), body: f.text() }).primaryKey((r) => r.id)
+const attachments = resource('attachments').table('attachments').fields({ id: f.bigint(), comment_id: f.bigint(), name: f.text() }).primaryKey((r) => r.id)
 
 const publishable = 'sb_publishable_rest_test'
 const secret = 'sb_secret_rest_test'
@@ -32,7 +39,7 @@ let headersOf: Record<RestCase['as'], Record<string, string>>
 beforeAll(async () => {
   const pg = await openSnapshotDb('rest')
   app = createAdmin({
-    resources: [profiles, todos],
+    resources: [profiles, todos, profileSettings, comments, messages, attachments],
     db: pg.db,
     authenticate: testAuthenticator,
     verifyToken: jwtVerifier({ keys: async () => signingKey, algorithms: ['HS256'] }),
@@ -85,6 +92,11 @@ describe('/rest/v1 beyond PostgREST', () => {
     expect((await send({ as: 'alice', method: 'GET', path: '/todos', query: [['order', 'notes']] })).body).toMatchObject({ message: 'Sorting by "notes" needs an index that serves it' })
     expect((await send({ as: 'alice', method: 'GET', path: '/todos', query: [['notes', 'ilike.*tap*']] })).body).toMatchObject({ hint: 'create index on "todos" using gin ("notes" gin_trgm_ops)' })
     expect((await send({ as: 'alice', method: 'DELETE', path: '/todos', query: [['notes', 'eq.soon']] })).status).toBe(400)
+  })
+
+  it('refuses an embed through a foreign key no index serves, and a filter on an embedded column no index serves', async () => {
+    expect((await send({ as: 'alice', method: 'GET', path: '/comments', query: [['select', 'id,attachments(name)']] })).body).toMatchObject({ code: 'expensive-query', message: 'Embedding through "comment_id" needs an index that serves it', hint: 'create index on "attachments" ("comment_id")' })
+    expect((await send({ as: 'alice', method: 'GET', path: '/todos', query: [['select', 'id,comments(id)'], ['comments.body', 'eq.x']] })).body).toMatchObject({ code: 'expensive-query', message: 'Filtering on "body" needs an index that serves it' })
   })
 
   it('refuses a request without the app\'s key, or with a token that does not verify', async () => {

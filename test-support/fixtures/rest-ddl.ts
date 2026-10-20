@@ -77,6 +77,53 @@ create policy "users change their own profile" on public.profiles for update to 
 alter table public.todos enable row level security;
 create policy "users keep their own todos" on public.todos for all to authenticated using (user_id = auth.uid()) with check (user_id = auth.uid());
 
+create table public.profile_settings (profile_id uuid primary key references public.profiles (id), theme text not null);
+insert into public.profile_settings values ('${restUsers.alice}', 'dark'), ('${restUsers.bob}', 'light');
+alter table public.profile_settings enable row level security;
+create policy "settings are public" on public.profile_settings for select using (true);
+
+create table public.comments (
+  id bigint primary key,
+  todo_id bigint not null references public.todos (id),
+  author_id uuid not null references public.profiles (id),
+  body text not null,
+  likes integer not null
+);
+create index on public.comments (todo_id, id);
+create index on public.comments (author_id);
+create index on public.comments (likes);
+insert into public.comments values
+  (1, 1, '${restUsers.alice}', 'Get oat milk too', 3),
+  (2, 1, '${restUsers.bob}', 'Skimmed please', 0),
+  (3, 2, '${restUsers.bob}', 'Due Friday', 5),
+  (4, 3, '${restUsers.alice}', 'Called twice', 1),
+  (5, 8, '${restUsers.bob}', 'Need a new chain', 2);
+alter table public.comments enable row level security;
+create policy "comments on todos one sees" on public.comments for select using (exists (select 1 from public.todos where todos.id = todo_id));
+
+-- Two foreign keys to the same table, which an embed of profiles must choose between.
+create table public.messages (
+  id bigint primary key,
+  sender_id uuid not null references public.profiles (id),
+  receiver_id uuid not null references public.profiles (id),
+  body text not null
+);
+create index on public.messages (sender_id);
+create index on public.messages (receiver_id);
+insert into public.messages values
+  (1, '${restUsers.alice}', '${restUsers.bob}', 'Hi Bob'),
+  (2, '${restUsers.bob}', '${restUsers.alice}', 'Hi Alice'),
+  (3, '${restUsers.carol}', '${restUsers.alice}', 'Lunch?'),
+  (4, '${restUsers.bob}', '${restUsers.carol}', 'Hey Carol');
+alter table public.messages enable row level security;
+create policy "users read their own messages" on public.messages for select to authenticated using (auth.uid() in (sender_id, receiver_id));
+
+-- A foreign key without an index, which an embed may not read through.
+create table public.attachments (id bigint primary key, comment_id bigint not null references public.comments (id), name text not null);
+insert into public.attachments values (1, 1, 'milk.png');
+alter table public.attachments enable row level security;
+create policy "attachments are public" on public.attachments for select using (true);
+
 create function public.add(a integer, b integer) returns integer language sql immutable as $f$ select a + b $f$;
 create function public.todo_count() returns bigint language sql stable as $f$ select count(*) from public.todos $f$;
 create function public.open_todos(min_priority integer default 0) returns setof public.todos language sql stable as $f$
