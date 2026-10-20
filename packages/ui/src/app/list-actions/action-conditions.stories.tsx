@@ -102,7 +102,9 @@ export const BulkSkipsWhereItDoesNotApply: StoryObj = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
     await canvas.findByText('db-1')
-    for (const box of canvas.getAllByRole('checkbox', { name: /Select row/ })) await userEvent.click(box)
+    await userEvent.click(canvas.getByRole('checkbox', { name: 'Select row 1' }))
+    await userEvent.click(canvas.getByRole('checkbox', { name: 'Select row 2' }))
+    expect(await canvas.findByText('2 selected')).toBeInTheDocument()
     expect(canvas.queryByRole('button', { name: /Force off/ })).toBeNull()
     await userEvent.click(await canvas.findByRole('button', { name: 'Start (1)' }))
     expect(await canvas.findByText('Start: done on 1, skipped 1 it does not apply to')).toBeInTheDocument()

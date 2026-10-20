@@ -14,7 +14,7 @@ import { text } from '../list-messages'
 import { rowRecord } from './row-record'
 
 // What runs once the action's question is answered: the action on one row, or on each of a selection.
-type Run = { action: ActionModel; row: LayoutRecord } | { action: ActionModel; selection: LayoutRecord[] }
+type Run = { action: ActionModel; row: LayoutRecord } | { action: ActionModel; selection: LayoutRecord[]; skipped: number }
 
 /**
  * The named actions of `model`'s view for its list, those without inputs (which ask in a dialog of their own): each
@@ -28,7 +28,7 @@ export const useListActions = (model: ResourceModel) => {
   const { go, href } = useAppAddress()
   const [asking, setAsking] = useState<Run>()
   const listed = (views[model.name]?.actions ?? []).filter((action) => !action.inputs?.length)
-  const perform = (run: Run) => ('row' in run ? runner.run(run.action, run.row) : runner.runEach(run.action, run.selection))
+  const perform = (run: Run) => ('row' in run ? runner.run(run.action, run.row) : runner.runEach(run.action, run.selection, run.skipped))
   const start = (run: Run) => {
     if (run.action.confirm) setAsking(run)
     else void perform(run)
@@ -57,7 +57,7 @@ export const useListActions = (model: ResourceModel) => {
       label: (count) => text('actionCount', action.label, count),
       destructive: isDanger(action),
       available: (row) => runner.appliesOn(action, rowRecord(model, row)),
-      onRun: (rows) => start({ action, selection: rows.map((row) => rowRecord(model, row)) }),
+      onRun: (rows, skipped) => start({ action, selection: rows.map((row) => rowRecord(model, row)), skipped }),
     }))
 
   const prompt = asking && (

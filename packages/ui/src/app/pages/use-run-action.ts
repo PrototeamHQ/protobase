@@ -94,13 +94,14 @@ export const useActionRunner = (resource: string, scope: LayoutRecord | undefine
   /** Whether `action` shows and can run on `on`. */
   const appliesOn = (action: ActionModel, on: LayoutRecord) => actionFor(action, on.record) !== undefined && !blockedOn(action, on)
 
-  // A failure on one record leaves the others to run; the toast counts them, with the first failure's message.
-  const runOnEach = async (action: ActionModel, records: LayoutRecord[]) => {
+  // A failure on one record leaves the others to run; the toast counts them, with the first failure's message, and
+  // the records the caller left out already as not applying (`skipped`).
+  const runOnEach = async (action: ActionModel, records: LayoutRecord[], skipped = 0) => {
     setRunning(action.name)
     const outcome = await runEach(records, (on) => appliesOn(action, on), (on) => execute(action, on))
     setRunning(undefined)
     await refresh(resource)
-    const title = text('doneOn', action.label, outcome.done, outcome.skipped, outcome.failed)
+    const title = text('doneOn', action.label, outcome.done, outcome.skipped + skipped, outcome.failed)
     toast.show(outcome.failed > 0 ? { state: 'error', title, description: message(outcome.error) } : { state: 'success', title })
     if (outcome.done > 0) afterRun?.(action)
   }
