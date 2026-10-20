@@ -1,5 +1,6 @@
 import type { ActionModel } from '@protobase/schema'
 import { hrefField } from '@protobase/schema/internal'
+import { actionApplies } from './action-when'
 
 /** `href` with every `{field}` replaced by the record's value, percent-encoded; a missing value becomes empty. */
 export const fillHref = (href: string, record: Record<string, unknown> = {}) =>
@@ -36,10 +37,12 @@ const hostOf = (target: string) => (URL.canParse(target) ? new URL(target).hostn
 const holdsAll = (record: Record<string, unknown>, values: Record<string, unknown>) => Object.entries(values).every(([name, value]) => Object.is(record[name], value))
 
 /**
- * `action` as it shows for `record`: an update that would change nothing there, and a link whose `href` has no target
- * there, are left out, and `{host}` in a link's label becomes the host its target opens, without `www.`.
+ * `action` as it shows for `record`: one whose `when` does not hold there is left out, or shown as it is when it
+ * disables instead; an update that would change nothing there, and a link whose `href` has no target there, are left
+ * out, and `{host}` in a link's label becomes the host its target opens, without `www.`.
  */
 export const actionFor = (action: ActionModel, record: Record<string, unknown> | undefined): ActionModel | undefined => {
+  if (!actionApplies(action, record)) return action.otherwise === 'disable' ? action : undefined
   const run = action.run
   if (run?.kind === 'update') return record && !action.inputs?.length && holdsAll(record, run.values as Record<string, unknown>) ? undefined : action
   if (run?.kind !== 'link' || !('href' in run)) return action

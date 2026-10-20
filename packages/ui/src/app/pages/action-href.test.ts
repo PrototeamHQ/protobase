@@ -52,6 +52,19 @@ describe('actionFor', () => {
     expect(actionFor(answer, { paid: true })).toBe(answer)
   })
 
+  it("leaves out an action on a record its condition does not hold for, unless it disables there instead", () => {
+    const reboot: ActionModel = { name: 'reboot', label: 'Reboot', bulk: false, when: "status = 'running'" }
+    expect(actionFor(reboot, { status: 'running' })).toBe(reboot)
+    expect(actionFor(reboot, { status: 'stopped' })).toBeUndefined()
+    const disabled: ActionModel = { ...reboot, otherwise: 'disable', reason: 'The VM is not running' }
+    expect(actionFor(disabled, { status: 'stopped' })).toBe(disabled)
+  })
+
+  it('shows an update its condition disables even where the record holds its values', () => {
+    const forceOff: ActionModel = { name: 'force_off', label: 'Force off', bulk: false, when: "status = 'running'", otherwise: 'disable', reason: 'The VM is not running', run: { kind: 'update', values: { status: 'stopped' } } }
+    expect(actionFor(forceOff, { status: 'stopped' })).toBe(forceOff)
+  })
+
   it('leaves every other action as it is', () => {
     const update: ActionModel = { name: 'ship', label: 'Ship to {host}', bulk: false, run: { kind: 'update', values: { status: 'shipped' } } }
     const mail: ActionModel = { name: 'mail', label: 'Mail', bulk: false, run: { kind: 'link', href: 'mailto:{email}' } }

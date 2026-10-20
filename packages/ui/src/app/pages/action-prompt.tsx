@@ -2,6 +2,9 @@ import type { ActionModel } from '@protobase/schema'
 import { ActionInputsDialog } from './action-inputs/action-inputs-dialog'
 import { ConfirmAction } from './confirm-action'
 
+/** Whether the action is drawn in red, as one that destroys or interrupts something: a delete, or one with `variant: 'danger'`. */
+export const isDanger = (action: ActionModel) => action.variant === 'danger' || action.run?.kind === 'delete'
+
 /** Whether pressing the action's button opens a dialog first: to ask its question, or for its inputs. */
 export const asksFirst = (action: ActionModel) => Boolean(action.confirm || action.inputs?.length)
 

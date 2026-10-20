@@ -8,12 +8,12 @@ import { ActionMenu, ActionRail, type RailAction } from '../../record-view'
 import { actionIcon } from '../action-icon'
 import { AppLink, useAppAddress } from '../use-app-address'
 import { text } from '../record-messages'
-import { ActionPrompt, asksFirst } from './action-prompt'
+import { ActionPrompt, asksFirst, isDanger } from './action-prompt'
 import { useActionRunner } from './use-run-action'
 
 /**
  * The record page's actions in one rail: Edit, a link to the form at `edit`, when the page offers it; the view's named
- * actions, run like the Action block runs them, a delete among them returning to the list; and the record's own Delete,
+ * actions, run like the Action block runs them, a delete among them returning to the list, a delete and a danger one in red; and the record's own Delete,
  * `onDelete`, unless a named action deletes already. On a mobile screen they sit in the top bar's menu instead, at hand
  * however long the record is, when the shell has a top bar.
  */
@@ -28,7 +28,7 @@ export const RecordActions = ({ model, stored, recordKey, edit, onDelete }: { mo
     icon: actionIcon(action.icon),
     blocked: runner.blocked(action),
     running: runner.running === action.name,
-    ...(action.run?.kind === 'delete' && { tone: 'danger' as const }),
+    ...(isDanger(action) && { tone: 'danger' as const }),
     onRun: () => (asksFirst(action) ? setAsking(action) : void runner.run(action)),
   }))
   const deletes = runner.actions.some((action) => action.run?.kind === 'delete')
@@ -48,7 +48,7 @@ export const RecordActions = ({ model, stored, recordKey, edit, onDelete }: { mo
         <ActionPrompt
           action={asking}
           label={asking.label}
-          danger={asking.run?.kind === 'delete'}
+          danger={isDanger(asking)}
           onCancel={() => setAsking(undefined)}
           onConfirm={() => {
             setAsking(undefined)

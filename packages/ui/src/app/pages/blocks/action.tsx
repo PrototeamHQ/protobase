@@ -8,7 +8,8 @@ import { propsOf, type BlockProps } from './block-props'
 
 /**
  * A button for a named action of `resource`'s view, by default of the record around it, on that record, asking first
- * when the action has `confirm` or `inputs`; nothing when the view has no such action for the user.
+ * when the action has `confirm` or `inputs`; nothing when the view has no such action for the user, or none for the
+ * record. It is drawn as the action's `variant` unless the block names its own.
  */
 export const ActionButton = ({ name, resource, label, variant }: ActionProps) => {
   const scope = useLayoutRecord()
@@ -16,17 +17,19 @@ export const ActionButton = ({ name, resource, label, variant }: ActionProps) =>
   const [asking, setAsking] = useState(false)
   if (!action.action) return null
   const text = label ?? action.action.label
+  // The block's own variant wins over the action's
+  const shown = variant ?? action.action.variant ?? 'secondary'
   const start = () => (asksFirst(action.action!) ? setAsking(true) : void action.run())
   return (
     <>
-      <Button size="sm" variant={variant ?? 'secondary'} loading={action.running} disabled={Boolean(action.blocked)} title={action.blocked} onClick={start}>
+      <Button size="sm" variant={shown} loading={action.running} disabled={Boolean(action.blocked)} title={action.blocked} onClick={start}>
         {text}
       </Button>
       {asking && (
         <ActionPrompt
           action={action.action}
           label={text}
-          danger={variant === 'danger'}
+          danger={shown === 'danger'}
           onCancel={() => setAsking(false)}
           onConfirm={() => {
             setAsking(false)
