@@ -17,7 +17,7 @@ export type RealtimeAppOptions = {
 
 /**
  * `/realtime/v1`: the `postgres_changes` of the live resources, each checked under the subscriber's role, claims and
- * the tables' RLS policies before it is sent.
+ * the tables' RLS policies before it is sent, and broadcasts and presence between the channels of the process.
  */
 export const realtimeApp = ({ deps, feed, upgradeWebSocket, caller, report }: RealtimeAppOptions) => {
   const live = deps.registry.entries.filter((entry) => entry.model.live)

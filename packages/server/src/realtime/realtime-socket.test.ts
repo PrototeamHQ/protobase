@@ -3,7 +3,10 @@ import { f, resource } from '@protobase/schema'
 import type { Caller } from '../api-keys/resolve-caller'
 import { unauthorized } from '../problem'
 import { buildRegistry } from '../registry'
+import { broadcastHub } from './broadcast-hub'
 import type { ChangeHub, ChangeSink } from './change-hub'
+import { presenceHub } from './presence-hub'
+import type { Vsn } from './phoenix-message'
 import { realtimeSocket } from './realtime-socket'
 
 const { entries } = buildRegistry([resource('todos').table('todos').fields({ id: f.integer(), user_id: f.text() }).primaryKey((r) => r.id).live()])
@@ -11,7 +14,7 @@ const { entries } = buildRegistry([resource('todos').table('todos').fields({ id:
 const now = Date.parse('2026-08-01T00:00:00Z')
 const alice = (exp: number): Caller => ({ role: 'authenticated', claims: { sub: 'alice', exp } })
 
-const open = () => {
+const open = ({ broadcasts = broadcastHub(), presences = presenceHub(), vsn = '2.0.0' as Vsn } = {}) => {
   const frames: unknown[] = []
   const sinks: ChangeSink[] = []
   const hub: ChangeHub = { add: (sink) => (sinks.push(sink), () => sinks.splice(sinks.indexOf(sink), 1)) }
@@ -23,9 +26,9 @@ const open = () => {
     throw unauthorized('The bearer token is invalid or expired')
   }
   let id = 0
-  const socket = realtimeSocket({ vsn: '2.0.0', send: (frame) => frames.push(JSON.parse(frame)), close, resolve, live: entries, hub, nextId: () => ++id, report: (error) => { throw error }, now: () => Date.now() })
-  const send = async (message: unknown[]) => {
-    socket.message(JSON.stringify(message))
+  const socket = realtimeSocket({ vsn, send: (frame) => frames.push(typeof frame === 'string' ? JSON.parse(frame) : [...new Uint8Array(frame)]), close, resolve, live: entries, hub, broadcasts, presences, nextId: () => ++id, report: (error) => { throw error }, now: () => Date.now() })
+  const send = async (message: unknown[] | ArrayBuffer) => {
+    socket.message(message instanceof ArrayBuffer ? message : JSON.stringify(message))
     await vi.advanceTimersByTimeAsync(0)
   }
   return { frames, sinks, close, socket, send }
@@ -55,16 +58,16 @@ describe('realtimeSocket', () => {
     expect(frames.at(-1)).toEqual(['2', null, 'realtime:room', 'postgres_changes', { ids: [1], data: expect.objectContaining({ record: { id: 1 } }) }])
   })
 
-  it('refuses a bad token, a table that is not live, presence and an unknown topic', async () => {
+  it('refuses a bad token, a table that is not live, a private channel and an unknown topic', async () => {
     const { frames, sinks, send } = open()
     await send(['1', '1', 'realtime:a', 'phx_join', joinPayload('forged')])
     await send(['2', '2', 'realtime:b', 'phx_join', { config: { postgres_changes: [{ event: '*', schema: 'public', table: 'other' }] } }])
-    await send(['3', '3', 'realtime:c', 'phx_join', { config: { presence: { enabled: true } } }])
+    await send(['3', '3', 'realtime:c', 'phx_join', { config: { private: true } }])
     await send(['4', '4', 'realtime:d', 'broadcast', {}])
     expect(frames.map((frame) => (frame as unknown[])[4])).toEqual([
       { status: 'error', response: { reason: 'The bearer token is invalid or expired' } },
       { status: 'error', response: { reason: expect.stringMatching(/^Unable to subscribe to changes/) } },
-      { status: 'error', response: { reason: 'Not implemented: presence' } },
+      { status: 'error', response: { reason: 'Not implemented: private channels' } },
       { status: 'error', response: { reason: 'unmatched topic' } },
     ])
     expect(sinks).toHaveLength(0)
@@ -114,5 +117,56 @@ describe('realtimeSocket', () => {
     const silent = open()
     await vi.advanceTimersByTimeAsync(60_000)
     expect(silent.close).toHaveBeenCalledTimes(1)
+  })
+
+  it('sends broadcasts to the topic\'s other channels as binary frames, to the sender with self, and acks with ack', async () => {
+    const broadcasts = broadcastHub()
+    const alice = open({ broadcasts })
+    const bob = open({ broadcasts })
+    const carol = open({ broadcasts, vsn: '1.0.0' })
+    await alice.send(['1', '1', 'realtime:room', 'phx_join', { config: { broadcast: { self: true, ack: true } } }])
+    await bob.send(['1', '1', 'realtime:room', 'phx_join', { config: {} }])
+    carol.socket.message(JSON.stringify({ join_ref: '1', ref: '1', topic: 'realtime:room', event: 'phx_join', payload: { config: {} } }))
+    await vi.advanceTimersByTimeAsync(0)
+    for (const { frames } of [alice, bob, carol]) frames.length = 0
+
+    // realtime-js's kind 3 push of `{ x: 1 }` as event `cursor` on ref 2.
+    const text = new TextEncoder()
+    await alice.send(new Uint8Array([3, 1, 1, 13, 6, 0, 1, ...text.encode('12realtime:roomcursor{"x":1}')]).buffer)
+    await bob.send(['1', '2', 'realtime:room', 'broadcast', { type: 'broadcast', event: 'wave', payload: {} }])
+    await bob.send(['1', '3', 'realtime:room', 'broadcast', { type: 'broadcast' }])
+
+    const kind4 = (event: string, json: string) => [4, 13, event.length, 0, 1, ...text.encode(`realtime:room${event}${json}`)]
+    expect(alice.frames).toEqual([kind4('cursor', '{"x":1}'), ['1', '2', 'realtime:room', 'phx_reply', { status: 'ok', response: {} }], kind4('wave', '{}')])
+    expect(bob.frames).toEqual([kind4('cursor', '{"x":1}'), ['1', '3', 'realtime:room', 'phx_reply', { status: 'error', response: { reason: 'A broadcast needs an event' } }]])
+    expect(carol.frames.map((frame) => (frame as { payload: unknown }).payload)).toEqual([{ type: 'broadcast', event: 'cursor', payload: { x: 1 } }, { type: 'broadcast', event: 'wave', payload: {} }])
+  })
+
+  it('sends presence state on join, each track, update and untrack as a diff, and a leave when the channel goes', async () => {
+    const presences = presenceHub()
+    const alice = open({ presences })
+    const bob = open({ presences })
+    await alice.send(['1', '1', 'realtime:room', 'phx_join', { config: { presence: { key: 'alice', enabled: true } } }])
+    await alice.send(['1', '2', 'realtime:room', 'presence', { type: 'presence', event: 'track', payload: { status: 'online' } }])
+    await bob.send(['5', '5', 'realtime:room', 'phx_join', { config: { presence: { key: 'bob', enabled: true } } }])
+    await bob.send(['5', '6', 'realtime:room', 'presence', { type: 'presence', event: 'untrack' }])
+    await bob.send(['5', '7', 'realtime:room', 'presence', { type: 'presence', event: 'track', payload: { status: 'away' } }])
+    await alice.send(['1', '3', 'realtime:room', 'presence', { type: 'presence', event: 'untrack' }])
+    await alice.send(['1', '4', 'realtime:room', 'presence', { type: 'presence', event: 'wave' }])
+    bob.socket.closed()
+
+    const aliceOnline = { status: 'online', phx_ref: '1' }
+    const bobAway = { status: 'away', phx_ref: '2' }
+    expect(alice.frames.slice(1)).toEqual([
+      ['1', null, 'realtime:room', 'presence_state', {}],
+      ['1', null, 'realtime:room', 'presence_diff', { joins: { alice: { metas: [aliceOnline] } }, leaves: {} }],
+      ['1', '2', 'realtime:room', 'phx_reply', { status: 'ok', response: {} }],
+      ['1', null, 'realtime:room', 'presence_diff', { joins: { bob: { metas: [bobAway] } }, leaves: {} }],
+      ['1', null, 'realtime:room', 'presence_diff', { joins: {}, leaves: { alice: { metas: [aliceOnline] } } }],
+      ['1', '3', 'realtime:room', 'phx_reply', { status: 'ok', response: {} }],
+      ['1', '4', 'realtime:room', 'phx_reply', { status: 'error', response: { reason: 'A presence message tracks an object or untracks' } }],
+      ['1', null, 'realtime:room', 'presence_diff', { joins: {}, leaves: { bob: { metas: [bobAway] } } }],
+    ])
+    expect(bob.frames[1]).toEqual(['5', null, 'realtime:room', 'presence_state', { alice: { metas: [aliceOnline] } }])
   })
 })

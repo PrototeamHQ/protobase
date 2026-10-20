@@ -287,16 +287,18 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], pag
   app.route('/', fileRoutes(deps, authenticate))
   // Before the system endpoints, which want a token for everything under them
   if (forms) app.route(`${systemPath}/forms`, formRoutes(deps, forms))
+  // The notices are read only while a page or channel listens.
+  const report = options.onUnhandledError ?? ((error: unknown) => console.error(error))
+  const feed = tableFeed({ db, schema: changes, report })
   // Anyone who may read a live resource hears of its changes, a visitor of what the anonymous role reads too.
   if (appModels.some((model) => model.live)) {
-    const report = options.onUnhandledError ?? ((error: unknown) => console.error(error))
-    const feed = tableFeed({ db, schema: changes, report })
     app.route(systemPath || '/', guarded((live) => void live.route('/', liveRoutes(feed, (session) => visibleNotices(deps, session))), withAnonymous(authenticate, options.roles)))
-    // supabase-js's `channel().on('postgres_changes')`, admitted by the app's keys, under the tables' RLS.
-    if (upgradeWebSocket && (apiKeys.publishable || apiKeys.secret)) {
-      const verify = verifyToken ?? (auth ? jwtVerifier(betterAuthTokens({ auth })) : () => Promise.reject(unauthorized('This app signs no user tokens')))
-      app.route('/realtime/v1', realtimeApp({ deps, feed, upgradeWebSocket, caller: apiKeyCaller({ keys: apiKeys, verify }), report }))
-    }
+  }
+  // supabase-js's `channel()`, admitted by the app's keys: `postgres_changes` of the live resources under the tables'
+  // RLS, broadcasts and presence.
+  if (upgradeWebSocket && (apiKeys.publishable || apiKeys.secret)) {
+    const verify = verifyToken ?? (auth ? jwtVerifier(betterAuthTokens({ auth })) : () => Promise.reject(unauthorized('This app signs no user tokens')))
+    app.route('/realtime/v1', realtimeApp({ deps, feed, upgradeWebSocket, caller: apiKeyCaller({ keys: apiKeys, verify }), report }))
   }
   app.route(basePath, api)
   app.route(`${deps.systemPath}/meta`, metaApp)

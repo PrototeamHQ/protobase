@@ -3,8 +3,10 @@ import type { UpgradeWebSocket } from 'hono/ws'
 import type { Caller } from '../api-keys/resolve-caller'
 import { HttpProblem } from '../problem'
 import type { Entry } from '../registry'
+import { broadcastHub } from './broadcast-hub'
 import type { ChangeHub } from './change-hub'
 import { vsnOf } from './phoenix-message'
+import { presenceHub } from './presence-hub'
 import { realtimeSocket } from './realtime-socket'
 
 export type RealtimeRoutesOptions = {
@@ -22,10 +24,13 @@ const keyRequest = (apikey: string, token?: string) => new Request('http://realt
 
 /**
  * `GET /realtime/v1/websocket?apikey=…&vsn=…`: Supabase Realtime's socket, for `postgres_changes` of the live
- * resources (see `realtimeSocket`). A missing or wrong key is refused before the upgrade, with 401.
+ * resources, and broadcasts and presence between the sockets of this process (see `realtimeSocket`). A missing or wrong
+ * key is refused before the upgrade, with 401.
  */
 export const realtimeRoutes = ({ upgradeWebSocket, caller, live, hub, report }: RealtimeRoutesOptions) => {
   const app = new Hono()
+  const broadcasts = broadcastHub()
+  const presences = presenceHub()
   let lastId = 0
   const nextId = () => ++lastId
   app.get(
@@ -48,12 +53,14 @@ export const realtimeRoutes = ({ upgradeWebSocket, caller, live, hub, report }: 
             resolve: (token) => caller(keyRequest(apikey, token)),
             live,
             hub,
+            broadcasts,
+            presences,
             nextId,
             report,
           })
         },
         onMessage: (event) => {
-          if (typeof event.data === 'string') socket?.message(event.data)
+          if (typeof event.data === 'string' || event.data instanceof ArrayBuffer) socket?.message(event.data)
         },
         onClose: () => socket?.closed(),
       }
