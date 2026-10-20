@@ -5,7 +5,7 @@ import { adminOnly } from './admin-only'
 import type { AuthMail } from './auth-mail/send-auth-email'
 import type { ResolvedOperator } from './operator-provider'
 import type { SignInPolicy } from './sign-in-policy'
-import { isRefusedForStaff, isStaffSession, staffCannotChange } from './staff-checks'
+import { isOAuthPath, isRefusedForStaff, isStaffSession, staffCannotChange, staffCannotConnect } from './staff-checks'
 import { endStaffSignIn, listStaffSignIns, staffSignInOfSession, staffSignInSchema } from './staff-log'
 import { staffSignInEndpoints } from './staff-sign-in-endpoints'
 
@@ -20,7 +20,8 @@ export type StaffPluginOptions = {
 
 /**
  * Staff of the operator sign in as a person of this app, for support (see `staffSignInEndpoints`). A staff session
- * shows who started it and why, can be stopped, and cannot change the person's sign-in or the sign-in policy. Every
+ * shows who started it and why, can be stopped, and cannot change the person's sign-in or the sign-in policy, or allow
+ * an outside app to act as the person. Every
  * staff sign-in is logged for the app's admins. The plugin is there without an operator provider too, so its table
  * exists from the first auth migration.
  */
@@ -60,6 +61,14 @@ export const staffSignInPlugin = ({ operator, mail, defaultPolicy }: StaffPlugin
           handler: createAuthMiddleware(async (ctx) => {
             const session = await getSessionFromCtx(ctx)
             if (session && isStaffSession(session.session)) throw new APIError('FORBIDDEN', staffCannotChange)
+          }),
+        },
+        // Nor can staff allow an outside app to act as the person, on any method, including the provider resuming an authorization.
+        {
+          matcher: (context) => context.path !== undefined && isOAuthPath(context.path),
+          handler: createAuthMiddleware(async (ctx) => {
+            const session = await getSessionFromCtx(ctx)
+            if (session && isStaffSession(session.session)) throw new APIError('FORBIDDEN', staffCannotConnect)
           }),
         },
       ],
