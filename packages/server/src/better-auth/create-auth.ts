@@ -11,7 +11,7 @@ import type { Mailer } from '../mail/smtp-mailer'
 import { readOperatorSettings, resolveOperator, type OperatorProvider, type ResolvedOperator } from './operator-provider'
 import { defaultInvitationSeconds, defaultInvitationUrl } from './invitations/invitation-link-hook'
 import { lastAdminGuardPlugin } from './last-admin-guard'
-import { organizationClaims, lastOrganizationField, sessionOrganizationHooks } from './organizations/session-organization'
+import { lastOrganizationField, sessionOrganizationHooks } from './organizations/session-organization'
 import { organizationPlugin } from './organizations/organization-plugin'
 import { protobaseOrganizationPlugin } from './organizations/protobase-plugin'
 import { resolveOrganizations, type OrganizationsOptions, type ResolvedOrganizations } from './organizations/options'
@@ -21,7 +21,6 @@ import { appOrigins, multiHostBaseURL, readOrigins, resolveOrigins } from './ori
 import { passkeyHosts, readPasskeyDomain, resolvePasskeyDomain } from './passkey-domain'
 import { passkeyPlugin } from './passkey-plugin'
 import { passwordResetOptions } from './password-reset'
-import { narrowClaims } from './roles/active-role'
 import { rolesPlugin } from './roles/roles-plugin'
 import type { RoleSession, RoleUser } from './roles/session-role'
 import { platformSignInFor, platformSignInProvider, readPlatformSignIn, resolvePlatformSignIn, type PlatformSignIn, type ResolvedPlatformSignIn } from './platform-sign-in'
@@ -35,6 +34,7 @@ import { confirmedOnCreate, confirmedOnUpdate, emailConfirmedField } from './ema
 import { coreNames, pluginNames } from './snake-case-names'
 import { rehashPasswordsPlugin, verifyAcceptedHash, type PasswordHash } from './password-hashes'
 import { staffSignInPlugin } from './staff-plugin'
+import { tokenClaims } from './token-claims'
 import { twoFactorAfterPasswordOrCode } from './two-factor-challenge'
 import { metadataField, userFieldsNamed, userModel, userTable, withUserColumns, type UserTableOptions } from './user-table'
 import { usersPlugin } from './users/users-plugin'
@@ -250,8 +250,9 @@ export const betterAuthOptions = (options: CreateAuthOptions, { origins = [], pa
       // authenticator refuses the token once it is signed out (`checkTokenStanding`).
       definePayload: async ({ user, session }) => {
         const { activeRole, activeOrganizationId } = session as RoleSession
-        const claims = { role: user.role, ...(organizations && (await organizationClaims((await context()).adapter, user, activeOrganizationId))) }
-        return { email: user.email, sid: session.id, ...narrowClaims(claims, [activeRole, (user as RoleUser).lastRole], Boolean(organizations)) }
+        const wanted = [activeRole, (user as RoleUser).lastRole]
+        const claims = await tokenClaims(user, { wanted, organizationId: activeOrganizationId, ...(organizations && { organizations: (await context()).adapter }) })
+        return { ...claims, sid: session.id }
       },
     },
     // Tokens come from `/token` only, which the sign-in policy holds back until required methods are set up.
