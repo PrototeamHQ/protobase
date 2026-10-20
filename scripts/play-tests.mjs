@@ -1,5 +1,5 @@
 import { join } from 'node:path'
-import { chromium } from 'playwright'
+import { chromium, errors as playwrightErrors } from 'playwright'
 import { serveStatic } from './static-server.mjs'
 
 /** Runs the play functions of every story tagged "play" in the built Storybook and fails on any thrown error. */
@@ -34,7 +34,16 @@ const playStory = async (story) => {
   page.on('console', (message) => message.type() === 'error' && logged.push(message.text()))
   page.on('requestfailed', (request) => logged.push(`${request.failure()?.errorText} ${request.url()}`))
   await page.goto(`${base}/iframe.html?id=${story.id}&viewMode=story`)
-  await page.waitForFunction(() => window.__sbEvents?.length > 0, null, { timeout: 30_000 })
+  // A page whose Storybook runtime never loaded sends no event at all; it fails with the page's console errors and failed
+  // requests, so an abort by a host network change plays once more like any other.
+  const settled = await page.waitForFunction(() => window.__sbEvents?.length > 0, null, { timeout: 30_000 }).catch((error) => {
+    if (error instanceof playwrightErrors.TimeoutError) return undefined
+    throw error
+  })
+  if (!settled) {
+    await page.close()
+    return { name: 'noStoryEvent', message: logged.join('\n  ') || 'Storybook sent no event within 30 s' }
+  }
   const events = await page.evaluate(() => window.__sbEvents.map((event) => ({ name: event.name, message: String(event.payload?.message ?? event.payload?.description ?? '') })))
   await page.close()
   const error = events.find((event) => event.name !== 'storyRendered')
