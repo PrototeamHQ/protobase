@@ -1,0 +1,3 @@
+[functions.stripe-webhooks]
+# Stripe signs its calls instead.
+verify_jwt = false

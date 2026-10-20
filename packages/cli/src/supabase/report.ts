@@ -129,6 +129,12 @@ export const importReport = (manifest: ImportManifest, doctor: string | undefine
       manifest.httpSent ? [] : manifest.httpTriggers.map(trigger),
     ),
     "## Storage files\n\nThe load restored Storage's buckets and objects with their policies, but a dump holds no file bytes. Run `protobase import supabase --storage-url https://<ref>.supabase.co` with the project's secret key in `SUPABASE_SERVICE_ROLE_KEY` to copy them into the app's Storage file provider; it writes what it copied to `supabase-import/storage.md`, and a rerun copies what is left.\n",
-    section('Edge Functions', '`supabase/functions` holds these, which the import does not convert.', manifest.functions),
+    section(
+      'Edge Functions',
+      'The import converted `supabase/functions` into `functions/`. Each function answers at `/api/functions/<name>`, and at `/api/sb/functions/v1/<name>` for `supabase.functions.invoke`.',
+      manifest.functions.converted.map((fn) => (fn.public ? `${fn.name}, public: \`verify_jwt = false\`` : fn.name)),
+    ),
+    section('Packages added', "The functions import these, which the import added to package.json's dependencies. Install them.", manifest.functions.packages.map((pkg) => `${pkg.name} ${code(pkg.range)}`)),
+    section('Edge Function code to rewrite', "Node and Bun lack these, or no npm package has them. Rewrite each, by hand or with an AI assistant.", manifest.functions.left),
     `## Indexes the scan guard needs\n\n${doctor === undefined ? 'No resources were scaffolded, so `protobase doctor` had nothing to check.' : `\`protobase doctor\` on the scaffolded config. The API refuses a read that no index serves; add each index it names in a migration of its own.\n\n\`\`\`\n${doctor.trimEnd()}\n\`\`\``}\n`,
   ].join('\n')

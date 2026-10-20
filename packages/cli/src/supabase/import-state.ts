@@ -2,6 +2,7 @@ import { existsSync } from 'node:fs'
 import { appendFile, mkdir, readFile, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import type { SourceExtension } from './extensions'
+import type { ImportedPackage } from './functions/specifier'
 import type { DumpedTable } from './load-script'
 import type { PlannedCronJob } from './cron-plan'
 import type { HttpTrigger } from './source-facts'
@@ -17,7 +18,14 @@ export type ImportManifest = {
   /** Statements of the schema dump the migration leaves out. */
   leftOut: number
   checkout: string[]
-  functions: string[]
+  /** The Edge Functions converted into `functions/`. */
+  functions: {
+    converted: Array<{ name: string; public: boolean }>
+    /** The packages they import that package.json lacked, now in its dependencies. */
+    packages: ImportedPackage[]
+    /** What the conversion left for a person or the AI skill. */
+    left: string[]
+  }
   /** pg_cron's jobs, with what the import does with each; `undefined` where the importing role could not read them. */
   cronJobs: PlannedCronJob[] | undefined
   vaultSecrets: Array<{ name: string | null; description: string }> | undefined

@@ -4,8 +4,10 @@ import postgres from 'postgres'
 import { nextMigrationName } from '../auth/migration-file'
 import { connect, type Sql } from '../db/connect'
 import { isSchedule } from '@protobase/server'
-import { checkoutMarkers, edgeFunctions } from './checkout'
+import { checkoutMarkers } from './checkout'
 import { cronPlan } from './cron-plan'
+import { planFunctions } from './functions/plan-functions'
+import { writeFunctions } from './functions/write-functions'
 import { importPlan, probedExtensions } from './import-plan'
 import { importState, type ImportManifest } from './import-state'
 import { runPgTool } from './pg-tools'
@@ -96,6 +98,8 @@ const pattern = (name: string) => `"${name.replaceAll('"', '""')}"`
 export const runDumpPhase = async (options: DumpOptions, out: (text: string) => void) => {
   const checkout = checkoutMarkers(options.projectDir)
   if (checkout.length > 0) out(`found the Supabase project's ${checkout.join(', ')}\n`)
+  // Before the dump, so a function in the way stops the import before it starts.
+  const functions = await planFunctions(options.projectDir)
   const state = importState(options.projectDir)
   const sql = connect(options.sourceUrl)
   const reserved = await sql.reserve()
@@ -121,8 +125,10 @@ export const runDumpPhase = async (options: DumpOptions, out: (text: string) => 
     await mkdir(options.migrationsDir, { recursive: true })
     const file = nextMigrationName(await readdir(options.migrationsDir), 'supabase_schema')
     await writeFile(path.join(options.migrationsDir, file), migration.text, { flag: 'wx' })
-    await state.writeManifest({ migration: file, leftOut: migration.leftOut, checkout, functions: await edgeFunctions(options.projectDir), ...source })
+    const packages = await writeFunctions(options.projectDir, functions)
+    await state.writeManifest({ migration: file, leftOut: migration.leftOut, checkout, functions: { converted: functions.functions, packages, left: functions.left }, ...source })
     out(`wrote ${path.relative(options.projectDir, path.join(options.migrationsDir, file))}, the schemas ${source.schemas.join(', ')}\n`)
+    if (functions.functions.length > 0) out(`converted ${functions.functions.length} Edge Functions into functions/${packages.length > 0 ? `, adding ${packages.length} packages to package.json: install them` : ''}\n`)
     out(`dumped ${source.tables.length} tables' data into ${path.relative(options.projectDir, state.data)}, which git ignores\n`)
     if (replay) out(`kept Vault's secrets, pgmq's queues and pg_cron's jobs to make again in ${path.relative(options.projectDir, state.replay)}, which git ignores\n`)
     out("next: apply the migration with the project's migrations, then run `protobase import supabase` again to load the data\n")

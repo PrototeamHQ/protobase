@@ -14,7 +14,11 @@ const manifest: ImportManifest = {
   bytes: 600 * 1024 * 1024,
   leftOut: 1,
   checkout: ['supabase/config.toml'],
-  functions: ['hello'],
+  functions: {
+    converted: [{ name: 'hello', public: false }, { name: 'stripe', public: true }],
+    packages: [{ name: 'zod', range: '4' }],
+    left: ['functions/hello/index.ts:3: Deno.openKv, of Deno: rewrite it for Node or Bun'],
+  },
   cronJobs: [
     { ...cronJob, name: 'purge', command: 'delete from public.todos', outcome: { kind: 'converted', name: 'purge', file: 'purge', exportName: 'purge', timezone: undefined } },
     { ...cronJob, id: 2, name: 'ping', command: "select net.http_get('https://example.com')", outcome: { kind: 'left', reason: "calls net, which the project's database lacks" } },
@@ -74,7 +78,9 @@ describe('importReport', () => {
     expect(report).toContain('## Vault secrets\n\nThe importing role could not read them')
     expect(report).toContain('## Extensions left out\n\nNone.')
     expect(report).toContain('- on_done on public.todos, calling public.notify_done')
-    expect(report).toContain('- hello')
+    expect(report).toContain('- hello\n- stripe, public: `verify_jwt = false`')
+    expect(report).toContain('- zod `4`')
+    expect(report).toContain('- functions/hello/index.ts:3: Deno.openKv, of Deno: rewrite it for Node or Bun')
     expect(report).toContain('```\nChecked 1 resources: 0 errors, 0 warnings.\n```')
   })
 
