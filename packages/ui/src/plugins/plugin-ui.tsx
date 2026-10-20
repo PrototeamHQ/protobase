@@ -36,7 +36,17 @@ export const pluginUi = (plugin: PluginInfo, module: Record<string, unknown>): P
   const shell = ui.shell && {
     ...(ui.shell.actions && { actions: within(plugin, ui.shell.actions, 'shell.actions') }),
     ...(ui.shell.rightPanel && { rightPanel: within(plugin, ui.shell.rightPanel, 'shell.rightPanel') }),
+    ...(ui.shell.logo && { logo: within(plugin, ui.shell.logo, 'shell.logo') }),
   }
   const beforeSignIn = ui.beforeSignIn && within(plugin, ui.beforeSignIn, 'beforeSignIn')
-  return { name: plugin.name, components, ...(ui.actions && { actions: ui.actions }), ...(fields && { fields }), ...(shell && { shell }), ...(beforeSignIn && { beforeSignIn }) }
+  return {
+    name: plugin.name,
+    components,
+    ...(ui.actions && { actions: ui.actions }),
+    ...(ui.dropRules && { dropRules: ui.dropRules }),
+    ...(ui.boardDrops && { boardDrops: ui.boardDrops }),
+    ...(fields && { fields }),
+    ...(shell && { shell }),
+    ...(beforeSignIn && { beforeSignIn }),
+  }
 }
