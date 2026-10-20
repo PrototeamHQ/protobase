@@ -19,13 +19,14 @@ it('restores the dump of a Supabase database as a tenant that is no superuser an
   const migration = schemaMigration(dump, { schemas: ['auth', 'billing', 'public', 'storage'], extensions, webhooks: false, missing })
   expect(migration.leftOut).toBe(100)
 
-  // A cloud-style tenant: it owns its database and has the API roles' names to grant to, and nothing else.
+  // A cloud-style tenant: it owns its database and has the API roles' names to grant to, and nothing else. The API
+  // roles belong to the server, so another test's template may have made them already.
   await database.exec(`
     begin;
     create role supabase_import_tenant nologin nosuperuser nocreaterole nobypassrls;
-    create role anon nologin noinherit;
-    create role authenticated nologin noinherit;
-    create role service_role nologin noinherit bypassrls;
+    do $$ begin create role anon nologin noinherit; exception when duplicate_object then null; end $$;
+    do $$ begin create role authenticated nologin noinherit; exception when duplicate_object then null; end $$;
+    do $$ begin create role service_role nologin noinherit bypassrls; exception when duplicate_object then null; end $$;
     do $$ begin execute format('alter database %I owner to supabase_import_tenant', current_database()); end $$;
     set local role supabase_import_tenant;
   `)
