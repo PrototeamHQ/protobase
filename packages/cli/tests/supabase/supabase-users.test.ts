@@ -23,14 +23,17 @@ const gotrueUsers = readFileSync(new URL('fixtures/gotrue-users.sql', import.met
 const origin = 'http://localhost:5173'
 const secret = 'test-secret-test-secret-test-secret-1234'
 
-// GitHub as Better Auth's provider calls it, for the user GoTrue's github provider signed in (fixtures/gotrue-users.sql).
-const mockGitHub = () => {
+// GitHub as Better Auth's provider calls it, for a user GoTrue's github provider signed in (fixtures/gotrue-users.sql).
+type GitHubUser = { id: number; login: string; name: string; email: string; avatar_url: string; verified: boolean }
+const grace: GitHubUser = { id: 4207001, login: 'gracehopper', name: 'Grace Hopper', email: 'grace@example.com', avatar_url: 'https://avatars.example.com/u/4207001', verified: true }
+const notFrank: GitHubUser = { id: 4207002, login: 'not-frank', name: 'Not Frank', email: 'frank@example.com', avatar_url: 'https://avatars.example.com/u/4207002', verified: false }
+const mockGitHub = ({ verified, ...user }: GitHubUser) => {
   const json = (body: unknown) => new Response(JSON.stringify(body), { headers: { 'content-type': 'application/json' } })
   vi.stubGlobal('fetch', async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = new URL(new Request(input, init).url)
-    if (url.href === 'https://github.com/login/oauth/access_token') return json({ access_token: 'gho_grace', token_type: 'bearer', scope: 'read:user,user:email' })
-    if (url.href === 'https://api.github.com/user') return json({ id: 4207001, login: 'gracehopper', name: 'Grace Hopper', email: 'grace@example.com', avatar_url: 'https://avatars.example.com/u/4207001' })
-    if (url.href === 'https://api.github.com/user/emails') return json([{ email: 'grace@example.com', primary: true, verified: true }])
+    if (url.href === 'https://github.com/login/oauth/access_token') return json({ access_token: `gho_${user.login}`, token_type: 'bearer', scope: 'read:user,user:email' })
+    if (url.href === 'https://api.github.com/user') return json(user)
+    if (url.href === 'https://api.github.com/user/emails') return json([{ email: user.email, primary: true, verified }])
     throw new Error(`Unexpected request to ${url.href}`)
   })
 }
@@ -61,6 +64,16 @@ let client = 0
 const from = () => ({ 'x-forwarded-for': `192.0.2.${++client}` })
 const cookies = (response: Response) => response.headers.getSetCookie().map((line) => line.split(';')[0]).join('; ')
 
+// A GitHub sign-in through Better Auth's own start and callback: the callback's response.
+const signInWithGitHub = async (served: Awaited<ReturnType<typeof authOn>>, user: GitHubUser) => {
+  mockGitHub(user)
+  const start = await served.handler(
+    new Request(`${origin}/api/auth/sign-in/social`, { method: 'POST', headers: { 'content-type': 'application/json', origin, ...from() }, body: JSON.stringify({ provider: 'github', callbackURL: `${origin}/`, disableRedirect: true }) }),
+  )
+  const state = new URL(((await start.json()) as { url: string }).url).searchParams.get('state') ?? ''
+  return served.handler(new Request(`${origin}/api/auth/callback/github?code=the-code&state=${encodeURIComponent(state)}`, { headers: { cookie: cookies(start), ...from() } }))
+}
+
 it("signs Supabase's users in with their own passwords and GitHub, and adds new users to auth.users", async () => {
   const pg = await openSnapshotDb('empty')
   await pg.exec(goTrueTables)
@@ -80,6 +93,7 @@ it("signs Supabase's users in with their own passwords and GitHub, and adds new 
     { email: 'bob@example.com', name: 'Bob', email_verified: true, image: 'https://example.com/bob.png', banned: null, ban_kept: null, app_role: null },
     { email: 'dave@example.com', name: null, email_verified: false, image: null, banned: null, ban_kept: null, app_role: null },
     { email: 'erin@example.com', name: null, email_verified: true, image: null, banned: true, ban_kept: true, app_role: null },
+    { email: 'frank@example.com', name: 'Not Frank', email_verified: false, image: 'https://avatars.example.com/u/4207002', banned: null, ban_kept: null, app_role: null },
     { email: 'grace@example.com', name: 'Grace Hopper', email_verified: true, image: 'https://avatars.example.com/u/4207001', banned: null, ban_kept: null, app_role: null },
   ])
   const [accounts] = await pg.exec("select u.email, a.provider_id, a.account_id = u.id::text as own_id, a.account_id, left(a.password, 4) as hash from auth.account a join auth.users u on u.id = a.user_id order by 1, 2")
@@ -102,17 +116,21 @@ it("signs Supabase's users in with their own passwords and GitHub, and adds new 
   expect((await signIn('dave@example.com', 'dave-password-1')).status).toBe(401)
 
   // Grace signed up with GitHub on Supabase: signing in with it finds her user by the account the import made.
-  mockGitHub()
-  const start = await served.handler(
-    new Request(`${origin}/api/auth/sign-in/social`, { method: 'POST', headers: { 'content-type': 'application/json', origin, ...from() }, body: JSON.stringify({ provider: 'github', callbackURL: `${origin}/`, disableRedirect: true }) }),
-  )
-  const state = new URL(((await start.json()) as { url: string }).url).searchParams.get('state') ?? ''
-  const callback = await served.handler(new Request(`${origin}/api/auth/callback/github?code=the-code&state=${encodeURIComponent(state)}`, { headers: { cookie: cookies(start), ...from() } }))
+  const callback = await signInWithGitHub(served, grace)
   expect(callback.status).toBe(302)
   expect(callback.headers.get('location')).toBe(`${origin}/`)
   const session = await served.api.getSession({ headers: new Headers({ cookie: cookies(callback) }) })
-  const [grace] = await pg.exec("select u.id, count(a.id)::int as github_accounts from auth.users u join auth.account a on a.user_id = u.id and a.provider_id = 'github' where u.email = 'grace@example.com' group by u.id")
-  expect(grace!.rows).toEqual([{ id: session?.user.id, github_accounts: 1 }])
+  const [graceRow] = await pg.exec("select u.id, count(a.id)::int as github_accounts from auth.users u join auth.account a on a.user_id = u.id and a.provider_id = 'github' where u.email = 'grace@example.com' group by u.id")
+  expect(graceRow!.rows).toEqual([{ id: session?.user.id, github_accounts: 1 }])
+
+  // A GitHub account claiming frank@example.com, an address GitHub never verified: GoTrue made the user and the identity
+  // but refused the sign-in, so the import made no account, and Better Auth will not link one to an unverified user.
+  const refused = await signInWithGitHub(served, notFrank)
+  expect(refused.status).toBe(302)
+  expect(new URL(refused.headers.get('location')!).searchParams.get('error')).toBe('account_not_linked')
+  expect(await served.api.getSession({ headers: new Headers({ cookie: cookies(refused) }) })).toBeNull()
+  const [frank] = await pg.exec("select count(a.id)::int as accounts from auth.users u left join auth.account a on a.user_id = u.id where u.email = 'frank@example.com'")
+  expect(frank!.rows).toEqual([{ accounts: 0 }])
 
   // A new user gets a UUID and GoTrue's role and audience, and the app's sign-up trigger makes her profile.
   const carol = await createUser(served, { email: 'carol@example.com', password: 'carol-password-1', name: 'Carol C', role: 'user', metadata: { full_name: 'Carol C' } })

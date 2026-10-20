@@ -1,4 +1,4 @@
-import { accountIdSql, accountProviderSql, carriesAccountSql } from './identity-providers'
+import { accountIdSql, accountProviderSql, carriesAccountSql, confirmedOwnerSql } from './identity-providers'
 
 // Better Auth signs in on Supabase's own auth.users, so every foreign key, trigger and policy naming it keeps working.
 // Its planner cannot add a required column to a table with rows, so the import writes two migrations of its own around
@@ -41,10 +41,11 @@ select id::text, 'credential', id, encrypted_password, coalesce(created_at, now(
 from auth.users where encrypted_password is not null and encrypted_password <> '' and email_confirmed_at is not null;
 
 -- Each identity of a social provider, by Better Auth's name for it and the claim it keys the account on. Sessions and
--- provider tokens stay behind: everyone signs in once.
+-- provider tokens stay behind: everyone signs in once. Only for users with a confirmed address or none, for the reason
+-- above: GoTrue refuses a provider sign-in to an unconfirmed one too, though it keeps the identity.
 insert into auth.account (account_id, provider_id, user_id, created_at, updated_at)
 select account_id, provider_id, user_id, created_at, updated_at from (
   select ${accountIdSql} as account_id, ${accountProviderSql} as provider_id, user_id, coalesce(created_at, now()) as created_at, coalesce(updated_at, now()) as updated_at
-  from auth.identities where ${carriesAccountSql}
+  from auth.identities where ${carriesAccountSql} and ${confirmedOwnerSql}
 ) identity where account_id is not null;
 `

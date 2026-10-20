@@ -47,9 +47,22 @@ export const accountIdSql = `case provider ${Object.entries(subjects)
 /** SQL over an auth.identities row: whether it carries an account over. */
 export const carriesAccountSql = `provider <> all(array[${withoutAccount.map(literal).join(', ')}]) and provider not like 'sso:%'`
 
-/** How many identities a provider has in the loaded auth.identities, and how many lack the claim their account needs. */
-export type ProviderCount = { provider: string; identities: number; unkeyed: number }
+/**
+ * SQL over an auth.identities row: whether its user may sign in with it. GoTrue refuses a provider sign-in to a user
+ * with an unconfirmed address, though it keeps the user and the identity, and Better Auth would not refuse it: whoever
+ * signed in with a provider account claiming someone else's address could then sign in as them. A user without an
+ * address has nobody's to claim, and GoTrue lets those in where the provider's email is optional.
+ */
+export const confirmedOwnerSql = `user_id in (select id from auth.users where email is null or email_confirmed_at is not null)`
+
+/**
+ * How many identities a provider has in the loaded auth.identities, how many lack the claim their account needs, and
+ * how many of the rest belong to a user who never confirmed their address.
+ */
+export type ProviderCount = { provider: string; identities: number; unkeyed: number; unconfirmed: number }
 
 /** The loaded auth.identities, counted by provider, for the report. */
 export const providerCounts = (sql: Sql) =>
-  sql.unsafe<ProviderCount[]>(`select provider, count(*)::int as identities, count(*) filter (where ${accountIdSql} is null)::int as unkeyed from auth.identities group by 1 order by 1`)
+  sql.unsafe<ProviderCount[]>(
+    `select provider, count(*)::int as identities, count(*) filter (where ${accountIdSql} is null)::int as unkeyed, count(*) filter (where ${accountIdSql} is not null and not (${confirmedOwnerSql}))::int as unconfirmed from auth.identities group by 1 order by 1`,
+  )

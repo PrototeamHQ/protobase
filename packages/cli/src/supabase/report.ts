@@ -77,12 +77,14 @@ const conversions = (manifest: ImportManifest) => [
 ]
 
 /** What became of one provider's identities. */
-const providerLine = ({ provider, identities, unkeyed }: ProviderCount) => {
+const providerLine = ({ provider, identities, unkeyed, unconfirmed }: ProviderCount) => {
   const fate = providerFate(provider)
   const counted = `${code(provider)}, ${identities} identit${identities === 1 ? 'y' : 'ies'}`
   if (fate.kind === 'none') return `${counted}: not carried over, ${fate.reason}`
   const name = code(fate.providerId)
-  const missing = unkeyed > 0 ? `; ${unkeyed} lack${unkeyed === 1 ? 's' : ''} the claim Better Auth keys ${name} accounts on and ${unkeyed === 1 ? 'is' : 'are'} not carried over` : ''
+  const unkeyedNote = unkeyed > 0 ? `; ${unkeyed} lack${unkeyed === 1 ? 's' : ''} the claim Better Auth keys ${name} accounts on and ${unkeyed === 1 ? 'is' : 'are'} not carried over` : ''
+  const unconfirmedNote = unconfirmed > 0 ? `; ${unconfirmed} belong${unconfirmed === 1 ? 's' : ''} to users who never confirmed their address, whom Supabase refused, and ${unconfirmed === 1 ? 'is' : 'are'} not carried over` : ''
+  const missing = unkeyedNote + unconfirmedNote
   return fate.builtIn
     ? `${counted}: accounts of Better Auth's ${name}${missing}`
     : `${counted}: accounts named ${name}, a provider Better Auth has not built in: set it up with Better Auth's generic OAuth plugin under that id${missing}`

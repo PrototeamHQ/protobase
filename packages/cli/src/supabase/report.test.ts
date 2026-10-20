@@ -57,10 +57,11 @@ const withExtensions: ImportManifest = {
 }
 
 const providers = [
-  { provider: 'azure', identities: 3, unkeyed: 1 },
-  { provider: 'email', identities: 4, unkeyed: 0 },
-  { provider: 'github', identities: 1, unkeyed: 0 },
-  { provider: 'keycloak', identities: 2, unkeyed: 0 },
+  { provider: 'azure', identities: 3, unkeyed: 1, unconfirmed: 0 },
+  { provider: 'email', identities: 4, unkeyed: 0, unconfirmed: 1 },
+  { provider: 'github', identities: 1, unkeyed: 0, unconfirmed: 0 },
+  { provider: 'gitlab', identities: 3, unkeyed: 0, unconfirmed: 1 },
+  { provider: 'keycloak', identities: 2, unkeyed: 0, unconfirmed: 0 },
 ]
 
 describe('importReport', () => {
@@ -112,6 +113,7 @@ describe('importReport', () => {
     expect(report).toContain("- `azure`, 3 identities: accounts of Better Auth's `microsoft`; 1 lacks the claim Better Auth keys `microsoft` accounts on and is not carried over")
     expect(report).toContain('- `email`, 4 identities: not carried over, email sign-in lives on the user, not in an account')
     expect(report).toContain("- `github`, 1 identity: accounts of Better Auth's `github`\n")
+    expect(report).toContain("- `gitlab`, 3 identities: accounts of Better Auth's `gitlab`; 1 belongs to users who never confirmed their address, whom Supabase refused, and is not carried over\n")
     expect(report).toContain("- `keycloak`, 2 identities: accounts named `keycloak`, a provider Better Auth has not built in: set it up with Better Auth's generic OAuth plugin under that id")
     expect(importReport(manifest, undefined, true, [], [])).toContain('auth.identities is empty.')
   })
