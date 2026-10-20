@@ -59,6 +59,7 @@ const databaseTests = ['packages/*/tests/**/*.test.ts', glue]
 const snapshotIsolated = [
   'packages/server/tests/admin-users.test.ts',
   'packages/server/tests/app-tokens.test.ts',
+  'packages/server/tests/auth-existing-users.test.ts',
   'packages/server/tests/auth-snake-case.test.ts',
   'packages/server/tests/better-auth.test.ts',
   'packages/server/tests/cors.test.ts',

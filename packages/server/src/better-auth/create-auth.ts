@@ -102,7 +102,7 @@ export type CreateAuthOptions = {
   /**
    * The id of a new user, by any route. Default Better Auth's random 32-character text. `.owner()` fields hold it: a
    * `text` column for the default, an integer column when this takes the next value of the app's own users sequence,
-   * or a `uuid` column with `'uuid'`, which makes a random UUID.
+   * or a `uuid` column with `'uuid'`, which makes a random UUID in code and makes every id column of the store a `uuid`.
    */
   generateUserId?: (() => string | Promise<string>) | 'uuid'
   /**
@@ -199,7 +199,6 @@ type Resolved = {
   context?: () => Promise<AuthContext>
 }
 
-// Made in code, since a table another system made, such as Supabase's `auth.users`, may have no default for its ids.
 const newUserId = (generate: NonNullable<CreateAuthOptions['generateUserId']>) => (generate === 'uuid' ? crypto.randomUUID() : generate())
 
 const noContext = () => Promise.reject(new Error('The auth context is read only once createAuth has made the instance'))
@@ -337,6 +336,9 @@ export const betterAuthOptions = (options: CreateAuthOptions, { origins = [], pa
       // Mail goes out after the response, so asking a reset for a known address takes as long as for an unknown one.
       // Better Auth logs a failed send.
       backgroundTasks: { handler: () => {} },
+      // Every id column is a uuid then, also each that points at a user; the other tables' ids come from their default,
+      // a user's from `newUserId`, as a table another system made may have no default.
+      ...(options.generateUserId === 'uuid' && { database: { generateId: 'uuid' as const } }),
     },
   } satisfies BetterAuthOptions
 }
