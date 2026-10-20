@@ -4,10 +4,10 @@ import { createAdaptorServer, upgradeWebSocket } from '@hono/node-server'
 import { createClient, type RealtimeChannel, type RealtimePostgresInsertPayload, type SupabaseClient } from '@supabase/supabase-js'
 import { createLocalJWKSet, exportJWK, generateKeyPair, SignJWT } from 'jose'
 import { sql } from 'kysely'
-import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it, onTestFinished, vi } from 'vitest'
 import { WebSocketServer } from 'ws'
 import { f, resource } from '@protobase/schema'
-import { changesMigration, createAdmin, jwtVerifier, startJobs, type JobsRuntime } from '@protobase/server'
+import { betterAuthAuthenticator, changesMigration, createAdmin, createAuth, createUser, jwtVerifier, startJobs, type JobsRuntime } from '@protobase/server'
 import { openPostgresDatabase, postgresTemplateReady, type PostgresDatabase } from '../../../test-support/postgres-database'
 
 // The dispatch job and the notice feed poll on real timers, which a busy machine stretches.
@@ -140,5 +140,43 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('Realtime with supabase-
 
     expect(await bob.channel.untrack()).toBe('ok')
     await vi.waitFor(() => expect(names(alice.channel)).toEqual([['alice', ['alice']]]), { timeout: 5_000, interval: 50 })
+  })
+})
+
+describe.skipIf(!(await postgresTemplateReady('jobs')) || !(await postgresTemplateReady('auth')))('Realtime with supabase-js signed in through /auth/v1', () => {
+  it('hears its own row\'s insert as its user, before and after it refreshes its token', async () => {
+    const pg = await openPostgresDatabase('jobs')
+    const store = await openPostgresDatabase('auth')
+    await pg.exec(supabaseLike)
+    await pg.exec((await changesMigration(pg.db, [todos.toModel()]))!)
+    const auth = createAuth({ database: { dialect: store.dialect, type: 'postgres' }, baseURL: 'http://localhost:5173', secret: 'test-secret-test-secret-test-secret-1234', mailer: false })
+    await createUser(auth, { email: 'ann@example.com', password: 'correct horse battery' })
+    const errors: unknown[] = []
+    const admin = createAdmin({ resources: [todos], db: pg.db, authenticate: betterAuthAuthenticator({ auth }), auth, options: { apiKeys: { publishable_key: publishable }, onUnhandledError: (error) => errors.push(error) }, upgradeWebSocket })
+    const runtime = await startJobs({ db: pg.db, jobs: admin.jobs, pollSeconds: 0.5, shutdownSeconds: 5, onError: (error) => errors.push(error) })
+    onTestFinished(() => runtime.stop())
+    const server = createAdaptorServer({ fetch: admin.fetch, websocket: { server: new WebSocketServer({ noServer: true }) } }) as Server
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))
+    onTestFinished(() => new Promise<void>((resolve) => server.close(() => resolve())))
+
+    const client = createClient(`http://127.0.0.1:${(server.address() as AddressInfo).port}`, publishable, { auth: { persistSession: false, autoRefreshToken: false } })
+    onTestFinished(async () => void (await client.removeAllChannels()))
+    const { data, error } = await client.auth.signInWithPassword({ email: 'ann@example.com', password: 'correct horse battery' })
+    expect(error).toBeNull()
+    const heard: Insert[] = []
+    await new Promise<void>((resolve, reject) => {
+      client
+        .channel('todos')
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'todos' }, (payload: Insert) => heard.push(payload))
+        .subscribe((status, failure) => (status === 'SUBSCRIBED' ? resolve() : reject(failure ?? new Error(status))))
+    })
+    // Only a row of hers passes her RLS policy, so hearing one proves the channel runs as her.
+    await sql`insert into todos (user_id, title) values (${data.user!.id}, 'Before')`.execute(pg.db)
+    await vi.waitFor(() => expect(heard.map((payload) => payload.new.title)).toEqual(['Before']), { timeout: 20_000, interval: 50 })
+
+    expect((await client.auth.refreshSession()).error).toBeNull()
+    await sql`insert into todos (user_id, title) values (${data.user!.id}, 'After')`.execute(pg.db)
+    await vi.waitFor(() => expect(heard.map((payload) => payload.new.title)).toEqual(['Before', 'After']), { timeout: 20_000, interval: 50 })
+    expect(errors).toEqual([])
   })
 })
