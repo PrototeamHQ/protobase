@@ -6,10 +6,15 @@ import { RouteLink, type RouteTarget } from '../primitives/route-link'
 import type { GridRow } from './column-spec'
 import { text } from './messages'
 
-/** `available` hides the action for rows it does not apply to, for example a delete the server will refuse. */
-type RowActionBase = { label: string; destructive?: boolean; available?: (row: GridRow) => boolean }
+/**
+ * `label` may name the row's own text. `available` hides the action for rows it does not apply to, for example a delete
+ * the server will refuse; `blocked` shows it disabled, with why as its tooltip.
+ */
+type RowActionBase = { label: string | ((row: GridRow) => string); destructive?: boolean; available?: (row: GridRow) => boolean; blocked?: (row: GridRow) => string | undefined }
 /** `link` makes the item an ordinary link to where it goes, as every navigation is; `onSelect` runs anything else. */
 export type RowAction = RowActionBase & ({ onSelect: (row: GridRow) => void; link?: never } | { link: (row: GridRow) => RouteTarget; onSelect?: never })
+
+const labelOf = (action: RowAction, row: GridRow) => (typeof action.label === 'string' ? action.label : action.label(row))
 
 /** The actions that apply to a row; a row with none gets no menu at all. */
 export const availableActions = (actions: RowAction[], row: GridRow) => actions.filter((action) => action.available?.(row) ?? true)
@@ -30,27 +35,34 @@ export const RowMenu = ({ row, actions }: { row: GridRow; actions: RowAction[] }
       {open &&
         createPortal(
           <ul ref={menu} role="menu" onClick={(event) => event.stopPropagation()} style={place ?? { visibility: 'hidden' }} className="fixed z-50 min-w-36 rounded-md border bg-background py-1 shadow-pop">
-            {actions.map((action) => (
-              <li key={action.label} role="none">
-                {action.link ? (
-                  <RouteLink role="menuitem" to={action.link(row)} onClick={() => setOpen(false)} className={cn('block w-full px-3 py-1.5 text-left hover:bg-muted', action.destructive && 'text-danger-text')}>
-                    {action.label}
-                  </RouteLink>
-                ) : (
-                  <button
-                    type="button"
-                    role="menuitem"
-                    className={cn('block w-full px-3 py-1.5 text-left hover:bg-muted', action.destructive && 'text-danger-text')}
-                    onClick={() => {
-                      setOpen(false)
-                      action.onSelect(row)
-                    }}
-                  >
-                    {action.label}
-                  </button>
-                )}
-              </li>
-            ))}
+            {actions.map((action, index) => {
+              const label = labelOf(action, row)
+              const blocked = action.blocked?.(row)
+              const itemClass = cn('block w-full px-3 py-1.5 text-left hover:bg-muted disabled:cursor-default disabled:opacity-60 disabled:hover:bg-transparent', action.destructive && 'text-danger-text')
+              return (
+                <li key={index} role="none">
+                  {action.link ? (
+                    <RouteLink role="menuitem" to={action.link(row)} onClick={() => setOpen(false)} className={itemClass}>
+                      {label}
+                    </RouteLink>
+                  ) : (
+                    <button
+                      type="button"
+                      role="menuitem"
+                      disabled={blocked !== undefined}
+                      title={blocked}
+                      className={itemClass}
+                      onClick={() => {
+                        setOpen(false)
+                        action.onSelect(row)
+                      }}
+                    >
+                      {label}
+                    </button>
+                  )}
+                </li>
+              )
+            })}
           </ul>,
           document.body,
         )}

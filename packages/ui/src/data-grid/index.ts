@@ -7,5 +7,5 @@ export { invoicesColumns, invoiceRowAt, invoiceCount, invoicesNaturalSort } from
 export { gridPageSize } from './use-paged-rows'
 export { pinnedStorageKey } from './pinned-storage'
 export type { RowAction } from './row-menu'
-export type { BulkAction } from './grid-footer'
+export type { BulkAction } from './bulk-actions'
 export type { CellEditor } from './use-cell-editing'

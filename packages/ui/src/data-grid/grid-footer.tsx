@@ -2,8 +2,6 @@ import { formatApproxRows, formatInt } from '../format/number'
 import { cn } from '../lib/cn'
 import { text } from './messages'
 
-export type BulkAction = { label: (count: number) => string; destructive?: boolean; onRun: (rows: Array<Record<string, unknown> & { id: string }>) => void }
-
 export type GridFooterProps = {
   total: number
   selectedCount: number

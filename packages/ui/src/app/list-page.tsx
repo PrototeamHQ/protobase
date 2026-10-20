@@ -56,6 +56,7 @@ import { SaveSearchButton } from './searches/save-search-button'
 import { SavedSearches } from './searches/saved-searches'
 import { SignInPrompt } from '../auth/sign-in-prompt'
 import { useListCellEditor } from './list-edit/use-list-cell-editor'
+import { useListActions } from './list-actions/use-list-actions'
 import { dragsRank, listHandOrder } from './hand-order/hand-order'
 import { HandSortedList } from './hand-order/hand-sorted-list'
 import { ReorderButton } from './hand-order/reorder-button'
@@ -154,6 +155,9 @@ const LoadedList = ({ model, address, scope, heading }: LoadedListProps) => {
   const { state: auth } = useAuth()
   const restore = useRestore(model)
   const remove = useDeleteFlow({ model, view, restore, onReview: (deleted) => go({ kind: 'record', resource, key: deleted.key }) })
+  // The view's named actions join the row menu and the selection's; a named delete stands in for the row's own Delete
+  const named = useListActions(model)
+  const namedDelete = view?.actions.some((action) => action.run?.kind === 'delete') ?? false
 
   const setFilter = (next: FilterState, nextExtras = extras) => set({ filter: stateToText(fields, next, nextExtras) })
   const search = searchText(extras)
@@ -236,10 +240,12 @@ const LoadedList = ({ model, address, scope, heading }: LoadedListProps) => {
       onScrollIndex={scroll.remember}
       rowActions={[
         { label: text('openRecord', singular), onSelect: openRecord },
-        ...(can(permissions, 'delete') ? [{ label: text('delete'), destructive: true, available: (row: GridRow) => rowAllows(row, 'delete'), onSelect: (row: GridRow) => void remove.start(target(row)) }] : []),
+        ...named.rowActions,
+        ...(can(permissions, 'delete') && !namedDelete ? [{ label: text('delete'), destructive: true, available: (row: GridRow) => rowAllows(row, 'delete'), onSelect: (row: GridRow) => void remove.start(target(row)) }] : []),
       ]}
       bulkActions={[
         ...(exportOffered(view) && exportsSelection(model) ? [{ label: (count: number) => text('exportCount', count), onRun: (rows: GridRow[]) => exportFlow.open(rows) }] : []),
+        ...named.bulkActions,
         ...(can(permissions, 'delete') ? [{ label: (count: number) => text('deleteCount', count), destructive: true, onRun: (rows: GridRow[]) => remove.startBulk(rows.map(target)) }] : []),
       ]}
       rowNumbers={false}
@@ -286,6 +292,7 @@ const LoadedList = ({ model, address, scope, heading }: LoadedListProps) => {
     <div className="flex min-h-0 flex-1 flex-col gap-3 px-5 py-4">
       {remove.dialogs}
       {exportFlow.dialogs}
+      {named.prompt}
       <PageHeader
         title={heading?.title ?? plural}
         subtitle={heading ? heading.subtitle : view?.help}

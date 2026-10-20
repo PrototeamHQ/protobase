@@ -3,7 +3,8 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { cn } from '../lib/cn'
 import type { ColumnSpec, GridRow } from './column-spec'
 import { buildColumns, features } from './columns'
-import { GridFooter, type BulkAction } from './grid-footer'
+import { offeredBulkActions, type BulkAction } from './bulk-actions'
+import { GridFooter } from './grid-footer'
 import { RowMenu, availableActions, type RowAction } from './row-menu'
 import { compactGutter, desktopMinScale, gridMinWidth, gutterWidthFor, rowMenuWidth } from './grid-template'
 import { useHorizontalScroll } from './use-horizontal-scroll'
@@ -239,11 +240,11 @@ export const DataGrid = ({ columns: given, source, naturalSort, initialScrollInd
           total={total}
           className={own ? undefined : 'sticky bottom-[var(--pb-sticky-bottom,0px)] z-20'}
           selectedCount={selectedCount}
-          bulkActions={bulkActions?.map((action) => ({
-            label: action.label(selectedCount),
+          bulkActions={offeredBulkActions(bulkActions ?? [], Object.keys(rowSelection).flatMap((id) => selectedRows.current.get(id) ?? [])).map(({ action, rows, skipped }) => ({
+            label: action.label(rows.length),
             destructive: action.destructive,
             onRun: () => {
-              action.onRun(Object.keys(rowSelection).flatMap((id) => selectedRows.current.get(id) ?? []))
+              action.onRun(rows, skipped)
               setRowSelection({})
               selectedRows.current.clear()
             },
