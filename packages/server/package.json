@@ -35,8 +35,8 @@
     "types": "./dist/index.d.ts"
   },
   "dependencies": {
-    "@better-auth/passkey": "^1.7.7",
-    "@better-auth/sso": "^1.7.7",
+    "@better-auth/passkey": "^1.7.12",
+    "@better-auth/sso": "^1.7.12",
     "@protobase/layout": "workspace:*",
     "@protobase/query": "workspace:*",
     "@protobase/schema": "workspace:*",
@@ -46,7 +46,8 @@
     "@simplewebauthn/server": "^13.3.1",
     "altcha-lib": "^2.6.0",
     "bcryptjs": "^3.0.3",
-    "better-auth": "^1.7.7",
+    "better-auth": "^1.7.12",
+    "better-call": "1.4.4",
     "cron-parser": "^5.10.1",
     "file-type": "^22.1.1",
     "hono": "^4.13.13",
