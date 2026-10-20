@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { isRefusedForStaff, isStaffSession, isStrongSignIn, reasonProblem, staffClaimsRefusal, staffLabel, staffSignInMaxAgeSeconds, type StaffClaims } from './staff-checks'
+import { isOAuthPath, isRefusedForStaff, isStaffSession, isStrongSignIn, reasonProblem, staffClaimsRefusal, staffLabel, staffSignInMaxAgeSeconds, type StaffClaims } from './staff-checks'
 
 const now = 1_800_000_000
 const options = { group: 'protobase-staff-access', acrValues: [], now }
@@ -67,16 +67,26 @@ describe('staffLabel', () => {
 
 describe('isRefusedForStaff', () => {
   it("refuses changes to the person's sign-in and saving the sign-in policy", () => {
-    for (const path of ['/change-password', '/change-email', '/two-factor/disable', '/two-factor/enable', '/passkey/delete-passkey', '/passkey/verify-registration', '/revoke-sessions']) {
+    for (const path of ['/change-password', '/change-email', '/two-factor/disable', '/two-factor/enable', '/passkey/delete-passkey', '/passkey/verify-registration', '/revoke-sessions', '/account/connected-apps/disconnect']) {
       expect(isRefusedForStaff(path, 'POST')).toBe(true)
     }
     expect(isRefusedForStaff('/policy/sign-in', 'POST')).toBe(true)
   })
 
   it('lets reading go through', () => {
-    for (const path of ['/get-session', '/token', '/account/sign-in-methods', '/passkey/list-user-passkeys']) expect(isRefusedForStaff(path, 'GET')).toBe(false)
+    for (const path of ['/get-session', '/token', '/account/sign-in-methods', '/passkey/list-user-passkeys', '/account/connected-apps']) expect(isRefusedForStaff(path, 'GET')).toBe(false)
     expect(isRefusedForStaff('/policy/sign-in', 'GET')).toBe(false)
     expect(isRefusedForStaff('/staff/stop', 'POST')).toBe(false)
+  })
+})
+
+describe('isOAuthPath', () => {
+  it("is every path of the OAuth provider's", () => {
+    for (const path of ['/oauth2/authorize', '/oauth2/continue', '/oauth2/consent', '/oauth2/public-client', '/oauth2/token']) expect(isOAuthPath(path)).toBe(true)
+  })
+
+  it('is no other path', () => {
+    for (const path of ['/token', '/account/connected-apps', '/oauth2', '/sign-in/oauth2']) expect(isOAuthPath(path)).toBe(false)
   })
 })
 

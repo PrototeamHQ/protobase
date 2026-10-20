@@ -86,12 +86,19 @@ const accountChanges = [
   '/organization/leave',
   '/organization/transfer-ownership',
   '/organization/delete',
+  // Which outside apps act as the person is theirs to change; staff may see the list.
+  '/account/connected-apps/disconnect',
 ]
 
 export const staffCannotChange: StaffRefusal = { code: 'STAFF_CANNOT_CHANGE_SIGN_IN', message: "Staff cannot change a person's sign-in or the sign-in policy." }
 
 /** Whether a staff session's request to `path` is refused: changes to the person's sign-in, and saving the sign-in policy. */
 export const isRefusedForStaff = (path: string, method: string) => accountChanges.includes(path) || (path === '/policy/sign-in' && method === 'POST')
+
+export const staffCannotConnect: StaffRefusal = { code: 'STAFF_CANNOT_CONNECT', message: 'Staff cannot allow apps to act for a person.' }
+
+/** Whether `path` is one of the OAuth provider's, through which an outside app (an MCP client) is allowed to act as someone. */
+export const isOAuthPath = (path: string) => path.startsWith('/oauth2/')
 
 /** Whether a Better Auth session is one staff started as someone: the admin plugin's `impersonatedBy` names the staff member. */
 export const isStaffSession = (session: object) => Boolean((session as { impersonatedBy?: unknown }).impersonatedBy)
