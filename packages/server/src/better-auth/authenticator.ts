@@ -1,4 +1,4 @@
-import { jwtAuthenticator } from '../auth/jwt'
+import { jwtAuthenticator, type JwtVerifyOptions } from '../auth/jwt'
 import type { Authenticator, TenantValue } from '../types'
 import { withTrustedApps, type TrustedApp } from './app-tokens'
 import type { AdminAuth } from './create-auth'
@@ -22,6 +22,14 @@ export type BetterAuthAuthenticatorOptions = {
   apps?: TrustedApp[]
 }
 
+/** How the tokens of this Better Auth instance verify: its key set, and its issuer as both issuer and audience. */
+export const betterAuthTokens = (options: Pick<BetterAuthAuthenticatorOptions, 'auth' | 'jwksUrl' | 'issuer' | 'cache'>): JwtVerifyOptions & { issuer: string } => {
+  const issuer = options.issuer ?? options.auth?.issuer
+  if (!issuer) throw new Error('betterAuthAuthenticator needs `issuer` (or an `auth` instance with a baseURL)')
+  if (!options.auth && !options.jwksUrl) throw new Error('betterAuthAuthenticator needs `auth` or `jwksUrl`')
+  return { ...(options.auth ? { keys: cachedKeys(() => options.auth!.api.getJwks(), options.cache) } : { jwksUrl: options.jwksUrl! }), issuer, audience: issuer }
+}
+
 /**
  * Verifies the bearer JWT that Better Auth's jwt plugin issues. `sub` is the user id, the `role` claim (a comma
  * separated string from the admin plugin) becomes `roles`. With organizations, the `org` claim is the tenant and the
@@ -29,14 +37,11 @@ export type BetterAuthAuthenticatorOptions = {
  * role, is left out. With `apps`, the tokens of those apps are admitted too, with the roles each gives its users here.
  */
 export const betterAuthAuthenticator = (options: BetterAuthAuthenticatorOptions): Authenticator => {
-  const issuer = options.issuer ?? options.auth?.issuer
-  if (!issuer) throw new Error('betterAuthAuthenticator needs `issuer` (or an `auth` instance with a baseURL)')
-  if (!options.auth && !options.jwksUrl) throw new Error('betterAuthAuthenticator needs `auth` or `jwksUrl`')
+  const tokens = betterAuthTokens(options)
+  const { issuer } = tokens
   const organizations = options.organizations ?? Boolean(options.auth?.organizations)
   const verify = jwtAuthenticator({
-    ...(options.auth ? { keys: cachedKeys(() => options.auth!.api.getJwks(), options.cache) } : { jwksUrl: options.jwksUrl! }),
-    issuer,
-    audience: issuer,
+    ...tokens,
     rolesClaim: 'role',
     ...(organizations && { tenantClaim: 'org', extraRolesClaim: 'app_roles' }),
     ...(options.tenant !== undefined && { tenant: options.tenant }),

@@ -1,4 +1,4 @@
-import { createRemoteJWKSet, errors, jwtVerify, type JWTVerifyGetKey } from 'jose'
+import { createRemoteJWKSet, errors, jwtVerify, type JWTPayload, type JWTVerifyGetKey } from 'jose'
 import { MissingCredentials, unauthorized } from '../problem'
 import type { Authenticator, TenantValue } from '../types'
 
@@ -29,22 +29,33 @@ const rolesOf = (claim: unknown) => {
   return Array.isArray(claim) ? claim.filter((role): role is string => typeof role === 'string') : []
 }
 
+export type JwtVerifyOptions = Pick<JwtOptions, 'jwksUrl' | 'keys' | 'issuer' | 'audience' | 'algorithms'>
+
+/** Verifies a JWT against a JWKS and returns its claims; a token that does not verify is a 401 problem. */
+export const jwtVerifier = (options: JwtVerifyOptions) => {
+  const keys = options.keys ?? (options.jwksUrl ? createRemoteJWKSet(new URL(options.jwksUrl)) : undefined)
+  if (!keys) throw new Error('jwtAuthenticator needs jwksUrl or keys')
+  return async (token: string): Promise<JWTPayload> => {
+    const verified = await jwtVerify(token, keys, { algorithms: options.algorithms ?? asymmetric, ...(options.issuer && { issuer: options.issuer }), ...(options.audience && { audience: options.audience }) }).catch((error: unknown) => {
+      if (error instanceof errors.JOSEError) throw unauthorized('The bearer token is invalid or expired')
+      throw error
+    })
+    return verified.payload
+  }
+}
+
 /** Verifies `Authorization: Bearer <jwt>` against a JWKS; `sub` is the user id. Without the header, `MissingCredentials`. */
 export const jwtAuthenticator = (options: JwtOptions): Authenticator => {
   const { rolesClaim = 'roles', tenantClaim = 'tenant' } = options
-  const keys = options.keys ?? (options.jwksUrl ? createRemoteJWKSet(new URL(options.jwksUrl)) : undefined)
-  if (!keys) throw new Error('jwtAuthenticator needs jwksUrl or keys')
+  const verify = jwtVerifier(options)
   return async (request) => {
     const header = request.headers.get('authorization')
     if (header === null) throw new MissingCredentials('Send a bearer token in the Authorization header')
     const [scheme, token] = header.split(' ')
     if (scheme?.toLowerCase() !== 'bearer' || !token) throw unauthorized('Send a bearer token in the Authorization header')
-    const verified = await jwtVerify(token, keys, { algorithms: options.algorithms ?? asymmetric, ...(options.issuer && { issuer: options.issuer }), ...(options.audience && { audience: options.audience }) }).catch((error: unknown) => {
-      if (error instanceof errors.JOSEError) throw unauthorized('The bearer token is invalid or expired')
-      throw error
-    })
-    const { sub, [tenantClaim]: tenant, [rolesClaim]: roles } = verified.payload
-    const extraRoles = options.extraRolesClaim === undefined ? [] : rolesOf(verified.payload[options.extraRolesClaim])
+    const payload = await verify(token)
+    const { sub, [tenantClaim]: tenant, [rolesClaim]: roles } = payload
+    const extraRoles = options.extraRolesClaim === undefined ? [] : rolesOf(payload[options.extraRolesClaim])
     if (!sub) throw unauthorized('The bearer token has no subject')
     const claimed = typeof tenant === 'string' || typeof tenant === 'number' ? tenant : undefined
     const tenantValue = options.tenant === undefined ? claimed : typeof options.tenant === 'function' ? await options.tenant() : options.tenant
