@@ -19,7 +19,7 @@ supabase
 
 The keys are `options.apiKeys` of `createAdmin`, `{ publishable_key, secret_key }`, or else `PROTOBASE_PUBLISHABLE_KEY` and `PROTOBASE_SECRET_KEY`. The socket sends the key in its URL and is refused with `401` without a key of the app. Each channel joins with the client's access token: a signed-in user's token makes it `authenticated` with the token's claims, the publishable key alone `anon`, the secret key alone the app's own role. A token the client refreshes on an open socket replaces the channel's; a channel whose token expires is closed with a `Token has expired` system message, as on Supabase.
 
-The server serves the socket when the host gives `createAdmin` its WebSocket upgrade: `protobase serve` does, on Bun and Node. `protobase dev` does not serve it yet.
+The server serves the socket when the host gives `createAdmin` its WebSocket upgrade: `protobase serve` does, on Bun and Node, and so does `protobase dev`, beside Vite's hot reload socket. An edit to the project under `protobase dev` closes the open sockets with code `1012`, and supabase-js reconnects to the rebuilt API.
 
 ## Which tables
 

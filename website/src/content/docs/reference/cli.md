@@ -100,7 +100,7 @@ Exit code is 1 when there are errors. Run it after the project's migrations and 
 protobase dev [--port 5173] [--env DATABASE_URL] [--cache-dir <dir>] [--allowed-hosts <hosts>] [--extend <dir>]   # run inside a project, e.g. bun run --cwd examples/erp dev
 ```
 
-One process, one port: Vite serves the admin app from `@protobase/ui`'s `src/app/` (`dist/app/` when installed; `index.html` and `main.tsx`, or `main.js`; the command fails with a clear message when they are missing) and `@hono/vite-dev-server` mounts the Hono app from `createAdmin` under `/api`. Open `http://localhost:<port>`; the API reference is at `/api/docs`.
+One process, one port: Vite serves the admin app from `@protobase/ui`'s `src/app/` (`dist/app/` when installed; `index.html` and `main.tsx`, or `main.js`; the command fails with a clear message when they are missing) and `@hono/vite-dev-server` mounts the Hono app from `createAdmin` under `/api`, with supabase-js's `/auth/v1` and `/realtime/v1`. Open `http://localhost:<port>`; the API reference is at `/api/docs`.
 
 - **Database:** the URL comes from the variable named by `--env`, read from the environment or the nearest `.env` at or above the project. The connection is checked before anything starts; if it fails, the command names host, port and reason (and points to its `db:up` script when it has one). The project needs `pg` installed, because the API connects with Kysely over the project's own `pg`.
 - **Cache:** Vite's dependency cache is `node_modules/.vite`; two dev servers sharing it can disturb each other's optimisation, so pass `--cache-dir` for a second one (the integration test does).
