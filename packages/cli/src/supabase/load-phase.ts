@@ -49,8 +49,9 @@ const doctorOutput = async (url: string, configDir: string) => {
 /**
  * The import's second run, once the schema migration is applied: loads the data dump, with the replay of Vault's
  * secrets, pgmq's queues and pg_cron's jobs when the dump made one, in one transaction, deletes both, scaffolds the
- * config from the imported tables of the app's schemas, leaving the project's own alone, writes the pg_cron jobs it
- * converts as the project's recurring jobs, and writes the report.
+ * config from the imported tables of the app's schemas, leaving the project's own alone and making those of the
+ * `supabase_realtime` publication live, writes the pg_cron jobs it converts as the project's recurring jobs, and writes
+ * the report.
  */
 export const runLoadPhase = async (options: LoadOptions, out: (text: string) => void) => {
   const state = importState(options.projectDir)
@@ -69,12 +70,15 @@ export const runLoadPhase = async (options: LoadOptions, out: (text: string) => 
   const schemas = manifest.schemas.filter((schema) => !platformSchemas.includes(schema))
   const sql = connect(options.targetUrl)
   const excludes = await otherTables(sql, schemas, manifest.tables).finally(() => sql.end())
+  const realtime = manifest.realtimeTables.map((table) => `${table.schema}.${table.table}`)
+  const live: string[] = []
   for (const schema of schemas) {
-    await runScaffold({ url: options.targetUrl, target: schema, configDir: options.configDir, yes: true, dryRun: false, ui: [], excludes }, out)
+    const plan = await runScaffold({ url: options.targetUrl, target: schema, configDir: options.configDir, yes: true, dryRun: false, ui: [], excludes, live: realtime }, out)
+    live.push(...plan.live)
   }
   const cron = convertedCronJobs(manifest.cronJobs)
   const jobsWired = await writeCronJobs(options.projectDir, cron)
   if (cron.length > 0) out(`wrote ${cron.length} of pg_cron's jobs as recurring jobs in jobs/\n`)
-  await writeFile(state.report, importReport(manifest, await doctorOutput(options.targetUrl, options.configDir), jobsWired), { mode: 0o600 })
+  await writeFile(state.report, importReport(manifest, await doctorOutput(options.targetUrl, options.configDir), jobsWired, live), { mode: 0o600 })
   out(`wrote ${path.relative(options.projectDir, state.report)}: what the import could not carry over\n`)
 }

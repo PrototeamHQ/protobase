@@ -40,6 +40,21 @@ const recurringJobs = (manifest: ImportManifest, jobsWired: boolean) => {
   ]
 }
 
+const tableName = (table: { schema: string; table: string }) => `${table.schema}.${table.table}`
+
+/** The tables of the `supabase_realtime` publication the scaffold gave `.live()`, or nothing when it gave none. */
+const liveTables = (live: string[]) => {
+  if (live.length === 0) return []
+  return [
+    `## Live tables
+
+The \`supabase_realtime\` publication sent these tables' changes to Realtime clients, so the scaffold gave each resource \`.live()\`. \`/realtime/v1\` sends their \`postgres_changes\` once the database has the jobs schema, their capture triggers and the notices table: run \`protobase migration\` and apply it.
+
+${live.map((table) => `- ${table}`).join('\n')}
+`,
+  ]
+}
+
 /** What the import made again through an extension's own API, or kept since the project's database runs the extension. */
 const carried = (manifest: ImportManifest) => [
   ...cronCarried(manifest.cronJobs ?? []),
@@ -63,9 +78,10 @@ const conversions = (manifest: ImportManifest) => [
 /**
  * The import's report: what it loaded, and what it could not carry over, for a person or their AI assistant to finish.
  * `doctor` is `protobase doctor`'s output on the scaffolded config, or `undefined` when there was no config to check;
- * `jobsWired` whether protobase.config.ts passes the pg_cron jobs the load wrote as its `jobs`.
+ * `jobsWired` whether protobase.config.ts passes the pg_cron jobs the load wrote as its `jobs`; `live` the tables, as
+ * `schema.table`, whose resources the scaffold gave `.live()`.
  */
-export const importReport = (manifest: ImportManifest, doctor: string | undefined, jobsWired: boolean) =>
+export const importReport = (manifest: ImportManifest, doctor: string | undefined, jobsWired: boolean, live: string[]) =>
   [
     '# Supabase import\n',
     `Schemas ${manifest.schemas.join(', ')}, restored by the migration \`${manifest.migration}\`, and their data, loaded in one transaction.\n`,
@@ -81,10 +97,11 @@ export const importReport = (manifest: ImportManifest, doctor: string | undefine
     ),
     ...recurringJobs(manifest, jobsWired),
     section('Cron jobs', 'These pg_cron jobs did not come over, each for the reason it gives. Make each a Protobase recurring job, or schedule it where the database has pg_cron.', cronLeft(manifest.cronJobs)),
+    ...liveTables(live),
     section(
       'Realtime tables',
-      'The `supabase_realtime` publication sends these tables\' changes to Realtime clients. Give each the live updates the app needs.',
-      manifest.realtimeTables.map((table) => `${table.schema}.${table.table}`),
+      "The `supabase_realtime` publication sends these tables' changes to Realtime clients, but the scaffold made no resource of them, such as for a table without a primary key or one in auth or storage, so `/realtime/v1` refuses them. Give each a resource with `.live()` where the app listens to its changes.",
+      manifest.realtimeTables.map(tableName).filter((table) => !live.includes(table)),
     ),
     section(
       'Vault secrets',

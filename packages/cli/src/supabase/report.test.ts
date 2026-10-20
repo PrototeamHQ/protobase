@@ -52,8 +52,18 @@ const withExtensions: ImportManifest = {
 }
 
 describe('importReport', () => {
+  it('lists the Realtime tables the scaffold made live apart from those left for a person', () => {
+    const realtime = { ...manifest, realtimeTables: [{ schema: 'public', table: 'logs' }, { schema: 'public', table: 'todos' }] }
+    const report = importReport(realtime, undefined, true, ['public.todos'])
+    expect(report).toContain("## Live tables\n\nThe `supabase_realtime` publication sent these tables' changes")
+    expect(report).toContain('run `protobase migration` and apply it.\n\n- public.todos\n')
+    expect(report).toMatch(/## Realtime tables\n\n[^\n]+\n\n- public\.logs\n\n/)
+    expect(importReport(manifest, undefined, true, [])).not.toContain('## Live tables')
+    expect(importReport(manifest, undefined, true, ['public.todos'])).toContain('## Realtime tables\n\nNone.')
+  })
+
   it('lists the rows loaded and what needs a person, with the size against the Starter plan', () => {
-    const report = importReport(manifest, 'Checked 1 resources: 0 errors, 0 warnings.\n', true)
+    const report = importReport(manifest, 'Checked 1 resources: 0 errors, 0 warnings.\n', true, [])
     expect(report).toContain('The imported tables take 600.0 MB in the source database, more than the 500.0 MB of the Starter plan: pick a larger plan.')
     expect(report).toContain('The migration leaves out 1 statement of the dump')
     expect(report).toContain('| auth.users | 2 |\n| public.todos | 3 |')
@@ -69,7 +79,7 @@ describe('importReport', () => {
   })
 
   it('lists what the load made again, leaving for a person only what the database cannot run', () => {
-    const report = importReport(withExtensions, undefined, true)
+    const report = importReport(withExtensions, undefined, true, [])
     expect(report).toContain('- pg_cron job purge, `0 3 * * *`\n- pg_cron job unnamed, `0 3 * * *`, inactive\n- Vault secret stripe_key: Stripe key\n- pgmq queue emails, with 2 messages\n- HTTP trigger on_done on public.todos, calling public.notify_done\n')
     expect(report).toContain('## Vault secrets\n\nNone.')
     expect(report).toContain('## pgmq queues\n\npgmq owns')
@@ -84,12 +94,12 @@ describe('importReport', () => {
   })
 
   it('says when there was no config for doctor to check', () => {
-    expect(importReport({ ...manifest, bytes: 1024 * 1024 }, undefined, true)).toContain('within the 500.0 MB of the Starter plan')
-    expect(importReport(manifest, undefined, true)).toContain('No resources were scaffolded')
+    expect(importReport({ ...manifest, bytes: 1024 * 1024 }, undefined, true, [])).toContain('within the 500.0 MB of the Starter plan')
+    expect(importReport(manifest, undefined, true, [])).toContain('No resources were scaffolded')
   })
 
   it("says to add the jobs to a config with jobs of its own, and that the role could not read pg_cron's", () => {
-    expect(importReport(manifest, undefined, false)).toContain('`protobase.config.ts` has a `jobs` of its own: add the exports of `jobs/index.ts` to it.')
-    expect(importReport({ ...manifest, cronJobs: undefined }, undefined, true)).toContain('## Cron jobs\n\nThe importing role could not read them')
+    expect(importReport(manifest, undefined, false, [])).toContain('`protobase.config.ts` has a `jobs` of its own: add the exports of `jobs/index.ts` to it.')
+    expect(importReport({ ...manifest, cronJobs: undefined }, undefined, true, [])).toContain('## Cron jobs\n\nThe importing role could not read them')
   })
 })
