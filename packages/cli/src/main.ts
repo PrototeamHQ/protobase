@@ -24,6 +24,7 @@ import { registerOrganizations } from './organizations/register'
 import { registerFiles } from './files/register'
 import { registerMigration } from './migration/register'
 import { registerSkill } from './skill/register'
+import { registerImport } from './supabase/register'
 import { registerToken, registerUsers } from './users/register'
 import type { UiSection } from './scaffold/ui-file'
 
@@ -187,6 +188,7 @@ registerAuth(program)
 registerMigration(program)
 registerFiles(program)
 registerSkill(program)
+registerImport(program)
 
 // Central error handler: commands throw, the user sees one line.
 export const run = (argv: string[]) =>

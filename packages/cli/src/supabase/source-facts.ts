@@ -1,0 +1,111 @@
+import type { Sql } from '../db/connect'
+import type { SourceExtension } from './extensions'
+import type { DumpedTable } from './load-script'
+
+/**
+ * Schemas of a Supabase database that belong to the platform rather than the app: its services' own (Realtime, Vault,
+ * GraphQL, webhooks, migrations, the pooler) and those of its extensions. auth and storage are the platform's too, but
+ * the app's tables point at them and its triggers and policies live in them, so the import carries them over.
+ */
+const platformSchemas = ['extensions', 'graphql', 'graphql_public', 'realtime', '_realtime', 'vault', 'pgsodium', 'pgsodium_masks', 'supabase_functions', 'supabase_migrations', 'cron', 'net', 'pgbouncer', '_analytics', 'pgtle']
+
+/** The tables in auth and storage that record the platform's own migrations, which Protobase never runs. */
+export const platformMigrationTables = ['auth.schema_migrations', 'storage.migrations']
+
+/** What marks a database as Supabase's: its auth, storage and migrations schemas and its roles. */
+export const databaseMarkers = async (sql: Sql) => {
+  const [row] = await sql<{ schemas: string[]; roles: string[] }[]>`
+    select
+      array(select nspname::text from pg_namespace where nspname in ('auth', 'storage', 'supabase_migrations') order by 1) as schemas,
+      array(select rolname::text from pg_roles where rolname in ('anon', 'authenticated', 'service_role', 'supabase_admin') order by 1) as roles
+  `
+  return row!
+}
+
+/** auth, storage and every schema the app made, which the dumps take. */
+export const appSchemas = async (sql: Sql) => {
+  const rows = await sql<{ name: string }[]>`
+    select n.nspname as name from pg_namespace n
+    where not starts_with(n.nspname, 'pg_') and n.nspname <> 'information_schema' and n.nspname <> all(${platformSchemas})
+      and not exists (select 1 from pg_depend d where d.classid = 'pg_namespace'::regclass and d.objid = n.oid and d.deptype = 'e')
+    order by 1
+  `
+  return rows.map((row) => row.name)
+}
+
+/** The tables of `schemas` the data dump fills, each with its rows counted now. */
+export const dumpedTables = async (sql: Sql, schemas: string[]): Promise<DumpedTable[]> => {
+  const tables = await sql<{ schema: string; table: string }[]>`
+    select n.nspname as schema, c.relname as table from pg_class c join pg_namespace n on n.oid = c.relnamespace
+    where c.relkind = 'r' and n.nspname = any(${schemas}) and n.nspname || '.' || c.relname <> all(${platformMigrationTables})
+      and not exists (select 1 from pg_depend d where d.classid = 'pg_class'::regclass and d.objid = c.oid and d.deptype = 'e')
+    order by 1, 2
+  `
+  const counted: DumpedTable[] = []
+  for (const table of tables) {
+    const [row] = await sql<{ rows: string }[]>`select count(*) as rows from ${sql(table.schema)}.${sql(table.table)}`
+    counted.push({ ...table, rows: Number(row!.rows) })
+  }
+  return counted
+}
+
+/** The size on disk of `tables`, with their indexes and TOAST, in bytes. */
+export const tablesSize = async (sql: Sql, tables: DumpedTable[]) => {
+  const names = tables.map((table) => `${table.schema}.${table.table}`)
+  const [row] = await sql<{ bytes: string | null }[]>`
+    select sum(pg_total_relation_size(c.oid)) as bytes from pg_class c join pg_namespace n on n.oid = c.relnamespace
+    where n.nspname || '.' || c.relname = any(${names})
+  `
+  return Number(row!.bytes ?? 0)
+}
+
+export const extensions = (sql: Sql) => sql<SourceExtension[]>`
+  select e.extname as name, n.nspname as schema, coalesce(v.trusted, false) as trusted
+  from pg_extension e join pg_namespace n on n.oid = e.extnamespace
+  left join pg_available_extension_versions v on v.name = e.extname and v.version = e.extversion
+  order by 1
+`
+
+/** Whether the importing role may read `table`, which exists only when its feature is on. */
+const readable = async (sql: Sql, table: string) => {
+  const [row] = await sql<{ readable: boolean }[]>`select to_regclass(${table}) is not null and has_table_privilege(${table}, 'select') as readable`
+  return row!.readable
+}
+
+export type CronJob = { name: string | null; schedule: string; command: string }
+
+/** pg_cron's jobs, which the cron schema holds and the dump leaves out; `undefined` when the role may not read them. */
+export const cronJobs = async (sql: Sql) => {
+  const [row] = await sql<{ exists: boolean }[]>`select to_regclass('cron.job') is not null as exists`
+  if (!row!.exists) return []
+  if (!(await readable(sql, 'cron.job'))) return undefined
+  return sql<CronJob[]>`select jobname as name, schedule, command from cron.job order by jobid`
+}
+
+/** Vault's secrets by name; their values stay in the source, since a person enters them again. */
+export const vaultSecrets = async (sql: Sql) => {
+  const [row] = await sql<{ exists: boolean }[]>`select to_regclass('vault.secrets') is not null as exists`
+  if (!row!.exists) return []
+  if (!(await readable(sql, 'vault.secrets'))) return undefined
+  return sql<{ name: string | null; description: string }[]>`select name, description from vault.secrets order by name`
+}
+
+export const realtimeTables = (sql: Sql) => sql<{ schema: string; table: string }[]>`
+  select schemaname as schema, tablename as table from pg_publication_tables where pubname = 'supabase_realtime' order by 1, 2
+`
+
+export type HttpTrigger = { schema: string; table: string; trigger: string; function: string }
+
+// A parameter, since a template literal would read the backslashes itself.
+const httpCall = String.raw`\mnet\.http_(get|post|delete)\M`
+
+/** Triggers of `schemas` that call out over HTTP: database webhooks, and functions calling pg_net's `net.http_*`. */
+export const httpTriggers = (sql: Sql, schemas: string[]) => sql<HttpTrigger[]>`
+  select tn.nspname as schema, c.relname as table, t.tgname as trigger, pn.nspname || '.' || p.proname as function
+  from pg_trigger t
+  join pg_class c on c.oid = t.tgrelid join pg_namespace tn on tn.oid = c.relnamespace
+  join pg_proc p on p.oid = t.tgfoid join pg_namespace pn on pn.oid = p.pronamespace
+  where not t.tgisinternal and tn.nspname = any(${schemas})
+    and (pn.nspname = 'supabase_functions' or p.prosrc ~ ${httpCall})
+  order by 1, 2, 3
+`
