@@ -24,8 +24,19 @@ describe('parseSelect', () => {
     expect(() => parseSelect('id::text::int')).toThrow()
   })
 
-  it('refuses embedding and aggregates, which come later', () => {
-    expect(() => parseSelect('id,profiles(username)')).toThrow(/embeds a resource or calls an aggregate/)
-    expect(() => parseSelect('count()')).toThrow(/embeds a resource or calls an aggregate/)
+  it('reads embeds with their alias, hint, join and items, nested ones too', () => {
+    expect(parseSelect('id,owner:profiles!todos_user_id_fkey!inner(username),comments(body,author:profiles(*)),attachments()')).toEqual([
+      { kind: 'field', field: { column: 'id', json: [] } },
+      { kind: 'embed', name: 'profiles', alias: 'owner', hint: 'todos_user_id_fkey', inner: true, select: [{ kind: 'field', field: { column: 'username', json: [] } }] },
+      { kind: 'embed', name: 'comments', inner: false, select: [{ kind: 'field', field: { column: 'body', json: [] } }, { kind: 'embed', name: 'profiles', alias: 'author', inner: false, select: [{ kind: 'all' }] }] },
+      { kind: 'embed', name: 'attachments', inner: false, select: [] },
+    ])
+    expect(parseSelect('profiles!left!user_id(id)')).toEqual([{ kind: 'embed', name: 'profiles', hint: 'user_id', inner: false, select: [{ kind: 'field', field: { column: 'id', json: [] } }] }])
+  })
+
+  it('refuses spreads and aggregates, which come later', () => {
+    expect(() => parseSelect('id,...profiles(username)')).toThrow(/spreads a resource or calls an aggregate/)
+    expect(() => parseSelect('count()')).toThrow(/spreads a resource or calls an aggregate/)
+    expect(() => parseSelect('priority.sum()')).toThrow(/spreads a resource or calls an aggregate/)
   })
 })

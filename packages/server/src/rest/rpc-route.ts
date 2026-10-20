@@ -6,6 +6,7 @@ import { parseQuery } from './parse-query'
 import { readRows } from './read-rows'
 import { jsonType, onlyElement, pageResponse, wantsObject } from './respond'
 import { asCaller, queryParams, readBody, type RestDeps, type RestEnv } from './rest-context'
+import { restError } from './rest-error'
 
 const reserved = new Set(['select', 'order', 'limit', 'offset', 'on_conflict', 'columns'])
 
@@ -32,15 +33,19 @@ const call = async (deps: RestDeps, c: Context<RestEnv>) => {
     const args = get ? Object.fromEntries(params.filter(([key]) => given.includes(key))) : body
     const source = callSource(chosen, args)
     const query = parseQuery(params, c.req.header('range') ?? null, new Set(given))
+    const shape = query.select.map((item) => {
+      if (item.kind === 'embed') throw restError(400, 'PGRST100', `"${item.name}" embeds a resource in a function's rows, which /rest/v1 does not support yet`)
+      return item
+    })
     if (chosen.info.returns === 'void') {
       await sql`select 1 from ${source.from}`.execute(trx)
       return new Response(null, { status: 204, headers: { 'content-range': '0-0/*' } })
     }
     if (!chosen.info.set) {
-      const page = await readRows(trx, source, query)
+      const page = await readRows(trx, source, shape, query)
       return new Response(onlyElement(page.body), { status: 200, headers: { 'content-range': '0-0/*', 'content-type': jsonType } })
     }
-    return pageResponse(await readRows(trx, source, query, prefer.count), query.range.offset, object)
+    return pageResponse(await readRows(trx, source, shape, query, prefer.count), query.range.offset, object)
   })
 }
 

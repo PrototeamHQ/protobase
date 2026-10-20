@@ -1,6 +1,7 @@
 import { Hono } from 'hono'
 import type { Caller } from '../api-keys/resolve-caller'
 import { HttpProblem } from '../problem'
+import { foreignKeyCache } from './foreign-keys'
 import { errorResponse } from './respond'
 import type { RestDeps, RestEnv } from './rest-context'
 import { restError, restErrorOf } from './rest-error'
@@ -37,7 +38,7 @@ export const restRoutes = ({ deps, caller, report }: RestRoutesInput) => {
   })
   // Before the tables, so a table may not take the name `rpc`, as on PostgREST.
   app.route('/', rpcRoute(deps))
-  app.route('/', tableRoutes(deps))
+  app.route('/', tableRoutes(deps, foreignKeyCache(deps.db)))
   app.notFound(() => errorResponse(restError(404, 'PGRST125', 'Invalid path specified in request URL')))
   return app
 }

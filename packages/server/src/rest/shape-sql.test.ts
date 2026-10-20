@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import { parseOrder } from './parse-order'
-import { parseSelect } from './parse-select'
+import { parseSelect, type ColumnItem } from './parse-select'
 import { orderSql, rangeSql, selectSql } from './shape-sql'
 import { compiled } from '../../../../test-support/compile-sql'
 
 describe('selectSql', () => {
   it('names each field by its alias, its JSON path\'s last key or its column, and casts it', () => {
-    expect(compiled(selectSql('todos', parseSelect('*,key:id,priority::text,meta->>cost')))).toEqual({
+    expect(compiled(selectSql('todos', parseSelect('*,key:id,priority::text,meta->>cost') as ColumnItem[]))).toEqual({
       sql: '"todos".*, "todos"."id" as "key", cast("todos"."priority" as text) as "priority", ("todos"."meta"->>$1::text) as "cost"',
       parameters: ['cost'],
     })

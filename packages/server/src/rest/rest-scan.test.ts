@@ -48,6 +48,12 @@ describe('uncoveredReads', () => {
     expect(uncovered([['or', '(id.eq.1,and(notes.eq.x,done.is.true))']])).toEqual(['filter notes equality', 'filter done btree'])
   })
 
+  it('needs an index on the columns an embed joins on, which pin the later keys', () => {
+    expect(uncoveredReads(todos, [], parseOrder('id'), ['user_id']).map((read) => read.use)).toEqual([])
+    expect(uncoveredReads(todos, [], [], ['notes'])).toEqual([{ field: { column: 'notes', json: [] }, need: 'equality', use: 'join' }])
+    expect(scanRefusal({ name: 'todos' }, uncoveredReads(todos, [], [], ['notes'])[0]!).body.message).toBe('Embedding through "notes" needs an index that serves it')
+  })
+
   it('judges nothing of a view or a foreign table', () => {
     expect(uncoveredReads({ kind: 'other', indexes: [] }, [parseFilter('notes', 'eq.x')], [])).toEqual([])
   })

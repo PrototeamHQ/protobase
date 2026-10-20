@@ -1,7 +1,7 @@
 import { isDatabaseError } from '../error-handler'
 
-/** An error body as PostgREST sends it, which supabase-js hands to the app as `error`. */
-export type RestErrorBody = { code: string; details: string | null; hint: string | null; message: string }
+/** An error body as PostgREST sends it, which supabase-js hands to the app as `error`; PGRST201 lists its details. */
+export type RestErrorBody = { code: string; details: string | Record<string, string>[] | null; hint: string | null; message: string }
 
 /** A `/rest/v1` error: its status, the body, and headers such as `Content-Range`. Thrown anywhere below the route. */
 export class RestError extends Error {
@@ -18,7 +18,7 @@ export class RestError extends Error {
   }
 }
 
-export const restError = (status: number, code: string, message: string, details: string | null = null, hint: string | null = null) =>
+export const restError = (status: number, code: string, message: string, details: RestErrorBody['details'] = null, hint: string | null = null) =>
   new RestError(status, { code, details, hint, message })
 
 /** PGRST100: a query parameter that does not parse. */

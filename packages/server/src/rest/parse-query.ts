@@ -1,8 +1,9 @@
+import { parseEmbedParams, splitEmbedKey, type EmbedParams } from './embed-params'
 import { parseFilter, type Filter } from './parse-filter'
 import { parseOrder, type OrderTerm } from './parse-order'
 import { parseSelect, type SelectItem } from './parse-select'
-import { parseError } from './rest-error'
 import { splitList, unquote } from './split-list'
+import { wholeNumber } from './whole-number'
 
 /** The rows a request asks for, as its query string and `Range` header say. */
 export type RestQuery = {
@@ -13,16 +14,13 @@ export type RestQuery = {
   range: { offset: number; limit?: number }
   /** The columns an upsert's conflict is on (`on_conflict`). */
   onConflict?: string[]
+  /** The filters, order and range of embedded rows, by the embed's path (`comments`, `comments.author`). */
+  embedded: Map<string, EmbedParams>
   /** The columns an insert writes (`columns`), which supabase-js sends with several rows. */
   columns?: string[]
 }
 
 const reserved = new Set(['select', 'order', 'limit', 'offset', 'on_conflict', 'columns'])
-
-const count = (name: string, text: string) => {
-  if (!/^\d+$/.test(text)) throw parseError(`"failed to parse ${name} (${text})"`, `${name} takes a whole number`)
-  return Number(text)
-}
 
 const names = (text: string) => splitList(text).map((name) => unquote(name.trim()))
 
@@ -42,7 +40,8 @@ const intersect = (a: RestQuery['range'], b: RestQuery['range']): RestQuery['ran
 
 /**
  * Parses a request's query parameters. The ones in `args` are a function's arguments, not filters. `select`, `order`,
- * `limit`, `offset`, `on_conflict` and `columns` count once, the first time; every other parameter is a filter.
+ * `limit`, `offset`, `on_conflict` and `columns` count once, the first time; a parameter under an embed's path, such
+ * as `comments.likes`, is the embed's (see `parseEmbedParams`); every other parameter is a filter.
  */
 export const parseQuery = (params: [string, string][], rangeText: string | null = null, args: ReadonlySet<string> = new Set()): RestQuery => {
   const first = (name: string) => params.find(([key]) => key === name)?.[1]
@@ -51,10 +50,13 @@ export const parseQuery = (params: [string, string][], rangeText: string | null 
   const order = first('order')
   const onConflict = first('on_conflict')
   const columns = first('columns')
-  const fromParams = { offset: offset === undefined ? 0 : count('offset', offset), ...(limit !== undefined && { limit: count('limit', limit) }) }
+  const select = parseSelect(first('select'))
+  const own = params.filter(([key]) => !reserved.has(key) && !args.has(key))
+  const fromParams = { offset: offset === undefined ? 0 : wholeNumber('offset', offset), ...(limit !== undefined && { limit: wholeNumber('limit', limit) }) }
   return {
-    select: parseSelect(first('select')),
-    filters: params.filter(([key]) => !reserved.has(key) && !args.has(key)).map(([key, value]) => parseFilter(key, value)),
+    select,
+    filters: own.filter(([key]) => splitEmbedKey(key).path === undefined).map(([key, value]) => parseFilter(key, value)),
+    embedded: parseEmbedParams(own, select),
     order: order === undefined ? [] : parseOrder(order),
     range: intersect(fromParams, rangeHeader(rangeText)),
     ...(onConflict !== undefined && { onConflict: names(onConflict) }),

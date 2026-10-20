@@ -2,18 +2,20 @@ import { sql } from 'kysely'
 import { pathName } from './field-path'
 import { fieldSql } from './filter-sql'
 import type { OrderTerm } from './parse-order'
-import type { SelectItem } from './parse-select'
+import { lateralName, type ShapeItem } from './embed-shape'
 
 /**
- * The select list of `select` on the rows of `source`: `*` its columns, a field under its alias, its JSON path's last
- * key or its column, cast when asked. Cast types are checked to be bare type names when parsed.
+ * The select list of a shape on the rows of `source`: `*` its columns, a field under its alias, its JSON path's last
+ * key or its column, cast when asked, and an embed's JSON from its lateral subquery (see `joinsSql`) under its key; an
+ * embed of nothing shows nothing. Cast types are checked to be bare type names when parsed.
  */
-export const selectSql = (source: string, items: readonly SelectItem[]) =>
-  sql.join(items.map((item) => {
-    if (item.kind === 'all') return sql`${sql.id(source)}.*`
+export const selectSql = (source: string, items: readonly ShapeItem[]) =>
+  sql.join(items.flatMap((item) => {
+    if (item.kind === 'all') return [sql`${sql.id(source)}.*`]
+    if (item.kind === 'embed') return item.shown ? [sql`${sql.id(lateralName(item))}.body as ${sql.id(item.key)}`] : []
     const value = fieldSql(source, item.field)
     const cast = item.cast === undefined ? value : sql`cast(${value} as ${sql.raw(item.cast)})`
-    return sql`${cast} as ${sql.id(item.alias ?? pathName(item.field))}`
+    return [sql`${cast} as ${sql.id(item.alias ?? pathName(item.field))}`]
   }))
 
 /** ` order by ...` for the terms; nothing without any. */

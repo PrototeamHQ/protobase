@@ -11,7 +11,7 @@ import { restError } from './rest-error'
  * the range operators.
  */
 type Need = 'btree' | 'equality' | 'trigram' | 'gin' | 'containment' | 'gist'
-type Read = { field: FieldPath; need: Need; use: 'filter' | 'sort' }
+type Read = { field: FieldPath; need: Need; use: 'filter' | 'sort' | 'join' }
 
 const needs: Record<Operator, Need> = {
   eq: 'equality', neq: 'btree', gt: 'btree', gte: 'btree', lt: 'btree', lte: 'btree', in: 'btree', is: 'btree', isdistinct: 'btree',
@@ -75,20 +75,25 @@ const suggestion = (table: string, read: Read) => {
 }
 
 /**
- * The reads of a request no index of the table serves: each filtered field, by the kind of index its operator needs,
- * and the first sort field. A view or a foreign table has no indexes of its own and is not judged.
+ * The reads of a request no index of the table serves: each column an embed joins on, which equals one value per
+ * related row; each filtered field, by the kind of index its operator needs; and the first sort field. A view or a
+ * foreign table has no indexes of its own and is not judged.
  */
-export const uncoveredReads = (table: TableIndexes, filters: readonly Filter[], order: readonly OrderTerm[]) => {
+export const uncoveredReads = (table: TableIndexes, filters: readonly Filter[], order: readonly OrderTerm[], joined: readonly string[] = []) => {
   if (table.kind !== 'table') return []
-  const pinned = new Set(filters.flatMap(pinnedFields))
-  const reads = [...filters.flatMap(filterReads), ...(order[0] ? [{ field: order[0].field, need: 'btree' as const, use: 'sort' as const }] : [])]
+  const pinned = new Set([...joined, ...filters.flatMap(pinnedFields)])
+  const reads: Read[] = [
+    ...joined.map((column) => ({ field: { column, json: [] }, need: 'equality' as const, use: 'join' as const })),
+    ...filters.flatMap(filterReads),
+    ...(order[0] ? [{ field: order[0].field, need: 'btree' as const, use: 'sort' as const }] : []),
+  ]
   return reads.filter((read) => !table.indexes.some((index) => serves(index, read, pinned)))
 }
 
 /** The 400 error of a read no index serves, with the statement that adds one as its hint. */
 export const scanRefusal = (table: { schema?: string; name: string }, read: Read) => {
   const tableName = table.schema ? `${quoted(table.schema)}.${quoted(table.name)}` : quoted(table.name)
-  const what = read.use === 'sort' ? 'Sorting by' : 'Filtering on'
+  const what = read.use === 'sort' ? 'Sorting by' : read.use === 'join' ? 'Embedding through' : 'Filtering on'
   const index = read.need === 'btree' || read.need === 'equality' ? 'an index' : read.need === 'trigram' ? 'a pg_trgm index' : read.need === 'gist' ? 'a GiST index' : 'a GIN index'
   return restError(400, 'expensive-query', `${what} "${pathKey(read.field)}" needs ${index} that serves it`, null, suggestion(tableName, read))
 }

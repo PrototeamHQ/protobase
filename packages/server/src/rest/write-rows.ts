@@ -1,9 +1,10 @@
 import { sql, type RawBuilder } from 'kysely'
 import type { Db } from '@protobase/query'
+import type { ShapeItem } from './embed-shape'
+import { joinsSql } from './embed-sql'
 import { whereSql } from './filter-sql'
 import type { Filter } from './parse-filter'
 import type { Preferences } from './parse-prefer'
-import type { SelectItem } from './parse-select'
 import { selectSql } from './shape-sql'
 
 /** The table written: its qualified name, and the name its rows go by, which fields are qualified with. */
@@ -15,8 +16,8 @@ export type WriteTarget = { table: RawBuilder<unknown>; alias: string }
  */
 export type Written = { body?: string; total: number; inserted?: number }
 
-/** The rows a write returns, when asked for: `select` of them. */
-export type Returning = { select: SelectItem[] } | undefined
+/** The rows a write returns, when asked for: `select` of them, its embeds resolved. */
+export type Returning = { shape: ShapeItem[] } | undefined
 
 // Returning the row asks for SELECT rights, under RLS too, so a write that returns nothing returns `1` alone, as
 // PostgREST does: an insert-only policy then admits it. An upsert returns whether each row was new, as `xmax = 0`.
@@ -29,7 +30,7 @@ const returningSql = (target: WriteTarget, returning: Returning, upsert: boolean
 const run = async (trx: Db, target: WriteTarget, payload: unknown, write: RawBuilder<unknown>, returning: Returning, upsert: boolean): Promise<Written> => {
   const inserted = upsert ? sql`(select count(*) from pgrst_source where pgrst_inserted)` : sql`null::bigint`
   const body = returning
-    ? sql`(select coalesce(json_agg(pgrst_rows), '[]')::text from (select ${selectSql(target.alias, returning.select)} from (select (pgrst_source.pgrst_row).* from pgrst_source) as ${sql.id(target.alias)}) as pgrst_rows)`
+    ? sql`(select coalesce(json_agg(pgrst_rows), '[]')::text from (select ${selectSql(target.alias, returning.shape)} from (select (pgrst_source.pgrst_row).* from pgrst_source) as ${sql.id(target.alias)}${joinsSql(target.alias, returning.shape)}) as pgrst_rows)`
     : sql`null::text`
   const { rows: [result] } = await sql<{ total: string; inserted: string | null; body: string | null }>`
     with pgrst_payload as (select ${JSON.stringify(payload ?? null)}::json as body), pgrst_source as (${write}${returningSql(target, returning, upsert)})
