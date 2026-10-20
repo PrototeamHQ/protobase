@@ -1,9 +1,10 @@
 import { sql } from 'kysely'
-import { PgBoss } from 'pg-boss'
+import { PgBoss, type Db as BossDb } from 'pg-boss'
 import type { Db } from '@protobase/query'
 import { runInBackground } from '../background-work'
 import { platformMailer } from '../mail/platform-mailer'
 import type { Mailer } from '../mail/smtp-mailer'
+import { busyDatabase } from './busy-database'
 import { clearCurrentJobs, setCurrentJobs, type JobsEnqueuer } from './current'
 import { jobsDatabase } from './database'
 import type { EnqueueOptions, JobDefinition } from './job-types'
@@ -55,9 +56,9 @@ export type JobsRuntime = JobsEnqueuer & {
 // pg-boss with what a Protobase host needs off: it never creates or migrates its schema (the project's migrations do),
 // keeps no instance registry, runs no scheduler (Protobase's own recurring jobs do), rebuilds no index and takes no
 // session state, so it works through a pooler in transaction mode. LISTEN/NOTIFY stays off for the same reason.
-const createBoss = (db: Db, work: boolean) =>
+const createBoss = (db: BossDb, work: boolean) =>
   new PgBoss({
-    db: jobsDatabase(db),
+    db,
     schema: jobsSchema,
     migrate: false,
     createSchema: false,
@@ -76,7 +77,8 @@ const createBoss = (db: Db, work: boolean) =>
  */
 export const startJobs = async ({ db, jobs, work = true, pollSeconds = 2, shutdownSeconds = 30, onError, now = () => new Date(), mailer }: StartJobsOptions): Promise<JobsRuntime> => {
   const mail = mailer === undefined ? platformMailer() : mailer || undefined
-  const boss = createBoss(db, work)
+  const database = busyDatabase(jobsDatabase(db))
+  const boss = createBoss(database.db, work)
   boss.on('error', onError)
   await boss.start()
   const schedules = createSchedules(boss, db, now)
@@ -173,15 +175,23 @@ export const startJobs = async ({ db, jobs, work = true, pollSeconds = 2, shutdo
     return rows[0]!.count
   }
 
+  // Whether this process's workers are between jobs: none holds a job, and pg-boss runs no statement, such as a woken
+  // worker's fetch or a job's completion.
+  const settled = () => database.idle() && boss.getWipData().every((worker) => worker.count === 0)
+
   const drain = async (seconds: number) => {
     if (!work) throw new Error('This process runs no jobs, so it cannot drain them')
     const deadline = Date.now() + seconds * 1000
+    const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
     for (;;) {
       // A worker fetches when woken, rather than at its next poll.
       for (const worker of workers.values()) boss.notifyWorker(worker.id)
       const remaining = await pending()
       if (remaining === 0 || Date.now() >= deadline) return { drained: remaining === 0, remaining, nextDue: await nextDue() }
-      await new Promise((resolve) => setTimeout(resolve, 100))
+      // Counts again once the woken workers ran what they fetched, so the counts follow the jobs rather than how fast
+      // they ran, and no sooner than 100 ms, for jobs another process runs.
+      await sleep(100)
+      while (!settled() && Date.now() < deadline) await sleep(10)
     }
   }
 
