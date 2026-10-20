@@ -1,5 +1,6 @@
 import type { AdminAuth } from './create-auth'
 import { isActiveAdmin } from './last-admin'
+import { revokeMcpGrants } from './mcp/revoke-grants'
 import { ownOrganizationsWithoutMembers } from './organizations/host'
 import { parseRoles } from './parse-roles'
 
@@ -116,7 +117,10 @@ export const setUserRole = async (auth: AdminAuth, input: { email: string; role:
   return { email: user.email, role: wanted.join(',') }
 }
 
-/** Disables or re-enables sign-in. Banning ends the user's sessions; the last active admin cannot be banned. */
+/**
+ * Disables or re-enables sign-in. Banning ends the user's sessions and, with MCP on, disconnects their MCP clients and
+ * forgets them, so re-enabling brings none back: each has to be allowed again. The last active admin cannot be banned.
+ */
 export const setUserBanned = async (auth: AdminAuth, input: { email: string; banned: boolean }) => {
   const user = await findUser(auth, input.email)
   const { internalAdapter } = await auth.$context
@@ -127,4 +131,6 @@ export const setUserBanned = async (auth: AdminAuth, input: { email: string; ban
   await refuseLastAdmin(auth, user, 'ban')
   await internalAdapter.updateUser(user.id, { banned: true, banReason: 'Disabled by an administrator', banExpires: null })
   await internalAdapter.deleteUserSessions(user.id)
+  // Without MCP the OAuth tables may not exist.
+  if (auth.mcp) await revokeMcpGrants((await auth.$context).adapter, user.id)
 }

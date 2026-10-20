@@ -11,6 +11,7 @@ import type { Mailer } from '../mail/smtp-mailer'
 import { readOperatorSettings, resolveOperator, type OperatorProvider, type ResolvedOperator } from './operator-provider'
 import { defaultInvitationSeconds, defaultInvitationUrl } from './invitations/invitation-link-hook'
 import { lastAdminGuardPlugin } from './last-admin-guard'
+import { revokeMcpGrants } from './mcp/revoke-grants'
 import { mcpAuthPlugins, mcpScope, mcpUnusedPaths, resolveMcp, type McpAuthOptions, type ResolvedMcp } from './mcp/mcp-plugins'
 import { lastOrganizationField, sessionOrganizationHooks } from './organizations/session-organization'
 import { organizationPlugin } from './organizations/organization-plugin'
@@ -283,7 +284,7 @@ export const betterAuthOptions = (options: CreateAuthOptions, { origins = [], pa
       disableSignUp: true,
       minPasswordLength: 12,
       ...(passwordHashes.length > 0 && { password: { verify: verifyAcceptedHash(passwordHashes) } }),
-      ...(mail && passwordResetOptions(mail)),
+      ...(mail && passwordResetOptions(mail, mcp ? { onPasswordReset: async ({ user }) => revokeMcpGrants((await context()).adapter, user.id) } : {})),
     },
     ...(options.socialProviders && { socialProviders: options.socialProviders }),
     user: Object.keys(userFields).length > 0 ? { ...userModel(users), additionalFields: userFields } : userModel(users),
