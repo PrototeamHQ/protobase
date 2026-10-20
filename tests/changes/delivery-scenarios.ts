@@ -114,7 +114,8 @@ export const deliveryScenarios = (connect: () => Promise<TestDatabase>) => {
     await until(() => expect(receiver.at('/slack')).toHaveLength(1))
     expect(JSON.parse(receiver.at('/slack')[0]!.body)).toEqual({ text: 'Large order 1: €1500.00' })
     await until(async () => expect(await outboxSize()).toBe(0))
-    expect(logged).toContain(`webhook hook orders.created ${JSON.parse(created!.body).id} delivered (200)`)
+    // Dispatch logs its first tries once the transaction that empties the outbox has committed.
+    await until(() => expect(logged).toContain(`webhook hook orders.created ${JSON.parse(created!.body).id} delivered (200)`))
   })
 
   it('shapes the payload for the roles a subscription delivers as, and skips records they may not read', async () => {
