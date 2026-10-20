@@ -19,6 +19,12 @@ export type AccountSignIn = {
 
 export type Passkey = { id: string; name?: string; createdAt?: string; backedUp: boolean }
 
+/**
+ * An app the person allowed to act as them, such as an MCP client: its client id, the name it gave itself, when they
+ * last allowed it, and as what: each role (its label) and organization (its name) they allowed it with.
+ */
+export type ConnectedApp = { clientId: string; name?: string; allowedAt: string; access: { role: string; organization?: string }[] }
+
 /** A new authenticator app: the `otpauth://` URI it scans, and the backup codes that work once each instead of a code. */
 export type AuthenticatorSetup = { totpURI: string; backupCodes: string[] }
 
@@ -94,6 +100,19 @@ export const accountSecurity = (client: BetterAuthClient) => ({
     const { data, error } = await client.linkSocial({ provider, callbackURL, errorCallbackURL: callbackURL, disableRedirect: true })
     if (error || !data?.url) throw authError(error, 'Could not start linking the account')
     return data.url
+  },
+
+  /** The apps the person allowed to act as them, newest first; on an app with MCP on. */
+  connectedApps: async (): Promise<ConnectedApp[]> => {
+    const { data, error } = await client.$fetch<{ apps: ConnectedApp[] }>('/account/connected-apps')
+    if (error || !data) throw authError(error, 'Could not read your connected apps')
+    return data.apps
+  },
+
+  /** Disconnects an app: it is forgotten, and its access ends within 15 minutes; it has to ask again to come back. */
+  disconnectApp: async (clientId: string) => {
+    const { error } = await client.$fetch('/account/connected-apps/disconnect', { method: 'POST', body: { clientId } })
+    if (error) throw authError(error, 'Could not disconnect the app')
   },
 
   /** New backup codes for the authenticator app; the old ones stop working. */
