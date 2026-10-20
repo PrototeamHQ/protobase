@@ -6,6 +6,7 @@ import { sendAuthEmail, type AuthMail } from '../auth-mail/send-auth-email'
 import { checkNewAccountPassword } from '../new-account-password'
 import { readSignInPolicy } from '../policy-store'
 import { effectiveSignInPolicy } from '../sign-in-policy'
+import { createSignedUpAccount } from './sign-up-account'
 import { consumeSignUpCode, issueSignUpCode, signUpCodeLifetime } from './sign-up-code'
 import { consumeSignUpTicket, issueSignUpTicket } from './sign-up-ticket'
 
@@ -71,13 +72,8 @@ export const signUpPlugin = ({ role, mail }: SignUpPluginOptions) =>
           if ((await adapter.count({ model: 'user' })) === 0) throw noAdminYet()
           checkNewAccountPassword(effectiveSignInPolicy((await readSignInPolicy(adapter)).policy, { mail: true }), password)
           const email = await consumeSignUpTicket(ctx.context, ticket)
-          if (await internalAdapter.findUserByEmail(email)) {
-            throw new APIError('BAD_REQUEST', { code: 'ACCOUNT_EXISTS', message: 'This address has an account already: sign in instead.' })
-          }
-          const user = await internalAdapter.createUser({ email, name, emailVerified: true, role }, { method: 'sign-up' })
-          if (password !== undefined) {
-            await internalAdapter.linkAccount({ userId: user.id, providerId: 'credential', accountId: user.id, password: await ctx.context.password.hash(password) })
-          }
+          const passwordHash = password === undefined ? undefined : await ctx.context.password.hash(password)
+          const user = await createSignedUpAccount(ctx.context, { email, name, role, ...(passwordHash !== undefined && { passwordHash }) })
           const session = await internalAdapter.createSession(user.id, false)
           await setSessionCookie(ctx, { session, user })
           return ctx.json({ user: { id: user.id, email: user.email, name: user.name, role } })
