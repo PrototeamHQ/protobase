@@ -507,6 +507,25 @@ const { token, expiresAt } = await issueToken(auth, { email: 'you@example.com', 
 
 It is signed with the same keys and carries the same claims as a token from `/api/auth/token`, with the role the user last chose, else their first, so the API treats it as any other, and a ban, a role taken away or the user deleted ends it before it expires. Banned and unknown users get an error. There is no HTTP route for this.
 
+## OAuth for MCP clients
+
+With `mcp`, the app is an OAuth provider for MCP clients such as Claude, ChatGPT, Cursor and Claude Code: a person adds the app's MCP address to the client, the client registers itself, the person signs in on the app's own pages and allows it on the connect page, and the client gets tokens that act as that person.
+
+```ts
+createAuth({ ..., mcp: true })
+createAuth({ ..., mcp: { path: '/api/mcp', connectPage: '/-/connect' } })
+```
+
+- `path` is the MCP endpoint's path on the origin of `baseURL`, its OAuth resource (default `/api/mcp`); `connectPage` is the connect page's path (default `/-/connect`, for a UI at the root); `fetchClientMetadata` replaces how a client's metadata document is fetched (default a transport that refuses private and reserved addresses). `auth.mcp` is `{ resource, path, scope }`, for the endpoint.
+- It needs an https `baseURL`, or localhost, and the OAuth tables: run `protobase auth migration` after turning it on (see [migrations](#migrations)). Clients connect through `baseURL`'s origin only, whatever [other origins](#several-origins) the app has. Changing `path` makes every client connect again.
+- Clients find the provider at `/.well-known/oauth-protected-resource` and `/.well-known/oauth-authorization-server`, register at `/api/auth/oauth2/register` (dynamic registration) or are known by an https client id that names their metadata document (CIMD), and are asked for nothing per client. Back-channel logout, client key sets and the client credentials grant are refused, and the provider's client management, userinfo, logout and consent endpoints are closed.
+- The scopes are `mcp` and `offline_access`, which is added when a client leaves it out. Access tokens last 15 minutes, carry the MCP resource as their audience and `typ: at+jwt`, and work for MCP only: the app's API refuses them, and the MCP endpoint refuses the app's own tokens. Refresh tokens roll for 30 days. `betterAuthAuthenticator(...).forAudience(auth.mcp.resource)` verifies them; a client that binds its tokens to a key (DPoP) sends a proof with each, checked against the resource's URL.
+- A grant keeps the role and organization the person worked in when they allowed the client. A refresh is refused once they no longer hold that role or may no longer enter that organization, once the [sign-in policy](#sign-in-policy) requires something they have not set up, and while they are banned; access tokens already issued last out their 15 minutes. A grant made without a role is refused.
+- Someone who has not set up what the sign-in policy requires is sent to the setup page first. Staff signed in as a person cannot allow a client, nor disconnect one. An account whose address is not verified cannot connect a client until it signs in once with an emailed code: a provider sign-up whose provider did not vouch for the address, or a password account created before Protobase created accounts verified. With password-only sign-in, or without mail, it cannot.
+- The connect page shows the client's name as the client's own claim, who published it for a client with an https id, where the code goes (a website by its host, an app on this computer by its port, or an app on the device by its whole address), and the signed-in address. It cannot be used inside another site's frame, and Allow takes a click only once the page has been in front for half a second. `protobase serve` and `protobase dev` send `X-Frame-Options: DENY` and `Content-Security-Policy: frame-ancestors 'none'` with every page of the UI; a host that serves `public/` itself should send them too.
+- The account page lists the clients a person allowed, under Connected apps, and disconnects any one: its consent is forgotten and its tokens revoked, so it has to ask again. A client published at a URL has one id for everyone, so two copies of it allowed on one account with the same role show as one entry, and disconnecting it disconnects both.
+- Signing out everywhere, signing out the other devices, a password change that signs out the other devices, a password reset, an admin ending the person's sessions, banning them, setting their password or marking their address unverified, and `protobase users disable` disconnect every client and forget which were allowed, so each has to ask again; enabling a disabled user brings none back. Signing out of one browser, or a session expiring, disconnects nothing.
+
 ## Several origins
 
 An app can be served on more than one origin, such as its platform address and the customer's own domain. `origins` lists the others; it defaults to `PROTOBASE_ORIGINS`, which a platform sets:
@@ -524,7 +543,7 @@ createAuth({ ..., baseURL: 'https://erp-x1.protobase.net', origins: ['https://ad
 
 ## Public endpoints
 
-Only the Better Auth routes under `/api/auth/*` (sign-in, password reset, [open sign-up](#open-sign-up), the start and callback of a [staff sign-in](#staff-sign-in) and the like), `GET /api/auth/status` and, with [several origins](#several-origins), `GET /.well-known/webauthn` are reachable without a token; the account, policy and staff session endpoints there need a session. The API (`/api/v1/*`) and the system endpoints (`/api/meta`, `/api/openapi.json`, `/api/docs`) all answer `401` without one, but for what an [anonymous role](access.md#anonymous-access)) reads in `/api/v1` and `/api/meta`, when the project defines one. [Public forms](forms.md#routes)) (`/api/forms/*`) need no token either.
+Only the Better Auth routes under `/api/auth/*` (sign-in, password reset, [open sign-up](#open-sign-up), the start and callback of a [staff sign-in](#staff-sign-in), and with [MCP](#oauth-for-mcp-clients) the OAuth provider's register, token and authorize, and the like), `GET /api/auth/status`, with MCP the two OAuth discovery documents under `/.well-known/`, and, with [several origins](#several-origins), `GET /.well-known/webauthn` are reachable without a token; the account, policy and staff session endpoints there need a session. The API (`/api/v1/*`) and the system endpoints (`/api/meta`, `/api/openapi.json`, `/api/docs`) all answer `401` without one, but for what an [anonymous role](access.md#anonymous-access)) reads in `/api/v1` and `/api/meta`, when the project defines one. [Public forms](forms.md#routes)) (`/api/forms/*`) need no token either.
 
 ## Roles and access in the API
 
