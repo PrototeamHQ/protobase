@@ -5,6 +5,7 @@ import { createAuth, jobsSchemaMigration } from '@protobase/server'
 import { queryDdl } from '../../test-support/fixtures/query-ddl'
 import { restDdl } from '../../test-support/fixtures/rest-ddl'
 import { serverDdl } from '../../test-support/fixtures/server-ddl'
+import { storageDdl } from '../../test-support/fixtures/storage-ddl'
 import type { Template } from './templates'
 
 // The databases `bun run test:record` records the snapshot tests on (test-support/sql-snapshot.ts): each recorded test
@@ -52,6 +53,8 @@ export const snapshotTemplates = {
     await (await getMigrations(auth.options)).runMigrations()
     await pool.end()
   }),
+  /** A restored Supabase `storage` schema with buckets and policies, for `/storage/v1`. */
+  storage: snapshot('snapshot_storage_test_template', ['test-support/fixtures/storage-ddl.ts'], (db) => exec(db, storageDdl)),
   /** The jobs schema, as `protobase migration` writes it. */
   jobs: snapshot('snapshot_jobs_test_template', ['packages/server/src/jobs'], async (db) => exec(db, (await jobsSchemaMigration(db))!)),
   /**
