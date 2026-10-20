@@ -259,13 +259,16 @@ jobs:
         run: echo "TEST_POSTGRES_URL=postgres://protobase:protobase@localhost:$POSTGRES_PORT/postgres" >> "$GITHUB_ENV"
       # Supabase's Postgres image, for the Supabase import's snapshot tests, initialised as a dedicated Protobase Cloud
       # instance is: without Supabase's own init, which an empty /docker-entrypoint-initdb.d leaves out, and with
-      # test-support/supabase-postgres/ run on it once it is up, as docker-compose.yml mounts it.
+      # test-support/supabase-postgres/ run on it once it is up, as docker-compose.yml mounts it. The empty directory is a
+      # bind mount, not a --tmpfs: podman copies the image's init scripts into a tmpfs.
       - if: steps.snapshots.outputs.run == 'true'
         name: Start Supabase's Postgres and point the recording at it
         env:
           SUPABASE_POSTGRES: supabase-postgres-${{ github.run_id }}-${{ github.run_attempt }}
         run: |
-          docker run --detach --rm --name "$SUPABASE_POSTGRES" --publish 5432 --tmpfs /docker-entrypoint-initdb.d \
+          mkdir -p "$RUNNER_TEMP/$SUPABASE_POSTGRES-initdb"
+          docker run --detach --rm --name "$SUPABASE_POSTGRES" --publish 5432 \
+            --volume "$RUNNER_TEMP/$SUPABASE_POSTGRES-initdb:/docker-entrypoint-initdb.d:ro" \
             -e POSTGRES_PASSWORD=protobase supabase/postgres:17.11.0.006
           until docker exec "$SUPABASE_POSTGRES" pg_isready -U supabase_admin -d postgres -h 127.0.0.1 -q; do sleep 2; done
           for file in test-support/supabase-postgres/*.sql; do
