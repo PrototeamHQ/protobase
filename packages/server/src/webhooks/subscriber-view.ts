@@ -1,4 +1,4 @@
-import { checkRecord, evaluateFilter } from '@protobase/schema'
+import { checkRecord, evaluateFilter, type ResourceModel } from '@protobase/schema'
 import { EventCodeError } from '../changes/event-code-error'
 import type { ResourceChange } from '../changes/resource-change'
 import type { Deps } from '../deps'
@@ -38,8 +38,26 @@ export const subscriptionEvent = (change: ResourceChange, event: string, { field
   },
 })
 
+// A captured record holds no encrypted field, so whether one is set is unknown here: a rule that reads one throws, and the
+// change is kept as failed, rather than deciding as if the field were empty.
+const withUnknownEncrypted = (model: ResourceModel, record: Row): Row => {
+  const fields = Object.values(model.fields).filter((field) => field.encrypted)
+  if (fields.length === 0) return record
+  const unknown = { ...record }
+  for (const field of fields) {
+    Object.defineProperty(unknown, field.name, {
+      enumerable: true,
+      get: () => {
+        throw new Error(`a subscription's access check cannot tell whether the encrypted field "${field.name}" is set`)
+      },
+    })
+  }
+  return unknown
+}
+
 // Whether the session may read the record: the operation, its row filter and a rule that needs the record.
-const mayRead = async (access: RequestAccess, record: Row) => {
+const mayRead = async (access: RequestAccess, captured: Row) => {
+  const record = withUnknownEncrypted(access.full, captured)
   const { resolved, session, entry } = access
   if (!resolved.operations.read) return false
   if (resolved.rowFilter.read && evaluateFilter(resolved.rowFilter.read, record) !== true) return false
