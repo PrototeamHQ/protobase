@@ -5,6 +5,7 @@ import * as step5 from './bike-shop/step-5'
 import { customerRows, repairRows } from './bike-shop/rows'
 import { roles, workOrders } from './reference/access'
 import * as catalog from './reference/catalog'
+import * as childRecords from './reference/child-records'
 import * as workshop from './reference/workshop'
 import * as invoiceItems from './reference/invoice-items'
 import * as rankedBoard from './reference/ranked-board'
@@ -52,6 +53,12 @@ describe('access', () => {
     expect(access.recordChecks).toContain('update')
     expect(await checkRecord(workOrders, { user: { id: 'pip', roles: ['desk'] } }, 'update', { status: 'done' })).toBe(false)
     expect(roles.has({ roles: ['desk'] }, 'money.read')).toBe(true)
+  })
+})
+
+describe('records that belong to another', () => {
+  it('needs update on the VM an operation points at', () => {
+    expect(childRecords.operations.toModel().parents).toEqual([{ field: 'vm_id', access: 'update' }])
   })
 })
 
