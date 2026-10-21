@@ -70,9 +70,10 @@ export const requireOperation = (access: RequestAccess, operation: AccessAction)
 
 // A field the caller cannot read is written blind only when the field's own rule for the write grants it, never by a
 // rule it follows from its resource, so restricting a field's reads does not open it to every writer of the resource.
-// A file field is never write-only: its upload and its stored-value no-op both need the field readable.
+// A file field is never write-only: its upload and its stored-value no-op both need the field readable. Nor is the
+// position field: checking a new rank against its dependencies compares the stored ranks the caller cannot read.
 const writesBlind = (access: RequestAccess, name: string, mode: 'create' | 'update') =>
-  access.entry.source.fieldAccess()[name]?.[mode] !== undefined && !access.full.fields[name]?.file
+  access.entry.source.fieldAccess()[name]?.[mode] !== undefined && !access.full.fields[name]?.file && name !== access.full.position?.field
 
 /**
  * Fields the caller may write on create or update: those they read (a sensitive field counts as read), and write-only
