@@ -35,7 +35,7 @@ const fakeRecords = (rows: Record<string, Record<string, unknown>>) => ({
 
 const contextWith = (records: FunctionRecords): FunctionContext => {
   const caller = { session: { user: { id: 'mo', roles: ['mechanic'] } }, records }
-  return { name: 'test', db, ...caller, caller: async () => caller }
+  return { name: 'test', db, ...caller, caller: async () => caller, acceptWebSocket: () => new Response() }
 }
 
 const call = async (fn: ApiFunction, path: string, init: RequestInit, context: FunctionContext) => {

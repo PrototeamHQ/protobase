@@ -102,6 +102,7 @@ export {
   type PublicFunctionHandler,
   type PublicFunctionOptions,
 } from './functions/define-function'
+export type { FunctionSocket, SocketEvents } from './functions/function-socket'
 export type { FunctionRecords, ListParams, RecordPage } from './functions/records'
 export { functionApp, type FunctionEnv, type PublicFunctionEnv } from './functions/function-app'
 export { readJson, type StandardSchema } from './functions/read-json'

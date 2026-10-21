@@ -29,6 +29,7 @@ import { withoutSessionTokens } from './better-auth/without-session-tokens'
 import { webauthnPath } from './better-auth/origins'
 import { organizationRoutes } from './better-auth/organizations/admin-routes'
 import { statusRoute } from './better-auth/status-route'
+import { betterAuthSessionToken } from './better-auth/session-token'
 import { goTrueTokens } from './gotrue/access-tokens'
 import { goTruePath } from './gotrue/keys'
 import { realtimePath, restPath, storagePath, supabaseFunctionsPath, supabasePath } from './supabase-paths'
@@ -71,6 +72,7 @@ import { toApiFunction, type FunctionSource } from './functions/define-function'
 import { callerRecords } from './functions/records'
 import { functionRoutes } from './functions/routes'
 import { supabaseFunctionRoutes } from './functions/supabase-routes'
+import { upgradeAuthenticator } from './functions/upgrade-caller'
 import { localeSetting } from './locale/locale-option'
 import { mapSettings } from './maps/map-settings'
 import { createMeta } from './meta'
@@ -307,7 +309,9 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], pag
     const records = (session: Session) => assistantRecords(deps, session)
     app.route(`${systemPath}/assistant`, builtInAssistant({ model: assistant.model, chats: assistant.chats, db, meta, authenticate, tools, records, report: options.onUnhandledError }))
   }
-  app.route('/', functionRoutes({ basePath: `${systemPath}/functions`, functions: apiFunctions, authenticate, access: deps.accessOptions, db, records: (session) => callerRecords(deps, session), onError, wake: () => wakeDispatch(deps) }))
+  const report = options.onUnhandledError ?? ((error: unknown) => console.error(error))
+  const upgradeAuthenticate = upgradeAuthenticator({ authenticate, ...(auth && { origins: auth.origins, sessionToken: betterAuthSessionToken(auth) }) })
+  app.route('/', functionRoutes({ basePath: `${systemPath}/functions`, functions: apiFunctions, authenticate, access: deps.accessOptions, db, records: (session) => callerRecords(deps, session), onError, wake: () => wakeDispatch(deps), upgradeWebSocket, upgradeAuthenticate, report }))
   // supabase-js's `functions.invoke`, admitted by the app's keys and the tokens of `/api/sb/auth/v1`.
   const verifyGoTrue = auth ? jwtVerifier(goTrueTokens({ auth })) : () => Promise.reject(unauthorized('This app signs no user tokens'))
   app.route('/', supabaseFunctionRoutes({ functions: apiFunctions, db, keys: apiKeys, caller: apiKeyCaller({ keys: apiKeys, verify: verifyGoTrue }), onError }))
@@ -316,7 +320,6 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], pag
   // Before the system endpoints, which want a token for everything under them
   if (forms) app.route(`${systemPath}/forms`, formRoutes(deps, forms))
   // The notices are read only while a page or channel listens.
-  const report = options.onUnhandledError ?? ((error: unknown) => console.error(error))
   const feed = tableFeed({ db, schema: changes, report })
   // supabase-js's `from()`, `rpc()`, `channel()` and `storage`, admitted by the app's keys and the tokens `/api/sb/auth/v1` signs.
   if (servesKeys) {
