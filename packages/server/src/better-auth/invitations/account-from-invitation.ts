@@ -1,7 +1,7 @@
 import { setSessionCookie } from 'better-auth/cookies'
 import { checkNewAccountPassword } from '../new-account-password'
 import { readSignInPolicy } from '../policy-store'
-import { effectiveSignInPolicy } from '../sign-in-policy'
+import { effectiveSignInPolicy, type SignInPolicy } from '../sign-in-policy'
 
 type EndpointContext = Parameters<typeof setSessionCookie>[0]
 type InvitedUser = Parameters<typeof setSessionCookie>[1]['user']
@@ -11,9 +11,9 @@ type InvitedUser = Parameters<typeof setSessionCookie>[1]['user']
  * `role` and, when given, a password checked against the sign-in policy. A password is needed unless the policy offers
  * emailed codes.
  */
-export const createInvitedAccount = async (ctx: EndpointContext, input: { email: string; name: string; password?: string; role: string; mail: boolean }) => {
+export const createInvitedAccount = async (ctx: EndpointContext, input: { email: string; name: string; password?: string; role: string; mail: boolean; defaultPolicy: SignInPolicy }) => {
   const { internalAdapter } = ctx.context
-  checkNewAccountPassword(effectiveSignInPolicy((await readSignInPolicy(ctx.context.adapter)).policy, { mail: input.mail }), input.password)
+  checkNewAccountPassword(effectiveSignInPolicy((await readSignInPolicy(ctx.context.adapter, input.defaultPolicy)).policy, { mail: input.mail }), input.password)
   const user = await internalAdapter.createUser({ email: input.email.toLowerCase(), name: input.name, emailVerified: true, role: input.role }, { method: 'invitation' })
   if (input.password !== undefined) {
     await internalAdapter.linkAccount({ userId: user.id, providerId: 'credential', accountId: user.id, password: await ctx.context.password.hash(input.password) })

@@ -4,6 +4,7 @@ import { acceptInvitation } from '../organizations/accept-invitation'
 import type { ResolvedOrganizations } from '../organizations/options'
 import { noGlobalRole } from '../organizations/role-definitions'
 import { findOrganization } from '../organizations/store'
+import type { SignInPolicy } from '../sign-in-policy'
 import { deleteAppInvitation } from '../users/app-invitation-store'
 import { createInvitedAccount, signInInvitedAccount } from './account-from-invitation'
 import { invitationOfToken } from './invitation-of-token'
@@ -16,7 +17,7 @@ const tokenQuery = z.object({ token: z.string().min(1) })
  * vouched for, and the link in the mail proves the person reads it. Accepting an organization's invitation signed in is
  * the organization plugin's.
  */
-export const invitationEndpoints = ({ mail, organizations }: { mail: boolean; organizations?: ResolvedOrganizations }) => ({
+export const invitationEndpoints = ({ mail, defaultPolicy, organizations }: { mail: boolean; defaultPolicy: SignInPolicy; organizations?: ResolvedOrganizations }) => ({
   /**
    * `GET /invitation?token=`: who invites, the address and roles, until when, and whether the address has an account;
    * for an invitation to the app also the app's name, and for an organization's the organization and the role there.
@@ -47,7 +48,7 @@ export const invitationEndpoints = ({ mail, organizations }: { mail: boolean; or
         const message = found.kind === 'app' ? 'This address has an account already: sign in.' : 'This address has an account already: sign in to accept the invitation.'
         throw new APIError('BAD_REQUEST', { code: 'ACCOUNT_EXISTS', message })
       }
-      const account = { email, name: ctx.body.name, ...(ctx.body.password !== undefined && { password: ctx.body.password }), mail }
+      const account = { email, name: ctx.body.name, ...(ctx.body.password !== undefined && { password: ctx.body.password }), mail, defaultPolicy }
       if (found.kind === 'app') {
         const user = await createInvitedAccount(ctx, { ...account, role: found.invitation.roles.join(',') })
         await deleteAppInvitation(ctx.context, found.invitation.id)

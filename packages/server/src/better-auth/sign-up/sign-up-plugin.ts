@@ -5,7 +5,7 @@ import * as z from 'zod'
 import { sendAuthEmail, type AuthMail } from '../auth-mail/send-auth-email'
 import { checkNewAccountPassword } from '../new-account-password'
 import { readSignInPolicy } from '../policy-store'
-import { effectiveSignInPolicy } from '../sign-in-policy'
+import { effectiveSignInPolicy, type SignInPolicy } from '../sign-in-policy'
 import { createSignedUpAccount } from './sign-up-account'
 import { consumeSignUpCode, issueSignUpCode, signUpCodeLifetime } from './sign-up-code'
 import { consumeSignUpTicket, issueSignUpTicket } from './sign-up-ticket'
@@ -14,6 +14,8 @@ export type SignUpPluginOptions = {
   /** The role every account made here gets, whatever the request says. */
   role: string
   mail: AuthMail
+  /** The policy until an admin saves one. */
+  defaultPolicy: SignInPolicy
 }
 
 const address = z.string().trim().toLowerCase().pipe(z.email())
@@ -30,7 +32,7 @@ const noAdminYet = () => new APIError('FORBIDDEN', { code: 'NO_ADMIN_YET', messa
  * has an account or not; one that has gets a mail saying so, with a link to sign in, instead of a code. While the store
  * has no user, nobody signs up: the first admin is made on the host.
  */
-export const signUpPlugin = ({ role, mail }: SignUpPluginOptions) =>
+export const signUpPlugin = ({ role, mail, defaultPolicy }: SignUpPluginOptions) =>
   ({
     id: 'protobase-sign-up',
     endpoints: {
@@ -70,7 +72,7 @@ export const signUpPlugin = ({ role, mail }: SignUpPluginOptions) =>
           const { ticket, name, password } = ctx.body
           const { internalAdapter, adapter } = ctx.context
           if ((await adapter.count({ model: 'user' })) === 0) throw noAdminYet()
-          checkNewAccountPassword(effectiveSignInPolicy((await readSignInPolicy(adapter)).policy, { mail: true }), password)
+          checkNewAccountPassword(effectiveSignInPolicy((await readSignInPolicy(adapter, defaultPolicy)).policy, { mail: true }), password)
           const email = await consumeSignUpTicket(ctx.context, ticket)
           const passwordHash = password === undefined ? undefined : await ctx.context.password.hash(password)
           const user = await createSignedUpAccount(ctx.context, { email, name, role, ...(passwordHash !== undefined && { passwordHash }) })

@@ -51,7 +51,7 @@ export const userRoutes = ({ auth, context }: GoTrueDeps) => {
       if (email !== undefined && email.trim().toLowerCase() !== user.email) throw new GoTrueError(422, 'email_change_not_allowed', 'Changing the email address is not offered')
       if (data !== undefined && !auth.userMetadata) throw new GoTrueError(400, 'validation_failed', 'This app keeps no user metadata: leave data out')
       if (password !== undefined) {
-        checkNewAccountPassword(effectiveSignInPolicy((await readSignInPolicy(ctx.adapter)).policy, { mail: auth.mail }), password)
+        checkNewAccountPassword(effectiveSignInPolicy((await readSignInPolicy(ctx.adapter, auth.signInPolicy)).policy, { mail: auth.mail }), password)
         const hash = await ctx.password.hash(password)
         const credential = await ctx.internalAdapter.findCredentialAccount(user.id)
         if (credential) await ctx.internalAdapter.updatePassword(user.id, hash)

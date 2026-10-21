@@ -25,7 +25,9 @@ import { narrowClaims } from './roles/active-role'
 import { rolesPlugin } from './roles/roles-plugin'
 import type { RoleSession, RoleUser } from './roles/session-role'
 import { platformSignInFor, platformSignInProvider, readPlatformSignIn, resolvePlatformSignIn, type PlatformSignIn, type ResolvedPlatformSignIn } from './platform-sign-in'
+import { appSignInPolicy } from './app-sign-in-policy'
 import { signInPolicyPlugin } from './policy-plugin'
+import { defaultSignInPolicy, type SignInPolicy } from './sign-in-policy'
 import { emailInDomains, resolveSamlProviders, samlDisabledPaths, samlGuardPlugin, samlPlugin, type ResolvedSamlProvider, type SsoOptions } from './saml-sign-in'
 import { emailCodeOptions, twoFactorCodeOptions, unusedEmailCodePaths } from './sign-in-mail'
 import { signUpPaths, signUpPlugin } from './sign-up/sign-up-plugin'
@@ -84,6 +86,12 @@ export type CreateAuthOptions = {
    * a stranger may hold. Not with `organizations`, whose people come from invitations.
    */
   signUp?: { role: string }
+  /**
+   * The sign-in policy that applies until an admin saves one on the Sign-in policy page, and when the saved one no
+   * longer reads: the methods it names, for example `{ password: 'forbidden' }` for emailed codes and passkeys only,
+   * with everything else allowed. Checked at startup as an admin's save is. Default everything allowed.
+   */
+  signInPolicy?: Partial<SignInPolicy>
   /** Sign-in attempts allowed per minute and client, default 5; also the sign-up requests allowed. */
   signInPerMinute?: number
   /**
@@ -199,6 +207,8 @@ type Resolved = {
   organizations?: ResolvedOrganizations
   /** The auth context once the instance exists, for the organization hooks and claims. */
   context?: () => Promise<AuthContext>
+  /** The policy until an admin saves one, from `appSignInPolicy`; default everything allowed. */
+  signInPolicy?: SignInPolicy
 }
 
 const newUserId = (generate: NonNullable<CreateAuthOptions['generateUserId']>) => (generate === 'uuid' ? crypto.randomUUID() : generate())
@@ -213,7 +223,7 @@ const organizationPaths = ['/organization/set-active', '/organization/accept-inv
  * The options `createAuth` gives Better Auth, with the roles, default role, mailer, operator provider and platform
  * sign-in provider already resolved.
  */
-export const betterAuthOptions = (options: CreateAuthOptions, { origins = [], passkeyDomain, roles, definitions, defaultRole, appName = defaultAppName, mailer, signUpRole, operator, platformSignIn, saml = [], organizations, context = noContext }: Resolved) => {
+export const betterAuthOptions = (options: CreateAuthOptions, { origins = [], passkeyDomain, roles, definitions, defaultRole, appName = defaultAppName, mailer, signUpRole, operator, platformSignIn, saml = [], organizations, context = noContext, signInPolicy = defaultSignInPolicy }: Resolved) => {
   const secure = options.baseURL.startsWith('https://')
   const signIn = platformSignInFor(platformSignIn, Object.keys(options.socialProviders ?? {}))
   const hosts = passkeyHosts([options.baseURL, ...origins])
@@ -223,6 +233,7 @@ export const betterAuthOptions = (options: CreateAuthOptions, { origins = [], pa
   const passwordHashes = options.passwordHashes ?? []
   const policy = {
     mail: Boolean(mailer),
+    defaultPolicy: signInPolicy,
     socialProviders: [...Object.keys(options.socialProviders ?? {}), ...samlIds],
     ...(operator && { operator: operator.name }),
     ...(signIn && { platformSignIn: { provider: signIn.provider, name: signIn.name } }),
@@ -279,12 +290,12 @@ export const betterAuthOptions = (options: CreateAuthOptions, { origins = [], pa
       twoFactorAfterPasswordOrCode({ schema: pluginNames.twoFactor, allowPasswordless: true, ...(mail && { otpOptions: twoFactorCodeOptions(mail) }) }),
       passkeyPlugin({ domain: passkeyDomain ?? hosts[0]!, hosts, formerDomain: hosts[0]!, origins: appOrigins(options.baseURL, origins) }),
       ...(mail ? [emailOTP(emailCodeOptions(mail))] : []),
-      ...(mail && signUpRole ? [signUpPlugin({ role: signUpRole, mail })] : []),
+      ...(mail && signUpRole ? [signUpPlugin({ role: signUpRole, mail, defaultPolicy: signInPolicy })] : []),
       ...(signIn ? [genericOAuth({ config: [platformSignInProvider(signIn)] })] : []),
       ...(saml.length > 0 ? [samlPlugin(saml, options.baseURL), samlGuardPlugin(samlIds)] : []),
       signInPolicyPlugin(policy),
       goTrueSessionsPlugin({ issuer: goTrueIssuer(options.baseURL), jwt: jwtOptions, policy }),
-      staffSignInPlugin({ ...(operator && { operator }), ...(mail && { mail }) }),
+      staffSignInPlugin({ ...(operator && { operator }), ...(mail && { mail }), defaultPolicy: signInPolicy }),
       rolesPlugin({ definitions }),
       lastAdminGuardPlugin(),
       ...(organizations
@@ -293,6 +304,7 @@ export const betterAuthOptions = (options: CreateAuthOptions, { origins = [], pa
       // After the organization plugin, whose endpoints of the same names (`getInvitation`) the invitation links' replace.
       usersPlugin({
         definitions,
+        defaultPolicy: signInPolicy,
         ...(mail && { mail }),
         invitationUrl: organizations?.invitationUrl ?? defaultInvitationUrl(options.baseURL),
         invitationSeconds: organizations?.invitationExpiresIn ?? defaultInvitationSeconds,
@@ -367,6 +379,7 @@ export const createAuth = (options: CreateAuthOptions) => {
     throw new Error(`defaultRole "${options.defaultRole}" is not one of the roles: ${roles.join(', ')}`)
   }
   const signUpRole = options.signUp && checkSignUpRole(options.signUp.role, roles)
+  const signInPolicy = appSignInPolicy(options.signInPolicy)
   const others = roles.filter((role) => role !== 'admin')
   // With organizations, roles mostly come with memberships: a new account holds no global role unless given one.
   const defaultRole = options.defaultRole ?? (options.organizations ? noGlobalRole : others.length === 1 ? others[0] : undefined)
@@ -385,7 +398,7 @@ export const createAuth = (options: CreateAuthOptions) => {
   // The organization hooks read the store through the instance made below; they run only once it exists.
   let instance: { $context: Promise<AuthContext> } | undefined
   const context = () => instance?.$context ?? Promise.reject(new Error('The auth instance is not made yet'))
-  const auth = betterAuth(betterAuthOptions(options, { origins, passkeyDomain, roles, definitions, defaultRole, ...(appName && { appName }), mailer, signUpRole, operator, platformSignIn, saml, ...(organizations && { organizations, context }) }))
+  const auth = betterAuth(betterAuthOptions(options, { origins, passkeyDomain, roles, definitions, defaultRole, ...(appName && { appName }), mailer, signUpRole, operator, platformSignIn, saml, signInPolicy, ...(organizations && { organizations, context }) }))
   instance = auth as unknown as { $context: Promise<AuthContext> }
   return Object.assign(auth, {
     /** Issuer and audience of the tokens: `baseURL`, on every origin. */
@@ -401,6 +414,8 @@ export const createAuth = (options: CreateAuthOptions) => {
     /** New users get their ids from `generateUserId` instead of Better Auth's random text. */
     generatesUserIds: Boolean(options.generateUserId),
     mail: Boolean(mailer),
+    /** The policy until an admin saves one. */
+    signInPolicy,
     passwordReset: Boolean(mailer),
     /** Open sign-up is on and offered: the app asks for it, and can mail the codes. */
     signUp: Boolean(signUpRole && mailer),

@@ -34,7 +34,7 @@ export const emailCodeRoutes = ({ auth, context, sessionOf }: GoTrueDeps) => {
     if (Object.keys(data).length > 0 && !auth.userMetadata) throw new GoTrueError(400, 'validation_failed', 'This app keeps no user metadata: leave data out')
   }
 
-  const signUpPolicy = async () => effectiveSignInPolicy((await readSignInPolicy((await context()).adapter)).policy, { mail: true })
+  const signUpPolicy = async () => effectiveSignInPolicy((await readSignInPolicy((await context()).adapter, auth.signInPolicy)).policy, { mail: true })
 
   // Mails the sign-up code, or tells an address with an account so, through Better Auth's own endpoint and its rate limit.
   const sendSignUpCode = (request: Request, email: string) => callBetterAuth(auth, request, '/sign-up/send-code', { email })

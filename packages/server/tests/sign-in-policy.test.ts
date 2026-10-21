@@ -42,8 +42,17 @@ const serve = async (options: Partial<CreateAuthOptions> = {}) => {
     expect(response.status).toBe(200)
     return response.headers.getSetCookie().map((line) => line.split(';')[0]).join('; ')
   }
+  const signInByCode = async (email: string) => {
+    const before = sent.length
+    expect((await request('/email-otp/send-verification-otp', { body: { email, type: 'sign-in' } })).status).toBe(200)
+    await expect.poll(() => sent.length, { timeout: 10_000 }).toBe(before + 1)
+    const otp = /^\d{6}$/m.exec(sent[before]!.text)?.[0]
+    const response = await request('/sign-in/email-otp', { body: { email, otp } })
+    expect(response.status).toBe(200)
+    return response.headers.getSetCookie().map((line) => line.split(';')[0]).join('; ')
+  }
   const status = async () => (await request('/status')).json()
-  return { auth, store, sent, request, signIn, status }
+  return { auth, store, sent, request, signIn, signInByCode, status }
 }
 
 describe('the sign-in policy endpoints', () => {
@@ -75,6 +84,22 @@ describe('the sign-in policy endpoints', () => {
     expect(answer).toMatchObject({ policy: strict, effective: { ...strict, platformSignIn: 'forbidden' }, mail: true, savedBy: 'root@example.com' })
     expect(Date.parse(answer.savedAt)).toBeGreaterThan(Date.now() - 60_000)
     expect(await (await request('/policy/sign-in', { cookie: root })).json()).toEqual(answer)
+  })
+})
+
+describe('the app\'s default policy', () => {
+  it('applies until an admin saves one, and again when the saved one no longer reads', async () => {
+    const appDefault = { ...defaultSignInPolicy, password: 'forbidden' }
+    const { store, request, signInByCode, status } = await serve({ signInPolicy: { password: 'forbidden' } })
+    expect(await status()).toMatchObject({ signInMethods: ['emailCode', 'passkey'], passwordReset: false })
+    expect((await request('/sign-in/email', { body: { email: 'sanne@example.com', password } })).status).toBe(403)
+    const root = await signInByCode('root@example.com')
+    expect(await (await request('/policy/sign-in', { cookie: root })).json()).toEqual({ policy: appDefault, effective: appDefault, mail: true })
+
+    expect((await request('/policy/sign-in', { cookie: root, body: defaultSignInPolicy })).status).toBe(200)
+    expect(await status()).toMatchObject({ signInMethods: ['password', 'emailCode', 'passkey'] })
+    await store.query(`update sign_in_policy set password = 'sometimes'`)
+    expect(await status()).toMatchObject({ signInMethods: ['emailCode', 'passkey'] })
   })
 })
 

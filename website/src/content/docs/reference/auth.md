@@ -218,7 +218,15 @@ Admins set how people sign in on the app's **Sign-in policy** page (the profile 
 | Staff sign-in as a person | On, Email the person, Off | On |
 | Sign in with ... through the platform | On, Off | On |
 
-The server stores the policy in the `sign_in_policy` table, one row per save (the newest applies, the others are its history, with who saved each and when), and applies it to Better Auth's endpoints; the pages only show what it allows.
+The Default column is the policy of an app that sets none. An app sets its own in code, the policy that applies until an admin saves one, such as emailed codes and passkeys only, with the methods it changes:
+
+```ts
+createAuth({ ..., signInPolicy: { password: 'forbidden' } })
+```
+
+It is checked at startup as an admin's save is, so a default that would lock people out stops the app; without mail it applies as a saved policy does (password sign-in is then on). The page shows it, as never changed, until an admin saves a policy.
+
+The server stores the policy in the `sign_in_policy` table, one row per save (the newest applies, the others are its history, with who saved each and when; a newest row that no longer reads, with a rule the method does not take, counts as none, so the app's default applies), and applies it to Better Auth's endpoints; the pages only show what it allows.
 
 - **Off:** the server refuses the method with `403` (`SIGN_IN_METHOD_FORBIDDEN`) and the sign-in page leaves it out. Passkeys off also stops adding them; two-factor off stops turning it on, while those who have it keep being asked until they turn it off.
 - **Required:** someone who signs in without it is sent to set it up first. The server holds back API tokens until then (`GET /api/auth/token` answers `403`, `SIGN_IN_SETUP_REQUIRED`), and refuses to turn two-factor authentication off or to remove the last passkey.

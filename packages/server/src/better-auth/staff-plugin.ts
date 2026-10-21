@@ -4,6 +4,7 @@ import { deleteSessionCookie } from 'better-auth/cookies'
 import { adminOnly } from './admin-only'
 import type { AuthMail } from './auth-mail/send-auth-email'
 import type { ResolvedOperator } from './operator-provider'
+import type { SignInPolicy } from './sign-in-policy'
 import { isRefusedForStaff, isStaffSession, staffCannotChange } from './staff-checks'
 import { endStaffSignIn, listStaffSignIns, staffSignInOfSession, staffSignInSchema } from './staff-log'
 import { staffSignInEndpoints } from './staff-sign-in-endpoints'
@@ -13,6 +14,8 @@ export type StaffPluginOptions = {
   operator?: ResolvedOperator
   /** Sends the email a person gets when the policy says to tell them; without it the policy cannot say so. */
   mail?: AuthMail
+  /** The policy until an admin saves one. */
+  defaultPolicy: SignInPolicy
 }
 
 /**
@@ -21,12 +24,12 @@ export type StaffPluginOptions = {
  * staff sign-in is logged for the app's admins. The plugin is there without an operator provider too, so its table
  * exists from the first auth migration.
  */
-export const staffSignInPlugin = ({ operator, mail }: StaffPluginOptions) =>
+export const staffSignInPlugin = ({ operator, mail, defaultPolicy }: StaffPluginOptions) =>
   ({
     id: 'protobase-staff-sign-in',
     schema: staffSignInSchema,
     endpoints: {
-      ...(operator && staffSignInEndpoints({ operator, ...(mail && { mail }) })),
+      ...(operator && staffSignInEndpoints({ operator, defaultPolicy, ...(mail && { mail }) })),
 
       /** `GET /staff/session`: for a staff session, who started it, as whom, why, and until when; otherwise `{ staff: null }`. */
       getStaffSession: createAuthEndpoint('/staff/session', { method: 'GET', use: [sessionMiddleware] }, async (ctx) => {

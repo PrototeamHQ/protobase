@@ -25,7 +25,7 @@ export const statusRoute = (auth: AdminAuth, { anonymous = false, plugins = [], 
   const app = new Hono()
   app.get('/status', async (c) => {
     const context = await auth.$context
-    const policy = effectiveSignInPolicy((await readSignInPolicy(context.adapter)).policy, { mail: auth.mail })
+    const policy = effectiveSignInPolicy((await readSignInPolicy(context.adapter, auth.signInPolicy)).policy, { mail: auth.mail })
     const signInMethods = [...(policy.password === 'allowed' ? ['password'] : []), ...(policy.emailCode === 'allowed' ? ['emailCode'] : []), ...(policy.passkey !== 'forbidden' ? ['passkey'] : [])]
     const staffSignIn = auth.operator && policy.staffAccess !== 'forbidden' ? auth.operator : undefined
     // A platform provider whose settings could not be read at startup is not registered, and so not offered.

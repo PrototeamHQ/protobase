@@ -13,6 +13,8 @@ type SessionUser = { id: string; email: string; role?: string | null; twoFactorE
 export type SignInPolicyPluginOptions = {
   /** Mail can be sent, so emailed codes work. */
   mail: boolean
+  /** The policy until an admin saves one. */
+  defaultPolicy: SignInPolicy
   /** The ids of the configured sign-in providers, which the policy does not cover. */
   socialProviders: string[]
   /** The name of the operator provider staff sign in with, when one is configured. */
@@ -37,7 +39,7 @@ const accountMethods = async (context: Context, user: SessionUser, socialProvide
 
 const refuse = (status: 'FORBIDDEN' | 'BAD_REQUEST', refusal: { code: string; message: string }) => new APIError(status, refusal)
 
-const currentPolicy = async (context: Context, mail: boolean) => effectiveSignInPolicy((await readSignInPolicy(context.adapter)).policy, { mail })
+const currentPolicy = async (context: Context, { mail, defaultPolicy }: SignInPolicyPluginOptions) => effectiveSignInPolicy((await readSignInPolicy(context.adapter, defaultPolicy)).policy, { mail })
 
 // The providers someone can sign in with under `policy`: the app's own, and the platform's while the policy lets it.
 const providersUnder = (policy: SignInPolicy, { socialProviders, platformSignIn }: SignInPolicyPluginOptions) => [
@@ -50,7 +52,7 @@ const providersUnder = (policy: SignInPolicy, { socialProviders, platformSignIn 
  * two-factor authentication, that their account has not set up. `read` is the effective policy, when read already.
  */
 export const tokenRefusal = async (context: Context, user: SessionUser, options: SignInPolicyPluginOptions, read?: SignInPolicy) => {
-  const policy = read ?? (await currentPolicy(context, options.mail))
+  const policy = read ?? (await currentPolicy(context, options))
   if (policy.twoFactor !== 'required' && policy.passkey !== 'required') return undefined
   const account = await accountMethods(context, user, providersUnder(policy, options))
   return missingRequiredMethods(policy, account).length > 0 ? setupRequired : undefined
@@ -62,12 +64,12 @@ export const tokenRefusal = async (context: Context, user: SessionUser, options:
  * someone without what it requires gets a session, so they can set it up, but no API token (`403 SIGN_IN_SETUP_REQUIRED`).
  */
 export const signInPolicyPlugin = (options: SignInPolicyPluginOptions) => {
-  const { mail, operator, platformSignIn } = options
+  const { mail, defaultPolicy, operator, platformSignIn } = options
 
   const policyAdmin = adminOnly('Only an admin can change how people sign in.')
 
   const policyAnswer = async (context: Context) => {
-    const stored = await readSignInPolicy(context.adapter)
+    const stored = await readSignInPolicy(context.adapter, defaultPolicy)
     const savedBy = stored.savedBy && (await context.internalAdapter.findUserById(stored.savedBy))?.email
     return {
       policy: stored.policy,
@@ -104,7 +106,7 @@ export const signInPolicyPlugin = (options: SignInPolicyPluginOptions) => {
        * it still has to set up; nothing for a staff session, which cannot set anything up for the person.
        */
       getSignInMethods: createAuthEndpoint('/account/sign-in-methods', { method: 'GET', use: [sessionMiddleware] }, async (ctx) => {
-        const policy = await currentPolicy(ctx.context, mail)
+        const policy = await currentPolicy(ctx.context, options)
         const { socialSignIn: _, ...account } = await accountMethods(ctx.context, ctx.context.session.user as SessionUser, providersUnder(policy, options))
         return ctx.json({ policy, mail, account, missing: isStaffSession(ctx.context.session.session) ? [] : missingRequiredMethods(policy, account) })
       }),
@@ -119,7 +121,7 @@ export const signInPolicyPlugin = (options: SignInPolicyPluginOptions) => {
             if (path === '/email-otp/send-verification-otp' && (ctx.body as { type?: unknown } | undefined)?.type !== 'sign-in') {
               throw refuse('BAD_REQUEST', { code: 'SIGN_IN_CODES_ONLY', message: 'Only sign-in codes can be emailed.' })
             }
-            const policy = await currentPolicy(ctx.context, mail)
+            const policy = await currentPolicy(ctx.context, options)
             const refusal = policyRefusal(policy, { path, body: ctx.body, params: ctx.params, ...(platformSignIn && { platformProvider: platformSignIn.provider }) })
             if (refusal) throw refuse('FORBIDDEN', refusal)
             if (path === '/sign-in/email-otp') return vouchForCreatedAccount(ctx.context, (ctx.body as { email?: unknown }).email)
