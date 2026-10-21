@@ -5,9 +5,9 @@ import { createClient, type RealtimeChannel, type RealtimePostgresInsertPayload,
 import { createLocalJWKSet, exportJWK, generateKeyPair, SignJWT } from 'jose'
 import { sql } from 'kysely'
 import { afterAll, beforeAll, describe, expect, it, onTestFinished, vi } from 'vitest'
-import { WebSocketServer } from 'ws'
 import { f, resource } from '@protobase/schema'
 import { betterAuthAuthenticator, changesMigration, createAdmin, createAuth, createUser, jwtVerifier, startJobs, type JobsRuntime } from '@protobase/server'
+import { npmWs } from './support/npm-ws'
 import { openPostgresDatabase, postgresTemplateReady, type PostgresDatabase } from '../../../test-support/postgres-database'
 
 // The dispatch job and the notice feed poll on real timers, which a busy machine stretches.
@@ -65,7 +65,7 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('Realtime with supabase-
       upgradeWebSocket,
     })
     runtime = await startJobs({ db: pg.db, jobs: admin.jobs, pollSeconds: 0.5, shutdownSeconds: 5, onError: (error) => errors.push(error) })
-    server = createAdaptorServer({ fetch: admin.fetch, websocket: { server: new WebSocketServer({ noServer: true }) } }) as Server
+    server = createAdaptorServer({ fetch: admin.fetch, websocket: { server: new npmWs.WebSocketServer({ noServer: true }) } }) as Server
     await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))
     url = `http://127.0.0.1:${(server.address() as AddressInfo).port}`
   })
@@ -156,7 +156,7 @@ describe.skipIf(!(await postgresTemplateReady('jobs')) || !(await postgresTempla
     const admin = createAdmin({ resources: [todos], db: pg.db, authenticate: betterAuthAuthenticator({ auth }), auth, files: { storage: false }, options: { apiKeys: { publishable_key: publishable }, onUnhandledError: (error) => errors.push(error) }, upgradeWebSocket })
     const runtime = await startJobs({ db: pg.db, jobs: admin.jobs, pollSeconds: 0.5, shutdownSeconds: 5, onError: (error) => errors.push(error) })
     onTestFinished(() => runtime.stop())
-    const server = createAdaptorServer({ fetch: admin.fetch, websocket: { server: new WebSocketServer({ noServer: true }) } }) as Server
+    const server = createAdaptorServer({ fetch: admin.fetch, websocket: { server: new npmWs.WebSocketServer({ noServer: true }) } }) as Server
     await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))
     onTestFinished(() => new Promise<void>((resolve) => server.close(() => resolve())))
 

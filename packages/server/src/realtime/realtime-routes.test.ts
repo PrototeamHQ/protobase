@@ -1,18 +1,14 @@
 import { createAdaptorServer, upgradeWebSocket } from '@hono/node-server'
 import { Hono } from 'hono'
 import { defineWebSocketHelper, WSContext, type WSEvents } from 'hono/ws'
-import { createRequire } from 'node:module'
 import type { AddressInfo } from 'node:net'
-import path from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { npmWs as ws } from '../../tests/support/npm-ws'
 import type { Caller } from '../api-keys/resolve-caller'
 import type { ChangeHub } from './change-hub'
 import { realtimeLimits } from './realtime-limits'
 import { realtimeRoutes } from './realtime-routes'
 
-// npm ws by its path: on Bun a bare `ws` is Bun's shim, which realtime refuses.
-const require = createRequire(import.meta.url)
-const ws: typeof import('ws') = require(path.join(path.dirname(require.resolve('ws/package.json')), 'index.js'))
 
 const anon: Caller = { role: 'anon', claims: { role: 'anon' } }
 const hub: ChangeHub = { add: () => () => {} }
