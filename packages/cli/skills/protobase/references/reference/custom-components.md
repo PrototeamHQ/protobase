@@ -71,6 +71,8 @@ The element stays data, `{ type: 'OrdersPerDay', props: { days: 30 }, children: 
 
 A component that asks for a one-time code uses `OtpInput` from `@protobase/ui`, the field of the app's own code pages: a box per digit drawn over one real input, so pasting a whole code into any box, the system's code autofill from a mail or a text message, and the phone's digit keyboard all work. It takes `value` and `onChange`, `length` (6 by default), `invalid` and `disabled`, and `onComplete` gets the code once its last digit is in, to check it at once. Ask for a code on a step of its own, before anything else.
 
+A component that shows markdown, such as a chat message, uses `Markdown` from `@protobase/ui`, which markdown fields draw with: `source` is the markdown, in GitHub's flavour with line breaks kept, shown in the theme's styles. Raw HTML in it shows as text, links open in a new tab, and only links and images to web, mail and phone addresses or relative ones stay. `className` adds classes to its outer element, and `inLink` draws it as running text inside a link, such as a card, with its links and images as their text.
+
 `protobase build` fails when the config declares a component that `protobase.ui.tsx` does not export, naming it; while you work, `protobase dev` draws a warning in its place. A component a plugin provides is declared with the plugin's name, `component('DraftOrders', { plugin: 'sales-tools' })`, and the build does not look for it in `protobase.ui.tsx`. A component that throws while drawing shows a warning in its own place, not a blank app. The object form, `defineUi({ components: { OrdersPerDay } })`, still works, and a name given both ways must be the same component.
 
 ### Fields and resources in props
