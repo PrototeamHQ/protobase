@@ -98,7 +98,7 @@ export const ClientWithAStrangeName: StoryObj<Args> = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
     await canvas.findByText(/an app on this computer/)
-    expect(canvas.getByText(/<b>Example Assistant<\/b> Published by assistant.example evil/)).toBeVisible()
+    expect(canvas.getByText(/<b>Assistant<\/b> Published by assistant.example evil/)).toBeVisible()
     expect(canvas.queryByText(/^Published by/)).toBeNull()
     expect(canvas.getByRole('button', { name: 'Allow' })).toBeVisible()
   },
