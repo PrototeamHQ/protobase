@@ -1,3 +1,4 @@
+import { createHmac } from 'node:crypto'
 import { getMigrations } from 'better-auth/db/migration'
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { defineRoles } from '@protobase/schema'
@@ -425,5 +426,30 @@ describe('a WebSocket opened with the session cookie', () => {
     await setUserBanned(auth, { email: 'socket@example.com', banned: true })
     expect((await upgrade({ cookie, origin })).status).toBe(401)
     expect(handler).toHaveBeenCalledTimes(1)
+  })
+
+  // A replay fails on any query its recording lacks, and this test's recording has none.
+  it('refuses a junk, malformed or forged cookie with 401 before any store read', async () => {
+    const handler = vi.fn(() => new Response())
+    const sockets = createAdmin({ resources: [], db: fixture.db, authenticate: betterAuthAuthenticator({ auth, tenant: 1 }), auth, functions: { whoami: defineFunction(handler) } })
+    const { name } = (await auth.$context).authCookies.sessionToken
+    const signed = (token: string, key: string) => `${name}=${encodeURIComponent(`${token}.${createHmac('sha256', key).update(token).digest('base64')}`)}`
+    const upgrade = (cookie: string) => sockets.request(`${origin}/api/functions/whoami`, { headers: { upgrade: 'websocket', cookie, origin } })
+
+    for (const cookie of ['theme=dark', `${name}=no-signature`, `${name}=token.short`, signed('stolen-or-guessed-token', 'another-secret')]) {
+      expect((await upgrade(cookie)).status).toBe(401)
+    }
+    expect(handler).not.toHaveBeenCalled()
+  })
+
+  it('refuses the cookie of an expired session with 401, reading no sign-in policy', async () => {
+    const handler = vi.fn(() => new Response())
+    const sockets = createAdmin({ resources: [], db: fixture.db, authenticate: betterAuthAuthenticator({ auth, tenant: 1 }), auth, functions: { whoami: defineFunction(handler) } })
+    const user = await createUser(auth, { email: 'expired-socket@example.com', password })
+    const signIn = await post('/api/auth/sign-in/email', { email: 'expired-socket@example.com', password })
+    const cookie = signIn.headers.getSetCookie().map((line) => line.split(';')[0]).join('; ')
+    await store.query(`update session set expires_at = '2000-01-01' where user_id = $1`, [user.id])
+    expect((await sockets.request(`${origin}/api/functions/whoami`, { headers: { upgrade: 'websocket', cookie, origin } })).status).toBe(401)
+    expect(handler).not.toHaveBeenCalled()
   })
 })
