@@ -14,13 +14,14 @@ const requests = resource('contact_requests')
     customer_id: f.relation('customers').optional(),
     attachment: f.file().optional(),
     secret_note: f.text().optional().sensitive(),
+    iban: f.text().optional().encrypted(),
     extra: f.json().optional(),
     handled: f.boolean().optional(),
   })
   .primaryKey((r) => r.id)
 const customers = resource('customers').table('customers').fields({ id: f.integer(), name: f.text() }).primaryKey((r) => r.id)
 const registry = buildRegistry([requests, customers])
-const allowed = ['name', 'email', 'message', 'topic', 'customer_id', 'attachment', 'secret_note', 'extra', 'id']
+const allowed = ['name', 'email', 'message', 'topic', 'customer_id', 'attachment', 'secret_note', 'iban', 'extra', 'id']
 const roles = defineRoles({ anonymous: [{ 'contact_requests.create': allowed }] })
 const env = { BETTER_AUTH_SECRET: 'secret' }
 
@@ -50,6 +51,7 @@ describe('createFormsRuntime', () => {
     const form = (fields: string[]) => fieldsOf(() => ({ name: 'contact', fields: fields.map((name) => ({ name })) as never, thanks: 'Thanks!' }))
     expect(form(['name', 'email', 'id'])).toThrow('View "contact_requests": form "contact": field "id" is read-only')
     expect(form(['name', 'email', 'secret_note'])).toThrow('field "secret_note" is sensitive')
+    expect(form(['name', 'email', 'iban'])).not.toThrow()
     expect(form(['name', 'email', 'customer_id'])).toThrow('field "customer_id" is a relation')
     expect(form(['name', 'email', 'attachment'])).toThrow('field "attachment" is a file field')
     expect(form(['name', 'email', 'extra'])).toThrow('field "extra" is json, which a form has no input for')

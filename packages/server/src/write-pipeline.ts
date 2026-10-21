@@ -5,7 +5,9 @@ import { blockedDelete } from './blocked-delete'
 import { isDatabaseError } from './error-handler'
 import { attachFiles } from './files/attach'
 import { badRequest, HttpProblem } from './problem'
-import { deleteRecord, fetchRecord, insertRecord, restoreRecord } from './records'
+import { bindingOf, pendingBinding } from './encryption/binding'
+import { encryptedValuesOf, hasEncryptedValues, sealValues } from './encryption/seal-values'
+import { deleteRecord, fetchRecord, insertRecord, restoreRecord, updateRecord, type Shape, type StoredRecord } from './records'
 import { requestAccess, requireOperation, targetFilter, writableFields, type RequestAccess } from './request-access'
 import { tenantScope } from './tenant'
 import { actorSettings, wakeDispatch } from './changes/actor'
@@ -32,6 +34,18 @@ const withOwner = (access: RequestAccess, values: Row) => {
   return { ...values, [owner]: caller }
 }
 
+// The first write seals encrypted values under a pending binding, as the database makes the key; this update in the same
+// transaction seals them again under the key as the API shows it, so no committed value stays pending.
+const bindEncrypted = async (trx: Db, deps: Deps, access: RequestAccess, row: Row, inserted: StoredRecord, shape: Shape) => {
+  const { entry, full } = access
+  if (!hasEncryptedValues(full, row)) return inserted
+  const values = sealValues(deps.encryption, full, encryptedValuesOf(full, row), (field) => bindingOf(full, field, inserted.record))
+  // updateRecord's type promises a row, but a key the API shows that finds the row no more (microseconds cut) gives none
+  const bound = await updateRecord(trx, entry, keyOf(access, inserted.record), tenantScope(entry, access.session)?.tenantValue, values, shape) as StoredRecord | undefined
+  if (!bound) throw new Error(`A ${entry.name} record was created whose key the API cannot address, so its encrypted fields cannot be bound to it`)
+  return bound
+}
+
 const create = async (trx: Db, deps: Deps, access: RequestAccess, body: unknown): Promise<WriteResult> => {
   const { entry, full } = access
   const scope = tenantScope(entry, access.session)
@@ -47,7 +61,9 @@ const create = async (trx: Db, deps: Deps, access: RequestAccess, body: unknown)
   // it, from the record as written, for a parent a default or trigger sets.
   const parents = checkParents(trx, access, 'create')
   await parents(row)
-  const created = await insertRecord(trx, entry, row, { etagFields: Object.keys(access.model.fields) })
+  const shape = { etagFields: Object.keys(access.model.fields) }
+  const inserted = await insertRecord(trx, entry, sealValues(deps.encryption, full, row, (field) => pendingBinding(full, field)), shape)
+  const created = await bindEncrypted(trx, deps, access, row, inserted, shape)
   await assertWritten(trx, access, created, 'create', access.resolved.rowFilter.create, filter)
   await parents(created.record)
   // A new record had no rank before, so any pair it ranks out of order counts

@@ -1,7 +1,10 @@
 import type { Db } from '@protobase/query'
 import type { CheckedFilter } from '@protobase/schema'
 import type { Deps } from './deps'
+import { bindingOf } from './encryption/binding'
+import { sealValues } from './encryption/seal-values'
 import { attachFiles } from './files/attach'
+import { badRequest } from './problem'
 import { fetchRecord, updateRecord, type StoredRecord } from './records'
 import { targetFilter, type RequestAccess } from './request-access'
 import { assertWritten, checkParents, checkPrecondition, decide, denied, firstKeyField, missing, notifier } from './write-shared'
@@ -32,11 +35,21 @@ export const planUpdate = async (trx: Db, access: RequestAccess, key: (string | 
   return { current, values, ...(filter && { filter }), parents }
 }
 
+// Encrypted values are bound to their record's key, so a record that has encrypted fields keeps its key.
+const refuseKeyChange = (access: RequestAccess, plan: UpdatePlan) => {
+  const { full, entry } = access
+  if (!Object.values(full.fields).some((field) => field.encrypted)) return
+  const changed = full.primaryKey.some((name) => Object.hasOwn(plan.values, name) && String(plan.values[name]) !== String(plan.current.record[name]))
+  if (changed) throw badRequest('key-change-unsupported', `The key of a ${entry.name} record cannot change: its encrypted fields are bound to it`)
+}
+
 /** Writes a planned update, checks the row as written against the filters, and runs the hooks. */
 export const applyUpdate = async (trx: Db, deps: Deps, access: RequestAccess, key: (string | number)[], plan: UpdatePlan) => {
-  const { entry } = access
+  const { entry, full } = access
+  refuseKeyChange(access, plan)
   const tenant = tenantScope(entry, access.session)?.tenantValue
-  const updated = await updateRecord(trx, entry, key, tenant, plan.values, { etagFields: Object.keys(access.model.fields) })
+  const values = sealValues(deps.encryption, full, plan.values, (field) => bindingOf(full, field, plan.current.record))
+  const updated = await updateRecord(trx, entry, key, tenant, values, { etagFields: Object.keys(access.model.fields) })
   await assertWritten(trx, access, updated, 'update', access.resolved.rowFilter.update, plan.filter)
   await plan.parents(updated.record)
   await notifier(deps, access)(trx, 'update', plan.current.record, updated.record)

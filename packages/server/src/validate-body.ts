@@ -1,5 +1,6 @@
 import type { FieldModel } from '@protobase/schema'
 import type { z } from 'zod'
+import { maskEncrypted } from './encryption/mask-stored'
 import { badRequest } from './problem'
 import { writableFields, type RequestAccess } from './request-access'
 import type { Row } from './types'
@@ -42,7 +43,8 @@ export const requiredOnCreate = (field: FieldModel, schema: z.ZodType) => !(fiel
  * for a text field that may not be null counts as not given: a create fills in its default or reports it required,
  * an update reports it required. Only the values written are checked, so a stored '' still reads.
  * Returns only the values to write: on create the defaults are filled in, on update only the provided fields.
- * `current` is the stored record an update merges into for `.validate()` rules.
+ * `current` is the stored record an update merges into for `.validate()` rules, which get a set encrypted field of it as
+ * `encrypted`: they see an encrypted value as text only when this write gives it.
  */
 export const validateBody = (access: RequestAccess, mode: 'create' | 'update', body: unknown, current: Row = {}) => {
   if (!isObject(body)) throw badRequest('invalid-record', 'The request body must be a JSON object')
@@ -81,7 +83,7 @@ export const validateBody = (access: RequestAccess, mode: 'create' | 'update', b
   }
   if (errors.length > 0) throw fail(errors)
 
-  const merged = { ...current, ...values }
+  const merged = { ...maskEncrypted(full, current), ...values }
   const issues = entry.source.validators.flatMap((validate) => validate(merged) ?? [])
   if (issues.length > 0) throw fail(issues.map((issue): FieldError => ({ field: Object.hasOwn(model.fields, issue.field) ? issue.field : '_record', code: 'invalid-record', message: issue.message })))
   return values

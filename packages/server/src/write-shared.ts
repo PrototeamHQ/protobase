@@ -1,5 +1,6 @@
 import type { Db } from '@protobase/query'
 import type { CheckedFilter } from '@protobase/schema'
+import { maskEncrypted } from './encryption/mask-stored'
 import { ifMatchSatisfied } from './etag'
 import type { Deps } from './deps'
 import { forbidden, notFound, preconditionFailed, preconditionRequired } from './problem'
@@ -60,7 +61,10 @@ export const assertWritten = async (trx: Db, access: RequestAccess, written: Sto
   if (!visible) throw denied(access.entry, `leave in that state (${operation})`)
 }
 
-/** The caller sees the readable fields only, files as objects with their URL; hooks get the whole record. */
+/**
+ * The caller sees the readable fields only, files as objects with their URL; hooks get the whole record, a set encrypted
+ * field as `encrypted`.
+ */
 export const shown = async (access: RequestAccess, written: StoredRecord): Promise<WriteResult> => ({
   record: (await presentFiles(access, [pickFields(written.record, Object.keys(access.model.fields))]))[0]!,
   etag: written.etag,
@@ -75,8 +79,8 @@ export const notifier = (deps: Deps, access: RequestAccess) => async (trx: Db, k
     user: session.user,
     ...(session.tenant !== undefined && { tenant: session.tenant }),
     ...(session.anonymous && { anonymous: true as const }),
-    ...(before && { before }),
-    ...(after && { after }),
+    ...(before && { before: maskEncrypted(access.full, before) }),
+    ...(after && { after: maskEncrypted(access.full, after) }),
   }
   for (const hook of deps.hooks) await hook(event, trx)
   await scheduleRemovedFiles(access, kind, before, after)

@@ -4,8 +4,8 @@ import { openText, UnreadableValue, type UnreadableKind } from './envelope-open'
 import { Sealed, sealText } from './envelope-seal'
 import { encryptionKeyring } from './keyring'
 
-const keyA = Buffer.alloc(32, 0).map((_, i) => i).toString('base64')
-const keyB = Buffer.alloc(32, 0).map((_, i) => 255 - i).toString('base64')
+const keyA = Buffer.from(Array.from({ length: 32 }, (_, i) => i)).toString('base64')
+const keyB = Buffer.from(Array.from({ length: 32 }, (_, i) => 255 - i)).toString('base64')
 const ring = encryptionKeyring({ PROTOBASE_ENCRYPTION_KEY: keyA })
 const binding: Binding = { schema: null, table: 'people', column: 'iban', tenant: 'a', key: ['7'] }
 const subject = { resource: 'people', field: 'iban' }

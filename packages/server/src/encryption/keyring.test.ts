@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { encryptionKeyring } from './keyring'
 
-const keyA = Buffer.alloc(32, 0).map((_, i) => i).toString('base64')
-const keyB = Buffer.alloc(32, 0).map((_, i) => 255 - i).toString('base64')
+const keyA = Buffer.from(Array.from({ length: 32 }, (_, i) => i)).toString('base64')
+const keyB = Buffer.from(Array.from({ length: 32 }, (_, i) => 255 - i)).toString('base64')
 
 const failure = (env: Record<string, string>) => {
   try {
@@ -24,8 +24,8 @@ describe('encryptionKeyring', () => {
   })
 
   it.each([
-    ['31 bytes', { PROTOBASE_ENCRYPTION_KEY: Buffer.alloc(31, 1).map((_, i) => i).toString('base64') }, 'PROTOBASE_ENCRYPTION_KEY is not 32 bytes'],
-    ['33 bytes', { PROTOBASE_ENCRYPTION_KEY: Buffer.alloc(33, 1).map((_, i) => i).toString('base64') }, 'PROTOBASE_ENCRYPTION_KEY is not 32 bytes'],
+    ['31 bytes', { PROTOBASE_ENCRYPTION_KEY: Buffer.from(Array.from({ length: 31 }, (_, i) => i)).toString('base64') }, 'PROTOBASE_ENCRYPTION_KEY is not 32 bytes'],
+    ['33 bytes', { PROTOBASE_ENCRYPTION_KEY: Buffer.from(Array.from({ length: 33 }, (_, i) => i)).toString('base64') }, 'PROTOBASE_ENCRYPTION_KEY is not 32 bytes'],
     ['the url alphabet', { PROTOBASE_ENCRYPTION_KEY: Buffer.from(keyB, 'base64').toString('base64url') }, 'PROTOBASE_ENCRYPTION_KEY is not 32 bytes'],
     ['non-canonical base64', { PROTOBASE_ENCRYPTION_KEY: `!${keyA}` }, 'PROTOBASE_ENCRYPTION_KEY is not 32 bytes'],
     ['an empty previous entry', { PROTOBASE_ENCRYPTION_KEY: keyA, PROTOBASE_ENCRYPTION_PREVIOUS_KEYS: `${keyB},` }, 'PROTOBASE_ENCRYPTION_PREVIOUS_KEYS entry 2 is empty'],

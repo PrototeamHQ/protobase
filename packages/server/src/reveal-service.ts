@@ -1,5 +1,7 @@
+import type { FieldModel, ResourceModel } from '@protobase/schema'
 import { encodeKey } from '@protobase/schema/internal'
-import type { AuditOrigin } from './types'
+import { bindingOf } from './encryption/binding'
+import { openText } from './encryption/envelope-open'
 import type { Deps } from './deps'
 import { badRequest, notFound } from './problem'
 import { fetchReadable } from './fetch-readable'
@@ -7,7 +9,15 @@ import type { Entry } from './registry'
 import { requestAccess, requireOperation } from './request-access'
 import { tenantScope } from './tenant'
 import { readTransaction } from './transactions'
-import type { Session } from './types'
+import type { AuditOrigin, Row, Session } from './types'
+
+// An encrypted field opens under the record it was read from; an empty one reveals null like any other.
+const revealedValue = (deps: Deps, model: ResourceModel, field: FieldModel, record: Row) => {
+  const stored = record[field.name] ?? null
+  if (!field.encrypted || stored === null) return stored
+  if (!deps.encryption) throw new Error(`"${model.name}" has encrypted fields but no encryption runtime`)
+  return openText(deps.encryption.keyring, bindingOf(model, field, record), String(stored), { resource: model.name, field: field.name })
+}
 
 export type RevealRequest = { key: (string | number)[]; field: unknown; origin: AuditOrigin }
 
@@ -24,9 +34,14 @@ export const revealField = async (deps: Deps, entry: Entry, session: Session, re
   if (!field) throw badRequest('invalid-parameter', `Unknown field "${name}"`)
   if (!field.sensitive) throw badRequest('invalid-parameter', `"${name}" is not sensitive; it comes with the record`)
 
-  const keyFields = access.full.primaryKey.map((part) => access.full.fields[part]!)
-  const found = await readTransaction(deps.db, deps.statementTimeoutMs, (trx) => fetchReadable(trx, access, request.key, 'hide', { fields: [...keyFields, access.full.fields[name]!] }))
+  const { full } = access
+  // An encrypted value is bound to its tenant as well as its key
+  const tenantField = full.fields[name]!.encrypted && full.tenant && !full.primaryKey.includes(full.tenant) ? [full.tenant] : []
+  const keyFields = [...full.primaryKey, ...tenantField].map((part) => full.fields[part]!)
+  const found = await readTransaction(deps.db, deps.statementTimeoutMs, (trx) => fetchReadable(trx, access, request.key, 'hide', { fields: [...keyFields, full.fields[name]!] }))
   if (!found) throw notFound(`No ${entry.name} with this key`)
+  // Every access check is done: only now is the value decrypted, and one that does not open is a 500 with no audit.
+  const value = revealedValue(deps, access.full, full.fields[name]!, found.record)
 
   const tenant = tenantScope(entry, session)?.tenantValue
   await deps.audit.publish({
@@ -39,5 +54,5 @@ export const revealField = async (deps: Deps, entry: Entry, session: Session, re
     field: name,
     origin: request.origin,
   })
-  return { field: name, value: found.record[name] ?? null }
+  return { field: name, value }
 }
