@@ -5,7 +5,7 @@ import { withCacheBreakpoints } from './cache-breakpoints'
 import { ModelError, streamChatCompletion, type ChatMessage, type ModelSettings, type ReasoningEffort, type ToolCall } from './chat-completions'
 import type { Conversation } from './conversations'
 import { noRecords, type ToolRecords } from './records'
-import type { AssistantTool, ToolContext } from './tools'
+import type { AssistantTool, ReadableResources, ToolContext } from './tools'
 
 export type TurnOptions = {
   model: ModelSettings
@@ -16,6 +16,8 @@ export type TurnOptions = {
   tools?: AssistantTool[]
   /** What tools get as `records`; without it, their calls fail. */
   records?: ToolRecords
+  /** What tools get as `resources`; without it, no resources. */
+  resources?: () => Promise<ReadableResources>
   /** Model calls in one turn before it stops. Default 8. */
   maxSteps?: number
   /** Gets errors other than the model endpoint's refusals, which the user only sees as a failure. */
@@ -31,6 +33,8 @@ export type TurnOptions = {
    */
   cache?: boolean
 }
+
+const noResources = async (): Promise<ReadableResources> => ({ models: [], views: [] })
 
 const toolResult = async (call: ToolCall, tools: AssistantTool[], context: ToolContext) => {
   const tool = tools.find((entry) => entry.name === call.function.name)
@@ -61,7 +65,7 @@ export const runTurn = async (options: TurnOptions, text: string) => {
   const { model, conversation, session, system, tools = [], maxSteps = 8, reasoning, cache = false } = options
   const messageId = crypto.randomUUID()
   const show = (part: AssistantPart) => conversation.apply({ type: 'part', messageId, part })
-  const context: ToolContext = { session, conversation, show, approve: (request) => requestApproval(conversation, messageId, request), records: options.records ?? noRecords }
+  const context: ToolContext = { session, conversation, show, approve: (request) => requestApproval(conversation, messageId, request), records: options.records ?? noRecords, resources: options.resources ?? noResources }
   const specs = tools.map((tool) => ({ type: 'function' as const, function: { name: tool.name, description: tool.description, parameters: tool.parameters } }))
 
   conversation.apply({ type: 'message', message: { id: crypto.randomUUID(), from: 'user', parts: [{ type: 'text', id: crypto.randomUUID(), text }] } })
