@@ -19,6 +19,7 @@ import { Field, GroupSection, KeyFacts, MetadataCard, RecordHeader, RecordTabs, 
 import { ErrorBanner } from './error-banner'
 import { CustomSection } from './custom-section'
 import { MapSection } from './map/map-section'
+import { RecordChartSection } from './record-chart/record-chart-section'
 import { RecordActions } from './pages/record-actions'
 import type { LayoutRecord } from './pages/record-scope'
 import { FieldEditor } from './field-editor'
@@ -304,6 +305,7 @@ const LoadedRecord = ({ model, recordKey, stored, preview }: LoadedRecordProps) 
       if (item.from !== undefined && !known(item.from)) return []
       return [<RelatedSection key={`related:${item.title}`} item={item} value={relatedValue(item, stored.record, recordKey)} owner={model.name} />]
     }
+    if (item.kind === 'chart') return [<RecordChartSection key={`chart:${index}`} item={item} recordKey={recordKey} />]
     // Project components, maps and photos read fields a list row may not have, so they wait for the record
     if (preview && (item.kind === 'custom' || item.kind === 'map' || item.kind === 'gallery')) return []
     if (item.kind === 'custom') return item.sidebar ? [] : [<CustomSection key={`custom:${index}`} item={item} scope={scope} />]

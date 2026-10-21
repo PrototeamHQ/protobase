@@ -100,6 +100,17 @@ const matches = (filter: string | undefined, model: ResourceModel | undefined) =
  * An in-memory server for stories and docs: lists with filters (simple AIP-160), sorting, paging, exact counts,
  * related names and photos, and get, create, update and delete that change the rows and their ETags. Not a model of the real access rules.
  */
+// The buckets from the first to the last every `strideMs`, those without records holding none
+const filled = <G extends { value: unknown; count: number }>(groups: G[], strideMs: number, nothing: Record<string, null>) => {
+  const byValue = new Map(groups.map((group) => [String(group.value), group]))
+  const first = Date.parse(`${String(groups[0]!.value)}Z`)
+  const last = Date.parse(`${String(groups.at(-1)!.value)}Z`)
+  return Array.from({ length: (last - first) / strideMs + 1 }, (_, index) => {
+    const value = new Date(first + index * strideMs).toISOString().slice(0, 19)
+    return byValue.get(value) ?? ({ value, count: 0, ...nothing } as unknown as G)
+  })
+}
+
 export const fakeApi = ({ resources, views = [], pages = [], rows: initial, permissions = {}, plugins, sources, maps, files, bottomBar, signIn, afterWrite, reveal, upload, history: initialHistory = {}, actor = { id: 'story', name: 'Story User' }, comments: initialComments = {}, users = [], forms = [], submitForm, generate }: FakeApiInput) => {
   const rows: Record<string, Row[]> = structuredClone(initial)
   const models = Object.fromEntries(resources.map((model) => [model.name, model]))
@@ -295,14 +306,17 @@ export const fakeApi = ({ resources, views = [], pages = [], rows: initial, perm
     },
     // Like the real `:aggregate`, except that a date field's buckets run from its earliest to its latest record and
     // ignore the range, so a story shows the same chart whatever day it runs.
-    aggregate: async (resource: string, params: { groupBy: string; filter?: string; sum?: string; average?: string; limit?: number; label?: string; granularity?: string; splitBy?: string; splitLimit?: number; splitLabel?: string }) => {
-      const measured = params.sum ?? params.average
-      const kind = params.sum !== undefined ? 'sum' : 'average'
+    aggregate: async (resource: string, params: { groupBy: string; filter?: string; sum?: string; average?: string; maximum?: string; limit?: number; label?: string; granularity?: string; splitBy?: string; splitLimit?: number; splitLabel?: string }) => {
+      const measured = params.sum ?? params.average ?? params.maximum
+      const kind = params.sum !== undefined ? 'sum' : params.average !== undefined ? 'average' : 'maximum'
       const type = models[resource]?.fields[params.groupBy]?.type
       const dated = type === 'date' || type === 'timestamp'
       const granularity = params.granularity ?? 'day'
+      // Buckets shorter than a day, empty ones included, as samples over the last hour or day are read
+      const strideMs = { minute: 60_000, '5_minutes': 300_000, '15_minutes': 900_000, hour: 3_600_000 }[granularity]
       const bucketOf = (value: unknown) => {
         const text = String(value)
+        if (strideMs !== undefined) return new Date(Math.floor(Date.parse(text) / strideMs) * strideMs).toISOString().slice(0, 19)
         if (granularity === 'year') return `${text.slice(0, 4)}-01-01T00:00:00`
         if (granularity === 'month') return `${text.slice(0, 7)}-01T00:00:00`
         return `${text.slice(0, 10)}T00:00:00`
@@ -317,11 +331,13 @@ export const fakeApi = ({ resources, views = [], pages = [], rows: initial, perm
         if (measured === undefined) return {}
         const values = rows.map((row) => row[measured]).filter((value) => value !== null && value !== undefined).map(Number)
         const sum = values.reduce((all, value) => all + value, 0)
-        return { [kind]: values.length === 0 ? null : kind === 'sum' ? sum : sum / values.length }
+        if (values.length === 0) return { [kind]: null }
+        return { [kind]: kind === 'sum' ? sum : kind === 'maximum' ? Math.max(...values) : sum / values.length }
       }
       const totals = [...groups].map(([value, rows]) => ({ value, count: rows.length, ...total(rows) }))
       if (dated) {
-        const sorted = totals.filter((group) => group.value !== null).sort((a, b) => String(a.value).localeCompare(String(b.value)))
+        const present = totals.filter((group) => group.value !== null).sort((a, b) => String(a.value).localeCompare(String(b.value)))
+        const sorted = strideMs === undefined || present.length === 0 ? present : filled(present, strideMs, measured === undefined ? {} : { [kind]: null })
         const { splitBy } = params
         if (splitBy === undefined) return { groupBy: params.groupBy, granularity, timeZone: 'UTC', groups: sorted }
         // The split values rank over all the selected rows, by the sum, else by count; each group keeps those it holds

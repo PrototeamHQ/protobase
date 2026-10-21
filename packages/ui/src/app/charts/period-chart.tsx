@@ -10,16 +10,28 @@ import { text } from './messages'
 
 type Point = { at: number; value: number | null; count: number } & Record<string, number | null>
 
-const formats: Record<ChartBucket, Intl.DateTimeFormatOptions> = {
-  hour: { hour: '2-digit', minute: '2-digit', hour12: false },
+/** How long a chart's bucket is: a block's, or the minutes a record's chart of samples reads. */
+export type PeriodBucket = ChartBucket | 'minute' | '5_minutes' | '15_minutes'
+
+const clock = { hour: '2-digit', minute: '2-digit', hour12: false } as const
+const dayAndClock = { day: 'numeric', month: 'short', ...clock } as const
+
+const formats: Record<PeriodBucket, Intl.DateTimeFormatOptions> = {
+  minute: clock,
+  '5_minutes': clock,
+  '15_minutes': clock,
+  hour: clock,
   day: { day: 'numeric', month: 'short' },
   week: { day: 'numeric', month: 'short' },
   month: { month: 'short', year: '2-digit' },
   year: { year: 'numeric' },
 }
 
-const tooltipFormats: Record<ChartBucket, Intl.DateTimeFormatOptions> = {
-  hour: { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', hour12: false },
+const tooltipFormats: Record<PeriodBucket, Intl.DateTimeFormatOptions> = {
+  minute: dayAndClock,
+  '5_minutes': dayAndClock,
+  '15_minutes': dayAndClock,
+  hour: dayAndClock,
   day: { day: 'numeric', month: 'short', year: 'numeric' },
   week: { day: 'numeric', month: 'short', year: 'numeric' },
   month: { month: 'long', year: 'numeric' },
@@ -33,7 +45,16 @@ const formatterOf = (options: Intl.DateTimeFormatOptions) => {
 
 const axisTick = { fontSize: 11, fill: 'var(--muted-foreground)' }
 
-const PointTooltip = ({ active, payload, measure, bucket, series }: { active?: boolean; payload?: Array<{ payload: Point }>; measure: ChartMeasure; bucket: ChartBucket; series?: ChartSeries[] }) => {
+const dayMs = 86_400_000
+const withinDay: ReadonlySet<PeriodBucket> = new Set(['minute', '5_minutes', '15_minutes', 'hour'])
+
+// Buckets shorter than a day name their time, and their day too once the points span more than one
+const tickFormat = (bucket: PeriodBucket, points: Point[]) => {
+  const span = points.length > 1 ? points.at(-1)!.at - points[0]!.at : 0
+  return withinDay.has(bucket) && span >= dayMs ? dayAndClock : formats[bucket]
+}
+
+const PointTooltip = ({ active, payload, measure, bucket, series }: { active?: boolean; payload?: Array<{ payload: Point }>; measure: ChartMeasure; bucket: PeriodBucket; series?: ChartSeries[] }) => {
   const point = payload?.[0]?.payload
   if (!active || !point) return null
   return (
@@ -43,19 +64,19 @@ const PointTooltip = ({ active, payload, measure, bucket, series }: { active?: b
         <div key={part.key} className="flex items-center gap-2">
           <span className="size-2 shrink-0 rounded-full" style={{ background: part.color }} aria-hidden />
           <span className="flex-1">{part.label}</span>
-          <span className="font-semibold tabular-nums">{measureText(point[part.key] ?? null, measure)}</span>
+          <span className="font-semibold tabular-nums">{measureText(point[part.key] ?? null, part.measure ?? measure)}</span>
         </div>
       ))}
-      {series && measure.kind !== 'average' && <div className="mt-0.5 border-t pt-0.5 font-semibold tabular-nums">{measureText(point.value, measure)}</div>}
+      {series && (measure.kind === 'count' || measure.kind === 'sum') && <div className="mt-0.5 border-t pt-0.5 font-semibold tabular-nums">{measureText(point.value, measure)}</div>}
       {!series && <div className="font-semibold tabular-nums">{measureText(point.value, measure)}</div>}
     </div>
   )
 }
 
 /** A date field's buckets over time, as bars or a line; a bucket without a value to add up is a gap. */
-export const PeriodChart = ({ points, measure, bucket, type, series, resource, view }: { points: Point[]; measure: ChartMeasure; bucket: ChartBucket; type: 'bar' | 'line'; series?: ChartSeries[]; resource?: string; view?: ViewModel }) => {
+export const PeriodChart = ({ points, measure, bucket, type, series, resource, view }: { points: Point[]; measure: ChartMeasure; bucket: PeriodBucket; type: 'bar' | 'line'; series?: ChartSeries[]; resource?: string; view?: ViewModel }) => {
   const wide = useMediaQuery('(min-width: 640px)')
-  const tick = formatterOf(formats[bucket])
+  const tick = formatterOf(tickFormat(bucket, points))
   const grid = <CartesianGrid vertical={false} stroke="var(--border)" />
   const x = <XAxis dataKey="at" tickFormatter={tick} tick={axisTick} axisLine={false} tickLine={false} minTickGap={wide ? 24 : 40} height={18} />
   const y = <YAxis width={wide ? 48 : 36} tick={axisTick} axisLine={false} tickLine={false} tickCount={3} tickFormatter={(value: number) => value.toLocaleString(formatTag(), { notation: 'compact' })} />

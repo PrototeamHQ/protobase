@@ -8,8 +8,8 @@ const where = createWhere()
 /** How many fixed colours a chart has, `--chart-1` to `--chart-8`; more values than that share a neutral one. */
 export const seriesColors = 8
 
-/** What a chart adds up per group: how many records, or the sum or average of a numeric field. */
-export type ChartMeasure = { kind: 'count' } | { kind: 'sum' | 'average'; field: FieldModel; hints?: FieldViewModel }
+/** What a chart adds up per group: how many records, or the sum, average or maximum of a numeric field. */
+export type ChartMeasure = { kind: 'count' } | { kind: 'sum' | 'average' | 'maximum'; field: FieldModel; hints?: FieldViewModel }
 
 /** One group as a chart draws it: its name, its number, its colour, and the filter that lists its records. */
 export type ChartSlice = { key: string; label: string; value: number | null; count: number; color: string; filter: string }
@@ -57,7 +57,7 @@ export const valueSlices = (groups: AggregateGroup[], field: FieldModel, hints: 
 export const periodPoints = (groups: AggregateGroup[], measure: ChartMeasure) =>
   groups.map((group) => ({ at: Date.parse(`${String(group.value)}Z`), value: measured(group, measure), count: group.count }))
 
-/** A measured number as text: a count whole, a sum or average with the field's decimals, prefix and suffix. */
+/** A measured number as text: a count whole, a sum, average or maximum with the field's decimals, prefix and suffix. */
 export const measureText = (value: number | null, measure: ChartMeasure) => {
   if (value === null) return '—'
   if (measure.kind === 'count') return value.toLocaleString(formatTag())

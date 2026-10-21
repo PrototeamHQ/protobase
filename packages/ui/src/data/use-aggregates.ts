@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query'
+import { useQueries, useQuery } from '@tanstack/react-query'
 import { filterText, type AggregateParams, type FilterInput, type SeriesParams } from '@protobase/client'
 import { useClient } from './api-provider'
 import { keys } from './query-keys'
@@ -30,4 +30,15 @@ export const useAggregate = (resource: string, params: AggregateParams, enabled 
   const client = useClient()
   const wire = { ...params, filter: filterText(params.filter) ?? '' }
   return useQuery({ queryKey: keys.aggregate(resource, JSON.stringify(wire)), enabled, queryFn: () => client.aggregate(resource, wire) })
+}
+
+/** Several `:aggregate` reads of one resource at once, in the order of `requests`, cached as `useAggregate` caches each. */
+export const useAggregates = (resource: string, requests: AggregateParams[], enabled = true) => {
+  const client = useClient()
+  return useQueries({
+    queries: requests.map((params) => {
+      const wire = { ...params, filter: filterText(params.filter) ?? '' }
+      return { queryKey: keys.aggregate(resource, JSON.stringify(wire)), enabled, queryFn: () => client.aggregate(resource, wire) }
+    }),
+  })
 }

@@ -3,8 +3,11 @@ import type { FieldModel, FieldViewModel } from '@protobase/schema'
 import { colorOf, groupFilter, labelOf, periodPoints, type ChartMeasure } from './chart-groups'
 import { text } from './messages'
 
-/** One part of a split bucket as a chart draws it: the key of its number in a point, its name and colour, and its records. */
-export type ChartSeries = { key: string; label: string; color: string; filter?: string }
+/**
+ * One part of a split bucket as a chart draws it: the key of its number in a point, its name and colour, its records,
+ * and how its number reads when it is not the chart's.
+ */
+export type ChartSeries = { key: string; label: string; color: string; filter?: string; measure?: ChartMeasure }
 
 export type SplitPoint = ReturnType<typeof periodPoints>[number] & Record<string, number | null>
 
