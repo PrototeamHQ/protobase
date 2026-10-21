@@ -1,6 +1,6 @@
 import type { FilterExpr } from '../model'
 import { andResults, orResults, where } from './combine'
-import { grantsOf, parseCapability, type Capability, type Grant } from './capability'
+import { grantsOf, holdsAll, parseCapability, parseExactCapability, type Capability, type ExactCapability, type Grant } from './capability'
 import { heldCapabilities, type HeldCapability, type RoleEntry } from './role-entry'
 import { rule, type Rule } from './rule'
 import type { AccessContext, AccessUser } from './types'
@@ -82,8 +82,19 @@ export const defineRoles = <Name extends string = string>(
     /** The capabilities limited to fields or rows, by role. */
     limits: [...held].flatMap(([role, capabilities]) => capabilities.filter((held) => held.fields || held.filter).map((held): RoleLimit => ({ role, ...held }))),
 
-    /** Whether the user holds the capability at all, in any scope. For areas and field rules. */
-    has: (user: AccessUser, capability: Capability<Name>) => grants(user, capability).size > 0,
+    /** Whether the user holds the capability at all, in any scope. For areas and field rules. Refuses a wildcard. */
+    has: (user: AccessUser, capability: ExactCapability<Name>) => {
+      parseExactCapability(capability)
+      return grants(user, capability).size > 0
+    },
+
+    /**
+     * Whether one of the user's roles grants all of the capability, wildcards included, in every row and field: `*`
+     * and `vms.*` hold `vms.*`, while `vms.read`, `vms.update.own` or a limited `vms.update` do not. For gates such as
+     * API functions.
+     */
+    holds: (user: AccessUser, capability: Capability<Name>) =>
+      heldBy(user).some((held) => !held.fields && !held.filter && holdsAll(held.capability, capability)),
 
     /**
      * The fields the user's roles allow for a capability: the union of their lists, or `undefined` when a role grants
@@ -98,10 +109,10 @@ export const defineRoles = <Name extends string = string>(
 
     /**
      * A rule that allows when the user's roles grant the capability: `true` for an unscoped
-     * grant, a row filter for `.own`, `.team` and a limit's filter, `false` otherwise.
+     * grant, a row filter for `.own`, `.team` and a limit's filter, `false` otherwise. Refuses a wildcard.
      */
-    can: (capability: Capability<Name>): Rule => {
-      const wanted = parseCapability(capability)
+    can: (capability: ExactCapability<Name>): Rule => {
+      const wanted = parseExactCapability(capability)
       return rule(async (ctx) => {
         const matching = heldBy(ctx.user ?? {}).flatMap((held) => grantsOf(held.capability, wanted).map((grant) => ({ grant, filter: held.filter })))
         if (matching.some(({ grant, filter }) => grant === 'all' && !filter)) return true

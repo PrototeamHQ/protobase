@@ -163,6 +163,7 @@ export type {
   Capability,
   CapabilityAction,
   CapabilityScope,
+  ExactCapability,
   Grant,
   AccessSource,
   ResolveOptions,

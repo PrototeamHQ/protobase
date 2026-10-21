@@ -30,6 +30,8 @@ export type ResolveOptions = {
     fields?: (user: AccessUser, capability: string) => readonly string[] | undefined
     /** The roles by name, to tell whether the project has an `anonymous` role. */
     definitions?: Record<string, unknown>
+    /** Whether the user's roles grant all of a capability, as `defineRoles` makes it; the gate of API functions. */
+    holds?: (user: AccessUser, capability: any) => boolean
   }
   /**
    * Overrides what an operation without a rule does. Without `roles` the default is `allow`,

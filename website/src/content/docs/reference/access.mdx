@@ -15,6 +15,7 @@ Roles are defined in code ([`defineRoles`](/api/schema/functions/defineroles/)) 
 - A project without roles (the single-admin case) is **default allow**.
 - `defaultAccess: 'allow'` together with `roles` is an explicit opt-in. Print `accessWarnings(options)` at startup.
 - Every request needs a token, unless the roles define [`anonymous`](#anonymous-access).
+- An [API function](/guides/api-functions/#roles) without `roles` or a `capability` is closed the same way: with roles, only a caller holding `*` may call it.
 
 ## Capabilities
 
@@ -35,6 +36,13 @@ defineRoles<'orders' | 'products'>({
 A field is readable when the role's list allows it and the field's own [rule](#field-rules-or-field-lists) passes. Field lists take effect through the roles the server gets (`options: { roles }` in `protobase.config.ts`, `resolveAccess(source, ctx, { roles })`), for every resource whatever its rules. A filter is the capability's row filter, so like `.own` it applies where the capability decides: an operation without a rule, or a rule built with `roles.can(...)`.
 
 **Several roles add up.** A user gets every field one of their roles lists (all of them when a role holds the plain capability) and the rows any of their roles allows. Fields and rows add up separately: someone holding both `erp_sync` and `reseller` above reads `name` on unpublished products too. With Better Auth a session acts with one [active role](/reference/auth/#active-role) at a time, so this only comes up with an authenticator that hands out several.
+
+### Wildcards in has, can and holds
+
+A wildcard in a role grants everything it stands for: `*.read` reads every resource. What a check asks for is different, so the checks take wildcards in one place only:
+
+- `roles.has(user, 'vms.update')` and `roles.can('vms.update')` ask for one capability, in any scope or limit the role holds it. They refuse a wildcard, at compile time and when called, since `vms.*` would pass for a role holding only `vms.read`: ask for each capability instead.
+- `roles.holds(user, 'vms.*')` asks for all of it, in every row and field: a role holding `*` or `vms.*` passes, one holding `vms.read`, `*.read`, `vms.update.own` or a `vms.update` limited to fields or rows does not. A scope asks for those rows at least: `orders.read.own` passes for a role holding `orders.read.own`, `orders.read` or `*.read`. API functions' `capability` is checked this way.
 
 ## Anonymous access
 

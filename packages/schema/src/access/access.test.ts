@@ -53,6 +53,33 @@ describe('capabilities', () => {
     expect(roles.has({}, 'orders.read')).toBe(false)
   })
 
+  it('refuses a wildcard in has and can, which any one capability would grant', () => {
+    const compileTime = () => {
+      // @ts-expect-error a wildcard in has()
+      roles.has({ roles: ['auditor'] }, 'orders.*')
+      // @ts-expect-error a wildcard in can()
+      roles.can('*.read')
+    }
+    expect(compileTime).toBeTypeOf('function')
+    expect(() => roles.has({ roles: ['auditor'] }, 'orders.*' as never)).toThrow('"orders.*" has a wildcard')
+    expect(() => roles.can('orders.read.*' as never)).toThrow('use roles.holds(user, "orders.read.*")')
+  })
+
+  it('holds a capability only when a role grants all of it, in every row and field', () => {
+    const limited = defineRoles<'orders' | 'invoices'>({
+      sales: ['orders.read.own', 'orders.create', 'invoices.*'],
+      clerk: [{ 'orders.update': ['status'] }, 'orders.read.*'],
+      admin: ['*'],
+    })
+    const holds = (role: string, capability: Parameters<typeof limited.holds>[1]) => limited.holds({ roles: [role] }, capability)
+    expect([holds('sales', 'invoices.*'), holds('sales', 'invoices.delete'), holds('sales', 'orders.create')]).toEqual([true, true, true])
+    expect([holds('sales', 'orders.*'), holds('sales', 'orders.read'), holds('sales', 'orders.read.own')]).toEqual([false, false, true])
+    expect([holds('clerk', 'orders.update'), holds('clerk', 'orders.read'), holds('clerk', 'orders.read.team')]).toEqual([false, true, true])
+    expect([holds('admin', '*'), holds('sales', '*'), holds('nobody', 'orders.read')]).toEqual([true, false, false])
+    expect(roles.holds({ roles: ['auditor'] }, '*.read')).toBe(true)
+    expect(roles.holds({ roles: ['auditor'] }, 'orders.*')).toBe(false)
+  })
+
   it('rejects unknown names and shapes', () => {
     const compileTime = () => {
       // @ts-expect-error unknown resource

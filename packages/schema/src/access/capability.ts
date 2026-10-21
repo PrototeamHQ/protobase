@@ -13,6 +13,12 @@ export type Capability<Name extends string = string> =
   | `${Name | '*'}.${CapabilityAction | '*'}`
   | `${Name | '*'}.${CapabilityAction | '*'}.${CapabilityScope | '*'}`
 
+/**
+ * A capability without wildcards, `<resource|area>.<action>[.<scope>]`: what `roles.has` and `roles.can` ask for, since a
+ * wildcard there would be granted by any one of the capabilities it stands for.
+ */
+export type ExactCapability<Name extends string = string> = `${Name}.${CapabilityAction}` | `${Name}.${CapabilityAction}.${CapabilityScope}`
+
 /** The rows a held capability grants: all of them, or those of a scope. */
 export type Grant = 'all' | CapabilityScope
 
@@ -30,6 +36,15 @@ export const parseCapability = (capability: string): ParsedCapability => {
   return { name: match[1]!, action: match[2]!, scope: match[3] }
 }
 
+/** Parses a capability that `has` or `can` asks for; throws on a wildcard, which would mean "any of", not "all of". */
+export const parseExactCapability = (capability: string): ParsedCapability => {
+  const parsed = parseCapability(capability)
+  if ([parsed.name, parsed.action, parsed.scope].includes('*')) {
+    throw new Error(`"${capability}" has a wildcard, which any one capability it covers would grant: ask for each capability, or use roles.holds(user, "${capability}") to need all of them`)
+  }
+  return parsed
+}
+
 const matches = (pattern: string, value: string) => pattern === '*' || pattern === value
 
 /**
@@ -42,4 +57,16 @@ export const grantsOf = (held: string, wanted: ParsedCapability): Grant[] => {
   if (!matches(have.action, wanted.action) && wanted.action !== '*') return []
   if (have.scope === undefined || have.scope === '*') return ['all']
   return [have.scope as Grant]
+}
+
+const covers = (held: string | undefined, wanted: string | undefined) => held === '*' || held === wanted
+
+/**
+ * Whether `held` grants all of `wanted`: each of its parts is `*` or the same, and a wanted capability without a scope
+ * needs one without a scope (or `.*`). So `*` and `vms.*` hold `vms.*`, while `vms.read` or `*.read` do not.
+ */
+export const holdsAll = (held: string, wanted: string) => {
+  const have = parseCapability(held)
+  const want = parseCapability(wanted)
+  return covers(have.name, want.name) && covers(have.action, want.action) && (have.scope === undefined || covers(have.scope, want.scope))
 }
