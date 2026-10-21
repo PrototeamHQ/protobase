@@ -63,11 +63,20 @@ jobs:
       - name: Lint the pushed commits
         env:
           BEFORE: ${{ github.event.before }}
+        # A force-push's before is not an ancestor of the pushed commit and may be on no branch the clone has, so it is
+        # fetched by its hash, and the push added only the commits that neither before nor a release tag holds: a push
+        # that restores released history adds none. Without before, the pushed commit is linted alone.
         run: |
           if [ "$BEFORE" = 0000000000000000000000000000000000000000 ]; then
             bun x --bun commitlint --last --verbose
-          else
+          elif git merge-base --is-ancestor "$BEFORE" "$GITHUB_SHA" 2>/dev/null; then
             bun x --bun commitlint --from "$BEFORE" --to "$GITHUB_SHA" --verbose
+          elif ! git fetch --no-tags origin "$BEFORE"; then
+            bun x --bun commitlint --last --verbose
+          else
+            for commit in $(git rev-list --reverse "$GITHUB_SHA" --not "$BEFORE" --tags='v[0-9]*'); do
+              git log -1 --format=%B "$commit" | bun x --bun commitlint --verbose
+            done
           fi
 
   release:
