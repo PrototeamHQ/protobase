@@ -38,32 +38,47 @@ export const subscriptionEvent = (change: ResourceChange, event: string, { field
   },
 })
 
-// A captured record holds no encrypted field, so whether one is set is unknown here: a rule that reads one throws, and the
-// change is kept as failed, rather than deciding as if the field were empty.
-const withUnknownEncrypted = (model: ResourceModel, record: Row): Row => {
-  const fields = Object.values(model.fields).filter((field) => field.encrypted)
-  if (fields.length === 0) return record
+// A captured record holds no sensitive field, nor one captured before it had a column, so whether one is set is unknown
+// here: a rule that reads one throws, and the change is kept as failed, rather than deciding as if the field were empty.
+// The read is remembered too, so a rule that catches the throw still fails.
+const withUnknownFields = (model: ResourceModel, record: Row) => {
+  const fields = Object.values(model.fields).filter((field) => field.sensitive || !Object.hasOwn(record, field.name))
   const unknown = { ...record }
+  const read: string[] = []
+  const error = (name: string) => {
+    const field = model.fields[name]!
+    return new Error(`a subscription's access check cannot tell whether the ${field.sensitive ? 'sensitive field' : 'field'} "${name}" is set${field.sensitive ? '' : ', which the captured change does not hold'}`)
+  }
   for (const field of fields) {
     Object.defineProperty(unknown, field.name, {
       enumerable: true,
       get: () => {
-        throw new Error(`a subscription's access check cannot tell whether the encrypted field "${field.name}" is set`)
+        read.push(field.name)
+        throw error(field.name)
       },
     })
   }
-  return unknown
+  const check = () => {
+    if (read.length > 0) throw error(read[0]!)
+  }
+  return { record: unknown, check }
 }
 
 // Whether the session may read the record: the operation, its row filter and a rule that needs the record.
-const mayRead = async (access: RequestAccess, captured: Row) => {
-  const record = withUnknownEncrypted(access.full, captured)
+const decide = async (access: RequestAccess, record: Row) => {
   const { resolved, session, entry } = access
   if (!resolved.operations.read) return false
   if (resolved.rowFilter.read && evaluateFilter(resolved.rowFilter.read, record) !== true) return false
   if (!resolved.recordChecks.includes('read')) return true
   const context = { user: session.user, ...(session.organization && { organization: session.organization }) }
   return checkRecord(entry.source, context, 'read', record, undefined, access.deps.accessOptions)
+}
+
+const mayRead = async (access: RequestAccess, captured: Row) => {
+  const { record, check } = withUnknownFields(access.full, captured)
+  const allowed = await decide(access, record)
+  check()
+  return allowed
 }
 
 /**
