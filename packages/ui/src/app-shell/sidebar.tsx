@@ -19,6 +19,8 @@ export type SidebarProps = {
   workspace?: string
   /** The app's name, which the logo shows. */
   appName?: string
+  /** The app's own icon, which the logo shows in place of Protobase's mark. */
+  appIcon?: string
   forceExpanded?: boolean
   profileMenuOpen?: boolean
   /** Resources to list; defaults to the sample ERP navigation. */
@@ -39,7 +41,7 @@ export type SidebarProps = {
   logo?: ComponentType<ShellLogoProps>
 }
 
-export const Sidebar = ({ mode, activeItem, user, workspace, appName, forceExpanded, profileMenuOpen, groups = defaultGroups, userMenu, onNavigate, onSignOut, signIn, organizations, roles, theme, sticky, logo: SidebarLogo = Logo }: SidebarProps) => {
+export const Sidebar = ({ mode, activeItem, user, workspace, appName, appIcon, forceExpanded, profileMenuOpen, groups = defaultGroups, userMenu, onNavigate, onSignOut, signIn, organizations, roles, theme, sticky, logo: SidebarLogo = Logo }: SidebarProps) => {
   const expanding = mode === 'icon-expand'
   const expanded = expanding && forceExpanded
   const inline = isTextMode(mode) || expanding
@@ -53,7 +55,7 @@ export const Sidebar = ({ mode, activeItem, user, workspace, appName, forceExpan
         )}
       >
         <div className={cn('flex h-12 shrink-0 items-center px-3.5', mode === 'icon-label' && 'justify-center px-0')}>
-          <SidebarLogo compact={!inline} workspace={workspace} appName={appName} />
+          <SidebarLogo compact={!inline} workspace={workspace} appName={appName} appIcon={appIcon} />
         </div>
         <div className={cn('flex-1 overflow-y-auto overflow-x-hidden pb-2', mode === 'icon-label' ? 'px-2' : 'px-2')}>
           {groups.map((group, index) => (

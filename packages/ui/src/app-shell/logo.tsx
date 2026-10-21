@@ -22,24 +22,26 @@ export const Wordmark = ({ className }: { className?: string }) => (
 )
 
 /**
- * What the logo at the top of the sidebar gets: `compact` when the sidebar shows only icons, the workspace's name, and
- * the app's name, such as `Property Finder` (`PROTOBASE_APP_NAME` or `createAuth`'s `appName`).
+ * What the logo at the top of the sidebar gets: `compact` when the sidebar shows only icons, the workspace's name, the
+ * app's name, such as `Property Finder` (`PROTOBASE_APP_NAME` or `createAuth`'s `appName`), and the path of its own
+ * icon, its `protobase.favicon.svg`, when the project has one.
  */
-export type ShellLogoProps = { compact: boolean; workspace?: string; appName?: string }
+export type ShellLogoProps = { compact: boolean; workspace?: string; appName?: string; appIcon?: string }
 
 // The name an app goes by when it names itself nothing
 const brandName = 'Protobase'
 
 /**
- * The logo at the top of the sidebar: Protobase's mark, then the app's name, as the brand's wordmark when the app goes by
- * Protobase's name, with the workspace's name under it; the mark alone when compact.
+ * The logo at the top of the sidebar: the app's own icon, else Protobase's mark, then the app's name, as the brand's
+ * wordmark when the app goes by Protobase's name and has no icon of its own, with the workspace's name under it; the
+ * icon alone when compact.
  */
-export const Logo = ({ compact, workspace, appName }: ShellLogoProps) => (
+export const Logo = ({ compact, workspace, appName, appIcon }: ShellLogoProps) => (
   <div className="flex items-center gap-2.5 overflow-hidden">
-    <LogoMark />
+    {appIcon ? <img src={appIcon} alt="" className="size-7 shrink-0 object-contain" /> : <LogoMark />}
     {!compact && (
       <div className="flex min-w-0 flex-col gap-0.5 leading-tight">
-        {appName && appName !== brandName ? <div className="truncate text-sm font-semibold text-foreground">{appName}</div> : <Wordmark className="self-start" />}
+        {appIcon || (appName && appName !== brandName) ? <div className="truncate text-sm font-semibold text-foreground">{appName ?? brandName}</div> : <Wordmark className="self-start" />}
         {workspace && <div className="truncate text-[11px] text-muted-foreground">{workspace}</div>}
       </div>
     )}

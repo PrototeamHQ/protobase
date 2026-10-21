@@ -232,6 +232,26 @@ export const ProjectLogo: StoryObj = {
   },
 }
 
+// A project's protobase.favicon.svg, as `/meta` names it when the project has one.
+const rijnlandIcon = `data:image/svg+xml,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" rx="7" fill="#0d9488"/><path d="M9 23V9h8a4.5 4.5 0 0 1 0 9h-3l6 5" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>')}`
+
+/** Without a `shell.logo`, a project with its own icon gets it and its name at the top of the sidebar, in place of Protobase's. */
+export const ProjectIcon: StoryObj = {
+  tags: ['play'],
+  render: () => (
+    <div className="h-screen">
+      <App client={fakeClient({ permissions: allowed, app: { name: 'Rijnland Industrial', icon: rijnlandIcon } })} auth={session} initialUrl="/orders" />
+    </div>
+  ),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    const nav = within(await canvas.findByRole('navigation', { name: 'Resources' }))
+    await nav.findByText('Rijnland Industrial')
+    expect(canvasElement.querySelector(`img[src="${rijnlandIcon}"]`)).not.toBeNull()
+    expect(canvas.queryByRole('img', { name: 'Protobase' })).toBeNull()
+  },
+}
+
 /** `/meta` names an assistant (for an admin or ai user): the top bar gets an Assistant button that opens the dock. */
 export const Assistant: StoryObj = {
   tags: ['play'],

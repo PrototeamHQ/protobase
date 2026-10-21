@@ -7,6 +7,8 @@ export type MetaData = {
   etag: string
   /** The app's name, which ends the tab titles. */
   appName: string
+  /** The path of the app's own icon, when the project has one, which the sidebar's logo draws. */
+  appIcon?: string
   resources: Record<string, ResourceModel>
   views: Record<string, ViewModel>
   /** Composed pages by name. */
