@@ -28,6 +28,19 @@ const report = (label, found) => {
 // Chromium then aborts every request in flight, even to localhost) says nothing about the site, so it is made again.
 const pages = 4
 const visitsPerUrl = 3
+const networkChangedError = 'net::ERR_NETWORK_CHANGED'
+
+// Whether the page loaded: false when the network changed under the navigation itself, which Playwright throws rather
+// than reports as a failed request. Every other navigation error is rethrown.
+const navigate = async (page, url) => {
+  try {
+    await page.goto(url, { waitUntil: 'networkidle' })
+    return true
+  } catch (error) {
+    if (!error.message.includes(networkChangedError)) throw error
+    return false
+  }
+}
 const visitAll = async (context, urls, inspect) => {
   const visits = new Array(urls.length)
   let next = 0
@@ -38,7 +51,7 @@ const visitAll = async (context, urls, inspect) => {
     page.on('console', (message) => message.type() === 'error' && problems.push(`console: ${message.text()}`))
     page.on('pageerror', (error) => problems.push(`exception: ${error.message}`))
     page.on('requestfailed', (request) => {
-      if (request.failure()?.errorText === 'net::ERR_NETWORK_CHANGED') networkChanged = true
+      if (request.failure()?.errorText === networkChangedError) networkChanged = true
       problems.push(`request failed: ${request.url()}`)
     })
     page.on('response', (response) => response.status() >= 400 && problems.push(`${response.status()}: ${response.url()}`))
@@ -47,8 +60,12 @@ const visitAll = async (context, urls, inspect) => {
       for (let visit = 1; visit <= visitsPerUrl; visit++) {
         problems.length = 0
         networkChanged = false
-        await page.goto(new URL(urls[i], base).href, { waitUntil: 'networkidle' })
-        const found = await inspect(page, problems)
+        const loaded = await navigate(page, new URL(urls[i], base).href)
+        if (!loaded) {
+          networkChanged = true
+          problems.push(`navigation failed: ${networkChangedError}`)
+        }
+        const found = loaded ? await inspect(page, problems) : []
         visits[i] = { problems: [...problems], found }
         if (!networkChanged) break
       }
