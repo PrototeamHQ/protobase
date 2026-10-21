@@ -17,12 +17,12 @@ const roleSql = sql.raw(queryRoleSql)
 
 const rowsOf = async <R>(db: Db, query: ReturnType<typeof sql<R>>) => (await query.execute(db)).rows
 
-// The tables that exist, as the catalogue names them; a table that does not is left out.
+// The tables that exist, as the catalogue names them, in the order given; a table that does not is left out.
 const resolved = (db: Db, tables: readonly TableName[]) =>
   rowsOf(
     db,
-    sql<FoundTable>`select n.nspname as schema, c.relname as name from unnest(${tables.map(regclassText)}::text[]) as t(name)
-      join pg_class c on c.oid = to_regclass(t.name) join pg_namespace n on n.oid = c.relnamespace`,
+    sql<FoundTable>`select n.nspname as schema, c.relname as name from unnest(${tables.map(regclassText)}::text[]) with ordinality as t(name, n)
+      join pg_class c on c.oid = to_regclass(t.name) join pg_namespace n on n.oid = c.relnamespace order by t.n`,
   )
 
 const readRunner = async (db: Db) => {
@@ -41,12 +41,12 @@ export const readQueryRunner = async (db: Db, models: readonly ResourceModel[], 
   const tables = await rowsOf(
     db,
     sql<FoundTable>`select n.nspname as schema, c.relname as name from pg_class c join pg_namespace n on n.oid = c.relnamespace, aclexplode(c.relacl) a
-      where a.grantee = (select oid from pg_roles where rolname = ${roleSql}) and a.privilege_type = 'SELECT'`,
+      where a.grantee = (select oid from pg_roles where rolname = ${roleSql}) and a.privilege_type = 'SELECT' order by 1, 2`,
   )
   const schemas = await rowsOf(
     db,
     sql<{ schema: string }>`select n.nspname as schema from pg_namespace n, aclexplode(n.nspacl) a
-      where a.grantee = (select oid from pg_roles where rolname = ${roleSql}) and a.privilege_type = 'USAGE'`,
+      where a.grantee = (select oid from pg_roles where rolname = ${roleSql}) and a.privilege_type = 'USAGE' order by 1`,
   )
   return {
     role: role!,
