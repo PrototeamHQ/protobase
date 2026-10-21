@@ -2,7 +2,7 @@ import { APIError } from 'better-auth/api'
 import { betterAuth, type BetterAuthOptions } from 'better-auth'
 import { admin, emailOTP, genericOAuth, jwt, type JwtOptions } from 'better-auth/plugins'
 import { adminAc, userAc } from 'better-auth/plugins/admin/access'
-import { defaultAppName, readAppName } from '../app-name'
+import { appNameOver, defaultAppName } from '../app-name'
 import { goTrueIssuer, goTrueKeyPair } from '../gotrue/keys'
 import { goTrueSessionsPlugin } from '../gotrue/sessions-plugin'
 import { authBasePath } from './auth-base-path'
@@ -57,8 +57,9 @@ export type CreateAuthOptions = {
   passkeyDomain?: string
   /**
    * The app's name: authenticator apps and passkey prompts show it, the auth emails name the app with it, and the
-   * default mailer sends them from it, as the sender's display name. Defaults to the name the platform passes in
-   * `PROTOBASE_APP_NAME`, when set, and to `Protobase` otherwise (without a sender's display name).
+   * default mailer sends them from it, as the sender's display name; the tab titles, the sidebar's logo and the
+   * installed app show it too. The name the platform passes in `PROTOBASE_APP_NAME`, when set, overrides it; without
+   * either it is `Protobase` (without a sender's display name).
    */
   appName?: string
   /** Signs cookies and encrypts the JWT private keys. Generate with `openssl rand -base64 32`. */
@@ -161,8 +162,6 @@ const platformOrigins = () => readOrigins(globalThis.process?.env ?? {})
 
 const platformPasskeyDomain = () => readPasskeyDomain(globalThis.process?.env ?? {})
 
-const platformAppName = () => readAppName(globalThis.process?.env ?? {})
-
 const tokenLifetime = '15m'
 
 export { authBasePath }
@@ -188,7 +187,7 @@ type Resolved = {
   /** The roles with their labels, for the role switcher. */
   definitions: RoleDefinitions
   defaultRole?: string
-  /** The app's name, from `appName` or `PROTOBASE_APP_NAME`; default `Protobase`. */
+  /** The app's name, from `PROTOBASE_APP_NAME` or `appName`; default `Protobase`. */
   appName?: string
   mailer?: Mailer
   /** The role of accounts made by open sign-up, when it is on and there is a mailer. */
@@ -371,7 +370,7 @@ export const createAuth = (options: CreateAuthOptions) => {
   const others = roles.filter((role) => role !== 'admin')
   // With organizations, roles mostly come with memberships: a new account holds no global role unless given one.
   const defaultRole = options.defaultRole ?? (options.organizations ? noGlobalRole : others.length === 1 ? others[0] : undefined)
-  const appName = options.appName ?? platformAppName()
+  const appName = appNameOver(globalThis.process?.env ?? {}, options.appName)
   // The platform's mailer sends as the app's own name, when the app or the platform names it.
   const mailer = options.mailer === undefined ? platformMailer(undefined, appName) : options.mailer || undefined
   const provider = options.operator === undefined ? platformOperator() : options.operator || undefined
@@ -410,7 +409,7 @@ export const createAuth = (options: CreateAuthOptions) => {
     /** The app keeps each user's metadata, in the column `users.metadata` names. */
     userMetadata: Boolean(options.users?.metadata),
     socialProviders,
-    /** The app's name it signs in and mails as: `appName`, else `PROTOBASE_APP_NAME`, else `Protobase`. */
+    /** The app's name it signs in and mails as: `PROTOBASE_APP_NAME`, else `appName`, else `Protobase`. */
     appName: appName ?? defaultAppName,
     operator: operator?.name,
     platformSignIn: platformSignIn && { provider: platformSignIn.provider, name: platformSignIn.name },
