@@ -11,7 +11,8 @@ import { isHandOff, startFlow, takeFlow } from './provider-flows'
 // client without PKCE, in the address's fragment, as GoTrue's implicit flow does. Only at the end of a flow `/authorize`
 // started in that browser, proved by its hand-off secret (`provider-flows.ts`), and only for the session Better Auth's
 // callback made in it, which ends there: the app holds its own session then, and the browser keeps none. A redirect_to
-// that is not https, such as a custom scheme another app can claim too, gets a code alone, never the session itself.
+// that is not https, such as a custom scheme another app can claim too, or that only a pattern of the trusted origins
+// matches, such as `https://*.example.com`, gets a code alone, never the session itself.
 
 const challengeOf = (query: Record<string, string>): CodeChallenge | undefined => {
   const challenge = query.code_challenge
@@ -37,6 +38,15 @@ export const providerRoutes = ({ auth, context, sessionOf }: GoTrueDeps) => {
     return own
   }
 
+  // The implicit flow puts the session itself in the address, so only an https origin the app trusts by name takes it:
+  // not a custom scheme another app can claim too, nor every host a pattern matches. A pattern is no name, even for a
+  // host spelled like it, such as `https://*.example.com` itself.
+  const takesSession = async (redirectTo: string) => {
+    const { protocol, origin } = new URL(redirectTo)
+    const named = (await context()).trustedOrigins.filter((trusted) => !/[*?]/.test(trusted))
+    return protocol === 'https:' && named.includes(origin)
+  }
+
   const implicitFragment = async (userId: string) => {
     const session = await sessionOf((await (await context()).internalAdapter.createSession(userId)).token)
     return { access_token: session.access_token, token_type: 'bearer', expires_in: String(session.expires_in), expires_at: String(session.expires_at), refresh_token: session.refresh_token }
@@ -50,7 +60,7 @@ export const providerRoutes = ({ auth, context, sessionOf }: GoTrueDeps) => {
       if (!auth.socialProviders.includes(provider)) throw new GoTrueError(400, 'validation_failed', `Unsupported provider: ${provider || 'none'} is not one of this app's`)
       const challenge = challengeOf(query)
       const redirectTo = await destination(query.redirect_to, c.req.raw)
-      if (!challenge && new URL(redirectTo).protocol !== 'https:') throw new GoTrueError(400, 'validation_failed', 'A redirect_to that is not https needs a code_challenge')
+      if (!challenge && !(await takesSession(redirectTo))) throw new GoTrueError(400, 'validation_failed', 'A redirect_to that is not https, or that only a pattern of the trusted origins matches, needs a code_challenge')
       const before = await auth.api.getSession({ headers: c.req.raw.headers })
       const secret = await startFlow(c, await context(), { redirectTo, challenge, sessionBefore: before?.session.id })
       // The hand-off secret goes only where Better Auth sends a successful sign-in; anyone holding a state reaches the error URL.

@@ -126,4 +126,20 @@ describe('createAuth', () => {
     const sso = { saml: [{ id: 'github', domains: ['example.com'], idp: { metadata: '<EntityDescriptor/>' } }] }
     expect(() => createAuth({ ...base, socialProviders: github, sso })).toThrow(/"github" is already the id of another sign-in provider/)
   })
+
+  // GoTrue's `/authorize` starts only these, as Better Auth's social sign-ins: a SAML sign-in, whose ACS reads any
+  // state, or the platform's provider must never be one.
+  it('lists only the social providers as the providers GoTrue\'s /authorize starts', () => {
+    const auth = createAuth({
+      ...base,
+      mailer: false,
+      operator: false,
+      signInProvider: { issuer: 'https://idp.example.com', clientId: 'platform-client', clientSecret: 'platform-secret', provider: 'platform' },
+      socialProviders: github,
+      sso: { saml: [{ id: 'okta', domains: ['example.com'], idp: { metadata: '<EntityDescriptor/>' } }] },
+    })
+    expect(auth.socialProviders).toEqual(['github'])
+    expect(auth.samlProviders).toEqual([expect.objectContaining({ id: 'okta' })])
+    expect(auth.platformSignIn).toMatchObject({ provider: 'platform' })
+  })
 })

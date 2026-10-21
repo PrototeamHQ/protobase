@@ -17,6 +17,8 @@ const origin = 'http://localhost:5173'
 const secret = 'test-secret-test-secret-test-secret-1234'
 const app = 'authexp://callback'
 const web = 'https://app.example.com'
+// Patterns the app trusts besides: `web` matches the first too, and its exact origin is what gives it the implicit flow.
+const patterns = ['https://*.example.com', '*.example.io']
 const email = 'root@example.com'
 const password = 'correct horse battery'
 const verifier = 'the-verifier-the-verifier-the-verifier-0123'
@@ -48,16 +50,16 @@ beforeAll(async () => {
 // Better Auth's rate limits are per client address and kept in memory, so every app gets an address of its own.
 let client = 0
 
-const serve = async () => {
+const serve = async ({ baseURL = origin } = {}) => {
   const store = await shared.clone()
   const sent: MailMessage[] = []
   const auth = createAuth({
     database: { dialect: store.dialect, type: 'postgres' },
-    baseURL: origin,
+    baseURL,
     secret,
     mailer: { send: async (message) => void sent.push(message) },
     socialProviders: { github: { clientId: 'Iv1.client', clientSecret: 'client-secret' } },
-    trustedOrigins: ['authexp://', web],
+    trustedOrigins: ['authexp://', web, ...patterns],
   })
   await createUser(auth, { email, password })
   const { adapter } = await auth.$context
@@ -70,7 +72,7 @@ const serve = async () => {
     sent.length = 0
     return code
   }
-  return { auth, app: served, adapter, store, codeFor, address: `198.51.100.${++client}` }
+  return { auth, app: served, adapter, store, codeFor, origin: baseURL, address: `198.51.100.${++client}` }
 }
 
 type Served = Awaited<ReturnType<typeof serve>>
@@ -103,20 +105,20 @@ const flowCookie = 'better-auth.gotrue_flow'
 
 const browse = async ({ app, address }: Served, jar: Jar, url: string) => jar.take(await app.request(url, { headers: { cookie: jar.header(), 'x-forwarded-for': address } }))
 
-const post = async ({ app, address }: Served, jar: Jar, path: string, body: unknown) =>
+const post = async ({ app, origin, address }: Served, jar: Jar, path: string, body: unknown) =>
   jar.take(await app.request(`${origin}${path}`, { method: 'POST', headers: { 'content-type': 'application/json', origin, cookie: jar.header(), 'x-forwarded-for': address }, body: JSON.stringify(body) }))
 
 const sessionIn = (served: Served, jar: Jar) => served.auth.api.getSession({ headers: new Headers({ cookie: jar.header() }) })
 
 const authorize = async (served: Served, jar: Jar, { redirectTo = app, challenge }: { redirectTo?: string; challenge?: string } = {}) => {
   const params = new URLSearchParams({ provider: 'github', redirect_to: redirectTo, ...(challenge && { code_challenge: challenge, code_challenge_method: 's256' }) })
-  return browse(served, jar, `${origin}/api/sb/auth/v1/authorize?${params}`)
+  return browse(served, jar, `${served.origin}/api/sb/auth/v1/authorize?${params}`)
 }
 
 // GitHub "approves": back to Better Auth's callback with the state of the authorization URL.
 const approveAtGitHub = (served: Served, jar: Jar, authorization: string) => {
   const state = new URL(authorization).searchParams.get('state') ?? ''
-  return browse(served, jar, `${origin}/api/auth/callback/github?code=the-code&state=${encodeURIComponent(state)}`)
+  return browse(served, jar, `${served.origin}/api/auth/callback/github?code=the-code&state=${encodeURIComponent(state)}`)
 }
 
 // A web sign-in with GitHub on the app itself, which leaves a session in the browser.
@@ -153,7 +155,7 @@ const location = (response: Response) => {
 const withoutQuery = (url: URL) => `${url.protocol}//${url.host}${url.pathname}`
 
 const trade = async (served: Served, code: string | null, codeVerifier = verifier) =>
-  served.app.request(`${origin}/api/sb/auth/v1/token?grant_type=pkce`, { method: 'POST', headers: { 'content-type': 'application/json', 'x-forwarded-for': served.address }, body: JSON.stringify({ auth_code: code, code_verifier: codeVerifier }) })
+  served.app.request(`${served.origin}/api/sb/auth/v1/token?grant_type=pkce`, { method: 'POST', headers: { 'content-type': 'application/json', 'x-forwarded-for': served.address }, body: JSON.stringify({ auth_code: code, code_verifier: codeVerifier }) })
 
 // /authorize, then GitHub's approval: Better Auth's success redirect to /callback, not yet followed.
 const approvedFlow = async (served: Served, jar: Jar, options: { redirectTo?: string; challenge?: string } = {}) => {
@@ -376,5 +378,137 @@ describe('GoTrue sign-in with a provider', () => {
     expect(fragment.get('access_token')).toBeTruthy()
     expect(fragment.get('refresh_token')).toBeTruthy()
     expect(await sessionIn(served, jar)).toBeNull()
+  })
+
+  it('refuses the implicit flow to a host only a pattern matches, and to every address that is no exact https origin', async () => {
+    const served = await serve()
+    const redirects = [
+      'https://evil.example.com/',
+      'https://x.example.io/',
+      // A host spelled like the pattern has the pattern's own text as its origin.
+      'https://*.example.com/',
+      'https://%2A.example.com/',
+      'https://app.example.com@evil.example.com/',
+      'https://evil.example.com\\@app.example.com/',
+      'https://app.example.com.evil.example.com/',
+      'https://app.example.com:8443/',
+      'https:evil.example.com',
+      // Untrusted or no address at all: the app itself, which is http here.
+      '',
+      '/cb',
+      '//evil.example.com/',
+      'javascript:alert(1)',
+      'not a url',
+    ]
+    for (const redirectTo of redirects) {
+      const refused = await browse(served, cookieJar(), `${origin}/api/sb/auth/v1/authorize?${new URLSearchParams({ provider: 'github', redirect_to: redirectTo })}`)
+      expect(refused.status, redirectTo).toBe(400)
+      expect(await refused.json()).toMatchObject({ error_code: 'validation_failed' })
+      expect(refused.headers.getSetCookie().join()).not.toContain('gotrue_flow')
+    }
+    // An empty challenge is none, and so is the first of two when it is empty.
+    for (const challenge of ['code_challenge=', 'code_challenge=&code_challenge=abc']) {
+      expect((await browse(served, cookieJar(), `${origin}/api/sb/auth/v1/authorize?provider=github&redirect_to=${encodeURIComponent('https://evil.example.com/')}&${challenge}`)).status).toBe(400)
+    }
+    // The first of two addresses is the one checked.
+    const twice = `redirect_to=${encodeURIComponent('https://evil.example.com/')}&redirect_to=${encodeURIComponent(web)}`
+    expect((await browse(served, cookieJar(), `${origin}/api/sb/auth/v1/authorize?provider=github&${twice}`)).status).toBe(400)
+    expect((await served.store.query(`select id from verification where identifier like 'gotrue-provider-flow-%'`)).rows).toEqual([])
+  })
+
+  it('hands an exact origin its session, spelled any way, and the first of two addresses', async () => {
+    mockGitHub()
+    const served = await serve()
+    const spelledJar = cookieJar()
+    const spelled = location(await browse(served, spelledJar, (await approvedFlow(served, spelledJar, { redirectTo: 'https://APP.example.com:443/cb' })).href))
+    expect(spelled.origin).toBe(web)
+    expect(new URLSearchParams(spelled.hash.slice(1)).get('access_token')).toBeTruthy()
+
+    const jar = cookieJar()
+    const twice = `redirect_to=${encodeURIComponent(`${web}/`)}&redirect_to=${encodeURIComponent('https://evil.example.com/')}`
+    const toCallback = location(await approveAtGitHub(served, jar, location(await browse(served, jar, `${origin}/api/sb/auth/v1/authorize?provider=github&${twice}`)).href))
+    const first = location(await browse(served, jar, toCallback.href))
+    expect(first.origin).toBe(web)
+    expect(new URLSearchParams(first.hash.slice(1)).get('access_token')).toBeTruthy()
+  })
+
+  it('hands a host only a pattern matches a code for PKCE, never the session', async () => {
+    mockGitHub()
+    const served = await serve()
+    const jar = cookieJar()
+    const back = location(await browse(served, jar, (await approvedFlow(served, jar, { redirectTo: 'https://evil.example.com/cb', challenge: await challengeOf(verifier) })).href))
+    expect(withoutQuery(back)).toBe('https://evil.example.com/cb')
+    expect(back.hash).not.toContain('access_token')
+    expect((await trade(served, back.searchParams.get('code'))).status).toBe(200)
+
+    // A blank challenge, or the first of two, is a challenge all the same: a code, never the session.
+    for (const challenge of ['code_challenge=%20', 'code_challenge=abc&code_challenge=']) {
+      const other = cookieJar()
+      const authorization = location(await browse(served, other, `${origin}/api/sb/auth/v1/authorize?provider=github&redirect_to=${encodeURIComponent('https://evil.example.com/cb')}&${challenge}`))
+      const coded = location(await browse(served, other, location(await approveAtGitHub(served, other, authorization.href)).href))
+      expect(withoutQuery(coded)).toBe('https://evil.example.com/cb')
+      expect(coded.searchParams.get('code')).toBeTruthy()
+      expect(coded.hash).not.toContain('access_token')
+    }
+  })
+
+  it('trusts patterns from BETTER_AUTH_TRUSTED_ORIGINS with a code only, and its exact origins with the session', async () => {
+    const before = process.env.BETTER_AUTH_TRUSTED_ORIGINS
+    process.env.BETTER_AUTH_TRUSTED_ORIGINS = 'https://*.example.org,https://env.example.net'
+    try {
+      const served = await serve()
+      await served.auth.$context
+      expect((await authorize(served, cookieJar(), { redirectTo: 'https://x.example.org/' })).status).toBe(400)
+      const exact = cookieJar()
+      expect((await authorize(served, exact, { redirectTo: 'https://env.example.net/' })).status).toBe(302)
+      expect(exact.get(flowCookie)).toBeTruthy()
+    } finally {
+      if (before === undefined) delete process.env.BETTER_AUTH_TRUSTED_ORIGINS
+      else process.env.BETTER_AUTH_TRUSTED_ORIGINS = before
+    }
+  })
+
+  it('starts no flow for a provider that is not one of the app\'s social providers', async () => {
+    const served = await serve()
+    for (const provider of ['GitHub', '__proto__', 'constructor', 'toString', 'hasOwnProperty']) {
+      const refused = await browse(served, cookieJar(), `${origin}/api/sb/auth/v1/authorize?provider=${provider}&code_challenge=${await challengeOf(verifier)}`)
+      expect(refused.status, provider).toBe(400)
+      expect(await refused.json()).toMatchObject({ error_code: 'validation_failed' })
+      expect(refused.headers.getSetCookie()).toEqual([])
+    }
+    expect((await served.store.query(`select id from verification where identifier like 'gotrue-provider-flow-%'`)).rows).toEqual([])
+  })
+
+  it('keeps the flow in a __Secure- cookie on https, for /callback alone, and takes no unprefixed one', async () => {
+    mockGitHub()
+    const served = await serve({ baseURL: 'https://admin.example.org' })
+    const jar = cookieJar()
+    const authorization = await authorize(served, jar, { challenge: await challengeOf(verifier) })
+    const secureFlow = `__Secure-${flowCookie}`
+    const line = authorization.headers.getSetCookie().find((cookie) => cookie.startsWith(`${secureFlow}=`))!
+    const attributes = line.split(';').slice(1).map((attribute) => attribute.trim().toLowerCase())
+    expect(attributes).toEqual(expect.arrayContaining(['secure', 'httponly', 'samesite=lax', 'path=/api/sb/auth/v1/callback']))
+    expect(attributes.some((attribute) => attribute.startsWith('domain='))).toBe(false)
+    expect(Number(attributes.find((attribute) => attribute.startsWith('max-age='))?.slice('max-age='.length))).toBeLessThanOrEqual(600)
+    expect(jar.names()).not.toContain(flowCookie)
+
+    const toCallback = location(await approveAtGitHub(served, jar, location(authorization).href))
+    // The flow's id under the unprefixed name, as a sibling site over http could set it, is no flow.
+    const id = jar.get(secureFlow)!
+    jar.delete(secureFlow)
+    jar.set(flowCookie, id)
+    expectDenied(location(await browse(served, jar, toCallback.href)), 'hash')
+    jar.delete(flowCookie)
+    jar.set(secureFlow, id)
+
+    const back = location(await browse(served, jar, toCallback.href))
+    expect(withoutQuery(back)).toBe(app)
+    expect((await trade(served, back.searchParams.get('code'))).status).toBe(200)
+
+    // The same cookie and secret again hand out nothing.
+    jar.set(secureFlow, id)
+    const again = location(await browse(served, jar, toCallback.href))
+    expect(again.searchParams.get('code')).toBeNull()
+    expect(again.hash).not.toContain('access_token')
   })
 })
