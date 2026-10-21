@@ -121,6 +121,8 @@ export type PluginBuildInput = {
   projectDir?: string
   /** Folders inside the plugin's that are no files of it, such as the bundle being written. */
   ignore?: string[]
+  /** Ends each script with a `//# debugId=` comment, naming no map, and writes its source map, with the same debug id, beside it. */
+  sourceMaps?: boolean
 }
 
 /**
@@ -128,7 +130,7 @@ export type PluginBuildInput = {
  * shared modules by name, its stylesheet, and plugin.json naming both and the field types it registers. The app loads
  * it from the plugin.json's URL.
  */
-export const buildPlugin = async ({ pluginDir, outDir, name, projectDir, ignore = [] }: PluginBuildInput): Promise<PluginManifest> => {
+export const buildPlugin = async ({ pluginDir, outDir, name, projectDir, ignore = [], sourceMaps = false }: PluginBuildInput): Promise<PluginManifest> => {
   const entry = path.join(pluginDir, pluginEntryFile)
   if (!existsSync(entry)) throw new Error(`There is no ${pluginEntryFile} in ${pluginDir}; a plugin exports its components and action handlers from it`)
   checkOutDir(pluginDir, outDir)
@@ -156,15 +158,18 @@ export const buildPlugin = async ({ pluginDir, outDir, name, projectDir, ignore 
       tailwindcss(),
       layeredStyles(),
     ],
+    // Web workers are builds of their own, which take the source maps from `build` but not the output's debug ids.
+    worker: { rolldownOptions: { output: { sourcemapDebugIds: sourceMaps } } },
     build: {
       outDir,
       emptyOutDir: true,
       modulePreload: false,
+      sourcemap: sourceMaps && 'hidden',
       rolldownOptions: {
         input: { index: entry, styles },
         // The entry keeps every export: the app reads the components and the default export from it.
         preserveEntrySignatures: 'strict',
-        output: { entryFileNames: 'assets/[name]-[hash].js', chunkFileNames: 'assets/[name]-[hash].js', assetFileNames: 'assets/[name]-[hash][extname]' },
+        output: { entryFileNames: 'assets/[name]-[hash].js', chunkFileNames: 'assets/[name]-[hash].js', assetFileNames: 'assets/[name]-[hash][extname]', sourcemapDebugIds: sourceMaps },
       },
     },
   }).finally(() => {

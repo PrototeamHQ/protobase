@@ -131,10 +131,11 @@ program
   .argument('[dir]', 'the plugin folder, holding protobase.ui.tsx', '.')
   .option('--out <dir>', 'output folder (default: dist in the plugin folder)')
   .option('--name <name>', "the plugin's name (default: its package.json name)")
+  .option('--source-maps', 'end each script with a //# debugId= comment and write its source map, carrying the same id, beside it', false)
   .action(async (dir: string, opts) => {
     const pluginDir = path.resolve(dir)
     const outDir = path.resolve(opts.out ?? path.join(dir, 'dist'))
-    const manifest = await buildPlugin({ pluginDir, outDir, ...(opts.name && { name: opts.name }) })
+    const manifest = await buildPlugin({ pluginDir, outDir, sourceMaps: opts.sourceMaps, ...(opts.name && { name: opts.name }) })
     const shown = path.relative(process.cwd(), outDir)
     out(`built ${shown.startsWith('..') ? outDir : shown || '.'}: ${pluginManifestFile}, ${manifest.entry} and ${manifest.css} (${manifest.name}, plugin API ${manifest.api}, Protobase ${manifest.protobase})\n`)
   })

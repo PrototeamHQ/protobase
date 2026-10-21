@@ -3,6 +3,7 @@ import { mkdir, readFile, readdir, rm, symlink, writeFile } from 'node:fs/promis
 import path from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import { buildPlugin } from '../../src/build/plugin-build'
+import { expectDebugIdMap } from '../support/source-maps'
 
 const root = path.resolve(__dirname, '../../../..')
 const uiVersion = JSON.parse(await readFile(path.join(root, 'packages/ui/package.json'), 'utf8')).version as string
@@ -69,6 +70,13 @@ describe('buildPlugin', () => {
     // Utilities only: neither the reset nor any theme value, which are the app's
     expect(css).not.toContain('box-sizing:border-box')
     expect(css).not.toMatch(/:root|--color-primary:/)
+  }, buildTimeout)
+
+  it('with source maps, ends its module with a debug id and writes the map, carrying it, beside it', async () => {
+    pluginDir = await createPlugin({ 'protobase.ui.tsx': greeting, 'hand.tsx': hand })
+    const outDir = path.join(pluginDir, 'dist')
+    const manifest = await buildPlugin({ pluginDir, outDir, sourceMaps: true })
+    await expectDebugIdMap(path.join(outDir, manifest.entry))
   }, buildTimeout)
 
   it('names the field types it registers in plugin.json, each with the storage types it shows', async () => {
