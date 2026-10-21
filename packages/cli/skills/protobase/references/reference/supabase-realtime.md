@@ -2,14 +2,14 @@
 
 # Supabase Realtime
 
-The Realtime-compatible /realtime/v1 that supabase-js's channel() joins, for postgres_changes checked under the subscriber's RLS policies, broadcasts and presence.
+The Realtime-compatible /api/sb/realtime/v1 that supabase-js's channel() joins, for postgres_changes checked under the subscriber's RLS policies, broadcasts and presence.
 
-An app with API keys also serves `/realtime/v1/websocket`, the socket that supabase-js's `channel()` joins. An app moved from Supabase keeps its `postgres_changes` listeners, broadcasts and presence: point the client at the app and give it the publishable key.
+An app with API keys also serves `/api/sb/realtime/v1/websocket`, the socket that supabase-js's `channel()` joins. An app moved from Supabase keeps its `postgres_changes` listeners, broadcasts and presence: point the client at the app's `/api/sb` and give it the publishable key.
 
 ```ts
 import { createClient } from '@supabase/supabase-js'
 
-const supabase = createClient('https://my-app.example.com', 'sb_publishable_...')
+const supabase = createClient('https://my-app.example.com/api/sb', 'sb_publishable_...')
 supabase
   .channel('my-todos')
   .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'todos', filter: 'done=eq.false' }, (payload) => console.log(payload.new))
@@ -44,7 +44,7 @@ room
 
 A broadcast reaches the topic's other channels, and the sender's own with `self`; with `ack`, `send` resolves once the server has it. Binary payloads go to clients on the default serializer (`vsn` 2.0.0) only. Presence follows Phoenix Presence: a channel tracks one presence under its `presence.key` (a random one when it names none), tracking again replaces it, and channels with presence enabled get the state when they join and each join and leave after, their own included. A channel that leaves, closes or whose token expires leaves the presence it tracked.
 
-Broadcasts and presence go between the channels of one serving process, which is how a cloud app runs; several processes behind one address do not reach each other's channels. Sending without a joined channel, which supabase-js does over `POST /realtime/v1/api/broadcast`, is not supported.
+Broadcasts and presence go between the channels of one serving process, which is how a cloud app runs; several processes behind one address do not reach each other's channels. Sending without a joined channel, which supabase-js does over `POST /api/sb/realtime/v1/api/broadcast`, is not supported.
 
 ## What a subscriber receives
 

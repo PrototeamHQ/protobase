@@ -2,20 +2,20 @@
 
 # Supabase client API
 
-The PostgREST-compatible /rest/v1 that supabase-js's from() and rpc() call, under the tables' RLS policies.
+The PostgREST-compatible /api/sb/rest/v1 that supabase-js's from() and rpc() call, under the tables' RLS policies.
 
-An app with API keys also serves `/rest/v1`, the API that supabase-js's `from()` and `rpc()` call. An app moved from Supabase keeps its data calls: point the client at the app and give it the publishable key.
+An app with API keys also serves `/api/sb/rest/v1`, the API that supabase-js's `from()` and `rpc()` call. An app moved from Supabase keeps its data calls: point the client at the app's `/api/sb` and give it the publishable key.
 
 ```ts
 import { createClient } from '@supabase/supabase-js'
 
-const supabase = createClient('https://my-app.example.com', 'sb_publishable_...')
+const supabase = createClient('https://my-app.example.com/api/sb', 'sb_publishable_...')
 const { data, error } = await supabase.from('todos').select('id, title').eq('done', false).order('id')
 ```
 
 ## Keys and roles
 
-The keys are `options.apiKeys` of `createAdmin`, `{ publishable_key, secret_key }`, or else `PROTOBASE_PUBLISHABLE_KEY` and `PROTOBASE_SECRET_KEY`. Without either, or with `apiKeys: false`, the app serves no `/rest/v1`. Each request sends a key in the `apikey` header, and runs in one transaction as:
+The keys are `options.apiKeys` of `createAdmin`, `{ publishable_key, secret_key }`, or else `PROTOBASE_PUBLISHABLE_KEY` and `PROTOBASE_SECRET_KEY`. Without either, or with `apiKeys: false`, the app serves no `/api/sb/rest/v1`. Each request sends a key in the `apikey` header, and runs in one transaction as:
 
 | The request sends | It runs as |
 | --- | --- |
@@ -25,13 +25,13 @@ The keys are `options.apiKeys` of `createAdmin`, `{ publishable_key, secret_key 
 
 The transaction sets the role with `SET LOCAL ROLE` and the token's claims in `request.jwt.claims` and `request.jwt.claim.sub`, so Supabase's `auth.uid()`, `auth.role()` and `auth.jwt()` work, and the tables' RLS policies decide what the request may read and write. The `role` claim is the database role, as on Supabase. The database needs the `anon` and `authenticated` roles, and the app's role must be allowed to `SET ROLE` to them.
 
-`/rest/v1` serves the tables the app declares as resources, in the `public` schema, under their table names. Any other table is `404`.
+`/api/sb/rest/v1` serves the tables the app declares as resources, in the `public` schema, under their table names. Any other table is `404`.
 
 ## What it understands
 
 - Filters: `eq`, `neq`, `gt`, `gte`, `lt`, `lte`, `like`, `ilike`, `match`, `imatch`, `in`, `is`, `isdistinct`, `fts`, `plfts`, `phfts`, `wfts` with a language, `cs`, `cd`, `ov`, `sl`, `sr`, `nxr`, `nxl`, `adj`, `any` and `all` modifiers, `not.`, and `or`, `and`, `not.or` and `not.and` trees, on columns and JSON paths (`meta->>kind`).
 - `select` with columns, aliases (`key:id`), casts (`priority::text`) and JSON paths.
-- Embedded rows of related tables, through their foreign keys: `select('*, author:profiles(name), comments(*)')`. A many-to-one or one-to-one embed is an object or `null`, a one-to-many one an array. A hint picks the foreign key when several relate the tables, by its name or column (`profiles!sender_id(name)`), and `!inner` keeps only the rows with a related row. Filters, `order`, `limit` and `offset` take the embed's name or alias as a prefix (`comments.likes=gte.2`, `comments.order=id.desc`), as supabase-js's `referencedTable` option sends them. The embedded tables' RLS policies apply too. Only tables `/rest/v1` serves are embedded.
+- Embedded rows of related tables, through their foreign keys: `select('*, author:profiles(name), comments(*)')`. A many-to-one or one-to-one embed is an object or `null`, a one-to-many one an array. A hint picks the foreign key when several relate the tables, by its name or column (`profiles!sender_id(name)`), and `!inner` keeps only the rows with a related row. Filters, `order`, `limit` and `offset` take the embed's name or alias as a prefix (`comments.likes=gte.2`, `comments.order=id.desc`), as supabase-js's `referencedTable` option sends them. The embedded tables' RLS policies apply too. Only tables `/api/sb/rest/v1` serves are embedded.
 - `order`, `limit`, `offset` and the `Range` header. A read returns at most 1000 rows, Supabase's default.
 - `Prefer: count=exact|planned|estimated`, with the count in `Content-Range` and `206` for part of the rows.
 - `Prefer: return=minimal|representation`, `resolution=merge-duplicates|ignore-duplicates`, `missing=default`, and `on_conflict` and `columns`.

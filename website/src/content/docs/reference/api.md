@@ -185,7 +185,7 @@ Real login is [Better Auth](/reference/auth/). Lower level:
 
 The API sends no CORS headers until it has something to allow: other websites in `options.cors` (a list of origins, or `'*'` for any), which defaults to `PROTOBASE_CORS_ORIGINS` (`*` or comma separated http and https origins), other [origins of the app](/reference/auth/#several-origins), which are always allowed, or a [mobile section](/guides/mobile-app/), which allows the app's Capacitor origins, `capacitor://localhost` and `https://localhost`. `PROTOBASE_CORS_ORIGINS` refuses other schemes at startup.
 
-- It covers `/api/*` but Better Auth's `/api/auth/*`, which checks origins itself, and [API functions](/guides/api-functions/) with a `cors` of their own, and supabase-js's sign-in at [`/auth/v1`](/reference/auth/#supabase-js-and-supabasessr).
+- It covers `/api/*` but Better Auth's `/api/auth/*`, which checks origins itself, and [API functions](/guides/api-functions/) with a `cors` of their own; supabase-js's [`/api/sb`](/reference/auth/#supabase-js-and-supabasessr) is under it too.
 - An allowed origin gets `Access-Control-Allow-Origin` with its name and `Vary: Origin`, or `*` with `'*'`. No credentials: browser code calls the API with a bearer token.
 - Preflights are answered before authentication, for `authorization`, `content-type`, `if-match`, `if-none-match` and supabase-js's `apikey`, `x-client-info` and `x-supabase-api-version`, and kept for 10 minutes. `Location`, `ETag`, `X-Meta-Version` and `X-Protobase-Warning` are exposed.
 - An API whose resources another app draws as [remote resources](/reference/remote-resources/#cors) lists that app's origin here.

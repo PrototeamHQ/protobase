@@ -1,24 +1,24 @@
 ---
 title: Supabase Storage API
-description: The Storage-compatible /storage/v1 that supabase-js's storage calls, over the app's file provider, under the restored storage policies.
+description: The Storage-compatible /api/sb/storage/v1 that supabase-js's storage calls, over the app's file provider, under the restored storage policies.
 ---
 
-An app with API keys also serves `/storage/v1`, the API that supabase-js's `storage` calls. An app moved from Supabase keeps its uploads, downloads, public URLs and signed URLs: point the client at the app and give it the publishable key.
+An app with API keys also serves `/api/sb/storage/v1`, the API that supabase-js's `storage` calls. An app moved from Supabase keeps its uploads, downloads, public URLs and signed URLs: point the client at the app's `/api/sb` and give it the publishable key.
 
 ```ts
 import { createClient } from '@supabase/supabase-js'
 
-const supabase = createClient('https://my-app.example.com', 'sb_publishable_...')
+const supabase = createClient('https://my-app.example.com/api/sb', 'sb_publishable_...')
 const { data, error } = await supabase.storage.from('avatars').upload(`${userId}/avatar.png`, file)
 ```
 
 ## Where things are kept
 
-The buckets and objects are the rows of `storage.buckets` and `storage.objects`, the schema that `protobase import supabase` restores with its policies. The bytes go to one of the app's [file providers](/reference/files/): `files.storage.provider` in `protobase.config.ts`, `private` by default, so a local folder or an S3-compatible bucket, with that provider's `max_bytes` and `max_files` quota. An object's bytes are kept at `storage/<SHA-256 of bucket and name>/<version>` in the provider, where [`protobase import supabase --storage-url`](/reference/cli/#import-supabase) copies a Supabase project's. `files.storage.maxFileSize` caps every upload, `50 MB` by default, and a bucket's `file_size_limit` can only lower it. `files: { storage: false }` serves no `/storage/v1`.
+The buckets and objects are the rows of `storage.buckets` and `storage.objects`, the schema that `protobase import supabase` restores with its policies. The bytes go to one of the app's [file providers](/reference/files/): `files.storage.provider` in `protobase.config.ts`, `private` by default, so a local folder or an S3-compatible bucket, with that provider's `max_bytes` and `max_files` quota. An object's bytes are kept at `storage/<SHA-256 of bucket and name>/<version>` in the provider, where [`protobase import supabase --storage-url`](/reference/cli/#import-supabase) copies a Supabase project's. `files.storage.maxFileSize` caps every upload, `50 MB` by default, and a bucket's `file_size_limit` can only lower it. `files: { storage: false }` serves no `/api/sb/storage/v1`.
 
 ## Keys and roles
 
-The keys are `options.apiKeys` of `createAdmin`, `{ publishable_key, secret_key }`, or else `PROTOBASE_PUBLISHABLE_KEY` and `PROTOBASE_SECRET_KEY`. Without either, or with `apiKeys: false`, the app serves no `/storage/v1`. A request sends a key in the `apikey` header and runs as:
+The keys are `options.apiKeys` of `createAdmin`, `{ publishable_key, secret_key }`, or else `PROTOBASE_PUBLISHABLE_KEY` and `PROTOBASE_SECRET_KEY`. Without either, or with `apiKeys: false`, the app serves no `/api/sb/storage/v1`. A request sends a key in the `apikey` header and runs as:
 
 | The request sends | It runs as |
 | --- | --- |
@@ -35,7 +35,7 @@ The role is set with `SET LOCAL ROLE` and the token's claims in `request.jwt.cla
 
 An upload is checked against the policies before its bytes are stored, then its row is written as the caller in one transaction. A refused upload stores nothing, and the bytes of a write that fails are deleted.
 
-Public buckets are served at `/storage/v1/object/public/<bucket>/<name>` without a key. A signed URL serves one object to anyone until it expires; a signed upload URL takes one upload for two hours, written for the user who signed it.
+Public buckets are served at `/api/sb/storage/v1/object/public/<bucket>/<name>` without a key. A signed URL serves one object to anyone until it expires; a signed upload URL takes one upload for two hours, written for the user who signed it.
 
 ## What it serves
 

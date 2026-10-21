@@ -99,7 +99,7 @@ A record often belongs to another one through a relation, such as an operation t
 - **`update` follows the parent's own parents**, so with VMs under `.parent((r) => r.folder_id, 'update')` an operation needs update on the VM's folder too. A write that would put a record under itself, or under a cycle already in the data, is refused. A `read` parent is not followed further.
 - **Several parents** are each checked with their own access, also two of one resource, such as a transfer that reads its `source_vm_id` and updates its `target_vm_id`.
 - **The parent is locked until the write commits** (`FOR NO KEY UPDATE`), so a VM handed to someone else or deleted at the same moment is waited for and checked again. That is the cost: writes of records under one parent, and through an `update` parent under one ancestor, run one after another. The server's database role needs `UPDATE` on the parent's table to take the lock. Two writes that lock the same records in opposite orders, such as two batches writing under VM A then B and B then A, can deadlock: Postgres rolls one back, which answers `409` and writes nothing, and the client sends it again.
-- The record page and `/api/meta` count the check, so the admin app offers no Edit or Delete the server would refuse. `/rest/v1` does not use Protobase's access rules at all, so this check is not part of it.
+- The record page and `/api/meta` count the check, so the admin app offers no Edit or Delete the server would refuse. `/api/sb/rest/v1` does not use Protobase's access rules at all, so this check is not part of it.
 
 ## Restricted model and row filters
 
