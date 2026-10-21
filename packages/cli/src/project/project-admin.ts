@@ -5,8 +5,8 @@ import type { BundleUi } from '../serve/bundle-ui'
 
 /**
  * The admin API of a project over `db`, as `dev`, `serve` and `worker` build it: its config module's resources, views,
- * pages and subscriptions, and the rest of its config; served from a bundle, the plugins it carries and their field
- * types. `jobs` are the project's own and the delivery of its events and history. With a `reporter`, every error the API turns
+ * pages and subscriptions, and the rest of its config; served from a bundle, the plugins it carries, their field
+ * types and which icons are the project's own (`protobase dev` passes the project's icons alone). `jobs` are the project's own and the delivery of its events and history. With a `reporter`, every error the API turns
  * into a 500 goes to the error tracker too, besides the project's `onUnhandledError` or the console. With the host's
  * `upgradeWebSocket`, it serves `/realtime/v1` too.
  */
@@ -29,6 +29,8 @@ export const projectAdmin = (project: ProjectConfig & { authenticate: Authentica
     ...(project.history && { history: project.history }),
     ...(project.webhooks && { webhooks: project.webhooks }),
     ...(project.mobile && { mobile: project.mobile }),
+    ...(project.app && { app: project.app }),
+    ...(ui?.icons && { icons: ui.icons }),
     jobs: own,
     subscriptions,
     ...(ui && { bundlePlugins: ui.plugins, fieldTypes: ui.fieldTypes }),

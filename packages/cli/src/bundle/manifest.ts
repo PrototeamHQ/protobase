@@ -1,5 +1,6 @@
 import { readFile } from 'node:fs/promises'
 import path from 'node:path'
+import { pngIcons, type AppIcons } from '@protobase/server'
 
 // The deploy bundle's table of contents, read by `protobase serve <dir>` and by any host that serves a bundle.
 export const manifestFile = 'protobase.bundle.json'
@@ -37,6 +38,9 @@ export type BundleManifest = {
   // The project's theme inside `public`, which the app links after its own stylesheets; empty without one.
   theme: string
   shell: BundleShell
+  // The icons inside `public` that are the project's own rather than Protobase's, which the server's web manifest and
+  // `/meta` name. A bundle built before it names none.
+  icons?: AppIcons
   // The packages the config module loads from disk, native add-ons and what they need: a node_modules folder beside
   // `server`, relative to the bundle. Only in a bundle that has some.
   nodeModules?: string
@@ -72,20 +76,24 @@ const isPlugin = (value: unknown): value is BundlePlugin =>
 const isShell = (value: unknown): value is BundleShell =>
   isObject(value) && typeof value.protobase === 'string' && Number.isInteger(value.pluginApi) && isStringList(value.paths)
 
+const isIcons = (value: unknown): value is AppIcons =>
+  isObject(value) && typeof value.favicon === 'boolean' && isStringList(value.png) && value.png.every((icon) => icon in pngIcons)
+
 // The bundle's layout; its Protobase version is the serve runtime's to check (see checkBundleVersion).
 export type BundleLayout = Omit<BundleManifest, 'protobase'>
 
 export const parseManifest = (value: unknown, file: string): BundleLayout => {
   const manifest = value as Partial<BundleManifest> | null
   if (manifest?.version !== 3) throw new Error(`${file} is not a version 3 bundle manifest; rebuild it with \`protobase build\``)
-  const { server, public: publicDir, api, spa, plugins, theme, shell, nodeModules } = manifest
+  const { server, public: publicDir, api, spa, plugins, theme, shell, icons, nodeModules } = manifest
   if (typeof server !== 'string' || typeof publicDir !== 'string' || typeof spa !== 'string' || typeof theme !== 'string' || !isStringList(api)) {
     throw new Error(`${file} needs server, public, spa and theme paths and an api list`)
   }
   if (!Array.isArray(plugins) || !plugins.every(isPlugin)) throw new Error(`${file} needs a plugins list, each with a name, path, api and protobase`)
   if (!isShell(shell)) throw new Error(`${file} needs a shell with its protobase version, pluginApi and paths`)
+  if (icons !== undefined && !isIcons(icons)) throw new Error(`${file} has icons that are not a favicon flag and a list of PNG icons`)
   if (nodeModules !== undefined && typeof nodeModules !== 'string') throw new Error(`${file} has a nodeModules that is no path`)
-  return { version: 3, server, public: publicDir, api, spa, plugins, theme, shell, ...(nodeModules === undefined ? {} : { nodeModules }) }
+  return { version: 3, server, public: publicDir, api, spa, plugins, theme, shell, ...(icons && { icons }), ...(nodeModules === undefined ? {} : { nodeModules }) }
 }
 
 export const readManifest = async (bundleDir: string) => {

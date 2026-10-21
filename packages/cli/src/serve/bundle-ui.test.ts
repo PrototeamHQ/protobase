@@ -18,5 +18,7 @@ describe('bundleUi', () => {
       shell: { protobase: '0.12.0', pluginApi: 1, paths: ['/index.html', '/assets'] },
     }
     expect(bundleUi(manifest)).toEqual({ plugins: ['/plugins/crm/plugin.json', '/plugins/app/plugin.json'], fieldTypes: { phone: ['text'], rating: ['integer', 'decimal'] } })
+    const icons = { favicon: true, png: ['icon192' as const, 'appleTouch' as const] }
+    expect(bundleUi({ ...manifest, icons }).icons).toEqual(icons)
   })
 })

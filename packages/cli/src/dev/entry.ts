@@ -1,6 +1,7 @@
 import { upgradeWebSocket } from '@hono/node-server'
 import { Hono } from 'hono'
 import { checkAi, checkAuthSchema, checkChanges, checkComments, checkComputed, checkWebhooksSchema, configExports, hasUsers } from '@protobase/server'
+import { projectIcons } from '../build/app-icons'
 import { projectErrorReporter } from '../project/error-reporter'
 import { projectAdmin } from '../project/project-admin'
 import { devJobs } from './dev-jobs'
@@ -36,7 +37,9 @@ if (project.webhooks) await checkWebhooksSchema(db, project.webhooks)
 // With a DSN set, the API's 500s go to the error tracker too; a crash is the terminal's to show. Its `/realtime/v1`
 // sockets are upgraded by run.ts's `apiWebSockets`.
 const reporter = await projectErrorReporter(project, process.env)
-const { admin, jobs } = projectAdmin({ ...project, authenticate: project.authenticate }, project.exports, db, undefined, reporter, upgradeWebSocket)
+// The plugins come from Vite here, not a bundle; the icons are the project's files, which the dev server answers.
+const ui = { plugins: [], fieldTypes: {}, icons: projectIcons(projectDir) }
+const { admin, jobs } = projectAdmin({ ...project, authenticate: project.authenticate }, project.exports, db, ui, reporter, upgradeWebSocket)
 
 // The project's jobs and the delivery of its events, run in this server; a behind jobs schema stops startup with the
 // command that writes its migration.

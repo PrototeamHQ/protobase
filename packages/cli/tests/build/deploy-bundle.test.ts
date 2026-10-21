@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { prebuildifyFiles, writePackage } from '../support/packages'
 import { protobaseVersion } from '../../src/version/version'
 import { buildDeployBundle } from '../../src/build/deploy-bundle'
+import { testPng } from '../support/png'
 
 const root = path.resolve(__dirname, '../../../..')
 
@@ -36,7 +37,7 @@ describe('buildDeployBundle', () => {
     const manifest = await buildDeployBundle({ projectDir, outDir })
 
     const shell = { protobase: protobaseVersion, pluginApi: 1, paths: ['/index.html', '/assets', '/protobase.sw.js'] }
-    const expected = { version: 3, protobase: protobaseVersion, server: 'protobase.config.js', public: 'public', spa: 'index.html', api: ['/api'], plugins: [], theme: 'protobase.theme.css', shell }
+    const expected = { version: 3, protobase: protobaseVersion, server: 'protobase.config.js', public: 'public', spa: 'index.html', api: ['/api'], plugins: [], theme: 'protobase.theme.css', shell, icons: { favicon: false, png: [] } }
     expect(manifest).toEqual(expected)
     expect(JSON.parse(await readFile(path.join(outDir, 'protobase.bundle.json'), 'utf8'))).toEqual(expected)
     expect(await readFile(path.join(outDir, 'protobase.config.js'), 'utf8')).not.toContain('// @bun')
@@ -102,7 +103,7 @@ describe('buildDeployBundle', () => {
     await expect(buildDeployBundle({ projectDir, outDir })).rejects.toThrow('protobase.theme.css is not a theme:')
   }, buildTimeout)
 
-  it("writes the project's favicon, which the app links, and Protobase's without one", async () => {
+  it("writes the project's favicon and PNG icons, which the app links, and Protobase's favicon without one", async () => {
     projectDir = await createProject({ 'config/index.ts': things })
     const outDir = path.join(projectDir, 'dist')
     await buildDeployBundle({ projectDir, outDir })
@@ -111,8 +112,13 @@ describe('buildDeployBundle', () => {
 
     const own = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><circle cx="8" cy="8" r="8"/></svg>'
     await writeFile(path.join(projectDir, 'protobase.favicon.svg'), own)
-    await buildDeployBundle({ projectDir, outDir })
+    const touchIcon = testPng(180)
+    await writeFile(path.join(projectDir, 'protobase.apple-touch-icon.png'), touchIcon)
+    const manifest = await buildDeployBundle({ projectDir, outDir })
     expect(await readFile(path.join(outDir, 'public/protobase.favicon.svg'), 'utf8')).toBe(own)
+    expect(await readFile(path.join(outDir, 'public/protobase.apple-touch-icon.png'))).toEqual(touchIcon)
+    expect(manifest.icons).toEqual({ favicon: true, png: ['appleTouch'] })
+    expect(await readFile(path.join(outDir, 'public/index.html'), 'utf8')).toContain('<link rel="apple-touch-icon" href="/protobase.apple-touch-icon.png">')
   }, buildTimeout)
 
   it('carries a native package in node_modules and names it in the manifest, until a build without one', async () => {
