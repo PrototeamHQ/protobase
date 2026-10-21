@@ -376,6 +376,7 @@ Serves the API of a bundle from `protobase build` and owns the process around it
 | `PROTOBASE_JOBS` | `false` runs none of the app's [jobs](/reference/jobs/) in this process, which still enqueues them; default `true` |
 | `PROTOBASE_STARTUP_CHECKS` | `false` skips the startup reads of the auth, changes, computed columns, webhooks and jobs schemas, which make a start slower; default `true`. Set it only to restart a bundle that already started on this database, such as when a platform wakes a sleeping app, never for a new bundle or after its migrations ran |
 | `PROTOBASE_SHELL` | `protobase serve <bundle>` only: a shell folder, such as the `/opt/protobase/shell` of a protobase image or `@protobase/ui`'s `dist/shell`, to serve the bundle's app from (see [its own shell](#serve)) |
+| `PROTOBASE_TRUSTED_PROXIES` | the proxies in front of the server, addresses or CIDR ranges, comma separated: a request from one of them names its client in `X-Forwarded-For`; without it the client is the connection's address ([Client addresses](/reference/auth/#client-addresses)) |
 | `PROTOBASE_JOBS_DRAIN_TOKEN` | the operator's bearer token for `POST /api/jobs/drain`, which [runs the due jobs](/reference/jobs/#hosts-that-sleep) of a host that lets the app sleep; without it there is no such endpoint |
 
 Better Auth and other settings are the project's own variables (`BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, ...), read by its config. `protobase serve` also loads the nearest `.env`, like `dev`; the runtime takes the environment as it is.

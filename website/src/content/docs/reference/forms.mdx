@@ -53,7 +53,7 @@ There is no mail built into forms: the record's `created` event enqueues a [job]
 
 ## Rate limit
 
-Each client may send a form `perMinute` times a minute, 5 by default, as many as it may try to sign in. Past that, the form answers `429` with `Retry-After`. A client is known by its address in `X-Forwarded-For`, read as the sign-in limit reads it: a header with one address, an IPv6 address by its /64. Requests without one, or with several addresses, as a proxy makes when it appends to a header the client sent, share a single limit. The count is kept in each server process's memory, so with several instances each counts on its own, and a restart starts over.
+Each client may send a form `perMinute` times a minute, 5 by default, as many as it may try to sign in. Past that, the form answers `429` with `Retry-After`. A client is known by its address, as the sign-in limit knows it: see [Client addresses](/reference/auth/#client-addresses), and `PROTOBASE_TRUSTED_PROXIES` behind a proxy. The count is kept in each server process's memory, so with several instances each counts on its own, and a restart starts over.
 
 ## Bot check
 
