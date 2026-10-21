@@ -1,7 +1,9 @@
+import { randomBytes } from 'node:crypto'
 import { Kysely, sql } from 'kysely'
 import { describe, expect, it, vi } from 'vitest'
+import WebSocket from 'ws'
 import { f, resource, view } from '@protobase/schema'
-import { defineJob, unauthorized } from '@protobase/server'
+import { defineFunction, defineJob, isBackgroundWork, unauthorized } from '@protobase/server'
 import { startServe } from '../../src/serve/lifecycle'
 import type { ServedProject } from '../../src/serve/load-bundle'
 import { openSnapshotDb } from '../../../../test-support/sql-snapshot'
@@ -168,5 +170,40 @@ describe('startServe', () => {
     } finally {
       await off.close()
     }
+  }, 30_000)
+
+  it('opens a function’s WebSocket for its caller only, echoes text and binary as they are, and closes it with 1001 on stop', async () => {
+    const inBackground: boolean[] = []
+    const echo = defineFunction((_request, { acceptWebSocket }) =>
+      acceptWebSocket({
+        onOpen: () => void inBackground.push(isBackgroundWork()),
+        onMessage: (data, socket) => socket.send(data),
+      }),
+    )
+    const server = await startServe({ project: { ...project, functions: { echo } }, env, createDb: await dbFactory() })
+    const url = `ws://localhost:${server.port}/api/functions/echo`
+
+    const refused = new WebSocket(url)
+    const status = await new Promise((resolve) => refused.once('unexpected-response', (_request, response) => resolve(response.statusCode)))
+    expect(status).toBe(401)
+
+    const socket = new WebSocket(url, { headers: { authorization: 'Bearer ok' } })
+    const messages: Array<{ data: Buffer; isBinary: boolean }> = []
+    socket.on('message', (data: Buffer, isBinary) => messages.push({ data, isBinary }))
+    await new Promise((resolve, reject) => socket.once('open', resolve).once('error', reject))
+    const bytes = randomBytes(1 << 20)
+    socket.send('hello')
+    socket.send(bytes)
+    await vi.waitFor(() => expect(messages).toHaveLength(2))
+    expect(messages[0]!.isBinary).toBe(false)
+    expect(messages[0]!.data.toString()).toBe('hello')
+    expect(messages[1]!.isBinary).toBe(true)
+    expect(messages[1]!.data.equals(bytes)).toBe(true)
+
+    const closed = new Promise((resolve) => socket.once('close', (code) => resolve(code)))
+    await server.close()
+    expect(await closed).toBe(1001)
+    // The socket's handlers run as the function's background work.
+    expect(inBackground).toEqual([true])
   }, 30_000)
 })
