@@ -44,6 +44,9 @@ export type BundleManifest = {
   // The packages the config module loads from disk, native add-ons and what they need: a node_modules folder beside
   // `server`, relative to the bundle. Only in a bundle that has some.
   nodeModules?: string
+  // The project's db/migrations/*.sql, which the serve runtime's `migrate` applies, relative to the bundle. Only in a
+  // bundle that has some.
+  migrations?: string
 }
 
 export const isApiPath = (api: readonly string[], pathname: string) =>
@@ -59,6 +62,9 @@ export const bundleLayout = { server: 'protobase.config.js', public: 'public', s
 
 // Where `protobase build` puts the packages the config module loads from disk, when there are any.
 export const bundleNodeModules = 'node_modules'
+
+// Where `protobase build` puts the project's migrations, when there are any.
+export const bundleMigrations = 'migrations'
 
 const isStringList = (value: unknown): value is string[] => Array.isArray(value) && value.every((item) => typeof item === 'string')
 
@@ -86,7 +92,7 @@ export type BundleLayout = Omit<BundleManifest, 'protobase'>
 export const parseManifest = (value: unknown, file: string): BundleLayout => {
   const manifest = value as Partial<BundleManifest> | null
   if (manifest?.version !== 3) throw new Error(`${file} is not a version 3 bundle manifest; rebuild it with \`protobase build\``)
-  const { server, public: publicDir, api, spa, plugins, theme, shell, icons, nodeModules } = manifest
+  const { server, public: publicDir, api, spa, plugins, theme, shell, icons, nodeModules, migrations } = manifest
   if (typeof server !== 'string' || typeof publicDir !== 'string' || typeof spa !== 'string' || typeof theme !== 'string' || !isStringList(api)) {
     throw new Error(`${file} needs server, public, spa and theme paths and an api list`)
   }
@@ -94,7 +100,20 @@ export const parseManifest = (value: unknown, file: string): BundleLayout => {
   if (!isShell(shell)) throw new Error(`${file} needs a shell with its protobase version, pluginApi and paths`)
   if (icons !== undefined && !isIcons(icons)) throw new Error(`${file} has icons that are not a favicon flag and a list of PNG icons`)
   if (nodeModules !== undefined && typeof nodeModules !== 'string') throw new Error(`${file} has a nodeModules that is no path`)
-  return { version: 3, server, public: publicDir, api, spa, plugins, theme, shell, ...(icons && { icons }), ...(nodeModules === undefined ? {} : { nodeModules }) }
+  if (migrations !== undefined && typeof migrations !== 'string') throw new Error(`${file} has a migrations that is no path`)
+  return {
+    version: 3,
+    server,
+    public: publicDir,
+    api,
+    spa,
+    plugins,
+    theme,
+    shell,
+    ...(icons && { icons }),
+    ...(nodeModules === undefined ? {} : { nodeModules }),
+    ...(migrations === undefined ? {} : { migrations }),
+  }
 }
 
 export const readManifest = async (bundleDir: string) => {

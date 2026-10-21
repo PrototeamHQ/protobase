@@ -26,10 +26,11 @@ describe('parseManifest', () => {
   const shell = { protobase: '0.12.0', pluginApi: 1, paths: ['/index.html', '/assets'] }
   const manifest = { version: 3, server: 'protobase.config.js', public: 'public', spa: 'index.html', api: ['/api'], plugins: [plugin], theme: 'protobase.theme.css', shell }
 
-  it('accepts a version 3 manifest, with or without node_modules', () => {
+  it('accepts a version 3 manifest, with or without node_modules and migrations', () => {
     expect(parseManifest(manifest, 'm.json')).toEqual(manifest)
     expect(parseManifest({ ...manifest, plugins: [] }, 'm.json')).toEqual({ ...manifest, plugins: [] })
     expect(parseManifest({ ...manifest, nodeModules: 'node_modules' }, 'm.json')).toEqual({ ...manifest, nodeModules: 'node_modules' })
+    expect(parseManifest({ ...manifest, migrations: 'migrations' }, 'm.json')).toEqual({ ...manifest, migrations: 'migrations' })
   })
 
   it('refuses another version and missing or malformed fields', () => {
@@ -39,6 +40,7 @@ describe('parseManifest', () => {
     expect(() => parseManifest({ ...manifest, plugins: [{ ...plugin, api: '1' }] }, 'm.json')).toThrow('m.json needs a plugins list, each with a name, path, api and protobase')
     expect(() => parseManifest({ ...manifest, shell: { ...shell, paths: '/assets' } }, 'm.json')).toThrow('m.json needs a shell with its protobase version, pluginApi and paths')
     expect(() => parseManifest({ ...manifest, nodeModules: true }, 'm.json')).toThrow('m.json has a nodeModules that is no path')
+    expect(() => parseManifest({ ...manifest, migrations: ['001.sql'] }, 'm.json')).toThrow('m.json has a migrations that is no path')
   })
 
   it('reads protobase.bundle.json from a bundle folder', async () => {

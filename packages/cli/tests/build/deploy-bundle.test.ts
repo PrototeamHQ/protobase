@@ -153,6 +153,27 @@ describe('buildDeployBundle', () => {
     expect(existsSync(path.join(projectDir, 'node_modules/own-dependency/package.json'))).toBe(true)
   })
 
+  it("carries the project's migrations and names them in the manifest, until a build without db/migrations", async () => {
+    projectDir = await createProject({ 'config/index.ts': things, 'db/migrations/001_things.sql': 'create table things (id integer primary key);\n' })
+    const outDir = path.join(projectDir, 'dist')
+
+    expect((await buildDeployBundle({ projectDir, outDir })).migrations).toBe('migrations')
+    expect(JSON.parse(await readFile(path.join(outDir, 'protobase.bundle.json'), 'utf8')).migrations).toBe('migrations')
+    expect(await readdir(path.join(outDir, 'migrations'))).toEqual(['001_things.sql'])
+
+    await rm(path.join(projectDir, 'db'), { recursive: true })
+    expect((await buildDeployBundle({ projectDir, outDir })).migrations).toBeUndefined()
+    expect(existsSync(path.join(outDir, 'migrations'))).toBe(false)
+  }, buildTimeout)
+
+  it('never deletes a migrations folder it did not write', async () => {
+    projectDir = await createProject({ 'config/index.ts': things, 'migrations/001_own.sql': 'select 1;\n' })
+    await expect(buildDeployBundle({ projectDir, outDir: projectDir })).rejects.toThrow(
+      `${path.join(projectDir, 'migrations')} was not written by \`protobase build\`; build into another folder (--out)`,
+    )
+    expect(existsSync(path.join(projectDir, 'migrations/001_own.sql'))).toBe(true)
+  })
+
   it("with bun, has Bun's bundler write the config module", async () => {
     projectDir = await createProject({ 'config/index.ts': things })
     const outDir = path.join(projectDir, 'dist')

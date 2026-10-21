@@ -1,8 +1,9 @@
 import { existsSync } from 'node:fs'
 import { cp, readFile, rm, writeFile } from 'node:fs/promises'
 import path from 'node:path'
-import { bundleLayout, bundleNodeModules, manifestFile, type BundleManifest } from '../bundle/manifest'
+import { bundleLayout, bundleMigrations, bundleNodeModules, manifestFile, type BundleManifest } from '../bundle/manifest'
 import { buildBundlePlugins } from './bundle-plugins'
+import { copyMigrations } from './bundle-migrations'
 import { buildConfigBundle } from './config-bundle'
 import { protobaseVersion } from '../version/version'
 import { copyPackages } from './packages/copy-packages'
@@ -25,14 +26,14 @@ export type DeployBundleInput = {
   onWarning?: (message: string) => void
 }
 
-// node_modules in the output folder is replaced only when the previous build's manifest names it as its own, so a
-// build into the project folder itself never deletes the project's packages.
-const removeOwnNodeModules = async (outDir: string) => {
-  const dir = path.join(outDir, bundleNodeModules)
+// A folder of the output that a build writes, such as node_modules, is replaced only when the previous build's
+// manifest names it as its own under `key`, so a build into the project folder itself never deletes the project's.
+const removeOwnFolder = async (outDir: string, name: string, key: 'nodeModules' | 'migrations') => {
+  const dir = path.join(outDir, name)
   if (!existsSync(dir)) return
   const manifest = path.join(outDir, manifestFile)
-  const previous = existsSync(manifest) ? (JSON.parse(await readFile(manifest, 'utf8')) as { nodeModules?: unknown }) : undefined
-  if (previous?.nodeModules !== bundleNodeModules) throw new Error(`${dir} was not written by \`protobase build\`; build into another folder (--out)`)
+  const previous = existsSync(manifest) ? (JSON.parse(await readFile(manifest, 'utf8')) as Record<string, unknown>) : undefined
+  if (previous?.[key] !== name) throw new Error(`${dir} was not written by \`protobase build\`; build into another folder (--out)`)
   await rm(dir, { recursive: true, force: true })
 }
 
@@ -52,13 +53,14 @@ const copyShell = async (publicDir: string, sourceMaps: boolean) => {
 
 // The folder a host deploys: the config module for the serve runtime with the packages it loads from disk; under
 // public/ the prebuilt app (the shell), the project's protobase.ui.tsx and extensions' UI configs as plugins, its
-// theme, checked and minified, and its icons; and the manifest saying which paths go to the server, which Protobase
-// version built it, its plugins, theme and shell, and which icons are the project's own. Of the project's server config
-// only the config folder runs at build time, to check its views against its resources; when it declares custom
-// components, or extensions have UI configs, the UI is loaded once to check its names against the config's and each
-// other's.
+// theme, checked and minified, and its icons; the project's db/migrations as migrations/; and the manifest saying which
+// paths go to the server, which Protobase version built it, its plugins, theme, shell and migrations, and which icons
+// are the project's own. Of the project's server config only the config folder runs at build time, to check its views
+// against its resources; when it declares custom components, or extensions have UI configs, the UI is loaded once to
+// check its names against the config's and each other's.
 export const buildDeployBundle = async ({ projectDir, outDir, bun, extensions = [], sourceMaps = false, onWarning }: DeployBundleInput): Promise<BundleManifest> => {
-  await removeOwnNodeModules(outDir)
+  await removeOwnFolder(outDir, bundleNodeModules, 'nodeModules')
+  await removeOwnFolder(outDir, bundleMigrations, 'migrations')
   const components = new Set<string>()
   const native = await buildConfigBundle({ projectDir, outFile: path.join(outDir, bundleLayout.server), bun, extensions, components })
   await checkViews(projectDir)
@@ -66,6 +68,7 @@ export const buildDeployBundle = async ({ projectDir, outDir, bun, extensions = 
   const packages = native.length > 0 ? await copyPackages(native, path.join(outDir, bundleNodeModules)) : []
   const publicDir = path.join(outDir, bundleLayout.public)
   const shell = await copyShell(publicDir, sourceMaps)
+  const migrations = await copyMigrations({ projectDir, outDir })
   // What Protobase generates in the project, such as the mobile workspace's packages and native projects, is no source of styles.
   const plugins = await buildBundlePlugins({ projectDir, publicDir, extensions, ignore: [outDir, path.join(projectDir, protobaseFolder)], sourceMaps })
   for (const warning of await buildTheme({ projectDir, outFile: path.join(publicDir, bundleLayout.theme) })) onWarning?.(warning)
@@ -79,6 +82,7 @@ export const buildDeployBundle = async ({ projectDir, outDir, bun, extensions = 
     shell,
     icons,
     ...(packages.length > 0 ? { nodeModules: bundleNodeModules } : {}),
+    ...(migrations ? { migrations } : {}),
   }
   await writeFile(path.join(outDir, manifestFile), `${JSON.stringify(manifest, null, 2)}\n`)
   return manifest
