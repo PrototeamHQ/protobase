@@ -376,6 +376,7 @@ Serves the API of a bundle from `protobase build` and owns the process around it
 | `PROTOBASE_SOURCES` | other Protobase APIs whose resources the app draws as its own, a JSON list of `{ "url", "label", "resources", "roles"? }` after `options.sources` ([Remote resources](/reference/remote-resources/#declaring-a-source)) |
 | `PROTOBASE_FILES_<NAME>`, `PROTOBASE_FILES_RETENTION`, `PROTOBASE_FILES_SECRET` | [file providers](/reference/files/#providers) and their settings, over `files` in the config; a bucket's credentials in `PROTOBASE_FILES_<NAME>_ACCESS_KEY_ID` and `_SECRET_ACCESS_KEY` |
 | `PROTOBASE_FILES_CLEANUP_MINUTES` | minutes between runs of the [scheduled file deletes](/reference/files/#deleting-files), default 60; 0 leaves them to `protobase files cleanup` or the platform |
+| `PROTOBASE_ENCRYPTION_KEY`, `PROTOBASE_ENCRYPTION_PREVIOUS_KEYS` | the key [encrypted fields](/reference/data-config/#encrypted-fields) are sealed with, 32 random bytes in base64 (`openssl rand -base64 32`), and the comma separated keys they were sealed with before, which still open them |
 | `PROTOBASE_JOBS` | `false` runs none of the app's [jobs](/reference/jobs/) in this process, which still enqueues them; default `true` |
 | `PROTOBASE_STARTUP_CHECKS` | `false` skips the startup reads of the auth, changes, computed columns, webhooks and jobs schemas, which make a start slower; default `true`. Set it only to restart a bundle that already started on this database, such as when a platform wakes a sleeping app, never for a new bundle or after its migrations ran |
 | `PROTOBASE_SHELL` | `protobase serve <bundle>` only: a shell folder, such as the `/opt/protobase/shell` of a protobase image or `@protobase/ui`'s `dist/shell`, to serve the bundle's app from (see [its own shell](#serve)) |
@@ -387,7 +388,7 @@ Better Auth and other settings are the project's own variables (`BETTER_AUTH_SEC
 - **Routes:** `createAdmin` (`/api/v1`, `/api/meta`, `/api/functions/*`, `/api/auth/*`, ...) and `GET /health`, which answers `{"status":"ok"}` without a token and without touching the database. The runtime never serves the UI; `protobase serve <bundle>` serves `public/` for every path outside the manifest's `api` and `/.well-known/webauthn`, after `/health`.
 - **Plugins:** the runtime reads the manifest's `plugins`: `/api/meta` names them, and a view that shows a field with one of their [field types](/reference/plugins/#field-types) that does not show the field's storage type stops startup, naming the view, the field and what the field type shows.
 - **Version:** before loading the config module, the runtime reads `protobase.bundle.json` beside it and refuses a bundle built by a Protobase version it does not serve, or one without a version, with an error naming both versions (see [Versioning](/reference/versioning/#bundles-and-runtimes)). A config module needs its manifest beside it.
-- **Startup:** a bundle without a default export, `config` or `authenticate`, or with an `options.basePath` other than `/api/v1`, stops startup with a one-line error and exit code 1, as does a missing `DATABASE_URL`, an auth schema that lacks a table or column (see [`auth migration`](#auth-migration)), a resource whose [events](/reference/events/) or [history](/reference/history/) lack their triggers or have out-of-date ones, or a missing history or [comments](/reference/comments/#the-table) table, a [rollup or formula field](/reference/data-config/#rollups-and-formulas) whose column or trigger is missing or out of date, a jobs schema that is missing or behind for a config with [jobs](/reference/jobs/#the-jobs-schema) (see [`migration`](#migration)), an [AI field or action](/reference/ai/#the-model) without a model key, or a taken port; `PROTOBASE_STARTUP_CHECKS=false` skips the checks of those schemas and the key. `protobase serve listening on port <port>` means it is ready.
+- **Startup:** a bundle without a default export, `config` or `authenticate`, or with an `options.basePath` other than `/api/v1`, stops startup with a one-line error and exit code 1, as does a missing `DATABASE_URL`, an auth schema that lacks a table or column (see [`auth migration`](#auth-migration)), a resource whose [events](/reference/events/) or [history](/reference/history/) lack their triggers or have out-of-date ones, or a missing history or [comments](/reference/comments/#the-table) table, a [rollup or formula field](/reference/data-config/#rollups-and-formulas) whose column or trigger is missing or out of date, a jobs schema that is missing or behind for a config with [jobs](/reference/jobs/#the-jobs-schema) (see [`migration`](#migration)), an [AI field or action](/reference/ai/#the-model) without a model key, [encrypted fields](/reference/data-config/#encrypted-fields) without a key, or another resource over their column, or a taken port; `PROTOBASE_STARTUP_CHECKS=false` skips the checks of those schemas and the key. `protobase serve listening on port <port>` means it is ready.
 - **Jobs:** with [jobs](/reference/jobs/) in the config it runs them beside the API, unless `PROTOBASE_JOBS=false`, and with `PROTOBASE_JOBS_DRAIN_TOKEN` it answers `POST /api/jobs/drain` for the operator.
 - **Shutdown:** the first SIGTERM or SIGINT stops accepting connections, waits for open requests, gives running jobs 30 seconds to finish, drains the pool `serve` created (a `db` the config exports is the project's to close) and exits with 0.
 - **Host modules:** under Bun, the runtime registers [the modules it supplies](#the-config-module) as virtual modules, so the bundle needs no `node_modules` for them. `protobase serve`, on Node or Bun, resolves them from the `node_modules` next to the bundle, so keep the bundle inside the project. Native packages load from the bundle's own `node_modules/` under both.
@@ -409,6 +410,29 @@ protobase files cleanup <bundle>   # a bundle from `protobase build`: its folder
 ```
 
 Runs the [scheduled file deletes](/reference/files/#deleting-files) that are due: replaced and cleared files past their retention, and uploads nobody saved. A file a row references again is kept. It prints each file it deleted or kept. It reads the `.env` nearest the current directory and needs `DATABASE_URL` unless the config exports `db`. `protobase serve` runs the same every hour; this is for cron, or a host that turns that off.
+
+## `encryption status`
+
+```sh
+protobase encryption status            # the project in the current directory
+protobase encryption status <bundle>   # a bundle from `protobase build`: its folder or its protobase.config.js
+```
+
+Reads every [encrypted field](/reference/data-config/#encrypted-fields)'s column and prints its values per key id, the current one marked, its plaintext values, and each value that does not decrypt by record key, with why (`not-encrypted`, `malformed`, `unknown-key`, `failed-authentication`) and never the value. It also prints the history rows and undispatched changes that still hold a field's old values, encrypted values in fields that are not encrypted, and foreign keys `on update cascade` that change a record's key. It writes nothing, so it shows what `apply` would do. It exits with 1 when anything is plaintext, under a previous key, unreadable, misplaced or left in history, so a script can gate on it. It takes the keys from the environment and the `.env` nearest the current directory, like `serve`, and needs `DATABASE_URL` unless the config exports `db`.
+
+## `encryption apply`
+
+```sh
+protobase encryption apply [bundle]
+protobase encryption apply --rebind people --from-table persons          # after a table rename
+protobase encryption apply --rebind people.iban --from-column bank_iban  # after a column rename
+```
+
+Encrypts every plaintext value of the encrypted fields with the current key, encrypts values under a previous key again with it, and removes the fields' old values from the [history](/reference/history/) and the changes not yet dispatched. Values that do not decrypt are listed and left as they are; it exits with 1 when any remain. Its writes are captured by no event, history or webhook, and a value a write changes while it runs is left to that write. It refuses to run when a column holds values under none of its keys, such as with another key than the app's.
+
+`--rebind <resource>[.<field>]` with `--from-table <table>` (as `.table()` wrote it) or `--from-column <column>` also takes values sealed where the field was before a rename, and seals them where it is now; running it again rebinds nothing more. It refuses a former place another resource still encrypts.
+
+Run it at update time, after the migrations and before the new version serves, and again once an old version that wrote plaintext has stopped. It works over one database connection, so a project's own `db` with a pool of one is enough.
 
 ## `users`
 

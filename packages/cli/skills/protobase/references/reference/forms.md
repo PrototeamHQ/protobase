@@ -72,10 +72,12 @@ A form takes plain fields: text, numbers, booleans, dates, enums, currencies and
 
 - a relation, since a visitor cannot read the records to pick one;
 - a file field, since a visitor cannot upload;
-- a sensitive, read-only or generated field;
+- a sensitive field that is not encrypted, a read-only or a generated field;
 - a field the anonymous role's `<resource>.create` does not list; the error names the entry to add;
 - a field the resource does not have, or two forms of the same name;
 - a field every create must give left out, since no submission could then be saved.
+
+An [encrypted field](data-config.md#encrypted-fields)) is written blind, masked as the visitor types, and stored encrypted.
 
 ## The record
 
