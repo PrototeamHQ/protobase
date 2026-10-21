@@ -1,5 +1,6 @@
 import { Hono } from 'hono'
 import * as z from 'zod'
+import { revokeMcpGrants } from '../better-auth/mcp/revoke-grants'
 import { checkNewAccountPassword } from '../better-auth/new-account-password'
 import { readSignInPolicy } from '../better-auth/policy-store'
 import { effectiveSignInPolicy } from '../better-auth/sign-in-policy'
@@ -17,6 +18,9 @@ const logoutScopes = ['global', 'local', 'others'] as const
 /**
  * The signed-in user's own endpoints, with their access token: `GET /user`, `PUT /user` for a new password or metadata,
  * and `POST /logout`. A token whose session has ended, by signing out or a ban, is GoTrue's `session_not_found`.
+ * With MCP on, signing out everywhere or the other sessions, and setting a password, disconnect the user's MCP clients,
+ * as the same steps do through Better Auth: GoTrue has no way to tell a password reset from a change, so every new
+ * password does.
  */
 export const userRoutes = ({ auth, context }: GoTrueDeps) => {
   const claimsOf = accessClaimsOf(goTrueTokens({ auth }))
@@ -40,6 +44,7 @@ export const userRoutes = ({ auth, context }: GoTrueDeps) => {
     const others = { field: 'id', value: claims.session_id, operator: 'ne' } as const
     const where = scope === 'local' ? [{ field: 'id', value: claims.session_id }] : [{ field: 'userId', value: claims.sub }, ...(scope === 'others' ? [others] : [])]
     await adapter.deleteMany({ model: 'session', where })
+    if (scope !== 'local' && auth.mcp) await revokeMcpGrants(adapter, claims.sub)
   }
 
   return new Hono()
@@ -56,6 +61,7 @@ export const userRoutes = ({ auth, context }: GoTrueDeps) => {
         const credential = await ctx.internalAdapter.findCredentialAccount(user.id)
         if (credential) await ctx.internalAdapter.updatePassword(user.id, hash)
         else await ctx.internalAdapter.linkAccount({ userId: user.id, providerId: 'credential', accountId: user.id, password: hash })
+        if (auth.mcp) await revokeMcpGrants(ctx.adapter, user.id)
       }
       // GoTrue merges the keys given into the metadata; one given as null is removed.
       const merged = data && Object.fromEntries(Object.entries({ ...userMetadata(user.metadata), ...data }).filter(([, value]) => value !== null))

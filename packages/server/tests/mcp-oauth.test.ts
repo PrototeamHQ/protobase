@@ -573,6 +573,33 @@ describe('securing the account', () => {
     await securing(async ({ app, cookie }) => ok(await app.request('/api/auth/change-password', { cookie, body: { currentPassword: password, newPassword: password, revokeOtherSessions: true } })))
   })
 
+  // The GoTrue-compatible endpoints, as supabase-js calls them, with an access token of their own.
+  const goTrue = '/api/sb/auth/v1'
+  const goTrueToken = async (response: Response) => {
+    expect(response.status, await response.clone().text()).toBe(200)
+    return ((await response.json()) as { access_token: string }).access_token
+  }
+  const goTrueSignIn = async (app: Served) => goTrueToken(await app.request(`${goTrue}/token?grant_type=password`, { body: { email: 'ana@example.com', password } }))
+  const noContent = (response: Response) => expect(response.status, `${response.url}`).toBe(204)
+
+  it('by signing out everywhere through the GoTrue-compatible endpoints', async () => {
+    await securing(async ({ app }) => noContent(await app.request(`${goTrue}/logout`, { body: {}, headers: { authorization: `Bearer ${await goTrueSignIn(app)}` } })))
+  })
+
+  it('by signing out the other sessions through the GoTrue-compatible endpoints', async () => {
+    await securing(async ({ app }) => noContent(await app.request(`${goTrue}/logout?scope=others`, { body: {}, headers: { authorization: `Bearer ${await goTrueSignIn(app)}` } })))
+  })
+
+  it('by recovering the account and setting a password through the GoTrue-compatible endpoints', async () => {
+    const { mailer, last } = recordingMailer()
+    await securing(async ({ app }) => {
+      ok(await app.request(`${goTrue}/recover`, { body: { email: 'ana@example.com' } }))
+      const code = /^\d{6}$/m.exec(await last('ana@example.com'))![0]
+      const token = await goTrueToken(await app.request(`${goTrue}/verify`, { body: { email: 'ana@example.com', token: code, type: 'recovery' } }))
+      ok(await app.request(`${goTrue}/user`, { method: 'PUT', body: { password }, headers: { authorization: `Bearer ${token}` } }))
+    }, { mailer })
+  })
+
   it('by resetting the password with an emailed link', async () => {
     const { mailer, last } = recordingMailer()
     await securing(async ({ app }) => {
