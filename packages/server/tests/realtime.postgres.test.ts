@@ -59,6 +59,7 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('Realtime with supabase-
       resources: [todos],
       db: pg.db,
       authenticate: () => ({ user: { id: 'admin', roles: ['admin'] } }),
+      files: { storage: false },
       options: { apiKeys: { publishable_key: publishable }, onUnhandledError: (error) => errors.push(error) },
       verifyToken: jwtVerifier({ keys, issuer, audience: issuer }),
       upgradeWebSocket,
@@ -152,7 +153,7 @@ describe.skipIf(!(await postgresTemplateReady('jobs')) || !(await postgresTempla
     const auth = createAuth({ database: { dialect: store.dialect, type: 'postgres' }, baseURL: 'http://localhost:5173', secret: 'test-secret-test-secret-test-secret-1234', mailer: false })
     await createUser(auth, { email: 'ann@example.com', password: 'correct horse battery' })
     const errors: unknown[] = []
-    const admin = createAdmin({ resources: [todos], db: pg.db, authenticate: betterAuthAuthenticator({ auth }), auth, options: { apiKeys: { publishable_key: publishable }, onUnhandledError: (error) => errors.push(error) }, upgradeWebSocket })
+    const admin = createAdmin({ resources: [todos], db: pg.db, authenticate: betterAuthAuthenticator({ auth }), auth, files: { storage: false }, options: { apiKeys: { publishable_key: publishable }, onUnhandledError: (error) => errors.push(error) }, upgradeWebSocket })
     const runtime = await startJobs({ db: pg.db, jobs: admin.jobs, pollSeconds: 0.5, shutdownSeconds: 5, onError: (error) => errors.push(error) })
     onTestFinished(() => runtime.stop())
     const server = createAdaptorServer({ fetch: admin.fetch, websocket: { server: new WebSocketServer({ noServer: true }) } }) as Server
