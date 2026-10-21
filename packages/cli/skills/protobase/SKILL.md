@@ -82,6 +82,7 @@ Reference:
 - When building or loading plugins → read [Plugins](references/reference/plugins.md)
 - When using resources another Protobase API serves → read [Remote resources](references/reference/remote-resources.md)
 - When setting the app's tokens, colors and fonts → read [Theme](references/reference/theme.md)
+- When setting the app's name, icon, home-screen icons or install colours → read [App identity](references/reference/app-identity.md)
 - When showing the app's screens in Dutch → read [Languages](references/reference/languages.md)
 - When installing the app on a phone or computer, or asking what it does offline → read [Installable app](references/reference/installable-app.md)
 - When grouping sidebar entries or listing recent records → read [Sidebar](references/reference/sidebar.md)

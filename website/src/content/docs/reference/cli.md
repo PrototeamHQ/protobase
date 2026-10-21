@@ -124,7 +124,7 @@ One process, one port: Vite serves the admin app from `@protobase/ui`'s `src/app
 
   `defineConfig` from `@protobase/server` types it, and its `extends` merges other configs in (see [Extending a config](#extending-a-config)).
 - **Project UI:** the app imports `protobase.ui.tsx` from the project root, with hot reload, when it exists (see [Custom components](/reference/custom-components/)): the same contract as the plugin `protobase build` makes of it, built into the dev page instead. Layout files are checked as they load, as `protobase build` checks them.
-- **Theme:** the page links `/protobase.theme.css`, which the dev server answers from the project's [theme](/reference/theme/), checked as the build checks it, on every request, so an edit shows on the next reload. It links `/protobase.favicon.svg` too, the project's [favicon](/reference/theme/#logo-and-favicon) or Protobase's.
+- **Theme:** the page links `/protobase.theme.css`, which the dev server answers from the project's [theme](/reference/theme/), checked as the build checks it, on every request, so an edit shows on the next reload. It links `/protobase.favicon.svg` too, the project's [favicon](/reference/theme/#logo-and-favicon) or Protobase's, and `/protobase.apple-touch-icon.png`, which it answers with the PNG [icons](/reference/app-identity/#the-icons) the project has.
 - **Extensions:** `--extend <dir>` merges an extension in, its UI built into the dev page beside the project's, to try one out; its files reload like the project's.
 - **Hot reload:** server code, data configs, `ui.ts` views, layouts and `protobase.config.ts` are loaded through Vite's SSR module graph. A change inside the project (or, in this repository, in `packages/server`, `packages/query`, `packages/schema`) rebuilds the API on the next request without a restart; `/meta` and `X-Meta-Version` change, so open tabs refetch. The database pool survives reloads. Newly added `ui.ts` files appear after the next change inside the project.
 
@@ -182,6 +182,7 @@ dist/
     plugins/<extension>/    each --extend folder's protobase.ui.tsx, built as a plugin
     protobase.theme.css     the project's theme, checked and minified; empty without one
     protobase.favicon.svg   the project's favicon; Protobase's without one
+    protobase.*.png         the project's PNG icons, the ones it has (see App identity)
   protobase.bundle.json     the manifest
 ```
 
@@ -360,7 +361,7 @@ Serves the API of a bundle from `protobase build` and owns the process around it
 | `REQUEST_LOG` | `true` logs every request; default `false` |
 | `PROTOBASE_SMTP_URL` | the SMTP server for password-reset mail, emailed sign-in and two-factor codes and the app's own [email](/reference/email/), credential included: `smtp://user:password@host:587` (STARTTLS when offered) or `smtps://...:465`; without it they are off ([Password reset](/reference/auth/#password-reset), [Emailed sign-in codes](/reference/auth/#emailed-sign-in-codes)) |
 | `PROTOBASE_MAIL_FROM` | the sender of that mail, a plain address such as `noreply@admin.example.com`; set with `PROTOBASE_SMTP_URL` or not at all |
-| `PROTOBASE_APP_NAME` | the app's name, such as `Property Finder`: what its auth emails, its sidebar, its browser tabs and the [installed app](/reference/installable-app/) call it, and the sender's display name of its mail ([`appName`](/reference/auth/#configuration)) |
+| `PROTOBASE_APP_NAME` | the app's name, such as `Property Finder`: what its auth emails, its sidebar, its browser tabs and the [installed app](/reference/installable-app/) call it, and the sender's display name of its mail, over [`appName`](/reference/auth/#configuration) |
 | `PROTOBASE_SIGN_IN_ISSUER`, `PROTOBASE_SIGN_IN_CLIENT_ID`, `PROTOBASE_SIGN_IN_CLIENT_SECRET` | an OpenID Connect provider people who have an account can sign in with; all three or none. `PROTOBASE_SIGN_IN_PROVIDER` and `PROTOBASE_SIGN_IN_NAME` are optional ([Platform sign-in provider](/reference/auth/#platform-sign-in-provider)) |
 | `PROTOBASE_OPERATOR_ISSUER`, `PROTOBASE_OPERATOR_CLIENT_ID`, `PROTOBASE_OPERATOR_CLIENT_SECRET` | the OpenID Connect provider of the operator's staff, for [staff sign-in](/reference/auth/#staff-sign-in) as people of the app; all three or none. `PROTOBASE_OPERATOR_NAME` and `PROTOBASE_OPERATOR_GROUP` are optional ([Operator provider](/reference/auth/#operator-provider)) |
 | `PROTOBASE_ORIGINS`, `PROTOBASE_PASSKEY_DOMAIN` | the other origins the app is served on, comma separated, and the host new passkeys are made for ([Several origins](/reference/auth/#several-origins)) |

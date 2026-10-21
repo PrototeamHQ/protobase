@@ -76,14 +76,14 @@ The columns Better Auth needs that the table lacks, filled from what the other s
 | `PROTOBASE_PASSKEY_DOMAIN` | the host new [passkeys](#passkeys) are made for, passed by the platform; default the host of `BETTER_AUTH_URL` |
 | `PROTOBASE_CORS_ORIGINS` | other websites whose browser code may call the API, `*` or comma separated http and https origins, passed by the platform; see [CORS](/reference/api/#cors) |
 | `PROTOBASE_SMTP_URL`, `PROTOBASE_MAIL_FROM` | the mail server and sender for [password reset](#password-reset), [emailed sign-in codes](#emailed-sign-in-codes), emailed [two-factor](#two-factor-authentication) codes and [open sign-up](#open-sign-up), passed by the platform; all four are off without them |
-| `PROTOBASE_APP_NAME` | the app's name, passed by the platform: the default of `appName` |
+| `PROTOBASE_APP_NAME` | the app's name, passed by the platform: it overrides `appName` |
 | `PROTOBASE_SIGN_IN_ISSUER`, `PROTOBASE_SIGN_IN_CLIENT_ID`, `PROTOBASE_SIGN_IN_CLIENT_SECRET` | the [platform sign-in provider](#platform-sign-in-provider) for people who have an account, passed by the platform; off without them. `PROTOBASE_SIGN_IN_PROVIDER` and `PROTOBASE_SIGN_IN_NAME` are optional |
 | `PROTOBASE_OPERATOR_ISSUER`, `PROTOBASE_OPERATOR_CLIENT_ID`, `PROTOBASE_OPERATOR_CLIENT_SECRET` | the [operator provider](#operator-provider) its staff sign in with to sign in as people, passed by the platform; staff sign-in is off without them. `PROTOBASE_OPERATOR_NAME` and `PROTOBASE_OPERATOR_GROUP` are optional |
 
 - Cookies are `SameSite=Lax`, and `Secure` when `BETTER_AUTH_URL` is https.
 - Sign-in is rate limited (5 password attempts per minute and client by default, `signInPerMinute`, which also limits [sign-up](#open-sign-up) requests; 3 per minute for emailed codes); the limiter keys on `x-forwarded-for`, so run behind a proxy that sets it.
 - New passwords need at least 12 characters.
-- `appName` is the app's name: authenticator apps and passkey prompts show it, the admin app's sidebar shows it at the top beside Protobase's mark (Protobase's wordmark when it is `Protobase`), every browser tab of the admin app ends its title with it, the [installed app](/reference/installable-app/) is called by it, the [auth emails](/reference/email/#protobases-own-mail) name the app with it, and the platform's mailer sends them as it (the sender's display name). Default `PROTOBASE_APP_NAME`, when set, and `Protobase` otherwise, then without a display name.
+- `appName` is the app's name: authenticator apps and passkey prompts show it, the admin app's sidebar shows it at the top beside the app's [icon](/reference/app-identity/#the-icons), else Protobase's mark (Protobase's wordmark when it is `Protobase`), every browser tab of the admin app ends its title with it, the [installed app](/reference/installable-app/) is called by it, the [auth emails](/reference/email/#protobases-own-mail) name the app with it, and the platform's mailer sends them as it (the sender's display name). `PROTOBASE_APP_NAME`, when set, overrides it; without either it is `Protobase`, then without a display name. See [App identity](/reference/app-identity/).
 
 ## First run
 

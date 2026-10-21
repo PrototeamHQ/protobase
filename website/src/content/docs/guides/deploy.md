@@ -20,7 +20,8 @@ dist/
   protobase.config.js     the config module, run by the serve runtime
   node_modules/           only with native add-ons: those packages, with linux x64 and arm64 binaries
   public/                 the admin app (index.html and content-hashed assets/), the project's UI as plugins in
-                          plugins/, its theme, protobase.theme.css, and its favicon, protobase.favicon.svg
+                          plugins/, its theme, protobase.theme.css, and its icons, protobase.favicon.svg
+                          and the PNGs the project has
   protobase.bundle.json   the manifest: which paths go to the server, which Protobase version built it, the
                           plugins and the app's version
 ```

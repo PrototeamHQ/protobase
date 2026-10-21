@@ -28,6 +28,7 @@ dist/
     plugins/app/             protobase.ui.tsx, as the plugin app
     protobase.theme.css      empty until the project has a theme
     protobase.favicon.svg    Protobase's until the project has its own
+    protobase.*.png          the project's PNG icons, when it has them
   protobase.bundle.json      version 3, naming the plugins and the app's version
 ```
 
@@ -51,7 +52,7 @@ Each `--extend` folder's `protobase.ui.tsx` becomes a plugin of its own, `plugin
 
 A host that serves `public/` as before keeps working: `index.html` for navigations, files for the rest. Two things are new:
 
-- The plugins' `assets/` folders, `public/plugins/<name>/assets/`, are named by their content like `public/assets/`: serve them as immutable too. `plugin.json`, `protobase.theme.css` and `protobase.favicon.svg` are served with `no-cache`.
+- The plugins' `assets/` folders, `public/plugins/<name>/assets/`, are named by their content like `public/assets/`: serve them as immutable too. `plugin.json`, `protobase.theme.css`, `protobase.favicon.svg` and the PNG icons are served with `no-cache`.
 - A host that keeps the prebuilt app of newer releases may serve it for the manifest's `shell.paths`, so the app gets that release's fixes without a rebuild (see [the shell](/reference/plugins/#the-shell)). `protobase serve` does so with its own when every plugin of the bundle loads in it.
 
 ## 6. protobase dev

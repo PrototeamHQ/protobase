@@ -5,7 +5,7 @@ description: The admin app installs as an app of its own on phones and computers
 
 Every app built with `protobase build` can be installed from the browser, as a Progressive Web App: Chrome and Edge offer **Install** in the address bar, Android's browsers **Add to home screen**, and Safari on iPhone and iPad **Share > Add to Home Screen**. The installed app opens in a window of its own, without the browser's toolbars, at the app's home page.
 
-There is nothing to set up. The app installs under its name, `appName` or `PROTOBASE_APP_NAME` (see [auth configuration](/reference/auth/#configuration)), with its favicon, `protobase.favicon.svg` (see [Logo and favicon](/reference/theme/#logo-and-favicon)), as its icon. Safari takes no SVG icon and shows a picture of the page on the home screen instead.
+There is nothing to set up. The app installs under its name, `PROTOBASE_APP_NAME` or `appName`, with its favicon, `protobase.favicon.svg`, as its icon, and the colours of `app` in `protobase.config.ts` (see [App identity](/reference/app-identity/)). Safari takes no SVG icon: give the project a `protobase.apple-touch-icon.png`, or it shows a picture of the page on the home screen instead.
 
 ## The manifest
 
@@ -19,9 +19,18 @@ The app's page links its web app manifest at `/api/manifest.webmanifest`, which 
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
-  "icons": [{ "src": "/protobase.favicon.svg", "sizes": "any", "type": "image/svg+xml" }]
+  "theme_color": "#0d9488",
+  "background_color": "#ffffff",
+  "icons": [
+    { "src": "/protobase.favicon.svg", "sizes": "any", "type": "image/svg+xml" },
+    { "src": "/protobase.icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/protobase.icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "/protobase.icon-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
 }
 ```
+
+The colours and each PNG are there only when the project has them.
 
 ## Without a network
 
