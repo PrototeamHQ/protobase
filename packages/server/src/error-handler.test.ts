@@ -35,3 +35,13 @@ describe('the error handler while the database is read-only', () => {
     expect(problemOf(databaseError('cannot execute INSERT in a read-only transaction', '25006'))).toMatchObject({ status: 503, headers: { 'Retry-After': '5' } })
   })
 })
+
+describe('the error handler on a deadlock', () => {
+  it('answers SQLSTATE 40P01 with 409 conflict, names nothing from the database, and reports nothing', async () => {
+    const { response, body, reported } = await answer(databaseError('deadlock detected on relation "vms"', '40P01'))
+    expect(response.status).toBe(409)
+    expect(body).toMatchObject({ type: 'urn:protobase:problem:conflict', detail: 'The record was written at the same time as another; send it again' })
+    expect(JSON.stringify(body)).not.toContain('vms')
+    expect(reported).not.toHaveBeenCalled()
+  })
+})

@@ -32,6 +32,8 @@ const databaseProblem = (error: DatabaseError): HttpProblem | undefined => {
   if (error.code === '57014') return new HttpProblem(504, 'statement-timeout', 'Gateway Timeout', 'The query exceeded the statement timeout')
   if (error.code === '23505') return new HttpProblem(409, 'conflict', 'Conflict', 'A record with the same unique value already exists')
   if (error.code === '23503') return new HttpProblem(409, 'conflict', 'Conflict', 'The record points at, or is pointed at by, another record')
+  // SQLSTATE 40P01: two writes locked the same records in opposite orders; Postgres rolled this one back, nothing written.
+  if (error.code === '40P01') return new HttpProblem(409, 'conflict', 'Conflict', 'The record was written at the same time as another; send it again')
   if (error.code === '23502') return new HttpProblem(400, 'invalid-record', 'Bad Request', 'A required column has no value')
   if (error.code === '23514') return new HttpProblem(400, 'invalid-record', 'Bad Request', 'A check constraint rejected the record')
   if (error.code.startsWith('22')) return new HttpProblem(400, 'invalid-value', 'Bad Request', 'A value has the wrong format for its column')
