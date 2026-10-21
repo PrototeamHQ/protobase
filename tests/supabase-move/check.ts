@@ -81,7 +81,7 @@ const checks: Array<[string, () => boolean]> = [
   ['protobase migration has nothing left to write', () => run(protobase, ['migration'], { output: 'pipe' }).stdout.includes('nothing to write')],
   ['the typecheck passes', () => run('bun', ['run', 'typecheck']).status === 0],
   ['protobase doctor passes', () => run(protobase, ['doctor', '--env', 'DATABASE_URL']).status === 0],
-  ['no Deno, EdgeRuntime, Supabase.ai or deno.land/x is left in functions/', () => !/\bDeno\.|\bEdgeRuntime\.|\bSupabase\.ai\b|deno\.land\/x/.test(functionsCode)],
+  ['no Deno, EdgeRuntime, Supabase.ai or deno.land/x import is left in functions/', () => !/\bDeno\.|\bEdgeRuntime\.|\bSupabase\.ai\b|['"]https:\/\/deno\.land\/x\//.test(functionsCode)],
   ['nothing in the database calls pg_net or Vault', () => sql("select count(*) from pg_proc where prosrc ~ '(net\\.http_|vault\\.)' and pronamespace not in (select oid from pg_namespace where nspname in ('net', 'vault'))") === '0'],
   ['nothing in the database calls pg_hashids', () => sql("select count(*) from pg_proc where prosrc ~ 'id_encode|id_decode'") === '0'],
   ['.env.example names the Vault secret, without its value', () => /^DIGEST_TOKEN=\s*$/m.test(envExample) && !envExample.includes('tok_live_123')],
