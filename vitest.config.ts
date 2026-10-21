@@ -93,8 +93,9 @@ const snapshotProject = (name: string, include: string[], exclude: string[], iso
     globalSetup: ['test-support/sql-snapshot/global-setup.ts'],
     isolate,
     env: { TZ: 'UTC' },
-    // Recording waits on Postgres, on a CI runner that shares its cores with others.
-    ...(recordSnapshots && { maxWorkers: integrationWorkers, testTimeout: 30_000, hookTimeout: 60_000 }),
+    // Recording waits on Postgres, on a CI runner that shares its cores and disks with others: cloning or dropping a
+    // database alone can take a minute while another job writes a lot.
+    ...(recordSnapshots && { maxWorkers: integrationWorkers, testTimeout: 60_000, hookTimeout: 120_000 }),
   },
 })
 // Chromium against an app served over TLS on more than one hostname, on clones of the test templates:
