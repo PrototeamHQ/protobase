@@ -6,6 +6,7 @@ import { connectRoute } from '@protobase/schema'
 import type { RoleDefinitions } from '../organizations/role-definitions'
 import type { AuthContext } from '../organizations/store'
 import type { RoleSession } from '../roles/session-role'
+import type { SignInPolicy } from '../sign-in-policy'
 import { pluginNames } from '../snake-case-names'
 import { mcpConsentCheck } from './consent-check'
 import { mcpConnectedApps } from './connected-apps'
@@ -80,6 +81,8 @@ export type McpAuthPluginsOptions = {
   organizations: boolean
   /** Mail can be sent, as the sign-in policy reads it. */
   mail: boolean
+  /** The policy until an admin saves one, from `appSignInPolicy`. */
+  defaultPolicy: SignInPolicy
   /** The roles with their labels, for the list of connected apps. */
   definitions: RoleDefinitions
   /** The auth context once the instance exists. */
@@ -94,10 +97,10 @@ export type McpAuthPluginsOptions = {
  * page, and the client gets 15-minute access tokens for the MCP resource only, with refresh tokens, carrying the role
  * and organization the person worked in when they allowed it.
  */
-export const mcpAuthPlugins = ({ mcp: resolved, organizations, mail, definitions, context }: McpAuthPluginsOptions) => [
+export const mcpAuthPlugins = ({ mcp: resolved, organizations, mail, defaultPolicy, definitions, context }: McpAuthPluginsOptions) => [
   mcpSignedQueryGuard(),
   mcpRequestDefaults(resolved.resource),
-  mcpSetupGate({ mail, connectPage: resolved.connectPage }),
+  mcpSetupGate({ mail, defaultPolicy, connectPage: resolved.connectPage }),
   mcp({
     resource: resolved.resource,
     loginPage: resolved.connectPage,
@@ -115,7 +118,7 @@ export const mcpAuthPlugins = ({ mcp: resolved, organizations, mail, definitions
       shouldRedirect: () => false,
       consentReferenceId: async ({ user, session }) => consentReference(await context(), { user, session: session as RoleSession }),
     },
-    customAccessTokenClaims: async ({ user, referenceId }) => mcpTokenClaims(await context(), { organizations, mail }, user, referenceId),
+    customAccessTokenClaims: async ({ user, referenceId }) => mcpTokenClaims(await context(), { organizations, mail, defaultPolicy }, user, referenceId),
     accessTokenExpiresIn: mcpAccessTokenSeconds,
     extensions: [mcpConsentCheck()],
     schema: pluginNames.mcp,

@@ -1,6 +1,6 @@
 import type { AuthContext } from './organizations/store'
 import { readSignInPolicy } from './policy-store'
-import { effectiveSignInPolicy, missingRequiredMethods, type AccountMethods } from './sign-in-policy'
+import { effectiveSignInPolicy, missingRequiredMethods, type AccountMethods, type SignInPolicy } from './sign-in-policy'
 
 export type SetupUser = { id: string; twoFactorEnabled?: boolean | null }
 
@@ -19,8 +19,11 @@ export const accountMethods = async (context: AuthContext, user: SetupUser, soci
   }
 }
 
-/** The methods the sign-in policy requires that `user` has not set up yet; empty when nothing is missing. */
-export const missingSetup = async (context: AuthContext, user: SetupUser, { mail }: { mail: boolean }) => {
-  const policy = effectiveSignInPolicy((await readSignInPolicy(context.adapter)).policy, { mail })
+/**
+ * The methods the sign-in policy requires that `user` has not set up yet; empty when nothing is missing. `defaultPolicy`
+ * applies until an admin saves one.
+ */
+export const missingSetup = async (context: AuthContext, user: SetupUser, { mail, defaultPolicy }: { mail: boolean; defaultPolicy: SignInPolicy }) => {
+  const policy = effectiveSignInPolicy((await readSignInPolicy(context.adapter, defaultPolicy)).policy, { mail })
   return missingRequiredMethods(policy, await accountMethods(context, user, []))
 }

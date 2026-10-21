@@ -8,16 +8,21 @@ const policy = (changes: object) => ({ signInPolicy: [{ id: 'p1', ...defaultSign
 describe('the setup the sign-in policy still asks of someone', () => {
   it('is nothing under the default policy', async () => {
     const { context } = fakeContext()
-    expect(await missingSetup(context, { id: 'ana' }, { mail: true })).toEqual([])
+    expect(await missingSetup(context, { id: 'ana' }, { mail: true, defaultPolicy: defaultSignInPolicy })).toEqual([])
   })
 
   it('is two-factor authentication and a passkey while required and not set up', async () => {
     const { context } = fakeContext(policy({ twoFactor: 'required', passkey: 'required' }))
-    expect(await missingSetup(context, { id: 'ana', twoFactorEnabled: false }, { mail: true })).toEqual(['twoFactor', 'passkey'])
+    expect(await missingSetup(context, { id: 'ana', twoFactorEnabled: false }, { mail: true, defaultPolicy: defaultSignInPolicy })).toEqual(['twoFactor', 'passkey'])
   })
 
   it('is nothing once they are set up', async () => {
     const { context } = fakeContext({ ...policy({ twoFactor: 'required', passkey: 'required' }), passkey: [{ id: 'k1', userId: 'ana' }] })
-    expect(await missingSetup(context, { id: 'ana', twoFactorEnabled: true }, { mail: true })).toEqual([])
+    expect(await missingSetup(context, { id: 'ana', twoFactorEnabled: true }, { mail: true, defaultPolicy: defaultSignInPolicy })).toEqual([])
+  })
+
+  it("is what the app's default policy requires until an admin saves one", async () => {
+    const { context } = fakeContext()
+    expect(await missingSetup(context, { id: 'ana', twoFactorEnabled: false }, { mail: true, defaultPolicy: { ...defaultSignInPolicy, twoFactor: 'required' } })).toEqual(['twoFactor'])
   })
 })
