@@ -1,10 +1,12 @@
 import { Hono, type ErrorHandler } from 'hono'
 import { cors } from 'hono/cors'
 import type { Db } from '@protobase/query'
+import type { ResolveOptions } from '@protobase/schema'
 import { runInBackground } from '../background-work'
-import { forbidden, notFound } from '../problem'
+import { notFound } from '../problem'
 import type { Authenticator, Session } from '../types'
 import { invokeFunction, type ApiFunction, type FunctionCaller, type FunctionContext, type PublicFunctionContext } from './define-function'
+import { functionGate, requireGate } from './function-gate'
 import type { FunctionRecords } from './records'
 
 export type FunctionRoutesInput = {
@@ -12,6 +14,8 @@ export type FunctionRoutesInput = {
   basePath: string
   functions: Record<string, ApiFunction>
   authenticate: Authenticator
+  /** The app's roles and default access, which decide who may call a protected function (see `functionGate`). */
+  access: ResolveOptions
   db: Db
   records: (session: Session) => FunctionRecords
   onError: ErrorHandler
@@ -26,18 +30,13 @@ const relativeRequest = (request: Request, prefix: string) => {
   return new Request(url, request)
 }
 
-const requireRoles = (name: string, session: Session, roles?: string[]) => {
-  if (!roles || roles.some((role) => session.user.roles.includes(role))) return
-  throw forbidden('function-forbidden', `You may not call the function "${name}"`)
-}
-
 /**
  * Every function at `<basePath>/<name>` and below, any method. A protected function authenticates the request first, so
- * a call without a valid token is the authenticator's 401 problem; a public one gets the caller only when it asks. Each
+ * a call without a valid token is the authenticator's 401 problem, and one its gate refuses a 403; a public one gets the caller only when it asks. Each
  * call runs as background work, so calls that hold the database for long leave a connection to page requests. Once a
  * call ends, failed or not, `wake` runs, so what it wrote reaches open pages without waiting for the dispatcher's poll.
  */
-export const functionRoutes = ({ basePath, functions, authenticate, db, records, onError, wake }: FunctionRoutesInput) => {
+export const functionRoutes = ({ basePath, functions, authenticate, access, db, records, onError, wake }: FunctionRoutesInput) => {
   const app = new Hono().basePath(basePath)
   app.onError(onError)
   const callerOf = async (request: Request): Promise<FunctionCaller> => {
@@ -49,6 +48,7 @@ export const functionRoutes = ({ basePath, functions, authenticate, db, records,
   for (const [name, fn] of Object.entries(functions)) {
     const prefix = `${basePath}/${name}`
     const { options } = fn
+    const gate = functionGate(name, options, access)
     if (options.cors) app.use(`/${name}/*`, cors(options.cors))
     app.all(`/${name}/*`, (c) => runInBackground(() => call(async () => {
       const request = relativeRequest(c.req.raw, prefix)
@@ -58,7 +58,7 @@ export const functionRoutes = ({ basePath, functions, authenticate, db, records,
         return invokeFunction(name, fn, request, context)
       }
       const caller = await callerOf(c.req.raw)
-      requireRoles(name, caller.session, options.roles)
+      requireGate(name, gate, caller.session)
       const context: FunctionContext = { name, db, ...caller, caller: async () => caller }
       return invokeFunction(name, fn, request, context)
     })))

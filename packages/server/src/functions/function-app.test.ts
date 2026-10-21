@@ -11,6 +11,7 @@ const serveApp = (app: ReturnType<typeof functionApp<PublicFunctionEnv>>, onUnha
     basePath: '/api/functions',
     functions: { shop: defineFunction({ public: true }, app) },
     authenticate: () => ({ user: { id: 1, roles: [] } }),
+    access: {},
     db: {} as Db,
     records: () => ({}) as never,
     onError: createErrorHandler(onUnhandledError),

@@ -1,4 +1,5 @@
 import type { Db } from '@protobase/query'
+import type { Capability } from '@protobase/schema'
 import type { Session } from '../types'
 import type { FunctionRecords } from './records'
 
@@ -52,6 +53,11 @@ export type ProtectedFunctionOptions = SharedOptions & {
   public?: false
   /** The caller needs one of these roles, otherwise the call is a 403 problem. */
   roles?: string[]
+  /**
+   * The caller's roles must grant all of this capability (`roles.holds`), such as `vms.update`, otherwise the call is a
+   * 403 problem. Needs the app's `roles`; not together with `roles` here.
+   */
+  capability?: Capability
 }
 
 export type FunctionOptions = PublicFunctionOptions | ProtectedFunctionOptions
@@ -66,7 +72,8 @@ export type FunctionSource = ApiFunction | FunctionHandler | FunctionApp
 
 /**
  * A function of your own, served at `/api/functions/<name>`. Without options it needs a signed-in caller, through the
- * app's `authenticate`; `{ public: true }` opens it to anyone, as for a webhook.
+ * app's `authenticate`, and with the app's `roles` one whose roles hold `*`; `{ roles }` or `{ capability }` opens it
+ * to more, `{ public: true }` to anyone, as for a webhook.
  */
 export function defineFunction(handler: FunctionHandler | FunctionApp): ApiFunction
 export function defineFunction(options: PublicFunctionOptions, handler: PublicFunctionHandler | FunctionApp<PublicFunctionContext>): ApiFunction

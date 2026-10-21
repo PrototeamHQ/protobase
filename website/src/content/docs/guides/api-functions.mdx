@@ -75,7 +75,9 @@ A refusal or a missing record rejects with the problem the REST API would answer
 
 ### Roles
 
-`defineFunction({ roles: ['mechanic', 'desk'] }, handler)` lets in callers with at least one of those roles. Anyone else gets a `403 function-forbidden` problem before the handler runs. Finer rules belong in the resources' [access rules](/reference/access/), which `records` already applies.
+`defineFunction({ roles: ['mechanic', 'desk'] }, handler)` lets in callers with at least one of those roles. `defineFunction({ capability: 'vms.update' }, handler)` lets in callers whose roles hold all of that capability ([`roles.holds`](/reference/access/#wildcards-in-has-can-and-holds)): `*`, `vms.*` or a plain `vms.update`, but not `vms.update.own` or a `vms.update` limited to fields or rows. A wildcard means all of it, so `vms.*` needs a role that holds `vms.*` or `*`. Anyone else gets a `403 function-forbidden` problem before the handler runs. Finer rules belong in the resources' [access rules](/reference/access/), which `records` already applies.
+
+In an app with [roles](/reference/access/) (`options: { roles }`), a function with neither is closed like a resource without a rule: only callers whose roles hold `*`, such as `admin: ['*']`, may call it, unless `defaultAccess` is `allow`. A function for everyone signed in says so with its roles. In an app without roles, every signed-in caller may call it. A `capability` needs the app's roles, and a function takes `roles` or `capability`, not both: the server refuses to start otherwise.
 
 ## Public functions and webhooks
 

@@ -1,6 +1,7 @@
 import { Hono } from 'hono'
 import { describe, expect, it, vi } from 'vitest'
 import type { Db } from '@protobase/query'
+import { defineRoles } from '@protobase/schema'
 import { createErrorHandler } from '../error-handler'
 import { badRequest, unauthorized } from '../problem'
 import type { Session } from '../types'
@@ -21,7 +22,7 @@ const authenticate = (request: Request) => {
 const records = (session: Session) => ({ as: session.user.id }) as unknown as FunctionRecords
 
 const serve = (functions: Record<string, ApiFunction>, onUnhandledError = vi.fn(), wake = vi.fn()) => ({
-  app: functionRoutes({ basePath: '/api/functions', functions, authenticate, db, records, onError: createErrorHandler(onUnhandledError), wake }),
+  app: functionRoutes({ basePath: '/api/functions', functions, authenticate, access: {}, db, records, onError: createErrorHandler(onUnhandledError), wake }),
   onUnhandledError,
   wake,
 })
@@ -81,6 +82,15 @@ describe('functionRoutes', () => {
     const refused = await app.request('/api/functions/report', as('ann'))
     expect(refused.status).toBe(403)
     expect(await refused.json()).toMatchObject({ type: 'urn:protobase:problem:function-forbidden', detail: 'You may not call the function "report"' })
+  })
+
+  it('refuses a function without roles to every caller but those holding *, once the app defines roles', async () => {
+    const roles = defineRoles({ admin: ['*'], sales: ['*.read'] })
+    const app = functionRoutes({ basePath: '/api/functions', functions: { start: defineFunction(() => new Response('started')) }, authenticate, access: { roles }, db, records, onError: createErrorHandler(vi.fn()), wake: vi.fn() })
+    expect((await app.request('/api/functions/start', as('bob'))).status).toBe(200)
+    const refused = await app.request('/api/functions/start', as('ann'))
+    expect(refused.status).toBe(403)
+    expect(await refused.json()).toMatchObject({ type: 'urn:protobase:problem:function-forbidden', detail: 'You may not call the function "start"' })
   })
 
   it('answers an unknown function, or a name it only starts with, with a 404 problem', async () => {

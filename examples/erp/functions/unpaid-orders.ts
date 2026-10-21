@@ -1,8 +1,8 @@
 import { defineFunction } from '@protobase/server'
 
 // GET /api/functions/unpaid-orders: delivered orders that are not paid yet, oldest first, as the caller may see them
-// (a sales rep, only their own).
-export default defineFunction(async (_request, { records }) => {
+// (a sales rep, only their own), for anyone who reads orders.
+export default defineFunction({ capability: 'orders.read.own' }, async (_request, { records }) => {
   const page = await records.list('orders', {
     filter: 'status = "delivered" AND paid = false',
     order_by: 'created_at',
