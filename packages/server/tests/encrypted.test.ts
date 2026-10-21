@@ -81,7 +81,7 @@ let db: Kysely<any>
 const events: AuditEvent[] = []
 const unhandled: unknown[] = []
 const queue: AuditQueue = { publish: async (event) => void events.push(event) }
-const adminWith = (env: Record<string, string>, list = resources) => {
+const adminWith = (env: Record<string, string>, list: Parameters<typeof createAdmin>[0]['resources'] = resources) => {
   vi.stubEnv('PROTOBASE_ENCRYPTION_KEY', env.current ?? '')
   vi.stubEnv('PROTOBASE_ENCRYPTION_PREVIOUS_KEYS', env.previous ?? '')
   try {
