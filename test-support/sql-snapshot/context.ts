@@ -4,7 +4,7 @@ import { createServerValues } from './server-values'
 
 // What the snapshot databases of the running test file share: its recording, the values Postgres made up so far,
 // and the databases opened outside a test, closed when the file ends.
-type FileContext = {
+export type FileContext = {
   recording: Recording
   values: ReturnType<typeof createServerValues>
   opened: Map<string, number>
@@ -40,10 +40,15 @@ export const nextHandle = (scope: string) => {
   return `${scope}#${n}`
 }
 
-/** Closes what the file left open and writes its recording, or checks that replay read all of the hooks' queries. */
-export const endFile = async () => {
-  const context = fileContext()
-  current = undefined
+/**
+ * Whether a test file is running. A file whose hook timed out on a slow host goes on ending while the next file runs in
+ * the same worker, so what it ends must be its own, never that file's.
+ */
+export const fileRunning = () => current !== undefined
+
+/** Closes what `context`'s file left open and writes its recording, or checks that replay read all of the hooks' queries. */
+export const endFile = async (context: FileContext) => {
+  if (current === context) current = undefined
   for (const close of context.closeAtEnd) await close()
   if (recording) return context.recording.write()
   return context.recording.unread(hooksScope)

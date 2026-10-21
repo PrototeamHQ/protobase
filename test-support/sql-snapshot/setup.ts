@@ -1,6 +1,6 @@
 import { afterAll, afterEach, beforeAll, beforeEach, vi } from 'vitest'
 import { fixClock, unfixClock } from './clock'
-import { endFile, fileContext, startFile } from './context'
+import { endFile, fileContext, fileRunning, startFile } from './context'
 import { settle } from './activity'
 import { hooksScope, inScope, recording, staleSnapshot } from './mode'
 import { seedRandomness, useSequence } from './random'
@@ -56,11 +56,14 @@ afterEach(async ({ task }) => {
 })
 
 afterAll(async () => {
+  const context = fileContext()
   await settle()
-  const [stale] = fileContext().takeStale()
-  const left = await endFile()
-  unfixClock()
-  vi.restoreAllMocks()
+  const [stale] = context.takeStale()
+  const left = await endFile(context)
+  if (!fileRunning()) {
+    unfixClock()
+    vi.restoreAllMocks()
+  }
   if (stale) throw stale
   if (left?.length) throw unreadError(left)
 })
