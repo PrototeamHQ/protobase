@@ -2,6 +2,7 @@ import type { Db } from '@protobase/query'
 import type { Meta } from '../meta'
 import type { Authenticator, Session } from '../types'
 import { appContext } from './app-context'
+import { checkedTools } from './checked-tools'
 import { seesAssistant } from './assistant-settings'
 import { openRouterUrl } from './model-settings'
 import type { ModelSettings } from './chat-completions'
@@ -25,20 +26,6 @@ export type BuiltInAssistantInput = {
   /** What tools get as `records` for the session of a turn. */
   records?: (session: Session) => ToolRecords
   report?: (error: unknown) => void
-}
-
-// The names model endpoints accept for a function.
-const toolName = /^[A-Za-z0-9_-]{1,64}$/
-
-/** The tools in order; a name a model endpoint refuses, or one taken twice, stops the server at startup. */
-const checkedTools = (tools: AssistantTool[]) => {
-  const seen = new Set<string>()
-  for (const tool of tools) {
-    if (!toolName.test(tool.name)) throw new Error(`Assistant tool name "${tool.name}" must be 1 to 64 letters, digits, _ or -`)
-    if (seen.has(tool.name)) throw new Error(`Two assistant tools are named "${tool.name}"; give one of them another name`)
-    seen.add(tool.name)
-  }
-  return tools
 }
 
 const pageContext = (page: string | undefined) => page && `The user is on the page ${page} of the app (/<resource> lists records, /<resource>/<key> shows one).`
