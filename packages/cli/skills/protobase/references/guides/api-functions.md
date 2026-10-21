@@ -175,6 +175,7 @@ A client that is no browser sends `Authorization: Bearer <token>` with its upgra
 | `onMessage(data, socket)` | Text arrives as a string, binary as an `ArrayBuffer`, byte for byte. Messages come one at a time and in order. |
 | `onClose(code, reason)` | Either side closed it, after the last message. |
 | `recheck()` | Runs every minute while the socket is open, after the framework's own check. A `401`, `403` or `404` problem it throws closes the socket with `1008`; any other error is reported and closes it with `1011`, as does a check that has not finished a minute later. What it returns is ignored, so refuse by throwing. |
+| `maxMessageBytes` | Not an event: the largest message the socket takes, in bytes, a whole number of at least 1. A larger one closes the socket with `1009` before the server reads it, and `onMessage` never sees it. |
 
 `socket.send(data)` takes a string, an `ArrayBuffer` or a `Uint8Array`, and `socket.close(code?, reason?)` closes it. A handler that throws closes the socket with `1011`, and the error is reported like any other.
 
@@ -280,7 +281,7 @@ The ticket only lets the socket open, and anyone who holds it may open one with 
 
 - **Await `send`** when the other side may read slowly: it resolves once the data is written, so a relay that awaits each send never piles up data in the server. It never rejects; after a close it resolves at once.
 - **Return a promise from `onMessage`** to hold the next message back until it settles. Above 1 MiB of waiting messages the server stops reading from the client, which slows it down, and reads again once they are handled. Bun's built-in `ws`, which `protobase dev` uses on Bun, cannot stop reading: there the socket closes with `1013` once 16 MiB are waiting.
-- **A message** may be up to 100 MiB.
+- **A message** may be up to 100 MiB, or the socket's `maxMessageBytes`, which only lowers it. A larger message closes the socket with `1009` before the server reads it, so a function that only takes small messages sets it, such as `acceptWebSocket({ maxMessageBytes: 64 * 1024, onMessage })`. `protobase dev` and `protobase serve` apply it; a server of your own that hosts `createAdmin` refuses a socket with `maxMessageBytes` with a `500`, since its `ws` server would not apply it.
 
 ### Restarts
 

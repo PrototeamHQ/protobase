@@ -1,6 +1,6 @@
 import { createRequire } from 'node:module'
 import path from 'node:path'
-import { realtimeLimits } from '@protobase/server'
+import { honorSocketMessageCaps, realtimeLimits, socketMessageCapOf } from '@protobase/server'
 import { WebSocketServer } from 'ws'
 
 const require = createRequire(import.meta.url)
@@ -29,17 +29,21 @@ export const maxPayloadOf = (url: string) => {
 
 /**
  * The server of npm `ws` that upgrades the API's sockets, realtime's and the app's functions', on Node and Bun: a frame
- * over its socket's cap (`maxPayloadOf`) closes the socket with 1009 before it is read.
+ * over its socket's cap (`maxPayloadOf`, or a function's lower `maxMessageBytes`) closes the socket with 1009 before it
+ * is read.
  */
 export const apiWebSocketServer = () => {
   const Base = npmWebSocketServer()
   class ApiWebSocketServer extends Base {
     override handleUpgrade(...[request, ...rest]: Parameters<WebSocketServer['handleUpgrade']>) {
       // Without `verifyClient`, ws 8.22.0 reads `options.maxPayload` synchronously from here to the socket's
-      // `setSocket` (lib/websocket-server.js, `handleUpgrade` to `completeUpgrade`), so each upgrade sets its own.
-      this.options.maxPayload = maxPayloadOf(request.url ?? '')
+      // `setSocket` (lib/websocket-server.js, `handleUpgrade` to `completeUpgrade`), so each upgrade sets its own. A
+      // function's `maxMessageBytes`, marked on its request, can only lower it.
+      this.options.maxPayload = Math.min(maxPayloadOf(request.url ?? ''), socketMessageCapOf(request) ?? Infinity)
       super.handleUpgrade(request, ...rest)
     }
   }
-  return new ApiWebSocketServer({ noServer: true, maxPayload: realtimeLimits.maxFrameBytes })
+  const server = new ApiWebSocketServer({ noServer: true, maxPayload: realtimeLimits.maxFrameBytes })
+  honorSocketMessageCaps(server)
+  return server
 }

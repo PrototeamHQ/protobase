@@ -22,6 +22,11 @@ export type SocketEvents = {
    * with 1011.
    */
   recheck?: () => unknown
+  /**
+   * The largest message this socket takes, in bytes, every fragment counted: a larger one closes it with 1009 before it
+   * is read, and `onMessage` never sees it. It only ever lowers the default of 100 MiB.
+   */
+  maxMessageBytes?: number
 }
 
 /** What both `ws` and Bun's built-in `ws` socket have; only the first can pause reading. */

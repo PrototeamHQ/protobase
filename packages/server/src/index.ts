@@ -37,6 +37,7 @@ export { isOAuthWellKnownPath, oauthWellKnownPaths, webauthnPath } from './bette
 export { goTruePath } from './gotrue/keys'
 export { supabasePath } from './supabase-paths'
 export { realtimeLimits } from './realtime/realtime-limits'
+export { capSocketMessages, socketMessageCapOf, honorSocketMessageCaps } from './functions/socket-message-cap'
 export type { CorsOrigins } from './api-cors'
 export type { MobileConfig } from './mobile-config'
 export { defaultAppName } from './app-name'
