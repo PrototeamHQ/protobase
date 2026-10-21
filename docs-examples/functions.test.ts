@@ -1,13 +1,14 @@
 import { createHmac } from 'node:crypto'
 import { DummyDriver, Kysely, PostgresAdapter, PostgresIntrospector, PostgresQueryCompiler } from 'kysely'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { HttpProblem, type ApiFunction, type FunctionContext, type FunctionRecords, type FunctionSocket, type SocketEvents } from '@protobase/server'
+import { HttpProblem, notFound, type ApiFunction, type FunctionContext, type FunctionRecords, type FunctionSocket, type SocketEvents } from '@protobase/server'
 import display from './functions/display'
 import displayTicket from './functions/display-ticket'
 import hello from './functions/hello'
 import notifyCustomer from './functions/notify-customer'
 import paymentWebhook from './functions/payment-webhook'
 import readyForPickup from './functions/ready-for-pickup'
+import repairWatch from './functions/repair-watch'
 import workshop from './functions/workshop'
 import workshopChat from './functions/workshop-chat'
 
@@ -200,5 +201,52 @@ describe('display-ticket and display', () => {
     vi.useFakeTimers({ now: Date.now() + 31_000 })
     expect(await problemOf(call(display, `/?ticket=${encodeURIComponent(ticket)}`, { headers: { upgrade: 'websocket' } }, context))).toEqual([401, 'unauthenticated'])
     expect(accepted).toHaveLength(0)
+  })
+
+  it('ends the board’s socket 15 minutes after it opened, so it gets a new ticket', async () => {
+    vi.stubEnv('TICKET_SECRET', 'ticket-secret')
+    vi.useFakeTimers({ now: Date.now() })
+    const { context, accepted } = socketContextWith('nobody')
+    await call(display, `/?ticket=${encodeURIComponent(await ticketFor('mo'))}`, { headers: { upgrade: 'websocket' } }, context)
+    vi.advanceTimersByTime(14 * 60_000)
+    expect(() => accepted[0]!.recheck!()).not.toThrow()
+    vi.advanceTimersByTime(60_000)
+    expect(() => accepted[0]!.recheck!()).toThrow(expect.objectContaining({ status: 401 }))
+  })
+})
+
+describe('repair-watch', () => {
+  // Records that show repair 7 until `hide`, as a row filter would once it moves to another mechanic.
+  const watchedRecords = () => {
+    let visible = true
+    const records = fakeRecords({ repairs: repair })
+    records.get.mockImplementation(async (resource: string) => {
+      if (!visible) throw notFound('No such record')
+      return { record: { ...repair }, etag: '"v1"' }
+    })
+    return { records, hide: () => void (visible = false) }
+  }
+
+  it('refuses a repair the caller cannot see with a 404 and no socket', async () => {
+    const { records, hide } = watchedRecords()
+    hide()
+    const { context, accepted } = socketContextWith('mo')
+    expect(await problemOf(call(repairWatch, '/7', { headers: { upgrade: 'websocket' } }, { ...context, records }))).toEqual([404, 'not-found'])
+    expect(await problemOf(call(repairWatch, '/seven', { headers: { upgrade: 'websocket' } }, { ...context, records }))).toEqual([404, 'not-found'])
+    expect(accepted).toHaveLength(0)
+  })
+
+  it('sends the repair’s status on open, and its recheck rejects once the repair is out of sight', async () => {
+    const { records, hide } = watchedRecords()
+    const { context, accepted } = socketContextWith('mo')
+    await call(repairWatch, '/7', { headers: { upgrade: 'websocket' } }, { ...context, records })
+    const socket = fakeSocket()
+    await accepted[0]!.onOpen!(socket)
+    expect(socket.send).toHaveBeenCalledWith(JSON.stringify({ status: 'working' }))
+    await expect(accepted[0]!.recheck!()).resolves.toBeDefined()
+    expect(records.get).toHaveBeenLastCalledWith('repairs', 7)
+    hide()
+    await expect(accepted[0]!.recheck!()).rejects.toMatchObject({ status: 404 })
+    expect(repairWatch.options).toEqual({ roles: ['mechanic', 'desk'] })
   })
 })
