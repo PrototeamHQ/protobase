@@ -39,6 +39,8 @@ export type { MarkdownContentProps as MarkdownProps } from './markdown/markdown-
 export { AuthLayout, type AuthLayoutProps } from './auth/auth-layout'
 export { CodeForm, type CodeFormProps } from './auth/code-form'
 export { ResendCodeButton, type ResendCodeButtonProps } from './auth/resend-code-button'
+// The connect page's guard against clickjacking and click-through, for a host's own consent screen to arm its Allow the same way.
+export { allowDelayMs, isFramed, useArmedAfterFocus, useGuardedPress } from './connect/interaction-guard'
 // The form parts of the app's own pages, for a project's components that look like them.
 export { Button, buttonClass, type ButtonProps } from './primitives/button'
 export { Input, type InputProps } from './primitives/input'
