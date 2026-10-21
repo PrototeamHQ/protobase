@@ -291,8 +291,11 @@ describe('an encrypted field', () => {
 describe('/api/sb/rest/v1', () => {
   it('refuses to write, match, filter or sort an encrypted column, or to move a row it binds, writing nothing', async () => {
     const secret = 'sb_secret_encrypted_test'
-    const restApp = adminWith({ current: keyA }, resources, { publishable_key: 'sb_publishable_encrypted_test', secret_key: secret })
-    const rest = (method: string, path: string, body?: unknown, prefer?: string) =>
+    const apiKeys = { publishable_key: 'sb_publishable_encrypted_test', secret_key: secret }
+    // A resource over people that leaves iban out, declared first, so the table is served as its own.
+    const peopleNames = resource('people_names').table('people').fields({ id: f.bigint().readOnly(), organizationId: f.integer(), name: f.text() }).primaryKey((r) => r.id).tenant((r) => r.organizationId)
+    const restApps = [adminWith({ current: keyA }, resources, apiKeys), adminWith({ current: keyA }, [peopleNames, ...resources], apiKeys)]
+    const requests = (restApp: (typeof restApps)[number]) => (method: string, path: string, body?: unknown, prefer?: string) =>
       restApp.request(`/api/sb/rest/v1/${path}`, {
         method,
         headers: { apikey: secret, authorization: `Bearer ${secret}`, 'content-type': 'application/json', ...(prefer && { prefer }) },
@@ -303,29 +306,32 @@ describe('/api/sb/rest/v1', () => {
     const rows = async () => (await sql<{ rows: string }>`select count(*)::text as rows from people`.execute(db)).rows[0]!.rows
     const before = await rows()
 
-    const refused = [
-      await rest('POST', 'people', { organization_id: 1, name: 'Plain', iban: canary(21) }),
-      await rest('POST', 'people', { id, organization_id: 1, name: 'Rest', iban: canary(22) }, 'resolution=merge-duplicates'),
-      await rest('POST', 'people?on_conflict=iban', { organization_id: 1, name: 'Rest' }, 'resolution=merge-duplicates'),
-      await rest('POST', 'people', { id, organization_id: 2, name: 'Rest' }, 'resolution=merge-duplicates'),
-      await rest('PATCH', `people?id=eq.${id}`, { iban: canary(23) }),
-      await rest('PATCH', `people?id=eq.${id}`, { id: 9_000_001 }),
-      await rest('PATCH', `people?id=eq.${id}`, { organization_id: 2 }),
-      await rest('GET', `people?iban=eq.${envelope}`),
-      await rest('GET', `people?or=(name.eq.Rest,iban.eq.${canary(20)})`),
-      await rest('GET', 'people?order=iban'),
-      await rest('DELETE', `people?iban=eq.${envelope}`),
+    const refused: Parameters<ReturnType<typeof requests>>[] = [
+      ['POST', 'people', { organization_id: 1, name: 'Plain', iban: canary(21) }],
+      ['POST', 'people', { id, organization_id: 1, name: 'Rest', iban: canary(22) }, 'resolution=merge-duplicates'],
+      ['POST', 'people?on_conflict=iban', { organization_id: 1, name: 'Rest' }, 'resolution=merge-duplicates'],
+      ['POST', 'people', { id, organization_id: 2, name: 'Rest' }, 'resolution=merge-duplicates'],
+      ['PATCH', `people?id=eq.${id}`, { iban: canary(23) }],
+      ['PATCH', `people?id=eq.${id}`, { id: 9_000_001 }],
+      ['PATCH', `people?id=eq.${id}`, { organization_id: 2 }],
+      ['GET', `people?iban=eq.${envelope}`],
+      ['GET', `people?or=(name.eq.Rest,iban.eq.${canary(20)})`],
+      ['GET', 'people?order=iban'],
+      ['DELETE', `people?iban=eq.${envelope}`],
     ]
-    for (const response of refused) {
-      expect(response.status, response.url).toBe(400)
-      expect((await response.json()).code).toBe('encrypted-column')
+    for (const restApp of restApps) {
+      for (const request of refused) {
+        const answer = await requests(restApp)(...request)
+        expect(answer.status, answer.url).toBe(400)
+        expect((await answer.json()).code).toBe('encrypted-column')
+      }
     }
     expect(await rows()).toBe(before)
     expect(await stored('people', 'iban', `id = ${id}`)).toBe(envelope)
     expect(await stored('people', 'organization_id::text', `id = ${id}`)).toBe('1')
 
     // What does not touch the column still works, and leaves the value readable
-    expect((await rest('PATCH', `people?id=eq.${id}`, { note: 'through rest' })).status).toBe(204)
+    expect((await requests(restApps[0]!)('PATCH', `people?id=eq.${id}`, { note: 'through rest' })).status).toBe(204)
     expect(await stored('people', 'note', `id = ${id}`)).toBe('through rest')
     expect(await stored('people', 'iban', `id = ${id}`)).toBe(envelope)
     expect(await revealed(`/people/${id}`)).toBe(canary(20))
