@@ -197,6 +197,7 @@ export const createClient = (options: ClientOptions = {}) => {
         filter: filterText(params.filter) || undefined,
         sum: params.sum,
         average: params.average,
+        maximum: params.maximum,
         limit: params.limit,
         label: params.label,
         granularity: params.granularity,

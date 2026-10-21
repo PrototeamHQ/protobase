@@ -22,15 +22,16 @@ const facetParams = z.object({ field, filter, limit: z.coerce.number().int().opt
 const seriesParams = z.object({
   field,
   filter,
-  range: z.enum(['7d', '30d', '90d', '1y', 'all']).optional(),
+  range: z.enum(['1h', '24h', '7d', '30d', '90d', '1y', 'all']).optional(),
   from: z.string().optional(),
   to: z.string().optional(),
-  granularity: z.enum(['hour', 'day', 'week', 'month']).default('day'),
+  granularity: z.enum(['minute', '5_minutes', '15_minutes', 'hour', 'day', 'week', 'month']).default('day'),
   time_zone: z.string().optional(),
 })
 const histogramParams = z.object({ field, filter, buckets: z.coerce.number().int().default(20) })
 
-const rangeDays = { '7d': 7, '30d': 30, '90d': 90, '1y': 365 }
+const hourMs = 3_600_000
+const rangeMs = { '1h': hourMs, '24h': 24 * hourMs, '7d': 7 * 24 * hourMs, '30d': 30 * 24 * hourMs, '90d': 90 * 24 * hourMs, '1y': 365 * 24 * hourMs }
 
 // Aggregates are reads: the caller's filter is checked against the model as the caller sees it (a hidden field is an
 // unknown field), and the tenant and the access row filter are applied by the query layer's scope.
@@ -77,7 +78,7 @@ const earliest = async (deps: Deps, access: RequestAccess, fieldName: string, sc
 const bound = (model: ResourceModel, fieldName: string, value: string) =>
   model.fields[fieldName]?.type === 'date' ? value.slice(0, 10) : value
 
-export type RangeParams = { range?: keyof typeof rangeDays | 'all'; from?: string; to?: string }
+export type RangeParams = { range?: keyof typeof rangeMs | 'all'; from?: string; to?: string }
 
 /**
  * The span a series of `field` covers: `from` and `to`, else the `range` up to now, `all` from the earliest row. A
@@ -90,7 +91,7 @@ export const seriesRange = async (deps: Deps, access: RequestAccess, field: stri
   const to = params.to ?? rangeEnd(type, now, timeZone)
   if (params.from) return { from: bound(model, field, params.from), to: bound(model, field, to) }
   const range = params.range ?? '30d'
-  if (range !== 'all') return { from: rangeStart(type, now - rangeDays[range] * 86_400_000, timeZone), to: bound(model, field, to) }
+  if (range !== 'all') return { from: rangeStart(type, now - rangeMs[range], timeZone), to: bound(model, field, to) }
   const lowest = await earliest(deps, access, field, scope)
   return lowest ? { from: bound(model, field, lowest), to: bound(model, field, to) } : undefined
 }

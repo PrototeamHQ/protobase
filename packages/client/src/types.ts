@@ -125,10 +125,10 @@ export type Series = { field: string; granularity: string; timeZone: string; poi
 
 export type SeriesParams = {
   field: string
-  range?: '7d' | '30d' | '90d' | '1y' | 'all'
+  range?: '1h' | '24h' | '7d' | '30d' | '90d' | '1y' | 'all'
   from?: string
   to?: string
-  granularity?: 'hour' | 'day' | 'week' | 'month'
+  granularity?: 'minute' | '5_minutes' | '15_minutes' | 'hour' | 'day' | 'week' | 'month'
   timeZone?: string
 }
 
@@ -140,13 +140,15 @@ export type AggregateParams = {
   sum?: string
   /** A numeric field to average per group, instead of `sum`. */
   average?: string
+  /** A numeric field whose largest value per group it reads, instead of `sum`. */
+  maximum?: string
   /** Value groups only: the most to return, default 100. */
   limit?: number
   /** Value groups only: for a relation, the field of the related record that names each group. */
   label?: string
   /** Date groups only. */
-  granularity?: 'hour' | 'day' | 'week' | 'month' | 'year'
-  range?: '7d' | '30d' | '90d' | '1y' | 'all'
+  granularity?: 'minute' | '5_minutes' | '15_minutes' | 'hour' | 'day' | 'week' | 'month' | 'year'
+  range?: '1h' | '24h' | '7d' | '30d' | '90d' | '1y' | 'all'
   from?: string
   to?: string
   timeZone?: string
@@ -158,19 +160,20 @@ export type AggregateParams = {
   splitLabel?: string
 }
 
-/** One group: its value (a date group's bucket in local ISO time), how many records it holds and its sum or average. */
+/** One group: its value (a date group's bucket in local ISO time), how many records it holds and its sum, average or maximum. */
 export type AggregateGroup = {
   value: string | number | boolean | null
   label?: string
   count: number
   sum?: number | null
   average?: number | null
+  maximum?: number | null
   /** With `splitBy`: the kept split values that have records in this date group, largest first. */
   splits?: AggregateSplitTotal[]
 }
 
 /** What one split value holds of a date group. */
-export type AggregateSplitTotal = { value: AggregateGroup['value']; count: number; sum?: number | null; average?: number | null }
+export type AggregateSplitTotal = { value: AggregateGroup['value']; count: number; sum?: number | null; average?: number | null; maximum?: number | null }
 
 export type Aggregate = {
   groupBy: string

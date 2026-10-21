@@ -18,12 +18,13 @@ const aggregateParams = z.object({
   filter: z.string().optional(),
   sum: name.optional(),
   average: name.optional(),
+  maximum: name.optional(),
   limit: z.coerce.number().int().optional(),
   label: name.optional(),
-  range: z.enum(['7d', '30d', '90d', '1y', 'all']).optional(),
+  range: z.enum(['1h', '24h', '7d', '30d', '90d', '1y', 'all']).optional(),
   from: z.string().optional(),
   to: z.string().optional(),
-  granularity: z.enum(['hour', 'day', 'week', 'month', 'year']).optional(),
+  granularity: z.enum(['minute', '5_minutes', '15_minutes', 'hour', 'day', 'week', 'month', 'year']).optional(),
   time_zone: z.string().optional(),
   split_by: name.optional(),
   split_limit: z.coerce.number().int().optional(),
@@ -35,10 +36,10 @@ type AggregateParams = z.output<typeof aggregateParams>
 const invalid = (parameter: string, message: string) => badRequest('invalid-parameter', `Invalid parameter ${parameter}: ${message}`, { errors: [{ parameter, message }] })
 
 const measureOf = (params: AggregateParams): Measure | undefined => {
-  if (params.sum !== undefined && params.average !== undefined) throw invalid('average', 'Give sum or average, not both')
-  if (params.sum !== undefined) return { kind: 'sum', field: params.sum }
-  if (params.average !== undefined) return { kind: 'average', field: params.average }
-  return undefined
+  const given = (['sum', 'average', 'maximum'] as const).filter((kind) => params[kind] !== undefined)
+  if (given.length > 1) throw invalid(given[1]!, 'Give one of sum, average and maximum')
+  const [kind] = given
+  return kind === undefined ? undefined : { kind, field: params[kind]! }
 }
 
 // The options that only bucket a date apply only to a date, and the ones that only name or cut values only to values.
@@ -61,7 +62,7 @@ const isDated = (model: ResourceModel, field: string) => {
 
 /**
  * Records per value of a field, or per hour, day, week, month or year of a date field with the empty ones included,
- * each with how many there are and, with `sum` or `average`, that of a numeric field. Read as a list is: the caller's
+ * each with how many there are and, with `sum`, `average` or `maximum`, that of a numeric field. Read as a list is: the caller's
  * filter on the model as they see it, inside their tenant and row filter; the scan guard judges the grouped field.
  */
 export const aggregate = async (deps: Deps, entry: Entry, session: Session, input: unknown) => {

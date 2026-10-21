@@ -57,6 +57,16 @@ describe(':aggregate', () => {
     expect(months.groups).toEqual([{ value: '2026-01-01T00:00:00', count: await countWhere('true') }])
   })
 
+  it('reads the maximum per minute over the last hour, a minute without records holding none', async () => {
+    const body = await (await get('/companies:aggregate?group_by=createdAt&maximum=revenue&range=1h&granularity=minute')).json()
+    expect(body).toMatchObject({ group_by: 'createdAt', granularity: 'minute' })
+    expect(body.groups.length).toBeGreaterThanOrEqual(60)
+    expect(body.groups.every((group: { count: number; maximum: null }) => group.count === 0 && group.maximum === null)).toBe(true)
+    const day = await (await get('/companies:aggregate?group_by=createdAt&maximum=revenue&from=2026-01-02T00:00:00Z&to=2026-01-03T00:00:00Z&granularity=day')).json()
+    const top = (await fixture.pg.query<{ m: string }>(`select max(revenue)::text m from companies where organization_id = 1 and deleted_at is null and created_at >= '2026-01-02' and created_at < '2026-01-03'`)).rows[0]!
+    expect(day.groups[0].maximum).toBe(Number(top.m))
+  })
+
   it('splits each bucket of a date field by the values of another field', async () => {
     const body = await (await get('/companies:aggregate?group_by=createdAt&split_by=status&sum=revenue&from=2026-01-02T00:00:00Z&to=2026-01-04T00:00:00Z&granularity=day')).json()
     expect(body).toMatchObject({ group_by: 'createdAt', split_by: 'status', granularity: 'day' })
@@ -74,6 +84,7 @@ describe(':aggregate', () => {
     expect(await status('group_by=notes')).toBe(400)
     expect(await status('group_by=status&sum=name')).toBe(400)
     expect(await status('group_by=status&sum=revenue&average=revenue')).toBe(400)
+    expect(await status('group_by=status&average=revenue&maximum=revenue')).toBe(400)
     expect(await status('group_by=status&granularity=day')).toBe(400)
     expect(await status('group_by=createdAt&limit=5')).toBe(400)
     expect(await status('group_by=status&split_by=name')).toBe(400)
