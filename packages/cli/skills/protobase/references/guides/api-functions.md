@@ -50,9 +50,10 @@ The second argument of a handler (`c.env` in a [Hono app](#hono-apps)):
 | `records` | The app's resources, acting as the caller: `list`, `get`, `create`, `update`, `delete`. |
 | `db` | The Kysely instance itself. It skips every access rule, row filter and tenant scope. |
 | `caller()` | Resolves to `{ session, records }`. Public functions use it to ask for a caller when they need one. |
+| `acceptWebSocket(events)` | Answers a WebSocket upgrade with a socket; return its response. See [WebSockets](#websockets). |
 | `name` | The function's name. |
 
-A [public function](#public-functions-and-webhooks) has only `db`, `caller()` and `name`.
+A [public function](#public-functions-and-webhooks) has only `db`, `caller()`, `acceptWebSocket` and `name`.
 
 ## Reading and writing records as the caller
 
@@ -127,6 +128,136 @@ export default defineFunction({ public: true }, async (request, { db }) => {
 - Stripe ships its own check: `stripe.webhooks.constructEventAsync(await request.text(), request.headers.get('stripe-signature'), secret)`.
 
 A public function has no caller, so it has no `records`. Its `db` skips the tenant scope too, so filter by tenant yourself where it matters. When a function should serve anyone but treat a signed-in caller differently, `await context.caller()` resolves the caller from the request, or rejects with the `401` problem.
+
+## WebSockets
+
+A function can answer a WebSocket instead of a request, for a live console, a chat or an agent that keeps one connection open. It returns `acceptWebSocket(events)`:
+
+```ts title="functions/workshop-chat.ts"
+import { defineFunction, type FunctionSocket } from '@protobase/server'
+
+// Everyone in the workshop chat, in this process.
+const everyone = new Set<FunctionSocket>()
+
+// /api/functions/workshop-chat, opened as a WebSocket by a signed-in page: each text message goes to everyone in the
+// chat, with who sent it. Awaiting the sends holds the sender's next message back until everyone has this one.
+export default defineFunction((_request, { session, acceptWebSocket }) => {
+  let own: FunctionSocket | undefined
+  return acceptWebSocket({
+    onOpen: (socket) => {
+      own = socket
+      everyone.add(socket)
+    },
+    onMessage: async (data) => {
+      if (typeof data !== 'string') return
+      await Promise.all([...everyone].map((socket) => socket.send(`${session.user.id}: ${data}`)))
+    },
+    onClose: () => {
+      if (own) everyone.delete(own)
+    },
+  })
+})
+```
+
+A page of the app opens it with the browser's own `WebSocket`. The session cookie signs it in, so the function sees the signed-in user and their roles, as for a plain call:
+
+```ts
+const chat = new WebSocket(`${location.origin.replace(/^http/, 'ws')}/api/functions/workshop-chat`)
+chat.onmessage = (event) => console.log(event.data)
+chat.onopen = () => chat.send('Truing stand is free')
+```
+
+A client that is no browser sends `Authorization: Bearer <token>` with its upgrade instead. The events:
+
+| | |
+| --- | --- |
+| `onOpen(socket)` | The socket is open. |
+| `onMessage(data, socket)` | Text arrives as a string, binary as an `ArrayBuffer`, byte for byte. Messages come one at a time and in order. |
+| `onClose(code, reason)` | Either side closed it, after the last message. |
+
+`socket.send(data)` takes a string, an `ArrayBuffer` or a `Uint8Array`, and `socket.close(code?, reason?)` closes it. A handler that throws closes the socket with `1011`, and the error is reported like any other.
+
+### Who may open one
+
+- **Refusals come before the socket.** A caller without a valid session or token gets the usual `401`, and one without the function's roles a `403`; the handler never runs. The browser only sees a socket that failed to open, since an upgrade's refusal has a status but no body.
+- **Only the app's own pages** may open a socket with the cookie. An upgrade from a page on any other origin is a `403`, so another site cannot borrow a visitor's session.
+- **While it is open,** a protected function's caller is checked again every minute, as a plain call would be. Signing out, a ban, a role taken away, or another active role or organization closes the socket with `1008`, and a socket opened with a bearer token closes once the token expires. The client opens it again, as who they are now.
+- **A plain request** to a function that accepts a socket is a `426` problem.
+
+### Agents and other clients without a cookie
+
+A [public function](#public-functions-and-webhooks) can accept a socket too, and checks its caller itself, for example a host agent's key in a header. The framework does not check it again while the socket is open, so a function whose access can be revoked keeps checking, and calls `socket.close()` when it is.
+
+A page with no session cookie of the app, such as the workshop's display board on its own origin, gets a short-lived ticket from a plain call with its token and puts it in the socket's address:
+
+```ts title="functions/_shared/tickets.ts"
+import { createHmac, timingSafeEqual } from 'node:crypto'
+import { requireEnv } from '@protobase/server'
+
+const lifetimeSeconds = 30
+
+const signature = (payload: string) => createHmac('sha256', requireEnv('TICKET_SECRET')).update(payload).digest('base64url')
+
+// A ticket names a user and when it expires, signed with the app's own secret.
+export const mintTicket = (userId: string | number) => {
+  const payload = `${userId}.${Math.floor(Date.now() / 1000) + lifetimeSeconds}`
+  return `${payload}.${signature(payload)}`
+}
+
+// The user a ticket names, or undefined when it is forged or expired.
+export const ticketUser = (ticket: string) => {
+  const payload = ticket.slice(0, ticket.lastIndexOf('.'))
+  const given = Buffer.from(ticket.slice(payload.length + 1))
+  const expected = Buffer.from(signature(payload))
+  if (given.length !== expected.length || !timingSafeEqual(given, expected)) return undefined
+  const userId = payload.slice(0, payload.lastIndexOf('.'))
+  const expires = Number(payload.slice(userId.length + 1))
+  return expires * 1000 > Date.now() ? userId : undefined
+}
+```
+
+```ts title="functions/display-ticket.ts"
+import { defineFunction } from '@protobase/server'
+import { mintTicket } from './_shared/tickets'
+
+// POST /api/functions/display-ticket, from the display board's page: a ticket that opens its socket for 30 seconds.
+export default defineFunction({ roles: ['mechanic'], cors: { origin: 'https://workshop.pips-bikes.example' } }, (_request, { session }) =>
+  Response.json({ ticket: mintTicket(session.user.id) }),
+)
+```
+
+```ts title="functions/display.ts"
+import { defineFunction, unauthorized } from '@protobase/server'
+import { ticketUser } from './_shared/tickets'
+
+// /api/functions/display?ticket=…, the workshop's display board, opened as a WebSocket from a page with no session
+// cookie of this app. Public, so it checks the ticket itself: a missing, forged or expired one gets a 401 and no socket.
+export default defineFunction({ public: true }, (request, { acceptWebSocket }) => {
+  const user = ticketUser(new URL(request.url).searchParams.get('ticket') ?? '')
+  if (!user) throw unauthorized('Get a ticket from /api/functions/display-ticket first')
+  return acceptWebSocket({
+    onOpen: (socket) => socket.send(JSON.stringify({ shownFor: user })),
+  })
+})
+```
+
+```ts
+// On https://workshop.pips-bikes.example, with a client made by createClient
+const { ticket } = await client.invoke('display-ticket', { method: 'POST' })
+const board = new WebSocket(`wss://pips-bikes.example/api/functions/display?ticket=${encodeURIComponent(ticket)}`)
+```
+
+The ticket only lets the socket open: anyone who holds it may use it for its 30 seconds, so keep it out of logs. For a socket that stays open long, check the user again from the function, as a protected function's socket is.
+
+### Slow readers and large messages
+
+- **Await `send`** when the other side may read slowly: it resolves once the data is written, so a relay that awaits each send never piles up data in the server. It never rejects; after a close it resolves at once.
+- **Return a promise from `onMessage`** to hold the next message back until it settles. Above 1 MiB of waiting messages the server stops reading from the client, which slows it down, and reads again once they are handled. Bun's built-in `ws`, which `protobase dev` uses on Bun, cannot stop reading: there the socket closes with `1013` once 16 MiB are waiting.
+- **A message** may be up to 100 MiB.
+
+### Restarts
+
+`protobase dev` closes every open socket with `1012` when you edit the project, so it reconnects to the rebuilt API. `protobase serve` closes them with `1001` when it stops, and drops any still open after 5 seconds. Clients that reconnect on these codes keep working across both.
 
 ## Secrets and other APIs
 
