@@ -1,5 +1,5 @@
 import { markFieldRefs } from './field-ref'
-import type { CardPhotosModel, CommentsSectionModel, GroupItemModel, HelpWhen, HistorySectionModel, JsonValue, LayoutItemModel, RecordWhen, RelatedModel, SectionPresentation, ShowWhen, TabItemModel } from './model'
+import type { CardPhotosModel, RecordChartRange, CommentsSectionModel, GroupItemModel, HelpWhen, HistorySectionModel, JsonValue, LayoutItemModel, RecordWhen, RelatedModel, SectionPresentation, ShowWhen, TabItemModel } from './model'
 import type { Ref } from './refs'
 import { customComponent, type ComponentRef, type ViewProps } from './view-displays'
 
@@ -79,7 +79,7 @@ export const layout = {
   },
   /**
    * A tab of the record page holding main-column items: sections, groups, related tables, custom components, maps,
-   * galleries, history and comments. A view's tabs stand together and show as one strip, the first tab open unless the
+   * charts, galleries, history and comments. A view's tabs stand together and show as one strip, the first tab open unless the
    * address names another; items before and after them show on every tab. Throws on a sidebar item or another tab. See
    * [Tabs](website/src/content/docs/reference/ui-config.mdx#tabs).
    */
@@ -104,6 +104,27 @@ export const layout = {
     ...(o.sidebar && { sidebar: true as const }),
     ...(o.when !== undefined && { when: o.when }),
   }),
+  /**
+   * Line graphs of numeric fields of the records of `resource` that point at this one through `field`, such as a
+   * machine's metric samples, over their timestamp `at`: per minute over the last hour, per 5 minutes over the last day
+   * and per hour over the last week, the average or the maximum of each bucket, opening on `range` (default `1h`). A
+   * bucket without a sample is a gap. Throws without a series. See
+   * [Charts of related records](website/src/content/docs/reference/ui-config.mdx#charts-of-related-records).
+   */
+  chart: (title: string, o: { resource: string; field: string; at: string; series: string[]; range?: RecordChartRange; help?: string; when?: ShowWhen }): LayoutItemModel => {
+    if (o.series.length === 0) throw new Error(`l.chart "${title}" needs at least one series`)
+    return {
+      kind: 'chart',
+      title,
+      resource: o.resource,
+      field: o.field,
+      at: o.at,
+      series: [...o.series],
+      ...(o.range !== undefined && { range: o.range }),
+      ...(o.help !== undefined && { help: o.help }),
+      ...(o.when !== undefined && { when: o.when }),
+    }
+  },
   /**
    * The record's changes, newest first: who made each, when, and the fields before and after, only those the user may
    * read. `limit` changes show before Show more (default 10). Needs `.history()` on the resource; a view without a

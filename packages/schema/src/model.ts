@@ -866,6 +866,36 @@ export type MapSectionModel = {
   when?: ShowWhen
 }
 
+/** How far back a record chart reaches, ending now: the last hour, day or week. */
+export type RecordChartRange = '1h' | '24h' | '7d'
+
+/**
+ * Line graphs of numeric fields of the records of `resource` that point at the record through `field`, over their
+ * timestamp `at`: the average or the maximum of each per minute over the last hour, per 5 minutes over the last day
+ * and per hour over the last week, read through the aggregate API with the caller's access. A bucket without a sample
+ * is a gap. See [Charts of related records](website/src/content/docs/reference/ui-config.mdx#charts-of-related-records).
+ */
+export type RecordChartModel = {
+  /** A chart of related records. */
+  kind: 'chart'
+  /** The section's title. */
+  title: string
+  /** The resource whose records it charts. */
+  resource: string
+  /** The filterable relation on `resource` that holds this record's key. */
+  field: string
+  /** The filterable timestamp field of `resource` the records are placed by. */
+  at: string
+  /** The numeric fields of `resource` it draws, one line each. */
+  series: string[]
+  /** The range it opens on; `1h` when omitted. */
+  range?: RecordChartRange
+  /** A line under the title. */
+  help?: string
+  /** Whether it shows on the form, the read view or both. */
+  when?: ShowWhen
+}
+
 /**
  * The record's changes, newest first, with who made each and the fields before and after: only fields the caller may
  * read. Needs `.history()` on the resource. See [Record history](website/src/content/docs/reference/history.mdx).
@@ -933,6 +963,7 @@ export type LayoutItemModel =
   | GroupModel
   | CustomSectionModel
   | MapSectionModel
+  | RecordChartModel
   | GalleryModel
   | HistorySectionModel
   | CommentsSectionModel
@@ -972,6 +1003,7 @@ export type TabItemModel =
   | GroupModel
   | CustomSectionModel
   | MapSectionModel
+  | RecordChartModel
   | GalleryModel
   | HistorySectionModel
   | CommentsSectionModel

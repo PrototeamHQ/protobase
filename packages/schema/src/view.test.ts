@@ -411,6 +411,19 @@ describe('view builder', () => {
     ])
   })
 
+  it('puts a chart of related records in the record layout, and refuses one without a series', () => {
+    const host = resource('host').table('hosts').fields({ id: f.integer() }).primaryKey((r) => r.id)
+    const samples = { resource: 'host_samples', field: 'host_id', at: 'sampled_at' }
+    const model = view<typeof host>('host')
+      .layout(() => [l.chart('Usage', { ...samples, series: ['cpu', 'memory'] }), l.chart('Disk', { ...samples, series: ['disk_read'], range: '24h', help: 'Bytes per second.', when: 'reading' })])
+      .toModel()
+    expect(model.layout).toEqual([
+      { kind: 'chart', title: 'Usage', ...samples, series: ['cpu', 'memory'] },
+      { kind: 'chart', title: 'Disk', ...samples, series: ['disk_read'], range: '24h', help: 'Bytes per second.', when: 'reading' },
+    ])
+    expect(() => l.chart('Usage', { ...samples, series: [] })).toThrow('l.chart "Usage" needs at least one series')
+  })
+
   it('puts sections and related tables in a group, refuses other items, and refuses two groups with one title', () => {
     const home = resource('home').table('homes').fields({ id: f.integer(), title: f.text() }).primaryKey((r) => r.id)
     const related = { resource: 'notes', field: 'home_id' }

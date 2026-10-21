@@ -56,6 +56,8 @@ export type {
   GroupItemModel,
   CustomSectionModel,
   MapSectionModel,
+  RecordChartModel,
+  RecordChartRange,
   GalleryModel,
   HistorySectionModel,
   CommentsSectionModel,
