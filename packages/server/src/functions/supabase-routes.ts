@@ -6,7 +6,7 @@ import type { Caller } from '../api-keys/resolve-caller'
 import { runInBackground } from '../background-work'
 import { notFound, unauthorized } from '../problem'
 import { supabaseFunctionsPath } from '../supabase-paths'
-import { invokeFunction, type ApiFunction, type KeyFunctionContext } from './define-function'
+import { invokeFunction, type ApiFunction, type KeyFunctionContext, type ProtectedFunctionOptions } from './define-function'
 import { relativeRequest } from './routes'
 
 export type SupabaseFunctionRoutesInput = {
@@ -19,11 +19,12 @@ export type SupabaseFunctionRoutesInput = {
 }
 
 /**
- * The app's functions again at `/api/sb/functions/v1/<name>`, as Supabase serves Edge Functions. A protected function lets in
- * a request its app's keys admit, as Supabase's `verify_jwt` does, and a public one anyone. Either gets the key-made
- * caller, not the app's session, so a function with `roles` is served at `/api/functions/<name>` only. As on Supabase,
- * the function sees the path from its name on, `/<name>/more/parts`, and a CORS preflight, which carries no key,
- * reaches it unchecked.
+ * The functions with `supabase: true` again at `/api/sb/functions/v1/<name>`, as Supabase serves Edge Functions. A
+ * protected one lets in a request its app's keys admit, as Supabase's `verify_jwt` does, the publishable key alone
+ * included, and a public one anyone. Either gets the key-made caller, not the app's session, so neither may have
+ * `roles` or `capability`: that stops startup. As on Supabase, the function sees the path from its name on,
+ * `/<name>/more/parts`, and a CORS preflight, which carries no key, reaches it unchecked. Every other function is a 404
+ * here, and none of its code runs.
  */
 export const supabaseFunctionRoutes = ({ functions, db, keys, caller, onError }: SupabaseFunctionRoutesInput) => {
   const app = new Hono().basePath(supabaseFunctionsPath)
@@ -32,9 +33,18 @@ export const supabaseFunctionRoutes = ({ functions, db, keys, caller, onError }:
 
   for (const [name, fn] of Object.entries(functions)) {
     const { options } = fn
+    if (options.supabase !== true) {
+      app.all(`/${name}/*`, () => {
+        throw notFound(`The function "${name}" answers at /api/functions/${name} only: give it supabase: true to answer here too`)
+      })
+      continue
+    }
+    // Any value counts, `roles: []` and `capability: ''` too, and on a public function forced past the types.
+    const { roles, capability } = options as ProtectedFunctionOptions
+    const gated = roles !== undefined ? 'roles' : capability !== undefined ? 'a capability' : undefined
+    if (gated) throw new Error(`The function "${name}" has supabase: true and ${gated}, which /api/sb/functions/v1 cannot check: drop one`)
     if (options.cors) app.use(`/${name}/*`, cors(options.cors))
     app.all(`/${name}/*`, (c) => runInBackground(async () => {
-      if (!options.public && options.roles) throw notFound(`The function "${name}" checks roles, so it is served at /api/functions/${name} only`)
       const request = relativeRequest(c.req.raw, supabaseFunctionsPath)
       if (options.public || c.req.method === 'OPTIONS') {
         let resolved: Promise<Caller> | undefined

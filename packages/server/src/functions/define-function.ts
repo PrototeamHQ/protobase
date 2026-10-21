@@ -53,6 +53,11 @@ export type CorsOptions = {
 type SharedOptions = {
   /** Answers CORS preflights before authentication and adds the CORS headers to every response, problems included. */
   cors?: CorsOptions
+  /**
+   * Also answers at `/api/sb/functions/v1/<name>`, as Supabase's `verify_jwt` does, where the app's publishable key alone
+   * admits a caller. For functions moved from Supabase; not together with `roles` or `capability`.
+   */
+  supabase?: boolean
 }
 
 /** A function anyone may call, such as a webhook; it can still ask for a caller with `context.caller()`. */
@@ -82,7 +87,7 @@ export type FunctionSource = ApiFunction | FunctionHandler | FunctionApp
 /**
  * A function of your own, served at `/api/functions/<name>`. Without options it needs a signed-in caller, through the
  * app's `authenticate`, and with the app's `roles` one whose roles hold `*`; `{ roles }` or `{ capability }` opens it
- * to more, `{ public: true }` to anyone, as for a webhook.
+ * to more, `{ public: true }` to anyone, as for a webhook. `{ supabase: true }` serves it at `/api/sb/functions/v1/<name>` too.
  */
 export function defineFunction(handler: FunctionHandler | FunctionApp): ApiFunction
 export function defineFunction(options: PublicFunctionOptions, handler: PublicFunctionHandler | FunctionApp<PublicFunctionContext>): ApiFunction

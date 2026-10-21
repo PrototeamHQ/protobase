@@ -61,7 +61,7 @@ describe.skipIf(!reachable || !hasApp)('protobase dev in a project with real aut
     await mkdir(path.join(projectDir, 'functions'))
     await writeFile(path.join(projectDir, 'protobase.theme.css'), ':root {\n  --primary: #0d9488;\n}\n')
     await writeFile(path.join(projectDir, 'functions/whoami.ts'), `import { defineFunction } from '@protobase/server'\nexport default defineFunction((request, { session }) => Response.json({ path: new URL(request.url).pathname, roles: session.user.roles }))\n`)
-    await writeFile(path.join(projectDir, 'functions/supabase-env.ts'), `import { defineFunction } from '@protobase/server'\nexport default defineFunction({ public: true }, { fetch: (request: Request) => Response.json({ path: new URL(request.url).pathname, url: process.env.SUPABASE_URL, jwks: process.env.SUPABASE_JWKS_URL }) })\n`)
+    await writeFile(path.join(projectDir, 'functions/supabase-env.ts'), `import { defineFunction } from '@protobase/server'\nexport default defineFunction({ public: true, supabase: true }, { fetch: (request: Request) => Response.json({ path: new URL(request.url).pathname, url: process.env.SUPABASE_URL, jwks: process.env.SUPABASE_JWKS_URL }) })\n`)
     // The users commands through the real binary: bin → Vite's module runner → the project's protobase.config.ts → a pg
     // Pool. What they do is covered in process by users.test.ts.
     created = await run([bin, 'users', 'create', 'dev@example.com', '--role', 'viewer', '--password-stdin'], projectDir, env, 'a-long-test-password\n')
