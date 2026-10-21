@@ -167,7 +167,7 @@ A config's `name` names it in these errors; an extension should set one. Nothing
 ## `build`
 
 ```sh
-protobase build [--out dist] [--bun] [--extend <dir>]   # run inside a project, e.g. bun run --cwd examples/erp protobase build
+protobase build [--out dist] [--bun] [--extend <dir>] [--source-maps]   # run inside a project, e.g. bun run --cwd examples/erp protobase build
 ```
 
 Writes the project's deploy bundle, the folder a deployment ships:
@@ -192,6 +192,8 @@ The output folder is not emptied; `public/` and `node_modules/` are replaced on 
 A token the [theme](theme.md)) sets that the app does not read prints a `warning:` line, a likely typo; the build still succeeds.
 
 By default the bundle runs on Node and on Bun. `--bun` makes it a bundle for Bun only, as the Protobase images and the cloud serve it: Bun's bundler writes the config module (see [the config module](#the-config-module)), so the build needs `bun` on `PATH` and fails without it.
+
+`--source-maps` writes a source map beside each script of the shell and the plugins, `assets/<name>-<hash>.js.map`, for an error tracker to read the browser's stack frames with. Each script ends with a `//# debugId=<uuid>` comment, and its map carries the same `debugId`; the scripts name no map, but a host serves the maps with the rest of `public/` unless it moves them out. The shell's maps come prebuilt in `@protobase/ui`'s `dist/shell-source-maps/`. Without the option the bundle has no maps.
 
 ### Extensions
 
@@ -315,7 +317,7 @@ docker run --rm -p 8787:8787 -e DATABASE_URL -e BETTER_AUTH_SECRET \
 ## `build-plugin`
 
 ```sh
-protobase build-plugin [dir] [--out <dir>] [--name <name>]
+protobase build-plugin [dir] [--out <dir>] [--name <name>] [--source-maps]
 ```
 
 Builds the [plugin](plugins.md)) in `dir` (default: the current folder), whose entry is its `protobase.ui.tsx`, into `--out` (default: `dir/dist`):
@@ -331,6 +333,7 @@ dist/
 - The module is `protobase.ui.tsx` with everything it imports bundled, except the four modules the app shares (`react`, `react/jsx-runtime`, `react-dom`, `@protobase/ui`), which stay imports by those names. Any other module of those packages, such as `react-dom/client`, fails the build. React's production build and JSX runtime are used, whatever `NODE_ENV` says, and every export of `protobase.ui.tsx` is kept.
 - The stylesheet is Tailwind's utilities for the classes in the plugin's folder: no reset, no theme values. Each utility reads the theme of the app that loads it, with Tailwind's default as the fallback (`text-sm` is `font-size: var(--text-sm, 0.875rem)`).
 - `plugin.json` names the plugin (`--name`, else its `package.json`'s `name`, else its folder's), its own `version`, the plugin API (`api`) and the Protobase versions (`protobase`) it is built for, the module (`entry`) and stylesheet (`css`), relative to it, and the [field types](plugins.md#field-types)) it registers (`fields`), each with the storage types it shows. Both versions come from the `@protobase/ui` installed for the plugin, which the build needs: `api` is its plugin API, and `protobase` is `>=` its version unless the plugin's `package.json` names a range in `engines.protobase` (see [Plugins](plugins.md#versions))).
+- `--source-maps` ends each script with a `//# debugId=<uuid>` comment, naming no map, and writes its source map, `<script>.js.map` carrying the same `debugId`, beside it, for an error tracker to read the browser's stack frames with.
 
 To read its field types, the build loads the plugin's module once in Node, with everything bundled; nothing is rendered, but code at the top level of its modules runs, so keep browser-only work (`window`, `document`) inside components and handlers. The app loads it from wherever `plugin.json` is served, listed in `PROTOBASE_PLUGINS` or `options.plugins` (see [loading](plugins.md#loading))).
 
