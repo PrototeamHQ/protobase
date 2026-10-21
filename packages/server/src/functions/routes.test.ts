@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { Db } from '@protobase/query'
 import { defineRoles } from '@protobase/schema'
 import { createErrorHandler } from '../error-handler'
-import { badRequest, forbidden, unauthorized } from '../problem'
+import { badRequest, forbidden, notFound, unauthorized } from '../problem'
 import type { Session } from '../types'
 import { defineFunction, type ApiFunction, type FunctionContext, type PublicFunctionContext } from './define-function'
 import type { FunctionRecords } from './records'
@@ -265,5 +265,75 @@ describe('functionRoutes WebSocket upgrades', () => {
     expect(cy.close).toHaveBeenCalledWith(1008, 'Unauthorized')
     expect(dee.close).toHaveBeenCalledWith(1008, 'Forbidden')
     delete sessions.dee
+  })
+  const openSocket = async (app: Hono, upgrades: WSEvents[], path: string, headers: Record<string, string> = {}) => {
+    await app.request(path, upgrade(headers))
+    const raw = { readyState: 1, bufferedAmount: 0, send: vi.fn(), close: vi.fn() }
+    const events = upgrades.at(-1)!
+    events.onOpen!(new Event('open'), { raw } as unknown as WSContext)
+    const message = (data: string) => events.onMessage!({ data } as MessageEvent, {} as WSContext)
+    return { raw, message }
+  }
+
+  it('closes a public function’s socket with 1008 once the caller it resolved is refused, changed or moved to another organization', async () => {
+    vi.useFakeTimers()
+    const { app, upgrades } = serveSockets({
+      whoami: defineFunction({ public: true }, async (_request, context) => {
+        await context.caller()
+        return context.acceptWebSocket({})
+      }),
+    })
+    sessions.cy = { user: { id: 'cy', roles: ['sales'] } }
+    sessions.dee = { user: { id: 'dee', roles: ['sales'] } }
+    sessions.eve = { user: { id: 'eve', roles: ['sales'] }, organization: { id: 'a' } }
+    const cy = await openSocket(app, upgrades, '/api/functions/whoami', { cookie: 'cy' })
+    const dee = await openSocket(app, upgrades, '/api/functions/whoami', { cookie: 'dee' })
+    const eve = await openSocket(app, upgrades, '/api/functions/whoami', { cookie: 'eve' })
+    await vi.advanceTimersByTimeAsync(60_000)
+    expect(cy.raw.close).not.toHaveBeenCalled()
+
+    delete sessions.cy
+    sessions.dee = { user: { id: 'dee', roles: ['admin'] } }
+    sessions.eve = { user: { id: 'eve', roles: ['sales'] }, organization: { id: 'b' } }
+    await vi.advanceTimersByTimeAsync(60_000)
+    expect(cy.raw.close).toHaveBeenCalledWith(1008, 'Unauthorized')
+    expect(dee.raw.close).toHaveBeenCalledWith(1008, 'Forbidden')
+    expect(eve.raw.close).toHaveBeenCalledWith(1008, 'Forbidden')
+    delete sessions.dee
+    delete sessions.eve
+  })
+
+  it('leaves a public socket that resolved no caller open, and checks one that resolved it inside onMessage from then on', async () => {
+    vi.useFakeTimers()
+    const { app, upgrades } = serveSockets({
+      agent: defineFunction({ public: true }, (_request, context) => context.acceptWebSocket({})),
+      late: defineFunction({ public: true }, (_request, context) => context.acceptWebSocket({ onMessage: async () => void (await context.caller()) })),
+    })
+    sessions.fay = { user: { id: 'fay', roles: ['sales'] } }
+    const agent = await openSocket(app, upgrades, '/api/functions/agent', { cookie: 'fay' })
+    const late = await openSocket(app, upgrades, '/api/functions/late', { cookie: 'fay' })
+    late.message('hello')
+    await vi.advanceTimersByTimeAsync(60_000)
+    expect(late.raw.close).not.toHaveBeenCalled()
+
+    delete sessions.fay
+    await vi.advanceTimersByTimeAsync(60_000)
+    expect(late.raw.close).toHaveBeenCalledWith(1008, 'Unauthorized')
+    expect(agent.raw.close).not.toHaveBeenCalled()
+  })
+
+  it('runs a protected function’s own recheck after the caller’s, closing with 1008 on its 404', async () => {
+    vi.useFakeTimers()
+    let visible = true
+    const recheck = vi.fn(() => {
+      if (!visible) throw notFound('No such repair')
+    })
+    const { app, upgrades } = serveSockets({ watch: defineFunction((_request, context) => context.acceptWebSocket({ recheck })) })
+    const watch = await openSocket(app, upgrades, '/api/functions/watch', { cookie: 'ann' })
+    await vi.advanceTimersByTimeAsync(60_000)
+    expect(recheck).toHaveBeenCalledTimes(1)
+    visible = false
+    await vi.advanceTimersByTimeAsync(60_000)
+    expect(watch.raw.close).toHaveBeenCalledWith(1008, 'Not Found')
   })
 })

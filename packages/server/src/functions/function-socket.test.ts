@@ -1,6 +1,6 @@
 import type { WSContext } from 'hono/ws'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { unauthorized } from '../problem'
+import { notFound, unauthorized } from '../problem'
 import { closeAboveBytes, pauseAboveBytes, socketEvents, type FunctionSocket, type RawSocket, type SocketEvents } from './function-socket'
 
 // A raw socket whose writes finish when the test says so.
@@ -156,5 +156,62 @@ describe('socketEvents', () => {
     const refused = open({}, { recheck: async () => Promise.reject(unauthorized('Signed out')) })
     await vi.advanceTimersByTimeAsync(60_000)
     expect(refused.raw.close).toHaveBeenCalledWith(1008, 'Unauthorized')
+  })
+
+  it('runs the function’s own recheck alone, every minute while open', async () => {
+    vi.useFakeTimers()
+    const recheck = vi.fn()
+    const { closed } = open({ recheck })
+    await vi.advanceTimersByTimeAsync(120_000)
+    expect(recheck).toHaveBeenCalledTimes(2)
+    closed(1000, '')
+    await vi.advanceTimersByTimeAsync(120_000)
+    expect(recheck).toHaveBeenCalledTimes(2)
+  })
+
+  it('runs the framework’s check before the function’s, and not the function’s once the framework refused', async () => {
+    vi.useFakeTimers()
+    const order: string[] = []
+    const both = open({ recheck: () => void order.push('function') }, { recheck: async () => void order.push('framework') })
+    await vi.advanceTimersByTimeAsync(60_000)
+    expect(order).toEqual(['framework', 'function'])
+    both.closed(1000, '')
+
+    const own = vi.fn()
+    const refused = open({ recheck: own }, { recheck: async () => Promise.reject(unauthorized('Signed out')) })
+    await vi.advanceTimersByTimeAsync(60_000)
+    expect(own).not.toHaveBeenCalled()
+    expect(refused.raw.close.mock.calls).toEqual([[1008, 'Unauthorized']])
+  })
+
+  it('closes with 1008 for a 404 from the function’s recheck, and reports any other error with 1011', async () => {
+    vi.useFakeTimers()
+    const gone = open({ recheck: () => Promise.reject(notFound('No such repair')) })
+    await vi.advanceTimersByTimeAsync(60_000)
+    expect(gone.raw.close.mock.calls).toEqual([[1008, 'Not Found']])
+    expect(gone.report).not.toHaveBeenCalled()
+
+    const bug = new Error('typo')
+    const broken = open({
+      recheck: () => {
+        throw bug
+      },
+    })
+    await vi.advanceTimersByTimeAsync(60_000)
+    expect(broken.raw.close.mock.calls).toEqual([[1011, 'Internal Error']])
+    expect(broken.report).toHaveBeenCalledWith(bug)
+  })
+
+  it('hands no message to onMessage once a re-check refused, though the peer keeps sending', async () => {
+    vi.useFakeTimers()
+    const onMessage = vi.fn()
+    const { raw, message } = open({ onMessage }, { recheck: async () => Promise.reject(unauthorized('Signed out')) })
+    message('before')
+    await vi.advanceTimersByTimeAsync(60_000)
+    expect(raw.close).toHaveBeenCalledWith(1008, 'Unauthorized')
+    message('after')
+    message('rm -rf /')
+    await vi.advanceTimersByTimeAsync(1000)
+    expect(onMessage.mock.calls.map(([data]) => data)).toEqual(['before'])
   })
 })

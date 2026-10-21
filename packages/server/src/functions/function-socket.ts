@@ -16,6 +16,12 @@ export type SocketEvents = {
   /** Text arrives as a string, binary as an ArrayBuffer. The next message waits until a returned promise settles. */
   onMessage?: (data: string | ArrayBuffer, socket: FunctionSocket) => void | Promise<void>
   onClose?: (code: number, reason: string) => void | Promise<void>
+  /**
+   * Checked every minute after the framework's own check, while the socket is open; what it returns is ignored. Throw
+   * or reject with a 401, 403 or 404 problem to close the socket with 1008; any other error is reported and closes it
+   * with 1011.
+   */
+  recheck?: () => unknown
 }
 
 /** What both `ws` and Bun's built-in `ws` socket have; only the first can pause reading. */
@@ -100,7 +106,12 @@ export const socketEvents = (events: SocketEvents, { report, recheck }: SocketEv
           return raw.bufferedAmount
         },
       }
-      if (recheck) stopRecheck = recheckWhileOpen({ check: recheck, close: end, report })
+      // The framework's check first, so the caller and the records a function holds are still theirs when its own runs.
+      const check = async () => {
+        await recheck?.()
+        await events.recheck?.()
+      }
+      if (recheck || events.recheck) stopRecheck = recheckWhileOpen({ check, close: end, report })
       enqueue(() => events.onOpen?.(socket))
     },
     onMessage: (event) => {
