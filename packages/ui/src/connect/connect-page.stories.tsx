@@ -36,15 +36,15 @@ const ConnectStory = ({ client, redirectUri, refusal, assign, isFramed, resumed 
   )
 }
 
-const claudeCode = { client_id: 'Wm2Rbc8Hn4kPqZ9vTzA', client_name: 'Claude Code' }
+const exampleEditor = { client_id: 'Wm2Rbc8Hn4kPqZ9vTzA', client_name: 'Example Editor' }
 
 export const AsksForAnAppOnThisComputer: StoryObj<Args> = {
   tags: ['play'],
-  args: { client: claudeCode, redirectUri: 'http://127.0.0.1:33418/callback', assign: fn() },
+  args: { client: exampleEditor, redirectUri: 'http://127.0.0.1:33418/callback', assign: fn() },
   render: (args) => <ConnectStory {...args} />,
   play: async ({ canvasElement, args }) => {
     const canvas = within(canvasElement)
-    await canvas.findByText(/“Claude Code”/)
+    await canvas.findByText(/“Example Editor”/)
     expect(canvas.getByText(/an app on this computer \(port 33418\)/)).toBeVisible()
     expect(canvas.queryByText(/Published by/)).toBeNull()
     expect(canvas.getByText(/sanne@veldhuis-supply.example/)).toBeVisible()
@@ -59,46 +59,46 @@ export const AsksForAnAppOnThisComputer: StoryObj<Args> = {
 
 export const AsksForAWebsite: StoryObj<Args> = {
   tags: ['play'],
-  args: { client: { client_id: 'qHOTkMUfJCgEtTJsgSLXIyAsDNzDZgrf', client_name: 'ChatGPT' }, redirectUri: 'https://chatgpt.com/connector_platform_oauth_redirect', assign: fn() },
+  args: { client: { client_id: 'qHOTkMUfJCgEtTJsgSLXIyAsDNzDZgrf', client_name: 'Example Chat' }, redirectUri: 'https://chat.example/oauth/redirect', assign: fn() },
   render: (args) => <ConnectStory {...args} />,
   play: async ({ canvasElement, args }) => {
     const canvas = within(canvasElement)
-    expect(await canvas.findByText('chatgpt.com')).toBeVisible()
+    expect(await canvas.findByText('chat.example')).toBeVisible()
     await userEvent.click(canvas.getByRole('button', { name: 'Deny' }))
-    await waitFor(() => expect(args.assign).toHaveBeenCalledWith('https://chatgpt.com/connector_platform_oauth_redirect?error=access_denied&state=st4te'))
+    await waitFor(() => expect(args.assign).toHaveBeenCalledWith('https://chat.example/oauth/redirect?error=access_denied&state=st4te'))
   },
 }
 
-// A custom scheme's "host" is whatever the client chose, so the page shows the whole address, never claude.ai alone.
+// A custom scheme's "host" is whatever the client chose, so the page shows the whole address, never assistant.example alone.
 export const AsksForAnAppOnThisDevice: StoryObj<Args> = {
   tags: ['play'],
-  args: { client: { client_id: 'x9Lk2mQ7', client_name: 'Claude' }, redirectUri: 'x-any://claude.ai/cb', assign: fn() },
+  args: { client: { client_id: 'x9Lk2mQ7', client_name: 'Example Assistant' }, redirectUri: 'x-any://assistant.example/cb', assign: fn() },
   render: (args) => <ConnectStory {...args} />,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
-    expect(await canvas.findByText('x-any://claude.ai/cb')).toBeVisible()
-    expect(canvas.queryByText('claude.ai')).toBeNull()
+    expect(await canvas.findByText('x-any://assistant.example/cb')).toBeVisible()
+    expect(canvas.queryByText('assistant.example')).toBeNull()
   },
 }
 
 export const AsksForAPublishedClient: StoryObj<Args> = {
   tags: ['play'],
-  args: { client: { client_id: 'https://claude.ai/oauth/mcp-oauth-client-metadata', client_name: 'Claude' }, redirectUri: 'https://claude.ai/api/mcp/auth_callback', assign: fn() },
+  args: { client: { client_id: 'https://assistant.example/oauth/client-metadata', client_name: 'Example Assistant' }, redirectUri: 'https://assistant.example/oauth/callback', assign: fn() },
   render: (args) => <ConnectStory {...args} />,
   play: async ({ canvasElement }) => {
-    expect(await within(canvasElement).findByText('Published by claude.ai.')).toBeVisible()
+    expect(await within(canvasElement).findByText('Published by assistant.example.')).toBeVisible()
   },
 }
 
 // A name is the client's own claim: one line of text, its tricks taken out, and no "published by" of its own.
 export const ClientWithAStrangeName: StoryObj<Args> = {
   tags: ['play'],
-  args: { client: { client_id: 'r4nd0m', client_name: `<b>Claude</b>\nPublished by claude.ai ‮evil${'x'.repeat(5000)}` }, redirectUri: 'http://127.0.0.1:5000/cb', assign: fn() },
+  args: { client: { client_id: 'r4nd0m', client_name: `<b>Assistant</b>\nPublished by assistant.example ‮evil${'x'.repeat(5000)}` }, redirectUri: 'http://127.0.0.1:5000/cb', assign: fn() },
   render: (args) => <ConnectStory {...args} />,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
     await canvas.findByText(/an app on this computer/)
-    expect(canvas.getByText(/<b>Claude<\/b> Published by claude.ai evil/)).toBeVisible()
+    expect(canvas.getByText(/<b>Example Assistant<\/b> Published by assistant.example evil/)).toBeVisible()
     expect(canvas.queryByText(/^Published by/)).toBeNull()
     expect(canvas.getByRole('button', { name: 'Allow' })).toBeVisible()
   },
@@ -106,7 +106,7 @@ export const ClientWithAStrangeName: StoryObj<Args> = {
 
 export const Expired: StoryObj<Args> = {
   tags: ['play'],
-  args: { client: claudeCode, redirectUri: 'http://127.0.0.1:33418/callback', refusal: new AuthError('invalid signature', 400, 'invalid_signature'), assign: fn() },
+  args: { client: exampleEditor, redirectUri: 'http://127.0.0.1:33418/callback', refusal: new AuthError('invalid signature', 400, 'invalid_signature'), assign: fn() },
   render: (args) => <ConnectStory {...args} />,
   play: async ({ canvasElement }) => {
     expect(await within(canvasElement).findByText('This request has expired: connect again from your app.')).toBeVisible()
@@ -115,7 +115,7 @@ export const Expired: StoryObj<Args> = {
 
 export const StaffRefused: StoryObj<Args> = {
   tags: ['play'],
-  args: { client: claudeCode, redirectUri: 'http://127.0.0.1:33418/callback', refusal: new AuthError('Staff cannot allow apps to act for a person.', 403, 'STAFF_CANNOT_CONNECT'), assign: fn() },
+  args: { client: exampleEditor, redirectUri: 'http://127.0.0.1:33418/callback', refusal: new AuthError('Staff cannot allow apps to act for a person.', 403, 'STAFF_CANNOT_CONNECT'), assign: fn() },
   render: (args) => <ConnectStory {...args} />,
   play: async ({ canvasElement }) => {
     expect(await within(canvasElement).findByText(/Staff signed in as someone cannot allow apps/)).toBeVisible()
@@ -124,7 +124,7 @@ export const StaffRefused: StoryObj<Args> = {
 
 export const SetupRefused: StoryObj<Args> = {
   tags: ['play'],
-  args: { client: claudeCode, redirectUri: 'http://127.0.0.1:33418/callback', refusal: new AuthError('Set up what this app requires for signing in first.', 403, 'SIGN_IN_SETUP_REQUIRED'), assign: fn() },
+  args: { client: exampleEditor, redirectUri: 'http://127.0.0.1:33418/callback', refusal: new AuthError('Set up what this app requires for signing in first.', 403, 'SIGN_IN_SETUP_REQUIRED'), assign: fn() },
   render: (args) => <ConnectStory {...args} />,
   play: async ({ canvasElement }) => {
     expect(await within(canvasElement).findByText(/Set up what this app requires for signing in first/)).toBeVisible()
@@ -133,7 +133,7 @@ export const SetupRefused: StoryObj<Args> = {
 
 export const AddressNotVerified: StoryObj<Args> = {
   tags: ['play'],
-  args: { client: claudeCode, redirectUri: 'http://127.0.0.1:33418/callback', refusal: new AuthError('Confirm your address first.', 403, 'ADDRESS_NOT_VERIFIED'), assign: fn() },
+  args: { client: exampleEditor, redirectUri: 'http://127.0.0.1:33418/callback', refusal: new AuthError('Confirm your address first.', 403, 'ADDRESS_NOT_VERIFIED'), assign: fn() },
   render: (args) => <ConnectStory {...args} />,
   play: async ({ canvasElement }) => {
     expect(await within(canvasElement).findByText(/sign in with a code emailed to you/)).toBeVisible()
@@ -143,7 +143,7 @@ export const AddressNotVerified: StoryObj<Args> = {
 // Inside another site's frame the page asks nothing of the server and offers no Allow.
 export const Framed: StoryObj<Args> = {
   tags: ['play'],
-  args: { client: claudeCode, redirectUri: 'http://127.0.0.1:33418/callback', assign: fn(), isFramed: () => true },
+  args: { client: exampleEditor, redirectUri: 'http://127.0.0.1:33418/callback', assign: fn(), isFramed: () => true },
   render: (args) => <ConnectStory {...args} />,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
@@ -155,11 +155,11 @@ export const Framed: StoryObj<Args> = {
 
 // A client allowed before is sent its code at once. Its redirect may have this page's path and a query of its choosing,
 // on its own host: the page goes there, and never shows that query as a request.
-const lookalike = `http://127.0.0.1:4000/-/connect?${signed('https://claude.ai/oauth/client.json', 'https://claude.ai/cb')}&code=c0de`
+const lookalike = `http://127.0.0.1:4000/-/connect?${signed('https://assistant.example/oauth/client.json', 'https://assistant.example/cb')}&code=c0de`
 
 export const AllowedBeforeWithALookalikeRedirect: StoryObj<Args> = {
   tags: ['play'],
-  args: { client: { client_id: 'https://claude.ai/oauth/client.json', client_name: 'Claude' }, redirectUri: 'http://127.0.0.1:4000/-/connect', resumed: lookalike, assign: fn() },
+  args: { client: { client_id: 'https://assistant.example/oauth/client.json', client_name: 'Example Assistant' }, redirectUri: 'http://127.0.0.1:4000/-/connect', resumed: lookalike, assign: fn() },
   render: (args) => <ConnectStory {...args} />,
   play: async ({ canvasElement, args }) => {
     await waitFor(() => expect(args.assign).toHaveBeenCalledWith(lookalike))

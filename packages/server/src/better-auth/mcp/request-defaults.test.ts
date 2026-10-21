@@ -25,7 +25,7 @@ describe('what a client may not register', () => {
   })
 
   it('is nothing else', () => {
-    expect(refusedRegistrationField({ redirect_uris: ['http://127.0.0.1/cb'], client_name: 'Claude' })).toBeUndefined()
+    expect(refusedRegistrationField({ redirect_uris: ['http://127.0.0.1/cb'], client_name: 'Example Assistant' })).toBeUndefined()
     expect(refusedRegistrationField(undefined)).toBeUndefined()
   })
 })

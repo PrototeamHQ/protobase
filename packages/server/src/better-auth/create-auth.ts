@@ -158,7 +158,7 @@ export type CreateAuthOptions = {
    */
   organizations?: OrganizationsOptions
   /**
-   * Turns on an OAuth provider for MCP clients: a client such as Claude, ChatGPT, Cursor or Claude Code registers
+   * Turns on an OAuth provider for MCP clients: a client such as an AI assistant or code editor that speaks MCP registers
    * itself, the person signs in on the app's own pages and allows it on the connect page, and the client gets tokens
    * for the MCP endpoint only, with the role and organization the person worked in when they allowed it. `true` for the
    * defaults, or the endpoint's `path` (default `/api/mcp`) and the `connectPage` (default `/-/connect`). Needs an

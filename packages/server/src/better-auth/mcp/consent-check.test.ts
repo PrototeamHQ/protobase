@@ -2,11 +2,11 @@ import { describe, expect, it } from 'vitest'
 import { fakeAdapter } from '../testing/fake-adapter'
 import { mcpConsentCheck } from './consent-check'
 
-const consent = { id: 'c1', clientId: 'claude', userId: 'ana', referenceId: 'role=sales', scopes: ['mcp', 'offline_access'] }
+const consent = { id: 'c1', clientId: 'assistant', userId: 'ana', referenceId: 'role=sales', scopes: ['mcp', 'offline_access'] }
 
 const check = (input: { clientId?: string; userId?: string | null; referenceId?: string }) => {
   const { adapter } = fakeAdapter({ oauthConsent: [consent] })
-  const { clientId = 'claude', userId = 'ana', referenceId } = input
+  const { clientId = 'assistant', userId = 'ana', referenceId } = input
   const accessToken = mcpConsentCheck().claims!.accessToken!
   return accessToken({
     ctx: { context: { adapter } },
@@ -25,7 +25,7 @@ describe('the consent check on every MCP token', () => {
   })
 
   it("refuses another client's, another user's or another grant's consent", async () => {
-    await expect(check({ clientId: 'cursor', referenceId: 'role=sales' })).rejects.toMatchObject(refused)
+    await expect(check({ clientId: 'editor', referenceId: 'role=sales' })).rejects.toMatchObject(refused)
     await expect(check({ userId: 'bo', referenceId: 'role=sales' })).rejects.toMatchObject(refused)
     await expect(check({ referenceId: 'role=admin' })).rejects.toMatchObject(refused)
   })

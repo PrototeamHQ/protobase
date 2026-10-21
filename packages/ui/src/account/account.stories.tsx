@@ -245,8 +245,8 @@ export const ConnectedAccountsLinkRefused: StoryObj<SignInProvidersSectionProps>
 }
 
 const connectedApps: ConnectedAppsSectionProps['apps'] = [
-  { clientId: 'https://claude.ai/oauth/mcp-oauth-client-metadata', name: 'Claude', allowedAt: '2026-10-18T09:30:00.000Z', access: [{ role: 'Sales', organization: 'Acme' }, { role: 'Accountant', organization: 'Acme' }] },
-  { clientId: 'Wm2Rbc8Hn4kPqZ9vTzA', name: 'Claude Code', allowedAt: '2026-10-02T15:40:00.000Z', access: [{ role: 'Sales' }] },
+  { clientId: 'https://assistant.example/oauth/client-metadata', name: 'Example Assistant', allowedAt: '2026-10-18T09:30:00.000Z', access: [{ role: 'Sales', organization: 'Acme' }, { role: 'Accountant', organization: 'Acme' }] },
+  { clientId: 'Wm2Rbc8Hn4kPqZ9vTzA', name: 'Example Editor', allowedAt: '2026-10-02T15:40:00.000Z', access: [{ role: 'Sales' }] },
   { clientId: 'r4nd0m', allowedAt: '2026-09-21T11:00:00.000Z', access: [{ role: 'Sales' }] },
 ]
 
@@ -256,11 +256,11 @@ export const ConnectedApps: StoryObj<ConnectedAppsSectionProps> = {
   render: (args) => <ConnectedAppsSection {...args} />,
   play: async ({ canvasElement, args }) => {
     const canvas = within(canvasElement)
-    expect(canvas.getByText(/Published by claude.ai/)).toBeVisible()
+    expect(canvas.getByText(/Published by assistant.example/)).toBeVisible()
     expect(canvas.getByText(/as Sales in Acme, as Accountant in Acme/)).toBeVisible()
     expect(canvas.getByText('An unnamed app')).toBeVisible()
     await userEvent.click(canvas.getAllByRole('button', { name: 'Disconnect' })[1]!)
-    const dialog = within(within(document.body).getByRole('dialog', { name: 'Disconnect Claude Code?' }))
+    const dialog = within(within(document.body).getByRole('dialog', { name: 'Disconnect Example Editor?' }))
     await userEvent.click(dialog.getByRole('button', { name: 'Disconnect' }))
     expect(args.onDisconnect).toHaveBeenCalledWith('Wm2Rbc8Hn4kPqZ9vTzA')
   },

@@ -2,7 +2,7 @@
  * Where the connect page says an allowed client's code goes, from its redirect URI: a `site` by its host (in punycode,
  * as `URL` gives it, so an international name cannot pass for another), `this-computer` for a loopback address by its
  * port, or a `device-app` by the whole URI without its query, since a custom scheme's host is whatever the client
- * chose (`x-any://claude.ai/cb` is no page of claude.ai).
+ * chose (`x-any://assistant.example/cb` is no page of assistant.example).
  */
 export type RedirectTarget = { kind: 'site'; host: string } | { kind: 'this-computer'; port: string } | { kind: 'device-app'; uri: string }
 
