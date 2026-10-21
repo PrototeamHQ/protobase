@@ -79,6 +79,13 @@ module.exports = {
       to: { path: '^packages/', dependencyTypes: ['local'], dependencyTypesNot: ['aliased-workspace'] },
     },
     {
+      name: 'decrypt-in-reveal-only',
+      comment: 'Encrypted fields are decrypted only by their reveal and by the encryption status and apply commands.',
+      severity: 'error',
+      from: { pathNot: [...testCode, '^packages/server/src/(reveal-service|encryption/status|encryption/apply)\\.ts$'] },
+      to: { path: '^packages/server/src/encryption/envelope-open\\.ts$' },
+    },
+    {
       name: 'no-circular',
       severity: 'error',
       from: {},

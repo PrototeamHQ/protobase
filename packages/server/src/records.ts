@@ -1,6 +1,7 @@
 import { sql, type Expression } from 'kysely'
 import type { Db } from '@protobase/query'
 import type { CheckedFilter, FieldModel } from '@protobase/schema'
+import { storedValue } from './encryption/stored-value'
 import { etagOf } from './etag'
 import type { Entry } from './registry'
 import { exposeRow, pickFields } from './rows'
@@ -37,14 +38,11 @@ export const fetchRecord = async (db: Db, entry: Entry, key: readonly (string | 
   return stored(entry, (await rowsOf(db, query))[0], shape)
 }
 
-const writeValue = (field: FieldModel, value: unknown) =>
-  field.type === 'json' && value !== null ? JSON.stringify(value) : value
-
 export const insertRecord = async (db: Db, entry: Entry, values: Row, shape: Shape = {}) => {
   const fields = Object.keys(values).map((name) => entry.model.fields[name]!)
   const body = fields.length === 0
     ? sql`default values`
-    : sql`(${sql.join(fields.map(columnId))}) values (${sql.join(fields.map((field) => writeValue(field, values[field.name])))})`
+    : sql`(${sql.join(fields.map(columnId))}) values (${sql.join(fields.map((field) => storedValue(field, values[field.name])))})`
   const query = sql`insert into ${tableId(entry.model)} ${body} returning ${returningList(entry, shape.fields)}`
   return (await stored(entry, (await rowsOf(db, query))[0], shape))!
 }
@@ -60,7 +58,7 @@ export const updateRecord = async (db: Db, entry: Entry, key: readonly (string |
   const assignments = [
     ...Object.entries(values).map(([name, value]) => {
       const field = entry.model.fields[name]!
-      return sql`${columnId(field)} = ${writeValue(field, value)}`
+      return sql`${columnId(field)} = ${storedValue(field, value)}`
     }),
     ...etagBump(entry),
   ]
