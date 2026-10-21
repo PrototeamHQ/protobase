@@ -85,7 +85,7 @@ Filters use the language of [access rules](access.md)) and views, on any field, 
 - **`changes.capture()`**, the trigger function. It runs as its owner, with a fixed search path, so a role that writes the table needs no rights on `changes`: another service writing as its own role keeps working once a resource has events.
 - **Two triggers per resource with events or history**, on its table: `<table>_changes` for inserts and deletes, and `<table>_changes_update` for updates that change the row.
 
-The first row a transaction captures also enqueues a `changes.dispatch` job with `jobs.enqueue()`, in the same transaction, so a resource with events needs the [`jobs` schema](jobs.md#the-jobs-schema)) too. Dispatch jobs run one at a time, in the app's workers. After a write through the API commits, the server has its own worker look for that job at once, so its events usually go out within milliseconds; a write from elsewhere waits for the next poll, two seconds at most.
+The first row a transaction captures also enqueues a `changes.dispatch` job with `jobs.enqueue()`, in the same transaction, so a resource with events needs the [`jobs` schema](jobs.md#the-jobs-schema)) too. Dispatch jobs run one at a time, in the app's workers. After a write through the API commits, or an API function returns, the server has its own worker look for that job at once, so its events usually go out within milliseconds; a write from elsewhere waits for the next poll, two seconds at most.
 
 A trigger keeps the columns of the resource's fields, minus sensitive ones, whose names it lists in `changed` when they change. Columns that are not fields, such as a password hash, are never captured. One table can have events for one resource.
 

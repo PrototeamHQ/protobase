@@ -14,6 +14,7 @@ const serveApp = (app: ReturnType<typeof functionApp<PublicFunctionEnv>>, onUnha
     db: {} as Db,
     records: () => ({}) as never,
     onError: createErrorHandler(onUnhandledError),
+    wake: () => {},
   }),
   onUnhandledError,
 })

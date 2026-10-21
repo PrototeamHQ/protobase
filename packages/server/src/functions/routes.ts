@@ -15,6 +15,8 @@ export type FunctionRoutesInput = {
   db: Db
   records: (session: Session) => FunctionRecords
   onError: ErrorHandler
+  /** After a call ended, its writes through `db` committed: has the change dispatcher deliver them now, as after an API write. */
+  wake: () => void
 }
 
 // The request as the function sees it: the same request, its path relative to the function.
@@ -32,21 +34,23 @@ const requireRoles = (name: string, session: Session, roles?: string[]) => {
 /**
  * Every function at `<basePath>/<name>` and below, any method. A protected function authenticates the request first, so
  * a call without a valid token is the authenticator's 401 problem; a public one gets the caller only when it asks. Each
- * call runs as background work, so calls that hold the database for long leave a connection to page requests.
+ * call runs as background work, so calls that hold the database for long leave a connection to page requests. Once a
+ * call ends, failed or not, `wake` runs, so what it wrote reaches open pages without waiting for the dispatcher's poll.
  */
-export const functionRoutes = ({ basePath, functions, authenticate, db, records, onError }: FunctionRoutesInput) => {
+export const functionRoutes = ({ basePath, functions, authenticate, db, records, onError, wake }: FunctionRoutesInput) => {
   const app = new Hono().basePath(basePath)
   app.onError(onError)
   const callerOf = async (request: Request): Promise<FunctionCaller> => {
     const session = await authenticate(request)
     return { session, records: records(session) }
   }
+  const call = (work: () => Promise<Response>) => work().finally(wake)
 
   for (const [name, fn] of Object.entries(functions)) {
     const prefix = `${basePath}/${name}`
     const { options } = fn
     if (options.cors) app.use(`/${name}/*`, cors(options.cors))
-    app.all(`/${name}/*`, (c) => runInBackground(async () => {
+    app.all(`/${name}/*`, (c) => runInBackground(() => call(async () => {
       const request = relativeRequest(c.req.raw, prefix)
       if (options.public) {
         let caller: Promise<FunctionCaller> | undefined
@@ -57,7 +61,7 @@ export const functionRoutes = ({ basePath, functions, authenticate, db, records,
       requireRoles(name, caller.session, options.roles)
       const context: FunctionContext = { name, db, ...caller, caller: async () => caller }
       return invokeFunction(name, fn, request, context)
-    }))
+    })))
   }
   app.all('/*', (c) => {
     throw notFound(`There is no function at ${c.req.path}`)

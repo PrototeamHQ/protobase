@@ -20,9 +20,10 @@ const authenticate = (request: Request) => {
 
 const records = (session: Session) => ({ as: session.user.id }) as unknown as FunctionRecords
 
-const serve = (functions: Record<string, ApiFunction>, onUnhandledError = vi.fn()) => ({
-  app: functionRoutes({ basePath: '/api/functions', functions, authenticate, db, records, onError: createErrorHandler(onUnhandledError) }),
+const serve = (functions: Record<string, ApiFunction>, onUnhandledError = vi.fn(), wake = vi.fn()) => ({
+  app: functionRoutes({ basePath: '/api/functions', functions, authenticate, db, records, onError: createErrorHandler(onUnhandledError), wake }),
   onUnhandledError,
+  wake,
 })
 
 const as = (user: string, init: RequestInit = {}) => ({ ...init, headers: { authorization: `Bearer ${user}`, ...init.headers } })
@@ -110,6 +111,26 @@ describe('functionRoutes', () => {
     expect(JSON.stringify(await broken.json())).not.toContain('secret detail')
     expect((await app.request('/api/functions/empty', as('ann'))).status).toBe(500)
     expect(onUnhandledError.mock.calls.map(([error]) => (error as Error).message)).toEqual(['secret detail', 'The function "empty" returned no Response'])
+  })
+
+  it('wakes the change dispatcher once a call has ended, so its raw database writes reach pages before the next poll', async () => {
+    const order: string[] = []
+    const { app, wake } = serve({
+      report: defineFunction({ public: true }, async () => {
+        await Promise.resolve()
+        order.push('written')
+        return new Response('ok')
+      }),
+      broken: defineFunction(() => {
+        throw new Error('after a write')
+      }),
+    })
+    wake.mockImplementation(() => order.push('woken'))
+
+    expect((await app.request('/api/functions/report', { method: 'POST' })).status).toBe(200)
+    expect(order).toEqual(['written', 'woken'])
+    expect((await app.request('/api/functions/broken', as('ann'))).status).toBe(500)
+    expect(wake).toHaveBeenCalledTimes(2)
   })
 
   it('serves a Hono app below the function’s name, with the context as its env', async () => {
