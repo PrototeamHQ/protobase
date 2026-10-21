@@ -68,12 +68,19 @@ export const requireOperation = (access: RequestAccess, operation: AccessAction)
   throw forbidden('access-denied', `You may not ${operation} ${access.entry.name}`)
 }
 
+// A field the caller cannot read is written blind only when the field's own rule for the write grants it, never by a
+// rule it follows from its resource, so restricting a field's reads does not open it to every writer of the resource.
+// A file field is never write-only: its upload and its stored-value no-op both need the field readable.
+const writesBlind = (access: RequestAccess, name: string, mode: 'create' | 'update') =>
+  access.entry.source.fieldAccess()[name]?.[mode] !== undefined && !access.full.fields[name]?.file
+
 /**
- * Fields the caller may write on create or update. A field they cannot read is never writable, even when its write rule
- * allows it (nobody writes blind; a sensitive field counts as readable); the tenant column is always set by the server.
+ * Fields the caller may write on create or update: those they read (a sensitive field counts as read), and write-only
+ * ones, which they cannot read but whose own write rule allows them (see `writesBlind`). The tenant column is always set
+ * by the server.
  */
 export const writableFields = (access: RequestAccess, mode: 'create' | 'update') =>
-  access.resolved.writableFields[mode].filter((name) => Object.hasOwn(access.readable.fields, name) && name !== access.full.tenant)
+  access.resolved.writableFields[mode].filter((name) => (Object.hasOwn(access.readable.fields, name) || writesBlind(access, name, mode)) && name !== access.full.tenant)
 
 export const visibleFields = (access: RequestAccess): FieldModel[] => Object.values(access.model.fields)
 

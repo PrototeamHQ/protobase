@@ -57,7 +57,7 @@ const only = (schema: JsonSchema, names: string[]): JsonSchema => ({
 
 /**
  * Component schemas of a resource for one caller: the record with the fields they may read, and the create and update
- * bodies with the fields they may write. Hidden fields appear nowhere.
+ * bodies with the fields they may write. Hidden fields appear nowhere; a write-only one only in the bodies.
  */
 export const resourceSchemas = (access: RequestAccess) => {
   const { entry, model, resolved } = access
@@ -79,8 +79,8 @@ export const resourceSchemas = (access: RequestAccess) => {
   }
   record.required = [...(record.required ?? []), 'etag']
 
-  // Sensitive fields are written like any other; they are only left out of the record
-  const writable = access.readable
+  // Sensitive and write-only fields are written like any other; they are only left out of the record
+  const writable = access.full
   const body = (names: string[]) => {
     const properties = only(input.schema, names).properties
     const optional = new Set(names.filter((field) => writable.fields[field]?.nullable || (writable.fields[field]?.default && 'db' in writable.fields[field]!.default!)))
