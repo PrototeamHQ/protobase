@@ -4,8 +4,8 @@ import pg from 'pg'
 import { configExports, type ProjectConfig } from '@protobase/server'
 import { readManifest } from '../bundle/manifest'
 import { loadNearestEnvFile } from '../dev/env'
-import { createPgDb } from '../project/pg-db'
-import { importProjectFile } from '../project/import-project-file'
+import { createPgDb } from './pg-db'
+import { importProjectFile } from './import-project-file'
 import { loadBundle } from '../serve/load-bundle'
 
 // A bundle from `protobase build`: its folder or its config module.
@@ -26,10 +26,10 @@ const sourceProject = async (dir: string): Promise<ProjectConfig> => {
 }
 
 /**
- * What a command over a project's files needs: its resources, its files options and a database, from a bundle or from
- * the project in `dir`. `close` ends the pool it opened; a `db` the project exports stays the project's.
+ * What a command over a project's data needs: its resources, its files and events options and a database, from a bundle
+ * or from the project in `dir`. `close` ends the pool it opened; a `db` the project exports stays the project's.
  */
-export const loadFilesProject = async (bundle: string | undefined, dir: string) => {
+export const loadBundleProject = async (bundle: string | undefined, dir: string) => {
   loadNearestEnvFile(dir)
   const project = bundle ? await bundleProject(bundle) : await sourceProject(dir)
   const url = process.env.DATABASE_URL
@@ -39,6 +39,7 @@ export const loadFilesProject = async (bundle: string | undefined, dir: string) 
     resources: configExports(project.config ?? {}).resources,
     db: project.db ?? ownDb!,
     ...(project.files && { files: project.files }),
+    ...(project.events && { events: project.events }),
     close: async () => {
       await ownDb?.destroy()
     },
