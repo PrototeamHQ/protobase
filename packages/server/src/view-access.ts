@@ -1,6 +1,6 @@
 import { conditionReadable, resolveFieldPath } from '@protobase/layout'
 import { isRecordCondition } from '@protobase/schema'
-import type { ActionInputModel, ActionModel, ActionRun, CardFavoriteModel, CardPhotosModel, ChartModel, CommentsSectionModel, CustomSectionModel, FilterWidgetModel, FormModel, GalleryModel, GroupModel, HistorySectionModel, LayoutItemModel, ListDisplayModel, ListModel, MapSectionModel, NamedListModel, RecordChartModel, NavModel, NavRecentModel, RelatedColumnModel, RelatedModel, ResourceModel, SaveSearchModel, SearchesOfModel, SearchResultModel, TabItemModel, TabModel, ViewModel } from '@protobase/schema'
+import type { ActionInputModel, ActionModel, ActionRun, CardFavoriteModel, CardPhotosModel, ChartModel, CommentsSectionModel, CustomSectionModel, FieldViewModel, FilterWidgetModel, FormModel, GalleryModel, GroupModel, HistorySectionModel, LayoutItemModel, ListDisplayModel, ListModel, MapSectionModel, NamedListModel, RecordChartModel, NavModel, NavRecentModel, RelatedColumnModel, RelatedModel, ResourceModel, SaveSearchModel, SearchesOfModel, SearchResultModel, TabItemModel, TabModel, ViewModel } from '@protobase/schema'
 import { addressErrors, chartFields, hrefPlaceholders, promptFields, navRecentErrors, pruneByShape, shapes as s, tableDisplay } from '@protobase/schema/internal'
 import { cardFavoriteErrors } from './view-card-favorite'
 import { cardPhotosErrors } from './view-card-photos'
@@ -147,9 +147,22 @@ const widgetShape = s.oneOf<FilterWidgetModel>({
   flags: s.object<Of<FilterWidgetModel, 'flags'>>({ kind: s.data, fields: s.list(s.field, { nonEmpty: true }), label: s.data, secondary: s.data }, { requires: ['fields'] }),
 })
 
-const layoutShape = (resource: string, model: ResourceModel, models: Record<string, ResourceModel>) => {
+// A form section and the field hints keep the caller's write-only fields too: the form edits one where its layout
+// names it, and never shows a value of it.
+const formFields = (model: ResourceModel, writeOnly: ReadonlySet<string>) => (name: string) => Object.hasOwn(model.fields, name) || writeOnly.has(name)
+
+const sectionFields = (model: ResourceModel, writeOnly: ReadonlySet<string>) =>
+  s.map<string[]>((names) => {
+    const kept = names.filter(formFields(model, writeOnly))
+    return kept.length > 0 ? kept : undefined
+  })
+
+const fieldHints = (model: ResourceModel, writeOnly: ReadonlySet<string>) =>
+  s.map<Record<string, FieldViewModel>>((hints) => Object.fromEntries(Object.entries(hints).filter(([name]) => formFields(model, writeOnly)(name))))
+
+const layoutShape = (resource: string, model: ResourceModel, models: Record<string, ResourceModel>, writeOnly: ReadonlySet<string>) => {
   const when = recordWhenShape(resource, models)
-  const section = s.object<Of<LayoutItemModel, 'section'>>({ kind: s.data, title: s.data, help: s.data, helpWhen: s.data, presentation: s.data, when, fields: s.list(s.field, { nonEmpty: true }) }, { requires: ['fields', 'when'] })
+  const section = s.object<Of<LayoutItemModel, 'section'>>({ kind: s.data, title: s.data, help: s.data, helpWhen: s.data, presentation: s.data, when, fields: sectionFields(model, writeOnly) }, { requires: ['fields', 'when'] })
   const related = s.map<RelatedModel>((item) => pruneRelated(item, resource, models))
   const group = s.object<GroupModel>({ kind: s.data, title: s.data, collapsed: s.data, when, items: s.list(s.oneOf({ section, related }), { nonEmpty: true }) }, { requires: ['items', 'when'] })
   const main = {
@@ -217,7 +230,7 @@ const actionShape = (model: ResourceModel, models: Record<string, ResourceModel>
 
 // Every part of a view, and what a field the caller cannot read does to it. The compiler wants a shape for each part,
 // so a part added to ViewModel is named here before it reaches anyone.
-const viewShape = (resource: string, model: ResourceModel, models: Record<string, ResourceModel>, prompted: ReadonlySet<string>, createPages: ReadonlySet<string>) => {
+const viewShape = (resource: string, model: ResourceModel, models: Record<string, ResourceModel>, prompted: ReadonlySet<string>, createPages: ReadonlySet<string>, writeOnly: ReadonlySet<string>) => {
   const nav = s.object<NavModel>({ hidden: s.data, group: s.data, order: s.data, recent: s.map<NavRecentModel>((recent) => (navRecentErrors(recent, model).length === 0 ? recent : undefined)) })
   // A chart goes when the caller cannot read a field it groups, counts over or adds up
   const chart = s.map<ChartModel>((chart) => (chartFields(chart).every((name) => Object.hasOwn(model.fields, name)) ? chart : undefined))
@@ -230,10 +243,10 @@ const viewShape = (resource: string, model: ResourceModel, models: Record<string
     names: s.data,
     icon: s.data,
     help: s.data,
-    fields: s.keys(),
+    fields: fieldHints(model, writeOnly),
     list: listShape(resource, model, models, prompted),
     filters: s.list(widgetShape),
-    layout: s.list(layoutShape(resource, model, models)),
+    layout: s.list(layoutShape(resource, model, models, writeOnly)),
     chart,
     recordMode: s.data,
     helpWhen: s.data,
@@ -260,10 +273,17 @@ const viewShape = (resource: string, model: ResourceModel, models: Record<string
  * and links are checked against `models`, the caller's view of every resource, and so are `searchesOf`, cards' favorite
  * buttons and the "Save search" button; the buttons stay for a visitor when their resource is one of `prompted`, those
  * that ask the visitor to sign in. A create link may give values of any name to a resource of `createPages`, whose view
- * for the caller opens a create page.
+ * for the caller opens a create page. The caller's `writeOnly` fields stay in record sections and field hints only.
  */
-export const pruneView = (view: ViewModel, model: ResourceModel, models: Record<string, ResourceModel>, prompted: ReadonlySet<string> = new Set(), createPages: ReadonlySet<string> = new Set()): ViewModel => {
-  const pruned = pruneByShape(view, viewShape(view.resource, model, models, prompted, createPages), (name) => Object.hasOwn(model.fields, name))
+export const pruneView = (
+  view: ViewModel,
+  model: ResourceModel,
+  models: Record<string, ResourceModel>,
+  prompted: ReadonlySet<string> = new Set(),
+  createPages: ReadonlySet<string> = new Set(),
+  writeOnly: ReadonlySet<string> = new Set(),
+): ViewModel => {
+  const pruned = pruneByShape(view, viewShape(view.resource, model, models, prompted, createPages, writeOnly), (name) => Object.hasOwn(model.fields, name))
   if (!pruned) throw new Error(`The view of ${view.resource} is not an object`)
   return pruned
 }

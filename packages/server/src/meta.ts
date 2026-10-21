@@ -8,7 +8,8 @@ import type { ErrorReportingSettings } from './error-reporting/error-reporting-s
 import { sha256Hex, stableJson } from './hash'
 import type { MapSettings } from './maps/map-settings'
 import { pluginsFor, type PluginRef } from './plugins/plugin-settings'
-import { requestAccess } from './request-access'
+import { metaModel } from './meta-model'
+import { requestAccess, writeOnlyFields } from './request-access'
 import { seesRuntime } from './runtime/runtime-settings'
 import { sourcesFor, type SourceRef } from './sources/source-settings'
 import type { Session } from './types'
@@ -69,7 +70,7 @@ const modelsHash = (deps: Deps) => sha256Hex(stableJson(deps.registry.entries.ma
 
 /**
  * `/meta` as one caller sees it: the resources they can do anything with, each as the restricted model (hidden fields
- * absent, `readOnly` unless writable), the view for their roles with hidden fields pruned, what they may do, and the
+ * absent, `readOnly` unless writable, write-only ones marked), the view for their roles with hidden fields pruned, what they may do, and the
  * user menu and their bottom bar without the resources they cannot see. A visitor also gets the prompts of the resources
  * they could use once signed in, which keep their place in the bottom bar and the user menu.
  * The ETag hashes all of it, so it differs per user and per roles.
@@ -90,7 +91,7 @@ export const createMeta = (deps: Deps, appName: string, appIcon?: string) => {
       return view ? [{ access, view }] : []
     })
     const createPages = new Set(picked.filter(({ view }) => view.create).map(({ view }) => view.resource))
-    const views = picked.map(({ access, view }) => pruneView(view, access.readable, listed, prompted, createPages))
+    const views = picked.map(({ access, view }) => pruneView(view, access.readable, listed, prompted, createPages, new Set(writeOnlyFields(access))))
     const callerAccess = {
       createPages,
       models: listed,
@@ -107,7 +108,7 @@ export const createMeta = (deps: Deps, appName: string, appIcon?: string) => {
     const body: CallerMeta = {
       appName,
       ...(appIcon && { appIcon }),
-      resources: visible.map((access) => access.readable),
+      resources: visible.map(metaModel),
       views,
       pages,
       permissions: Object.fromEntries(visible.map(({ entry, resolved, full }) => [entry.name, {

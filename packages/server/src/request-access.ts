@@ -83,6 +83,12 @@ const writesBlind = (access: RequestAccess, name: string, mode: 'create' | 'upda
 export const writableFields = (access: RequestAccess, mode: 'create' | 'update') =>
   access.resolved.writableFields[mode].filter((name) => (Object.hasOwn(access.readable.fields, name) || writesBlind(access, name, mode)) && name !== access.full.tenant)
 
+/** The write-only fields: those the caller may write on create or on update but not read, in the model's order. */
+export const writeOnlyFields = (access: RequestAccess) => {
+  const writable = new Set([...writableFields(access, 'create'), ...writableFields(access, 'update')])
+  return Object.keys(access.full.fields).filter((name) => writable.has(name) && !Object.hasOwn(access.readable.fields, name))
+}
+
 export const visibleFields = (access: RequestAccess): FieldModel[] => Object.values(access.model.fields)
 
 export const andFilters = (filters: Array<CheckedFilter | undefined>): CheckedFilter | undefined => {

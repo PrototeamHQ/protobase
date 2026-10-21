@@ -12,9 +12,16 @@ import type { Session } from './types'
 
 export type RecordPermissions = { update: boolean; delete: boolean; fields: Record<string, 'edit' | 'read'> }
 
-/** `edit` for fields the caller may change on this record, `read` for the rest (sensitive ones included); hidden fields are not listed at all. */
-export const fieldModes = (access: RequestAccess, canUpdate: boolean) =>
-  Object.fromEntries(Object.keys(access.readable.fields).map((name) => [name, canUpdate && writableFields(access, 'update').includes(name) ? 'edit' : 'read'])) as RecordPermissions['fields']
+/**
+ * `edit` for fields the caller may change on this record, `read` for the rest (sensitive ones included); hidden fields
+ * are not listed at all, nor is a write-only one unless the caller may change it here.
+ */
+export const fieldModes = (access: RequestAccess, canUpdate: boolean) => {
+  const writable = canUpdate ? writableFields(access, 'update') : []
+  const readable = Object.keys(access.readable.fields).map((name) => [name, writable.includes(name) ? 'edit' : 'read'])
+  const writeOnly = writable.filter((name) => !Object.hasOwn(access.readable.fields, name)).map((name) => [name, 'edit'])
+  return Object.fromEntries([...readable, ...writeOnly]) as RecordPermissions['fields']
+}
 
 /**
  * The record with this key as the caller may see it: readable fields only, inside the caller's tenant and row filter.

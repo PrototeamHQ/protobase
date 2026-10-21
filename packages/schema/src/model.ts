@@ -40,6 +40,11 @@ export type FieldModel = {
   sensitive?: true
   /** Stored encrypted, and sensitive too (`.encrypted()`). */
   encrypted?: true
+  /**
+   * In `/meta` only: the caller may write the field but not read it, as its own `.access()` write rule allows. It comes
+   * sensitive, with no value to reveal, and the form edits it only where the view's layout names it.
+   */
+  writeOnly?: true
   /** A value the form prefills, or `db` when the database supplies it (identity, now(), ...). */
   default?:
     | {
