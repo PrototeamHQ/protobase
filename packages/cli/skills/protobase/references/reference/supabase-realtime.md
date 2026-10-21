@@ -44,6 +44,8 @@ room
 
 A broadcast reaches the topic's other channels, and the sender's own with `self`; with `ack`, `send` resolves once the server has it. Binary payloads go to clients on the default serializer (`vsn` 2.0.0) only. Presence follows Phoenix Presence: a channel tracks one presence under its `presence.key` (a random one when it names none), tracking again replaces it, and channels with presence enabled get the state when they join and each join and leave after, their own included. A channel that leaves, closes or whose token expires leaves the presence it tracked.
 
+Limits, near Supabase's Free plan, apply per socket and per topic. A socket sends at most 100 broadcast and presence messages a second, joins at most 100 times a second and holds at most 100 channels; on each channel it sends at most 5 presence updates in 30 seconds, also counted across a rejoin. A topic takes 100 broadcasts a second, whoever sends them, so one busy sender can use up a topic's budget. A topic is at most 255 bytes, and a tracked presence at most 10 000 bytes of JSON. A message over a limit gets an error reply and goes to no one, where Supabase would close the channel. A frame over 256 KiB closes the socket with 1009. It closes with 1008 when the client leaves more than 4 MiB unread, or sends more than 300 messages or 4 MiB while earlier ones wait, such as behind a token check.
+
 Broadcasts and presence go between the channels of one serving process, which is how a cloud app runs; several processes behind one address do not reach each other's channels. Sending without a joined channel, which supabase-js does over `POST /api/sb/realtime/v1/api/broadcast`, is not supported.
 
 ## What a subscriber receives
