@@ -15,6 +15,10 @@ describe('record titles', () => {
     expect(recordTitleField(model, undefined)).toBe('number')
     expect(labelFieldOf({ ...model, fields: { id: field('id', 'bigint') } } as unknown as ResourceModel)).toBe('id')
   })
+  it('never falls back to a write-only text field, which no record carries', () => {
+    const sealed = { ...field('sealed', 'text'), writeOnly: true } as FieldModel
+    expect(labelFieldOf({ ...model, fields: { id: field('id', 'bigint'), sealed } } as unknown as ResourceModel)).toBe('id')
+  })
 })
 
 describe('record keys of list rows', () => {

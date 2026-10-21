@@ -26,7 +26,10 @@ export type SensitiveFieldProps = {
   onChange: (value: unknown) => void
 }
 
-/** A value hidden like a password. Showing a stored one asks the server for it, once per page visit. */
+/**
+ * A value hidden like a password. Showing a stored one asks the server for it, once per page visit; a write-only one has
+ * none to show, so its eye only unmasks what was typed.
+ */
 export const SensitiveField = ({ field, hints, value, reveal, locked, invalid, placeholder, onChange }: SensitiveFieldProps) => {
   const [shown, setShown] = useState(false)
   const stored = useMutation({ mutationFn: async () => reveal!(), onSuccess: () => setShown(true) })
@@ -63,7 +66,7 @@ export const SensitiveField = ({ field, hints, value, reveal, locked, invalid, p
         invalid={invalid}
         aria-label={label}
         className={cn(hints?.format === 'code' && 'font-mono text-xs')}
-        placeholder={typed || !reveal ? placeholder : mask}
+        placeholder={typed || !reveal ? (placeholder ?? (field.writeOnly ? appText('setNewValue') : undefined)) : mask}
         value={text}
         trailing={eye}
         onChange={(event) => onChange(event.target.value)}

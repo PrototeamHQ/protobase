@@ -6,7 +6,7 @@ const labelCandidates = ['name', 'title', 'number', 'sku', 'email', 'code', 'des
 export const labelFieldOf = (model: ResourceModel, view?: ViewModel) =>
   view?.title ??
   labelCandidates.find((name) => model.fields[name]?.type === 'text') ??
-  Object.values(model.fields).find((field) => field.type === 'text')?.name ??
+  Object.values(model.fields).find((field) => field.type === 'text' && !field.writeOnly)?.name ??
   model.primaryKey[0]!
 
 /** What names a record: the view's `title`, else the first text column of its list, else `labelFieldOf`. */

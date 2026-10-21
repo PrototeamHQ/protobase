@@ -75,8 +75,9 @@ const kindOf = (field: FieldModel, view: ViewModel['fields'][string] | undefined
 
 const currencyCents = (value: unknown) => Math.round(Number.parseFloat(String(value)) * 100)
 
-/** The fields a view's list shows as columns: its list columns, else the resource's first six fields. */
-export const listColumnNames = (resource: ResourceModel, view: ViewModel | undefined) => view?.list?.columns ?? Object.keys(resource.fields).slice(0, 6)
+/** The fields a view's list shows as columns: its list columns, else the resource's first six fields the caller reads. */
+export const listColumnNames = (resource: ResourceModel, view: ViewModel | undefined) =>
+  view?.list?.columns ?? Object.values(resource.fields).filter((field) => !field.writeOnly).slice(0, 6).map((field) => field.name)
 
 /** Grid columns for `names`, by default the view's list: kinds follow the field types and the view's format hints. */
 export const columnsFromModel = (resource: ResourceModel, view: ViewModel | undefined, highlight: string[] = [], names = listColumnNames(resource, view)): ColumnSpec[] => {

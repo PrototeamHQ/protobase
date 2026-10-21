@@ -58,7 +58,7 @@ export const useRecordEditor = ({ model, stored, recordKey, mode, subject, draft
     if (restored?.order) lines?.setOrder(restored.order)
   }, [])
 
-  // A sensitive value is never kept in local storage
+  // A sensitive value, and so a write-only one, is never kept in local storage
   useEffect(() => {
     if (!draftKey) return
     const kept = Object.fromEntries(Object.entries(draft).filter(([name]) => !model.fields[name]?.sensitive))

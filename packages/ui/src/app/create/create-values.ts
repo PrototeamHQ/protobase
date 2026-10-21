@@ -20,7 +20,7 @@ export const isCreatable = (model: ResourceModel, field: FieldModel) =>
 /**
  * The view's sections limited to creatable fields, plus a section for any creatable field the layout leaves out. The
  * create form is a form, so sections and fields meant only for reading the record stay out of their sections, and a
- * creatable field among them lands in that last section.
+ * creatable field among them lands in that last section. A write-only field is on the form only where a section names it.
  */
 export const createSections = (model: ResourceModel, view: ViewModel | undefined): CreateSection[] => {
   const creatable = Object.values(model.fields).filter((field) => isCreatable(model, field)).map((field) => field.name)
@@ -31,7 +31,7 @@ export const createSections = (model: ResourceModel, view: ViewModel | undefined
     fields.forEach((name) => placed.add(name))
     return fields.length > 0 ? [{ title: item.title, help: item.help, fields }] : []
   })
-  const rest = creatable.filter((name) => !placed.has(name))
+  const rest = creatable.filter((name) => !placed.has(name) && !model.fields[name]!.writeOnly)
   if (rest.length === 0) return sections
   return [...sections, { title: sections.length === 0 ? text('details') : text('otherFields'), fields: rest }]
 }

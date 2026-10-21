@@ -45,6 +45,13 @@ describe('createSections', () => {
     expect(createSections(orders, view)[0]!.fields).toContain('total')
   })
 
+  it('puts a write-only field on the form only where a section names it', () => {
+    const sealed = { ...orders, fields: { ...orders.fields, sealed: field('sealed', 'text', { sensitive: true, writeOnly: true }) } } as ResourceModel
+    expect(createSections(sealed, undefined)[0]!.fields).not.toContain('sealed')
+    const view = { fields: {}, layout: [{ kind: 'section', title: 'Secret', fields: ['sealed'] }] } as unknown as ViewModel
+    expect(createSections(sealed, view)[0]).toMatchObject({ title: 'Secret', fields: ['sealed'] })
+  })
+
   it('shows the sections of a group as plain sections', () => {
     const view = { fields: {}, layout: [{ kind: 'group', title: 'More', collapsed: true, items: [{ kind: 'section', title: 'Money', fields: ['total'] }] }] } as unknown as ViewModel
     expect(createSections(orders, view).map((section) => section.title)).toEqual(['Money', 'Other fields'])

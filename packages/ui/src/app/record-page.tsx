@@ -74,7 +74,8 @@ const hidden = (model: ResourceModel, name: string) => name === model.tenant || 
  */
 const layoutFor = (model: ResourceModel, view: ViewModel | undefined, read: boolean): LayoutItemModel[] => {
   if (view && view.layout.length > 0) return view.layout
-  const shown = Object.values(model.fields).filter((field) => !hidden(model, field.name))
+  // A write-only field is edited only where the view's layout names it
+  const shown = Object.values(model.fields).filter((field) => !hidden(model, field.name) && !field.writeOnly)
   const editable = shown.filter((field) => !field.readOnly)
   const fields = (editable.length > 0 && !read ? editable : shown).map((field) => field.name)
   return [{ kind: 'section', title: text('details'), fields }, ...(model.history ? [{ kind: 'history' as const, title: text('history') }] : []), ...(model.comments ? [{ kind: 'comments' as const, title: text('comments') }] : [])]
@@ -187,7 +188,8 @@ const LoadedRecord = ({ model, recordKey, stored, preview }: LoadedRecordProps) 
   const status = hasStatus && !sidebarFields.includes('status') && statusValue !== null && statusValue !== undefined && statusValue !== '' ? String(statusValue) : undefined
   const updatedAt = auditField(model, 'updated')
   const hint = (name: string) => view?.fields[name]
-  const visible = (name: string) => fieldAccess(stored.permissions, name) !== 'hidden' && whenShown(hint(name)?.when, editing)
+  // A write-only field has no value to show, so it is on the form only
+  const visible = (name: string) => fieldAccess(stored.permissions, name) !== 'hidden' && whenShown(hint(name)?.when, editing) && (shown === 'form' || !model.fields[name]?.writeOnly)
   const known = (name: string) => !preview || Object.hasOwn(stored.record, name)
 
   const fieldView = (name: string) => {
@@ -225,7 +227,7 @@ const LoadedRecord = ({ model, recordKey, stored, preview }: LoadedRecordProps) 
             relationPicker={target && { target, view: meta.views[target.name] }}
             locked={shown !== 'form' || access === 'read'}
             invalid={Boolean(editor.errors[name])}
-            reveal={field.sensitive ? () => client.reveal(model.name, recordKey, name) : undefined}
+            reveal={field.sensitive && !field.writeOnly ? () => client.reveal(model.name, recordKey, name) : undefined}
             resource={model.name}
             onChange={(next) => pick(name, next)}
           />
