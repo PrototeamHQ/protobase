@@ -26,6 +26,10 @@ const render = (fake: ReturnType<typeof fakeInvoiceClient>) => () => (
   </div>
 )
 
+/** Waits until `name` is the first line: on a busy machine the page may draw the order a beat after the step that set it. */
+const firstLineIs = (canvas: Handle['canvas'], name: string) =>
+  waitFor(() => expect(canvas.getAllByRole('button', { name: /Drag to reorder/ })[0]).toHaveAccessibleName(`Drag to reorder ${name}`))
+
 /** Picks up the first line with the keyboard and drops it one place down: A B C becomes B A C. */
 const moveFirstLineDown = async (canvas: Handle['canvas']) => {
   const handle = await canvas.findByRole('button', { name: 'Drag to reorder Line A' })
@@ -35,7 +39,7 @@ const moveFirstLineDown = async (canvas: Handle['canvas']) => {
   await userEvent.keyboard('{ArrowDown}')
   await pause(150)
   await userEvent.keyboard(' ')
-  await waitFor(() => expect(canvas.getAllByRole('button', { name: /Drag to reorder/ })[0]).toHaveAccessibleName('Drag to reorder Line B'))
+  await firstLineIs(canvas, 'Line B')
 }
 
 const saved = fakeInvoiceClient()
@@ -64,7 +68,7 @@ export const LeavingAsksFirst: StoryObj = {
     const dialog = await canvas.findByRole('dialog', { name: 'Leave without saving?' })
     await userEvent.click(within(dialog).getByRole('button', { name: 'Stay' }))
     await waitFor(() => expect(canvas.queryByRole('dialog', { name: 'Leave without saving?' })).toBeNull())
-    expect(canvas.getAllByRole('button', { name: /Drag to reorder/ })[0]).toHaveAccessibleName('Drag to reorder Line B')
+    await firstLineIs(canvas, 'Line B')
   },
 }
 
@@ -94,7 +98,7 @@ export const BackAsksFirst: StoryObj = {
     await userEvent.click(within(dialog).getByRole('button', { name: 'Stay' }))
     await waitFor(() => expect(canvas.queryByRole('dialog', { name: 'Leave without saving?' })).toBeNull())
     expect(pathname()).toBe('/invoices/i1')
-    expect(canvas.getAllByRole('button', { name: /Drag to reorder/ })[0]).toHaveAccessibleName('Drag to reorder Line B')
+    await firstLineIs(canvas, 'Line B')
 
     window.history.back()
     await userEvent.click(within(await canvas.findByRole('dialog', { name: 'Leave without saving?' })).getByRole('button', { name: 'Leave' }))
@@ -112,6 +116,6 @@ export const FailureNamesTheOperation: StoryObj = {
     await userEvent.click(canvas.getAllByRole('button', { name: 'Save' })[0]!)
     expect(await canvas.findByText('Could not save')).toBeInTheDocument()
     expect(canvas.getByText('Operation 1 (reorder invoice_lines by position) failed: Position 2 is taken. Nothing was saved.')).toBeInTheDocument()
-    expect(canvas.getAllByRole('button', { name: /Drag to reorder/ })[0]).toHaveAccessibleName('Drag to reorder Line B')
+    await firstLineIs(canvas, 'Line B')
   },
 }
