@@ -166,7 +166,7 @@ A config's `name` names it in these errors; an extension should set one. Nothing
 ## `build`
 
 ```sh
-protobase build [--out dist] [--bun] [--extend <dir>]   # run inside a project, e.g. bun run --cwd examples/erp protobase build
+protobase build [--out dist] [--bun] [--extend <dir>] [--source-maps]   # run inside a project, e.g. bun run --cwd examples/erp protobase build
 ```
 
 Writes the project's deploy bundle, the folder a deployment ships:
@@ -191,6 +191,8 @@ The output folder is not emptied; `public/` and `node_modules/` are replaced on 
 A token the [theme](/reference/theme/) sets that the app does not read prints a `warning:` line, a likely typo; the build still succeeds.
 
 By default the bundle runs on Node and on Bun. `--bun` makes it a bundle for Bun only, as the Protobase images and the cloud serve it: Bun's bundler writes the config module (see [the config module](#the-config-module)), so the build needs `bun` on `PATH` and fails without it.
+
+`--source-maps` writes a source map beside each script of the shell and the plugins, `assets/<name>-<hash>.js.map`, for an error tracker to read the browser's stack frames with. Each script ends with a `//# debugId=<uuid>` comment, and its map carries the same `debugId`; the scripts name no map, but a host serves the maps with the rest of `public/` unless it moves them out. The shell's maps come prebuilt in `@protobase/ui`'s `dist/shell-source-maps/`. Without the option the bundle has no maps.
 
 ### Extensions
 

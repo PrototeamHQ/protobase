@@ -30,8 +30,8 @@
     "dist"
   ],
   "scripts": {
-    "build": "tsdown && protobase build-shell dist/shell",
-    "prepack": "tsdown && protobase build-shell dist/shell"
+    "build": "tsdown && protobase build-shell dist/shell --source-maps dist/shell-source-maps",
+    "prepack": "tsdown && protobase build-shell dist/shell --source-maps dist/shell-source-maps"
   },
   "publishConfig": {
     "access": "public",

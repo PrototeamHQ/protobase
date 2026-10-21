@@ -19,6 +19,8 @@ export type DeployBundleInput = {
   outDir: string
   bun?: boolean
   extensions?: Extension[]
+  /** Writes each script of the shell and the plugins with a `//# debugId=` comment and its source map beside it. */
+  sourceMaps?: boolean
   /** Hears what the build does not fail on but the developer should know, such as a token the theme misspells. */
   onWarning?: (message: string) => void
 }
@@ -34,14 +36,16 @@ const removeOwnNodeModules = async (outDir: string) => {
   await rm(dir, { recursive: true, force: true })
 }
 
-// The prebuilt shell's files, without the file naming its version, which the manifest carries instead.
-const copyShell = async (publicDir: string) => {
-  const { dir, shell, scratch } = await shellForBuild()
+// The prebuilt shell's files, without the file naming its version, which the manifest carries instead, and its source
+// maps beside its scripts when asked for.
+const copyShell = async (publicDir: string, sourceMaps: boolean) => {
+  const { dir, sourceMapsDir, shell, scratch } = await shellForBuild(sourceMaps)
   try {
     await rm(publicDir, { recursive: true, force: true })
     await cp(dir, publicDir, { recursive: true, filter: (file) => path.basename(file) !== shellManifestFile })
+    if (sourceMapsDir) await cp(sourceMapsDir, publicDir, { recursive: true })
   } finally {
-    if (scratch) await rm(dir, { recursive: true, force: true })
+    if (scratch) await rm(scratch, { recursive: true, force: true })
   }
   return shell
 }
@@ -53,7 +57,7 @@ const copyShell = async (publicDir: string) => {
 // only the config folder runs at build time, to check its views against its resources; when it declares custom
 // components, or extensions have UI configs, the UI is loaded once to check its names against the config's and each
 // other's.
-export const buildDeployBundle = async ({ projectDir, outDir, bun, extensions = [], onWarning }: DeployBundleInput): Promise<BundleManifest> => {
+export const buildDeployBundle = async ({ projectDir, outDir, bun, extensions = [], sourceMaps = false, onWarning }: DeployBundleInput): Promise<BundleManifest> => {
   await removeOwnNodeModules(outDir)
   const components = new Set<string>()
   const native = await buildConfigBundle({ projectDir, outFile: path.join(outDir, bundleLayout.server), bun, extensions, components })
@@ -61,9 +65,9 @@ export const buildDeployBundle = async ({ projectDir, outDir, bun, extensions = 
   await checkUi(projectDir, extensions, components)
   const packages = native.length > 0 ? await copyPackages(native, path.join(outDir, bundleNodeModules)) : []
   const publicDir = path.join(outDir, bundleLayout.public)
-  const shell = await copyShell(publicDir)
+  const shell = await copyShell(publicDir, sourceMaps)
   // What Protobase generates in the project, such as the mobile workspace's packages and native projects, is no source of styles.
-  const plugins = await buildBundlePlugins({ projectDir, publicDir, extensions, ignore: [outDir, path.join(projectDir, protobaseFolder)] })
+  const plugins = await buildBundlePlugins({ projectDir, publicDir, extensions, ignore: [outDir, path.join(projectDir, protobaseFolder)], sourceMaps })
   for (const warning of await buildTheme({ projectDir, outFile: path.join(publicDir, bundleLayout.theme) })) onWarning?.(warning)
   const icons = await buildIcons({ projectDir, publicDir })
   const manifest: BundleManifest = {

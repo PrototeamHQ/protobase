@@ -116,10 +116,11 @@ program
   .option('--out <dir>', 'output folder', 'dist')
   .option('--bun', "have Bun's bundler write the config module, for a bundle only Bun serves (needs bun on PATH)", false)
   .option('--extend <dir>', 'merge the protobase.config.ts and protobase.ui.tsx in this folder before the project\'s, repeatable', collect, [])
+  .option('--source-maps', 'end each script with a //# debugId= comment and write its source map, carrying the same id, beside it', false)
   .action(async (opts) => {
     const extensions = resolveExtensions(opts.extend)
     const onWarning = (message: string) => process.stderr.write(`warning: ${message}\n`)
-    const manifest = await buildDeployBundle({ projectDir: process.cwd(), outDir: path.resolve(opts.out), bun: opts.bun, extensions, onWarning })
+    const manifest = await buildDeployBundle({ projectDir: process.cwd(), outDir: path.resolve(opts.out), bun: opts.bun, extensions, sourceMaps: opts.sourceMaps, onWarning })
     const packages = manifest.nodeModules ? `, ${manifest.nodeModules}/` : ''
     const plugins = manifest.plugins.length > 0 ? ` with plugins ${manifest.plugins.map((plugin) => plugin.name).join(', ')}` : ''
     out(`built ${opts.out}: ${manifest.server}${packages}, ${manifest.public}/${plugins} and ${manifestFile} (api ${manifest.api.join(', ')})\n`)
@@ -144,8 +145,9 @@ program
   .command('build-shell', { hidden: true })
   .description("Build the admin app every bundle shares, as @protobase/ui's package and the protobase image ship it")
   .argument('<out>', 'output folder')
-  .action(async (outDir: string) => {
-    const shell = await buildShell(path.resolve(outDir))
+  .option('--source-maps <dir>', 'end each script with a //# debugId= comment and write its source map, carrying the same id, to this folder')
+  .action(async (outDir: string, opts) => {
+    const shell = await buildShell(path.resolve(outDir), opts.sourceMaps && path.resolve(opts.sourceMaps))
     out(`built ${outDir}: the shell of Protobase ${shell.protobase} (plugin API ${shell.pluginApi})\n`)
   })
 

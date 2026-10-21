@@ -7,6 +7,7 @@ import { prebuildifyFiles, writePackage } from '../support/packages'
 import { protobaseVersion } from '../../src/version/version'
 import { buildDeployBundle } from '../../src/build/deploy-bundle'
 import { testPng } from '../support/png'
+import { expectDebugIdMap } from '../support/source-maps'
 
 const root = path.resolve(__dirname, '../../../..')
 
@@ -49,6 +50,7 @@ describe('buildDeployBundle', () => {
     expect(index).toContain(`src="/assets/${script}"`)
     expect(index).toContain(`href="/assets/${style}"`)
     expect(index).not.toContain('./main')
+    expect(assets.filter((file) => file.endsWith('.map'))).toEqual([])
     const code = await readFile(path.join(outDir, 'public/assets', script!), 'utf8')
     expect(code).not.toContain('@vite/client')
     expect(code).not.toContain('react-refresh')
@@ -199,5 +201,19 @@ describe('buildDeployBundle', () => {
     await expect(buildDeployBundle({ projectDir, outDir })).rejects.toThrow(
       "The config declares component('PlanCard'), but protobase.ui.tsx exports no component by that name. Export each from its own file and re-export it, such as: export { PlanCard } from './ui/PlanCard'",
     )
+  }, buildTimeout)
+
+  it("with source maps, writes each script of the shell and the plugins with a map beside it carrying the script's debug id", async () => {
+    projectDir = await createProject({ 'config/index.ts': things, 'protobase.ui.tsx': `export const Hello = () => <p>Hello</p>\n` })
+    const outDir = path.join(projectDir, 'dist')
+    await buildDeployBundle({ projectDir, outDir, sourceMaps: true })
+    const assets = path.join(outDir, 'public/assets')
+    // Chunks of generated code alone, such as the shared modules' re-exports, have no sources to map.
+    const maps = (await readdir(assets)).filter((file) => file.endsWith('.js.map'))
+    expect(maps).toContainEqual(expect.stringMatching(/^index-[\w-]+\.js\.map$/))
+    expect(maps).toContainEqual(expect.stringMatching(/^parse-worker-[\w-]+\.js\.map$/))
+    for (const map of maps) await expectDebugIdMap(path.join(assets, map.slice(0, -'.map'.length)))
+    const plugin = JSON.parse(await readFile(path.join(outDir, 'public/plugins/app/plugin.json'), 'utf8')) as { entry: string }
+    await expectDebugIdMap(path.join(outDir, 'public/plugins/app', plugin.entry))
   }, buildTimeout)
 })

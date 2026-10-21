@@ -42,12 +42,12 @@ const sources = async (projectDir: string, extensions: Extension[]): Promise<Sou
  * Builds the project's protobase.ui.tsx and each extension's as a plugin under `publicDir`/plugins/<name>/, as
  * `protobase build-plugin` builds one: the app loads them like any other, from what `/meta` names.
  */
-export const buildBundlePlugins = async ({ projectDir, publicDir, extensions, ignore }: { projectDir: string; publicDir: string; extensions: Extension[]; ignore: string[] }): Promise<BundlePlugin[]> => {
+export const buildBundlePlugins = async ({ projectDir, publicDir, extensions, ignore, sourceMaps }: { projectDir: string; publicDir: string; extensions: Extension[]; ignore: string[]; sourceMaps: boolean }): Promise<BundlePlugin[]> => {
   const plugins: BundlePlugin[] = []
   // One after another: each is a Vite build, and the order is the manifest's.
   for (const source of await sources(projectDir, extensions)) {
     const folder = path.join(pluginsFolder, folderOf(source.name))
-    const manifest = await buildPlugin({ pluginDir: source.dir, outDir: path.join(publicDir, folder), name: source.name, projectDir, ignore })
+    const manifest = await buildPlugin({ pluginDir: source.dir, outDir: path.join(publicDir, folder), name: source.name, projectDir, ignore, sourceMaps })
     plugins.push({ name: manifest.name, path: `${folder}/${pluginManifestFile}`, api: manifest.api, protobase: manifest.protobase, ...(manifest.fields && { fields: manifest.fields }) })
   }
   return plugins
