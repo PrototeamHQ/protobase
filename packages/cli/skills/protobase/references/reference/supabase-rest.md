@@ -44,6 +44,10 @@ Not yet: many-to-many embeds through a junction table, spreads (`...profiles(nam
 
 As on the [REST API](api.md#safety)), a filter or a sort reads only columns an index serves: a btree index for comparisons, `in`, `is` and sorts, a pg_trgm index for patterns and regular expressions, a GIN index for text search and `cs`, `cd` and `ov` (or GiST), and a GiST index for the range operators. A JSON path needs an index on that expression. An embed's filters and order are judged on the embedded table, and so are the columns it joins on, so a one-to-many embed needs an index on the foreign key's columns. Any other read is `400` with code `expensive-query` and the statement that adds the index as its `hint`. Functions are not judged.
 
+## Encrypted fields
+
+The column of an [encrypted field](data-config.md#encrypted-fields)) holds ciphertext, which this API can neither write nor compare. A read returns it as stored. Writing the column, an `on_conflict` on it, a filter, sort or embed join on it, and, on a table with encrypted fields, a write that changes a row's key or tenant are `400` with code `encrypted-column`, writing nothing, whichever resource over the table declares the field. A view this API serves cannot be checked, so it must not show an encrypted column. Write such fields and reveal them through the [REST API](api.md)).
+
 ## Errors
 
 Errors come back as PostgREST sends them, `{ code, details, hint, message }`. A database error keeps its Postgres code, message, detail and hint, with PostgREST's status: an RLS refusal (`42501`) is `401` for `anon` and `403` for others, a duplicate (`23505`) `409`, a function that writes called by GET (`25006`) `405`. `.single()` on no or several rows is `406` `PGRST116`, an unknown table `404` `PGRST205`, an unknown function `404` `PGRST202`, an embed without a relationship `400` `PGRST200` and one with several `300` `PGRST201`, and a missing or wrong key or token `401` `PGRST301`.

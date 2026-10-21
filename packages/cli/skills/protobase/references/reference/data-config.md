@@ -208,7 +208,7 @@ A sensitive field cannot be `.filterable()`, `.sortable()`, aliased, searched, o
 
 ## Encrypted fields
 
-An encrypted field is a [sensitive field](#sensitive-fields) whose value the server encrypts before it reaches the database, so a dump, a backup, a replica, a realtime subscriber or anyone running SQL sees only ciphertext. Only its reveal decrypts it, for a caller who may read the record and the field, and every reveal is audited. Every API write encrypts it: the record form, REST, batches, imports, [public forms](forms.md)) and `records` in [API functions](../guides/api-functions.md)).
+An encrypted field is a [sensitive field](#sensitive-fields) whose value the server encrypts before it reaches the database, so a dump, a backup, a replica, a realtime subscriber or anyone running SQL sees only ciphertext. Only its reveal decrypts it, for a caller who may read the record and the field, and every reveal is audited. Every API write encrypts it: the record form, REST, batches, imports, [public forms](forms.md)) and `records` in [API functions](../guides/api-functions.md)). The [Supabase-compatible REST API](supabase-rest.md#encrypted-fields)) refuses to write or filter it.
 
 ```ts
 api_key: f.text().encrypted().access({ read: roles.can('keys.read') }),
@@ -226,7 +226,7 @@ It takes `f.text()` only, and cannot be `.readOnly()` or have a `.dbDefault()`. 
 
 When you change a `.sensitive()` field to `.encrypted()`, change every rule, validator and hook that reads its stored value: from then on it gets `encrypted`, and TypeScript flags reading it as text.
 
-No other field of the resource may be over the column, as its own or as a relation's column, and another resource over the same table must leave the column out, or declare it `.encrypted()` too with the same `.table()`, tenant and key; the server does not start otherwise. A resource over a view of the table cannot be checked, so leave the column out of it.
+No other field of the resource may be over the column, as its own or as a relation's column, and another resource over the same table must leave the column out, or declare it `.encrypted()` too with the same `.table()`, tenant and key; the server does not start otherwise. A resource over a view of the table cannot be checked, so leave the column out of the view itself, not only out of the resource.
 
 ### The key
 
