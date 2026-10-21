@@ -206,4 +206,58 @@ describe('startServe', () => {
     // The socket's handlers run as the function's background work.
     expect(inBackground).toEqual([true])
   }, 30_000)
+
+  it('closes a function socket with 1009 for a message over its maxMessageBytes, and refuses a cap that is no whole number', async () => {
+    const received: number[] = []
+    const closes: number[] = []
+    const recheck = vi.fn()
+    const small = defineFunction((_request, { acceptWebSocket }) =>
+      acceptWebSocket({
+        maxMessageBytes: 1024,
+        onMessage: (data) => void received.push(typeof data === 'string' ? data.length : data.byteLength),
+        onClose: (code) => void closes.push(code),
+        recheck,
+      }),
+    )
+    const echo = defineFunction((_request, { acceptWebSocket }) => acceptWebSocket({ onMessage: (data, socket) => socket.send(data) }))
+    const opened = vi.fn()
+    const invalid = Object.fromEntries(
+      [null, '1024', 1024n, new Number(1024)].map((maxMessageBytes, n) => [`invalid${n}`, defineFunction((_request, { acceptWebSocket }) => acceptWebSocket({ maxMessageBytes: maxMessageBytes as number, onOpen: opened }))]),
+    )
+    const server = await startServe({ project: { ...project, functions: { small, echo, ...invalid } }, env, createDb: await dbFactory() })
+    const open = async (name: string) => {
+      const socket = new WebSocket(`ws://localhost:${server.port}/api/functions/${name}`, { headers: { authorization: 'Bearer ok' } })
+      await new Promise((resolve, reject) => socket.once('open', resolve).once('error', reject))
+      return socket
+    }
+    try {
+      const capped = await open('small')
+      capped.send(new Uint8Array(1024))
+      await vi.waitFor(() => expect(received).toEqual([1024]))
+      const closed = new Promise((resolve) => capped.once('close', resolve))
+      capped.send(new Uint8Array(1025))
+      expect(await closed).toBe(1009)
+      // The server ends the socket itself, so its own side closes without the client's close frame.
+      await vi.waitFor(() => expect(closes).toHaveLength(1))
+      expect(received).toEqual([1024])
+      expect(recheck).not.toHaveBeenCalled()
+
+      const uncapped = await open('echo')
+      const echoed = new Promise<Buffer>((resolve) => uncapped.once('message', resolve))
+      uncapped.send(new Uint8Array(1 << 20))
+      expect((await echoed).byteLength).toBe(1 << 20)
+      uncapped.close()
+
+      for (const name of Object.keys(invalid)) {
+        const refused = new WebSocket(`ws://localhost:${server.port}/api/functions/${name}`, { headers: { authorization: 'Bearer ok' } })
+        refused.on('error', () => {})
+        const status = await new Promise((resolve) => refused.once('unexpected-response', (_request, response) => resolve(response.statusCode)).once('open', () => resolve(101)))
+        expect(status).toBe(500)
+        refused.terminate()
+      }
+      expect(opened).not.toHaveBeenCalled()
+    } finally {
+      await server.close()
+    }
+  }, 30_000)
 })

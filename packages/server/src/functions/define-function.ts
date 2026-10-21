@@ -18,7 +18,7 @@ export type PublicFunctionContext = {
    * the socket is open, the caller of a protected function, and of a public one once `caller()` resolved, is checked
    * again every minute: their credential, the function's roles, and the same user, tenant, organization and roles. The
    * socket closes with 1008 once they would be refused. The function's own checks, such as access to one record, are
-   * not repeated unless it passes them as `recheck`.
+   * not repeated unless it passes them as `recheck`. `maxMessageBytes` lowers the largest message the socket takes.
    */
   acceptWebSocket: (events: SocketEvents) => Response
 }
