@@ -74,6 +74,7 @@ Every option returns a new [field](/api/schema/interfaces/field/), so they chain
 | `.column('name')` | The column, when it is not the snake_case of the field name (`'EMP_NAME'`). |
 | `.access({ read, create, update })` | Role rules for this column. See [Access](#access). |
 | `.sensitive()` | Hidden like a password: no response carries it, and a caller who may read it reveals one record's value at a time. See [Sensitive fields](#sensitive-fields). |
+| `.encrypted()` | Sensitive, and stored encrypted with the app's own key, so the database only ever holds ciphertext. Text only. See [Encrypted fields](#encrypted-fields). |
 | `.ai({ prompt })` | A job fills the field from `prompt`, `{field}` replaced by the record's values, after a create and after an update of a field the prompt reads, as the user who wrote. Text or enum, optional. See [AI fields and actions](/reference/ai/). |
 | `.rollup({ from, via, fn, field })` | The database keeps the field from the records of another resource: their count, sum, average, least or greatest value. Read-only. See [Rollups and formulas](#rollups-and-formulas). |
 | `.formula(expression)` | The database computes the field from the record's other number fields, as a generated column. Read-only. See [Rollups and formulas](#rollups-and-formulas). |
@@ -112,6 +113,66 @@ iban: f.text().sensitive().access({ read: roles.can('screening.read') }),
 ```
 
 A sensitive field cannot be `.filterable()`, `.sortable()`, aliased, searched, or the key, tenant, owner or soft delete field, and a view may only put it in a record page section: in a list, filter, chart, sidebar, title, recent-record group or action it would always be empty, so the config fails to load.
+
+## Encrypted fields
+
+An encrypted field is a [sensitive field](#sensitive-fields) whose value the server encrypts before it reaches the database, so a dump, a backup, a replica, a realtime subscriber or anyone running SQL sees only ciphertext. Only its reveal decrypts it, for a caller who may read the record and the field, and every reveal is audited. Every API write encrypts it: the record form, REST, batches, imports, [public forms](/reference/forms/) and `records` in [API functions](/guides/api-functions/).
+
+```ts
+api_key: f.text().encrypted().access({ read: roles.can('keys.read') }),
+```
+
+It takes `f.text()` only, and cannot be `.readOnly()` or have a `.dbDefault()`. Its column must be `text`, with no length, pattern or unique constraint, index, default, trigger or generated column reading it: the database only ever sees ciphertext.
+
+**Write it only through the API.** SQL of your own, in an API function's `db`, a write hook's transaction or the assistant's approved changes, stores the value unencrypted, and its reveal then fails until [`protobase encryption apply`](/reference/cli/#encryption-apply) encrypts it.
+
+**Your code never sees the stored value, only whether it is set.** Access rules cannot filter on it: a rule that returns a filter on it fails the request. Record rules, validators and write hooks get a stored record with a set value as `encrypted` (exported from `@protobase/schema`) and an empty one as `null`. Check whether it is set with `== null`; the marker is never equal to anything, so a rule comparing it with a constant decides as if it held another value, and reading it as text throws. Rules and validators see the plaintext only where a write gives it, so a validator written this way checks each value written and leaves a stored one alone:
+
+```ts
+.validate((r) => (typeof r.iban === 'string' && !r.iban.startsWith('NL') ? [{ field: 'iban', message: 'A Dutch IBAN' }] : undefined))
+```
+
+When you change a `.sensitive()` field to `.encrypted()`, change every rule, validator and hook that reads its stored value: from then on it gets `encrypted`, and TypeScript flags reading it as text.
+
+Another resource over the same table must leave the column out, or declare it `.encrypted()` too with the same `.table()`, tenant and key; the server does not start otherwise. A resource over a view of the table cannot be checked, so leave the column out of it.
+
+### The key
+
+The app's key is `PROTOBASE_ENCRYPTION_KEY`: 32 random bytes in base64, such as the output of `openssl rand -base64 32`. It is its own: never `BETTER_AUTH_SECRET` or an API key, nor derived from one, so rotating those loses nothing. Keep it apart from the database's backups, since whoever holds both reads every value. The server does not start with an encrypted field and no key, or a key that is not 32 bytes in base64.
+
+To rotate it on several instances:
+
+1. Add the new key to `PROTOBASE_ENCRYPTION_PREVIOUS_KEYS` (comma separated) everywhere, so every instance can read what it seals.
+2. Make the new key `PROTOBASE_ENCRYPTION_KEY`, with the old one in `PROTOBASE_ENCRYPTION_PREVIOUS_KEYS`.
+3. Run `protobase encryption apply`, which encrypts the old key's values with the new one.
+4. Drop the old key once `protobase encryption status` shows none of its values. Keep retired keys as long as you keep backups made under them.
+
+**A lost key loses its values.** Nothing can decrypt them; `status` lists them as `unknown-key`, and writing a new value replaces one. `apply` refuses to run while a column holds values under none of its keys, so a wrong key in a local `.env` does not seal values the app cannot read; clear values whose key is lost (set them to `null` with SQL) to go on.
+
+There is no command that decrypts a field, so keep `.encrypted()` on a field while its column holds encrypted values; `status` reports encrypted values in a field that is not encrypted.
+
+### What a value is bound to
+
+A value opens only where it was sealed: its table as `.table()` names it (with or without the schema), its column, its record's tenant and its record's key. Copying it to another row, column or tenant makes it unreadable rather than readable there.
+
+- Renaming the resource or the field in the config changes nothing.
+- Renaming the table or the column, moving the table to another schema, or adding or changing the schema in `.table()` makes the field's values unreadable until `protobase encryption apply --rebind people --from-table <old table>` (or `--rebind people.iban --from-column <old column>`) runs. Run it at update time, like a migration; reveals fail until then.
+- Changing a resource's declared key or tenant field makes its values unreadable, and no command rebinds them: make such a change before encrypting.
+- The record key must be unique in its table, as [`protobase doctor`](/reference/cli/#doctor) checks, or at least within each tenant. A key changed in the database, by SQL, a trigger or a foreign key `on update cascade` (which `status` warns about), makes that row's values unreadable; the API refuses to change the key of a record with encrypted fields.
+
+### Encrypting an existing column
+
+1. With [events](/reference/events/), [history](/reference/history/) or live updates on the resource, [`protobase migration`](/reference/cli/#migration) writes the change of its capture trigger; apply it with your other migrations.
+2. At update time, before the new version serves, run `protobase encryption apply`. It encrypts every plaintext value and removes the field's old values from the history and from the changes not yet dispatched.
+3. With a rolling deploy, the old version writes plaintext until it stops: run `apply` again once the new version serves alone, and gate on `protobase encryption status`, which exits with 1 while anything is left. Until then, reveals of plaintext values fail.
+
+Do not import ciphertext from elsewhere, such as another database's column encryption, into the column: `apply` would encrypt it as if it were plaintext. Export it decrypted instead.
+
+What a move leaves behind: webhooks already sent carried the old values to their receivers, and webhook jobs keep their event, with the old values, in the jobs schema, a finished one for 7 days and a waiting one up to 14 days, so a backup made within a week of the move still holds them. Assistant conversations that showed the column keep what they showed. Older backups, the write-ahead log, replicas and the Postgres logs keep the old plaintext.
+
+### What it protects against
+
+It protects the values from database dumps, backups, replicas, and readers of raw SQL and realtime changes, who see only ciphertext. It does not protect them from whoever holds the key or the app's environment, or can run code in the server. Someone who can write to the database can change a row's tenant or roles, or put back an older value of the same record and field, from a backup say, which still opens. The ciphertext shows whether a value is empty, its length and when it changed. A key seals at most about 2³² values safely, as each gets a random IV; rotating starts a new key's count.
 
 ## Keys and relations
 
