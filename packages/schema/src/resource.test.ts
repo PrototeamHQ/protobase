@@ -5,6 +5,7 @@ import type { ResourceModel } from './model'
 import { where } from './filter'
 import { resource } from './resource'
 import type { InferRecord, RecordKey } from './resource-types'
+import { encrypted } from './encrypted-value'
 
 const article = resource('article')
   .table('public.articles')
@@ -145,6 +146,16 @@ describe('resource builder', () => {
     expect(notes.live().toModel().live).toBe(true)
   })
 
+  it('takes .encrypted() on text only, sensitive too, and refuses what only the database could write', () => {
+    const vault = (secret: AnyField) => resource('vault').table('vault').fields({ id: f.integer(), secret }).primaryKey((r) => r.id).toModel()
+    expect(() => f.integer().encrypted()).toThrow('.encrypted() takes only f.text() fields')
+    expect(vault(f.text().encrypted()).fields.secret).toMatchObject({ encrypted: true, sensitive: true })
+    expect(vault(f.text().sensitive()).fields.secret).not.toHaveProperty('encrypted')
+    expect(() => vault(f.text().encrypted().readOnly())).toThrow('encrypted field "secret" cannot be readOnly()')
+    expect(() => vault(f.text().encrypted().dbDefault())).toThrow('encrypted field "secret" cannot be given a database default')
+    expect(() => vault(f.text().encrypted().filterable())).toThrow('sensitive field "secret" cannot be filterable')
+  })
+
   it('carries an AI field\'s prompt and refuses one a job could not fill', () => {
     const tickets = (summary: AnyField, extra: Record<string, AnyField> = {}) =>
       resource('tickets').table('tickets').fields({ id: f.integer(), title: f.text(), secret: f.text().sensitive(), summary, ...extra }).primaryKey((r) => r.id).toModel()
@@ -210,6 +221,15 @@ describe('resource builder', () => {
 })
 
 describe('inferred types', () => {
+  it('types an encrypted field as its text or the encrypted marker', () => {
+    const vault = resource('vault').fields({ id: f.integer(), iban: f.text().optional().encrypted() }).primaryKey((r) => r.id)
+    const iban: InferRecord<typeof vault>['iban'] = encrypted
+    const set: InferRecord<typeof vault>['iban'] = null
+    // @ts-expect-error the stored value may be the marker, which is no text
+    const read = (record: InferRecord<typeof vault>) => record.iban!.startsWith('NL')
+    expect([iban, set, typeof read]).toEqual([encrypted, null, 'function'])
+  })
+
   it('infers records and keys', () => {
     const record: InferRecord<typeof article> = {
       id: 1,

@@ -19,6 +19,12 @@ describe('checkRoleLimits', () => {
     expect(check({ x: [{ 'products.read': { filter: 'hidden = true' } }] })).toThrow('to a filter that does not fit products')
   })
 
+  it('refuses a filter on an encrypted field, which only ever holds ciphertext', () => {
+    const vaults = resource('vaults').table('vaults').fields({ id: f.integer(), iban: f.text().encrypted() }).primaryKey((r) => r.id)
+    const limits = defineRoles({ x: [{ 'vaults.read': { filter: 'iban = x or id = 1' } }] }).limits
+    expect(() => checkRoleLimits(buildRegistry([vaults]), limits)).toThrow('Field "iban" cannot be filtered on')
+  })
+
   it('refuses an anonymous capability on a tenant-scoped resource', () => {
     expect(check({ anonymous: [{ 'stores.read': ['name'] }] })).toThrow('stores, which is tenant-scoped')
   })

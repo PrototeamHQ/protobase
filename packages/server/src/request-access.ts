@@ -93,10 +93,11 @@ export const readScope = (access: RequestAccess, fullModel: ResourceModel = acce
   return { ...(tenant && { tenantValue: tenant.tenantValue }), ...(rowFilter && { rowFilter }), fullModel }
 }
 
-// Filters from access rules are trusted: they may use columns that are neither filterable nor readable.
+// Filters from access rules are trusted: they may use columns that are neither filterable nor readable, except an
+// encrypted field, whose ciphertext a filter would compare as if it were the value.
 const trusted = (model: ResourceModel): ResourceModel => ({
   ...model,
-  fields: Object.fromEntries(Object.entries(model.fields).map(([name, field]) => [name, { ...field, filterable: true }])),
+  fields: Object.fromEntries(Object.entries(model.fields).map(([name, field]) => [name, { ...field, filterable: !field.encrypted }])),
 })
 
 const asFilter = (access: RequestAccess, expr: string | FilterExpr, operation: string): CheckedFilter => {

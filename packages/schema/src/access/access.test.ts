@@ -213,6 +213,21 @@ describe('combining rules and record checks', () => {
     expect(await checkRecord(source, user(7, 'sales'), 'create', undefined, { cost: '5', status: 'paid' })).toBe(false)
   })
 
+  it('refuses a rule filter on an encrypted field, plain or in a group, where a sensitive field still works', async () => {
+    const vaults = (rules: Parameters<ReturnType<typeof vault>['access']>[0]) => vault().access(rules)
+    const vault = () =>
+      resource('vaults')
+        .table('vaults')
+        .fields({ id: f.integer(), country: f.text(), iban: f.text().optional().encrypted(), note: f.text().optional().sensitive() })
+        .primaryKey((r) => r.id)
+    const grouped = where.or(where.eq('country', 'NL'), where.ne('iban', 'x'))
+    await expect(resolveAccess(vaults({ read: () => where.ne('iban', 'x') }), user(1))).rejects.toThrow('returned an invalid filter')
+    await expect(resolveAccess(vaults({ update: () => grouped }), user(1))).rejects.toThrow('Field "iban" cannot be filtered on')
+    await expect(resolveAccess(vaults({ read: () => 'not (iban = x)' }), user(1))).rejects.toThrow('cannot be filtered on')
+    await expect(checkRecord(vaults({ create: () => grouped }), user(1), 'create', undefined, { country: 'DE', iban: 'y' })).rejects.toThrow('cannot be filtered on')
+    expect(await checkRecord(vaults({ create: () => where.ne('note', 'x') }), user(1), 'create', undefined, { note: 'y' })).toBe(true)
+  })
+
   it('checks .own filters against the record', async () => {
     const source = orders({ read: roles.can('orders.read') })
     expect(await checkRecord(source, user(7, 'sales'), 'read', { ownerId: 7 })).toBe(true)

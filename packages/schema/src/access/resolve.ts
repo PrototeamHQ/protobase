@@ -93,9 +93,10 @@ const ruleFor = (source: AccessSource, model: ResourceModel, operation: AccessAc
   return options.roles.can(capabilityOf(model, operation))
 }
 
-// Filters from access rules are trusted, so they may use columns that are not `filterable` for users.
+// Filters from access rules are trusted, so they may use columns that are not `filterable` for users. An encrypted field
+// holds ciphertext, which a filter would compare as if it were the value, so a rule filtering on one is refused.
 const checked = (model: ResourceModel, expr: FilterExpr, operation: string) => {
-  const trusted = { ...model, fields: Object.fromEntries(Object.entries(model.fields).map(([name, field]) => [name, { ...field, filterable: true }])) }
+  const trusted = { ...model, fields: Object.fromEntries(Object.entries(model.fields).map(([name, field]) => [name, { ...field, filterable: !field.encrypted }])) }
   const result = checkFilter(trusted, expr)
   if (!result.ok) throw new Error(`The ${operation} access rule of "${model.name}" returned an invalid filter: ${result.errors[0]!.message}`)
   return result.filter
