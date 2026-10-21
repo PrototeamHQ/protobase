@@ -54,7 +54,7 @@ export const rushOrders = subscription('rushOrders', {
 | --- | --- |
 | `events` | Event names (`orders.created`), every event of a resource (`orders.*`), or all of them (`*`). Each must match a declared event. |
 | `when` | A filter on the record after the change, or before it for a delete, in the language of access rules. |
-| `as: { roles }` | Delivers as these roles: only records they may read, and only fields they may read. Without it, every record and every field but the sensitive ones. |
+| `as: { roles }` | Delivers as these roles: only records they may read, and only fields they may read. Without it, every record and every field but the sensitive ones. Their access rules cannot read a sensitive field, which a captured change does not hold: a change they would need one for is kept as failed. Check the role before such a field, as in `ctx.user.roles.includes('admin') \|\| record.api_secret == null`, or decide on a field that is not sensitive (see [Sensitive fields](data-config.md#sensitive-fields))). |
 | `tenant` | Only events of this tenant's records. |
 | `payload` | `thin` leaves `after` and `before` out, for a receiver that reads the record through the API. Default `full`. |
 | `ordered` | One delivery at a time per record, in commit order. Default false. |
@@ -96,7 +96,7 @@ A function target is called as the subscription's `as`, so `context.caller()` an
 - **After the last try** the job is kept as failed, on the [failed jobs page](jobs.md#failed-jobs-page)), where it can be retried.
 - **Ordered subscriptions** get no first try from the dispatch job: a `webhooks.deliver-ordered` job delivers a record's events of one dispatch in order, retried with doubling waits from 5 s up to a day, 10 tries. Meanwhile the record's later events to that subscription wait. A retry sends again the events of that job that went through before the one that failed.
 - **At least once:** a process that stops after delivering but before recording it delivers again when the dispatch job is retried, under the same `webhook-id`.
-- **Event code that throws**, such as a `match` that reads a field it did not expect to be empty, a subscription's `when` or an access rule of its `as` roles, keeps that change as a failed `webhooks.dispatch-change` job on the failed jobs page, naming the event or subscription and the error, and dispatch moves on to later changes. Retry it once the code is fixed to deliver the change's events. A database error instead fails the whole dispatch job, which is retried.
+- **Event code that throws**, such as a `match` that reads a field it did not expect to be empty, a subscription's `when` or an access rule of its `as` roles, keeps that change as a failed `webhooks.dispatch-change` job on the failed jobs page, naming the event or subscription and the error, and dispatch moves on to later changes. Retry it once the code is fixed to deliver the change's events. An access rule of `as` roles keeps the change as failed for that subscription only: the other subscriptions still receive it, and the retry delivers it to that subscription alone. A database error instead fails the whole dispatch job, which is retried.
 
 Every outcome is a line in the server log, such as `webhook newOrdersToSlack orders.created evt_48211_created delivered (200)`.
 
