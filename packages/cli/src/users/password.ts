@@ -3,9 +3,9 @@ import type { Readable } from 'node:stream'
 
 export type PasswordSource = 'prompt' | 'stdin' | 'generate'
 
-// Called first thing in `users create`, before the project or database is touched.
+// Called first thing in `users create`, before the project or database is touched. `false` is `--no-password`.
 export const rejectPasswordArgument = (value: unknown) => {
-  if (value === undefined) return
+  if (value === undefined || value === false) return
   throw new Error(
     'Passwords are never accepted as arguments (they end up in shell history); type it at the prompt, or use --password-stdin or --generate-password',
   )
@@ -62,12 +62,13 @@ export type PasswordDeps = {
 }
 
 export const resolvePassword = async (
-  options: { passwordStdin: boolean; generatePassword: boolean },
+  options: { passwordStdin: boolean; generatePassword: boolean; noPassword?: boolean },
   deps: PasswordDeps,
-) => {
-  if (options.passwordStdin && options.generatePassword) {
-    throw new Error('Use either --password-stdin or --generate-password, not both')
+): Promise<{ password?: string; generated: boolean }> => {
+  if ([options.passwordStdin, options.generatePassword, options.noPassword].filter(Boolean).length > 1) {
+    throw new Error('Use only one of --password-stdin, --generate-password and --no-password')
   }
+  if (options.noPassword) return { generated: false }
   if (options.generatePassword) return { password: generatePassword(), generated: true }
   if (options.passwordStdin) return { password: await readPasswordFromStream(deps.stdin), generated: false }
   const password = await deps.prompt('Password: ')

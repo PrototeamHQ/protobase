@@ -103,6 +103,16 @@ describe('the app\'s default policy', () => {
   })
 })
 
+describe('an account without a password', () => {
+  it('signs in by emailed code only', async () => {
+    const { auth, request, signInByCode } = await serve()
+    await createUser(auth, { email: 'noor@example.com', role: 'user' })
+    expect((await request('/sign-in/email', { body: { email: 'noor@example.com', password } })).status).toBe(401)
+    const cookie = await signInByCode('noor@example.com')
+    expect(await (await request('/account/sign-in-methods', { cookie })).json()).toMatchObject({ account: { password: false, passkeys: 0 } })
+  })
+})
+
 describe('a way to sign in the policy turns off', () => {
   it('is refused by the server and left out of the status', async () => {
     const { request, signIn, status } = await serve()

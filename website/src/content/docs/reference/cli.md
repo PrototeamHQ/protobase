@@ -409,7 +409,7 @@ Runs the [scheduled file deletes](/reference/files/#deleting-files) that are due
 ## `users`
 
 ```sh
-protobase users create <email> [--name <name>] [--role <role>] [--password-stdin | --generate-password] [--github-id <id>]
+protobase users create <email> [--name <name>] [--role <role>] [--password-stdin | --generate-password | --no-password] [--github-id <id>]
                        [--organization <slug> [--org-role <role>] [--app-roles <a,b>]]
 protobase users list
 protobase users roles
@@ -420,7 +420,7 @@ protobase users delete <email> [--yes]
 
 Run inside a project whose `protobase.config.ts` exports `auth` (Better Auth). There is no web setup page, and [open sign-up](/reference/auth/#open-sign-up), when a project turns it on, waits for the first admin: the first admin is created here. The first user is always an admin, whatever `--role` says; later users get `--role`, or the project's default role (`createAuth({ roles, defaultRole })`). `protobase users roles` lists the roles of the project; anything else is refused with that list. `set-role` also takes comma separated roles (`sales,accountant`). `--github-id` links the new user to a GitHub user id (the number, not the login), so signing in with GitHub, the app's own provider or the [platform's](/reference/auth/#platform-sign-in-provider), finds them whatever address GitHub reports; an id that signs in another user already is refused. `createUser(auth, { ..., accounts: [{ providerId, accountId }] })` does the same from code.
 
-The password is typed at a hidden prompt with confirmation, read from stdin with `--password-stdin` (for scripts, e.g. `pass show erp | protobase users create me@example.com --password-stdin`), or generated with `--generate-password` and printed once. A password is never accepted as an argument, since it would end up in shell history. `users list` prints email, role and creation date (and `disabled` for banned users), never credentials.
+The password is typed at a hidden prompt with confirmation, read from stdin with `--password-stdin` (for scripts, e.g. `pass show erp | protobase users create me@example.com --password-stdin`), or generated with `--generate-password` and printed once. `--no-password` makes an account without one, which signs in by [emailed code](/reference/auth/#emailed-sign-in-codes), passkey or a sign-in provider, as with an app whose [sign-in policy](/reference/auth/#sign-in-policy) turns passwords off. A password is never accepted as an argument, since it would end up in shell history. `users list` prints email, role and creation date (and `disabled` for banned users), never credentials.
 
 `delete` asks you to type the email back (or pass `--yes`), and needs a terminal otherwise. `delete`, `set-role` and `disable` refuse to touch the last admin, so the project cannot lock itself out. `disable` bans the user and revokes their sessions; tokens already issued stop working within their lifetime (15 minutes by default), and `protobase token` refuses disabled users. `enable` lifts the ban. `protobase dev` prints "No users yet. Create the first admin with: protobase users create you@example.com" at startup while the user table is empty.
 

@@ -88,12 +88,12 @@ The columns Better Auth needs that the table lacks, filled from what the other s
 
 ## First run
 
-Accounts are never created over the web while the store is empty: there is no setup route, and [open sign-up](#open-sign-up), when an app turns it on, waits for the first admin, so a freshly deployed URL cannot be claimed by whoever reaches it first. The first admin is created on the host, with the CLI (`protobase users create you@example.com --generate-password`) or from code:
+Accounts are never created over the web while the store is empty: there is no setup route, and [open sign-up](#open-sign-up), when an app turns it on, waits for the first admin, so a freshly deployed URL cannot be claimed by whoever reaches it first. The first admin is created on the host, with the CLI (`protobase users create you@example.com --generate-password`, or `--no-password` for an account that signs in by emailed code, passkey or a sign-in provider only) or from code:
 
 ```ts
 import { createUser, hasUsers, listUsers } from '@protobase/server'
 
-await createUser(auth, { email, password, name?, role? })  // the first user is always an admin; later ones default to `user`
+await createUser(auth, { email, password?, name?, role? }) // the first user is always an admin; later ones default to `user`
 await hasUsers(auth)                                         // boolean
 await listUsers(auth)                                        // [{ id, email, role, banned, createdAt }], never passwords
 await setUserRole(auth, { email, role })                     // 'admin' | 'user'
@@ -225,7 +225,7 @@ The Default column is the policy of an app that sets none. An app sets its own i
 createAuth({ ..., signInPolicy: { password: 'forbidden' } })
 ```
 
-It is checked at startup as an admin's save is, so a default that would lock people out stops the app; without mail it applies as a saved policy does (password sign-in is then on). The page shows it, as never changed, until an admin saves a policy.
+It is checked at startup as an admin's save is, so a default that would lock people out stops the app; without mail it applies as a saved policy does (password sign-in is then on). The page shows it, as never changed, until an admin saves a policy. Pair it with `protobase users create --no-password`, so the first admin has no password to fall back on.
 
 The server stores the policy in the `sign_in_policy` table, one row per save (the newest applies, the others are its history, with who saved each and when; a newest row that no longer reads, with a rule the method does not take, counts as none, so the app's default applies), and applies it to Better Auth's endpoints; the pages only show what it allows.
 

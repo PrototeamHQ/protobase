@@ -46,6 +46,7 @@ export const registerUsers = (program: Command) => {
     .option('--role <role>', 'role for users after the first (default: the project\'s default role; see `users roles`)')
     .option('--password-stdin', 'read the password from stdin', false)
     .option('--generate-password', 'generate a strong password and print it once', false)
+    .option('--no-password', 'no password: the user signs in by emailed code, passkey or a sign-in provider')
     .option('--github-id <id>', 'link the user to this GitHub user id, so signing in with GitHub finds them whatever their address')
     .option('--organization <organization>', 'with organizations: add the user to this one (its slug or id)')
     .option('--org-role <role>', 'with --organization: owner, admin or member (default member)')
@@ -56,7 +57,7 @@ export const registerUsers = (program: Command) => {
       const auth = await loadProjectAuth(process.cwd())
       await createUserCommand(
         usersApi(auth),
-        { email, name: opts.name, role: opts.role, passwordStdin: opts.passwordStdin, generatePassword: opts.generatePassword, githubId: opts.githubId },
+        { email, name: opts.name, role: opts.role, passwordStdin: opts.passwordStdin, generatePassword: opts.generatePassword, noPassword: opts.password === false, githubId: opts.githubId },
         { stdin: process.stdin, prompt: readHidden },
         out,
       )

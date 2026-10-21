@@ -46,8 +46,16 @@ describe('createUserCommand', () => {
     const out: string[] = []
     await createUserCommand(users, { ...base, email: 'me@example.com', generatePassword: true }, deps(), (t) => out.push(t))
     const { password } = vi.mocked(users.createUser).mock.calls[0]![0]
-    expect(password.length).toBeGreaterThanOrEqual(24)
+    expect(password!.length).toBeGreaterThanOrEqual(24)
     expect(out.join('')).toContain(`Password (shown once): ${password}`)
+  })
+
+  it('makes a user without a password, asking for none', async () => {
+    const users = api(false)
+    const out: string[] = []
+    await createUserCommand(users, { ...base, email: 'me@example.com', noPassword: true }, deps('', ['never-asked']), (t) => out.push(t))
+    expect(users.createUser).toHaveBeenCalledWith({ email: 'me@example.com', role: 'admin' })
+    expect(out.join('')).toBe('Created admin me@example.com\n')
   })
 
   it('links the user to a GitHub user id', async () => {
@@ -71,6 +79,7 @@ describe('passwords', () => {
   it('refuses a password given as an argument', () => {
     expect(() => rejectPasswordArgument('hunter2hunter2')).toThrow('Passwords are never accepted as arguments')
     expect(() => rejectPasswordArgument(undefined)).not.toThrow()
+    expect(() => rejectPasswordArgument(false)).not.toThrow()
   })
 
   it('reads --password-stdin without the trailing newline', async () => {
@@ -85,7 +94,8 @@ describe('passwords', () => {
   })
 
   it('refuses conflicting sources', async () => {
-    await expect(resolvePassword({ passwordStdin: true, generatePassword: true }, deps())).rejects.toThrow('not both')
+    await expect(resolvePassword({ passwordStdin: true, generatePassword: true }, deps())).rejects.toThrow('Use only one of')
+    await expect(resolvePassword({ passwordStdin: false, generatePassword: true, noPassword: true }, deps())).rejects.toThrow('Use only one of')
   })
 })
 

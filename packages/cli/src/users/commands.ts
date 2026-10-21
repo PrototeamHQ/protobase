@@ -4,7 +4,7 @@ import { resolvePassword, type PasswordDeps } from './password'
 export type UsersApi = {
   hasUsers: () => Promise<boolean>
   roles: () => Promise<{ roles: string[]; defaultRole?: string }>
-  createUser: (input: { email: string; password: string; name?: string; role?: string; accounts?: { providerId: string; accountId: string }[] }) => Promise<{ id: string; email: string; role: string }>
+  createUser: (input: { email: string; password?: string; name?: string; role?: string; accounts?: { providerId: string; accountId: string }[] }) => Promise<{ id: string; email: string; role: string }>
   listUsers: () => Promise<{ id: string; email: string; role: string; createdAt: string; banned?: boolean }[]>
   deleteUser: (email: string) => Promise<void>
   setUserRole: (input: { email: string; role: string }) => Promise<{ email: string; role: string }>
@@ -17,6 +17,8 @@ export type CreateUserOptions = {
   role?: string
   passwordStdin: boolean
   generatePassword: boolean
+  /** No password: the user signs in by emailed code, passkey or a sign-in provider. */
+  noPassword?: boolean
   /** The user's GitHub user id, so GitHub sign-in finds them by it. */
   githubId?: string
 }
@@ -37,7 +39,7 @@ export const createUserCommand = async (
   const role = first ? 'admin' : options.role
   const user = await api.createUser({
     email: options.email,
-    password,
+    ...(password !== undefined && { password }),
     ...(role && { role }),
     ...(options.name && { name: options.name }),
     ...(options.githubId && { accounts: [{ providerId: 'github', accountId: options.githubId }] }),
