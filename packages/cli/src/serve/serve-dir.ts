@@ -1,6 +1,7 @@
 import path from 'node:path'
 import { readManifest } from '../bundle/manifest'
 import { installedShellDir } from '../build/shell'
+import { bundleSite } from './bundle-site'
 import { servedShell, shellVariable } from './served-shell'
 import { serveBundle } from './serve-bundle'
 
@@ -11,7 +12,7 @@ export const serveBundleDir = async (dir: string, env: Record<string, string | u
   const manifest = await readManifest(dir)
   const own = env[shellVariable] ? path.resolve(env[shellVariable]) : installedShellDir
   const { shell, note } = await servedShell(manifest, own)
-  const site = { publicDir: path.resolve(dir, manifest.public), spa: manifest.spa, api: manifest.api, ...(shell && { shell }) }
+  const site = { ...bundleSite(dir, manifest), ...(shell && { shell }) }
   const server = await serveBundle(path.join(dir, manifest.server), env, out, site)
   out(`  app      ${note}\n`)
   return server

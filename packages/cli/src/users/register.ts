@@ -1,26 +1,16 @@
 import { Command, Option } from 'commander'
 import { createInterface } from 'node:readline/promises'
-import { createUser, deleteUser, hasUsers, issueToken, listUsers, roleChoices, setUserBanned, setUserRole, type AdminAuth } from '@protobase/server'
+import { issueToken } from '@protobase/server'
 import { addMemberCommand } from '../organizations/commands'
 import { organizationsApi } from '../organizations/register'
-import { createUserCommand, listRolesCommand, listUsersCommand, type UsersApi } from './commands'
+import { createUserCommand, listRolesCommand, listUsersCommand } from './commands'
 import { deleteUserCommand, setDisabledCommand, setRoleCommand } from './manage'
 import { loadProjectAuth } from './load-auth'
 import { readHidden, rejectPasswordArgument } from './password'
 import { parseTtl } from './ttl'
+import { usersApi } from './users-api'
 
 const out = (text: string) => process.stdout.write(text)
-
-// The commands over a project's Better Auth instance.
-export const usersApi = (auth: AdminAuth): UsersApi => ({
-  hasUsers: () => hasUsers(auth),
-  roles: async () => ({ roles: roleChoices(auth), defaultRole: auth.defaultRole }),
-  createUser: (input) => createUser(auth, input),
-  listUsers: () => listUsers(auth),
-  deleteUser: (email) => deleteUser(auth, email),
-  setUserRole: (input) => setUserRole(auth, input),
-  setUserBanned: (input) => setUserBanned(auth, input),
-})
 
 const projectApi = async () => usersApi(await loadProjectAuth(process.cwd()))
 

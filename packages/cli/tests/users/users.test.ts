@@ -4,7 +4,7 @@ import { beforeAll, describe, expect, it } from 'vitest'
 import { createAuth, issueToken, type AdminAuth } from '@protobase/server'
 import { createUserCommand, listRolesCommand, listUsersCommand, type UsersApi } from '../../src/users/commands'
 import { deleteUserCommand, setDisabledCommand, setRoleCommand } from '../../src/users/manage'
-import { usersApi } from '../../src/users/register'
+import { usersApi } from '../../src/users/users-api'
 import { openSnapshotDb, settled, type SnapshotDb } from '../../../../test-support/sql-snapshot'
 
 // The users commands over a real Better Auth store, wired as the CLI wires them; the setup of dev.integration.test.ts
