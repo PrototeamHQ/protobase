@@ -10,6 +10,7 @@ import { createPgDb } from '../project/pg-db'
 import { createServeApp, type ServedSite } from './app'
 import { startCleanupTimer } from './cleanup-timer'
 import { withClientAddress } from './client-address'
+import { closeSockets } from './close-sockets'
 import type { BundleUi } from './bundle-ui'
 import type { ServeEnv } from './env'
 import type { ServedProject } from './load-bundle'
@@ -41,8 +42,9 @@ const listen = (server: Server, port: number) =>
 const closeServer = (server: Server) =>
   new Promise<void>((resolve, reject) => server.close((error) => (error ? reject(error) : resolve())))
 
-// Serves the project until `close`, which stops accepting connections, lets open requests finish, then the work their
-// functions left to `waitUntil` and running jobs, and then drains the pool it created. A `db` exported by the project stays the project's to close. It does not
+// Serves the project until `close`, which stops accepting connections, closes open WebSockets with 1001 (dropping them
+// after 5 seconds), lets open requests finish, then the work their functions left to `waitUntil` and running jobs, and
+// then drains the pool it created. A `db` exported by the project stays the project's to close. It does not
 // start while the auth schema, the change capture of resources with events, the rollup and formula columns or the jobs schema is behind, which it only
 // reads: the project's migrations change them, before the new version serves. `startupChecks` false skips those reads,
 // for a restart of a bundle that already started on this database. With jobs it runs them too, unless
@@ -63,22 +65,26 @@ export const startServe = async ({ project, env, createDb = (url) => createPgDb(
     if (env.startupChecks && definitions.length > 0) await checkJobsSchema(db)
     const jobs = definitions.length > 0 ? await startJobs({ db, jobs: definitions, work: env.runJobs, onError: (error) => console.error(error) }) : undefined
     const app = createServeApp({ admin, requestLog: env.requestLog, site, ...(jobs && { jobs }), ...(env.drainToken && { drainToken: env.drainToken }) })
-    // WebSockets for `/api/sb/realtime/v1`, upgraded by the app's own route. Each request names its client in X-Forwarded-For.
-    const server = createAdaptorServer({ fetch: withClientAddress(app.fetch, env.trustedProxies), overrideGlobalObjects: false, websocket: { server: new WebSocketServer({ noServer: true }) } }) as Server
+    // WebSockets for `/api/sb/realtime/v1` and the app's functions, upgraded by the app's own routes. Each request names
+    // its client in X-Forwarded-For.
+    const sockets = new WebSocketServer({ noServer: true })
+    const server = createAdaptorServer({ fetch: withClientAddress(app.fetch, env.trustedProxies), overrideGlobalObjects: false, websocket: { server: sockets } }) as Server
     await listen(server, env.port).catch(async (error: Error) => {
       await jobs?.stop()
       throw error
     })
-    return { server, jobs }
+    return { server, sockets, jobs }
   }
-  const { server, jobs } = await startJobsAndListen().catch(async (error: Error) => {
+  const { server, sockets, jobs } = await startJobsAndListen().catch(async (error: Error) => {
     await ownDb?.destroy()
     throw error
   })
   const cleanup = createFileCleanup({ resources, db, ...(project.files && { files: project.files }) })
   const timer = cleanup && env.filesCleanupMinutes > 0 ? startCleanupTimer(cleanup.run, env.filesCleanupMinutes, (error) => console.error(error)) : undefined
   const close = async () => {
-    await closeServer(server)
+    const closed = closeServer(server)
+    await closeSockets(sockets.clients)
+    await closed
     await backgroundSettled()
     await timer?.stop()
     await jobs?.stop()
