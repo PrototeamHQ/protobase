@@ -192,7 +192,7 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], pag
   checkBottomBars(registry, bottomBarModels, pageModels.map((entry) => entry.name), declaredRoles(auth, options.roles))
   checkViews(registry, viewModels, pageModels.map((entry) => entry.name), fieldTypes)
   checkRoleLimits(registry, options.roles?.limits ?? [])
-  checkOwnerFields(registry, auth)
+  checkOwnerFields(registry, authenticate.userIdType, auth)
   checkPositionAfter(registry)
   checkParents(registry)
   checkPages(pageModels, {

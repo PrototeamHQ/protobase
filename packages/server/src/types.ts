@@ -2,7 +2,7 @@ import type { JobDefinition } from './jobs/job-types'
 import type { Hono } from 'hono'
 import type { PageModel } from '@protobase/layout'
 import type { Db } from '@protobase/query'
-import type { ResourceModel, ViewModel } from '@protobase/schema'
+import type { KeyType, ResourceModel, ViewModel } from '@protobase/schema'
 
 export type TenantValue = string | number
 
@@ -14,8 +14,12 @@ export type SessionOrganization = { id: TenantValue }
 /** `anonymous` marks a request without a token, served as the project's `anonymous` role. */
 export type Session = { user: User; tenant?: TenantValue; organization?: SessionOrganization; anonymous?: true }
 
-/** Resolves the caller of a request, or throws a 401 problem (see `unauthorized`). */
-export type Authenticator = (request: Request) => Promise<Session> | Session
+/**
+ * Resolves the caller of a request, or throws a 401 problem (see `unauthorized`). `userIdType` declares the type of
+ * the ids of the users it returns, which `.owner()` fields are checked against at startup, such as `'uuid'` for an
+ * authenticator that maps the signed-in account to the app's own user row.
+ */
+export type Authenticator = ((request: Request) => Promise<Session> | Session) & { userIdType?: KeyType }
 
 export type AdminEnv = { Variables: { session: Session } }
 
