@@ -30,15 +30,26 @@ const render = (fake: ReturnType<typeof fakeInvoiceClient>) => () => (
 const firstLineIs = (canvas: Handle['canvas'], name: string) =>
   waitFor(() => expect(canvas.getAllByRole('button', { name: /Drag to reorder/ })[0]).toHaveAccessibleName(`Drag to reorder ${name}`))
 
-/** Picks up the first line with the keyboard and drops it one place down: A B C becomes B A C. */
+/** The first line's drag handle label, as the page draws it now. */
+const firstLineNow = (canvas: Handle['canvas']) => canvas.queryAllByRole('button', { name: /Drag to reorder/ })[0]?.getAttribute('aria-label')
+
+/**
+ * Picks up the first line with the keyboard and drops it one place down: A B C becomes B A C. On a busy machine dnd-kit
+ * may not have measured the lines when the arrow key comes, and drops the line where it started; the move is then made
+ * again, which cannot overshoot since each try moves one place at most.
+ */
 const moveFirstLineDown = async (canvas: Handle['canvas']) => {
-  const handle = await canvas.findByRole('button', { name: 'Drag to reorder Line A' })
-  handle.focus()
-  await userEvent.keyboard(' ')
-  await pause(150)
-  await userEvent.keyboard('{ArrowDown}')
-  await pause(150)
-  await userEvent.keyboard(' ')
+  for (let tries = 0; tries < 3 && firstLineNow(canvas) !== 'Drag to reorder Line B'; tries += 1) {
+    const handle = await canvas.findByRole('button', { name: 'Drag to reorder Line A' })
+    handle.focus()
+    await userEvent.keyboard(' ')
+    await waitFor(() => expect(handle).toHaveAttribute('aria-pressed', 'true'))
+    await pause(150)
+    await userEvent.keyboard('{ArrowDown}')
+    await pause(150)
+    await userEvent.keyboard(' ')
+    await waitFor(() => expect(canvas.getByRole('button', { name: 'Drag to reorder Line A' })).not.toHaveAttribute('aria-pressed'))
+  }
   await firstLineIs(canvas, 'Line B')
 }
 
