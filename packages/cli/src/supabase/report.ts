@@ -128,6 +128,7 @@ export const importReport = (manifest: ImportManifest, doctor: string | undefine
       "These triggers call out over HTTP with pg_net or a database webhook, and the project's database has no pg_net. The migration keeps a trigger calling the app's own function, but nothing sends; it leaves out a webhook's. Move each call to a Protobase event subscription or job.",
       manifest.httpSent ? [] : manifest.httpTriggers.map(trigger),
     ),
+    "## Storage files\n\nThe load restored Storage's buckets and objects with their policies, but a dump holds no file bytes. Run `protobase import supabase --storage-url https://<ref>.supabase.co` with the project's secret key in `SUPABASE_SERVICE_ROLE_KEY` to copy them into the app's Storage file provider; it writes what it copied to `supabase-import/storage.md`, and a rerun copies what is left.\n",
     section('Edge Functions', '`supabase/functions` holds these, which the import does not convert.', manifest.functions),
     `## Indexes the scan guard needs\n\n${doctor === undefined ? 'No resources were scaffolded, so `protobase doctor` had nothing to check.' : `\`protobase doctor\` on the scaffolded config. The API refuses a read that no index serves; add each index it names in a migration of its own.\n\n\`\`\`\n${doctor.trimEnd()}\n\`\`\``}\n`,
   ].join('\n')

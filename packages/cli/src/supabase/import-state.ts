@@ -41,11 +41,12 @@ export type ImportManifest = {
 /**
  * The project's folder for an import in progress, kept out of git: the data dump, which holds the users' password
  * hashes and every row, and the replay of Vault's secrets, pgmq's queues and pg_cron's jobs, which holds the secrets'
- * values, each readable by its owner only until the load deletes it; the manifest; and the report.
+ * values, each readable by its owner only until the load deletes it; the manifest; the report; and the report of the
+ * copy of Storage's bytes.
  */
 export const importState = (projectDir: string) => {
   const dir = path.join(projectDir, 'supabase-import')
-  const files = { data: path.join(dir, 'data.sql'), replay: path.join(dir, 'replay.sql'), load: path.join(dir, 'load.sql'), manifest: path.join(dir, 'import.json'), report: path.join(dir, 'report.md') }
+  const files = { data: path.join(dir, 'data.sql'), replay: path.join(dir, 'replay.sql'), load: path.join(dir, 'load.sql'), manifest: path.join(dir, 'import.json'), report: path.join(dir, 'report.md'), storage: path.join(dir, 'storage.md') }
   return {
     dir,
     ...files,
