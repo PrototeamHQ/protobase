@@ -42,6 +42,10 @@ const recordListeners = () => {
 
 const page = () => document.scrollingElement ?? document.documentElement
 
+// The list starts at its first resize observation, which the browser delivers in a rendering step after its rows are
+// drawn: a scroll before then is taken back to the top, as a list scrolled down before is. Two frames on, it has started.
+const listStarted = () => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())))
+
 /**
  * The list scrolls the page natively: the page is as tall as every row, only the rows in view and a few more are in
  * the DOM, nothing listens for wheel or touch in a way that can hold scrolling up, and a drawn row moves with the
@@ -49,6 +53,7 @@ const page = () => document.scrollingElement ?? document.documentElement
  */
 const checkScrolling = async (canvasElement: HTMLElement, items: () => HTMLElement[], rowHeight: number) => {
   await waitFor(() => expect(items().length).toBeGreaterThan(0))
+  await listStarted()
   expect(page().scrollHeight).toBeGreaterThan(total * rowHeight)
   expect(blocking).toEqual([])
   expect(items().length).toBeLessThan(60)
