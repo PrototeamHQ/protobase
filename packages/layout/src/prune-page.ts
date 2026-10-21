@@ -70,6 +70,17 @@ const prune = (node: LayoutNode, scope: Scope, access: CallerAccess): LayoutNode
       const { columns: _, ...props } = node.props
       return { ...node, props: visible.length > 0 ? { ...props, columns: visible } : props }
     }
+    case 'RecordCards': {
+      if (!model || own === undefined) return node
+      const fields = node.props.fields as string[] | undefined
+      const cardActions = node.props.cardActions as string[] | undefined
+      const props = {
+        ...node.props,
+        ...(fields && { fields: fields.filter((name) => resolveFieldPath(models, own, name).ok) }),
+        ...(cardActions && { cardActions: cardActions.filter((name) => access.actions(own).has(name)) }),
+      }
+      return { ...node, props }
+    }
     case 'ModalForm': {
       if (!model || resource === undefined) return null
       const allowed = node.props.mode === 'create' ? access.permissions[resource]?.create : access.permissions[resource]?.update

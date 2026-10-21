@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { Action, CardRow, Field, Link, ModalForm, Page, RecordCard, RecordRow, Show, Stat, Table } from './blocks'
+import { Action, CardRow, Field, Link, ModalForm, Page, RecordCard, RecordCards, RecordRow, Show, Stat, Table } from './blocks'
 import { fieldRef, type FieldRefValue } from '@protobase/schema'
 import { checkPages, pageProblems } from './check-page'
 import { component } from './component'
@@ -57,6 +57,14 @@ describe('pageProblems', () => {
     expect(found[0]).toBe('<Page> › <RecordRow resource="nope">: unknown resource "nope"')
     expect(found[1]).toMatch(/^<Page> › <RecordRow resource="invoices">: filter: .*stauts/)
     expect(found).toHaveLength(2)
+  })
+
+  it("checks record cards' fields through relations and their card actions against the view", () => {
+    const tree = Page({ title: 'x', children: RecordCards({ resource: 'subscriptions', fields: ['status', 'plan.name', 'plan.nmae'], cardActions: ['cancel', 'remove'] }) })
+    expect(pageProblems(model(tree), input)).toEqual([
+      '<Page> › <RecordCards resource="subscriptions">: unknown field "plan.nmae" on plans',
+      `<Page> › <RecordCards resource="subscriptions">: no action "remove" on subscriptions; declare it with view('subscriptions').actions(...)`,
+    ])
   })
 
   it('wants forms to set writable fields only', () => {

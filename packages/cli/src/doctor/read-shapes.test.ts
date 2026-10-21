@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { Chart, Page, RecordRow, Stat, page } from '@protobase/layout'
+import { Chart, Page, RecordCards, RecordRow, Stat, page } from '@protobase/layout'
 import { f, l, resource, view } from '@protobase/schema'
 import { readShapes } from './read-shapes'
 
@@ -45,7 +45,7 @@ const placesView = view<typeof places>('places')
 
 const home = page(
   'home',
-  Page({ title: 'Home', children: [RecordRow({ title: 'Big places', resource: 'places', filter: 'population > 100000' }), Stat({ label: 'Agencies', resource: 'agencies', filter: 'place_id = 1' }), Chart({ title: 'By country', resource: 'places', groupBy: 'country', filter: 'coastal = true' }), Chart({ title: 'Founded by country', resource: 'places', groupBy: 'founded_on', splitBy: 'country' })] }),
+  Page({ title: 'Home', children: [RecordRow({ title: 'Big places', resource: 'places', filter: 'population > 100000' }), RecordCards({ title: 'Coast', resource: 'places', filter: 'coastal = true' }), Stat({ label: 'Agencies', resource: 'agencies', filter: 'place_id = 1' }), Chart({ title: 'By country', resource: 'places', groupBy: 'country', filter: 'coastal = true' }), Chart({ title: 'Founded by country', resource: 'places', groupBy: 'founded_on', splitBy: 'country' })] }),
 )
 
 const shapes = readShapes({ models: [places.toModel(), agencies.toModel()], views: [placesView.toModel()], pages: [home.toModel()] })
@@ -171,8 +171,9 @@ describe('readShapes', () => {
     expect(related?.query.filter).toMatchObject({ kind: 'and', args: [{ kind: 'compare', field: { name: 'place_id' } }, { kind: 'compare', op: '>', field: { name: 'opened_at' } }] })
   })
 
-  it("reads a page's blocks, a RecordRow in the list's order when it names none", () => {
+  it("reads a page's blocks, a RecordRow or RecordCards in the list's order when it names none", () => {
     expect(requests('places')).toContain('GET /places?filter=population > 100000&order_by=name asc (page "home", <RecordRow "Big places">)')
+    expect(requests('places')).toContain('GET /places?filter=coastal = true&order_by=name asc (page "home", <RecordCards "Coast">)')
     expect(requests('agencies')).toContain('GET /agencies?filter=place_id = 1 (page "home", <Stat "Agencies">)')
     expect(shapes.find((shape) => shape.from === 'page "home", <Chart "By country">')).toMatchObject({ request: 'GET /places:aggregate?group_by=country&filter=coastal = true', query: { groupBy: 'country' } })
   })

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { fieldRef, type FieldRefValue } from '@protobase/schema'
-import { Chart, Link, Page, RecordCard, Show, Table } from './blocks'
+import { Chart, Link, Page, RecordCard, RecordCards, Show, Table } from './blocks'
 import { component } from './component'
 import type { LayoutNode } from './node'
 import type { PageModel } from './page'
@@ -79,6 +79,12 @@ describe('prunePage', () => {
     expect(types(pruned)).not.toContain('Table')
     expect(types(pruned)).not.toContain('CardRow')
     expect(types(pruned)).toContain('Stat')
+  })
+
+  it("narrows record cards' fields and card actions to what the caller may read and run", () => {
+    const page: PageModel = { name: 'p', title: 'p', tree: Page({ title: 'p', children: RecordCards({ resource: 'subscriptions', fields: ['status', 'plan.name'], cardActions: ['cancel', 'upgrade'] }) }) }
+    const pruned = prunePage(page, [], access({ models: restricted({ plans: ['name'] }), actions: () => new Set(['upgrade']) }))
+    expect(find(pruned, 'RecordCards')!.props).toEqual({ resource: 'subscriptions', fields: ['status'], cardActions: ['upgrade'] })
   })
 
   it('leaves out forms the caller may not submit, and narrows their fields', () => {

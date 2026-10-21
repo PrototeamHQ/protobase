@@ -6,7 +6,7 @@ description: Every built-in layout block, its props and what it does, with examp
 import { Code } from '@astrojs/starlight/components'
 import erpPage from '../../../../../examples/erp/config/overview/page.tsx?raw'
 
-Blocks are imported from `@protobase/layout`. "Record" below means the record of the `RecordCard` or `CardRow` card around a block (see [Data](/reference/layouts/#data)); `filter` is AIP-160 and `sort` AIP-132, as in the list API. Every block below but `RecordRow`, which the property portal's home uses, and `Users`, which the [Users page](/reference/auth/#users-page) uses, appears in the ERP example's sales overview:
+Blocks are imported from `@protobase/layout`. "Record" below means the record of the `RecordCard` or `CardRow` card around a block (see [Data](/reference/layouts/#data)); `filter` is AIP-160 and `sort` AIP-132, as in the list API. Every block below but `RecordRow`, which the property portal's home uses, `RecordCards`, and `Users`, which the [Users page](/reference/auth/#users-page) uses, appears in the ERP example's sales overview:
 
 <Code code={erpPage} lang="tsx" title="examples/erp/config/overview/page.tsx" />
 
@@ -153,6 +153,25 @@ It follows the resource's view as its list page does. Of a resource whose view h
 
 ```tsx
 <RecordRow title="For rent" resource="listings" filter="for_rent = true AND status = 'available'" sort="published_at desc" />
+```
+
+### RecordCards
+
+What a filter finds as the cards of a record page's [related records as cards](/reference/ui-config/#related-records-as-cards), stacked full width under a heading that has no card around it, so the page shows no card inside another: each record's title linking to its page, its `fields` under their labels, a value taller than a few lines cut short with **Show more**, and a button for each of `cardActions`, run as on the record page. Below the cards, **View all** opens the list with the same filter and order, beside a note such as "The first 10 of 37." when there are more.
+
+| Prop | |
+| --- | --- |
+| `resource`, `filter`, `sort` | Which records, in which order. `resource` is required; `sort` defaults to the list's. |
+| `fields` | The fields each card shows, through relations too (`task_id.title`); default the list's columns. |
+| `cardActions` | Named actions of the resource's view, as buttons on each card. |
+| `limit` | How many; default 10. |
+| `display` | The list display **View all** opens; default the list's. |
+| `title`, `description`, `actions` | The heading. |
+| `empty` | Text when nothing matches. |
+| `span` | Width in a grid. |
+
+```tsx
+<RecordCards title="Waiting on you" resource="task_preconditions" filter="state = 'waiting'" fields={['task_id', 'plan']} cardActions={['approve', 'request_changes']} />
 ```
 
 ### Field

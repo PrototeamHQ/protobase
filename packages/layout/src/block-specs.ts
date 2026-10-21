@@ -29,6 +29,10 @@ export const blockSpecs: Record<string, BlockSpec> = {
   Table: { children: false, props: { ...data, ...heading, columns: optional('texts'), limit: optional('integer'), display: optional('text'), empty: optional('text'), span: optional('span') } },
   CardRow: { children: true, props: { ...data, ...heading, limit: optional('integer'), empty: optional('text'), span: optional('span') } },
   RecordRow: { children: false, props: { ...data, ...heading, limit: optional('integer'), display: optional('text'), empty: optional('text'), span: optional('span') } },
+  RecordCards: {
+    children: false,
+    props: { ...data, ...heading, fields: optional('texts'), cardActions: optional('texts'), limit: optional('integer'), display: optional('text'), empty: optional('text'), span: optional('span') },
+  },
   Chart: {
     children: false,
     props: {

@@ -5,15 +5,15 @@ import { configFilter, configSort, sortText } from './shape-filters'
 import { listSort } from './view-shapes'
 
 // The blocks that list records of their `resource`; a RecordCard with a `recordKey` reads that one record by its key.
-const listing = ['RecordRow', 'Table', 'CardRow', 'RecordCard', 'Stat']
+const listing = ['RecordRow', 'RecordCards', 'Table', 'CardRow', 'RecordCard', 'Stat']
 
 const text = (value: unknown) => (typeof value === 'string' ? value : undefined)
 
-// A RecordRow without a sort shows the records in the list's order; the other blocks leave the order to the API.
+// A RecordRow or RecordCards without a sort shows the records in the list's order; the other blocks leave the order to the API.
 const blockSort = (node: LayoutNode, model: ResourceModel, view: ViewModel | undefined) => {
   const given = configSort(model, text(node.props.sort))
   if (given) return given
-  return node.type === 'RecordRow' ? listSort(model, view) : undefined
+  return node.type === 'RecordRow' || node.type === 'RecordCards' ? listSort(model, view) : undefined
 }
 
 const title = (node: LayoutNode) => text(node.props.title) ?? text(node.props.label)

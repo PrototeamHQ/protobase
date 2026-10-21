@@ -57,6 +57,24 @@ export type RecordRowProps = DataProps &
     empty?: string
     span?: GridSpan
   }
+/**
+ * What a filter finds as the cards a record page's related section draws with `presentation: 'cards'`, stacked full
+ * width under a heading that is not a card: each card its record's title linking to its page, its `fields` under their
+ * labels with a long value cut short behind Show more, and its `cardActions`' buttons; "View all" opens the rest.
+ */
+export type RecordCardsProps = DataProps &
+  Heading & {
+    /** The fields each card shows, through relations too (`task_id.title`); the list's columns when omitted. */
+    fields?: string[]
+    /** Named actions of the resource's view, as buttons on each card. */
+    cardActions?: string[]
+    /** How many records it shows, the first in `sort` order (the list's when omitted); default 10. */
+    limit?: number
+    /** The display of the resource's list "View all" opens, such as `cards`; the list's default when omitted. */
+    display?: string
+    empty?: string
+    span?: GridSpan
+  }
 /** How a chart draws its groups: bars, a line through a date field's buckets, or a donut of a field's values. */
 export type ChartType = 'bar' | 'line' | 'donut'
 /** How long each bucket of a chart over a date or timestamp field is. */
@@ -129,6 +147,7 @@ export const Field = defineBlock<FieldProps>('Field', false)
 export const Table = defineBlock<TableProps>('Table', false)
 export const CardRow = defineBlock<CardRowProps>('CardRow', false)
 export const RecordRow = defineBlock<RecordRowProps>('RecordRow', false)
+export const RecordCards = defineBlock<RecordCardsProps>('RecordCards', false)
 export const Chart = defineBlock<ChartProps>('Chart', false)
 export const Progress = defineBlock<ProgressProps>('Progress', false)
 export const ModalForm = defineBlock<ModalFormProps>('ModalForm', false)

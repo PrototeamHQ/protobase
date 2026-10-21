@@ -77,6 +77,12 @@ const nodeProblems = (node: LayoutNode, scope: Scope, { models, actions, pages, 
         if (model && !Object.hasOwn(model.fields, column)) problems.push(`unknown column "${column}" on ${model.name}`)
       }
       break
+    case 'RecordCards':
+      for (const name of (node.props.fields as string[] | undefined) ?? []) path(name, own)
+      for (const name of (node.props.cardActions as string[] | undefined) ?? []) {
+        if (own !== undefined && !actions(own).has(name)) problems.push(`no action "${name}" on ${own}; declare it with view('${own}').actions(...)`)
+      }
+      break
     case 'ModalForm':
       if (!model) break
       for (const name of node.props.fields as string[]) {
