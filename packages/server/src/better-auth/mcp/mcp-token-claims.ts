@@ -2,6 +2,7 @@ import { APIError } from 'better-auth/api'
 import { mayEnter } from '../organizations/session-organization'
 import type { AuthContext } from '../organizations/store'
 import { heldRoles } from '../roles/session-role'
+import type { SignInPolicy } from '../sign-in-policy'
 import { missingSetup } from '../sign-in-setup'
 import { tokenClaims } from '../token-claims'
 import { readGrantReference } from './grant-reference'
@@ -22,6 +23,8 @@ export type McpTokenClaimsOptions = {
   organizations: boolean
   /** Mail can be sent, as the sign-in policy reads it. */
   mail: boolean
+  /** The policy until an admin saves one, from `appSignInPolicy`. */
+  defaultPolicy: SignInPolicy
   /** Now; the clock the ban's expiry is read against. */
   now?: Date
 }
@@ -37,11 +40,11 @@ const isBanned = (user: GrantUser, now: Date) => Boolean(user.banned) && !(user.
  * without a user, for a banned user, an address that is not verified, setup the sign-in policy now requires, a grant
  * made with no role, and a role or organization the user no longer holds; so a refresh stops once any of those holds.
  */
-export const mcpTokenClaims = async (context: AuthContext, { organizations, mail, now = new Date() }: McpTokenClaimsOptions, user: GrantUser | null | undefined, referenceId: string | undefined) => {
+export const mcpTokenClaims = async (context: AuthContext, { organizations, mail, defaultPolicy, now = new Date() }: McpTokenClaimsOptions, user: GrantUser | null | undefined, referenceId: string | undefined) => {
   if (!user) throw refused('This grant has no user.')
   if (isBanned(user, now)) throw refused('This account is blocked.')
   if (user.emailVerified !== true) throw refused('Confirm your address by signing in with an emailed code, then connect again.')
-  if ((await missingSetup(context, user, { mail })).length > 0) throw refused("Set up what this app's sign-in policy requires, then try again.")
+  if ((await missingSetup(context, user, { mail, defaultPolicy })).length > 0) throw refused("Set up what this app's sign-in policy requires, then try again.")
   const { role, organization } = readGrantReference(referenceId)
   if (!role) throw refused('You had no role in this app when you allowed this client: connect it again.')
   const held = await heldRoles(context, user, { activeOrganizationId: organization ?? null })

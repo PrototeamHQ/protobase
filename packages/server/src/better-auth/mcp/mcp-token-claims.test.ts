@@ -5,7 +5,7 @@ import { mcpTokenClaims, type GrantUser } from './mcp-token-claims'
 
 const now = new Date('2026-10-20T12:00:00Z')
 const ana: GrantUser = { id: 'ana', email: 'ana@example.com', emailVerified: true, role: 'admin,sales' }
-const plain = { organizations: false, mail: true, now }
+const plain = { organizations: false, mail: true, defaultPolicy: defaultSignInPolicy, now }
 const description = (error: unknown) => (error as { body?: { error?: string; error_description?: string } }).body
 
 const refusal = async (promise: Promise<unknown>) => {
