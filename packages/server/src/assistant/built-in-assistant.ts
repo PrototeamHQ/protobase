@@ -9,6 +9,7 @@ import { conversationKey, createConversations } from './conversations'
 import { fileConversationStore } from './file-conversation-store'
 import { assistantProtocolRoutes } from './protocol-routes'
 import { readOnlyQueryTool, readWriteQueryTool } from './query-tools'
+import { readableResources } from './readable-resources'
 import type { ToolRecords } from './records'
 import type { AssistantTool } from './tools'
 import { runTurn } from './turn'
@@ -66,6 +67,7 @@ export const builtInAssistant = ({ model, chats, db, meta, authenticate, tools: 
         system: appContext(body.resources, body.views),
         tools,
         ...(records && { records: records(session) }),
+        resources: () => readableResources(meta, session),
         report,
         ...(page && { context: pageContext(page) }),
         ...(onOpenRouter && { cache: true, reasoning: 'low' as const }),

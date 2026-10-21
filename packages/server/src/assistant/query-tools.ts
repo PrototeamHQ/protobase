@@ -31,6 +31,7 @@ export const readOnlyQueryTool = (db: Db, options: QueryOptions = {}) =>
     name: 'run_read_only_query',
     description: `Runs one PostgreSQL SELECT on the app's database in a read-only transaction and returns up to ${options.rowLimit ?? 200} rows as JSON ({ columns, rows, truncated }). The user sees the rows as a table. Use it to answer questions about the data. It cannot change anything.`,
     parameters: { type: 'object', properties: { sql: sqlParameter('One SELECT statement, without a trailing semicolon.') }, required: ['sql'] },
+    annotations: { readOnlyHint: true, openWorldHint: false },
     run: async (args, context) => {
       const statement = statementOf(args)
       if (!statement) return 'Pass the statement as { "sql": "select ..." }.'
@@ -54,6 +55,7 @@ export const readWriteQueryTool = (db: Db, options: QueryOptions = {}) =>
       },
       required: ['sql', 'summary'],
     },
+    annotations: { readOnlyHint: false, destructiveHint: true, openWorldHint: false },
     run: async (args, context) => {
       const statement = statementOf(args)
       if (!statement) return 'Pass the statement as { "sql": "update ... returning ...", "summary": "..." }.'
