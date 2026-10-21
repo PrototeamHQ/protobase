@@ -15,6 +15,7 @@ import { serviceWorker } from '../project/service-worker'
 import { serviceWorkerFile } from './service-worker-code'
 import { readPackageJson, type PackageJson } from './packages/package-dir'
 import { moveSourceMaps } from './source-maps'
+import { shellCodeSplitting } from './shell-chunks'
 
 /** What a shell folder holds beside its files: the `BundleShell` a bundle's manifest copies. */
 export const shellManifestFile = 'protobase.shell.json'
@@ -46,7 +47,8 @@ const shellIdentity = async (): Promise<BundleShell> => {
  * any deep link. It calls /api on its own origin and loads the project's UI, like every plugin, from what `/meta`
  * names, and links the project's theme at /protobase.theme.css and its favicon at /protobase.favicon.svg, and registers its service worker. The modules plugins share with it have entries of
  * their own, which index.html's import map names. With `sourceMapsDir`, each script ends with a `//# debugId=` comment
- * and names no map, and its source map, carrying the same debug id, goes to the same place under `sourceMapsDir`.
+ * and names no map, and its source map, carrying the same debug id, goes to the same place under `sourceMapsDir`. The
+ * scripts split into react, vendor and app chunks (./shell-chunks), so an update mostly downloads only the app's.
  */
 export const buildShell = async (outDir: string, sourceMapsDir?: string) => {
   const sourceMaps = sourceMapsDir !== undefined
@@ -64,7 +66,7 @@ export const buildShell = async (outDir: string, sourceMapsDir?: string) => {
     plugins: [sharedModulesPlugin(), projectUiPlugin(undefined), themeLink(), faviconLink(), serviceWorker(), react(), tailwindcss()],
     // Web workers are builds of their own, which take the source maps from `build` but not the output's debug ids.
     worker: { rolldownOptions: { output: { sourcemapDebugIds: sourceMaps } } },
-    build: { outDir, emptyOutDir: true, chunkSizeWarningLimit: 4096, sourcemap: sourceMaps && 'hidden', rolldownOptions: { output: { sourcemapDebugIds: sourceMaps } } },
+    build: { outDir, emptyOutDir: true, chunkSizeWarningLimit: 4096, sourcemap: sourceMaps && 'hidden', rolldownOptions: { output: { sourcemapDebugIds: sourceMaps, codeSplitting: shellCodeSplitting } } },
   }).finally(() => {
     if (nodeEnv === undefined) delete process.env.NODE_ENV
     else process.env.NODE_ENV = nodeEnv
