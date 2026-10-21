@@ -58,13 +58,17 @@ jobs:
           bun-version: 1.4.2
       - run: bun install --frozen-lockfile
       # A branch's commits land on main as they are, where the release workflow refuses any that commitlint does, so they
-      # are linted here first: a pull request's from its base, a task branch's from where it forked from main.
+      # are linted here first: a pull request's from its base, a task branch's from where it forked from main. A branch
+      # whose head main already holds has no commits of its own, and commitlint refuses a range from a commit to itself.
       - name: Lint the branch's commits
         if: github.event_name == 'pull_request' || (github.event_name == 'push' && startsWith(github.ref, 'refs/heads/fm/'))
         env:
           BASE: ${{ github.event.pull_request.base.sha }}
           HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
-        run: bun x --bun commitlint --from "${BASE:-$(git merge-base origin/main "$HEAD")}" --to "$HEAD" --verbose
+        run: |
+          from="${BASE:-$(git merge-base origin/main "$HEAD")}"
+          if [ "$(git rev-parse "$from")" = "$(git rev-parse "$HEAD")" ]; then exit 0; fi
+          bun x --bun commitlint --from "$from" --to "$HEAD" --verbose
       # The tests reach the server on the port the service was given (scripts/test-db/templates.ts).
       - name: Point the tests at the service's Postgres
         env:
