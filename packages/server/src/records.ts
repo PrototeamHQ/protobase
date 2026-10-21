@@ -20,13 +20,20 @@ const stored = async (entry: Entry, raw: Row | undefined, shape: Shape = {}): Pr
 
 const rowsOf = async (db: Db, query: ReturnType<typeof sql>) => (await query.execute(db)).rows as Row[]
 
-export type FetchOptions = Shape & { filter?: CheckedFilter; deleted?: DeletedRows; /** Takes FOR UPDATE. */ lock?: boolean }
+export type FetchOptions = Shape & {
+  filter?: CheckedFilter
+  deleted?: DeletedRows
+  /** `true` takes FOR UPDATE, for the row the write changes; `'no-key-update'` FOR NO KEY UPDATE, for a parent it checks. */
+  lock?: boolean | 'no-key-update'
+}
+
+const lockClause = (lock: FetchOptions['lock']) => lock === 'no-key-update' ? sql` for no key update` : lock ? sql` for update` : sql``
 
 /** The row of the caller's tenant with this key (live unless `deleted` says otherwise), optionally narrowed by a filter. */
 export const fetchRecord = async (db: Db, entry: Entry, key: readonly (string | number)[], tenant?: TenantValue, options: FetchOptions = {}) => {
   const { filter, deleted, lock = false, ...shape } = options
   const conditions = [...scopeConditions(entry.model, tenant, deleted), ...keyConditions(entry.model, key), ...filterCondition(entry.model, filter)]
-  const query = sql`select ${returningList(entry, shape.fields)} from ${tableId(entry.model)} as t${whereClause(conditions)} limit 1${lock ? sql` for update` : sql``}`
+  const query = sql`select ${returningList(entry, shape.fields)} from ${tableId(entry.model)} as t${whereClause(conditions)} limit 1${lockClause(lock)}`
   return stored(entry, (await rowsOf(db, query))[0], shape)
 }
 
