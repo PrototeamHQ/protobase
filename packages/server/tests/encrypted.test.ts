@@ -161,7 +161,7 @@ describe('an encrypted field', () => {
     events.length = 0
 
     for (const [roles, org] of [['viewer', 1], ['admin', 2], ['anonymous', undefined]] as const) {
-      const statuses = await Promise.all([healthy, corrupted].map(async (id) => (await reveal(`/people/${id}`, 'iban', roles, org!)).status))
+      const statuses = [(await reveal(`/people/${healthy}`, 'iban', roles, org!)).status, (await reveal(`/people/${corrupted}`, 'iban', roles, org!)).status]
       expect(statuses[0], `${roles} ${org}`).toBe(statuses[1])
       expect(statuses[0]).not.toBe(200)
     }
