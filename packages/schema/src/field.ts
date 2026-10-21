@@ -5,6 +5,7 @@ import type { FieldType } from './model'
 import type { FileOptions } from './files/file-options'
 import { parseFormula } from './computed/formula'
 import type { Rollup } from './computed/rollup'
+import type { Encrypted } from './encrypted-value'
 
 /** A check on the value that only some field types take: `.min()`, `.max()` and `.regex()`. */
 export type Constraint = 'min' | 'max' | 'regex'
@@ -35,6 +36,8 @@ export type FieldMeta = {
   access?: FieldAccess
   /** Whether it is hidden like a password (`.sensitive()`). */
   sensitive?: boolean
+  /** Whether it is stored encrypted, and so sensitive too (`.encrypted()`). */
+  encrypted?: boolean
   /** An enum's values (`f.enum()`). */
   enumValues?: string[]
   /** A relation's resource and the columns that hold its key (`f.relation()`, `.columns()`). */
@@ -139,6 +142,17 @@ export class Field<V> {
    */
   sensitive() {
     return this.with({ sensitive: true })
+  }
+
+  /**
+   * Stored encrypted with the app's own key (`PROTOBASE_ENCRYPTION_KEY`): the database only ever holds ciphertext. It is
+   * sensitive too, so only its reveal decrypts it, and record rules, validators and hooks get a set stored value as
+   * {@link encrypted}, never the value. Only `f.text()` takes it. See
+   * [Encrypted fields](website/src/content/docs/reference/data-config.mdx#encrypted-fields).
+   */
+  encrypted() {
+    if (this.meta.type !== 'text') throw new Error('.encrypted() takes only f.text() fields')
+    return this.with({ encrypted: true, sensitive: true }) as unknown as Field<V | Encrypted>
   }
 
   /** The database supplies a value when none is given (identity, now(), ...). */

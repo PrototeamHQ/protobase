@@ -38,6 +38,8 @@ export type FieldModel = {
   }
   /** Never sent with the record; revealed one value at a time (`.sensitive()`). */
   sensitive?: true
+  /** Stored encrypted, and sensitive too (`.encrypted()`). */
+  encrypted?: true
   /** A value the form prefills, or `db` when the database supplies it (identity, now(), ...). */
   default?:
     | {

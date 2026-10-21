@@ -15,8 +15,8 @@ export const checkRoleLimits = (registry: Registry, limits: readonly RoleLimit[]
     if (unknown) throw new Error(`Role "${role}" lists the field "${unknown}" for "${capability}" but ${name} has no such field`)
     if (role === anonymousRole && model.tenant) throw new Error(`The anonymous role grants "${capability}" on ${name}, which is tenant-scoped, but an anonymous caller works in no organization`)
     if (!filter) continue
-    // Like an access rule's filter, it may use columns that are not filterable.
-    const trusted = { ...model, fields: Object.fromEntries(Object.entries(model.fields).map(([field, value]) => [field, { ...value, filterable: true }])) }
+    // Like an access rule's filter, it may use columns that are not filterable, but no encrypted one (ciphertext).
+    const trusted = { ...model, fields: Object.fromEntries(Object.entries(model.fields).map(([field, value]) => [field, { ...value, filterable: !value.encrypted }])) }
     const checked = checkFilter(trusted, filter)
     if (!checked.ok) throw new Error(`Role "${role}" limits "${capability}" to a filter that does not fit ${name}: ${checked.errors[0]!.message}`)
   }

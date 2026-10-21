@@ -26,7 +26,7 @@ export type ResourceState = {
   live?: boolean
 }
 
-const parseTable = (table: string) => {
+export const parseTable = (table: string) => {
   const parts = table.split('.')
   if (parts.length === 1) return { name: parts[0]! }
   if (parts.length === 2) return { schema: parts[0]!, name: parts[1]! }
@@ -51,6 +51,7 @@ const fieldModel = (name: string, field: AnyField): FieldModel => {
     ...(meta.hasDefault && { default: { value: meta.defaultValue } }),
     ...(meta.dbDefault && !meta.hasDefault && { default: { db: true as const } }),
     ...(meta.sensitive && { sensitive: true as const }),
+    ...(meta.encrypted && { encrypted: true as const }),
     ...(meta.enumValues && { enumValues: [...meta.enumValues] }),
     ...(meta.relation && {
       relation: { resource: meta.relation.resource, columns: meta.relation.columns ?? [column] },
@@ -112,6 +113,15 @@ const sensitiveProblems = (model: ResourceModel) =>
       ...(model.search?.includes(field.name) ? ['searched'] : []),
       ...([...model.primaryKey, model.tenant, model.owner, model.softDelete].includes(field.name) ? ['a key, tenant, owner or soft delete field'] : []),
     ].map((problem) => `sensitive field "${field.name}" cannot be ${problem}`))
+
+// Only the API encrypts a value, so neither the database nor SQL may write one: no read-only field, no database default.
+const encryptedProblems = (model: ResourceModel) =>
+  Object.values(model.fields)
+    .filter((field) => field.encrypted)
+    .flatMap((field) => [
+      ...(field.readOnly ? ['readOnly()'] : []),
+      ...(field.default && 'db' in field.default ? ['given a database default'] : []),
+    ].map((problem) => `encrypted field "${field.name}" cannot be ${problem}`))
 
 // A file value is opaque text the server writes: never a key, a filter, a sort or a search, and its derived fields are
 // read-only fields of the same resource that are no files themselves.
@@ -198,7 +208,7 @@ const aiProblems = (model: ResourceModel) =>
 export const buildResourceModel = (state: ResourceState): ResourceModel => {
   const model = assembleModel(state)
   const events = state.events && buildEventModels(model, state.events)
-  const problems = [...sensitiveProblems(model), ...fileProblems(model), ...positionProblems(model), ...parentProblems(model), ...aiProblems(model), ...computedProblems(model), ...(events?.problems ?? [])]
+  const problems = [...sensitiveProblems(model), ...encryptedProblems(model), ...fileProblems(model), ...positionProblems(model), ...parentProblems(model), ...aiProblems(model), ...computedProblems(model), ...(events?.problems ?? [])]
   if (problems.length > 0) throw new Error(`Resource "${model.name}": ${problems.join('; ')}`)
   return events && events.events.length > 0 ? { ...model, events: events.events } : model
 }
