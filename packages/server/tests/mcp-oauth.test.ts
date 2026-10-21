@@ -68,14 +68,19 @@ const pkce = async () => {
 
 type Tokens = { access_token: string; refresh_token?: string; token_type: string; scope: string; expires_in: number }
 
-/** An app with MCP on, on a copy of the migrated store, with Ana (sales and accountant) and Root (admin). */
-const serve = async (options: Partial<CreateAuthOptions> = {}) => {
-  const store = await migrated.clone()
+/**
+ * An app with MCP on, on a copy of the migrated store, with Ana (sales and accountant) and Root (admin); on `existing`,
+ * a store served before, with its users as they are.
+ */
+const serve = async (options: Partial<CreateAuthOptions> = {}, existing?: SnapshotDb) => {
+  const store = existing ?? (await migrated.clone())
   const auth = await authOn(store, options)
-  await createUser(auth, { email: 'root@example.com', password })
-  await createUser(auth, { email: 'ana@example.com', password, role: 'sales' })
-  await setUserRole(auth, { email: 'ana@example.com', role: 'sales,accountant' })
-  await createUser(auth, { email: 'bo@example.com', password, role: 'sales' })
+  if (!existing) {
+    await createUser(auth, { email: 'root@example.com', password })
+    await createUser(auth, { email: 'ana@example.com', password, role: 'sales' })
+    await setUserRole(auth, { email: 'ana@example.com', role: 'sales,accountant' })
+    await createUser(auth, { email: 'bo@example.com', password, role: 'sales' })
+  }
   const authenticate = betterAuthAuthenticator({ auth })
   const app = createAdmin({ resources: allResources, db: fixture.db, authenticate, auth })
   const address = `198.51.100.${++client}`
@@ -755,5 +760,100 @@ describe('connected apps', () => {
     const listed = await request('/api/auth/account/connected-apps', { cookie, from: 'https://evil.example' })
     expect(listed.headers.get('access-control-allow-origin')).toBeNull()
     expect((await list(request, cookie)).map((app) => app.clientId)).toEqual([clientId])
+  })
+})
+
+describe('turning MCP off', () => {
+  const tables = ['oauth_client', 'oauth_resource', 'oauth_client_resource', 'oauth_refresh_token', 'oauth_access_token', 'oauth_consent', 'oauth_client_assertion']
+  const leftover = /still has the tables of the OAuth provider for MCP .*which is off.*`protobase auth migration`/
+  const listed = (message: string) => /\(([^)]*)\)/.exec(message)![1]!.split(', ').sort()
+  const failure = async (check: Promise<unknown>) => ((await check.then(() => expect.unreachable(), (error: Error) => error)) as Error).message
+
+  it('forgets every client and grant, so turning MCP on again starts from nothing', async () => {
+    const first = await serve()
+    const { store } = first
+    const cookie = await first.signIn('ana@example.com')
+    const cimd = await first.exchange(cimdClientId, await first.connect(cookie, cimdClientId))
+    expect(cimd.status, await cimd.clone().text()).toBe(200)
+    const cimdTokens = (await cimd.json()) as Tokens
+    const registered = await first.grant('ana@example.com', cookie)
+    // A code issued while MCP is on, and never redeemed.
+    const pending = await first.connect(cookie, cimdClientId)
+
+    // Off: the app refuses to start until the tables are dropped, and a ban, here Bo's so Ana's session and its code
+    // stay, writes none of them.
+    const off = await authOn(store, { mcp: undefined })
+    const refusal = await failure(checkAuthSchema(off))
+    expect(refusal).toMatch(leftover)
+    expect(listed(refusal)).toEqual([...tables].sort())
+    await setUserBanned(off, { email: 'bo@example.com', banned: true })
+    await setUserBanned(off, { email: 'bo@example.com', banned: false })
+    const drop = (await authSchemaMigration(off))!
+    for (const table of tables) expect(drop).toMatch(new RegExp(`drop table if exists .*"${table}"`))
+    await store.exec(drop)
+    await expect(checkAuthSchema(off)).resolves.toBeUndefined()
+    expect(await authSchemaMigration(off)).toBeUndefined()
+
+    // On again: every table is missing, so the drop left none behind; the migration makes them empty.
+    const on = await authOn(store)
+    const missing = await failure(checkAuthSchema(on))
+    for (const table of tables) expect(missing).toMatch(new RegExp(`missing .*\\b${table}\\b`))
+    await store.exec((await authSchemaMigration(on))!)
+    const second = await serve({}, store)
+
+    // Nothing of before is taken: the refresh tokens, the pending code, or the consent.
+    await second.refused(await second.refresh(cimdClientId, cimdTokens.refresh_token!))
+    const registeredRefresh = await second.refresh(registered.clientId, registered.tokens.refresh_token!)
+    expect(registeredRefresh.status).not.toBe(200)
+    expect(await registeredRefresh.json()).not.toHaveProperty('access_token')
+    const redeemed = await second.exchange(cimdClientId, pending)
+    expect(redeemed.status).toBe(400)
+    expect(await redeemed.json()).toMatchObject({ error: 'invalid_grant' })
+    expect((await store.query('select id from oauth_refresh_token')).rows).toEqual([])
+    const again = await second.signIn('ana@example.com')
+    await second.asksAgain(again, cimdClientId)
+
+    // Allowed again, the client works as new, and the old refresh token stays refused.
+    const allowed = await second.exchange(cimdClientId, await second.connect(again, cimdClientId))
+    expect(allowed.status, await allowed.clone().text()).toBe(200)
+    const tokens = (await allowed.json()) as Tokens
+    expect(await second.authenticate.forAudience(resource)(resourceRequest(tokens.access_token))).toMatchObject({ user: { id: await second.userId('ana@example.com') } })
+    expect((await second.refresh(cimdClientId, tokens.refresh_token!)).status).toBe(200)
+    await second.refused(await second.refresh(cimdClientId, cimdTokens.refresh_token!))
+  })
+
+  it('names and drops only the tables left over, in the store\'s schema alone', async () => {
+    const store = await openSnapshotDb('empty')
+    await store.exec(`create schema auth; create table public.oauth_client (id text primary key); insert into public.oauth_client values ('app-row')`)
+    const database = { dialect: store.dialect, type: 'postgres' as const, schemaName: 'auth' }
+    const on = await authOn(store, { database })
+    await store.exec((await authSchemaMigration(on))!)
+    // Only the consents and refresh tokens are left, with a grant of Ana's in them.
+    await store.exec(`
+      drop table auth.oauth_access_token, auth.oauth_client_assertion, auth.oauth_client_resource, auth.oauth_resource, auth.oauth_client cascade;
+      insert into auth."user" (id, name, email, email_verified, created_at, updated_at) values ('u1', 'Ana', 'ana@example.com', true, now(), now());
+      insert into auth.oauth_consent (id, client_id, user_id, scopes, created_at, updated_at) values ('c1', 'x', 'u1', '["mcp"]', now(), now());
+      insert into auth.oauth_refresh_token (id, token, client_id, user_id, scopes, expires_at, created_at) values ('r1', 't', 'x', 'u1', '["mcp"]', now() + interval '30 days', now());
+    `)
+
+    const off = await authOn(store, { database, mcp: undefined })
+    const refusal = await failure(checkAuthSchema(off))
+    expect(refusal).toMatch(leftover)
+    expect(listed(refusal)).toEqual(['oauth_consent', 'oauth_refresh_token'])
+    const drop = (await authSchemaMigration(off))!
+    for (const table of tables) expect(drop).toContain(`"auth"."${table}"`)
+    await store.exec(drop)
+    await expect(checkAuthSchema(off)).resolves.toBeUndefined()
+    expect(await authSchemaMigration(off)).toBeUndefined()
+    expect((await store.query('select id from public.oauth_client')).rows).toEqual([{ id: 'app-row' }])
+  })
+
+  it('still names a missing core table, and no MCP table', async () => {
+    const store = await base.clone()
+    await store.exec('drop table verification')
+    const off = await authOn(store, { mcp: undefined })
+    const refusal = await failure(checkAuthSchema(off))
+    expect(refusal).toMatch(/missing verification/)
+    expect(refusal).not.toMatch(/oauth_/)
   })
 })

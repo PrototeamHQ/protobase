@@ -131,6 +131,6 @@ export const setUserBanned = async (auth: AdminAuth, input: { email: string; ban
   await refuseLastAdmin(auth, user, 'ban')
   await internalAdapter.updateUser(user.id, { banned: true, banReason: 'Disabled by an administrator', banExpires: null })
   await internalAdapter.deleteUserSessions(user.id)
-  // Without MCP the OAuth tables may not exist.
+  // Without MCP the OAuth tables do not exist: `checkAuthSchema` refuses to start while they do.
   if (auth.mcp) await revokeMcpGrants((await auth.$context).adapter, user.id)
 }
