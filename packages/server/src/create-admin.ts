@@ -26,6 +26,12 @@ import { storageRoutes } from './storage/storage-routes'
 import { defaultAppName, readAppName } from './app-name'
 import { authBasePath, type AdminAuth } from './better-auth/create-auth'
 import { mcpDiscovery } from './better-auth/mcp/discovery-routes'
+import { mcpAuthenticator } from './mcp/mcp-authenticator'
+import { mcpToolContext } from './mcp/mcp-context'
+import { mcpHandler } from './mcp/mcp-handler'
+import { mcpRoutes } from './mcp/mcp-routes'
+import { mcpServer } from './mcp/mcp-server'
+import { mcpTools } from './mcp/mcp-tools'
 import { withoutSessionTokens } from './better-auth/without-session-tokens'
 import { webauthnPath } from './better-auth/origins'
 import { organizationRoutes } from './better-auth/organizations/admin-routes'
@@ -197,6 +203,7 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], pag
   checkViews(registry, viewModels, pageModels.map((entry) => entry.name), fieldTypes)
   checkRoleLimits(registry, options.roles?.limits ?? [])
   checkOwnerFields(registry, authenticate.userIdType, auth)
+  const mcpAuthenticate = mcpAuthenticator(authenticate, auth?.mcp, options.mcp)
   checkPositionAfter(registry)
   checkParents(registry)
   checkPages(pageModels, {
@@ -292,7 +299,7 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], pag
   const ownOrigins = auth?.origins ?? []
   if (corsOrigins !== undefined || ownOrigins.length > 1) {
     // Better Auth checks origins itself, and a function with its own `cors` answers for itself.
-    const answering = [authBasePath, ...Object.entries(apiFunctions).filter(([, fn]) => fn.options.cors).flatMap(([name]) => [`${systemPath}/functions/${name}`, `${supabaseFunctionsPath}/${name}`])]
+    const answering = [authBasePath, ...(auth?.mcp ? [auth.mcp.path] : []), ...Object.entries(apiFunctions).filter(([, fn]) => fn.options.cors).flatMap(([name]) => [`${systemPath}/functions/${name}`, `${supabaseFunctionsPath}/${name}`])]
     const skip = (path: string) => answering.some((prefix) => path === prefix || path.startsWith(`${prefix}/`))
     const cors = apiCors({ own: ownOrigins, allowed: corsOrigins ?? [], skip })
     app.use(`${systemPath}/*`, cors)
@@ -315,6 +322,12 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], pag
     app.route(`${systemPath}/assistant`, builtInAssistant({ model: assistant.model, chats: assistant.chats, db, meta, authenticate, tools, records, report: options.onUnhandledError }))
   }
   const report = options.onUnhandledError ?? ((error: unknown) => console.error(error))
+  // Before the system endpoints, which want an app token for everything under them
+  if (auth?.mcp && mcpAuthenticate) {
+    const tools = mcpTools({ db, sql: options.mcp?.sql === true })
+    const server = (session: Session) => mcpServer({ info: { name: appName, version: '1.0.0' }, tools: tools(session), context: mcpToolContext(deps, meta, session), report })
+    mcpRoutes(app, { path: auth.mcp.path, handler: mcpHandler({ authenticate: mcpAuthenticate, resource: auth.mcp.resource, scope: auth.mcp.scope, server }) })
+  }
   const upgradeAuthenticate = upgradeAuthenticator({ authenticate, ...(auth && { origins: auth.origins, sessionToken: betterAuthSessionToken(auth) }) })
   app.route('/', functionRoutes({ basePath: `${systemPath}/functions`, functions: apiFunctions, authenticate, access: deps.accessOptions, db, records: (session) => callerRecords(deps, session), onError, wake: () => wakeDispatch(deps), upgradeWebSocket, upgradeAuthenticate, report }))
   // supabase-js's `functions.invoke`, admitted by the app's keys and the tokens of `/api/sb/auth/v1`.
