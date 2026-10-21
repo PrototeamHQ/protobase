@@ -114,6 +114,21 @@ export const vaultSecretValues = async (sql: Sql) => {
   return sql<VaultSecret[]>`select name, description, decrypted_secret as secret from vault.decrypted_secrets order by created_at, id`
 }
 
+export type EncryptedColumn = { schema: string; table: string; column: string }
+
+/**
+ * The columns of `schemas` pgsodium's Transparent Column Encryption encrypts, by a security label: their ciphertext
+ * opens only with the Supabase project's root key, so the dump copies it as it is.
+ */
+export const pgsodiumColumns = (sql: Sql, schemas: string[]) => sql<EncryptedColumn[]>`
+  select n.nspname as schema, c.relname as table, a.attname as column
+  from pg_seclabel l
+  join pg_class c on c.oid = l.objoid join pg_namespace n on n.oid = c.relnamespace
+  join pg_attribute a on a.attrelid = c.oid and a.attnum = l.objsubid
+  where l.provider = 'pgsodium' and l.classoid = 'pg_class'::regclass and l.objsubid > 0 and n.nspname = any(${schemas})
+  order by 1, 2, 3
+`
+
 export type QueueMessage = { message: string | null; headers: string | null; visibleAt: string }
 
 export type Queue = { name: string; unlogged: boolean; partitioned: boolean; messages: QueueMessage[] }

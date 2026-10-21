@@ -18,6 +18,7 @@ const manifest: ImportManifest = {
   cronJobs: [{ id: 1, name: 'purge', schedule: '0 3 * * *', command: 'delete from public.todos', active: true, database: 'postgres', local: true, outcome: { kind: 'converted', name: 'purge', file: 'purge', exportName: 'purge', timezone: undefined } }],
   vaultSecrets: [],
   vaultReplayed: false,
+  pgsodiumColumns: [],
   queues: [],
   queuesReplayed: false,
   realtimeTables: [],

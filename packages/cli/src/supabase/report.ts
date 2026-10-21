@@ -109,6 +109,11 @@ export const importReport = (manifest: ImportManifest, doctor: string | undefine
       manifest.vaultReplayed ? [] : manifest.vaultSecrets?.map(secretName),
     ),
     section(
+      'pgsodium encrypted columns',
+      "pgsodium encrypts these columns with the Supabase project's root key, which never leaves Supabase, so the import copied their ciphertext as it is. Export each column's values decrypted in Supabase, from its decrypted view (`decrypted_<table>` beside the table unless the table's label names another), and write them over the ciphertext; then declare the field `.encrypted()` and run `protobase encryption apply`, which encrypts them with the app's own key.",
+      manifest.pgsodiumColumns.map((column) => `${column.schema}.${column.table}.${column.column}`),
+    ),
+    section(
       'pgmq queues',
       "pgmq owns its queues' tables, so the dump leaves them out. Make each again with pgmq where the project's database has it, partitioned ones with `pgmq.create_partitioned`, and send its messages again.",
       queuesLeft(manifest),

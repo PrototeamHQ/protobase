@@ -25,6 +25,7 @@ const manifest: ImportManifest = {
   ],
   vaultSecrets: undefined,
   vaultReplayed: false,
+  pgsodiumColumns: [],
   queues: [],
   queuesReplayed: false,
   realtimeTables: [{ schema: 'public', table: 'todos' }],
@@ -97,6 +98,13 @@ describe('importReport', () => {
     expect(report).toContain('- hypertable public.metrics, 100 rows in chunks the dump leaves out')
     expect(report).toContain('- function public.js_add, written in plv8: rewrite it in plpgsql or as a Protobase function')
     expect(report).not.toContain('sk_')
+  })
+
+  it('lists the columns pgsodium encrypts, to export decrypted and declare encrypted', () => {
+    const encrypted = { ...manifest, pgsodiumColumns: [{ schema: 'public', table: 'profiles', column: 'iban' }] }
+    const report = importReport(encrypted, undefined, true, [])
+    expect(report).toMatch(/## pgsodium encrypted columns\n\n[^\n]+`protobase encryption apply`[^\n]+\n\n- public\.profiles\.iban\n\n/)
+    expect(importReport(manifest, undefined, true, [])).toContain('## pgsodium encrypted columns\n\nNone.')
   })
 
   it('says when there was no config for doctor to check', () => {

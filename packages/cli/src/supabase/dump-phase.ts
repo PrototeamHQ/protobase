@@ -13,7 +13,7 @@ import { importState, type ImportManifest } from './import-state'
 import { runPgTool } from './pg-tools'
 import { replayScript } from './replay'
 import { schemaMigration } from './schema-migration'
-import { appSchemas, cronJobs, cronTimezone, databaseMarkers, dumpedTables, extensions, httpTriggers, hypertables, pgmqQueues, platformMigrationTables, realtimeTables, routinesIn, tablesSize, vaultSecretValues, vaultSecrets } from './source-facts'
+import { appSchemas, cronJobs, cronTimezone, databaseMarkers, dumpedTables, extensions, httpTriggers, hypertables, pgmqQueues, pgsodiumColumns, platformMigrationTables, realtimeTables, routinesIn, tablesSize, vaultSecretValues, vaultSecrets } from './source-facts'
 import { ensureApiRoles, existingTables } from './target-checks'
 import { creatableExtensions } from './target-extensions'
 
@@ -61,6 +61,7 @@ const readSource = async (sql: Sql, targetUrl: string) => {
     cronJobs: cron,
     vaultSecrets: await vaultSecrets(sql),
     vaultReplayed: secrets !== undefined,
+    pgsodiumColumns: await pgsodiumColumns(sql, schemas),
     queues: queues?.map((queue) => ({ name: queue.name, partitioned: queue.partitioned, messages: queue.messages.length })),
     queuesReplayed: plan.queues && queues !== undefined,
     realtimeTables: await realtimeTables(sql),

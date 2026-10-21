@@ -5,7 +5,7 @@ import type { SourceExtension } from './extensions'
 import type { ImportedPackage } from './functions/specifier'
 import type { DumpedTable } from './load-script'
 import type { PlannedCronJob } from './cron-plan'
-import type { HttpTrigger } from './source-facts'
+import type { EncryptedColumn, HttpTrigger } from './source-facts'
 
 /** What the dump found in the source, for the load and the report. */
 export type ImportManifest = {
@@ -31,6 +31,8 @@ export type ImportManifest = {
   vaultSecrets: Array<{ name: string | null; description: string }> | undefined
   /** Whether the project's database has Vault, so the load makes the secrets again with their values. */
   vaultReplayed: boolean
+  /** Columns pgsodium encrypts, copied as Supabase's ciphertext. */
+  pgsodiumColumns: EncryptedColumn[]
   queues: Array<{ name: string; partitioned: boolean; messages: number }> | undefined
   /** Whether the project's database has pgmq, so the load makes the queues that are not partitioned again. */
   queuesReplayed: boolean
