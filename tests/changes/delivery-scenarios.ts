@@ -154,13 +154,30 @@ export const deliveryScenarios = (connect: () => Promise<TestDatabase>) => {
         return old;
       end $$;
       create trigger fail_once before delete on changes.outbox for each statement execute function fail_once();`)
-    const before = receiver.at('/hook').length
+    // What the dispatcher sends, with how each send went: the failed try's request can be lost on the local socket under
+    // load, and it is the sending again that this test proves, not the receiver's socket.
+    const sent: { id: string | null; body: string; outcome: string }[] = []
+    const send = globalThis.fetch
+    const spy = vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
+      const request = new Request(input, init)
+      if (new URL(request.url).pathname !== '/hook') return send(request)
+      const entry = { id: request.headers.get('webhook-id'), body: await request.clone().text(), outcome: 'pending' }
+      sent.push(entry)
+      const response = send(request)
+      response.then(
+        ({ status }) => void (entry.outcome = String(status)),
+        (error: unknown) => void (entry.outcome = error instanceof Error ? error.message : String(error)),
+      )
+      return response
+    })
     const logStart = logged.length
     await sql`insert into orders (total) values (8)`.execute(db)
-    await reportingDelivery(until(() => expect(receiver.at('/hook').length).toBe(before + 2), 20_000), db, logged, logStart)
-    const [first, again] = receiver.at('/hook').slice(before)
-    expect([first!.headers['webhook-id'], first!.body]).toEqual([again!.headers['webhook-id'], again!.body])
+    await reportingDelivery(until(() => expect(sent).toHaveLength(2), 20_000), db, logged, logStart)
+    const [first, again] = sent
+    expect([first!.id, first!.body]).toEqual([again!.id, again!.body])
+    await until(() => expect(logged).toContain(`webhook hook orders.created ${again!.id} delivered (200)`))
     await until(async () => expect(await outboxSize()).toBe(0))
+    spy.mockRestore()
     await database.exec('drop trigger fail_once on changes.outbox')
   })
 
