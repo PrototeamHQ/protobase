@@ -1,5 +1,6 @@
-import { sql } from 'kysely'
+import { sql, type RawBuilder } from 'kysely'
 import type { Db } from '@protobase/query'
+import { queryRunnerFunction } from './query-runner/runner-sql'
 
 export type QueryOptions = {
   /** Postgres cancels the statement after this long. Default 5000. */
@@ -14,8 +15,10 @@ export type QueryResult = { columns: string[]; rows: unknown[][]; truncated: boo
 // Postgres then refuses a text with more than one command ("cannot insert multiple commands into a prepared
 // statement"), so the statement cannot end the transaction around it and run more. The newlines keep a trailing `--`
 // comment from swallowing the wrapper.
+const withoutSemicolon = (statement: string) => statement.trim().replace(/;\s*$/, '')
+
 const wrapped = (statement: string, rowLimit: number) =>
-  sql<Record<string, unknown>>`with result as (\n${sql.raw(statement.trim().replace(/;\s*$/, ''))}\n) select * from result limit ${rowLimit + 1}`
+  sql<Record<string, unknown>>`with result as (\n${sql.raw(withoutSemicolon(statement))}\n) select * from result limit ${rowLimit + 1}`
 
 // Values as JSON carries them, for the model and the dock.
 const cell = (value: unknown) => {
@@ -31,30 +34,41 @@ const resultOf = (rows: Record<string, unknown>[], rowLimit: number): QueryResul
   truncated: rows.length > rowLimit,
 })
 
-const run = (db: Db, statement: string, options: QueryOptions, begin: string, end: (succeeded: boolean) => string) =>
+const run = <Row>(db: Db, query: (rowLimit: number) => RawBuilder<Row>, options: QueryOptions, begin: string, end: (succeeded: boolean) => string) =>
   db.connection().execute(async (connection) => {
     const rowLimit = options.rowLimit ?? 200
     await sql.raw(begin).execute(connection)
     let succeeded = false
     try {
       await sql`select set_config('statement_timeout', ${String(options.timeoutMs ?? 5000)}, true)`.execute(connection)
-      const { rows } = await wrapped(statement, rowLimit).execute(connection)
+      const { rows } = await query(rowLimit).execute(connection)
       succeeded = true
-      return resultOf(rows, rowLimit)
+      return { rows, rowLimit }
     } finally {
       await sql.raw(end(succeeded)).execute(connection)
     }
   })
 
+// The runner hands each row over as JSON text, which keeps every value as JSON carries it.
+const throughRunner = (statement: string) => (rowLimit: number) =>
+  sql<{ row: string | null }>`select row::text as row from ${sql.raw(queryRunnerFunction)}(${withoutSemicolon(statement)}, ${rowLimit}) as row`
+
 /**
  * Runs one SELECT (or VALUES, or a WITH query) in a READ ONLY transaction that is always rolled back, so nothing it
- * does, settings included, outlives it. Postgres refuses any write in it, and the statement cannot leave it.
+ * does, settings included, outlives it. Postgres refuses any write in it, and the statement cannot leave it. It runs
+ * through the runner `protobase migration` makes, as the query role, which reads only the resources' tables and never
+ * the auth schema, and cannot switch back to the app's role; its cursor runs one statement only.
  */
-export const runReadOnlyQuery = (db: Db, statement: string, options: QueryOptions = {}) => run(db, statement, options, 'begin transaction read only', () => 'rollback')
+export const runReadOnlyQuery = async (db: Db, statement: string, options: QueryOptions = {}) => {
+  const { rows, rowLimit } = await run(db, throughRunner(statement), options, 'begin transaction read only', () => 'rollback')
+  return resultOf(rows.map(({ row }) => JSON.parse(row ?? '{}') as Record<string, unknown>), rowLimit)
+}
 
 /**
  * Runs one INSERT, UPDATE or DELETE with a RETURNING clause (or a query) in a READ WRITE transaction, committed when it
  * succeeds. Only call it for a statement the user approved.
  */
-export const runReadWriteQuery = (db: Db, statement: string, options: QueryOptions = {}) =>
-  run(db, statement, options, 'begin transaction read write', (succeeded) => (succeeded ? 'commit' : 'rollback'))
+export const runReadWriteQuery = async (db: Db, statement: string, options: QueryOptions = {}) => {
+  const { rows, rowLimit } = await run(db, (limit) => wrapped(statement, limit), options, 'begin transaction read write', (succeeded) => (succeeded ? 'commit' : 'rollback'))
+  return resultOf(rows, rowLimit)
+}

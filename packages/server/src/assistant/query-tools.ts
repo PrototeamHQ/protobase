@@ -24,12 +24,13 @@ const statementOf = (args: Record<string, unknown>) => (typeof args.sql === 'str
 
 /**
  * Lets the model read the app's database: one SELECT per call, in a read-only transaction (see `runReadOnlyQuery`).
- * The rows show as a table in the chat. It runs as the app's database role, outside Protobase's access rules.
+ * The rows show as a table in the chat. It runs as the query role, outside Protobase's access rules: it reads the
+ * resources' tables only, never the auth schema.
  */
 export const readOnlyQueryTool = (db: Db, options: QueryOptions = {}) =>
   defineTool({
     name: 'run_read_only_query',
-    description: `Runs one PostgreSQL SELECT on the app's database in a read-only transaction and returns up to ${options.rowLimit ?? 200} rows as JSON ({ columns, rows, truncated }). The user sees the rows as a table. Use it to answer questions about the data. It cannot change anything.`,
+    description: `Runs one PostgreSQL SELECT on the app's database in a read-only transaction and returns up to ${options.rowLimit ?? 200} rows as JSON ({ columns, rows, truncated }). The user sees the rows as a table. Use it to answer questions about the data. It reads the app's resource tables only. It cannot change anything.`,
     parameters: { type: 'object', properties: { sql: sqlParameter('One SELECT statement, without a trailing semicolon.') }, required: ['sql'] },
     annotations: { readOnlyHint: true, openWorldHint: false },
     run: async (args, context) => {

@@ -3,7 +3,7 @@ import type { AddressInfo } from 'node:net'
 import { createAdaptorServer, upgradeWebSocket } from '@hono/node-server'
 import pg from 'pg'
 import type { Db } from '@protobase/query'
-import { backgroundSettled, checkAi, checkAuthSchema, checkChanges, checkComments, checkComputed, checkJobsSchema, checkWebhooksSchema, configExports, createFileCleanup, startJobs, type ErrorReporter } from '@protobase/server'
+import { assistantSettings, authStoreTables, backgroundSettled, checkAi, checkAuthSchema, checkChanges, checkComments, checkComputed, checkJobsSchema, checkQueryRunner, checkWebhooksSchema, configExports, createFileCleanup, startJobs, type ErrorReporter } from '@protobase/server'
 import { projectAdmin } from '../project/project-admin'
 import { createPgDb } from '../project/pg-db'
 import { apiWebSocketServer } from '../project/api-websocket-server'
@@ -45,7 +45,7 @@ const closeServer = (server: Server) =>
 // Serves the project until `close`, which stops accepting connections, closes open WebSockets with 1001 (dropping them
 // after 5 seconds), lets open requests finish, then the work their functions left to `waitUntil` and running jobs, and
 // then drains the pool it created. A `db` exported by the project stays the project's to close. It does not
-// start while the auth schema, the change capture of resources with events, the rollup and formula columns or the jobs schema is behind, which it only
+// start while the auth schema, the change capture of resources with events, the rollup and formula columns, the built-in assistant's query role or the jobs schema is behind, which it only
 // reads: the project's migrations change them, before the new version serves. `startupChecks` false skips those reads,
 // for a restart of a bundle that already started on this database. With jobs it runs them too, unless
 // `runJobs` is off; with file fields it runs their scheduled deletes every `filesCleanupMinutes`.
@@ -59,6 +59,7 @@ export const startServe = async ({ project, env, createDb = (url) => createPgDb(
     if (env.startupChecks) await checkChanges(db, resources.map((resource) => resource.toModel()), project.events)
     if (env.startupChecks) await checkComments(db, resources.map((resource) => resource.toModel()))
     if (env.startupChecks) await checkComputed(db, resources.map((resource) => resource.toModel()))
+    if (env.startupChecks && assistantSettings(project.options?.assistant, process.env)?.kind === 'built-in') await checkQueryRunner(db, project.auth ? authStoreTables(project.auth) : [])
     if (env.startupChecks) checkAi({ models: resources.map((resource) => resource.toModel()), views: views.map((source) => source.toModel()), assistant: project.options?.assistant, env: process.env })
     if (env.startupChecks && project.webhooks) await checkWebhooksSchema(db, project.webhooks)
     const { admin, jobs: definitions } = projectAdmin(project, project.config, db, ui, reporter, upgradeWebSocket)

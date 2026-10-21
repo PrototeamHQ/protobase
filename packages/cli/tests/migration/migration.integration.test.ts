@@ -64,6 +64,11 @@ describe.skipIf(!reachable)('protobase migration', () => {
 
   afterAll(async () => {
     await rm(projectDir, { recursive: true, force: true })
+    // Roles belong to the whole server, so the assistant's query role goes with the database.
+    const db = postgres(databaseUrl, { max: 1, onnotice: () => {} })
+    await db.unsafe(`do $$ declare query_role text := left(current_database(), 57) || '_query'; begin
+      if exists (select from pg_roles where rolname = query_role) then execute format('drop owned by %I', query_role); execute format('drop role %I', query_role); end if; end $$`)
+    await db.end()
     const sql = maintenance()
     await sql.unsafe(`drop database if exists ${database} with (force)`)
     await sql.end()
@@ -103,6 +108,13 @@ export default { config: { notes }, jobs: { prune } }
   it('writes the webhooks schema for a config that extends webhooks(), after the change capture', async () => {
     const config = { extends: [webhooks()], config: { notes: notes().events((e) => e.crud()) } }
     expect(await migrationFor(config)).toEqual(['004_changes.sql', '005_webhooks.sql'])
+    await applyAll()
+    expect(await migrationFor(config)).toEqual([])
+  })
+
+  it("writes the role of the built-in assistant's read-only queries, then nothing once applied", async () => {
+    const config = { extends: [webhooks()], config: { notes: notes().events((e) => e.crud()) }, options: { assistant: { apiKey: 'test-key' } } }
+    expect(await migrationFor(config)).toEqual(['006_query.sql'])
     await applyAll()
     expect(await migrationFor(config)).toEqual([])
   })

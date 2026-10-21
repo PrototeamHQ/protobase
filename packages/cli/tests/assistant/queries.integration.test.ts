@@ -3,7 +3,8 @@ import pg from 'pg'
 import postgres from 'postgres'
 import { sql } from 'kysely'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { runReadOnlyQuery, runReadWriteQuery } from '@protobase/server'
+import { f, resource } from '@protobase/schema'
+import { queryRunnerMigration, runReadOnlyQuery, runReadWriteQuery } from '@protobase/server'
 import { createPgDb } from '../../src/project/pg-db'
 import { databaseReachable, testDatabaseUrl } from '../support/database'
 import { withDatabase } from '../support/serve-process'
@@ -31,8 +32,12 @@ describe.skipIf(!reachable)('assistant queries on Postgres over node-postgres', 
       insert into ${schema}.notes (body) values ('first'), ('second');
       create sequence ${schema}.tickets;
     `).execute(db)
+    const notes = resource('notes').table(`${schema}.notes`).fields({ id: f.integer() }).primaryKey((r) => r.id).toModel()
+    await sql.raw((await queryRunnerMigration(db, [notes], []))!).execute(db)
   })
   afterAll(async () => {
+    // Roles belong to the whole server, so the query role goes with the database.
+    if (db) await sql.raw(`do $$ begin execute format('drop owned by %I', left(current_database(), 57) || '_query'); execute format('drop role %I', left(current_database(), 57) || '_query'); end $$`).execute(db)
     await db?.destroy()
     const admin = maintenance()
     await admin.unsafe(`drop database if exists ${database} with (force)`)
@@ -58,7 +63,7 @@ describe.skipIf(!reachable)('assistant queries on Postgres over node-postgres', 
   })
 
   it('is refused by Postgres as more than one command, not by a check of the text', async () => {
-    await expect(runReadOnlyQuery(db, `select 1) select 1; delete from ${schema}.notes; with result as (select 1`)).rejects.toThrow('cannot insert multiple commands into a prepared statement')
+    await expect(runReadOnlyQuery(db, `select 1) r; select * from ${schema}.notes, (select 1`)).rejects.toThrow('cannot open multi-query plan as cursor')
   })
 
   it('cancels a statement that runs past the timeout', async () => {

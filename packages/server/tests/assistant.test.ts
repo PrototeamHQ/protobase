@@ -6,6 +6,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { f, resource, type AssistantEvent, type AssistantState } from '@protobase/schema'
 import { applyAssistantEvent, emptyAssistantState, readEventStream } from '@protobase/schema/internal'
 import { createAdmin } from '../src/create-admin'
+import { queryRunnerMigration } from '../src/assistant/query-runner/query-runner'
 import { defineTool } from '../src/assistant/tools'
 import { widget } from '../src/assistant/widget'
 import type { AdminOptions } from '../src/admin-options'
@@ -30,9 +31,11 @@ beforeAll(async () => {
   await pg.exec('create table tasks (id integer generated always as identity primary key, title text not null, status text not null)')
   await pg.exec('create table proposals (id integer generated always as identity primary key, title text not null, status text not null, decided_by text)')
   db = new Kysely({ dialect: pg.dialect })
+  await pg.exec((await queryRunnerMigration(db, [tasks.toModel(), proposals.toModel()], []))!)
   chats = await mkdtemp(path.join(tmpdir(), 'protobase-assistant-'))
 })
 afterAll(async () => {
+  await sql`do $$ begin execute format('drop owned by %I', left(current_database(), 57) || '_query'); execute format('drop role %I', left(current_database(), 57) || '_query'); end $$`.execute(db)
   await db.destroy()
   await rm(chats, { recursive: true, force: true })
 })
@@ -208,13 +211,13 @@ describe('the built-in assistant', () => {
   })
 
   it('tells the model when Postgres refuses a query, and refuses writes in it', async () => {
-    const model = fakeModel([calls('run_read_only_query', { sql: 'delete from tasks returning id' }), says('I cannot change data that way.')])
+    const model = fakeModel([calls('run_read_only_query', { sql: 'select id from tasks for update' }), says('I cannot change data that way.')])
     const app = admin({ ...plain, fetch: model.fetch })
     const stream = await watch(app, 'admin')
     await app.request('/api/assistant/messages', json({ text: 'Delete every task' }, as(1, 'admin')))
     await stream.until(done)
     await stream.stop()
-    expect(model.bodies[1].messages.at(-1)).toEqual({ role: 'tool', tool_call_id: 'call-run_read_only_query', content: expect.stringMatching(/^Postgres refused the statement: cannot execute \w+ in a read-only transaction$/) })
+    expect(model.bodies[1].messages.at(-1)).toEqual({ role: 'tool', tool_call_id: 'call-run_read_only_query', content: expect.stringMatching(/^Postgres refused the statement: cannot execute SELECT FOR UPDATE in a read-only transaction$/) })
   })
 
   it('runs a write only after the user approves it on the card', async () => {

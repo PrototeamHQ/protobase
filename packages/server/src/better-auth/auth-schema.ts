@@ -1,4 +1,5 @@
 import { getMigrations } from 'better-auth/db/migration'
+import { storeSchema } from './auth-tables'
 import type { AdminAuth } from './create-auth'
 import { dropMcpTables, leftoverMcpTables, mcpTableNames, withMcpTables } from './mcp/mcp-tables'
 import { snakeCaseMigration } from './snake-case-migration'
@@ -31,8 +32,6 @@ type Plan = Awaited<ReturnType<typeof getMigrations>>
  * the old ones.
  */
 const hasCamelCaseNames = ({ toBeAdded }: Plan) => toBeAdded.some(({ table, fields }) => table === 'user' && 'email_verified' in fields)
-
-const storeSchema = ({ options: { database } }: AdminAuth) => (database && 'schemaName' in database ? database.schemaName : undefined)
 
 /**
  * The SQL that brings the admin store up to what this version of Protobase and the project's Better Auth plugins need:

@@ -14,7 +14,7 @@ export type ServeEnv = {
   filesCleanupMinutes: number
   // Whether this process runs the app's jobs (PROTOBASE_JOBS=false leaves them to `protobase worker`); it enqueues them either way.
   runJobs: boolean
-  // Whether startup reads the auth, changes, webhooks and jobs schemas and refuses ones that are behind
+  // Whether startup reads the auth, changes, webhooks and jobs schemas and the assistant's query role and refuses ones that are behind
   // (PROTOBASE_STARTUP_CHECKS=false skips them, for restarts of a bundle that already started on this database).
   startupChecks: boolean
   // The operator's bearer token for POST /api/jobs/drain (PROTOBASE_JOBS_DRAIN_TOKEN); without it there is no drain endpoint.

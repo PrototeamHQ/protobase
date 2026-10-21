@@ -1,7 +1,23 @@
 {
+  "(repeated)": [
+    {"sql":"select p.prosrc as source, p.prosecdef as definer, pg_get_userbyid(p.proowner) as owner,\n      (p.proacl is null or exists (select from aclexplode(p.proacl) a where a.grantee = 0 and a.privilege_type = 'EXECUTE')) as executable\n      from pg_proc p where p.oid = to_regprocedure($1)","params":["query.run_read_only(text, integer)"],"result":{"command":"SELECT","rowCount":1,"columns":[["source",25],["definer",16],["owner",19],["executable",16]],"rows":[["\ndeclare\n  rows refcursor;\n  row json;\nbegin\n  open rows no scroll for execute 'select (select json_object_agg(e.key, case when json_typeof(e.value) = ''number'' and e.value::text !~ ''^-?[0-9]{1,15}$'' then to_json(e.value::text) else e.value end order by e.n) from json_each(to_json(r)) with ordinality as e(key, value, n)) from (' || E'\\n' || statement || E'\\n' || ') r limit ' || (row_limit + 1);\n  loop\n    fetch rows into row;\n    exit when not found;\n    return next row;\n  end loop;\n  close rows;\nend\n","t","{{database:1}}_query","f"]]}}
+  ],
   "(hooks)": {
     "(hooks)#0": [
-      {"sql":"\n    create table notes (id integer generated always as identity primary key, body text not null);\n    create sequence ticket_numbers;\n    create function add_note(text) returns integer language sql as 'insert into notes (body) values ($1) returning id';\n  ","result":[{"command":"CREATE","rowCount":null,"columns":[],"rows":[]},{"command":"CREATE","rowCount":null,"columns":[],"rows":[]},{"command":"CREATE","rowCount":null,"columns":[],"rows":[]}]}
+      {"sql":"\n    create table notes (id integer generated always as identity primary key, body text not null);\n    create sequence ticket_numbers;\n    create function add_note(text) returns integer language sql as 'insert into notes (body) values ($1) returning id';\n    create schema secrets;\n    create table secrets.session (token text);\n    insert into secrets.session values ('secret-token');\n    create table hidden (x integer);\n    create table locked (x integer);\n    alter table locked enable row level security;\n    insert into locked values (1);\n    create table numbers (big bigint, price numeric(10, 2), small integer);\n    insert into numbers values (9007199254740993, 12.50, 7);\n  ","result":[{"command":"CREATE","rowCount":null,"columns":[],"rows":[]},{"command":"CREATE","rowCount":null,"columns":[],"rows":[]},{"command":"CREATE","rowCount":null,"columns":[],"rows":[]},{"command":"CREATE","rowCount":null,"columns":[],"rows":[]},{"command":"CREATE","rowCount":null,"columns":[],"rows":[]},{"command":"INSERT","rowCount":1,"columns":[],"rows":[]},{"command":"CREATE","rowCount":null,"columns":[],"rows":[]},{"command":"CREATE","rowCount":null,"columns":[],"rows":[]},{"command":"ALTER","rowCount":null,"columns":[],"rows":[]},{"command":"INSERT","rowCount":1,"columns":[],"rows":[]},{"command":"CREATE","rowCount":null,"columns":[],"rows":[]},{"command":"INSERT","rowCount":1,"columns":[],"rows":[]}]},
+      {"sql":"select p.prosrc as source, p.prosecdef as definer,\n      (o.rolsuper or o.rolcanlogin or pg_has_role(p.proowner, current_user, 'MEMBER')) as strong,\n      exists (select from unnest($1::text[]) as t(name) join pg_class c on c.oid = to_regclass(t.name)\n        where has_schema_privilege(p.proowner, c.relnamespace, 'USAGE') and has_any_column_privilege(p.proowner, c.oid, 'SELECT')) as reads_auth\n      from pg_proc p join pg_roles o on o.oid = p.proowner where p.oid = to_regprocedure($2)","params":["{\"\\\"secrets\\\".\\\"session\\\"\"}","query.run_read_only(text, integer)"],"result":{"command":"SELECT","rowCount":0,"columns":[["source",25],["definer",16],["strong",16],["reads_auth",16]],"rows":[]}},
+      {"sql":"select left(current_database(), 57) || '_query' as name, exists (select from pg_roles where rolname = left(current_database(), 57) || '_query') as exists","result":{"command":"SELECT","rowCount":1,"columns":[["name",25],["exists",16]],"rows":[["{{database:1}}_query","f"]]}},
+      {"sql":"select n.nspname as schema, c.relname as name from pg_class c join pg_namespace n on n.oid = c.relnamespace, aclexplode(c.relacl) a\n      where a.grantee = (select oid from pg_roles where rolname = left(current_database(), 57) || '_query') and a.privilege_type = 'SELECT'","result":{"command":"SELECT","rowCount":0,"columns":[["schema",19],["name",19]],"rows":[]}},
+      {"sql":"select n.nspname as schema from pg_namespace n, aclexplode(n.nspacl) a\n      where a.grantee = (select oid from pg_roles where rolname = left(current_database(), 57) || '_query') and a.privilege_type = 'USAGE'","result":{"command":"SELECT","rowCount":0,"columns":[["schema",19]],"rows":[]}},
+      {"sql":"select p.prosrc as source, p.prosecdef as definer, pg_get_userbyid(p.proowner) as owner,\n      (p.proacl is null or exists (select from aclexplode(p.proacl) a where a.grantee = 0 and a.privilege_type = 'EXECUTE')) as executable\n      from pg_proc p where p.oid = to_regprocedure($1)","params":["query.run_read_only(text, integer)"],"result":{"command":"SELECT","rowCount":0,"columns":[["source",25],["definer",16],["owner",19],["executable",16]],"rows":[]}},
+      {"sql":"select n.nspname as schema, c.relname as name from unnest($1::text[]) as t(name)\n      join pg_class c on c.oid = to_regclass(t.name) join pg_namespace n on n.oid = c.relnamespace","params":["{\"\\\"notes\\\"\",\"\\\"locked\\\"\",\"\\\"numbers\\\"\"}"],"result":{"command":"SELECT","rowCount":3,"columns":[["schema",19],["name",19]],"rows":[
+        ["public","notes"],
+        ["public","locked"],
+        ["public","numbers"]
+      ]}},
+      {"sql":"select n.nspname as schema, c.relname as name from unnest($1::text[]) as t(name)\n      join pg_class c on c.oid = to_regclass(t.name) join pg_namespace n on n.oid = c.relnamespace","params":["{\"\\\"secrets\\\".\\\"session\\\"\"}"],"result":{"command":"SELECT","rowCount":1,"columns":[["schema",19],["name",19]],"rows":[["secrets","session"]]}},
+      {"sql":"create schema if not exists query;\n\ndo $$\ndeclare\n  query_role text := left(current_database(), 57) || '_query';\nbegin\n  if not exists (select from pg_roles where rolname = query_role) then execute format('create role %I nologin', query_role); end if;\n  execute format('grant %I to current_user', query_role);\n  if (select rolsuper or (rolbypassrls and current_setting('server_version_num')::int >= 160000) from pg_roles where rolname = current_user) then execute format('alter role %I bypassrls', query_role); end if;\n  execute format('grant usage on schema %I to %I', 'public', query_role);\n  execute format('grant select on table %I.%I to %I', 'public', 'notes', query_role);\n  execute format('grant select on table %I.%I to %I', 'public', 'locked', query_role);\n  execute format('grant select on table %I.%I to %I', 'public', 'numbers', query_role);\nend $$;\n\ncreate or replace function query.run_read_only(statement text, row_limit integer) returns setof json language plpgsql security definer as $f$\ndeclare\n  rows refcursor;\n  row json;\nbegin\n  open rows no scroll for execute 'select (select json_object_agg(e.key, case when json_typeof(e.value) = ''number'' and e.value::text !~ ''^-?[0-9]{1,15}$'' then to_json(e.value::text) else e.value end order by e.n) from json_each(to_json(r)) with ordinality as e(key, value, n)) from (' || E'\\n' || statement || E'\\n' || ') r limit ' || (row_limit + 1);\n  loop\n    fetch rows into row;\n    exit when not found;\n    return next row;\n  end loop;\n  close rows;\nend\n$f$;\n\ndo $$\ndeclare\n  query_role text := left(current_database(), 57) || '_query';\nbegin\n  execute format('grant create on schema query to %I', query_role);\n  execute format('alter function query.run_read_only(text, integer) owner to %I', query_role);\n  execute format('revoke create on schema query from %I', query_role);\nend $$;\n\nrevoke execute on function query.run_read_only(text, integer) from public;","result":[{"command":"CREATE","rowCount":null,"columns":[],"rows":[]},{"command":"DO","rowCount":null,"columns":[],"rows":[]},{"command":"CREATE","rowCount":null,"columns":[],"rows":[]},{"command":"DO","rowCount":null,"columns":[],"rows":[]},{"command":"REVOKE","rowCount":null,"columns":[],"rows":[]}]},
+      {"sql":"do $$ begin execute format('drop owned by %I', left(current_database(), 57) || '_query'); execute format('drop role %I', left(current_database(), 57) || '_query'); end $$","result":{"command":"DO","rowCount":null,"columns":[],"rows":[]}}
     ]
   },
   "runReadOnlyQuery > returns columns and rows, capped at the row limit": {
@@ -10,23 +26,23 @@
       {"sql":"insert into notes (body) values ('first'), ('second'), ('third')","result":{"command":"INSERT","rowCount":3,"columns":[],"rows":[]}},
       {"sql":"begin transaction read only","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select set_config('statement_timeout', $1, true)","params":["5000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["5s"]]}},
-      {"sql":"with result as (\nselect id, body from notes order by id\n) select * from result limit $1","params":["201"],"result":{"command":"SELECT","rowCount":3,"columns":[["id",23],["body",25]],"rows":[
-        ["1","first"],
-        ["2","second"],
-        ["3","third"]
+      {"sql":"select row::text as row from query.run_read_only($1, $2) as row","params":["select id, body from notes order by id","200"],"result":{"command":"SELECT","rowCount":3,"columns":[["row",25]],"rows":[
+        ["{ \"id\" : 1, \"body\" : \"first\" }"],
+        ["{ \"id\" : 2, \"body\" : \"second\" }"],
+        ["{ \"id\" : 3, \"body\" : \"third\" }"]
       ]}},
       {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"begin transaction read only","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select set_config('statement_timeout', $1, true)","params":["5000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["5s"]]}},
-      {"sql":"with result as (\nselect body from notes order by id\n) select * from result limit $1","params":["3"],"result":{"command":"SELECT","rowCount":3,"columns":[["body",25]],"rows":[
-        ["first"],
-        ["second"],
-        ["third"]
+      {"sql":"select row::text as row from query.run_read_only($1, $2) as row","params":["select body from notes order by id","2"],"result":{"command":"SELECT","rowCount":3,"columns":[["row",25]],"rows":[
+        ["{ \"body\" : \"first\" }"],
+        ["{ \"body\" : \"second\" }"],
+        ["{ \"body\" : \"third\" }"]
       ]}},
       {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"begin transaction read only","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select set_config('statement_timeout', $1, true)","params":["5000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["5s"]]}},
-      {"sql":"with result as (\nwith b as (select body from notes) select count(*)::int as n from b -- a comment\n) select * from result limit $1","params":["201"],"result":{"command":"SELECT","rowCount":1,"columns":[["n",23]],"rows":[["3"]]}},
+      {"sql":"select row::text as row from query.run_read_only($1, $2) as row","params":["with b as (select body from notes) select count(*)::int as n from b -- a comment","200"],"result":{"command":"SELECT","rowCount":1,"columns":[["row",25]],"rows":[["{ \"n\" : 3 }"]]}},
       {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}}
     ]
   },
@@ -36,7 +52,7 @@
       {"sql":"insert into notes (body) values ('first'), ('second'), ('third')","result":{"command":"INSERT","rowCount":3,"columns":[],"rows":[]}},
       {"sql":"begin transaction read only","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select set_config('statement_timeout', $1, true)","params":["5000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["5s"]]}},
-      {"sql":"with result as (\ndelete from notes\n) select * from result limit $1","params":["201"],"error":{"message":"WITH query \"result\" does not have a RETURNING clause","severity":"ERROR","code":"0A000","position":"52"}},
+      {"sql":"select row::text as row from query.run_read_only($1, $2) as row","params":["delete from notes","200"],"error":{"message":"syntax error at or near \"from\"","severity":"ERROR","code":"42601","internalPosition":"257","internalQuery":"select (select json_object_agg(e.key, case when json_typeof(e.value) = 'number' and e.value::text !~ '^-?[0-9]{1,15}$' then to_json(e.value::text) else e.value end order by e.n) from json_each(to_json(r)) with ordinality as e(key, value, n)) from (\ndelete from notes\n) r limit 201","where":"PL/pgSQL function query.run_read_only(text,integer) line 6 at OPEN"}},
       {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select count(*)::int as n from notes","result":{"command":"SELECT","rowCount":1,"columns":[["n",23]],"rows":[["3"]]}},
       {"sql":"select last_value::int as n from ticket_numbers","result":{"command":"SELECT","rowCount":1,"columns":[["n",23]],"rows":[["1"]]}}
@@ -48,7 +64,7 @@
       {"sql":"insert into notes (body) values ('first'), ('second'), ('third')","result":{"command":"INSERT","rowCount":3,"columns":[],"rows":[]}},
       {"sql":"begin transaction read only","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select set_config('statement_timeout', $1, true)","params":["5000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["5s"]]}},
-      {"sql":"with result as (\ncommit; delete from notes\n) select * from result limit $1","params":["201"],"error":{"message":"syntax error at or near \"commit\"","severity":"ERROR","code":"42601","position":"18"}},
+      {"sql":"select row::text as row from query.run_read_only($1, $2) as row","params":["commit; delete from notes","200"],"error":{"message":"syntax error at or near \";\"","severity":"ERROR","code":"42601","internalPosition":"256","internalQuery":"select (select json_object_agg(e.key, case when json_typeof(e.value) = 'number' and e.value::text !~ '^-?[0-9]{1,15}$' then to_json(e.value::text) else e.value end order by e.n) from json_each(to_json(r)) with ordinality as e(key, value, n)) from (\ncommit; delete from notes\n) r limit 201","where":"PL/pgSQL function query.run_read_only(text,integer) line 6 at OPEN"}},
       {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select count(*)::int as n from notes","result":{"command":"SELECT","rowCount":1,"columns":[["n",23]],"rows":[["3"]]}},
       {"sql":"select last_value::int as n from ticket_numbers","result":{"command":"SELECT","rowCount":1,"columns":[["n",23]],"rows":[["1"]]}}
@@ -60,7 +76,7 @@
       {"sql":"insert into notes (body) values ('first'), ('second'), ('third')","result":{"command":"INSERT","rowCount":3,"columns":[],"rows":[]}},
       {"sql":"begin transaction read only","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select set_config('statement_timeout', $1, true)","params":["5000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["5s"]]}},
-      {"sql":"with result as (\nselect 1; delete from notes\n) select * from result limit $1","params":["201"],"error":{"message":"syntax error at or near \";\"","severity":"ERROR","code":"42601","position":"26"}},
+      {"sql":"select row::text as row from query.run_read_only($1, $2) as row","params":["select 1; delete from notes","200"],"error":{"message":"syntax error at or near \";\"","severity":"ERROR","code":"42601","internalPosition":"258","internalQuery":"select (select json_object_agg(e.key, case when json_typeof(e.value) = 'number' and e.value::text !~ '^-?[0-9]{1,15}$' then to_json(e.value::text) else e.value end order by e.n) from json_each(to_json(r)) with ordinality as e(key, value, n)) from (\nselect 1; delete from notes\n) r limit 201","where":"PL/pgSQL function query.run_read_only(text,integer) line 6 at OPEN"}},
       {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select count(*)::int as n from notes","result":{"command":"SELECT","rowCount":1,"columns":[["n",23]],"rows":[["3"]]}},
       {"sql":"select last_value::int as n from ticket_numbers","result":{"command":"SELECT","rowCount":1,"columns":[["n",23]],"rows":[["1"]]}}
@@ -72,7 +88,7 @@
       {"sql":"insert into notes (body) values ('first'), ('second'), ('third')","result":{"command":"INSERT","rowCount":3,"columns":[],"rows":[]}},
       {"sql":"begin transaction read only","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select set_config('statement_timeout', $1, true)","params":["5000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["5s"]]}},
-      {"sql":"with result as (\nselect 1) select 1; delete from notes; with result as (select 1\n) select * from result limit $1","params":["201"],"error":{"message":"cannot insert multiple commands into a prepared statement","severity":"ERROR","code":"42601"}},
+      {"sql":"select row::text as row from query.run_read_only($1, $2) as row","params":["select 1) select 1; delete from notes; with result as (select 1","200"],"error":{"message":"syntax error at or near \"select\"","severity":"ERROR","code":"42601","internalPosition":"260","internalQuery":"select (select json_object_agg(e.key, case when json_typeof(e.value) = 'number' and e.value::text !~ '^-?[0-9]{1,15}$' then to_json(e.value::text) else e.value end order by e.n) from json_each(to_json(r)) with ordinality as e(key, value, n)) from (\nselect 1) select 1; delete from notes; with result as (select 1\n) r limit 201","where":"PL/pgSQL function query.run_read_only(text,integer) line 6 at OPEN"}},
       {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select count(*)::int as n from notes","result":{"command":"SELECT","rowCount":1,"columns":[["n",23]],"rows":[["3"]]}},
       {"sql":"select last_value::int as n from ticket_numbers","result":{"command":"SELECT","rowCount":1,"columns":[["n",23]],"rows":[["1"]]}}
@@ -84,7 +100,7 @@
       {"sql":"insert into notes (body) values ('first'), ('second'), ('third')","result":{"command":"INSERT","rowCount":3,"columns":[],"rows":[]}},
       {"sql":"begin transaction read only","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select set_config('statement_timeout', $1, true)","params":["5000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["5s"]]}},
-      {"sql":"with result as (\nset transaction read write\n) select * from result limit $1","params":["201"],"error":{"message":"syntax error at or near \"set\"","severity":"ERROR","code":"42601","position":"18"}},
+      {"sql":"select row::text as row from query.run_read_only($1, $2) as row","params":["set transaction read write","200"],"error":{"message":"syntax error at or near \"read\"","severity":"ERROR","code":"42601","internalPosition":"266","internalQuery":"select (select json_object_agg(e.key, case when json_typeof(e.value) = 'number' and e.value::text !~ '^-?[0-9]{1,15}$' then to_json(e.value::text) else e.value end order by e.n) from json_each(to_json(r)) with ordinality as e(key, value, n)) from (\nset transaction read write\n) r limit 201","where":"PL/pgSQL function query.run_read_only(text,integer) line 6 at OPEN"}},
       {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select count(*)::int as n from notes","result":{"command":"SELECT","rowCount":1,"columns":[["n",23]],"rows":[["3"]]}},
       {"sql":"select last_value::int as n from ticket_numbers","result":{"command":"SELECT","rowCount":1,"columns":[["n",23]],"rows":[["1"]]}}
@@ -96,7 +112,7 @@
       {"sql":"insert into notes (body) values ('first'), ('second'), ('third')","result":{"command":"INSERT","rowCount":3,"columns":[],"rows":[]}},
       {"sql":"begin transaction read only","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select set_config('statement_timeout', $1, true)","params":["5000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["5s"]]}},
-      {"sql":"with result as (\nselect set_config('transaction_read_only', 'off', true)\n) select * from result limit $1","params":["201"],"error":{"message":"transaction read-write mode must be set before any query","severity":"ERROR","code":"25001"}},
+      {"sql":"select row::text as row from query.run_read_only($1, $2) as row","params":["select set_config('transaction_read_only', 'off', true)","200"],"error":{"message":"transaction read-write mode must be set before any query","severity":"ERROR","code":"25001","where":"PL/pgSQL function query.run_read_only(text,integer) line 8 at FETCH"}},
       {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select count(*)::int as n from notes","result":{"command":"SELECT","rowCount":1,"columns":[["n",23]],"rows":[["3"]]}},
       {"sql":"select last_value::int as n from ticket_numbers","result":{"command":"SELECT","rowCount":1,"columns":[["n",23]],"rows":[["1"]]}}
@@ -108,7 +124,7 @@
       {"sql":"insert into notes (body) values ('first'), ('second'), ('third')","result":{"command":"INSERT","rowCount":3,"columns":[],"rows":[]}},
       {"sql":"begin transaction read only","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select set_config('statement_timeout', $1, true)","params":["5000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["5s"]]}},
-      {"sql":"with result as (\nwith gone as (delete from notes returning *) select * from gone\n) select * from result limit $1","params":["201"],"error":{"message":"WITH clause containing a data-modifying statement must be at the top level","severity":"ERROR","code":"0A000","position":"23"}},
+      {"sql":"select row::text as row from query.run_read_only($1, $2) as row","params":["with gone as (delete from notes returning *) select * from gone","200"],"error":{"message":"WITH clause containing a data-modifying statement must be at the top level","severity":"ERROR","code":"0A000","internalPosition":"255","internalQuery":"select (select json_object_agg(e.key, case when json_typeof(e.value) = 'number' and e.value::text !~ '^-?[0-9]{1,15}$' then to_json(e.value::text) else e.value end order by e.n) from json_each(to_json(r)) with ordinality as e(key, value, n)) from (\nwith gone as (delete from notes returning *) select * from gone\n) r limit 201","where":"PL/pgSQL function query.run_read_only(text,integer) line 6 at OPEN"}},
       {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select count(*)::int as n from notes","result":{"command":"SELECT","rowCount":1,"columns":[["n",23]],"rows":[["3"]]}},
       {"sql":"select last_value::int as n from ticket_numbers","result":{"command":"SELECT","rowCount":1,"columns":[["n",23]],"rows":[["1"]]}}
@@ -120,7 +136,7 @@
       {"sql":"insert into notes (body) values ('first'), ('second'), ('third')","result":{"command":"INSERT","rowCount":3,"columns":[],"rows":[]}},
       {"sql":"begin transaction read only","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select set_config('statement_timeout', $1, true)","params":["5000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["5s"]]}},
-      {"sql":"with result as (\nselect 1), gone as (delete from notes returning 1) select * from gone, (select 1\n) select * from result limit $1","params":["201"],"error":{"message":"syntax error at or near \"select\"","severity":"ERROR","code":"42601","position":"101"}},
+      {"sql":"select row::text as row from query.run_read_only($1, $2) as row","params":["select 1), gone as (delete from notes returning 1) select * from gone, (select 1","200"],"error":{"message":"syntax error at or near \"(\"","severity":"ERROR","code":"42601","internalPosition":"269","internalQuery":"select (select json_object_agg(e.key, case when json_typeof(e.value) = 'number' and e.value::text !~ '^-?[0-9]{1,15}$' then to_json(e.value::text) else e.value end order by e.n) from json_each(to_json(r)) with ordinality as e(key, value, n)) from (\nselect 1), gone as (delete from notes returning 1) select * from gone, (select 1\n) r limit 201","where":"PL/pgSQL function query.run_read_only(text,integer) line 6 at OPEN"}},
       {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select count(*)::int as n from notes","result":{"command":"SELECT","rowCount":1,"columns":[["n",23]],"rows":[["3"]]}},
       {"sql":"select last_value::int as n from ticket_numbers","result":{"command":"SELECT","rowCount":1,"columns":[["n",23]],"rows":[["1"]]}}
@@ -132,7 +148,7 @@
       {"sql":"insert into notes (body) values ('first'), ('second'), ('third')","result":{"command":"INSERT","rowCount":3,"columns":[],"rows":[]}},
       {"sql":"begin transaction read only","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select set_config('statement_timeout', $1, true)","params":["5000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["5s"]]}},
-      {"sql":"with result as (\nselect nextval('ticket_numbers')\n) select * from result limit $1","params":["201"],"error":{"message":"cannot execute nextval() in a read-only transaction","severity":"ERROR","code":"25006"}},
+      {"sql":"select row::text as row from query.run_read_only($1, $2) as row","params":["select nextval('ticket_numbers')","200"],"error":{"message":"permission denied for sequence ticket_numbers","severity":"ERROR","code":"42501","where":"PL/pgSQL function query.run_read_only(text,integer) line 8 at FETCH"}},
       {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select count(*)::int as n from notes","result":{"command":"SELECT","rowCount":1,"columns":[["n",23]],"rows":[["3"]]}},
       {"sql":"select last_value::int as n from ticket_numbers","result":{"command":"SELECT","rowCount":1,"columns":[["n",23]],"rows":[["1"]]}}
@@ -144,7 +160,7 @@
       {"sql":"insert into notes (body) values ('first'), ('second'), ('third')","result":{"command":"INSERT","rowCount":3,"columns":[],"rows":[]}},
       {"sql":"begin transaction read only","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select set_config('statement_timeout', $1, true)","params":["5000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["5s"]]}},
-      {"sql":"with result as (\nselect setval('ticket_numbers', 100)\n) select * from result limit $1","params":["201"],"error":{"message":"cannot execute setval() in a read-only transaction","severity":"ERROR","code":"25006"}},
+      {"sql":"select row::text as row from query.run_read_only($1, $2) as row","params":["select setval('ticket_numbers', 100)","200"],"error":{"message":"permission denied for sequence ticket_numbers","severity":"ERROR","code":"42501","where":"PL/pgSQL function query.run_read_only(text,integer) line 8 at FETCH"}},
       {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select count(*)::int as n from notes","result":{"command":"SELECT","rowCount":1,"columns":[["n",23]],"rows":[["3"]]}},
       {"sql":"select last_value::int as n from ticket_numbers","result":{"command":"SELECT","rowCount":1,"columns":[["n",23]],"rows":[["1"]]}}
@@ -156,7 +172,7 @@
       {"sql":"insert into notes (body) values ('first'), ('second'), ('third')","result":{"command":"INSERT","rowCount":3,"columns":[],"rows":[]}},
       {"sql":"begin transaction read only","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select set_config('statement_timeout', $1, true)","params":["5000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["5s"]]}},
-      {"sql":"with result as (\ndo $$ begin delete from notes; end $$\n) select * from result limit $1","params":["201"],"error":{"message":"syntax error at or near \"do\"","severity":"ERROR","code":"42601","position":"18"}},
+      {"sql":"select row::text as row from query.run_read_only($1, $2) as row","params":["do $$ begin delete from notes; end $$","200"],"error":{"message":"syntax error at or near \"do\"","severity":"ERROR","code":"42601","internalPosition":"250","internalQuery":"select (select json_object_agg(e.key, case when json_typeof(e.value) = 'number' and e.value::text !~ '^-?[0-9]{1,15}$' then to_json(e.value::text) else e.value end order by e.n) from json_each(to_json(r)) with ordinality as e(key, value, n)) from (\ndo $$ begin delete from notes; end $$\n) r limit 201","where":"PL/pgSQL function query.run_read_only(text,integer) line 6 at OPEN"}},
       {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select count(*)::int as n from notes","result":{"command":"SELECT","rowCount":1,"columns":[["n",23]],"rows":[["3"]]}},
       {"sql":"select last_value::int as n from ticket_numbers","result":{"command":"SELECT","rowCount":1,"columns":[["n",23]],"rows":[["1"]]}}
@@ -168,7 +184,7 @@
       {"sql":"insert into notes (body) values ('first'), ('second'), ('third')","result":{"command":"INSERT","rowCount":3,"columns":[],"rows":[]}},
       {"sql":"begin transaction read only","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select set_config('statement_timeout', $1, true)","params":["5000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["5s"]]}},
-      {"sql":"with result as (\nselect add_note('sneaky')\n) select * from result limit $1","params":["201"],"error":{"message":"cannot execute INSERT in a read-only transaction","severity":"ERROR","code":"25006","where":"SQL function \"add_note\" statement 1"}},
+      {"sql":"select row::text as row from query.run_read_only($1, $2) as row","params":["select add_note('sneaky')","200"],"error":{"message":"cannot execute INSERT in a read-only transaction","severity":"ERROR","code":"25006","where":"SQL function \"add_note\" statement 1\nPL/pgSQL function query.run_read_only(text,integer) line 8 at FETCH"}},
       {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select count(*)::int as n from notes","result":{"command":"SELECT","rowCount":1,"columns":[["n",23]],"rows":[["3"]]}},
       {"sql":"select last_value::int as n from ticket_numbers","result":{"command":"SELECT","rowCount":1,"columns":[["n",23]],"rows":[["1"]]}}
@@ -180,10 +196,80 @@
       {"sql":"insert into notes (body) values ('first'), ('second'), ('third')","result":{"command":"INSERT","rowCount":3,"columns":[],"rows":[]}},
       {"sql":"begin transaction read only","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select set_config('statement_timeout', $1, true)","params":["5000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["5s"]]}},
-      {"sql":"with result as (\nrollback; delete from notes\n) select * from result limit $1","params":["201"],"error":{"message":"syntax error at or near \"rollback\"","severity":"ERROR","code":"42601","position":"18"}},
+      {"sql":"select row::text as row from query.run_read_only($1, $2) as row","params":["rollback; delete from notes","200"],"error":{"message":"syntax error at or near \";\"","severity":"ERROR","code":"42601","internalPosition":"258","internalQuery":"select (select json_object_agg(e.key, case when json_typeof(e.value) = 'number' and e.value::text !~ '^-?[0-9]{1,15}$' then to_json(e.value::text) else e.value end order by e.n) from json_each(to_json(r)) with ordinality as e(key, value, n)) from (\nrollback; delete from notes\n) r limit 201","where":"PL/pgSQL function query.run_read_only(text,integer) line 6 at OPEN"}},
       {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select count(*)::int as n from notes","result":{"command":"SELECT","rowCount":1,"columns":[["n",23]],"rows":[["3"]]}},
       {"sql":"select last_value::int as n from ticket_numbers","result":{"command":"SELECT","rowCount":1,"columns":[["n",23]],"rows":[["1"]]}}
+    ]
+  },
+  "runReadOnlyQuery > refuses an auth table": {
+    "(hooks)#0": [
+      {"sql":"truncate notes restart identity","result":{"command":"TRUNCATE","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"insert into notes (body) values ('first'), ('second'), ('third')","result":{"command":"INSERT","rowCount":3,"columns":[],"rows":[]}},
+      {"sql":"begin transaction read only","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config('statement_timeout', $1, true)","params":["5000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["5s"]]}},
+      {"sql":"select row::text as row from query.run_read_only($1, $2) as row","params":["select * from secrets.session","200"],"error":{"message":"permission denied for schema secrets","severity":"ERROR","code":"42501","internalPosition":"264","internalQuery":"select (select json_object_agg(e.key, case when json_typeof(e.value) = 'number' and e.value::text !~ '^-?[0-9]{1,15}$' then to_json(e.value::text) else e.value end order by e.n) from json_each(to_json(r)) with ordinality as e(key, value, n)) from (\nselect * from secrets.session\n) r limit 201","where":"PL/pgSQL function query.run_read_only(text,integer) line 6 at OPEN"}},
+      {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}}
+    ]
+  },
+  "runReadOnlyQuery > refuses switching the role back inside the statement": {
+    "(hooks)#0": [
+      {"sql":"truncate notes restart identity","result":{"command":"TRUNCATE","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"insert into notes (body) values ('first'), ('second'), ('third')","result":{"command":"INSERT","rowCount":3,"columns":[],"rows":[]}},
+      {"sql":"begin transaction read only","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config('statement_timeout', $1, true)","params":["5000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["5s"]]}},
+      {"sql":"select row::text as row from query.run_read_only($1, $2) as row","params":["select set_config('role', 'none', true), query_to_xml('select * from secrets.session', true, false, '')","200"],"error":{"message":"cannot set parameter \"role\" within security-definer function","severity":"ERROR","code":"42501","where":"PL/pgSQL function query.run_read_only(text,integer) line 8 at FETCH"}},
+      {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}}
+    ]
+  },
+  "runReadOnlyQuery > refuses switching the session authorization": {
+    "(hooks)#0": [
+      {"sql":"truncate notes restart identity","result":{"command":"TRUNCATE","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"insert into notes (body) values ('first'), ('second'), ('third')","result":{"command":"INSERT","rowCount":3,"columns":[],"rows":[]}},
+      {"sql":"begin transaction read only","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config('statement_timeout', $1, true)","params":["5000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["5s"]]}},
+      {"sql":"select row::text as row from query.run_read_only($1, $2) as row","params":["select set_config('session_authorization', current_user, true)","200"],"error":{"message":"cannot set parameter \"session_authorization\" within security-definer function","severity":"ERROR","code":"42501","where":"PL/pgSQL function query.run_read_only(text,integer) line 8 at FETCH"}},
+      {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}}
+    ]
+  },
+  "runReadOnlyQuery > refuses a table without a resource": {
+    "(hooks)#0": [
+      {"sql":"truncate notes restart identity","result":{"command":"TRUNCATE","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"insert into notes (body) values ('first'), ('second'), ('third')","result":{"command":"INSERT","rowCount":3,"columns":[],"rows":[]}},
+      {"sql":"begin transaction read only","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config('statement_timeout', $1, true)","params":["5000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["5s"]]}},
+      {"sql":"select row::text as row from query.run_read_only($1, $2) as row","params":["select * from hidden","200"],"error":{"message":"permission denied for table hidden","severity":"ERROR","code":"42501","where":"SQL statement \"select (select json_object_agg(e.key, case when json_typeof(e.value) = 'number' and e.value::text !~ '^-?[0-9]{1,15}$' then to_json(e.value::text) else e.value end order by e.n) from json_each(to_json(r)) with ordinality as e(key, value, n)) from (\nselect * from hidden\n) r limit 201\"\nPL/pgSQL function query.run_read_only(text,integer) line 6 at OPEN"}},
+      {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}}
+    ]
+  },
+  "runReadOnlyQuery > refuses a second SELECT after closing the wrapper": {
+    "(hooks)#0": [
+      {"sql":"truncate notes restart identity","result":{"command":"TRUNCATE","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"insert into notes (body) values ('first'), ('second'), ('third')","result":{"command":"INSERT","rowCount":3,"columns":[],"rows":[]}},
+      {"sql":"begin transaction read only","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config('statement_timeout', $1, true)","params":["5000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["5s"]]}},
+      {"sql":"select row::text as row from query.run_read_only($1, $2) as row","params":["select 1) r; select body from notes, (select 1","200"],"error":{"message":"cannot open multi-query plan as cursor","severity":"ERROR","code":"42P11","where":"PL/pgSQL function query.run_read_only(text,integer) line 6 at OPEN"}},
+      {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}}
+    ]
+  },
+  "runReadOnlyQuery > keeps large and decimal numbers exact, as text": {
+    "(hooks)#0": [
+      {"sql":"truncate notes restart identity","result":{"command":"TRUNCATE","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"insert into notes (body) values ('first'), ('second'), ('third')","result":{"command":"INSERT","rowCount":3,"columns":[],"rows":[]}},
+      {"sql":"begin transaction read only","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config('statement_timeout', $1, true)","params":["5000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["5s"]]}},
+      {"sql":"select row::text as row from query.run_read_only($1, $2) as row","params":["select big, price, small from numbers","200"],"result":{"command":"SELECT","rowCount":1,"columns":[["row",25]],"rows":[["{ \"big\" : \"9007199254740993\", \"price\" : \"12.50\", \"small\" : 7 }"]]}},
+      {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}}
+    ]
+  },
+  "runReadOnlyQuery > reads a table with row-level security as its owner does": {
+    "(hooks)#0": [
+      {"sql":"truncate notes restart identity","result":{"command":"TRUNCATE","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"insert into notes (body) values ('first'), ('second'), ('third')","result":{"command":"INSERT","rowCount":3,"columns":[],"rows":[]}},
+      {"sql":"begin transaction read only","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select set_config('statement_timeout', $1, true)","params":["5000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["5s"]]}},
+      {"sql":"select row::text as row from query.run_read_only($1, $2) as row","params":["select x from locked","200"],"result":{"command":"SELECT","rowCount":1,"columns":[["row",25]],"rows":[["{ \"x\" : 1 }"]]}},
+      {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}}
     ]
   },
   "runReadOnlyQuery > rolls back session settings it changes": {
@@ -192,7 +278,7 @@
       {"sql":"insert into notes (body) values ('first'), ('second'), ('third')","result":{"command":"INSERT","rowCount":3,"columns":[],"rows":[]}},
       {"sql":"begin transaction read only","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select set_config('statement_timeout', $1, true)","params":["5000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["5s"]]}},
-      {"sql":"with result as (\nselect set_config('search_path', 'nowhere', false)\n) select * from result limit $1","params":["201"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["nowhere"]]}},
+      {"sql":"select row::text as row from query.run_read_only($1, $2) as row","params":["select set_config('search_path', 'nowhere', false)","200"],"result":{"command":"SELECT","rowCount":1,"columns":[["row",25]],"rows":[["{ \"set_config\" : \"nowhere\" }"]]}},
       {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select current_setting('search_path') as value","result":{"command":"SELECT","rowCount":1,"columns":[["value",25]],"rows":[["\"$user\", public"]]}}
     ]
@@ -203,7 +289,7 @@
       {"sql":"insert into notes (body) values ('first'), ('second'), ('third')","result":{"command":"INSERT","rowCount":3,"columns":[],"rows":[]}},
       {"sql":"begin transaction read only","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select set_config('statement_timeout', $1, true)","params":["1234"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1234ms"]]}},
-      {"sql":"with result as (\nselect current_setting('statement_timeout') as timeout\n) select * from result limit $1","params":["201"],"result":{"command":"SELECT","rowCount":1,"columns":[["timeout",25]],"rows":[["1234ms"]]}},
+      {"sql":"select row::text as row from query.run_read_only($1, $2) as row","params":["select current_setting('statement_timeout') as timeout","200"],"result":{"command":"SELECT","rowCount":1,"columns":[["row",25]],"rows":[["{ \"timeout\" : \"1234ms\" }"]]}},
       {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}}
     ]
   },
@@ -231,6 +317,59 @@
       {"sql":"with result as (\ninsert into notes (body) values ('x') returning id), x as (select 1/0) select * from x, (select 1\n) select * from result limit $1","params":["201"],"error":{"message":"syntax error at or near \"select\"","severity":"ERROR","code":"42601","position":"118"}},
       {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select count(*)::int as n from notes","result":{"command":"SELECT","rowCount":1,"columns":[["n",23]],"rows":[["3"]]}}
+    ]
+  },
+  "the query runner > is current once its migration applied, until a resource is added": {
+    "(hooks)#0": [
+      {"sql":"truncate notes restart identity","result":{"command":"TRUNCATE","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"insert into notes (body) values ('first'), ('second'), ('third')","result":{"command":"INSERT","rowCount":3,"columns":[],"rows":[]}},
+      {"sql":"select left(current_database(), 57) || '_query' as name, exists (select from pg_roles where rolname = left(current_database(), 57) || '_query') as exists","result":{"command":"SELECT","rowCount":1,"columns":[["name",25],["exists",16]],"rows":[["{{database:1}}_query","t"]]}},
+      {"sql":"select n.nspname as schema, c.relname as name from pg_class c join pg_namespace n on n.oid = c.relnamespace, aclexplode(c.relacl) a\n      where a.grantee = (select oid from pg_roles where rolname = left(current_database(), 57) || '_query') and a.privilege_type = 'SELECT'","result":{"command":"SELECT","rowCount":3,"columns":[["schema",19],["name",19]],"rows":[
+        ["public","locked"],
+        ["public","numbers"],
+        ["public","notes"]
+      ]}},
+      {"sql":"select n.nspname as schema from pg_namespace n, aclexplode(n.nspacl) a\n      where a.grantee = (select oid from pg_roles where rolname = left(current_database(), 57) || '_query') and a.privilege_type = 'USAGE'","result":{"command":"SELECT","rowCount":1,"columns":[["schema",19]],"rows":[["public"]]}},
+      {"repeated":0},
+      {"sql":"select n.nspname as schema, c.relname as name from unnest($1::text[]) as t(name)\n      join pg_class c on c.oid = to_regclass(t.name) join pg_namespace n on n.oid = c.relnamespace","params":["{\"\\\"notes\\\"\",\"\\\"locked\\\"\",\"\\\"numbers\\\"\"}"],"result":{"command":"SELECT","rowCount":3,"columns":[["schema",19],["name",19]],"rows":[
+        ["public","locked"],
+        ["public","numbers"],
+        ["public","notes"]
+      ]}},
+      {"sql":"select n.nspname as schema, c.relname as name from unnest($1::text[]) as t(name)\n      join pg_class c on c.oid = to_regclass(t.name) join pg_namespace n on n.oid = c.relnamespace","params":["{\"\\\"secrets\\\".\\\"session\\\"\"}"],"result":{"command":"SELECT","rowCount":1,"columns":[["schema",19],["name",19]],"rows":[["secrets","session"]]}},
+      {"sql":"create table later (id integer)","result":{"command":"CREATE","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select left(current_database(), 57) || '_query' as name, exists (select from pg_roles where rolname = left(current_database(), 57) || '_query') as exists","result":{"command":"SELECT","rowCount":1,"columns":[["name",25],["exists",16]],"rows":[["{{database:1}}_query","t"]]}},
+      {"sql":"select n.nspname as schema, c.relname as name from pg_class c join pg_namespace n on n.oid = c.relnamespace, aclexplode(c.relacl) a\n      where a.grantee = (select oid from pg_roles where rolname = left(current_database(), 57) || '_query') and a.privilege_type = 'SELECT'","result":{"command":"SELECT","rowCount":3,"columns":[["schema",19],["name",19]],"rows":[
+        ["public","locked"],
+        ["public","numbers"],
+        ["public","notes"]
+      ]}},
+      {"sql":"select n.nspname as schema from pg_namespace n, aclexplode(n.nspacl) a\n      where a.grantee = (select oid from pg_roles where rolname = left(current_database(), 57) || '_query') and a.privilege_type = 'USAGE'","result":{"command":"SELECT","rowCount":1,"columns":[["schema",19]],"rows":[["public"]]}},
+      {"repeated":0},
+      {"sql":"select n.nspname as schema, c.relname as name from unnest($1::text[]) as t(name)\n      join pg_class c on c.oid = to_regclass(t.name) join pg_namespace n on n.oid = c.relnamespace","params":["{\"\\\"notes\\\"\",\"\\\"locked\\\"\",\"\\\"numbers\\\"\",\"\\\"later\\\"\"}"],"result":{"command":"SELECT","rowCount":4,"columns":[["schema",19],["name",19]],"rows":[
+        ["public","locked"],
+        ["public","numbers"],
+        ["public","notes"],
+        ["public","later"]
+      ]}},
+      {"sql":"select n.nspname as schema, c.relname as name from unnest($1::text[]) as t(name)\n      join pg_class c on c.oid = to_regclass(t.name) join pg_namespace n on n.oid = c.relnamespace","params":["{\"\\\"secrets\\\".\\\"session\\\"\"}"],"result":{"command":"SELECT","rowCount":1,"columns":[["schema",19],["name",19]],"rows":[["secrets","session"]]}}
+    ]
+  },
+  "the query runner > refuses startup before its migration, and passes after it": {
+    "(hooks)#0": [
+      {"sql":"truncate notes restart identity","result":{"command":"TRUNCATE","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"insert into notes (body) values ('first'), ('second'), ('third')","result":{"command":"INSERT","rowCount":3,"columns":[],"rows":[]}},
+      {"sql":"select p.prosrc as source, p.prosecdef as definer,\n      (o.rolsuper or o.rolcanlogin or pg_has_role(p.proowner, current_user, 'MEMBER')) as strong,\n      exists (select from unnest($1::text[]) as t(name) join pg_class c on c.oid = to_regclass(t.name)\n        where has_schema_privilege(p.proowner, c.relnamespace, 'USAGE') and has_any_column_privilege(p.proowner, c.oid, 'SELECT')) as reads_auth\n      from pg_proc p join pg_roles o on o.oid = p.proowner where p.oid = to_regprocedure($2)","params":["{\"\\\"secrets\\\".\\\"session\\\"\"}","query.run_read_only(text, integer)"],"result":{"command":"SELECT","rowCount":1,"columns":[["source",25],["definer",16],["strong",16],["reads_auth",16]],"rows":[["\ndeclare\n  rows refcursor;\n  row json;\nbegin\n  open rows no scroll for execute 'select (select json_object_agg(e.key, case when json_typeof(e.value) = ''number'' and e.value::text !~ ''^-?[0-9]{1,15}$'' then to_json(e.value::text) else e.value end order by e.n) from json_each(to_json(r)) with ordinality as e(key, value, n)) from (' || E'\\n' || statement || E'\\n' || ') r limit ' || (row_limit + 1);\n  loop\n    fetch rows into row;\n    exit when not found;\n    return next row;\n  end loop;\n  close rows;\nend\n","t","f","f"]]}}
+    ]
+  },
+  "the query runner > refuses startup while the role can read an auth table": {
+    "(hooks)#0": [
+      {"sql":"truncate notes restart identity","result":{"command":"TRUNCATE","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"insert into notes (body) values ('first'), ('second'), ('third')","result":{"command":"INSERT","rowCount":3,"columns":[],"rows":[]}},
+      {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"do $$ begin execute format('grant usage on schema secrets to %I', left(current_database(), 57) || '_query'); execute format('grant select on secrets.session to %I', left(current_database(), 57) || '_query'); end $$","result":{"command":"DO","rowCount":null,"columns":[],"rows":[]}},
+      {"sql":"select p.prosrc as source, p.prosecdef as definer,\n      (o.rolsuper or o.rolcanlogin or pg_has_role(p.proowner, current_user, 'MEMBER')) as strong,\n      exists (select from unnest($1::text[]) as t(name) join pg_class c on c.oid = to_regclass(t.name)\n        where has_schema_privilege(p.proowner, c.relnamespace, 'USAGE') and has_any_column_privilege(p.proowner, c.oid, 'SELECT')) as reads_auth\n      from pg_proc p join pg_roles o on o.oid = p.proowner where p.oid = to_regprocedure($2)","params":["{\"\\\"secrets\\\".\\\"session\\\"\"}","query.run_read_only(text, integer)"],"result":{"command":"SELECT","rowCount":1,"columns":[["source",25],["definer",16],["strong",16],["reads_auth",16]],"rows":[["\ndeclare\n  rows refcursor;\n  row json;\nbegin\n  open rows no scroll for execute 'select (select json_object_agg(e.key, case when json_typeof(e.value) = ''number'' and e.value::text !~ ''^-?[0-9]{1,15}$'' then to_json(e.value::text) else e.value end order by e.n) from json_each(to_json(r)) with ordinality as e(key, value, n)) from (' || E'\\n' || statement || E'\\n' || ') r limit ' || (row_limit + 1);\n  loop\n    fetch rows into row;\n    exit when not found;\n    return next row;\n  end loop;\n  close rows;\nend\n","t","f","t"]]}},
+      {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}}
     ]
   }
 }

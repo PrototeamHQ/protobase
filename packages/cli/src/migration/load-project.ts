@@ -1,7 +1,7 @@
 import { existsSync } from 'node:fs'
 import path from 'node:path'
 import pg from 'pg'
-import { configExports, jobDefinitions, mergeConfig, type ProjectConfig } from '@protobase/server'
+import { assistantSettings, authStoreTables, configExports, jobDefinitions, mergeConfig, type ProjectConfig } from '@protobase/server'
 import { loadNearestEnvFile } from '../dev/env'
 import type { Extension } from '../project/extensions'
 import { importProjectFile } from '../project/import-project-file'
@@ -39,6 +39,9 @@ export const migrationProject = (project: ProjectConfig, url: string | undefined
     ...(project.events && { events: project.events }),
     ...(project.webhooks && { webhooks: project.webhooks }),
     jobs: jobDefinitions(project.jobs ?? {}),
+    // The built-in assistant's read-only queries run as a role of their own, which must not read the auth store.
+    readOnlyQueries: assistantSettings(project.options?.assistant, process.env)?.kind === 'built-in',
+    authTables: project.auth ? authStoreTables(project.auth) : [],
     close: async () => {
       await ownDb?.destroy()
     },
