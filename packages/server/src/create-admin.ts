@@ -14,6 +14,8 @@ import { assistantRecords } from './assistant/records'
 import { consoleAuditQueue } from './audit/console-queue'
 import { apiCors, readCorsOrigins, withMobileOrigins } from './api-cors'
 import type { MobileConfig } from './mobile-config'
+import type { AppIdentity } from './app-identity'
+import type { AppIcons } from './web-app/app-icons'
 import { apiKeySettings } from './api-keys/api-key-settings'
 import { apiKeyCaller } from './api-keys/resolve-caller'
 import { jwtVerifier } from './auth/jwt'
@@ -73,6 +75,7 @@ import { collectionRoutes } from './routes/collection'
 import { docsRoutes } from './routes/docs'
 import { metaRoutes } from './routes/meta'
 import { webManifestRoute } from './web-app/web-manifest-route'
+import { faviconPath } from './web-app/web-manifest'
 import { recordRoutes } from './routes/record'
 import { runtimeUrl } from './runtime/runtime-settings'
 import { pluginOptions, pluginsBeforeSignIn } from './plugins/plugin-settings'
@@ -113,6 +116,13 @@ export type CreateAdminInput = {
   webhooks?: WebhooksOptions
   /** The app's iOS and Android build (see `MobileConfig`): the API answers its Capacitor origins through CORS. */
   mobile?: MobileConfig
+  /** The app's colours, which its web manifest carries (see `AppIdentity`). */
+  app?: AppIdentity
+  /**
+   * The icons the project has of its own, as `protobase build` and `protobase dev` find them beside its favicon: the
+   * web manifest names its PNGs, and `/meta` the favicon when it is the project's, which the sidebar's logo draws.
+   */
+  icons?: AppIcons
   /**
    * The plugins the app's bundle carries, as `protobase build` writes them: its protobase.ui.tsx and its extensions'
    * UI configs, each a plugin.json path on the app's origin. `/meta` names them to everyone, before any other plugin,
@@ -146,7 +156,7 @@ const declaredRoles = (auth: AdminAuth | undefined, roles: AdminOptions['roles']
 }
 
 /** The admin REST API as a Hono app. It uses only Web APIs, so it runs on Node, Workers and anywhere else Hono does. */
-export const createAdmin = ({ resources: appResources, views: appViews = [], pages = [], userMenu, bottomBars = [], db, authenticate, auth, functions = {}, files: filesOptions, events, history: historyOptions, jobs = [], subscriptions = [], webhooks: webhooksOptions, mobile, bundlePlugins = [], fieldTypes = {}, options = {}, formsDifficulty, commentUsers: givenCommentUsers, verifyToken, upgradeWebSocket }: CreateAdminInput): Admin => {
+export const createAdmin = ({ resources: appResources, views: appViews = [], pages = [], userMenu, bottomBars = [], db, authenticate, auth, functions = {}, files: filesOptions, events, history: historyOptions, jobs = [], subscriptions = [], webhooks: webhooksOptions, mobile, app: identity, icons, bundlePlugins = [], fieldTypes = {}, options = {}, formsDifficulty, commentUsers: givenCommentUsers, verifyToken, upgradeWebSocket }: CreateAdminInput): Admin => {
   const basePath = options.basePath ?? '/api/v1'
   // Events are delivered, history kept, mentions mailed and AI fields filled by jobs, whose failures the page lists too.
   // Admins list the history as Activity and every comment as Comments.
@@ -231,7 +241,7 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], pag
 
   // The tabs end in the name the app signs in and mails as, which the installed app is called too.
   const appName = auth?.appName ?? readAppName(globalThis.process?.env ?? {}) ?? defaultAppName
-  const meta = createMeta(deps, appName)
+  const meta = createMeta(deps, appName, icons?.favicon ? faviconPath : undefined)
   const onError = createErrorHandler(options.onUnhandledError)
   // Every response of the resources API and of the system endpoints names the models version; every request needs a
   // token, but one to the resources API or `/meta` when the project has an anonymous role.
@@ -313,7 +323,7 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], pag
   app.route(basePath, api)
   app.route(`${deps.systemPath}/meta`, metaApp)
   // Before the system endpoints, which want a token for everything under them
-  app.route(systemPath || '/', webManifestRoute(appName))
+  app.route(systemPath || '/', webManifestRoute(appName, identity, icons))
   app.route(deps.systemPath || '/', system)
   const webhooks = createWebhooks({ deps, subscriptions, functions: apiFunctions, schema: changes, log: (line) => console.log(line), ...(table && { table }) })
   return Object.assign(app, { jobs: [...webhooks.jobs, ...(withHistory && days !== undefined ? [pruneHistoryJob(changes, days)] : []), ...(mentions ? [mentions] : []), ...(fill ? [fill] : [])] })

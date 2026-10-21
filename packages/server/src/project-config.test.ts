@@ -55,6 +55,12 @@ describe('mergeConfig', () => {
     expect(mergeConfig({ name: 'app' })).not.toHaveProperty('mobile')
   })
 
+  it('keeps the last app section', () => {
+    const app = { themeColor: '#0d9488' }
+    expect(mergeConfig({ name: 'cloud', app: { themeColor: '#000000' } }, { name: 'app', app }).app).toBe(app)
+    expect(mergeConfig({ name: 'app' })).not.toHaveProperty('app')
+  })
+
   it('keeps the functions of every config, and refuses a function name two configs use, naming both', () => {
     const [usage, hello] = [() => new Response('usage'), () => new Response('hello')]
     expect(mergeConfig({ name: 'cloud', functions: { usage } }, { name: 'app', functions: { hello } }).functions).toEqual({ usage, hello })

@@ -26,6 +26,8 @@ export type ResourcePermissions = {
 export type CallerMeta = {
   /** The app's name, which ends the admin app's tab titles. */
   appName: string
+  /** The app's own icon, its favicon's path, when the project has one: the sidebar's logo draws it beside the name. */
+  appIcon?: string
   resources: ResourceModel[]
   views: ViewModel[]
   /** The composed pages the caller may open, without the elements that name what they cannot see or do. */
@@ -72,7 +74,7 @@ const modelsHash = (deps: Deps) => sha256Hex(stableJson(deps.registry.entries.ma
  * they could use once signed in, which keep their place in the bottom bar and the user menu.
  * The ETag hashes all of it, so it differs per user and per roles.
  */
-export const createMeta = (deps: Deps, appName: string) => {
+export const createMeta = (deps: Deps, appName: string, appIcon?: string) => {
   const base = modelsHash(deps)
 
   const forCaller = async (session: Session) => {
@@ -104,6 +106,7 @@ export const createMeta = (deps: Deps, appName: string) => {
     const sources = sourcesFor(deps.sources, session.user.roles)
     const body: CallerMeta = {
       appName,
+      ...(appIcon && { appIcon }),
       resources: visible.map((access) => access.readable),
       views,
       pages,

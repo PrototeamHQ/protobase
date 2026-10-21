@@ -10,6 +10,7 @@ import type { AdminAuth } from './better-auth/create-auth'
 import type { FilesOptions } from './files/options'
 import type { FunctionSource } from './functions/define-function'
 import type { MobileConfig } from './mobile-config'
+import type { AppIdentity } from './app-identity'
 import { jobDefinitions } from './jobs/define-job'
 import type { Authenticator } from './types'
 
@@ -39,6 +40,8 @@ export type ProjectConfig = {
   jobs?: Record<string, unknown>
   /** The app's iOS and Android build (see `MobileConfig`): `protobase mobile` needs it, and the API answers the app's origins. */
   mobile?: MobileConfig
+  /** The installed app's colours (see `AppIdentity`), which its web manifest carries. */
+  app?: AppIdentity
   options?: AdminOptions
 }
 
@@ -156,8 +159,8 @@ const mergedOptions = (named: Named[]): AdminOptions | undefined => {
  */
 export const mergeConfig = (...configs: ProjectConfig[]): ProjectConfig => {
   const named = configs.flatMap((config, index) => flatten(config, config.name ?? `config ${index + 1}`))
-  const { db, authenticate, auth, events, history, webhooks, mobile } = lastSet(
-    named.map(({ config }) => ({ db: config.db, authenticate: config.authenticate, auth: config.auth, events: config.events, history: config.history, webhooks: config.webhooks, mobile: config.mobile })),
+  const { db, authenticate, auth, events, history, webhooks, mobile, app } = lastSet(
+    named.map(({ config }) => ({ db: config.db, authenticate: config.authenticate, auth: config.auth, events: config.events, history: config.history, webhooks: config.webhooks, mobile: config.mobile, app: config.app })),
   )
   const module = mergedModule(named)
   const functions = mergedFunctions(named)
@@ -178,6 +181,7 @@ export const mergeConfig = (...configs: ProjectConfig[]): ProjectConfig => {
     ...(webhooks && { webhooks }),
     ...(jobs && { jobs }),
     ...(mobile && { mobile }),
+    ...(app && { app }),
     ...(options && { options }),
   }
 }

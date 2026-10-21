@@ -35,6 +35,12 @@ describe('GET /meta', () => {
     expect((await (await named.request('/api/meta', { headers: as(1) })).json()).appName).toBe('Shop')
   })
 
+  it("names the project's own icon only when it has one", async () => {
+    expect(await (await app.request('/api/meta', { headers: as(1) })).json()).not.toHaveProperty('appIcon')
+    const own = createAdmin({ resources: [companies], db: fixture.db, authenticate: testAuthenticator, icons: { favicon: true, png: [] } })
+    expect((await (await own.request('/api/meta', { headers: as(1) })).json()).appIcon).toBe('/protobase.favicon.svg')
+  })
+
   it('answers 304 when If-None-Match matches, and still sends X-Meta-Version', async () => {
     const first = await app.request('/api/meta', { headers: as(1) })
     const second = await app.request('/api/meta', { headers: as(1, 'admin', { 'if-none-match': first.headers.get('etag')! }) })
