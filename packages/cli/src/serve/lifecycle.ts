@@ -6,7 +6,7 @@ import type { Db } from '@protobase/query'
 import { backgroundSettled, checkAi, checkAuthSchema, checkChanges, checkComments, checkComputed, checkJobsSchema, checkWebhooksSchema, configExports, createFileCleanup, startJobs, type ErrorReporter } from '@protobase/server'
 import { projectAdmin } from '../project/project-admin'
 import { createPgDb } from '../project/pg-db'
-import { realtimeWebSocketServer } from '../project/realtime-websocket-server'
+import { apiWebSocketServer } from '../project/api-websocket-server'
 import { createServeApp, type ServedSite } from './app'
 import { startCleanupTimer } from './cleanup-timer'
 import { withClientAddress } from './client-address'
@@ -67,7 +67,7 @@ export const startServe = async ({ project, env, createDb = (url) => createPgDb(
     const app = createServeApp({ admin, requestLog: env.requestLog, site, ...(jobs && { jobs }), ...(env.drainToken && { drainToken: env.drainToken }) })
     // WebSockets for `/api/sb/realtime/v1` and the app's functions, upgraded by the app's own routes. Each request names
     // its client in X-Forwarded-For.
-    const sockets = realtimeWebSocketServer()
+    const sockets = apiWebSocketServer()
     const server = createAdaptorServer({ fetch: withClientAddress(app.fetch, env.trustedProxies), overrideGlobalObjects: false, websocket: { server: sockets } }) as Server
     await listen(server, env.port).catch(async (error: Error) => {
       await jobs?.stop()
