@@ -4,9 +4,10 @@ import { issueToken } from '@protobase/server'
 import { addMemberCommand } from '../organizations/commands'
 import { organizationsApi } from '../organizations/register'
 import { createUserCommand, listRolesCommand, listUsersCommand } from './commands'
-import { deleteUserCommand, setDisabledCommand, setRoleCommand } from './manage'
+import { deleteUserCommand, setRoleCommand } from './manage'
 import { loadProjectAuth } from './load-auth'
 import { readHidden, rejectPasswordArgument } from './password'
+import { setDisabledInProject } from './set-disabled'
 import { parseTtl } from './ttl'
 import { usersApi } from './users-api'
 
@@ -81,7 +82,7 @@ export const registerUsers = (program: Command) => {
       .description(disabled ? 'Ban a user and revoke their sessions' : 'Lift a ban')
       .argument('<email>')
       .action(async (email: string) => {
-        await setDisabledCommand(await projectApi(), { email, disabled }, out)
+        await setDisabledInProject(await loadProjectAuth(process.cwd()), { email, disabled }, out)
         finish(0)
       })
   }

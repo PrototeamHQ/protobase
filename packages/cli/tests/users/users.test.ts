@@ -1,9 +1,10 @@
 import { Readable } from 'node:stream'
 import { getMigrations } from 'better-auth/db/migration'
 import { beforeAll, describe, expect, it } from 'vitest'
-import { createAuth, issueToken, type AdminAuth } from '@protobase/server'
+import { authSchemaMigration, createAuth, issueToken, type AdminAuth } from '@protobase/server'
 import { createUserCommand, listRolesCommand, listUsersCommand, type UsersApi } from '../../src/users/commands'
 import { deleteUserCommand, setDisabledCommand, setRoleCommand } from '../../src/users/manage'
+import { setDisabledInProject } from '../../src/users/set-disabled'
 import { usersApi } from '../../src/users/users-api'
 import { openSnapshotDb, settled, type SnapshotDb } from '../../../../test-support/sql-snapshot'
 
@@ -88,5 +89,37 @@ describe('protobase users create --github-id', () => {
   it('refuses a GitHub user that signs in someone else already, and creates nobody', async () => {
     await expect(createLinked('other@example.com', '583231')).rejects.toThrow('The github account 583231 signs in another user already')
     expect(await output((out) => listUsersCommand(api, out))).not.toContain('other@example.com')
+  })
+})
+
+describe('protobase users disable and enable with MCP turned off', () => {
+  it('refuse while the OAuth tables of MCP are left, changing nobody, and act once their drop is applied', async () => {
+    // Better Auth's own tables, to which the migration adds those of MCP.
+    const store = await openSnapshotDb('auth')
+    const authOf = async (mcp: boolean) => {
+      const made = createAuth({ database: { dialect: store.dialect, type: 'postgres' }, baseURL: 'http://localhost:1', secret: 'users-test-secret-users-test-secret-1234', ...(mcp && { mcp: true as const }) })
+      await made.$context
+      await settled()
+      return made
+    }
+    // Better Auth checks the schema once per instance, so the commands use an instance made after the migration.
+    await store.exec((await authSchemaMigration(await authOf(true)))!)
+    const on = await authOf(true)
+    const create = (email: string) => createUserCommand(usersApi(on), { email, passwordStdin: true, generatePassword: false }, { stdin: Readable.from(['a-long-test-password\n']), prompt: async () => '' }, () => {})
+    await create('root@example.com')
+    await create('ana@example.com')
+    await create('bo@example.com')
+    await usersApi(on).setUserBanned({ email: 'bo@example.com', banned: true })
+
+    const off = await authOf(false)
+    const leftover = /still has the tables of the OAuth provider for MCP .*`protobase auth migration`/
+    await expect(setDisabledInProject(off, { email: 'ana@example.com', disabled: true }, () => {})).rejects.toThrow(leftover)
+    expect((await issueToken(off, { email: 'ana@example.com' })).token).toBeTruthy()
+    await expect(setDisabledInProject(off, { email: 'bo@example.com', disabled: false }, () => {})).rejects.toThrow(leftover)
+    await expect(issueToken(off, { email: 'bo@example.com' })).rejects.toThrow('bo@example.com is banned')
+
+    await store.exec((await authSchemaMigration(off))!)
+    await setDisabledInProject(off, { email: 'ana@example.com', disabled: true }, () => {})
+    await expect(issueToken(off, { email: 'ana@example.com' })).rejects.toThrow('ana@example.com is banned')
   })
 })
