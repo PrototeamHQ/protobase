@@ -49,6 +49,7 @@ import { visitorsBrowse, withAnonymous } from './anonymous'
 import { checkBottomBars, checkShell } from './check-shell'
 import { checkOwnerFields } from './check-owners'
 import { checkRoleLimits } from './check-roles'
+import { checkParents } from './check-parents'
 import { checkPositionAfter } from './check-position-after'
 import { checkViews } from './check-views'
 import { liveRoutes } from './live/live-route'
@@ -188,6 +189,7 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], pag
   checkRoleLimits(registry, options.roles?.limits ?? [])
   checkOwnerFields(registry, auth)
   checkPositionAfter(registry)
+  checkParents(registry)
   checkPages(pageModels, {
     models: Object.fromEntries(registry.entries.map((entry) => [entry.name, entry.model])),
     actions: (resource) => new Set(viewModels.filter((view) => view.resource === resource).flatMap((view) => view.actions.map((action) => action.name))),
