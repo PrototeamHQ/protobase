@@ -112,6 +112,8 @@ A sensitive field, such as a bank account number, is written like any other fiel
 iban: f.text().sensitive().access({ read: roles.can('screening.read') }),
 ```
 
+A role may also set a sensitive field it cannot read, such as a sealed value only a worker reads, when the field's own `create` or `update` rule allows it: see [write-only fields](/reference/access/#write-only-fields).
+
 A sensitive field cannot be `.filterable()`, `.sortable()`, aliased, searched, or the key, tenant, owner or soft delete field, and a view may only put it in a record page section: in a list, filter, chart, sidebar, title, recent-record group or action it would always be empty, so the config fails to load.
 
 A [webhook subscription](/reference/webhooks/) delivering `as` a role runs that role's access rules on a captured change, which holds no sensitive field. A rule or row filter that reads one there throws, and the change is kept as failed for that subscription instead of delivered, so decide that access on a field that is not sensitive. A rule that reads the field before it checks the role, such as `record.api_secret == null || ctx.user.roles.includes('admin')`, fails even for `as: { roles: ['admin'] }`: check the role first, as in `ctx.user.roles.includes('admin') || ...`.
