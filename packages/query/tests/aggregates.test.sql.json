@@ -204,6 +204,24 @@
       {"sql":"select avg(price)::text m from items where deleted_at is null and created_at < '2024-02-01T00:00:00Z'","result":{"command":"SELECT","rowCount":1,"columns":[["m",25]],"rows":[["53.8750000000000000"]]}}
     ]
   },
+  "series > buckets by minutes on the clock, a bucket without rows holding no maximum": {
+    "(hooks)#0": [
+      {"sql":"\n    with b as (\n      select generate_series(date_bin('15 minutes'::interval, ($1::timestamptz at time zone $2::text), timestamp '2000-01-01'), date_bin('15 minutes'::interval, ($3::timestamptz at time zone $4::text) - interval '1 microsecond', timestamp '2000-01-01'), '15 minutes'::interval) as bucket\n    ), c as ((select date_bin('15 minutes'::interval, (\"t\".\"created_at\"::timestamptz at time zone $5::text), timestamp '2000-01-01') as \"bucket\", count(*)::text as \"n\", max(\"t\".\"qty\")::text as \"m\" from \"items\" as \"t\" where \"t\".\"deleted_at\" is null and \"t\".\"created_at\" >= $6::timestamptz and \"t\".\"created_at\" < $7::timestamptz group by 1))\n    select to_char(b.bucket, 'YYYY-MM-DD\"T\"HH24:MI:SS') as bucket, coalesce(c.n, '0') as n, c.m\n    from b left join c on c.bucket = b.bucket\n    order by b.bucket\n  ","params":["2024-01-02T00:07:00Z","UTC","2024-01-02T01:30:00Z","UTC","UTC","2024-01-02T00:07:00Z","2024-01-02T01:30:00Z"],"result":{"command":"SELECT","rowCount":6,"columns":[["bucket",25],["n",25],["m",25]],"rows":[
+        ["2024-01-02T00:00:00","0",null],
+        ["2024-01-02T00:15:00","0",null],
+        ["2024-01-02T00:30:00","0",null],
+        ["2024-01-02T00:45:00","0",null],
+        ["2024-01-02T01:00:00","9","19"],
+        ["2024-01-02T01:15:00","0",null]
+      ]}},
+      {"sql":"select count(*)::text n, max(qty)::text m from items where deleted_at is null and created_at = '2024-01-02T01:00:00Z'","result":{"command":"SELECT","rowCount":1,"columns":[["n",25],["m",25]],"rows":[["9","19"]]}},
+      {"sql":"\n    with b as (\n      select generate_series(date_trunc('minute', ($1::timestamptz at time zone $2::text)), date_trunc('minute', ($3::timestamptz at time zone $4::text) - interval '1 microsecond'), '1 minute'::interval) as bucket\n    ), c as ((select date_trunc('minute', (\"t\".\"created_at\"::timestamptz at time zone $5::text)) as \"bucket\", count(*)::text as \"n\" from \"items\" as \"t\" where \"t\".\"deleted_at\" is null and \"t\".\"created_at\" >= $6::timestamptz and \"t\".\"created_at\" < $7::timestamptz group by 1))\n    select to_char(b.bucket, 'YYYY-MM-DD\"T\"HH24:MI:SS') as bucket, coalesce(c.n, '0') as n\n    from b left join c on c.bucket = b.bucket\n    order by b.bucket\n  ","params":["2024-01-02T01:00:00Z","UTC","2024-01-02T01:03:00Z","UTC","UTC","2024-01-02T01:00:00Z","2024-01-02T01:03:00Z"],"result":{"command":"SELECT","rowCount":3,"columns":[["bucket",25],["n",25]],"rows":[
+        ["2024-01-02T01:00:00","9"],
+        ["2024-01-02T01:01:00","0"],
+        ["2024-01-02T01:02:00","0"]
+      ]}}
+    ]
+  },
   "series > works on date fields": {
     "(hooks)#0": [
       {"sql":"\n    with b as (\n      select generate_series(date_trunc('day', $1::timestamp), date_trunc('day', $2::timestamp - interval '1 microsecond'), '1 day'::interval) as bucket\n    ), c as ((select date_trunc('day', \"t\".\"born\"::timestamp) as \"bucket\", count(*)::text as \"n\" from \"items\" as \"t\" where \"t\".\"deleted_at\" is null and \"t\".\"born\" >= $3::date and \"t\".\"born\" < $4::date group by 1))\n    select to_char(b.bucket, 'YYYY-MM-DD\"T\"HH24:MI:SS') as bucket, coalesce(c.n, '0') as n\n    from b left join c on c.bucket = b.bucket\n    order by b.bucket\n  ","params":["2024-01-01","2024-01-04","2024-01-01","2024-01-04"],"result":{"command":"SELECT","rowCount":3,"columns":[["bucket",25],["n",25]],"rows":[
