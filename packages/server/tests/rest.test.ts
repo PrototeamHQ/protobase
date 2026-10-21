@@ -43,6 +43,8 @@ beforeAll(async () => {
     db: pg.db,
     authenticate: testAuthenticator,
     verifyToken: jwtVerifier({ keys: async () => signingKey, algorithms: ['HS256'] }),
+    // Only /rest/v1: with keys the app serves /storage/v1 too, which needs a files secret.
+    files: { storage: false },
     options: { apiKeys: { publishable_key: publishable, secret_key: secret } },
   })
   // As supabase-js sends them: the key, and the user's token or else the key again as the bearer.
