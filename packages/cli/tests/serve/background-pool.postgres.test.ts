@@ -20,7 +20,7 @@ const project: ServedProject = {
   authenticate: () => ({ user: { id: 1, roles: ['admin'] } }),
 }
 
-const env = { port: 0, requestLog: false, filesCleanupMinutes: 0, runJobs: false, startupChecks: false, dbConnections: 3 }
+const env = { port: 0, requestLog: false, filesCleanupMinutes: 0, runJobs: false, startupChecks: false, dbConnections: 3, trustedProxies: [] }
 
 describe.skipIf(!(await postgresTemplateReady('empty')))('the pool protobase serve creates', () => {
   it('keeps a connection for requests while function calls hold all of theirs', async () => {

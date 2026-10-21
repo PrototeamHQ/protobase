@@ -155,7 +155,7 @@ describe.skipIf(!reachable)('auth schema changes as migrations of the project', 
     const databaseUrl = await createDatabase()
     const auth: AdminAuth = authOn(databaseUrl)
     const project = { config: {}, auth, authenticate: () => Promise.reject(unauthorized('no')) }
-    await expect(startServe({ project, env: { port: 0, databaseUrl, requestLog: false, filesCleanupMinutes: 0, runJobs: true, startupChecks: true } })).rejects.toThrow(/The auth schema is behind.*`protobase auth migration`/)
+    await expect(startServe({ project, env: { port: 0, databaseUrl, requestLog: false, filesCleanupMinutes: 0, runJobs: true, startupChecks: true, trustedProxies: [] } })).rejects.toThrow(/The auth schema is behind.*`protobase auth migration`/)
   })
 })
 

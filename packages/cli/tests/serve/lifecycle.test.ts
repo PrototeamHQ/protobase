@@ -29,7 +29,7 @@ const project: ServedProject = {
 // Taken before any test serves, since a replaced global stays replaced for the rest of the file.
 const { Request, Response } = globalThis
 
-const env = { port: 0, databaseUrl: 'postgres://unused/app', requestLog: false, filesCleanupMinutes: 0, runJobs: true, startupChecks: true }
+const env = { port: 0, databaseUrl: 'postgres://unused/app', requestLog: false, filesCleanupMinutes: 0, runJobs: true, startupChecks: true, trustedProxies: [] }
 
 describe('startServe', () => {
   it('serves /health without a token and the admin API behind the authenticator', async () => {
@@ -41,6 +41,19 @@ describe('startServe', () => {
     expect((await fetch(`${base}/api/meta`)).status).toBe(401)
     expect((await fetch(`${base}/api/meta`, { headers: { authorization: 'Bearer ok' } })).status).toBe(200)
     await server.close()
+  })
+
+  it("passes the client's address in X-Forwarded-For: the socket's peer, or what a trusted proxy forwards", async () => {
+    const seen: (string | null)[] = []
+    const echo: ServedProject = { config: {}, authenticate: (request) => (seen.push(request.headers.get('x-forwarded-for')), project.authenticate(request)) }
+    const meta = (port: number) => fetch(`http://127.0.0.1:${port}/api/meta`, { headers: { 'x-forwarded-for': '6.6.6.6, 203.0.113.7' } })
+    const direct = await startServe({ project: echo, env, createDb: await dbFactory() })
+    await meta(direct.port)
+    await direct.close()
+    const proxied = await startServe({ project: echo, env: { ...env, trustedProxies: ['127.0.0.1'] }, createDb: await dbFactory() })
+    await meta(proxied.port)
+    await proxied.close()
+    expect(seen).toEqual(['127.0.0.1', '203.0.113.7'])
   })
 
   // Bun's S3 and file writes take the native Response; given another class they store its text, `[object Response]`.

@@ -1,3 +1,5 @@
+import { readTrustedProxies } from './client-address'
+
 // The environment the platform provides. Better Auth settings (BETTER_AUTH_SECRET, ...) are the project's own.
 export type ServeEnv = {
   port: number
@@ -17,6 +19,8 @@ export type ServeEnv = {
   startupChecks: boolean
   // The operator's bearer token for POST /api/jobs/drain (PROTOBASE_JOBS_DRAIN_TOKEN); without it there is no drain endpoint.
   drainToken?: string
+  // The proxies whose X-Forwarded-For names the client (PROTOBASE_TRUSTED_PROXIES); without them the socket's peer is the client.
+  trustedProxies: string[]
 }
 
 export const defaultPort = 8787
@@ -45,5 +49,6 @@ export const readServeEnv = (env: Record<string, string | undefined>): ServeEnv 
     runJobs: readBoolean(env, 'PROTOBASE_JOBS', true),
     startupChecks: readBoolean(env, 'PROTOBASE_STARTUP_CHECKS', true),
     ...(env.PROTOBASE_JOBS_DRAIN_TOKEN && { drainToken: env.PROTOBASE_JOBS_DRAIN_TOKEN }),
+    trustedProxies: readTrustedProxies(env.PROTOBASE_TRUSTED_PROXIES),
   }
 }

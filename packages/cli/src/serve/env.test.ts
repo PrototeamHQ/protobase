@@ -3,7 +3,7 @@ import { defaultPort, readServeEnv } from './env'
 
 describe('readServeEnv', () => {
   it('reads the variables the platform passes', () => {
-    expect(readServeEnv({ PORT: '3000', DATABASE_URL: 'postgres://db/app', REQUEST_LOG: 'true', PROTOBASE_FILES_CLEANUP_MINUTES: '0', PROTOBASE_JOBS: 'false', PROTOBASE_STARTUP_CHECKS: 'false', PROTOBASE_JOBS_DRAIN_TOKEN: 's3cret', PROTOBASE_DB_CONNECTIONS: '3' })).toEqual({
+    expect(readServeEnv({ PORT: '3000', DATABASE_URL: 'postgres://db/app', REQUEST_LOG: 'true', PROTOBASE_FILES_CLEANUP_MINUTES: '0', PROTOBASE_JOBS: 'false', PROTOBASE_STARTUP_CHECKS: 'false', PROTOBASE_JOBS_DRAIN_TOKEN: 's3cret', PROTOBASE_DB_CONNECTIONS: '3', PROTOBASE_TRUSTED_PROXIES: '10.0.0.0/8, ::1' })).toEqual({
       port: 3000,
       databaseUrl: 'postgres://db/app',
       dbConnections: 3,
@@ -12,11 +12,12 @@ describe('readServeEnv', () => {
       runJobs: false,
       startupChecks: false,
       drainToken: 's3cret',
+      trustedProxies: ['10.0.0.0/8', '::1'],
     })
   })
 
   it('defaults the port and leaves the database and request log out', () => {
-    expect(readServeEnv({})).toEqual({ port: defaultPort, databaseUrl: undefined, requestLog: false, filesCleanupMinutes: 60, runJobs: true, startupChecks: true })
+    expect(readServeEnv({})).toEqual({ port: defaultPort, databaseUrl: undefined, requestLog: false, filesCleanupMinutes: 60, runJobs: true, startupChecks: true, trustedProxies: [] })
   })
 
   it('refuses a PORT that is not a port number', () => {
@@ -26,6 +27,7 @@ describe('readServeEnv', () => {
     expect(() => readServeEnv({ PROTOBASE_DB_CONNECTIONS: '0' })).toThrow('PROTOBASE_DB_CONNECTIONS must be a whole number of connections, at least 1, not "0"')
     expect(() => readServeEnv({ PROTOBASE_JOBS: 'off' })).toThrow('PROTOBASE_JOBS must be true or false, not "off"')
     expect(() => readServeEnv({ PROTOBASE_STARTUP_CHECKS: 'on' })).toThrow('PROTOBASE_STARTUP_CHECKS must be true or false, not "on"')
+    expect(() => readServeEnv({ PROTOBASE_TRUSTED_PROXIES: '10.0.0.1, proxy' })).toThrow('PROTOBASE_TRUSTED_PROXIES must be addresses or CIDR ranges, comma separated, not "proxy"')
     expect(() => readServeEnv({ REQUEST_LOG: '1' })).toThrow('REQUEST_LOG must be true or false, not "1"')
   })
 })

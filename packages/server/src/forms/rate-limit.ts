@@ -4,8 +4,9 @@ const windowMs = 60_000
 
 /**
  * The client a request counts against, as Better Auth's sign-in limit reads it: an `X-Forwarded-For` of one valid
- * address (IPv6 by its /64), or `unknown`, one bucket for every request without one (several addresses included, since
- * the leftmost is whatever the client sent). In development and tests a request without one is `127.0.0.1`.
+ * address (IPv6 by its /64), which `protobase serve` sets from the connection and its trusted proxies, or `unknown`,
+ * one bucket for every request without one (several addresses included, since the leftmost is whatever the client
+ * sent). In development and tests a request without one is `127.0.0.1`.
  */
 export const clientAddress = (headers: Headers) => getIP(headers, {}) ?? 'unknown'
 

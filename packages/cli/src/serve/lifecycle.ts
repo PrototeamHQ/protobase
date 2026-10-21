@@ -9,6 +9,7 @@ import { projectAdmin } from '../project/project-admin'
 import { createPgDb } from '../project/pg-db'
 import { createServeApp, type ServedSite } from './app'
 import { startCleanupTimer } from './cleanup-timer'
+import { withClientAddress } from './client-address'
 import type { BundleUi } from './bundle-ui'
 import type { ServeEnv } from './env'
 import type { ServedProject } from './load-bundle'
@@ -62,8 +63,8 @@ export const startServe = async ({ project, env, createDb = (url) => createPgDb(
     if (env.startupChecks && definitions.length > 0) await checkJobsSchema(db)
     const jobs = definitions.length > 0 ? await startJobs({ db, jobs: definitions, work: env.runJobs, onError: (error) => console.error(error) }) : undefined
     const app = createServeApp({ admin, requestLog: env.requestLog, site, ...(jobs && { jobs }), ...(env.drainToken && { drainToken: env.drainToken }) })
-    // WebSockets for `/realtime/v1`, upgraded by the app's own route.
-    const server = createAdaptorServer({ fetch: app.fetch, overrideGlobalObjects: false, websocket: { server: new WebSocketServer({ noServer: true }) } }) as Server
+    // WebSockets for `/realtime/v1`, upgraded by the app's own route. Each request names its client in X-Forwarded-For.
+    const server = createAdaptorServer({ fetch: withClientAddress(app.fetch, env.trustedProxies), overrideGlobalObjects: false, websocket: { server: new WebSocketServer({ noServer: true }) } }) as Server
     await listen(server, env.port).catch(async (error: Error) => {
       await jobs?.stop()
       throw error
