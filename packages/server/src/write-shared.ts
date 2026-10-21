@@ -7,6 +7,7 @@ import type { Entry } from './registry'
 import { fetchRecord, type StoredRecord } from './records'
 import { andFilters, recordDecision, type RequestAccess } from './request-access'
 import { scheduleRemovedFiles } from './files/attach'
+import { parentGuard } from './parent-access'
 import { presentFiles } from './files/present'
 import { pickFields } from './rows'
 import { tenantScope } from './tenant'
@@ -32,6 +33,18 @@ export const decide = async (access: RequestAccess, operation: 'create' | 'updat
   const decision = await recordDecision(access, operation, record, input)
   if (decision === false) throw denied(access.entry, operation)
   return decision === true ? undefined : decision
+}
+
+/**
+ * Refuses a write whose records' parents (`.parent()`) do not give the caller the access it needs, with the same answer
+ * as a refused record-level rule; each parent stays locked until the write commits.
+ */
+export const checkParents = (trx: Db, access: RequestAccess, operation: 'create' | 'update' | 'delete') => {
+  if (!access.full.parents?.length) return async (..._records: Row[]) => {}
+  const guard = parentGuard(trx, access, true)
+  return async (...records: Row[]) => {
+    if (!(await guard(...records))) throw denied(access.entry, operation)
+  }
 }
 
 export const keyOf = (access: RequestAccess, record: Row) => access.full.primaryKey.map((name) => record[name] as string | number)

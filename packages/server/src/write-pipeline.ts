@@ -13,7 +13,7 @@ import { writeTransaction } from './transactions'
 import type { Row, Session } from './types'
 import { validateBody } from './validate-body'
 import { applyUpdate, planUpdate } from './write-update'
-import { assertWritten, checkPrecondition, decide, denied, firstKeyField, keyOf, missing, notifier, shown, type WriteResult } from './write-shared'
+import { assertWritten, checkParents, checkPrecondition, decide, denied, firstKeyField, keyOf, missing, notifier, shown, type WriteResult } from './write-shared'
 import { checkRankAfter } from './rank-after'
 import type { Entry } from './registry'
 
@@ -43,8 +43,13 @@ const create = async (trx: Db, deps: Deps, access: RequestAccess, body: unknown)
   const values = await attachFiles(access, withOwner(access, validateBody(access, 'create', preset, tenantValues)))
   const row = { ...values, ...tenantValues }
   const filter = await decide(access, 'create', undefined, row)
+  // Before the insert, so a missing parent answers as an invisible one does rather than as a foreign key conflict; after
+  // it, from the record as written, for a parent a default or trigger sets.
+  const parents = checkParents(trx, access, 'create')
+  await parents(row)
   const created = await insertRecord(trx, entry, row, { etagFields: Object.keys(access.model.fields) })
   await assertWritten(trx, access, created, 'create', access.resolved.rowFilter.create, filter)
+  await parents(created.record)
   // A new record had no rank before, so any pair it ranks out of order counts
   if (full.position) await checkRankAfter(trx, deps, access, full.position.field, [{ key: keyOf(access, created.record), before: null }])
   await notifier(deps, access)(trx, 'create', undefined, created.record)
@@ -79,6 +84,7 @@ const removeOrRestore = async (trx: Db, deps: Deps, access: RequestAccess, reque
   checkPrecondition(current, request.ifMatch, false)
   const filter = await decide(access, operation, current.record)
   if (filter && !(await fetchRecord(trx, entry, request.key, scope?.tenantValue, { deleted, filter, fields: [firstKeyField(access)] }))) throw denied(entry, operation)
+  await checkParents(trx, access, operation)(current.record)
   const notify = notifier(deps, access)
   if (undelete) {
     const restored = await restoreRecord(trx, entry, request.key, scope?.tenantValue, shape)

@@ -110,12 +110,12 @@ export const createMeta = (deps: Deps, appName: string, appIcon?: string) => {
       resources: visible.map((access) => access.readable),
       views,
       pages,
-      permissions: Object.fromEntries(visible.map(({ entry, resolved }) => [entry.name, {
+      permissions: Object.fromEntries(visible.map(({ entry, resolved, full }) => [entry.name, {
         read: resolved.operations.read || resolved.operations.list,
         create: resolved.operations.create,
         update: resolved.operations.update,
         delete: resolved.operations.delete,
-        conditional: (['create', 'update', 'delete'] as const).filter((op) => resolved.operations[op] && (resolved.recordChecks.includes(op) || resolved.rowFilter[op] !== undefined)),
+        conditional: (['create', 'update', 'delete'] as const).filter((op) => resolved.operations[op] && (resolved.recordChecks.includes(op) || resolved.rowFilter[op] !== undefined || (full.parents?.length ?? 0) > 0)),
       } satisfies ResourcePermissions])),
       ...(signIn.length > 0 && { signIn }),
       ...(deps.userMenu && { userMenu: { items: deps.userMenu.items.filter(shown) } }),

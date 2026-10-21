@@ -4,17 +4,18 @@ import type { Deps } from './deps'
 import { attachFiles } from './files/attach'
 import { fetchRecord, updateRecord, type StoredRecord } from './records'
 import { targetFilter, type RequestAccess } from './request-access'
-import { assertWritten, checkPrecondition, decide, denied, firstKeyField, missing, notifier } from './write-shared'
+import { assertWritten, checkParents, checkPrecondition, decide, denied, firstKeyField, missing, notifier } from './write-shared'
 import { tenantScope } from './tenant'
 import type { Row } from './types'
 import { validateBody } from './validate-body'
 
-/** An update that was loaded, locked and checked but not yet written. */
-export type UpdatePlan = { current: StoredRecord; values: Row; filter?: CheckedFilter }
+/** An update that was loaded, locked and checked but not yet written; `parents` checks the record as written. */
+export type UpdatePlan = { current: StoredRecord; values: Row; filter?: CheckedFilter; parents: (record: Row) => Promise<void> }
 
 /**
  * Everything an update needs before it writes: the row (locked, inside the caller's tenant and row filters), the ETag
- * precondition, validation against the fields the caller may write, and the record-level rule with its filter.
+ * precondition, validation against the fields the caller may write, the record-level rule with its filter, and the
+ * parents (`.parent()`) it leaves and moves to, checked in one call so they are locked in one order.
  */
 export const planUpdate = async (trx: Db, access: RequestAccess, key: (string | number)[], body: unknown, ifMatch: string | null, required = true): Promise<UpdatePlan> => {
   const { entry, full } = access
@@ -26,7 +27,9 @@ export const planUpdate = async (trx: Db, access: RequestAccess, key: (string | 
   const values = await attachFiles(access, validateBody(access, 'update', body, current.record), current.record)
   const filter = Object.keys(values).length === 0 ? undefined : await decide(access, 'update', current.record, values)
   if (filter && !(await fetchRecord(trx, entry, key, tenant, { filter, fields: [firstKeyField(access)] }))) throw denied(entry, 'update')
-  return { current, values, ...(filter && { filter }) }
+  const parents = checkParents(trx, access, 'update')
+  if (Object.keys(values).length > 0) await parents(current.record, { ...current.record, ...values })
+  return { current, values, ...(filter && { filter }), parents }
 }
 
 /** Writes a planned update, checks the row as written against the filters, and runs the hooks. */
@@ -35,6 +38,7 @@ export const applyUpdate = async (trx: Db, deps: Deps, access: RequestAccess, ke
   const tenant = tenantScope(entry, access.session)?.tenantValue
   const updated = await updateRecord(trx, entry, key, tenant, plan.values, { etagFields: Object.keys(access.model.fields) })
   await assertWritten(trx, access, updated, 'update', access.resolved.rowFilter.update, plan.filter)
+  await plan.parents(updated.record)
   await notifier(deps, access)(trx, 'update', plan.current.record, updated.record)
   return updated
 }

@@ -2,6 +2,7 @@ import { sql, type SqlBool } from 'kysely'
 
 import type { Db } from '@protobase/query'
 import { compileFilter } from '@protobase/query'
+import { parentGuard } from './parent-access'
 import { fetchRecord } from './records'
 import { andFilters, recordDecision, type RequestAccess } from './request-access'
 import { aliasedColumn, columnId, scopeConditions, tableId, whereClause } from './sql-parts'
@@ -25,8 +26,8 @@ const matching = async (trx: Db, access: RequestAccess, rows: Row[], filter: Non
 
 /**
  * What the caller may do with each of these (exposed) rows: the operation must be allowed, the row must match the
- * operation's row filter (checked in the database), and a record-level rule must pass for the stored record. This only
- * informs the UI; every write is checked again by the write pipeline.
+ * operation's row filter (checked in the database), a record-level rule must pass for the stored record, and its parents
+ * (`.parent()`) must allow writing it. This only informs the UI; every write is checked again by the write pipeline.
  */
 export const rowPermissions = async (trx: Db, access: RequestAccess, rows: Row[]): Promise<RowPermissions[]> => {
   const { resolved, entry, session } = access
@@ -54,6 +55,24 @@ export const rowPermissions = async (trx: Db, access: RequestAccess, rows: Row[]
       if (decision !== true) result[i]![operation] = (await matching(trx, access, [row], decision)).size > 0
     }
   }
+  await withParents(trx, access, rows, result)
   return result
+}
+
+// From the stored row, since the exposed one may lack a hidden relation; unlocked, as this runs in a read-only transaction.
+const withParents = async (trx: Db, access: RequestAccess, rows: Row[], result: RowPermissions[]) => {
+  const { full, entry, session } = access
+  if (!full.parents?.length) return
+  const guard = parentGuard(trx, access, false)
+  const fields = [...new Set([...full.primaryKey, ...full.parents.map((parent) => parent.field)])].map((name) => full.fields[name]!)
+  const tenant = tenantScope(entry, session)?.tenantValue
+  for (const [i, row] of rows.entries()) {
+    const permissions = result[i]!
+    if (!permissions.update && !permissions.delete) continue
+    const stored = await fetchRecord(trx, entry, full.primaryKey.map((name) => row[name] as string | number), tenant, { fields })
+    const allowed = stored !== undefined && (await guard(stored.record))
+    permissions.update &&= allowed
+    permissions.delete &&= allowed
+  }
 }
 
