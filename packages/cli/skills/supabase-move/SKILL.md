@@ -98,7 +98,7 @@ Ask the user to run `protobase import supabase --storage-url https://<ref>.supab
 
 ### Edge Functions
 
-Nothing to convert here. Look in each for `waitUntil(`: work in it that can outlast about 10 seconds after the response, such as sending mail, calling a slow API or a loop over many records, moves into a job enqueued instead (`await job.enqueue(db, payload)`), since a host stops an idle app and loses work still running. See [Functions moved from Supabase](../protobase/references/guides/api-functions.md#functions-moved-from-supabase).
+`supabase/functions` keeps the Deno originals, which the app no longer runs: add `supabase` to the `exclude` of `tsconfig.json` so the typecheck leaves them out, and remove the folder only when the user says so. Look in each for `waitUntil(`: work in it that can outlast about 10 seconds after the response, such as sending mail, calling a slow API or a loop over many records, moves into a job enqueued instead (`await job.enqueue(db, payload)`), since a host stops an idle app and loses work still running. See [Functions moved from Supabase](../protobase/references/guides/api-functions.md#functions-moved-from-supabase).
 
 ### Packages added
 
