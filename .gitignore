@@ -8,3 +8,4 @@ coverage
 screenshots
 .protobase
 website/src/content/docs/api
+.build-test-*
