@@ -1,3 +1,4 @@
+import type { EncryptedColumn } from './source-facts'
 import { splitDump } from './statements'
 import { tokenize, wordsAt, type Token } from './tokens'
 
@@ -63,17 +64,29 @@ const routineAt = (statement: string, tokens: Token[], at: number) => {
 /** The routines a rewrite left out, by name for the triggers calling them and by signature for statements naming them. */
 type LeftOutRoutines = { names: Set<string>; signatures: Set<string> }
 
-/** A CREATE FUNCTION or PROCEDURE in a missing language, left out, or a statement naming one left out before. */
-const routineVerdict = (statement: string, tokens: Token[], missing: Missing, routines: LeftOutRoutines): Verdict | undefined => {
+/**
+ * pgsodium's trigger function encrypting `column`, which it makes beside the table: it calls pgsodium, which the
+ * project's database never has, and would encrypt the values written to the column with that database's key.
+ */
+const pgsodiumTrigger = (column: EncryptedColumn) => `${column.schema}.${column.table}_encrypt_secret_${column.column}`
+
+/**
+ * A CREATE FUNCTION or PROCEDURE in a missing language or pgsodium's for an encrypted column, left out, or a statement
+ * naming one left out before.
+ */
+const routineVerdict = (statement: string, tokens: Token[], missing: Missing, encrypted: EncryptedColumn[], routines: LeftOutRoutines): Verdict | undefined => {
   const at = (...words: string[]) => wordsAt(statement, tokens, 0, words)
   const create = at('create', 'function') || at('create', 'procedure') ? 2 : at('create', 'or', 'replace', 'function') || at('create', 'or', 'replace', 'procedure') ? 4 : -1
   if (create !== -1) {
     const language = tokens.findIndex((token, i) => i > create && token.depth === 0 && wordsAt(statement, tokens, i, ['language']))
     const name = tokens[language + 1]?.word
     const routine = routineAt(statement, tokens, create)
-    if (!name || !routine || !missing.languages.includes(name)) return undefined
+    if (!routine) return undefined
+    const pgsodium = encrypted.some((column) => pgsodiumTrigger(column) === routine.name)
+    if (!pgsodium && !(name && missing.languages.includes(name))) return undefined
     routines.names.add(routine.name)
     routines.signatures.add(routine.signature)
+    if (pgsodium) return { drop: "it is pgsodium's, encrypting a column with the Supabase project's key; the report lists the column" }
     return { drop: `it is written in ${name}, which the project's database does not have; the report lists it for conversion` }
   }
   if (routines.signatures.size === 0) return undefined
@@ -81,11 +94,36 @@ const routineVerdict = (statement: string, tokens: Token[], missing: Missing, ro
   return named ? { drop: 'it names a function left out above' } : undefined
 }
 
+/** Whether the tokens name `schema.name` somewhere, as a word, a dot and a word. */
+const names = (statement: string, tokens: Token[], qualified: Set<string>) =>
+  tokens.some((token, i) => statement[tokens[i + 1]?.start ?? 0] === '.' && qualified.has(`${token.word}.${tokens[i + 2]?.word}`))
+
+/**
+ * pgsodium's security labels, and the views decrypting with it, such as its `decrypted_<table>`, left out, or a
+ * statement naming such a view: the project's database never has pgsodium, and only Supabase's key decrypts.
+ */
+const pgsodiumVerdict = (statement: string, tokens: Token[], views: Set<string>): Verdict | undefined => {
+  const at = (...words: string[]) => wordsAt(statement, tokens, 0, words)
+  if (at('security', 'label', 'for', 'pgsodium')) return { drop: "it labels a column pgsodium encrypts with the Supabase project's key; the report lists the column" }
+  const create = at('create', 'view') ? 2 : at('create', 'or', 'replace', 'view') ? 4 : -1
+  if (create !== -1 && tokens.some((token, i) => token.word === 'pgsodium' && statement[tokens[i + 1]?.start ?? 0] === '.')) {
+    views.add(`${tokens[create]?.word}.${tokens[create + 2]?.word}`)
+    return { drop: "it decrypts with pgsodium, which only the Supabase project's key opens; the report lists its columns" }
+  }
+  if (views.size > 0 && names(statement, tokens, views)) return { drop: 'it names a view left out above' }
+  return undefined
+}
+
+/** What a rewrite left out that later statements may name. */
+type LeftOutObjects = LeftOutRoutines & { views: Set<string> }
+
 /** A statement as it should restore on a Protobase database, or why it is left out. */
-const rewriteStatement = (statement: string, missing: Missing, routines: LeftOutRoutines): Verdict => {
+const rewriteStatement = (statement: string, missing: Missing, encrypted: EncryptedColumn[], left: LeftOutObjects): Verdict => {
   const tokens = tokenize(statement)
   const at = (...words: string[]) => wordsAt(statement, tokens, 0, words)
-  const routine = routineVerdict(statement, tokens, missing, routines)
+  const pgsodium = pgsodiumVerdict(statement, tokens, left.views)
+  if (pgsodium) return pgsodium
+  const routine = routineVerdict(statement, tokens, missing, encrypted, left)
   if (routine) return routine
   if (at('grant') || at('revoke')) return withoutSupabaseGrantees(statement, tokens, 0)
   if (at('alter', 'default', 'privileges')) return defaultPrivileges(statement, tokens)
@@ -97,7 +135,7 @@ const rewriteStatement = (statement: string, missing: Missing, routines: LeftOut
     const call = tokens.findIndex((_, i) => wordsAt(statement, tokens, i, ['execute', 'function']) || wordsAt(statement, tokens, i, ['execute', 'procedure']))
     const called = call === -1 ? undefined : routineAt(statement, tokens, call + 2)
     if (called && missing.triggerSchemas.includes(called.name.split('.')[0]!)) return { drop: `it calls ${called.name}, which the import does not carry over; the report lists it` }
-    if (called && routines.names.has(called.name)) return { drop: 'it calls a function left out above' }
+    if (called && left.names.has(called.name)) return { drop: 'it calls a function left out above' }
   }
   return keep(statement)
 }
@@ -107,18 +145,19 @@ const leftOut = (statement: string, reason: string) => `-- Left out by protobase
 
 /**
  * A `pg_dump --schema-only` of a Supabase database, rewritten to restore without errors as a role that is not a
- * superuser and has none of Supabase's own roles, on a database lacking what `missing` names, and how many statements
- * it leaves out. Statements are parsed, so a rule never touches a function body or a string.
+ * superuser and has none of Supabase's own roles, on a database lacking what `missing` names and pgsodium, whose
+ * `encrypted` columns keep their ciphertext without its trigger, and how many statements it leaves out. Statements are
+ * parsed, so a rule never touches a function body or a string.
  */
-export const rewriteSchemaDump = (dump: string, missing: Missing) => {
+export const rewriteSchemaDump = (dump: string, missing: Missing, encrypted: EncryptedColumn[]) => {
   let leftOutCount = 0
-  const routines: LeftOutRoutines = { names: new Set(), signatures: new Set() }
+  const left: LeftOutObjects = { names: new Set(), signatures: new Set(), views: new Set() }
   const sql = splitDump(dump)
     .map((piece) => {
       // psql's meta-commands (`\restrict`, `\unrestrict`) are not SQL; the project's migrations run through a driver.
       if (piece.kind === 'meta') return ''
       if (piece.kind === 'gap') return piece.text
-      const verdict = rewriteStatement(piece.text, missing, routines)
+      const verdict = rewriteStatement(piece.text, missing, encrypted, left)
       if ('keep' in verdict) return verdict.keep
       leftOutCount++
       return leftOut(piece.text, verdict.drop)

@@ -121,7 +121,7 @@ export const runDumpPhase = async (options: DumpOptions, out: (text: string) => 
     await reserved`commit`
     if (replay) await state.writeReplay(replay)
 
-    const migration = schemaMigration(await readFile(schemaFile, 'utf8'), { schemas: source.schemas, extensions: plan.extensions, webhooks: plan.webhooks, missing: plan.missing })
+    const migration = schemaMigration(await readFile(schemaFile, 'utf8'), { schemas: source.schemas, extensions: plan.extensions, webhooks: plan.webhooks, missing: plan.missing, encryptedColumns: source.pgsodiumColumns })
     await rm(schemaFile)
     await mkdir(options.migrationsDir, { recursive: true })
     const file = nextMigrationName(await readdir(options.migrationsDir), 'supabase_schema')

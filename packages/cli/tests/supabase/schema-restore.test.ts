@@ -16,7 +16,7 @@ const missing = { triggerSchemas: ['supabase_functions'], languages: [] }
 
 it('restores the dump of a Supabase database as a tenant that is no superuser and has none of its roles', async () => {
   const database = await openSnapshotDb('empty')
-  const migration = schemaMigration(dump, { schemas: ['auth', 'billing', 'public', 'storage'], extensions, webhooks: false, missing })
+  const migration = schemaMigration(dump, { schemas: ['auth', 'billing', 'public', 'storage'], extensions, webhooks: false, missing, encryptedColumns: [] })
   expect(migration.leftOut).toBe(100)
 
   // A cloud-style tenant: it owns its database and has the API roles' names to grant to, and nothing else. The API

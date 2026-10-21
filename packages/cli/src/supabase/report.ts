@@ -110,7 +110,7 @@ export const importReport = (manifest: ImportManifest, doctor: string | undefine
     ),
     section(
       'pgsodium encrypted columns',
-      "pgsodium encrypts these columns with the Supabase project's root key, which never leaves Supabase, so the import copied their ciphertext as it is. Export each column's values decrypted in Supabase, from its decrypted view (`decrypted_<table>` beside the table unless the table's label names another), and write them over the ciphertext; then declare the field `.encrypted()` and run `protobase encryption apply`, which encrypts them with the app's own key.",
+      "pgsodium encrypts these columns with the Supabase project's root key, which never leaves Supabase, so the import copied their ciphertext as it is. The migration leaves out pgsodium's labels, its decrypted views and its encrypting triggers, as comments: they stay in Supabase. Export each column's values decrypted in Supabase, from its decrypted view (`decrypted_<table>` beside the table unless the table's label names another), and write them over the ciphertext; then declare the field `.encrypted()` and run `protobase encryption apply`, which encrypts them with the app's own key.",
       manifest.pgsodiumColumns.map((column) => `${column.schema}.${column.table}.${column.column}`),
     ),
     section(

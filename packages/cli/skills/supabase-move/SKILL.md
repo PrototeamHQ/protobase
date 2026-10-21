@@ -71,7 +71,9 @@ Each secret moves to an environment variable the user enters again. Name it afte
 
 ### pgsodium encrypted columns
 
-Each column holds ciphertext only Supabase's key opens, so the values come from the user, never from the imported column:
+Each column holds ciphertext only Supabase's key opens, so the values come from the user, never from the imported column. The import's migration left out pgsodium's labels, decrypted views and encrypting triggers: the decrypted view stays in Supabase, so make no view or trigger again for it.
+
+Then:
 
 - ask the user to export the column's values decrypted from its decrypted view in Supabase, with the table's primary key, and to write them over the ciphertext; never guess or derive a value;
 - once the column holds those values, declare the field `.encrypted()` (see the `protobase` skill's encrypted fields), change the rules, validators and hooks that read it, and run `protobase encryption apply`. Never run it while a column still holds Supabase's ciphertext: it would encrypt the ciphertext as if it were the value.

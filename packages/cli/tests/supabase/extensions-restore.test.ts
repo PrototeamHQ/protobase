@@ -55,7 +55,7 @@ it("restores a Supabase database's Vault secrets, pgmq queues and Database Webho
   expect([...creatable]).toEqual(['pg_net', 'pgcrypto', 'pgmq', 'supabase_vault', 'uuid-ossp'])
 
   const plan = importPlan({ extensions, httpTriggers }, creatable)
-  const migration = schemaMigration(dump, { schemas: ['public'], extensions: plan.extensions, webhooks: plan.webhooks, missing: plan.missing })
+  const migration = schemaMigration(dump, { schemas: ['public'], extensions: plan.extensions, webhooks: plan.webhooks, missing: plan.missing, encryptedColumns: [] })
   expect(plan.leftOut.map((extension) => extension.name)).toEqual(['pg_cron'])
   expect(migration.text).toContain('\nCREATE TRIGGER order_placed AFTER INSERT ON public.orders')
 

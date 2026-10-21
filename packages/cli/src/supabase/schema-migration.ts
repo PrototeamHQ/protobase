@@ -1,5 +1,6 @@
 import { createExtensions, type SourceExtension } from './extensions'
 import { rewriteSchemaDump, type Missing } from './rewrite'
+import type { EncryptedColumn } from './source-facts'
 import { resetSettings, sessionSettings } from './session-settings'
 import { webhooksShim } from './webhooks'
 
@@ -10,6 +11,8 @@ export type MigrationInput = {
   /** Whether to create the shim Database Webhooks call, over pg_net among `extensions`. */
   webhooks: boolean
   missing: Missing
+  /** The columns pgsodium encrypts, whose trigger the migration leaves out. */
+  encryptedColumns: EncryptedColumn[]
 }
 
 /**
@@ -19,7 +22,7 @@ export type MigrationInput = {
  * statements it leaves out.
  */
 export const schemaMigration = (dump: string, input: MigrationInput) => {
-  const rewritten = rewriteSchemaDump(dump, input.missing)
+  const rewritten = rewriteSchemaDump(dump, input.missing, input.encryptedColumns)
   const text = [
     `-- The schemas ${input.schemas.join(', ')} of a Supabase database, written by \`protobase import supabase\`.\n`,
     "-- Applied with the project's other migrations. Statements naming Supabase's own roles are left out as comments.\n\n",

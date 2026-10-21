@@ -4,7 +4,7 @@ import { isSupabaseRole, rewriteSchemaDump, type Missing } from './rewrite'
 /** A database with no webhooks shim and no extension languages, as Postgres alone is. */
 const plain: Missing = { triggerSchemas: ['supabase_functions'], languages: [] }
 
-const rewrite = (statement: string, missing = plain) => rewriteSchemaDump(statement, missing).sql
+const rewrite = (statement: string, missing = plain) => rewriteSchemaDump(statement, missing, []).sql
 
 describe('isSupabaseRole', () => {
   it("names Supabase's own roles and not the API's", () => {
@@ -15,7 +15,7 @@ describe('isSupabaseRole', () => {
 
 describe('rewriteSchemaDump', () => {
   it("leaves out grants that name only Supabase's roles, as comments", () => {
-    expect(rewriteSchemaDump('GRANT ALL ON TABLE auth.users TO dashboard_user;\nGRANT SELECT ON TABLE auth.users TO postgres WITH GRANT OPTION;\n', plain)).toEqual({
+    expect(rewriteSchemaDump('GRANT ALL ON TABLE auth.users TO dashboard_user;\nGRANT SELECT ON TABLE auth.users TO postgres WITH GRANT OPTION;\n', plain, [])).toEqual({
       sql: "-- Left out by protobase import supabase: it names only Supabase's own roles.\n-- GRANT ALL ON TABLE auth.users TO dashboard_user;\n-- Left out by protobase import supabase: it names only Supabase's own roles.\n-- GRANT SELECT ON TABLE auth.users TO postgres WITH GRANT OPTION;\n",
       leftOut: 2,
     })
@@ -74,12 +74,32 @@ describe('rewriteSchemaDump', () => {
       'GRANT ALL ON FUNCTION public.js_add(a text, b text) TO anon;',
       '',
     ].join('\n')
-    const rewritten = rewriteSchemaDump(dump, { triggerSchemas: [], languages: ['plv8'] })
+    const rewritten = rewriteSchemaDump(dump, { triggerSchemas: [], languages: ['plv8'] }, [])
     expect(rewritten.leftOut).toBe(5)
     expect(rewritten.sql).toContain("-- Left out by protobase import supabase: it is written in plv8, which the project's database does not have; the report lists it for conversion.")
     expect(rewritten.sql).toContain('\nCREATE FUNCTION public.js_add(a text, b text)')
     expect(rewritten.sql).toContain('\nGRANT ALL ON FUNCTION public.js_add(a text, b text) TO anon;')
     expect(rewrite(dump)).not.toContain('-- Left out')
+  })
+
+  it("leaves out pgsodium's labels, decrypted view and encrypting trigger, keeping the table and its ciphertext", () => {
+    const dump = [
+      'CREATE FUNCTION public."profiles_encrypt_secret_iban"() RETURNS trigger\n    LANGUAGE plpgsql\n    AS $$\n\t\tBEGIN\n\t\tnew.iban = CASE WHEN new.iban IS NULL THEN NULL ELSE encode(pgsodium.crypto_aead_det_encrypt(convert_to(new.iban, \'utf8\'), convert_to(\'\', \'utf8\'), new.key_id::uuid, NULL), \'base64\') END;\n\t\tRETURN new;\n\t\tEND;\n\t\t$$;',
+      'CREATE TABLE public.profiles (\n    id bigint NOT NULL,\n    iban text,\n    key_id uuid\n);',
+      "SECURITY LABEL FOR pgsodium ON COLUMN public.profiles.iban IS 'ENCRYPT WITH KEY COLUMN key_id';",
+      'CREATE VIEW public.decrypted_profiles AS\n SELECT id,\n    iban,\n    CASE WHEN (iban IS NULL) THEN NULL::text ELSE convert_from(pgsodium.crypto_aead_det_decrypt(decode(iban, \'base64\'::text), convert_to(\'\'::text, \'utf8\'::name), key_id, NULL::bytea), \'utf8\'::name) END AS decrypted_iban\n   FROM public.profiles;',
+      'GRANT SELECT ON TABLE public.decrypted_profiles TO authenticated;',
+      'GRANT ALL ON FUNCTION public."profiles_encrypt_secret_iban"() TO anon;',
+      'CREATE TRIGGER profiles_encrypt_secret_trigger_iban BEFORE INSERT OR UPDATE OF iban ON public.profiles FOR EACH ROW EXECUTE FUNCTION public."profiles_encrypt_secret_iban"();',
+      'GRANT SELECT ON TABLE public.profiles TO authenticated;',
+      '',
+    ].join('\n')
+    const rewritten = rewriteSchemaDump(dump, plain, [{ schema: 'public', table: 'profiles', column: 'iban' }])
+    expect(rewritten.leftOut).toBe(6)
+    expect(rewritten.sql).toContain('\nCREATE TABLE public.profiles (\n    id bigint NOT NULL,\n    iban text,\n    key_id uuid\n);\n')
+    expect(rewritten.sql).toContain('\nGRANT SELECT ON TABLE public.profiles TO authenticated;\n')
+    expect(rewritten.sql.split('\n').filter((line) => line.includes('pgsodium') || line.includes('encrypt_secret')).every((line) => line.startsWith('-- '))).toBe(true)
+    expect(rewriteSchemaDump(dump, plain, []).sql).toMatch(/^CREATE FUNCTION public\."profiles_encrypt_secret_iban"\(\)/)
   })
 
   it('drops psql meta-commands and keeps everything else as it was', () => {
