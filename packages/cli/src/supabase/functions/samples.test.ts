@@ -15,11 +15,9 @@ const aliceId = '11111111-1111-4111-8111-111111111111'
 
 // Inside the package, so the converted code finds the packages it imports.
 let projectDir: string
-type Exported = { fetch: (request: Request) => Promise<Response> } | { kind: 'function'; handler: { fetch: (request: Request) => Promise<Response> } }
-const call = async (name: string, request: Request) => {
-  const exported = (await import(path.join(projectDir, 'functions', name, 'index.ts'))).default as Exported
-  return ('kind' in exported ? exported.handler : exported).fetch(request)
-}
+type Exported = { kind: 'function'; options: { public?: boolean; supabase?: boolean }; handler: { fetch: (request: Request) => Promise<Response> } }
+const load = async (name: string) => (await import(path.join(projectDir, 'functions', name, 'index.ts'))).default as Exported
+const call = async (name: string, request: Request) => (await load(name)).handler.fetch(request)
 
 // PostgREST behind `/rest/v1`, as RLS answers: alice's token reads her todo, the anonymous key nothing.
 const postgrest = async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -61,6 +59,20 @@ afterEach(() => {
 })
 
 describe("Supabase's sample functions, converted", () => {
+  it('answer at /api/sb/functions/v1, and only the one with verify_jwt = false is public', async () => {
+    // stripe-webhooks makes its client as it loads.
+    vi.stubEnv('STRIPE_API_KEY', 'sk_test_123')
+    const names = ['background', 'classic-rls', 'deno-env', 'new-rls', 'stripe-webhooks']
+    const loaded = await Promise.all(names.map(async (name) => [name, (await load(name)).options] as const))
+    expect(Object.fromEntries(loaded)).toEqual({
+      background: { supabase: true },
+      'classic-rls': { supabase: true },
+      'deno-env': { supabase: true },
+      'new-rls': { supabase: true },
+      'stripe-webhooks': { public: true, supabase: true },
+    })
+  })
+
   it("classic-rls reads the caller's todos through supabase-js", async () => {
     vi.stubGlobal('fetch', postgrest)
     const response = await call('classic-rls', new Request(`${url}/classic-rls`, { headers: { authorization: `Bearer ${aliceToken}` } }))

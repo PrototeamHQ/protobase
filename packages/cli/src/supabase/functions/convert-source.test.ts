@@ -7,23 +7,24 @@ const convert = (code: string, options: Partial<SourceOptions> = {}) => convertS
 
 describe('convertSource', () => {
   it("makes Deno.serve's handler the default export's fetch, with or without options", () => {
-    expect(convert('Deno.serve((req) => new Response("hi"))\n').code).toBe('export default { fetch: (req) => new Response("hi") }\n')
-    expect(convert('Deno.serve({ port: 8000 }, handler)\n').code).toBe('export default { fetch: handler }\n')
+    expect(convert('Deno.serve((req) => new Response("hi"))\n').code).toBe(`import { defineFunction } from '@protobase/server'\nexport default defineFunction({ supabase: true }, { fetch: (req) => new Response("hi") })\n`)
+    expect(convert('Deno.serve({ port: 8000 }, handler)\n').code).toBe("import { defineFunction } from '@protobase/server'\nexport default defineFunction({ supabase: true }, { fetch: handler })\n")
   })
 
   it("drops std's serve import and serves its handler, under any local name", () => {
     const code = "// hello\nimport { serve as listen } from 'https://deno.land/std@0.168.0/http/server.ts'\n\nlisten(async () => new Response('hi'))\n"
-    expect(convert(code)).toEqual({ code: "// hello\n\nexport default { fetch: async () => new Response('hi') }\n", packages: [], left: [] })
+    expect(convert(code)).toEqual({ code: "// hello\nimport { defineFunction } from '@protobase/server'\n\nexport default defineFunction({ supabase: true }, { fetch: async () => new Response('hi') })\n", packages: [], left: [] })
   })
 
-  it('opens a public function with defineFunction, whether it served or default-exported', () => {
-    expect(convert('Deno.serve(handler)\n', { public: true }).code).toBe("import { defineFunction } from '@protobase/server'\nexport default defineFunction({ public: true }, { fetch: handler })\n")
-    expect(convert('export default { fetch: handler }\n', { public: true }).code).toBe("import { defineFunction } from '@protobase/server'\nexport default defineFunction({ public: true }, { fetch: handler })\n")
+  it('serves a function at /api/sb/functions/v1 with defineFunction, public or not, whether it served or default-exported', () => {
+    expect(convert('Deno.serve(handler)\n', { public: true }).code).toBe("import { defineFunction } from '@protobase/server'\nexport default defineFunction({ public: true, supabase: true }, { fetch: handler })\n")
+    expect(convert('export default { fetch: handler }\n', { public: true }).code).toBe("import { defineFunction } from '@protobase/server'\nexport default defineFunction({ public: true, supabase: true }, { fetch: handler })\n")
+    expect(convert('export default { fetch: handler }\n').code).toBe("import { defineFunction } from '@protobase/server'\nexport default defineFunction({ supabase: true }, { fetch: handler })\n")
   })
 
   it('reads Deno.env.get from process.env and maps EdgeRuntime.waitUntil to Protobase’s', () => {
     const code = "const key = Deno.env.get('KEY')!\nexport default { fetch: () => { EdgeRuntime.waitUntil(send(key)); return new Response() } }\n"
-    expect(convert(code).code).toBe("import { waitUntil } from '@protobase/server'\nconst key = process.env['KEY']!\nexport default { fetch: () => { waitUntil(send(key)); return new Response() } }\n")
+    expect(convert(code).code).toBe("import { defineFunction, waitUntil } from '@protobase/server'\nconst key = process.env['KEY']!\nexport default defineFunction({ supabase: true }, { fetch: () => { waitUntil(send(key)); return new Response() } })\n")
   })
 
   it("rewrites npm:, jsr: and esm.sh imports, import-mapped ones too, and drops Supabase's runtime types", () => {
@@ -38,11 +39,12 @@ describe('convertSource', () => {
     ].join('\n')
     expect(convert(code, { importMap: { supabase: 'npm:@supabase/supabase-js@2' } })).toEqual({
       code: [
+        "import { defineFunction } from '@protobase/server'",
         "import { createClient } from '@supabase/supabase-js'",
         "export { assert } from '@std/assert'",
         "const { z } = await import('zod')",
         "import { cors } from '../_shared/cors.ts'",
-        'export default { fetch: () => new Response() }',
+        'export default defineFunction({ supabase: true }, { fetch: () => new Response() })',
         '',
       ].join('\n'),
       packages: [
@@ -75,8 +77,8 @@ describe('convertSource', () => {
   })
 
   it('serves only from an entry, once, and says when an entry serves nothing', () => {
-    expect(convert('Deno.serve(handler)\n', { entry: false }).left).toEqual(['functions/hello/index.ts:1: Deno.serve(...), which Protobase does not run: default-export { fetch: handler }'])
-    expect(convert('export default app\nDeno.serve(handler)\n').left).toEqual(['functions/hello/index.ts:2: Deno.serve(...), which Protobase does not run: default-export { fetch: handler }'])
-    expect(convert('const x = 1\n').left).toEqual(['functions/hello/index.ts:1: no Deno.serve or default export to serve'])
+    expect(convert('Deno.serve(handler)\n', { entry: false }).left).toEqual(['functions/hello/index.ts:1: Deno.serve(...), which Protobase does not run: default-export defineFunction({ supabase: true }, { fetch: handler })'])
+    expect(convert('export default app\nDeno.serve(handler)\n').left).toEqual(['functions/hello/index.ts:2: Deno.serve(...), which Protobase does not run: default-export defineFunction({ supabase: true }, { fetch: handler })'])
+    expect(convert('const x = 1\n').left).toEqual(['functions/hello/index.ts:1: no Deno.serve or default export to serve: default-export defineFunction({ supabase: true }, { fetch: handler })'])
   })
 })

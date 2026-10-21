@@ -7,7 +7,7 @@ export type SourceOptions = {
   file: string
   /** Whether the file is a function's `index.ts`, whose `Deno.serve` becomes its default export. */
   entry: boolean
-  /** Whether the function is open to anyone (`verify_jwt = false`): its default export becomes `defineFunction({ public: true }, ...)`. */
+  /** Whether the function is open to anyone (`verify_jwt = false`): its default export becomes `defineFunction({ public: true, supabase: true }, ...)`. */
   public: boolean
   importMap: ImportMap
 }
@@ -59,8 +59,9 @@ const applyEdits = (code: string, edits: Edit[]) => {
  * Converts one file of a Supabase Edge Function for Protobase, by its syntax tree: `npm:`, `jsr:` and esm.sh imports
  * become bare imports of the packages it reports, `Deno.env.get(x)` becomes `process.env[x]`, and
  * `EdgeRuntime.waitUntil` Protobase's `waitUntil`. In a function's entry, `Deno.serve(handler)` or std's
- * `serve(handler)` becomes `export default { fetch: handler }`. Anything else of Deno's or Supabase's runtime, and
- * imports of no npm package, stay as they are and are listed in `left`.
+ * `serve(handler)` becomes `export default defineFunction({ supabase: true }, { fetch: handler })`, and an existing
+ * default export is wrapped the same way, so the function answers at `/api/sb/functions/v1/<name>` too. Anything else
+ * of Deno's or Supabase's runtime, and imports of no npm package, stay as they are and are listed in `left`.
  */
 export const convertSource = (code: string, options: SourceOptions): ConvertedSource => {
   const source = ts.createSourceFile(options.file, code, ts.ScriptTarget.Latest, true)
@@ -77,6 +78,7 @@ export const convertSource = (code: string, options: SourceOptions): ConvertedSo
   }
   const defaultExport = source.statements.find((statement) => ts.isExportAssignment(statement) && !statement.isExportEquals) as ts.ExportAssignment | undefined
   let served = false
+  const opts = options.public ? '{ public: true, supabase: true }' : '{ supabase: true }'
 
   const rewriteSpecifier = (literal: ts.StringLiteral, statement?: ts.ImportDeclaration) => {
     const specifier = resolveImport(literal.text, options.importMap)
@@ -104,13 +106,12 @@ export const convertSource = (code: string, options: SourceOptions): ConvertedSo
     const statement = call.parent
     const handler = serveHandler(call)
     if (!options.entry || !ts.isExpressionStatement(statement) || statement.parent !== source || !handler || defaultExport || served) {
-      return note(call, `${call.expression.getText(source)}(...), which Protobase does not run: default-export { fetch: handler }`)
+      return note(call, `${call.expression.getText(source)}(...), which Protobase does not run: default-export defineFunction(${opts}, { fetch: handler })`)
     }
     served = true
-    const open = options.public ? 'defineFunction({ public: true }, { fetch: ' : '{ fetch: '
-    if (options.public) imports.add('defineFunction')
-    edits.push({ start: statement.getStart(source), end: handler.getStart(source), text: `export default ${open}` })
-    edits.push({ start: handler.end, end: statement.end, text: options.public ? ' })' : ' }' })
+    imports.add('defineFunction')
+    edits.push({ start: statement.getStart(source), end: handler.getStart(source), text: `export default defineFunction(${opts}, { fetch: ` })
+    edits.push({ start: handler.end, end: statement.end, text: ' })' })
   }
 
   const visit = (node: ts.Node) => {
@@ -137,10 +138,10 @@ export const convertSource = (code: string, options: SourceOptions): ConvertedSo
   }
   visit(source)
 
-  if (options.entry && !served && !defaultExport) note(source.statements[0] ?? source, 'no Deno.serve or default export to serve')
-  if (options.entry && options.public && defaultExport) {
+  if (options.entry && !served && !defaultExport) note(source.statements[0] ?? source, `no Deno.serve or default export to serve: default-export defineFunction(${opts}, { fetch: handler })`)
+  if (options.entry && defaultExport) {
     imports.add('defineFunction')
-    edits.push({ start: defaultExport.expression.getStart(source), end: defaultExport.expression.getStart(source), text: 'defineFunction({ public: true }, ' })
+    edits.push({ start: defaultExport.expression.getStart(source), end: defaultExport.expression.getStart(source), text: `defineFunction(${opts}, ` })
     edits.push({ start: defaultExport.expression.end, end: defaultExport.expression.end, text: ')' })
   }
   if (imports.size > 0) {
