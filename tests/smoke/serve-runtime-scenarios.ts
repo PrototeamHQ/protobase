@@ -7,6 +7,7 @@ import postgres from 'postgres'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { buildServeRuntime } from '../../packages/cli/src/build/serve-runtime'
 import { protobaseVersion } from '../../packages/cli/src/version/version'
+import { bin, root, run } from '../../packages/cli/tests/support/auth-project'
 import { sendPastDueInvoice, signIn, stopProcess, untilListening } from '../../packages/cli/tests/support/serve-process'
 
 /** A plain ERP bundle `protobase build` wrote, and what serving it takes: its database's environment, a port, a user. */
@@ -164,6 +165,45 @@ export const serveRuntimeScenarios = (erp: () => BuiltErp) => describe('the ERP 
     expect(refused.stdout).toBe('')
     expect(refused.stderr).not.toContain('Password')
     expect(await signIn(base, erp().email, erp().password)).toBeTruthy()
+  }, commandTimeout)
+
+  it("leaves an existing user's role, password and session as they are", async () => {
+    const email = 'auditor@example.com'
+    const password = 'auditor-test-password'
+    const created = await run([bin, 'users', 'create', email, '--role', 'auditor', '--password-stdin'], path.join(root, 'examples/erp'), erp().env, `${password}\n`)
+    if (created.status !== 0) throw new Error(`users create failed:\n${created.stderr}`)
+    const signedIn = await fetch(`${base}/api/auth/sign-in/email`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', origin: base },
+      body: JSON.stringify({ email, password }),
+    })
+    expect(signedIn.status).toBe(200)
+    const cookie = signedIn.headers.getSetCookie().map((value) => value.split(';')[0]).join('; ')
+
+    const refused = command(['create-admin', 'app', email.toUpperCase(), '--generate-password'], erp().env)
+    expect(refused.status).toBe(1)
+    expect(refused.stdout).toBe('')
+    expect(refused.stderr).not.toContain('Password')
+    expect(await roleOf(email)).toBe('auditor')
+    expect(await signIn(base, email, password)).toBeTruthy()
+    const session = await fetch(`${base}/api/auth/get-session`, { headers: { cookie, origin: base } })
+    expect(session.status).toBe(200)
+    expect((await session.json()).user.email).toBe(email)
+  }, commandTimeout)
+
+  // The app's own pool, through Better Auth's schema check, fails as postgres.js does in `migrate`: without the secret.
+  it('never prints the database password, on a wrong one or a server that refuses connections', () => {
+    const wrong = new URL(erp().env.DATABASE_URL!)
+    wrong.password = 'wrong-database-password-4f1c'
+    const refused = new URL(erp().env.DATABASE_URL!)
+    refused.host = '127.0.0.1:1'
+    refused.password = 'refused-database-password-9b2e'
+    for (const url of [wrong, refused]) {
+      const result = command(['create-admin', 'app', 'nodb@example.com', '--generate-password'], { ...erp().env, DATABASE_URL: url.toString() })
+      expect(result.status).toBe(1)
+      expect(result.stdout + result.stderr).not.toContain(url.password)
+      expect(result.stdout + result.stderr).not.toContain(url.toString())
+    }
   }, commandTimeout)
 
   it('creates nobody without the auth secret or with a short password', async () => {
