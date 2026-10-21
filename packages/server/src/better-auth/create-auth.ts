@@ -246,11 +246,12 @@ export const betterAuthOptions = (options: CreateAuthOptions, { origins = [], pa
       expirationTime: tokenLifetime,
       issuer: options.baseURL,
       audience: options.baseURL,
-      // The token carries the session's active role alone; see `narrowClaims`.
+      // The token carries the session's active role alone; see `narrowClaims`. `sid` names the session, so the
+      // authenticator refuses the token once it is signed out (`checkTokenStanding`).
       definePayload: async ({ user, session }) => {
         const { activeRole, activeOrganizationId } = session as RoleSession
         const claims = { role: user.role, ...(organizations && (await organizationClaims((await context()).adapter, user, activeOrganizationId))) }
-        return { email: user.email, ...narrowClaims(claims, [activeRole, (user as RoleUser).lastRole], Boolean(organizations)) }
+        return { email: user.email, sid: session.id, ...narrowClaims(claims, [activeRole, (user as RoleUser).lastRole], Boolean(organizations)) }
       },
     },
     // Tokens come from `/token` only, which the sign-in policy holds back until required methods are set up.

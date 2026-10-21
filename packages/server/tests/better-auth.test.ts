@@ -258,6 +258,51 @@ describe('managing users on the host', () => {
   })
 })
 
+describe('revoking tokens before they expire', () => {
+  const signIn = async (email: string) => {
+    const response = await post('/api/auth/sign-in/email', { email, password })
+    expect(response.status).toBe(200)
+    const cookie = response.headers.getSetCookie().map((line) => line.split(';')[0]).join('; ')
+    const token = async () => ((await (await app.request(`${origin}/api/auth/token`, { headers: { cookie, origin } })).json()) as { token: string }).token
+    return { cookie, token }
+  }
+
+  it('ends a token on a ban, and on its session signing out, leaving the other sessions', async () => {
+    await createUser(auth, { email: 'leaver@example.com', password, role: 'admin' })
+    const laptop = await signIn('leaver@example.com')
+    const phone = await signIn('leaver@example.com')
+    const laptopToken = await laptop.token()
+    const phoneToken = await phone.token()
+    expect((await api('/companies?page_size=1', laptopToken)).status).toBe(200)
+
+    expect((await post('/api/auth/sign-out', {}, { cookie: laptop.cookie })).status).toBe(200)
+    expect((await api('/companies?page_size=1', laptopToken)).status).toBe(401)
+    expect((await api('/companies?page_size=1', phoneToken)).status).toBe(200)
+
+    const issued = (await issueToken(auth, { email: 'leaver@example.com' })).token
+    await setUserBanned(auth, { email: 'leaver@example.com', banned: true })
+    expect((await api('/companies?page_size=1', phoneToken)).status).toBe(401)
+    expect((await api('/companies?page_size=1', issued)).status).toBe(401)
+    await deleteUser(auth, 'leaver@example.com')
+  })
+
+  it('ends a token carrying a role taken away, and the session\'s next token carries the role left', async () => {
+    await createUser(auth, { email: 'demoted@example.com', password, role: 'admin' })
+    const session = await signIn('demoted@example.com')
+    const adminToken = await session.token()
+    expect((await api('/companies/23', adminToken, { method: 'DELETE' })).status).toBe(204)
+
+    await setUserRole(auth, { email: 'demoted@example.com', role: 'user' })
+    expect((await api('/companies?page_size=1', adminToken)).status).toBe(401)
+    const userToken = await session.token()
+    expect(claimsOfToken(userToken).role).toBe('user')
+    expect((await api('/companies/24', userToken, { method: 'DELETE' })).status).toBe(403)
+
+    await deleteUser(auth, 'demoted@example.com')
+    expect((await api('/companies?page_size=1', userToken)).status).toBe(401)
+  })
+})
+
 describe('the Better Auth storage that users.ts depends on', () => {
   it('still has the user columns and adapter calls used, so a Better Auth upgrade that moves them fails here', async () => {
     const columns = (await store.query<{ column_name: string }>("select column_name from information_schema.columns where table_name = 'user'")).rows.map((row) => row.column_name)

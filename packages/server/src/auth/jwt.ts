@@ -1,6 +1,6 @@
 import { createRemoteJWKSet, errors, jwtVerify, type JWTPayload, type JWTVerifyGetKey } from 'jose'
 import { MissingCredentials, unauthorized } from '../problem'
-import type { Authenticator, TenantValue } from '../types'
+import type { Authenticator, Session, TenantValue } from '../types'
 
 export type JwtOptions = {
   /** JWKS endpoint of the identity provider; or pass `keys`, for example `createLocalJWKSet`. */
@@ -44,11 +44,11 @@ export const jwtVerifier = (options: JwtVerifyOptions) => {
   }
 }
 
-/** Verifies `Authorization: Bearer <jwt>` against a JWKS; `sub` is the user id. Without the header, `MissingCredentials`. */
-export const jwtAuthenticator = (options: JwtOptions): Authenticator => {
+/** Like `jwtAuthenticator`, and also returns the verified claims, for an authenticator that checks more of them. */
+export const jwtSessions = (options: JwtOptions) => {
   const { rolesClaim = 'roles', tenantClaim = 'tenant' } = options
   const verify = jwtVerifier(options)
-  return async (request) => {
+  return async (request: Request): Promise<{ payload: JWTPayload; session: Session }> => {
     const header = request.headers.get('authorization')
     if (header === null) throw new MissingCredentials('Send a bearer token in the Authorization header')
     const [scheme, token] = header.split(' ')
@@ -59,6 +59,13 @@ export const jwtAuthenticator = (options: JwtOptions): Authenticator => {
     if (!sub) throw unauthorized('The bearer token has no subject')
     const claimed = typeof tenant === 'string' || typeof tenant === 'number' ? tenant : undefined
     const tenantValue = options.tenant === undefined ? claimed : typeof options.tenant === 'function' ? await options.tenant() : options.tenant
-    return { user: { id: sub, roles: [...new Set([...rolesOf(roles), ...extraRoles])] }, ...(tenantValue !== undefined && { tenant: tenantValue }) }
+    const session = { user: { id: sub, roles: [...new Set([...rolesOf(roles), ...extraRoles])] }, ...(tenantValue !== undefined && { tenant: tenantValue }) }
+    return { payload, session }
   }
+}
+
+/** Verifies `Authorization: Bearer <jwt>` against a JWKS; `sub` is the user id. Without the header, `MissingCredentials`. */
+export const jwtAuthenticator = (options: JwtOptions): Authenticator => {
+  const sessions = jwtSessions(options)
+  return async (request) => (await sessions(request)).session
 }

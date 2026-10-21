@@ -298,11 +298,14 @@ describe('managing members', () => {
     expect(acme.members).toEqual(expect.arrayContaining([expect.objectContaining({ email: 'sanne@example.com', role: 'owner' }), expect.objectContaining({ email: 'bo@example.com', role: 'admin' })]))
   })
 
-  it('takes a removed member out of the organization on their other sessions', async () => {
+  it('takes a removed member out of the organization on their other sessions, and ends the token they hold', async () => {
     const app = await serve({}, { people: true })
     const sanne = await app.signIn('sanne@example.com')
     expect(await claimsOf(app, sanne)).toMatchObject({ org: '1' })
+    const token = await app.tokenOf(sanne)
+    expect((await app.request('/api/v1/companies?page_size=1', { token })).status).toBe(200)
     expect((await app.request('/api/auth/organization/remove-member', { cookie: await app.signIn('bo@example.com'), body: { memberIdOrEmail: 'sanne@example.com', organizationId: '1' } })).status).toBe(200)
+    expect((await app.request('/api/v1/companies?page_size=1', { token })).status).toBe(401)
     expect(await claimsOf(app, sanne)).not.toHaveProperty('org')
   })
 })

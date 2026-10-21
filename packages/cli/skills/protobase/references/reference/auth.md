@@ -254,7 +254,7 @@ The guardrails:
 - **Permission:** the ID token's `groups` claim must hold the configured group (default `protobase-staff-access`).
 - **A strong, recent sign-in:** the provider must report a passkey or a second step (`amr` with `mfa`, `hwk` or `swk`, or an `acr` from `acrValues`), at most 15 minutes old (`auth_time`; the app asks with `max_age`). The person's own two-factor and passkey requirements do not apply to staff.
 - **A reason**, kept in the log with who signed in as whom.
-- **Short and stoppable:** the session lasts 30 minutes (`sessionMinutes`, at most 240), is never extended, ends with the browser, and "Stop staff session" (`POST /api/auth/staff/stop`) ends it and signs the browser out. An API token it got before keeps working until it expires, at most 15 minutes later, like any other.
+- **Short and stoppable:** the session lasts 30 minutes (`sessionMinutes`, at most 240), is never extended, ends with the browser, and "Stop staff session" (`POST /api/auth/staff/stop`) ends it and signs the browser out. An API token it got before stops working on its next request, like that of any [ended session](#when-a-token-stops-working).
 - **No takeover:** a staff session cannot change the person's password, email, passkeys, two-factor authentication or sessions, nor save the sign-in policy (`403`, `STAFF_CANNOT_CHANGE_SIGN_IN`).
 - **The app decides:** admins turn staff sign-in off, or have the person emailed each time, with the [sign-in policy](#sign-in-policy).
 - **One way in:** Better Auth's own `/admin/impersonate-user` and `/admin/stop-impersonating` are off (`404`), so app admins cannot sign in as their people.
@@ -424,7 +424,7 @@ It is Better Auth's organization plugin, with its tables named in snake_case (`o
 
 **Who gives which role.** Someone may give or take away a member's app role only if they hold it, in that organization or globally, or hold a role whose `grants` list it (`manager` above gives `accountant` without holding it); grants do not chain, and a superuser may give any. Only a superuser changes global roles. The creator of an organization becomes its owner with every app role (`creatorAppRoles`, default `'all'`), so they can give them on; for a role added later, list it in a role owners hold, or run `protobase organizations add-app-role <role> --to owners`.
 
-**The organization in the token.** A new session starts in the organization the person last worked in, else their oldest membership. `/api/auth/token` adds `org` (the organization), `org_role` and `app_roles` (the membership's, narrowed to the active role), read when the token is issued, so a removed member or a changed role shows within its 15 minutes. `betterAuthAuthenticator` makes `org` the tenant and `ctx.organization.id`, and adds `app_roles` to the global roles. `POST /api/auth/organization/switch` with `{ organizationId }` moves the session; the next token names the new organization, without signing in again. Someone with a global role may switch into any organization, without being a member, and sees there what those roles allow; each such entry is an `organization.entered` [audit event](api.md#audit-events)). `GET /api/auth/organization/search?query=&offset=` lists every organization for them, ordered by slug, 20 at a time with the `total`, narrowed by text in the name or slug; the Organizations page shows it as All organizations. A list across organizations stays a resource without `.tenant`, readable by the global role.
+**The organization in the token.** A new session starts in the organization the person last worked in, else their oldest membership. `/api/auth/token` adds `org` (the organization), `org_role` and `app_roles` (the membership's, narrowed to the active role), read when the token is issued; a removed member's token, or one carrying an app role taken away, [stops working](#when-a-token-stops-working) on its next request. `betterAuthAuthenticator` makes `org` the tenant and `ctx.organization.id`, and adds `app_roles` to the global roles. `POST /api/auth/organization/switch` with `{ organizationId }` moves the session; the next token names the new organization, without signing in again. Someone with a global role may switch into any organization, without being a member, and sees there what those roles allow; each such entry is an `organization.entered` [audit event](api.md#audit-events)). `GET /api/auth/organization/search?query=&offset=` lists every organization for them, ordered by slug, 20 at a time with the `total`, narrowed by text in the name or slug; the Organizations page shows it as All organizations. A list across organizations stays a resource without `.tenant`, readable by the global role.
 
 **Invitations.** Better Auth's `POST /api/auth/organization/invite-member` with `{ organizationId, email, role, appRoles }`; inviting again replaces the earlier invitation, and it works for `invitationDays` (default 7). The email links to `{baseURL}/-/invitation?token=…` (`invitationUrl`), with a token signed with `secret`, since members can read invitation ids; without a mailer, the answer carries the `link` to pass on. The link page shows `GET /api/auth/invitation?token=`, accepts with `POST /api/auth/invitation/accept` for someone signed in as the invited address, and makes an account with `POST /api/auth/invitation/sign-up` (`{ token, name, password? }`) for an address without one. The link page and its sign-up serve [invitations to the app](#users-page) too. [Open sign-up](#open-sign-up) is not available with organizations: an invitation is the address someone vouched for.
 
@@ -443,6 +443,22 @@ Sign in at `POST /api/auth/sign-in/email` (or with a code or passkey), then `GET
 `betterAuthAuthenticator` maps the claims to a session: `sub` is the user id, `roles` come from the `role` claim, the session's [active role](#active-role) of those in the admin plugin's `role` column on the user (a comma separated string; the first user is always `admin`). Access rules see them as `ctx.user.roles`. Without organizations, the tenant is the configured `tenant` option, never a claim; with them, it is the organization the session works in (`org`, see [organizations](#organizations)). The key set is cached in memory: read once, again every 10 minutes (so removed keys stop being accepted), and again when a token names an unknown `kid` (a rotated key), at most once per 30 seconds however many such tokens arrive (`cache: { refreshMs, minReloadMs }`). Pass `jwksUrl` and `issuer` instead of `auth` when the API runs apart from the auth server.
 
 `jwtAuthenticator` accepts asymmetric signature algorithms only unless you pass `algorithms` explicitly (the tests do, for HS256), so a token cannot be forged with a public key used as an HMAC secret; Better Auth signs with its own key pair and publishes the public keys at `/api/auth/jwks`. An expired, tampered, wrongly signed or missing token is a `401` problem with `WWW-Authenticate: Bearer`; with an [anonymous role](access.md#anonymous-access)), a missing one on the resources API is served as that role instead.
+
+### When a token stops working
+
+With `auth`, `betterAuthAuthenticator` checks on every request that the token still stands, so these take effect on the next request every route that authenticates sees (the resources API, `/api/meta`, batches, functions, files and new `/live` streams), not when the token expires:
+
+| Change | The token |
+| --- | --- |
+| A ban (`/admin/ban-user`, `protobase users disable`) | is refused until the ban runs out or is lifted; a ban ends the sessions too, so a new token takes signing in again. |
+| A role taken away (`/admin/set-role`, `setUserRole`, a membership's app roles) | carrying that role is refused; the client's retry gets a token from its session with the roles left. A token carrying fewer roles than held keeps working. |
+| The user deleted | is refused. |
+| Signing out, a revoked session, a stopped staff session | of that session is refused; the person's other sessions keep theirs. |
+| Removal from the organization | naming that organization is refused, unless a global role still enters it. |
+
+A refused token is a `401`, as an expired one is, and the client retries the request once with a new token from `/api/auth/token`. Tokens carry their session's id in `sid`; one from [`issueToken`](#tokens-for-scripts-and-curl) names none, and is checked against the user alone.
+
+The cost is two or three lookups by key in the auth store per request: the session by `sid`, the user by `sub`, and with organizations the membership. Nothing is cached, so every server process sees a change at once. An open `/live` stream was admitted when it connected and keeps running until it closes. With `jwksUrl` instead of `auth`, the API cannot read the auth store and a token works until it expires, as do tokens of [other apps](#users-of-another-app).
 
 ## Users of another app
 
@@ -479,7 +495,7 @@ import { issueToken } from '@protobase/server'
 const { token, expiresAt } = await issueToken(auth, { email: 'you@example.com', ttlSeconds: 3600 }) // default 15 minutes, at most 24 hours
 ```
 
-It is signed with the same keys and carries the same claims as a token from `/api/auth/token`, with the role the user last chose, else their first, so the API treats it as any other. Banned and unknown users get an error. There is no HTTP route for this.
+It is signed with the same keys and carries the same claims as a token from `/api/auth/token`, with the role the user last chose, else their first, so the API treats it as any other, and a ban, a role taken away or the user deleted ends it before it expires. Banned and unknown users get an error. There is no HTTP route for this.
 
 ## Several origins
 
