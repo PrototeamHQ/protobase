@@ -15,16 +15,16 @@ export type SeriesOptions = BucketOptions & {
   measure?: Measure
 }
 export type { Granularity } from './series-buckets'
-export type SeriesPoint = { bucket: string; count: number; sum?: number | null; average?: number | null }
+export type SeriesPoint = { bucket: string; count: number; sum?: number | null; average?: number | null; maximum?: number | null }
 
 /**
- * Row counts per calendar bucket, in `timeZone`, with empty buckets present. `to` is exclusive.
+ * Row counts per calendar bucket (or of 1, 5 or 15 minutes), in `timeZone`, with empty buckets present. `to` is exclusive.
  * Buckets are returned as local ISO strings without offset. `date` fields ignore the time zone;
  * `timestamp` columns without a zone are read in the session time zone. With a measure, a bucket without a row to add
  * up has `null` for it.
  */
 export const series = async (db: Db, model: ResourceModel, field: string, options: SeriesOptions): Promise<SeriesPoint[]> => {
-  const { col, from, to, unit, step, bound, local, laterBucket, isDate } = seriesBuckets(model, field, options)
+  const { col, from, to, truncate, step, bound, local, laterBucket, isDate } = seriesBuckets(model, field, options)
   const { measure } = options
   const amount = measure ? measureSql(model, measure) : undefined
   await assertFilterRequirements(db, options.filter, options.scope)
@@ -32,7 +32,7 @@ export const series = async (db: Db, model: ResourceModel, field: string, option
   const counts = baseQuery(db, model, options.filter, options.scope)
     .where(sql<SqlBool>`${col} >= ${from}::${bound} and ${col} < ${to}::${bound}`)
     .select([
-      sql`date_trunc(${unit}, ${isDate ? sql`${col}::timestamp` : local(col)})`.as('bucket'),
+      truncate(isDate ? sql`${col}::timestamp` : local(col)).as('bucket'),
       sql`count(*)::text`.as('n'),
       ...(amount ? [sql`${amount}::text`.as('m')] : []),
     ])
@@ -40,7 +40,7 @@ export const series = async (db: Db, model: ResourceModel, field: string, option
 
   const result = await sql<{ bucket: string; n: unknown; m?: unknown }>`
     with b as (
-      select generate_series(date_trunc(${unit}, ${local(from)}), ${laterBucket}, ${step}) as bucket
+      select generate_series(${truncate(local(from))}, ${laterBucket}, ${step}) as bucket
     ), c as (${counts})
     select to_char(b.bucket, 'YYYY-MM-DD"T"HH24:MI:SS') as bucket, coalesce(c.n, '0') as n${amount ? sql`, c.m` : sql``}
     from b left join c on c.bucket = b.bucket

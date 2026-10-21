@@ -15,7 +15,7 @@ const maxLimit = 1000
 
 export type GroupTotalsOptions = { statementTimeoutMs: number; filter?: CheckedFilter; measure?: Measure; limit?: number; scope?: Scope }
 /** One value of the grouped field: how many rows have it and, with a measure, their sum or average. */
-export type GroupTotal = { value: unknown; count: number; sum?: number | null; average?: number | null }
+export type GroupTotal = { value: unknown; count: number; sum?: number | null; average?: number | null; maximum?: number | null }
 
 /**
  * Rows per value of `field` under the whole filter, largest first: by the measure when there is one, else by count.

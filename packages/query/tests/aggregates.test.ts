@@ -142,6 +142,16 @@ describe('series', () => {
     expect(monthly).toEqual([{ bucket: '2024-01-01T00:00:00', count: expect.any(Number), average }])
   })
 
+  it('buckets by minutes on the clock, a bucket without rows holding no maximum', async () => {
+    const quarters = await series(ctx.db, items, 'created_at', { range: { from: '2024-01-02T00:07:00Z', to: '2024-01-02T01:30:00Z' }, granularity: '15_minutes', measure: { kind: 'maximum', field: 'qty' } })
+    const top = await sqlRows<{ n: string; m: string }>(`select count(*)::text n, max(qty)::text m from items where deleted_at is null and created_at = '2024-01-02T01:00:00Z'`)
+    expect(quarters.map(p => p.bucket)).toEqual(['00:00', '00:15', '00:30', '00:45', '01:00', '01:15'].map(time => `2024-01-02T${time}:00`))
+    expect(quarters.map(p => p.maximum)).toEqual([null, null, null, null, Number(top[0]!.m), null])
+    expect(quarters[4]?.count).toBe(Number(top[0]!.n))
+    const minutes = await series(ctx.db, items, 'created_at', { range: { from: '2024-01-02T01:00:00Z', to: '2024-01-02T01:03:00Z' }, granularity: 'minute' })
+    expect(minutes.map(p => p.count)).toEqual([Number(top[0]!.n), 0, 0])
+  })
+
   it('works on date fields', async () => {
     const points = await series(ctx.db, items, 'born', { range: { from: '2024-01-01', to: '2024-01-04' }, granularity: 'day' })
     expect(points.map(p => p.bucket)).toEqual(['2024-01-01T00:00:00', '2024-01-02T00:00:00', '2024-01-03T00:00:00'])

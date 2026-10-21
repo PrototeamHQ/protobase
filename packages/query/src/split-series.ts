@@ -16,7 +16,7 @@ const unsplittable = ['date', 'timestamp', 'json']
 
 export type SplitSeriesOptions = SeriesOptions & { limit?: number }
 /** The rows of one split value in one bucket; buckets and values without rows have no point. */
-export type SplitPoint = { bucket: string; split: unknown; count: number; sum?: number | null; average?: number | null }
+export type SplitPoint = { bucket: string; split: unknown; count: number; sum?: number | null; average?: number | null; maximum?: number | null }
 
 /**
  * The rows of each calendar bucket of `field` (as `series` buckets it) split by the values of another field.
@@ -31,7 +31,7 @@ export const splitSeries = async (
   split: string,
   options: SplitSeriesOptions,
 ): Promise<{ splits: unknown[]; points: SplitPoint[] }> => {
-  const { col, from, to, unit, bound, local, isDate } = seriesBuckets(model, field, options)
+  const { col, from, to, truncate, bound, local, isDate } = seriesBuckets(model, field, options)
   const splitField = requireField(model, split, 'filterable')
   if (unsplittable.includes(splitField.type)) {
     throw new QueryError('unsupported_field_type', `Cannot split by "${split}", which is ${splitField.type}`)
@@ -48,7 +48,7 @@ export const splitSeries = async (
   const amount = measure ? measureSql(model, measure) : undefined
   await assertFilterRequirements(db, options.filter, options.scope)
   const splitCol = columnRef(splitField)
-  const bucketSql = sql`to_char(date_trunc(${unit}, ${isDate ? sql`${col}::timestamp` : local(col)}), 'YYYY-MM-DD"T"HH24:MI:SS')`
+  const bucketSql = sql`to_char(${truncate(isDate ? sql`${col}::timestamp` : local(col))}, 'YYYY-MM-DD"T"HH24:MI:SS')`
 
   const parts = baseQuery(db, model, options.filter, options.scope)
     .where(sql<SqlBool>`${col} >= ${from}::${bound} and ${col} < ${to}::${bound}`)
