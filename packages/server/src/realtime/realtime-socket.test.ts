@@ -14,7 +14,7 @@ const { entries } = buildRegistry([resource('todos').table('todos').fields({ id:
 const now = Date.parse('2026-08-01T00:00:00Z')
 const alice = (exp: number): Caller => ({ role: 'authenticated', claims: { sub: 'alice', exp } })
 
-const open = ({ broadcasts = broadcastHub(), presences = presenceHub(), vsn = '2.0.0' as Vsn } = {}) => {
+const open = ({ broadcasts = broadcastHub(), presences = presenceHub(), vsn = '2.0.0' as Vsn, idleMs = 60_000 } = {}) => {
   const frames: unknown[] = []
   const sinks: ChangeSink[] = []
   const hub: ChangeHub = { add: (sink) => (sinks.push(sink), () => sinks.splice(sinks.indexOf(sink), 1)) }
@@ -26,7 +26,7 @@ const open = ({ broadcasts = broadcastHub(), presences = presenceHub(), vsn = '2
     throw unauthorized('The bearer token is invalid or expired')
   }
   let id = 0
-  const socket = realtimeSocket({ vsn, send: (frame) => frames.push(typeof frame === 'string' ? JSON.parse(frame) : [...new Uint8Array(frame)]), close, resolve, live: entries, hub, broadcasts, presences, nextId: () => ++id, report: (error) => { throw error }, now: () => Date.now() })
+  const socket = realtimeSocket({ vsn, send: (frame) => frames.push(typeof frame === 'string' ? JSON.parse(frame) : [...new Uint8Array(frame)]), buffered: () => 0, close, resolve, live: entries, hub, broadcasts, presences, nextId: () => ++id, report: (error) => { throw error }, idleMs, now: () => Date.now() })
   const send = async (message: unknown[] | ArrayBuffer) => {
     socket.message(message instanceof ArrayBuffer ? message : JSON.stringify(message))
     await vi.advanceTimersByTimeAsync(0)
@@ -74,7 +74,8 @@ describe('realtimeSocket', () => {
   })
 
   it('takes a newer token on an open channel, and ends the channel when its token expires or is refused', async () => {
-    const { frames, sinks, send } = open()
+    // Silent for hours, which would close it otherwise.
+    const { frames, sinks, send } = open({ idleMs: 24 * 3600_000 })
     await send(['1', '1', 'realtime:room', 'phx_join', joinPayload('alice-1')])
     await send(['1', '2', 'realtime:room', 'access_token', { access_token: 'alice-2' }])
     await vi.advanceTimersByTimeAsync(120_000)
