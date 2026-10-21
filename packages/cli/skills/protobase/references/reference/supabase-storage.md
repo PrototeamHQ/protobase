@@ -15,7 +15,7 @@ const { data, error } = await supabase.storage.from('avatars').upload(`${userId}
 
 ## Where things are kept
 
-The buckets and objects are the rows of `storage.buckets` and `storage.objects`, the schema that `protobase import supabase` restores with its policies. The bytes go to one of the app's [file providers](files.md)): `files.storage.provider` in `protobase.config.ts`, `private` by default, so a local folder or an S3-compatible bucket, with that provider's `max_bytes` and `max_files` quota. An object's bytes are kept at `storage/<SHA-256 of bucket and name>/<version>` in the provider. `files.storage.maxFileSize` caps every upload, `50 MB` by default, and a bucket's `file_size_limit` can only lower it. `files: { storage: false }` serves no `/storage/v1`.
+The buckets and objects are the rows of `storage.buckets` and `storage.objects`, the schema that `protobase import supabase` restores with its policies. The bytes go to one of the app's [file providers](files.md)): `files.storage.provider` in `protobase.config.ts`, `private` by default, so a local folder or an S3-compatible bucket, with that provider's `max_bytes` and `max_files` quota. An object's bytes are kept at `storage/<SHA-256 of bucket and name>/<version>` in the provider, where [`protobase import supabase --storage-url`](cli.md#import-supabase)) copies a Supabase project's. `files.storage.maxFileSize` caps every upload, `50 MB` by default, and a bucket's `file_size_limit` can only lower it. `files: { storage: false }` serves no `/storage/v1`.
 
 ## Keys and roles
 
@@ -47,7 +47,7 @@ Public buckets are served at `/storage/v1/object/public/<bucket>/<name>` without
 
 A download is sent with the type it was uploaded with, `nosniff` and a sandboxing Content-Security-Policy, so an uploaded page cannot run on the app's origin, and `?download` makes it an attachment.
 
-Not yet: image transforms, resumable (TUS) uploads, the S3 protocol, object versioning and copying the bytes of an existing Supabase project.
+Not yet: image transforms, resumable (TUS) uploads, the S3 protocol, and object versioning.
 
 ## Errors
 
