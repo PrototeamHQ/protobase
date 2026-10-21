@@ -43,10 +43,16 @@ export type DeliveryPayload = { subscription: string; event: SubscriptionEvent; 
  */
 export type OrderedDeliveryPayload = { subscription: string; events: SubscriptionEvent[] }
 
-/** A change whose event code threw in dispatch. */
-export type DispatchChangePayload = { change: ResourceChange }
+/**
+ * A change whose event code threw in dispatch. With `subscription`, only that subscription's deliveries, because its
+ * access check threw; without it, the change's whole routing threw.
+ */
+export type DispatchChangePayload = { change: ResourceChange; subscription?: string }
 
 type Delivery = { subscription: SubscriptionDefinition; event: SubscriptionEvent; change: ResourceChange }
+
+/** A subscription whose access check threw on a change: its deliveries of that change are held back. */
+type Failure = { change: ResourceChange; subscription: string; error: EventCodeError }
 
 /** Outbox rows one dispatch reads at a time. */
 const batchSize = 500
@@ -83,7 +89,9 @@ const deliveryGroup = ({ subscription, change }: Delivery) => `${subscription.na
  *   before that commits leaves the rows, and the job's retry delivers them again, under the same `webhook-id`.
  * - `webhooks.dispatch-change`, one change whose app code threw in dispatch: an event's `match` or filter, a
  *   subscription's `when`, or an access rule of its roles. Kept as failed, so dispatch moves on to later changes; a
- *   retry after the fix queues the change's deliveries. Any other error fails the whole dispatch, which is retried.
+ *   retry after the fix queues the change's deliveries. An access rule's failure keeps the change for that subscription
+ *   only: the others still receive it, and the retry delivers to that subscription alone. Any other error fails the
+ *   whole dispatch, which is retried.
  * - `webhooks.deliver`, one try of an unordered delivery; a failure queues the next try on the Standard Webhooks
  *   schedule, or Retry-After, and the last one is kept as failed.
  * - `webhooks.deliver-ordered`, the ordered deliveries of one dispatch for one subscription and record, retried with
@@ -180,17 +188,27 @@ export const createWebhooks = ({ deps, subscriptions, functions, schema, log, ta
   })
 
   // The deliveries of one change, against the subscriptions as they are now: each of its events, to each subscription
-  // that takes it and may read it. It throws an `EventCodeError` when the app's code does.
+  // that takes it and may read it, or only to `only`. A subscription whose access check throws is a failure, with none
+  // of its deliveries of the change; the change's events and routing throw an `EventCodeError` when the app's code does.
   const changeDeliveries = async (db: Db) => {
     const route = subscriptionRouter(await current(db), models)
     const eventOf = subscriberEvents(deps)
-    return async (change: ResourceChange) => {
+    return async (change: ResourceChange, only?: string) => {
+      const routes = route(change, matchers.get(change.resource)!(change)).filter(({ subscription }) => only === undefined || subscription.name === only)
       const deliveries: Delivery[] = []
-      for (const { subscription, event } of route(change, matchers.get(change.resource)!(change))) {
-        const shaped = await eventOf(subscription, change, event)
+      const failures: Failure[] = []
+      const failed = new Set<string>()
+      for (const { subscription, event } of routes) {
+        if (failed.has(subscription.name)) continue
+        const shaped = await eventOf(subscription, change, event).catch((error: unknown) => {
+          if (!(error instanceof EventCodeError)) throw error
+          failed.add(subscription.name)
+          failures.push({ change, subscription: subscription.name, error })
+          return undefined
+        })
         if (shaped) deliveries.push({ subscription, event: shaped, change })
       }
-      return deliveries
+      return { deliveries: deliveries.filter(({ subscription }) => !failed.has(subscription.name)), failures }
     }
   }
 
@@ -207,19 +225,22 @@ export const createWebhooks = ({ deps, subscriptions, functions, schema, log, ta
   }
 
   // A change whose event code threw in dispatch, kept as failed on the failed jobs page; a retry after the fix queues
-  // its deliveries.
+  // its deliveries, only to its subscription when it has one. A whole change's retry keeps each subscription whose
+  // access check still throws as a failed change of its own.
   const dispatchChange = defineJob<DispatchChangePayload>({
     name: 'webhooks.dispatch-change',
     maxAttempts: 1,
     timeout: '5 minutes',
-    run: async ({ change }, { db }) => {
-      const deliveries = await (await changeDeliveries(db))(change)
+    run: async ({ change, subscription: only }, { db }) => {
+      const { deliveries, failures } = await (await changeDeliveries(db))(change, only)
+      if (only !== undefined && failures.length > 0) throw failures[0]!.error
       await db.transaction().execute(async (trx) => {
         for (const { subscription, event } of deliveries.filter(({ subscription }) => !subscription.options.ordered)) {
           const payload = { subscription: subscription.name, event, attempt: 1 }
           await deliver.enqueue(trx, payload, { key: deliveryKey(payload) })
         }
         await queueOrdered(trx, deliveries)
+        for (const { subscription } of failures) await dispatchChange.enqueue(trx, { change, subscription })
       })
     },
   })
@@ -233,10 +254,12 @@ export const createWebhooks = ({ deps, subscriptions, functions, schema, log, ta
     })
     const deliveriesOf = await changeDeliveries(db)
     const deliveries: Delivery[] = []
-    const failures: { change: ResourceChange; error: EventCodeError }[] = []
+    const failures: (Omit<Failure, 'subscription'> & { subscription?: string })[] = []
     for (const change of changes) {
       try {
-        deliveries.push(...(await deliveriesOf(change)))
+        const routed = await deliveriesOf(change)
+        deliveries.push(...routed.deliveries)
+        failures.push(...routed.failures)
       } catch (error) {
         if (!(error instanceof EventCodeError)) throw error
         failures.push({ change, error })
@@ -254,7 +277,7 @@ export const createWebhooks = ({ deps, subscriptions, functions, schema, log, ta
         await deliver.enqueue(trx, payload, { key: deliveryKey(payload), delay })
       }
       await queueOrdered(trx, deliveries)
-      for (const { change } of failures) await dispatchChange.enqueue(trx, { change })
+      for (const { change, subscription } of failures) await dispatchChange.enqueue(trx, { change, ...(subscription !== undefined && { subscription }) })
       await writeHistory(trx, schema, changes.filter((change) => deps.registry.find(change.resource)?.model.history))
       await writeNotices(trx, schema, changes.filter((change) => deps.registry.find(change.resource)?.model.live))
       await deleteOutbox(trx, schema, rows.map((row) => row.id))
