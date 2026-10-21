@@ -20,14 +20,24 @@ const playStory = async (story) => {
   // Times show in the viewer's zone, so every page has the same one, whatever the machine's, and one that is not UTC.
   const viewport = story.tags.includes('phone') ? { width: 360, height: 740 } : { width: 1280, height: 720 }
   const page = await (story.tags.includes('scrollbars') ? scrollbars : browser).newPage({ viewport, timezoneId: 'Europe/Amsterdam' })
+  // Storybook installs its channel by assigning this global; an accessor attaches the listeners in that same assignment,
+  // so no event is sent before they are, and each channel installed after the first gets them too. The last render phase
+  // says where a story that sends no event stopped, such as "playing" for a play function that never ends.
   await page.addInitScript(() => {
-    const timer = setInterval(() => {
-      const channel = window.__STORYBOOK_ADDONS_CHANNEL__
-      if (!channel) return
-      clearInterval(timer)
-      window.__sbEvents = []
-      for (const name of ['storyRendered', 'playFunctionThrewException', 'storyThrewException', 'storyErrored', 'storyMissing']) channel.on(name, (payload) => window.__sbEvents.push({ name, payload }))
-    }, 5)
+    window.__sbEvents = []
+    window.__sbPhase = undefined
+    let installed
+    Object.defineProperty(window, '__STORYBOOK_ADDONS_CHANNEL__', {
+      configurable: true,
+      get: () => installed,
+      set: (channel) => {
+        installed = channel
+        if (!channel) return
+        window.__sbPhase ??= 'channel installed'
+        channel.on('storyRenderPhaseChanged', ({ newPhase }) => { window.__sbPhase = newPhase })
+        for (const name of ['storyRendered', 'playFunctionThrewException', 'storyThrewException', 'storyErrored', 'storyMissing']) channel.on(name, (payload) => window.__sbEvents.push({ name, payload }))
+      },
+    })
   })
   // A story whose file fails to load sends storyMissing with only its id; the cause goes to the console, so a failure
   // without a message reports the page's console errors and failed requests instead.
@@ -45,8 +55,9 @@ const playStory = async (story) => {
   // changed under it.
   const networkChanged = () => logged.some((line) => line.includes('net::ERR_NETWORK_CHANGED'))
   if (!settled) {
+    const phase = await page.evaluate(() => window.__sbPhase ?? 'no channel installed')
     await page.close()
-    return { name: 'noStoryEvent', message: logged.join('\n  ') || 'Storybook sent no event within 30 s', networkChanged: networkChanged() }
+    return { name: 'noStoryEvent', message: [`Storybook sent no event within 30 s (last phase: ${phase})`, ...logged].join('\n  '), networkChanged: networkChanged() }
   }
   const events = await page.evaluate(() => window.__sbEvents.map((event) => ({ name: event.name, message: String(event.payload?.message ?? event.payload?.description ?? '') })))
   await page.close()
