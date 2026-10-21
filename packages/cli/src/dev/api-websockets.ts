@@ -3,7 +3,7 @@ import type { Duplex } from 'node:stream'
 import { createAdaptorServer } from '@hono/node-server'
 import type { Hono } from 'hono'
 import type { Plugin } from 'vite'
-import { WebSocketServer } from 'ws'
+import { realtimeWebSocketServer } from '../project/realtime-websocket-server'
 import { isAllowedHost } from './allowed-host'
 import { isProjectFile } from './project-files'
 
@@ -30,7 +30,7 @@ export const apiUpgrades = (allowedHosts: () => true | readonly string[], forwar
 // module's app as it is now, whose `upgradeWebSocket` route accepts it. An edit inside `dirs` closes the open sockets,
 // which hold the API they were opened with.
 export const apiWebSockets = (entry: string, dirs: string[]): Plugin => {
-  const wss = new WebSocketServer({ noServer: true })
+  const wss = realtimeWebSocketServer()
   return {
     name: 'protobase-api-websockets',
     configureServer: (server) => {
