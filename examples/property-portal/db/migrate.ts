@@ -9,7 +9,7 @@ import { connect } from './connection'
 
 const directory = fileURLToPath(new URL('./migrations/', import.meta.url))
 // Any constant shared by every run of this script: two runs at once take turns.
-const lockKey = 7_311_946_203
+const lockKey = 7_311_946_202
 
 const sql = connect({ max: 1 })
 const files = (await readdir(directory)).filter((file) => file.endsWith('.sql')).sort()
