@@ -1,12 +1,15 @@
 import { createHmac } from 'node:crypto'
 import { DummyDriver, Kysely, PostgresAdapter, PostgresIntrospector, PostgresQueryCompiler } from 'kysely'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { HttpProblem, type ApiFunction, type FunctionContext, type FunctionRecords } from '@protobase/server'
+import { HttpProblem, type ApiFunction, type FunctionContext, type FunctionRecords, type FunctionSocket, type SocketEvents } from '@protobase/server'
+import display from './functions/display'
+import displayTicket from './functions/display-ticket'
 import hello from './functions/hello'
 import notifyCustomer from './functions/notify-customer'
 import paymentWebhook from './functions/payment-webhook'
 import readyForPickup from './functions/ready-for-pickup'
 import workshop from './functions/workshop'
+import workshopChat from './functions/workshop-chat'
 
 // The documentation shows these functions; this keeps what it says about them true. Each runs with a context made
 // here, as the server would pass it: the routes, roles and CORS around them are @protobase/server's tests.
@@ -120,5 +123,82 @@ describe('workshop', () => {
   it('leaves a repair outside the workshop alone, with a problem the server renders', async () => {
     const records = fakeRecords({ repairs: { ...repair, status: 'ready' } })
     expect(await problemOf(call(workshop, '/7/advance', { method: 'POST' }, contextWith(records)))).toEqual([400, 'not-in-workshop'])
+  })
+})
+
+// A context whose acceptWebSocket keeps the events, as the server would before it upgrades.
+const socketContextWith = (user: string) => {
+  const accepted: SocketEvents[] = []
+  const context: FunctionContext = {
+    ...contextWith(fakeRecords({})),
+    session: { user: { id: user, roles: ['mechanic'] } },
+    acceptWebSocket: (events) => {
+      accepted.push(events)
+      return new Response(null, { headers: { accepted: 'yes' } })
+    },
+  }
+  return { context, accepted }
+}
+
+const fakeSocket = () => ({ send: vi.fn(async (_data: string | ArrayBuffer | Uint8Array) => {}), close: vi.fn(), bufferedAmount: 0 }) satisfies FunctionSocket
+
+describe('workshop-chat', () => {
+  it('sends each text message to everyone in the chat, with who sent it, until they leave', async () => {
+    const join = async (user: string) => {
+      const { context, accepted } = socketContextWith(user)
+      expect((await call(workshopChat, '/', { headers: { upgrade: 'websocket' } }, context)).headers.get('accepted')).toBe('yes')
+      const socket = fakeSocket()
+      await accepted[0]!.onOpen!(socket)
+      return { events: accepted[0]!, socket }
+    }
+    const mo = await join('mo')
+    const pip = await join('pip')
+    await mo.events.onMessage!('Truing stand is free', mo.socket)
+    await mo.events.onMessage!(new ArrayBuffer(4), mo.socket)
+    expect(pip.socket.send.mock.calls).toEqual([['mo: Truing stand is free']])
+    expect(mo.socket.send.mock.calls).toEqual([['mo: Truing stand is free']])
+
+    await pip.events.onClose!(1000, '')
+    await mo.events.onMessage!('Anyone?', mo.socket)
+    expect(pip.socket.send).toHaveBeenCalledTimes(1)
+    await mo.events.onClose!(1000, '')
+  })
+})
+
+describe('display-ticket and display', () => {
+  afterEach(() => vi.useRealTimers())
+
+  const open = async (ticket: string) => {
+    const { context, accepted } = socketContextWith('nobody')
+    const response = await call(display, `/?ticket=${encodeURIComponent(ticket)}`, { headers: { upgrade: 'websocket' } }, context)
+    const socket = fakeSocket()
+    await accepted[0]!.onOpen!(socket)
+    return { response, socket }
+  }
+
+  const ticketFor = async (user: string) => {
+    const response = await call(displayTicket, '/', { method: 'POST' }, socketContextWith(user).context)
+    return ((await response.json()) as { ticket: string }).ticket
+  }
+
+  it('opens the display board for a fresh ticket, which names its user', async () => {
+    vi.stubEnv('TICKET_SECRET', 'ticket-secret')
+    const { socket } = await open(await ticketFor('mo'))
+    expect(socket.send).toHaveBeenCalledWith(JSON.stringify({ shownFor: 'mo' }))
+    expect(displayTicket.options).toEqual({ roles: ['mechanic'], cors: { origin: 'https://workshop.pips-bikes.example' } })
+    expect(display.options).toEqual({ public: true })
+  })
+
+  it('refuses a missing, forged or expired ticket with a 401 and no socket', async () => {
+    vi.stubEnv('TICKET_SECRET', 'ticket-secret')
+    const ticket = await ticketFor('mo')
+    const forged = ticket.replace(/^mo\./, 'pip.')
+    const { context, accepted } = socketContextWith('nobody')
+    for (const bad of ['', forged, `${ticket.slice(0, -1)}x`]) {
+      expect(await problemOf(call(display, `/?ticket=${encodeURIComponent(bad)}`, { headers: { upgrade: 'websocket' } }, context))).toEqual([401, 'unauthenticated'])
+    }
+    vi.useFakeTimers({ now: Date.now() + 31_000 })
+    expect(await problemOf(call(display, `/?ticket=${encodeURIComponent(ticket)}`, { headers: { upgrade: 'websocket' } }, context))).toEqual([401, 'unauthenticated'])
+    expect(accepted).toHaveLength(0)
   })
 })
