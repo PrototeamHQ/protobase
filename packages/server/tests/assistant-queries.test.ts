@@ -142,4 +142,15 @@ describe('the query runner', () => {
     })
     await expect(attempt).rejects.toBe(rolledBack)
   })
+
+  it('refuses startup while the role may call a security-definer function that reads the auth store', async () => {
+    const attempt = db.transaction().execute(async (trx) => {
+      await sql`create function public.session_token() returns text language sql security definer as 'select token from secrets.session limit 1'`.execute(trx)
+      await expect(checkQueryRunner(trx, authTables)).rejects.toThrow('can read the auth schema through the security-definer functions public.session_token(). Revoke execute on them from PUBLIC')
+      await sql`revoke execute on function public.session_token() from public`.execute(trx)
+      await expect(checkQueryRunner(trx, authTables)).resolves.toBeUndefined()
+      throw rolledBack
+    })
+    await expect(attempt).rejects.toBe(rolledBack)
+  })
 })

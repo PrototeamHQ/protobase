@@ -2,6 +2,7 @@ import { sql } from 'kysely'
 import type { Db } from '@protobase/query'
 import type { ResourceModel } from '@protobase/schema'
 import { migrationCommand } from '../../jobs/schema'
+import { modelVariables } from '../model-settings'
 import { plannedGrants, type FoundTable } from './runner-plan'
 import { queryRoleSql, queryRunnerSignature, queryRunnerSql, runnerBody } from './runner-sql'
 
@@ -68,14 +69,32 @@ export const queryRunnerMigration = async (db: Db, models: readonly ResourceMode
   return current ? undefined : queryRunnerSql(plan)
 }
 
+// `protobase migration` writes the role only when it finds the built-in assistant's key, as startup does.
 const refusal = (state: string) =>
-  new Error(`The query role of the assistant's read-only queries ${state}. Write it as a migration with \`${migrationCommand}\`, apply it with the project's migrations, then start again.`)
+  new Error(
+    `The query role of the assistant's read-only queries ${state}. Write it as a migration with \`${migrationCommand}\`, run with the built-in assistant's key set (${modelVariables.apiKey} or options.assistant.apiKey), apply it with the project's migrations, then start again.`,
+  )
+
+// Security-definer functions the query role may call that run as a role able to read an auth table: the statement
+// would read the auth store through them. Trigger functions cannot be called.
+const leakingFunctions = (db: Db, authTables: readonly TableName[]) =>
+  rowsOf(
+    db,
+    sql<{ name: string }>`with runner as (select proowner as role from pg_proc where oid = to_regprocedure(${queryRunnerSignature}))
+      select format('%I.%I(%s)', n.nspname, p.proname, pg_get_function_identity_arguments(p.oid)) as name
+      from pg_proc p join pg_namespace n on n.oid = p.pronamespace, runner
+      where p.prosecdef and p.prorettype <> 'trigger'::regtype and p.proowner <> runner.role
+        and has_schema_privilege(runner.role, p.pronamespace, 'USAGE') and has_function_privilege(runner.role, p.oid, 'EXECUTE')
+        and exists (select from unnest(${authTables.map(regclassText)}::text[]) as t(name) join pg_class c on c.oid = to_regclass(t.name)
+          where has_schema_privilege(p.proowner, c.relnamespace, 'USAGE') and has_any_column_privilege(p.proowner, c.oid, 'SELECT'))
+      order by 1`,
+  )
 
 /**
  * Refuses to go on while the runner of the assistant's read-only queries is missing or out of date, or runs as a role
  * that is not weaker than the app's: the app's role itself or one it is a member of, a superuser, a login role, or one
- * that can read an auth table. It checks the owner's privileges, not its name, so a database cloned under another name
- * still passes. A resource added since the last migration is not checked: Postgres refuses to read its table until then.
+ * that can read an auth table, or while the role may call a security-definer function that runs as a role able to
+ * read one. It checks the owner's privileges, not its name, so a database cloned under another name still passes. A resource added since the last migration is not checked: Postgres refuses to read its table until then.
  */
 export const checkQueryRunner = async (db: Db, authTables: readonly TableName[]) => {
   const [runner] = await rowsOf(
@@ -89,4 +108,9 @@ export const checkQueryRunner = async (db: Db, authTables: readonly TableName[])
   if (!runner || !runner.definer || runner.source !== runnerBody) throw refusal('is missing')
   if (runner.strong) throw refusal('is not weaker than the app\'s database role')
   if (runner.reads_auth) throw refusal('can read the auth schema')
+  const leaking = await leakingFunctions(db, authTables)
+  if (leaking.length === 0) return
+  throw new Error(
+    `The query role of the assistant's read-only queries can read the auth schema through the security-definer functions ${leaking.map((found) => found.name).join(', ')}. Revoke execute on them from PUBLIC, or move them to a schema without a resource, then start again.`,
+  )
 }
