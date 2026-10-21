@@ -159,8 +159,9 @@ export type CreateAdminInput = {
   /** @internal Verifies a user's token on `/api/sb/rest/v1`, `/api/sb/realtime/v1` and `/api/sb/storage/v1` and gives its claims, which tests fake; those `/api/sb/auth/v1` signs otherwise. */
   verifyToken?: (token: string) => Promise<JWTPayload>
   /**
-   * The host's WebSocket upgrade, such as `@hono/node-server`'s, with which an app with keys and live resources serves
-   * supabase-js's Realtime at `/api/sb/realtime/v1/websocket`; without it, the app serves none.
+   * The host's WebSocket upgrade, `@hono/node-server`'s `upgradeWebSocket`, the only one supported: function sockets use
+   * its `ws` socket's send callback and `bufferedAmount`. With it, functions accept sockets, and an app with keys and
+   * live resources serves supabase-js's Realtime at `/api/sb/realtime/v1/websocket`; without it, the app serves none.
    */
   upgradeWebSocket?: UpgradeWebSocket
 }
