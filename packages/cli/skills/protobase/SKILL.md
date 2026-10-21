@@ -27,6 +27,8 @@ Run the CLI as the project does: `npx protobase <command>`, or `bun run protobas
 
 An app hosted on protobase-cloud deploys from a push to its GitHub branch instead: the `protobase-cloud` skill, which `protobase skill install` writes next to this one, covers it.
 
+A project moved from Supabase with `protobase import supabase` has what the import could not convert in `supabase-import/report.md`: the `supabase-move` skill, written next to this one too, finishes it.
+
 ## Rules of thumb
 
 - Records live at the framework's standard addresses and API; give a resource another look through its views, layouts or a plugin, not a page with routes of its own.
