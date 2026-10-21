@@ -108,6 +108,51 @@ Each item has `id`, `name`, `slug`, `price` and `image`, of published products o
 
 A field rule goes from the field to the roles: `cost_price` above is hidden from every role that reads products but those holding `costs.read`. Use it for the few sensitive columns of a resource that many roles read, such as a screening result (`f.text().access({ read: roles.can('screening.read') })`). A field list goes from the role to the fields: use it for a role that should see only some columns, such as an integration or anonymous visitors, so a new column stays hidden from it. When both apply, a field needs both.
 
+## Records that belong to another
+
+A record often belongs to another one through a relation, such as an operation to the VM it runs on, and who may write it follows from who may change that VM. `.parent((r) => r.vm_id, 'update')` says so: writing an operation needs `update` on the record `vm_id` points at, `'read'` needing only to see it, as for a comment on a ticket. A member below may run operations on their own VMs only, with no rule of your own:
+
+```ts title="docs-examples/reference/child-records.ts"
+import { defineRoles, f, resource } from '@protobase/schema'
+
+// Virtual machines and the operations run on them: a member creates an operation only on a VM they may update.
+
+export const roles = defineRoles<'vms' | 'operations'>({
+  admin: ['*'],
+  member: ['vms.read', 'vms.update.own', 'operations.read', 'operations.create'],
+})
+
+/** virt.vms, each owned by the user who made it. */
+export const vms = resource('vms')
+  .table('virt.vms')
+  .fields({
+    id: f.integer().readOnly().filterable().dbDefault(),
+    name: f.text().filterable(),
+    owner_id: f.text().readOnly().filterable(),
+  })
+  .primaryKey((r) => r.id)
+  .owner((r) => r.owner_id)
+
+/** virt.operations: writing one needs `update` on the VM its `vm_id` points at. */
+export const operations = resource('operations')
+  .table('virt.operations')
+  .fields({
+    id: f.integer().readOnly().filterable().dbDefault(),
+    vm_id: f.relation('vms').filterable(),
+    kind: f.enum(['start', 'stop', 'reboot']),
+  })
+  .primaryKey((r) => r.id)
+  .parent((r) => r.vm_id, 'update')
+```
+
+- **Every write is checked.** Creating a record checks the parent it names; changing it, the parent it points at and the one it moves to; deleting and undeleting it, the parent it points at. So a record cannot be created under an allowed parent and then moved under another. It holds for `/api/v1` and its batches, and for everything that writes through them: forms, [API functions](../guides/api-functions.md)) and the assistant.
+- **The caller's own rules decide.** The parent is read as the caller would read it, with its tenant, row filters, soft delete and record-level rules; for `update`, also its update row filter and record-level update rule, given an empty input. A parent the caller cannot see, may not update, that is soft deleted or does not exist gets the same `403` as a refused create (`You may not create this operations record`), and nothing is written: the answer does not tell which VM ids exist.
+- **A null relation checks nothing.** A relation set by a column default or a trigger is checked from the record as written.
+- **`update` follows the parent's own parents**, so with VMs under `.parent((r) => r.folder_id, 'update')` an operation needs update on the VM's folder too. A write that would put a record under itself, or under a cycle already in the data, is refused. A `read` parent is not followed further.
+- **Several parents** are each checked with their own access, also two of one resource, such as a transfer that reads its `source_vm_id` and updates its `target_vm_id`.
+- **The parent is locked until the write commits** (`FOR NO KEY UPDATE`), so a VM handed to someone else or deleted at the same moment is waited for and checked again. That is the cost: writes of records under one parent, and through an `update` parent under one ancestor, run one after another. The server's database role needs `UPDATE` on the parent's table to take the lock. Two writes that lock the same records in opposite orders, such as two batches writing under VM A then B and B then A, can deadlock: Postgres rolls one back, which answers `409` and writes nothing, and the client sends it again.
+- The record page and `/api/meta` count the check, so the admin app offers no Edit or Delete the server would refuse. `/rest/v1` does not use Protobase's access rules at all, so this check is not part of it.
+
 ## Restricted model and row filters
 
 [`resolveAccess`](https://docs.protobase.net/api/schema/functions/resolveaccess/)) returns everything a request may do. Use [`restrictModel(model, access)`](https://docs.protobase.net/api/schema/functions/restrictmodel/)) for everything user-facing (checking filters and sorts, queries, OpenAPI, `/meta`): hidden fields are gone, so they cannot be referenced, searched, sorted or leaked. Key columns always stay, because records are addressed by them.
