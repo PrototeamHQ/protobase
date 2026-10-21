@@ -27,6 +27,22 @@ describe('sharedColumnProblems', () => {
     expect(sharedColumnProblems([people, other('crm.people', f.text())])).toHaveLength(1)
   })
 
+  it('refuses another field of the same resource over the column, plain or a relation', () => {
+    const own = (extra: Record<string, AnyField>) => resource('people').table('people').fields({ id: f.integer(), iban: f.text().optional().encrypted(), ...extra }).primaryKey((r) => r.id).toModel()
+    expect(sharedColumnProblems([own({ ibanPlain: f.text().optional().column('iban') })])).toEqual([
+      'people.ibanPlain is over people.iban, which people.iban encrypts: leave the column out of it',
+    ])
+    expect(sharedColumnProblems([own({ account: f.relation('accounts').columns(['id', 'iban']).optional() })])).toHaveLength(1)
+    expect(sharedColumnProblems([own({ note: f.text().optional() })])).toEqual([])
+  })
+
+  it('refuses a relation of another resource over the column', () => {
+    const cards = resource('cards').table('people').fields({ id: f.integer(), org: f.text(), account: f.relation('accounts').columns(['id', 'iban']) }).primaryKey((r) => r.id).tenant((r) => r.org).toModel()
+    expect(sharedColumnProblems([people, cards])).toEqual([
+      'cards.account is over people.iban, which people encrypts: declare it .encrypted() too, with the same table, tenant and key, or leave the column out',
+    ])
+  })
+
   it('refuses one that binds differently', () => {
     expect(sharedColumnProblems([people, other('people', f.text().encrypted(), { tenant: 'team' })])).toHaveLength(2)
     expect(sharedColumnProblems([people, other('people', f.text().encrypted(), { key: 'code' })])).toHaveLength(2)

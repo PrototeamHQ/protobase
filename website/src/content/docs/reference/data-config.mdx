@@ -134,7 +134,7 @@ It takes `f.text()` only, and cannot be `.readOnly()` or have a `.dbDefault()`. 
 
 When you change a `.sensitive()` field to `.encrypted()`, change every rule, validator and hook that reads its stored value: from then on it gets `encrypted`, and TypeScript flags reading it as text.
 
-Another resource over the same table must leave the column out, or declare it `.encrypted()` too with the same `.table()`, tenant and key; the server does not start otherwise. A resource over a view of the table cannot be checked, so leave the column out of it.
+No other field of the resource may be over the column, as its own or as a relation's column, and another resource over the same table must leave the column out, or declare it `.encrypted()` too with the same `.table()`, tenant and key; the server does not start otherwise. A resource over a view of the table cannot be checked, so leave the column out of it.
 
 ### The key
 
