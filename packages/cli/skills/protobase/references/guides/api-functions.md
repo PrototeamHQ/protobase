@@ -174,19 +174,40 @@ A client that is no browser sends `Authorization: Bearer <token>` with its upgra
 | `onOpen(socket)` | The socket is open. |
 | `onMessage(data, socket)` | Text arrives as a string, binary as an `ArrayBuffer`, byte for byte. Messages come one at a time and in order. |
 | `onClose(code, reason)` | Either side closed it, after the last message. |
+| `recheck()` | Runs every minute while the socket is open, after the framework's own check. A `401`, `403` or `404` problem it throws closes the socket with `1008`; any other error is reported and closes it with `1011`, as does a check that has not finished a minute later. What it returns is ignored, so refuse by throwing. |
 
 `socket.send(data)` takes a string, an `ArrayBuffer` or a `Uint8Array`, and `socket.close(code?, reason?)` closes it. A handler that throws closes the socket with `1011`, and the error is reported like any other.
+
+Sockets need `@hono/node-server`'s `upgradeWebSocket`, the only upgrade supported, which `protobase dev` and `protobase serve` use. A server of your own that passes another host's upgrade to `createAdmin` gets sockets that misbehave, since they rely on its send callback and `bufferedAmount`.
 
 ### Who may open one
 
 - **Refusals come before the socket.** A caller without a valid session or token gets the usual `401`, and one without the function's roles a `403`; the handler never runs. The browser only sees a socket that failed to open, since an upgrade's refusal has a status but no body.
 - **Only the app's own pages** may open a socket with the cookie. An upgrade from a page on any other origin is a `403`, so another site cannot borrow a visitor's session.
-- **While it is open,** a protected function's caller is checked again every minute, as a plain call would be. Signing out, a ban, a role taken away, or another active role or organization closes the socket with `1008`, and a socket opened with a bearer token closes once the token expires. The client opens it again, as who they are now.
+- **While it is open,** the framework checks the caller again every minute: their session or token, the function's roles, and that the user, tenant, organization and roles are unchanged. It does so for a protected function, and for a public one once `caller()` resolved. Signing out, a ban, a role taken away, or another active role or organization closes the socket with `1008`, and a socket opened with a bearer token closes once the token expires. The client opens it again, as who they are now.
+- **The function's own checks are not repeated,** such as whether the caller may still see one record. Pass them as `recheck`, which runs right after the framework's check:
+
+```ts title="functions/repair-watch.ts"
+import { defineFunction, notFound } from '@protobase/server'
+
+// /api/functions/repair-watch/7, opened as a WebSocket by a signed-in page: repair 7's status, for as long as the caller
+// may see the repair. A repair their access rules hide is a 404 and no socket; once it moves out of their sight, such
+// as to another mechanic, `recheck` rejects with that 404 and the socket closes with 1008 within a minute.
+export default defineFunction({ roles: ['mechanic', 'desk'] }, async (request, { records, acceptWebSocket }) => {
+  const id = Number(new URL(request.url).pathname.slice(1))
+  if (!Number.isInteger(id) || id <= 0) throw notFound('Watch a repair at /api/functions/repair-watch/<id>')
+  const { record: repair } = await records.get('repairs', id)
+  return acceptWebSocket({
+    onOpen: (socket) => socket.send(JSON.stringify({ status: repair.status })),
+    recheck: () => records.get('repairs', id),
+  })
+})
+```
 - **A plain request** to a function that accepts a socket is a `426` problem.
 
 ### Agents and other clients without a cookie
 
-A [public function](#public-functions-and-webhooks) can accept a socket too, and checks its caller itself, for example a host agent's key in a header. The framework does not check it again while the socket is open, so a function whose access can be revoked keeps checking, and calls `socket.close()` when it is.
+A [public function](#public-functions-and-webhooks) can accept a socket too. One that admits its caller with `await caller()` is checked again like a protected one. One that checks a credential of its own, for example a host agent's key in a header, passes `recheck` to check it again, since the framework cannot.
 
 A page with no session cookie of the app, such as the workshop's display board on its own origin, gets a short-lived ticket from a plain call with its token and puts it in the socket's address:
 
@@ -232,11 +253,17 @@ import { ticketUser } from './_shared/tickets'
 
 // /api/functions/display?ticket=…, the workshop's display board, opened as a WebSocket from a page with no session
 // cookie of this app. Public, so it checks the ticket itself: a missing, forged or expired one gets a 401 and no socket.
+// Nothing checks the ticket's user again while the socket is open, so `recheck` ends it after 15 minutes, as a signed-in
+// token would end, and the board opens it again with a new ticket.
 export default defineFunction({ public: true }, (request, { acceptWebSocket }) => {
   const user = ticketUser(new URL(request.url).searchParams.get('ticket') ?? '')
   if (!user) throw unauthorized('Get a ticket from /api/functions/display-ticket first')
+  const until = Date.now() + 15 * 60_000
   return acceptWebSocket({
     onOpen: (socket) => socket.send(JSON.stringify({ shownFor: user })),
+    recheck: () => {
+      if (Date.now() >= until) throw unauthorized('Get a new ticket')
+    },
   })
 })
 ```
@@ -247,7 +274,7 @@ const { ticket } = await client.invoke('display-ticket', { method: 'POST' })
 const board = new WebSocket(`wss://pips-bikes.example/api/functions/display?ticket=${encodeURIComponent(ticket)}`)
 ```
 
-The ticket only lets the socket open: anyone who holds it may use it for its 30 seconds, so keep it out of logs. For a socket that stays open long, check the user again from the function, as a protected function's socket is.
+The ticket only lets the socket open, and anyone who holds it may open one with it during its 30 seconds. It is in the address, so it appears in the request log when `REQUEST_LOG` is `true`. Nothing checks the ticket's user again, so `display.ts`'s `recheck` ends the socket after 15 minutes, and the board opens it again with a new ticket, which `display-ticket` mints only after checking the role again.
 
 ### Slow readers and large messages
 
