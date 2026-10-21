@@ -248,6 +248,24 @@ describe('pruneView', () => {
     expect(related(without({}, ['repairs']))).toEqual([{ kind: 'related', title: 'Repairs', resource: 'customer_repairs', field: 'customerId' }])
   })
 
+  it("keeps a chart's series the caller can read, and leaves out one they cannot place or draw", () => {
+    const samples = resource('repair_samples')
+      .table('repair_samples')
+      .fields({ id: f.integer(), repairId: f.relation('repairs').filterable(), at: f.timestamp().filterable(), heat: f.integer(), load: f.decimal({ precision: 5, scale: 2 }) })
+      .primaryKey((r) => r.id)
+      .toModel()
+    const written = view<typeof repairs>('repairs').layout(() => [l.chart('Usage', { resource: 'repair_samples', field: 'repairId', at: 'at', series: ['heat', 'load'] })]).toModel()
+    const charts = (hidden: string[]) => {
+      const models = { ...all, repair_samples: restrictModel(samples, { readableFields: Object.keys(samples.fields).filter((name) => !hidden.includes(name)), writableFields: { create: [], update: [] } }) }
+      return pruneView(written, models.repairs, models).layout
+    }
+    expect(charts([])).toEqual(written.layout)
+    expect(charts(['heat'])).toEqual([{ kind: 'chart', title: 'Usage', resource: 'repair_samples', field: 'repairId', at: 'at', series: ['load'] }])
+    expect(charts(['heat', 'load'])).toEqual([])
+    expect(charts(['at'])).toEqual([])
+    expect(charts(['repairId'])).toEqual([])
+  })
+
   it('keeps hideEmpty and a record condition, and leaves out an item whose condition names a field the caller cannot read', () => {
     const written = view<typeof repairs>('repairs')
       .layout((r) => [l.section('Paid', [r.status], { when: 'paid = true' }), l.sidebar([r.number], { when: 'paid = true' }), l.related('Photos', { resource: 'repair_photos', field: 'repairId', when: 'paid = true', hideEmpty: true })])

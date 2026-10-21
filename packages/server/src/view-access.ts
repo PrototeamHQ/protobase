@@ -1,9 +1,10 @@
 import { conditionReadable, resolveFieldPath } from '@protobase/layout'
 import { isRecordCondition } from '@protobase/schema'
-import type { ActionInputModel, ActionModel, ActionRun, CardFavoriteModel, CardPhotosModel, ChartModel, CommentsSectionModel, CustomSectionModel, FilterWidgetModel, FormModel, GalleryModel, GroupModel, HistorySectionModel, LayoutItemModel, ListDisplayModel, ListModel, MapSectionModel, NamedListModel, NavModel, NavRecentModel, RelatedColumnModel, RelatedModel, ResourceModel, SaveSearchModel, SearchesOfModel, SearchResultModel, TabItemModel, TabModel, ViewModel } from '@protobase/schema'
+import type { ActionInputModel, ActionModel, ActionRun, CardFavoriteModel, CardPhotosModel, ChartModel, CommentsSectionModel, CustomSectionModel, FilterWidgetModel, FormModel, GalleryModel, GroupModel, HistorySectionModel, LayoutItemModel, ListDisplayModel, ListModel, MapSectionModel, NamedListModel, RecordChartModel, NavModel, NavRecentModel, RelatedColumnModel, RelatedModel, ResourceModel, SaveSearchModel, SearchesOfModel, SearchResultModel, TabItemModel, TabModel, ViewModel } from '@protobase/schema'
 import { addressErrors, chartFields, hrefPlaceholders, promptFields, navRecentErrors, pruneByShape, shapes as s, tableDisplay } from '@protobase/schema/internal'
 import { cardFavoriteErrors } from './view-card-favorite'
 import { cardPhotosErrors } from './view-card-photos'
+import { recordChartErrors } from './view-record-chart'
 import { openErrors, relatedErrors } from './view-related'
 import { relatedColumnErrors } from './view-related-column'
 import { searchesOfFor } from './view-saved-search'
@@ -20,6 +21,15 @@ const pruneRelated = (item: RelatedModel, resource: string, models: Record<strin
   const narrowed: RelatedModel = visible && visible.length > 0 ? { ...rest, columns: visible } : rest
   const opened = open !== undefined && openErrors({ ...narrowed, open }, models).length === 0 ? { ...narrowed, open } : narrowed
   return relatedErrors(opened, resource, models).length === 0 ? opened : undefined
+}
+
+// A chart keeps the series the caller can read, and goes with none left or when they cannot use the rest.
+const pruneRecordChart = (item: RecordChartModel, resource: string, models: Record<string, ResourceModel>): RecordChartModel | undefined => {
+  const target = models[item.resource]
+  const series = target ? item.series.filter((name) => Object.hasOwn(target.fields, name)) : []
+  if (series.length === 0) return undefined
+  const narrowed = { ...item, series }
+  return recordChartErrors(narrowed, resource, models).length === 0 ? narrowed : undefined
 }
 
 // A section, related table or sidebar whose record condition names what the caller cannot see goes, with its item.
@@ -148,6 +158,7 @@ const layoutShape = (resource: string, model: ResourceModel, models: Record<stri
     group,
     custom: s.object<CustomSectionModel>({ kind: s.data, component: s.data, title: s.data, sidebar: s.data, when: s.data, props: s.refs }, { requires: ['props'] }),
     map: s.object<MapSectionModel>({ kind: s.data, title: s.data, latitude: s.field, longitude: s.field, zoom: s.data, sidebar: s.data, when: s.data }, { requires: ['latitude', 'longitude'] }),
+    chart: s.map<RecordChartModel>((item) => pruneRecordChart(item, resource, models)),
     gallery: s.map<GalleryModel>((item) => pruneGallery(item, resource, model, models)),
     history: s.object<HistorySectionModel>({ kind: s.data, title: s.data, limit: s.data, when: s.data }),
     comments: s.object<CommentsSectionModel>({ kind: s.data, title: s.data, when: s.data }),
@@ -245,7 +256,7 @@ const viewShape = (resource: string, model: ResourceModel, models: Record<string
 /**
  * The view with every reference to a field the caller cannot read removed: list columns, sort, search and displays,
  * field hints, filter widgets, record sections, maps, galleries and custom components' props, the chart, title and search result, the
- * actions that set or read one, and the sidebar's `recent` group. Nothing in it may name a hidden field. Related sections, related list columns
+ * actions that set or read one, and the sidebar's `recent` group. Nothing in it may name a hidden field. Related sections, charts of related records, related list columns
  * and links are checked against `models`, the caller's view of every resource, and so are `searchesOf`, cards' favorite
  * buttons and the "Save search" button; the buttons stay for a visitor when their resource is one of `prompted`, those
  * that ask the visitor to sign in. A create link may give values of any name to a resource of `createPages`, whose view
