@@ -80,11 +80,21 @@ The columns Better Auth needs that the table lacks, filled from what the other s
 | `PROTOBASE_APP_NAME` | the app's name, passed by the platform: it overrides `appName` |
 | `PROTOBASE_SIGN_IN_ISSUER`, `PROTOBASE_SIGN_IN_CLIENT_ID`, `PROTOBASE_SIGN_IN_CLIENT_SECRET` | the [platform sign-in provider](#platform-sign-in-provider) for people who have an account, passed by the platform; off without them. `PROTOBASE_SIGN_IN_PROVIDER` and `PROTOBASE_SIGN_IN_NAME` are optional |
 | `PROTOBASE_OPERATOR_ISSUER`, `PROTOBASE_OPERATOR_CLIENT_ID`, `PROTOBASE_OPERATOR_CLIENT_SECRET` | the [operator provider](#operator-provider) its staff sign in with to sign in as people, passed by the platform; staff sign-in is off without them. `PROTOBASE_OPERATOR_NAME` and `PROTOBASE_OPERATOR_GROUP` are optional |
+| `PROTOBASE_TRUSTED_PROXIES` | the proxies in front of `protobase serve`, addresses or CIDR ranges, comma separated, such as `172.16.0.0/12`; see [Client addresses](#client-addresses) |
 
 - Cookies are `SameSite=Lax`, and `Secure` when `BETTER_AUTH_URL` is https.
-- Sign-in is rate limited (5 password attempts per minute and client by default, `signInPerMinute`, which also limits [sign-up](#open-sign-up) requests; 3 per minute for emailed codes); the limiter keys on `x-forwarded-for`, so run behind a proxy that sets it.
+- Sign-in is rate limited (5 password attempts per minute and client by default, `signInPerMinute`, which also limits [sign-up](#open-sign-up) requests; 3 per minute for emailed codes); [Client addresses](#client-addresses) says how a client is known.
 - New passwords need at least 12 characters.
 - `appName` is the app's name: authenticator apps and passkey prompts show it, the admin app's sidebar shows it at the top beside the app's [icon](app-identity.md#the-icons)), else Protobase's mark (Protobase's wordmark when it is `Protobase`), every browser tab of the admin app ends its title with it, the [installed app](installable-app.md)) is called by it, the [auth emails](email.md#protobases-own-mail)) name the app with it, and the platform's mailer sends them as it (the sender's display name). `PROTOBASE_APP_NAME`, when set, overrides it; without either it is `Protobase`, then without a display name. See [App identity](app-identity.md)).
+
+### Client addresses
+
+The rate limits count each client address on its own: an IPv4 address, or an IPv6 address by its /64. `protobase serve` and the runtime image find it themselves and pass it on in `X-Forwarded-For`, replacing whatever the client sent:
+
+- Without `PROTOBASE_TRUSTED_PROXIES`, the client is the address the connection comes from. That fits a server the clients reach directly, such as `docker run -p 8787:8787`.
+- Behind a reverse proxy (Caddy, nginx, Traefik, a load balancer), every connection comes from the proxy, so every client would share its one limit, and three emailed codes a minute from anyone would stop everyone signing in. Set `PROTOBASE_TRUSTED_PROXIES` to the proxy's address, or the range it connects from, such as `172.16.0.0/12` for a Docker network, and have the proxy append the address it took the request from to `X-Forwarded-For` (Caddy and Traefik do by default, nginx with `proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for`). The client is then the rightmost address in it that is not a trusted proxy, so one the client wrote itself counts for nothing. Behind several proxies, such as a CDN in front of Caddy, trust them all.
+
+An app served another way than `protobase serve`, such as its own server around `createAdmin`, gets what its server passes: the limits read `X-Forwarded-For` holding one address, and requests without one share a single limit.
 
 ## First run
 
