@@ -6,6 +6,7 @@ import { appNameOver, defaultAppName } from '../app-name'
 import { goTrueIssuer, goTrueKeyPair } from '../gotrue/keys'
 import { goTrueSessionsPlugin } from '../gotrue/sessions-plugin'
 import { authBasePath } from './auth-base-path'
+import { passwordLength } from './new-account-password'
 import { platformMailer } from '../mail/platform-mailer'
 import type { Mailer } from '../mail/smtp-mailer'
 import { readOperatorSettings, resolveOperator, type OperatorProvider, type ResolvedOperator } from './operator-provider'
@@ -282,7 +283,8 @@ export const betterAuthOptions = (options: CreateAuthOptions, { origins = [], pa
     emailAndPassword: {
       enabled: true,
       disableSignUp: true,
-      minPasswordLength: 12,
+      minPasswordLength: passwordLength.min,
+      maxPasswordLength: passwordLength.max,
       ...(passwordHashes.length > 0 && { password: { verify: verifyAcceptedHash(passwordHashes) } }),
       ...(mail && passwordResetOptions(mail, mcp ? { onPasswordReset: async ({ user }) => revokeMcpGrants((await context()).adapter, user.id) } : {})),
     },

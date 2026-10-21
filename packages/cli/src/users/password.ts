@@ -57,7 +57,7 @@ export const readHidden = (question: string) =>
     stdin.on('data', onData)
   })
 
-// A password the app's own sign-in would never take is refused before any user is made with it.
+// A password of a length the app refuses for every new one (passwordLength) is refused before any user is made with it.
 const checkPasswordLength = (password: string) => {
   const { min, max } = passwordLength
   if (password.length < min || password.length > max) throw new Error(`Choose a password of ${min} to ${max} characters`)

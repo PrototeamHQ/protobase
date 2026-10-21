@@ -70,7 +70,7 @@ describe('betterAuthOptions', () => {
 
   it('accepts the extra password hashes, and rehashes them on sign-in, only when asked', () => {
     const options = betterAuthOptions({ ...base, passwordHashes: ['bcrypt'] }, resolved)
-    expect(options.emailAndPassword).toMatchObject({ minPasswordLength: 12, password: { verify: expect.any(Function) } })
+    expect(options.emailAndPassword).toMatchObject({ minPasswordLength: 12, maxPasswordLength: 128, password: { verify: expect.any(Function) } })
     expect(options.plugins.map((plugin) => plugin.id)).toContain('protobase-rehash-passwords')
     const plain = betterAuthOptions(base, resolved)
     expect(plain.emailAndPassword).not.toHaveProperty('password')
