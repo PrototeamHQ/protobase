@@ -37,11 +37,11 @@ const isEmptyText = (field: FieldModel, value: unknown) => field.type === 'text'
 export const requiredOnCreate = (field: FieldModel, schema: z.ZodType) => !(field.default && 'db' in field.default) && !field.nullable && !schema.safeParse(undefined).success
 
 /**
- * Checks a create or update body for this caller. A field the caller cannot read is an unknown field, one they can read
- * but not write is read-only (the tenant column and the API's own `etag` and `permissions` keys are always read-only);
- * every provided value goes through its field's zod schema, then `.validate()` rules run on the result. An empty text
- * for a text field that may not be null counts as not given: a create fills in its default or reports it required,
- * an update reports it required. Only the values written are checked, so a stored '' still reads.
+ * Checks a create or update body for this caller. A field the caller can neither read nor write is an unknown field, one
+ * they can read but not write is read-only (the tenant column and the API's own `etag` and `permissions` keys are always
+ * read-only), and a write-only one (see `writableFields`) is written like any other; every provided value goes through
+ * its field's zod schema, then `.validate()` rules run on the result. An empty text for a text field that may not be null
+ * counts as not given: a create fills in its default or reports it required, an update reports it required. Only the values written are checked, so a stored '' still reads.
  * Returns only the values to write: on create the defaults are filled in, on update only the provided fields.
  * `current` is the stored record an update merges into for `.validate()` rules, which get a set encrypted field of it as
  * `encrypted`: they see an encrypted value as text only when this write gives it.
@@ -56,7 +56,7 @@ export const validateBody = (access: RequestAccess, mode: 'create' | 'update', b
   for (const name of Object.keys(body)) {
     if (reserved.includes(name) && !Object.hasOwn(model.fields, name)) {
       errors.push({ field: name, code: 'read-only', message: name === 'etag' ? 'The version is not part of the body; send it in the If-Match header' : `"${name}" is read-only` })
-    } else if (!Object.hasOwn(model.fields, name)) errors.push({ field: name, code: 'unknown-field', message: `Unknown field "${name}"` })
+    } else if (!Object.hasOwn(model.fields, name) && !writable.has(name)) errors.push({ field: name, code: 'unknown-field', message: `Unknown field "${name}"` })
     else if (!writable.has(name) || name === full.tenant) errors.push({ field: name, code: 'read-only', message: `"${name}" is read-only` })
   }
   if (errors.length > 0) throw fail(errors)
@@ -85,6 +85,6 @@ export const validateBody = (access: RequestAccess, mode: 'create' | 'update', b
 
   const merged = { ...maskEncrypted(full, current), ...values }
   const issues = entry.source.validators.flatMap((validate) => validate(merged) ?? [])
-  if (issues.length > 0) throw fail(issues.map((issue): FieldError => ({ field: Object.hasOwn(model.fields, issue.field) ? issue.field : '_record', code: 'invalid-record', message: issue.message })))
+  if (issues.length > 0) throw fail(issues.map((issue): FieldError => ({ field: Object.hasOwn(model.fields, issue.field) || writable.has(issue.field) ? issue.field : '_record', code: 'invalid-record', message: issue.message })))
   return values
 }
