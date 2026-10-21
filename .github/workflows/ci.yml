@@ -184,6 +184,13 @@ jobs:
         env:
           POSTGRES_PORT: ${{ job.services.postgres.ports['5432'] }}
         run: echo "TEST_POSTGRES_URL=postgres://protobase:protobase@localhost:$POSTGRES_PORT/postgres" >> "$GITHUB_ENV"
+      # As in check: each `drop database` forces a checkpoint, here behind the medium template's writes; no fsync keeps it quick.
+      - if: steps.postgres.outputs.run == 'true'
+        name: Turn off the service Postgres' durability
+        run: >-
+          docker exec ${{ job.services.postgres.id }} psql -U protobase -d protobase -v ON_ERROR_STOP=1
+          -c "alter system set fsync = off" -c "alter system set synchronous_commit = off"
+          -c "alter system set full_page_writes = off" -c "select pg_reload_conf()"
       # The cloud's pooler in front of the same server, as docker-compose.yml runs it. It is started here rather than as a
       # service so it reaches Postgres by address: on the shared self-hosted runner, looking up the service name now and
       # then stalls while other jobs create and remove their networks, and the PgBouncer tests then find no pooler.
