@@ -23,6 +23,13 @@ const invalidValue = (field: string, issue: z.core.$ZodIssue): FieldError => {
   return { field, code: 'invalid-value', message: issue.message, ...(params && { params }) }
 }
 
+const unknownField = (name: string): FieldError => ({ field: name, code: 'unknown-field', message: `Unknown field "${name}"` })
+
+/** Refuses a field the caller may not name in this request as `validateBody` refuses an unknown one. */
+export const refuseUnknownField = (name: string) => {
+  throw fail([unknownField(name)])
+}
+
 const isObject = (value: unknown): value is Row => typeof value === 'object' && value !== null && !Array.isArray(value)
 
 const reserved = ['etag', 'permissions']
@@ -56,7 +63,7 @@ export const validateBody = (access: RequestAccess, mode: 'create' | 'update', b
   for (const name of Object.keys(body)) {
     if (reserved.includes(name) && !Object.hasOwn(model.fields, name)) {
       errors.push({ field: name, code: 'read-only', message: name === 'etag' ? 'The version is not part of the body; send it in the If-Match header' : `"${name}" is read-only` })
-    } else if (!Object.hasOwn(model.fields, name) && !writable.has(name)) errors.push({ field: name, code: 'unknown-field', message: `Unknown field "${name}"` })
+    } else if (!Object.hasOwn(model.fields, name) && !writable.has(name)) errors.push(unknownField(name))
     else if (!writable.has(name) || name === full.tenant) errors.push({ field: name, code: 'read-only', message: `"${name}" is read-only` })
   }
   if (errors.length > 0) throw fail(errors)

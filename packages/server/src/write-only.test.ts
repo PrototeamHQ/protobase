@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { f, resource } from '@protobase/schema'
+import type { Db } from '@protobase/query'
+import { reorderIn } from './batch/reorder'
 import type { Deps } from './deps'
 import { checkedFilter, checkedSort } from './filter-input'
 import { resourceSchemas } from './openapi/schemas'
@@ -23,9 +25,21 @@ const secrets = resource('secrets')
   })
   .primaryKey((r) => r.id)
 
-const entry = buildRegistry([secrets]).find('secrets')!
-const deps = { registry: buildRegistry([secrets]), accessOptions: {} } as unknown as Deps
-const accessOf = (role: string) => requestAccess(deps, entry, { user: { id: '1', roles: [role] } })
+// Ranks the admin may set but not read: a plain one, and the resource's position.
+const steps = resource('steps')
+  .table('steps')
+  .fields({
+    id: f.integer().readOnly(),
+    hidden_rank: f.integer().access({ read: isLoop, create: isAdmin, update: isAdmin }),
+    position: f.integer().sortable().access({ read: isLoop, create: isAdmin, update: isAdmin }),
+  })
+  .primaryKey((r) => r.id)
+  .position((r) => r.position)
+
+const registry = buildRegistry([secrets, steps])
+const entry = registry.find('secrets')!
+const deps = { registry, accessOptions: {} } as unknown as Deps
+const accessOf = (role: string, of = entry) => requestAccess(deps, of, { user: { id: '1', roles: [role] } })
 
 const refusal = (run: () => unknown) => {
   try {
@@ -74,5 +88,13 @@ describe('a write-only field', () => {
     const loop = await accessOf('loop')
     expect(Object.keys(loop.model.fields)).toContain('sealed_value')
     expect(writableFields(loop, 'update')).toEqual(['name', 'first_value', 'note'])
+  })
+
+  it('is not the position, and no reorder orders by one, since both compare stored values the caller cannot read', async () => {
+    const admin = await accessOf('admin', registry.find('steps')!)
+    expect(writableFields(admin, 'update')).toEqual(['hidden_rank'])
+    // Refused before any query, so no transaction is needed
+    const reorder = reorderIn(undefined as unknown as Db, deps, admin, { field: 'hidden_rank', keys: [[1], [2]], etags: {}, start: 1 })
+    await expect(reorder).rejects.toMatchObject({ extras: { errors: [{ field: 'hidden_rank', code: 'unknown-field', message: 'Unknown field "hidden_rank"' }] } })
   })
 })

@@ -7,7 +7,7 @@ import { fetchRecord } from '../records'
 import { requireOperation, targetFilter, writableFields, type RequestAccess } from '../request-access'
 import { columnId, keyConditions, scopeConditions, tableId, whereClause } from '../sql-parts'
 import { tenantScope } from '../tenant'
-import { validateBody } from '../validate-body'
+import { refuseUnknownField, validateBody } from '../validate-body'
 import { missing, shown, type WriteResult } from '../write-shared'
 import { applyUpdate, planUpdate, type UpdatePlan } from '../write-update'
 import { checkRankAfter } from '../rank-after'
@@ -57,7 +57,9 @@ export const reorderIn = async (trx: Db, deps: Deps, access: RequestAccess, inpu
   const { entry, full } = access
   requireOperation(access, 'update')
   const field = full.fields[input.field]
-  // Refused exactly like any other field the caller cannot write (hidden, read-only or unknown)
+  // Refused exactly like any other field the caller cannot write (hidden, read-only or unknown). A write-only field is
+  // refused as unknown too: ordering by it would decide from the stored values the caller cannot read.
+  if (!Object.hasOwn(access.readable.fields, input.field)) refuseUnknownField(input.field)
   validateBody(access, 'update', { [input.field]: 1 })
   if (field?.type !== 'integer' && field?.type !== 'bigint') throw badRequest('invalid-parameter', `"${input.field}" must be an integer field to order by`)
   if (!writableFields(access, 'update').includes(input.field)) throw badRequest('invalid-parameter', `"${input.field}" is read-only`)
