@@ -81,7 +81,7 @@ let db: Kysely<any>
 const events: AuditEvent[] = []
 const unhandled: unknown[] = []
 const queue: AuditQueue = { publish: async (event) => void events.push(event) }
-const adminWith = (env: Record<string, string>, list: Parameters<typeof createAdmin>[0]['resources'] = resources) => {
+const adminWith = (env: Record<string, string>, list: Parameters<typeof createAdmin>[0]['resources'] = resources, apiKeys?: { publishable_key: string; secret_key: string }) => {
   vi.stubEnv('PROTOBASE_ENCRYPTION_KEY', env.current ?? '')
   vi.stubEnv('PROTOBASE_ENCRYPTION_PREVIOUS_KEYS', env.previous ?? '')
   try {
@@ -90,7 +90,9 @@ const adminWith = (env: Record<string, string>, list: Parameters<typeof createAd
       views: [peopleView],
       db,
       authenticate: testAuthenticator,
-      options: { audit: queue, onUnhandledError: (error) => void unhandled.push(error), writeHooks: [async (event) => void hookEvents.push(event)] },
+      // With API keys, only /api/sb/rest/v1: /api/sb/storage/v1 needs a files secret.
+      ...(apiKeys && { files: { storage: false } }),
+      options: { audit: queue, onUnhandledError: (error) => void unhandled.push(error), writeHooks: [async (event) => void hookEvents.push(event)], ...(apiKeys && { apiKeys }) },
     })
   } finally {
     vi.unstubAllEnvs()
@@ -283,6 +285,50 @@ describe('an encrypted field', () => {
       const text = await (await call(app, path)).text()
       for (const key of [keyA, keyB]) expect(text).not.toContain(key)
     }
+  })
+})
+
+describe('/api/sb/rest/v1', () => {
+  it('refuses to write, match, filter or sort an encrypted column, or to move a row it binds, writing nothing', async () => {
+    const secret = 'sb_secret_encrypted_test'
+    const restApp = adminWith({ current: keyA }, resources, { publishable_key: 'sb_publishable_encrypted_test', secret_key: secret })
+    const rest = (method: string, path: string, body?: unknown, prefer?: string) =>
+      restApp.request(`/api/sb/rest/v1/${path}`, {
+        method,
+        headers: { apikey: secret, authorization: `Bearer ${secret}`, 'content-type': 'application/json', ...(prefer && { prefer }) },
+        ...(body !== undefined && { body: JSON.stringify(body) }),
+      })
+    const id = (await (await post('/people', { name: 'Rest', iban: canary(20) })).json()).id
+    const envelope = await stored('people', 'iban', `id = ${id}`)
+    const rows = async () => (await sql<{ rows: string }>`select count(*)::text as rows from people`.execute(db)).rows[0]!.rows
+    const before = await rows()
+
+    const refused = [
+      await rest('POST', 'people', { organization_id: 1, name: 'Plain', iban: canary(21) }),
+      await rest('POST', 'people', { id, organization_id: 1, name: 'Rest', iban: canary(22) }, 'resolution=merge-duplicates'),
+      await rest('POST', 'people?on_conflict=iban', { organization_id: 1, name: 'Rest' }, 'resolution=merge-duplicates'),
+      await rest('POST', 'people', { id, organization_id: 2, name: 'Rest' }, 'resolution=merge-duplicates'),
+      await rest('PATCH', `people?id=eq.${id}`, { iban: canary(23) }),
+      await rest('PATCH', `people?id=eq.${id}`, { id: 9_000_001 }),
+      await rest('PATCH', `people?id=eq.${id}`, { organization_id: 2 }),
+      await rest('GET', `people?iban=eq.${envelope}`),
+      await rest('GET', `people?or=(name.eq.Rest,iban.eq.${canary(20)})`),
+      await rest('GET', 'people?order=iban'),
+      await rest('DELETE', `people?iban=eq.${envelope}`),
+    ]
+    for (const response of refused) {
+      expect(response.status, response.url).toBe(400)
+      expect((await response.json()).code).toBe('encrypted-column')
+    }
+    expect(await rows()).toBe(before)
+    expect(await stored('people', 'iban', `id = ${id}`)).toBe(envelope)
+    expect(await stored('people', 'organization_id::text', `id = ${id}`)).toBe('1')
+
+    // What does not touch the column still works, and leaves the value readable
+    expect((await rest('PATCH', `people?id=eq.${id}`, { note: 'through rest' })).status).toBe(204)
+    expect(await stored('people', 'note', `id = ${id}`)).toBe('through rest')
+    expect(await stored('people', 'iban', `id = ${id}`)).toBe(envelope)
+    expect(await revealed(`/people/${id}`)).toBe(canary(20))
   })
 })
 
