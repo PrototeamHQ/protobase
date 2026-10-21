@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { forbidden, unauthorized } from '../problem'
+import { forbidden, notFound, unauthorized } from '../problem'
 import { recheckWhileOpen } from './socket-recheck'
 
 const start = (check: () => Promise<unknown>) => {
@@ -23,7 +23,7 @@ describe('recheckWhileOpen', () => {
   })
 
   it('closes with 1008 and the problem’s title once the caller is refused, and checks no more', async () => {
-    for (const refusal of [unauthorized('Signed out'), forbidden('caller-changed', 'Changed')]) {
+    for (const refusal of [unauthorized('Signed out'), forbidden('caller-changed', 'Changed'), notFound('No such repair')]) {
       const check = vi.fn(async () => {
         throw refusal
       })
@@ -50,13 +50,25 @@ describe('recheckWhileOpen', () => {
     let most = 0
     const check = vi.fn(async () => {
       most = Math.max(most, ++running)
-      await new Promise((resolve) => setTimeout(resolve, 2500))
+      await new Promise((resolve) => setTimeout(resolve, 900))
       running--
     })
-    start(check)
+    const { close } = start(check)
     await vi.advanceTimersByTimeAsync(10_000)
     expect(most).toBe(1)
     expect(check.mock.calls.length).toBeGreaterThan(1)
+    expect(close).not.toHaveBeenCalled()
+  })
+
+  it('closes with 1011 and reports a check still pending after another interval, and starts no second one', async () => {
+    const check = vi.fn(() => new Promise(() => {}))
+    const { close, report } = start(check)
+    await vi.advanceTimersByTimeAsync(1999)
+    expect(close).not.toHaveBeenCalled()
+    await vi.advanceTimersByTimeAsync(5000)
+    expect(close.mock.calls).toEqual([[1011, 'Internal Error']])
+    expect(report).toHaveBeenCalledTimes(1)
+    expect(check).toHaveBeenCalledTimes(1)
   })
 
   it('runs no check once stopped, nor closes when one in flight ends after the stop', async () => {

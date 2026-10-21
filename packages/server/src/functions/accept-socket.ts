@@ -5,7 +5,10 @@ import { socketEvents, type SocketEvents } from './function-socket'
 
 export type SocketAcceptorInput = {
   c: Context
-  /** The host's WebSocket upgrade, such as `@hono/node-server`'s; without it, no function accepts a socket. */
+  /**
+   * The host's WebSocket upgrade, `@hono/node-server`'s `upgradeWebSocket`, the only one supported: function sockets use
+   * its `ws` socket's send callback and `bufferedAmount`. Without it, no function accepts a socket.
+   */
   upgradeWebSocket?: UpgradeWebSocket
   report: (error: unknown) => void
   recheck?: () => Promise<unknown>

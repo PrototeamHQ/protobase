@@ -14,9 +14,11 @@ export type PublicFunctionContext = {
   /** The caller, through the app's own `authenticate`: rejects with a 401 problem when the request carries no valid token. */
   caller: () => Promise<FunctionCaller>
   /**
-   * Answers a WebSocket upgrade with a socket: return its response. A request that is no upgrade is a 426 problem. A
-   * protected function's caller is checked again every minute while the socket is open, which closes with 1008 once
-   * they would be refused; a public function checks its own callers.
+   * Answers a WebSocket upgrade with a socket: return its response. A request that is no upgrade is a 426 problem. While
+   * the socket is open, the caller of a protected function, and of a public one once `caller()` resolved, is checked
+   * again every minute: their credential, the function's roles, and the same user, tenant, organization and roles. The
+   * socket closes with 1008 once they would be refused. The function's own checks, such as access to one record, are
+   * not repeated unless it passes them as `recheck`.
    */
   acceptWebSocket: (events: SocketEvents) => Response
 }
