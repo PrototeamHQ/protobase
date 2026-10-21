@@ -52,6 +52,7 @@ export const reference = [
   'reference/user-menu',
   'reference/bottom-bar',
   'reference/assistant',
+  'reference/mcp',
   'reference/cli',
   'reference/versioning',
 ]
