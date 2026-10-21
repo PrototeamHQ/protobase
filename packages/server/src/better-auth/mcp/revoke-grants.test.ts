@@ -48,18 +48,18 @@ describe('whose MCP clients a finished request disconnects', () => {
 
 const rows = () => ({
   oauthConsent: [
-    { id: 'c1', userId: 'ana', clientId: 'claude' },
-    { id: 'c2', userId: 'ana', clientId: 'cursor' },
-    { id: 'c3', userId: 'bo', clientId: 'claude' },
+    { id: 'c1', userId: 'ana', clientId: 'assistant' },
+    { id: 'c2', userId: 'ana', clientId: 'editor' },
+    { id: 'c3', userId: 'bo', clientId: 'assistant' },
   ],
   oauthAccessToken: [
-    { id: 'a1', userId: 'ana', clientId: 'claude' },
-    { id: 'a2', userId: 'bo', clientId: 'claude' },
+    { id: 'a1', userId: 'ana', clientId: 'assistant' },
+    { id: 'a2', userId: 'bo', clientId: 'assistant' },
   ],
   oauthRefreshToken: [
-    { id: 'r1', userId: 'ana', clientId: 'claude' },
-    { id: 'r2', userId: 'ana', clientId: 'cursor' },
-    { id: 'r3', userId: 'bo', clientId: 'claude' },
+    { id: 'r1', userId: 'ana', clientId: 'assistant' },
+    { id: 'r2', userId: 'ana', clientId: 'editor' },
+    { id: 'r3', userId: 'bo', clientId: 'assistant' },
   ],
 })
 
@@ -74,7 +74,7 @@ describe('disconnecting MCP clients', () => {
 
   it("removes only one client's, given it", async () => {
     const { tables, adapter } = fakeAdapter(rows())
-    await revokeMcpGrants(adapter, 'ana', 'claude')
+    await revokeMcpGrants(adapter, 'ana', 'assistant')
     expect(ids(tables)).toEqual({ oauthConsent: ['c2', 'c3'], oauthAccessToken: ['a2'], oauthRefreshToken: ['r2', 'r3'] })
   })
 })

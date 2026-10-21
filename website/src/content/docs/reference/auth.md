@@ -508,7 +508,7 @@ It is signed with the same keys and carries the same claims as a token from `/ap
 
 ## OAuth for MCP clients
 
-With `mcp`, the app is an OAuth provider for MCP clients such as Claude, ChatGPT, Cursor and Claude Code: a person adds the app's MCP address to the client, the client registers itself, the person signs in on the app's own pages and allows it on the connect page, and the client gets tokens that act as that person.
+With `mcp`, the app is an OAuth provider for MCP clients, such as AI assistants and code editors that speak MCP: a person adds the app's MCP address to the client, the client registers itself, the person signs in on the app's own pages and allows it on the connect page, and the client gets tokens that act as that person.
 
 ```ts
 createAuth({ ..., mcp: true })

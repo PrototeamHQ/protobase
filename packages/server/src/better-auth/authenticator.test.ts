@@ -28,7 +28,7 @@ const mcp = authenticator.forAudience(resource)
 
 type TokenInput = { aud?: string; typ?: string; cnf?: { jkt: string }; key?: CryptoKey }
 const token = ({ aud = resource, typ = 'at+jwt', cnf, key = appKeys.privateKey }: TokenInput = {}) =>
-  new SignJWT({ role: 'sales', client_id: 'claude', azp: 'claude', scope: 'mcp offline_access', ...(cnf && { cnf }) })
+  new SignJWT({ role: 'sales', client_id: 'assistant', azp: 'assistant', scope: 'mcp offline_access', ...(cnf && { cnf }) })
     .setProtectedHeader({ alg: 'EdDSA', kid: 'app', typ })
     .setSubject('ana')
     .setIssuer(issuer)
@@ -56,7 +56,7 @@ const refused = (authenticate: Authenticator, req: Request) => expect(Promise.re
 describe('tokens for another audience', () => {
   it("are taken by forAudience with the client, and refused by the app's own API", async () => {
     const mcpToken = await token()
-    expect(await mcp(request(`Bearer ${mcpToken}`))).toEqual({ user: { id: 'ana', roles: ['sales'] }, client: { id: 'claude', scopes: ['mcp', 'offline_access'] } })
+    expect(await mcp(request(`Bearer ${mcpToken}`))).toEqual({ user: { id: 'ana', roles: ['sales'] }, client: { id: 'assistant', scopes: ['mcp', 'offline_access'] } })
     await refused(authenticator, request(`Bearer ${mcpToken}`))
   })
 

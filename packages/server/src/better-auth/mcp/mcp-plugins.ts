@@ -110,7 +110,7 @@ export const mcpAuthPlugins = ({ mcp: resolved, organizations, mail, defaultPoli
     grantTypes: ['authorization_code', 'refresh_token'],
     allowDynamicClientRegistration: true,
     allowUnauthenticatedClientRegistration: true,
-    // Loopback and app-scheme callbacks (Claude Code, Cursor) register without an application type; a sent one stands.
+    // Loopback and app-scheme callbacks (command-line tools, code editors) register without an application type; a sent one stands.
     clientRegistrationDefaultApplicationType: 'infer',
     postLogin: {
       page: resolved.connectPage,

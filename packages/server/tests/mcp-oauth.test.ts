@@ -407,14 +407,14 @@ describe('discovery', () => {
     const { request } = await serve()
     const asked: Record<string, string>[] = [{}, { 'x-forwarded-host': 'evil.example' }, { forwarded: 'host=evil.example' }]
     for (const headers of asked) {
-      const server = await request('http://evil.example/.well-known/oauth-authorization-server', { from: 'https://claude.ai', headers })
+      const server = await request('http://evil.example/.well-known/oauth-authorization-server', { from: 'https://assistant.example', headers })
       expect(server.status).toBe(200)
       expect(server.headers.get('access-control-allow-origin')).toBe('*')
       const metadata = (await server.json()) as Record<string, unknown>
       expect(metadata.issuer).toBe(origin)
       for (const key of ['authorization_endpoint', 'token_endpoint', 'registration_endpoint']) expect(String(metadata[key])).toMatch(/^http:\/\/localhost:5173\/api\/auth\/oauth2\//)
       for (const path of ['/.well-known/oauth-protected-resource', '/.well-known/oauth-protected-resource/api/mcp']) {
-        const protectedResource = await request(`http://evil.example${path}`, { from: 'https://claude.ai', headers })
+        const protectedResource = await request(`http://evil.example${path}`, { from: 'https://assistant.example', headers })
         expect(protectedResource.headers.get('access-control-allow-origin')).toBe('*')
         expect(await protectedResource.json()).toMatchObject({ resource, authorization_servers: [origin], scopes_supported: ['mcp'] })
       }
@@ -424,14 +424,14 @@ describe('discovery', () => {
   it('lets clients register and fetch tokens from anywhere, preflight included, and keeps CORS off authorize', async () => {
     const { request, register } = await serve()
     for (const path of ['/api/auth/oauth2/register', '/api/auth/oauth2/token']) {
-      const preflight = await request(path, { method: 'OPTIONS', from: 'https://claude.ai', headers: { 'access-control-request-method': 'POST', 'access-control-request-headers': 'content-type, dpop' } })
+      const preflight = await request(path, { method: 'OPTIONS', from: 'https://assistant.example', headers: { 'access-control-request-method': 'POST', 'access-control-request-headers': 'content-type, dpop' } })
       expect(preflight.status).toBe(204)
       expect(preflight.headers.get('access-control-allow-origin')).toBe('*')
     }
-    const registered = await request('/api/auth/oauth2/register', { from: 'https://claude.ai', body: { redirect_uris: [redirectUri], client_name: 'From afar', token_endpoint_auth_method: 'none' } })
+    const registered = await request('/api/auth/oauth2/register', { from: 'https://assistant.example', body: { redirect_uris: [redirectUri], client_name: 'From afar', token_endpoint_auth_method: 'none' } })
     expect(registered.status).toBe(201)
     expect(registered.headers.get('access-control-allow-origin')).toBe('*')
-    const authorized = await request(`/api/auth/oauth2/authorize?client_id=${await register()}`, { from: 'https://claude.ai' })
+    const authorized = await request(`/api/auth/oauth2/authorize?client_id=${await register()}`, { from: 'https://assistant.example' })
     expect(authorized.headers.get('access-control-allow-origin')).toBeNull()
   })
 
@@ -456,7 +456,7 @@ describe('registration', () => {
 
   it('chooses the client id itself, so a client cannot pass for a published one', async () => {
     const { register } = await serve()
-    expect(await register({ client_id: 'https://claude.ai/oauth/client.json' })).not.toBe('https://claude.ai/oauth/client.json')
+    expect(await register({ client_id: 'https://assistant.example/oauth/client.json' })).not.toBe('https://assistant.example/oauth/client.json')
   })
 
   it('needs none for a client that publishes its metadata at its id', async () => {
