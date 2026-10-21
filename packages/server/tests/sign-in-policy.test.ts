@@ -1,10 +1,11 @@
 import { Kysely } from 'kysely'
-import { beforeAll, describe, expect, it } from 'vitest'
+import { beforeAll, describe, expect, it, vi } from 'vitest'
 import { betterAuthAuthenticator } from '../src/better-auth/authenticator'
 import { createAuth, type CreateAuthOptions } from '../src/better-auth/create-auth'
 import { defaultSignInPolicy } from '../src/better-auth/sign-in-policy'
 import { createUser } from '../src/better-auth/users'
 import { createAdmin } from '../src/create-admin'
+import { defineFunction } from '../src/functions/define-function'
 import type { MailMessage } from '../src/mail/smtp-mailer'
 import { openSnapshotDb, type SnapshotDb } from '../../../test-support/sql-snapshot'
 
@@ -195,6 +196,18 @@ describe('a required method', () => {
     const disabled = await request('/two-factor/disable', { cookie: fresh, body: { password } })
     expect(disabled.status).toBe(403)
     expect(await disabled.json()).toMatchObject({ code: 'TWO_FACTOR_REQUIRED' })
+  })
+
+  it('holds back a WebSocket opened with the session cookie until two-factor authentication is on, before the function runs', async () => {
+    const { auth, request, signIn } = await serve()
+    await request('/policy/sign-in', { cookie: await signIn('root@example.com'), body: { ...defaultSignInPolicy, twoFactor: 'required' } })
+    const cookie = await signIn('sanne@example.com')
+    const handler = vi.fn(() => new Response('never'))
+    const app = createAdmin({ resources: [], db: appDb, authenticate: betterAuthAuthenticator({ auth }), auth, functions: { console: defineFunction(handler) } })
+    const held = await app.request(`${origin}/api/functions/console`, { headers: { upgrade: 'websocket', origin, cookie } })
+    expect(held.status).toBe(403)
+    expect(await held.json()).toMatchObject({ type: 'urn:protobase:problem:sign-in-refused' })
+    expect(handler).not.toHaveBeenCalled()
   })
 
   it('holds back API tokens until there is a passkey, and keeps the last one', async () => {

@@ -7,6 +7,7 @@ import { issueToken } from '../src/better-auth/tokens'
 import { normalizeRoles } from '../src/better-auth/create-auth'
 import { createUser, deleteUser, parseRoles, roleChoices, hasUsers, listUsers, setUserBanned, setUserRole } from '../src/better-auth/users'
 import { createAdmin } from '../src/create-admin'
+import { defineFunction } from '../src/functions/define-function'
 import { allResources, createFixtureDb, signTestToken } from '../../../test-support/server'
 import { openSnapshotDb, type SnapshotDb } from '../../../test-support/sql-snapshot'
 
@@ -401,5 +402,28 @@ describe('sign-in rate limit', () => {
     }
     expect(statuses.slice(0, 3)).not.toContain(429)
     expect(statuses).toContain(429)
+  })
+})
+
+describe('a WebSocket opened with the session cookie', () => {
+  it('reaches a function as the signed-in user, from the app’s own origin only, and no longer once they are banned', async () => {
+    const handler = vi.fn((_request: Request, context: { session: unknown }) => Response.json(context.session))
+    const sockets = createAdmin({ resources: [], db: fixture.db, authenticate: betterAuthAuthenticator({ auth, tenant: 1 }), auth, functions: { whoami: defineFunction(handler) } })
+    const user = await createUser(auth, { email: 'socket@example.com', password })
+    const signIn = await post('/api/auth/sign-in/email', { email: 'socket@example.com', password })
+    const cookie = signIn.headers.getSetCookie().map((line) => line.split(';')[0]).join('; ')
+    const upgrade = (headers: Record<string, string>) => sockets.request(`${origin}/api/functions/whoami`, { headers: { upgrade: 'websocket', ...headers } })
+
+    const own = await upgrade({ cookie, origin })
+    expect(own.status).toBe(200)
+    expect(await own.json()).toEqual({ user: { id: user.id, roles: ['user'] }, tenant: 1 })
+    expect((await upgrade({ cookie, origin: 'https://evil.example' })).status).toBe(403)
+    expect((await upgrade({ origin })).status).toBe(401)
+    expect(handler).toHaveBeenCalledTimes(1)
+
+    // What the open socket's minute re-check sees once the ban ended the session.
+    await setUserBanned(auth, { email: 'socket@example.com', banned: true })
+    expect((await upgrade({ cookie, origin })).status).toBe(401)
+    expect(handler).toHaveBeenCalledTimes(1)
   })
 })
