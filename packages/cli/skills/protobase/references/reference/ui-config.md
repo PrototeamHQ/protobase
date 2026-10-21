@@ -603,6 +603,7 @@ export const repairsView = filtered
 | `l.related(title, { ... })` | A table or cards of the records of another resource that point at this one, in the main column. See [Related records](#related-records). |
 | `l.custom(Component, { title?, props?, sidebar?, when? })` | A [custom component](custom-components.md#record-sections)) where it is listed: in the main column under `title`, or with `sidebar: true` as a sidebar card. |
 | `l.map(title, { latitude, longitude, zoom?, sidebar?, when? })` | A map with a pin at the record's position, in the main column or with `sidebar: true` as a sidebar card. See [Maps](#maps). |
+| `l.chart(title, { resource, field, at, series, range?, help?, when? })` | Line graphs of numbers of the records that point at this one, such as a machine's samples, over the last hour, day or week. See [Charts of related records](#charts-of-related-records). |
 | `l.gallery(title, { image?, photos?, when? })` | The record's photos as tiles, opening a lightbox. See [Galleries](#galleries). |
 | `l.history(title?, { limit?, when? })` | The record's changes, newest first, with who made each and the fields before and after; needs `.history()` on the resource, and a view without a layout shows it last by itself. See [Record history](history.md#on-the-record-page)). |
 | `l.comments(title?, { when? })` | The record's comments, oldest first, with a box to write one that @mentions people; needs `.comments()` on the resource, and a view without a layout shows it last by itself. See [Record comments](comments.md#on-the-record-page)). |
@@ -637,7 +638,7 @@ The open groups are in the address, as `?open=<title>` once per group, so a link
 
 ### Tabs
 
-`l.tab(title, items)` splits the record page into tabs. A tab holds any main-column item: sections, groups, related tables, custom components, maps, galleries, history and comments. It refuses a sidebar item, another tab, and a custom component or map with `sidebar: true`, since the sidebar stays beside the tabs on every tab.
+`l.tab(title, items)` splits the record page into tabs. A tab holds any main-column item: sections, groups, related tables, custom components, maps, charts, galleries, history and comments. It refuses a sidebar item, another tab, and a custom component or map with `sidebar: true`, since the sidebar stays beside the tabs on every tab.
 
 A view's tabs stand together in the layout and show as one strip; items before them show above the strip and items after them below it, on every tab. Tab titles are unique among a view's tabs, and group titles are unique across the whole layout, groups inside tabs too. The read view and the form show the same tabs.
 
@@ -876,6 +877,29 @@ l.related('Waiting on you', {
 ```
 
 An action that `actions` names must be a named action of `resource`'s view. The cards have no display switch or **Reorder**; View all opens the list as a table section would.
+
+### Charts of related records
+
+`l.chart(title, options)` draws line graphs of numeric fields of the records that point at the record on the page, over a timestamp of theirs, as a virtual machine's page graphs its CPU and network from the samples an app keeps of it, about one a minute. The section has a switch between the last **Hour**, per minute, the last **Day**, per 5 minutes, and the last **Week**, per hour, and one between the **Average** and the **Maximum** of each bucket. A bucket without a sample is a gap in the line, never 0. Each series is a line of its own colour, with a legend when there are several, and the tooltip shows each value with its field's prefix, suffix and decimals; the axis has one scale, so a chart holds series of one unit, such as bytes in and out.
+
+| Option | |
+| --- | --- |
+| `resource` | The records charted, such as `host_samples`. Required. |
+| `field` | The filterable relation on `resource` that holds this record's key. Required. |
+| `at` | The filterable timestamp field of `resource` the records are placed by. Required. |
+| `series` | The numeric fields of `resource` it draws, one line each, labelled as `resource`'s view labels them. At least one. |
+| `range` | The range it opens on: `1h` (the default), `24h` or `7d`. |
+| `help`, `when` | A line under the title, and whether it shows on the form, the read view or both. |
+
+```ts
+view<typeof hosts>('hosts').layout((r) => [
+  l.section('Host', [r.name, r.address]),
+  l.chart('CPU', { resource: 'host_samples', field: 'host_id', at: 'sampled_at', series: ['cpu_percent'] }),
+  l.chart('Network', { resource: 'host_samples', field: 'host_id', at: 'sampled_at', series: ['net_in', 'net_out'], help: 'Bytes per second.' }),
+])
+```
+
+Each series is read through [`:aggregate`](api.md)), grouped by `at` with `field = <this record's key>` as its filter, so the user's access applies as on the list, and a user who cannot read `field`, `at` or any series gets no chart (one who cannot read some series gets the others). That filter and grouping need an index on `(field, at)`, such as `create index on host_samples (host_id, sampled_at)`, which [`protobase doctor`](cli.md#doctor)) checks. A `field` that is no relation to this resource, an `at` that is no timestamp or not filterable, or a series that is no number or is sensitive stops the server at startup. Keeping the samples, and removing old ones, is the app's own work.
 
 ## Actions and views per role
 
