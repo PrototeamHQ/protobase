@@ -169,7 +169,7 @@ Then set `BETTER_AUTH_URL=https://app.example.com` in `app.env` and run `docker 
 docker compose run --rm --no-deps app create-admin /app you@example.com --generate-password
 ```
 
-Then open `http://localhost:8787` and sign in with that email and the printed password. `--no-deps` keeps compose from running `migrate` first, which during an upgrade would migrate under the old version while it serves; use it with every `docker compose run … app`. Where container logs leave the host, pass the password on stdin instead: `docker compose run --rm --no-deps -T app create-admin /app you@example.com --password-stdin < password.txt`.
+Then open the address in `BETTER_AUTH_URL` and sign in with that email and the printed password: `https://app.example.com` once the proxy is in front, `http://localhost:8787` (or the SSH tunnel) only while `BETTER_AUTH_URL` is still `http://localhost:8787`, since sign-in from any other address is refused as another origin. `--no-deps` keeps compose from running `migrate` first, which during an upgrade would migrate under the old version while it serves; use it with every `docker compose run … app`. Where container logs leave the host, pass the password on stdin instead: `docker compose run --rm --no-deps -T app create-admin /app you@example.com --password-stdin < password.txt`.
 
 ### Upgrade
 
