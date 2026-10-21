@@ -4,6 +4,7 @@ import { authSchemaMigration, checkAuthSchema } from '../src/better-auth/auth-sc
 import { betterAuthAuthenticator } from '../src/better-auth/authenticator'
 import { createAuth, type CreateAuthOptions } from '../src/better-auth/create-auth'
 import { createUser, setUserBanned, setUserRole } from '../src/better-auth/users'
+import { dropMcpTables } from '../src/better-auth/mcp/mcp-tables'
 import { createAdmin } from '../src/create-admin'
 import type { MailMessage } from '../src/mail/smtp-mailer'
 import { allResources, createFixtureDb } from '../../../test-support/server'
@@ -846,6 +847,67 @@ describe('turning MCP off', () => {
     await expect(checkAuthSchema(off)).resolves.toBeUndefined()
     expect(await authSchemaMigration(off)).toBeUndefined()
     expect((await store.query('select id from public.oauth_client')).rows).toEqual([{ id: 'app-row' }])
+  })
+
+  // The previous bundle, MCP on, still serving once the deploy's migrate phase dropped the tables: its revocation fails
+  // on the missing tables, but only after the action that secures the account, which takes effect.
+  it('leaves an app with MCP on, serving after the drop, securing accounts and giving no token or code', async () => {
+    const { mailer, sent } = recordingMailer()
+    // The text of the next mail to Ana, once it is sent.
+    const nextMail = async (send: () => Response | Promise<Response>) => {
+      const before = sent.length
+      expect((await send()).status).toBe(200)
+      await expect.poll(() => sent.length, { timeout: 10_000 }).toBeGreaterThan(before)
+      return sent.at(-1)!.text
+    }
+    const app = await serve({ mailer })
+    const ana = await app.grant('ana@example.com')
+    const pending = await app.connect(ana.cookie, ana.clientId)
+    await app.store.exec(dropMcpTables())
+
+    const noToken = async (response: Response) => {
+      expect(response.status).not.toBe(200)
+      expect(await response.text()).not.toContain('access_token')
+    }
+    await noToken(await app.refresh(ana.clientId, ana.tokens.refresh_token!))
+    await noToken(await app.exchange(ana.clientId, pending))
+    expect((await app.authorize(ana.cookie, ana.clientId, { prompt: 'none' })).location).not.toMatch(/[?&]code=/)
+
+    const signInWith = (secret: string) => app.request('/api/auth/sign-in/email', { body: { email: 'ana@example.com', password: secret } })
+    const session = async (cookie: string) => (await app.request('/api/auth/get-session', { cookie })).json()
+    const goTrue = '/api/sb/auth/v1'
+    const goTrueToken = async (response: Response) => {
+      expect(response.status, await response.clone().text()).toBe(200)
+      return ((await response.json()) as { access_token: string }).access_token
+    }
+
+    // Signing out everywhere through the GoTrue-compatible endpoints ends Ana's other sessions.
+    const other = await app.signIn('ana@example.com')
+    expect(await session(other)).toMatchObject({ user: { email: 'ana@example.com' } })
+    const signedIn = await goTrueToken(await app.request(`${goTrue}/token?grant_type=password`, { body: { email: 'ana@example.com', password } }))
+    await app.request(`${goTrue}/logout`, { body: {}, headers: { authorization: `Bearer ${signedIn}` } })
+    expect(await session(other)).toBeNull()
+
+    // A new password set through the GoTrue-compatible endpoints holds.
+    const second = 'second horse battery'
+    const code = /^\d{6}$/m.exec(await nextMail(() => app.request(`${goTrue}/recover`, { body: { email: 'ana@example.com' } })))![0]
+    const recovery = await goTrueToken(await app.request(`${goTrue}/verify`, { body: { email: 'ana@example.com', token: code, type: 'recovery' } }))
+    await app.request(`${goTrue}/user`, { method: 'PUT', body: { password: second }, headers: { authorization: `Bearer ${recovery}` } })
+    expect((await signInWith(password)).status).not.toBe(200)
+    expect((await signInWith(second)).status).toBe(200)
+
+    // So does a password reset with an emailed link.
+    const third = 'third horse battery'
+    const token = /reset-password\/([^?\s"]+)/.exec(await nextMail(() => app.request('/api/auth/request-password-reset', { body: { email: 'ana@example.com', redirectTo: `${origin}/` } })))![1]!
+    await app.request('/api/auth/reset-password', { body: { newPassword: third, token } })
+    expect((await signInWith(second)).status).not.toBe(200)
+    expect((await signInWith(third)).status).toBe(200)
+
+    // A ban holds, and ends her sessions.
+    const browser = cookieOf(await signInWith(third))
+    await expect(setUserBanned(app.auth, { email: 'ana@example.com', banned: true })).rejects.toThrow(/oauth_consent/)
+    expect((await app.store.query<{ banned: boolean }>(`select banned from "user" where email = 'ana@example.com'`)).rows).toEqual([{ banned: true }])
+    expect(await session(browser)).toBeNull()
   })
 
   it('still names a missing core table, and no MCP table', async () => {
