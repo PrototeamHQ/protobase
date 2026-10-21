@@ -7,6 +7,7 @@ import { createUser } from '../src/better-auth/users'
 import { createAdmin } from '../src/create-admin'
 import type { MailMessage } from '../src/mail/smtp-mailer'
 import { operatorClient, operatorIssuer, permittedStaff, startFakeOperator } from './support/fake-oidc-provider'
+import { expectNoSessionToken } from './support/session-token'
 import { openSnapshotDb, type SnapshotDb } from '../../../test-support/sql-snapshot'
 
 const origin = 'http://localhost:5173'
@@ -113,6 +114,7 @@ describe('a staff sign-in through the operator provider', () => {
     expect(operator.exchanged).toHaveLength(1)
     expect(callback.status).toBe(302)
     expect(callback.headers.get('location')).toBe(`${origin}/`)
+    await expectNoSessionToken(callback)
 
     const { session, user } = await (await request('/get-session', { cookie: browser })).json()
     expect(user.email).toBe('sanne@example.com')

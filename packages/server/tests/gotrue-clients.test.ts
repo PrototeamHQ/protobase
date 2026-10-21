@@ -72,6 +72,7 @@ describe('supabase-js on the GoTrue-compatible endpoints', () => {
     const verified = await supabase.auth.verifyOtp({ email: 'ann@example.com', token: await codeFor('ann@example.com'), type: 'signup' })
     expect(verified.error).toBeNull()
     const session = verified.data.session!
+    expect(session.refresh_token).toBeTruthy()
     expect(decodeProtectedHeader(session.access_token).alg).toBe('ES256')
 
     const { data: user } = await supabase.auth.getUser()
@@ -123,7 +124,9 @@ describe('@supabase/ssr on the GoTrue-compatible endpoints', () => {
         },
       })
 
-    expect((await serverClient().auth.signInWithPassword({ email: 'root@example.com', password })).error).toBeNull()
+    const signedIn = await serverClient().auth.signInWithPassword({ email: 'root@example.com', password })
+    expect(signedIn.error).toBeNull()
+    expect(signedIn.data.session?.refresh_token).toBeTruthy()
     expect(jar.size).toBeGreaterThan(0)
 
     const later = serverClient()

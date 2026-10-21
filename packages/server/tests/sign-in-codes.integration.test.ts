@@ -6,6 +6,7 @@ import { createAuth } from '../src/better-auth/create-auth'
 import { createUser } from '../src/better-auth/users'
 import { createAdmin } from '../src/create-admin'
 import { bodyOf, startFakeRelay } from './support/fake-relay'
+import { expectNoSessionToken } from './support/session-token'
 import { openSnapshotDb, type SnapshotDb } from '../../../test-support/sql-snapshot'
 
 const origin = 'http://localhost:5173'
@@ -83,6 +84,7 @@ const turnOnAuthenticatorApp = async (email: string) => {
 
 const expectSignedIn = async (response: Response) => {
   expect(response.status).toBe(200)
+  await expectNoSessionToken(response)
   const token = await get('/token', cookiesOf(response))
   expect(token.status).toBe(200)
   expect(await token.json()).toEqual({ token: expect.any(String) })

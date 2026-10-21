@@ -5,6 +5,7 @@ import { createAuth } from '../src/better-auth/create-auth'
 import { createUser } from '../src/better-auth/users'
 import { createAdmin } from '../src/create-admin'
 import type { MailMessage } from '../src/mail/smtp-mailer'
+import { expectNoSessionToken } from './support/session-token'
 import { softwarePasskey } from './support/software-passkey'
 import { openSnapshotDb, type SnapshotDb } from '../../../test-support/sql-snapshot'
 
@@ -121,7 +122,7 @@ const approveAtGitHub = (served: Served, jar: Jar, authorization: string) => {
 // A web sign-in with GitHub on the app itself, which leaves a session in the browser.
 const signInOnTheWeb = async (served: Served, jar: Jar) => {
   const start = await post(served, jar, '/api/auth/sign-in/social', { provider: 'github', callbackURL: `${origin}/`, disableRedirect: true })
-  await approveAtGitHub(served, jar, ((await start.json()) as { url: string }).url)
+  await expectNoSessionToken(await approveAtGitHub(served, jar, ((await start.json()) as { url: string }).url))
   expect(await sessionIn(served, jar)).toBeTruthy()
 }
 
@@ -235,7 +236,9 @@ describe('GoTrue sign-in with a provider', () => {
 
     const token = await trade(served, code)
     expect(token.status).toBe(200)
-    expect(((await token.json()) as { user: { email: string } }).user.email).toBe('octo@example.com')
+    const session = (await token.json()) as { user: { email: string }; refresh_token: string }
+    expect(session.user.email).toBe('octo@example.com')
+    expect(session.refresh_token).toBeTruthy()
 
     // The flow is spent: the same /callback again hands out nothing.
     const again = location(await browse(served, jar, toCallback.href))
