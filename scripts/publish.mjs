@@ -33,7 +33,7 @@ const run = (command, args, cwd = '.') =>
     child.on('close', (status) => {
       if (status === 0) return resolve(stdout)
       process.stderr.write(output)
-      reject(new Error(`${command} ${args.join(' ')} in ${cwd} failed with status ${status}`))
+      reject(Object.assign(new Error(`${command} ${args.join(' ')} in ${cwd} failed with status ${status}`), { output }))
     })
   })
 
@@ -106,11 +106,25 @@ await Promise.all(pending.filter(({ build }) => build).map(({ dir }) => run('bun
 const tarballOf = new Map()
 for (const p of pending) tarballOf.set(p.name, await pack(p))
 
+// npm signs the provenance with an identity token it fetches from GitHub's OIDC endpoint before it uploads anything, and
+// that fetch now and then fails with IDENTITY_TOKEN_READ_ERROR, so a publish failing with that code is tried again, up
+// to 3 times; any other failure fails the publish at once.
+const publishTarball = async (tarball, attempt = 1) => {
+  try {
+    await run('npm', ['publish', tarball, '--access', 'public', ...(dryRun ? ['--dry-run'] : [])])
+  } catch (error) {
+    if (attempt >= 3 || !error.output?.includes('npm error code IDENTITY_TOKEN_READ_ERROR')) throw error
+    console.log(`npm could not read the identity token for ${tarball}, publishing it again`)
+    await new Promise((resolve) => setTimeout(resolve, 1_000 * attempt))
+    await publishTarball(tarball, attempt + 1)
+  }
+}
+
 const publishLayers = async () => {
   for (const layer of toLayers(pending)) {
     await Promise.all(
       layer.map(async ({ name, version }) => {
-        await run('npm', ['publish', tarballOf.get(name), '--access', 'public', ...(dryRun ? ['--dry-run'] : [])])
+        await publishTarball(tarballOf.get(name))
         console.log(`${dryRun ? 'would publish' : 'published'} ${name}@${version}`)
       }),
     )
