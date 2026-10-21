@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { apiUrl, forwardedPort, httpAllowances } from './api-origin'
+import { apiUrl, checkReleaseUrl, forwardedPort, httpAllowances } from './api-origin'
 
 describe('apiUrl', () => {
   it('takes --api over the auth issuer, and needs one of them', () => {
@@ -39,5 +39,18 @@ describe('forwardedPort', () => {
     expect(forwardedPort(new URL('http://127.0.0.1'), 'android')).toBe(80)
     expect(forwardedPort(new URL('http://localhost:3000'), 'ios')).toBeUndefined()
     expect(forwardedPort(new URL('http://10.0.2.2:3000'), 'android')).toBeUndefined()
+  })
+})
+
+describe('checkReleaseUrl', () => {
+  it('takes https to a server that is not this machine', () => {
+    expect(() => checkReleaseUrl(new URL('https://api.example.com'))).not.toThrow()
+    expect(() => checkReleaseUrl(new URL('https://192.168.1.10:8443'))).not.toThrow()
+  })
+
+  it('refuses plain http, and https to this machine or the emulator\'s host', () => {
+    for (const url of ['http://localhost:3000', 'http://10.0.2.2:3000', 'https://localhost:3000', 'https://app.localhost', 'https://127.0.0.2', 'https://[::1]', 'https://10.0.2.2', 'https://0.0.0.0']) {
+      expect(() => checkReleaseUrl(new URL(url)), url).toThrow('A release build calls its server over https')
+    }
   })
 })

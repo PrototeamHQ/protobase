@@ -1,6 +1,7 @@
+import path from 'node:path'
 import type { Command } from 'commander'
 import { resolveExtensions } from '../project/extensions'
-import { parsePlatform, parsePort } from './arguments'
+import { parseAppVersion, parseBuildNumber, parsePlatform, parsePort, parseSigningName, parseTeamId } from './arguments'
 import type { Platform } from './platform'
 
 const out = (text: string) => process.stdout.write(text)
@@ -37,5 +38,36 @@ export const registerMobile = (program: Command) => {
     .action(async (chosen: Platform, opts) => {
       const { mobileOpen } = await import('./run')
       await mobileOpen({ projectDir: process.cwd(), platform: chosen, extensions: resolveExtensions(opts.extend), ...(opts.api !== undefined && { api: opts.api }) }, out)
+    })
+
+  mobile
+    .command('build')
+    .description('Generate the native project and build a signed release: an .aab for Google Play, an .ipa for the App Store')
+    .argument('<platform>', 'ios or android', parsePlatform)
+    .requiredOption('--app-version <version>', 'the version the stores show, such as 1.2.3', parseAppVersion)
+    .requiredOption('--build-number <number>', 'the build number, higher with each upload', parseBuildNumber)
+    .option(api, `${apiHelp}; https only`)
+    .option('--out <dir>', 'the folder the binary goes to', 'mobile-release')
+    .option('--team <id>', 'iOS: your Apple Developer team id', parseTeamId)
+    .option('--certificate <name>', 'iOS, manual signing: the signing certificate', parseSigningName)
+    .option('--profile <name>', 'iOS, manual signing: the provisioning profile', parseSigningName)
+    .option('--extend <dir>', extend, collect, [])
+    .action(async (chosen: Platform, opts) => {
+      if (chosen === 'android' && (opts.team || opts.certificate || opts.profile)) throw new Error('--team, --certificate and --profile are for iOS: Android signs with the PROTOBASE_ANDROID_* variables')
+      if (Boolean(opts.certificate) !== Boolean(opts.profile)) throw new Error('Manual signing takes both --certificate and --profile')
+      const { mobileBuild } = await import('./build')
+      const projectDir = process.cwd()
+      await mobileBuild(
+        {
+          projectDir,
+          platform: chosen,
+          extensions: resolveExtensions(opts.extend),
+          ...(opts.api !== undefined && { api: opts.api }),
+          version: { version: opts.appVersion, build: opts.buildNumber },
+          outDir: path.resolve(projectDir, opts.out),
+          ...(opts.team && { ios: { team: opts.team, ...(opts.certificate && { manual: { certificate: opts.certificate, profile: opts.profile } }) } }),
+        },
+        out,
+      )
     })
 }

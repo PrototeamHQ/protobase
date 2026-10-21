@@ -37,3 +37,18 @@ export const forwardedPort = (url: URL, platform: Platform) => {
   if (platform !== 'android' || !loopback.includes(url.hostname)) return undefined
   return Number(url.port || (url.protocol === 'https:' ? 443 : 80))
 }
+
+// Hosts that name the machine the app runs on, or the emulator's host: a store release calling one reaches no server.
+const isLocalHost = (hostname: string) =>
+  hostname === 'localhost' || hostname.endsWith('.localhost') || hostname.startsWith('127.') || hostname === '[::1]' || hostname === '0.0.0.0' || hostname === '10.0.2.2'
+
+/**
+ * Throws unless a release may call `url`: https to a server that is not this machine, so the app allows no plain http
+ * and no mixed content, which anyone between could read or change.
+ */
+export const checkReleaseUrl = (url: URL) => {
+  const { cleartext, mixedContent } = httpAllowances(url)
+  if (cleartext || mixedContent || url.protocol !== 'https:' || isLocalHost(url.hostname)) {
+    throw new Error(`A release build calls its server over https, since anyone between could read or change plain http, and not ${url.origin} on this machine: pass --api https://… or give auth an https baseURL`)
+  }
+}

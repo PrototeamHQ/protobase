@@ -19,6 +19,7 @@ const mocking = [
   'docs-examples/forms/forms.test.ts',
   'docs-examples/functions.test.ts',
   'packages/cli/src/build/bun-build.test.ts',
+  'packages/cli/src/mobile/build.test.ts',
   'packages/cli/src/mobile/run.test.ts',
   'packages/cli/src/serve/crash-reports.test.ts',
   'packages/cli/src/serve/signals.test.ts',
