@@ -116,6 +116,10 @@ Each item has `id`, `name`, `slug`, `price` and `image`, of published products o
 
 A field rule goes from the field to the roles: `cost_price` above is hidden from every role that reads products but those holding `costs.read`. Use it for the few sensitive columns of a resource that many roles read, such as a screening result (`f.text().access({ read: roles.can('screening.read') })`). A field list goes from the role to the fields: use it for a role that should see only some columns, such as an integration or anonymous visitors, so a new column stays hidden from it. When both apply, a field needs both.
 
+### Write-only fields
+
+A role writes a field it cannot read only when the field's own `create` or `update` rule allows it: `f.text().access({ read: roles.is('loop'), create: roles.is('admin'), update: roles.is('admin') })` lets `admin` set a value only `loop` reads. A write rule the field follows from its resource never does, so hiding a field from a role does not let everyone who updates the resource overwrite it. The value is in no response, history, export or webhook of the writer, and `/meta` leaves it out, so the admin app offers no editor for it: set it through the API. A file field, or the field a resource orders its records by (`.position()`), is never write-only, and no `reorder` orders by a write-only field.
+
 ## Records that belong to another
 
 A record often belongs to another one through a relation, such as an operation to the VM it runs on, and who may write it follows from who may change that VM. `.parent((r) => r.vm_id, 'update')` says so: writing an operation needs `update` on the record `vm_id` points at, `'read'` needing only to see it, as for a comment on a ticket. A member below may run operations on their own VMs only, with no rule of your own:
