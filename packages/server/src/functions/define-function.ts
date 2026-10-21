@@ -2,6 +2,7 @@ import type { Db } from '@protobase/query'
 import type { Capability } from '@protobase/schema'
 import type { Caller } from '../api-keys/resolve-caller'
 import type { Session } from '../types'
+import type { SocketEvents } from './function-socket'
 import type { FunctionRecords } from './records'
 
 /** What every function gets: its name and the raw database. */
@@ -12,6 +13,12 @@ export type PublicFunctionContext = {
   db: Db
   /** The caller, through the app's own `authenticate`: rejects with a 401 problem when the request carries no valid token. */
   caller: () => Promise<FunctionCaller>
+  /**
+   * Answers a WebSocket upgrade with a socket: return its response. A request that is no upgrade is a 426 problem. A
+   * protected function's caller is checked again every minute while the socket is open, which closes with 1008 once
+   * they would be refused; a public function checks its own callers.
+   */
+  acceptWebSocket: (events: SocketEvents) => Response
 }
 
 /** Who called a function, and the app's resources as them. */

@@ -1,13 +1,16 @@
 import { Hono, type ErrorHandler } from 'hono'
 import { cors } from 'hono/cors'
+import type { UpgradeWebSocket } from 'hono/ws'
 import type { Db } from '@protobase/query'
 import type { ResolveOptions } from '@protobase/schema'
 import { runInBackground } from '../background-work'
-import { notFound } from '../problem'
+import { forbidden, notFound } from '../problem'
 import type { Authenticator, Session } from '../types'
+import { socketAcceptor } from './accept-socket'
 import { invokeFunction, type ApiFunction, type FunctionCaller, type FunctionContext, type PublicFunctionContext } from './define-function'
 import { functionGate, requireGate } from './function-gate'
 import type { FunctionRecords } from './records'
+import { sameCaller } from './same-caller'
 
 export type FunctionRoutesInput = {
   /** Where the functions live, such as `/api/functions`; each is at `<basePath>/<name>`. */
@@ -21,6 +24,11 @@ export type FunctionRoutesInput = {
   onError: ErrorHandler
   /** After a call ended, its writes through `db` committed: has the change dispatcher deliver them now, as after an API write. */
   wake: () => void
+  /** The host's WebSocket upgrade, such as `@hono/node-server`'s; without it, `acceptWebSocket` is a 500. */
+  upgradeWebSocket?: UpgradeWebSocket
+  /** The caller of an upgrade request, which may come with a cookie instead of a token; defaults to `authenticate`. */
+  upgradeAuthenticate?: Authenticator
+  report: (error: unknown) => void
 }
 
 // The request as the function sees it: the same request, its path relative to the function.
@@ -30,17 +38,22 @@ export const relativeRequest = (request: Request, prefix: string) => {
   return new Request(url, request)
 }
 
+const isUpgrade = (request: Request) => request.headers.get('upgrade')?.toLowerCase() === 'websocket'
+
 /**
  * Every function at `<basePath>/<name>` and below, any method. A protected function authenticates the request first, so
  * a call without a valid token is the authenticator's 401 problem, and one its gate refuses a 403; a public one gets the caller only when it asks. Each
  * call runs as background work, so calls that hold the database for long leave a connection to page requests. Once a
  * call ends, failed or not, `wake` runs, so what it wrote reaches open pages without waiting for the dispatcher's poll.
+ * A function may answer an upgrade with a socket, only once it returned; a protected one's caller is checked again
+ * every minute while it is open.
  */
-export const functionRoutes = ({ basePath, functions, authenticate, access, db, records, onError, wake }: FunctionRoutesInput) => {
+export const functionRoutes = ({ basePath, functions, authenticate, access, db, records, onError, wake, upgradeWebSocket, upgradeAuthenticate = authenticate, report }: FunctionRoutesInput) => {
   const app = new Hono().basePath(basePath)
   app.onError(onError)
+  const sessionOf = (request: Request) => (isUpgrade(request) ? upgradeAuthenticate(request) : authenticate(request))
   const callerOf = async (request: Request): Promise<FunctionCaller> => {
-    const session = await authenticate(request)
+    const session = await sessionOf(request)
     return { session, records: records(session) }
   }
   const call = (work: () => Promise<Response>) => work().finally(wake)
@@ -54,13 +67,21 @@ export const functionRoutes = ({ basePath, functions, authenticate, access, db, 
       const request = relativeRequest(c.req.raw, prefix)
       if (options.public) {
         let caller: Promise<FunctionCaller> | undefined
-        const context: PublicFunctionContext = { name, db, caller: () => (caller ??= callerOf(c.req.raw)) }
-        return invokeFunction(name, fn, request, context)
+        const acceptor = socketAcceptor({ c, upgradeWebSocket, report })
+        const context: PublicFunctionContext = { name, db, caller: () => (caller ??= callerOf(c.req.raw)), acceptWebSocket: acceptor.accept }
+        return acceptor.answer(name, await invokeFunction(name, fn, request, context))
       }
       const caller = await callerOf(c.req.raw)
       requireGate(name, gate, caller.session)
-      const context: FunctionContext = { name, db, ...caller, caller: async () => caller }
-      return invokeFunction(name, fn, request, context)
+      // The caller as they would be now: refused, or changed, closes the socket so it reconnects as who they are.
+      const recheck = async () => {
+        const again = await upgradeAuthenticate(c.req.raw)
+        requireGate(name, gate, again)
+        if (!sameCaller(caller.session, again)) throw forbidden('caller-changed', 'Your access changed: open the socket again')
+      }
+      const acceptor = socketAcceptor({ c, upgradeWebSocket, report, recheck })
+      const context: FunctionContext = { name, db, ...caller, caller: async () => caller, acceptWebSocket: acceptor.accept }
+      return acceptor.answer(name, await invokeFunction(name, fn, request, context))
     })))
   }
   app.all('/*', (c) => {

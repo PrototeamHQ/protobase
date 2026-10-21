@@ -1,9 +1,10 @@
 import { Hono } from 'hono'
-import { describe, expect, it, vi } from 'vitest'
+import type { UpgradeWebSocket, WSContext, WSEvents } from 'hono/ws'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { Db } from '@protobase/query'
 import { defineRoles } from '@protobase/schema'
 import { createErrorHandler } from '../error-handler'
-import { badRequest, unauthorized } from '../problem'
+import { badRequest, forbidden, unauthorized } from '../problem'
 import type { Session } from '../types'
 import { defineFunction, type ApiFunction, type FunctionContext, type PublicFunctionContext } from './define-function'
 import type { FunctionRecords } from './records'
@@ -22,7 +23,7 @@ const authenticate = (request: Request) => {
 const records = (session: Session) => ({ as: session.user.id }) as unknown as FunctionRecords
 
 const serve = (functions: Record<string, ApiFunction>, onUnhandledError = vi.fn(), wake = vi.fn()) => ({
-  app: functionRoutes({ basePath: '/api/functions', functions, authenticate, access: {}, db, records, onError: createErrorHandler(onUnhandledError), wake }),
+  app: functionRoutes({ basePath: '/api/functions', functions, authenticate, access: {}, db, records, onError: createErrorHandler(onUnhandledError), wake, report: onUnhandledError }),
   onUnhandledError,
   wake,
 })
@@ -86,7 +87,7 @@ describe('functionRoutes', () => {
 
   it('refuses a function without roles to every caller but those holding *, once the app defines roles', async () => {
     const roles = defineRoles({ admin: ['*'], sales: ['*.read'] })
-    const app = functionRoutes({ basePath: '/api/functions', functions: { start: defineFunction(() => new Response('started')) }, authenticate, access: { roles }, db, records, onError: createErrorHandler(vi.fn()), wake: vi.fn() })
+    const app = functionRoutes({ basePath: '/api/functions', functions: { start: defineFunction(() => new Response('started')) }, authenticate, access: { roles }, db, records, onError: createErrorHandler(vi.fn()), wake: vi.fn(), report: vi.fn() })
     expect((await app.request('/api/functions/start', as('bob'))).status).toBe(200)
     const refused = await app.request('/api/functions/start', as('ann'))
     expect(refused.status).toBe(403)
@@ -165,5 +166,104 @@ describe('functionRoutes', () => {
     expect(refused.headers.get('access-control-allow-origin')).toBe('https://shop.example')
     const ok = await app.request('/api/functions/open', as('ann', { headers: { origin: 'https://shop.example' } }))
     expect(ok.headers.get('access-control-allow-origin')).toBe('https://shop.example')
+  })
+})
+
+describe('functionRoutes WebSocket upgrades', () => {
+  afterEach(() => vi.useRealTimers())
+
+  // The fake host answers an upgrade with 299, as no real response can be a 101.
+  // Upgrades by cookie, as `upgradeAuthenticator` would: the cookie is the user id, from the app's own origin only.
+  const upgradeAuthenticate = (request: Request) => {
+    if (request.headers.has('origin') && request.headers.get('origin') !== 'https://app.example') throw forbidden('foreign-origin', 'Foreign')
+    const user = request.headers.get('cookie')
+    return user ? authenticate(new Request(request, { headers: { authorization: `Bearer ${user}` } })) : authenticate(request)
+  }
+
+  const serveSockets = (functions: Record<string, ApiFunction>) => {
+    const upgrades: WSEvents[] = []
+    const upgradeWebSocket = vi.fn(async (_c: unknown, events: WSEvents) => {
+      upgrades.push(events)
+      return new Response(null, { status: 299 })
+    }) as unknown as UpgradeWebSocket
+    const onUnhandledError = vi.fn()
+    const app = functionRoutes({ basePath: '/api/functions', functions, authenticate, access: {}, db, records, onError: createErrorHandler(onUnhandledError), wake: vi.fn(), report: onUnhandledError, upgradeWebSocket, upgradeAuthenticate })
+    return { app, upgrades }
+  }
+
+  const upgrade = (headers: Record<string, string> = {}) => ({ headers: { upgrade: 'websocket', ...headers } })
+
+  it('upgrades a signed-in caller by their cookie, and refuses one without credentials before the function runs', async () => {
+    const handler = vi.fn((_request: Request, context: FunctionContext) => context.acceptWebSocket({}))
+    const { app, upgrades } = serveSockets({ chat: defineFunction(handler) })
+    expect((await app.request('/api/functions/chat', upgrade({ cookie: 'ann', origin: 'https://app.example' }))).status).toBe(299)
+    expect(handler.mock.calls[0]![1].session).toEqual(sessions.ann)
+    const refused = await app.request('/api/functions/chat', upgrade())
+    expect(refused.status).toBe(401)
+    expect(handler).toHaveBeenCalledTimes(1)
+    expect(upgrades).toHaveLength(1)
+  })
+
+  it('refuses a caller without the role, or from a foreign origin, with 403 and no upgrade', async () => {
+    const handler = vi.fn((_request: Request, context: FunctionContext) => context.acceptWebSocket({}))
+    const { app, upgrades } = serveSockets({ console: defineFunction({ roles: ['admin'] }, handler) })
+    expect((await app.request('/api/functions/console', upgrade({ cookie: 'ann' }))).status).toBe(403)
+    expect((await app.request('/api/functions/console', upgrade({ cookie: 'bob', origin: 'https://evil.example' }))).status).toBe(403)
+    expect(handler).not.toHaveBeenCalled()
+    expect(upgrades).toHaveLength(0)
+  })
+
+  it('never upgrades when the function accepted and then threw', async () => {
+    const { app, upgrades } = serveSockets({
+      chat: defineFunction(async (_request, context) => {
+        context.acceptWebSocket({})
+        throw badRequest('invalid-input', 'Changed my mind')
+      }),
+    })
+    expect((await app.request('/api/functions/chat', upgrade({ cookie: 'ann' }))).status).toBe(400)
+    expect(upgrades).toHaveLength(0)
+  })
+
+  it('lets a public function accept without a caller from any origin, and refuses its caller() from a foreign one', async () => {
+    const { app, upgrades } = serveSockets({
+      agent: defineFunction({ public: true }, (_request, context) => context.acceptWebSocket({})),
+      whoami: defineFunction({ public: true }, async (_request, context) => {
+        await context.caller()
+        return context.acceptWebSocket({})
+      }),
+    })
+    expect((await app.request('/api/functions/agent', upgrade({ origin: 'https://evil.example' }))).status).toBe(299)
+    expect((await app.request('/api/functions/agent', upgrade())).status).toBe(299)
+    expect((await app.request('/api/functions/whoami', upgrade({ cookie: 'ann', origin: 'https://evil.example' }))).status).toBe(403)
+    expect(upgrades).toHaveLength(2)
+  })
+
+  it('answers acceptWebSocket on a plain call with 426', async () => {
+    const { app } = serveSockets({ chat: defineFunction((_request, context) => context.acceptWebSocket({})) })
+    expect((await app.request('/api/functions/chat', as('ann'))).status).toBe(426)
+  })
+
+  it('closes an open socket with 1008 once its caller is refused, or comes back with other roles', async () => {
+    vi.useFakeTimers()
+    const { app, upgrades } = serveSockets({ chat: defineFunction((_request, context) => context.acceptWebSocket({})) })
+    const opened = async (user: string) => {
+      await app.request('/api/functions/chat', upgrade({ cookie: user }))
+      const raw = { readyState: 1, bufferedAmount: 0, send: vi.fn(), close: vi.fn() }
+      upgrades.at(-1)!.onOpen!(new Event('open'), { raw } as unknown as WSContext)
+      return raw
+    }
+    sessions.cy = { user: { id: 'cy', roles: ['sales'] } }
+    sessions.dee = { user: { id: 'dee', roles: ['sales'] } }
+    const cy = await opened('cy')
+    const dee = await opened('dee')
+    await vi.advanceTimersByTimeAsync(60_000)
+    expect(cy.close).not.toHaveBeenCalled()
+
+    delete sessions.cy
+    sessions.dee = { user: { id: 'dee', roles: ['admin'] } }
+    await vi.advanceTimersByTimeAsync(60_000)
+    expect(cy.close).toHaveBeenCalledWith(1008, 'Unauthorized')
+    expect(dee.close).toHaveBeenCalledWith(1008, 'Forbidden')
+    delete sessions.dee
   })
 })
