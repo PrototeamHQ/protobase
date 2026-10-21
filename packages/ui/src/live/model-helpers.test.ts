@@ -15,9 +15,14 @@ describe('record titles', () => {
     expect(recordTitleField(model, undefined)).toBe('number')
     expect(labelFieldOf({ ...model, fields: { id: field('id', 'bigint') } } as unknown as ResourceModel)).toBe('id')
   })
-  it('never falls back to a write-only text field, which no record carries', () => {
-    const sealed = { ...field('sealed', 'text'), writeOnly: true } as FieldModel
+  it('never picks a sensitive or write-only text field, which no record carries, even one named like a label', () => {
+    const sealed = { ...field('sealed', 'text'), sensitive: true, writeOnly: true } as FieldModel
     expect(labelFieldOf({ ...model, fields: { id: field('id', 'bigint'), sealed } } as unknown as ResourceModel)).toBe('id')
+    const code = { ...field('code', 'text'), sensitive: true, writeOnly: true } as FieldModel
+    const secretName = { ...field('name', 'text'), sensitive: true } as FieldModel
+    const named = { ...model, fields: { id: field('id', 'bigint'), name: secretName, code, label: field('label', 'text') } } as unknown as ResourceModel
+    expect(labelFieldOf(named)).toBe('label')
+    expect(recordTitleField(named, undefined)).toBe('label')
   })
 })
 

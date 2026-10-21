@@ -1,12 +1,15 @@
-import { enumLabel, type ResourceModel, type ViewModel } from '@protobase/schema'
+import { enumLabel, type FieldModel, type ResourceModel, type ViewModel } from '@protobase/schema'
 
 const labelCandidates = ['name', 'title', 'number', 'sku', 'email', 'code', 'description']
+
+// A sensitive field, write-only ones included, is in no list response, so it cannot name a record
+const namesRecords = (field: FieldModel | undefined) => field?.type === 'text' && !field.sensitive
 
 /** The field that names a record when another record points at it. */
 export const labelFieldOf = (model: ResourceModel, view?: ViewModel) =>
   view?.title ??
-  labelCandidates.find((name) => model.fields[name]?.type === 'text') ??
-  Object.values(model.fields).find((field) => field.type === 'text' && !field.writeOnly)?.name ??
+  labelCandidates.find((name) => namesRecords(model.fields[name])) ??
+  Object.values(model.fields).find(namesRecords)?.name ??
   model.primaryKey[0]!
 
 /** What names a record: the view's `title`, else the first text column of its list, else `labelFieldOf`. */
