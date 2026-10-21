@@ -6,6 +6,7 @@ import type { ErrorReportingSettings } from './error-reporting/error-reporting-s
 import type { CommentUsers } from './comments/comment-users'
 import type { mentionJob } from './comments/mention-job'
 import type { ModelSettings } from './assistant/chat-completions'
+import type { EncryptionRuntime } from './encryption/runtime'
 import type { FilesRuntime } from './files/runtime'
 import type { MapSettings } from './maps/map-settings'
 import type { PluginOption } from './plugins/plugin-settings'
@@ -50,6 +51,8 @@ export type Deps = {
   sources: SourceOption[]
   /** Providers, signing and scheduled deletes, when a resource has a file field. */
   files?: FilesRuntime
+  /** The keys encrypted fields are sealed and revealed with, when a resource has one. */
+  encryption?: EncryptionRuntime
   /** The transaction setting that tells the change capture who writes, when a resource has events or history (`changes.actor`). */
   actorSetting?: string
   /** Where record history is kept, when a resource has `.history()`, and the names of the users who made changes. */

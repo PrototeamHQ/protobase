@@ -67,6 +67,7 @@ import type { Difficulty } from './forms/challenge'
 import { formRoutes } from './forms/routes'
 import { createFormsRuntime } from './forms/runtime'
 import { createFilesRuntime } from './files/runtime'
+import { createEncryptionRuntime } from './encryption/runtime'
 import { toApiFunction, type FunctionSource } from './functions/define-function'
 import { callerRecords } from './functions/records'
 import { functionRoutes } from './functions/routes'
@@ -212,6 +213,7 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], pag
   checkSourceNames(sources, { resources: registry.entries.map((entry) => entry.name), pages: pageModels.map((entry) => entry.name) })
   const apiKeys = apiKeySettings(options.apiKeys, globalThis.process?.env ?? {})
   const servesKeys = Boolean(apiKeys.publishable || apiKeys.secret)
+  const encryption = createEncryptionRuntime({ models: registry.entries.map((entry) => entry.model), env: globalThis.process?.env ?? {} })
   const files = createFilesRuntime({ ...(filesOptions && { options: filesOptions }), env: globalThis.process?.env ?? {}, models: registry.entries.map((entry) => entry.model), systemPath, storage: servesKeys })
   const table = webhooksOptions && webhookTable(webhooksOptions, auth)
   // AI fields and actions call the assistant's model; without a key they fail when used, and dev and serve stop at startup (see `checkAi`)
@@ -241,6 +243,7 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], pag
     plugins,
     sources,
     ...(files && { files }),
+    ...(encryption && { encryption }),
     ...(appModels.some(isCaptured) && { actorSetting: `${changes}.actor` }),
     ...(withHistory && { history: { schema: changes, ...(auth && { actorNames: betterAuthActorNames(auth) }) } }),
     ...(mentions && { comments: { ...(commentUsers && { users: commentUsers }), mentionJob: mentions, appOrigin: appOrigin(auth?.origins ?? []) } }),

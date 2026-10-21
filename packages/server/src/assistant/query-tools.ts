@@ -45,7 +45,7 @@ export const readOnlyQueryTool = (db: Db, options: QueryOptions = {}) =>
 export const readWriteQueryTool = (db: Db, options: QueryOptions = {}) =>
   defineTool({
     name: 'propose_write_query',
-    description: 'Proposes one PostgreSQL INSERT, UPDATE or DELETE ending in a RETURNING clause. The user sees the statement and your summary and must approve it; only then it runs in a read-write transaction, and you get the returned rows as JSON, or the answer that it did not run. Use it only when the user asked for a change.',
+    description: 'Proposes one PostgreSQL INSERT, UPDATE or DELETE ending in a RETURNING clause. The user sees the statement and your summary and must approve it; only then it runs in a read-write transaction, and you get the returned rows as JSON, or the answer that it did not run. Use it only when the user asked for a change. Never write a value that starts with pbenc: or a column that holds such values: those are encrypted fields, which only the app\'s own forms and API can write.',
     parameters: {
       type: 'object',
       properties: {

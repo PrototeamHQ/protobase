@@ -18,7 +18,7 @@ const fieldErrors = (registry: Registry, { form, view }: DeclaredForm, granted: 
     const field = model.fields[name]
     if (!field) return [`field "${name}" does not exist on ${view.resource}`]
     if (field.readOnly) return [`field "${name}" is read-only, so nobody fills it in`]
-    if (field.sensitive) return [`field "${name}" is sensitive, and a public form does not take sensitive fields`]
+    if (field.sensitive && !field.encrypted) return [`field "${name}" is sensitive, and a public form takes only encrypted ones of them`]
     if (field.type === 'relation') return [`field "${name}" is a relation, whose records a visitor cannot read to pick one`]
     if (field.type === 'file') return [`field "${name}" is a file field, and a visitor cannot upload`]
     if (!plainTypes.includes(field.type)) return [`field "${name}" is ${field.type}, which a form has no input for`]

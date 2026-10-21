@@ -7,7 +7,7 @@ import { encryptionKeyring } from './keyring'
 import { encryptedValuesOf, hasEncryptedValues, sealValues } from './seal-values'
 
 const people = resource('people').table('people').fields({ id: f.integer(), name: f.text(), iban: f.text().optional().encrypted() }).primaryKey((r) => r.id).toModel()
-const runtime = { keyring: encryptionKeyring({ PROTOBASE_ENCRYPTION_KEY: Buffer.alloc(32, 0).map((_, i) => i).toString('base64') }) }
+const runtime = { keyring: encryptionKeyring({ PROTOBASE_ENCRYPTION_KEY: Buffer.from(Array.from({ length: 32 }, (_, i) => i)).toString('base64') }) }
 const bind = (field: (typeof people.fields)[string]) => pendingBinding(people, field)
 
 describe('sealValues', () => {

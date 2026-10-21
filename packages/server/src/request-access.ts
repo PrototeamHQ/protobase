@@ -1,5 +1,6 @@
 import { checkFilter, restrictModel, resolveAccess, type AccessAction, type CheckedFilter, type FieldModel, type FilterExpr, type FormModel, type ResolvedAccess, type ResourceModel } from '@protobase/schema'
 import type { Deps } from './deps'
+import { maskEncrypted } from './encryption/mask-stored'
 import { checkedFilter } from './filter-input'
 import { checkOwnerId } from './owner-id'
 import type { Scope } from '@protobase/query'
@@ -109,7 +110,8 @@ const asFilter = (access: RequestAccess, expr: string | FilterExpr, operation: s
 
 /**
  * The record-level rule of an operation, run with the stored record (and the input of a write). Returns a verdict, or a
- * filter that the caller checks in the database, so its semantics match reads exactly.
+ * filter that the caller checks in the database, so its semantics match reads exactly. The rule gets a set encrypted
+ * field of the stored record as `encrypted`, never its ciphertext; the input it gets as written.
  */
 export const recordDecision = async (access: RequestAccess, operation: AccessAction, record?: Row, input?: Row): Promise<boolean | CheckedFilter> => {
   const { entry, deps, full, session } = access
@@ -120,7 +122,8 @@ export const recordDecision = async (access: RequestAccess, operation: AccessAct
       ? deps.accessOptions.roles.can(`${entry.name}.${operation === 'list' ? 'read' : operation}`)
       : () => true
   const rule = explicit ?? fallback
-  const result = await rule({ user: { id: session.user.id, roles: session.user.roles }, ...organizationOf(session), model: full, operation, record }, record, input)
+  const stored = record && maskEncrypted(full, record)
+  const result = await rule({ user: { id: session.user.id, roles: session.user.roles }, ...organizationOf(session), model: full, operation, record: stored }, stored, input)
   if (typeof result === 'boolean') return result
   return asFilter(access, result, operation)
 }

@@ -6,7 +6,7 @@ import { encryptionKeyring } from './keyring'
 import { storedValue } from './stored-value'
 
 const people = resource('people').table('people').fields({ id: f.integer(), data: f.json().optional(), iban: f.text().optional().encrypted() }).primaryKey((r) => r.id).toModel()
-const key = encryptionKeyring({ PROTOBASE_ENCRYPTION_KEY: Buffer.alloc(32, 0).map((_, i) => i).toString('base64') }).current
+const key = encryptionKeyring({ PROTOBASE_ENCRYPTION_KEY: Buffer.from(Array.from({ length: 32 }, (_, i) => i)).toString('base64') }).current
 
 describe('storedValue', () => {
   const iban = people.fields.iban!
