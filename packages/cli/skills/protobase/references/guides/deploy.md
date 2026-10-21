@@ -40,7 +40,7 @@ Every release pushes two public images to GitHub's registry, for `linux/amd64` a
 | `ghcr.io/prototeamhq/protobase-dev:<version>` | Bun and the presets at `/opt/protobase/presets/<name>` (`erp`, `real-estate`, `scratch`), with the dependencies they share installed in `/workspace` and Bun's cache in `/opt/bun-cache`. It has no Node: the presets' scripts and the `protobase` command run on Bun. It runs as `bun` (1000) |
 
 ```sh
-docker run -v "$PWD/dist:/app:ro" -p 8787:8787 -e DATABASE_URL -e BETTER_AUTH_SECRET ghcr.io/prototeamhq/protobase:0.2.0
+docker run -v "$PWD/dist:/app:ro" -p 127.0.0.1:8787:8787 -e DATABASE_URL -e BETTER_AUTH_SECRET ghcr.io/prototeamhq/protobase:0.2.0
 ```
 
 In `protobase-dev`, copy a preset into `/workspace` and `bun install --frozen-lockfile` has nothing to do; installed anywhere else, it comes from the cache, without the network.
@@ -85,9 +85,10 @@ APP_DB_PASSWORD=...     # openssl rand -hex 24
 ```sh
 BETTER_AUTH_SECRET=...                # openssl rand -base64 32
 BETTER_AUTH_URL=http://localhost:8787
+PROTOBASE_TRUSTED_PROXIES=172.30.87.1
 ```
 
-`BETTER_AUTH_URL` is the address the browser opens, exactly: sign-in from `http://127.0.0.1:8787` is refused as another origin. Add the app's other variables to `app.env` too.
+`BETTER_AUTH_URL` is the address the browser opens, exactly: sign-in from `http://127.0.0.1:8787` is refused as another origin. `PROTOBASE_TRUSTED_PROXIES` is the compose network's gateway, which every connection through the published port comes from, a reverse proxy's included; trusting it lets the sign-in limits count each client by the proxy's `X-Forwarded-For` (see [Client addresses](../reference/auth.md#client-addresses))). Add the app's other variables to `app.env` too.
 
 ```yaml
 services:
@@ -137,15 +138,30 @@ configs:
 
 volumes:
   db:
+
+networks:
+  default:
+    ipam:
+      config:
+        - subnet: 172.30.87.0/24
+          gateway: 172.30.87.1
 ```
 
-`docker compose up -d` starts Postgres, runs `migrate` once and starts the app only when it succeeded. The app and `migrate` connect as `app`, which owns its database but is no superuser (see the [assistant](../reference/assistant.md)) on why that matters); the superuser's password stays in `.env` and the `postgres` service. Postgres runs the init file only on an empty volume. `configs` with `content` needs a recent Compose v2 (tested with 2.39.4).
+`docker compose up -d` starts Postgres, runs `migrate` once and starts the app only when it succeeded. The app and `migrate` connect as `app`, which owns its database but is no superuser (see the [assistant](../reference/assistant.md)) on why that matters); the superuser's password stays in `.env` and the `postgres` service. Postgres runs the init file only on an empty volume. `configs` with `content` needs a recent Compose v2 (tested with 2.39.4). The network's addresses are fixed so that `app.env` can name its gateway: if `172.30.87.0/24` is taken on the host, `up` stops with "Pool overlaps", so pick another range and change the gateway in `app.env` to match.
 
 ### Local only by default
 
 The template publishes the app on `127.0.0.1:8787` only, so only the machine running it can open `http://localhost:8787`, and it speaks plain HTTP. To try it on a remote server, tunnel it with `ssh -L 8787:localhost:8787 <server>` and open `http://localhost:8787` on your own machine.
 
-Before other machines may reach it, put HTTPS in front: a reverse proxy on the host that forwards to `127.0.0.1:8787`, with `BETTER_AUTH_URL` set to the `https://` address. Only then are the session cookies `Secure` and passwords and codes encrypted on the way. Do not change the port to `8787:8787`: that publishes plain HTTP on every interface, ahead of host firewall rules such as ufw. On Docker Engine older than 28.0, hosts on the same local network can still reach a port published to `127.0.0.1`, so use 28.0 or newer.
+Before other machines may reach it, put HTTPS in front: a reverse proxy on the host that forwards to `127.0.0.1:8787`, such as Caddy with this Caddyfile, which gets the certificate itself and adds the client's address to `X-Forwarded-For`:
+
+```
+app.example.com {
+  reverse_proxy 127.0.0.1:8787
+}
+```
+
+Then set `BETTER_AUTH_URL=https://app.example.com` in `app.env` and run `docker compose up -d` to apply it. Only then are the session cookies `Secure` and passwords and codes encrypted on the way. Another proxy must also append the client's address to `X-Forwarded-For` (see [Client addresses](../reference/auth.md#client-addresses))), or every visitor shares one sign-in limit. Do not change the port to `8787:8787`: that publishes plain HTTP on every interface, ahead of host firewall rules such as ufw. On Docker Engine older than 28.0, hosts on the same local network can still reach a port published to `127.0.0.1`, so use 28.0 or newer.
 
 ### First admin
 

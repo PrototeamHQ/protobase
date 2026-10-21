@@ -1,10 +1,13 @@
-import { readFileSync } from 'node:fs'
+import { readdirSync, readFileSync } from 'node:fs'
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 // The deploy guide's compose template and commands are what self-hosters copy: these keep its safe defaults from
 // drifting.
-const guide = readFileSync(path.resolve(__dirname, '../../website/src/content/docs/guides/deploy.md'), 'utf8')
+const docs = path.resolve(__dirname, '../../website/src/content/docs')
+const guide = readFileSync(path.join(docs, 'guides/deploy.md'), 'utf8')
+const auth = readFileSync(path.join(docs, 'reference/auth.md'), 'utf8')
+const cli = readFileSync(path.join(docs, 'reference/cli.md'), 'utf8')
 const section = guide.slice(guide.indexOf('## A self-hosted image'))
 const compose = /```yaml\n([\s\S]*?)```/.exec(section)![1]!
 
@@ -70,5 +73,52 @@ describe('the deploy guide\'s self-hosted template', () => {
     const https = section.indexOf('put HTTPS in front')
     expect(https).toBeGreaterThan(0)
     expect(https).toBeLessThan(section.indexOf('### First admin'))
+  })
+
+  it('trusts the compose network\'s gateway, and only it, as the proxy', () => {
+    const subnet = /^ +- subnet: (\S+)$/m.exec(compose)![1]!
+    const gateway = /^ +gateway: (\S+)$/m.exec(compose)![1]!
+    expect(subnet).toMatch(/^\d+\.\d+\.\d+\.0\/24$/)
+    expect(gateway.split('.').slice(0, 3)).toEqual(subnet.split('.').slice(0, 3))
+    const trusted = [...section.matchAll(/^PROTOBASE_TRUSTED_PROXIES=(.*)$/gm)].map((match) => match[1])
+    expect(trusted).toEqual([gateway])
+    expect(section).toContain('(see [Client addresses](/reference/auth/#client-addresses))')
+  })
+
+  it('tells the operator to move the gateway in app.env along with a taken subnet', () => {
+    expect(section).toMatch(/Pool overlaps[^\n]*change the gateway in `app\.env`/)
+  })
+
+  it('has the HTTPS proxy forward to the published port, append the client\'s address and apply the https address', () => {
+    const firstAdmin = section.indexOf('### First admin')
+    const caddyfile = /```\n([^`]*reverse_proxy[^`]*)```/.exec(section)!
+    expect(caddyfile[1]).toContain('reverse_proxy 127.0.0.1:8787')
+    expect(caddyfile.index).toBeLessThan(firstAdmin)
+    const after = section.slice(caddyfile.index, firstAdmin)
+    expect(after).toMatch(/BETTER_AUTH_URL=https:\/\/[^`]*` in `app\.env` and run `docker compose up -d`/)
+    expect(after).toMatch(/append the client's address to `X-Forwarded-For` \(see \[Client addresses\]\(\/reference\/auth\/#client-addresses\)\)/)
+  })
+})
+
+describe('the docs\' runtime examples', () => {
+  it('publish the runtime on the loopback interface only', () => {
+    for (const [name, page] of Object.entries({ guide, auth, cli })) {
+      const publishes = [...page.matchAll(/docker run [^\n]*?-p ([^\s`]+)/g)].map((match) => match[1])
+      expect(publishes, name).toEqual(['127.0.0.1:8787:8787'])
+    }
+    // Any other page: every published 8787 binds loopback, but for the deploy guide's warning against `8787:8787`.
+    const pages = readdirSync(docs, { recursive: true, encoding: 'utf8' }).filter((file) => /\.mdx?$/.test(file))
+    for (const file of pages) {
+      const page = readFileSync(path.join(docs, file), 'utf8')
+      const open = [...page.matchAll(/(.{0,16})\b8787:8787/g)].filter((match) => !/127\.0\.0\.1:$|port to `$/.test(match[1]!))
+      expect(open.map((match) => match[0]), file).toEqual([])
+    }
+  })
+
+  it('trust a single proxy address, never a range that covers the clients', () => {
+    const row = /^\| `PROTOBASE_TRUSTED_PROXIES` \|.*$/m.exec(auth)![0]
+    expect(row).toContain('such as `172.30.87.1`')
+    expect(auth).not.toMatch(/172\.16\.0\.0\/12|192\.168\.0\.0\/16/)
+    expect(auth).toContain('a range must not cover the clients themselves, or they all share the one limit again')
   })
 })
