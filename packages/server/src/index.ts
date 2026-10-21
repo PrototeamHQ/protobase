@@ -30,6 +30,7 @@ export { betterAuthAuthenticator, betterAuthTokens, type BetterAuthAuthenticator
 export { withTrustedApps, type TrustedApp } from './better-auth/app-tokens'
 export { roleChoices, parseRoles, hasUsers, createUser, listUsers, deleteUser, setUserRole, setUserBanned, type LinkedAccount, type NewUser, type StoredUser } from './better-auth/users'
 export { issueToken, maxTokenTtlSeconds, type IssueTokenOptions } from './better-auth/tokens'
+export { passwordLength } from './better-auth/new-account-password'
 export { defaultSignInPolicy, signInPolicyMethods, type SignInPolicy, type SignInRule, type StaffAccessRule } from './better-auth/sign-in-policy'
 export { readOperatorSettings, type OperatorProvider } from './better-auth/operator-provider'
 export { isOAuthWellKnownPath, oauthWellKnownPaths, webauthnPath } from './better-auth/origins'

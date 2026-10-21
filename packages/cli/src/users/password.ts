@@ -1,5 +1,6 @@
 import { randomBytes } from 'node:crypto'
 import type { Readable } from 'node:stream'
+import { passwordLength } from '@protobase/server'
 
 export type PasswordSource = 'prompt' | 'stdin' | 'generate'
 
@@ -56,6 +57,12 @@ export const readHidden = (question: string) =>
     stdin.on('data', onData)
   })
 
+// A password the app's own sign-in would never take is refused before any user is made with it.
+const checkPasswordLength = (password: string) => {
+  const { min, max } = passwordLength
+  if (password.length < min || password.length > max) throw new Error(`Choose a password of ${min} to ${max} characters`)
+}
+
 export type PasswordDeps = {
   stdin: Readable
   prompt: (question: string) => Promise<string>
@@ -70,8 +77,8 @@ export const resolvePassword = async (
   }
   if (options.noPassword) return { generated: false }
   if (options.generatePassword) return { password: generatePassword(), generated: true }
-  if (options.passwordStdin) return { password: await readPasswordFromStream(deps.stdin), generated: false }
-  const password = await deps.prompt('Password: ')
-  if (password !== (await deps.prompt('Repeat password: '))) throw new Error('The passwords do not match')
+  const password = options.passwordStdin ? await readPasswordFromStream(deps.stdin) : await deps.prompt('Password: ')
+  if (!options.passwordStdin && password !== (await deps.prompt('Repeat password: '))) throw new Error('The passwords do not match')
+  checkPasswordLength(password)
   return { password, generated: false }
 }

@@ -93,6 +93,13 @@ describe('passwords', () => {
     await expect(resolvePassword(base, deps('', ['one', 'two']))).rejects.toThrow('do not match')
   })
 
+  it("refuses a password the app's sign-in would not take, from stdin or the prompt", async () => {
+    await expect(resolvePassword({ ...base, passwordStdin: true }, deps('short\n'))).rejects.toThrow('Choose a password of 12 to 128 characters')
+    await expect(resolvePassword({ ...base, passwordStdin: true }, deps('x'.repeat(129)))).rejects.toThrow('Choose a password of 12 to 128 characters')
+    await expect(resolvePassword(base, deps('', ['short', 'short']))).rejects.toThrow('Choose a password of 12 to 128 characters')
+    expect(await resolvePassword({ ...base, passwordStdin: true }, deps('twelve-chars'))).toEqual({ password: 'twelve-chars', generated: false })
+  })
+
   it('refuses conflicting sources', async () => {
     await expect(resolvePassword({ passwordStdin: true, generatePassword: true }, deps())).rejects.toThrow('Use only one of')
     await expect(resolvePassword({ passwordStdin: false, generatePassword: true, noPassword: true }, deps())).rejects.toThrow('Use only one of')

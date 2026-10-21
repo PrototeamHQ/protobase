@@ -1,8 +1,9 @@
 import { APIError } from 'better-auth/api'
 import type { SignInPolicy } from './sign-in-policy'
 
-const minPasswordLength = 12
-const maxPasswordLength = 128
+// The lengths Better Auth's own sign-in takes (create-auth.ts), which every new password must have.
+export const passwordLength = { min: 12, max: 128 }
+const { min: minPasswordLength, max: maxPasswordLength } = passwordLength
 
 /**
  * Checks the password someone chose for a new account they make themselves, from an invitation or by signing up,
