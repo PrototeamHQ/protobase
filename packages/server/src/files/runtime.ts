@@ -6,6 +6,7 @@ import { storageCleanupSchedule, type CleanupSchedule } from './cleanup-schedule
 import type { Sharp } from './images'
 import type { FilesOptions } from './options'
 import { resolveProviders, retentionOf } from './providers'
+import { storageProviderName } from './storage-provider'
 import { createSigner, type Signer } from './signer'
 import type { FileProvider } from './store'
 import { trustedImageHosts } from './trusted-hosts'
@@ -51,7 +52,8 @@ const imageFields = (models: ResourceModel[]) =>
  * provider is not configured, nothing signs uploads, or a field makes image variants or placeholders without sharp.
  */
 export const createFilesRuntime = ({ options = {}, env, models, systemPath, storage: servesStorage = false }: FilesRuntimeInput): FilesRuntime | undefined => {
-  const storage = servesStorage && options.storage !== false ? { provider: options.storage?.provider ?? 'private', maxBytes: parseSize(options.storage?.maxFileSize ?? '50 MB') } : undefined
+  const storageName = servesStorage ? storageProviderName(options) : undefined
+  const storage = storageName && options.storage !== false ? { provider: storageName, maxBytes: parseSize(options.storage?.maxFileSize ?? '50 MB') } : undefined
   const fieldProviders = models.flatMap((model) => Object.values(model.fields).flatMap((field) => (field.file ? [field.file.provider] : [])))
   const used = [...new Set([...fieldProviders, ...(storage ? [storage.provider] : [])])]
   if (used.length === 0 && !options.providers) return undefined

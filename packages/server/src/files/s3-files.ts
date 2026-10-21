@@ -1,3 +1,4 @@
+import { parseSize } from '@protobase/schema/internal'
 import { parseDuration } from './duration'
 import { limitedFileStore, type FileLimits } from './limits'
 import { contentDisposition, servedType } from './media-types'
@@ -138,5 +139,6 @@ export const s3Files = (options: S3FilesOptions): FileProvider => {
     public: isPublic || publicUrl !== undefined,
     ...(publicUrl !== undefined && { publicUrl: `${publicUrl.replace(/\/$/, '')}${folder === '' ? '' : `/${folder}`}` }),
     ...(retention !== undefined && { retention: parseDuration(retention, 'retention') }),
+    ...(maxBytes !== undefined && { maxBytes: parseSize(maxBytes) }),
   }
 }

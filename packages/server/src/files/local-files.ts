@@ -1,3 +1,4 @@
+import { parseSize } from '@protobase/schema/internal'
 import { HttpProblem } from '../problem'
 import { parseDuration } from './duration'
 import { limitedFileStore, type FileLimits } from './limits'
@@ -109,4 +110,5 @@ export const localFiles = ({ dir, public: isPublic = false, publicUrl, retention
   public: isPublic || publicUrl !== undefined,
   ...(publicUrl !== undefined && { publicUrl: publicUrl.replace(/\/$/, '') }),
   ...(retention !== undefined && { retention: parseDuration(retention, 'retention') }),
+  ...(maxBytes !== undefined && { maxBytes: parseSize(maxBytes) }),
 })

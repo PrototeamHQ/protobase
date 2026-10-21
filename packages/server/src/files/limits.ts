@@ -9,6 +9,12 @@ export type FileLimits = { maxBytes?: number | string; maxFiles?: number }
 /** How long a count of what a store holds is trusted before it is taken again. */
 export const recountMs = 5 * 60_000
 
+/** What `store` holds, in bytes and files, leaving out its own `.cleanup/` entries. */
+export const storeUsage = async (store: FileStore) => {
+  const files = (await store.list('')).filter((object) => isFilePath(object.path))
+  return { bytes: files.reduce((sum, object) => sum + object.size, 0), files: files.length }
+}
+
 const limitReached = () => new HttpProblem(507, 'storage-full', 'Insufficient Storage', 'The file storage is full; delete files to make room')
 
 class LimitReached extends Error {}
@@ -34,8 +40,7 @@ export const limitedFileStore = (store: FileStore, limits: FileLimits, now = Dat
 
   const usage = async () => {
     if (counted && now() - counted.at < recountMs) return counted
-    const files = (await store.list('')).filter((object) => isFilePath(object.path))
-    counted = { bytes: files.reduce((sum, object) => sum + object.size, 0), files: files.length, at: now() }
+    counted = { ...(await storeUsage(store)), at: now() }
     return counted
   }
 

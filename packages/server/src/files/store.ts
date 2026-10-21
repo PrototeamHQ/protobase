@@ -30,4 +30,6 @@ export type FileProvider = {
   publicUrl?: string
   /** Milliseconds between a file leaving its row and its bytes being deleted; default `files.retention` (0 when public). */
   retention?: number
+  /** The most bytes its store takes (see `limitedFileStore`); unset for no limit. */
+  maxBytes?: number
 }
