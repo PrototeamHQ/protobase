@@ -2,7 +2,7 @@
 
 # A mobile app
 
-Run a Protobase app on iOS and Android from a mobile section in its config, without setting up Capacitor yourself.
+Run a Protobase app on iOS and Android and build signed store releases from a mobile section in its config, without setting up Capacitor yourself.
 
 A Protobase app runs as an iOS or Android app with nothing more than a `mobile` section in its `protobase.config.ts`. `protobase mobile` wraps the app in [Capacitor](https://capacitorjs.com): the app's shell, its UI plugins, theme and favicon open from files on the device, and the app calls your server's API.
 
@@ -62,3 +62,42 @@ protobase mobile open ios
 ```
 
 opens the generated project in Xcode, or Android Studio for `android`. To run on an iPhone, pick a signing team in Xcode's Signing & Capabilities.
+
+## 6. Build a release
+
+```sh
+protobase mobile build android --app-version 1.2.3 --build-number 7 --api https://shop.example.com
+protobase mobile build ios --app-version 1.2.3 --build-number 7 --api https://shop.example.com --team ABCDE12345
+```
+
+makes a signed release binary: an `.aab` to upload to Google Play, an `.ipa` to upload to App Store Connect. It goes to `mobile-release/`, which ignores itself in git, named `<appId>-<version>-<build number>`; `--out <dir>` picks another folder.
+
+- The binary carries the app's files, so it opens without a network and never downloads anything on its first launch; offline it says it cannot reach the server, as the web app does.
+- A release calls its server over https, at `--api` or the project's auth `baseURL`: plain http, `localhost` and `10.0.2.2` are refused.
+- `--app-version` is the version the stores show, one to three numbers such as `1.2.3`. `--build-number` is a whole number that must rise with every upload, such as your CI's run number.
+- Extra plugins run at build time with access to your signing key, so add only plugins you trust.
+
+**Android.** Make an upload key once, outside the project, and never commit it:
+
+```sh
+keytool -genkeypair -v -keystore ~/.android-keys/upload.jks -keyalg RSA -keysize 2048 -validity 10000 -alias upload
+```
+
+Use it as the upload key with Play App Signing. Set these variables in your shell or as CI secrets, never as command arguments, where other users of the machine can read them:
+
+- `PROTOBASE_ANDROID_KEYSTORE`: the keystore file, absolute or relative to the project folder.
+- `PROTOBASE_ANDROID_KEYSTORE_PASSWORD` and `PROTOBASE_ANDROID_KEY_PASSWORD`: its passwords.
+- `PROTOBASE_ANDROID_KEY_ALIAS`: the key's alias, `upload` above.
+
+Only Gradle gets them, for the length of the build: npm, its install scripts and Capacitor never do. The build needs the Android SDK and JDK 21.
+
+**iOS**, on a Mac with Xcode: `--team` is your Apple Developer team id, shown in your account's membership details. Xcode signs with the certificates and profiles of the account you added in its settings. For manual signing, pass `--certificate <name>` and `--profile <name>` too. If automatic signing finds no profile for a new app, run `protobase mobile open ios`, pick the team in Signing & Capabilities and archive once from Xcode (Product, Archive), which creates the profile; then build again.
+
+## 7. What the stores accept
+
+You submit the app under your own developer account, on both stores: Apple rejects apps from a template or app generation service unless the provider of the app's content submits them ([App Review Guidelines](https://developer.apple.com/app-store/review/guidelines/) 4.2.6).
+
+- **What may change without a store release:** the app's files, which a later Protobase release can update over the air: the shell, UI plugins, theme, in-app logo and copy, and fixes and features within the app's purpose. Apple allows downloaded interpreted code that does not change the app's primary purpose ([Apple Developer Program License Agreement](https://developer.apple.com/support/terms/apple-developer-program-license-agreement/) 3.3.1(B)), and Google Play allows JavaScript in a WebView ([Device and Network Abuse](https://support.google.com/googleplay/android-developer/answer/9888379)).
+- **What needs a store release:** native code, Capacitor or plugin changes (`mobile.plugins`), permissions, the app's name, its home-screen icon and its splash screen.
+- **Big new features** still go through Apple's review with a store release, even when they could ship over the air: Apple asks that an app's features be documented and reviewed, none hidden (App Review Guidelines 2.3.1 and 2.5.19).
+- **A plain WebView of an admin app risks rejection:** Apple expects an app to be more than a repackaged website (4.2). Native touches help, such as push notifications, sharing, the camera or biometric sign-in, through `mobile.plugins`.
