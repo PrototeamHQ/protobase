@@ -30,6 +30,8 @@ export type {
   ListModel,
   ListDragModel,
   PositionAfterModel,
+  ParentAccess,
+  ParentModel,
   RelatedColumnModel,
   ListDisplayModel,
   CardPhotosModel,

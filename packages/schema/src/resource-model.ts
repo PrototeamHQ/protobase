@@ -2,7 +2,7 @@ import { buildEventModels } from './events/event-models'
 import type { EventSpec } from './events/event-helpers'
 import type { AnyField } from './field'
 import type { FileOptions } from './files/file-options'
-import type { FieldModel, PositionAfterModel, ResourceModel, SearchMatch } from './model'
+import type { FieldModel, ParentModel, PositionAfterModel, ResourceModel, SearchMatch } from './model'
 import { promptFields } from './ai-prompt'
 import { computedProblems } from './computed/computed-problems'
 import { snakeCase } from './naming'
@@ -19,6 +19,7 @@ export type ResourceState = {
   searchMatch?: Record<string, SearchMatch>
   owner?: string
   position?: { field: string; within?: string; after?: PositionAfterModel }
+  parents?: ParentModel[]
   events?: EventSpec[]
   history?: boolean
   comments?: boolean
@@ -96,6 +97,7 @@ const assembleModel = (state: ResourceState): ResourceModel => {
     ...(state.comments && { comments: true as const }),
     ...(state.live && { live: true as const }),
     ...(state.position && { position: { ...state.position } }),
+    ...(state.parents && { parents: state.parents.map((parent) => ({ ...parent })) }),
   }
 }
 
@@ -161,6 +163,19 @@ const positionProblems = (model: ResourceModel) => {
   ]
 }
 
+// A parent is a relation of one column; its access is checked at runtime too, as JS config is not type-checked and
+// anything else must not fall back to a weaker check.
+const parentProblems = (model: ResourceModel) =>
+  (model.parents ?? []).flatMap(({ field: name, access }, index, parents) => {
+    const field = Object.hasOwn(model.fields, name) ? model.fields[name]! : undefined
+    return [
+      ...(!field ? ['is not a field'] : field.type !== 'relation' ? [`is ${field.type}, not a relation`] : []),
+      ...(field?.relation && field.relation.columns.length !== 1 ? ['is a relation of several columns (not implemented)'] : []),
+      ...(access === 'read' || access === 'update' ? [] : [`needs "${String(access)}", not "read" or "update"`]),
+      ...(parents.findIndex((parent) => parent.field === name) !== index ? ['is given twice'] : []),
+    ].map((problem) => `parent "${name}" ${problem}`)
+  })
+
 // A job writes an AI field through the API, after the write, from fields the model may see: text or an enum, empty until
 // it is filled, and read from plain fields only, so that no fill feeds another or itself.
 const aiProblems = (model: ResourceModel) =>
@@ -183,7 +198,7 @@ const aiProblems = (model: ResourceModel) =>
 export const buildResourceModel = (state: ResourceState): ResourceModel => {
   const model = assembleModel(state)
   const events = state.events && buildEventModels(model, state.events)
-  const problems = [...sensitiveProblems(model), ...fileProblems(model), ...positionProblems(model), ...aiProblems(model), ...computedProblems(model), ...(events?.problems ?? [])]
+  const problems = [...sensitiveProblems(model), ...fileProblems(model), ...positionProblems(model), ...parentProblems(model), ...aiProblems(model), ...computedProblems(model), ...(events?.problems ?? [])]
   if (problems.length > 0) throw new Error(`Resource "${model.name}": ${problems.join('; ')}`)
   return events && events.events.length > 0 ? { ...model, events: events.events } : model
 }

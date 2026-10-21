@@ -128,6 +128,8 @@ export type ResourceModel = {
     /** The records each record ranks after while they are pending, such as the tasks it waits for (`.position(..., { after })`). */
     after?: PositionAfterModel
   }
+  /** The records its records belong to, and the access on them writing its records needs (`.parent()`). */
+  parents?: ParentModel[]
   /** The events its changes raise (`.events()`), the catalogue subscriptions pick from. */
   events?: EventModel[]
   /** Whether every change of its records is kept, with who made it (`.history()`). */
@@ -622,6 +624,22 @@ export type PositionAfterModel = {
   filter?: string
   /** An AIP-160 filter on the records depended on, which they keep the order only while they match, such as `status != "done"`. */
   while?: string
+}
+
+/** The access on a parent record that writing a record under it needs: reading it, or updating it. */
+export type ParentAccess = 'read' | 'update'
+
+/**
+ * A record that a resource's records belong to through a relation field, such as an operation's VM: creating, changing,
+ * deleting or undeleting a record needs `access` on the record `field` points at, checked with the caller's own access
+ * rules on that resource. See
+ * [Records that belong to another](website/src/content/docs/reference/access.mdx#records-that-belong-to-another).
+ */
+export type ParentModel = {
+  /** The relation field that points at the parent record. */
+  field: string
+  /** The access on the parent record that writing needs. */
+  access: ParentAccess
 }
 
 /** A view's list page (`.list(...)`). */

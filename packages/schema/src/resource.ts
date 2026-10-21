@@ -2,7 +2,7 @@ import { z } from 'zod'
 import type { FieldAccess } from './access/types'
 import { eventHelpers, type EventHelpers, type EventSpec } from './events/event-helpers'
 import { eventMatches } from './events/event-models'
-import type { PositionAfterModel, ResourceModel, SearchMatch } from './model'
+import type { ParentAccess, PositionAfterModel, ResourceModel, SearchMatch } from './model'
 import { buildResourceModel, ignoredColumns, type ResourceState } from './resource-model'
 import type { Access, Issue, KeyRefs, RecordOf } from './resource-types'
 import { createRefs, type FieldRefs, type FieldsInput, type Ref } from './refs'
@@ -117,6 +117,22 @@ export class ResourceBuilder<F extends FieldsInput = {}, K = never> {
   position(pick: (r: FieldRefs<F>) => Ref, o: { within?: (r: FieldRefs<F>) => Ref; after?: PositionAfterModel } = {}) {
     const within = o.within?.(this.refs()).name
     return this.next({ position: { field: pick(this.refs()).name, ...(within !== undefined && { within }), ...(o.after && { after: { ...o.after } }) } })
+  }
+
+  /**
+   * A relation whose record each record belongs to, and the access on it writing them needs: creating a record, changing
+   * it (the parent it leaves and the one it moves to), deleting and undeleting it all need `access` on the parent,
+   * checked with the caller's own access rules on its resource and locked until the write commits. A null relation
+   * checks nothing; each call adds a check. See
+   * [Records that belong to another](website/src/content/docs/reference/access.mdx#records-that-belong-to-another).
+   *
+   * @example
+   * ```ts
+   * .parent((r) => r.vm_id, 'update')
+   * ```
+   */
+  parent(pick: (r: FieldRefs<F>) => Ref, access: ParentAccess) {
+    return this.next({ parents: [...(this.state.parents ?? []), { field: pick(this.refs()).name, access }] })
   }
 
   /**

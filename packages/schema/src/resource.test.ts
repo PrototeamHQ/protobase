@@ -118,6 +118,20 @@ describe('resource builder', () => {
     expect(() => paired.position((r) => r.position, { after }).toModel()).toThrow('ranks after other records, which needs a key of one field')
   })
 
+  it('records the relations its records belong to, and refuses a parent that is no relation of one column', () => {
+    const transfers = resource('transfers').table('transfers')
+      .fields({ id: f.integer(), source_vm_id: f.relation('vms'), target_vm_id: f.relation('vms'), wide_id: f.relation('vms').columns(['a', 'b']), note: f.text() })
+      .primaryKey((r) => r.id)
+    expect(transfers.parent((r) => r.source_vm_id, 'read').parent((r) => r.target_vm_id, 'update').toModel().parents)
+      .toEqual([{ field: 'source_vm_id', access: 'read' }, { field: 'target_vm_id', access: 'update' }])
+    expect(transfers.toModel()).not.toHaveProperty('parents')
+    expect(() => transfers.parent((r) => r.note, 'read').toModel()).toThrow('parent "note" is text, not a relation')
+    expect(() => transfers.parent((r) => r.wide_id, 'read').toModel()).toThrow('parent "wide_id" is a relation of several columns (not implemented)')
+    expect(() => transfers.parent((r) => r.source_vm_id, 'delete' as 'read').toModel()).toThrow('parent "source_vm_id" needs "delete", not "read" or "update"')
+    expect(() => transfers.parent((r) => r.source_vm_id, 'read').parent((r) => r.source_vm_id, 'update').toModel()).toThrow('parent "source_vm_id" is given twice')
+    expect(() => transfers.parent(() => ({ name: 'gone' }), 'read').toModel()).toThrow('parent "gone" is not a field')
+  })
+
   it('keeps history and takes comments only when asked', () => {
     const notes = resource('notes').table('notes').fields({ id: f.integer(), body: f.text() }).primaryKey((r) => r.id)
     expect(notes.toModel()).not.toHaveProperty('comments')

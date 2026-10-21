@@ -296,6 +296,17 @@ describe('restrictModel', () => {
     expect(restrictModel(ranked.toModel(), await resolveAccess(ranked, user(7, 'sales')))).not.toHaveProperty('position')
   })
 
+  it('keeps a parent check only for a caller who can read its field', async () => {
+    const child = resource('orders')
+      .table('orders')
+      .fields({ id: f.integer().readOnly(), vm_id: f.relation('vms'), folder_id: f.relation('folders').access({ read: roles.can('costs.read') }) })
+      .primaryKey((r) => r.id)
+      .parent((r) => r.vm_id, 'update')
+      .parent((r) => r.folder_id, 'read')
+    expect(restrictModel(child.toModel(), await resolveAccess(child, user(1, 'lead'))).parents).toEqual([{ field: 'vm_id', access: 'update' }, { field: 'folder_id', access: 'read' }])
+    expect(restrictModel(child.toModel(), await resolveAccess(child, user(7, 'sales'))).parents).toEqual([{ field: 'vm_id', access: 'update' }])
+  })
+
   it('drops tenant, soft-delete and owner fields that are hidden, but keeps key columns', () => {
     const model = source.toModel()
     const restricted = restrictModel(model, { readableFields: ['status'], writableFields: { create: [], update: [] } })
