@@ -22,6 +22,7 @@ import { closeOnSignals } from './serve/signals'
 import { loadWorkerBundle, startWorker } from './worker/start-worker'
 import { registerOrganizations } from './organizations/register'
 import { registerFiles } from './files/register'
+import { registerEncryption } from './encryption/register'
 import { registerMigration } from './migration/register'
 import { registerMobile } from './mobile/register'
 import { registerSkill } from './skill/register'
@@ -191,6 +192,7 @@ registerToken(program)
 registerAuth(program)
 registerMigration(program)
 registerFiles(program)
+registerEncryption(program)
 registerSkill(program)
 registerImport(program)
 registerMobile(program)
