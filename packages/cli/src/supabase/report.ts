@@ -48,7 +48,7 @@ const liveTables = (live: string[]) => {
   return [
     `## Live tables
 
-The \`supabase_realtime\` publication sent these tables' changes to Realtime clients, so the scaffold gave each resource \`.live()\`. \`/realtime/v1\` sends their \`postgres_changes\` once the database has the jobs schema, their capture triggers and the notices table: run \`protobase migration\` and apply it.
+The \`supabase_realtime\` publication sent these tables' changes to Realtime clients, so the scaffold gave each resource \`.live()\`. \`/api/sb/realtime/v1\` sends their \`postgres_changes\` once the database has the jobs schema, their capture triggers and the notices table: run \`protobase migration\` and apply it.
 
 ${live.map((table) => `- ${table}`).join('\n')}
 `,
@@ -100,7 +100,7 @@ export const importReport = (manifest: ImportManifest, doctor: string | undefine
     ...liveTables(live),
     section(
       'Realtime tables',
-      "The `supabase_realtime` publication sends these tables' changes to Realtime clients, but the scaffold made no resource of them, such as for a table without a primary key or one in auth or storage, so `/realtime/v1` refuses them. Give each a resource with `.live()` where the app listens to its changes.",
+      "The `supabase_realtime` publication sends these tables' changes to Realtime clients, but the scaffold made no resource of them, such as for a table without a primary key or one in auth or storage, so `/api/sb/realtime/v1` refuses them. Give each a resource with `.live()` where the app listens to its changes.",
       manifest.realtimeTables.map(tableName).filter((table) => !live.includes(table)),
     ),
     section(

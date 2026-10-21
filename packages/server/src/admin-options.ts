@@ -14,8 +14,8 @@ export type AdminOptions = {
   /** Default `/api/v1`. */
   basePath?: string
   /**
-   * The app's publishable and secret keys, with which supabase-js calls the PostgREST-compatible `/rest/v1` and the
-   * Realtime-compatible `/realtime/v1` and the Storage-compatible `/storage/v1` (see `ApiKeysOptions`); default `PROTOBASE_PUBLISHABLE_KEY` and
+   * The app's publishable and secret keys, with which supabase-js calls the PostgREST-compatible `/api/sb/rest/v1` and the
+   * Realtime-compatible `/api/sb/realtime/v1` and the Storage-compatible `/api/sb/storage/v1` (see `ApiKeysOptions`); default `PROTOBASE_PUBLISHABLE_KEY` and
    * `PROTOBASE_SECRET_KEY`. Without either, or with `false`, the app serves neither.
    */
   apiKeys?: ApiKeysOptions | false

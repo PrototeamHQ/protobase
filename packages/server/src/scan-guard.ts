@@ -51,7 +51,7 @@ export const createScanGuard = (db: Db, options: { mode?: ScanGuardMode } = {}) 
     if (mode === 'warn') return detail
     throw new HttpProblem(400, 'expensive-query', 'Bad Request', detail, { columns, suggestion: first.suggestion })
   }
-  // `/rest/v1` judges its own filters against the same indexes, in the same mode.
+  // `/api/sb/rest/v1` judges its own filters against the same indexes, in the same mode.
   return Object.assign(check, { mode, indexesOf })
 }
 

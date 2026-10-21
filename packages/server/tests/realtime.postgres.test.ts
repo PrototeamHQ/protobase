@@ -81,7 +81,7 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('Realtime with supabase-
   // A client signed in as `sub`.
   const signIn = async (sub: string) => {
     const token = await tokenOf(sub)
-    const client = createClient(url, publishable, { accessToken: async () => token })
+    const client = createClient(`${url}/api/sb`, publishable, { accessToken: async () => token })
     clients.push(client)
     // Signed in before it subscribes: a channel joined in the same tick as createClient goes without the token.
     await client.realtime.setAuth(token)
@@ -144,7 +144,7 @@ describe.skipIf(!(await postgresTemplateReady('jobs')))('Realtime with supabase-
   })
 })
 
-describe.skipIf(!(await postgresTemplateReady('jobs')) || !(await postgresTemplateReady('auth')))('Realtime with supabase-js signed in through /auth/v1', () => {
+describe.skipIf(!(await postgresTemplateReady('jobs')) || !(await postgresTemplateReady('auth')))('Realtime with supabase-js signed in through /api/sb/auth/v1', () => {
   it('hears its own row\'s insert as its user, before and after it refreshes its token', async () => {
     const pg = await openPostgresDatabase('jobs')
     const store = await openPostgresDatabase('auth')
@@ -160,7 +160,7 @@ describe.skipIf(!(await postgresTemplateReady('jobs')) || !(await postgresTempla
     await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))
     onTestFinished(() => new Promise<void>((resolve) => server.close(() => resolve())))
 
-    const client = createClient(`http://127.0.0.1:${(server.address() as AddressInfo).port}`, publishable, { auth: { persistSession: false, autoRefreshToken: false } })
+    const client = createClient(`http://127.0.0.1:${(server.address() as AddressInfo).port}/api/sb`, publishable, { auth: { persistSession: false, autoRefreshToken: false } })
     onTestFinished(async () => void (await client.removeAllChannels()))
     const { data, error } = await client.auth.signInWithPassword({ email: 'ann@example.com', password: 'correct horse battery' })
     expect(error).toBeNull()

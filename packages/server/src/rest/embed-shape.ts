@@ -29,7 +29,7 @@ export type ShapeItem = ColumnItem | Embed
 
 export type ShapeContext = {
   foreignKeys: readonly ForeignKey[]
-  /** The table `/rest/v1` serves under `name`, as SQL; undefined when it serves none, which nothing relates to. */
+  /** The table `/api/sb/rest/v1` serves under `name`, as SQL; undefined when it serves none, which nothing relates to. */
   served: (name: string) => RawBuilder<unknown> | undefined
   embedded: ReadonlyMap<string, EmbedParams>
 }

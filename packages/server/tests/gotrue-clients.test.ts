@@ -16,7 +16,7 @@ import { openSnapshotDb, type SnapshotDb } from '../../../test-support/sql-snaps
 // Real scrypt hashing runs on this thread, CPU work a busy machine stretches past 5 s.
 vi.setConfig({ testTimeout: 30_000 })
 
-// supabase-js and @supabase/ssr as an app moving from Supabase uses them, against the app's /auth/v1.
+// supabase-js and @supabase/ssr as an app moving from Supabase uses them, against the app's /api/sb/auth/v1.
 const origin = 'http://localhost:5173'
 const secret = 'test-secret-test-secret-test-secret-1234'
 const publishable = 'sb_publishable_test'
@@ -64,7 +64,7 @@ const serve = async () => {
 describe('supabase-js on the GoTrue-compatible endpoints', () => {
   it('signs up with an emailed code, reads the user and its claims, refreshes and signs out', async () => {
     const { auth, app, options, codeFor } = await serve()
-    const supabase = createClient(origin, publishable, options)
+    const supabase = createClient(`${origin}/api/sb`, publishable, options)
 
     const signUp = await supabase.auth.signUp({ email: 'ann@example.com', password, options: { data: { full_name: 'Ann' } } })
     expect(signUp.error).toBeNull()
@@ -79,18 +79,18 @@ describe('supabase-js on the GoTrue-compatible endpoints', () => {
     expect(user.user!.email_confirmed_at).toBe('2026-08-01T00:00:00.000Z')
     const { data: claims, error } = await supabase.auth.getClaims()
     expect(error).toBeNull()
-    expect(claims!.claims).toMatchObject({ sub: user.user!.id, role: 'authenticated', aud: 'authenticated', aal: 'aal1', email: 'ann@example.com', iss: `${origin}/auth/v1` })
+    expect(claims!.claims).toMatchObject({ sub: user.user!.id, role: 'authenticated', aud: 'authenticated', aal: 'aal1', email: 'ann@example.com', iss: `${origin}/api/sb/auth/v1` })
 
     // The access token is the signed-in user's on a request with the publishable key, and never one of Protobase's own.
     const caller = apiKeyCaller({ keys: { publishable }, verify: jwtVerifier(goTrueTokens({ auth })) })
     const bearer = { apikey: publishable, authorization: `Bearer ${session.access_token}` }
-    expect(await caller(new Request(`${origin}/rest/v1/notes`, { headers: bearer }))).toMatchObject({ role: 'authenticated', claims: { sub: user.user!.id } })
+    expect(await caller(new Request(`${origin}/api/sb/rest/v1/notes`, { headers: bearer }))).toMatchObject({ role: 'authenticated', claims: { sub: user.user!.id } })
     expect((await app.request(`${origin}/api/meta`, { headers: { authorization: bearer.authorization } })).status).toBe(401)
 
     const refreshed = await supabase.auth.refreshSession()
     expect(refreshed.error).toBeNull()
     expect(refreshed.data.session!.refresh_token).not.toBe(session.refresh_token)
-    const reused = await createClient(origin, publishable, options).auth.refreshSession({ refresh_token: session.refresh_token })
+    const reused = await createClient(`${origin}/api/sb`, publishable, options).auth.refreshSession({ refresh_token: session.refresh_token })
     expect(reused.error).toMatchObject({ code: 'refresh_token_not_found' })
 
     const fresh = refreshed.data.session!.access_token
@@ -100,7 +100,7 @@ describe('supabase-js on the GoTrue-compatible endpoints', () => {
 
   it('signs in an existing user with an emailed code, and refuses a wrong password', async () => {
     const { options, codeFor } = await serve()
-    const supabase = createClient(origin, publishable, options)
+    const supabase = createClient(`${origin}/api/sb`, publishable, options)
     expect((await supabase.auth.signInWithPassword({ email: 'root@example.com', password: 'not the password' })).error).toMatchObject({ code: 'invalid_credentials' })
 
     expect((await supabase.auth.signInWithOtp({ email: 'root@example.com' })).error).toBeNull()
@@ -115,7 +115,7 @@ describe('@supabase/ssr on the GoTrue-compatible endpoints', () => {
     const { fetch } = await serve()
     const jar = new Map<string, string>()
     const serverClient = () =>
-      createServerClient(origin, publishable, {
+      createServerClient(`${origin}/api/sb`, publishable, {
         global: { fetch, headers: { 'x-forwarded-for': '198.51.100.1' } },
         cookies: {
           getAll: () => [...jar].map(([name, value]) => ({ name, value })),

@@ -34,7 +34,7 @@ const call = async (deps: RestDeps, c: Context<RestEnv>) => {
     const source = callSource(chosen, args)
     const query = parseQuery(params, c.req.header('range') ?? null, new Set(given))
     const shape = query.select.map((item) => {
-      if (item.kind === 'embed') throw restError(400, 'PGRST100', `"${item.name}" embeds a resource in a function's rows, which /rest/v1 does not support yet`)
+      if (item.kind === 'embed') throw restError(400, 'PGRST100', `"${item.name}" embeds a resource in a function's rows, which /api/sb/rest/v1 does not support yet`)
       return item
     })
     if (chosen.info.returns === 'void') {

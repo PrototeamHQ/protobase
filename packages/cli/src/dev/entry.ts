@@ -34,7 +34,7 @@ await checkComputed(db, resources.map((resource) => resource.toModel()))
 checkAi({ models: resources.map((resource) => resource.toModel()), views: views.map((source) => source.toModel()), assistant: project.options?.assistant, env: process.env })
 if (project.webhooks) await checkWebhooksSchema(db, project.webhooks)
 
-// With a DSN set, the API's 500s go to the error tracker too; a crash is the terminal's to show. Its `/realtime/v1`
+// With a DSN set, the API's 500s go to the error tracker too; a crash is the terminal's to show. Its `/api/sb/realtime/v1`
 // sockets are upgraded by run.ts's `apiWebSockets`.
 const reporter = await projectErrorReporter(project, process.env)
 // The plugins come from Vite here, not a bundle; the icons are the project's files, which the dev server answers.

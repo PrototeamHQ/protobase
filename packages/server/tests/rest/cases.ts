@@ -1,5 +1,5 @@
 /**
- * The requests the `/rest/v1` tests send, in order, as supabase-js sends them: the query as `URLSearchParams` writes
+ * The requests the `/api/sb/rest/v1` tests send, in order, as supabase-js sends them: the query as `URLSearchParams` writes
  * it. `record-postgrest.ts` sends them to a real PostgREST and keeps its answers in `postgrest.json`; `rest.test.ts`
  * sends them to Protobase and expects the same answers. Writes change what later requests see, on both sides alike.
  * `loose` compares an error's status and code only, for PostgREST's parser messages, which no other parser repeats.

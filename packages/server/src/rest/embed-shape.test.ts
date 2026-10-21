@@ -28,7 +28,7 @@ describe('resolveShape', () => {
     expect(shape[0]).toEqual({ kind: 'field', field: { column: 'id', json: [] } })
   })
 
-  it('finds no relationship to a table /rest/v1 does not serve', () => {
+  it('finds no relationship to a table /api/sb/rest/v1 does not serve', () => {
     expect(() => shapeOf([['select', 'id,secrets(*)']])).toThrow("Could not find a relationship between 'todos' and 'secrets' in the schema cache")
   })
 })

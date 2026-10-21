@@ -23,9 +23,9 @@ export type FilesOptions = {
    */
   trustedHosts?: string[]
   /**
-   * Where `supabase.storage` keeps the bytes of its objects, which the app serves at `/storage/v1` when it has an API key
+   * Where `supabase.storage` keeps the bytes of its objects, which the app serves at `/api/sb/storage/v1` when it has an API key
    * (see `apiKeys`): `provider` names one of the providers, default `private`, and `maxFileSize` caps every upload, as
-   * `50 MB` (the default) or a number of bytes; a bucket's own limit can only be lower. `false` serves no `/storage/v1`.
+   * `50 MB` (the default) or a number of bytes; a bucket's own limit can only be lower. `false` serves no `/api/sb/storage/v1`.
    */
   storage?: { provider?: string; maxFileSize?: number | string } | false
 }

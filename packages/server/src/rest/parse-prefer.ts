@@ -1,4 +1,4 @@
-/** What the `Prefer` header asks for, of what `/rest/v1` does; anything else in it is left alone, as PostgREST does by default. */
+/** What the `Prefer` header asks for, of what `/api/sb/rest/v1` does; anything else in it is left alone, as PostgREST does by default. */
 export type Preferences = {
   return?: 'minimal' | 'representation' | 'headers-only'
   count?: 'exact' | 'planned' | 'estimated'

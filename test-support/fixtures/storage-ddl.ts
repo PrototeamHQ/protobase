@@ -1,12 +1,12 @@
-/** The users of the `/storage/v1` tests' database, by name. */
+/** The users of the `/api/sb/storage/v1` tests' database, by name. */
 export const storageUsers = {
   alice: '2b2b2b2b-0000-0000-0000-000000000001',
   bob: '2b2b2b2b-0000-0000-0000-000000000002',
 } as const
 
-// The `/storage/v1` tests' database, laid out as `protobase import supabase` restores a Supabase project: the `anon`,
+// The `/api/sb/storage/v1` tests' database, laid out as `protobase import supabase` restores a Supabase project: the `anon`,
 // `authenticated` and `service_role` roles, Supabase's `auth.uid()`, and the `storage` schema of Storage v1.84 with the
-// columns, indexes, triggers and grants `/storage/v1` meets, two buckets and their policies. The roles belong to the
+// columns, indexes, triggers and grants `/api/sb/storage/v1` meets, two buckets and their policies. The roles belong to the
 // server, so a second template finds them there.
 export const storageDdl = `
 do $$ begin create role anon nologin noinherit; exception when duplicate_object then null; end $$;

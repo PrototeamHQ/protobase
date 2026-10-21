@@ -24,9 +24,9 @@ describe("a Better Auth user as GoTrue's", () => {
 
 describe('the claims of an access token', () => {
   it("are Supabase's, with the database role `authenticated`, for an hour", () => {
-    const claims = accessClaims({ user: { ...user, metadata: { plan: 'pro' } }, accounts, sessionId: 's1', issuer: 'https://app.example.com/auth/v1', now: 1_000 })
+    const claims = accessClaims({ user: { ...user, metadata: { plan: 'pro' } }, accounts, sessionId: 's1', issuer: 'https://app.example.com/api/sb/auth/v1', now: 1_000 })
     expect(claims).toEqual({
-      iss: 'https://app.example.com/auth/v1',
+      iss: 'https://app.example.com/api/sb/auth/v1',
       sub: 'u1',
       aud: 'authenticated',
       iat: 1_000,

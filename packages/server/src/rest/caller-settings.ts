@@ -2,7 +2,7 @@ import type { EventActor } from '@protobase/schema'
 import type { Caller } from '../api-keys/resolve-caller'
 
 /**
- * The transaction settings a `/rest/v1` request runs with, as Supabase's PostgREST sets them: `role`, which is
+ * The transaction settings a `/api/sb/rest/v1` request runs with, as Supabase's PostgREST sets them: `role`, which is
  * `SET LOCAL ROLE`, to `anon` or `authenticated`, and the caller's claims in `request.jwt.claims` and its user in
  * `request.jwt.claim.sub`, which `auth.uid()`, `auth.role()` and `auth.jwt()` read. The `role` claim names the
  * database role, as on Supabase, whatever the token's own says. The app's role, of the secret key, sets no role: the

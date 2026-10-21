@@ -41,7 +41,7 @@ export const snapshotTemplates = {
     await exec(db, serverDdl)
     await exec(db, 'vacuum analyze')
   }),
-  /** An app moved from Supabase, for `/rest/v1`: Supabase's roles and `auth` functions, tables under RLS, functions to call. */
+  /** An app moved from Supabase, for `/api/sb/rest/v1`: Supabase's roles and `auth` functions, tables under RLS, functions to call. */
   rest: snapshot('snapshot_rest_test_template', ['test-support/fixtures/rest-ddl.ts'], async (db) => {
     await exec(db, restDdl)
     await exec(db, 'vacuum analyze')
@@ -53,7 +53,7 @@ export const snapshotTemplates = {
     await (await getMigrations(auth.options)).runMigrations()
     await pool.end()
   }),
-  /** A restored Supabase `storage` schema with buckets and policies, for `/storage/v1`. */
+  /** A restored Supabase `storage` schema with buckets and policies, for `/api/sb/storage/v1`. */
   storage: snapshot('snapshot_storage_test_template', ['test-support/fixtures/storage-ddl.ts'], (db) => exec(db, storageDdl)),
   /** The jobs schema, as `protobase migration` writes it. */
   jobs: snapshot('snapshot_jobs_test_template', ['packages/server/src/jobs'], async (db) => exec(db, (await jobsSchemaMigration(db))!)),

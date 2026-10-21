@@ -24,7 +24,7 @@ const readForeignKeys = async (db: Db) => {
 }
 
 /**
- * The foreign keys of the `public` schema, which `/rest/v1` embeds through, read from the catalog once and kept for the
+ * The foreign keys of the `public` schema, which `/api/sb/rest/v1` embeds through, read from the catalog once and kept for the
  * process lifetime, as the scan guard keeps indexes: migrations run before a new version serves.
  */
 export const foreignKeyCache = (db: Db) => {

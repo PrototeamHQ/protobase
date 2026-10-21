@@ -5,7 +5,7 @@ import { WebSocketServer } from 'ws'
 import { isProjectFile } from './project-files'
 
 // The API's WebSocket addresses; every other upgrade, such as Vite's HMR socket, stays Vite's.
-export const isApiWebSocket = (url: string) => /^\/realtime\/v1\/websocket(\?|$)/.test(url)
+export const isApiWebSocket = (url: string) => /^\/api\/sb\/realtime\/v1\/websocket(\?|$)/.test(url)
 
 // Service Restart: realtime-js reconnects, to the API the edit rebuilt.
 const restartCode = 1012

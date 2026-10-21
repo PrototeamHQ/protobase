@@ -50,7 +50,7 @@ const refusal = (error: unknown) => {
 }
 
 /**
- * One WebSocket of `/realtime/v1`, speaking Phoenix channels as realtime-js expects: heartbeats, channel joins with
+ * One WebSocket of `/api/sb/realtime/v1`, speaking Phoenix channels as realtime-js expects: heartbeats, channel joins with
  * `postgres_changes` bindings and an access token, token refreshes on an open channel, broadcasts with their `self`
  * and `ack` options, presence tracking, and leaves. A channel's token ends it when it expires, unless a newer one came
  * first. Messages are handled one at a time, in order. Private channels are refused for now.

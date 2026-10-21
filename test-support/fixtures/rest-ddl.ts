@@ -1,11 +1,11 @@
-/** The users of the `/rest/v1` tests' database, by name. */
+/** The users of the `/api/sb/rest/v1` tests' database, by name. */
 export const restUsers = {
   alice: '1a1a1a1a-0000-0000-0000-000000000001',
   bob: '1a1a1a1a-0000-0000-0000-000000000002',
   carol: '1a1a1a1a-0000-0000-0000-000000000003',
 } as const
 
-// The `/rest/v1` tests' database, laid out as an app moved from Supabase has it: the `anon`, `authenticated` and
+// The `/api/sb/rest/v1` tests' database, laid out as an app moved from Supabase has it: the `anon`, `authenticated` and
 // `service_role` roles, Supabase's `auth.uid()`, `auth.role()` and `auth.jwt()`, tables under RLS with Supabase's
 // default grants, and functions to call. The roles belong to the server, so a second template finds them there.
 export const restDdl = `

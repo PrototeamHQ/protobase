@@ -20,7 +20,7 @@ afterEach(() => rm(dir, { recursive: true, force: true }))
 const stored = async () => (await store.head(await objectKey(object.bucket, object.name, object.version)))?.size
 
 describe('copyObject', () => {
-  it('stores the bytes at the key /storage/v1 serves the object from', async () => {
+  it('stores the bytes at the key /api/sb/storage/v1 serves the object from', async () => {
     expect(await copyObject(serving(hello), store, object)).toEqual({ object, fault: undefined })
     expect(await stored()).toBe(5)
   })

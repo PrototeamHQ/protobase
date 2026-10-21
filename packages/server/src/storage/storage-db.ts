@@ -6,7 +6,7 @@ import type { Signer } from '../files/signer'
 import type { FileStore } from '../files/store'
 import { readTransaction, writeTransaction } from '../transactions'
 
-/** What `/storage/v1` needs: the database, the store of the provider that keeps the bytes, and the files signer. */
+/** What `/api/sb/storage/v1` needs: the database, the store of the provider that keeps the bytes, and the files signer. */
 export type StorageDeps = {
   db: Db
   statementTimeoutMs: number
@@ -18,7 +18,7 @@ export type StorageDeps = {
 }
 
 /**
- * Makes the rest of the transaction run as `caller`: its role and claims, as `/rest/v1` sets them (see
+ * Makes the rest of the transaction run as `caller`: its role and claims, as `/api/sb/rest/v1` sets them (see
  * `callerSettings`), so the restored `storage.objects` and `storage.buckets` policies decide what it reads and writes.
  * What runs before it runs as the app's own role, which owns the tables.
  */

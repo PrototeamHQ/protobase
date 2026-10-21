@@ -30,6 +30,7 @@ import { organizationRoutes } from './better-auth/organizations/admin-routes'
 import { statusRoute } from './better-auth/status-route'
 import { goTrueTokens } from './gotrue/access-tokens'
 import { goTruePath } from './gotrue/keys'
+import { realtimePath, restPath, storagePath, supabasePath } from './supabase-paths'
 import { goTrueRoutes } from './gotrue/routes'
 import { wakeDispatch } from './changes/actor'
 import { isCaptured } from './changes/capture-sql'
@@ -143,11 +144,11 @@ export type CreateAdminInput = {
   formsDifficulty?: Difficulty
   /** @internal The users comments name, mention and mail, which tests fake; from `auth` otherwise. */
   commentUsers?: CommentUsers
-  /** @internal Verifies a user's token on `/rest/v1`, `/realtime/v1` and `/storage/v1` and gives its claims, which tests fake; those `/auth/v1` signs otherwise. */
+  /** @internal Verifies a user's token on `/api/sb/rest/v1`, `/api/sb/realtime/v1` and `/api/sb/storage/v1` and gives its claims, which tests fake; those `/api/sb/auth/v1` signs otherwise. */
   verifyToken?: (token: string) => Promise<JWTPayload>
   /**
    * The host's WebSocket upgrade, such as `@hono/node-server`'s, with which an app with keys and live resources serves
-   * supabase-js's Realtime at `/realtime/v1/websocket`; without it, the app serves none.
+   * supabase-js's Realtime at `/api/sb/realtime/v1/websocket`; without it, the app serves none.
    */
   upgradeWebSocket?: UpgradeWebSocket
 }
@@ -287,8 +288,8 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], pag
     const skip = (path: string) => answering.some((prefix) => path === prefix || path.startsWith(`${prefix}/`))
     const cors = apiCors({ own: ownOrigins, allowed: corsOrigins ?? [], skip })
     app.use(`${systemPath}/*`, cors)
-    // supabase-js on the app's other origins, or another website, signs in at `/auth/v1` too.
-    if (auth && !goTruePath.startsWith(`${systemPath}/`)) app.use(`${goTruePath}/*`, cors)
+    // supabase-js on the app's other origins, or another website, calls `/api/sb` too.
+    if ((servesKeys || auth) && !supabasePath.startsWith(`${systemPath}/`)) app.use(`${supabasePath}/*`, cors)
   }
   if (auth) {
     app.route(authBasePath, statusRoute(auth, { anonymous: visitorsBrowse(options.roles), plugins: pluginsBeforeSignIn(plugins), ...(locale && { locale }) }))
@@ -312,23 +313,24 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], pag
   // The notices are read only while a page or channel listens.
   const report = options.onUnhandledError ?? ((error: unknown) => console.error(error))
   const feed = tableFeed({ db, schema: changes, report })
-  // Anyone who may read a live resource hears of its changes, a visitor of what the anonymous role reads too.
-  if (appModels.some((model) => model.live)) {
-    app.route(systemPath || '/', guarded((live) => void live.route('/', liveRoutes(feed, (session) => visibleNotices(deps, session))), withAnonymous(authenticate, options.roles)))
-  }
-  // supabase-js's `from()`, `rpc()`, `channel()` and `storage`, admitted by the app's keys and the tokens `/auth/v1` signs.
+  // supabase-js's `from()`, `rpc()`, `channel()` and `storage`, admitted by the app's keys and the tokens `/api/sb/auth/v1` signs.
   if (servesKeys) {
     const verify = verifyToken ?? (auth ? jwtVerifier(goTrueTokens({ auth })) : () => Promise.reject(unauthorized('This app signs no user tokens')))
     const caller = apiKeyCaller({ keys: apiKeys, verify })
     // `from()` and `rpc()` under the tables' RLS.
-    app.route('/rest/v1', restRoutes({ deps, caller, report }))
+    app.route(restPath, restRoutes({ deps, caller, report }))
     // `postgres_changes` of the live resources under the tables' RLS, broadcasts and presence.
-    if (upgradeWebSocket) app.route('/realtime/v1', realtimeApp({ deps, feed, upgradeWebSocket, caller, report }))
+    if (upgradeWebSocket) app.route(realtimePath, realtimeApp({ deps, feed, upgradeWebSocket, caller, report }))
     // `storage` under the storage schema's RLS.
     if (files?.storage) {
       const storage = { db, statementTimeoutMs: deps.statementTimeoutMs, ...(deps.actorSetting && { actorSetting: deps.actorSetting }), store: files.providers[files.storage.provider]!.store, signer: files.signer, maxBytes: files.storage.maxBytes, caller }
-      app.route('/storage/v1', storageRoutes({ deps: storage, report }))
+      app.route(storagePath, storageRoutes({ deps: storage, report }))
     }
+  }
+  // After `/api/sb`, which the guard's token check under the system path would otherwise stand before.
+  // Anyone who may read a live resource hears of its changes, a visitor of what the anonymous role reads too.
+  if (appModels.some((model) => model.live)) {
+    app.route(systemPath || '/', guarded((live) => void live.route('/', liveRoutes(feed, (session) => visibleNotices(deps, session))), withAnonymous(authenticate, options.roles)))
   }
   app.route(basePath, api)
   app.route(`${deps.systemPath}/meta`, metaApp)

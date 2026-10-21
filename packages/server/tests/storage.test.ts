@@ -11,7 +11,7 @@ import { testAuthenticator } from '../../../test-support/server'
 import { storageUsers } from '../../../test-support/fixtures/storage-ddl'
 import { openSnapshotDb } from '../../../test-support/sql-snapshot'
 
-// supabase-js's `storage` as an app moved from Supabase calls it, against the app's /storage/v1 over a local provider,
+// supabase-js's `storage` as an app moved from Supabase calls it, against the app's /api/sb/storage/v1 over a local provider,
 // under the restored storage policies (test-support/fixtures/storage-ddl.ts).
 const publishable = 'sb_publishable_storage_test'
 const secret = 'sb_secret_storage_test'
@@ -26,7 +26,7 @@ const fetch = async (input: RequestInfo | URL, init?: RequestInit) => app.reques
 
 // A client with the publishable key, signed in as `user` when given, or one with the secret key.
 const client = async (as: 'anon' | 'service' | string) =>
-  createClient('http://localhost', as === 'service' ? secret : publishable, {
+  createClient('http://localhost/api/sb', as === 'service' ? secret : publishable, {
     global: { fetch },
     auth: { persistSession: false, autoRefreshToken: false },
     ...(as !== 'anon' && as !== 'service' && { accessToken: async () => tokenOf(as) }),
@@ -91,7 +91,7 @@ describe('supabase.storage against /storage/v1', () => {
     expect((await (await client('anon')).storage.from('documents').createSignedUrl(`${alice}/report.txt`, 60)).error).toMatchObject({ statusCode: '404' })
 
     const { signedUrl } = (await documents.createSignedUrl(`${alice}/report.txt`, 60)).data!
-    expect(signedUrl).toMatch(/^http:\/\/localhost\/storage\/v1\/object\/sign\/documents\/.+\?token=/)
+    expect(signedUrl).toMatch(/^http:\/\/localhost\/api\/sb\/storage\/v1\/object\/sign\/documents\/.+\?token=/)
     const opened = await fetch(signedUrl)
     expect(opened.status).toBe(200)
     expect(await opened.text()).toBe('Quarterly report')

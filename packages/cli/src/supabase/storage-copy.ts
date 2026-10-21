@@ -36,7 +36,7 @@ const copyBytes = async (download: Download, store: FileStore, object: SourceObj
 }
 
 /**
- * Copies one object's bytes into `store`, at the key `/storage/v1` serves the object's row from. A download Supabase
+ * Copies one object's bytes into `store`, at the key `/api/sb/storage/v1` serves the object's row from. A download Supabase
  * refuses, a copy that does not match, or a store that is full fails this object only; anything else, such as the
  * connection failing, stops the copy, which a rerun resumes.
  */

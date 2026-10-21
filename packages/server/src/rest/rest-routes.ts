@@ -17,7 +17,7 @@ export type RestRoutesInput = {
 }
 
 /**
- * The PostgREST-compatible API supabase-js's `from()` and `rpc()` call, mounted at `/rest/v1`. Each request runs in one
+ * The PostgREST-compatible API supabase-js's `from()` and `rpc()` call, mounted at `/api/sb/rest/v1`. Each request runs in one
  * transaction as `anon`, `authenticated` or the app's own role, so the tables' RLS policies decide what it may read and
  * write. Errors come back as PostgREST's `{ code, details, hint, message }`; an unexpected one as a 500 that names
  * nothing of it.

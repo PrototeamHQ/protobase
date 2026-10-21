@@ -3,7 +3,7 @@ import { isDatabaseError } from '../error-handler'
 /** An error body as PostgREST sends it, which supabase-js hands to the app as `error`; PGRST201 lists its details. */
 export type RestErrorBody = { code: string; details: string | Record<string, string>[] | null; hint: string | null; message: string }
 
-/** A `/rest/v1` error: its status, the body, and headers such as `Content-Range`. Thrown anywhere below the route. */
+/** A `/api/sb/rest/v1` error: its status, the body, and headers such as `Content-Range`. Thrown anywhere below the route. */
 export class RestError extends Error {
   constructor(
     readonly status: number,
@@ -43,7 +43,7 @@ const databaseStatus = (code: string, message: string, anonymous: boolean) => {
 }
 
 /**
- * The `/rest/v1` error an error stands for: its own, or a database error with PostgREST's status and the error's
+ * The `/api/sb/rest/v1` error an error stands for: its own, or a database error with PostgREST's status and the error's
  * message, detail and hint, which PostgREST passes on as they are. Other errors give `undefined`. Refusing a write by
  * RLS is 401 for an anonymous caller and 403 for others, as on Supabase.
  */

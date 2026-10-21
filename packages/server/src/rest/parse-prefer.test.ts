@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { parsePrefer } from './parse-prefer'
 
 describe('parsePrefer', () => {
-  it('reads what /rest/v1 does from one header or several joined, the first of each kind counting', () => {
+  it('reads what /api/sb/rest/v1 does from one header or several joined, the first of each kind counting', () => {
     expect(parsePrefer('return=representation, count=exact,resolution=merge-duplicates,missing=default')).toEqual({ return: 'representation', count: 'exact', resolution: 'merge-duplicates', missing: 'default' })
     expect(parsePrefer('return=minimal,return=representation')).toEqual({ return: 'minimal' })
   })

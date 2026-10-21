@@ -126,7 +126,7 @@ describe('a mobile app', () => {
     vi.stubEnv('PROTOBASE_CORS_ORIGINS', '')
     const { app } = await serve({ origins: [custom] }, mobile)
     for (const origin of [...capacitor, custom]) {
-      for (const path of ['/api/meta', '/auth/v1/user']) {
+      for (const path of ['/api/meta', '/api/sb/auth/v1/user']) {
         const preflight = await app.request(`${label}${path}`, { method: 'OPTIONS', headers: { origin, 'access-control-request-method': 'GET', 'access-control-request-headers': 'authorization' } })
         expect(preflight.headers.get('access-control-allow-origin'), `${origin} ${path}`).toBe(origin)
         const response = await app.request(`${label}${path}`, { headers: { origin } })
@@ -144,8 +144,8 @@ describe('a mobile app', () => {
     expect(cookie).toContain('session_token')
     const origin = 'https://localhost'
     expect((await app.request(`${label}/api/meta`, { headers: { origin, cookie } })).status).toBe(401)
-    expect((await app.request(`${label}/auth/v1/user`, { headers: { origin, cookie } })).status).toBe(401)
-    const put = await app.request(`${label}/auth/v1/user`, { method: 'PUT', headers: { origin, cookie, 'content-type': 'text/plain' }, body: JSON.stringify({ data: { name: 'Mallory' } }) })
+    expect((await app.request(`${label}/api/sb/auth/v1/user`, { headers: { origin, cookie } })).status).toBe(401)
+    const put = await app.request(`${label}/api/sb/auth/v1/user`, { method: 'PUT', headers: { origin, cookie, 'content-type': 'text/plain' }, body: JSON.stringify({ data: { name: 'Mallory' } }) })
     expect(put.status).toBe(401)
   })
 })

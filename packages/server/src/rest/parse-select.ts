@@ -25,7 +25,7 @@ const parseEmbed = (item: string): EmbedItem => {
   const [, alias, nameText = '', modifiers = '', inner = ''] = embedPattern.exec(item) ?? []
   const name = nameText.trim()
   if (!name || name.startsWith('...') || name.includes('.') || name === 'count') {
-    throw restError(400, 'PGRST100', `"${item}" spreads a resource or calls an aggregate, which /rest/v1 does not support yet`)
+    throw restError(400, 'PGRST100', `"${item}" spreads a resource or calls an aggregate, which /api/sb/rest/v1 does not support yet`)
   }
   const flags = modifiers.split('!').slice(1).map((flag) => flag.trim())
   // The first modifier that is no join type is the hint, as PostgREST takes it.

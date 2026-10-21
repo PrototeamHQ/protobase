@@ -23,7 +23,7 @@ export type RealtimeRoutesOptions = {
 const keyRequest = (apikey: string, token?: string) => new Request('http://realtime.invalid/', { headers: { apikey, ...(token !== undefined && { authorization: `Bearer ${token}` }) } })
 
 /**
- * `GET /realtime/v1/websocket?apikey=…&vsn=…`: Supabase Realtime's socket, for `postgres_changes` of the live
+ * `GET /api/sb/realtime/v1/websocket?apikey=…&vsn=…`: Supabase Realtime's socket, for `postgres_changes` of the live
  * resources, and broadcasts and presence between the sockets of this process (see `realtimeSocket`). A missing or wrong
  * key is refused before the upgrade, with 401.
  */

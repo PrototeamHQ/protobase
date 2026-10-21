@@ -18,7 +18,7 @@ beforeAll(async () => {
   caller = apiKeyCaller({ keys: { publishable, secret }, verify: jwtVerifier({ keys: createLocalJWKSet({ keys }), issuer, audience: issuer }) })
 })
 
-const request = (headers: Record<string, string>) => new Request('https://app.example.com/rest/v1/tasks', { headers })
+const request = (headers: Record<string, string>) => new Request('https://app.example.com/api/sb/rest/v1/tasks', { headers })
 
 const refusal = async (headers: Record<string, string>) => {
   const error = await caller(request(headers)).catch((thrown: unknown) => thrown)

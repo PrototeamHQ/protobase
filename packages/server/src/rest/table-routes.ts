@@ -17,7 +17,7 @@ import { scanRefusal, uncoveredReads } from './rest-scan'
 import { deleteRows, insertRows, updateRows, type Returning, type WriteTarget, type Written } from './write-rows'
 
 /**
- * The resource whose table `name` is, in the `public` schema or the search path's: `/rest/v1` serves the tables the app
+ * The resource whose table `name` is, in the `public` schema or the search path's: `/api/sb/rest/v1` serves the tables the app
  * declares as resources, as PostgREST serves those of its exposed schema. Any other is 404 (PGRST205).
  */
 const servedEntry = (deps: RestDeps, name: string) =>
@@ -161,7 +161,7 @@ const remove = async (deps: RestDeps, foreignKeys: ForeignKeys, c: Context<RestE
 }
 
 /**
- * `/rest/v1/<table>`: read with GET and HEAD, insert and upsert with POST, update with PATCH, delete with DELETE. Reads
+ * `/api/sb/rest/v1/<table>`: read with GET and HEAD, insert and upsert with POST, update with PATCH, delete with DELETE. Reads
  * and the rows a write returns embed related rows through `foreignKeys`.
  */
 export const tableRoutes = (deps: RestDeps, foreignKeys: ForeignKeys) => {

@@ -1,4 +1,4 @@
-// Records the answers of a real PostgREST to the `/rest/v1` cases into postgrest.json, the oracle rest.test.ts holds
+// Records the answers of a real PostgREST to the `/api/sb/rest/v1` cases into postgrest.json, the oracle rest.test.ts holds
 // Protobase to. It needs a fresh database built from test-support/fixtures/rest-ddl.ts, with a login role for PostgREST,
 // and PostgREST run as Supabase runs it (the version Supabase's docker-compose pins, anon role `anon`, max rows 1000):
 //

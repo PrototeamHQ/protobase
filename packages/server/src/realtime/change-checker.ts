@@ -68,7 +68,7 @@ const seen = (entry: Entry, filters: readonly FilterCondition[][], rows: readonl
 
 /**
  * Checks which changes callers may see, for every group in one read-only transaction: per group it sets the role and
- * claims as `/rest/v1` does, then reads the current rows by key, so the table's RLS policies decide, and evaluates
+ * claims as `/api/sb/rest/v1` does, then reads the current rows by key, so the table's RLS policies decide, and evaluates
  * each filter in Postgres, as the column's type compares. The transaction holds one pooled connection only while it
  * runs. A group whose check fails is checked again in a transaction of its own, so it costs only its own callers the
  * batch.

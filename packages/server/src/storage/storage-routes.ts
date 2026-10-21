@@ -12,7 +12,7 @@ export type StorageRoutesInput = {
 }
 
 /**
- * The Storage-compatible API `supabase.storage` calls, mounted at `/storage/v1`, over the app's storage provider. Every
+ * The Storage-compatible API `supabase.storage` calls, mounted at `/api/sb/storage/v1`, over the app's storage provider. Every
  * read and write of `storage.objects` and `storage.buckets` runs as the request's caller (`anon`, `authenticated` or
  * the app's own role), so the policies restored with them decide; public buckets and signed URLs need no key. Errors
  * come back as Supabase Storage's `{ statusCode, error, message }`; an unexpected one as a 500 that names nothing of it.

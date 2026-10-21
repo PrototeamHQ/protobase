@@ -1,4 +1,4 @@
-/** An answer to one of the `/rest/v1` cases: what supabase-js reads of it. */
+/** An answer to one of the `/api/sb/rest/v1` cases: what supabase-js reads of it. */
 export type RecordedAnswer = { name: string; status: number; headers: Record<string, string>; body: unknown }
 
 // supabase-js reads the count from Content-Range and the body by its Content-Type.

@@ -11,7 +11,7 @@ import { openSnapshotDb, type SnapshotDb } from '../../../test-support/sql-snaps
 // Real scrypt hashing runs on this thread, CPU work a busy machine stretches past 5 s.
 vi.setConfig({ testTimeout: 30_000 })
 
-// A sign-in with a provider through GoTrue's /auth/v1/authorize and /callback, for an app on a custom scheme.
+// A sign-in with a provider through GoTrue's /api/sb/auth/v1/authorize and /callback, for an app on a custom scheme.
 const origin = 'http://localhost:5173'
 const secret = 'test-secret-test-secret-test-secret-1234'
 const app = 'authexp://callback'
@@ -109,7 +109,7 @@ const sessionIn = (served: Served, jar: Jar) => served.auth.api.getSession({ hea
 
 const authorize = async (served: Served, jar: Jar, { redirectTo = app, challenge }: { redirectTo?: string; challenge?: string } = {}) => {
   const params = new URLSearchParams({ provider: 'github', redirect_to: redirectTo, ...(challenge && { code_challenge: challenge, code_challenge_method: 's256' }) })
-  return browse(served, jar, `${origin}/auth/v1/authorize?${params}`)
+  return browse(served, jar, `${origin}/api/sb/auth/v1/authorize?${params}`)
 }
 
 // GitHub "approves": back to Better Auth's callback with the state of the authorization URL.
@@ -152,12 +152,12 @@ const location = (response: Response) => {
 const withoutQuery = (url: URL) => `${url.protocol}//${url.host}${url.pathname}`
 
 const trade = async (served: Served, code: string | null, codeVerifier = verifier) =>
-  served.app.request(`${origin}/auth/v1/token?grant_type=pkce`, { method: 'POST', headers: { 'content-type': 'application/json', 'x-forwarded-for': served.address }, body: JSON.stringify({ auth_code: code, code_verifier: codeVerifier }) })
+  served.app.request(`${origin}/api/sb/auth/v1/token?grant_type=pkce`, { method: 'POST', headers: { 'content-type': 'application/json', 'x-forwarded-for': served.address }, body: JSON.stringify({ auth_code: code, code_verifier: codeVerifier }) })
 
 // /authorize, then GitHub's approval: Better Auth's success redirect to /callback, not yet followed.
 const approvedFlow = async (served: Served, jar: Jar, options: { redirectTo?: string; challenge?: string } = {}) => {
   const toCallback = location(await approveAtGitHub(served, jar, location(await authorize(served, jar, options)).href))
-  expect(toCallback.pathname).toBe('/auth/v1/callback')
+  expect(toCallback.pathname).toBe('/api/sb/auth/v1/callback')
   return toCallback
 }
 
@@ -175,14 +175,14 @@ describe('GoTrue sign-in with a provider', () => {
     const jar = cookieJar()
     await signInOnTheWeb(served, jar)
 
-    const callback = location(await browse(served, jar, `${origin}/auth/v1/callback?redirect_to=${encodeURIComponent(app)}&code_challenge=${await challengeOf('attacker')}&code_challenge_method=s256`))
+    const callback = location(await browse(served, jar, `${origin}/api/sb/auth/v1/callback?redirect_to=${encodeURIComponent(app)}&code_challenge=${await challengeOf('attacker')}&code_challenge_method=s256`))
     expectDenied(callback)
 
-    const implicit = location(await browse(served, jar, `${origin}/auth/v1/callback?redirect_to=${encodeURIComponent(app)}`))
+    const implicit = location(await browse(served, jar, `${origin}/api/sb/auth/v1/callback?redirect_to=${encodeURIComponent(app)}`))
     expect(implicit.hash).not.toContain('access_token')
 
     // An untrusted redirect_to falls back to the app itself, with nothing in it.
-    const untrusted = location(await browse(served, jar, `${origin}/auth/v1/callback?redirect_to=${encodeURIComponent('https://evil.example')}`))
+    const untrusted = location(await browse(served, jar, `${origin}/api/sb/auth/v1/callback?redirect_to=${encodeURIComponent('https://evil.example')}`))
     expect(untrusted.origin).toBe(origin)
     expectDenied(untrusted, 'hash')
   })
@@ -194,7 +194,7 @@ describe('GoTrue sign-in with a provider', () => {
     await signInOnTheWeb(served, jar)
 
     await authorize(served, jar, { challenge: await challengeOf('attacker') })
-    expectDenied(location(await browse(served, jar, `${origin}/auth/v1/callback`)))
+    expectDenied(location(await browse(served, jar, `${origin}/api/sb/auth/v1/callback`)))
   })
 
   it.each([
@@ -207,7 +207,7 @@ describe('GoTrue sign-in with a provider', () => {
     await authorize(served, jar, { challenge: await challengeOf('attacker') })
     await signIn(served, jar)
 
-    expectDenied(location(await browse(served, jar, `${origin}/auth/v1/callback`)))
+    expectDenied(location(await browse(served, jar, `${origin}/api/sb/auth/v1/callback`)))
     // Nothing was handed off, so nothing was signed out.
     expect(await sessionIn(served, jar)).toBeTruthy()
   })
@@ -295,7 +295,7 @@ describe('GoTrue sign-in with a provider', () => {
     const served = await serve()
     const jar = cookieJar()
     await approvedFlow(served, jar, { challenge: await challengeOf(verifier) })
-    expectDenied(location(await browse(served, jar, `${origin}/auth/v1/callback?flow=not-the-secret`)))
+    expectDenied(location(await browse(served, jar, `${origin}/api/sb/auth/v1/callback?flow=not-the-secret`)))
   })
 
   it('hands no code when the provider answers an error, even with the flow\'s secret', async () => {
@@ -314,7 +314,7 @@ describe('GoTrue sign-in with a provider', () => {
     const jar = cookieJar()
     const state = new URL(location(await authorize(served, jar, { challenge: await challengeOf(verifier) })).href).searchParams.get('state')!
     const toCallback = location(await browse(served, jar, `${origin}/api/auth/callback/github?error=access_denied&state=${encodeURIComponent(state)}`))
-    expect(toCallback.pathname).toBe('/auth/v1/callback')
+    expect(toCallback.pathname).toBe('/api/sb/auth/v1/callback')
     expect(toCallback.searchParams.get('flow')).toBeNull()
     const back = location(await browse(served, jar, toCallback.href))
     expect(withoutQuery(back)).toBe(app)
@@ -357,7 +357,7 @@ describe('GoTrue sign-in with a provider', () => {
   it('refuses a redirect_to that is not https without a code_challenge', async () => {
     const served = await serve()
     for (const query of [`redirect_to=${encodeURIComponent(app)}`, `redirect_to=${encodeURIComponent('http://localhost:5173')}`, '']) {
-      const authorize = await browse(served, cookieJar(), `${origin}/auth/v1/authorize?provider=github&${query}`)
+      const authorize = await browse(served, cookieJar(), `${origin}/api/sb/auth/v1/authorize?provider=github&${query}`)
       expect(authorize.status).toBe(400)
       expect(await authorize.json()).toMatchObject({ error_code: 'validation_failed' })
     }

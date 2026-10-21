@@ -1,5 +1,5 @@
 {
-  "/rest/v1 answers as PostgREST does > anon reads every profile": {
+  "/api/sb/rest/v1 answers as PostgREST does > anon reads every profile": {
     "(hooks)#0": [
       {"sql":"select relkind from pg_class where oid = to_regclass($1)","params":["\"profiles\""],"result":{"command":"SELECT","rowCount":1,"columns":[["relkind",18]],"rows":[["r"]]}},
       {"sql":"\n    select ic.relname as name, am.amname as method, (i.indpred is not null) as partial, a.attname::text as column,\n      pg_get_indexdef(i.indexrelid, k.ord::int, true) as definition, oc.opcname::text as opclass\n    from pg_index i\n    join pg_class ic on ic.oid = i.indexrelid\n    join pg_am am on am.oid = ic.relam\n    cross join lateral unnest(i.indkey::int2[], i.indclass::oid[]) with ordinality k(attnum, opclass, ord)\n    left join pg_attribute a on a.attrelid = i.indrelid and a.attnum = k.attnum and k.attnum > 0\n    join pg_opclass oc on oc.oid = k.opclass\n    where i.indrelid = to_regclass($1) and i.indisvalid and i.indisready and k.ord <= i.indnkeyatts\n    order by ic.relname, k.ord\n  ","params":["\"profiles\""],"result":{"command":"SELECT","rowCount":2,"columns":[["name",19],["method",19],["partial",16],["column",25],["definition",25],["opclass",25]],"rows":[
@@ -13,7 +13,7 @@
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
     ]
   },
-  "/rest/v1 answers as PostgREST does > anon reads no todo under RLS": {
+  "/api/sb/rest/v1 answers as PostgREST does > anon reads no todo under RLS": {
     "(hooks)#0": [
       {"sql":"select relkind from pg_class where oid = to_regclass($1)","params":["\"todos\""],"result":{"command":"SELECT","rowCount":1,"columns":[["relkind",18]],"rows":[["r"]]}},
       {"sql":"\n    select ic.relname as name, am.amname as method, (i.indpred is not null) as partial, a.attname::text as column,\n      pg_get_indexdef(i.indexrelid, k.ord::int, true) as definition, oc.opcname::text as opclass\n    from pg_index i\n    join pg_class ic on ic.oid = i.indexrelid\n    join pg_am am on am.oid = ic.relam\n    cross join lateral unnest(i.indkey::int2[], i.indclass::oid[]) with ordinality k(attnum, opclass, ord)\n    left join pg_attribute a on a.attrelid = i.indrelid and a.attnum = k.attnum and k.attnum > 0\n    join pg_opclass oc on oc.oid = k.opclass\n    where i.indrelid = to_regclass($1) and i.indisvalid and i.indisready and k.ord <= i.indnkeyatts\n    order by ic.relname, k.ord\n  ","params":["\"todos\""],"result":{"command":"SELECT","rowCount":13,"columns":[["name",19],["method",19],["partial",16],["column",25],["definition",25],["opclass",25]],"rows":[
@@ -38,7 +38,7 @@
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
     ]
   },
-  "/rest/v1 answers as PostgREST does > alice reads her own todos only": {
+  "/api/sb/rest/v1 answers as PostgREST does > alice reads her own todos only": {
     "(hooks)#0": [
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select set_config($1, $2, true), set_config($3, $4, true), set_config($5, $6, true), set_config($7, $8, true)","params":["statement_timeout","15000","role","authenticated","request.jwt.claims","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","request.jwt.claim.sub","1a1a1a1a-0000-0000-0000-000000000001"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25],["set_config",25],["set_config",25],["set_config",25]],"rows":[["15s","authenticated","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","1a1a1a1a-0000-0000-0000-000000000001"]]}},
@@ -47,7 +47,7 @@
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
     ]
   },
-  "/rest/v1 answers as PostgREST does > eq": {
+  "/api/sb/rest/v1 answers as PostgREST does > eq": {
     "(hooks)#0": [
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select set_config($1, $2, true), set_config($3, $4, true), set_config($5, $6, true), set_config($7, $8, true)","params":["statement_timeout","15000","role","authenticated","request.jwt.claims","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","request.jwt.claim.sub","1a1a1a1a-0000-0000-0000-000000000001"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25],["set_config",25],["set_config",25],["set_config",25]],"rows":[["15s","authenticated","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","1a1a1a1a-0000-0000-0000-000000000001"]]}},
@@ -56,7 +56,7 @@
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
     ]
   },
-  "/rest/v1 answers as PostgREST does > neq": {
+  "/api/sb/rest/v1 answers as PostgREST does > neq": {
     "(hooks)#0": [
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select set_config($1, $2, true), set_config($3, $4, true), set_config($5, $6, true), set_config($7, $8, true)","params":["statement_timeout","15000","role","authenticated","request.jwt.claims","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","request.jwt.claim.sub","1a1a1a1a-0000-0000-0000-000000000001"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25],["set_config",25],["set_config",25],["set_config",25]],"rows":[["15s","authenticated","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","1a1a1a1a-0000-0000-0000-000000000001"]]}},
@@ -65,7 +65,7 @@
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
     ]
   },
-  "/rest/v1 answers as PostgREST does > gt and lte": {
+  "/api/sb/rest/v1 answers as PostgREST does > gt and lte": {
     "(hooks)#0": [
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select set_config($1, $2, true), set_config($3, $4, true), set_config($5, $6, true), set_config($7, $8, true)","params":["statement_timeout","15000","role","authenticated","request.jwt.claims","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","request.jwt.claim.sub","1a1a1a1a-0000-0000-0000-000000000001"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25],["set_config",25],["set_config",25],["set_config",25]],"rows":[["15s","authenticated","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","1a1a1a1a-0000-0000-0000-000000000001"]]}},
@@ -74,7 +74,7 @@
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
     ]
   },
-  "/rest/v1 answers as PostgREST does > gte and lt on a date": {
+  "/api/sb/rest/v1 answers as PostgREST does > gte and lt on a date": {
     "(hooks)#0": [
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select set_config($1, $2, true), set_config($3, $4, true), set_config($5, $6, true), set_config($7, $8, true)","params":["statement_timeout","15000","role","authenticated","request.jwt.claims","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","request.jwt.claim.sub","1a1a1a1a-0000-0000-0000-000000000001"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25],["set_config",25],["set_config",25],["set_config",25]],"rows":[["15s","authenticated","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","1a1a1a1a-0000-0000-0000-000000000001"]]}},
@@ -83,7 +83,7 @@
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
     ]
   },
-  "/rest/v1 answers as PostgREST does > like with stars": {
+  "/api/sb/rest/v1 answers as PostgREST does > like with stars": {
     "(hooks)#0": [
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select set_config($1, $2, true), set_config($3, $4, true), set_config($5, $6, true), set_config($7, $8, true)","params":["statement_timeout","15000","role","authenticated","request.jwt.claims","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","request.jwt.claim.sub","1a1a1a1a-0000-0000-0000-000000000001"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25],["set_config",25],["set_config",25],["set_config",25]],"rows":[["15s","authenticated","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","1a1a1a1a-0000-0000-0000-000000000001"]]}},
@@ -92,7 +92,7 @@
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
     ]
   },
-  "/rest/v1 answers as PostgREST does > ilike": {
+  "/api/sb/rest/v1 answers as PostgREST does > ilike": {
     "(hooks)#0": [
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select set_config($1, $2, true), set_config($3, $4, true), set_config($5, $6, true), set_config($7, $8, true)","params":["statement_timeout","15000","role","authenticated","request.jwt.claims","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","request.jwt.claim.sub","1a1a1a1a-0000-0000-0000-000000000001"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25],["set_config",25],["set_config",25],["set_config",25]],"rows":[["15s","authenticated","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","1a1a1a1a-0000-0000-0000-000000000001"]]}},
@@ -101,7 +101,7 @@
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
     ]
   },
-  "/rest/v1 answers as PostgREST does > match and imatch": {
+  "/api/sb/rest/v1 answers as PostgREST does > match and imatch": {
     "(hooks)#0": [
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select set_config($1, $2, true), set_config($3, $4, true), set_config($5, $6, true), set_config($7, $8, true)","params":["statement_timeout","15000","role","authenticated","request.jwt.claims","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","request.jwt.claim.sub","1a1a1a1a-0000-0000-0000-000000000001"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25],["set_config",25],["set_config",25],["set_config",25]],"rows":[["15s","authenticated","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","1a1a1a1a-0000-0000-0000-000000000001"]]}},
@@ -110,7 +110,7 @@
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
     ]
   },
-  "/rest/v1 answers as PostgREST does > in with a quoted value": {
+  "/api/sb/rest/v1 answers as PostgREST does > in with a quoted value": {
     "(hooks)#0": [
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select set_config($1, $2, true), set_config($3, $4, true), set_config($5, $6, true), set_config($7, $8, true)","params":["statement_timeout","15000","role","authenticated","request.jwt.claims","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","request.jwt.claim.sub","1a1a1a1a-0000-0000-0000-000000000001"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25],["set_config",25],["set_config",25],["set_config",25]],"rows":[["15s","authenticated","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","1a1a1a1a-0000-0000-0000-000000000001"]]}},
@@ -119,7 +119,7 @@
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
     ]
   },
-  "/rest/v1 answers as PostgREST does > in with nothing": {
+  "/api/sb/rest/v1 answers as PostgREST does > in with nothing": {
     "(hooks)#0": [
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select set_config($1, $2, true), set_config($3, $4, true), set_config($5, $6, true), set_config($7, $8, true)","params":["statement_timeout","15000","role","authenticated","request.jwt.claims","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","request.jwt.claim.sub","1a1a1a1a-0000-0000-0000-000000000001"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25],["set_config",25],["set_config",25],["set_config",25]],"rows":[["15s","authenticated","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","1a1a1a1a-0000-0000-0000-000000000001"]]}},
@@ -128,7 +128,7 @@
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
     ]
   },
-  "/rest/v1 answers as PostgREST does > is null": {
+  "/api/sb/rest/v1 answers as PostgREST does > is null": {
     "(hooks)#0": [
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select set_config($1, $2, true), set_config($3, $4, true), set_config($5, $6, true), set_config($7, $8, true)","params":["statement_timeout","15000","role","authenticated","request.jwt.claims","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","request.jwt.claim.sub","1a1a1a1a-0000-0000-0000-000000000001"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25],["set_config",25],["set_config",25],["set_config",25]],"rows":[["15s","authenticated","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","1a1a1a1a-0000-0000-0000-000000000001"]]}},
@@ -137,7 +137,7 @@
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
     ]
   },
-  "/rest/v1 answers as PostgREST does > is true and is false": {
+  "/api/sb/rest/v1 answers as PostgREST does > is true and is false": {
     "(hooks)#0": [
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select set_config($1, $2, true), set_config($3, $4, true), set_config($5, $6, true), set_config($7, $8, true)","params":["statement_timeout","15000","role","authenticated","request.jwt.claims","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","request.jwt.claim.sub","1a1a1a1a-0000-0000-0000-000000000001"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25],["set_config",25],["set_config",25],["set_config",25]],"rows":[["15s","authenticated","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","1a1a1a1a-0000-0000-0000-000000000001"]]}},
@@ -146,7 +146,7 @@
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
     ]
   },
-  "/rest/v1 answers as PostgREST does > not.is.null": {
+  "/api/sb/rest/v1 answers as PostgREST does > not.is.null": {
     "(hooks)#0": [
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select set_config($1, $2, true), set_config($3, $4, true), set_config($5, $6, true), set_config($7, $8, true)","params":["statement_timeout","15000","role","authenticated","request.jwt.claims","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","request.jwt.claim.sub","1a1a1a1a-0000-0000-0000-000000000001"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25],["set_config",25],["set_config",25],["set_config",25]],"rows":[["15s","authenticated","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","1a1a1a1a-0000-0000-0000-000000000001"]]}},
@@ -155,7 +155,7 @@
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
     ]
   },
-  "/rest/v1 answers as PostgREST does > isdistinct": {
+  "/api/sb/rest/v1 answers as PostgREST does > isdistinct": {
     "(hooks)#0": [
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select set_config($1, $2, true), set_config($3, $4, true), set_config($5, $6, true), set_config($7, $8, true)","params":["statement_timeout","15000","role","authenticated","request.jwt.claims","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","request.jwt.claim.sub","1a1a1a1a-0000-0000-0000-000000000001"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25],["set_config",25],["set_config",25],["set_config",25]],"rows":[["15s","authenticated","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","1a1a1a1a-0000-0000-0000-000000000001"]]}},
@@ -164,7 +164,7 @@
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
     ]
   },
-  "/rest/v1 answers as PostgREST does > not.eq": {
+  "/api/sb/rest/v1 answers as PostgREST does > not.eq": {
     "(hooks)#0": [
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select set_config($1, $2, true), set_config($3, $4, true), set_config($5, $6, true), set_config($7, $8, true)","params":["statement_timeout","15000","role","authenticated","request.jwt.claims","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","request.jwt.claim.sub","1a1a1a1a-0000-0000-0000-000000000001"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25],["set_config",25],["set_config",25],["set_config",25]],"rows":[["15s","authenticated","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","1a1a1a1a-0000-0000-0000-000000000001"]]}},
@@ -173,7 +173,7 @@
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
     ]
   },
-  "/rest/v1 answers as PostgREST does > fts with a language": {
+  "/api/sb/rest/v1 answers as PostgREST does > fts with a language": {
     "(hooks)#0": [
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select set_config($1, $2, true), set_config($3, $4, true), set_config($5, $6, true), set_config($7, $8, true)","params":["statement_timeout","15000","role","authenticated","request.jwt.claims","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","request.jwt.claim.sub","1a1a1a1a-0000-0000-0000-000000000001"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25],["set_config",25],["set_config",25],["set_config",25]],"rows":[["15s","authenticated","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","1a1a1a1a-0000-0000-0000-000000000001"]]}},
@@ -182,7 +182,7 @@
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
     ]
   },
-  "/rest/v1 answers as PostgREST does > plfts": {
+  "/api/sb/rest/v1 answers as PostgREST does > plfts": {
     "(hooks)#0": [
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select set_config($1, $2, true), set_config($3, $4, true), set_config($5, $6, true), set_config($7, $8, true)","params":["statement_timeout","15000","role","authenticated","request.jwt.claims","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","request.jwt.claim.sub","1a1a1a1a-0000-0000-0000-000000000001"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25],["set_config",25],["set_config",25],["set_config",25]],"rows":[["15s","authenticated","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","1a1a1a1a-0000-0000-0000-000000000001"]]}},
@@ -191,7 +191,7 @@
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
     ]
   },
-  "/rest/v1 answers as PostgREST does > phfts": {
+  "/api/sb/rest/v1 answers as PostgREST does > phfts": {
     "(hooks)#0": [
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select set_config($1, $2, true), set_config($3, $4, true), set_config($5, $6, true), set_config($7, $8, true)","params":["statement_timeout","15000","role","authenticated","request.jwt.claims","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","request.jwt.claim.sub","1a1a1a1a-0000-0000-0000-000000000001"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25],["set_config",25],["set_config",25],["set_config",25]],"rows":[["15s","authenticated","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","1a1a1a1a-0000-0000-0000-000000000001"]]}},
@@ -200,7 +200,7 @@
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
     ]
   },
-  "/rest/v1 answers as PostgREST does > wfts": {
+  "/api/sb/rest/v1 answers as PostgREST does > wfts": {
     "(hooks)#0": [
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select set_config($1, $2, true), set_config($3, $4, true), set_config($5, $6, true), set_config($7, $8, true)","params":["statement_timeout","15000","role","authenticated","request.jwt.claims","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","request.jwt.claim.sub","1a1a1a1a-0000-0000-0000-000000000001"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25],["set_config",25],["set_config",25],["set_config",25]],"rows":[["15s","authenticated","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","1a1a1a1a-0000-0000-0000-000000000001"]]}},
@@ -209,7 +209,7 @@
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
     ]
   },
-  "/rest/v1 answers as PostgREST does > cs on an array": {
+  "/api/sb/rest/v1 answers as PostgREST does > cs on an array": {
     "(hooks)#0": [
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select set_config($1, $2, true), set_config($3, $4, true), set_config($5, $6, true), set_config($7, $8, true)","params":["statement_timeout","15000","role","authenticated","request.jwt.claims","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","request.jwt.claim.sub","1a1a1a1a-0000-0000-0000-000000000001"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25],["set_config",25],["set_config",25],["set_config",25]],"rows":[["15s","authenticated","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","1a1a1a1a-0000-0000-0000-000000000001"]]}},
@@ -218,7 +218,7 @@
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
     ]
   },
-  "/rest/v1 answers as PostgREST does > cd on an array": {
+  "/api/sb/rest/v1 answers as PostgREST does > cd on an array": {
     "(hooks)#0": [
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select set_config($1, $2, true), set_config($3, $4, true), set_config($5, $6, true), set_config($7, $8, true)","params":["statement_timeout","15000","role","authenticated","request.jwt.claims","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","request.jwt.claim.sub","1a1a1a1a-0000-0000-0000-000000000001"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25],["set_config",25],["set_config",25],["set_config",25]],"rows":[["15s","authenticated","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","1a1a1a1a-0000-0000-0000-000000000001"]]}},
@@ -227,7 +227,7 @@
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
     ]
   },
-  "/rest/v1 answers as PostgREST does > ov on an array": {
+  "/api/sb/rest/v1 answers as PostgREST does > ov on an array": {
     "(hooks)#0": [
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select set_config($1, $2, true), set_config($3, $4, true), set_config($5, $6, true), set_config($7, $8, true)","params":["statement_timeout","15000","role","authenticated","request.jwt.claims","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","request.jwt.claim.sub","1a1a1a1a-0000-0000-0000-000000000001"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25],["set_config",25],["set_config",25],["set_config",25]],"rows":[["15s","authenticated","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","1a1a1a1a-0000-0000-0000-000000000001"]]}},
@@ -236,7 +236,7 @@
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
     ]
   },
-  "/rest/v1 answers as PostgREST does > cs on JSON": {
+  "/api/sb/rest/v1 answers as PostgREST does > cs on JSON": {
     "(hooks)#0": [
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select set_config($1, $2, true), set_config($3, $4, true), set_config($5, $6, true), set_config($7, $8, true)","params":["statement_timeout","15000","role","authenticated","request.jwt.claims","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","request.jwt.claim.sub","1a1a1a1a-0000-0000-0000-000000000001"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25],["set_config",25],["set_config",25],["set_config",25]],"rows":[["15s","authenticated","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","1a1a1a1a-0000-0000-0000-000000000001"]]}},
@@ -245,7 +245,7 @@
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
     ]
   },
-  "/rest/v1 answers as PostgREST does > range operators": {
+  "/api/sb/rest/v1 answers as PostgREST does > range operators": {
     "(hooks)#0": [
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select set_config($1, $2, true), set_config($3, $4, true), set_config($5, $6, true), set_config($7, $8, true)","params":["statement_timeout","15000","role","authenticated","request.jwt.claims","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","request.jwt.claim.sub","1a1a1a1a-0000-0000-0000-000000000001"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25],["set_config",25],["set_config",25],["set_config",25]],"rows":[["15s","authenticated","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","1a1a1a1a-0000-0000-0000-000000000001"]]}},
@@ -254,7 +254,7 @@
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
     ]
   },
-  "/rest/v1 answers as PostgREST does > adj": {
+  "/api/sb/rest/v1 answers as PostgREST does > adj": {
     "(hooks)#0": [
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select set_config($1, $2, true), set_config($3, $4, true), set_config($5, $6, true), set_config($7, $8, true)","params":["statement_timeout","15000","role","authenticated","request.jwt.claims","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","request.jwt.claim.sub","1a1a1a1a-0000-0000-0000-000000000001"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25],["set_config",25],["set_config",25],["set_config",25]],"rows":[["15s","authenticated","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","1a1a1a1a-0000-0000-0000-000000000001"]]}},
@@ -263,7 +263,7 @@
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
     ]
   },
-  "/rest/v1 answers as PostgREST does > nxr and nxl": {
+  "/api/sb/rest/v1 answers as PostgREST does > nxr and nxl": {
     "(hooks)#0": [
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select set_config($1, $2, true), set_config($3, $4, true), set_config($5, $6, true), set_config($7, $8, true)","params":["statement_timeout","15000","role","authenticated","request.jwt.claims","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","request.jwt.claim.sub","1a1a1a1a-0000-0000-0000-000000000001"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25],["set_config",25],["set_config",25],["set_config",25]],"rows":[["15s","authenticated","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","1a1a1a1a-0000-0000-0000-000000000001"]]}},
@@ -272,7 +272,7 @@
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
     ]
   },
-  "/rest/v1 answers as PostgREST does > a filter on a JSON path": {
+  "/api/sb/rest/v1 answers as PostgREST does > a filter on a JSON path": {
     "(hooks)#0": [
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select set_config($1, $2, true), set_config($3, $4, true), set_config($5, $6, true), set_config($7, $8, true)","params":["statement_timeout","15000","role","authenticated","request.jwt.claims","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","request.jwt.claim.sub","1a1a1a1a-0000-0000-0000-000000000001"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25],["set_config",25],["set_config",25],["set_config",25]],"rows":[["15s","authenticated","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","1a1a1a1a-0000-0000-0000-000000000001"]]}},
@@ -281,7 +281,7 @@
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
     ]
   },
-  "/rest/v1 answers as PostgREST does > eq(any)": {
+  "/api/sb/rest/v1 answers as PostgREST does > eq(any)": {
     "(hooks)#0": [
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select set_config($1, $2, true), set_config($3, $4, true), set_config($5, $6, true), set_config($7, $8, true)","params":["statement_timeout","15000","role","authenticated","request.jwt.claims","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","request.jwt.claim.sub","1a1a1a1a-0000-0000-0000-000000000001"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25],["set_config",25],["set_config",25],["set_config",25]],"rows":[["15s","authenticated","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","1a1a1a1a-0000-0000-0000-000000000001"]]}},
@@ -290,7 +290,7 @@
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
     ]
   },
-  "/rest/v1 answers as PostgREST does > like(all)": {
+  "/api/sb/rest/v1 answers as PostgREST does > like(all)": {
     "(hooks)#0": [
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select set_config($1, $2, true), set_config($3, $4, true), set_config($5, $6, true), set_config($7, $8, true)","params":["statement_timeout","15000","role","authenticated","request.jwt.claims","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","request.jwt.claim.sub","1a1a1a1a-0000-0000-0000-000000000001"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25],["set_config",25],["set_config",25],["set_config",25]],"rows":[["15s","authenticated","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","1a1a1a1a-0000-0000-0000-000000000001"]]}},
@@ -299,7 +299,7 @@
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
     ]
   },
-  "/rest/v1 answers as PostgREST does > or": {
+  "/api/sb/rest/v1 answers as PostgREST does > or": {
     "(hooks)#0": [
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select set_config($1, $2, true), set_config($3, $4, true), set_config($5, $6, true), set_config($7, $8, true)","params":["statement_timeout","15000","role","authenticated","request.jwt.claims","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","request.jwt.claim.sub","1a1a1a1a-0000-0000-0000-000000000001"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25],["set_config",25],["set_config",25],["set_config",25]],"rows":[["15s","authenticated","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","1a1a1a1a-0000-0000-0000-000000000001"]]}},
@@ -308,7 +308,7 @@
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
     ]
   },
-  "/rest/v1 answers as PostgREST does > or with nested and, not and quoted values": {
+  "/api/sb/rest/v1 answers as PostgREST does > or with nested and, not and quoted values": {
     "(hooks)#0": [
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select set_config($1, $2, true), set_config($3, $4, true), set_config($5, $6, true), set_config($7, $8, true)","params":["statement_timeout","15000","role","authenticated","request.jwt.claims","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","request.jwt.claim.sub","1a1a1a1a-0000-0000-0000-000000000001"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25],["set_config",25],["set_config",25],["set_config",25]],"rows":[["15s","authenticated","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","1a1a1a1a-0000-0000-0000-000000000001"]]}},
@@ -317,7 +317,7 @@
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
     ]
   },
-  "/rest/v1 answers as PostgREST does > not.or beside a filter": {
+  "/api/sb/rest/v1 answers as PostgREST does > not.or beside a filter": {
     "(hooks)#0": [
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select set_config($1, $2, true), set_config($3, $4, true), set_config($5, $6, true), set_config($7, $8, true)","params":["statement_timeout","15000","role","authenticated","request.jwt.claims","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","request.jwt.claim.sub","1a1a1a1a-0000-0000-0000-000000000001"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25],["set_config",25],["set_config",25],["set_config",25]],"rows":[["15s","authenticated","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","1a1a1a1a-0000-0000-0000-000000000001"]]}},
@@ -326,7 +326,7 @@
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
     ]
   },
-  "/rest/v1 answers as PostgREST does > and with in": {
+  "/api/sb/rest/v1 answers as PostgREST does > and with in": {
     "(hooks)#0": [
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select set_config($1, $2, true), set_config($3, $4, true), set_config($5, $6, true), set_config($7, $8, true)","params":["statement_timeout","15000","role","authenticated","request.jwt.claims","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","request.jwt.claim.sub","1a1a1a1a-0000-0000-0000-000000000001"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25],["set_config",25],["set_config",25],["set_config",25]],"rows":[["15s","authenticated","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","1a1a1a1a-0000-0000-0000-000000000001"]]}},
@@ -335,7 +335,7 @@
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
     ]
   },
-  "/rest/v1 answers as PostgREST does > aliases and casts": {
+  "/api/sb/rest/v1 answers as PostgREST does > aliases and casts": {
     "(hooks)#0": [
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select set_config($1, $2, true), set_config($3, $4, true), set_config($5, $6, true), set_config($7, $8, true)","params":["statement_timeout","15000","role","authenticated","request.jwt.claims","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","request.jwt.claim.sub","1a1a1a1a-0000-0000-0000-000000000001"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25],["set_config",25],["set_config",25],["set_config",25]],"rows":[["15s","authenticated","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","1a1a1a1a-0000-0000-0000-000000000001"]]}},
@@ -344,7 +344,7 @@
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
     ]
   },
-  "/rest/v1 answers as PostgREST does > JSON paths in select": {
+  "/api/sb/rest/v1 answers as PostgREST does > JSON paths in select": {
     "(hooks)#0": [
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select set_config($1, $2, true), set_config($3, $4, true), set_config($5, $6, true), set_config($7, $8, true)","params":["statement_timeout","15000","role","authenticated","request.jwt.claims","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","request.jwt.claim.sub","1a1a1a1a-0000-0000-0000-000000000001"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25],["set_config",25],["set_config",25],["set_config",25]],"rows":[["15s","authenticated","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","1a1a1a1a-0000-0000-0000-000000000001"]]}},
@@ -353,7 +353,7 @@
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
     ]
   },
-  "/rest/v1 answers as PostgREST does > spaces in select": {
+  "/api/sb/rest/v1 answers as PostgREST does > spaces in select": {
     "(hooks)#0": [
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select set_config($1, $2, true), set_config($3, $4, true), set_config($5, $6, true), set_config($7, $8, true)","params":["statement_timeout","15000","role","authenticated","request.jwt.claims","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","request.jwt.claim.sub","1a1a1a1a-0000-0000-0000-000000000001"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25],["set_config",25],["set_config",25],["set_config",25]],"rows":[["15s","authenticated","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","1a1a1a1a-0000-0000-0000-000000000001"]]}},
@@ -362,7 +362,7 @@
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
     ]
   },
-  "/rest/v1 answers as PostgREST does > an unknown column": {
+  "/api/sb/rest/v1 answers as PostgREST does > an unknown column": {
     "(hooks)#0": [
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select set_config($1, $2, true), set_config($3, $4, true), set_config($5, $6, true), set_config($7, $8, true)","params":["statement_timeout","15000","role","authenticated","request.jwt.claims","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","request.jwt.claim.sub","1a1a1a1a-0000-0000-0000-000000000001"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25],["set_config",25],["set_config",25],["set_config",25]],"rows":[["15s","authenticated","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","1a1a1a1a-0000-0000-0000-000000000001"]]}},
@@ -371,7 +371,7 @@
       {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}}
     ]
   },
-  "/rest/v1 answers as PostgREST does > order desc nulls last and a second column": {
+  "/api/sb/rest/v1 answers as PostgREST does > order desc nulls last and a second column": {
     "(hooks)#0": [
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select set_config($1, $2, true), set_config($3, $4, true), set_config($5, $6, true), set_config($7, $8, true)","params":["statement_timeout","15000","role","authenticated","request.jwt.claims","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","request.jwt.claim.sub","1a1a1a1a-0000-0000-0000-000000000001"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25],["set_config",25],["set_config",25],["set_config",25]],"rows":[["15s","authenticated","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","1a1a1a1a-0000-0000-0000-000000000001"]]}},
@@ -380,7 +380,7 @@
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
     ]
   },
-  "/rest/v1 answers as PostgREST does > order nulls first": {
+  "/api/sb/rest/v1 answers as PostgREST does > order nulls first": {
     "(hooks)#0": [
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select set_config($1, $2, true), set_config($3, $4, true), set_config($5, $6, true), set_config($7, $8, true)","params":["statement_timeout","15000","role","authenticated","request.jwt.claims","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","request.jwt.claim.sub","1a1a1a1a-0000-0000-0000-000000000001"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25],["set_config",25],["set_config",25],["set_config",25]],"rows":[["15s","authenticated","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","1a1a1a1a-0000-0000-0000-000000000001"]]}},
@@ -389,7 +389,7 @@
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
     ]
   },
-  "/rest/v1 answers as PostgREST does > limit and offset": {
+  "/api/sb/rest/v1 answers as PostgREST does > limit and offset": {
     "(hooks)#0": [
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select set_config($1, $2, true), set_config($3, $4, true), set_config($5, $6, true), set_config($7, $8, true)","params":["statement_timeout","15000","role","authenticated","request.jwt.claims","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","request.jwt.claim.sub","1a1a1a1a-0000-0000-0000-000000000001"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25],["set_config",25],["set_config",25],["set_config",25]],"rows":[["15s","authenticated","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","1a1a1a1a-0000-0000-0000-000000000001"]]}},
@@ -398,7 +398,7 @@
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
     ]
   },
-  "/rest/v1 answers as PostgREST does > a Range header": {
+  "/api/sb/rest/v1 answers as PostgREST does > a Range header": {
     "(hooks)#0": [
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select set_config($1, $2, true), set_config($3, $4, true), set_config($5, $6, true), set_config($7, $8, true)","params":["statement_timeout","15000","role","authenticated","request.jwt.claims","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","request.jwt.claim.sub","1a1a1a1a-0000-0000-0000-000000000001"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25],["set_config",25],["set_config",25],["set_config",25]],"rows":[["15s","authenticated","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","1a1a1a1a-0000-0000-0000-000000000001"]]}},
@@ -407,7 +407,7 @@
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
     ]
   },
-  "/rest/v1 answers as PostgREST does > an open Range header": {
+  "/api/sb/rest/v1 answers as PostgREST does > an open Range header": {
     "(hooks)#0": [
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select set_config($1, $2, true), set_config($3, $4, true), set_config($5, $6, true), set_config($7, $8, true)","params":["statement_timeout","15000","role","authenticated","request.jwt.claims","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","request.jwt.claim.sub","1a1a1a1a-0000-0000-0000-000000000001"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25],["set_config",25],["set_config",25],["set_config",25]],"rows":[["15s","authenticated","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","1a1a1a1a-0000-0000-0000-000000000001"]]}},
@@ -416,7 +416,7 @@
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
     ]
   },
-  "/rest/v1 answers as PostgREST does > count=exact over a page": {
+  "/api/sb/rest/v1 answers as PostgREST does > count=exact over a page": {
     "(hooks)#0": [
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select set_config($1, $2, true), set_config($3, $4, true), set_config($5, $6, true), set_config($7, $8, true)","params":["statement_timeout","15000","role","authenticated","request.jwt.claims","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","request.jwt.claim.sub","1a1a1a1a-0000-0000-0000-000000000001"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25],["set_config",25],["set_config",25],["set_config",25]],"rows":[["15s","authenticated","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","1a1a1a1a-0000-0000-0000-000000000001"]]}},
@@ -425,7 +425,7 @@
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
     ]
   },
-  "/rest/v1 answers as PostgREST does > count=exact over all rows": {
+  "/api/sb/rest/v1 answers as PostgREST does > count=exact over all rows": {
     "(hooks)#0": [
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select set_config($1, $2, true), set_config($3, $4, true), set_config($5, $6, true), set_config($7, $8, true)","params":["statement_timeout","15000","role","authenticated","request.jwt.claims","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","request.jwt.claim.sub","1a1a1a1a-0000-0000-0000-000000000001"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25],["set_config",25],["set_config",25],["set_config",25]],"rows":[["15s","authenticated","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","1a1a1a1a-0000-0000-0000-000000000001"]]}},
@@ -434,7 +434,7 @@
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
     ]
   },
-  "/rest/v1 answers as PostgREST does > count=exact past the end": {
+  "/api/sb/rest/v1 answers as PostgREST does > count=exact past the end": {
     "(hooks)#0": [
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select set_config($1, $2, true), set_config($3, $4, true), set_config($5, $6, true), set_config($7, $8, true)","params":["statement_timeout","15000","role","authenticated","request.jwt.claims","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","request.jwt.claim.sub","1a1a1a1a-0000-0000-0000-000000000001"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25],["set_config",25],["set_config",25],["set_config",25]],"rows":[["15s","authenticated","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","1a1a1a1a-0000-0000-0000-000000000001"]]}},
@@ -443,7 +443,7 @@
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
     ]
   },
-  "/rest/v1 answers as PostgREST does > count=exact with HEAD": {
+  "/api/sb/rest/v1 answers as PostgREST does > count=exact with HEAD": {
     "(hooks)#0": [
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select set_config($1, $2, true), set_config($3, $4, true), set_config($5, $6, true), set_config($7, $8, true)","params":["statement_timeout","15000","role","authenticated","request.jwt.claims","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","request.jwt.claim.sub","1a1a1a1a-0000-0000-0000-000000000001"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25],["set_config",25],["set_config",25],["set_config",25]],"rows":[["15s","authenticated","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","1a1a1a1a-0000-0000-0000-000000000001"]]}},
@@ -452,7 +452,7 @@
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
     ]
   },
-  "/rest/v1 answers as PostgREST does > count=planned": {
+  "/api/sb/rest/v1 answers as PostgREST does > count=planned": {
     "(hooks)#0": [
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select set_config($1, $2, true), set_config($3, $4, true)","params":["statement_timeout","15000","request.jwt.claims","{\"role\":\"service_role\"}"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25],["set_config",25]],"rows":[["15s","{\"role\":\"service_role\"}"]]}},
@@ -462,7 +462,7 @@
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
     ]
   },
-  "/rest/v1 answers as PostgREST does > count=estimated": {
+  "/api/sb/rest/v1 answers as PostgREST does > count=estimated": {
     "(hooks)#0": [
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select set_config($1, $2, true), set_config($3, $4, true)","params":["statement_timeout","15000","request.jwt.claims","{\"role\":\"service_role\"}"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25],["set_config",25]],"rows":[["15s","{\"role\":\"service_role\"}"]]}},
@@ -471,7 +471,7 @@
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
     ]
   },
-  "/rest/v1 answers as PostgREST does > one row as an object": {
+  "/api/sb/rest/v1 answers as PostgREST does > one row as an object": {
     "(hooks)#0": [
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select set_config($1, $2, true), set_config($3, $4, true), set_config($5, $6, true), set_config($7, $8, true)","params":["statement_timeout","15000","role","authenticated","request.jwt.claims","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","request.jwt.claim.sub","1a1a1a1a-0000-0000-0000-000000000001"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25],["set_config",25],["set_config",25],["set_config",25]],"rows":[["15s","authenticated","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","1a1a1a1a-0000-0000-0000-000000000001"]]}},
@@ -480,7 +480,7 @@
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
     ]
   },
-  "/rest/v1 answers as PostgREST does > no row as an object": {
+  "/api/sb/rest/v1 answers as PostgREST does > no row as an object": {
     "(hooks)#0": [
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select set_config($1, $2, true), set_config($3, $4, true), set_config($5, $6, true), set_config($7, $8, true)","params":["statement_timeout","15000","role","authenticated","request.jwt.claims","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","request.jwt.claim.sub","1a1a1a1a-0000-0000-0000-000000000001"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25],["set_config",25],["set_config",25],["set_config",25]],"rows":[["15s","authenticated","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","1a1a1a1a-0000-0000-0000-000000000001"]]}},
@@ -489,7 +489,7 @@
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
     ]
   },
-  "/rest/v1 answers as PostgREST does > several rows as an object": {
+  "/api/sb/rest/v1 answers as PostgREST does > several rows as an object": {
     "(hooks)#0": [
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select set_config($1, $2, true), set_config($3, $4, true), set_config($5, $6, true), set_config($7, $8, true)","params":["statement_timeout","15000","role","authenticated","request.jwt.claims","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","request.jwt.claim.sub","1a1a1a1a-0000-0000-0000-000000000001"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25],["set_config",25],["set_config",25],["set_config",25]],"rows":[["15s","authenticated","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","1a1a1a1a-0000-0000-0000-000000000001"]]}},
@@ -498,7 +498,7 @@
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
     ]
   },
-  "/rest/v1 answers as PostgREST does > a value of the wrong type": {
+  "/api/sb/rest/v1 answers as PostgREST does > a value of the wrong type": {
     "(hooks)#0": [
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select set_config($1, $2, true), set_config($3, $4, true), set_config($5, $6, true), set_config($7, $8, true)","params":["statement_timeout","15000","role","authenticated","request.jwt.claims","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","request.jwt.claim.sub","1a1a1a1a-0000-0000-0000-000000000001"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25],["set_config",25],["set_config",25],["set_config",25]],"rows":[["15s","authenticated","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","1a1a1a1a-0000-0000-0000-000000000001"]]}},
@@ -507,7 +507,7 @@
       {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}}
     ]
   },
-  "/rest/v1 answers as PostgREST does > many-to-one": {
+  "/api/sb/rest/v1 answers as PostgREST does > many-to-one": {
     "(hooks)#0": [
       {"sql":"\n    select c.conname::text as name, s.relname::text as table, t.relname::text as \"foreignTable\",\n      array(select a.attname::text from unnest(c.conkey) with ordinality k(attnum, ord) join pg_attribute a on a.attrelid = c.conrelid and a.attnum = k.attnum order by k.ord) as columns,\n      array(select a.attname::text from unnest(c.confkey) with ordinality k(attnum, ord) join pg_attribute a on a.attrelid = c.confrelid and a.attnum = k.attnum order by k.ord) as \"foreignColumns\",\n      exists (select 1 from pg_constraint u where u.conrelid = c.conrelid and u.contype in ('p', 'u') and u.conkey @> c.conkey and u.conkey <@ c.conkey) as unique\n    from pg_constraint c\n    join pg_class s on s.oid = c.conrelid\n    join pg_class t on t.oid = c.confrelid\n    where c.contype = 'f' and s.relnamespace = 'public'::regnamespace and t.relnamespace = 'public'::regnamespace\n    order by c.conname\n  ","result":{"command":"SELECT","rowCount":7,"columns":[["name",25],["table",25],["foreignTable",25],["columns",1009],["foreignColumns",1009],["unique",16]],"rows":[
         ["attachments_comment_id_fkey","attachments","comments","{comment_id}","{id}","f"],
@@ -525,7 +525,7 @@
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
     ]
   },
-  "/rest/v1 answers as PostgREST does > many-to-one with an alias and every column": {
+  "/api/sb/rest/v1 answers as PostgREST does > many-to-one with an alias and every column": {
     "(hooks)#0": [
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select set_config($1, $2, true), set_config($3, $4, true), set_config($5, $6, true), set_config($7, $8, true)","params":["statement_timeout","15000","role","authenticated","request.jwt.claims","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","request.jwt.claim.sub","1a1a1a1a-0000-0000-0000-000000000001"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25],["set_config",25],["set_config",25],["set_config",25]],"rows":[["15s","authenticated","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","1a1a1a1a-0000-0000-0000-000000000001"]]}},
@@ -534,7 +534,7 @@
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
     ]
   },
-  "/rest/v1 answers as PostgREST does > one-to-many under RLS": {
+  "/api/sb/rest/v1 answers as PostgREST does > one-to-many under RLS": {
     "(hooks)#0": [
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select set_config($1, $2, true), set_config($3, $4, true), set_config($5, $6, true), set_config($7, $8, true)","params":["statement_timeout","15000","role","authenticated","request.jwt.claims","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","request.jwt.claim.sub","1a1a1a1a-0000-0000-0000-000000000001"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25],["set_config",25],["set_config",25],["set_config",25]],"rows":[["15s","authenticated","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","1a1a1a1a-0000-0000-0000-000000000001"]]}},
@@ -543,7 +543,7 @@
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
     ]
   },
-  "/rest/v1 answers as PostgREST does > one-to-many as anon": {
+  "/api/sb/rest/v1 answers as PostgREST does > one-to-many as anon": {
     "(hooks)#0": [
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select set_config($1, $2, true), set_config($3, $4, true), set_config($5, $6, true)","params":["statement_timeout","15000","role","anon","request.jwt.claims","{\"role\":\"anon\"}"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25],["set_config",25],["set_config",25]],"rows":[["15s","anon","{\"role\":\"anon\"}"]]}},
@@ -552,7 +552,7 @@
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
     ]
   },
-  "/rest/v1 answers as PostgREST does > nested embeds": {
+  "/api/sb/rest/v1 answers as PostgREST does > nested embeds": {
     "(hooks)#0": [
       {"sql":"select relkind from pg_class where oid = to_regclass($1)","params":["\"comments\""],"result":{"command":"SELECT","rowCount":1,"columns":[["relkind",18]],"rows":[["r"]]}},
       {"sql":"\n    select ic.relname as name, am.amname as method, (i.indpred is not null) as partial, a.attname::text as column,\n      pg_get_indexdef(i.indexrelid, k.ord::int, true) as definition, oc.opcname::text as opclass\n    from pg_index i\n    join pg_class ic on ic.oid = i.indexrelid\n    join pg_am am on am.oid = ic.relam\n    cross join lateral unnest(i.indkey::int2[], i.indclass::oid[]) with ordinality k(attnum, opclass, ord)\n    left join pg_attribute a on a.attrelid = i.indrelid and a.attnum = k.attnum and k.attnum > 0\n    join pg_opclass oc on oc.oid = k.opclass\n    where i.indrelid = to_regclass($1) and i.indisvalid and i.indisready and k.ord <= i.indnkeyatts\n    order by ic.relname, k.ord\n  ","params":["\"comments\""],"result":{"command":"SELECT","rowCount":5,"columns":[["name",19],["method",19],["partial",16],["column",25],["definition",25],["opclass",25]],"rows":[
@@ -569,7 +569,7 @@
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
     ]
   },
-  "/rest/v1 answers as PostgREST does > one-to-one from the referenced table": {
+  "/api/sb/rest/v1 answers as PostgREST does > one-to-one from the referenced table": {
     "(hooks)#0": [
       {"sql":"select relkind from pg_class where oid = to_regclass($1)","params":["\"profile_settings\""],"result":{"command":"SELECT","rowCount":1,"columns":[["relkind",18]],"rows":[["r"]]}},
       {"sql":"\n    select ic.relname as name, am.amname as method, (i.indpred is not null) as partial, a.attname::text as column,\n      pg_get_indexdef(i.indexrelid, k.ord::int, true) as definition, oc.opcname::text as opclass\n    from pg_index i\n    join pg_class ic on ic.oid = i.indexrelid\n    join pg_am am on am.oid = ic.relam\n    cross join lateral unnest(i.indkey::int2[], i.indclass::oid[]) with ordinality k(attnum, opclass, ord)\n    left join pg_attribute a on a.attrelid = i.indrelid and a.attnum = k.attnum and k.attnum > 0\n    join pg_opclass oc on oc.oid = k.opclass\n    where i.indrelid = to_regclass($1) and i.indisvalid and i.indisready and k.ord <= i.indnkeyatts\n    order by ic.relname, k.ord\n  ","params":["\"profile_settings\""],"result":{"command":"SELECT","rowCount":1,"columns":[["name",19],["method",19],["partial",16],["column",25],["definition",25],["opclass",25]],"rows":[["profile_settings_pkey","btree","f","profile_id","profile_id","uuid_ops"]]}},
@@ -580,7 +580,7 @@
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
     ]
   },
-  "/rest/v1 answers as PostgREST does > one-to-one from the referencing table": {
+  "/api/sb/rest/v1 answers as PostgREST does > one-to-one from the referencing table": {
     "(hooks)#0": [
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select set_config($1, $2, true), set_config($3, $4, true), set_config($5, $6, true)","params":["statement_timeout","15000","role","anon","request.jwt.claims","{\"role\":\"anon\"}"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25],["set_config",25],["set_config",25]],"rows":[["15s","anon","{\"role\":\"anon\"}"]]}},
@@ -589,7 +589,7 @@
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
     ]
   },
-  "/rest/v1 answers as PostgREST does > a filter on an embedded table": {
+  "/api/sb/rest/v1 answers as PostgREST does > a filter on an embedded table": {
     "(hooks)#0": [
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select set_config($1, $2, true), set_config($3, $4, true), set_config($5, $6, true), set_config($7, $8, true)","params":["statement_timeout","15000","role","authenticated","request.jwt.claims","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","request.jwt.claim.sub","1a1a1a1a-0000-0000-0000-000000000001"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25],["set_config",25],["set_config",25],["set_config",25]],"rows":[["15s","authenticated","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","1a1a1a1a-0000-0000-0000-000000000001"]]}},
@@ -598,7 +598,7 @@
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
     ]
   },
-  "/rest/v1 answers as PostgREST does > or on an embedded table": {
+  "/api/sb/rest/v1 answers as PostgREST does > or on an embedded table": {
     "(hooks)#0": [
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select set_config($1, $2, true), set_config($3, $4, true), set_config($5, $6, true), set_config($7, $8, true)","params":["statement_timeout","15000","role","authenticated","request.jwt.claims","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","request.jwt.claim.sub","1a1a1a1a-0000-0000-0000-000000000001"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25],["set_config",25],["set_config",25],["set_config",25]],"rows":[["15s","authenticated","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","1a1a1a1a-0000-0000-0000-000000000001"]]}},
@@ -607,7 +607,7 @@
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
     ]
   },
-  "/rest/v1 answers as PostgREST does > order, limit and offset on an embedded table": {
+  "/api/sb/rest/v1 answers as PostgREST does > order, limit and offset on an embedded table": {
     "(hooks)#0": [
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select set_config($1, $2, true), set_config($3, $4, true), set_config($5, $6, true), set_config($7, $8, true)","params":["statement_timeout","15000","role","authenticated","request.jwt.claims","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","request.jwt.claim.sub","1a1a1a1a-0000-0000-0000-000000000001"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25],["set_config",25],["set_config",25],["set_config",25]],"rows":[["15s","authenticated","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","1a1a1a1a-0000-0000-0000-000000000001"]]}},
@@ -616,7 +616,7 @@
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
     ]
   },
-  "/rest/v1 answers as PostgREST does > an inner embed": {
+  "/api/sb/rest/v1 answers as PostgREST does > an inner embed": {
     "(hooks)#0": [
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select set_config($1, $2, true), set_config($3, $4, true), set_config($5, $6, true), set_config($7, $8, true)","params":["statement_timeout","15000","role","authenticated","request.jwt.claims","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","request.jwt.claim.sub","1a1a1a1a-0000-0000-0000-000000000001"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25],["set_config",25],["set_config",25],["set_config",25]],"rows":[["15s","authenticated","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","1a1a1a1a-0000-0000-0000-000000000001"]]}},
@@ -625,7 +625,7 @@
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
     ]
   },
-  "/rest/v1 answers as PostgREST does > an inner many-to-one filtered through its alias": {
+  "/api/sb/rest/v1 answers as PostgREST does > an inner many-to-one filtered through its alias": {
     "(hooks)#0": [
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select set_config($1, $2, true), set_config($3, $4, true), set_config($5, $6, true), set_config($7, $8, true)","params":["statement_timeout","15000","role","authenticated","request.jwt.claims","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","request.jwt.claim.sub","1a1a1a1a-0000-0000-0000-000000000001"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25],["set_config",25],["set_config",25],["set_config",25]],"rows":[["15s","authenticated","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","1a1a1a1a-0000-0000-0000-000000000001"]]}},
@@ -634,7 +634,7 @@
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
     ]
   },
-  "/rest/v1 answers as PostgREST does > a many-to-one filtered to nothing": {
+  "/api/sb/rest/v1 answers as PostgREST does > a many-to-one filtered to nothing": {
     "(hooks)#0": [
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select set_config($1, $2, true), set_config($3, $4, true), set_config($5, $6, true), set_config($7, $8, true)","params":["statement_timeout","15000","role","authenticated","request.jwt.claims","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","request.jwt.claim.sub","1a1a1a1a-0000-0000-0000-000000000001"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25],["set_config",25],["set_config",25],["set_config",25]],"rows":[["15s","authenticated","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","1a1a1a1a-0000-0000-0000-000000000001"]]}},
@@ -643,7 +643,7 @@
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
     ]
   },
-  "/rest/v1 answers as PostgREST does > an empty embed": {
+  "/api/sb/rest/v1 answers as PostgREST does > an empty embed": {
     "(hooks)#0": [
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select set_config($1, $2, true), set_config($3, $4, true), set_config($5, $6, true), set_config($7, $8, true)","params":["statement_timeout","15000","role","authenticated","request.jwt.claims","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","request.jwt.claim.sub","1a1a1a1a-0000-0000-0000-000000000001"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25],["set_config",25],["set_config",25],["set_config",25]],"rows":[["15s","authenticated","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","1a1a1a1a-0000-0000-0000-000000000001"]]}},
@@ -652,7 +652,7 @@
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
     ]
   },
-  "/rest/v1 answers as PostgREST does > an embed as an object": {
+  "/api/sb/rest/v1 answers as PostgREST does > an embed as an object": {
     "(hooks)#0": [
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select set_config($1, $2, true), set_config($3, $4, true), set_config($5, $6, true), set_config($7, $8, true)","params":["statement_timeout","15000","role","authenticated","request.jwt.claims","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","request.jwt.claim.sub","1a1a1a1a-0000-0000-0000-000000000001"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25],["set_config",25],["set_config",25],["set_config",25]],"rows":[["15s","authenticated","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","1a1a1a1a-0000-0000-0000-000000000001"]]}},
@@ -661,7 +661,7 @@
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
     ]
   },
-  "/rest/v1 answers as PostgREST does > hints by foreign key name": {
+  "/api/sb/rest/v1 answers as PostgREST does > hints by foreign key name": {
     "(hooks)#0": [
       {"sql":"select relkind from pg_class where oid = to_regclass($1)","params":["\"messages\""],"result":{"command":"SELECT","rowCount":1,"columns":[["relkind",18]],"rows":[["r"]]}},
       {"sql":"\n    select ic.relname as name, am.amname as method, (i.indpred is not null) as partial, a.attname::text as column,\n      pg_get_indexdef(i.indexrelid, k.ord::int, true) as definition, oc.opcname::text as opclass\n    from pg_index i\n    join pg_class ic on ic.oid = i.indexrelid\n    join pg_am am on am.oid = ic.relam\n    cross join lateral unnest(i.indkey::int2[], i.indclass::oid[]) with ordinality k(attnum, opclass, ord)\n    left join pg_attribute a on a.attrelid = i.indrelid and a.attnum = k.attnum and k.attnum > 0\n    join pg_opclass oc on oc.oid = k.opclass\n    where i.indrelid = to_regclass($1) and i.indisvalid and i.indisready and k.ord <= i.indnkeyatts\n    order by ic.relname, k.ord\n  ","params":["\"messages\""],"result":{"command":"SELECT","rowCount":3,"columns":[["name",19],["method",19],["partial",16],["column",25],["definition",25],["opclass",25]],"rows":[
@@ -676,7 +676,7 @@
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
     ]
   },
-  "/rest/v1 answers as PostgREST does > a hint by column": {
+  "/api/sb/rest/v1 answers as PostgREST does > a hint by column": {
     "(hooks)#0": [
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select set_config($1, $2, true), set_config($3, $4, true), set_config($5, $6, true), set_config($7, $8, true)","params":["statement_timeout","15000","role","authenticated","request.jwt.claims","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","request.jwt.claim.sub","1a1a1a1a-0000-0000-0000-000000000001"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25],["set_config",25],["set_config",25],["set_config",25]],"rows":[["15s","authenticated","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","1a1a1a1a-0000-0000-0000-000000000001"]]}},
@@ -685,7 +685,7 @@
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
     ]
   },
-  "/rest/v1 answers as PostgREST does > a hint on a one-to-many": {
+  "/api/sb/rest/v1 answers as PostgREST does > a hint on a one-to-many": {
     "(hooks)#0": [
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select set_config($1, $2, true), set_config($3, $4, true), set_config($5, $6, true), set_config($7, $8, true)","params":["statement_timeout","15000","role","authenticated","request.jwt.claims","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","request.jwt.claim.sub","1a1a1a1a-0000-0000-0000-000000000001"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25],["set_config",25],["set_config",25],["set_config",25]],"rows":[["15s","authenticated","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","1a1a1a1a-0000-0000-0000-000000000001"]]}},
@@ -694,7 +694,7 @@
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
     ]
   },
-  "/rest/v1 answers as PostgREST does > an unknown column in an embed": {
+  "/api/sb/rest/v1 answers as PostgREST does > an unknown column in an embed": {
     "(hooks)#0": [
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select set_config($1, $2, true), set_config($3, $4, true), set_config($5, $6, true), set_config($7, $8, true)","params":["statement_timeout","15000","role","authenticated","request.jwt.claims","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","request.jwt.claim.sub","1a1a1a1a-0000-0000-0000-000000000001"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25],["set_config",25],["set_config",25],["set_config",25]],"rows":[["15s","authenticated","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","1a1a1a1a-0000-0000-0000-000000000001"]]}},
@@ -703,7 +703,7 @@
       {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}}
     ]
   },
-  "/rest/v1 answers as PostgREST does > insert one and return it": {
+  "/api/sb/rest/v1 answers as PostgREST does > insert one and return it": {
     "(hooks)#0": [
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select set_config($1, $2, true), set_config($3, $4, true), set_config($5, $6, true), set_config($7, $8, true)","params":["statement_timeout","15000","role","authenticated","request.jwt.claims","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","request.jwt.claim.sub","1a1a1a1a-0000-0000-0000-000000000001"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25],["set_config",25],["set_config",25],["set_config",25]],"rows":[["15s","authenticated","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","1a1a1a1a-0000-0000-0000-000000000001"]]}},
@@ -711,7 +711,7 @@
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
     ]
   },
-  "/rest/v1 answers as PostgREST does > insert several, missing columns null": {
+  "/api/sb/rest/v1 answers as PostgREST does > insert several, missing columns null": {
     "(hooks)#0": [
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select set_config($1, $2, true), set_config($3, $4, true), set_config($5, $6, true), set_config($7, $8, true)","params":["statement_timeout","15000","role","authenticated","request.jwt.claims","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","request.jwt.claim.sub","1a1a1a1a-0000-0000-0000-000000000001"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25],["set_config",25],["set_config",25],["set_config",25]],"rows":[["15s","authenticated","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","1a1a1a1a-0000-0000-0000-000000000001"]]}},
@@ -719,7 +719,7 @@
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
     ]
   },
-  "/rest/v1 answers as PostgREST does > insert several, a missing column null against its constraint": {
+  "/api/sb/rest/v1 answers as PostgREST does > insert several, a missing column null against its constraint": {
     "(hooks)#0": [
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select set_config($1, $2, true), set_config($3, $4, true), set_config($5, $6, true), set_config($7, $8, true)","params":["statement_timeout","15000","role","authenticated","request.jwt.claims","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","request.jwt.claim.sub","1a1a1a1a-0000-0000-0000-000000000001"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25],["set_config",25],["set_config",25],["set_config",25]],"rows":[["15s","authenticated","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","1a1a1a1a-0000-0000-0000-000000000001"]]}},
@@ -727,7 +727,7 @@
       {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}}
     ]
   },
-  "/rest/v1 answers as PostgREST does > insert several, missing columns default": {
+  "/api/sb/rest/v1 answers as PostgREST does > insert several, missing columns default": {
     "(hooks)#0": [
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select set_config($1, $2, true), set_config($3, $4, true), set_config($5, $6, true), set_config($7, $8, true)","params":["statement_timeout","15000","role","authenticated","request.jwt.claims","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","request.jwt.claim.sub","1a1a1a1a-0000-0000-0000-000000000001"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25],["set_config",25],["set_config",25],["set_config",25]],"rows":[["15s","authenticated","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","1a1a1a1a-0000-0000-0000-000000000001"]]}},
@@ -735,7 +735,7 @@
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
     ]
   },
-  "/rest/v1 answers as PostgREST does > insert with missing=default and an explicit null": {
+  "/api/sb/rest/v1 answers as PostgREST does > insert with missing=default and an explicit null": {
     "(hooks)#0": [
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select set_config($1, $2, true), set_config($3, $4, true), set_config($5, $6, true), set_config($7, $8, true)","params":["statement_timeout","15000","role","authenticated","request.jwt.claims","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","request.jwt.claim.sub","1a1a1a1a-0000-0000-0000-000000000001"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25],["set_config",25],["set_config",25],["set_config",25]],"rows":[["15s","authenticated","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","1a1a1a1a-0000-0000-0000-000000000001"]]}},
@@ -743,7 +743,7 @@
       {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}}
     ]
   },
-  "/rest/v1 answers as PostgREST does > insert returning an embed": {
+  "/api/sb/rest/v1 answers as PostgREST does > insert returning an embed": {
     "(hooks)#0": [
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select set_config($1, $2, true), set_config($3, $4, true), set_config($5, $6, true), set_config($7, $8, true)","params":["statement_timeout","15000","role","authenticated","request.jwt.claims","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","request.jwt.claim.sub","1a1a1a1a-0000-0000-0000-000000000001"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25],["set_config",25],["set_config",25],["set_config",25]],"rows":[["15s","authenticated","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","1a1a1a1a-0000-0000-0000-000000000001"]]}},
@@ -751,7 +751,7 @@
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
     ]
   },
-  "/rest/v1 answers as PostgREST does > insert minimal": {
+  "/api/sb/rest/v1 answers as PostgREST does > insert minimal": {
     "(hooks)#0": [
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select set_config($1, $2, true), set_config($3, $4, true), set_config($5, $6, true), set_config($7, $8, true)","params":["statement_timeout","15000","role","authenticated","request.jwt.claims","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","request.jwt.claim.sub","1a1a1a1a-0000-0000-0000-000000000001"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25],["set_config",25],["set_config",25],["set_config",25]],"rows":[["15s","authenticated","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","1a1a1a1a-0000-0000-0000-000000000001"]]}},
@@ -759,7 +759,7 @@
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
     ]
   },
-  "/rest/v1 answers as PostgREST does > insert minimal with a count": {
+  "/api/sb/rest/v1 answers as PostgREST does > insert minimal with a count": {
     "(hooks)#0": [
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select set_config($1, $2, true), set_config($3, $4, true), set_config($5, $6, true), set_config($7, $8, true)","params":["statement_timeout","15000","role","authenticated","request.jwt.claims","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","request.jwt.claim.sub","1a1a1a1a-0000-0000-0000-000000000001"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25],["set_config",25],["set_config",25],["set_config",25]],"rows":[["15s","authenticated","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","1a1a1a1a-0000-0000-0000-000000000001"]]}},
@@ -767,7 +767,7 @@
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
     ]
   },
-  "/rest/v1 answers as PostgREST does > insert as an object": {
+  "/api/sb/rest/v1 answers as PostgREST does > insert as an object": {
     "(hooks)#0": [
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select set_config($1, $2, true), set_config($3, $4, true), set_config($5, $6, true), set_config($7, $8, true)","params":["statement_timeout","15000","role","authenticated","request.jwt.claims","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","request.jwt.claim.sub","1a1a1a1a-0000-0000-0000-000000000001"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25],["set_config",25],["set_config",25],["set_config",25]],"rows":[["15s","authenticated","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","1a1a1a1a-0000-0000-0000-000000000001"]]}},
@@ -775,7 +775,7 @@
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
     ]
   },
-  "/rest/v1 answers as PostgREST does > insert another user's row": {
+  "/api/sb/rest/v1 answers as PostgREST does > insert another user's row": {
     "(hooks)#0": [
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select set_config($1, $2, true), set_config($3, $4, true), set_config($5, $6, true), set_config($7, $8, true)","params":["statement_timeout","15000","role","authenticated","request.jwt.claims","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","request.jwt.claim.sub","1a1a1a1a-0000-0000-0000-000000000001"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25],["set_config",25],["set_config",25],["set_config",25]],"rows":[["15s","authenticated","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","1a1a1a1a-0000-0000-0000-000000000001"]]}},
@@ -783,7 +783,7 @@
       {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}}
     ]
   },
-  "/rest/v1 answers as PostgREST does > insert as anon": {
+  "/api/sb/rest/v1 answers as PostgREST does > insert as anon": {
     "(hooks)#0": [
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select set_config($1, $2, true), set_config($3, $4, true), set_config($5, $6, true)","params":["statement_timeout","15000","role","anon","request.jwt.claims","{\"role\":\"anon\"}"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25],["set_config",25],["set_config",25]],"rows":[["15s","anon","{\"role\":\"anon\"}"]]}},
@@ -791,7 +791,7 @@
       {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}}
     ]
   },
-  "/rest/v1 answers as PostgREST does > insert without a required column": {
+  "/api/sb/rest/v1 answers as PostgREST does > insert without a required column": {
     "(hooks)#0": [
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select set_config($1, $2, true), set_config($3, $4, true), set_config($5, $6, true), set_config($7, $8, true)","params":["statement_timeout","15000","role","authenticated","request.jwt.claims","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","request.jwt.claim.sub","1a1a1a1a-0000-0000-0000-000000000001"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25],["set_config",25],["set_config",25],["set_config",25]],"rows":[["15s","authenticated","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","1a1a1a1a-0000-0000-0000-000000000001"]]}},
@@ -799,7 +799,7 @@
       {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}}
     ]
   },
-  "/rest/v1 answers as PostgREST does > insert a duplicate": {
+  "/api/sb/rest/v1 answers as PostgREST does > insert a duplicate": {
     "(hooks)#0": [
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select set_config($1, $2, true), set_config($3, $4, true)","params":["statement_timeout","15000","request.jwt.claims","{\"role\":\"service_role\"}"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25],["set_config",25]],"rows":[["15s","{\"role\":\"service_role\"}"]]}},
@@ -807,7 +807,7 @@
       {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}}
     ]
   },
-  "/rest/v1 answers as PostgREST does > alice reads her todos after inserting": {
+  "/api/sb/rest/v1 answers as PostgREST does > alice reads her todos after inserting": {
     "(hooks)#0": [
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select set_config($1, $2, true), set_config($3, $4, true), set_config($5, $6, true), set_config($7, $8, true)","params":["statement_timeout","15000","role","authenticated","request.jwt.claims","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","request.jwt.claim.sub","1a1a1a1a-0000-0000-0000-000000000001"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25],["set_config",25],["set_config",25],["set_config",25]],"rows":[["15s","authenticated","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","1a1a1a1a-0000-0000-0000-000000000001"]]}},
@@ -816,7 +816,7 @@
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
     ]
   },
-  "/rest/v1 answers as PostgREST does > upsert merging on a unique column": {
+  "/api/sb/rest/v1 answers as PostgREST does > upsert merging on a unique column": {
     "(hooks)#0": [
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select set_config($1, $2, true), set_config($3, $4, true)","params":["statement_timeout","15000","request.jwt.claims","{\"role\":\"service_role\"}"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25],["set_config",25]],"rows":[["15s","{\"role\":\"service_role\"}"]]}},
@@ -824,7 +824,7 @@
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
     ]
   },
-  "/rest/v1 answers as PostgREST does > upsert ignoring duplicates": {
+  "/api/sb/rest/v1 answers as PostgREST does > upsert ignoring duplicates": {
     "(hooks)#0": [
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select set_config($1, $2, true), set_config($3, $4, true)","params":["statement_timeout","15000","request.jwt.claims","{\"role\":\"service_role\"}"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25],["set_config",25]],"rows":[["15s","{\"role\":\"service_role\"}"]]}},
@@ -832,7 +832,7 @@
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
     ]
   },
-  "/rest/v1 answers as PostgREST does > upsert on the primary key": {
+  "/api/sb/rest/v1 answers as PostgREST does > upsert on the primary key": {
     "(hooks)#0": [
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select set_config($1, $2, true), set_config($3, $4, true), set_config($5, $6, true), set_config($7, $8, true)","params":["statement_timeout","15000","role","authenticated","request.jwt.claims","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","request.jwt.claim.sub","1a1a1a1a-0000-0000-0000-000000000001"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25],["set_config",25],["set_config",25],["set_config",25]],"rows":[["15s","authenticated","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","1a1a1a1a-0000-0000-0000-000000000001"]]}},
@@ -840,7 +840,7 @@
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
     ]
   },
-  "/rest/v1 answers as PostgREST does > upsert minimal": {
+  "/api/sb/rest/v1 answers as PostgREST does > upsert minimal": {
     "(hooks)#0": [
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select set_config($1, $2, true), set_config($3, $4, true), set_config($5, $6, true), set_config($7, $8, true)","params":["statement_timeout","15000","role","authenticated","request.jwt.claims","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","request.jwt.claim.sub","1a1a1a1a-0000-0000-0000-000000000001"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25],["set_config",25],["set_config",25],["set_config",25]],"rows":[["15s","authenticated","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","1a1a1a1a-0000-0000-0000-000000000001"]]}},
@@ -848,7 +848,7 @@
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
     ]
   },
-  "/rest/v1 answers as PostgREST does > upsert of another user's row": {
+  "/api/sb/rest/v1 answers as PostgREST does > upsert of another user's row": {
     "(hooks)#0": [
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select set_config($1, $2, true), set_config($3, $4, true), set_config($5, $6, true), set_config($7, $8, true)","params":["statement_timeout","15000","role","authenticated","request.jwt.claims","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","request.jwt.claim.sub","1a1a1a1a-0000-0000-0000-000000000001"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25],["set_config",25],["set_config",25],["set_config",25]],"rows":[["15s","authenticated","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","1a1a1a1a-0000-0000-0000-000000000001"]]}},
@@ -856,7 +856,7 @@
       {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}}
     ]
   },
-  "/rest/v1 answers as PostgREST does > update and return": {
+  "/api/sb/rest/v1 answers as PostgREST does > update and return": {
     "(hooks)#0": [
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select set_config($1, $2, true), set_config($3, $4, true), set_config($5, $6, true), set_config($7, $8, true)","params":["statement_timeout","15000","role","authenticated","request.jwt.claims","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","request.jwt.claim.sub","1a1a1a1a-0000-0000-0000-000000000001"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25],["set_config",25],["set_config",25],["set_config",25]],"rows":[["15s","authenticated","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","1a1a1a1a-0000-0000-0000-000000000001"]]}},
@@ -864,7 +864,7 @@
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
     ]
   },
-  "/rest/v1 answers as PostgREST does > update minimal": {
+  "/api/sb/rest/v1 answers as PostgREST does > update minimal": {
     "(hooks)#0": [
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select set_config($1, $2, true), set_config($3, $4, true), set_config($5, $6, true), set_config($7, $8, true)","params":["statement_timeout","15000","role","authenticated","request.jwt.claims","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","request.jwt.claim.sub","1a1a1a1a-0000-0000-0000-000000000001"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25],["set_config",25],["set_config",25],["set_config",25]],"rows":[["15s","authenticated","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","1a1a1a1a-0000-0000-0000-000000000001"]]}},
@@ -872,7 +872,7 @@
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
     ]
   },
-  "/rest/v1 answers as PostgREST does > update minimal with a count": {
+  "/api/sb/rest/v1 answers as PostgREST does > update minimal with a count": {
     "(hooks)#0": [
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select set_config($1, $2, true), set_config($3, $4, true), set_config($5, $6, true), set_config($7, $8, true)","params":["statement_timeout","15000","role","authenticated","request.jwt.claims","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","request.jwt.claim.sub","1a1a1a1a-0000-0000-0000-000000000001"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25],["set_config",25],["set_config",25],["set_config",25]],"rows":[["15s","authenticated","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","1a1a1a1a-0000-0000-0000-000000000001"]]}},
@@ -880,7 +880,7 @@
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
     ]
   },
-  "/rest/v1 answers as PostgREST does > update another user's row": {
+  "/api/sb/rest/v1 answers as PostgREST does > update another user's row": {
     "(hooks)#0": [
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select set_config($1, $2, true), set_config($3, $4, true), set_config($5, $6, true), set_config($7, $8, true)","params":["statement_timeout","15000","role","authenticated","request.jwt.claims","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","request.jwt.claim.sub","1a1a1a1a-0000-0000-0000-000000000001"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25],["set_config",25],["set_config",25],["set_config",25]],"rows":[["15s","authenticated","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","1a1a1a1a-0000-0000-0000-000000000001"]]}},
@@ -888,7 +888,7 @@
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
     ]
   },
-  "/rest/v1 answers as PostgREST does > update several rows as an object": {
+  "/api/sb/rest/v1 answers as PostgREST does > update several rows as an object": {
     "(hooks)#0": [
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select set_config($1, $2, true), set_config($3, $4, true), set_config($5, $6, true), set_config($7, $8, true)","params":["statement_timeout","15000","role","authenticated","request.jwt.claims","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","request.jwt.claim.sub","1a1a1a1a-0000-0000-0000-000000000001"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25],["set_config",25],["set_config",25],["set_config",25]],"rows":[["15s","authenticated","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","1a1a1a1a-0000-0000-0000-000000000001"]]}},
@@ -896,7 +896,7 @@
       {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}}
     ]
   },
-  "/rest/v1 answers as PostgREST does > the object update rolled back": {
+  "/api/sb/rest/v1 answers as PostgREST does > the object update rolled back": {
     "(hooks)#0": [
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select set_config($1, $2, true), set_config($3, $4, true), set_config($5, $6, true), set_config($7, $8, true)","params":["statement_timeout","15000","role","authenticated","request.jwt.claims","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","request.jwt.claim.sub","1a1a1a1a-0000-0000-0000-000000000001"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25],["set_config",25],["set_config",25],["set_config",25]],"rows":[["15s","authenticated","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","1a1a1a1a-0000-0000-0000-000000000001"]]}},
@@ -905,7 +905,7 @@
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
     ]
   },
-  "/rest/v1 answers as PostgREST does > delete and return": {
+  "/api/sb/rest/v1 answers as PostgREST does > delete and return": {
     "(hooks)#0": [
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select set_config($1, $2, true), set_config($3, $4, true), set_config($5, $6, true), set_config($7, $8, true)","params":["statement_timeout","15000","role","authenticated","request.jwt.claims","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","request.jwt.claim.sub","1a1a1a1a-0000-0000-0000-000000000001"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25],["set_config",25],["set_config",25],["set_config",25]],"rows":[["15s","authenticated","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","1a1a1a1a-0000-0000-0000-000000000001"]]}},
@@ -913,7 +913,7 @@
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
     ]
   },
-  "/rest/v1 answers as PostgREST does > delete minimal": {
+  "/api/sb/rest/v1 answers as PostgREST does > delete minimal": {
     "(hooks)#0": [
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select set_config($1, $2, true), set_config($3, $4, true), set_config($5, $6, true), set_config($7, $8, true)","params":["statement_timeout","15000","role","authenticated","request.jwt.claims","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","request.jwt.claim.sub","1a1a1a1a-0000-0000-0000-000000000001"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25],["set_config",25],["set_config",25],["set_config",25]],"rows":[["15s","authenticated","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","1a1a1a1a-0000-0000-0000-000000000001"]]}},
@@ -921,7 +921,7 @@
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
     ]
   },
-  "/rest/v1 answers as PostgREST does > delete another user's row": {
+  "/api/sb/rest/v1 answers as PostgREST does > delete another user's row": {
     "(hooks)#0": [
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select set_config($1, $2, true), set_config($3, $4, true), set_config($5, $6, true), set_config($7, $8, true)","params":["statement_timeout","15000","role","authenticated","request.jwt.claims","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","request.jwt.claim.sub","1a1a1a1a-0000-0000-0000-000000000001"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25],["set_config",25],["set_config",25],["set_config",25]],"rows":[["15s","authenticated","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","1a1a1a1a-0000-0000-0000-000000000001"]]}},
@@ -929,7 +929,7 @@
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
     ]
   },
-  "/rest/v1 answers as PostgREST does > bob still has his todos": {
+  "/api/sb/rest/v1 answers as PostgREST does > bob still has his todos": {
     "(hooks)#0": [
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select set_config($1, $2, true), set_config($3, $4, true)","params":["statement_timeout","15000","request.jwt.claims","{\"role\":\"service_role\"}"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25],["set_config",25]],"rows":[["15s","{\"role\":\"service_role\"}"]]}},
@@ -938,7 +938,7 @@
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
     ]
   },
-  "/rest/v1 answers as PostgREST does > rpc by POST": {
+  "/api/sb/rest/v1 answers as PostgREST does > rpc by POST": {
     "(hooks)#0": [
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select set_config($1, $2, true), set_config($3, $4, true), set_config($5, $6, true)","params":["statement_timeout","15000","role","anon","request.jwt.claims","{\"role\":\"anon\"}"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25],["set_config",25],["set_config",25]],"rows":[["15s","anon","{\"role\":\"anon\"}"]]}},
@@ -947,7 +947,7 @@
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
     ]
   },
-  "/rest/v1 answers as PostgREST does > rpc by GET": {
+  "/api/sb/rest/v1 answers as PostgREST does > rpc by GET": {
     "(hooks)#0": [
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select set_config($1, $2, true), set_config($3, $4, true), set_config($5, $6, true)","params":["statement_timeout","15000","role","anon","request.jwt.claims","{\"role\":\"anon\"}"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25],["set_config",25],["set_config",25]],"rows":[["15s","anon","{\"role\":\"anon\"}"]]}},
@@ -957,7 +957,7 @@
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
     ]
   },
-  "/rest/v1 answers as PostgREST does > rpc under RLS": {
+  "/api/sb/rest/v1 answers as PostgREST does > rpc under RLS": {
     "(hooks)#0": [
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select set_config($1, $2, true), set_config($3, $4, true), set_config($5, $6, true), set_config($7, $8, true)","params":["statement_timeout","15000","role","authenticated","request.jwt.claims","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","request.jwt.claim.sub","1a1a1a1a-0000-0000-0000-000000000001"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25],["set_config",25],["set_config",25],["set_config",25]],"rows":[["15s","authenticated","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","1a1a1a1a-0000-0000-0000-000000000001"]]}},
@@ -966,7 +966,7 @@
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
     ]
   },
-  "/rest/v1 answers as PostgREST does > rpc under RLS as anon": {
+  "/api/sb/rest/v1 answers as PostgREST does > rpc under RLS as anon": {
     "(hooks)#0": [
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select set_config($1, $2, true), set_config($3, $4, true), set_config($5, $6, true)","params":["statement_timeout","15000","role","anon","request.jwt.claims","{\"role\":\"anon\"}"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25],["set_config",25],["set_config",25]],"rows":[["15s","anon","{\"role\":\"anon\"}"]]}},
@@ -975,7 +975,7 @@
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
     ]
   },
-  "/rest/v1 answers as PostgREST does > rpc returning rows, shaped": {
+  "/api/sb/rest/v1 answers as PostgREST does > rpc returning rows, shaped": {
     "(hooks)#0": [
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select set_config($1, $2, true), set_config($3, $4, true), set_config($5, $6, true), set_config($7, $8, true)","params":["statement_timeout","15000","role","authenticated","request.jwt.claims","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","request.jwt.claim.sub","1a1a1a1a-0000-0000-0000-000000000001"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25],["set_config",25],["set_config",25],["set_config",25]],"rows":[["15s","authenticated","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","1a1a1a1a-0000-0000-0000-000000000001"]]}},
@@ -984,7 +984,7 @@
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
     ]
   },
-  "/rest/v1 answers as PostgREST does > rpc returning rows, filtered": {
+  "/api/sb/rest/v1 answers as PostgREST does > rpc returning rows, filtered": {
     "(hooks)#0": [
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select set_config($1, $2, true), set_config($3, $4, true), set_config($5, $6, true), set_config($7, $8, true)","params":["statement_timeout","15000","role","authenticated","request.jwt.claims","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","request.jwt.claim.sub","1a1a1a1a-0000-0000-0000-000000000001"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25],["set_config",25],["set_config",25],["set_config",25]],"rows":[["15s","authenticated","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","1a1a1a1a-0000-0000-0000-000000000001"]]}},
@@ -994,7 +994,7 @@
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
     ]
   },
-  "/rest/v1 answers as PostgREST does > rpc returning rows with a count": {
+  "/api/sb/rest/v1 answers as PostgREST does > rpc returning rows with a count": {
     "(hooks)#0": [
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select set_config($1, $2, true), set_config($3, $4, true), set_config($5, $6, true), set_config($7, $8, true)","params":["statement_timeout","15000","role","authenticated","request.jwt.claims","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","request.jwt.claim.sub","1a1a1a1a-0000-0000-0000-000000000001"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25],["set_config",25],["set_config",25],["set_config",25]],"rows":[["15s","authenticated","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","1a1a1a1a-0000-0000-0000-000000000001"]]}},
@@ -1004,7 +1004,7 @@
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
     ]
   },
-  "/rest/v1 answers as PostgREST does > rpc returning a table": {
+  "/api/sb/rest/v1 answers as PostgREST does > rpc returning a table": {
     "(hooks)#0": [
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select set_config($1, $2, true), set_config($3, $4, true), set_config($5, $6, true)","params":["statement_timeout","15000","role","anon","request.jwt.claims","{\"role\":\"anon\"}"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25],["set_config",25],["set_config",25]],"rows":[["15s","anon","{\"role\":\"anon\"}"]]}},
@@ -1013,7 +1013,7 @@
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
     ]
   },
-  "/rest/v1 answers as PostgREST does > rpc returning one row": {
+  "/api/sb/rest/v1 answers as PostgREST does > rpc returning one row": {
     "(hooks)#0": [
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select set_config($1, $2, true), set_config($3, $4, true), set_config($5, $6, true), set_config($7, $8, true)","params":["statement_timeout","15000","role","authenticated","request.jwt.claims","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","request.jwt.claim.sub","1a1a1a1a-0000-0000-0000-000000000001"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25],["set_config",25],["set_config",25],["set_config",25]],"rows":[["15s","authenticated","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","1a1a1a1a-0000-0000-0000-000000000001"]]}},
@@ -1022,7 +1022,7 @@
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
     ]
   },
-  "/rest/v1 answers as PostgREST does > rpc returning scalars": {
+  "/api/sb/rest/v1 answers as PostgREST does > rpc returning scalars": {
     "(hooks)#0": [
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select set_config($1, $2, true), set_config($3, $4, true), set_config($5, $6, true), set_config($7, $8, true)","params":["statement_timeout","15000","role","authenticated","request.jwt.claims","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","request.jwt.claim.sub","1a1a1a1a-0000-0000-0000-000000000001"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25],["set_config",25],["set_config",25],["set_config",25]],"rows":[["15s","authenticated","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","1a1a1a1a-0000-0000-0000-000000000001"]]}},
@@ -1032,7 +1032,7 @@
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
     ]
   },
-  "/rest/v1 answers as PostgREST does > rpc returning rows as an object": {
+  "/api/sb/rest/v1 answers as PostgREST does > rpc returning rows as an object": {
     "(hooks)#0": [
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select set_config($1, $2, true), set_config($3, $4, true), set_config($5, $6, true), set_config($7, $8, true)","params":["statement_timeout","15000","role","authenticated","request.jwt.claims","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","request.jwt.claim.sub","1a1a1a1a-0000-0000-0000-000000000001"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25],["set_config",25],["set_config",25],["set_config",25]],"rows":[["15s","authenticated","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","1a1a1a1a-0000-0000-0000-000000000001"]]}},
@@ -1041,7 +1041,7 @@
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
     ]
   },
-  "/rest/v1 answers as PostgREST does > rpc returning void": {
+  "/api/sb/rest/v1 answers as PostgREST does > rpc returning void": {
     "(hooks)#0": [
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select set_config($1, $2, true), set_config($3, $4, true), set_config($5, $6, true), set_config($7, $8, true)","params":["statement_timeout","15000","role","authenticated","request.jwt.claims","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","request.jwt.claim.sub","1a1a1a1a-0000-0000-0000-000000000001"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25],["set_config",25],["set_config",25],["set_config",25]],"rows":[["15s","authenticated","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","1a1a1a1a-0000-0000-0000-000000000001"]]}},
@@ -1050,7 +1050,7 @@
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
     ]
   },
-  "/rest/v1 answers as PostgREST does > rpc that writes, by GET": {
+  "/api/sb/rest/v1 answers as PostgREST does > rpc that writes, by GET": {
     "(hooks)#0": [
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select set_config($1, $2, true), set_config($3, $4, true), set_config($5, $6, true), set_config($7, $8, true)","params":["statement_timeout","15000","role","authenticated","request.jwt.claims","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","request.jwt.claim.sub","1a1a1a1a-0000-0000-0000-000000000001"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25],["set_config",25],["set_config",25],["set_config",25]],"rows":[["15s","authenticated","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","1a1a1a1a-0000-0000-0000-000000000001"]]}},
@@ -1060,7 +1060,7 @@
       {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}}
     ]
   },
-  "/rest/v1 answers as PostgREST does > rpc reading the claims as alice": {
+  "/api/sb/rest/v1 answers as PostgREST does > rpc reading the claims as alice": {
     "(hooks)#0": [
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select set_config($1, $2, true), set_config($3, $4, true), set_config($5, $6, true), set_config($7, $8, true)","params":["statement_timeout","15000","role","authenticated","request.jwt.claims","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","request.jwt.claim.sub","1a1a1a1a-0000-0000-0000-000000000001"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25],["set_config",25],["set_config",25],["set_config",25]],"rows":[["15s","authenticated","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","1a1a1a1a-0000-0000-0000-000000000001"]]}},
@@ -1069,7 +1069,7 @@
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
     ]
   },
-  "/rest/v1 answers as PostgREST does > rpc reading the claims as anon": {
+  "/api/sb/rest/v1 answers as PostgREST does > rpc reading the claims as anon": {
     "(hooks)#0": [
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select set_config($1, $2, true), set_config($3, $4, true), set_config($5, $6, true)","params":["statement_timeout","15000","role","anon","request.jwt.claims","{\"role\":\"anon\"}"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25],["set_config",25],["set_config",25]],"rows":[["15s","anon","{\"role\":\"anon\"}"]]}},
@@ -1078,7 +1078,7 @@
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
     ]
   },
-  "/rest/v1 answers as PostgREST does > rpc reading the claims with the secret key": {
+  "/api/sb/rest/v1 answers as PostgREST does > rpc reading the claims with the secret key": {
     "(hooks)#0": [
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select set_config($1, $2, true), set_config($3, $4, true)","params":["statement_timeout","15000","request.jwt.claims","{\"role\":\"service_role\"}"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25],["set_config",25]],"rows":[["15s","{\"role\":\"service_role\"}"]]}},
@@ -1088,7 +1088,7 @@
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
     ]
   },
-  "/rest/v1 answers as PostgREST does > an unknown function": {
+  "/api/sb/rest/v1 answers as PostgREST does > an unknown function": {
     "(hooks)#0": [
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select set_config($1, $2, true), set_config($3, $4, true), set_config($5, $6, true), set_config($7, $8, true)","params":["statement_timeout","15000","role","authenticated","request.jwt.claims","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","request.jwt.claim.sub","1a1a1a1a-0000-0000-0000-000000000001"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25],["set_config",25],["set_config",25],["set_config",25]],"rows":[["15s","authenticated","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","1a1a1a1a-0000-0000-0000-000000000001"]]}},
@@ -1096,7 +1096,7 @@
       {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}}
     ]
   },
-  "/rest/v1 answers as PostgREST does > a function called with other arguments": {
+  "/api/sb/rest/v1 answers as PostgREST does > a function called with other arguments": {
     "(hooks)#0": [
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select set_config($1, $2, true), set_config($3, $4, true), set_config($5, $6, true), set_config($7, $8, true)","params":["statement_timeout","15000","role","authenticated","request.jwt.claims","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","request.jwt.claim.sub","1a1a1a1a-0000-0000-0000-000000000001"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25],["set_config",25],["set_config",25],["set_config",25]],"rows":[["15s","authenticated","{\"email\":\"alice@example.com\",\"sub\":\"1a1a1a1a-0000-0000-0000-000000000001\",\"exp\":1785542700,\"role\":\"authenticated\"}","1a1a1a1a-0000-0000-0000-000000000001"]]}},
@@ -1104,7 +1104,7 @@
       {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}}
     ]
   },
-  "/rest/v1 beyond PostgREST > refuses an embed through a foreign key no index serves, and a filter on an embedded column no index serves": {
+  "/api/sb/rest/v1 beyond PostgREST > refuses an embed through a foreign key no index serves, and a filter on an embedded column no index serves": {
     "(hooks)#0": [
       {"sql":"select relkind from pg_class where oid = to_regclass($1)","params":["\"attachments\""],"result":{"command":"SELECT","rowCount":1,"columns":[["relkind",18]],"rows":[["r"]]}},
       {"sql":"\n    select ic.relname as name, am.amname as method, (i.indpred is not null) as partial, a.attname::text as column,\n      pg_get_indexdef(i.indexrelid, k.ord::int, true) as definition, oc.opcname::text as opclass\n    from pg_index i\n    join pg_class ic on ic.oid = i.indexrelid\n    join pg_am am on am.oid = ic.relam\n    cross join lateral unnest(i.indkey::int2[], i.indclass::oid[]) with ordinality k(attnum, opclass, ord)\n    left join pg_attribute a on a.attrelid = i.indrelid and a.attnum = k.attnum and k.attnum > 0\n    join pg_opclass oc on oc.oid = k.opclass\n    where i.indrelid = to_regclass($1) and i.indisvalid and i.indisready and k.ord <= i.indnkeyatts\n    order by ic.relname, k.ord\n  ","params":["\"attachments\""],"result":{"command":"SELECT","rowCount":1,"columns":[["name",19],["method",19],["partial",16],["column",25],["definition",25],["opclass",25]],"rows":[["attachments_pkey","btree","f","id","id","int8_ops"]]}}
