@@ -312,7 +312,7 @@ COPY --from=libs /out/ /
 ```
 
 ```sh
-docker run --rm -p 8787:8787 -e DATABASE_URL -e BETTER_AUTH_SECRET \
+docker run --rm -p 127.0.0.1:8787:8787 -e DATABASE_URL -e BETTER_AUTH_SECRET \
   -v "$PWD/dist:/app:ro" -v "$PWD/protobase-serve.js:/opt/protobase/protobase-serve.js:ro" \
   protobase-run --no-install /opt/protobase/protobase-serve.js /app/protobase.config.js
 ```
