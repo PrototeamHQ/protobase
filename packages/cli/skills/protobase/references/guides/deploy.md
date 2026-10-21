@@ -14,11 +14,12 @@ bun --no-install /opt/protobase/protobase-serve.js /app/protobase.config.js   # 
 
 Both builds write plain JavaScript that Node and Bun load as it is. For a host that runs Bun, as the images below do, add `--bun` to either: Bun's bundler then writes the final file, the form Bun loads without transpiling, and the build needs `bun` on `PATH` ([details](../reference/cli.md#the-config-module))).
 
-The bundle holds three things, four when the config uses native add-ons:
+The bundle holds three things, more when the project has migrations or the config uses native add-ons:
 
 ```
 dist/
   protobase.config.js     the config module, run by the serve runtime
+  migrations/             only with migrations: the project's db/migrations/*.sql, which `migrate` applies
   node_modules/           only with native add-ons: those packages, with linux x64 and arm64 binaries
   public/                 the admin app (index.html and content-hashed assets/), the project's UI as plugins in
                           plugins/, its theme, protobase.theme.css, and its icons, protobase.favicon.svg
@@ -27,7 +28,7 @@ dist/
                           plugins and the app's version
 ```
 
-The host serves `public/` itself and sends only the manifest's `api` paths to the runtime (`/api` and the two OAuth discovery documents of [MCP clients](../reference/auth.md#oauth-for-mcp-clients)), and `/.well-known/webauthn`, for an app on [several origins](../reference/auth.md#several-origins))), so loading the UI never needs a running container. With the UI it sends `X-Frame-Options: DENY` and `Content-Security-Policy: frame-ancestors 'none'`, as `protobase serve` does, so no other site frames the app's pages. The runtime serves the API alone; `protobase serve dist` serves the whole folder the same way, to check a bundle locally. The host passes `DATABASE_URL`, `PORT` (default 8787) and optionally `PROTOBASE_DB_CONNECTIONS` (the connections the app may open, so its functions and jobs leave one to requests, see [`serve`](../reference/cli.md#serve))), `REQUEST_LOG`, `PROTOBASE_SMTP_URL` and `PROTOBASE_MAIL_FROM` (the mail server and sender for [password reset](../reference/auth.md#password-reset)) and emailed sign-in codes) `PROTOBASE_APP_NAME` (the app's name in that mail, see [`appName`](../reference/auth.md#configuration))) `PROTOBASE_SIGN_IN_*` (a provider people with an account sign in with, the [platform sign-in provider](../reference/auth.md#platform-sign-in-provider))) `PROTOBASE_OPERATOR_*` (the provider its staff sign in with for [staff sign-in](../reference/auth.md#staff-sign-in))), `PROTOBASE_ORIGINS` and `PROTOBASE_PASSKEY_DOMAIN` (the app's [other origins](../reference/auth.md#several-origins)) and its passkey domain) `PROTOBASE_CORS_ORIGINS` (the websites that may call its API, see [CORS](../reference/api.md#cors))), `PROTOBASE_TRUSTED_PROXIES` (the proxies in front of the runtime, whose `X-Forwarded-For` names the client the sign-in limits count, see [Client addresses](../reference/auth.md#client-addresses))) and `PROTOBASE_SENTRY_DSN` (the app's [error tracker](../reference/api.md#error-reporting))), plus the project's own settings (`BETTER_AUTH_SECRET`, ...). The runtime and the config module are plain JavaScript for Bun: no install, no TypeScript, no writes. The runtime supplies protobase and the dependencies it runs on the server (`pg`, `postgres`, `kysely`, `better-auth`, ...), so the config module carries only the project's code and the other packages it uses. The runtime serves only bundles built by a compatible Protobase version, below 1.0 the same minor (see [Versioning](../reference/versioning.md#bundles-and-runtimes))), so rebuild the bundle when the host's runtime moves to another one. Nothing in the bundle or the runtime changes the database: run the project's `db:migrate`, which applies its migrations and those of the auth schema, before a new version serves it, with no other writes while it runs. The runtime refuses to start while the auth schema lacks a table or column the new version needs (see [migrations](../reference/auth.md#migrations))). The manifest format and the routing rules are in the CLI reference: [`build`](../reference/cli.md#build)), [`build-serve`](../reference/cli.md#build-serve)) and [`serve`](../reference/cli.md#serve)).
+The host serves `public/` itself and sends only the manifest's `api` paths to the runtime (`/api` and the two OAuth discovery documents of [MCP clients](../reference/auth.md#oauth-for-mcp-clients)), and `/.well-known/webauthn`, for an app on [several origins](../reference/auth.md#several-origins))), so loading the UI never needs a running container. With the UI it sends `X-Frame-Options: DENY` and `Content-Security-Policy: frame-ancestors 'none'`, as `protobase serve` does, so no other site frames the app's pages. The runtime serves the API alone; `protobase serve dist` serves the whole folder the same way, to check a bundle locally. The host passes `DATABASE_URL`, `PORT` (default 8787) and optionally `PROTOBASE_DB_CONNECTIONS` (the connections the app may open, so its functions and jobs leave one to requests, see [`serve`](../reference/cli.md#serve))), `REQUEST_LOG`, `PROTOBASE_SMTP_URL` and `PROTOBASE_MAIL_FROM` (the mail server and sender for [password reset](../reference/auth.md#password-reset)) and emailed sign-in codes) `PROTOBASE_APP_NAME` (the app's name in that mail, see [`appName`](../reference/auth.md#configuration))) `PROTOBASE_SIGN_IN_*` (a provider people with an account sign in with, the [platform sign-in provider](../reference/auth.md#platform-sign-in-provider))) `PROTOBASE_OPERATOR_*` (the provider its staff sign in with for [staff sign-in](../reference/auth.md#staff-sign-in))), `PROTOBASE_ORIGINS` and `PROTOBASE_PASSKEY_DOMAIN` (the app's [other origins](../reference/auth.md#several-origins)) and its passkey domain) `PROTOBASE_CORS_ORIGINS` (the websites that may call its API, see [CORS](../reference/api.md#cors))), `PROTOBASE_TRUSTED_PROXIES` (the proxies in front of the runtime, whose `X-Forwarded-For` names the client the sign-in limits count, see [Client addresses](../reference/auth.md#client-addresses))) and `PROTOBASE_SENTRY_DSN` (the app's [error tracker](../reference/api.md#error-reporting))), plus the project's own settings (`BETTER_AUTH_SECRET`, ...). The runtime and the config module are plain JavaScript for Bun: no install, no TypeScript, no writes. The runtime supplies protobase and the dependencies it runs on the server (`pg`, `postgres`, `kysely`, `better-auth`, ...), so the config module carries only the project's code and the other packages it uses. The runtime serves only bundles built by a compatible Protobase version, below 1.0 the same minor (see [Versioning](../reference/versioning.md#bundles-and-runtimes))), so rebuild the bundle when the host's runtime moves to another one. Serving never changes the database: the bundle carries the project's `db/migrations` as `migrations/`, and the runtime's `migrate <bundle>` applies the pending ones, the app's and the auth schema's, before a new version serves, with no other writes while it runs. It applies them in one transaction behind a lock, recorded in `public.schema_migrations` as the presets' `db:migrate` does, so a database either script migrated is current for the other. A file that would end that transaction (`BEGIN`, `COMMIT`, `ROLLBACK`) or cannot run in one (`create index concurrently`) is refused, and a refused or failing file leaves the database unchanged. The runtime refuses to start while the auth schema lacks a table or column the new version needs (see [migrations](../reference/auth.md#migrations))). The manifest format and the routing rules are in the CLI reference: [`build`](../reference/cli.md#build)), [`build-serve`](../reference/cli.md#build-serve)) and [`serve`](../reference/cli.md#serve)).
 
 ## Images
 
@@ -35,7 +36,7 @@ Every release pushes two public images to GitHub's registry, for `linux/amd64` a
 
 | Image | What it holds |
 | --- | --- |
-| `ghcr.io/prototeamhq/protobase:<version>` | the serve runtime, compiled with Bun into `/opt/protobase/protobase-serve`, which serves the API of the bundle mounted at `/app`; the release's prebuilt admin app at `/opt/protobase/shell`, which a host may serve for the bundle's [shell paths](../reference/plugins.md#the-shell)) instead of the bundle's copy; Bun for its healthcheck on `/health`, and the C++ runtime native add-ons link. It runs as `nonroot` (65532) and writes nothing, so it runs with a read-only root filesystem |
+| `ghcr.io/prototeamhq/protobase:<version>` | the serve runtime, compiled with Bun into `/opt/protobase/protobase-serve`, which serves the API of the bundle mounted at `/app` (and, given the folder, its app too, see [a self-hosted image](#a-self-hosted-image)); the release's prebuilt admin app at `/opt/protobase/shell`, which a host may serve for the bundle's [shell paths](../reference/plugins.md#the-shell)) instead of the bundle's copy; Bun for its healthcheck on `/health`, and the C++ runtime native add-ons link. It runs as `nonroot` (65532) and writes nothing, so it runs with a read-only root filesystem |
 | `ghcr.io/prototeamhq/protobase-dev:<version>` | Bun and the presets at `/opt/protobase/presets/<name>` (`erp`, `real-estate`, `scratch`), with the dependencies they share installed in `/workspace` and Bun's cache in `/opt/bun-cache`. It has no Node: the presets' scripts and the `protobase` command run on Bun. It runs as `bun` (1000) |
 
 ```sh
@@ -51,3 +52,120 @@ bun run images:context    # dist/images/protobase and dist/images/protobase-dev
 docker build -f docker/protobase/Dockerfile -t protobase dist/images/protobase
 docker build -f docker/protobase-dev/Dockerfile -t protobase-dev dist/images/protobase-dev
 ```
+
+## A self-hosted image
+
+A product built on Protobase ships to self-hosters as one image: the runtime image with the bundle inside. Build the bundle with `protobase build --bun`, then:
+
+```dockerfile
+# The runtime of the @protobase/cli version that built dist/.
+FROM ghcr.io/prototeamhq/protobase:0.2.0
+COPY dist /app
+CMD ["/app"]
+```
+
+The image runs three commands:
+
+- `/app` serves the admin app and its API.
+- `migrate /app` applies the bundle's pending migrations with `DATABASE_URL` alone. It runs none of the app's code.
+- `create-admin /app <email>` creates an admin, with `--generate-password` (printed once) or `--password-stdin`. It refuses a schema that is behind.
+
+### Compose template
+
+Two files next to `compose.yaml` hold the settings. `.env`, which compose reads itself:
+
+```sh
+APP_VERSION=1.0.0
+POSTGRES_PASSWORD=...   # openssl rand -hex 24
+APP_DB_PASSWORD=...     # openssl rand -hex 24
+```
+
+`app.env`, the app's own settings:
+
+```sh
+BETTER_AUTH_SECRET=...                # openssl rand -base64 32
+BETTER_AUTH_URL=http://localhost:8787
+```
+
+`BETTER_AUTH_URL` is the address the browser opens, exactly: sign-in from `http://127.0.0.1:8787` is refused as another origin. Add the app's other variables to `app.env` too.
+
+```yaml
+services:
+  postgres:
+    image: postgres:18
+    restart: unless-stopped
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set it in .env}
+      APP_DB_PASSWORD: ${APP_DB_PASSWORD:?set it in .env}
+    configs:
+      - source: app-database
+        target: /docker-entrypoint-initdb.d/app-database.sql
+    volumes:
+      - db:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD", "pg_isready", "-h", "127.0.0.1", "-U", "app", "-d", "app"]
+      interval: 2s
+      retries: 30
+
+  migrate:
+    image: ghcr.io/example/my-app:${APP_VERSION:?set it in .env}
+    command: ["migrate", "/app"]
+    environment:
+      DATABASE_URL: postgres://app:${APP_DB_PASSWORD:?set it in .env}@postgres:5432/app
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  app:
+    image: ghcr.io/example/my-app:${APP_VERSION:?set it in .env}
+    restart: unless-stopped
+    env_file: app.env
+    environment:
+      DATABASE_URL: postgres://app:${APP_DB_PASSWORD:?set it in .env}@postgres:5432/app
+    ports:
+      - "127.0.0.1:8787:8787"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+configs:
+  app-database:
+    content: |
+      \getenv app_password APP_DB_PASSWORD
+      create role app login password :'app_password';
+      create database app owner app;
+
+volumes:
+  db:
+```
+
+`docker compose up -d` starts Postgres, runs `migrate` once and starts the app only when it succeeded. The app and `migrate` connect as `app`, which owns its database but is no superuser (see the [assistant](../reference/assistant.md)) on why that matters); the superuser's password stays in `.env` and the `postgres` service. Postgres runs the init file only on an empty volume. `configs` with `content` needs a recent Compose v2 (tested with 2.39.4).
+
+### Local only by default
+
+The template publishes the app on `127.0.0.1:8787` only, so only the machine running it can open `http://localhost:8787`, and it speaks plain HTTP. To try it on a remote server, tunnel it with `ssh -L 8787:localhost:8787 <server>` and open `http://localhost:8787` on your own machine.
+
+Before other machines may reach it, put HTTPS in front: a reverse proxy on the host that forwards to `127.0.0.1:8787`, with `BETTER_AUTH_URL` set to the `https://` address. Only then are the session cookies `Secure` and passwords and codes encrypted on the way. Do not change the port to `8787:8787`: that publishes plain HTTP on every interface, ahead of host firewall rules such as ufw. On Docker Engine older than 28.0, hosts on the same local network can still reach a port published to `127.0.0.1`, so use 28.0 or newer.
+
+### First admin
+
+```sh
+docker compose run --rm --no-deps app create-admin /app you@example.com --generate-password
+```
+
+Then open `http://localhost:8787` and sign in with that email and the printed password. `--no-deps` keeps compose from running `migrate` first, which during an upgrade would migrate under the old version while it serves; use it with every `docker compose run … app`. Where container logs leave the host, pass the password on stdin instead: `docker compose run --rm --no-deps -T app create-admin /app you@example.com --password-stdin < password.txt`.
+
+### Upgrade
+
+```sh
+docker compose exec -T postgres pg_dump -U app app > backup.sql
+# set APP_VERSION in .env to the new version
+docker compose pull
+docker compose stop app          # the old version stops, so nothing writes
+docker compose run --rm migrate
+docker compose up -d
+```
+
+Stop any `protobase worker` processes before `migrate` too.
+
+When a migration fails, `migrate` exits with an error and its transaction is rolled back, so the schema is unchanged. Set `APP_VERSION` back and `docker compose start app` brings the old version back on it. A plain `docker compose up -d` with the new version also stops the old one before `migrate`, but after a failure nothing serves until `APP_VERSION` is set back and `up -d` runs again. Going back after a migration that succeeded needs the backup.

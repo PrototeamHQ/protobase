@@ -174,6 +174,7 @@ Writes the project's deploy bundle, the folder a deployment ships:
 ```
 dist/
   protobase.config.js       the config module for serve
+  migrations/               the project's db/migrations/*.sql, which the runtime's migrate applies; only with some
   node_modules/             the packages it loads from disk, only when it imports native add-ons
   public/
     index.html, assets/     the admin app: the shell, the same for every project
@@ -186,7 +187,7 @@ dist/
   protobase.bundle.json     the manifest
 ```
 
-The output folder is not emptied; `public/` and `node_modules/` are replaced on every build. `node_modules/` is deleted only when the previous build's manifest names it, so a build into a folder with a project's own `node_modules` fails instead. Of the project's server config only the config folder runs at build time, `config/index.ts` and `config/*/ui.ts` with what they import, never `protobase.config.ts`, so the build needs no secrets and no database. It is loaded once in Node to check each view against its resource: a filter widget or the chart on a field that is not `.filterable()`, a list sorted by one that is not `.sortable()`, or a list search on a field outside the resource's `.search(...)` fails the build, naming the view and the field, since the API would refuse it once a page asked. Whether an index serves those reads needs the database, which [`doctor`](#doctor) checks. Its browser code is loaded once in Node too: to check its component names (see [The UI](#the-ui)) and to read the field types each plugin registers.
+The output folder is not emptied; `public/`, `migrations/` and `node_modules/` are replaced on every build. `migrations/` and `node_modules/` are deleted only when the previous build's manifest names them, so a build into a folder with a project's own `node_modules` fails instead. Of the project's server config only the config folder runs at build time, `config/index.ts` and `config/*/ui.ts` with what they import, never `protobase.config.ts`, so the build needs no secrets and no database. It is loaded once in Node to check each view against its resource: a filter widget or the chart on a field that is not `.filterable()`, a list sorted by one that is not `.sortable()`, or a list search on a field outside the resource's `.search(...)` fails the build, naming the view and the field, since the API would refuse it once a page asked. Whether an index serves those reads needs the database, which [`doctor`](#doctor) checks. Its browser code is loaded once in Node too: to check its component names (see [The UI](#the-ui)) and to read the field types each plugin registers.
 
 A token the [theme](/reference/theme/) sets that the app does not read prints a `warning:` line, a likely typo; the build still succeeds.
 
@@ -219,16 +220,18 @@ By default the bundle runs on Node and on Bun. `--bun` makes it a bundle for Bun
     { "name": "app", "path": "plugins/app/plugin.json", "api": 1, "protobase": ">=0.12.0", "fields": { "steps": ["enum"] } }
   ],
   "shell": { "protobase": "0.12.0", "pluginApi": 1, "paths": ["/index.html", "/assets", "/protobase.sw.js"] },
-  "nodeModules": "node_modules"
+  "nodeModules": "node_modules",
+  "migrations": "migrations"
 }
 ```
 
 - `protobase` is the Protobase version that built the bundle. The serve runtime serves only bundles of a compatible version: below 1.0 the same minor, from 1.0 the same major and the runtime's minor or an older one (see [Versioning](/reference/versioning/#bundles-and-runtimes)).
-- `server`, `public` and `nodeModules` are relative to the bundle folder; `spa`, `theme` and each plugin's `path` to `public`.
+- `server`, `public`, `nodeModules` and `migrations` are relative to the bundle folder; `spa`, `theme` and each plugin's `path` to `public`.
 - `plugins` are the bundle's own plugins, in the order the app merges them: the extensions', then the project's (`app`). Each names its `plugin.json`, the plugin API and Protobase versions it is built for, and the [field types](/reference/plugins/#field-types) it registers with the storage types each shows, which the serve runtime checks the views against at startup. `/api/meta` names them to everyone, before any other plugin.
 - `shell` is the admin app `public/` holds a copy of: its Protobase version and plugin API, and its files as URL paths. A host with a shell of its own, of a release every plugin of the bundle loads in, may serve its own for those paths instead (see [The UI](#the-ui)), so the app gets that release's fixes without a rebuild.
 - `theme` is the project's [theme](/reference/theme/), which the app links at `/protobase.theme.css`. It is always there, empty when the project has none.
 - `nodeModules` is present only when the config module imports [native packages](#native-packages). It is always the `node_modules` folder beside `server`, where Bun and Node resolve the module's imports from, and holds plain packages: JavaScript, `package.json` files and native binaries for linux x64 and arm64 (glibc), which the runtime loads with `dlopen`. A host keeps it next to the server module and must not mount it `noexec` (an add-on there then fails with `failed to map segment from shared object`). Its binaries link nothing but glibc, `libstdc++.so.6`, `libgcc_s.so.1` and libraries in the bundle itself, so the run image must have those three. Without `nodeModules`, the server module is the only file the runtime reads.
+- `migrations` is present only when the project has a `db/migrations` folder: its `.sql` files, which the runtime's `migrate` applies (see [Deploy](/guides/deploy/)). A host never serves it.
 - `api` lists the path prefixes the server answers. A path is under a prefix when it equals it or continues it with `/` (`/api` covers `/api/meta` and `/api/v1:batchWrite`, not `/apiary`). It is always `/api` and the two OAuth discovery documents [MCP clients](/reference/auth/#oauth-for-mcp-clients) read, which answer 404 without MCP: a bundle assumes the API lives under `/api`, with the resources at the default `basePath` `/api/v1`, `/api/meta`, the docs, the API functions and the built-in assistant beside them and Better Auth at `/api/auth`. A bundle built before them sends them to the UI: rebuild it. The serve runtime refuses a config that sets another `options.basePath`.
 - Every other path is the UI's. A `GET` or `HEAD` for a file in `public` gets that file; a folder gets its `index.html`. Otherwise a request whose `Accept` header contains `text/html` (a navigation) gets `spa` with status 200, so deep links such as `/orders/42` load the app; anything else gets 404. Other methods get 405.
 - Files under an `assets/` folder, `public/assets/` and each plugin's, are named by their content hash and never change: serve them with `Cache-Control: public, max-age=31536000, immutable`, and everything else, `index.html`, each `plugin.json` and the theme, with `no-cache`.
@@ -344,6 +347,14 @@ protobase build-serve [--out dist/protobase-serve.js] [--bun]   # or, in this re
 
 Bundles the serve runtime (`@protobase/cli`'s `src/serve/main.ts`) and all its dependencies into one file, about 3 MB. A host needs Bun and this file, nothing else. `--bun` has Bun's bundler write the file, as for [`build`](#build), and needs `bun` on `PATH`; the `protobase` image is built from such a file. The file carries the Protobase version it was built from, which decides [the bundles it serves](/reference/versioning/#bundles-and-runtimes).
 
+```sh
+bun --no-install protobase-serve.js [serve] <bundle>                 # the folder: the app and the API; the config module: the API
+bun --no-install protobase-serve.js migrate <bundle>                 # apply the bundle's migrations to DATABASE_URL
+bun --no-install protobase-serve.js create-admin <bundle> <email>    # --generate-password or --password-stdin
+```
+
+`migrate` runs none of the app's code and needs only `DATABASE_URL`; `create-admin` loads the app with its settings and refuses an auth schema that is behind. Given the folder, the runtime serves the bundle's own copy of the app. [Deploy](/guides/deploy/#a-self-hosted-image) puts the three in a self-hosted image.
+
 ## `serve`
 
 ```sh
@@ -448,7 +459,7 @@ protobase users delete <email> [--yes]
 
 Run inside a project whose `protobase.config.ts` exports `auth` (Better Auth). There is no web setup page, and [open sign-up](/reference/auth/#open-sign-up), when a project turns it on, waits for the first admin: the first admin is created here. The first user is always an admin, whatever `--role` says; later users get `--role`, or the project's default role (`createAuth({ roles, defaultRole })`). `protobase users roles` lists the roles of the project; anything else is refused with that list. `set-role` also takes comma separated roles (`sales,accountant`). `--github-id` links the new user to a GitHub user id (the number, not the login), so signing in with GitHub, the app's own provider or the [platform's](/reference/auth/#platform-sign-in-provider), finds them whatever address GitHub reports; an id that signs in another user already is refused. `createUser(auth, { ..., accounts: [{ providerId, accountId }] })` does the same from code.
 
-The password is typed at a hidden prompt with confirmation, read from stdin with `--password-stdin` (for scripts, e.g. `pass show erp | protobase users create me@example.com --password-stdin`), or generated with `--generate-password` and printed once. `--no-password` makes an account without one, which signs in by [emailed code](/reference/auth/#emailed-sign-in-codes), passkey or a sign-in provider, as with an app whose [sign-in policy](/reference/auth/#sign-in-policy) turns passwords off. A password is never accepted as an argument, since it would end up in shell history. `users list` prints email, role and creation date (and `disabled` for banned users), never credentials.
+The password is typed at a hidden prompt with confirmation, read from stdin with `--password-stdin` (for scripts, e.g. `pass show erp | protobase users create me@example.com --password-stdin`), or generated with `--generate-password` and printed once; it must be 12 to 128 characters, as sign-in takes. `--no-password` makes an account without one, which signs in by [emailed code](/reference/auth/#emailed-sign-in-codes), passkey or a sign-in provider, as with an app whose [sign-in policy](/reference/auth/#sign-in-policy) turns passwords off. A password is never accepted as an argument, since it would end up in shell history. `users list` prints email, role and creation date (and `disabled` for banned users), never credentials.
 
 `delete` asks you to type the email back (or pass `--yes`), and needs a terminal otherwise. `delete`, `set-role` and `disable` refuse to touch the last admin, so the project cannot lock itself out. `disable` bans the user and revokes their sessions; tokens already issued stop working on their next request, and `protobase token` refuses disabled users. With [MCP](/reference/auth/#oauth-for-mcp-clients) on, it also disconnects their MCP clients. `enable` lifts the ban; the clients have to be allowed again. `protobase dev` prints "No users yet. Create the first admin with: protobase users create you@example.com" at startup while the user table is empty.
 
