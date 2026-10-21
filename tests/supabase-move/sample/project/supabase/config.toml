@@ -1,0 +1,3 @@
+[functions.notify]
+# The database's trigger calls it without a user's token.
+verify_jwt = false
