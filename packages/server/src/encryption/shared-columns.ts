@@ -1,6 +1,7 @@
 import type { FieldModel, ResourceModel } from '@protobase/schema'
 
-const sameTable = (a: ResourceModel, b: ResourceModel) =>
+/** Whether two resources are over one table: the same name, and the same schema or either one naming none. */
+export const sameTable = (a: ResourceModel, b: ResourceModel) =>
   a.table.name === b.table.name && (a.table.schema === undefined || b.table.schema === undefined || a.table.schema === b.table.schema)
 
 const columnOf = (model: ResourceModel, name: string | undefined) => (name === undefined ? null : model.fields[name]?.column ?? name)

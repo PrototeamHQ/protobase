@@ -4,7 +4,7 @@ import type { Entry } from '../registry'
 import { tableId } from '../sql-parts'
 import { contentRange } from './content-range'
 import { embedsOf, resolveShape, type ShapeItem } from './embed-shape'
-import { refuseEncryptedReads, refuseEncryptedWrite, refuseRebinding } from './encrypted-columns'
+import { guardedTable, refuseEncryptedReads, refuseEncryptedWrite, refuseRebinding } from './encrypted-columns'
 import type { ForeignKeys } from './foreign-keys'
 import type { Filter } from './parse-filter'
 import type { OrderTerm } from './parse-order'
@@ -40,6 +40,8 @@ const shapeOf = async (deps: RestDeps, foreignKeys: ForeignKeys, entry: Entry, q
   return resolveShape({ foreignKeys: await foreignKeys(), served, embedded: query.embedded }, entry.model.table.name, query.select)
 }
 
+const guarded = (deps: RestDeps, entry: Entry) => guardedTable(entry.model, deps.registry.entries.map((one) => one.model))
+
 const targetOf = (entry: Entry): WriteTarget => ({ table: tableId(entry.model), alias: entry.model.table.name })
 
 /** What a request reads of the table and of every embedded one: its filters, its sort and the columns it joins on. */
@@ -55,7 +57,7 @@ const readsOf = (deps: RestDeps, entry: Entry, filters: readonly Filter[], order
  */
 const scanCheck = async (deps: RestDeps, entry: Entry, filters: readonly Filter[], order: readonly OrderTerm[], shape: readonly ShapeItem[] = []): Promise<Record<string, string>> => {
   const reads = readsOf(deps, entry, filters, order, shape)
-  for (const read of reads) refuseEncryptedReads(read.entry.model, read.filters, read.order, read.joined)
+  for (const read of reads) refuseEncryptedReads(guarded(deps, read.entry), read.filters, read.order, read.joined)
   if (deps.guard.mode === 'off') return {}
   for (const read of reads) {
     const [first] = uncoveredReads(await deps.guard.indexesOf(read.entry), read.filters, read.order, read.joined)
@@ -122,8 +124,9 @@ const insert = async (deps: RestDeps, foreignKeys: ForeignKeys, c: Context<RestE
   if (columns.length === 0 && rows.length > 1) throw restError(400, 'PGRST102', 'Several rows without any column cannot be inserted at once')
   if (rows.length === 0 && object) checkSingle(0)
   const conflict = query.onConflict ?? entry.model.primaryKey.map((name) => entry.model.fields[name]!.column)
-  refuseEncryptedWrite(entry.model, prefer.resolution ? [...columns, ...conflict] : columns)
-  if (prefer.resolution === 'merge-duplicates') refuseRebinding(entry.model, columns, conflict)
+  const table = guarded(deps, entry)
+  refuseEncryptedWrite(table, prefer.resolution ? [...columns, ...conflict] : columns)
+  if (prefer.resolution === 'merge-duplicates') refuseRebinding(table, columns, conflict)
   const written: Written = rows.length === 0 ? { total: 0, ...(prefer.return === 'representation' && { body: '[]' }) } : await asCaller(deps, c, false, async (trx) => {
     const result = await insertRows(trx, targetOf(entry), { rows, columns, defaults: prefer.missing === 'default', resolution: prefer.resolution, conflict }, returningOf(prefer, shape))
     if (object) checkSingle(result.total)
@@ -141,8 +144,9 @@ const update = async (deps: RestDeps, foreignKeys: ForeignKeys, c: Context<RestE
   const object = wantsObject(c.req.raw)
   const body = await readBody(c)
   if (!isRecord(body)) throw restError(400, 'PGRST102', 'Empty or invalid json')
-  refuseEncryptedWrite(entry.model, Object.keys(body))
-  refuseRebinding(entry.model, Object.keys(body))
+  const table = guarded(deps, entry)
+  refuseEncryptedWrite(table, Object.keys(body))
+  refuseRebinding(table, Object.keys(body))
   const shape = await shapeOf(deps, foreignKeys, entry, query)
   const warning = await scanCheck(deps, entry, query.filters, [], shape)
   const written: Written = Object.keys(body).length === 0

@@ -45,7 +45,7 @@ As on the [REST API](/reference/api/#safety), a filter or a sort reads only colu
 
 ## Encrypted fields
 
-The column of an [encrypted field](/reference/data-config/#encrypted-fields) holds ciphertext, which this API can neither write nor compare. A read returns it as stored. Writing the column, an `on_conflict` on it, a filter, sort or embed join on it, and, on a table with encrypted fields, a write that changes a row's key or tenant are `400` with code `encrypted-column`, writing nothing. Write such fields and reveal them through the [REST API](/reference/api/).
+The column of an [encrypted field](/reference/data-config/#encrypted-fields) holds ciphertext, which this API can neither write nor compare. A read returns it as stored. Writing the column, an `on_conflict` on it, a filter, sort or embed join on it, and, on a table with encrypted fields, a write that changes a row's key or tenant are `400` with code `encrypted-column`, writing nothing, whichever resource over the table declares the field. A view this API serves cannot be checked, so it must not show an encrypted column. Write such fields and reveal them through the [REST API](/reference/api/).
 
 ## Errors
 
