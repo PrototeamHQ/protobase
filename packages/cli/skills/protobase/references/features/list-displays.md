@@ -5,9 +5,9 @@
 Show a list as cards, a map, a board, a calendar or a timeline, and reorder records by hand.
 
 - [List displays](../reference/ui-config.md#list-displays): Besides a table, a list shows as cards, a map, a board, a calendar, a timeline or your own component, picked with a switch.
-- [Cards](../reference/ui-config.md#list-displays): Records as cards with an image, title, subtitle, amount, badge and meta icons.
+- [Cards](../reference/ui-config.md#list-displays): Records as cards with an image, title, subtitle, amount, badge, meta icons, a footer line and flags, or drawn by your own card component.
 - [Card photos](../reference/ui-config.md#card-photos): Cards step through a record's photos by swiping or with arrows.
-- [Boards](../reference/ui-config.md#boards): Records in columns by status, with counts. Cards are dragged between columns by mouse, touch or keyboard.
+- [Boards](../reference/ui-config.md#boards): Records in columns by status, with counts. Where the list allows it, cards are dragged between columns by mouse, touch or keyboard.
 - [Calendars](../reference/ui-config.md#calendars): Records by date in a month or week grid. Dragging an event to another day reschedules it.
 - [Timelines](../reference/ui-config.md#timelines): Each record is a bar from start to end over a week, month or quarter, optionally in lanes. Dragging a bar moves its dates.
 - [Maps](../reference/ui-config.md#maps): Records on a map with clustered counts, and a pin on the record page. Rough locations show as an area, and extra layers such as aerial photos can be switched on.

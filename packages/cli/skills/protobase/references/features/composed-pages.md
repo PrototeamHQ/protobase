@@ -13,6 +13,6 @@ Pages of your own, built from blocks in a JSX layout.
 - [Data blocks](../reference/blocks.md#data): Counts, tables, single records, rows of cards, field values and progress bars.
 - [Record rows](../reference/blocks.md#recordrow): A sideways row of cards for a filter, favorites or saved searches, with a count and new-record marks.
 - [Record cards](../reference/blocks.md#recordcards): Full-width cards with fields and buttons, stacked or in a carousel.
-- [Chart block](../reference/blocks.md#chart): Counts, sums or averages by value or by date, as bars, lines or a donut.
+- [Chart block](../reference/blocks.md#chart): Counts, sums or averages by value or by date, as bars, lines or a donut, and over time split by a second field.
 - [Buttons and forms](../reference/blocks.md#behaviour): Buttons for named actions, and create or edit forms in a dialog.
 - [Users block](../reference/blocks.md#users): User management on any page: find users, set roles, block them and invite by email.
