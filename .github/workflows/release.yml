@@ -152,13 +152,34 @@ jobs:
           NPM_CONFIG_PROVENANCE: 'true'
         run: node scripts/publish.mjs
 
+  # npm can take minutes to serve a version it just published, so this waits once, on one runner, before the image
+  # builds that need the packages from npm.
+  npm:
+    needs: [release, publish]
+    if: ${{ !cancelled() && needs.publish.result == 'success' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: refs/tags/${{ inputs.tag || needs.release.outputs.tag }}
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.2
+      - run: bun install --frozen-lockfile
+      - name: Stamp the tag's version into the packages
+        env:
+          TAG: ${{ inputs.tag || needs.release.outputs.tag }}
+        run: bun scripts/stamp-version.mjs "$TAG"
+      - name: Wait for npm to serve the @protobase packages
+        run: bun scripts/wait-for-npm.mjs
+
   # The images, on GitHub's registry at the release's version (see image.yml), built from the release's @protobase
   # packages as npm serves them: ghcr.io/prototeamhq/protobase, the serve runtime and the shell of @protobase/cli and
   # @protobase/ui, and ghcr.io/prototeamhq/protobase-dev, Bun and the presets, whose bun.lock files resolve the packages
-  # from npm. Both wait for publish, so a release without its packages on npm has no images.
+  # from npm. Both wait for the npm job, so a release without its packages served by npm has no images.
   image:
-    needs: [release, publish]
-    if: ${{ !cancelled() && needs.publish.result == 'success' }}
+    needs: [release, npm]
+    if: ${{ !cancelled() && needs.npm.result == 'success' }}
     permissions:
       contents: read
       packages: write
@@ -168,8 +189,8 @@ jobs:
       tag: ${{ inputs.tag || needs.release.outputs.tag }}
 
   image-dev:
-    needs: [release, publish]
-    if: ${{ !cancelled() && needs.publish.result == 'success' }}
+    needs: [release, npm]
+    if: ${{ !cancelled() && needs.npm.result == 'success' }}
     permissions:
       contents: read
       packages: write
