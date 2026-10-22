@@ -86,6 +86,9 @@ jobs:
       - run: bun run sh -c 'node -e "process.versions.bun || (console.error(\"bun run starts Node, not Bun\"), process.exit(1))"'
       # The protobase skill is generated from the docs and served by the site: it fails here when it falls behind them.
       - run: bun run docs:skill --check
+      # The features pages keep their grammar, link real headings and cover every reference page (CONTRIBUTING.md,
+      # Features and docs). Its --release-rule, that a release with a feature changes the docs, is not on yet.
+      - run: bun run features:check
       # The template databases each integration run clones; with CI set, a missing one fails the run instead of skipping.
       - run: bun run test:db
       # A self-hosted runner has no root to install Chromium's system packages, so its server provides them.
