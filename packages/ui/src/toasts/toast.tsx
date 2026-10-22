@@ -1,11 +1,14 @@
-import { CheckCircle2, TriangleAlert, X, XCircle } from 'lucide-react'
+import { CheckCircle2, RotateCw, TriangleAlert, X, XCircle } from 'lucide-react'
 import { inApp } from '../app-shell/breadcrumb'
 import { cn } from '../lib/cn'
 import { Spinner } from '../primitives/spinner'
 import { text } from './messages'
 
-/** `warning`: done, but not as asked, such as a drop moved to the first place a rule allows. */
-export type ToastState = 'loading' | 'success' | 'warning' | 'error'
+/**
+ * `warning`: done, but not as asked, such as a drop moved to the first place a rule allows. `info`: news that asks for
+ * no answer now, such as a new version of the app.
+ */
+export type ToastState = 'loading' | 'success' | 'warning' | 'error' | 'info'
 
 /**
  * A button, or a link when the action goes somewhere: an `<a href>`, which `onNavigate` follows in the app on a plain
@@ -47,6 +50,7 @@ const icons = {
   success: <CheckCircle2 className="size-4 text-success" />,
   warning: <TriangleAlert className="size-4 text-warning" />,
   error: <XCircle className="size-4 text-danger" />,
+  info: <RotateCw className="size-4 text-primary" />,
 }
 
 export const Toast = ({ state, title, description, action, onDismiss }: ToastProps) => (

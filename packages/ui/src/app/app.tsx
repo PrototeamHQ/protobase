@@ -51,7 +51,8 @@ import { RecordPage } from './record-page'
 import { SourceNotice } from './source-notice'
 import { sourceStatusOf } from '../data/with-sources'
 import { useGlobalSearch } from './search/use-global-search'
-import { NewVersionNotice } from './new-version-notice'
+import { NewVersionButton } from './new-version/new-version-button'
+import { NewVersionToast } from './new-version/new-version-toast'
 import { Router, useRouter } from './router'
 import { RuntimeUpdateButton } from './runtime/runtime-update'
 import { StaffBanner } from './staff-banner'
@@ -153,6 +154,8 @@ const Routes = ({ workspace, sidebarMode, assistant, runtime }: Pick<AppProps, '
   // The update button is there when `/meta` names a runtime endpoint, which it does only for the admin role.
   const runtimeUrl = meta.runtime?.url
   const runtimeButton = runtimeUrl && <RuntimeUpdateButton url={runtimeUrl} client={runtime} />
+  // From the moment the server runs another Protobase version than the page started with, until the page reloads
+  const reloadButton = meta.versionChange && <NewVersionButton />
   // The session acts with one role at a time; what the shell shows by role follows it, as the API does.
   const role = useActiveRole(useCallback(() => reopenIn(basePath), [basePath]), Boolean(user))
   const acting = user && actingUser(user, role.current)
@@ -224,7 +227,7 @@ const Routes = ({ workspace, sidebarMode, assistant, runtime }: Pick<AppProps, '
       roles={role.current?.active ? { active: role.current.active, roles: role.current.roles, onSwitch: role.switchTo } : undefined}
       onNavigate={open}
       search={search.available ? { placeholder: search.placeholder, text: search.text, onTextChange: search.setText, query: search.query, loading: search.loading, groups: search.groups, onSelect: open } : undefined}
-      actions={(Actions || runtimeButton || assistantButton) && <>{Actions && <CustomBoundary name="shell.actions" fallback={null}><Actions /></CustomBoundary>}{runtimeButton}{assistantButton}</>}
+      actions={(Actions || reloadButton || runtimeButton || assistantButton) && <>{Actions && <CustomBoundary name="shell.actions" fallback={null}><Actions /></CustomBoundary>}{reloadButton}{runtimeButton}{assistantButton}</>}
       rightPanel={(RightPanel || assistantPanel) && <>{RightPanel && <CustomBoundary name="shell.rightPanel" fallback={null}><RightPanel /></CustomBoundary>}{assistantPanel}</>}
     >
       {content}
@@ -250,7 +253,7 @@ const Authenticated = ({ baseUrl, client, sources, workspace, sidebarMode, ui, a
     <ApiProvider baseUrl={baseUrl} client={client} sources={sources} token={state.kind === 'visitor' ? undefined : session.token} onUnauthenticated={markSignedOut}>
       <MetaGate>
         <ToastProvider>
-          <NewVersionNotice />
+          <NewVersionToast />
           <PluginGate ui={ui}>
             <Routes workspace={workspace} sidebarMode={sidebarMode} assistant={assistant} runtime={runtime} />
           </PluginGate>

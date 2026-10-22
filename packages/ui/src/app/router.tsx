@@ -14,12 +14,18 @@ type RouterValue = {
   /** Moves to a path below the base path, as `appPath` writes it. */
   navigate: (to: string, options?: { replace?: boolean }) => void
   /** Asks to be told before the page changes; returns how to stop asking. Used by `useNavigationGuard`. */
-  registerGuard: () => () => void
+  registerGuard: (kind?: GuardKind) => () => void
   /** Reloads the page, asking first while a guard holds unsaved changes. */
   reload: () => void
   /** Whether the person chose to reload despite unsaved changes, so the page leaves without asking again. */
   reloadConfirmed: () => boolean
 }
+
+/**
+ * What leaving the page does to the input a guard holds: `draft-kept` when this browser keeps it, as a record's draft,
+ * `input-lost` when it is gone.
+ */
+export type GuardKind = 'draft-kept' | 'input-lost'
 
 const RouterContext = createContext<RouterValue | null>(null)
 
@@ -38,7 +44,7 @@ export type RouterProps = {
 
 const browserUrl = () => `${window.location.pathname}${window.location.search}`
 
-type Pending = { kind: 'link'; full: string; replace: boolean } | { kind: 'history'; delta: number } | { kind: 'reload' }
+type Pending = { kind: 'link'; full: string; replace: boolean } | { kind: 'history'; delta: number } | { kind: 'reload'; inputLost: boolean }
 
 const pathOf = (url: string) => new URL(url, 'http://local').pathname
 
@@ -62,7 +68,7 @@ const historyEntry = () => {
 export const Router = ({ basePath = '', initialUrl, children }: RouterProps) => {
   const memory = initialUrl !== undefined
   const [page, setPage] = useState(() => ({ url: initialUrl ?? browserUrl(), entry: memory ? newEntry() : historyEntry() }))
-  const guards = useRef(new Set<symbol>())
+  const guards = useRef(new Map<symbol, GuardKind>())
   const current = useRef(page)
   current.current = page
   const position = useRef(memory ? 0 : historyIndex())
@@ -123,14 +129,14 @@ export const Router = ({ basePath = '', initialUrl, children }: RouterProps) => 
     [basePath, go],
   )
 
-  const registerGuard = useCallback(() => {
+  const registerGuard = useCallback((kind: GuardKind = 'draft-kept') => {
     const token = Symbol('guard')
-    guards.current.add(token)
+    guards.current.set(token, kind)
     return () => void guards.current.delete(token)
   }, [])
 
   const reload = useCallback(() => {
-    if (guards.current.size > 0) return setPending({ kind: 'reload' })
+    if (guards.current.size > 0) return setPending({ kind: 'reload', inputLost: [...guards.current.values()].includes('input-lost') })
     window.location.reload()
   }, [])
 
@@ -167,7 +173,22 @@ export const Router = ({ basePath = '', initialUrl, children }: RouterProps) => 
   return (
     <RouterContext.Provider value={value}>
       {children}
-      {pending && (
+      {pending?.kind === 'reload' && (
+        <Dialog
+          title={appText('reloadTitle')}
+          description={appText(pending.inputLost ? 'reloadInputLost' : 'reloadDraftKept')}
+          onClose={() => setPending(undefined)}
+          actions={
+            <>
+              <Button onClick={() => setPending(undefined)}>{appText('keepEditing')}</Button>
+              <Button variant="primary" onClick={leave}>
+                {appText('reload')}
+              </Button>
+            </>
+          }
+        />
+      )}
+      {pending && pending.kind !== 'reload' && (
         <Dialog
           title={appText('leaveTitle')}
           description={appText('leaveDescription')}
@@ -192,10 +213,10 @@ export const Link = ({ to, replace, ...rest }: AnchorHTMLAttributes<HTMLAnchorEl
   return <RouteLink to={{ href: `${basePath}${to}`, onFollow: () => navigate(to, { replace }) }} {...rest} />
 }
 
-/** While `active`, leaving the page asks first (in-app links and closing the tab). */
-export const useNavigationGuard = (active: boolean) => {
+/** While `active`, leaving the page asks first (in-app links, a reload and closing the tab). */
+export const useNavigationGuard = (active: boolean, kind: GuardKind = 'draft-kept') => {
   const { registerGuard, reloadConfirmed } = useRouter()
-  useEffect(() => (active ? registerGuard() : undefined), [active, registerGuard])
+  useEffect(() => (active ? registerGuard(kind) : undefined), [active, kind, registerGuard])
   useEffect(() => {
     if (!active) return
     const warn = (event: BeforeUnloadEvent) => {

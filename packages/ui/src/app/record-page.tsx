@@ -127,8 +127,9 @@ const LoadedRecord = ({ model, recordKey, stored, preview }: LoadedRecordProps) 
   const restore = useRestore(model)
   const canUpdate = can(permissions, 'update') && stored.permissions?.update !== false
   const { shown, offersEdit, editing } = recordShown(view?.recordMode, canUpdate, address?.kind === 'record' && address.edit === true)
-  // Only the form leaves changes behind; on the read view a draft kept from before waits for Edit
-  useNavigationGuard(editor.dirty && shown === 'form')
+  // Only the form leaves changes behind; on the read view a draft kept from before waits for Edit. A save under way
+  // counts too, so leaving never cuts off a write and then restores the draft of a record that was saved.
+  useNavigationGuard((editor.dirty && shown === 'form') || editor.saving)
   // Unsaved changes keep the version of the record they were made to, wherever the draft shows
   usePauseFocusRefresh(editor.dirty)
   const openGroups = address?.kind === 'record' ? address.open : undefined

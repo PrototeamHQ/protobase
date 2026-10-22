@@ -1,9 +1,9 @@
 import { createContext, useCallback, useContext, useMemo, useRef, useState, type ReactNode } from 'react'
 import { Toast, type ToastProps } from './toast'
 
-/** `sticky`: stays until dismissed, as a notice the person must act on. */
-type ToastItem = Omit<ToastProps, 'onDismiss'> & { id: number; sticky?: boolean }
-type ToastPatch = Partial<Omit<ToastItem, 'id' | 'sticky'>>
+/** `sticky`: stays until dismissed, as a notice the person must act on. `onClose`: called when the person closes it with ×. */
+type ToastItem = Omit<ToastProps, 'onDismiss'> & { id: number; sticky?: boolean; onClose?: () => void }
+type ToastPatch = Partial<Omit<ToastItem, 'id' | 'sticky' | 'onClose'>>
 
 export type ToastApi = {
   show: (toast: Omit<ToastItem, 'id'>) => number
@@ -11,7 +11,7 @@ export type ToastApi = {
   dismiss: (id: number) => void
 }
 
-const dismissAfterMs = { loading: Infinity, success: 3500, warning: 8000, error: 8000 }
+const dismissAfterMs = { loading: Infinity, success: 3500, warning: 8000, error: 8000, info: 8000 }
 const undoWindowMs = 8000
 
 const ToastContext = createContext<ToastApi | null>(null)
@@ -46,6 +46,11 @@ export const ToastProvider = ({ children }: { children: ReactNode }) => {
     [dismiss],
   )
 
+  const close = (item: ToastItem) => {
+    item.onClose?.()
+    dismiss(item.id)
+  }
+
   const api = useMemo<ToastApi>(
     () => ({
       show: (toast) => {
@@ -70,7 +75,7 @@ export const ToastProvider = ({ children }: { children: ReactNode }) => {
       <div className="pointer-events-none fixed inset-x-4 bottom-24 z-[100] flex flex-col items-end gap-2 md:inset-x-auto md:bottom-4 md:right-4">
         {items.map((item) => (
           <div key={item.id} className="pointer-events-auto">
-            <Toast state={item.state} title={item.title} description={item.description} action={item.action} onDismiss={() => dismiss(item.id)} />
+            <Toast state={item.state} title={item.title} description={item.description} action={item.action} onDismiss={() => close(item)} />
           </div>
         ))}
       </div>

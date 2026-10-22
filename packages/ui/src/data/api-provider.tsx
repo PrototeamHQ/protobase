@@ -2,6 +2,7 @@ import { focusManager, QueryClient, QueryClientProvider } from '@tanstack/react-
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { createClient, type Client, type ClientOptions, type SourceRef } from '@protobase/client'
 import { createFocusRefresh, FocusRefreshContext, listenToWindowFocus } from './focus-refresh'
+import type { MetaData } from './meta-data'
 import { keys } from './query-keys'
 
 const ApiContext = createContext<Client | null>(null)
@@ -86,6 +87,8 @@ export const ApiProvider = ({ baseUrl, client: given, sources, fetch, queryClien
           const previous = metaVersion.current
           metaVersion.current = version
           if (previous === undefined || previous === version) return
+          // A page that met another Protobase version keeps its `/meta` until it reloads (see `keepOnVersionChange`).
+          if (queryClient.getQueryData<MetaData>(keys.meta)?.versionChange) return
           // An in-flight `/meta` refetch is reused, so a version that keeps moving costs one request, not a loop.
           void queryClient.invalidateQueries({ queryKey: keys.meta }, { cancelRefetch: false })
         },
