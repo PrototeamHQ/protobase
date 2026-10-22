@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process'
-import { copyFile, mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises'
+import { copyFile, mkdir, mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
@@ -38,8 +38,8 @@ describe('scripts/release.mjs', () => {
     return { tag: tagged, notes: tagged ? await readFile(notesFile, 'utf8') : '' }
   }
 
-  const dryRun = () => {
-    const result = spawnSync('bun', [path.join(root, 'scripts/release.mjs'), '--dry-run'], { cwd: repo, encoding: 'utf8' })
+  const dryRun = (...args: string[]) => {
+    const result = spawnSync('bun', [path.join(root, 'scripts/release.mjs'), '--dry-run', ...args], { cwd: repo, encoding: 'utf8' })
     if (result.status !== 0) throw new Error(`dry run failed: ${result.stderr}`)
     return result.stdout.trim()
   }
@@ -127,5 +127,50 @@ describe('scripts/release.mjs', () => {
     tag('v0.1.1')
     commit('docs: only docs')
     expect(dryRun()).toBe('')
+  })
+
+  describe('the features release rule', () => {
+    const changeDocs = async (message: string) => {
+      await mkdir(path.join(repo, 'website/src/content/docs'), { recursive: true })
+      await writeFile(path.join(repo, 'website/src/content/docs/page.md'), message)
+      git('add', '.')
+      commit(message)
+    }
+
+    it('releases a feature that changes no docs page while it is off', () => {
+      commit('feat: the first feature')
+      tag('v0.1.0')
+      commit('feat: an undocumented feature')
+      expect(dryRun()).toBe('v0.1.1')
+    })
+
+    it('refuses a feature that changes no docs page when it is on, naming the feature', () => {
+      commit('feat: the first feature')
+      tag('v0.1.0')
+      commit('feat: an undocumented feature')
+      expect(() => dryRun('--features-release-rule')).toThrow(/features with no docs change since v0\.1\.0: \w+ feat: an undocumented feature/)
+    })
+
+    it('releases a feature when a docs page changed since the last release, and an example app feature or a fix without one', async () => {
+      commit('feat: the first feature')
+      tag('v0.1.0')
+      commit('feat: a documented feature')
+      await changeDocs('docs: the documented feature')
+      expect(dryRun('--features-release-rule')).toBe('v0.1.1')
+      tag('v0.1.1')
+      commit('feat(examples): a change to an example app')
+      commit('fix: a fix')
+      expect(dryRun('--features-release-rule')).toBe('v0.1.2')
+    })
+
+    it('does not count changes to the generated API reference as docs', async () => {
+      commit('feat: the first feature')
+      tag('v0.1.0')
+      await mkdir(path.join(repo, 'website/src/content/docs/api'), { recursive: true })
+      await writeFile(path.join(repo, 'website/src/content/docs/api/index.md'), 'generated')
+      git('add', '.')
+      commit('feat: a feature with only a regenerated API reference')
+      expect(() => dryRun('--features-release-rule')).toThrow('features with no docs change since v0.1.0')
+    })
   })
 })

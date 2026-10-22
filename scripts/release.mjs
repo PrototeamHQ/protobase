@@ -8,14 +8,17 @@
 // tests, chores, ...), or a HEAD that is a release already, tags nothing and prints nothing. No package.json is
 // bumped: the workflow writes the tag's version into them in its runner (scripts/stamp-version.mjs). `--dry-run`
 // prints the tag, as a real run does, with its notes on stderr, and tags nothing.
+// `--features-release-rule` also refuses a release with a feature that changes no docs page (scripts/features-check.ts);
+// it stays off until every feature already released is documented.
 import { spawnSync } from 'node:child_process'
 import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { parseArgs } from 'node:util'
+import { releaseProblems } from './features-check.ts'
 
 const firstRelease = '0.1.0'
-const { values } = parseArgs({ options: { 'dry-run': { type: 'boolean' }, notes: { type: 'string' } } })
+const { values } = parseArgs({ options: { 'dry-run': { type: 'boolean' }, notes: { type: 'string' }, 'features-release-rule': { type: 'boolean' } } })
 const dryRun = values['dry-run'] ?? false
 if (!dryRun && !values.notes) throw new Error('usage: bun scripts/release.mjs --notes <file> | --dry-run')
 
@@ -81,6 +84,11 @@ if (maintenance && isBreaking(lastTag, bumped)) {
 const tag = `v${maintenance ? patchAfter(lastTag) : bumped}`
 if (releaseTags().includes(tag)) throw new Error(`${tag} exists already`)
 const notes = `${section.slice(section.indexOf('\n') + 1).trim()}\n`
+
+if (values['features-release-rule']) {
+  const problems = releaseProblems(process.cwd())
+  if (problems.length > 0) throw new Error(`the features docs refuse this release:\n${problems.join('\n')}`)
+}
 
 if (maintenance) console.error(`${newestTag} is above ${lastTag}, so this maintenance release is a patch: ${tag}`)
 if (dryRun) {
