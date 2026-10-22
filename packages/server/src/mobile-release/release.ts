@@ -1,4 +1,4 @@
-import { createHash, sign, type KeyObject } from 'node:crypto'
+import { createHash, createPublicKey, sign, type KeyObject } from 'node:crypto'
 import { releaseManifestFile } from '@protobase/schema/internal'
 
 /** A file of a release: its path inside the app's files, such as `assets/index-abc123.js`, and its bytes. */
@@ -7,7 +7,10 @@ export type ReleaseFile = { href: string; content: Uint8Array }
 /** A file as the updater gets it: its bytes, their sha256 in hex and, with a signing key, their signature. */
 export type ServedReleaseFile = { content: Uint8Array; checksum: string; signature?: string }
 
-/** A release of the app's files: its bundle id, a hash of its manifest, and every file by `href`, the manifest included. */
+/**
+ * A release of the app's files: its bundle id, a hash of its manifest and of the signing key's public key, and every
+ * file by `href`, the manifest included.
+ */
 export type MobileRelease = { bundleId: string; files: Map<string, ServedReleaseFile> }
 
 const sha256 = (content: Uint8Array) => createHash('sha256').update(content).digest('hex')
@@ -21,6 +24,10 @@ export const releaseManifest = (files: ReleaseFile[]) =>
 // SHA256withRSA in base64, as the updater verifies `X-Signature` against the app's public key.
 const signature = (content: Uint8Array, key: KeyObject) => sign('sha256', content, key).toString('base64')
 
+// What signs the files: the public key of `signingKey`, or nothing. It is part of the bundle id, so a response cached
+// under a release's URL never carries another key's signature, or none where one is now expected.
+const signer = (signingKey?: KeyObject) => (signingKey ? createPublicKey(signingKey).export({ type: 'spki', format: 'der' }) : new Uint8Array())
+
 /**
  * The release of `files`, each hashed and, with `signingKey`, signed once here. Its manifest is served as a file of
  * its own, so a file of the app may not have the manifest's name.
@@ -30,7 +37,7 @@ export const composeRelease = (files: ReleaseFile[], signingKey?: KeyObject): Mo
   const manifest = new TextEncoder().encode(JSON.stringify(releaseManifest(files)))
   const served = (content: Uint8Array): ServedReleaseFile => ({ content, checksum: sha256(content), ...(signingKey && { signature: signature(content, signingKey) }) })
   return {
-    bundleId: sha256(manifest).slice(0, 16),
+    bundleId: createHash('sha256').update(manifest).update(signer(signingKey)).digest('hex').slice(0, 16),
     files: new Map([...files.map(({ href, content }) => [href, served(content)] as const), [releaseManifestFile, served(manifest)]]),
   }
 }
