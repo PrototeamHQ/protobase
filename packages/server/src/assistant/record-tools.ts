@@ -1,17 +1,10 @@
 import type { FieldModel, ResourceModel, ViewModel } from '@protobase/schema'
-import { HttpProblem } from '../problem'
-import type { RecordKeyInput } from './records'
+import { keyOf, keyParameter, refused, resourceOf, resourceParameter } from './record-tool-args'
 import { defineTool, type ReadableResources } from './tools'
 
 const readOnly = { readOnlyHint: true, openWorldHint: false }
 const defaultPageSize = 20
 const maxPageSize = 100
-
-// A refusal the model can act on (no such resource, not allowed, a bad filter) is its to read; anything else fails the call.
-const refused = (error: unknown) => {
-  if (error instanceof HttpProblem && error.status < 500) return JSON.stringify({ error: error.slug, message: error.detail })
-  throw error
-}
 
 const fieldEntry = (field: FieldModel, view: ViewModel | undefined) => {
   const hint = view?.fields[field.name]
@@ -38,16 +31,6 @@ const resourceEntry = (model: ResourceModel, view: ViewModel | undefined) => ({
 })
 
 const described = ({ models, views }: ReadableResources) => models.map((model) => resourceEntry(model, views.find((view) => view.resource === model.name)))
-
-const resourceOf = (args: Record<string, unknown>) => (typeof args.resource === 'string' && args.resource ? args.resource : undefined)
-
-const keyOf = (value: unknown): RecordKeyInput | undefined => {
-  if (typeof value === 'string' || typeof value === 'number') return value
-  if (Array.isArray(value) && value.length > 0 && value.every((part) => typeof part === 'string' || typeof part === 'number')) return value
-  return undefined
-}
-
-const resourceParameter = { type: 'string', description: 'The resource\'s name, as list_resources gives it.' }
 
 /** Lists the resources the caller may read, with their fields, labels and which fields filters and sorts take. */
 export const listResourcesTool = () =>
@@ -98,10 +81,7 @@ export const getRecordTool = () =>
       type: 'object',
       properties: {
         resource: resourceParameter,
-        key: {
-          description: 'The record\'s key: its value, or the values of its key fields in order when the key has several.',
-          anyOf: [{ type: 'string' }, { type: 'number' }, { type: 'array', items: { type: ['string', 'number'] }, minItems: 1 }],
-        },
+        key: keyParameter,
       },
       required: ['resource', 'key'],
     },
