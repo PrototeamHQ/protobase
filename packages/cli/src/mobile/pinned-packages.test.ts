@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import mobilePackage from '../../../mobile/package.json' with { type: 'json' }
-import { checkInstalledPlugins, pinnedNative, pinnedPackages } from './pinned-packages'
+import { checkInstalledPlugins, checkPinnedNative, pinnedNative, pinnedPackages } from './pinned-packages'
 
 let dir = ''
 afterEach(() => rmSync(dir, { recursive: true, force: true }))
@@ -40,6 +40,15 @@ describe('pinnedNative', () => {
   it('names the native sources @protobase/mobile publishes by its native contract', () => {
     const recorded = { contract: 2, sources: 'd15a5bc11de7049dffb347fd5909902bc1320315a1da92a1e5570d37ddd1f71f' }
     expect({ contract: mobilePackage.nativeContract, sources: nativeSources() }, 'the native sources of @protobase/mobile changed: raise nativeContract in its package.json, then record both here').toEqual(recorded)
+  })
+})
+
+describe('checkPinnedNative', () => {
+  it('refuses a native package installed at another version than the pinned one', () => {
+    dir = mkdtempSync(path.join(tmpdir(), 'protobase-plugins-'))
+    install('@capacitor/android', '@capacitor/android')
+    expect(() => checkPinnedNative(dir, { '@capacitor/android': '1.0.0' })).not.toThrow()
+    expect(() => checkPinnedNative(dir, { '@capacitor/android': '8.5.3' })).toThrow('@capacitor/android is 1.0.0, not 8.5.3: delete .protobase/mobile and run the command again')
   })
 })
 

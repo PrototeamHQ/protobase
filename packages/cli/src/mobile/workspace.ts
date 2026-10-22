@@ -1,5 +1,5 @@
 import { existsSync } from 'node:fs'
-import { mkdir, readFile, writeFile } from 'node:fs/promises'
+import { mkdir, readFile, rm, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { protobaseFolder } from '../project/protobase-folder'
@@ -20,10 +20,20 @@ export const workspacePackageJson = ({ mobileSpec, plugins = {} }: { mobileSpec:
   dependencies: { '@protobase/mobile': mobileSpec, ...plugins },
 })
 
+// The copy of the package `name` in the workspace `dir`, which never leaves its node_modules, whatever the name.
+const insideModules = (dir: string, name: string) => {
+  const modules = path.join(dir, 'node_modules')
+  const target = path.join(modules, name)
+  const relative = path.relative(modules, target)
+  if (relative === '' || relative.startsWith('..') || path.isAbsolute(relative)) throw new Error(`mobile.plugins lists ${name}, which is not an npm package name`)
+  return target
+}
+
 /**
  * Writes the workspace in `dir`, ignored by git, and installs its packages with npm when its package.json changed or
  * one of them is missing, as after an install that failed. `--install-links` copies a `file:` package and puts its
- * dependencies at the workspace's root, where Capacitor looks for them.
+ * dependencies at the workspace's root, where Capacitor looks for them. npm keeps a `file:` copy while its spec is
+ * unchanged, however its folder changed, so the copy is removed on each run and npm copies the folder again.
  */
 export const prepareWorkspace = async (dir: string, packageJson: ReturnType<typeof workspacePackageJson>, run: (command: string, args: string[]) => Promise<void>) => {
   await mkdir(dir, { recursive: true })
@@ -31,6 +41,10 @@ export const prepareWorkspace = async (dir: string, packageJson: ReturnType<type
   const file = path.join(dir, 'package.json')
   const content = `${JSON.stringify(packageJson, null, 2)}\n`
   const changed = !existsSync(file) || (await readFile(file, 'utf8')) !== content
+  for (const [name, spec] of Object.entries(packageJson.dependencies)) {
+    if (!spec.startsWith('file:')) continue
+    await rm(insideModules(dir, name), { recursive: true, force: true })
+  }
   const missing = Object.keys(packageJson.dependencies).some((name) => !existsSync(path.join(dir, 'node_modules', name, 'package.json')))
   if (changed) await writeFile(file, content)
   if (changed || missing) await run('npm', ['install', '--install-links', '--no-audit', '--no-fund'])
