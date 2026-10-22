@@ -10,10 +10,9 @@ import { childEnv, envFileKeys, projectEnvFiles } from './child-env'
 import { runChild, type RunChild } from './child-process'
 import { nativeFingerprint } from './fingerprint'
 import { generatePlatform } from './generate'
-import { installedPackage } from './installed-package'
 import { loadMobileProject } from './load-project'
 import { checkMobileConfig } from './mobile-config'
-import { checkInstalledPlugins } from './pinned-packages'
+import { checkInstalledPlugins, pinnedNative } from './pinned-packages'
 import type { Platform } from './platform'
 import { buildWebPart, placeholderWebPart, type WebPartInput } from './web-part'
 import { mobileSpec, prepareWorkspace, workspaceDir, workspacePackageJson } from './workspace'
@@ -55,10 +54,7 @@ export const prepare = async ({ projectDir, platform, api, extensions, live, rel
 
   if (live === undefined) await buildWebPart({ projectDir, ws, extensions, apiOrigin: url.origin, ...(build && { build }), onWarning: (message) => process.stderr.write(`warning: ${message}\n`) })
   else await placeholderWebPart(ws)
-  const fingerprint = nativeFingerprint({
-    mobile: installedPackage(ws, '@protobase/mobile').version,
-    plugins: plugins.map((key) => [key, installedPackage(ws, key).version]),
-  })
+  const fingerprint = nativeFingerprint(pinnedNative, mobile.plugins)
   const appName = project.auth?.appName ?? defaultAppName
   await writeCapacitorConfig(ws, capacitorConfig({ appId: mobile.appId, appName, fingerprint, plugins, allowances }))
   const cap = capacitorRunner(ws, env, run)

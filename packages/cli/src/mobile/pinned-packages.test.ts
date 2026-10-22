@@ -2,7 +2,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
-import { checkInstalledPlugins, pinnedPackages } from './pinned-packages'
+import { checkInstalledPlugins, pinnedNative, pinnedPackages } from './pinned-packages'
 
 let dir = ''
 afterEach(() => rmSync(dir, { recursive: true, force: true }))
@@ -15,6 +15,13 @@ const install = (key: string, name: string) => {
 describe('pinnedPackages', () => {
   it('holds @protobase/mobile and every package it pins', () => {
     expect([...pinnedPackages]).toEqual(expect.arrayContaining(['@protobase/mobile', '@capacitor/core', '@capacitor/app', '@capawesome/capacitor-live-update']))
+  })
+})
+
+describe('pinnedNative', () => {
+  it("holds the pinned native packages at their versions, and no @protobase package", () => {
+    expect(pinnedNative).toMatchObject({ '@capacitor/core': expect.stringMatching(/^\d+\.\d+\.\d+$/), '@capawesome/capacitor-live-update': expect.any(String) })
+    expect(Object.keys(pinnedNative).filter((name) => name.startsWith('@protobase/'))).toEqual([])
   })
 })
 
