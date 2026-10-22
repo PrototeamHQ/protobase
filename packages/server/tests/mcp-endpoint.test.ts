@@ -1,6 +1,17 @@
+import { base64url } from 'jose'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import type { AdminOptions } from '../src/admin-options'
-import { mcpStores, origin, serveMcp, type McpStores } from './support/mcp-app'
+import type { BetterAuthAuthenticator } from '../src/better-auth/authenticator'
+import { createAdmin } from '../src/create-admin'
+import { mcpHandler } from '../src/mcp/mcp-handler'
+import { mcpServer } from '../src/mcp/mcp-server'
+import { mcpTools } from '../src/mcp/mcp-tools'
+import { authOn, mcpStores, origin, password, redirectUri, resource, serveMcp, type McpStores } from './support/mcp-app'
+
+// Counted, so a test can tell the generic endpoint was never built.
+vi.mock('../src/mcp/mcp-tools', async (real) => ({ mcpTools: vi.fn((await real<typeof import('../src/mcp/mcp-tools')>()).mcpTools) }))
+vi.mock('../src/mcp/mcp-server', async (real) => ({ mcpServer: vi.fn((await real<typeof import('../src/mcp/mcp-server')>()).mcpServer) }))
+vi.mock('../src/mcp/mcp-handler', async (real) => ({ mcpHandler: vi.fn((await real<typeof import('../src/mcp/mcp-handler')>()).mcpHandler) }))
 
 // Real scrypt hashing runs on this thread, CPU work a busy machine stretches past 5 s.
 vi.setConfig({ testTimeout: 30_000 })
@@ -75,8 +86,10 @@ describe('the MCP endpoint', () => {
     expect(await toolNames(on.app, on.mcp)).toEqual(records)
     const root = await served({ mcp: { sql: true } }, 'root@example.com')
     expect(await toolNames(root.app, root.mcp)).toEqual([...records, 'run_read_only_query'])
-    const rootOff = await served(undefined, 'root@example.com')
-    expect(await toolNames(rootOff.app, rootOff.mcp)).toEqual(records)
+    for (const admin of [undefined, { mcp: {} }, { mcp: { sql: false } }]) {
+      const rootOff = await served(admin, 'root@example.com')
+      expect(await toolNames(rootOff.app, rootOff.mcp)).toEqual(records)
+    }
   })
 
   it('finds and reads records as the API gives them to the same person, refusals included', async () => {
@@ -110,5 +123,107 @@ describe('the MCP endpoint', () => {
         { name: 'name', type: 'text', optional: false, read_only: false, filterable: false, sortable: false },
       ],
     })
+  })
+})
+
+// A host's own role mapping around betterAuthAuthenticator, without its forAudience.
+const wrapped = (own: BetterAuthAuthenticator) => Object.assign((request: Request) => own(request), { userIdType: own.userIdType })
+
+const accessControl = (response: Response) => [...response.headers].filter(([name]) => name.startsWith('access-control-'))
+
+describe('an endpoint the host serves itself (options.mcp false)', () => {
+  const unsigned = (claims: object) => `${base64url.encode(JSON.stringify({ alg: 'none', typ: 'JWT' }))}.${base64url.encode(JSON.stringify(claims))}.`
+
+  it('starts without forAudience and answers 404 at the path and under it, whatever the request carries', async () => {
+    const app = await serveMcp(stores, { admin: { mcp: false, cors: ['https://assistant.example'] }, authenticate: wrapped })
+    const { cookie, tokens } = await app.grant()
+    const own = ((await (await app.request('/api/auth/token', { cookie })).json()) as { token: string }).token
+    const credentials = [
+      undefined,
+      `Bearer ${tokens.access_token}`,
+      `Bearer ${own}`,
+      'Bearer garbage',
+      `Bearer ${unsigned({ iss: origin, aud: resource, sub: '1', exp: 4_102_444_800 })}`,
+      `Basic ${btoa(`ana@example.com:${password}`)}`,
+    ]
+    const closed = await (await rpc(app, undefined, 'tools/list')).text()
+    for (const authorization of credentials) {
+      const headers = { host, ...(authorization && { authorization }) }
+      const answers = [
+        await rpc(app, undefined, 'tools/list', {}, headers),
+        await app.request('/api/mcp', { headers }),
+        await app.request('/api/mcp', { method: 'DELETE', headers }),
+        await app.request('/api/mcp/', { body: {}, headers }),
+        await app.request('/api/mcp/tools', { headers }),
+      ]
+      for (const answer of answers) {
+        expect(answer.status, authorization).toBe(404)
+        expect(await answer.text()).toBe(closed)
+      }
+    }
+    for (const path of ['/api/mcp', '/api/mcp/x']) {
+      const preflight = await app.request(path, { method: 'OPTIONS', from: 'https://assistant.example', headers: { 'access-control-request-method': 'POST', 'access-control-request-headers': 'authorization' } })
+      const head = await app.request(path, { method: 'HEAD', from: 'https://assistant.example' })
+      for (const answer of [preflight, head]) {
+        expect(answer.status).toBe(404)
+        expect(accessControl(answer).filter(([name]) => name.startsWith('access-control-allow-'))).toEqual([])
+      }
+    }
+    // The MCP token opens nothing of the app's own API, and gets no app token either.
+    expect((await app.request('/api/v1/organizations', { headers: { authorization: `Bearer ${tokens.access_token}` } })).status).toBe(401)
+    expect((await app.request('/api/v1/organizations', { headers: { authorization: `Bearer ${own}` } })).status).toBe(200)
+    const exchanged = await app.request('/api/auth/token', { headers: { authorization: `Bearer ${tokens.access_token}` } })
+    expect(exchanged.ok).toBe(false)
+    expect(await exchanged.text()).not.toContain('"token"')
+  })
+
+  it('builds no generic endpoint and asks for no audience, even from an authenticate that has forAudience', async () => {
+    for (const built of [mcpTools, mcpServer, mcpHandler]) vi.mocked(built).mockClear()
+    const forAudience = vi.fn()
+    const app = await serveMcp(stores, { admin: { mcp: false }, authenticate: (own) => Object.assign(own, { forAudience: forAudience.mockImplementation(own.forAudience) }) })
+    const { tokens } = await app.grant()
+    for (const [method, params] of [['tools/list', {}], ['tools/call', { name: 'list_records', arguments: { resource: 'organizations' } }]] as const) {
+      const answer = await rpc(app, tokens.access_token, method, params)
+      expect(answer.status).toBe(404)
+      expect(await answer.text()).not.toContain('jsonrpc')
+    }
+    expect(forAudience).not.toHaveBeenCalled()
+    for (const built of [mcpTools, mcpServer, mcpHandler]) expect(vi.mocked(built)).not.toHaveBeenCalled()
+    // The same authenticate builds them without the option.
+    createAdmin({ resources: [], db: stores.fixture.db, authenticate: app.authenticate, auth: app.auth })
+    expect(forAudience).toHaveBeenCalledWith(resource)
+    expect(vi.mocked(mcpTools)).toHaveBeenCalled()
+  })
+
+  it('keeps the OAuth provider\'s discovery, registration and token endpoint as they are', async () => {
+    const served = await serveMcp(stores)
+    const own = await serveMcp(stores, { admin: { mcp: false }, authenticate: wrapped })
+    const from = 'https://assistant.example'
+    for (const path of ['/.well-known/oauth-authorization-server', '/.well-known/oauth-protected-resource', '/.well-known/oauth-protected-resource/api/mcp']) {
+      const [expected, actual] = [await served.request(path, { from }), await own.request(path, { from })]
+      expect(actual.status, path).toBe(expected.status)
+      expect(accessControl(actual)).toEqual(accessControl(expected))
+      expect(await actual.json()).toEqual(await expected.json())
+    }
+    expect(((await (await own.request('/.well-known/oauth-protected-resource/api/mcp', { from })).json()) as { resource: string }).resource).toBe(resource)
+    for (const path of ['/api/auth/oauth2/register', '/api/auth/oauth2/token']) {
+      const preflight = (app: typeof own) => app.request(path, { method: 'OPTIONS', from, headers: { 'access-control-request-method': 'POST', 'access-control-request-headers': 'content-type, dpop' } })
+      const [expected, actual] = [await preflight(served), await preflight(own)]
+      expect(actual.status, path).toBe(expected.status)
+      expect(accessControl(actual)).toEqual(accessControl(expected))
+    }
+    for (const app of [served, own]) {
+      const registered = await app.request('/api/auth/oauth2/register', { from, body: { redirect_uris: [redirectUri], client_name: 'From afar', token_endpoint_auth_method: 'none' } })
+      expect(registered.status).toBe(201)
+      expect(registered.headers.get('access-control-allow-origin')).toBe('*')
+    }
+  })
+
+  it('starts with MCP off too, serving none of the provider', async () => {
+    const auth = await authOn(await stores.migrated.clone(), { mcp: undefined })
+    const plain = (request: Request) => ({ user: { id: request.headers.get('authorization') ?? '', roles: [] } })
+    const app = createAdmin({ resources: [], db: stores.fixture.db, authenticate: plain, auth, options: { mcp: false } })
+    expect((await app.request(`${origin}/.well-known/oauth-authorization-server`)).status).toBe(404)
+    expect((await app.request(`${origin}/api/auth/oauth2/register`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' })).status).toBe(404)
   })
 })
