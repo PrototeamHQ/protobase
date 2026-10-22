@@ -1,6 +1,6 @@
 # Property portal example
 
-A public portal of homes for sale and for rent in the Netherlands and Spain, in the style of Funda and Idealista. A Dutch home for sale is often let in the meantime (leegstandswet), so a listing can be offered both ways. Visitors browse and filter the listings without signing in; members save the searches they filter, which mail them new listings, save favorites and write notes, which nobody else sees. A real Postgres 18 database, seeded deterministically with Dutch and Spanish places, agencies and listings, published over the year up to 2026-10-12.
+A public portal of homes for sale and for rent in the Netherlands and Spain. A Dutch home for sale is often let in the meantime (leegstandswet), so a listing can be offered both ways. Visitors browse and filter the listings without signing in; members save the searches they filter, which mail them new listings, save favorites and write notes, which nobody else sees. A real Postgres 18 database, seeded deterministically with Dutch and Spanish places, agencies and listings, published over the year up to 2026-10-12.
 
 This is not the [real estate example](../real-estate/README.md), which is the back office of one letting agency.
 
