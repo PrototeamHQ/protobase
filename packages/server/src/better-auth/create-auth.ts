@@ -6,6 +6,7 @@ import { appNameOver, defaultAppName } from '../app-name'
 import { goTrueIssuer, goTrueKeyPair } from '../gotrue/keys'
 import { goTrueSessionsPlugin } from '../gotrue/sessions-plugin'
 import { authBasePath } from './auth-base-path'
+import { mobileRequests, type MobileRequests } from './mobile-requests'
 import { passwordLength } from './new-account-password'
 import { platformMailer } from '../mail/platform-mailer'
 import type { Mailer } from '../mail/smtp-mailer'
@@ -222,6 +223,8 @@ type Resolved = {
   context?: () => Promise<AuthContext>
   /** The policy until an admin saves one, from `appSignInPolicy`; default everything allowed. */
   signInPolicy?: SignInPolicy
+  /** The requests from the app's iOS or Android build, whose Capacitor origin is trusted too (see `handleMobile`). */
+  mobile?: MobileRequests
 }
 
 const newUserId = (generate: NonNullable<CreateAuthOptions['generateUserId']>) => (generate === 'uuid' ? crypto.randomUUID() : generate())
@@ -236,7 +239,7 @@ const organizationPaths = ['/organization/set-active', '/organization/accept-inv
  * The options `createAuth` gives Better Auth, with the roles, default role, mailer, operator provider and platform
  * sign-in provider already resolved.
  */
-export const betterAuthOptions = (options: CreateAuthOptions, { origins = [], passkeyDomain, roles, definitions, defaultRole, appName = defaultAppName, mailer, signUpRole, operator, platformSignIn, saml = [], organizations, mcp, context = noContext, signInPolicy = defaultSignInPolicy }: Resolved) => {
+export const betterAuthOptions = (options: CreateAuthOptions, { origins = [], passkeyDomain, roles, definitions, defaultRole, appName = defaultAppName, mailer, signUpRole, operator, platformSignIn, saml = [], organizations, mcp, context = noContext, signInPolicy = defaultSignInPolicy, mobile }: Resolved) => {
   const secure = options.baseURL.startsWith('https://')
   const signIn = platformSignInFor(platformSignIn, Object.keys(options.socialProviders ?? {}))
   const hosts = passkeyHosts([options.baseURL, ...origins])
@@ -271,6 +274,7 @@ export const betterAuthOptions = (options: CreateAuthOptions, { origins = [], pa
     // Tokens come from `/token` only, which the sign-in policy holds back until required methods are set up.
     disableSettingJwtHeader: true,
   } satisfies JwtOptions
+  const trusted = [options.baseURL, ...origins, ...(options.trustedOrigins ?? [])]
   const userFields = { ...userFieldsNamed(emailConfirmedField, users), ...(organizations && userFieldsNamed(lastOrganizationField, users)), ...metadataField(users) }
   return {
     appName,
@@ -278,7 +282,7 @@ export const betterAuthOptions = (options: CreateAuthOptions, { origins = [], pa
     baseURL: multiHostBaseURL(options.baseURL, origins),
     basePath: authBasePath,
     secret: options.secret,
-    trustedOrigins: [options.baseURL, ...origins, ...(options.trustedOrigins ?? [])],
+    trustedOrigins: mobile ? (request?: Request) => [...trusted, ...mobile.trusted(request)] : trusted,
     // The minimum length holds for new passwords only: one another system accepted signs in as it is.
     emailAndPassword: {
       enabled: true,
@@ -417,9 +421,15 @@ export const createAuth = (options: CreateAuthOptions) => {
   // The organization hooks and the MCP provider read the store through the instance made below; they run only once it exists.
   let instance: { $context: Promise<AuthContext> } | undefined
   const context = () => instance?.$context ?? Promise.reject(new Error('The auth instance is not made yet'))
-  const auth = betterAuth(betterAuthOptions(options, { origins, passkeyDomain, roles, definitions, defaultRole, ...(appName && { appName }), mailer, signUpRole, operator, platformSignIn, saml, signInPolicy, ...(organizations && { organizations }), ...(mcp && { mcp }), ...((organizations || mcp) && { context }) }))
+  const mobile = mobileRequests()
+  const auth = betterAuth(betterAuthOptions(options, { mobile, origins, passkeyDomain, roles, definitions, defaultRole, ...(appName && { appName }), mailer, signUpRole, operator, platformSignIn, saml, signInPolicy, ...(organizations && { organizations }), ...(mcp && { mcp }), ...((organizations || mcp) && { context }) }))
   instance = auth as unknown as { $context: Promise<AuthContext> }
   return Object.assign(auth, {
+    /**
+     * Answers a request from the app's iOS or Android build: Better Auth also trusts the Capacitor origin the request
+     * names. Only `createAdmin` with a `mobile` section uses it; `handler` and `api` never trust a Capacitor origin.
+     */
+    handleMobile: (request: Request) => auth.handler(mobile.grant(request)),
     /** Issuer and audience of the tokens: `baseURL`, on every origin. */
     issuer: options.baseURL,
     /** Every origin the app is served on, `baseURL`'s first. */

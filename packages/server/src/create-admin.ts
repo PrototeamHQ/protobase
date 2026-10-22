@@ -130,7 +130,10 @@ export type CreateAdminInput = {
   subscriptions?: SubscriptionDefinition[]
   /** Webhook subscriptions made in the admin app, from `extends: [webhooks()]` (see `WebhooksOptions`). */
   webhooks?: WebhooksOptions
-  /** The app's iOS and Android build (see `MobileConfig`): the API answers its Capacitor origins through CORS. */
+  /**
+   * The app's iOS and Android build (see `MobileConfig`): the API answers its Capacitor origins through CORS, and sign-in
+   * at `/api/auth` trusts the Capacitor origin a request names, without CORS, as the app calls it through native HTTP.
+   */
   mobile?: MobileConfig
   /** The app's colours, which its web manifest carries (see `AppIdentity`). */
   app?: AppIdentity
@@ -311,7 +314,8 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], pag
     app.route(authBasePath, statusRoute(auth, { anonymous: visitorsBrowse(options.roles), plugins: pluginsBeforeSignIn(plugins), ...(locale && { locale }) }))
     if (auth.organizations) app.route(authBasePath, organizationRoutes({ auth, audit: deps.audit, registry, db }))
     if (auth.mcp) mcpDiscovery(app, auth)
-    app.on(['GET', 'POST'], `${authBasePath}/*`, async (c) => withoutSessionTokens(c.req.raw, await auth.handler(c.req.raw)))
+    const answer = mobile ? auth.handleMobile : auth.handler
+    app.on(['GET', 'POST'], `${authBasePath}/*`, async (c) => withoutSessionTokens(c.req.raw, await answer(c.req.raw)))
     // The same sign-in for supabase-js and @supabase/ssr, at the address and in the shape of Supabase's.
     app.route(goTruePath, goTrueRoutes(auth))
     // On several origins, each says which origins may use the app's passkeys: all of them (Related Origin Requests).

@@ -100,11 +100,11 @@ describe('a mobile app', () => {
   const capacitor = ['capacitor://localhost', 'https://localhost']
   const corsHeaders = (response: Response) => [...response.headers.keys()].filter((name) => name.startsWith('access-control-'))
 
-  it('leaves sign-in to Better Auth, which answers the Capacitor origins as it does without a mobile section', async () => {
+  // Better Auth skips its origin check under a test runner: mobile-sign-in.test.ts turns it on to test which origins it trusts.
+  it('answers the Capacitor origins at /api/auth without CORS, with a mobile section or without', async () => {
     vi.stubEnv('PROTOBASE_CORS_ORIGINS', '')
     const answers = async (withMobile?: MobileConfig) => {
       const { app, address } = await serve({}, withMobile)
-      const statuses: number[] = []
       for (const origin of capacitor) {
         for (const path of ['/api/auth/sign-in/email', '/api/auth/get-session', '/api/auth', '/api/auth/status']) {
           const headers = { origin, 'x-forwarded-for': address }
@@ -114,12 +114,11 @@ describe('a mobile app', () => {
           const request = await app.request(`${label}${path}`, { method, headers: { ...headers, 'content-type': 'application/json' }, body })
           expect(corsHeaders(preflight), `${origin} ${path}`).toEqual([])
           expect(corsHeaders(request), `${origin} ${path}`).toEqual([])
-          statuses.push(preflight.status, request.status)
         }
       }
-      return statuses
     }
-    expect(await answers(mobile)).toEqual(await answers())
+    await answers(mobile)
+    await answers()
   })
 
   it('answers the Capacitor origins and the app\'s own on /api and /auth/v1', async () => {
