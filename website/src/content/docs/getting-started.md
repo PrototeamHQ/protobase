@@ -9,12 +9,16 @@ An app's own React code, its components, field types and actions, is a [plugin](
 
 ## Start an app
 
-`npm create protobase my-app` asks which preset to start from, scratch (the default), the ERP or real estate, writes the project into `my-app`, with the `@protobase` packages in the range of the latest release's major, and prints the next steps: install it with Bun, point `.env` at a Postgres database, migrate it, load the preset's base data, if it has any, create a user and run `bun run dev`. `--preset <name>` picks one without asking; without a terminal it takes scratch. It needs Node 22.12 or later.
+`npm create protobase my-app` asks which preset to start from, scratch (the default), the ERP or real estate, writes the project into `my-app`, with the `@protobase` packages in the range of the latest release's major, and prints the next steps: install it with Bun, point `.env` at a Postgres database, migrate it, load the preset's base data, if it has any, create a user and run `bun run dev`. `--preset <name>` picks one without asking; without a terminal it takes scratch. It needs Node 22.12 or later. Each preset has an `AGENTS.md` with the rules for a coding agent that changes the app, such as a new migration file for every schema change.
 
 ```sh
 npm create protobase my-app
 npm create protobase my-app -- --preset real-estate
 ```
+
+## Docs as Markdown
+
+Every page of these docs is also Markdown at its address plus `.md`: `https://docs.protobase.net/reference/cli/` is also `https://docs.protobase.net/reference/cli.md`. The code a page shows from example files is written out in it, and its live demos are left out, so a coding agent or a chat assistant reads the page whole. In a project, [`protobase skill install`](/reference/cli/#skill) gives coding agents the docs of the installed version.
 
 The rest of this page works in a clone of this repository, on its examples.
 
@@ -50,7 +54,7 @@ bun run --cwd examples/real-estate dev                  # http://localhost:5173
 
 ## Run the property portal example
 
-`examples/property-portal` is a public portal of homes for sale and for rent in the Netherlands and Spain, in the style of Funda and Idealista. Visitors browse and filter the listings without signing in, through the [anonymous role](/reference/access/#anonymous-access); members save searches of the listings that mail them new homes, and keep favorites and notes that only they see. The seed makes two members, `anna@portal.example` and `bram@portal.example`, and an admin, `admin@portal.example`, all with the password `property-portal-demo`.
+`examples/property-portal` is a public portal of homes for sale and for rent in the Netherlands and Spain. Visitors browse and filter the listings without signing in, through the [anonymous role](/reference/access/#anonymous-access); members save searches of the listings that mail them new homes, and keep favorites and notes that only they see. The seed makes two members, `anna@portal.example` and `bram@portal.example`, and an admin, `admin@portal.example`, all with the password `property-portal-demo`.
 
 ```sh
 bun run db:up && bun run --cwd examples/property-portal db:migrate && bun run --cwd examples/property-portal db:seed --scale small

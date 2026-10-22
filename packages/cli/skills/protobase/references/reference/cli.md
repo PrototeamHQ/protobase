@@ -195,7 +195,9 @@ A token the [theme](theme.md) sets that the app does not read prints a `warning:
 
 By default the bundle runs on Node and on Bun. `--bun` makes it a bundle for Bun only, as the Protobase images and the cloud serve it: Bun's bundler writes the config module (see [the config module](#the-config-module)), so the build needs `bun` on `PATH` and fails without it.
 
-`--source-maps` writes a source map beside each script of the shell and the plugins, `assets/<name>-<hash>.js.map`, for an error tracker to read the browser's stack frames with. Each script ends with a `//# debugId=<uuid>` comment, and its map carries the same `debugId`; the scripts name no map, but a host serves the maps with the rest of `public/` unless it moves them out. The shell's maps come prebuilt in `@protobase/ui`'s `dist/shell-source-maps/`. Without the option the bundle has no maps.
+### Source maps
+
+`--source-maps` writes a source map beside each script of the shell and the plugins, `assets/<name>-<hash>.js.map`, for an error tracker to read the browser's stack frames with. Each script ends with a `//# debugId=<uuid>` comment, and its map carries the same `debugId`; the scripts name no map, but a host serves the maps with the rest of `public/` unless it moves them out. The shell's maps come prebuilt in `@protobase/ui`'s `dist/shell-source-maps/`. Without the option the bundle has no maps. [`build-plugin --source-maps`](#build-plugin) does the same for a plugin built on its own.
 
 ### Extensions
 
