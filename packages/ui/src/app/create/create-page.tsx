@@ -1,6 +1,7 @@
 import { useQueryClient } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
 import type { ProblemError } from '@protobase/client'
+import type { AppAddress } from '@protobase/schema'
 import { useClient } from '../../data/api-provider'
 import { humanize } from '../../live/naming'
 import { recordKey } from '../../live/model-helpers'
@@ -8,6 +9,7 @@ import { fetchLabels } from '../../live/relation-labels'
 import { FieldEditor } from '../field-editor'
 import { Notice, useAdminMeta, usePermissions } from '../meta-gate'
 import { can } from '../permissions'
+import { useNavigationGuard } from '../router'
 import { useAppAddress } from '../use-app-address'
 import { fieldErrors, fieldMessage } from '../field-errors'
 import { useFocusFirstInvalid } from '../use-focus-first-invalid'
@@ -46,6 +48,14 @@ const LoadedCreate = ({ resource, values }: CreatePageProps) => {
   // How many creates the server turned down for their fields
   const [rejections, setRejections] = useState(0)
   const formRef = useFocusFirstInvalid<HTMLFormElement>(rejections)
+  // The new record, once created: the page opens it once the guard below has let go
+  const [newRecord, setNewRecord] = useState<AppAddress>()
+  // What is typed, or being created, is gone when the page is left
+  const [touched, setTouched] = useState(false)
+  useNavigationGuard(!newRecord && (touched || feedback.phase === 'saving'), 'input-lost')
+  useEffect(() => {
+    if (newRecord) go(newRecord, { replace: true })
+  }, [newRecord, go])
 
   // A relation the address fills in shows the name of the record it points at once that has loaded.
   useEffect(() => {
@@ -61,6 +71,7 @@ const LoadedCreate = ({ resource, values }: CreatePageProps) => {
 
   const change = (name: string, value: unknown) => {
     setErrors((current) => without(current, name))
+    setTouched(true)
     setDraft((current) => ({ ...current, [name]: value }))
   }
 
@@ -76,7 +87,7 @@ const LoadedCreate = ({ resource, values }: CreatePageProps) => {
         throw error
       }
       for (const prefix of ['page', 'list', 'first-page', 'map', 'facets', 'series']) void queryClient.invalidateQueries({ queryKey: [prefix, resource] })
-      go({ kind: 'record', resource, key: recordKey(model, created.record) }, { replace: true })
+      setNewRecord({ kind: 'record', resource, key: recordKey(model, created.record) })
     })
 
   const formSections = sections.map((section) => ({

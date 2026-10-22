@@ -4,6 +4,7 @@ import { Button } from '../../primitives/button'
 import { menuKeyTarget } from '../../primitives/menu-keys'
 import { Textarea } from '../../primitives/textarea'
 import { useToast } from '../../toasts/toast-provider'
+import { useNavigationGuard } from '../router'
 import { refusalReason } from '../displays/board-columns'
 import { activeMention, insertMention, mentionedIds, type PickedUser } from './mention-text'
 import { useMentionable } from './use-mentionable'
@@ -30,6 +31,8 @@ export const CommentComposer = ({ resource, recordKey }: { resource: string; rec
   const listId = useId()
   const toast = useToast()
   const post = usePostComment(resource, recordKey)
+  // A comment being written, or posted, is gone when the page is left
+  useNavigationGuard(draft.trim() !== '' || post.isPending, 'input-lost')
 
   const mention = activeMention(draft, caret)
   const open = focused && mention !== undefined && mention.start !== closed

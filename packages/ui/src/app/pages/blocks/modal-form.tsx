@@ -16,6 +16,7 @@ import { useFocusFirstInvalid } from '../../use-focus-first-invalid'
 import { FieldEditor } from '../../field-editor'
 import { useAdminMeta, usePermissions } from '../../meta-gate'
 import { can } from '../../permissions'
+import { useNavigationGuard } from '../../router'
 import { useLayoutRecord, type LayoutRecord } from '../record-scope'
 import { useFirstRecord, useRefreshResource } from '../use-layout-data'
 import { propsOf, type BlockProps } from './block-props'
@@ -58,6 +59,9 @@ const ModalFormDialog = ({ model, record, mode, label, title, fields, values, on
   const formRef = useFocusFirstInvalid<HTMLFormElement>(rejections)
   const [failure, setFailure] = useState<unknown>()
   const [saving, setSaving] = useState(false)
+  // What is typed in the dialog, or being saved, is gone when the page is left
+  const [touched, setTouched] = useState(false)
+  useNavigationGuard(touched || saving, 'input-lost')
 
   const submit = async () => {
     setSaving(true)
@@ -123,6 +127,7 @@ const ModalFormDialog = ({ model, record, mode, label, title, fields, values, on
                 resource={model.name}
                 onChange={(next) => {
                   setErrors(({ [name]: _, ...rest }) => rest)
+                  setTouched(true)
                   setDraft((current) => ({ ...current, [name]: next }))
                 }}
               />

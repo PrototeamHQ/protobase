@@ -44,7 +44,8 @@ export type RouterProps = {
 
 const browserUrl = () => `${window.location.pathname}${window.location.search}`
 
-type Pending = { kind: 'link'; full: string; replace: boolean } | { kind: 'history'; delta: number } | { kind: 'reload'; inputLost: boolean }
+/** A change of page waiting for the person's answer; `inputLost` when a guard's input would be gone, not kept. */
+type Pending = ({ kind: 'link'; full: string; replace: boolean } | { kind: 'history'; delta: number } | { kind: 'reload' }) & { inputLost: boolean }
 
 const pathOf = (url: string) => new URL(url, 'http://local').pathname
 
@@ -69,6 +70,7 @@ export const Router = ({ basePath = '', initialUrl, children }: RouterProps) => 
   const memory = initialUrl !== undefined
   const [page, setPage] = useState(() => ({ url: initialUrl ?? browserUrl(), entry: memory ? newEntry() : historyEntry() }))
   const guards = useRef(new Map<symbol, GuardKind>())
+  const losesInput = () => [...guards.current.values()].includes('input-lost')
   const current = useRef(page)
   current.current = page
   const position = useRef(memory ? 0 : historyIndex())
@@ -97,7 +99,7 @@ export const Router = ({ basePath = '', initialUrl, children }: RouterProps) => 
         // The browser has already moved; step back to where the person was and ask.
         undoing.current = true
         window.history.go(-delta)
-        setPending({ kind: 'history', delta })
+        setPending({ kind: 'history', delta, inputLost: losesInput() })
         return
       }
       proceeding.current = false
@@ -123,7 +125,7 @@ export const Router = ({ basePath = '', initialUrl, children }: RouterProps) => 
   const navigate = useCallback(
     (to: string, { replace = false }: { replace?: boolean } = {}) => {
       const full = `${basePath}${to}`
-      if (pathOf(full) !== pathOf(current.current.url) && guards.current.size > 0) return setPending({ kind: 'link', full, replace })
+      if (pathOf(full) !== pathOf(current.current.url) && guards.current.size > 0) return setPending({ kind: 'link', full, replace, inputLost: losesInput() })
       go(full, replace)
     },
     [basePath, go],
@@ -136,7 +138,7 @@ export const Router = ({ basePath = '', initialUrl, children }: RouterProps) => 
   }, [])
 
   const reload = useCallback(() => {
-    if (guards.current.size > 0) return setPending({ kind: 'reload', inputLost: [...guards.current.values()].includes('input-lost') })
+    if (guards.current.size > 0) return setPending({ kind: 'reload', inputLost: losesInput() })
     window.location.reload()
   }, [])
 
@@ -191,7 +193,7 @@ export const Router = ({ basePath = '', initialUrl, children }: RouterProps) => 
       {pending && pending.kind !== 'reload' && (
         <Dialog
           title={appText('leaveTitle')}
-          description={appText('leaveDescription')}
+          description={appText(pending.inputLost ? 'leaveInputLost' : 'leaveDescription')}
           onClose={() => setPending(undefined)}
           actions={
             <>
