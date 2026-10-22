@@ -37,6 +37,13 @@ describe('composeRelease', () => {
     for (const file of release.files.values()) expect(verify('sha256', file.content, publicKey, Buffer.from(file.signature!, 'base64'))).toBe(true)
   })
 
+  it('gives the same files another id unsigned, signed with one key and with another', () => {
+    const [a, b] = [0, 1].map(() => generateKeyPairSync('rsa', { modulusLength: 2048 }).privateKey)
+    const ids = new Set([composeRelease(files).bundleId, composeRelease(files, a).bundleId, composeRelease(files, b).bundleId])
+    expect(ids.size).toBe(3)
+    expect(composeRelease(files, a).bundleId).toBe(composeRelease([...files].reverse(), a).bundleId)
+  })
+
   it("refuses an app file with the manifest's name", () => {
     expect(() => composeRelease([{ href: releaseManifestFile, content: text('[]') }])).toThrow(/rename it/)
   })
