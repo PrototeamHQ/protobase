@@ -37,6 +37,7 @@ Signing in works in the app as on the web, with nothing more to set up:
 - The session lives in the device's cookie store, so it survives reloads, updates and relaunches. On iOS, signing in or out within about a second of killing the app may be lost.
 - "Forgot password?" is not offered in the app, as the emailed link cannot lead back into it.
 - In the app, page script can reach the session cookie through Capacitor's native plugins, so keep untrusted script out of UI plugins.
+- While you develop over plain `http://localhost` with a mobile section, a page served on `https://localhost` in the same browser can send sign-in requests that carry your dev session, as some browsers treat the two as the same site. Do not open untrusted pages on `https://localhost` while you develop.
 
 ## 3. Run it
 
