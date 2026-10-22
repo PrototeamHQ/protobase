@@ -39,6 +39,12 @@ const recordingMailer = () => {
 const resourceRequest = (token: string, scheme = 'Bearer', dpop?: string) =>
   new Request(resource, { method: 'POST', headers: { authorization: `${scheme} ${token}`, ...(dpop && { dpop }) } })
 
+// Whether the MCP endpoint's authenticator takes an access token: its session, or the status it refuses it with.
+const mcpTakes = (authenticate: { forAudience: (audience: string) => (request: Request) => unknown }, token: string) =>
+  Promise.resolve()
+    .then(() => authenticate.forAudience(resource)(resourceRequest(token)))
+    .then(() => 'taken', (error: { status?: number }) => error.status)
+
 // A DPoP proof (RFC 9449) for `htu`, and for an access token when given. The provider keeps each proof's hash, so the
 // key is fixed and Ed25519, whose signatures, unlike ECDSA's, are the same in the recording and every replay.
 const dpopJwk = { kty: 'OKP', crv: 'Ed25519', x: 'zENySdtsCGMof7cw-f0U5aL39dT5cLxNWVb9ndTN1cU' }
@@ -378,13 +384,16 @@ describe('securing the account', () => {
   type Secured = { app: Served; clientId: string; refreshToken: string; cookie: string }
 
   // A grant of Ana's, one of Bo's, and a route that secures Ana's account; then Ana's client is disconnected and
-  // forgotten, and Bo's keeps working.
+  // forgotten, its access token refused at once, and Bo's keeps working.
   const securing = async (secure: (served: Secured) => Promise<void>, options: Partial<CreateAuthOptions> = {}) => {
     const app = await serve(options)
     const ana = await app.grant('ana@example.com')
     const bo = await app.grant('bo@example.com')
     expect(await app.givesCodeSilently(ana.cookie, ana.clientId)).toBe(true)
+    expect(await mcpTakes(app.authenticate, ana.tokens.access_token)).toBe('taken')
     await secure({ app, clientId: ana.clientId, refreshToken: ana.tokens.refresh_token!, cookie: ana.cookie })
+    expect(await mcpTakes(app.authenticate, ana.tokens.access_token)).toBe(401)
+    expect(await mcpTakes(app.authenticate, bo.tokens.access_token)).toBe('taken')
     await app.refused(await app.refresh(ana.clientId, ana.tokens.refresh_token!))
     expect(await app.consents('ana@example.com')).toEqual([])
     await app.asksAgain(await app.signIn('ana@example.com'), ana.clientId)
@@ -485,9 +494,10 @@ describe('securing the account', () => {
   })
 
   it('but not by signing out of one browser', async () => {
-    const { grant, request, refresh, consents } = await serve()
+    const { grant, request, refresh, consents, authenticate } = await serve()
     const { clientId, cookie, tokens } = await grant()
     expect((await request('/api/auth/sign-out', { cookie, body: {} })).status).toBe(200)
+    expect(await mcpTakes(authenticate, tokens.access_token)).toBe('taken')
     expect((await refresh(clientId, tokens.refresh_token!)).status).toBe(200)
     expect(await consents('ana@example.com')).toHaveLength(1)
   })
@@ -509,6 +519,25 @@ describe('securing the account', () => {
       expect(exchanged.status).toBe(400)
       expect(await exchanged.json()).not.toHaveProperty('access_token')
     }
+  })
+})
+
+describe('a reused refresh token', () => {
+  it("disconnects its client, so the client's access tokens are refused at once, and leaves the person's other clients", async () => {
+    const { grant, refresh, refused, consents, authenticate, store } = await serve()
+    const first = await grant()
+    const second = await grant('ana@example.com', first.cookie)
+    const rotated = await refresh(first.clientId, first.tokens.refresh_token!)
+    expect(rotated.status).toBe(200)
+    const { access_token: current } = (await rotated.json()) as Tokens
+    expect(await mcpTakes(authenticate, current)).toBe('taken')
+    // Presented again once its replay window is over, which the clock standing still never ends: taken for stolen.
+    await store.query(`update oauth_refresh_token set rotation_replay_expires_at = $1 where revoked is not null`, [new Date(Date.now() - 1000)])
+    await refused(await refresh(first.clientId, first.tokens.refresh_token!))
+    expect(await mcpTakes(authenticate, current)).toBe(401)
+    expect(await mcpTakes(authenticate, first.tokens.access_token)).toBe(401)
+    expect(await mcpTakes(authenticate, second.tokens.access_token)).toBe('taken')
+    expect(await consents('ana@example.com')).toHaveLength(1)
   })
 })
 
@@ -538,7 +567,7 @@ describe('connected apps', () => {
     ((await (await request(`/api/auth/account/connected-apps${query}`, { cookie })).json()) as { apps: App[] }).apps
 
   it('lists the clients the person allowed, and disconnects one of them', async () => {
-    const { grant, request, signIn, refresh, refused, asksAgain, connect, exchange } = await serve()
+    const { grant, request, signIn, refresh, refused, asksAgain, connect, exchange, authenticate } = await serve()
     const first = await grant()
     const second = await grant('ana@example.com', first.cookie)
     const apps = await list(request, first.cookie)
@@ -549,6 +578,8 @@ describe('connected apps', () => {
     // A code the client got just before is refused after.
     const code = await connect(first.cookie, first.clientId)
     expect(await (await request('/api/auth/account/connected-apps/disconnect', { cookie: first.cookie, body: { clientId: first.clientId } })).json()).toEqual({ disconnected: true })
+    expect(await mcpTakes(authenticate, first.tokens.access_token)).toBe(401)
+    expect(await mcpTakes(authenticate, second.tokens.access_token)).toBe('taken')
     await refused(await exchange(first.clientId, code))
     await refused(await refresh(first.clientId, first.tokens.refresh_token!))
     await asksAgain(first.cookie, first.clientId)

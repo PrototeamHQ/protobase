@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { betterAuthAuthenticator } from './authenticator'
 import type { Authenticator } from '../types'
 import type { AdminAuth } from './create-auth'
+import { fakeAdapter } from './testing/fake-adapter'
 
 const issuer = 'https://admin.example.com'
 const resource = `${issuer}/api/mcp`
@@ -11,24 +12,28 @@ const appKeys = await generateKeyPair('EdDSA')
 const appJwk = { ...(await exportJWK(appKeys.publicKey)), alg: 'EdDSA', kid: 'app' }
 const otherKeys = await generateKeyPair('EdDSA')
 
-// The part of a Better Auth instance the authenticator reads: its keys, and the store DPoP proofs are reserved in.
+// The part of a Better Auth instance the authenticator reads: its keys, the store DPoP proofs are reserved in, and
+// the store of grants, where Ana allows the assistant.
 const reserved = new Set<string>()
-const auth = {
-  issuer,
-  api: { getJwks: async () => ({ keys: [appJwk] }) },
-  $context: Promise.resolve({
-    internalAdapter: {
-      reserveVerificationValue: async ({ identifier }: { identifier: string }) => (reserved.has(identifier) ? false : (reserved.add(identifier), true)),
-    },
-  }),
-} as unknown as AdminAuth
+const authOver = (adapter: unknown) =>
+  ({
+    issuer,
+    api: { getJwks: async () => ({ keys: [appJwk] }) },
+    $context: Promise.resolve({
+      adapter,
+      internalAdapter: {
+        reserveVerificationValue: async ({ identifier }: { identifier: string }) => (reserved.has(identifier) ? false : (reserved.add(identifier), true)),
+      },
+    }),
+  }) as unknown as AdminAuth
+const grants = fakeAdapter({ oauthConsent: [{ id: 'c1', userId: 'ana', clientId: 'assistant' }] })
 
-const authenticator = betterAuthAuthenticator({ auth })
+const authenticator = betterAuthAuthenticator({ auth: authOver(grants.adapter) })
 const mcp = authenticator.forAudience(resource)
 
-type TokenInput = { aud?: string; typ?: string; cnf?: { jkt: string }; key?: CryptoKey }
-const token = ({ aud = resource, typ = 'at+jwt', cnf, key = appKeys.privateKey }: TokenInput = {}) =>
-  new SignJWT({ role: 'sales', client_id: 'assistant', azp: 'assistant', scope: 'mcp offline_access', ...(cnf && { cnf }) })
+type TokenInput = { aud?: string; typ?: string; cnf?: { jkt: string }; key?: CryptoKey; client?: string }
+const token = ({ aud = resource, typ = 'at+jwt', cnf, key = appKeys.privateKey, client = 'assistant' }: TokenInput = {}) =>
+  new SignJWT({ role: 'sales', client_id: client, azp: client, scope: 'mcp offline_access', ...(cnf && { cnf }) })
     .setProtectedHeader({ alg: 'EdDSA', kid: 'app', typ })
     .setSubject('ana')
     .setIssuer(issuer)
@@ -65,6 +70,25 @@ describe('tokens for another audience', () => {
     await refused(mcp, request(`Bearer ${await token({ aud: `${issuer}/api/other` })}`))
     await refused(mcp, request(`Bearer ${await token({ typ: 'JWT' })}`))
     await refused(mcp, request(`Bearer ${await token({ key: otherKeys.privateKey })}`))
+  })
+})
+
+describe("an MCP token's grant", () => {
+  it('is read on every request: a token of a client the person no longer allows is refused at once', async () => {
+    const store = fakeAdapter({ oauthConsent: [{ id: 'c1', userId: 'ana', clientId: 'assistant' }, { id: 'c2', userId: 'ana', clientId: 'editor' }] })
+    const verify = betterAuthAuthenticator({ auth: authOver(store.adapter) }).forAudience(resource)
+    const assistant = await token()
+    const editor = await token({ client: 'editor' })
+    expect(await verify(request(`Bearer ${assistant}`))).toMatchObject({ client: { id: 'assistant' } })
+    store.tables.oauthConsent = store.tables.oauthConsent!.filter((row) => row.clientId !== 'assistant')
+    await refused(verify, request(`Bearer ${assistant}`))
+    expect(await verify(request(`Bearer ${editor}`))).toMatchObject({ client: { id: 'editor' } })
+  })
+
+  it('refuses the request when the store cannot be read, never answering on the claims alone', async () => {
+    const failing = { findOne: async () => { throw new Error('connection lost') } }
+    const verify = betterAuthAuthenticator({ auth: authOver(failing) }).forAudience(resource)
+    await expect(Promise.resolve().then(async () => verify(request(`Bearer ${await token()}`)))).rejects.toThrow('connection lost')
   })
 })
 

@@ -12,6 +12,7 @@ import { mcpConsentCheck } from './consent-check'
 import { mcpConnectedApps } from './connected-apps'
 import { consentReference } from './consent-reference'
 import { mcpTokenClaims } from './mcp-token-claims'
+import { mcpRefreshReuse } from './refresh-reuse'
 import { mcpRequestDefaults } from './request-defaults'
 import { mcpGrantRevocation } from './revoke-grants'
 import { mcpSetupGate } from './setup-gate'
@@ -92,7 +93,8 @@ export type McpAuthPluginsOptions = {
 /**
  * The Better Auth plugins of an OAuth provider for MCP clients, after the `jwt` plugin, in this order: the guard on
  * signed queries, the request defaults, the setup gate, the provider (`mcp()`), and client metadata documents
- * (`cimd()`), the revocation when the account is secured (`mcpGrantRevocation`), and the person's list of connected
+ * (`cimd()`), the revocation when the account is secured (`mcpGrantRevocation`) or a refresh token is reused
+ * (`mcpRefreshReuse`), and the person's list of connected
  * apps, where they disconnect one (`mcpConnectedApps`). A client registers itself, the person signs in on the app's own pages and allows it on the connect
  * page, and the client gets 15-minute access tokens for the MCP resource only, with refresh tokens, carrying the role
  * and organization the person worked in when they allowed it.
@@ -125,5 +127,6 @@ export const mcpAuthPlugins = ({ mcp: resolved, organizations, mail, defaultPoli
   }),
   cimd({ fetchClientMetadataResource: resolved.fetchClientMetadata, metadataProfile: 'mcp-2026-07-28' }),
   mcpGrantRevocation(),
+  mcpRefreshReuse(),
   mcpConnectedApps({ definitions }),
 ]
