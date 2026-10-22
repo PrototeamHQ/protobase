@@ -8,6 +8,12 @@ import { installedPackage } from './installed-package'
  */
 export const pinnedPackages = new Set([mobilePackage.name, ...Object.keys(mobilePackage.dependencies)])
 
+/**
+ * The native packages @protobase/mobile pins, name → exact version, which a native fingerprint names. Never its
+ * @protobase/* packages, whose version is Protobase's: every Protobase release would cut the binaries off updates.
+ */
+export const pinnedNative: Record<string, string> = Object.fromEntries(Object.entries(mobilePackage.dependencies).filter(([name]) => !name.startsWith('@protobase/')))
+
 const liveUpdate = '@capawesome/capacitor-live-update'
 
 /** Why the plugin `key`, a package that is or names `name`, may not be listed; `undefined` when it may. */
