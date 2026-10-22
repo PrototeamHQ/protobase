@@ -14,7 +14,7 @@ import { generatePlatform } from './generate'
 import { loadMobileProject } from './load-project'
 import { checkMobileConfig } from './mobile-config'
 import { signForDevelopment } from './development-signing'
-import { checkInstalledPlugins, pinnedNative } from './pinned-packages'
+import { checkInstalledPlugins, checkPinnedNative, pinnedNative } from './pinned-packages'
 import type { Platform } from './platform'
 import { checkIosPlugins, checkProtobasePlugin, guardLiveUpdate } from './protobase-plugin'
 import { buildWebPart, placeholderWebPart, type WebPartInput } from './web-part'
@@ -56,6 +56,7 @@ export const prepare = async ({ projectDir, platform, api, extensions, live, rel
   const plugins = Object.keys(mobile.plugins ?? {})
   await prepareWorkspace(ws, workspacePackageJson({ mobileSpec: mobileSpec(), ...(mobile.plugins && { plugins: mobile.plugins }) }), (command, args) => run(command, args, { cwd: ws, env }))
   checkInstalledPlugins(ws, plugins)
+  checkPinnedNative(ws)
 
   if (live === undefined) await buildWebPart({ projectDir, ws, extensions, apiOrigin: url.origin, ...(build && { build }), onWarning: (message) => process.stderr.write(`warning: ${message}\n`) })
   else await placeholderWebPart(ws)

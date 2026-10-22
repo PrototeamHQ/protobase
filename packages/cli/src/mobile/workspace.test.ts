@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
@@ -49,6 +49,31 @@ describe('prepareWorkspace', () => {
     expect(calls).toHaveLength(2)
     await prepareWorkspace(dir, workspacePackageJson({ mobileSpec: '0.14.3' }), run)
     expect(calls).toHaveLength(3)
+  })
+
+  it('copies a file: package again on every run', async () => {
+    dir = mkdtempSync(path.join(tmpdir(), 'protobase-ws-'))
+    const copies: Array<{ mobile: boolean; camera: boolean }> = []
+    const present = (name: string) => existsSync(path.join(dir, 'node_modules', name, 'package.json'))
+    const run = async () => void copies.push({ mobile: present('@protobase/mobile'), camera: present('@capacitor/camera') })
+    const local = workspacePackageJson({ mobileSpec: 'file:/somewhere/mobile', plugins: { '@capacitor/camera': '^8.0.0' } })
+    await prepareWorkspace(dir, local, run)
+    installed('@protobase/mobile')
+    installed('@capacitor/camera')
+    await prepareWorkspace(dir, local, run)
+    expect(copies).toEqual([{ mobile: false, camera: false }, { mobile: false, camera: true }])
+  })
+
+  it('refuses a file: plugin whose name leaves node_modules, deleting nothing', async () => {
+    dir = mkdtempSync(path.join(tmpdir(), 'protobase-ws-'))
+    const ws = path.join(dir, 'project', '.protobase', 'mobile')
+    writeFileSync(path.join(dir, 'keep'), '')
+    const calls: string[][] = []
+    const bad = workspacePackageJson({ mobileSpec: '0.14.2', plugins: { '../..': 'file:../plugin' } })
+    await expect(prepareWorkspace(ws, bad, async (command, args) => void calls.push([command, ...args]))).rejects.toThrow('mobile.plugins lists ../.., which is not an npm package name')
+    expect(existsSync(path.join(dir, 'keep'))).toBe(true)
+    expect(existsSync(ws)).toBe(true)
+    expect(calls).toEqual([])
   })
 
   it('fails when npm does', async () => {

@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { androidSigningVariables } from './android-signing'
 import { mobileBuild } from './build'
 import type { ChildOptions } from './child-process'
+import { nativeDependencies } from './pinned-packages'
 import { protobasePluginClasses } from './protobase-plugin'
 
 const storePassword = 'store-pw-5f1c'
@@ -51,7 +52,8 @@ const fakeRun = (calls: Call[], gradleOutcome: 'bundle' | 'nothing' | 'fail' = '
   const ws = options.cwd
   if (command === 'npm') {
     write(path.join(ws, 'node_modules/@protobase/mobile/package.json'), JSON.stringify({ name: '@protobase/mobile', version: '0.14.2' }))
-    write(path.join(ws, 'node_modules/@capacitor/cli/package.json'), JSON.stringify({ name: '@capacitor/cli', version: '8.5.3', bin: { cap: './bin/capacitor' } }))
+    for (const [name, version] of Object.entries(nativeDependencies)) write(path.join(ws, 'node_modules', name, 'package.json'), JSON.stringify({ name, version }))
+    write(path.join(ws, 'node_modules/@capacitor/cli/package.json'), JSON.stringify({ name: '@capacitor/cli', version: nativeDependencies['@capacitor/cli'], bin: { cap: './bin/capacitor' } }))
   }
   if (command === 'node' && args[1] === 'add') {
     if (args[2] === 'android') {

@@ -8,6 +8,9 @@ import { installedPackage } from './installed-package'
  */
 export const pinnedPackages = new Set([mobilePackage.name, ...Object.keys(mobilePackage.dependencies)])
 
+/** The native packages @protobase/mobile pins, name → version. */
+export const nativeDependencies: Record<string, string> = Object.fromEntries(Object.entries(mobilePackage.dependencies).filter(([name]) => !name.startsWith('@protobase/')))
+
 /**
  * The native code an app's binary carries from @protobase/mobile, name → version, which a native fingerprint names:
  * the native packages it pins, at their versions, and its own native code by its `nativeContract`, `native-<n>`. Never
@@ -15,7 +18,7 @@ export const pinnedPackages = new Set([mobilePackage.name, ...Object.keys(mobile
  * `nativeContract` whenever its Android (later iOS) sources change; its test fails until it is.
  */
 export const pinnedNative: Record<string, string> = {
-  ...Object.fromEntries(Object.entries(mobilePackage.dependencies).filter(([name]) => !name.startsWith('@protobase/'))),
+  ...nativeDependencies,
   [mobilePackage.name]: `native-${mobilePackage.nativeContract}`,
 }
 
@@ -36,5 +39,16 @@ export const checkInstalledPlugins = (dir: string, keys: string[]) => {
   for (const key of keys) {
     const problem = pinnedProblem(key, installedPackage(dir, key).name)
     if (problem) throw new Error(problem)
+  }
+}
+
+/**
+ * Checks that the native packages installed in the workspace `dir` are the versions @protobase/mobile pins, which the
+ * native fingerprint names. A from-source workspace keeps its older ones when the pins changed, so it is cleared.
+ */
+export const checkPinnedNative = (dir: string, pinned = nativeDependencies) => {
+  for (const [name, version] of Object.entries(pinned)) {
+    const installed = installedPackage(dir, name).version
+    if (installed !== version) throw new Error(`${name} is ${installed}, not ${version}: delete .protobase/mobile and run the command again`)
   }
 }

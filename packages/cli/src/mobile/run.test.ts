@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import type { ChildOptions } from './child-process'
+import { nativeDependencies } from './pinned-packages'
 import { protobasePluginClasses } from './protobase-plugin'
 import { mobileOpen, mobileRun } from './run'
 
@@ -41,7 +42,8 @@ const fakeRun =
     const modules = path.join(options.cwd, 'node_modules')
     if (command === 'npm') {
       write(path.join(modules, '@protobase/mobile/package.json'), JSON.stringify({ name: '@protobase/mobile', version: '0.14.2' }))
-      write(path.join(modules, '@capacitor/cli/package.json'), JSON.stringify({ name: '@capacitor/cli', version: '8.5.3', bin: { cap: './bin/capacitor' } }))
+      for (const [name, version] of Object.entries(nativeDependencies)) write(path.join(modules, name, 'package.json'), JSON.stringify({ name, version }))
+      write(path.join(modules, '@capacitor/cli/package.json'), JSON.stringify({ name: '@capacitor/cli', version: nativeDependencies['@capacitor/cli'], bin: { cap: './bin/capacitor' } }))
       write(path.join(modules, 'native-run/package.json'), JSON.stringify({ name: 'native-run', version: '2.0.3', bin: { 'native-run': 'bin/native-run' } }))
     }
     if (command === 'node' && args[1] === 'add' && args[2] === 'android') {
