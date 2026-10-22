@@ -36,6 +36,16 @@ description: Finish a move from Supabase to Protobase after `protobase import su
 
 Nothing to do: each table's count matched the source before the load committed.
 
+### Sign-in
+
+Passwords need nothing: the import's migrations carry them over. For each provider listed with accounts:
+
+- one Better Auth has built in, such as `github` or `microsoft`: add it to `createAuth`'s `socialProviders` in `auth/auth.ts` under that id, with the client id and secret read from environment variables named after it (`GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`), added empty to `.env.example`. See [Sign-in with GitHub](../protobase/references/reference/auth.md#sign-in-with-github). The values are the ones the Supabase project used: the user enters them;
+- one it has not built in: stop on it and say the user needs Better Auth's generic OAuth plugin under that id;
+- one not carried over: nothing to do.
+
+Leave giving the admins their role to the user, as the report says: only they know who the admins are.
+
 ### Made again
 
 Nothing to do: the project's database has these extensions and the load made each item again there.

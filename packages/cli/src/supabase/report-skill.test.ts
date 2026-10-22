@@ -35,6 +35,6 @@ describe('the supabase-move skill', () => {
   it("has a section for each of the import report's sections, in the report's order", async () => {
     const skill = await readFile(skillFile, 'utf8')
     const bySection = skill.slice(skill.indexOf('\n## The report, section by section\n'))
-    expect(headings(bySection, '###')).toEqual(headings(importReport(manifest, '', true, ['public.todos']), '##'))
+    expect(headings(bySection, '###')).toEqual(headings(importReport(manifest, '', true, ['public.todos'], []), '##'))
   })
 })
