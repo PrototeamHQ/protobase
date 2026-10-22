@@ -4,6 +4,7 @@ import * as projectUi from 'virtual:protobase-project-ui'
 import '../styles.css'
 import { browserLocale } from '../locale/active-locale'
 import { App } from './app'
+import { nativeBridgeOf, type NativeBridge } from './native-auth-fetch'
 import { pageApiOrigin } from './page-api-origin'
 import { uiFromModule } from './pages/ui-from-module'
 
@@ -12,6 +13,6 @@ if (!root) throw new Error('index.html needs an element with id "root"')
 
 createRoot(root).render(
   <StrictMode>
-    <App baseUrl={`${pageApiOrigin() ?? ''}/api/v1`} ui={uiFromModule(projectUi)} locale={browserLocale()} />
+    <App baseUrl={`${pageApiOrigin() ?? ''}/api/v1`} ui={uiFromModule(projectUi)} locale={browserLocale()} nativeBridge={nativeBridgeOf(window as { Capacitor?: NativeBridge })} />
   </StrictMode>,
 )

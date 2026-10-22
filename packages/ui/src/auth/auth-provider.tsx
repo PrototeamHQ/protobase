@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { createAuthSession, type AuthSession, type AuthUser, type PlatformSignIn, type PluginRef, type SamlSignIn, type RequiredSetup, type SetupStatus, type SignInMethod, type SignInResult, type StaffSignIn, type TwoFactorMethod } from '@protobase/client'
 import type { Locale } from '@protobase/schema/internal'
+import { nativeAuthFetch, type NativeBridge } from '../app/native-auth-fetch'
 import { providerName, withoutSignInLink } from './provider-link'
 import { text } from './messages'
 
@@ -90,9 +91,10 @@ export const useAuth = () => {
 
 /**
  * Finds out whether the server has a login and who is signed in, and keeps that state for the app. Without a `session`,
- * it makes one on `origin`, the page's own by default.
+ * it makes one on `origin`, the page's own by default; in the iOS or Android app, with its `nativeBridge`, the session
+ * signs in through native HTTP, and "Forgot password?" is not offered, as a reset link cannot come back to the app.
  */
-export const AuthProvider = ({ session: given, origin, children }: { session?: AuthSession; origin?: string; children: ReactNode }) => {
+export const AuthProvider = ({ session: given, origin, nativeBridge, children }: { session?: AuthSession; origin?: string; nativeBridge?: NativeBridge; children: ReactNode }) => {
   const [state, setState] = useState<AuthState>({ kind: 'loading' })
   const [signInMethods, setSignInMethods] = useState<SignInMethod[]>(['password'])
   const [passwordReset, setPasswordReset] = useState(false)
@@ -112,7 +114,16 @@ export const AuthProvider = ({ session: given, origin, children }: { session?: A
   const markSignedOut = useCallback(() => setState((current) => (current.kind === 'signed-in' ? { kind: 'signed-out' } : current)), [])
   const signedOut = useRef(markSignedOut)
   signedOut.current = markSignedOut
-  const session = useMemo(() => given ?? createAuthSession({ ...(origin && { origin }), onSignedOut: () => signedOut.current() }), [given, origin])
+  const session = useMemo(
+    () =>
+      given ??
+      createAuthSession({
+        ...(origin && { origin }),
+        ...(nativeBridge && { fetch: nativeAuthFetch(nativeBridge, origin ?? window.location.origin) }),
+        onSignedOut: () => signedOut.current(),
+      }),
+    [given, origin, nativeBridge],
+  )
 
   // Signed in: the app opens unless the policy requires something the account lacks, which it never does for staff.
   // Signing out later shows the sign-in page again.
@@ -130,7 +141,7 @@ export const AuthProvider = ({ session: given, origin, children }: { session?: A
     setState({ kind: 'loading' })
     void session.status().then(async (status) => {
       setSignInMethods(status.signInMethods)
-      setPasswordReset(status.passwordReset)
+      setPasswordReset(status.passwordReset && !nativeBridge)
       setMcp(Boolean(status.mcp))
       setCanSignUp(Boolean(status.signUp))
       setPasskeyDomains(status.passkeyDomains ?? [])
@@ -146,7 +157,7 @@ export const AuthProvider = ({ session: given, origin, children }: { session?: A
       const user = await session.session()
       return user ? enter(user) : setState({ kind: status.anonymous ? 'visitor' : 'signed-out' })
     }).catch((error: unknown) => setState({ kind: 'error', message: error instanceof Error ? error.message : text('noAnswer') }))
-  }, [session, enter])
+  }, [session, enter, nativeBridge])
 
   useEffect(recheck, [recheck])
 
