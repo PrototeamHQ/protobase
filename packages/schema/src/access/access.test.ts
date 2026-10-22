@@ -7,6 +7,7 @@ import { restrictModel } from './restrict'
 import { accessWarnings, checkRecord, fieldsUsedBy, resolveAccess } from './resolve'
 import { defineRoles } from './roles'
 import { pickView } from './pick-view'
+import { rule } from './rule'
 
 const orders = (rules: Parameters<ReturnType<typeof base>['access']>[0] = {}) => base().access(rules)
 const base = () =>
@@ -211,6 +212,21 @@ describe('combining rules and record checks', () => {
     expect(await checkRecord(source, user(7, 'sales'), 'update', { status: 'paid' })).toBe(false)
     expect(await checkRecord(source, user(7, 'sales'), 'create', undefined, { cost: '5', status: 'draft' })).toBe(true)
     expect(await checkRecord(source, user(7, 'sales'), 'create', undefined, { cost: '5', status: 'paid' })).toBe(false)
+  })
+
+  it('a side that decides wins over a record-level rule on the other side', async () => {
+    const draft = (_: unknown, record?: { status: string }) => record!.status === 'draft'
+    const source = orders({
+      update: roles.can('orders.update').and(draft),
+      delete: rule(draft).and(roles.can('orders.delete')),
+      create: rule(draft).or(roles.can('orders.create')),
+    })
+    const none = await resolveAccess(source, user(7))
+    expect(none.operations).toMatchObject({ update: false, delete: false, create: true })
+    expect(none.recordChecks).toEqual(['create'])
+    const admin = await resolveAccess(source, user(7, 'admin'))
+    expect(admin.operations).toMatchObject({ update: true, delete: true, create: true })
+    expect(admin.recordChecks).toEqual(['update', 'delete'])
   })
 
   it('refuses a rule filter on an encrypted field, plain or in a group, where a sensitive field still works', async () => {
