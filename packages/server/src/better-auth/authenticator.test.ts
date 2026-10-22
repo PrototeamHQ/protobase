@@ -26,7 +26,8 @@ const authOver = (adapter: unknown) =>
       },
     }),
   }) as unknown as AdminAuth
-const grants = fakeAdapter({ oauthConsent: [{ id: 'c1', userId: 'ana', clientId: 'assistant' }] })
+const allowedAt = new Date(Date.now() - 60_000)
+const grants = fakeAdapter({ oauthConsent: [{ id: 'c1', userId: 'ana', clientId: 'assistant', createdAt: allowedAt }] })
 
 const authenticator = betterAuthAuthenticator({ auth: authOver(grants.adapter) })
 const mcp = authenticator.forAudience(resource)
@@ -75,7 +76,7 @@ describe('tokens for another audience', () => {
 
 describe("an MCP token's grant", () => {
   it('is read on every request: a token of a client the person no longer allows is refused at once', async () => {
-    const store = fakeAdapter({ oauthConsent: [{ id: 'c1', userId: 'ana', clientId: 'assistant' }, { id: 'c2', userId: 'ana', clientId: 'editor' }] })
+    const store = fakeAdapter({ oauthConsent: [{ id: 'c1', userId: 'ana', clientId: 'assistant', createdAt: allowedAt }, { id: 'c2', userId: 'ana', clientId: 'editor', createdAt: allowedAt }] })
     const verify = betterAuthAuthenticator({ auth: authOver(store.adapter) }).forAudience(resource)
     const assistant = await token()
     const editor = await token({ client: 'editor' })
@@ -85,8 +86,19 @@ describe("an MCP token's grant", () => {
     expect(await verify(request(`Bearer ${editor}`))).toMatchObject({ client: { id: 'editor' } })
   })
 
+  it('stays refused when the person allows the client again, and takes the tokens issued after', async () => {
+    const store = fakeAdapter({ oauthConsent: [{ id: 'c1', userId: 'ana', clientId: 'assistant', createdAt: allowedAt }] })
+    const verify = betterAuthAuthenticator({ auth: authOver(store.adapter) }).forAudience(resource)
+    const before = await token()
+    store.tables.oauthConsent = [{ id: 'c2', userId: 'ana', clientId: 'assistant', createdAt: new Date(Date.now() + 60_000) }]
+    await refused(verify, request(`Bearer ${before}`))
+    // Dated in whole seconds, as the provider dates a consent by the clock it stamps `iat` with.
+    store.tables.oauthConsent = [{ id: 'c2', userId: 'ana', clientId: 'assistant', createdAt: new Date(Math.floor(Date.now() / 1000) * 1000) }]
+    expect(await verify(request(`Bearer ${await token()}`))).toMatchObject({ client: { id: 'assistant' } })
+  })
+
   it('refuses the request when the store cannot be read, never answering on the claims alone', async () => {
-    const failing = { findOne: async () => { throw new Error('connection lost') } }
+    const failing = { findMany: async () => { throw new Error('connection lost') } }
     const verify = betterAuthAuthenticator({ auth: authOver(failing) }).forAudience(resource)
     await expect(Promise.resolve().then(async () => verify(request(`Bearer ${await token()}`)))).rejects.toThrow('connection lost')
   })
