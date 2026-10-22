@@ -67,6 +67,14 @@ Each write goes through the REST API as the person: their role's access rules, `
 
 Before each write the client asks the person to approve it, showing the resource and the data, through MCP's form elicitation. Nothing is written until they approve, and declining writes nothing. A client's own setting that always allows a tool is not this approval. A client that cannot ask, one without form elicitation or one on the 2025 protocol, gets each write refused with a message saying so.
 
+To offer the writes on some resources only, list them:
+
+```ts
+createAdmin({ ..., auth, options: { mcp: { writes: { resources: ['tasks'] } } } })
+```
+
+The write tools then name those resources in their descriptions, and refuse a write to any other before asking, with `{ "error": "forbidden", "message": ... }` saying which resources they write; nothing is written. A name the app has no resource for stops the server at startup. The list only narrows the writes: the person's access rules still apply on the listed resources.
+
 Nothing can be deleted over MCP, and there is no SQL that writes.
 
 ## Browsers and hosts
@@ -81,8 +89,8 @@ The endpoint serves each request on its own, without an MCP session: a `GET` or 
 
 - `mcpHandler({ authenticate, resource, scope, server })`: the endpoint as a fetch handler. It checks the host, admits a valid token (`mcpGate`) and serves the request with the server that `server(session)` builds for its caller.
 - `mcpServer({ info, tools, context, report })`: an MCP server offering [assistant tools](/reference/assistant/#the-apps-own-tools), each with its JSON Schema and its `annotations`, MCP's tool hints. `context` is the tools' context without `approve`: each call gets its own, which asks the client's user.
-- `mcpTools({ db, sql, writes })`: the default tools for a session.
-- `writeRecordTools()`, or `createRecordTool()` and `updateRecordTool()`: the write tools alone.
+- `mcpTools({ db, sql, writes })`: the default tools for a session; `writes` is `true`, `false` or `{ resources }`.
+- `writeRecordTools({ resources })`, or `createRecordTool(...)` and `updateRecordTool(...)`: the write tools alone, on the listed resources or, without `resources`, on any.
 - `mcpGate({ authenticate, resource, scope })`: the token check alone, answering 401 or 403 with a challenge that names the resource's metadata.
 - `mcpToolContext(...)`, `mcpRoutes(app, { path, handler })` and `sessionOf(authInfo)`: the tools' context as the app builds it, the routes with open CORS, and the session a request was admitted with.
 

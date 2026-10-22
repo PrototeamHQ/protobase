@@ -65,4 +65,37 @@ describe('write record tools', () => {
     expect(await updateRecordTool().run({ resource: 'companies', key: 1, data: null }, context)).toMatch(/^Pass the resource, key and data/)
     expect(approve).not.toHaveBeenCalled()
   })
+
+  describe('limited to some resources', () => {
+    const only = { resources: ['tasks'] }
+
+    it('name them in the resource parameter and the description', () => {
+      for (const tool of writeRecordTools(only)) {
+        expect((tool.parameters as { properties: Record<string, unknown> }).properties.resource).toEqual({ type: 'string', description: 'The resource\'s name: one of tasks.' })
+        expect(tool.description).toMatch(/It writes only tasks\.$/)
+      }
+    })
+
+    it('create and update a record of an allowed resource', async () => {
+      const create = vi.fn(async () => saved)
+      const update = vi.fn(async () => saved)
+      const { context } = contextWith('approved', { create, update })
+      expect(JSON.parse(await createRecordTool(only).run({ resource: 'tasks', data: { name: 'Acme' } }, context))).toEqual(saved)
+      expect(JSON.parse(await updateRecordTool(only).run({ resource: 'tasks', key: 7, data: { name: 'Acme' } }, context))).toEqual(saved)
+      expect(create).toHaveBeenCalledWith('tasks', { name: 'Acme' })
+      expect(update).toHaveBeenCalledWith('tasks', 7, { name: 'Acme' }, { etag: undefined })
+    })
+
+    it('refuse any other resource without asking or writing', async () => {
+      const create = vi.fn(async () => saved)
+      const update = vi.fn(async () => saved)
+      const { context, approve } = contextWith('approved', { create, update })
+      const refusal = { error: 'forbidden', message: 'Writes over MCP reach only tasks, not companies; nothing was written.' }
+      expect(JSON.parse(await createRecordTool(only).run({ resource: 'companies', data: { name: 'Acme' } }, context))).toEqual(refusal)
+      expect(JSON.parse(await updateRecordTool(only).run({ resource: 'companies', key: 7, data: { name: 'Acme' } }, context))).toEqual(refusal)
+      expect(approve).not.toHaveBeenCalled()
+      expect(create).not.toHaveBeenCalled()
+      expect(update).not.toHaveBeenCalled()
+    })
+  })
 })

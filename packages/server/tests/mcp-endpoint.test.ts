@@ -114,6 +114,13 @@ describe('the MCP endpoint', () => {
     expect(written.map((tool) => [tool.name, tool.annotations?.readOnlyHint])).toEqual([...records.map((name) => [name, true]), ['create_record', false], ['update_record', false]])
   })
 
+  it('refuses a write outside the resources mcp.writes lists, before asking', async () => {
+    const { app, mcp } = await served({ mcp: { writes: { resources: ['organizations'] } } })
+    const message = 'Writes over MCP reach only organizations, not labels; nothing was written.'
+    expect(await call(app, mcp, 'create_record', { resource: 'labels', data: { name: 'Urgent' } })).toEqual({ error: 'forbidden', message })
+    expect(await call(app, mcp, 'update_record', { resource: 'labels', key: 1, data: { name: 'Urgent' } })).toEqual({ error: 'forbidden', message })
+  })
+
   it('finds and reads records as the API gives them to the same person, refusals included', async () => {
     const { app, mcp, own } = await served()
     const rest = async (path: string) => app.request(`/api/v1/${path}`, { headers: { authorization: `Bearer ${own}` } })

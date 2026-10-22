@@ -5,13 +5,17 @@ import { readRecordTools } from '../assistant/record-tools'
 import type { AssistantTool } from '../assistant/tools'
 import { writeRecordTools } from '../assistant/write-record-tools'
 import type { Session } from '../types'
+import type { McpWrites } from './mcp-writes'
 
 export type McpToolsInput = {
   db: Db
   /** Offers `run_read_only_query` to callers who see the assistant (`admin` or `ai`); it reads outside the access rules. */
   sql: boolean
-  /** Offers `create_record` and `update_record`; each write still needs the caller's role and their approval in the client. */
-  writes: boolean
+  /**
+   * Offers `create_record` and `update_record`, on the listed resources only when given `{ resources }`; each write still
+   * needs the caller's role and their approval in the client.
+   */
+  writes: McpWrites
 }
 
 /**
@@ -20,6 +24,6 @@ export type McpToolsInput = {
  */
 export const mcpTools = ({ db, sql, writes }: McpToolsInput) => (session: Session): AssistantTool[] => [
   ...readRecordTools(),
-  ...(writes ? writeRecordTools() : []),
+  ...(writes === false ? [] : writeRecordTools(writes === true ? {} : { resources: writes.resources })),
   ...(sql && seesAssistant(session.user.roles) ? [readOnlyQueryTool(db)] : []),
 ]

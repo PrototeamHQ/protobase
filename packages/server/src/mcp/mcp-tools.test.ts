@@ -1,9 +1,10 @@
 import type { Db } from '@protobase/query'
 import { describe, expect, it } from 'vitest'
 import { mcpTools } from './mcp-tools'
+import type { McpWrites } from './mcp-writes'
 
 const db = {} as Db
-const names = (sql: boolean, roles: string[], writes = false) => mcpTools({ db, sql, writes })({ user: { id: 1, roles } }).map((tool) => tool.name)
+const names = (sql: boolean, roles: string[], writes: McpWrites = false) => mcpTools({ db, sql, writes })({ user: { id: 1, roles } }).map((tool) => tool.name)
 const records = ['list_resources', 'list_records', 'get_record']
 
 describe('mcpTools', () => {
@@ -18,5 +19,11 @@ describe('mcpTools', () => {
   it('offers the write tools after the read tools to any role with writes on', () => {
     expect(names(false, ['sales'], true)).toEqual([...records, 'create_record', 'update_record'])
     expect(names(true, ['admin'], true)).toEqual([...records, 'create_record', 'update_record', 'run_read_only_query'])
+  })
+
+  it('offers the write tools on the listed resources only with writes limited', () => {
+    expect(names(false, ['admin'], { resources: ['tasks'] })).toEqual([...records, 'create_record', 'update_record'])
+    const writeTools = mcpTools({ db, sql: false, writes: { resources: ['tasks'] } })({ user: { id: 1, roles: ['admin'] } }).slice(records.length)
+    expect(writeTools.map((tool) => (tool.parameters as { properties: Record<string, unknown> }).properties.resource)).toEqual([expect.objectContaining({ description: 'The resource\'s name: one of tasks.' }), expect.objectContaining({ description: 'The resource\'s name: one of tasks.' })])
   })
 })

@@ -5,6 +5,7 @@ import type { AssistantOptions } from './assistant/assistant-settings'
 import type { ErrorReportingOptions } from './error-reporting/error-reporting-settings'
 import type { LocaleOption } from './locale/locale-option'
 import type { MapOptions } from './maps/map-settings'
+import type { McpWrites } from './mcp/mcp-writes'
 import type { PluginOption } from './plugins/plugin-settings'
 import type { RuntimeOptions } from './runtime/runtime-settings'
 import type { SourceOption } from './sources/source-settings'
@@ -51,10 +52,11 @@ export type AdminOptions = {
    * `run_read_only_query`, which reads the whole database as the app's database role, outside the access rules.
    * `writes: true` offers `create_record` and `update_record`, through the REST API's access rules, `validate` and write
    * hooks; the person approves each write in their client, and a client that cannot ask is refused.
+   * `writes: { resources: ['tasks'] }` offers them on the listed resources only, and refuses a write to any other.
    * `false`: the host serves its own MCP endpoint at `auth.mcp.path`, in front of this app. This app then answers 404
    * there and needs no `forAudience`, while the OAuth provider's discovery stays.
    */
-  mcp?: { sql?: boolean; writes?: boolean } | false
+  mcp?: { sql?: boolean; writes?: McpWrites } | false
   /**
    * The websites whose browser code may call the API (`/api/*` but `/api/auth/*`) besides the app's own origins (see
    * `createAuth`'s `origins`): a list of origins, or `*` for any. Defaults to the one the platform passes in
