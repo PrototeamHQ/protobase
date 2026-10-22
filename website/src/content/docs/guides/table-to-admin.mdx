@@ -53,7 +53,7 @@ On Saturdays the desk asks the same questions over and over: what is ready, what
 
 <Code code={step3} lang="ts" title="config/ui.ts" />
 
-From here on each step starts from the view of the step before (`named` is step 2's), so the file shows only what changes; in a project it is one view in one `ui.ts`. Each widget writes into the list's `?filter=`, so "ready and unpaid" is a link someone can send. The chart above the list, a daily graph, counts repairs per day, following the same filters; [UI config](/reference/ui-config/#charts-graphs-records-per-day-week-or-month-or-per-value-above-a-list) has its ranges and granularities. In the story, switch on "Paid" and watch the list drop to six.
+From here on each step starts from the view of the step before (`named` is step 2's), so the file shows only what changes; in a project it is one view in one `ui.ts`. Each widget writes into the list's `?filter=`, so "ready and unpaid" is a link someone can send. The chart above the list, a daily graph, counts repairs per day, following the same filters; [UI config](/reference/ui-config/#charts-graphs-records-per-day-or-week-or-per-value-above-a-list) has its ranges and granularities. In the story, switch on "Paid" and watch the list drop to six.
 
 <StoryFrame id="guides-bike-shop--step-3" title="Step 3: filters" height={660} />
 
