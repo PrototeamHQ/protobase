@@ -45,6 +45,13 @@ const mcpTakes = (authenticate: { forAudience: (audience: string) => (request: R
     .then(() => authenticate.forAudience(resource)(resourceRequest(token)))
     .then(() => 'taken', (error: { status?: number }) => error.status)
 
+// Allows the client again, as the person does after a disconnect, dating the new consent a second after the tokens
+// issued so far, as it is outside the tests, whose clock stands still.
+const reconnect = async (app: Awaited<ReturnType<typeof serve>>, cookie: string, clientId: string) => {
+  expect((await app.exchange(clientId, await app.connect(cookie, clientId))).status).toBe(200)
+  await app.store.query(`update oauth_consent set created_at = $1 where client_id = $2`, [new Date(Date.now() + 1000), clientId])
+}
+
 // A DPoP proof (RFC 9449) for `htu`, and for an access token when given. The provider keeps each proof's hash, so the
 // key is fixed and Ed25519, whose signatures, unlike ECDSA's, are the same in the recording and every replay.
 const dpopJwk = { kty: 'OKP', crv: 'Ed25519', x: 'zENySdtsCGMof7cw-f0U5aL39dT5cLxNWVb9ndTN1cU' }
@@ -524,7 +531,8 @@ describe('securing the account', () => {
 
 describe('a reused refresh token', () => {
   it("disconnects its client, so the client's access tokens are refused at once, and leaves the person's other clients", async () => {
-    const { grant, refresh, refused, consents, authenticate, store } = await serve()
+    const served = await serve()
+    const { grant, refresh, refused, consents, authenticate, store } = served
     const first = await grant()
     const second = await grant('ana@example.com', first.cookie)
     const rotated = await refresh(first.clientId, first.tokens.refresh_token!)
@@ -538,6 +546,10 @@ describe('a reused refresh token', () => {
     expect(await mcpTakes(authenticate, first.tokens.access_token)).toBe(401)
     expect(await mcpTakes(authenticate, second.tokens.access_token)).toBe('taken')
     expect(await consents('ana@example.com')).toHaveLength(1)
+
+    // The person allows the client again: the access token issued before the reuse, perhaps the thief's, stays refused.
+    await reconnect(served, first.cookie, first.clientId)
+    expect(await mcpTakes(authenticate, current)).toBe(401)
   })
 })
 
@@ -567,7 +579,8 @@ describe('connected apps', () => {
     ((await (await request(`/api/auth/account/connected-apps${query}`, { cookie })).json()) as { apps: App[] }).apps
 
   it('lists the clients the person allowed, and disconnects one of them', async () => {
-    const { grant, request, signIn, refresh, refused, asksAgain, connect, exchange, authenticate } = await serve()
+    const served = await serve()
+    const { grant, request, signIn, refresh, refused, asksAgain, connect, exchange, authenticate } = served
     const first = await grant()
     const second = await grant('ana@example.com', first.cookie)
     const apps = await list(request, first.cookie)
@@ -585,6 +598,10 @@ describe('connected apps', () => {
     await asksAgain(first.cookie, first.clientId)
     expect((await refresh(second.clientId, second.tokens.refresh_token!)).status).toBe(200)
     expect((await list(request, first.cookie)).map((app) => app.clientId)).toEqual([second.clientId])
+
+    // Allowed again, the client's access token from before stays refused.
+    await reconnect(served, first.cookie, first.clientId)
+    expect(await mcpTakes(authenticate, first.tokens.access_token)).toBe(401)
   })
 
   it("acts on the person's own grants only, whatever the request names", async () => {

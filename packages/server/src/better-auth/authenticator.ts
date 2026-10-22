@@ -102,7 +102,7 @@ export const betterAuthAuthenticator = (options: BetterAuthAuthenticatorOptions)
   const own = sessionOf({ audience: options.audience ?? issuer }, ownStanding)
   // An access token's `sid` names the browser session that allowed the client, which may end long before the grant
   // does; revoking the grant ends its tokens instead (`revokeMcpGrants`), which the grant check sees.
-  const grantStanding: Standing = (context, payload, session) => checkMcpGrant(context.adapter, payload.sub!, session.client?.id)
+  const grantStanding: Standing = (context, payload, session) => checkMcpGrant(context.adapter, { userId: payload.sub!, clientId: session.client?.id, issuedAt: payload.iat })
   return Object.assign(withTrustedApps(own, issuer, options.apps ?? []), {
     forAudience: (audience: string) => sessionOf({ audience, typ: 'at+jwt', dpop: { url: audience, replayStore: dpopReplayStore }, oauthClient: true }, grantStanding),
   })
