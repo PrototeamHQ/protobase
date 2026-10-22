@@ -326,7 +326,7 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], pag
   // Before the system endpoints, which want an app token for everything under them
   if (auth?.mcp && options.mcp === false) closedMcpRoutes(app, auth.mcp.path)
   else if (auth?.mcp && mcpAuthenticate) {
-    const tools = mcpTools({ db, sql: options.mcp !== false && options.mcp?.sql === true })
+    const tools = mcpTools({ db, sql: options.mcp !== false && options.mcp?.sql === true, writes: options.mcp !== false && options.mcp?.writes === true })
     const server = (session: Session) => mcpServer({ info: { name: appName, version: '1.0.0' }, tools: tools(session), context: mcpToolContext(deps, meta, session), report })
     mcpRoutes(app, { path: auth.mcp.path, handler: mcpHandler({ authenticate: mcpAuthenticate, resource: auth.mcp.resource, scope: auth.mcp.scope, server }) })
   }

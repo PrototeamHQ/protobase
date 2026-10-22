@@ -1,6 +1,6 @@
 ---
 title: MCP
-description: The app's MCP endpoint, through which a person's AI client lists resources and finds and reads records with that person's access.
+description: The app's MCP endpoint, through which a person's AI client lists resources, finds and reads records, and, when turned on, creates and updates them with that person's access and approval.
 ---
 
 An app can serve an MCP endpoint: a person adds its address to an AI client that speaks MCP, such as a chat assistant or a code editor, signs in on the app and allows the client. The client then works with that person's access: it lists the resources and fields they may read, finds records with the API's filters, sorting and pages, and reads one record.
@@ -50,6 +50,25 @@ createAdmin({ ..., auth, options: { mcp: { sql: true } } })
 
 It runs one `SELECT` in a read-only transaction, as the app's database role, **outside the access rules and tenant scoping**: whoever has one of those roles reads the whole database through it. Give those roles only to people who may see all of the data.
 
+### Writes
+
+`createAdmin`'s `options.mcp.writes` also offers two tools that change records, to everyone signed in:
+
+```ts
+createAdmin({ ..., auth, options: { mcp: { writes: true } } })
+```
+
+| Tool | What it does |
+| --- | --- |
+| `create_record` | Creates a record of a resource from `data`, field names to values, and returns it with its ETag. |
+| `update_record` | Changes the fields in `data` of one record by its key, and returns it with its new ETag. With the `etag` that `get_record` gave, it fails when someone changed the record since. |
+
+Each write goes through the REST API as the person: their role's access rules, `validate`, write hooks, events and webhooks apply, so the client can do only what the person may do in the app.
+
+Before each write the client asks the person to approve it, showing the resource and the data, through MCP's form elicitation. Nothing is written until they approve, and declining writes nothing. A client's own setting that always allows a tool is not this approval. A client that cannot ask, one without form elicitation or one on the 2025 protocol, gets each write refused with a message saying so.
+
+Nothing can be deleted over MCP, and there is no SQL that writes.
+
 ## Browsers and hosts
 
 A client in a browser may call the endpoint from any origin: it sends its token, never cookies. A request addressed to another host than the app's `baseURL` is refused, against DNS rebinding.
@@ -61,8 +80,9 @@ The endpoint serves each request on its own, without an MCP session: a `GET` or 
 `@protobase/server` exports the pieces the endpoint is made of, for an MCP server of your own with tools of your own:
 
 - `mcpHandler({ authenticate, resource, scope, server })`: the endpoint as a fetch handler. It checks the host, admits a valid token (`mcpGate`) and serves the request with the server that `server(session)` builds for its caller.
-- `mcpServer({ info, tools, context, report })`: an MCP server offering [assistant tools](/reference/assistant/#the-apps-own-tools), each with its JSON Schema and its `annotations`, MCP's tool hints.
-- `mcpTools({ db, sql })`: the default tools for a session.
+- `mcpServer({ info, tools, context, report })`: an MCP server offering [assistant tools](/reference/assistant/#the-apps-own-tools), each with its JSON Schema and its `annotations`, MCP's tool hints. `context` is the tools' context without `approve`: each call gets its own, which asks the client's user.
+- `mcpTools({ db, sql, writes })`: the default tools for a session.
+- `writeRecordTools()`, or `createRecordTool()` and `updateRecordTool()`: the write tools alone.
 - `mcpGate({ authenticate, resource, scope })`: the token check alone, answering 401 or 403 with a challenge that names the resource's metadata.
 - `mcpToolContext(...)`, `mcpRoutes(app, { path, handler })` and `sessionOf(authInfo)`: the tools' context as the app builds it, the routes with open CORS, and the session a request was admitted with.
 
@@ -81,12 +101,11 @@ const ping = defineTool({
   run: async () => 'pong',
 })
 
-const context = (session: Session): ToolContext => ({
+const context = (session: Session): Omit<ToolContext, 'approve'> => ({
   session,
   records: myRecords(session),
   resources: async () => ({ models: [], views: [] }),
   show: () => {},
-  approve: () => Promise.reject(new Error('Not implemented: this server asks for no approval')),
 })
 
 const handler = mcpHandler({
@@ -96,5 +115,7 @@ const handler = mcpHandler({
   server: (session) => mcpServer({ info: { name: 'My app', version: '1.0.0' }, tools: [ping], context: context(session), report: console.error }),
 })
 ```
+
+A tool that changes something calls `context.approve(...)` before it changes anything, and only once: over MCP the client asks the person, then calls the tool again from the start with their answer, and `approve` then resolves with it.
 
 `mcpServer` returns the SDK's `McpServer`, so `registerTool` on it adds a tool written against the SDK directly.

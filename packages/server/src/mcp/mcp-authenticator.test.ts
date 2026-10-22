@@ -27,11 +27,12 @@ describe('mcpAuthenticator', () => {
   })
 
   it('stops the server on any other value of options.mcp, with MCP on or off', () => {
-    for (const options of ['false', 0, null, true, { enabled: false }, { sql: 'true' }, []]) {
-      expect(() => mcpAuthenticator(withAudiences, mcp, options as never)).toThrow('options.mcp takes false or { sql?: boolean }')
-      expect(() => mcpAuthenticator(withAudiences, undefined, options as never)).toThrow('options.mcp takes false or { sql?: boolean }')
+    for (const options of ['false', 0, null, true, { enabled: false }, { sql: 'true' }, { writes: 'true' }, []]) {
+      expect(() => mcpAuthenticator(withAudiences, mcp, options as never)).toThrow('options.mcp takes false or { sql?: boolean, writes?: boolean }')
+      expect(() => mcpAuthenticator(withAudiences, undefined, options as never)).toThrow('options.mcp takes false or { sql?: boolean, writes?: boolean }')
     }
     expect(mcpAuthenticator(withAudiences, mcp, {})).toBe(forMcp)
     expect(mcpAuthenticator(withAudiences, mcp, { sql: false })).toBe(forMcp)
+    expect(mcpAuthenticator(withAudiences, mcp, { sql: true, writes: true })).toBe(forMcp)
   })
 })

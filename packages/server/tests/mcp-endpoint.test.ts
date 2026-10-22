@@ -41,6 +41,25 @@ const rpc = (app: Served, token: string | undefined, method: string, params: obj
     headers: { host, accept: 'application/json, text/event-stream', 'mcp-protocol-version': '2025-11-25', ...(token && { authorization: `Bearer ${token}` }), ...headers },
   })
 
+/** A JSON-RPC tools/call as a 2026-07-28 client sends it, with its capabilities in the request's own envelope. */
+const modernCall = (app: Served, token: string, params: { name: string; arguments: object; inputResponses?: object }, capabilities: object) =>
+  app.request('/api/mcp', {
+    body: {
+      jsonrpc: '2.0',
+      id: 1,
+      method: 'tools/call',
+      params: {
+        ...params,
+        _meta: {
+          'io.modelcontextprotocol/protocolVersion': '2026-07-28',
+          'io.modelcontextprotocol/clientCapabilities': capabilities,
+          'io.modelcontextprotocol/clientInfo': { name: 'client', version: '1.0.0' },
+        },
+      },
+    },
+    headers: { host, accept: 'application/json, text/event-stream', 'mcp-protocol-version': '2026-07-28', 'mcp-method': 'tools/call', 'mcp-name': params.name, authorization: `Bearer ${token}` },
+  })
+
 const toolNames = async (app: Served, token: string) => ((await resultOf(await rpc(app, token, 'tools/list'))).tools as Array<{ name: string }>).map((tool) => tool.name)
 
 const call = async (app: Served, token: string, name: string, args: object) => {
@@ -90,6 +109,9 @@ describe('the MCP endpoint', () => {
       const rootOff = await served(admin, 'root@example.com')
       expect(await toolNames(rootOff.app, rootOff.mcp)).toEqual(records)
     }
+    const writing = await served({ mcp: { writes: true } })
+    const written = (await resultOf(await rpc(writing.app, writing.mcp, 'tools/list'))).tools as Array<{ name: string; annotations?: { readOnlyHint?: boolean } }>
+    expect(written.map((tool) => [tool.name, tool.annotations?.readOnlyHint])).toEqual([...records.map((name) => [name, true]), ['create_record', false], ['update_record', false]])
   })
 
   it('finds and reads records as the API gives them to the same person, refusals included', async () => {
@@ -123,6 +145,23 @@ describe('the MCP endpoint', () => {
         { name: 'name', type: 'text', optional: false, read_only: false, filterable: false, sortable: false },
       ],
     })
+  })
+
+  // Last, as it adds an organization the reads before would find.
+  it('creates a record after the person approves it, through the API\'s rules and hooks', async () => {
+    const events: Array<{ operation: string; resource: string }> = []
+    const { app, mcp } = await served({ mcp: { writes: true }, writeHooks: [async (event) => void events.push({ operation: event.operation, resource: event.resource.name })] })
+    const args = { resource: 'organizations', data: { name: 'Approved Org' } }
+    const legacy = await resultOf(await rpc(app, mcp, 'tools/call', { name: 'create_record', arguments: args }))
+    expect(legacy).toMatchObject({ isError: true, content: [{ text: expect.stringContaining('cannot ask you to approve') }] })
+    const asked = await resultOf(await modernCall(app, mcp, { name: 'create_record', arguments: args }, { elicitation: {} }))
+    expect(asked).toMatchObject({ resultType: 'input_required', inputRequests: { approve: { method: 'elicitation/create', params: { message: expect.stringContaining('Approved Org') } } } })
+    expect(events).toEqual([])
+    const approved = await resultOf(await modernCall(app, mcp, { name: 'create_record', arguments: args, inputResponses: { approve: { action: 'accept', content: { approve: true } } } }, { elicitation: {} }))
+    const created = JSON.parse((approved.content as Array<{ text: string }>)[0]!.text) as { record: { id: number; name: string }; etag: string }
+    expect(created).toMatchObject({ record: { name: 'Approved Org' }, etag: expect.any(String) })
+    expect(events).toEqual([{ operation: 'create', resource: 'organizations' }])
+    expect(await call(app, mcp, 'get_record', { resource: 'organizations', key: created.record.id })).toEqual(created)
   })
 })
 
