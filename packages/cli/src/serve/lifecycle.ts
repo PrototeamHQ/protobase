@@ -11,6 +11,8 @@ import { createServeApp, type ServedSite } from './app'
 import { startCleanupTimer } from './cleanup-timer'
 import { withClientAddress } from './client-address'
 import { closeSockets } from './close-sockets'
+import { servedRelease } from './mobile-release'
+import { protobaseVersion } from '../version/version'
 import type { BundleUi } from './bundle-ui'
 import type { ServeEnv } from './env'
 import type { ServedProject } from './load-bundle'
@@ -48,7 +50,8 @@ const closeServer = (server: Server) =>
 // start while the auth schema, the change capture of resources with events, the rollup and formula columns, the built-in assistant's query role or the jobs schema is behind, which it only
 // reads: the project's migrations change them, before the new version serves. `startupChecks` false skips those reads,
 // for a restart of a bundle that already started on this database. With jobs it runs them too, unless
-// `runJobs` is off; with file fields it runs their scheduled deletes every `filesCleanupMinutes`.
+// `runJobs` is off; with file fields it runs their scheduled deletes every `filesCleanupMinutes`. With a mobile section
+// it serves the app's files to the mobile app's live updater, composed once here (see servedRelease).
 export const startServe = async ({ project, env, createDb = (url) => createPgDb(pg, url, env.dbConnections), site, ui, reporter }: ServeOptions): Promise<RunningServer> => {
   if (!project.db && !env.databaseUrl) throw new Error('No database: set DATABASE_URL or export `db` from protobase.config.ts')
   if (env.startupChecks && project.auth) await checkAuthSchema(project.auth)
@@ -65,7 +68,9 @@ export const startServe = async ({ project, env, createDb = (url) => createPgDb(
     const { admin, jobs: definitions } = projectAdmin(project, project.config, db, ui, reporter, upgradeWebSocket)
     if (env.startupChecks && definitions.length > 0) await checkJobsSchema(db)
     const jobs = definitions.length > 0 ? await startJobs({ db, jobs: definitions, work: env.runJobs, onError: (error) => console.error(error) }) : undefined
-    const app = createServeApp({ admin, requestLog: env.requestLog, site, ...(jobs && { jobs }), ...(env.drainToken && { drainToken: env.drainToken }) })
+    const release = project.mobile ? await servedRelease({ site, mobile: project.mobile, issuer: project.auth?.issuer, signingKey: env.mobileSigningKey }) : undefined
+    const mobile = project.mobile && { ...(release && { release }), serverVersion: protobaseVersion }
+    const app = createServeApp({ admin, requestLog: env.requestLog, site, ...(jobs && { jobs }), ...(env.drainToken && { drainToken: env.drainToken }), ...(mobile && { mobile }) })
     // WebSockets for `/api/sb/realtime/v1` and the app's functions, upgraded by the app's own routes. Each request names
     // its client in X-Forwarded-For.
     const sockets = apiWebSocketServer()

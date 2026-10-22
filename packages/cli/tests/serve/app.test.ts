@@ -2,10 +2,13 @@ import type { Kysely } from 'kysely'
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
+import { createHash } from 'node:crypto'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { unauthorized } from '@protobase/server'
 import { projectAdmin } from '../../src/project/project-admin'
 import { createServeApp } from '../../src/serve/app'
+import { servedRelease } from '../../src/serve/mobile-release'
+import { nativeFingerprint } from '../../src/mobile/fingerprint'
 import type { ServedProject } from '../../src/serve/load-bundle'
 import { openSnapshotDb } from '../../../../test-support/sql-snapshot'
 
@@ -53,5 +56,34 @@ describe('createServeApp with a site', () => {
 
   it('keeps answering the health probe', async () => {
     expect(await (await app.request('/health')).json()).toEqual({ status: 'ok' })
+  })
+})
+
+describe('createServeApp with a mobile section', () => {
+  let publicDir: string
+  beforeAll(async () => {
+    publicDir = await mkdtemp(path.join(tmpdir(), 'protobase-public-'))
+    await mkdir(path.join(publicDir, 'assets'))
+    await writeFile(path.join(publicDir, 'index.html'), '<head><title>admin</title></head>')
+    await writeFile(path.join(publicDir, 'assets/app-1a2b.js'), 'export {}')
+  })
+  afterAll(() => rm(publicDir, { recursive: true, force: true }))
+
+  it("serves the site's files to the updater, its page naming the API origin, each file with its checksum", async () => {
+    const native = { '@capacitor/core': '8.5.3' }
+    const site = { publicDir, spa: 'index.html', api: ['/api'], native }
+    const release = await servedRelease({ site, mobile: { appId: 'com.example.shop' }, issuer: 'https://shop.example.com' })
+    const app = createServeApp({ admin: projectAdmin(project, project.config, db).admin, requestLog: false, site, mobile: { ...(release && { release }), serverVersion: '0.14.2' } })
+    const answer = await (await app.request(`/api/mobile/release?fingerprint=${nativeFingerprint(native)}&shell_version=0.14.2`)).json()
+    expect(answer).toEqual({ bundleId: release?.bundleId, url: `https://shop.example.com/api/mobile/releases/${release?.bundleId}`, required: false })
+
+    const file = async (href: string) => {
+      const response = await app.request(`/api/mobile/releases/${answer.bundleId}?href=${href}`)
+      const body = Buffer.from(await response.arrayBuffer())
+      expect(response.headers.get('x-checksum')).toBe(createHash('sha256').update(body).digest('hex'))
+      return body.toString()
+    }
+    expect(JSON.parse(await file('capawesome-live-update-manifest.json')).map((item: { href: string }) => item.href)).toEqual(['assets/app-1a2b.js', 'index.html'])
+    expect(await file('index.html')).toBe('<head><title>admin</title><meta name="protobase-api-origin" content="https://shop.example.com"></head>')
   })
 })

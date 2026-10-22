@@ -14,6 +14,7 @@ import { checkUi } from './ui-check'
 import { checkViews } from './view-check'
 import type { Extension } from '../project/extensions'
 import { protobaseFolder } from '../project/protobase-folder'
+import { pinnedNative } from '../mobile/pinned-packages'
 
 export type DeployBundleInput = {
   projectDir: string
@@ -55,9 +56,10 @@ const copyShell = async (publicDir: string, sourceMaps: boolean) => {
 // public/ the prebuilt app (the shell), the project's protobase.ui.tsx and extensions' UI configs as plugins, its
 // theme, checked and minified, and its icons; the project's db/migrations as migrations/; and the manifest saying which
 // paths go to the server, which Protobase version built it, its plugins, theme, shell and migrations, and which icons
-// are the project's own. Of the project's server config only the config folder runs at build time, to check its views
-// against its resources; when it declares custom components, or extensions have UI configs, the UI is loaded once to
-// check its names against the config's and each other's.
+// are the project's own, and the native packages the shell runs on in the mobile app. Of the project's server config
+// only the config folder runs at build time, to check its views against its resources; when it declares custom
+// components, or extensions have UI configs, the UI is loaded once to check its names against the config's and each
+// other's.
 export const buildDeployBundle = async ({ projectDir, outDir, bun, extensions = [], sourceMaps = false, onWarning }: DeployBundleInput): Promise<BundleManifest> => {
   await removeOwnFolder(outDir, bundleNodeModules, 'nodeModules')
   await removeOwnFolder(outDir, bundleMigrations, 'migrations')
@@ -81,6 +83,7 @@ export const buildDeployBundle = async ({ projectDir, outDir, bun, extensions = 
     plugins,
     shell,
     icons,
+    native: pinnedNative,
     ...(packages.length > 0 ? { nodeModules: bundleNodeModules } : {}),
     ...(migrations ? { migrations } : {}),
   }

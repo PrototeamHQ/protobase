@@ -1,21 +1,15 @@
 import { cp, mkdir, readFile, rm, writeFile } from 'node:fs/promises'
 import path from 'node:path'
-import { apiOriginMeta } from '@protobase/schema/internal'
+import { releaseManifestFile } from '@protobase/schema/internal'
+import { releaseManifest } from '@protobase/server'
 import { bundleLayout } from '../bundle/manifest'
 import { buildDeployBundle, type DeployBundleInput } from '../build/deploy-bundle'
 import type { Extension } from '../project/extensions'
+import { siteFiles } from '../serve/site-files'
+import { withApiOrigin } from './api-origin-page'
 
 /** The workspace folder Capacitor copies into the app (its `webDir`): only the files a bundle serves from `public/`. */
 export const webPartDir = 'web'
-
-const escapeAttribute = (value: string) => value.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-
-/** The page naming the API origin the shell calls, in the `<meta>` tag the shell reads (see `apiOriginMeta`). */
-export const withApiOrigin = (html: string, origin: string) => {
-  const at = html.indexOf('</head>')
-  if (at < 0) throw new Error('The shell\'s index.html has no </head> to name the API origin in')
-  return `${html.slice(0, at)}<meta name="${apiOriginMeta}" content="${escapeAttribute(origin)}">${html.slice(at)}`
-}
 
 export type WebPartInput = {
   projectDir: string
@@ -27,10 +21,17 @@ export type WebPartInput = {
   onWarning?: (message: string) => void
 }
 
+// The updater's manifest of the app's files, which an update compares with its own to copy the files that did not
+// change from the app instead of downloading them.
+const writeReleaseManifest = async (web: string) => {
+  const files = await Promise.all((await siteFiles({ publicDir: web, spa: bundleLayout.spa })).map(async ({ href, file }) => ({ href, content: new Uint8Array(await readFile(file)) })))
+  await writeFile(path.join(web, releaseManifestFile), JSON.stringify(releaseManifest(files)))
+}
+
 /**
  * The app's files: the deploy bundle's `public/` (the shell, the project's UI plugins, theme and favicon), its
- * index.html naming the API origin. The bundle is built beside it and removed, so its server config module and
- * packages never sit where Capacitor copies from.
+ * index.html naming the API origin, and the updater's manifest of them. The bundle is built beside it and removed, so
+ * its server config module and packages never sit where Capacitor copies from.
  */
 export const buildWebPart = async ({ projectDir, ws, extensions, apiOrigin, build = buildDeployBundle, onWarning }: WebPartInput) => {
   const bundle = path.join(ws, 'bundle')
@@ -42,6 +43,7 @@ export const buildWebPart = async ({ projectDir, ws, extensions, apiOrigin, buil
   await rm(bundle, { recursive: true, force: true })
   const index = path.join(web, bundleLayout.spa)
   await writeFile(index, withApiOrigin(await readFile(index, 'utf8'), apiOrigin))
+  await writeReleaseManifest(web)
 }
 
 /** A stand-in for the app's files with `--live`, where the app opens `protobase dev` and never shows them. */

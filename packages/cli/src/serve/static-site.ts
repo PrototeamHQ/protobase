@@ -62,13 +62,17 @@ const isNavigation = (request: Request) => (request.headers.get('accept') ?? '')
 
 const isUnder = (paths: readonly string[], pathname: string) => paths.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`))
 
+/** The folder the site serves the URL path `pathname` from: its own shell's, for the shell's paths and the root, else publicDir. */
+export const siteRoot = ({ publicDir, shell }: StaticSite, pathname: string) => (shell && (pathname === '/' || isUnder(shell.paths, pathname)) ? shell.dir : publicDir)
+
 // A built UI as a host serves it: the file a GET or HEAD names, else the SPA page for a navigation, else 404. With a
 // shell of its own, the shell's paths and the SPA page come from it.
-export const serveStaticSite = async ({ publicDir, spa, shell }: StaticSite, request: Request) => {
+export const serveStaticSite = async (site: StaticSite, request: Request) => {
+  const { publicDir, spa, shell } = site
   if (request.method !== 'GET' && request.method !== 'HEAD') return new Response('Method Not Allowed', { status: 405, headers: { allow: 'GET, HEAD' } })
   const pathname = new URL(request.url).pathname
   const appDir = shell?.dir ?? publicDir
-  const root = shell && (pathname === '/' || isUnder(shell.paths, pathname)) ? shell.dir : publicDir
+  const root = siteRoot(site, pathname)
   const file = await fileFor(root, pathname)
   if (file) return fileResponse(root, file)
   if (isNavigation(request)) return fileResponse(appDir, path.join(appDir, spa))
