@@ -32,7 +32,7 @@ export default defineConfig({
 ```
 
 - `appId` is the app's id in reverse-DNS form: at least two parts separated by dots, each starting with a letter and holding only letters, digits and underscores.
-- `plugins`, optional, are extra native [Capacitor plugins](https://capacitorjs.com/docs/plugins), npm name to version. Capacitor itself, `@capacitor/app`, `@capacitor/splash-screen` and `@capawesome/capacitor-live-update` come with Protobase at fixed versions and cannot be listed. A plugin runs native code with the app's rights, and one that writes files, such as `@capacitor/filesystem`, lets a script that got into the page point the app at files it wrote (with Capacitor's own `WebView.setServerBasePath`), so list only plugins the app needs.
+- `plugins`, optional, are extra native [Capacitor plugins](https://capacitorjs.com/docs/plugins), npm name to version. Capacitor itself, `@capacitor/app`, `@capacitor/splash-screen` and `@capawesome/capacitor-live-update` come with Protobase at fixed versions and cannot be listed. A plugin runs native code with the app's rights, and one that writes files, such as `@capacitor/filesystem`, lets a script that got into the page point the iOS app at files it wrote (with Capacitor's own `WebView.setServerBasePath`), so list only plugins the app needs. On Android a plugin's JavaScript cannot call `CapacitorHttp`, `CapacitorCookies` or `WebView`, and `Capacitor.convertFileSrc` URLs do not load: call those from the plugin's native code.
 
 With a mobile section, the API answers the app's origins, `capacitor://localhost` on iOS and `https://localhost` on Android, through [CORS](/reference/api/#cors). Apps without one get no new dependency, and `protobase build` and `protobase dev` work as before.
 
@@ -42,7 +42,7 @@ Signing in works in the app as on the web, with nothing more to set up:
 - The app calls `/api/auth` through the device's native HTTP, naming its Capacitor origin. With a mobile section, sign-in trusts the Capacitor origin a request names, for that request only, without CORS.
 - The session lives in the device's cookie store, so it survives reloads, updates and relaunches. On iOS, signing in or out within about a second of killing the app may be lost.
 - <gap>"Forgot password?" is not offered in the app, as the emailed link cannot lead back into it.</gap>
-- In the app, page script can reach the session cookie through Capacitor's native plugins, so keep untrusted script out of UI plugins.
+- On Android, page script cannot reach the session cookie: Capacitor's `CapacitorHttp`, `CapacitorCookies` and `WebView` plugins are refused to it, and so are the app's local file routes. A plugin that reads files for its JavaScript, such as `@capacitor/filesystem`, could still hand the cookie over. On iOS page script still can reach it through Capacitor's native plugins, so keep untrusted script out of UI plugins.
 - While you develop over plain `http://localhost` with a mobile section, a page served on `https://localhost` in the same browser can send sign-in requests that carry your dev session, as some browsers treat the two as the same site. Do not open untrusted pages on `https://localhost` while you develop.
 
 ## 3. Run it
