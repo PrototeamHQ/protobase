@@ -7,6 +7,7 @@ import { Drawer } from './drawer'
 import { PageScrollContext, usePageGutter, usePageInsets } from './page-scroll'
 import type { NavGroup } from './nav'
 import { Sidebar } from './sidebar'
+import { useSidebarNoticeShown } from './sidebar-notice'
 import type { ProfileMenuItem, ProfileOrganizations, ProfileRoles, ShellUser } from './profile-menu'
 import type { ProfileTheme } from './theme-switch'
 import type { SidebarMode } from './sidebar-mode'
@@ -33,6 +34,8 @@ export type AppShellProps = {
   logo?: ComponentType<ShellLogoProps>
   actions?: ReactNode
   rightPanel?: ReactNode
+  /** Across the bottom of the sidebar, above the profile, only where the sidebar shows at full width (see `useSidebarNoticeShown`). */
+  sidebarNotice?: ReactNode
   forceExpanded?: boolean
   profileMenuOpen?: boolean
   navGroups?: NavGroup[]
@@ -61,8 +64,9 @@ export type AppShellProps = {
 
 const drawerId = 'app-drawer'
 
-export const AppShell = ({ sidebarMode, activeItem, breadcrumb, user, workspace, appName, appIcon, logo, actions, rightPanel, forceExpanded, profileMenuOpen, navGroups, userMenu, bottomBar, onNavigate, onSignOut, signIn, organizations, roles, theme, search, pageScroll: scrollsByDefault = false, className, children }: AppShellProps) => {
+export const AppShell = ({ sidebarMode, activeItem, breadcrumb, user, workspace, appName, appIcon, logo, actions, rightPanel, sidebarNotice, forceExpanded, profileMenuOpen, navGroups, userMenu, bottomBar, onNavigate, onSignOut, signIn, organizations, roles, theme, search, pageScroll: scrollsByDefault = false, className, children }: AppShellProps) => {
   const desktop = useIsDesktop()
+  const noticeShown = useSidebarNoticeShown(sidebarMode)
   const [drawerOpen, setDrawerOpen] = useState(false)
   useEffect(() => {
     if (desktop) setDrawerOpen(false)
@@ -76,14 +80,14 @@ export const AppShell = ({ sidebarMode, activeItem, breadcrumb, user, workspace,
   const bottomBarRef = useRef<HTMLElement>(null)
   usePageInsets(pageScroll, topBarRef, bottomBarRef, Boolean(tabs))
   usePageGutter(pageScroll)
-  const sidebar = (mode: SidebarMode, sticky = false) => (
-    <Sidebar mode={mode} sticky={sticky} activeItem={activeItem} user={user} workspace={workspace} appName={appName} appIcon={appIcon} forceExpanded={forceExpanded} profileMenuOpen={profileMenuOpen} groups={navGroups} userMenu={userMenu} onNavigate={onNavigate} onSignOut={onSignOut} signIn={signIn} organizations={organizations} roles={roles} theme={theme} logo={logo} />
+  const sidebar = (mode: SidebarMode, sticky = false, notice?: ReactNode) => (
+    <Sidebar mode={mode} sticky={sticky} notice={notice} activeItem={activeItem} user={user} workspace={workspace} appName={appName} appIcon={appIcon} forceExpanded={forceExpanded} profileMenuOpen={profileMenuOpen} groups={navGroups} userMenu={userMenu} onNavigate={onNavigate} onSignOut={onSignOut} signIn={signIn} organizations={organizations} roles={roles} theme={theme} logo={logo} />
   )
   return (
     <PageScrollContext.Provider value={setPageScroll}>
       {/* Relative while a box scrolls, so that it clips absolute content such as sr-only text, which otherwise makes the document taller */}
       <div className={cn(pageScroll ? 'flex min-h-full w-full overflow-x-clip bg-background' : 'relative flex h-full min-h-0 w-full overflow-hidden bg-background', className)}>
-        {desktop ? sidebar(sidebarMode, pageScroll) : (
+        {desktop ? sidebar(sidebarMode, pageScroll, noticeShown && sidebarNotice) : (
           <Drawer id={drawerId} open={drawerOpen} onClose={() => setDrawerOpen(false)}>
             {sidebar('text-large')}
           </Drawer>

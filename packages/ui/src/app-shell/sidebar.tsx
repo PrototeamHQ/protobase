@@ -1,4 +1,4 @@
-import type { ComponentType } from 'react'
+import type { ComponentType, ReactNode } from 'react'
 import { LogIn } from 'lucide-react'
 import { cn } from '../lib/cn'
 import { RouteLink, type RouteTarget } from '../primitives/route-link'
@@ -39,9 +39,11 @@ export type SidebarProps = {
   sticky?: boolean
   /** Drawn at the top in place of Protobase's logo. */
   logo?: ComponentType<ShellLogoProps>
+  /** Across the bottom, directly above the profile. */
+  notice?: ReactNode
 }
 
-export const Sidebar = ({ mode, activeItem, user, workspace, appName, appIcon, forceExpanded, profileMenuOpen, groups = defaultGroups, userMenu, onNavigate, onSignOut, signIn, organizations, roles, theme, sticky, logo: SidebarLogo = Logo }: SidebarProps) => {
+export const Sidebar = ({ mode, activeItem, user, workspace, appName, appIcon, forceExpanded, profileMenuOpen, groups = defaultGroups, userMenu, onNavigate, onSignOut, signIn, organizations, roles, theme, sticky, logo: SidebarLogo = Logo, notice }: SidebarProps) => {
   const expanding = mode === 'icon-expand'
   const expanded = expanding && forceExpanded
   const inline = isTextMode(mode) || expanding
@@ -83,6 +85,7 @@ export const Sidebar = ({ mode, activeItem, user, workspace, appName, appIcon, f
             </div>
           ))}
         </div>
+        {notice}
         <div className={cn('shrink-0 border-t p-2', mode !== 'text-large' && mode !== 'text-small' && !expanding && 'flex justify-center')}>
           {user ? (
             <ProfileMenu user={user} compact={!inline} open={profileMenuOpen} items={userMenu} onNavigate={onNavigate} onSignOut={onSignOut} organizations={organizations} roles={roles} theme={theme} />

@@ -51,6 +51,8 @@ import { RecordPage } from './record-page'
 import { SourceNotice } from './source-notice'
 import { sourceStatusOf } from '../data/with-sources'
 import { useGlobalSearch } from './search/use-global-search'
+import { useSidebarNoticeShown } from '../app-shell/sidebar-notice'
+import { NewVersionBanner } from './new-version/new-version-banner'
 import { NewVersionButton } from './new-version/new-version-button'
 import { NewVersionToast } from './new-version/new-version-toast'
 import { Router, useRouter } from './router'
@@ -154,8 +156,10 @@ const Routes = ({ workspace, sidebarMode, assistant, runtime }: Pick<AppProps, '
   // The update button is there when `/meta` names a runtime endpoint, which it does only for the admin role.
   const runtimeUrl = meta.runtime?.url
   const runtimeButton = runtimeUrl && <RuntimeUpdateButton url={runtimeUrl} client={runtime} />
-  // From the moment the server runs another Protobase version than the page started with, until the page reloads
-  const reloadButton = meta.versionChange && <NewVersionButton />
+  // From the moment the server runs another Protobase version than the page started with, until the page reloads: a
+  // banner in a full-width sidebar, otherwise the top bar's button beside the toast
+  const sidebarBanner = useSidebarNoticeShown(sidebarMode ?? 'text-small')
+  const reloadButton = meta.versionChange && !sidebarBanner && <NewVersionButton />
   // The session acts with one role at a time; what the shell shows by role follows it, as the API does.
   const role = useActiveRole(useCallback(() => reopenIn(basePath), [basePath]), Boolean(user))
   const acting = user && actingUser(user, role.current)
@@ -226,6 +230,7 @@ const Routes = ({ workspace, sidebarMode, assistant, runtime }: Pick<AppProps, '
       theme={{ preference: theme.preference, onChange: theme.choose }}
       roles={role.current?.active ? { active: role.current.active, roles: role.current.roles, onSwitch: role.switchTo } : undefined}
       onNavigate={open}
+      sidebarNotice={<NewVersionBanner />}
       search={search.available ? { placeholder: search.placeholder, text: search.text, onTextChange: search.setText, query: search.query, loading: search.loading, groups: search.groups, onSelect: open } : undefined}
       actions={(Actions || reloadButton || runtimeButton || assistantButton) && <>{Actions && <CustomBoundary name="shell.actions" fallback={null}><Actions /></CustomBoundary>}{reloadButton}{runtimeButton}{assistantButton}</>}
       rightPanel={(RightPanel || assistantPanel) && <>{RightPanel && <CustomBoundary name="shell.rightPanel" fallback={null}><RightPanel /></CustomBoundary>}{assistantPanel}</>}
@@ -248,12 +253,14 @@ const Routes = ({ workspace, sidebarMode, assistant, runtime }: Pick<AppProps, '
 
 const Authenticated = ({ baseUrl, client, sources, workspace, sidebarMode, ui, assistant, runtime }: Omit<AppProps, 'auth' | 'basePath' | 'initialUrl' | 'pluginLoader'>) => {
   const { state, session, markSignedOut } = useAuth()
+  // A full-width sidebar says the app was updated in a banner, so the toast does not cover the page there
+  const sidebarBanner = useSidebarNoticeShown(sidebarMode ?? 'text-small')
   // A visitor has no token to ask the session for: their requests go without one, as the anonymous role.
   return (
     <ApiProvider baseUrl={baseUrl} client={client} sources={sources} token={state.kind === 'visitor' ? undefined : session.token} onUnauthenticated={markSignedOut}>
       <MetaGate>
         <ToastProvider>
-          <NewVersionToast />
+          {!sidebarBanner && <NewVersionToast />}
           <PluginGate ui={ui}>
             <Routes workspace={workspace} sidebarMode={sidebarMode} assistant={assistant} runtime={runtime} />
           </PluginGate>
