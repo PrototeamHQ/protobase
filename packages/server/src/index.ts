@@ -152,3 +152,6 @@ export { defineEmail, type EmailComponent, type EmailOptions, type EmailTemplate
 export { startJobs, type DrainResult, type JobsRuntime, type StartJobsOptions } from './jobs/runtime'
 export { jobsDrainApp } from './jobs/drain-route'
 export { checkJobsSchema, jobsSchemaMigration, jobsSchema } from './jobs/schema'
+export { composeRelease, releaseManifest, type MobileRelease, type ReleaseFile, type ServedReleaseFile } from './mobile-release/release'
+export { mobileReleaseApp, type MobileReleaseAppInput, type OfferedRelease } from './mobile-release/release-app'
+export { mobileSigningKeyVariable, readSigningKey } from './mobile-release/signing-key'
