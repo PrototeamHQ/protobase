@@ -1,3 +1,5 @@
+import type { KeyObject } from 'node:crypto'
+import { readSigningKey } from '@protobase/server'
 import { readTrustedProxies } from './client-address'
 
 // The environment the platform provides. Better Auth settings (BETTER_AUTH_SECRET, ...) are the project's own.
@@ -21,6 +23,8 @@ export type ServeEnv = {
   drainToken?: string
   // The proxies whose X-Forwarded-For names the client (PROTOBASE_TRUSTED_PROXIES); without them the socket's peer is the client.
   trustedProxies: string[]
+  // The key that signs every file of the mobile release (PROTOBASE_MOBILE_SIGNING_KEY), for an app whose updater checks signatures.
+  mobileSigningKey?: KeyObject
 }
 
 export const defaultPort = 8787
@@ -38,6 +42,7 @@ export const readServeEnv = (env: Record<string, string | undefined>): ServeEnv 
   if (!Number.isInteger(port) || port < 0 || port > 65_535) throw new Error(`PORT must be a port number, not "${env.PORT}"`)
   const minutes = env.PROTOBASE_FILES_CLEANUP_MINUTES ? Number(env.PROTOBASE_FILES_CLEANUP_MINUTES) : 60
   if (!Number.isInteger(minutes) || minutes < 0) throw new Error(`PROTOBASE_FILES_CLEANUP_MINUTES must be a whole number of minutes, not "${env.PROTOBASE_FILES_CLEANUP_MINUTES}"`)
+  const mobileSigningKey = readSigningKey(env)
   const connections = env.PROTOBASE_DB_CONNECTIONS ? Number(env.PROTOBASE_DB_CONNECTIONS) : undefined
   if (connections !== undefined && (!Number.isInteger(connections) || connections < 1)) throw new Error(`PROTOBASE_DB_CONNECTIONS must be a whole number of connections, at least 1, not "${env.PROTOBASE_DB_CONNECTIONS}"`)
   return {
@@ -50,5 +55,6 @@ export const readServeEnv = (env: Record<string, string | undefined>): ServeEnv 
     startupChecks: readBoolean(env, 'PROTOBASE_STARTUP_CHECKS', true),
     ...(env.PROTOBASE_JOBS_DRAIN_TOKEN && { drainToken: env.PROTOBASE_JOBS_DRAIN_TOKEN }),
     trustedProxies: readTrustedProxies(env.PROTOBASE_TRUSTED_PROXIES),
+    ...(mobileSigningKey && { mobileSigningKey }),
   }
 }
