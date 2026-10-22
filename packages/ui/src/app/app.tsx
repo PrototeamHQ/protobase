@@ -51,6 +51,7 @@ import { RecordPage } from './record-page'
 import { SourceNotice } from './source-notice'
 import { sourceStatusOf } from '../data/with-sources'
 import { useGlobalSearch } from './search/use-global-search'
+import { NewVersionNotice } from './new-version-notice'
 import { Router, useRouter } from './router'
 import { RuntimeUpdateButton } from './runtime/runtime-update'
 import { StaffBanner } from './staff-banner'
@@ -249,6 +250,7 @@ const Authenticated = ({ baseUrl, client, sources, workspace, sidebarMode, ui, a
     <ApiProvider baseUrl={baseUrl} client={client} sources={sources} token={state.kind === 'visitor' ? undefined : session.token} onUnauthenticated={markSignedOut}>
       <MetaGate>
         <ToastProvider>
+          <NewVersionNotice />
           <PluginGate ui={ui}>
             <Routes workspace={workspace} sidebarMode={sidebarMode} assistant={assistant} runtime={runtime} />
           </PluginGate>

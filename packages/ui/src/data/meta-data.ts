@@ -7,6 +7,13 @@ export type MetaData = {
   etag: string
   /** The app's name, which ends the tab titles. */
   appName: string
+  /** The Protobase version the server ran when this `/meta` was read. */
+  protobaseVersion?: string
+  /**
+   * Set once the server runs another Protobase version than the page started with: `to` is that version, when the server
+   * names one. The page keeps this `/meta` and stops reading it until it is reloaded (see `keepOnVersionChange`).
+   */
+  versionChange?: { to?: string }
   /** The path of the app's own icon, when the project has one, which the sidebar's logo draws. */
   appIcon?: string
   resources: Record<string, ResourceModel>

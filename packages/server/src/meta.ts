@@ -9,6 +9,7 @@ import { sha256Hex, stableJson } from './hash'
 import type { MapSettings } from './maps/map-settings'
 import { pluginsFor, type PluginRef } from './plugins/plugin-settings'
 import { metaModel } from './meta-model'
+import { protobaseVersion } from './protobase-version'
 import { requestAccess, writeOnlyFields } from './request-access'
 import { seesRuntime } from './runtime/runtime-settings'
 import { sourcesFor, type SourceRef } from './sources/source-settings'
@@ -27,6 +28,8 @@ export type ResourcePermissions = {
 export type CallerMeta = {
   /** The app's name, which ends the admin app's tab titles. */
   appName: string
+  /** The Protobase version the server runs: the admin app offers a reload when it changes under an open page. */
+  protobaseVersion: string
   /** The app's own icon, its favicon's path, when the project has one: the sidebar's logo draws it beside the name. */
   appIcon?: string
   resources: ResourceModel[]
@@ -107,6 +110,7 @@ export const createMeta = (deps: Deps, appName: string, appIcon?: string) => {
     const sources = sourcesFor(deps.sources, session.user.roles)
     const body: CallerMeta = {
       appName,
+      protobaseVersion,
       ...(appIcon && { appIcon }),
       resources: visible.map(metaModel),
       views,
@@ -133,8 +137,11 @@ export const createMeta = (deps: Deps, appName: string, appIcon?: string) => {
     return { body, etag: `"${(await sha256Hex(stableJson(body))).slice(0, 32)}"` }
   }
 
-  /** The X-Meta-Version header: the models, and the roles the access depends on, so a role change moves it. */
-  const version = async (roles: readonly string[]) => (await sha256Hex(`${await base}|${[...roles].sort().join(',')}`)).slice(0, 32)
+  /**
+   * The X-Meta-Version header: the models, the Protobase version, so the admin app reads `/meta` again on the first
+   * answer after an upgrade, and the roles the access depends on, so a role change moves it.
+   */
+  const version = async (roles: readonly string[]) => (await sha256Hex(`${await base}|${protobaseVersion}|${[...roles].sort().join(',')}`)).slice(0, 32)
 
   return { forCaller, version }
 }

@@ -4,6 +4,7 @@ import { f, resource, view } from '@protobase/schema'
 import { companies } from '../../../test-support/server'
 import { as, createFixtureDb, createTestApp, testAuthenticator, type TestApp } from '../../../test-support/server'
 import { createAdmin } from '../src/create-admin'
+import packageJson from '../package.json' with { type: 'json' }
 import { openSnapshotDb, type SnapshotDb } from '../../../test-support/sql-snapshot'
 
 let fixture: Awaited<ReturnType<typeof createFixtureDb>>
@@ -25,6 +26,7 @@ describe('GET /meta', () => {
     expect(response.headers.get('etag')).toMatch(/^"[0-9a-f]{32}"$/)
     expect(body.resources[2].fields.code.default).toEqual({ db: true })
     expect(body.resources[1].fields.status.default).toEqual({ value: 'open' })
+    expect(body.protobaseVersion).toBe(packageJson.version)
   })
 
   it('names the app, Protobase unless the platform names it', async () => {

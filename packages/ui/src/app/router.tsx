@@ -15,6 +15,10 @@ type RouterValue = {
   navigate: (to: string, options?: { replace?: boolean }) => void
   /** Asks to be told before the page changes; returns how to stop asking. Used by `useNavigationGuard`. */
   registerGuard: () => () => void
+  /** Reloads the page, asking first while a guard holds unsaved changes. */
+  reload: () => void
+  /** Whether the person chose to reload despite unsaved changes, so the page leaves without asking again. */
+  reloadConfirmed: () => boolean
 }
 
 const RouterContext = createContext<RouterValue | null>(null)
@@ -34,7 +38,7 @@ export type RouterProps = {
 
 const browserUrl = () => `${window.location.pathname}${window.location.search}`
 
-type Pending = { kind: 'link'; full: string; replace: boolean } | { kind: 'history'; delta: number }
+type Pending = { kind: 'link'; full: string; replace: boolean } | { kind: 'history'; delta: number } | { kind: 'reload' }
 
 const pathOf = (url: string) => new URL(url, 'http://local').pathname
 
@@ -66,6 +70,7 @@ export const Router = ({ basePath = '', initialUrl, children }: RouterProps) => 
   const proceeding = useRef(false)
   // A Leave pressed before the step back has landed: the browser drops a traversal asked for while another is under way.
   const leaveAfterUndo = useRef<number | undefined>(undefined)
+  const reloading = useRef(false)
   const [pending, setPending] = useState<Pending>()
 
   useEffect(() => {
@@ -124,10 +129,21 @@ export const Router = ({ basePath = '', initialUrl, children }: RouterProps) => 
     return () => void guards.current.delete(token)
   }, [])
 
+  const reload = useCallback(() => {
+    if (guards.current.size > 0) return setPending({ kind: 'reload' })
+    window.location.reload()
+  }, [])
+
+  const reloadConfirmed = useCallback(() => reloading.current, [])
+
   const leave = () => {
     if (!pending) return
     setPending(undefined)
     if (pending.kind === 'link') return go(pending.full, pending.replace)
+    if (pending.kind === 'reload') {
+      reloading.current = true
+      return window.location.reload()
+    }
     proceeding.current = true
     if (undoing.current) leaveAfterUndo.current = pending.delta
     else window.history.go(pending.delta)
@@ -143,8 +159,10 @@ export const Router = ({ basePath = '', initialUrl, children }: RouterProps) => 
       entry: page.entry,
       navigate,
       registerGuard,
+      reload,
+      reloadConfirmed,
     }
-  }, [page, basePath, navigate, registerGuard])
+  }, [page, basePath, navigate, registerGuard, reload, reloadConfirmed])
 
   return (
     <RouterContext.Provider value={value}>
@@ -176,12 +194,14 @@ export const Link = ({ to, replace, ...rest }: AnchorHTMLAttributes<HTMLAnchorEl
 
 /** While `active`, leaving the page asks first (in-app links and closing the tab). */
 export const useNavigationGuard = (active: boolean) => {
-  const { registerGuard } = useRouter()
+  const { registerGuard, reloadConfirmed } = useRouter()
   useEffect(() => (active ? registerGuard() : undefined), [active, registerGuard])
   useEffect(() => {
     if (!active) return
-    const warn = (event: BeforeUnloadEvent) => event.preventDefault()
+    const warn = (event: BeforeUnloadEvent) => {
+      if (!reloadConfirmed()) event.preventDefault()
+    }
     window.addEventListener('beforeunload', warn)
     return () => window.removeEventListener('beforeunload', warn)
-  }, [active])
+  }, [active, reloadConfirmed])
 }

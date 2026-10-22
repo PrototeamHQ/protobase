@@ -4,11 +4,13 @@ import { useClient } from './api-provider'
 import { MetaContext } from './meta-context'
 import type { MetaData } from './meta-data'
 import { keys } from './query-keys'
+import { keepOnVersionChange } from './version-freeze'
 
 /**
  * The resource and view models. Refetches on window focus with `If-None-Match`, so an unchanged
- * `/meta` costs a 304, and the cached object keeps its identity. Below the app's `MetaGate`, `data` holds the resources
- * of its sources too, as every page of the app reads them.
+ * `/meta` costs a 304, and the cached object keeps its identity. Once the server runs another Protobase version than
+ * the page started with, it keeps the `/meta` it has and stops reading it (see `keepOnVersionChange`). Below the app's
+ * `MetaGate`, `data` holds the resources of its sources too, as every page of the app reads them.
  */
 export const useMeta = (): UseQueryResult<MetaData> => {
   const client = useClient()
@@ -18,6 +20,7 @@ export const useMeta = (): UseQueryResult<MetaData> => {
     queryKey: keys.meta,
     staleTime: 0,
     refetchOnWindowFocus: 'always',
+    enabled: (current) => !current.state.data?.versionChange,
     queryFn: async (): Promise<MetaData> => {
       const previous = queryClient.getQueryData<MetaData>(keys.meta)
       const result = await client.meta(previous?.etag)
@@ -25,9 +28,10 @@ export const useMeta = (): UseQueryResult<MetaData> => {
         if (!previous) throw new Error('The server answered 304 to a request without If-None-Match')
         return previous
       }
-      return {
+      return keepOnVersionChange(previous, {
         etag: result.etag,
         appName: result.meta.appName,
+        ...(result.meta.protobaseVersion && { protobaseVersion: result.meta.protobaseVersion }),
         ...(result.meta.appIcon && { appIcon: result.meta.appIcon }),
         resources: Object.fromEntries(result.meta.resources.map((model) => [model.name, model])),
         views: Object.fromEntries(result.meta.views.map((model) => [model.resource, model])),
@@ -45,7 +49,7 @@ export const useMeta = (): UseQueryResult<MetaData> => {
         ...(result.meta.plugins && { plugins: result.meta.plugins }),
         // The sources' own `/meta` is read below `MetaGate` (see `withSources`).
         ...(result.meta.sources && { sources: result.meta.sources.map((source) => ({ source, state: 'loading' as const })) }),
-      }
+      })
     },
   })
   return useMemo(() => (merged && query.data ? ({ ...query, data: merged } as UseQueryResult<MetaData>) : query), [merged, query])

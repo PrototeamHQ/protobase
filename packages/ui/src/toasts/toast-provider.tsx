@@ -1,8 +1,9 @@
 import { createContext, useCallback, useContext, useMemo, useRef, useState, type ReactNode } from 'react'
 import { Toast, type ToastProps } from './toast'
 
-type ToastItem = Omit<ToastProps, 'onDismiss'> & { id: number }
-type ToastPatch = Partial<Omit<ToastItem, 'id'>>
+/** `sticky`: stays until dismissed, as a notice the person must act on. */
+type ToastItem = Omit<ToastProps, 'onDismiss'> & { id: number; sticky?: boolean }
+type ToastPatch = Partial<Omit<ToastItem, 'id' | 'sticky'>>
 
 export type ToastApi = {
   show: (toast: Omit<ToastItem, 'id'>) => number
@@ -25,16 +26,19 @@ export const ToastProvider = ({ children }: { children: ReactNode }) => {
   const [items, setItems] = useState<ToastItem[]>([])
   const nextId = useRef(1)
   const timers = useRef(new Map<number, ReturnType<typeof setTimeout>>())
+  const sticky = useRef(new Set<number>())
 
   const dismiss = useCallback((id: number) => {
     clearTimeout(timers.current.get(id))
     timers.current.delete(id)
+    sticky.current.delete(id)
     setItems((current) => current.filter((item) => item.id !== id))
   }, [])
 
   const schedule = useCallback(
     (id: number, state: ToastItem['state'], actionable = false) => {
       clearTimeout(timers.current.get(id))
+      if (sticky.current.has(id)) return
       const delay = actionable ? undoWindowMs : dismissAfterMs[state]
       if (delay === Infinity) return
       timers.current.set(id, setTimeout(() => dismiss(id), delay))
@@ -46,6 +50,7 @@ export const ToastProvider = ({ children }: { children: ReactNode }) => {
     () => ({
       show: (toast) => {
         const id = nextId.current++
+        if (toast.sticky) sticky.current.add(id)
         setItems((current) => [...current, { ...toast, id }])
         schedule(id, toast.state, Boolean(toast.action))
         return id
