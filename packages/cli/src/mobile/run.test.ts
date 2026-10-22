@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import type { ChildOptions } from './child-process'
+import { protobasePluginClasses } from './protobase-plugin'
 import { mobileOpen, mobileRun } from './run'
 
 let root = ''
@@ -28,13 +29,16 @@ const write = (file: string, content: string) => {
   writeFileSync(file, content)
 }
 
-// npm and Capacitor as they leave the workspace, recording every call.
+// npm and Capacitor as they leave the workspace, Protobase's plugin compiled into Android, recording every call.
 const fakeRun = (calls: Array<{ command: string; args: string[] } & ChildOptions>) => async (command: string, args: string[], options: ChildOptions) => {
   calls.push({ command, args, ...options })
   const modules = path.join(options.cwd, 'node_modules')
   if (command === 'npm') {
     write(path.join(modules, '@protobase/mobile/package.json'), JSON.stringify({ name: '@protobase/mobile', version: '0.14.2' }))
     write(path.join(modules, '@capacitor/cli/package.json'), JSON.stringify({ name: '@capacitor/cli', version: '8.5.3', bin: { cap: './bin/capacitor' } }))
+  }
+  if (command === 'node' && args[1] === 'add' && args[2] === 'android') {
+    write(path.join(options.cwd, 'android/app/src/main/assets/capacitor.plugins.json'), JSON.stringify(protobasePluginClasses.map((classpath) => ({ pkg: '@protobase/mobile', classpath }))))
   }
 }
 

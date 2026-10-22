@@ -2,7 +2,7 @@
   "name": "@protobase/mobile",
   "version": "0.14.2",
   "private": true,
-  "description": "The Capacitor that protobase mobile builds a Protobase app's iOS and Android projects with, at fixed versions; installed by the CLI on first use.",
+  "description": "The Capacitor that protobase mobile builds a Protobase app's iOS and Android projects with, at fixed versions, and the native plugin that keeps page script away from the session; installed by the CLI on first use.",
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
@@ -15,8 +15,15 @@
     "node": ">=22.12.0"
   },
   "files": [
-    "LICENSE"
+    "LICENSE",
+    "android/src/main/",
+    "android/build.gradle"
   ],
+  "capacitor": {
+    "android": {
+      "src": "android"
+    }
+  },
   "publishConfig": {
     "access": "public"
   },

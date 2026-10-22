@@ -4,22 +4,48 @@ import path from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import { capacitorConfig, writeCapacitorConfig } from './capacitor-config'
 
-const base = { appId: 'com.example.shop', appName: 'Shop', fingerprint: '0123456789abcdef', plugins: [], allowances: { cleartext: false, mixedContent: false } }
+const base = {
+  appId: 'com.example.shop',
+  appName: 'Shop',
+  fingerprint: '0123456789abcdef',
+  plugins: [],
+  allowances: { cleartext: false, mixedContent: false },
+  apiOrigin: 'https://shop.example.com',
+  platform: 'android' as const,
+}
 
 describe('capacitorConfig', () => {
-  it('names the app, its files and fingerprint, and compiles in no plugin of its own', () => {
-    expect(capacitorConfig(base)).toEqual({ appId: 'com.example.shop', appName: 'Shop', webDir: 'web', appendUserAgent: 'ProtobaseNative/0123456789abcdef', includePlugins: [] })
+  it('names the app, its files and fingerprint, and compiles in Protobase\'s plugin alone', () => {
+    expect(capacitorConfig(base)).toEqual({
+      appId: 'com.example.shop',
+      appName: 'Shop',
+      webDir: 'web',
+      appendUserAgent: 'ProtobaseNative/0123456789abcdef',
+      includePlugins: ['@protobase/mobile'],
+      plugins: { ProtobaseAuth: { apiOrigin: 'https://shop.example.com', origin: 'https://localhost' } },
+      android: { resolveServiceWorkerRequests: false },
+    })
   })
 
-  it('compiles in the configured plugins only', () => {
-    expect(capacitorConfig({ ...base, plugins: ['@capacitor/camera', 'x'] }).includePlugins).toEqual(['@capacitor/camera', 'x'])
+  it('compiles in the configured plugins, and Protobase\'s after them', () => {
+    expect(capacitorConfig({ ...base, plugins: ['@capacitor/camera', 'x'] }).includePlugins).toEqual(['@capacitor/camera', 'x', '@protobase/mobile'])
   })
 
-  it('allows plain http for an http API, and mixed content for the emulator\'s host', () => {
-    const { appId, appName, webDir, appendUserAgent, includePlugins } = capacitorConfig(base)
-    const common = { appId, appName, webDir, appendUserAgent, includePlugins }
-    expect(capacitorConfig({ ...base, allowances: { cleartext: true, mixedContent: false } })).toEqual({ ...common, server: { cleartext: true } })
-    expect(capacitorConfig({ ...base, allowances: { cleartext: true, mixedContent: true } })).toEqual({ ...common, server: { cleartext: true }, android: { allowMixedContent: true } })
+  it.each([
+    ['android', 'https://localhost'],
+    ['ios', 'capacitor://localhost'],
+  ] as const)('gives ProtobaseAuth the API and the Capacitor origin of %s', (platform, origin) => {
+    expect(capacitorConfig({ ...base, platform, apiOrigin: 'http://localhost:3000' }).plugins).toEqual({ ProtobaseAuth: { apiOrigin: 'http://localhost:3000', origin } })
+  })
+
+  it('allows plain http for an http API, and mixed content for the emulator\'s host, never service workers on the local server', () => {
+    const { server, android, ...common } = capacitorConfig(base)
+    expect(capacitorConfig({ ...base, allowances: { cleartext: true, mixedContent: false } })).toEqual({ ...common, server: { cleartext: true }, android: { resolveServiceWorkerRequests: false } })
+    expect(capacitorConfig({ ...base, allowances: { cleartext: true, mixedContent: true } })).toEqual({
+      ...common,
+      server: { cleartext: true },
+      android: { resolveServiceWorkerRequests: false, allowMixedContent: true },
+    })
   })
 })
 

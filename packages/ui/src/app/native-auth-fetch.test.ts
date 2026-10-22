@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { nativeAuthFetch, nativeBridgeOf, type NativeBridge } from './native-auth-fetch'
 
 const api = 'https://shop.example.com'
+const platforms = ['ios', 'android']
 
 const fakeBridge = (platform: string, answer: unknown = { status: 200, headers: { 'content-type': 'application/json' }, data: { ok: true } }) => {
   const nativePromise = vi.fn<NativeBridge['nativePromise']>(async () => answer)
@@ -9,69 +10,73 @@ const fakeBridge = (platform: string, answer: unknown = { status: 200, headers: 
 }
 
 describe('nativeAuthFetch', () => {
-  it.each([
-    ['ios', 'capacitor://localhost'],
-    ['android', 'https://localhost'],
-  ])('names the Capacitor origin of %s', async (platform, origin) => {
-    const { bridge, nativePromise } = fakeBridge(platform)
-    await nativeAuthFetch(bridge, api)(`${api}/api/auth/get-session`)
-    expect(nativePromise).toHaveBeenCalledWith('CapacitorHttp', 'request', expect.objectContaining({ headers: expect.objectContaining({ origin }) }))
+  it('signs in through ProtobaseAuth on Android, which names the origin and keeps redirects and Set-Cookie natively', async () => {
+    const { bridge, nativePromise } = fakeBridge('android')
+    const body = JSON.stringify({ email: 'ada@example.com', otp: '123456' })
+    await nativeAuthFetch(bridge, api)(`${api}/api/auth/sign-in/email-otp`, { method: 'POST', headers: { 'content-type': 'application/json', 'x-extra': 'yes', origin: 'https://evil.example' }, body })
+    // The page's origin header is passed on for ProtobaseAuth to drop.
+    expect(nativePromise).toHaveBeenCalledWith('ProtobaseAuth', 'request', {
+      url: `${api}/api/auth/sign-in/email-otp`,
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'x-extra': 'yes', origin: 'https://evil.example' },
+      data: body,
+    })
   })
 
-  it('passes the method, headers and body through, and keeps redirects for the page to see', async () => {
-    const { bridge, nativePromise } = fakeBridge('android')
+  it('signs in through native HTTP on iOS, naming the Capacitor origin and keeping redirects for the page to see', async () => {
+    const { bridge, nativePromise } = fakeBridge('ios')
     const body = JSON.stringify({ email: 'ada@example.com', otp: '123456' })
     await nativeAuthFetch(bridge, api)(`${api}/api/auth/sign-in/email-otp`, { method: 'POST', headers: { 'content-type': 'application/json', 'x-extra': 'yes', origin: 'https://evil.example' }, body })
     expect(nativePromise).toHaveBeenCalledWith('CapacitorHttp', 'request', {
       url: `${api}/api/auth/sign-in/email-otp`,
       method: 'POST',
-      headers: { 'content-type': 'application/json', 'x-extra': 'yes', origin: 'https://localhost' },
+      headers: { 'content-type': 'application/json', 'x-extra': 'yes', origin: 'capacitor://localhost' },
       data: body,
       responseType: 'text',
       disableRedirects: true,
     })
   })
 
-  it('sends no body with a GET', async () => {
-    const { bridge, nativePromise } = fakeBridge('ios')
+  it.each(['ios', 'android'])('sends no body with a GET on %s', async (platform) => {
+    const { bridge, nativePromise } = fakeBridge(platform)
     await nativeAuthFetch(bridge, api)(`${api}/api/auth/token`)
     expect(nativePromise.mock.calls[0]![2]).not.toHaveProperty('data')
   })
 
-  it('writes a JSON answer out again, a top-level string included', async () => {
-    const parsed = fakeBridge('ios', { status: 200, headers: { 'Content-Type': 'application/json; charset=utf-8' }, data: { user: { id: 'u1' } } })
+  it.each(platforms)('writes a JSON answer out again, a top-level string included, on %s', async (platform) => {
+    const parsed = fakeBridge(platform, { status: 200, headers: { 'Content-Type': 'application/json; charset=utf-8' }, data: { user: { id: 'u1' } } })
     expect(await (await nativeAuthFetch(parsed.bridge, api)(`${api}/api/auth/get-session`)).json()).toEqual({ user: { id: 'u1' } })
-    const unquoted = fakeBridge('android', { status: 200, headers: { 'content-type': 'application/json' }, data: 'plain' })
+    const unquoted = fakeBridge(platform, { status: 200, headers: { 'content-type': 'application/json' }, data: 'plain' })
     expect(await (await nativeAuthFetch(unquoted.bridge, api)(`${api}/api/auth/x`)).json()).toBe('plain')
   })
 
-  it('keeps a text answer as it is', async () => {
-    const { bridge } = fakeBridge('ios', { status: 200, headers: { 'content-type': 'text/plain' }, data: 'hello' })
+  it.each(platforms)('keeps a text answer as it is on %s', async (platform) => {
+    const { bridge } = fakeBridge(platform, { status: 200, headers: { 'content-type': 'text/plain' }, data: 'hello' })
     expect(await (await nativeAuthFetch(bridge, api)(`${api}/api/auth/ok`)).text()).toBe('hello')
   })
 
-  it('answers a 204 with no body', async () => {
-    const { bridge } = fakeBridge('ios', { status: 204, headers: {}, data: '' })
+  it.each(platforms)('answers a 204 with no body on %s', async (platform) => {
+    const { bridge } = fakeBridge(platform, { status: 204, headers: {}, data: '' })
     const response = await nativeAuthFetch(bridge, api)(`${api}/api/auth/sign-out`, { method: 'POST' })
     expect(response.status).toBe(204)
     expect(response.body).toBeNull()
   })
 
-  it('answers a refusal as it is, never as a success', async () => {
-    const { bridge } = fakeBridge('android', { status: 403, headers: { 'content-type': 'application/json' }, data: { code: 'INVALID_ORIGIN' } })
+  it.each(platforms)('answers a refusal as it is, never as a success, on %s', async (platform) => {
+    const { bridge } = fakeBridge(platform, { status: 403, headers: { 'content-type': 'application/json' }, data: { code: 'INVALID_ORIGIN' } })
     const response = await nativeAuthFetch(bridge, api)(`${api}/api/auth/sign-in/email-otp`, { method: 'POST', body: '{}' })
     expect(response.status).toBe(403)
     expect(await response.json()).toEqual({ code: 'INVALID_ORIGIN' })
   })
 
-  it('leaves Set-Cookie to the native cookie jar', async () => {
-    const { bridge } = fakeBridge('android', { status: 200, headers: { 'content-type': 'application/json', 'Set-Cookie': 'session=secret' }, data: {} })
+  it.each(platforms)('leaves Set-Cookie to the native cookie jar on %s', async (platform) => {
+    const { bridge } = fakeBridge(platform, { status: 200, headers: { 'content-type': 'application/json', 'Set-Cookie': 'session=secret' }, data: {} })
     const response = await nativeAuthFetch(bridge, api)(`${api}/api/auth/sign-in/email-otp`, { method: 'POST', body: '{}' })
     expect(response.headers.get('set-cookie')).toBeNull()
   })
 
-  it('rejects when native HTTP fails', async () => {
-    const { bridge, nativePromise } = fakeBridge('ios')
+  it.each(platforms)('rejects when native HTTP fails on %s', async (platform) => {
+    const { bridge, nativePromise } = fakeBridge(platform)
     nativePromise.mockRejectedValueOnce(new Error('The network connection was lost.'))
     await expect(nativeAuthFetch(bridge, api)(`${api}/api/auth/get-session`)).rejects.toThrow('The network connection was lost.')
   })
@@ -91,16 +96,20 @@ describe('nativeAuthFetch', () => {
     'http://shop.example.com/api/auth/x',
     'https://other.example.com/api/auth/x',
   ])('refuses %s without calling the bridge', async (url) => {
-    const { bridge, nativePromise } = fakeBridge('ios')
-    // A Request with credentials in its URL cannot even be made; the wrapper refuses one all the same.
-    await expect(nativeAuthFetch(bridge, api)(url)).rejects.toThrow()
-    expect(nativePromise).not.toHaveBeenCalled()
+    for (const platform of platforms) {
+      const { bridge, nativePromise } = fakeBridge(platform)
+      // A Request with credentials in its URL cannot even be made; the wrapper refuses one all the same.
+      await expect(nativeAuthFetch(bridge, api)(url)).rejects.toThrow()
+      expect(nativePromise).not.toHaveBeenCalled()
+    }
   })
 
   it.each([`${api}/api/v1`, `${api}/`])('refuses every address when the API origin is given as %s', async (given) => {
-    const { bridge, nativePromise } = fakeBridge('ios')
-    await expect(nativeAuthFetch(bridge, given)(`${api}/api/auth/sign-in/email-otp`, { method: 'POST', body: '{}' })).rejects.toThrow()
-    expect(nativePromise).not.toHaveBeenCalled()
+    for (const platform of platforms) {
+      const { bridge, nativePromise } = fakeBridge(platform)
+      await expect(nativeAuthFetch(bridge, given)(`${api}/api/auth/sign-in/email-otp`, { method: 'POST', body: '{}' })).rejects.toThrow()
+      expect(nativePromise).not.toHaveBeenCalled()
+    }
   })
 
   it('is only for iOS and Android', () => {
