@@ -1,9 +1,11 @@
 import { createDpopReplayStore, createInMemoryDpopReplayStore, type DpopReplayStore } from 'better-auth/oauth2'
+import type { JWTPayload } from 'jose'
 import { jwtSessions, type JwtOptions, type JwtVerifyOptions } from '../auth/jwt'
-import type { Authenticator, TenantValue } from '../types'
+import type { Authenticator, Session, TenantValue } from '../types'
 import { withTrustedApps, type TrustedApp } from './app-tokens'
 import type { AdminAuth } from './create-auth'
 import { cachedKeys, type JwksCacheOptions } from './jwks-cache'
+import { checkMcpGrant } from './mcp/grant-standing'
 import { noGlobalRole } from './organizations/role-definitions'
 import type { AuthContext } from './organizations/store'
 import { checkTokenStanding, tokenClaims } from './token-standing'
@@ -36,7 +38,9 @@ export type BetterAuthAuthenticator = Authenticator & {
    * An authenticator for the OAuth access tokens issued for `audience` alone: the app's keys, a `typ` of `at+jwt`, and
    * proof of the key for a DPoP-bound token, checked against `audience` as the URL it guards (the endpoint must answer
    * at exactly that URL). The app's own tokens and trusted apps' are refused; the session keeps the token's `client`.
-   * With `jwksUrl` instead of `auth`, a DPoP proof's single use holds in this process only.
+   * With `auth`, every request also reads the store to check that the person still allows the client
+   * (`checkMcpGrant`), so a disconnected client or a secured account ends its tokens at once. With `jwksUrl` instead of
+   * `auth`, a token works until it expires, and a DPoP proof's single use holds in this process only.
    */
   forAudience: (audience: string) => Authenticator
 }
@@ -64,9 +68,10 @@ export const betterAuthAuthenticator = (options: BetterAuthAuthenticatorOptions)
   const organizations = options.organizations ?? Boolean(options.auth?.organizations)
   const { auth } = options
 
-  // The app's claims as a session, for its own tokens and those of another audience alike; with `standing`, also
-  // whether the token still stands (`checkTokenStanding`).
-  const sessionOf = (verifyOptions: Partial<JwtOptions>, standing: boolean): Authenticator => {
+  // The app's claims as a session, for its own tokens and those of another audience alike; with `auth`, also whether
+  // the token still stands, as `standing` reads it from the store.
+  type Standing = (context: AuthContext, payload: JWTPayload, session: Session) => Promise<void>
+  const sessionOf = (verifyOptions: Partial<JwtOptions>, standing: Standing): Authenticator => {
     const sessions = jwtSessions({
       ...tokens,
       rolesClaim: 'role',
@@ -76,7 +81,7 @@ export const betterAuthAuthenticator = (options: BetterAuthAuthenticatorOptions)
     })
     const verify: Authenticator = async (request) => {
       const { payload, session } = await sessions(request)
-      if (auth && standing) await checkTokenStanding((await auth.$context) as unknown as AuthContext, tokenClaims(payload, session.user.roles, organizations ? session.tenant : undefined), organizations)
+      if (auth) await standing((await auth.$context) as unknown as AuthContext, payload, session)
       return session
     }
     if (!organizations) return verify
@@ -92,10 +97,13 @@ export const betterAuthAuthenticator = (options: BetterAuthAuthenticatorOptions)
   const dpopReplayStore = () =>
     (replayStore ??= options.auth ? options.auth.$context.then(({ internalAdapter }) => createDpopReplayStore(internalAdapter)) : Promise.resolve(createInMemoryDpopReplayStore()))
 
-  const own = sessionOf({ audience: options.audience ?? issuer }, true)
+  const ownStanding: Standing = (context, payload, session) =>
+    checkTokenStanding(context, tokenClaims(payload, session.user.roles, organizations ? session.tenant : undefined), organizations)
+  const own = sessionOf({ audience: options.audience ?? issuer }, ownStanding)
   // An access token's `sid` names the browser session that allowed the client, which may end long before the grant
-  // does; revoking the grant ends its tokens instead (`revokeMcpGrants`).
+  // does; revoking the grant ends its tokens instead (`revokeMcpGrants`), which the grant check sees.
+  const grantStanding: Standing = (context, payload, session) => checkMcpGrant(context.adapter, payload.sub!, session.client?.id)
   return Object.assign(withTrustedApps(own, issuer, options.apps ?? []), {
-    forAudience: (audience: string) => sessionOf({ audience, typ: 'at+jwt', dpop: { url: audience, replayStore: dpopReplayStore }, oauthClient: true }, false),
+    forAudience: (audience: string) => sessionOf({ audience, typ: 'at+jwt', dpop: { url: audience, replayStore: dpopReplayStore }, oauthClient: true }, grantStanding),
   })
 }

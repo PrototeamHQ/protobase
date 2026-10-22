@@ -6,9 +6,9 @@ type Adapter = Pick<DBAdapter, 'deleteMany'>
 
 /**
  * Disconnects the user's MCP clients, or only `clientId`: deletes their consents, then their access tokens and refresh
- * tokens. Without the consent no code or refresh is exchanged any more (`mcpConsentCheck`), and authorize asks the
- * person again; access tokens already issued work out their 15 minutes. Access tokens go before refresh tokens, as the
- * provider's own revocation does, since an access token's row may name its refresh token.
+ * tokens. Without the consent no code or refresh is exchanged any more (`mcpConsentCheck`), access tokens already
+ * issued are refused at the next request (`checkMcpGrant`), and authorize asks the person again. Access tokens go
+ * before refresh tokens, as the provider's own revocation does, since an access token's row may name its refresh token.
  */
 export const revokeMcpGrants = async (adapter: Adapter, userId: string, clientId?: string) => {
   const where = [{ field: 'userId', value: userId }, ...(clientId === undefined ? [] : [{ field: 'clientId', value: clientId }])]
