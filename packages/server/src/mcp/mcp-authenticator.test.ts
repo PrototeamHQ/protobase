@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import type { Authenticator } from '../types'
 import { mcpAuthenticator } from './mcp-authenticator'
 
@@ -16,5 +16,22 @@ describe('mcpAuthenticator', () => {
   it('stops the server when options.mcp is set without MCP, or authenticate cannot verify its tokens', () => {
     expect(() => mcpAuthenticator(withAudiences, undefined, { sql: true })).toThrow('options.mcp needs createAuth({ mcp })')
     expect(() => mcpAuthenticator(async () => ({ user: { id: 1, roles: [] } }), mcp, undefined)).toThrow('MCP needs authenticate from betterAuthAuthenticator')
+  })
+
+  it('is none when the host serves its own endpoint, without asking for the audience\'s', () => {
+    const forAudience = vi.fn(() => forMcp)
+    expect(mcpAuthenticator(plain, mcp, false)).toBeUndefined()
+    expect(mcpAuthenticator(Object.assign(async () => ({ user: { id: 1, roles: [] } }), { forAudience }), mcp, false)).toBeUndefined()
+    expect(forAudience).not.toHaveBeenCalled()
+    expect(mcpAuthenticator(plain, undefined, false)).toBeUndefined()
+  })
+
+  it('stops the server on any other value of options.mcp, with MCP on or off', () => {
+    for (const options of ['false', 0, null, true, { enabled: false }, { sql: 'true' }, []]) {
+      expect(() => mcpAuthenticator(withAudiences, mcp, options as never)).toThrow('options.mcp takes false or { sql?: boolean }')
+      expect(() => mcpAuthenticator(withAudiences, undefined, options as never)).toThrow('options.mcp takes false or { sql?: boolean }')
+    }
+    expect(mcpAuthenticator(withAudiences, mcp, {})).toBe(forMcp)
+    expect(mcpAuthenticator(withAudiences, mcp, { sql: false })).toBe(forMcp)
   })
 })

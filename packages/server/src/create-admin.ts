@@ -29,7 +29,7 @@ import { mcpDiscovery } from './better-auth/mcp/discovery-routes'
 import { mcpAuthenticator } from './mcp/mcp-authenticator'
 import { mcpToolContext } from './mcp/mcp-context'
 import { mcpHandler } from './mcp/mcp-handler'
-import { mcpRoutes } from './mcp/mcp-routes'
+import { closedMcpRoutes, mcpRoutes } from './mcp/mcp-routes'
 import { mcpServer } from './mcp/mcp-server'
 import { mcpTools } from './mcp/mcp-tools'
 import { withoutSessionTokens } from './better-auth/without-session-tokens'
@@ -324,8 +324,9 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], pag
   }
   const report = options.onUnhandledError ?? ((error: unknown) => console.error(error))
   // Before the system endpoints, which want an app token for everything under them
-  if (auth?.mcp && mcpAuthenticate) {
-    const tools = mcpTools({ db, sql: options.mcp?.sql === true })
+  if (auth?.mcp && options.mcp === false) closedMcpRoutes(app, auth.mcp.path)
+  else if (auth?.mcp && mcpAuthenticate) {
+    const tools = mcpTools({ db, sql: options.mcp !== false && options.mcp?.sql === true })
     const server = (session: Session) => mcpServer({ info: { name: appName, version: '1.0.0' }, tools: tools(session), context: mcpToolContext(deps, meta, session), report })
     mcpRoutes(app, { path: auth.mcp.path, handler: mcpHandler({ authenticate: mcpAuthenticate, resource: auth.mcp.resource, scope: auth.mcp.scope, server }) })
   }

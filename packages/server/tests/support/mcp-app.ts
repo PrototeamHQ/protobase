@@ -2,10 +2,11 @@ import { base64url } from 'jose'
 import { expect } from 'vitest'
 import type { AdminOptions } from '../../src/admin-options'
 import { authSchemaMigration } from '../../src/better-auth/auth-schema'
-import { betterAuthAuthenticator } from '../../src/better-auth/authenticator'
+import { betterAuthAuthenticator, type BetterAuthAuthenticator } from '../../src/better-auth/authenticator'
 import { createAuth, type CreateAuthOptions } from '../../src/better-auth/create-auth'
 import { createUser, setUserRole } from '../../src/better-auth/users'
 import { createAdmin } from '../../src/create-admin'
+import type { Authenticator } from '../../src/types'
 import { allResources, createFixtureDb } from '../../../../test-support/server'
 import { openSnapshotDb, settled, type SnapshotDb } from '../../../../test-support/sql-snapshot'
 
@@ -72,13 +73,15 @@ export type ServeMcpOptions = {
   existing?: SnapshotDb
   /** `createAdmin`'s options. */
   admin?: AdminOptions
+  /** Wraps the app's `betterAuthAuthenticator` before `createAdmin`, as a host with its own role mapping does. */
+  authenticate?: (own: BetterAuthAuthenticator) => Authenticator
 }
 
 /**
  * An app with MCP on, on a copy of the migrated store, with Ana (sales and accountant) and Root (admin); on `existing`,
  * a store served before, with its users as they are.
  */
-export const serveMcp = async ({ fixture, migrated }: McpStores, { auth: options = {}, existing, admin }: ServeMcpOptions = {}) => {
+export const serveMcp = async ({ fixture, migrated }: McpStores, { auth: options = {}, existing, admin, authenticate: wrap = (own) => own }: ServeMcpOptions = {}) => {
   const store = existing ?? (await migrated.clone())
   const auth = await authOn(store, options)
   if (!existing) {
@@ -88,7 +91,7 @@ export const serveMcp = async ({ fixture, migrated }: McpStores, { auth: options
     await createUser(auth, { email: 'bo@example.com', password, role: 'sales' })
   }
   const authenticate = betterAuthAuthenticator({ auth })
-  const app = createAdmin({ resources: allResources, db: fixture.db, authenticate, auth, ...(admin && { options: admin }) })
+  const app = createAdmin({ resources: allResources, db: fixture.db, authenticate: wrap(authenticate), auth, ...(admin && { options: admin }) })
   const address = `198.51.100.${++client}`
 
   type Init = { body?: unknown; form?: Record<string, string>; cookie?: string; headers?: Record<string, string>; method?: string; from?: string | null }

@@ -66,6 +66,8 @@ The endpoint serves each request on its own, without an MCP session: a `GET` or 
 - `mcpGate({ authenticate, resource, scope })`: the token check alone, answering 401 or 403 with a challenge that names the resource's metadata.
 - `mcpToolContext(...)`, `mcpRoutes(app, { path, handler })` and `sessionOf(authInfo)`: the tools' context as the app builds it, the routes with open CORS, and the session a request was admitted with.
 
+To serve your own endpoint at `mcp.path` instead, pass `createAdmin` `options: { mcp: false }` and mount yours in front of `createAdmin`'s app. The OAuth provider and its discovery stay, `createAdmin` answers 404 at the path and under it, and its `authenticate` needs no `forAudience`.
+
 A tool of your own goes on the server `server` returns, with the context its tools get:
 
 ```ts

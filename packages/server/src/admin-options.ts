@@ -49,8 +49,10 @@ export type AdminOptions = {
   /**
    * The MCP endpoint, on with `createAuth({ mcp })`. `sql: true` also offers admins and the `ai` role
    * `run_read_only_query`, which reads the whole database as the app's database role, outside the access rules.
+   * `false`: the host serves its own MCP endpoint at `auth.mcp.path`, in front of this app. This app then answers 404
+   * there and needs no `forAudience`, while the OAuth provider's discovery stays.
    */
-  mcp?: { sql?: boolean }
+  mcp?: { sql?: boolean } | false
   /**
    * The websites whose browser code may call the API (`/api/*` but `/api/auth/*`) besides the app's own origins (see
    * `createAuth`'s `origins`): a list of origins, or `*` for any. Defaults to the one the platform passes in
