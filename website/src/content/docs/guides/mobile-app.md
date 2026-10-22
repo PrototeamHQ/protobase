@@ -5,8 +5,6 @@ description: Run a Protobase app on iOS and Android and build signed store relea
 
 A Protobase app runs as an iOS or Android app with nothing more than a `mobile` section in its `protobase.config.ts`. `protobase mobile` wraps the app in [Capacitor](https://capacitorjs.com): the app's shell, its UI plugins, theme and favicon open from files on the device, and the app calls your server's API.
 
-Signing in from the app is not supported yet: until then the app shows that it cannot reach the server's sign-in, while its API calls go through.
-
 ## 1. Install the tools
 
 - **iOS**, on a Mac: Xcode, with a simulator.
@@ -31,6 +29,14 @@ export default defineConfig({
 - `plugins`, optional, are extra native [Capacitor plugins](https://capacitorjs.com/docs/plugins), npm name to version. Capacitor itself, `@capacitor/app`, `@capacitor/splash-screen` and `@capawesome/capacitor-live-update` come with Protobase at fixed versions and cannot be listed. A plugin runs native code with the app's rights, and one that writes files, such as `@capacitor/filesystem`, lets a script that got into the page point the app at files it wrote (with Capacitor's own `WebView.setServerBasePath`), so list only plugins the app needs.
 
 With a mobile section, the API answers the app's origins, `capacitor://localhost` on iOS and `https://localhost` on Android, through [CORS](/reference/api/#cors). Apps without one get no new dependency, and `protobase build` and `protobase dev` work as before.
+
+Signing in works in the app as on the web, with nothing more to set up:
+
+- Emailed codes, passwords and the second step of two-factor authentication work. Passkeys and sign-in with another provider do not yet.
+- The app calls `/api/auth` through the device's native HTTP, naming its Capacitor origin. With a mobile section, sign-in trusts the Capacitor origin a request names, for that request only, without CORS.
+- The session lives in the device's cookie store, so it survives reloads, updates and relaunches. On iOS, signing in or out within about a second of killing the app may be lost.
+- "Forgot password?" is not offered in the app, as the emailed link cannot lead back into it.
+- In the app, page script can reach the session cookie through Capacitor's native plugins, so keep untrusted script out of UI plugins.
 
 ## 3. Run it
 
