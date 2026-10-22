@@ -7,6 +7,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { prebuildifyFiles, writePackage } from '../support/packages'
 import { protobaseVersion } from '../../src/version/version'
 import { buildDeployBundle } from '../../src/build/deploy-bundle'
+import { pinnedNative } from '../../src/mobile/pinned-packages'
 import { testPng } from '../support/png'
 import { expectDebugIdMap } from '../support/source-maps'
 
@@ -39,7 +40,7 @@ describe('buildDeployBundle', () => {
     const manifest = await buildDeployBundle({ projectDir, outDir })
 
     const shell = { protobase: protobaseVersion, pluginApi: 1, paths: ['/index.html', '/assets', '/protobase.sw.js'] }
-    const expected = { version: 3, protobase: protobaseVersion, server: 'protobase.config.js', public: 'public', spa: 'index.html', api: ['/api', ...oauthWellKnownPaths], plugins: [], theme: 'protobase.theme.css', shell, icons: { favicon: false, png: [] } }
+    const expected = { version: 3, protobase: protobaseVersion, server: 'protobase.config.js', public: 'public', spa: 'index.html', api: ['/api', ...oauthWellKnownPaths], plugins: [], theme: 'protobase.theme.css', shell, icons: { favicon: false, png: [] }, native: pinnedNative }
     expect(manifest).toEqual(expected)
     expect(JSON.parse(await readFile(path.join(outDir, 'protobase.bundle.json'), 'utf8'))).toEqual(expected)
     expect(await readFile(path.join(outDir, 'protobase.config.js'), 'utf8')).not.toContain('// @bun')
