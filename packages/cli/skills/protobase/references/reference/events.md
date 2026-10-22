@@ -6,7 +6,7 @@ Events a resource declares, and how the database captures every change they are 
 
 A resource can declare **events**: what a change of its records means, such as an order that was created or became large. The changes are captured in the database itself, by triggers, in the transaction that writes them. Writes through the API count, and so do writes from psql, other services, cron SQL and the database's own triggers and generated columns.
 
-The app's [jobs](jobs.md)) then turn the captured changes into events and deliver them to [subscriptions](webhooks.md)): URLs, the app's API functions or code of its own. A resource with [history](history.md)) is captured the same way, and its changes are kept.
+The app's [jobs](jobs.md) then turn the captured changes into events and deliver them to [subscriptions](webhooks.md): URLs, the app's API functions or code of its own. A resource with [history](history.md) is captured the same way, and its changes are kept.
 
 ```ts title="docs-examples/events/orders.ts"
 import { f, resource } from '@protobase/schema'
@@ -45,7 +45,7 @@ export const orders = resource('orders')
 
 ## Declaring events
 
-[`.events((e, r) => [...])`](https://docs.protobase.net/api/schema/interfaces/resourcebuilder/#events)) returns the resource's events, built with the [helpers of `e`](https://docs.protobase.net/api/schema/type-aliases/eventhelpers/)). Each is named `<resource>.<name>`, such as `orders.statusChanged`; names are camelCase and unique per resource.
+[`.events((e, r) => [...])`](https://docs.protobase.net/api/schema/interfaces/resourcebuilder/#events) returns the resource's events, built with the [helpers of `e`](https://docs.protobase.net/api/schema/type-aliases/eventhelpers/). Each is named `<resource>.<name>`, such as `orders.statusChanged`; names are camelCase and unique per resource.
 
 | | |
 | --- | --- |
@@ -65,7 +65,7 @@ The options combine with AND:
 | `changed: [r.status]` | One of these fields changed. It works on sensitive fields too. |
 | `match` | A function of the change that returns `true` for the event, for what a filter cannot say. |
 
-Filters use the language of [access rules](access.md)) and views, on any field, filterable or not. They are checked against the resource when the config loads, so a typo stops startup. A filter cannot use a sensitive field, since captured records never hold their values (use `changed`), nor `search()`, `similar()` or a field of another resource.
+Filters use the language of [access rules](access.md) and views, on any field, filterable or not. They are checked against the resource when the config loads, so a typo stops startup. A filter cannot use a sensitive field, since captured records never hold their values (use `changed`), nor `search()`, `similar()` or a field of another resource.
 
 `match` sees the change as the event does: `operation` (`create`, `update`, `delete` or `undelete`), `before` and `after` (the records by field name, without sensitive fields), `changed` (field names), `actor` (`{ id, roles }` for a write through the API, `null` otherwise), `source` (`api` or `database`), `tenant` and `transaction`.
 
@@ -85,7 +85,7 @@ Filters use the language of [access rules](access.md)) and views, on any field, 
 - **`changes.capture()`**, the trigger function. It runs as its owner, with a fixed search path, so a role that writes the table needs no rights on `changes`: another service writing as its own role keeps working once a resource has events.
 - **Two triggers per resource with events or history**, on its table: `<table>_changes` for inserts and deletes, and `<table>_changes_update` for updates that change the row.
 
-The first row a transaction captures also enqueues a `changes.dispatch` job with `jobs.enqueue()`, in the same transaction, so a resource with events needs the [`jobs` schema](jobs.md#the-jobs-schema)) too. Dispatch jobs run one at a time, in the app's workers. After a write through the API commits, or an API function returns, the server has its own worker look for that job at once, so its events usually go out within milliseconds; a write from elsewhere waits for the next poll, two seconds at most.
+The first row a transaction captures also enqueues a `changes.dispatch` job with `jobs.enqueue()`, in the same transaction, so a resource with events needs the [`jobs` schema](jobs.md#the-jobs-schema) too. Dispatch jobs run one at a time, in the app's workers. After a write through the API commits, or an API function returns, the server has its own worker look for that job at once, so its events usually go out within milliseconds; a write from elsewhere waits for the next poll, two seconds at most.
 
 A trigger keeps the columns of the resource's fields, minus sensitive ones, whose names it lists in `changed` when they change. Columns that are not fields, such as a password hash, are never captured. One table can have events for one resource.
 
@@ -102,7 +102,7 @@ export default defineConfig({ config, auth, authenticate, events: { schema: 'row
 
 ## Migrations and startup
 
-[`protobase migration`](cli.md#migration)) compares the database with the resources' events and writes what it lacks as the project's next migrations: the jobs schema, then the `changes` schema, the function, and a trigger pair per resource with events. Apply it with the project's other migrations. A trigger changes when the resource's fields do, a field that became sensitive for instance, so run the command after changing the config. Once a resource has no events, the next migration drops its triggers; it never drops a table.
+[`protobase migration`](cli.md#migration) compares the database with the resources' events and writes what it lacks as the project's next migrations: the jobs schema, then the `changes` schema, the function, and a trigger pair per resource with events. Apply it with the project's other migrations. A trigger changes when the resource's fields do, a field that became sensitive for instance, so run the command after changing the config. Once a resource has no events, the next migration drops its triggers; it never drops a table.
 
 `protobase dev` and `protobase serve` do not start while a resource with events lacks its triggers, or has out-of-date ones, or the jobs schema is missing, and name the command to run. `dev` checks again whenever it reloads the config. Neither changes the schema itself.
 

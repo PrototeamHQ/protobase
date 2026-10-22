@@ -14,7 +14,7 @@ One option of `createAuth` turns it on:
 createAuth({ ..., mcp: true })
 ```
 
-Run `protobase auth migration` after turning it on, for the OAuth tables. The endpoint is `https://<app>/api/mcp`, or the path `mcp.path` names. How clients register, how people sign in and allow them, and how they disconnect them is in [OAuth for MCP clients](auth.md#oauth-for-mcp-clients)).
+Run `protobase auth migration` after turning it on, for the OAuth tables. The endpoint is `https://<app>/api/mcp`, or the path `mcp.path` names. How clients register, how people sign in and allow them, and how they disconnect them is in [OAuth for MCP clients](auth.md#oauth-for-mcp-clients).
 
 ## Connecting a client
 
@@ -31,19 +31,19 @@ Give the client the endpoint's address. It finds the app's sign-in from there, o
 
 ## The tools
 
-Each tool reads as the signed-in person: their role's access rules, row filters, tenant and hidden fields apply as in the [REST API](api.md#access)).
+Each tool reads as the signed-in person: their role's access rules, row filters, tenant and hidden fields apply as in the [REST API](api.md#access).
 
 | Tool | What it does |
 | --- | --- |
 | `list_resources` | The resources the person may read, with their labels, key and fields: each field's type, label, enum values, the resource a relation links to, and whether filters and sorts take it. |
-| `list_records` | A page of a resource's records: `filter` in the API's [filter syntax](api.md#filters)), `order_by`, `page_size` (20 by default, at most 100) and `page_token`, with `next_page_token` for the next page. |
+| `list_records` | A page of a resource's records: `filter` in the API's [filter syntax](api.md#filters), `order_by`, `page_size` (20 by default, at most 100) and `page_token`, with `next_page_token` for the next page. |
 | `get_record` | One record by its key, with its ETag. A composite key is passed as the values of its fields, in order. |
 
 A refusal, such as a resource the person may not read or a bad filter, comes back to the client as text it can act on, `{ "error": ..., "message": ... }`.
 
 ### SQL for admins
 
-`createAdmin`'s `options.mcp.sql` also offers `run_read_only_query`, as in the [assistant](assistant.md#the-built-in-backend)), to people with the `admin` or `ai` role:
+`createAdmin`'s `options.mcp.sql` also offers `run_read_only_query`, as in the [assistant](assistant.md#the-built-in-backend), to people with the `admin` or `ai` role:
 
 ```ts
 createAdmin({ ..., auth, options: { mcp: { sql: true } } })
@@ -81,7 +81,7 @@ The endpoint serves each request on its own, without an MCP session: a `GET` or 
 `@protobase/server` exports the pieces the endpoint is made of, for an MCP server of your own with tools of your own:
 
 - `mcpHandler({ authenticate, resource, scope, server })`: the endpoint as a fetch handler. It checks the host, admits a valid token (`mcpGate`) and serves the request with the server that `server(session)` builds for its caller.
-- `mcpServer({ info, tools, context, report })`: an MCP server offering [assistant tools](assistant.md#the-apps-own-tools)), each with its JSON Schema and its `annotations`, MCP's tool hints. `context` is the tools' context without `approve`: each call gets its own, which asks the client's user.
+- `mcpServer({ info, tools, context, report })`: an MCP server offering [assistant tools](assistant.md#the-apps-own-tools), each with its JSON Schema and its `annotations`, MCP's tool hints. `context` is the tools' context without `approve`: each call gets its own, which asks the client's user.
 - `mcpTools({ db, sql, writes })`: the default tools for a session.
 - `writeRecordTools()`, or `createRecordTool()` and `updateRecordTool()`: the write tools alone.
 - `mcpGate({ authenticate, resource, scope })`: the token check alone, answering 401 or 403 with a challenge that names the resource's metadata.

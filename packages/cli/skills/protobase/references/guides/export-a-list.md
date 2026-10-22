@@ -39,6 +39,6 @@ With a limit, the dialog says when the list finds more rows than a file holds, a
 
 ## 3. What a file holds
 
-A file holds what the user could read in the list, and no more: the rows come from the same list API, as that user, so their role's [row filters and field lists](../reference/access.md#capabilities)) apply, and a [sensitive field](../reference/data-config.md#sensitive-fields)) is never offered. To keep a field out of someone's exports, keep it out of what their role may read. A view's limit only shapes the page; someone who may read the orders can still read them all through the API.
+A file holds what the user could read in the list, and no more: the rows come from the same list API, as that user, so their role's [row filters and field lists](../reference/access.md#capabilities) apply, and a [sensitive field](../reference/data-config.md#sensitive-fields) is never offered. To keep a field out of someone's exports, keep it out of what their role may read. A view's limit only shapes the page; someone who may read the orders can still read them all through the API.
 
-The [UI config](../reference/ui-config.md#exports)) has the details: how cells are typed in a workbook, how a CSV file is quoted, and how files are named.
+The [UI config](../reference/ui-config.md#exports) has the details: how cells are typed in a workbook, how a CSV file is quoted, and how files are named.

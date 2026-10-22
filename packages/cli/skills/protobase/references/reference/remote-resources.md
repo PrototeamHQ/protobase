@@ -6,7 +6,7 @@ Resources another Protobase API serves, drawn in an app with its own list pages,
 
 An app can draw resources that another Protobase API serves, as if they were its own: the same list page, record page, create form, breadcrumbs, sidebar entry with its recent records, global search, links and actions, at the same `/<resource>/<key>` addresses. The other API is a **source**. Its config, its data, its access rules and its views stay where they are; the app lists which of its resources it draws, and the signed-in person works with them under the source's rules.
 
-A shop's admin app can show the tickets of the company's service desk this way, next to its orders, and a hosting platform can show each app the tasks it keeps for that app. [Showing another app's records](../guides/remote-resources.md)) builds the first, step by step.
+A shop's admin app can show the tickets of the company's service desk this way, next to its orders, and a hosting platform can show each app the tasks it keeps for that app. [Showing another app's records](../guides/remote-resources.md) builds the first, step by step.
 
 ## How it works
 
@@ -59,16 +59,16 @@ PROTOBASE_SOURCES='[{"url":"https://desk.example.com/api/v1","label":"Service de
 
 The sources of `options.sources` come first, then those of `PROTOBASE_SOURCES`; `options.sources: false` turns both off.
 
-**Checks at startup.** The server refuses to start, naming the source, when a source cannot work: a `url` that is no http(s) URL or names no path, a missing `label` or `resources`, a key a source does not take (such as `resource` for `resources`), the same `url` listed twice, or one resource drawn from two sources. It refuses to start too when a source draws a resource under a name the app already has, for one of its own resources or a [composed page](layouts.md)): the address `/<name>` would mean two things. Rename one of them, or leave it out of the source's resources.
+**Checks at startup.** The server refuses to start, naming the source, when a source cannot work: a `url` that is no http(s) URL or names no path, a missing `label` or `resources`, a key a source does not take (such as `resource` for `resources`), the same `url` listed twice, or one resource drawn from two sources. It refuses to start too when a source draws a resource under a name the app already has, for one of its own resources or a [composed page](layouts.md): the address `/<name>` would mean two things. Rename one of them, or leave it out of the source's resources.
 
 ## Who sees what
 
 Two places decide, each about what it knows:
 
 - **The app** decides who is told about a source, with its `roles`. A caller without one of them gets no `sources` in `/api/meta`, and their browser never calls that source.
-- **The source** decides everything else, as for its own users. Its `/meta` names only the resources the person may see there, each without the fields they may not read and with the view for their role; its API applies its [access rules](access.md)), row filters and record checks to every call. A resource the app draws but the person may not see there is not in their app.
+- **The source** decides everything else, as for its own users. Its `/meta` names only the resources the person may see there, each without the fields they may not read and with the view for their role; its API applies its [access rules](access.md), row filters and record checks to every call. A resource the app draws but the person may not see there is not in their app.
 
-A source's view can be written for the people of another app: views are picked [per role](ui-config.md#actions-and-views-per-role)) with `.forRoles([...])`, and the role the source gives the app's users (see below) can have a view of its own, with its own `nav` group, columns and layout.
+A source's view can be written for the people of another app: views are picked [per role](ui-config.md#actions-and-views-per-role) with `.forRoles([...])`, and the role the source gives the app's users (see below) can have a view of its own, with its own `nav` group, columns and layout.
 
 ## Signing in at the source
 
@@ -87,23 +87,23 @@ export const authenticate = betterAuthAuthenticator({
 | Trusted app | |
 | --- | --- |
 | `issuer` | The other app's Better Auth `baseURL`, its `BETTER_AUTH_URL`, with or without a trailing slash: the issuer and audience of its tokens. Its keys are read from `<issuer>/api/auth/jwks`. |
-| `roles` | Its global roles as they are here: `{ admin: 'shop' }` makes its admins `shop` here. A role it does not list is dropped, and a user left with none is refused with `403`. A role someone holds in one of its [organizations](auth.md#organizations)) is never mapped, since that organization's owners hand it out; with organizations there, only a global role counts. |
-| `tenant` | The tenant its users work in here, for resources with a [tenant](data-config.md#resource)). Nothing in its tokens names a tenant here. |
+| `roles` | Its global roles as they are here: `{ admin: 'shop' }` makes its admins `shop` here. A role it does not list is dropped, and a user left with none is refused with `403`. A role someone holds in one of its [organizations](auth.md#organizations) is never mapped, since that organization's owners hand it out; with organizations there, only a global role counts. |
+| `tenant` | The tenant its users work in here, for resources with a [tenant](data-config.md#resource). Nothing in its tokens names a tenant here. |
 | `keys` | Its key set, instead of reading it from its `/api/auth/jwks`: for tests, or keys at hand. |
 
 - A token whose issuer is a trusted app's is verified against that app's keys, with that issuer as issuer and audience; every other token goes to the app's own check. The key set is kept for 10 minutes and read again for an unknown key, as jose's remote key sets do.
-- The user's id here is `<sub>@<that app's host>`, such as `x81kd2@shop.example.com`, so it never equals an id of this app's own users: an [owner field](access.md)) or an audit entry tells them apart.
-- Give the other app's users roles of their own (`shop`, not `admin`) and open to those roles exactly what you share. A role that is only in `apps` needs no place in `createAuth`'s `roles`, which are the roles of this app's own users; with [`defineRoles`](access.md)), define what it may do like any role.
-- An app without `defineRoles` [allows](access.md#defaults)) every operation without a rule to everyone signed in, the other app's users included. Give the resources you do not share an access rule that leaves their role out, or define roles.
+- The user's id here is `<sub>@<that app's host>`, such as `x81kd2@shop.example.com`, so it never equals an id of this app's own users: an [owner field](access.md) or an audit entry tells them apart.
+- Give the other app's users roles of their own (`shop`, not `admin`) and open to those roles exactly what you share. A role that is only in `apps` needs no place in `createAuth`'s `roles`, which are the roles of this app's own users; with [`defineRoles`](access.md), define what it may do like any role.
+- An app without `defineRoles` [allows](access.md#defaults) every operation without a rule to everyone signed in, the other app's users included. Give the resources you do not share an access rule that leaves their role out, or define roles.
 - A trusted app cannot be this app itself.
 
-A source that is not a Protobase app accepts the app's tokens its own way: they are EdDSA JWTs whose issuer and audience are the app's `BETTER_AUTH_URL`, whose keys are at `<that URL>/api/auth/jwks`, which carry the user's id in `sub`, their active role in `role` and live for 15 minutes (see [Tokens and roles](auth.md#tokens-and-roles))).
+A source that is not a Protobase app accepts the app's tokens its own way: they are EdDSA JWTs whose issuer and audience are the app's `BETTER_AUTH_URL`, whose keys are at `<that URL>/api/auth/jwks`, which carry the user's id in `sub`, their active role in `role` and live for 15 minutes (see [Tokens and roles](auth.md#tokens-and-roles)).
 
-**What it trusts.** A source sees the person's token, which the app's own API also accepts until it expires, within 15 minutes. List as a source only an API you trust as much as a [plugin](plugins.md)), whose code runs in the app with the same rights.
+**What it trusts.** A source sees the person's token, which the app's own API also accepts until it expires, within 15 minutes. List as a source only an API you trust as much as a [plugin](plugins.md), whose code runs in the app with the same rights.
 
 ## CORS
 
-The browser calls the source from the app's origin, so the source answers [CORS](api.md#cors)) for it: it lists the app's origin in `options.cors` or `PROTOBASE_CORS_ORIGINS`:
+The browser calls the source from the app's origin, so the source answers [CORS](api.md#cors) for it: it lists the app's origin in `options.cors` or `PROTOBASE_CORS_ORIGINS`:
 
 ```ts
 // the source's protobase.config.ts
@@ -118,7 +118,7 @@ Everything the app draws for a resource of its own, for a remote resource too:
 
 | Part | For a remote resource |
 | --- | --- |
-| Sidebar | An entry where the source's view places it (`nav.group`, `nav.order`), with its [recent records](sidebar.md#recent-records)), read from the source. `nav.hidden` keeps it out. |
+| Sidebar | An entry where the source's view places it (`nav.group`, `nav.order`), with its [recent records](sidebar.md#recent-records), read from the source. `nav.hidden` keeps it out. |
 | List page | Its columns, sort, filters, search, displays and chart, at `/<resource>`, with every list state in the address. |
 | Record page | Its sections, related records, sidebar, actions and custom sections, at `/<resource>/<key>`, saved back to the source with its ETag. |
 | Create form | At `/<resource>/new`, when the person may create there. |
@@ -139,7 +139,7 @@ A batch write goes to the one API its writes are for. One that writes to the app
 
 ## Custom components
 
-A source's view can name [custom components](custom-components.md)) like any view: a record section with `l.custom(TicketTimeline)`, a list display, a record card or a field type. The app draws them by name from its [plugins](plugins.md)), as it draws its own: a component no loaded plugin provides draws its fallback in its place.
+A source's view can name [custom components](custom-components.md) like any view: a record section with `l.custom(TicketTimeline)`, a list display, a record card or a field type. The app draws them by name from its [plugins](plugins.md), as it draws its own: a component no loaded plugin provides draws its fallback in its place.
 
 So whoever runs a source ships its components as a plugin, and the app lists the plugin with the source:
 
@@ -153,7 +153,7 @@ PROTOBASE_PLUGINS='https://desk.example.com/plugins/desk/plugin.json'
 export const TicketTimeline = component('TicketTimeline', { plugin: 'desk' })
 ```
 
-Inside, the component reads its record with `useLayoutRecord()`, and its data with `useList` and `useRecord`, which go to the source for a remote resource like every other call. `useMeta()` gives the app's `/meta` with the sources' resources in it, and how far each source has loaded in `sources`. `useResourceClient(resource)` gives the client of the API that serves a resource, the source's for a remote one, whose `invoke` calls that API's [functions](../guides/api-functions.md)); `useClient()` sends resource calls where they belong, and `invoke` to the app's own functions. An action handler gets the client of the resource's API as `client`.
+Inside, the component reads its record with `useLayoutRecord()`, and its data with `useList` and `useRecord`, which go to the source for a remote resource like every other call. `useMeta()` gives the app's `/meta` with the sources' resources in it, and how far each source has loaded in `sources`. `useResourceClient(resource)` gives the client of the API that serves a resource, the source's for a remote one, whose `invoke` calls that API's [functions](../guides/api-functions.md); `useClient()` sends resource calls where they belong, and `invoke` to the app's own functions. An action handler gets the client of the resource's API as `client`.
 
 ## When a source cannot be reached
 

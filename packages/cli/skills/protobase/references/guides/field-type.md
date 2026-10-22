@@ -4,7 +4,7 @@
 
 Show and edit a field your own way everywhere the app shows it, with a field type a plugin registers and a view picks.
 
-An order's status is one of six values, and each order moves through them in turn: draft, confirmed, picking, shipped, delivered. The app shows it as a badge and edits it with a select. Rijnland's warehouse wants to see at a glance how far along an order is, and to move it with one click. That is a field type: a component that shows the value, one that edits it, and the storage types it works for. This guide adds one, `steps`, to the ERP example (`examples/erp`). [Field types](../reference/plugins.md#field-types)) has the contract.
+An order's status is one of six values, and each order moves through them in turn: draft, confirmed, picking, shipped, delivered. The app shows it as a badge and edits it with a select. Rijnland's warehouse wants to see at a glance how far along an order is, and to move it with one click. That is a field type: a component that shows the value, one that edits it, and the storage types it works for. This guide adds one, `steps`, to the ERP example (`examples/erp`). [Field types](../reference/plugins.md#field-types) has the contract.
 
 ## 1. Show the value
 
@@ -118,7 +118,7 @@ A field type that throws while drawing takes only its own field with it: the fie
 
 ## 6. One field type for many apps
 
-The `steps` field type above is the project's own, built with its bundle. To give it to other apps too, move `components/order-steps.tsx` into a [plugin](first-plugin.md)) of its own and register it there:
+The `steps` field type above is the project's own, built with its bundle. To give it to other apps too, move `components/order-steps.tsx` into a [plugin](first-plugin.md) of its own and register it there:
 
 ```tsx
 // workshop-tools/protobase.ui.tsx

@@ -4,7 +4,7 @@
 
 Roles, capabilities with field lists and row filters, field rules, anonymous access, and what they default to.
 
-Roles are defined in code ([`defineRoles`](https://docs.protobase.net/api/schema/functions/defineroles/))) and assigned through the auth user's `roles`; with [organizations](auth.md#organizations)), also per membership, and `ctx.user.roles` holds both, while `ctx.organization.id` is the organization the request works in. Rules decide per operation (`list`, `read`, `create`, `update`, `delete`), per field (role-based, never per record) and per row (filters, like RLS).
+Roles are defined in code ([`defineRoles`](https://docs.protobase.net/api/schema/functions/defineroles/)) and assigned through the auth user's `roles`; with [organizations](auth.md#organizations), also per membership, and `ctx.user.roles` holds both, while `ctx.organization.id` is the organization the request works in. Rules decide per operation (`list`, `read`, `create`, `update`, `delete`), per field (role-based, never per record) and per row (filters, like RLS).
 
 ## Defaults
 
@@ -12,7 +12,7 @@ Roles are defined in code ([`defineRoles`](https://docs.protobase.net/api/schema
 - A project without roles (the single-admin case) is **default allow**.
 - `defaultAccess: 'allow'` together with `roles` is an explicit opt-in. Print `accessWarnings(options)` at startup.
 - Every request needs a token, unless the roles define [`anonymous`](#anonymous-access).
-- An [API function](../guides/api-functions.md#roles)) without `roles` or a `capability` is closed the same way: with roles, only a caller holding `*` may call it.
+- An [API function](../guides/api-functions.md#roles) without `roles` or a `capability` is closed the same way: with roles, only a caller holding `*` may call it.
 
 ## Capabilities
 
@@ -32,7 +32,7 @@ defineRoles<'orders' | 'products'>({
 
 A field is readable when the role's list allows it and the field's own [rule](#field-rules-or-field-lists) passes. Field lists take effect through the roles the server gets (`options: { roles }` in `protobase.config.ts`, `resolveAccess(source, ctx, { roles })`), for every resource whatever its rules. A filter is the capability's row filter, so like `.own` it applies where the capability decides: an operation without a rule, or a rule built with `roles.can(...)`.
 
-**Several roles add up.** A user gets every field one of their roles lists (all of them when a role holds the plain capability) and the rows any of their roles allows. Fields and rows add up separately: someone holding both `erp_sync` and `reseller` above reads `name` on unpublished products too. With Better Auth a session acts with one [active role](auth.md#active-role)) at a time, so this only comes up with an authenticator that hands out several.
+**Several roles add up.** A user gets every field one of their roles lists (all of them when a role holds the plain capability) and the rows any of their roles allows. Fields and rows add up separately: someone holding both `erp_sync` and `reseller` above reads `name` on unpublished products too. With Better Auth a session acts with one [active role](auth.md#active-role) at a time, so this only comes up with an authenticator that hands out several.
 
 ### Wildcards in has, can and holds
 
@@ -49,12 +49,12 @@ The role `anonymous` is what a request without a token acts as. A project withou
 anonymous: [{ 'products.read': { fields: ['name', 'slug', 'price', 'image'], filter: 'published = true' } }],
 ```
 
-- **It reads listed fields, and creates them through a public form only.** Each entry names one resource, `read` or `create` without a scope, and its fields; `defineRoles` refuses other capabilities, wildcards, `.own` and `.team`, and a capability without a field list, so nothing becomes public by accident, a new column included. A `create` is used by the resource's [public forms](forms.md)) alone, behind their rate limit and bot check: everywhere else it does not exist.
+- **It reads listed fields, and creates them through a public form only.** Each entry names one resource, `read` or `create` without a scope, and its fields; `defineRoles` refuses other capabilities, wildcards, `.own` and `.team`, and a capability without a field list, so nothing becomes public by accident, a new column included. A `create` is used by the resource's [public forms](forms.md) alone, behind their rate limit and bot check: everywhere else it does not exist.
 - **No token, not a bad one.** A request without an `Authorization` header is served as a caller holding only this role, in no organization. A header with anything but a valid, unexpired token is still a `401`. `jwtAuthenticator` and `betterAuthAuthenticator` tell the two apart; an authenticator of your own throws `MissingCredentials` (from `@protobase/server`) for a request without a credential to do the same.
 - **Only its capabilities open anything.** The capability is ANDed into a resource's access rule, so a rule that allows everyone (`read: () => true`) or `defaultAccess: 'allow'` never lets an anonymous caller in on its own.
-- **The resources API and `/api/meta` only.** Lists, records, `:search`, `:seek` and the aggregates of what the role reads, with filters, sorts and `fields` checked as for everyone: an unlisted field is refused like an unknown one. A resource it cannot read is a `404`; a write, or another operation it may not do on a resource it reads, is a `401` that asks for a token, a `create` it holds for a form included. `/api/meta` describes what it reads, for the [admin app](#browsing-the-admin-app). `/api/openapi.json`, `/api/docs`, batch writes, [API functions](../guides/api-functions.md)), the assistant and the file cleanup still need a token. A [file field](files.md#downloads)) it reads comes with its link, as for anyone.
+- **The resources API and `/api/meta` only.** Lists, records, `:search`, `:seek` and the aggregates of what the role reads, with filters, sorts and `fields` checked as for everyone: an unlisted field is refused like an unknown one. A resource it cannot read is a `404`; a write, or another operation it may not do on a resource it reads, is a `401` that asks for a token, a `create` it holds for a form included. `/api/meta` describes what it reads, for the [admin app](#browsing-the-admin-app). `/api/openapi.json`, `/api/docs`, batch writes, [API functions](../guides/api-functions.md), the assistant and the file cleanup still need a token. A [file field](files.md#downloads) it reads comes with its link, as for anyone.
 - A tenant-scoped resource (`.tenant`) cannot be in it, since an anonymous caller works in no organization; the server refuses to start.
-- Reading has no rate limit of its own: put a proxy or CDN in front of a public API to limit and cache requests. [Public forms](forms.md#rate-limit)) limit their submissions.
+- Reading has no rate limit of its own: put a proxy or CDN in front of a public API to limit and cache requests. [Public forms](forms.md#rate-limit) limit their submissions.
 
 ### Browsing the admin app
 
@@ -110,7 +110,7 @@ Each item has `id`, `name`, `slug`, `price` and `image`, of published products o
 
 ### An integration limited to some columns
 
-`erp_sync` is a role for a system: a user with that role, and a token for it ([`issueToken`](auth.md#tokens-for-scripts-and-curl))). It reads `sku`, `price` and `stock` of every product and writes only `stock`; a `PATCH` with `price` is a `400`, as for a field it cannot see, and `cost_price` is not in its responses. A role that only uses the API needs no view: views shape the admin app, while what a caller may see and do is decided here.
+`erp_sync` is a role for a system: a user with that role, and a token for it ([`issueToken`](auth.md#tokens-for-scripts-and-curl)). It reads `sku`, `price` and `stock` of every product and writes only `stock`; a `PATCH` with `price` is a `400`, as for a field it cannot see, and `cost_price` is not in its responses. A role that only uses the API needs no view: views shape the admin app, while what a caller may see and do is decided here.
 
 ### Field rules or field lists
 
@@ -157,7 +157,7 @@ export const operations = resource('operations')
   .parent((r) => r.vm_id, 'update')
 ```
 
-- **Every write is checked.** Creating a record checks the parent it names; changing it, the parent it points at and the one it moves to; deleting and undeleting it, the parent it points at. So a record cannot be created under an allowed parent and then moved under another. It holds for `/api/v1` and its batches, and for everything that writes through them: forms, [API functions](../guides/api-functions.md)) and the assistant.
+- **Every write is checked.** Creating a record checks the parent it names; changing it, the parent it points at and the one it moves to; deleting and undeleting it, the parent it points at. So a record cannot be created under an allowed parent and then moved under another. It holds for `/api/v1` and its batches, and for everything that writes through them: forms, [API functions](../guides/api-functions.md) and the assistant.
 - **The caller's own rules decide.** The parent is read as the caller would read it, with its tenant, row filters, soft delete and record-level rules; for `update`, also its update row filter and record-level update rule, given an empty input. A parent the caller cannot see, may not update, that is soft deleted or does not exist gets the same `403` as a refused create (`You may not create this operations record`), and nothing is written: the answer does not tell which VM ids exist.
 - **A null relation checks nothing.** A relation set by a column default or a trigger is checked from the record as written.
 - **`update` follows the parent's own parents**, so with VMs under `.parent((r) => r.folder_id, 'update')` an operation needs update on the VM's folder too. A write that would put a record under itself, or under a cycle already in the data, is refused. A `read` parent is not followed further.
@@ -167,6 +167,6 @@ export const operations = resource('operations')
 
 ## Restricted model and row filters
 
-[`resolveAccess`](https://docs.protobase.net/api/schema/functions/resolveaccess/)) returns everything a request may do. Use [`restrictModel(model, access)`](https://docs.protobase.net/api/schema/functions/restrictmodel/)) for everything user-facing (checking filters and sorts, queries, OpenAPI, `/meta`): hidden fields are gone, so they cannot be referenced, searched, sorted or leaked. Key columns always stay, because records are addressed by them.
+[`resolveAccess`](https://docs.protobase.net/api/schema/functions/resolveaccess/) returns everything a request may do. Use [`restrictModel(model, access)`](https://docs.protobase.net/api/schema/functions/restrictmodel/) for everything user-facing (checking filters and sorts, queries, OpenAPI, `/meta`): hidden fields are gone, so they cannot be referenced, searched, sorted or leaked. Key columns always stay, because records are addressed by them.
 
 Row filters (`access.rowFilter`) are a separate thing. They come from the access rules (`.own`, `.team`, filters of capabilities, returned filters), are checked against the **full** model because they may use hidden or non-filterable columns, and are ANDed into queries by the server.

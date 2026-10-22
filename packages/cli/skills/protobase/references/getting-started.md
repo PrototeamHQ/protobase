@@ -4,9 +4,9 @@
 
 Start an app with npm create protobase, install the repository, run the ERP, real estate and property portal examples and learn the development commands.
 
-Protobase is a config-driven admin panel framework for existing Postgres databases. Data config lives in `data.ts`, UI config in `ui.ts`; a Hono server serves the API and a React app renders the admin. Coding agents get the guides and reference of the installed version with [`protobase skill install`](reference/cli.md#skill)).
+Protobase is a config-driven admin panel framework for existing Postgres databases. Data config lives in `data.ts`, UI config in `ui.ts`; a Hono server serves the API and a React app renders the admin. Coding agents get the guides and reference of the installed version with [`protobase skill install`](reference/cli.md#skill).
 
-An app's own React code, its components, field types and actions, is a [plugin](reference/plugins.md)): built on its own against a plugin API that Protobase's releases keep, and loaded by the admin app when it starts. Protobase maintains the admin app, the API and the server, and a plugin keeps working as the app moves to newer releases, with their fixes and features, without changes of its own. Below 1.0 a new minor version may still change the config, and the bundle is built again for it; the plugins' code stays as it is (see [Who maintains what](reference/plugins.md#who-maintains-what))).
+An app's own React code, its components, field types and actions, is a [plugin](reference/plugins.md): built on its own against a plugin API that Protobase's releases keep, and loaded by the admin app when it starts. Protobase maintains the admin app, the API and the server, and a plugin keeps working as the app moves to newer releases, with their fixes and features, without changes of its own. Below 1.0 a new minor version may still change the config, and the bundle is built again for it; the plugins' code stays as it is (see [Who maintains what](reference/plugins.md#who-maintains-what)).
 
 ## Start an app
 
@@ -37,7 +37,7 @@ bun run --cwd examples/erp protobase users create you@example.com --generate-pas
 bun run --cwd examples/erp dev                          # http://localhost:5173
 ```
 
-`BETTER_AUTH_SECRET` in `examples/erp/.env` signs the session cookies; see [Login with Better Auth](reference/auth.md)). `protobase dev` serves the admin app and the API on one port and reloads both on every change ([CLI](reference/cli.md#dev))).
+`BETTER_AUTH_SECRET` in `examples/erp/.env` signs the session cookies; see [Login with Better Auth](reference/auth.md). `protobase dev` serves the admin app and the API on one port and reloads both on every change ([CLI](reference/cli.md#dev)).
 
 ## Run the real estate example
 
@@ -51,7 +51,7 @@ bun run --cwd examples/real-estate dev                  # http://localhost:5173
 
 ## Run the property portal example
 
-`examples/property-portal` is a public portal of homes for sale and for rent in the Netherlands and Spain, in the style of Funda and Idealista. Visitors browse and filter the listings without signing in, through the [anonymous role](reference/access.md#anonymous-access)); members save searches of the listings that mail them new homes, and keep favorites and notes that only they see. The seed makes two members, `anna@portal.example` and `bram@portal.example`, and an admin, `admin@portal.example`, all with the password `property-portal-demo`.
+`examples/property-portal` is a public portal of homes for sale and for rent in the Netherlands and Spain, in the style of Funda and Idealista. Visitors browse and filter the listings without signing in, through the [anonymous role](reference/access.md#anonymous-access); members save searches of the listings that mail them new homes, and keep favorites and notes that only they see. The seed makes two members, `anna@portal.example` and `bram@portal.example`, and an admin, `admin@portal.example`, all with the password `property-portal-demo`.
 
 ```sh
 bun run db:up && bun run --cwd examples/property-portal db:migrate && bun run --cwd examples/property-portal db:seed --scale small
@@ -70,7 +70,7 @@ bun run --cwd examples/property-portal dev              # http://localhost:5173
 | `bun run test:integration` | the database, subprocess and build tests (projects `integration*`), against the Postgres container, among them the real-Postgres tests (`*.postgres.test.ts`) |
 | `bun run test:smoke` / `node --run test:smoke` | the CLI on Bun or on Node builds the ERP and serves its bundle, whose `€` must come back intact; part of `test:integration` on Bun |
 | `bun run presets:write <version> <dir>` | writes each preset to `<dir>/<name>`: a standalone copy of its example with the `@protobase` packages in the range of `<version>`'s major (`>=0.y.z <1` below 1.0, `^x.y.z` from 1.0) and its own `bun.lock` at exactly `<version>`, which must be on npm |
-| `bun run images:context` | the build contexts of the `protobase` and `protobase-dev` images in `dist/images`, at the version in `package.json` (see [Deploy](guides/deploy.md#images))) |
+| `bun run images:context` | the build contexts of the `protobase` and `protobase-dev` images in `dist/images`, at the version in `package.json` (see [Deploy](guides/deploy.md#images)) |
 | `bun run test:presets` | writes each preset as `bun run presets:write` does it and installs it with Bun from npm (so at a published version), then migrates, seeds, checks, tests and builds it on a database of its own, as a role without superuser rights; needs the Postgres container |
 | `bun run test:postgres` | the Postgres suite in `tests/postgres/` (Vitest project `postgres`): the ERP's medium seed and the planner's statistics on it, and the jobs and event delivery through PgBouncer; needs the Postgres and PgBouncer containers and `bun run test:db postgres` |
 | `bun run test:db` | builds the template databases the database tests clone for each run (`protobase_test_template`, `real_estate_test_template`, `property_portal_test_template`, all at small scale, and the empty, auth and jobs `snapshot_*_test_template` the real-Postgres and end-to-end tests clone), when missing or older than what they are built from; without them those tests skip. `bun run test:db postgres` builds the Postgres suite's (`protobase_medium_test_template`, the ERP at medium scale), `bun run test:db snapshots` the ones `test:record` records on (`snapshot_*_test_template`). Tests never use the `protobase`, `real_estate` or `property_portal` databases |
@@ -80,10 +80,10 @@ bun run --cwd examples/property-portal dev              # http://localhost:5173
 | `bun run storybook` | Storybook on port 6006 |
 | `bun run build-storybook` | static Storybook build; its toolbar switches every story between light and dark |
 | `bun run screenshots` / `bun run screenshots:dark` | screenshots of the stories tagged `website`, in light into `screenshots/`, in dark into `screenshots/dark/` |
-| `bun run build:serve` | the serve runtime, `dist/protobase-serve.js` (see [Deploy](guides/deploy.md))) |
+| `bun run build:serve` | the serve runtime, `dist/protobase-serve.js` (see [Deploy](guides/deploy.md)) |
 | `bun run docs:dev` | this site on port 4321 |
 | `bun run docs:build` | this site, built into `website/dist/`; fails on broken links |
-| `bun run release --dry-run` | the next version and its changelog, from the commits since the last release (see [Versioning](reference/versioning.md))) |
+| `bun run release --dry-run` | the next version and its changelog, from the commits since the last release (see [Versioning](reference/versioning.md)) |
 | `bun run docs:check` | opens every page of the built site in Chromium and fails on console errors and failed requests; `BASE=https://docs.protobase.net` checks the live site |
 
-Each public import is a package in `packages/` (`@protobase/schema`, `layout`, `query`, `client`, `ui`, `server`, and `cli` for the `protobase` command); `packages/presets` writes the projects a new app starts from and is not published; `packages/create-protobase` is `npm create protobase`, with every preset. See [Architecture](reference/architecture.md)) for the layout and import rules.
+Each public import is a package in `packages/` (`@protobase/schema`, `layout`, `query`, `client`, `ui`, `server`, and `cli` for the `protobase` command); `packages/presets` writes the projects a new app starts from and is not published; `packages/create-protobase` is `npm create protobase`, with every preset. See [Architecture](reference/architecture.md) for the layout and import rules.

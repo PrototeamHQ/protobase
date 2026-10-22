@@ -6,7 +6,7 @@ The admin app installs as an app of its own on phones and computers, named for t
 
 Every app built with `protobase build` can be installed from the browser, as a Progressive Web App: Chrome and Edge offer **Install** in the address bar, Android's browsers **Add to home screen**, and Safari on iPhone and iPad **Share > Add to Home Screen**. The installed app opens in a window of its own, without the browser's toolbars, at the app's home page.
 
-There is nothing to set up. The app installs under its name, `PROTOBASE_APP_NAME` or `appName`, with its favicon, `protobase.favicon.svg`, as its icon, and the colours of `app` in `protobase.config.ts` (see [App identity](app-identity.md))). Safari takes no SVG icon: give the project a `protobase.apple-touch-icon.png`, or it shows a picture of the page on the home screen instead.
+There is nothing to set up. The app installs under its name, `PROTOBASE_APP_NAME` or `appName`, with its favicon, `protobase.favicon.svg`, as its icon, and the colours of `app` in `protobase.config.ts` (see [App identity](app-identity.md)). Safari takes no SVG icon: give the project a `protobase.apple-touch-icon.png`, or it shows a picture of the page on the home screen instead.
 
 ## The manifest
 

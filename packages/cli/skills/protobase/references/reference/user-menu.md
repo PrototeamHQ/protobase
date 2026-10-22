@@ -6,7 +6,7 @@ The user menu at the bottom of the sidebar, with the app's own account pages and
 
 The signed-in user sits at the bottom of the sidebar. Clicking them opens a menu with their name and email, the app's own pages, the theme switch, and "Sign out". Account pages (organization, billing, users) and help links belong here rather than among the working resources.
 
-Export one [`userMenu(...)`](https://docs.protobase.net/api/schema/functions/usermenu/)) from the config module:
+Export one [`userMenu(...)`](https://docs.protobase.net/api/schema/functions/usermenu/) from the config module:
 
 ```ts
 // examples/erp/config/user-menu.ts, re-exported from config/index.ts
@@ -23,10 +23,10 @@ export const accountMenu = userMenu((m) => [
 | Item | Does |
 | --- | --- |
 | `m.resource(name, { label?, icon? })` | Opens the resource's list. The resource leaves the sidebar. The label defaults to the view's plural name. |
-| `m.page(name, { label?, icon? })` | Opens a [composed page](layouts.md)). The page leaves the sidebar. The label defaults to its title. |
+| `m.page(name, { label?, icon? })` | Opens a [composed page](layouts.md). The page leaves the sidebar. The label defaults to its title. |
 | `m.link(label, href, { icon? })` | Opens `href` in a new tab. Only `https://`, `http://` and `mailto:` are accepted. |
 
-`accounts` is the built-in [Users page](auth.md#users-page)), which the config exports as `usersPage` from `@protobase/layout`; without the export, `createAdmin` refuses the item. Items keep their order. After them come the app's own account pages: "Sign-in & security" for everyone (their [passkeys](auth.md#passkeys)) and [two-factor authentication](auth.md#two-factor-authentication))) and "Sign-in policy" for admins (the [sign-in policy](auth.md#sign-in-policy)), and the log of [staff sign-ins](auth.md#staff-sign-in))); then the [theme switch](theme.md#light-dark-or-the-system)), and "Sign out" always comes last. `icon` is one of `bell`, `book-open`, `bookmark`, `building`, `credit-card`, `external-link`, `file-text`, `heart`, `key`, `layout-dashboard`, `life-buoy`, `mail`, `receipt`, `settings`, `shield`, `users`. A resource item without one uses the resource's sidebar icon, and a link item uses `external-link`.
+`accounts` is the built-in [Users page](auth.md#users-page), which the config exports as `usersPage` from `@protobase/layout`; without the export, `createAdmin` refuses the item. Items keep their order. After them come the app's own account pages: "Sign-in & security" for everyone (their [passkeys](auth.md#passkeys) and [two-factor authentication](auth.md#two-factor-authentication)) and "Sign-in policy" for admins (the [sign-in policy](auth.md#sign-in-policy), and the log of [staff sign-ins](auth.md#staff-sign-in)); then the [theme switch](theme.md#light-dark-or-the-system), and "Sign out" always comes last. `icon` is one of `bell`, `book-open`, `bookmark`, `building`, `credit-card`, `external-link`, `file-text`, `heart`, `key`, `layout-dashboard`, `life-buoy`, `mail`, `receipt`, `settings`, `shield`, `users`. A resource item without one uses the resource's sidebar icon, and a link item uses `external-link`.
 
 Every caller gets the menu through `/meta`, without the resources and pages they cannot see, so a user who cannot read `organizations` has no "Organization" item. Links are shown to everyone. `createAdmin` refuses to start when an item names a resource or page that does not exist, and `configExports` refuses a config module that exports two menus.
 

@@ -4,7 +4,7 @@
 
 Composed pages from JSX layouts, the element tree they compile to, what they may hold, and how data, conditions, actions and access work in them.
 
-A composed page is a layout file in the config, written in JSX and compiled to plain data. The server checks it against the resources, serves it to each user in `/api/meta` without what they may not see, and the admin renders it from blocks that read the regular API. [Your first composed page](../guides/first-composed-page.md)) builds one step by step; this page is the reference.
+A composed page is a layout file in the config, written in JSX and compiled to plain data. The server checks it against the resources, serves it to each user in `/api/meta` without what they may not see, and the admin renders it from blocks that read the regular API. [Your first composed page](../guides/first-composed-page.md) builds one step by step; this page is the reference.
 
 ## Setup
 
@@ -26,10 +26,10 @@ The comment makes `@protobase/layout/jsx-runtime` compile the file instead of Re
 | `name` | The address: the page is at `/<name>`, beside the resources, so a resource may not have the same name. Lowercase first letter, then letters, digits and dashes. |
 | `tree` | One `<Page>` element. |
 | `options.nav` | `{ group, order, hidden }`, as for views. A page without a group is in "Pages"; groups that hold pages come first in the sidebar. |
-| `options.icon` | One of the [user menu icons](user-menu.md)), or `layout-dashboard` (the default). |
+| `options.icon` | One of the [user menu icons](user-menu.md), or `layout-dashboard` (the default). |
 | `options.roles` | Only users with one of these roles get the page. Without it, everyone who can sign in does. |
 
-A page can also sit in the [user menu](user-menu.md)) with `m.page(name)`; it then leaves the sidebar. The first page is where the admin opens.
+A page can also sit in the [user menu](user-menu.md) with `m.page(name)`; it then leaves the sidebar. The first page is where the admin opens.
 
 ## The element tree
 
@@ -52,7 +52,7 @@ A prop is a string, a finite number, a boolean, `null`, or an array or plain obj
 - **At build time.** `protobase build` and `protobase dev` read every file with the `@jsxImportSource @protobase/layout` comment and refuse a function, class or `new` value in a prop or child, and any call to a hook (`useState`, ...), with the file, line and column. No project code runs for this.
 - **When the config loads.** The JSX runtime refuses anything else that is not plain data (a function in a variable, a `Date`, a `Map`, `NaN`), `page()` checks every element's props against its block (unknown, missing and mistyped props, children where none are allowed, elements that need a record outside one), and `createAdmin` checks every resource, field, filter, sort, action and condition against the models. Each problem names its place, such as `Page "overview": <Page> › <Table resource="invoices">: unknown column "amount" on invoices`.
 
-Behaviour comes from [named actions](#named-actions); React code from [custom components](custom-components.md)).
+Behaviour comes from [named actions](#named-actions); React code from [custom components](custom-components.md).
 
 ## Data
 
@@ -71,7 +71,7 @@ A `RecordCard` (its first match) and each card of a `CardRow` hold a **record**.
 
 Comparisons, `AND`, `OR`, `NOT` and parentheses work; functions such as `now()` do not. A field that is missing or that the user cannot read makes the comparison false, and a `Show` that names a resource or field the user cannot see is left out of their page.
 
-Record pages take the same conditions in the `when` of `l.section`, `l.related` and `l.sidebar`; see [Form and read view](ui-config.md#form-and-read-view)).
+Record pages take the same conditions in the `when` of `l.section`, `l.related` and `l.sidebar`; see [Form and read view](ui-config.md#form-and-read-view).
 
 ## Named actions
 
@@ -83,10 +83,10 @@ Record pages take the same conditions in the `when` of `l.section`, `l.related` 
 | `a.remove(name, { label, confirm?, icon? })` | Deletes the record (soft delete when the resource has one). |
 | `a.link(name, { label, to, icon? })` | Goes `to` an [address](#addresses) in the app, with `{field}` in its key, filter, order or create values replaced by the record's value. |
 | `a.link(name, { label, href, icon? })` | Opens an `href` that leaves the app (`https:`, `mailto:`), with `{field}` replaced by the record's value (percent-encoded); an `https:` or `http:` link opens in a new tab without the referrer. An `href` that is only a field, `'{website}'`, opens the URL the record holds, as it is: see [links to a record's URL](#links-to-a-records-url). A path in the app is refused when the config loads: give it as `to`. |
-| `a.ai(name, { label, prompt, writes, confirm?, icon? })` | Has the model write the field `writes` of the record from `prompt`, `{field}` replaced by the record's values, as the user, on the server; see [AI fields and actions](ai.md#ai-actions)). |
-| `a.action(name, { label, confirm?, icon?, bulk?, inputs? })` | Runs the handler the app registers under `name` in [`protobase.ui.tsx`](custom-components.md#action-handlers)), after asking for its [`inputs`](ui-config.md#actions-that-ask-for-input)) in a dialog when it has some. |
+| `a.ai(name, { label, prompt, writes, confirm?, icon? })` | Has the model write the field `writes` of the record from `prompt`, `{field}` replaced by the record's values, as the user, on the server; see [AI fields and actions](ai.md#ai-actions). |
+| `a.action(name, { label, confirm?, icon?, bulk?, inputs? })` | Runs the handler the app registers under `name` in [`protobase.ui.tsx`](custom-components.md#action-handlers), after asking for its [`inputs`](ui-config.md#actions-that-ask-for-input) in a dialog when it has some. |
 
-`icon` is one of `archive`, `arrow-right-left`, `ban`, `bath`, `bed`, `bell`, `bookmark`, `calendar`, `camera`, `copy`, `cpu`, `door-open`, `download`, `external-link`, `file-text`, `hard-drive`, `heart`, `house`, `key`, `land-plot`, `leaf`, `memory`, `network`, `play`, `plug`, `power`, `restart`, `ruler`, `send`, `server`, `stop`, `tag`, `terminal`, `upload`, `wallet` or `wrench`; another name shows a lightning bolt. With `confirm` the button asks first. Every builder also takes `when`, `otherwise` and `reason`, which limit the action to the records it [applies to](ui-config.md#where-an-action-applies)), and `variant: 'danger'`, which draws it in red. The button is disabled, with the reason as its tooltip, when the user may not update or delete the record (or, for an AI action, the field it writes), when an `a.action` has no handler, or when an update, delete or AI action has no record. After an action, everything shown of that resource reloads. The record page's action rail runs the same actions the same way.
+`icon` is one of `archive`, `arrow-right-left`, `ban`, `bath`, `bed`, `bell`, `bookmark`, `calendar`, `camera`, `copy`, `cpu`, `door-open`, `download`, `external-link`, `file-text`, `hard-drive`, `heart`, `house`, `key`, `land-plot`, `leaf`, `memory`, `network`, `play`, `plug`, `power`, `restart`, `ruler`, `send`, `server`, `stop`, `tag`, `terminal`, `upload`, `wallet` or `wrench`; another name shows a lightning bolt. With `confirm` the button asks first. Every builder also takes `when`, `otherwise` and `reason`, which limit the action to the records it [applies to](ui-config.md#where-an-action-applies), and `variant: 'danger'`, which draws it in red. The button is disabled, with the reason as its tooltip, when the user may not update or delete the record (or, for an AI action, the field it writes), when an `a.action` has no handler, or when an update, delete or AI action has no record. After an action, everything shown of that resource reloads. The record page's action rail runs the same actions the same way.
 
 ### Links to a record's URL
 
@@ -104,9 +104,9 @@ Every place in the app has an address, and the app writes and reads them in one 
 
 | Address | Is |
 | --- | --- |
-| `{ kind: 'list', resource, filter?, orderBy?, display? }` | A resource's list, with the filter, order and [display](ui-config.md#list-displays)) the list page would show. |
-| `{ kind: 'record', resource, key, edit?, open? }` | One record; `key` is its value, or its parts for a composite key. `edit: true` is its form (`?edit=true`), on a view whose record page opens as a [read view or locked](ui-config.md#read-view-and-edit)). `open` lists the titles of the record page's collapsed [groups](ui-config.md#groups)) that are open (`?open=<title>`, once per group). |
-| `{ kind: 'create', resource, values? }` | The form for a new record, with `values` filled in by field name, as text: `{ kind: 'create', resource: 'notes', values: { listing_id: '{id}' } }` on a listing's page starts a note about that listing. A relation shows the name of the record it points at. The values are a start the person can change, not a rule: what they may write is still up to the access rules. A view with a [create page](ui-config.md#create-pages)) shows that page here instead, with the values in the address. |
+| `{ kind: 'list', resource, filter?, orderBy?, display? }` | A resource's list, with the filter, order and [display](ui-config.md#list-displays) the list page would show. |
+| `{ kind: 'record', resource, key, edit?, open? }` | One record; `key` is its value, or its parts for a composite key. `edit: true` is its form (`?edit=true`), on a view whose record page opens as a [read view or locked](ui-config.md#read-view-and-edit). `open` lists the titles of the record page's collapsed [groups](ui-config.md#groups) that are open (`?open=<title>`, once per group). |
+| `{ kind: 'create', resource, values? }` | The form for a new record, with `values` filled in by field name, as text: `{ kind: 'create', resource: 'notes', values: { listing_id: '{id}' } }` on a listing's page starts a note about that listing. A relation shows the name of the record it points at. The values are a start the person can change, not a rule: what they may write is still up to the access rules. A view with a [create page](ui-config.md#create-pages) shows that page here instead, with the values in the address. |
 | `{ kind: 'page', page }` | A composed page. |
 
 The resources, pages and fields an address names are checked when the server starts, like every other name.

@@ -4,7 +4,7 @@
 
 Every built-in layout block, its props and what it does, with examples from the ERP's sales overview.
 
-Blocks are imported from `@protobase/layout`. "Record" below means the record of the `RecordCard` or `CardRow` card around a block (see [Data](layouts.md#data))); `filter` is AIP-160 and `sort` AIP-132, as in the list API. Every block below but `RecordRow`, which the property portal's home uses, `RecordCards`, and `Users`, which the [Users page](auth.md#users-page)) uses, appears in the ERP example's sales overview:
+Blocks are imported from `@protobase/layout`. "Record" below means the record of the `RecordCard` or `CardRow` card around a block (see [Data](layouts.md#data)); `filter` is AIP-160 and `sort` AIP-132, as in the list API. Every block below but `RecordRow`, which the property portal's home uses, `RecordCards`, and `Users`, which the [Users page](auth.md#users-page) uses, appears in the ERP example's sales overview:
 
 ```tsx title="examples/erp/config/overview/page.tsx"
 /** @jsxImportSource @protobase/layout */
@@ -141,7 +141,7 @@ A link in text: `to` an address in the app, or an `href` that leaves it (`https:
 
 | Prop | |
 | --- | --- |
-| `to` | An [address](layouts.md#addresses)). Inside a record, `{field}` in its key, filter or order is the record's value. |
+| `to` | An [address](layouts.md#addresses). Inside a record, `{field}` in its key, filter or order is the record's value. |
 | `href` | A link that leaves the app. A path in the app is refused when the config loads: give it as `to`. |
 
 One of the two is required. A link to a resource or field the user cannot see is left out of their page.
@@ -158,7 +158,7 @@ One number or value with a label. Exactly one of `value`, `resource` and `field`
 | `value` | A fixed value. |
 | `resource`, `filter` | Counts the matching records the user can see; the card links to that filtered list. |
 | `field` | A field of the record, through relations (`plan.name`). |
-| `format` | Instead of the view's [format](ui-config.md#names-and-columns)), such as `badge`. |
+| `format` | Instead of the view's [format](ui-config.md#names-and-columns), such as `badge`. |
 | `description` | A line under the value. |
 | `span` | Width in a grid. |
 
@@ -168,7 +168,7 @@ One number or value with a label. Exactly one of `value`, `resource` and `field`
 
 ### Table
 
-The first records of a list, drawn the way the resource's list page draws them: its table, or one of the view's [list displays](ui-config.md#list-displays)) such as cards, with the same switch between them when the view has several. A row or card opens the record, and **View all** opens the list with the same filter and order. On a phone a view with a cards display opens in it, as one row of cards that scrolls sideways; a display the viewer picks is kept for them in the browser.
+The first records of a list, drawn the way the resource's list page draws them: its table, or one of the view's [list displays](ui-config.md#list-displays) such as cards, with the same switch between them when the view has several. A row or card opens the record, and **View all** opens the list with the same filter and order. On a phone a view with a cards display opens in it, as one row of cards that scrolls sideways; a display the viewer picks is kept for them in the browser.
 
 | Prop | |
 | --- | --- |
@@ -217,9 +217,9 @@ Up to `limit` records side by side, each a small card made from the children, wh
 
 ### RecordRow
 
-What a filter finds, the way a home page shows it: the filter's chips, as the list's filter panel names them, how many records match, the records as the cards of the resource's [cards display](ui-config.md#list-displays)) in one row, and **View all**, which opens the list with the same filter and order. The row scrolls sideways by touch, trackpad or its arrow buttons; only the cards near the view are drawn, and the records load through the list API in pages as it scrolls. Each card opens its record. A resource without a cards display gets cards of the title alone.
+What a filter finds, the way a home page shows it: the filter's chips, as the list's filter panel names them, how many records match, the records as the cards of the resource's [cards display](ui-config.md#list-displays) in one row, and **View all**, which opens the list with the same filter and order. The row scrolls sideways by touch, trackpad or its arrow buttons; only the cards near the view are drawn, and the records load through the list API in pages as it scrolls. Each card opens its record. A resource without a cards display gets cards of the title alone.
 
-It follows the resource's view as its list page does. Of a resource whose view has [`listOf`](ui-config.md#favorites)), such as favorites, it shows the records the user's saved ones point at, as their own resource's cards, and **View all** opens the favorites. Of one whose view has [`searchesOf`](ui-config.md#saved-searches)), it shows a row for each of the user's saved searches, under its name or its filters, with the records new to them marked **New** and **View all results**, as their list page shows them. `filter` and `sort` do not apply to those two.
+It follows the resource's view as its list page does. Of a resource whose view has [`listOf`](ui-config.md#favorites), such as favorites, it shows the records the user's saved ones point at, as their own resource's cards, and **View all** opens the favorites. Of one whose view has [`searchesOf`](ui-config.md#saved-searches), it shows a row for each of the user's saved searches, under its name or its filters, with the records new to them marked **New** and **View all results**, as their list page shows them. `filter` and `sort` do not apply to those two.
 
 | Prop | |
 | --- | --- |
@@ -236,7 +236,7 @@ It follows the resource's view as its list page does. Of a resource whose view h
 
 ### RecordCards
 
-What a filter finds as the cards of a record page's [related records as cards](ui-config.md#related-records-as-cards)), stacked full width under a heading that has no card around it, so the page shows no card inside another: each record's title linking to its page, its `fields` under their labels, a value taller than a few lines cut short with **Show more**, and a button for each of `cardActions`, run as on the record page. Below the cards, **View all** opens the list with the same filter and order, beside a note such as "The first 10 of 37." when there are more.
+What a filter finds as the cards of a record page's [related records as cards](ui-config.md#related-records-as-cards), stacked full width under a heading that has no card around it, so the page shows no card inside another: each record's title linking to its page, its `fields` under their labels, a value taller than a few lines cut short with **Show more**, and a button for each of `cardActions`, run as on the record page. Below the cards, **View all** opens the list with the same filter and order, beside a note such as "The first 10 of 37." when there are more.
 
 With `layout="carousel"` the cards sit side by side in one row that scrolls sideways, by touch, trackpad, mouse wheel or its scrollbar, and snaps each card to its left edge. Each card is `cardWidth` of the block's width, so the next one peeks in, but never narrower than 12rem, so narrow cards stay readable on a phone. The cards are top aligned and keep their fields and buttons.
 
@@ -266,7 +266,7 @@ A label over a value of the record, formatted as on the record page: statuses as
 | --- | --- |
 | `name` | A field, through relations (`company_id.city`). Required. |
 | `label` | Default: the view's label, else the name in words. `false` shows the value alone. |
-| `format` | Instead of the view's [format](ui-config.md#names-and-columns)). |
+| `format` | Instead of the view's [format](ui-config.md#names-and-columns). |
 
 ### Progress
 
@@ -284,7 +284,7 @@ A bar for `value` out of `max`, with both numbers. It turns amber from 90%.
 
 ### Chart
 
-Counts, sums or averages of the records that match `filter`, per value of a field or per hour, day, week, month or year of a date field, in a card. It reads [`:aggregate`](api.md#routes)), so only what the user may see is counted, and the grouped field needs an index ([scan guard](api.md#safety))).
+Counts, sums or averages of the records that match `filter`, per value of a field or per hour, day, week, month or year of a date field, in a card. It reads [`:aggregate`](api.md#routes), so only what the user may see is counted, and the grouped field needs an index ([scan guard](api.md#safety)).
 
 | Prop | |
 | --- | --- |
@@ -304,13 +304,13 @@ Counts, sums or averages of the records that match `filter`, per value of a fiel
 <Chart title="Revenue per day by status" resource="orders" groupBy="created_at" splitBy="status" sum="total" />
 ```
 
-Each value takes its colour from the view's `valueColors`, else an enum value's place among its values, from the [chart tokens](theme.md#tokens)). A chart whose field the user cannot read is left out of their page, and a field it cannot group or add up stops the server at startup.
+Each value takes its colour from the view's `valueColors`, else an enum value's place among its values, from the [chart tokens](theme.md#tokens). A chart whose field the user cannot read is left out of their page, and a field it cannot group or add up stops the server at startup.
 
 ## Behaviour
 
 ### Action
 
-A button for a [named action](layouts.md#named-actions)) of the view, on the record around it.
+A button for a [named action](layouts.md#named-actions) of the view, on the record around it.
 
 | Prop | |
 | --- | --- |
@@ -340,7 +340,7 @@ A button that opens a form in a dialog. `create` makes a record of `resource`; `
 
 ### Show
 
-Its children while [`when`](layouts.md#conditions)) holds.
+Its children while [`when`](layouts.md#conditions) holds.
 
 | Prop | |
 | --- | --- |
@@ -356,7 +356,7 @@ Its children while [`when`](layouts.md#conditions)) holds.
 
 ### Users
 
-Everyone who can sign in, for admins: find them by address, tick their roles, block or unblock them, invite someone by email and add an account. It takes no props or children. The [Users page](auth.md#users-page)) is a `Page` with it alone; a page of your own can put it beside other blocks, with `roles: ['admin']`, since the server refuses everyone else.
+Everyone who can sign in, for admins: find them by address, tick their roles, block or unblock them, invite someone by email and add an account. It takes no props or children. The [Users page](auth.md#users-page) is a `Page` with it alone; a page of your own can put it beside other blocks, with `roles: ['admin']`, since the server refuses everyone else.
 
 ```tsx
 <Page title="People">

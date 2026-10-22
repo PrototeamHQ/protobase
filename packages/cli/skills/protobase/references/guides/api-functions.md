@@ -4,11 +4,11 @@
 
 Endpoints of your own beside the generated REST API, one file each in functions/, acting as the signed-in caller or open to a webhook.
 
-The [REST API](../reference/api.md)) covers reading and writing records. For anything else you write a function: a webhook from a payment provider, a button that makes three writes and then texts the customer, an endpoint for another app. Each function is one file in the project's `functions/` folder, served at `/api/functions/<name>`.
+The [REST API](../reference/api.md) covers reading and writing records. For anything else you write a function: a webhook from a payment provider, a button that makes three writes and then texts the customer, an endpoint for another app. Each function is one file in the project's `functions/` folder, served at `/api/functions/<name>`.
 
 If you have used Supabase Edge Functions, this will feel familiar. A function is a Web-standard handler that takes a `Request` and returns a `Response`. Only signed-in callers get in unless the function says otherwise. It has a data client that acts as the caller, and the raw database for privileged work.
 
-The examples below come from Pip's bike shop (see [From a table to an admin](table-to-admin.md))). The repository compiles and tests every one of them.
+The examples below come from Pip's bike shop (see [From a table to an admin](table-to-admin.md)). The repository compiles and tests every one of them.
 
 ## A first function
 
@@ -38,7 +38,7 @@ The app's own `authenticate` checks the token, the same one that guards the REST
 - **Not functions:** files and folders starting with `_` (shared code, such as `functions/_shared/`), dotfiles, `*.test.ts`, `*.spec.ts` and `*.d.ts`. A folder without an `index.ts` is an error that says so.
 - **The default export** is `defineFunction(...)` from `@protobase/server`, a bare `(request, context)` handler, or a Hono app. The last two need a signed-in caller.
 - **Any method** reaches the function, and so does any path below its name. The request's path is the part after `/api/functions/<name>`: `/` for the function itself, `/42/advance` for `/api/functions/workshop/42/advance`. The query string and the body are passed through unchanged.
-- **In `protobase.config.ts`,** `functions: { name: fn }` replaces the folder, the same way `config` replaces `config/index.ts`. The functions of [extended configs](../reference/cli.md#extending-a-config)) are kept, and a name used by two configs is an error that names both.
+- **In `protobase.config.ts`,** `functions: { name: fn }` replaces the folder, the same way `config` replaces `config/index.ts`. The functions of [extended configs](../reference/cli.md#extending-a-config) are kept, and a name used by two configs is an error that names both.
 
 ## The context
 
@@ -89,7 +89,7 @@ export default defineFunction({ roles: ['mechanic', 'desk'] }, async (request, {
 | `update(resource, key, data, { etag }?)` | With `etag`, it fails with `412` when the record changed after it was read. |
 | `delete(resource, key, { etag }?)` | `{ record, etag }` of the record as it was. It is a soft delete when the resource has one. |
 
-A refusal or a missing record rejects with the problem the REST API would answer, such as `403`, `404` or `412`. Left uncaught, that problem becomes the function's response. Each call is its own transaction. Use the [batch endpoint](../reference/api.md#batch-writes)) when several writes must succeed or fail together.
+A refusal or a missing record rejects with the problem the REST API would answer, such as `403`, `404` or `412`. Left uncaught, that problem becomes the function's response. Each call is its own transaction. Use the [batch endpoint](../reference/api.md#batch-writes) when several writes must succeed or fail together.
 
 ### Checking input
 
@@ -97,9 +97,9 @@ A refusal or a missing record rejects with the problem the REST API would answer
 
 ### Roles
 
-`defineFunction({ roles: ['mechanic', 'desk'] }, handler)` lets in callers with at least one of those roles. `defineFunction({ capability: 'vms.update' }, handler)` lets in callers whose roles hold all of that capability ([`roles.holds`](../reference/access.md#wildcards-in-has-can-and-holds))): `*`, `vms.*` or a plain `vms.update`, but not `vms.update.own` or a `vms.update` limited to fields or rows. A wildcard means all of it, so `vms.*` needs a role that holds `vms.*` or `*`. Anyone else gets a `403 function-forbidden` problem before the handler runs. Finer rules belong in the resources' [access rules](../reference/access.md)), which `records` already applies.
+`defineFunction({ roles: ['mechanic', 'desk'] }, handler)` lets in callers with at least one of those roles. `defineFunction({ capability: 'vms.update' }, handler)` lets in callers whose roles hold all of that capability ([`roles.holds`](../reference/access.md#wildcards-in-has-can-and-holds)): `*`, `vms.*` or a plain `vms.update`, but not `vms.update.own` or a `vms.update` limited to fields or rows. A wildcard means all of it, so `vms.*` needs a role that holds `vms.*` or `*`. Anyone else gets a `403 function-forbidden` problem before the handler runs. Finer rules belong in the resources' [access rules](../reference/access.md), which `records` already applies.
 
-In an app with [roles](../reference/access.md)) (`options: { roles }`), a function with neither is closed like a resource without a rule: only callers whose roles hold `*`, such as `admin: ['*']`, may call it, unless `defaultAccess` is `allow`. A function for everyone signed in says so with its roles. In an app without roles, every signed-in caller may call it. A `capability` needs the app's roles, and a function takes `roles` or `capability`, not both: the server refuses to start otherwise.
+In an app with [roles](../reference/access.md) (`options: { roles }`), a function with neither is closed like a resource without a rule: only callers whose roles hold `*`, such as `admin: ['*']`, may call it, unless `defaultAccess` is `allow`. A function for everyone signed in says so with its roles. In an app without roles, every signed-in caller may call it. A `capability` needs the app's roles, and a function takes `roles` or `capability`, not both: the server refuses to start otherwise.
 
 ## Public functions and webhooks
 
@@ -317,7 +317,7 @@ export default defineFunction({ roles: ['desk'] }, async (request, { records }) 
 
 ## Calling a function
 
-From the admin UI, an [action handler](../reference/custom-components.md#action-handlers)) gets a `client` that carries the user's token. `client.invoke` calls a function the way `supabase.functions.invoke` does:
+From the admin UI, an [action handler](../reference/custom-components.md#action-handlers) gets a `client` that carries the user's token. `client.invoke` calls a function the way `supabase.functions.invoke` does:
 
 ```tsx
 // protobase.ui.tsx
@@ -377,7 +377,7 @@ app.onError((error) => {
 export default app
 ```
 
-A Hono app's routes start at `/`, because the request path no longer includes `/api/functions/<name>`. The deploy bundle supplies `hono`, `hono/cors`, `hono/http-exception` and `hono/validator` (see [the config module](../reference/cli.md#the-config-module))). Other Hono middleware is bundled with the function, as are its other packages.
+A Hono app's routes start at `/`, because the request path no longer includes `/api/functions/<name>`. The deploy bundle supplies `hono`, `hono/cors`, `hono/http-exception` and `hono/validator` (see [the config module](../reference/cli.md#the-config-module)). Other Hono middleware is bundled with the function, as are its other packages.
 
 ### CORS
 
@@ -391,17 +391,17 @@ Preflight requests are answered before authentication, because a browser sends t
 
 ## Errors
 
-- **Problems:** throw an `HttpProblem` (or `badRequest`, `unauthorized`, `forbidden`, `notFound` from `@protobase/server`) to answer with an [RFC 9457 problem](../reference/api.md#errors)). Hono's `HTTPException` works too.
+- **Problems:** throw an `HttpProblem` (or `badRequest`, `unauthorized`, `forbidden`, `notFound` from `@protobase/server`) to answer with an [RFC 9457 problem](../reference/api.md#errors). Hono's `HTTPException` works too.
 - **Everything else:** any other error, or a handler that returns something other than a `Response`, becomes a `500 internal-error` problem without its message. The error goes to `options.onUnhandledError`, which `protobase dev` and `serve` print.
 
 ## Functions moved from Supabase
 
-[`protobase import supabase`](../reference/cli.md#import-supabase)) converts `supabase/functions` into `functions/`. A converted function keeps Supabase's shape, `defineFunction({ supabase: true }, { fetch })`, and keeps working with `@supabase/server` and supabase-js:
+[`protobase import supabase`](../reference/cli.md#import-supabase) converts `supabase/functions` into `functions/`. A converted function keeps Supabase's shape, `defineFunction({ supabase: true }, { fetch })`, and keeps working with `@supabase/server` and supabase-js:
 
-- **At `/api/sb/functions/v1/<name>` too,** so `supabase.functions.invoke` callers do not change. Only a function with `supabase: true` answers there, and any other function answers `404`. There a protected function lets in a request with the app's publishable or secret key in the `apikey` header, and a user token of [`/api/sb/auth/v1`](../reference/auth.md#supabase-js-and-supabasessr)) as the bearer, if any, as Supabase's `verify_jwt` does. A public function lets in anyone. The keys are those of [supabase-js's Realtime](../reference/supabase-realtime.md)): without them, only public functions answer there. As on Supabase, the request's path starts at the function's name (`/<name>/more/parts`), and a CORS preflight reaches the function, which answers it.
+- **At `/api/sb/functions/v1/<name>` too,** so `supabase.functions.invoke` callers do not change. Only a function with `supabase: true` answers there, and any other function answers `404`. There a protected function lets in a request with the app's publishable or secret key in the `apikey` header, and a user token of [`/api/sb/auth/v1`](../reference/auth.md#supabase-js-and-supabasessr) as the bearer, if any, as Supabase's `verify_jwt` does. A public function lets in anyone. The keys are those of [supabase-js's Realtime](../reference/supabase-realtime.md): without them, only public functions answer there. As on Supabase, the request's path starts at the function's name (`/<name>/more/parts`), and a CORS preflight reaches the function, which answers it.
 - **Its context there** is `{ name, db, caller() }`, where `caller()` resolves to who the key and token make the request: `{ role: 'anon' }` for the publishable key alone, `{ role: 'app' }` for the secret key, or `{ role: 'authenticated', claims }`. There is no `session` and no `records`. The publishable key alone lets callers in, so give `supabase: true` only to functions written for Supabase's `verify_jwt`. Together with `roles` or `capability`, which the address cannot check, it stops startup.
 - **Supabase's variables:** `protobase dev` sets `SUPABASE_URL` to the app's address with `/api/sb`, where supabase-js finds it, `SUPABASE_ANON_KEY`, `SUPABASE_PUBLISHABLE_KEY` and `SUPABASE_PUBLISHABLE_KEYS` to the publishable key, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_SECRET_KEY` and `SUPABASE_SECRET_KEYS` to the secret key, `SUPABASE_JWKS_URL` to the key set of `/api/sb/auth/v1`, and `SUPABASE_DB_URL` to the database. A variable set in `.env` wins. Under `protobase serve`, set them where the host keeps its settings.
-- **`waitUntil(promise)`** from `@protobase/server` takes the place of `EdgeRuntime.waitUntil`. The response goes out at once, and the process waits for the work when it shuts down gracefully. Work still running when the host kills the process is lost. On Protobase Cloud's Starter plan an app stops 30 seconds after its last request, with 10 seconds to finish, so move longer work into a [job](../reference/jobs.md)).
+- **`waitUntil(promise)`** from `@protobase/server` takes the place of `EdgeRuntime.waitUntil`. The response goes out at once, and the process waits for the work when it shuts down gracefully. Work still running when the host kills the process is lost. On Protobase Cloud's Starter plan an app stops 30 seconds after its last request, with 10 seconds to finish, so move longer work into a [job](../reference/jobs.md).
 
 ## What functions are not
 

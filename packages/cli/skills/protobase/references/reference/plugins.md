@@ -4,19 +4,19 @@
 
 React code the admin app loads when it starts instead of building it in, so it keeps working while Protobase moves on.
 
-A plugin is a `protobase.ui.tsx` that the admin app loads at runtime instead of building it in. It provides what a project's own `protobase.ui.tsx` provides: [custom components](custom-components.md)) for list displays, record sections, page elements, record cards and the assistant's widget parts, [field types](#field-types), action handlers and shell slots. It is built once, on its own, and served from any URL; the app lists it, and every app on a version that fits loads it.
+A plugin is a `protobase.ui.tsx` that the admin app loads at runtime instead of building it in. It provides what a project's own `protobase.ui.tsx` provides: [custom components](custom-components.md) for list displays, record sections, page elements, record cards and the assistant's widget parts, [field types](#field-types), action handlers and shell slots. It is built once, on its own, and served from any URL; the app lists it, and every app on a version that fits loads it.
 
 A project's own `protobase.ui.tsx` is a plugin too: `protobase build` builds it as the plugin `app` beside a prebuilt admin app, and builds each `--extend` folder's the same way. So everything below holds for the code an app's own developers write, for code shared across apps, and for code Protobase adds.
 
 Plugins are written by an app's developers and by Protobase itself, and they run in the app with the signed-in user's rights, like the app's own code, so load only plugins you trust.
 
-[Your first plugin](../guides/first-plugin.md)) builds one, step by step. [Adding a field type](../guides/field-type.md)), [A custom record card](../guides/record-card.md)) and [Theming an app](../guides/theme-an-app.md)) add to an app, and [Moving onto the plugin build](../guides/plugin-build.md)) moves an existing project's `protobase.ui.tsx` onto it.
+[Your first plugin](../guides/first-plugin.md) builds one, step by step. [Adding a field type](../guides/field-type.md), [A custom record card](../guides/record-card.md) and [Theming an app](../guides/theme-an-app.md) add to an app, and [Moving onto the plugin build](../guides/plugin-build.md) moves an existing project's `protobase.ui.tsx` onto it.
 
 ## Who maintains what
 
 Plugins split the work of keeping an app current. Protobase maintains the admin app, the API and the server; an app's developers maintain their plugins, and those seldom need work. A plugin is built against the plugin API, which releases add to but never break, so the same build keeps loading as the app moves to newer releases, and gets their fixes and new features on the way. Nobody ports it, rebuilds it or tests it again for each release; it needs a new build only when Protobase starts a new plugin API (see [Versions](#versions)).
 
-What still follows Protobase's releases is the rest of the bundle. Below 1.0 a new minor version may change how `data.ts`, `ui.ts` and the server config are written, and a runtime serves only bundles built by its own minor, so moving to a new minor means running `protobase build` again with that version, after any change the release notes ask of the config (see [Bundles and runtimes](versioning.md#bundles-and-runtimes))). The plugins' code stays as it is. Within a minor, where features ship as patches below 1.0, a host that serves the newer release's [shell](#the-shell) gives the app its fixes with nothing rebuilt.
+What still follows Protobase's releases is the rest of the bundle. Below 1.0 a new minor version may change how `data.ts`, `ui.ts` and the server config are written, and a runtime serves only bundles built by its own minor, so moving to a new minor means running `protobase build` again with that version, after any change the release notes ask of the config (see [Bundles and runtimes](versioning.md#bundles-and-runtimes)). The plugins' code stays as it is. Within a minor, where features ship as patches below 1.0, a host that serves the newer release's [shell](#the-shell) gives the app its fixes with nothing rebuilt.
 
 ## How a plugin stays working
 
@@ -27,7 +27,7 @@ Code built together with the app is frozen at the app it was built with: a newer
 3. **The plugin API is a promise.** What a plugin can import, the four modules and every export of `@protobase/ui`, is the plugin API, numbered: `pluginApi` is 1. Releases add to it but never remove or change what is in it; only a new plugin API does, as for a new major version of React. So a plugin keeps working on every release of the plugin API it was built for, with no rebuild. Below 1.0 a minor release may change how a project's config is written, but not the plugin API.
 4. **The app checks before it loads.** A plugin's `plugin.json` says which plugin API and which Protobase versions it is built for. The app loads a plugin only when it has that plugin API and its own version is in the plugin's range; it never runs the code of one that does not fit.
 5. **A plugin that does not fit is turned off, not the app.** Each place it would fill draws a fallback, the app's admins see why it is off, and everything else works as before. A component that throws while drawing shows its fallback in its own place.
-6. **The look is values, not rules.** A project themes the app with a [`protobase.theme.css`](theme.md)) that holds only values of the app's tokens, and a plugin's stylesheet holds only utilities that read those tokens. Neither reaches into the app's markup, so neither breaks when the app's markup changes.
+6. **The look is values, not rules.** A project themes the app with a [`protobase.theme.css`](theme.md) that holds only values of the app's tokens, and a plugin's stylesheet holds only utilities that read those tokens. Neither reaches into the app's markup, so neither breaks when the app's markup changes.
 
 ## Extension points
 
@@ -35,12 +35,12 @@ Each place a plugin can fill is an extension point. The config names it, or a pl
 
 | Extension point | Named by | Registered as | Gets | Missing, off or throwing |
 | --- | --- | --- | --- | --- |
-| View: [list display](custom-components.md#list-displays)), [record section](custom-components.md#record-sections)), [page element](custom-components.md#components)) | `component('Name')` in `d.custom`, `l.custom` or a layout | A PascalCase export of `protobase.ui.tsx` | Its props, field references as names; `useListDisplay()`, `useLayoutRecord()` | A warning in its place: "No component is registered as *Name*" or "*Name* could not be drawn." |
-| [Record card](custom-components.md#record-cards)) | `d.cards(fields, { card: component('Name') })` | A PascalCase export | `{ row }` | The built-in card: title, subtitle, badge, meta fields |
+| View: [list display](custom-components.md#list-displays), [record section](custom-components.md#record-sections), [page element](custom-components.md#components) | `component('Name')` in `d.custom`, `l.custom` or a layout | A PascalCase export of `protobase.ui.tsx` | Its props, field references as names; `useListDisplay()`, `useLayoutRecord()` | A warning in its place: "No component is registered as *Name*" or "*Name* could not be drawn." |
+| [Record card](custom-components.md#record-cards) | `d.cards(fields, { card: component('Name') })` | A PascalCase export | `{ row }` | The built-in card: title, subtitle, badge, meta fields |
 | [Field type](#field-types) | `r.field.widget('name', props)` in a view's `fields` | `fields: { name: { of, display, editor?, cell? } }` | `{ field, value, props }`, and `onChange`, `invalid` for the editor | The field as it shows without one |
-| Widget part (the [assistant](assistant.md#widget-parts))) | A widget part's name | A PascalCase export | The part's props | The part's fallback card |
-| [Action handler](custom-components.md#action-handlers)) | `a.action('name')` in a view | `actions: { name }` | `ActionContext` | The button is disabled |
-| [Shell slot](custom-components.md#shell-slots)) | Nothing: drawn on every page | `shell: { actions, rightPanel, logo }` | Nothing; `logo` gets `compact` and `workspace` | Not drawn; Protobase's logo for `logo` |
+| Widget part (the [assistant](assistant.md#widget-parts)) | A widget part's name | A PascalCase export | The part's props | The part's fallback card |
+| [Action handler](custom-components.md#action-handlers) | `a.action('name')` in a view | `actions: { name }` | `ActionContext` | The button is disabled |
+| [Shell slot](custom-components.md#shell-slots) | Nothing: drawn on every page | `shell: { actions, rightPanel, logo }` | Nothing; `logo` gets `compact` and `workspace` | Not drawn; Protobase's logo for `logo` |
 | [Before sign-in](#before-sign-in) | `beforeSignIn: true` where the plugin is listed | `beforeSignIn` | `children`, `params`, `removeParams`, `signedIn` | The pages as they are without it |
 
 Components and cards share one namespace of names, which `component('Name')` joins to the export; field types and action handlers each have their own. Props that name fields go through the same walker as everything else in `/api/meta`, so a user who may not read a field never gets it in a component's props; a field type's `props` are plain data, and a field the user may not read is left out of the view, field type and all.
@@ -71,7 +71,7 @@ It is written as a project's `protobase.ui.tsx` is: each component exported unde
 
 **Imports.** `react`, `react/jsx-runtime` (the JSX), `react-dom` and `@protobase/ui`, by those names, come from the app. Everything else a plugin imports, its own files, icons or a chart library, is built into it. Other modules of those packages, such as `react-dom/client` or a file inside `@protobase/ui`, fail the build: a copy of its own would not work with the app's. Read data with `@protobase/ui`'s hooks (`useList`, `useRecord`, `useClient`), which share the app's cache: a data library of the plugin's own keeps a cache of its own.
 
-**Styling.** Use Tailwind classes, as the app's own code does. The plugin's stylesheet holds the utilities its files use and nothing else, no reset and no global style, and each reads the app's [tokens](theme.md)): `bg-primary` is the app's primary color and `rounded-md` its radius, whatever the app's version and whatever its theme, and a token the app does not set falls back to Tailwind's default.
+**Styling.** Use Tailwind classes, as the app's own code does. The plugin's stylesheet holds the utilities its files use and nothing else, no reset and no global style, and each reads the app's [tokens](theme.md): `bg-primary` is the app's primary color and `rounded-md` its radius, whatever the app's version and whatever its theme, and a token the app does not set falls back to Tailwind's default.
 
 **Top-level code.** The build loads `protobase.ui.tsx` once in Node to read its field types, so code at the top level of its modules runs there. Keep browser-only work (`window`, `document`, `localStorage`) inside components and handlers.
 
@@ -103,7 +103,7 @@ A layout or view declares a plugin's component as it declares any custom compone
 export const DraftOrders = component('DraftOrders', { plugin: 'sales-tools' })
 ```
 
-The name is what joins the two, as for a project's component. `plugin` tells `protobase build` that the project's `protobase.ui.tsx` does not have it, so the build does not fail on it (see [Components](custom-components.md#components))). Without the plugin, the app draws the component's fallback in its place.
+The name is what joins the two, as for a project's component. `plugin` tells `protobase build` that the project's `protobase.ui.tsx` does not have it, so the build does not fail on it (see [Components](custom-components.md#components)). Without the plugin, the app draws the component's fallback in its place.
 
 ## Field types
 
@@ -145,7 +145,7 @@ Each part gets:
 
 **Fallbacks.** Each part draws inside an error boundary whose fallback is the field's built-in rendering, so a field type that throws costs only its own field, which still shows its value. A plugin that is off leaves every field it would draw as it shows without it.
 
-[Adding a field type](../guides/field-type.md)) builds one step by step.
+[Adding a field type](../guides/field-type.md) builds one step by step.
 
 ## Building
 
@@ -162,7 +162,7 @@ dist/
   assets/styles-<hash>.css    the utilities its files use
 ```
 
-The output folder is emptied first, so it must not hold the plugin's own files. The module may come with chunks of its own (`import()` in the plugin), beside it in `assets/`. See [build-plugin](cli.md#build-plugin)) for the details. `protobase build` builds the project's own `protobase.ui.tsx` and each extension's the same way, into the bundle's `public/plugins/<name>/`.
+The output folder is emptied first, so it must not hold the plugin's own files. The module may come with chunks of its own (`import()` in the plugin), beside it in `assets/`. See [build-plugin](cli.md#build-plugin) for the details. `protobase build` builds the project's own `protobase.ui.tsx` and each extension's the same way, into the bundle's `public/plugins/<name>/`.
 
 `plugin.json` tells the app what it loads:
 
@@ -228,7 +228,7 @@ The plugins are merged in the order listed. Two of them cannot define one name: 
 
 `protobase dev` loads plugins the same way, its page sharing the same four modules. The project's own `protobase.ui.tsx` is built into the dev page with hot reload instead, merged after the plugins, and keeps its names over theirs.
 
-The components a [remote resource](remote-resources.md#custom-components))'s view names are drawn from the same plugins, by name, so whoever runs a source lists the plugin that provides them with it. Inside one, `useList` and `useRecord` read the source for its resources, and `useResourceClient(resource)` gives the client of the API that serves a resource.
+The components a [remote resource](remote-resources.md#custom-components)'s view names are drawn from the same plugins, by name, so whoever runs a source lists the plugin that provides them with it. Inside one, `useList` and `useRecord` read the source for its resources, and `useResourceClient(resource)` gives the client of the API that serves a resource.
 
 ## Before sign-in
 
@@ -265,16 +265,16 @@ export default definePlugin({ name: 'guest', beforeSignIn: GuestAccess })
 | --- | --- |
 | `children` | What the app shows someone signed out: the sign-in page, or the app a visitor browses. Draw it when the plugin has nothing to do. |
 | `params` | The query parameters of the page's address. |
-| `removeParams(names)` | Takes those query parameters out of the address, in place of it in the tab's history, as the app does with a used [sign-in link](auth.md#sign-in-links-and-connected-accounts)). |
+| `removeParams(names)` | Takes those query parameters out of the address, in place of it in the tab's history, as the app does with a used [sign-in link](auth.md#sign-in-links-and-connected-accounts). |
 | `signedIn()` | Enters the app with a session something other than the sign-in page started: it reads the session cookie again and shows the app signed in, as the sign-in page does, with no reload. Resolves `false`, and changes nothing, when there is no session. |
 
 The plugin starts the session itself, with a request that sets the app's session cookie on the app's origin; `signedIn()` only tells the app. Several plugins' `beforeSignIn` are drawn one around the other, the first listed outermost, and one that throws leaves the pages as they are. Like every plugin, one loaded before sign-in runs with the rights of whoever opens the app, here someone not signed in, and its `plugin.json` and files are served to them, so list only plugins you trust there.
 
 ## The shell
 
-The shell is the admin app: `index.html` and its `assets/`, the same for every project on a release. Each release ships it prebuilt in `@protobase/ui`'s `dist/shell/` and in the [protobase image](../guides/deploy.md#images)) at `/opt/protobase/shell/`, with a `protobase.shell.json` naming its Protobase version and plugin API. A bundle carries a copy, so any static host can serve it, and its manifest names that copy's version and paths (`shell` in [the manifest](cli.md#the-manifest))).
+The shell is the admin app: `index.html` and its `assets/`, the same for every project on a release. Each release ships it prebuilt in `@protobase/ui`'s `dist/shell/` and in the [protobase image](../guides/deploy.md#images) at `/opt/protobase/shell/`, with a `protobase.shell.json` naming its Protobase version and plugin API. A bundle carries a copy, so any static host can serve it, and its manifest names that copy's version and paths (`shell` in [the manifest](cli.md#the-manifest)).
 
-A host that keeps the shells of its releases can serve the shell of a newer one for those paths, when every plugin of the bundle loads in it; the plugins, the theme and the API stay the bundle's. `protobase serve` does this with its own shell (see [serve](cli.md#serve))). The app then has the newer release's fixes with nothing rebuilt; only a change of the server config's format, a new minor below 1.0, still needs a [rebuild](versioning.md#bundles-and-runtimes)).
+A host that keeps the shells of its releases can serve the shell of a newer one for those paths, when every plugin of the bundle loads in it; the plugins, the theme and the API stay the bundle's. `protobase serve` does this with its own shell (see [serve](cli.md#serve)). The app then has the newer release's fixes with nothing rebuilt; only a change of the server config's format, a new minor below 1.0, still needs a [rebuild](versioning.md#bundles-and-runtimes).
 
 ## Versions
 
@@ -318,12 +318,12 @@ From `@protobase/ui`:
 | `definePlugin(config)` | Typed identity for a plugin's default export: `name`, `actions`, `fields`, `shell`, `beforeSignIn`, `extends`, as `defineUi`. |
 | `BeforeSignInProps` | The props of a plugin's [`beforeSignIn`](#before-sign-in) component. |
 | `usePlugin()` | The plugin the calling component belongs to (see [above](#writing-a-plugin)). |
-| `useResourceClient(resource)` | The client of the API that serves a resource: the app's own, or a source's for a [remote resource](remote-resources.md)). |
+| `useResourceClient(resource)` | The client of the API that serves a resource: the app's own, or a source's for a [remote resource](remote-resources.md). |
 | `FieldWidget`, `FieldWidgetProps`, `FieldWidgetEditorProps` | The types of a [field type](#field-types) and of its parts' props. |
-| `RecordCardProps` | The props of a [record card](custom-components.md#record-cards)), `{ row }`. |
+| `RecordCardProps` | The props of a [record card](custom-components.md#record-cards), `{ row }`. |
 | `AuthLayout`, `CodeForm`, `ResendCodeButton`, `Button`, `buttonClass`, `Input`, `Spinner`, `LogoMark` | The pieces of the app's sign-in pages, for a page of a plugin or a host's own that looks like them. Outside the app, `@protobase/ui/styles.css` is the stylesheet that draws them, for a Vite build with Tailwind. |
 | `isFramed`, `useArmedAfterFocus`, `useGuardedPress`, `allowDelayMs` | The connect page's guard against clickjacking and click-through, for a host's own consent screen: it refuses to render when `isFramed()`, and its Allow button spreads `useGuardedPress(armed, onAllow)`, so a press counts only once the page has been in front for `allowDelayMs`. |
 | `pluginApi` | The plugin API of the app's `@protobase/ui`. |
 | `protobaseVersion` | The Protobase version of the app's `@protobase/ui`. |
 
-From `@protobase/layout`: `component(name, { plugin })` (see [above](#declaring-its-components-in-the-config)). From `@protobase/schema`: `.widget(name, props)` on a view's fields and `d.cards(fields, { card })` (see [Views](ui-config.md))). From `@protobase/server`: `options.plugins` of `createAdmin`, `PROTOBASE_PLUGINS` and `PROTOBASE_PLUGINS_BEFORE_SIGN_IN` (see [loading](#loading)). The tokens a plugin's utilities read are in [Theme](theme.md)).
+From `@protobase/layout`: `component(name, { plugin })` (see [above](#declaring-its-components-in-the-config)). From `@protobase/schema`: `.widget(name, props)` on a view's fields and `d.cards(fields, { card })` (see [Views](ui-config.md)). From `@protobase/server`: `options.plugins` of `createAdmin`, `PROTOBASE_PLUGINS` and `PROTOBASE_PLUGINS_BEFORE_SIGN_IN` (see [loading](#loading)). The tokens a plugin's utilities read are in [Theme](theme.md).

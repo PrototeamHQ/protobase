@@ -4,7 +4,7 @@
 
 A form that creates a record for people without an account, such as a contact form, at its own address, behind a rate limit and a bot check.
 
-A public form creates a record of a resource for anyone, signed in or not: a contact form, a quote request, a sign-up for an event. `.form(...)` on the resource's view declares it, and the [anonymous role](access.md#anonymous-access)) grants `create` of its fields. Visitors never read the records back, and the form is the only way an anonymous caller creates.
+A public form creates a record of a resource for anyone, signed in or not: a contact form, a quote request, a sign-up for an event. `.form(...)` on the resource's view declares it, and the [anonymous role](access.md#anonymous-access) grants `create` of its fields. Visitors never read the records back, and the form is the only way an anonymous caller creates.
 
 ```ts title="config/contact_requests.ts"
 import { f, resource, view } from '@protobase/schema'
@@ -77,15 +77,15 @@ A form takes plain fields: text, numbers, booleans, dates, enums, currencies and
 - a field the resource does not have, or two forms of the same name;
 - a field every create must give left out, since no submission could then be saved.
 
-An [encrypted field](data-config.md#encrypted-fields)) is written blind, masked as the visitor types, and stored encrypted.
+An [encrypted field](data-config.md#encrypted-fields) is written blind, masked as the visitor types, and stored encrypted.
 
 ## The record
 
-A submission is a create like any other, made by the anonymous role and limited to the form's fields: the resource's `.validate()` rules, record rules and write hooks run, and [events](events.md)), [webhooks](webhooks.md)) and [history](history.md)) see it. History names its maker **Visitor**.
+A submission is a create like any other, made by the anonymous role and limited to the form's fields: the resource's `.validate()` rules, record rules and write hooks run, and [events](events.md), [webhooks](webhooks.md) and [history](history.md) see it. History names its maker **Visitor**.
 
 ### Email me on a new submission
 
-There is no mail built into forms: the record's `created` event enqueues a [job](jobs.md)), and the job [sends the mail](jobs.md#mail)).
+There is no mail built into forms: the record's `created` event enqueues a [job](jobs.md), and the job [sends the mail](jobs.md#mail).
 
 ```ts title="config/notify.ts"
 import { defineJob, FatalJobError, subscription } from '@protobase/server'
@@ -114,7 +114,7 @@ export const newContactRequests = subscription('newContactRequests', {
 
 ## Rate limit
 
-Each client may send a form `perMinute` times a minute, 5 by default, as many as it may try to sign in. Past that, the form answers `429` with `Retry-After`. A client is known by its address, as the sign-in limit knows it: see [Client addresses](auth.md#client-addresses)), and `PROTOBASE_TRUSTED_PROXIES` behind a proxy. The count is kept in each server process's memory, so with several instances each counts on its own, and a restart starts over.
+Each client may send a form `perMinute` times a minute, 5 by default, as many as it may try to sign in. Past that, the form answers `429` with `Retry-After`. A client is known by its address, as the sign-in limit knows it: see [Client addresses](auth.md#client-addresses), and `PROTOBASE_TRUSTED_PROXIES` behind a proxy. The count is kept in each server process's memory, so with several instances each counts on its own, and a restart starts over.
 
 ## Bot check
 
@@ -132,4 +132,4 @@ The form's page reads and sends it through three routes beside the API, which ne
 | `GET /api/forms/<name>:challenge` | A fresh bot check. |
 | `POST /api/forms/<name>` | `{ values, proof: { challenge, solution } }` creates the record: `204`, or the `400` with field errors a create answers; `400` `bot-check-failed` for a missing, wrong, expired or used check; `429` `too-many-submissions`. |
 
-From code, [`@protobase/client`](client.md)) has `form(name)`, `formChallenge(name)` and `submitForm(name, values, proof)`; solve the challenge with `solveChallenge` from `altcha-lib`, as the page does.
+From code, [`@protobase/client`](client.md) has `form(name)`, `formChallenge(name)` and `submitForm(name, values, proof)`; solve the challenge with `solveChallenge` from `altcha-lib`, as the page does.

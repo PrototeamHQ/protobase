@@ -4,7 +4,7 @@
 
 Build a plugin, serve it, load it into an app and change it without rebuilding the app.
 
-Sam's sales team wants the newest draft orders on their start page, each a link to the order. That is a few lines of React. Written in the app's `protobase.ui.tsx`, it would be that app's alone, shipped with each of its builds. Written as a [plugin](../reference/plugins.md)) of its own, it is built once, served on its own, and loaded by every app that lists it when it starts, whatever release the app runs.
+Sam's sales team wants the newest draft orders on their start page, each a link to the order. That is a few lines of React. Written in the app's `protobase.ui.tsx`, it would be that app's alone, shipped with each of its builds. Written as a [plugin](../reference/plugins.md) of its own, it is built once, served on its own, and loaded by every app that lists it when it starts, whatever release the app runs.
 
 This guide builds that plugin, serves it, loads it into an app and changes it without touching the app. It uses the orders of the ERP example (`examples/erp`); any resource of yours works the same.
 
@@ -157,10 +157,10 @@ Reload the app. The card shows three orders, and the app was neither rebuilt nor
 
 ## 7. Ship it
 
-Put `dist/` on a static host, and list its `plugin.json` in the deployed app's `PROTOBASE_PLUGINS`, or in `options.plugins` of its `protobase.config.ts`, which can also give the plugin settings and limit it to some roles (see [loading](../reference/plugins.md#loading))). Serve `plugin.json` without caching, so a new build reaches the apps on their next load, and the files in `assets/`, whose names change with their content, as long as you like.
+Put `dist/` on a static host, and list its `plugin.json` in the deployed app's `PROTOBASE_PLUGINS`, or in `options.plugins` of its `protobase.config.ts`, which can also give the plugin settings and limit it to some roles (see [loading](../reference/plugins.md#loading)). Serve `plugin.json` without caching, so a new build reaches the apps on their next load, and the files in `assets/`, whose names change with their content, as long as you like.
 
 ## When the app moves on
 
 The app updates to a new release of Protobase. Nothing happens to the plugin: within plugin API 1, every release keeps what the plugin imports, and the plugin runs on the newer `@protobase/ui` it is handed, its fixes included.
 
-If the app were older than the plugin needs, it would not load the plugin at all. Its admins would see a notice above the app, such as "The plugin sales-tools is off: it needs Protobase >=0.12.0, and this app runs 0.11.1.", and the card would show a warning in place of the drafts, while the rest of the app works as before. [Versions](../reference/plugins.md#versions)) has the rules.
+If the app were older than the plugin needs, it would not load the plugin at all. Its admins would see a notice above the app, such as "The plugin sales-tools is off: it needs Protobase >=0.12.0, and this app runs 0.11.1.", and the card would show a warning in place of the drafts, while the rest of the app works as before. [Versions](../reference/plugins.md#versions) has the rules.

@@ -61,20 +61,20 @@ The job `ai.fill` fills it:
 
 - after a create, when the field is empty and a field the prompt reads holds something;
 - after an update that changes a field the prompt reads, unless the same write changed the AI field itself: a person's own edit wins, and the job's own write never sets off another;
-- as the user who wrote, with the roles they had then, in their tenant; a writer who may not update the AI field, or read the fields its prompt reads, gets no fill, and neither does a visitor sending a [public form](forms.md)).
+- as the user who wrote, with the roles they had then, in their tenant; a writer who may not update the AI field, or read the fields its prompt reads, gets no fill, and neither does a visitor sending a [public form](forms.md).
 
-Quick edits in a row leave one waiting job per record and field, with the latest writer. When a field the prompt reads changes while the model answers, the job writes nothing and the newer job fills it; a record deleted since is skipped. A model that fails is retried, up to five tries, the first retry after 30 seconds and each later one twice as long; then the job shows on the [failed jobs page](jobs.md#failed-jobs-page)). Four fills run at once per worker.
+Quick edits in a row leave one waiting job per record and field, with the latest writer. When a field the prompt reads changes while the model answers, the job writes nothing and the newer job fills it; a record deleted since is skipped. A model that fails is retried, up to five tries, the first retry after 30 seconds and each later one twice as long; then the job shows on the [failed jobs page](jobs.md#failed-jobs-page). Four fills run at once per worker.
 
 Only writes through the API fill a field: a row written with SQL, or an import that goes around the API, gets no fill.
 
 ## AI actions
 
-`a.ai(name, { label, prompt, writes, icon?, confirm? })` names an action of the view, shown in the record page's action rail and runnable from a composed page's `<Action name="..." />` like any [named action](layouts.md#named-actions)). `writes` is a text or enum field of the resource that is not read-only, and the prompt may read that field too, to rewrite or translate it in place. With `confirm` the button asks first. While the model answers the button shows that it is busy; then the record reloads and a toast says it is done, or why it failed.
+`a.ai(name, { label, prompt, writes, icon?, confirm? })` names an action of the view, shown in the record page's action rail and runnable from a composed page's `<Action name="..." />` like any [named action](layouts.md#named-actions). `writes` is a text or enum field of the resource that is not read-only, and the prompt may read that field too, to rewrite or translate it in place. With `confirm` the button asks first. While the model answers the button shows that it is busy; then the record reloads and a toast says it is done, or why it failed.
 
 Who may run one:
 
 - a signed-in user; a visitor never spends model calls;
-- whose view of the resource has the action, so [views per role](ui-config.md#actions-and-views-per-role)) decide who has which;
+- whose view of the resource has the action, so [views per role](ui-config.md#actions-and-views-per-role) decide who has which;
 - who may read the fields the prompt reads, and update the field it writes on this record; otherwise the button is not offered or is disabled.
 
 `/api/meta` sends the action without its prompt, which stays on the server.
@@ -95,7 +95,7 @@ Every check is made before the model is asked.
 
 ## The model
 
-AI fields and actions use the [assistant's model settings](assistant.md#which-backend)): `PROTOBASE_ASSISTANT_API_KEY`, with `PROTOBASE_ASSISTANT_BASE_URL` and `PROTOBASE_ASSISTANT_MODEL`, or the same keys of `options.assistant`. They use them also when `PROTOBASE_ASSISTANT_URL` names a chat backend elsewhere, which replaces the chat, not the model, and when `options.assistant` is `false`, which turns off the chat only. On OpenRouter they ask for little reasoning.
+AI fields and actions use the [assistant's model settings](assistant.md#which-backend): `PROTOBASE_ASSISTANT_API_KEY`, with `PROTOBASE_ASSISTANT_BASE_URL` and `PROTOBASE_ASSISTANT_MODEL`, or the same keys of `options.assistant`. They use them also when `PROTOBASE_ASSISTANT_URL` names a chat backend elsewhere, which replaces the chat, not the model, and when `options.assistant` is `false`, which turns off the chat only. On OpenRouter they ask for little reasoning.
 
 `protobase dev` and `protobase serve` do not start when a resource has an AI field or a view an AI action and no key is set; `PROTOBASE_STARTUP_CHECKS=false` skips that check, as it does the others. Other commands, such as `protobase migration`, run without a key.
 
@@ -103,4 +103,4 @@ Every click and every write that calls for a fill is one model call on that key,
 
 ## The jobs schema
 
-AI fields are filled by jobs, so a project with one needs the [`jobs` schema](jobs.md#the-jobs-schema)), which [`protobase migration`](cli.md#migration)) writes, and the app's workers. AI actions run in the request and need neither.
+AI fields are filled by jobs, so a project with one needs the [`jobs` schema](jobs.md#the-jobs-schema), which [`protobase migration`](cli.md#migration) writes, and the app's workers. AI actions run in the request and need neither.

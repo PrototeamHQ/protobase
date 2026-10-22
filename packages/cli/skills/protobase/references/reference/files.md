@@ -55,7 +55,7 @@ export const bikes = resource('bikes')
 | `.variants({ card: { … } }, { original? })` | Resized copies of each image stored beside it, see [Image variants and placeholders](#image-variants-and-placeholders). |
 | `.externalUrls()` | Also takes an https URL of a file elsewhere instead of an upload, see [External URLs](#external-urls). |
 
-A file field cannot be filterable, sortable, aliased, searched, sensitive, or the key, tenant, owner or soft delete field. [`protobase doctor`](cli.md#doctor)) checks that its column is a text type.
+A file field cannot be filterable, sortable, aliased, searched, sensitive, or the key, tenant, owner or soft delete field. [`protobase doctor`](cli.md#doctor) checks that its column is a text type.
 
 ## What the column holds
 
@@ -159,9 +159,9 @@ Uploads go through Protobase's own route, so the type is checked and processors 
 1. `POST /api/v1/{resource}:upload?field=photo&name=bike.png` with the file as the body. A `multipart/form-data` body with exactly one file part works too, using that part's name and type; it is read whole, so the raw body is better for large files. The caller needs `create` or `update` on the resource and write access to the field.
 2. The server reads the first bytes, decides the type and refuses a type the field does not allow with `415`, before anything is stored. A `Content-Length` over `maxSize` gets `413` before a byte is read, and a body that turns out larger stops there with `413`.
 3. The rest streams to the provider while it is counted. The answer is `201 { value, file: { name, type, size }, derived, corrected? }`.
-4. Send `value` as the field's value in a create, update or [batch write](api.md#batch-writes)) within 24 hours. It is a ticket, signed for that user, tenant, resource and field: the write stores the clean URI and the derived values in the same transaction.
+4. Send `value` as the field's value in a create, update or [batch write](api.md#batch-writes) within 24 hours. It is a ticket, signed for that user, tenant, resource and field: the write stores the clean URI and the derived values in the same transaction.
 
-A write takes only a ticket, `null` to clear the field, or the stored `uri` unchanged, and in a field with `.externalUrls()` an https URL. Anything else is refused with `400`, so a row can only point at a file its writer uploaded for that field, or at a URL elsewhere where the field allows one. From the client, `client.upload(resource, field, file, { onProgress })` does step 1; see [Client](client.md)).
+A write takes only a ticket, `null` to clear the field, or the stored `uri` unchanged, and in a field with `.externalUrls()` an https URL. Anything else is refused with `400`, so a row can only point at a file its writer uploaded for that field, or at a URL elsewhere where the field allows one. From the client, `client.upload(resource, field, file, { onProgress })` does step 1; see [Client](client.md).
 
 ### How the type is decided
 
@@ -218,7 +218,7 @@ photo_placeholder: f.text().readOnly().optional(),
 
 Variants and placeholders turn the image upright first, following its EXIF orientation, and carry no metadata. JPEG, PNG, WebP, AVIF, GIF and TIFF images are processed; any other file, HEIC and SVG included, is stored as it is, without variants, and its placeholder is `null`. Files uploaded before a field declared them keep none.
 
-sharp is a native package, so the config passes it in, and a [built bundle](cli.md#native-packages)) carries it with its add-on for linux:
+sharp is a native package, so the config passes it in, and a [built bundle](cli.md#native-packages) carries it with its add-on for linux:
 
 ```ts
 // protobase.config.ts
@@ -259,7 +259,7 @@ The admin app draws every image of a file field with `referrerPolicy="no-referre
 
 - the page's own origin, which serves the app's downloads and the public files without `publicUrl`;
 - the host of each provider's `publicUrl`, such as a bucket's custom domain on another domain than the app;
-- the hosts of the app's [sources](remote-resources.md));
+- the hosts of the app's [sources](remote-resources.md);
 - the hosts `files.trustedHosts` adds, as lowercase host names without a scheme, port or path:
 
 ```ts
@@ -282,8 +282,8 @@ Files are deleted by schedule, never in the write itself, so a restore of the da
 
 A run happens:
 
-- in [`protobase serve`](cli.md#serve)), every 60 minutes (`PROTOBASE_FILES_CLEANUP_MINUTES`, 0 turns it off);
-- with [`protobase files cleanup`](cli.md#files-cleanup)), from cron or a timer;
+- in [`protobase serve`](cli.md#serve), every 60 minutes (`PROTOBASE_FILES_CLEANUP_MINUTES`, 0 turns it off);
+- with [`protobase files cleanup`](cli.md#files-cleanup), from cron or a timer;
 - with `POST /api/files:cleanup` and an admin's token, for a hosting platform. It answers `{ deleted, kept }`.
 
 The scheduled deletes sit behind a small interface (`CleanupSchedule`: `add`, `due`, `done`), so a table in a schema of its own, added by a migration at update time, can replace the folder later.

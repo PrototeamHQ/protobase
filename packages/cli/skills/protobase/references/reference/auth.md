@@ -35,7 +35,7 @@ bun run protobase auth migration    # compares it with what Better Auth needs; w
 bun run db:migrate                  # applies it
 ```
 
-The file only adds tables, columns and indexes, never drops one except the OAuth tables of [MCP](#oauth-for-mcp-clients) once `mcp` is off, and is plain SQL to review, edit or leave out where the project handles the auth schema itself. `--dir` and `--name` choose the folder and the name after the number. [`protobase migration`](cli.md#migration)) writes the same file, along with what the config's other features need, such as [jobs](jobs.md)).
+The file only adds tables, columns and indexes, never drops one except the OAuth tables of [MCP](#oauth-for-mcp-clients) once `mcp` is off, and is plain SQL to review, edit or leave out where the project handles the auth schema itself. `--dir` and `--name` choose the folder and the name after the number. [`protobase migration`](cli.md#migration) writes the same file, along with what the config's other features need, such as [jobs](jobs.md).
 
 The store's tables and columns are snake_case, like the app's (`sign_in_policy.platform_sign_in`, `session.user_id`); the code and the API keep Better Auth's camelCase names. A store set up by Protobase 0.6 has Better Auth's camelCase names instead (`"signInPolicy"."platformSignIn"`): for it, `protobase auth migration` writes the migration that renames its tables, columns, indexes and constraints in place, keeping every row. The examples carry it as `db/migrations/*_auth_snake_case.sql`; on a store with the snake_case names it does nothing.
 
@@ -64,7 +64,7 @@ createAuth({
 - `passwordHashes: ['bcrypt']` also verifies bcrypt hashes (`$2a$`, `$2b$`, `$2y$`), and stores the password again as Better Auth's own scrypt after its first sign-in. The 12-character minimum holds for new passwords only, so a shorter existing one still signs in.
 - `generateUserId: 'uuid'` makes each new user's id a random UUID in the server, for a table whose `id` is a `uuid` without a default, and makes every id column of the other tables a `uuid` too.
 
-The columns Better Auth needs that the table lacks come first, from a migration of the project's own; `protobase auth migration` then writes the other tables next to it, and another migration fills the columns from what the other system recorded and gives each password its `credential` row in `account`. For Supabase, [`protobase import supabase`](cli.md#import-supabase)) writes all three and these options.
+The columns Better Auth needs that the table lacks come first, from a migration of the project's own; `protobase auth migration` then writes the other tables next to it, and another migration fills the columns from what the other system recorded and gives each password its `credential` row in `account`. For Supabase, [`protobase import supabase`](cli.md#import-supabase) writes all three and these options.
 
 ## Configuration
 
@@ -75,24 +75,24 @@ The columns Better Auth needs that the table lacks come first, from a migration 
 | `TRUSTED_ORIGINS` | extra comma separated origins; a dev tunnel needs its exact host here, such as `https://my-tunnel.trycloudflare.com`, since no wildcard is trusted |
 | `PROTOBASE_ORIGINS` | the other origins the app is served on, comma separated, passed by the platform; see [Several origins](#several-origins) |
 | `PROTOBASE_PASSKEY_DOMAIN` | the host new [passkeys](#passkeys) are made for, passed by the platform; default the host of `BETTER_AUTH_URL` |
-| `PROTOBASE_CORS_ORIGINS` | other websites whose browser code may call the API, `*` or comma separated http and https origins, passed by the platform; see [CORS](api.md#cors)) |
+| `PROTOBASE_CORS_ORIGINS` | other websites whose browser code may call the API, `*` or comma separated http and https origins, passed by the platform; see [CORS](api.md#cors) |
 | `PROTOBASE_SMTP_URL`, `PROTOBASE_MAIL_FROM` | the mail server and sender for [password reset](#password-reset), [emailed sign-in codes](#emailed-sign-in-codes), emailed [two-factor](#two-factor-authentication) codes and [open sign-up](#open-sign-up), passed by the platform; all four are off without them |
 | `PROTOBASE_APP_NAME` | the app's name, passed by the platform: it overrides `appName` |
 | `PROTOBASE_SIGN_IN_ISSUER`, `PROTOBASE_SIGN_IN_CLIENT_ID`, `PROTOBASE_SIGN_IN_CLIENT_SECRET` | the [platform sign-in provider](#platform-sign-in-provider) for people who have an account, passed by the platform; off without them. `PROTOBASE_SIGN_IN_PROVIDER` and `PROTOBASE_SIGN_IN_NAME` are optional |
 | `PROTOBASE_OPERATOR_ISSUER`, `PROTOBASE_OPERATOR_CLIENT_ID`, `PROTOBASE_OPERATOR_CLIENT_SECRET` | the [operator provider](#operator-provider) its staff sign in with to sign in as people, passed by the platform; staff sign-in is off without them. `PROTOBASE_OPERATOR_NAME` and `PROTOBASE_OPERATOR_GROUP` are optional |
-| `PROTOBASE_TRUSTED_PROXIES` | the proxies in front of `protobase serve`, addresses or CIDR ranges, comma separated, such as `172.30.87.1`, the Docker network's gateway in the [compose template](../guides/deploy.md#compose-template)); see [Client addresses](#client-addresses) |
+| `PROTOBASE_TRUSTED_PROXIES` | the proxies in front of `protobase serve`, addresses or CIDR ranges, comma separated, such as `172.30.87.1`, the Docker network's gateway in the [compose template](../guides/deploy.md#compose-template); see [Client addresses](#client-addresses) |
 
 - Cookies are `SameSite=Lax`, and `Secure` when `BETTER_AUTH_URL` is https.
 - Sign-in is rate limited (5 password attempts per minute and client by default, `signInPerMinute`, which also limits [sign-up](#open-sign-up) requests; 3 per minute for emailed codes); [Client addresses](#client-addresses) says how a client is known.
 - New passwords need at least 12 characters.
-- `appName` is the app's name: authenticator apps and passkey prompts show it, the admin app's sidebar shows it at the top beside the app's [icon](app-identity.md#the-icons)), else Protobase's mark (Protobase's wordmark when it is `Protobase`), every browser tab of the admin app ends its title with it, the [installed app](installable-app.md)) is called by it, the [auth emails](email.md#protobases-own-mail)) name the app with it, and the platform's mailer sends them as it (the sender's display name). `PROTOBASE_APP_NAME`, when set, overrides it; without either it is `Protobase`, then without a display name. See [App identity](app-identity.md)).
+- `appName` is the app's name: authenticator apps and passkey prompts show it, the admin app's sidebar shows it at the top beside the app's [icon](app-identity.md#the-icons), else Protobase's mark (Protobase's wordmark when it is `Protobase`), every browser tab of the admin app ends its title with it, the [installed app](installable-app.md) is called by it, the [auth emails](email.md#protobases-own-mail) name the app with it, and the platform's mailer sends them as it (the sender's display name). `PROTOBASE_APP_NAME`, when set, overrides it; without either it is `Protobase`, then without a display name. See [App identity](app-identity.md).
 
 ### Client addresses
 
 The rate limits count each client address on its own: an IPv4 address, or an IPv6 address by its /64. `protobase serve` and the runtime image find it themselves and pass it on in `X-Forwarded-For`, replacing whatever the client sent:
 
 - Without `PROTOBASE_TRUSTED_PROXIES`, the client is the address the connection comes from. That fits clients that reach the server directly, such as a browser on the same machine as `docker run -p 127.0.0.1:8787:8787`.
-- Behind a reverse proxy (Caddy, nginx, Traefik, a load balancer), every connection comes from the proxy, so every client would share its one limit, and three emailed codes a minute from anyone would stop everyone signing in. Set `PROTOBASE_TRUSTED_PROXIES` to the proxy's address, or the Docker network's gateway for a proxy on the host, such as `172.30.87.1` in the deploy guide's [compose template](../guides/deploy.md#compose-template)); a range must not cover the clients themselves, or they all share the one limit again. Have the proxy append the address it took the request from to `X-Forwarded-For` (Caddy and Traefik do by default, nginx with `proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for`). The client is then the rightmost address in it that is not a trusted proxy, so one the client wrote itself counts for nothing. Behind several proxies, such as a CDN in front of Caddy, trust them all.
+- Behind a reverse proxy (Caddy, nginx, Traefik, a load balancer), every connection comes from the proxy, so every client would share its one limit, and three emailed codes a minute from anyone would stop everyone signing in. Set `PROTOBASE_TRUSTED_PROXIES` to the proxy's address, or the Docker network's gateway for a proxy on the host, such as `172.30.87.1` in the deploy guide's [compose template](../guides/deploy.md#compose-template); a range must not cover the clients themselves, or they all share the one limit again. Have the proxy append the address it took the request from to `X-Forwarded-For` (Caddy and Traefik do by default, nginx with `proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for`). The client is then the rightmost address in it that is not a trusted proxy, so one the client wrote itself counts for nothing. Behind several proxies, such as a CDN in front of Caddy, trust them all.
 
 An app served another way than `protobase serve`, such as its own server around `createAdmin`, gets what its server passes: the limits read `X-Forwarded-For` holding one address, and requests without one share a single limit.
 
@@ -117,7 +117,7 @@ Until a user exists sign-in fails, and `GET /api/auth/status` (public) answers `
 
 ## Users page
 
-Admins manage accounts without the command line on the Users page, an ordinary [composed page](layouts.md)) the config imports: everyone who can sign in, found by address, with their roles to tick, Block and Unblock, inviting someone by email, and adding an account directly.
+Admins manage accounts without the command line on the Users page, an ordinary [composed page](layouts.md) the config imports: everyone who can sign in, found by address, with their roles to tick, Block and Unblock, inviting someone by email, and adding an account directly.
 
 ```ts
 // config/index.ts
@@ -126,7 +126,7 @@ export { usersPage } from '@protobase/layout'      // at /accounts, for admins
 export const accountMenu = userMenu((m) => [m.page('accounts', { label: 'Users', icon: 'users' })])
 ```
 
-New apps have it already. Leave the export out to drop it, or make a page of your own around the [`Users` block](blocks.md#users)). It works with or without [organizations](#organizations): an invitation to the app makes an account with the roles the admin ticked, from the same link page and sign-up as an organization's invitation, and someone with an account just signs in. Listing, creating, roles and blocking are Better Auth's admin endpoints (`/api/auth/admin/list-users`, `create-user`, `set-role`, `ban-user`, `unban-user`), whose roles go as a list; the rest are Protobase's, for admins only:
+New apps have it already. Leave the export out to drop it, or make a page of your own around the [`Users` block](blocks.md#users). It works with or without [organizations](#organizations): an invitation to the app makes an account with the roles the admin ticked, from the same link page and sign-up as an organization's invitation, and someone with an account just signs in. Listing, creating, roles and blocking are Better Auth's admin endpoints (`/api/auth/admin/list-users`, `create-user`, `set-role`, `ban-user`, `unban-user`), whose roles go as a list; the rest are Protobase's, for admins only:
 
 | Endpoint | Does |
 | --- | --- |
@@ -153,9 +153,9 @@ createAuth({ ..., mailer: { send: async ({ to, subject, text }) => { /* deliver 
 createAuth({ ..., mailer: false })
 ```
 
-[Jobs](jobs.md#mail)) send their own mail through the same server, with `mail` in their context, and so do the app's [email templates](email.md)).
+[Jobs](jobs.md#mail) send their own mail through the same server, with `mail` in their context, and so do the app's [email templates](email.md).
 
-- The email names the app and gives the link, as a button and in its plain-text part, that it works for 1 hour and once, and that it can be ignored (see [Protobase's own mail](email.md#protobases-own-mail))).
+- The email names the app and gives the link, as a button and in its plain-text part, that it works for 1 hour and once, and that it can be ignored (see [Protobase's own mail](email.md#protobases-own-mail)).
 - The SMTP client greets the server with the sender's domain (`admin.example.com` above), not the container's `[127.0.0.1]`; a `?name=` on `PROTOBASE_SMTP_URL` overrides it.
 - A request answers the same whether or not the address has an account, and the mail goes out after the answer, so neither the response nor its timing tells. A send that fails is logged by Better Auth.
 - Requests are limited to 3 per minute and client. Setting a new password ends all of the user's sessions; the new password needs 12 characters like any other.
@@ -181,7 +181,7 @@ Off by default: accounts come from the host, an admin, an [invitation](#users-pa
 createAuth({ ..., roles: ['admin', 'member'], signUp: { role: 'member' } })
 ```
 
-The sign-in page then offers "Create an account", and so do [sign-in prompts](ui-config.md#sign-in-prompts)): the person enters their address, gets a 6-digit code, and enters it on a page of its own. Only once the code is right does the next page ask for their name and a password. The account is made only then, with the address verified, and signed in.
+The sign-in page then offers "Create an account", and so do [sign-in prompts](ui-config.md#sign-in-prompts): the person enters their address, gets a 6-digit code, and enters it on a page of its own. Only once the code is right does the next page ask for their name and a password. The account is made only then, with the address verified, and signed in.
 
 - `role` is one of `roles`, and never `admin`: `createAuth` stops with an error otherwise. Give it the least a stranger may hold; a request that names another role, or sets `role` through Better Auth's own endpoints, does not get it.
 - It needs mail: without a mailer it is not offered, `GET /api/auth/status` has no `signUp`, and its endpoints answer `404`. Not with [organizations](#organizations), whose people join by invitation.
@@ -402,7 +402,7 @@ People sign in with the address their account here has, or connect the provider 
 
 The roles are a project setting: `createAuth({ ..., roles: ['admin', 'auditor', 'sales', 'accountant'] })`. `admin` is always included and first; the default is `['admin', 'user']`. Names are lowercase letters, digits, `_` and `-`. `defaultRole` is what a new user gets when no role is given. Without it, and with more than one role besides `admin`, creating a user without a role is an error that lists the choices (the CLI then needs `--role`); with exactly one other role, that role is the default. `auth.defaultRole` is `undefined` when a role must be chosen. A user can hold several roles (`setUserRole(auth, { email, role: 'sales,accountant' })`), and acts with one of them at a time, the [active role](#active-role).
 
-`createUser`, `setUserRole` and Better Auth's own admin endpoints refuse a role outside the list. `roleChoices(auth)` returns the list, for the CLI's `users set-role` and for UIs. Only `admin` gains Better Auth admin-plugin permissions (managing users); every other role is for your access rules, which see them as `ctx.user.roles`. Besides `admin`, the role `ai` opens the [assistant](assistant.md#who-sees-it)) when the project lists it.
+`createUser`, `setUserRole` and Better Auth's own admin endpoints refuse a role outside the list. `roleChoices(auth)` returns the list, for the CLI's `users set-role` and for UIs. Only `admin` gains Better Auth admin-plugin permissions (managing users); every other role is for your access rules, which see them as `ctx.user.roles`. Besides `admin`, the role `ai` opens the [assistant](assistant.md#who-sees-it) when the project lists it.
 
 ### Active role
 
@@ -434,7 +434,7 @@ It is Better Auth's organization plugin, with its tables named in snake_case (`o
 
 **Who gives which role.** Someone may give or take away a member's app role only if they hold it, in that organization or globally, or hold a role whose `grants` list it (`manager` above gives `accountant` without holding it); grants do not chain, and a superuser may give any. Only a superuser changes global roles. The creator of an organization becomes its owner with every app role (`creatorAppRoles`, default `'all'`), so they can give them on; for a role added later, list it in a role owners hold, or run `protobase organizations add-app-role <role> --to owners`.
 
-**The organization in the token.** A new session starts in the organization the person last worked in, else their oldest membership. `/api/auth/token` adds `org` (the organization), `org_role` and `app_roles` (the membership's, narrowed to the active role), read when the token is issued; a removed member's token, or one carrying an app role taken away, [stops working](#when-a-token-stops-working) on its next request. `betterAuthAuthenticator` makes `org` the tenant and `ctx.organization.id`, and adds `app_roles` to the global roles. `POST /api/auth/organization/switch` with `{ organizationId }` moves the session; the next token names the new organization, without signing in again. Someone with a global role may switch into any organization, without being a member, and sees there what those roles allow; each such entry is an `organization.entered` [audit event](api.md#audit-events)). `GET /api/auth/organization/search?query=&offset=` lists every organization for them, ordered by slug, 20 at a time with the `total`, narrowed by text in the name or slug; the Organizations page shows it as All organizations. A list across organizations stays a resource without `.tenant`, readable by the global role.
+**The organization in the token.** A new session starts in the organization the person last worked in, else their oldest membership. `/api/auth/token` adds `org` (the organization), `org_role` and `app_roles` (the membership's, narrowed to the active role), read when the token is issued; a removed member's token, or one carrying an app role taken away, [stops working](#when-a-token-stops-working) on its next request. `betterAuthAuthenticator` makes `org` the tenant and `ctx.organization.id`, and adds `app_roles` to the global roles. `POST /api/auth/organization/switch` with `{ organizationId }` moves the session; the next token names the new organization, without signing in again. Someone with a global role may switch into any organization, without being a member, and sees there what those roles allow; each such entry is an `organization.entered` [audit event](api.md#audit-events). `GET /api/auth/organization/search?query=&offset=` lists every organization for them, ordered by slug, 20 at a time with the `total`, narrowed by text in the name or slug; the Organizations page shows it as All organizations. A list across organizations stays a resource without `.tenant`, readable by the global role.
 
 **Invitations.** Better Auth's `POST /api/auth/organization/invite-member` with `{ organizationId, email, role, appRoles }`; inviting again replaces the earlier invitation, and it works for `invitationDays` (default 7). The email links to `{baseURL}/-/invitation?token=…` (`invitationUrl`), with a token signed with `secret`, since members can read invitation ids; without a mailer, the answer carries the `link` to pass on. The link page shows `GET /api/auth/invitation?token=`, accepts with `POST /api/auth/invitation/accept` for someone signed in as the invited address, and makes an account with `POST /api/auth/invitation/sign-up` (`{ token, name, password? }`) for an address without one. The link page and its sign-up serve [invitations to the app](#users-page) too. [Open sign-up](#open-sign-up) is not available with organizations: an invitation is the address someone vouched for.
 
@@ -452,7 +452,7 @@ Sign in at `POST /api/auth/sign-in/email` (or with a code or passkey), then `GET
 
 `betterAuthAuthenticator` maps the claims to a session: `sub` is the user id, `roles` come from the `role` claim, the session's [active role](#active-role) of those in the admin plugin's `role` column on the user (a comma separated string; the first user is always `admin`). Access rules see them as `ctx.user.roles`. Without organizations, the tenant is the configured `tenant` option, never a claim; with them, it is the organization the session works in (`org`, see [organizations](#organizations)). The key set is cached in memory: read once, again every 10 minutes (so removed keys stop being accepted), and again when a token names an unknown `kid` (a rotated key), at most once per 30 seconds however many such tokens arrive (`cache: { refreshMs, minReloadMs }`). Pass `jwksUrl` and `issuer` instead of `auth` when the API runs apart from the auth server.
 
-`jwtAuthenticator` accepts asymmetric signature algorithms only unless you pass `algorithms` explicitly (the tests do, for HS256), so a token cannot be forged with a public key used as an HMAC secret; Better Auth signs with its own key pair and publishes the public keys at `/api/auth/jwks`. An expired, tampered, wrongly signed or missing token is a `401` problem with `WWW-Authenticate: Bearer`; with an [anonymous role](access.md#anonymous-access)), a missing one on the resources API is served as that role instead.
+`jwtAuthenticator` accepts asymmetric signature algorithms only unless you pass `algorithms` explicitly (the tests do, for HS256), so a token cannot be forged with a public key used as an HMAC secret; Better Auth signs with its own key pair and publishes the public keys at `/api/auth/jwks`. An expired, tampered, wrongly signed or missing token is a `401` problem with `WWW-Authenticate: Bearer`; with an [anonymous role](access.md#anonymous-access), a missing one on the resources API is served as that role instead.
 
 ### When a token stops working
 
@@ -472,13 +472,13 @@ The cost is two or three lookups by key in the auth store per request: the sessi
 
 ## Users of another app
 
-An API can admit the signed-in users of another Protobase app with the tokens that app issues, so that app's admin app can draw its resources as [remote resources](remote-resources.md)). `betterAuthAuthenticator`'s `apps` lists each such app by its `baseURL`, the issuer of its tokens, with the roles its users' global roles become here:
+An API can admit the signed-in users of another Protobase app with the tokens that app issues, so that app's admin app can draw its resources as [remote resources](remote-resources.md). `betterAuthAuthenticator`'s `apps` lists each such app by its `baseURL`, the issuer of its tokens, with the roles its users' global roles become here:
 
 ```ts
 betterAuthAuthenticator({ auth, apps: [{ issuer: 'https://shop.example.com', roles: { admin: 'shop' }, tenant: 1 }] })
 ```
 
-Their tokens are verified against that app's keys at `<issuer>/api/auth/jwks`; a role it does not map is dropped, a role held in one of its organizations never counts, and a user left with none gets `403`; their id here is `<sub>@<that app's host>`. See [Signing in at the source](remote-resources.md#signing-in-at-the-source)).
+Their tokens are verified against that app's keys at `<issuer>/api/auth/jwks`; a role it does not map is dropped, a role held in one of its organizations never counts, and a user left with none gets `403`; their id here is `<sub>@<that app's host>`. See [Signing in at the source](remote-resources.md#signing-in-at-the-source).
 
 ## supabase-js and @supabase/ssr
 
@@ -509,7 +509,7 @@ It is signed with the same keys and carries the same claims as a token from `/ap
 
 ## OAuth for MCP clients
 
-With `mcp`, the app is an OAuth provider for MCP clients, such as AI assistants and code editors that speak MCP: a person adds the app's MCP address to the client, the client registers itself, the person signs in on the app's own pages and allows it on the connect page, and the client gets tokens that act as that person. What the client can do with them is in [MCP](mcp.md)).
+With `mcp`, the app is an OAuth provider for MCP clients, such as AI assistants and code editors that speak MCP: a person adds the app's MCP address to the client, the client registers itself, the person signs in on the app's own pages and allows it on the connect page, and the client gets tokens that act as that person. What the client can do with them is in [MCP](mcp.md).
 
 ```ts
 createAuth({ ..., mcp: true })
@@ -540,14 +540,14 @@ createAuth({ ..., baseURL: 'https://erp-x1.protobase.net', origins: ['https://ad
 - Sessions are cookies of each host: a person signs in once per origin.
 - `GET /.well-known/webauthn` answers `{ "origins": [...] }` with every origin of the app, on each of them, so its [passkeys](#passkeys) work on all. `protobase serve` and `protobase dev` send that path to the server, whatever the bundle's `api` says; a host in front must too.
 - Each origin is a URL with the scheme of `baseURL`; one that is not stops the server at startup. The host that serves the app must pass each origin's own `Host` header on.
-- The app's own origins may call each other's API from the browser ([CORS](api.md#cors))).
+- The app's own origins may call each other's API from the browser ([CORS](api.md#cors)).
 
 ## Public endpoints
 
-Only the Better Auth routes under `/api/auth/*` (sign-in, password reset, [open sign-up](#open-sign-up), the start and callback of a [staff sign-in](#staff-sign-in), and with [MCP](#oauth-for-mcp-clients) the OAuth provider's register, token and authorize, and the like), `GET /api/auth/status`, with MCP the two OAuth discovery documents under `/.well-known/`, and, with [several origins](#several-origins), `GET /.well-known/webauthn` are reachable without a token; the account, policy and staff session endpoints there need a session. The API (`/api/v1/*`) and the system endpoints (`/api/meta`, `/api/openapi.json`, `/api/docs`) all answer `401` without one, but for what an [anonymous role](access.md#anonymous-access)) reads in `/api/v1` and `/api/meta`, when the project defines one. [Public forms](forms.md#routes)) (`/api/forms/*`) need no token either.
+Only the Better Auth routes under `/api/auth/*` (sign-in, password reset, [open sign-up](#open-sign-up), the start and callback of a [staff sign-in](#staff-sign-in), and with [MCP](#oauth-for-mcp-clients) the OAuth provider's register, token and authorize, and the like), `GET /api/auth/status`, with MCP the two OAuth discovery documents under `/.well-known/`, and, with [several origins](#several-origins), `GET /.well-known/webauthn` are reachable without a token; the account, policy and staff session endpoints there need a session. The API (`/api/v1/*`) and the system endpoints (`/api/meta`, `/api/openapi.json`, `/api/docs`) all answer `401` without one, but for what an [anonymous role](access.md#anonymous-access) reads in `/api/v1` and `/api/meta`, when the project defines one. [Public forms](forms.md#routes) (`/api/forms/*`) need no token either.
 
 ## Roles and access in the API
 
-Roles are bundles of capabilities (`defineRoles` in `@protobase/schema`: `orders.read.own`, `costs.read`, `*.read`, ...). Pass the result as `options.roles` to `createAdmin`, and every operation without an explicit rule needs the matching capability; a capability may be limited to [fields and rows](access.md#capabilities)). The token's `roles` become `ctx.user.roles` in rules; the user id (`sub`) is what `.own` compares with the resource's `.owner(...)` field, so it must be the id that field stores. How the API enforces them (hidden fields, row filters, record permissions) is in [the REST API reference](api.md#access)).
+Roles are bundles of capabilities (`defineRoles` in `@protobase/schema`: `orders.read.own`, `costs.read`, `*.read`, ...). Pass the result as `options.roles` to `createAdmin`, and every operation without an explicit rule needs the matching capability; a capability may be limited to [fields and rows](access.md#capabilities). The token's `roles` become `ctx.user.roles` in rules; the user id (`sub`) is what `.own` compares with the resource's `.owner(...)` field, so it must be the id that field stores. How the API enforces them (hidden fields, row filters, record permissions) is in [the REST API reference](api.md#access).
 
 **User ids.** Better Auth gives a new user a random 32-character text id, so an `.owner(...)` field holds `text`: the server refuses to start (`protobase dev`, `serve`) when one holds integers or UUIDs, naming the field. An app whose owner columns are integers, such as a relation to its own users table, gives `createAuth` a `generateUserId` that takes the next value of that table's sequence, and adds the user's row there, as the ERP example does (`examples/erp/auth/auth.ts`, with the row added by `db/migrations/019_auth_users.sql` when someone joins an organization). One whose owner columns are UUIDs gives it `generateUserId: 'uuid'` (see [An existing users table](#an-existing-users-table)). An authenticator that maps the signed-in account to a user of the app's own, such as a wrapper around `betterAuthAuthenticator` that returns the id of a row in its users table, declares the type of those ids instead, `Object.assign(authenticate, { userIdType: 'uuid' })` (or `'integer'`, `'bigint'`, `'text'`), and the owner fields are checked against that. A request by a user whose id the owner field cannot hold, such as one made before `generateUserId`, fails with an `owner-id-mismatch` problem that names the field.

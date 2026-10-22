@@ -25,17 +25,17 @@ A project themes its admin app with one file, `protobase.theme.css` at its root,
 }
 ```
 
-[Theming an app](../guides/theme-an-app.md)) walks through one.
+[Theming an app](../guides/theme-an-app.md) walks through one.
 
 ## Why values only
 
-A stylesheet that reaches into the app with selectors, `.sidebar a` or `button.primary`, depends on the app's markup, which every release may change; it breaks quietly, and only on the screens it touched. A theme that sets token values depends on nothing but the token names, which are a promise like the [plugin API](plugins.md#how-a-plugin-stays-working)):
+A stylesheet that reaches into the app with selectors, `.sidebar a` or `button.primary`, depends on the app's markup, which every release may change; it breaks quietly, and only on the screens it touched. A theme that sets token values depends on nothing but the token names, which are a promise like the [plugin API](plugins.md#how-a-plugin-stays-working):
 
 - The app reads every color, its radii and its fonts from these tokens, and so do plugins, whose utilities read them too (`bg-primary` is `background-color: var(--primary)`).
 - Tokens are only added. A token that is renamed keeps its old name as well, so a theme never stops applying.
 - A token the theme leaves out keeps the app's value, and a value the app no longer reads is ignored, so a theme written for one release works on the next with nothing rebuilt.
 
-Changing how one part of the app looks, beyond its tokens, is not a theme's job: replace that part with a [plugin](plugins.md#extension-points)) instead, such as a record card or a field type.
+Changing how one part of the app looks, beyond its tokens, is not a theme's job: replace that part with a [plugin](plugins.md#extension-points) instead, such as a record card or a field type.
 
 ## The file
 
@@ -123,9 +123,9 @@ The list is `packages/ui/src/tokens.css`, and a test fails when one of its token
 
 ## Logo and favicon
 
-The sidebar shows Protobase's logo, its mark alone when the sidebar shows only icons, or, for a project with its own favicon, that icon and the app's name ([App identity](app-identity.md))). A project draws something else with `shell.logo` in `protobase.ui.tsx`, a component drawn in its place ([Shell slots](custom-components.md#shell-slots))); it draws with these tokens like the rest of the app.
+The sidebar shows Protobase's logo, its mark alone when the sidebar shows only icons, or, for a project with its own favicon, that icon and the app's name ([App identity](app-identity.md)). A project draws something else with `shell.logo` in `protobase.ui.tsx`, a component drawn in its place ([Shell slots](custom-components.md#shell-slots)); it draws with these tokens like the rest of the app.
 
-The browser tab shows Protobase's mark. A project shows its own with a `protobase.favicon.svg` at its root, beside `protobase.theme.css`: the app's `index.html` links `/protobase.favicon.svg`, which `protobase build` writes to the bundle's `public/`, the project's file or Protobase's without one, and which `protobase dev` serves the same way. An SVG can follow the system's light or dark with a `prefers-color-scheme` media query inside it, as Protobase's does. PNGs beside it serve the platforms that take no SVG, such as an iPhone's home screen ([App identity](app-identity.md#the-icons))).
+The browser tab shows Protobase's mark. A project shows its own with a `protobase.favicon.svg` at its root, beside `protobase.theme.css`: the app's `index.html` links `/protobase.favicon.svg`, which `protobase build` writes to the bundle's `public/`, the project's file or Protobase's without one, and which `protobase dev` serves the same way. An SVG can follow the system's light or dark with a `prefers-color-scheme` media query inside it, as Protobase's does. PNGs beside it serve the platforms that take no SVG, such as an iPhone's home screen ([App identity](app-identity.md#the-icons)).
 
 ## In a plugin
 

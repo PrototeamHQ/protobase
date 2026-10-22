@@ -4,11 +4,11 @@
 
 Replace a resource's create form with a page of the app's own, built from the app's form parts, that creates records through an API function.
 
-Pip's bike shop books repairs at the desk, and a booking is more than a row: the workshop wants to know what the bike needs, in words a customer understands, and the shop's API function plans the job. This guide gives the repairs a page of their own for that, opened by **New** on their list, and lets the API refuse plain creates. It uses the bike shop of the [first guide](table-to-admin.md)).
+Pip's bike shop books repairs at the desk, and a booking is more than a row: the workshop wants to know what the bike needs, in words a customer understands, and the shop's API function plans the job. This guide gives the repairs a page of their own for that, opened by **New** on their list, and lets the API refuse plain creates. It uses the bike shop of the [first guide](table-to-admin.md).
 
 ## 1. The page
 
-A create page is a [composed page](../reference/layouts.md)) like any other, with a [component](../reference/custom-components.md#components)) of the project's own in it:
+A create page is a [composed page](../reference/layouts.md) like any other, with a [component](../reference/custom-components.md#components) of the project's own in it:
 
 ```tsx
 // config/pages/book-repair.tsx
@@ -30,7 +30,7 @@ Its `roles` say who may book: they are the people who get the page, and so **New
 
 ## 2. The component
 
-The component asks its questions with the [form parts](../reference/custom-components.md#form-parts)) of `@protobase/ui`, so it looks like the app's own forms, and keeps the answers in the address, so a reload keeps them:
+The component asks its questions with the [form parts](../reference/custom-components.md#form-parts) of `@protobase/ui`, so it looks like the app's own forms, and keeps the answers in the address, so a reload keeps them:
 
 ```tsx
 // components/book-repair.tsx, exported from protobase.ui.tsx: export { BookRepair } from './components/book-repair'
@@ -94,7 +94,7 @@ export const repairsView = view<typeof repairs>('repairs')
 
 ## 4. Create through a function
 
-With its own page, the shop can make the [API function](api-functions.md)) `book-repair` the only way in: it checks the answers, plans the job and inserts the repair with `db`, which skips the access rules. The resource's API then refuses creates:
+With its own page, the shop can make the [API function](api-functions.md) `book-repair` the only way in: it checks the answers, plans the job and inserts the repair with `db`, which skips the access rules. The resource's API then refuses creates:
 
 ```ts
 // config/repairs/data.ts
@@ -105,4 +105,4 @@ export const repairs = resource('repairs')
 
 **New** follows the page, not this rule, so it stays for the desk. **Import** on the list follows the rule, and goes.
 
-The [UI config](../reference/ui-config.md#create-pages)) has the details.
+The [UI config](../reference/ui-config.md#create-pages) has the details.

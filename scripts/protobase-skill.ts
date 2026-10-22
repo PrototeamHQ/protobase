@@ -7,15 +7,15 @@
 //
 //   bun run docs:skill [--check]
 import { mkdir, readdir, readFile, rm, writeFile } from 'node:fs/promises'
-import { dirname, join, posix } from 'node:path'
+import { dirname, join } from 'node:path'
 import { pageMarkdown } from '../website/src/markdown/page-markdown'
 import { guides, reference, startHere } from '../website/sidebar.mjs'
+import { linked } from './skill-links'
 
 const root = join(import.meta.dir, '..')
 const docsDir = join(root, 'website/src/content/docs')
 const skillDir = join(root, 'packages/cli/skills/protobase')
 const referencesDir = join(skillDir, 'references')
-const docsOrigin = 'https://docs.protobase.net'
 
 interface Page {
   path: string
@@ -37,33 +37,6 @@ async function readPage(path: string): Promise<Page> {
 const existing = async (...paths: string[]) => {
   for (const path of paths) if (await Bun.file(path).exists()) return path
   throw new Error(`no page at ${paths.join(' or ')}`)
-}
-
-// A page's text with its links to other pages made relative to its own file, and the other links absolute. Lines
-// inside fenced blocks stay as they are.
-function linked(page: Page, paths: Set<string>) {
-  const from = posix.dirname(`${page.path}.md`)
-  const link = (_: string, target: string, anchor = '') => {
-    const path = target.replace(/\/$/, '')
-    if (!paths.has(path)) return `](${docsOrigin}/${target}${anchor})`
-    return `](${posix.relative(from, `${path}.md`)}${anchor})`
-  }
-  let fence: string | undefined
-  return page.markdown
-    .split('\n')
-    .map((line) => {
-      const fenceMark = line.trim().match(/^(`{3,}|~{3,})/)?.[1]
-      if (fence) {
-        if (fenceMark?.startsWith(fence)) fence = undefined
-        return line
-      }
-      if (fenceMark) {
-        fence = fenceMark
-        return line
-      }
-      return line.replace(/\]\(\/([^)#]*)(#[^)]*)?\)/g, (match, target, anchor) => `${link(match, target, anchor)})`)
-    })
-    .join('\n')
 }
 
 async function markdownFiles(dir: string): Promise<string[]> {

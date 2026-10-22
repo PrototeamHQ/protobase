@@ -4,7 +4,7 @@
 
 Every change of a resource's records kept with who made it, through the API or not, shown on the record page and listed for admins as Activity.
 
-A resource with [`.history()`](https://docs.protobase.net/api/schema/interfaces/resourcebuilder/#history)) keeps every change of its records: what each field was before and after, who made it and when. The changes are captured by the same database triggers as [events](events.md)), so writes from psql, other services and cron SQL are kept too, not only those through the API.
+A resource with [`.history()`](https://docs.protobase.net/api/schema/interfaces/resourcebuilder/#history) keeps every change of its records: what each field was before and after, who made it and when. The changes are captured by the same database triggers as [events](events.md), so writes from psql, other services and cron SQL are kept too, not only those through the API.
 
 ```ts title="config/orders.ts"
 import { f, l, resource, view } from '@protobase/schema'
@@ -43,7 +43,7 @@ export default defineConfig({ config, history: { days: 90 } })
 
 ## What a change holds
 
-A change is what an event sees: one per record and transaction, with the record as it was at the start of the transaction and as it is at commit (see [What one change is](events.md#what-one-change-is))).
+A change is what an event sees: one per record and transaction, with the record as it was at the start of the transaction and as it is at commit (see [What one change is](events.md#what-one-change-is)).
 
 | | |
 | --- | --- |
@@ -55,15 +55,15 @@ A change is what an event sees: one per record and transaction, with the record 
 
 ## On the record page
 
-[`l.history(title?, { limit, when })`](https://docs.protobase.net/api/schema/variables/l/#history)) shows the record's changes newest first: who made each, how long ago, and each changed field before and after, formatted and labelled as the view shows the field. `limit` changes show at first (default 10), and Show more loads the next ones. A view without a layout shows History last by itself. A view that names `l.history()` for a resource without `.history()` stops startup.
+[`l.history(title?, { limit, when })`](https://docs.protobase.net/api/schema/variables/l/#history) shows the record's changes newest first: who made each, how long ago, and each changed field before and after, formatted and labelled as the view shows the field. `limit` changes show at first (default 10), and Show more loads the next ones. A view without a layout shows History last by itself. A view that names `l.history()` for a resource without `.history()` stops startup.
 
-The section reads `GET /api/v1/{resource}/{key}:history` (see [REST API](api.md#record-history))). It answers whoever may read the record, with the same tenant, row filter and record-level rule as a get, a soft-deleted record included, and each change carries only the fields that caller may read. An update of only fields they may not read is left out. A change made through the API names its user, with their name when the project signs people in with Better Auth; a change from elsewhere shows as Database with the database role.
+The section reads `GET /api/v1/{resource}/{key}:history` (see [REST API](api.md#record-history)). It answers whoever may read the record, with the same tenant, row filter and record-level rule as a get, a soft-deleted record included, and each change carries only the fields that caller may read. An update of only fields they may not read is left out. A change made through the API names its user, with their name when the project signs people in with Better Auth; a change from elsewhere shows as Database with the database role.
 
 A save shows up within a moment: the server keeps a change just after its write commits, and the section looks again shortly after each save.
 
 ## Activity
 
-Once a resource has history, admins get **Activity** (the built-in resource `record_history`): every kept change of every resource with history, newest first, filterable by resource, record, operation, user and database role. It lists `before` and `after` whole, so only the `admin` role reads it, whatever the project's roles say, and nobody writes it. When a resource with history has a [tenant](data-config.md#resource)), Activity is scoped to the caller's tenant, like the app's own resources.
+Once a resource has history, admins get **Activity** (the built-in resource `record_history`): every kept change of every resource with history, newest first, filterable by resource, record, operation, user and database role. It lists `before` and `after` whole, so only the `admin` role reads it, whatever the project's roles say, and nobody writes it. When a resource with history has a [tenant](data-config.md#resource), Activity is scoped to the caller's tenant, like the app's own resources.
 
 ## Keeping it
 
@@ -71,7 +71,7 @@ Once a resource has history, admins get **Activity** (the built-in resource `rec
 
 ## The table
 
-[`protobase migration`](cli.md#migration)) adds the table `changes.history` to the `changes` schema of the event capture (renamed with `events: { schema }`), and the capture triggers of each resource with history; apply it with the project's other migrations. `protobase dev` and `protobase serve` do not start while the table or a trigger is missing. A resource that drops `.history()` loses its triggers, unless it has events, at the next migration; its changes stay in the table.
+[`protobase migration`](cli.md#migration) adds the table `changes.history` to the `changes` schema of the event capture (renamed with `events: { schema }`), and the capture triggers of each resource with history; apply it with the project's other migrations. `protobase dev` and `protobase serve` do not start while the table or a trigger is missing. A resource that drops `.history()` loses its triggers, unless it has events, at the next migration; its changes stay in the table.
 
 | Column | |
 | --- | --- |
@@ -83,4 +83,4 @@ Once a resource has history, admins get **Activity** (the built-in resource `rec
 | `database_role` | The role that wrote. |
 | `transaction`, `at` | The writing transaction's id and when it started. |
 
-The changes are written by the `changes.dispatch` job, in the transaction that removes them from the outbox, so each is kept exactly once; a resource with history therefore needs the [`jobs` schema](jobs.md#the-jobs-schema)) and the app's workers. Turning the capture off for a transaction (`set local changes.capture = 'off'`) keeps nothing of it.
+The changes are written by the `changes.dispatch` job, in the transaction that removes them from the outbox, so each is kept exactly once; a resource with history therefore needs the [`jobs` schema](jobs.md#the-jobs-schema) and the app's workers. Turning the capture off for a transaction (`set local changes.capture = 'off'`) keeps nothing of it.

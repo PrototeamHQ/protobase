@@ -4,7 +4,7 @@
 
 Comments on a resource's records by anyone who may read them, with @mentions that email the people named, shown on the record page and listed for admins.
 
-A resource with [`.comments()`](https://docs.protobase.net/api/schema/interfaces/resourcebuilder/#comments)) takes comments on its records: plain text, each with its author and time. Typing `@` in a comment mentions someone, who gets an email with a link to the record. Comments cannot be edited, and there are no replies or reactions.
+A resource with [`.comments()`](https://docs.protobase.net/api/schema/interfaces/resourcebuilder/#comments) takes comments on its records: plain text, each with its author and time. Typing `@` in a comment mentions someone, who gets an email with a link to the record. Comments cannot be edited, and there are no replies or reactions.
 
 ```ts title="config/tickets.ts"
 import { f, l, resource, view } from '@protobase/schema'
@@ -42,7 +42,7 @@ export default defineConfig({ config })
 
 ## On the record page
 
-[`l.comments(title?, { when })`](https://docs.protobase.net/api/schema/variables/l/#comments)) shows the record's comments oldest first, the newest just above the box to write one; Show earlier comments loads those before. ⌘/Ctrl+Enter or the Comment button posts. A view without a layout shows Comments last by itself. A view that names `l.comments()` for a resource without `.comments()` stops startup. A visitor who is not signed in sees the comments but no box.
+[`l.comments(title?, { when })`](https://docs.protobase.net/api/schema/variables/l/#comments) shows the record's comments oldest first, the newest just above the box to write one; Show earlier comments loads those before. ⌘/Ctrl+Enter or the Comment button posts. A view without a layout shows Comments last by itself. A view that names `l.comments()` for a resource without `.comments()` stops startup. A visitor who is not signed in sees the comments but no box.
 
 ## Mentions
 
@@ -50,9 +50,9 @@ Typing `@` and part of a name lists up to 8 people to mention: the arrows move, 
 
 Each person mentioned gets one email from the app's own mail: who mentioned them on which record, the comment, and a button that opens the record. The emails are sent by the job `comments.mention`, enqueued with the comment, so mentions need:
 
-- the project's [Better Auth](auth.md)), whose users are the people listed; without it, comments work and nobody can be mentioned;
-- [mail](email.md#configuration)); without it, the job sends nothing;
-- the [`jobs` schema](jobs.md#the-jobs-schema)) and the app's workers.
+- the project's [Better Auth](auth.md), whose users are the people listed; without it, comments work and nobody can be mentioned;
+- [mail](email.md#configuration); without it, the job sends nothing;
+- the [`jobs` schema](jobs.md#the-jobs-schema) and the app's workers.
 
 A person banned or deleted since the comment gets no email, and neither does anyone when an admin has deleted the comment.
 
@@ -62,15 +62,15 @@ Whoever may read the record may read its comments and add one: the same tenant, 
 
 ## The endpoints
 
-`GET /api/v1/{resource}/{key}:comments` reads them newest first, `POST` to the same path adds one, and `GET /api/v1/{resource}/{key}:mentionable?q=` lists whom a comment may mention. See [REST API](api.md#record-comments)).
+`GET /api/v1/{resource}/{key}:comments` reads them newest first, `POST` to the same path adds one, and `GET /api/v1/{resource}/{key}:mentionable?q=` lists whom a comment may mention. See [REST API](api.md#record-comments).
 
 ## Moderation
 
-Once a resource takes comments, admins get **Comments** (the built-in resource `record_comments`): every comment of every resource, newest first, filterable by resource, record, author and time. Only the `admin` role reads it, whatever the project's roles say; deleting a comment there is how a wrong or abusive one goes. When a resource with comments has a [tenant](data-config.md#resource)), the list is scoped to the caller's tenant.
+Once a resource takes comments, admins get **Comments** (the built-in resource `record_comments`): every comment of every resource, newest first, filterable by resource, record, author and time. Only the `admin` role reads it, whatever the project's roles say; deleting a comment there is how a wrong or abusive one goes. When a resource with comments has a [tenant](data-config.md#resource), the list is scoped to the caller's tenant.
 
 ## The table
 
-[`protobase migration`](cli.md#migration)) adds the schema `comments` with the table `comments.comments`; apply it with the project's other migrations. `protobase dev` and `protobase serve` do not start while a resource has comments and the table is missing. A deleted record's comments stay in the table.
+[`protobase migration`](cli.md#migration) adds the schema `comments` with the table `comments.comments`; apply it with the project's other migrations. `protobase dev` and `protobase serve` do not start while a resource has comments and the table is missing. A deleted record's comments stay in the table.
 
 | Column | |
 | --- | --- |

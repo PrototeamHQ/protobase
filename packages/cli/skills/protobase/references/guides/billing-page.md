@@ -6,7 +6,7 @@ Give your customers one page for their plan, billing details, cards and invoices
 
 Northwind Labs hosts its apps on your platform. Ada, who looks after their money, signs in once a month with four questions: what are we on, who do you bill, which card do you charge, and what did we pay. Today those answers sit in four lists. This guide gives Ada one page with all four, plus the buttons to act on them.
 
-It builds on [Your first composed page](first-composed-page.md)), so `page`, `Stat`, `Table` and `RecordCard` are familiar. New here: forms in a dialog, actions that delete records or open links, conditions on a record's own fields, and a component written in React. The data is a small billing schema: `plans`, `subscriptions` (with a `plan` relation), `billing_profiles`, `payment_methods` and `invoices`.
+It builds on [Your first composed page](first-composed-page.md), so `page`, `Stat`, `Table` and `RecordCard` are familiar. New here: forms in a dialog, actions that delete records or open links, conditions on a record's own fields, and a component written in React. The data is a small billing schema: `plans`, `subscriptions` (with a `plan` relation), `billing_profiles`, `payment_methods` and `invoices`.
 
 ## 1. Your plan
 
@@ -285,4 +285,4 @@ The rest is familiar: a paged `Table` of invoices spanning two of the three colu
 
 If the app has no component registered under a name, the page says so where the component would be, and an action without a handler is disabled:
 
-Next: [Custom components](../reference/custom-components.md)) for the details of `protobase.ui.tsx`, and [Layouts](../reference/layouts.md)) for named actions, conditions and access.
+Next: [Custom components](../reference/custom-components.md) for the details of `protobase.ui.tsx`, and [Layouts](../reference/layouts.md) for named actions, conditions and access.

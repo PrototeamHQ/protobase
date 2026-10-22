@@ -4,7 +4,7 @@
 
 The SMTP server and sender an app's mail goes out through, and emails of the app's own, written as React components with typed data and sent from jobs, hooks and API functions.
 
-An app sends mail through one SMTP server: Protobase's own mail ([password reset](auth.md#password-reset)), [emailed sign-in codes](auth.md#emailed-sign-in-codes)), [invitations](auth.md#organizations)), staff sign-in notices and [mentions in comments](comments.md#mentions))) and the emails the app defines itself. Both are React components, rendered to HTML with a plain-text part beside it.
+An app sends mail through one SMTP server: Protobase's own mail ([password reset](auth.md#password-reset), [emailed sign-in codes](auth.md#emailed-sign-in-codes), [invitations](auth.md#organizations), staff sign-in notices and [mentions in comments](comments.md#mentions)) and the emails the app defines itself. Both are React components, rendered to HTML with a plain-text part beside it.
 
 ## Configuration
 
@@ -12,7 +12,7 @@ An app sends mail through one SMTP server: Protobase's own mail ([password reset
 | --- | --- |
 | `PROTOBASE_SMTP_URL` | The SMTP server, credential included: `smtp://user:password@host:587` (STARTTLS when the server offers it) or `smtps://user:password@host:465` (TLS from the start). |
 | `PROTOBASE_MAIL_FROM` | The sender, a plain address such as `noreply@shop.example.com`. The client greets the server with its domain; a `?name=` on the URL overrides that. |
-| `PROTOBASE_APP_NAME` | Optional: the app's name, such as `Shop`, which mail clients show as the sender's name (`Shop <noreply@shop.example.com>`). It overrides [`createAuth`'s `appName`](auth.md#configuration)). Without either the sender has no name. |
+| `PROTOBASE_APP_NAME` | Optional: the app's name, such as `Shop`, which mail clients show as the sender's name (`Shop <noreply@shop.example.com>`). It overrides [`createAuth`'s `appName`](auth.md#configuration). Without either the sender has no name. |
 
 Set both or neither. One without the other, a URL that is not `smtp://` or `smtps://`, or a sender that is not a plain address stops the app at startup. Without them mail is off: password reset and emailed codes are not offered, a job's `mail` is `undefined`, and sending an app's email rejects.
 
@@ -26,13 +26,13 @@ PROTOBASE_SMTP_URL=smtp://localhost:1025
 PROTOBASE_MAIL_FROM=noreply@shop.example.com
 ```
 
-A project that delivers mail another way passes a `mailer`, `{ send({ to, subject, text, html, headers }) }`, to [`createAuth`](auth.md#password-reset)) and `startJobs`, or `mailer: false` to turn mail off whatever the environment says. A template's `send` takes one too, see [Templates](#templates).
+A project that delivers mail another way passes a `mailer`, `{ send({ to, subject, text, html, headers }) }`, to [`createAuth`](auth.md#password-reset) and `startJobs`, or `mailer: false` to turn mail off whatever the environment says. A template's `send` takes one too, see [Templates](#templates).
 
 ## Protobase's own mail
 
-The auth emails (sign-in, two-factor and sign-up codes, the note to an address that asked to sign up while it has an account, password reset, invitations and staff sign-in notices) and the email to someone a [comment mentions](comments.md#mentions)) are built with React Email's components: a heading, the message, one code or button, and a footer naming the app.
+The auth emails (sign-in, two-factor and sign-up codes, the note to an address that asked to sign up while it has an account, password reset, invitations and staff sign-in notices) and the email to someone a [comment mentions](comments.md#mentions) are built with React Email's components: a heading, the message, one code or button, and a footer naming the app.
 
-- They name the app by [`appName`](auth.md#configuration)), and link it on the origin the request came to: the footer links its home page, and the note to an address that has an account links its sign-in page.
+- They name the app by [`appName`](auth.md#configuration), and link it on the origin the request came to: the footer links its home page, and the note to an address that has an account links its sign-in page.
 - The plain-text part has each code on a line of its own and each link in full.
 - React Email and the templates are loaded when the first auth email is sent, so an app that sends none never loads them and the server starts as fast without them.
 
@@ -89,7 +89,7 @@ The template that comes back has two methods, both typed by the component's prop
 
 React and React Email's renderer are loaded on the first email rendered, not when the app starts.
 
-Mail an app sends in bulk, such as alerts or newsletters, should carry a one-click unsubscribe link, which Gmail and Yahoo expect of bulk senders ([RFC 8058](https://www.rfc-editor.org/rfc/rfc8058)): a `List-Unsubscribe` header with the recipient's own link, and `List-Unsubscribe-Post`. The link must stop the mail on a `POST` without a sign-in, such as an [API function](../guides/api-functions.md)) that takes a token of the recipient's in its address:
+Mail an app sends in bulk, such as alerts or newsletters, should carry a one-click unsubscribe link, which Gmail and Yahoo expect of bulk senders ([RFC 8058](https://www.rfc-editor.org/rfc/rfc8058)): a `List-Unsubscribe` header with the recipient's own link, and `List-Unsubscribe-Post`. The link must stop the mail on a `POST` without a sign-in, such as an [API function](../guides/api-functions.md) that takes a token of the recipient's in its address:
 
 ```ts
 headers: ({ unsubscribeUrl }: Digest) => ({ 'List-Unsubscribe': `<${unsubscribeUrl}>`, 'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click' }),
@@ -176,7 +176,7 @@ export default defineConfig({
 })
 ```
 
-An **[API function](../guides/api-functions.md))** may send directly, as the answer to a request:
+An **[API function](../guides/api-functions.md)** may send directly, as the answer to a request:
 
 ```ts title="functions/resend-repair-ready.ts"
 import { z } from 'zod'
@@ -201,4 +201,4 @@ A message is sent once per call, so a job try that sends and then fails sends ag
 
 ## In a bundle
 
-A [bundle](cli.md#the-config-module)) gets React and React Email's renderer from the serve runtime, as it gets `@protobase/server` and `@protobase/server/email`, so an email's component and the renderer share one React and hooks such as `useContext` work. React Email's other components are inlined, though `@protobase/server` uses them too: it loads them only to send its own mail, so the runtime does not supply them. Its `<Tailwind>` component needs `tailwindcss`, which the runtime does not supply, so a served config cannot use it: style with `style` props instead.
+A [bundle](cli.md#the-config-module) gets React and React Email's renderer from the serve runtime, as it gets `@protobase/server` and `@protobase/server/email`, so an email's component and the renderer share one React and hooks such as `useContext` work. React Email's other components are inlined, though `@protobase/server` uses them too: it loads them only to send its own mail, so the runtime does not supply them. Its `<Tailwind>` component needs `tailwindcss`, which the runtime does not supply, so a served config cannot use it: style with `style` props instead.

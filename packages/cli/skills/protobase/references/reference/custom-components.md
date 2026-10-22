@@ -47,7 +47,7 @@ export const OrdersPerDay = ({ days }: { days: 7 | 30 | 90 }) => {
 }
 ```
 
-`protobase dev` serves it with hot reload, and `protobase build` builds it as the [plugin](plugins.md)) `app` in the bundle's `public/plugins/app/`, beside the prebuilt admin app, which loads it when someone signs in. It is the only project code that reaches the browser, so keep secrets out of it. `definePlugin` types its default export as well as `defineUi`, which stays as its alias. The same exports can come from other plugins too, which the app loads at runtime and which keep working when the app moves to a newer release.
+`protobase dev` serves it with hot reload, and `protobase build` builds it as the [plugin](plugins.md) `app` in the bundle's `public/plugins/app/`, beside the prebuilt admin app, which loads it when someone signs in. It is the only project code that reaches the browser, so keep secrets out of it. `definePlugin` types its default export as well as `defineUi`, which stays as its alias. The same exports can come from other plugins too, which the app loads at runtime and which keep working when the app moves to a newer release.
 
 ## Components
 
@@ -62,7 +62,7 @@ export const OrdersPerDay = component<{ days: 7 | 30 | 90 }>('OrdersPerDay')
 export const overview = page('overview', <Page title="Overview"><Card title="Orders per day"><OrdersPerDay days={30} /></Card></Page>)
 ```
 
-The element stays data, `{ type: 'OrdersPerDay', props: { days: 30 }, children: [], custom: true }`, so its props follow the same [rules](layouts.md#what-a-layout-may-hold)) as any block's. The name must be PascalCase and not a built-in block's.
+The element stays data, `{ type: 'OrdersPerDay', props: { days: 30 }, children: [], custom: true }`, so its props follow the same [rules](layouts.md#what-a-layout-may-hold) as any block's. The name must be PascalCase and not a built-in block's.
 
 `protobase.ui.tsx` exports the React component under the same name. It gets the props, and the rendered children when the element has any. Inside it:
 
@@ -89,7 +89,7 @@ A prop that names a field is a field reference, `fieldRef('plan.name')` from `@p
 
 ## List displays
 
-A list can show its rows with a component of the project's own, declared in the view with [`d.custom`](ui-config.md#list-displays)). The list page loads the rows, with the filter, search and order of the address, and the component draws them: `useListDisplay()` gives them, `RecordLink` opens one. A board in columns of an enum field, with cards dragged between them, is built in as [`d.board`](ui-config.md#boards)), a month or week calendar of a date field as [`d.calendar`](ui-config.md#calendars)), and a Gantt-style timeline of bars from a start to an end date as [`d.timeline`](ui-config.md#timelines)); the board below draws its own.
+A list can show its rows with a component of the project's own, declared in the view with [`d.custom`](ui-config.md#list-displays). The list page loads the rows, with the filter, search and order of the address, and the component draws them: `useListDisplay()` gives them, `RecordLink` opens one. A board in columns of an enum field, with cards dragged between them, is built in as [`d.board`](ui-config.md#boards), a month or week calendar of a date field as [`d.calendar`](ui-config.md#calendars), and a Gantt-style timeline of bars from a start to an end date as [`d.timeline`](ui-config.md#timelines); the board below draws its own.
 
 ```tsx
 // components/repair-board.tsx, exported from protobase.ui.tsx: export { RepairBoard } from './components/repair-board'
@@ -124,7 +124,7 @@ A display never fetches its list, changes the address or keeps its own history: 
 
 ## Record sections
 
-A record page can hold a component of the project's own beside its sections, declared in the view with [`l.custom`](ui-config.md#the-record-page)). `useLayoutRecord()` gives it the record the page shows, as inside a `RecordCard`, so one component works in both. It reads more through the hooks (`useList`, `useRecord`), and acts through named actions or the API. Breadcrumbs, the heading, Save, the action rail with Edit and Delete, and the related records stay the page's.
+A record page can hold a component of the project's own beside its sections, declared in the view with [`l.custom`](ui-config.md#the-record-page). `useLayoutRecord()` gives it the record the page shows, as inside a `RecordCard`, so one component works in both. It reads more through the hooks (`useList`, `useRecord`), and acts through named actions or the API. Breadcrumbs, the heading, Save, the action rail with Edit and Delete, and the related records stay the page's.
 
 ```tsx
 // components/customer-repairs.tsx
@@ -162,21 +162,21 @@ export const RepairCard = ({ row }: RecordCardProps) => (
 )
 ```
 
-`row` is `{ key, record, labels }`, as a [list display's](#list-displays) rows are. A card is inside a link, so it holds no buttons or links of its own. Without the component, from a plugin that is off for instance, and when it throws, each card is the built-in one: the title, subtitle, badge and meta fields. [A custom record card](../guides/record-card.md)) builds one step by step.
+`row` is `{ key, record, labels }`, as a [list display's](#list-displays) rows are. A card is inside a link, so it holds no buttons or links of its own. Without the component, from a plugin that is off for instance, and when it throws, each card is the built-in one: the title, subtitle, badge and meta fields. [A custom record card](../guides/record-card.md) builds one step by step.
 
 ## Field types
 
-A [field type](plugins.md#field-types)) shows and edits a field everywhere the app shows it: a view picks one with `r.status.widget('steps')`, and `protobase.ui.tsx` registers it under that name in `fields`:
+A [field type](plugins.md#field-types) shows and edits a field everywhere the app shows it: a view picks one with `r.status.widget('steps')`, and `protobase.ui.tsx` registers it under that name in `fields`:
 
 ```tsx
 export default definePlugin({ fields: { steps: { of: ['enum'], display: StepsDisplay, editor: StepsEditor } } })
 ```
 
-[Plugins](plugins.md#field-types)) describes the contract, and [Adding a field type](../guides/field-type.md)) builds one.
+[Plugins](plugins.md#field-types) describes the contract, and [Adding a field type](../guides/field-type.md) builds one.
 
 ## Addresses
 
-Every place in the app has an [address](layouts.md#addresses)), and a component never writes a path or reads the query string itself, so the address can change shape in one place. `useAppAddress()` from `@protobase/ui` gives the current one as values, with the list's defaults filled in, and moves the app:
+Every place in the app has an [address](layouts.md#addresses), and a component never writes a path or reads the query string itself, so the address can change shape in one place. `useAppAddress()` from `@protobase/ui` gives the current one as values, with the list's defaults filled in, and moves the app:
 
 ```tsx
 const { address, set, listTo, go, href } = useAppAddress()
@@ -187,11 +187,11 @@ go({ kind: 'record', resource: 'repairs', key: 42 })  // moves to another addres
 href({ kind: 'create', resource: 'repairs' })         // for an <a href>, with the base path
 ```
 
-`RecordLink` (a record, from a display's `row` or a `recordKey`) and `AppLink` (`to` any address) are links written the same way. Code outside React builds and reads addresses with [`appPath(address, basePath?)`](https://docs.protobase.net/api/schema/functions/apppath/)) and [`readAppPath(path, pages)`](https://docs.protobase.net/api/schema/functions/readapppath/)) from `@protobase/schema`, whose words (`filter`, `order_by`, `display`) are in [`addressWords`](https://docs.protobase.net/api/schema/variables/addresswords/)).
+`RecordLink` (a record, from a display's `row` or a `recordKey`) and `AppLink` (`to` any address) are links written the same way. Code outside React builds and reads addresses with [`appPath(address, basePath?)`](https://docs.protobase.net/api/schema/functions/apppath/) and [`readAppPath(path, pages)`](https://docs.protobase.net/api/schema/functions/readapppath/) from `@protobase/schema`, whose words (`filter`, `order_by`, `display`) are in [`addressWords`](https://docs.protobase.net/api/schema/variables/addresswords/).
 
 ## Create pages
 
-A view whose records a page of the app's own creates names it with [`.create({ page })`](ui-config.md#create-pages)), and `/<resource>/new` shows that page. The address keeps its `values`: a component on the page reads them from `useAppAddress()`, and writes its answers back with `go(..., { replace: true })`, so a reload, a link, or a round trip through another site, such as an install page that sends the user back, keeps them:
+A view whose records a page of the app's own creates names it with [`.create({ page })`](ui-config.md#create-pages), and `/<resource>/new` shows that page. The address keeps its `values`: a component on the page reads them from `useAppAddress()`, and writes its answers back with `go(..., { replace: true })`, so a reload, a link, or a round trip through another site, such as an install page that sends the user back, keeps them:
 
 ```tsx
 const { address, go } = useAppAddress()
@@ -242,7 +242,7 @@ export const BookRepair = () => {
 
 ## Components in the chat
 
-The same components draw the assistant's [widget parts](assistant.md#widget-parts)): a part names a component, and the dock draws it with the part's props, so one component can sit on a page and in the chat. In the chat there is no record around it, so a component that needs `useLayoutRecord()` works only on pages; take ids as props instead. Besides the API hooks, a widget can read the assistant backend with [`useBackendData`](assistant.md#reading-the-backend-from-a-widget)).
+The same components draw the assistant's [widget parts](assistant.md#widget-parts): a part names a component, and the dock draws it with the part's props, so one component can sit on a page and in the chat. In the chat there is no record around it, so a component that needs `useLayoutRecord()` works only on pages; take ids as props instead. Besides the API hooks, a widget can read the assistant backend with [`useBackendData`](assistant.md#reading-the-backend-from-a-widget).
 
 ## Action handlers
 
@@ -252,23 +252,23 @@ A named action declared with `a.action(name, ...)` in a view has no built-in beh
 | --- | --- |
 | `resource` | The action's resource. |
 | `record`, `recordKey`, `etag` | The record around the button, when there is one. |
-| `client` | The API client (`@protobase/client`) of the API that serves the resource, with the user's token: the app's own, or a source's for a [remote resource](remote-resources.md)), whose functions `invoke` then calls. |
-| `navigate(to)` | Moves the app to an [address](layouts.md#addresses)), such as `{ kind: 'record', resource: 'orders', key: 42 }`. |
-| `values` | The answers to the action's [inputs](ui-config.md#actions-that-ask-for-input)), by input name, when it has some. |
+| `client` | The API client (`@protobase/client`) of the API that serves the resource, with the user's token: the app's own, or a source's for a [remote resource](remote-resources.md), whose functions `invoke` then calls. |
+| `navigate(to)` | Moves the app to an [address](layouts.md#addresses), such as `{ kind: 'record', resource: 'orders', key: 42 }`. |
+| `values` | The answers to the action's [inputs](ui-config.md#actions-that-ask-for-input), by input name, when it has some. |
 
 When the handler resolves, everything shown of the resource reloads and a toast says it is done; when it throws, the toast shows the error, or for an action with inputs its dialog does, under the inputs an `ActionInputError` names. Without a handler the button is disabled. Actions with built-in behaviour (`a.update`, `a.remove`, `a.link`) do not need one.
 
 ## Shell slots
 
-`shell` adds components to the shell around every page: `actions` at the end of the top bar, and `rightPanel` beside the page, such as a `SidePanel` from `@protobase/ui` (see [the primitives](assistant.md#in-the-ui))). They take no props and use the same hooks as custom components:
+`shell` adds components to the shell around every page: `actions` at the end of the top bar, and `rightPanel` beside the page, such as a `SidePanel` from `@protobase/ui` (see [the primitives](assistant.md#in-the-ui)). They take no props and use the same hooks as custom components:
 
 ```tsx
 export default defineUi({ shell: { actions: NotesButton, rightPanel: Notes } })
 ```
 
-When the app has an [assistant](assistant.md)), its button follows the project's actions and its dock the project's panel.
+When the app has an [assistant](assistant.md), its button follows the project's actions and its dock the project's panel.
 
-`logo` replaces Protobase's logo at the top of the sidebar with the app's own. It gets `compact`, true when the sidebar shows only icons, so it draws a mark alone, `workspace`, the name of the user's organization that Protobase's logo shows under it, `appName`, the app's [name](auth.md#configuration)), which Protobase's logo shows beside its mark, and `appIcon`, the path of the project's own [icon](app-identity.md#the-icons)) when it has one (`ShellLogoProps`). Its colors follow the [theme](theme.md)), and a `dark:` class gives dark its own. When it throws, Protobase's logo shows instead. The tab's icon is [the favicon](theme.md#logo-and-favicon)).
+`logo` replaces Protobase's logo at the top of the sidebar with the app's own. It gets `compact`, true when the sidebar shows only icons, so it draws a mark alone, `workspace`, the name of the user's organization that Protobase's logo shows under it, `appName`, the app's [name](auth.md#configuration), which Protobase's logo shows beside its mark, and `appIcon`, the path of the project's own [icon](app-identity.md#the-icons) when it has one (`ShellLogoProps`). Its colors follow the [theme](theme.md), and a `dark:` class gives dark its own. When it throws, Protobase's logo shows instead. The tab's icon is [the favicon](theme.md#logo-and-favicon).
 
 ```tsx
 import { defineUi, type ShellLogoProps } from '@protobase/ui'
@@ -287,4 +287,4 @@ export default defineUi({ shell: { logo: Logo } })
 
 `<App ui={...} />` from `@protobase/ui` takes the same object, for an app that mounts the admin itself, and so do stories.
 
-Below 1.0, a project built before 0.12 had its `protobase.ui.tsx` built into the admin app; [Moving onto the plugin build](../guides/plugin-build.md)) says what changes.
+Below 1.0, a project built before 0.12 had its `protobase.ui.tsx` built into the admin app; [Moving onto the plugin build](../guides/plugin-build.md) says what changes.

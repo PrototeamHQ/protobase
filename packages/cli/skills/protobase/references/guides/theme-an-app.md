@@ -4,7 +4,7 @@
 
 Give an app its own colors, corners and font with protobase.theme.css, in light and dark, and keep them through every release.
 
-Rijnland Industrial Supply wants its admin in its own colors: teal instead of blue, rounder corners and its own font. That is one file of values, `protobase.theme.css`, which the app reads on every page, the sign-in page included. This guide writes it for the ERP example (`examples/erp`); any project works the same. [Theme](../reference/theme.md)) has every token.
+Rijnland Industrial Supply wants its admin in its own colors: teal instead of blue, rounder corners and its own font. That is one file of values, `protobase.theme.css`, which the app reads on every page, the sign-in page included. This guide writes it for the ERP example (`examples/erp`); any project works the same. [Theme](../reference/theme.md) has every token.
 
 ## 1. The light values
 
@@ -24,7 +24,7 @@ Create `protobase.theme.css` at the project root, beside `protobase.config.ts`, 
 
 The primary group goes together: the color of buttons and the selected item, its hover, a soft background for selected rows, a border for those, and the color of text and links. Start `bun run protobase dev` and sign in: the buttons, links, the sidebar's selected item and the chart are teal. Every other token keeps the app's value.
 
-Only values are allowed. A selector such as `.sidebar`, or a property such as `color`, fails the build, naming the line it is on, and `protobase dev` answers the theme with that error and draws the app without it; the [file's rules](../reference/theme.md#the-file)) say why. To change how one part looks beyond its tokens, replace it with a plugin, such as a [record card](record-card.md)).
+Only values are allowed. A selector such as `.sidebar`, or a property such as `color`, fails the build, naming the line it is on, and `protobase dev` answers the theme with that error and draws the app without it; the [file's rules](../reference/theme.md#the-file) say why. To change how one part looks beyond its tokens, replace it with a plugin, such as a [record card](record-card.md).
 
 ## 2. Corners and font
 
@@ -54,7 +54,7 @@ A font the browser does not have comes with an `@font-face` rule in the same fil
 
 ## 3. Dark
 
-The app draws in light or dark as each user chooses in the profile menu, and follows their system until they choose ([Light, dark or the system](../reference/theme.md#light-dark-or-the-system))). Values under `:root` hold for both, so teal on white is also teal on near-black. Give dark its own where it needs them, under `[data-theme="dark"]`:
+The app draws in light or dark as each user chooses in the profile menu, and follows their system until they choose ([Light, dark or the system](../reference/theme.md#light-dark-or-the-system)). Values under `:root` hold for both, so teal on white is also teal on near-black. Give dark its own where it needs them, under `[data-theme="dark"]`:
 
 ```css
 [data-theme="dark"] {
@@ -84,4 +84,4 @@ Ship the bundle as before. The theme is a file of the bundle like the others, so
 
 ## When the app moves on
 
-The theme holds no selectors into the app, only the values of tokens, and releases only ever add tokens. So it applies the same way after every update, and a token that is added later keeps the app's value until the theme sets it. Plugins follow it too: their `bg-primary` and `rounded-md` read the same tokens, so the sales team's [plugins](../reference/plugins.md)) are teal and round in this app, and blue and square in another.
+The theme holds no selectors into the app, only the values of tokens, and releases only ever add tokens. So it applies the same way after every update, and a token that is added later keeps the app's value until the theme sets it. Plugins follow it too: their `bg-primary` and `rounded-md` read the same tokens, so the sales team's [plugins](../reference/plugins.md) are teal and round in this app, and blue and square in another.

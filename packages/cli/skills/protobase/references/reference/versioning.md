@@ -48,7 +48,7 @@ Every commit message follows [Conventional Commits](https://www.conventionalcomm
 2. `bun run release` (`scripts/release.mjs`, with [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version)) computes the next version and its notes from the commits since the last `v<version>` tag, as above, and tags the pushed commit `v<version>`. It commits nothing and changes no file. Without a fix, feature or breaking change it tags nothing.
 3. The tag is pushed, and the GitHub release of the tag gets the notes.
 4. `scripts/stamp-version.mjs` writes the tag's version into every `package.json` and `bun.lock` in the runner, never committed. `scripts/publish.mjs` then builds every package at the tag to `dist` and packs it with Bun (the private `@protobase/presets` is not published), and npm, under Node, publishes it with [trusted publishing](https://docs.npmjs.com/trusted-publishers) and provenance; there is no npm token. A run that cut no release publishes nothing.
-5. Once npm serves the packages, the tag's version is written into the `package.json` files the same way, and `bun run images:context <image>` writes each image's build context at the tag from them, and the images are built natively for `linux/amd64` and `linux/arm64` and pushed to GitHub's registry as `ghcr.io/prototeamhq/protobase:<version>` and `ghcr.io/prototeamhq/protobase-dev:<version>` (see [Deploy](../guides/deploy.md#images))). A release whose publish failed has no images.
+5. Once npm serves the packages, the tag's version is written into the `package.json` files the same way, and `bun run images:context <image>` writes each image's build context at the tag from them, and the images are built natively for `linux/amd64` and `linux/arm64` and pushed to GitHub's registry as `ghcr.io/prototeamhq/protobase:<version>` and `ghcr.io/prototeamhq/protobase-dev:<version>` (see [Deploy](../guides/deploy.md#images)). A release whose publish failed has no images.
 
 When `main` moved on while the checks ran, the run of the newer push releases both. `bun run release --dry-run` prints the next version and its notes without tagging anything.
 
@@ -56,7 +56,7 @@ Running the workflow by hand with a tag (`gh workflow run release.yml -f tag=v0.
 
 ## Bundles and runtimes
 
-`protobase build` writes the Protobase version that built the bundle into [the manifest](cli.md#the-manifest)) as `protobase`. The serve runtime knows its own version, inlined into `protobase-serve.js` by `protobase build-serve` and inlined into the CLI's `dist` when the package is built, and read from `@protobase/cli`'s `package.json` when `protobase serve` runs from source in this repository. Before it loads a bundle, it compares the two:
+`protobase build` writes the Protobase version that built the bundle into [the manifest](cli.md#the-manifest) as `protobase`. The serve runtime knows its own version, inlined into `protobase-serve.js` by `protobase build-serve` and inlined into the CLI's `dist` when the package is built, and read from `@protobase/cli`'s `package.json` when `protobase serve` runs from source in this repository. Before it loads a bundle, it compares the two:
 
 - **From 1.0:** the major versions are the same and the runtime's minor is the bundle's or newer. A 1.4.x runtime serves bundles built by 1.0.0 up to 1.4.x.
 - **Below 1.0:** the minor versions are the same. A 0.2.x runtime serves only bundles built by 0.2.x, not those of 0.1.x or 0.3.x.
@@ -72,9 +72,9 @@ Rebuild the bundle with the runtime's version of Protobase, or upgrade the runti
 
 ## Plugins
 
-[Plugins](plugins.md)) are versioned by a plugin API of their own, not by the bundle's rule above: `@protobase/ui`'s `pluginApi`, 1 so far. A plugin's `plugin.json` names the plugin API it is built for and a range of Protobase versions, from the `@protobase/ui` it is built with on. An app loads a plugin of its own plugin API whose range holds its version, and turns off any other, telling its admins why.
+[Plugins](plugins.md) are versioned by a plugin API of their own, not by the bundle's rule above: `@protobase/ui`'s `pluginApi`, 1 so far. A plugin's `plugin.json` names the plugin API it is built for and a range of Protobase versions, from the `@protobase/ui` it is built with on. An app loads a plugin of its own plugin API whose range holds its version, and turns off any other, telling its admins why.
 
-A project's own `protobase.ui.tsx` is a plugin of its bundle, so the same rule holds for it. The admin app it runs in, the shell, is prebuilt once per release; a host that serves a newer release's shell for a bundle whose plugins all load in it gives the app that release's fixes without a rebuild (see [the shell](plugins.md#the-shell))). The server config still follows the bundle's rule above.
+A project's own `protobase.ui.tsx` is a plugin of its bundle, so the same rule holds for it. The admin app it runs in, the shell, is prebuilt once per release; a host that serves a newer release's shell for a bundle whose plugins all load in it gives the app that release's fixes without a rebuild (see [the shell](plugins.md#the-shell)). The server config still follows the bundle's rule above.
 
 Releases keep the plugin API, below 1.0 too, where a minor version may change the config: they add exports to `@protobase/ui`, but remove or change one, add or remove a module the app shares with plugins, or move to a new major version of React only with a new plugin API. A test pins every export of `@protobase/ui` (`packages/ui/src/plugins/plugin-api.exports.json`) and fails when one goes away while `pluginApi` stays the same.
 
@@ -82,7 +82,7 @@ Releases keep the plugin API, below 1.0 too, where a minor version may change th
 
 An app whose host can update its runtime, such as a hosting platform, can show admins an **Update** button in the top bar. `PROTOBASE_RUNTIME_URL` (or `createAdmin`'s `options.runtime.url`) names the host's endpoint, and `/api/meta` passes it on as `runtime: { url }` to callers with the `admin` role only. Without it, or for anyone else, the app shows nothing and asks nothing.
 
-The app sends the signed-in user's API token as `Authorization: Bearer <token>` (verified like an [assistant backend](assistant.md#another-backend)) does) and expects:
+The app sends the signed-in user's API token as `Authorization: Bearer <token>` (verified like an [assistant backend](assistant.md#another-backend) does) and expects:
 
 - `GET {url}`: `200` with `{ version, latest, updateAvailable, indicator, policy, nextUpdateAt, updating }`. `version` is the runtime the app is pinned to, `policy` one of `immediate`, `weekly`, `scheduled` or `manual`, and `nextUpdateAt` when that policy applies `latest` (null when it never will or nothing is pending).
   It may also send `updateStage` (`job` or `build`) and `updateStartedAt` while an update runs, and `lastUpdate`, `{ toVersion, outcome, errorCode, message, finishedAt }` with `outcome` one of `succeeded`, `unchanged` or `failed` and `message` plain text for the app's owner. A host that leaves them out gets the dialog without them.

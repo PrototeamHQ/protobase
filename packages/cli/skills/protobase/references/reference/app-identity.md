@@ -4,11 +4,11 @@
 
 The app's name, icon and colours, which its sidebar logo, browser tabs, home-screen icon, web manifest and mail all follow.
 
-An app looks like its own everywhere from three things in its project: its name, its icon and its colours. The sidebar's logo, the browser tab, the icon on a phone's home screen, the [installed app](installable-app.md)) and the auth mail all follow them, with no component to write.
+An app looks like its own everywhere from three things in its project: its name, its icon and its colours. The sidebar's logo, the browser tab, the icon on a phone's home screen, the [installed app](installable-app.md) and the auth mail all follow them, with no component to write.
 
 | What | Where | Used by |
 | --- | --- | --- |
-| Name | `appName` of `createAuth` ([auth configuration](auth.md#configuration))), overridden at run time by `PROTOBASE_APP_NAME` | the sidebar's logo, the end of every tab title, the installed app's name, passkey and authenticator prompts, auth mail and its sender's name |
+| Name | `appName` of `createAuth` ([auth configuration](auth.md#configuration)), overridden at run time by `PROTOBASE_APP_NAME` | the sidebar's logo, the end of every tab title, the installed app's name, passkey and authenticator prompts, auth mail and its sender's name |
 | Icon | `protobase.favicon.svg` at the project's root | the browser tab, the sidebar's logo, the installed app's icon |
 | Raster icons | optional PNGs beside the SVG, below | the iPhone home screen and Android launchers, which take no SVG |
 | Colours | `app` in `protobase.config.ts` | the installed app's title bar and its start screen |
@@ -31,7 +31,7 @@ export default defineConfig({
 
 ## The icons
 
-`protobase.favicon.svg` is the one source of the app's icon: the tab shows it, the [web manifest](installable-app.md#the-manifest)) names it, and with it the sidebar's logo draws it beside the app's name in place of Protobase's mark and wordmark. A project's own [`shell.logo`](custom-components.md#shell-slots)) still wins.
+`protobase.favicon.svg` is the one source of the app's icon: the tab shows it, the [web manifest](installable-app.md#the-manifest) names it, and with it the sidebar's logo draws it beside the app's name in place of Protobase's mark and wordmark. A project's own [`shell.logo`](custom-components.md#shell-slots) still wins.
 
 Some platforms take no SVG, so a project may put PNGs of the same icon beside it, each square at its size:
 
@@ -51,4 +51,4 @@ Each is optional, and none is made from the SVG: without the touch icon an iPhon
 - `themeColor`: the installed app's title bar and the browser's toolbar around it (`theme_color`).
 - `backgroundColor`: the screen the installed app shows while it starts (`background_color`).
 
-The app's own colours, its buttons and surfaces, are the [theme](theme.md))'s.
+The app's own colours, its buttons and surfaces, are the [theme](theme.md)'s.

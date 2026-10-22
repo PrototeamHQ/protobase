@@ -4,7 +4,7 @@
 
 Open lists and record pages refresh as soon as a record of a live resource changes, through the API or not, each reader seeing only what they may read.
 
-A resource with [`.live()`](https://docs.protobase.net/api/schema/interfaces/resourcebuilder/#live)) keeps the pages people have open on its records current: when a record changes, every open list, record page, count and chart of the resource reads it again within a second or two, without a reload. The changes are captured by the same database triggers as [events](events.md)), so writes from psql, other services and cron SQL show up too, not only those through the API.
+A resource with [`.live()`](https://docs.protobase.net/api/schema/interfaces/resourcebuilder/#live) keeps the pages people have open on its records current: when a record changes, every open list, record page, count and chart of the resource reads it again within a second or two, without a reload. The changes are captured by the same database triggers as [events](events.md), so writes from psql, other services and cron SQL show up too, not only those through the API.
 
 ```ts title="config/tasks.ts"
 import { f, resource } from '@protobase/schema'
@@ -41,10 +41,10 @@ It is live data, not multiplayer editing: two people editing the same record sti
 | `changes` | `changes`: `[{ resource, key, operation }]` in commit order, `operation` being `create`, `update`, `delete` or `undelete`. |
 | `resync` | Changes went by that are no longer kept: read everything shown again. |
 
-Connecting again with `?after=<cursor>` catches up on what was missed while disconnected. [`client.live({ onChanges, onResync })`](client.md)) of `@protobase/client` follows the stream and connects again by itself, as the app does.
+Connecting again with `?after=<cursor>` catches up on what was missed while disconnected. [`client.live({ onChanges, onResync })`](client.md) of `@protobase/client` follows the stream and connects again by itself, as the app does.
 
 ## The table
 
-[`protobase migration`](cli.md#migration)) adds the table `changes.notices` to the `changes` schema of the event capture (renamed with `events: { schema }`), and the capture triggers of each live resource; apply it with the project's other migrations. `protobase dev` and `protobase serve` do not start while the table or a trigger is missing.
+[`protobase migration`](cli.md#migration) adds the table `changes.notices` to the `changes` schema of the event capture (renamed with `events: { schema }`), and the capture triggers of each live resource; apply it with the project's other migrations. `protobase dev` and `protobase serve` do not start while the table or a trigger is missing.
 
-A notice is a resource, a record key, the record's tenant and the operation, written by the `changes.dispatch` job in the transaction that removes the change from the outbox; a live resource therefore needs the [`jobs` schema](jobs.md#the-jobs-schema)) and the app's workers. Notices are kept for 10 minutes. Each serving process with at least one page open reads the table once a second, however many pages it serves, so live updates work with several serving processes, with `PROTOBASE_JOBS=false` and through a pooler in transaction mode.
+A notice is a resource, a record key, the record's tenant and the operation, written by the `changes.dispatch` job in the transaction that removes the change from the outbox; a live resource therefore needs the [`jobs` schema](jobs.md#the-jobs-schema) and the app's workers. Notices are kept for 10 minutes. Each serving process with at least one page open reads the table once a second, however many pages it serves, so live updates work with several serving processes, with `PROTOBASE_JOBS=false` and through a pooler in transaction mode.

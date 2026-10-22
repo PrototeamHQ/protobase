@@ -129,7 +129,7 @@ export const repairsView = named
   .chart((r) => ({ field: r.booked_on, range: '30d', granularity: 'day' }))
 ```
 
-From here on each step starts from the view of the step before (`named` is step 2's), so the file shows only what changes; in a project it is one view in one `ui.ts`. Each widget writes into the list's `?filter=`, so "ready and unpaid" is a link someone can send. The chart above the list, a daily graph, counts repairs per day, following the same filters; [UI config](../reference/ui-config.md#charts-graphs-records-per-day-week-or-month-or-per-value-above-a-list)) has its ranges and granularities. In the story, switch on "Paid" and watch the list drop to six.
+From here on each step starts from the view of the step before (`named` is step 2's), so the file shows only what changes; in a project it is one view in one `ui.ts`. Each widget writes into the list's `?filter=`, so "ready and unpaid" is a link someone can send. The chart above the list, a daily graph, counts repairs per day, following the same filters; [UI config](../reference/ui-config.md#charts-graphs-records-per-day-week-or-month-or-per-value-above-a-list) has its ranges and granularities. In the story, switch on "Paid" and watch the list drop to six.
 
 ## 4. The repair card
 
@@ -160,7 +160,7 @@ export const repairsView = filtered
 
 Sections group fields under a title, with help where the shop has a habit to explain. The sidebar repeats what matters at a glance and stays read-only. `saveFeedback('button')` makes Save say when it is done, since the desk prefers that to a toast.
 
-The form and the [read view](../reference/ui-config.md#form-and-read-view)), which a user who may change nothing gets, share the layout. An item or field meant for one of them says so with `when`: `'editing'` keeps it to the form, `'reading'` to the read view. A table of the parts used, for whoever fills in the repair:
+The form and the [read view](../reference/ui-config.md#form-and-read-view), which a user who may change nothing gets, share the layout. An item or field meant for one of them says so with `when`: `'editing'` keeps it to the form, `'reading'` to the read view. A table of the parts used, for whoever fills in the repair:
 
 ```ts
 l.related('Parts used', { resource: 'repair_parts', field: 'repair_id', when: 'editing' })
@@ -195,11 +195,11 @@ export const workshopRepairsView = laidOut
 
 `a.update` sets fields when its button is pressed, through the same API as Save, so the access rules and the `validate` rule apply. "Collected and paid" asks first. `a.link` goes `to` the list of this customer's repairs, an address with the customer filled in from the record. Try the three buttons in the story, on R-303:
 
-`forRoles(['mechanic'])` gives users with the `mechanic` role their own view: oldest first, no money columns, no money filter, a card without the money section, and only the "Ready for pickup" button. It is built from the step 4 view, so everything else stays the same. A view only decides what is shown; to make the prices truly unreadable for mechanics, give the field an access rule as well (see [Data config](../reference/data-config.md#access))).
+`forRoles(['mechanic'])` gives users with the `mechanic` role their own view: oldest first, no money columns, no money filter, a card without the money section, and only the "Ready for pickup" button. It is built from the step 4 view, so everything else stays the same. A view only decides what is shown; to make the prices truly unreadable for mechanics, give the field an access rule as well (see [Data config](../reference/data-config.md#access)).
 
 ## Where Pip is now
 
 Two short files describe a table and how the shop wants to see it, and the admin follows: lists, filters, a record page, buttons and a view per role. Next steps:
 
-- [Data config](../reference/data-config.md)) and [UI config](../reference/ui-config.md)) list every option used here, and the ones that were not.
-- [Your first composed page](first-composed-page.md)) puts what needs attention on one page.
+- [Data config](../reference/data-config.md) and [UI config](../reference/ui-config.md) list every option used here, and the ones that were not.
+- [Your first composed page](first-composed-page.md) puts what needs attention on one page.

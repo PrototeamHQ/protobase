@@ -37,7 +37,7 @@ export const overview = page(
 )
 ```
 
-That first comment matters. `@jsxImportSource @protobase/layout` makes the JSX build plain data instead of React elements: `<Stat label="Draft orders" ... />` becomes `{ type: 'Stat', props: { label: 'Draft orders', ... }, children: [] }`. The server sends that to the browser in `/api/meta`, and the admin renders it. So a layout holds no functions and no state, and the build refuses one that tries (see [Layouts](../reference/layouts.md#what-a-layout-may-hold))).
+That first comment matters. `@jsxImportSource @protobase/layout` makes the JSX build plain data instead of React elements: `<Stat label="Draft orders" ... />` becomes `{ type: 'Stat', props: { label: 'Draft orders', ... }, children: [] }`. The server sends that to the browser in `/api/meta`, and the admin renders it. So a layout holds no functions and no state, and the build refuses one that tries (see [Layouts](../reference/layouts.md#what-a-layout-may-hold)).
 
 Each `Stat` counts the records of `resource` that match `filter`, written in the same AIP-160 syntax as the list's `?filter=`. The count is a link to exactly that filtered list. `page('overview', ...)` puts it at `/overview`, and `nav` puts it first in the Sales group of the sidebar.
 
@@ -222,9 +222,9 @@ A `CardRow` shows a few records side by side, and its children are the template 
 
 ## What the page did without
 
-There is no endpoint for "biggest unpaid delivery" and no component for "lead card". Every block reads the regular API with Sam's token, so the access rules apply exactly as on the lists. A sales rep with `orders.read.own` sees only their own orders in every count, table and card, and a field they may not read is not on their page at all (see [Access](../reference/layouts.md#access))).
+There is no endpoint for "biggest unpaid delivery" and no component for "lead card". Every block reads the regular API with Sam's token, so the access rules apply exactly as on the lists. A sales rep with `orders.read.own` sees only their own orders in every count, table and card, and a field they may not read is not on their page at all (see [Access](../reference/layouts.md#access)).
 
 The ERP example carries this page, with a few more blocks, in `examples/erp/config/overview/page.tsx`. Next:
 
-- [A billing page](billing-page.md)) adds forms, delete and link actions, and a React component of your own.
-- [Blocks](../reference/blocks.md)) lists every block and its props.
+- [A billing page](billing-page.md) adds forms, delete and link actions, and a React component of your own.
+- [Blocks](../reference/blocks.md) lists every block and its props.

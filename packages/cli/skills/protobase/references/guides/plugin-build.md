@@ -4,7 +4,7 @@
 
 What changes for a project whose protobase.ui.tsx was built into the admin app, now that protobase build makes it a plugin beside a prebuilt app.
 
-Until 0.12, `protobase build` built the whole admin app into each bundle, with the project's `protobase.ui.tsx` and every `--extend` folder's compiled into it. Each bundle was frozen at the `@protobase/ui` it was built with: the app's fixes reached it only with a rebuild. From 0.12 the admin app is prebuilt once per release, and `protobase build` builds the project's `protobase.ui.tsx` as a [plugin](../reference/plugins.md)) beside it. The project's code is written the same way; this guide moves a project over and says what to look at.
+Until 0.12, `protobase build` built the whole admin app into each bundle, with the project's `protobase.ui.tsx` and every `--extend` folder's compiled into it. Each bundle was frozen at the `@protobase/ui` it was built with: the app's fixes reached it only with a rebuild. From 0.12 the admin app is prebuilt once per release, and `protobase build` builds the project's `protobase.ui.tsx` as a [plugin](../reference/plugins.md) beside it. The project's code is written the same way; this guide moves a project over and says what to look at.
 
 ## 1. Update and rebuild
 
@@ -35,7 +35,7 @@ dist/
 
 ## 2. Check protobase.ui.tsx
 
-Nothing in it has to change: its named component exports, `defineUi({ actions, shell, extends })` and the components it registers work as before. `definePlugin` is the same function under its new name, and also takes [field types](../reference/plugins.md#field-types)). Three things a plugin cannot do, which a built-in `protobase.ui.tsx` could, fail the build or show at once:
+Nothing in it has to change: its named component exports, `defineUi({ actions, shell, extends })` and the components it registers work as before. `definePlugin` is the same function under its new name, and also takes [field types](../reference/plugins.md#field-types). Three things a plugin cannot do, which a built-in `protobase.ui.tsx` could, fail the build or show at once:
 
 - **Modules of the shared packages.** `react`, `react/jsx-runtime`, `react-dom` and `@protobase/ui` come from the app, by those names. An import of another module of theirs, such as `react-dom/client` or a file inside `@protobase/ui`, fails the build: import from the package's main entry instead.
 - **Browser work at the top level.** The build loads `protobase.ui.tsx` once in Node to read its field types. Code that touches `window`, `document` or `localStorage` when a module loads fails the build; move it into a component, a hook or a handler.
@@ -43,7 +43,7 @@ Nothing in it has to change: its named component exports, `defineUi({ actions, s
 
 ## 3. Check its styles
 
-The project's Tailwind classes are built into the plugin's own stylesheet, `plugins/app/assets/styles-<hash>.css`: utilities only, each reading the app's [tokens](../reference/theme.md)). `bg-primary` and `rounded-md` look as before. A class that only worked because the app's own stylesheet happened to have it is now in the plugin's too, so nothing is lost. To change the app's colors, radius or font, write a [`protobase.theme.css`](theme-an-app.md)), not rules against the app's markup.
+The project's Tailwind classes are built into the plugin's own stylesheet, `plugins/app/assets/styles-<hash>.css`: utilities only, each reading the app's [tokens](../reference/theme.md). `bg-primary` and `rounded-md` look as before. A class that only worked because the app's own stylesheet happened to have it is now in the plugin's too, so nothing is lost. To change the app's colors, radius or font, write a [`protobase.theme.css`](theme-an-app.md), not rules against the app's markup.
 
 ## 4. Extensions
 
@@ -54,7 +54,7 @@ Each `--extend` folder's `protobase.ui.tsx` becomes a plugin of its own, `plugin
 A host that serves `public/` as before keeps working: `index.html` for navigations, files for the rest. Two things are new:
 
 - The plugins' `assets/` folders, `public/plugins/<name>/assets/`, are named by their content like `public/assets/`: serve them as immutable too. `plugin.json`, `protobase.theme.css`, `protobase.favicon.svg` and the PNG icons are served with `no-cache`.
-- A host that keeps the prebuilt app of newer releases may serve it for the manifest's `shell.paths`, so the app gets that release's fixes without a rebuild (see [the shell](../reference/plugins.md#the-shell))). `protobase serve` does so with its own when every plugin of the bundle loads in it.
+- A host that keeps the prebuilt app of newer releases may serve it for the manifest's `shell.paths`, so the app gets that release's fixes without a rebuild (see [the shell](../reference/plugins.md#the-shell)). `protobase serve` does so with its own when every plugin of the bundle loads in it.
 
 ## 6. protobase dev
 
@@ -62,4 +62,4 @@ Nothing changes: `protobase dev` builds `protobase.ui.tsx` into its page with ho
 
 ## After the move
 
-From now on, a release of Protobase within the same minor needs no rebuild of the project's UI: the app it runs in is the release's, and the plugin keeps working within its [plugin API](../reference/plugins.md#versions)). The server config still follows the [bundle's rule](../reference/versioning.md#bundles-and-runtimes)), so a new minor below 1.0 is still a rebuild.
+From now on, a release of Protobase within the same minor needs no rebuild of the project's UI: the app it runs in is the release's, and the plugin keeps working within its [plugin API](../reference/plugins.md#versions). The server config still follows the [bundle's rule](../reference/versioning.md#bundles-and-runtimes), so a new minor below 1.0 is still a rebuild.

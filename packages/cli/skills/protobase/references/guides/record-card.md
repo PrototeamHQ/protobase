@@ -4,7 +4,7 @@
 
 Draw each card of a cards display with a component of your own, and keep the built-in card as its fallback.
 
-A list can show its records as [cards](../reference/ui-config.md#list-displays)) beside its table: a title, a subtitle, a badge and a few small fields. Rijnland's sales team wants order cards that lead with the total and the customer, the way they talk about orders. That is a card component: the list page still loads the orders, filters, sorts and links each card to its order; the component only draws what is inside a card. This guide adds one to the ERP example (`examples/erp`).
+A list can show its records as [cards](../reference/ui-config.md#list-displays) beside its table: a title, a subtitle, a badge and a few small fields. Rijnland's sales team wants order cards that lead with the total and the customer, the way they talk about orders. That is a card component: the list page still loads the orders, filters, sorts and links each card to its order; the component only draws what is inside a card. This guide adds one to the ERP example (`examples/erp`).
 
 ## 1. The card
 
@@ -29,7 +29,7 @@ export const OrderCard = ({ row }: RecordCardProps) => (
 
 `row.record` is the order as the list API gives it, and `row.labels` the name of the record each relation points at: `company_id` is the company's id, `labels.company_id` its name. `row.key` is the order's key.
 
-The whole card is a link to the order, so the component draws no links or buttons of its own; the app draws the card's border, padding and hover, in the app's [theme](../reference/theme.md)).
+The whole card is a link to the order, so the component draws no links or buttons of its own; the app draws the card's border, padding and hover, in the app's [theme](../reference/theme.md).
 
 ## 2. Export it
 
@@ -58,7 +58,7 @@ export const OrderCard = component('OrderCard')
 
 Run `bun run protobase dev`, open the orders and switch to Cards: each order is drawn by `OrderCard`. The display keeps everything else the list has: its search, filters, sort menu, the count of orders and loading more as you scroll.
 
-`protobase build` fails when the config declares `OrderCard` and `protobase.ui.tsx` does not export it. A card from a [plugin](../reference/plugins.md)) is declared with the plugin's name, `component('OrderCard', { plugin: 'sales-tools' })`.
+`protobase build` fails when the config declares `OrderCard` and `protobase.ui.tsx` does not export it. A card from a [plugin](../reference/plugins.md) is declared with the plugin's name, `component('OrderCard', { plugin: 'sales-tools' })`.
 
 ## 4. When the card fails
 

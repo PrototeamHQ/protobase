@@ -84,7 +84,7 @@ A job runs **at least once**: a worker that dies mid-job, or a try cut off by a 
 await sendInvoice.enqueue(db, { invoiceId: 7 }, { delay: '5 minutes', key: 'invoice:7', priority: 10 })
 ```
 
-`db` is the app's database, or the transaction of a write hook or an [API function](../guides/api-functions.md)): there, the job commits with the caller's writes, or not at all. It returns the job's id.
+`db` is the app's database, or the transaction of a write hook or an [API function](../guides/api-functions.md): there, the job commits with the caller's writes, or not at all. It returns the job's id.
 
 | Option | |
 | --- | --- |
@@ -111,7 +111,7 @@ select jobs.enqueue('sync-customer', '{"customerId": 3, "fields": ["email"]}', g
 
 ## Mail
 
-`mail.send({ to, subject, text, html })` sends one message, with an optional HTML part beside the plain text, through the app's SMTP server, the one that also sends password resets and sign-in codes: `PROTOBASE_SMTP_URL` and `PROTOBASE_MAIL_FROM` (see [Email](email.md#configuration))). An [email template](email.md#templates)) sends through it with `template.send(to, data, mail)`. It rejects when the server refuses the message, so the try fails and is retried. Without those variables `mail` is `undefined`: a job that must send fails for good with `FatalJobError`, and one that may skip mail leaves it out.
+`mail.send({ to, subject, text, html })` sends one message, with an optional HTML part beside the plain text, through the app's SMTP server, the one that also sends password resets and sign-in codes: `PROTOBASE_SMTP_URL` and `PROTOBASE_MAIL_FROM` (see [Email](email.md#configuration)). An [email template](email.md#templates) sends through it with `template.send(to, data, mail)`. It rejects when the server refuses the message, so the try fails and is retried. Without those variables `mail` is `undefined`: a job that must send fails for good with `FatalJobError`, and one that may skip mail leaves it out.
 
 ```ts
 run: async ({ invoiceId }, { db, mail }) => {
@@ -152,7 +152,7 @@ With jobs, the admin app has a **Failed jobs** page, for admins only: each job t
 
 - **`protobase dev`** runs them in its process. An edited job runs its new code from the next job on.
 - **`protobase serve`** runs them in its process, beside the API, unless `PROTOBASE_JOBS=false`; it enqueues them either way. On SIGTERM it stops taking jobs and gives running ones 30 seconds to finish. A job still running then is failed, to be retried.
-- **[`protobase worker <bundle>`](cli.md#worker))** runs the same jobs from the same bundle in a process of its own, with the same shutdown, for a `serve` with `PROTOBASE_JOBS=false`.
+- **[`protobase worker <bundle>`](cli.md#worker)** runs the same jobs from the same bundle in a process of its own, with the same shutdown, for a `serve` with `PROTOBASE_JOBS=false`.
 - Each worker checks every job name for due jobs every 2 seconds: one indexed query per job name and interval. Once a minute, one of the workers also counts the queues and retries the jobs whose worker died (their `timeout` passed); once a day it deletes completed and failed jobs older than 7 days.
 
 ### Hosts that sleep
@@ -164,13 +164,13 @@ A host that stops an idle app needs to know when a job is due, and to have it ru
 
 ## The `jobs` schema
 
-The schema is pg-boss's tables at its pinned schema version, plus Protobase's `jobs.enqueue`, `jobs.next_due` and `jobs.failed`. It is created and upgraded like the [auth schema](auth.md#migrations)), by the project's migrations:
+The schema is pg-boss's tables at its pinned schema version, plus Protobase's `jobs.enqueue`, `jobs.next_due` and `jobs.failed`. It is created and upgraded like the [auth schema](auth.md#migrations), by the project's migrations:
 
 ```sh
 bun run protobase migration   # writes db/migrations/NNN_jobs.sql when the jobs schema is missing or behind
 bun run db:migrate
 ```
 
-[`protobase migration`](cli.md#migration)) writes what the database lacks, taken from pg-boss's own construction and migration plans for the pinned version, without their `BEGIN` and `COMMIT` and with any `CONCURRENTLY` index build made a plain one, so the file runs in the project's migration transaction. The server never creates or migrates it: `protobase dev` and `protobase serve` read its version at startup and refuse to start while it is missing or behind, naming the command. A database whose jobs schema is newer than the running Protobase is refused too.
+[`protobase migration`](cli.md#migration) writes what the database lacks, taken from pg-boss's own construction and migration plans for the pinned version, without their `BEGIN` and `COMMIT` and with any `CONCURRENTLY` index build made a plain one, so the file runs in the project's migration transaction. The server never creates or migrates it: `protobase dev` and `protobase serve` read its version at startup and refuse to start while it is missing or behind, naming the command. A database whose jobs schema is newer than the running Protobase is refused too.
 
 pg-boss runs here without what needs a session of its own: no `LISTEN`/`NOTIFY` (a job enqueued in the same process wakes its worker directly, the rest is polled), only transaction-scoped advisory locks, unnamed prepared statements, no index rebuilds and no instance registry. It works through PgBouncer in transaction mode and on PGlite, over the app's own connection pool.

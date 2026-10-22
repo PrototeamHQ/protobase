@@ -29,7 +29,7 @@ export default defineConfig({
 - `appId` is the app's id in reverse-DNS form: at least two parts separated by dots, each starting with a letter and holding only letters, digits and underscores.
 - `plugins`, optional, are extra native [Capacitor plugins](https://capacitorjs.com/docs/plugins), npm name to version. Capacitor itself, `@capacitor/app`, `@capacitor/splash-screen` and `@capawesome/capacitor-live-update` come with Protobase at fixed versions and cannot be listed. A plugin runs native code with the app's rights, and one that writes files, such as `@capacitor/filesystem`, lets a script that got into the page point the app at files it wrote (with Capacitor's own `WebView.setServerBasePath`), so list only plugins the app needs.
 
-With a mobile section, the API answers the app's origins, `capacitor://localhost` on iOS and `https://localhost` on Android, through [CORS](../reference/api.md#cors)). Apps without one get no new dependency, and `protobase build` and `protobase dev` work as before.
+With a mobile section, the API answers the app's origins, `capacitor://localhost` on iOS and `https://localhost` on Android, through [CORS](../reference/api.md#cors). Apps without one get no new dependency, and `protobase build` and `protobase dev` work as before.
 
 Signing in works in the app as on the web, with nothing more to set up:
 
@@ -47,7 +47,7 @@ protobase mobile run android
 protobase mobile run ios
 ```
 
-The first run installs Capacitor into `.protobase/mobile/`, which ignores itself in git. Every run builds the app's files as [`protobase build`](../reference/cli.md#build)) does and generates the native project from your config again, so never edit the projects in `.protobase/mobile/` by hand. Your own package.json gains nothing.
+The first run installs Capacitor into `.protobase/mobile/`, which ignores itself in git. Every run builds the app's files as [`protobase build`](../reference/cli.md#build) does and generates the native project from your config again, so never edit the projects in `.protobase/mobile/` by hand. Your own package.json gains nothing.
 
 The app calls the server at the project's auth `baseURL`; pass `--api https://shop.example.com` for another one. Plain http is only for a server on this machine (`localhost`) or, on the Android emulator, its host `10.0.2.2`; any other server needs https. An Android phone on USB reaches a server on `localhost` through a forwarded port; an iPhone needs an https server. The app's UI plugins load from the device only when the server serves a built bundle (`protobase serve dist`): against `protobase dev`, use `--live`.
 

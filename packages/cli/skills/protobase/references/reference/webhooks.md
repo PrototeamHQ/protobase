@@ -4,7 +4,7 @@
 
 Subscriptions that deliver resource events to URLs, API functions and code, signed with Standard Webhooks, retried and shaped for who receives them.
 
-A **subscription** delivers the [events](events.md)) of resources as they happen: to a URL, to one of the app's [API functions](../guides/api-functions.md)), or to code of its own. Subscriptions are config: export them from the config module like resources, so the server has them and the admin UI never does. A URL or secret usually comes from the environment.
+A **subscription** delivers the [events](events.md) of resources as they happen: to a URL, to one of the app's [API functions](../guides/api-functions.md), or to code of its own. Subscriptions are config: export them from the config module like resources, so the server has them and the admin UI never does. A URL or secret usually comes from the environment.
 
 ```ts title="docs-examples/events/subscriptions.ts"
 import { subscription } from '@protobase/server'
@@ -54,7 +54,7 @@ export const rushOrders = subscription('rushOrders', {
 | --- | --- |
 | `events` | Event names (`orders.created`), every event of a resource (`orders.*`), or all of them (`*`). Each must match a declared event. |
 | `when` | A filter on the record after the change, or before it for a delete, in the language of access rules. |
-| `as: { roles }` | Delivers as these roles: only records they may read, and only fields they may read. Without it, every record and every field but the sensitive ones. Their access rules cannot read a sensitive field, which a captured change does not hold: a change they would need one for is kept as failed. Check the role before such a field, as in `ctx.user.roles.includes('admin') \|\| record.api_secret == null`, or decide on a field that is not sensitive (see [Sensitive fields](data-config.md#sensitive-fields))). |
+| `as: { roles }` | Delivers as these roles: only records they may read, and only fields they may read. Without it, every record and every field but the sensitive ones. Their access rules cannot read a sensitive field, which a captured change does not hold: a change they would need one for is kept as failed. Check the role before such a field, as in `ctx.user.roles.includes('admin') \|\| record.api_secret == null`, or decide on a field that is not sensitive (see [Sensitive fields](data-config.md#sensitive-fields)). |
 | `tenant` | Only events of this tenant's records. |
 | `payload` | `thin` leaves `after` and `before` out, for a receiver that reads the record through the API. Default `full`. |
 | `ordered` | One delivery at a time per record, in commit order. Default false. |
@@ -81,7 +81,7 @@ webhook-signature: v1,K5oZfzN95Z9UVu1EsfQmfVNQhnkZ2pj9o9NDN/H/pI4=
 ```
 
 - **`webhook-id`** is the same on every retry: a receiver that keeps the ids it handled ignores a second copy.
-- **The signature** follows [Standard Webhooks](https://www.standardwebhooks.com): an HMAC-SHA256 of `id.timestamp.body` with the secret. A Protobase function checks it with [`verifyStandardWebhook`](../guides/api-functions.md)), and the Standard Webhooks libraries do the same elsewhere.
+- **The signature** follows [Standard Webhooks](https://www.standardwebhooks.com): an HMAC-SHA256 of `id.timestamp.body` with the secret. A Protobase function checks it with [`verifyStandardWebhook`](../guides/api-functions.md), and the Standard Webhooks libraries do the same elsewhere.
 - **Records** use field names and values as `GET /orders/{key}` returns them, never sensitive fields. `changed` lists sensitive fields that changed, by name only.
 - **`sequence`** grows with every change of a record, so a receiver can drop an event older than one it already has.
 - **`actor`** is the caller of a write through the API, `null` for any other write (`source: "database"`).
@@ -93,7 +93,7 @@ A function target is called as the subscription's `as`, so `context.caller()` an
 - **The first try** goes out from the dispatch job, right after the write: within milliseconds for a write through the API, within two seconds for one from elsewhere.
 - **A failed try** becomes a `webhooks.deliver` job, retried on the Standard Webhooks schedule with up to 10% jitter: 5 s, 5 m, 30 m, 2 h, 5 h, 10 h, 14 h, 20 h and 24 h, 10 tries over about three days. A `Retry-After` header makes the wait longer, up to a day.
 - **`410 Gone`** fails the delivery at once.
-- **After the last try** the job is kept as failed, on the [failed jobs page](jobs.md#failed-jobs-page)), where it can be retried.
+- **After the last try** the job is kept as failed, on the [failed jobs page](jobs.md#failed-jobs-page), where it can be retried.
 - **Ordered subscriptions** get no first try from the dispatch job: a `webhooks.deliver-ordered` job delivers a record's events of one dispatch in order, retried with doubling waits from 5 s up to a day, 10 tries. Meanwhile the record's later events to that subscription wait. A retry sends again the events of that job that went through before the one that failed.
 - **At least once:** a process that stops after delivering but before recording it delivers again when the dispatch job is retried, under the same `webhook-id`.
 - **Event code that throws**, such as a `match` that reads a field it did not expect to be empty, a subscription's `when` or an access rule of its `as` roles, keeps that change as a failed `webhooks.dispatch-change` job on the failed jobs page, naming the event or subscription and the error, and dispatch moves on to later changes. Retry it once the code is fixed to deliver the change's events. An access rule of `as` roles keeps the change as failed for that subscription only: the other subscriptions still receive it, and the retry delivers it to that subscription alone. A database error instead fails the whole dispatch job, which is retried.
@@ -110,14 +110,14 @@ import { defineConfig, webhooks } from '@protobase/server'
 export default defineConfig({ extends: [webhooks()], config, auth, authenticate })
 ```
 
-It adds two pages, over a `webhooks` schema that [`protobase migration`](cli.md#migration)) writes (`NNN_webhooks.sql`):
+It adds two pages, over a `webhooks` schema that [`protobase migration`](cli.md#migration) writes (`NNN_webhooks.sql`):
 
-- **Webhook subscriptions** (`webhook_subscriptions`, the table `webhooks.subscriptions`): a name, the events (`orders.created orders.large`, or `orders.*`), the URL, a filter, extra headers, full or thin payload, and whether it is enabled. The server sets the tenant and the owner, the person who made it, and makes the secret, which only a [reveal](api.md#sensitive-fields-and-audit)) shows. Saving checks the events and the filter against the resources, and refuses a URL whose host is a private, loopback or link-local address.
+- **Webhook subscriptions** (`webhook_subscriptions`, the table `webhooks.subscriptions`): a name, the events (`orders.created orders.large`, or `orders.*`), the URL, a filter, extra headers, full or thin payload, and whether it is enabled. The server sets the tenant and the owner, the person who made it, and makes the secret, which only a [reveal](api.md#sensitive-fields-and-audit) shows. Saving checks the events and the filter against the resources, and refuses a URL whose host is a private, loopback or link-local address.
 - **Webhook deliveries** (`webhook_deliveries`, a view over the delivery jobs): the deliveries that wait for their next try or failed for good, with their last error. A delivery leaves the list once it succeeds.
 
 Both are scoped to the tenant like any resource with `.tenant()`, and their access decides who may do what: `webhook_subscriptions.create`, `webhook_deliveries.update` and so on, as for the app's own resources.
 
-A subscription made here **delivers as its owner**, with the role they act with now in its tenant (the [active role](auth.md#active-role)) they last chose, else their first): only records and fields it may read. Letting people make subscriptions therefore grants them nothing they could not read already. The roles are read from the project's Better Auth; a project that signs people in otherwise passes `webhooks({ ownerRoles: async ({ id, tenant }) => [...] })`.
+A subscription made here **delivers as its owner**, with the role they act with now in its tenant (the [active role](auth.md#active-role) they last chose, else their first): only records and fields it may read. Letting people make subscriptions therefore grants them nothing they could not read already. The roles are read from the project's Better Auth; a project that signs people in otherwise passes `webhooks({ ownerRoles: async ({ id, tenant }) => [...] })`.
 
 | Action | |
 | --- | --- |

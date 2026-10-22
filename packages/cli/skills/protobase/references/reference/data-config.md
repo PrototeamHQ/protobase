@@ -4,7 +4,7 @@
 
 Resources in data.ts, every field type and option, keys and relations, soft delete, tenants, search, validation and access.
 
-A **resource** describes one table of a database you already have: its columns as fields, its key, and the rules around it. It is plain TypeScript in `config/<resource>/data.ts`, exported from `config/index.ts`; [`protobase scaffold`](cli.md#scaffold)) writes a first version from the database. Every example on this page is a file in the repository that CI typechecks and tests.
+A **resource** describes one table of a database you already have: its columns as fields, its key, and the rules around it. It is plain TypeScript in `config/<resource>/data.ts`, exported from `config/index.ts`; [`protobase scaffold`](cli.md#scaffold) writes a first version from the database. Every example on this page is a file in the repository that CI typechecks and tests.
 
 ```ts title="docs-examples/bike-shop/data.ts"
 import { f, resource } from '@protobase/schema'
@@ -54,21 +54,21 @@ export const repairs = resource('repairs')
 
 | | |
 | --- | --- |
-| [`resource(name)`](https://docs.protobase.net/api/schema/functions/resource/)) | The name is the resource's address (`/api/v1/<name>`, `/<name>` in the admin) and how other config refers to it. It may not contain `/`, `:`, `?` or `#`, and must be unique. |
+| [`resource(name)`](https://docs.protobase.net/api/schema/functions/resource/) | The name is the resource's address (`/api/v1/<name>`, `/<name>` in the admin) and how other config refers to it. It may not contain `/`, `:`, `?` or `#`, and must be unique. |
 | `.table('schema.table')` | The table, with or without its schema. Required. |
 | `.fields({ ... })` | The columns, by field name. `name: null` ignores a column on purpose (scaffold writes it, so it does not offer the column again). Required. |
 | `.primaryKey((r) => r.id)` | The key, one field or a list (`(r) => [r.order_id, r.line_no]`). Required; records are addressed by it. |
-| `.softDelete((r) => r.deleted_at)` | A nullable timestamp or date: deleting sets it, lists leave such rows out, `:undelete` clears it. See [REST API](api.md#routes)). |
+| `.softDelete((r) => r.deleted_at)` | A nullable timestamp or date: deleting sets it, lists leave such rows out, `:undelete` clears it. See [REST API](api.md#routes). |
 | `.tenant((r) => r.organization_id)` | The column that separates tenants: every query is limited to the caller's tenant, creates set it, and a request body may not. |
 | `.owner((r) => r.owner_id)` | The field holding the owning user's id, which `.own` capabilities filter on (see [Access](#access)). |
-| `.search((r) => [r.number, r.name])` | The fields that `search("...")` and bare words in a filter match, and what the admin's [global search](client.md#global-search)) looks in. Every word of the text must appear in one of them, ignoring case, and part of a word is enough: `port` finds "Portfolio". `r.phone.digitsEnd()` matches only the end of a field's digits instead, ignoring spaces, `+` and dashes, and only words written like phone numbers: `9623`, `47069623` and `+31 6 47069623` find "+31 6 47069623", `4706` and `+316` do not. Each field needs a pg_trgm index (`using gin (name gin_trgm_ops)`), a `digitsEnd` one on `regexp_replace(phone, '[^0-9]', '', 'g')`, or the API refuses the search. |
-| `.position((r) => r.position, { within?, after? })` | The integer field holding the records' order by hand, 1 the first, which a list's **Reorder** button changes by dragging; with `within: (r) => r.invoice_id`, a filterable relation, each parent's records have an order of their own, sorted in its related section; with `after`, a record never ranks above the records it depends on. The field must be sortable. See [Reordering by hand](ui-config.md#reordering-by-hand)) and [Ranked after what they depend on](ui-config.md#ranked-after-what-they-depend-on)). |
-| `.parent((r) => r.vm_id, 'update')` | The relation whose record each record belongs to, and the access on it (`'read'` or `'update'`) that creating, changing, deleting and undeleting a record needs, checked with the caller's own rules on that resource. The relation is one column, to a resource with a key of one field. See [Records that belong to another](access.md#records-that-belong-to-another)). |
+| `.search((r) => [r.number, r.name])` | The fields that `search("...")` and bare words in a filter match, and what the admin's [global search](client.md#global-search) looks in. Every word of the text must appear in one of them, ignoring case, and part of a word is enough: `port` finds "Portfolio". `r.phone.digitsEnd()` matches only the end of a field's digits instead, ignoring spaces, `+` and dashes, and only words written like phone numbers: `9623`, `47069623` and `+31 6 47069623` find "+31 6 47069623", `4706` and `+316` do not. Each field needs a pg_trgm index (`using gin (name gin_trgm_ops)`), a `digitsEnd` one on `regexp_replace(phone, '[^0-9]', '', 'g')`, or the API refuses the search. |
+| `.position((r) => r.position, { within?, after? })` | The integer field holding the records' order by hand, 1 the first, which a list's **Reorder** button changes by dragging; with `within: (r) => r.invoice_id`, a filterable relation, each parent's records have an order of their own, sorted in its related section; with `after`, a record never ranks above the records it depends on. The field must be sortable. See [Reordering by hand](ui-config.md#reordering-by-hand) and [Ranked after what they depend on](ui-config.md#ranked-after-what-they-depend-on). |
+| `.parent((r) => r.vm_id, 'update')` | The relation whose record each record belongs to, and the access on it (`'read'` or `'update'`) that creating, changing, deleting and undeleting a record needs, checked with the caller's own rules on that resource. The relation is one column, to a resource with a key of one field. See [Records that belong to another](access.md#records-that-belong-to-another). |
 | `.validate((record) => issues)` | A rule over the whole record, run after the field checks on every create and update. It returns `[{ field, message }]` or `undefined`; issues answer `400` with the field named. |
 | `.access({ ... })` | Rules per operation. See [Access](#access). |
-| `.events((e, r) => [...])` | What changes of its records mean, such as `orders.created`, captured in the database for every write. See [Events](events.md)). |
-| `.history()` | Keeps every change of its records with who made it, shown on the record page and listed for admins as Activity. See [Record history](history.md)). |
-| `.comments()` | Lets whoever may read a record comment on it and @mention others who may, who are emailed; shown on the record page and listed for admins. See [Record comments](comments.md)). |
+| `.events((e, r) => [...])` | What changes of its records mean, such as `orders.created`, captured in the database for every write. See [Events](events.md). |
+| `.history()` | Keeps every change of its records with who made it, shown on the record page and listed for admins as Activity. See [Record history](history.md). |
+| `.comments()` | Lets whoever may read a record comment on it and @mention others who may, who are emailed; shown on the record page and listed for admins. See [Record comments](comments.md). |
 
 Field and resource names are snake_case by convention, like the columns: they are the names in URLs, the API, filters and sorts as written (`/stock_moves?order_by=moved_at desc`). The column is the snake_case of the name unless `.column()` says otherwise, so a camelCase name such as `movedAt` maps to `moved_at` too.
 
@@ -76,7 +76,7 @@ Field and resource names are snake_case by convention, like the columns: they ar
 
 | Builder | Column types | API value | Options |
 | --- | --- | --- | --- |
-| `f.text()` | `text`, `varchar`, `bpchar` | string | `.min(n)`, `.max(n)` (length), `.regex(re, message)`; a text of several lines, such as a description, takes the view's [`.multiline()`](ui-config.md#names-and-columns)), and markdown its [`.markdown()`](ui-config.md#names-and-columns)) |
+| `f.text()` | `text`, `varchar`, `bpchar` | string | `.min(n)`, `.max(n)` (length), `.regex(re, message)`; a text of several lines, such as a description, takes the view's [`.multiline()`](ui-config.md#names-and-columns), and markdown its [`.markdown()`](ui-config.md#names-and-columns) |
 | `f.integer()` | `int2`, `int4` | number | `.min(n)`, `.max(n)` |
 | `f.bigint()` | `int8` | string (all 64 bits) | |
 | `f.decimal({ precision, scale })` | `numeric` | string (exact) | |
@@ -89,13 +89,13 @@ Field and resource names are snake_case by convention, like the columns: they ar
 | `f.relation('resource')` | the key column(s) of another resource | its key | `.columns([...])` |
 | `f.currency()` | `text` | ISO 4217 code (`EUR`) | |
 | `f.country()` | `text` | ISO 3166-1 alpha-2 code (`NL`) | |
-| `f.file()` | `text` | `{ uri, name, type, size, url }`; written with a ticket from `:upload` | `.accept([...])`, `.maxSize(size)`, `.public()`, `.storage(name)`, `.derive({...})`; see [Files](files.md)) |
+| `f.file()` | `text` | `{ uri, name, type, size, url }`; written with a ticket from `:upload` | `.accept([...])`, `.maxSize(size)`, `.public()`, `.storage(name)`, `.derive({...})`; see [Files](files.md) |
 
-A constraint a type does not support (`f.boolean().min(1)`) throws when the config loads. The builders are the members of [`f`](https://docs.protobase.net/api/schema/variables/f/)).
+A constraint a type does not support (`f.boolean().min(1)`) throws when the config loads. The builders are the members of [`f`](https://docs.protobase.net/api/schema/variables/f/).
 
 ## Field options
 
-Every option returns a new [field](https://docs.protobase.net/api/schema/interfaces/field/)), so they chain in any order.
+Every option returns a new [field](https://docs.protobase.net/api/schema/interfaces/field/), so they chain in any order.
 
 | Option | Effect |
 | --- | --- |
@@ -103,14 +103,14 @@ Every option returns a new [field](https://docs.protobase.net/api/schema/interfa
 | `.readOnly()` | Never written through the API: ids, computed columns, audit timestamps. |
 | `.default(value)` | The value a create uses when none is given; the admin's create form shows it. |
 | `.dbDefault()` | The database supplies a value when none is given (identity, `now()`, a sequence). |
-| `.filterable()` | May appear in `filter`, in filter widgets and in `Stat`/`Table` filters. It needs an index: the API refuses a filter on a column no index serves (see the [scan guard](api.md#safety))), and [`protobase doctor`](cli.md#doctor)) fails without one. |
+| `.filterable()` | May appear in `filter`, in filter widgets and in `Stat`/`Table` filters. It needs an index: the API refuses a filter on a column no index serves (see the [scan guard](api.md#safety)), and [`protobase doctor`](cli.md#doctor) fails without one. |
 | `.sortable()` | May appear in `order_by` and in sorts. It needs a btree index that serves it alone, as a filterable field does, since a list may be sorted by it. A list's header of a field without it is no button and says "This column can't be sorted" on hover and in its menu. |
 | `.alias(...names)` | Other names filters may use for the field. |
 | `.column('name')` | The column, when it is not the snake_case of the field name (`'EMP_NAME'`). |
 | `.access({ read, create, update })` | Role rules for this column. See [Access](#access). |
 | `.sensitive()` | Hidden like a password: no response carries it, and a caller who may read it reveals one record's value at a time. See [Sensitive fields](#sensitive-fields). |
 | `.encrypted()` | Sensitive, and stored encrypted with the app's own key, so the database only ever holds ciphertext. Text only. See [Encrypted fields](#encrypted-fields). |
-| `.ai({ prompt })` | A job fills the field from `prompt`, `{field}` replaced by the record's values, after a create and after an update of a field the prompt reads, as the user who wrote. Text or enum, optional. See [AI fields and actions](ai.md)). |
+| `.ai({ prompt })` | A job fills the field from `prompt`, `{field}` replaced by the record's values, after a create and after an update of a field the prompt reads, as the user who wrote. Text or enum, optional. See [AI fields and actions](ai.md). |
 | `.rollup({ from, via, fn, field })` | The database keeps the field from the records of another resource: their count, sum, average, least or greatest value. Read-only. See [Rollups and formulas](#rollups-and-formulas). |
 | `.formula(expression)` | The database computes the field from the record's other number fields, as a generated column. Read-only. See [Rollups and formulas](#rollups-and-formulas). |
 
@@ -146,7 +146,7 @@ export const products = resource('products')
 
 ## Rollups and formulas
 
-A **rollup** is a value of the other records that point at a record, such as an order's total of its lines. A **formula** is a value computed from the record's own fields, such as a line's amount. Neither needs SQL: you declare the field, and [`protobase migration`](cli.md#migration)) writes its column into the project's next migration (`NNN_computed.sql`). Both are real columns, kept by the database in the transaction that writes, so they are right for writes from psql or other services too, and they filter and sort like any column once they have an index.
+A **rollup** is a value of the other records that point at a record, such as an order's total of its lines. A **formula** is a value computed from the record's own fields, such as a line's amount. Neither needs SQL: you declare the field, and [`protobase migration`](cli.md#migration) writes its column into the project's next migration (`NNN_computed.sql`). Both are real columns, kept by the database in the transaction that writes, so they are right for writes from psql or other services too, and they filter and sort like any column once they have an index.
 
 ```ts title="docs-examples/reference/rollups.ts"
 import { f, resource } from '@protobase/schema'
@@ -198,21 +198,21 @@ Neither field can be written through the API, have a default, or be sensitive. T
 
 ## Sensitive fields
 
-A sensitive field, such as a bank account number, is written like any other field but never read with the record: lists, gets, `:search`, `:seek`, create and update responses and batch results leave it out, and it cannot be filtered, sorted, searched, counted or picked with `fields`. The record page shows it masked, with an eye button. Showing it asks the server for that one value with `POST /{resource}/{key}:reveal` (see [REST API](api.md#sensitive-fields-and-audit))), which needs the same access as reading the record and the field, inside the caller's tenant, and publishes an audit event before it answers.
+A sensitive field, such as a bank account number, is written like any other field but never read with the record: lists, gets, `:search`, `:seek`, create and update responses and batch results leave it out, and it cannot be filtered, sorted, searched, counted or picked with `fields`. The record page shows it masked, with an eye button. Showing it asks the server for that one value with `POST /{resource}/{key}:reveal` (see [REST API](api.md#sensitive-fields-and-audit)), which needs the same access as reading the record and the field, inside the caller's tenant, and publishes an audit event before it answers.
 
 ```ts
 iban: f.text().sensitive().access({ read: roles.can('screening.read') }),
 ```
 
-A role may also set a sensitive field it cannot read, such as a sealed value only a worker reads, when the field's own `create` or `update` rule allows it: see [write-only fields](access.md#write-only-fields)).
+A role may also set a sensitive field it cannot read, such as a sealed value only a worker reads, when the field's own `create` or `update` rule allows it: see [write-only fields](access.md#write-only-fields).
 
 A sensitive field cannot be `.filterable()`, `.sortable()`, aliased, searched, or the key, tenant, owner or soft delete field, and a view may only put it in a record page section: in a list, filter, chart, sidebar, title, recent-record group or action it would always be empty, so the config fails to load.
 
-A [webhook subscription](webhooks.md)) delivering `as` a role runs that role's access rules on a captured change, which holds no sensitive field. A rule or row filter that reads one there throws, and the change is kept as failed for that subscription instead of delivered, so decide that access on a field that is not sensitive. A rule that reads the field before it checks the role, such as `record.api_secret == null || ctx.user.roles.includes('admin')`, fails even for `as: { roles: ['admin'] }`: check the role first, as in `ctx.user.roles.includes('admin') || ...`.
+A [webhook subscription](webhooks.md) delivering `as` a role runs that role's access rules on a captured change, which holds no sensitive field. A rule or row filter that reads one there throws, and the change is kept as failed for that subscription instead of delivered, so decide that access on a field that is not sensitive. A rule that reads the field before it checks the role, such as `record.api_secret == null || ctx.user.roles.includes('admin')`, fails even for `as: { roles: ['admin'] }`: check the role first, as in `ctx.user.roles.includes('admin') || ...`.
 
 ## Encrypted fields
 
-An encrypted field is a [sensitive field](#sensitive-fields) whose value the server encrypts before it reaches the database, so a dump, a backup, a replica, a realtime subscriber or anyone running SQL sees only ciphertext. Only its reveal decrypts it, for a caller who may read the record and the field, and every reveal is audited. Every API write encrypts it: the record form, REST, batches, imports, [public forms](forms.md)) and `records` in [API functions](../guides/api-functions.md)). The [Supabase-compatible REST API](supabase-rest.md#encrypted-fields)) refuses to write or filter it.
+An encrypted field is a [sensitive field](#sensitive-fields) whose value the server encrypts before it reaches the database, so a dump, a backup, a replica, a realtime subscriber or anyone running SQL sees only ciphertext. Only its reveal decrypts it, for a caller who may read the record and the field, and every reveal is audited. Every API write encrypts it: the record form, REST, batches, imports, [public forms](forms.md) and `records` in [API functions](../guides/api-functions.md). The [Supabase-compatible REST API](supabase-rest.md#encrypted-fields) refuses to write or filter it.
 
 ```ts
 api_key: f.text().encrypted().access({ read: roles.can('keys.read') }),
@@ -220,7 +220,7 @@ api_key: f.text().encrypted().access({ read: roles.can('keys.read') }),
 
 It takes `f.text()` only, and cannot be `.readOnly()` or have a `.dbDefault()`. Its column must be `text`, with no length, pattern or unique constraint, index, default, trigger or generated column reading it: the database only ever sees ciphertext.
 
-**Write it only through the API.** SQL of your own, in an API function's `db`, a write hook's transaction or the assistant's approved changes, stores the value unencrypted, and its reveal then fails until [`protobase encryption apply`](cli.md#encryption-apply)) encrypts it.
+**Write it only through the API.** SQL of your own, in an API function's `db`, a write hook's transaction or the assistant's approved changes, stores the value unencrypted, and its reveal then fails until [`protobase encryption apply`](cli.md#encryption-apply) encrypts it.
 
 **Your code never sees the stored value, only whether it is set.** Access rules cannot filter on it: a rule that returns a filter on it fails the request. Record rules, validators and write hooks get a stored record with a set value as `encrypted` (exported from `@protobase/schema`) and an empty one as `null`. Check whether it is set with `== null`; the marker is never equal to anything, so a rule comparing it with a constant decides as if it held another value, and reading it as text throws. A [webhook subscription's access check](#sensitive-fields) cannot know whether it is set, as for every sensitive field. Rules and validators see the plaintext only where a write gives it, so a validator written this way checks each value written and leaves a stored one alone:
 
@@ -254,11 +254,11 @@ A value opens only where it was sealed: its table as `.table()` names it (with o
 - Renaming the resource or the field in the config changes nothing.
 - Renaming the table or the column, moving the table to another schema, or adding or changing the schema in `.table()` makes the field's values unreadable until `protobase encryption apply --rebind people --from-table <old table>` (or `--rebind people.iban --from-column <old column>`) runs. Run it at update time, like a migration; reveals fail until then.
 - Changing a resource's declared key or tenant field makes its values unreadable, and no command rebinds them: make such a change before encrypting.
-- The record key must be unique in its table, as [`protobase doctor`](cli.md#doctor)) checks, or at least within each tenant. A key changed in the database, by SQL, a trigger or a foreign key `on update cascade` (which `status` warns about), makes that row's values unreadable; the API refuses to change the key of a record with encrypted fields.
+- The record key must be unique in its table, as [`protobase doctor`](cli.md#doctor) checks, or at least within each tenant. A key changed in the database, by SQL, a trigger or a foreign key `on update cascade` (which `status` warns about), makes that row's values unreadable; the API refuses to change the key of a record with encrypted fields.
 
 ### Encrypting an existing column
 
-1. With [events](events.md)), [history](history.md)) or live updates on the resource, [`protobase migration`](cli.md#migration)) writes the change of its capture trigger; apply it with your other migrations.
+1. With [events](events.md), [history](history.md) or live updates on the resource, [`protobase migration`](cli.md#migration) writes the change of its capture trigger; apply it with your other migrations.
 2. At update time, before the new version serves, run `protobase encryption apply`. It encrypts every plaintext value and removes the field's old values from the history and from the changes not yet dispatched.
 3. With a rolling deploy, the old version writes plaintext until it stops: run `apply` again once the new version serves alone, and gate on `protobase encryption status`, which exits with 1 while anything is left. Until then, reveals of plaintext values fail.
 
@@ -308,13 +308,13 @@ A relation's value in the API is the other record's key. The admin shows the oth
 
 ## Access
 
-Without rules everyone who can sign in may do everything. Rules come in three kinds, and the [Access](access.md)) reference explains the defaults:
+Without rules everyone who can sign in may do everything. Rules come in three kinds, and the [Access](access.md) reference explains the defaults:
 
 - **Per operation** (`list`, `read`, `create`, `update`, `delete`): `.access({ update: rule })`. A rule returns `true`, `false`, or an AIP-160 filter that limits the rows, like row-level security. A rule that reads the record (`record.status`) is checked against the stored row.
 - **Per row**: a filter from a rule, or a `.own` capability with `.owner(...)`.
 - **Per field**: `.access({ read, create, update })` on the field. Field rules see only the user, never a record, so the fields a user can read are the same for every row.
 
-[`defineRoles`](https://docs.protobase.net/api/schema/functions/defineroles/)) turns roles into capabilities (`work_orders.update.own`, `money.read`, `*`), and `roles.can(...)` and `roles.is(...)` make rules of them; `.and()` and `.or()` combine rules.
+[`defineRoles`](https://docs.protobase.net/api/schema/functions/defineroles/) turns roles into capabilities (`work_orders.update.own`, `money.read`, `*`), and `roles.can(...)` and `roles.is(...)` make rules of them; `.and()` and `.or()` combine rules.
 
 ```ts title="docs-examples/reference/access.ts"
 import { defineRoles, f, resource } from '@protobase/schema'
@@ -383,4 +383,4 @@ export const orders = resource('orders')
   .access(erpAccess('orders'))
 ```
 
-The UI side of a resource, its names, columns, filters and record page, is in [UI config](ui-config.md)).
+The UI side of a resource, its names, columns, filters and record page, is in [UI config](ui-config.md).

@@ -6,11 +6,11 @@ Two Protobase apps, where the shop's admin app shows the service desk's tickets 
 
 Sam runs a web shop, and its customers' questions land in the company's service desk, a Protobase app of its own. When a customer calls about an order, Sam's people look the order up in the shop's admin app, then open the desk in another tab to find the customer's ticket. They want the tickets in the shop's admin app, next to the orders: a list, each ticket's page, the open ones in the sidebar, and a status they can change. The desk's agents keep working in the desk.
 
-This guide makes the desk's tickets a [remote resource](../reference/remote-resources.md)) of the shop: the shop draws them with its own pages, while the desk keeps the data, the rules and the views. Nothing is copied and nothing is proxied: the shop's admin app reads the desk's API with the shop's own sign-in.
+This guide makes the desk's tickets a [remote resource](../reference/remote-resources.md) of the shop: the shop draws them with its own pages, while the desk keeps the data, the rules and the views. Nothing is copied and nothing is proxied: the shop's admin app reads the desk's API with the shop's own sign-in.
 
 ## 1. Two apps
 
-You need two Protobase projects, each with its own database, its own [admin store](../reference/auth.md#admin-store)) and a user: the from-scratch preset (`examples/scratch` in the repository) is enough for both. Each runs on its own origin; this guide runs them side by side on one machine:
+You need two Protobase projects, each with its own database, its own [admin store](../reference/auth.md#admin-store) and a user: the from-scratch preset (`examples/scratch` in the repository) is enough for both. Each runs on its own origin; this guide runs them side by side on one machine:
 
 | | `BETTER_AUTH_URL` in its `.env` | Started with |
 | --- | --- | --- |
@@ -53,7 +53,7 @@ export const ticketNotes = resource('ticket_notes')
   .access({ delete: deskOnly })
 ```
 
-Only the desk's own admins delete: the [access rule](../reference/access.md)) holds for everyone who reaches the desk's API, the shop's people included.
+Only the desk's own admins delete: the [access rule](../reference/access.md) holds for everyone who reaches the desk's API, the shop's people included.
 
 ```ts
 // desk: config/tickets/ui.ts
@@ -95,9 +95,9 @@ export const authenticate = betterAuthAuthenticator({
 })
 ```
 
-The desk now checks a token from the shop against the shop's keys, at `http://localhost:4710/api/auth/jwks`. Its holder is `shop` at the desk, never the desk's `admin`, so the `deskOnly` rule keeps tickets from being deleted from the shop; a shop user with any other role is refused. The [reference](../reference/remote-resources.md#signing-in-at-the-source)) has the details, such as the ids those users get.
+The desk now checks a token from the shop against the shop's keys, at `http://localhost:4710/api/auth/jwks`. Its holder is `shop` at the desk, never the desk's `admin`, so the `deskOnly` rule keeps tickets from being deleted from the shop; a shop user with any other role is refused. The [reference](../reference/remote-resources.md#signing-in-at-the-source) has the details, such as the ids those users get.
 
-The origin: the shop's admin app runs on `http://localhost:4710`, so the desk answers [CORS](../reference/api.md#cors)) for it:
+The origin: the shop's admin app runs on `http://localhost:4710`, so the desk answers [CORS](../reference/api.md#cors) for it:
 
 ```ts
 // desk: protobase.config.ts
@@ -149,7 +149,7 @@ Behind it, the shop's admin app read the desk's `/api/meta` with the shop's toke
 
 ## 5. A view for the shop's people
 
-"Support" is how the desk's agents think of tickets. In the shop they are about customers, and only the open ones matter in the sidebar. The desk decides what the shop's people see, so it gives the role it gave them, `shop`, a [view of its own](../reference/ui-config.md#actions-and-views-per-role)):
+"Support" is how the desk's agents think of tickets. In the shop they are about customers, and only the open ones matter in the sidebar. The desk decides what the shop's people see, so it gives the role it gave them, `shop`, a [view of its own](../reference/ui-config.md#actions-and-views-per-role):
 
 ```ts
 // desk: config/tickets/ui.ts
@@ -170,7 +170,7 @@ Start the desk again and press **Try again**: the tickets are back. The same hap
 
 ## Custom sections
 
-The desk's views can name [custom components](../reference/custom-components.md)), such as a timeline of the ticket with `l.custom(TicketTimeline)`. The shop draws them by name from its [plugins](../reference/plugins.md)), so the desk ships them as a plugin, built with `protobase build-plugin` and served wherever the shop's browser can load it, and the shop lists it with the source, for instance:
+The desk's views can name [custom components](../reference/custom-components.md), such as a timeline of the ticket with `l.custom(TicketTimeline)`. The shop draws them by name from its [plugins](../reference/plugins.md), so the desk ships them as a plugin, built with `protobase build-plugin` and served wherever the shop's browser can load it, and the shop lists it with the source, for instance:
 
 ```sh
 PROTOBASE_PLUGINS='http://localhost:4720/plugins/desk/plugin.json'
@@ -180,6 +180,6 @@ Inside, the component reads the ticket with `useLayoutRecord()`, and `useList` a
 
 ## Where to go from here
 
-- [Remote resources](../reference/remote-resources.md)): how it works, the contract between an app and its sources, and the API.
-- [Your first plugin](first-plugin.md)): build the plugin a source's views need.
-- [Access](../reference/access.md)): what the role you give another app's users may do.
+- [Remote resources](../reference/remote-resources.md): how it works, the contract between an app and its sources, and the API.
+- [Your first plugin](first-plugin.md): build the plugin a source's views need.
+- [Access](../reference/access.md): what the role you give another app's users may do.
