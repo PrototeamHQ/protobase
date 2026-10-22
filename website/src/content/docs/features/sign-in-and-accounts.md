@@ -1,0 +1,26 @@
+---
+title: Sign-in and accounts
+description: Sign-in methods, users, roles, organizations and tokens.
+---
+
+- [Built-in sign-in](/reference/auth/): Password sign-in, sessions and short-lived tokens, with no separate identity service.
+- [First admin](/reference/auth/#first-run): No account can be made over the web while the app has no users. You create the first admin from the terminal, and the last active admin cannot be deleted, demoted or blocked.
+- [Existing users table](/reference/auth/#an-existing-users-table): Sign-in can use the users table another system keeps in the same database.
+- [Users page](/reference/auth/#users-page): Admins find people, set roles, block them, add accounts and invite people by email.
+- [Password reset](/reference/auth/#password-reset): People reset a forgotten password through an emailed link.
+- [Emailed sign-in codes](/reference/auth/#emailed-sign-in-codes): People sign in with a code sent to their email.
+- [Open sign-up](/reference/auth/#open-sign-up): Anyone can create an account after confirming an emailed code.
+- [Passkeys](/reference/auth/#passkeys): People sign in with their device's face or fingerprint unlock, or with a security key.
+- [Two-factor authentication](/reference/auth/#two-factor-authentication): A second step with an authenticator app, backup codes or emailed codes.
+- [Sign-in policy](/reference/auth/#sign-in-policy): Admins choose which sign-in methods are on, off or required, and the server refuses a policy that would lock people out.
+- [GitHub and social sign-in](/reference/auth/#sign-in-with-github): People sign in with GitHub or another social provider.
+- [SAML sign-in](/reference/auth/#sign-in-with-saml): People sign in through any SAML provider.
+- [OpenID Connect provider](/reference/auth/#platform-sign-in-provider): A host adds an OpenID Connect provider for people who already have an account.
+- [Staff sign-in](/reference/auth/#staff-sign-in): The team that runs an app signs in as a person to help them, with a reason and a log entry.
+- [Roles](/reference/auth/#roles): A user holds one or more roles and switches between them without signing in again.
+- [Organizations](/reference/auth/#organizations): People work in one organization at a time, see only its records, and are invited with their own roles.
+- [API tokens](/reference/auth/#tokens-and-roles): A signed-in session gets short-lived tokens for the API.
+- [Immediate revocation](/reference/auth/#when-a-token-stops-working): A ban, removed role or ended session takes effect on the next request.
+- [Tokens for scripts](/reference/auth/#tokens-for-scripts-and-curl): A token for an existing user, for scripts and curl.
+- [Several origins](/reference/auth/#several-origins): One app works on several domains, such as its own address and a custom domain.
+- [Sign-in rate limits](/reference/auth/#client-addresses): Sign-in and code requests are limited per client address, also behind a proxy.

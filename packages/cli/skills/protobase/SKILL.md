@@ -41,6 +41,7 @@ A project moved from Supabase with `protobase import supabase` has what the impo
 Guides:
 
 - When setting up or running a project for the first time → read [Getting started](references/getting-started.md)
+- When you need to know whether Protobase has a feature, what it is called or how stable it is → read [Features](references/features.md), which links a page per area
 - When shipping a project as a bundle and running it with the serve runtime → read [Deploy](references/guides/deploy.md)
 - When turning a table into an admin with fields, views and filters → read [From a table to an admin](references/guides/table-to-admin.md)
 - When building a page from layouts and blocks → read [Your first composed page](references/guides/first-composed-page.md)

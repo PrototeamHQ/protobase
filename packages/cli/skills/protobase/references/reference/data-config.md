@@ -146,6 +146,10 @@ export const products = resource('products')
 
 ## Rollups and formulas
 
+:::caution[Beta]
+A rollup over its own table, a resource with a key of several columns, or a relation of several columns is not supported yet.
+:::
+
 A **rollup** is a value of the other records that point at a record, such as an order's total of its lines. A **formula** is a value computed from the record's own fields, such as a line's amount. Neither needs SQL: you declare the field, and [`protobase migration`](cli.md#migration) writes its column into the project's next migration (`NNN_computed.sql`). Both are real columns, kept by the database in the transaction that writes, so they are right for writes from psql or other services too, and they filter and sort like any column once they have an index.
 
 ```ts title="docs-examples/reference/rollups.ts"

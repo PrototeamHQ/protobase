@@ -1,9 +1,15 @@
 ---
 title: A mobile app
 description: Run a Protobase app on iOS and Android and build signed store releases from a mobile section in its config, without setting up Capacitor yourself.
+sidebar:
+  badge: Beta
 ---
 
 A Protobase app runs as an iOS or Android app with nothing more than a `mobile` section in its `protobase.config.ts`. `protobase mobile` wraps the app in [Capacitor](https://capacitorjs.com): the app's shell, its UI plugins, theme and favicon open from files on the device, and the app calls your server's API.
+
+:::caution[Beta]
+In the app, passkeys and sign-in with another provider do not work yet, and "Forgot password?" is not offered.
+:::
 
 ## 1. Install the tools
 

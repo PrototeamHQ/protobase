@@ -1,5 +1,33 @@
 // The hand-written pages in the sidebar's order, which the site and the protobase skill (scripts/protobase-skill.ts) share.
-export const startHere = ['getting-started', 'guides/deploy']
+export const startHere = ['getting-started', 'features', 'guides/deploy']
+
+// One page per area of the features page (features.md), each listing that area's features. scripts/features-check.ts
+// holds every one of them to the entry grammar and refuses a page under features/ that is not here.
+export const features = [
+  'features/start-a-project',
+  'features/data-model',
+  'features/access',
+  'features/lists',
+  'features/list-displays',
+  'features/record-pages',
+  'features/actions',
+  'features/composed-pages',
+  'features/your-own-code',
+  'features/look-and-language',
+  'features/navigation',
+  'features/rest-api',
+  'features/api-functions',
+  'features/sign-in-and-accounts',
+  'features/files-and-images',
+  'features/history-comments-and-live-updates',
+  'features/events-webhooks-and-jobs',
+  'features/email-and-public-forms',
+  'features/ai',
+  'features/compatibility',
+  'features/several-apps',
+  'features/build-and-run',
+  'features/releases',
+]
 
 export const guides = [
   'guides/table-to-admin',

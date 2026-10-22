@@ -1,0 +1,10 @@
+---
+title: Actions
+description: Buttons that change records, ask for input or run your own code, per role.
+---
+
+- [Record actions](/reference/ui-config/#actions-and-views-per-role): Buttons that update fields, delete, open a link, run an AI action or call your own code.
+- [Actions that ask for input](/reference/ui-config/#actions-that-ask-for-input): An action opens a dialog for text, numbers, dates, choices or records before it runs.
+- [Conditional and bulk actions](/reference/ui-config/#where-an-action-applies): Actions show, or show disabled with a reason, only where a condition holds, and run on several selected rows at once.
+- [Views per role](/reference/ui-config/#actions-and-views-per-role): Each role can get its own view of a resource, with other columns, filters, layout and actions.
+- [Named actions](/reference/layouts/#named-actions): An action is declared once in a view and used as a button on lists, record pages and composed pages.

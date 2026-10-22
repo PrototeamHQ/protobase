@@ -2,7 +2,7 @@ import starlight from '@astrojs/starlight'
 import { defineConfig } from 'astro/config'
 import starlightLinksValidator from 'starlight-links-validator'
 import starlightTypeDoc, { typeDocSidebarGroup } from 'starlight-typedoc'
-import { guides, reference, startHere } from './sidebar.mjs'
+import { features, guides, reference, startHere } from './sidebar.mjs'
 
 export default defineConfig({
   site: 'https://docs.protobase.net',
@@ -20,6 +20,7 @@ export default defineConfig({
       plugins: [starlightTypeDoc({ output: 'api/schema', sidebar: { label: 'Schema items', collapsed: true }, typeDoc: { entryFileName: 'index' } }), starlightLinksValidator()],
       sidebar: [
         { label: 'Start here', items: startHere },
+        { label: 'Features', items: features, collapsed: true },
         { label: 'Guides', items: guides },
         { label: 'Reference', items: reference },
         { label: 'API', items: [{ label: '@protobase/schema', link: '/api/schema/' }, typeDocSidebarGroup] },

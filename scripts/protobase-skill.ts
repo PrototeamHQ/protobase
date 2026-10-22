@@ -1,7 +1,8 @@
 // Writes the references of the protobase agent skill, packages/cli/skills/protobase/references/, from the docs site's
 // pages: one Markdown file per page of the sidebar, with links between pages made relative and the rest absolute to
 // https://docs.protobase.net. packages/cli/skills/protobase/SKILL.md is written by hand; here it is only checked: every
-// generated file needs a pointer in it and every reference link in it needs a file. `protobase skill install` copies the
+// generated file needs a pointer in it, or for a features area page in the features page, and every reference link in
+// it needs a file. `protobase skill install` copies the
 // skill out of @protobase/cli. With --check nothing is written and it fails when the committed files differ from what
 // would be written, which CI runs so the skill cannot fall behind the docs.
 //
@@ -9,7 +10,7 @@
 import { mkdir, readdir, readFile, rm, writeFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { pageMarkdown } from '../website/src/markdown/page-markdown'
-import { guides, reference, startHere } from '../website/sidebar.mjs'
+import { features, guides, reference, startHere } from '../website/sidebar.mjs'
 import { linked } from './skill-links'
 
 const root = join(import.meta.dir, '..')
@@ -45,7 +46,7 @@ async function markdownFiles(dir: string): Promise<string[]> {
   return nested.flat().filter((file) => file.endsWith('.md'))
 }
 
-const pages = await Promise.all([...startHere, ...guides, ...reference].map(readPage))
+const pages = await Promise.all([...startHere, ...features, ...guides, ...reference].map(readPage))
 const paths = new Set(pages.map((page) => page.path))
 const expected = new Map(
   pages.map((page) => [
@@ -56,9 +57,12 @@ const expected = new Map(
 
 const problems: string[] = []
 
-// The hand-written SKILL.md and the generated files must point at each other.
+// The hand-written SKILL.md and the generated files must point at each other. The features area pages are reached
+// through the features page, which SKILL.md points at.
 const core = await readFile(join(skillDir, 'SKILL.md'), 'utf8')
 const pointed = new Set([...core.matchAll(/\]\((references\/[^)#]*\.md)(?:#[^)]*)?\)/g)].map((match) => join(skillDir, match[1]!)))
+const featuresIndex = expected.get(join(referencesDir, 'features.md')) ?? ''
+for (const match of featuresIndex.matchAll(/\]\((features\/[^)#]*\.md)\)/g)) pointed.add(join(referencesDir, match[1]!))
 for (const file of pointed) {
   if (!expected.has(file)) problems.push(`packages/cli/skills/protobase/SKILL.md links ${file.slice(skillDir.length + 1)}, which is not a generated page: fix the link`)
 }

@@ -1,0 +1,13 @@
+---
+title: AI
+description: Fields and actions filled by a model, the assistant beside the admin, and MCP.
+---
+
+- [AI fields](/reference/ai/#ai-fields): A model fills a field from a prompt that uses the record's other fields, after each change.
+- [AI actions](/reference/ai/#ai-actions): A button asks a model to write a field now, such as a suggested priority or a translation.
+- [Assistant](/reference/assistant/): A chat beside the admin that answers questions about the app, reads its data and proposes changes for approval.
+- [Choice of model](/reference/assistant/#which-backend): The assistant runs on OpenRouter or any OpenAI-compatible endpoint, also a local one.
+- [Assistant tools](/reference/assistant/#the-apps-own-tools): Your own tools for the assistant, acting on records as the user.
+- [MCP server](/reference/mcp/#the-tools): AI clients connect to the app over MCP as the signed-in person, and list, find and read records within that person's access.
+- [MCP writes](/reference/mcp/#writes): When turned on, AI clients create and update records after the person approves each write.
+- [Connected apps](/reference/auth/#oauth-for-mcp-clients): People allow an AI client to sign in, and disconnect it later.

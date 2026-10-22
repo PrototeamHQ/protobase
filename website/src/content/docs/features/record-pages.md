@@ -1,0 +1,19 @@
+---
+title: Record pages
+description: The page of one record, with its sections, related records, galleries, charts and editing.
+---
+
+- [Record page layout](/reference/ui-config/#the-record-page): Sections, a summary sidebar, related tables, maps, charts, galleries, history, comments and your own components.
+- [Read view and edit](/reference/ui-config/#read-view-and-edit): A record opens as a read-only fact sheet or a form, and Edit opens the form at its own address.
+- [Unsaved edits](/reference/ui-config/#read-view-and-edit): Unsaved changes stay in the browser and can be resumed, and leaving a form with changes asks first.
+- [Save feedback](/reference/ui-config/#the-record-page): A view shows saving on the Save button instead of in a toast.
+- Save conflicts: When someone else changed a record while you edited it, Save shows their value beside yours for each field you both changed, and you keep yours or take theirs.
+- [Groups and tabs](/reference/ui-config/#groups): Parts of a record page sit under headings that open on click, or in tabs, and the open ones are kept in the address.
+- [Key facts](/reference/ui-config/#key-facts): A section shows its values side by side with icons.
+- [Conditional sections](/reference/ui-config/#form-and-read-view): Sections and fields show only while editing, only while reading, or only when a condition on the record holds.
+- [Galleries](/reference/ui-config/#galleries): A record's photos show as tiles that open a full-screen lightbox, with keyboard and swipe navigation.
+- [Related records](/reference/ui-config/#related-records): Every record page shows how many records point at it, and can list related records as a table, another display or cards with buttons.
+- Record lines: Lines that belong to a record, with a position and a quantity, such as those of an invoice, show as a table with totals on its page. You drag them into a new order, and Save writes the record and the order together.
+- [Charts of samples](/reference/ui-config/#charts-of-related-records): A record page graphs numeric samples over the last hour, day or week, such as a server's CPU use.
+- [Fresh data on return](/reference/ui-config/#the-record-page): Records and lists reload when the browser tab is focused again, keeping unsaved edits.
+- Safe deletes: Deleting asks first, offers a review when the record changed since it was opened, and a soft delete shows Undo.

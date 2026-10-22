@@ -1,0 +1,27 @@
+---
+title: Lists
+description: The list page of each resource, with its columns, filters, charts, search, exports and imports.
+---
+
+- [Names and columns](/reference/ui-config/#names-and-columns): Each resource gets singular and plural names and a title field, and a list shows the columns you choose, with a starting sort and search.
+- [Field display hints](/reference/ui-config/#names-and-columns): Labels, help lines, badges, codes, percentages, currencies, units, decimals and relative times such as "5 minutes ago".
+- [Email, phone and web links](/reference/ui-config/#names-and-columns): Fields marked as email, phone or URL show as links and are edited with the matching phone keyboard and browser autofill.
+- [Markdown and long text](/reference/ui-config/#names-and-columns): Long text is edited in a box that grows with it. Markdown fields have Write and Preview and show rendered on the record page.
+- [Enum labels and colours](/reference/ui-config/#names-and-columns): Enum values get readable labels and badge colours that show everywhere the value appears.
+- [Pinned title column](/reference/ui-config/#names-and-columns): Columns size to their content, and on desktop the title column stays in place while the table scrolls sideways.
+- Pinned columns: A column's menu pins it to the left edge of the table, and each user's pins are kept.
+- [Related records as dots](/reference/ui-config/#related-records-in-a-list): A list column or card shows linked records as coloured status dots, with the record's card on hover.
+- [Editing in the list](/reference/ui-config/#editing-in-the-list): Chosen columns are edited in their cells, as in a spreadsheet, with keyboard navigation. Each change saves at once and is refused if someone else changed the record first.
+- [Filters](/reference/ui-config/#filters-and-the-chart): Value menus with counts, date presets, range sliders with histograms, toggles and flags. Less used filters wait under More filters.
+- [Filters beside the list](/reference/client/#the-admin-app): A list can show its filters in a panel beside the table instead of a bar above it.
+- [Default filter](/reference/ui-config/#a-filter-the-list-opens-with): A list can open with a filter applied, shown as chips users can clear or change.
+- [More than one list](/reference/ui-config/#more-than-one-list): One resource can have several lists, each with its own sidebar entry, columns, filters and chart.
+- [List charts](/reference/ui-config/#filters-and-the-chart): A chart above a list shows records over time or per value, follows the list's filters, and filters the list when a value is clicked.
+- [Shareable list addresses](/reference/client/#the-admin-app): Filters, sort, display and saved search are kept in the address, so a list can be bookmarked and shared.
+- [Empty states](/reference/ui-config/#filters-and-the-chart): An empty list says why it is empty and offers Clear search, Clear filters or New.
+- [Long lists](/reference/ui-config/#list-displays): Lists of any length scroll at once, drawing only the rows in view, and Back returns to the same place.
+- [Saved searches](/reference/ui-config/#saved-searches): Users save a filtered list as a named search and see which records are new since they last looked.
+- [Favorites](/reference/ui-config/#favorites): A heart on each card saves the record to the user's favorites, which a list page can show.
+- [Sign-in prompts](/reference/ui-config/#sign-in-prompts): Visitors who are not signed in see what signing in gives them, in place of a list or when they press favorite or save search.
+- [Export to Excel and CSV](/reference/ui-config/#exports): Any list, or the selected rows, is saved as an Excel or CSV file with the columns the user picks.
+- [Import from a spreadsheet](/reference/ui-config/#importing-records): Records are created or updated from Excel or CSV. Every row is checked before anything is saved, and refused rows can be downloaded with the reasons.

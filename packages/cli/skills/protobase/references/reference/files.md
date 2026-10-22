@@ -127,6 +127,10 @@ await storeFile({ provider: 'public', path: 'images/test.png', body: bytes, env:
 
 ### S3-compatible buckets
 
+:::caution[Beta]
+S3-compatible buckets work only when the app runs on Bun. On Node the first file operation fails.
+:::
+
 `s3Files` stores files in any bucket with the S3 API, such as Cloudflare R2, Scaleway Object Storage or AWS S3, under `prefix` when given, so one bucket can hold several providers or apps:
 
 ```ts
