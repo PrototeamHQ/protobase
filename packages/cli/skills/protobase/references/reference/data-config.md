@@ -60,7 +60,7 @@ export const repairs = resource('repairs')
 | `.primaryKey((r) => r.id)` | The key, one field or a list (`(r) => [r.order_id, r.line_no]`). Required; records are addressed by it. |
 | `.softDelete((r) => r.deleted_at)` | A nullable timestamp or date: deleting sets it, lists leave such rows out, `:undelete` clears it. See [REST API](api.md#routes). |
 | `.tenant((r) => r.organization_id)` | The column that separates tenants: every query is limited to the caller's tenant, creates set it, and a request body may not. |
-| `.owner((r) => r.owner_id)` | The field holding the owning user's id, which `.own` capabilities filter on (see [Access](#access)). |
+| `.owner((r) => r.owner_id)` | The field holding the owning user's id, which `.own` and `.team` capabilities filter on (see [Access](#access)). The server does not start when its column cannot hold the signed-in users' ids, such as an integer column with Better Auth's text ids; see [user ids](auth.md#roles-and-access-in-the-api). |
 | `.search((r) => [r.number, r.name])` | The fields that `search("...")` and bare words in a filter match, and what the admin's [global search](client.md#global-search) looks in. Every word of the text must appear in one of them, ignoring case, and part of a word is enough: `port` finds "Portfolio". `r.phone.digitsEnd()` matches only the end of a field's digits instead, ignoring spaces, `+` and dashes, and only words written like phone numbers: `9623`, `47069623` and `+31 6 47069623` find "+31 6 47069623", `4706` and `+316` do not. Each field needs a pg_trgm index (`using gin (name gin_trgm_ops)`), a `digitsEnd` one on `regexp_replace(phone, '[^0-9]', '', 'g')`, or the API refuses the search. |
 | `.position((r) => r.position, { within?, after? })` | The integer field holding the records' order by hand, 1 the first, which a list's **Reorder** button changes by dragging; with `within: (r) => r.invoice_id`, a filterable relation, each parent's records have an order of their own, sorted in its related section; with `after`, a record never ranks above the records it depends on. The field must be sortable. See [Reordering by hand](ui-config.md#reordering-by-hand) and [Ranked after what they depend on](ui-config.md#ranked-after-what-they-depend-on). |
 | `.parent((r) => r.vm_id, 'update')` | The relation whose record each record belongs to, and the access on it (`'read'` or `'update'`) that creating, changing, deleting and undeleting a record needs, checked with the caller's own rules on that resource. The relation is one column, to a resource with a key of one field. See [Records that belong to another](access.md#records-that-belong-to-another). |
@@ -70,7 +70,7 @@ export const repairs = resource('repairs')
 | `.history()` | Keeps every change of its records with who made it, shown on the record page and listed for admins as Activity. See [Record history](history.md). |
 | `.comments()` | Lets whoever may read a record comment on it and @mention others who may, who are emailed; shown on the record page and listed for admins. See [Record comments](comments.md). |
 
-Field and resource names are snake_case by convention, like the columns: they are the names in URLs, the API, filters and sorts as written (`/stock_moves?order_by=moved_at desc`). The column is the snake_case of the name unless `.column()` says otherwise, so a camelCase name such as `movedAt` maps to `moved_at` too.
+Field and resource names are snake_case by convention, like the columns: they are the names in URLs, the API, filters and sorts as written (`/stock_moves?order_by=moved_at desc`). The column is the snake_case of the name unless `.column()` says otherwise, so a camelCase name such as `movedAt` maps to `moved_at` too. [`protobase scaffold`](cli.md#scaffold) writes snake_case names, and the built-in resources, such as `failed_jobs` and `webhook_subscriptions`, have them too. Nothing checks the convention: a resource or field may have any name.
 
 ## Field types
 
@@ -198,7 +198,7 @@ Empty values of `field` are left out, as in SQL. The migration adds the column, 
 
 `.formula(expression)` is a Postgres generated column. The expression reads the record's number fields, and takes numbers, `+ - * /`, parentheses, `coalesce(a, b, ...)` and `round(x)` or `round(x, digits)`. It is computed exactly as decimals, so `7 / 2` is 3.5, and is stored as the field's type, so an integer field rounds the result. A formula that reads an optional field is `.optional()` too, unless `coalesce()` gives that field a value. A formula cannot read another formula. When the expression changes, the migration drops the column and adds it again, so an index on it must be created again in the same migration.
 
-Neither field can be written through the API, have a default, or be sensitive. The server does not start while a declared column, function or trigger is missing or out of date, with a message that names the fields; the migration fixes that. It stops with an error, without writing anything, when the column already exists as the project's own: a plain column where a formula is declared, a generated column it did not write, or a rollup column of another type.
+Neither field can be written through the API, have a default, or be sensitive, an AI field, a file, or the key, tenant, owner or soft delete field, and a formula cannot read a sensitive field. The server does not start while a declared column, function or trigger is missing or out of date, with a message that names the fields; the migration fixes that. It stops with an error, without writing anything, when the column already exists as the project's own: a plain column where a formula is declared, a generated column it did not write, or a rollup column of another type.
 
 ## Sensitive fields
 
@@ -310,12 +310,16 @@ export const partOrders = resource('part_orders')
 
 A relation's value in the API is the other record's key. The admin shows the other record's name instead (its view's `title`, else a field such as `name` or `number`) and links to it. The create form and the record's form pick it from a list, with a link beside it on the record's form; a relation the user may not change, the record's own key and a relation to a record with a key of several columns stay links.
 
+## Schema API reference
+
+Every builder, option and type that `@protobase/schema` exports has a doc comment, which your editor shows as you write a config, and the [schema API reference](https://docs.protobase.net/api/schema/) lists them with their types. The types the builders return, such as [`ResourceBuilder`](https://docs.protobase.net/api/schema/interfaces/resourcebuilder/), [`Field`](https://docs.protobase.net/api/schema/interfaces/field/) and [`RecordOf`](https://docs.protobase.net/api/schema/type-aliases/recordof/), are exported, so a helper of your own that takes or returns them is typed too.
+
 ## Access
 
 Without rules everyone who can sign in may do everything. Rules come in three kinds, and the [Access](access.md) reference explains the defaults:
 
 - **Per operation** (`list`, `read`, `create`, `update`, `delete`): `.access({ update: rule })`. A rule returns `true`, `false`, or an AIP-160 filter that limits the rows, like row-level security. A rule that reads the record (`record.status`) is checked against the stored row.
-- **Per row**: a filter from a rule, or a `.own` capability with `.owner(...)`.
+- **Per row**: a filter from a rule, or a `.own` or `.team` capability with `.owner(...)`: `.own` gives the records whose owner is the user, `.team` those owned by the users that `defineRoles(roles, { teamOf: (user) => ids })` returns for them.
 - **Per field**: `.access({ read, create, update })` on the field. Field rules see only the user, never a record, so the fields a user can read are the same for every row.
 
 [`defineRoles`](https://docs.protobase.net/api/schema/functions/defineroles/) turns roles into capabilities (`work_orders.update.own`, `money.read`, `*`), and `roles.can(...)` and `roles.is(...)` make rules of them; `.and()` and `.or()` combine rules.

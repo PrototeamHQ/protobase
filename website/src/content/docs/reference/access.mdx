@@ -29,6 +29,7 @@ defineRoles<'orders' | 'products'>({
 })
 ```
 
+- **Scopes**: `.own` gives the records whose [`.owner()`](/reference/data-config/#resource) field holds the user's id, and `.team` those owned by the users that `teamOf` returns for them, a function given as `defineRoles(roles, { teamOf: (user) => ids })`. A scoped capability on a resource without `.owner()` fails the request.
 - **Fields** (`['sku', 'price']`, or `fields` in an object) are an allowlist: for `<resource>.read`, `.create` or `.update`, the role reads or writes only the fields listed, so a column added later stays hidden from it until someone lists it. Key columns are always there, because records are addressed by them. A plain capability (`'products.read'`) still means every field.
 - **Filter** is AIP-160 text, like a filter an access rule returns. It narrows the rows of the capability, together with `.own` or `.team` when the capability has one.
 - A limit names one resource, never `*`, and fields go with `read`, `create` or `update` only; `defineRoles` refuses anything else. At startup the server refuses a field the resource does not have, a filter that does not fit it, and a limit on a name that is not a resource.
@@ -99,6 +100,7 @@ A record often belongs to another one through a relation, such as an operation t
 
 - **Every write is checked.** Creating a record checks the parent it names; changing it, the parent it points at and the one it moves to; deleting and undeleting it, the parent it points at. So a record cannot be created under an allowed parent and then moved under another. It holds for `/api/v1` and its batches, and for everything that writes through them: forms, [API functions](/guides/api-functions/) and the assistant.
 - **The caller's own rules decide.** The parent is read as the caller would read it, with its tenant, row filters, soft delete and record-level rules; for `update`, also its update row filter and record-level update rule, given an empty input. A parent the caller cannot see, may not update, that is soft deleted or does not exist gets the same `403` as a refused create (`You may not create this operations record`), and nothing is written: the answer does not tell which VM ids exist.
+- **One column, to a key of one field.** The config does not load with a relation of several columns as a parent, and the server does not start with a parent resource the app does not have or whose key has several fields.
 - **A null relation checks nothing.** A relation set by a column default or a trigger is checked from the record as written.
 - **`update` follows the parent's own parents**, so with VMs under `.parent((r) => r.folder_id, 'update')` an operation needs update on the VM's folder too. A write that would put a record under itself, or under a cycle already in the data, is refused. A `read` parent is not followed further.
 - **Several parents** are each checked with their own access, also two of one resource, such as a transfer that reads its `source_vm_id` and updates its `target_vm_id`.
