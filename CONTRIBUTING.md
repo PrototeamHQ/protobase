@@ -16,8 +16,26 @@ docs: the record page runs named actions too
 - `feat` releases a feature, `fix` a fix; `docs`, `test`, `refactor`, `perf`, `build`, `ci`, `style`, `chore` and `revert` release nothing on their own.
 - A breaking change takes a `!` after the type or scope, or a `BREAKING CHANGE:` footer saying what to do instead.
 - The subject starts in lowercase and ends without a period; the header and every body line are at most 100 characters.
+- A `feat` commit adds something a user of Protobase can see or call, and is documented (see [Features and docs](#features-and-docs)). A change no user can see is `fix`, `perf`, `refactor` or `chore`.
 
 `bun install` installs a `commit-msg` hook (`.githooks/`) that checks each message with commitlint (`commitlint.config.mjs`); the release workflow checks every commit pushed to `main` again. To check messages by hand: `bun x commitlint --from <commit>`.
+
+## Features and docs
+
+Every feature of Protobase is listed on the docs site: `website/src/content/docs/features.md` links one page per area, and each area page under `website/src/content/docs/features/` lists that area's features, one line each, with `## Subarea` headings where an area has them:
+
+```
+- [Name](/page/#anchor) (stability): what someone gets, in one or two plain sentences.
+```
+
+The link goes to the heading of the docs page that explains the feature; a feature that no page explains yet has its name without a link. A stable feature has no stability; the others say `(beta)`, `(in development)` or `(coming soon)`. A new area page goes into `features` in `website/sidebar.mjs` and gets a line in `features.md`.
+
+- A feature ships with its docs: the change that adds or changes it updates the page that explains it and, for a new feature, adds its entry.
+- Nothing is documented that is not built, unless it is marked coming soon, and only while a task builds it.
+- Stable: built, released and complete as documented. Beta: built and released, with the limits its page lists, and it may still change. In development: partly released, not usable on its own yet. Coming soon: documented, not built. The section a non-stable entry links starts with an aside, such as `:::caution[Beta]`, naming what is missing. Stability changes only in a change whose plan says so.
+- Public text names no other company or product, unless compatibility with it is the subject; such compatibility sits under the area for compatibility with and moving from other systems.
+
+`bun run features:check`, which CI runs, holds every entry to that grammar and to a heading that exists, every area page to the sidebar and the features page, and every reference page to at least one entry. `bun run features:check --release-rule` also refuses a release with a `feat` commit when no docs page changed since the last release; it is not on in CI or the release workflow yet.
 
 ## Doc comments and the API reference
 
