@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { androidSigningVariables } from './android-signing'
 import { mobileBuild } from './build'
 import type { ChildOptions } from './child-process'
+import { protobasePluginClasses } from './protobase-plugin'
 
 const storePassword = 'store-pw-5f1c'
 const keyPassword = 'key-pw-9a2e'
@@ -53,8 +54,10 @@ const fakeRun = (calls: Call[], gradleOutcome: 'bundle' | 'nothing' | 'fail' = '
     write(path.join(ws, 'node_modules/@capacitor/cli/package.json'), JSON.stringify({ name: '@capacitor/cli', version: '8.5.3', bin: { cap: './bin/capacitor' } }))
   }
   if (command === 'node' && args[1] === 'add') {
-    if (args[2] === 'android') write(path.join(ws, 'android/app/build.gradle'), gradle)
-    else {
+    if (args[2] === 'android') {
+      write(path.join(ws, 'android/app/build.gradle'), gradle)
+      write(path.join(ws, 'android/app/src/main/assets/capacitor.plugins.json'), JSON.stringify(protobasePluginClasses.map((classpath) => ({ pkg: '@protobase/mobile', classpath }))))
+    } else {
       write(path.join(ws, 'ios/App/App.xcodeproj/project.pbxproj'), pbxproj)
       write(path.join(ws, 'ios/App/App/Info.plist'), '<plist version="1.0">\n<dict>\n</dict>\n</plist>\n')
     }
@@ -110,7 +113,7 @@ describe('mobileBuild android', () => {
     const dir = project()
     await mobileBuild(input(dir, 'android'), () => {}, { run: fakeRun([]), build: webBuild })
     const config = JSON.parse(readFileSync(path.join(ws(dir), 'capacitor.config.json'), 'utf8'))
-    expect(Object.keys(config).sort()).toEqual(['appId', 'appName', 'appendUserAgent', 'includePlugins', 'webDir'])
+    expect(Object.keys(config).sort()).toEqual(['android', 'appId', 'appName', 'appendUserAgent', 'includePlugins', 'plugins', 'webDir'])
   })
 
   it('refuses a missing variable, and a server that is not https away from this machine, before npm runs', async () => {
@@ -160,7 +163,7 @@ describe('mobileBuild ios', () => {
     expect(readFileSync(path.join(ws(dir), 'ios/App/App/PrivacyInfo.xcprivacy'), 'utf8')).toContain('CA92.1')
     expect(readFileSync(path.join(ws(dir), 'ios/App/App/Info.plist'), 'utf8')).not.toContain('NSAppTransportSecurity')
     const config = JSON.parse(readFileSync(path.join(ws(dir), 'capacitor.config.json'), 'utf8'))
-    expect(Object.keys(config).sort()).toEqual(['appId', 'appName', 'appendUserAgent', 'includePlugins', 'webDir'])
+    expect(Object.keys(config).sort()).toEqual(['android', 'appId', 'appName', 'appendUserAgent', 'includePlugins', 'plugins', 'webDir'])
   })
 
   it('passes manual signing to Capacitor', async () => {

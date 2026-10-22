@@ -98,7 +98,7 @@ const pending = packOnly ? packages : await unpublished(packages)
 
 // Every package is built before any package.json is rewritten for packing, since a build resolves its dependencies'
 // sources through their workspace exports, and before any is published, so a failing build publishes nothing. A package
-// without a build script, such as @protobase/mobile, which only pins dependencies, is packed as it is.
+// without a build script, such as @protobase/mobile, which holds no JavaScript, is packed as it is.
 await Promise.all(pending.filter(({ build }) => build).map(({ dir }) => run('bun', ['run', 'build'], dir)))
 // One pack at a time: `bun pm pack` reads every workspace's package.json to pin the workspace:* dependencies, and one
 // rewritten or restored for another pack meanwhile can be read half-written, failing the pack with `Failed to resolve

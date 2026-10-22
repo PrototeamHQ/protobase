@@ -1,6 +1,8 @@
 import { rm, writeFile } from 'node:fs/promises'
 import path from 'node:path'
+import { capacitorOrigin } from '@protobase/schema/internal'
 import type { HttpAllowances } from './api-origin'
+import type { Platform } from './platform'
 import { webPartDir } from './web-part'
 
 export type CapacitorConfigInput = {
@@ -10,22 +12,32 @@ export type CapacitorConfigInput = {
   /** The extra plugins' npm names: the only ones compiled into the app. */
   plugins: string[]
   allowances: HttpAllowances
+  /** The origin of the API the app calls, the only one ProtobaseAuth signs in with. */
+  apiOrigin: string
+  platform: Platform
 }
+
+// The npm package of Protobase's native plugin: ProtobaseAuth, and the stand-ins that refuse page script Capacitor's
+// own HTTP, cookie and WebView plugins and guard the local server.
+const protobasePlugin = '@protobase/mobile'
 
 /**
  * The app's `capacitor.config.json`, every key it sets named here. It never sets `server.url`, the hostname or the
- * schemes (the API's CORS list names Capacitor's default origins), `plugins` (so CapacitorHttp and CapacitorCookies
- * stay off) or WebView debugging (on in debug builds only). The fingerprint goes in the user agent, which a live
- * update cannot change.
+ * schemes (the API's CORS list names Capacitor's default origins), or WebView debugging (on in debug builds only).
+ * `plugins` configures ProtobaseAuth alone, so CapacitorHttp and CapacitorCookies stay off. Protobase's plugin is
+ * compiled in last, so its stand-ins replace any plugin of the same name. Service workers get nothing from the local
+ * server on Android, which they would reach past the WebViewClient that guards it. The file ships outside the app's web
+ * part, so the fingerprint in the user agent and ProtobaseAuth's origins are beyond page script and a live update.
  */
-export const capacitorConfig = ({ appId, appName, fingerprint, plugins, allowances }: CapacitorConfigInput) => ({
+export const capacitorConfig = ({ appId, appName, fingerprint, plugins, allowances, apiOrigin, platform }: CapacitorConfigInput) => ({
   appId,
   appName,
   webDir: webPartDir,
   appendUserAgent: `ProtobaseNative/${fingerprint}`,
-  includePlugins: plugins,
+  includePlugins: [...plugins, protobasePlugin],
+  plugins: { ProtobaseAuth: { apiOrigin, origin: capacitorOrigin[platform] } },
   ...(allowances.cleartext && { server: { cleartext: true } }),
-  ...(allowances.mixedContent && { android: { allowMixedContent: true } }),
+  android: { resolveServiceWorkerRequests: false, ...(allowances.mixedContent && { allowMixedContent: true }) },
 })
 
 /** Writes the config into the workspace `dir`, removing the `.ts` and `.js` configs Capacitor would read instead. */

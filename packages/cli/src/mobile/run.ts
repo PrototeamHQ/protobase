@@ -16,6 +16,7 @@ import { checkMobileConfig } from './mobile-config'
 import { signForDevelopment } from './development-signing'
 import { checkInstalledPlugins, pinnedNative } from './pinned-packages'
 import type { Platform } from './platform'
+import { checkProtobasePlugin } from './protobase-plugin'
 import { buildWebPart, placeholderWebPart, type WebPartInput } from './web-part'
 import { mobileSpec, prepareWorkspace, workspaceDir, workspacePackageJson } from './workspace'
 
@@ -60,9 +61,11 @@ export const prepare = async ({ projectDir, platform, api, extensions, live, rel
   else await placeholderWebPart(ws)
   const fingerprint = nativeFingerprint(pinnedNative, mobile.plugins)
   const appName = project.auth?.appName ?? defaultAppName
-  await writeCapacitorConfig(ws, capacitorConfig({ appId: mobile.appId, appName, fingerprint, plugins, allowances }))
+  await writeCapacitorConfig(ws, capacitorConfig({ appId: mobile.appId, appName, fingerprint, plugins, allowances, apiOrigin: url.origin, platform }))
   const cap = capacitorRunner(ws, env, run)
   await generatePlatform(ws, platform, allowances, cap)
+  // iOS gets the plugin in a later release; until then its app signs in as before.
+  if (platform === 'android') await checkProtobasePlugin(ws)
   return { ws, url, fingerprint, cap, env, appId: mobile.appId }
 }
 
