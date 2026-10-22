@@ -1,4 +1,4 @@
-import { isLocale } from '@protobase/schema/internal'
+import { authBasePath, isLocale } from '@protobase/schema/internal'
 import { accountSecurity } from './account-security'
 import { connectClient } from './connect'
 import { AuthError, authError } from './auth-error'
@@ -43,7 +43,7 @@ export const tokenExpiry = (token: string) => {
  */
 export const createAuthSession = (options: AuthSessionOptions = {}) => {
   const origin = options.origin ?? globalThis.location?.origin ?? 'http://localhost'
-  const basePath = options.basePath ?? '/api/auth'
+  const basePath = options.basePath ?? authBasePath
   const margin = options.refreshMarginMs ?? 60_000
   const doFetch = options.fetch ?? ((input, init) => fetch(input, init))
   const client = betterAuthClient(origin, basePath, doFetch as typeof fetch)
