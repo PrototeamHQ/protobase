@@ -7,7 +7,7 @@ description: The list page of each resource, with its columns, filters, charts, 
 - [Field display hints](/reference/ui-config/#names-and-columns): Labels, help lines, badges, codes, percentages, currencies, units, decimals and relative times such as "5 minutes ago".
 - [Email, phone and web links](/reference/ui-config/#names-and-columns): Fields marked as email, phone or URL show as links and are edited with the matching phone keyboard and browser autofill.
 - [Markdown and long text](/reference/ui-config/#names-and-columns): Long text is edited in a box that grows with it. Markdown fields have Write and Preview and show rendered on the record page.
-- [Enum labels and colours](/reference/ui-config/#names-and-columns): Enum values get readable labels and badge colours that show everywhere the value appears.
+- [Enum labels and colours](/reference/ui-config/#names-and-columns): Enum values get readable labels and badge colours that show everywhere the value appears, and badges can be drawn as arrows, as on a rating scale.
 - [Pinned title column](/reference/ui-config/#names-and-columns): Columns size to their content, and on desktop the title column stays in place while the table scrolls sideways.
 - [Pinned columns](/reference/ui-config/#names-and-columns): A column's menu pins it to the left edge of the table, and the browser keeps the pins for each list.
 - [Related records as dots](/reference/ui-config/#related-records-in-a-list): A list column or card shows linked records as coloured status dots, with the record's card on hover.

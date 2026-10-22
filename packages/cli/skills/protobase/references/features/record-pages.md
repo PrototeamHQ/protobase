@@ -6,15 +6,17 @@ The page of one record, with its sections, related records, galleries, charts an
 
 - [Record page layout](../reference/ui-config.md#the-record-page): Sections, a summary sidebar, related tables, maps, charts, galleries, history, comments and your own components.
 - [Read view and edit](../reference/ui-config.md#read-view-and-edit): A record opens as a read-only fact sheet or a form, and Edit opens the form at its own address.
-- [Unsaved edits](../reference/ui-config.md#read-view-and-edit): Unsaved changes stay in the browser and can be resumed, and leaving a form with changes asks first.
+- [Unsaved edits](../reference/ui-config.md#editing-a-record): Unsaved changes to a record stay in the browser and can be resumed, and leaving a form, a dialog or a comment with changes asks first.
+- [Record forms](../reference/ui-config.md#editing-a-record): Relations are picked from a list that narrows as you type, numbers are read as the browser's language writes them, and a refused save says under each field what is wrong.
 - [Save feedback](../reference/ui-config.md#the-record-page): A view shows saving on the Save button instead of in a toast.
-- Save conflicts: When someone else changed a record while you edited it, Save shows their value beside yours for each field you both changed, and you keep yours or take theirs.
+- [Save conflicts](../reference/ui-config.md#editing-a-record): When someone else changed a record while you edited it, Save shows their value beside yours for each field you both changed, and you keep yours or take theirs.
 - [Groups and tabs](../reference/ui-config.md#groups): Parts of a record page sit under headings that open on click, or in tabs, and the open ones are kept in the address.
 - [Key facts](../reference/ui-config.md#key-facts): A section shows its values side by side with icons.
+- [Help while editing](../reference/ui-config.md#help-while-editing): Help lines meant for whoever changes a record show only on its form.
 - [Conditional sections](../reference/ui-config.md#form-and-read-view): Sections and fields show only while editing, only while reading, or only when a condition on the record holds.
 - [Galleries](../reference/ui-config.md#galleries): A record's photos show as tiles that open a full-screen lightbox, with keyboard and swipe navigation.
-- [Related records](../reference/ui-config.md#related-records): Every record page shows how many records point at it, and can list related records as a table, another display or cards with buttons.
+- [Related records](../reference/ui-config.md#related-records): Every record page shows how many records point at it, and can list related records, also through a join resource, as a table, another display or cards with buttons.
 - Record lines: Lines that belong to a record, with a position and a quantity, such as those of an invoice, show as a table with totals on its page. You drag them into a new order, and Save writes the record and the order together.
 - [Charts of samples](../reference/ui-config.md#charts-of-related-records): A record page graphs numeric samples over the last hour, day or week, such as a server's CPU use.
 - [Fresh data on return](../reference/ui-config.md#the-record-page): Records and lists reload when the browser tab is focused again, keeping unsaved edits.
-- Safe deletes: Deleting asks first, offers a review when the record changed since it was opened, and a soft delete shows Undo.
+- [Safe deletes](../reference/ui-config.md#deleting-a-record): Deleting asks first, or offers Undo for a soft delete, offers a review when the record changed since it was opened, and names the records that still point at it.
