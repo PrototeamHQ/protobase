@@ -59,6 +59,7 @@ import { useAppAddress, type CurrentAddress } from './use-app-address'
 import { userMenuFromMeta } from './user-menu-from-meta'
 import { slotted } from '../locale/slotted'
 import { text as appText } from './messages'
+import type { NativeBridge } from './native-auth-fetch'
 
 export type AppProps = {
   /** Where `/api/v1` lives. Defaults to the current origin. */
@@ -85,6 +86,8 @@ export type AppProps = {
   pluginLoader?: PluginLoader
   /** The language the screens are in when the app's `/meta` sets none, such as the browser's (`browserLocale()`); English by default. */
   locale?: Locale
+  /** The native bridge of the iOS or Android app (`nativeBridgeOf`): sign-in goes through native HTTP. */
+  nativeBridge?: NativeBridge
 }
 
 // The resource or page an address is about, which the sidebar marks; a record's key, which its recent records mark.
@@ -276,12 +279,12 @@ const PublicFormGate = ({ baseUrl, client, ui, children }: Pick<AppProps, 'baseU
  * visitor when the project's anonymous role reads, then a sidebar from `/meta`, `/:page` composed pages, `/:resource`
  * lists and `/:resource/:key` records. Fills its parent, in the theme this browser chose, light, dark or the system's.
  */
-export const App = ({ auth, workspace, basePath, initialUrl, pluginLoader, locale, ...rest }: AppProps) => {
+export const App = ({ auth, workspace, basePath, initialUrl, pluginLoader, locale, nativeBridge, ...rest }: AppProps) => {
   // Before `/meta` names the app's language, and when it names none, the screens are in this one
   setFallbackLocale(locale ?? 'en')
   return (
     <ThemeProvider>
-      <AuthProvider session={auth} {...(rest.baseUrl && { origin: new URL(rest.baseUrl, window.location.href).origin })}>
+      <AuthProvider session={auth} {...(rest.baseUrl && { origin: new URL(rest.baseUrl, window.location.href).origin })} {...(nativeBridge && { nativeBridge })}>
         <Router basePath={basePath} initialUrl={initialUrl}>
           <PluginSourceProvider {...(pluginLoader && { loader: pluginLoader })}>
             <AuthLocale>
