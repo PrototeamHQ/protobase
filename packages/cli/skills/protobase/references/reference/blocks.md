@@ -238,9 +238,13 @@ It follows the resource's view as its list page does. Of a resource whose view h
 
 What a filter finds as the cards of a record page's [related records as cards](ui-config.md#related-records-as-cards)), stacked full width under a heading that has no card around it, so the page shows no card inside another: each record's title linking to its page, its `fields` under their labels, a value taller than a few lines cut short with **Show more**, and a button for each of `cardActions`, run as on the record page. Below the cards, **View all** opens the list with the same filter and order, beside a note such as "The first 10 of 37." when there are more.
 
+With `layout="carousel"` the cards sit side by side in one row that scrolls sideways, by touch, trackpad, mouse wheel or its scrollbar, and snaps each card to its left edge. Each card is `cardWidth` of the block's width, so the next one peeks in, but never narrower than 12rem, so narrow cards stay readable on a phone. The cards are top aligned and keep their fields and buttons.
+
 | Prop | |
 | --- | --- |
 | `resource`, `filter`, `sort` | Which records, in which order. `resource` is required; `sort` defaults to the list's. |
+| `layout` | `stack` (default) or `carousel`. |
+| `cardWidth` | In a carousel, the width of each card as a share of the block's: `1/4`, `1/3`, `1/2` or `2/3` (default). |
 | `fields` | The fields each card shows, through relations too (`task_id.title`); default the list's columns. |
 | `cardActions` | Named actions of the resource's view, as buttons on each card. |
 | `limit` | How many; default 10. |
@@ -251,6 +255,7 @@ What a filter finds as the cards of a record page's [related records as cards](u
 
 ```tsx
 <RecordCards title="Waiting on you" resource="task_preconditions" filter="state = 'waiting'" fields={['task_id', 'plan']} cardActions={['approve', 'request_changes']} />
+<RecordCards title="Runners" resource="runners" layout="carousel" cardWidth="1/4" fields={['state']} />
 ```
 
 ### Field

@@ -67,6 +67,14 @@ describe('pageProblems', () => {
     ])
   })
 
+  it('wants a RecordCards card width only in a carousel', () => {
+    const cards = (props: Record<string, string>) => Page({ title: 'x', children: RecordCards({ resource: 'subscriptions', ...props }) })
+    expect(pageProblems(model(cards({ layout: 'carousel', cardWidth: '1/2' })), input)).toEqual([])
+    expect(pageProblems(model(cards({ cardWidth: '1/2' })), input)).toEqual([
+      `<Page> › <RecordCards resource="subscriptions">: "cardWidth" sizes the cards of a carousel; set layout to 'carousel' or leave it out`,
+    ])
+  })
+
   it('wants forms to set writable fields only', () => {
     const tree = Page({ title: 'x', children: ModalForm({ mode: 'create', label: 'Add', resource: 'subscriptions', fields: ['id', 'organizationId', 'nope', 'status'], values: { other: 1 } }) })
     expect(pageProblems(model(tree), input)).toEqual([

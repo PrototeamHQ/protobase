@@ -45,7 +45,7 @@ const placesView = view<typeof places>('places')
 
 const home = page(
   'home',
-  Page({ title: 'Home', children: [RecordRow({ title: 'Big places', resource: 'places', filter: 'population > 100000' }), RecordCards({ title: 'Coast', resource: 'places', filter: 'coastal = true' }), Stat({ label: 'Agencies', resource: 'agencies', filter: 'place_id = 1' }), Chart({ title: 'By country', resource: 'places', groupBy: 'country', filter: 'coastal = true' }), Chart({ title: 'Founded by country', resource: 'places', groupBy: 'founded_on', splitBy: 'country' })] }),
+  Page({ title: 'Home', children: [RecordRow({ title: 'Big places', resource: 'places', filter: 'population > 100000' }), RecordCards({ title: 'Coast', resource: 'places', filter: 'coastal = true', layout: 'carousel' }), Stat({ label: 'Agencies', resource: 'agencies', filter: 'place_id = 1' }), Chart({ title: 'By country', resource: 'places', groupBy: 'country', filter: 'coastal = true' }), Chart({ title: 'Founded by country', resource: 'places', groupBy: 'founded_on', splitBy: 'country' })] }),
 )
 
 const shapes = readShapes({ models: [places.toModel(), agencies.toModel()], views: [placesView.toModel()], pages: [home.toModel()] })

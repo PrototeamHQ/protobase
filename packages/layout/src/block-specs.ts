@@ -4,7 +4,7 @@ import { isLayoutNode } from './node'
 // What each built-in block accepts at runtime, for trees written without TypeScript or built by hand. The types in
 // blocks.ts say the same for the compiler.
 
-type Kind = 'text' | 'texts' | 'integer' | 'elements' | 'values' | 'span' | 'columns' | 'format' | 'variant' | 'mode' | 'label' | 'amount' | 'scalar' | 'address' | 'chartType' | 'bucket' | 'range'
+type Kind = 'text' | 'texts' | 'integer' | 'elements' | 'values' | 'span' | 'columns' | 'format' | 'variant' | 'mode' | 'label' | 'amount' | 'scalar' | 'address' | 'chartType' | 'bucket' | 'range' | 'cardsLayout' | 'cardWidth'
 
 type PropSpec = { kind: Kind; required?: true }
 
@@ -31,7 +31,18 @@ export const blockSpecs: Record<string, BlockSpec> = {
   RecordRow: { children: false, props: { ...data, ...heading, limit: optional('integer'), display: optional('text'), empty: optional('text'), span: optional('span') } },
   RecordCards: {
     children: false,
-    props: { ...data, ...heading, fields: optional('texts'), cardActions: optional('texts'), limit: optional('integer'), display: optional('text'), empty: optional('text'), span: optional('span') },
+    props: {
+      ...data,
+      ...heading,
+      layout: optional('cardsLayout'),
+      cardWidth: optional('cardWidth'),
+      fields: optional('texts'),
+      cardActions: optional('texts'),
+      limit: optional('integer'),
+      display: optional('text'),
+      empty: optional('text'),
+      span: optional('span'),
+    },
   },
   Chart: {
     children: false,
@@ -67,6 +78,8 @@ const variants = ['primary', 'secondary', 'danger', 'ghost']
 const chartTypes = ['bar', 'line', 'donut']
 const buckets = ['hour', 'day', 'week', 'month', 'year']
 const ranges = ['7d', '30d', '90d', '1y', 'all']
+const cardsLayouts = ['stack', 'carousel']
+const cardWidths = ['1/4', '1/3', '1/2', '2/3']
 
 const oneOf = (values: string[]): [test: (value: LayoutValue) => boolean, expected: string] => [(value) => typeof value === 'string' && values.includes(value), values.join(', ')]
 
@@ -89,6 +102,8 @@ const checks: Record<Kind, [test: (value: LayoutValue) => boolean, expected: str
   chartType: oneOf(chartTypes),
   bucket: oneOf(buckets),
   range: oneOf(ranges),
+  cardsLayout: oneOf(cardsLayouts),
+  cardWidth: oneOf(cardWidths),
   address: [(value) => isObject(value) && !isLayoutNode(value) && typeof value.kind === 'string', "an address, such as { kind: 'list', resource: 'orders' }"],
 }
 

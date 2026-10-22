@@ -78,6 +78,7 @@ const nodeProblems = (node: LayoutNode, scope: Scope, { models, actions, pages, 
       }
       break
     case 'RecordCards':
+      if (node.props.cardWidth !== undefined && node.props.layout !== 'carousel') problems.push(`"cardWidth" sizes the cards of a carousel; set layout to 'carousel' or leave it out`)
       for (const name of (node.props.fields as string[] | undefined) ?? []) path(name, own)
       for (const name of (node.props.cardActions as string[] | undefined) ?? []) {
         if (own !== undefined && !actions(own).has(name)) problems.push(`no action "${name}" on ${own}; declare it with view('${own}').actions(...)`)

@@ -57,6 +57,10 @@ export type RecordRowProps = DataProps &
     empty?: string
     span?: GridSpan
   }
+/** How a `RecordCards` lays out its cards: stacked full width, or in one row that scrolls sideways, snapping each card to its left edge. */
+export type CardsLayout = 'stack' | 'carousel'
+/** How wide each card of a carousel is, as a share of the block's width. */
+export type CardWidth = '1/4' | '1/3' | '1/2' | '2/3'
 /**
  * What a filter finds as the cards a record page's related section draws with `presentation: 'cards'`, stacked full
  * width under a heading that is not a card: each card its record's title linking to its page, its `fields` under their
@@ -64,6 +68,10 @@ export type RecordRowProps = DataProps &
  */
 export type RecordCardsProps = DataProps &
   Heading & {
+    /** Default `stack`; `carousel` puts the cards in one row that scrolls sideways. */
+    layout?: CardsLayout
+    /** How wide each card of a carousel is, as a share of the block's width, so the next one peeks in; default `2/3`. */
+    cardWidth?: CardWidth
     /** The fields each card shows, through relations too (`task_id.title`); the list's columns when omitted. */
     fields?: string[]
     /** Named actions of the resource's view, as buttons on each card. */

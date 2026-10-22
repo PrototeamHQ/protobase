@@ -3,6 +3,7 @@ import type { ResourceModel, ViewModel } from '@protobase/schema'
 import { useIsXs } from '../../lib/use-media-query'
 import { humanize } from '../../live/naming'
 import { Skeleton } from '../../primitives/skeleton'
+import { SnapRow } from '../../primitives/snap-row'
 import { cutOffNote } from '../embedded-list/cut-off-note'
 import { embeddedDisplay, viewAllAddress } from '../embedded-list/embedded-display'
 import { text as listText } from '../embedded-list/messages'
@@ -27,13 +28,15 @@ type RelatedCardsProps = {
   /** The display of the list "View all" opens. */
   display: string | undefined
   empty?: string
+  /** Each card's share of the width in one row that scrolls sideways, snapping each card to its left edge; stacked when omitted. */
+  carousel?: number
 }
 
 /**
- * The first `limit` records of a list as cards stacked full width, each with its fields and its actions' buttons, and a
- * link to the whole list beside a note such as "The first 10 of 37." when there are more.
+ * The first `limit` records of a list as cards stacked full width or in a `carousel`, each with its fields and its
+ * actions' buttons, and a link to the whole list beside a note such as "The first 10 of 37." when there are more.
  */
-export const RelatedCards = ({ model, view, filter, sort, fields, actions, limit, display, empty }: RelatedCardsProps) => {
+export const RelatedCards = ({ model, view, filter, sort, fields, actions, limit, display, empty, carousel }: RelatedCardsProps) => {
   const xs = useIsXs()
   const orderBy = sort || defaultOrderBy(model, view)
   const page = useListPage(model, { filter, sort: orderBy, pageSize: limit })
@@ -42,15 +45,14 @@ export const RelatedCards = ({ model, view, filter, sort, fields, actions, limit
   if (page.error) return <ErrorBanner title={text('couldNotLoad')} error={page.error} />
   const rows = page.data.items
   if (rows.length === 0) return <p className="text-muted-foreground">{empty ?? text('nothingYet')}</p>
+  const cards = rows.map((row) => {
+    const scope = scopeOf(model, row)
+    return <RelatedCard key={scope.key} scope={scope} view={view} fields={fields} actions={actions} />
+  })
   const note = count.data === undefined ? undefined : cutOffNote(rows.length, count.data, false)
   return (
     <div className="flex flex-col gap-3">
-      <ul className="flex flex-col gap-3">
-        {rows.map((row) => {
-          const scope = scopeOf(model, row)
-          return <RelatedCard key={scope.key} scope={scope} view={view} fields={fields} actions={actions} />
-        })}
-      </ul>
+      {carousel === undefined ? <ul className="flex flex-col gap-3">{cards}</ul> : <SnapRow share={carousel}>{cards}</SnapRow>}
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-xs text-muted-foreground">{note}</p>
         <AppLink to={viewAllAddress(model, view, xs, { filter, orderBy, display: embeddedDisplay(view, xs, { preferred: display }) })} className="flex items-center gap-1 font-medium text-primary-text hover:underline">

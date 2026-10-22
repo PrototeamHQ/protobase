@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { Action, Card, Field, Grid, Link, ModalForm, Page, Progress, RecordCard, Show, Stat, Table } from './blocks'
+import { Action, Card, Field, Grid, Link, ModalForm, Page, Progress, RecordCard, RecordCards, Show, Stat, Table } from './blocks'
 import { component } from './component'
 import { isPageDefinition, page } from './page'
 import { billing } from './testing/billing'
@@ -46,6 +46,16 @@ describe('page', () => {
       '<Page> › <Table>: unknown prop "colums"; it takes resource, filter, sort, title, description, actions, columns, limit, display, empty, span',
       '<Page> › <Table>: "resource" is required',
       '<Page> › <Table>: "limit" must be a positive whole number',
+    ])
+  })
+
+  it('lays RecordCards out stacked or in a carousel of cards a share of its width wide', () => {
+    expect(problems(Page({ title: 'x', children: RecordCards({ resource: 'listings', layout: 'carousel', cardWidth: '1/3' }) }))).toEqual([])
+    expect(problems(Page({ title: 'x', children: RecordCards({ resource: 'listings', layout: 'stack' }) }))).toEqual([])
+    const wrong: LayoutNode = { type: 'Page', props: { title: 'x' }, children: [{ type: 'RecordCards', props: { resource: 'listings', layout: 'row', cardWidth: '3/4' }, children: [] }] }
+    expect(problems(wrong)).toEqual([
+      '<Page> › <RecordCards resource="listings">: "layout" must be stack, carousel',
+      '<Page> › <RecordCards resource="listings">: "cardWidth" must be 1/4, 1/3, 1/2, 2/3',
     ])
   })
 

@@ -25,6 +25,8 @@ export type {
   ButtonVariant,
   CardProps,
   CardRowProps,
+  CardsLayout,
+  CardWidth,
   ChartBucket,
   ChartProps,
   ChartType,
@@ -48,6 +50,7 @@ export type {
 export { component, type ComponentOptions } from './component'
 export { usersPage } from './presets/users-page'
 export { page, isPageDefinition, type PageDefinition, type PageModel, type PageOptions } from './page'
+export { cardsLayoutOf } from './cards-layout'
 export { checkPages } from './check-page'
 export { conditionProblems, conditionReadable } from './check-condition'
 export { prunePage } from './prune-page'
