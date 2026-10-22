@@ -10,5 +10,5 @@ Fields and actions filled by a model, the assistant beside the admin, and MCP.
 - [Choice of model](../reference/assistant.md#which-backend): The assistant runs on OpenRouter or any OpenAI-compatible endpoint, also a local one.
 - [Assistant tools](../reference/assistant.md#the-apps-own-tools): Your own tools for the assistant, acting on records as the user.
 - [MCP server](../reference/mcp.md#the-tools): AI clients connect to the app over MCP as the signed-in person, and list, find and read records within that person's access.
-- [MCP writes](../reference/mcp.md#writes): When turned on, AI clients create and update records after the person approves each write.
+- [MCP writes](../reference/mcp.md#writes): When turned on, for every resource or only those you list, AI clients create and update records after the person approves each write.
 - [Connected apps](../reference/auth.md#oauth-for-mcp-clients): People allow an AI client to sign in, and disconnect it later.
