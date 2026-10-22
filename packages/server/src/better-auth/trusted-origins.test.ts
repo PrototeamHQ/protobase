@@ -3,6 +3,7 @@ import { memoryAdapter } from 'better-auth/adapters/memory'
 import { describe, expect, it } from 'vitest'
 import { betterAuthOptions, type CreateAuthOptions } from './create-auth'
 import { resolveMcp } from './mcp/mcp-plugins'
+import { mobileRequests } from './mobile-requests'
 import { roleDefinitions } from './organizations/role-definitions'
 
 const base: CreateAuthOptions = {
@@ -75,5 +76,30 @@ describe('the connect page calls, with MCP on', () => {
     const response = await call('/oauth2/consent', 'https://admin.example.com')
     expect(response.status).toBe(400)
     expect(await response.json()).toMatchObject({ error: 'invalid_signature' })
+  })
+})
+
+// Better Auth asks for the trusted origins with no request when it builds its context, which the GoTrue `redirect_to`
+// check reads, and with the handler's request on every request.
+describe('the trusted origins of a mobile app', () => {
+  const fixed = ['https://admin.example.com', 'https://my-tunnel.trycloudflare.com']
+  const trustedOrigins = (mobile: ReturnType<typeof mobileRequests>) => {
+    const value = betterAuthOptions({ ...base, trustedOrigins: [fixed[1]!] }, { ...resolved, mobile }).trustedOrigins
+    if (typeof value !== 'function') throw new Error('Expected trusted origins that depend on the request')
+    return value
+  }
+  const request = () => new Request('https://admin.example.com/api/auth/sign-out', { method: 'POST', headers: { origin: 'capacitor://localhost' } })
+
+  it('are the fixed ones without a request', () => {
+    expect(trustedOrigins(mobileRequests())()).toEqual(fixed)
+  })
+
+  it('are the fixed ones for a request from a Capacitor origin that was not granted', () => {
+    expect(trustedOrigins(mobileRequests())(request())).toEqual(fixed)
+  })
+
+  it('add the Capacitor origin of a granted request', () => {
+    const mobile = mobileRequests()
+    expect(trustedOrigins(mobile)(mobile.grant(request()))).toEqual([...fixed, 'capacitor://localhost'])
   })
 })
