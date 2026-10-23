@@ -147,6 +147,7 @@ describe('the MCP endpoint', () => {
     expect(described[0]).toEqual({
       name: 'organizations',
       key: ['id'],
+      soft_delete: false,
       fields: [
         { name: 'id', type: 'integer', optional: false, read_only: true, filterable: true, sortable: true },
         { name: 'name', type: 'text', optional: false, read_only: false, filterable: false, sortable: false },

@@ -35,9 +35,11 @@ Each tool reads as the signed-in person: their role's access rules, row filters,
 
 | Tool | What it does |
 | --- | --- |
-| `list_resources` | The resources the person may read, with their labels, key and fields: each field's type, label, enum values, the resource a relation links to, and whether filters and sorts take it. |
-| `list_records` | A page of a resource's records: `filter` in the API's [filter syntax](api.md#filters), `order_by`, `page_size` (20 by default, at most 100) and `page_token`, with `next_page_token` for the next page. |
-| `get_record` | One record by its key, with its ETag. A composite key is passed as the values of its fields, in order. |
+| `list_resources` | The resources the person may read, with their labels, key, whether they soft delete (`soft_delete`) and fields: each field's type, label, enum values, the resource a relation links to, and whether filters and sorts take it. |
+| `list_records` | A page of a resource's records: `filter` in the API's [filter syntax](api.md#filters), `order_by`, `page_size` (20 by default, at most 100) and `page_token`, with `next_page_token` for the next page. `show_deleted: true` also returns soft-deleted records. |
+| `get_record` | One record by its key, with its ETag. A composite key is passed as the values of its fields, in order. `show_deleted: true` also finds a soft-deleted record. |
+
+`show_deleted` works as the [REST API](api.md#routes)'s: it applies only to a resource with a soft delete, and is refused on any other. Soft-deleted records come under the same access rules, tenant and hidden fields as the rest, and carry the field their deletion set.
 
 A refusal, such as a resource the person may not read or a bad filter, comes back to the client as text it can act on, `{ "error": ..., "message": ... }`.
 

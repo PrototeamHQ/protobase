@@ -1,7 +1,7 @@
 import { Hono, type Context } from 'hono'
 import type { Deps } from '../deps'
 import { keyFromPath } from '../key'
-import { deletedRows, selectedFields } from '../params'
+import { selectedFields } from '../params'
 import { pickFields } from '../rows'
 import { readRecord } from '../read-service'
 import type { Entry } from '../registry'
@@ -28,8 +28,7 @@ export const recordRoutes = (deps: Deps) => {
     // GET /{resource}/{key}:comments: the record's comments, newest first; :mentionable?q=: whom a comment may mention
     if (c.req.param('key').endsWith(':comments')) return c.json(await readComments(deps, entry, c.get('session'), keyFromPath(c, entry, ':comments'), c.req.query()))
     if (c.req.param('key').endsWith(':mentionable')) return c.json(await mentionable(deps, entry, c.get('session'), keyFromPath(c, entry, ':mentionable'), c.req.query()))
-    const deleted = deletedRows(entry.model, c.req.query('show_deleted') === 'true')
-    const found = await readRecord(deps, entry, c.get('session'), keyFromPath(c, entry), deleted)
+    const found = await readRecord(deps, entry, c.get('session'), keyFromPath(c, entry), c.req.query('show_deleted') === 'true')
     // `fields` is checked against the caller's own readable fields
     const columns = selectedFields({ ...entry.model, fields: Object.fromEntries(Object.keys(found.record).map((name) => [name, entry.model.fields[name]!])) }, c.req.query('fields'))
     return c.json({ ...pickFields(found.record, columns), etag: found.etag, permissions: found.permissions }, 200, { ETag: found.etag })
