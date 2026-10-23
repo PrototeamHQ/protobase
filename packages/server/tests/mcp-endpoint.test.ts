@@ -171,6 +171,30 @@ describe('the MCP endpoint', () => {
     expect(events).toEqual([{ operation: 'create', resource: 'organizations' }])
     expect(await call(app, mcp, 'get_record', { resource: 'organizations', key: created.record.id })).toEqual(created)
   })
+
+  // Ana is sales and accountant, Bo only sales.
+  const unattended = { mcp: { writes: { rolesWithoutApproval: ['accountant'] } } }
+
+  it('writes at once for a user holding a role of rolesWithoutApproval, and asks anyone else', async () => {
+    const args = { resource: 'organizations', data: { name: 'Unasked Org' } }
+    const ana = await served(unattended)
+    expect(await call(ana.app, ana.mcp, 'create_record', args)).toMatchObject({ record: { name: 'Unasked Org' }, etag: expect.any(String) })
+    const bo = await served(unattended, 'bo@example.com')
+    const asked = await resultOf(await modernCall(bo.app, bo.mcp, { name: 'create_record', arguments: args }, { elicitation: {} }))
+    expect(asked).toMatchObject({ resultType: 'input_required', inputRequests: { approve: { method: 'elicitation/create' } } })
+  })
+
+  it('refuses an update or a delete with an etag the record changed since, and leaves it as it is', async () => {
+    const { app, mcp } = await served(unattended)
+    const first = (await call(app, mcp, 'create_record', { resource: 'organizations', data: { name: 'Stale Org' } })) as { record: { id: number }; etag: string }
+    const key = first.record.id
+    const updated = await call(app, mcp, 'update_record', { resource: 'organizations', key, data: { name: 'Fresh Org' }, etag: first.etag })
+    expect(updated).toMatchObject({ record: { name: 'Fresh Org' } })
+    const stale = { resource: 'organizations', key, etag: first.etag }
+    expect(await call(app, mcp, 'update_record', { ...stale, data: { name: 'Overwritten Org' } })).toMatchObject({ error: 'precondition-failed' })
+    expect(await call(app, mcp, 'delete_record', stale)).toMatchObject({ error: 'precondition-failed' })
+    expect(await call(app, mcp, 'get_record', { resource: 'organizations', key })).toEqual(updated)
+  })
 })
 
 // A host's own role mapping around betterAuthAuthenticator, without its forAudience.
