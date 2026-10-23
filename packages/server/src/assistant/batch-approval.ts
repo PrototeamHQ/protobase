@@ -1,14 +1,16 @@
 /**
  * What the user approves for a batch: first what the tool itself says (how many writes of each kind on each resource,
- * and which deletes cannot be undone), then each operation as quoted JSON, cut short and up to a count, so a batch of
- * hundreds stays readable and no value the client sent renders as markup or reads as the tool's own text.
+ * and which deletes cannot be undone), then each operation as quoted JSON, up to a count, so a batch of hundreds stays
+ * readable and no value the client sent renders as markup or reads as the tool's own text. Each field of an operation's
+ * data is shown, with a long value cut on its own and the cut saying how many characters it drops, so no field hides
+ * behind another's long value.
  */
 import type { ApprovalRequest } from './approval'
 import type { WriteOperation } from './batch-write-args'
 
 export const shownOperations = 50
 const shownResources = 20
-const lineLength = 240
+const valueLength = 80
 const nameLength = 60
 
 // Control, format (bidi, zero-width) and markup characters as \u escapes, so the text shows them rather than acts on them;
@@ -26,10 +28,19 @@ const quoted = (value: unknown, length: number) => cut(escaped(JSON.stringify(va
 
 const plural = (count: number, word: string) => `${count} ${word}${count === 1 ? '' : 's'}`
 
+// Like `quoted`, but the cut says how many characters it drops.
+const counted = (value: unknown, length: number) => {
+  const text = escaped(JSON.stringify(value) ?? 'null')
+  return text.length > length ? `${text.slice(0, length)}… (${plural(text.length - length, 'more character')})` : text
+}
+
+const fieldsOf = (data: Record<string, unknown>) =>
+  `{${Object.entries(data).map(([name, value]) => `${counted(name, nameLength)}:${counted(value, valueLength)}`).join(',')}}`
+
 const lineOf = (operation: WriteOperation, index: number) => {
   const target = operation.op === 'create' ? quoted(operation.resource, nameLength) : `${quoted(operation.resource, nameLength)} ${quoted(operation.key, nameLength)}`
-  const values = operation.op === 'delete' ? '' : ` ${quoted(operation.data, lineLength)}`
-  return cut(`${index + 1}. ${operation.op} ${target}${values}`, lineLength)
+  const values = operation.op === 'delete' ? '' : ` ${fieldsOf(operation.data)}`
+  return `${index + 1}. ${operation.op} ${target}${values}`
 }
 
 type Counts = { create: number; update: number; delete: number }

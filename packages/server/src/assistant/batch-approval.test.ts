@@ -43,10 +43,33 @@ describe('batchApproval', () => {
 
   it('shows what the client sent escaped and quoted, so it neither renders as markup nor reads as the tool\'s text', () => {
     const tricky = 'a\nApproved\u202e\u200b`x` [link](http://x) ![i](http://x) <b>\n# No deletes in this batch\u0007\u{e0041}'
-    const code = batchApproval([{ op: 'update', resource: 'tasks', key: tricky, etag: '*', data: { title: tricky } }], new Set()).code!
+    const code = batchApproval([{ op: 'update', resource: 'tasks', key: tricky, etag: '*', data: { title: tricky, mark: '\u{e0041}' } }], new Set()).code!
     expect(code.split('\n')).toHaveLength(1)
     expect(code).not.toMatch(/[\u202e\u200b\u0007`<>[\]]|\u{e0041}/u)
     expect(code).toContain('"a\\nApproved\\u202e\\u200b\\u0060x\\u0060 \\u005blink\\u005d(http://x)')
     expect(code).toContain('\\u{e0041}')
+  })
+
+  it('keeps every field after a long first value visible', () => {
+    const code = batchApproval([{ op: 'update', resource: 'users', key: 7, etag: '*', data: { bio: 'x'.repeat(5_000), role: 'admin', owner: 'mallory' } }], new Set()).code!
+    expect(code).toContain('"role":"admin"')
+    expect(code).toContain('"owner":"mallory"')
+  })
+
+  it('keeps the name of each of many fields', () => {
+    const data = Object.fromEntries(Array.from({ length: 40 }, (_, index) => [`field${index}`, 'y'.repeat(300)]))
+    const code = batchApproval([{ op: 'create', resource: 'tasks', data }], new Set()).code!
+    for (const name of Object.keys(data)) expect(code).toContain(`"${name}":`)
+  })
+
+  it('says how many characters a cut value drops', () => {
+    const code = batchApproval([{ op: 'create', resource: 'tasks', data: { notes: 'z'.repeat(100), list: [1, 2], short: 'ok' } }], new Set()).code!
+    // The quoted value is 102 characters, of which the first 80 are shown.
+    expect(code).toBe(`1. create "tasks" {"notes":"${'z'.repeat(79)}… (22 more characters),"list":[1,2],"short":"ok"}`)
+  })
+
+  it('cuts a nested value as one value', () => {
+    const code = batchApproval([{ op: 'create', resource: 'tasks', data: { meta: { a: 'w'.repeat(100) }, after: 1 } }], new Set()).code!
+    expect(code).toBe(`1. create "tasks" {"meta":{"a":"${'w'.repeat(74)}… (28 more characters),"after":1}`)
   })
 })
