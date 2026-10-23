@@ -4,6 +4,8 @@ import { problemOf } from '../error-handler'
 import { HttpProblem, badRequest, notFound } from '../problem'
 import type { Entry } from '../registry'
 import { requestAccess, type RequestAccess } from '../request-access'
+import { scheduleRemovedFiles } from '../files/attach'
+import type { ScheduledDelete } from '../files/cleanup-schedule'
 import { writeTransaction } from '../transactions'
 import type { Row, Session } from '../types'
 import { keyOf, type WriteResult } from '../write-shared'
@@ -56,6 +58,7 @@ export const runBatch = async (deps: Deps, session: Session, operations: BatchOp
     })
   }
 
+  const removed: ScheduledDelete[] = []
   const written = await writeTransaction(deps.db, deps.statementTimeoutMs, async (trx) => {
     const created = new Map<string, Created>()
     const results: BatchResult[] = []
@@ -64,18 +67,18 @@ export const runBatch = async (deps: Deps, session: Session, operations: BatchOp
         const entry = entryOf(deps, operation.resource)
         const access = await accessFor(entry)
         if (operation.op === 'create') {
-          const written = await writeIn(trx, deps, access, { operation: 'create', body: resolveData(created, operation.data) })
+          const written = await writeIn(trx, deps, access, { operation: 'create', body: resolveData(created, operation.data) }, removed)
           if (operation.ref) created.set(operation.ref, { entry, key: keyOf(access, written.record), record: written.record })
           results.push({ op: 'create', resource: entry.name, ...(operation.ref && { ref: operation.ref }), ...written })
         } else if (operation.op === 'update') {
-          const written = await writeIn(trx, deps, access, { operation: 'update', key: resolveKey(created, entry, operation.key), body: resolveData(created, operation.data), ifMatch: operation.etag ?? null })
+          const written = await writeIn(trx, deps, access, { operation: 'update', key: resolveKey(created, entry, operation.key), body: resolveData(created, operation.data), ifMatch: operation.etag ?? null }, removed)
           results.push({ op: 'update', resource: entry.name, ...written })
         } else if (operation.op === 'delete') {
-          await writeIn(trx, deps, access, { operation: 'delete', key: resolveKey(created, entry, operation.key), ifMatch: operation.etag ?? null })
+          await writeIn(trx, deps, access, { operation: 'delete', key: resolveKey(created, entry, operation.key), ifMatch: operation.etag ?? null }, removed)
           results.push({ op: 'delete', resource: entry.name, deleted: true })
         } else {
           const keys = operation.keys.map((key) => resolveKey(created, entry, key))
-          const records = await reorderIn(trx, deps, access, { field: operation.field, keys, etags: operation.etags ?? {}, start: operation.start ?? 1 })
+          const records = await reorderIn(trx, deps, access, { field: operation.field, keys, etags: operation.etags ?? {}, start: operation.start ?? 1 }, removed)
           results.push({ op: 'reorder', resource: entry.name, records })
         }
       } catch (error) {
@@ -84,6 +87,7 @@ export const runBatch = async (deps: Deps, session: Session, operations: BatchOp
     }
     return results
   }, actorSettings(deps, session))
+  await scheduleRemovedFiles(deps, removed)
   wakeDispatch(deps)
   return written
 }

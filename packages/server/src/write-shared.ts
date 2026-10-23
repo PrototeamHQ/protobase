@@ -7,7 +7,8 @@ import { forbidden, notFound, preconditionFailed, preconditionRequired } from '.
 import type { Entry } from './registry'
 import { fetchRecord, type StoredRecord } from './records'
 import { andFilters, recordDecision, type RequestAccess } from './request-access'
-import { scheduleRemovedFiles } from './files/attach'
+import { removedFiles } from './files/attach'
+import type { ScheduledDelete } from './files/cleanup-schedule'
 import { parentGuard } from './parent-access'
 import { presentFiles } from './files/present'
 import { pickFields } from './rows'
@@ -70,8 +71,11 @@ export const shown = async (access: RequestAccess, written: StoredRecord): Promi
   etag: written.etag,
 })
 
-/** Runs the pipeline hooks for one write, inside the transaction. */
-export const notifier = (deps: Deps, access: RequestAccess) => async (trx: Db, kind: WriteEvent['operation'], before?: Row, after?: Row) => {
+/**
+ * Runs the pipeline hooks for one write, inside the transaction, and adds the files it took out of its row to `removed`,
+ * which the write schedules for deletion once it commits.
+ */
+export const notifier = (deps: Deps, access: RequestAccess, removed: ScheduledDelete[]) => async (trx: Db, kind: WriteEvent['operation'], before?: Row, after?: Row) => {
   const { session } = access
   const event: WriteEvent = {
     operation: kind,
@@ -83,5 +87,5 @@ export const notifier = (deps: Deps, access: RequestAccess) => async (trx: Db, k
     ...(after && { after: maskEncrypted(access.full, after) }),
   }
   for (const hook of deps.hooks) await hook(event, trx)
-  await scheduleRemovedFiles(access, kind, before, after)
+  removed.push(...removedFiles(access, kind, before, after))
 }

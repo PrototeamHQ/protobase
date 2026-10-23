@@ -1,8 +1,10 @@
 import type { FieldModel } from '@protobase/schema'
 import { badRequest } from '../problem'
+import type { Deps } from '../deps'
 import type { RequestAccess } from '../request-access'
 import { tenantScope } from '../tenant'
 import type { Row, WriteOperation } from '../types'
+import type { ScheduledDelete } from './cleanup-schedule'
 import type { FieldError } from '../validate-body'
 import { externalFile, parseExternalUrl } from './external-url'
 import { accepts, octetStream } from './media-types'
@@ -76,16 +78,16 @@ export const attachFiles = async (access: RequestAccess, values: Row, current?: 
 }
 
 /**
- * Schedules the delete of every file a write took out of its row, with its variants: a replaced or cleared value, or all
- * of a hard-deleted row's files, each due after its provider's retention. It runs inside the write transaction, before the commit: if
- * the write rolls back, the file is still referenced when the entry is due, and stays.
+ * The deletes of every file a write took out of its row, with its variants: a replaced or cleared value, or all of a
+ * hard-deleted row's files, each due after its provider's retention. The write schedules them once it commits
+ * (`scheduleRemovedFiles`).
  */
-export const scheduleRemovedFiles = async (access: RequestAccess, operation: WriteOperation, before?: Row, after?: Row) => {
+export const removedFiles = (access: RequestAccess, operation: WriteOperation, before?: Row, after?: Row): ScheduledDelete[] => {
   const files = access.deps.files
-  if (!files || !before || operation === 'create' || operation === 'undelete') return
-  if (operation === 'delete' && access.full.softDelete) return
+  if (!files || !before || operation === 'create' || operation === 'undelete') return []
+  if (operation === 'delete' && access.full.softDelete) return []
   const now = Date.now()
-  const removed = fileFields(access).flatMap((field) => {
+  return fileFields(access).flatMap((field) => {
     const old = before[field.name]
     if (typeof old !== 'string') return []
     const next = after?.[field.name]
@@ -95,5 +97,14 @@ export const scheduleRemovedFiles = async (access: RequestAccess, operation: Wri
     const variants = Object.values(variantPaths(ref))
     return [{ provider: ref.provider, path: ref.path, due: new Date(now + files.retention(ref.provider)), ...(variants.length > 0 && { variants }) }]
   })
-  if (removed.length > 0) await files.schedule.add(removed)
+}
+
+/**
+ * Schedules the deletes of the files a committed write took out of its rows. After the commit, so the transaction never
+ * waits on the storage; a failure leaves the files in it, never a row that points at a deleted one, and is reported,
+ * since the write itself stands.
+ */
+export const scheduleRemovedFiles = async (deps: Pick<Deps, 'files' | 'report'>, removed: ScheduledDelete[]) => {
+  if (!deps.files || removed.length === 0) return
+  await deps.files.schedule.add(removed).catch(deps.report)
 }

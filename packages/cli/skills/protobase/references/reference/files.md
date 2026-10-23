@@ -279,7 +279,7 @@ A trusted host is matched exactly: `images.example.com` does not trust `cdn.imag
 
 Files are deleted by schedule, never in the write itself, so a restore of the database to an earlier moment still finds its files:
 
-- A write that **replaces or clears** a file, or **deletes a row** (not a soft delete), schedules the delete of each file it took out of its row, with its variants. It is due after the provider's retention: `files.retention`, 1 day by default, or 0 for a public provider.
+- A write that **replaces or clears** a file, or **deletes a row** (not a soft delete), schedules the delete of each file it took out of its row, with its variants, once it commits, so its transaction never waits on the storage. It is due after the provider's retention: `files.retention`, 1 day by default, or 0 for a public provider. When the storage refuses the entry, the write still stands, the file stays in storage, and the error goes to `options.onUnhandledError`.
 - Every **upload** schedules one too, due an hour after its ticket expires, so a file nobody saved, or whose write rolled back, goes as well.
 - Each scheduled delete is a small JSON object in the provider's own storage, in a `.cleanup/` folder, named after its due time and saying what to delete: `.cleanup/2026-10-12T03-00-00Z-<uuid>.json` holding `{ "provider": "private", "path": "1/2992db9c-….jpg", "due": "…" }`.
 - A **cleanup run** handles the entries that are due. Right before deleting, it checks every file column of every resource for the file: one that a row holds again (a rolled-back write, a restore, a copied value) is kept, and its entry dropped. Two runs at once do no harm.

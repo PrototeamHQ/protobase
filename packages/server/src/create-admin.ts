@@ -250,6 +250,7 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], pag
     hooks: [...(options.writeHooks ?? []), ...(table ? [subscriptionWriteCheck(registry.entries.map((entry) => entry.model))] : []), ...(fill ? [fillHook(() => deps, fill)] : [])],
     writeChecks: table?.checkUrl ? [subscriptionUrlCheck(table.checkUrl)] : [],
     audit: options.audit ?? consoleAuditQueue(),
+    report: options.onUnhandledError ?? ((error: unknown) => console.error(error)),
     accessOptions: { ...(options.roles && { roles: options.roles }), ...(options.defaultAccess && { defaultAccess: options.defaultAccess }) },
     rowPermissions: (resource: string) => (typeof options.rowPermissions === 'object' ? !options.rowPermissions.except.includes(resource) : options.rowPermissions !== false),
     ...(assistant && { assistant: assistant.kind === 'external' ? assistant.url : `${systemPath}/assistant` }),
@@ -329,7 +330,7 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], pag
     const records = (session: Session) => assistantRecords(deps, session)
     app.route(`${systemPath}/assistant`, builtInAssistant({ model: assistant.model, chats: assistant.chats, db, meta, authenticate, tools, records, report: options.onUnhandledError }))
   }
-  const report = options.onUnhandledError ?? ((error: unknown) => console.error(error))
+  const { report } = deps
   // Before the system endpoints, which want an app token for everything under them
   if (auth?.mcp && options.mcp === false) closedMcpRoutes(app, auth.mcp.path)
   else if (auth?.mcp && mcpAuthenticate) {

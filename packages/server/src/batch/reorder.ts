@@ -2,6 +2,7 @@ import { sql } from 'kysely'
 import type { Db } from '@protobase/query'
 import { encodeKey } from '@protobase/schema/internal'
 import type { Deps } from '../deps'
+import type { ScheduledDelete } from '../files/cleanup-schedule'
 import { badRequest } from '../problem'
 import { fetchRecord } from '../records'
 import { requireOperation, targetFilter, writableFields, type RequestAccess } from '../request-access'
@@ -53,7 +54,7 @@ const moveAside = async (trx: Db, access: RequestAccess, field: string, keys: Ke
  * so that a unique index such as (invoice_id, position) is never violated half way. Everything checks out before any row moves,
  * and with the position's `after` the new order must keep each record below the records it depends on (see `checkRankAfter`).
  */
-export const reorderIn = async (trx: Db, deps: Deps, access: RequestAccess, input: { field: string; keys: Key[]; etags: Record<string, string>; start: number }): Promise<WriteResult[]> => {
+export const reorderIn = async (trx: Db, deps: Deps, access: RequestAccess, input: { field: string; keys: Key[]; etags: Record<string, string>; start: number }, removed: ScheduledDelete[]): Promise<WriteResult[]> => {
   const { entry, full } = access
   requireOperation(access, 'update')
   const field = full.fields[input.field]
@@ -84,7 +85,7 @@ export const reorderIn = async (trx: Db, deps: Deps, access: RequestAccess, inpu
   const results: WriteResult[] = []
   for (const [i, key] of input.keys.entries()) {
     const plan = plans.get(i)
-    results.push(await shown(access, plan ? await applyUpdate(trx, deps, access, key, plan) : current[i]!))
+    results.push(await shown(access, plan ? await applyUpdate(trx, deps, access, key, plan, removed) : current[i]!))
   }
   await checkRankAfter(trx, deps, access, input.field, changing.map((i) => ({ key: input.keys[i]!, before: current[i]!.record[input.field] })))
   return results

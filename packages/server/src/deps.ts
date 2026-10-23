@@ -35,6 +35,8 @@ export type Deps = {
   accessOptions: ResolveOptions
   /** Where reveals of sensitive fields are published. */
   audit: AuditQueue
+  /** Gets the errors of work that runs after a request's response is decided, such as a committed write's file cleanup. */
+  report: (error: unknown) => void
   /** Whether list items of a resource carry their permissions. */
   rowPermissions: (resource: string) => boolean
   /** The URL of the assistant backend that `/meta` names to callers who may use it: another origin's, or the built-in one's path. */

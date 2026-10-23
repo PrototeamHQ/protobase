@@ -3,7 +3,8 @@ import type { FormModel } from '@protobase/schema'
 import type { Deps } from './deps'
 import { blockedDelete } from './blocked-delete'
 import { isDatabaseError } from './error-handler'
-import { attachFiles } from './files/attach'
+import { attachFiles, scheduleRemovedFiles } from './files/attach'
+import type { ScheduledDelete } from './files/cleanup-schedule'
 import { badRequest, HttpProblem } from './problem'
 import { bindingOf, pendingBinding } from './encryption/binding'
 import { encryptedValuesOf, hasEncryptedValues, sealValues } from './encryption/seal-values'
@@ -46,7 +47,7 @@ const bindEncrypted = async (trx: Db, deps: Deps, access: RequestAccess, row: Ro
   return bound
 }
 
-const create = async (trx: Db, deps: Deps, access: RequestAccess, body: unknown): Promise<WriteResult> => {
+const create = async (trx: Db, deps: Deps, access: RequestAccess, body: unknown, removed: ScheduledDelete[]): Promise<WriteResult> => {
   const { entry, full } = access
   const scope = tenantScope(entry, access.session)
   const tenantValues = full.tenant && scope ? { [full.tenant]: scope.tenantValue } : {}
@@ -68,20 +69,20 @@ const create = async (trx: Db, deps: Deps, access: RequestAccess, body: unknown)
   await parents(created.record)
   // A new record had no rank before, so any pair it ranks out of order counts
   if (full.position) await checkRankAfter(trx, deps, access, full.position.field, [{ key: keyOf(access, created.record), before: null }])
-  await notifier(deps, access)(trx, 'create', undefined, created.record)
+  await notifier(deps, access, removed)(trx, 'create', undefined, created.record)
   return shown(access, created)
 }
 
-const update = async (trx: Db, deps: Deps, access: RequestAccess, request: Extract<WriteRequest, { operation: 'update' }>): Promise<WriteResult> => {
+const update = async (trx: Db, deps: Deps, access: RequestAccess, request: Extract<WriteRequest, { operation: 'update' }>, removed: ScheduledDelete[]): Promise<WriteResult> => {
   const plan = await planUpdate(trx, access, request.key, request.body, request.ifMatch)
   if (Object.keys(plan.values).length === 0) return shown(access, plan.current)
-  const updated = await applyUpdate(trx, deps, access, request.key, plan)
+  const updated = await applyUpdate(trx, deps, access, request.key, plan, removed)
   const rank = access.full.position?.field
   if (rank && rank in plan.values) await checkRankAfter(trx, deps, access, rank, [{ key: keyOf(access, updated.record), before: plan.current.record[rank] }])
   return shown(access, updated)
 }
 
-const removeOrRestore = async (trx: Db, deps: Deps, access: RequestAccess, request: Extract<WriteRequest, { operation: 'delete' | 'undelete' }>): Promise<WriteResult> => {
+const removeOrRestore = async (trx: Db, deps: Deps, access: RequestAccess, request: Extract<WriteRequest, { operation: 'delete' | 'undelete' }>, removed: ScheduledDelete[]): Promise<WriteResult> => {
   const { entry, full } = access
   const undelete = request.operation === 'undelete'
   if (undelete && !full.softDelete) {
@@ -101,33 +102,35 @@ const removeOrRestore = async (trx: Db, deps: Deps, access: RequestAccess, reque
   const filter = await decide(access, operation, current.record)
   if (filter && !(await fetchRecord(trx, entry, request.key, scope?.tenantValue, { deleted, filter, fields: [firstKeyField(access)] }))) throw denied(entry, operation)
   await checkParents(trx, access, operation)(current.record)
-  const notify = notifier(deps, access)
+  const notify = notifier(deps, access, removed)
   if (undelete) {
     const restored = await restoreRecord(trx, entry, request.key, scope?.tenantValue, shape)
     await assertWritten(trx, access, restored, 'undelete', access.resolved.rowFilter.update, filter)
     await notify(trx, 'undelete', current.record, restored.record)
     return shown(access, restored)
   }
-  const removed = await deleteRecord(trx, entry, request.key, scope?.tenantValue, shape).catch(async (error: unknown) => {
+  const gone = await deleteRecord(trx, entry, request.key, scope?.tenantValue, shape).catch(async (error: unknown) => {
     // Other records still point at it: say which, as far as the caller may know
     if (isDatabaseError(error) && error.code === '23503') throw await blockedDelete(deps, access, error)
     throw error
   })
   await notify(trx, 'delete', current.record, undefined)
-  return shown(access, removed)
+  return shown(access, gone)
 }
 
 /**
  * One write inside an open transaction, for a caller whose access is already resolved: operations and field access,
  * tenant scope, validation against the fields they may write, optimistic concurrency, row filters and record-level
  * rules checked in the database, then the hooks; a rank written by the resource's position with `after` must keep the
- * record below what it depends on (see `checkRankAfter`). Batches run many of these in one transaction.
+ * record below what it depends on (see `checkRankAfter`). The files it takes out of the row go to `removed`, which the
+ * caller schedules for deletion once the transaction commits (`scheduleRemovedFiles`). Batches run many of these in one
+ * transaction.
  */
-export const writeIn = async (trx: Db, deps: Deps, access: RequestAccess, request: WriteRequest): Promise<WriteResult> => {
+export const writeIn = async (trx: Db, deps: Deps, access: RequestAccess, request: WriteRequest, removed: ScheduledDelete[]): Promise<WriteResult> => {
   requireOperation(access, request.operation === 'undelete' ? 'update' : request.operation)
-  if (request.operation === 'create') return create(trx, deps, access, request.body)
-  if (request.operation === 'update') return update(trx, deps, access, request)
-  return removeOrRestore(trx, deps, access, request)
+  if (request.operation === 'create') return create(trx, deps, access, request.body, removed)
+  if (request.operation === 'update') return update(trx, deps, access, request, removed)
+  return removeOrRestore(trx, deps, access, request, removed)
 }
 
 /** Runs the checks that come before a create's or update's transaction opens (`WriteCheck`) on the body as sent. */
@@ -144,7 +147,9 @@ export const runWrite = async (deps: Deps, entry: Entry, session: Session, reque
   const access = await requestAccess(deps, entry, session, form)
   requireOperation(access, request.operation === 'undelete' ? 'update' : request.operation)
   if (request.operation === 'create' || request.operation === 'update') await checkBeforeWrite(deps, { resource: entry.name, operation: request.operation, body: request.body })
-  const result = await writeTransaction(deps.db, deps.statementTimeoutMs, (trx) => writeIn(trx, deps, access, request), actorSettings(deps, session))
+  const removed: ScheduledDelete[] = []
+  const result = await writeTransaction(deps.db, deps.statementTimeoutMs, (trx) => writeIn(trx, deps, access, request, removed), actorSettings(deps, session))
+  await scheduleRemovedFiles(deps, removed)
   wakeDispatch(deps)
   return result
 }

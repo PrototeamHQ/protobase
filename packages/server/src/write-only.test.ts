@@ -94,7 +94,7 @@ describe('a write-only field', () => {
     const admin = await accessOf('admin', registry.find('steps')!)
     expect(writableFields(admin, 'update')).toEqual(['hidden_rank'])
     // Refused before any query, so no transaction is needed
-    const reorder = reorderIn(undefined as unknown as Db, deps, admin, { field: 'hidden_rank', keys: [[1], [2]], etags: {}, start: 1 })
+    const reorder = reorderIn(undefined as unknown as Db, deps, admin, { field: 'hidden_rank', keys: [[1], [2]], etags: {}, start: 1 }, [])
     await expect(reorder).rejects.toMatchObject({ extras: { errors: [{ field: 'hidden_rank', code: 'unknown-field', message: 'Unknown field "hidden_rank"' }] } })
   })
 })

@@ -146,7 +146,8 @@ Create, update and delete share one pipeline (`write-pipeline.ts`):
 2. unknown fields, read-only fields and the tenant column in the body are refused, each value is validated by its field's zod schema (an empty string for a text field without `.optional()` counts as missing: `required`, or its default on a create), then the resource's `.validate()` rules run (`400` with `errors: [{ field, code, message }]`); what needs the network is checked before the transaction opens, such as the address of a [webhook subscription](/reference/webhooks/)'s URL;
 3. one transaction with `SET LOCAL statement_timeout`; the row is locked with `FOR UPDATE`; another tenant's key, or a soft-deleted row, is a `404`;
 4. the access rule runs, then `If-Match` is compared with the ETag (`428` when missing on PATCH, `412` when stale);
-5. the write, then `writeHooks` inside the same transaction (a hook that throws rolls the write back). Audit logging and the admin store plug in here.
+5. the write, then `writeHooks` inside the same transaction (a hook that throws rolls the write back). Audit logging and the admin store plug in here;
+6. once it commits, the files it took out of its rows are scheduled for deletion (see [Deleting files](/reference/files/#deleting-files)), so the transaction never waits on the storage.
 
 **ETag**: the `version` or `updated_at` column when the resource has a read-only one (bumped on every update, so no trigger is needed; the ETag keeps the column's full microsecond text), otherwise a hash of the exposed fields. It is computed from the row itself, so lists need no extra query.
 
