@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
@@ -35,8 +35,16 @@ const fakeRun = (calls: Array<{ command: string; args: string[] } & ChildOptions
   if (command === 'npm') {
     write(path.join(modules, '@protobase/mobile/package.json'), JSON.stringify({ name: '@protobase/mobile', version: '0.14.2' }))
     write(path.join(modules, '@capacitor/cli/package.json'), JSON.stringify({ name: '@capacitor/cli', version: '8.5.3', bin: { cap: './bin/capacitor' } }))
+    write(path.join(modules, 'native-run/package.json'), JSON.stringify({ name: 'native-run', version: '2.0.3', bin: { 'native-run': 'bin/native-run' } }))
+  }
+  if (command === 'node' && args[1] === 'add' && args[2] === 'ios') {
+    const configuration = '\t\t\t\tCODE_SIGN_STYLE = Automatic;\n'
+    write(path.join(options.cwd, 'ios/App/App.xcodeproj/project.pbxproj'), `${configuration}${configuration}`)
   }
 }
+
+// native-run's list with one iPhone connected.
+const capture = async () => JSON.stringify({ devices: [{ id: '00008110-0001', name: 'iPhone' }], virtualDevices: [{ id: 'SIM-1' }], errors: [] })
 
 const build = async ({ outDir }: { outDir: string }) => write(path.join(outDir, 'public', 'index.html'), '<head></head>')
 
@@ -70,6 +78,28 @@ describe('mobileRun', () => {
     rmSync(root, { recursive: true, force: true })
     const pinned = project("{ appId: 'com.example.shop', plugins: { '@capawesome/capacitor-live-update': '8.7.1' } }")
     await expect(mobileRun({ projectDir: pinned, platform: 'ios', extensions: [], api: 'https://api.example.com' }, () => {}, deps)).rejects.toThrow("live updates come with Protobase's updater")
+    expect(calls).toEqual([])
+  })
+
+  it('signs every generated iOS project with --team, and builds once for the connected iPhone allowed to create its profile', async () => {
+    const dir = project("{ appId: 'com.example.shop' }")
+    const ws = path.join(dir, '.protobase', 'mobile')
+    for (const run of [1, 2]) {
+      const calls: Array<{ command: string; args: string[] } & ChildOptions> = []
+      await mobileRun({ projectDir: dir, platform: 'ios', api: 'https://api.example.com', team: 'ABCDE12345', extensions: [] }, () => {}, { run: fakeRun(calls), capture, build })
+      expect(calls.slice(-3).map(({ command, args }) => [command, ...args.slice(command === 'node' ? 1 : 0)]), `run ${run}`).toEqual([
+        ['node', 'add', 'ios'],
+        ['xcrun', 'xcodebuild', '-project', 'App.xcodeproj', '-scheme', 'App', '-configuration', 'Debug', '-destination', 'id=00008110-0001', '-derivedDataPath', path.join(ws, 'ios', 'DerivedData', '00008110-0001'), '-allowProvisioningUpdates', '-allowProvisioningDeviceRegistration'],
+        ['node', 'run', 'ios', '--no-sync', '--target', '00008110-0001'],
+      ])
+      expect(readFileSync(path.join(ws, 'ios/App/App.xcodeproj/project.pbxproj'), 'utf8').match(/DEVELOPMENT_TEAM = ABCDE12345;/g)).toHaveLength(2)
+    }
+  })
+
+  it('refuses --team on Android before anything is installed, as `mobile build` does', async () => {
+    const calls: Array<{ command: string; args: string[] } & ChildOptions> = []
+    const dir = project("{ appId: 'com.example.shop' }")
+    await expect(mobileRun({ projectDir: dir, platform: 'android', api: 'http://localhost:3000', team: 'ABCDE12345', extensions: [] }, () => {}, { run: fakeRun(calls), build })).rejects.toThrow('--team is for iOS')
     expect(calls).toEqual([])
   })
 

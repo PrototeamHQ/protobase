@@ -18,4 +18,4 @@ description: Develop, build and run an app, on servers, in containers and on pho
 - [Separate worker](/reference/cli/#worker): Jobs and event delivery in their own process.
 - [Container images](/guides/deploy/#images): A runtime image for each release, for amd64 and arm64.
 - [Self-hosted image](/guides/deploy/#a-self-hosted-image): One image with the app inside that serves, migrates and creates the first admin.
-- [Mobile apps](/guides/mobile-app/) (beta): Runs an app on iOS and Android, with sign-in, and builds signed store releases from a section in its config.
+- [Mobile apps](/guides/mobile-app/) (beta): Runs an app on iOS and Android, also on your own iPhone, with sign-in, and builds signed store releases from a section in its config.

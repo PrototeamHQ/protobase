@@ -9,7 +9,7 @@ import { type MobileDeps, type MobileInput, prepare, summary } from './run'
 /** How Xcode signs an iOS release: the team, and for manual signing the certificate and profile. */
 export type IosSigning = { team: string; manual?: { certificate: string; profile: string } }
 
-export type MobileBuildInput = Omit<MobileInput, 'target' | 'live' | 'release'> & {
+export type MobileBuildInput = Omit<MobileInput, 'target' | 'live' | 'team' | 'release'> & {
   version: AppVersion
   /** The folder the signed binary goes to. */
   outDir: string

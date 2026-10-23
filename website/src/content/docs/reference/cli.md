@@ -536,7 +536,7 @@ Remove `supabase-import/` to import again.
 ## `mobile`
 
 ```sh
-protobase mobile run <ios|android> [--api <url>] [--target <id>] [--live] [--port 5173] [--extend <dir>]
+protobase mobile run <ios|android> [--api <url>] [--target <id>] [--team <id>] [--live] [--port 5173] [--extend <dir>]
 protobase mobile open <ios|android> [--api <url>] [--extend <dir>]
 protobase mobile build <ios|android> --app-version <x.y.z> --build-number <n> [--api <url>] [--out mobile-release] [--extend <dir>]
                        [--team <id> [--certificate <name> --profile <name>]]
@@ -546,7 +546,7 @@ Builds the project in the current directory as an iOS or Android app with Capaci
 
 - It installs `@protobase/mobile`, of the CLI's version, which pins Capacitor and its plugins, with the section's `plugins` into `.protobase/mobile/` with npm, when that changed. It builds the app's files as [`build`](#build) does and keeps only `public/`, its `index.html` naming the API origin; writes `capacitor.config.json`, compiling in only the section's plugins; and generates the platform's native project again, replacing the last one.
 - `--api` is the server the app calls, the project's auth `baseURL` by default: an http or https origin, plain http only to `localhost`, `127.0.0.1` and, on iOS, `[::1]`, or on Android `10.0.2.2`. An Android app calling `localhost` gets the port forwarded.
-- `run` runs the app on `--target`, or asks for one. With `--live` it opens `protobase dev` on `localhost:--port` instead of its own files. `open` opens the native project in Xcode or Android Studio.
+- `run` runs the app on `--target`, or asks for one. On iOS, `--team` writes the Apple team id into the generated project and builds it once with xcodebuild allowed to create the development profile and register the device, `--target` or the one connected device, before Capacitor runs it there. With `--live` it opens `protobase dev` on `localhost:--port` instead of its own files. `open` opens the native project in Xcode or Android Studio.
 - `build` makes a signed release, an `.aab` (Android) or `.ipa` (iOS), and copies it to `--out`, which ignores itself in git when the command creates it, as `<appId>-<version>-<build number>`. Android signs through Gradle with the keystore, alias and passwords in `PROTOBASE_ANDROID_KEYSTORE`, `PROTOBASE_ANDROID_KEY_ALIAS`, `PROTOBASE_ANDROID_KEYSTORE_PASSWORD` and `PROTOBASE_ANDROID_KEY_PASSWORD`; iOS runs Capacitor's build with `--team`, and `--certificate` with `--profile` for manual signing.
 - A release calls an https server that is not this machine, and `--app-version` (one to three numbers) and `--build-number` (1 to 2100000000) are required.
 - npm and Capacitor get the CLI's environment without any variable named in the current directory's `.env*` files, nor the four `PROTOBASE_ANDROID_*` signing variables, which only Gradle gets, and with `CI=true`, which keeps Capacitor's telemetry off.

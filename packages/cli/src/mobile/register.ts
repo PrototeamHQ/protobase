@@ -20,12 +20,13 @@ export const registerMobile = (program: Command) => {
     .argument('<platform>', 'ios or android', parsePlatform)
     .option(api, apiHelp)
     .option('--target <id>', 'the device or simulator to run on (default: Capacitor asks)')
+    .option('--team <id>', 'iOS: your Apple Developer team id, which signs the app to run on your iPhone', parseTeamId)
     .option('--live', 'open the running protobase dev instead of the app\'s own files, reloading as you save', false)
     .option('--port <port>', 'the port of protobase dev, for --live', parsePort, 5173)
     .option('--extend <dir>', extend, collect, [])
     .action(async (chosen: Platform, opts) => {
       const { mobileRun } = await import('./run')
-      const input = { projectDir: process.cwd(), platform: chosen, extensions: resolveExtensions(opts.extend), ...(opts.api !== undefined && { api: opts.api }), ...(opts.target && { target: opts.target }) }
+      const input = { projectDir: process.cwd(), platform: chosen, extensions: resolveExtensions(opts.extend), ...(opts.api !== undefined && { api: opts.api }), ...(opts.target && { target: opts.target }), ...(opts.team && { team: opts.team }) }
       await mobileRun({ ...input, ...(opts.live && { live: opts.port }) }, out)
     })
 

@@ -59,6 +59,14 @@ The app calls the server at the project's auth `baseURL`; pass `--api https://sh
 
 `--target <id>` picks the simulator, emulator or device; without it Capacitor asks.
 
+To run on your iPhone, connect it, turn on its Developer Mode and pass your Apple team id, from a paid Apple Developer membership or the free personal team of the Apple ID you added in Xcode's settings:
+
+```sh
+protobase mobile run ios --team ABCDE12345
+```
+
+Every run signs the app for development with that team, letting Xcode create the profile and register the phone, and installs it on the connected iPhone, or on `--target` when several are connected. The first time, trust your developer certificate on the phone in Settings, General, VPN & Device Management. A free team signs only an `appId` no one else has taken.
+
 ## 4. Live reload
 
 ```sh
@@ -74,7 +82,7 @@ With `--live` the app opens the running `protobase dev` instead of its own files
 protobase mobile open ios
 ```
 
-opens the generated project in Xcode, or Android Studio for `android`. To run on an iPhone, pick a signing team in Xcode's Signing & Capabilities.
+opens the generated project in Xcode, or Android Studio for `android`.
 
 ## 6. Build a release
 
