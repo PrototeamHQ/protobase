@@ -375,7 +375,7 @@ Serves the API of a bundle from `protobase build` and owns the process around it
 | Variable | |
 | --- | --- |
 | `DATABASE_URL` | the API's pool (Kysely over `pg`, 10 connections); not needed when the config exports `db` |
-| `PROTOBASE_DB_CONNECTIONS` | the connections that pool opens, such as the database's limit for the app; default 10. The app's own code shares them through [`appPool`](/reference/auth/#admin-store), as the presets' Better Auth store does. [API functions](/guides/api-functions/) and [jobs](/reference/jobs/) hold at most one less, so a long import leaves a connection to page and API requests |
+| `PROTOBASE_DB_CONNECTIONS` | the connections that pool opens, such as the database's limit for the app; default 10. The app's own code shares them through [`appPool`](/reference/auth/#admin-store), as the presets' Better Auth store does. [API functions](/guides/api-functions/) and [jobs](/reference/jobs/) hold at most one less, so a long import leaves a connection to page and API requests. A query waits at most 2 seconds for a free connection, then fails with `503 connections-busy` ([Safety](/reference/api/#safety)) |
 | `PORT` | default 8787 |
 | `REQUEST_LOG` | `true` logs every request; default `false` |
 | `PROTOBASE_SMTP_URL` | the SMTP server for password-reset mail, emailed sign-in and two-factor codes and the app's own [email](/reference/email/), credential included: `smtp://user:password@host:587` (STARTTLS when offered) or `smtps://...:465`; without it they are off ([Password reset](/reference/auth/#password-reset), [Emailed sign-in codes](/reference/auth/#emailed-sign-in-codes)) |

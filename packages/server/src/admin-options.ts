@@ -42,7 +42,10 @@ export type AdminOptions = {
   rowPermissions?: boolean | { except: string[] }
   /** Receives an event for every reveal of a sensitive field. Default: printed to the console, nothing kept. */
   audit?: AuditQueue
-  /** Called with every error the API turns into a 500, and the request it failed, so the host can report it. */
+  /**
+   * Called with every error the API turns into a 500, and with the problem of every request that found all database
+   * connections busy, and the request it failed, so the host can report it.
+   */
   onUnhandledError?: (error: unknown, request?: Request) => void
   /**
    * Where the app's errors go: the server's 500s and crashes, and the admin app's errors in the browser (see

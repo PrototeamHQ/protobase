@@ -1,6 +1,7 @@
 import type { Context } from 'hono'
 import { HTTPException } from 'hono/http-exception'
 import { QueryError, type QueryErrorCode } from '@protobase/query'
+import { ConnectionsBusy, connectionsBusyProblem } from './connections-busy'
 import { HttpProblem, problemResponse } from './problem'
 
 const titles: Record<number, string> = {
@@ -47,10 +48,20 @@ export const problemOf = (error: unknown): HttpProblem | undefined =>
   : error instanceof HTTPException ? new HttpProblem(error.status, 'http-error', titles[error.status] ?? 'Error', error.message)
   : error instanceof SyntaxError ? new HttpProblem(400, 'malformed-json', 'Bad Request', 'The request body is not valid JSON')
   : isDatabaseError(error) ? databaseProblem(error)
+  : error instanceof ConnectionsBusy ? connectionsBusyProblem(error, 'The query')
   : undefined
 
-/** The single place where errors become responses: RFC 9457 problems, never raw error messages for unexpected failures. */
+/**
+ * The single place where errors become responses: RFC 9457 problems, never raw error messages for unexpected failures.
+ * Unexpected failures go to `onUnhandledError` as well, and so does a request that found every database connection
+ * busy, as the problem that names the request.
+ */
 export const createErrorHandler = (onUnhandledError?: (error: unknown, request?: Request) => void) => (error: Error, c: Context) => {
+  if (error instanceof ConnectionsBusy) {
+    const named = connectionsBusyProblem(error, `${c.req.method} ${c.req.path}`)
+    onUnhandledError?.(named, c.req.raw)
+    return problemResponse(named, c.req.path)
+  }
   const known = problemOf(error)
   if (known) return problemResponse(known, c.req.path)
   onUnhandledError?.(error, c.req.raw)

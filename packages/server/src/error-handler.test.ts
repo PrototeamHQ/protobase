@@ -1,5 +1,6 @@
 import { Hono } from 'hono'
 import { describe, expect, it, vi } from 'vitest'
+import { ConnectionsBusy } from './connections-busy'
 import { createErrorHandler, problemOf } from './error-handler'
 
 /** An error as the database driver throws it: a message and a SQLSTATE. */
@@ -43,5 +44,18 @@ describe('the error handler on a deadlock', () => {
     expect(body).toMatchObject({ type: 'urn:protobase:problem:conflict', detail: 'The record was written at the same time as another; send it again' })
     expect(JSON.stringify(body)).not.toContain('vms')
     expect(reported).not.toHaveBeenCalled()
+  })
+})
+
+describe('the error handler when every database connection stayed busy', () => {
+  it('answers 503 with Retry-After naming the request, and reports it as that 503', async () => {
+    const { response, body, reported } = await answer(new ConnectionsBusy(3, 2_000))
+    expect(response.status).toBe(503)
+    expect(response.headers.get('retry-after')).toBe('1')
+    expect(body).toMatchObject({
+      type: 'urn:protobase:problem:connections-busy',
+      detail: "GET /api/v1/tasks waited 2 s for one of the app's 3 database connections, which all stayed busy, so it did not run. Queries that run long or transactions left open hold them.",
+    })
+    expect(reported).toHaveBeenCalledWith(expect.objectContaining({ status: 503, message: body.detail }), expect.any(Request))
   })
 })

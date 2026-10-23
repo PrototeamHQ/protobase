@@ -195,6 +195,7 @@ The API sends no CORS headers until it has something to allow: other websites in
 ## Safety
 
 - Every request runs in a transaction with `SET LOCAL statement_timeout` (`statementTimeoutMs`, default 15 s); a timeout is `504`. List, search, get, histogram, series, map and seek transactions are read-only.
+- Under `protobase dev` and `serve`, a request waits at most 2 seconds for a free database connection. When every connection stays busy that long, it is a `503` `connections-busy` with `Retry-After: 1` that names the request, reported the same way, rather than a request that hangs behind slow ones.
 - **Scan guard**: a list, `:search`, `:seek`, `:map` page, card photos, `:facets` and `:aggregate` read only columns an index serves, so they stay cheap however many rows match. The server reads each table's valid indexes from the catalog once, then checks every column the caller's filter, the role's row filter, the sort's first field and a facet's or an aggregate's grouped field read:
   - Comparisons, `in`, null checks, sorts and facets need a btree index with the column as a key, every key before it pinned by the query: by `=` or `in` in the filter (outside `OR` and `NOT`), by the tenant or by soft delete. `(for_sale, status, published_at desc)` serves `for_sale = true AND status = "available"` sorted by `published_at desc`, but not `status` alone. `=` on text may use a pg_trgm index instead.
   - Patterns (`name = "*port*"`), `regex()`, `similar()` and `search()` need a pg_trgm (GIN or GiST) index on each column they read, a `digitsEnd` search field one on its digits; JSON `field:value` needs a GIN index.
@@ -214,7 +215,7 @@ Every error is `application/problem+json` (RFC 9457) with `type` (`urn:protobase
 | 404 | `not-found` |
 | 409 | `conflict` |
 | 412 / 428 | `precondition-failed` / `precondition-required` |
-| 503 | `read-only`: the database refuses writes, as during a deploy's write freeze; send the write again after `Retry-After` |
+| 503 | `read-only`: the database refuses writes, as during a deploy's write freeze; send the write again after `Retry-After`. `connections-busy`: every database connection stayed busy for 2 seconds (see [Safety](#safety)) |
 | 504 | `statement-timeout` |
 
 ### Error reporting
@@ -227,7 +228,7 @@ export default defineConfig({
 })
 ```
 
-- **Server:** every `500` with the request it failed, under `dev`, `serve` and the runtime, besides `options.onUnhandledError` or the console. Under `serve`, the runtime and `worker`, an uncaught exception or unhandled rejection too, which then still ends the process with exit code 1.
+- **Server:** every `500` with the request it failed, and every `503 connections-busy` with the request it names, under `dev`, `serve` and the runtime, besides `options.onUnhandledError` or the console. Under `serve`, the runtime and `worker`, an uncaught exception or unhandled rejection too, which then still ends the process with exit code 1.
 - **Admin app:** uncaught errors and the errors of components that fail to draw. `/api/meta` names the DSN to every signed-in caller, as a browser app always shows its own.
 - Errors only, with no performance tracing. Before an event leaves, the values of authorization headers, cookies, passwords, tokens and other credentials, in fields and in URLs, are replaced by `[Filtered]`.
 - `environment` names the deployment in the tracker; without it the tracker's default, `production`. `errorReporting: false` turns reporting off whatever the environment says. A DSN that is no `http(s)` URL with a key and a project id stops startup.
