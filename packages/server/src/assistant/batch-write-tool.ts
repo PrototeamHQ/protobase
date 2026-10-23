@@ -27,6 +27,18 @@ const outside = ({ resources }: WriteRecordToolsInput, operations: WriteOperatio
   return refusal('forbidden', `Writes over MCP reach only ${resources.join(', ')}; operations[${index}] names another resource, so nothing was written.`, { operation: index, op, resource })
 }
 
+// A delete or a restore goes only through a delete operation's approval and delete rule, or the app, as in update_record.
+const softDeleteSet = async (context: ToolContext, operations: WriteOperation[]) => {
+  for (const [index, operation] of operations.entries()) {
+    if (operation.op !== 'update') continue
+    const field = await context.records.softDeleteField(operation.resource)
+    if (field && Object.hasOwn(operation.data, field)) {
+      return refusal('forbidden', `operations[${index}] sets ${field}, which deleting sets; delete with a delete operation. Nothing was written.`, { operation: index, op: operation.op, resource: operation.resource })
+    }
+  }
+  return undefined
+}
+
 // Only a batch with deletes needs to know which resources restore what they delete.
 const softDeletesFor = async (context: ToolContext, operations: WriteOperation[]) => {
   if (!operations.some((operation) => operation.op === 'delete')) return new Set<string>()
@@ -65,6 +77,8 @@ export const batchWriteTool = (input: WriteRecordToolsInput = {}) =>
       const { operations } = parsed
       const outsideRefusal = outside(input, operations)
       if (outsideRefusal) return outsideRefusal
+      const softDeleteRefusal = await softDeleteSet(context, operations).catch(refused)
+      if (softDeleteRefusal) return softDeleteRefusal
       const answer = await context.approve(batchApproval(operations, await softDeletesFor(context, operations)))
       if (answer !== 'approved') return `The user did not approve this batch (${answer}); nothing was written.`
       return context.records.batch(operations).then((results) => JSON.stringify({ results }), refused)
