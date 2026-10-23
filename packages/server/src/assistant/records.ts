@@ -43,7 +43,8 @@ export type RecordPage = {
  */
 export type ToolRecords = {
   list: (resource: string, params?: ListParams) => Promise<RecordPage>
-  get: (resource: string, key: RecordKeyInput) => Promise<ToolRecord>
+  /** With `show_deleted`, also finds a soft-deleted record, as the REST API's `show_deleted` does. */
+  get: (resource: string, key: RecordKeyInput, options?: { show_deleted?: boolean }) => Promise<ToolRecord>
   create: (resource: string, data: Row) => Promise<ToolRecord>
   /** With `etag`, fails with 412 when the record changed since it was read; without, it updates any version. */
   update: (resource: string, key: RecordKeyInput, data: Row, options?: { etag?: string }) => Promise<ToolRecord>
@@ -78,9 +79,9 @@ export const assistantRecords = (deps: Deps, session: Session): ToolRecords => {
 
   return {
     list: async (resource, params = {}) => (await listRecords(deps, entryOf(resource), session, params, filterLength)).body,
-    get: async (resource, input) => {
+    get: async (resource, input, { show_deleted } = {}) => {
       const { entry, key } = keyOf(resource, input)
-      const { record, etag } = await readRecord(deps, entry, session, key)
+      const { record, etag } = await readRecord(deps, entry, session, key, show_deleted)
       return { record, etag }
     },
     create: async (resource, data) => runWrite(deps, entryOf(resource), session, { operation: 'create', body: data }),

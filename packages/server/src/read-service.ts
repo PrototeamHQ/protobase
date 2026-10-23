@@ -1,12 +1,12 @@
 import type { Deps } from './deps'
 import { presentFiles } from './files/present'
+import { deletedRows } from './params'
 import { notFound } from './problem'
 import type { Entry } from './registry'
 import { fetchReadable } from './fetch-readable'
 import { requestAccess, requireOperation, visibleFields, writableFields, type RequestAccess } from './request-access'
 import { rowPermissions } from './row-permissions'
 import { pickFields } from './rows'
-import type { DeletedRows } from './sql-parts'
 import { readTransaction } from './transactions'
 import type { Session } from './types'
 
@@ -25,11 +25,13 @@ export const fieldModes = (access: RequestAccess, canUpdate: boolean) => {
 
 /**
  * The record with this key as the caller may see it: readable fields only, inside the caller's tenant and row filter.
- * A key outside the tenant, outside the row filter, or failing a record-level read rule is a plain 404.
+ * A key outside the tenant, outside the row filter, or failing a record-level read rule is a plain 404. `showDeleted`
+ * also finds a soft-deleted record, and is refused on a resource without a soft delete once the caller may read it.
  */
-export const readRecord = async (deps: Deps, entry: Entry, session: Session, key: (string | number)[], deleted: DeletedRows = 'hide') => {
+export const readRecord = async (deps: Deps, entry: Entry, session: Session, key: (string | number)[], showDeleted = false) => {
   const access = await requestAccess(deps, entry, session)
   requireOperation(access, 'read')
+  const deleted = deletedRows(access.full, showDeleted)
   const names = Object.keys(access.model.fields)
 
   const found = await readTransaction(deps.db, deps.statementTimeoutMs, async (trx) => {

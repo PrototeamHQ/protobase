@@ -1,5 +1,5 @@
 import type { FieldModel, ResourceModel, ViewModel } from '@protobase/schema'
-import { keyOf, keyParameter, refused, resourceOf, resourceParameter } from './record-tool-args'
+import { invalidShowDeleted, keyOf, keyParameter, refused, resourceOf, resourceParameter, showDeletedOf, showDeletedParameter } from './record-tool-args'
 import { defineTool, type ReadableResources } from './tools'
 
 const readOnly = { readOnlyHint: true, openWorldHint: false }
@@ -27,6 +27,7 @@ const resourceEntry = (model: ResourceModel, view: ViewModel | undefined) => ({
   ...(view?.names && { label: view.names.plural }),
   ...(view?.help && { help: view.help }),
   key: model.primaryKey,
+  soft_delete: model.softDelete !== undefined,
   fields: Object.values(model.fields).map((field) => fieldEntry(field, view)),
 })
 
@@ -36,7 +37,7 @@ const described = ({ models, views }: ReadableResources) => models.map((model) =
 export const listResourcesTool = () =>
   defineTool({
     name: 'list_resources',
-    description: 'Lists the resources you may read, as JSON: each with its name, label, key fields and fields (name, type, label, enum values, the resource a relation links to, and whether it is optional, read-only, filterable and sortable). Filters and order_by in list_records take only fields marked filterable or sortable.',
+    description: 'Lists the resources you may read, as JSON: each with its name, label, key fields, whether it soft deletes (soft_delete) and fields (name, type, label, enum values, the resource a relation links to, and whether it is optional, read-only, filterable and sortable). Filters and order_by in list_records take only fields marked filterable or sortable.',
     parameters: { type: 'object', properties: {} },
     annotations: readOnly,
     run: async (_args, context) => JSON.stringify(described(await context.resources())),
@@ -46,7 +47,7 @@ export const listResourcesTool = () =>
 export const listRecordsTool = () =>
   defineTool({
     name: 'list_records',
-    description: `Finds records of a resource and returns a page of them as JSON ({ items, next_page_token, total_size_estimate }). filter uses AIP-160 syntax, such as status = "open" AND amount > 10, and order_by a comma-separated list of fields, each optionally followed by desc. Pass next_page_token back as page_token for the next page; it is empty on the last.`,
+    description: `Finds records of a resource and returns a page of them as JSON ({ items, next_page_token, total_size_estimate }). filter uses AIP-160 syntax, such as status = "open" AND amount > 10, and order_by a comma-separated list of fields, each optionally followed by desc. Pass next_page_token back as page_token for the next page; it is empty on the last. show_deleted: true also returns soft-deleted records.`,
     parameters: {
       type: 'object',
       properties: {
@@ -55,6 +56,7 @@ export const listRecordsTool = () =>
         order_by: { type: 'string', description: 'Sortable fields, comma-separated, each optionally followed by desc, such as created_at desc.' },
         page_size: { type: 'integer', minimum: 1, maximum: maxPageSize, description: `Records per page, ${defaultPageSize} by default.` },
         page_token: { type: 'string', description: 'The next_page_token of the previous page.' },
+        show_deleted: showDeletedParameter,
       },
       required: ['resource'],
     },
@@ -62,11 +64,14 @@ export const listRecordsTool = () =>
     run: async (args, context) => {
       const resource = resourceOf(args)
       if (!resource) return 'Pass the resource as { "resource": "<name>" }.'
+      const showDeleted = showDeletedOf(args)
+      if (showDeleted === undefined) return invalidShowDeleted
       const params = {
         ...(typeof args.filter === 'string' && { filter: args.filter }),
         ...(typeof args.order_by === 'string' && { order_by: args.order_by }),
         ...(typeof args.page_token === 'string' && { page_token: args.page_token }),
         page_size: typeof args.page_size === 'number' ? Math.min(args.page_size, maxPageSize) : defaultPageSize,
+        ...(showDeleted && { show_deleted: true }),
       }
       return context.records.list(resource, params).then((page) => JSON.stringify(page), refused)
     },
@@ -76,12 +81,13 @@ export const listRecordsTool = () =>
 export const getRecordTool = () =>
   defineTool({
     name: 'get_record',
-    description: 'Reads one record of a resource by its key and returns it as JSON ({ record, etag }).',
+    description: 'Reads one record of a resource by its key and returns it as JSON ({ record, etag }). show_deleted: true also finds a soft-deleted record.',
     parameters: {
       type: 'object',
       properties: {
         resource: resourceParameter,
         key: keyParameter,
+        show_deleted: showDeletedParameter,
       },
       required: ['resource', 'key'],
     },
@@ -90,7 +96,9 @@ export const getRecordTool = () =>
       const resource = resourceOf(args)
       const key = keyOf(args.key)
       if (!resource || key === undefined) return 'Pass the resource and key as { "resource": "<name>", "key": "<key>" }.'
-      return context.records.get(resource, key).then((record) => JSON.stringify(record), refused)
+      const showDeleted = showDeletedOf(args)
+      if (showDeleted === undefined) return invalidShowDeleted
+      return context.records.get(resource, key, { show_deleted: showDeleted }).then((record) => JSON.stringify(record), refused)
     },
   })
 

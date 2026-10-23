@@ -74,3 +74,59 @@ describe('ToolContext.records', () => {
     expect(await refusal(records.update('labels', 1, { color: 'blue' }))).toMatchObject({ status: 404 })
   })
 })
+
+// The fixture soft-deleted every hundredth company: 100 to 3000 are Acme's (1), 3100 to 3500 Globex's (2).
+describe('ToolContext.records with show_deleted', () => {
+  const rest = (path: string, org: number) => createTestApp(fixture).request(`/api/v1/${path}`, { headers: as(org) })
+
+  it('reads a soft-deleted record as the REST API does, and one of another tenant as a missing one', async () => {
+    const acme = await recordsFor(1, 'admin')
+    expect(await refusal(acme.get('companies', 100))).toEqual({ status: 404, detail: 'No companies with this key' })
+    const { permissions: _, ...shown } = (await (await rest('companies/100?show_deleted=true', 1)).json()) as Record<string, unknown>
+    const { record, etag } = await acme.get('companies', 100, { show_deleted: true })
+    expect({ ...record, etag }).toEqual(shown)
+    expect(record.deletedAt).not.toBeNull()
+
+    const globex = await recordsFor(2, 'admin')
+    const missing = await refusal(globex.get('companies', 999999, { show_deleted: true }))
+    expect(missing).toEqual({ status: 404, detail: 'No companies with this key' })
+    expect(await refusal(globex.get('companies', 100, { show_deleted: true }))).toEqual(missing)
+  })
+
+  it('lists soft-deleted records inside the tenant and the row filter only, whatever the filter names', async () => {
+    const globex = await recordsFor(2, 'admin')
+    const ids = async (records: ToolRecords, filter: string) => (await records.list('companies', { filter, show_deleted: true })).items.map((item) => item.id)
+    expect(await ids(globex, 'id = 100 OR id = 3100')).toEqual([3100])
+    expect(await ids(globex, 'organizationId = 1')).toEqual([])
+    // A sales person lists open companies only: 200 is lost, 300 open.
+    expect(await ids(await recordsFor(1, 'ai,sales'), 'id = 200 OR id = 300')).toEqual([300])
+  })
+
+  it('pages through the tenant\'s records only, and a page token never carries the flag', async () => {
+    const globex = await recordsFor(2, 'admin')
+    const params = { filter: 'id >= 2995 AND id <= 3105', order_by: 'id', page_size: 50, show_deleted: true, count: 'exact' as const }
+    const first = await globex.list('companies', params)
+    expect(first.total_size).toBe(105)
+    const items = [...first.items]
+    for (let token = first.next_page_token; token;) {
+      const page = await globex.list('companies', { ...params, page_token: token })
+      items.push(...page.items)
+      token = page.next_page_token
+    }
+    expect(items.map((item) => item.id)).toEqual(Array.from({ length: 105 }, (_, index) => 3001 + index))
+    expect(items.filter((item) => item.deletedAt !== null).map((item) => item.id)).toEqual([3100])
+
+    const { show_deleted: _, ...hidden } = params
+    const replayed = await globex.list('companies', { ...hidden, page_token: first.next_page_token })
+    expect(replayed.items.map((item) => item.id)).toEqual(Array.from({ length: 50 }, (_, index) => 3051 + index).filter((id) => id !== 3100).concat(3101))
+    const acme = await recordsFor(1, 'admin')
+    expect((await acme.list('companies', { ...params, page_token: first.next_page_token })).items).toEqual([])
+  })
+
+  it('is refused on a resource without a soft delete', async () => {
+    const acme = await recordsFor(1, 'admin')
+    const unsupported = { status: 400, detail: 'Resource "labels" does not soft delete, so show_deleted does not apply' }
+    expect(await refusal(acme.get('labels', 1, { show_deleted: true }))).toEqual(unsupported)
+    expect(await refusal(acme.list('labels', { show_deleted: true }))).toEqual(unsupported)
+  })
+})
