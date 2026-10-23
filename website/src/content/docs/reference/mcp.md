@@ -63,6 +63,7 @@ createAdmin({ ..., auth, options: { mcp: { writes: true } } })
 | `create_record` | Creates a record of a resource from `data`, field names to values, and returns it with its ETag. |
 | `update_record` | Changes the fields in `data` of one record by its key, and returns it with its new ETag. With the `etag` that `get_record` gave, it fails when someone changed the record since. It does not set the field a soft delete sets: a delete goes through `delete_record`. |
 | `delete_record` | Deletes one record by its key and the `etag` that `get_record` gave, and fails when someone changed the record since. A resource with a [soft delete](/reference/data-config/) keeps the record, deleted; any other loses it for good. |
+| `batch_write` | Creates, updates and deletes records across resources in one transaction, see [Batch writes](#batch-writes). |
 
 Each write goes through the REST API as the person: their role's access rules, `validate`, write hooks, events and webhooks apply, so the client can do only what the person may do in the app.
 
@@ -90,6 +91,25 @@ No role is exempt unless named. The roles are checked against the signed-in user
 
 A deleted record cannot be restored over MCP, and there is no SQL that writes.
 
+#### Batch writes
+
+`batch_write` takes a list of creates, updates and deletes, each naming its resource, with the key and ETag for an update or delete, and runs them in order in one transaction, as the REST API's [batch writes](/reference/api/#batch-writes) do: either all of them are written or none, and a record changed since its ETag fails the whole batch.
+
+```json
+{ "operations": [
+  { "op": "create", "resource": "tasks", "data": { "title": "Plan the release" }, "ref": "task" },
+  { "op": "create", "resource": "task_links", "data": { "task_id": { "$ref": "task" }, "url": "https://example.com" } },
+  { "op": "update", "resource": "tasks", "key": 12, "etag": "\"3\"", "data": { "status": "done" } },
+  { "op": "delete", "resource": "task_links", "key": 40, "etag": "\"1\"" }
+] }
+```
+
+An update needs the `etag` the record was read with, or `"*"` for any version; a delete's `etag` is optional, and without one it deletes any version. A create may name itself with `ref`, and a later operation's key or data value `{ "$ref": "<name>" }` is that record's key. The result is `{ "results": [...] }`, as the REST batch answers: each created or updated record with its new ETag, so the client can go on writing.
+
+The person approves the batch once, seeing each write in it: how many creates, updates and deletes it makes on each resource, then each operation with its key and data, the first 50 in full and the rest counted. The approval says plainly when deletes in it cannot be undone, which is every delete on a resource that does not [soft delete](/reference/data-config/#resource).
+
+A batch is checked before the person is asked: an operation other than a create, update or delete, a field an operation does not take, an update without an ETag or more than 500 operations come back as `{ "error": "invalid-argument", "message": ... }` naming the operation, and with writes limited to some resources an operation on any other refuses the whole batch. A refusal while it runs, such as an operation the person may not do or a stale ETag, comes back with the REST batch's `operation` (its index), `op` and `resource`. Either way nothing is written.
+
 ## Browsers and hosts
 
 A client in a browser may call the endpoint from any origin: it sends its token, never cookies. A request addressed to another host than the app's `baseURL` is refused, against DNS rebinding.
@@ -103,7 +123,7 @@ The endpoint serves each request on its own, without an MCP session: a `GET` or 
 - `mcpHandler({ authenticate, resource, scope, server })`: the endpoint as a fetch handler. It checks the host, admits a valid token (`mcpGate`) and serves the request with the server that `server(session)` builds for its caller.
 - `mcpServer({ info, tools, context, report, rolesWithoutApproval })`: an MCP server offering [assistant tools](/reference/assistant/#the-apps-own-tools), each with its JSON Schema and its `annotations`, MCP's tool hints. `context` is the tools' context without `approve`: each call gets its own, which asks the client's user, or approves at once when the session's user holds one of `rolesWithoutApproval`.
 - `mcpTools({ db, sql, writes })`: the default tools for a session; `writes` is `true`, `false` or `{ resources, rolesWithoutApproval }`.
-- `writeRecordTools({ resources })`, or `createRecordTool(...)`, `updateRecordTool(...)` and `deleteRecordTool(...)`: the write tools alone, on the listed resources or, without `resources`, on any.
+- `writeRecordTools({ resources })`, or `createRecordTool(...)`, `updateRecordTool(...)` and `deleteRecordTool(...)`: the single write tools alone, on the listed resources or, without `resources`, on any; `batchWriteTool({ resources })` is `batch_write` alone.
 - `mcpGate({ authenticate, resource, scope })`: the token check alone, answering 401 or 403 with a challenge that names the resource's metadata.
 - `mcpToolContext(...)`, `mcpRoutes(app, { path, handler })` and `sessionOf(authInfo)`: the tools' context as the app builds it, the routes with open CORS, and the session a request was admitted with.
 
