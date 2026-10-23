@@ -8,7 +8,7 @@ import type { Row } from '../types'
 import { deleteRecordTool } from './delete-record-tool'
 import { keyOf, keyParameter, refused, resourceOf } from './record-tool-args'
 import { defineTool } from './tools'
-import { notApproved, onlyNote, outside, resourceParameterFor, type WriteRecordToolsInput } from './write-tool-limits'
+import { forbiddenText, notApproved, onlyNote, outside, resourceParameterFor, type WriteRecordToolsInput } from './write-tool-limits'
 
 export type { WriteRecordToolsInput }
 
@@ -63,6 +63,10 @@ export const updateRecordTool = (input: WriteRecordToolsInput = {}) =>
       if (!resource || key === undefined || !data) return 'Pass the resource, key and data as { "resource": "<name>", "key": "<key>", "data": { "<field>": <value> } }.'
       const refusal = outside(input, resource)
       if (refusal) return refusal
+      // A delete or a restore goes only through delete_record's approval and delete rule, or the app
+      const softDelete = await context.records.softDeleteField(resource).then((field) => ({ field }), refused)
+      if (typeof softDelete === 'string') return softDelete
+      if (softDelete.field && Object.hasOwn(data, softDelete.field)) return forbiddenText(`update_record does not set ${softDelete.field}, which deleting sets; delete with delete_record. Nothing was written.`)
       const shownKey = Array.isArray(key) ? key.join(',') : String(key)
       const answer = await context.approve({ title: `Update ${resource} ${shownKey}?`, code: JSON.stringify(data, null, 2), approveLabel: 'Update' })
       if (answer !== 'approved') return notApproved(answer)

@@ -61,7 +61,7 @@ createAdmin({ ..., auth, options: { mcp: { writes: true } } })
 | Tool | What it does |
 | --- | --- |
 | `create_record` | Creates a record of a resource from `data`, field names to values, and returns it with its ETag. |
-| `update_record` | Changes the fields in `data` of one record by its key, and returns it with its new ETag. With the `etag` that `get_record` gave, it fails when someone changed the record since. |
+| `update_record` | Changes the fields in `data` of one record by its key, and returns it with its new ETag. With the `etag` that `get_record` gave, it fails when someone changed the record since. It does not set the field a soft delete sets: a delete goes through `delete_record`. |
 | `delete_record` | Deletes one record by its key and the `etag` that `get_record` gave, and fails when someone changed the record since. A resource with a [soft delete](/reference/data-config/) keeps the record, deleted; any other loses it for good. |
 
 Each write goes through the REST API as the person: their role's access rules, `validate`, write hooks, events and webhooks apply, so the client can do only what the person may do in the app.

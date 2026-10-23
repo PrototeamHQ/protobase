@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { forbidden } from '../problem'
+import { forbidden, notFound } from '../problem'
 import type { ApprovalAnswer } from './approval'
 import type { ToolRecords } from './records'
 import type { ToolContext } from './tools'
@@ -56,6 +56,25 @@ describe('write record tools', () => {
     expect(approve).toHaveBeenCalledWith(expect.objectContaining({ title: 'Update members 3,a?', approveLabel: 'Update' }))
     expect(update).toHaveBeenCalledWith('members', [3, 'a'], { name: 'Acme' }, { etag: '"v0"' })
     expect(JSON.parse(result)).toEqual(saved)
+  })
+
+  it('update_record refuses to set the field a delete sets, without asking', async () => {
+    const update = vi.fn(async () => saved)
+    const { context, approve } = contextWith('approved', { update, softDeleteField: async () => 'deleted_at' })
+    for (const deleted_at of ['2026-10-23T00:00:00Z', null]) {
+      expect(JSON.parse(await updateRecordTool().run({ resource: 'tasks', key: 7, data: { name: 'Acme', deleted_at } }, context))).toEqual({
+        error: 'forbidden',
+        message: 'update_record does not set deleted_at, which deleting sets; delete with delete_record. Nothing was written.',
+      })
+    }
+    expect(approve).not.toHaveBeenCalled()
+    expect(update).not.toHaveBeenCalled()
+  })
+
+  it('update_record refuses a resource the app does not have, without asking', async () => {
+    const { context, approve } = contextWith('approved', { softDeleteField: () => Promise.reject(notFound('There is no resource "nothing"')) })
+    expect(JSON.parse(await updateRecordTool().run({ resource: 'nothing', key: 7, data: {} }, context))).toEqual({ error: 'not-found', message: 'There is no resource "nothing"' })
+    expect(approve).not.toHaveBeenCalled()
   })
 
   it('both answer bad arguments with how to pass them, without asking', async () => {
