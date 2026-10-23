@@ -1,5 +1,5 @@
 import type { KeyObject } from 'node:crypto'
-import { readSigningKey } from '@protobase/server'
+import { readDbConnections, readSigningKey } from '@protobase/server'
 import { readTrustedProxies } from './client-address'
 
 // The environment the platform provides. Better Auth settings (BETTER_AUTH_SECRET, ...) are the project's own.
@@ -7,8 +7,8 @@ export type ServeEnv = {
   port: number
   // Not needed when protobase.config.ts exports `db`.
   databaseUrl?: string
-  // How many connections the pool opens to DATABASE_URL (PROTOBASE_DB_CONNECTIONS), such as the plan's limit; function
-  // calls and jobs hold one less. Unset, the pool's own 10.
+  // How many connections the pool opens to DATABASE_URL (PROTOBASE_DB_CONNECTIONS), such as the plan's limit, which the
+  // app's own code shares (`appPool`); function calls and jobs hold one less. Unset, 10.
   dbConnections?: number
   // Whether every request is logged (REQUEST_LOG=true).
   requestLog: boolean
@@ -43,8 +43,7 @@ export const readServeEnv = (env: Record<string, string | undefined>): ServeEnv 
   const minutes = env.PROTOBASE_FILES_CLEANUP_MINUTES ? Number(env.PROTOBASE_FILES_CLEANUP_MINUTES) : 60
   if (!Number.isInteger(minutes) || minutes < 0) throw new Error(`PROTOBASE_FILES_CLEANUP_MINUTES must be a whole number of minutes, not "${env.PROTOBASE_FILES_CLEANUP_MINUTES}"`)
   const mobileSigningKey = readSigningKey(env)
-  const connections = env.PROTOBASE_DB_CONNECTIONS ? Number(env.PROTOBASE_DB_CONNECTIONS) : undefined
-  if (connections !== undefined && (!Number.isInteger(connections) || connections < 1)) throw new Error(`PROTOBASE_DB_CONNECTIONS must be a whole number of connections, at least 1, not "${env.PROTOBASE_DB_CONNECTIONS}"`)
+  const connections = env.PROTOBASE_DB_CONNECTIONS ? readDbConnections(env) : undefined
   return {
     port,
     databaseUrl: env.DATABASE_URL || undefined,

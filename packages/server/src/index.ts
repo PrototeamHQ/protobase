@@ -1,5 +1,6 @@
 export { createAdmin, type CreateAdminInput } from './create-admin'
 export { handleDroppedConnections } from './dropped-connections'
+export { appPool, readDbConnections, type AppPoolConfig, type PgModule } from './app-pool'
 export { isBackgroundWork, runInBackground } from './background-work'
 export { configExports } from './resource-source'
 export { checkViewQueries } from './check-view-queries'

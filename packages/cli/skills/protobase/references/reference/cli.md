@@ -376,7 +376,7 @@ Serves the API of a bundle from `protobase build` and owns the process around it
 | Variable | |
 | --- | --- |
 | `DATABASE_URL` | the API's pool (Kysely over `pg`, 10 connections); not needed when the config exports `db` |
-| `PROTOBASE_DB_CONNECTIONS` | the connections that pool opens, such as the database's limit for the app; default 10. [API functions](../guides/api-functions.md) and [jobs](jobs.md) hold at most one less, so a long import leaves a connection to page and API requests |
+| `PROTOBASE_DB_CONNECTIONS` | the connections that pool opens, such as the database's limit for the app; default 10. The app's own code shares them through [`appPool`](auth.md#admin-store), as the presets' Better Auth store does. [API functions](../guides/api-functions.md) and [jobs](jobs.md) hold at most one less, so a long import leaves a connection to page and API requests |
 | `PORT` | default 8787 |
 | `REQUEST_LOG` | `true` logs every request; default `false` |
 | `PROTOBASE_SMTP_URL` | the SMTP server for password-reset mail, emailed sign-in and two-factor codes and the app's own [email](email.md), credential included: `smtp://user:password@host:587` (STARTTLS when offered) or `smtps://...:465`; without it they are off ([Password reset](auth.md#password-reset), [Emailed sign-in codes](auth.md#emailed-sign-in-codes)) |

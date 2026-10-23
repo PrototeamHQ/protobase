@@ -22,7 +22,7 @@ Users, sessions and signing keys stay apart from the application's tables. The E
 createAuth({ database: { dialect: new PostgresDialect({ pool }), type: 'postgres', schemaName: 'auth', transaction: true }, ... })
 ```
 
-Build that pool as `handleDroppedConnections(new pg.Pool(...))` (from `@protobase/server`) so a database restart is printed instead of stopping the app.
+Build that pool with `appPool(pg, process.env.DATABASE_URL)` (from `@protobase/server`), as the presets do: it is the app's one pool on that database, which `protobase dev` and `serve` share, so the store opens no connections beyond [`PROTOBASE_DB_CONNECTIONS`](/reference/cli/#serve), and a database restart is printed instead of stopping the app. A pool of the app's own, such as `new pg.Pool(...)`, opens its connections beside the runtime's.
 
 ### Migrations
 
