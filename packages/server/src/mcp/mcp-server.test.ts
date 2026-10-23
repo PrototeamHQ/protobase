@@ -1,7 +1,10 @@
 import { createMcpHandler } from '@modelcontextprotocol/server'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import type { ToolRecords } from '../assistant/records'
 import { defineTool, type ToolContext } from '../assistant/tools'
-import { mcpServer } from './mcp-server'
+import { writeRecordTools } from '../assistant/write-record-tools'
+import { forbidden } from '../problem'
+import { mcpServer, type McpServerInput } from './mcp-server'
 
 const context = { session: { user: { id: 1, roles: ['sales'] } } } as Omit<ToolContext, 'approve'>
 const echo = defineTool({
@@ -26,8 +29,10 @@ const write = defineTool({
   },
 })
 
-const post = async (report: (error: unknown) => void, headers: Record<string, string>, method: string, params: object) => {
-  const handler = createMcpHandler(() => mcpServer({ info: { name: 'App', version: '1.0.0' }, tools: [echo, broken, write], context, report }), { legacy: 'stateless' })
+type Served = Partial<Pick<McpServerInput, 'tools' | 'context' | 'rolesWithoutApproval'>>
+
+const post = async (report: (error: unknown) => void, headers: Record<string, string>, method: string, params: object, served: Served = {}) => {
+  const handler = createMcpHandler(() => mcpServer({ info: { name: 'App', version: '1.0.0' }, tools: [echo, broken, write], context, report, ...served }), { legacy: 'stateless' })
   const response = await handler.fetch(new Request('http://localhost/api/mcp', {
     method: 'POST',
     headers: { accept: 'application/json, text/event-stream', 'content-type': 'application/json', ...headers },
@@ -38,10 +43,10 @@ const post = async (report: (error: unknown) => void, headers: Record<string, st
   return JSON.parse(data).result
 }
 
-const call = (report: (error: unknown) => void, method: string, params: object) => post(report, { 'mcp-protocol-version': '2025-11-25' }, method, params)
+const call = (report: (error: unknown) => void, method: string, params: object, served?: Served) => post(report, { 'mcp-protocol-version': '2025-11-25' }, method, params, served)
 
 // A 2026-07-28 tools/call, which carries the client's capabilities in its own envelope.
-const modern = (params: { name: string; arguments: object; inputResponses?: object }, capabilities: object) =>
+const modern = (params: { name: string; arguments: object; inputResponses?: object }, capabilities: object, served?: Served) =>
   post(() => {}, { 'mcp-protocol-version': '2026-07-28', 'mcp-method': 'tools/call', 'mcp-name': params.name }, 'tools/call', {
     ...params,
     _meta: {
@@ -49,7 +54,7 @@ const modern = (params: { name: string; arguments: object; inputResponses?: obje
       'io.modelcontextprotocol/clientCapabilities': capabilities,
       'io.modelcontextprotocol/clientInfo': { name: 'client', version: '1.0.0' },
     },
-  })
+  }, served)
 
 const cannotAsk = { content: [{ type: 'text', text: 'This client cannot ask you to approve a change, so nothing was written; use a client that supports MCP elicitation.' }], isError: true }
 
@@ -109,6 +114,60 @@ describe('mcpServer', () => {
       const result = await modern({ name: 'write', arguments: {}, inputResponses: { approve: { action: 'decline' } } }, { elicitation: {} })
       expect(result).toMatchObject({ content: [{ type: 'text', text: 'not approved (rejected)' }] })
       expect(written).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('for a role named in rolesWithoutApproval', () => {
+    const service = { session: { user: { id: 2, roles: ['sales', 'service'] } } } as Omit<ToolContext, 'approve'>
+    const exempt = { context: service, rolesWithoutApproval: ['service'] }
+    const elsewhere = { rolesWithoutApproval: ['service'] }
+    beforeEach(() => written.mockClear())
+
+    it('writes in the first round on the 2025 protocol, without asking', async () => {
+      expect(await call(() => {}, 'tools/call', { name: 'write', arguments: {} }, exempt)).toEqual({ content: [{ type: 'text', text: 'written' }] })
+      expect(written).toHaveBeenCalledTimes(1)
+    })
+
+    it('writes for a client without form elicitation, and never asks one that has it', async () => {
+      expect(await modern({ name: 'write', arguments: {} }, {}, exempt)).toMatchObject({ content: [{ type: 'text', text: 'written' }] })
+      const asking = await modern({ name: 'write', arguments: {} }, { elicitation: {} }, exempt)
+      expect(asking).toMatchObject({ content: [{ type: 'text', text: 'written' }] })
+      expect(asking).not.toHaveProperty('inputRequests')
+      expect(written).toHaveBeenCalledTimes(2)
+    })
+
+    it('still asks a user without the role, and refuses them when their client cannot ask, whatever the call claims', async () => {
+      expect(await modern({ name: 'write', arguments: {} }, { elicitation: {} }, elsewhere)).toMatchObject({ resultType: 'input_required' })
+      const claims = { role: 'service', roles: ['service'], approved: true, _meta: { role: 'service' } }
+      expect(await call(() => {}, 'tools/call', { name: 'write', arguments: claims, _meta: { role: 'service', roles: ['service'] } }, elsewhere)).toEqual(cannotAsk)
+      expect(await modern({ name: 'write', arguments: claims }, {}, elsewhere)).toMatchObject(cannotAsk)
+      expect(written).not.toHaveBeenCalled()
+    })
+
+    it('leaves nothing behind for a later call by a user without the role', async () => {
+      expect(await call(() => {}, 'tools/call', { name: 'write', arguments: {} }, exempt)).toMatchObject({ content: [{ type: 'text', text: 'written' }] })
+      expect(await call(() => {}, 'tools/call', { name: 'write', arguments: {} }, elsewhere)).toEqual(cannotAsk)
+      expect(written).toHaveBeenCalledTimes(1)
+    })
+
+    it('asks everyone when no role is named', async () => {
+      expect(await call(() => {}, 'tools/call', { name: 'write', arguments: {} }, { context: service })).toEqual(cannotAsk)
+      expect(await call(() => {}, 'tools/call', { name: 'write', arguments: {} }, { context: service, rolesWithoutApproval: [] })).toEqual(cannotAsk)
+      expect(written).not.toHaveBeenCalled()
+    })
+
+    it('writes only the listed resources, under the caller\'s access rules, as when approved', async () => {
+      const create = vi.fn(async (resource: string) => {
+        if (resource === 'notes') throw forbidden('access-denied', 'You may not create notes')
+        return { record: { id: 7 }, etag: '"v1"' }
+      })
+      const records = { ...service, records: { create } as unknown as ToolRecords }
+      const served = { tools: writeRecordTools({ resources: ['tasks', 'notes'] }), context: records, rolesWithoutApproval: ['service'] }
+      const text = async (resource: string) => ((await call(() => {}, 'tools/call', { name: 'create_record', arguments: { resource, data: { title: 'x' } } }, served)).content as Array<{ text: string }>)[0]!.text
+      expect(JSON.parse(await text('people'))).toEqual({ error: 'forbidden', message: 'Writes over MCP reach only tasks, notes, not people; nothing was written.' })
+      expect(JSON.parse(await text('notes'))).toEqual({ error: 'access-denied', message: 'You may not create notes' })
+      expect(JSON.parse(await text('tasks'))).toEqual({ record: { id: 7 }, etag: '"v1"' })
+      expect(create.mock.calls.map(([resource]) => resource)).toEqual(['notes', 'tasks'])
     })
   })
 })

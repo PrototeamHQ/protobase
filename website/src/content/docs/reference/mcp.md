@@ -75,6 +75,18 @@ createAdmin({ ..., auth, options: { mcp: { writes: { resources: ['tasks'] } } } 
 
 The write tools then name those resources in their descriptions, and refuse a write to any other before asking, with `{ "error": "forbidden", "message": ... }` saying which resources they write; nothing is written. A name the app has no resource for stops the server at startup. The list only narrows the writes: the person's access rules still apply on the listed resources.
 
+#### Writes without approval
+
+An app that runs service accounts over MCP, such as a backend job or an agent with no person present, names their roles in `options.mcp.writes`:
+
+```ts
+createAdmin({ ..., auth, options: { mcp: { writes: { resources: ['tasks'], rolesWithoutApproval: ['service'] } } } })
+```
+
+A user with one of those roles creates and updates records over MCP without the approval step: the client is never asked, so a client that cannot ask writes too. Their role's access rules and the listed resources still limit every write as before, so a job with no person present can keep the app's data over MCP and do nothing there it could not do through the REST API. Everyone else is still asked before each write.
+
+No role is exempt unless named. The roles are checked against the signed-in user, not against the client, and a user holding several is exempt when any of them is named. A name that is not one of the app's roles, or is `anonymous`, stops the server at startup. Naming a role a person signs in with lets any client that person allows write as them unasked.
+
 Nothing can be deleted over MCP, and there is no SQL that writes.
 
 ## Browsers and hosts
@@ -88,8 +100,8 @@ The endpoint serves each request on its own, without an MCP session: a `GET` or 
 `@protobase/server` exports the pieces the endpoint is made of, for an MCP server of your own with tools of your own:
 
 - `mcpHandler({ authenticate, resource, scope, server })`: the endpoint as a fetch handler. It checks the host, admits a valid token (`mcpGate`) and serves the request with the server that `server(session)` builds for its caller.
-- `mcpServer({ info, tools, context, report })`: an MCP server offering [assistant tools](/reference/assistant/#the-apps-own-tools), each with its JSON Schema and its `annotations`, MCP's tool hints. `context` is the tools' context without `approve`: each call gets its own, which asks the client's user.
-- `mcpTools({ db, sql, writes })`: the default tools for a session; `writes` is `true`, `false` or `{ resources }`.
+- `mcpServer({ info, tools, context, report, rolesWithoutApproval })`: an MCP server offering [assistant tools](/reference/assistant/#the-apps-own-tools), each with its JSON Schema and its `annotations`, MCP's tool hints. `context` is the tools' context without `approve`: each call gets its own, which asks the client's user, or approves at once when the session's user holds one of `rolesWithoutApproval`.
+- `mcpTools({ db, sql, writes })`: the default tools for a session; `writes` is `true`, `false` or `{ resources, rolesWithoutApproval }`.
 - `writeRecordTools({ resources })`, or `createRecordTool(...)` and `updateRecordTool(...)`: the write tools alone, on the listed resources or, without `resources`, on any.
 - `mcpGate({ authenticate, resource, scope })`: the token check alone, answering 401 or 403 with a challenge that names the resource's metadata.
 - `mcpToolContext(...)`, `mcpRoutes(app, { path, handler })` and `sessionOf(authInfo)`: the tools' context as the app builds it, the routes with open CORS, and the session a request was admitted with.

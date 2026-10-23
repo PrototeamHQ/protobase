@@ -15,11 +15,11 @@ const isMcpOptions = (options: unknown) =>
 /**
  * The authenticator of the MCP endpoint's tokens, when MCP is on (`createAuth({ mcp })`); none when the host serves its
  * own (`options.mcp: false`). Stops the server at startup when `options.mcp` is neither `false` nor
- * `{ sql?: boolean; writes?: boolean | { resources: string[] } }`, when it is set without MCP, or when `authenticate` cannot verify tokens for
+ * `{ sql?: boolean; writes?: boolean | { resources?: string[]; rolesWithoutApproval?: string[] } }`, when it is set without MCP, or when `authenticate` cannot verify tokens for
  * another audience.
  */
 export const mcpAuthenticator = (authenticate: Authenticator, mcp: { resource: string } | undefined, options: AdminOptions['mcp']) => {
-  if (!isMcpOptions(options)) throw new Error('options.mcp takes false or { sql?: boolean, writes?: boolean | { resources: [<resource>, ...] } }')
+  if (!isMcpOptions(options)) throw new Error('options.mcp takes false or { sql?: boolean, writes?: boolean | { resources?: [<resource>, ...], rolesWithoutApproval?: [<role>, ...] } }')
   if (options === false) return undefined
   if (options && !mcp) throw new Error('options.mcp needs createAuth({ mcp }) passed as auth')
   if (!mcp) return undefined

@@ -19,6 +19,15 @@ export const mcpApproval = (inputResponses: Record<string, unknown> | undefined)
   return Promise.resolve('rejected')
 }
 
+/**
+ * Whether `roles`, the roles the signed-in user holds, include one of `exempt`, whose MCP writes need no approval: an
+ * exact match, and none for anything but a list.
+ */
+export const writesUnasked = (exempt: readonly string[], roles: unknown) => Array.isArray(roles) && roles.some((role) => exempt.includes(role))
+
+/** `ToolContext.approve` over MCP for a user whose writes need no approval: approved, without asking the client. */
+export const approvedUnasked = (): Promise<ApprovalAnswer> => Promise.resolve('approved')
+
 // The SDK's rule: `elicitation: {}` means form support, as does `elicitation.form`; `elicitation.url` alone does not.
 const asksForms = (capabilities: ClientCapabilities | undefined) => {
   const elicitation = capabilities?.elicitation

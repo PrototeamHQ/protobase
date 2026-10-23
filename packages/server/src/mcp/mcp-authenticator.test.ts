@@ -27,9 +27,9 @@ describe('mcpAuthenticator', () => {
   })
 
   it('stops the server on any other value of options.mcp, with MCP on or off', () => {
-    for (const options of ['false', 0, null, true, { enabled: false }, { sql: 'true' }, { writes: 'true' }, { writes: { resources: [] } }, { writes: { resources: 'tasks' } }, { writes: { resources: [''] } }, { writes: { resources: ['tasks'], creates: true } }, []]) {
-      expect(() => mcpAuthenticator(withAudiences, mcp, options as never)).toThrow('options.mcp takes false or { sql?: boolean, writes?: boolean | { resources: [<resource>, ...] } }')
-      expect(() => mcpAuthenticator(withAudiences, undefined, options as never)).toThrow('options.mcp takes false or { sql?: boolean, writes?: boolean | { resources: [<resource>, ...] } }')
+    for (const options of ['false', 0, null, true, { enabled: false }, { sql: 'true' }, { writes: 'true' }, { writes: { resources: [] } }, { writes: { resources: 'tasks' } }, { writes: { resources: [''] } }, { writes: { resources: ['tasks'], creates: true } }, { writes: {} }, { writes: { rolesWithoutApproval: 'service' } }, { writes: { rolesWithoutApproval: true } }, { writes: { rolesWithoutApproval: [''] } }, []]) {
+      expect(() => mcpAuthenticator(withAudiences, mcp, options as never)).toThrow('options.mcp takes false or { sql?: boolean, writes?: boolean | { resources?: [<resource>, ...], rolesWithoutApproval?: [<role>, ...] } }')
+      expect(() => mcpAuthenticator(withAudiences, undefined, options as never)).toThrow('options.mcp takes false or { sql?: boolean, writes?: boolean | { resources?: [<resource>, ...], rolesWithoutApproval?: [<role>, ...] } }')
     }
     expect(mcpAuthenticator(withAudiences, mcp, {})).toBe(forMcp)
     expect(mcpAuthenticator(withAudiences, mcp, { sql: false })).toBe(forMcp)

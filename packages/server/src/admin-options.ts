@@ -53,6 +53,9 @@ export type AdminOptions = {
    * `writes: true` offers `create_record` and `update_record`, through the REST API's access rules, `validate` and write
    * hooks; the person approves each write in their client, and a client that cannot ask is refused.
    * `writes: { resources: ['tasks'] }` offers them on the listed resources only, and refuses a write to any other.
+   * `writes: { rolesWithoutApproval: ['service'] }` lets a user holding one of those roles, such as a service account
+   * with no person present, write without the approval; any other user is still asked. Each must be a role the app's
+   * users can hold.
    * `false`: the host serves its own MCP endpoint at `auth.mcp.path`, in front of this app. This app then answers 404
    * there and needs no `forAudience`, while the OAuth provider's discovery stays.
    */

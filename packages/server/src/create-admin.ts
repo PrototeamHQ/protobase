@@ -32,7 +32,7 @@ import { mcpHandler } from './mcp/mcp-handler'
 import { closedMcpRoutes, mcpRoutes } from './mcp/mcp-routes'
 import { mcpServer } from './mcp/mcp-server'
 import { mcpTools } from './mcp/mcp-tools'
-import { checkMcpWrites } from './mcp/mcp-writes'
+import { checkMcpWrites, rolesWithoutApproval } from './mcp/mcp-writes'
 import { withoutSessionTokens } from './better-auth/without-session-tokens'
 import { webauthnPath } from './better-auth/origins'
 import { organizationRoutes } from './better-auth/organizations/admin-routes'
@@ -209,7 +209,7 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], pag
   checkRoleLimits(registry, options.roles?.limits ?? [])
   checkOwnerFields(registry, authenticate.userIdType, auth)
   const mcpAuthenticate = mcpAuthenticator(authenticate, auth?.mcp, options.mcp)
-  if (options.mcp) checkMcpWrites(registry, options.mcp.writes)
+  if (options.mcp) checkMcpWrites(registry, declaredRoles(auth, options.roles), options.mcp.writes)
   checkPositionAfter(registry)
   checkParents(registry)
   checkPages(pageModels, {
@@ -332,8 +332,10 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], pag
   // Before the system endpoints, which want an app token for everything under them
   if (auth?.mcp && options.mcp === false) closedMcpRoutes(app, auth.mcp.path)
   else if (auth?.mcp && mcpAuthenticate) {
-    const tools = mcpTools({ db, sql: options.mcp !== false && options.mcp?.sql === true, writes: (options.mcp !== false && options.mcp?.writes) || false })
-    const server = (session: Session) => mcpServer({ info: { name: appName, version: '1.0.0' }, tools: tools(session), context: mcpToolContext(deps, meta, session), report })
+    const writes = (options.mcp !== false && options.mcp?.writes) || false
+    const tools = mcpTools({ db, sql: options.mcp !== false && options.mcp?.sql === true, writes })
+    const server = (session: Session) =>
+      mcpServer({ info: { name: appName, version: '1.0.0' }, tools: tools(session), context: mcpToolContext(deps, meta, session), report, rolesWithoutApproval: rolesWithoutApproval(writes) })
     mcpRoutes(app, { path: auth.mcp.path, handler: mcpHandler({ authenticate: mcpAuthenticate, resource: auth.mcp.resource, scope: auth.mcp.scope, server }) })
   }
   const upgradeAuthenticate = upgradeAuthenticator({ authenticate, ...(auth && { origins: auth.origins, sessionToken: betterAuthSessionToken(auth) }) })

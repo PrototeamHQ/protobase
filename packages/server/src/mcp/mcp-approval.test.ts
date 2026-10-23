@@ -1,6 +1,6 @@
 import type { ClientCapabilities } from '@modelcontextprotocol/server'
 import { describe, expect, it } from 'vitest'
-import { ApprovalNeeded, approvalAsked, mcpApproval } from './mcp-approval'
+import { ApprovalNeeded, approvalAsked, mcpApproval, writesUnasked } from './mcp-approval'
 
 const request = { title: 'Create a record in companies?', body: 'A new customer', fields: [{ label: 'Owner', value: 'Ann' }], code: '{ "name": "Acme" }', approveLabel: 'Create' }
 const refusal = { content: [{ type: 'text', text: 'This client cannot ask you to approve a change, so nothing was written; use a client that supports MCP elicitation.' }], isError: true }
@@ -44,5 +44,21 @@ describe('approvalAsked', () => {
 
   it.each<ClientCapabilities | undefined>([undefined, {}, { elicitation: { url: {} } }])('refuses a client that cannot ask, %j', (capabilities) => {
     expect(approvalAsked(request, capabilities)).toEqual(refusal)
+  })
+})
+
+describe('writesUnasked', () => {
+  it('holds for a user with any of the named roles', () => {
+    expect(writesUnasked(['service'], ['sales', 'service'])).toBe(true)
+  })
+
+  it('matches exactly, and only a list of roles', () => {
+    for (const roles of [['Service'], ['service '], ['services'], ['serv'], ['service-reader'], ['__proto__'], ['constructor'], ['toString'], ['admin'], [], null, undefined, 'service', { service: true }]) {
+      expect(writesUnasked(['service'], roles)).toBe(false)
+    }
+  })
+
+  it('holds for nobody when no role is named', () => {
+    expect(writesUnasked([], ['service', 'admin'])).toBe(false)
   })
 })
