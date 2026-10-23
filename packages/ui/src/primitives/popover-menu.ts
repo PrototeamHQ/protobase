@@ -2,11 +2,15 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 
 const gap = 4
 
-/** Below the button, or above it when the viewport has no room underneath; its right edge at the button's. */
-const placeMenu = (button: DOMRect, menuHeight: number) => {
+/**
+ * Below the button, or above it when the viewport has no room underneath; its right edge at the button's, or further
+ * right when that would push its left edge off the viewport, as for a button near the left edge.
+ */
+const placeMenu = (button: DOMRect, menu: { width: number; height: number }) => {
   const below = button.bottom + gap
-  const top = below + menuHeight > window.innerHeight - gap ? Math.max(gap, button.top - gap - menuHeight) : below
-  return { top, right: window.innerWidth - button.right }
+  const top = below + menu.height > window.innerHeight - gap ? Math.max(gap, button.top - gap - menu.height) : below
+  const right = Math.max(gap, Math.min(window.innerWidth - button.right, window.innerWidth - gap - menu.width))
+  return { top, right }
 }
 
 /**
@@ -25,7 +29,7 @@ export const usePopoverMenu = () => {
       setPlace(undefined)
       return
     }
-    setPlace(placeMenu(button.current.getBoundingClientRect(), menu.current.offsetHeight))
+    setPlace(placeMenu(button.current.getBoundingClientRect(), { width: menu.current.offsetWidth, height: menu.current.offsetHeight }))
   }, [open])
 
   useEffect(() => {

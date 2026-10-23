@@ -1,5 +1,6 @@
 import { MoreHorizontal } from 'lucide-react'
-import { useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
+import { usePopoverMenu } from '../primitives/popover-menu'
 import { text } from './messages'
 
 export type HeaderMenuProps = { header: string; pinned: boolean; sortable: boolean; onTogglePin: () => void }
@@ -7,27 +8,18 @@ export type HeaderMenuProps = { header: string; pinned: boolean; sortable: boole
 /** Why a column header does nothing when pressed: a list sorts only on the columns its view makes sortable. */
 export const unsortableText = () => text('unsortable')
 
-/** The "..." in a column header: pinning the column to the left edge, and saying so when the list can't sort by it. */
+/**
+ * The "..." in a column header: pinning the column to the left edge, and saying so when the list can't sort by it. The
+ * menu is portalled to the body, as the row menu is: the header row clips, so a menu inside it would be cut off at the
+ * header's bottom edge, with the rows showing where it should be.
+ */
 export const HeaderMenu = ({ header, pinned, sortable, onTogglePin }: HeaderMenuProps) => {
-  const [open, setOpen] = useState(false)
-  const root = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    if (!open) return
-    const close = (event: Event) => {
-      if (event instanceof KeyboardEvent ? event.key === 'Escape' : !root.current?.contains(event.target as Node)) setOpen(false)
-    }
-    document.addEventListener('mousedown', close)
-    document.addEventListener('keydown', close)
-    return () => {
-      document.removeEventListener('mousedown', close)
-      document.removeEventListener('keydown', close)
-    }
-  }, [open])
+  const { open, setOpen, place, button, menu } = usePopoverMenu()
 
   return (
-    <div ref={root} className="relative ml-auto shrink-0">
+    <div className="relative ml-auto shrink-0">
       <button
+        ref={button}
         type="button"
         aria-label={text('columnMenu', header)}
         aria-haspopup="menu"
@@ -37,30 +29,32 @@ export const HeaderMenu = ({ header, pinned, sortable, onTogglePin }: HeaderMenu
       >
         <MoreHorizontal className="size-3.5" />
       </button>
-      {open && (
-        <ul role="menu" className="absolute right-0 top-full z-30 mt-1 min-w-32 rounded-md border bg-background py-1 text-body font-normal text-foreground shadow-pop">
-          {!sortable && (
+      {open &&
+        createPortal(
+          <ul ref={menu} role="menu" style={place ?? { visibility: 'hidden' }} className="fixed z-50 min-w-32 rounded-md border bg-background py-1 text-body font-normal text-foreground shadow-pop">
+            {!sortable && (
+              <li role="none">
+                <span role="menuitem" aria-disabled="true" className="block min-h-9 whitespace-nowrap px-3 py-1.5 text-muted-foreground">
+                  {unsortableText()}
+                </span>
+              </li>
+            )}
             <li role="none">
-              <span role="menuitem" aria-disabled="true" className="block min-h-9 whitespace-nowrap px-3 py-1.5 text-muted-foreground">
-                {unsortableText()}
-              </span>
+              <button
+                type="button"
+                role="menuitem"
+                className="block min-h-9 w-full whitespace-nowrap px-3 py-1.5 text-left hover:bg-muted"
+                onClick={() => {
+                  setOpen(false)
+                  onTogglePin()
+                }}
+              >
+                {pinned ? text('unpin') : text('pinToLeft')}
+              </button>
             </li>
-          )}
-          <li role="none">
-            <button
-              type="button"
-              role="menuitem"
-              className="block min-h-9 w-full whitespace-nowrap px-3 py-1.5 text-left hover:bg-muted"
-              onClick={() => {
-                setOpen(false)
-                onTogglePin()
-              }}
-            >
-              {pinned ? text('unpin') : text('pinToLeft')}
-            </button>
-          </li>
-        </ul>
-      )}
+          </ul>,
+          document.body,
+        )}
     </div>
   )
 }
