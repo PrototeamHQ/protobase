@@ -12,8 +12,8 @@ export type McpToolsInput = {
   /** Offers `run_read_only_query` to callers who see the assistant (`admin` or `ai`); it reads outside the access rules. */
   sql: boolean
   /**
-   * Offers `create_record` and `update_record`, on the listed resources only when given `{ resources }`; each write still
-   * needs the caller's role, and their approval in the client unless they hold one of `rolesWithoutApproval`.
+   * Offers `create_record`, `update_record` and `delete_record`, on the listed resources only when given `{ resources }`; each write
+   * still needs the caller's role, and their approval in the client unless they hold one of `rolesWithoutApproval`.
    */
   writes: McpWrites
 }

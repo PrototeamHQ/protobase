@@ -85,6 +85,7 @@ export { streamChatCompletion, ModelError, type ChatMessage, type ChatTextPart, 
 export { readOnlyQueryTool, readWriteQueryTool } from './assistant/query-tools'
 export { listResourcesTool, listRecordsTool, getRecordTool, readRecordTools } from './assistant/record-tools'
 export { createRecordTool, updateRecordTool, writeRecordTools, type WriteRecordToolsInput } from './assistant/write-record-tools'
+export { deleteRecordTool } from './assistant/delete-record-tool'
 export { mcpServer, type McpServerInput } from './mcp/mcp-server'
 export { mcpTools, type McpToolsInput } from './mcp/mcp-tools'
 export type { McpWrites } from './mcp/mcp-writes'

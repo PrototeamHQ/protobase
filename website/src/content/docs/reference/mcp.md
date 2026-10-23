@@ -52,7 +52,7 @@ It runs one `SELECT` in a read-only transaction, as the app's database role, **o
 
 ### Writes
 
-`createAdmin`'s `options.mcp.writes` also offers two tools that change records, to everyone signed in:
+`createAdmin`'s `options.mcp.writes` also offers three tools that change records, to everyone signed in:
 
 ```ts
 createAdmin({ ..., auth, options: { mcp: { writes: true } } })
@@ -62,10 +62,11 @@ createAdmin({ ..., auth, options: { mcp: { writes: true } } })
 | --- | --- |
 | `create_record` | Creates a record of a resource from `data`, field names to values, and returns it with its ETag. |
 | `update_record` | Changes the fields in `data` of one record by its key, and returns it with its new ETag. With the `etag` that `get_record` gave, it fails when someone changed the record since. |
+| `delete_record` | Deletes one record by its key and the `etag` that `get_record` gave, and fails when someone changed the record since. A resource with a [soft delete](/reference/data-config/) keeps the record, deleted; any other loses it for good. |
 
 Each write goes through the REST API as the person: their role's access rules, `validate`, write hooks, events and webhooks apply, so the client can do only what the person may do in the app.
 
-Before each write the client asks the person to approve it, showing the resource and the data, through MCP's form elicitation. Nothing is written until they approve, and declining writes nothing. A client's own setting that always allows a tool is not this approval. A client that cannot ask, one without form elicitation or one on the 2025 protocol, gets each write refused with a message saying so.
+Before each write the client asks the person to approve it, showing the resource and the data, or for a delete the resource, the key and whether the record can be restored, through MCP's form elicitation. For a resource without a soft delete, the approval says plainly that the delete cannot be undone. Nothing is written until they approve, and declining writes nothing. A client's own setting that always allows a tool is not this approval. A client that cannot ask, one without form elicitation or one on the 2025 protocol, gets each write refused with a message saying so.
 
 To offer the writes on some resources only, list them:
 
@@ -83,11 +84,11 @@ An app that runs service accounts over MCP, such as a backend job or an agent wi
 createAdmin({ ..., auth, options: { mcp: { writes: { resources: ['tasks'], rolesWithoutApproval: ['service'] } } } })
 ```
 
-A user with one of those roles creates and updates records over MCP without the approval step: the client is never asked, so a client that cannot ask writes too. Their role's access rules and the listed resources still limit every write as before, so a job with no person present can keep the app's data over MCP and do nothing there it could not do through the REST API. Everyone else is still asked before each write.
+A user with one of those roles creates, updates and deletes records over MCP without the approval step: the client is never asked, so a client that cannot ask writes too. Their role's access rules and the listed resources still limit every write as before, so a job with no person present can keep the app's data over MCP and do nothing there it could not do through the REST API. Everyone else is still asked before each write.
 
 No role is exempt unless named. The roles are checked against the signed-in user, not against the client, and a user holding several is exempt when any of them is named. A name that is not one of the app's roles, or is `anonymous`, stops the server at startup. Naming a role a person signs in with lets any client that person allows write as them unasked.
 
-Nothing can be deleted over MCP, and there is no SQL that writes.
+A deleted record cannot be restored over MCP, and there is no SQL that writes.
 
 ## Browsers and hosts
 
@@ -102,7 +103,7 @@ The endpoint serves each request on its own, without an MCP session: a `GET` or 
 - `mcpHandler({ authenticate, resource, scope, server })`: the endpoint as a fetch handler. It checks the host, admits a valid token (`mcpGate`) and serves the request with the server that `server(session)` builds for its caller.
 - `mcpServer({ info, tools, context, report, rolesWithoutApproval })`: an MCP server offering [assistant tools](/reference/assistant/#the-apps-own-tools), each with its JSON Schema and its `annotations`, MCP's tool hints. `context` is the tools' context without `approve`: each call gets its own, which asks the client's user, or approves at once when the session's user holds one of `rolesWithoutApproval`.
 - `mcpTools({ db, sql, writes })`: the default tools for a session; `writes` is `true`, `false` or `{ resources, rolesWithoutApproval }`.
-- `writeRecordTools({ resources })`, or `createRecordTool(...)` and `updateRecordTool(...)`: the write tools alone, on the listed resources or, without `resources`, on any.
+- `writeRecordTools({ resources })`, or `createRecordTool(...)`, `updateRecordTool(...)` and `deleteRecordTool(...)`: the write tools alone, on the listed resources or, without `resources`, on any.
 - `mcpGate({ authenticate, resource, scope })`: the token check alone, answering 401 or 403 with a challenge that names the resource's metadata.
 - `mcpToolContext(...)`, `mcpRoutes(app, { path, handler })` and `sessionOf(authInfo)`: the tools' context as the app builds it, the routes with open CORS, and the session a request was admitted with.
 

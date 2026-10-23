@@ -17,13 +17,14 @@ describe('mcpTools', () => {
   })
 
   it('offers the write tools after the read tools to any role with writes on', () => {
-    expect(names(false, ['sales'], true)).toEqual([...records, 'create_record', 'update_record'])
-    expect(names(true, ['admin'], true)).toEqual([...records, 'create_record', 'update_record', 'run_read_only_query'])
+    expect(names(false, ['sales'], true)).toEqual([...records, 'create_record', 'update_record', 'delete_record'])
+    expect(names(true, ['admin'], true)).toEqual([...records, 'create_record', 'update_record', 'delete_record', 'run_read_only_query'])
   })
 
   it('offers the write tools on the listed resources only with writes limited', () => {
-    expect(names(false, ['admin'], { resources: ['tasks'] })).toEqual([...records, 'create_record', 'update_record'])
+    expect(names(false, ['admin'], { resources: ['tasks'] })).toEqual([...records, 'create_record', 'update_record', 'delete_record'])
     const writeTools = mcpTools({ db, sql: false, writes: { resources: ['tasks'] } })({ user: { id: 1, roles: ['admin'] } }).slice(records.length)
-    expect(writeTools.map((tool) => (tool.parameters as { properties: Record<string, unknown> }).properties.resource)).toEqual([expect.objectContaining({ description: 'The resource\'s name: one of tasks.' }), expect.objectContaining({ description: 'The resource\'s name: one of tasks.' })])
+    const limited = expect.objectContaining({ description: 'The resource\'s name: one of tasks.' })
+    expect(writeTools.map((tool) => (tool.parameters as { properties: Record<string, unknown> }).properties.resource)).toEqual([limited, limited, limited])
   })
 })

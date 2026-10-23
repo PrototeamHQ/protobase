@@ -13,17 +13,18 @@ const contextWith = (answer: ApprovalAnswer, records: Partial<ToolRecords>) => {
     session: { user: { id: 1, roles: ['sales'] } },
     show: () => {},
     approve,
-    records: records as ToolRecords,
+    records: { softDeleteField: async () => undefined, ...records } as ToolRecords,
     resources: async () => ({ models: [], views: [] }),
   } satisfies ToolContext
   return { context, approve }
 }
 
 describe('write record tools', () => {
-  it('write without destroying, in order', () => {
+  it('create and update without destroying, then delete, in order', () => {
     expect(writeRecordTools().map((tool) => [tool.name, tool.annotations])).toEqual([
       ['create_record', { readOnlyHint: false, destructiveHint: false, openWorldHint: false }],
       ['update_record', { readOnlyHint: false, destructiveHint: false, openWorldHint: false }],
+      ['delete_record', { readOnlyHint: false, destructiveHint: true, openWorldHint: false }],
     ])
   })
 
