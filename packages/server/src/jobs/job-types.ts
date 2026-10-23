@@ -27,6 +27,11 @@ export type JobOptions<Payload> = {
   maxRetryDelay?: number | string
   /** How long one try may run before it counts as failed. Default `15 minutes`. */
   timeout?: number | string
+  /**
+   * Its queries through `db` may run up to 30 seconds instead of the database's own limit, on a connection kept for
+   * such work: for imports, backfills, large deletes and other bulk work.
+   */
+  longQueries?: boolean
   /** Jobs of this name running at once in each worker process. Default 1. */
   concurrency?: number
   /**

@@ -22,6 +22,7 @@ A job is work the app does after a request, or that a request should not wait fo
 | `retryDelay`, `maxRetryDelay` | The wait before the first retry, doubling with each one (with some jitter), and its ceiling; default `2s` and `1 hour`. Milliseconds or text such as `30 seconds`. |
 | `timeout` | How long one try may run before it counts as failed; default `15 minutes`. |
 | `concurrency` | Jobs of this name running at once in each worker process; default 1. |
+| `longQueries` | Its queries through `db` may run up to 30 seconds instead of the database's own limit, for imports, backfills and large deletes; see [Long queries](/guides/api-functions/#long-queries). A query stopped at its limit fails the try with an error that names the job. |
 | `ordered` | Jobs run one at a time per group, in the order they were enqueued; see [Ordered groups](#ordered-groups). |
 | `schedule`, `timezone` | Runs the job on a cron schedule, in a time zone (default `UTC`); see [Recurring jobs](#recurring-jobs). |
 

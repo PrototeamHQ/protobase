@@ -1,7 +1,7 @@
 import { EventEmitter } from 'node:events'
 import { sql } from 'kysely'
 import { describe, expect, it } from 'vitest'
-import { appPool } from '@protobase/server'
+import { appPool, runInBackground } from '@protobase/server'
 import { createPgDb } from './pg-db'
 
 // node-postgres's Pool with room for every checkout, whose clients answer each query with their pool's size.
@@ -32,14 +32,22 @@ const freshUrl = () => `postgres://pg-db-test/${++urls}`
 const poolSizeOf = async (db: ReturnType<typeof createPgDb>) => (await sql<{ max: number }>`select 1`.execute(db)).rows[0]!.max
 
 describe('createPgDb', () => {
-  it("opens the app's pool, which the app's own code shares, and ends it", async () => {
+  it("opens the app's pool, which the app's own code shares, and a long-query pool, and ends both", async () => {
     const { pg, created } = fakePg()
     const url = freshUrl()
     const db = createPgDb(pg, url, 3)
     expect(appPool(pg, url, 3)).toBe(created[0])
-    expect(created.map((pool) => pool.options.max)).toEqual([3])
-    expect(await poolSizeOf(db)).toBe(3)
+    expect(created.map((pool) => pool.options.max)).toEqual([3, 1])
+    await poolSizeOf(db)
     await db.destroy()
-    expect(created[0].ending).toBe(true)
+    expect(created.every((pool) => pool.ending)).toBe(true)
+  })
+
+  it('takes the connections of background work with longQueries from the long-query pool, and every other from the app pool', async () => {
+    const { pg } = fakePg()
+    const db = createPgDb(pg, freshUrl(), 3)
+    expect(await poolSizeOf(db)).toBe(3)
+    expect(await runInBackground(() => poolSizeOf(db))).toBe(3)
+    expect(await runInBackground(() => poolSizeOf(db), { longQueries: true })).toBe(1)
   })
 })

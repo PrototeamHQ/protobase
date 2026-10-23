@@ -223,6 +223,21 @@ defineFunction({ cors: { origin: 'https://workshop.pips-bikes.example' } }, app)
 
 Preflight requests are answered before authentication, because a browser sends them without a token. Every response, including a `401` problem, carries the CORS headers. In a protected function, the `hono/cors` middleware inside a Hono app would never see the preflight, because authentication runs first.
 
+## Long queries
+
+A function's queries through `db` have the database's own statement timeout: on Protobase Cloud, 1 second, so a slow query fails where it runs instead of holding a connection that pages wait for. A function that does bulk work, such as an import, a report or a large delete, asks for longer:
+
+```ts
+export default defineFunction({ longQueries: true }, async (request, { db }) => {
+  await sql`delete from audit_log where at < now() - interval '1 year'`.execute(db)
+  return new Response(null, { status: 204 })
+})
+```
+
+- **Up to 30 seconds** per query, the most any query of an app may run. Work longer than that belongs in steps, such as a [job](/reference/jobs/) per batch, which takes `longQueries` too.
+- **One connection kept for it.** Under `protobase dev` and `serve`, those queries run on a connection of their own, which asks for the longer timeout when it logs in, so long work never takes the connections pages need; a second long call waits for it. A PgBouncer of your own in front of the database must list `statement_timeout` in `track_extra_parameters` to pass that on; Protobase Cloud's does. With a `db` the project exports itself, the option changes nothing.
+- **`records` keep the API's limit,** [`statementTimeoutMs`](/reference/api/#safety).
+
 ## Errors
 
 - **Problems:** throw an `HttpProblem` (or `badRequest`, `unauthorized`, `forbidden`, `notFound` from `@protobase/server`) to answer with an [RFC 9457 problem](/reference/api/#errors). Hono's `HTTPException` works too.

@@ -1,6 +1,6 @@
 import { EventEmitter } from 'node:events'
 import { describe, expect, it } from 'vitest'
-import { appPool, readDbConnections } from './app-pool'
+import { appPool, longQueryPool, readDbConnections } from './app-pool'
 
 // node-postgres's Pool as far as appPool reads it: the options it was made with, and whether it ends.
 const fakePg = () => {
@@ -53,6 +53,14 @@ describe('appPool', () => {
     expect(pool!.options.types.getTypeParser(23)('5')).toBe('parsed 5')
     expect(pool!.listenerCount('connect')).toBe(1)
     expect(() => pool!.emit('error', new Error('Connection terminated unexpectedly'))).not.toThrow()
+  })
+})
+
+describe('longQueryPool', () => {
+  it('opens one connection of its own that logs in with a 30 s statement timeout and waits as long for it', () => {
+    const { pg, created } = fakePg()
+    longQueryPool(pg, freshUrl())
+    expect(created[0]!.options).toMatchObject({ max: 1, statement_timeout: 30_000, connectionTimeoutMillis: 30_000 })
   })
 })
 

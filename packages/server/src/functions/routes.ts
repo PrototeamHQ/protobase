@@ -59,7 +59,8 @@ export const functionRoutes = ({ basePath, functions, authenticate, access, db, 
     const session = await sessionOf(request)
     return { session, records: records(session) }
   }
-  const call = (work: () => Promise<Response>) => work().finally(wake)
+  // As background work, with the long queries a function asked for.
+  const call = (fn: ApiFunction, work: () => Promise<Response>) => runInBackground(() => work().finally(wake), { longQueries: fn.options.longQueries })
   // The caller as they would be now: refused, or changed, closes the socket so it reconnects as who they are.
   const recheckCaller = async (name: string, gate: FunctionGate, request: Request, first: Session) => {
     const again = await upgradeAuthenticate(request)
@@ -72,7 +73,7 @@ export const functionRoutes = ({ basePath, functions, authenticate, access, db, 
     const { options } = fn
     const gate = functionGate(name, options, access)
     if (options.cors) app.use(`/${name}/*`, cors(options.cors))
-    app.all(`/${name}/*`, (c) => runInBackground(() => call(async () => {
+    app.all(`/${name}/*`, (c) => call(fn, async () => {
       const request = relativeRequest(c.req.raw, prefix)
       if (options.public) {
         let caller: Promise<FunctionCaller> | undefined
@@ -92,7 +93,7 @@ export const functionRoutes = ({ basePath, functions, authenticate, access, db, 
       const acceptor = socketAcceptor({ c, upgradeWebSocket, report, recheck })
       const context: FunctionContext = { name, db, ...caller, caller: async () => caller, acceptWebSocket: acceptor.accept }
       return acceptor.answer(name, await invokeFunction(name, fn, request, context))
-    })))
+    }))
   }
   app.all('/*', (c) => {
     throw notFound(`There is no function at ${c.req.path}`)

@@ -10,3 +10,4 @@ description: Endpoints of your own beside the REST API.
 - [Public functions and webhooks](/guides/api-functions/#public-functions-and-webhooks): A function can be open to anyone, with helpers that check webhook signatures.
 - [WebSockets](/guides/api-functions/#websockets): A function can accept a WebSocket, and the caller is checked again every minute.
 - [Hono apps](/guides/api-functions/#hono-apps): A function with several routes can be a Hono app.
+- [Long queries](/guides/api-functions/#long-queries): A function or job that does bulk work may run queries for up to 30 seconds, on a connection kept for it.

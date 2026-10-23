@@ -1,4 +1,5 @@
 import { handleDroppedConnections } from './dropped-connections'
+import { longQueryTimeoutMs } from './statement-timeout'
 
 /** How long a query waits for a free connection of the app's pool before it fails with `ConnectionsBusy`. */
 export const poolWaitMs = 2_000
@@ -18,8 +19,8 @@ const textDates = (pg: { types: { getTypeParser: TypeParser } }) => ({
   getTypeParser: (oid: number, format?: 'text' | 'binary') => (oid === 1082 || oid === 1114 ? (value: string) => value : pg.types.getTypeParser(oid, format)),
 })
 
-/** The settings `appPool` opens node-postgres's pool with. */
-export type AppPoolConfig = { connectionString: string; max: number; connectionTimeoutMillis: number; types: { getTypeParser: TypeParser } }
+/** The settings `appPool` and `longQueryPool` open node-postgres's pool with. */
+export type AppPoolConfig = { connectionString: string; max: number; connectionTimeoutMillis: number; statement_timeout?: number; types: { getTypeParser: TypeParser } }
 
 type PgPool = {
   readonly ending: boolean
@@ -53,3 +54,12 @@ export const appPool = <P extends PgPool>(pg: PgModule<P>, url: string, max = re
   pools.set(url, { pool, max })
   return pool
 }
+
+/**
+ * The runtime's pool of one connection on `url` for the queries of functions and jobs with `longQueries`: it asks for
+ * `statement_timeout` = `longQueryTimeoutMs` when it logs in, which Postgres takes, and the platform's pooler too, since
+ * it tracks that setting (`track_extra_parameters`). A query waits for that connection as long as one may run on it.
+ * It opens its connection on first use, and nobody else shares it.
+ */
+export const longQueryPool = <P extends PgPool>(pg: PgModule<P>, url: string): P =>
+  handleDroppedConnections(new pg.Pool({ connectionString: url, max: 1, connectionTimeoutMillis: longQueryTimeoutMs, statement_timeout: longQueryTimeoutMs, types: textDates(pg) }))

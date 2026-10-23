@@ -110,12 +110,15 @@ export const startJobs = async ({ db, jobs, work = true, pollSeconds = 2, shutdo
       definition.name,
       workOptions(concurrency, pollSeconds),
       // The definition as it is now, so a dev server's reloaded `run` takes the next job.
-      // As background work, so jobs that hold the database for long leave a connection to page requests.
-      async ([job]) => runInBackground(async () => {
+      // As background work, so jobs that hold the database for long leave a connection to page requests, with the long
+      // queries the job asked for.
+      async ([job]) => {
         const current = definitions.get(definition.name) ?? definition
-        if (current.options.schedule !== undefined && job!.singletonKey === scheduleKey) await schedules.following(current, job!.startAfter)
-        return [await runJob(current, job!, db, mail)]
-      }),
+        return runInBackground(async () => {
+          if (current.options.schedule !== undefined && job!.singletonKey === scheduleKey) await schedules.following(current, job!.startAfter)
+          return [await runJob(current, job!, db, mail)]
+        }, { longQueries: current.options.longQueries })
+      },
     )
     workers.set(definition.name, { id, concurrency })
   }

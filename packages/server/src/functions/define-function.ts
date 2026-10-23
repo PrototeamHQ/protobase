@@ -63,6 +63,11 @@ type SharedOptions = {
   /** Answers CORS preflights before authentication and adds the CORS headers to every response, problems included. */
   cors?: CorsOptions
   /**
+   * Its queries through `db` may run up to 30 seconds instead of the database's own limit, on a connection kept for
+   * such work: for imports, reports and other bulk work. Its `records` keep the API's limit.
+   */
+  longQueries?: boolean
+  /**
    * Also answers at `/api/sb/functions/v1/<name>`, as Supabase's `verify_jwt` does, where the app's publishable key alone
    * admits a caller. For functions moved from Supabase; not together with `roles` or `capability`.
    */

@@ -44,6 +44,7 @@ export const supabaseFunctionRoutes = ({ functions, db, keys, caller, onError }:
     const gated = roles !== undefined ? 'roles' : capability !== undefined ? 'a capability' : undefined
     if (gated) throw new Error(`The function "${name}" has supabase: true and ${gated}, which /api/sb/functions/v1 cannot check: drop one`)
     if (options.cors) app.use(`/${name}/*`, cors(options.cors))
+    // As background work, with the long queries a function asked for.
     app.all(`/${name}/*`, (c) => runInBackground(async () => {
       const request = relativeRequest(c.req.raw, supabaseFunctionsPath)
       if (options.public || c.req.method === 'OPTIONS') {
@@ -54,7 +55,7 @@ export const supabaseFunctionRoutes = ({ functions, db, keys, caller, onError }:
       if (!hasKeys) throw unauthorized('This app has no keys, so only its public functions answer here')
       const resolved = await caller(c.req.raw)
       return invokeFunction(name, fn, request, { name, db, caller: async () => resolved })
-    }))
+    }, { longQueries: options.longQueries }))
   }
   app.all('/*', (c) => {
     throw notFound(`There is no function at ${c.req.path}`)
