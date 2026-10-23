@@ -12,6 +12,16 @@
   html[data-theme="dark"] {
     color-scheme: dark;
   }
+  /*
+   * The screen's safe area, which bars and panels at its edges keep clear of: the values the Android app injects, as
+   * older Android WebViews report `env()` wrong, else the browser's own; zero on a screen without one.
+   */
+  :root {
+    --pb-safe-top: var(--safe-area-inset-top, env(safe-area-inset-top, 0px));
+    --pb-safe-right: var(--safe-area-inset-right, env(safe-area-inset-right, 0px));
+    --pb-safe-bottom: var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px));
+    --pb-safe-left: var(--safe-area-inset-left, env(safe-area-inset-left, 0px));
+  }
   /* A modal's scroll lock hides the page's scrollbar; its room stays, so the page behind keeps its width. */
   html[data-pb-scroll-locked] {
     scrollbar-gutter: stable;

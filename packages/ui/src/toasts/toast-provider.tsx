@@ -72,7 +72,7 @@ export const ToastProvider = ({ children }: { children: ReactNode }) => {
   return (
     <ToastContext.Provider value={api}>
       {children}
-      <div className="pointer-events-none fixed inset-x-4 bottom-24 z-[100] flex flex-col items-end gap-2 md:inset-x-auto md:bottom-4 md:right-4">
+      <div className="pointer-events-none fixed inset-x-4 bottom-[calc(6rem+var(--pb-safe-bottom))] z-[100] flex flex-col items-end gap-2 md:inset-x-auto md:bottom-[calc(1rem+var(--pb-safe-bottom))] md:right-[calc(1rem+var(--pb-safe-right))]">
         {items.map((item) => (
           <div key={item.id} className="pointer-events-auto">
             <Toast state={item.state} title={item.title} description={item.description} action={item.action} onDismiss={() => close(item)} />

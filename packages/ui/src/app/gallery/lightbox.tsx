@@ -83,9 +83,9 @@ export const Lightbox = ({ title, photos, index, onIndex, onClose, details, deta
 
   // The dialog is the page while it is open: it scrolls to details taller than the screen, with the photo kept in view
   return (
-    <div ref={panel} tabIndex={-1} role="dialog" aria-modal="true" aria-label={title} onKeyDown={key} className="fixed inset-0 z-[90] flex flex-col overflow-y-auto overscroll-contain bg-backdrop outline-none md:flex-row">
+    <div ref={panel} tabIndex={-1} role="dialog" aria-modal="true" aria-label={title} onKeyDown={key} className="fixed inset-0 z-[90] flex flex-col overflow-y-auto overscroll-contain bg-backdrop pl-[var(--pb-safe-left)] pr-[var(--pb-safe-right)] outline-none md:flex-row">
       <div className="flex h-dvh shrink-0 flex-col md:sticky md:top-0 md:min-w-0 md:flex-1">
-        <div className="flex shrink-0 items-center justify-between gap-2 p-3">
+        <div className="flex shrink-0 items-center justify-between gap-2 p-3 pt-[calc(0.75rem+var(--pb-safe-top))]">
           <span className="rounded-full bg-background/85 px-3 py-1 font-medium tabular-nums text-foreground" aria-live="polite">
             {`${index + 1} / ${count}`}
           </span>
@@ -108,7 +108,7 @@ export const Lightbox = ({ title, photos, index, onIndex, onClose, details, deta
             </button>
           </div>
         </div>
-        <div className="relative flex min-h-0 flex-1 touch-pan-y items-center justify-center px-3 pb-3 md:px-16" onPointerDown={down} onPointerUp={up} onPointerCancel={() => (start.current = undefined)}>
+        <div className="relative flex min-h-0 flex-1 touch-pan-y items-center justify-center px-3 pb-[calc(0.75rem+var(--pb-safe-bottom))] md:px-16" onPointerDown={down} onPointerUp={up} onPointerCancel={() => (start.current = undefined)}>
           {image && <FileImage key={image.url} image={image} className="max-h-full max-w-full select-none object-contain" />}
           {count > 1 && (
             <>
@@ -123,7 +123,7 @@ export const Lightbox = ({ title, photos, index, onIndex, onClose, details, deta
         </div>
       </div>
       {hasDetails && detailsOpen && desktop && (
-        <aside id={sidebarId} aria-label={detailsTitle} className="min-h-dvh w-[360px] shrink-0 border-l border-border bg-background p-5 text-foreground">
+        <aside id={sidebarId} aria-label={detailsTitle} className="min-h-dvh w-[360px] shrink-0 border-l border-border bg-background p-5 pt-[calc(1.25rem+var(--pb-safe-top))] text-foreground">
           <h2 className="mb-3 text-[16px] font-semibold">{detailsTitle}</h2>
           {shownDetails}
         </aside>

@@ -31,7 +31,7 @@ const tab = 'flex min-h-[49px] min-w-0 flex-1 flex-col items-center justify-cent
 export const BottomBar = ({ tabs, onNavigate, onMore, moreOpen, moreControls, sticky, ref }: BottomBarProps) => {
   const moreCurrent = !tabs.some((item) => item.active)
   return (
-    <nav ref={ref} aria-label={text('tabs')} className={cn('flex shrink-0 border-t bg-background pb-[env(safe-area-inset-bottom)] md:hidden', sticky && 'sticky bottom-0 z-30')}>
+    <nav ref={ref} aria-label={text('tabs')} className={cn('flex shrink-0 border-t bg-background pb-[var(--pb-safe-bottom)] md:hidden', sticky && 'sticky bottom-0 z-30')}>
       {tabs.map((item) => {
         const Icon = item.icon
         return (

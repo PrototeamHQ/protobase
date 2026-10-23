@@ -2,7 +2,7 @@ div | block
   div .h-screen | block
     div .flex min-h-full w-full overflow-x-clip bg-background | flex row nowrap normal normal
       nav .sticky top-0 h-dvh self-start z-30 shrink-0 w-52 | block sticky
-        div .group/side absolute inset-y-0 left-0 flex flex-col overflow-hidden border-r bg-sidebar w-full | flex column nowrap normal normal absolute
+        div .group/side absolute inset-y-0 left-0 flex flex-col overflow-hidden border-r bg-sidebar pb-[var(--pb-safe-bottom)] pt-[var(--pb-safe-top)] w-full | flex column nowrap normal normal absolute
           div .flex h-12 shrink-0 items-center px-3.5 | flex row nowrap center normal
             div .flex items-center gap-2.5 overflow-hidden | flex row nowrap center normal
               svg .size-7 shrink-0 | block
@@ -26,8 +26,8 @@ div | block
                   span .block truncate font-medium | block
                   span .inline-flex h-5 items-center gap-1.5 rounded-full px-2 text-xs font-medium whitespace-nowrap bg-violet-soft text-violet-text mt-0.5 h-4 px-1.5 text-[10px] | inline-flex row nowrap center normal
                 svg .lucide lucide-chevrons-up-down size-3.5 shrink-0 text-faint-foreground | block
-      div .flex min-w-0 flex-1 flex-col | flex column nowrap normal normal
-        header .sticky top-0 z-30 flex h-12 shrink-0 items-center gap-1 border-b bg-background pl-4 pr-2 md:gap-4 md:px-5 | flex row nowrap center normal sticky
+      div .flex min-w-0 flex-1 flex-col pb-[var(--pb-safe-bottom)] | flex column nowrap normal normal
+        header .sticky top-0 z-30 flex h-[calc(3rem+var(--pb-safe-top))] shrink-0 items-center gap-1 border-b bg-background pl-4 pr-2 pt-[var(--pb-safe-top)] md:gap-4 md:px-5 | flex row nowrap center normal sticky
           a .inline-flex size-11 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted md:hidden -ml-3 | none
             svg .lucide lucide-chevron-left size-5 | block
           nav .flex min-w-0 items-center gap-1.5 | flex row nowrap center normal
@@ -192,6 +192,6 @@ div | block
                             span | inline
             div .sticky bottom-[var(--pb-sticky-bottom,0px)] z-20 flex shrink-0 items-center gap-2 border-t bg-background p-3 md:hidden | none sticky
               button .inline-flex shrink-0 items-center justify-center rounded-md font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:opacity-60 disabled:cursor-default bg-primary text-primary-foreground hover:bg-primary-hover shadow-sm h-8 px-3 text-body gap-2 max-md:min-h-11 max-md:flex-1 md:w-full | inline-flex row nowrap center center
-    div .pointer-events-none fixed inset-x-4 bottom-24 z-[100] flex flex-col items-end gap-2 md:inset-x-auto md:bottom-4 md:right-4 | flex column nowrap flex-end normal fixed
+    div .pointer-events-none fixed inset-x-4 bottom-[calc(6rem+var(--pb-safe-bottom))] z-[100] flex flex-col items-end gap-2 md:inset-x-auto md:bottom-[calc(1rem+var(--pb-safe-bottom))] md:right-[calc(1rem+var(--pb-safe-right))] | flex column nowrap flex-end normal fixed
 div | block
   div | none absolute

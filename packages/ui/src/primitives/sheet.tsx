@@ -28,7 +28,7 @@ export const Sheet = ({ title, open, onClose, children }: SheetProps) => {
   return (
     <div className="fixed inset-0 z-[80]">
       <div className="absolute inset-0 bg-backdrop/40" onClick={onClose} aria-hidden />
-      <div ref={panel} role="dialog" aria-modal="true" aria-label={title} tabIndex={-1} className="absolute inset-x-0 bottom-0 flex max-h-[85vh] flex-col rounded-t-xl border-t bg-background shadow-pop outline-none">
+      <div ref={panel} role="dialog" aria-modal="true" aria-label={title} tabIndex={-1} className="absolute inset-x-0 bottom-0 flex max-h-[85vh] flex-col rounded-t-xl border-t bg-background pl-[var(--pb-safe-left)] pr-[var(--pb-safe-right)] shadow-pop outline-none">
         <header className="relative flex shrink-0 touch-none items-center justify-between border-b px-4" onPointerDown={down} onPointerUp={up} onPointerCancel={() => (start.current = undefined)}>
           <span className="absolute left-1/2 top-1.5 h-1 w-9 -translate-x-1/2 rounded-full bg-border-strong" aria-hidden />
           <h2 className="text-[16px] font-semibold">{title}</h2>
@@ -36,7 +36,7 @@ export const Sheet = ({ title, open, onClose, children }: SheetProps) => {
             <X className="size-5" />
           </button>
         </header>
-        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-6">{children}</div>
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-[calc(1.5rem+var(--pb-safe-bottom))]">{children}</div>
       </div>
     </div>
   )

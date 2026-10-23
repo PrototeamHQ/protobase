@@ -12,7 +12,7 @@ export type AuthLayoutProps = {
 
 /** The frame of the sign-in and first-run pages and of public forms: logo, title and a card. */
 export const AuthLayout = ({ title, description, size = 'sm', children }: AuthLayoutProps) => (
-  <div className="flex min-h-full w-full items-center justify-center bg-surface px-4 py-10">
+  <div className="flex min-h-full w-full items-center justify-center bg-surface px-4 pb-[calc(2.5rem+var(--pb-safe-bottom))] pt-[calc(2.5rem+var(--pb-safe-top))]">
     <div className={cn('w-full', size === 'sm' ? 'max-w-sm' : 'max-w-lg')}>
       <div className="mb-6 flex flex-col items-center text-center">
         <LogoMark className="size-10" />

@@ -19,7 +19,7 @@ export const Drawer = ({ id, open, onClose, children }: DrawerProps) => {
         aria-modal="true"
         aria-label={text('navigation')}
         tabIndex={-1}
-        className="absolute inset-y-0 left-0 flex w-60 max-w-[85vw] bg-sidebar shadow-pop outline-none"
+        className="absolute inset-y-0 left-0 flex w-[calc(15rem+var(--pb-safe-left))] max-w-[85vw] bg-sidebar pl-[var(--pb-safe-left)] shadow-pop outline-none"
         onClick={(event) => (event.target as Element).closest('a') && onClose()}
       >
         {children}

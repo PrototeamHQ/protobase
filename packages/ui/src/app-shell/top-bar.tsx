@@ -46,7 +46,7 @@ export const TopBar = ({ breadcrumb, onNavigate, actions, onMenu, menuOpen, menu
     return () => window.removeEventListener('keydown', onKey)
   }, [search])
   return (
-    <header ref={ref} className={cn(sticky ? 'sticky top-0 z-30' : 'relative', 'flex h-12 shrink-0 items-center gap-1 border-b bg-background pl-4 pr-2 md:gap-4 md:px-5')}>
+    <header ref={ref} className={cn(sticky ? 'sticky top-0 z-30' : 'relative', 'flex h-[calc(3rem+var(--pb-safe-top))] shrink-0 items-center gap-1 border-b bg-background pl-4 pr-2 pt-[var(--pb-safe-top)] md:gap-4 md:px-5')}>
       {onMenu && (
         <button type="button" aria-label={text('openNavigation')} aria-expanded={Boolean(menuOpen)} aria-controls={menuControls} onClick={onMenu} className={cn(topBarButton, '-ml-3')}>
           <Menu className="size-5" />
@@ -82,7 +82,7 @@ export const TopBar = ({ breadcrumb, onNavigate, actions, onMenu, menuOpen, menu
         <div ref={slotRef} className="contents md:hidden" />
       </div>
       {search && searchOpen && (
-        <div className="absolute inset-0 z-20 flex items-center gap-1 bg-background px-3 md:hidden">
+        <div className="absolute inset-0 z-20 flex items-center gap-1 bg-background px-3 pt-[var(--pb-safe-top)] md:hidden">
           <GlobalSearch className="min-w-0 flex-1" autoFocus showShortcut={false} search={{ ...search, onSelect: (href) => { search.onSelect(href); setSearchOpen(false) } }} />
           <button type="button" aria-label={text('closeSearch')} onClick={() => setSearchOpen(false)} className={topBarButton}>
             <X className="size-5" />

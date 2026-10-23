@@ -92,7 +92,8 @@ export const AppShell = ({ sidebarMode, activeItem, breadcrumb, user, workspace,
             {sidebar('text-large')}
           </Drawer>
         )}
-        <div className="flex min-w-0 flex-1 flex-col">
+        {/* Without the bottom bar, the page keeps clear of the home indicator itself */}
+        <div className={cn('flex min-w-0 flex-1 flex-col', !tabs && 'pb-[var(--pb-safe-bottom)]')}>
           <TopBar ref={topBarRef} slotRef={setTopBarSlot} sticky={pageScroll} breadcrumb={breadcrumb} onNavigate={onNavigate} actions={actions} onMenu={desktop || tabs ? undefined : () => setDrawerOpen(true)} menuOpen={drawerOpen} menuControls={drawerId} search={search} />
           <main className={pageScroll ? 'flex flex-1 flex-col' : 'flex min-h-0 flex-1 flex-col'}>
             <TopBarSlotContext.Provider value={topBarSlot}>{children}</TopBarSlotContext.Provider>
@@ -100,7 +101,7 @@ export const AppShell = ({ sidebarMode, activeItem, breadcrumb, user, workspace,
           {tabs && <BottomBar ref={bottomBarRef} sticky={pageScroll} tabs={tabs} onNavigate={onNavigate} onMore={() => setDrawerOpen(true)} moreOpen={drawerOpen} moreControls={drawerId} />}
         </div>
         {/* The same element either way, so that switching keeps the panel's state; it stays in view while the page scrolls */}
-        {rightPanel && <div className={pageScroll ? 'sticky top-0 flex h-dvh shrink-0 self-start' : 'flex shrink-0'}>{rightPanel}</div>}
+        {rightPanel && <div className={pageScroll ? 'sticky top-0 flex h-dvh shrink-0 self-start pt-[var(--pb-safe-top)]' : 'flex shrink-0'}>{rightPanel}</div>}
       </div>
     </PageScrollContext.Provider>
   )

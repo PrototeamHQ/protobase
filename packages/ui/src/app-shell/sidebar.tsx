@@ -51,7 +51,7 @@ export const Sidebar = ({ mode, activeItem, user, workspace, appName, appIcon, f
     <nav aria-label={text('resources')} className={cn(sticky ? 'sticky top-0 h-dvh self-start' : 'relative', 'z-30 shrink-0', sidebarWidth[mode])}>
       <div
         className={cn(
-          'group/side absolute inset-y-0 left-0 flex flex-col overflow-hidden border-r bg-sidebar',
+          'group/side absolute inset-y-0 left-0 flex flex-col overflow-hidden border-r bg-sidebar pb-[var(--pb-safe-bottom)] pt-[var(--pb-safe-top)]',
           expanding ? 'w-14 transition-[width,box-shadow] duration-150 hover:w-60 hover:shadow-pop focus-within:w-60 focus-within:shadow-pop' : 'w-full',
           expanded && 'w-60 shadow-pop',
         )}

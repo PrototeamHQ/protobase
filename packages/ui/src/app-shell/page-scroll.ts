@@ -48,7 +48,7 @@ export const usePageInsets = (on: boolean, top: RefObject<HTMLElement | null>, b
     const root = document.documentElement
     const update = () => {
       const above = `${top.current?.offsetHeight ?? 0}px`
-      const below = `${bottom.current?.offsetHeight ?? 0}px`
+      const below = bottom.current ? `${bottom.current.offsetHeight}px` : 'var(--pb-safe-bottom)'
       root.style.setProperty('--pb-sticky-top', above)
       root.style.setProperty('--pb-sticky-bottom', below)
       root.style.setProperty('scroll-padding-top', above)
