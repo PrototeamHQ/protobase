@@ -1,6 +1,6 @@
 import type { ResourceModel } from '@protobase/schema'
 import { describe, expect, it, vi } from 'vitest'
-import { HttpProblem, forbidden, preconditionFailed } from '../problem'
+import { HttpProblem, forbidden, notFound, preconditionFailed } from '../problem'
 import type { ApprovalAnswer, ApprovalRequest } from './approval'
 import { batchWriteTool } from './batch-write-tool'
 import type { ToolRecords } from './records'
@@ -30,7 +30,7 @@ const contextWith = (answer: ApprovalAnswer | Error, run: ToolRecords['batch'] =
     session: { user: { id: 1, roles: ['sales'] } },
     show: () => {},
     approve,
-    records: records as unknown as ToolRecords,
+    records: { ...records, softDeleteField: async (resource: string) => models.find((model) => model.name === resource)?.softDelete } as unknown as ToolRecords,
     resources: async () => ({ models: models as ResourceModel[], views: [] }),
   } satisfies ToolContext
   return { context, approve, records }
@@ -91,6 +91,26 @@ describe('batch_write', () => {
     const soft = contextWith('rejected', undefined, [{ name: 'links', softDelete: 'deletedAt' }])
     await batchWriteTool().run({ operations: batch }, soft.context)
     expect(soft.approve.mock.calls[0]![0].body).not.toMatch(/cannot be undone/)
+  })
+
+  it('refuses an update that sets or clears the field a delete sets, before asking', async () => {
+    for (const deleted_at of ['2026-10-23T00:00:00Z', null]) {
+      const { context, approve, records } = contextWith('approved', undefined, [{ name: 'tasks', softDelete: 'deleted_at' }])
+      const operations = [batch[0], { op: 'update', resource: 'tasks', key: 3, etag: '*', data: { title: 'Plan', deleted_at } }]
+      expect(JSON.parse(await batchWriteTool().run({ operations }, context))).toEqual({
+        error: 'forbidden', message: 'operations[1] sets deleted_at, which deleting sets; delete with a delete operation. Nothing was written.', operation: 1, op: 'update', resource: 'tasks',
+      })
+      expect(approve).not.toHaveBeenCalled()
+      untouched(records)
+    }
+  })
+
+  it('refuses an update on a resource the app does not have, before asking', async () => {
+    const { context, approve } = contextWith('approved')
+    context.records.softDeleteField = () => Promise.reject(notFound('There is no resource "nothing"'))
+    const result = JSON.parse(await batchWriteTool().run({ operations: [{ op: 'update', resource: 'nothing', key: 1, etag: '*', data: {} }] }, context))
+    expect(result).toEqual({ error: 'not-found', message: 'There is no resource "nothing"; nothing was written.' })
+    expect(approve).not.toHaveBeenCalled()
   })
 
   describe('refuses before asking', () => {

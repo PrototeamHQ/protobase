@@ -109,7 +109,7 @@ An update needs the `etag` the record was read with, or `"*"` for any version; a
 
 The person approves the batch once, seeing each write in it: how many creates, updates and deletes it makes on each resource, then each operation with its key and data, the first 50 in full and the rest counted. The approval says plainly when deletes in it cannot be undone, which is every delete on a resource that does not [soft delete](data-config.md#resource).
 
-A batch is checked before the person is asked: an operation other than a create, update or delete, a field an operation does not take, an update without an ETag or more than 500 operations come back as `{ "error": "invalid-argument", "message": ... }` naming the operation, and with writes limited to some resources an operation on any other refuses the whole batch. A refusal while it runs, such as an operation the person may not do or a stale ETag, comes back with the REST batch's `operation` (its index), `op` and `resource`. Either way nothing is written.
+A batch is checked before the person is asked: an operation other than a create, update or delete, a field an operation does not take, an update without an ETag or more than 500 operations come back as `{ "error": "invalid-argument", "message": ... }` naming the operation, and with writes limited to some resources an operation on any other refuses the whole batch. An update does not set the field a soft delete sets, as `update_record` does not: a delete goes through a delete operation. A refusal while it runs, such as an operation the person may not do or a stale ETag, comes back with the REST batch's `operation` (its index), `op` and `resource`. Either way nothing is written.
 
 ## Browsers and hosts
 
