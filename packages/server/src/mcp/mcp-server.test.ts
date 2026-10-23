@@ -6,6 +6,13 @@ import { writeRecordTools } from '../assistant/write-record-tools'
 import { forbidden } from '../problem'
 import { mcpServer, type McpServerInput } from './mcp-server'
 
+// The SDK's fromJsonSchema, watched: each call compiles its schema into a cache the SDK never empties.
+const { compiled } = vi.hoisted(() => ({ compiled: { calls: 0 } }))
+vi.mock('@modelcontextprotocol/server', async (load) => {
+  const actual = await load<typeof import('@modelcontextprotocol/server')>()
+  return { ...actual, fromJsonSchema: (...args: Parameters<typeof actual.fromJsonSchema>) => (compiled.calls++, actual.fromJsonSchema(...args)) }
+})
+
 const context = { session: { user: { id: 1, roles: ['sales'] } } } as Omit<ToolContext, 'approve'>
 const echo = defineTool({
   name: 'echo',
@@ -77,6 +84,13 @@ describe('mcpServer', () => {
     const result = await call(report, 'tools/call', { name: 'broken', arguments: {} })
     expect(result).toEqual({ content: [{ type: 'text', text: 'The server failed to answer.' }], isError: true })
     expect(report).toHaveBeenCalledWith(new Error('secret detail'))
+  })
+
+  it('compiles each tool\'s schema once however many servers are built with it', () => {
+    const tools = ['first', 'second'].map((name) => defineTool({ ...echo, name, parameters: { type: 'object', properties: { text: { type: 'string' } } } }))
+    compiled.calls = 0
+    for (let built = 0; built < 50; built++) mcpServer({ info: { name: 'App', version: '1.0.0' }, tools, context, report: () => {} })
+    expect(compiled.calls).toBe(tools.length)
   })
 
   it('refuses a tool name a model endpoint would refuse', () => {

@@ -29,4 +29,11 @@ describe('mcpTools', () => {
     const limited = expect.objectContaining({ description: 'The resource\'s name: one of tasks.' })
     expect(writeTools.map((tool) => (tool.parameters as { properties: Record<string, unknown> }).properties.resource)).toEqual([limited, limited, limited])
   })
+
+  it('gives every session the same tool objects, so their schemas are compiled once', () => {
+    const tools = mcpTools({ db, sql: true, writes: true })
+    const first = tools({ user: { id: 1, roles: ['admin'] } })
+    tools({ user: { id: 2, roles: ['admin'] } }).forEach((tool, index) => expect(tool).toBe(first[index]))
+    tools({ user: { id: 3, roles: ['sales'] } }).forEach((tool, index) => expect(tool).toBe(first[index]))
+  })
 })

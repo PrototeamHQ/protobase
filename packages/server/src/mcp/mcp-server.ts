@@ -18,6 +18,17 @@ export type McpServerInput = {
 // The SDK's published types leave the envelope's shape empty; on the 2026 protocol it carries the client's capabilities.
 const capabilitiesOf = (envelope: object | undefined) => (envelope as Record<string, ClientCapabilities | undefined> | undefined)?.[CLIENT_CAPABILITIES_META_KEY]
 
+// The SDK compiles each schema object it is given into a cache that never lets go, so each parameters object is turned
+// into an input schema once: a server built per request from the same tools adds nothing to it.
+const inputSchemas = new WeakMap<object, ReturnType<typeof fromJsonSchema<Record<string, unknown>>>>()
+const inputSchemaOf = (parameters: AssistantTool['parameters']) => {
+  const known = inputSchemas.get(parameters)
+  if (known) return known
+  const schema = fromJsonSchema<Record<string, unknown>>(parameters)
+  inputSchemas.set(parameters, schema)
+  return schema
+}
+
 const failed: CallToolResult = { content: [{ type: 'text', text: 'The server failed to answer.' }], isError: true }
 
 /**
@@ -29,7 +40,7 @@ export const mcpServer = ({ info, tools, context, report, rolesWithoutApproval =
   const server = new McpServer(info)
   const unasked = writesUnasked(rolesWithoutApproval, context.session.user.roles)
   for (const tool of checkedTools(tools)) {
-    const config = { description: tool.description, inputSchema: fromJsonSchema<Record<string, unknown>>(tool.parameters), ...(tool.annotations && { annotations: tool.annotations }) }
+    const config = { description: tool.description, inputSchema: inputSchemaOf(tool.parameters), ...(tool.annotations && { annotations: tool.annotations }) }
     server.registerTool(tool.name, config, async (args, ctx): Promise<CallToolResult | InputRequiredResult> => {
       try {
         return { content: [{ type: 'text', text: await tool.run(args, { ...context, approve: unasked ? approvedUnasked : mcpApproval(ctx.mcpReq.inputResponses) }) }] }

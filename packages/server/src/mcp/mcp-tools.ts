@@ -26,8 +26,11 @@ export type McpToolsInput = {
  */
 const writeTools = (input: WriteRecordToolsInput) => [...writeRecordTools(input), batchWriteTool(input)]
 
-export const mcpTools = ({ db, sql, writes }: McpToolsInput) => (session: Session): AssistantTool[] => [
-  ...readRecordTools(),
-  ...(writes === false ? [] : writeTools(writes === true || !writes.resources ? {} : { resources: writes.resources })),
-  ...(sql && seesAssistant(session.user.roles) ? [readOnlyQueryTool(db)] : []),
-]
+// The tools are built once and only chosen per session: the MCP server compiles each tool's schema, and a schema object
+// made per request would be compiled again.
+export const mcpTools = ({ db, sql, writes }: McpToolsInput) => {
+  const read = readRecordTools()
+  const write = writes === false ? [] : writeTools(writes === true || !writes.resources ? {} : { resources: writes.resources })
+  const query = sql ? [readOnlyQueryTool(db)] : []
+  return (session: Session): AssistantTool[] => [...read, ...write, ...(seesAssistant(session.user.roles) ? query : [])]
+}
