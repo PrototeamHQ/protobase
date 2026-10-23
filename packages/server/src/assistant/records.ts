@@ -1,4 +1,6 @@
 import { encodeKey } from '@protobase/schema/internal'
+import { runBatch, type BatchResult } from '../batch/run-batch'
+import type { BatchOperation } from '../batch/schema'
 import type { Deps } from '../deps'
 import { decodeKeyText } from '../key'
 import { listRecords } from '../list-service'
@@ -52,6 +54,11 @@ export type ToolRecords = {
   delete: (resource: string, key: RecordKeyInput, options?: { etag?: string }) => Promise<ToolRecord>
   /** The field a delete sets on a resource with `.softDelete()`, from its config; undefined when a delete removes the record. */
   softDeleteField: (resource: string) => Promise<string | undefined>
+  /**
+   * The operations in order in one transaction, as the REST API's batch write runs them: all are written or none, and
+   * a refusal names the failing operation (`extras.operation`, its index).
+   */
+  batch: (operations: BatchOperation[]) => Promise<BatchResult[]>
 }
 
 // Filters passed as values are not limited by a URL's length, as in `:search`.
@@ -86,10 +93,11 @@ export const assistantRecords = (deps: Deps, session: Session): ToolRecords => {
       return runWrite(deps, entry, session, { operation: 'delete', key, ifMatch: etag ?? '*' })
     },
     softDeleteField: async (resource) => entryOf(resource).model.softDelete,
+    batch: (operations) => runBatch(deps, session, operations),
   }
 }
 
 const withoutAdmin = () => Promise.reject(new Error('This assistant has no records: ToolContext.records works in the built-in assistant'))
 
 /** Records for a turn without an admin around it, such as in a backend of its own: every call fails. */
-export const noRecords: ToolRecords = { list: withoutAdmin, get: withoutAdmin, create: withoutAdmin, update: withoutAdmin, delete: withoutAdmin, softDeleteField: withoutAdmin }
+export const noRecords: ToolRecords = { list: withoutAdmin, get: withoutAdmin, create: withoutAdmin, update: withoutAdmin, delete: withoutAdmin, softDeleteField: withoutAdmin, batch: withoutAdmin }

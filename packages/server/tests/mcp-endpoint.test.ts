@@ -111,7 +111,7 @@ describe('the MCP endpoint', () => {
     }
     const writing = await served({ mcp: { writes: true } })
     const written = (await resultOf(await rpc(writing.app, writing.mcp, 'tools/list'))).tools as Array<{ name: string; annotations?: { readOnlyHint?: boolean } }>
-    expect(written.map((tool) => [tool.name, tool.annotations?.readOnlyHint])).toEqual([...records.map((name) => [name, true]), ['create_record', false], ['update_record', false], ['delete_record', false]])
+    expect(written.map((tool) => [tool.name, tool.annotations?.readOnlyHint])).toEqual([...records.map((name) => [name, true]), ['create_record', false], ['update_record', false], ['delete_record', false], ['batch_write', false]])
   })
 
   it('refuses a write outside the resources mcp.writes lists, before asking', async () => {
