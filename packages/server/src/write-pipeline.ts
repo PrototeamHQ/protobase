@@ -12,7 +12,7 @@ import { requestAccess, requireOperation, targetFilter, writableFields, type Req
 import { tenantScope } from './tenant'
 import { actorSettings, wakeDispatch } from './changes/actor'
 import { writeTransaction } from './transactions'
-import type { Row, Session } from './types'
+import type { Row, Session, WriteCheck } from './types'
 import { validateBody } from './validate-body'
 import { applyUpdate, planUpdate } from './write-update'
 import { assertWritten, checkParents, checkPrecondition, decide, denied, firstKeyField, keyOf, missing, notifier, shown, type WriteResult } from './write-shared'
@@ -130,13 +130,20 @@ export const writeIn = async (trx: Db, deps: Deps, access: RequestAccess, reques
   return removeOrRestore(trx, deps, access, request)
 }
 
+/** Runs the checks that come before a create's or update's transaction opens (`WriteCheck`) on the body as sent. */
+export const checkBeforeWrite = async (deps: Deps, write: Parameters<WriteCheck>[0]) => {
+  for (const check of deps.writeChecks) await check(write)
+}
+
 /**
- * The path every single write takes: resolve access once, then `writeIn` in its own transaction with a statement timeout.
- * The caller has already authenticated `session`; `form` is the public form a visitor creates through.
+ * The path every single write takes: resolve access once, the checks that come before the transaction, then `writeIn`
+ * in its own transaction with a statement timeout. The caller has already authenticated `session`; `form` is the
+ * public form a visitor creates through.
  */
 export const runWrite = async (deps: Deps, entry: Entry, session: Session, request: WriteRequest, form?: FormModel): Promise<WriteResult> => {
   const access = await requestAccess(deps, entry, session, form)
   requireOperation(access, request.operation === 'undelete' ? 'update' : request.operation)
+  if (request.operation === 'create' || request.operation === 'update') await checkBeforeWrite(deps, { resource: entry.name, operation: request.operation, body: request.body })
   const result = await writeTransaction(deps.db, deps.statementTimeoutMs, (trx) => writeIn(trx, deps, access, request), actorSettings(deps, session))
   wakeDispatch(deps)
   return result

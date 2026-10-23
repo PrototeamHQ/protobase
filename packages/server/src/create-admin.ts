@@ -55,7 +55,7 @@ import { historyDays, type HistoryOptions } from './history/options'
 import { pruneHistoryJob } from './history/prune-history'
 import { createWebhooks } from './webhooks/webhooks'
 import { webhookTable } from './webhooks/table/webhook-table'
-import { subscriptionWriteCheck } from './webhooks/table/validate-hook'
+import { subscriptionUrlCheck, subscriptionWriteCheck } from './webhooks/table/validate-hook'
 import type { WebhooksOptions } from './webhooks/table/options'
 import type { SubscriptionDefinition } from './webhooks/subscription'
 import { visitorsBrowse, withAnonymous } from './anonymous'
@@ -247,7 +247,8 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], pag
     systemPath,
     statementTimeoutMs: options.statementTimeoutMs ?? 15_000,
     guard: createScanGuard(db, options.scanGuard),
-    hooks: [...(options.writeHooks ?? []), ...(table ? [subscriptionWriteCheck(registry.entries.map((entry) => entry.model), table.checkUrl)] : []), ...(fill ? [fillHook(() => deps, fill)] : [])],
+    hooks: [...(options.writeHooks ?? []), ...(table ? [subscriptionWriteCheck(registry.entries.map((entry) => entry.model))] : []), ...(fill ? [fillHook(() => deps, fill)] : [])],
+    writeChecks: table?.checkUrl ? [subscriptionUrlCheck(table.checkUrl)] : [],
     audit: options.audit ?? consoleAuditQueue(),
     accessOptions: { ...(options.roles && { roles: options.roles }), ...(options.defaultAccess && { defaultAccess: options.defaultAccess }) },
     rowPermissions: (resource: string) => (typeof options.rowPermissions === 'object' ? !options.rowPermissions.except.includes(resource) : options.rowPermissions !== false),

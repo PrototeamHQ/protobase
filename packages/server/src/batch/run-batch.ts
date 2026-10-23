@@ -7,7 +7,7 @@ import { requestAccess, type RequestAccess } from '../request-access'
 import { writeTransaction } from '../transactions'
 import type { Row, Session } from '../types'
 import { keyOf, type WriteResult } from '../write-shared'
-import { writeIn } from '../write-pipeline'
+import { checkBeforeWrite, writeIn } from '../write-pipeline'
 import { resolveData, resolveKey, type Created } from './refs'
 import { reorderIn } from './reorder'
 import type { BatchOperation } from './schema'
@@ -33,7 +33,8 @@ const atOperation = (error: unknown, index: number, operation: BatchOperation) =
 
 /**
  * Runs the operations in order inside ONE transaction, each through the normal write pipeline (validation, access with row
- * filters and record-level rules, tenant, ETags, hooks). Any failure rolls the whole batch back and names the failing operation.
+ * filters and record-level rules, tenant, ETags, hooks), after the checks that come before it. Any failure rolls the
+ * whole batch back and names the failing operation.
  */
 export const runBatch = async (deps: Deps, session: Session, operations: BatchOperation[]): Promise<BatchResult[]> => {
   const refs = operations.flatMap((operation) => (operation.op === 'create' && operation.ref ? [operation.ref] : []))
@@ -45,6 +46,14 @@ export const runBatch = async (deps: Deps, session: Session, operations: BatchOp
     const access = await requestAccess(deps, entry, session)
     accesses.set(entry.name, access)
     return access
+  }
+
+  // The checks that need the network run before the transaction opens, each failure named by its operation.
+  for (const [index, operation] of operations.entries()) {
+    if (operation.op !== 'create' && operation.op !== 'update') continue
+    await checkBeforeWrite(deps, { resource: operation.resource, operation: operation.op, body: operation.data }).catch((error: unknown) => {
+      throw atOperation(error, index, operation)
+    })
   }
 
   const written = await writeTransaction(deps.db, deps.statementTimeoutMs, async (trx) => {

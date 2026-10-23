@@ -13,7 +13,7 @@ import type { PluginOption } from './plugins/plugin-settings'
 import type { Registry } from './registry'
 import type { SourceOption } from './sources/source-settings'
 import type { ScanGuard } from './scan-guard'
-import type { AuditQueue, PipelineHook } from './types'
+import type { AuditQueue, PipelineHook, WriteCheck } from './types'
 
 /** Everything a route needs, built once by `createAdmin` and passed down explicitly. */
 export type Deps = {
@@ -30,6 +30,8 @@ export type Deps = {
   statementTimeoutMs: number
   guard: ScanGuard
   hooks: readonly PipelineHook[]
+  /** Run on a create's or update's body before its transaction opens (see `WriteCheck`). */
+  writeChecks: readonly WriteCheck[]
   accessOptions: ResolveOptions
   /** Where reveals of sensitive fields are published. */
   audit: AuditQueue

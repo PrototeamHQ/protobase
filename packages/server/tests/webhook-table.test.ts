@@ -8,7 +8,7 @@ import { createUser, setUserBanned } from '../src/better-auth/users'
 import { betterAuthOwnerRoles } from '../src/webhooks/table/owner-roles'
 import { checkWebhooksSchema, webhooksMigration } from '../src/webhooks/table/schema'
 import { tableSubscriptions } from '../src/webhooks/table/table-subscriptions'
-import { subscriptionWriteCheck } from '../src/webhooks/table/validate-hook'
+import { subscriptionUrlCheck, subscriptionWriteCheck } from '../src/webhooks/table/validate-hook'
 import { checkWebhookUrl } from '../src/webhooks/table/address-check'
 import type { WriteEvent } from '../src/types'
 import { openSnapshotDb, settled, type SnapshotDb } from '../../../test-support/sql-snapshot'
@@ -70,18 +70,31 @@ describe('the webhooks schema', () => {
 
 describe('subscriptionWriteCheck', () => {
   const write = (after: Record<string, unknown>) => ({ operation: 'create', resource: { name: 'webhook_subscriptions' }, user: { id: 'u1', roles: [] }, after }) as unknown as WriteEvent
-  const check = subscriptionWriteCheck([orders], checkWebhookUrl)
+  const check = subscriptionWriteCheck([orders])
 
   it('passes a subscription to declared events at a public address', async () => {
     await check(write({ events: 'orders.created orders.*', url: 'https://93.184.216.34/hook', filter: 'total > 10', headers: { 'x-key': 'k' } }), undefined as never)
   })
 
-  it('refuses unknown events, a filter on a sensitive field, headers that are not text, and a private address', async () => {
+  it('refuses unknown events, a filter on a sensitive field and headers that are not text', async () => {
     await expect(check(write({ events: 'orders.shipped', url: 'https://93.184.216.34/hook' }), undefined as never)).rejects.toThrow('"orders.shipped" matches no declared event')
     await expect(check(write({ events: 'orders.created', url: 'https://93.184.216.34/hook', filter: 'iban:*' }), undefined as never)).rejects.toThrow('when uses sensitive field "iban"')
     await expect(check(write({ events: 'orders.created', url: 'https://93.184.216.34/hook', headers: { n: 1 } }), undefined as never)).rejects.toThrow('headers must be an object of text values')
-    await expect(check(write({ events: 'orders.created', url: 'http://169.254.169.254/latest' }), undefined as never)).rejects.toThrow('169.254.169.254 is a private address')
     await check({ ...write({}), resource: { name: 'orders' } } as unknown as WriteEvent, undefined as never)
+  })
+})
+
+describe('subscriptionUrlCheck', () => {
+  const check = subscriptionUrlCheck(checkWebhookUrl)
+
+  it('refuses a private address before the write, and leaves other bodies and resources alone', async () => {
+    await expect(check({ resource: 'webhook_subscriptions', operation: 'create', body: { url: 'http://169.254.169.254/latest' } })).rejects.toThrow(
+      'The webhook subscription cannot be saved: 169.254.169.254 is a private address',
+    )
+    await check({ resource: 'webhook_subscriptions', operation: 'update', body: { url: 'https://93.184.216.34/hook' } })
+    await check({ resource: 'webhook_subscriptions', operation: 'update', body: { name: 'renamed' } })
+    await check({ resource: 'webhook_subscriptions', operation: 'create', body: { url: 'not a url' } })
+    await check({ resource: 'orders', operation: 'create', body: { url: 'http://127.0.0.1/' } })
   })
 })
 

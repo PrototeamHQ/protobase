@@ -49,6 +49,12 @@ export type WriteEvent = {
 /** Extension point of the write pipeline: a hook that throws rolls the write back. */
 export type PipelineHook = (event: WriteEvent, trx: Db) => Promise<void>
 
+/**
+ * A check of a create or update before its transaction opens, with the body as the caller sent it, for what needs the
+ * network, such as resolving a host: it throws to refuse the write.
+ */
+export type WriteCheck = (write: { resource: string; operation: 'create' | 'update'; body: unknown }) => Promise<void>
+
 /** Where a request came from, as its headers say; proxies set `forwardedFor`, so it is only as trustworthy as they are. */
 export type AuditOrigin = { userAgent?: string; forwardedFor?: string }
 
