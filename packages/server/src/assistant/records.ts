@@ -45,6 +45,13 @@ export type ToolRecords = {
   create: (resource: string, data: Row) => Promise<ToolRecord>
   /** With `etag`, fails with 412 when the record changed since it was read; without, it updates any version. */
   update: (resource: string, key: RecordKeyInput, data: Row, options?: { etag?: string }) => Promise<ToolRecord>
+  /**
+   * With `etag`, fails with 412 when the record changed since it was read. A resource with `.softDelete()` keeps the
+   * record, deleted; any other loses it. Resolves to the record as it was.
+   */
+  delete: (resource: string, key: RecordKeyInput, options?: { etag?: string }) => Promise<ToolRecord>
+  /** The field a delete sets on a resource with `.softDelete()`, from its config; undefined when a delete removes the record. */
+  softDeleteField: (resource: string) => Promise<string | undefined>
 }
 
 // Filters passed as values are not limited by a URL's length, as in `:search`.
@@ -74,10 +81,15 @@ export const assistantRecords = (deps: Deps, session: Session): ToolRecords => {
       const { entry, key } = keyOf(resource, input)
       return runWrite(deps, entry, session, { operation: 'update', key, body: data, ifMatch: etag ?? '*' })
     },
+    delete: async (resource, input, { etag } = {}) => {
+      const { entry, key } = keyOf(resource, input)
+      return runWrite(deps, entry, session, { operation: 'delete', key, ifMatch: etag ?? '*' })
+    },
+    softDeleteField: async (resource) => entryOf(resource).model.softDelete,
   }
 }
 
 const withoutAdmin = () => Promise.reject(new Error('This assistant has no records: ToolContext.records works in the built-in assistant'))
 
 /** Records for a turn without an admin around it, such as in a backend of its own: every call fails. */
-export const noRecords: ToolRecords = { list: withoutAdmin, get: withoutAdmin, create: withoutAdmin, update: withoutAdmin }
+export const noRecords: ToolRecords = { list: withoutAdmin, get: withoutAdmin, create: withoutAdmin, update: withoutAdmin, delete: withoutAdmin, softDeleteField: withoutAdmin }

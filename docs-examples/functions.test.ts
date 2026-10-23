@@ -35,6 +35,7 @@ const fakeRecords = (rows: Record<string, Record<string, unknown>>) => ({
   list: vi.fn(async () => ({ items: [{ number: 'R-0007', bike: 'Gazelle Orange', etag: '"v2"' }], next_page_token: '', total_size_estimate: 1 })),
   create: vi.fn(),
   delete: vi.fn(),
+  softDeleteField: vi.fn(),
 }) satisfies FunctionRecords
 
 const contextWith = (records: FunctionRecords): FunctionContext => {
