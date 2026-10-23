@@ -53,6 +53,8 @@ protobase mobile run ios
 
 The first run installs Capacitor into `.protobase/mobile/`, which ignores itself in git. Every run builds the app's files as [`protobase build`](../reference/cli.md#build) does and generates the native project from your config again, so never edit the projects in `.protobase/mobile/` by hand. Your own package.json gains nothing.
 
+In the app, the admin keeps clear of the status bar, the notch, the home indicator and Android's system bars, and it does not zoom: a focused input leaves the page at its scale, and so does a pinch. <gap>The status bar's text cannot follow the theme chosen in the app, only the phone's light or dark mode, because setting the status bar's style is not implemented.</gap>
+
 The app calls the server at the project's auth `baseURL`; pass `--api https://shop.example.com` for another one. Plain http is only for a server on this machine (`localhost`) or, on the Android emulator, its host `10.0.2.2`; any other server needs https. An Android phone on USB reaches a server on `localhost` through a forwarded port; an iPhone needs an https server. The app's UI plugins load from the device only when the server serves a built bundle (`protobase serve dist`): against `protobase dev`, use `--live`.
 
 `--target <id>` picks the simulator, emulator or device; without it Capacitor asks.
