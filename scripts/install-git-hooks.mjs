@@ -1,5 +1,5 @@
-// Points git at .githooks, whose commit-msg hook runs commitlint. Run by `bun install` (prepare); does nothing
-// outside a git checkout of this repository.
+// Points git at .githooks, whose commit-msg hook runs commitlint and pre-commit hook checks the skill's references.
+// Run by `bun install` (prepare); does nothing outside a git checkout of this repository.
 import { spawnSync } from 'node:child_process'
 import { realpathSync } from 'node:fs'
 import path from 'node:path'
