@@ -43,9 +43,15 @@ services:
       retries: 60
 
   # The cloud's pooler in front of the same server, with its settings (protobase-cloud pooler/pgbouncer.ini): transaction
-  # pooling, prepared statements tracked, three server connections per role. The jobs integration tests run through it.
+  # pooling, prepared statements and statement_timeout tracked, three server connections per role. The jobs and long
+  # query integration tests run through it. The image writes pgbouncer.ini from the variables below; the command adds
+  # track_extra_parameters, which it has no variable for.
   pgbouncer:
     image: edoburu/pgbouncer:v1.26.0-p0
+    command:
+      - sh
+      - -c
+      - sed -i '/^track_extra_parameters/d; /^\[pgbouncer\]/a track_extra_parameters = statement_timeout' /etc/pgbouncer/pgbouncer.ini && exec pgbouncer /etc/pgbouncer/pgbouncer.ini
     ports:
       - '${PGBOUNCER_PORT:-55442}:5432'
     environment:

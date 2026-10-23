@@ -79,8 +79,8 @@ export const site = {
 
 // What the Postgres suite (`bun run test:postgres`, tests/postgres) checks that the snapshot recordings cannot show, so
 // a change to it runs the suite even when the recordings come out unchanged: migrations and seeds (the examples' and the
-// schemas the server migrates), the jobs runner, change delivery (capture, outbox, webhooks), and the suite with what
-// it runs. The database and pooler setup (the service images in ci.yml, docker-compose.yml, scripts/test-db/) is in
+// schemas the server migrates), the jobs runner, change delivery (capture, outbox, webhooks), the runtime's pools and
+// query limits, and the suite with what it runs. The database and pooler setup (the service images in ci.yml, docker-compose.yml, scripts/test-db/) is in
 // `runEverything`, which runs it too. Any other change runs it only when its recordings differ
 // (scripts/affected-postgres.mjs).
 export const postgresSuite = [
@@ -91,6 +91,9 @@ export const postgresSuite = [
   'packages/server/src/webhooks/**',
   'packages/server/src/better-auth/{auth-schema,snake-case-migration}.ts',
   'packages/server/src/comments/comments-sql.ts',
+  'packages/server/src/{app-pool,background-work,statement-timeout}.ts',
+  'packages/cli/src/project/{pg-db,background-gate,long-connect,pool-wait}.ts',
+  'packages/cli/tests/serve/long-queries-scenarios.ts',
   'tests/postgres/**',
   'tests/jobs/**',
   'tests/changes/{delivery-*,capture-scenarios}.ts',
