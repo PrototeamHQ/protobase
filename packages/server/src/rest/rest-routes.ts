@@ -1,6 +1,7 @@
 import { Hono } from 'hono'
 import type { Caller } from '../api-keys/resolve-caller'
 import { HttpProblem } from '../problem'
+import { isStatementTimeout, StatementTimeout } from '../statement-timeout'
 import { foreignKeyCache } from './foreign-keys'
 import { errorResponse } from './respond'
 import type { RestDeps, RestEnv } from './rest-context'
@@ -12,7 +13,7 @@ export type RestRoutesInput = {
   deps: RestDeps
   /** Who a request runs as, from its `apikey` and bearer (see `apiKeyCaller`). */
   caller: (request: Request) => Promise<Caller>
-  /** Called with every error that becomes a 500, and its request. */
+  /** Called with every error that becomes a 500, and every query stopped at its statement timeout, and its request. */
   report?: (error: unknown, request?: Request) => void
 }
 
@@ -26,6 +27,13 @@ export const restRoutes = ({ deps, caller, report }: RestRoutesInput) => {
   const app = new Hono<RestEnv>()
   app.onError((error, c) => {
     const known = restErrorOf(error, c.get('caller')?.role === 'anon')
+    // A query the database stopped keeps PostgREST's error, with a hint that names the request, its limit and the ways
+    // out; it is reported as well.
+    if (known && isStatementTimeout(error)) {
+      const named = new StatementTimeout(`${c.req.method} ${c.req.path}`, { kind: 'request', ms: deps.statementTimeoutMs })
+      report?.(named, c.req.raw)
+      return errorResponse(restError(known.status, known.body.code, known.body.message, known.body.details, named.detail))
+    }
     if (known) return errorResponse(known)
     // The caller's 401, from a missing or wrong key or token.
     if (error instanceof HttpProblem) return errorResponse(restError(error.status, error.status === 401 ? 'PGRST301' : 'PGRST000', error.detail).withHeaders(error.headers))

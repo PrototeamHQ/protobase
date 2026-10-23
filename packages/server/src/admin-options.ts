@@ -43,13 +43,15 @@ export type AdminOptions = {
   /** Receives an event for every reveal of a sensitive field. Default: printed to the console, nothing kept. */
   audit?: AuditQueue
   /**
-   * Called with every error the API turns into a 500, and with the problem of every request that found all database
-   * connections busy, and the request it failed, so the host can report it.
+   * Called with every error the API turns into a 500, and with the problem of every query the database stopped at its
+   * statement timeout and every request that found all database connections busy, and the request it failed, so the
+   * host can report it.
    */
   onUnhandledError?: (error: unknown, request?: Request) => void
   /**
-   * Where the app's errors go: the server's 500s and crashes, and the admin app's errors in the browser (see
-   * `ErrorReportingOptions`). Defaults to the DSN the platform passes in `PROTOBASE_SENTRY_DSN`; `false` turns it off.
+   * Where the app's errors go: the server's 500s, stopped queries and crashes, and the admin app's errors in the
+   * browser (see `ErrorReportingOptions`). Defaults to the DSN the platform passes in `PROTOBASE_SENTRY_DSN`; `false`
+   * turns it off.
    */
   errorReporting?: ErrorReportingOptions | false
   /** The assistant in the admin app's dock: a backend elsewhere or the built-in one (see `AssistantOptions`); `false` turns it off. */

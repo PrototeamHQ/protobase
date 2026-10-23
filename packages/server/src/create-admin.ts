@@ -271,7 +271,7 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], pag
   // The tabs end in the name the app signs in and mails as, which the installed app is called too.
   const appName = auth?.appName ?? readAppName(globalThis.process?.env ?? {}) ?? defaultAppName
   const meta = createMeta(deps, appName, icons?.favicon ? faviconPath : undefined)
-  const onError = createErrorHandler(options.onUnhandledError)
+  const onError = createErrorHandler(options.onUnhandledError, deps.statementTimeoutMs)
   // Every response of the resources API and of the system endpoints names the models version; every request needs a
   // token, but one to the resources API or `/meta` when the project has an anonymous role.
   const guarded = (routes: (app: Hono<AdminEnv>) => void, caller: Authenticator = authenticate) => {

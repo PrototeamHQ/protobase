@@ -41,6 +41,15 @@ describe('runJob', () => {
     expect(run.mock.calls[1]![1]).not.toHaveProperty('mail')
   })
 
+  it('names the job in the output of a try whose query the database stopped', async () => {
+    const stopped = Object.assign(new Error('canceling statement due to statement timeout'), { code: '57014' })
+    const job = defineJob({ name: 'nightly-report', run: () => { throw stopped } })
+    expect(await runJob(job, fetched(null), db)).toMatchObject({
+      status: 'failed',
+      output: { message: expect.stringMatching(/^Job "nightly-report" ran a query longer than the database's statement timeout, so the database stopped it\. .*longQueries: true/) },
+    })
+  })
+
   it('passes no payload to a job enqueued without one', async () => {
     const run = vi.fn()
     await runJob(defineJob({ name: 'nightly', run }), fetched(null), db)

@@ -48,6 +48,17 @@ describe('functionRoutes', () => {
     expect(await seen[0]!.context.caller()).toEqual({ session: sessions.ann, records: { as: 'ann' } })
   })
 
+  it('answers a call whose query the database stopped with a 504 naming the call, and reports it', async () => {
+    const stopped = Object.assign(new Error('canceling statement due to statement timeout'), { code: '57014' })
+    const { app, onUnhandledError, wake } = serve({ import: defineFunction(() => Promise.reject(stopped)) })
+    const response = await app.request('/api/functions/import/rows', as('ann', { method: 'POST' }))
+    expect(response.status).toBe(504)
+    const { detail } = await response.json()
+    expect(detail).toBe("POST /api/functions/import/rows ran a query longer than the database's statement timeout, so the database stopped it. Make the query faster, such as with an index or a narrower filter, or give it longQueries: true, whose queries may run up to 30 s.")
+    expect(onUnhandledError).toHaveBeenCalledWith(expect.objectContaining({ message: detail }), expect.any(Request))
+    expect(wake).toHaveBeenCalledOnce()
+  })
+
   it('passes the body and the query through to the function', async () => {
     const { app } = serve({ echo: defineFunction(async (request) => Response.json({ body: await request.json(), q: new URL(request.url).searchParams.get('q') })) })
     const response = await app.request('/api/functions/echo/x?q=1', as('ann', { method: 'POST', body: JSON.stringify({ a: 1 }), headers: { 'content-type': 'application/json' } }))

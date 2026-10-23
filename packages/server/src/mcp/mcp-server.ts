@@ -2,6 +2,7 @@ import { CLIENT_CAPABILITIES_META_KEY, fromJsonSchema, McpServer, type CallToolR
 import { checkedTools } from '../assistant/checked-tools'
 import type { AssistantTool, ToolContext } from '../assistant/tools'
 import { ApprovalNeeded, approvalAsked, approvedUnasked, mcpApproval, writesUnasked } from './mcp-approval'
+import { isStatementTimeout } from '../statement-timeout'
 
 export type McpServerInput = {
   /** The name, version and title the server tells clients when they connect. */
@@ -31,6 +32,11 @@ const inputSchemaOf = (parameters: AssistantTool['parameters']) => {
 
 const failed: CallToolResult = { content: [{ type: 'text', text: 'The server failed to answer.' }], isError: true }
 
+const stopped = (tool: string): CallToolResult => ({
+  content: [{ type: 'text', text: `${tool} ran a query longer than its statement timeout, so the database stopped it. Ask for less, such as with a narrower filter or fewer fields.` }],
+  isError: true,
+})
+
 /**
  * An MCP server offering `tools` as MCP tools, each with its JSON Schema, its hints, and the text it returns. A tool
  * that asks for approval makes the call ask the client's user, and runs again from the start with their answer; for a
@@ -46,9 +52,9 @@ export const mcpServer = ({ info, tools, context, report, rolesWithoutApproval =
         return { content: [{ type: 'text', text: await tool.run(args, { ...context, approve: unasked ? approvedUnasked : mcpApproval(ctx.mcpReq.inputResponses) }) }] }
       } catch (error) {
         if (error instanceof ApprovalNeeded) return approvalAsked(error.request, capabilitiesOf(ctx.mcpReq.envelope))
-        // Whatever a tool throws stays on the server: the client gets no raw message.
+        // Whatever a tool throws stays on the server: the client gets no raw message, but one that names a stopped query.
         report(error)
-        return failed
+        return isStatementTimeout(error) ? stopped(tool.name) : failed
       }
     })
   }

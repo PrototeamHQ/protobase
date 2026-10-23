@@ -1,6 +1,7 @@
 import type { JobResult, JobWithMetadata } from 'pg-boss'
 import type { Db } from '@protobase/query'
 import type { Mailer } from '../mail/smtp-mailer'
+import { isStatementTimeout, statementTimeoutDetail } from '../statement-timeout'
 import type { JobDefinition } from './job-types'
 
 /** Thrown from a job's `run`, it fails the job now: the attempts it has left are not used. */
@@ -57,6 +58,12 @@ export const throughWriteFreeze = async (run: () => Promise<void> | void, signal
 const errorOutput = (error: unknown) =>
   error instanceof Error ? { name: error.name, message: error.message, ...(error.stack && { stack: error.stack }) } : { message: String(error) }
 
+// A query the database stopped names the job and the limit its queries have.
+const namedTimeout = (definition: JobDefinition, error: unknown) => {
+  if (!isStatementTimeout(error)) return error
+  return new Error(statementTimeoutDetail(`Job "${definition.name}"`, { kind: definition.options.longQueries ? 'long' : 'database' }), { cause: error })
+}
+
 /**
  * One try of one job: completed when `run` returns, failed (to be retried while attempts are left) when it throws, and
  * failed for good on a `FatalJobError` or an invalid payload.
@@ -73,6 +80,6 @@ export const runJob = async (definition: JobDefinition, job: JobWithMetadata<unk
     await throughWriteFreeze(() => definition.options.run(payload, context), job.signal)
     return { id: job.id, status: 'completed' }
   } catch (error) {
-    return { id: job.id, status: error instanceof FatalJobError ? 'deadletter' : 'failed', output: errorOutput(error) }
+    return { id: job.id, status: error instanceof FatalJobError ? 'deadletter' : 'failed', output: errorOutput(namedTimeout(definition, error)) }
   }
 }

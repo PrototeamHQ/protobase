@@ -3,6 +3,7 @@ import { HTTPException } from 'hono/http-exception'
 import { QueryError, type QueryErrorCode } from '@protobase/query'
 import { ConnectionsBusy, connectionsBusyProblem } from './connections-busy'
 import { HttpProblem, problemResponse } from './problem'
+import { StatementTimeout } from './statement-timeout'
 
 const titles: Record<number, string> = {
   400: 'Bad Request', 401: 'Unauthorized', 403: 'Forbidden', 404: 'Not Found', 405: 'Method Not Allowed',
@@ -30,7 +31,8 @@ export const isDatabaseError = (error: unknown): error is DatabaseError =>
 const databaseProblem = (error: DatabaseError): HttpProblem | undefined => {
   // SQLSTATE 25006: the database is read-only, as during a deploy's write freeze; the write can be sent again shortly.
   if (error.code === '25006') return new HttpProblem(503, 'read-only', 'Service Unavailable', 'The app is read-only while it is being updated', {}, { 'Retry-After': '5' })
-  if (error.code === '57014') return new HttpProblem(504, 'statement-timeout', 'Gateway Timeout', 'The query exceeded the statement timeout')
+  // SQLSTATE 57014: Postgres stopped a query at its statement timeout; the error handler names the request that ran it.
+  if (error.code === '57014') return new HttpProblem(504, 'statement-timeout', 'Gateway Timeout', 'A query ran longer than its statement timeout, so the database stopped it')
   if (error.code === '23505') return new HttpProblem(409, 'conflict', 'Conflict', 'A record with the same unique value already exists')
   if (error.code === '23503') return new HttpProblem(409, 'conflict', 'Conflict', 'The record points at, or is pointed at by, another record')
   // SQLSTATE 40P01: two writes locked the same records in opposite orders; Postgres rolled this one back, nothing written.
@@ -51,18 +53,30 @@ export const problemOf = (error: unknown): HttpProblem | undefined =>
   : error instanceof ConnectionsBusy ? connectionsBusyProblem(error, 'The query')
   : undefined
 
+// A stopped query's 504 names the request that ran it and the limit it ran into, unless it already names what ran.
+const namedTimeout = (problem: HttpProblem, c: Context, statementTimeoutMs?: number) =>
+  problem instanceof StatementTimeout
+    ? problem
+    : new StatementTimeout(`${c.req.method} ${c.req.path}`, statementTimeoutMs === undefined ? { kind: 'database' } : { kind: 'request', ms: statementTimeoutMs }, problem.extras)
+
 /**
  * The single place where errors become responses: RFC 9457 problems, never raw error messages for unexpected failures.
- * Unexpected failures go to `onUnhandledError` as well, and so does a request that found every database connection
+ * Unexpected failures go to `onUnhandledError` as well, and so do a query stopped at its statement timeout
+ * (`statementTimeoutMs`, the requests' own, when they set one) and a request that found every database connection
  * busy, as the problem that names the request.
  */
-export const createErrorHandler = (onUnhandledError?: (error: unknown, request?: Request) => void) => (error: Error, c: Context) => {
+export const createErrorHandler = (onUnhandledError?: (error: unknown, request?: Request) => void, statementTimeoutMs?: number) => (error: Error, c: Context) => {
   if (error instanceof ConnectionsBusy) {
     const named = connectionsBusyProblem(error, `${c.req.method} ${c.req.path}`)
     onUnhandledError?.(named, c.req.raw)
     return problemResponse(named, c.req.path)
   }
   const known = problemOf(error)
+  if (known?.slug === 'statement-timeout') {
+    const named = namedTimeout(known, c, statementTimeoutMs)
+    onUnhandledError?.(named, c.req.raw)
+    return problemResponse(named, c.req.path)
+  }
   if (known) return problemResponse(known, c.req.path)
   onUnhandledError?.(error, c.req.raw)
   return problemResponse(new HttpProblem(500, 'internal-error', titles[500]!, 'The server failed to handle the request'), c.req.path)

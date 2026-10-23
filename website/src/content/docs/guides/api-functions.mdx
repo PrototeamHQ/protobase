@@ -237,10 +237,12 @@ export default defineFunction({ longQueries: true }, async (request, { db }) => 
 - **Up to 30 seconds** per query, the most any query of an app may run. Work longer than that belongs in steps, such as a [job](/reference/jobs/) per batch, which takes `longQueries` too.
 - **One connection kept for it.** Under `protobase dev` and `serve`, those queries run on a connection of their own, which asks for the longer timeout when it logs in, so long work never takes the connections pages need; a second long call waits for it. A PgBouncer of your own in front of the database must list `statement_timeout` in `track_extra_parameters` to pass that on; Protobase Cloud's does. With a `db` the project exports itself, the option changes nothing.
 - **`records` keep the API's limit,** [`statementTimeoutMs`](/reference/api/#safety).
+- **A query past its limit** is stopped, and the call answers `504 statement-timeout` naming the call, its limit and the way out, such as `POST /api/functions/import ran a query longer than the database's statement timeout, so the database stopped it. Make the query faster, such as with an index or a narrower filter, or give it longQueries: true, whose queries may run up to 30 s.` It goes to `options.onUnhandledError` and the [error tracker](/reference/api/#error-reporting).
 
 ## Errors
 
 - **Problems:** throw an `HttpProblem` (or `badRequest`, `unauthorized`, `forbidden`, `notFound` from `@protobase/server`) to answer with an [RFC 9457 problem](/reference/api/#errors). Hono's `HTTPException` works too.
+- **A query the database stopped** is a `504 statement-timeout` that names the call; see [Long queries](#long-queries).
 - **Everything else:** any other error, or a handler that returns something other than a `Response`, becomes a `500 internal-error` problem without its message. The error goes to `options.onUnhandledError`, which `protobase dev` and `serve` print.
 
 ## Functions moved from Supabase

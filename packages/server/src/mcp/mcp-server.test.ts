@@ -22,6 +22,8 @@ const echo = defineTool({
   run: async (args, toolContext) => `${String(args.text)} for ${toolContext.session.user.id}`,
 })
 const broken = defineTool({ name: 'broken', description: 'Fails.', parameters: { type: 'object', properties: {} }, run: () => Promise.reject(new Error('secret detail')) })
+const stopped = Object.assign(new Error('canceling statement due to statement timeout'), { code: '57014' })
+const slow = defineTool({ name: 'slow', description: 'Reads too much.', parameters: { type: 'object', properties: {} }, run: () => Promise.reject(stopped) })
 
 const written = vi.fn()
 const write = defineTool({
@@ -39,7 +41,7 @@ const write = defineTool({
 type Served = Partial<Pick<McpServerInput, 'tools' | 'context' | 'rolesWithoutApproval'>>
 
 const post = async (report: (error: unknown) => void, headers: Record<string, string>, method: string, params: object, served: Served = {}) => {
-  const handler = createMcpHandler(() => mcpServer({ info: { name: 'App', version: '1.0.0' }, tools: [echo, broken, write], context, report, ...served }), { legacy: 'stateless' })
+  const handler = createMcpHandler(() => mcpServer({ info: { name: 'App', version: '1.0.0' }, tools: [echo, broken, write, slow], context, report, ...served }), { legacy: 'stateless' })
   const response = await handler.fetch(new Request('http://localhost/api/mcp', {
     method: 'POST',
     headers: { accept: 'application/json, text/event-stream', 'content-type': 'application/json', ...headers },
@@ -72,6 +74,7 @@ describe('mcpServer', () => {
       { name: 'echo', description: 'Echoes its text.', inputSchema: { type: 'object', required: ['text'] }, annotations: { readOnlyHint: true } },
       { name: 'broken' },
       { name: 'write' },
+      { name: 'slow' },
     ])
   })
 
@@ -91,6 +94,16 @@ describe('mcpServer', () => {
     compiled.calls = 0
     for (let built = 0; built < 50; built++) mcpServer({ info: { name: 'App', version: '1.0.0' }, tools, context, report: () => {} })
     expect(compiled.calls).toBe(tools.length)
+  })
+
+  it('names the tool whose query the database stopped, and reports it', async () => {
+    const report = vi.fn()
+    const result = await call(report, 'tools/call', { name: 'slow', arguments: {} })
+    expect(result).toEqual({
+      content: [{ type: 'text', text: 'slow ran a query longer than its statement timeout, so the database stopped it. Ask for less, such as with a narrower filter or fewer fields.' }],
+      isError: true,
+    })
+    expect(report).toHaveBeenCalledWith(stopped)
   })
 
   it('refuses a tool name a model endpoint would refuse', () => {
