@@ -23,7 +23,7 @@ The server serves the socket when the host gives `createAdmin` its WebSocket upg
 
 ## Which tables
 
-A channel may listen to the tables of the resources with [`.live()`](/reference/live/), by `schema` (`*` for any), `table` (every live table of the schema when left out), `event` (`INSERT`, `UPDATE`, `DELETE` or `*`) and `filter`. A table that is not live is refused when the channel joins, with Supabase's message; [`import supabase`](/reference/cli/#import-supabase) makes the tables of the project's `supabase_realtime` publication live. A filter is Supabase's: `column=operator.value`, with `eq`, `neq`, `lt`, `lte`, `gt`, `gte`, `in.(a,b)`, `like`, `ilike`, `match`, `imatch`, `is` and `isdistinct`, `not.` before the operator, and several conditions joined by commas, all of which must hold. Postgres compares each value as the column's type. `select` of columns is not supported yet; private channels neither.
+A channel may listen to the tables of the resources with [`.live()`](/reference/live/), by `schema` (`*` for any), `table` (every live table of the schema when left out), `event` (`INSERT`, `UPDATE`, `DELETE` or `*`) and `filter`. A table that is not live is refused when the channel joins, with Supabase's message; [`import supabase`](/reference/cli/#import-supabase) makes the tables of the project's `supabase_realtime` publication live. A filter is Supabase's: `column=operator.value`, with `eq`, `neq`, `lt`, `lte`, `gt`, `gte`, `in.(a,b)`, `like`, `ilike`, `match`, `imatch`, `is` and `isdistinct`, `not.` before the operator, and several conditions joined by commas, all of which must hold. Postgres compares each value as the column's type. <gap>A channel cannot `select` columns because that is not supported yet.</gap> <gap>A channel cannot be private because private channels are not supported yet.</gap>
 
 ## Broadcast and presence
 
@@ -45,7 +45,7 @@ A broadcast reaches the topic's other channels, and the sender's own with `self`
 
 Limits, near Supabase's Free plan, apply per socket and per topic. A socket sends at most 100 broadcast and presence messages a second, joins at most 100 times a second and holds at most 100 channels; on each channel it sends at most 5 presence updates in 30 seconds, also counted across a rejoin. A topic takes 100 broadcasts a second, whoever sends them, so one busy sender can use up a topic's budget. A topic is at most 255 bytes, and a tracked presence at most 10 000 bytes of JSON. A message over a limit gets an error reply and goes to no one, where Supabase would close the channel. A frame over 256 KiB closes the socket with 1009. It closes with 1008 when the client leaves more than 4 MiB unread, or sends more than 300 messages or 4 MiB while earlier ones wait, such as behind a token check.
 
-Broadcasts and presence go between the channels of one serving process, which is how a cloud app runs; several processes behind one address do not reach each other's channels. Sending without a joined channel, which supabase-js does over `POST /api/sb/realtime/v1/api/broadcast`, is not supported.
+Broadcasts and presence go between the channels of one serving process, which is how a cloud app runs; <gap>Several processes behind one address do not reach each other's channels, because broadcasts and presence are not shared between processes.</gap> <gap>Sending without a joined channel, which supabase-js does over `POST /api/sb/realtime/v1/api/broadcast`, is not supported.</gap>
 
 ## What a subscriber receives
 

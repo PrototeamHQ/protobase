@@ -92,7 +92,7 @@ A user with one of those roles creates, updates and deletes records over MCP wit
 
 No role is exempt unless named. The roles are checked against the signed-in user, not against the client, and a user holding several is exempt when any of them is named. A name that is not one of the app's roles, or is `anonymous`, stops the server at startup. Naming a role a person signs in with lets any client that person allows write as them unasked.
 
-A deleted record cannot be restored over MCP, and there is no SQL that writes.
+<gap>A deleted record cannot be restored over MCP.</gap> There is no SQL that writes.
 
 #### Batch writes
 

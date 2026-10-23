@@ -128,7 +128,7 @@ await storeFile({ provider: 'public', path: 'images/test.png', body: bytes, env:
 ### S3-compatible buckets
 
 :::caution[Beta]
-S3-compatible buckets work only when the app runs on Bun. On Node the first file operation fails.
+<gap>S3-compatible buckets work only when the app runs on Bun, as Node has no S3 client built in.</gap> On Node the first file operation fails.
 :::
 
 `s3Files` stores files in any bucket with the S3 API, such as Cloudflare R2, Scaleway Object Storage or AWS S3, under `prefix` when given, so one bucket can hold several providers or apps:
@@ -200,7 +200,7 @@ The decided type picks the stored extension, and downloads are served by that ex
 | `fileType()` | the detected type, for a text field |
 | `processor({ accepts?, run })` | your own: `run(file)` gets `{ name, type, size, head, read() }`, where `head` is the first 256 KB and `read()` streams the whole file |
 
-Processors run once, on the upload route, after the file is stored. A processor whose `accepts` does not match the type leaves its field `null`, so a field that takes images and PDFs gets a width only for images. The values travel signed inside the ticket and are written with the file in the same transaction; replacing the file recomputes them and clearing it sets them to `null`. A value the field's own schema refuses is an error in the processor. Files stored before a processor was added keep their fields as they are.
+Processors run once, on the upload route, after the file is stored. A processor whose `accepts` does not match the type leaves its field `null`, so a field that takes images and PDFs gets a width only for images. The values travel signed inside the ticket and are written with the file in the same transaction; replacing the file recomputes them and clearing it sets them to `null`. A value the field's own schema refuses is an error in the processor. <gap>Files stored before a processor was added keep their fields as they are, as processors do not run on existing files.</gap>
 
 ## Image variants and placeholders
 
@@ -220,7 +220,7 @@ photo_placeholder: f.text().readOnly().optional(),
 - **`.variants({ name: variant })`** stores resized copies beside the file, each at most `width` by `height` pixels (either may be left out) and never enlarged. `fit: 'inside'`, the default, keeps the whole image in that box; `'cover'` fills the box and crops the rest, and needs both sides. `format` is `webp`, `avif`, `jpeg` or `png`, and `quality` 1 to 100, the format's default when left out. Names are snake_case. A variant is stored at the file's path followed by its name and extension (`…/2992db9c-….jpg.card.webp`) with the same provider, served and deleted with the file. The admin app shows tables, forms and cards with the smallest variant large enough for them.
 - **`{ original: variant }`**, as `.variants()`' second argument, stores that image instead of the upload, so the upload is not kept: `{ original: { width: 2560, format: 'webp' } }` stores at most 2560 pixels wide as WebP.
 
-Variants and placeholders turn the image upright first, following its EXIF orientation, and carry no metadata. JPEG, PNG, WebP, AVIF, GIF and TIFF images are processed; any other file, HEIC and SVG included, is stored as it is, without variants, and its placeholder is `null`. Files uploaded before a field declared them keep none.
+Variants and placeholders turn the image upright first, following its EXIF orientation, and carry no metadata. JPEG, PNG, WebP, AVIF, GIF and TIFF images are processed; any other file, HEIC and SVG included, is stored as it is, without variants, and its placeholder is `null`. <gap>Files uploaded before a field declared variants keep none, as variants are not made for existing files.</gap>
 
 sharp is a native package, so the config passes it in, and a [built bundle](cli.md#native-packages) carries it with its add-on for linux:
 

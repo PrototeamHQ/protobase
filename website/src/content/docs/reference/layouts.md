@@ -68,7 +68,7 @@ A `RecordCard` (its first match) and each card of a `CardRow` hold a **record**.
 | `status`, `plan.name` | A field of the record around it, through relations. |
 | `invoices.count` | How many `invoices` the user can see (an exact count from the list API). |
 
-Comparisons, `AND`, `OR`, `NOT` and parentheses work; functions such as `now()` do not. A field that is missing or that the user cannot read makes the comparison false, and a `Show` that names a resource or field the user cannot see is left out of their page.
+Comparisons, `AND`, `OR`, `NOT` and parentheses work. <gap>A condition cannot call functions such as `now()`, as they are not supported.</gap> A field that is missing or that the user cannot read makes the comparison false, and a `Show` that names a resource or field the user cannot see is left out of their page.
 
 Record pages take the same conditions in the `when` of `l.section`, `l.related` and `l.sidebar`; see [Form and read view](/reference/ui-config/#form-and-read-view).
 

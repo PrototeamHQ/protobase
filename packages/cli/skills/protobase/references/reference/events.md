@@ -65,7 +65,7 @@ The options combine with AND:
 | `changed: [r.status]` | One of these fields changed. It works on sensitive fields too. |
 | `match` | A function of the change that returns `true` for the event, for what a filter cannot say. |
 
-Filters use the language of [access rules](access.md) and views, on any field, filterable or not. They are checked against the resource when the config loads, so a typo stops startup. A filter cannot use a sensitive field, since captured records never hold their values (use `changed`), nor `search()`, `similar()` or a field of another resource.
+Filters use the language of [access rules](access.md) and views, on any field, filterable or not. They are checked against the resource when the config loads, so a typo stops startup. A filter cannot use a sensitive field, since captured records never hold their values (use `changed`). <gap>An event filter cannot use `search()`, `similar()` or a field of another resource.</gap>
 
 `match` sees the change as the event does: `operation` (`create`, `update`, `delete` or `undelete`), `before` and `after` (the records by field name, without sensitive fields), `changed` (field names), `actor` (`{ id, roles }` for a write through the API, `null` otherwise), `source` (`api` or `database`), `tenant` and `transaction`.
 

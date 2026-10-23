@@ -34,7 +34,7 @@ export const parseCondition = (source: string): ConditionParse => {
   return { ok: true, ast: parsed.ast, paths: [...new Set(memberPaths(parsed.ast))] }
 }
 
-/** True when the condition holds for `values`, keyed by the dotted paths in `condition.paths`. Functions are not supported. */
+/** True when the condition holds for `values`, keyed by the dotted paths in `condition.paths`. <gap>A condition cannot call functions, as they are not supported.</gap> */
 export const evaluateCondition = (condition: Condition, values: Record<string, unknown>) =>
   condition.ast !== undefined && evaluateFilter(folded(condition.ast) as Expr, values)
 

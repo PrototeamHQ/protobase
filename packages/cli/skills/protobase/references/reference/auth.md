@@ -339,7 +339,12 @@ Instead of the metadata XML, `idp` takes the provider's entity ID, sign-in URL a
 - **Sign-in links** work as for the other providers: `https://<app>/?sign-in=okta` starts it at once. A SAML provider links an account by signing in, so the Sign-in & security page does not offer to connect it.
 - `GET /api/auth/status` lists the providers as `samlProviders: [{ id, name }]`. Like `socialProviders`, they have no row in the [sign-in policy](#sign-in-policy), and a required passkey or two-factor authentication still holds back the token until it is set up.
 - **No migration:** the providers live in config, so the store gets no table for them.
-- The plugin's defaults stay: the response must answer a request this app made, within 5 minutes of clock skew, once. Not supported yet: SCIM, single logout, sign-in started at the provider, providers kept per organization, and signed or encrypted requests.
+- The plugin's defaults stay: the response must answer a request this app made, within 5 minutes of clock skew, once. Not supported yet:
+  - <gap>SAML sign-in does not support SCIM yet.</gap>
+  - <gap>SAML sign-in does not support single logout yet.</gap>
+  - <gap>SAML sign-in cannot be started at the provider yet.</gap>
+  - <gap>SAML providers cannot be kept per organization yet.</gap>
+  - <gap>SAML sign-in does not support signed or encrypted requests yet.</gap>
 
 ## Platform sign-in provider
 
@@ -493,7 +498,14 @@ An app moving from Supabase keeps its `supabase.auth` calls and its `@supabase/s
 - The access token is ES256, valid for an hour, with Supabase's claims: `sub`, `role: authenticated`, `aud: authenticated`, `email`, `app_metadata`, `user_metadata`, `aal`, `session_id`, issued by `<baseURL>/api/sb/auth/v1`. Its keys are at `/api/sb/auth/v1/.well-known/jwks.json`. It is apart from the EdDSA token of [Tokens and roles](#tokens-and-roles): neither is accepted for the other.
 - The refresh token is the Better Auth session's token. Each refresh gives the session a new one, so a refresh token works once, and signing out, a ban or a revoked session ends it.
 - `email_confirmed_at` is the time the address was confirmed, in the user table's `email_confirmed_at` column. An account verified before that column existed has none.
-- Not offered: MFA, passkeys, SSO, phone sign-in, anonymous sign-in, the admin API and changing the address.
+- Not offered:
+  - <gap>`/api/sb/auth/v1` does not offer MFA.</gap>
+  - <gap>`/api/sb/auth/v1` does not offer passkeys.</gap>
+  - <gap>`/api/sb/auth/v1` does not offer SSO.</gap>
+  - <gap>`/api/sb/auth/v1` does not offer phone sign-in.</gap>
+  - <gap>`/api/sb/auth/v1` does not offer anonymous sign-in.</gap>
+  - <gap>`/api/sb/auth/v1` does not offer the admin API.</gap>
+  - <gap>`/api/sb/auth/v1` does not offer changing the address.</gap>
 
 ## Tokens for scripts and curl
 

@@ -147,7 +147,11 @@ export const products = resource('products')
 ## Rollups and formulas
 
 :::caution[Beta]
-A rollup over its own table, a resource with a key of several columns, or a relation of several columns is not supported yet.
+Not yet:
+
+- <gap>A rollup over its own table is not supported yet.</gap>
+- <gap>A rollup on a resource with a key of several columns is not supported yet.</gap>
+- <gap>A rollup through a relation of several columns is not supported yet.</gap>
 :::
 
 A **rollup** is a value of the other records that point at a record, such as an order's total of its lines. A **formula** is a value computed from the record's own fields, such as a line's amount. Neither needs SQL: you declare the field, and [`protobase migration`](cli.md#migration) writes its column into the project's next migration (`NNN_computed.sql`). Both are real columns, kept by the database in the transaction that writes, so they are right for writes from psql or other services too, and they filter and sort like any column once they have an index.
@@ -194,7 +198,7 @@ export const orderLines = resource('order_lines')
 | `avg` | The average of `field`. Empty without records. | `f.decimal()`, `.optional()` |
 | `min`, `max` | The least or greatest value of `field`. Empty without records. | a number field, `.optional()` |
 
-Empty values of `field` are left out, as in SQL. The migration adds the column, a function in the `rollups` schema and a trigger on `from`'s table that sets the value after every insert, delete and update of the columns it reads, and then sets every record's value once. A rollup over its own table, a resource with a key of several columns, or a relation of several columns is not supported yet.
+Empty values of `field` are left out, as in SQL. The migration adds the column, a function in the `rollups` schema and a trigger on `from`'s table that sets the value after every insert, delete and update of the columns it reads, and then sets every record's value once. <gap>A rollup over its own table is not supported yet.</gap> <gap>A rollup on a resource with a key of several columns is not supported yet.</gap> <gap>A rollup through a relation of several columns is not supported yet.</gap>
 
 `.formula(expression)` is a Postgres generated column. The expression reads the record's number fields, and takes numbers, `+ - * /`, parentheses, `coalesce(a, b, ...)` and `round(x)` or `round(x, digits)`. It is computed exactly as decimals, so `7 / 2` is 3.5, and is stored as the field's type, so an integer field rounds the result. A formula that reads an optional field is `.optional()` too, unless `coalesce()` gives that field a value. A formula cannot read another formula. When the expression changes, the migration drops the column and adds it again, so an index on it must be created again in the same migration.
 
@@ -249,7 +253,7 @@ To rotate it on several instances:
 
 **A lost key loses its values.** Nothing can decrypt them; `status` lists them as `unknown-key`, and writing a new value replaces one. `apply` refuses to run while a column holds values under none of its keys, so a wrong key in a local `.env` does not seal values the app cannot read; clear values whose key is lost (set them to `null` with SQL) to go on.
 
-There is no command that decrypts a field, so keep `.encrypted()` on a field while its column holds encrypted values; `status` reports encrypted values in a field that is not encrypted.
+<gap>There is no command that decrypts a field.</gap> Keep `.encrypted()` on a field while its column holds encrypted values; `status` reports encrypted values in a field that is not encrypted.
 
 ### What a value is bound to
 
@@ -257,7 +261,7 @@ A value opens only where it was sealed: its table as `.table()` names it (with o
 
 - Renaming the resource or the field in the config changes nothing.
 - Renaming the table or the column, moving the table to another schema, or adding or changing the schema in `.table()` makes the field's values unreadable until `protobase encryption apply --rebind people --from-table <old table>` (or `--rebind people.iban --from-column <old column>`) runs. Run it at update time, like a migration; reveals fail until then.
-- Changing a resource's declared key or tenant field makes its values unreadable, and no command rebinds them: make such a change before encrypting.
+- Changing a resource's declared key or tenant field makes its values unreadable. <gap>No command rebinds encrypted values after a change of a resource's key or tenant field.</gap> Make such a change before encrypting.
 - The record key must be unique in its table, as [`protobase doctor`](cli.md#doctor) checks, or at least within each tenant. A key changed in the database, by SQL, a trigger or a foreign key `on update cascade` (which `status` warns about), makes that row's values unreadable; the API refuses to change the key of a record with encrypted fields.
 
 ### Encrypting an existing column

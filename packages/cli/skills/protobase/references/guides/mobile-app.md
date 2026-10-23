@@ -7,7 +7,7 @@ Run a Protobase app on iOS and Android and build signed store releases from a mo
 A Protobase app runs as an iOS or Android app with nothing more than a `mobile` section in its `protobase.config.ts`. `protobase mobile` wraps the app in [Capacitor](https://capacitorjs.com): the app's shell, its UI plugins, theme and favicon open from files on the device, and the app calls your server's API.
 
 :::caution[Beta]
-In the app, passkeys and sign-in with another provider do not work yet, and "Forgot password?" is not offered.
+<gap>In the app, passkeys do not work yet.</gap> <gap>In the app, sign-in with another provider does not work yet.</gap> <gap>"Forgot password?" is not offered in the app, as the emailed link cannot lead back into it.</gap>
 :::
 
 ## 1. Install the tools
@@ -37,10 +37,10 @@ With a mobile section, the API answers the app's origins, `capacitor://localhost
 
 Signing in works in the app as on the web, with nothing more to set up:
 
-- Emailed codes, passwords and the second step of two-factor authentication work. Passkeys and sign-in with another provider do not yet.
+- Emailed codes, passwords and the second step of two-factor authentication work. <gap>Passkeys do not work in the app yet.</gap> <gap>Sign-in with another provider does not work in the app yet.</gap>
 - The app calls `/api/auth` through the device's native HTTP, naming its Capacitor origin. With a mobile section, sign-in trusts the Capacitor origin a request names, for that request only, without CORS.
 - The session lives in the device's cookie store, so it survives reloads, updates and relaunches. On iOS, signing in or out within about a second of killing the app may be lost.
-- "Forgot password?" is not offered in the app, as the emailed link cannot lead back into it.
+- <gap>"Forgot password?" is not offered in the app, as the emailed link cannot lead back into it.</gap>
 - In the app, page script can reach the session cookie through Capacitor's native plugins, so keep untrusted script out of UI plugins.
 - While you develop over plain `http://localhost` with a mobile section, a page served on `https://localhost` in the same browser can send sign-in requests that carry your dev session, as some browsers treat the two as the same site. Do not open untrusted pages on `https://localhost` while you develop.
 

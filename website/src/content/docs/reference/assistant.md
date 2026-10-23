@@ -109,7 +109,7 @@ The tool and its component live apart, joined by the name, since the server conf
 
 Each message carries the page the user is on, such as `/orders/42`, which the model reads with it.
 
-There is one conversation per user, shared by their tabs. The server keeps it as a file, `<chats>/<user>/chat.jsonl` (see `PROTOBASE_ASSISTANT_CHATS`), with the chat and everything the model read, so a restart keeps it and the app only ever sends the new message. The directory is made on the first message and must be writable: in a container, point it at a volume. With several instances, send each user's requests to the same one.
+<gap>There is one conversation per user, shared by their tabs.</gap> The server keeps it as a file, `<chats>/<user>/chat.jsonl` (see `PROTOBASE_ASSISTANT_CHATS`), with the chat and everything the model read, so a restart keeps it and the app only ever sends the new message. The directory is made on the first message and must be writable: in a container, point it at a volume. With several instances, send each user's requests to the same one.
 
 ## Another backend
 

@@ -4,7 +4,7 @@
 
 Comments on a resource's records by anyone who may read them, with @mentions that email the people named, shown on the record page and listed for admins.
 
-A resource with [`.comments()`](https://docs.protobase.net/api/schema/interfaces/resourcebuilder/#comments) takes comments on its records: plain text, each with its author and time. Typing `@` in a comment mentions someone, who gets an email with a link to the record. Comments cannot be edited, and there are no replies or reactions.
+A resource with [`.comments()`](https://docs.protobase.net/api/schema/interfaces/resourcebuilder/#comments) takes comments on its records: plain text, each with its author and time. Typing `@` in a comment mentions someone, who gets an email with a link to the record. <gap>Comments cannot be edited.</gap> <gap>Comments have no replies.</gap> <gap>Comments have no reactions.</gap>
 
 ```ts title="config/tickets.ts"
 import { f, l, resource, view } from '@protobase/schema'

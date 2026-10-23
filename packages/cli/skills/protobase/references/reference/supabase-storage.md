@@ -47,7 +47,12 @@ Public buckets are served at `/api/sb/storage/v1/object/public/<bucket>/<name>` 
 
 A download is sent with the type it was uploaded with, `nosniff` and a sandboxing Content-Security-Policy, so an uploaded page cannot run on the app's origin, and `?download` makes it an attachment.
 
-Not yet: image transforms, resumable (TUS) uploads, the S3 protocol, and object versioning.
+Not yet:
+
+- <gap>`/api/sb/storage/v1` does not support image transforms yet.</gap>
+- <gap>`/api/sb/storage/v1` does not support resumable (TUS) uploads yet.</gap>
+- <gap>`/api/sb/storage/v1` does not support the S3 protocol yet.</gap>
+- <gap>`/api/sb/storage/v1` does not support object versioning yet.</gap>
 
 ## Errors
 

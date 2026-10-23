@@ -58,7 +58,7 @@ export const parseOrderBy = (source: string): OrderByParse => {
 /** The order as text, as `parseOrderBy` reads it. */
 export const printOrderBy = (items: OrderByItem[]) => print(generic(items))
 
-/** Validates against sortable fields; traversal is not supported yet. */
+/** Validates against sortable fields. <gap>An order cannot sort on fields of related resources, as traversal is not supported yet.</gap> */
 export const checkOrderBy = (model: ResourceModel, items: OrderByItem[]): OrderByCheck => {
   const traversal = items
     .filter((item) => item.path.path.length > 1)

@@ -37,7 +37,17 @@ The transaction sets the role with `SET LOCAL ROLE` and the token's claims in `r
 - `.single()` and `.maybeSingle()`, through `Accept: application/vnd.pgrst.object+json`.
 - `rpc/<function>` by POST and by GET, which runs read-only. A function returning rows takes `select`, filters, `order`, a range and a count.
 
-Not yet: many-to-many embeds through a junction table, spreads (`...profiles(name)`), computed relationships, embeds in a function's rows, ordering by an embedded column, CSV, other schemas, aggregates and `tx=rollback`.
+Not yet:
+
+- <gap>`/api/sb/rest/v1` does not support many-to-many embeds through a junction table yet.</gap>
+- <gap>`/api/sb/rest/v1` does not support spreads (`...profiles(name)`) yet.</gap>
+- <gap>`/api/sb/rest/v1` does not support computed relationships yet.</gap>
+- <gap>`/api/sb/rest/v1` does not support embeds in a function's rows yet.</gap>
+- <gap>`/api/sb/rest/v1` does not support ordering by an embedded column yet.</gap>
+- <gap>`/api/sb/rest/v1` does not support CSV yet.</gap>
+- <gap>`/api/sb/rest/v1` does not support schemas other than `public` yet.</gap>
+- <gap>`/api/sb/rest/v1` does not support aggregates yet.</gap>
+- <gap>`/api/sb/rest/v1` does not support `tx=rollback` yet.</gap>
 
 ## Scan guard
 
