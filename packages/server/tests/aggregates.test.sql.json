@@ -21,32 +21,32 @@
         ["companies_pkey","btree","f","id","id","int4_ops"]
       ]}},
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
-      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
       {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
-      {"sql":"select current_setting('statement_timeout') as value","result":{"command":"SELECT","rowCount":1,"columns":[["value",25]],"rows":[["15s"]]}},
-      {"sql":"select set_config('statement_timeout', $1, true)","params":["15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"select current_setting('statement_timeout') as value","result":{"command":"SELECT","rowCount":1,"columns":[["value",25]],"rows":[["1s"]]}},
+      {"sql":"select set_config('statement_timeout', $1, true)","params":["1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
       {"sql":"select \"t\".\"status\" as \"value\", count(*)::text as \"n\" from \"companies\" as \"t\" where \"t\".\"deleted_at\" is null and \"t\".\"organization_id\" = $1 and (\"t\".\"revenue\" < $2) group by \"t\".\"status\" order by count(*) desc, \"t\".\"status\" asc limit $3","params":["1","500","100"],"result":{"command":"SELECT","rowCount":3,"columns":[["value",25],["n",25]],"rows":[
         ["lost","495"],
         ["open","495"],
         ["won","495"]
       ]}},
-      {"sql":"select set_config('statement_timeout', $1, true)","params":["15s"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"select set_config('statement_timeout', $1, true)","params":["1s"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
     ]
   },
   ":aggregate > counts and adds up per value under the whole filter, largest first": {
     "(hooks)#0": [
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
-      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
       {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
-      {"sql":"select current_setting('statement_timeout') as value","result":{"command":"SELECT","rowCount":1,"columns":[["value",25]],"rows":[["15s"]]}},
-      {"sql":"select set_config('statement_timeout', $1, true)","params":["15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"select current_setting('statement_timeout') as value","result":{"command":"SELECT","rowCount":1,"columns":[["value",25]],"rows":[["1s"]]}},
+      {"sql":"select set_config('statement_timeout', $1, true)","params":["1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
       {"sql":"select \"t\".\"status\" as \"value\", count(*)::text as \"n\", sum(\"t\".\"revenue\")::text as \"m\" from \"companies\" as \"t\" where \"t\".\"deleted_at\" is null and \"t\".\"organization_id\" = $1 and \"t\".\"revenue\" < $2 group by \"t\".\"status\" order by sum(\"t\".\"revenue\") desc nulls last, \"t\".\"status\" asc limit $3","params":["1","500","100"],"result":{"command":"SELECT","rowCount":3,"columns":[["value",25],["n",25],["m",25]],"rows":[
         ["lost","495","123750.00"],
         ["open","495","123750.00"],
         ["won","495","123750.00"]
       ]}},
-      {"sql":"select set_config('statement_timeout', $1, true)","params":["15s"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"select set_config('statement_timeout', $1, true)","params":["1s"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select status, count(*)::text n, sum(revenue)::text m from companies where organization_id = 1 and deleted_at is null and revenue < 500 group by status order by sum(revenue) desc, status","result":{"command":"SELECT","rowCount":3,"columns":[["status",25],["n",25],["m",25]],"rows":[
         ["lost","495","123750.00"],
@@ -54,12 +54,12 @@
         ["won","495","123750.00"]
       ]}},
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
-      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
       {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
-      {"sql":"select current_setting('statement_timeout') as value","result":{"command":"SELECT","rowCount":1,"columns":[["value",25]],"rows":[["15s"]]}},
-      {"sql":"select set_config('statement_timeout', $1, true)","params":["15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"select current_setting('statement_timeout') as value","result":{"command":"SELECT","rowCount":1,"columns":[["value",25]],"rows":[["1s"]]}},
+      {"sql":"select set_config('statement_timeout', $1, true)","params":["1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
       {"sql":"select \"t\".\"status\" as \"value\", count(*)::text as \"n\" from \"companies\" as \"t\" where \"t\".\"deleted_at\" is null and \"t\".\"organization_id\" = $1 and \"t\".\"status\" = $2 group by \"t\".\"status\" order by count(*) desc, \"t\".\"status\" asc limit $3","params":["1","won","100"],"result":{"command":"SELECT","rowCount":1,"columns":[["value",25],["n",25]],"rows":[["won","990"]]}},
-      {"sql":"select set_config('statement_timeout', $1, true)","params":["15s"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"select set_config('statement_timeout', $1, true)","params":["1s"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select count(*)::text n from companies where organization_id = 1 and deleted_at is null and status = 'won'","result":{"command":"SELECT","rowCount":1,"columns":[["n",25]],"rows":[["990"]]}}
     ]
@@ -67,32 +67,32 @@
   ":aggregate > keeps to the caller's tenant and row filter": {
     "(hooks)#0": [
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
-      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
       {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
-      {"sql":"select current_setting('statement_timeout') as value","result":{"command":"SELECT","rowCount":1,"columns":[["value",25]],"rows":[["15s"]]}},
-      {"sql":"select set_config('statement_timeout', $1, true)","params":["15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"select current_setting('statement_timeout') as value","result":{"command":"SELECT","rowCount":1,"columns":[["value",25]],"rows":[["1s"]]}},
+      {"sql":"select set_config('statement_timeout', $1, true)","params":["1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
       {"sql":"select \"t\".\"status\" as \"value\", count(*)::text as \"n\" from \"companies\" as \"t\" where \"t\".\"deleted_at\" is null and \"t\".\"organization_id\" = $1 and \"t\".\"status\" = $2 group by \"t\".\"status\" order by count(*) desc, \"t\".\"status\" asc limit $3","params":["1","open","100"],"result":{"command":"SELECT","rowCount":1,"columns":[["value",25],["n",25]],"rows":[["open","990"]]}},
-      {"sql":"select set_config('statement_timeout', $1, true)","params":["15s"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"select set_config('statement_timeout', $1, true)","params":["1s"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select count(*)::text n from companies where organization_id = 1 and deleted_at is null and status = 'open'","result":{"command":"SELECT","rowCount":1,"columns":[["n",25]],"rows":[["990"]]}},
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
-      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
       {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
-      {"sql":"select current_setting('statement_timeout') as value","result":{"command":"SELECT","rowCount":1,"columns":[["value",25]],"rows":[["15s"]]}},
-      {"sql":"select set_config('statement_timeout', $1, true)","params":["15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"select current_setting('statement_timeout') as value","result":{"command":"SELECT","rowCount":1,"columns":[["value",25]],"rows":[["1s"]]}},
+      {"sql":"select set_config('statement_timeout', $1, true)","params":["1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
       {"sql":"select \"t\".\"status\" as \"value\", count(*)::text as \"n\", avg(\"t\".\"revenue\")::text as \"m\" from \"companies\" as \"t\" where \"t\".\"deleted_at\" is null and \"t\".\"organization_id\" = $1 group by \"t\".\"status\" order by avg(\"t\".\"revenue\") desc nulls last, \"t\".\"status\" asc limit $2","params":["2","100"],"result":{"command":"SELECT","rowCount":3,"columns":[["value",25],["n",25],["m",25]],"rows":[
         ["open","165","250.2000000000000000"],
         ["won","165","250.0000000000000000"],
         ["lost","165","249.8000000000000000"]
       ]}},
-      {"sql":"select set_config('statement_timeout', $1, true)","params":["15s"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"select set_config('statement_timeout', $1, true)","params":["1s"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
     ]
   },
   ":aggregate > buckets a date field, empty buckets included, with the measure": {
     "(hooks)#0": [
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
-      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
       {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"\n    with b as (\n      select generate_series(date_trunc('day', ($1::timestamptz at time zone $2::text)), date_trunc('day', ($3::timestamptz at time zone $4::text) - interval '1 microsecond'), '1 day'::interval) as bucket\n    ), c as ((select date_trunc('day', (\"t\".\"created_at\"::timestamptz at time zone $5::text)) as \"bucket\", count(*)::text as \"n\", sum(\"t\".\"revenue\")::text as \"m\" from \"companies\" as \"t\" where \"t\".\"deleted_at\" is null and \"t\".\"organization_id\" = $6 and \"t\".\"created_at\" >= $7::timestamptz and \"t\".\"created_at\" < $8::timestamptz group by 1))\n    select to_char(b.bucket, 'YYYY-MM-DD\"T\"HH24:MI:SS') as bucket, coalesce(c.n, '0') as n, c.m\n    from b left join c on c.bucket = b.bucket\n    order by b.bucket\n  ","params":["2026-01-01T00:00:00Z","UTC","2026-01-04T00:00:00Z","UTC","UTC","1","2026-01-01T00:00:00Z","2026-01-04T00:00:00Z"],"result":{"command":"SELECT","rowCount":3,"columns":[["bucket",25],["n",25],["m",25]],"rows":[
         ["2026-01-01T00:00:00","0",null],
@@ -102,12 +102,12 @@
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select count(*)::text n, sum(revenue)::text m from companies where organization_id = 1 and deleted_at is null and created_at >= '2026-01-02' and created_at < '2026-01-03'","result":{"command":"SELECT","rowCount":1,"columns":[["n",25],["m",25]],"rows":[["15","6015.00"]]}},
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
-      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
       {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select min(\"created_at\")::text as lowest from \"companies\" as t where \"deleted_at\" is null and \"organization_id\" = $1","params":["1"],"result":{"command":"SELECT","rowCount":1,"columns":[["lowest",25]],"rows":[["2026-01-02 00:00:00+00"]]}},
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
-      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
       {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"\n    with b as (\n      select generate_series(date_trunc('year', ($1::timestamptz at time zone $2::text)), date_trunc('year', ($3::timestamptz at time zone $4::text) - interval '1 microsecond'), '1 year'::interval) as bucket\n    ), c as ((select date_trunc('year', (\"t\".\"created_at\"::timestamptz at time zone $5::text)) as \"bucket\", count(*)::text as \"n\" from \"companies\" as \"t\" where \"t\".\"deleted_at\" is null and \"t\".\"organization_id\" = $6 and \"t\".\"created_at\" >= $7::timestamptz and \"t\".\"created_at\" < $8::timestamptz group by 1))\n    select to_char(b.bucket, 'YYYY-MM-DD\"T\"HH24:MI:SS') as bucket, coalesce(c.n, '0') as n\n    from b left join c on c.bucket = b.bucket\n    order by b.bucket\n  ","params":["2026-01-02 00:00:00+00","UTC","2026-08-01T00:00:00.000Z","UTC","UTC","1","2026-01-02 00:00:00+00","2026-08-01T00:00:00.000Z"],"result":{"command":"SELECT","rowCount":1,"columns":[["bucket",25],["n",25]],"rows":[["2026-01-01T00:00:00","2970"]]}},
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},
@@ -117,7 +117,7 @@
   ":aggregate > reads the maximum per minute over the last hour, a minute without records holding none": {
     "(hooks)#0": [
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
-      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
       {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"\n    with b as (\n      select generate_series(date_trunc('minute', ($1::timestamptz at time zone $2::text)), date_trunc('minute', ($3::timestamptz at time zone $4::text) - interval '1 microsecond'), '1 minute'::interval) as bucket\n    ), c as ((select date_trunc('minute', (\"t\".\"created_at\"::timestamptz at time zone $5::text)) as \"bucket\", count(*)::text as \"n\", max(\"t\".\"revenue\")::text as \"m\" from \"companies\" as \"t\" where \"t\".\"deleted_at\" is null and \"t\".\"organization_id\" = $6 and \"t\".\"created_at\" >= $7::timestamptz and \"t\".\"created_at\" < $8::timestamptz group by 1))\n    select to_char(b.bucket, 'YYYY-MM-DD\"T\"HH24:MI:SS') as bucket, coalesce(c.n, '0') as n, c.m\n    from b left join c on c.bucket = b.bucket\n    order by b.bucket\n  ","params":["2026-07-31T23:00:00.000Z","UTC","2026-08-01T00:00:00.000Z","UTC","UTC","1","2026-07-31T23:00:00.000Z","2026-08-01T00:00:00.000Z"],"result":{"command":"SELECT","rowCount":60,"columns":[["bucket",25],["n",25],["m",25]],"rows":[
         ["2026-07-31T23:00:00","0",null],
@@ -183,7 +183,7 @@
       ]}},
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
-      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
       {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"\n    with b as (\n      select generate_series(date_trunc('day', ($1::timestamptz at time zone $2::text)), date_trunc('day', ($3::timestamptz at time zone $4::text) - interval '1 microsecond'), '1 day'::interval) as bucket\n    ), c as ((select date_trunc('day', (\"t\".\"created_at\"::timestamptz at time zone $5::text)) as \"bucket\", count(*)::text as \"n\", max(\"t\".\"revenue\")::text as \"m\" from \"companies\" as \"t\" where \"t\".\"deleted_at\" is null and \"t\".\"organization_id\" = $6 and \"t\".\"created_at\" >= $7::timestamptz and \"t\".\"created_at\" < $8::timestamptz group by 1))\n    select to_char(b.bucket, 'YYYY-MM-DD\"T\"HH24:MI:SS') as bucket, coalesce(c.n, '0') as n, c.m\n    from b left join c on c.bucket = b.bucket\n    order by b.bucket\n  ","params":["2026-01-02T00:00:00Z","UTC","2026-01-03T00:00:00Z","UTC","UTC","1","2026-01-02T00:00:00Z","2026-01-03T00:00:00Z"],"result":{"command":"SELECT","rowCount":1,"columns":[["bucket",25],["n",25],["m",25]],"rows":[["2026-01-02T00:00:00","15","801.00"]]}},
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},
@@ -193,7 +193,7 @@
   ":aggregate > splits each bucket of a date field by the values of another field": {
     "(hooks)#0": [
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
-      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
       {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"\n    with b as (\n      select generate_series(date_trunc('day', ($1::timestamptz at time zone $2::text)), date_trunc('day', ($3::timestamptz at time zone $4::text) - interval '1 microsecond'), '1 day'::interval) as bucket\n    ), c as ((select date_trunc('day', (\"t\".\"created_at\"::timestamptz at time zone $5::text)) as \"bucket\", count(*)::text as \"n\", sum(\"t\".\"revenue\")::text as \"m\" from \"companies\" as \"t\" where \"t\".\"deleted_at\" is null and \"t\".\"organization_id\" = $6 and \"t\".\"created_at\" >= $7::timestamptz and \"t\".\"created_at\" < $8::timestamptz group by 1))\n    select to_char(b.bucket, 'YYYY-MM-DD\"T\"HH24:MI:SS') as bucket, coalesce(c.n, '0') as n, c.m\n    from b left join c on c.bucket = b.bucket\n    order by b.bucket\n  ","params":["2026-01-02T00:00:00Z","UTC","2026-01-04T00:00:00Z","UTC","UTC","1","2026-01-02T00:00:00Z","2026-01-04T00:00:00Z"],"result":{"command":"SELECT","rowCount":2,"columns":[["bucket",25],["n",25],["m",25]],"rows":[
         ["2026-01-02T00:00:00","15","6015.00"],
@@ -218,7 +218,7 @@
   ":aggregate > refuses what it cannot group, add up or apply": {
     "(hooks)#0": [
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
-      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
       {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}}
     ]
@@ -226,7 +226,7 @@
   ":series > buckets by day with empty buckets and a time zone": {
     "(hooks)#0": [
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
-      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
       {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"\n    with b as (\n      select generate_series(date_trunc('day', ($1::timestamptz at time zone $2::text)), date_trunc('day', ($3::timestamptz at time zone $4::text) - interval '1 microsecond'), '1 day'::interval) as bucket\n    ), c as ((select date_trunc('day', (\"t\".\"created_at\"::timestamptz at time zone $5::text)) as \"bucket\", count(*)::text as \"n\" from \"companies\" as \"t\" where \"t\".\"deleted_at\" is null and \"t\".\"organization_id\" = $6 and \"t\".\"created_at\" >= $7::timestamptz and \"t\".\"created_at\" < $8::timestamptz group by 1))\n    select to_char(b.bucket, 'YYYY-MM-DD\"T\"HH24:MI:SS') as bucket, coalesce(c.n, '0') as n\n    from b left join c on c.bucket = b.bucket\n    order by b.bucket\n  ","params":["2026-01-01T00:00:00Z","Europe/Amsterdam","2026-01-08T00:00:00Z","Europe/Amsterdam","Europe/Amsterdam","1","2026-01-01T00:00:00Z","2026-01-08T00:00:00Z"],"result":{"command":"SELECT","rowCount":8,"columns":[["bucket",25],["n",25]],"rows":[
         ["2026-01-01T00:00:00","0"],
@@ -244,7 +244,7 @@
   ":series > supports relative ranges and all": {
     "(hooks)#0": [
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
-      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
       {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"\n    with b as (\n      select generate_series(date_trunc('day', ($1::timestamptz at time zone $2::text)), date_trunc('day', ($3::timestamptz at time zone $4::text) - interval '1 microsecond'), '1 day'::interval) as bucket\n    ), c as ((select date_trunc('day', (\"t\".\"created_at\"::timestamptz at time zone $5::text)) as \"bucket\", count(*)::text as \"n\" from \"companies\" as \"t\" where \"t\".\"deleted_at\" is null and \"t\".\"organization_id\" = $6 and \"t\".\"created_at\" >= $7::timestamptz and \"t\".\"created_at\" < $8::timestamptz group by 1))\n    select to_char(b.bucket, 'YYYY-MM-DD\"T\"HH24:MI:SS') as bucket, coalesce(c.n, '0') as n\n    from b left join c on c.bucket = b.bucket\n    order by b.bucket\n  ","params":["2026-07-25T00:00:00.000Z","UTC","2026-08-01T00:00:00.000Z","UTC","UTC","1","2026-07-25T00:00:00.000Z","2026-08-01T00:00:00.000Z"],"result":{"command":"SELECT","rowCount":7,"columns":[["bucket",25],["n",25]],"rows":[
         ["2026-07-25T00:00:00","0"],
@@ -257,12 +257,12 @@
       ]}},
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
-      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
       {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select min(\"created_at\")::text as lowest from \"companies\" as t where \"deleted_at\" is null and \"organization_id\" = $1","params":["1"],"result":{"command":"SELECT","rowCount":1,"columns":[["lowest",25]],"rows":[["2026-01-02 00:00:00+00"]]}},
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
-      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
       {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"\n    with b as (\n      select generate_series(date_trunc('month', ($1::timestamptz at time zone $2::text)), date_trunc('month', ($3::timestamptz at time zone $4::text) - interval '1 microsecond'), '1 month'::interval) as bucket\n    ), c as ((select date_trunc('month', (\"t\".\"created_at\"::timestamptz at time zone $5::text)) as \"bucket\", count(*)::text as \"n\" from \"companies\" as \"t\" where \"t\".\"deleted_at\" is null and \"t\".\"organization_id\" = $6 and \"t\".\"created_at\" >= $7::timestamptz and \"t\".\"created_at\" < $8::timestamptz group by 1))\n    select to_char(b.bucket, 'YYYY-MM-DD\"T\"HH24:MI:SS') as bucket, coalesce(c.n, '0') as n\n    from b left join c on c.bucket = b.bucket\n    order by b.bucket\n  ","params":["2026-01-02 00:00:00+00","UTC","2026-08-01T00:00:00.000Z","UTC","UTC","1","2026-01-02 00:00:00+00","2026-08-01T00:00:00.000Z"],"result":{"command":"SELECT","rowCount":7,"columns":[["bucket",25],["n",25]],"rows":[
         ["2026-01-01T00:00:00","450"],
@@ -279,11 +279,11 @@
   ":series > rejects bad options": {
     "(hooks)#0": [
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
-      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
       {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
-      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
       {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}}
     ]
@@ -291,7 +291,7 @@
   ":histogram > buckets a numeric field": {
     "(hooks)#0": [
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
-      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
       {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select min(\"t\".\"revenue\")::float8::text as \"lo\", max(\"t\".\"revenue\")::float8::text as \"hi\" from \"companies\" as \"t\" where \"t\".\"deleted_at\" is null and \"t\".\"organization_id\" = $1 and \"t\".\"revenue\" is not null","params":["1"],"result":{"command":"SELECT","rowCount":1,"columns":[["lo",25],["hi",25]],"rows":[["1","999"]]}},
       {"sql":"select least(width_bucket(\"t\".\"revenue\"::float8, $1::float8, $2::float8, $3::int), $4::int) as \"bucket\", count(*)::text as \"n\" from \"companies\" as \"t\" where \"t\".\"deleted_at\" is null and \"t\".\"organization_id\" = $5 and \"t\".\"revenue\" is not null group by 1","params":["1","999","5","5","1"],"result":{"command":"SELECT","rowCount":5,"columns":[["bucket",23],["n",25]],"rows":[
@@ -307,7 +307,7 @@
   ":histogram > rejects non-numeric fields": {
     "(hooks)#0": [
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
-      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
       {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}}
     ]
@@ -315,7 +315,7 @@
   ":seek > returns the page at a row position, and tokens to continue from": {
     "(hooks)#0": [
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
-      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
       {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"EXPLAIN (VERBOSE, FORMAT JSON) select 1 as \"one\" from \"companies\" as \"t\" where \"t\".\"deleted_at\" is null and \"t\".\"organization_id\" = $1","params":["1"],"result":{"command":"EXPLAIN","rowCount":null,"columns":[["QUERY PLAN",114]],"rows":[["[\n  {\n    \"Plan\": {\n      \"Node Type\": \"Seq Scan\",\n      \"Parallel Aware\": false,\n      \"Async Capable\": false,\n      \"Relation Name\": \"companies\",\n      \"Schema\": \"public\",\n      \"Alias\": \"t\",\n      \"Startup Cost\": 0.00,\n      \"Total Cost\": 80.75,\n      \"Plan Rows\": 2970,\n      \"Plan Width\": 4,\n      \"Disabled\": false,\n      \"Output\": [\"1\"],\n      \"Filter\": \"((t.deleted_at IS NULL) AND (t.organization_id = 1))\"\n    }\n  }\n]"]]}},
       {"sql":"select count(*)::text as \"n\" from \"companies\" as \"t\" where \"t\".\"deleted_at\" is null and \"t\".\"organization_id\" = $1","params":["1"],"result":{"command":"SELECT","rowCount":1,"columns":[["n",25]],"rows":[["2970"]]}},
@@ -435,7 +435,7 @@
         ["1566"]
       ]}},
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
-      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
       {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select \"t\".\"id\" as \"id\", \"t\".\"organization_id\" as \"organizationId\", \"t\".\"name\" as \"name\", \"t\".\"status\" as \"status\", \"t\".\"revenue\" as \"revenue\", \"t\".\"notes\" as \"notes\", \"t\".\"meta\" as \"meta\", \"t\".\"created_at\" as \"createdAt\", \"t\".\"updated_at\" as \"updatedAt\", \"t\".\"deleted_at\" as \"deletedAt\", \"t\".\"updated_at\"::text as \"__pb_etag\", \"t\".\"created_at\"::text as \"__pb_key0\", \"t\".\"id\"::text as \"__pb_key1\" from \"companies\" as \"t\" where \"t\".\"deleted_at\" is null and \"t\".\"organization_id\" = $1 and (\"t\".\"created_at\", \"t\".\"id\") < ($2, $3) order by \"t\".\"created_at\" desc, \"t\".\"id\" desc limit $4","params":["1","2026-06-16 00:00:00+00","1566","4"],"result":{"command":"SELECT","rowCount":4,"columns":[["id",23],["organizationId",23],["name",25],["status",25],["revenue",1700],["notes",25],["meta",3802],["createdAt",1184],["updatedAt",1184],["deletedAt",1184],["__pb_etag",25],["__pb_key0",25],["__pb_key1",25]],"rows":[
         ["1366","1","Company 1366","won","366.00",null,null,"2026-06-16 00:00:00+00","2026-07-25 00:00:00+00",null,"2026-07-25 00:00:00+00","2026-06-16 00:00:00+00","1366"],
@@ -450,7 +450,7 @@
   ":seek > applies the filter and an access rule filter, and never shows rows outside the tenant": {
     "(hooks)#0": [
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
-      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
       {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
       {"repeated":0},
       {"sql":"select count(*)::text as \"n\" from \"companies\" as \"t\" where \"t\".\"deleted_at\" is null and \"t\".\"organization_id\" = $1 and \"t\".\"status\" = $2","params":["1","won"],"result":{"command":"SELECT","rowCount":1,"columns":[["n",25]],"rows":[["990"]]}},
@@ -1061,7 +1061,7 @@
       {"repeated":0},
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
-      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
       {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
       {"repeated":1},
       {"sql":"select count(*)::text as \"n\" from \"companies\" as \"t\" where \"t\".\"deleted_at\" is null and \"t\".\"organization_id\" = $1 and \"t\".\"status\" = $2","params":["1","open"],"result":{"command":"SELECT","rowCount":1,"columns":[["n",25]],"rows":[["990"]]}},
@@ -1672,7 +1672,7 @@
       {"repeated":1},
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
-      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
       {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
       {"repeated":2},
       {"sql":"select count(*)::text as \"n\" from \"companies\" as \"t\" where \"t\".\"deleted_at\" is null and \"t\".\"organization_id\" = $1","params":["2"],"result":{"command":"SELECT","rowCount":1,"columns":[["n",25]],"rows":[["495"]]}},

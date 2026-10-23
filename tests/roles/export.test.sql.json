@@ -1021,7 +1021,7 @@
         ["invoices_region_idx","btree","f","region","region","text_ops"]
       ]}},
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
-      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
       {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select \"t\".\"id\" as \"id\", \"t\".\"number\" as \"number\", \"t\".\"customer_id\" as \"customerId\", \"t\".\"region\" as \"region\", \"t\".\"total\" as \"total\", \"t\".\"paid\" as \"paid\", \"t\".\"issued_on\" as \"issuedOn\", \"t\".\"id\"::text as \"__pb_key0\" from \"invoices\" as \"t\" where \"t\".\"region\" = $1 order by \"t\".\"id\" asc limit $2","params":["north","501"],"result":{"command":"SELECT","rowCount":501,"columns":[["id",23],["number",25],["customerId",23],["region",25],["total",1700],["paid",16],["issuedOn",1082],["__pb_key0",25]],"rows":[
         ["1","INV-0001","2","north","1.50","f","2026-01-02","1"],
@@ -1533,7 +1533,7 @@
       ]}},
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
-      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
       {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select \"t\".\"id\" as \"id\", \"t\".\"number\" as \"number\", \"t\".\"customer_id\" as \"customerId\", \"t\".\"region\" as \"region\", \"t\".\"total\" as \"total\", \"t\".\"paid\" as \"paid\", \"t\".\"issued_on\" as \"issuedOn\", \"t\".\"id\"::text as \"__pb_key0\" from \"invoices\" as \"t\" where \"t\".\"region\" = $1 and (\"t\".\"id\") > ($2) order by \"t\".\"id\" asc limit $3","params":["north","666","501"],"result":{"command":"SELECT","rowCount":501,"columns":[["id",23],["number",25],["customerId",23],["region",25],["total",1700],["paid",16],["issuedOn",1082],["__pb_key0",25]],"rows":[
         ["667","INV-0667","2","north","667.50","f","2027-10-30","667"],
@@ -2045,7 +2045,7 @@
       ]}},
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
-      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
       {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select \"t\".\"id\" as \"id\", \"t\".\"number\" as \"number\", \"t\".\"customer_id\" as \"customerId\", \"t\".\"region\" as \"region\", \"t\".\"total\" as \"total\", \"t\".\"paid\" as \"paid\", \"t\".\"issued_on\" as \"issuedOn\", \"t\".\"id\"::text as \"__pb_key0\" from \"invoices\" as \"t\" where \"t\".\"region\" = $1 and (\"t\".\"id\") > ($2) order by \"t\".\"id\" asc limit $3","params":["north","1333","501"],"result":{"command":"SELECT","rowCount":200,"columns":[["id",23],["number",25],["customerId",23],["region",25],["total",1700],["paid",16],["issuedOn",1082],["__pb_key0",25]],"rows":[
         ["1334","INV-1334","1","north","1334.50","f","2029-08-27","1334"],
@@ -2260,7 +2260,7 @@
   "exporting a list through the API > stops at the limit and says more matched": {
     "(hooks)#0": [
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
-      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
       {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
       {"repeated":1},
       {"sql":"\n    select reltuples::float8 as reltuples from pg_class where oid = to_regclass($1)\n  ","params":["\"invoices\""],"result":{"command":"SELECT","rowCount":1,"columns":[["reltuples",701]],"rows":[["1600"]]}},
@@ -2270,7 +2270,7 @@
       ]}},
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
-      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
       {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
       {"repeated":2},
       {"sql":"\n    select reltuples::float8 as reltuples from pg_class where oid = to_regclass($1)\n  ","params":["\"invoices\""],"result":{"command":"SELECT","rowCount":1,"columns":[["reltuples",701]],"rows":[["1600"]]}},
@@ -2284,7 +2284,7 @@
   "exporting a list through the API > builds a workbook in the same pages": {
     "(hooks)#0": [
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
-      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
       {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
       {"repeated":1},
       {"sql":"\n    select reltuples::float8 as reltuples from pg_class where oid = to_regclass($1)\n  ","params":["\"invoices\""],"result":{"command":"SELECT","rowCount":1,"columns":[["reltuples",701]],"rows":[["1600"]]}},
@@ -2294,7 +2294,7 @@
       ]}},
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
-      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
       {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
       {"repeated":2},
       {"sql":"\n    select reltuples::float8 as reltuples from pg_class where oid = to_regclass($1)\n  ","params":["\"invoices\""],"result":{"command":"SELECT","rowCount":1,"columns":[["reltuples",701]],"rows":[["1600"]]}},
@@ -2304,7 +2304,7 @@
       ]}},
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
-      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
       {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select \"t\".\"id\" as \"id\", \"t\".\"number\" as \"number\", \"t\".\"customer_id\" as \"customerId\", \"t\".\"region\" as \"region\", \"t\".\"total\" as \"total\", \"t\".\"cost\" as \"cost\", \"t\".\"paid\" as \"paid\", \"t\".\"issued_on\" as \"issuedOn\", \"t\".\"id\"::text as \"__pb_key0\" from \"invoices\" as \"t\" where (\"t\".\"id\") > ($1) order by \"t\".\"id\" asc limit $2","params":["1000","501"],"result":{"command":"SELECT","rowCount":501,"columns":[["id",23],["number",25],["customerId",23],["region",25],["total",1700],["cost",1700],["paid",16],["issuedOn",1082],["__pb_key0",25]],"rows":[
         ["1001","INV-1001","2","north","1001.50","1001.00","f","2028-09-28","1001"],
@@ -2816,7 +2816,7 @@
       ]}},
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
-      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
       {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select \"t\".\"id\" as \"id\", \"t\".\"number\" as \"number\", \"t\".\"customer_id\" as \"customerId\", \"t\".\"region\" as \"region\", \"t\".\"total\" as \"total\", \"t\".\"cost\" as \"cost\", \"t\".\"paid\" as \"paid\", \"t\".\"issued_on\" as \"issuedOn\", \"t\".\"id\"::text as \"__pb_key0\" from \"invoices\" as \"t\" where (\"t\".\"id\") > ($1) order by \"t\".\"id\" asc limit $2","params":["1500","501"],"result":{"command":"SELECT","rowCount":100,"columns":[["id",23],["number",25],["customerId",23],["region",25],["total",1700],["cost",1700],["paid",16],["issuedOn",1082],["__pb_key0",25]],"rows":[
         ["1501","INV-1501","2","north","1501.50","1501.00","f","2030-02-10","1501"],

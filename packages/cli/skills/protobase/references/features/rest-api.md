@@ -15,7 +15,7 @@ The API every resource gets, with filters, writes, errors and the typed client.
 - [Batch writes](../reference/api.md#batch-writes): Up to 500 creates, updates, deletes and reorders across resources in one transaction.
 - [Record permissions](../reference/api.md#record-permissions): Responses say which records and fields the caller may change.
 - [Scan guard](../reference/api.md#safety): Reads that would scan a large table without an index are refused, with the index to create.
-- [Statement timeouts](../reference/api.md#safety): Every request runs with a time limit, and reads run read-only.
+- [Statement timeouts](../reference/api.md#safety): Every request's queries stop after 1 second by default, with an error that names the request, and reads run read-only.
 - [Errors](../reference/api.md#errors): Every error is a problem document with a stable type and per-field details.
 - [Audit events](../reference/api.md#audit-events): Reveals of sensitive values and organization changes are published as audit events.
 - [Error reporting](../reference/api.md#error-reporting): Server and admin app errors go to a Sentry-compatible error tracker when a DSN is set.

@@ -16,7 +16,7 @@
         ["companies_pkey","btree","f","id","id","int4_ops"]
       ]}},
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
-      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
       {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select \"t\".\"id\" as \"id\", \"t\".\"organization_id\" as \"organizationId\", \"t\".\"name\" as \"name\", \"t\".\"status\" as \"status\", \"t\".\"revenue\" as \"revenue\", \"t\".\"notes\" as \"notes\", \"t\".\"meta\" as \"meta\", \"t\".\"created_at\" as \"createdAt\", \"t\".\"updated_at\" as \"updatedAt\", \"t\".\"deleted_at\" as \"deletedAt\", \"t\".\"updated_at\"::text as \"__pb_etag\", \"t\".\"id\"::text as \"__pb_key0\" from \"companies\" as \"t\" where \"t\".\"deleted_at\" is null and \"t\".\"organization_id\" = $1 order by \"t\".\"id\" asc limit $2","params":["1","501"],"result":{"command":"SELECT","rowCount":501,"columns":[["id",23],["organizationId",23],["name",25],["status",25],["revenue",1700],["notes",25],["meta",3802],["createdAt",1184],["updatedAt",1184],["deletedAt",1184],["__pb_etag",25],["__pb_key0",25]],"rows":[
         ["1","1","Company 1","won","1.00",null,null,"2026-01-02 00:00:00+00","2026-07-25 00:00:00+00",null,"2026-07-25 00:00:00+00","1"],
@@ -525,7 +525,7 @@
       {"sql":"select count(*)::text as \"n\" from (select 1 as \"one\" from \"companies\" as \"t\" where \"t\".\"deleted_at\" is null and \"t\".\"organization_id\" = $1 limit $2) as \"found\"","params":["1","10001"],"result":{"command":"SELECT","rowCount":1,"columns":[["n",25]],"rows":[["2970"]]}},
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
-      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
       {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select \"t\".\"id\" as \"id\", \"t\".\"organization_id\" as \"organizationId\", \"t\".\"name\" as \"name\", \"t\".\"status\" as \"status\", \"t\".\"revenue\" as \"revenue\", \"t\".\"notes\" as \"notes\", \"t\".\"meta\" as \"meta\", \"t\".\"created_at\" as \"createdAt\", \"t\".\"updated_at\" as \"updatedAt\", \"t\".\"deleted_at\" as \"deletedAt\", \"t\".\"updated_at\"::text as \"__pb_etag\", \"t\".\"id\"::text as \"__pb_key0\" from \"companies\" as \"t\" where \"t\".\"deleted_at\" is null and \"t\".\"organization_id\" = $1 order by \"t\".\"id\" asc limit $2","params":["2","501"],"result":{"command":"SELECT","rowCount":495,"columns":[["id",23],["organizationId",23],["name",25],["status",25],["revenue",1700],["notes",25],["meta",3802],["createdAt",1184],["updatedAt",1184],["deletedAt",1184],["__pb_etag",25],["__pb_key0",25]],"rows":[
         ["3001","2","Company 3001","won","1.00",null,null,"2026-01-02 00:00:00+00","2026-07-25 00:00:00+00",null,"2026-07-25 00:00:00+00","3001"],
@@ -1032,30 +1032,30 @@
   "tenant isolation between two organizations > treats another tenant key as missing for read, update and delete": {
     "(hooks)#0": [
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
-      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
       {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select \"id\" as \"id\", \"organization_id\" as \"organizationId\", \"name\" as \"name\", \"status\" as \"status\", \"revenue\" as \"revenue\", \"notes\" as \"notes\", \"meta\" as \"meta\", \"created_at\" as \"createdAt\", \"updated_at\" as \"updatedAt\", \"deleted_at\" as \"deletedAt\", \"updated_at\"::text as \"__pb_etag\" from \"companies\" as t where \"deleted_at\" is null and \"organization_id\" = $1 and \"id\" = $2 limit 1","params":["1","3401"],"result":{"command":"SELECT","rowCount":0,"columns":[["id",23],["organizationId",23],["name",25],["status",25],["revenue",1700],["notes",25],["meta",3802],["createdAt",1184],["updatedAt",1184],["deletedAt",1184],["__pb_etag",25]],"rows":[]}},
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
-      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
       {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select \"id\" as \"id\", \"organization_id\" as \"organizationId\", \"name\" as \"name\", \"status\" as \"status\", \"revenue\" as \"revenue\", \"notes\" as \"notes\", \"meta\" as \"meta\", \"created_at\" as \"createdAt\", \"updated_at\" as \"updatedAt\", \"deleted_at\" as \"deletedAt\", \"updated_at\"::text as \"__pb_etag\" from \"companies\" as t where \"deleted_at\" is null and \"organization_id\" = $1 and \"id\" = $2 limit 1","params":["2","3401"],"result":{"command":"SELECT","rowCount":1,"columns":[["id",23],["organizationId",23],["name",25],["status",25],["revenue",1700],["notes",25],["meta",3802],["createdAt",1184],["updatedAt",1184],["deletedAt",1184],["__pb_etag",25]],"rows":[["3401","2","Company 3401","lost","401.00",null,null,"2026-01-02 00:00:00+00","2026-07-25 00:00:00+00",null,"2026-07-25 00:00:00+00"]]}},
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
-      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
       {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select \"id\" as \"id\", \"organization_id\" as \"organizationId\", \"name\" as \"name\", \"status\" as \"status\", \"revenue\" as \"revenue\", \"notes\" as \"notes\", \"meta\" as \"meta\", \"created_at\" as \"createdAt\", \"updated_at\" as \"updatedAt\", \"deleted_at\" as \"deletedAt\", \"updated_at\"::text as \"__pb_etag\" from \"companies\" as t where \"deleted_at\" is null and \"organization_id\" = $1 and \"id\" = $2 limit 1","params":["2","3401"],"result":{"command":"SELECT","rowCount":1,"columns":[["id",23],["organizationId",23],["name",25],["status",25],["revenue",1700],["notes",25],["meta",3802],["createdAt",1184],["updatedAt",1184],["deletedAt",1184],["__pb_etag",25]],"rows":[["3401","2","Company 3401","lost","401.00",null,null,"2026-01-02 00:00:00+00","2026-07-25 00:00:00+00",null,"2026-07-25 00:00:00+00"]]}},
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
-      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
       {"sql":"select \"id\" as \"id\", \"organization_id\" as \"organizationId\", \"name\" as \"name\", \"status\" as \"status\", \"revenue\" as \"revenue\", \"notes\" as \"notes\", \"meta\" as \"meta\", \"created_at\" as \"createdAt\", \"updated_at\" as \"updatedAt\", \"deleted_at\" as \"deletedAt\", \"updated_at\"::text as \"__pb_etag\" from \"companies\" as t where \"deleted_at\" is null and \"organization_id\" = $1 and \"id\" = $2 limit 1 for update","params":["1","3401"],"result":{"command":"SELECT","rowCount":0,"columns":[["id",23],["organizationId",23],["name",25],["status",25],["revenue",1700],["notes",25],["meta",3802],["createdAt",1184],["updatedAt",1184],["deletedAt",1184],["__pb_etag",25]],"rows":[]}},
       {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
-      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
       {"sql":"select \"id\" as \"id\", \"organization_id\" as \"organizationId\", \"name\" as \"name\", \"status\" as \"status\", \"revenue\" as \"revenue\", \"notes\" as \"notes\", \"meta\" as \"meta\", \"created_at\" as \"createdAt\", \"updated_at\" as \"updatedAt\", \"deleted_at\" as \"deletedAt\", \"updated_at\"::text as \"__pb_etag\" from \"companies\" as t where \"deleted_at\" is null and \"organization_id\" = $1 and \"id\" = $2 limit 1 for update","params":["1","3401"],"result":{"command":"SELECT","rowCount":0,"columns":[["id",23],["organizationId",23],["name",25],["status",25],["revenue",1700],["notes",25],["meta",3802],["createdAt",1184],["updatedAt",1184],["deletedAt",1184],["__pb_etag",25]],"rows":[]}},
       {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
-      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
       {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select \"id\" as \"id\", \"organization_id\" as \"organizationId\", \"name\" as \"name\", \"status\" as \"status\", \"revenue\" as \"revenue\", \"notes\" as \"notes\", \"meta\" as \"meta\", \"created_at\" as \"createdAt\", \"updated_at\" as \"updatedAt\", \"deleted_at\" as \"deletedAt\", \"updated_at\"::text as \"__pb_etag\" from \"companies\" as t where \"deleted_at\" is null and \"organization_id\" = $1 and \"id\" = $2 limit 1","params":["2","3401"],"result":{"command":"SELECT","rowCount":1,"columns":[["id",23],["organizationId",23],["name",25],["status",25],["revenue",1700],["notes",25],["meta",3802],["createdAt",1184],["updatedAt",1184],["deletedAt",1184],["__pb_etag",25]],"rows":[["3401","2","Company 3401","lost","401.00",null,null,"2026-01-02 00:00:00+00","2026-07-25 00:00:00+00",null,"2026-07-25 00:00:00+00"]]}},
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
@@ -1064,37 +1064,37 @@
   "tenant isolation between two organizations > scopes composite keys and facets": {
     "(hooks)#0": [
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
-      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
       {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select \"label_id\" as \"labelId\", \"line_no\" as \"lineNo\", \"organization_id\" as \"organizationId\", \"quantity\" as \"quantity\" from \"line_items\" as t where \"organization_id\" = $1 and \"label_id\" = $2 and \"line_no\" = $3 limit 1","params":["2","1","1"],"result":{"command":"SELECT","rowCount":0,"columns":[["labelId",23],["lineNo",23],["organizationId",23],["quantity",23]],"rows":[]}},
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
-      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
       {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select \"label_id\" as \"labelId\", \"line_no\" as \"lineNo\", \"organization_id\" as \"organizationId\", \"quantity\" as \"quantity\" from \"line_items\" as t where \"organization_id\" = $1 and \"label_id\" = $2 and \"line_no\" = $3 limit 1","params":["2","3","1"],"result":{"command":"SELECT","rowCount":1,"columns":[["labelId",23],["lineNo",23],["organizationId",23],["quantity",23]],"rows":[["3","1","2","9"]]}},
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
-      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
       {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
-      {"sql":"select current_setting('statement_timeout') as value","result":{"command":"SELECT","rowCount":1,"columns":[["value",25]],"rows":[["15s"]]}},
-      {"sql":"select set_config('statement_timeout', $1, true)","params":["15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"select current_setting('statement_timeout') as value","result":{"command":"SELECT","rowCount":1,"columns":[["value",25]],"rows":[["1s"]]}},
+      {"sql":"select set_config('statement_timeout', $1, true)","params":["1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
       {"sql":"select \"t\".\"status\" as \"value\", count(*)::text as \"n\" from \"companies\" as \"t\" where \"t\".\"deleted_at\" is null and \"t\".\"organization_id\" = $1 group by \"t\".\"status\" order by count(*) desc, \"t\".\"status\" asc limit $2","params":["2","100"],"result":{"command":"SELECT","rowCount":3,"columns":[["value",25],["n",25]],"rows":[
         ["lost","165"],
         ["open","165"],
         ["won","165"]
       ]}},
-      {"sql":"select set_config('statement_timeout', $1, true)","params":["15s"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"select set_config('statement_timeout', $1, true)","params":["1s"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
     ]
   },
   "tenant isolation between two organizations > injects the tenant on create and refuses a body that sets it": {
     "(hooks)#0": [
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
-      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
       {"sql":"insert into \"companies\" (\"name\", \"status\", \"revenue\", \"organization_id\") values ($1, $2, $3, $4) returning \"id\" as \"id\", \"organization_id\" as \"organizationId\", \"name\" as \"name\", \"status\" as \"status\", \"revenue\" as \"revenue\", \"notes\" as \"notes\", \"meta\" as \"meta\", \"created_at\" as \"createdAt\", \"updated_at\" as \"updatedAt\", \"deleted_at\" as \"deletedAt\", \"updated_at\"::text as \"__pb_etag\"","params":["Globex Co","open","0","2"],"result":{"command":"INSERT","rowCount":1,"columns":[["id",23],["organizationId",23],["name",25],["status",25],["revenue",1700],["notes",25],["meta",3802],["createdAt",1184],["updatedAt",1184],["deletedAt",1184],["__pb_etag",25]],"rows":[["3501","2","Globex Co","open","0.00",null,null,"{{now:1: :-:+00}}","{{now:1: :-:+00}}",null,"{{now:1: :-:+00}}"]]}},
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
-      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
       {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}}
     ]
   },
@@ -1103,7 +1103,7 @@
       {"sql":"select relkind from pg_class where oid = to_regclass($1)","params":["\"organizations\""],"result":{"command":"SELECT","rowCount":1,"columns":[["relkind",18]],"rows":[["r"]]}},
       {"sql":"\n    select ic.relname as name, am.amname as method, (i.indpred is not null) as partial, a.attname::text as column,\n      pg_get_indexdef(i.indexrelid, k.ord::int, true) as definition, oc.opcname::text as opclass\n    from pg_index i\n    join pg_class ic on ic.oid = i.indexrelid\n    join pg_am am on am.oid = ic.relam\n    cross join lateral unnest(i.indkey::int2[], i.indclass::oid[]) with ordinality k(attnum, opclass, ord)\n    left join pg_attribute a on a.attrelid = i.indrelid and a.attnum = k.attnum and k.attnum > 0\n    join pg_opclass oc on oc.oid = k.opclass\n    where i.indrelid = to_regclass($1) and i.indisvalid and i.indisready and k.ord <= i.indnkeyatts\n    order by ic.relname, k.ord\n  ","params":["\"organizations\""],"result":{"command":"SELECT","rowCount":1,"columns":[["name",19],["method",19],["partial",16],["column",25],["definition",25],["opclass",25]],"rows":[["organizations_pkey","btree","f","id","id","int4_ops"]]}},
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
-      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
       {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select \"t\".\"id\" as \"id\", \"t\".\"name\" as \"name\", \"t\".\"id\"::text as \"__pb_key0\" from \"organizations\" as \"t\" order by \"t\".\"id\" asc limit $1","params":["51"],"result":{"command":"SELECT","rowCount":2,"columns":[["id",23],["name",25],["__pb_key0",25]],"rows":[
         ["1","Acme","1"],

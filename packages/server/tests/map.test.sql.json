@@ -7,12 +7,12 @@
   "GET /{resource}:map > returns buckets of a grid sized for the zoom when many records are in the bounding box": {
     "(hooks)#0": [
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
-      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
       {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select count(*)::text as \"n\" from (select 1 as \"one\" from \"places\" as \"t\" where (\"t\".\"lat\" >= $1 and \"t\".\"lat\" <= $2 and \"t\".\"lng\" >= $3 and \"t\".\"lng\" <= $4) limit $5) as \"found\"","params":["50.7","53.6","3.3","7.3","201"],"result":{"command":"SELECT","rowCount":1,"columns":[["n",25]],"rows":[["201"]]}},
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
-      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
       {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select count(*)::text as \"n\", (sum(count(*)) over ())::text as \"total\", avg(\"t\".\"lat\"::float8)::text as \"latitude\", avg(\"t\".\"lng\"::float8)::text as \"longitude\", min(\"t\".\"lat\"::float8)::text as \"south\", min(\"t\".\"lng\"::float8)::text as \"west\", max(\"t\".\"lat\"::float8)::text as \"north\", max(\"t\".\"lng\"::float8)::text as \"east\" from \"places\" as \"t\" where (\"t\".\"lat\" >= $1 and \"t\".\"lat\" <= $2 and \"t\".\"lng\" >= $3 and \"t\".\"lng\" <= $4) and \"t\".\"lat\" is not null and \"t\".\"lng\" is not null group by least(floor((\"t\".\"lng\"::float8 + 180) / 360 * $5::float8), $6::float8), least(floor((1 - ln(tan(pi() / 4 + radians(least(greatest(\"t\".\"lat\"::float8, $7::float8), $8::float8)) / 2)) / pi()) / 2 * $9::float8), $10::float8) order by count(*) desc limit $11","params":["50.7","53.6","3.3","7.3","1024","1023","-85.051129","85.051129","1024","1023","1000"],"result":{"command":"SELECT","rowCount":3,"columns":[["n",25],["total",25],["latitude",25],["longitude",25],["south",25],["west",25],["north",25],["east",25]],"rows":[
         ["250","293","52.36659999999997","4.7942799999999925","52.33","4.75","52.405","4.84"],
@@ -25,7 +25,7 @@
   "GET /{resource}:map > returns the records themselves, as a list does, when few are in the bounding box": {
     "(hooks)#0": [
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
-      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
       {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select count(*)::text as \"n\" from (select 1 as \"one\" from \"places\" as \"t\" where (\"t\".\"lat\" >= $1 and \"t\".\"lat\" <= $2 and \"t\".\"lng\" >= $3 and \"t\".\"lng\" <= $4) limit $5) as \"found\"","params":["51.8","52.2","4","5.5","201"],"result":{"command":"SELECT","rowCount":1,"columns":[["n",25]],"rows":[["43"]]}},
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},
@@ -37,7 +37,7 @@
         ["places_pkey","btree","f","id","id","int4_ops"]
       ]}},
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
-      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
       {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select \"t\".\"id\" as \"id\", \"t\".\"name\" as \"name\", \"t\".\"kind\" as \"kind\", \"t\".\"lat\" as \"lat\", \"t\".\"lng\" as \"lng\", \"t\".\"raw_lat\" as \"raw_lat\", \"t\".\"id\"::text as \"__pb_key0\" from \"places\" as \"t\" where (\"t\".\"lat\" >= $1 and \"t\".\"lat\" <= $2 and \"t\".\"lng\" >= $3 and \"t\".\"lng\" <= $4) order by \"t\".\"id\" asc limit $5","params":["51.8","52.2","4","5.5","201"],"result":{"command":"SELECT","rowCount":43,"columns":[["id",23],["name",25],["kind",25],["lat",1700],["lng",1700],["raw_lat",1700],["__pb_key0",25]],"rows":[
         ["251","Utrecht 0","flat","52.090000","5.120000","0.000000","251"],
@@ -91,12 +91,12 @@
   "GET /{resource}:map > combines the bounding box with the list filter": {
     "(hooks)#0": [
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
-      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
       {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select count(*)::text as \"n\" from (select 1 as \"one\" from \"places\" as \"t\" where (\"t\".\"kind\" = $1 and \"t\".\"lat\" >= $2 and \"t\".\"lat\" <= $3 and \"t\".\"lng\" >= $4 and \"t\".\"lng\" <= $5) limit $6) as \"found\"","params":["house","50.7","53.6","3.3","7.3","201"],"result":{"command":"SELECT","rowCount":1,"columns":[["n",25]],"rows":[["53"]]}},
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
-      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
       {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select \"t\".\"id\" as \"id\", \"t\".\"name\" as \"name\", \"t\".\"kind\" as \"kind\", \"t\".\"lat\" as \"lat\", \"t\".\"lng\" as \"lng\", \"t\".\"raw_lat\" as \"raw_lat\", \"t\".\"id\"::text as \"__pb_key0\" from \"places\" as \"t\" where (\"t\".\"kind\" = $1 and \"t\".\"lat\" >= $2 and \"t\".\"lat\" <= $3 and \"t\".\"lng\" >= $4 and \"t\".\"lng\" <= $5) order by \"t\".\"id\" asc limit $6","params":["house","50.7","53.6","3.3","7.3","201"],"result":{"command":"SELECT","rowCount":53,"columns":[["id",23],["name",25],["kind",25],["lat",1700],["lng",1700],["raw_lat",1700],["__pb_key0",25]],"rows":[
         ["1","Amsterdam 0","house","52.330000","4.750000","0.000000","1"],
@@ -160,12 +160,12 @@
   "GET /{resource}:map > returns at most 200 records from zoom 16 on, and how many there are": {
     "(hooks)#0": [
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
-      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
       {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select count(*)::text as \"n\" from (select 1 as \"one\" from \"places\" as \"t\" where (\"t\".\"lat\" >= $1 and \"t\".\"lat\" <= $2 and \"t\".\"lng\" >= $3 and \"t\".\"lng\" <= $4) limit $5) as \"found\"","params":["50.7","53.6","3.3","7.3","201"],"result":{"command":"SELECT","rowCount":1,"columns":[["n",25]],"rows":[["201"]]}},
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
-      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
       {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select \"t\".\"id\" as \"id\", \"t\".\"name\" as \"name\", \"t\".\"kind\" as \"kind\", \"t\".\"lat\" as \"lat\", \"t\".\"lng\" as \"lng\", \"t\".\"raw_lat\" as \"raw_lat\", \"t\".\"id\"::text as \"__pb_key0\" from \"places\" as \"t\" where (\"t\".\"lat\" >= $1 and \"t\".\"lat\" <= $2 and \"t\".\"lng\" >= $3 and \"t\".\"lng\" <= $4) order by \"t\".\"id\" asc limit $5","params":["50.7","53.6","3.3","7.3","201"],"result":{"command":"SELECT","rowCount":201,"columns":[["id",23],["name",25],["kind",25],["lat",1700],["lng",1700],["raw_lat",1700],["__pb_key0",25]],"rows":[
         ["1","Amsterdam 0","house","52.330000","4.750000","0.000000","1"],

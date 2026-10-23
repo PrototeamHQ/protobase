@@ -69,6 +69,7 @@ import { liveRoutes } from './live/live-route'
 import { tableFeed } from './live/notice-feed'
 import { visibleNotices } from './live/visible-notices'
 import { createErrorHandler } from './error-handler'
+import { defaultStatementTimeoutMs } from './statement-timeout'
 import { errorReportingSettings } from './error-reporting/error-reporting-settings'
 import type { FilesOptions } from './files/options'
 import { fileRoutes } from './files/routes'
@@ -245,7 +246,7 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], pag
     bottomBars: bottomBarModels,
     basePath,
     systemPath,
-    statementTimeoutMs: options.statementTimeoutMs ?? 15_000,
+    statementTimeoutMs: options.statementTimeoutMs ?? defaultStatementTimeoutMs,
     guard: createScanGuard(db, options.scanGuard),
     hooks: [...(options.writeHooks ?? []), ...(table ? [subscriptionWriteCheck(registry.entries.map((entry) => entry.model))] : []), ...(fill ? [fillHook(() => deps, fill)] : [])],
     writeChecks: table?.checkUrl ? [subscriptionUrlCheck(table.checkUrl)] : [],

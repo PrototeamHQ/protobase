@@ -20,7 +20,11 @@ export type AdminOptions = {
    * `PROTOBASE_SECRET_KEY`. Without either, or with `false`, the app serves neither.
    */
   apiKeys?: ApiKeysOptions | false
-  /** Applied to every request's transaction with SET LOCAL. Default 15000. */
+  /**
+   * How long a query of an API request may run, set on every request's transaction with SET LOCAL; a query that runs
+   * longer is a 504 that names the request. Default 1000: a query that needs longer wants an index or a simpler filter,
+   * or belongs in a function or job with `longQueries`.
+   */
   statementTimeoutMs?: number
   /** Reads that filter, sort or count values by a column no index serves. Default mode `reject`. */
   scanGuard?: { mode?: ScanGuardMode }

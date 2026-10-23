@@ -16,7 +16,7 @@
         ["companies_pkey","btree","f","id","id","int4_ops"]
       ]}},
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
-      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
       {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select \"t\".\"id\" as \"id\", \"t\".\"organization_id\" as \"organizationId\", \"t\".\"name\" as \"name\", \"t\".\"status\" as \"status\", \"t\".\"revenue\" as \"revenue\", \"t\".\"notes\" as \"notes\", \"t\".\"meta\" as \"meta\", \"t\".\"created_at\" as \"createdAt\", \"t\".\"updated_at\" as \"updatedAt\", \"t\".\"deleted_at\" as \"deletedAt\", \"t\".\"updated_at\"::text as \"__pb_etag\", \"t\".\"id\"::text as \"__pb_key0\" from \"companies\" as \"t\" where \"t\".\"deleted_at\" is null and \"t\".\"organization_id\" = $1 order by \"t\".\"id\" asc limit $2","params":["2","2"],"result":{"command":"SELECT","rowCount":2,"columns":[["id",23],["organizationId",23],["name",25],["status",25],["revenue",1700],["notes",25],["meta",3802],["createdAt",1184],["updatedAt",1184],["deletedAt",1184],["__pb_etag",25],["__pb_key0",25]],"rows":[
         ["3001","2","Company 3001","won","1.00",null,null,"2026-01-02 00:00:00+00","2026-07-25 00:00:00+00",null,"2026-07-25 00:00:00+00","3001"],

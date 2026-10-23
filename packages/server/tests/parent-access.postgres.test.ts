@@ -46,7 +46,9 @@ describe.skipIf(!(await postgresTemplateReady('empty')))('parent checks on Postg
       create table vms (id integer primary key, tenant_id integer not null, owner_id text, name text not null, deleted_at timestamptz);
       create table operations (id integer generated always as identity primary key, tenant_id integer not null, vm_id integer not null references vms, kind text not null);`)
     await database.exec((await computedMigration(database.db, [vms.toModel(), operations.toModel()]))!)
-    app = createAdmin({ resources: [vms, operations], db: database.db, authenticate: testAuthenticator, options: { roles } })
+    // The writes here wait on locks for as long as the test takes to see them waiting, which a busy machine stretches
+    // past the API's default second.
+    app = createAdmin({ resources: [vms, operations], db: database.db, authenticate: testAuthenticator, options: { roles, statementTimeoutMs: 30_000 } })
   })
   afterAll(async () => { await database?.close() })
 

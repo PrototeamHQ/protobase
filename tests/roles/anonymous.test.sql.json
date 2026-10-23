@@ -17,7 +17,7 @@
         ["products_sku_idx","btree","f","sku","sku","text_ops"]
       ]}},
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
-      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
       {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select \"t\".\"id\" as \"id\", \"t\".\"name\" as \"name\", \"t\".\"price\" as \"price\", \"t\".\"name\"::text as \"__pb_key0\", \"t\".\"id\"::text as \"__pb_key1\" from \"products\" as \"t\" where \"t\".\"published\" = $1 order by \"t\".\"name\" asc, \"t\".\"id\" asc limit $2","params":["true","51"],"result":{"command":"SELECT","rowCount":2,"columns":[["id",23],["name",25],["price",1700],["__pb_key0",25],["__pb_key1",25]],"rows":[
         ["1","Bell","9.50","Bell","1"],
@@ -26,12 +26,12 @@
       {"sql":"EXPLAIN (VERBOSE, FORMAT JSON) select 1 as \"one\" from \"products\" as \"t\" where \"t\".\"published\" = $1","params":["true"],"result":{"command":"EXPLAIN","rowCount":null,"columns":[["QUERY PLAN",114]],"rows":[["[\n  {\n    \"Plan\": {\n      \"Node Type\": \"Seq Scan\",\n      \"Parallel Aware\": false,\n      \"Async Capable\": false,\n      \"Relation Name\": \"products\",\n      \"Schema\": \"public\",\n      \"Alias\": \"t\",\n      \"Startup Cost\": 0.00,\n      \"Total Cost\": 1.03,\n      \"Plan Rows\": 2,\n      \"Plan Width\": 4,\n      \"Disabled\": false,\n      \"Output\": [\"1\"],\n      \"Filter\": \"t.published\"\n    }\n  }\n]"]]}},
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
-      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
       {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select \"id\" as \"id\", \"name\" as \"name\", \"price\" as \"price\" from \"products\" as t where \"id\" = $1 and \"t\".\"published\" = $2 limit 1","params":["3","true"],"result":{"command":"SELECT","rowCount":0,"columns":[["id",23],["name",25],["price",1700]],"rows":[]}},
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
-      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
       {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select \"id\" as \"id\", \"name\" as \"name\", \"price\" as \"price\" from \"products\" as t where \"id\" = $1 and \"t\".\"published\" = $2 limit 1","params":["1","true"],"result":{"command":"SELECT","rowCount":1,"columns":[["id",23],["name",25],["price",1700]],"rows":[["1","Bell","9.50"]]}},
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}}
@@ -40,7 +40,7 @@
   "the anonymous role and field lists through the API > refuses unlisted fields in filters, sorts and field masks like unknown ones": {
     "(hooks)#0": [
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
-      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
       {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select \"t\".\"id\" as \"id\", \"t\".\"name\" as \"name\", \"t\".\"price\" as \"price\", \"t\".\"id\"::text as \"__pb_key0\" from \"products\" as \"t\" where \"t\".\"published\" = $1 and (((\"t\".\"name\"::text is not null and \"t\".\"name\"::text ilike $2))) order by \"t\".\"id\" asc limit $3","params":["true","%B-1%","51"],"result":{"command":"SELECT","rowCount":0,"columns":[["id",23],["name",25],["price",1700],["__pb_key0",25]],"rows":[]}},
       {"sql":"EXPLAIN (VERBOSE, FORMAT JSON) select 1 as \"one\" from \"products\" as \"t\" where \"t\".\"published\" = $1 and (((\"t\".\"name\"::text is not null and \"t\".\"name\"::text ilike $2)))","params":["true","%B-1%"],"result":{"command":"EXPLAIN","rowCount":null,"columns":[["QUERY PLAN",114]],"rows":[["[\n  {\n    \"Plan\": {\n      \"Node Type\": \"Seq Scan\",\n      \"Parallel Aware\": false,\n      \"Async Capable\": false,\n      \"Relation Name\": \"products\",\n      \"Schema\": \"public\",\n      \"Alias\": \"t\",\n      \"Startup Cost\": 0.00,\n      \"Total Cost\": 1.04,\n      \"Plan Rows\": 1,\n      \"Plan Width\": 4,\n      \"Disabled\": false,\n      \"Output\": [\"1\"],\n      \"Filter\": \"(t.published AND (t.name ~~* '%B-1%'::text))\"\n    }\n  }\n]"]]}},
@@ -50,7 +50,7 @@
   "the anonymous role and field lists through the API > denies writes, other resources and the system endpoints without a token": {
     "(hooks)#0": [
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
-      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
       {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select \"t\".\"id\" as \"id\", \"t\".\"name\" as \"name\", \"t\".\"price\" as \"price\", \"t\".\"id\"::text as \"__pb_key0\" from \"products\" as \"t\" where \"t\".\"published\" = $1 and \"t\".\"name\" = $2 order by \"t\".\"id\" asc limit $3","params":["true","Bike","51"],"result":{"command":"SELECT","rowCount":0,"columns":[["id",23],["name",25],["price",1700],["__pb_key0",25]],"rows":[]}},
       {"sql":"EXPLAIN (VERBOSE, FORMAT JSON) select 1 as \"one\" from \"products\" as \"t\" where \"t\".\"published\" = $1 and \"t\".\"name\" = $2","params":["true","Bike"],"result":{"command":"EXPLAIN","rowCount":null,"columns":[["QUERY PLAN",114]],"rows":[["[\n  {\n    \"Plan\": {\n      \"Node Type\": \"Seq Scan\",\n      \"Parallel Aware\": false,\n      \"Async Capable\": false,\n      \"Relation Name\": \"products\",\n      \"Schema\": \"public\",\n      \"Alias\": \"t\",\n      \"Startup Cost\": 0.00,\n      \"Total Cost\": 1.04,\n      \"Plan Rows\": 1,\n      \"Plan Width\": 4,\n      \"Disabled\": false,\n      \"Output\": [\"1\"],\n      \"Filter\": \"(t.published AND (t.name = 'Bike'::text))\"\n    }\n  }\n]"]]}},
@@ -60,7 +60,7 @@
   "the anonymous role and field lists through the API > gives an integration its listed columns and lets it write only the listed one": {
     "(hooks)#0": [
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
-      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
       {"sql":"set transaction read only","result":{"command":"SET","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select \"t\".\"id\" as \"id\", \"t\".\"sku\" as \"sku\", \"t\".\"price\" as \"price\", \"t\".\"stock\" as \"stock\", \"t\".\"sku\"::text as \"__pb_key0\", \"t\".\"id\"::text as \"__pb_key1\" from \"products\" as \"t\" order by \"t\".\"sku\" asc, \"t\".\"id\" asc limit $1","params":["51"],"result":{"command":"SELECT","rowCount":3,"columns":[["id",23],["sku",25],["price",1700],["stock",23],["__pb_key0",25],["__pb_key1",25]],"rows":[
         ["1","B-1","9.50","12","B-1","1"],
@@ -70,12 +70,12 @@
       {"sql":"\n    select reltuples::float8 as reltuples from pg_class where oid = to_regclass($1)\n  ","params":["\"products\""],"result":{"command":"SELECT","rowCount":1,"columns":[["reltuples",701]],"rows":[["3"]]}},
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
-      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
       {"sql":"select \"id\" as \"id\", \"sku\" as \"sku\", \"name\" as \"name\", \"price\" as \"price\", \"cost_price\" as \"cost_price\", \"stock\" as \"stock\", \"published\" as \"published\" from \"products\" as t where \"id\" = $1 limit 1 for update","params":["1"],"result":{"command":"SELECT","rowCount":1,"columns":[["id",23],["sku",25],["name",25],["price",1700],["cost_price",1700],["stock",23],["published",16]],"rows":[["1","B-1","Bell","9.50","4.00","12","t"]]}},
       {"sql":"update \"products\" as t set \"stock\" = $1 where \"id\" = $2 returning \"id\" as \"id\", \"sku\" as \"sku\", \"name\" as \"name\", \"price\" as \"price\", \"cost_price\" as \"cost_price\", \"stock\" as \"stock\", \"published\" as \"published\"","params":["11","1"],"result":{"command":"UPDATE","rowCount":1,"columns":[["id",23],["sku",25],["name",25],["price",1700],["cost_price",1700],["stock",23],["published",16]],"rows":[["1","B-1","Bell","9.50","4.00","11","t"]]}},
       {"sql":"commit","result":{"command":"COMMIT","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
-      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
       {"sql":"select \"id\" as \"id\", \"sku\" as \"sku\", \"name\" as \"name\", \"price\" as \"price\", \"cost_price\" as \"cost_price\", \"stock\" as \"stock\", \"published\" as \"published\" from \"products\" as t where \"id\" = $1 limit 1 for update","params":["1"],"result":{"command":"SELECT","rowCount":1,"columns":[["id",23],["sku",25],["name",25],["price",1700],["cost_price",1700],["stock",23],["published",16]],"rows":[["1","B-1","Bell","9.50","4.00","11","t"]]}},
       {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}}
     ]

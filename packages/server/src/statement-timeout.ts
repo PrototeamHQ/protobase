@@ -1,5 +1,8 @@
 import { HttpProblem } from './problem'
 
+/** How long a query of an API request may run unless the app sets `statementTimeoutMs`. */
+export const defaultStatementTimeoutMs = 1_000
+
 /**
  * How long a query of a function or job with `longQueries: true` may run: the most any query of an app may, which the
  * platform's pooler enforces as well.

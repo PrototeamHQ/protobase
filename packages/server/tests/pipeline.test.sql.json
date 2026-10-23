@@ -28,7 +28,7 @@
   "write pipeline hooks > roll the write back when a hook throws": {
     "(hooks)#0": [
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
-      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
       {"sql":"insert into \"labels\" (\"name\", \"organization_id\") values ($1, $2) returning \"id\" as \"id\", \"organization_id\" as \"organizationId\", \"name\" as \"name\", \"color\" as \"color\", \"code\" as \"code\"","params":["rolled-back","1"],"result":{"command":"INSERT","rowCount":1,"columns":[["id",23],["organizationId",23],["name",25],["color",25],["code",25]],"rows":[["5","1","rolled-back",null,"e4da3b7fbbce2345d7772b0674a318d5"]]}},
       {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}},
       {"sql":"select 1 from labels where name = 'rolled-back'","result":{"command":"SELECT","rowCount":0,"columns":[["?column?",23]],"rows":[]}}
@@ -37,7 +37,7 @@
   "write pipeline hooks > reports unexpected errors to onUnhandledError": {
     "(hooks)#0": [
       {"sql":"begin","result":{"command":"BEGIN","rowCount":null,"columns":[],"rows":[]}},
-      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","15000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["15s"]]}},
+      {"sql":"select set_config($1, $2, true)","params":["statement_timeout","1000"],"result":{"command":"SELECT","rowCount":1,"columns":[["set_config",25]],"rows":[["1s"]]}},
       {"sql":"insert into \"labels\" (\"name\", \"organization_id\") values ($1, $2) returning \"id\" as \"id\", \"organization_id\" as \"organizationId\", \"name\" as \"name\", \"color\" as \"color\", \"code\" as \"code\"","params":["x","1"],"result":{"command":"INSERT","rowCount":1,"columns":[["id",23],["organizationId",23],["name",25],["color",25],["code",25]],"rows":[["6","1","x",null,"1679091c5a880faf6fb5e6087eb1b2dc"]]}},
       {"sql":"rollback","result":{"command":"ROLLBACK","rowCount":null,"columns":[],"rows":[]}}
     ]
