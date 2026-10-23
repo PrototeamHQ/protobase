@@ -31,24 +31,28 @@ const project: ServedProject = {
 // Taken before any test serves, since a replaced global stays replaced for the rest of the file.
 const { Request, Response } = globalThis
 
+// A fresh connection per request: a pooled keep-alive connection to an earlier server that held the same port, in this
+// file or another the worker ran, gets closed unanswered instead of reaching the server under test.
+const request = (url: string, init: RequestInit = {}) => fetch(url, { ...init, keepalive: false })
+
 const env = { port: 0, databaseUrl: 'postgres://unused/app', requestLog: false, filesCleanupMinutes: 0, runJobs: true, startupChecks: true, trustedProxies: [] }
 
 describe('startServe', () => {
   it('serves /health without a token and the admin API behind the authenticator', async () => {
     const server = await startServe({ project, env, createDb: await dbFactory() })
     const base = `http://localhost:${server.port}`
-    const health = await fetch(`${base}/health`)
+    const health = await request(`${base}/health`)
     expect(health.status).toBe(200)
     expect(await health.json()).toEqual({ status: 'ok' })
-    expect((await fetch(`${base}/api/meta`)).status).toBe(401)
-    expect((await fetch(`${base}/api/meta`, { headers: { authorization: 'Bearer ok' } })).status).toBe(200)
+    expect((await request(`${base}/api/meta`)).status).toBe(401)
+    expect((await request(`${base}/api/meta`, { headers: { authorization: 'Bearer ok' } })).status).toBe(200)
     await server.close()
   })
 
   it("passes the client's address in X-Forwarded-For: the socket's peer, or what a trusted proxy forwards", async () => {
     const seen: (string | null)[] = []
     const echo: ServedProject = { config: {}, authenticate: (request) => (seen.push(request.headers.get('x-forwarded-for')), project.authenticate(request)) }
-    const meta = (port: number) => fetch(`http://127.0.0.1:${port}/api/meta`, { headers: { 'x-forwarded-for': '6.6.6.6, 203.0.113.7' } })
+    const meta = (port: number) => request(`http://127.0.0.1:${port}/api/meta`, { headers: { 'x-forwarded-for': '6.6.6.6, 203.0.113.7' } })
     const direct = await startServe({ project: echo, env, createDb: await dbFactory() })
     await meta(direct.port)
     await direct.close()
@@ -61,7 +65,7 @@ describe('startServe', () => {
   // Bun's S3 and file writes take the native Response; given another class they store its text, `[object Response]`.
   it("keeps the runtime's own Request and Response after serving a request", async () => {
     const server = await startServe({ project, env, createDb: await dbFactory() })
-    expect((await fetch(`http://localhost:${server.port}/health`)).status).toBe(200)
+    expect((await request(`http://localhost:${server.port}/health`)).status).toBe(200)
     await server.close()
     expect(globalThis.Response).toBe(Response)
     expect(globalThis.Request).toBe(Request)
@@ -74,7 +78,7 @@ describe('startServe', () => {
     expect(createDb).toHaveBeenCalledWith('postgres://unused/app')
     await server.close()
     expect(db.destroy).toHaveBeenCalledTimes(1)
-    await expect(fetch(`http://localhost:${server.port}/health`)).rejects.toThrow()
+    await expect(request(`http://localhost:${server.port}/health`)).rejects.toThrow()
   })
 
   it('uses the db the project exports and leaves closing it to the project', async () => {
@@ -138,7 +142,7 @@ describe('startServe', () => {
     const job = defineJob({ name: 'drained', run })
     const server = await startServe({ project: { ...project, db, jobs: { job } }, env: { ...env, databaseUrl: undefined, drainToken: 'operator-token' } })
     const drain = (token?: string, query = '') =>
-      fetch(`http://localhost:${server.port}/api/jobs/drain${query}`, { method: 'POST', headers: token ? { authorization: `Bearer ${token}` } : {} })
+      request(`http://localhost:${server.port}/api/jobs/drain${query}`, { method: 'POST', headers: token ? { authorization: `Bearer ${token}` } : {} })
     try {
       await sql`select jobs.enqueue('drained')`.execute(db)
       expect((await drain()).status).toBe(401)
@@ -158,13 +162,13 @@ describe('startServe', () => {
     const job = defineJob({ name: 'elsewhere', run: () => {} })
     const without = await startServe({ project: { ...project, db, jobs: { job } }, env: { ...env, databaseUrl: undefined } })
     try {
-      expect((await fetch(`http://localhost:${without.port}/api/jobs/drain`, { method: 'POST', headers: { authorization: 'Bearer ok' } })).status).toBe(404)
+      expect((await request(`http://localhost:${without.port}/api/jobs/drain`, { method: 'POST', headers: { authorization: 'Bearer ok' } })).status).toBe(404)
     } finally {
       await without.close()
     }
     const off = await startServe({ project: { ...project, db, jobs: { job } }, env: { ...env, databaseUrl: undefined, runJobs: false, drainToken: 't' } })
     try {
-      const refused = await fetch(`http://localhost:${off.port}/api/jobs/drain`, { method: 'POST', headers: { authorization: 'Bearer t' } })
+      const refused = await request(`http://localhost:${off.port}/api/jobs/drain`, { method: 'POST', headers: { authorization: 'Bearer t' } })
       expect(refused.status).toBe(409)
       expect((await refused.json()).detail).toBe('This process runs no jobs (PROTOBASE_JOBS=false); drain the one that does')
     } finally {
