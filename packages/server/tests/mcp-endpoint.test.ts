@@ -172,15 +172,15 @@ describe('the MCP endpoint', () => {
     expect(await call(app, mcp, 'get_record', { resource: 'organizations', key: created.record.id })).toEqual(created)
   })
 
-  // Ana is sales and accountant, Bo only sales.
-  const unattended = { mcp: { writes: { rolesWithoutApproval: ['accountant'] } } }
+  // A token carries the role its user acts with: Ana's first, sales; Root's, admin.
+  const unattended = { mcp: { writes: { rolesWithoutApproval: ['sales'] } } }
 
   it('writes at once for a user holding a role of rolesWithoutApproval, and asks anyone else', async () => {
     const args = { resource: 'organizations', data: { name: 'Unasked Org' } }
     const ana = await served(unattended)
     expect(await call(ana.app, ana.mcp, 'create_record', args)).toMatchObject({ record: { name: 'Unasked Org' }, etag: expect.any(String) })
-    const bo = await served(unattended, 'bo@example.com')
-    const asked = await resultOf(await modernCall(bo.app, bo.mcp, { name: 'create_record', arguments: args }, { elicitation: {} }))
+    const root = await served(unattended, 'root@example.com')
+    const asked = await resultOf(await modernCall(root.app, root.mcp, { name: 'create_record', arguments: args }, { elicitation: {} }))
     expect(asked).toMatchObject({ resultType: 'input_required', inputRequests: { approve: { method: 'elicitation/create' } } })
   })
 
