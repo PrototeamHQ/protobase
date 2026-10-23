@@ -47,7 +47,7 @@ The second argument of a handler (`c.env` in a [Hono app](#hono-apps)):
 | | |
 | --- | --- |
 | `session` | The caller: `{ user: { id, roles }, tenant? }`, from the app's `authenticate`. |
-| `records` | The app's resources, acting as the caller: `list`, `get`, `create`, `update`, `delete`. |
+| `records` | The app's resources, acting as the caller: `list`, `get`, `create`, `update`, `delete`, `softDeleteField`. |
 | `db` | The Kysely instance itself. It skips every access rule, row filter and tenant scope. |
 | `caller()` | Resolves to `{ session, records }`. Public functions use it to ask for a caller when they need one. |
 | `acceptWebSocket(events)` | Answers a WebSocket upgrade with a socket; return its response. See [WebSockets](#websockets). |
@@ -88,6 +88,7 @@ export default defineFunction({ roles: ['mechanic', 'desk'] }, async (request, {
 | `create(resource, data)` | `{ record, etag }` of the new record. |
 | `update(resource, key, data, { etag }?)` | With `etag`, it fails with `412` when the record changed after it was read. |
 | `delete(resource, key, { etag }?)` | `{ record, etag }` of the record as it was. It is a soft delete when the resource has one. |
+| `softDeleteField(resource)` | The field a delete sets when the resource has a soft delete, or `undefined` when a delete removes the record. |
 
 A refusal or a missing record rejects with the problem the REST API would answer, such as `403`, `404` or `412`. Left uncaught, that problem becomes the function's response. Each call is its own transaction. Use the [batch endpoint](../reference/api.md#batch-writes) when several writes must succeed or fail together.
 
