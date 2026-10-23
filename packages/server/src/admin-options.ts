@@ -24,7 +24,11 @@ export type AdminOptions = {
   statementTimeoutMs?: number
   /** Reads that filter, sort or count values by a column no index serves. Default mode `reject`. */
   scanGuard?: { mode?: ScanGuardMode }
-  /** Runs inside the write transaction after each create, update and delete. */
+  /**
+   * Runs inside the write transaction after each create, update and delete, with that transaction: database work only.
+   * While a hook waits on anything else, such as an HTTP call, the transaction stays open with the row locked; a job the
+   * hook enqueues does such work instead.
+   */
   writeHooks?: PipelineHook[]
   /**
    * The project's roles (from `defineRoles`): an operation without an access rule needs the matching capability. Their
