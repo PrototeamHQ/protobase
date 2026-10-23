@@ -83,7 +83,7 @@ With `--live` the app opens the running `protobase dev` instead of its own files
 protobase mobile open ios
 ```
 
-opens the generated project in Xcode, or Android Studio for `android`.
+opens the generated project in Xcode, or Android Studio for `android`. To run it from Xcode on an iPhone, pick a signing team in Signing & Capabilities, or use `protobase mobile run ios --team`.
 
 ## 6. Build a release
 
