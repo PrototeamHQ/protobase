@@ -135,6 +135,14 @@ describe('mobileBuild android', () => {
     expect(calls).toEqual([])
   })
 
+  it('refuses a plugin name that leaves node_modules before anything is removed or installed', async () => {
+    const dir = project("{ mobile: { appId: 'com.example.shop', plugins: { '../../..': 'file:../x' } } }")
+    const calls: Call[] = []
+    await expect(mobileBuild(input(dir, 'android'), () => {}, { run: fakeRun(calls), build: webBuild })).rejects.toThrow('mobile.plugins lists "../../..", which is not an npm package name')
+    expect(existsSync(path.join(dir, 'keys', 'upload.jks'))).toBe(true)
+    expect(calls).toEqual([])
+  })
+
   it('ships nothing when Gradle fails or leaves no bundle', async () => {
     for (const outcome of ['fail', 'nothing'] as const) {
       const dir = project()

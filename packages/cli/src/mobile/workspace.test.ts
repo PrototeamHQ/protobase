@@ -70,7 +70,7 @@ describe('prepareWorkspace', () => {
     writeFileSync(path.join(dir, 'keep'), '')
     const calls: string[][] = []
     const bad = workspacePackageJson({ mobileSpec: '0.14.2', plugins: { '../..': 'file:../plugin' } })
-    await expect(prepareWorkspace(ws, bad, async (command, args) => void calls.push([command, ...args]))).rejects.toThrow('mobile.plugins lists ../.., which is not an npm package name')
+    await expect(prepareWorkspace(ws, bad, async (command, args) => void calls.push([command, ...args]))).rejects.toThrow('mobile.plugins lists "../..", which is not an npm package name')
     expect(existsSync(path.join(dir, 'keep'))).toBe(true)
     expect(existsSync(ws)).toBe(true)
     expect(calls).toEqual([])
