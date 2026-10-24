@@ -40,6 +40,7 @@
     "@capacitor/cli": "8.5.3",
     "@capacitor/core": "8.5.3",
     "@capacitor/ios": "8.5.3",
+    "@capacitor/keyboard": "8.0.6",
     "@capacitor/splash-screen": "8.0.2",
     "@capawesome/capacitor-live-update": "8.7.1"
   }

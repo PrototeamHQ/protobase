@@ -21,7 +21,7 @@ describe('checkMobileConfig', () => {
   })
 
   it('refuses the packages Protobase pins, and the live-update plugin with its own reason', () => {
-    for (const name of ['@capacitor/app', '@capacitor/splash-screen', '@capacitor/core', '@capacitor/cli', '@protobase/mobile']) {
+    for (const name of ['@capacitor/app', '@capacitor/keyboard', '@capacitor/splash-screen', '@capacitor/core', '@capacitor/cli', '@protobase/mobile']) {
       expect(() => checkMobileConfig({ appId: 'com.example.shop', plugins: { [name]: '8.0.0' } })).toThrow(`mobile.plugins lists ${name}, which comes with Protobase at a fixed version`)
     }
     expect(() => checkMobileConfig({ appId: 'com.example.shop', plugins: { '@capawesome/capacitor-live-update': '8.7.1' } })).toThrow("live updates come with Protobase's updater")

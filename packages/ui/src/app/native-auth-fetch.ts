@@ -4,6 +4,7 @@ import { authBasePath, capacitorOrigin } from '@protobase/schema/internal'
 export type NativeBridge = {
   isNativePlatform(): boolean
   getPlatform(): string
+  isPluginAvailable(name: string): boolean
   nativePromise(plugin: string, method: string, options: object): Promise<unknown>
 }
 

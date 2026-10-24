@@ -6,7 +6,7 @@ const platforms = ['ios', 'android']
 
 const fakeBridge = (platform: string, answer: unknown = { status: 200, headers: { 'content-type': 'application/json' }, data: { ok: true } }) => {
   const nativePromise = vi.fn<NativeBridge['nativePromise']>(async () => answer)
-  return { bridge: { isNativePlatform: () => true, getPlatform: () => platform, nativePromise }, nativePromise }
+  return { bridge: { isNativePlatform: () => true, getPlatform: () => platform, isPluginAvailable: () => true, nativePromise }, nativePromise }
 }
 
 describe('nativeAuthFetch', () => {
