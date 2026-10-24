@@ -1,5 +1,4 @@
 import path from 'node:path'
-import { defaultAppName } from '@protobase/server'
 import type { Extension } from '../project/extensions'
 import { withoutAndroidSigning } from './android-signing'
 import { apiUrl, checkReleaseUrl, httpAllowances } from './api-origin'
@@ -9,6 +8,7 @@ import { capacitorRunner } from './capacitor'
 import { capacitorConfig, writeCapacitorConfig } from './capacitor-config'
 import { childEnv, envFileKeys, projectEnvFiles } from './child-env'
 import { runChild, type RunChild } from './child-process'
+import { deviceAppName } from './device-app-name'
 import { nativeFingerprint } from './fingerprint'
 import { generatePlatform } from './generate'
 import { loadMobileProject } from './load-project'
@@ -38,10 +38,10 @@ export type MobileInput = {
 }
 
 /** What a mobile command runs, which tests replace. */
-export type MobileDeps = { run?: RunChild; capture?: CaptureChild; build?: WebPartInput['build'] }
+export type MobileDeps = { run?: RunChild; capture?: CaptureChild; build?: WebPartInput['build']; fetch?: typeof fetch }
 
 // Generates the platform's native project from the project's config, and gives what runs Capacitor in it.
-export const prepare = async ({ projectDir, platform, api, extensions, live, release }: MobileInput, { run = runChild, build }: MobileDeps) => {
+export const prepare = async ({ projectDir, platform, api, extensions, live, release }: MobileInput, { run = runChild, build, fetch }: MobileDeps) => {
   // Taken before the project's .env and config are loaded, which may write into the environment, and without the keys
   // of the env files Bun loaded from this folder before the CLI started, nor the Android upload key's.
   const env = withoutAndroidSigning(childEnv({ ...process.env }, envFileKeys(projectEnvFiles(projectDir))))
@@ -51,6 +51,9 @@ export const prepare = async ({ projectDir, platform, api, extensions, live, rel
   const url = live === undefined ? apiUrl(api, project.auth?.issuer, platform) : new URL(`http://localhost:${live}`)
   if (release) checkReleaseUrl(url)
   const allowances = httpAllowances(url)
+  const onWarning = (message: string) => void process.stderr.write(`warning: ${message}\n`)
+  // Asked before anything is installed, so a release its server names no app stops at once.
+  const appName = await deviceAppName({ url, auth: project.auth, env: process.env, ...(release && { release }), ...(fetch && { fetch }), onWarning })
 
   const ws = workspaceDir(projectDir)
   const plugins = Object.keys(mobile.plugins ?? {})
@@ -58,10 +61,9 @@ export const prepare = async ({ projectDir, platform, api, extensions, live, rel
   checkInstalledPlugins(ws, plugins)
   checkPinnedNative(ws)
 
-  if (live === undefined) await buildWebPart({ projectDir, ws, extensions, apiOrigin: url.origin, ...(build && { build }), onWarning: (message) => process.stderr.write(`warning: ${message}\n`) })
+  if (live === undefined) await buildWebPart({ projectDir, ws, extensions, apiOrigin: url.origin, ...(build && { build }), onWarning })
   else await placeholderWebPart(ws)
   const fingerprint = nativeFingerprint(pinnedNative, mobile.plugins)
-  const appName = project.auth?.appName ?? defaultAppName
   await writeCapacitorConfig(ws, capacitorConfig({ appId: mobile.appId, appName, fingerprint, plugins, allowances, apiOrigin: url.origin, platform }))
   const cap = capacitorRunner(ws, env, run)
   await generatePlatform(ws, platform, allowances, cap)

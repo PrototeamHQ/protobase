@@ -72,6 +72,9 @@ const fakeRun = (calls: Call[], gradleOutcome: 'bundle' | 'nothing' | 'fail' = '
   }
 }
 
+// The server's web manifest, naming the app.
+const fetch = async () => Response.json({ name: 'mobile-lab' }, { headers: { 'content-type': 'application/manifest+json' } })
+
 const webBuild = async ({ outDir }: { outDir: string }) => write(path.join(outDir, 'public', 'index.html'), '<head></head>')
 
 const version = { version: '1.2.3', build: '7' }
@@ -85,7 +88,7 @@ describe('mobileBuild android', () => {
     process.env.Protobase_Android_Key_Password = keyPassword
     const calls: Call[] = []
     const out: string[] = []
-    await mobileBuild(input(dir, 'android'), (text) => void out.push(text), { run: fakeRun(calls), build: webBuild })
+    await mobileBuild(input(dir, 'android'), (text) => void out.push(text), { run: fakeRun(calls), build: webBuild, fetch })
     const gradlew = path.join(ws(dir), 'android', 'gradlew')
     expect(calls.map(short)).toEqual([
       ['npm', 'install', '--install-links', '--no-audit', '--no-fund'],
@@ -114,15 +117,16 @@ describe('mobileBuild android', () => {
 
   it('writes a config with no plain transport, no inspection and no build options', async () => {
     const dir = project()
-    await mobileBuild(input(dir, 'android'), () => {}, { run: fakeRun([]), build: webBuild })
+    await mobileBuild(input(dir, 'android'), () => {}, { run: fakeRun([]), build: webBuild, fetch })
     const config = JSON.parse(readFileSync(path.join(ws(dir), 'capacitor.config.json'), 'utf8'))
     expect(Object.keys(config).sort()).toEqual(['android', 'appId', 'appName', 'appendUserAgent', 'includePlugins', 'plugins', 'webDir'])
+    expect(config.appName).toBe('mobile-lab')
   })
 
   it('refuses a missing variable, and a server that is not https away from this machine, before npm runs', async () => {
     const dir = project("{ mobile: { appId: 'com.example.shop' }, auth: { issuer: 'http://api.example.com' } }")
     const calls: Call[] = []
-    const deps = { run: fakeRun(calls), build: webBuild }
+    const deps = { run: fakeRun(calls), build: webBuild, fetch }
     delete process.env.PROTOBASE_ANDROID_KEY_ALIAS
     const missing = mobileBuild(input(dir, 'android'), () => {}, deps)
     await expect(missing).rejects.toThrow('set PROTOBASE_ANDROID_KEY_ALIAS')
@@ -138,7 +142,7 @@ describe('mobileBuild android', () => {
   it('refuses a plugin name that leaves node_modules before anything is removed or installed', async () => {
     const dir = project("{ mobile: { appId: 'com.example.shop', plugins: { '../../..': 'file:../x' } } }")
     const calls: Call[] = []
-    await expect(mobileBuild(input(dir, 'android'), () => {}, { run: fakeRun(calls), build: webBuild })).rejects.toThrow('mobile.plugins lists "../../..", which is not an npm package name')
+    await expect(mobileBuild(input(dir, 'android'), () => {}, { run: fakeRun(calls), build: webBuild, fetch })).rejects.toThrow('mobile.plugins lists "../../..", which is not an npm package name')
     expect(existsSync(path.join(dir, 'keys', 'upload.jks'))).toBe(true)
     expect(calls).toEqual([])
   })
@@ -147,7 +151,7 @@ describe('mobileBuild android', () => {
     for (const outcome of ['fail', 'nothing'] as const) {
       const dir = project()
       const out: string[] = []
-      await expect(mobileBuild(input(dir, 'android'), (text) => void out.push(text), { run: fakeRun([], outcome), build: webBuild })).rejects.toThrow()
+      await expect(mobileBuild(input(dir, 'android'), (text) => void out.push(text), { run: fakeRun([], outcome), build: webBuild, fetch })).rejects.toThrow()
       expect(existsSync(path.join(dir, 'mobile-release')) && readdirSync(path.join(dir, 'mobile-release')).some((name) => name.endsWith('.aab'))).toBe(false)
       expect(out.join('')).not.toContain('release ')
       rmSync(root, { recursive: true, force: true })
@@ -159,7 +163,7 @@ describe('mobileBuild ios', () => {
   it('builds with Capacitor and the team, giving no child the Android upload key, and copies the ipa out', async () => {
     const dir = project()
     const calls: Call[] = []
-    await mobileBuild(input(dir, 'ios', { ios: { team: 'ABCDE12345' } }), () => {}, { run: fakeRun(calls), build: webBuild })
+    await mobileBuild(input(dir, 'ios', { ios: { team: 'ABCDE12345' } }), () => {}, { run: fakeRun(calls), build: webBuild, fetch })
     expect(calls.map(short)).toEqual([
       ['npm', 'install', '--install-links', '--no-audit', '--no-fund'],
       ['node', 'add', 'ios'],
@@ -180,14 +184,14 @@ describe('mobileBuild ios', () => {
   it('passes manual signing to Capacitor', async () => {
     const dir = project()
     const calls: Call[] = []
-    await mobileBuild(input(dir, 'ios', { ios: { team: 'ABCDE12345', manual: { certificate: 'Apple Distribution', profile: 'Shop App Store' } } }), () => {}, { run: fakeRun(calls), build: webBuild })
+    await mobileBuild(input(dir, 'ios', { ios: { team: 'ABCDE12345', manual: { certificate: 'Apple Distribution', profile: 'Shop App Store' } } }), () => {}, { run: fakeRun(calls), build: webBuild, fetch })
     expect(short(calls[2] as Call)).toEqual(['node', 'build', 'ios', '--xcode-team-id', 'ABCDE12345', '--xcode-signing-style', 'manual', '--xcode-signing-certificate', 'Apple Distribution', '--xcode-provisioning-profile', 'Shop App Store'])
   })
 
   it('refuses a release without a team or an https server before npm runs', async () => {
     const dir = project("{ mobile: { appId: 'com.example.shop' }, auth: { issuer: 'https://localhost:3000' } }")
     const calls: Call[] = []
-    const deps = { run: fakeRun(calls), build: webBuild }
+    const deps = { run: fakeRun(calls), build: webBuild, fetch }
     await expect(mobileBuild(input(dir, 'ios'), () => {}, deps)).rejects.toThrow('pass --team')
     const { api: _, ...noApi } = input(dir, 'ios', { ios: { team: 'ABCDE12345' } })
     await expect(mobileBuild(noApi, () => {}, deps)).rejects.toThrow('A release build calls its server over https')

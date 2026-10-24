@@ -7,7 +7,7 @@ An app looks like its own everywhere from three things in its project: its name,
 
 | What | Where | Used by |
 | --- | --- | --- |
-| Name | `appName` of `createAuth` ([auth configuration](/reference/auth/#configuration)), overridden at run time by `PROTOBASE_APP_NAME` | the sidebar's logo, the end of every tab title, the installed app's name, passkey and authenticator prompts, auth mail and its sender's name |
+| Name | `appName` of `createAuth` ([auth configuration](/reference/auth/#configuration)), overridden at run time by `PROTOBASE_APP_NAME` | the sidebar's logo, the end of every tab title, the installed app's name, the [mobile app](/guides/mobile-app/)'s name on the phone, passkey and authenticator prompts, auth mail and its sender's name |
 | Icon | `protobase.favicon.svg` at the project's root | the browser tab, the sidebar's logo, the installed app's icon |
 | Raster icons | optional PNGs beside the SVG, below | the iPhone home screen and Android launchers, which take no SVG |
 | Colours | `app` in `protobase.config.ts` | the installed app's title bar and its start screen |
