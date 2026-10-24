@@ -16,9 +16,10 @@ const scrollbars = stories.some((story) => story.tags.includes('scrollbars')) ? 
 
 // The error a story's play function raised, or undefined when it rendered and played.
 const playStory = async (story) => {
-  // The Storybook viewport toolbar does not apply when an iframe is opened directly, so phone stories get a phone-sized page.
+  // The Storybook viewport toolbar does not apply when an iframe is opened directly, so phone stories get a phone-sized page,
+  // and "keyboard" stories the part of an iPhone 17 above its keyboard, which the app shrinks the page to.
   // Times show in the viewer's zone, so every page has the same one, whatever the machine's, and one that is not UTC.
-  const viewport = story.tags.includes('phone') ? { width: 360, height: 740 } : { width: 1280, height: 720 }
+  const viewport = story.tags.includes('keyboard') ? { width: 402, height: 478 } : story.tags.includes('phone') ? { width: 360, height: 740 } : { width: 1280, height: 720 }
   const context = await (story.tags.includes('scrollbars') ? scrollbars : browser).newContext({ viewport, timezoneId: 'Europe/Amsterdam' })
   const base = await routeFiles(context, storybookDir)
   const page = await context.newPage()

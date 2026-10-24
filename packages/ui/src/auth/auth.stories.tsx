@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, type CSSProperties } from 'react'
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { expect, fn, userEvent, within } from 'storybook/test'
 import { signInPath, type SignInStep } from '@protobase/schema'
@@ -222,6 +222,26 @@ export const EmailCodeResent: StoryObj<EmailCodeFormProps> = {
     expect(await canvas.findByRole('status')).toHaveTextContent(text('newCodeSent'))
     expect(code).toHaveValue('')
     expect(code).toHaveFocus()
+  },
+}
+
+/**
+ * On a phone with the keyboard open, which the iOS and Android app shrink the page to the space above, the status bar
+ * still over its top: the code step shows whole between the two, with nothing to scroll to.
+ */
+export const EmailCodeAboveKeyboard: StoryObj<EmailCodeFormProps> = {
+  tags: ['play', 'keyboard'],
+  args: { email: 'sanne@veldhuis-supply.example', onSubmit: fn(), onResend: fn(), onBack: fn(), resendCooldown: 0 },
+  render: (args) => (
+    <div className="h-full" style={{ '--pb-safe-top': '62px' } as CSSProperties}>
+      <EmailCodeForm {...args} />
+    </div>
+  ),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement)
+    expect(document.documentElement.scrollHeight).toBe(window.innerHeight)
+    expect(canvas.getByRole('heading', { name: text('checkEmail') }).getBoundingClientRect().top).toBeGreaterThanOrEqual(62)
+    expect(canvas.getByRole('button', { name: 'Back to sign in' }).getBoundingClientRect().bottom).toBeLessThanOrEqual(window.innerHeight)
   },
 }
 

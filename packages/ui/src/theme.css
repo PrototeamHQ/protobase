@@ -7,6 +7,8 @@
 
 /* `dark:` follows the theme the user picked in the app, not only the system's, for the app and plugins alike. */
 @custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+/* `short:` is a page about as short as a phone's above its open keyboard, which the iOS and Android app shrink it to. */
+@custom-variant short (@media (max-height: 560px));
 @theme inline {
   --color-background: var(--background);
   --color-surface: var(--surface);
