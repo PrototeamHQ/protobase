@@ -17,7 +17,8 @@
     "LICENSE",
     "android/src/main/",
     "android/src/liveupdate/",
-    "android/build.gradle"
+    "android/build.gradle",
+    "icon"
   ],
   "nativeContract": 2,
   "capacitor": {
