@@ -64,6 +64,18 @@ describe('prepareWorkspace', () => {
     expect(copies).toEqual([{ mobile: false, camera: false }, { mobile: false, camera: true }])
   })
 
+  it('copies a plugin given as a bare path again on every run, as a file: one', async () => {
+    dir = mkdtempSync(path.join(tmpdir(), 'protobase-ws-'))
+    const copies: boolean[] = []
+    const run = async () => void copies.push(existsSync(path.join(dir, 'node_modules', 'my-plugin', 'package.json')))
+    const local = workspacePackageJson({ mobileSpec: '0.14.2', plugins: { 'my-plugin': '../my-plugin' } })
+    await prepareWorkspace(dir, local, run)
+    installed('@protobase/mobile')
+    installed('my-plugin')
+    await prepareWorkspace(dir, local, run)
+    expect(copies).toEqual([false, false])
+  })
+
   it('refuses a file: plugin whose name leaves node_modules, deleting nothing', async () => {
     dir = mkdtempSync(path.join(tmpdir(), 'protobase-ws-'))
     const ws = path.join(dir, 'project', '.protobase', 'mobile')

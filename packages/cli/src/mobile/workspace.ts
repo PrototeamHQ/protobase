@@ -4,6 +4,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { protobaseFolder } from '../project/protobase-folder'
 import { protobaseVersion } from '../version/version'
+import { isLocalSpec } from './local-spec'
 import { packageNameProblem } from './package-name'
 
 /** Where the mobile build lives in a project: npm's install of @protobase/mobile, the app's files and native projects. */
@@ -30,9 +31,9 @@ const insideModules = (dir: string, name: string) => {
 
 /**
  * Writes the workspace in `dir`, ignored by git, and installs its packages with npm when its package.json changed or
- * one of them is missing, as after an install that failed. `--install-links` copies a `file:` package and puts its
- * dependencies at the workspace's root, where Capacitor looks for them. npm keeps a `file:` copy while its spec is
- * unchanged, however its folder changed, so the copy is removed on each run and npm copies the folder again.
+ * one of them is missing, as after an install that failed. `--install-links` copies a local folder, `file:` or a bare
+ * path, and puts its dependencies at the workspace's root, where Capacitor looks for them. npm keeps that copy while
+ * its spec is unchanged, however the folder changed, so the copy is removed on each run and npm copies it again.
  */
 export const prepareWorkspace = async (dir: string, packageJson: ReturnType<typeof workspacePackageJson>, run: (command: string, args: string[]) => Promise<void>) => {
   await mkdir(dir, { recursive: true })
@@ -41,7 +42,7 @@ export const prepareWorkspace = async (dir: string, packageJson: ReturnType<type
   const content = `${JSON.stringify(packageJson, null, 2)}\n`
   const changed = !existsSync(file) || (await readFile(file, 'utf8')) !== content
   for (const [name, spec] of Object.entries(packageJson.dependencies)) {
-    if (!spec.startsWith('file:')) continue
+    if (!isLocalSpec(spec)) continue
     await rm(insideModules(dir, name), { recursive: true, force: true })
   }
   const missing = Object.keys(packageJson.dependencies).some((name) => !existsSync(path.join(dir, 'node_modules', name, 'package.json')))
