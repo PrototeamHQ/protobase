@@ -14,13 +14,28 @@ export type StoredInvitation = {
   inviterId: string
 }
 
+type InvitationRow = Omit<StoredInvitation, 'appRoles'> & { appRoles?: unknown }
+
+const findInvitation = (context: AuthContext, id: string) => context.adapter.findOne<InvitationRow>({ model: 'invitation', where: [{ field: 'id', value: id }] })
+
+const pending = (row: InvitationRow): StoredInvitation => {
+  if (row.status !== 'pending' || new Date(row.expiresAt).getTime() < Date.now()) throw new APIError('BAD_REQUEST', invalidInvitation)
+  return { ...row, appRoles: parseAppRoles(row.appRoles) }
+}
+
 /** The pending invitation an emailed link's token names, or a 400 `INVITATION_INVALID`. */
 export const invitationOfToken = async (context: AuthContext, token: string): Promise<StoredInvitation> => {
   const id = invitationIdOf(token)
-  const row = id && (await context.adapter.findOne<Omit<StoredInvitation, 'appRoles'> & { appRoles?: unknown }>({ model: 'invitation', where: [{ field: 'id', value: id }] }))
+  const row = id && (await findInvitation(context, id))
   if (!row || !(await verifyInvitationToken(context.secret, token, row))) throw new APIError('BAD_REQUEST', invalidInvitation)
-  if (row.status !== 'pending' || new Date(row.expiresAt).getTime() < Date.now()) throw new APIError('BAD_REQUEST', invalidInvitation)
-  return { ...row, appRoles: parseAppRoles(row.appRoles) }
+  return pending(row)
+}
+
+/** The pending invitation of `id`, or a 400 `INVITATION_INVALID`; only its own address may accept it (`acceptInvitation`). */
+export const invitationOfId = async (context: AuthContext, id: string): Promise<StoredInvitation> => {
+  const row = await findInvitation(context, id)
+  if (!row) throw new APIError('BAD_REQUEST', invalidInvitation)
+  return pending(row)
 }
 
 /**
