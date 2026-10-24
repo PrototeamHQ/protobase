@@ -65,3 +65,18 @@ describe('checkTokenStanding', () => {
     expect(await standing({ user: [alice] }, { organizationId: '1' }, true)).toBe(401)
   })
 })
+
+describe('the sign-in a token stands for', () => {
+  const signIn = (row: Record<string, unknown>, claims: Partial<Parameters<typeof checkTokenStanding>[1]> = { sessionId: 's1' }) =>
+    checkTokenStanding(contextWith({ user: [alice], session: [row] }), { userId: 'alice', roles: ['admin'], ...claims }, false, now)
+
+  it('is the user\'s own when the session row names no staff, and staff\'s when it does', async () => {
+    expect(await signIn({ ...session, impersonatedBy: null })).toEqual({ session: 's1', staff: false })
+    expect(await signIn({ ...session, impersonatedBy: 'alex@operator.example' })).toEqual({ session: 's1', staff: true })
+  })
+
+  it('is unknown for a row read without the staff field, and for a token without a session', async () => {
+    expect(await signIn(session)).toBeUndefined()
+    expect(await signIn({ ...session, impersonatedBy: null }, {})).toBeUndefined()
+  })
+})
