@@ -1,13 +1,13 @@
 import { describe, expect, it } from 'vitest'
 import type { Session } from '../types'
-import { ownDeviceUser } from './caller'
+import { ownSignInUser } from './caller'
 
 const own: Session = { user: { id: 'a', roles: ['user'] }, signIn: { session: 's1', staff: false } }
 
-describe('ownDeviceUser', () => {
+describe('ownSignInUser', () => {
   it("is the user of someone signed in as themselves, as text", () => {
-    expect(ownDeviceUser(own)).toBe('a')
-    expect(ownDeviceUser({ ...own, user: { id: 7, roles: [] }, signIn: { staff: false } })).toBe('7')
+    expect(ownSignInUser(own)).toBe('a')
+    expect(ownSignInUser({ ...own, user: { id: 7, roles: [] }, signIn: { staff: false } })).toBe('7')
   })
 
   it.each([
@@ -17,6 +17,6 @@ describe('ownDeviceUser', () => {
     ['a session not marked as a sign-in, such as an issued token or a trusted app', { user: own.user }],
     ['a session without a user id', { ...own, user: { id: '', roles: [] } }],
   ])('refuses %s', (_, session) => {
-    expect(() => ownDeviceUser(session as Session)).toThrow(expect.objectContaining({ status: 403 }))
+    expect(() => ownSignInUser(session as Session)).toThrow(expect.objectContaining({ status: 403 }))
   })
 })

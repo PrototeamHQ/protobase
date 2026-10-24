@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import type { DeviceStore } from './device-store'
-import { checkNotificationsOptions, notificationsNames } from './options'
+import type { HistoryStore } from './history-store'
+import { checkNotificationsOptions, historyNames, notificationsNames } from './options'
 import { notifications } from './plugin'
+import { memoryHistoryStore } from './testing/memory-history-store'
 import { memoryDeviceStore } from './testing/memory-store'
 
 describe('notificationsNames', () => {
@@ -30,6 +32,32 @@ describe('notificationsNames', () => {
   })
 })
 
+describe('historyNames', () => {
+  it('names the table history in the notifications schema by default, and renames each part given', () => {
+    expect(historyNames()).toMatchObject({ schema: 'notifications', table: 'history', columns: { read_at: 'read_at', user_id: 'user_id' } })
+    expect(historyNames({ schema: 'push', history: { table: 'inbox', columns: { user_id: 'owner_id', read_at: 'seen_at' } } })).toMatchObject({
+      schema: 'push',
+      table: 'inbox',
+      columns: { user_id: 'owner_id', read_at: 'seen_at', title: 'title' },
+    })
+  })
+
+  it.each([
+    ['history.table', { history: { table: 'my"inbox' } }],
+    ['history.table', { history: { table: 'a;drop' } }],
+    ['history.table', { history: { table: 'public.history' } }],
+    ['history.columns.read_at', { history: { columns: { read_at: 'read at' } } }],
+    ['history.columns.title', { history: { columns: { title: 'x'.repeat(64) } } }],
+  ])('refuses a bad %s, in notifications() too', (option, options) => {
+    expect(() => historyNames(options)).toThrow(`notifications ${option} is not a valid name`)
+    expect(() => notifications(options)).toThrow(`notifications ${option} is not a valid name`)
+  })
+
+  it('refuses a column the table does not have', () => {
+    expect(() => historyNames({ history: { columns: { read: 'x' } as never } })).toThrow('history.columns names "read"')
+  })
+})
+
 describe('notifications()', () => {
   it('turns notifications on with its options', () => {
     expect(notifications({ ui: false })).toEqual({ name: 'protobase-notifications', notifications: { ui: false } })
@@ -39,5 +67,11 @@ describe('notifications()', () => {
     expect(() => checkNotificationsOptions({ store: memoryDeviceStore() })).not.toThrow()
     const { removeGone: _, ...partial } = memoryDeviceStore()
     expect(() => notifications({ store: partial as unknown as DeviceStore })).toThrow('the device store has no removeGone method')
+  })
+
+  it.each(['record', 'list', 'countUnread', 'markRead', 'markAllRead', 'removeAllForUser'] as const)('names a history store without %s', (method) => {
+    expect(() => checkNotificationsOptions({ historyStore: memoryHistoryStore() })).not.toThrow()
+    const { [method]: _, ...partial } = memoryHistoryStore()
+    expect(() => notifications({ historyStore: partial as unknown as HistoryStore })).toThrow(`the history store has no ${method} method`)
   })
 })

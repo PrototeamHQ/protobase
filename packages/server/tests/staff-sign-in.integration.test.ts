@@ -6,7 +6,8 @@ import { defaultSignInPolicy, type SignInPolicy } from '../src/better-auth/sign-
 import { createUser } from '../src/better-auth/users'
 import { createAdmin } from '../src/create-admin'
 import type { MailMessage } from '../src/mail/smtp-mailer'
-import { devicesPath } from '../src/notifications/paths'
+import { devicesPath, historyPath } from '../src/notifications/paths'
+import { memoryHistoryStore } from '../src/notifications/testing/memory-history-store'
 import { memoryDeviceStore } from '../src/notifications/testing/memory-store'
 import { operatorClient, operatorIssuer, permittedStaff, startFakeOperator } from './support/fake-oidc-provider'
 import { expectNoSessionToken } from './support/session-token'
@@ -58,9 +59,10 @@ const serve = async (options: Partial<CreateAuthOptions> = {}) => {
   })
   await createUser(auth, { email: 'root@example.com', password })
   await createUser(auth, { email: 'sanne@example.com', password, role: 'user' })
-  // Each person's devices, which only they may change.
+  // Each person's devices and notifications, which only they may change.
   const devices = memoryDeviceStore()
-  const app = createAdmin({ resources: [], db: appDb, authenticate: betterAuthAuthenticator({ auth }), auth, notifications: { store: devices } })
+  const history = memoryHistoryStore()
+  const app = createAdmin({ resources: [], db: appDb, authenticate: betterAuthAuthenticator({ auth }), auth, notifications: { store: devices, historyStore: history } })
   const address = `203.0.113.${++client}`
   // `at` is the origin the browser is on, for an app with several.
   const request = (path: string, init: { body?: unknown; cookie?: string; at?: string } = {}) =>
@@ -93,7 +95,17 @@ const serve = async (options: Partial<CreateAuthOptions> = {}) => {
       headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json', origin },
       ...(method === 'POST' && { body: JSON.stringify({ kind: 'fcm', token: 'staff-phone' }) }),
     })
-  return { auth, store, sent, operator, request, signIn, savePolicy, staffSignIn, staffSignIns, devices, tokenOf, changeDevice }
+  // Each endpoint of the notification history, with the token.
+  const callHistory = (token: string, id: string) => {
+    const headers = { authorization: `Bearer ${token}`, 'content-type': 'application/json', origin }
+    return Promise.all([
+      app.request(`${origin}${historyPath('/api')}`, { headers }),
+      app.request(`${origin}${historyPath('/api', 'unread')}`, { headers }),
+      app.request(`${origin}${historyPath('/api', { read: id })}`, { method: 'POST', headers, body: '{}' }),
+      app.request(`${origin}${historyPath('/api', 'read')}`, { method: 'POST', headers, body: JSON.stringify({ upTo: '2030-01-01T00:00:00.000Z' }) }),
+    ])
+  }
+  return { auth, store, sent, operator, request, signIn, savePolicy, staffSignIn, staffSignIns, devices, history, tokenOf, changeDevice, callHistory }
 }
 
 describe('a staff sign-in through the operator provider', () => {
@@ -288,5 +300,20 @@ describe('the guardrails of a staff sign-in', () => {
     expect((await changeDevice(staff, 'POST')).status).toBe(403)
     expect((await changeDevice(staff, 'DELETE', id)).status).toBe(403)
     expect([...devices.devices.values()]).toEqual(before)
+  })
+
+  it("cannot read the person's notifications or mark them read", async () => {
+    const { request, signIn, staffSignIn, history, tokenOf, callHistory } = await serve()
+    const cookie = await signIn('sanne@example.com')
+    const { user } = (await (await request('/get-session', { cookie })).json()) as { user: { id: string } }
+    const entry = await history.record(user.id, { title: 'New sign-in', body: null, url: null, data: null })
+    const listed = await (await callHistory(await tokenOf(cookie), entry.id))[0]!.json()
+    expect(listed.items).toEqual([expect.objectContaining({ id: entry.id })])
+    // Her own calls marked it read; unread again, it stays so for staff.
+    history.entries.get(entry.id)!.readAt = null
+
+    const { browser } = await staffSignIn()
+    for (const answer of await callHistory(await tokenOf(browser), entry.id)) expect(answer.status).toBe(403)
+    expect(history.entries.get(entry.id)!.readAt).toBeNull()
   })
 })

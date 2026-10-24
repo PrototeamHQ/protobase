@@ -30,8 +30,8 @@ export const migrationParts = (project: MigrationProject): MigrationPart[] => {
     ...(comments ? [{ name: 'comments', title: 'The comments table of the resources with comments', sql: () => commentsMigration(project.db) }] : []),
     ...(project.webhooks ? [{ name: 'webhooks', title: 'The webhook subscriptions of webhooks()', sql: () => webhooksMigration(project.db, project.webhooks, project.events) }] : []),
     // A store of the app's own keeps the devices elsewhere: nothing to write.
-    ...(project.notifications && !project.notifications.store
-      ? [{ name: 'notifications', title: 'The devices table of notifications()', sql: () => notificationsMigration(project.db, project.notifications, project.auth) }]
+    ...(project.notifications && !(project.notifications.store && project.notifications.historyStore)
+      ? [{ name: 'notifications', title: 'The tables of notifications()', sql: () => notificationsMigration(project.db, project.notifications, project.auth) }]
       : []),
   ]
 }

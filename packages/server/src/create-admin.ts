@@ -59,7 +59,9 @@ import { subscriptionUrlCheck, subscriptionWriteCheck } from './webhooks/table/v
 import type { WebhooksOptions } from './webhooks/table/options'
 import type { NotificationsOptions } from './notifications/options'
 import { deviceStore, removeDevicesWithUsers } from './notifications/device-store-of'
-import { devicesPath } from './notifications/paths'
+import { historyStore, removeHistoryWithUsers } from './notifications/history-store-of'
+import { historyRoutes } from './notifications/history-routes'
+import { devicesPath, historyPath } from './notifications/paths'
 import { deviceRoutes } from './notifications/routes'
 import { notificationSenders, webPushKey } from './notifications/senders-of'
 import type { SubscriptionDefinition } from './webhooks/subscription'
@@ -364,6 +366,9 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], pag
     const devices = deviceStore(db, notifications)
     if (auth) removeDevicesWithUsers(auth, devices)
     app.route(devicesPath(systemPath), guarded((routes) => void routes.route('/', deviceRoutes(devices))))
+    const history = historyStore(db, notifications)
+    if (auth) removeHistoryWithUsers(auth, history)
+    app.route(historyPath(systemPath), guarded((routes) => void routes.route('/', historyRoutes(history, auth?.origins ?? []))))
   }
   if (forms) app.route(`${systemPath}/forms`, formRoutes(deps, forms))
   // The notices are read only while a page or channel listens.

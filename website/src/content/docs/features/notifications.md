@@ -6,9 +6,9 @@ description: A bell in the top bar and push to browsers and phones, for what you
 - [Notifications](/reference/notifications/#turning-them-on) (in development): `extends: [notifications()]` gives every signed-in user a bell in the top bar and push to their browsers and phones; `ui: false` keeps only the backend.
 - [Devices](/reference/notifications/#devices) (in development): Each signed-in user registers their own browsers and phones to receive push, and a device moves to whoever registers it next.
 - [Your own parts](/reference/notifications/#your-own-parts) (in development): Senders, the device store, the history store and the bell can each be replaced by your own, such as a store outside the database.
-- [Table names](/reference/notifications/#table-names) (in development): The built-in stores' schema, tables and columns can be renamed, as auth's users table can.
+- [Table names](/reference/notifications/#table-names) (beta): The built-in stores' schema, tables and columns can be renamed, as auth's users table can.
 - Sending notifications (coming soon): Your code tells a user, or several, about something in the app, and each gets it in the bell and on their devices.
-- Notification history (coming soon): Every notification a user got is kept, read or unread, for the bell to list.
+- [Notification history](/reference/notifications/#history) (in development): Each user's inbox notifications are kept with when they were read, and the API lists them, counts the unread ones and marks them read.
 - [Web Push](/reference/notifications/#web-push) (in development): Notifications reach desktop and Android browsers and home-screen web apps on iPhone through Web Push, with keys you generate.
 - Push on Android (coming soon): Notifications reach the Android build of the app on a user's phones.
 - Push on iOS (coming soon): Notifications reach the iOS build of the app on a user's iPhones and iPads.

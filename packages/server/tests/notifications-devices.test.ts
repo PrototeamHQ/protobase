@@ -3,6 +3,7 @@ import { checkNotificationsSchema, notificationsMigration } from '../src/notific
 import { DeviceStoreError, postgresDeviceStore } from '../src/notifications/postgres-store'
 import type { NotificationsOptions } from '../src/notifications/options'
 import { apnsDevice, deviceStoreContract, fcmDevice, webDevice } from '../src/notifications/testing/device-store-contract'
+import { memoryHistoryStore } from '../src/notifications/testing/memory-history-store'
 import { memoryDeviceStore } from '../src/notifications/testing/memory-store'
 import { openSnapshotDb } from '../../../test-support/sql-snapshot'
 
@@ -31,7 +32,7 @@ describe('the devices table', () => {
     await checkNotificationsSchema(pg.db)
     expect(await notificationsMigration(pg.db)).toBeUndefined()
     expect(await notificationsMigration(pg.db, { store: memoryDeviceStore() })).toBeUndefined()
-    await checkNotificationsSchema(pg.db, { schema: 'elsewhere', store: memoryDeviceStore() })
+    await checkNotificationsSchema(pg.db, { schema: 'elsewhere', store: memoryDeviceStore(), historyStore: memoryHistoryStore() })
   })
 
   it('is written and used under renamed schema, table and columns', async () => {

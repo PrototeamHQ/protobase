@@ -1,12 +1,12 @@
 ---
 title: Notifications
-description: Turn on notifications, let each signed-in user register their browsers and phones, deliver to browsers with Web Push, and keep the devices in Postgres or a store of your own.
+description: Turn on notifications, let each signed-in user register their browsers and phones and read their notification history, deliver to browsers with Web Push, and keep devices and history in Postgres or stores of your own.
 ---
 
 ## Turning them on
 
 :::caution[In development]
-Nothing sends notifications yet: sending, the history, registering a browser, push on Android and iOS and the bell are coming soon.
+Nothing sends notifications yet: sending, registering a browser, push on Android and iOS and the bell are coming soon.
 :::
 
 Notifications tell a user about something in the app, in a bell in the top bar and as push on their devices. You turn them on in `protobase.config.ts`:
@@ -20,7 +20,7 @@ export default defineConfig({
 })
 ```
 
-Then run `protobase migration`, which writes the [devices table](#table-names) as a migration of the project's own, and apply it with the project's migrations. `protobase dev` and `protobase serve` refuse to start while the table is missing or lacks what notifications need, and name it. Without `notifications()` there is none of it: no endpoints, no table and no migration.
+Then run `protobase migration`, which writes the [devices and history tables](#table-names) as a migration of the project's own, and apply it with the project's migrations. `protobase dev` and `protobase serve` refuse to start while a table is missing or lacks what notifications need, and name it. Without `notifications()` there is none of it: no endpoints, no tables and no migration.
 
 The bell and push are coming soon. `notifications({ ui: false })` keeps only the backend, without the bell.
 
@@ -59,6 +59,31 @@ A device is one token, or one endpoint for a browser. Registering a device someo
 
 The path comes from `devicesPath('/api', id)`, and the name of its id parameter from `deviceIdParam`, both exported by `@protobase/server`.
 
+## History
+
+:::caution[In development]
+Nothing writes to the history until sending lands.
+:::
+
+The history is each user's inbox: every notification sent to a user with the inbox flag on is kept for them, and one sent without it is only pushed. Sending, which fills it, is coming soon. Each signed-in user reaches only their own, through the API:
+
+| Request | |
+| --- | --- |
+| `GET /api/notifications/history` | the caller's notifications, newest first: `{ items, next }` |
+| `GET /api/notifications/history/unread` | how many are unread: `{ count }`, at most 100, so show `99+` from there |
+| `POST /api/notifications/history/<id>/read` | marks the caller's notification with that id read; answers `204` whether or not the caller had it |
+| `POST /api/notifications/history/read` | marks all read up to the newest one the caller was shown: `{ "upTo": "<its createdAt>" }`, then `204` |
+
+Each item is `{ id, title, body, url, data, createdAt, readAt }`, with `readAt` `null` while unread. A notification read once keeps its first `readAt`, and marking all read leaves those read earlier as they were. Marking all read takes the `createdAt` of the newest notification the user saw, so one that arrives meanwhile stays unread.
+
+The list gives 20 at a time, or as many as `?limit=` says, up to 50. A full page's `next` is a cursor: pass it as `?cursor=` for the page after it, until `next` is `null`. A limit or cursor out of its format, and a parameter or body field the request does not take, such as a user, is a `400` that changes nothing. Both marks take JSON (`Content-Type: application/json`): marking one takes an empty body or `{}`. Answers about the history are never cached.
+
+`title` and `body` are plain text: show them as text, never as HTML. `url` is a path on the app, such as `/tasks/42`, or an absolute URL on one of the app's own origins; anything else, another site, `javascript:` or `data:`, is answered as `null`. A notification's `url` and `data` are kept until its user is removed, so leave one-time links and secrets out of inbox notifications.
+
+The same people may call them as may [register devices](#devices): only someone signed in as themselves. With Protobase's auth, deleting a user removes their history; an app that deletes users otherwise calls `historyStore(db, options).removeAllForUser(userId)` as it deletes one, with the options it gave `notifications()`.
+
+The paths come from `historyPath('/api')`, `historyPath('/api', 'unread')`, `historyPath('/api', 'read')` and `historyPath('/api', { read: id })`, and the name of the id parameter from `historyIdParam`, all exported by `@protobase/server`.
+
 ## Web Push
 
 :::caution[In development]
@@ -86,7 +111,7 @@ Each message is encrypted for its browser and signed with the key. It goes only 
 ## Your own parts
 
 :::caution[In development]
-The device store and the senders can be replaced; the history store and the bell are coming soon.
+The device store, the history store and the senders can be replaced; the bell is coming soon.
 :::
 
 The device store is an interface with a Postgres default, the [devices table](#table-names). You pass your own store to `notifications()`, such as one from a package that keeps devices elsewhere, and then no table is needed and `protobase migration` writes none:
@@ -109,6 +134,25 @@ export default defineConfig({ extends: [notifications({ store })] })
 Every method takes and returns plain data: the user id as text, and devices as `{ id, userId, kind, token, p256dh, auth, environment, appId, userAgent, createdAt, lastSeenAt }`, with `token` the endpoint for a browser. A method given an empty user id, id or token throws. `listByIds` and `removeGone` act on any user's devices, for the code that sends; the endpoints never call them. A store missing a method stops startup, naming it.
 
 When Protobase's auth deletes a user, by an admin or with `protobase users delete`, it calls the store's `removeAllForUser` before anything is deleted, so a store that throws stops the deletion, and once more afterwards. An app that deletes users otherwise calls `deviceStore(db, options).removeAllForUser(userId)` as it deletes one, with the options it gave `notifications()`.
+
+The history store is an interface with a Postgres default too, the [history table](#table-names), and you pass your own as `historyStore`:
+
+```ts
+import { defineConfig, notifications, type HistoryStore } from '@protobase/server'
+
+const historyStore: HistoryStore = {
+  record: async (userId, notification) => { /* keep it unread, created now, under a new id */ },
+  list: async (userId, { before, limit }) => [], // newest first, after `before`
+  countUnread: async (userId) => 0, // counting up to 100
+  markRead: async (userId, id) => false, // true when userId has it
+  markAllRead: async (userId, upTo) => {}, // the unread ones created up to `upTo`
+  removeAllForUser: async (userId) => {},
+}
+
+export default defineConfig({ extends: [notifications({ historyStore })] })
+```
+
+A notification is `{ id, userId, title, body, url, data, createdAt, readAt }`, and `before` is the `{ createdAt, id }` of the last one of the page before. Each method touches only the given user's notifications, and throws on an empty user id or id. An id is letters, digits, `-` and `_`, at most 64 characters, as it goes into a path. `record` keeps only what `historyLimits` allows: a title of up to 256 characters, a body and a url of up to 2048, and `data` of up to 4096 bytes of JSON. The endpoints answer with an error, showing nothing of it, when a store gives back another user's notification. A store missing a method stops startup, naming it. Deleting a user calls its `removeAllForUser` as it does the device store's; an app that deletes users otherwise calls `historyStore(db, options).removeAllForUser(userId)`.
 
 ### Senders
 
@@ -152,12 +196,12 @@ A message is plain data:
 
 `pushMessage(message)` checks a message and answers it as senders get it, or throws a `PushMessageError` that names the field at fault, never its value. Every sender gets a checked message: a `url` with any other scheme, such as `javascript:` or `data:`, or a relative one, is refused, and so is a field that is not one of the message's, a key `__proto__`, `constructor` or `prototype` anywhere in it, or text with control characters. A sender for `web` devices names the VAPID `publicKey` browsers subscribe with, which `/meta` gives every caller; it must be a P-256 public key in base64url.
 
-The history store and the bell are coming soon.
+The bell is coming soon.
 
 ## Table names
 
-:::caution[In development]
-Only the devices table exists yet: the history table comes with the notification history.
+:::caution[Beta]
+Both tables are written and checked; nothing writes to the history table until sending lands.
 :::
 
 The default store keeps devices in the table `devices` of the schema `notifications`:
@@ -183,4 +227,24 @@ notifications({
 })
 ```
 
-A name is lowercase letters, digits and `_`, at most 63 characters. Startup stops, naming what is wrong, while the table lacks a configured column, a unique index on the token column alone, which moving a device relies on, or, with Protobase's auth, the foreign key from the user column to the users table with `on delete cascade`.
+The history is kept in the table `history` of the same schema:
+
+| Column | |
+| --- | --- |
+| `id` | `uuid`, the id the endpoints answer with |
+| `user_id` | the user's id, as in the devices table; with Protobase's auth a foreign key to auth's users table, so a deleted user's history goes with them |
+| `title`, `body` | the text it shows |
+| `url` | where it leads |
+| `data` | `jsonb`, the app's own |
+| `created_at` | when it was kept |
+| `read_at` | when its user read it, `NULL` while unread |
+
+Two indexes keep a user's newest-first pages and unread count cheap. You rename its table and columns as `history.table` and `history.columns`:
+
+```ts
+notifications({
+  history: { table: 'inbox', columns: { user_id: 'owner_id', read_at: 'seen_at' } },
+})
+```
+
+A name is lowercase letters, digits and `_`, at most 63 characters. Startup stops, naming what is wrong, while a table lacks a configured column, while the devices table lacks a unique index on the token column alone, which moving a device relies on, or, with Protobase's auth, while either table lacks the foreign key from its user column to the users table with `on delete cascade`.

@@ -2,7 +2,7 @@ import { Hono, type MiddlewareHandler } from 'hono'
 import { bodyLimit } from 'hono/body-limit'
 import { HttpProblem } from '../problem'
 import type { AdminEnv } from '../types'
-import { ownDeviceUser } from './caller'
+import { ownSignInUser } from './caller'
 import type { Device } from './device'
 import { deviceInput, maxDeviceBodyBytes } from './device-input'
 import type { DeviceStore } from './device-store'
@@ -15,7 +15,7 @@ type DevicesEnv = AdminEnv & { Variables: { deviceUser: string } }
 
 // Before anything of the request is read: only the user signed in as themselves.
 const ownSignIn: MiddlewareHandler<DevicesEnv> = async (c, next) => {
-  c.set('deviceUser', ownDeviceUser(c.get('session')))
+  c.set('deviceUser', ownSignInUser(c.get('session')))
   await next()
 }
 
