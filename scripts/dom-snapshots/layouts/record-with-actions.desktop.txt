@@ -178,11 +178,11 @@ div | block
                         div .contents | contents
                           dt .text-muted-foreground | block
                           dd .truncate text-right tabular-nums text-foreground | block
-                            strong | inline
+                            span | inline
                         div .contents | contents
                           dt .text-muted-foreground | block
                           dd .truncate text-right tabular-nums text-foreground | block
-                            strong | inline
+                            span | inline
                     div .rounded-lg border border-border bg-background p-4 | block
                       h3 .mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground | block
                       dl .grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-2 | grid row nowrap normal normal

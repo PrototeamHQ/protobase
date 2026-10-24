@@ -266,7 +266,7 @@ const LoadedRecord = ({ model, recordKey, stored, preview }: LoadedRecordProps) 
         // A sidebar value stays on one line, so markdown shows as its plain-text excerpt, like a list cell
         const text = markdown ? markdownExcerpt(value) : displayValue(field, value, hint(name))
         const contact = field.type === 'text' && typeof value === 'string' && value !== '' ? contactFormat(hint(name)) : undefined
-        const builtIn = field.type === 'enum' ? <ValueBadge value={value} hints={hint(name)}>{text}</ValueBadge> : contact ? <ContactLink format={contact} value={text} /> : <strong title={valueTitle(field, value, undefined, hint(name))}>{text}</strong>
+        const builtIn = field.type === 'enum' ? <ValueBadge value={value} hints={hint(name)}>{text}</ValueBadge> : contact ? <ContactLink format={contact} value={text} /> : <span title={valueTitle(field, value, undefined, hint(name))}>{text}</span>
         const shown = shownWidget(fieldTypes, field, hint(name))
         return [{ label: hint(name)?.label ?? humanize(name), title: text, value: shown ? <WidgetPart shown={shown} part="display" field={field} value={stored.record[name]} fallback={builtIn} /> : builtIn }]
       })}
@@ -392,11 +392,12 @@ const LoadedRecord = ({ model, recordKey, stored, preview }: LoadedRecordProps) 
                 if (item.kind === 'map' && item.sidebar && !preview) return <MapSection key={`map:${index}`} item={item} record={stored.record} />
                 return index === firstSidebar ? <Fragment key="summary">{summary}</Fragment> : null
               })}
+              {/* The record's timestamps, but for those the Summary shows already */}
               <MetadataCard
                 title={text('details')}
                 rows={[auditField(model, 'created'), updatedAt].flatMap((name) => {
                   const field = name ? model.fields[name] : undefined
-                  if (!name || !field || !visible(name)) return []
+                  if (!name || !field || !visible(name) || sidebarFields.includes(name)) return []
                   return [{ label: hint(name)?.label ?? humanize(name), value: known(name) ? <span title={valueTitle(field, stored.record[name], undefined, hint(name))}>{displayValue(field, stored.record[name], hint(name))}</span> : <Skeleton className="h-4 w-24" /> }]
                 })}
               />

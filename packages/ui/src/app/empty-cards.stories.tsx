@@ -35,15 +35,38 @@ const ownersView = view<typeof owners>('owners')
   .fields((r) => ({ kind: r.kind.valueLabels({ private: 'Private', company: 'Company' }) }))
   .layout((r) => [l.section('Owner', [r.name]), l.section('Payout', [r.iban]), l.sidebar([r.kind])])
 
-const resources = [amenities.toModel(), owners.toModel()]
-const views = [view<typeof amenities>('amenities').names({ singular: 'Amenity', plural: 'Amenities' }).toModel(), ownersView.toModel()]
+// Contracts whose view shows when each was signed in the sidebar, and leases that show both timestamps there
+const timestamped = (name: string) =>
+  resource(name)
+    .table(name)
+    .fields({ id: f.integer().readOnly().filterable().sortable(), name: f.text(), created_at: f.timestamp().readOnly(), updated_at: f.timestamp().readOnly() })
+    .primaryKey((r) => r.id)
+const contracts = timestamped('contracts')
+const leases = timestamped('leases')
+const contractsView = view<typeof contracts>('contracts')
+  .title((r) => r.name)
+  .names({ singular: 'Contract', plural: 'Contracts' })
+  .fields((r) => ({ created_at: r.created_at.label('Signed') }))
+  .layout((r) => [l.section('Contract', [r.name]), l.sidebar([r.created_at])])
+const leasesView = view<typeof leases>('leases')
+  .title((r) => r.name)
+  .names({ singular: 'Lease', plural: 'Leases' })
+  .layout((r) => [l.section('Lease', [r.name]), l.sidebar([r.created_at, r.updated_at])])
+
+const resources = [amenities.toModel(), owners.toModel(), contracts.toModel(), leases.toModel()]
+const views = [view<typeof amenities>('amenities').names({ singular: 'Amenity', plural: 'Amenities' }).toModel(), ownersView.toModel(), contractsView.toModel(), leasesView.toModel()]
+const stamped = { created_at: '2024-03-01T09:00:00Z', updated_at: '2026-10-01T09:00:00Z' }
 const rows = {
   amenities: [{ code: 'balcony', name: 'Balcony', etag: '"a1"' }],
-  owners: [{ id: 1, name: 'Roos de Jong', kind: 'private', iban: 'NL91ABNA0417164300', created_at: '2024-03-01T09:00:00Z', updated_at: '2026-10-01T09:00:00Z', etag: '"o1"' }],
+  owners: [{ id: 1, name: 'Roos de Jong', kind: 'private', iban: 'NL91ABNA0417164300', ...stamped, etag: '"o1"' }],
+  contracts: [{ id: 1, name: 'Keizersgracht 12', ...stamped, etag: '"c1"' }],
+  leases: [{ id: 1, name: 'Prinsengracht 4', ...stamped, etag: '"l1"' }],
 }
 const permissions: Record<string, ResourcePermissions> = {
   amenities: { read: true, create: false, update: false, delete: false, conditional: [] },
   owners: { read: true, create: true, update: true, delete: false, conditional: [] },
+  contracts: { read: true, create: true, update: true, delete: false, conditional: [] },
+  leases: { read: true, create: true, update: true, delete: false, conditional: [] },
 }
 
 /** `fields` is what the server says this user may do with each field of the record it returns; others are hidden. */
@@ -98,5 +121,35 @@ export const HiddenFields: StoryObj = {
     // Payout holds only the hidden IBAN, the Summary only the hidden kind, Details only hidden timestamps
     expect(sections(canvasElement)).toEqual(['Owner'])
     expect(sidebarCards(canvasElement)).toEqual([])
+  },
+}
+
+const cardRows = (canvasElement: HTMLElement, title: string) => {
+  const card = within(canvasElement).getByRole('heading', { level: 3, name: title }).parentElement!
+  return [...card.querySelectorAll('dt')].map((label) => label.textContent)
+}
+
+export const SummaryTimestampNotRepeated: StoryObj = {
+  tags: ['play'],
+  render: () => <Owners path="/contracts/1" />,
+  play: async ({ canvasElement }) => {
+    await within(canvasElement).findByRole('heading', { level: 1, name: 'Keizersgracht 12' })
+    // The view shows when the contract was signed in its Summary, so Details keeps only the update
+    expect(sidebarCards(canvasElement)).toEqual(['Summary', 'Details'])
+    expect(cardRows(canvasElement, 'Summary')).toEqual(['Signed'])
+    expect(cardRows(canvasElement, 'Details')).toEqual(['Updated at'])
+    // Both cards' values take the metadata list's one style, not a weight of their own
+    expect(canvasElement.querySelector('aside dd strong')).toBeNull()
+  },
+}
+
+export const SummaryWithBothTimestamps: StoryObj = {
+  tags: ['play'],
+  render: () => <Owners path="/leases/1" />,
+  play: async ({ canvasElement }) => {
+    await within(canvasElement).findByRole('heading', { level: 1, name: 'Prinsengracht 4' })
+    // Details would only repeat the Summary, so there is none
+    expect(sidebarCards(canvasElement)).toEqual(['Summary'])
+    expect(cardRows(canvasElement, 'Summary')).toEqual(['Created at', 'Updated at'])
   },
 }
