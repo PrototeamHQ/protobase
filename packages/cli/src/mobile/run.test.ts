@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import type { ChildOptions } from './child-process'
+import { writeProtobaseIcon, writeTemplateIcon } from './native-icon-fixture'
 import { nativeDependencies } from './pinned-packages'
 import { protobasePluginClasses } from './protobase-plugin'
 import { mobileOpen, mobileRun } from './run'
@@ -45,7 +46,9 @@ const fakeRun =
       for (const [name, version] of Object.entries(nativeDependencies)) write(path.join(modules, name, 'package.json'), JSON.stringify({ name, version }))
       write(path.join(modules, '@capacitor/cli/package.json'), JSON.stringify({ name: '@capacitor/cli', version: nativeDependencies['@capacitor/cli'], bin: { cap: './bin/capacitor' } }))
       write(path.join(modules, 'native-run/package.json'), JSON.stringify({ name: 'native-run', version: '2.0.3', bin: { 'native-run': 'bin/native-run' } }))
+      writeProtobaseIcon(options.cwd)
     }
+    if (command === 'node' && args[1] === 'add') writeTemplateIcon(options.cwd, args[2] === 'ios' ? 'ios' : 'android')
     if (command === 'node' && args[1] === 'add' && args[2] === 'android') {
       write(path.join(options.cwd, 'android/app/src/main/assets/capacitor.plugins.json'), JSON.stringify(android))
     }

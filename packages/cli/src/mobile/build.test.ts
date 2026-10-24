@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { androidSigningVariables } from './android-signing'
 import { mobileBuild } from './build'
 import type { ChildOptions } from './child-process'
+import { writeProtobaseIcon, writeTemplateIcon } from './native-icon-fixture'
 import { nativeDependencies } from './pinned-packages'
 import { protobasePluginClasses } from './protobase-plugin'
 
@@ -54,8 +55,10 @@ const fakeRun = (calls: Call[], gradleOutcome: 'bundle' | 'nothing' | 'fail' = '
     write(path.join(ws, 'node_modules/@protobase/mobile/package.json'), JSON.stringify({ name: '@protobase/mobile', version: '0.14.2' }))
     for (const [name, version] of Object.entries(nativeDependencies)) write(path.join(ws, 'node_modules', name, 'package.json'), JSON.stringify({ name, version }))
     write(path.join(ws, 'node_modules/@capacitor/cli/package.json'), JSON.stringify({ name: '@capacitor/cli', version: nativeDependencies['@capacitor/cli'], bin: { cap: './bin/capacitor' } }))
+    writeProtobaseIcon(ws)
   }
   if (command === 'node' && args[1] === 'add') {
+    writeTemplateIcon(ws, args[2] === 'ios' ? 'ios' : 'android')
     if (args[2] === 'android') {
       write(path.join(ws, 'android/app/build.gradle'), gradle)
       write(path.join(ws, 'android/app/src/main/assets/capacitor.plugins.json'), JSON.stringify(protobasePluginClasses.map((classpath) => ({ pkg: '@protobase/mobile', classpath }))))
