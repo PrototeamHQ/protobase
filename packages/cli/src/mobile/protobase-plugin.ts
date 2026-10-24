@@ -40,9 +40,17 @@ export const checkProtobasePlugin = async (ws: string) => {
   throw new Error(`The Android app lacks Protobase's native plugin (${missing.join(', ')}): delete ${ws} and run the command again`)
 }
 
-/** Refuses the live updater on iOS, which has no guard yet, from the class list `cap add ios` writes. */
+/** The class of Protobase's iOS plugin, which gives the page back the bounce Capacitor turns off. */
+export const protobaseIosPlugin = 'ProtobaseBounce'
+
+/**
+ * Checks the class list `cap add ios` writes: it refuses the live updater, which has no guard on iOS yet, and an app
+ * without Protobase's iOS plugin, as a workspace left from an earlier CLI may build.
+ */
 export const checkIosPlugins = async (ws: string) => {
   const config = JSON.parse(await readFile(path.join(ws, 'ios', 'App', 'App', 'capacitor.config.json'), 'utf8')) as { packageClassList?: string[] }
-  if (!config.packageClassList?.includes('LiveUpdatePlugin')) return
-  throw new Error('The iOS app lists LiveUpdatePlugin, which has no guard against page script on iOS yet')
+  const classes = config.packageClassList ?? []
+  if (classes.includes('LiveUpdatePlugin')) throw new Error('The iOS app lists LiveUpdatePlugin, which has no guard against page script on iOS yet')
+  if (classes.includes(protobaseIosPlugin)) return
+  throw new Error(`The iOS app lacks Protobase's native plugin (${protobaseIosPlugin}): delete ${ws} and run the command again`)
 }

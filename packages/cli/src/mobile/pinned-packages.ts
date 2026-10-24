@@ -15,7 +15,7 @@ export const nativeDependencies: Record<string, string> = Object.fromEntries(Obj
  * The native code an app's binary carries from @protobase/mobile, name → version, which a native fingerprint names:
  * the native packages it pins, at their versions, and its own native code by its `nativeContract`, `native-<n>`. Never
  * its npm version, which is Protobase's: every Protobase release would cut the binaries off updates. Raise
- * `nativeContract` whenever its Android (later iOS) sources change; its test fails until it is.
+ * `nativeContract` whenever its Android or iOS sources change; its test fails until it is.
  */
 export const pinnedNative: Record<string, string> = {
   ...nativeDependencies,

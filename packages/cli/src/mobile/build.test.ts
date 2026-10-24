@@ -7,7 +7,7 @@ import { mobileBuild } from './build'
 import type { ChildOptions } from './child-process'
 import { writeProtobaseIcon, writeTemplateIcon } from './native-icon-fixture'
 import { nativeDependencies } from './pinned-packages'
-import { protobasePluginClasses } from './protobase-plugin'
+import { protobaseIosPlugin, protobasePluginClasses } from './protobase-plugin'
 
 const storePassword = 'store-pw-5f1c'
 const keyPassword = 'key-pw-9a2e'
@@ -65,7 +65,7 @@ const fakeRun = (calls: Call[], gradleOutcome: 'bundle' | 'nothing' | 'fail' = '
     } else {
       write(path.join(ws, 'ios/App/App.xcodeproj/project.pbxproj'), pbxproj)
       write(path.join(ws, 'ios/App/App/Info.plist'), '<plist version="1.0">\n<dict>\n</dict>\n</plist>\n')
-      write(path.join(ws, 'ios/App/App/capacitor.config.json'), JSON.stringify({ packageClassList: ['AppPlugin'] }))
+      write(path.join(ws, 'ios/App/App/capacitor.config.json'), JSON.stringify({ packageClassList: ['AppPlugin', protobaseIosPlugin] }))
     }
   }
   if (command === 'node' && args[1] === 'build') write(path.join(ws, 'ios/App/output/App.ipa'), 'ipa')
