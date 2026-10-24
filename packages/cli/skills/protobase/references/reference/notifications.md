@@ -63,7 +63,7 @@ The path comes from `devicesPath('/api', id)`, and the name of its id parameter 
 ## History
 
 :::caution[In development]
-Nothing writes to the history until sending lands.
+Nothing writes to the history until sending lands. <gap>The history cannot fill because sending notifications is not implemented.</gap>
 :::
 
 The history is each user's inbox: every notification sent to a user with the inbox flag on is kept for them, and one sent without it is only pushed. Sending, which fills it, is coming soon. Each signed-in user reaches only their own, through the API:
