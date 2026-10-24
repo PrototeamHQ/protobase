@@ -25,6 +25,9 @@ describe('checkMobileConfig', () => {
       expect(() => checkMobileConfig({ appId: 'com.example.shop', plugins: { [name]: '8.0.0' } })).toThrow(`mobile.plugins lists ${name}, which comes with Protobase at a fixed version`)
     }
     expect(() => checkMobileConfig({ appId: 'com.example.shop', plugins: { '@capawesome/capacitor-live-update': '8.7.1' } })).toThrow("live updates come with Protobase's updater")
+    for (const spec of ['file:../x', '../x', '/x', '~/x']) {
+      expect(() => checkMobileConfig({ appId: 'com.example.shop', plugins: { '@protobase/mobile': spec } }), spec).toThrow('which comes with Protobase at a fixed version')
+    }
   })
 
   it('refuses a plugin name that is not an npm package name, before anything joins it into a path', () => {
