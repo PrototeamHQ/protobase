@@ -72,6 +72,19 @@ describe('the organizations client', () => {
     expect(await mailed.session.organizations.invite('1', { email: 'jan@ledger.example', role: 'member', appRoles: [] })).not.toHaveProperty('link')
   })
 
+  it("lists the person's own invitations with their organization, and accepts one by its id with a new token after", async () => {
+    const raw = { id: 'i1', email: 'ana@example.com', role: 'member', appRoles: ['sales'], status: 'pending', expiresAt: '2026-10-17T00:00:00Z', organizationName: 'Acme', organizationId: '1' }
+    const { calls, session } = setup((call) => {
+      if (call.path === '/organization/list-user-invitations') return json([raw])
+      if (call.path === '/invitation/accept-own') return json({ member: { id: 'm1' } })
+      return json({ token: jwt({ org: '1' }) })
+    })
+    expect(await session.organizations.myInvitations()).toEqual([{ id: 'i1', email: 'ana@example.com', role: 'member', appRoles: ['sales'], status: 'pending', expiresAt: '2026-10-17T00:00:00.000Z', organizationName: 'Acme' }])
+    await session.organizations.acceptMine('i1')
+    expect(calls.map(({ path, method }) => `${method} ${path}`)).toEqual(['GET /organization/list-user-invitations', 'POST /invitation/accept-own', 'GET /token'])
+    expect(calls[1]!.body).toEqual({ invitationId: 'i1' })
+  })
+
   it('rejects with the server code', async () => {
     const { session } = setup(() => json({ code: 'APP_ROLE_NOT_GRANTABLE', message: 'You cannot give or take away Accountant' }, { status: 403 }))
     const error = await session.organizations.setAppRoles('m1', ['accountant']).catch((caught: unknown) => caught)

@@ -45,21 +45,31 @@ const NewOrganization = ({ basePath }: { basePath: string }) => {
   )
 }
 
-const YourInvitations = () => {
+/** The invitations for the person's own address, each to accept, which opens the app in its organization. */
+const YourInvitations = ({ basePath }: { basePath: string }) => {
   const { session, organizations } = useAuth()
   const [invitations, setInvitations] = useState<OrganizationInvitation[]>([])
+  const { busy, error, run } = useAction()
   useEffect(() => {
     void session.organizations.myInvitations().then(setInvitations, () => setInvitations([]))
   }, [session])
   if (invitations.length === 0) return null
   const roles = organizations?.roles ?? []
+  const accept = (invitationId: string) => run(async () => {
+    await session.organizations.acceptMine(invitationId)
+    reopenIn(basePath)
+  })
   return (
     <AccountSection title={text('invitationsForYou')} description={text('invitationsForYouDescription')}>
+      <SectionError message={error} />
       <ul className="divide-y rounded-md border">
         {invitations.map((invitation) => (
-          <li key={invitation.id} className="px-3 py-2.5">
-            <span className="font-medium">{invitation.organizationName ?? text('anOrganization')}</span>: {invitation.appRoles.map((name) => roleLabel(roles, name)).join(', ') || text('noAppRoles')}
-            <span className="block text-xs text-muted-foreground">{text('until', new Date(invitation.expiresAt).toLocaleDateString(formatTag()))}</span>
+          <li key={invitation.id} className="flex items-center gap-3 px-3 py-2.5">
+            <span className="min-w-0 flex-1">
+              <span className="font-medium">{invitation.organizationName ?? text('anOrganization')}</span>: {invitation.appRoles.map((name) => roleLabel(roles, name)).join(', ') || text('noAppRoles')}
+              <span className="block text-xs text-muted-foreground">{text('until', new Date(invitation.expiresAt).toLocaleDateString(formatTag()))}</span>
+            </span>
+            <Button size="sm" variant="primary" loading={busy} onClick={() => void accept(invitation.id)}>{text('accept')}</Button>
           </li>
         ))}
       </ul>
@@ -90,7 +100,7 @@ export const OrganizationsPage = ({ state, basePath }: { state: OrganizationsSta
           </ul>
         )}
       </AccountSection>
-      <YourInvitations />
+      <YourInvitations basePath={basePath} />
       {mayCreate && <NewOrganization basePath={basePath} />}
       {(state.current?.globalRoles.length ?? 0) > 0 && <AllOrganizations basePath={basePath} currentId={currentId} />}
     </div>

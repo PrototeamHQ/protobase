@@ -157,6 +157,9 @@ export const organizationsClient = (client: BetterAuthClient, refreshToken: () =
     /** Accepts an invitation signed in as its address, and works in its organization. */
     accept: async (token: string) => thenRefresh(await call<unknown>('/invitation/accept', 'Could not accept the invitation', { body: { token } })),
 
+    /** Accepts one of the person's own invitations (`myInvitations`), and works in its organization. */
+    acceptMine: async (invitationId: string) => thenRefresh(await call<unknown>('/invitation/accept-own', 'Could not accept the invitation', { body: { invitationId } })),
+
     /** Creates an account for an invited address without one, accepts the invitation and signs in; for either kind of invitation. */
     signUpFromInvitation: async (token: string, input: { name: string; password?: string }) =>
       thenRefresh(await call<unknown>('/invitation/sign-up', 'Could not create your account', { body: { token, ...input } })),

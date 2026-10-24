@@ -161,6 +161,25 @@ export const AllOrganizations: StoryObj<{ search: Organizations['search'] }> = {
   },
 }
 
+/** Someone invited to an organization sees the invitation, and accepts it there; accepting opens the app in it. */
+export const InvitationsForYou: StoryObj<{ acceptMine: Organizations['acceptMine'] }> = {
+  tags: ['play'],
+  // Never settles, so the story stays on the page instead of opening the app.
+  args: { acceptMine: fn(() => new Promise<void>(() => {})) },
+  render: (args) => (
+    <WithSession session={sessionWith({ myInvitations: async () => [{ id: 'i1', email: 'sanne@acme.example', role: 'member', appRoles: ['sales'], status: 'pending', expiresAt: '2026-10-17T09:00:00.000Z', organizationName: 'Acme' }], acceptMine: args.acceptMine })}>
+      <OrganizationsPage basePath="" state={{ organizations: [], current: { organization: null, globalRoles: [] }, reload: fn() }} />
+    </WithSession>
+  ),
+  play: async ({ canvasElement, args }) => {
+    const canvas = within(canvasElement)
+    expect(await canvas.findByText('Invitations for you')).toBeVisible()
+    expect(canvas.getByText('Acme')).toBeVisible()
+    await userEvent.click(canvas.getByRole('button', { name: 'Accept' }))
+    await waitFor(() => expect(args.acceptMine).toHaveBeenCalledWith('i1'))
+  },
+}
+
 /** Someone without a global role sees only the organizations they belong to. */
 export const NotAnAdmin: StoryObj = {
   tags: ['play'],

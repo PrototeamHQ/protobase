@@ -86,6 +86,7 @@ export const createStaticSession = (token: string, user: AuthUser = { id: 'token
     myInvitations: async () => [],
     invitation: unsupported('read an invitation'),
     accept: unsupported('accept an invitation'),
+    acceptMine: unsupported('accept an invitation'),
     signUpFromInvitation: unsupported('accept an invitation'),
   },
 })
