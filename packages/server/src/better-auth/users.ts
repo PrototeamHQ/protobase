@@ -99,13 +99,15 @@ export const listUsers = async (auth: AdminAuth): Promise<StoredUser[]> =>
     createdAt: new Date(user.createdAt).toISOString(),
   }))
 
-/** Deletes the user with their sessions and accounts; refuses to delete the last active admin. */
+/** Deletes the user with their sessions and accounts, and what `auth.userDeletion` removes; refuses to delete the last active admin. */
 export const deleteUser = async (auth: AdminAuth, email: string) => {
   const user = await findUser(auth, email)
   await refuseLastAdmin(auth, user, 'delete')
   const { internalAdapter } = await auth.$context
+  await auth.userDeletion.run(user.id)
   await internalAdapter.deleteUserSessions(user.id)
   await internalAdapter.deleteUser(user.id)
+  await auth.userDeletion.run(user.id)
 }
 
 /** Sets the role: one of the configured roles, or several separated by commas; refuses to demote the last active admin. */
