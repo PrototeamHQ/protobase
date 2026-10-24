@@ -7,6 +7,7 @@ export const features = [
   'features/start-a-project',
   'features/data-model',
   'features/access',
+  'features/secrets-and-encryption',
   'features/lists',
   'features/list-displays',
   'features/record-pages',

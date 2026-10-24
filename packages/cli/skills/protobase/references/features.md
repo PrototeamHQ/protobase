@@ -17,6 +17,7 @@ A feature without a mark is stable. The others say so after their name:
 - [Start a project](features/start-a-project.md): Start a new app, or an admin over an existing Postgres database, and keep the config in step with it.
 - [Data model](features/data-model.md): Describe the tables of an existing Postgres database as resources, with their fields, keys and rules.
 - [Access](features/access.md): Decide who may read and change which records and fields.
+- [Encryption and secrets](features/secrets-and-encryption.md): Four levels of protection for a sensitive value, from masked and audited to encrypted, and who can still read the value at each.
 - [Lists](features/lists.md): The list page of each resource, with its columns, filters, charts, search, exports and imports.
 - [List displays](features/list-displays.md): Show a list as cards, a map, a board, a calendar or a timeline, and reorder records by hand.
 - [Record pages](features/record-pages.md): The page of one record, with its sections, related records, galleries, charts and editing.
