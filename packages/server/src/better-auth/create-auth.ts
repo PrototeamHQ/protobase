@@ -31,6 +31,7 @@ import { platformSignInFor, platformSignInProvider, readPlatformSignIn, resolveP
 import { appSignInPolicy } from './app-sign-in-policy'
 import { signInPolicyPlugin } from './policy-plugin'
 import { defaultSignInPolicy, type SignInPolicy } from './sign-in-policy'
+import { assertNoEndpointKeyClashes } from './endpoint-key-clashes'
 import { emailInDomains, resolveSamlProviders, samlDisabledPaths, samlGuardPlugin, samlPlugin, type ResolvedSamlProvider, type SsoOptions } from './saml-sign-in'
 import { emailCodeOptions, twoFactorCodeOptions, unusedEmailCodePaths } from './sign-in-mail'
 import { signUpPaths, signUpPlugin } from './sign-up/sign-up-plugin'
@@ -321,7 +322,6 @@ export const betterAuthOptions = (options: CreateAuthOptions, { origins = [], pa
       ...(organizations
         ? [organizationPlugin({ resolved: organizations, secret: options.secret, ...(mail && { mail }), context }), protobaseOrganizationPlugin({ resolved: organizations, mail: Boolean(mailer) })]
         : []),
-      // After the organization plugin, whose endpoints of the same names (`getInvitation`) the invitation links' replace.
       usersPlugin({
         definitions,
         defaultPolicy: signInPolicy,
@@ -422,7 +422,10 @@ export const createAuth = (options: CreateAuthOptions) => {
   let instance: { $context: Promise<AuthContext> } | undefined
   const context = () => instance?.$context ?? Promise.reject(new Error('The auth instance is not made yet'))
   const mobile = mobileRequests()
-  const auth = betterAuth(betterAuthOptions(options, { mobile, origins, passkeyDomain, roles, definitions, defaultRole, ...(appName && { appName }), mailer, signUpRole, operator, platformSignIn, saml, signInPolicy, ...(organizations && { organizations }), ...(mcp && { mcp }), ...((organizations || mcp) && { context }) }))
+  const authOptions = betterAuthOptions(options, { mobile, origins, passkeyDomain, roles, definitions, defaultRole, ...(appName && { appName }), mailer, signUpRole, operator, platformSignIn, saml, signInPolicy, ...(organizations && { organizations }), ...(mcp && { mcp }), ...((organizations || mcp) && { context }) })
+  // Better Auth merges the plugins' endpoints by key, so a clash would hide one of them without a word.
+  assertNoEndpointKeyClashes(authOptions.plugins)
+  const auth = betterAuth(authOptions)
   instance = auth as unknown as { $context: Promise<AuthContext> }
   return Object.assign(auth, {
     /**

@@ -9,7 +9,7 @@ import type { ResolvedOrganizations } from './options'
  */
 export const invitationEndpoints = ({ resolved }: { resolved: ResolvedOrganizations }) => ({
   /** `POST /invitation/accept` with `{ token }`, signed in as the invited address: becomes a member, and works there. */
-  acceptInvitation: createAuthEndpoint('/invitation/accept', { method: 'POST', body: z.object({ token: z.string().min(1) }), use: [sessionMiddleware] }, async (ctx) => {
+  acceptInvitationOfLink: createAuthEndpoint('/invitation/accept', { method: 'POST', body: z.object({ token: z.string().min(1) }), use: [sessionMiddleware] }, async (ctx) => {
     const invitation = await invitationOfToken(ctx.context, ctx.body.token)
     const { user, session } = ctx.context.session
     const member = await acceptInvitation(ctx.context, invitation, user, resolved.membershipLimit)

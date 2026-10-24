@@ -50,7 +50,7 @@ export const userEndpoints = ({ definitions, mail, invitationUrl, invitationSeco
   ),
 
   /** `GET /users/invitations`: the pending invitations to the app, oldest first. */
-  listUserInvitations: createAuthEndpoint('/users/invitations', { method: 'GET', use: [admins] }, async (ctx) =>
+  listAppInvitations: createAuthEndpoint('/users/invitations', { method: 'GET', use: [admins] }, async (ctx) =>
     ctx.json({ invitations: (await listAppInvitations(ctx.context)).map(answerOf) }),
   ),
 

@@ -22,7 +22,7 @@ export const invitationEndpoints = ({ mail, defaultPolicy, organizations }: { ma
    * `GET /invitation?token=`: who invites, the address and roles, until when, and whether the address has an account;
    * for an invitation to the app also the app's name, and for an organization's the organization and the role there.
    */
-  getInvitation: createAuthEndpoint('/invitation', { method: 'GET', query: tokenQuery }, async (ctx) => {
+  invitationOfLink: createAuthEndpoint('/invitation', { method: 'GET', query: tokenQuery }, async (ctx) => {
     const found = await invitationOfToken(ctx.context, ctx.query.token, { organizations: Boolean(organizations) })
     const { invitation } = found
     const inviter = await ctx.context.internalAdapter.findUserById(invitation.inviterId)
