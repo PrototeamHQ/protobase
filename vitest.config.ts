@@ -22,6 +22,7 @@ const mocking = [
   'packages/cli/src/mobile/build.test.ts',
   'packages/cli/src/mobile/child-process.test.ts',
   'packages/cli/src/mobile/run.test.ts',
+  'packages/cli/src/project/examples-admin.test.ts',
   'packages/cli/src/project/project-admin.test.ts',
   'packages/cli/src/serve/crash-reports.test.ts',
   'packages/cli/src/serve/signals.test.ts',

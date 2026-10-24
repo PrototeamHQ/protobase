@@ -42,6 +42,8 @@ export const edges = [
   { from: ['packages/cli/tests/support/auth-project.ts'], starts: ['packages/cli/bin/protobase-source.mjs', 'examples/erp/protobase.config.ts'], reads: ['examples/erp/**'] },
   // Those that build, serve or develop the ERP, with its UI.
   { from: ['tests/smoke/erp-bundle.test.ts', 'packages/cli/tests/dev/dev.integration.test.ts'], loads: [...cliModuleFiles, 'examples/erp/protobase.ui.tsx'] },
+  // The admin API of every example, built with its own auth.
+  { from: ['packages/cli/src/project/examples-admin.test.ts'], loads: ['examples/*/protobase.config.ts'] },
   // The admin app, found by @protobase/ui's path, which a build bundles and checks a theme against.
   { from: ['packages/cli/src/project/admin-app.ts'], loads: ['packages/ui/src/app/main.tsx'], reads: ['packages/ui/**'] },
   // Modules the CLI loads by path (module-file.ts).
