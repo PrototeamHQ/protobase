@@ -98,6 +98,8 @@ export const BottomBarFromMeta: StoryObj = {
     const bar = await canvas.findByRole('navigation', { name: 'Tabs' })
     expect(within(bar).getAllByRole('link').map((link) => link.textContent)).toEqual(['My orders', 'Help'])
     expect(within(bar).getByRole('link', { name: 'My orders' })).toHaveAttribute('aria-current', 'page')
+    // The page starts directly below the top bar, which is fixed while the page scrolls
+    expect((canvasElement.querySelector('main') as HTMLElement).getBoundingClientRect().top).toBeCloseTo((canvasElement.querySelector('header') as HTMLElement).getBoundingClientRect().bottom, 0)
     await userEvent.click(within(bar).getByRole('button', { name: 'More' }))
     await canvas.findByRole('dialog', { name: 'Navigation' })
   },
@@ -316,6 +318,34 @@ export const StaffSession: StoryObj = {
     expect(banner).toHaveTextContent('Reason: Ticket 4211')
     // Below the top bar, which keeps clear of a phone's status bar and camera
     expect(banner.getBoundingClientRect().top).toBeGreaterThanOrEqual((canvasElement.querySelector('header') as HTMLElement).getBoundingClientRect().bottom)
+  },
+}
+
+/** Whether `element` shows at `y` across its middle, with nothing drawn over it there. */
+const showsAt = (element: HTMLElement, y: number) => {
+  const edges = element.getBoundingClientRect()
+  return element.contains(document.elementFromPoint(edges.left + edges.width / 2, y))
+}
+
+/**
+ * On a phone, where the top bar is fixed while the page scrolls: the banner shows whole directly below it, not under it,
+ * and the page starts directly below the banner, without a second gap the height of the bar.
+ */
+export const StaffSessionOnPhone: StoryObj = {
+  ...BottomBarFromMeta,
+  tags: ['play', 'phone'],
+  render: () => (
+    <div className="h-screen">
+      <App client={fakeClient({ permissions: allowed })} auth={staffSession()} initialUrl="/orders" />
+    </div>
+  ),
+  play: async ({ canvasElement }) => {
+    const banner = await within(canvasElement).findByRole('region', { name: 'Staff session' })
+    const header = canvasElement.querySelector('header') as HTMLElement
+    const edges = banner.getBoundingClientRect()
+    expect(edges.top).toBeCloseTo(header.getBoundingClientRect().bottom, 0)
+    expect(showsAt(banner, edges.top + 1)).toBe(true)
+    expect((canvasElement.querySelector('main') as HTMLElement).getBoundingClientRect().top).toBeCloseTo(edges.bottom, 0)
   },
 }
 
