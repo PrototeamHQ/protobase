@@ -1,4 +1,5 @@
 import type { MobileConfig } from '@protobase/server'
+import { packageNameProblem } from './package-name'
 import { pinnedProblem } from './pinned-packages'
 
 export const noMobileSection = "This project has no mobile section: add `mobile: { appId: 'com.example.app' }` to the default export of protobase.config.ts"
@@ -24,7 +25,7 @@ export const checkMobileConfig = (value: unknown): MobileConfig => {
     throw new Error("mobile.plugins must map each plugin's npm name to a version range, such as { '@capacitor/camera': '^8.0.0' }")
   }
   for (const [name, spec] of Object.entries(plugins as Record<string, string>)) {
-    const problem = pinnedProblem(name)
+    const problem = packageNameProblem(name) ?? pinnedProblem(name)
     if (problem) throw new Error(problem)
     if (unauthenticated.test(spec)) throw new Error(`mobile.plugins installs ${name} from ${spec}, over a connection that is not secure: use a version range, https or git+https`)
   }

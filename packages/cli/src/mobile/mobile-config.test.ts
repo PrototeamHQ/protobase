@@ -27,6 +27,12 @@ describe('checkMobileConfig', () => {
     expect(() => checkMobileConfig({ appId: 'com.example.shop', plugins: { '@capawesome/capacitor-live-update': '8.7.1' } })).toThrow("live updates come with Protobase's updater")
   })
 
+  it('refuses a plugin name that is not an npm package name, before anything joins it into a path', () => {
+    for (const name of ['../../..', '@s/..', 'a/b']) {
+      expect(() => checkMobileConfig({ appId: 'com.example.shop', plugins: { [name]: 'file:../x' } })).toThrow(`mobile.plugins lists ${JSON.stringify(name)}, which is not an npm package name`)
+    }
+  })
+
   it('refuses plugins fetched over a connection that is not secure', () => {
     for (const spec of ['http://host/x.tgz', 'git://host/x.git', 'git+http://host/x.git']) {
       expect(() => checkMobileConfig({ appId: 'com.example.shop', plugins: { x: spec } }), spec).toThrow('over a connection that is not secure')

@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
@@ -129,6 +129,20 @@ describe('mobileRun', () => {
     const deps = { run: fakeRun(calls, { ios: ['AppPlugin', 'LiveUpdatePlugin'] }), build }
     await expect(mobileRun({ projectDir: dir, platform: 'ios', api: 'https://api.example.com', extensions: [] }, () => {}, deps)).rejects.toThrow('The iOS app lists LiveUpdatePlugin')
     expect(calls.map(({ args }) => args[1])).not.toContain('run')
+  })
+
+  it('refuses a plugin name that leaves node_modules before anything is removed or installed', async () => {
+    for (const spec of ['file:../x', '../x']) {
+      const calls: Array<{ command: string; args: string[] } & ChildOptions> = []
+      const dir = project(`{ appId: 'com.example.shop', plugins: { '../../..': '${spec}' } }`)
+      writeFileSync(path.join(dir, 'keep'), '')
+      const input = { projectDir: dir, platform: 'android' as const, api: 'http://localhost:3000', extensions: [] }
+      await expect(mobileRun(input, () => {}, { run: fakeRun(calls), build }), spec).rejects.toThrow('mobile.plugins lists "../../..", which is not an npm package name')
+      await expect(mobileOpen(input, () => {}, { run: fakeRun(calls), build }), spec).rejects.toThrow('which is not an npm package name')
+      expect(existsSync(path.join(dir, 'keep'))).toBe(true)
+      expect(calls).toEqual([])
+      rmSync(root, { recursive: true, force: true })
+    }
   })
 
   it('says what to add without a mobile section', async () => {

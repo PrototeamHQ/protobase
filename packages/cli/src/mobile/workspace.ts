@@ -4,6 +4,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { protobaseFolder } from '../project/protobase-folder'
 import { protobaseVersion } from '../version/version'
+import { packageNameProblem } from './package-name'
 
 /** Where the mobile build lives in a project: npm's install of @protobase/mobile, the app's files and native projects. */
 export const workspaceDir = (projectDir: string) => path.join(projectDir, protobaseFolder, 'mobile')
@@ -22,11 +23,9 @@ export const workspacePackageJson = ({ mobileSpec, plugins = {} }: { mobileSpec:
 
 // The copy of the package `name` in the workspace `dir`, which never leaves its node_modules, whatever the name.
 const insideModules = (dir: string, name: string) => {
-  const modules = path.join(dir, 'node_modules')
-  const target = path.join(modules, name)
-  const relative = path.relative(modules, target)
-  if (relative === '' || relative.startsWith('..') || path.isAbsolute(relative)) throw new Error(`mobile.plugins lists ${name}, which is not an npm package name`)
-  return target
+  const problem = packageNameProblem(name)
+  if (problem) throw new Error(problem)
+  return path.join(dir, 'node_modules', name)
 }
 
 /**
