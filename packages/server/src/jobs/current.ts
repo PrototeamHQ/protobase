@@ -4,6 +4,8 @@ import type { EnqueueOptions, JobDefinition } from './job-types'
 /** What `defineJob(...).enqueue` reaches: the jobs runtime this process started. */
 export type JobsEnqueuer = {
   enqueue(definition: JobDefinition, db: Db, payload: unknown, options?: EnqueueOptions): Promise<string>
+  /** The job of this name among the jobs this runtime took, or `undefined`. */
+  definition(name: string): JobDefinition | undefined
   /** Has this process's worker of the job look for due jobs now rather than at its next poll; nothing without one. */
   wake(name: string): void
 }

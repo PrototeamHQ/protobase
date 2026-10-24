@@ -7,14 +7,14 @@ import { FatalJobError, runJob, throughWriteFreeze } from './run-job'
 const db = {} as never
 
 const fetched = (data: unknown, retryCount = 0) =>
-  ({ id: 'j1', name: 'send-invoice', data, retryCount, retryLimit: 9, signal: new AbortController().signal }) as unknown as JobWithMetadata<unknown>
+  ({ id: 'j1', name: 'send-invoice', data, retryCount, retryLimit: 9, startedOn: new Date(0), signal: new AbortController().signal }) as unknown as JobWithMetadata<unknown>
 
 describe('runJob', () => {
   it('completes a job whose run returns, with its payload and attempt', async () => {
     const run = vi.fn()
     const job = defineJob({ name: 'send-invoice', payload: z.object({ invoiceId: z.number() }), run })
     expect(await runJob(job, fetched({ invoiceId: 1 }, 2), db)).toEqual({ id: 'j1', status: 'completed' })
-    expect(run).toHaveBeenCalledWith({ invoiceId: 1 }, expect.objectContaining({ db, job: { id: 'j1', name: 'send-invoice', attempt: 3, maxAttempts: 10 } }))
+    expect(run).toHaveBeenCalledWith({ invoiceId: 1 }, expect.objectContaining({ db, job: { id: 'j1', name: 'send-invoice', attempt: 3, maxAttempts: 10, startedOn: new Date(0) } }))
   })
 
   it('fails a try that throws, keeping the error as its output', async () => {
@@ -35,10 +35,19 @@ describe('runJob', () => {
   it("gives the job the app's mailer, and none when the app has no mail", async () => {
     const run = vi.fn()
     const mail = { send: vi.fn() }
-    await runJob(defineJob({ name: 'send-invoice', run }), fetched(null), db, mail)
+    await runJob(defineJob({ name: 'send-invoice', run }), fetched(null), db, { mail })
     expect(run.mock.calls[0]![1].mail).toBe(mail)
     await runJob(defineJob({ name: 'send-invoice', run }), fetched(null), db)
     expect(run.mock.calls[1]![1]).not.toHaveProperty('mail')
+  })
+
+  it('gives the job the notification send only when the app has one', async () => {
+    const run = vi.fn()
+    const sendNotification = vi.fn()
+    await runJob(defineJob({ name: 'send-invoice', run }), fetched(null), db, { sendNotification })
+    expect(run.mock.calls[0]![1].sendNotification).toBe(sendNotification)
+    await runJob(defineJob({ name: 'send-invoice', run }), fetched(null), db)
+    expect(run.mock.calls[1]![1]).not.toHaveProperty('sendNotification')
   })
 
   it('names the job in the output of a try whose query the database stopped', async () => {

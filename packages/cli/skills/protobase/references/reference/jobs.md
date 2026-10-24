@@ -68,7 +68,7 @@ export default defineConfig({
 | --- | --- |
 | `name` | Letters, digits, `_`, `-`, `.` and `/`. Two jobs may not share a name. |
 | `payload` | A [Standard Schema](https://standardschema.dev) such as a zod schema, checked when the job is enqueued and again before it runs. A payload it refuses at run time fails the job for good. |
-| `run(payload, { db, job, signal, mail })` | The work. `db` is the app's pool: the enqueuer's transaction has committed by then. `job` holds its `id`, `name`, `attempt` and `maxAttempts`. `signal` aborts when the try times out or the worker shuts down. `mail` sends mail, see [Mail](#mail). |
+| `run(payload, { db, job, signal, mail, sendNotification })` | The work. `db` is the app's pool: the enqueuer's transaction has committed by then. `job` holds its `id`, `name`, `attempt`, `maxAttempts` and `startedOn`, when this try took it. `signal` aborts when the try times out or the worker shuts down. `mail` sends mail, see [Mail](#mail). `sendNotification` sends a notification, see [Sending](notifications.md#sending); inside a transaction of `db`, a try that throws in it queues nothing. |
 | `maxAttempts` | Tries before the job is kept as failed; default 10. |
 | `retryDelay`, `maxRetryDelay` | The wait before the first retry, doubling with each one (with some jitter), and its ceiling; default `2s` and `1 hour`. Milliseconds or text such as `30 seconds`. |
 | `timeout` | How long one try may run before it counts as failed; default `15 minutes`. |

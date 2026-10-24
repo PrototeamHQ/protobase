@@ -20,10 +20,10 @@ describe('the migration parts', () => {
   it("add the query role only with the built-in assistant's read-only queries", () => {
     expect(names(migrationParts(project([tickets.toModel()], true)))).toEqual(['changes', 'computed', 'query'])
   })
-  it("add the tables of notifications(), unless stores of the app's own keep both the devices and the history", () => {
-    expect(names(migrationParts({ ...project([]), notifications: {} }))).toEqual(['changes', 'computed', 'notifications'])
-    expect(names(migrationParts({ ...project([]), notifications: { store: {} as DeviceStore } }))).toEqual(['changes', 'computed', 'notifications'])
-    expect(names(migrationParts({ ...project([]), notifications: { historyStore: {} as HistoryStore } }))).toEqual(['changes', 'computed', 'notifications'])
-    expect(names(migrationParts({ ...project([]), notifications: { store: {} as DeviceStore, historyStore: {} as HistoryStore } }))).toEqual(['changes', 'computed'])
+  it("add the jobs schema that sends notifications and the tables of notifications(), unless stores of the app's own keep both the devices and the history", () => {
+    expect(names(migrationParts({ ...project([]), notifications: {} }))).toEqual(['jobs', 'changes', 'computed', 'notifications'])
+    expect(names(migrationParts({ ...project([]), notifications: { store: {} as DeviceStore } }))).toEqual(['jobs', 'changes', 'computed', 'notifications'])
+    expect(names(migrationParts({ ...project([]), notifications: { historyStore: {} as HistoryStore } }))).toEqual(['jobs', 'changes', 'computed', 'notifications'])
+    expect(names(migrationParts({ ...project([]), notifications: { store: {} as DeviceStore, historyStore: {} as HistoryStore } }))).toEqual(['jobs', 'changes', 'computed'])
   })
 })

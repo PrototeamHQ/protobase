@@ -1,6 +1,7 @@
 import type { JobResult, JobWithMetadata } from 'pg-boss'
 import type { Db } from '@protobase/query'
 import type { Mailer } from '../mail/smtp-mailer'
+import type { SendNotification } from '../notifications/send-notification'
 import { isStatementTimeout, statementTimeoutDetail } from '../statement-timeout'
 import type { JobDefinition } from './job-types'
 
@@ -64,18 +65,22 @@ const namedTimeout = (definition: JobDefinition, error: unknown) => {
   return new Error(statementTimeoutDetail(`Job "${definition.name}"`, { kind: definition.options.longQueries ? 'long' : 'database' }), { cause: error })
 }
 
+/** What a job's context offers beside the database, when the app has it. */
+export type JobServices = { mail?: Mailer; sendNotification?: SendNotification }
+
 /**
  * One try of one job: completed when `run` returns, failed (to be retried while attempts are left) when it throws, and
  * failed for good on a `FatalJobError` or an invalid payload.
  */
-export const runJob = async (definition: JobDefinition, job: JobWithMetadata<unknown>, db: Db, mail?: Mailer): Promise<JobResult> => {
+export const runJob = async (definition: JobDefinition, job: JobWithMetadata<unknown>, db: Db, { mail, sendNotification }: JobServices = {}): Promise<JobResult> => {
   try {
     const payload = await checkPayload(definition, job.data ?? undefined)
     const context = {
       db,
-      job: { id: job.id, name: job.name, attempt: job.retryCount + 1, maxAttempts: job.retryLimit + 1 },
+      job: { id: job.id, name: job.name, attempt: job.retryCount + 1, maxAttempts: job.retryLimit + 1, startedOn: job.startedOn },
       signal: job.signal,
       ...(mail && { mail }),
+      ...(sendNotification && { sendNotification }),
     }
     await throughWriteFreeze(() => definition.options.run(payload, context), job.signal)
     return { id: job.id, status: 'completed' }

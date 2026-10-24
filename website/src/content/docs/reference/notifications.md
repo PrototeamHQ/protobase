@@ -1,12 +1,12 @@
 ---
 title: Notifications
-description: Turn on notifications, let each signed-in user register their browsers and phones and read their notification history, deliver to browsers with Web Push, and keep devices and history in Postgres or stores of your own.
+description: Turn on notifications, send them to users or devices, let each signed-in user register their browsers and phones and read their notification history, deliver to browsers with Web Push, and keep devices and history in Postgres or stores of your own.
 ---
 
 ## Turning them on
 
 :::caution[In development]
-Nothing sends notifications yet: sending, registering a browser, push on Android and iOS and the bell are coming soon.
+Sending keeps notifications in the history and pushes them to browsers, but browsers cannot register for push yet: registering a browser, push on Android and iOS and the bell are coming soon.
 :::
 
 Notifications tell a user about something in the app, in a bell in the top bar and as push on their devices. You turn them on in `protobase.config.ts`:
@@ -20,14 +20,14 @@ export default defineConfig({
 })
 ```
 
-Then run `protobase migration`, which writes the [devices and history tables](#table-names) as a migration of the project's own, and apply it with the project's migrations. `protobase dev` and `protobase serve` refuse to start while a table is missing or lacks what notifications need, and name it. Without `notifications()` there is none of it: no endpoints, no tables and no migration.
+Then run `protobase migration`, which writes the [devices and history tables](#table-names), and the jobs schema that [sending](#sending) runs on, as a migration of the project's own, and apply it with the project's migrations. `protobase dev` and `protobase serve` refuse to start while a table is missing or lacks what notifications need, and name it. Without `notifications()` there is none of it: no endpoints, no tables and no migration.
 
 The bell and push are coming soon. `notifications({ ui: false })` keeps only the backend, without the bell.
 
 ## Devices
 
 :::caution[In development]
-A registered device receives nothing yet: sending is coming soon, and so are push on Android and iOS.
+Only browsers receive push yet, through [Web Push](#web-push): push on Android and iOS is coming soon.
 :::
 
 A device is where a user receives push: a browser's push subscription, or an Android or iOS app's push token. Each signed-in user registers and removes only their own, through the API:
@@ -59,13 +59,61 @@ A device is one token, or one endpoint for a browser. Registering a device someo
 
 The path comes from `devicesPath('/api', id)`, and the name of its id parameter from `deviceIdParam`, both exported by `@protobase/server`.
 
-## History
+## Sending
 
-:::caution[In development]
-Nothing writes to the history until sending lands. <gap>The history cannot fill because sending notifications is not implemented.</gap>
+:::caution[Beta]
+Only browsers receive push yet; push on Android and iOS is coming soon. <gap>A send can reach a device twice, or keep an entry twice in a history store of your own, when a worker stops mid-send because saving the send's progress in the same step as the push is not implemented.</gap>
 :::
 
-The history is each user's inbox: every notification sent to a user with the inbox flag on is kept for them, and one sent without it is only pushed. Sending, which fills it, is coming soon. Each signed-in user reaches only their own, through the API:
+You send a notification from your server code, such as a job, a hook, an event subscription or an API function, with `sendNotification(db, to, message)` from `@protobase/server`. It is queued as a background job in `db`'s transaction when `db` is one, so it goes out only once your write commits, and nothing goes out when the transaction rolls back. A running job also has it as `sendNotification` in its context, beside `mail`, when the app has `notifications()`.
+
+Every send to users says whether it shows in their inbox:
+
+- With `inbox: true` it is kept in each user's [history](#history), which the bell will show, and is pushed to their devices, such as a notice that the app has a new version.
+- With `inbox: false` it is only pushed, such as a chat message that links to its chat.
+- A send to devices, `{ deviceIds }`, is only pushed, and takes no inbox flag.
+
+```ts
+import { appPath } from '@protobase/schema'
+import { sendNotification, subscription } from '@protobase/server'
+
+// The app's public origin, from its own configuration.
+const appOrigin = 'https://tasks.example.com'
+
+/** Tells a task's owner when someone changes it. */
+export const taskChanged = subscription('taskChanged', {
+  events: ['tasks.updated'],
+  run: async ({ data }, { db }) => {
+    const owner = data.after?.owner_id
+    if (owner == null) return
+    const url = new URL(appPath({ kind: 'record', resource: 'tasks', key: data.key }), appOrigin).href
+    await sendNotification(db, { userIds: [String(owner)], inbox: true }, { title: `${data.after?.title} changed`, url })
+  },
+})
+```
+
+The message is the one [senders](#senders) take. Its `url` opens on tap: a URL on your app's origin opens inside the app, and any other `http` or `https` URL opens outside it. Any other scheme, such as `javascript:` or `data:`, is refused. Build the URL on your app's configured origin, never on one a request names in `Host`, `X-Forwarded-Host`, `Origin` or its own URL, so nobody can make a notification lead to their site.
+
+A send is checked before anything is queued, and a send that is not valid throws a `NotificationSendError` that names the field at fault, never its value. A valid send:
+
+- names 1 to 1000 users or devices;
+- has a user send's `inbox` as `true` or `false`;
+- has a message of at most 16 KB as JSON, without a field that is not one of the message's;
+- for the inbox, has a message the history keeps.
+
+The text you send shows on lock screens, where anyone holding the device can read it, so keep anything the recipient may not see out of it. It stays in the jobs table until the send is delivered, and in a failed send until it is retried or deleted in the admin app.
+
+A send checks no permission. A device send reaches the devices whatever user holds them. So check ids taken from a request against the caller first, such as a device id against the caller's own devices.
+
+A user send reaches the user's devices as they are when the job runs. A device that moved to someone else, or was removed, gets nothing. A device stays its user's when a session ends, until it is [removed](#devices), and keeps receiving their notifications until then. When a push service reports a device gone, the device is removed. A device whose push service asks to try again later is tried once more, on the job's next try, and then given up on without being removed. A sender that fails is retried with its devices, up to 5 tries of the job. Devices of a kind without a sender are skipped. Without any sender, a send for the inbox is kept in the history and a send that is not does nothing.
+
+## History
+
+:::caution[Beta]
+The bell that shows the history is coming soon.
+:::
+
+The history is each user's inbox: every notification [sent](#sending) to a user with the inbox flag on is kept for them, and one sent without it is only pushed. Each signed-in user reaches only their own, through the API:
 
 | Request | |
 | --- | --- |

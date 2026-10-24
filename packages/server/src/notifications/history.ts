@@ -24,8 +24,8 @@ const noControlsButLines = /^[^\u0000-\u0008\u000b-\u001f\u007f]*$/
 
 const text = (value: unknown, max: number, pattern: RegExp) => typeof value === 'string' && value.length <= max && pattern.test(value)
 
-// The first field of the notification that is not within its format, or `undefined`.
-const notificationProblem = (notification: NewNotification) => {
+/** The first field of the notification that is not within its format, or `undefined`. */
+export const notificationProblem = (notification: NewNotification) => {
   if (typeof notification !== 'object' || notification === null) return 'notification'
   if (!text(notification.title, historyLimits.title, noControls) || notification.title === '') return 'title'
   if (notification.body !== null && !text(notification.body, historyLimits.body, noControlsButLines)) return 'body'

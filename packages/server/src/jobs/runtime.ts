@@ -4,6 +4,8 @@ import type { Db } from '@protobase/query'
 import { runInBackground } from '../background-work'
 import { platformMailer } from '../mail/platform-mailer'
 import type { Mailer } from '../mail/smtp-mailer'
+import { pushJobName } from '../notifications/push-job-name'
+import { sendNotification } from '../notifications/send-notification'
 import { busyDatabase } from './busy-database'
 import { clearCurrentJobs, setCurrentJobs, type JobsEnqueuer } from './current'
 import { jobsDatabase } from './database'
@@ -116,7 +118,8 @@ export const startJobs = async ({ db, jobs, work = true, pollSeconds = 2, shutdo
         const current = definitions.get(definition.name) ?? definition
         return runInBackground(async () => {
           if (current.options.schedule !== undefined && job!.singletonKey === scheduleKey) await schedules.following(current, job!.startAfter)
-          return [await runJob(current, job!, db, mail)]
+          // A job may send notifications when the app's jobs deliver them.
+          return [await runJob(current, job!, db, { mail, ...(definitions.has(pushJobName) && { sendNotification }) })]
         }, { longQueries: current.options.longQueries })
       },
     )
@@ -206,6 +209,7 @@ export const startJobs = async ({ db, jobs, work = true, pollSeconds = 2, shutdo
   const runtime: JobsRuntime = {
     works: work,
     enqueue,
+    definition: (name) => definitions.get(name),
     wake,
     update,
     drain,

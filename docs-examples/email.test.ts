@@ -23,7 +23,7 @@ const answering = (rows: Record<string, unknown>[]) =>
 
 const contextWith = (db: Kysely<any>, mail?: JobContext['mail']): JobContext => ({
   db,
-  job: { id: '1', name: 'email-repair-ready', attempt: 1, maxAttempts: 10 },
+  job: { id: '1', name: 'email-repair-ready', attempt: 1, maxAttempts: 10, startedOn: new Date() },
   signal: new AbortController().signal,
   ...(mail && { mail }),
 })

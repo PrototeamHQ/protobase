@@ -1,16 +1,20 @@
 import type { Db } from '@protobase/query'
 import type { StandardSchema } from '../functions/read-json'
 import type { Mailer } from '../mail/smtp-mailer'
+import type { SendNotification } from '../notifications/send-notification'
 
 /** What `run` gets beside the payload. */
 export type JobContext = {
   /** The database pool. The enqueuer's transaction has committed by the time a job runs. */
   db: Db
-  job: { id: string; name: string; attempt: number; maxAttempts: number }
+  /** The job, and when this try took it: each try takes it at a new time. */
+  job: { id: string; name: string; attempt: number; maxAttempts: number; startedOn: Date }
   /** Aborted when the job's timeout passes, or when the worker shuts down and its grace period ends. */
   signal: AbortSignal
   /** Sends mail through the app's SMTP server (`PROTOBASE_SMTP_URL`, `PROTOBASE_MAIL_FROM`); `undefined` when the app has no mail. */
   mail?: Mailer
+  /** Sends a notification as `sendNotification` does; `undefined` when the app has no `notifications()`. */
+  sendNotification?: SendNotification
 }
 
 export type JobOptions<Payload> = {

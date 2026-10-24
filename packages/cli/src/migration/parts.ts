@@ -18,9 +18,9 @@ export const migrationParts = (project: MigrationProject): MigrationPart[] => {
   const aiFields = project.models.some((model) => Object.values(model.fields).some((field) => field.ai))
   return [
     ...(project.auth ? [{ name: 'auth', title: authMigrationTitle, sql: () => authSchemaMigration(project.auth!) }] : []),
-    // Events and history are captured with a dispatch job, events delivered, mentions mailed and AI fields filled by jobs,
-    // whose waiting and failed ones webhooks() lists.
-    ...(project.jobs.length > 0 || project.models.some(isCaptured) || comments || aiFields || project.webhooks ? [{ name: 'jobs', title: 'The jobs schema this version of Protobase needs', sql: () => jobsSchemaMigration(project.db) }] : []),
+    // Events and history are captured with a dispatch job, events delivered, mentions mailed, AI fields filled and
+    // notifications sent by jobs, whose waiting and failed ones webhooks() lists.
+    ...(project.jobs.length > 0 || project.models.some(isCaptured) || comments || aiFields || project.webhooks || project.notifications ? [{ name: 'jobs', title: 'The jobs schema this version of Protobase needs', sql: () => jobsSchemaMigration(project.db) }] : []),
     { name: 'changes', title: "The change capture the resources' events and history need", sql: () => changesMigration(project.db, project.models, project.events) },
     // Always compared, so that the function and trigger of a rollup the config no longer has are dropped.
     { name: 'computed', title: "The columns of the resources' rollup and formula fields, and the triggers that keep the rollups", sql: () => computedMigration(project.db, project.models) },

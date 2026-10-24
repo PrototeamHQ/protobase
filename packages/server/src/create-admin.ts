@@ -64,6 +64,7 @@ import { historyRoutes } from './notifications/history-routes'
 import { devicesPath, historyPath } from './notifications/paths'
 import { deviceRoutes } from './notifications/routes'
 import { notificationSenders, webPushKey } from './notifications/senders-of'
+import { pushJob } from './notifications/push-job'
 import type { SubscriptionDefinition } from './webhooks/subscription'
 import { visitorsBrowse, withAnonymous } from './anonymous'
 import { checkBottomBars, checkShell } from './check-shell'
@@ -189,12 +190,12 @@ const declaredRoles = (auth: AdminAuth | undefined, roles: AdminOptions['roles']
 /** The admin REST API as a Hono app. It uses only Web APIs, so it runs on Node, Workers and anywhere else Hono does. */
 export const createAdmin = ({ resources: appResources, views: appViews = [], pages = [], userMenu, bottomBars = [], db, authenticate, auth, functions = {}, files: filesOptions, events, history: historyOptions, jobs = [], subscriptions = [], webhooks: webhooksOptions, notifications, mobile, app: identity, icons, bundlePlugins = [], fieldTypes = {}, options = {}, formsDifficulty, commentUsers: givenCommentUsers, verifyToken, upgradeWebSocket }: CreateAdminInput): Admin => {
   const basePath = options.basePath ?? '/api/v1'
-  // Events are delivered, history kept, mentions mailed and AI fields filled by jobs, whose failures the page lists too.
+  // Events are delivered, history kept, mentions mailed, AI fields filled and notifications sent by jobs, whose failures the page lists too.
   // Admins list the history as Activity and every comment as Comments.
   const appModels = appResources.map((resource) => resource.toModel())
   const withComments = appModels.some((model) => model.comments)
   const withAiFields = hasAiFields(appModels)
-  const withJobs = jobs.length > 0 || appModels.some(isCaptured) || withComments || withAiFields
+  const withJobs = jobs.length > 0 || appModels.some(isCaptured) || withComments || withAiFields || notifications !== undefined
   const withHistory = appModels.some((model) => model.history)
   const changes = changesSchema(events)
   const days = historyDays(historyOptions)
@@ -398,5 +399,5 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], pag
   app.route(systemPath || '/', webManifestRoute(appName, identity, icons))
   app.route(deps.systemPath || '/', system)
   const webhooks = createWebhooks({ deps, subscriptions, functions: apiFunctions, schema: changes, log: (line) => console.log(line), ...(table && { table }) })
-  return Object.assign(app, { jobs: [...webhooks.jobs, ...(withHistory && days !== undefined ? [pruneHistoryJob(changes, days)] : []), ...(mentions ? [mentions] : []), ...(fill ? [fill] : [])] })
+  return Object.assign(app, { jobs: [...webhooks.jobs, ...(withHistory && days !== undefined ? [pruneHistoryJob(changes, days)] : []), ...(mentions ? [mentions] : []), ...(fill ? [fill] : []), ...(notifications ? [pushJob(notifications, senders)] : [])] })
 }

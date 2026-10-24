@@ -88,6 +88,8 @@ export type { PushMessage, Urgency, WebPushFields } from './notifications/messag
 export type { JsonValue, JsonObject } from './notifications/json-value'
 export type { PushSender, PushAnswer } from './notifications/sender'
 export { notificationSenders } from './notifications/senders-of'
+export { sendNotification, type SendNotification } from './notifications/send-notification'
+export { maxRecipients, maxMessageBytes, NotificationSendError, type NotificationRecipients } from './notifications/send-input'
 export { webPushSender, type WebPushOptions } from './notifications/web-push/web-push-sender'
 export { readVapidSettings, vapidPublicKeyVariable, vapidPrivateKeyVariable, vapidSubjectVariable, type VapidSettings } from './notifications/web-push/vapid-settings'
 export { generateVapidKeys } from './notifications/web-push/keys'
