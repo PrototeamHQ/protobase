@@ -17,7 +17,10 @@ export type TopBarProps = {
   menuControls?: string
   /** The search box; without it the top bar has none. */
   search?: GlobalSearchModel
-  /** Stays at the top of the page while it scrolls, for a shell whose page scrolls. */
+  /**
+   * Stays at the top of the page while it scrolls, for a shell whose page scrolls. On a phone it is fixed, over a
+   * spacer of its height, so it stays put while the page is pulled past its top as well, as an iOS app's bar does.
+   */
   sticky?: boolean
   /** Gets the element, shown below `md`, that a page's own controls are portalled into (see `useTopBarSlot`). */
   slotRef?: (element: HTMLDivElement | null) => void
@@ -46,36 +49,37 @@ export const TopBar = ({ breadcrumb, onNavigate, actions, onMenu, menuOpen, menu
     return () => window.removeEventListener('keydown', onKey)
   }, [search])
   return (
-    <header ref={ref} className={cn(sticky ? 'sticky top-0 z-30' : 'relative', 'flex h-[calc(3rem+var(--pb-safe-top))] shrink-0 items-center gap-1 border-b bg-background pl-4 pr-2 pt-[var(--pb-safe-top)] md:gap-4 md:px-5')}>
-      {onMenu && (
-        <button type="button" aria-label={text('openNavigation')} aria-expanded={Boolean(menuOpen)} aria-controls={menuControls} onClick={onMenu} className={cn(topBarButton, '-ml-3')}>
-          <Menu className="size-5" />
-        </button>
-      )}
-      {back && (
-        <a
-          href={back.href}
-          aria-label={text('backTo', back.label)}
-          onClick={(event) => {
-            if (!onNavigate || !inApp(event)) return
-            event.preventDefault()
-            onNavigate(back.href)
-          }}
-          className={cn(topBarButton, !onMenu && '-ml-3')}
-        >
-          <ChevronLeft className="size-5" />
-        </a>
-      )}
-      <Breadcrumb parts={breadcrumb} onNavigate={onNavigate} />
-      <div className="ml-auto flex items-center gap-1 md:gap-3">
-        {search && (
-          <>
-            <div className="hidden md:block">
-              <GlobalSearch ref={desktopSearch} search={search} />
-            </div>
-            <button type="button" aria-label={text('search')} aria-expanded={searchOpen} onClick={() => setSearchOpen(true)} className={topBarButton}>
-              <Search className="size-5" />
-            </button>
+    <>
+      <header ref={ref} className={cn(sticky ? 'sticky top-0 z-30 max-md:fixed max-md:left-[var(--pb-safe-left)] max-md:right-[var(--pb-safe-right)]' : 'relative', 'flex h-[calc(3rem+var(--pb-safe-top))] shrink-0 items-center gap-1 border-b bg-background pl-4 pr-2 pt-[var(--pb-safe-top)] md:gap-4 md:px-5')}>
+        {onMenu && (
+          <button type="button" aria-label={text('openNavigation')} aria-expanded={Boolean(menuOpen)} aria-controls={menuControls} onClick={onMenu} className={cn(topBarButton, '-ml-3')}>
+            <Menu className="size-5" />
+          </button>
+        )}
+        {back && (
+          <a
+            href={back.href}
+            aria-label={text('backTo', back.label)}
+            onClick={(event) => {
+              if (!onNavigate || !inApp(event)) return
+              event.preventDefault()
+              onNavigate(back.href)
+            }}
+            className={cn(topBarButton, !onMenu && '-ml-3')}
+          >
+            <ChevronLeft className="size-5" />
+          </a>
+        )}
+        <Breadcrumb parts={breadcrumb} onNavigate={onNavigate} />
+        <div className="ml-auto flex items-center gap-1 md:gap-3">
+          {search && (
+            <>
+              <div className="hidden md:block">
+                <GlobalSearch ref={desktopSearch} search={search} />
+              </div>
+              <button type="button" aria-label={text('search')} aria-expanded={searchOpen} onClick={() => setSearchOpen(true)} className={topBarButton}>
+                <Search className="size-5" />
+              </button>
           </>
         )}
         {actions}
@@ -90,5 +94,7 @@ export const TopBar = ({ breadcrumb, onNavigate, actions, onMenu, menuOpen, menu
         </div>
       )}
     </header>
+    {sticky && <div aria-hidden className="h-[var(--pb-sticky-top)] shrink-0 md:hidden" />}
+    </>
   )
 }

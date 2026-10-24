@@ -5,7 +5,7 @@ export const PageScrollContext = createContext<(on: boolean | undefined) => void
 
 /**
  * While the calling page is shown and `on`, the document scrolls instead of a box of the screen's height: the top and
- * bottom bars and the sidebar stick, and the page grows with its content, so the browser's own scrolling applies
+ * bottom bars and the sidebar stay in view, and the page grows with its content, so the browser's own scrolling applies
  * throughout, scrolling to the top included, as tapping the status bar on an iPhone does. Sticky content in the page
  * stays clear of the bars with `--pb-sticky-top` and `--pb-sticky-bottom`. Not `on`, the page fills the box instead,
  * as a map does. Once the page is gone the shell's `pageScroll` applies again.

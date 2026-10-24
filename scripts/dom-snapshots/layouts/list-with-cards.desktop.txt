@@ -27,7 +27,7 @@ div | block
                   span .inline-flex h-5 items-center gap-1.5 rounded-full px-2 text-xs font-medium whitespace-nowrap bg-violet-soft text-violet-text mt-0.5 h-4 px-1.5 text-[10px] | inline-flex row nowrap center normal
                 svg .lucide lucide-chevrons-up-down size-3.5 shrink-0 text-faint-foreground | block
       div .flex min-w-0 flex-1 flex-col pb-[var(--pb-safe-bottom)] | flex column nowrap normal normal
-        header .sticky top-0 z-30 flex h-[calc(3rem+var(--pb-safe-top))] shrink-0 items-center gap-1 border-b bg-background pl-4 pr-2 pt-[var(--pb-safe-top)] md:gap-4 md:px-5 | flex row nowrap center normal sticky
+        header .sticky top-0 z-30 max-md:fixed max-md:left-[var(--pb-safe-left)] max-md:right-[var(--pb-safe-right)] flex h-[calc(3rem+var(--pb-safe-top))] shrink-0 items-center gap-1 border-b bg-background pl-4 pr-2 pt-[var(--pb-safe-top)] md:gap-4 md:px-5 | flex row nowrap center normal sticky
           nav .flex min-w-0 items-center gap-1.5 | flex row nowrap center normal
             span .min-w-0 items-center gap-1.5 hidden md:flex | flex row nowrap center normal
               span .truncate text-muted-foreground | block
@@ -45,6 +45,7 @@ div | block
             button .inline-flex size-11 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted md:hidden | none
               svg .lucide lucide-search size-5 | block
             div .contents md:hidden | none
+        div .h-[var(--pb-sticky-top)] shrink-0 md:hidden | none
         main .flex flex-1 flex-col | flex column nowrap normal normal
           div .flex min-h-0 flex-1 flex-col gap-3 px-5 py-4 | flex column nowrap normal normal
             div .flex flex-col gap-x-4 gap-y-2 md:flex-row md:items-end md:justify-between | flex row nowrap flex-end space-between

@@ -14,7 +14,10 @@ export type BottomBarProps = {
   onMore: () => void
   moreOpen: boolean
   moreControls: string
-  /** Stays at the bottom of the page while it scrolls, for a shell whose page scrolls. */
+  /**
+   * Stays at the bottom of the page while it scrolls, for a shell whose page scrolls: fixed, over a spacer of its
+   * height, so it stays put while the page is pulled past its end as well, as an iOS app's tab bar does.
+   */
   sticky?: boolean
   ref?: Ref<HTMLElement>
 }
@@ -31,31 +34,34 @@ const tab = 'flex min-h-[49px] min-w-0 flex-1 flex-col items-center justify-cent
 export const BottomBar = ({ tabs, onNavigate, onMore, moreOpen, moreControls, sticky, ref }: BottomBarProps) => {
   const moreCurrent = !tabs.some((item) => item.active)
   return (
-    <nav ref={ref} aria-label={text('tabs')} className={cn('flex shrink-0 border-t bg-background pb-[var(--pb-safe-bottom)] md:hidden', sticky && 'sticky bottom-0 z-30')}>
-      {tabs.map((item) => {
-        const Icon = item.icon
-        return (
-          <a
-            key={item.id}
-            href={item.href}
-            aria-current={item.active ? 'page' : undefined}
-            {...(item.external ? { target: '_blank', rel: 'noreferrer' } : {})}
-            onClick={(event) => {
-              if (item.external || !onNavigate || !inApp(event)) return
-              event.preventDefault()
-              onNavigate(item.href)
-            }}
-            className={cn(tab, item.active ? 'text-primary-text' : 'text-muted-foreground')}
-          >
-            <Icon className="size-6" strokeWidth={item.active ? 2.2 : 1.9} aria-hidden />
-            <span className="max-w-full truncate px-0.5">{item.label}</span>
-          </a>
-        )
-      })}
-      <button type="button" aria-expanded={moreOpen} aria-controls={moreControls} data-current={moreCurrent || undefined} onClick={onMore} className={cn(tab, moreCurrent ? 'text-primary-text' : 'text-muted-foreground')}>
-        <Ellipsis className="size-6" strokeWidth={moreCurrent ? 2.2 : 1.9} aria-hidden />
-        {text('more')}
-      </button>
-    </nav>
+    <>
+      {sticky && <div aria-hidden className="h-[var(--pb-sticky-bottom)] shrink-0 md:hidden" />}
+      <nav ref={ref} aria-label={text('tabs')} className={cn('flex shrink-0 border-t bg-background pb-[var(--pb-safe-bottom)] md:hidden', sticky && 'fixed bottom-0 left-[var(--pb-safe-left)] right-[var(--pb-safe-right)] z-30')}>
+        {tabs.map((item) => {
+          const Icon = item.icon
+          return (
+            <a
+              key={item.id}
+              href={item.href}
+              aria-current={item.active ? 'page' : undefined}
+              {...(item.external ? { target: '_blank', rel: 'noreferrer' } : {})}
+              onClick={(event) => {
+                if (item.external || !onNavigate || !inApp(event)) return
+                event.preventDefault()
+                onNavigate(item.href)
+              }}
+              className={cn(tab, item.active ? 'text-primary-text' : 'text-muted-foreground')}
+            >
+              <Icon className="size-6" strokeWidth={item.active ? 2.2 : 1.9} aria-hidden />
+              <span className="max-w-full truncate px-0.5">{item.label}</span>
+            </a>
+          )
+        })}
+        <button type="button" aria-expanded={moreOpen} aria-controls={moreControls} data-current={moreCurrent || undefined} onClick={onMore} className={cn(tab, moreCurrent ? 'text-primary-text' : 'text-muted-foreground')}>
+          <Ellipsis className="size-6" strokeWidth={moreCurrent ? 2.2 : 1.9} aria-hidden />
+          {text('more')}
+        </button>
+      </nav>
+    </>
   )
 }
