@@ -19,7 +19,7 @@
     "android/src/liveupdate/",
     "android/build.gradle"
   ],
-  "nativeContract": 1,
+  "nativeContract": 2,
   "capacitor": {
     "android": {
       "src": "android"
