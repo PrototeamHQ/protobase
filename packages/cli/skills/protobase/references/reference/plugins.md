@@ -307,7 +307,7 @@ Nothing a plugin does stops the app. Each of these turns off that plugin alone:
 - its module cannot be loaded, or does not link: it imports something the app's `@protobase/ui` does not have;
 - it defines a name an earlier plugin defines.
 
-Every place it would fill then draws its fallback (see [Extension points](#extension-points)). The app's admins (the `admin` role) see a notice above the app naming each plugin that is off and why, such as "The plugin sales-tools is off: it needs Protobase >=0.12.3, and this app runs 0.12.1." Everyone else sees only the fallbacks. An action handler that throws shows its error in a toast, as a project's does, and a part that throws while drawing shows its fallback in its own place.
+Every place it would fill then draws its fallback (see [Extension points](#extension-points)). The app's admins (the `admin` role) see a notice below the top bar naming each plugin that is off and why, such as "The plugin sales-tools is off: it needs Protobase >=0.12.3, and this app runs 0.12.1." Everyone else sees only the fallbacks. An action handler that throws shows its error in a toast, as a project's does, and a part that throws while drawing shows its fallback in its own place.
 
 ## API
 

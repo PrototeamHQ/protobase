@@ -207,7 +207,10 @@ const Routes = ({ workspace, sidebarMode, assistant, runtime }: Pick<AppProps, '
       <ListPage key={navItemId(address.resource, address.list)} address={address} />
     )
 
-  const appShell = (
+  // Staff signed in as the user: their banner shows below the top bar until they stop or the session ends. Below it,
+  // the plugins that are off, for an admin.
+  const pluginNotice = admin && pluginsOff.length > 0
+  return (
     <AppShell
       pageScroll
       sidebarMode={sidebarMode ?? 'text-small'}
@@ -234,23 +237,13 @@ const Routes = ({ workspace, sidebarMode, assistant, runtime }: Pick<AppProps, '
       roles={role.current?.active ? { active: role.current.active, roles: role.current.roles, onSwitch: role.switchTo } : undefined}
       onNavigate={open}
       sidebarNotice={<NewVersionBanner />}
+      banner={(staff || pluginNotice) && <>{staff && <StaffBanner signIn={staff} onStop={stopStaffSession} />}{pluginNotice && <PluginNotice off={pluginsOff} />}</>}
       search={search.available ? { placeholder: search.placeholder, text: search.text, onTextChange: search.setText, query: search.query, loading: search.loading, groups: search.groups, onSelect: open } : undefined}
       actions={(Actions || reloadButton || runtimeButton || assistantButton) && <>{Actions && <CustomBoundary name="shell.actions" fallback={null}><Actions /></CustomBoundary>}{reloadButton}{runtimeButton}{assistantButton}</>}
       rightPanel={(RightPanel || assistantPanel) && <>{RightPanel && <CustomBoundary name="shell.rightPanel" fallback={null}><RightPanel /></CustomBoundary>}{assistantPanel}</>}
     >
       {content}
     </AppShell>
-  )
-  const pluginNotice = admin && pluginsOff.length > 0
-  if (!staff && !pluginNotice) return appShell
-  // Staff signed in as the user: the banner stays above the whole shell until they stop or the session ends. Below it,
-  // the plugins that are off, for an admin.
-  return (
-    <div className="flex h-full min-h-0 flex-col">
-      {staff && <StaffBanner signIn={staff} onStop={stopStaffSession} />}
-      {pluginNotice && <PluginNotice off={pluginsOff} />}
-      <div className="min-h-0 flex-1">{appShell}</div>
-    </div>
   )
 }
 

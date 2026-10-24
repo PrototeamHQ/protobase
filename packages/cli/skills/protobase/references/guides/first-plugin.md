@@ -163,4 +163,4 @@ Put `dist/` on a static host, and list its `plugin.json` in the deployed app's `
 
 The app updates to a new release of Protobase. Nothing happens to the plugin: within plugin API 1, every release keeps what the plugin imports, and the plugin runs on the newer `@protobase/ui` it is handed, its fixes included.
 
-If the app were older than the plugin needs, it would not load the plugin at all. Its admins would see a notice above the app, such as "The plugin sales-tools is off: it needs Protobase >=0.12.0, and this app runs 0.11.1.", and the card would show a warning in place of the drafts, while the rest of the app works as before. [Versions](../reference/plugins.md#versions) has the rules.
+If the app were older than the plugin needs, it would not load the plugin at all. Its admins would see a notice below the top bar, such as "The plugin sales-tools is off: it needs Protobase >=0.12.0, and this app runs 0.11.1.", and the card would show a warning in place of the drafts, while the rest of the app works as before. [Versions](../reference/plugins.md#versions) has the rules.

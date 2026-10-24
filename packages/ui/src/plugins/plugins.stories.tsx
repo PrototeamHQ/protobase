@@ -77,7 +77,10 @@ export const ForAnAdminChecks: StoryObj = {
     expect(canvas.getByText('hello 1.0.0 says hello there')).toBeVisible()
     const alerts = canvas.getAllByRole('alert').map((alert) => alert.textContent)
     expect(alerts).toEqual(['Faulty could not be drawn.', 'No component is registered as WarrantyCard. Export it from protobase.ui.tsx, or load the plugin that provides it.'])
-    const notice = within(canvas.getByRole('region', { name: 'Plugins off' }))
+    const region = canvas.getByRole('region', { name: 'Plugins off' })
+    // Below the top bar, which keeps clear of a phone's status bar and camera
+    expect(region.getBoundingClientRect().top).toBeGreaterThanOrEqual((canvasElement.querySelector('header') as HTMLElement).getBoundingClientRect().bottom)
+    const notice = within(region)
     expect(notice.getAllByRole('listitem').map((item) => item.textContent)).toEqual([
       'The plugin next is off: it is built for plugin API 2, and this app has plugin API 1.',
       'The plugin https://cdn.example.com/gone/plugin.json is off: its plugin.json answered 404.',

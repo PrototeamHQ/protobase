@@ -302,7 +302,7 @@ const staffSession = (): AuthSession => {
   }
 }
 
-/** Staff of the operator signed in as someone: a banner above the whole app says who, as whom and why. */
+/** Staff of the operator signed in as someone: a banner below the top bar says who, as whom and why. */
 export const StaffSession: StoryObj = {
   tags: ['play'],
   render: () => (
@@ -314,6 +314,8 @@ export const StaffSession: StoryObj = {
     const banner = await within(canvasElement).findByRole('region', { name: 'Staff session' })
     expect(banner).toHaveTextContent('Alex de Vries is signed in as sanne@veldhuis-supply.example')
     expect(banner).toHaveTextContent('Reason: Ticket 4211')
+    // Below the top bar, which keeps clear of a phone's status bar and camera
+    expect(banner.getBoundingClientRect().top).toBeGreaterThanOrEqual((canvasElement.querySelector('header') as HTMLElement).getBoundingClientRect().bottom)
   },
 }
 
