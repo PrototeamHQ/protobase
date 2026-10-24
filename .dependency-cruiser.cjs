@@ -1,5 +1,5 @@
 // Tests, stories and their fixtures, which may use the workspace's dev dependencies.
-const testCode = ['\\.test\\.tsx?$', '\\.stories\\.tsx$', '^packages/[^/]+/tests/', '^packages/layout/src/testing/', '^packages/ui/src/app/testing/']
+const testCode = ['\\.test\\.tsx?$', '\\.stories\\.tsx$', '^packages/[^/]+/tests/', '^packages/layout/src/testing/', '^packages/ui/src/app/testing/', '^packages/server/src/notifications/testing/']
 // The CLI refuses mobile.plugins that @protobase/mobile pins, read from its package.json at build time: a manifest, not
 // source, and inlined, so installing the CLI never installs Capacitor (packages/cli/src/mobile/pinned-packages.ts).
 const mobilePins = '^packages/mobile/package\\.json$'

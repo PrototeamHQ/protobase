@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { f, resource } from '@protobase/schema'
+import type { DeviceStore } from '@protobase/server'
 import { migrationParts, type MigrationPart } from './parts'
 import type { MigrationProject } from './load-project'
 
@@ -18,5 +19,9 @@ describe('the migration parts', () => {
   })
   it("add the query role only with the built-in assistant's read-only queries", () => {
     expect(names(migrationParts(project([tickets.toModel()], true)))).toEqual(['changes', 'computed', 'query'])
+  })
+  it('add the devices table with notifications(), unless a store of the app own keeps the devices', () => {
+    expect(names(migrationParts({ ...project([]), notifications: {} }))).toEqual(['changes', 'computed', 'notifications'])
+    expect(names(migrationParts({ ...project([]), notifications: { store: {} as DeviceStore } }))).toEqual(['changes', 'computed'])
   })
 })

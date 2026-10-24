@@ -1,6 +1,6 @@
 import { upgradeWebSocket } from '@hono/node-server'
 import { Hono } from 'hono'
-import { apiKeySettings, assistantSettings, authStoreTables, checkAi, checkAuthSchema, checkChanges, checkComments, checkComputed, checkQueryRunner, checkWebhooksSchema, configExports, hasUsers } from '@protobase/server'
+import { apiKeySettings, assistantSettings, authStoreTables, checkAi, checkAuthSchema, checkChanges, checkComments, checkComputed, checkNotificationsSchema, checkQueryRunner, checkWebhooksSchema, configExports, hasUsers } from '@protobase/server'
 import { projectIcons } from '../build/app-icons'
 import { projectErrorReporter } from '../project/error-reporter'
 import { projectAdmin } from '../project/project-admin'
@@ -36,6 +36,7 @@ if (assistantSettings(project.options?.assistant, process.env)?.kind === 'built-
 // AI fields and actions call the model of PROTOBASE_ASSISTANT_API_KEY, which other commands need not have.
 checkAi({ models: resources.map((resource) => resource.toModel()), views: views.map((source) => source.toModel()), assistant: project.options?.assistant, env: process.env })
 if (project.webhooks) await checkWebhooksSchema(db, project.webhooks)
+if (project.notifications) await checkNotificationsSchema(db, project.notifications, project.auth)
 
 // Functions moved from Supabase read Supabase's variables, of this app, unless .env sets them.
 setMissing(process.env, supabaseEnv({

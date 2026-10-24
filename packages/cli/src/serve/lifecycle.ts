@@ -3,7 +3,7 @@ import type { AddressInfo } from 'node:net'
 import { createAdaptorServer, upgradeWebSocket } from '@hono/node-server'
 import pg from 'pg'
 import type { Db } from '@protobase/query'
-import { assistantSettings, authStoreTables, backgroundSettled, checkAi, checkAuthSchema, checkChanges, checkComments, checkComputed, checkJobsSchema, checkQueryRunner, checkWebhooksSchema, configExports, createFileCleanup, startJobs, type ErrorReporter } from '@protobase/server'
+import { assistantSettings, authStoreTables, backgroundSettled, checkAi, checkAuthSchema, checkChanges, checkComments, checkComputed, checkJobsSchema, checkNotificationsSchema, checkQueryRunner, checkWebhooksSchema, configExports, createFileCleanup, startJobs, type ErrorReporter } from '@protobase/server'
 import { projectAdmin } from '../project/project-admin'
 import { createPgDb } from '../project/pg-db'
 import { apiWebSocketServer } from '../project/api-websocket-server'
@@ -65,6 +65,7 @@ export const startServe = async ({ project, env, createDb = (url) => createPgDb(
     if (env.startupChecks && assistantSettings(project.options?.assistant, process.env)?.kind === 'built-in') await checkQueryRunner(db, project.auth ? authStoreTables(project.auth) : [])
     if (env.startupChecks) checkAi({ models: resources.map((resource) => resource.toModel()), views: views.map((source) => source.toModel()), assistant: project.options?.assistant, env: process.env })
     if (env.startupChecks && project.webhooks) await checkWebhooksSchema(db, project.webhooks)
+    if (env.startupChecks && project.notifications) await checkNotificationsSchema(db, project.notifications, project.auth)
     const { admin, jobs: definitions } = projectAdmin(project, project.config, db, ui, reporter, upgradeWebSocket)
     if (env.startupChecks && definitions.length > 0) await checkJobsSchema(db)
     const jobs = definitions.length > 0 ? await startJobs({ db, jobs: definitions, work: env.runJobs, onError: (error) => console.error(error) }) : undefined

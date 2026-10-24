@@ -5,6 +5,7 @@ import type { AssistantOptions } from './assistant/assistant-settings'
 import type { EventsOptions } from './changes/events-options'
 import type { HistoryOptions } from './history/options'
 import type { WebhooksOptions } from './webhooks/table/options'
+import type { NotificationsOptions } from './notifications/options'
 import { isSubscription } from './webhooks/subscription'
 import type { AdminAuth } from './better-auth/create-auth'
 import type { FilesOptions } from './files/options'
@@ -36,6 +37,8 @@ export type ProjectConfig = {
   history?: HistoryOptions
   /** Webhook subscriptions made in the admin app; set by `extends: [webhooks()]` (see `WebhooksOptions`). */
   webhooks?: WebhooksOptions
+  /** Notifications and each user's devices; set by `extends: [notifications()]` (see `NotificationsOptions`). */
+  notifications?: NotificationsOptions
   /** The module of the app's jobs, e.g. `import * as jobs from './config/jobs'`: every `defineJob` it exports. */
   jobs?: Record<string, unknown>
   /** The app's iOS and Android build (see `MobileConfig`): `protobase mobile` needs it, and the API answers the app's origins. */
@@ -159,8 +162,8 @@ const mergedOptions = (named: Named[]): AdminOptions | undefined => {
  */
 export const mergeConfig = (...configs: ProjectConfig[]): ProjectConfig => {
   const named = configs.flatMap((config, index) => flatten(config, config.name ?? `config ${index + 1}`))
-  const { db, authenticate, auth, events, history, webhooks, mobile, app } = lastSet(
-    named.map(({ config }) => ({ db: config.db, authenticate: config.authenticate, auth: config.auth, events: config.events, history: config.history, webhooks: config.webhooks, mobile: config.mobile, app: config.app })),
+  const { db, authenticate, auth, events, history, webhooks, notifications, mobile, app } = lastSet(
+    named.map(({ config }) => ({ db: config.db, authenticate: config.authenticate, auth: config.auth, events: config.events, history: config.history, webhooks: config.webhooks, notifications: config.notifications, mobile: config.mobile, app: config.app })),
   )
   const module = mergedModule(named)
   const functions = mergedFunctions(named)
@@ -179,6 +182,7 @@ export const mergeConfig = (...configs: ProjectConfig[]): ProjectConfig => {
     ...(events && { events }),
     ...(history && { history }),
     ...(webhooks && { webhooks }),
+    ...(notifications && { notifications }),
     ...(jobs && { jobs }),
     ...(mobile && { mobile }),
     ...(app && { app }),

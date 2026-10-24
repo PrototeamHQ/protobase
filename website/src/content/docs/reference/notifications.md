@@ -1,0 +1,120 @@
+---
+title: Notifications
+description: Turn on notifications, let each signed-in user register their browsers and phones, and keep the devices in Postgres or a store of your own.
+---
+
+## Turning them on
+
+:::caution[In development]
+Nothing sends notifications yet: sending, the history, Web Push, push on Android and iOS and the bell are coming soon.
+:::
+
+Notifications tell a user about something in the app, in a bell in the top bar and as push on their devices. You turn them on in `protobase.config.ts`:
+
+```ts
+import { defineConfig, notifications } from '@protobase/server'
+
+export default defineConfig({
+  extends: [notifications()],
+  // config, auth, ...
+})
+```
+
+Then run `protobase migration`, which writes the [devices table](#table-names) as a migration of the project's own, and apply it with the project's migrations. `protobase dev` and `protobase serve` refuse to start while the table is missing or lacks what notifications need, and name it. Without `notifications()` there is none of it: no endpoints, no table and no migration.
+
+The bell and push are coming soon. `notifications({ ui: false })` keeps only the backend, without the bell.
+
+## Devices
+
+:::caution[In development]
+A registered device receives nothing yet: Web Push and push on Android and iOS are coming soon.
+:::
+
+A device is where a user receives push: a browser's push subscription, or an Android or iOS app's push token. Each signed-in user registers and removes only their own, through the API:
+
+| Request | |
+| --- | --- |
+| `POST /api/notifications/devices` | registers the device the request comes from, or refreshes it; answers `{ id, kind, createdAt, lastSeenAt }` |
+| `DELETE /api/notifications/devices/<id>` | removes the caller's device with that id; answers `204` whether or not the caller had it |
+
+The body of a register is JSON (`Content-Type: application/json`, at most 8 KB), in one of three shapes:
+
+```jsonc
+// A browser: its PushSubscription as JSON
+{ "kind": "web", "endpoint": "https://…", "keys": { "p256dh": "…", "auth": "…" }, "userAgent": "…" }
+// An iOS app: its token in lowercase hex, the build's environment and bundle id
+{ "kind": "apns", "token": "…", "environment": "production", "appId": "net.example.app" }
+// An Android app: its token, and optionally its package name
+{ "kind": "fcm", "token": "…", "appId": "net.example.app" }
+```
+
+A field that does not belong to the kind, a missing one, an unknown one such as a user id, or a value out of its format is a `400` that names the field and stores nothing. A browser's `endpoint` must be an https URL on one of the browsers' push services. `environment` is `sandbox` or `production`, and `userAgent`, optional for every kind, is at most 512 characters. The stored device keeps `null` in the fields its kind does not have.
+
+Who may call them:
+
+- Only someone signed in as themselves, with the token of their own sign-in. Visitors are refused with a `401`, and staff signed in as the user, outside apps acting for the user (such as an MCP client) and tokens minted with `issueToken` with a `403`.
+- An app with its own `authenticate` marks a user's own sign-in on the session it returns, `signIn: { staff: false }`; without that mark, its sessions are refused.
+
+A device is one token, or one endpoint for a browser. Registering a device someone else had moves it to the caller, as a new device with a new id that keeps nothing of the previous user's, so a shared phone or browser notifies whoever signed in on it last. A user keeps up to 20 devices: registering one more removes their least recently seen. Deleting a user removes their devices. <gap>Signing out cannot remove the session's devices because removing devices when a session ends is not implemented.</gap> Remove the device with `DELETE` before signing out.
+
+The path comes from `devicesPath('/api', id)`, and the name of its id parameter from `deviceIdParam`, both exported by `@protobase/server`.
+
+## Your own parts
+
+:::caution[In development]
+Only the device store can be replaced yet: senders, the history store and the bell are coming soon.
+:::
+
+The device store is an interface with a Postgres default, the [devices table](#table-names). You pass your own store to `notifications()`, such as one from a package that keeps devices elsewhere, and then no table is needed and `protobase migration` writes none:
+
+```ts
+import { defineConfig, notifications, type DeviceStore } from '@protobase/server'
+
+const store: DeviceStore = {
+  register: async (userId, device) => { /* add, refresh, or move the token to userId as a new device */ },
+  remove: async (userId, id) => { /* only when the device is userId's */ },
+  listForUser: async (userId) => [],
+  listByIds: async (ids) => [],
+  removeGone: async (tokens) => {},
+  removeAllForUser: async (userId) => {},
+}
+
+export default defineConfig({ extends: [notifications({ store })] })
+```
+
+Every method takes and returns plain data: the user id as text, and devices as `{ id, userId, kind, token, p256dh, auth, environment, appId, userAgent, createdAt, lastSeenAt }`, with `token` the endpoint for a browser. A method given an empty user id, id or token throws. `listByIds` and `removeGone` act on any user's devices, for the code that sends; the endpoints never call them. A store missing a method stops startup, naming it.
+
+When Protobase's auth deletes a user, by an admin or with `protobase users delete`, it calls the store's `removeAllForUser` before anything is deleted, so a store that throws stops the deletion, and once more afterwards. An app that deletes users otherwise calls `deviceStore(db, options).removeAllForUser(userId)` as it deletes one, with the options it gave `notifications()`.
+
+Senders, the history store and the bell are coming soon.
+
+## Table names
+
+:::caution[In development]
+Only the devices table exists yet: the history table comes with the notification history.
+:::
+
+The default store keeps devices in the table `devices` of the schema `notifications`:
+
+| Column | |
+| --- | --- |
+| `id` | `uuid`, the id the endpoints answer with |
+| `user_id` | the user's id, of the same type as auth's users table's `id`; with Protobase's auth a foreign key to that table, so a deleted user's devices go with them |
+| `kind` | `web`, `apns` or `fcm` |
+| `token` | the token, or a browser's endpoint; unique |
+| `p256dh`, `auth` | a browser's keys |
+| `environment` | an iOS app's `sandbox` or `production` |
+| `app_id` | the app's bundle id or package name |
+| `user_agent` | what the device said it is |
+| `created_at`, `last_seen_at` | when the user registered it, and last refreshed it |
+
+You rename the schema, the table and each column, as auth takes `users.table` and `users.columns`, such as to keep devices in a table you already have:
+
+```ts
+notifications({
+  schema: 'push',
+  devices: { table: 'targets', columns: { user_id: 'owner_id', token: 'address' } },
+})
+```
+
+A name is lowercase letters, digits and `_`, at most 63 characters. Startup stops, naming what is wrong, while the table lacks a configured column, a unique index on the token column alone, which moving a device relies on, or, with Protobase's auth, the foreign key from the user column to the users table with `on delete cascade`.
