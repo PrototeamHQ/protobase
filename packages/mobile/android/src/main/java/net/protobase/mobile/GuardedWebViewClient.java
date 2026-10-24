@@ -7,7 +7,6 @@ import com.getcapacitor.Bridge;
 import com.getcapacitor.BridgeWebViewClient;
 import java.io.ByteArrayInputStream;
 import java.io.File;
-import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Objects;
@@ -50,21 +49,7 @@ final class GuardedWebViewClient extends BridgeWebViewClient {
         if (path.startsWith(Bridge.CAPACITOR_FILE_START) || path.startsWith(Bridge.CAPACITOR_CONTENT_START)) return true;
         if (Arrays.asList(path.split("/")).contains("..")) return true;
         if (basePath == null || !new File(basePath).isAbsolute()) return false;
-        return !inside(new File(basePath + path));
-    }
-
-    // Compares whole path components of the canonical paths, so a sibling such as `<bundles>_x` is not inside. One
-    // that cannot be made canonical is refused.
-    private boolean inside(File file) {
-        String canonical;
-        String root;
-        try {
-            canonical = file.getCanonicalPath();
-            root = bundles.getCanonicalPath();
-        } catch (IOException e) {
-            return false;
-        }
-        return canonical.equals(root) || canonical.startsWith(root + File.separator);
+        return !BundlesFolder.contains(bundles, new File(basePath + path));
     }
 
     private static WebResourceResponse forbidden() {
