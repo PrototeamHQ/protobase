@@ -163,7 +163,10 @@ export const SignInWithoutPasswords: StoryObj<SignInFormProps> = {
   },
 }
 
-/** A whole code signs in by itself; "Sign in" sends it again, and a new code can be asked for once the wait is over. */
+/**
+ * A whole code signs in by itself; "Sign in" sends it again, and a new code can be asked for once the wait is over. The
+ * code is one field the system fills from Mail or Messages, with the phone's digit keyboard.
+ */
 export const EmailCode: StoryObj<EmailCodeFormProps> = {
   tags: ['play'],
   args: { email: 'sanne@veldhuis-supply.example', onSubmit: fn(), onResend: fn(), onBack: fn(), resendCooldown: 0 },
@@ -171,7 +174,12 @@ export const EmailCode: StoryObj<EmailCodeFormProps> = {
   play: async ({ canvasElement, args }) => {
     const canvas = within(canvasElement)
     expect(canvas.getByText('sanne@veldhuis-supply.example')).toBeVisible()
-    await userEvent.type(canvas.getByLabelText('Code'), '482913')
+    expect(canvasElement.querySelectorAll('input')).toHaveLength(1)
+    const code = canvas.getByLabelText('Code')
+    expect(code).toHaveAttribute('autocomplete', 'one-time-code')
+    expect(code).toHaveAttribute('inputmode', 'numeric')
+    expect(code).toHaveAttribute('pattern', '[0-9]{6}')
+    await userEvent.type(code, '482913')
     expect(args.onSubmit).toHaveBeenCalledOnce()
     expect(args.onSubmit).toHaveBeenCalledWith('482913')
     await userEvent.click(canvas.getByRole('button', { name: 'Sign in' }))
