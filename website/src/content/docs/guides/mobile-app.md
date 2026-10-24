@@ -31,7 +31,7 @@ export default defineConfig({
 })
 ```
 
-- `appId` is the app's id in reverse-DNS form: at least two parts separated by dots, each starting with a letter and holding only letters, digits and underscores.
+- `appId` is the app's id in reverse-DNS form, the same on iOS and Android: at least two parts separated by dots, each starting with a letter and holding only letters and digits. Underscores and hyphens are refused, as iOS rejects underscores and Android rejects hyphens; `protobase mobile` stops early on such an id and suggests one without them.
 - `plugins`, optional, are extra native [Capacitor plugins](https://capacitorjs.com/docs/plugins), npm name to version. Capacitor itself, `@capacitor/app`, `@capacitor/splash-screen` and `@capawesome/capacitor-live-update` come with Protobase at fixed versions and cannot be listed. A plugin runs native code with the app's rights, and one that writes files, such as `@capacitor/filesystem`, lets a script that got into the page point the iOS app at files it wrote (with Capacitor's own `WebView.setServerBasePath`), so list only plugins the app needs. On Android a plugin's JavaScript cannot call `CapacitorHttp`, `CapacitorCookies` or `WebView`, and `Capacitor.convertFileSrc` URLs do not load: call those from the plugin's native code.
 
 With a mobile section, the API answers the app's origins, `capacitor://localhost` on iOS and `https://localhost` on Android, through [CORS](/reference/api/#cors). Apps without one get no new dependency, and `protobase build` and `protobase dev` work as before.

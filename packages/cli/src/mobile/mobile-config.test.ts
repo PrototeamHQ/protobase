@@ -6,10 +6,10 @@ describe('checkMobileConfig', () => {
     expect(() => checkMobileConfig(undefined)).toThrow("This project has no mobile section: add `mobile: { appId: 'com.example.app' }`")
   })
 
-  it('takes an app id by Capacitor\'s rule, and extra plugins', () => {
-    expect(checkMobileConfig({ appId: 'com.example.Shop_2' })).toEqual({ appId: 'com.example.Shop_2' })
+  it('takes an app id iOS and Android both accept, and extra plugins', () => {
+    expect(checkMobileConfig({ appId: 'com.example.Shop2' })).toEqual({ appId: 'com.example.Shop2' })
     expect(checkMobileConfig({ appId: 'com.example.shop', plugins: { '@capacitor/camera': '^8.0.0' } })).toEqual({ appId: 'com.example.shop', plugins: { '@capacitor/camera': '^8.0.0' } })
-    for (const appId of ['shop', 'com.1shop', 'com.example-shop.app', 'com..shop', 7]) {
+    for (const appId of ['shop', 'com.1shop', 'com.example-shop.app', 'com.example_shop', 'com..shop', 7]) {
       expect(() => checkMobileConfig({ appId }), String(appId)).toThrow('mobile.appId must be a reverse-DNS id')
     }
   })

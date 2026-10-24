@@ -2,7 +2,7 @@ import { capacitorOrigin } from '@protobase/schema/internal'
 
 /** The `mobile` section of `protobase.config.ts`: with it, `protobase mobile` builds the app for iOS and Android. */
 export type MobileConfig = {
-  /** The app's id in reverse-DNS form, such as `com.example.shop`. */
+  /** The app's id on both iOS and Android, such as `com.example.shop`: two or more dot-separated parts, each a letter then letters and digits. */
   appId: string
   /** Extra native Capacitor plugins the app needs, as npm name → version range, such as `{ '@capacitor/camera': '^8.0.0' }`. */
   plugins?: Record<string, string>
