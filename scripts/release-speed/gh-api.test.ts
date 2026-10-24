@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { ghApi, retryDelays, type Gh } from './gh-api'
+import { GhServerError, ghApi, retryDelays, type Gh } from './gh-api'
 
 // A gh that gives each response in turn and records the waits between them.
 const scripted = (...responses: Array<{ status: number; stdout?: string; stderr?: string }>) => {
@@ -24,7 +24,14 @@ describe('ghApi', () => {
 
   it('fails once every wait is used up', () => {
     const gh = scripted(...Array.from({ length: retryDelays.length + 1 }, () => ({ status: 1, stderr: 'gh: Server Error (HTTP 502)' })))
-    expect(() => ghApi('actions/runs/1/jobs', gh.run, gh.wait)).toThrow('gh api actions/runs/1/jobs failed with status 1: gh: Server Error (HTTP 502)')
+    let error: unknown
+    try {
+      ghApi('actions/runs/1/jobs', gh.run, gh.wait)
+    } catch (thrown) {
+      error = thrown
+    }
+    expect(error).toBeInstanceOf(GhServerError)
+    expect(error).toHaveProperty('message', 'gh api actions/runs/1/jobs failed with status 1: gh: Server Error (HTTP 502)')
     expect(gh.calls()).toBe(retryDelays.length + 1)
     expect(gh.waits).toEqual(retryDelays)
   })
