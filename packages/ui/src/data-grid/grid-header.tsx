@@ -5,6 +5,7 @@ import { isRightAligned, type ColumnSpec } from './column-spec'
 import { HeaderMenu, unsortableText } from './header-menu'
 import { compactGutter, gridTemplate } from './grid-template'
 import { text } from './messages'
+import { ResizeHandle, type ColumnResize } from './resize-handle'
 
 export type HeaderCell = { spec: ColumnSpec; sorted: 'asc' | 'desc' | false; onSort: (event: unknown) => void }
 
@@ -22,6 +23,10 @@ export type GridHeaderProps = {
   lastPinned?: string
   scrolled?: boolean
   onTogglePin: (id: string) => void
+  /** Lets each column be resized by dragging its header's right edge. */
+  resize?: ColumnResize
+  /** The widths columns were resized to, by id. */
+  widths?: Record<string, number>
   onClearSelection: () => void
 }
 
@@ -38,7 +43,7 @@ const HeaderLabel = ({ spec }: { spec: ColumnSpec }) => (
   </>
 )
 
-export const GridHeader = ({ cells, specs, gutter, selectedCount, selectable, trailing, minScale, pins = {}, lastPinned, scrolled, onTogglePin, onClearSelection }: GridHeaderProps) => (
+export const GridHeader = ({ cells, specs, gutter, selectedCount, selectable, trailing, minScale, pins = {}, lastPinned, scrolled, onTogglePin, resize, widths = {}, onClearSelection }: GridHeaderProps) => (
   <div className="grid h-8 shrink-0 items-center border-b bg-surface text-body font-medium text-muted-foreground" style={{ gridTemplateColumns: gridTemplate(specs, gutter, trailing, minScale) }} role="row">
     <div className={cn('sticky left-0 z-10 flex h-full items-center gap-2 bg-inherit pl-3', scrolled && !lastPinned && 'shadow-[1px_0_0_var(--border),4px_0_6px_-2px_rgb(0_0_0/0.12)]')} style={{ width: gutter }}>
       {/* It only clears a selection, so with none it says so and cannot be pressed */}
@@ -54,7 +59,7 @@ export const GridHeader = ({ cells, specs, gutter, selectedCount, selectable, tr
           style={pinned ? { left: pins[spec.id] } : undefined}
           className={cn(
             'group/cell flex h-full min-w-0 items-center',
-            pinned && 'sticky z-10 bg-inherit',
+            pinned ? 'sticky z-10 bg-inherit' : 'relative',
             pinned && scrolled && spec.id === lastPinned && 'shadow-[1px_0_0_var(--border),4px_0_6px_-2px_rgb(0_0_0/0.12)]',
             spec.highlight && 'bg-primary-soft text-primary-text',
           )}
@@ -77,6 +82,7 @@ export const GridHeader = ({ cells, specs, gutter, selectedCount, selectable, tr
           <div className="pr-1.5">
             <HeaderMenu header={spec.header} pinned={pinned} sortable={Boolean(spec.sortable)} onTogglePin={() => onTogglePin(spec.id)} />
           </div>
+          {resize && <ResizeHandle id={spec.id} header={spec.header} width={widths[spec.id]} resize={resize} />}
         </div>
       )
     })}

@@ -114,7 +114,9 @@ div | block
                           div .relative ml-auto shrink-0 | block relative
                             button .relative inline-flex size-5 items-center justify-center rounded text-faint-foreground hover:bg-muted hover:text-foreground focus-visible:opacity-100 after:absolute after:-inset-2 after:content-[''] md:opacity-0 md:group-hover/cell:opacity-100 aria-expanded:opacity-100 | inline-flex row nowrap center center relative
                               svg .lucide lucide-ellipsis lucide-more-horizontal size-3.5 | block
-                      div .group/cell flex h-full min-w-0 items-center | flex row nowrap center normal
+                        div role=separator .group/resize absolute inset-y-0 right-0 z-10 flex w-2 cursor-col-resize touch-none justify-end outline-none | flex row nowrap normal flex-end absolute
+                          div .h-full w-0.5 bg-transparent group-hover/resize:bg-primary group-focus-visible/resize:bg-primary group-active/resize:bg-primary | block
+                      div .group/cell flex h-full min-w-0 items-center relative | flex row nowrap center normal relative
                         button .group/head flex h-full min-w-0 flex-1 items-center gap-1 pl-3 pr-1 text-left hover:text-foreground | flex row nowrap center normal
                           span .truncate | block
                           svg .lucide lucide-chevrons-up-down size-3 opacity-0 group-hover/head:opacity-100 | block
@@ -122,14 +124,18 @@ div | block
                           div .relative ml-auto shrink-0 | block relative
                             button .relative inline-flex size-5 items-center justify-center rounded text-faint-foreground hover:bg-muted hover:text-foreground focus-visible:opacity-100 after:absolute after:-inset-2 after:content-[''] md:opacity-0 md:group-hover/cell:opacity-100 aria-expanded:opacity-100 | inline-flex row nowrap center center relative
                               svg .lucide lucide-ellipsis lucide-more-horizontal size-3.5 | block
-                      div .group/cell flex h-full min-w-0 items-center | flex row nowrap center normal
+                        div role=separator .group/resize absolute inset-y-0 right-0 z-10 flex w-2 cursor-col-resize touch-none justify-end outline-none | flex row nowrap normal flex-end absolute
+                          div .h-full w-0.5 bg-transparent group-hover/resize:bg-primary group-focus-visible/resize:bg-primary group-active/resize:bg-primary | block
+                      div .group/cell flex h-full min-w-0 items-center relative | flex row nowrap center normal relative
                         div .flex h-full min-w-0 flex-1 items-center gap-1 pl-3 pr-1 text-left | flex row nowrap center normal
                           span .truncate | block
                         div .pr-1.5 | block
                           div .relative ml-auto shrink-0 | block relative
                             button .relative inline-flex size-5 items-center justify-center rounded text-faint-foreground hover:bg-muted hover:text-foreground focus-visible:opacity-100 after:absolute after:-inset-2 after:content-[''] md:opacity-0 md:group-hover/cell:opacity-100 aria-expanded:opacity-100 | inline-flex row nowrap center center relative
                               svg .lucide lucide-ellipsis lucide-more-horizontal size-3.5 | block
-                      div .group/cell flex h-full min-w-0 items-center | flex row nowrap center normal
+                        div role=separator .group/resize absolute inset-y-0 right-0 z-10 flex w-2 cursor-col-resize touch-none justify-end outline-none | flex row nowrap normal flex-end absolute
+                          div .h-full w-0.5 bg-transparent group-hover/resize:bg-primary group-focus-visible/resize:bg-primary group-active/resize:bg-primary | block
+                      div .group/cell flex h-full min-w-0 items-center relative | flex row nowrap center normal relative
                         button .group/head flex h-full min-w-0 flex-1 items-center gap-1 pl-3 pr-1 text-left hover:text-foreground | flex row nowrap center normal
                           span .truncate | block
                           svg .lucide lucide-chevrons-up-down size-3 opacity-0 group-hover/head:opacity-100 | block
@@ -137,7 +143,9 @@ div | block
                           div .relative ml-auto shrink-0 | block relative
                             button .relative inline-flex size-5 items-center justify-center rounded text-faint-foreground hover:bg-muted hover:text-foreground focus-visible:opacity-100 after:absolute after:-inset-2 after:content-[''] md:opacity-0 md:group-hover/cell:opacity-100 aria-expanded:opacity-100 | inline-flex row nowrap center center relative
                               svg .lucide lucide-ellipsis lucide-more-horizontal size-3.5 | block
-                      div .group/cell flex h-full min-w-0 items-center | flex row nowrap center normal
+                        div role=separator .group/resize absolute inset-y-0 right-0 z-10 flex w-2 cursor-col-resize touch-none justify-end outline-none | flex row nowrap normal flex-end absolute
+                          div .h-full w-0.5 bg-transparent group-hover/resize:bg-primary group-focus-visible/resize:bg-primary group-active/resize:bg-primary | block
+                      div .group/cell flex h-full min-w-0 items-center relative | flex row nowrap center normal relative
                         button .group/head flex h-full min-w-0 flex-1 items-center gap-1 pl-3 pr-1 text-left hover:text-foreground | flex row nowrap center normal
                           span .truncate | block
                           svg .lucide lucide-chevrons-up-down size-3 opacity-0 group-hover/head:opacity-100 | block
@@ -145,7 +153,9 @@ div | block
                           div .relative ml-auto shrink-0 | block relative
                             button .relative inline-flex size-5 items-center justify-center rounded text-faint-foreground hover:bg-muted hover:text-foreground focus-visible:opacity-100 after:absolute after:-inset-2 after:content-[''] md:opacity-0 md:group-hover/cell:opacity-100 aria-expanded:opacity-100 | inline-flex row nowrap center center relative
                               svg .lucide lucide-ellipsis lucide-more-horizontal size-3.5 | block
-                      div .group/cell flex h-full min-w-0 items-center | flex row nowrap center normal
+                        div role=separator .group/resize absolute inset-y-0 right-0 z-10 flex w-2 cursor-col-resize touch-none justify-end outline-none | flex row nowrap normal flex-end absolute
+                          div .h-full w-0.5 bg-transparent group-hover/resize:bg-primary group-focus-visible/resize:bg-primary group-active/resize:bg-primary | block
+                      div .group/cell flex h-full min-w-0 items-center relative | flex row nowrap center normal relative
                         button .group/head flex h-full min-w-0 flex-1 items-center gap-1 pl-3 pr-1 text-left justify-end hover:text-foreground | flex row nowrap center flex-end
                           span .truncate | block
                           svg .lucide lucide-chevrons-up-down size-3 opacity-0 group-hover/head:opacity-100 | block
@@ -153,7 +163,9 @@ div | block
                           div .relative ml-auto shrink-0 | block relative
                             button .relative inline-flex size-5 items-center justify-center rounded text-faint-foreground hover:bg-muted hover:text-foreground focus-visible:opacity-100 after:absolute after:-inset-2 after:content-[''] md:opacity-0 md:group-hover/cell:opacity-100 aria-expanded:opacity-100 | inline-flex row nowrap center center relative
                               svg .lucide lucide-ellipsis lucide-more-horizontal size-3.5 | block
-                      div .group/cell flex h-full min-w-0 items-center | flex row nowrap center normal
+                        div role=separator .group/resize absolute inset-y-0 right-0 z-10 flex w-2 cursor-col-resize touch-none justify-end outline-none | flex row nowrap normal flex-end absolute
+                          div .h-full w-0.5 bg-transparent group-hover/resize:bg-primary group-focus-visible/resize:bg-primary group-active/resize:bg-primary | block
+                      div .group/cell flex h-full min-w-0 items-center relative | flex row nowrap center normal relative
                         button .group/head flex h-full min-w-0 flex-1 items-center gap-1 pl-3 pr-1 text-left hover:text-foreground text-foreground | flex row nowrap center normal
                           span .truncate | block
                           svg .lucide lucide-arrow-down size-3 text-foreground | block
@@ -161,6 +173,8 @@ div | block
                           div .relative ml-auto shrink-0 | block relative
                             button .relative inline-flex size-5 items-center justify-center rounded text-faint-foreground hover:bg-muted hover:text-foreground focus-visible:opacity-100 after:absolute after:-inset-2 after:content-[''] md:opacity-0 md:group-hover/cell:opacity-100 aria-expanded:opacity-100 | inline-flex row nowrap center center relative
                               svg .lucide lucide-ellipsis lucide-more-horizontal size-3.5 | block
+                        div role=separator .group/resize absolute inset-y-0 right-0 z-10 flex w-2 cursor-col-resize touch-none justify-end outline-none | flex row nowrap normal flex-end absolute
+                          div .h-full w-0.5 bg-transparent group-hover/resize:bg-primary group-focus-visible/resize:bg-primary group-active/resize:bg-primary | block
                       div .sticky right-0 z-10 h-full bg-inherit | block sticky
                 div .overflow-x-auto overflow-y-hidden overscroll-x-contain [-webkit-overflow-scrolling:touch] | block
                   div .relative | block relative

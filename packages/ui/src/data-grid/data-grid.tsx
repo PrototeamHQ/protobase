@@ -11,6 +11,8 @@ import { useHorizontalScroll } from './use-horizontal-scroll'
 import { usePinnedColumns } from './use-pinned-columns'
 import { defaultPins } from './default-pins'
 import { useFittedColumns } from './use-fitted-columns'
+import { withResizedWidths } from './column-resize'
+import { useColumnResize } from './use-column-resize'
 import { useIsDesktop } from '../lib/use-media-query'
 import { GridHeader } from './grid-header'
 import { DataRow, SkeletonRow } from './grid-row'
@@ -115,7 +117,11 @@ export const DataGrid = ({ columns: given, source, naturalSort, initialScrollInd
   }, [getRow, rowPatches])
   const loaded = virtualRows.map(({ index, offset }) => ({ index, offset, row: patchedRow(index) }))
   const data = useMemo(() => loaded.flatMap(({ row }) => (row ? [row] : [])), [patchedRow, firstIndex, lastIndex])
-  const sized = useFittedColumns(columns, data)
+  // The header scrolls sideways with the rows, outside them so that it can stick to the top of a page
+  const headerRef = useRef<HTMLDivElement>(null)
+  const resize = useColumnResize(headerRef)
+  const fitted = useFittedColumns(columns, data)
+  const sized = useMemo(() => withResizedWidths(fitted, resize.widths), [fitted, resize.widths])
   const table = useTable({
     features,
     columns: tableColumns,
@@ -135,8 +141,6 @@ export const DataGrid = ({ columns: given, source, naturalSort, initialScrollInd
   const trailing = rowActions && rowActions.length > 0 ? rowMenuWidth : 0
   const minScale = narrow ? 1 : desktopMinScale
   const horizontal = useHorizontalScroll()
-  // The header scrolls sideways with the rows, outside them so that it can stick to the top of a page
-  const headerRef = useRef<HTMLDivElement>(null)
   const onBodyScroll = () => {
     horizontal.onScroll()
     if (headerRef.current && horizontal.ref.current) headerRef.current.scrollLeft = horizontal.ref.current.scrollLeft
@@ -174,7 +178,7 @@ export const DataGrid = ({ columns: given, source, naturalSort, initialScrollInd
   const header = (
     <div ref={headerRef} className={cn('sticky z-20 shrink-0 overflow-hidden', own ? 'top-0' : 'top-[var(--pb-sticky-top,0px)]')}>
       <div style={{ minWidth }}>
-        <GridHeader cells={headerCells} specs={sized} gutter={gutter} trailing={trailing} minScale={minScale} pins={pins} lastPinned={lastPinned} scrolled={horizontal.scrolled} onTogglePin={togglePin} selectable={selectable} selectedCount={selectedCount} onClearSelection={() => setRowSelection({})} />
+        <GridHeader cells={headerCells} specs={sized} gutter={gutter} trailing={trailing} minScale={minScale} pins={pins} lastPinned={lastPinned} scrolled={horizontal.scrolled} onTogglePin={togglePin} resize={narrow ? undefined : resize} widths={resize.widths} selectable={selectable} selectedCount={selectedCount} onClearSelection={() => setRowSelection({})} />
       </div>
     </div>
   )
