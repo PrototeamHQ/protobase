@@ -106,7 +106,7 @@ Without them Web Push is off and the app has no sender for browsers. One or two 
 
 The private key is a secret: keep it out of client code, `VITE_` variables and the repository. Anyone holding it and the stored subscriptions can push to every subscribed browser. Browsers subscribe with the public key, which `/meta` gives every caller as `notifications.webPushKey`, so a new key pair breaks every subscription until its browser registers again.
 
-Each message is encrypted for its browser and signed with the key. It goes only to an endpoint on one of the browsers' push services, never through a redirect. <gap>Web Push cannot deliver to a push service outside the browsers' own because adding one to the list is not implemented.</gap> A message's `platform.web` sets the request's `ttl`, `urgency` and `topic` and fields merged into the JSON the browser receives (`payload`), in place of those built from the message; every URL in that JSON is checked as the message's `url` is. The JSON carries at most 3993 bytes.
+Each message is encrypted for its browser and signed with the key. It goes only to an endpoint on one of the browsers' push services, never through a redirect; a device stored with any other endpoint, or with keys that are not a subscription's, is `refused`. <gap>Web Push cannot deliver to a push service outside the browsers' own because adding one to the list is not implemented.</gap> A message's `platform.web` sets the request's `ttl`, `urgency` and `topic` and fields merged into the JSON the browser receives (`payload`), in place of those built from the message; every URL in that JSON is checked as the message's `url` is. The JSON carries at most 3993 bytes.
 
 ## Your own parts
 
@@ -176,6 +176,7 @@ export default defineConfig({ extends: [notifications({ senders: [sender] })] })
 | `ok` | the push service took the message |
 | `gone` | the device no longer exists there, and should be removed |
 | `retry` | the push service may take it later; `retryAfterSeconds` says when, if the service does |
+| `refused` | the sender never delivers to the device as it is stored, so it is neither retried nor removed |
 
 A device with no answer, or an answer that is none of these, counts as `retry`, and answers for devices outside the batch are ignored. What a sender throws becomes an error that names only the sender's place in the list, since its own error may name devices.
 

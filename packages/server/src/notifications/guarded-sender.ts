@@ -2,7 +2,14 @@ import type { Device } from './device'
 import { pushMessage, PushMessageError, type PushMessage } from './message'
 import type { PushAnswer, PushSender } from './sender'
 
-const results = new Set<string>(['ok', 'gone', 'retry'])
+const results = new Set<string>(['ok', 'gone', 'retry', 'refused'])
+
+/** What a guarded sender throws for what its sender threw: it names the sender's index alone. */
+export class PushSenderError extends Error {
+  constructor(readonly index: number) {
+    super(`notifications sender ${index} failed`)
+  }
+}
 
 const deepFrozen = <T>(value: T): T => {
   if (typeof value !== 'object' || value === null) return value
@@ -31,7 +38,7 @@ const answersFor = (batch: readonly Device[], given: unknown): PushAnswer[] => {
 /**
  * `sender` as the code that sends calls it, whether built in or the app's own: the message is checked as `pushMessage`
  * checks it, and refused before the sender sees it; the sender gets a frozen copy of it and of the devices of its kinds
- * only, and answers each of those once, as above. A sender that throws throws an error of its own naming its index,
+ * only, and answers each of those once, as above. A sender that throws throws a `PushSenderError` naming its index,
  * never the sender's, which may carry an endpoint or a key, but for a `PushMessageError`, which names a field only.
  */
 export const guardedSender = (sender: PushSender, index: number): PushSender => {
@@ -45,7 +52,7 @@ export const guardedSender = (sender: PushSender, index: number): PushSender => 
     } catch (error) {
       // A message the sender refuses names the field only; anything else it throws is replaced, since it may name devices.
       if (error instanceof PushMessageError) throw error
-      throw new Error(`notifications sender ${index} failed`)
+      throw new PushSenderError(index)
     }
     return answersFor(batch, answers)
   }

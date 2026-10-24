@@ -43,7 +43,7 @@ const headersOf = (message: PushMessage) => {
  * The built-in Web Push sender (RFC 8030, 8291, 8292): delivers to `web` devices, signed with the VAPID pair and
  * encrypted for each device's keys. It checks the message as `pushMessage` does and throws before any request when it
  * is not one. A device whose endpoint is not on a browser's push service, or whose keys are not a subscription's, is
- * answered `gone` with no request. It logs nothing, and its errors and answers carry no endpoint, key or token.
+ * answered `refused` with no request. It logs nothing, and its errors and answers carry no endpoint, key or token.
  */
 export const webPushSender = (settings: VapidSettings, options: WebPushOptions = {}): PushSender => {
   const authorization = vapidAuthorizer(settings, options.now)
@@ -51,7 +51,7 @@ export const webPushSender = (settings: VapidSettings, options: WebPushOptions =
   const sendOne = async (device: Device, headers: Record<string, string>, plaintext: Buffer): Promise<PushAnswer> => {
     const url = endpointOf(device)
     const keys = keysOf(device)
-    if (!url || !keys) return { id: device.id, result: 'gone' }
+    if (!url || !keys) return { id: device.id, result: 'refused' }
     const body = encryptPayload(plaintext, keys)
     const answer = await postPush(url, { ...headers, Authorization: authorization(url.origin) }, body, options)
     return { id: device.id, ...answer }

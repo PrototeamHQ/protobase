@@ -5,9 +5,10 @@ import { isPublicKey } from './web-push/keys'
 /**
  * What a sender answers for one device: `ok` when the push service took the message, `gone` when the device no longer
  * exists there and should be removed, `retry` when it may take the message later, after `retryAfterSeconds` when the
- * push service says.
+ * push service says, and `refused` when the sender never delivers to the device as it is stored, such as one whose
+ * endpoint is on no known push service: it is neither retried nor removed.
  */
-export type PushAnswer = { id: string; result: 'ok' | 'gone' | 'retry'; retryAfterSeconds?: number }
+export type PushAnswer = { id: string; result: 'ok' | 'gone' | 'retry' | 'refused'; retryAfterSeconds?: number }
 
 /**
  * Delivers notifications to the devices of its `kinds`, through their push service: the built-in Web Push sender, or

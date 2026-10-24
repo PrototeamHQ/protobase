@@ -97,11 +97,11 @@ describe('webPushSender', () => {
     'https://fcm.googleapis.com:8443/x',
     'https://notify.windows.com/x',
     'not a url',
-  ])('answers a device at %s gone with no request, sending the others', async (endpoint) => {
+  ])('answers a device at %s refused with no request, sending the others', async (endpoint) => {
     const service = pushService()
     const good = deviceOf('https://web.push.apple.com/x')
     const bad = deviceOf(endpoint)
-    expect(await webPushSender(settings, { fetch: service.fetch }).send({ title: 'x' }, [bad, good])).toEqual([{ id: bad.id, result: 'gone' }, { id: good.id, result: 'ok' }])
+    expect(await webPushSender(settings, { fetch: service.fetch }).send({ title: 'x' }, [bad, good])).toEqual([{ id: bad.id, result: 'refused' }, { id: good.id, result: 'ok' }])
     expect(service.sent.map((request) => request.url)).toEqual([good.token])
   })
 
@@ -112,13 +112,13 @@ describe('webPushSender', () => {
     ['no p256dh', { p256dh: null }],
     ['no auth', { auth: null }],
     ['junk keys', { p256dh: '!!!', auth: '???' }],
-  ])('answers a device with %s gone with no request', async (_name, change) => {
+  ])('answers a device with %s refused with no request', async (_name, change) => {
     const statuses = [201, 410]
     const service = pushService((url) => statuses[Number(url.slice(-1))]!)
     const bad = deviceOf('https://fcm.googleapis.com/fcm/send/bad', undefined, change)
     const devices = [deviceOf('https://fcm.googleapis.com/fcm/send/0'), bad, deviceOf('https://fcm.googleapis.com/fcm/send/1')]
     const answers = await webPushSender(settings, { fetch: service.fetch }).send({ title: 'x' }, devices)
-    expect(answers.map((answer) => answer.result)).toEqual(['ok', 'gone', 'gone'])
+    expect(answers.map((answer) => answer.result)).toEqual(['ok', 'refused', 'gone'])
     expect(service.sent).toHaveLength(2)
   })
 
@@ -164,7 +164,7 @@ describe('webPushSender', () => {
     expect(failure).toBeInstanceOf(Error)
 
     const seen = JSON.stringify([answers, { ...(failure as object), message: (failure as Error).message, cause: (failure as Error).cause }, logs.map((spy) => spy.mock.calls)])
-    expect(answers.map((answer) => answer.result)).toEqual(['retry', 'retry', 'retry', 'gone'])
+    expect(answers.map((answer) => answer.result)).toEqual(['retry', 'retry', 'retry', 'refused'])
     for (const secret of [keys.privateKey, 'secret-path', 'vapid t=', ...devices.flatMap((device) => [device.p256dh!, device.auth!])]) expect(seen).not.toContain(secret)
     for (const spy of logs) expect(spy).not.toHaveBeenCalled()
   })

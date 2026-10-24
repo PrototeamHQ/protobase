@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { Device } from './device'
-import { guardedSender } from './guarded-sender'
+import { guardedSender, PushSenderError } from './guarded-sender'
 import { PushMessageError, type PushMessage } from './message'
 import type { PushSender } from './sender'
 
@@ -28,15 +28,17 @@ describe('guardedSender', () => {
       { id: 'b', result: 'deleted' },
       { id: 'c', result: 'retry', retryAfterSeconds: -5 },
       { id: 'd', result: 'gone', retryAfterSeconds: 10 },
+      { id: 'f', result: 'refused' },
       null,
     ])
-    const devices = [deviceOf('a'), deviceOf('b'), deviceOf('c'), deviceOf('d'), deviceOf('e'), deviceOf('web-device', 'web')]
+    const devices = [deviceOf('a'), deviceOf('b'), deviceOf('c'), deviceOf('d'), deviceOf('e'), deviceOf('f'), deviceOf('web-device', 'web')]
     expect(await guardedSender(sender, 0).send({ title: 'x' }, devices)).toEqual([
       { id: 'a', result: 'ok' },
       { id: 'b', result: 'retry' },
       { id: 'c', result: 'retry' },
       { id: 'd', result: 'gone', retryAfterSeconds: 10 },
       { id: 'e', result: 'retry' },
+      { id: 'f', result: 'refused' },
     ])
   })
 
@@ -77,6 +79,7 @@ describe('guardedSender', () => {
       },
     }
     const thrown = (await guardedSender(sender, 2).send({ title: 'x' }, [deviceOf('a')]).catch((error: unknown) => error)) as Error
+    expect(thrown).toBeInstanceOf(PushSenderError)
     expect(thrown.message).toBe('notifications sender 2 failed')
     expect(JSON.stringify({ ...thrown, cause: thrown.cause })).not.toContain('secret')
   })
