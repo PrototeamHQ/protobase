@@ -1,0 +1,15 @@
+---
+title: Notifications
+description: A bell in the top bar and push to browsers and phones, for what your app tells its users.
+---
+
+- [Notifications](/reference/notifications/#turning-them-on) (in development): `extends: [notifications()]` gives every signed-in user a bell in the top bar and push to their browsers and phones; `ui: false` keeps only the backend.
+- [Devices](/reference/notifications/#devices) (in development): Each signed-in user registers their own browsers and phones to receive push, and a device moves to whoever registers it next.
+- [Your own parts](/reference/notifications/#your-own-parts) (in development): Senders, the device store, the history store and the bell can each be replaced by your own, such as a store outside the database.
+- [Table names](/reference/notifications/#table-names) (in development): The built-in stores' schema, tables and columns can be renamed, as auth's users table can.
+- Sending notifications (coming soon): Your code tells a user, or several, about something in the app, and each gets it in the bell and on their devices.
+- Notification history (coming soon): Every notification a user got is kept, read or unread, for the bell to list.
+- Web Push (coming soon): Notifications reach the browsers a user registered, also while the app is closed.
+- Push on Android (coming soon): Notifications reach the Android build of the app on a user's phones.
+- Push on iOS (coming soon): Notifications reach the iOS build of the app on a user's iPhones and iPads.
+- Notification bell (coming soon): A bell in the top bar shows a user's unread notifications and lists the latest.

@@ -38,6 +38,7 @@ export const migrationProject = (project: ProjectConfig, url: string | undefined
     ...(project.auth && { auth: project.auth }),
     ...(project.events && { events: project.events }),
     ...(project.webhooks && { webhooks: project.webhooks }),
+    ...(project.notifications && { notifications: project.notifications }),
     jobs: jobDefinitions(project.jobs ?? {}),
     // The built-in assistant's read-only queries run as a role of their own, which must not read the auth store.
     readOnlyQueries: assistantSettings(project.options?.assistant, process.env)?.kind === 'built-in',

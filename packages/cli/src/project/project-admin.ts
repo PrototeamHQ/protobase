@@ -28,6 +28,7 @@ export const projectAdmin = (project: ProjectConfig & { authenticate: Authentica
     ...(project.events && { events: project.events }),
     ...(project.history && { history: project.history }),
     ...(project.webhooks && { webhooks: project.webhooks }),
+    ...(project.notifications && { notifications: project.notifications }),
     ...(project.mobile && { mobile: project.mobile }),
     ...(project.app && { app: project.app }),
     ...(ui?.icons && { icons: ui.icons }),

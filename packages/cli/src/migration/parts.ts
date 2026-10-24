@@ -1,4 +1,4 @@
-import { authSchemaMigration, changesMigration, commentsMigration, computedMigration, isCaptured, jobsSchemaMigration, queryRunnerMigration, webhooksMigration } from '@protobase/server'
+import { authSchemaMigration, changesMigration, commentsMigration, computedMigration, isCaptured, jobsSchemaMigration, notificationsMigration, queryRunnerMigration, webhooksMigration } from '@protobase/server'
 import { authMigrationTitle } from '../auth/migration-file'
 import type { MigrationProject } from './load-project'
 
@@ -29,5 +29,9 @@ export const migrationParts = (project: MigrationProject): MigrationPart[] => {
       : []),
     ...(comments ? [{ name: 'comments', title: 'The comments table of the resources with comments', sql: () => commentsMigration(project.db) }] : []),
     ...(project.webhooks ? [{ name: 'webhooks', title: 'The webhook subscriptions of webhooks()', sql: () => webhooksMigration(project.db, project.webhooks, project.events) }] : []),
+    // A store of the app's own keeps the devices elsewhere: nothing to write.
+    ...(project.notifications && !project.notifications.store
+      ? [{ name: 'notifications', title: 'The devices table of notifications()', sql: () => notificationsMigration(project.db, project.notifications, project.auth) }]
+      : []),
   ]
 }

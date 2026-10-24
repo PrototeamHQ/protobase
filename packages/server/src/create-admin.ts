@@ -57,6 +57,10 @@ import { createWebhooks } from './webhooks/webhooks'
 import { webhookTable } from './webhooks/table/webhook-table'
 import { subscriptionUrlCheck, subscriptionWriteCheck } from './webhooks/table/validate-hook'
 import type { WebhooksOptions } from './webhooks/table/options'
+import type { NotificationsOptions } from './notifications/options'
+import { deviceStore, removeDevicesWithUsers } from './notifications/device-store-of'
+import { devicesPath } from './notifications/paths'
+import { deviceRoutes } from './notifications/routes'
 import type { SubscriptionDefinition } from './webhooks/subscription'
 import { visitorsBrowse, withAnonymous } from './anonymous'
 import { checkBottomBars, checkShell } from './check-shell'
@@ -132,6 +136,8 @@ export type CreateAdminInput = {
   subscriptions?: SubscriptionDefinition[]
   /** Webhook subscriptions made in the admin app, from `extends: [webhooks()]` (see `WebhooksOptions`). */
   webhooks?: WebhooksOptions
+  /** Each user's devices and the endpoints that register them, from `extends: [notifications()]` (see `NotificationsOptions`). */
+  notifications?: NotificationsOptions
   /**
    * The app's iOS and Android build (see `MobileConfig`): the API answers its Capacitor origins through CORS, and sign-in
    * at `/api/auth` trusts the Capacitor origin a request names, without CORS, as the app calls it through native HTTP.
@@ -178,7 +184,7 @@ const declaredRoles = (auth: AdminAuth | undefined, roles: AdminOptions['roles']
 }
 
 /** The admin REST API as a Hono app. It uses only Web APIs, so it runs on Node, Workers and anywhere else Hono does. */
-export const createAdmin = ({ resources: appResources, views: appViews = [], pages = [], userMenu, bottomBars = [], db, authenticate, auth, functions = {}, files: filesOptions, events, history: historyOptions, jobs = [], subscriptions = [], webhooks: webhooksOptions, mobile, app: identity, icons, bundlePlugins = [], fieldTypes = {}, options = {}, formsDifficulty, commentUsers: givenCommentUsers, verifyToken, upgradeWebSocket }: CreateAdminInput): Admin => {
+export const createAdmin = ({ resources: appResources, views: appViews = [], pages = [], userMenu, bottomBars = [], db, authenticate, auth, functions = {}, files: filesOptions, events, history: historyOptions, jobs = [], subscriptions = [], webhooks: webhooksOptions, notifications, mobile, app: identity, icons, bundlePlugins = [], fieldTypes = {}, options = {}, formsDifficulty, commentUsers: givenCommentUsers, verifyToken, upgradeWebSocket }: CreateAdminInput): Admin => {
   const basePath = options.basePath ?? '/api/v1'
   // Events are delivered, history kept, mentions mailed and AI fields filled by jobs, whose failures the page lists too.
   // Admins list the history as Activity and every comment as Comments.
@@ -349,6 +355,11 @@ export const createAdmin = ({ resources: appResources, views: appViews = [], pag
   app.route('/', batchRoute(deps, authenticate, meta))
   app.route('/', fileRoutes(deps, authenticate))
   // Before the system endpoints, which want a token for everything under them
+  if (notifications) {
+    const devices = deviceStore(db, notifications)
+    if (auth) removeDevicesWithUsers(auth, devices)
+    app.route(devicesPath(systemPath), guarded((routes) => void routes.route('/', deviceRoutes(devices))))
+  }
   if (forms) app.route(`${systemPath}/forms`, formRoutes(deps, forms))
   // The notices are read only while a page or channel listens.
   const feed = tableFeed({ db, schema: changes, report })

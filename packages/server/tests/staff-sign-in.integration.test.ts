@@ -6,6 +6,8 @@ import { defaultSignInPolicy, type SignInPolicy } from '../src/better-auth/sign-
 import { createUser } from '../src/better-auth/users'
 import { createAdmin } from '../src/create-admin'
 import type { MailMessage } from '../src/mail/smtp-mailer'
+import { devicesPath } from '../src/notifications/paths'
+import { memoryDeviceStore } from '../src/notifications/testing/memory-store'
 import { operatorClient, operatorIssuer, permittedStaff, startFakeOperator } from './support/fake-oidc-provider'
 import { expectNoSessionToken } from './support/session-token'
 import { openSnapshotDb, type SnapshotDb } from '../../../test-support/sql-snapshot'
@@ -56,7 +58,9 @@ const serve = async (options: Partial<CreateAuthOptions> = {}) => {
   })
   await createUser(auth, { email: 'root@example.com', password })
   await createUser(auth, { email: 'sanne@example.com', password, role: 'user' })
-  const app = createAdmin({ resources: [], db: appDb, authenticate: betterAuthAuthenticator({ auth }), auth })
+  // Each person's devices, which only they may change.
+  const devices = memoryDeviceStore()
+  const app = createAdmin({ resources: [], db: appDb, authenticate: betterAuthAuthenticator({ auth }), auth, notifications: { store: devices } })
   const address = `203.0.113.${++client}`
   // `at` is the origin the browser is on, for an app with several.
   const request = (path: string, init: { body?: unknown; cookie?: string; at?: string } = {}) =>
@@ -82,7 +86,14 @@ const serve = async (options: Partial<CreateAuthOptions> = {}) => {
     return { url, callback, browser: merge(browser, callback), state, code }
   }
   const staffSignIns = async () => (await (await request('/staff/sign-ins', { cookie: await signIn('root@example.com') })).json()).signIns
-  return { auth, store, sent, operator, request, signIn, savePolicy, staffSignIn, staffSignIns }
+  const tokenOf = async (cookie: string) => ((await (await request('/token', { cookie })).json()) as { token: string }).token
+  const changeDevice = (token: string, method: 'POST' | 'DELETE', id?: string) =>
+    app.request(`${origin}${devicesPath('/api', id)}`, {
+      method,
+      headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json', origin },
+      ...(method === 'POST' && { body: JSON.stringify({ kind: 'fcm', token: 'staff-phone' }) }),
+    })
+  return { auth, store, sent, operator, request, signIn, savePolicy, staffSignIn, staffSignIns, devices, tokenOf, changeDevice }
 }
 
 describe('a staff sign-in through the operator provider', () => {
@@ -262,5 +273,20 @@ describe('the guardrails of a staff sign-in', () => {
     const sanne = await signIn('sanne@example.com')
     expect(await (await request('/staff/session', { cookie: sanne })).json()).toEqual({ staff: null })
     expect((await request('/staff/stop', { cookie: sanne, body: {} })).status).toBe(400)
+  })
+
+  it("cannot register or remove the person's devices", async () => {
+    const { signIn, staffSignIn, devices, tokenOf, changeDevice } = await serve()
+    const own = await tokenOf(await signIn('sanne@example.com'))
+    const registered = await changeDevice(own, 'POST')
+    expect(registered.status).toBe(200)
+    const { id } = (await registered.json()) as { id: string }
+    const before = [...devices.devices.values()]
+
+    const { browser } = await staffSignIn()
+    const staff = await tokenOf(browser)
+    expect((await changeDevice(staff, 'POST')).status).toBe(403)
+    expect((await changeDevice(staff, 'DELETE', id)).status).toBe(403)
+    expect([...devices.devices.values()]).toEqual(before)
   })
 })
