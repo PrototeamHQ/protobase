@@ -459,6 +459,14 @@ Encrypts every plaintext value of the encrypted fields with the current key, enc
 
 Run it at update time, after the migrations and before the new version serves, and again once an old version that wrote plaintext has stopped. It works over one database connection, so a project's own `db` with a pool of one is enough.
 
+## `notifications vapid-keys`
+
+```sh
+protobase notifications vapid-keys
+```
+
+Prints a fresh key pair for [Web Push](notifications.md#web-push) as `PROTOBASE_VAPID_PUBLIC_KEY` and `PROTOBASE_VAPID_PRIVATE_KEY` lines to paste into the environment or `.env`, and says to set `PROTOBASE_VAPID_SUBJECT` too. It reads no project, writes no file and makes no request.
+
 ## `users`
 
 ```sh
