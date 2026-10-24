@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import { protobaseVersion } from '../version/version'
+import { appPluginsCommand } from './app-plugins-hook'
 import { mobileSpec, prepareWorkspace, workspaceDir, workspacePackageJson } from './workspace'
 
 describe('workspaceDir', () => {
@@ -31,7 +32,7 @@ describe('prepareWorkspace', () => {
     dir = mkdtempSync(path.join(tmpdir(), 'protobase-ws-'))
     const calls: string[][] = []
     await prepareWorkspace(dir, packageJson, async (command, args) => void calls.push([command, ...args]))
-    expect(JSON.parse(readFileSync(path.join(dir, 'package.json'), 'utf8'))).toEqual({ private: true, dependencies: { '@protobase/mobile': '0.14.2', '@capacitor/camera': '^8.0.0' } })
+    expect(JSON.parse(readFileSync(path.join(dir, 'package.json'), 'utf8'))).toEqual({ private: true, scripts: { 'capacitor:copy:after': appPluginsCommand, 'capacitor:update:after': appPluginsCommand }, dependencies: { '@protobase/mobile': '0.14.2', '@capacitor/camera': '^8.0.0' } })
     expect(readFileSync(path.join(dir, '.gitignore'), 'utf8')).toBe('*\n')
     expect(calls).toEqual([['npm', 'install', '--install-links', '--no-audit', '--no-fund']])
   })

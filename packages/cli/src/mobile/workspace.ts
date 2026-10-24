@@ -3,6 +3,7 @@ import { mkdir, readFile, rm, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { protobaseFolder } from '../project/protobase-folder'
+import { appPluginsCommand, appPluginsHooks } from './app-plugins-hook'
 import { protobaseVersion } from '../version/version'
 import { checkLocalPins, isUnmet, localPins } from './local-pins'
 import { isLocalSpec } from './local-spec'
@@ -17,9 +18,10 @@ const fromSource = path.extname(import.meta.url) === '.ts'
 /** The @protobase/mobile to install: the CLI's own version, or this repository's package when the CLI runs from source. */
 export const mobileSpec = (source = fromSource) => (source ? `file:${fileURLToPath(new URL('../../../mobile', import.meta.url))}` : protobaseVersion)
 
-/** The workspace's package.json: @protobase/mobile and the project's extra plugins. */
+/** The workspace's package.json: @protobase/mobile, the project's extra plugins and the hooks that keep the app's UI plugins. */
 export const workspacePackageJson = ({ mobileSpec, plugins = {} }: { mobileSpec: string; plugins?: Record<string, string> }) => ({
   private: true,
+  scripts: Object.fromEntries(appPluginsHooks.map((hook) => [hook, appPluginsCommand])),
   dependencies: { '@protobase/mobile': mobileSpec, ...plugins },
 })
 
